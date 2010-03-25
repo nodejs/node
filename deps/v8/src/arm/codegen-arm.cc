@@ -2305,14 +2305,13 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 }
 
 
-void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
+void CodeGenerator::InstantiateFunction(
+    Handle<SharedFunctionInfo> function_info) {
   VirtualFrame::SpilledScope spilled_scope;
-  ASSERT(boilerplate->IsBoilerplate());
-
-  __ mov(r0, Operand(boilerplate));
+  __ mov(r0, Operand(function_info));
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
+  if (scope()->is_function_scope() && function_info->num_literals() == 0) {
     FastNewClosureStub stub;
     frame_->EmitPush(r0);
     frame_->CallStub(&stub, 1);
@@ -2334,27 +2333,27 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ FunctionLiteral");
 
-  // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(node, script(), this);
+  // Build the function info and instantiate it.
+  Handle<SharedFunctionInfo> function_info =
+      Compiler::BuildFunctionInfo(node, script(), this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) {
     ASSERT(frame_->height() == original_height);
     return;
   }
-  InstantiateBoilerplate(boilerplate);
+  InstantiateFunction(function_info);
   ASSERT(frame_->height() == original_height + 1);
 }
 
 
-void CodeGenerator::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
+void CodeGenerator::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
   VirtualFrame::SpilledScope spilled_scope;
-  Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
-  InstantiateBoilerplate(node->boilerplate());
+  Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
+  InstantiateFunction(node->shared_function_info());
   ASSERT(frame_->height() == original_height + 1);
 }
 
@@ -4527,11 +4526,11 @@ void Reference::SetValue(InitState init_state) {
 
 
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
-  // Clone the boilerplate in new space. Set the context to the
-  // current context in cp.
+  // Create a new closure from the given function info in new
+  // space. Set the context to the current context in cp.
   Label gc;
 
-  // Pop the boilerplate function from the stack.
+  // Pop the function info from the stack.
   __ pop(r3);
 
   // Attempt to allocate new JSFunction in new space.
@@ -4549,20 +4548,18 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ ldr(r2, MemOperand(r2, Context::SlotOffset(Context::FUNCTION_MAP_INDEX)));
   __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
 
-  // Clone the rest of the boilerplate fields. We don't have to update
-  // the write barrier because the allocated object is in new space.
-  for (int offset = kPointerSize;
-       offset < JSFunction::kSize;
-       offset += kPointerSize) {
-    if (offset == JSFunction::kContextOffset) {
-      __ str(cp, FieldMemOperand(r0, offset));
-    } else {
-      __ ldr(r1, FieldMemOperand(r3, offset));
-      __ str(r1, FieldMemOperand(r0, offset));
-    }
-  }
+  // Initialize the rest of the function. We don't have to update the
+  // write barrier because the allocated object is in new space.
+  __ LoadRoot(r1, Heap::kEmptyFixedArrayRootIndex);
+  __ LoadRoot(r2, Heap::kTheHoleValueRootIndex);
+  __ str(r1, FieldMemOperand(r0, JSObject::kPropertiesOffset));
+  __ str(r1, FieldMemOperand(r0, JSObject::kElementsOffset));
+  __ str(r2, FieldMemOperand(r0, JSFunction::kPrototypeOrInitialMapOffset));
+  __ str(r3, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
+  __ str(cp, FieldMemOperand(r0, JSFunction::kContextOffset));
+  __ str(r1, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
 
-  // Return result. The argument boilerplate has been popped already.
+  // Return result. The argument function info has been popped already.
   __ Ret();
 
   // Create a new closure through the slower runtime call.
@@ -4685,42 +4682,6 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 }
 
 
-// Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
-// instruction.  On pre-ARM5 hardware this routine gives the wrong answer for 0
-// (31 instead of 32).
-static void CountLeadingZeros(
-    MacroAssembler* masm,
-    Register source,
-    Register scratch,
-    Register zeros) {
-#ifdef CAN_USE_ARMV5_INSTRUCTIONS
-  __ clz(zeros, source);  // This instruction is only supported after ARM5.
-#else
-  __ mov(zeros, Operand(0));
-  __ mov(scratch, source);
-  // Top 16.
-  __ tst(scratch, Operand(0xffff0000));
-  __ add(zeros, zeros, Operand(16), LeaveCC, eq);
-  __ mov(scratch, Operand(scratch, LSL, 16), LeaveCC, eq);
-  // Top 8.
-  __ tst(scratch, Operand(0xff000000));
-  __ add(zeros, zeros, Operand(8), LeaveCC, eq);
-  __ mov(scratch, Operand(scratch, LSL, 8), LeaveCC, eq);
-  // Top 4.
-  __ tst(scratch, Operand(0xf0000000));
-  __ add(zeros, zeros, Operand(4), LeaveCC, eq);
-  __ mov(scratch, Operand(scratch, LSL, 4), LeaveCC, eq);
-  // Top 2.
-  __ tst(scratch, Operand(0xc0000000));
-  __ add(zeros, zeros, Operand(2), LeaveCC, eq);
-  __ mov(scratch, Operand(scratch, LSL, 2), LeaveCC, eq);
-  // Top bit.
-  __ tst(scratch, Operand(0x80000000u));
-  __ add(zeros, zeros, Operand(1), LeaveCC, eq);
-#endif
-}
-
-
 // Takes a Smi and converts to an IEEE 64 bit floating point value in two
 // registers.  The format is 1 sign bit, 11 exponent bits (biased 1023) and
 // 52 fraction bits (20 in the first word, 32 in the second).  Zeros is a
@@ -4784,25 +4745,27 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   __ and_(exponent, source_, Operand(HeapNumber::kSignMask), SetCC);
   // Subtract from 0 if source was negative.
   __ rsb(source_, source_, Operand(0), LeaveCC, ne);
+
+  // We have -1, 0 or 1, which we treat specially. Register source_ contains
+  // absolute value: it is either equal to 1 (special case of -1 and 1),
+  // greater than 1 (not a special case) or less than 1 (special case of 0).
   __ cmp(source_, Operand(1));
   __ b(gt, &not_special);
 
-  // We have -1, 0 or 1, which we treat specially.
-  __ cmp(source_, Operand(0));
   // For 1 or -1 we need to or in the 0 exponent (biased to 1023).
   static const uint32_t exponent_word_for_1 =
       HeapNumber::kExponentBias << HeapNumber::kExponentShift;
-  __ orr(exponent, exponent, Operand(exponent_word_for_1), LeaveCC, ne);
+  __ orr(exponent, exponent, Operand(exponent_word_for_1), LeaveCC, eq);
   // 1, 0 and -1 all have 0 for the second word.
   __ mov(mantissa, Operand(0));
   __ Ret();
 
   __ bind(&not_special);
-  // Count leading zeros.  Uses result2 for a scratch register on pre-ARM5.
+  // Count leading zeros.  Uses mantissa for a scratch register on pre-ARM5.
   // Gets the wrong answer for 0, but we already checked for that case above.
-  CountLeadingZeros(masm, source_, mantissa, zeros_);
+  __ CountLeadingZeros(source_, mantissa, zeros_);
   // Compute exponent and or it into the exponent register.
-  // We use result2 as a scratch register here.
+  // We use mantissa as a scratch register here.
   __ rsb(mantissa, zeros_, Operand(31 + HeapNumber::kExponentBias));
   __ orr(exponent,
          exponent,
@@ -4819,45 +4782,6 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
          Operand(source_, LSR, 32 - HeapNumber::kMantissaBitsInTopWord));
   __ Ret();
 }
-
-
-// This stub can convert a signed int32 to a heap number (double).  It does
-// not work for int32s that are in Smi range!  No GC occurs during this stub
-// so you don't have to set up the frame.
-class WriteInt32ToHeapNumberStub : public CodeStub {
- public:
-  WriteInt32ToHeapNumberStub(Register the_int,
-                             Register the_heap_number,
-                             Register scratch)
-      : the_int_(the_int),
-        the_heap_number_(the_heap_number),
-        scratch_(scratch) { }
-
- private:
-  Register the_int_;
-  Register the_heap_number_;
-  Register scratch_;
-
-  // Minor key encoding in 16 bits.
-  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 14> {};
-
-  Major MajorKey() { return WriteInt32ToHeapNumber; }
-  int MinorKey() {
-    // Encode the parameters in a unique 16 bit value.
-    return  the_int_.code() +
-           (the_heap_number_.code() << 4) +
-           (scratch_.code() << 8);
-  }
-
-  void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "WriteInt32ToHeapNumberStub"; }
-
-#ifdef DEBUG
-  void Print() { PrintF("WriteInt32ToHeapNumberStub\n"); }
-#endif
-};
 
 
 // See comment for class.
@@ -5042,7 +4966,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     CpuFeatures::Scope scope(VFP3);
     __ mov(r7, Operand(r1, ASR, kSmiTagSize));
     __ vmov(s15, r7);
-    __ vcvt(d7, s15);
+    __ vcvt_f64_s32(d7, s15);
     // Load the double from rhs, tagged HeapNumber r0, to d6.
     __ sub(r7, r0, Operand(kHeapObjectTag));
     __ vldr(d6, r7, HeapNumber::kValueOffset);
@@ -5085,7 +5009,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     __ vldr(d7, r7, HeapNumber::kValueOffset);
     __ mov(r7, Operand(r0, ASR, kSmiTagSize));
     __ vmov(s13, r7);
-    __ vcvt(d6, s13);
+    __ vcvt_f64_s32(d6, s13);
   } else {
     __ push(lr);
     // Load lhs to a double in r2, r3.
@@ -5494,29 +5418,6 @@ void CompareStub::Generate(MacroAssembler* masm) {
 }
 
 
-// Allocates a heap number or jumps to the label if the young space is full and
-// a scavenge is needed.
-static void AllocateHeapNumber(
-    MacroAssembler* masm,
-    Label* need_gc,       // Jump here if young space is full.
-    Register result,  // The tagged address of the new heap number.
-    Register scratch1,  // A scratch register.
-    Register scratch2) {  // Another scratch register.
-  // Allocate an object in the heap for the heap number and tag it as a heap
-  // object.
-  __ AllocateInNewSpace(HeapNumber::kSize / kPointerSize,
-                        result,
-                        scratch1,
-                        scratch2,
-                        need_gc,
-                        TAG_OBJECT);
-
-  // Get heap number map and store it in the allocated object.
-  __ LoadRoot(scratch1, Heap::kHeapNumberMapRootIndex);
-  __ str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
-}
-
-
 // We fall into this code if the operands were Smis, but the result was
 // not (eg. overflow).  We branch into this code (to the not_smi label) if
 // the operands were not both Smi.  The operands are in r0 and r1.  In order
@@ -5533,7 +5434,7 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // Smi-smi case (overflow).
   // Since both are Smis there is no heap number to overwrite, so allocate.
   // The new heap number is in r5.  r6 and r7 are scratch.
-  AllocateHeapNumber(masm, &slow, r5, r6, r7);
+  __ AllocateHeapNumber(r5, r6, r7, &slow);
 
   // If we have floating point hardware, inline ADD, SUB, MUL, and DIV,
   // using registers d7 and d6 for the double values.
@@ -5543,10 +5444,10 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     CpuFeatures::Scope scope(VFP3);
     __ mov(r7, Operand(r0, ASR, kSmiTagSize));
     __ vmov(s15, r7);
-    __ vcvt(d7, s15);
+    __ vcvt_f64_s32(d7, s15);
     __ mov(r7, Operand(r1, ASR, kSmiTagSize));
     __ vmov(s13, r7);
-    __ vcvt(d6, s13);
+    __ vcvt_f64_s32(d6, s13);
   } else {
     // Write Smi from r0 to r3 and r2 in double format.  r6 is scratch.
     __ mov(r7, Operand(r0));
@@ -5628,7 +5529,7 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   if (mode == NO_OVERWRITE) {
     // In the case where there is no chance of an overwritable float we may as
     // well do the allocation immediately while r0 and r1 are untouched.
-    AllocateHeapNumber(masm, &slow, r5, r6, r7);
+    __ AllocateHeapNumber(r5, r6, r7, &slow);
   }
 
   // Move r0 to a double in r2-r3.
@@ -5653,7 +5554,7 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   __ bind(&r0_is_smi);
   if (mode == OVERWRITE_RIGHT) {
     // We can't overwrite a Smi so get address of new heap number into r5.
-    AllocateHeapNumber(masm, &slow, r5, r6, r7);
+    __ AllocateHeapNumber(r5, r6, r7, &slow);
   }
 
   if (use_fp_registers) {
@@ -5661,7 +5562,7 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     // Convert smi in r0 to double in d7.
     __ mov(r7, Operand(r0, ASR, kSmiTagSize));
     __ vmov(s15, r7);
-    __ vcvt(d7, s15);
+    __ vcvt_f64_s32(d7, s15);
   } else {
     // Write Smi from r0 to r3 and r2 in double format.
     __ mov(r7, Operand(r0));
@@ -5695,7 +5596,7 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   __ bind(&r1_is_smi);
   if (mode == OVERWRITE_LEFT) {
     // We can't overwrite a Smi so get address of new heap number into r5.
-    AllocateHeapNumber(masm, &slow, r5, r6, r7);
+    __ AllocateHeapNumber(r5, r6, r7, &slow);
   }
 
   if (use_fp_registers) {
@@ -5703,7 +5604,7 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     // Convert smi in r1 to double in d6.
     __ mov(r7, Operand(r1, ASR, kSmiTagSize));
     __ vmov(s13, r7);
-    __ vcvt(d6, s13);
+    __ vcvt_f64_s32(d6, s13);
   } else {
     // Write Smi from r1 to r1 and r0 in double format.
     __ mov(r7, Operand(r1));
@@ -5830,7 +5731,7 @@ static void GetInt32(MacroAssembler* masm,
     // conversion using round to zero.
     __ ldr(scratch2, FieldMemOperand(source, HeapNumber::kMantissaOffset));
     __ vmov(d7, scratch2, scratch);
-    __ vcvt(s15, d7);
+    __ vcvt_s32_f64(s15, d7);
     __ vmov(dest, s15);
   } else {
     // Get the top bits of the mantissa.
@@ -5942,7 +5843,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm) {
     }
     case NO_OVERWRITE: {
       // Get a new heap number in r5.  r6 and r7 are scratch.
-      AllocateHeapNumber(masm, &slow, r5, r6, r7);
+      __ AllocateHeapNumber(r5, r6, r7, &slow);
     }
     default: break;
   }
@@ -5962,7 +5863,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm) {
   if (mode_ != NO_OVERWRITE) {
     __ bind(&have_to_allocate);
     // Get a new heap number in r5.  r6 and r7 are scratch.
-    AllocateHeapNumber(masm, &slow, r5, r6, r7);
+    __ AllocateHeapNumber(r5, r6, r7, &slow);
     __ jmp(&got_a_heap_number);
   }
 
@@ -6380,7 +6281,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ eor(r2, r2, Operand(HeapNumber::kSignMask));  // Flip sign.
       __ str(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
     } else {
-      AllocateHeapNumber(masm, &slow, r1, r2, r3);
+      __ AllocateHeapNumber(r1, r2, r3, &slow);
       __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
       __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
       __ str(r3, FieldMemOperand(r1, HeapNumber::kMantissaOffset));
@@ -6410,7 +6311,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       // Allocate a fresh heap number, but don't overwrite r0 until
       // we're sure we can do it without going through the slow case
       // that needs the value in r0.
-      AllocateHeapNumber(masm, &slow, r2, r3, r4);
+      __ AllocateHeapNumber(r2, r3, r4, &slow);
       __ mov(r0, Operand(r2));
     }
 
@@ -7117,53 +7018,59 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 }
 
 
+// Unfortunately you have to run without snapshots to see most of these
+// names in the profile since most compare stubs end up in the snapshot.
 const char* CompareStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+
+  const char* cc_name;
   switch (cc_) {
-    case lt: return "CompareStub_LT";
-    case gt: return "CompareStub_GT";
-    case le: return "CompareStub_LE";
-    case ge: return "CompareStub_GE";
-    case ne: {
-      if (strict_) {
-        if (never_nan_nan_) {
-          return "CompareStub_NE_STRICT_NO_NAN";
-        } else {
-          return "CompareStub_NE_STRICT";
-        }
-      } else {
-        if (never_nan_nan_) {
-          return "CompareStub_NE_NO_NAN";
-        } else {
-          return "CompareStub_NE";
-        }
-      }
-    }
-    case eq: {
-      if (strict_) {
-        if (never_nan_nan_) {
-          return "CompareStub_EQ_STRICT_NO_NAN";
-        } else {
-          return "CompareStub_EQ_STRICT";
-        }
-      } else {
-        if (never_nan_nan_) {
-          return "CompareStub_EQ_NO_NAN";
-        } else {
-          return "CompareStub_EQ";
-        }
-      }
-    }
-    default: return "CompareStub";
+    case lt: cc_name = "LT"; break;
+    case gt: cc_name = "GT"; break;
+    case le: cc_name = "LE"; break;
+    case ge: cc_name = "GE"; break;
+    case eq: cc_name = "EQ"; break;
+    case ne: cc_name = "NE"; break;
+    default: cc_name = "UnknownCondition"; break;
   }
+
+  const char* strict_name = "";
+  if (strict_ && (cc_ == eq || cc_ == ne)) {
+    strict_name = "_STRICT";
+  }
+
+  const char* never_nan_nan_name = "";
+  if (never_nan_nan_ && (cc_ == eq || cc_ == ne)) {
+    never_nan_nan_name = "_NO_NAN";
+  }
+
+  const char* include_number_compare_name = "";
+  if (!include_number_compare_) {
+    include_number_compare_name = "_NO_NUMBER";
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "CompareStub_%s%s%s%s",
+               cc_name,
+               strict_name,
+               never_nan_nan_name,
+               include_number_compare_name);
+  return name_;
 }
 
 
 int CompareStub::MinorKey() {
-  // Encode the three parameters in a unique 16 bit value.
-  ASSERT((static_cast<unsigned>(cc_) >> 26) < (1 << 16));
-  int nnn_value = (never_nan_nan_ ? 2 : 0);
-  if (cc_ != eq) nnn_value = 0;  // Avoid duplicate stubs.
-  return (static_cast<unsigned>(cc_) >> 26) | nnn_value | (strict_ ? 1 : 0);
+  // Encode the three parameters in a unique 16 bit value. To avoid duplicate
+  // stubs the never NaN NaN condition is only taken into account if the
+  // condition is equals.
+  ASSERT((static_cast<unsigned>(cc_) >> 28) < (1 << 13));
+  return ConditionField::encode(static_cast<unsigned>(cc_) >> 28)
+         | StrictField::encode(strict_)
+         | NeverNanNanField::encode(cc_ == eq ? never_nan_nan_ : false)
+         | IncludeNumberCompareField::encode(include_number_compare_);
 }
 
 

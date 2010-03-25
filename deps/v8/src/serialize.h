@@ -120,28 +120,9 @@ class SnapshotByteSource {
     return data_[position_++];
   }
 
-  void CopyRaw(byte* to, int number_of_bytes) {
-    memcpy(to, data_ + position_, number_of_bytes);
-    position_ += number_of_bytes;
-  }
+  inline void CopyRaw(byte* to, int number_of_bytes);
 
-  int GetInt() {
-    // A little unwind to catch the really small ints.
-    int snapshot_byte = Get();
-    if ((snapshot_byte & 0x80) == 0) {
-      return snapshot_byte;
-    }
-    int accumulator = (snapshot_byte & 0x7f) << 7;
-    while (true) {
-      snapshot_byte = Get();
-      if ((snapshot_byte & 0x80) == 0) {
-        return accumulator | snapshot_byte;
-      }
-      accumulator = (accumulator | (snapshot_byte & 0x7f)) << 7;
-    }
-    UNREACHABLE();
-    return accumulator;
-  }
+  inline int GetInt();
 
   bool AtEOF() {
     return position_ == length_;
@@ -235,10 +216,34 @@ class SerializerDeserializer: public ObjectVisitor {
   }
 
   static int partial_snapshot_cache_length_;
-  static const int kPartialSnapshotCacheCapacity = 1024;
+  static const int kPartialSnapshotCacheCapacity = 1300;
   static Object* partial_snapshot_cache_[];
 };
 
+
+int SnapshotByteSource::GetInt() {
+  // A little unwind to catch the really small ints.
+  int snapshot_byte = Get();
+  if ((snapshot_byte & 0x80) == 0) {
+    return snapshot_byte;
+  }
+  int accumulator = (snapshot_byte & 0x7f) << 7;
+  while (true) {
+    snapshot_byte = Get();
+    if ((snapshot_byte & 0x80) == 0) {
+      return accumulator | snapshot_byte;
+    }
+    accumulator = (accumulator | (snapshot_byte & 0x7f)) << 7;
+  }
+  UNREACHABLE();
+  return accumulator;
+}
+
+
+void SnapshotByteSource::CopyRaw(byte* to, int number_of_bytes) {
+  memcpy(to, data_ + position_, number_of_bytes);
+  position_ += number_of_bytes;
+}
 
 
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
@@ -364,6 +369,7 @@ class SerializationAddressMapper {
 class Serializer : public SerializerDeserializer {
  public:
   explicit Serializer(SnapshotByteSink* sink);
+  ~Serializer();
   void VisitPointers(Object** start, Object** end);
   // You can call this after serialization to find out how much space was used
   // in each space.
@@ -492,7 +498,12 @@ class PartialSerializer : public Serializer {
   virtual int RootIndex(HeapObject* o);
   virtual int PartialSnapshotCacheIndex(HeapObject* o);
   virtual bool ShouldBeInThePartialSnapshotCache(HeapObject* o) {
-    return o->IsString() || o->IsSharedFunctionInfo();
+    // Scripts should be referred only through shared function infos.  We can't
+    // allow them to be part of the partial snapshot because they contain a
+    // unique ID, and deserializing several partial snapshots containing script
+    // would cause dupes.
+    ASSERT(!o->IsScript());
+    return o->IsString() || o->IsSharedFunctionInfo() || o->IsHeapNumber();
   }
 
  private:
@@ -529,6 +540,7 @@ class StartupSerializer : public Serializer {
     return false;
   }
 };
+
 
 } }  // namespace v8::internal
 

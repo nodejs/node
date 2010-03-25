@@ -527,8 +527,8 @@ class CodeGenerator: public AstVisitor {
   // name/value pairs.
   void DeclareGlobals(Handle<FixedArray> pairs);
 
-  // Instantiate the function boilerplate.
-  void InstantiateBoilerplate(Handle<JSFunction> boilerplate);
+  // Instantiate the function based on the shared function info.
+  void InstantiateFunction(Handle<SharedFunctionInfo> function_info);
 
   // Support for type checks.
   void GenerateIsSmi(ZoneList<Expression*>* args);
@@ -667,7 +667,7 @@ class GenericBinaryOpStub: public CodeStub {
   GenericBinaryOpStub(Token::Value op,
                       OverwriteMode mode,
                       GenericBinaryFlags flags,
-                      NumberInfo operands_type = NumberInfo::Unknown())
+                      TypeInfo operands_type = TypeInfo::Unknown())
       : op_(op),
         mode_(mode),
         flags_(flags),
@@ -687,7 +687,7 @@ class GenericBinaryOpStub: public CodeStub {
         args_in_registers_(ArgsInRegistersBits::decode(key)),
         args_reversed_(ArgsReversedBits::decode(key)),
         use_sse3_(SSE3Bits::decode(key)),
-        static_operands_type_(NumberInfo::ExpandedRepresentation(
+        static_operands_type_(TypeInfo::ExpandedRepresentation(
             StaticTypeInfoBits::decode(key))),
         runtime_operands_type_(type_info),
         name_(NULL) {
@@ -714,7 +714,7 @@ class GenericBinaryOpStub: public CodeStub {
   bool use_sse3_;
 
   // Number type information of operands, determined by code generator.
-  NumberInfo static_operands_type_;
+  TypeInfo static_operands_type_;
 
   // Operand type information determined at runtime.
   BinaryOpIC::TypeInfo runtime_operands_type_;

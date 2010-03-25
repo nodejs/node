@@ -826,6 +826,12 @@ class Assembler : public Malloced {
             const Register base,
             int offset,  // Offset must be a multiple of 4.
             const Condition cond = al);
+
+  void vldr(const SwVfpRegister dst,
+            const Register base,
+            int offset,  // Offset must be a multiple of 4.
+            const Condition cond = al);
+
   void vstr(const DwVfpRegister src,
             const Register base,
             int offset,  // Offset must be a multiple of 4.
@@ -844,12 +850,27 @@ class Assembler : public Malloced {
   void vmov(const Register dst,
             const SwVfpRegister src,
             const Condition cond = al);
-  void vcvt(const DwVfpRegister dst,
-            const SwVfpRegister src,
-            const Condition cond = al);
-  void vcvt(const SwVfpRegister dst,
-            const DwVfpRegister src,
-            const Condition cond = al);
+  void vcvt_f64_s32(const DwVfpRegister dst,
+                    const SwVfpRegister src,
+                    const Condition cond = al);
+  void vcvt_f32_s32(const SwVfpRegister dst,
+                    const SwVfpRegister src,
+                    const Condition cond = al);
+  void vcvt_f64_u32(const DwVfpRegister dst,
+                    const SwVfpRegister src,
+                    const Condition cond = al);
+  void vcvt_s32_f64(const SwVfpRegister dst,
+                    const DwVfpRegister src,
+                    const Condition cond = al);
+  void vcvt_u32_f64(const SwVfpRegister dst,
+                    const DwVfpRegister src,
+                    const Condition cond = al);
+  void vcvt_f64_f32(const DwVfpRegister dst,
+                    const SwVfpRegister src,
+                    const Condition cond = al);
+  void vcvt_f32_f64(const SwVfpRegister dst,
+                    const DwVfpRegister src,
+                    const Condition cond = al);
 
   void vadd(const DwVfpRegister dst,
             const DwVfpRegister src1,

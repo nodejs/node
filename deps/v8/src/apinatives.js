@@ -31,7 +31,7 @@
 
 
 function CreateDate(time) {
-  var date = new ORIGINAL_DATE();
+  var date = new $Date();
   date.setTime(time);
   return date;
 }

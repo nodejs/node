@@ -40,7 +40,6 @@ test-api/ApplyInterruption: PASS || TIMEOUT
 test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
-
 [ $arch == arm ]
 
 # BUG(240): Test seems flaky on ARM.
@@ -60,6 +59,7 @@ test-accessors: SKIP
 test-alloc: SKIP
 test-api: SKIP
 test-compiler: SKIP
+test-cpu-profiler: SKIP
 test-debug: SKIP
 test-decls: SKIP
 test-func-name-inference: SKIP

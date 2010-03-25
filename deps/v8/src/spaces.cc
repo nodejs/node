@@ -2749,6 +2749,9 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
 
 bool LargeObjectSpace::Contains(HeapObject* object) {
   Address address = object->address();
+  if (Heap::new_space()->Contains(address)) {
+    return false;
+  }
   Page* page = Page::FromAddress(address);
 
   SLOW_ASSERT(!page->IsLargeObjectPage()

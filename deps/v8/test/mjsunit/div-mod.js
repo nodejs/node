@@ -169,3 +169,24 @@ function compute_mod(dividend, divisor) {
   assertEquals(somenum, somenum % -0x40000000, "%minsmi-32");
   assertEquals(somenum, somenum % -0x80000000, "%minsmi-64");
 })();
+
+
+// Side-effect-free expressions containing bit operations use
+// an optimized compiler with int32 values.   Ensure that modulus
+// produces negative zeros correctly.
+function negative_zero_modulus_test() {
+  var x = 4;
+  var y = -4;
+  x = x + x - x;
+  y = y + y - y;
+  var z = (y | y | y | y) % x;
+  assertEquals(-1 / 0, 1 / z);
+  z = (x | x | x | x) % x;
+  assertEquals(1 / 0, 1 / z);
+  z = (y | y | y | y) % y;
+  assertEquals(-1 / 0, 1 / z);
+  z = (x | x | x | x) % y;
+  assertEquals(1 / 0, 1 / z);
+}
+
+negative_zero_modulus_test();

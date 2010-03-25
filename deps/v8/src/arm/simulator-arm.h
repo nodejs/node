@@ -231,6 +231,11 @@ class Simulator {
   void DecodeTypeVFP(Instr* instr);
   void DecodeType6CoprocessorIns(Instr* instr);
 
+  void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instr* instr);
+  void DecodeVCMP(Instr* instr);
+  void DecodeVCVTBetweenDoubleAndSingle(Instr* instr);
+  void DecodeVCVTBetweenFloatingPointAndInteger(Instr* instr);
+
   // Executes one instruction.
   void InstructionDecode(Instr* instr);
 

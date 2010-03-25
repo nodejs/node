@@ -49,8 +49,8 @@ static v8::Persistent<v8::Context> env;
 
 // The test framework does not accept flags on the command line, so we set them.
 static void InitializeVM() {
-  // Disable compilation of natives by specifying an empty natives file.
-  FLAG_natives_file = "";
+  // Disable compilation of natives.
+  FLAG_disable_native_files = true;
 
   // Enable generation of comments.
   FLAG_debug_code = true;

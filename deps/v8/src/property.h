@@ -239,15 +239,6 @@ class LookupResult BASE_EMBEDDED {
   bool IsCacheable() { return cacheable_; }
   void DisallowCaching() { cacheable_ = false; }
 
-  // Tells whether the value needs to be loaded.
-  bool IsLoaded() {
-    if (lookup_type_ == DESCRIPTOR_TYPE || lookup_type_ == DICTIONARY_TYPE) {
-      Object* target = GetLazyValue();
-      return !target->IsJSObject() || JSObject::cast(target)->IsLoaded();
-    }
-    return true;
-  }
-
   Object* GetLazyValue() {
     switch (type()) {
       case FIELD:

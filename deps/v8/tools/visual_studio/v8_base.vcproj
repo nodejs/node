@@ -237,6 +237,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\cached-powers.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\char-predicates-inl.h"
 				>
 			</File>
@@ -405,6 +409,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\diy-fp.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\diy-fp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\double.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\execution.cc"
 				>
 			</File>
@@ -432,6 +448,14 @@
                                 RelativePath="..\..\src\fast-codegen.h"
                                 >
                         </File>
+			<File
+				RelativePath="..\..\src\fast-dtoa.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\fast-dtoa.h"
+				>
+			</File>
 			<File
 				RelativePath="..\..\src\flags.cc"
 				>
@@ -577,11 +601,19 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\jump-target-heavy-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\jump-target.cc"
 				>
 			</File>
 			<File
 				RelativePath="..\..\src\ia32\jump-target-ia32.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jump-target-heavy.cc"
 				>
 			</File>
 			<File
@@ -662,10 +694,6 @@
 			</File>
 			<File
 				RelativePath="..\..\src\natives.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\number-info.h"
 				>
 			</File>
 			<File
@@ -909,6 +937,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\type-info-inl.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\type-info.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\unicode-inl.h"
 				>
 			</File>
@@ -969,6 +1005,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\virtual-frame-heavy-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\virtual-frame.h"
 				>
 			</File>
@@ -982,6 +1022,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\ia32\virtual-frame-ia32.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame-heavy.cc"
 				>
 			</File>
 			<File

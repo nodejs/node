@@ -40,17 +40,17 @@ class CompilationCache {
   // Finds the script function boilerplate for a source
   // string. Returns an empty handle if the cache doesn't contain a
   // script for the given source string with the right origin.
-  static Handle<JSFunction> LookupScript(Handle<String> source,
-                                         Handle<Object> name,
-                                         int line_offset,
-                                         int column_offset);
+  static Handle<SharedFunctionInfo> LookupScript(Handle<String> source,
+                                                 Handle<Object> name,
+                                                 int line_offset,
+                                                 int column_offset);
 
   // Finds the function boilerplate for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
   // contain a script for the given source string.
-  static Handle<JSFunction> LookupEval(Handle<String> source,
-                                       Handle<Context> context,
-                                       bool is_global);
+  static Handle<SharedFunctionInfo> LookupEval(Handle<String> source,
+                                               Handle<Context> context,
+                                               bool is_global);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
@@ -60,14 +60,14 @@ class CompilationCache {
   // Associate the (source, kind) pair to the boilerplate. This may
   // overwrite an existing mapping.
   static void PutScript(Handle<String> source,
-                        Handle<JSFunction> boilerplate);
+                        Handle<SharedFunctionInfo> function_info);
 
   // Associate the (source, context->closure()->shared(), kind) triple
   // with the boilerplate. This may overwrite an existing mapping.
   static void PutEval(Handle<String> source,
                       Handle<Context> context,
                       bool is_global,
-                      Handle<JSFunction> boilerplate);
+                      Handle<SharedFunctionInfo> function_info);
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.

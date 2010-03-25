@@ -98,6 +98,9 @@ size_t Heap::code_range_size_ = 0;
 // set up by ConfigureHeap otherwise.
 int Heap::reserved_semispace_size_ = Heap::max_semispace_size_;
 
+List<Heap::GCPrologueCallbackPair> Heap::gc_prologue_callbacks_;
+List<Heap::GCEpilogueCallbackPair> Heap::gc_epilogue_callbacks_;
+
 GCCallback Heap::global_gc_prologue_callback_ = NULL;
 GCCallback Heap::global_gc_epilogue_callback_ = NULL;
 
@@ -114,7 +117,7 @@ Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 int Heap::mc_count_ = 0;
 int Heap::gc_count_ = 0;
 
-int Heap::unflattended_strings_length_ = 0;
+int Heap::unflattened_strings_length_ = 0;
 
 int Heap::always_allocate_scope_depth_ = 0;
 int Heap::linear_allocation_scope_depth_ = 0;
@@ -304,7 +307,7 @@ void Heap::ReportStatisticsAfterGC() {
 void Heap::GarbageCollectionPrologue() {
   TranscendentalCache::Clear();
   gc_count_++;
-  unflattended_strings_length_ = 0;
+  unflattened_strings_length_ = 0;
 #ifdef DEBUG
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   allow_allocation(false);
@@ -547,6 +550,16 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     GCTracer::ExternalScope scope(tracer);
     global_gc_prologue_callback_();
   }
+
+  GCType gc_type =
+      collector == MARK_COMPACTOR ? kGCTypeMarkSweepCompact : kGCTypeScavenge;
+
+  for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
+    if (gc_type & gc_prologue_callbacks_[i].gc_type) {
+      gc_prologue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
+    }
+  }
+
   EnsureFromSpaceIsCommitted();
 
   // Perform mark-sweep with optional compaction.
@@ -583,6 +596,15 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     // Register the amount of external allocated memory.
     amount_of_external_allocated_memory_at_last_global_gc_ =
         amount_of_external_allocated_memory_;
+  }
+
+  GCCallbackFlags callback_flags = tracer->is_compacting()
+      ? kGCCallbackFlagCompacted
+      : kNoGCCallbackFlags;
+  for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
+    if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
+      gc_epilogue_callbacks_[i].callback(gc_type, callback_flags);
+    }
   }
 
   if (collector == MARK_COMPACTOR && global_gc_epilogue_callback_) {
@@ -1269,7 +1291,7 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_oddball_map(Map::cast(obj));
 
-  // Allocate the empty array
+  // Allocate the empty array.
   obj = AllocateEmptyFixedArray();
   if (obj->IsFailure()) return false;
   set_empty_fixed_array(FixedArray::cast(obj));
@@ -1415,7 +1437,8 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_boilerplate_function_map(Map::cast(obj));
 
-  obj = AllocateMap(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kSize);
+  obj = AllocateMap(SHARED_FUNCTION_INFO_TYPE,
+                    SharedFunctionInfo::kAlignedSize);
   if (obj->IsFailure()) return false;
   set_shared_function_info_map(Map::cast(obj));
 
@@ -2625,7 +2648,7 @@ Object* Heap::CopyJSObject(JSObject* source) {
     // Update write barrier for all fields that lie beyond the header.
     RecordWrites(clone_address,
                  JSObject::kHeaderSize,
-                 object_size - JSObject::kHeaderSize);
+                 (object_size - JSObject::kHeaderSize) / kPointerSize);
   } else {
     clone = new_space_.AllocateRaw(object_size);
     if (clone->IsFailure()) return clone;
@@ -3784,6 +3807,46 @@ void Heap::Unprotect() {
 }
 
 #endif
+
+
+void Heap::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
+  ASSERT(callback != NULL);
+  GCPrologueCallbackPair pair(callback, gc_type);
+  ASSERT(!gc_prologue_callbacks_.Contains(pair));
+  return gc_prologue_callbacks_.Add(pair);
+}
+
+
+void Heap::RemoveGCPrologueCallback(GCPrologueCallback callback) {
+  ASSERT(callback != NULL);
+  for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
+    if (gc_prologue_callbacks_[i].callback == callback) {
+      gc_prologue_callbacks_.Remove(i);
+      return;
+    }
+  }
+  UNREACHABLE();
+}
+
+
+void Heap::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
+  ASSERT(callback != NULL);
+  GCEpilogueCallbackPair pair(callback, gc_type);
+  ASSERT(!gc_epilogue_callbacks_.Contains(pair));
+  return gc_epilogue_callbacks_.Add(pair);
+}
+
+
+void Heap::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
+  ASSERT(callback != NULL);
+  for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
+    if (gc_epilogue_callbacks_[i].callback == callback) {
+      gc_epilogue_callbacks_.Remove(i);
+      return;
+    }
+  }
+  UNREACHABLE();
+}
 
 
 #ifdef DEBUG

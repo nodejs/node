@@ -59,4 +59,24 @@ bool Snapshot::Initialize(const char* snapshot_file) {
   return false;
 }
 
+
+Handle<Context> Snapshot::NewContextFromSnapshot() {
+  if (context_size_ == 0) {
+    return Handle<Context>();
+  }
+  Heap::ReserveSpace(new_space_used_,
+                     pointer_space_used_,
+                     data_space_used_,
+                     code_space_used_,
+                     map_space_used_,
+                     cell_space_used_,
+                     large_space_used_);
+  SnapshotByteSource source(context_data_, context_size_);
+  Deserializer deserializer(&source);
+  Object* root;
+  deserializer.DeserializePartial(&root);
+  CHECK(root->IsContext());
+  return Handle<Context>(Context::cast(root));
+}
+
 } }  // namespace v8::internal

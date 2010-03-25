@@ -108,6 +108,7 @@ class ZoneScopeInfo;
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
   V(Object, last_script_id, LastScriptId)                                      \
+  V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
 
 #if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
@@ -673,10 +674,20 @@ class Heap : public AllStatic {
   static bool GarbageCollectionGreedyCheck();
 #endif
 
+  static void AddGCPrologueCallback(
+      GCEpilogueCallback callback, GCType gc_type_filter);
+  static void RemoveGCPrologueCallback(GCEpilogueCallback callback);
+
+  static void AddGCEpilogueCallback(
+      GCEpilogueCallback callback, GCType gc_type_filter);
+  static void RemoveGCEpilogueCallback(GCEpilogueCallback callback);
+
   static void SetGlobalGCPrologueCallback(GCCallback callback) {
+    ASSERT((callback == NULL) ^ (global_gc_prologue_callback_ == NULL));
     global_gc_prologue_callback_ = callback;
   }
   static void SetGlobalGCEpilogueCallback(GCCallback callback) {
+    ASSERT((callback == NULL) ^ (global_gc_epilogue_callback_ == NULL));
     global_gc_epilogue_callback_ = callback;
   }
 
@@ -756,6 +767,10 @@ class Heap : public AllStatic {
   // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
   static void public_set_non_monomorphic_cache(NumberDictionary* value) {
     roots_[kNonMonomorphicCacheRootIndex] = value;
+  }
+
+  static void public_set_empty_script(Script* script) {
+    roots_[kEmptyScriptRootIndex] = script;
   }
 
   // Update the next script id.
@@ -965,7 +980,7 @@ class Heap : public AllStatic {
   static int gc_count_;  // how many gc happened
 
   // Total length of the strings we failed to flatten since the last GC.
-  static int unflattended_strings_length_;
+  static int unflattened_strings_length_;
 
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
   static inline void set_##name(type* value) {                                 \
@@ -1041,6 +1056,30 @@ class Heap : public AllStatic {
 
   // GC callback function, called before and after mark-compact GC.
   // Allocations in the callback function are disallowed.
+  struct GCPrologueCallbackPair {
+    GCPrologueCallbackPair(GCPrologueCallback callback, GCType gc_type)
+        : callback(callback), gc_type(gc_type) {
+    }
+    bool operator==(const GCPrologueCallbackPair& pair) const {
+      return pair.callback == callback;
+    }
+    GCPrologueCallback callback;
+    GCType gc_type;
+  };
+  static List<GCPrologueCallbackPair> gc_prologue_callbacks_;
+
+  struct GCEpilogueCallbackPair {
+    GCEpilogueCallbackPair(GCEpilogueCallback callback, GCType gc_type)
+        : callback(callback), gc_type(gc_type) {
+    }
+    bool operator==(const GCEpilogueCallbackPair& pair) const {
+      return pair.callback == callback;
+    }
+    GCEpilogueCallback callback;
+    GCType gc_type;
+  };
+  static List<GCEpilogueCallbackPair> gc_epilogue_callbacks_;
+
   static GCCallback global_gc_prologue_callback_;
   static GCCallback global_gc_epilogue_callback_;
 
@@ -1583,6 +1622,7 @@ class GCTracer BASE_EMBEDDED {
 
   // Sets the flag that this is a compacting full GC.
   void set_is_compacting() { is_compacting_ = true; }
+  bool is_compacting() const { return is_compacting_; }
 
   // Increment and decrement the count of marked objects.
   void increment_marked_count() { ++marked_count_; }

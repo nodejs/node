@@ -511,7 +511,7 @@ void Time::SetToCurrentTime() {
 // takes into account whether daylight saving is in effect at the time.
 // Only times in the 32-bit Unix range may be passed to this function.
 // Also, adding the time-zone offset to the input must not overflow.
-// The function EquivalentTime() in date-delay.js guarantees this.
+// The function EquivalentTime() in date.js guarantees this.
 int64_t Time::LocalOffset() {
   // Initialize timezone information, if needed.
   TzSet();

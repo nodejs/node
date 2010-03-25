@@ -91,7 +91,7 @@ class LiveEdit : AllStatic {
   static void PatchFunctionPositions(Handle<JSArray> shared_info_array,
                                      Handle<JSArray> position_change_array);
 
-  // A copy of this is in liveedit-delay.js.
+  // A copy of this is in liveedit-debugger.js.
   enum FunctionPatchabilityStatus {
     FUNCTION_AVAILABLE_FOR_PATCH = 0,
     FUNCTION_BLOCKED_ON_STACK = 1

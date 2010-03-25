@@ -41,6 +41,7 @@ class JumpTarget;
 // unless we know exactly what we do.
 
 // Registers aliases
+// cp is assumed to be a callee saved register.
 const Register cp = s7;     // JavaScript context pointer
 const Register fp = s8_fp;  // Alias fp
 
@@ -102,10 +103,10 @@ class MacroAssembler: public Assembler {
   // Jump unconditionally to given label.
   // We NEED a nop in the branch delay slot, as it used by v8, for example in
   // CodeGenerator::ProcessDeferred().
+  // Currently the branch delay slot is filled by the MacroAssembler.
   // Use rather b(Label) for code generation.
   void jmp(Label* L) {
     Branch(cc_always, L);
-    nop();
   }
 
   // Load an object from the root table.
@@ -114,6 +115,11 @@ class MacroAssembler: public Assembler {
   void LoadRoot(Register destination,
                 Heap::RootListIndex index,
                 Condition cond, Register src1, const Operand& src2);
+
+  // Load an external reference.
+  void LoadExternalReference(Register reg, ExternalReference ext) {
+    li(reg, Operand(ext));
+  }
 
   // Sets the remembered set bit for [address+offset].
   void RecordWrite(Register object, Register offset, Register scratch);
@@ -191,7 +197,6 @@ class MacroAssembler: public Assembler {
   void Push(Register src, Condition cond, Register tst1, Register tst2) {
     // Since we don't have conditionnal execution we use a Branch.
     Branch(cond, 3, tst1, Operand(tst2));
-    nop();
     Addu(sp, sp, Operand(-kPointerSize));
     sw(src, MemOperand(sp, 0));
   }
@@ -207,6 +212,53 @@ class MacroAssembler: public Assembler {
   void Pop() {
     Add(sp, sp, Operand(kPointerSize));
   }
+
+
+  // ---------------------------------------------------------------------------
+  // Activation frames
+
+  void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }
+  void LeaveInternalFrame() { LeaveFrame(StackFrame::INTERNAL); }
+
+  // Enter specific kind of exit frame; either EXIT or
+  // EXIT_DEBUG. Expects the number of arguments in register a0 and
+  // the builtin function to call in register a1.
+  // On output hold_argc, hold_function, and hold_argv are setup.
+  void EnterExitFrame(ExitFrame::Mode mode,
+                      Register hold_argc,
+                      Register hold_argv,
+                      Register hold_function);
+
+  // Leave the current exit frame. Expects the return value in v0.
+  void LeaveExitFrame(ExitFrame::Mode mode);
+
+  // Align the stack by optionally pushing a Smi zero.
+  void AlignStack(int offset);
+
+  void SetupAlignedCall(Register scratch, int arg_count = 0);
+  void ReturnFromAlignedCall();
+
+
+  // ---------------------------------------------------------------------------
+  // JavaScript invokes
+
+  // Invoke the JavaScript function code by either calling or jumping.
+  void InvokeCode(Register code,
+                  const ParameterCount& expected,
+                  const ParameterCount& actual,
+                  InvokeFlag flag);
+
+  void InvokeCode(Handle<Code> code,
+                  const ParameterCount& expected,
+                  const ParameterCount& actual,
+                  RelocInfo::Mode rmode,
+                  InvokeFlag flag);
+
+  // Invoke the JavaScript function in the given register. Changes the
+  // current context to the context in the function before invoking.
+  void InvokeFunction(Register function,
+                      const ParameterCount& actual,
+                      InvokeFlag flag);
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -227,8 +279,7 @@ class MacroAssembler: public Assembler {
   // Exception handling
 
   // Push a new try handler and link into try handler chain.
-  // The return address must be passed in register lr.
-  // On exit, r0 contains TOS (code slot).
+  // The return address must be passed in register ra.
   void PushTryHandler(CodeLocation try_location, HandlerType type);
 
   // Unlink the stack handler on top of the stack from the try handler chain.
@@ -238,6 +289,10 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // Support functions.
+
+  void GetObjectType(Register function,
+                     Register map,
+                     Register type_reg);
 
   inline void BranchOnSmi(Register value, Label* smi_label,
                           Register scratch = at) {
@@ -253,6 +308,15 @@ class MacroAssembler: public Assembler {
     andi(scratch, value, kSmiTagMask);
     Branch(ne, not_smi_label, scratch, Operand(zero_reg));
   }
+
+  void CallBuiltin(ExternalReference builtin_entry);
+  void CallBuiltin(Register target);
+  void JumpToBuiltin(ExternalReference builtin_entry);
+  void JumpToBuiltin(Register target);
+
+  // Generates code for reporting that an illegal operation has
+  // occurred.
+  void IllegalOperation(int num_arguments);
 
 
   // ---------------------------------------------------------------------------
@@ -342,20 +406,33 @@ class MacroAssembler: public Assembler {
   bool allow_stub_calls() { return allow_stub_calls_; }
 
  private:
-  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = cc_always,
-            Register r1 = zero_reg, const Operand& r2 = Operand(zero_reg));
-  void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = cc_always,
-            Register r1 = zero_reg, const Operand& r2 = Operand(zero_reg));
-
-  // Get the code for the given builtin. Returns if able to resolve
-  // the function in the 'resolved' flag.
-  Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
-
   List<Unresolved> unresolved_;
   bool generating_stub_;
   bool allow_stub_calls_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
+
+  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = cc_always,
+            Register r1 = zero_reg, const Operand& r2 = Operand(zero_reg));
+  void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = cc_always,
+            Register r1 = zero_reg, const Operand& r2 = Operand(zero_reg));
+
+  // Helper functions for generating invokes.
+  void InvokePrologue(const ParameterCount& expected,
+                      const ParameterCount& actual,
+                      Handle<Code> code_constant,
+                      Register code_reg,
+                      Label* done,
+                      InvokeFlag flag);
+
+  // Get the code for the given builtin. Returns if able to resolve
+  // the function in the 'resolved' flag.
+  Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
+
+  // Activation support.
+  // EnterFrame clobbers t0 and t1.
+  void EnterFrame(StackFrame::Type type);
+  void LeaveFrame(StackFrame::Type type);
 };
 
 

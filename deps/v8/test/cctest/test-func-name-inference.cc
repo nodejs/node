@@ -62,8 +62,16 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
                               const char* func_pos_src,
                               const char* ref_inferred_name) {
   // Get script source.
-  Handle<JSFunction> fun = v8::Utils::OpenHandle(*script);
-  Handle<Script> i_script(Script::cast(fun->shared()->script()));
+  Handle<Object> obj = v8::Utils::OpenHandle(*script);
+  Handle<SharedFunctionInfo> shared_function;
+  if (obj->IsSharedFunctionInfo()) {
+    shared_function =
+        Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(*obj));
+  } else {
+    shared_function =
+        Handle<SharedFunctionInfo>(JSFunction::cast(*obj)->shared());
+  }
+  Handle<Script> i_script(Script::cast(shared_function->script()));
   CHECK(i_script->source()->IsString());
   Handle<String> script_src(String::cast(i_script->source()));
 

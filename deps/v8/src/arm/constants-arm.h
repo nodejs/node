@@ -84,7 +84,10 @@ namespace arm {
 static const int kNumRegisters = 16;
 
 // VFP support.
-static const int kNumVFPRegisters = 48;
+static const int kNumVFPSingleRegisters = 32;
+static const int kNumVFPDoubleRegisters = 16;
+static const int kNumVFPRegisters =
+    kNumVFPSingleRegisters + kNumVFPDoubleRegisters;
 
 // PC is register 15.
 static const int kPCRegister = 15;
@@ -254,6 +257,14 @@ class Instr {
   inline int RtField() const { return Bits(15, 12); }
   inline int PField() const { return Bit(24); }
   inline int UField() const { return Bit(23); }
+  inline int Opc1Field() const { return (Bit(23) << 2) | Bits(21, 20); }
+  inline int Opc2Field() const { return Bits(19, 16); }
+  inline int Opc3Field() const { return Bits(7, 6); }
+  inline int SzField() const { return Bit(8); }
+  inline int VLField() const { return Bit(20); }
+  inline int VCField() const { return Bit(8); }
+  inline int VAField() const { return Bits(23, 21); }
+  inline int VBField() const { return Bits(6, 5); }
 
   // Fields used in Data processing instructions
   inline Opcode OpcodeField() const {
@@ -344,7 +355,12 @@ class Registers {
 class VFPRegisters {
  public:
   // Return the name of the register.
-  static const char* Name(int reg);
+  static const char* Name(int reg, bool is_double);
+
+  // Lookup the register number for the name provided.
+  // Set flag pointed by is_double to true if register
+  // is double-precision.
+  static int Number(const char* name, bool* is_double);
 
  private:
   static const char* names_[kNumVFPRegisters];

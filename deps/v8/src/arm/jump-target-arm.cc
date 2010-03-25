@@ -173,14 +173,7 @@ void BreakTarget::Jump() {
 
 
 void BreakTarget::Jump(Result* arg) {
-  // On ARM we do not currently emit merge code for jumps, so we need to do
-  // it explicitly here.  The only merging necessary is to drop extra
-  // statement state from the stack.
-  ASSERT(cgen()->has_valid_frame());
-  int count = cgen()->frame()->height() - expected_height_;
-  cgen()->frame()->Drop(count);
-  cgen()->frame()->Push(arg);
-  DoJump();
+  UNIMPLEMENTED();
 }
 
 
@@ -209,27 +202,7 @@ void BreakTarget::Bind() {
 
 
 void BreakTarget::Bind(Result* arg) {
-#ifdef DEBUG
-  // All the forward-reaching frames should have been adjusted at the
-  // jumps to this target.
-  for (int i = 0; i < reaching_frames_.length(); i++) {
-    ASSERT(reaching_frames_[i] == NULL ||
-           reaching_frames_[i]->height() == expected_height_ + 1);
-  }
-#endif
-  // Drop leftover statement state from the frame before merging, even
-  // on the fall through.  This is so we can bind the return target
-  // with state on the frame.
-  if (cgen()->has_valid_frame()) {
-    int count = cgen()->frame()->height() - expected_height_;
-    // On ARM we do not currently emit merge code at binding sites, so we need
-    // to do it explicitly here.  The only merging necessary is to drop extra
-    // statement state from the stack.
-    cgen()->frame()->ForgetElements(count);
-    cgen()->frame()->Push(arg);
-  }
-  DoBind();
-  *arg = cgen()->frame()->Pop();
+  UNIMPLEMENTED();
 }
 
 

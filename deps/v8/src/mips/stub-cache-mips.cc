@@ -160,8 +160,31 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 
 
 Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
-  UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  // Registers:
+  // a1: function
+  // ra: return address
+
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+  // Preserve the function.
+  __ Push(a1);
+  // Setup aligned call.
+  __ SetupAlignedCall(t0, 1);
+  // Push the function on the stack as the argument to the runtime function.
+  __ Push(a1);
+  // Call the runtime function
+  __ CallRuntime(Runtime::kLazyCompile, 1);
+  __ ReturnFromAlignedCall();
+  // Calculate the entry point.
+  __ addiu(t9, v0, Code::kHeaderSize - kHeapObjectTag);
+  // Restore saved function.
+  __ Pop(a1);
+  // Tear down temporary frame.
+  __ LeaveInternalFrame();
+  // Do a tail-call of the compiled function.
+  __ Jump(t9);
+
+  return GetCodeWithFlags(flags, "LazyCompileStub");
 }
 
 
@@ -169,6 +192,26 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
                                            JSObject* holder,
                                            int index,
                                            String* name) {
+  UNIMPLEMENTED_MIPS();
+  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+}
+
+
+Object* CallStubCompiler::CompileArrayPushCall(Object* object,
+                                               JSObject* holder,
+                                               JSFunction* function,
+                                               String* name,
+                                               CheckType check) {
+  UNIMPLEMENTED_MIPS();
+  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+}
+
+
+Object* CallStubCompiler::CompileArrayPopCall(Object* object,
+                                              JSObject* holder,
+                                              JSFunction* function,
+                                              String* name,
+                                              CheckType check) {
   UNIMPLEMENTED_MIPS();
   return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
 }

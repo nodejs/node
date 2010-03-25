@@ -33,6 +33,13 @@ function identity(x) {
   return x;
 }
 
+function lookup(w, a) {
+  // This function tests a code path in the generation of a keyed load IC
+  // where the key and the value are both in the same register.
+  a = a;
+  w[a] = a;
+}
+
 function cover_codegen_paths() {
   var x = 1;
 
@@ -131,6 +138,12 @@ function cover_codegen_paths() {
     assertEquals(1073741824, 1 - di);
 
     x = 3;
+    var w = { };
+    lookup(w, x);
+    lookup(w, x);
+    lookup(w, x);
+
+    x = 3;  // Terminate while loop.
   }
 }
 

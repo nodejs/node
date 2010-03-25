@@ -164,7 +164,7 @@ function StringLocaleCompare(other) {
 
 // ECMA-262 section 15.5.4.10
 function StringMatch(regexp) {
-  if (!IS_REGEXP(regexp)) regexp = new ORIGINAL_REGEXP(regexp);
+  if (!IS_REGEXP(regexp)) regexp = new $RegExp(regexp);
   var subject = TO_STRING_INLINE(this);
 
   if (!regexp.global) return regexp.exec(subject);
@@ -183,7 +183,7 @@ function StringMatch(regexp) {
   }
 
   %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
-  // lastMatchInfo is defined in regexp-delay.js.
+  // lastMatchInfo is defined in regexp.js.
   var result = %StringMatch(subject, regexp, lastMatchInfo);
   cache.type = 'match';
   cache.regExp = regexp;
@@ -405,97 +405,91 @@ function addCaptureString(builder, matchInfo, index) {
   builder.addSpecialSlice(start, end);
 };
 
+// TODO(lrn): This array will survive indefinitely if replace is never
+// called again. However, it will be empty, since the contents are cleared 
+// in the finally block.
+var reusableReplaceArray = $Array(16);
 
 // Helper function for replacing regular expressions with the result of a
-// function application in String.prototype.replace.  The function application
-// must be interleaved with the regexp matching (contrary to ECMA-262
-// 15.5.4.11) to mimic SpiderMonkey and KJS behavior when the function uses
-// the static properties of the RegExp constructor.  Example:
-//     'abcd'.replace(/(.)/g, function() { return RegExp.$1; }
-// should be 'abcd' and not 'dddd' (or anything else).
+// function application in String.prototype.replace.
 function StringReplaceRegExpWithFunction(subject, regexp, replace) {
-  var matchInfo = DoRegExpExec(regexp, subject, 0);
-  if (IS_NULL(matchInfo)) return subject;
-
-  var result = new ReplaceResultBuilder(subject);
-  // There's at least one match.  If the regexp is global, we have to loop
-  // over all matches.  The loop is not in C++ code here like the one in
-  // RegExp.prototype.exec, because of the interleaved function application.
-  // Unfortunately, that means this code is nearly duplicated, here and in
-  // jsregexp.cc.
   if (regexp.global) {
-    var previous = 0;
-    var startOfMatch;
-    if (NUMBER_OF_CAPTURES(matchInfo) == 2) {
-      // Both branches contain essentially the same loop except for the call
-      // to the replace function. The branch is put outside of the loop for
-      // speed
-      do {
-        startOfMatch = matchInfo[CAPTURE0];
-        result.addSpecialSlice(previous, startOfMatch);
-        previous = matchInfo[CAPTURE1];
-        var match = SubString(subject, startOfMatch, previous);
-        // Don't call directly to avoid exposing the built-in global object.
-        result.add(replace.call(null, match, startOfMatch, subject));
-        // Can't use matchInfo any more from here, since the function could
-        // overwrite it.
-        // Continue with the next match.
-        // Increment previous if we matched an empty string, as per ECMA-262
-        // 15.5.4.10.
-        if (previous == startOfMatch) {
-          // Add the skipped character to the output, if any.
-          if (previous < subject.length) {
-            result.addSpecialSlice(previous, previous + 1);
-          }
-          previous++;
-          // Per ECMA-262 15.10.6.2, if the previous index is greater than the
-          // string length, there is no match
-          if (previous > subject.length) {
-            return result.generate();
-          }
-        }
-        matchInfo = DoRegExpExec(regexp, subject, previous);
-      } while (!IS_NULL(matchInfo));
+    var resultArray = reusableReplaceArray;
+    if (resultArray) {
+      reusableReplaceArray = null;
     } else {
-      do {
-        startOfMatch = matchInfo[CAPTURE0];
-        result.addSpecialSlice(previous, startOfMatch);
-        previous = matchInfo[CAPTURE1];
-        result.add(ApplyReplacementFunction(replace, matchInfo, subject));
-        // Can't use matchInfo any more from here, since the function could
-        // overwrite it.
-        // Continue with the next match.
-        // Increment previous if we matched an empty string, as per ECMA-262
-        // 15.5.4.10.
-        if (previous == startOfMatch) {
-          // Add the skipped character to the output, if any.
-          if (previous < subject.length) {
-            result.addSpecialSlice(previous, previous + 1);
-          }
-          previous++;
-          // Per ECMA-262 15.10.6.2, if the previous index is greater than the
-          // string length, there is no match
-          if (previous > subject.length) {
-            return result.generate();
-          }
-        }
-        matchInfo = DoRegExpExec(regexp, subject, previous);
-      } while (!IS_NULL(matchInfo));
+      // Inside a nested replace (replace called from the replacement function
+      // of another replace) or we have failed to set the reusable array
+      // back due to an exception in a replacement function. Create a new
+      // array to use in the future, or until the original is written back.
+      resultArray = $Array(16);
     }
-
-    // Tack on the final right substring after the last match.
-    result.addSpecialSlice(previous, subject.length);
-
+    try {
+      // Must handle exceptions thrown by the replace functions correctly,
+      // including unregistering global regexps.
+      var res = %RegExpExecMultiple(regexp, 
+                                    subject, 
+                                    lastMatchInfo, 
+                                    resultArray);
+      regexp.lastIndex = 0;
+      if (IS_NULL(res)) {
+        // No matches at all. 
+        return subject;  
+      }  
+      var len = res.length; 
+      var i = 0;
+      if (NUMBER_OF_CAPTURES(lastMatchInfo) == 2) {
+        var match_start = 0;
+        while (i < len) {
+          var elem = res[i];
+          if (%_IsSmi(elem)) {
+            if (elem > 0) {
+              match_start = (elem >> 11) + (elem & 0x7ff);
+            } else {
+              match_start = res[++i] - elem;
+            }
+          } else {
+            var func_result = replace.call(null, elem, match_start, subject);
+            if (!IS_STRING(func_result)) func_result = TO_STRING(func_result);
+            res[i] = func_result;
+            match_start += elem.length; 
+          }
+          i++;
+        }      
+      } else {      
+        while (i < len) {
+          var elem = res[i];
+          if (!%_IsSmi(elem)) {
+            // elem must be an Array.
+            // Use the apply argument as backing for global RegExp properties.
+            lastMatchInfoOverride = elem;
+            var func_result = replace.apply(null, elem);
+            if (!IS_STRING(func_result)) func_result = TO_STRING(func_result);
+            res[i] = func_result;
+          }
+          i++;
+        }
+      }
+      var result = new ReplaceResultBuilder(subject, res);
+      return result.generate();
+    } finally {
+      lastMatchInfoOverride = null;
+      resultArray.length = 0;
+      reusableReplaceArray = resultArray;
+    }
   } else { // Not a global regexp, no need to loop.
+    var matchInfo = DoRegExpExec(regexp, subject, 0);
+    if (IS_NULL(matchInfo)) return subject;
+    
+    var result = new ReplaceResultBuilder(subject);
     result.addSpecialSlice(0, matchInfo[CAPTURE0]);
     var endOfMatch = matchInfo[CAPTURE1];
     result.add(ApplyReplacementFunction(replace, matchInfo, subject));
     // Can't use matchInfo any more from here, since the function could
     // overwrite it.
     result.addSpecialSlice(endOfMatch, subject.length);
+    return result.generate();
   }
-
-  return result.generate();
 }
 
 
@@ -522,17 +516,15 @@ function ApplyReplacementFunction(replace, matchInfo, subject) {
 
 
 // ECMA-262 section 15.5.4.12
-function StringSearch(re) {
-  var regexp = new ORIGINAL_REGEXP(re);
+function StringSearch(re) { 
+  var regexp = new $RegExp(re);
   var s = TO_STRING_INLINE(this);
-  var last_idx = regexp.lastIndex; // keep old lastIndex
-  regexp.lastIndex = 0;            // ignore re.global property
-  var result = regexp.exec(s);
-  regexp.lastIndex = last_idx;     // restore lastIndex
-  if (result == null)
-    return -1;
-  else
-    return result.index;
+  var match = DoRegExpExec(regexp, s, 0);
+  if (match) {
+    lastMatchInfo = match;
+    return match[CAPTURE0];
+  }
+  return -1;
 }
 
 
@@ -896,7 +888,11 @@ function StringSup() {
 
 // ReplaceResultBuilder support.
 function ReplaceResultBuilder(str) {
-  this.elements = new $Array();
+  if (%_ArgumentsLength() > 1) {
+    this.elements = %_Arguments(1);
+  } else {
+    this.elements = new $Array();
+  }
   this.special_string = str;
 }
 

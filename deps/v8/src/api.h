@@ -221,7 +221,7 @@ class Utils {
       OpenHandle(const v8::Array* data);
   static inline v8::internal::Handle<v8::internal::String>
       OpenHandle(const String* data);
-  static inline v8::internal::Handle<v8::internal::JSFunction>
+  static inline v8::internal::Handle<v8::internal::Object>
       OpenHandle(const Script* data);
   static inline v8::internal::Handle<v8::internal::JSFunction>
       OpenHandle(const Function* data);
@@ -247,7 +247,11 @@ static inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {
 template <class T>
 v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
     v8::HandleScope* scope) {
-  return Utils::OpenHandle(*scope->Close(Utils::ToLocal(*this)));
+  v8::internal::Handle<T> handle;
+  if (!is_null()) {
+    handle = *this;
+  }
+  return Utils::OpenHandle(*scope->Close(Utils::ToLocal(handle)));
 }
 
 
@@ -255,7 +259,7 @@ v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
 
 #define MAKE_TO_LOCAL(Name, From, To)                                       \
   Local<v8::To> Utils::Name(v8::internal::Handle<v8::internal::From> obj) { \
-    ASSERT(!obj->IsTheHole());                                              \
+    ASSERT(obj.is_null() || !obj->IsTheHole());                             \
     return Local<To>(reinterpret_cast<To*>(obj.location()));                \
   }
 
@@ -296,7 +300,7 @@ MAKE_OPEN_HANDLE(Data, Object)
 MAKE_OPEN_HANDLE(Object, JSObject)
 MAKE_OPEN_HANDLE(Array, JSArray)
 MAKE_OPEN_HANDLE(String, String)
-MAKE_OPEN_HANDLE(Script, JSFunction)
+MAKE_OPEN_HANDLE(Script, Object)
 MAKE_OPEN_HANDLE(Function, JSFunction)
 MAKE_OPEN_HANDLE(Message, JSObject)
 MAKE_OPEN_HANDLE(Context, Context)

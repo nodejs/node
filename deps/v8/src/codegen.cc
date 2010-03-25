@@ -66,38 +66,6 @@ Comment::~Comment() {
 CodeGenerator* CodeGeneratorScope::top_ = NULL;
 
 
-DeferredCode::DeferredCode()
-    : masm_(CodeGeneratorScope::Current()->masm()),
-      statement_position_(masm_->current_statement_position()),
-      position_(masm_->current_position()) {
-  ASSERT(statement_position_ != RelocInfo::kNoPosition);
-  ASSERT(position_ != RelocInfo::kNoPosition);
-
-  CodeGeneratorScope::Current()->AddDeferred(this);
-#ifdef DEBUG
-  comment_ = "";
-#endif
-
-  // Copy the register locations from the code generator's frame.
-  // These are the registers that will be spilled on entry to the
-  // deferred code and restored on exit.
-  VirtualFrame* frame = CodeGeneratorScope::Current()->frame();
-  int sp_offset = frame->fp_relative(frame->stack_pointer_);
-  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
-    int loc = frame->register_location(i);
-    if (loc == VirtualFrame::kIllegalIndex) {
-      registers_[i] = kIgnore;
-    } else if (frame->elements_[loc].is_synced()) {
-      // Needs to be restored on exit but not saved on entry.
-      registers_[i] = frame->fp_relative(loc) | kSyncedFlag;
-    } else {
-      int offset = frame->fp_relative(loc);
-      registers_[i] = (offset < sp_offset) ? kPush : offset;
-    }
-  }
-}
-
-
 void CodeGenerator::ProcessDeferred() {
   while (!deferred_.is_empty()) {
     DeferredCode* code = deferred_.RemoveLast();
@@ -336,8 +304,8 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
           array->set_undefined(j++);
         }
       } else {
-        Handle<JSFunction> function =
-            Compiler::BuildBoilerplate(node->fun(), script(), this);
+        Handle<SharedFunctionInfo> function =
+            Compiler::BuildFunctionInfo(node->fun(), script(), this);
         // Check for stack-overflow exception.
         if (HasStackOverflow()) return;
         array->set(j++, *function);

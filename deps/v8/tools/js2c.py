@@ -220,8 +220,8 @@ namespace internal {
   }
 
   template <>
-  int NativesCollection<%(type)s>::GetDelayCount() {
-    return %(delay_count)i;
+  int NativesCollection<%(type)s>::GetDebuggerCount() {
+    return %(debugger_count)i;
   }
 
   template <>
@@ -252,23 +252,23 @@ SOURCE_DECLARATION = """\
 """
 
 
-GET_DELAY_INDEX_CASE = """\
+GET_DEBUGGER_INDEX_CASE = """\
     if (strcmp(name, "%(id)s") == 0) return %(i)i;
 """
 
 
-GET_DELAY_SCRIPT_SOURCE_CASE = """\
+GET_DEBUGGER_SCRIPT_SOURCE_CASE = """\
     if (index == %(i)i) return Vector<const char>(%(id)s, %(length)i);
 """
 
 
-GET_DELAY_SCRIPT_NAME_CASE = """\
+GET_DEBUGGER_SCRIPT_NAME_CASE = """\
     if (index == %(i)i) return Vector<const char>("%(name)s", %(length)i);
 """
 
 def JS2C(source, target, env):
   ids = []
-  delay_ids = []
+  debugger_ids = []
   modules = []
   # Locate the macros file name.
   consts = {}
@@ -287,7 +287,7 @@ def JS2C(source, target, env):
   source_lines_empty = []
   for module in modules:
     filename = str(module)
-    delay = filename.endswith('-delay.js')
+    debugger = filename.endswith('-debugger.js')
     lines = ReadFile(filename)
     lines = ExpandConstants(lines, consts)
     lines = ExpandMacros(lines, macros)
@@ -295,29 +295,29 @@ def JS2C(source, target, env):
     lines = minifier.JSMinify(lines)
     data = ToCArray(lines)
     id = (os.path.split(filename)[1])[:-3]
-    if delay: id = id[:-6]
-    if delay:
-      delay_ids.append((id, len(lines)))
+    if debugger: id = id[:-9]
+    if debugger:
+      debugger_ids.append((id, len(lines)))
     else:
       ids.append((id, len(lines)))
     source_lines.append(SOURCE_DECLARATION % { 'id': id, 'data': data })
     source_lines_empty.append(SOURCE_DECLARATION % { 'id': id, 'data': data })
 
-  # Build delay support functions
+  # Build debugger support functions
   get_index_cases = [ ]
   get_script_source_cases = [ ]
   get_script_name_cases = [ ]
 
   i = 0
-  for (id, length) in delay_ids:
+  for (id, length) in debugger_ids:
     native_name = "native %s.js" % id
-    get_index_cases.append(GET_DELAY_INDEX_CASE % { 'id': id, 'i': i })
-    get_script_source_cases.append(GET_DELAY_SCRIPT_SOURCE_CASE % {
+    get_index_cases.append(GET_DEBUGGER_INDEX_CASE % { 'id': id, 'i': i })
+    get_script_source_cases.append(GET_DEBUGGER_SCRIPT_SOURCE_CASE % {
       'id': id,
       'length': length,
       'i': i
     })
-    get_script_name_cases.append(GET_DELAY_SCRIPT_NAME_CASE % {
+    get_script_name_cases.append(GET_DEBUGGER_SCRIPT_NAME_CASE % {
       'name': native_name,
       'length': len(native_name),
       'i': i
@@ -326,13 +326,13 @@ def JS2C(source, target, env):
 
   for (id, length) in ids:
     native_name = "native %s.js" % id
-    get_index_cases.append(GET_DELAY_INDEX_CASE % { 'id': id, 'i': i })
-    get_script_source_cases.append(GET_DELAY_SCRIPT_SOURCE_CASE % {
+    get_index_cases.append(GET_DEBUGGER_INDEX_CASE % { 'id': id, 'i': i })
+    get_script_source_cases.append(GET_DEBUGGER_SCRIPT_SOURCE_CASE % {
       'id': id,
       'length': length,
       'i': i
     })
-    get_script_name_cases.append(GET_DELAY_SCRIPT_NAME_CASE % {
+    get_script_name_cases.append(GET_DEBUGGER_SCRIPT_NAME_CASE % {
       'name': native_name,
       'length': len(native_name),
       'i': i
@@ -342,8 +342,8 @@ def JS2C(source, target, env):
   # Emit result
   output = open(str(target[0]), "w")
   output.write(HEADER_TEMPLATE % {
-    'builtin_count': len(ids) + len(delay_ids),
-    'delay_count': len(delay_ids),
+    'builtin_count': len(ids) + len(debugger_ids),
+    'debugger_count': len(debugger_ids),
     'source_lines': "\n".join(source_lines),
     'get_index_cases': "".join(get_index_cases),
     'get_script_source_cases': "".join(get_script_source_cases),
@@ -355,8 +355,8 @@ def JS2C(source, target, env):
   if len(target) > 1:
     output = open(str(target[1]), "w")
     output.write(HEADER_TEMPLATE % {
-      'builtin_count': len(ids) + len(delay_ids),
-      'delay_count': len(delay_ids),
+      'builtin_count': len(ids) + len(debugger_ids),
+      'debugger_count': len(debugger_ids),
       'source_lines': "\n".join(source_lines_empty),
       'get_index_cases': "".join(get_index_cases),
       'get_script_source_cases': "".join(get_script_source_cases),

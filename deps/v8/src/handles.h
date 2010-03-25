@@ -210,6 +210,11 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> value,
                                 PropertyAttributes attributes);
 
+Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
+                                     Handle<String> key,
+                                     Handle<Object> value,
+                                     PropertyDetails details);
+
 Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
                                    Handle<Object> key);
 
@@ -307,8 +312,6 @@ void SetPrototypeProperty(Handle<JSFunction> func, Handle<JSObject> value);
 // Sets the expected number of properties based on estimate from compiler.
 void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
                                           int estimate);
-void SetExpectedNofPropertiesFromEstimate(Handle<JSFunction> func,
-                                          int estimate);
 
 
 Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
@@ -339,13 +342,6 @@ bool CompileLazyInLoop(Handle<JSFunction> function,
 
 // Returns the lazy compilation stub for argc arguments.
 Handle<Code> ComputeLazyCompile(int argc);
-
-// These deal with lazily loaded properties.
-void SetupLazy(Handle<JSObject> obj,
-               int index,
-               Handle<Context> compile_context,
-               Handle<Context> function_context);
-void LoadLazy(Handle<JSObject> obj, bool* pending_exception);
 
 class NoHandleAllocation BASE_EMBEDDED {
  public:

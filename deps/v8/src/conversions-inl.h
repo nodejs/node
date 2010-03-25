@@ -41,24 +41,6 @@
 namespace v8 {
 namespace internal {
 
-// The fast double-to-int conversion routine does not guarantee
-// rounding towards zero.
-static inline int FastD2I(double x) {
-#ifdef __USE_ISOC99
-  // The ISO C99 standard defines the lrint() function which rounds a
-  // double to an integer according to the current rounding direction.
-  return lrint(x);
-#else
-  // This is incredibly slow on Intel x86. The reason is that rounding
-  // towards zero is implied by the C standard. This means that the
-  // status register of the FPU has to be changed with the 'fldcw'
-  // instruction. This completely stalls the pipeline and takes many
-  // hundreds of clock cycles.
-  return static_cast<int>(x);
-#endif
-}
-
-
 // The fast double-to-unsigned-int conversion routine does not guarantee
 // rounding towards zero, or any reasonable value if the argument is larger
 // than what fits in an unsigned 32-bit integer.

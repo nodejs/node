@@ -162,7 +162,7 @@ void VirtualFrame::MakeMergable() {
     if (element.is_constant() || element.is_copy()) {
       if (element.is_synced()) {
         // Just spill.
-        elements_[i] = FrameElement::MemoryElement(NumberInfo::Unknown());
+        elements_[i] = FrameElement::MemoryElement(TypeInfo::Unknown());
       } else {
         // Allocate to a register.
         FrameElement backing_element;  // Invalid if not a copy.
@@ -174,7 +174,7 @@ void VirtualFrame::MakeMergable() {
         elements_[i] =
             FrameElement::RegisterElement(fresh.reg(),
                                           FrameElement::NOT_SYNCED,
-                                          NumberInfo::Unknown());
+                                          TypeInfo::Unknown());
         Use(fresh.reg(), i);
 
         // Emit a move.
@@ -207,7 +207,7 @@ void VirtualFrame::MakeMergable() {
       // The copy flag is not relied on before the end of this loop,
       // including when registers are spilled.
       elements_[i].clear_copied();
-      elements_[i].set_number_info(NumberInfo::Unknown());
+      elements_[i].set_type_info(TypeInfo::Unknown());
     }
   }
 }
@@ -597,12 +597,12 @@ int VirtualFrame::InvalidateFrameSlotAt(int index) {
     elements_[new_backing_index] =
         FrameElement::RegisterElement(backing_reg,
                                       FrameElement::SYNCED,
-                                      original.number_info());
+                                      original.type_info());
   } else {
     elements_[new_backing_index] =
         FrameElement::RegisterElement(backing_reg,
                                       FrameElement::NOT_SYNCED,
-                                      original.number_info());
+                                      original.type_info());
   }
   // Update the other copies.
   for (int i = new_backing_index + 1; i < element_count(); i++) {
@@ -634,7 +634,7 @@ void VirtualFrame::TakeFrameSlotAt(int index) {
       FrameElement new_element =
           FrameElement::RegisterElement(fresh.reg(),
                                         FrameElement::NOT_SYNCED,
-                                        original.number_info());
+                                        original.type_info());
       Use(fresh.reg(), element_count());
       elements_.Add(new_element);
       __ mov(fresh.reg(), Operand(ebp, fp_relative(index)));
@@ -796,7 +796,7 @@ void VirtualFrame::UntaggedPushFrameSlotAt(int index) {
       FrameElement new_element =
           FrameElement::RegisterElement(fresh_reg,
                                         FrameElement::NOT_SYNCED,
-                                        original.number_info());
+                                        original.type_info());
       new_element.set_untagged_int32(true);
       Use(fresh_reg, element_count());
       fresh.Unuse();  // BreakTarget does not handle a live Result well.
@@ -808,7 +808,7 @@ void VirtualFrame::UntaggedPushFrameSlotAt(int index) {
         __ mov(fresh_reg, Operand(ebp, fp_relative(index)));
       }
       // Now convert the value to int32, or bail out.
-      if (original.number_info().IsSmi()) {
+      if (original.type_info().IsSmi()) {
         __ SmiUntag(fresh_reg);
         // Pushing the element is completely done.
       } else {
@@ -819,7 +819,7 @@ void VirtualFrame::UntaggedPushFrameSlotAt(int index) {
         __ jmp(&done);
 
         __ bind(&not_smi);
-        if (!original.number_info().IsNumber()) {
+        if (!original.type_info().IsNumber()) {
           __ cmp(FieldOperand(fresh_reg, HeapObject::kMapOffset),
                  Factory::heap_number_map());
           cgen()->unsafe_bailout_->Branch(not_equal);
@@ -1040,18 +1040,23 @@ Result VirtualFrame::CallKeyedStoreIC() {
   PrepareForCall(0, 0);
   if (!cgen()->allocator()->is_used(eax) ||
       (value.is_register() && value.reg().is(eax))) {
-    value.ToRegister(eax);  // No effect if value is in eax already.
+    if (!cgen()->allocator()->is_used(eax)) {
+      value.ToRegister(eax);
+    }
     MoveResultsToRegisters(&key, &receiver, ecx, edx);
     value.Unuse();
   } else if (!cgen()->allocator()->is_used(ecx) ||
              (key.is_register() && key.reg().is(ecx))) {
-    // Receiver and/or key are in eax.
-    key.ToRegister(ecx);
+    if (!cgen()->allocator()->is_used(ecx)) {
+      key.ToRegister(ecx);
+    }
     MoveResultsToRegisters(&value, &receiver, eax, edx);
     key.Unuse();
   } else if (!cgen()->allocator()->is_used(edx) ||
              (receiver.is_register() && receiver.reg().is(edx))) {
-    receiver.ToRegister(edx);
+    if (!cgen()->allocator()->is_used(edx)) {
+      receiver.ToRegister(edx);
+    }
     MoveResultsToRegisters(&key, &value, ecx, eax);
     receiver.Unuse();
   } else {
@@ -1146,11 +1151,11 @@ Result VirtualFrame::Pop() {
   ASSERT(element.is_untagged_int32() == cgen()->in_safe_int32_mode());
 
   // Get number type information of the result.
-  NumberInfo info;
+  TypeInfo info;
   if (!element.is_copy()) {
-    info = element.number_info();
+    info = element.type_info();
   } else {
-    info = elements_[element.index()].number_info();
+    info = elements_[element.index()].type_info();
   }
 
   bool pop_needed = (stack_pointer_ == index);
@@ -1160,7 +1165,7 @@ Result VirtualFrame::Pop() {
       Result temp = cgen()->allocator()->Allocate();
       ASSERT(temp.is_valid());
       __ pop(temp.reg());
-      temp.set_number_info(info);
+      temp.set_type_info(info);
       temp.set_untagged_int32(element.is_untagged_int32());
       return temp;
     }
@@ -1193,7 +1198,7 @@ Result VirtualFrame::Pop() {
     FrameElement new_element =
         FrameElement::RegisterElement(temp.reg(),
                                       FrameElement::SYNCED,
-                                      element.number_info());
+                                      element.type_info());
     // Preserve the copy flag on the element.
     if (element.is_copied()) new_element.set_copied();
     elements_[index] = new_element;
@@ -1228,7 +1233,7 @@ void VirtualFrame::EmitPop(Operand operand) {
 }
 
 
-void VirtualFrame::EmitPush(Register reg, NumberInfo info) {
+void VirtualFrame::EmitPush(Register reg, TypeInfo info) {
   ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
@@ -1236,7 +1241,7 @@ void VirtualFrame::EmitPush(Register reg, NumberInfo info) {
 }
 
 
-void VirtualFrame::EmitPush(Operand operand, NumberInfo info) {
+void VirtualFrame::EmitPush(Operand operand, TypeInfo info) {
   ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;
@@ -1244,7 +1249,7 @@ void VirtualFrame::EmitPush(Operand operand, NumberInfo info) {
 }
 
 
-void VirtualFrame::EmitPush(Immediate immediate, NumberInfo info) {
+void VirtualFrame::EmitPush(Immediate immediate, TypeInfo info) {
   ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement(info));
   stack_pointer_++;

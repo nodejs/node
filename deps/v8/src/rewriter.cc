@@ -213,8 +213,8 @@ void AstOptimizer::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void AstOptimizer::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
+void AstOptimizer::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
   USE(node);
 }
 
@@ -804,8 +804,8 @@ void Processor::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void Processor::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
+void Processor::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
   USE(node);
   UNREACHABLE();
 }

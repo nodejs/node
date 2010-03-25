@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -148,6 +148,7 @@ class Parser {
   ParserLog* log_;
   bool is_pre_parsing_;
   ScriptDataImpl* pre_data_;
+  bool seen_loop_stmt_;  // Used for inner loop detection.
 
   bool inside_with() const  { return with_nesting_level_ > 0; }
   ParserFactory* factory() const  { return factory_; }
@@ -1205,7 +1206,8 @@ Parser::Parser(Handle<Script> script,
       factory_(factory),
       log_(log),
       is_pre_parsing_(is_pre_parsing == PREPARSE),
-      pre_data_(pre_data) {
+      pre_data_(pre_data),
+      seen_loop_stmt_(false) {
 }
 
 
@@ -1962,20 +1964,19 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
-  Handle<JSFunction> boilerplate =
-      Factory::NewFunctionBoilerplate(name, literals, code);
-  boilerplate->shared()->set_construct_stub(*construct_stub);
+  Handle<SharedFunctionInfo> shared =
+      Factory::NewSharedFunctionInfo(name, literals, code);
+  shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the boilerplate.
-  boilerplate->shared()->set_function_data(fun->shared()->function_data());
+  shared->set_function_data(fun->shared()->function_data());
   int parameters = fun->shared()->formal_parameter_count();
-  boilerplate->shared()->set_formal_parameter_count(parameters);
+  shared->set_formal_parameter_count(parameters);
 
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
   // other functions are setup when entering the surrounding scope.
-  FunctionBoilerplateLiteral* lit =
-      NEW(FunctionBoilerplateLiteral(boilerplate));
+  SharedFunctionInfoLiteral* lit = NEW(SharedFunctionInfoLiteral(shared));
   VariableProxy* var = Declare(name, Variable::VAR, NULL, true, CHECK_OK);
   return NEW(ExpressionStatement(
       new Assignment(Token::INIT_VAR, var, lit, RelocInfo::kNoPosition)));
@@ -2644,6 +2645,7 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   }
 
   Expression* cond = ParseExpression(true, CHECK_OK);
+  if (cond != NULL) cond->set_is_loop_condition(true);
   Expect(Token::RPAREN, CHECK_OK);
 
   // Allow do-statements to be terminated with and without
@@ -2653,6 +2655,9 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   if (peek() == Token::SEMICOLON) Consume(Token::SEMICOLON);
 
   if (loop != NULL) loop->Initialize(cond, body);
+
+  seen_loop_stmt_ = true;
+
   return loop;
 }
 
@@ -2667,10 +2672,14 @@ WhileStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   Expression* cond = ParseExpression(true, CHECK_OK);
+  if (cond != NULL) cond->set_is_loop_condition(true);
   Expect(Token::RPAREN, CHECK_OK);
   Statement* body = ParseStatement(NULL, CHECK_OK);
 
   if (loop != NULL) loop->Initialize(cond, body);
+
+  seen_loop_stmt_ = true;
+
   return loop;
 }
 
@@ -2704,6 +2713,9 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
           Block* result = NEW(Block(NULL, 2, false));
           result->AddStatement(variable_statement);
           result->AddStatement(loop);
+
+          seen_loop_stmt_ = true;
+
           // Parsed for-in loop w/ variable/const declaration.
           return result;
         }
@@ -2733,6 +2745,8 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         Statement* body = ParseStatement(NULL, CHECK_OK);
         if (loop) loop->Initialize(expression, enumerable, body);
 
+        seen_loop_stmt_ = true;
+
         // Parsed for-in loop.
         return loop;
 
@@ -2752,9 +2766,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   Expression* cond = NULL;
   if (peek() != Token::SEMICOLON) {
     cond = ParseExpression(true, CHECK_OK);
-    if (cond && cond->AsCompareOperation()) {
-      cond->AsCompareOperation()->set_is_for_loop_condition();
-    }
+    if (cond != NULL) cond->set_is_loop_condition(true);
   }
   Expect(Token::SEMICOLON, CHECK_OK);
 
@@ -2765,9 +2777,17 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   }
   Expect(Token::RPAREN, CHECK_OK);
 
+  seen_loop_stmt_ = false;
+
   Statement* body = ParseStatement(NULL, CHECK_OK);
 
+  // Mark this loop if it is an inner loop.
+  if (loop && !seen_loop_stmt_) loop->set_peel_this_loop(true);
+
   if (loop) loop->Initialize(init, cond, next, body);
+
+  seen_loop_stmt_ = true;
+
   return loop;
 }
 
@@ -3712,6 +3732,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
+  // Reset flag used for inner loop detection.
+  seen_loop_stmt_ = false;
+
   bool is_named = !var_name.is_null();
 
   // The name associated with this function. If it's a function expression,
@@ -3822,6 +3845,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     if (!is_pre_parsing_) {
       function_literal->set_function_token_position(function_token_position);
     }
+
+    // Set flag for inner loop detection. We treat loops that contain a function
+    // literal not as inner loops because we avoid duplicating function literals
+    // when peeling or unrolling such a loop.
+    seen_loop_stmt_ = true;
+
     return function_literal;
   }
 }

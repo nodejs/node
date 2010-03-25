@@ -75,7 +75,7 @@ void Result::ToRegister() {
                                                  Immediate(handle()));
     }
     // This result becomes a copy of the fresh one.
-    fresh.set_number_info(number_info());
+    fresh.set_type_info(type_info());
     *this = fresh;
   }
   ASSERT(is_register());
@@ -122,7 +122,7 @@ void Result::ToRegister(Register target) {
         }
       }
     }
-    fresh.set_number_info(number_info());
+    fresh.set_type_info(type_info());
     fresh.set_untagged_int32(is_untagged_int32());
     *this = fresh;
   } else if (is_register() && reg().is(target)) {

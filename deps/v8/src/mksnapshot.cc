@@ -35,6 +35,7 @@
 #include "natives.h"
 #include "platform.h"
 #include "serialize.h"
+#include "list.h"
 
 // use explicit namespace to avoid clashing with types in namespace v8
 namespace i = v8::internal;
@@ -96,7 +97,9 @@ static CounterMap counter_table_;
 
 class CppByteSink : public i::SnapshotByteSink {
  public:
-  explicit CppByteSink(const char* snapshot_file) : bytes_written_(0) {
+  explicit CppByteSink(const char* snapshot_file)
+      : bytes_written_(0),
+        partial_sink_(this) {
     fp_ = i::OS::FOpen(snapshot_file, "wb");
     if (fp_ == NULL) {
       i::PrintF("Unable to write to snapshot file \"%s\"\n", snapshot_file);
@@ -111,11 +114,53 @@ class CppByteSink : public i::SnapshotByteSink {
   }
 
   virtual ~CppByteSink() {
-    if (fp_ != NULL) {
-      fprintf(fp_, "};\n\n");
-      fprintf(fp_, "int Snapshot::size_ = %d;\n\n", bytes_written_);
-      fprintf(fp_, "} }  // namespace v8::internal\n");
-      fclose(fp_);
+    fprintf(fp_, "const int Snapshot::size_ = %d;\n\n", bytes_written_);
+    fprintf(fp_, "} }  // namespace v8::internal\n");
+    fclose(fp_);
+  }
+
+  void WriteSpaceUsed(
+      int new_space_used,
+      int pointer_space_used,
+      int data_space_used,
+      int code_space_used,
+      int map_space_used,
+      int cell_space_used,
+      int large_space_used) {
+    fprintf(fp_, "};\n\n");
+    fprintf(fp_, "const int Snapshot::new_space_used_ = %d;\n", new_space_used);
+    fprintf(fp_,
+            "const int Snapshot::pointer_space_used_ = %d;\n",
+            pointer_space_used);
+    fprintf(fp_,
+            "const int Snapshot::data_space_used_ = %d;\n",
+            data_space_used);
+    fprintf(fp_,
+            "const int Snapshot::code_space_used_ = %d;\n",
+            code_space_used);
+    fprintf(fp_, "const int Snapshot::map_space_used_ = %d;\n", map_space_used);
+    fprintf(fp_,
+            "const int Snapshot::cell_space_used_ = %d;\n",
+            cell_space_used);
+    fprintf(fp_,
+            "const int Snapshot::large_space_used_ = %d;\n",
+            large_space_used);
+  }
+
+  void WritePartialSnapshot() {
+    int length = partial_sink_.Position();
+    fprintf(fp_, "};\n\n");
+    fprintf(fp_, "const int Snapshot::context_size_ = %d;\n",  length);
+    fprintf(fp_, "const byte Snapshot::context_data_[] = {\n");
+    for (int j = 0; j < length; j++) {
+      if ((j & 0x1f) == 0x1f) {
+        fprintf(fp_, "\n");
+      }
+      char byte = partial_sink_.at(j);
+      if (j != 0) {
+        fprintf(fp_, ",");
+      }
+      fprintf(fp_, "%d", byte);
     }
   }
 
@@ -125,7 +170,7 @@ class CppByteSink : public i::SnapshotByteSink {
     }
     fprintf(fp_, "%d", byte);
     bytes_written_++;
-    if ((bytes_written_ & 0x3f) == 0) {
+    if ((bytes_written_ & 0x1f) == 0) {
       fprintf(fp_, "\n");
     }
   }
@@ -134,9 +179,28 @@ class CppByteSink : public i::SnapshotByteSink {
     return bytes_written_;
   }
 
+  i::SnapshotByteSink* partial_sink() { return &partial_sink_; }
+
+  class PartialSnapshotSink : public i::SnapshotByteSink {
+   public:
+    explicit PartialSnapshotSink(CppByteSink* parent)
+        : parent_(parent),
+          data_() { }
+    virtual ~PartialSnapshotSink() { data_.Free(); }
+    virtual void Put(int byte, const char* description) {
+      data_.Add(byte);
+    }
+    virtual int Position() { return data_.length(); }
+    char at(int i) { return data_[i]; }
+   private:
+    CppByteSink* parent_;
+    i::List<char> data_;
+  };
+
  private:
   FILE* fp_;
   int bytes_written_;
+  PartialSnapshotSink partial_sink_;
 };
 
 
@@ -162,12 +226,31 @@ int main(int argc, char** argv) {
       i::Bootstrapper::NativesSourceLookup(i);
     }
   }
+  // If we don't do this then we end up with a stray root pointing at the
+  // context even after we have disposed of the context.
+  i::Heap::CollectAllGarbage(true);
+  i::Object* raw_context = *(v8::Utils::OpenHandle(*context));
   context.Dispose();
   CppByteSink sink(argv[1]);
   // This results in a somewhat smaller snapshot, probably because it gets rid
   // of some things that are cached between garbage collections.
-  i::Heap::CollectAllGarbage(true);
   i::StartupSerializer ser(&sink);
-  ser.Serialize();
+  ser.SerializeStrongReferences();
+
+  i::PartialSerializer partial_ser(&ser, sink.partial_sink());
+  partial_ser.Serialize(&raw_context);
+
+  ser.SerializeWeakReferences();
+
+  sink.WritePartialSnapshot();
+
+  sink.WriteSpaceUsed(
+      partial_ser.CurrentAllocationAddress(i::NEW_SPACE),
+      partial_ser.CurrentAllocationAddress(i::OLD_POINTER_SPACE),
+      partial_ser.CurrentAllocationAddress(i::OLD_DATA_SPACE),
+      partial_ser.CurrentAllocationAddress(i::CODE_SPACE),
+      partial_ser.CurrentAllocationAddress(i::MAP_SPACE),
+      partial_ser.CurrentAllocationAddress(i::CELL_SPACE),
+      partial_ser.CurrentAllocationAddress(i::LO_SPACE));
   return 0;
 }

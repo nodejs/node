@@ -409,36 +409,44 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       19,
       "compare_doubles");
+  Add(ExternalReference::compile_array_pop_call().address(),
+      UNCLASSIFIED,
+      20,
+      "compile_array_pop");
+  Add(ExternalReference::compile_array_push_call().address(),
+      UNCLASSIFIED,
+      21,
+      "compile_array_push");
 #ifdef V8_NATIVE_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16().address(),
       UNCLASSIFIED,
-      20,
+      22,
       "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()");
   Add(ExternalReference::re_check_stack_guard_state().address(),
       UNCLASSIFIED,
-      21,
+      23,
       "RegExpMacroAssembler*::CheckStackGuardState()");
   Add(ExternalReference::re_grow_stack().address(),
       UNCLASSIFIED,
-      22,
+      24,
       "NativeRegExpMacroAssembler::GrowStack()");
   Add(ExternalReference::re_word_character_map().address(),
       UNCLASSIFIED,
-      23,
+      25,
       "NativeRegExpMacroAssembler::word_character_map");
 #endif
   // Keyed lookup cache.
   Add(ExternalReference::keyed_lookup_cache_keys().address(),
       UNCLASSIFIED,
-      24,
+      26,
       "KeyedLookupCache::keys()");
   Add(ExternalReference::keyed_lookup_cache_field_offsets().address(),
       UNCLASSIFIED,
-      25,
+      27,
       "KeyedLookupCache::field_offsets()");
   Add(ExternalReference::transcendental_cache_array_address().address(),
       UNCLASSIFIED,
-      26,
+      28,
       "TranscendentalCache::caches()");
 }
 
@@ -547,7 +555,7 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
     HeapObject* new_object = HeapObject::cast(new_allocation);
     // Record all large objects in the same space.
     address = new_object->address();
-    high_water_[LO_SPACE] = address + size;
+    pages_[LO_SPACE].Add(address);
   }
   last_object_address_ = address;
   return address;
@@ -900,11 +908,16 @@ void Serializer::Synchronize(const char* tag) {
 Serializer::Serializer(SnapshotByteSink* sink)
     : sink_(sink),
       current_root_index_(0),
-      external_reference_encoder_(NULL),
+      external_reference_encoder_(new ExternalReferenceEncoder),
       large_object_total_(0) {
   for (int i = 0; i <= LAST_SPACE; i++) {
     fullness_[i] = 0;
   }
+}
+
+
+Serializer::~Serializer() {
+  delete external_reference_encoder_;
 }
 
 
@@ -914,22 +927,17 @@ void StartupSerializer::SerializeStrongReferences() {
   // No active or weak handles.
   CHECK(HandleScopeImplementer::instance()->blocks()->is_empty());
   CHECK_EQ(0, GlobalHandles::NumberOfWeakHandles());
-  CHECK_EQ(NULL, external_reference_encoder_);
   // We don't support serializing installed extensions.
   for (RegisteredExtension* ext = RegisteredExtension::first_extension();
        ext != NULL;
        ext = ext->next()) {
     CHECK_NE(v8::INSTALLED, ext->state());
   }
-  external_reference_encoder_ = new ExternalReferenceEncoder();
   Heap::IterateStrongRoots(this, VISIT_ONLY_STRONG);
-  delete external_reference_encoder_;
-  external_reference_encoder_ = NULL;
 }
 
 
 void PartialSerializer::Serialize(Object** object) {
-  external_reference_encoder_ = new ExternalReferenceEncoder();
   this->VisitPointer(object);
 
   // After we have done the partial serialization the partial snapshot cache
@@ -943,9 +951,6 @@ void PartialSerializer::Serialize(Object** object) {
     startup_serializer_->VisitPointer(&partial_snapshot_cache_[index]);
   }
   partial_snapshot_cache_length_ = kPartialSnapshotCacheCapacity;
-
-  delete external_reference_encoder_;
-  external_reference_encoder_ = NULL;
 }
 
 
@@ -997,6 +1002,7 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
     Object* entry = partial_snapshot_cache_[i];
     if (entry == heap_object) return i;
   }
+
   // We didn't find the object in the cache.  So we add it to the cache and
   // then visit the pointer so that it becomes part of the startup snapshot
   // and we can refer to it from the partial snapshot.

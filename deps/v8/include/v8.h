@@ -2158,12 +2158,26 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
 // --- G a r b a g e C o l l e c t i o n  C a l l b a c k s
 
 /**
- * Applications can register a callback function which is called
- * before and after a major garbage collection.  Allocations are not
- * allowed in the callback function, you therefore cannot manipulate
+ * Applications can register callback functions which will be called
+ * before and after a garbage collection.  Allocations are not
+ * allowed in the callback functions, you therefore cannot manipulate
  * objects (set or delete properties for example) since it is possible
  * such operations will result in the allocation of objects.
  */
+enum GCType {
+  kGCTypeScavenge = 1 << 0,
+  kGCTypeMarkSweepCompact = 1 << 1,
+  kGCTypeAll = kGCTypeScavenge | kGCTypeMarkSweepCompact
+};
+
+enum GCCallbackFlags {
+  kNoGCCallbackFlags = 0,
+  kGCCallbackFlagCompacted = 1 << 0
+};
+
+typedef void (*GCPrologueCallback)(GCType type, GCCallbackFlags flags);
+typedef void (*GCEpilogueCallback)(GCType type, GCCallbackFlags flags);
+
 typedef void (*GCCallback)();
 
 
@@ -2299,7 +2313,27 @@ class V8EXPORT V8 {
 
   /**
    * Enables the host application to receive a notification before a
-   * major garbage colletion.  Allocations are not allowed in the
+   * garbage collection.  Allocations are not allowed in the
+   * callback function, you therefore cannot manipulate objects (set
+   * or delete properties for example) since it is possible such
+   * operations will result in the allocation of objects. It is possible
+   * to specify the GCType filter for your callback. But it is not possible to
+   * register the same callback function two times with different
+   * GCType filters.
+   */
+  static void AddGCPrologueCallback(
+      GCPrologueCallback callback, GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * This function removes callback which was installed by
+   * AddGCPrologueCallback function.
+   */
+  static void RemoveGCPrologueCallback(GCPrologueCallback callback);
+
+  /**
+   * The function is deprecated. Please use AddGCPrologueCallback instead.
+   * Enables the host application to receive a notification before a
+   * garbage collection.  Allocations are not allowed in the
    * callback function, you therefore cannot manipulate objects (set
    * or delete properties for example) since it is possible such
    * operations will result in the allocation of objects.
@@ -2307,6 +2341,26 @@ class V8EXPORT V8 {
   static void SetGlobalGCPrologueCallback(GCCallback);
 
   /**
+   * Enables the host application to receive a notification after a
+   * garbage collection.  Allocations are not allowed in the
+   * callback function, you therefore cannot manipulate objects (set
+   * or delete properties for example) since it is possible such
+   * operations will result in the allocation of objects. It is possible
+   * to specify the GCType filter for your callback. But it is not possible to
+   * register the same callback function two times with different
+   * GCType filters.
+   */
+  static void AddGCEpilogueCallback(
+      GCEpilogueCallback callback, GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * This function removes callback which was installed by
+   * AddGCEpilogueCallback function.
+   */
+  static void RemoveGCEpilogueCallback(GCEpilogueCallback callback);
+
+  /**
+   * The function is deprecated. Please use AddGCEpilogueCallback instead.
    * Enables the host application to receive a notification after a
    * major garbage collection.  Allocations are not allowed in the
    * callback function, you therefore cannot manipulate objects (set
@@ -2681,9 +2735,21 @@ class V8EXPORT Context {
    */
   void DetachGlobal();
 
+  /**
+   * Reattaches a global object to a context.  This can be used to
+   * restore the connection between a global object and a context
+   * after DetachGlobal has been called.
+   *
+   * \param global_object The global object to reattach to the
+   *   context.  For this to work, the global object must be the global
+   *   object that was associated with this context before a call to
+   *   DetachGlobal.
+   */
+  void ReattachGlobal(Handle<Object> global_object);
+
   /** Creates a new context. */
   static Persistent<Context> New(
-      ExtensionConfiguration* extensions = 0,
+      ExtensionConfiguration* extensions = NULL,
       Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
       Handle<Value> global_object = Handle<Value>());
 

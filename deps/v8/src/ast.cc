@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "ast.h"
+#include "data-flow.h"
 #include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
@@ -79,7 +80,8 @@ VariableProxy::VariableProxy(Handle<String> name,
     is_this_(is_this),
     inside_with_(inside_with),
     is_trivial_(false),
-    reaching_definitions_(NULL) {
+    reaching_definitions_(NULL),
+    is_primitive_(false) {
   // names must be canonicalized for fast equality checks
   ASSERT(name->IsSymbol());
 }
@@ -87,7 +89,8 @@ VariableProxy::VariableProxy(Handle<String> name,
 
 VariableProxy::VariableProxy(bool is_this)
   : is_this_(is_this),
-    reaching_definitions_(NULL) {
+    reaching_definitions_(NULL),
+    is_primitive_(false) {
 }
 
 
@@ -168,6 +171,72 @@ void TargetCollector::AddTarget(BreakTarget* target) {
   targets_->Add(target);
 }
 
+
+bool Expression::GuaranteedSmiResult() {
+  BinaryOperation* node = AsBinaryOperation();
+  if (node == NULL) return false;
+  Token::Value op = node->op();
+  switch (op) {
+    case Token::COMMA:
+    case Token::OR:
+    case Token::AND:
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
+    case Token::BIT_XOR:
+    case Token::SHL:
+      return false;
+      break;
+    case Token::BIT_OR:
+    case Token::BIT_AND: {
+      Literal* left = node->left()->AsLiteral();
+      Literal* right = node->right()->AsLiteral();
+      if (left != NULL && left->handle()->IsSmi()) {
+        int value = Smi::cast(*left->handle())->value();
+        if (op == Token::BIT_OR && ((value & 0xc0000000) == 0xc0000000)) {
+          // Result of bitwise or is always a negative Smi.
+          return true;
+        }
+        if (op == Token::BIT_AND && ((value & 0xc0000000) == 0)) {
+          // Result of bitwise and is always a positive Smi.
+          return true;
+        }
+      }
+      if (right != NULL && right->handle()->IsSmi()) {
+        int value = Smi::cast(*right->handle())->value();
+        if (op == Token::BIT_OR && ((value & 0xc0000000) == 0xc0000000)) {
+          // Result of bitwise or is always a negative Smi.
+          return true;
+        }
+        if (op == Token::BIT_AND && ((value & 0xc0000000) == 0)) {
+          // Result of bitwise and is always a positive Smi.
+          return true;
+        }
+      }
+      return false;
+      break;
+    }
+    case Token::SAR:
+    case Token::SHR: {
+      Literal* right = node->right()->AsLiteral();
+       if (right != NULL && right->handle()->IsSmi()) {
+        int value = Smi::cast(*right->handle())->value();
+        if ((value & 0x1F) > 1 ||
+            (op == Token::SAR && (value & 0x1F) == 1)) {
+          return true;
+        }
+       }
+       return false;
+       break;
+    }
+    default:
+      UNREACHABLE();
+      break;
+  }
+  return false;
+}
 
 // ----------------------------------------------------------------------------
 // Implementation of AstVisitor
@@ -507,7 +576,7 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
 // The following expression types are never primitive because they express
 // Object values.
 bool FunctionLiteral::IsPrimitive() { return false; }
-bool FunctionBoilerplateLiteral::IsPrimitive() { return false; }
+bool SharedFunctionInfoLiteral::IsPrimitive() { return false; }
 bool RegExpLiteral::IsPrimitive() { return false; }
 bool ObjectLiteral::IsPrimitive() { return false; }
 bool ArrayLiteral::IsPrimitive() { return false; }
@@ -518,11 +587,17 @@ bool ThisFunction::IsPrimitive() { return false; }
 
 // The following expression types are not always primitive because we do not
 // have enough information to conclude that they are.
-bool VariableProxy::IsPrimitive() { return false; }
 bool Property::IsPrimitive() { return false; }
 bool Call::IsPrimitive() { return false; }
 bool CallRuntime::IsPrimitive() { return false; }
 
+
+// A variable use is not primitive unless the primitive-type analysis
+// determines otherwise.
+bool VariableProxy::IsPrimitive() {
+  ASSERT(!is_primitive_ || (var() != NULL && var()->IsStackAllocated()));
+  return is_primitive_;
+}
 
 // The value of a conditional is the value of one of the alternatives.  It's
 // always primitive if both alternatives are always primitive.
@@ -590,6 +665,582 @@ bool BinaryOperation::IsPrimitive() {
 
 // Compare operations always express Boolean values.
 bool CompareOperation::IsPrimitive() { return true; }
+
+
+// Overridden IsCritical member functions.  IsCritical is true for AST nodes
+// whose evaluation is absolutely required (they are never dead) because
+// they are externally visible.
+
+// References to global variables or lookup slots are critical because they
+// may have getters.  All others, including parameters rewritten to explicit
+// property references, are not critical.
+bool VariableProxy::IsCritical() {
+  Variable* var = AsVariable();
+  return var != NULL &&
+      (var->slot() == NULL || var->slot()->type() == Slot::LOOKUP);
+}
+
+
+// Literals are never critical.
+bool Literal::IsCritical() { return false; }
+
+
+// Property assignments and throwing of reference errors are always
+// critical.  Assignments to escaping variables are also critical.  In
+// addition the operation of compound assignments is critical if either of
+// its operands is non-primitive (the arithmetic operations all use one of
+// ToPrimitive, ToNumber, ToInt32, or ToUint32 on each of their operands).
+// In this case, we mark the entire AST node as critical because there is
+// no binary operation node to mark.
+bool Assignment::IsCritical() {
+  Variable* var = AssignedVariable();
+  return var == NULL ||
+      !var->IsStackAllocated() ||
+      (is_compound() && (!target()->IsPrimitive() || !value()->IsPrimitive()));
+}
+
+
+// Property references are always critical, because they may have getters.
+bool Property::IsCritical() { return true; }
+
+
+// Calls are always critical.
+bool Call::IsCritical() { return true; }
+
+
+// +,- use ToNumber on the value of their operand.
+bool UnaryOperation::IsCritical() {
+  ASSERT(op() == Token::ADD || op() == Token::SUB);
+  return !expression()->IsPrimitive();
+}
+
+
+// Count operations targeting properties and reference errors are always
+// critical.  Count operations on escaping variables are critical.  Count
+// operations targeting non-primitives are also critical because they use
+// ToNumber.
+bool CountOperation::IsCritical() {
+  Variable* var = AssignedVariable();
+  return var == NULL ||
+      !var->IsStackAllocated() ||
+      !expression()->IsPrimitive();
+}
+
+
+// Arithmetic operations all use one of ToPrimitive, ToNumber, ToInt32, or
+// ToUint32 on each of their operands.
+bool BinaryOperation::IsCritical() {
+  ASSERT(op() != Token::COMMA);
+  ASSERT(op() != Token::OR);
+  ASSERT(op() != Token::AND);
+  return !left()->IsPrimitive() || !right()->IsPrimitive();
+}
+
+
+// <, >, <=, and >= all use ToPrimitive on both their operands.
+bool CompareOperation::IsCritical() {
+  ASSERT(op() != Token::EQ);
+  ASSERT(op() != Token::NE);
+  ASSERT(op() != Token::EQ_STRICT);
+  ASSERT(op() != Token::NE_STRICT);
+  ASSERT(op() != Token::INSTANCEOF);
+  ASSERT(op() != Token::IN);
+  return !left()->IsPrimitive() || !right()->IsPrimitive();
+}
+
+
+static inline void MarkIfNotLive(Expression* expr, List<AstNode*>* stack) {
+  if (!expr->is_live()) {
+    expr->mark_as_live();
+    stack->Add(expr);
+  }
+}
+
+
+// Overloaded functions for marking children of live code as live.
+void VariableProxy::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  // A reference to a stack-allocated variable depends on all the
+  // definitions reaching it.
+  BitVector* defs = reaching_definitions();
+  if (defs != NULL) {
+    ASSERT(var()->IsStackAllocated());
+    // The first variable_count definitions are the initial parameter and
+    // local declarations.
+    for (int i = variable_count; i < defs->length(); i++) {
+      if (defs->Contains(i)) {
+        MarkIfNotLive(body_definitions->at(i - variable_count), stack);
+      }
+    }
+  }
+}
+
+
+void Literal::ProcessNonLiveChildren(List<AstNode*>* stack,
+                                     ZoneList<Expression*>* body_definitions,
+                                     int variable_count) {
+  // Leaf node, no children.
+}
+
+
+void Assignment::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  Property* prop = target()->AsProperty();
+  VariableProxy* proxy = target()->AsVariableProxy();
+
+  if (prop != NULL) {
+    if (!prop->key()->IsPropertyName()) MarkIfNotLive(prop->key(), stack);
+    MarkIfNotLive(prop->obj(), stack);
+  } else if (proxy == NULL) {
+    // Must be a reference error.
+    ASSERT(!target()->IsValidLeftHandSide());
+    MarkIfNotLive(target(), stack);
+  } else if (is_compound()) {
+    // A variable assignment so lhs is an operand to the operation.
+    MarkIfNotLive(target(), stack);
+  }
+  MarkIfNotLive(value(), stack);
+}
+
+
+void Property::ProcessNonLiveChildren(List<AstNode*>* stack,
+                                      ZoneList<Expression*>* body_definitions,
+                                      int variable_count) {
+  if (!key()->IsPropertyName()) MarkIfNotLive(key(), stack);
+  MarkIfNotLive(obj(), stack);
+}
+
+
+void Call::ProcessNonLiveChildren(List<AstNode*>* stack,
+                                  ZoneList<Expression*>* body_definitions,
+                                  int variable_count) {
+  ZoneList<Expression*>* args = arguments();
+  for (int i = args->length() - 1; i >= 0; i--) {
+    MarkIfNotLive(args->at(i), stack);
+  }
+  MarkIfNotLive(expression(), stack);
+}
+
+
+void UnaryOperation::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  MarkIfNotLive(expression(), stack);
+}
+
+
+void CountOperation::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  MarkIfNotLive(expression(), stack);
+}
+
+
+void BinaryOperation::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  MarkIfNotLive(right(), stack);
+  MarkIfNotLive(left(), stack);
+}
+
+
+void CompareOperation::ProcessNonLiveChildren(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  MarkIfNotLive(right(), stack);
+  MarkIfNotLive(left(), stack);
+}
+
+
+// Implementation of a copy visitor. The visitor create a deep copy
+// of ast nodes. Nodes that do not require a deep copy are copied
+// with the default copy constructor.
+
+AstNode::AstNode(AstNode* other) : num_(kNoNumber) {
+  // AST node number should be unique. Assert that we only copy AstNodes
+  // before node numbers are assigned.
+  ASSERT(other->num_ == kNoNumber);
+}
+
+
+Statement::Statement(Statement* other)
+    : AstNode(other), statement_pos_(other->statement_pos_) {}
+
+
+Expression::Expression(Expression* other)
+    : AstNode(other),
+      bitfields_(other->bitfields_),
+      type_(other->type_) {}
+
+
+BreakableStatement::BreakableStatement(BreakableStatement* other)
+    : Statement(other), labels_(other->labels_), type_(other->type_) {}
+
+
+Block::Block(Block* other, ZoneList<Statement*>* statements)
+    : BreakableStatement(other),
+      statements_(statements->length()),
+      is_initializer_block_(other->is_initializer_block_) {
+  statements_.AddAll(*statements);
+}
+
+
+ExpressionStatement::ExpressionStatement(ExpressionStatement* other,
+                                         Expression* expression)
+    : Statement(other), expression_(expression) {}
+
+
+IfStatement::IfStatement(IfStatement* other,
+                         Expression* condition,
+                         Statement* then_statement,
+                         Statement* else_statement)
+    : Statement(other),
+      condition_(condition),
+      then_statement_(then_statement),
+      else_statement_(else_statement) {}
+
+
+EmptyStatement::EmptyStatement(EmptyStatement* other) : Statement(other) {}
+
+
+IterationStatement::IterationStatement(IterationStatement* other,
+                                       Statement* body)
+    : BreakableStatement(other), body_(body) {}
+
+
+ForStatement::ForStatement(ForStatement* other,
+                           Statement* init,
+                           Expression* cond,
+                           Statement* next,
+                           Statement* body)
+    : IterationStatement(other, body),
+      init_(init),
+      cond_(cond),
+      next_(next),
+      may_have_function_literal_(other->may_have_function_literal_),
+      loop_variable_(other->loop_variable_),
+      peel_this_loop_(other->peel_this_loop_) {}
+
+
+Assignment::Assignment(Assignment* other,
+                       Expression* target,
+                       Expression* value)
+    : Expression(other),
+      op_(other->op_),
+      target_(target),
+      value_(value),
+      pos_(other->pos_),
+      block_start_(other->block_start_),
+      block_end_(other->block_end_) {}
+
+
+Property::Property(Property* other, Expression* obj, Expression* key)
+    : Expression(other),
+      obj_(obj),
+      key_(key),
+      pos_(other->pos_),
+      type_(other->type_) {}
+
+
+Call::Call(Call* other,
+           Expression* expression,
+           ZoneList<Expression*>* arguments)
+    : Expression(other),
+      expression_(expression),
+      arguments_(arguments),
+      pos_(other->pos_) {}
+
+
+UnaryOperation::UnaryOperation(UnaryOperation* other, Expression* expression)
+    : Expression(other), op_(other->op_), expression_(expression) {}
+
+
+BinaryOperation::BinaryOperation(BinaryOperation* other,
+                                 Expression* left,
+                                 Expression* right)
+    : Expression(other),
+      op_(other->op_),
+      left_(left),
+      right_(right) {}
+
+
+CountOperation::CountOperation(CountOperation* other, Expression* expression)
+    : Expression(other),
+      is_prefix_(other->is_prefix_),
+      op_(other->op_),
+      expression_(expression) {}
+
+
+CompareOperation::CompareOperation(CompareOperation* other,
+                                   Expression* left,
+                                   Expression* right)
+    : Expression(other),
+      op_(other->op_),
+      left_(left),
+      right_(right) {}
+
+
+Expression* CopyAstVisitor::DeepCopyExpr(Expression* expr) {
+  expr_ = NULL;
+  if (expr != NULL) Visit(expr);
+  return expr_;
+}
+
+
+Statement* CopyAstVisitor::DeepCopyStmt(Statement* stmt) {
+  stmt_ = NULL;
+  if (stmt != NULL) Visit(stmt);
+  return stmt_;
+}
+
+
+ZoneList<Expression*>* CopyAstVisitor::DeepCopyExprList(
+    ZoneList<Expression*>* expressions) {
+  ZoneList<Expression*>* copy =
+      new ZoneList<Expression*>(expressions->length());
+  for (int i = 0; i < expressions->length(); i++) {
+    copy->Add(DeepCopyExpr(expressions->at(i)));
+  }
+  return copy;
+}
+
+
+ZoneList<Statement*>* CopyAstVisitor::DeepCopyStmtList(
+    ZoneList<Statement*>* statements) {
+  ZoneList<Statement*>* copy = new ZoneList<Statement*>(statements->length());
+  for (int i = 0; i < statements->length(); i++) {
+    copy->Add(DeepCopyStmt(statements->at(i)));
+  }
+  return copy;
+}
+
+
+void CopyAstVisitor::VisitBlock(Block* stmt) {
+  stmt_ = new Block(stmt,
+                    DeepCopyStmtList(stmt->statements()));
+}
+
+
+void CopyAstVisitor::VisitExpressionStatement(
+    ExpressionStatement* stmt) {
+  stmt_ = new ExpressionStatement(stmt, DeepCopyExpr(stmt->expression()));
+}
+
+
+void CopyAstVisitor::VisitEmptyStatement(EmptyStatement* stmt) {
+  stmt_ = new EmptyStatement(stmt);
+}
+
+
+void CopyAstVisitor::VisitIfStatement(IfStatement* stmt) {
+  stmt_ = new IfStatement(stmt,
+                          DeepCopyExpr(stmt->condition()),
+                          DeepCopyStmt(stmt->then_statement()),
+                          DeepCopyStmt(stmt->else_statement()));
+}
+
+
+void CopyAstVisitor::VisitContinueStatement(ContinueStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitBreakStatement(BreakStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitReturnStatement(ReturnStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitWithEnterStatement(
+    WithEnterStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitWithExitStatement(WithExitStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitSwitchStatement(SwitchStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitDoWhileStatement(DoWhileStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitWhileStatement(WhileStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitForStatement(ForStatement* stmt) {
+  stmt_ = new ForStatement(stmt,
+                           DeepCopyStmt(stmt->init()),
+                           DeepCopyExpr(stmt->cond()),
+                           DeepCopyStmt(stmt->next()),
+                           DeepCopyStmt(stmt->body()));
+}
+
+
+void CopyAstVisitor::VisitForInStatement(ForInStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitTryCatchStatement(TryCatchStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitTryFinallyStatement(
+    TryFinallyStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitDebuggerStatement(
+    DebuggerStatement* stmt) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitFunctionLiteral(FunctionLiteral* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitConditional(Conditional* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitSlot(Slot* expr) {
+  UNREACHABLE();
+}
+
+
+void CopyAstVisitor::VisitVariableProxy(VariableProxy* expr) {
+  expr_ = new VariableProxy(*expr);
+}
+
+
+void CopyAstVisitor::VisitLiteral(Literal* expr) {
+  expr_ = new Literal(*expr);
+}
+
+
+void CopyAstVisitor::VisitRegExpLiteral(RegExpLiteral* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitObjectLiteral(ObjectLiteral* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitArrayLiteral(ArrayLiteral* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitCatchExtensionObject(
+    CatchExtensionObject* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitAssignment(Assignment* expr) {
+  expr_ = new Assignment(expr,
+                         DeepCopyExpr(expr->target()),
+                         DeepCopyExpr(expr->value()));
+}
+
+
+void CopyAstVisitor::VisitThrow(Throw* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitProperty(Property* expr) {
+  expr_ = new Property(expr,
+                       DeepCopyExpr(expr->obj()),
+                       DeepCopyExpr(expr->key()));
+}
+
+
+void CopyAstVisitor::VisitCall(Call* expr) {
+  expr_ = new Call(expr,
+                   DeepCopyExpr(expr->expression()),
+                   DeepCopyExprList(expr->arguments()));
+}
+
+
+void CopyAstVisitor::VisitCallNew(CallNew* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitCallRuntime(CallRuntime* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitUnaryOperation(UnaryOperation* expr) {
+  expr_ = new UnaryOperation(expr, DeepCopyExpr(expr->expression()));
+}
+
+
+void CopyAstVisitor::VisitCountOperation(CountOperation* expr) {
+  expr_ = new CountOperation(expr,
+                             DeepCopyExpr(expr->expression()));
+}
+
+
+void CopyAstVisitor::VisitBinaryOperation(BinaryOperation* expr) {
+  expr_ = new BinaryOperation(expr,
+                              DeepCopyExpr(expr->left()),
+                              DeepCopyExpr(expr->right()));
+}
+
+
+void CopyAstVisitor::VisitCompareOperation(CompareOperation* expr) {
+  expr_ = new CompareOperation(expr,
+                               DeepCopyExpr(expr->left()),
+                               DeepCopyExpr(expr->right()));
+}
+
+
+void CopyAstVisitor::VisitThisFunction(ThisFunction* expr) {
+  SetStackOverflow();
+}
+
+
+void CopyAstVisitor::VisitDeclaration(Declaration* decl) {
+  UNREACHABLE();
+}
 
 
 } }  // namespace v8::internal

@@ -38,11 +38,11 @@ namespace internal {
 // Result implementation.
 
 
-Result::Result(Register reg, NumberInfo info) {
+Result::Result(Register reg, TypeInfo info) {
   ASSERT(reg.is_valid() && !RegisterAllocator::IsReserved(reg));
   CodeGeneratorScope::Current()->allocator()->Use(reg);
   value_ = TypeField::encode(REGISTER)
-      | NumberInfoField::encode(info.ToInt())
+      | TypeInfoField::encode(info.ToInt())
       | DataField::encode(reg.code_);
 }
 

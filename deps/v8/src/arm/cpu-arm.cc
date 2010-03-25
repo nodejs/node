@@ -122,7 +122,7 @@ void CPU::FlushICache(void* start, size_t size) {
 
 
 void CPU::DebugBreak() {
-#if !defined (__arm__)
+#if !defined (__arm__) || !defined(CAN_USE_ARMV5_INSTRUCTIONS)
   UNIMPLEMENTED();  // when building ARM emulator target
 #else
   asm volatile("bkpt 0");

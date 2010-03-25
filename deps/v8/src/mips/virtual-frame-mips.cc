@@ -53,7 +53,12 @@ void VirtualFrame::SyncElementByPushing(int index) {
 
 
 void VirtualFrame::SyncRange(int begin, int end) {
-  UNIMPLEMENTED_MIPS();
+  // All elements are in memory on MIPS (ie, synced).
+#ifdef DEBUG
+  for (int i = begin; i <= end; i++) {
+    ASSERT(elements_[i].is_synced());
+  }
+#endif
 }
 
 
@@ -63,7 +68,13 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
 
 
 void VirtualFrame::Enter() {
-  UNIMPLEMENTED_MIPS();
+  // TODO(MIPS): Implement DEBUG
+
+  // We are about to push four values to the frame.
+  Adjust(4);
+  __ MultiPush(ra.bit() | fp.bit() | cp.bit() | a1.bit());
+  // Adjust FP to point to saved FP.
+  __ addiu(fp, sp, 2 * kPointerSize);
 }
 
 
@@ -73,7 +84,17 @@ void VirtualFrame::Exit() {
 
 
 void VirtualFrame::AllocateStackSlots() {
-  UNIMPLEMENTED_MIPS();
+  int count = local_count();
+  if (count > 0) {
+    Comment cmnt(masm(), "[ Allocate space for locals");
+    Adjust(count);
+      // Initialize stack slots with 'undefined' value.
+    __ LoadRoot(t0, Heap::kUndefinedValueRootIndex);
+    __ addiu(sp, sp, -count * kPointerSize);
+    for (int i = 0; i < count; i++) {
+      __ sw(t0, MemOperand(sp, (count-i-1)*kPointerSize));
+    }
+  }
 }
 
 
@@ -128,12 +149,16 @@ void VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
 
 
 void VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
-  UNIMPLEMENTED_MIPS();
+  PrepareForCall(arg_count, arg_count);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ CallRuntime(f, arg_count);
 }
 
 
 void VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
-  UNIMPLEMENTED_MIPS();
+  PrepareForCall(arg_count, arg_count);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ CallRuntime(id, arg_count);
 }
 
 
@@ -155,16 +180,37 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 }
 
 
-void VirtualFrame::RawCallCodeObject(Handle<Code> code,
-                                       RelocInfo::Mode rmode) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
 void VirtualFrame::CallCodeObject(Handle<Code> code,
                                   RelocInfo::Mode rmode,
                                   int dropped_args) {
-  UNIMPLEMENTED_MIPS();
+  switch (code->kind()) {
+    case Code::CALL_IC:
+      break;
+    case Code::FUNCTION:
+      UNIMPLEMENTED_MIPS();
+      break;
+    case Code::KEYED_LOAD_IC:
+      UNIMPLEMENTED_MIPS();
+      break;
+    case Code::LOAD_IC:
+      UNIMPLEMENTED_MIPS();
+      break;
+    case Code::KEYED_STORE_IC:
+      UNIMPLEMENTED_MIPS();
+      break;
+    case Code::STORE_IC:
+      UNIMPLEMENTED_MIPS();
+      break;
+    case Code::BUILTIN:
+      UNIMPLEMENTED_MIPS();
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  Forget(dropped_args);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ Call(code, rmode);
 }
 
 
@@ -187,7 +233,24 @@ void VirtualFrame::CallCodeObject(Handle<Code> code,
 
 
 void VirtualFrame::Drop(int count) {
-  UNIMPLEMENTED_MIPS();
+  ASSERT(count >= 0);
+  ASSERT(height() >= count);
+  int num_virtual_elements = (element_count() - 1) - stack_pointer_;
+
+  // Emit code to lower the stack pointer if necessary.
+  if (num_virtual_elements < count) {
+    int num_dropped = count - num_virtual_elements;
+    stack_pointer_ -= num_dropped;
+    __ addiu(sp, sp, num_dropped * kPointerSize);
+  }
+
+  // Discard elements from the virtual frame and free any registers.
+  for (int i = 0; i < count; i++) {
+    FrameElement dropped = elements_.RemoveLast();
+    if (dropped.is_register()) {
+      Unuse(dropped.reg());
+    }
+  }
 }
 
 
@@ -199,26 +262,49 @@ void VirtualFrame::DropFromVFrameOnly(int count) {
 Result VirtualFrame::Pop() {
   UNIMPLEMENTED_MIPS();
   Result res = Result();
-  return res;    // UNIMPLEMENTED RETUR
+  return res;    // UNIMPLEMENTED RETURN
 }
 
 
 void VirtualFrame::EmitPop(Register reg) {
-  UNIMPLEMENTED_MIPS();
+  ASSERT(stack_pointer_ == element_count() - 1);
+  stack_pointer_--;
+  elements_.RemoveLast();
+  __ Pop(reg);
 }
 
+
 void VirtualFrame::EmitMultiPop(RegList regs) {
-  UNIMPLEMENTED_MIPS();
+  ASSERT(stack_pointer_ == element_count() - 1);
+  for (int16_t i = 0; i < kNumRegisters; i++) {
+    if ((regs & (1 << i)) != 0) {
+      stack_pointer_--;
+      elements_.RemoveLast();
+    }
+  }
+  __ MultiPop(regs);
 }
 
 
 void VirtualFrame::EmitPush(Register reg) {
-  UNIMPLEMENTED_MIPS();
+  ASSERT(stack_pointer_ == element_count() - 1);
+  elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
+  stack_pointer_++;
+  __ Push(reg);
 }
 
+
 void VirtualFrame::EmitMultiPush(RegList regs) {
-  UNIMPLEMENTED_MIPS();
+  ASSERT(stack_pointer_ == element_count() - 1);
+  for (int16_t i = kNumRegisters; i > 0; i--) {
+    if ((regs & (1 << i)) != 0) {
+      elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
+      stack_pointer_++;
+    }
+  }
+  __ MultiPush(regs);
 }
+
 
 void VirtualFrame::EmitArgumentSlots(RegList reglist) {
   UNIMPLEMENTED_MIPS();

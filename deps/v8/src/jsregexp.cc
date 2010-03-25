@@ -66,11 +66,6 @@ Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
                                                Handle<String> pattern,
                                                Handle<String> flags,
                                                bool* has_pending_exception) {
-  // Ensure that the constructor function has been loaded.
-  if (!constructor->IsLoaded()) {
-    LoadLazy(constructor, has_pending_exception);
-    if (*has_pending_exception) return Handle<Object>();
-  }
   // Call the construct code with 2 arguments.
   Object** argv[2] = { Handle<Object>::cast(pattern).location(),
                        Handle<Object>::cast(flags).location() };
@@ -4992,7 +4987,9 @@ int AssertionNode::ComputeFirstCharacterSet(int budget) {
       case AFTER_WORD_CHARACTER: {
         ASSERT_NOT_NULL(on_success());
         budget = on_success()->ComputeFirstCharacterSet(budget);
-        set_first_character_set(on_success()->first_character_set());
+        if (budget >= 0) {
+          set_first_character_set(on_success()->first_character_set());
+        }
         break;
       }
     }
@@ -5018,6 +5015,10 @@ int ActionNode::ComputeFirstCharacterSet(int budget) {
 int BackReferenceNode::ComputeFirstCharacterSet(int budget) {
   // We don't know anything about the first character of a backreference
   // at this point.
+  // The potential first characters are the first characters of the capture,
+  // and the first characters of the on_success node, depending on whether the
+  // capture can be empty and whether it is known to be participating or known
+  // not to be.
   return kComputeFirstCharacterSetFail;
 }
 
@@ -5037,8 +5038,11 @@ int TextNode::ComputeFirstCharacterSet(int budget) {
     } else {
       ASSERT(text.type == TextElement::CHAR_CLASS);
       RegExpCharacterClass* char_class = text.data.u_char_class;
+      ZoneList<CharacterRange>* ranges = char_class->ranges();
+      // TODO(lrn): Canonicalize ranges when they are created
+      // instead of waiting until now.
+      CharacterRange::Canonicalize(ranges);
       if (char_class->is_negated()) {
-        ZoneList<CharacterRange>* ranges = char_class->ranges();
         int length = ranges->length();
         int new_length = length + 1;
         if (length > 0) {
@@ -5052,7 +5056,7 @@ int TextNode::ComputeFirstCharacterSet(int budget) {
         CharacterRange::Negate(ranges, negated_ranges);
         set_first_character_set(negated_ranges);
       } else {
-        set_first_character_set(char_class->ranges());
+        set_first_character_set(ranges);
       }
     }
   }

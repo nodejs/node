@@ -227,10 +227,10 @@ void PrettyPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void PrettyPrinter::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
+void PrettyPrinter::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
   Print("(");
-  PrintLiteral(node->boilerplate(), true);
+  PrintLiteral(node->shared_function_info(), true);
   Print(")");
 }
 
@@ -668,7 +668,8 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
                                               Variable* var,
                                               Handle<Object> value,
                                               StaticType* type,
-                                              int num) {
+                                              int num,
+                                              bool is_primitive) {
   if (var == NULL) {
     PrintLiteralIndented(info, value, true);
   } else {
@@ -682,6 +683,8 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
     if (num != AstNode::kNoNumber) {
       pos += OS::SNPrintF(buf + pos, ", num = %d", num);
     }
+    pos += OS::SNPrintF(buf + pos,
+                        is_primitive ? ", primitive" : ", non-primitive");
     OS::SNPrintF(buf + pos, ")");
     PrintLiteralIndented(buf.start(), value, true);
   }
@@ -740,7 +743,8 @@ void AstPrinter::PrintParameters(Scope* scope) {
       PrintLiteralWithModeIndented("VAR", scope->parameter(i),
                                    scope->parameter(i)->name(),
                                    scope->parameter(i)->type(),
-                                   AstNode::kNoNumber);
+                                   AstNode::kNoNumber,
+                                   false);
     }
   }
 }
@@ -786,7 +790,8 @@ void AstPrinter::VisitDeclaration(Declaration* node) {
                                  node->proxy()->AsVariable(),
                                  node->proxy()->name(),
                                  node->proxy()->AsVariable()->type(),
-                                 AstNode::kNoNumber);
+                                 AstNode::kNoNumber,
+                                 node->proxy()->IsPrimitive());
   } else {
     // function declarations
     PrintIndented("FUNCTION ");
@@ -918,10 +923,10 @@ void AstPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void AstPrinter::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
+void AstPrinter::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
   IndentedScope indent("FUNC LITERAL");
-  PrintLiteralIndented("BOILERPLATE", node->boilerplate(), true);
+  PrintLiteralIndented("SHARED INFO", node->shared_function_info(), true);
 }
 
 
@@ -1022,7 +1027,7 @@ void AstPrinter::VisitSlot(Slot* node) {
 
 void AstPrinter::VisitVariableProxy(VariableProxy* node) {
   PrintLiteralWithModeIndented("VAR PROXY", node->AsVariable(), node->name(),
-                               node->type(), node->num());
+                               node->type(), node->num(), node->IsPrimitive());
   Variable* var = node->var();
   if (var != NULL && var->rewrite() != NULL) {
     IndentedScope indent;
@@ -1326,9 +1331,9 @@ void JsonAstBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void JsonAstBuilder::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
-  TagScope tag(this, "FunctionBoilerplateLiteral");
+void JsonAstBuilder::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
+  TagScope tag(this, "SharedFunctionInfoLiteral");
 }
 
 

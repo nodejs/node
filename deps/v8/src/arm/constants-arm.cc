@@ -81,9 +81,27 @@ const char* VFPRegisters::names_[kNumVFPRegisters] = {
 };
 
 
-const char* VFPRegisters::Name(int reg) {
+const char* VFPRegisters::Name(int reg, bool is_double) {
   ASSERT((0 <= reg) && (reg < kNumVFPRegisters));
-  return names_[reg];
+  return names_[reg + is_double ? kNumVFPSingleRegisters : 0];
+}
+
+
+int VFPRegisters::Number(const char* name, bool* is_double) {
+  for (int i = 0; i < kNumVFPRegisters; i++) {
+    if (strcmp(names_[i], name) == 0) {
+      if (i < kNumVFPSingleRegisters) {
+        *is_double = false;
+        return i;
+      } else {
+        *is_double = true;
+        return i - kNumVFPSingleRegisters;
+      }
+    }
+  }
+
+  // No register with the requested name found.
+  return kNoRegister;
 }
 
 
@@ -104,7 +122,7 @@ int Registers::Number(const char* name) {
     i++;
   }
 
-  // No register with the reguested name found.
+  // No register with the requested name found.
   return kNoRegister;
 }
 

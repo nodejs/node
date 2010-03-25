@@ -154,14 +154,11 @@ class ProfilerEventsProcessor : public Thread {
   void FunctionMoveEvent(Address from, Address to);
   void FunctionDeleteEvent(Address from);
 
-  // Tick sampler registration. Called by sampler thread or signal handler.
-  inline void SetUpSamplesProducer() { ticks_buffer_.SetUpProducer(); }
   // Tick sample events are filled directly in the buffer of the circular
   // queue (because the structure is of fixed width, but usually not all
   // stack frame entries are filled.) This method returns a pointer to the
   // next record of the buffer.
   INLINE(TickSample* TickSampleEvent());
-  inline void TearDownSamplesProducer() { ticks_buffer_.TearDownProducer(); }
 
  private:
   union CodeEventsContainer {

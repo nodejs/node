@@ -777,15 +777,13 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(expr, script(), this);
+  Handle<SharedFunctionInfo> function_info =
+      Compiler::BuildFunctionInfo(expr, script(), this);
   if (HasStackOverflow()) return;
-
-  ASSERT(boilerplate->IsBoilerplate());
 
   // Create a new closure.
   __ push(esi);
-  __ push(Immediate(boilerplate));
+  __ push(Immediate(function_info));
   __ CallRuntime(Runtime::kNewClosure, 2);
   Apply(context_, eax);
 }
@@ -1132,7 +1130,7 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
   GenericBinaryOpStub stub(op,
                            NO_OVERWRITE,
                            NO_GENERIC_BINARY_FLAGS,
-                           NumberInfo::Unknown());
+                           TypeInfo::Unknown());
   __ CallStub(&stub);
   Apply(context, eax);
 }
@@ -1747,7 +1745,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   GenericBinaryOpStub stub(expr->binary_op(),
                            NO_OVERWRITE,
                            NO_GENERIC_BINARY_FLAGS,
-                           NumberInfo::Unknown());
+                           TypeInfo::Unknown());
   stub.GenerateCall(masm(), eax, Smi::FromInt(1));
   __ bind(&done);
 

@@ -219,9 +219,9 @@ class CompilationInfo BASE_EMBEDDED {
 // functions, they will be compiled and allocated as part of the compilation
 // of the source code.
 
-// Please note this interface returns function boilerplates.
-// This means you need to call Factory::NewFunctionFromBoilerplate
-// before you have a real function with context.
+// Please note this interface returns shared function infos.
+// This means you need to call Factory::NewFunctionFromSharedFunctionInfo
+// before you have a real function with a context.
 
 class Compiler : public AllStatic {
  public:
@@ -232,34 +232,35 @@ class Compiler : public AllStatic {
   // the return handle contains NULL.
 
   // Compile a String source within a context.
-  static Handle<JSFunction> Compile(Handle<String> source,
-                                    Handle<Object> script_name,
-                                    int line_offset, int column_offset,
-                                    v8::Extension* extension,
-                                    ScriptDataImpl* pre_data,
-                                    Handle<Object> script_data,
-                                    NativesFlag is_natives_code);
+  static Handle<SharedFunctionInfo> Compile(Handle<String> source,
+                                            Handle<Object> script_name,
+                                            int line_offset,
+                                            int column_offset,
+                                            v8::Extension* extension,
+                                            ScriptDataImpl* pre_data,
+                                            Handle<Object> script_data,
+                                            NativesFlag is_natives_code);
 
   // Compile a String source within a context for Eval.
-  static Handle<JSFunction> CompileEval(Handle<String> source,
-                                        Handle<Context> context,
-                                        bool is_global,
-                                        ValidationState validation);
+  static Handle<SharedFunctionInfo> CompileEval(Handle<String> source,
+                                                Handle<Context> context,
+                                                bool is_global,
+                                                ValidationState validation);
 
   // Compile from function info (used for lazy compilation). Returns
   // true on success and false if the compilation resulted in a stack
   // overflow.
   static bool CompileLazy(CompilationInfo* info);
 
-  // Compile a function boilerplate object (the function is possibly
+  // Compile a shared function info object (the function is possibly
   // lazily compiled). Called recursively from a backend code
-  // generator 'caller' to build the boilerplate.
-  static Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node,
-                                             Handle<Script> script,
-                                             AstVisitor* caller);
+  // generator 'caller' to build the shared function info.
+  static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
+                                                      Handle<Script> script,
+                                                      AstVisitor* caller);
 
   // Set the function info for a newly compiled function.
-  static void SetFunctionInfo(Handle<JSFunction> fun,
+  static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
                               FunctionLiteral* lit,
                               bool is_toplevel,
                               Handle<Script> script);

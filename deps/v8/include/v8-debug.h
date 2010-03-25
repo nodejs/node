@@ -237,9 +237,10 @@ class EXPORT Debug {
   * With this call the debugger is entered and the function specified is called
   * with the execution state as the first argument. This makes it possible to
   * get access to information otherwise not available during normal JavaScript
-  * execution e.g. details on stack frames. The following example show a
-  * JavaScript function which when passed to v8::Debug::Call will return the
-  * current line of JavaScript execution.
+  * execution e.g. details on stack frames. Receiver of the function call will
+  * be the debugger context global object, however this is a subject to change.
+  * The following example show a JavaScript function which when passed to 
+  * v8::Debug::Call will return the current line of JavaScript execution.
   *
   * \code
   *   function frame_source_line(exec_state) {
@@ -302,6 +303,14 @@ class EXPORT Debug {
    * of this method.
    */
   static void ProcessDebugMessages();
+
+  /**
+   * Debugger is running in it's own context which is entered while debugger
+   * messages are being dispatched. This is an explicit getter for this
+   * debugger context. Note that the content of the debugger context is subject
+   * to change.
+   */
+  static Local<Context> GetDebugContext();
 };
 
 

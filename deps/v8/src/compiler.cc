@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -89,23 +89,33 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
   }
 
   if (FLAG_use_flow_graph) {
-    FlowGraphBuilder builder;
+    int variable_count =
+        function->num_parameters() + function->scope()->num_stack_slots();
+    FlowGraphBuilder builder(variable_count);
     builder.Build(function);
 
     if (!builder.HasStackOverflow()) {
-      int variable_count =
-          function->num_parameters() + function->scope()->num_stack_slots();
-      if (variable_count > 0 && builder.definitions()->length() > 0) {
+      if (variable_count > 0) {
         ReachingDefinitions rd(builder.postorder(),
-                               builder.definitions(),
+                               builder.body_definitions(),
                                variable_count);
         rd.Compute();
+
+        TypeAnalyzer ta(builder.postorder(),
+                        builder.body_definitions(),
+                        variable_count,
+                        function->num_parameters());
+        ta.Compute();
+
+        MarkLiveCode(builder.preorder(),
+                     builder.body_definitions(),
+                     variable_count);
       }
     }
 
 #ifdef DEBUG
     if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
-      builder.graph()->PrintText(builder.postorder());
+      builder.graph()->PrintText(function, builder.postorder());
     }
 #endif
   }
@@ -156,13 +166,13 @@ Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info) {
 #endif
 
 
-static Handle<JSFunction> MakeFunction(bool is_global,
-                                       bool is_eval,
-                                       Compiler::ValidationState validate,
-                                       Handle<Script> script,
-                                       Handle<Context> context,
-                                       v8::Extension* extension,
-                                       ScriptDataImpl* pre_data) {
+static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
+    bool is_eval,
+    Compiler::ValidationState validate,
+    Handle<Script> script,
+    Handle<Context> context,
+    v8::Extension* extension,
+    ScriptDataImpl* pre_data) {
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
   PostponeInterruptsScope postpone;
@@ -204,7 +214,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // Check for parse errors.
   if (lit == NULL) {
     ASSERT(Top::has_pending_exception());
-    return Handle<JSFunction>::null();
+    return Handle<SharedFunctionInfo>::null();
   }
 
   // Measure how long it takes to do the compilation; only take the
@@ -222,7 +232,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
     Top::StackOverflow();
-    return Handle<JSFunction>::null();
+    return Handle<SharedFunctionInfo>::null();
   }
 
 #if defined ENABLE_LOGGING_AND_PROFILING || defined ENABLE_OPROFILE_AGENT
@@ -248,38 +258,39 @@ static Handle<JSFunction> MakeFunction(bool is_global,
 #endif
 
   // Allocate function.
-  Handle<JSFunction> fun =
-      Factory::NewFunctionBoilerplate(lit->name(),
-                                      lit->materialized_literal_count(),
-                                      code);
+  Handle<SharedFunctionInfo> result =
+      Factory::NewSharedFunctionInfo(lit->name(),
+                                     lit->materialized_literal_count(),
+                                     code);
 
   ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
-  Compiler::SetFunctionInfo(fun, lit, true, script);
+  Compiler::SetFunctionInfo(result, lit, true, script);
 
   // Hint to the runtime system used when allocating space for initial
   // property space by setting the expected number of properties for
   // the instances of the function.
-  SetExpectedNofPropertiesFromEstimate(fun, lit->expected_property_count());
+  SetExpectedNofPropertiesFromEstimate(result, lit->expected_property_count());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
   Debugger::OnAfterCompile(script, Debugger::NO_AFTER_COMPILE_FLAGS);
 #endif
 
-  return fun;
+  return result;
 }
 
 
 static StaticResource<SafeStringInputBuffer> safe_string_input_buffer;
 
 
-Handle<JSFunction> Compiler::Compile(Handle<String> source,
-                                     Handle<Object> script_name,
-                                     int line_offset, int column_offset,
-                                     v8::Extension* extension,
-                                     ScriptDataImpl* input_pre_data,
-                                     Handle<Object> script_data,
-                                     NativesFlag natives) {
+Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
+                                             Handle<Object> script_name,
+                                             int line_offset,
+                                             int column_offset,
+                                             v8::Extension* extension,
+                                             ScriptDataImpl* input_pre_data,
+                                             Handle<Object> script_data,
+                                             NativesFlag natives) {
   int source_length = source->length();
   Counters::total_load_size.Increment(source_length);
   Counters::total_compile_size.Increment(source_length);
@@ -288,7 +299,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
   VMState state(COMPILER);
 
   // Do a lookup in the compilation cache but not for extensions.
-  Handle<JSFunction> result;
+  Handle<SharedFunctionInfo> result;
   if (extension == NULL) {
     result = CompilationCache::LookupScript(source,
                                             script_name,
@@ -320,13 +331,13 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
                                            : *script_data);
 
     // Compile the function and add it to the cache.
-    result = MakeFunction(true,
-                          false,
-                          DONT_VALIDATE_JSON,
-                          script,
-                          Handle<Context>::null(),
-                          extension,
-                          pre_data);
+    result = MakeFunctionInfo(true,
+                              false,
+                              DONT_VALIDATE_JSON,
+                              script,
+                              Handle<Context>::null(),
+                              extension,
+                              pre_data);
     if (extension == NULL && !result.is_null()) {
       CompilationCache::PutScript(source, result);
     }
@@ -342,10 +353,10 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
 }
 
 
-Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
-                                         Handle<Context> context,
-                                         bool is_global,
-                                         ValidationState validate) {
+Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
+                                                 Handle<Context> context,
+                                                 bool is_global,
+                                                 ValidationState validate) {
   // Note that if validation is required then no path through this
   // function is allowed to return a value without validating that
   // the input is legal json.
@@ -361,20 +372,20 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
   // invoke the compiler and add the result to the cache.  If we're
   // evaluating json we bypass the cache since we can't be sure a
   // potential value in the cache has been validated.
-  Handle<JSFunction> result;
+  Handle<SharedFunctionInfo> result;
   if (validate == DONT_VALIDATE_JSON)
     result = CompilationCache::LookupEval(source, context, is_global);
 
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
-    result = MakeFunction(is_global,
-                          true,
-                          validate,
-                          script,
-                          context,
-                          NULL,
-                          NULL);
+    result = MakeFunctionInfo(is_global,
+                              true,
+                              validate,
+                              script,
+                              context,
+                              NULL,
+                              NULL);
     if (!result.is_null() && validate != VALIDATE_JSON) {
       // For json it's unlikely that we'll ever see exactly the same
       // string again so we don't use the compilation cache.
@@ -459,9 +470,9 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 }
 
 
-Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
-                                              Handle<Script> script,
-                                              AstVisitor* caller) {
+Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
+                                                       Handle<Script> script,
+                                                       AstVisitor* caller) {
 #ifdef DEBUG
   // We should not try to compile the same function literal more than
   // once.
@@ -484,7 +495,7 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
     // The bodies of function literals have not yet been visited by
     // the AST optimizer/analyzer.
     if (!Rewriter::Optimize(literal)) {
-      return Handle<JSFunction>::null();
+      return Handle<SharedFunctionInfo>::null();
     }
 
     if (literal->scope()->num_parameters() > 0 ||
@@ -492,28 +503,38 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
       AssignedVariablesAnalyzer ava(literal);
       ava.Analyze();
       if (ava.HasStackOverflow()) {
-        return Handle<JSFunction>::null();
+        return Handle<SharedFunctionInfo>::null();
       }
     }
 
     if (FLAG_use_flow_graph) {
-      FlowGraphBuilder builder;
-      builder.Build(literal);
-
-    if (!builder.HasStackOverflow()) {
       int variable_count =
           literal->num_parameters() + literal->scope()->num_stack_slots();
-      if (variable_count > 0 && builder.definitions()->length() > 0) {
-        ReachingDefinitions rd(builder.postorder(),
-                               builder.definitions(),
-                               variable_count);
-        rd.Compute();
+      FlowGraphBuilder builder(variable_count);
+      builder.Build(literal);
+
+      if (!builder.HasStackOverflow()) {
+        if (variable_count > 0) {
+          ReachingDefinitions rd(builder.postorder(),
+                                 builder.body_definitions(),
+                                 variable_count);
+          rd.Compute();
+
+          TypeAnalyzer ta(builder.postorder(),
+                          builder.body_definitions(),
+                          variable_count,
+                          literal->num_parameters());
+          ta.Compute();
+
+          MarkLiveCode(builder.preorder(),
+                       builder.body_definitions(),
+                       variable_count);
+        }
       }
-    }
 
 #ifdef DEBUG
       if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
-        builder.graph()->PrintText(builder.postorder());
+        builder.graph()->PrintText(literal, builder.postorder());
       }
 #endif
     }
@@ -553,7 +574,7 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
     // Check for stack-overflow exception.
     if (code.is_null()) {
       caller->SetStackOverflow();
-      return Handle<JSFunction>::null();
+      return Handle<SharedFunctionInfo>::null();
     }
 
     // Function compilation complete.
@@ -569,22 +590,17 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
   }
 
   // Create a boilerplate function.
-  Handle<JSFunction> function =
-      Factory::NewFunctionBoilerplate(literal->name(),
-                                      literal->materialized_literal_count(),
-                                      code);
-  SetFunctionInfo(function, literal, false, script);
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Notify debugger that a new function has been added.
-  Debugger::OnNewFunction(function);
-#endif
+  Handle<SharedFunctionInfo> result =
+      Factory::NewSharedFunctionInfo(literal->name(),
+                                     literal->materialized_literal_count(),
+                                     code);
+  SetFunctionInfo(result, literal, false, script);
 
   // Set the expected number of properties for instances and return
   // the resulting function.
-  SetExpectedNofPropertiesFromEstimate(function,
+  SetExpectedNofPropertiesFromEstimate(result,
                                        literal->expected_property_count());
-  return function;
+  return result;
 }
 
 
@@ -592,23 +608,23 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
 // The start_position points to the first '(' character after the function name
 // in the full script source. When counting characters in the script source the
 // the first character is number 0 (not 1).
-void Compiler::SetFunctionInfo(Handle<JSFunction> fun,
+void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
                                FunctionLiteral* lit,
                                bool is_toplevel,
                                Handle<Script> script) {
-  fun->shared()->set_length(lit->num_parameters());
-  fun->shared()->set_formal_parameter_count(lit->num_parameters());
-  fun->shared()->set_script(*script);
-  fun->shared()->set_function_token_position(lit->function_token_position());
-  fun->shared()->set_start_position(lit->start_position());
-  fun->shared()->set_end_position(lit->end_position());
-  fun->shared()->set_is_expression(lit->is_expression());
-  fun->shared()->set_is_toplevel(is_toplevel);
-  fun->shared()->set_inferred_name(*lit->inferred_name());
-  fun->shared()->SetThisPropertyAssignmentsInfo(
+  function_info->set_length(lit->num_parameters());
+  function_info->set_formal_parameter_count(lit->num_parameters());
+  function_info->set_script(*script);
+  function_info->set_function_token_position(lit->function_token_position());
+  function_info->set_start_position(lit->start_position());
+  function_info->set_end_position(lit->end_position());
+  function_info->set_is_expression(lit->is_expression());
+  function_info->set_is_toplevel(is_toplevel);
+  function_info->set_inferred_name(*lit->inferred_name());
+  function_info->SetThisPropertyAssignmentsInfo(
       lit->has_only_simple_this_property_assignments(),
       *lit->this_property_assignments());
-  fun->shared()->set_try_full_codegen(lit->try_full_codegen());
+  function_info->set_try_full_codegen(lit->try_full_codegen());
 }
 
 

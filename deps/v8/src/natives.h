@@ -44,13 +44,13 @@ class NativesCollection {
  public:
   // Number of built-in scripts.
   static int GetBuiltinsCount();
-  // Number of delayed/lazy loading scripts.
-  static int GetDelayCount();
+  // Number of debugger implementation scripts.
+  static int GetDebuggerCount();
 
-  // These are used to access built-in scripts.
-  // The delayed script has an index in the interval [0, GetDelayCount()).
-  // The non-delayed script has an index in the interval
-  // [GetDelayCount(), GetNativesCount()).
+  // These are used to access built-in scripts.  The debugger implementation
+  // scripts have an index in the interval [0, GetDebuggerCount()).  The
+  // non-debugger scripts have an index in the interval [GetDebuggerCount(),
+  // GetNativesCount()).
   static int GetIndex(const char* name);
   static Vector<const char> GetScriptSource(int index);
   static Vector<const char> GetScriptName(int index);

@@ -76,15 +76,11 @@ class SamplingCircularQueue {
                         int buffer_size_in_chunks);
   ~SamplingCircularQueue();
 
-  // Executed on the producer (sampler) or application thread.
-  void SetUpProducer();
   // Enqueue returns a pointer to a memory location for storing the next
   // record.
   INLINE(void* Enqueue());
-  void TearDownProducer();
 
   // Executed on the consumer (analyzer) thread.
-  void SetUpConsumer();
   // StartDequeue returns a pointer to a memory location for retrieving
   // the next record. After the record had been read by a consumer,
   // FinishDequeue must be called. Until that moment, subsequent calls
@@ -95,7 +91,6 @@ class SamplingCircularQueue {
   // the queue must be notified whether producing has been finished in order
   // to process remaining records from the buffer.
   void FlushResidualRecords();
-  void TearDownConsumer();
 
   typedef AtomicWord Cell;
   // Reserved values for the first cell of a record.
@@ -103,6 +98,9 @@ class SamplingCircularQueue {
   static const Cell kEnd = -1;   // Marks the end of the buffer.
 
  private:
+  struct ProducerPosition {
+    Cell* enqueue_pos;
+  };
   struct ConsumerPosition {
     Cell* dequeue_chunk_pos;
     Cell* dequeue_chunk_poll_pos;
@@ -118,10 +116,9 @@ class SamplingCircularQueue {
   const int buffer_size_;
   const int producer_consumer_distance_;
   Cell* buffer_;
-  // Store producer and consumer data in TLS to avoid modifying the
-  // same CPU cache line from two threads simultaneously.
-  Thread::LocalStorageKey consumer_key_;
-  Thread::LocalStorageKey producer_key_;
+  byte* positions_;
+  ProducerPosition* producer_pos_;
+  ConsumerPosition* consumer_pos_;
 };
 
 

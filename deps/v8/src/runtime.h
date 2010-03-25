@@ -153,6 +153,7 @@ namespace internal {
   /* Regular expressions */ \
   F(RegExpCompile, 3, 1) \
   F(RegExpExec, 4, 1) \
+  F(RegExpExecMultiple, 4, 1) \
   \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \

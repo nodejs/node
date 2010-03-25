@@ -155,6 +155,14 @@ void V8::TearDown() {
 }
 
 
+static uint32_t random_seed() {
+  if (FLAG_random_seed == 0) {
+    return random();
+  }
+  return FLAG_random_seed;
+}
+
+
 uint32_t V8::Random() {
   // Random number generator using George Marsaglia's MWC algorithm.
   static uint32_t hi = 0;
@@ -164,8 +172,8 @@ uint32_t V8::Random() {
   // should ever become zero again, or if random() returns zero, we
   // avoid getting stuck with zero bits in hi or lo by re-initializing
   // them on demand.
-  if (hi == 0) hi = random();
-  if (lo == 0) lo = random();
+  if (hi == 0) hi = random_seed();
+  if (lo == 0) lo = random_seed();
 
   // Mix the bits.
   hi = 36969 * (hi & 0xFFFF) + (hi >> 16);

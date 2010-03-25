@@ -176,7 +176,6 @@ bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
 
 
 void ProfilerEventsProcessor::Run() {
-  ticks_buffer_.SetUpConsumer();
   unsigned dequeue_order = 0;
   running_ = true;
 
@@ -194,7 +193,6 @@ void ProfilerEventsProcessor::Run() {
   ticks_buffer_.FlushResidualRecords();
   // Perform processing until we have tick events, skip remaining code events.
   while (ProcessTicks(dequeue_order) && ProcessCodeEvent(&dequeue_order)) { }
-  ticks_buffer_.TearDownConsumer();
 }
 
 

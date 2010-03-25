@@ -47,16 +47,6 @@ void VirtualFrame::SyncElementByPushing(int index) {
 }
 
 
-void VirtualFrame::SyncRange(int begin, int end) {
-  // All elements are in memory on ARM (ie, synced).
-#ifdef DEBUG
-  for (int i = begin; i <= end; i++) {
-    ASSERT(elements_[i].is_synced());
-  }
-#endif
-}
-
-
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
   // ARM frames are currently always in memory.
   ASSERT(Equals(expected));
@@ -270,12 +260,7 @@ void VirtualFrame::Drop(int count) {
   }
 
   // Discard elements from the virtual frame and free any registers.
-  for (int i = 0; i < count; i++) {
-    FrameElement dropped = elements_.RemoveLast();
-    if (dropped.is_register()) {
-      Unuse(dropped.reg());
-    }
-  }
+  element_count_ -= count;
 }
 
 
@@ -288,14 +273,14 @@ Result VirtualFrame::Pop() {
 void VirtualFrame::EmitPop(Register reg) {
   ASSERT(stack_pointer_ == element_count() - 1);
   stack_pointer_--;
-  elements_.RemoveLast();
+  element_count_--;
   __ pop(reg);
 }
 
 
 void VirtualFrame::EmitPush(Register reg) {
   ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
+  element_count_++;
   stack_pointer_++;
   __ push(reg);
 }

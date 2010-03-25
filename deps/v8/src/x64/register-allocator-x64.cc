@@ -44,7 +44,7 @@ void Result::ToRegister() {
     ASSERT(fresh.is_valid());
     CodeGeneratorScope::Current()->masm()->Move(fresh.reg(), handle());
     // This result becomes a copy of the fresh one.
-    fresh.set_number_info(number_info());
+    fresh.set_type_info(type_info());
     *this = fresh;
   }
   ASSERT(is_register());
@@ -62,7 +62,7 @@ void Result::ToRegister(Register target) {
       ASSERT(is_constant());
       CodeGeneratorScope::Current()->masm()->Move(fresh.reg(), handle());
     }
-    fresh.set_number_info(number_info());
+    fresh.set_type_info(type_info());
     *this = fresh;
   } else if (is_register() && reg().is(target)) {
     ASSERT(CodeGeneratorScope::Current()->has_valid_frame());

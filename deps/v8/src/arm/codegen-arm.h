@@ -348,8 +348,8 @@ class CodeGenerator: public AstVisitor {
   // name/value pairs.
   void DeclareGlobals(Handle<FixedArray> pairs);
 
-  // Instantiate the function boilerplate.
-  void InstantiateBoilerplate(Handle<JSFunction> boilerplate);
+  // Instantiate the function based on the shared function info.
+  void InstantiateFunction(Handle<SharedFunctionInfo> function_info);
 
   // Support for type checks.
   void GenerateIsSmi(ZoneList<Expression*>* args);
@@ -657,6 +657,46 @@ class StringCompareStub: public CodeStub {
   int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
+};
+
+
+// This stub can convert a signed int32 to a heap number (double).  It does
+// not work for int32s that are in Smi range!  No GC occurs during this stub
+// so you don't have to set up the frame.
+class WriteInt32ToHeapNumberStub : public CodeStub {
+ public:
+  WriteInt32ToHeapNumberStub(Register the_int,
+                             Register the_heap_number,
+                             Register scratch)
+      : the_int_(the_int),
+        the_heap_number_(the_heap_number),
+        scratch_(scratch) { }
+
+ private:
+  Register the_int_;
+  Register the_heap_number_;
+  Register scratch_;
+
+  // Minor key encoding in 16 bits.
+  class IntRegisterBits: public BitField<int, 0, 4> {};
+  class HeapNumberRegisterBits: public BitField<int, 4, 4> {};
+  class ScratchRegisterBits: public BitField<int, 8, 4> {};
+
+  Major MajorKey() { return WriteInt32ToHeapNumber; }
+  int MinorKey() {
+    // Encode the parameters in a unique 16 bit value.
+    return IntRegisterBits::encode(the_int_.code())
+           | HeapNumberRegisterBits::encode(the_heap_number_.code())
+           | ScratchRegisterBits::encode(scratch_.code());
+  }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "WriteInt32ToHeapNumberStub"; }
+
+#ifdef DEBUG
+  void Print() { PrintF("WriteInt32ToHeapNumberStub\n"); }
+#endif
 };
 
 

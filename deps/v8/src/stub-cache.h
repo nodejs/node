@@ -610,6 +610,22 @@ typedef Object* (*CustomCallGenerator)(CallStubCompiler* compiler,
                                        StubCompiler::CheckType check);
 
 
+Object* CompileArrayPushCall(CallStubCompiler* compiler,
+                             Object* object,
+                             JSObject* holder,
+                             JSFunction* function,
+                             String* name,
+                             StubCompiler::CheckType check);
+
+
+Object* CompileArrayPopCall(CallStubCompiler* compiler,
+                            Object* object,
+                            JSObject* holder,
+                            JSFunction* function,
+                            String* name,
+                            StubCompiler::CheckType check);
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_STUB_CACHE_H_

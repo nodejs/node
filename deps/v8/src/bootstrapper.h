@@ -32,6 +32,24 @@
 namespace v8 {
 namespace internal {
 
+
+class BootstrapperActive BASE_EMBEDDED {
+ public:
+  BootstrapperActive() { nesting_++; }
+  ~BootstrapperActive() { nesting_--; }
+
+  // Support for thread preemption.
+  static int ArchiveSpacePerThread();
+  static char* ArchiveState(char* to);
+  static char* RestoreState(char* from);
+
+ private:
+  static bool IsActive() { return nesting_ != 0; }
+  static int nesting_;
+  friend class Bootstrapper;
+};
+
+
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
 class Bootstrapper : public AllStatic {
@@ -50,17 +68,17 @@ class Bootstrapper : public AllStatic {
   // Detach the environment from its outer global object.
   static void DetachGlobal(Handle<Context> env);
 
+  // Reattach an outer global object to an environment.
+  static void ReattachGlobal(Handle<Context> env, Handle<Object> global_object);
+
   // Traverses the pointers for memory management.
   static void Iterate(ObjectVisitor* v);
 
-  // Accessors for the native scripts cache. Used in lazy loading.
+  // Accessor for the native scripts source code.
   static Handle<String> NativesSourceLookup(int index);
-  static bool NativesCacheLookup(Vector<const char> name,
-                                 Handle<JSFunction>* handle);
-  static void NativesCacheAdd(Vector<const char> name, Handle<JSFunction> fun);
 
   // Tells whether bootstrapping is active.
-  static bool IsActive();
+  static bool IsActive() { return BootstrapperActive::IsActive(); }
 
   // Encoding/decoding support for fixup flags.
   class FixupFlagsUseCodeObject: public BitField<bool, 0, 1> {};
@@ -75,6 +93,10 @@ class Bootstrapper : public AllStatic {
   // This will allocate a char array that is deleted when V8 is shut down.
   // It should only be used for strictly finite allocations.
   static char* AllocateAutoDeletedArray(int bytes);
+
+  // Used for new context creation.
+  static bool InstallExtensions(Handle<Context> global_context,
+                                v8::ExtensionConfiguration* extensions);
 };
 
 

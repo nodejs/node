@@ -338,55 +338,6 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
 }
 
 
-Object* JSObject::GetLazyProperty(Object* receiver,
-                                  LookupResult* result,
-                                  String* name,
-                                  PropertyAttributes* attributes) {
-  HandleScope scope;
-  Handle<Object> this_handle(this);
-  Handle<Object> receiver_handle(receiver);
-  Handle<String> name_handle(name);
-  bool pending_exception;
-  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
-           &pending_exception);
-  if (pending_exception) return Failure::Exception();
-  return this_handle->GetPropertyWithReceiver(*receiver_handle,
-                                              *name_handle,
-                                              attributes);
-}
-
-
-Object* JSObject::SetLazyProperty(LookupResult* result,
-                                  String* name,
-                                  Object* value,
-                                  PropertyAttributes attributes) {
-  ASSERT(!IsJSGlobalProxy());
-  HandleScope scope;
-  Handle<JSObject> this_handle(this);
-  Handle<String> name_handle(name);
-  Handle<Object> value_handle(value);
-  bool pending_exception;
-  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
-           &pending_exception);
-  if (pending_exception) return Failure::Exception();
-  return this_handle->SetProperty(*name_handle, *value_handle, attributes);
-}
-
-
-Object* JSObject::DeleteLazyProperty(LookupResult* result,
-                                     String* name,
-                                     DeleteMode mode) {
-  HandleScope scope;
-  Handle<JSObject> this_handle(this);
-  Handle<String> name_handle(name);
-  bool pending_exception;
-  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
-           &pending_exception);
-  if (pending_exception) return Failure::Exception();
-  return this_handle->DeleteProperty(*name_handle, mode);
-}
-
-
 Object* JSObject::GetNormalizedProperty(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
@@ -530,12 +481,6 @@ Object* Object::GetProperty(Object* receiver,
     return Heap::undefined_value();
   }
   *attributes = result->GetAttributes();
-  if (!result->IsLoaded()) {
-    return JSObject::cast(this)->GetLazyProperty(receiver,
-                                                 result,
-                                                 name,
-                                                 attributes);
-  }
   Object* value;
   JSObject* holder = result->holder();
   switch (result->type()) {
@@ -1786,7 +1731,6 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
           return;
         }
         value = JSGlobalPropertyCell::cast(value)->value();
-        ASSERT(result->IsLoaded());
       }
       // Make sure to disallow caching for uninitialized constants
       // found in the dictionary-mode objects.
@@ -1912,9 +1856,6 @@ Object* JSObject::SetProperty(LookupResult* result,
     // Neither properties nor transitions found.
     return AddProperty(name, value, attributes);
   }
-  if (!result->IsLoaded()) {
-    return SetLazyProperty(result, name, value, attributes);
-  }
   if (result->IsReadOnly() && result->IsProperty()) return value;
   // This is a real property that is not read-only, or it is a
   // transition or null descriptor and there are no setters in the prototypes.
@@ -1994,9 +1935,7 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
     // Neither properties nor transitions found.
     return AddProperty(name, value, attributes);
   }
-  if (!result.IsLoaded()) {
-    return SetLazyProperty(&result, name, value, attributes);
-  }
+
   PropertyDetails details = PropertyDetails(attributes, NORMAL);
 
   // Check of IsReadOnly removed from here in clone.
@@ -2513,11 +2452,6 @@ Object* JSObject::DeleteProperty(String* name, DeleteMode mode) {
         return DeletePropertyPostInterceptor(name, mode);
       }
       return DeletePropertyWithInterceptor(name);
-    }
-    if (!result.IsLoaded()) {
-      return JSObject::cast(this)->DeleteLazyProperty(&result,
-                                                      name,
-                                                      mode);
     }
     // Normalize object if needed.
     Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);

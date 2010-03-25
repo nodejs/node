@@ -781,15 +781,13 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(expr, script(), this);
+  Handle<SharedFunctionInfo> function_info =
+      Compiler::BuildFunctionInfo(expr, script(), this);
   if (HasStackOverflow()) return;
-
-  ASSERT(boilerplate->IsBoilerplate());
 
   // Create a new closure.
   __ push(rsi);
-  __ Push(boilerplate);
+  __ Push(function_info);
   __ CallRuntime(Runtime::kNewClosure, 2);
   Apply(context_, rax);
 }

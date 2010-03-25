@@ -28,7 +28,7 @@
 #ifndef V8_IA32_VIRTUAL_FRAME_IA32_H_
 #define V8_IA32_VIRTUAL_FRAME_IA32_H_
 
-#include "number-info.h"
+#include "type-info.h"
 #include "register-allocator.h"
 #include "scopes.h"
 
@@ -84,7 +84,7 @@ class VirtualFrame: public ZoneObject {
 
   // Create a duplicate of an existing valid frame element.
   FrameElement CopyElementAt(int index,
-    NumberInfo info = NumberInfo::Uninitialized());
+    TypeInfo info = TypeInfo::Uninitialized());
 
   // The number of elements on the virtual frame.
   int element_count() { return elements_.length(); }
@@ -138,7 +138,7 @@ class VirtualFrame: public ZoneObject {
   void ForgetElements(int count);
 
   // Spill all values from the frame to memory.
-  void SpillAll();
+  inline void SpillAll();
 
   // Spill all occurrences of a specific register from the frame.
   void Spill(Register reg) {
@@ -199,7 +199,7 @@ class VirtualFrame: public ZoneObject {
   // Prepare for returning from the frame by spilling locals.  This
   // avoids generating unnecessary merge code when jumping to the
   // shared return site.  Emits code for spills.
-  void PrepareForReturn();
+  inline void PrepareForReturn();
 
   // Number of local variables after when we use a loop for allocating.
   static const int kLocalVarBound = 10;
@@ -398,14 +398,14 @@ class VirtualFrame: public ZoneObject {
   // Push an element on top of the expression stack and emit a
   // corresponding push instruction.
   void EmitPush(Register reg,
-                NumberInfo info = NumberInfo::Unknown());
+                TypeInfo info = TypeInfo::Unknown());
   void EmitPush(Operand operand,
-                NumberInfo info = NumberInfo::Unknown());
+                TypeInfo info = TypeInfo::Unknown());
   void EmitPush(Immediate immediate,
-                NumberInfo info = NumberInfo::Unknown());
+                TypeInfo info = TypeInfo::Unknown());
 
   // Push an element on the virtual frame.
-  inline void Push(Register reg, NumberInfo info = NumberInfo::Unknown());
+  inline void Push(Register reg, TypeInfo info = TypeInfo::Unknown());
   inline void Push(Handle<Object> value);
   inline void Push(Smi* value);
 
@@ -417,7 +417,7 @@ class VirtualFrame: public ZoneObject {
     // This assert will trigger if you try to push the same value twice.
     ASSERT(result->is_valid());
     if (result->is_register()) {
-      Push(result->reg(), result->number_info());
+      Push(result->reg(), result->type_info());
     } else {
       ASSERT(result->is_constant());
       Push(result->handle());
@@ -447,8 +447,8 @@ class VirtualFrame: public ZoneObject {
   }
 
   // Update the type information of a variable frame element directly.
-  inline void SetTypeForLocalAt(int index, NumberInfo info);
-  inline void SetTypeForParamAt(int index, NumberInfo info);
+  inline void SetTypeForLocalAt(int index, TypeInfo info);
+  inline void SetTypeForParamAt(int index, TypeInfo info);
 
  private:
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;

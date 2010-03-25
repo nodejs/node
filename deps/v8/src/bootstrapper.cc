@@ -59,11 +59,12 @@ class SourceCodeCache BASE_EMBEDDED {
   }
 
 
-  bool Lookup(Vector<const char> name, Handle<JSFunction>* handle) {
+  bool Lookup(Vector<const char> name, Handle<SharedFunctionInfo>* handle) {
     for (int i = 0; i < cache_->length(); i+=2) {
       SeqAsciiString* str = SeqAsciiString::cast(cache_->get(i));
       if (str->IsEqualTo(name)) {
-        *handle = Handle<JSFunction>(JSFunction::cast(cache_->get(i + 1)));
+        *handle = Handle<SharedFunctionInfo>(
+            SharedFunctionInfo::cast(cache_->get(i + 1)));
         return true;
       }
     }
@@ -71,8 +72,7 @@ class SourceCodeCache BASE_EMBEDDED {
   }
 
 
-  void Add(Vector<const char> name, Handle<JSFunction> fun) {
-    ASSERT(fun->IsBoilerplate());
+  void Add(Vector<const char> name, Handle<SharedFunctionInfo> shared) {
     HandleScope scope;
     int length = cache_->length();
     Handle<FixedArray> new_array =
@@ -81,8 +81,8 @@ class SourceCodeCache BASE_EMBEDDED {
     cache_ = *new_array;
     Handle<String> str = Factory::NewStringFromAscii(name, TENURED);
     cache_->set(length, *str);
-    cache_->set(length + 1, *fun);
-    Script::cast(fun->shared()->script())->set_type(Smi::FromInt(type_));
+    cache_->set(length + 1, *shared);
+    Script::cast(shared->script())->set_type(Smi::FromInt(type_));
   }
 
  private:
@@ -91,7 +91,6 @@ class SourceCodeCache BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 
-static SourceCodeCache natives_cache(Script::TYPE_NATIVE);
 static SourceCodeCache extensions_cache(Script::TYPE_EXTENSION);
 // This is for delete, not delete[].
 static List<char*>* delete_these_non_arrays_on_tear_down = NULL;
@@ -134,20 +133,7 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
 }
 
 
-bool Bootstrapper::NativesCacheLookup(Vector<const char> name,
-                                      Handle<JSFunction>* handle) {
-  return natives_cache.Lookup(name, handle);
-}
-
-
-void Bootstrapper::NativesCacheAdd(Vector<const char> name,
-                                   Handle<JSFunction> fun) {
-  natives_cache.Add(name, fun);
-}
-
-
 void Bootstrapper::Initialize(bool create_heap_objects) {
-  natives_cache.Initialize(create_heap_objects);
   extensions_cache.Initialize(create_heap_objects);
 }
 
@@ -187,8 +173,7 @@ void Bootstrapper::TearDown() {
     delete_these_arrays_on_tear_down = NULL;
   }
 
-  natives_cache.Initialize(false);  // Yes, symmetrical
-  extensions_cache.Initialize(false);
+  extensions_cache.Initialize(false);  // Yes, symmetrical
 }
 
 
@@ -197,17 +182,11 @@ class Genesis BASE_EMBEDDED {
   Genesis(Handle<Object> global_object,
           v8::Handle<v8::ObjectTemplate> global_template,
           v8::ExtensionConfiguration* extensions);
-  ~Genesis();
+  ~Genesis() { }
 
   Handle<Context> result() { return result_; }
 
   Genesis* previous() { return previous_; }
-  static Genesis* current() { return current_; }
-
-  // Support for thread preemption.
-  static int ArchiveSpacePerThread();
-  static char* ArchiveState(char* to);
-  static char* RestoreState(char* from);
 
  private:
   Handle<Context> global_context_;
@@ -216,18 +195,46 @@ class Genesis BASE_EMBEDDED {
   // triggered during environment creation there may be weak handle
   // processing callbacks which may create new environments.
   Genesis* previous_;
-  static Genesis* current_;
 
   Handle<Context> global_context() { return global_context_; }
 
-  void CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
-                   Handle<Object> global_object);
+  // Creates some basic objects. Used for creating a context from scratch.
+  void CreateRoots();
+  // Creates the empty function.  Used for creating a context from scratch.
+  Handle<JSFunction> CreateEmptyFunction();
+  // Creates the global objects using the global and the template passed in
+  // through the API.  We call this regardless of whether we are building a
+  // context from scratch or using a deserialized one from the partial snapshot
+  // but in the latter case we don't use the objects it produces directly, as
+  // we have to used the deserialized ones that are linked together with the
+  // rest of the context snapshot.
+  Handle<JSGlobalProxy> CreateNewGlobals(
+      v8::Handle<v8::ObjectTemplate> global_template,
+      Handle<Object> global_object,
+      Handle<GlobalObject>* global_proxy_out);
+  // Hooks the given global proxy into the context.  If the context was created
+  // by deserialization then this will unhook the global proxy that was
+  // deserialized, leaving the GC to pick it up.
+  void HookUpGlobalProxy(Handle<GlobalObject> inner_global,
+                         Handle<JSGlobalProxy> global_proxy);
+  // Similarly, we want to use the inner global that has been created by the
+  // templates passed through the API.  The inner global from the snapshot is
+  // detached from the other objects in the snapshot.
+  void HookUpInnerGlobal(Handle<GlobalObject> inner_global);
+  // New context initialization.  Used for creating a context from scratch.
+  void InitializeGlobal(Handle<GlobalObject> inner_global,
+                        Handle<JSFunction> empty_function);
+  // Installs the contents of the native .js files on the global objects.
+  // Used for creating a context from scratch.
   void InstallNativeFunctions();
   bool InstallNatives();
-  bool InstallExtensions(v8::ExtensionConfiguration* extensions);
-  bool InstallExtension(const char* name);
-  bool InstallExtension(v8::RegisteredExtension* current);
-  bool InstallSpecialObjects();
+  // Used both for deserialized and from-scratch contexts to add the extensions
+  // provided.
+  static bool InstallExtensions(Handle<Context> global_context,
+                                v8::ExtensionConfiguration* extensions);
+  static bool InstallExtension(const char* name);
+  static bool InstallExtension(v8::RegisteredExtension* current);
+  static void InstallSpecialObjects(Handle<Context> global_context);
   bool InstallJSBuiltins(Handle<JSBuiltinsObject> builtins);
   bool ConfigureApiObject(Handle<JSObject> object,
                           Handle<ObjectTemplateInfo> object_template);
@@ -251,24 +258,19 @@ class Genesis BASE_EMBEDDED {
                                   Handle<String> source,
                                   SourceCodeCache* cache,
                                   v8::Extension* extension,
+                                  Handle<Context> top_context,
                                   bool use_runtime_context);
 
   Handle<Context> result_;
+  Handle<JSFunction> empty_function_;
+  BootstrapperActive active_;
+  friend class Bootstrapper;
 };
-
-Genesis* Genesis::current_ = NULL;
 
 
 void Bootstrapper::Iterate(ObjectVisitor* v) {
-  natives_cache.Iterate(v);
-  v->Synchronize("NativesCache");
   extensions_cache.Iterate(v);
   v->Synchronize("Extensions");
-}
-
-
-bool Bootstrapper::IsActive() {
-  return Genesis::current() != NULL;
 }
 
 
@@ -276,8 +278,16 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     Handle<Object> global_object,
     v8::Handle<v8::ObjectTemplate> global_template,
     v8::ExtensionConfiguration* extensions) {
+  HandleScope scope;
+  Handle<Context> env;
   Genesis genesis(global_object, global_template, extensions);
-  return genesis.result();
+  env = genesis.result();
+  if (!env.is_null()) {
+    if (InstallExtensions(env, extensions)) {
+      return env;
+    }
+  }
+  return Handle<Context>();
 }
 
 
@@ -299,9 +309,14 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 }
 
 
-Genesis::~Genesis() {
-  ASSERT(current_ == this);
-  current_ = previous_;
+void Bootstrapper::ReattachGlobal(Handle<Context> env,
+                                  Handle<Object> global_object) {
+  ASSERT(global_object->IsJSGlobalProxy());
+  Handle<JSGlobalProxy> global = Handle<JSGlobalProxy>::cast(global_object);
+  env->global()->set_global_receiver(*global);
+  env->set_global_proxy(*global);
+  SetObjectPrototype(global, Handle<JSObject>(env->global()));
+  global->set_context(*env);
 }
 
 
@@ -384,22 +399,7 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
 }
 
 
-void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
-                          Handle<Object> global_object) {
-  HandleScope scope;
-  // Allocate the global context FixedArray first and then patch the
-  // closure and extension object later (we need the empty function
-  // and the global object, but in order to create those, we need the
-  // global context).
-  global_context_ =
-      Handle<Context>::cast(
-          GlobalHandles::Create(*Factory::NewGlobalContext()));
-  Top::set_context(*global_context());
-
-  // Allocate the message listeners object.
-  v8::NeanderArray listeners;
-  global_context()->set_message_listeners(*listeners.value());
-
+Handle<JSFunction> Genesis::CreateEmptyFunction() {
   // Allocate the map for function instances.
   Handle<Map> fm = Factory::NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   global_context()->set_function_instance_map(*fm);
@@ -443,137 +443,195 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
   Handle<JSFunction> empty_function =
       Factory::NewFunction(symbol, Factory::null_value());
 
-  {  // --- E m p t y ---
-    Handle<Code> code =
-        Handle<Code>(Builtins::builtin(Builtins::EmptyFunction));
-    empty_function->set_code(*code);
-    Handle<String> source = Factory::NewStringFromAscii(CStrVector("() {}"));
-    Handle<Script> script = Factory::NewScript(source);
-    script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
-    empty_function->shared()->set_script(*script);
-    empty_function->shared()->set_start_position(0);
-    empty_function->shared()->set_end_position(source->length());
-    empty_function->shared()->DontAdaptArguments();
-    global_context()->function_map()->set_prototype(*empty_function);
-    global_context()->function_instance_map()->set_prototype(*empty_function);
+  // --- E m p t y ---
+  Handle<Code> code =
+      Handle<Code>(Builtins::builtin(Builtins::EmptyFunction));
+  empty_function->set_code(*code);
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("() {}"));
+  Handle<Script> script = Factory::NewScript(source);
+  script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
+  empty_function->shared()->set_script(*script);
+  empty_function->shared()->set_start_position(0);
+  empty_function->shared()->set_end_position(source->length());
+  empty_function->shared()->DontAdaptArguments();
+  global_context()->function_map()->set_prototype(*empty_function);
+  global_context()->function_instance_map()->set_prototype(*empty_function);
 
-    // Allocate the function map first and then patch the prototype later
-    Handle<Map> empty_fm = Factory::CopyMapDropDescriptors(fm);
-    empty_fm->set_instance_descriptors(*function_map_descriptors);
-    empty_fm->set_prototype(global_context()->object_function()->prototype());
-    empty_function->set_map(*empty_fm);
+  // Allocate the function map first and then patch the prototype later
+  Handle<Map> empty_fm = Factory::CopyMapDropDescriptors(fm);
+  empty_fm->set_instance_descriptors(*function_map_descriptors);
+  empty_fm->set_prototype(global_context()->object_function()->prototype());
+  empty_function->set_map(*empty_fm);
+  return empty_function;
+}
+
+
+void Genesis::CreateRoots() {
+  // Allocate the global context FixedArray first and then patch the
+  // closure and extension object later (we need the empty function
+  // and the global object, but in order to create those, we need the
+  // global context).
+  global_context_ =
+      Handle<Context>::cast(
+          GlobalHandles::Create(*Factory::NewGlobalContext()));
+  Top::set_context(*global_context());
+
+  // Allocate the message listeners object.
+  {
+    v8::NeanderArray listeners;
+    global_context()->set_message_listeners(*listeners.value());
+  }
+}
+
+
+Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
+    v8::Handle<v8::ObjectTemplate> global_template,
+    Handle<Object> global_object,
+    Handle<GlobalObject>* inner_global_out) {
+  // The argument global_template aka data is an ObjectTemplateInfo.
+  // It has a constructor pointer that points at global_constructor which is a
+  // FunctionTemplateInfo.
+  // The global_constructor is used to create or reinitialize the global_proxy.
+  // The global_constructor also has a prototype_template pointer that points at
+  // js_global_template which is an ObjectTemplateInfo.
+  // That in turn has a constructor pointer that points at
+  // js_global_constructor which is a FunctionTemplateInfo.
+  // js_global_constructor is used to make js_global_function
+  // js_global_function is used to make the new inner_global.
+  //
+  // --- G l o b a l ---
+  // Step 1: Create a fresh inner JSGlobalObject.
+  Handle<JSFunction> js_global_function;
+  Handle<ObjectTemplateInfo> js_global_template;
+  if (!global_template.IsEmpty()) {
+    // Get prototype template of the global_template.
+    Handle<ObjectTemplateInfo> data =
+        v8::Utils::OpenHandle(*global_template);
+    Handle<FunctionTemplateInfo> global_constructor =
+        Handle<FunctionTemplateInfo>(
+            FunctionTemplateInfo::cast(data->constructor()));
+    Handle<Object> proto_template(global_constructor->prototype_template());
+    if (!proto_template->IsUndefined()) {
+      js_global_template =
+          Handle<ObjectTemplateInfo>::cast(proto_template);
+    }
   }
 
-  {  // --- G l o b a l ---
-    // Step 1: create a fresh inner JSGlobalObject
-    Handle<GlobalObject> object;
-    {
-      Handle<JSFunction> js_global_function;
-      Handle<ObjectTemplateInfo> js_global_template;
-      if (!global_template.IsEmpty()) {
-        // Get prototype template of the global_template
-        Handle<ObjectTemplateInfo> data =
-            v8::Utils::OpenHandle(*global_template);
-        Handle<FunctionTemplateInfo> global_constructor =
-            Handle<FunctionTemplateInfo>(
-                FunctionTemplateInfo::cast(data->constructor()));
-        Handle<Object> proto_template(global_constructor->prototype_template());
-        if (!proto_template->IsUndefined()) {
-          js_global_template =
-              Handle<ObjectTemplateInfo>::cast(proto_template);
-        }
-      }
-
-      if (js_global_template.is_null()) {
-        Handle<String> name = Handle<String>(Heap::empty_symbol());
-        Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
-        js_global_function =
-            Factory::NewFunction(name, JS_GLOBAL_OBJECT_TYPE,
-                                 JSGlobalObject::kSize, code, true);
-        // Change the constructor property of the prototype of the
-        // hidden global function to refer to the Object function.
-        Handle<JSObject> prototype =
-            Handle<JSObject>(
-                JSObject::cast(js_global_function->instance_prototype()));
-        SetProperty(prototype, Factory::constructor_symbol(),
-                    Top::object_function(), NONE);
-      } else {
-        Handle<FunctionTemplateInfo> js_global_constructor(
-            FunctionTemplateInfo::cast(js_global_template->constructor()));
-        js_global_function =
-            Factory::CreateApiFunction(js_global_constructor,
-                                       Factory::InnerGlobalObject);
-      }
-
-      js_global_function->initial_map()->set_is_hidden_prototype();
-      object = Factory::NewGlobalObject(js_global_function);
-    }
-
-    // Set the global context for the global object.
-    object->set_global_context(*global_context());
-
-    // Step 2: create or re-initialize the global proxy object.
-    Handle<JSGlobalProxy> global_proxy;
-    {
-      Handle<JSFunction> global_proxy_function;
-      if (global_template.IsEmpty()) {
-        Handle<String> name = Handle<String>(Heap::empty_symbol());
-        Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
-        global_proxy_function =
-            Factory::NewFunction(name, JS_GLOBAL_PROXY_TYPE,
-                                 JSGlobalProxy::kSize, code, true);
-      } else {
-        Handle<ObjectTemplateInfo> data =
-            v8::Utils::OpenHandle(*global_template);
-        Handle<FunctionTemplateInfo> global_constructor(
-                FunctionTemplateInfo::cast(data->constructor()));
-        global_proxy_function =
-            Factory::CreateApiFunction(global_constructor,
-                                       Factory::OuterGlobalObject);
-      }
-
-      Handle<String> global_name = Factory::LookupAsciiSymbol("global");
-      global_proxy_function->shared()->set_instance_class_name(*global_name);
-      global_proxy_function->initial_map()->set_is_access_check_needed(true);
-
-      // Set global_proxy.__proto__ to js_global after ConfigureGlobalObjects
-
-      if (global_object.location() != NULL) {
-        ASSERT(global_object->IsJSGlobalProxy());
-        global_proxy =
-            ReinitializeJSGlobalProxy(
-                global_proxy_function,
-                Handle<JSGlobalProxy>::cast(global_object));
-      } else {
-        global_proxy = Handle<JSGlobalProxy>::cast(
-            Factory::NewJSObject(global_proxy_function, TENURED));
-      }
-
-      // Security setup: Set the security token of the global object to
-      // its the inner global. This makes the security check between two
-      // different contexts fail by default even in case of global
-      // object reinitialization.
-      object->set_global_receiver(*global_proxy);
-      global_proxy->set_context(*global_context());
-    }
-
-    {  // --- G l o b a l   C o n t e x t ---
-      // use the empty function as closure (no scope info)
-      global_context()->set_closure(*empty_function);
-      global_context()->set_fcontext(*global_context());
-      global_context()->set_previous(NULL);
-
-      // set extension and global object
-      global_context()->set_extension(*object);
-      global_context()->set_global(*object);
-      global_context()->set_global_proxy(*global_proxy);
-      // use inner global object as security token by default
-      global_context()->set_security_token(*object);
-    }
-
-    Handle<JSObject> global = Handle<JSObject>(global_context()->global());
-    SetProperty(global, object_name, Top::object_function(), DONT_ENUM);
+  if (js_global_template.is_null()) {
+    Handle<String> name = Handle<String>(Heap::empty_symbol());
+    Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
+    js_global_function =
+        Factory::NewFunction(name, JS_GLOBAL_OBJECT_TYPE,
+                             JSGlobalObject::kSize, code, true);
+    // Change the constructor property of the prototype of the
+    // hidden global function to refer to the Object function.
+    Handle<JSObject> prototype =
+        Handle<JSObject>(
+            JSObject::cast(js_global_function->instance_prototype()));
+    SetProperty(prototype, Factory::constructor_symbol(),
+                Top::object_function(), NONE);
+  } else {
+    Handle<FunctionTemplateInfo> js_global_constructor(
+        FunctionTemplateInfo::cast(js_global_template->constructor()));
+    js_global_function =
+        Factory::CreateApiFunction(js_global_constructor,
+                                   Factory::InnerGlobalObject);
   }
+
+  js_global_function->initial_map()->set_is_hidden_prototype();
+  Handle<GlobalObject> inner_global =
+      Factory::NewGlobalObject(js_global_function);
+  if (inner_global_out != NULL) {
+    *inner_global_out = inner_global;
+  }
+
+  // Step 2: create or re-initialize the global proxy object.
+  Handle<JSFunction> global_proxy_function;
+  if (global_template.IsEmpty()) {
+    Handle<String> name = Handle<String>(Heap::empty_symbol());
+    Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
+    global_proxy_function =
+        Factory::NewFunction(name, JS_GLOBAL_PROXY_TYPE,
+                             JSGlobalProxy::kSize, code, true);
+  } else {
+    Handle<ObjectTemplateInfo> data =
+        v8::Utils::OpenHandle(*global_template);
+    Handle<FunctionTemplateInfo> global_constructor(
+            FunctionTemplateInfo::cast(data->constructor()));
+    global_proxy_function =
+        Factory::CreateApiFunction(global_constructor,
+                                   Factory::OuterGlobalObject);
+  }
+
+  Handle<String> global_name = Factory::LookupAsciiSymbol("global");
+  global_proxy_function->shared()->set_instance_class_name(*global_name);
+  global_proxy_function->initial_map()->set_is_access_check_needed(true);
+
+  // Set global_proxy.__proto__ to js_global after ConfigureGlobalObjects
+  // Return the global proxy.
+
+  if (global_object.location() != NULL) {
+    ASSERT(global_object->IsJSGlobalProxy());
+    return ReinitializeJSGlobalProxy(
+        global_proxy_function,
+        Handle<JSGlobalProxy>::cast(global_object));
+  } else {
+    return Handle<JSGlobalProxy>::cast(
+        Factory::NewJSObject(global_proxy_function, TENURED));
+  }
+}
+
+
+void Genesis::HookUpGlobalProxy(Handle<GlobalObject> inner_global,
+                                Handle<JSGlobalProxy> global_proxy) {
+  // Set the global context for the global object.
+  inner_global->set_global_context(*global_context());
+  inner_global->set_global_receiver(*global_proxy);
+  global_proxy->set_context(*global_context());
+  global_context()->set_global_proxy(*global_proxy);
+}
+
+
+void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
+  Handle<GlobalObject> inner_global_from_snapshot(
+      GlobalObject::cast(global_context_->extension()));
+  Handle<JSBuiltinsObject> builtins_global(global_context_->builtins());
+  global_context_->set_extension(*inner_global);
+  global_context_->set_global(*inner_global);
+  global_context_->set_security_token(*inner_global);
+  static const PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
+  ForceSetProperty(builtins_global,
+                   Factory::LookupAsciiSymbol("global"),
+                   inner_global,
+                   attributes);
+  // Setup the reference from the global object to the builtins object.
+  JSGlobalObject::cast(*inner_global)->set_builtins(*builtins_global);
+  TransferNamedProperties(inner_global_from_snapshot, inner_global);
+  TransferIndexedProperties(inner_global_from_snapshot, inner_global);
+}
+
+
+// This is only called if we are not using snapshots.  The equivalent
+// work in the snapshot case is done in HookUpInnerGlobal.
+void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
+                               Handle<JSFunction> empty_function) {
+  // --- G l o b a l   C o n t e x t ---
+  // Use the empty function as closure (no scope info).
+  global_context()->set_closure(*empty_function);
+  global_context()->set_fcontext(*global_context());
+  global_context()->set_previous(NULL);
+  // Set extension and global object.
+  global_context()->set_extension(*inner_global);
+  global_context()->set_global(*inner_global);
+  // Security setup: Set the security token of the global object to
+  // its the inner global. This makes the security check between two
+  // different contexts fail by default even in case of global
+  // object reinitialization.
+  global_context()->set_security_token(*inner_global);
+
+  Handle<String> object_name = Handle<String>(Heap::Object_symbol());
+  SetProperty(inner_global, object_name, Top::object_function(), DONT_ENUM);
 
   Handle<JSObject> global = Handle<JSObject>(global_context()->global());
 
@@ -791,8 +849,12 @@ bool Genesis::CompileNative(Vector<const char> name, Handle<String> source) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger::set_compiling_natives(true);
 #endif
-  bool result =
-      CompileScriptCached(name, source, &natives_cache, NULL, true);
+  bool result = CompileScriptCached(name,
+                                    source,
+                                    NULL,
+                                    NULL,
+                                    Handle<Context>(Top::context()),
+                                    true);
   ASSERT(Top::has_pending_exception() != result);
   if (!result) Top::clear_pending_exception();
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -806,46 +868,46 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
                                   Handle<String> source,
                                   SourceCodeCache* cache,
                                   v8::Extension* extension,
+                                  Handle<Context> top_context,
                                   bool use_runtime_context) {
   HandleScope scope;
-  Handle<JSFunction> boilerplate;
+  Handle<SharedFunctionInfo> function_info;
 
   // If we can't find the function in the cache, we compile a new
   // function and insert it into the cache.
-  if (!cache->Lookup(name, &boilerplate)) {
+  if (cache == NULL || !cache->Lookup(name, &function_info)) {
     ASSERT(source->IsAsciiRepresentation());
     Handle<String> script_name = Factory::NewStringFromUtf8(name);
-    boilerplate =
-        Compiler::Compile(
-            source,
-            script_name,
-            0,
-            0,
-            extension,
-            NULL,
-            Handle<String>::null(),
-            use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE);
-    if (boilerplate.is_null()) return false;
-    cache->Add(name, boilerplate);
+    function_info = Compiler::Compile(
+        source,
+        script_name,
+        0,
+        0,
+        extension,
+        NULL,
+        Handle<String>::null(),
+        use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE);
+    if (function_info.is_null()) return false;
+    if (cache != NULL) cache->Add(name, function_info);
   }
 
   // Setup the function context. Conceptually, we should clone the
   // function before overwriting the context but since we're in a
   // single-threaded environment it is not strictly necessary.
-  ASSERT(Top::context()->IsGlobalContext());
+  ASSERT(top_context->IsGlobalContext());
   Handle<Context> context =
       Handle<Context>(use_runtime_context
-                      ? Top::context()->runtime_context()
-                      : Top::context());
+                      ? Handle<Context>(top_context->runtime_context())
+                      : top_context);
   Handle<JSFunction> fun =
-      Factory::NewFunctionFromBoilerplate(boilerplate, context);
+      Factory::NewFunctionFromSharedFunctionInfo(function_info, context);
 
   // Call function using either the runtime object or the global
   // object as the receiver. Provide no parameters.
   Handle<Object> receiver =
       Handle<Object>(use_runtime_context
-                     ? Top::context()->builtins()
-                     : Top::context()->global());
+                     ? top_context->builtins()
+                     : top_context->global());
   bool has_pending_exception;
   Handle<Object> result =
       Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
@@ -1047,7 +1109,7 @@ bool Genesis::InstallNatives() {
     // Allocate the empty script.
     Handle<Script> script = Factory::NewScript(Factory::empty_string());
     script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
-    global_context()->set_empty_script(*script);
+    Heap::public_set_empty_script(*script);
   }
   {
     // Builtin function for OpaqueReference -- a JSValue-based object,
@@ -1063,46 +1125,21 @@ bool Genesis::InstallNatives() {
     global_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 
-  if (FLAG_natives_file == NULL) {
-    // Without natives file, install default natives.
-    for (int i = Natives::GetDelayCount();
-         i < Natives::GetBuiltinsCount();
-         i++) {
-      if (!CompileBuiltin(i)) return false;
-      // TODO(ager): We really only need to install the JS builtin
-      // functions on the builtins object after compiling and running
-      // runtime.js.
-      if (!InstallJSBuiltins(builtins)) return false;
-    }
-
-    // Setup natives with lazy loading.
-    SetupLazy(Handle<JSFunction>(global_context()->date_function()),
-              Natives::GetIndex("date"),
-              Top::global_context(),
-              Handle<Context>(Top::context()->runtime_context()));
-    SetupLazy(Handle<JSFunction>(global_context()->regexp_function()),
-              Natives::GetIndex("regexp"),
-              Top::global_context(),
-              Handle<Context>(Top::context()->runtime_context()));
-    SetupLazy(Handle<JSObject>(global_context()->json_object()),
-              Natives::GetIndex("json"),
-              Top::global_context(),
-              Handle<Context>(Top::context()->runtime_context()));
-
-  } else if (strlen(FLAG_natives_file) != 0) {
-    // Otherwise install natives from natives file if file exists and
-    // compiles.
-    bool exists;
-    Vector<const char> source = ReadFile(FLAG_natives_file, &exists);
-    Handle<String> source_string = Factory::NewStringFromAscii(source);
-    if (source.is_empty()) return false;
-    bool result = CompileNative(CStrVector(FLAG_natives_file), source_string);
-    if (!result) return false;
-
-  } else {
-    // Empty natives file name - do not install any natives.
+  if (FLAG_disable_native_files) {
     PrintF("Warning: Running without installed natives!\n");
     return true;
+  }
+
+  // Install natives.
+  for (int i = Natives::GetDebuggerCount();
+       i < Natives::GetBuiltinsCount();
+       i++) {
+    Vector<const char> name = Natives::GetScriptName(i);
+    if (!CompileBuiltin(i)) return false;
+    // TODO(ager): We really only need to install the JS builtin
+    // functions on the builtins object after compiling and running
+    // runtime.js.
+    if (!InstallJSBuiltins(builtins)) return false;
   }
 
   InstallNativeFunctions();
@@ -1143,14 +1180,29 @@ bool Genesis::InstallNatives() {
 #ifdef DEBUG
   builtins->Verify();
 #endif
+
   return true;
 }
 
 
-bool Genesis::InstallSpecialObjects() {
+int BootstrapperActive::nesting_ = 0;
+
+
+bool Bootstrapper::InstallExtensions(Handle<Context> global_context,
+                                     v8::ExtensionConfiguration* extensions) {
+  BootstrapperActive active;
+  SaveContext saved_context;
+  Top::set_context(*global_context);
+  if (!Genesis::InstallExtensions(global_context, extensions)) return false;
+  Genesis::InstallSpecialObjects(global_context);
+  return true;
+}
+
+
+void Genesis::InstallSpecialObjects(Handle<Context> global_context) {
   HandleScope scope;
   Handle<JSGlobalObject> js_global(
-      JSGlobalObject::cast(global_context()->global()));
+      JSGlobalObject::cast(global_context->global()));
   // Expose the natives in global if a name for it is specified.
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
     Handle<String> natives_string =
@@ -1173,13 +1225,12 @@ bool Genesis::InstallSpecialObjects() {
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
     // If loading fails we just bail out without installing the
     // debugger but without tanking the whole context.
-    if (!Debug::Load())
-      return true;
+    if (!Debug::Load()) return;
     // Set the security token for the debugger context to the same as
     // the shell global context to allow calling between these (otherwise
     // exposing debug global object doesn't make much sense).
     Debug::debug_context()->set_security_token(
-        global_context()->security_token());
+        global_context->security_token());
 
     Handle<String> debug_string =
         Factory::LookupAsciiSymbol(FLAG_expose_debug_as);
@@ -1187,19 +1238,18 @@ bool Genesis::InstallSpecialObjects() {
         Handle<Object>(Debug::debug_context()->global_proxy()), DONT_ENUM);
   }
 #endif
-
-  return true;
 }
 
 
-bool Genesis::InstallExtensions(v8::ExtensionConfiguration* extensions) {
+bool Genesis::InstallExtensions(Handle<Context> global_context,
+                                v8::ExtensionConfiguration* extensions) {
   // Clear coloring of extension list
   v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
   while (current != NULL) {
     current->set_state(v8::UNVISITED);
     current = current->next();
   }
-  // Install auto extensions
+  // Install auto extensions.
   current = v8::RegisteredExtension::first_extension();
   while (current != NULL) {
     if (current->extension()->auto_enable())
@@ -1263,7 +1313,9 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
   Handle<String> source_code = Factory::NewStringFromAscii(source);
   bool result = CompileScriptCached(CStrVector(extension->name()),
                                     source_code,
-                                    &extensions_cache, extension,
+                                    &extensions_cache,
+                                    extension,
+                                    Handle<Context>(Top::context()),
                                     false);
   ASSERT(Top::has_pending_exception() != result);
   if (!result) {
@@ -1294,7 +1346,7 @@ bool Genesis::ConfigureGlobalObjects(
     v8::Handle<v8::ObjectTemplate> global_proxy_template) {
   Handle<JSObject> global_proxy(
       JSObject::cast(global_context()->global_proxy()));
-  Handle<JSObject> js_global(JSObject::cast(global_context()->global()));
+  Handle<JSObject> inner_global(JSObject::cast(global_context()->global()));
 
   if (!global_proxy_template.IsEmpty()) {
     // Configure the global proxy object.
@@ -1308,11 +1360,11 @@ bool Genesis::ConfigureGlobalObjects(
     if (!proxy_constructor->prototype_template()->IsUndefined()) {
       Handle<ObjectTemplateInfo> inner_data(
           ObjectTemplateInfo::cast(proxy_constructor->prototype_template()));
-      if (!ConfigureApiObject(js_global, inner_data)) return false;
+      if (!ConfigureApiObject(inner_global, inner_data)) return false;
     }
   }
 
-  SetObjectPrototype(global_proxy, js_global);
+  SetObjectPrototype(global_proxy, inner_global);
   return true;
 }
 
@@ -1366,15 +1418,13 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           // If the property is already there we skip it
           if (result.IsProperty()) continue;
           HandleScope inner;
-          Handle<DescriptorArray> inst_descs =
-              Handle<DescriptorArray>(to->map()->instance_descriptors());
+          ASSERT(!to->HasFastProperties());
+          // Add to dictionary.
           Handle<String> key = Handle<String>(descs->GetKey(i));
-          Handle<Object> entry = Handle<Object>(descs->GetCallbacksObject(i));
-          inst_descs = Factory::CopyAppendProxyDescriptor(inst_descs,
-                                                          key,
-                                                          entry,
-                                                          details.attributes());
-          to->map()->set_instance_descriptors(*inst_descs);
+          Handle<Object> callbacks(descs->GetCallbacksObject(i));
+          PropertyDetails d =
+              PropertyDetails(details.attributes(), CALLBACKS, details.index());
+          SetNormalizedProperty(to, key, callbacks, d);
           break;
         }
         case MAP_TRANSITION:
@@ -1459,32 +1509,51 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 Genesis::Genesis(Handle<Object> global_object,
                  v8::Handle<v8::ObjectTemplate> global_template,
                  v8::ExtensionConfiguration* extensions) {
-  // Link this genesis object into the stacked genesis chain. This
-  // must be done before any early exits because the destructor
-  // will always do unlinking.
-  previous_ = current_;
-  current_  = this;
   result_ = Handle<Context>::null();
-
   // If V8 isn't running and cannot be initialized, just return.
   if (!V8::IsRunning() && !V8::Initialize(NULL)) return;
 
   // Before creating the roots we must save the context and restore it
   // on all function exits.
   HandleScope scope;
-  SaveContext context;
+  SaveContext saved_context;
 
-  CreateRoots(global_template, global_object);
+  Handle<Context> new_context = Snapshot::NewContextFromSnapshot();
+  if (!new_context.is_null()) {
+    global_context_ =
+      Handle<Context>::cast(GlobalHandles::Create(*new_context));
+    Top::set_context(*global_context_);
+    i::Counters::contexts_created_by_snapshot.Increment();
+    result_ = global_context_;
+    JSFunction* empty_function =
+        JSFunction::cast(result_->function_map()->prototype());
+    empty_function_ = Handle<JSFunction>(empty_function);
+    Handle<GlobalObject> inner_global;
+    Handle<JSGlobalProxy> global_proxy =
+        CreateNewGlobals(global_template,
+                         global_object,
+                         &inner_global);
 
-  if (!InstallNatives()) return;
+    HookUpGlobalProxy(inner_global, global_proxy);
+    HookUpInnerGlobal(inner_global);
 
-  MakeFunctionInstancePrototypeWritable();
+    if (!ConfigureGlobalObjects(global_template)) return;
+  } else {
+    // We get here if there was no context snapshot.
+    CreateRoots();
+    Handle<JSFunction> empty_function = CreateEmptyFunction();
+    Handle<GlobalObject> inner_global;
+    Handle<JSGlobalProxy> global_proxy =
+        CreateNewGlobals(global_template, global_object, &inner_global);
+    HookUpGlobalProxy(inner_global, global_proxy);
+    InitializeGlobal(inner_global, empty_function);
+    if (!InstallNatives()) return;
 
-  if (!ConfigureGlobalObjects(global_template)) return;
+    MakeFunctionInstancePrototypeWritable();
 
-  if (!InstallExtensions(extensions)) return;
-
-  if (!InstallSpecialObjects()) return;
+    if (!ConfigureGlobalObjects(global_template)) return;
+    i::Counters::contexts_created_from_scratch.Increment();
+  }
 
   result_ = global_context_;
 }
@@ -1494,46 +1563,46 @@ Genesis::Genesis(Handle<Object> global_object,
 
 // Reserve space for statics needing saving and restoring.
 int Bootstrapper::ArchiveSpacePerThread() {
-  return Genesis::ArchiveSpacePerThread();
+  return BootstrapperActive::ArchiveSpacePerThread();
 }
 
 
 // Archive statics that are thread local.
 char* Bootstrapper::ArchiveState(char* to) {
-  return Genesis::ArchiveState(to);
+  return BootstrapperActive::ArchiveState(to);
 }
 
 
 // Restore statics that are thread local.
 char* Bootstrapper::RestoreState(char* from) {
-  return Genesis::RestoreState(from);
+  return BootstrapperActive::RestoreState(from);
 }
 
 
 // Called when the top-level V8 mutex is destroyed.
 void Bootstrapper::FreeThreadResources() {
-  ASSERT(Genesis::current() == NULL);
+  ASSERT(!BootstrapperActive::IsActive());
 }
 
 
 // Reserve space for statics needing saving and restoring.
-int Genesis::ArchiveSpacePerThread() {
-  return sizeof(current_);
+int BootstrapperActive::ArchiveSpacePerThread() {
+  return sizeof(nesting_);
 }
 
 
 // Archive statics that are thread local.
-char* Genesis::ArchiveState(char* to) {
-  *reinterpret_cast<Genesis**>(to) = current_;
-  current_ = NULL;
-  return to + sizeof(current_);
+char* BootstrapperActive::ArchiveState(char* to) {
+  *reinterpret_cast<int*>(to) = nesting_;
+  nesting_ = 0;
+  return to + sizeof(nesting_);
 }
 
 
 // Restore statics that are thread local.
-char* Genesis::RestoreState(char* from) {
-  current_ = *reinterpret_cast<Genesis**>(from);
-  return from + sizeof(current_);
+char* BootstrapperActive::RestoreState(char* from) {
+  nesting_ = *reinterpret_cast<int*>(from);
+  return from + sizeof(nesting_);
 }
 
 } }  // namespace v8::internal

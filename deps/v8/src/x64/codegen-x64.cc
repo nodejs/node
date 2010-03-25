@@ -2229,9 +2229,8 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 }
 
 
-void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
-  ASSERT(boilerplate->IsBoilerplate());
-
+void CodeGenerator::InstantiateFunction(
+    Handle<SharedFunctionInfo> function_info) {
   // The inevitable call will sync frame elements to memory anyway, so
   // we do it eagerly to allow us to push the arguments directly into
   // place.
@@ -2239,16 +2238,16 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
+  if (scope()->is_function_scope() && function_info->num_literals() == 0) {
     FastNewClosureStub stub;
-    frame_->Push(boilerplate);
+    frame_->Push(function_info);
     Result answer = frame_->CallStub(&stub, 1);
     frame_->Push(&answer);
   } else {
     // Call the runtime to instantiate the function boilerplate
     // object.
     frame_->EmitPush(rsi);
-    frame_->EmitPush(boilerplate);
+    frame_->EmitPush(function_info);
     Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
     frame_->Push(&result);
   }
@@ -2258,19 +2257,19 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
-  // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(node, script(), this);
+  // Build the function info and instantiate it.
+  Handle<SharedFunctionInfo> function_info =
+      Compiler::BuildFunctionInfo(node, script(), this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) return;
-  InstantiateBoilerplate(boilerplate);
+  InstantiateFunction(function_info);
 }
 
 
-void CodeGenerator::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* node) {
-  Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
-  InstantiateBoilerplate(node->boilerplate());
+void CodeGenerator::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
+  Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
+  InstantiateFunction(node->shared_function_info());
 }
 
 
@@ -4369,7 +4368,7 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
 
   if (value.is_number()) {
     Comment cmnt(masm_, "ONLY_NUMBER");
-    // Fast case if NumberInfo indicates only numbers.
+    // Fast case if TypeInfo indicates only numbers.
     if (FLAG_debug_code) {
       __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
     }
@@ -5068,9 +5067,9 @@ void CodeGenerator::Comparison(AstNode* node,
       Condition left_is_smi = masm_->CheckSmi(left_side.reg());
       is_smi.Branch(left_is_smi);
 
-      bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
-          && node->AsCompareOperation()->is_for_loop_condition();
-      if (!is_for_loop_compare && right_val->IsSmi()) {
+      bool is_loop_condition = (node->AsExpression() != NULL) &&
+          node->AsExpression()->is_loop_condition();
+      if (!is_loop_condition && right_val->IsSmi()) {
         // Right side is a constant smi and left side has been checked
         // not to be a smi.
         JumpTarget not_number;
@@ -5292,8 +5291,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   }
 
   // Get number type of left and right sub-expressions.
-  NumberInfo operands_type =
-      NumberInfo::Combine(left.number_info(), right.number_info());
+  TypeInfo operands_type =
+      TypeInfo::Combine(left.type_info(), right.type_info());
 
   Result answer;
   if (left_is_non_smi_constant || right_is_non_smi_constant) {
@@ -5325,13 +5324,13 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     }
   }
 
-  // Set NumberInfo of result according to the operation performed.
+  // Set TypeInfo of result according to the operation performed.
   // We rely on the fact that smis have a 32 bit payload on x64.
   ASSERT(kSmiValueSize == 32);
-  NumberInfo result_type = NumberInfo::Unknown();
+  TypeInfo result_type = TypeInfo::Unknown();
   switch (op) {
     case Token::COMMA:
-      result_type = right.number_info();
+      result_type = right.type_info();
       break;
     case Token::OR:
     case Token::AND:
@@ -5342,37 +5341,37 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     case Token::BIT_XOR:
     case Token::BIT_AND:
       // Result is always a smi.
-      result_type = NumberInfo::Smi();
+      result_type = TypeInfo::Smi();
       break;
     case Token::SAR:
     case Token::SHL:
       // Result is always a smi.
-      result_type = NumberInfo::Smi();
+      result_type = TypeInfo::Smi();
       break;
     case Token::SHR:
       // Result of x >>> y is always a smi if y >= 1, otherwise a number.
       result_type = (right.is_constant() && right.handle()->IsSmi()
                      && Smi::cast(*right.handle())->value() >= 1)
-          ? NumberInfo::Smi()
-          : NumberInfo::Number();
+          ? TypeInfo::Smi()
+          : TypeInfo::Number();
       break;
     case Token::ADD:
       // Result could be a string or a number. Check types of inputs.
       result_type = operands_type.IsNumber()
-          ? NumberInfo::Number()
-          : NumberInfo::Unknown();
+          ? TypeInfo::Number()
+          : TypeInfo::Unknown();
       break;
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
     case Token::MOD:
       // Result is always a number.
-      result_type = NumberInfo::Number();
+      result_type = TypeInfo::Number();
       break;
     default:
       UNREACHABLE();
   }
-  answer.set_number_info(result_type);
+  answer.set_type_info(result_type);
   frame_->Push(&answer);
 }
 
@@ -6361,12 +6360,12 @@ void Reference::SetValue(InitState init_state) {
 
 
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
-  // Clone the boilerplate in new space. Set the context to the
-  // current context in rsi.
+  // Create a new closure from the given function info in new
+  // space. Set the context to the current context in rsi.
   Label gc;
   __ AllocateInNewSpace(JSFunction::kSize, rax, rbx, rcx, &gc, TAG_OBJECT);
 
-  // Get the boilerplate function from the stack.
+  // Get the function info from the stack.
   __ movq(rdx, Operand(rsp, 1 * kPointerSize));
 
   // Compute the function map in the current global context and set that
@@ -6376,18 +6375,16 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ movq(rcx, Operand(rcx, Context::SlotOffset(Context::FUNCTION_MAP_INDEX)));
   __ movq(FieldOperand(rax, JSObject::kMapOffset), rcx);
 
-  // Clone the rest of the boilerplate fields. We don't have to update
-  // the write barrier because the allocated object is in new space.
-  for (int offset = kPointerSize;
-       offset < JSFunction::kSize;
-       offset += kPointerSize) {
-    if (offset == JSFunction::kContextOffset) {
-      __ movq(FieldOperand(rax, offset), rsi);
-    } else {
-      __ movq(rbx, FieldOperand(rdx, offset));
-      __ movq(FieldOperand(rax, offset), rbx);
-    }
-  }
+  // Initialize the rest of the function. We don't have to update the
+  // write barrier because the allocated object is in new space.
+  __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
+  __ LoadRoot(rcx, Heap::kTheHoleValueRootIndex);
+  __ movq(FieldOperand(rax, JSObject::kPropertiesOffset), rbx);
+  __ movq(FieldOperand(rax, JSObject::kElementsOffset), rbx);
+  __ movq(FieldOperand(rax, JSFunction::kPrototypeOrInitialMapOffset), rcx);
+  __ movq(FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset), rdx);
+  __ movq(FieldOperand(rax, JSFunction::kContextOffset), rsi);
+  __ movq(FieldOperand(rax, JSFunction::kLiteralsOffset), rbx);
 
   // Return and remove the on-stack parameter.
   __ ret(1 * kPointerSize);
@@ -9105,52 +9102,58 @@ Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
 
 
 int CompareStub::MinorKey() {
-  // Encode the three parameters in a unique 16 bit value.
-  ASSERT(static_cast<unsigned>(cc_) < (1 << 14));
-  int nnn_value = (never_nan_nan_ ? 2 : 0);
-  if (cc_ != equal) nnn_value = 0;  // Avoid duplicate stubs.
-  return (static_cast<unsigned>(cc_) << 2) | nnn_value | (strict_ ? 1 : 0);
+  // Encode the three parameters in a unique 16 bit value. To avoid duplicate
+  // stubs the never NaN NaN condition is only taken into account if the
+  // condition is equals.
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 13));
+  return ConditionField::encode(static_cast<unsigned>(cc_))
+         | StrictField::encode(strict_)
+         | NeverNanNanField::encode(cc_ == equal ? never_nan_nan_ : false)
+         | IncludeNumberCompareField::encode(include_number_compare_);
 }
 
 
+// Unfortunately you have to run without snapshots to see most of these
+// names in the profile since most compare stubs end up in the snapshot.
 const char* CompareStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+
+  const char* cc_name;
   switch (cc_) {
-    case less: return "CompareStub_LT";
-    case greater: return "CompareStub_GT";
-    case less_equal: return "CompareStub_LE";
-    case greater_equal: return "CompareStub_GE";
-    case not_equal: {
-      if (strict_) {
-        if (never_nan_nan_) {
-          return "CompareStub_NE_STRICT_NO_NAN";
-        } else {
-          return "CompareStub_NE_STRICT";
-        }
-      } else {
-        if (never_nan_nan_) {
-          return "CompareStub_NE_NO_NAN";
-        } else {
-          return "CompareStub_NE";
-        }
-      }
-    }
-    case equal: {
-      if (strict_) {
-        if (never_nan_nan_) {
-          return "CompareStub_EQ_STRICT_NO_NAN";
-        } else {
-          return "CompareStub_EQ_STRICT";
-        }
-      } else {
-        if (never_nan_nan_) {
-          return "CompareStub_EQ_NO_NAN";
-        } else {
-          return "CompareStub_EQ";
-        }
-      }
-    }
-    default: return "CompareStub";
+    case less: cc_name = "LT"; break;
+    case greater: cc_name = "GT"; break;
+    case less_equal: cc_name = "LE"; break;
+    case greater_equal: cc_name = "GE"; break;
+    case equal: cc_name = "EQ"; break;
+    case not_equal: cc_name = "NE"; break;
+    default: cc_name = "UnknownCondition"; break;
   }
+
+  const char* strict_name = "";
+  if (strict_ && (cc_ == equal || cc_ == not_equal)) {
+    strict_name = "_STRICT";
+  }
+
+  const char* never_nan_nan_name = "";
+  if (never_nan_nan_ && (cc_ == equal || cc_ == not_equal)) {
+    never_nan_nan_name = "_NO_NAN";
+  }
+
+  const char* include_number_compare_name = "";
+  if (!include_number_compare_) {
+    include_number_compare_name = "_NO_NUMBER";
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "CompareStub_%s%s%s%s",
+               cc_name,
+               strict_name,
+               never_nan_nan_name,
+               include_number_compare_name);
+  return name_;
 }
 
 

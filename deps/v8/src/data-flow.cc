@@ -195,6 +195,81 @@ void FlowGraphBuilder::Build(FunctionLiteral* lit) {
 }
 
 
+// This function peels off one iteration of a for-loop. The return value
+// is either a block statement containing the peeled loop or NULL in case
+// there is a stack overflow.
+static Statement* PeelForLoop(ForStatement* stmt) {
+  // Mark this for-statement as processed.
+  stmt->set_peel_this_loop(false);
+
+  // Create new block containing the init statement of the for-loop and
+  // an if-statement containing the peeled iteration and the original
+  // loop without the init-statement.
+  Block* block = new Block(NULL, 2, false);
+  if (stmt->init() != NULL) {
+    Statement* init = stmt->init();
+    // The init statement gets the statement position of the for-loop
+    // to make debugging of peeled loops possible.
+    init->set_statement_pos(stmt->statement_pos());
+    block->AddStatement(init);
+  }
+
+  // Copy the condition.
+  CopyAstVisitor copy_visitor;
+  Expression* cond_copy = stmt->cond() != NULL
+      ? copy_visitor.DeepCopyExpr(stmt->cond())
+      : new Literal(Factory::true_value());
+  if (copy_visitor.HasStackOverflow()) return NULL;
+
+  // Construct a block with the peeled body and the rest of the for-loop.
+  Statement* body_copy = copy_visitor.DeepCopyStmt(stmt->body());
+  if (copy_visitor.HasStackOverflow()) return NULL;
+
+  Statement* next_copy = stmt->next() != NULL
+      ? copy_visitor.DeepCopyStmt(stmt->next())
+      : new EmptyStatement();
+  if (copy_visitor.HasStackOverflow()) return NULL;
+
+  Block* peeled_body = new Block(NULL, 3, false);
+  peeled_body->AddStatement(body_copy);
+  peeled_body->AddStatement(next_copy);
+  peeled_body->AddStatement(stmt);
+
+  // Remove the duplicated init statement from the for-statement.
+  stmt->set_init(NULL);
+
+  // Create new test at the top and add it to the newly created block.
+  IfStatement* test = new IfStatement(cond_copy,
+                                      peeled_body,
+                                      new EmptyStatement());
+  block->AddStatement(test);
+  return block;
+}
+
+
+void FlowGraphBuilder::VisitStatements(ZoneList<Statement*>* stmts) {
+  for (int i = 0, len = stmts->length(); i < len; i++) {
+    stmts->at(i) = ProcessStatement(stmts->at(i));
+  }
+}
+
+
+Statement* FlowGraphBuilder::ProcessStatement(Statement* stmt) {
+  if (FLAG_loop_peeling &&
+      stmt->AsForStatement() != NULL &&
+      stmt->AsForStatement()->peel_this_loop()) {
+    Statement* tmp_stmt = PeelForLoop(stmt->AsForStatement());
+    if (tmp_stmt == NULL) {
+      SetStackOverflow();
+    } else {
+      stmt = tmp_stmt;
+    }
+  }
+  Visit(stmt);
+  return stmt;
+}
+
+
 void FlowGraphBuilder::VisitDeclaration(Declaration* decl) {
   UNREACHABLE();
 }
@@ -221,11 +296,11 @@ void FlowGraphBuilder::VisitIfStatement(IfStatement* stmt) {
   BranchNode* branch = new BranchNode();
   FlowGraph original = graph_;
   graph_ = FlowGraph::Empty();
-  Visit(stmt->then_statement());
+  stmt->set_then_statement(ProcessStatement(stmt->then_statement()));
 
   FlowGraph left = graph_;
   graph_ = FlowGraph::Empty();
-  Visit(stmt->else_statement());
+  stmt->set_else_statement(ProcessStatement(stmt->else_statement()));
 
   if (HasStackOverflow()) return;
   JoinNode* join = new JoinNode();
@@ -275,7 +350,7 @@ void FlowGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void FlowGraphBuilder::VisitForStatement(ForStatement* stmt) {
-  if (stmt->init() != NULL) Visit(stmt->init());
+  if (stmt->init() != NULL) stmt->set_init(ProcessStatement(stmt->init()));
 
   JoinNode* join = new JoinNode();
   FlowGraph original = graph_;
@@ -285,9 +360,9 @@ void FlowGraphBuilder::VisitForStatement(ForStatement* stmt) {
   BranchNode* branch = new BranchNode();
   FlowGraph condition = graph_;
   graph_ = FlowGraph::Empty();
-  Visit(stmt->body());
+  stmt->set_body(ProcessStatement(stmt->body()));
 
-  if (stmt->next() != NULL) Visit(stmt->next());
+  if (stmt->next() != NULL) stmt->set_next(ProcessStatement(stmt->next()));
 
   if (HasStackOverflow()) return;
   original.Loop(join, &condition, branch, &graph_);
@@ -320,8 +395,8 @@ void FlowGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void FlowGraphBuilder::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
+void FlowGraphBuilder::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
   SetStackOverflow();
 }
 
@@ -376,8 +451,10 @@ void FlowGraphBuilder::VisitAssignment(Assignment* expr) {
     if (expr->is_compound()) Visit(expr->target());
     Visit(expr->value());
     if (var->IsStackAllocated()) {
-      expr->set_num(definitions_.length());
-      definitions_.Add(expr);
+      // The first definition in the body is numbered n, where n is the
+      // number of parameters and stack-allocated locals.
+      expr->set_num(body_definitions_.length() + variable_count_);
+      body_definitions_.Add(expr);
     }
 
   } else if (prop != NULL) {
@@ -454,8 +531,10 @@ void FlowGraphBuilder::VisitCountOperation(CountOperation* expr) {
   Visit(expr->expression());
   Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
   if (var != NULL && var->IsStackAllocated()) {
-    expr->set_num(definitions_.length());
-    definitions_.Add(expr);
+    // The first definition in the body is numbered n, where n is the number
+    // of parameters and stack-allocated locals.
+    expr->set_num(body_definitions_.length() + variable_count_);
+    body_definitions_.Add(expr);
   }
 
   if (HasStackOverflow()) return;
@@ -638,8 +717,8 @@ void AstLabeler::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void AstLabeler::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
+void AstLabeler::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
   UNREACHABLE();
 }
 
@@ -1015,8 +1094,8 @@ void AssignedVariablesAnalyzer::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void AssignedVariablesAnalyzer::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
+void AssignedVariablesAnalyzer::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
   // Nothing to do.
   ASSERT(av_.IsEmpty());
 }
@@ -1342,9 +1421,9 @@ void TextInstructionPrinter::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void TextInstructionPrinter::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
-  PrintF("FunctionBoilerplateLiteral");
+void TextInstructionPrinter::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
+  PrintF("SharedFunctionInfoLiteral");
 }
 
 
@@ -1584,9 +1663,16 @@ void BlockNode::PrintText() {
   PrintF("L%d: Block\n", number());
   TextInstructionPrinter printer;
   for (int i = 0, len = instructions_.length(); i < len; i++) {
+    AstNode* instr = instructions_[i];
+    // Print a star next to dead instructions.
+    if (instr->AsExpression() != NULL && instr->AsExpression()->is_live()) {
+      PrintF("  ");
+    } else {
+      PrintF("* ");
+    }
     PrintF("%d ", printer.NextNumber());
-    printer.Visit(instructions_[i]);
-    printer.AssignNumber(instructions_[i]);
+    printer.Visit(instr);
+    printer.AssignNumber(instr);
     PrintF("\n");
   }
   PrintF("goto L%d\n\n", successor_->number());
@@ -1611,8 +1697,9 @@ void JoinNode::PrintText() {
 }
 
 
-void FlowGraph::PrintText(ZoneList<Node*>* postorder) {
+void FlowGraph::PrintText(FunctionLiteral* fun, ZoneList<Node*>* postorder) {
   PrintF("\n========\n");
+  PrintF("name = %s\n", *fun->name()->ToCString());
 
   // Number nodes and instructions in reverse postorder.
   node_count = 0;
@@ -1664,11 +1751,16 @@ void BlockNode::InitializeReachingDefinitions(int definition_count,
   int variable_count = variables->length();
 
   rd_.Initialize(definition_count);
+  // The RD_in set for the entry node has a definition for each parameter
+  // and local.
+  if (predecessor_ == NULL) {
+    for (int i = 0; i < variable_count; i++) rd_.rd_in()->Add(i);
+  }
 
   for (int i = 0; i < instruction_count; i++) {
     Expression* expr = instructions_[i]->AsExpression();
     if (expr == NULL) continue;
-    Variable* var = expr->AssignedVar();
+    Variable* var = expr->AssignedVariable();
     if (var == NULL || !var->IsStackAllocated()) continue;
 
     // All definitions of this variable are killed.
@@ -1845,7 +1937,7 @@ void BlockNode::PropagateReachingDefinitions(List<BitVector*>* variables) {
 
     // It may instead (or also) be a definition.  If so update the running
     // value of reaching definitions for the block.
-    Variable* var = expr->AssignedVar();
+    Variable* var = expr->AssignedVariable();
     if (var == NULL || !var->IsStackAllocated()) continue;
 
     // All definitions of this variable are killed.
@@ -1859,40 +1951,25 @@ void BlockNode::PropagateReachingDefinitions(List<BitVector*>* variables) {
 
 
 void ReachingDefinitions::Compute() {
-  ASSERT(!definitions_->is_empty());
-
-  int variable_count = variables_.length();
-  int definition_count = definitions_->length();
+  // The definitions in the body plus an implicit definition for each
+  // variable at function entry.
+  int definition_count = body_definitions_->length() + variable_count_;
   int node_count = postorder_->length();
 
-  // Step 1: For each variable, identify the set of all its definitions in
-  // the body.
-  for (int i = 0; i < definition_count; i++) {
-    Variable* var = definitions_->at(i)->AssignedVar();
-    variables_[IndexFor(var, variable_count)]->Add(i);
+  // Step 1: For each stack-allocated variable, identify the set of all its
+  // definitions.
+  List<BitVector*> variables;
+  for (int i = 0; i < variable_count_; i++) {
+    // Add the initial definition for each variable.
+    BitVector* initial = new BitVector(definition_count);
+    initial->Add(i);
+    variables.Add(initial);
   }
-
-  if (FLAG_print_graph_text) {
-    for (int i = 0; i < variable_count; i++) {
-      BitVector* def_set = variables_[i];
-      if (!def_set->IsEmpty()) {
-        // At least one definition.
-        bool first = true;
-        for (int j = 0; j < definition_count; j++) {
-          if (def_set->Contains(j)) {
-            if (first) {
-              Variable* var = definitions_->at(j)->AssignedVar();
-              ASSERT(var != NULL);
-              PrintF("Def[%s] = {%d", *var->name()->ToCString(), j);
-              first = false;
-            } else {
-              PrintF(",%d", j);
-            }
-          }
-        }
-        PrintF("}\n");
-      }
-    }
+  for (int i = 0, len = body_definitions_->length(); i < len; i++) {
+    // Account for each definition in the body as a definition of the
+    // defined variable.
+    Variable* var = body_definitions_->at(i)->AssignedVariable();
+    variables[IndexFor(var, variable_count_)]->Add(i + variable_count_);
   }
 
   // Step 2: Compute KILL and GEN for each block node, initialize RD_in for
@@ -1902,7 +1979,7 @@ void ReachingDefinitions::Compute() {
   WorkList<Node> worklist(node_count);
   for (int i = node_count - 1; i >= 0; i--) {
     postorder_->at(i)->InitializeReachingDefinitions(definition_count,
-                                                     &variables_,
+                                                     &variables,
                                                      &worklist,
                                                      mark);
   }
@@ -1919,7 +1996,105 @@ void ReachingDefinitions::Compute() {
   // Step 4: Based on RD_in for block nodes, propagate reaching definitions
   // to all variable uses in the block.
   for (int i = 0; i < node_count; i++) {
-    postorder_->at(i)->PropagateReachingDefinitions(&variables_);
+    postorder_->at(i)->PropagateReachingDefinitions(&variables);
+  }
+}
+
+
+bool TypeAnalyzer::IsPrimitiveDef(int def_num) {
+  if (def_num < param_count_) return false;
+  if (def_num < variable_count_) return true;
+  return body_definitions_->at(def_num - variable_count_)->IsPrimitive();
+}
+
+
+void TypeAnalyzer::Compute() {
+  bool changed;
+  int count = 0;
+
+  do {
+    changed = false;
+
+    if (FLAG_print_graph_text) {
+      PrintF("TypeAnalyzer::Compute - iteration %d\n", count++);
+    }
+
+    for (int i = postorder_->length() - 1; i >= 0; --i) {
+      Node* node = postorder_->at(i);
+      if (node->IsBlockNode()) {
+        BlockNode* block = BlockNode::cast(node);
+        for (int j = 0; j < block->instructions()->length(); j++) {
+          Expression* expr = block->instructions()->at(j)->AsExpression();
+          if (expr != NULL) {
+            // For variable uses: Compute new type from reaching definitions.
+            VariableProxy* proxy = expr->AsVariableProxy();
+            if (proxy != NULL && proxy->reaching_definitions() != NULL) {
+              BitVector* rd = proxy->reaching_definitions();
+              bool prim_type = true;
+              // TODO(fsc): A sparse set representation of reaching
+              // definitions would speed up iterating here.
+              for (int k = 0; k < rd->length(); k++) {
+                if (rd->Contains(k) && !IsPrimitiveDef(k)) {
+                  prim_type = false;
+                  break;
+                }
+              }
+              // Reset changed flag if new type information was computed.
+              if (prim_type != proxy->IsPrimitive()) {
+                changed = true;
+                proxy->SetIsPrimitive(prim_type);
+              }
+            }
+          }
+        }
+      }
+    }
+  } while (changed);
+}
+
+
+void Node::MarkCriticalInstructions(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+}
+
+
+void BlockNode::MarkCriticalInstructions(
+    List<AstNode*>* stack,
+    ZoneList<Expression*>* body_definitions,
+    int variable_count) {
+  for (int i = instructions_.length() - 1; i >= 0; i--) {
+    // Only expressions can appear in the flow graph for now.
+    Expression* expr = instructions_[i]->AsExpression();
+    if (expr != NULL && !expr->is_live() &&
+        (expr->is_loop_condition() || expr->IsCritical())) {
+      expr->mark_as_live();
+      expr->ProcessNonLiveChildren(stack, body_definitions, variable_count);
+    }
+  }
+}
+
+
+void MarkLiveCode(ZoneList<Node*>* nodes,
+                  ZoneList<Expression*>* body_definitions,
+                  int variable_count) {
+  List<AstNode*> stack(20);
+
+  // Mark the critical AST nodes as live; mark their dependencies and
+  // add them to the marking stack.
+  for (int i = nodes->length() - 1; i >= 0; i--) {
+    nodes->at(i)->MarkCriticalInstructions(&stack, body_definitions,
+                                           variable_count);
+  }
+
+  // Continue marking dependencies until no more.
+  while (!stack.is_empty()) {
+  // Only expressions can appear in the flow graph for now.
+    Expression* expr = stack.RemoveLast()->AsExpression();
+    if (expr != NULL) {
+      expr->ProcessNonLiveChildren(&stack, body_definitions, variable_count);
+    }
   }
 }
 

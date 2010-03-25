@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "compilation-cache.h"
+#include "serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -101,18 +102,18 @@ class CompilationCacheScript : public CompilationSubCache {
   explicit CompilationCacheScript(int generations)
       : CompilationSubCache(generations) { }
 
-  Handle<JSFunction> Lookup(Handle<String> source,
-                            Handle<Object> name,
-                            int line_offset,
-                            int column_offset);
-  void Put(Handle<String> source, Handle<JSFunction> boilerplate);
+  Handle<SharedFunctionInfo> Lookup(Handle<String> source,
+                                    Handle<Object> name,
+                                    int line_offset,
+                                    int column_offset);
+  void Put(Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
  private:
   // Note: Returns a new hash table if operation results in expansion.
-  Handle<CompilationCacheTable> TablePut(Handle<String> source,
-                                         Handle<JSFunction> boilerplate);
+  Handle<CompilationCacheTable> TablePut(
+      Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
-  bool HasOrigin(Handle<JSFunction> boilerplate,
+  bool HasOrigin(Handle<SharedFunctionInfo> function_info,
                  Handle<Object> name,
                  int line_offset,
                  int column_offset);
@@ -127,17 +128,19 @@ class CompilationCacheEval: public CompilationSubCache {
   explicit CompilationCacheEval(int generations)
       : CompilationSubCache(generations) { }
 
-  Handle<JSFunction> Lookup(Handle<String> source, Handle<Context> context);
+  Handle<SharedFunctionInfo> Lookup(Handle<String> source,
+                                    Handle<Context> context);
 
   void Put(Handle<String> source,
            Handle<Context> context,
-           Handle<JSFunction> boilerplate);
+           Handle<SharedFunctionInfo> function_info);
 
  private:
   // Note: Returns a new hash table if operation results in expansion.
-  Handle<CompilationCacheTable> TablePut(Handle<String> source,
-                                         Handle<Context> context,
-                                         Handle<JSFunction> boilerplate);
+  Handle<CompilationCacheTable> TablePut(
+      Handle<String> source,
+      Handle<Context> context,
+      Handle<SharedFunctionInfo> function_info);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEval);
 };
@@ -225,12 +228,13 @@ void CompilationSubCache::Clear() {
 // We only re-use a cached function for some script source code if the
 // script originates from the same place. This is to avoid issues
 // when reporting errors, etc.
-bool CompilationCacheScript::HasOrigin(Handle<JSFunction> boilerplate,
-                                       Handle<Object> name,
-                                       int line_offset,
-                                       int column_offset) {
+bool CompilationCacheScript::HasOrigin(
+    Handle<SharedFunctionInfo> function_info,
+    Handle<Object> name,
+    int line_offset,
+    int column_offset) {
   Handle<Script> script =
-      Handle<Script>(Script::cast(boilerplate->shared()->script()));
+      Handle<Script>(Script::cast(function_info->script()));
   // If the script name isn't set, the boilerplate script should have
   // an undefined name to have the same origin.
   if (name.is_null()) {
@@ -250,10 +254,10 @@ bool CompilationCacheScript::HasOrigin(Handle<JSFunction> boilerplate,
 // be cached in the same script generation. Currently the first use
 // will be cached, but subsequent code from different source / line
 // won't.
-Handle<JSFunction> CompilationCacheScript::Lookup(Handle<String> source,
-                                                  Handle<Object> name,
-                                                  int line_offset,
-                                                  int column_offset) {
+Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
+                                                          Handle<Object> name,
+                                                          int line_offset,
+                                                          int column_offset) {
   Object* result = NULL;
   int generation;
 
@@ -263,12 +267,13 @@ Handle<JSFunction> CompilationCacheScript::Lookup(Handle<String> source,
     for (generation = 0; generation < generations(); generation++) {
       Handle<CompilationCacheTable> table = GetTable(generation);
       Handle<Object> probe(table->Lookup(*source));
-      if (probe->IsJSFunction()) {
-        Handle<JSFunction> boilerplate = Handle<JSFunction>::cast(probe);
+      if (probe->IsSharedFunctionInfo()) {
+        Handle<SharedFunctionInfo> function_info =
+            Handle<SharedFunctionInfo>::cast(probe);
         // Break when we've found a suitable boilerplate function that
         // matches the origin.
-        if (HasOrigin(boilerplate, name, line_offset, column_offset)) {
-          result = *boilerplate;
+        if (HasOrigin(function_info, name, line_offset, column_offset)) {
+          result = *function_info;
           break;
         }
       }
@@ -290,38 +295,37 @@ Handle<JSFunction> CompilationCacheScript::Lookup(Handle<String> source,
   // to see if we actually found a cached script. If so, we return a
   // handle created in the caller's handle scope.
   if (result != NULL) {
-    Handle<JSFunction> boilerplate(JSFunction::cast(result));
-    ASSERT(HasOrigin(boilerplate, name, line_offset, column_offset));
+    Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(result));
+    ASSERT(HasOrigin(shared, name, line_offset, column_offset));
     // If the script was found in a later generation, we promote it to
     // the first generation to let it survive longer in the cache.
-    if (generation != 0) Put(source, boilerplate);
+    if (generation != 0) Put(source, shared);
     Counters::compilation_cache_hits.Increment();
-    return boilerplate;
+    return shared;
   } else {
     Counters::compilation_cache_misses.Increment();
-    return Handle<JSFunction>::null();
+    return Handle<SharedFunctionInfo>::null();
   }
 }
 
 
 Handle<CompilationCacheTable> CompilationCacheScript::TablePut(
     Handle<String> source,
-    Handle<JSFunction> boilerplate) {
-  CALL_HEAP_FUNCTION(GetFirstTable()->Put(*source, *boilerplate),
+    Handle<SharedFunctionInfo> function_info) {
+  CALL_HEAP_FUNCTION(GetFirstTable()->Put(*source, *function_info),
                      CompilationCacheTable);
 }
 
 
 void CompilationCacheScript::Put(Handle<String> source,
-                                 Handle<JSFunction> boilerplate) {
+                                 Handle<SharedFunctionInfo> function_info) {
   HandleScope scope;
-  ASSERT(boilerplate->IsBoilerplate());
-  SetFirstTable(TablePut(source, boilerplate));
+  SetFirstTable(TablePut(source, function_info));
 }
 
 
-Handle<JSFunction> CompilationCacheEval::Lookup(Handle<String> source,
-                                                Handle<Context> context) {
+Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
+    Handle<String> source, Handle<Context> context) {
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
   // having cleared the cache.
@@ -331,21 +335,22 @@ Handle<JSFunction> CompilationCacheEval::Lookup(Handle<String> source,
     for (generation = 0; generation < generations(); generation++) {
       Handle<CompilationCacheTable> table = GetTable(generation);
       result = table->LookupEval(*source, *context);
-      if (result->IsJSFunction()) {
+      if (result->IsSharedFunctionInfo()) {
         break;
       }
     }
   }
-  if (result->IsJSFunction()) {
-    Handle<JSFunction> boilerplate(JSFunction::cast(result));
+  if (result->IsSharedFunctionInfo()) {
+    Handle<SharedFunctionInfo>
+        function_info(SharedFunctionInfo::cast(result));
     if (generation != 0) {
-      Put(source, context, boilerplate);
+      Put(source, context, function_info);
     }
     Counters::compilation_cache_hits.Increment();
-    return boilerplate;
+    return function_info;
   } else {
     Counters::compilation_cache_misses.Increment();
-    return Handle<JSFunction>::null();
+    return Handle<SharedFunctionInfo>::null();
   }
 }
 
@@ -353,18 +358,19 @@ Handle<JSFunction> CompilationCacheEval::Lookup(Handle<String> source,
 Handle<CompilationCacheTable> CompilationCacheEval::TablePut(
     Handle<String> source,
     Handle<Context> context,
-    Handle<JSFunction> boilerplate) {
-  CALL_HEAP_FUNCTION(GetFirstTable()->PutEval(*source, *context, *boilerplate),
+    Handle<SharedFunctionInfo> function_info) {
+  CALL_HEAP_FUNCTION(GetFirstTable()->PutEval(*source,
+                                              *context,
+                                              *function_info),
                      CompilationCacheTable);
 }
 
 
 void CompilationCacheEval::Put(Handle<String> source,
                                Handle<Context> context,
-                               Handle<JSFunction> boilerplate) {
+                               Handle<SharedFunctionInfo> function_info) {
   HandleScope scope;
-  ASSERT(boilerplate->IsBoilerplate());
-  SetFirstTable(TablePut(source, context, boilerplate));
+  SetFirstTable(TablePut(source, context, function_info));
 }
 
 
@@ -415,26 +421,26 @@ void CompilationCacheRegExp::Put(Handle<String> source,
 }
 
 
-Handle<JSFunction> CompilationCache::LookupScript(Handle<String> source,
-                                                  Handle<Object> name,
-                                                  int line_offset,
-                                                  int column_offset) {
+Handle<SharedFunctionInfo> CompilationCache::LookupScript(Handle<String> source,
+                                                          Handle<Object> name,
+                                                          int line_offset,
+                                                          int column_offset) {
   if (!IsEnabled()) {
-    return Handle<JSFunction>::null();
+    return Handle<SharedFunctionInfo>::null();
   }
 
   return script.Lookup(source, name, line_offset, column_offset);
 }
 
 
-Handle<JSFunction> CompilationCache::LookupEval(Handle<String> source,
-                                                Handle<Context> context,
-                                                bool is_global) {
+Handle<SharedFunctionInfo> CompilationCache::LookupEval(Handle<String> source,
+                                                        Handle<Context> context,
+                                                        bool is_global) {
   if (!IsEnabled()) {
-    return Handle<JSFunction>::null();
+    return Handle<SharedFunctionInfo>::null();
   }
 
-  Handle<JSFunction> result;
+  Handle<SharedFunctionInfo> result;
   if (is_global) {
     result = eval_global.Lookup(source, context);
   } else {
@@ -455,30 +461,28 @@ Handle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
 
 
 void CompilationCache::PutScript(Handle<String> source,
-                                 Handle<JSFunction> boilerplate) {
+                                 Handle<SharedFunctionInfo> function_info) {
   if (!IsEnabled()) {
     return;
   }
 
-  ASSERT(boilerplate->IsBoilerplate());
-  script.Put(source, boilerplate);
+  script.Put(source, function_info);
 }
 
 
 void CompilationCache::PutEval(Handle<String> source,
                                Handle<Context> context,
                                bool is_global,
-                               Handle<JSFunction> boilerplate) {
+                               Handle<SharedFunctionInfo> function_info) {
   if (!IsEnabled()) {
     return;
   }
 
   HandleScope scope;
-  ASSERT(boilerplate->IsBoilerplate());
   if (is_global) {
-    eval_global.Put(source, context, boilerplate);
+    eval_global.Put(source, context, function_info);
   } else {
-    eval_contextual.Put(source, context, boilerplate);
+    eval_contextual.Put(source, context, function_info);
   }
 }
 

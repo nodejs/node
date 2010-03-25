@@ -91,8 +91,7 @@ Address ArgumentsAdaptorFrame::GetCallerStackPointer() const {
 
 
 Address InternalFrame::GetCallerStackPointer() const {
-  UNIMPLEMENTED_MIPS();
-  return static_cast<Address>(NULL);  // UNIMPLEMENTED RETURN
+  return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
 

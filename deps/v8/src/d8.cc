@@ -467,9 +467,12 @@ void Shell::Initialize() {
 
   // Mark the d8 shell script as native to avoid it showing up as normal source
   // in the debugger.
-  i::Handle<i::JSFunction> script_fun = Utils::OpenHandle(*script);
-  i::Handle<i::Script> script_object =
-      i::Handle<i::Script>(i::Script::cast(script_fun->shared()->script()));
+  i::Handle<i::Object> compiled_script = Utils::OpenHandle(*script);
+  i::Handle<i::Script> script_object = compiled_script->IsJSFunction()
+      ? i::Handle<i::Script>(i::Script::cast(
+          i::JSFunction::cast(*compiled_script)->shared()->script()))
+      : i::Handle<i::Script>(i::Script::cast(
+          i::SharedFunctionInfo::cast(*compiled_script)->script()));
   script_object->set_type(i::Smi::FromInt(i::Script::TYPE_NATIVE));
 
   // Create the evaluation context

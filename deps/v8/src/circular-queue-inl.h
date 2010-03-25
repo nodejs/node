@@ -82,11 +82,10 @@ Record* CircularQueue<Record>::Next(Record* curr) {
 
 
 void* SamplingCircularQueue::Enqueue() {
-  Cell* enqueue_pos = reinterpret_cast<Cell*>(
-      Thread::GetThreadLocal(producer_key_));
-  WrapPositionIfNeeded(&enqueue_pos);
-  Thread::SetThreadLocal(producer_key_, enqueue_pos + record_size_);
-  return enqueue_pos;
+  WrapPositionIfNeeded(&producer_pos_->enqueue_pos);
+  void* result = producer_pos_->enqueue_pos;
+  producer_pos_->enqueue_pos += record_size_;
+  return result;
 }
 
 

@@ -283,11 +283,11 @@ Object* Heap::PrepareForCompare(String* str) {
   const int length = str->length();
   Object* obj = str->TryFlatten();
   if (length <= kMaxAlwaysFlattenLength ||
-      unflattended_strings_length_ >= kFlattenLongThreshold) {
+      unflattened_strings_length_ >= kFlattenLongThreshold) {
     return obj;
   }
   if (obj->IsFailure()) {
-    unflattended_strings_length_ += length;
+    unflattened_strings_length_ += length;
   }
   return str;
 }

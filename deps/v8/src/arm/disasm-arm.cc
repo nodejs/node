@@ -129,6 +129,10 @@ class Decoder {
   void DecodeTypeVFP(Instr* instr);
   void DecodeType6CoprocessorIns(Instr* instr);
 
+  void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instr* instr);
+  void DecodeVCMP(Instr* instr);
+  void DecodeVCVTBetweenDoubleAndSingle(Instr* instr);
+  void DecodeVCVTBetweenFloatingPointAndInteger(Instr* instr);
 
   const disasm::NameConverter& converter_;
   v8::internal::Vector<char> out_buffer_;
@@ -181,12 +185,12 @@ void Decoder::PrintRegister(int reg) {
 
 // Print the VFP S register name according to the active name converter.
 void Decoder::PrintSRegister(int reg) {
-  Print(assembler::arm::VFPRegisters::Name(reg));
+  Print(assembler::arm::VFPRegisters::Name(reg, false));
 }
 
 // Print the  VFP D register name according to the active name converter.
 void Decoder::PrintDRegister(int reg) {
-  Print(assembler::arm::VFPRegisters::Name(reg + 32));
+  Print(assembler::arm::VFPRegisters::Name(reg, true));
 }
 
 
@@ -930,87 +934,151 @@ void Decoder::DecodeUnconditional(Instr* instr) {
 // VMRS
 void Decoder::DecodeTypeVFP(Instr* instr) {
   ASSERT((instr->TypeField() == 7) && (instr->Bit(24) == 0x0) );
+  ASSERT(instr->Bits(11, 9) == 0x5);
 
-  if (instr->Bit(23) == 1) {
-    if ((instr->Bits(21, 19) == 0x7) &&
-        (instr->Bits(18, 16) == 0x5) &&
-        (instr->Bits(11, 9) == 0x5) &&
-        (instr->Bit(8) == 1) &&
-        (instr->Bit(6) == 1) &&
-        (instr->Bit(4) == 0)) {
-      Format(instr, "vcvt.s32.f64'cond 'Sd, 'Dm");
-    } else if ((instr->Bits(21, 19) == 0x7) &&
-               (instr->Bits(18, 16) == 0x0) &&
-               (instr->Bits(11, 9) == 0x5) &&
-               (instr->Bit(8) == 1) &&
-               (instr->Bit(7) == 1) &&
-               (instr->Bit(6) == 1) &&
-               (instr->Bit(4) == 0)) {
-      Format(instr, "vcvt.f64.s32'cond 'Dd, 'Sm");
-    } else if ((instr->Bit(21) == 0x0) &&
-               (instr->Bit(20) == 0x0) &&
-               (instr->Bits(11, 9) == 0x5) &&
-               (instr->Bit(8) == 1) &&
-               (instr->Bit(6) == 0) &&
-               (instr->Bit(4) == 0)) {
+  if (instr->Bit(4) == 0) {
+    if (instr->Opc1Field() == 0x7) {
+      // Other data processing instructions
+      if ((instr->Opc2Field() == 0x7) && (instr->Opc3Field() == 0x3)) {
+        DecodeVCVTBetweenDoubleAndSingle(instr);
+      } else if ((instr->Opc2Field() == 0x8) && (instr->Opc3Field() & 0x1)) {
+        DecodeVCVTBetweenFloatingPointAndInteger(instr);
+      } else if (((instr->Opc2Field() >> 1) == 0x6) &&
+                 (instr->Opc3Field() & 0x1)) {
+        DecodeVCVTBetweenFloatingPointAndInteger(instr);
+      } else if (((instr->Opc2Field() == 0x4) || (instr->Opc2Field() == 0x5)) &&
+                 (instr->Opc3Field() & 0x1)) {
+        DecodeVCMP(instr);
+      } else {
+        Unknown(instr);  // Not used by V8.
+      }
+    } else if (instr->Opc1Field() == 0x3) {
+      if (instr->SzField() == 0x1) {
+        if (instr->Opc3Field() & 0x1) {
+          Format(instr, "vsub.f64'cond 'Dd, 'Dn, 'Dm");
+        } else {
+          Format(instr, "vadd.f64'cond 'Dd, 'Dn, 'Dm");
+        }
+      } else {
+        Unknown(instr);  // Not used by V8.
+      }
+    } else if ((instr->Opc1Field() == 0x2) && !(instr->Opc3Field() & 0x1)) {
+      if (instr->SzField() == 0x1) {
+        Format(instr, "vmul.f64'cond 'Dd, 'Dn, 'Dm");
+      } else {
+        Unknown(instr);  // Not used by V8.
+      }
+    } else if ((instr->Opc1Field() == 0x4) && !(instr->Opc3Field() & 0x1)) {
+      if (instr->SzField() == 0x1) {
         Format(instr, "vdiv.f64'cond 'Dd, 'Dn, 'Dm");
-    } else if ((instr->Bits(21, 20) == 0x3) &&
-               (instr->Bits(19, 16) == 0x4) &&
-               (instr->Bits(11, 9) == 0x5) &&
-               (instr->Bit(8) == 0x1) &&
-               (instr->Bit(6) == 0x1) &&
-               (instr->Bit(4) == 0x0)) {
-      Format(instr, "vcmp.f64'cond 'Dd, 'Dm");
-    } else if ((instr->Bits(23, 20) == 0xF) &&
-               (instr->Bits(19, 16) == 0x1) &&
-               (instr->Bits(11, 8) == 0xA) &&
-               (instr->Bits(7, 5) == 0x0) &&
-               (instr->Bit(4) == 0x1)    &&
-               (instr->Bits(3, 0) == 0x0)) {
-        if (instr->Bits(15, 12) == 0xF)
-          Format(instr, "vmrs'cond APSR, FPSCR");
-        else
-          Unknown(instr);  // Not used by V8.
-    } else {
-      Unknown(instr);  // Not used by V8.
-    }
-  } else if (instr->Bit(21) == 1) {
-    if ((instr->Bit(20) == 0x1) &&
-        (instr->Bits(11, 9) == 0x5) &&
-        (instr->Bit(8) == 0x1) &&
-        (instr->Bit(6) == 0) &&
-        (instr->Bit(4) == 0)) {
-      Format(instr, "vadd.f64'cond 'Dd, 'Dn, 'Dm");
-    } else if ((instr->Bit(20) == 0x1) &&
-               (instr->Bits(11, 9) == 0x5) &&
-               (instr->Bit(8) == 0x1) &&
-               (instr->Bit(6) == 1) &&
-               (instr->Bit(4) == 0)) {
-      Format(instr, "vsub.f64'cond 'Dd, 'Dn, 'Dm");
-    } else if ((instr->Bit(20) == 0x0) &&
-               (instr->Bits(11, 9) == 0x5) &&
-               (instr->Bit(8) == 0x1) &&
-               (instr->Bit(6) == 0) &&
-               (instr->Bit(4) == 0)) {
-      Format(instr, "vmul.f64'cond 'Dd, 'Dn, 'Dm");
+      } else {
+        Unknown(instr);  // Not used by V8.
+      }
     } else {
       Unknown(instr);  // Not used by V8.
     }
   } else {
-    if ((instr->Bit(20) == 0x0) &&
-        (instr->Bits(11, 8) == 0xA) &&
-        (instr->Bits(6, 5) == 0x0) &&
-        (instr->Bit(4) == 1) &&
-        (instr->Bits(3, 0) == 0x0)) {
-      Format(instr, "vmov'cond 'Sn, 'rt");
-    } else if ((instr->Bit(20) == 0x1) &&
-               (instr->Bits(11, 8) == 0xA) &&
-               (instr->Bits(6, 5) == 0x0) &&
-               (instr->Bit(4) == 1) &&
-               (instr->Bits(3, 0) == 0x0)) {
-      Format(instr, "vmov'cond 'rt, 'Sn");
+    if ((instr->VCField() == 0x0) &&
+        (instr->VAField() == 0x0)) {
+      DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(instr);
+    } else if ((instr->VLField() == 0x1) &&
+               (instr->VCField() == 0x0) &&
+               (instr->VAField() == 0x7) &&
+               (instr->Bits(19, 16) == 0x1)) {
+      if (instr->Bits(15, 12) == 0xF)
+        Format(instr, "vmrs'cond APSR, FPSCR");
+      else
+        Unknown(instr);  // Not used by V8.
     } else {
       Unknown(instr);  // Not used by V8.
+    }
+  }
+}
+
+
+void Decoder::DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instr* instr) {
+  ASSERT((instr->Bit(4) == 1) && (instr->VCField() == 0x0) &&
+         (instr->VAField() == 0x0));
+
+  bool to_arm_register = (instr->VLField() == 0x1);
+
+  if (to_arm_register) {
+    Format(instr, "vmov'cond 'rt, 'Sn");
+  } else {
+    Format(instr, "vmov'cond 'Sn, 'rt");
+  }
+}
+
+
+void Decoder::DecodeVCMP(Instr* instr) {
+  ASSERT((instr->Bit(4) == 0) && (instr->Opc1Field() == 0x7));
+  ASSERT(((instr->Opc2Field() == 0x4) || (instr->Opc2Field() == 0x5)) &&
+         (instr->Opc3Field() & 0x1));
+
+  // Comparison.
+  bool dp_operation = (instr->SzField() == 1);
+  bool raise_exception_for_qnan = (instr->Bit(7) == 0x1);
+
+  if (dp_operation && !raise_exception_for_qnan) {
+    Format(instr, "vcmp.f64'cond 'Dd, 'Dm");
+  } else {
+    Unknown(instr);  // Not used by V8.
+  }
+}
+
+
+void Decoder::DecodeVCVTBetweenDoubleAndSingle(Instr* instr) {
+  ASSERT((instr->Bit(4) == 0) && (instr->Opc1Field() == 0x7));
+  ASSERT((instr->Opc2Field() == 0x7) && (instr->Opc3Field() == 0x3));
+
+  bool double_to_single = (instr->SzField() == 1);
+
+  if (double_to_single) {
+    Format(instr, "vcvt.f32.f64'cond 'Sd, 'Dm");
+  } else {
+    Format(instr, "vcvt.f64.f32'cond 'Dd, 'Sm");
+  }
+}
+
+
+void Decoder::DecodeVCVTBetweenFloatingPointAndInteger(Instr* instr) {
+  ASSERT((instr->Bit(4) == 0) && (instr->Opc1Field() == 0x7));
+  ASSERT(((instr->Opc2Field() == 0x8) && (instr->Opc3Field() & 0x1)) ||
+         (((instr->Opc2Field() >> 1) == 0x6) && (instr->Opc3Field() & 0x1)));
+
+  bool to_integer = (instr->Bit(18) == 1);
+  bool dp_operation = (instr->SzField() == 1);
+  if (to_integer) {
+    bool unsigned_integer = (instr->Bit(16) == 0);
+
+    if (dp_operation) {
+      if (unsigned_integer) {
+        Format(instr, "vcvt.u32.f64'cond 'Sd, 'Dm");
+      } else {
+        Format(instr, "vcvt.s32.f64'cond 'Sd, 'Dm");
+      }
+    } else {
+      if (unsigned_integer) {
+        Format(instr, "vcvt.u32.f32'cond 'Sd, 'Sm");
+      } else {
+        Format(instr, "vcvt.s32.f32'cond 'Sd, 'Sm");
+      }
+    }
+  } else {
+    bool unsigned_integer = (instr->Bit(7) == 0);
+
+    if (dp_operation) {
+      if (unsigned_integer) {
+        Format(instr, "vcvt.f64.u32'cond 'Dd, 'Sm");
+      } else {
+        Format(instr, "vcvt.f64.s32'cond 'Dd, 'Sm");
+      }
+    } else {
+      if (unsigned_integer) {
+        Format(instr, "vcvt.f32.u32'cond 'Sd, 'Sm");
+      } else {
+        Format(instr, "vcvt.f32.s32'cond 'Sd, 'Sm");
+      }
     }
   }
 }
@@ -1024,9 +1092,27 @@ void Decoder::DecodeTypeVFP(Instr* instr) {
 void Decoder::DecodeType6CoprocessorIns(Instr* instr) {
   ASSERT((instr->TypeField() == 6));
 
-  if (instr->CoprocessorField() != 0xB) {
-    Unknown(instr);  // Not used by V8.
-  } else {
+  if (instr->CoprocessorField() == 0xA) {
+    switch (instr->OpcodeField()) {
+      case 0x8:
+        if (instr->HasL()) {
+          Format(instr, "vldr'cond 'Sd, ['rn - 4*'off8]");
+        } else {
+          Format(instr, "vstr'cond 'Sd, ['rn - 4*'off8]");
+        }
+        break;
+      case 0xC:
+        if (instr->HasL()) {
+          Format(instr, "vldr'cond 'Sd, ['rn + 4*'off8]");
+        } else {
+          Format(instr, "vstr'cond 'Sd, ['rn + 4*'off8]");
+        }
+        break;
+      default:
+        Unknown(instr);  // Not used by V8.
+        break;
+    }
+  } else if (instr->CoprocessorField() == 0xB) {
     switch (instr->OpcodeField()) {
       case 0x2:
         // Load and store double to two GP registers
@@ -1056,6 +1142,8 @@ void Decoder::DecodeType6CoprocessorIns(Instr* instr) {
         Unknown(instr);  // Not used by V8.
         break;
     }
+  } else {
+    UNIMPLEMENTED();  // Not used by V8.
   }
 }
 

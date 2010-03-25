@@ -35,6 +35,16 @@ namespace v8 {
 namespace internal {
 
 const byte Snapshot::data_[] = { 0 };
-int Snapshot::size_ = 0;
+const int Snapshot::size_ = 0;
+const byte Snapshot::context_data_[] = { 0 };
+const int Snapshot::context_size_ = 0;
+
+const int Snapshot::new_space_used_ = 0;
+const int Snapshot::pointer_space_used_ = 0;
+const int Snapshot::data_space_used_ = 0;
+const int Snapshot::code_space_used_ = 0;
+const int Snapshot::map_space_used_ = 0;
+const int Snapshot::cell_space_used_ = 0;
+const int Snapshot::large_space_used_ = 0;
 
 } }  // namespace v8::internal

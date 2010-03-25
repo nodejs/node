@@ -27,16 +27,20 @@
 /* Begin PBXBuildFile section */
 		58950D5E0F55519800F3E8BA /* jump-target.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D500F55514900F3E8BA /* jump-target.cc */; };
 		58950D5F0F55519D00F3E8BA /* jump-target-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */; };
+		58950D5F0F55519D00F3E8BA /* jump-target-heavy.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D4F0F55514900F3E8BA /* jump-target-heavy.cc */; };
 		58950D600F5551A300F3E8BA /* jump-target.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D500F55514900F3E8BA /* jump-target.cc */; };
 		58950D610F5551A400F3E8BA /* jump-target-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D4E0F55514900F3E8BA /* jump-target-arm.cc */; };
+		58950D610F5551A400F3E8BA /* jump-target-light.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D4E0F55514900F3E8BA /* jump-target-light.cc */; };
 		58950D620F5551AF00F3E8BA /* register-allocator-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D530F55514900F3E8BA /* register-allocator-ia32.cc */; };
 		58950D630F5551AF00F3E8BA /* register-allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D540F55514900F3E8BA /* register-allocator.cc */; };
 		58950D640F5551B500F3E8BA /* register-allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D540F55514900F3E8BA /* register-allocator.cc */; };
 		58950D650F5551B600F3E8BA /* register-allocator-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D520F55514900F3E8BA /* register-allocator-arm.cc */; };
 		58950D660F5551C200F3E8BA /* virtual-frame.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D5A0F55514900F3E8BA /* virtual-frame.cc */; };
 		58950D670F5551C400F3E8BA /* virtual-frame-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */; };
+		58950D670F5551C400F3E8BA /* virtual-frame-heavy.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D580F55514900F3E8BA /* virtual-frame-heavy.cc */; };
 		58950D680F5551CB00F3E8BA /* virtual-frame.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D5A0F55514900F3E8BA /* virtual-frame.cc */; };
 		58950D690F5551CE00F3E8BA /* virtual-frame-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D560F55514900F3E8BA /* virtual-frame-arm.cc */; };
+		58950D690F5551CE00F3E8BA /* virtual-frame-light.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D560F55514900F3E8BA /* virtual-frame-light.cc */; };
 		8900116C0E71CA2300F91F35 /* libraries.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8900116B0E71CA2300F91F35 /* libraries.cc */; };
 		890A13FE0EE9C47F00E49346 /* interpreter-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */; };
 		890A14010EE9C4B000E49346 /* regexp-macro-assembler-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C700EE466D000B48DEB /* regexp-macro-assembler-arm.cc */; };
@@ -291,7 +295,9 @@
 		22A76C900FF259E600FDC694 /* log-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "log-inl.h"; sourceTree = "<group>"; };
 		58242A1E0FA1F14D00BD6F59 /* json-delay.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "json-delay.js"; sourceTree = "<group>"; };
 		58950D4E0F55514900F3E8BA /* jump-target-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-arm.cc"; path = "arm/jump-target-arm.cc"; sourceTree = "<group>"; };
+		58950D4E0F55514900F3E8BA /* jump-target-light.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-light.cc"; path = "jump-target-light.cc"; sourceTree = "<group>"; };
 		58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-ia32.cc"; path = "ia32/jump-target-ia32.cc"; sourceTree = "<group>"; };
+		58950D4F0F55514900F3E8BA /* jump-target-heavy.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-heavy.cc"; path = "jump-target-heavy.cc"; sourceTree = "<group>"; };
 		58950D500F55514900F3E8BA /* jump-target.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target.cc"; sourceTree = "<group>"; };
 		58950D510F55514900F3E8BA /* jump-target.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target.h"; sourceTree = "<group>"; };
 		58950D520F55514900F3E8BA /* register-allocator-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "register-allocator-arm.cc"; path = "arm/register-allocator-arm.cc"; sourceTree = "<group>"; };
@@ -299,8 +305,10 @@
 		58950D540F55514900F3E8BA /* register-allocator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "register-allocator.cc"; sourceTree = "<group>"; };
 		58950D550F55514900F3E8BA /* register-allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "register-allocator.h"; sourceTree = "<group>"; };
 		58950D560F55514900F3E8BA /* virtual-frame-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-arm.cc"; path = "arm/virtual-frame-arm.cc"; sourceTree = "<group>"; };
+		58950D560F55514900F3E8BA /* virtual-frame-light.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-light.cc"; path = "virtual-frame-light.cc"; sourceTree = "<group>"; };
 		58950D570F55514900F3E8BA /* virtual-frame-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "virtual-frame-arm.h"; path = "arm/virtual-frame-arm.h"; sourceTree = "<group>"; };
 		58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-ia32.cc"; path = "ia32/virtual-frame-ia32.cc"; sourceTree = "<group>"; };
+		58950D580F55514900F3E8BA /* virtual-frame-heavy.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-heavy.cc"; path = "virtual-frame-heavy.cc"; sourceTree = "<group>"; };
 		58950D590F55514900F3E8BA /* virtual-frame-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "virtual-frame-ia32.h"; path = "ia32/virtual-frame-ia32.h"; sourceTree = "<group>"; };
 		58950D5A0F55514900F3E8BA /* virtual-frame.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame.cc"; sourceTree = "<group>"; };
 		58950D5B0F55514900F3E8BA /* virtual-frame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame.h"; sourceTree = "<group>"; };
@@ -321,6 +329,8 @@
 		8956B6CD0F5D86570033B5A2 /* debug-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-agent.cc"; sourceTree = "<group>"; };
 		8956B6CE0F5D86570033B5A2 /* debug-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "debug-agent.h"; sourceTree = "<group>"; };
 		895FA720107FFB15006F39D4 /* jump-target-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target-inl.h"; sourceTree = "<group>"; };
+		895FA720107FFB15006F39D4 /* jump-target-light-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target-light-inl.h"; sourceTree = "<group>"; };
+		895FA720107FFB15006F39D4 /* jump-target-heavy-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target-heavy-inl.h"; sourceTree = "<group>"; };
 		895FA725107FFB57006F39D4 /* codegen-ia32-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "codegen-ia32-inl.h"; path = "ia32/codegen-ia32-inl.h"; sourceTree = "<group>"; };
 		895FA72A107FFB85006F39D4 /* register-allocator-ia32-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "register-allocator-ia32-inl.h"; path = "ia32/register-allocator-ia32-inl.h"; sourceTree = "<group>"; };
 		895FA72B107FFB85006F39D4 /* register-allocator-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "register-allocator-ia32.h"; path = "ia32/register-allocator-ia32.h"; sourceTree = "<group>"; };
@@ -785,8 +795,12 @@
 				897FF14E0E719B8F00D62E90 /* jsregexp.cc */,
 				897FF14F0E719B8F00D62E90 /* jsregexp.h */,
 				895FA720107FFB15006F39D4 /* jump-target-inl.h */,
+				895FA720107FFB15006F39D4 /* jump-target-heavy-inl.h */,
+				895FA720107FFB15006F39D4 /* jump-target-light-inl.h */,
 				58950D4E0F55514900F3E8BA /* jump-target-arm.cc */,
+				58950D4E0F55514900F3E8BA /* jump-target-light.cc */,
 				58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */,
+				58950D4F0F55514900F3E8BA /* jump-target-heavy.cc */,
 				58950D500F55514900F3E8BA /* jump-target.cc */,
 				58950D510F55514900F3E8BA /* jump-target.h */,
 				897FF1500E719B8F00D62E90 /* list-inl.h */,
@@ -905,8 +919,10 @@
 				897FF32F0FAA0ED200136CF6 /* version.cc */,
 				897FF3300FAA0ED200136CF6 /* version.h */,
 				58950D560F55514900F3E8BA /* virtual-frame-arm.cc */,
+				58950D560F55514900F3E8BA /* virtual-frame-light.cc */,
 				58950D570F55514900F3E8BA /* virtual-frame-arm.h */,
 				58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */,
+				58950D580F55514900F3E8BA /* virtual-frame-heavy.cc */,
 				58950D590F55514900F3E8BA /* virtual-frame-ia32.h */,
 				58950D5A0F55514900F3E8BA /* virtual-frame.cc */,
 				58950D5B0F55514900F3E8BA /* virtual-frame.h */,
@@ -1213,6 +1229,7 @@
 				89A88E0E0E71A66F0043BA31 /* jsregexp.cc in Sources */,
 				58950D5E0F55519800F3E8BA /* jump-target.cc in Sources */,
 				58950D5F0F55519D00F3E8BA /* jump-target-ia32.cc in Sources */,
+				58950D5F0F55519D00F3E8BA /* jump-target-heavy.cc in Sources */,
 				8900116C0E71CA2300F91F35 /* libraries.cc in Sources */,
 				89A88E0F0E71A6740043BA31 /* log.cc in Sources */,
 				89A88E100E71A6770043BA31 /* macro-assembler-ia32.cc in Sources */,
@@ -1256,6 +1273,7 @@
 				89A88E2D0E71A6D50043BA31 /* variables.cc in Sources */,
 				89B933AF0FAA0F9600201304 /* version.cc in Sources */,
 				58950D660F5551C200F3E8BA /* virtual-frame.cc in Sources */,
+				58950D660F5551C200F3E8BA /* virtual-frame-heavy.cc in Sources */,
 				58950D670F5551C400F3E8BA /* virtual-frame-ia32.cc in Sources */,
 				89A88E2E0E71A6D60043BA31 /* zone.cc in Sources */,
 				9F4B7B890FCC877A00DC4117 /* log-utils.cc in Sources */,
@@ -1324,6 +1342,7 @@
 				89F23C610E78D5B2006B2466 /* jsregexp.cc in Sources */,
 				58950D600F5551A300F3E8BA /* jump-target.cc in Sources */,
 				58950D610F5551A400F3E8BA /* jump-target-arm.cc in Sources */,
+				58950D610F5551A400F3E8BA /* jump-target-light.cc in Sources */,
 				89F23C620E78D5B2006B2466 /* libraries.cc in Sources */,
 				89F23C630E78D5B2006B2466 /* log.cc in Sources */,
 				89F23C9E0E78D5FD006B2466 /* macro-assembler-arm.cc in Sources */,
@@ -1368,6 +1387,7 @@
 				89F23C810E78D5B2006B2466 /* variables.cc in Sources */,
 				89B933B00FAA0F9D00201304 /* version.cc in Sources */,
 				58950D680F5551CB00F3E8BA /* virtual-frame.cc in Sources */,
+				58950D680F5551CB00F3E8BA /* virtual-frame-light.cc in Sources */,
 				58950D690F5551CE00F3E8BA /* virtual-frame-arm.cc in Sources */,
 				89F23C820E78D5B2006B2466 /* zone.cc in Sources */,
 				9F4B7B8A0FCC877A00DC4117 /* log-utils.cc in Sources */,

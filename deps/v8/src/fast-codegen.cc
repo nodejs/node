@@ -195,9 +195,9 @@ void FastCodeGenSyntaxChecker::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void FastCodeGenSyntaxChecker::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
-  BAILOUT("FunctionBoilerplateLiteral");
+void FastCodeGenSyntaxChecker::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
+  BAILOUT("SharedFunctionInfoLiteral");
 }
 
 
@@ -560,8 +560,8 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void FastCodeGenerator::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* expr) {
+void FastCodeGenerator::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
   UNREACHABLE();
 }
 

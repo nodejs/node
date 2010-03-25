@@ -42,7 +42,77 @@ enum InitState { CONST_INIT, NOT_CONST_INIT };
 enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 
-// -------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Reference support
+
+// A reference is a C++ stack-allocated object that keeps an ECMA
+// reference on the execution stack while in scope. For variables
+// the reference is empty, indicating that it isn't necessary to
+// store state on the stack for keeping track of references to those.
+// For properties, we keep either one (named) or two (indexed) values
+// on the execution stack to represent the reference.
+class Reference BASE_EMBEDDED {
+ public:
+  // The values of the types is important, see size().
+  enum Type { UNLOADED = -2, ILLEGAL = -1, SLOT = 0, NAMED = 1, KEYED = 2 };
+  Reference(CodeGenerator* cgen,
+            Expression* expression,
+            bool persist_after_get = false);
+  ~Reference();
+
+  Expression* expression() const { return expression_; }
+  Type type() const { return type_; }
+  void set_type(Type value) {
+    ASSERT_EQ(ILLEGAL, type_);
+    type_ = value;
+  }
+
+  void set_unloaded() {
+    ASSERT_NE(ILLEGAL, type_);
+    ASSERT_NE(UNLOADED, type_);
+    type_ = UNLOADED;
+  }
+  // The size the reference takes up on the stack.
+  int size() const {
+    return (type_ < SLOT) ? 0 : type_;
+  }
+
+  bool is_illegal() const { return type_ == ILLEGAL; }
+  bool is_slot() const { return type_ == SLOT; }
+  bool is_property() const { return type_ == NAMED || type_ == KEYED; }
+  bool is_unloaded() const { return type_ == UNLOADED; }
+
+  // Return the name. Only valid for named property references.
+  Handle<String> GetName();
+
+  // Generate code to push the value of the reference on top of the
+  // expression stack.  The reference is expected to be already on top of
+  // the expression stack, and it is consumed by the call unless the
+  // reference is for a compound assignment.
+  // If the reference is not consumed, it is left in place under its value.
+  void GetValue();
+
+  // Generate code to pop a reference, push the value of the reference,
+  // and then spill the stack frame.
+  inline void GetValueAndSpill();
+
+  // Generate code to store the value on top of the expression stack in the
+  // reference.  The reference is expected to be immediately below the value
+  // on the expression stack.  The  value is stored in the location specified
+  // by the reference, and is left on top of the stack, after the reference
+  // is popped from beneath it (unloaded).
+  void SetValue(InitState init_state);
+
+ private:
+  CodeGenerator* cgen_;
+  Expression* expression_;
+  Type type_;
+  // Keep the reference on the stack after get, so it can be used by set later.
+  bool persist_after_get_;
+};
+
+
+// -----------------------------------------------------------------------------
 // Code generation state
 
 // The state is passed down the AST by the code generator (and back up, in
@@ -89,7 +159,7 @@ class CodeGenState BASE_EMBEDDED {
 
 
 
-// -------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // CodeGenerator
 
 class CodeGenerator: public AstVisitor {
@@ -152,7 +222,7 @@ class CodeGenerator: public AstVisitor {
 
   // Number of instructions used for the JS return sequence. The constant is
   // used by the debugger to patch the JS return sequence.
-  static const int kJSReturnSequenceLength = 6;
+  static const int kJSReturnSequenceLength = 7;
 
   // If the name is an inline runtime function call return the number of
   // expected arguments. Otherwise return -1.
@@ -186,8 +256,50 @@ class CodeGenerator: public AstVisitor {
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
+  // Visit a statement and then spill the virtual frame if control flow can
+  // reach the end of the statement (ie, it does not exit via break,
+  // continue, return, or throw).  This function is used temporarily while
+  // the code generator is being transformed.
+  inline void VisitAndSpill(Statement* statement);
+
+  // Visit a list of statements and then spill the virtual frame if control
+  // flow can reach the end of the list.
+  inline void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
+
   // Main code generation function
   void Generate(CompilationInfo* info);
+
+  // The following are used by class Reference.
+  void LoadReference(Reference* ref);
+  void UnloadReference(Reference* ref);
+
+  MemOperand ContextOperand(Register context, int index) const {
+    return MemOperand(context, Context::SlotOffset(index));
+  }
+
+  MemOperand SlotOperand(Slot* slot, Register tmp);
+
+  // Expressions
+  MemOperand GlobalObject() const  {
+    return ContextOperand(cp, Context::GLOBAL_INDEX);
+  }
+
+  void LoadCondition(Expression* x,
+                     JumpTarget* true_target,
+                     JumpTarget* false_target,
+                     bool force_cc);
+  void Load(Expression* x);
+  void LoadGlobal();
+
+  // Generate code to push the value of an expression on top of the frame
+  // and then spill the frame fully to memory.  This function is used
+  // temporarily while the code generator is being transformed.
+  inline void LoadAndSpill(Expression* expression);
+
+  // Read a value from a slot and leave it on top of the expression stack.
+  void LoadFromSlot(Slot* slot, TypeofState typeof_state);
+  // Store the value on top of the stack to a slot.
+  void StoreToSlot(Slot* slot, InitState init_state);
 
   struct InlineRuntimeLUT {
     void (CodeGenerator::*method)(ZoneList<Expression*>*);
@@ -290,7 +402,6 @@ class CodeGenerator: public AstVisitor {
   CompilationInfo* info_;
 
   // Code generation state
-  Scope* scope_;
   VirtualFrame* frame_;
   RegisterAllocator* allocator_;
   Condition cc_reg_;

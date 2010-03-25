@@ -615,9 +615,6 @@ void Map::MapPrint() {
   if (is_undetectable()) {
     PrintF(" - undetectable\n");
   }
-  if (needs_loading()) {
-    PrintF(" - needs_loading\n");
-  }
   if (has_instance_call_handler()) {
     PrintF(" - instance_call_handler\n");
   }

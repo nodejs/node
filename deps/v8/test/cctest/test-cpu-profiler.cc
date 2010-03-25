@@ -64,7 +64,6 @@ TEST(CodeEvents) {
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(&generator);
   processor.Start();
-  processor.SetUpSamplesProducer();
   while (!processor.running()) {
     i::Thread::YieldCPU();
   }
@@ -117,8 +116,6 @@ TEST(CodeEvents) {
   CodeEntry* entry5 = generator.code_map()->FindEntry(ToAddress(0x1700));
   CHECK_NE(NULL, entry5);
   CHECK_EQ(aaa_str, entry5->name());
-
-  processor.TearDownSamplesProducer();
 }
 
 
@@ -133,7 +130,6 @@ TEST(TickEvents) {
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(&generator);
   processor.Start();
-  processor.SetUpSamplesProducer();
   while (!processor.running()) {
     i::Thread::YieldCPU();
   }
@@ -197,6 +193,4 @@ TEST(TickEvents) {
   bottom_up_ddd_children.last()->GetChildren(&bottom_up_ddd_stub_children);
   CHECK_EQ(1, bottom_up_ddd_stub_children.length());
   CHECK_EQ("bbb", bottom_up_ddd_stub_children.last()->entry()->name());
-
-  processor.TearDownSamplesProducer();
 }

@@ -30,61 +30,15 @@
 
 #include "virtual-frame.h"
 
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+#include "virtual-frame-heavy-inl.h"
+#else
+#include "virtual-frame-light-inl.h"
+#endif
+
+
 namespace v8 {
 namespace internal {
-
-
-// On entry to a function, the virtual frame already contains the receiver,
-// the parameters, and a return address.  All frame elements are in memory.
-VirtualFrame::VirtualFrame()
-    : elements_(parameter_count() + local_count() + kPreallocatedElements),
-      stack_pointer_(parameter_count() + 1) {  // 0-based index of TOS.
-  for (int i = 0; i <= stack_pointer_; i++) {
-    elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
-  }
-  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
-    register_locations_[i] = kIllegalIndex;
-  }
-}
-
-
-// When cloned, a frame is a deep copy of the original.
-VirtualFrame::VirtualFrame(VirtualFrame* original)
-    : elements_(original->element_count()),
-      stack_pointer_(original->stack_pointer_) {
-  elements_.AddAll(original->elements_);
-  // Copy register locations from original.
-  memcpy(&register_locations_,
-         original->register_locations_,
-         sizeof(register_locations_));
-}
-
-
-void VirtualFrame::PushFrameSlotAt(int index) {
-  elements_.Add(CopyElementAt(index));
-}
-
-
-void VirtualFrame::Push(Register reg, NumberInfo info) {
-  if (is_used(reg)) {
-    int index = register_location(reg);
-    FrameElement element = CopyElementAt(index, info);
-    elements_.Add(element);
-  } else {
-    Use(reg, element_count());
-    FrameElement element =
-        FrameElement::RegisterElement(reg, FrameElement::NOT_SYNCED, info);
-    elements_.Add(element);
-  }
-}
-
-
-void VirtualFrame::Push(Handle<Object> value) {
-  FrameElement element =
-      FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED);
-  elements_.Add(element);
-}
-
 
 void VirtualFrame::Push(Smi* value) {
   Push(Handle<Object> (value));
@@ -100,35 +54,6 @@ void VirtualFrame::Nip(int num_dropped) {
   }
   SetElementAt(0, &tos);
 }
-
-
-bool VirtualFrame::Equals(VirtualFrame* other) {
-#ifdef DEBUG
-  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
-    if (register_location(i) != other->register_location(i)) {
-      return false;
-    }
-  }
-  if (element_count() != other->element_count()) return false;
-#endif
-  if (stack_pointer_ != other->stack_pointer_) return false;
-  for (int i = 0; i < element_count(); i++) {
-    if (!elements_[i].Equals(other->elements_[i])) return false;
-  }
-
-  return true;
-}
-
-
-void VirtualFrame::SetTypeForLocalAt(int index, NumberInfo info) {
-  elements_[local0_index() + index].set_number_info(info);
-}
-
-
-void VirtualFrame::SetTypeForParamAt(int index, NumberInfo info) {
-  elements_[param0_index() + index].set_number_info(info);
-}
-
 
 } }  // namespace v8::internal
 

@@ -74,7 +74,99 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
-  UNIMPLEMENTED_MIPS();
+  // Called from JSEntryStub::GenerateBody
+
+  // Registers:
+  // a0: entry_address
+  // a1: function
+  // a2: reveiver_pointer
+  // a3: argc
+  // s0: argv
+  //
+  // Stack:
+  // arguments slots
+  // handler frame
+  // entry frame
+  // callee saved registers + ra
+  // 4 args slots
+  // args
+
+  // Clear the context before we push it when entering the JS frame.
+  __ li(cp, Operand(0));
+
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Set up the context from the function argument.
+  __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+
+  // Set up the roots register.
+  ExternalReference roots_address = ExternalReference::roots_address();
+  __ li(s6, Operand(roots_address));
+
+  // Push the function and the receiver onto the stack.
+  __ MultiPushReversed(a1.bit() | a2.bit());
+
+  // Copy arguments to the stack in a loop.
+  // a3: argc
+  // s0: argv, ie points to first arg
+  Label loop, entry;
+  __ sll(t0, a3, kPointerSizeLog2);
+  __ add(t2, s0, t0);
+  __ b(&entry);
+  __ nop();   // Branch delay slot nop.
+  // t2 points past last arg.
+  __ bind(&loop);
+  __ lw(t0, MemOperand(s0));  // Read next parameter.
+  __ addiu(s0, s0, kPointerSize);
+  __ lw(t0, MemOperand(t0));  // Dereference handle.
+  __ Push(t0);  // Push parameter.
+  __ bind(&entry);
+  __ Branch(ne, &loop, s0, Operand(t2));
+
+  // Registers:
+  // a0: entry_address
+  // a1: function
+  // a2: reveiver_pointer
+  // a3: argc
+  // s0: argv
+  // s6: roots_address
+  //
+  // Stack:
+  // arguments
+  // receiver
+  // function
+  // arguments slots
+  // handler frame
+  // entry frame
+  // callee saved registers + ra
+  // 4 args slots
+  // args
+
+  // Initialize all JavaScript callee-saved registers, since they will be seen
+  // by the garbage collector as part of handlers.
+  __ LoadRoot(t4, Heap::kUndefinedValueRootIndex);
+  __ mov(s1, t4);
+  __ mov(s2, t4);
+  __ mov(s3, t4);
+  __ mov(s4, s4);
+  __ mov(s5, t4);
+  // s6 holds the root address. Do not clobber.
+  // s7 is cp. Do not init.
+
+  // Invoke the code and pass argc as a0.
+  __ mov(a0, a3);
+  if (is_construct) {
+    UNIMPLEMENTED_MIPS();
+    __ break_(0x164);
+  } else {
+    ParameterCount actual(a0);
+    __ InvokeFunction(a1, actual, CALL_FUNCTION);
+  }
+
+  __ LeaveInternalFrame();
+
+  __ Jump(ra);
 }
 
 
@@ -100,6 +192,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
+  __ break_(0x201);
 }
 
 

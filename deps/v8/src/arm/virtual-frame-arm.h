@@ -67,12 +67,8 @@ class VirtualFrame : public ZoneObject {
   CodeGenerator* cgen() { return CodeGeneratorScope::Current(); }
   MacroAssembler* masm() { return cgen()->masm(); }
 
-  // Create a duplicate of an existing valid frame element.
-  FrameElement CopyElementAt(int index,
-                             NumberInfo info = NumberInfo::Unknown());
-
   // The number of elements on the virtual frame.
-  int element_count() { return elements_.length(); }
+  int element_count() { return element_count_; }
 
   // The height of the virtual expression stack.
   int height() {
@@ -115,7 +111,7 @@ class VirtualFrame : public ZoneObject {
     stack_pointer_ -= count;
     // On ARM, all elements are in memory, so there is no extra bookkeeping
     // (registers, copies, etc.) beyond dropping the elements.
-    elements_.Rewind(stack_pointer_ + 1);
+    element_count_ -= count;
   }
 
   // Forget count elements from the top of the frame and adjust the stack
@@ -124,7 +120,7 @@ class VirtualFrame : public ZoneObject {
   void ForgetElements(int count);
 
   // Spill all values from the frame to memory.
-  void SpillAll();
+  inline void SpillAll();
 
   // Spill all occurrences of a specific register from the frame.
   void Spill(Register reg) {
@@ -179,7 +175,7 @@ class VirtualFrame : public ZoneObject {
   // dropping all non-locals elements in the virtual frame.  This
   // avoids generating unnecessary merge code when jumping to the
   // shared return site.  Emits code for spills.
-  void PrepareForReturn();
+  inline void PrepareForReturn();
 
   // Number of local variables after when we use a loop for allocating.
   static const int kLocalVarBound = 5;
@@ -205,20 +201,11 @@ class VirtualFrame : public ZoneObject {
     SetElementAt(index, &temp);
   }
 
-  void PushElementAt(int index) {
-    PushFrameSlotAt(element_count() - index - 1);
-  }
-
   // A frame-allocated local as an assembly operand.
   MemOperand LocalAt(int index) {
     ASSERT(0 <= index);
     ASSERT(index < local_count());
     return MemOperand(fp, kLocal0Offset - index * kPointerSize);
-  }
-
-  // Push a copy of the value of a local frame slot on top of the frame.
-  void PushLocalAt(int index) {
-    PushFrameSlotAt(local0_index() + index);
   }
 
   // Push the value of a local frame slot on top of the frame and invalidate
@@ -228,20 +215,11 @@ class VirtualFrame : public ZoneObject {
     TakeFrameSlotAt(local0_index() + index);
   }
 
-  // Store the top value on the virtual frame into a local frame slot.  The
-  // value is left in place on top of the frame.
-  void StoreToLocalAt(int index) {
-    StoreToFrameSlotAt(local0_index() + index);
-  }
-
   // Push the address of the receiver slot on the frame.
   void PushReceiverSlotAddress();
 
   // The function frame slot.
   MemOperand Function() { return MemOperand(fp, kFunctionOffset); }
-
-  // Push the function on top of the frame.
-  void PushFunction() { PushFrameSlotAt(function_index()); }
 
   // The context frame slot.
   MemOperand Context() { return MemOperand(fp, kContextOffset); }
@@ -259,11 +237,6 @@ class VirtualFrame : public ZoneObject {
     ASSERT(-1 <= index);  // -1 is the receiver.
     ASSERT(index <= parameter_count());
     return MemOperand(fp, (1 + parameter_count() - index) * kPointerSize);
-  }
-
-  // Push a copy of the value of a parameter frame slot on top of the frame.
-  void PushParameterAt(int index) {
-    PushFrameSlotAt(param0_index() + index);
   }
 
   // Push the value of a paramter frame slot on top of the frame and
@@ -323,9 +296,6 @@ class VirtualFrame : public ZoneObject {
   // Drop one element.
   void Drop() { Drop(1); }
 
-  // Duplicate the top element of the frame.
-  void Dup() { PushFrameSlotAt(element_count() - 1); }
-
   // Pop an element from the top of the expression stack.  Returns a
   // Result, which may be a constant or a register.
   Result Pop();
@@ -344,28 +314,16 @@ class VirtualFrame : public ZoneObject {
   void EmitPushMultiple(int count, int src_regs);
 
   // Push an element on the virtual frame.
-  inline void Push(Register reg, NumberInfo info = NumberInfo::Unknown());
   inline void Push(Handle<Object> value);
   inline void Push(Smi* value);
-
-  // Pushing a result invalidates it (its contents become owned by the frame).
-  void Push(Result* result) {
-    if (result->is_register()) {
-      Push(result->reg());
-    } else {
-      ASSERT(result->is_constant());
-      Push(result->handle());
-    }
-    result->Unuse();
-  }
 
   // Nip removes zero or more elements from immediately below the top
   // of the frame, leaving the previous top-of-frame value on top of
   // the frame.  Nip(k) is equivalent to x = Pop(), Drop(k), Push(x).
   inline void Nip(int num_dropped);
 
-  inline void SetTypeForLocalAt(int index, NumberInfo info);
-  inline void SetTypeForParamAt(int index, NumberInfo info);
+  inline void SetTypeForLocalAt(int index, TypeInfo info);
+  inline void SetTypeForParamAt(int index, TypeInfo info);
 
  private:
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
@@ -375,7 +333,8 @@ class VirtualFrame : public ZoneObject {
   static const int kHandlerSize = StackHandlerConstants::kSize / kPointerSize;
   static const int kPreallocatedElements = 5 + 8;  // 8 expression stack slots.
 
-  ZoneList<FrameElement> elements_;
+  // The number of elements on the stack frame.
+  int element_count_;
 
   // The index of the element that is at the processor's stack pointer
   // (the sp register).
@@ -449,18 +408,11 @@ class VirtualFrame : public ZoneObject {
   // Keep the element type as register or constant, and clear the dirty bit.
   void SyncElementAt(int index);
 
-  // Sync the range of elements in [begin, end] with memory.
-  void SyncRange(int begin, int end);
-
   // Sync a single unsynced element that lies beneath or at the stack pointer.
   void SyncElementBelowStackPointer(int index);
 
   // Sync a single unsynced element that lies just above the stack pointer.
   void SyncElementByPushing(int index);
-
-  // Push a copy of a frame slot (typically a local or parameter) on top of
-  // the frame.
-  inline void PushFrameSlotAt(int index);
 
   // Push a the value of a frame slot (typically a local or parameter) on
   // top of the frame and invalidate the slot.
@@ -505,9 +457,8 @@ class VirtualFrame : public ZoneObject {
 
   inline bool Equals(VirtualFrame* other);
 
-  // Classes that need raw access to the elements_ array.
-  friend class DeferredCode;
   friend class JumpTarget;
+  friend class DeferredCode;
 };
 
 

@@ -679,7 +679,7 @@ void Top::PrintCurrentStackTrace(FILE* out) {
 
 
 void Top::ComputeLocation(MessageLocation* target) {
-  *target = MessageLocation(empty_script(), -1, -1);
+  *target = MessageLocation(Handle<Script>(Heap::empty_script()), -1, -1);
   StackTraceFrameIterator it;
   if (!it.done()) {
     JavaScriptFrame* frame = it.frame();

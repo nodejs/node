@@ -31,7 +31,7 @@
 #include "ast.h"
 #include "code-stubs.h"
 #include "runtime.h"
-#include "number-info.h"
+#include "type-info.h"
 
 // Include the declaration of the architecture defined class CodeGenerator.
 // The contract  to the shared code is that the the CodeGenerator is a subclass
@@ -58,7 +58,7 @@
 //   ProcessDeferred
 //   Generate
 //   ComputeLazyCompile
-//   BuildBoilerplate
+//   BuildFunctionInfo
 //   ComputeCallInitialize
 //   ComputeCallInitializeInLoop
 //   ProcessDeclarations
@@ -346,8 +346,13 @@ class CompareStub: public CodeStub {
  public:
   CompareStub(Condition cc,
               bool strict,
-              NaNInformation nan_info = kBothCouldBeNaN) :
-      cc_(cc), strict_(strict), never_nan_nan_(nan_info == kCantBothBeNaN) { }
+              NaNInformation nan_info = kBothCouldBeNaN,
+              bool include_number_compare = true) :
+      cc_(cc),
+      strict_(strict),
+      never_nan_nan_(nan_info == kCantBothBeNaN),
+      include_number_compare_(include_number_compare),
+      name_(NULL) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -360,6 +365,16 @@ class CompareStub: public CodeStub {
   // generating the minor key for other comparisons to avoid creating more
   // stubs.
   bool never_nan_nan_;
+  // Do generate the number comparison code in the stub. Stubs without number
+  // comparison code is used when the number comparison has been inlined, and
+  // the stub will be called if one of the operands is not a number.
+  bool include_number_compare_;
+
+  // Encoding of the minor key CCCCCCCCCCCCCCNS.
+  class StrictField: public BitField<bool, 0, 1> {};
+  class NeverNanNanField: public BitField<bool, 1, 1> {};
+  class IncludeNumberCompareField: public BitField<bool, 2, 1> {};
+  class ConditionField: public BitField<int, 3, 13> {};
 
   Major MajorKey() { return Compare; }
 
@@ -373,12 +388,16 @@ class CompareStub: public CodeStub {
 
   // Unfortunately you have to run without snapshots to see most of these
   // names in the profile since most compare stubs end up in the snapshot.
+  char* name_;
   const char* GetName();
 #ifdef DEBUG
   void Print() {
-    PrintF("CompareStub (cc %d), (strict %s)\n",
+    PrintF("CompareStub (cc %d), (strict %s), "
+           "(never_nan_nan %s), (number_compare %s)\n",
            static_cast<int>(cc_),
-           strict_ ? "true" : "false");
+           strict_ ? "true" : "false",
+           never_nan_nan_ ? "true" : "false",
+           include_number_compare_ ? "included" : "not included");
   }
 #endif
 };

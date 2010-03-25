@@ -70,8 +70,6 @@ class StaticType {
 
  private:
   Kind kind_;
-
-  DISALLOW_COPY_AND_ASSIGN(StaticType);
 };
 
 

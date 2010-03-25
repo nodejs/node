@@ -218,8 +218,13 @@ class Factory : public AllStatic {
 
   static Handle<JSFunction> NewFunction(Handle<Object> super, bool is_global);
 
-  static Handle<JSFunction> NewFunctionFromBoilerplate(
-      Handle<JSFunction> boilerplate,
+  static Handle<JSFunction> BaseNewFunctionFromSharedFunctionInfo(
+      Handle<SharedFunctionInfo> function_info,
+      Handle<Map> function_map,
+      PretenureFlag pretenure);
+
+  static Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
+      Handle<SharedFunctionInfo> function_info,
       Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
@@ -272,12 +277,6 @@ class Factory : public AllStatic {
                                         int instance_size,
                                         Handle<Code> code,
                                         bool force_initial_map);
-
-  static Handle<JSFunction> NewFunctionBoilerplate(Handle<String> name,
-                                                   int number_of_literals,
-                                                   Handle<Code> code);
-
-  static Handle<JSFunction> NewFunctionBoilerplate(Handle<String> name);
 
   static Handle<JSFunction> NewFunction(Handle<Map> function_map,
       Handle<SharedFunctionInfo> shared, Handle<Object> prototype);
@@ -337,6 +336,8 @@ class Factory : public AllStatic {
     return Handle<String>(&Heap::hidden_symbol_);
   }
 
+  static Handle<SharedFunctionInfo> NewSharedFunctionInfo(
+      Handle<String> name, int number_of_literals, Handle<Code> code);
   static Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
   static Handle<NumberDictionary> DictionaryAtNumberPut(
@@ -376,11 +377,6 @@ class Factory : public AllStatic {
   static Handle<DescriptorArray> CopyAppendCallbackDescriptors(
       Handle<DescriptorArray> array,
       Handle<Object> descriptors);
-
-  static Handle<JSFunction> BaseNewFunctionFromBoilerplate(
-      Handle<JSFunction> boilerplate,
-      Handle<Map> function_map,
-      PretenureFlag pretenure);
 
   // Create a new map cache.
   static Handle<MapCache> NewMapCache(int at_least_space_for);

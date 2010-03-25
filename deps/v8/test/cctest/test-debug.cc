@@ -4655,11 +4655,9 @@ TEST(CallFunctionInDebugger) {
       v8::Script::Compile(
           v8::String::New(debugger_call_with_closure_source))->Run());
 
-  // Calling a function through the debugger returns undefined if there are no
-  // JavaScript frames.
-  CHECK(v8::Debug::Call(frame_count)->IsUndefined());
-  CHECK(v8::Debug::Call(frame_source_line)->IsUndefined());
-  CHECK(v8::Debug::Call(debugger_call_with_data)->IsUndefined());
+  // Calling a function through the debugger returns 0 frames if there are
+  // no JavaScript frames.
+  CHECK_EQ(v8::Integer::New(0), v8::Debug::Call(frame_count));
 
   // Test that the number of frames can be retrieved.
   v8::Script::Compile(v8::String::New("CheckFrameCount(1)"))->Run();

@@ -42,7 +42,37 @@ namespace internal {
 #define __ ACCESS_MASM(cgen()->masm())
 
 void JumpTarget::DoJump() {
-  UNIMPLEMENTED_MIPS();
+  ASSERT(cgen()->has_valid_frame());
+  // Live non-frame registers are not allowed at unconditional jumps
+  // because we have no way of invalidating the corresponding results
+  // which are still live in the C++ code.
+  ASSERT(cgen()->HasValidEntryRegisters());
+
+  if (is_bound()) {
+    // Backward jump.  There already a frame expectation at the target.
+    ASSERT(direction_ == BIDIRECTIONAL);
+    cgen()->frame()->MergeTo(entry_frame_);
+    cgen()->DeleteFrame();
+  } else {
+    // Use the current frame as the expected one at the target if necessary.
+    if (entry_frame_ == NULL) {
+      entry_frame_ = cgen()->frame();
+      RegisterFile empty;
+      cgen()->SetFrame(NULL, &empty);
+    } else {
+      cgen()->frame()->MergeTo(entry_frame_);
+      cgen()->DeleteFrame();
+    }
+
+    // The predicate is_linked() should be made true.  Its implementation
+    // detects the presence of a frame pointer in the reaching_frames_ list.
+    if (!is_linked()) {
+      reaching_frames_.Add(NULL);
+      ASSERT(is_linked());
+    }
+  }
+  __ b(&entry_label_);
+  __ nop();   // Branch delay slot nop.
 }
 
 
@@ -57,12 +87,47 @@ void JumpTarget::Call() {
 
 
 void JumpTarget::DoBind() {
-  UNIMPLEMENTED_MIPS();
+  ASSERT(!is_bound());
+
+  // Live non-frame registers are not allowed at the start of a basic
+  // block.
+  ASSERT(!cgen()->has_valid_frame() || cgen()->HasValidEntryRegisters());
+
+  if (cgen()->has_valid_frame()) {
+    // If there is a current frame we can use it on the fall through.
+    if (entry_frame_ == NULL) {
+      entry_frame_ = new VirtualFrame(cgen()->frame());
+    } else {
+      ASSERT(cgen()->frame()->Equals(entry_frame_));
+    }
+  } else {
+    // If there is no current frame we must have an entry frame which we can
+    // copy.
+    ASSERT(entry_frame_ != NULL);
+    RegisterFile empty;
+    cgen()->SetFrame(new VirtualFrame(entry_frame_), &empty);
+  }
+
+  // The predicate is_linked() should be made false.  Its implementation
+  // detects the presence (or absence) of frame pointers in the
+  // reaching_frames_ list.  If we inserted a bogus frame to make
+  // is_linked() true, remove it now.
+  if (is_linked()) {
+    reaching_frames_.Clear();
+  }
+
+  __ bind(&entry_label_);
 }
 
 
 void BreakTarget::Jump() {
-  UNIMPLEMENTED_MIPS();
+  // On ARM we do not currently emit merge code for jumps, so we need to do
+  // it explicitly here.  The only merging necessary is to drop extra
+  // statement state from the stack.
+  ASSERT(cgen()->has_valid_frame());
+  int count = cgen()->frame()->height() - expected_height_;
+  cgen()->frame()->Drop(count);
+  DoJump();
 }
 
 
@@ -72,7 +137,26 @@ void BreakTarget::Jump(Result* arg) {
 
 
 void BreakTarget::Bind() {
-  UNIMPLEMENTED_MIPS();
+#ifdef DEBUG
+  // All the forward-reaching frames should have been adjusted at the
+  // jumps to this target.
+  for (int i = 0; i < reaching_frames_.length(); i++) {
+    ASSERT(reaching_frames_[i] == NULL ||
+           reaching_frames_[i]->height() == expected_height_);
+  }
+#endif
+  // Drop leftover statement state from the frame before merging, even
+  // on the fall through.  This is so we can bind the return target
+  // with state on the frame.
+  if (cgen()->has_valid_frame()) {
+    int count = cgen()->frame()->height() - expected_height_;
+    // On ARM we do not currently emit merge code at binding sites, so we need
+    // to do it explicitly here.  The only merging necessary is to drop extra
+    // statement state from the stack.
+    cgen()->frame()->Drop(count);
+  }
+
+  DoBind();
 }
 
 

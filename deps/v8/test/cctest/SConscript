@@ -83,7 +83,7 @@ SOURCES = {
   'arch:x64': ['test-assembler-x64.cc',
                'test-macro-assembler-x64.cc',
                'test-log-stack-tracer.cc'],
-  'arch:mips': ['test-assembler-mips.cc'],
+  'arch:mips': ['test-assembler-mips.cc', 'test-mips.cc'],
   'os:linux':  ['test-platform-linux.cc'],
   'os:macos':  ['test-platform-macos.cc'],
   'os:nullos': ['test-platform-nullos.cc'],

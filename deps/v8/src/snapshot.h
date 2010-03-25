@@ -38,6 +38,9 @@ class Snapshot {
   // could be found.
   static bool Initialize(const char* snapshot_file = NULL);
 
+  // Create a new context using the internal partial snapshot.
+  static Handle<Context> NewContextFromSnapshot();
+
   // Returns whether or not the snapshot is enabled.
   static bool IsEnabled() { return size_ != 0; }
 
@@ -47,7 +50,16 @@ class Snapshot {
 
  private:
   static const byte data_[];
-  static int size_;
+  static const byte context_data_[];
+  static const int new_space_used_;
+  static const int pointer_space_used_;
+  static const int data_space_used_;
+  static const int code_space_used_;
+  static const int map_space_used_;
+  static const int cell_space_used_;
+  static const int large_space_used_;
+  static const int size_;
+  static const int context_size_;
 
   static bool Deserialize(const byte* content, int len);
 

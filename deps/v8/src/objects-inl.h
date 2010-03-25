@@ -2368,8 +2368,8 @@ ACCESSORS(BreakPointInfo, statement_position, Smi, kStatementPositionIndex)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
 #endif
 
-ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
+ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
@@ -2401,6 +2401,7 @@ INT_ACCESSORS(SharedFunctionInfo, formal_parameter_count,
               kFormalParameterCountOffset)
 INT_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
               kExpectedNofPropertiesOffset)
+INT_ACCESSORS(SharedFunctionInfo, num_literals, kNumLiteralsOffset)
 INT_ACCESSORS(SharedFunctionInfo, start_position_and_type,
               kStartPositionAndTypeOffset)
 INT_ACCESSORS(SharedFunctionInfo, end_position, kEndPositionOffset)
@@ -2489,11 +2490,6 @@ bool JSFunction::IsBuiltin() {
 }
 
 
-bool JSObject::IsLoaded() {
-  return !map()->needs_loading();
-}
-
-
 Code* JSFunction::code() {
   return shared()->code();
 }
@@ -2573,6 +2569,7 @@ bool JSFunction::is_compiled() {
 
 
 int JSFunction::NumberOfLiterals() {
+  ASSERT(!IsBoilerplate());
   return literals()->length();
 }
 

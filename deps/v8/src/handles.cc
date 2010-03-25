@@ -174,13 +174,6 @@ void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
 }
 
 
-void SetExpectedNofPropertiesFromEstimate(Handle<JSFunction> func,
-                                          int estimate) {
-  SetExpectedNofProperties(
-      func, ExpectedNofPropertiesFromEstimate(estimate));
-}
-
-
 void NormalizeProperties(Handle<JSObject> object,
                          PropertyNormalizationMode mode,
                          int expected_additional_properties) {
@@ -240,6 +233,15 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 PropertyAttributes attributes) {
   CALL_HEAP_FUNCTION(
       Runtime::ForceSetObjectProperty(object, key, value, attributes), Object);
+}
+
+
+Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
+                                     Handle<String> key,
+                                     Handle<Object> value,
+                                     PropertyDetails details) {
+  CALL_HEAP_FUNCTION(object->SetNormalizedProperty(*key, *value, details),
+                     Object);
 }
 
 
@@ -782,90 +784,6 @@ OptimizedObjectForAddingMultipleProperties::
   if (has_been_transformed_) {
     TransformToFastProperties(object_, unused_property_fields_);
   }
-}
-
-
-void LoadLazy(Handle<JSObject> obj, bool* pending_exception) {
-  HandleScope scope;
-  Handle<FixedArray> info(FixedArray::cast(obj->map()->constructor()));
-  int index = Smi::cast(info->get(0))->value();
-  ASSERT(index >= 0);
-  Handle<Context> compile_context(Context::cast(info->get(1)));
-  Handle<Context> function_context(Context::cast(info->get(2)));
-  Handle<Object> receiver(compile_context->global()->builtins());
-
-  Vector<const char> name = Natives::GetScriptName(index);
-
-  Handle<JSFunction> boilerplate;
-
-  if (!Bootstrapper::NativesCacheLookup(name, &boilerplate)) {
-    Handle<String> source_code = Bootstrapper::NativesSourceLookup(index);
-    Handle<String> script_name = Factory::NewStringFromAscii(name);
-    bool allow_natives_syntax = FLAG_allow_natives_syntax;
-    FLAG_allow_natives_syntax = true;
-    boilerplate = Compiler::Compile(source_code, script_name, 0, 0, NULL, NULL,
-                                    Handle<String>::null(), NATIVES_CODE);
-    FLAG_allow_natives_syntax = allow_natives_syntax;
-    // If the compilation failed (possibly due to stack overflows), we
-    // should never enter the result in the natives cache. Instead we
-    // return from the function without marking the function as having
-    // been lazily loaded.
-    if (boilerplate.is_null()) {
-      *pending_exception = true;
-      return;
-    }
-    Bootstrapper::NativesCacheAdd(name, boilerplate);
-  }
-
-  // We shouldn't get here if compiling the script failed.
-  ASSERT(!boilerplate.is_null());
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // When the debugger running in its own context touches lazy loaded
-  // functions loading can be triggered. In that case ensure that the
-  // execution of the boilerplate is in the correct context.
-  SaveContext save;
-  if (!Debug::debug_context().is_null() &&
-      Top::context() == *Debug::debug_context()) {
-    Top::set_context(*compile_context);
-  }
-#endif
-
-  // Reset the lazy load data before running the script to make sure
-  // not to get recursive lazy loading.
-  obj->map()->set_needs_loading(false);
-  obj->map()->set_constructor(info->get(3));
-
-  // Run the script.
-  Handle<JSFunction> script_fun(
-      Factory::NewFunctionFromBoilerplate(boilerplate, function_context));
-  Execution::Call(script_fun, receiver, 0, NULL, pending_exception);
-
-  // If lazy loading failed, restore the unloaded state of obj.
-  if (*pending_exception) {
-    obj->map()->set_needs_loading(true);
-    obj->map()->set_constructor(*info);
-  }
-}
-
-
-void SetupLazy(Handle<JSObject> obj,
-               int index,
-               Handle<Context> compile_context,
-               Handle<Context> function_context) {
-  Handle<FixedArray> arr = Factory::NewFixedArray(4);
-  arr->set(0, Smi::FromInt(index));
-  arr->set(1, *compile_context);  // Compile in this context
-  arr->set(2, *function_context);  // Set function context to this
-  arr->set(3, obj->map()->constructor());  // Remember the constructor
-  Handle<Map> old_map(obj->map());
-  Handle<Map> new_map = Factory::CopyMapDropTransitions(old_map);
-  obj->set_map(*new_map);
-  new_map->set_needs_loading(true);
-  // Store the lazy loading info in the constructor field.  We'll
-  // reestablish the constructor from the fixed array after loading.
-  new_map->set_constructor(*arr);
-  ASSERT(!obj->IsLoaded());
 }
 
 } }  // namespace v8::internal

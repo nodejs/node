@@ -239,6 +239,12 @@ class MacroAssembler: public Assembler {
                                Register scratch2,
                                Label* gc_required);
 
+  // Allocates a heap number or jumps to the need_gc label if the young space
+  // is full and a scavenge is needed.
+  void AllocateHeapNumber(Register result,
+                          Register scratch1,
+                          Register scratch2,
+                          Label* gc_required);
 
   // ---------------------------------------------------------------------------
   // Support functions.
@@ -319,6 +325,12 @@ class MacroAssembler: public Assembler {
                                          Register outHighReg,
                                          Register outLowReg);
 
+  // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
+  // instruction.  On pre-ARM5 hardware this routine gives the wrong answer
+  // for 0 (31 instead of 32).
+  void CountLeadingZeros(Register source,
+                         Register scratch,
+                         Register zeros);
 
   // ---------------------------------------------------------------------------
   // Runtime calls

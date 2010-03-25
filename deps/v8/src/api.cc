@@ -537,9 +537,16 @@ i::Object** v8::HandleScope::RawClose(i::Object** value) {
   LOG_API("CloseHandleScope");
 
   // Read the result before popping the handle block.
-  i::Object* result = *value;
+  i::Object* result = NULL;
+  if (value != NULL) {
+    result = *value;
+  }
   is_closed_ = true;
   i::HandleScope::Leave(&previous_);
+
+  if (value == NULL) {
+    return NULL;
+  }
 
   // Allocate a new handle on the previous handle block.
   i::Handle<i::Object> handle(result);
@@ -1136,7 +1143,7 @@ Local<Script> Script::New(v8::Handle<String> source,
   if (pre_data_impl != NULL && !pre_data_impl->SanityCheck()) {
     pre_data_impl = NULL;
   }
-  i::Handle<i::JSFunction> boilerplate =
+  i::Handle<i::SharedFunctionInfo> result =
       i::Compiler::Compile(str,
                            name_obj,
                            line_offset,
@@ -1145,9 +1152,9 @@ Local<Script> Script::New(v8::Handle<String> source,
                            pre_data_impl,
                            Utils::OpenHandle(*script_data),
                            i::NOT_NATIVES_CODE);
-  has_pending_exception = boilerplate.is_null();
+  has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(Local<Script>());
-  return Local<Script>(ToApi<Script>(boilerplate));
+  return Local<Script>(ToApi<Script>(result));
 }
 
 
@@ -1168,10 +1175,12 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   Local<Script> generic = New(source, origin, pre_data, script_data);
   if (generic.IsEmpty())
     return generic;
-  i::Handle<i::JSFunction> boilerplate = Utils::OpenHandle(*generic);
+  i::Handle<i::Object> obj = Utils::OpenHandle(*generic);
+  i::Handle<i::SharedFunctionInfo> function =
+      i::Handle<i::SharedFunctionInfo>(i::SharedFunctionInfo::cast(*obj));
   i::Handle<i::JSFunction> result =
-      i::Factory::NewFunctionFromBoilerplate(boilerplate,
-                                             i::Top::global_context());
+      i::Factory::NewFunctionFromSharedFunctionInfo(function,
+                                                    i::Top::global_context());
   return Local<Script>(ToApi<Script>(result));
 }
 
@@ -1191,10 +1200,15 @@ Local<Value> Script::Run() {
   i::Object* raw_result = NULL;
   {
     HandleScope scope;
-    i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
-    if (fun->IsBoilerplate()) {
-      fun = i::Factory::NewFunctionFromBoilerplate(fun,
-                                                   i::Top::global_context());
+    i::Handle<i::Object> obj = Utils::OpenHandle(this);
+    i::Handle<i::JSFunction> fun;
+    if (obj->IsSharedFunctionInfo()) {
+      i::Handle<i::SharedFunctionInfo>
+          function_info(i::SharedFunctionInfo::cast(*obj));
+      fun = i::Factory::NewFunctionFromSharedFunctionInfo(
+          function_info, i::Top::global_context());
+    } else {
+      fun = i::Handle<i::JSFunction>(i::JSFunction::cast(*obj));
     }
     EXCEPTION_PREAMBLE();
     i::Handle<i::Object> receiver(i::Top::context()->global_proxy());
@@ -1208,14 +1222,28 @@ Local<Value> Script::Run() {
 }
 
 
+static i::Handle<i::SharedFunctionInfo> OpenScript(Script* script) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(script);
+  i::Handle<i::SharedFunctionInfo> result;
+  if (obj->IsSharedFunctionInfo()) {
+    result =
+        i::Handle<i::SharedFunctionInfo>(i::SharedFunctionInfo::cast(*obj));
+  } else {
+    result =
+        i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared());
+  }
+  return result;
+}
+
+
 Local<Value> Script::Id() {
   ON_BAILOUT("v8::Script::Id()", return Local<Value>());
   LOG_API("Script::Id");
   i::Object* raw_id = NULL;
   {
     HandleScope scope;
-    i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
-    i::Handle<i::Script> script(i::Script::cast(fun->shared()->script()));
+    i::Handle<i::SharedFunctionInfo> function_info = OpenScript(this);
+    i::Handle<i::Script> script(i::Script::cast(function_info->script()));
     i::Handle<i::Object> id(script->id());
     raw_id = *id;
   }
@@ -1229,9 +1257,9 @@ void Script::SetData(v8::Handle<String> data) {
   LOG_API("Script::SetData");
   {
     HandleScope scope;
-    i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
+    i::Handle<i::SharedFunctionInfo> function_info = OpenScript(this);
     i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
-    i::Handle<i::Script> script(i::Script::cast(fun->shared()->script()));
+    i::Handle<i::Script> script(i::Script::cast(function_info->script()));
     script->set_data(*raw_data);
   }
 }
@@ -3057,6 +3085,16 @@ void Context::DetachGlobal() {
 }
 
 
+void Context::ReattachGlobal(Handle<Object> global_object) {
+  if (IsDeadCheck("v8::Context::ReattachGlobal()")) return;
+  ENTER_V8;
+  i::Object** ctx = reinterpret_cast<i::Object**>(this);
+  i::Handle<i::Context> context =
+      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  i::Bootstrapper::ReattachGlobal(context, Utils::OpenHandle(*global_object));
+}
+
+
 Local<v8::Object> ObjectTemplate::NewInstance() {
   ON_BAILOUT("v8::ObjectTemplate::NewInstance()", return Local<v8::Object>());
   LOG_API("ObjectTemplate::NewInstance");
@@ -3525,6 +3563,30 @@ void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
 }
 
 
+void V8::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
+  if (IsDeadCheck("v8::V8::AddGCPrologueCallback()")) return;
+  i::Heap::AddGCPrologueCallback(callback, gc_type);
+}
+
+
+void V8::RemoveGCPrologueCallback(GCPrologueCallback callback) {
+  if (IsDeadCheck("v8::V8::RemoveGCPrologueCallback()")) return;
+  i::Heap::RemoveGCPrologueCallback(callback);
+}
+
+
+void V8::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
+  if (IsDeadCheck("v8::V8::AddGCEpilogueCallback()")) return;
+  i::Heap::AddGCEpilogueCallback(callback, gc_type);
+}
+
+
+void V8::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
+  if (IsDeadCheck("v8::V8::RemoveGCEpilogueCallback()")) return;
+  i::Heap::RemoveGCEpilogueCallback(callback);
+}
+
+
 void V8::PauseProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   PauseProfilerEx(PROFILER_MODULE_CPU);
@@ -3926,6 +3988,11 @@ bool Debug::EnableAgent(const char* name, int port, bool wait_for_connection) {
 
 void Debug::ProcessDebugMessages() {
   i::Execution::ProcessDebugMesssages(true);
+}
+
+Local<Context> Debug::GetDebugContext() {
+  i::EnterDebugger debugger;
+  return Utils::ToLocal(i::Debug::debug_context());
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT

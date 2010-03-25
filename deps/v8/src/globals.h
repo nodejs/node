@@ -174,6 +174,15 @@ const int kBitsPerByteLog2 = 3;
 const int kBitsPerPointer = kPointerSize * kBitsPerByte;
 const int kBitsPerInt = kIntSize * kBitsPerByte;
 
+// IEEE 754 single precision floating point number bit layout.
+const uint32_t kBinary32SignMask = 0x80000000u;
+const uint32_t kBinary32ExponentMask = 0x7f800000u;
+const uint32_t kBinary32MantissaMask = 0x007fffffu;
+const int kBinary32ExponentBias = 127;
+const int kBinary32MaxExponent  = 0xFE;
+const int kBinary32MinExponent  = 0x01;
+const int kBinary32MantissaBits = 23;
+const int kBinary32ExponentShift = 23;
 
 // Zap-value: The value used for zapping dead objects.
 // Should be a recognizable hex value tagged as a heap object pointer.
@@ -195,6 +204,10 @@ const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
 // gives 8K bytes per page.
 const int kPageSizeBits = 13;
 
+// On Intel architecture, cache line size is 64 bytes.
+// On ARM it may be less (32 bytes), but as far this constant is
+// used for aligning data, it doesn't hurt to align on a greater value.
+const int kProcessorCacheLineSize = 64;
 
 // Constants relevant to double precision floating point numbers.
 
@@ -321,7 +334,6 @@ enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
 enum VisitMode { VISIT_ALL, VISIT_ALL_IN_SCAVENGE, VISIT_ONLY_STRONG };
 
-
 // Flag indicating whether code is built into the VM (one of the natives files).
 enum NativesFlag { NOT_NATIVES_CODE, NATIVES_CODE };
 
@@ -404,7 +416,7 @@ enum CallFunctionFlags {
 // Type of properties.
 // Order of properties is significant.
 // Must fit in the BitField PropertyDetails::TypeField.
-// A copy of this is in mirror-delay.js.
+// A copy of this is in mirror-debugger.js.
 enum PropertyType {
   NORMAL              = 0,  // only in slow mode
   FIELD               = 1,  // only in fast mode

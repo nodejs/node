@@ -113,6 +113,8 @@ SOURCES = {
     """),
   'arch:arm': Split("""
     fast-codegen.cc
+    jump-target-light.cc
+    virtual-frame-light.cc
     arm/builtins-arm.cc
     arm/codegen-arm.cc
     arm/constants-arm.cc
@@ -156,6 +158,8 @@ SOURCES = {
     mips/virtual-frame-mips.cc
     """),
   'arch:ia32': Split("""
+    jump-target-heavy.cc
+    virtual-frame-heavy.cc
     ia32/assembler-ia32.cc
     ia32/builtins-ia32.cc
     ia32/codegen-ia32.cc
@@ -175,6 +179,8 @@ SOURCES = {
     """),
   'arch:x64': Split("""
     fast-codegen.cc
+    jump-target-heavy.cc
+    virtual-frame-heavy.cc
     x64/assembler-x64.cc
     x64/builtins-x64.cc
     x64/codegen-x64.cc
@@ -252,12 +258,12 @@ uri.js
 math.js
 messages.js
 apinatives.js
-debug-delay.js
-liveedit-delay.js
-mirror-delay.js
-date-delay.js
-regexp-delay.js
-json-delay.js
+date.js
+regexp.js
+json.js
+liveedit-debugger.js
+mirror-debugger.js
+debug-debugger.js
 '''.split()
 
 

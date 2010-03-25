@@ -122,9 +122,9 @@ DEFINE_bool(enable_armv7, true,
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
-DEFINE_string(natives_file, NULL, "alternative natives file")
 DEFINE_bool(expose_gc, false, "expose gc extension")
 DEFINE_int(stack_trace_limit, 10, "number of stack frames to capture")
+DEFINE_bool(disable_native_files, false, "disable builtin natives files")
 
 // builtins-ia32.cc
 DEFINE_bool(inline_new, true, "use fast inline allocation")
@@ -159,6 +159,9 @@ DEFINE_bool(use_flow_graph, false, "perform flow-graph based optimizations")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
+
+// data-flow.cc
+DEFINE_bool(loop_peeling, false, "Peel off the first iteration of loops.")
 
 // debug.cc
 DEFINE_bool(remote_debugging, false, "enable remote debugging")
@@ -202,6 +205,9 @@ DEFINE_bool(cleanup_ics_at_gc, true,
             "Flush inline caches prior to mark compact collection.")
 DEFINE_bool(cleanup_caches_in_maps_at_gc, true,
             "Flush code caches in maps during mark compact cycle.")
+DEFINE_int(random_seed, 0,
+           "Default seed for initializing random generator "
+           "(0, the default, means to use system random).")
 
 DEFINE_bool(canonicalize_object_literal_maps, true,
             "Canonicalize maps for object literals.")
