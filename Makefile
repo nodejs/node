@@ -41,30 +41,22 @@ benchmark: all
 
 doc: doc/node.1 doc/api.html doc/index.html doc/changelog.html
 
-doc/api.html: doc/api.txt
-	asciidoc --unsafe              \
-		-a theme=pipe                \
-		-a toc                       \
-		-a toclevels=1               \
-		-a linkcss                   \
-		-o doc/api.html doc/api.txt
+doc/api.html: doc/api.markdown
+	ronn --html doc/api.markdown > doc/api.html
 
 doc/changelog.html: ChangeLog
 	echo '<html><head><title>Node.js ChangeLog</title> <link rel="stylesheet" href="./pipe.css" type="text/css" /> <link rel="stylesheet" href="./pipe-quirks.css" type="text/css" /> <body><h1>Node.js ChangeLog</h1> <pre>' > doc/changelog.html
 	cat ChangeLog >> doc/changelog.html
 	echo '</pre></body></html>' >> doc/changelog.html
 
-doc/api.xml: doc/api.txt
-	asciidoc -b docbook -d manpage -o doc/api.xml doc/api.txt
-
-doc/node.1: doc/api.xml
-	xsltproc --output doc/node.1 --nonet doc/manpage.xsl doc/api.xml
+doc/node.1: doc/api.markdown
+	ronn --roff doc/api.markdown > doc/node.1
 
 website-upload: doc
 	scp doc/* ryan@nodejs.org:~/tinyclouds/node/
 
 docclean:
-	@-rm -f doc/node.1 doc/api.xml doc/api.html doc/changelog.html
+	@-rm -f doc/node.1 doc/api.html doc/changelog.html
 
 clean:
 	@$(WAF) clean

@@ -1,0 +1,2159 @@
+node(1) -- evented I/O for V8 JavaScript
+========================================
+
+## SYNOPSIS
+
+An example of a web server written with Node which responds with "Hello
+World": 
+
+    var sys = require("sys"),
+      http = require("http");
+    http.createServer(function (request, response) {
+      response.writeHead(200, {
+        "Content-Type": "text/plain"
+      });
+      response.write("Hello World\n");
+      response.close();
+    }).listen(8000);
+    sys.puts("Server running at http://127.0.0.1:8000/");
+
+To run the server, put the code into a file called `example.js` and execute
+it with the node program
+
+    > node example.js
+    Server running at http://127.0.0.1:8000/
+
+All of the examples in the documentation can be run similarly.
+
+## ENCODINGS
+
+Node supports 3 string encodings. UTF-8 (`"utf8"`), ASCII (`"ascii"`), and
+Binary (`"binary"`). `"ascii"` and `"binary"` only look at the first 8 bits
+of the 16bit JavaScript string characters. Both are relatively fast--use
+them if you can. `"utf8"` is slower and should be avoided when possible.
+
+
+## GLOBAL OBJECTS
+
+These object are available in the global scope and can be accessed from anywhere.
+
+ - **`global`**: The global namespace object.
+
+ - **`process`**: The process object. Most stuff lives in here. See the "process 
+object" section.
+
+ - **`require()`**: See the modules section.
+
+ - **`require.paths`**: The search path for absolute path arguments to `require()`.
+
+ - **`__filename`**: The filename of the script being executed.
+
+ - **`__dirname`**: The dirname of the script being executed.
+
+ - **`module`**: A reference to the current module (of type `process.Module`). In particular `module.exports` is the same as the `exports` object. See `src/process.js` for more information.
+
+
+## PROCESS OBJECT
+
+The `process` object is an instance of `EventEmitter` and has the following events:
+
+  - **`"exit"`** - `callback(code)`:
+    Made when the process exits. A listener on this event should not try to
+    perform I/O since the process will forcibly exit in less than a
+    microsecond. However, it is a good hook to perform constant time checks of
+    the module's state (like for unit tests).
+
+    The parameter `code` is the integer exit code passed to `process.exit()`.
+
+  - **`"uncaughtException"`** - `callback(exception)`:
+    Emitted when an exception bubbles all the way back to the event loop. If a
+    listener is added for this exception, the default action (which is to
+    print a stack trace and exit) will not occur.
+
+  - `"SIGINT", "SIGHUP", ... - callback()`:
+    Emitted when the processes receives a signal. See sigaction(2) for a list
+    of standard POSIX signal names such as SIGINT, SIGUSR1, etc.
+
+
+Example of listening for `uncaughtException`:
+
+    var sys = require("sys");
+
+    process.addListener("uncaughtException", function (exception) {
+      if (exception.type === 'not_defined') {
+        sys.puts("Caught exception: " + exception);
+      }
+      else {
+        throw(exception);
+      }
+    });
+
+    setTimeout(function () {
+      sys.puts("This will still run.");
+    }, 500);
+
+    bad_func(); // Intentionally cause an exception, but don't catch it.
+    sys.puts("This will not run.");
+
+Note that `uncaughtException` is a very crude mechanism for exception handling.  Using
+try / catch in your program will give you more control over your program's flow.
+Especially for server programs that are designed to stay running forever, `uncaughtException`
+can be a useful safety mechanism.
+
+ 
+### process.argv
+
+An array containing the command line arguments.  The first element will be 'node', the second element 
+will be the name of the JavaScript file.  The next elements will be any additional command line arguments.
+
+    // print process.argv
+    var sys = require("sys");
+
+    process.argv.forEach(function (val, index, array) {
+      sys.puts(index + ": " + val);
+    });
+
+This will generate:
+
+    mjr-mbp:~/work/node_docs/data/v0.1.31/examples$ node process-2.js one two=three four
+    0: node
+    1: /Users/mjr/work/node_docs/data/v0.1.31/examples/process-2.js
+    2: one
+    3: two=three
+    4: four
+
+### process.env
+
+An object containing the user environment. See environ(7).
+
+    // print process.env
+    var sys = require("sys");
+
+    Object.getOwnPropertyNames(process.env).forEach(function (val, index, array) {
+      sys.puts(index + ": " + val + "=" + process.env[val]);
+    });
+
+
+### process.pid
+
+The PID of the process.
+
+    require("sys").puts("This process is pid " + process.pid);
+
+
+### process.platform
+
+What platform you're running on. `"linux2"`, `"darwin"`, etc.
+
+    require("sys").puts("This platform is " + process.platform);
+
+
+### process.memoryUsage()
+
+Returns an object describing the memory usage of the Node process.
+
+    var sys = require("sys");
+
+    sys.puts(sys.inspect(process.memoryUsage()));
+
+This will generate:
+
+    { rss: 4935680
+    , vsize: 41893888
+    , heapTotal: 1826816
+    , heapUsed: 650472
+    }
+
+`heapTotal` and `heapUsed` refer to V8's memory usage.
+
+### process.nextTick(callback)
+
+On the next loop around the event loop call this callback.
+This is *not* a simple alias to `setTimeout(fn, 0)`, it's much more
+efficient. 
+
+    var sys = require("sys");
+
+    process.nextTick(function () {
+      sys.puts("nextTick callback");
+    });
+
+
+### process.exit(code=0)
+
+Ends the process with the specified code. By default it exits with the
+success code 0.
+
+To exit with 
+
+    process.exit(1);
+
+The shell that executed node should see the exit code as 1.
+
+
+### process.cwd()
+
+Returns the current working directory of the process.
+
+    require('sys').puts("Current directory: " + process.cwd());
+
+
+### process.getuid(), process.setuid(id)
+
+Gets/sets the user identity of the process. (See setuid(2).)  This is the numerical userid, not the username.
+
+    var sys = require('sys');
+    
+    sys.puts("Current uid: " + process.getuid());
+    try {
+      process.setuid(501);
+      sys.puts("New uid: " + process.getuid());
+    }
+    catch (err) {
+      sys.puts("Failed to set uid: " + err);
+    }
+
+
+### process.getgid(), process.setgid(id)
+
+Gets/sets the group identity of the process. (See setgid(2).)  This is the numerical group id, not the group name.
+
+    var sys = require('sys');
+
+    sys.puts("Current gid: " + process.getgid());
+    try {
+      process.setgid(501);
+      sys.puts("New gid: " + process.getgid());
+    }
+    catch (err) {
+      sys.puts("Failed to set gid: " + err);
+    }
+
+
+### process.chdir(directory)
+
+Changes the current working directory of the process or throws an exception if that fails.
+
+    var sys = require('sys');
+
+    sys.puts("Starting directory: " + process.cwd());
+    try {
+      process.chdir("/tmp");
+      sys.puts("New directory: " + process.cwd());
+    }
+    catch (err) {
+      sys.puts("chdir: " + err);
+    }
+
+
+### process.umask(mask)
+
+Sets or read the process's file mode creation mask. Child processes inherit
+the mask from the parent process. Returns the old mask if `mask` argument is
+given, otherwise returns the current mask.
+
+    var sys = require('sys'),
+        oldmask, newmask = 0644;
+
+    oldmask = process.umask(newmask);
+    // these octal numbers don't display right in JavaScript
+    sys.puts("Changed umask from: " + oldmask + " to " + newmask);
+
+
+### process.kill(pid, signal="SIGTERM")
+
+Send a signal to a process. `pid` is the process id and `signal` is the
+signal to send; for example, "SIGINT" or "SIGUSR1".  See kill(2) for more
+information.
+
+### process.compile(source, scriptOrigin)
+
+Similar to `eval()` except that you can specify a `scriptOrigin` for better
+error reporting and the `code` cannot see the local scope.
+
+## SYSTEM MODULE
+
+These functions are in the module `"sys"`. Use `require("sys")` to access
+them.
+
+### puts(string)
+
+Outputs `string` and a trailing new-line to `stdout`.
+
+### print(string)
+
+Like `puts()` but without the trailing new-line.
+
+### debug(string)
+
+A synchronous output function. Will block the process and
+output `string` immediately to `stdout`.
+
+### log(string)
+
+Output with timestamp.
+
+### inspect(object, showHidden, depth)
+
+Return a string representation of `object`. (For debugging.) 
+
+If `showHidden` is `true`, then the object's non-enumerable properties will be
+shown too.
+
+If `depth` is provided, it tells `inspect` how many times to recurse while
+formatting the object. This is useful for inspecting large complicated objects.
+
+The default is to only recurse twice.  To make it recurse indefinitely, pass
+in `null` for `depth`.
+
+## EVENTS
+
+Many objects in Node emit events: a TCP server emits an event each time
+there is a connection, a child process emits an event when it exits. All
+objects which emit events are instances of `events.EventEmitter`.
+
+Events are represented by a camel-cased string. Here are some examples:
+`"connection"`, `"data"`, `"messageBegin"`.
+
+Functions can be then be attached to objects, to be executed when an event
+is emitted. These functions are called _listeners_.
+
+### events.EventEmitter
+
+`require("events")` to access the events module.
+
+All EventEmitters emit the event `"newListener"` when new listeners are
+added.
+
+ - **`"newListener"`** - `callback(event, listener)`:
+   This event is made any time someone adds a new listener.
+
+### emitter.addListener(event, listener)
+
+Adds a listener to the end of the listeners array for the specified event.
+
+    server.addListener("connection", function (socket) {
+      sys.puts("someone connected!");
+    });
+
+### emitter.removeListener(event, listener)
+
+Remove a listener from the listener array for the specified event.
+**Caution**: changes array indices in the listener array behind the listener.
+
+### emitter.removeAllListeners(event)
+
+Removes all listeners from the listener array for the specified event.
+
+### emitter.listeners(event)
+
+Returns an array of listeners for the specified event. This array can be
+manipulated, e.g. to remove listeners.
+
+### emitter.emit(event, arg1, arg2, ...)
+
+Execute each of the listeners in order with the supplied arguments.
+
+
+## STANDARD I/O
+
+Standard I/O is handled through a special object `process.stdio`. `stdout` and
+`stdin` are fully non-blocking (even when piping to files). `stderr` is
+synchronous.
+
+ - **`"data"`** - `callback(data)`:
+  Made when stdin has received a chunk of data. Depending on the encoding that
+  stdin was opened with, `data` will be  a string. This event will only be
+  emited after `process.stdio.open()` has been called.
+
+ - **`"close"`** - `callback()`:
+  Made when stdin has been closed.
+
+### process.stdio.open(encoding="utf8")
+
+Open stdin. The program will not exit until `process.stdio.close()` has been
+called or the `"close"` event has been emitted.
+
+### process.stdio.write(data)
+
+Write data to stdout.
+
+### process.stdio.writeError(data)
+
+Write data to stderr. Synchronous.
+
+### process.stdio.close()
+
+Close stdin.
+
+
+## MODULES
+
+Node uses the CommonJS module system.
+
+Node has a simple module loading system.  In Node, files and modules are in
+one-to-one correspondence.  As an example, `foo.js` loads the module
+`circle.js` in the same directory.
+
+The contents of `foo.js`:
+
+    var circle = require("./circle"),
+    var sys = require("sys");
+    sys.puts( "The area of a circle of radius 4 is " 
+            + circle.area(4));
+
+The contents of `circle.js`:
+
+    var PI = 3.14;
+
+    exports.area = function (r) {
+      return PI * r * r;
+    };
+
+    exports.circumference = function (r) {
+      return 2 * PI * r;
+    };
+
+The module `circle.js` has exported the functions `area()` and
+`circumference()`.  To export an object, add to the special `exports`
+object.  (Alternatively, one can use `this` instead of `exports`.) Variables
+local to the module will be private. In this example the variable `PI` is
+private to `circle.js`. The function `puts()` comes from the module `"sys"`,
+which is a built-in module. Modules which are not prefixed by `"./"` are
+built-in module--more about this later.
+
+A module prefixed with `"./"` is relative to the file calling `require()`.
+That is, `circle.js` must be in the same directory as `foo.js` for
+`require("./circle")` to find it.
+
+Without the leading `"./"`, like `require("assert")` the module is searched
+for in the `require.paths` array. `require.paths` on my system looks like
+this: 
+
+`[ "/home/ryan/.node_libraries" ]`
+
+That is, when `require("assert")` is called Node looks for: 
+
+  * 1:
+    `/home/ryan/.node_libraries/assert.js`
+  * 2:
+    `/home/ryan/.node_libraries/assert.node`
+  * 3:
+    `/home/ryan/.node_libraries/assert/index.js`
+  * 4:
+    `/home/ryan/.node_libraries/assert/index.node`
+
+
+interrupting once a file is found. Files ending in `".node"` are binary Addon
+Modules; see the section below about addons. `"index.js"` allows one to
+package a module as a directory.
+
+`require.paths` can be modified at runtime by simply unshifting new
+paths onto it, or at startup with the `NODE_PATH` environmental
+variable (which should be a list of paths, colon separated).
+
+Use `process.mixin()` to include modules into the global namespace.
+
+    process.mixin(GLOBAL, require("./circle"), require("sys"));
+    puts("The area of a circle of radius 4 is " + area(4));
+
+## TIMERS
+
+### setTimeout(callback, delay, [arg, ...])
+
+To schedule execution of `callback` after `delay` milliseconds. Returns a
+`timeoutId` for possible use with `clearTimeout()`.
+
+    var sys   = require("sys"),
+        start = new Date(),
+        timer = setTimeout(function () {
+            sys.puts("Timer fired after " + (Date.now() - start) + "ms");
+        }, 1000);
+
+    sys.puts("Started timer.");
+
+Optionally, you can pass arguments to the callback.
+
+    var sys   = require("sys"),
+        start = new Date(),
+        timer = setTimeout(function (start_time, message) {
+            sys.puts(message + (Date.now() - start_time) + "ms");
+        }, 1000, start, "Timer fired after ");
+
+    sys.puts("Started timer.");
+
+These two examples generate the same output.
+
+### clearTimeout(timeoutId)
+
+Prevents a timeout from triggering.
+
+    var sys    = require("sys"),
+        start  = new Date(),
+        timer1 = setTimeout(function () {
+          sys.puts("Timer fired after " + (Date.now() - start) + "ms");
+        }, 5000),
+        timer2 = setTimeout(function () {
+          sys.puts("This is taking too long.  Stopping timer1.");
+          clearTimeout(timer1);
+        }, 1000);
+
+    sys.puts("Started timers.");
+
+### setInterval(callback, delay, [arg, ...])
+
+To schedule the repeated execution of `callback` every `delay` milliseconds. Returns a `intervalId` for possible use with `clearInterval()`.
+
+Optionally, you can also pass arguments to the callback.
+
+### clearInterval(intervalId)
+
+Stops a interval from triggering.
+
+    var sys   = require("sys"),
+        start = new Date(),
+        count = 10,
+        timer = setInterval(function () {
+          count -= 1;
+          sys.puts("Timer fired after " + (Date.now() - start) + "ms " + count + " remaining.");
+          if (count === 0) {
+            clearInterval(timer);
+          }
+        }, 100);
+
+    sys.puts("Started timer.");
+
+## CHILD PROCESSES
+
+Node provides a tri-directional `popen(3)` facility through the `ChildProcess`
+class.
+
+It is possible to stream data through the child's `stdin`, `stdout`, and
+`stderr` in a fully non-blocking way.
+
+To create a child process use `require("child_process").spawn()`.
+
+Child processes always have three streams associated with them. `child.stdin`,
+`child.stdout`, and `child.stderr`.
+
+`ChildProcess` is an EventEmitter with the following events:
+
+ - **`exit`** - `callback(code)`:
+   This event is emitted after the child process ends. `code` is the final
+   exit code of the process. One can be assured that after this event is
+   emitted that the `"output"` and `"error"` callbacks will no longer be made.
+
+### require("child_process").spawn(command, args=[], env=process.env)
+
+Launches a new process with the given `command`, command line arguments, and
+environmental variables. For example:
+
+    // Pipe a child process output to
+    // parent process output
+    var ls = spawn("ls", ["-lh", "/usr"]);
+    ls.stdout.addListener("data", function (data) {
+      process.stdout.write(data);
+    });
+
+### child.pid
+
+The PID of the child process.
+
+### child.write(data, encoding="ascii")
+
+Write data to the child process's `stdin`. The second argument is optional and
+specifies the encoding: possible values are `"utf8"`, `"ascii"`, and
+`"binary"`.
+
+### child.close()
+
+Closes the process's `stdin` stream.
+
+### child.kill(signal="SIGTERM")
+
+Send a signal to the child process. If no argument is given, the process will
+be sent `"SIGTERM"`. See signal(7) for a list of available signals.
+
+
+### require("child_process").exec(command, callback)
+
+High-level way to executes a command as a child process and buffer the
+output and return it in a callback.
+
+    var exec = require("child_process").exec;
+    exec("ls /", function (err, stdout, stderr) {
+      if (err) throw err;
+      sys.puts(stdout);
+    });
+
+The callback gets the arguments `(err, stdout, stderr)`. On success +err+
+will be `null`. On error `err` will be an instance of `Error` and `err.code`
+will be the exit code of the child process.
+
+## FILE SYSTEM
+
+File I/O is provided by simple wrappers around standard POSIX functions.  To
+use this module do `require("fs")`. All the methods have asynchronous and
+synchronous forms. 
+
+The asynchronous form always take a completion callback as its last argument.
+The arguments passed to the completion callback depend on the method, but the
+first argument is always reserved for an exception. If the operation was
+completed successfully, then the first argument will be `null` or `undefined`.
+
+Here is an example of the asynchronous version:
+
+    var fs = require("fs"),
+        sys = require("sys");
+
+    fs.unlink("/tmp/hello", function (err) {
+      if (err) throw err;
+      sys.puts("successfully deleted /tmp/hello");
+    });
+
+Here is the synchronous version:
+
+    var fs = require("fs"),
+        sys = require("sys");
+
+    fs.unlinkSync("/tmp/hello")
+    sys.puts("successfully deleted /tmp/hello");
+
+With the asynchronous methods there is no guaranteed ordering. So the
+following is prone to error:
+
+    fs.rename("/tmp/hello", "/tmp/world", function (err) {
+      if (err) throw err;
+      sys.puts("renamed complete");
+    });
+    fs.stat("/tmp/world", function (err, stats) {
+      if (err) throw err;
+      sys.puts("stats: " + JSON.stringify(stats));
+    });
+
+It could be that `fs.stat` is executed before `fs.rename`.
+The correct way to do this is to chain the callbacks.
+
+    fs.rename("/tmp/hello", "/tmp/world", function (err) {
+      if (err) throw err;
+      fs.stat("/tmp/world", function (err, stats) {
+        if (err) throw err;
+        sys.puts("stats: " + JSON.stringify(stats));
+      });
+    });
+
+In busy processes, the programmer is _strongly encouraged_ to use the
+asynchronous versions of these calls. The synchronous versions will block
+the entire process until they complete--halting all connections.
+
+### fs.rename(path1, path2, callback)
+
+Asynchronous rename(2). No arguments other than a possible exception are given to the completion callback.
+
+### fs.renameSync(path1, path2)
+
+Synchronous rename(2).
+
+### fs.truncate(fd, len, callback)
+
+Asynchronous ftruncate(2). No arguments other than a possible exception are given to the completion callback.
+
+### fs.truncateSync(fd, len)
+
+Synchronous ftruncate(2).
+
+### fs.chmod(path, mode, callback)
+
+Asynchronous chmod(2). No arguments other than a possible exception are given to the completion callback.
+
+### fs.chmodSync(path, mode)
+
+Synchronous chmod(2).
+  
+### fs.stat(path, callback), fs.lstat(path, callback)
+
+Asynchronous stat(2) or lstat(2). The callback gets two arguments `(err, stats)` where `stats` is a `fs.Stats` object. It looks like this:
+
+    { dev: 2049
+    , ino: 305352
+    , mode: 16877
+    , nlink: 12
+    , uid: 1000
+    , gid: 1000
+    , rdev: 0
+    , size: 4096
+    , blksize: 4096
+    , blocks: 8
+    , atime: "2009-06-29T11:11:55Z"
+    , mtime: "2009-06-29T11:11:40Z"
+    , ctime: "2009-06-29T11:11:40Z" 
+    }
+
+See the `fs.Stats` section below for more information.
+
+### fs.statSync(path), fs.lstatSync(path)
+
+Synchronous stat(2) or lstat(2). Returns an instance of `fs.Stats`.
+
+### fs.link(srcpath, dstpath, callback)
+
+Asynchronous link(2). No arguments other than a possible exception are given to the completion callback.
+
+### fs.linkSync(dstpath, srcpath)
+
+Synchronous link(2).
+
+### fs.symlink(linkdata, path, callback)
+
+Asynchronous symlink(2). No arguments other than a possible exception are given to the completion callback.
+
+### fs.symlinkSync(linkdata, path)
+
+Synchronous symlink(2).
+
+### fs.readlink(path, callback)
+
+Asynchronous readlink(2). The callback gets two arguments `(err, resolvedPath)`. 
+
+### fs.readlinkSync(path)
+
+Synchronous readlink(2). Returns the resolved path.
+
+### fs.realpath(path, callback)
+
+Asynchronous realpath(2).  The callback gets two arguments `(err, resolvedPath)`.
+
+### fs.realpathSync(path)
+
+Synchronous realpath(2). Returns the resolved path.
+
+### fs.unlink(path, callback)
+
+Asynchronous unlink(2). No arguments other than a possible exception are given to the completion callback.
+
+### fs.unlinkSync(path)
+
+Synchronous unlink(2).
+
+### fs.rmdir(path, callback)
+
+Asynchronous rmdir(2). No arguments other than a possible exception are given to the completion callback.
+
+### fs.rmdirSync(path)
+
+Synchronous rmdir(2).
+
+### fs.mkdir(path, mode, callback)
+
+Asynchronous mkdir(2). No arguments other than a possible exception are given to the completion callback.
+
+### fs.mkdirSync(path, mode)
+
+Synchronous mkdir(2).
+
+### fs.readdir(path, callback)
+
+Asynchronous readdir(3).  Reads the contents of a directory.
+The callback gets two arguments `(err, files)` where `files` is an array of
+the names of the files in the directory excluding `"."` and `".."`.
+
+### fs.readdirSync(path)
+
+Synchronous readdir(3). Returns an array of filenames excluding `"."` and
+`".."`.
+
+### fs.close(fd, callback)
+
+Asynchronous close(2).  No arguments other than a possible exception are given to the completion callback.
+
+### fs.closeSync(fd)
+
+Synchronous close(2).
+
+### fs.open(path, flags, mode, callback)
+
+Asynchronous file open. See open(2). Flags can be "r", "r+", "w", "w+", "a",
+or "a+". The callback gets two arguments `(err, fd)`. 
+
+### fs.openSync(path, flags, mode)
+
+Synchronous open(2). 
+
+### fs.write(fd, data, position, encoding, callback)
+
+Write data to the file specified by `fd`.  `position` refers to the offset
+from the beginning of the file where this data should be written. If
+`position` is `null`, the data will be written at the current position.
+See pwrite(2).
+
+The callback will be given two arguments `(err, written)` where `written`
+specifies how many _bytes_ were written.
+
+### fs.writeSync(fd, data, position, encoding)
+
+Synchronous version of `fs.write()`. Returns the number of bytes written.
+
+### fs.read(fd, length, position, encoding, callback)
+
+Read data from the file specified by `fd`.
+
+`length` is an integer specifying the number of bytes to read.
+
+`position` is an integer specifying where to begin reading from in the file.
+
+The callback is given three arguments, `(err, data, bytesRead)` where `data`
+is a string--what was read--and `bytesRead` is the number of bytes read.
+
+### fs.readSync(fd, length, position, encoding)
+
+Synchronous version of `fs.read`. Returns an array `[data, bytesRead]`.
+
+### fs.readFile(filename, encoding="utf8", callback)
+
+Asynchronously reads the entire contents of a file. Example:
+
+    fs.readFile("/etc/passwd", function (err, data) {
+      if (err) throw err;
+      sys.puts(data);
+    });
+
+The callback is passed two arguments `(err, data)`, where `data` is the
+contents of the file.
+
+### fs.readFileSync(filename, encoding="utf8")
+
+Synchronous version of `fs.readFile`. Returns the contents of the `filename`.
+
+### fs.writeFile(filename, data, encoding="utf8", callback)
+
+Asynchronously writes data to a file. Example:
+
+    fs.writeFile("message.txt", "Hello Node", function (err) {
+      if (err) throw err;
+      sys.puts("It's saved!");
+    });
+
+### fs.writeFileSync(filename, data, encoding="utf8")
+
+The synchronous version of `fs.writeFile`.
+
+### fs.watchFile(filename, [options,] listener)
+
+Watch for changes on `filename`. The callback `listener` will be called each
+time the file changes.
+
+The second argument is optional. The `options` if provided should be an object
+containing two members a boolean, `persistent`, and `interval`, a polling
+value in milliseconds. The default is `{persistent: true, interval: 0}`.
+
+The `listener` gets two arguments the current stat object and the previous
+stat object:
+
+    fs.watchFile(f, function (curr, prev) {
+      sys.puts("the current mtime is: " + curr.mtime);
+      sys.puts("the previous mtime was: " + prev.mtime);
+    });
+
+These stat objects are instances of `fs.Stat`. 
+
+### fs.unwatchFile(filename)
+
+Stop watching for changes on `filename`.
+
+### fs.Stats
+
+Objects returned from `fs.stat()` and `fs.lstat()` are of this type.
+
+ - `stats.isFile()`
+ - `stats.isDirectory()`
+ - `stats.isBlockDevice()`
+ - `stats.isCharacterDevice()`
+ - `stats.isSymbolicLink()`
+ - `stats.isFIFO()`
+ - `stats.isSocket()`
+
+### fs.FileReadStream
+
+This is an EventEmitter with the following events.
+
+ - **`"open"`** `callback(fd)` The file descriptor was opened.
+ - **`"data"`** `callback(chunk)` A chunk of data was read.
+ - **`"error"`** `callback(err)` An error occurred. This stops the stream.
+ - **`"end"`** `callback()` The end of the file was reached.
+ - **`"close"`** `callback()` The file descriptor was closed.
+
+### fs.createReadStream(path, [options])
+
+Returns a new FileReadStream object.
+
+`options` is an object with the following defaults:
+
+    { "flags": "r"
+    , "encoding": "binary"
+    , "mode": 0666
+    , "bufferSize": 4 * 1024
+    }
+
+### readStream.readable
+
+A boolean that is `true` by default, but turns `false` after an `"error"`
+occured, the stream came to an "end", or `forceClose()` was called.
+
+### readStream.pause()
+
+Stops the stream from reading further data. No `"data"` event will be fired
+until the stream is resumed.
+
+### readStream.resume()
+
+Resumes the stream. Together with `pause()` this useful to throttle reading.
+
+### readStream.forceClose([callback])
+
+Allows to close the stream before the `"end"` is reached. No more events other
+than `"close"` will be fired after this method has been called.
+
+### fs.FileWriteStream
+
+- **`"open"`**`(fd)` The file descriptor was opened.
+- **`"drain"`**`()` No more data needs to be written.
+- **`"error"`**`(err)` An error occurred. This stops the stream.
+- **`"close"`**`()` The file descriptor was closed.
+
+### fs.createWriteStream(path, [options])
+
+Returns a new FileWriteStream object.
+`options` is an object with the following defaults:
+
+    { "flags": "w"
+    , "encoding": "binary"
+    , "mode": 0666
+    }
+
+### writeStream.writeable
+
+A boolean that is `true` by default, but turns `false` after an `"error"`
+occurred or `close()` / `forceClose()` was called.
+
+### writeStream.write(data, [callback])
+
+Returns `true` if the data was flushed to the kernel, and `false` if it was
+queued up for being written later. A `"drain"` will fire after all queued data
+has been written.
+
+You can also specify `callback` to be notified when the data from this write
+has been flushed. The first param is `err`, the second is `bytesWritten`.
+
+### writeStream.close([callback])
+
+Closes the stream right after all queued `write()` calls have finished.
+
+### writeStream.forceClose([callback])
+
+Allows to close the stream regardless of its current state.
+
+## HTTP
+
+To use the HTTP server and client one must `require("http")`.
+
+The HTTP interfaces in Node are designed to support many features
+of the protocol which have been traditionally difficult to use.
+In particular, large, possibly chunk-encoded, messages. The interface is
+careful to never buffer entire requests or responses--the
+user is able to stream data.
+
+HTTP message headers are represented by an object like this:
+
+    { "content-length": "123"
+    , "content-type": "text/plain"
+    , "connection": "keep-alive"
+    , "accept": "*/*"
+    }
+
+Keys are lowercased. Values are not modified.
+
+In order to support the full spectrum of possible HTTP applications, Node's
+HTTP API is very low-level. It deals with connection handling and message
+parsing only. It parses a message into headers and body but it does not
+parse the actual headers or the body.
+
+
+### http.Server
+
+This is an EventEmitter with the following events:
+
+ - **`"request"`** - `callback(request, response)`:
+ `request` is an instance of `http.ServerRequest` and `response` is
+ an instance of `http.ServerResponse`
+
+ - **`"connection"`** - `callback(connection)`:
+ When a new TCP connection is established.
+ `connection` is an object of type `http.Connection`. Usually users
+ will not want to access this event. The `connection` can also be
+ accessed at `request.connection`.
+
+ - **`"close"`** - `callback(errno)`:
+ Emitted when the server closes. `errorno` is an integer which indicates what, if any,
+ error caused the server to close. If no
+ error occured `errorno` will be 0.
+
+
+### http.createServer(request_listener, [options])
+
+Returns a new web server object.
+
+The `options` argument is optional. The
+`options` argument accepts the same values as the
+options argument for `tcp.Server`.
+
+The `request_listener` is a function which is automatically
+added to the `"request"` event.
+
+### server.setSecure(format_type, ca_certs, crl_list, private_key, certificate)
+
+Enable TLS for all incoming connections, with the specified credentials.
+
+`format_type` currently has to be "X509_PEM", and each of the ca, crl, key and
+cert parameters are in the format of PEM strings. 
+
+`ca_certs` is a string that holds a number of CA certificates for use in accepting client connections that authenticate themselves with a client certificate. 
+
+`private_key` is a PEM string of the unencrypted key for the server.
+
+### server.listen(port, hostname)
+
+Begin accepting connections on the specified port and hostname.
+If the hostname is omitted, the server will accept connections
+directed to any address. This function is synchronous.
+
+### server.close()
+
+Stops the server from accepting new connections.
+
+### http.ServerRequest
+
+This object is created internally by a HTTP server--not by
+the user--and passed as the first argument to a `"request"` listener.
+
+This is an EventEmitter with the following events:
+
+- **`"data"`** - `callback(chunk)`:
+Emitted when a piece of the message body is received.
+
+Example: A chunk of the body is given as the single
+argument. The transfer-encoding has been decoded.  The
+body chunk is a string.  The body encoding is set with
+`request.setBodyEncoding()`.
+
+- **`"end"`** - `callback()`:
+Emitted exactly once for each message. No arguments.  After
+emitted no other events will be emitted on the request.
+
+
+### request.method
+
+The request method as a string. Read only. Example:
+`"GET"`, `"DELETE"`.
+
+
+### request.url
+
+Request URL string. This contains only the URL that is
+present in the actual HTTP request. If the request is:
+
+    GET /status?name=ryan HTTP/1.1\r\n
+    Accept: text/plain\r\n
+    \r\n
+
+Then `request.url` will be:
+
+    "/status?name=ryan"
+
+If you would like to parse the URL into its parts, you can use
+`require("url").parse(request.url)`.  Example:
+
+    node> require("url").parse("/status?name=ryan")
+    { href: '/status?name=ryan'
+    , search: '?name=ryan'
+    , query: 'name=ryan'
+    , pathname: '/status'
+    }
+
+If you would like to extract the params from the query string,
+you can use the `require("querystring").parse` function, or pass
+`true` as the second argument to `require("url").parse`.  Example:
+
+    node> require("url").parse("/status?name=ryan", true)
+    { href: '/status?name=ryan'
+    , search: '?name=ryan'
+    , query: { name: 'ryan' }
+    , pathname: '/status'
+    }
+
+
+
+### request.headers
+
+Read only.
+
+### request.httpVersion
+
+The HTTP protocol version as a string. Read only. Examples:
+`"1.1"`, `"1.0"`
+
+
+### request.setBodyEncoding(encoding="binary")
+
+Set the encoding for the request body. Either `"utf8"` or `"binary"`. Defaults
+to `"binary"`.
+
+
+### request.pause()
+
+Pauses request from emitting events.  Useful to throttle back an upload.
+
+
+### request.resume()
+
+Resumes a paused request.
+
+### request.connection
+
+The `http.Connection` object.
+
+### http.ServerResponse
+
+This object is created internally by a HTTP server--not by the user. It is
+passed as the second parameter to the `"request"` event.
+
+### response.writeHead(statusCode[, reasonPhrase] , headers)
+
+Sends a response header to the request. The status code is a 3-digit HTTP
+status code, like `404`. The last argument, `headers`, are the response headers.
+Optionally one can give a human-readable `reasonPhrase` as the second
+argument.
+
+Example:
+
+    var body = "hello world";
+    response.writeHead(200, {
+      "Content-Length": body.length,
+      "Content-Type": "text/plain"
+    });
+
+This method must only be called once on a message and it must
+be called before `response.close()` is called.
+
+### response.write(chunk, encoding="ascii")
+
+This method must be called after `writeHead` was
+called. It sends a chunk of the response body. This method may
+be called multiple times to provide successive parts of the body.
+
+If `chunk` is a string, the second parameter
+specifies how to encode it into a byte stream. By default the
+`encoding` is `"ascii"`.
+
+**Note**: This is the raw HTTP body and has nothing to do with
+higher-level multi-part body encodings that may be used.
+
+The first time `response.write()` is called, it will send the buffered
+header information and the first body to the client. The second time
+`response.write()` is called, Node assumes you're going to be streaming
+data, and sends that separately. That is, the response is buffered up to the
+first chunk of body.
+
+
+### response.close()
+
+This method signals to the server that all of the response headers and body
+has been sent; that server should consider this message complete.
+The method, `response.close()`, MUST be called on each
+response.
+
+### http.Client
+
+An HTTP client is constructed with a server address as its
+argument, the returned handle is then used to issue one or more
+requests.  Depending on the server connected to, the client might
+pipeline the requests or reestablish the connection after each
+connection. _Currently the implementation does not pipeline requests._
+
+Example of connecting to `google.com`:
+
+    var sys = require("sys"),
+       http = require("http");
+    var google = http.createClient(80, "www.google.com");
+    var request = google.request("GET", "/", {"host": "www.google.com"});
+    request.addListener('response', function (response) {
+      sys.puts("STATUS: " + response.statusCode);
+      sys.puts("HEADERS: " + JSON.stringify(response.headers));
+      response.setBodyEncoding("utf8");
+      response.addListener("data", function (chunk) {
+        sys.puts("BODY: " + chunk);
+      });
+    });
+    request.close();
+
+
+### http.createClient(port, host)
+
+Constructs a new HTTP client. `port` and
+`host` refer to the server to be connected to. A
+connection is not established until a request is issued.
+
+### client.request([method], path, [request_headers])
+
+Issues a request; if necessary establishes connection. Returns a `http.ClientRequest` instance.
+
+`method` is optional and defaults to "GET" if omitted.
+
+`request_headers` is optional.
+Additional request headers might be added internally
+by Node. Returns a `ClientRequest` object.
+
+Do remember to include the `Content-Length` header if you
+plan on sending a body. If you plan on streaming the body, perhaps
+set `Transfer-Encoding: chunked`.
+
+*NOTE*: the request is not complete. This method only sends
+the header of the request. One needs to call
+`request.close()` to finalize the request and retrieve
+the response.  (This sounds convoluted but it provides a chance
+for the user to stream a body to the server with
+`request.write()`.)
+
+### client.setSecure(format_type, ca_certs, crl_list, private_key, certificate)
+
+Enable TLS for the client connection, with the specified credentials.
+
+`format_type` currently has to be "X509_PEM", and each of the ca, crl, key and
+cert parameters are in the format of PEM strings, and optional.
+
+`ca_certs` is a string that holds a number of CA certificates for use in deciding the authenticity of the remote server. `private_key` is a PEM string of the unencrypted key for the client, which together with the certificate allows the client to authenticate
+itself to the server.
+
+
+### http.ClientRequest
+
+This object is created internally and returned from the request methods of a
+`http.Client`. It represents an _in-progress_ request whose header has
+already been sent.
+
+To get the response, add a listener for `'response'` to the request object.
+`'response'` will be emitted from the request object when the response
+headers have been received.  The `'response'` event is executed with one
+argument which is an instance of `http.ClientResponse`.
+
+During the `'response'` event, one can add listeners to the
+response object; particularly to listen for the `"data"` event. Note that
+the `'response'` event is called before any part of the response body is received,
+so there is no need to worry about racing to catch the first part of the
+body. As long as a listener for `'data'` is added during the `'response'`
+event, the entire body will be caught.
+
+
+    // Good
+    request.addListener('response', function (response) {
+      response.addListener("data", function (chunk) {
+        sys.puts("BODY: " + chunk);
+      });
+    });
+
+    // Bad - misses all or part of the body
+    request.addListener('response', function (response) {
+      setTimeout(function () {
+        response.addListener("data", function (chunk) {
+          sys.puts("BODY: " + chunk);
+        });
+      }, 10);
+    });
+
+This is an `EventEmitter` with the following events:
+
+- **`"response"`** - `callback(response)`:
+Emitted when a response is received to this request. This event is emitted only once. The
+`response` argument will be an instance of `http.ClientResponse`.
+
+
+### request.write(chunk, encoding="ascii")
+
+Sends a chunk of the body.  By calling this method
+many times, the user can stream a request body to a
+server--in that case it is suggested to use the
+`["Transfer-Encoding", "chunked"]` header line when
+creating the request.
+
+The `chunk` argument should be an array of integers
+or a string.
+
+The `encoding` argument is optional and only
+applies when `chunk` is a string. The encoding
+argument should be either `"utf8"` or
+`"ascii"`. By default the body uses ASCII encoding,
+as it is faster.
+
+### request.close()
+
+Finishes sending the request. If any parts of the body are
+unsent, it will flush them to the socket. If the request is
+chunked, this will send the terminating `"0\r\n\r\n"`.
+
+
+
+### http.ClientResponse
+
+This object is created internally and passed to the `"response"` event.
+
+This is an `EventEmitter` with the following events.
+
+- **`"data"`** - `callback(chunk)`:
+Emitted when a piece of the message body is received.
+
+    Example: A chunk of the body is given as the single
+    argument. The transfer-encoding has been decoded.  The
+    body chunk a String.  The body encoding is set with
+    `response.setBodyEncoding()`.
+
+- **`"end"`** - `callback()`:
+Emitted exactly once for each message. No arguments. After
+emitted no other events will be emitted on the response.
+
+### response.statusCode
+
+The 3-digit HTTP response status code. E.G. `404`.
+
+### response.httpVersion
+
+The HTTP version of the connected-to server. Probably either
+`"1.1"` or `"1.0"`.
+
+### response.headers
+
+The response headers.
+
+### response.setBodyEncoding(encoding)
+
+Set the encoding for the response body. Either `"utf8"` or `"binary"`.
+Defaults to `"binary"`.
+
+### response.pause()
+
+Pauses response from emitting events.  Useful to throttle back a download.
+
+### response.resume()
+
+Resumes a paused response.
+
+### response.client
+
+A reference to the `http.Client` that this response belongs to.
+
+## Multipart Parsing
+
+A library to parse `multipart` internet messages is included with
+Node.  To use it, `require("multipart")`.
+
+### multipart.parse(message)
+
+Returns a multipart.Stream wrapper around a streaming message.
+The message must contain a `headers` member, and may be either an
+HTTP request object or a JSGI-style request object with either a
+forEachable or String body.
+
+See the Stream class below.
+
+### multipart.cat(message, callback)
+
+On success, `callback` is called with `(null, stream)` where `stream` is a
+`multipart.Stream` object representing the completed message.  The body of
+each part is saved on the `body` member.
+
+On error, `callback` is called with `(err)` where `err` is an instanceof
+the `Error` object.  This indicates that the message was malformed in some
+way.
+
+*Note*: This function saves the *entire* message into memory.  As such, it
+is ill-suited to parsing actual incoming messages from an HTTP request!
+If a user uploads a very large file, then it may cause serious problems.
+No checking is done to ensure that the file does not overload the memory.
+Only use `multipart.cat` with known and trusted input!
+
+
+### multipart.Stream
+
+The multipart.Stream class is a streaming parser wrapped around a message.
+The Stream also contains the properties described for the `part` objects below, and is a reference to the top-level message.
+
+This is an EventEmitter with the following events:
+
+- **`"partBegin"`** - `callback(part)`:
+Emitted when a new part is found in the stream.  `part` is a `part object`, described below.
+
+- **`"partEnd"`** - `callback(part)`:
+ Emitted when a part is done.
+
+- **`"body"`** - `callback(chunk)`:
+ Emitted when a chunk of the body is read.
+
+- **`"complete"`** - `callback()`:
+ Emitted when the end of the stream is reached.
+
+- **`"error"`** - `callback(error)`:
+ Emitted when a parse error is encountered. This indicates that the message is malformed.
+
+
+### stream.part
+
+The current part being processed. This is important, for instance, when
+responding to the `body` event.
+
+### stream.isMultiPart
+
+True if the stream is a multipart message. Generally this will be true, but
+non-multipart messages will behave the same as a multipart message with a
+single part, and `isMultiPart` will be set to `false`.
+
+### stream.parts
+
+An array of the parts contained within the message. Each is a `part` object.
+
+### stream.pause
+
+If the underlying message supports pause and resume, then this will pause the
+stream.
+
+### stream.resume
+
+If the underlying message supports pause and resume, then this will resume the
+paused stream.
+
+### multipart.Part
+
+As it parses the message, the Stream object will create `Part` objects.
+
+### part.parent
+
+The message that contains this part.
+
+### part.headers
+
+The headers object for this message.
+
+### part.filename
+
+The filename, if specified in the `content-disposition` or `content-type`
+header. For uploads, downloads, and attachments, this is the intended filename
+for the attached file.
+
+### part.name
+
+The name, if specified in the `content-disposition` or `content-type` header.
+For `multipart/form-data` messages, this is the name of the field that was
+posted, and the body specifies the value.
+
+### part.isMultiPart
+
+True if this part is a multipart message.
+
+### part.parts
+
+Array of children contained within a multipart message, or falsey.
+
+### part.boundary
+
+For multipart messages, this is the boundary that separates subparts.
+
+### part.type
+
+For multipart messages, this is the multipart type specified in the
+`content-type` header. For example, a message with `content-type: multipart/form-data` will have a `type` property of `form-data`.
+
+### Example
+
+Here is an example for parsing a `multipart/form-data` request:
+
+
+    var multipart = require("multipart"),
+      sys = require("sys"),
+      http = require("http");
+    http.createServer(function (req, res) {
+      var mp = multipart.parse(req),
+        fields = {},
+        name, filename;
+      mp.addListener("error", function (er) {
+        res.writeHead(400, {"content-type":"text/plain"});
+        res.write("You sent a bad message!\n"+er.message);
+        res.close();
+      });
+      mp.addListener("partBegin", function (part) {
+        name = part.name;
+        filename = part.filename;
+        if (name) fields[name] = "";
+      });
+      mp.addListener("body", function (chunk) {
+        if (name) {
+          // just a demo.  in reality, you'd probably
+          // want to sniff for base64 encoding, decode,
+          // and write the bytes to a file or something.
+          if (fields[name].length > 1024) return;
+          fields[name] += chunk;
+        }
+      });
+      mp.addListener("complete", function () {
+        var response = "You posted: \n" + sys.inspect(fields);
+        res.writeHead(200, {
+          "content-type" : "text/plain",
+          "content-length" : response.length
+        });
+        res.write(response);
+        res.close();
+      })
+    });
+
+
+### Nested Multipart Messages
+
+Nested multipart parsing is supported. The `stream.part` object always refers
+to the current part. If `part.isMultiPart` is set, then that part is a
+multipart message, which contains other parts. You can inspect its `parts`
+array to see the list of sub-parts, which may also be multipart, and contain
+sub-parts.
+
+## TCP
+
+To use the TCP server and client one must `require("tcp")`.
+
+### tcp.Server
+
+Here is an example of a echo server which listens for connections
+on port 7000:
+
+    var tcp = require("tcp");
+    var server = tcp.createServer(function (socket) {
+      socket.setEncoding("utf8");
+      socket.addListener("connect", function () {
+        socket.write("hello\r\n");
+      });
+      socket.addListener("data", function (data) {
+        socket.write(data);
+      });
+      socket.addListener("end", function () {
+        socket.write("goodbye\r\n");
+        socket.close();
+      });
+    });
+    server.listen(7000, "localhost");
+
+This is an EventEmitter with the following events:
+
+- **`"connection"`** - `callback(connection)`:
+Emitted when a new connection is made. `connection` is an instance of `tcp.Connection`.
+
+- **`"close"`** - `callback(errno)`:
+Emitted when the server closes. `errorno` is an integer which indicates what, if any, error caused
+the server to close. If no error occurred `errorno` will be 0.
+
+
+### tcp.createServer(connection_listener)
+
+Creates a new TCP server.
+
+The `connection_listener` argument is automatically set as a listener for
+the `"connection"` event.
+
+### server.setSecure(format_type, ca_certs, crl_list, private_key, certificate)
+
+Enable TLS for all incoming connections, with the specified credentials.
+
+`format_type` currently has to be "X509_PEM", and each of the ca, crl, key and
+cert parameters are in the format of PEM strings. 
+
+`ca_certs` is a string that holds a number of CA certificates for use in
+accepting client connections that authenticate themselves with a client
+certificate.
+
+`private_key` is a PEM string of the unencrypted key for the server.
+
+### server.listen(port, host=null, backlog=128)
+
+Tells the server to listen for TCP connections to `port` and `host`.
+
+`host` is optional. If `host` is not specified the server will accept client
+connections on any network address.
+
+The third argument, `backlog`, is also optional and defaults to 128. The
+`backlog` argument defines the maximum length to which the queue of pending
+connections for the server may grow.
+
+This function is synchronous.
+
+### server.close()
+
+Stops the server from accepting new connections. This function is
+asynchronous, the server is finally closed when the server emits a `"close"`
+event.
+
+### tcp.Connection
+
+This object is used as a TCP client and also as a server-side
+socket for `tcp.Server`.
+
+This is an EventEmitter with the following events:
+
+- **`"connect"`** - `callback()`:
+Call once the connection is established after a call to 
+`createConnection()` or `connect()`.
+
+- **`"data"`** - `callback(data)`:
+Called when data is received on the connection.  `data`
+will be a string. Encoding of data is set by `connection.setEncoding()`.
+
+- **`"end"`** - `callback()`:
+Called when the other end of the connection sends a FIN
+packet. After this is emitted the `readyState` will be
+`"writeOnly"`. One should probably just call
+`connection.close()` when this event is emitted.
+
+- **`"timeout"`** - `callback()`:
+Emitted if the connection times out from inactivity. The
+`"close"` event will be emitted immediately following this event.
+
+- **`"drain"`** - `callback()`:
+Emitted when the write buffer becomes empty. Can be used to throttle uploads.
+
+- **`"close"`** - `callback(had_error)`:
+Emitted once the connection is fully closed. The argument `had_error` is a boolean which says if
+the connection was closed due to a transmission
+error. (TODO: access error codes.)
+
+### tcp.createConnection(port, host="127.0.0.1")
+
+Creates a new connection object and opens a connection to the specified `port`
+and `host`. If the second parameter is omitted, localhost is assumed.
+
+When the connection is established the `"connect"` event will be emitted.
+
+### connection.connect(port, host="127.0.0.1")
+
+Opens a connection to the specified `port` and `host`. `createConnection()`
+also opens a connection; normally this method is not needed. Use this only if
+a connection is closed and you want to reuse the object to connect to another
+server.
+
+This function is asynchronous. When the `"connect"` event is emitted the
+connection is established. If there is a problem connecting, the `"connect"`
+event will not be emitted, the `"close"` event will be emitted with 
+`had_error == true`.
+
+### connection.remoteAddress
+
+The string representation of the remote IP address. For example,
+`"74.125.127.100"` or `"2001:4860:a005::68"`.
+
+This member is only present in server-side connections.
+
+### connection.readyState
+
+Either `"closed"`, `"open"`, `"opening"`, `"readOnly"`, or `"writeOnly"`.
+
+### connection.setEncoding(encoding)
+
+Sets the encoding (either `"ascii"`, `"utf8"`, or `"binary"`) for data that is
+received.
+
+### connection.write(data, encoding="ascii")
+
+Sends data on the connection. The second parameter specifies the encoding in
+the case of a string--it defaults to ASCII because encoding to UTF8 is rather
+slow.
+
+Returns `true` if the entire data was flushed successfully to the kernel
+buffer. Returns `false` if all or part of the data was queued in user memory.
+`'drain'` will be emitted when the buffer is again free.
+
+### connection.close()
+
+Half-closes the connection. I.E., it sends a FIN packet. It is possible the
+server will still send some data. After calling this `readyState` will be
+`"readOnly"`.
+
+### connection.forceClose()
+
+Ensures that no more I/O activity happens on this socket. Only necessary in
+case of errors (parse error or so).
+
+### connection.pause()
+
+Pauses the reading of data. That is, `"data"` events will not be emitted.
+Useful to throttle back an upload.
+
+### connection.resume()
+
+Resumes reading after a call to `pause()`.
+
+### connection.setTimeout(timeout)
+
+Sets the connection to timeout after `timeout` milliseconds of inactivity on
+the connection. By default all `tcp.Connection` objects have a timeout of 60
+seconds (60000 ms).
+
+If `timeout` is 0, then the idle timeout is disabled.
+
+### connection.setNoDelay(noDelay=true)
+
+Disables the Nagle algorithm. By default TCP connections use the Nagle
+algorithm, they buffer data before sending it off. Setting `noDelay` will
+immediately fire off data each time `connection.write()` is called.
+
+### connection.verifyPeer()
+
+Returns an integer indicating the trusted status of the peer in a TLS
+connection.
+
+Returns 1 if the peer's certificate is issued by one of the trusted CAs, the
+certificate has not been revoked, is in the issued date range, and if the peer
+is the server, matches the hostname.
+
+Returns 0 if no certificate was presented by the peer, or negative result if
+the verification fails (with a given reason code). This function is
+synchronous.
+
+### connection.getPeerCertificate(format)
+
+For a TLS connection, returns the peer's certificate information, as defined
+by the given format.
+
+A format of "DNstring" gives a single string with the combined Distinguished
+Name (DN) from the certificate, as comma delimited name=value pairs as defined
+in RFC2253. This function is synchronous.
+
+## DNS module
+
+Use `require("dns")` to access this module.
+
+Here is an example which resolves `"www.google.com"` then reverse
+resolves the IP addresses which are returned.
+
+    var dns = require("dns"),
+        sys = require("sys");
+
+    dns.resolve4("www.google.com", function (err, addresses, ttl, cname) {
+      if (err) throw err;
+
+      sys.puts("addresses: " + JSON.stringify(addresses));
+      sys.puts("ttl: " + JSON.stringify(ttl));
+      sys.puts("cname: " + JSON.stringify(cname));
+
+      for (var i = 0; i < addresses.length; i++) {
+        var a = addresses[i];
+        dns.reverse(a, function (err, domains, ttl, cname) {
+          if (err) {
+            puts("reverse for " + a + " failed: " + e.message);
+          } else {
+            sys.puts("reverse for " + a + ": " + JSON.stringify(domains));
+          }
+        });
+      }
+    });
+
+### dns.resolve(domain, rrtype = 'A', callback)
+
+Resolves a domain (e.g. `"google.com"`) into an array of the record types
+specified by rrtype. Valid rrtypes are `A` (IPV4 addresses), `AAAA` (IPV6
+addresses), `MX` (mail exchange records), `TXT` (text records), `SRV` (SRV
+records), and `PTR` (used for reverse IP lookups).
+
+The callback has arguments `(err, addresses, ttl, cname)`. `ttl`
+(time-to-live) is an integer specifying the number of seconds this result is
+valid for. `cname` is the canonical name for the query. The type of each item
+in `addresses` is determined by the record type, and described in the
+documentation for the corresponding lookup methods below.
+
+On error, `err` would be an instanceof `Error` object, where `err.errno` is
+one of the error codes listed below and `err.message` is a string describing
+the error in English.
+
+
+### dns.resolve4(domain, callback)
+
+The same as `dns.resolve()`, but only for IPv4 queries (`A` records). 
+`addresses` is an array of IPv4 addresses (e.g.  `["74.125.79.104", "74.125.79.105", "74.125.79.106"]`).
+
+### dns.resolve6(domain, callback)
+
+The same as `dns.resolve4()` except for IPv6 queries (an `AAAA` query).
+
+
+### dns.resolveMx(domain, callback)
+
+The same as `dns.resolve()`, but only for mail exchange queries (`MX` records).
+
+`addresses` is an array of MX records, each with a priority and an exchange
+attribute (e.g. `[{"priority": 10, "exchange": "mx.example.com"},...]`).
+
+### dns.resolveTxt(domain, callback)
+
+The same as `dns.resolve()`, but only for text queries (`TXT` records).
+`addresses` is an array of the text records available for `domain` (e.g.,
+`["v=spf1 ip4:0.0.0.0 ~all"]`).
+
+### dns.resolveSrv(domain, callback)
+
+The same as `dns.resolve()`, but only for service records (`SRV` records).
+`addresses` is an array of the SRV records available for `domain`. Properties
+of SRV records are priority, weight, port, and name (e.g., `[{"priority": 10, {"weight": 5, "port": 21223, "name": "service.example.com"}, ...]`).
+
+### dns.reverse(ip, callback)
+
+Reverse resolves an ip address to an array of domain names.
+
+The callback has arguments `(err, domains, ttl, cname)`. `ttl` (time-to-live) is an integer specifying the number of seconds this result is valid for. `cname` is the canonical name for the query. `domains` is an array of domains.
+
+If there an an error, `err` will be non-null and an instanceof the Error
+object.
+
+Each DNS query can return an error code.
+
+- `dns.TEMPFAIL`: timeout, SERVFAIL or similar.
+- `dns.PROTOCOL`: got garbled reply.
+- `dns.NXDOMAIN`: domain does not exists.
+- `dns.NODATA`: domain exists but no data of reqd type.
+- `dns.NOMEM`: out of memory while processing.
+- `dns.BADQUERY`: the query is malformed.
+
+
+## Assert Module
+
+This module is used for writing unit tests for your applications, you can access it with `require("assert")`.
+
+### assert.fail(actual, expected, message, operator)
+
+Tests if `actual` is equal to `expected` using the operator provided.
+
+### assert.ok(value, message)
+
+Tests if value is a `true` value, it is equivalent to `assert.equal(true, value, message);`
+
+### assert.equal(actual, expected, message)
+
+Tests shallow, coercive equality with the equal comparison operator ( `==` ). 
+
+### assert.notEqual(actual, expected, message)
+
+Tests shallow, coercive non-equality with the not equal comparison operator ( `!=` ).
+
+### assert.deepEqual(actual, expected, message)
+
+Tests for deep equality.
+
+### assert.notDeepEqual(actual, expected, message)
+
+Tests for any deep inequality. 
+
+### assert.strictEqual(actual, expected, message)
+
+Tests strict equality, as determined by the strict equality operator ( `===` ) 
+
+### assert.notStrictEqual(actual, expected, message)
+
+Tests strict non-equality, as determined by the strict not equal operator ( `!==` ) 
+
+### assert.throws(block, error, message)
+
+Expects `block` to throw an error.
+
+### assert.doesNotThrow(block, error, message)
+
+Expects `block` not to throw an error.
+
+
+## Path Module
+
+This module contains utilities for dealing with file paths.  Use
+`require("path")` to use it.  It provides the following methods:
+
+### path.join(/* path1, path2, ... */)
+
+Join all arguments together and resolve the resulting path.  Example:
+
+    node> require("path").join("/foo", "bar", "baz/asdf", "quux", "..")
+    "/foo/bar/baz/asdf"
+
+### path.normalizeArray(arr)
+
+Normalize an array of path parts, taking care of `".."` and `"."` parts.  Example:
+
+    path.normalizeArray(["", 
+      "foo", "bar", "baz", "asdf", "quux", ".."])
+    // returns
+    [ '', 'foo', 'bar', 'baz', 'asdf' ]
+
+### path.normalize(p)
+
+Normalize a string path, taking care of `".."` and `"."` parts.  Example:
+
+    path.normalize("/foo/bar/baz/asdf/quux/..")
+    // returns
+    "/foo/bar/baz/asdf"
+
+### path.dirname(p)
+
+Return the directory name of a path.  Similar to the Unix `dirname` command.  Example:
+
+    path.dirname("/foo/bar/baz/asdf/quux")
+    // returns
+    "/foo/bar/baz/asdf"
+
+### path.basename(p, ext)
+
+Return the last portion of a path.  Similar to the Unix `basename` command.  Example:
+
+    path.basename("/foo/bar/baz/asdf/quux.html")
+    // returns
+    "quux.html"
+
+    path.basename("/foo/bar/baz/asdf/quux.html", ".html")
+    // returns
+    "quux"
+
+### path.extname(p)
+
+Return the extension of the path.  Everything after the last '.', if there
+is no '.' then it returns an empty string.  Examples:
+
+    path.extname("index.html")
+    // returns 
+    ".html"
+
+    path.extname("index")
+    // returns
+    ""
+
+### path.exists(p, callback)
+
+Test whether or not the given path exists.  Then, call the `callback` argument with either true or false.  Example:
+
+    path.exists("/etc/passwd", function (exists) {
+      sys.debug(exists ? "it's there" : "no passwd!");
+    });
+
+
+## URL Module
+
+This module has utilities for URL resolution and parsing.
+
+Parsed URL objects have some or all of the following fields, depending on
+whether or not they exist in the URL string. Any parts that are not in the URL
+string will not be in the parsed object. Examples are shown for the URL
+
+`"http://user:pass@host.com:8080/p/a/t/h?query=string#hash"`
+
+- `href`
+
+  The full URL that was originally parsed. Example:   
+  `"http://user:pass@host.com:8080/p/a/t/h?query=string#hash"`
+
+- `protocol`
+
+  The request protocol.  Example: `"http:"`
+
+- `host`
+
+  The full host portion of the URL, including port and authentication information. Example:
+  `"user:pass@host.com:8080"`
+
+- `auth`
+
+  The authentication information portion of a URL.  Example: `"user:pass"`
+
+- `hostname`
+
+  Just the hostname portion of the host.  Example: `"host.com"`
+
+- `port`
+
+  The port number portion of the host.  Example: `"8080"`
+
+- `pathname`
+
+  The path section of the URL, that comes after the host and before the query, including the initial slash if present.  Example: `"/p/a/t/h"`
+
+- `search`
+
+  The "query string" portion of the URL, including the leading question mark. Example: `"?query=string"`
+
+- `query`
+
+  Either the "params" portion of the query string, or a querystring-parsed object. Example:
+  `"query=string"` or `{"query":"string"}`
+
+- `hash`
+
+  The "fragment" portion of the URL including the pound-sign. Example: `"#hash"`
+
+
+The following methods are provided by the URL module:
+
+### url.parse(urlStr, parseQueryString=false)
+
+Take a URL string, and return an object.  Pass `true` as the second argument to also parse
+the query string using the `querystring` module.
+
+### url.format(urlObj)
+
+Take a parsed URL object, and return a formatted URL string.
+
+### url.resolve(from, to)
+
+Take a base URL, and a href URL, and resolve them as a browser would for an anchor tag.
+
+
+## Query String Module
+
+This module provides utilities for dealing with query strings.  It provides the following methods:
+
+### querystring.stringify(obj, sep="&", eq="=")
+
+Serialize an object to a query string.  Optionally override the default separator and assignment characters.
+Example:
+
+    querystring.stringify({foo: 'bar'})
+    // returns
+    "foo=bar"
+
+### querystring.parse(str, sep="&", eq="=")
+
+Deserialize a query string to an object.  Optionally override the default separator and assignment characters.
+
+    querystring.parse('a=b&b=c')
+    // returns
+    { 'a': 'b'
+    , 'b': 'c'
+    }
+
+### querystring.escape
+
+The escape function used by `querystring.stringify`, provided so that it could be overridden if necessary.
+
+### querystring.unescape
+
+The unescape function used by `querystring.parse`, provided so that it could be overridden if necessary.
+
+## REPL
+
+A Read-Eval-Print-Loop is available both as a standalone program and easily
+includable in other programs. 
+
+The standalone REPL is called `node-repl` and is installed at
+`$PREFIX/bin/node-repl`. It's recommended to use it with the program
+`rlwrap` for a better user interface. I set 
+
+    alias node-repl="rlwrap node-repl"
+
+in my zsh configuration.
+
+Inside the REPL, Control+D will exit. The special variable `_` (underscore) contains the
+result of the last expression.
+
+The library is called `/repl.js` and it can be used like this:
+
+    var sys = require("sys"),
+        tcp = require("tcp"),
+       repl = require("repl");
+    nconnections = 0;
+    tcp.createServer(function (c) {
+      sys.error("Connection!");
+      nconnections += 1;
+      c.close();
+    }).listen(5000);
+    repl.start("simple tcp server> ");
+
+The repl provides access to any variables in the global scope. You can expose a variable 
+to the repl explicitly by assigning it to the `repl.scope` object:
+
+    var count = 5;
+    repl.start();
+    repl.scope.count = count;
+
+
+## Addons
+
+Addons are dynamically linked shared objects. They can provide glue to C and
+C++ libraries. The API (at the moment) is rather complex, involving
+knowledge of several libraries:
+
+ - V8 JavaScript, a C++ library. Used for interfacing with JavaScript:
+   creating objects, calling functions, etc.  Documented mostly in the
+   `v8.h` header file (`deps/v8/include/v8.h` in the Node source tree).
+
+ - libev, C event loop library. Anytime one needs to wait for a file
+   descriptor to become readable, wait for a timer, or wait for a signal to
+   received one will need to interface with libev.  That is, if you perform
+   any I/O, libev will need to be used.  Node uses the `EV_DEFAULT` event
+   loop.  Documentation can be found http:/cvs.schmorp.de/libev/ev.html[here].
+
+ - libeio, C thread pool library. Used to execute blocking POSIX system
+   calls asynchronously. Mostly wrappers already exist for such calls, in
+   `src/file.cc` so you will probably not need to use it. If you do need it,
+   look at the header file `deps/libeio/eio.h`.
+
+ - Internal Node libraries. Most importantly is the `node::EventEmitter`
+   class which you will likely want to derive from. 
+
+ - Others. Look in `deps/` for what else is available. 
+
+Node statically compiles all its dependencies into the executable. When
+compiling your module, you don't need to worry about linking to any of these
+libraries. 
+
+To get started let's make a small Addon which does the following except in
+C++:
+
+    exports.hello = "world";
+
+To get started we create a file `hello.cc`:
+
+    #include <v8.h>
+
+    using namespace v8;
+
+    extern "C" void
+    init (Handle<Object> target) 
+    {
+      HandleScope scope;
+      target->Set(String::New("hello"), String::New("World"));
+    }
+
+This source code needs to be built into `hello.node`, the binary Addon. To
+do this we create a file called `wscript` which is python code and looks
+like this:
+
+    srcdir = "."
+    blddir = "build"
+    VERSION = "0.0.1"
+
+    def set_options(opt):
+      opt.tool_options("compiler_cxx")
+
+    def configure(conf):
+      conf.check_tool("compiler_cxx")
+      conf.check_tool("node_addon")
+
+    def build(bld):
+      obj = bld.new_task_gen("cxx", "shlib", "node_addon")
+      obj.target = "hello"
+      obj.source = "hello.cc"
+
+Running `node-waf configure build` will create a file
+`build/default/hello.node` which is our Addon.
+
+`node-waf` is just http://code.google.com/p/waf/[WAF], the python-based build system. `node-waf` is
+provided for the ease of users.
+
+All Node addons must export a function called `init` with this signature:
+
+    extern "C" void init (Handle<Object> target) 
+
+For the moment, that is all the documentation on addons. Please see
+<http://github.com/ry/node_postgres[node_postgres]> for a real example.

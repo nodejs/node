@@ -10,8 +10,7 @@ To run the tests:
   
   make test
 
-To build the documentation and install it, you will need asciidoc and
-xsltproc:
+To build the documentation and install it, you will need ronn:
 
   make doc install
  
