@@ -72,7 +72,7 @@ class Arguments BASE_EMBEDDED {
 };
 
 
-// Cursom arguments replicate a small segment of stack that can be
+// Custom arguments replicate a small segment of stack that can be
 // accessed through an Arguments object the same way the actual stack
 // can.
 class CustomArguments : public Relocatable {
@@ -80,15 +80,14 @@ class CustomArguments : public Relocatable {
   inline CustomArguments(Object* data,
                          JSObject* self,
                          JSObject* holder) {
-    values_[3] = self;
-    values_[2] = holder;
-    values_[1] = Smi::FromInt(0);
+    values_[2] = self;
+    values_[1] = holder;
     values_[0] = data;
   }
   void IterateInstance(ObjectVisitor* v);
-  Object** end() { return values_ + 3; }
+  Object** end() { return values_ + ARRAY_SIZE(values_) - 1; }
  private:
-  Object* values_[4];
+  Object* values_[3];
 };
 
 

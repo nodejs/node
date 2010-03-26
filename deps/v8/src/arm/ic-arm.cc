@@ -65,11 +65,11 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   // Check for the absence of an interceptor.
   // Load the map into t0.
   __ ldr(t0, FieldMemOperand(t1, JSObject::kMapOffset));
-  // Test the has_named_interceptor bit in the map.
-  __ ldr(r3, FieldMemOperand(t0, Map::kInstanceAttributesOffset));
-  __ tst(r3, Operand(1 << (Map::kHasNamedInterceptor + (3 * 8))));
-  // Jump to miss if the interceptor bit is set.
-  __ b(ne, miss);
+
+  // Bail out if the receiver has a named interceptor.
+  __ ldrb(r3, FieldMemOperand(t0, Map::kBitFieldOffset));
+  __ tst(r3, Operand(1 << Map::kHasNamedInterceptor));
+  __ b(nz, miss);
 
   // Bail out if we have a JS global proxy object.
   __ ldrb(r3, FieldMemOperand(t0, Map::kInstanceTypeOffset));
@@ -141,6 +141,95 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 
   // Get the value at the masked, scaled index and return.
   __ ldr(t1, FieldMemOperand(t1, kElementsStartOffset + 1 * kPointerSize));
+}
+
+
+static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
+                                         Label* miss,
+                                         Register elements,
+                                         Register key,
+                                         Register t0,
+                                         Register t1,
+                                         Register t2) {
+  // Register use:
+  //
+  // elements - holds the slow-case elements of the receiver and is unchanged.
+  //
+  // key      - holds the smi key on entry and is unchanged if a branch is
+  //            performed to the miss label.
+  //
+  // Scratch registers:
+  //
+  // t0 - holds the untagged key on entry and holds the hash once computed.
+  //      Holds the result on exit if the load succeeded.
+  //
+  // t1 - used to hold the capacity mask of the dictionary
+  //
+  // t2 - used for the index into the dictionary.
+  Label done;
+
+  // Compute the hash code from the untagged key.  This must be kept in sync
+  // with ComputeIntegerHash in utils.h.
+  //
+  // hash = ~hash + (hash << 15);
+  __ mvn(t1, Operand(t0));
+  __ add(t0, t1, Operand(t0, LSL, 15));
+  // hash = hash ^ (hash >> 12);
+  __ eor(t0, t0, Operand(t0, LSR, 12));
+  // hash = hash + (hash << 2);
+  __ add(t0, t0, Operand(t0, LSL, 2));
+  // hash = hash ^ (hash >> 4);
+  __ eor(t0, t0, Operand(t0, LSR, 4));
+  // hash = hash * 2057;
+  __ mov(t1, Operand(2057));
+  __ mul(t0, t0, t1);
+  // hash = hash ^ (hash >> 16);
+  __ eor(t0, t0, Operand(t0, LSR, 16));
+
+  // Compute the capacity mask.
+  __ ldr(t1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));
+  __ mov(t1, Operand(t1, ASR, kSmiTagSize));  // convert smi to int
+  __ sub(t1, t1, Operand(1));
+
+  // Generate an unrolled loop that performs a few probes before giving up.
+  static const int kProbes = 4;
+  for (int i = 0; i < kProbes; i++) {
+    // Use t2 for index calculations and keep the hash intact in t0.
+    __ mov(t2, t0);
+    // Compute the masked index: (hash + i + i * i) & mask.
+    if (i > 0) {
+      __ add(t2, t2, Operand(NumberDictionary::GetProbeOffset(i)));
+    }
+    __ and_(t2, t2, Operand(t1));
+
+    // Scale the index by multiplying by the element size.
+    ASSERT(NumberDictionary::kEntrySize == 3);
+    __ add(t2, t2, Operand(t2, LSL, 1));  // t2 = t2 * 3
+
+    // Check if the key is identical to the name.
+    __ add(t2, elements, Operand(t2, LSL, kPointerSizeLog2));
+    __ ldr(ip, FieldMemOperand(t2, NumberDictionary::kElementsStartOffset));
+    __ cmp(key, Operand(ip));
+    if (i != kProbes - 1) {
+      __ b(eq, &done);
+    } else {
+      __ b(ne, miss);
+    }
+  }
+
+  __ bind(&done);
+  // Check that the value is a normal property.
+  // t2: elements + (index * kPointerSize)
+  const int kDetailsOffset =
+      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
+  __ ldr(t1, FieldMemOperand(t2, kDetailsOffset));
+  __ tst(t1, Operand(Smi::FromInt(PropertyDetails::TypeField::mask())));
+  __ b(ne, miss);
+
+  // Get the value at the masked, scaled index and return.
+  const int kValueOffset =
+      NumberDictionary::kElementsStartOffset + kPointerSize;
+  __ ldr(t0, FieldMemOperand(t2, kValueOffset));
 }
 
 
@@ -530,7 +619,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- sp[0]  : key
   //  -- sp[4]  : receiver
   // -----------------------------------
-  Label slow, fast, check_pixel_array;
+  Label slow, fast, check_pixel_array, check_number_dictionary;
 
   // Get the key and receiver object from the stack.
   __ ldm(ia, sp, r0.bit() | r1.bit());
@@ -554,6 +643,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   __ BranchOnNotSmi(r0, &slow);
+  // Save key in r2 in case we want it for the number dictionary case.
+  __ mov(r2, r0);
   __ mov(r0, Operand(r0, ASR, kSmiTagSize));
 
   // Get the elements array of the object.
@@ -562,17 +653,26 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
   __ cmp(r3, ip);
-  __ b(ne, &slow);
+  __ b(ne, &check_pixel_array);
   // Check that the key (index) is within bounds.
   __ ldr(r3, FieldMemOperand(r1, Array::kLengthOffset));
   __ cmp(r0, Operand(r3));
-  __ b(lo, &fast);
+  __ b(ge, &slow);
+  // Fast case: Do the load.
+  __ add(r3, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2));
+  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ cmp(r0, ip);
+  // In case the loaded value is the_hole we have to consult GetProperty
+  // to ensure the prototype chain is searched.
+  __ b(eq, &slow);
+  __ Ret();
 
   // Check whether the elements is a pixel array.
   __ bind(&check_pixel_array);
   __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
   __ cmp(r3, ip);
-  __ b(ne, &slow);
+  __ b(ne, &check_number_dictionary);
   __ ldr(ip, FieldMemOperand(r1, PixelArray::kLengthOffset));
   __ cmp(r0, ip);
   __ b(hs, &slow);
@@ -581,22 +681,21 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));  // Tag result as smi.
   __ Ret();
 
+  __ bind(&check_number_dictionary);
+  // Check whether the elements is a number dictionary.
+  // r0: untagged index
+  // r1: elements
+  // r2: key
+  __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
+  __ cmp(r3, ip);
+  __ b(ne, &slow);
+  GenerateNumberDictionaryLoad(masm, &slow, r1, r2, r0, r3, r4);
+  __ Ret();
+
   // Slow case: Push extra copies of the arguments (2).
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_generic_slow, 1, r0, r1);
   GenerateRuntimeGetProperty(masm);
-
-  // Fast case: Do the load.
-  __ bind(&fast);
-  __ add(r3, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2));
-  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-  __ cmp(r0, ip);
-  // In case the loaded value is the_hole we have to consult GetProperty
-  // to ensure the prototype chain is searched.
-  __ b(eq, &slow);
-
-  __ Ret();
 }
 
 

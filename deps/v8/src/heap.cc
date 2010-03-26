@@ -2663,7 +2663,7 @@ Object* Heap::CopyJSObject(JSObject* source) {
   FixedArray* elements = FixedArray::cast(source->elements());
   FixedArray* properties = FixedArray::cast(source->properties());
   // Update elements if necessary.
-  if (elements->length()> 0) {
+  if (elements->length() > 0) {
     Object* elem = CopyFixedArray(elements);
     if (elem->IsFailure()) return elem;
     JSObject::cast(clone)->set_elements(FixedArray::cast(elem));

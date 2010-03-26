@@ -32,10 +32,6 @@
 namespace v8 {
 namespace internal {
 
-#ifdef ENABLE_OPROFILE_AGENT
-op_agent_t OProfileAgent::handle_ = NULL;
-#endif
-
 
 bool OProfileAgent::Initialize() {
 #ifdef ENABLE_OPROFILE_AGENT
@@ -70,47 +66,43 @@ void OProfileAgent::TearDown() {
 }
 
 
+#ifdef ENABLE_OPROFILE_AGENT
+op_agent_t OProfileAgent::handle_ = NULL;
+
+
 void OProfileAgent::CreateNativeCodeRegion(const char* name,
     const void* ptr, unsigned int size) {
-#ifdef ENABLE_OPROFILE_AGENT
-  if (handle_ == NULL) return;
   op_write_native_code(handle_, name, (uint64_t)ptr, ptr, size);
-#endif
 }
 
 
 void OProfileAgent::CreateNativeCodeRegion(String* name,
     const void* ptr, unsigned int size) {
-#ifdef ENABLE_OPROFILE_AGENT
-  if (handle_ != NULL) {
-    const char* func_name;
-    SmartPointer<char> str =
-        name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    func_name = name->length() > 0 ? *str : "<anonymous>";
-    CreateNativeCodeRegion(func_name, ptr, size);
-  }
-#endif
+  const char* func_name;
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  func_name = name->length() > 0 ? *str : "<anonymous>";
+  CreateNativeCodeRegion(func_name, ptr, size);
 }
 
 
 void OProfileAgent::CreateNativeCodeRegion(String* name, String* source,
     int line_num, const void* ptr, unsigned int size) {
-#ifdef ENABLE_OPROFILE_AGENT
-  if (handle_ != NULL) {
-    Vector<char> buf = Vector<char>::New(OProfileAgent::kFormattingBufSize);
-    const char* func_name;
-    SmartPointer<char> str =
-        name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    func_name = name->length() > 0 ? *str : "<anonymous>";
-    SmartPointer<char> source_str =
-        source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    if (v8::internal::OS::SNPrintF(buf, "%s %s:%d",
-                                   func_name, *source_str, line_num) != -1) {
-      CreateNativeCodeRegion(buf.start(), ptr, size);
-    } else {
-      CreateNativeCodeRegion("<script/func name too long>", ptr, size);
-    }
+  Vector<char> buf = Vector<char>::New(OProfileAgent::kFormattingBufSize);
+  const char* func_name;
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  func_name = name->length() > 0 ? *str : "<anonymous>";
+  SmartPointer<char> source_str =
+      source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  if (v8::internal::OS::SNPrintF(buf, "%s %s:%d",
+                                 func_name, *source_str, line_num) != -1) {
+    CreateNativeCodeRegion(buf.start(), ptr, size);
+  } else {
+    CreateNativeCodeRegion("<script/func name too long>", ptr, size);
   }
-#endif
 }
-} }
+
+#endif  // ENABLE_OPROFILE_AGENT
+
+} }  // namespace v8::internal

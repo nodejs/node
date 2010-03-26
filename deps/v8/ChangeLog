@@ -1,3 +1,10 @@
+2010-03-26: Version 2.1.10
+
+        Fixed scons build issues.
+
+        Fixed a couple of minor bugs.
+
+
 2010-03-25: Version 2.1.9
 
         Added API support for reattaching a global object to a context.

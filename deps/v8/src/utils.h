@@ -581,11 +581,12 @@ static inline void MemsetPointer(T** dest, T* value, int counter) {
 #endif
 
 #if defined(__GNUC__) && defined(STOS)
-  asm("cld;"
+  asm volatile(
+      "cld;"
       "rep ; " STOS
-      : /* no output */
-      : "c" (counter), "a" (value), "D" (dest)
-      : /* no clobbered list as all inputs are considered clobbered */);
+      : "+&c" (counter), "+&D" (dest)
+      : "a" (value)
+      : "memory", "cc");
 #else
   for (int i = 0; i < counter; i++) {
     dest[i] = value;

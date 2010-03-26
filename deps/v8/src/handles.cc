@@ -541,7 +541,7 @@ int GetScriptLineNumberSafe(Handle<Script> script, int code_pos) {
 
 
 void CustomArguments::IterateInstance(ObjectVisitor* v) {
-  v->VisitPointers(values_, values_ + 4);
+  v->VisitPointers(values_, values_ + ARRAY_SIZE(values_));
 }
 
 

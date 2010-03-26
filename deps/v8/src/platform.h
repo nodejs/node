@@ -505,7 +505,6 @@ class Socket {
 };
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 // ----------------------------------------------------------------------------
 // Sampler
 //
@@ -533,6 +532,7 @@ class TickSample {
   int frames_count;  // Number of captured frames.
 };
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
 class Sampler {
  public:
   // Initialize sampler.

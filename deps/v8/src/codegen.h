@@ -450,7 +450,7 @@ class ApiGetterEntryStub : public CodeStub {
   virtual bool GetCustomCache(Code** code_out);
   virtual void SetCustomCache(Code* value);
 
-  static const int kStackSpace = 6;
+  static const int kStackSpace = 5;
   static const int kArgc = 4;
  private:
   Handle<AccessorInfo> info() { return info_; }

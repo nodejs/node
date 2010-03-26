@@ -3361,7 +3361,7 @@ External* External::Cast(v8::Value* value) {
 
 
 Local<Value> AccessorInfo::Data() const {
-  return Local<Value>(reinterpret_cast<Value*>(&args_[-3]));
+  return Local<Value>(reinterpret_cast<Value*>(&args_[-2]));
 }
 
 

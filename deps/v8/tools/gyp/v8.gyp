@@ -282,6 +282,8 @@
         '../../src/flag-definitions.h',
         '../../src/flags.cc',
         '../../src/flags.h',
+        '../../src/flow-graph.cc',
+        '../../src/flow-graph.h',
         '../../src/frame-element.cc',
         '../../src/frame-element.h',
         '../../src/frames-inl.h',

@@ -61,6 +61,7 @@ SOURCES = {
     execution.cc
     factory.cc
     flags.cc
+    flow-graph.cc
     frame-element.cc
     frames.cc
     full-codegen.cc

@@ -852,3 +852,115 @@ TEST(LargeObjectSpaceContains) {
   CHECK(Heap::new_space()->Contains(addr));
   CHECK(!Heap::lo_space()->Contains(addr));
 }
+
+
+TEST(EmptyHandleEscapeFrom) {
+  InitializeVM();
+
+  v8::HandleScope scope;
+  Handle<JSObject> runaway;
+
+  {
+      v8::HandleScope nested;
+      Handle<JSObject> empty;
+      runaway = empty.EscapeFrom(&nested);
+  }
+
+  CHECK(runaway.is_null());
+}
+
+
+static int LenFromSize(int size) {
+  return (size - FixedArray::kHeaderSize) / kPointerSize;
+}
+
+
+TEST(Regression39128) {
+  // Test case for crbug.com/39128.
+  InitializeVM();
+
+  // Increase the chance of 'bump-the-pointer' allocation in old space.
+  bool force_compaction = true;
+  Heap::CollectAllGarbage(force_compaction);
+
+  v8::HandleScope scope;
+
+  // The plan: create JSObject which references objects in new space.
+  // Then clone this object (forcing it to go into old space) and check
+  // that only bits pertaining to the object are updated in remembered set.
+
+  // Step 1: prepare a map for the object.  We add 1 inobject property to it.
+  Handle<JSFunction> object_ctor(Top::global_context()->object_function());
+  CHECK(object_ctor->has_initial_map());
+  Handle<Map> object_map(object_ctor->initial_map());
+  // Create a map with single inobject property.
+  Handle<Map> my_map = Factory::CopyMap(object_map, 1);
+  int n_properties = my_map->inobject_properties();
+  CHECK_GT(n_properties, 0);
+
+  int object_size = my_map->instance_size();
+
+  // Step 2: allocate a lot of objects so to almost fill new space: we need
+  // just enough room to allocate JSObject and thus fill the newspace.
+
+  int allocation_amount = Min(FixedArray::kMaxSize,
+                              Heap::MaxObjectSizeInNewSpace());
+  int allocation_len = LenFromSize(allocation_amount);
+  NewSpace* new_space = Heap::new_space();
+  Address* top_addr = new_space->allocation_top_address();
+  Address* limit_addr = new_space->allocation_limit_address();
+  while ((*limit_addr - *top_addr) > allocation_amount) {
+    CHECK(!Heap::always_allocate());
+    Object* array = Heap::AllocateFixedArray(allocation_len);
+    CHECK(!array->IsFailure());
+    CHECK(new_space->Contains(array));
+  }
+
+  // Step 3: now allocate fixed array and JSObject to fill the whole new space.
+  int to_fill = *limit_addr - *top_addr - object_size;
+  int fixed_array_len = LenFromSize(to_fill);
+  CHECK(fixed_array_len < FixedArray::kMaxLength);
+
+  CHECK(!Heap::always_allocate());
+  Object* array = Heap::AllocateFixedArray(fixed_array_len);
+  CHECK(!array->IsFailure());
+  CHECK(new_space->Contains(array));
+
+  Object* object = Heap::AllocateJSObjectFromMap(*my_map);
+  CHECK(!object->IsFailure());
+  CHECK(new_space->Contains(object));
+  JSObject* jsobject = JSObject::cast(object);
+  CHECK_EQ(0, jsobject->elements()->length());
+  CHECK_EQ(0, jsobject->properties()->length());
+  // Create a reference to object in new space in jsobject.
+  jsobject->FastPropertyAtPut(-1, array);
+
+  CHECK_EQ(0L, (*limit_addr - *top_addr));
+
+  // Step 4: clone jsobject, but force always allocate first to create a clone
+  // in old pointer space.
+  Address old_pointer_space_top = Heap::old_pointer_space()->top();
+  AlwaysAllocateScope aa_scope;
+  Object* clone_obj = Heap::CopyJSObject(jsobject);
+  CHECK(!object->IsFailure());
+  JSObject* clone = JSObject::cast(clone_obj);
+  if (clone->address() != old_pointer_space_top) {
+    // Alas, got allocated from free list, we cannot do checks.
+    return;
+  }
+  CHECK(Heap::old_pointer_space()->Contains(clone->address()));
+
+  // Step 5: verify validity of remembered set.
+  Address clone_addr = clone->address();
+  Page* page = Page::FromAddress(clone_addr);
+  // Check that remembered set tracks a reference from inobject property 1.
+  CHECK(page->IsRSetSet(clone_addr, object_size - kPointerSize));
+  // Probe several addresses after the object.
+  for (int i = 0; i < 7; i++) {
+    int offset = object_size + i * kPointerSize;
+    if (clone_addr + offset >= page->ObjectAreaEnd()) {
+      break;
+    }
+    CHECK(!page->IsRSetSet(clone_addr, offset));
+  }
+}

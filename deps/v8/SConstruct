@@ -275,6 +275,7 @@ V8_EXTRA_FLAGS = {
   'gcc': {
     'all': {
       'WARNINGFLAGS': ['-Wall',
+                       '-Werror',
                        '-W',
                        '-Wno-unused-parameter',
                        '-Wnon-virtual-dtor']
@@ -1008,7 +1009,6 @@ def BuildSpecific(env, mode, env_overrides):
 
   # Link the object files into a library.
   env.Replace(**context.flags['v8'])
-  env.Prepend(LIBS=[library_name])
 
   context.ApplyEnvOverrides(env)
   if context.options['library'] == 'static':
@@ -1043,7 +1043,9 @@ def BuildSpecific(env, mode, env_overrides):
     sample_env.Depends(sample_program, library)
     context.sample_targets.append(sample_program)
 
-  cctest_program = env.SConscript(
+  cctest_env = env.Copy()
+  cctest_env.Prepend(LIBS=[library_name])
+  cctest_program = cctest_env.SConscript(
     join('test', 'cctest', 'SConscript'),
     build_dir=join('obj', 'test', target_id),
     exports='context object_files',

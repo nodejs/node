@@ -7424,10 +7424,8 @@ void CodeGenerator::Int32BinaryOperation(BinaryOperation* node) {
   }
 }
 
-void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
-  Comment cmnt(masm_, "[ BinaryOperation");
-  Token::Value op = node->op();
 
+void CodeGenerator::GenerateLogicalBooleanOperation(BinaryOperation* node) {
   // According to ECMA-262 section 11.11, page 58, the binary logical
   // operators must yield the result of one of the two expressions
   // before any ToBoolean() conversions. This means that the value
@@ -7437,7 +7435,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   // control flow), we force the right hand side to do the same. This
   // is necessary because we assume that if we get control flow on the
   // last path out of an expression we got it on all paths.
-  if (op == Token::AND) {
+  if (node->op() == Token::AND) {
     ASSERT(!in_safe_int32_mode());
     JumpTarget is_true;
     ControlDestination dest(&is_true, destination()->false_target(), true);
@@ -7501,7 +7499,8 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       exit.Bind();
     }
 
-  } else if (op == Token::OR) {
+  } else {
+    ASSERT(node->op() == Token::OR);
     ASSERT(!in_safe_int32_mode());
     JumpTarget is_false;
     ControlDestination dest(destination()->true_target(), &is_false, false);
@@ -7563,7 +7562,15 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // Exit (always with a materialized value).
       exit.Bind();
     }
+  }
+}
 
+
+void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
+  Comment cmnt(masm_, "[ BinaryOperation");
+
+  if (node->op() == Token::AND || node->op() == Token::OR) {
+    GenerateLogicalBooleanOperation(node);
   } else if (in_safe_int32_mode()) {
     Visit(node->left());
     Visit(node->right());

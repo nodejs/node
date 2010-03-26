@@ -782,6 +782,10 @@ Object* StoreCallbackProperty(Arguments args) {
   return *value;
 }
 
+
+static const int kAccessorInfoOffsetInInterceptorArgs = 2;
+
+
 /**
  * Attempts to load a property with an interceptor (which must be present),
  * but doesn't search the prototype chain.
@@ -790,11 +794,12 @@ Object* StoreCallbackProperty(Arguments args) {
  * provide any value for the given name.
  */
 Object* LoadPropertyWithInterceptorOnly(Arguments args) {
-  JSObject* receiver_handle = JSObject::cast(args[0]);
-  JSObject* holder_handle = JSObject::cast(args[1]);
-  Handle<String> name_handle = args.at<String>(2);
-  Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(3);
-  Object* data_handle = args[4];
+  Handle<String> name_handle = args.at<String>(0);
+  Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(1);
+  ASSERT(kAccessorInfoOffsetInInterceptorArgs == 2);
+  ASSERT(args[2]->IsJSObject());  // Receiver.
+  ASSERT(args[3]->IsJSObject());  // Holder.
+  ASSERT(args.length() == 5);  // Last arg is data object.
 
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
   v8::NamedPropertyGetter getter =
@@ -803,8 +808,8 @@ Object* LoadPropertyWithInterceptorOnly(Arguments args) {
 
   {
     // Use the interceptor getter.
-    CustomArguments args(data_handle, receiver_handle, holder_handle);
-    v8::AccessorInfo info(args.end());
+    v8::AccessorInfo info(args.arguments() -
+                          kAccessorInfoOffsetInInterceptorArgs);
     HandleScope scope;
     v8::Handle<v8::Value> r;
     {
@@ -842,11 +847,12 @@ static Object* ThrowReferenceError(String* name) {
 
 static Object* LoadWithInterceptor(Arguments* args,
                                    PropertyAttributes* attrs) {
-  Handle<JSObject> receiver_handle = args->at<JSObject>(0);
-  Handle<JSObject> holder_handle = args->at<JSObject>(1);
-  Handle<String> name_handle = args->at<String>(2);
-  Handle<InterceptorInfo> interceptor_info = args->at<InterceptorInfo>(3);
-  Handle<Object> data_handle = args->at<Object>(4);
+  Handle<String> name_handle = args->at<String>(0);
+  Handle<InterceptorInfo> interceptor_info = args->at<InterceptorInfo>(1);
+  ASSERT(kAccessorInfoOffsetInInterceptorArgs == 2);
+  Handle<JSObject> receiver_handle = args->at<JSObject>(2);
+  Handle<JSObject> holder_handle = args->at<JSObject>(3);
+  ASSERT(args->length() == 5);  // Last arg is data object.
 
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
   v8::NamedPropertyGetter getter =
@@ -855,8 +861,8 @@ static Object* LoadWithInterceptor(Arguments* args,
 
   {
     // Use the interceptor getter.
-    CustomArguments args(*data_handle, *receiver_handle, *holder_handle);
-    v8::AccessorInfo info(args.end());
+    v8::AccessorInfo info(args->arguments() -
+                          kAccessorInfoOffsetInInterceptorArgs);
     HandleScope scope;
     v8::Handle<v8::Value> r;
     {
@@ -891,7 +897,7 @@ Object* LoadPropertyWithInterceptorForLoad(Arguments args) {
 
   // If the property is present, return it.
   if (attr != ABSENT) return result;
-  return ThrowReferenceError(String::cast(args[2]));
+  return ThrowReferenceError(String::cast(args[0]));
 }
 
 

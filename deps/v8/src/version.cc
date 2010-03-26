@@ -34,8 +34,8 @@
 // cannot be changed without changing the SCons build script.
 #define MAJOR_VERSION     2
 #define MINOR_VERSION     1
-#define BUILD_NUMBER      9
-#define PATCH_LEVEL       1
+#define BUILD_NUMBER      10
+#define PATCH_LEVEL       0
 #define CANDIDATE_VERSION false
 
 // Define SONAME to have the SCons build the put a specific SONAME into the

@@ -489,6 +489,9 @@ class CodeGenerator: public AstVisitor {
   // control destination.
   void ToBoolean(ControlDestination* destination);
 
+  // Generate code that computes a shortcutting logical operation.
+  void GenerateLogicalBooleanOperation(BinaryOperation* node);
+
   void GenericBinaryOperation(
       Token::Value op,
       StaticType* type,

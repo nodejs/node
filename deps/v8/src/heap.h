@@ -938,6 +938,8 @@ class Heap : public AllStatic {
 
   static void RecordStats(HeapStats* stats);
 
+  static int MaxObjectSizeInNewSpace() { return kMaxObjectSizeInNewSpace; }
+
  private:
   static int reserved_semispace_size_;
   static int max_semispace_size_;

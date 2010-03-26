@@ -465,6 +465,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\flow-graph.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\flow-graph.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\frame-element.cc"
 				>
 			</File>

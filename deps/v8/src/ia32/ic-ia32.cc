@@ -73,11 +73,10 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   // Check for the absence of an interceptor.
   // Load the map into r0.
   __ mov(r0, FieldOperand(receiver, JSObject::kMapOffset));
-  // Test the has_named_interceptor bit in the map.
-  __ test(FieldOperand(r0, Map::kInstanceAttributesOffset),
-          Immediate(1 << (Map::kHasNamedInterceptor + (3 * 8))));
 
-  // Jump to miss if the interceptor bit is set.
+  // Bail out if the receiver has a named interceptor.
+  __ test(FieldOperand(r0, Map::kBitFieldOffset),
+          Immediate(1 << Map::kHasNamedInterceptor));
   __ j(not_zero, miss_label, not_taken);
 
   // Bail out if we have a JS global proxy object.
@@ -202,16 +201,9 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   __ xor_(r0, Operand(r1));
 
   // Compute capacity mask.
-  const int kCapacityOffset =
-      NumberDictionary::kHeaderSize +
-      NumberDictionary::kCapacityIndex * kPointerSize;
-  __ mov(r1, FieldOperand(elements, kCapacityOffset));
+  __ mov(r1, FieldOperand(elements, NumberDictionary::kCapacityOffset));
   __ shr(r1, kSmiTagSize);  // convert smi to int
   __ dec(r1);
-
-  const int kElementsStartOffset =
-      NumberDictionary::kHeaderSize +
-      NumberDictionary::kElementsStartIndex * kPointerSize;
 
   // Generate an unrolled loop that performs a few probes before giving up.
   const int kProbes = 4;
@@ -232,7 +224,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
     __ cmp(key, FieldOperand(elements,
                              r2,
                              times_pointer_size,
-                             kElementsStartOffset));
+                             NumberDictionary::kElementsStartOffset));
     if (i != (kProbes - 1)) {
       __ j(equal, &done, taken);
     } else {
@@ -242,14 +234,16 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
 
   __ bind(&done);
   // Check that the value is a normal propety.
-  const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
+  const int kDetailsOffset =
+      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   ASSERT_EQ(NORMAL, 0);
   __ test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
           Immediate(PropertyDetails::TypeField::mask() << kSmiTagSize));
   __ j(not_zero, miss);
 
   // Get the value at the masked, scaled index.
-  const int kValueOffset = kElementsStartOffset + kPointerSize;
+  const int kValueOffset =
+      NumberDictionary::kElementsStartOffset + kPointerSize;
   __ mov(key, FieldOperand(elements, r2, times_pointer_size, kValueOffset));
 }
 

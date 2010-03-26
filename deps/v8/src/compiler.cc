@@ -34,6 +34,7 @@
 #include "data-flow.h"
 #include "debug.h"
 #include "fast-codegen.h"
+#include "flow-graph.h"
 #include "full-codegen.h"
 #include "liveedit.h"
 #include "oprofile-agent.h"
@@ -235,27 +236,19 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
     return Handle<SharedFunctionInfo>::null();
   }
 
-#if defined ENABLE_LOGGING_AND_PROFILING || defined ENABLE_OPROFILE_AGENT
-  // Log the code generation for the script. Check explicit whether logging is
-  // to avoid allocating when not required.
-  if (Logger::is_logging() || OProfileAgent::is_enabled()) {
-    if (script->name()->IsString()) {
-      SmartPointer<char> data =
-          String::cast(script->name())->ToCString(DISALLOW_NULLS);
-      LOG(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
-                          *code, *data));
-      OProfileAgent::CreateNativeCodeRegion(*data,
-                                            code->instruction_start(),
-                                            code->instruction_size());
-    } else {
-      LOG(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
-                          *code, ""));
-      OProfileAgent::CreateNativeCodeRegion(is_eval ? "Eval" : "Script",
-                                            code->instruction_start(),
-                                            code->instruction_size());
-    }
+  if (script->name()->IsString()) {
+    LOG(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
+                        *code, String::cast(script->name())));
+    OPROFILE(CreateNativeCodeRegion(String::cast(script->name()),
+                                    code->instruction_start(),
+                                    code->instruction_size()));
+  } else {
+    LOG(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
+                        *code, ""));
+    OPROFILE(CreateNativeCodeRegion(is_eval ? "Eval" : "Script",
+                                    code->instruction_start(),
+                                    code->instruction_size()));
   }
-#endif
 
   // Allocate function.
   Handle<SharedFunctionInfo> result =
@@ -443,14 +436,12 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
     return false;
   }
 
-#if defined ENABLE_LOGGING_AND_PROFILING || defined ENABLE_OPROFILE_AGENT
-  LogCodeCreateEvent(Logger::LAZY_COMPILE_TAG,
-                     name,
-                     Handle<String>(shared->inferred_name()),
-                     start_position,
-                     info->script(),
-                     code);
-#endif
+  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG,
+                            name,
+                            Handle<String>(shared->inferred_name()),
+                            start_position,
+                            info->script(),
+                            code);
 
   // Update the shared function info with the compiled code.
   shared->set_code(*code);
@@ -578,15 +569,12 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
     }
 
     // Function compilation complete.
-
-#if defined ENABLE_LOGGING_AND_PROFILING || defined ENABLE_OPROFILE_AGENT
-    LogCodeCreateEvent(Logger::FUNCTION_TAG,
-                       literal->name(),
-                       literal->inferred_name(),
-                       literal->start_position(),
-                       script,
-                       code);
-#endif
+    RecordFunctionCompilation(Logger::FUNCTION_TAG,
+                              literal->name(),
+                              literal->inferred_name(),
+                              literal->start_position(),
+                              script,
+                              code);
   }
 
   // Create a boilerplate function.
@@ -628,13 +616,12 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
 }
 
 
-#if defined ENABLE_LOGGING_AND_PROFILING || defined ENABLE_OPROFILE_AGENT
-void Compiler::LogCodeCreateEvent(Logger::LogEventsAndTags tag,
-                                  Handle<String> name,
-                                  Handle<String> inferred_name,
-                                  int start_position,
-                                  Handle<Script> script,
-                                  Handle<Code> code) {
+void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
+                                         Handle<String> name,
+                                         Handle<String> inferred_name,
+                                         int start_position,
+                                         Handle<Script> script,
+                                         Handle<Code> code) {
   // Log the code generation. If source information is available
   // include script name and line number. Check explicitly whether
   // logging is enabled as finding the line number is not free.
@@ -642,21 +629,21 @@ void Compiler::LogCodeCreateEvent(Logger::LogEventsAndTags tag,
     Handle<String> func_name(name->length() > 0 ? *name : *inferred_name);
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, start_position) + 1;
+      USE(line_num);
       LOG(CodeCreateEvent(tag, *code, *func_name,
                           String::cast(script->name()), line_num));
-      OProfileAgent::CreateNativeCodeRegion(*func_name,
-                                            String::cast(script->name()),
-                                            line_num,
-                                            code->instruction_start(),
-                                            code->instruction_size());
+      OPROFILE(CreateNativeCodeRegion(*func_name,
+                                      String::cast(script->name()),
+                                      line_num,
+                                      code->instruction_start(),
+                                      code->instruction_size()));
     } else {
       LOG(CodeCreateEvent(tag, *code, *func_name));
-      OProfileAgent::CreateNativeCodeRegion(*func_name,
-                                            code->instruction_start(),
-                                            code->instruction_size());
+      OPROFILE(CreateNativeCodeRegion(*func_name,
+                                      code->instruction_start(),
+                                      code->instruction_size()));
     }
   }
 }
-#endif
 
 } }  // namespace v8::internal

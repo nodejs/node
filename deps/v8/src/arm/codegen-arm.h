@@ -306,6 +306,9 @@ class CodeGenerator: public AstVisitor {
 
   void ToBoolean(JumpTarget* true_target, JumpTarget* false_target);
 
+  // Generate code that computes a shortcutting logical operation.
+  void GenerateLogicalBooleanOperation(BinaryOperation* node);
+
   void GenericBinaryOperation(Token::Value op,
                               OverwriteMode overwrite_mode,
                               int known_rhs = kUnknownIntValue);

@@ -72,11 +72,10 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   // Check for the absence of an interceptor.
   // Load the map into r0.
   __ movq(r0, FieldOperand(r1, JSObject::kMapOffset));
-  // Test the has_named_interceptor bit in the map.
-  __ testl(FieldOperand(r0, Map::kInstanceAttributesOffset),
-          Immediate(1 << (Map::kHasNamedInterceptor + (3 * 8))));
 
-  // Jump to miss if the interceptor bit is set.
+  // Bail out if the receiver has a named interceptor.
+  __ testl(FieldOperand(r0, Map::kBitFieldOffset),
+           Immediate(1 << Map::kHasNamedInterceptor));
   __ j(not_zero, miss_label);
 
   // Bail out if we have a JS global proxy object.
@@ -201,16 +200,9 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   __ xorl(r0, r1);
 
   // Compute capacity mask.
-  const int kCapacityOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kCapacityIndex * kPointerSize;
-  __ movq(r1, FieldOperand(elements, kCapacityOffset));
+  __ movq(r1, FieldOperand(elements, NumberDictionary::kCapacityOffset));
   __ SmiToInteger32(r1, r1);
   __ decl(r1);
-
-  const int kElementsStartOffset =
-      NumberDictionary::kHeaderSize +
-      NumberDictionary::kElementsStartIndex * kPointerSize;
 
   // Generate an unrolled loop that performs a few probes before giving up.
   const int kProbes = 4;
@@ -231,7 +223,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
     __ cmpq(key, FieldOperand(elements,
                               r2,
                               times_pointer_size,
-                              kElementsStartOffset));
+                              NumberDictionary::kElementsStartOffset));
     if (i != (kProbes - 1)) {
       __ j(equal, &done);
     } else {
@@ -241,14 +233,16 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
 
   __ bind(&done);
   // Check that the value is a normal propety.
-  const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
+  const int kDetailsOffset =
+      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   ASSERT_EQ(NORMAL, 0);
   __ Test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
           Smi::FromInt(PropertyDetails::TypeField::mask()));
   __ j(not_zero, miss);
 
   // Get the value at the masked, scaled index.
-  const int kValueOffset = kElementsStartOffset + kPointerSize;
+  const int kValueOffset =
+      NumberDictionary::kElementsStartOffset + kPointerSize;
   __ movq(r0, FieldOperand(elements, r2, times_pointer_size, kValueOffset));
 }
 
@@ -1404,7 +1398,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   // Check for non-global object that requires access check.
   __ testl(FieldOperand(rbx, Map::kBitFieldOffset),
-          Immediate(1 << Map::kIsAccessCheckNeeded));
+           Immediate(1 << Map::kIsAccessCheckNeeded));
   __ j(not_zero, &miss);
 
   // Search the dictionary placing the result in rax.

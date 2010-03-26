@@ -37,6 +37,14 @@
 // system headers (they have __uint64_t), but is defined
 // in V8's headers.
 #include <opagent.h>  // NOLINT
+
+#define OPROFILE(Call)                             \
+  do {                                             \
+    if (v8::internal::OProfileAgent::is_enabled()) \
+      v8::internal::OProfileAgent::Call;           \
+  } while (false)
+#else
+#define OPROFILE(Call) ((void) 0)
 #endif
 
 namespace v8 {
@@ -46,13 +54,13 @@ class OProfileAgent {
  public:
   static bool Initialize();
   static void TearDown();
+#ifdef ENABLE_OPROFILE_AGENT
   static void CreateNativeCodeRegion(const char* name,
                                      const void* ptr, unsigned int size);
   static void CreateNativeCodeRegion(String* name,
                                      const void* ptr, unsigned int size);
   static void CreateNativeCodeRegion(String* name, String* source, int line_num,
                                      const void* ptr, unsigned int size);
-#ifdef ENABLE_OPROFILE_AGENT
   static bool is_enabled() { return handle_ != NULL; }
 
  private:
