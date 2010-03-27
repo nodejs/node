@@ -39,6 +39,8 @@ test-internet: all
 benchmark: all
 	build/default/node benchmark/run.js
 
+# http://rtomayko.github.com/ronn
+# gem install ronn
 doc: doc/node.1 doc/api.html doc/index.html doc/changelog.html
 
 doc/api.html: doc/api.markdown
