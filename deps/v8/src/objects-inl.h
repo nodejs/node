@@ -255,6 +255,16 @@ bool String::IsTwoByteRepresentation() {
 }
 
 
+bool String::IsExternalTwoByteStringWithAsciiChars() {
+  if (!IsExternalTwoByteString()) return false;
+  const uc16* data = ExternalTwoByteString::cast(this)->resource()->data();
+  for (int i = 0, len = length(); i < len; i++) {
+    if (data[i] > kMaxAsciiCharCode) return false;
+  }
+  return true;
+}
+
+
 bool StringShape::IsCons() {
   return (type_ & kStringRepresentationMask) == kConsStringTag;
 }

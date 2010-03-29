@@ -3667,6 +3667,13 @@ class JSRegExp: public JSObject {
       FixedArray::kHeaderSize + kIrregexpUC16CodeIndex * kPointerSize;
   static const int kIrregexpCaptureCountOffset =
       FixedArray::kHeaderSize + kIrregexpCaptureCountIndex * kPointerSize;
+
+  // In-object fields.
+  static const int kSourceFieldIndex = 0;
+  static const int kGlobalFieldIndex = 1;
+  static const int kIgnoreCaseFieldIndex = 2;
+  static const int kMultilineFieldIndex = 3;
+  static const int kLastIndexFieldIndex = 4;
 };
 
 
@@ -3918,6 +3925,13 @@ class String: public HeapObject {
 
   inline bool IsAsciiRepresentation();
   inline bool IsTwoByteRepresentation();
+
+  // Check whether this string is an external two-byte string that in
+  // fact contains only ascii characters.
+  //
+  // Such strings may appear when the embedder prefers two-byte
+  // representations even for ascii data.
+  inline bool IsExternalTwoByteStringWithAsciiChars();
 
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);

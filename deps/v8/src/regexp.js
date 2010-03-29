@@ -71,32 +71,10 @@ function DoConstructRegExp(object, pattern, flags, isConstructorCall) {
     }
   }
 
-  if (isConstructorCall) {
-    // ECMA-262, section 15.10.7.1.
-    %SetProperty(object, 'source', pattern,
-                 DONT_DELETE |  READ_ONLY | DONT_ENUM);
-
-    // ECMA-262, section 15.10.7.2.
-    %SetProperty(object, 'global', global, DONT_DELETE | READ_ONLY | DONT_ENUM);
-
-    // ECMA-262, section 15.10.7.3.
-    %SetProperty(object, 'ignoreCase', ignoreCase,
-                 DONT_DELETE | READ_ONLY | DONT_ENUM);
-
-    // ECMA-262, section 15.10.7.4.
-    %SetProperty(object, 'multiline', multiline,
-                 DONT_DELETE | READ_ONLY | DONT_ENUM);
-
-    // ECMA-262, section 15.10.7.5.
-    %SetProperty(object, 'lastIndex', 0, DONT_DELETE | DONT_ENUM);
-  } else { // RegExp is being recompiled via RegExp.prototype.compile.
-    %IgnoreAttributesAndSetProperty(object, 'source', pattern);
-    %IgnoreAttributesAndSetProperty(object, 'global', global);
-    %IgnoreAttributesAndSetProperty(object, 'ignoreCase', ignoreCase);
-    %IgnoreAttributesAndSetProperty(object, 'multiline', multiline);
-    %IgnoreAttributesAndSetProperty(object, 'lastIndex', 0);
+  if (!isConstructorCall) {
     regExpCache.type = 'none';
   }
+  %RegExpInitializeObject(object, pattern, global, ignoreCase, multiline);
 
   // Call internal function to compile the pattern.
   %RegExpCompile(object, pattern, flags);

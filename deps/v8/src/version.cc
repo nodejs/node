@@ -33,8 +33,8 @@
 // NOTE these macros are used by the SCons build script so their names
 // cannot be changed without changing the SCons build script.
 #define MAJOR_VERSION     2
-#define MINOR_VERSION     1
-#define BUILD_NUMBER      10
+#define MINOR_VERSION     2
+#define BUILD_NUMBER      0
 #define PATCH_LEVEL       0
 #define CANDIDATE_VERSION false
 
