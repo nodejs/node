@@ -149,11 +149,6 @@ class ZoneScopeInfo;
   V(number_symbol, "number")                                             \
   V(Number_symbol, "Number")                                             \
   V(RegExp_symbol, "RegExp")                                             \
-  V(source_symbol, "source")                                             \
-  V(global_symbol, "global")                                             \
-  V(ignore_case_symbol, "ignoreCase")                                    \
-  V(multiline_symbol, "multiline")                                       \
-  V(last_index_symbol, "lastIndex")                                      \
   V(object_symbol, "object")                                             \
   V(prototype_symbol, "prototype")                                       \
   V(string_symbol, "string")                                             \

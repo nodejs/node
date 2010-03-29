@@ -28,7 +28,7 @@
 #ifndef V8_FRAME_ELEMENT_H_
 #define V8_FRAME_ELEMENT_H_
 
-#include "type-info.h"
+#include "type-info-inl.h"
 #include "macro-assembler.h"
 #include "zone.h"
 

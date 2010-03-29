@@ -130,7 +130,7 @@ class TypeInfo {
     return false;
   }
 
-  static TypeInfo TypeFromValue(Handle<Object> value);
+  static inline TypeInfo TypeFromValue(Handle<Object> value);
 
   inline bool IsUnknown() {
     return type_ == kUnknownType;

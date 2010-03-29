@@ -495,9 +495,7 @@ BUILTIN(ArrayShift) {
   }
 
   if (Heap::new_space()->Contains(elms)) {
-    // As elms still in the same space they used to be (new space),
-    // there is no need to update remembered set.
-    array->set_elements(LeftTrimFixedArray(elms), SKIP_WRITE_BARRIER);
+    array->set_elements(LeftTrimFixedArray(elms));
   } else {
     // Shift the elements.
     AssertNoAllocation no_gc;

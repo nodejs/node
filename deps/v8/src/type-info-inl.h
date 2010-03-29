@@ -25,7 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#ifndef V8_TYPE_INFO_INL_H_
+#define V8_TYPE_INFO_INL_H_
+
 #include "type-info.h"
 #include "objects-inl.h"
 
@@ -49,3 +51,5 @@ TypeInfo TypeInfo::TypeFromValue(Handle<Object> value) {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TYPE_INFO_INL_H_
