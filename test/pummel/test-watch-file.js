@@ -9,12 +9,18 @@ var f2 = path.join(fixturesDir, "x2.txt");
 puts("watching for changes of " + f);
 
 var changes = 0;
-fs.watchFile(f, function (curr, prev) {
-  puts(f + " change");
-  changes++;
-  assert.ok(curr.mtime != prev.mtime);
-  fs.unwatchFile(f);
-});
+function watchFile () {
+  fs.watchFile(f, function (curr, prev) {
+    puts(f + " change");
+    changes++;
+    assert.ok(curr.mtime != prev.mtime);
+    fs.unwatchFile(f);
+    watchFile();
+    fs.unwatchFile(f);
+  });
+}
+
+watchFile();
 
 
 var fd = fs.openSync(f, "w+");
