@@ -13,7 +13,7 @@ OBJ = ${SRC:.c=.o}
 NAME=libcoupling
 OUTPUT_A=$(NAME).a
 
-all: $(OUTPUT_A) 
+all: $(OUTPUT_A)
 
 $(OUTPUT_A): $(OBJ)
 	$(AR) cru $(OUTPUT_A) $(OBJ)
@@ -30,4 +30,4 @@ test: test.c $(OUTPUT_A)
 clean:
 	rm -f $(OUTPUT_A) *.o test
 
-.PHONY: all clean 
+.PHONY: all clean

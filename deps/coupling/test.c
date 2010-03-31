@@ -47,12 +47,12 @@ main (int argc, char *argv[])
       printf("test.c select(): %s\n", strerror(errno));
       exit(1);
     }
-    
+
     if (FD_ISSET(stderr_fd, &exceptfds)) {
-      printf("exception on stderr fd\n"); 
+      printf("exception on stderr fd\n");
       exit(1);
     }
-    
+
     if (FD_ISSET(stderr_fd, &writefds)) {
       r = write(stderr_fd, msg, MIN(size - written, CHUNKSIZE));
       if (r < 0 && errno != EAGAIN) {

@@ -1,7 +1,7 @@
 /* Copyright (c) 2009 Ryan Dahl (ry@tinyclouds.org)
  *
  * All rights reserved.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -9,21 +9,21 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "coupling.h"
 
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/select.h>
 #include <stdlib.h>
@@ -48,8 +48,8 @@ typedef struct {
   int head;
   int tail;
   int size;
-  char buf[BUFSIZE]; 
-} ring_buffer; 
+  char buf[BUFSIZE];
+} ring_buffer;
 
 static inline void
 ring_buffer_inspect (ring_buffer *ring)
@@ -94,7 +94,7 @@ ring_buffer_pull (ring_buffer *ring, int fd)
   } else {
     iov[0].iov_len = BUFSIZE - ring->tail;
     if (ring->head != 0) {
-      iovcnt = 2; 
+      iovcnt = 2;
       iov[1].iov_base = ring->buf;
       iov[1].iov_len = ring->head;
     }
@@ -126,7 +126,7 @@ ring_buffer_push (ring_buffer *ring, int fd)
   } else {
     iov[0].iov_len = BUFSIZE - ring->head;
     if (ring->tail != 0) {
-      iovcnt = 2; 
+      iovcnt = 2;
       iov[1].iov_base = ring->buf;
       iov[1].iov_len = ring->tail;
     }
@@ -153,7 +153,7 @@ ring_buffer_push (ring_buffer *ring, int fd)
  *
  *     while (!ring.empty) {
  *       write(pipe) // non-blocking
- *       select(pipe, writable) 
+ *       select(pipe, writable)
  *     }
  *   }
  *
@@ -209,7 +209,7 @@ pull_pump (int pullfd, int pushfd)
         return;
       }
 
-      /* Select for writablity on the pipe end. 
+      /* Select for writablity on the pipe end.
        * Very rarely will this stick.
        */
       r = select(pushfd+1, NULL, &writefds, &exceptfds, NULL);
@@ -261,7 +261,7 @@ push_pump (int pullfd, int pushfd)
 
   ring_buffer_init(&ring);
 
-  /* The pipe is open or there is data left to be pushed out 
+  /* The pipe is open or there is data left to be pushed out
    * NOTE: if pushfd (STDOUT_FILENO) ever errors out, then we just exit the
    * loop.
    */
@@ -356,7 +356,7 @@ create_coupling (int fd, int is_pull)
 
   struct coupling *c = malloc(sizeof(struct coupling));
   if (!c) return NULL;
-  
+
   int r = pipe(pipefd);
   if (r < 0) return NULL;
 
@@ -398,13 +398,13 @@ coupling_new_push (int fd)
   return create_coupling(fd, 0);
 }
 
-int 
+int
 coupling_nonblocking_fd (struct coupling *c)
 {
   return c->exposedfd;
 }
 
-void 
+void
 coupling_join (struct coupling *c)
 {
   int r = pthread_join(c->tid, NULL);
