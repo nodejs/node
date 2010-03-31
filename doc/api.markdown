@@ -764,6 +764,7 @@ Stops a interval from triggering.
 
     sys.puts("Started timer.");
 
+
 ## Child Processes
 
 Node provides a tri-directional `popen(3)` facility through the `ChildProcess`
@@ -781,55 +782,169 @@ Child processes always have three streams associated with them. `child.stdin`,
 
  - **`exit`** - `callback(code)`:
    This event is emitted after the child process ends. `code` is the final
-   exit code of the process. One can be assured that after this event is
-   emitted that the `"output"` and `"error"` callbacks will no longer be made.
+   exit code of the process.  After this event is emitted, the `"output"`
+   and `"error"` callbacks will no longer be made.
 
-### require("child_process").spawn(command, args=[], env=process.env)
+
+### child_process.spawn(command, args, env)
 
 Launches a new process with the given `command`, command line arguments, and
-environmental variables. For example:
+environment variables.  If omitted, `args` defaults to an empty Array, and `env`
+defaults to `process.env`.
 
-    // Pipe a child process output to
-    // parent process output
-    var ls = spawn("ls", ["-lh", "/usr"]);
-    ls.stdout.addListener('data', function (data) {
-      process.stdout.write(data);
+Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit code:
+
+    var sys   = require("sys"),
+        spawn = require("child_process").spawn,
+        ls    = spawn("ls", ["-lh", "/usr"]);
+
+    ls.stdout.addListener("data", function (data) {
+      sys.print("stdout: " + data);
     });
+
+    ls.stderr.addListener("data", function (data) {
+      sys.print("stderr: " + data);
+    });
+
+    ls.addListener("exit", function (code) {
+      sys.puts("child process exited with code " + code);
+    });
+
+
+Example of checking for failed exec:
+
+    var sys   = require("sys"),
+        spawn = require("child_process").spawn,
+        child = spawn("bad_command");
+
+    child.stderr.addListener("data", function (data) {
+      if (/^execvp\(\)/.test(data.asciiSlice(0,data.length))) {
+        sys.puts("Failed to start child process.");
+      }
+    });
+
+
+See also: `child_process.exec()`
+
+
+### child.kill(signal)
+
+Send a signal to the child process. If no argument is given, the process will
+be sent `"SIGTERM"`. See `signal(7)` for a list of available signals.
+
+    var sys   = require("sys"),
+        spawn = require("child_process").spawn,
+        grep  = spawn("grep", ["ssh"]);
+
+    grep.addListener("exit", function (code) {
+      sys.puts("child process exited with code " + code);
+    });
+
+    // send SIGHUP to process
+    grep.kill("SIGHUP");
+
+Note that while the function is called `kill`, the signal delivered to the child
+process may not actually kill it.  `kill` really just sends a signal to a process.
+
+See `kill(2)`
+
 
 ### child.pid
 
 The PID of the child process.
 
-### child.write(data, encoding="ascii")
+Example:
+
+    var sys   = require("sys"),
+        spawn = require("child_process").spawn,
+        grep  = spawn("grep", ["ssh"]);
+
+    sys.puts("Spawned child pid: " + grep.pid);
+    grep.stdin.close();
+
+
+### child.stdin.write(data, encoding)
 
 Write data to the child process's `stdin`. The second argument is optional and
 specifies the encoding: possible values are `"utf8"`, `"ascii"`, and
 `"binary"`.
 
-### child.close()
+Example: A very elaborate way to run "ps ax | grep ssh"
 
-Closes the process's `stdin` stream.
+    var sys   = require("sys"),
+        spawn = require("child_process").spawn,
+        ps    = spawn("ps", ["ax"]),
+        grep  = spawn("grep", ["ssh"]);
 
-### child.kill(signal="SIGTERM")
-
-Send a signal to the child process. If no argument is given, the process will
-be sent `"SIGTERM"`. See signal(7) for a list of available signals.
-
-
-### require("child_process").exec(command, callback)
-
-High-level way to executes a command as a child process and buffer the
-output and return it in a callback.
-
-    var exec = require("child_process").exec;
-    exec("ls /", function (err, stdout, stderr) {
-      if (err) throw err;
-      sys.puts(stdout);
+    ps.stdout.addListener("data", function (data) {
+      grep.stdin.write(data);
     });
 
-The callback gets the arguments `(err, stdout, stderr)`. On success +err+
-will be `null`. On error `err` will be an instance of `Error` and `err.code`
+    ps.stderr.addListener("data", function (data) {
+      sys.print("ps stderr: " + data);
+    });
+
+    ps.addListener("exit", function (code) {
+      if (code !== 0) {
+        sys.puts("ps process exited with code " + code);
+      }
+      grep.stdin.close();
+    });
+
+    grep.stdout.addListener("data", function (data) {
+      sys.print(data);
+    });
+
+    grep.stderr.addListener("data", function (data) {
+      sys.print("grep stderr: " + data);
+    });
+
+    grep.addListener("exit", function (code) {
+      if (code !== 0) {
+        sys.puts("grep process exited with code " + code);
+      }
+    });
+
+
+### child.stdin.close()
+
+Closes the child process's `stdin` stream.  This often causes the child process to terminate.
+
+Example:
+
+    var sys   = require("sys"),
+        spawn = require("child_process").spawn,
+        grep  = spawn("grep", ["ssh"]);
+
+    grep.addListener("exit", function (code) {
+      sys.puts("child process exited with code " + code);
+    });
+
+    grep.stdin.close();
+
+
+### child_process.exec(command, callback)
+
+High-level way to execute a command as a child process, buffer the
+output, and return it all in a callback.
+
+    var sys   = require("sys"),
+        exec  = require("child_process").exec,
+        child;
+    
+    child = exec("cat *.js bad_file | wc -l", function (error, stdout, stderr) {
+      sys.print("stdout: " + stdout);
+      sys.print("stderr: " + stderr);
+      if (error !== null) {
+        sys.puts("exec error: " + error);
+      }
+    });
+
+The callback gets the arguments `(error, stdout, stderr)`. On success, `error`
+will be `null`.  On error, `error` will be an instance of `Error` and `err.code`
 will be the exit code of the child process.
+
+
 
 ## File System
 
