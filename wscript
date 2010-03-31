@@ -168,6 +168,16 @@ def configure(conf):
 
   conf.define("HAVE_CONFIG_H", 1)
 
+  if sys.platform.startswith("sunos"):
+    conf.env.append_value ('CCFLAGS', '-threads')
+    conf.env.append_value ('CXXFLAGS', '-threads')
+    #conf.env.append_value ('LINKFLAGS', ' -threads')
+  else:
+    threadflags='-pthread'
+    conf.env.append_value ('CCFLAGS', threadflags)
+    conf.env.append_value ('CXXFLAGS', threadflags)
+    conf.env.append_value ('LINKFLAGS', threadflags)
+
   conf.env.append_value("CCFLAGS", "-DX_STACKSIZE=%d" % (1024*64))
 
   # LFS
@@ -272,10 +282,8 @@ def build_v8(bld):
   v8.uselib = "EXECINFO"
   bld.env["CPPPATH_V8"] = "deps/v8/include"
   t = join(bld.srcnode.abspath(bld.env_of_name("default")), v8.target)
-  if sys.platform.startswith("sunos"):
-    bld.env_of_name('default')["LINKFLAGS_V8"] = ["-mt", t]
-  else:
-    bld.env_of_name('default')["LINKFLAGS_V8"] = ["-pthread", t]
+  bld.env_of_name('default').append_value("LINKFLAGS_V8", t)
+
 
   ### v8 debug
   if bld.env["USE_DEBUG"]:
@@ -284,10 +292,7 @@ def build_v8(bld):
     v8_debug.target = bld.env["staticlib_PATTERN"] % "v8_g"
     v8_debug.uselib = "EXECINFO"
     t = join(bld.srcnode.abspath(bld.env_of_name("debug")), v8_debug.target)
-    if sys.platform.startswith("sunos"):
-      bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-mt", t]
-    else:
-      bld.env_of_name('debug')["LINKFLAGS_V8"] = ["-pthread", t]
+    bld.env_of_name('debug').append_value("LINKFLAGS_V8", t)
 
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
