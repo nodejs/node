@@ -50,11 +50,11 @@ static Persistent<FunctionTemplate> recv_msg_template;
 
 
 #define FD_ARG(a)                                        \
-  if (!(a)->IsInt32()) {                                 \
+  int fd;                                                \
+  if (!(a)->IsInt32() || (fd = (a)->Int32Value()) < 0) { \
     return ThrowException(Exception::TypeError(          \
           String::New("Bad file descriptor argument"))); \
-  }                                                      \
-  int fd = (a)->Int32Value();
+  }
 
 
 static inline const char *errno_string(int errorno) {
