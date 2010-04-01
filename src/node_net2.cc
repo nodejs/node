@@ -969,7 +969,9 @@ static Handle<Value> Write(const Arguments& args) {
   ssize_t written = write(fd, (char*)buffer->data() + off, len);
 
   if (written < 0) {
-    if (errno == EAGAIN || errno == EINTR) return Null();
+    if (errno == EAGAIN || errno == EINTR) {
+      return scope.Close(Integer::New(0));
+    }
     return ThrowException(ErrnoException(errno, "write"));
   }
 
