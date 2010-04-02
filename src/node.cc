@@ -32,6 +32,9 @@
 #include <node_stdio.h>
 #include <node_natives.h>
 #include <node_version.h>
+#ifdef HAVE_OPENSSL
+#include <node_crypto.h>
+#endif
 
 #include <v8-debug.h>
 
@@ -1179,7 +1182,16 @@ static Handle<Value> Binding(const Arguments& args) {
       Buffer::Initialize(exports);
       binding_cache->Set(module, exports);
     }
-
+  #ifdef HAVE_OPENSSL
+  } else if (!strcmp(*module_v, "crypto")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      InitCrypto(exports);
+      binding_cache->Set(module, exports);
+    }
+  #endif
   } else if (!strcmp(*module_v, "natives")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();

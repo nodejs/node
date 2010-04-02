@@ -134,6 +134,13 @@ def configure(conf):
     if sys.platform.startswith("freebsd"):
       conf.fatal("Install the libexecinfo port from /usr/ports/devel/libexecinfo.")
 
+  if conf.check_cfg(package='openssl',
+                    args='--cflags --libs',
+                    #libpath=['/usr/lib', '/usr/local/lib'],
+                    uselib_store='OPENSSL'):
+    conf.env["USE_OPENSSL"] = True
+    conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
+
   if conf.check_cfg(package='gnutls',
                     args='--cflags --libs',
                     atleast_version='2.5.0',
@@ -415,6 +422,9 @@ def build(bld):
     src/node_timer.cc
     src/node_idle_watcher.cc
   """
+  if bld.env["USE_OPENSSL"]:
+    node.source += "src/node_crypto.cc"
+
   if not bld.env["USE_SYSTEM"]:
     node.includes = """
       src/ 
@@ -428,7 +438,7 @@ def build(bld):
     """
     node.add_objects = 'ev eio evcom http_parser coupling'
     node.uselib_local = ''
-    node.uselib = 'GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
+    node.uselib = 'OPENSSL GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
   else:
     node.includes = """
       src/
@@ -439,7 +449,7 @@ def build(bld):
     """
     node.add_objects = 'eio evcom http_parser coupling'
     node.uselib_local = 'eio'
-    node.uselib = 'EV GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
+    node.uselib = 'EV OPENSSL GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
 
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'
