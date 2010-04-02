@@ -218,7 +218,8 @@ ssize_t DecodeBytes(v8::Handle<v8::Value> val, enum encoding encoding) {
 #endif
 
 // Returns number of bytes written.
-ssize_t DecodeWrite(char *buf, size_t buflen,
+ssize_t DecodeWrite(char *buf,
+                    size_t buflen,
                     v8::Handle<v8::Value> val,
                     enum encoding encoding) {
   HandleScope scope;
