@@ -3,7 +3,7 @@ require('../common');
 var
   path = require('path'),
   fs = require('fs'),
-  fn = path.join(fixturesDir, 'multipart.js'),
+  fn = path.join(fixturesDir, 'test_ca.pem'),
   file = fs.createReadStream(fn),
 
   callbacks = {
