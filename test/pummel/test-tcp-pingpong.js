@@ -11,10 +11,12 @@ function pingPongTest (port, host, on_complete) {
   var server = net.createServer(function (socket) {
     assert.equal(true, socket.remoteAddress !== null);
     assert.equal(true, socket.remoteAddress !== undefined);
-    if (host === "127.0.0.1")
+    if (host === "127.0.0.1" || host === "localhost" || !host) {
       assert.equal(socket.remoteAddress, "127.0.0.1");
-    else if (host == null)
+    } else {
+      puts('host = ' + host + ', remoteAddress = ' + socket.remoteAddress);
       assert.equal(socket.remoteAddress, "::1");
+    }
 
     socket.setEncoding("utf8");
     socket.setNoDelay();

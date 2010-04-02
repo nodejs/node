@@ -38,8 +38,6 @@ static Persistent<String> errno_symbol;
 static Persistent<String> syscall_symbol;
 
 static Persistent<String> fd_symbol;
-static Persistent<String> remote_address_symbol;
-static Persistent<String> remote_port_symbol;
 static Persistent<String> address_symbol;
 static Persistent<String> port_symbol;
 static Persistent<String> type_symbol;
@@ -467,20 +465,27 @@ static Handle<Value> Socket(const Arguments& args) {
   HandleScope scope;
 
   // default to TCP
-  int domain = PF_INET6;
+  int domain = PF_INET;
   int type = SOCK_STREAM;
 
   if (args[0]->IsString()) {
     String::Utf8Value t(args[0]->ToString());
+    // FIXME optimize this cascade.
     if (0 == strcasecmp(*t, "TCP")) {
+      domain = PF_INET;
+      type = SOCK_STREAM;
+    } else if (0 == strcasecmp(*t, "TCP4")) {
+      domain = PF_INET;
+      type = SOCK_STREAM;
+    } else if (0 == strcasecmp(*t, "TCP6")) {
       domain = PF_INET6;
+      type = SOCK_STREAM;
+    } else if (0 == strcasecmp(*t, "UNIX")) {
+      domain = PF_UNIX;
       type = SOCK_STREAM;
     } else if (0 == strcasecmp(*t, "UDP")) {
       domain = PF_INET6;
       type = SOCK_DGRAM;
-    } else if (0 == strcasecmp(*t, "UNIX")) {
-      domain = PF_UNIX;
-      type = SOCK_STREAM;
     } else {
       return ThrowException(Exception::Error(
             String::New("Unknown socket type.")));
@@ -505,13 +510,14 @@ static Handle<Value> Socket(const Arguments& args) {
 // (yes this is all to avoid one small heap alloc)
 static struct sockaddr *addr;
 static socklen_t addrlen;
-static struct sockaddr_un un;
-static struct sockaddr_in6 in6;
 static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
                                              Handle<Value> second,
-                                             struct in6_addr default_addr
-                                            ) {
-  if (first->IsString() && second->IsUndefined()) {
+                                             bool is_bind) {
+  static struct sockaddr_un un;
+  static struct sockaddr_in in;
+  static struct sockaddr_in6 in6;
+
+  if (first->IsString() && !second->IsString()) {
     // UNIX
     String::Utf8Value path(first->ToString());
 
@@ -528,36 +534,32 @@ static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
 
   } else {
     // TCP or UDP
-    int port = first->Int32Value();
+    memset(&in, 0, sizeof in);
     memset(&in6, 0, sizeof in6);
+
+    int port = first->Int32Value();
+    in.sin_port = in6.sin6_port = htons(port);  
+    in.sin_family = AF_INET;
+    in6.sin6_family = AF_INET6;
+
+    bool is_ipv4 = true;
+
     if (!second->IsString()) {
-      in6.sin6_addr = default_addr;
+      in.sin_addr.s_addr = htonl(is_bind ? INADDR_ANY : INADDR_LOOPBACK);
+      in6.sin6_addr = is_bind ? in6addr_any : in6addr_loopback;
     } else {
       String::Utf8Value ip(second->ToString());
 
-      char ipv6[255] = "::FFFF:";
-
-      if (inet_pton(AF_INET, *ip, &(in6.sin6_addr)) > 0) {
-        // If this is an IPv4 address then we need to change it
-        // to the IPv4-mapped-on-IPv6 format which looks like
-        //        ::FFFF:<IPv4  address>
-        // For more information see "Address Format" ipv6(7) and
-        // "BUGS" in inet_pton(3)
-        strcat(ipv6, *ip);
-      } else {
-        strcpy(ipv6, *ip);
-      }
-
-      if (inet_pton(AF_INET6, ipv6, &(in6.sin6_addr)) <= 0) {
-        return ErrnoException(errno, "inet_pton", "Invalid IP Address");
+      if (inet_pton(AF_INET, *ip, &(in.sin_addr)) <= 0) {
+        is_ipv4 = false;
+        if (inet_pton(AF_INET6, *ip, &(in6.sin6_addr)) <= 0) {
+          return ErrnoException(errno, "inet_pton", "Invalid IP Address");
+        }
       }
     }
 
-    in6.sin6_family = AF_INET6;
-    in6.sin6_port = htons(port);  
-
-    addr = (struct sockaddr*)&in6;
-    addrlen = sizeof in6;
+    addr = is_ipv4 ? (struct sockaddr*)&in : (struct sockaddr*)&in6;
+    addrlen = is_ipv4 ? sizeof in : sizeof in6;
   }
   return Handle<Value>();
 }
@@ -578,7 +580,7 @@ static Handle<Value> Bind(const Arguments& args) {
 
   FD_ARG(args[0])
 
-  Handle<Value> error = ParseAddressArgs(args[1], args[2], in6addr_any);
+  Handle<Value> error = ParseAddressArgs(args[1], args[2], true);
   if (!error.IsEmpty()) return ThrowException(error);
 
   int flags = 1;
@@ -658,7 +660,7 @@ static Handle<Value> Connect(const Arguments& args) {
 
   FD_ARG(args[0])
 
-  Handle<Value> error = ParseAddressArgs(args[1], args[2], in6addr_loopback);
+  Handle<Value> error = ParseAddressArgs(args[1], args[2], false);
   if (!error.IsEmpty()) return ThrowException(error);
 
   int r = connect(fd, addr, addrlen);
@@ -669,6 +671,31 @@ static Handle<Value> Connect(const Arguments& args) {
 
   return Undefined();
 }
+
+
+#define ADDRESS_TO_JS(info, address_storage) \
+do { \
+  char ip[INET6_ADDRSTRLEN]; \
+  int port; \
+  struct sockaddr_in *a4; \
+  struct sockaddr_in6 *a6; \
+  switch ((address_storage).ss_family) { \
+    case AF_INET6: \
+      a6 = (struct sockaddr_in6*)&(address_storage); \
+      inet_ntop(AF_INET6, &(a6->sin6_addr), ip, INET6_ADDRSTRLEN); \
+      port = ntohs(a6->sin6_port); \
+      (info)->Set(address_symbol, String::New(ip)); \
+      (info)->Set(port_symbol, Integer::New(port)); \
+      break; \
+    case AF_INET: \
+      a4 = (struct sockaddr_in*)&(address_storage); \
+      inet_ntop(AF_INET, &(a4->sin_addr), ip, INET6_ADDRSTRLEN); \
+      port = ntohs(a4->sin_port); \
+      (info)->Set(address_symbol, String::New(ip)); \
+      (info)->Set(port_symbol, Integer::New(port)); \
+      break; \
+  } \
+} while (0)
 
 
 static Handle<Value> GetSockName(const Arguments& args) {
@@ -687,17 +714,7 @@ static Handle<Value> GetSockName(const Arguments& args) {
 
   Local<Object> info = Object::New();
 
-  if (address_storage.ss_family == AF_INET6) {
-    struct sockaddr_in6 *a = (struct sockaddr_in6*)&address_storage;
-
-    char ip[INET6_ADDRSTRLEN];
-    inet_ntop(AF_INET6, &(a->sin6_addr), ip, INET6_ADDRSTRLEN);
-
-    int port = ntohs(a->sin6_port);
-
-    info->Set(address_symbol, String::New(ip));
-    info->Set(port_symbol, Integer::New(port));
-  }
+  ADDRESS_TO_JS(info, address_storage);
 
   return scope.Close(info);
 }
@@ -719,17 +736,7 @@ static Handle<Value> GetPeerName(const Arguments& args) {
 
   Local<Object> info = Object::New();
 
-  if (address_storage.ss_family == AF_INET6) {
-    struct sockaddr_in6 *a = (struct sockaddr_in6*)&address_storage;
-
-    char ip[INET6_ADDRSTRLEN];
-    inet_ntop(AF_INET6, &(a->sin6_addr), ip, INET6_ADDRSTRLEN);
-
-    int port = ntohs(a->sin6_port);
-
-    info->Set(remote_address_symbol, String::New(ip));
-    info->Set(remote_port_symbol, Integer::New(port));
-  }
+  ADDRESS_TO_JS(info, address_storage);
 
   return scope.Close(info);
 }
@@ -753,8 +760,8 @@ static Handle<Value> Listen(const Arguments& args) {
 // var peerInfo = t.accept(server_fd);
 //
 //   peerInfo.fd
-//   peerInfo.remoteAddress
-//   peerInfo.remotePort
+//   peerInfo.address
+//   peerInfo.port
 //
 // Returns a new nonblocking socket fd. If the listen queue is empty the
 // function returns null (wait for server_fd to become readable and try
@@ -784,17 +791,7 @@ static Handle<Value> Accept(const Arguments& args) {
 
   peer_info->Set(fd_symbol, Integer::New(peer_fd));
 
-  if (address_storage.ss_family == AF_INET6) {
-    struct sockaddr_in6 *a = (struct sockaddr_in6*)&address_storage;
-
-    char ip[INET6_ADDRSTRLEN];
-    inet_ntop(AF_INET6, &(a->sin6_addr), ip, INET6_ADDRSTRLEN);
-
-    int port = ntohs(a->sin6_port);
-
-    peer_info->Set(remote_address_symbol, String::New(ip));
-    peer_info->Set(remote_port_symbol, Integer::New(port));
-  }
+  ADDRESS_TO_JS(peer_info, address_storage);
 
   return scope.Close(peer_info);
 }
@@ -1226,28 +1223,28 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
 }
 
 
-static Handle<Value> NeedsLookup(const Arguments& args) {
+static Handle<Value> IsIP(const Arguments& args) {
   HandleScope scope;
-
-  if (args[0]->IsNull() || args[0]->IsUndefined()) return False();
+  
+  if (!args[0]->IsString()) {
+    return scope.Close(Integer::New(4));
+  }
 
   String::Utf8Value s(args[0]->ToString());
 
   // avoiding buffer overflows in the following strcat
   // 2001:0db8:85a3:08d3:1319:8a2e:0370:7334
   // 39 = max ipv6 address.
-  if (s.length() > INET6_ADDRSTRLEN) return True();
+  if (s.length() > INET6_ADDRSTRLEN) {
+    return scope.Close(Integer::New(0));
+  }
 
   struct sockaddr_in6 a;
 
-  if (inet_pton(AF_INET, *s, &(a.sin6_addr)) > 0) return False();
-  if (inet_pton(AF_INET6, *s, &(a.sin6_addr)) > 0) return False();
+  if (inet_pton(AF_INET, *s, &(a.sin6_addr)) > 0) return scope.Close(Integer::New(4));
+  if (inet_pton(AF_INET6, *s, &(a.sin6_addr)) > 0) return scope.Close(Integer::New(6));
 
-  char ipv6[255] = "::FFFF:";
-  strcat(ipv6, *s);
-  if (inet_pton(AF_INET6, ipv6, &(a.sin6_addr)) > 0) return False();
-
-  return True();
+  return scope.Close(Integer::New(0));
 }
 
 
@@ -1291,7 +1288,7 @@ void InitNet2(Handle<Object> target) {
   NODE_SET_METHOD(target, "getsockname", GetSockName);
   NODE_SET_METHOD(target, "getpeername", GetPeerName);
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
-  NODE_SET_METHOD(target, "needsLookup", NeedsLookup);
+  NODE_SET_METHOD(target, "isIP", IsIP);
   NODE_SET_METHOD(target, "errnoException", CreateErrnoException);
 
   target->Set(String::NewSymbol("ENOENT"), Integer::New(ENOENT));
@@ -1305,8 +1302,6 @@ void InitNet2(Handle<Object> target) {
   errno_symbol          = NODE_PSYMBOL("errno");
   syscall_symbol        = NODE_PSYMBOL("syscall");
   fd_symbol             = NODE_PSYMBOL("fd");
-  remote_address_symbol = NODE_PSYMBOL("remoteAddress");
-  remote_port_symbol    = NODE_PSYMBOL("remotePort");
   address_symbol        = NODE_PSYMBOL("address");
   port_symbol           = NODE_PSYMBOL("port");
 }
