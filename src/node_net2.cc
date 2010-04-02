@@ -1089,11 +1089,12 @@ static int AfterResolve(eio_req *req) {
   struct resolve_request * rreq = (struct resolve_request *)(req->data);
 
   HandleScope scope;
-  Local<Value> argv[1];
+  Local<Value> argv[2];
 
   if (req->result != 0) {
+    argv[1] = Array::New();
     if (req->result == EAI_NODATA) {
-      argv[0] = Array::New();
+      argv[0] = Local<Value>::New(Null());
     } else {
       argv[0] = ErrnoException(req->result,
                                "getaddrinfo",
@@ -1127,12 +1128,13 @@ static int AfterResolve(eio_req *req) {
       address = address->ai_next;
     }
 
-    argv[0] = results;
+    argv[0] = Local<Value>::New(Null());
+    argv[1] = results;
   }
 
   TryCatch try_catch;
 
-  rreq->cb->Call(Context::GetCurrent()->Global(), 1, argv);
+  rreq->cb->Call(Context::GetCurrent()->Global(), 2, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
