@@ -4,6 +4,8 @@
 #include <stdlib.h> // malloc, free
 #include <v8.h>
 
+#include <string.h> // memcpy
+
 #include <arpa/inet.h>  // htons, htonl
 
 #include <node.h>
@@ -225,6 +227,55 @@ Handle<Value> Buffer::Slice(const Arguments &args) {
 }
 
 
+// var bytesCopied = buffer.copy(target, targetStart, sourceStart, sourceEnd);
+Handle<Value> Buffer::Copy(const Arguments &args) {
+  HandleScope scope;
+
+  Buffer *source = ObjectWrap::Unwrap<Buffer>(args.This());
+
+  if (!Buffer::HasInstance(args[0])) {
+    return ThrowException(Exception::TypeError(String::New(
+            "First arg should be a Buffer")));
+  }
+
+  Buffer *target = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+
+  ssize_t target_start = args[1]->Int32Value();
+  ssize_t source_start = args[2]->Int32Value();
+  ssize_t source_end = args[3]->IsInt32() ? args[3]->Int32Value()
+                                          : source->length();
+
+  if (source_end < source_start) {
+    return ThrowException(Exception::Error(String::New(
+            "sourceEnd < sourceStart")));
+  }
+
+  if (target_start >= target->length()) {
+    return ThrowException(Exception::Error(String::New(
+            "targetStart out of bounds")));
+  }
+
+  if (source_start >= source->length()) {
+    return ThrowException(Exception::Error(String::New(
+            "sourceStart out of bounds")));
+  }
+
+  if (source_end > source->length()) {
+    return ThrowException(Exception::Error(String::New(
+            "sourceEnd out of bounds")));
+  }
+
+  ssize_t to_copy = MIN(source_end - source_start,
+                        target->length() - target_start);
+
+  memcpy((void*)(target->data() + target_start),
+         (const void*)(source->data() + source_start),
+         to_copy);
+
+  return scope.Close(Integer::New(to_copy));
+}
+
+
 // var charsWritten = buffer.utf8Write(string, offset);
 Handle<Value> Buffer::Utf8Write(const Arguments &args) {
   HandleScope scope;
@@ -414,6 +465,7 @@ void Buffer::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiWrite", Buffer::AsciiWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "binaryWrite", Buffer::BinaryWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "unpack", Buffer::Unpack);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "copy", Buffer::Copy);
 
   NODE_SET_METHOD(constructor_template->GetFunction(),
                   "byteLength",

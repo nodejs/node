@@ -17,6 +17,16 @@ for (var i = 0; i < 1024; i++) {
   assert.equal(i % 256, b[i]);
 }
 
+var c = new Buffer(512);
+
+var copied = b.copy(c, 0, 0, 512);
+assert.equal(512, copied);
+for (var i = 0; i < c.length; i++) {
+  print('.');
+  assert.equal(i % 256, c[i]);
+}
+
+
 var asciiString = "hello world";
 var offset = 100;
 for (var j = 0; j < 500; j++) {
