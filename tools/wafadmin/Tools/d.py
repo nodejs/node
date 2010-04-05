@@ -289,8 +289,8 @@ def apply_d_libs(self):
 		# object has ancestors to process (shared libraries): add them to the end of the list
 		if getattr(y, 'uselib_local', None):
 			lst = y.to_list(y.uselib_local)
-			if 'dshlib' in y.features or 'cprogram' in y.features:
-				lst = [x for x in lst if not 'cstaticlib' in self.name_to_obj(x).features]
+			if 'dshlib' in y.features or 'dprogram' in y.features:
+				lst = [x for x in lst if not 'dstaticlib' in self.name_to_obj(x).features]
 			tmp.extend(lst)
 
 		# link task and flags
@@ -386,6 +386,12 @@ def apply_d_vars(self):
 	# now process the library paths
 	# apply same path manipulation as used with import paths
 	for path in libpaths:
+		if not os.path.isabs(path):
+			node = self.path.find_resource(path)
+			if not node:
+				raise Utils.WafError('could not find libpath %r from %r' % (path, self))
+			path = node.abspath(self.env)
+
 		env.append_unique('DLINKFLAGS', libpath_st % path)
 
 	# add libraries

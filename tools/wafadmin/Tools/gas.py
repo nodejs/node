@@ -34,4 +34,5 @@ def asm_incflags(self):
 def detect(conf):
 	conf.find_program(['gas', 'as'], var='AS')
 	if not conf.env.AS: conf.env.AS = conf.env.CC
+	#conf.env.ASFLAGS = ['-c'] <- may be necesary for .S files
 

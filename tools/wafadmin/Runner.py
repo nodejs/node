@@ -190,11 +190,15 @@ class Parallel(object):
 			try:
 				st = tsk.runnable_status()
 			except Exception, e:
-				tsk.err_msg = Utils.ex_stack()
-				tsk.hasrun = EXCEPTION
 				self.processed += 1
+				if self.stop and not Options.options.keep:
+					tsk.hasrun = SKIPPED
+					self.manager.add_finished(tsk)
+					continue
 				self.error_handler(tsk)
 				self.manager.add_finished(tsk)
+				tsk.hasrun = EXCEPTION
+				tsk.err_msg = Utils.ex_stack()
 				continue
 
 			if st == ASK_LATER:

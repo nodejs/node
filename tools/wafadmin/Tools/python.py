@@ -55,7 +55,7 @@ def init_pyembed(self):
 
 @extension(EXT_PY)
 def process_py(self, node):
-	if not (self.bld.is_install or self.install_path):
+	if not (self.bld.is_install and self.install_path):
 		return
 	def inst_py(ctx):
 		install_pyfile(self, node)
@@ -122,7 +122,7 @@ def _get_python_variables(python_exe, variables, imports=['import sys']):
 	except KeyError:
 		pass
 	proc = Utils.pproc.Popen([python_exe, "-c", '\n'.join(program)], stdout=Utils.pproc.PIPE, env=os_env)
-	output = proc.communicate()[0].split("\n")
+	output = proc.communicate()[0].split("\n") # do not touch, python3
 	if proc.returncode:
 		if Options.options.verbose:
 			warn("Python program to extract python configuration variables failed:\n%s"

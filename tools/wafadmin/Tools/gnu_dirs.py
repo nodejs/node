@@ -65,7 +65,7 @@ def detect(conf):
 
 	env = conf.env
 	env['EXEC_PREFIX'] = get_param('EXEC_PREFIX', env['PREFIX'])
-	env['PACKAGE'] = getattr(Utils.g_module, 'APPNAME', None) or env['PACKAGE']
+	env['PACKAGE'] = Utils.g_module.APPNAME
 
 	complete = False
 	iter = 0

@@ -100,7 +100,7 @@ def r7(code):
 
 @subst('Tools/python.py')
 def r8(code):
-	code = code.replace('p.communicate()[0]', 'p.communicate()[0].decode("utf-8")')
+	code = code.replace('proc.communicate()[0]', 'proc.communicate()[0].decode("utf-8")')
 	return code
 
 @subst('Tools/glib2.py')
