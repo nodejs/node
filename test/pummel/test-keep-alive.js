@@ -42,16 +42,18 @@ function runAb(opts, callback) {
   });
 }
 
-runAb("-k -c 100 -t 2", function (reqSec, keepAliveRequests) {
-  keepAliveReqSec = reqSec;
-  assert.equal(true, keepAliveRequests > 0);
-  puts("keep-alive: " + keepAliveReqSec + " req/sec");
+server.addListener('listening', function () {
+  runAb("-k -c 100 -t 2", function (reqSec, keepAliveRequests) {
+    keepAliveReqSec = reqSec;
+    assert.equal(true, keepAliveRequests > 0);
+    puts("keep-alive: " + keepAliveReqSec + " req/sec");
 
-  runAb("-c 100 -t 2", function (reqSec, keepAliveRequests) {
-    normalReqSec = reqSec;
-    assert.equal(0, keepAliveRequests);
-    puts("normal: " + normalReqSec + " req/sec");
-    server.close();
+    runAb("-c 100 -t 2", function (reqSec, keepAliveRequests) {
+      normalReqSec = reqSec;
+      assert.equal(0, keepAliveRequests);
+      puts("normal: " + normalReqSec + " req/sec");
+      server.close();
+    });
   });
 });
 
