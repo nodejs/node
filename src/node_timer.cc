@@ -120,6 +120,11 @@ Timer::Start (const Arguments& args)
   ev_tstamp repeat = NODE_V8_UNIXTIME(args[1]);
   ev_timer_init(&timer->watcher_, Timer::OnTimeout, after, repeat);
   timer->watcher_.data = timer;
+
+  // Update the event loop time. Need to call this because processing JS can
+  // take non-negligible amounts of time.
+  ev_now_update(EV_DEFAULT_UC);
+
   ev_timer_start(EV_DEFAULT_UC_ &timer->watcher_);
 
   if (!was_active) timer->Ref();
