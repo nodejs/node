@@ -37,7 +37,7 @@ class Buffer : public ObjectWrap {
     return constructor_template->HasInstance(obj);
   }
 
-  const char* data() const { return data_; }
+  char* data();
   size_t length() const { return length_; }
   struct Blob_* blob() const { return blob_; }
 
@@ -63,8 +63,8 @@ class Buffer : public ObjectWrap {
   Buffer(Buffer *parent, size_t start, size_t end);
   ~Buffer();
 
-  const char *data_;
-  size_t length_;
+  size_t off_; // offset inside blob_
+  size_t length_; // length inside blob_
   struct Blob_ *blob_;
 };
 

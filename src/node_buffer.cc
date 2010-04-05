@@ -47,19 +47,24 @@ Persistent<FunctionTemplate> Buffer::constructor_template;
 struct Blob_ {
   unsigned int refs;
   size_t length;
-  char data[1];
+  char *data;
 };
 typedef struct Blob_ Blob;
 
 
 static inline Blob * blob_new(size_t length) {
-  size_t s = sizeof(Blob) - 1 + length;
-  Blob * blob  = (Blob*) malloc(s);
+  Blob * blob  = (Blob*) malloc(sizeof(Blob));
   if (!blob) return NULL;
-  V8::AdjustAmountOfExternalAllocatedMemory(s);
+
+  blob->data = (char*) malloc(length);
+  if (!blob->data) {
+    free(blob);
+    return NULL;
+  }
+
+  V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Blob) + length);
   blob->length = length;
   blob->refs = 0;
-  //fprintf(stderr, "alloc %d bytes\n", length);
   return blob;
 }
 
@@ -73,8 +78,8 @@ static inline void blob_unref(Blob *blob) {
   assert(blob->refs > 0);
   if (--blob->refs == 0) {
     //fprintf(stderr, "free %d bytes\n", blob->length);
-    size_t s = sizeof(Blob) - 1 + blob->length;
-    V8::AdjustAmountOfExternalAllocatedMemory(-s);
+    V8::AdjustAmountOfExternalAllocatedMemory(-(sizeof(Blob) + blob->length));
+    free(blob->data);
     free(blob);
   }
 }
@@ -133,9 +138,9 @@ Handle<Value> Buffer::New(const Arguments &args) {
   }
 
   buffer->Wrap(args.This());
-  args.This()->SetIndexedPropertiesToExternalArrayData((void*)buffer->data_,
+  args.This()->SetIndexedPropertiesToExternalArrayData(buffer->data(),
                                                        kExternalUnsignedByteArray,
-                                                       buffer->length_);
+                                                       buffer->length());
   args.This()->Set(length_symbol, Integer::New(buffer->length_));
   return args.This();
 }
@@ -143,8 +148,9 @@ Handle<Value> Buffer::New(const Arguments &args) {
 
 Buffer::Buffer(size_t length) : ObjectWrap() {
   blob_ = blob_new(length);
+  off_ = 0;
   length_ = length;
-  data_ = blob_->data;
+
   blob_ref(blob_);
 
   V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer));
@@ -157,9 +163,9 @@ Buffer::Buffer(Buffer *parent, size_t start, size_t end) : ObjectWrap() {
   blob_ref(blob_);
 
   assert(start <= end);
+  off_ = start;
   length_ = end - start;
   assert(length_ <= parent->length_);
-  data_ = parent->data_ + start;
 
   V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer));
 }
@@ -173,12 +179,17 @@ Buffer::~Buffer() {
 }
 
 
+char* Buffer::data() {
+  return blob_->data + off_;
+}
+
+
 Handle<Value> Buffer::BinarySlice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
 
-  const char *data = const_cast<char*>(parent->data_ + start);
+  const char *data = const_cast<char*>(parent->data() + start);
   //Local<String> string = String::New(data, end - start);
 
   Local<Value> b =  Encode(data, end - start, BINARY);
@@ -200,7 +211,7 @@ Handle<Value> Buffer::AsciiSlice(const Arguments &args) {
   assert(parent->blob_->refs >= 2);
 #endif
 
-  const char *data = const_cast<char*>(parent->data_ + start);
+  const char *data = const_cast<char*>(parent->data() + start);
   Local<String> string = String::New(data, end - start);
 
 
@@ -212,7 +223,7 @@ Handle<Value> Buffer::Utf8Slice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
-  const char *data = const_cast<char*>(parent->data_ + start);
+  const char *data = const_cast<char*>(parent->data() + start);
   Local<String> string = String::New(data, end - start);
   return scope.Close(string);
 }
@@ -295,7 +306,7 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  const char *p = buffer->data_ + offset;
+  const char *p = buffer->data() + offset;
 
   int written = s->WriteUtf8((char*)p, buffer->length_ - offset);
 
@@ -323,7 +334,7 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  const char *p = buffer->data_ + offset;
+  const char *p = buffer->data() + offset;
 
   size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
 
@@ -351,7 +362,7 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  char *p = (char*)buffer->data_ + offset;
+  char *p = (char*)buffer->data() + offset;
 
   size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
 
@@ -393,7 +404,7 @@ Handle<Value> Buffer::Unpack(const Arguments &args) {
       // 32bit unsigned integer in network byte order
       case 'N':
         if (index + 3 >= buffer->length_) return OUT_OF_BOUNDS;
-        uint32 = htonl(*(uint32_t*)(buffer->data_ + index));
+        uint32 = htonl(*(uint32_t*)(buffer->data() + index));
         array->Set(Integer::New(i), Integer::NewFromUnsigned(uint32));
         index += 4;
         break;
@@ -401,7 +412,7 @@ Handle<Value> Buffer::Unpack(const Arguments &args) {
       // 16bit unsigned integer in network byte order
       case 'n':
         if (index + 1 >= buffer->length_) return OUT_OF_BOUNDS;
-        uint16 = htons(*(uint16_t*)(buffer->data_ + index));
+        uint16 = htons(*(uint16_t*)(buffer->data() + index));
         array->Set(Integer::New(i), Integer::NewFromUnsigned(uint16));
         index += 2;
         break;
@@ -409,7 +420,7 @@ Handle<Value> Buffer::Unpack(const Arguments &args) {
       // a single octet, unsigned.
       case 'o':
         if (index >= buffer->length_) return OUT_OF_BOUNDS;
-        uint8 = (uint8_t)buffer->data_[index];
+        uint8 = (uint8_t)buffer->data()[index];
         array->Set(Integer::New(i), Integer::NewFromUnsigned(uint8));
         index += 1;
         break;
