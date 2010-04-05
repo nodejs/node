@@ -76,17 +76,89 @@ static ev_async eio_want_poll_notifier;
 static ev_async eio_done_poll_notifier;
 static ev_idle  eio_poller;
 
+// We need to notify V8 when we're idle so that it can run the garbage
+// collector. The interface to this is V8::IdleNotification(). It returns
+// true if the heap hasn't be fully compacted, and needs to be run again.
+// Returning false means that it doesn't have anymore work to do.
+//
+// We try to wait for a period of GC_INTERVAL (2 seconds) of idleness, where
+// idleness means that no libev watchers have been executed. Since
+// everything in node uses libev watchers, this is a pretty good measure of
+// idleness. This is done with gc_check, which records the timestamp
+// last_active on every tick of the event loop, and with gc_timer which
+// executes every few seconds to measure if
+//   last_active + GC_INTERVAL < ev_now()
+// If we do find a period of idleness, then we start the gc_idle timer which
+// will very repaidly call IdleNotification until the heap is fully
+// compacted.
+static ev_tstamp last_active;
 static ev_timer  gc_timer;
+static ev_check gc_check;
+static ev_idle  gc_idle;
+static bool needs_gc;
 #define GC_INTERVAL 2.0
 
 
-// Node calls this every GC_INTERVAL seconds in order to try and call the
-// GC. This watcher is run with maximum priority, so ev_pending_count() == 0
-// is an effective measure of idleness.
-static void GCTimeout(EV_P_ ev_timer *watcher, int revents) {
+static void CheckIdleness(EV_P_ ev_timer *watcher, int revents) {
   assert(watcher == &gc_timer);
   assert(revents == EV_TIMER);
-  if (ev_pending_count(EV_DEFAULT_UC) == 0) V8::IdleNotification();
+
+  //fprintf(stderr, "check idle\n");
+
+  ev_tstamp idle_time = ev_now() - last_active;
+
+  if (idle_time > GC_INTERVAL) {
+    if (needs_gc) {
+      needs_gc = false;
+      if (!V8::IdleNotification()) {
+        ev_idle_start(EV_DEFAULT_UC_ &gc_idle);
+      }
+    }
+    // reset the timer
+    gc_timer.repeat = GC_INTERVAL;
+    ev_timer_again(EV_DEFAULT_UC_ watcher);
+  }
+}
+
+
+static void NotifyIdleness(EV_P_ ev_idle *watcher, int revents) {
+  assert(watcher == &gc_idle);
+  assert(revents == EV_IDLE);
+
+  //fprintf(stderr, "notify idle\n");
+
+  if (V8::IdleNotification()) {
+    ev_idle_stop(EV_A_ watcher);
+  }
+  needs_gc = false;
+}
+
+
+static void Activity(EV_P_ ev_check *watcher, int revents) {
+  assert(watcher == &gc_check);
+  assert(revents == EV_CHECK);
+
+  int pending = ev_pending_count(EV_DEFAULT_UC);
+
+  // Don't count GC watchers as activity.
+
+  pending -= ev_is_pending(&gc_timer);
+  pending -= ev_is_pending(&gc_idle);
+  //if (ev_is_pending(&gc_check)) pending--; // This probably never happens?
+
+  //fprintf(stderr, "activity, pending: %d\n", pending);
+
+  if (pending) {
+    last_active = ev_now();
+    ev_idle_stop(EV_DEFAULT_UC_ &gc_idle);
+
+    if (!needs_gc) {
+      gc_timer.repeat = GC_INTERVAL;
+      ev_timer_again(EV_DEFAULT_UC_ &gc_timer);
+    }
+
+    needs_gc = true;
+  }
 }
 
 
@@ -1460,15 +1532,16 @@ int main(int argc, char *argv[]) {
 #endif
 
 
-  ev_timer_init(&node::gc_timer, node::GCTimeout, GC_INTERVAL, GC_INTERVAL);
-  // Set the gc_timer to max priority so that it runs before all other
-  // watchers. In this way it can check if the 'tick' has other pending
-  // watchers by using ev_pending_count() - if it ran with lower priority
-  // then the other watchers might run before it - not giving us good idea
-  // of loop idleness.
-  ev_set_priority(&node::gc_timer, EV_MAXPRI);
-  ev_timer_start(EV_DEFAULT_UC_ &node::gc_timer);
+  ev_init(&node::gc_timer, node::CheckIdleness);
+  node::gc_timer.repeat = GC_INTERVAL;
+  ev_timer_again(EV_DEFAULT_UC_ &node::gc_timer);
   ev_unref(EV_DEFAULT_UC);
+
+  ev_check_init(&node::gc_check, node::Activity);
+  ev_check_start(EV_DEFAULT_UC_ &node::gc_check);
+  ev_unref(EV_DEFAULT_UC);
+
+  ev_idle_init(&node::gc_idle, node::NotifyIdleness);
 
 
   // Setup the EIO thread pool
