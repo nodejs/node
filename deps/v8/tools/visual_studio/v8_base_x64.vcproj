@@ -922,7 +922,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\type-info-inl.h"
+				RelativePath="..\..\src\type-info.cc"
 				>
 			</File>
 			<File

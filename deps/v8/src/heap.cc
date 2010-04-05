@@ -1961,8 +1961,9 @@ Object* Heap::AllocateConsString(String* first, String* second) {
     return MakeOrFindTwoCharacterString(c1, c2);
   }
 
-  bool is_ascii = first->IsAsciiRepresentation()
-      && second->IsAsciiRepresentation();
+  bool first_is_ascii = first->IsAsciiRepresentation();
+  bool second_is_ascii = second->IsAsciiRepresentation();
+  bool is_ascii = first_is_ascii && second_is_ascii;
 
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
@@ -1997,6 +1998,25 @@ Object* Heap::AllocateConsString(String* first, String* second) {
       for (int i = 0; i < second_length; i++) *dest++ = src[i];
       return result;
     } else {
+      // For short external two-byte strings we check whether they can
+      // be represented using ascii.
+      if (!first_is_ascii) {
+        first_is_ascii = first->IsExternalTwoByteStringWithAsciiChars();
+      }
+      if (first_is_ascii && !second_is_ascii) {
+        second_is_ascii = second->IsExternalTwoByteStringWithAsciiChars();
+      }
+      if (first_is_ascii && second_is_ascii) {
+        Object* result = AllocateRawAsciiString(length);
+        if (result->IsFailure()) return result;
+        // Copy the characters into the new object.
+        char* dest = SeqAsciiString::cast(result)->GetChars();
+        String::WriteToFlat(first, dest, 0, first_length);
+        String::WriteToFlat(second, dest + first_length, 0, second_length);
+        Counters::string_add_runtime_ext_to_ascii.Increment();
+        return result;
+      }
+
       Object* result = AllocateRawTwoByteString(length);
       if (result->IsFailure()) return result;
       // Copy the characters into the new object.

@@ -121,9 +121,16 @@ function EquivalentTime(t) {
 }
 
 
-// Because computing the DST offset is a pretty expensive operation
-// we keep a cache of last computed offset along with a time interval
+// local_time_offset is initialized when the DST_offset_cache is missed.
+// It must not be used until after a call to DaylightSavingsOffset().
+// In this way, only one check, for a DST cache miss, is needed.
+var local_time_offset;
+
+
+// Because computing the DST offset is an expensive operation,
+// we keep a cache of the last computed DST offset along with a time interval
 // where we know the cache is valid.
+// When the cache is valid, local_time_offset is also valid.
 var DST_offset_cache = {
   // Cached DST offset.
   offset: 0,
@@ -148,6 +155,11 @@ function DaylightSavingsOffset(t) {
   if (start <= t) {
     // If the time fits in the cached interval, return the cached offset.
     if (t <= end) return cache.offset;
+
+    // If the cache misses, the local_time_offset may not be initialized.
+    if (IS_UNDEFINED(local_time_offset)) {
+      local_time_offset = %DateLocalTimeOffset();
+    }
 
     // Compute a possible new interval end.
     var new_end = end + cache.increment;
@@ -185,6 +197,10 @@ function DaylightSavingsOffset(t) {
     }
   }
 
+  // If the cache misses, the local_time_offset may not be initialized.
+  if (IS_UNDEFINED(local_time_offset)) {
+    local_time_offset = %DateLocalTimeOffset();
+  }
   // Compute the DST offset for the time and shrink the cache interval
   // to only contain the time. This allows fast repeated DST offset
   // computations for the same time.
@@ -215,11 +231,11 @@ function WeekDay(time) {
   return Modulo(DAY(time) + 4, 7);
 }
 
-var local_time_offset = %DateLocalTimeOffset();
 
 function LocalTime(time) {
   if (NUMBER_IS_NAN(time)) return time;
-  return time + local_time_offset + DaylightSavingsOffset(time);
+  // DaylightSavingsOffset called before local_time_offset used.
+  return time + DaylightSavingsOffset(time) + local_time_offset;
 }
 
 function LocalTimeNoCheck(time) {
@@ -228,6 +244,8 @@ function LocalTimeNoCheck(time) {
   }
 
   // Inline the DST offset cache checks for speed.
+  // The cache is hit, or DaylightSavingsOffset is called,
+  // before local_time_offset is used.
   var cache = DST_offset_cache;
   if (cache.start <= time && time <= cache.end) {
     var dst_offset = cache.offset;
@@ -240,6 +258,11 @@ function LocalTimeNoCheck(time) {
 
 function UTC(time) {
   if (NUMBER_IS_NAN(time)) return time;
+  // local_time_offset is needed before the call to DaylightSavingsOffset,
+  // so it may be uninitialized.
+  if (IS_UNDEFINED(local_time_offset)) {
+    local_time_offset = %DateLocalTimeOffset();
+  }
   var tmp = time - local_time_offset;
   return tmp - DaylightSavingsOffset(tmp);
 }
@@ -566,7 +589,7 @@ function TimeString(time) {
 
 function LocalTimezoneString(time) {
   var timezoneOffset =
-      (local_time_offset + DaylightSavingsOffset(time)) / msPerMinute;
+      (DaylightSavingsOffset(time) + local_time_offset) / msPerMinute;
   var sign = (timezoneOffset >= 0) ? 1 : -1;
   var hours = FLOOR((sign * timezoneOffset)/60);
   var min   = FLOOR((sign * timezoneOffset)%60);

@@ -323,6 +323,7 @@ TEST(Utf8Conversion) {
       0xE3, 0x81, 0x85, 0x00};
   // The number of bytes expected to be written for each length
   const int lengths[12] = {0, 0, 2, 3, 3, 3, 6, 7, 7, 7, 10, 11};
+  const int charLengths[12] = {0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 5};
   v8::Handle<v8::String> mixed = v8::String::New(mixed_string, 5);
   CHECK_EQ(10, mixed->Utf8Length());
   // Try encoding the string with all capacities
@@ -332,8 +333,10 @@ TEST(Utf8Conversion) {
     // Clear the buffer before reusing it
     for (int j = 0; j < 11; j++)
       buffer[j] = kNoChar;
-    int written = mixed->WriteUtf8(buffer, i);
+    int charsWritten;
+    int written = mixed->WriteUtf8(buffer, i, &charsWritten);
     CHECK_EQ(lengths[i], written);
+    CHECK_EQ(charLengths[i], charsWritten);
     // Check that the contents are correct
     for (int j = 0; j < lengths[i]; j++)
       CHECK_EQ(as_utf8[j], static_cast<unsigned char>(buffer[j]));

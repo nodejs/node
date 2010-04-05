@@ -388,7 +388,7 @@
         '../../src/token.h',
         '../../src/top.cc',
         '../../src/top.h',
-	'../../src/type-info-inl.h',
+	'../../src/type-info.cc',
 	'../../src/type-info.h',
         '../../src/unicode-inl.h',
         '../../src/unicode.cc',
