@@ -17,6 +17,9 @@ static struct coupling *stdout_coupling = NULL;
 static int stdin_fd = -1;
 static int stdout_fd = -1;
 
+static int stdout_flags = -1;
+static int stdin_flags = -1;
+
 
 static Local<Value> errno_exception(int errorno) {
   Local<Value> e = Exception::Error(String::NewSymbol(strerror(errorno)));
@@ -55,17 +58,6 @@ WriteError (const Arguments& args)
 }
 
 
-static inline int SetNonblock(int fd) {
-  int flags = fcntl(fd, F_GETFL, 0);
-  if (flags == -1) return -1;
-
-  int r = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-  if (r == -1) return -1;
-
-  return 0;
-}
-
-
 static Handle<Value> OpenStdin(const Arguments& args) {
   HandleScope scope;
 
@@ -81,14 +73,33 @@ static Handle<Value> OpenStdin(const Arguments& args) {
     stdin_coupling = coupling_new_pull(STDIN_FILENO);
     stdin_fd = coupling_nonblocking_fd(stdin_coupling);
   }
-  SetNonblock(stdin_fd);
+
+  stdin_flags = fcntl(stdin_fd, F_GETFL, 0);
+  if (stdin_flags == -1) {
+    // TODO DRY
+    return ThrowException(Exception::Error(String::New("fcntl error!")));
+  }
+
+  int r = fcntl(stdin_fd, F_SETFL, stdin_flags | O_NONBLOCK);
+  if (r == -1) {
+    // TODO DRY
+    return ThrowException(Exception::Error(String::New("fcntl error!")));
+  }
 
   return scope.Close(Integer::New(stdin_fd));
 }
 
 
 void Stdio::Flush() {
+  if (stdin_flags != -1) {
+    fcntl(stdin_fd, F_SETFL, stdin_flags & ~O_NONBLOCK);
+  }
+
   if (stdout_fd >= 0) {
+    if (stdout_flags != -1) {
+      fcntl(stdout_fd, F_SETFL, stdout_flags & ~O_NONBLOCK);
+    }
+
     close(stdout_fd);
     stdout_fd = -1;
   }
@@ -112,7 +123,10 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
     stdout_coupling = coupling_new_push(STDOUT_FILENO);
     stdout_fd = coupling_nonblocking_fd(stdout_coupling);
   }
-  SetNonblock(stdout_fd);
+
+  stdout_flags = fcntl(stdout_fd, F_GETFL, 0);
+
+  int r = fcntl(stdout_fd, F_SETFL, stdout_flags | O_NONBLOCK);
 
   target->Set(String::NewSymbol("stdoutFD"), Integer::New(stdout_fd));
 
