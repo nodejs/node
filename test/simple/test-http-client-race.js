@@ -10,8 +10,7 @@ var server = http.createServer(function (req, res) {
   res.writeHead(200, { "Content-Type": "text/plain"
                       , "Content-Length": body.length
                       });
-  res.write(body);
-  res.close();
+  res.close(body);
 });
 server.listen(PORT);
 

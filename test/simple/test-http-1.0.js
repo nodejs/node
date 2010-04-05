@@ -8,8 +8,7 @@ var client_got_eof = false;
 
 var server = http.createServer(function (req, res) {
   res.writeHead(200, {"Content-Type": "text/plain"});
-  res.write(body);
-  res.close();
+  res.close(body);
 })
 server.listen(PORT);
 

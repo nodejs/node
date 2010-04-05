@@ -49,6 +49,5 @@ http.createServer(function (req, res) {
                   , "Content-Length": content_length
                   }
                 );
-  res.write(body);
-  res.close();
+  res.close(body, 'ascii');
 }).listen(8000);

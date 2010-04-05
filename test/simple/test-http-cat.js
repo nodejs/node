@@ -8,8 +8,7 @@ var server = http.createServer(function (req, res) {
     ["Content-Length", body.length],
     ["Content-Type", "text/plain"]
   ]);
-  res.write(body);
-  res.close();
+  res.close(body);
 });
 server.listen(PORT);
 
