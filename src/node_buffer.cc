@@ -310,6 +310,8 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   int written = s->WriteUtf8((char*)p, buffer->length_ - offset);
 
+  if (written > 0 && p[written-1] == '\0') written--;
+
   return scope.Close(Integer::New(written));
 }
 

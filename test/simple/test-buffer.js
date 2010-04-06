@@ -84,3 +84,14 @@ b[6] = 0xBE;
 b[7] = 0xEF;
 
 assert.deepEqual([0xDEADBEEF], b.unpack('N', 4));
+
+
+// Bug regression test
+var testValue = '\u00F6\u65E5\u672C\u8A9E'; // ö日本語
+var buffer = new Buffer(32);
+var size = buffer.utf8Write(testValue, 0);
+puts('bytes written to buffer: ' + size);
+var slice = buffer.utf8Slice(0, size);
+assert.equal(slice, testValue);
+
+
