@@ -866,6 +866,13 @@ class V8EXPORT String : public Primitive {
                 int* nchars = NULL) const; // UTF-8
 
   /**
+   * Flatten internal memory. Operations on the string tend to run faster
+   * after flattening especially if the string is a concatenation of many
+   * others.
+   */
+  void Flatten();
+
+  /**
    * A zero length string.
    */
   static v8::Local<v8::String> Empty();

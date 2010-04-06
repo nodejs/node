@@ -308,6 +308,7 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   const char *p = buffer->data() + offset;
 
+  s->Flatten();
   int written = s->WriteUtf8((char*)p, buffer->length_ - offset);
 
   if (written > 0 && p[written-1] == '\0') written--;
@@ -340,6 +341,7 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
 
   size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
 
+  s->Flatten();
   int written = s->WriteAscii((char*)p, 0, towrite);
   return scope.Close(Integer::New(written));
 }

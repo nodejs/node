@@ -327,6 +327,7 @@ ssize_t DecodeWrite(char *buf,
 
   uint16_t * twobytebuf = new uint16_t[buflen];
 
+  str->Flatten();
   str->Write(twobytebuf, 0, buflen);
 
   for (size_t i = 0; i < buflen; i++) {
