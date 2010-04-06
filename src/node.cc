@@ -19,6 +19,7 @@
 #include <node_net2.h>
 #include <node_events.h>
 #include <node_dns.h>
+#include <node_cares.h>
 #include <node_net.h>
 #include <node_file.h>
 #include <node_idle_watcher.h>
@@ -1194,6 +1195,15 @@ static Handle<Value> Binding(const Arguments& args) {
       binding_cache->Set(module, exports);
     }
 
+  } else if (!strcmp(*module_v, "cares")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      Cares::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
   } else if (!strcmp(*module_v, "fs")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();
@@ -1266,6 +1276,7 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("buffer"),       String::New(native_buffer));
       exports->Set(String::New("child_process"),String::New(native_child_process));
       exports->Set(String::New("dns"),          String::New(native_dns));
+      exports->Set(String::New("dns_cares"),    String::New(native_dns_cares));
       exports->Set(String::New("events"),       String::New(native_events));
       exports->Set(String::New("file"),         String::New(native_file));
       exports->Set(String::New("fs"),           String::New(native_fs));

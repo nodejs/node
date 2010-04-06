@@ -416,6 +416,7 @@ def build(bld):
     src/node_child_process.cc
     src/node_constants.cc
     src/node_dns.cc
+    src/node_cares.cc
     src/node_events.cc
     src/node_file.cc
     src/node_http.cc
