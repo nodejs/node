@@ -1,0 +1,31 @@
+import Options
+import platform
+
+PLATFORM_IS_DARWIN = platform.platform().find('Darwin') == 0
+PLATFORM_IS_LINUX = platform.platform().find('Linux') == 0
+PLATFORM_IS_SOLARIS = platform.platform().find('Sun') == 0
+
+def set_options(opt):
+  pass
+
+def configure(conf):
+  conf.env.append_value('CCFLAGS', ['-DHAVE_CONFIG_H=1'])
+
+def build(bld):
+  cares = bld.new_task_gen("cc")
+  cares.source = bld.path.ant_glob('*.c')
+  cares.target = 'cares'
+  cares.name = 'cares'
+  cares.includes = '.'
+
+  if PLATFORM_IS_DARWIN:
+    cares.includes += ' ./mac/'
+  elif PLATFORM_IS_LINUX:
+    cares.includes += ' ./linux/'
+  elif PLATFORM_IS_SOLARIS:
+    cares.includes += ' ./solaris/'
+
+  cares.install_path = None
+  if bld.env["USE_DEBUG"]:
+    cares.clone("debug");
+

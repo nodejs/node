@@ -1,0 +1,18 @@
+This is what's new and changed in the c-ares 1.7.1 release:
+
+Changed:
+
+ o added IPv6 name servers support
+
+Fixed:
+
+ o closing of sockets on Windows systems
+ o MSVC deprecated compiler options warnings
+ o ares_process_fd() didn't check broken connections
+
+Thanks go to these friendly people for their efforts and contributions:
+
+ Ingmar Runge, Laszlo Tamas Szabo, Yang Tse, Tommie Gannert, Gregor Jasny,
+ Phil Blundell, Cedric Bail, Jakub Hrozek
+
+Have fun!

@@ -5,6 +5,7 @@ import sys, os, shutil
 from Utils import cmd_output
 from os.path import join, dirname, abspath
 from logging import fatal
+import platform
 
 cwd = os.getcwd()
 VERSION="0.1.33"
@@ -14,6 +15,10 @@ import js2c
 
 srcdir = '.'
 blddir = 'build'
+
+PLATFORM_IS_DARWIN = platform.platform().find('Darwin') == 0
+PLATFORM_IS_LINUX = platform.platform().find('Linux') == 0
+PLATFORM_IS_SOLARIS = platform.platform().find('Sun') == 0
 
 def set_options(opt):
   # the gcc module provides a --debug-level option
@@ -145,6 +150,8 @@ def configure(conf):
       conf.env.append_value("CCFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
       conf.env.append_value("CXXFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
 
+  conf.check(lib='rt', uselib_store='RT')
+
   if sys.platform.startswith("sunos"):
     if not conf.check(lib='socket', uselib_store="SOCKET"):
       conf.fatal("Cannot find socket library")
@@ -154,6 +161,7 @@ def configure(conf):
   conf.sub_config('deps/libeio')
   if not Options.options.system:
     conf.sub_config('deps/libev')
+    conf.sub_config('deps/c-ares')
     if sys.platform.startswith("sunos"):
       conf_subproject(conf, 'deps/udns', 'LIBS="-lsocket -lnsl" ./configure')
     else:
@@ -163,6 +171,8 @@ def configure(conf):
       conf.fatal("Cannot find V8")
     if not conf.check(lib='ev', uselib_store='EV'):
       conf.fatal("Cannot find libev")
+    if not conf.check(lib='cares', uselib_store='CARES'):
+      conf.fatal("Cannot find c-ares")
     if not conf.check(lib='udns', uselib_store='UDNS'):
       conf.fatal("Cannot find udns")
 
@@ -238,6 +248,7 @@ def build_udns(bld):
 
   bld.install_files('${PREFIX}/include/node/', 'deps/udns/udns.h')
 
+
 def v8_cmd(bld, variant):
   scons = join(cwd, 'tools/scons/scons.py')
   deps_src = join(bld.path.abspath(),"deps")
@@ -298,7 +309,7 @@ def build_v8(bld):
 
 def build(bld):
   if not bld.env["USE_SYSTEM"]:
-    bld.add_subdirs('deps/libeio deps/libev')
+    bld.add_subdirs('deps/libeio deps/libev deps/c-ares')
     build_udns(bld)
     build_v8(bld)
   else:
@@ -420,15 +431,24 @@ def build(bld):
       src/ 
       deps/v8/include
       deps/libev
+      deps/c-ares
       deps/udns
       deps/libeio
       deps/evcom 
       deps/http_parser
       deps/coupling
     """
-    node.add_objects = 'ev eio evcom http_parser coupling'
+
+    if PLATFORM_IS_DARWIN:
+      node.includes += ' deps/c-ares/mac/'
+    elif PLATFORM_IS_LINUX:
+      node.includes += ' deps/c-ares/linux/'
+    elif PLATFORM_IS_SOLARIS:
+      node.includes += ' deps/c-ares/solaris/'
+
+    node.add_objects = 'cares ev eio evcom http_parser coupling'
     node.uselib_local = ''
-    node.uselib = 'GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
+    node.uselib = 'RT GNUTLS GPGERROR UDNS CARES V8 EXECINFO DL KVM SOCKET NSL'
   else:
     node.includes = """
       src/
@@ -439,7 +459,7 @@ def build(bld):
     """
     node.add_objects = 'eio evcom http_parser coupling'
     node.uselib_local = 'eio'
-    node.uselib = 'EV GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
+    node.uselib = 'RT EV GNUTLS GPGERROR UDNS CARES V8 EXECINFO DL KVM SOCKET NSL'
 
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'
