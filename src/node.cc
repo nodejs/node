@@ -105,7 +105,7 @@ static void CheckIdleness(EV_P_ ev_timer *watcher, int revents) {
 
   //fprintf(stderr, "check idle\n");
 
-  ev_tstamp idle_time = ev_now() - last_active;
+  ev_tstamp idle_time = ev_now(EV_DEFAULT_UC) - last_active;
 
   if (idle_time > GC_INTERVAL) {
     if (needs_gc) {
@@ -149,7 +149,7 @@ static void Activity(EV_P_ ev_check *watcher, int revents) {
   //fprintf(stderr, "activity, pending: %d\n", pending);
 
   if (pending) {
-    last_active = ev_now();
+    last_active = ev_now(EV_DEFAULT_UC);
     ev_idle_stop(EV_DEFAULT_UC_ &gc_idle);
 
     if (!needs_gc) {
