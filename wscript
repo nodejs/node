@@ -5,7 +5,6 @@ import sys, os, shutil
 from Utils import cmd_output
 from os.path import join, dirname, abspath
 from logging import fatal
-import platform
 
 cwd = os.getcwd()
 VERSION="0.1.33"
@@ -15,13 +14,6 @@ import js2c
 
 srcdir = '.'
 blddir = 'build'
-
-PLATFORM_IS_DARWIN = platform.platform().find('Darwin') == 0
-PLATFORM_IS_LINUX = platform.platform().find('Linux') == 0
-PLATFORM_IS_SOLARIS = platform.platform().find('Sun') == 0
-PLATFORM_IS_FREEBSD = platform.platform().find('FreeBSD') == 0
-MACHINE_IS_AMD64 = platform.machine().find('amd64') == 0
-MACHINE_IS_I386 = platform.machine().find('i386') == 0
 
 def set_options(opt):
   # the gcc module provides a --debug-level option
@@ -311,6 +303,9 @@ def build_v8(bld):
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
 def build(bld):
+  print "DEST_OS: " + bld.env['DEST_OS']
+  print "DEST_CPU: " + bld.env['DEST_CPU']
+
   if not bld.env["USE_SYSTEM"]:
     bld.add_subdirs('deps/libeio deps/libev deps/c-ares')
     build_udns(bld)
@@ -443,17 +438,7 @@ def build(bld):
       deps/coupling
     """
 
-    if PLATFORM_IS_DARWIN:
-      node.includes += ' deps/c-ares/mac/'
-    elif PLATFORM_IS_LINUX:
-      node.includes += ' deps/c-ares/linux/'
-    elif PLATFORM_IS_SOLARIS:
-      node.includes += ' deps/c-ares/solaris/'
-    elif PLATFORM_IS_FREEBSD:
-      if MACHINE_IS_AMD64:
-        node.includes += ' deps/c-ares/freebsd_amd64/'
-      elif MACHINE_IS_I386:
-        node.includes += ' deps/c-ares/freebsd_i386/'
+    node.includes += ' deps/c-ares/' + bld.env['DEST_OS'] + '-' + bld.env['DEST_CPU']
 
 
     node.add_objects = 'cares ev eio evcom http_parser coupling'

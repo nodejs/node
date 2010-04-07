@@ -19,20 +19,7 @@ def build(bld):
   cares.source = bld.path.ant_glob('*.c')
   cares.target = 'cares'
   cares.name = 'cares'
-  cares.includes = '.'
-
-  if PLATFORM_IS_DARWIN:
-    cares.includes += ' ./mac/'
-  elif PLATFORM_IS_LINUX:
-    cares.includes += ' ./linux/'
-  elif PLATFORM_IS_SOLARIS:
-    cares.includes += ' ./solaris/'
-  elif PLATFORM_IS_FREEBSD:
-    if MACHINE_IS_AMD64:
-      cares.includes += ' ./freebsd_amd64/'
-    elif MACHINE_IS_I386:
-      cares.includes += ' ./freebsd_i386/'
-
+  cares.includes = '. ./' + bld.env['DEST_OS'] + '-' + bld.env['DEST_CPU']
   cares.install_path = None
   if bld.env["USE_DEBUG"]:
     cares.clone("debug");
