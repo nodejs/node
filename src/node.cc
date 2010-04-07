@@ -673,6 +673,7 @@ int getmem(size_t *rss, size_t *vsize) {
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
+#include <paths.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -685,7 +686,7 @@ int getmem(size_t *rss, size_t *vsize) {
 
   pid = getpid();
 
-  kd = kvm_open(NULL, NULL, NULL, O_RDONLY, "kvm_open");
+  kd = kvm_open(NULL, _PATH_DEVNULL, NULL, O_RDONLY, "kvm_open");
   if (kd == NULL) goto error;
 
   kinfo = kvm_getprocs(kd, KERN_PROC_PID, pid, &nprocs);
