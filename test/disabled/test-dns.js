@@ -1,6 +1,7 @@
 require("../common");
 
-var dns = require("dns"),
+var dns = require("dns_cares"),
+    child_process = require("child_process"),
     sys = require("sys");
 
 
@@ -20,7 +21,7 @@ var hosts = ['example.com', 'example.org',
              '_xmpp-client._tcp.google.com', // SRV
              'oakalynhall.co.uk']; // Multiple PTR replies
 
-var records = ['A', 'AAAA', 'MX', 'TXT', 'SRV'];
+var records = ['A', 'AAAA', 'TXT', 'SRV'];
 
 var i = hosts.length;
 while (i--) {
@@ -32,7 +33,7 @@ while (i--) {
                   "| sed -E 's/[[:space:]]+/ /g' | cut -d ' ' -f 5- " +
                   "| sed -e 's/\\.$//'";
 
-    sys.exec(hostCmd, checkDnsRecord(hosts[i], records[j]));
+    child_process.exec(hostCmd, checkDnsRecord(hosts[i], records[j]));
   }
 }
 
@@ -61,7 +62,7 @@ function checkDnsRecord(host, record) {
                                "| cut -d \" \" -f 5-" + 
                                "| sed -e 's/\\.$//'";
 
-              sys.exec(reverseCmd, checkReverse(ip));
+              child_process.exec(reverseCmd, checkReverse(ip));
             }
           }); 
         break;
