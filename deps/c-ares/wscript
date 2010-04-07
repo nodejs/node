@@ -4,6 +4,9 @@ import platform
 PLATFORM_IS_DARWIN = platform.platform().find('Darwin') == 0
 PLATFORM_IS_LINUX = platform.platform().find('Linux') == 0
 PLATFORM_IS_SOLARIS = platform.platform().find('Sun') == 0
+PLATFORM_IS_FREEBSD = platform.platform().find('FreeBSD') == 0
+MACHINE_IS_AMD64 = platform.machine().find('amd64') == 0
+MACHINE_IS_I386 = platform.machine().find('i386') == 0
 
 def set_options(opt):
   pass
@@ -24,6 +27,11 @@ def build(bld):
     cares.includes += ' ./linux/'
   elif PLATFORM_IS_SOLARIS:
     cares.includes += ' ./solaris/'
+  elif PLATFORM_IS_FREEBSD:
+    if MACHINE_IS_AMD64:
+      cares.includes += ' ./freebsd_amd64/'
+    elif MACHINE_IS_I386:
+      cares.includes += ' ./freebsd_i386/'
 
   cares.install_path = None
   if bld.env["USE_DEBUG"]:

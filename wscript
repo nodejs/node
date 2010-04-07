@@ -19,6 +19,9 @@ blddir = 'build'
 PLATFORM_IS_DARWIN = platform.platform().find('Darwin') == 0
 PLATFORM_IS_LINUX = platform.platform().find('Linux') == 0
 PLATFORM_IS_SOLARIS = platform.platform().find('Sun') == 0
+PLATFORM_IS_FREEBSD = platform.platform().find('FreeBSD') == 0
+MACHINE_IS_AMD64 = platform.machine().find('amd64') == 0
+MACHINE_IS_I386 = platform.machine().find('i386') == 0
 
 def set_options(opt):
   # the gcc module provides a --debug-level option
@@ -446,6 +449,12 @@ def build(bld):
       node.includes += ' deps/c-ares/linux/'
     elif PLATFORM_IS_SOLARIS:
       node.includes += ' deps/c-ares/solaris/'
+    elif PLATFORM_IS_FREEBSD:
+      if MACHINE_IS_AMD64:
+        node.includes += ' deps/c-ares/freebsd_amd64/'
+      elif MACHINE_IS_I386:
+        node.includes += ' deps/c-ares/freebsd_i386/'
+
 
     node.add_objects = 'cares ev eio evcom http_parser coupling'
     node.uselib_local = ''
