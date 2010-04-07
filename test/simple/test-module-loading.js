@@ -58,9 +58,11 @@ try {
 
 assert.equal(require('path').dirname(__filename), __dirname);
 
-require.async('../fixtures/a', function (err, a) {
+var asyncRun = false;
+require.async('../fixtures/a1', function (err, a) {
   if (err) throw err;
   assert.equal("A", a.A());
+  asyncRun = true;
 });
 
 debug('load custom file types with registerExtension');
@@ -98,6 +100,8 @@ process.addListener("exit", function () {
   assert.equal("D done", d2.D());
 
   assert.equal(true, errorThrown);
+
+  assert.equal(true, asyncRun);
 
   puts("exit");
 });
