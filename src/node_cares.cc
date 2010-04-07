@@ -13,6 +13,31 @@ namespace node {
 using namespace v8;
 
 
+static Handle<Value> IsIP(const Arguments& args) {
+  HandleScope scope;
+  
+  if (!args[0]->IsString()) {
+    return scope.Close(Integer::New(4));
+  }
+
+  String::Utf8Value s(args[0]->ToString());
+
+  // avoiding buffer overflows in the following strcat
+  // 2001:0db8:85a3:08d3:1319:8a2e:0370:7334
+  // 39 = max ipv6 address.
+  if (s.length() > INET6_ADDRSTRLEN) {
+    return scope.Close(Integer::New(0));
+  }
+
+  struct sockaddr_in6 a;
+
+  if (inet_pton(AF_INET, *s, &(a.sin6_addr)) > 0) return scope.Close(Integer::New(4));
+  if (inet_pton(AF_INET6, *s, &(a.sin6_addr)) > 0) return scope.Close(Integer::New(6));
+
+  return scope.Close(Integer::New(0));
+}
+
+
 class Channel : public ObjectWrap {
  public:
   static void Initialize(Handle<Object> target);
@@ -103,6 +128,8 @@ void Cares::Initialize(Handle<Object> target) {
   target->Set(String::NewSymbol("NOTIMP"), Integer::New(ARES_ENOTIMP));
   target->Set(String::NewSymbol("EREFUSED"), Integer::New(ARES_EREFUSED));
   target->Set(String::NewSymbol("SERVFAIL"), Integer::New(ARES_ESERVFAIL));
+
+  NODE_SET_METHOD(target, "isIP", IsIP);
 
   Channel::Initialize(target);
 }
@@ -655,6 +682,8 @@ void Channel::SockStateCb(void *data, int sock, int read, int write) {
     FatalException(try_catch);
   }
 }
+
+
 
 
 }  // namespace node
