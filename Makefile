@@ -44,7 +44,9 @@ benchmark: all
 doc: doc/node.1 doc/api.html doc/index.html doc/changelog.html
 
 doc/api.html: doc/api.markdown
-	ronn --html doc/api.markdown > doc/api.html
+	ronn -f --html doc/api.markdown \
+	| sed "s/<h2>\(.*\)<\/h2>/<h2 id=\"\1\">\1<\/h2>/g" \
+	| cat doc/api_header.html - doc/api_footer.html > doc/api.html
 
 doc/changelog.html: ChangeLog
 	echo '<html><head><title>Node.js ChangeLog</title> <link rel="stylesheet" href="./pipe.css" type="text/css" /> <link rel="stylesheet" href="./pipe-quirks.css" type="text/css" /> <body><h1>Node.js ChangeLog</h1> <pre>' > doc/changelog.html
