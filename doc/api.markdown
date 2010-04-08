@@ -1,22 +1,21 @@
 node(1) -- evented I/O for V8 JavaScript
 ========================================
 
-## SYNOPSIS
+## Synopsis
 
 An example of a web server written with Node which responds with "Hello
-World": 
+World":
 
     var sys = require("sys"),
       http = require("http");
-      
+
     http.createServer(function (request, response) {
       response.writeHead(200, {
         "Content-Type": "text/plain"
       });
-      response.write("Hello World\n");
-      response.close();
+      response.end("Hello World\n");
     }).listen(8000);
-    
+
     sys.puts("Server running at http://127.0.0.1:8000/");
 
 To run the server, put the code into a file called `example.js` and execute
@@ -28,109 +27,326 @@ it with the node program
 All of the examples in the documentation can be run similarly.
 
 
-## ENCODINGS
+## String Encodings and Buffers
+
+Pure Javascript is Unicode friendly but not nice to pure binary data.  When
+dealing with TCP streams or the file system, it's necessary to handle octet
+streams. Node has several stratagies for manipulating, creating, and
+consuming octet streams.
+
+Raw data is stored in instaces of the `Buffer` class. A `Buffer` is similar
+to an array of integers but correspond to a raw memory allocation outside
+the V8 heap. A `Buffer` cannot be resized.
+Access the class at `require('buffer').Buffer`.
+
+- **`new Buffer(size)`**: Allocates a new buffer of `size` octets.
+
+- **`buffer[index]`**: Get and set the octet at `index`. The value can be
+between 0x00 and 0xFF.
+
+- **`buffer.length`**: length in octets.
+
+- **`buffer.copy(targetBuffer, targetStart, start, end)`**:
+Does a memcpy() between buffers.
+
+- **`buffer.slice(start, end)`**: Returns a new buffer which references the
+same memory as the old, but offset and cropped by the `start` and `end`
+indexes. **Modifying the new buffer slice will modify memory in the original
+buffer!**
 
 Node supports 3 string encodings. UTF-8 (`"utf8"`), ASCII (`"ascii"`), and
 Binary (`"binary"`). `"ascii"` and `"binary"` only look at the first 8 bits
-of the 16bit JavaScript string characters. Both are relatively fast--use
-them if you can. `"utf8"` is slower and should be avoided when possible.
+of the 16bit JavaScript string characters. The following `Buffer` methods
+allow decoding and encoding of strings:
+
+- **`buffer.utf8Write(string, offset)`**: Writes `string` to the buffer at
+`offset` using UTF-8 encoding. Returns the number of octets written. If
+`buffer` did not contain enough space to fit the entire string it will write
+a partial amount of the string. However, this method will not write partial
+characters.
+
+- **`buffer.binaryWrite(string, offset)`**: Writes `string` to the buffer at
+`offset` using binary encoding - that is it will only use the first 8 bits
+of each character. Write a partial string if not enough space remains.
+Returns number of octets written.
+
+- **`buffer.asciiWrite(string, offset)`**: Writes `string` to the buffer at
+`offset` using ASCII encoding. Faster than `utf8Write()`. Write a partial
+string if not enough space remains.  Returns number of octets written.
+
+- **`buffer.utf8Slice(start, end)`**: Decodes and returns a string assuming
+UTF-8 encoding beginning at `start` and ending at `end`.
+
+- **`buffer.binarySlice(start, end)`**: Decodes and returns a string assuming
+binary encoding beginning at `start` and ending at `end`.
+
+- **`buffer.asciiSlice(start, end)`**: Decodes and returns a string assuming
+ASCII encoding beginning at `start` and ending at `end`.
 
 
-## GLOBAL OBJECTS
+
+## Events
+
+Many objects in Node emit events: a TCP server emits an event each time
+there is a stream, a child process emits an event when it exits. All
+objects which emit events are instances of `events.EventEmitter`.
+
+Events are represented by a camel-cased string. Here are some examples:
+`"stream"`, `"data"`, `"messageBegin"`.
+
+Functions can be then be attached to objects, to be executed when an event
+is emitted. These functions are called _listeners_.
+
+
+### events.EventEmitter
+
+`require("events")` to access the events module.
+
+All EventEmitters emit the event `"newListener"` when new listeners are
+added.
+
+- **`"newListener"`** - `callback(event, listener)`:
+This event is made any time someone adds a new listener.
+
+
+### emitter.addListener(event, listener)
+
+Adds a listener to the end of the listeners array for the specified event.
+
+    server.addListener('stream', function (stream) {
+      sys.puts("someone connected!");
+    });
+
+
+### emitter.removeListener(event, listener)
+
+Remove a listener from the listener array for the specified event.
+**Caution**: changes array indices in the listener array behind the listener.
+
+
+### emitter.removeAllListeners(event)
+
+Removes all listeners from the listener array for the specified event.
+
+
+### emitter.listeners(event)
+
+Returns an array of listeners for the specified event. This array can be
+manipulated, e.g. to remove listeners.
+
+
+### emitter.emit(event, arg1, arg2, ...)
+
+Execute each of the listeners in order with the supplied arguments.
+
+
+
+## Streams
+
+A stream is an abstract interface implemented by various objects in Node.
+For example a request to an HTTP server is a stream, as is stdout. Streams
+are readable, writable, or both. All streams are instances of `EventEmitter`.
+
+### Readable Stream
+
+A **readable stream** has the following methods, members, and events.
+
+- **`stream.addListener('data', function (data) { ... })`**:
+The `'data'` event emits either a `Buffer` (by default) or a string if
+`setEncoding()` was used.
+
+- **`stream.addListener('end', function () { ... })`**:
+Emitted when the stream has received an EOF (FIN in TCP terminology).
+Indicates that no more `'data'` events will happen. If the stream is also
+writable, it may be possible to continue writing.
+
+- **`stream.addListener('error', function (exception) { ... })`**:
+Emitted if there was an error receiving data.
+
+- **`stream.addListener('close', function () { ... })`**:
+Emitted when the underlying file descriptor has be closed. Not all streams
+will emit this.  (For example, an incoming HTTP request will not emit
+`'close'`.)
+
+- **`stream.setEncoding(encoding)`**:
+Makes the data event emit a string instead of a `Buffer`. `encoding` can be
+`'utf8'`, `'ascii'`, or `'binary'`.
+
+- **`stream.pause()`**:
+Pauses the incoming `'data'` events.
+
+- **`stream.resume()`**:
+Resumes the incoming `'data'` events after a `pause()`.
+
+- **`stream.destroy()`**:
+Closes the underlying file descriptor. Stream will not emit any more events.
+
+### Writable Stream
+
+A **writable stream** has the following methods, members, and events.
+
+- **`stream.addListener('drain', function () { ... })`**:
+Emitted after a `write()` method was called that returned `false` to
+indicate that it is safe to write again.
+
+- **`stream.addListener('error', function (e) { ... })`**:
+Emitted on error with the exception `e`.
+
+- **`stream.addListener('close', function () { ... })`**:
+Emitted when the underlying file descriptor has been closed.
+
+- **`stream.write(string, encoding)`**:
+Writes `string` with the given `encoding` to the stream.  Returns `true` if
+the string has been flushed to the kernel buffer.  Returns `false` to
+indicate that the kernel buffer is full, and the data will be sent out in
+the future. The `'drain'` event will indicate when the kernel buffer is
+empty again. The `encoding` defaults to `'utf8'`.
+
+
+- **`stream.write(buffer)`**:
+Same as the above except with a raw buffer.
+
+- **`stream.end()`**:
+Terminates the stream with EOF or FIN.
+
+- **`stream.end(string, encoding)`**:
+Sends `string` with the given `encoding` and terminates the stream with EOF
+or FIN. This is useful to reduce the number of packets sent.
+
+- **`stream.end(buffer)`**:
+Same as above but with a `buffer`.
+
+- **`stream.destroy()`**:
+Closes the underlying file descriptor. Stream will not emit any more events.
+
+
+## Global Objects
 
 These object are available in the global scope and can be accessed from anywhere.
 
- - **`global`**: The global namespace object.
+- **`global`**: The global namespace object.
 
- - **`process`**: The process object. Most stuff lives in here. See the "process 
+- **`process`**: The process object. Most stuff lives in here. See the "process
 object" section.
 
- - **`require()`**: See the modules section.
+- **`require()`**: See the modules section.
 
- - **`require.paths`**: The search path for absolute path arguments to `require()`.
+- **`require.paths`**: The search path for absolute path arguments to `require()`.
 
- - **`__filename`**: The filename of the script being executed.
+- **`__filename`**: The filename of the script being executed.
 
- - **`__dirname`**: The dirname of the script being executed.
+- **`__dirname`**: The dirname of the script being executed.
 
- - **`module`**: A reference to the current module (of type `process.Module`). In particular `module.exports` is the same as the `exports` object. See `src/process.js` for more information.
+- **`module`**: A reference to the current module (of type
+`process.Module`). In particular `module.exports` is the same as the
+`exports` object. See `src/process.js` for more information.
 
 
-## PROCESS OBJECT
+## process
 
 The `process` object is a global object and can be accessed from anywhere.
 It is an instance of `EventEmitter` and has the following events:
 
-  - **`"exit"`** - `callback()`:
-    Made when the process is about to exit.
-    This is a good hook to perform constant time checks of the module's state (like for unit tests).
-    The main event loop will no longer be run after the "exit" callback finishes, so timers may not
-    be scheduled.
 
-  - **`"uncaughtException"`** - `callback(exception)`:
-    Emitted when an exception bubbles all the way back to the event loop. If a
-    listener is added for this exception, the default action (which is to
-    print a stack trace and exit) will not occur.
+### process.addListener('exit', function () { ... })
 
-  - `"SIGINT", "SIGHUP", ... - callback()`:
-    Emitted when the processes receives a signal. See sigaction(2) for a list
-    of standard POSIX signal names such as SIGINT, SIGUSR1, etc.
+Emitted when the process is about to exit.  This is a good hook to perform
+constant time checks of the module's state (like for unit tests).  The main
+event loop will no longer be run after the "exit" callback finishes, so
+timers may not be scheduled.
 
 Example of listening for `exit`:
 
     var sys = require('sys');
 
-    process.addListener("exit", function () {
+    process.addListener('exit', function () {
       process.nextTick(function () {
        sys.puts("This will not run");
       });
-
       sys.puts("About to exit.");
     });
 
+### process.addListener('uncaughtException', function (err) { ... })
+
+Emitted when an exception bubbles all the way back to the event loop. If a
+listener is added for this exception, the default action (which is to print
+a stack trace and exit) will not occur.
 
 Example of listening for `uncaughtException`:
 
     var sys = require("sys");
 
-    process.addListener("uncaughtException", function (exception) {
-      if (exception.type === 'not_defined') {
-        sys.puts("Caught exception: " + exception);
-      }
-      else {
-        throw(exception);
-      }
+    process.addListener('uncaughtException', function (err) {
+      sys.puts("Caught exception: " + err);
     });
 
     setTimeout(function () {
       sys.puts("This will still run.");
     }, 500);
 
-    bad_func(); // Intentionally cause an exception, but don't catch it.
+    // Intentionally cause an exception, but don't catch it.
+    nonexistantFunc();
     sys.puts("This will not run.");
 
-Note that `uncaughtException` is a very crude mechanism for exception handling.  Using
-try / catch in your program will give you more control over your program's flow.
-Especially for server programs that are designed to stay running forever, `uncaughtException`
-can be a useful safety mechanism.
+Note that `uncaughtException` is a very crude mechanism for exception
+handling.  Using try / catch in your program will give you more control over
+your program's flow.  Especially for server programs that are designed to
+stay running forever, `uncaughtException` can be a useful safety mechanism.
 
+
+### process.addListener('SIGINT', function () { ... })
+
+Emitted when the processes receives a signal. See sigaction(2) for a list of
+standard POSIX signal names such as SIGINT, SIGUSR1, etc.
 
 Example of listening for `SIGINT`:
 
     var sys = require("sys"),
         stdin = process.openStdin();
 
-    process.addListener("SIGINT", function () {
+    process.addListener('SIGINT', function () {
       sys.puts("Got SIGINT.  Press Control-D to exit.");
     });
 
-An easy way to send the `SIGINT` signal is with `Control-C` in most terminal programs.
+An easy way to send the `SIGINT` signal is with `Control-C` in most terminal
+programs.
 
- 
-### process.argv, process.ARGV
+### process.stdout
 
-An array containing the command line arguments.  The first element will be 'node', the second element 
-will be the name of the JavaScript file.  The next elements will be any additional command line arguments.
+A writable stream to `stdout`.
+
+Example: the definition of `sys.puts`
+
+    exports.puts = function (d) {
+      process.stdout.write(d + '\n');
+    };
+
+
+
+### process.openStdin()
+
+Opens the standard input stream, returns a readable stream.
+
+Example of opening standard input and listening for both events:
+
+    var stdin = process.openStdin();
+
+    stdin.setEncoding('utf8');
+
+    stdin.addListener('data', function (chunk) {
+      process.stdout.write("data: " + chunk);
+    });
+
+    stdin.addListener('end', function () {
+      process.stdout.write("end");
+    });
+
+
+### process.argv
+
+An array containing the command line arguments.  The first element will be
+'node', the second element will be the name of the JavaScript file.  The
+next elements will be any additional command line arguments.
 
     // print process.argv
     var sys = require("sys");
@@ -141,14 +357,13 @@ will be the name of the JavaScript file.  The next elements will be any addition
 
 This will generate:
 
-    mjr-mbp:~/work/node_docs/data/v0.1.31/examples$ node process-2.js one two=three four
+    $ node process-2.js one two=three four
     0: node
     1: /Users/mjr/work/node_docs/data/v0.1.31/examples/process-2.js
     2: one
     3: two=three
     4: four
-    
-Note that `process.argv` and `process.ARGV` are equivalent.
+
 
 
 ### process.chdir(directory)
@@ -178,7 +393,7 @@ Example of using `process.compile` and `eval` to run the same code:
     var sys = require("sys"),
         localVar = 123,
         compiled, evaled;
-    
+
     compiled = process.compile("localVar = 1;", "myfile.js");
     sys.puts("localVar: " + localVar + ", compiled: " + compiled);
     evaled = eval("localVar = 1;");
@@ -200,7 +415,7 @@ Returns the current working directory of the process.
     require('sys').puts("Current directory: " + process.cwd());
 
 
-### process.env, process.ENV
+### process.env
 
 An object containing the user environment. See environ(7).
 
@@ -211,7 +426,6 @@ An object containing the user environment. See environ(7).
       sys.puts(index + ": " + val + "=" + process.env[val]);
     });
 
-Note that `process.env` and `process.ENV` are equivalent. 
 
 
 ### process.evalcx(code, sandbox, filename)
@@ -225,7 +439,7 @@ as if it were loaded from `filename`.  The object `sandbox` will be used as the 
           animal: "cat",
           count: 2
         };
-    
+
     process.evalcx('count += 1; name = "kitty"', sandbox, "myfile.js");
     sys.puts(sys.inspect(sandbox));
 
@@ -268,7 +482,7 @@ Gets/sets the group identity of the process. (See setgid(2).)  This is the numer
 Gets/sets the user identity of the process. (See setuid(2).)  This is the numerical userid, not the username.
 
     var sys = require('sys');
-    
+
     sys.puts("Current uid: " + process.getuid());
     try {
       process.setuid(501);
@@ -290,7 +504,7 @@ A compiled-in property that exposes `NODE_PREFIX`.
 
 Send a signal to a process. `pid` is the process id and `signal` is the
 string describing the signal to send.  Signal names are strings like
-"SIGINT" or "SIGUSR1".  If omitted, the signal will be "SIGINT".  
+"SIGINT" or "SIGUSR1".  If omitted, the signal will be "SIGINT".
 See kill(2) for more information.
 
 Note that just because the name of this function is `process.kill`, it is
@@ -301,7 +515,7 @@ Example of sending a signal to yourself:
 
     var sys = require("sys");
 
-    process.addListener("SIGHUP", function () {
+    process.addListener('SIGHUP', function () {
       sys.puts("Got SIGHUP signal.");
     });
 
@@ -350,7 +564,7 @@ This will generate:
 
 On the next loop around the event loop call this callback.
 This is *not* a simple alias to `setTimeout(fn, 0)`, it's much more
-efficient. 
+efficient.
 
     var sys = require("sys");
 
@@ -374,7 +588,7 @@ given, otherwise returns the current mask.
 
 
 
-## SYSTEM MODULE
+## sys
 
 These functions are in the module `"sys"`. Use `require("sys")` to access
 them.
@@ -430,98 +644,11 @@ Example of inspecting all properties of the `sys` object:
 
 
 
-## EVENTS
-
-Many objects in Node emit events: a TCP server emits an event each time
-there is a connection, a child process emits an event when it exits. All
-objects which emit events are instances of `events.EventEmitter`.
-
-Events are represented by a camel-cased string. Here are some examples:
-`"connection"`, `"data"`, `"messageBegin"`.
-
-Functions can be then be attached to objects, to be executed when an event
-is emitted. These functions are called _listeners_.
-
-
-### events.EventEmitter
-
-`require("events")` to access the events module.
-
-All EventEmitters emit the event `"newListener"` when new listeners are
-added.
-
-- **`"newListener"`** - `callback(event, listener)`:
-This event is made any time someone adds a new listener.
-
-
-### emitter.addListener(event, listener)
-
-Adds a listener to the end of the listeners array for the specified event.
-
-    server.addListener("connection", function (socket) {
-      sys.puts("someone connected!");
-    });
-
-
-### emitter.removeListener(event, listener)
-
-Remove a listener from the listener array for the specified event.
-**Caution**: changes array indices in the listener array behind the listener.
-
-
-### emitter.removeAllListeners(event)
-
-Removes all listeners from the listener array for the specified event.
-
-
-### emitter.listeners(event)
-
-Returns an array of listeners for the specified event. This array can be
-manipulated, e.g. to remove listeners.
-
-
-### emitter.emit(event, arg1, arg2, ...)
-
-Execute each of the listeners in order with the supplied arguments.
 
 
 
-## STANDARD I/O
 
-Writing data to standard output is typically done with the output functions in the `sys` module.
-
-The underlying `net.Stream` object associated with `stdout` and `stdin` is available via `process.stdout`
-and `process.stdin`.  To read from standard input, it must first be opened.  See below.
-
-
-### process.openStdin()
-
-Open stdin.  The program will not exit until `process.stdin.close()` has been
-called or the `"close"` event has been emitted.
-
-- **`"data"`** - `callback(data)`:
-Emitted when stdin has received a chunk of data.
-
-- **`"close"`** - `callback()`:
-Emitted when stdin has been closed.
-
-
-Example of opening standard input and listening for both events:
-
-    var sys = require("sys"),
-        stdin = process.openStdin();
-
-    stdin.addListener("data", function (chunk) {
-      sys.print("data: " + chunk);
-    });
-
-    stdin.addListener("end", function () {
-      sys.puts("end");
-    });
-
-
-
-## MODULES
+## Modules
 
 Node uses the CommonJS module system.
 
@@ -568,15 +695,10 @@ this:
 
 That is, when `require("assert")` is called Node looks for: 
 
-  * 1:
-    `/home/ryan/.node_libraries/assert.js`
-  * 2:
-    `/home/ryan/.node_libraries/assert.node`
-  * 3:
-    `/home/ryan/.node_libraries/assert/index.js`
-  * 4:
-    `/home/ryan/.node_libraries/assert/index.node`
-
+  * 1: `/home/ryan/.node_libraries/assert.js`
+  * 2: `/home/ryan/.node_libraries/assert.node`
+  * 3: `/home/ryan/.node_libraries/assert/index.js`
+  * 4: `/home/ryan/.node_libraries/assert/index.node`
 
 interrupting once a file is found. Files ending in `".node"` are binary Addon
 Modules; see the section below about addons. `"index.js"` allows one to
@@ -591,7 +713,7 @@ Use `process.mixin()` to include modules into the global namespace.
     process.mixin(GLOBAL, require("./circle"), require("sys"));
     puts("The area of a circle of radius 4 is " + area(4));
 
-## TIMERS
+## Timers
 
 ### setTimeout(callback, delay, [arg, ...])
 
@@ -657,7 +779,7 @@ Stops a interval from triggering.
 
     sys.puts("Started timer.");
 
-## CHILD PROCESSES
+## Child Processes
 
 Node provides a tri-directional `popen(3)` facility through the `ChildProcess`
 class.
@@ -685,7 +807,7 @@ environmental variables. For example:
     // Pipe a child process output to
     // parent process output
     var ls = spawn("ls", ["-lh", "/usr"]);
-    ls.stdout.addListener("data", function (data) {
+    ls.stdout.addListener('data', function (data) {
       process.stdout.write(data);
     });
 
@@ -724,7 +846,7 @@ The callback gets the arguments `(err, stdout, stderr)`. On success +err+
 will be `null`. On error `err` will be an instance of `Error` and `err.code`
 will be the exit code of the child process.
 
-## FILE SYSTEM
+## File System
 
 File I/O is provided by simple wrappers around standard POSIX functions.  To
 use this module do `require("fs")`. All the methods have asynchronous and
@@ -1031,7 +1153,7 @@ Returns a new FileReadStream object.
 ### readStream.readable
 
 A boolean that is `true` by default, but turns `false` after an `"error"`
-occured, the stream came to an "end", or `forceClose()` was called.
+occured, the stream came to an "end", or `destroy()` was called.
 
 ### readStream.pause()
 
@@ -1042,7 +1164,7 @@ until the stream is resumed.
 
 Resumes the stream. Together with `pause()` this useful to throttle reading.
 
-### readStream.forceClose([callback])
+### readStream.destroy()
 
 Allows to close the stream before the `"end"` is reached. No more events other
 than `"close"` will be fired after this method has been called.
@@ -1067,9 +1189,9 @@ Returns a new FileWriteStream object.
 ### writeStream.writeable
 
 A boolean that is `true` by default, but turns `false` after an `"error"`
-occurred or `close()` / `forceClose()` was called.
+occurred or `end()` / `destroy()` was called.
 
-### writeStream.write(data, [callback])
+### writeStream.write(data)
 
 Returns `true` if the data was flushed to the kernel, and `false` if it was
 queued up for being written later. A `"drain"` will fire after all queued data
@@ -1078,11 +1200,11 @@ has been written.
 You can also specify `callback` to be notified when the data from this write
 has been flushed. The first param is `err`, the second is `bytesWritten`.
 
-### writeStream.close([callback])
+### writeStream.end()
 
 Closes the stream right after all queued `write()` calls have finished.
 
-### writeStream.forceClose([callback])
+### writeStream.destroy()
 
 Allows to close the stream regardless of its current state.
 
@@ -1100,14 +1222,14 @@ HTTP message headers are represented by an object like this:
 
     { "content-length": "123"
     , "content-type": "text/plain"
-    , "connection": "keep-alive"
+    , "stream": "keep-alive"
     , "accept": "*/*"
     }
 
 Keys are lowercased. Values are not modified.
 
 In order to support the full spectrum of possible HTTP applications, Node's
-HTTP API is very low-level. It deals with connection handling and message
+HTTP API is very low-level. It deals with stream handling and message
 parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.
 
@@ -1120,11 +1242,11 @@ This is an EventEmitter with the following events:
  `request` is an instance of `http.ServerRequest` and `response` is
  an instance of `http.ServerResponse`
 
- - **`"connection"`** - `callback(connection)`:
- When a new TCP connection is established.
- `connection` is an object of type `http.Connection`. Usually users
- will not want to access this event. The `connection` can also be
- accessed at `request.connection`.
+ - **`"stream"`** - `callback(stream)`:
+ When a new TCP stream is established.
+ `stream` is an object of type `http.Connection`. Usually users
+ will not want to access this event. The `stream` can also be
+ accessed at `request.stream`.
 
  - **`"close"`** - `callback(errno)`:
  Emitted when the server closes. `errorno` is an integer which indicates what, if any,
@@ -1138,31 +1260,34 @@ Returns a new web server object.
 
 The `options` argument is optional. The
 `options` argument accepts the same values as the
-options argument for `tcp.Server`.
+options argument for `net.Server`.
 
 The `request_listener` is a function which is automatically
 added to the `"request"` event.
 
-### server.setSecure(format_type, ca_certs, crl_list, private_key, certificate)
-
-Enable TLS for all incoming connections, with the specified credentials.
-
-`format_type` currently has to be "X509_PEM", and each of the ca, crl, key and
-cert parameters are in the format of PEM strings. 
-
-`ca_certs` is a string that holds a number of CA certificates for use in accepting client connections that authenticate themselves with a client certificate. 
-
-`private_key` is a PEM string of the unencrypted key for the server.
-
 ### server.listen(port, hostname)
 
-Begin accepting connections on the specified port and hostname.
-If the hostname is omitted, the server will accept connections
-directed to any address. This function is synchronous.
+Begin accepting connections on the specified port and hostname.  If the
+hostname is omitted, the server will accept connections directed to any
+address.
+
+This function is asynchronous. `listening` will be emitted when the server
+is ready to accept connections.
+
+
+### server.listen(path)
+
+Start an HTTP UNIX socket server listening for connections on the given `path`.
+(Hint: use NGINX to load balance across many Node servers with this.)
+
+This function is asynchronous. `listening` will be emitted when the server
+is ready to accept connections.
+
 
 ### server.close()
 
 Stops the server from accepting new connections.
+
 
 ### http.ServerRequest
 
@@ -1236,7 +1361,7 @@ The HTTP protocol version as a string. Read only. Examples:
 `"1.1"`, `"1.0"`
 
 
-### request.setBodyEncoding(encoding="binary")
+### request.setEncoding(encoding="binary")
 
 Set the encoding for the request body. Either `"utf8"` or `"binary"`. Defaults
 to `"binary"`.
@@ -1251,7 +1376,7 @@ Pauses request from emitting events.  Useful to throttle back an upload.
 
 Resumes a paused request.
 
-### request.connection
+### request.stream
 
 The `http.Connection` object.
 
@@ -1276,7 +1401,7 @@ Example:
     });
 
 This method must only be called once on a message and it must
-be called before `response.close()` is called.
+be called before `response.end()` is called.
 
 ### response.write(chunk, encoding="ascii")
 
@@ -1298,11 +1423,11 @@ data, and sends that separately. That is, the response is buffered up to the
 first chunk of body.
 
 
-### response.close()
+### response.end()
 
 This method signals to the server that all of the response headers and body
 has been sent; that server should consider this message complete.
-The method, `response.close()`, MUST be called on each
+The method, `response.end()`, MUST be called on each
 response.
 
 ### http.Client
@@ -1310,8 +1435,8 @@ response.
 An HTTP client is constructed with a server address as its
 argument, the returned handle is then used to issue one or more
 requests.  Depending on the server connected to, the client might
-pipeline the requests or reestablish the connection after each
-connection. _Currently the implementation does not pipeline requests._
+pipeline the requests or reestablish the stream after each
+stream. _Currently the implementation does not pipeline requests._
 
 Example of connecting to `google.com`:
 
@@ -1322,23 +1447,23 @@ Example of connecting to `google.com`:
     request.addListener('response', function (response) {
       sys.puts("STATUS: " + response.statusCode);
       sys.puts("HEADERS: " + JSON.stringify(response.headers));
-      response.setBodyEncoding("utf8");
-      response.addListener("data", function (chunk) {
+      response.setEncoding("utf8");
+      response.addListener('data', function (chunk) {
         sys.puts("BODY: " + chunk);
       });
     });
-    request.close();
+    request.end();
 
 
 ### http.createClient(port, host)
 
 Constructs a new HTTP client. `port` and
 `host` refer to the server to be connected to. A
-connection is not established until a request is issued.
+stream is not established until a request is issued.
 
 ### client.request([method], path, [request_headers])
 
-Issues a request; if necessary establishes connection. Returns a `http.ClientRequest` instance.
+Issues a request; if necessary establishes stream. Returns a `http.ClientRequest` instance.
 
 `method` is optional and defaults to "GET" if omitted.
 
@@ -1350,22 +1475,11 @@ Do remember to include the `Content-Length` header if you
 plan on sending a body. If you plan on streaming the body, perhaps
 set `Transfer-Encoding: chunked`.
 
-*NOTE*: the request is not complete. This method only sends
-the header of the request. One needs to call
-`request.close()` to finalize the request and retrieve
-the response.  (This sounds convoluted but it provides a chance
-for the user to stream a body to the server with
-`request.write()`.)
+*NOTE*: the request is not complete. This method only sends the header of
+the request. One needs to call `request.end()` to finalize the request and
+retrieve the response.  (This sounds convoluted but it provides a chance for
+the user to stream a body to the server with `request.write()`.)
 
-### client.setSecure(format_type, ca_certs, crl_list, private_key, certificate)
-
-Enable TLS for the client connection, with the specified credentials.
-
-`format_type` currently has to be "X509_PEM", and each of the ca, crl, key and
-cert parameters are in the format of PEM strings, and optional.
-
-`ca_certs` is a string that holds a number of CA certificates for use in deciding the authenticity of the remote server. `private_key` is a PEM string of the unencrypted key for the client, which together with the certificate allows the client to authenticate
-itself to the server.
 
 
 ### http.ClientRequest
@@ -1389,7 +1503,7 @@ event, the entire body will be caught.
 
     // Good
     request.addListener('response', function (response) {
-      response.addListener("data", function (chunk) {
+      response.addListener('data', function (chunk) {
         sys.puts("BODY: " + chunk);
       });
     });
@@ -1397,7 +1511,7 @@ event, the entire body will be caught.
     // Bad - misses all or part of the body
     request.addListener('response', function (response) {
       setTimeout(function () {
-        response.addListener("data", function (chunk) {
+        response.addListener('data', function (chunk) {
           sys.puts("BODY: " + chunk);
         });
       }, 10);
@@ -1427,10 +1541,10 @@ argument should be either `"utf8"` or
 `"ascii"`. By default the body uses ASCII encoding,
 as it is faster.
 
-### request.close()
+### request.end()
 
 Finishes sending the request. If any parts of the body are
-unsent, it will flush them to the socket. If the request is
+unsent, it will flush them to the stream. If the request is
 chunked, this will send the terminating `"0\r\n\r\n"`.
 
 
@@ -1466,7 +1580,7 @@ The HTTP version of the connected-to server. Probably either
 
 The response headers.
 
-### response.setBodyEncoding(encoding)
+### response.setEncoding(encoding)
 
 Set the encoding for the response body. Either `"utf8"` or `"binary"`.
 Defaults to `"binary"`.
@@ -1484,73 +1598,60 @@ Resumes a paused response.
 A reference to the `http.Client` that this response belongs to.
 
 
-## TCP
+## Networking
 
-To use the TCP server and client one must `require("tcp")`.
+Creating UNIX and TCP servers and clients.
+To use networking, one must `require("net")`.
 
-### tcp.Server
+### net.Server
 
 Here is an example of a echo server which listens for connections
 on port 7000:
 
-    var tcp = require("tcp");
-    var server = tcp.createServer(function (socket) {
-      socket.setEncoding("utf8");
-      socket.addListener("connect", function () {
-        socket.write("hello\r\n");
+    var net = require("net");
+    var server = net.createServer(function (stream) {
+      stream.setEncoding("utf8");
+      stream.addListener('connect', function () {
+        stream.write("hello\r\n");
       });
-      socket.addListener("data", function (data) {
-        socket.write(data);
+      stream.addListener('data', function (data) {
+        stream.write(data);
       });
-      socket.addListener("end", function () {
-        socket.write("goodbye\r\n");
-        socket.close();
+      stream.addListener('end', function () {
+        stream.write("goodbye\r\n");
+        stream.end();
       });
     });
     server.listen(7000, "localhost");
 
 This is an EventEmitter with the following events:
 
-- **`"connection"`** - `callback(connection)`:
-Emitted when a new connection is made. `connection` is an instance of `tcp.Connection`.
+- **`"stream"`** - `callback(stream)`:
+Emitted when a new stream is made. `stream` is an instance of `net.Stream`.
 
 - **`"close"`** - `callback(errno)`:
 Emitted when the server closes. `errorno` is an integer which indicates what, if any, error caused
 the server to close. If no error occurred `errorno` will be 0.
 
 
-### tcp.createServer(connection_listener)
+### net.createServer(connectionListener)
 
 Creates a new TCP server.
 
 The `connection_listener` argument is automatically set as a listener for
-the `"connection"` event.
+the `"stream"` event.
 
-### server.setSecure(format_type, ca_certs, crl_list, private_key, certificate)
 
-Enable TLS for all incoming connections, with the specified credentials.
-
-`format_type` currently has to be "X509_PEM", and each of the ca, crl, key and
-cert parameters are in the format of PEM strings. 
-
-`ca_certs` is a string that holds a number of CA certificates for use in
-accepting client connections that authenticate themselves with a client
-certificate.
-
-`private_key` is a PEM string of the unencrypted key for the server.
-
-### server.listen(port, host=null, backlog=128)
+### server.listen(port, host=null)
 
 Tells the server to listen for TCP connections to `port` and `host`.
 
 `host` is optional. If `host` is not specified the server will accept client
 connections on any network address.
 
-The third argument, `backlog`, is also optional and defaults to 128. The
-`backlog` argument defines the maximum length to which the queue of pending
-connections for the server may grow.
+This function is asynchronous. The server will emit `'listening'` when it is
+safe to connect to it.
 
-This function is synchronous.
 
 ### server.close()
 
@@ -1558,77 +1659,77 @@ Stops the server from accepting new connections. This function is
 asynchronous, the server is finally closed when the server emits a `"close"`
 event.
 
-### tcp.Connection
+### net.Stream
 
-This object is used as a TCP client and also as a server-side
-socket for `tcp.Server`.
+This object is used as a TCP/UNIX client and also as a server-side stream
+for `net.Server`.
 
-This is an EventEmitter with the following events:
+This is an EventEmitter and duplex stream with the following events:
 
 - **`"connect"`** - `callback()`:
-Call once the connection is established after a call to 
-`createConnection()` or `connect()`.
+Call once the stream is established after a call to `createConnection()` or
+`connect()`.
 
 - **`"data"`** - `callback(data)`:
-Called when data is received on the connection.  `data`
-will be a string. Encoding of data is set by `connection.setEncoding()`.
+Called when data is received on the stream.  `data`
+will be a string. Encoding of data is set by `stream.setEncoding()`.
 
 - **`"end"`** - `callback()`:
-Called when the other end of the connection sends a FIN
+Called when the other end of the stream sends a FIN
 packet. After this is emitted the `readyState` will be
 `"writeOnly"`. One should probably just call
-`connection.close()` when this event is emitted.
+`stream.end()` when this event is emitted.
 
 - **`"timeout"`** - `callback()`:
-Emitted if the connection times out from inactivity. The
+Emitted if the stream times out from inactivity. The
 `"close"` event will be emitted immediately following this event.
 
 - **`"drain"`** - `callback()`:
 Emitted when the write buffer becomes empty. Can be used to throttle uploads.
 
 - **`"close"`** - `callback(had_error)`:
-Emitted once the connection is fully closed. The argument `had_error` is a boolean which says if
-the connection was closed due to a transmission
+Emitted once the stream is fully closed. The argument `had_error` is a boolean which says if
+the stream was closed due to a transmission
 error. (TODO: access error codes.)
 
-### tcp.createConnection(port, host="127.0.0.1")
+### net.createConnection(port, host="127.0.0.1")
 
-Creates a new connection object and opens a connection to the specified `port`
+Creates a new stream object and opens a stream to the specified `port`
 and `host`. If the second parameter is omitted, localhost is assumed.
 
-When the connection is established the `"connect"` event will be emitted.
+When the stream is established the `"connect"` event will be emitted.
 
-### connection.connect(port, host="127.0.0.1")
+### stream.connect(port, host="127.0.0.1")
 
-Opens a connection to the specified `port` and `host`. `createConnection()`
-also opens a connection; normally this method is not needed. Use this only if
-a connection is closed and you want to reuse the object to connect to another
+Opens a stream to the specified `port` and `host`. `createConnection()`
+also opens a stream; normally this method is not needed. Use this only if
+a stream is closed and you want to reuse the object to connect to another
 server.
 
 This function is asynchronous. When the `"connect"` event is emitted the
-connection is established. If there is a problem connecting, the `"connect"`
+stream is established. If there is a problem connecting, the `"connect"`
 event will not be emitted, the `"close"` event will be emitted with 
 `had_error == true`.
 
-### connection.remoteAddress
+### stream.remoteAddress
 
 The string representation of the remote IP address. For example,
 `"74.125.127.100"` or `"2001:4860:a005::68"`.
 
 This member is only present in server-side connections.
 
-### connection.readyState
+### stream.readyState
 
 Either `"closed"`, `"open"`, `"opening"`, `"readOnly"`, or `"writeOnly"`.
 
-### connection.setEncoding(encoding)
+### stream.setEncoding(encoding)
 
 Sets the encoding (either `"ascii"`, `"utf8"`, or `"binary"`) for data that is
 received.
 
-### connection.write(data, encoding="ascii")
+### stream.write(data, encoding="ascii")
 
-Sends data on the connection. The second parameter specifies the encoding in
+Sends data on the stream. The second parameter specifies the encoding in
 the case of a string--it defaults to ASCII because encoding to UTF8 is rather
 slow.
 
@@ -1636,61 +1737,40 @@ Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in user memory.
 `'drain'` will be emitted when the buffer is again free.
 
-### connection.close()
+### stream.end()
 
-Half-closes the connection. I.E., it sends a FIN packet. It is possible the
+Half-closes the stream. I.E., it sends a FIN packet. It is possible the
 server will still send some data. After calling this `readyState` will be
 `"readOnly"`.
 
-### connection.forceClose()
+### stream.destroy()
 
-Ensures that no more I/O activity happens on this socket. Only necessary in
+Ensures that no more I/O activity happens on this stream. Only necessary in
 case of errors (parse error or so).
 
-### connection.pause()
+### stream.pause()
 
 Pauses the reading of data. That is, `"data"` events will not be emitted.
 Useful to throttle back an upload.
 
-### connection.resume()
+### stream.resume()
 
 Resumes reading after a call to `pause()`.
 
-### connection.setTimeout(timeout)
+### stream.setTimeout(timeout)
 
-Sets the connection to timeout after `timeout` milliseconds of inactivity on
-the connection. By default all `tcp.Connection` objects have a timeout of 60
+Sets the stream to timeout after `timeout` milliseconds of inactivity on
+the stream. By default all `net.Stream` objects have a timeout of 60
 seconds (60000 ms).
 
 If `timeout` is 0, then the idle timeout is disabled.
 
-### connection.setNoDelay(noDelay=true)
+### stream.setNoDelay(noDelay=true)
 
 Disables the Nagle algorithm. By default TCP connections use the Nagle
 algorithm, they buffer data before sending it off. Setting `noDelay` will
-immediately fire off data each time `connection.write()` is called.
+immediately fire off data each time `stream.write()` is called.
 
-### connection.verifyPeer()
-
-Returns an integer indicating the trusted status of the peer in a TLS
-connection.
-
-Returns 1 if the peer's certificate is issued by one of the trusted CAs, the
-certificate has not been revoked, is in the issued date range, and if the peer
-is the server, matches the hostname.
-
-Returns 0 if no certificate was presented by the peer, or negative result if
-the verification fails (with a given reason code). This function is
-synchronous.
-
-### connection.getPeerCertificate(format)
-
-For a TLS connection, returns the peer's certificate information, as defined
-by the given format.
-
-A format of "DNstring" gives a single string with the combined Distinguished
-Name (DN) from the certificate, as comma delimited name=value pairs as defined
-in RFC2253. This function is synchronous.
 
 ## DNS module
 
@@ -1702,16 +1782,14 @@ resolves the IP addresses which are returned.
     var dns = require("dns"),
         sys = require("sys");
 
-    dns.resolve4("www.google.com", function (err, addresses, ttl, cname) {
+    dns.resolve4("www.google.com", function (err, addresses) {
       if (err) throw err;
 
       sys.puts("addresses: " + JSON.stringify(addresses));
-      sys.puts("ttl: " + JSON.stringify(ttl));
-      sys.puts("cname: " + JSON.stringify(cname));
 
       for (var i = 0; i < addresses.length; i++) {
         var a = addresses[i];
-        dns.reverse(a, function (err, domains, ttl, cname) {
+        dns.reverse(a, function (err, domains) {
           if (err) {
             puts("reverse for " + a + " failed: " + e.message);
           } else {
@@ -1728,9 +1806,7 @@ specified by rrtype. Valid rrtypes are `A` (IPV4 addresses), `AAAA` (IPV6
 addresses), `MX` (mail exchange records), `TXT` (text records), `SRV` (SRV
 records), and `PTR` (used for reverse IP lookups).
 
-The callback has arguments `(err, addresses, ttl, cname)`. `ttl`
-(time-to-live) is an integer specifying the number of seconds this result is
-valid for. `cname` is the canonical name for the query. The type of each item
+The callback has arguments `(err, addresses)`.  The type of each item
 in `addresses` is determined by the record type, and described in the
 documentation for the corresponding lookup methods below.
 
@@ -1772,7 +1848,7 @@ of SRV records are priority, weight, port, and name (e.g., `[{"priority": 10, {"
 
 Reverse resolves an ip address to an array of domain names.
 
-The callback has arguments `(err, domains, ttl, cname)`. `ttl` (time-to-live) is an integer specifying the number of seconds this result is valid for. `cname` is the canonical name for the query. `domains` is an array of domains.
+The callback has arguments `(err, domains)`. 
 
 If there an an error, `err` will be non-null and an instanceof the Error
 object.
@@ -2023,10 +2099,10 @@ result of the last expression.
 The library is called `/repl.js` and it can be used like this:
 
     var sys = require("sys"),
-        tcp = require("tcp"),
+        net = require("net"),
        repl = require("repl");
     nconnections = 0;
-    tcp.createServer(function (c) {
+    net.createServer(function (c) {
       sys.error("Connection!");
       nconnections += 1;
       c.close();
