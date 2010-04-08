@@ -1,6 +1,6 @@
 require("../common");
 
-var dns = require("dns_cares"),
+var dns = require("dns"),
     child_process = require("child_process"),
     sys = require("sys");
 

@@ -15,10 +15,6 @@ are:
   - The SCONS build system, located at tools/scons. Copyrighted by the SCONS
     Foundation.  Released under an MIT license.
 
-  - UDNS, an asynchronous DNS client, located at deps/udns. Copyrighted by
-    Michael Tokarev <mjt@corpit.ru>. Released under the GNU Lesser General
-    Public License version 2.1.
-
   - C-Ares, an asynchronous DNS client, located at deps/c-ares. Copyright by
     the Massachusetts Institute of Technology; authored by Greg Hudson,
     Daniel Stenberg and others. Released under an MIT license.

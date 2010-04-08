@@ -1,6 +1,6 @@
 require('../common');
 
-var dns = require("dns_cares");
+var dns = require("dns");
 
 
 // Try resolution without callback
