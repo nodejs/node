@@ -8,7 +8,7 @@ function pingPongTest (port, host, on_complete) {
   var N = 100;
   var DELAY = 1;
   var count = 0;
-  var client_closed = false;
+  var client_ended = false;
 
   var server = net.createServer(function (socket) {
     socket.setEncoding("utf8");
@@ -32,11 +32,11 @@ function pingPongTest (port, host, on_complete) {
     socket.addListener("end", function () {
       puts("server-side socket EOF");
       assert.equal("writeOnly", socket.readyState);
-      socket.close();
+      socket.end();
     });
 
     socket.addListener("close", function (had_error) {
-      puts("server-side socket close");
+      puts("server-side socket.end");
       assert.equal(false, had_error);
       assert.equal("closed", socket.readyState);
       socket.server.close();
@@ -64,8 +64,8 @@ function pingPongTest (port, host, on_complete) {
         client.write("PING");
       } else {
         puts("closing client");
-        client.close();
-        client_closed = true;
+        client.end();
+        client_ended = true;
       }
     }, DELAY);
   });
@@ -76,9 +76,9 @@ function pingPongTest (port, host, on_complete) {
   });
 
   client.addListener("close", function () {
-    puts("client close");
+    puts("client.end");
     assert.equal(N+1, count);
-    assert.equal(true, client_closed);
+    assert.ok(client_ended);
     if (on_complete) on_complete();
     tests_run += 1;
   });

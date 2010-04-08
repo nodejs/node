@@ -33,7 +33,7 @@ function pingPongTest (port, host, on_complete) {
 
     socket.addListener("end", function () {
       assert.equal("writeOnly", socket.readyState);
-      socket.close();
+      socket.end();
     });
 
     socket.addListener("close", function (had_error) {
@@ -71,7 +71,7 @@ function pingPongTest (port, host, on_complete) {
     } else {
       sent_final_ping = true;
       client.write("PING");
-      client.close();
+      client.end();
     }
   });
 

@@ -26,7 +26,7 @@ child.stdout.addListener("data", function (data){
   } else {
     assert.equal("echo me\r\n", data);
     gotEcho = true;
-    child.stdin.close();
+    child.stdin.end();
   }
 });
 

@@ -19,7 +19,7 @@ var server = http.createServer(function(req, res) {
     puts("request complete from server");
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.write('hello\n');
-    res.close();
+    res.end();
   });
 });
 server.listen(PORT);
@@ -42,7 +42,7 @@ req.addListener('response', function(res) {
     server.close();
   });
 });
-req.close();
+req.end();
 
 process.addListener("exit", function () {
   assert.equal("1\n2\n3\n", sent_body);

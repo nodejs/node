@@ -5,7 +5,7 @@ N = 200;
 server = net.createServer(function (connection) {
   function write (j) {
     if (j >= N) {
-      connection.close();
+      connection.end();
       return;
     }
     setTimeout(function () {
@@ -58,7 +58,7 @@ setTimeout(function () {
 
 client.addListener("end", function () {
   server.close();
-  client.close();
+  client.end();
 });
 
 process.addListener("exit", function () {

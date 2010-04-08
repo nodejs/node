@@ -14,7 +14,7 @@ var s = http.createServer(function (req, res) {
 
   res.writeHead(200, {"Content-Type": "text/plain"});
   res.write("Hello World");
-  res.close();
+  res.end();
 
   if (++nrequests_completed == nrequests_expected) s.close();
 });
@@ -23,7 +23,7 @@ s.listen(PORT);
 var c = net.createConnection(PORT);
 c.addListener("connect", function () {
   c.write("GET /hello?foo=%99bar HTTP/1.1\r\n\r\n");
-  c.close();
+  c.end();
 });
 
 //  TODO add more!

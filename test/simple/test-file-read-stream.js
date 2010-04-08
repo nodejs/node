@@ -10,7 +10,7 @@ var
     open: -1,
     end: -1,
     close: -1,
-    forceClose: -1
+    destroy: -1
   },
 
   paused = false,
@@ -51,9 +51,9 @@ file
   });
 
 var file2 = fs.createReadStream(fn);
-file2.forceClose(function(err) {
+file2.destroy(function(err) {
   assert.ok(!err);
-  callbacks.forceClose++;
+  callbacks.destroy++;
 });
 
 process.addListener('exit', function() {

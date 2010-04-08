@@ -6,7 +6,7 @@ var cat = spawn("cat");
 cat.stdin.write("hello");
 cat.stdin.write(" ");
 cat.stdin.write("world");
-cat.stdin.close();
+cat.stdin.end();
 
 var response = "";
 var exitStatus = -1;

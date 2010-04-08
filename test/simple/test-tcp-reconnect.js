@@ -12,7 +12,7 @@ var server = net.createServer(function (socket) {
   });
 
   socket.addListener("end", function () {
-    socket.close();
+    socket.end();
   });
 
   socket.addListener("close", function (had_error) {
@@ -37,7 +37,7 @@ server.addListener('listening', function () {
     client_recv_count += 1;
     puts("client_recv_count " + client_recv_count);
     assert.equal("hello\r\n", chunk);
-    client.close();
+    client.end();
   });
 
   client.addListener("close", function (had_error) {

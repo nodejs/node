@@ -8,7 +8,7 @@ var client_got_eof = false;
 
 var server = http.createServer(function (req, res) {
   res.writeHead(200, {"Content-Type": "text/plain"});
-  res.close(body);
+  res.end(body);
 })
 server.listen(PORT);
 
@@ -27,7 +27,7 @@ c.addListener("data", function (chunk) {
 
 c.addListener("end", function () {
   client_got_eof = true;
-  c.close();
+  c.end();
   server.close();
 });
 

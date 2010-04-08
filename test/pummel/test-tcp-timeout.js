@@ -20,7 +20,7 @@ var echo_server = net.createServer(function (socket) {
   });
 
   socket.addListener("end", function () {
-    socket.close();
+    socket.end();
   });
 });
 
@@ -58,7 +58,7 @@ client.addListener("timeout", function () {
 
 client.addListener("end", function () {
   puts("client end");
-  client.close();
+  client.end();
 });
 
 client.addListener("close", function () {

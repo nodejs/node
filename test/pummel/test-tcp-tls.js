@@ -37,7 +37,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
 
     socket.addListener("end", function () {
       assert.equal("writeOnly", socket.readyState);
-      socket.close();
+      socket.end();
     });
 
     socket.addListener("close", function (had_error) {
@@ -83,7 +83,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
     } else {
       sent_final_ping = true;
       client.write("PING");
-      client.close();
+      client.end();
     }
   });
 

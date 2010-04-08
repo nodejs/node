@@ -18,7 +18,7 @@ var server = net.createServer(function (c) {
     total_connections++;
     print("#");
     c.write(body);
-    c.close();
+    c.end();
   });
 });
 server.listen(PORT);
@@ -41,7 +41,7 @@ function runClient (callback) {
   });
 
   client.addListener("end", function () {
-    client.close();
+    client.end();
   });
 
   client.addListener("error", function (e) {

@@ -1,7 +1,7 @@
 path = require("path");
 
 var puts = require("sys").puts;
-var old = true;
+var old = false;
 
 http = require(old ? "http_old" : 'http');
 if (old) puts('old version');
@@ -56,6 +56,6 @@ http.createServer(function (req, res) {
     res.write(body, 'ascii');
     res.close();
   } else {
-    res.close(body, 'ascii');
+    res.end(body, 'ascii');
   }
 }).listen(8000);
