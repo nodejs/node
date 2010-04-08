@@ -56,6 +56,14 @@ try {
   assert.equal("blah", e.message);
 }
 
+var errorThrownAsync = false;
+require.async("../fixtures/throws_error1", function(err, a) {
+  if (err) {
+    errorThrownAsync = true;
+    assert.equal("blah", err.message);
+  }
+});
+
 assert.equal(require('path').dirname(__filename), __dirname);
 
 var asyncRun = false;
@@ -102,6 +110,8 @@ process.addListener("exit", function () {
   assert.equal(true, errorThrown);
 
   assert.equal(true, asyncRun);
+
+  assert.equal(true, errorThrownAsync);
 
   puts("exit");
 });
