@@ -31,10 +31,10 @@ All of the examples in the documentation can be run similarly.
 
 Pure Javascript is Unicode friendly but not nice to pure binary data.  When
 dealing with TCP streams or the file system, it's necessary to handle octet
-streams. Node has several stratagies for manipulating, creating, and
+streams. Node has several strategies for manipulating, creating, and
 consuming octet streams.
 
-Raw data is stored in instaces of the `Buffer` class. A `Buffer` is similar
+Raw data is stored in instances of the `Buffer` class. A `Buffer` is similar
 to an array of integers but correspond to a raw memory allocation outside
 the V8 heap. A `Buffer` cannot be resized.
 Access the class at `require('buffer').Buffer`.
@@ -59,29 +59,14 @@ Binary (`"binary"`). `"ascii"` and `"binary"` only look at the first 8 bits
 of the 16bit JavaScript string characters. The following `Buffer` methods
 allow decoding and encoding of strings:
 
-- **`buffer.utf8Write(string, offset)`**: Writes `string` to the buffer at
-`offset` using UTF-8 encoding. Returns the number of octets written. If
+- **`buffer.write(string, encoding, offset)`**: Writes `string` to the buffer at
+`offset` using the given encoding. Returns number of octets written.  If
 `buffer` did not contain enough space to fit the entire string it will write
-a partial amount of the string. However, this method will not write partial
-characters.
+a partial amount of the string. In the case of `encoding=='utf8'`, the
+method will not write partial characters.
 
-- **`buffer.binaryWrite(string, offset)`**: Writes `string` to the buffer at
-`offset` using binary encoding - that is it will only use the first 8 bits
-of each character. Write a partial string if not enough space remains.
-Returns number of octets written.
-
-- **`buffer.asciiWrite(string, offset)`**: Writes `string` to the buffer at
-`offset` using ASCII encoding. Faster than `utf8Write()`. Write a partial
-string if not enough space remains.  Returns number of octets written.
-
-- **`buffer.utf8Slice(start, end)`**: Decodes and returns a string assuming
-UTF-8 encoding beginning at `start` and ending at `end`.
-
-- **`buffer.binarySlice(start, end)`**: Decodes and returns a string assuming
-binary encoding beginning at `start` and ending at `end`.
-
-- **`buffer.asciiSlice(start, end)`**: Decodes and returns a string assuming
-ASCII encoding beginning at `start` and ending at `end`.
+- **`buffer.toString(encoding, start, end)`**: Decodes and returns a string assuming
+in the given encoding beginning at `start` and ending at `end`.
 
 
 
