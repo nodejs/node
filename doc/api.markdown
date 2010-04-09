@@ -3,18 +3,18 @@ node(1) -- evented I/O for V8 JavaScript
 
 ## Synopsis
 
-An example of a web server written with Node which responds with "Hello
-World":
+An example of a web server written with Node which responds with 'Hello
+World':
 
-    var sys = require("sys"),
-      http = require("http");
+    var sys = require('sys'),
+      http = require('http');
 
     http.createServer(function (request, response) {
-      response.writeHead(200, {"Content-Type": "text/plain"});
-      response.end("Hello World\n");
+      response.writeHead(200, {'Content-Type': 'text/plain'});
+      response.end('Hello World\n');
     }).listen(8000);
 
-    sys.puts("Server running at http://127.0.0.1:8000/");
+    sys.puts('Server running at http://127.0.0.1:8000/');
 
 To run the server, put the code into a file called `example.js` and execute
 it with the node program
@@ -23,6 +23,72 @@ it with the node program
     Server running at http://127.0.0.1:8000/
 
 All of the examples in the documentation can be run similarly.
+
+
+## Modules
+
+Node uses the CommonJS module system.
+
+Node has a simple module loading system.  In Node, files and modules are in
+one-to-one correspondence.  As an example, `foo.js` loads the module
+`circle.js` in the same directory.
+
+The contents of `foo.js`:
+
+    var circle = require('./circle'),
+    var sys = require('sys');
+    sys.puts( 'The area of a circle of radius 4 is ' 
+            + circle.area(4));
+
+The contents of `circle.js`:
+
+    var PI = 3.14;
+
+    exports.area = function (r) {
+      return PI * r * r;
+    };
+
+    exports.circumference = function (r) {
+      return 2 * PI * r;
+    };
+
+The module `circle.js` has exported the functions `area()` and
+`circumference()`.  To export an object, add to the special `exports`
+object.  (Alternatively, one can use `this` instead of `exports`.) Variables
+local to the module will be private. In this example the variable `PI` is
+private to `circle.js`. The function `puts()` comes from the module `'sys'`,
+which is a built-in module. Modules which are not prefixed by `'./'` are
+built-in module--more about this later.
+
+A module prefixed with `'./'` is relative to the file calling `require()`.
+That is, `circle.js` must be in the same directory as `foo.js` for
+`require('./circle')` to find it.
+
+Without the leading `'./'`, like `require('assert')` the module is searched
+for in the `require.paths` array. `require.paths` on my system looks like
+this: 
+
+`[ '/home/ryan/.node_libraries' ]`
+
+That is, when `require('assert')` is called Node looks for: 
+
+  * 1: `/home/ryan/.node_libraries/assert.js`
+  * 2: `/home/ryan/.node_libraries/assert.node`
+  * 3: `/home/ryan/.node_libraries/assert/index.js`
+  * 4: `/home/ryan/.node_libraries/assert/index.node`
+
+interrupting once a file is found. Files ending in `'.node'` are binary Addon
+Modules; see the section below about addons. `'index.js'` allows one to
+package a module as a directory.
+
+`require.paths` can be modified at runtime by simply unshifting new
+paths onto it, or at startup with the `NODE_PATH` environmental
+variable (which should be a list of paths, colon separated).
+
+Use `process.mixin()` to include modules into the global namespace.
+
+    process.mixin(GLOBAL, require('./circle'), require('sys'));
+    puts('The area of a circle of radius 4 is ' + area(4));
 
 
 ## String Encodings and Buffers
@@ -37,58 +103,61 @@ to an array of integers but correspond to a raw memory allocation outside
 the V8 heap. A `Buffer` cannot be resized.
 Access the class at `require('buffer').Buffer`.
 
-- **`new Buffer(size)`**: Allocates a new buffer of `size` octets.
+Node supports 3 string encodings. UTF-8 (`'utf8'`), ASCII (`'ascii'`), and
+Binary (`'binary'`). `'ascii'` and `'binary'` only look at the first 8 bits
+of the 16bit JavaScript string characters.
 
-- **`buffer[index]`**: Get and set the octet at `index`. The value can be
-between 0x00 and 0xFF.
+### new Buffer(size)
+Allocates a new buffer of `size` octets.
 
-- **`buffer.length`**: length in octets.
+### buffer[index]
+Get and set the octet at `index`. The value can be between `0x00` and `0xFF`.
 
-- **`buffer.copy(targetBuffer, targetStart, start, end)`**:
+### buffer.length
+length in octets.
+
+### buffer.copy(targetBuffer, targetStart, start, end)
 Does a memcpy() between buffers.
 
-- **`buffer.slice(start, end)`**: Returns a new buffer which references the
+### buffer.slice(start, end)
+Returns a new buffer which references the
 same memory as the old, but offset and cropped by the `start` and `end`
 indexes. **Modifying the new buffer slice will modify memory in the original
 buffer!**
 
-Node supports 3 string encodings. UTF-8 (`"utf8"`), ASCII (`"ascii"`), and
-Binary (`"binary"`). `"ascii"` and `"binary"` only look at the first 8 bits
-of the 16bit JavaScript string characters. The following `Buffer` methods
-allow decoding and encoding of strings:
+### buffer.write(string, encoding, offset)
+Writes `string` to the buffer at `offset` using the given encoding. Returns
+number of octets written.  If `buffer` did not contain enough space to fit
+the entire string it will write a partial amount of the string. In the case
+of `encoding=='utf8'`, the method will not write partial characters.
 
-- **`buffer.write(string, encoding, offset)`**: Writes `string` to the buffer at
-`offset` using the given encoding. Returns number of octets written.  If
-`buffer` did not contain enough space to fit the entire string it will write
-a partial amount of the string. In the case of `encoding=='utf8'`, the
-method will not write partial characters.
-
-- **`buffer.toString(encoding, start, end)`**: Decodes and returns a string assuming
-in the given encoding beginning at `start` and ending at `end`.
+### buffer.toString(encoding, start, end)
+Decodes and returns a string assuming in the given encoding beginning at
+`start` and ending at `end`.
 
 
 
-## Events
+## EventEmitter
 
 Many objects in Node emit events: a TCP server emits an event each time
 there is a stream, a child process emits an event when it exits. All
 objects which emit events are instances of `events.EventEmitter`.
 
 Events are represented by a camel-cased string. Here are some examples:
-`"stream"`, `"data"`, `"messageBegin"`.
+`'stream'`, `'data'`, `'messageBegin'`.
 
 Functions can be then be attached to objects, to be executed when an event
 is emitted. These functions are called _listeners_.
 
+`require('events').EventEmitter` to access the `EventEmitter` class.
 
-### events.EventEmitter
-
-`require("events")` to access the events module.
-
-All EventEmitters emit the event `"newListener"` when new listeners are
+All EventEmitters emit the event `'newListener'` when new listeners are
 added.
 
-- **`"newListener"`** - `callback(event, listener)`:
+### Event: 'newListener'
+
+`function (event, listener) { }`
+
 This event is made any time someone adds a new listener.
 
 
@@ -97,7 +166,7 @@ This event is made any time someone adds a new listener.
 Adds a listener to the end of the listeners array for the specified event.
 
     server.addListener('stream', function (stream) {
-      sys.puts("someone connected!");
+      sys.puts('someone connected!');
     });
 
 
@@ -130,55 +199,78 @@ A stream is an abstract interface implemented by various objects in Node.
 For example a request to an HTTP server is a stream, as is stdout. Streams
 are readable, writable, or both. All streams are instances of `EventEmitter`.
 
-### Readable Stream
+## Readable Stream
 
 A **readable stream** has the following methods, members, and events.
 
-- Event: **`'data'`** - `callback(data)`:
+### Event: 'data'
+
+`function (data) { }`
+
 The `'data'` event emits either a `Buffer` (by default) or a string if
 `setEncoding()` was used.
 
-- Event: **`'end'`** - `callback()`:
+### Event: 'end'
+
+`function () { }`
+
 Emitted when the stream has received an EOF (FIN in TCP terminology).
 Indicates that no more `'data'` events will happen. If the stream is also
 writable, it may be possible to continue writing.
 
-- Event: **`'error'`** - `callback(exception)`:
+### Event: 'error'
+
+`function (exception) { }`
+
 Emitted if there was an error receiving data.
 
-- Event: **`'close'`** - `callback()`:
+### Event: 'close'
+
+`function () { }`
+
 Emitted when the underlying file descriptor has be closed. Not all streams
 will emit this.  (For example, an incoming HTTP request will not emit
 `'close'`.)
 
-- **`stream.setEncoding(encoding)`**:
+### stream.setEncoding(encoding)
 Makes the data event emit a string instead of a `Buffer`. `encoding` can be
 `'utf8'`, `'ascii'`, or `'binary'`.
 
-- **`stream.pause()`**:
+### stream.pause()
 Pauses the incoming `'data'` events.
 
-- **`stream.resume()`**:
+### stream.resume()
 Resumes the incoming `'data'` events after a `pause()`.
 
-- **`stream.destroy()`**:
+### stream.destroy()
 Closes the underlying file descriptor. Stream will not emit any more events.
 
-### Writable Stream
+
+
+## Writable Stream
 
 A **writable stream** has the following methods, members, and events.
 
-- Event: **`'drain'`** - `callback()`:
+### Event 'drain'
+
+`function () { }`
+
 Emitted after a `write()` method was called that returned `false` to
 indicate that it is safe to write again.
 
-- Event: **`'error'`** - `callback(exception)`:
+### Event 'error'
+
+`function (exception) { }`
+
 Emitted on error with the exception `e`.
 
-- Event **`'close'`** - `callback()`:
+### Event 'close'
+
+`function () { }`
+
 Emitted when the underlying file descriptor has been closed.
 
-- **`stream.write(string, encoding)`**:
+### stream.write(string, encoding)
 Writes `string` with the given `encoding` to the stream.  Returns `true` if
 the string has been flushed to the kernel buffer.  Returns `false` to
 indicate that the kernel buffer is full, and the data will be sent out in
@@ -186,20 +278,20 @@ the future. The `'drain'` event will indicate when the kernel buffer is
 empty again. The `encoding` defaults to `'utf8'`.
 
 
-- **`stream.write(buffer)`**:
+### stream.write(buffer)
 Same as the above except with a raw buffer.
 
-- **`stream.end()`**:
+### stream.end()
 Terminates the stream with EOF or FIN.
 
-- **`stream.end(string, encoding)`**:
+### stream.end(string, encoding)
 Sends `string` with the given `encoding` and terminates the stream with EOF
 or FIN. This is useful to reduce the number of packets sent.
 
-- **`stream.end(buffer)`**:
+### stream.end(buffer)
 Same as above but with a `buffer`.
 
-- **`stream.destroy()`**:
+### stream.destroy()
 Closes the underlying file descriptor. Stream will not emit any more events.
 
 
@@ -207,35 +299,44 @@ Closes the underlying file descriptor. Stream will not emit any more events.
 
 These object are available in the global scope and can be accessed from anywhere.
 
-- **`global`**: The global namespace object.
+### global
+The global namespace object.
 
-- **`process`**: The process object. Most stuff lives in here. See the "process
-object" section.
+### process
+The process object. Most stuff lives in here. See the 'process object'
+section.
 
-- **`require()`**: See the modules section.
+### require()
+To require modules. See the modules section.
 
-- **`require.paths`**: The search path for absolute path arguments to `require()`.
+### require.paths
+The search path for absolute path arguments to `require()`.
 
-- **`__filename`**: The filename of the script being executed.
+### __filename
+The filename of the script being executed.
 
-- **`__dirname`**: The dirname of the script being executed.
+### __dirname
+The dirname of the script being executed.
 
-- **`module`**: A reference to the current module (of type
-`process.Module`). In particular `module.exports` is the same as the
-`exports` object. See `src/process.js` for more information.
+### module
+A reference to the current module (of type `process.Module`). In particular
+`module.exports` is the same as the `exports` object. See `src/process.js`
+for more information.
 
 
 ## process
 
 The `process` object is a global object and can be accessed from anywhere.
-It is an instance of `EventEmitter` and has the following events:
+It is an instance of `EventEmitter`.
 
 
-### Event: 'exit' - callback()
+### Event: 'exit'
+
+`function () {} `
 
 Emitted when the process is about to exit.  This is a good hook to perform
 constant time checks of the module's state (like for unit tests).  The main
-event loop will no longer be run after the "exit" callback finishes, so
+event loop will no longer be run after the 'exit' callback finishes, so
 timers may not be scheduled.
 
 Example of listening for `exit`:
@@ -244,12 +345,15 @@ Example of listening for `exit`:
 
     process.addListener('exit', function () {
       process.nextTick(function () {
-       sys.puts("This will not run");
+       sys.puts('This will not run');
       });
-      sys.puts("About to exit.");
+      sys.puts('About to exit.');
     });
 
-### Event: 'uncaughtException' - callback(err)
+### Event: 'uncaughtException'
+
+`function (err) { } `
+
 
 Emitted when an exception bubbles all the way back to the event loop. If a
 listener is added for this exception, the default action (which is to print
@@ -257,19 +361,19 @@ a stack trace and exit) will not occur.
 
 Example of listening for `uncaughtException`:
 
-    var sys = require("sys");
+    var sys = require('sys');
 
     process.addListener('uncaughtException', function (err) {
-      sys.puts("Caught exception: " + err);
+      sys.puts('Caught exception: ' + err);
     });
 
     setTimeout(function () {
-      sys.puts("This will still run.");
+      sys.puts('This will still run.');
     }, 500);
 
     // Intentionally cause an exception, but don't catch it.
     nonexistantFunc();
-    sys.puts("This will not run.");
+    sys.puts('This will not run.');
 
 Note that `uncaughtException` is a very crude mechanism for exception
 handling.  Using try / catch in your program will give you more control over
@@ -277,18 +381,20 @@ your program's flow.  Especially for server programs that are designed to
 stay running forever, `uncaughtException` can be a useful safety mechanism.
 
 
-### Event: 'SIGINT' - callback()
+### Signal Events: 'SIGINT'
+
+`function () {}`
 
 Emitted when the processes receives a signal. See sigaction(2) for a list of
 standard POSIX signal names such as SIGINT, SIGUSR1, etc.
 
 Example of listening for `SIGINT`:
 
-    var sys = require("sys"),
+    var sys = require('sys'),
         stdin = process.openStdin();
 
     process.addListener('SIGINT', function () {
-      sys.puts("Got SIGINT.  Press Control-D to exit.");
+      sys.puts('Got SIGINT.  Press Control-D to exit.');
     });
 
 An easy way to send the `SIGINT` signal is with `Control-C` in most terminal
@@ -317,11 +423,11 @@ Example of opening standard input and listening for both events:
     stdin.setEncoding('utf8');
 
     stdin.addListener('data', function (chunk) {
-      process.stdout.write("data: " + chunk);
+      process.stdout.write('data: ' + chunk);
     });
 
     stdin.addListener('end', function () {
-      process.stdout.write("end");
+      process.stdout.write('end');
     });
 
 
@@ -332,10 +438,10 @@ An array containing the command line arguments.  The first element will be
 next elements will be any additional command line arguments.
 
     // print process.argv
-    var sys = require("sys");
+    var sys = require('sys');
 
     process.argv.forEach(function (val, index, array) {
-      sys.puts(index + ": " + val);
+      sys.puts(index + ': ' + val);
     });
 
 This will generate:
@@ -355,13 +461,13 @@ Changes the current working directory of the process or throws an exception if t
 
     var sys = require('sys');
 
-    sys.puts("Starting directory: " + process.cwd());
+    sys.puts('Starting directory: ' + process.cwd());
     try {
-      process.chdir("/tmp");
-      sys.puts("New directory: " + process.cwd());
+      process.chdir('/tmp');
+      sys.puts('New directory: ' + process.cwd());
     }
     catch (err) {
-      sys.puts("chdir: " + err);
+      sys.puts('chdir: ' + err);
     }
 
 
@@ -373,14 +479,14 @@ will be used as a filename if a stack trace is generated by the compiled code.
 
 Example of using `process.compile` and `eval` to run the same code:
 
-    var sys = require("sys"),
+    var sys = require('sys'),
         localVar = 123,
         compiled, evaled;
 
-    compiled = process.compile("localVar = 1;", "myfile.js");
-    sys.puts("localVar: " + localVar + ", compiled: " + compiled);
-    evaled = eval("localVar = 1;");
-    sys.puts("localVar: " + localVar + ", evaled: " + evaled);
+    compiled = process.compile('localVar = 1;', 'myfile.js');
+    sys.puts('localVar: ' + localVar + ', compiled: ' + compiled);
+    evaled = eval('localVar = 1;');
+    sys.puts('localVar: ' + localVar + ', evaled: ' + evaled);
 
     // localVar: 123, compiled: 1
     // localVar: 1, evaled: 1
@@ -395,7 +501,7 @@ See also: `process.evalcx`
 
 Returns the current working directory of the process.
 
-    require('sys').puts("Current directory: " + process.cwd());
+    require('sys').puts('Current directory: ' + process.cwd());
 
 
 ### process.env
@@ -403,10 +509,10 @@ Returns the current working directory of the process.
 An object containing the user environment. See environ(7).
 
     // print process.env
-    var sys = require("sys");
+    var sys = require('sys');
 
     Object.getOwnPropertyNames(process.env).forEach(function (val, index, array) {
-      sys.puts(index + ": " + val + "=" + process.env[val]);
+      sys.puts(index + ': ' + val + '=' + process.env[val]);
     });
 
 
@@ -417,13 +523,13 @@ Similar to `eval` and `process.compile`.  `process.evalcx` compiles `code` to ru
 as if it were loaded from `filename`.  The object `sandbox` will be used as the global object for
 `code`.  `sandbox` and `filename` are optional.
 
-    var sys = require("sys"),
+    var sys = require('sys'),
         sandbox = {
-          animal: "cat",
+          animal: 'cat',
           count: 2
         };
 
-    process.evalcx('count += 1; name = "kitty"', sandbox, "myfile.js");
+    process.evalcx('count += 1; name = 'kitty'', sandbox, 'myfile.js');
     sys.puts(sys.inspect(sandbox));
 
 Note that running untrusted code is a tricky business requiring great care.  To prevent accidental
@@ -435,9 +541,9 @@ must be taken.
 ### process.exit(code)
 
 Ends the process with the specified `code`.  If omitted, exit uses the 
-"success" code `0`.
+'success' code `0`.
 
-To exit with a "failure" code:
+To exit with a 'failure' code:
 
     process.exit(1);
 
@@ -450,13 +556,13 @@ Gets/sets the group identity of the process. (See setgid(2).)  This is the numer
 
     var sys = require('sys');
 
-    sys.puts("Current gid: " + process.getgid());
+    sys.puts('Current gid: ' + process.getgid());
     try {
       process.setgid(501);
-      sys.puts("New gid: " + process.getgid());
+      sys.puts('New gid: ' + process.getgid());
     }
     catch (err) {
-      sys.puts("Failed to set gid: " + err);
+      sys.puts('Failed to set gid: ' + err);
     }
 
 
@@ -466,13 +572,13 @@ Gets/sets the user identity of the process. (See setuid(2).)  This is the numeri
 
     var sys = require('sys');
 
-    sys.puts("Current uid: " + process.getuid());
+    sys.puts('Current uid: ' + process.getuid());
     try {
       process.setuid(501);
-      sys.puts("New uid: " + process.getuid());
+      sys.puts('New uid: ' + process.getuid());
     }
     catch (err) {
-      sys.puts("Failed to set uid: " + err);
+      sys.puts('Failed to set uid: ' + err);
     }
 
 
@@ -480,14 +586,14 @@ Gets/sets the user identity of the process. (See setuid(2).)  This is the numeri
 
 A compiled-in property that exposes `NODE_PREFIX`.
 
-    require("sys").puts("Install prefix: " + process.installPrefix);
+    require('sys').puts('Install prefix: ' + process.installPrefix);
 
 
 ### process.kill(pid, signal)
 
 Send a signal to a process. `pid` is the process id and `signal` is the
 string describing the signal to send.  Signal names are strings like
-"SIGINT" or "SIGUSR1".  If omitted, the signal will be "SIGINT".
+'SIGINT' or 'SIGUSR1'.  If omitted, the signal will be 'SIGINT'.
 See kill(2) for more information.
 
 Note that just because the name of this function is `process.kill`, it is
@@ -496,39 +602,39 @@ may do something other than kill the target process.
 
 Example of sending a signal to yourself:
 
-    var sys = require("sys");
+    var sys = require('sys');
 
     process.addListener('SIGHUP', function () {
-      sys.puts("Got SIGHUP signal.");
+      sys.puts('Got SIGHUP signal.');
     });
 
     setTimeout(function () {
-      sys.puts("Exiting.");
+      sys.puts('Exiting.');
       process.exit(0);
     }, 100);
 
-    process.kill(process.pid, "SIGHUP");
+    process.kill(process.pid, 'SIGHUP');
 
 
 ### process.pid
 
 The PID of the process.
 
-    require("sys").puts("This process is pid " + process.pid);
+    require('sys').puts('This process is pid ' + process.pid);
 
 
 ### process.platform
 
-What platform you're running on. `"linux2"`, `"darwin"`, etc.
+What platform you're running on. `'linux2'`, `'darwin'`, etc.
 
-    require("sys").puts("This platform is " + process.platform);
+    require('sys').puts('This platform is ' + process.platform);
 
 
 ### process.memoryUsage()
 
 Returns an object describing the memory usage of the Node process.
 
-    var sys = require("sys");
+    var sys = require('sys');
 
     sys.puts(sys.inspect(process.memoryUsage()));
 
@@ -549,10 +655,10 @@ On the next loop around the event loop call this callback.
 This is *not* a simple alias to `setTimeout(fn, 0)`, it's much more
 efficient.
 
-    var sys = require("sys");
+    var sys = require('sys');
 
     process.nextTick(function () {
-      sys.puts("nextTick callback");
+      sys.puts('nextTick callback');
     });
 
 
@@ -567,46 +673,46 @@ given, otherwise returns the current mask.
 
     oldmask = process.umask(newmask);
     // these octal numbers don't display right in JavaScript
-    sys.puts("Changed umask from: " + oldmask + " to " + newmask);
+    sys.puts('Changed umask from: ' + oldmask + ' to ' + newmask);
 
 
 
 ## sys
 
-These functions are in the module `"sys"`. Use `require("sys")` to access
+These functions are in the module `'sys'`. Use `require('sys')` to access
 them.
 
 
-### puts(string)
+### sys.puts(string)
 
 Outputs `string` and a trailing new-line to `stdout`.
 
-    require("sys").puts("String with a newline");
-    
+    require('sys').puts('String with a newline');
 
-### print(string)
+
+### sys.print(string)
 
 Like `puts()` but without the trailing new-line.
 
-    require("sys").print("String with no newline");
+    require('sys').print('String with no newline');
 
 
-### debug(string)
+### sys.debug(string)
 
 A synchronous output function. Will block the process and
 output `string` immediately to `stderr`.
 
-    require("sys").debug("message on stderr");
+    require('sys').debug('message on stderr');
 
 
-### log(string)
+### sys.log(string)
 
 Output with timestamp on `stdout`.
 
-    require("sys").log("Timestmaped message.");
+    require('sys').log('Timestmaped message.');
 
 
-### inspect(object, showHidden, depth)
+### sys.inspect(object, showHidden, depth)
 
 Return a string representation of `object`, which is useful for debugging.
 
@@ -621,80 +727,12 @@ in `null` for `depth`.
 
 Example of inspecting all properties of the `sys` object:
 
-    var sys = require("sys");
+    var sys = require('sys');
 
     sys.puts(sys.inspect(sys, true, null));
 
 
 
-
-
-
-
-## Modules
-
-Node uses the CommonJS module system.
-
-Node has a simple module loading system.  In Node, files and modules are in
-one-to-one correspondence.  As an example, `foo.js` loads the module
-`circle.js` in the same directory.
-
-The contents of `foo.js`:
-
-    var circle = require("./circle"),
-    var sys = require("sys");
-    sys.puts( "The area of a circle of radius 4 is " 
-            + circle.area(4));
-
-The contents of `circle.js`:
-
-    var PI = 3.14;
-
-    exports.area = function (r) {
-      return PI * r * r;
-    };
-
-    exports.circumference = function (r) {
-      return 2 * PI * r;
-    };
-
-The module `circle.js` has exported the functions `area()` and
-`circumference()`.  To export an object, add to the special `exports`
-object.  (Alternatively, one can use `this` instead of `exports`.) Variables
-local to the module will be private. In this example the variable `PI` is
-private to `circle.js`. The function `puts()` comes from the module `"sys"`,
-which is a built-in module. Modules which are not prefixed by `"./"` are
-built-in module--more about this later.
-
-A module prefixed with `"./"` is relative to the file calling `require()`.
-That is, `circle.js` must be in the same directory as `foo.js` for
-`require("./circle")` to find it.
-
-Without the leading `"./"`, like `require("assert")` the module is searched
-for in the `require.paths` array. `require.paths` on my system looks like
-this: 
-
-`[ "/home/ryan/.node_libraries" ]`
-
-That is, when `require("assert")` is called Node looks for: 
-
-  * 1: `/home/ryan/.node_libraries/assert.js`
-  * 2: `/home/ryan/.node_libraries/assert.node`
-  * 3: `/home/ryan/.node_libraries/assert/index.js`
-  * 4: `/home/ryan/.node_libraries/assert/index.node`
-
-interrupting once a file is found. Files ending in `".node"` are binary Addon
-Modules; see the section below about addons. `"index.js"` allows one to
-package a module as a directory.
-
-`require.paths` can be modified at runtime by simply unshifting new
-paths onto it, or at startup with the `NODE_PATH` environmental
-variable (which should be a list of paths, colon separated).
-
-Use `process.mixin()` to include modules into the global namespace.
-
-    process.mixin(GLOBAL, require("./circle"), require("sys"));
-    puts("The area of a circle of radius 4 is " + area(4));
 
 ## Timers
 
@@ -703,23 +741,23 @@ Use `process.mixin()` to include modules into the global namespace.
 To schedule execution of `callback` after `delay` milliseconds. Returns a
 `timeoutId` for possible use with `clearTimeout()`.
 
-    var sys   = require("sys"),
+    var sys   = require('sys'),
         start = new Date(),
         timer = setTimeout(function () {
-            sys.puts("Timer fired after " + (Date.now() - start) + "ms");
+            sys.puts('Timer fired after ' + (Date.now() - start) + 'ms');
         }, 1000);
 
-    sys.puts("Started timer.");
+    sys.puts('Started timer.');
 
 Optionally, you can pass arguments to the callback.
 
-    var sys   = require("sys"),
+    var sys   = require('sys'),
         start = new Date(),
         timer = setTimeout(function (start_time, message) {
-            sys.puts(message + (Date.now() - start_time) + "ms");
-        }, 1000, start, "Timer fired after ");
+            sys.puts(message + (Date.now() - start_time) + 'ms');
+        }, 1000, start, 'Timer fired after ');
 
-    sys.puts("Started timer.");
+    sys.puts('Started timer.');
 
 These two examples generate the same output.
 
@@ -727,17 +765,17 @@ These two examples generate the same output.
 
 Prevents a timeout from triggering.
 
-    var sys    = require("sys"),
+    var sys    = require('sys'),
         start  = new Date(),
         timer1 = setTimeout(function () {
-          sys.puts("Timer fired after " + (Date.now() - start) + "ms");
+          sys.puts('Timer fired after ' + (Date.now() - start) + 'ms');
         }, 5000),
         timer2 = setTimeout(function () {
-          sys.puts("This is taking too long.  Stopping timer1.");
+          sys.puts('This is taking too long.  Stopping timer1.');
           clearTimeout(timer1);
         }, 1000);
 
-    sys.puts("Started timers.");
+    sys.puts('Started timers.');
 
 ### setInterval(callback, delay, [arg, ...])
 
@@ -749,18 +787,18 @@ Optionally, you can also pass arguments to the callback.
 
 Stops a interval from triggering.
 
-    var sys   = require("sys"),
+    var sys   = require('sys'),
         start = new Date(),
         count = 10,
         timer = setInterval(function () {
           count -= 1;
-          sys.puts("Timer fired after " + (Date.now() - start) + "ms " + count + " remaining.");
+          sys.puts('Timer fired after ' + (Date.now() - start) + 'ms ' + count + ' remaining.');
           if (count === 0) {
             clearInterval(timer);
           }
         }, 100);
 
-    sys.puts("Started timer.");
+    sys.puts('Started timer.');
 
 
 ## Child Processes
@@ -771,17 +809,20 @@ class.
 It is possible to stream data through the child's `stdin`, `stdout`, and
 `stderr` in a fully non-blocking way.
 
-To create a child process use `require("child_process").spawn()`.
+To create a child process use `require('child_process').spawn()`.
 
 Child processes always have three streams associated with them. `child.stdin`,
 `child.stdout`, and `child.stderr`.
 
-`ChildProcess` is an EventEmitter with the following events:
+`ChildProcess` is an EventEmitter.
 
- - **`exit`** - `callback(code)`:
-   This event is emitted after the child process ends. `code` is the final
-   exit code of the process.  After this event is emitted, the `"output"`
-   and `"error"` callbacks will no longer be made.
+### Event  'exit'
+
+`function (code) {} `
+
+This event is emitted after the child process ends. `code` is the final exit
+code of the process.  After this event is emitted, the `'output'` and
+`'error'` callbacks will no longer be made.
 
 
 ### child_process.spawn(command, args, env)
@@ -792,32 +833,32 @@ defaults to `process.env`.
 
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit code:
 
-    var sys   = require("sys"),
-        spawn = require("child_process").spawn,
-        ls    = spawn("ls", ["-lh", "/usr"]);
+    var sys   = require('sys'),
+        spawn = require('child_process').spawn,
+        ls    = spawn('ls', ['-lh', '/usr']);
 
-    ls.stdout.addListener("data", function (data) {
-      sys.print("stdout: " + data);
+    ls.stdout.addListener('data', function (data) {
+      sys.print('stdout: ' + data);
     });
 
-    ls.stderr.addListener("data", function (data) {
-      sys.print("stderr: " + data);
+    ls.stderr.addListener('data', function (data) {
+      sys.print('stderr: ' + data);
     });
 
-    ls.addListener("exit", function (code) {
-      sys.puts("child process exited with code " + code);
+    ls.addListener('exit', function (code) {
+      sys.puts('child process exited with code ' + code);
     });
 
 
 Example of checking for failed exec:
 
-    var sys   = require("sys"),
-        spawn = require("child_process").spawn,
-        child = spawn("bad_command");
+    var sys   = require('sys'),
+        spawn = require('child_process').spawn,
+        child = spawn('bad_command');
 
-    child.stderr.addListener("data", function (data) {
+    child.stderr.addListener('data', function (data) {
       if (/^execvp\(\)/.test(data.asciiSlice(0,data.length))) {
-        sys.puts("Failed to start child process.");
+        sys.puts('Failed to start child process.');
       }
     });
 
@@ -828,18 +869,18 @@ See also: `child_process.exec()`
 ### child.kill(signal)
 
 Send a signal to the child process. If no argument is given, the process will
-be sent `"SIGTERM"`. See `signal(7)` for a list of available signals.
+be sent `'SIGTERM'`. See `signal(7)` for a list of available signals.
 
-    var sys   = require("sys"),
-        spawn = require("child_process").spawn,
-        grep  = spawn("grep", ["ssh"]);
+    var sys   = require('sys'),
+        spawn = require('child_process').spawn,
+        grep  = spawn('grep', ['ssh']);
 
-    grep.addListener("exit", function (code) {
-      sys.puts("child process exited with code " + code);
+    grep.addListener('exit', function (code) {
+      sys.puts('child process exited with code ' + code);
     });
 
     // send SIGHUP to process
-    grep.kill("SIGHUP");
+    grep.kill('SIGHUP');
 
 Note that while the function is called `kill`, the signal delivered to the child
 process may not actually kill it.  `kill` really just sends a signal to a process.
@@ -853,53 +894,53 @@ The PID of the child process.
 
 Example:
 
-    var sys   = require("sys"),
-        spawn = require("child_process").spawn,
-        grep  = spawn("grep", ["ssh"]);
+    var sys   = require('sys'),
+        spawn = require('child_process').spawn,
+        grep  = spawn('grep', ['ssh']);
 
-    sys.puts("Spawned child pid: " + grep.pid);
+    sys.puts('Spawned child pid: ' + grep.pid);
     grep.stdin.close();
 
 
 ### child.stdin.write(data, encoding)
 
 Write data to the child process's `stdin`. The second argument is optional and
-specifies the encoding: possible values are `"utf8"`, `"ascii"`, and
-`"binary"`.
+specifies the encoding: possible values are `'utf8'`, `'ascii'`, and
+`'binary'`.
 
-Example: A very elaborate way to run "ps ax | grep ssh"
+Example: A very elaborate way to run 'ps ax | grep ssh'
 
-    var sys   = require("sys"),
-        spawn = require("child_process").spawn,
-        ps    = spawn("ps", ["ax"]),
-        grep  = spawn("grep", ["ssh"]);
+    var sys   = require('sys'),
+        spawn = require('child_process').spawn,
+        ps    = spawn('ps', ['ax']),
+        grep  = spawn('grep', ['ssh']);
 
-    ps.stdout.addListener("data", function (data) {
+    ps.stdout.addListener('data', function (data) {
       grep.stdin.write(data);
     });
 
-    ps.stderr.addListener("data", function (data) {
-      sys.print("ps stderr: " + data);
+    ps.stderr.addListener('data', function (data) {
+      sys.print('ps stderr: ' + data);
     });
 
-    ps.addListener("exit", function (code) {
+    ps.addListener('exit', function (code) {
       if (code !== 0) {
-        sys.puts("ps process exited with code " + code);
+        sys.puts('ps process exited with code ' + code);
       }
       grep.stdin.close();
     });
 
-    grep.stdout.addListener("data", function (data) {
+    grep.stdout.addListener('data', function (data) {
       sys.print(data);
     });
 
-    grep.stderr.addListener("data", function (data) {
-      sys.print("grep stderr: " + data);
+    grep.stderr.addListener('data', function (data) {
+      sys.print('grep stderr: ' + data);
     });
 
-    grep.addListener("exit", function (code) {
+    grep.addListener('exit', function (code) {
       if (code !== 0) {
-        sys.puts("grep process exited with code " + code);
+        sys.puts('grep process exited with code ' + code);
       }
     });
 
@@ -910,12 +951,12 @@ Closes the child process's `stdin` stream.  This often causes the child process 
 
 Example:
 
-    var sys   = require("sys"),
-        spawn = require("child_process").spawn,
-        grep  = spawn("grep", ["ssh"]);
+    var sys   = require('sys'),
+        spawn = require('child_process').spawn,
+        grep  = spawn('grep', ['ssh']);
 
-    grep.addListener("exit", function (code) {
-      sys.puts("child process exited with code " + code);
+    grep.addListener('exit', function (code) {
+      sys.puts('child process exited with code ' + code);
     });
 
     grep.stdin.close();
@@ -926,15 +967,15 @@ Example:
 High-level way to execute a command as a child process, buffer the
 output, and return it all in a callback.
 
-    var sys   = require("sys"),
-        exec  = require("child_process").exec,
+    var sys   = require('sys'),
+        exec  = require('child_process').exec,
         child;
-    
-    child = exec("cat *.js bad_file | wc -l", function (error, stdout, stderr) {
-      sys.print("stdout: " + stdout);
-      sys.print("stderr: " + stderr);
+
+    child = exec('cat *.js bad_file | wc -l', function (error, stdout, stderr) {
+      sys.print('stdout: ' + stdout);
+      sys.print('stderr: ' + stderr);
       if (error !== null) {
-        sys.puts("exec error: " + error);
+        sys.puts('exec error: ' + error);
       }
     });
 
@@ -947,7 +988,7 @@ will be the exit code of the child process.
 ## File System
 
 File I/O is provided by simple wrappers around standard POSIX functions.  To
-use this module do `require("fs")`. All the methods have asynchronous and
+use this module do `require('fs')`. All the methods have asynchronous and
 synchronous forms. 
 
 The asynchronous form always take a completion callback as its last argument.
@@ -957,42 +998,42 @@ completed successfully, then the first argument will be `null` or `undefined`.
 
 Here is an example of the asynchronous version:
 
-    var fs = require("fs"),
-        sys = require("sys");
+    var fs = require('fs'),
+        sys = require('sys');
 
-    fs.unlink("/tmp/hello", function (err) {
+    fs.unlink('/tmp/hello', function (err) {
       if (err) throw err;
-      sys.puts("successfully deleted /tmp/hello");
+      sys.puts('successfully deleted /tmp/hello');
     });
 
 Here is the synchronous version:
 
-    var fs = require("fs"),
-        sys = require("sys");
+    var fs = require('fs'),
+        sys = require('sys');
 
-    fs.unlinkSync("/tmp/hello")
-    sys.puts("successfully deleted /tmp/hello");
+    fs.unlinkSync('/tmp/hello')
+    sys.puts('successfully deleted /tmp/hello');
 
 With the asynchronous methods there is no guaranteed ordering. So the
 following is prone to error:
 
-    fs.rename("/tmp/hello", "/tmp/world", function (err) {
+    fs.rename('/tmp/hello', '/tmp/world', function (err) {
       if (err) throw err;
-      sys.puts("renamed complete");
+      sys.puts('renamed complete');
     });
-    fs.stat("/tmp/world", function (err, stats) {
+    fs.stat('/tmp/world', function (err, stats) {
       if (err) throw err;
-      sys.puts("stats: " + JSON.stringify(stats));
+      sys.puts('stats: ' + JSON.stringify(stats));
     });
 
 It could be that `fs.stat` is executed before `fs.rename`.
 The correct way to do this is to chain the callbacks.
 
-    fs.rename("/tmp/hello", "/tmp/world", function (err) {
+    fs.rename('/tmp/hello', '/tmp/world', function (err) {
       if (err) throw err;
-      fs.stat("/tmp/world", function (err, stats) {
+      fs.stat('/tmp/world', function (err, stats) {
         if (err) throw err;
-        sys.puts("stats: " + JSON.stringify(stats));
+        sys.puts('stats: ' + JSON.stringify(stats));
       });
     });
 
@@ -1038,9 +1079,9 @@ Asynchronous stat(2) or lstat(2). The callback gets two arguments `(err, stats)`
     , size: 4096
     , blksize: 4096
     , blocks: 8
-    , atime: "2009-06-29T11:11:55Z"
-    , mtime: "2009-06-29T11:11:40Z"
-    , ctime: "2009-06-29T11:11:40Z" 
+    , atime: '2009-06-29T11:11:55Z'
+    , mtime: '2009-06-29T11:11:40Z'
+    , ctime: '2009-06-29T11:11:40Z' 
     }
 
 See the `fs.Stats` section below for more information.
@@ -1109,12 +1150,12 @@ Synchronous mkdir(2).
 
 Asynchronous readdir(3).  Reads the contents of a directory.
 The callback gets two arguments `(err, files)` where `files` is an array of
-the names of the files in the directory excluding `"."` and `".."`.
+the names of the files in the directory excluding `'.'` and `'..'`.
 
 ### fs.readdirSync(path)
 
-Synchronous readdir(3). Returns an array of filenames excluding `"."` and
-`".."`.
+Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
+`'..'`.
 
 ### fs.close(fd, callback)
 
@@ -1126,8 +1167,8 @@ Synchronous close(2).
 
 ### fs.open(path, flags, mode, callback)
 
-Asynchronous file open. See open(2). Flags can be "r", "r+", "w", "w+", "a",
-or "a+". The callback gets two arguments `(err, fd)`. 
+Asynchronous file open. See open(2). Flags can be 'r', 'r+', 'w', 'w+', 'a',
+or 'a+'. The callback gets two arguments `(err, fd)`. 
 
 ### fs.openSync(path, flags, mode)
 
@@ -1162,11 +1203,11 @@ is a string--what was read--and `bytesRead` is the number of bytes read.
 
 Synchronous version of `fs.read`. Returns an array `[data, bytesRead]`.
 
-### fs.readFile(filename, encoding="utf8", callback)
+### fs.readFile(filename, encoding='utf8', callback)
 
 Asynchronously reads the entire contents of a file. Example:
 
-    fs.readFile("/etc/passwd", function (err, data) {
+    fs.readFile('/etc/passwd', function (err, data) {
       if (err) throw err;
       sys.puts(data);
     });
@@ -1174,20 +1215,20 @@ Asynchronously reads the entire contents of a file. Example:
 The callback is passed two arguments `(err, data)`, where `data` is the
 contents of the file.
 
-### fs.readFileSync(filename, encoding="utf8")
+### fs.readFileSync(filename, encoding='utf8')
 
 Synchronous version of `fs.readFile`. Returns the contents of the `filename`.
 
-### fs.writeFile(filename, data, encoding="utf8", callback)
+### fs.writeFile(filename, data, encoding='utf8', callback)
 
 Asynchronously writes data to a file. Example:
 
-    fs.writeFile("message.txt", "Hello Node", function (err) {
+    fs.writeFile('message.txt', 'Hello Node', function (err) {
       if (err) throw err;
-      sys.puts("It's saved!");
+      sys.puts('It's saved!');
     });
 
-### fs.writeFileSync(filename, data, encoding="utf8")
+### fs.writeFileSync(filename, data, encoding='utf8')
 
 The synchronous version of `fs.writeFile`.
 
@@ -1204,8 +1245,8 @@ The `listener` gets two arguments the current stat object and the previous
 stat object:
 
     fs.watchFile(f, function (curr, prev) {
-      sys.puts("the current mtime is: " + curr.mtime);
-      sys.puts("the previous mtime was: " + prev.mtime);
+      sys.puts('the current mtime is: ' + curr.mtime);
+      sys.puts('the previous mtime was: ' + prev.mtime);
     });
 
 These stat objects are instances of `fs.Stat`. 
@@ -1214,7 +1255,7 @@ These stat objects are instances of `fs.Stat`.
 
 Stop watching for changes on `filename`.
 
-### fs.Stats
+## fs.Stats
 
 Objects returned from `fs.stat()` and `fs.lstat()` are of this type.
 
@@ -1226,15 +1267,10 @@ Objects returned from `fs.stat()` and `fs.lstat()` are of this type.
  - `stats.isFIFO()`
  - `stats.isSocket()`
 
-### fs.FileReadStream
 
-This is an EventEmitter with the following events.
+## fs.FileReadStream
 
- - **`"open"`** `callback(fd)` The file descriptor was opened.
- - **`"data"`** `callback(chunk)` A chunk of data was read.
- - **`"error"`** `callback(err)` An error occurred. This stops the stream.
- - **`"end"`** `callback()` The end of the file was reached.
- - **`"close"`** `callback()` The file descriptor was closed.
+`FileReadStream` is a readable stream.
 
 ### fs.createReadStream(path, [options])
 
@@ -1242,20 +1278,20 @@ Returns a new FileReadStream object.
 
 `options` is an object with the following defaults:
 
-    { "flags": "r"
-    , "encoding": "binary"
-    , "mode": 0666
-    , "bufferSize": 4 * 1024
+    { 'flags': 'r'
+    , 'encoding': 'binary'
+    , 'mode': 0666
+    , 'bufferSize': 4 * 1024
     }
 
 ### readStream.readable
 
-A boolean that is `true` by default, but turns `false` after an `"error"`
-occured, the stream came to an "end", or `destroy()` was called.
+A boolean that is `true` by default, but turns `false` after an `'error'`
+occured, the stream came to an 'end', or `destroy()` was called.
 
 ### readStream.pause()
 
-Stops the stream from reading further data. No `"data"` event will be fired
+Stops the stream from reading further data. No `'data'` event will be fired
 until the stream is resumed.
 
 ### readStream.resume()
@@ -1264,35 +1300,32 @@ Resumes the stream. Together with `pause()` this useful to throttle reading.
 
 ### readStream.destroy()
 
-Allows to close the stream before the `"end"` is reached. No more events other
-than `"close"` will be fired after this method has been called.
+Allows to close the stream before the `'end'` is reached. No more events other
+than `'close'` will be fired after this method has been called.
 
-### fs.FileWriteStream
+## fs.FileWriteStream
 
-- **`"open"`**`(fd)` The file descriptor was opened.
-- **`"drain"`**`()` No more data needs to be written.
-- **`"error"`**`(err)` An error occurred. This stops the stream.
-- **`"close"`**`()` The file descriptor was closed.
+`FileWriteStream` is a writable stream.
 
 ### fs.createWriteStream(path, [options])
 
 Returns a new FileWriteStream object.
 `options` is an object with the following defaults:
 
-    { "flags": "w"
-    , "encoding": "binary"
-    , "mode": 0666
+    { 'flags': 'w'
+    , 'encoding': 'binary'
+    , 'mode': 0666
     }
 
 ### writeStream.writeable
 
-A boolean that is `true` by default, but turns `false` after an `"error"`
+A boolean that is `true` by default, but turns `false` after an `'error'`
 occurred or `end()` / `destroy()` was called.
 
 ### writeStream.write(data)
 
 Returns `true` if the data was flushed to the kernel, and `false` if it was
-queued up for being written later. A `"drain"` will fire after all queued data
+queued up for being written later. A `'drain'` will fire after all queued data
 has been written.
 
 You can also specify `callback` to be notified when the data from this write
@@ -1308,7 +1341,7 @@ Allows to close the stream regardless of its current state.
 
 ## HTTP
 
-To use the HTTP server and client one must `require("http")`.
+To use the HTTP server and client one must `require('http')`.
 
 The HTTP interfaces in Node are designed to support many features
 of the protocol which have been traditionally difficult to use.
@@ -1318,10 +1351,10 @@ user is able to stream data.
 
 HTTP message headers are represented by an object like this:
 
-    { "content-length": "123"
-    , "content-type": "text/plain"
-    , "stream": "keep-alive"
-    , "accept": "*/*"
+    { 'content-length': '123'
+    , 'content-type': 'text/plain'
+    , 'stream': 'keep-alive'
+    , 'accept': '*/*'
     }
 
 Keys are lowercased. Values are not modified.
@@ -1332,24 +1365,31 @@ parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.
 
 
-### http.Server
+## http.Server
 
 This is an EventEmitter with the following events:
 
- - **`"request"`** - `callback(request, response)`:
+### Event: 'request'
+
+`function (request, response) { }`
+
  `request` is an instance of `http.ServerRequest` and `response` is
  an instance of `http.ServerResponse`
 
- - **`"stream"`** - `callback(stream)`:
+### Event: 'stream'
+
+`function (stream) { }`
+
  When a new TCP stream is established.
  `stream` is an object of type `http.Connection`. Usually users
  will not want to access this event. The `stream` can also be
  accessed at `request.stream`.
 
- - **`"close"`** - `callback(errno)`:
- Emitted when the server closes. `errorno` is an integer which indicates what, if any,
- error caused the server to close. If no
- error occured `errorno` will be 0.
+### Event: 'close'
+
+`function (errno) { }`
+
+ Emitted when the server closes. 
 
 
 ### http.createServer(request_listener, [options])
@@ -1361,7 +1401,7 @@ The `options` argument is optional. The
 options argument for `net.Server`.
 
 The `request_listener` is a function which is automatically
-added to the `"request"` event.
+added to the `'request'` event.
 
 ### server.listen(port, hostname)
 
@@ -1387,14 +1427,14 @@ is ready to accept connections.
 Stops the server from accepting new connections.
 
 
-### http.ServerRequest
+## http.ServerRequest
 
 This object is created internally by a HTTP server--not by
-the user--and passed as the first argument to a `"request"` listener.
+the user--and passed as the first argument to a `'request'` listener.
 
 This is an EventEmitter with the following events:
 
-- **`"data"`** - `callback(chunk)`:
+- **`'data'`** - `callback(chunk)`:
 Emitted when a piece of the message body is received.
 
 Example: A chunk of the body is given as the single
@@ -1402,7 +1442,7 @@ argument. The transfer-encoding has been decoded.  The
 body chunk is a string.  The body encoding is set with
 `request.setBodyEncoding()`.
 
-- **`"end"`** - `callback()`:
+- **`'end'`** - `callback()`:
 Emitted exactly once for each message. No arguments.  After
 emitted no other events will be emitted on the request.
 
@@ -1410,7 +1450,7 @@ emitted no other events will be emitted on the request.
 ### request.method
 
 The request method as a string. Read only. Example:
-`"GET"`, `"DELETE"`.
+`'GET'`, `'DELETE'`.
 
 
 ### request.url
@@ -1424,12 +1464,12 @@ present in the actual HTTP request. If the request is:
 
 Then `request.url` will be:
 
-    "/status?name=ryan"
+    '/status?name=ryan'
 
 If you would like to parse the URL into its parts, you can use
-`require("url").parse(request.url)`.  Example:
+`require('url').parse(request.url)`.  Example:
 
-    node> require("url").parse("/status?name=ryan")
+    node> require('url').parse('/status?name=ryan')
     { href: '/status?name=ryan'
     , search: '?name=ryan'
     , query: 'name=ryan'
@@ -1437,10 +1477,10 @@ If you would like to parse the URL into its parts, you can use
     }
 
 If you would like to extract the params from the query string,
-you can use the `require("querystring").parse` function, or pass
-`true` as the second argument to `require("url").parse`.  Example:
+you can use the `require('querystring').parse` function, or pass
+`true` as the second argument to `require('url').parse`.  Example:
 
-    node> require("url").parse("/status?name=ryan", true)
+    node> require('url').parse('/status?name=ryan', true)
     { href: '/status?name=ryan'
     , search: '?name=ryan'
     , query: { name: 'ryan' }
@@ -1456,13 +1496,13 @@ Read only.
 ### request.httpVersion
 
 The HTTP protocol version as a string. Read only. Examples:
-`"1.1"`, `"1.0"`
+`'1.1'`, `'1.0'`
 
 
-### request.setEncoding(encoding="binary")
+### request.setEncoding(encoding='binary')
 
-Set the encoding for the request body. Either `"utf8"` or `"binary"`. Defaults
-to `"binary"`.
+Set the encoding for the request body. Either `'utf8'` or `'binary'`. Defaults
+to `'binary'`.
 
 
 ### request.pause()
@@ -1474,14 +1514,15 @@ Pauses request from emitting events.  Useful to throttle back an upload.
 
 Resumes a paused request.
 
-### request.stream
+### request.connection
 
-The `http.Connection` object.
+The `net.Stream` object assocated with the connection.
 
-### http.ServerResponse
+
+## http.ServerResponse
 
 This object is created internally by a HTTP server--not by the user. It is
-passed as the second parameter to the `"request"` event.
+passed as the second parameter to the `'request'` event. It is a writable stream.
 
 ### response.writeHead(statusCode[, reasonPhrase] , headers)
 
@@ -1492,16 +1533,16 @@ argument.
 
 Example:
 
-    var body = "hello world";
+    var body = 'hello world';
     response.writeHead(200, {
-      "Content-Length": body.length,
-      "Content-Type": "text/plain"
+      'Content-Length': body.length,
+      'Content-Type': 'text/plain'
     });
 
 This method must only be called once on a message and it must
 be called before `response.end()` is called.
 
-### response.write(chunk, encoding="ascii")
+### response.write(chunk, encoding)
 
 This method must be called after `writeHead` was
 called. It sends a chunk of the response body. This method may
@@ -1509,7 +1550,7 @@ be called multiple times to provide successive parts of the body.
 
 If `chunk` is a string, the second parameter
 specifies how to encode it into a byte stream. By default the
-`encoding` is `"ascii"`.
+`encoding` is `'ascii'`.
 
 **Note**: This is the raw HTTP body and has nothing to do with
 higher-level multi-part body encodings that may be used.
@@ -1528,7 +1569,7 @@ has been sent; that server should consider this message complete.
 The method, `response.end()`, MUST be called on each
 response.
 
-### http.Client
+## http.Client
 
 An HTTP client is constructed with a server address as its
 argument, the returned handle is then used to issue one or more
@@ -1538,16 +1579,16 @@ stream. _Currently the implementation does not pipeline requests._
 
 Example of connecting to `google.com`:
 
-    var sys = require("sys"),
-       http = require("http");
-    var google = http.createClient(80, "www.google.com");
-    var request = google.request("GET", "/", {"host": "www.google.com"});
+    var sys = require('sys'),
+       http = require('http');
+    var google = http.createClient(80, 'www.google.com');
+    var request = google.request('GET', '/', {'host': 'www.google.com'});
     request.addListener('response', function (response) {
-      sys.puts("STATUS: " + response.statusCode);
-      sys.puts("HEADERS: " + JSON.stringify(response.headers));
-      response.setEncoding("utf8");
+      sys.puts('STATUS: ' + response.statusCode);
+      sys.puts('HEADERS: ' + JSON.stringify(response.headers));
+      response.setEncoding('utf8');
       response.addListener('data', function (chunk) {
-        sys.puts("BODY: " + chunk);
+        sys.puts('BODY: ' + chunk);
       });
     });
     request.end();
@@ -1563,7 +1604,7 @@ stream is not established until a request is issued.
 
 Issues a request; if necessary establishes stream. Returns a `http.ClientRequest` instance.
 
-`method` is optional and defaults to "GET" if omitted.
+`method` is optional and defaults to 'GET' if omitted.
 
 `request_headers` is optional.
 Additional request headers might be added internally
@@ -1580,10 +1621,10 @@ the user to stream a body to the server with `request.write()`.)
 
 
 
-### http.ClientRequest
+## http.ClientRequest
 
-This object is created internally and returned from the request methods of a
-`http.Client`. It represents an _in-progress_ request whose header has
+This object is created internally and returned from the `request()` method
+of a `http.Client`. It represents an _in-progress_ request whose header has
 already been sent.
 
 To get the response, add a listener for `'response'` to the request object.
@@ -1592,7 +1633,7 @@ headers have been received.  The `'response'` event is executed with one
 argument which is an instance of `http.ClientResponse`.
 
 During the `'response'` event, one can add listeners to the
-response object; particularly to listen for the `"data"` event. Note that
+response object; particularly to listen for the `'data'` event. Note that
 the `'response'` event is called before any part of the response body is received,
 so there is no need to worry about racing to catch the first part of the
 body. As long as a listener for `'data'` is added during the `'response'`
@@ -1602,7 +1643,7 @@ event, the entire body will be caught.
     // Good
     request.addListener('response', function (response) {
       response.addListener('data', function (chunk) {
-        sys.puts("BODY: " + chunk);
+        sys.puts('BODY: ' + chunk);
       });
     });
 
@@ -1610,24 +1651,25 @@ event, the entire body will be caught.
     request.addListener('response', function (response) {
       setTimeout(function () {
         response.addListener('data', function (chunk) {
-          sys.puts("BODY: " + chunk);
+          sys.puts('BODY: ' + chunk);
         });
       }, 10);
     });
 
+This is a writable stream.
 This is an `EventEmitter` with the following events:
 
-- **`"response"`** - `callback(response)`:
+- **`'response'`** - `callback(response)`:
 Emitted when a response is received to this request. This event is emitted only once. The
 `response` argument will be an instance of `http.ClientResponse`.
 
 
-### request.write(chunk, encoding="ascii")
+### request.write(chunk, encoding='ascii')
 
 Sends a chunk of the body.  By calling this method
 many times, the user can stream a request body to a
 server--in that case it is suggested to use the
-`["Transfer-Encoding", "chunked"]` header line when
+`['Transfer-Encoding', 'chunked']` header line when
 creating the request.
 
 The `chunk` argument should be an array of integers
@@ -1635,25 +1677,29 @@ or a string.
 
 The `encoding` argument is optional and only
 applies when `chunk` is a string. The encoding
-argument should be either `"utf8"` or
-`"ascii"`. By default the body uses ASCII encoding,
+argument should be either `'utf8'` or
+`'ascii'`. By default the body uses ASCII encoding,
 as it is faster.
 
 ### request.end()
 
 Finishes sending the request. If any parts of the body are
 unsent, it will flush them to the stream. If the request is
-chunked, this will send the terminating `"0\r\n\r\n"`.
+chunked, this will send the terminating `'0\r\n\r\n'`.
 
 
 
-### http.ClientResponse
+## http.ClientResponse
 
-This object is created internally and passed to the `"response"` event.
+This object is created when making a request with `http.Client`. It is
+passed to the `'response'` event of the request object.
 
-This is an `EventEmitter` with the following events.
+The response implements the stream interface.
 
-- **`"data"`** - `callback(chunk)`:
+### Event 'data'
+
+`function (chunk) {}`
+
 Emitted when a piece of the message body is received.
 
     Example: A chunk of the body is given as the single
@@ -1661,7 +1707,10 @@ Emitted when a piece of the message body is received.
     body chunk a String.  The body encoding is set with
     `response.setBodyEncoding()`.
 
-- **`"end"`** - `callback()`:
+### Event: 'end'
+
+`function () {}`
+
 Emitted exactly once for each message. No arguments. After
 emitted no other events will be emitted on the response.
 
@@ -1672,7 +1721,7 @@ The 3-digit HTTP response status code. E.G. `404`.
 ### response.httpVersion
 
 The HTTP version of the connected-to server. Probably either
-`"1.1"` or `"1.0"`.
+`'1.1'` or `'1.0'`.
 
 ### response.headers
 
@@ -1680,8 +1729,8 @@ The response headers.
 
 ### response.setEncoding(encoding)
 
-Set the encoding for the response body. Either `"utf8"` or `"binary"`.
-Defaults to `"binary"`.
+Set the encoding for the response body. Either `'utf8'` or `'binary'`.
+Defaults to `'binary'`.
 
 ### response.pause()
 
@@ -1696,48 +1745,58 @@ Resumes a paused response.
 A reference to the `http.Client` that this response belongs to.
 
 
-## Networking
 
-Creating UNIX and TCP servers and clients.
-To use networking, one must `require("net")`.
+## net.Server
 
-### net.Server
+This class can be used to create a TCP or UNIX server.
 
 Here is an example of a echo server which listens for connections
 on port 7000:
 
-    var net = require("net");
+    var net = require('net');
     var server = net.createServer(function (stream) {
-      stream.setEncoding("utf8");
+      stream.setEncoding('utf8');
       stream.addListener('connect', function () {
-        stream.write("hello\r\n");
+        stream.write('hello\r\n');
       });
       stream.addListener('data', function (data) {
         stream.write(data);
       });
       stream.addListener('end', function () {
-        stream.write("goodbye\r\n");
+        stream.write('goodbye\r\n');
         stream.end();
       });
     });
-    server.listen(7000, "localhost");
+    server.listen(7000, 'localhost');
 
 This is an EventEmitter with the following events:
 
-- **`"stream"`** - `callback(stream)`:
-Emitted when a new stream is made. `stream` is an instance of `net.Stream`.
+### Event: 'listening'
 
-- **`"close"`** - `callback(errno)`:
-Emitted when the server closes. `errorno` is an integer which indicates what, if any, error caused
-the server to close. If no error occurred `errorno` will be 0.
+`function () {}`
 
+After `listen()` is called, this event will notify that the server is ready
+to accept connections.
+
+### Event: 'connection'
+
+`function (stream) {}`
+
+Emitted when a new connection is made. `stream` is an instance of
+`net.Stream`.
+
+### Event: 'close'
+
+`function (errno) {}`
+
+Emitted when the server closes. `errorno` is an integer which indicates
+what, if any, error caused the server to close. If no error occurred
+`errorno` will be 0.
 
 ### net.createServer(connectionListener)
 
-Creates a new TCP server.
-
-The `connection_listener` argument is automatically set as a listener for
-the `"stream"` event.
+Creates a new TCP server. The `connection_listener` argument is
+automatically set as a listener for the `'connection'` event.
 
 
 ### server.listen(port, host=null)
@@ -1754,78 +1813,107 @@ safe to connect to it.
 ### server.close()
 
 Stops the server from accepting new connections. This function is
-asynchronous, the server is finally closed when the server emits a `"close"`
+asynchronous, the server is finally closed when the server emits a `'close'`
 event.
 
-### net.Stream
+## net.Stream
 
-This object is used as a TCP/UNIX client and also as a server-side stream
-for `net.Server`.
+This object is an abstraction of of a TCP or UNIX socket.  `net.Stream`
+instance implement a duplex stream interface.  They can be created by the
+user and used as a client (with `connect()`) or they can be created by Node
+and passed to the user through the `'connection'` event of a server.
 
-This is an EventEmitter and duplex stream with the following events:
+`net.Stream` instances are an EventEmitters with the following events:
 
-- **`"connect"`** - `callback()`:
+### Event: 'connect'
+
+`function () { }`
+
 Call once the stream is established after a call to `createConnection()` or
 `connect()`.
 
-- **`"data"`** - `callback(data)`:
+### Event: 'data'
+
+`function (data) { }`
+
 Called when data is received on the stream.  `data`
 will be a string. Encoding of data is set by `stream.setEncoding()`.
 
-- **`"end"`** - `callback()`:
+### Event: 'end'
+
+`function () { }`
+
 Called when the other end of the stream sends a FIN
 packet. After this is emitted the `readyState` will be
-`"writeOnly"`. One should probably just call
+`'writeOnly'`. One should probably just call
 `stream.end()` when this event is emitted.
 
-- **`"timeout"`** - `callback()`:
-Emitted if the stream times out from inactivity. The
-`"close"` event will be emitted immediately following this event.
+### Event: 'timeout'
 
-- **`"drain"`** - `callback()`:
+`function () { }`
+
+Emitted if the stream times out from inactivity. The
+`'close'` event will be emitted immediately following this event.
+
+### Event: 'drain'
+
+`function () { }`
+
 Emitted when the write buffer becomes empty. Can be used to throttle uploads.
 
-- **`"close"`** - `callback(had_error)`:
+### Event: 'error'
+
+`function (exception) { }`
+
+Emitted when an error occurs.  The `'close'` event will be called directly
+following this event.
+
+### Event: 'close'
+
+`function () { }`
+
 Emitted once the stream is fully closed. The argument `had_error` is a boolean which says if
 the stream was closed due to a transmission
-error. (TODO: access error codes.)
+error. 
 
-### net.createConnection(port, host="127.0.0.1")
 
-Creates a new stream object and opens a stream to the specified `port`
+### net.createConnection(port, host='127.0.0.1')
+
+Construct a new stream object and opens a stream to the specified `port`
 and `host`. If the second parameter is omitted, localhost is assumed.
 
-When the stream is established the `"connect"` event will be emitted.
+When the stream is established the `'connect'` event will be emitted.
 
-### stream.connect(port, host="127.0.0.1")
+### stream.connect(port, host='127.0.0.1')
 
 Opens a stream to the specified `port` and `host`. `createConnection()`
 also opens a stream; normally this method is not needed. Use this only if
 a stream is closed and you want to reuse the object to connect to another
 server.
 
-This function is asynchronous. When the `"connect"` event is emitted the
-stream is established. If there is a problem connecting, the `"connect"`
-event will not be emitted, the `"close"` event will be emitted with 
-`had_error == true`.
+This function is asynchronous. When the `'connect'` event is emitted the
+stream is established. If there is a problem connecting, the `'connect'`
+event will not be emitted, the `'error'` event will be emitted with 
+the exception.
+
 
 ### stream.remoteAddress
 
 The string representation of the remote IP address. For example,
-`"74.125.127.100"` or `"2001:4860:a005::68"`.
+`'74.125.127.100'` or `'2001:4860:a005::68'`.
 
 This member is only present in server-side connections.
 
 ### stream.readyState
 
-Either `"closed"`, `"open"`, `"opening"`, `"readOnly"`, or `"writeOnly"`.
+Either `'closed'`, `'open'`, `'opening'`, `'readOnly'`, or `'writeOnly'`.
 
 ### stream.setEncoding(encoding)
 
-Sets the encoding (either `"ascii"`, `"utf8"`, or `"binary"`) for data that is
+Sets the encoding (either `'ascii'`, `'utf8'`, or `'binary'`) for data that is
 received.
 
-### stream.write(data, encoding="ascii")
+### stream.write(data, encoding='ascii')
 
 Sends data on the stream. The second parameter specifies the encoding in
 the case of a string--it defaults to ASCII because encoding to UTF8 is rather
@@ -1839,7 +1927,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 
 Half-closes the stream. I.E., it sends a FIN packet. It is possible the
 server will still send some data. After calling this `readyState` will be
-`"readOnly"`.
+`'readOnly'`.
 
 ### stream.destroy()
 
@@ -1848,7 +1936,7 @@ case of errors (parse error or so).
 
 ### stream.pause()
 
-Pauses the reading of data. That is, `"data"` events will not be emitted.
+Pauses the reading of data. That is, `'data'` events will not be emitted.
 Useful to throttle back an upload.
 
 ### stream.resume()
@@ -1872,26 +1960,26 @@ immediately fire off data each time `stream.write()` is called.
 
 ## DNS module
 
-Use `require("dns")` to access this module.
+Use `require('dns')` to access this module.
 
-Here is an example which resolves `"www.google.com"` then reverse
+Here is an example which resolves `'www.google.com'` then reverse
 resolves the IP addresses which are returned.
 
-    var dns = require("dns"),
-        sys = require("sys");
+    var dns = require('dns'),
+        sys = require('sys');
 
-    dns.resolve4("www.google.com", function (err, addresses) {
+    dns.resolve4('www.google.com', function (err, addresses) {
       if (err) throw err;
 
-      sys.puts("addresses: " + JSON.stringify(addresses));
+      sys.puts('addresses: ' + JSON.stringify(addresses));
 
       for (var i = 0; i < addresses.length; i++) {
         var a = addresses[i];
         dns.reverse(a, function (err, domains) {
           if (err) {
-            puts("reverse for " + a + " failed: " + e.message);
+            puts('reverse for ' + a + ' failed: ' + e.message);
           } else {
-            sys.puts("reverse for " + a + ": " + JSON.stringify(domains));
+            sys.puts('reverse for ' + a + ': ' + JSON.stringify(domains));
           }
         });
       }
@@ -1899,7 +1987,7 @@ resolves the IP addresses which are returned.
 
 ### dns.resolve(domain, rrtype = 'A', callback)
 
-Resolves a domain (e.g. `"google.com"`) into an array of the record types
+Resolves a domain (e.g. `'google.com'`) into an array of the record types
 specified by rrtype. Valid rrtypes are `A` (IPV4 addresses), `AAAA` (IPV6
 addresses), `MX` (mail exchange records), `TXT` (text records), `SRV` (SRV
 records), and `PTR` (used for reverse IP lookups).
@@ -1916,7 +2004,7 @@ the error in English.
 ### dns.resolve4(domain, callback)
 
 The same as `dns.resolve()`, but only for IPv4 queries (`A` records). 
-`addresses` is an array of IPv4 addresses (e.g.  `["74.125.79.104", "74.125.79.105", "74.125.79.106"]`).
+`addresses` is an array of IPv4 addresses (e.g.  `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
 ### dns.resolve6(domain, callback)
 
@@ -1928,19 +2016,19 @@ The same as `dns.resolve4()` except for IPv6 queries (an `AAAA` query).
 The same as `dns.resolve()`, but only for mail exchange queries (`MX` records).
 
 `addresses` is an array of MX records, each with a priority and an exchange
-attribute (e.g. `[{"priority": 10, "exchange": "mx.example.com"},...]`).
+attribute (e.g. `[{'priority': 10, 'exchange': 'mx.example.com'},...]`).
 
 ### dns.resolveTxt(domain, callback)
 
 The same as `dns.resolve()`, but only for text queries (`TXT` records).
 `addresses` is an array of the text records available for `domain` (e.g.,
-`["v=spf1 ip4:0.0.0.0 ~all"]`).
+`['v=spf1 ip4:0.0.0.0 ~all']`).
 
 ### dns.resolveSrv(domain, callback)
 
 The same as `dns.resolve()`, but only for service records (`SRV` records).
 `addresses` is an array of the SRV records available for `domain`. Properties
-of SRV records are priority, weight, port, and name (e.g., `[{"priority": 10, {"weight": 5, "port": 21223, "name": "service.example.com"}, ...]`).
+of SRV records are priority, weight, port, and name (e.g., `[{'priority': 10, {'weight': 5, 'port': 21223, 'name': 'service.example.com'}, ...]`).
 
 ### dns.reverse(ip, callback)
 
@@ -1963,7 +2051,7 @@ Each DNS query can return an error code.
 
 ## Assert Module
 
-This module is used for writing unit tests for your applications, you can access it with `require("assert")`.
+This module is used for writing unit tests for your applications, you can access it with `require('assert')`.
 
 ### assert.fail(actual, expected, message, operator)
 
@@ -2009,71 +2097,71 @@ Expects `block` not to throw an error.
 ## Path Module
 
 This module contains utilities for dealing with file paths.  Use
-`require("path")` to use it.  It provides the following methods:
+`require('path')` to use it.  It provides the following methods:
 
 ### path.join(/* path1, path2, ... */)
 
 Join all arguments together and resolve the resulting path.  Example:
 
-    node> require("path").join("/foo", "bar", "baz/asdf", "quux", "..")
-    "/foo/bar/baz/asdf"
+    node> require('path').join('/foo', 'bar', 'baz/asdf', 'quux', '..')
+    '/foo/bar/baz/asdf'
 
 ### path.normalizeArray(arr)
 
-Normalize an array of path parts, taking care of `".."` and `"."` parts.  Example:
+Normalize an array of path parts, taking care of `'..'` and `'.'` parts.  Example:
 
-    path.normalizeArray(["", 
-      "foo", "bar", "baz", "asdf", "quux", ".."])
+    path.normalizeArray(['', 
+      'foo', 'bar', 'baz', 'asdf', 'quux', '..'])
     // returns
     [ '', 'foo', 'bar', 'baz', 'asdf' ]
 
 ### path.normalize(p)
 
-Normalize a string path, taking care of `".."` and `"."` parts.  Example:
+Normalize a string path, taking care of `'..'` and `'.'` parts.  Example:
 
-    path.normalize("/foo/bar/baz/asdf/quux/..")
+    path.normalize('/foo/bar/baz/asdf/quux/..')
     // returns
-    "/foo/bar/baz/asdf"
+    '/foo/bar/baz/asdf'
 
 ### path.dirname(p)
 
 Return the directory name of a path.  Similar to the Unix `dirname` command.  Example:
 
-    path.dirname("/foo/bar/baz/asdf/quux")
+    path.dirname('/foo/bar/baz/asdf/quux')
     // returns
-    "/foo/bar/baz/asdf"
+    '/foo/bar/baz/asdf'
 
 ### path.basename(p, ext)
 
 Return the last portion of a path.  Similar to the Unix `basename` command.  Example:
 
-    path.basename("/foo/bar/baz/asdf/quux.html")
+    path.basename('/foo/bar/baz/asdf/quux.html')
     // returns
-    "quux.html"
+    'quux.html'
 
-    path.basename("/foo/bar/baz/asdf/quux.html", ".html")
+    path.basename('/foo/bar/baz/asdf/quux.html', '.html')
     // returns
-    "quux"
+    'quux'
 
 ### path.extname(p)
 
 Return the extension of the path.  Everything after the last '.', if there
 is no '.' then it returns an empty string.  Examples:
 
-    path.extname("index.html")
+    path.extname('index.html')
     // returns 
-    ".html"
+    '.html'
 
-    path.extname("index")
+    path.extname('index')
     // returns
-    ""
+    ''
 
 ### path.exists(p, callback)
 
 Test whether or not the given path exists.  Then, call the `callback` argument with either true or false.  Example:
 
-    path.exists("/etc/passwd", function (exists) {
-      sys.debug(exists ? "it's there" : "no passwd!");
+    path.exists('/etc/passwd', function (exists) {
+      sys.debug(exists ? 'it's there' : 'no passwd!');
     });
 
 
@@ -2085,50 +2173,50 @@ Parsed URL objects have some or all of the following fields, depending on
 whether or not they exist in the URL string. Any parts that are not in the URL
 string will not be in the parsed object. Examples are shown for the URL
 
-`"http://user:pass@host.com:8080/p/a/t/h?query=string#hash"`
+`'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`
 
 - `href`
 
   The full URL that was originally parsed. Example:   
-  `"http://user:pass@host.com:8080/p/a/t/h?query=string#hash"`
+  `'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`
 
 - `protocol`
 
-  The request protocol.  Example: `"http:"`
+  The request protocol.  Example: `'http:'`
 
 - `host`
 
   The full host portion of the URL, including port and authentication information. Example:
-  `"user:pass@host.com:8080"`
+  `'user:pass@host.com:8080'`
 
 - `auth`
 
-  The authentication information portion of a URL.  Example: `"user:pass"`
+  The authentication information portion of a URL.  Example: `'user:pass'`
 
 - `hostname`
 
-  Just the hostname portion of the host.  Example: `"host.com"`
+  Just the hostname portion of the host.  Example: `'host.com'`
 
 - `port`
 
-  The port number portion of the host.  Example: `"8080"`
+  The port number portion of the host.  Example: `'8080'`
 
 - `pathname`
 
-  The path section of the URL, that comes after the host and before the query, including the initial slash if present.  Example: `"/p/a/t/h"`
+  The path section of the URL, that comes after the host and before the query, including the initial slash if present.  Example: `'/p/a/t/h'`
 
 - `search`
 
-  The "query string" portion of the URL, including the leading question mark. Example: `"?query=string"`
+  The 'query string' portion of the URL, including the leading question mark. Example: `'?query=string'`
 
 - `query`
 
-  Either the "params" portion of the query string, or a querystring-parsed object. Example:
-  `"query=string"` or `{"query":"string"}`
+  Either the 'params' portion of the query string, or a querystring-parsed object. Example:
+  `'query=string'` or `{'query':'string'}`
 
 - `hash`
 
-  The "fragment" portion of the URL including the pound-sign. Example: `"#hash"`
+  The 'fragment' portion of the URL including the pound-sign. Example: `'#hash'`
 
 
 The following methods are provided by the URL module:
@@ -2151,16 +2239,16 @@ Take a base URL, and a href URL, and resolve them as a browser would for an anch
 
 This module provides utilities for dealing with query strings.  It provides the following methods:
 
-### querystring.stringify(obj, sep="&", eq="=")
+### querystring.stringify(obj, sep='&', eq='=')
 
 Serialize an object to a query string.  Optionally override the default separator and assignment characters.
 Example:
 
     querystring.stringify({foo: 'bar'})
     // returns
-    "foo=bar"
+    'foo=bar'
 
-### querystring.parse(str, sep="&", eq="=")
+### querystring.parse(str, sep='&', eq='=')
 
 Deserialize a query string to an object.  Optionally override the default separator and assignment characters.
 
@@ -2187,7 +2275,7 @@ The standalone REPL is called `node-repl` and is installed at
 `$PREFIX/bin/node-repl`. It's recommended to use it with the program
 `rlwrap` for a better user interface. I set 
 
-    alias node-repl="rlwrap node-repl"
+    alias node-repl='rlwrap node-repl'
 
 in my zsh configuration.
 
@@ -2196,16 +2284,16 @@ result of the last expression.
 
 The library is called `/repl.js` and it can be used like this:
 
-    var sys = require("sys"),
-        net = require("net"),
-       repl = require("repl");
+    var sys = require('sys'),
+        net = require('net'),
+       repl = require('repl');
     nconnections = 0;
     net.createServer(function (c) {
-      sys.error("Connection!");
+      sys.error('Connection!');
       nconnections += 1;
       c.close();
     }).listen(5000);
-    repl.start("simple tcp server> ");
+    repl.start('simple tcp server> ');
 
 The repl provides access to any variables in the global scope. You can expose a variable 
 to the repl explicitly by assigning it to the `repl.scope` object:
@@ -2248,7 +2336,7 @@ libraries.
 To get started let's make a small Addon which does the following except in
 C++:
 
-    exports.hello = "world";
+    exports.hello = 'world';
 
 To get started we create a file `hello.cc`:
 
@@ -2256,7 +2344,7 @@ To get started we create a file `hello.cc`:
 
     using namespace v8;
 
-    extern "C" void
+    extern 'C' void
     init (Handle<Object> target) 
     {
       HandleScope scope;
@@ -2267,21 +2355,21 @@ This source code needs to be built into `hello.node`, the binary Addon. To
 do this we create a file called `wscript` which is python code and looks
 like this:
 
-    srcdir = "."
-    blddir = "build"
-    VERSION = "0.0.1"
+    srcdir = '.'
+    blddir = 'build'
+    VERSION = '0.0.1'
 
     def set_options(opt):
-      opt.tool_options("compiler_cxx")
+      opt.tool_options('compiler_cxx')
 
     def configure(conf):
-      conf.check_tool("compiler_cxx")
-      conf.check_tool("node_addon")
+      conf.check_tool('compiler_cxx')
+      conf.check_tool('node_addon')
 
     def build(bld):
-      obj = bld.new_task_gen("cxx", "shlib", "node_addon")
-      obj.target = "hello"
-      obj.source = "hello.cc"
+      obj = bld.new_task_gen('cxx', 'shlib', 'node_addon')
+      obj.target = 'hello'
+      obj.source = 'hello.cc'
 
 Running `node-waf configure build` will create a file
 `build/default/hello.node` which is our Addon.
@@ -2291,7 +2379,7 @@ provided for the ease of users.
 
 All Node addons must export a function called `init` with this signature:
 
-    extern "C" void init (Handle<Object> target) 
+    extern 'C' void init (Handle<Object> target) 
 
 For the moment, that is all the documentation on addons. Please see
 <http://github.com/ry/node_postgres[node_postgres]> for a real example.
