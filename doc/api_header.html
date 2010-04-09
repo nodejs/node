@@ -1,20 +1,103 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
-    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<meta name="generator" content="AsciiDoc 8.5.1" />
-<title>NODE(1)</title>
-<link rel="stylesheet" href="./pipe.css" type="text/css" />
-<link rel="stylesheet" href="./pipe-quirks.css" type="text/css" />
-<link rel="stylesheet" href="./sh_vim-dark.css" type="text/css" />
-<script type="text/javascript" src="./jquery.js"></script>
-<script type="text/javascript" src="./sh_main.js"></script>
-<script type="text/javascript" src="./sh_javascript.min.js"></script>
-<script type="text/javascript" src="./doc.js"></script>
+<html> 
+<head> 
+  <meta http-equiv='content-type' value='text/html;charset=utf8'> 
+  <meta name='generator' value='Ronn/v0.4.1'> 
+  <title>node(1) -- evented I/O for V8 JavaScript</title> 
+  <style type='text/css'> 
+    body {
+      margin:0;
+      background: #22252a;
+      color:#eee;
+    }
+    #man, #man code, #man pre, #man tt, #man kbd, #man samp {
+      font-family:consolas,monospace;
+      font-size:16px;
+      line-height:1.3;
+      color:#eee;
+      background:#22252a; }
+    #man { max-width:89ex; text-align:justify; margin:0 25px 25px 25px }
+    #man h1, #man h2, #man h3 { color:#DCDDDE;clear:left }
+    #man h1 { font-size:28px; margin:15px 0 30px 0; text-align:center }
+    #man h2 { font-size:18px; margin-bottom:0; margin-top:10px; line-height:1.3; }
+    #man h3 { font-size:16px; margin:0 0 0 4ex; }
+    #man p, #man ul, #man ol, #man dl, #man pre { margin:0 0 18px 0; }
+    #man pre {
+      color:#CCCDCE;
+      background:#121314;
+      padding:5px 7px;
+      margin:0px 0 20px 0;
+      border-left:2ex solid #222}
+    #man pre + h2, #man pre + h3 {
+      margin-top:22px;
+    }
+    #man h2 + pre, #man h3 + pre {
+      margin-top:5px;
+    }
+    #man > p, #man > ul, #man > ol, #man > dl, #man > pre { margin-left:8ex; }
+    #man dt { margin:0; clear:left }
+    #man dt.flush { float:left; width:8ex }
+    #man dd { margin:0 0 0 9ex }
+    #man code, #man strong, #man b { font-weight:bold; color:#ECEDEE; }
+    #man pre code { font-weight:normal; color:#DCDDDE; background:inherit }
+    #man em, var, u {
+      font-style:normal; color:#CCCDCE; border-bottom:1px solid #999; }
+    #man h1.man-title { display:none; }
+    #man ol.man, #man ol.man li { margin:2px 0 10px 0; padding:0;
+      float:left; width:33%; list-style-type:none;
+      text-transform:uppercase; font-size:18px; color:#666;
+      letter-spacing:1px;}
+    #man ol.man { width:100%; }
+    #man ol.man li.tl { text-align:left }
+    #man ol.man li.tc { text-align:center;letter-spacing:4px }
+    #man ol.man li.tr { text-align:right }
+    #man ol.man a { color:#666; }
+    #man ol.man a:hover { color:#CCCDCE; }
+#toc {
+  left:94ex;
+  top: 5ex;
+  float: right;
+  position: absolute;
+  font-size: inherit;
+  font-family:consolas,monospace;
+}
+@media all and (min-height: 650px) { #toc { position: fixed; }}
+#toctitle {
+  display: none;
+}
+#toc ol {
+  list-style: none;
+}
+#toc ol, .toclevel2 {
+  margin: 0;
+  padding: 0;
+  padding-left: 1em;
+}
+#toc ol li {
+  margin: 0;
+  padding: 0;
+}
+#toc a {
+  text-decoration: none;
+  color: inherit;
+}
+  </style>
+  <script type="text/javascript" src="./jquery.js"></script>
+  <script type="text/javascript" src="./sh_main.js"></script>
+  <script type="text/javascript" src="./sh_javascript.min.js"></script>
+  <script type="text/javascript" src="./doc.js"></script>
+  <link rel="stylesheet" href="./sh_vim-dark.css" type="text/css" />
 </head>
 <body>
 <div id="toc">
 	<div id="toctitle">Table of Contents</div>
 	<noscript>JavaScript must be enabled in your browser to display the table of contents.</noscript>
 </div>
+<div id='man'>
+
+<h1 class='man-title'>node(1)</h1>
+
+<ol class='head man'>
+  <li class='tl'>node(1)</li>
+  <li class='tc'></li>
+  <li class='tr'>node(1)</li>
+</ol>
