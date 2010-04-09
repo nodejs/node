@@ -10,9 +10,7 @@ World":
       http = require("http");
 
     http.createServer(function (request, response) {
-      response.writeHead(200, {
-        "Content-Type": "text/plain"
-      });
+      response.writeHead(200, {"Content-Type": "text/plain"});
       response.end("Hello World\n");
     }).listen(8000);
 
@@ -136,19 +134,19 @@ are readable, writable, or both. All streams are instances of `EventEmitter`.
 
 A **readable stream** has the following methods, members, and events.
 
-- **`stream.addListener('data', function (data) { ... })`**:
+- Event: **`'data'`** - `callback(data)`:
 The `'data'` event emits either a `Buffer` (by default) or a string if
 `setEncoding()` was used.
 
-- **`stream.addListener('end', function () { ... })`**:
+- Event: **`'end'`** - `callback()`:
 Emitted when the stream has received an EOF (FIN in TCP terminology).
 Indicates that no more `'data'` events will happen. If the stream is also
 writable, it may be possible to continue writing.
 
-- **`stream.addListener('error', function (exception) { ... })`**:
+- Event: **`'error'`** - `callback(exception)`:
 Emitted if there was an error receiving data.
 
-- **`stream.addListener('close', function () { ... })`**:
+- Event: **`'close'`** - `callback()`:
 Emitted when the underlying file descriptor has be closed. Not all streams
 will emit this.  (For example, an incoming HTTP request will not emit
 `'close'`.)
@@ -170,14 +168,14 @@ Closes the underlying file descriptor. Stream will not emit any more events.
 
 A **writable stream** has the following methods, members, and events.
 
-- **`stream.addListener('drain', function () { ... })`**:
+- Event: **`'drain'`** - `callback()`:
 Emitted after a `write()` method was called that returned `false` to
 indicate that it is safe to write again.
 
-- **`stream.addListener('error', function (e) { ... })`**:
+- Event: **`'error'`** - `callback(exception)`:
 Emitted on error with the exception `e`.
 
-- **`stream.addListener('close', function () { ... })`**:
+- Event **`'close'`** - `callback()`:
 Emitted when the underlying file descriptor has been closed.
 
 - **`stream.write(string, encoding)`**:
@@ -233,7 +231,7 @@ The `process` object is a global object and can be accessed from anywhere.
 It is an instance of `EventEmitter` and has the following events:
 
 
-### process.addListener('exit', function () { ... })
+### Event: 'exit' - callback()
 
 Emitted when the process is about to exit.  This is a good hook to perform
 constant time checks of the module's state (like for unit tests).  The main
@@ -251,7 +249,7 @@ Example of listening for `exit`:
       sys.puts("About to exit.");
     });
 
-### process.addListener('uncaughtException', function (err) { ... })
+### Event: 'uncaughtException' - callback(err)
 
 Emitted when an exception bubbles all the way back to the event loop. If a
 listener is added for this exception, the default action (which is to print
@@ -279,7 +277,7 @@ your program's flow.  Especially for server programs that are designed to
 stay running forever, `uncaughtException` can be a useful safety mechanism.
 
 
-### process.addListener('SIGINT', function () { ... })
+### Event: 'SIGINT' - callback()
 
 Emitted when the processes receives a signal. See sigaction(2) for a list of
 standard POSIX signal names such as SIGINT, SIGUSR1, etc.
