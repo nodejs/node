@@ -91,7 +91,7 @@ Use `process.mixin()` to include modules into the global namespace.
     puts('The area of a circle of radius 4 is ' + area(4));
 
 
-## String Encodings and Buffers
+## Buffers
 
 Pure Javascript is Unicode friendly but not nice to pure binary data.  When
 dealing with TCP streams or the file system, it's necessary to handle octet
@@ -381,7 +381,7 @@ your program's flow.  Especially for server programs that are designed to
 stay running forever, `uncaughtException` can be a useful safety mechanism.
 
 
-### Signal Events: 'SIGINT'
+### Signal Events
 
 `function () {}`
 
@@ -849,7 +849,7 @@ Example:
         grep  = spawn('grep', ['ssh']);
 
     sys.puts('Spawned child pid: ' + grep.pid);
-    grep.stdin.close();
+    grep.stdin.end();
 
 
 ### child.stdin.write(data, encoding)
@@ -877,7 +877,7 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
       if (code !== 0) {
         sys.puts('ps process exited with code ' + code);
       }
-      grep.stdin.close();
+      grep.stdin.end();
     });
 
     grep.stdout.addListener('data', function (data) {
@@ -895,7 +895,7 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
     });
 
 
-### child.stdin.close()
+### child.stdin.end()
 
 Closes the child process's `stdin` stream.  This often causes the child process to terminate.
 
@@ -909,7 +909,7 @@ Example:
       sys.puts('child process exited with code ' + code);
     });
 
-    grep.stdin.close();
+    grep.stdin.end();
 
 
 ### child_process.exec(command, callback)
@@ -1359,6 +1359,8 @@ Begin accepting connections on the specified port and hostname.  If the
 hostname is omitted, the server will accept connections directed to any
 address.
 
+To listen to a unix socket, supply a filename instead of port and hostname.
+
 This function is asynchronous. `listening` will be emitted when the server
 is ready to accept connections.
 
@@ -1698,7 +1700,7 @@ A reference to the `http.Client` that this response belongs to.
 
 ## net.Server
 
-This class can be used to create a TCP or UNIX server.
+This class is used to create a TCP or UNIX server.
 
 Here is an example of a echo server which listens for connections
 on port 7000:
@@ -1719,6 +1721,11 @@ on port 7000:
     });
     server.listen(7000, 'localhost');
 
+To listen on the socket `'/tmp/echo.sock'`, the last line would just be
+changed to
+
+    server.listen('/tmp/echo.sock');
+
 This is an EventEmitter with the following events:
 
 ### Event: 'listening'
@@ -1737,11 +1744,10 @@ Emitted when a new connection is made. `stream` is an instance of
 
 ### Event: 'close'
 
-`function (errno) {}`
+`function () {}`
 
-Emitted when the server closes. `errorno` is an integer which indicates
-what, if any, error caused the server to close. If no error occurred
-`errorno` will be 0.
+Emitted when the server closes.
+
 
 ### net.createServer(connectionListener)
 
@@ -2244,7 +2250,7 @@ The library is called `/repl.js` and it can be used like this:
     net.createServer(function (c) {
       sys.error('Connection!');
       nconnections += 1;
-      c.close();
+      c.end();
     }).listen(5000);
     repl.start('simple tcp server> ');
 
