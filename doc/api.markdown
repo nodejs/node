@@ -251,20 +251,20 @@ Closes the underlying file descriptor. Stream will not emit any more events.
 
 A **writable stream** has the following methods, members, and events.
 
-### Event 'drain'
+### Event: 'drain'
 
 `function () { }`
 
 Emitted after a `write()` method was called that returned `false` to
 indicate that it is safe to write again.
 
-### Event 'error'
+### Event: 'error'
 
 `function (exception) { }`
 
 Emitted on error with the exception `e`.
 
-### Event 'close'
+### Event: 'close'
 
 `function () { }`
 
@@ -400,6 +400,7 @@ Example of listening for `SIGINT`:
 An easy way to send the `SIGINT` signal is with `Control-C` in most terminal
 programs.
 
+
 ### process.stdout
 
 A writable stream to `stdout`.
@@ -507,13 +508,6 @@ Returns the current working directory of the process.
 ### process.env
 
 An object containing the user environment. See environ(7).
-
-    // print process.env
-    var sys = require('sys');
-
-    Object.getOwnPropertyNames(process.env).forEach(function (val, index, array) {
-      sys.puts(index + ': ' + val + '=' + process.env[val]);
-    });
 
 
 
@@ -741,64 +735,20 @@ Example of inspecting all properties of the `sys` object:
 To schedule execution of `callback` after `delay` milliseconds. Returns a
 `timeoutId` for possible use with `clearTimeout()`.
 
-    var sys   = require('sys'),
-        start = new Date(),
-        timer = setTimeout(function () {
-            sys.puts('Timer fired after ' + (Date.now() - start) + 'ms');
-        }, 1000);
-
-    sys.puts('Started timer.');
-
-Optionally, you can pass arguments to the callback.
-
-    var sys   = require('sys'),
-        start = new Date(),
-        timer = setTimeout(function (start_time, message) {
-            sys.puts(message + (Date.now() - start_time) + 'ms');
-        }, 1000, start, 'Timer fired after ');
-
-    sys.puts('Started timer.');
-
-These two examples generate the same output.
-
 ### clearTimeout(timeoutId)
 
 Prevents a timeout from triggering.
 
-    var sys    = require('sys'),
-        start  = new Date(),
-        timer1 = setTimeout(function () {
-          sys.puts('Timer fired after ' + (Date.now() - start) + 'ms');
-        }, 5000),
-        timer2 = setTimeout(function () {
-          sys.puts('This is taking too long.  Stopping timer1.');
-          clearTimeout(timer1);
-        }, 1000);
-
-    sys.puts('Started timers.');
-
 ### setInterval(callback, delay, [arg, ...])
 
-To schedule the repeated execution of `callback` every `delay` milliseconds. Returns a `intervalId` for possible use with `clearInterval()`.
+To schedule the repeated execution of `callback` every `delay` milliseconds.
+Returns a `intervalId` for possible use with `clearInterval()`.
 
 Optionally, you can also pass arguments to the callback.
 
 ### clearInterval(intervalId)
 
 Stops a interval from triggering.
-
-    var sys   = require('sys'),
-        start = new Date(),
-        count = 10,
-        timer = setInterval(function () {
-          count -= 1;
-          sys.puts('Timer fired after ' + (Date.now() - start) + 'ms ' + count + ' remaining.');
-          if (count === 0) {
-            clearInterval(timer);
-          }
-        }, 100);
-
-    sys.puts('Started timer.');
 
 
 ## Child Processes
@@ -816,7 +766,7 @@ Child processes always have three streams associated with them. `child.stdin`,
 
 `ChildProcess` is an EventEmitter.
 
-### Event  'exit'
+### Event:  'exit'
 
 `function (code) {} `
 
@@ -1694,9 +1644,9 @@ chunked, this will send the terminating `'0\r\n\r\n'`.
 This object is created when making a request with `http.Client`. It is
 passed to the `'response'` event of the request object.
 
-The response implements the stream interface.
+The response implements the **readable stream** interface.
 
-### Event 'data'
+### Event: 'data'
 
 `function (chunk) {}`
 
@@ -1829,24 +1779,25 @@ and passed to the user through the `'connection'` event of a server.
 
 `function () { }`
 
-Call once the stream is established after a call to `createConnection()` or
-`connect()`.
+Emitted when a stream connection successfully is established.
+See `connect()`.
+
 
 ### Event: 'data'
 
 `function (data) { }`
 
-Called when data is received on the stream.  `data`
-will be a string. Encoding of data is set by `stream.setEncoding()`.
+Emitted when data is received.  The argument `data` will be a `Buffer` or
+`String`.  Encoding of data is set by `stream.setEncoding()`.
+(See the section on Readable Streams for more infromation.)
 
 ### Event: 'end'
 
 `function () { }`
 
-Called when the other end of the stream sends a FIN
-packet. After this is emitted the `readyState` will be
-`'writeOnly'`. One should probably just call
-`stream.end()` when this event is emitted.
+Emitted when the other end of the stream sends a FIN packet. After this is
+emitted the `readyState` will be `'writeOnly'`. One should probably just
+call `stream.end()` when this event is emitted.
 
 ### Event: 'timeout'
 
@@ -1874,7 +1825,7 @@ following this event.
 
 Emitted once the stream is fully closed. The argument `had_error` is a boolean which says if
 the stream was closed due to a transmission
-error. 
+error.
 
 
 ### net.createConnection(port, host='127.0.0.1')
@@ -1958,7 +1909,7 @@ algorithm, they buffer data before sending it off. Setting `noDelay` will
 immediately fire off data each time `stream.write()` is called.
 
 
-## DNS module
+## DNS
 
 Use `require('dns')` to access this module.
 
@@ -2049,9 +2000,10 @@ Each DNS query can return an error code.
 - `dns.BADQUERY`: the query is malformed.
 
 
-## Assert Module
+## Assert
 
-This module is used for writing unit tests for your applications, you can access it with `require('assert')`.
+This module is used for writing unit tests for your applications, you can
+access it with `require('assert')`.
 
 ### assert.fail(actual, expected, message, operator)
 
@@ -2094,7 +2046,7 @@ Expects `block` to throw an error.
 Expects `block` not to throw an error.
 
 
-## Path Module
+## Path
 
 This module contains utilities for dealing with file paths.  Use
 `require('path')` to use it.  It provides the following methods:
@@ -2165,9 +2117,10 @@ Test whether or not the given path exists.  Then, call the `callback` argument w
     });
 
 
-## URL Module
+## URL
 
 This module has utilities for URL resolution and parsing.
+Call `require('url')` to use it.
 
 Parsed URL objects have some or all of the following fields, depending on
 whether or not they exist in the URL string. Any parts that are not in the URL
@@ -2177,7 +2130,7 @@ string will not be in the parsed object. Examples are shown for the URL
 
 - `href`
 
-  The full URL that was originally parsed. Example:   
+  The full URL that was originally parsed. Example:
   `'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`
 
 - `protocol`
@@ -2235,7 +2188,7 @@ Take a parsed URL object, and return a formatted URL string.
 Take a base URL, and a href URL, and resolve them as a browser would for an anchor tag.
 
 
-## Query String Module
+## Query String
 
 This module provides utilities for dealing with query strings.  It provides the following methods:
 

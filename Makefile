@@ -43,6 +43,7 @@ benchmark: all
 # gem install ronn
 doc: doc/node.1 doc/api.html doc/index.html doc/changelog.html
 
+## HACK to give the ronn-generated page a TOC
 doc/api.html: doc/api.markdown
 	ronn -f --html doc/api.markdown \
 	| sed "s/<h2>\(.*\)<\/h2>/<h2 id=\"\1\">\1<\/h2>/g" \
