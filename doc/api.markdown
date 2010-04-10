@@ -1934,7 +1934,7 @@ resolves the IP addresses which are returned.
         var a = addresses[i];
         dns.reverse(a, function (err, domains) {
           if (err) {
-            puts('reverse for ' + a + ' failed: ' + e.message);
+            sys.puts('reverse for ' + a + ' failed: ' + err.message);
           } else {
             sys.puts('reverse for ' + a + ': ' + JSON.stringify(domains));
           }
