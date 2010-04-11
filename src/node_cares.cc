@@ -422,22 +422,13 @@ Handle<Value> Channel::New(const Arguments& args) {
     }
 
     Local<Object> options_o = Local<Object>::Cast(args[0]);
-    Local<Array> keys = options_o->GetPropertyNames();
-    int length = keys->Length();
 
-    for (int i = 0; i < length; ++i) {
-      Local<String> opt = Local<String>::Cast(keys->Get(Integer::New(i)));
-
-      if (opt->Equals(String::New("SOCK_STATE_CB"))) {
-        c->handle_->Set(callback_symbol, options_o->Get(opt));
-        options.sock_state_cb_data = c;
-        options.sock_state_cb = Channel::SockStateCb;
-        optmask |= ARES_OPT_SOCK_STATE_CB;
-        continue;
-      }
-
-      return ThrowException(Exception::Error(
-              String::New("Unknown Option")));
+    Local<Value> cb = options_o->Get(String::NewSymbol("SOCK_STATE_CB"));
+    if (!cb.IsEmpty()) {
+      c->handle_->Set(callback_symbol, cb);
+      options.sock_state_cb_data = c;
+      options.sock_state_cb = Channel::SockStateCb;
+      optmask |= ARES_OPT_SOCK_STATE_CB;
     }
   }
 
