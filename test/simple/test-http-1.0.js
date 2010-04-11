@@ -7,6 +7,9 @@ var server_response = "";
 var client_got_eof = false;
 
 var server = http.createServer(function (req, res) {
+  assert.equal('1.0', req.httpVersion);
+  assert.equal(1, req.httpVersionMajor);
+  assert.equal(0, req.httpVersionMinor);
   res.writeHead(200, {"Content-Type": "text/plain"});
   res.end(body);
 })
