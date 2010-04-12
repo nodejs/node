@@ -462,7 +462,9 @@ function findModulePath (id, dirs, callback) {
   ];
 
   var ext;
-  for (ext in extensionCache) {
+  var extensions = Object.keys(extensionCache);
+  for (var i = 0, l = extensions.length; i < l; i++) {
+    var ext = extensions[i];
     locations.push(path.join(dir, id + ext));
     locations.push(path.join(dir, id, 'index' + ext));
   }
@@ -504,7 +506,9 @@ function resolveModulePath(request, parent) {
     debug("RELATIVE: requested:" + request + " set ID to: "+id+" from "+parent.id);
 
     var exts = ['js', 'node'], ext;
-    for (ext in extensionCache) {
+    var extensions = Object.keys(extensionCache);
+    for (var i = 0, l = extensions.length; i < l; i++) {
+      var ext = extensions[i];
       exts.push(ext.slice(1));
     }
 
