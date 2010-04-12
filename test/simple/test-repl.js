@@ -40,6 +40,8 @@ function tcp_test() {
   });
 
   server_tcp.addListener('listening', function () {
+    var read_buffer = "";
+    
     client_tcp = net.createConnection(PORT);
 
     client_tcp.addListener('connect', function () {
@@ -54,17 +56,23 @@ function tcp_test() {
     });
 
     client_tcp.addListener('data', function (data) {
-      var data_str = data.asciiSlice(0, data.length);
-      sys.puts("TCP data: " + data_str + ", compare to " + client_tcp.expect);
-      assert.strictEqual(client_tcp.expect, data_str);
-      if (client_tcp.list && client_tcp.list.length > 0) {
-        send_expect(client_tcp.list);
+      read_buffer += data.asciiSlice(0, data.length);
+      sys.puts("TCP data: " + read_buffer + ", expecting " + client_tcp.expect);
+      if (read_buffer.indexOf(prompt_tcp) !== -1) {
+        assert.strictEqual(client_tcp.expect, read_buffer);
+        read_buffer = "";
+        if (client_tcp.list && client_tcp.list.length > 0) {
+          send_expect(client_tcp.list);
+        }
+        else {
+          sys.puts("End of TCP test.");
+          client_tcp.end();
+          client_unix.end();
+          clearTimeout(timer);
+        }
       }
       else {
-        sys.puts("End of TCP test.");
-        client_tcp.end();
-        client_unix.end();
-        clearTimeout(timer);
+        sys.puts("didn't see prompt yet, buffering");
       }
     });
   
@@ -93,6 +101,8 @@ function unix_test() {
   });
 
   server_unix.addListener('listening', function () {
+    var read_buffer = "";
+    
     client_unix = net.createConnection(unix_socket_path);
 
     client_unix.addListener('connect', function () {
@@ -108,15 +118,21 @@ function unix_test() {
     });
 
     client_unix.addListener('data', function (data) {
-      var data_str = data.asciiSlice(0, data.length);
-      sys.puts("Unix data: " + data_str + ", compare to " + client_unix.expect);
-      assert.strictEqual(client_unix.expect, data_str);
-      if (client_unix.list && client_unix.list.length > 0) {
-        send_expect(client_unix.list);
+      read_buffer += data.asciiSlice(0, data.length);
+      sys.puts("Unix data: " + read_buffer + ", expecting " + client_unix.expect);
+      if (read_buffer.indexOf(prompt_unix) !== -1) {
+        assert.strictEqual(client_unix.expect, read_buffer);
+        read_buffer = "";
+        if (client_unix.list && client_unix.list.length > 0) {
+          send_expect(client_unix.list);
+        }
+        else {
+          sys.puts("End of Unix test, running TCP test.");
+          tcp_test();
+        }
       }
       else {
-        sys.puts("End of Unix test, running TCP test.");
-        tcp_test();
+        sys.puts("didn't see prompt yet, bufering.");
       }
     });
   
