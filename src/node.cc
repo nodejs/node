@@ -1208,6 +1208,7 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("fs"),           String::New(native_fs));
       exports->Set(String::New("http"),         String::New(native_http));
       exports->Set(String::New("http_old"),     String::New(native_http_old));
+      exports->Set(String::New("crypto"),       String::New(native_crypto));
       exports->Set(String::New("ini"),          String::New(native_ini));
       exports->Set(String::New("mjsunit"),      String::New(native_mjsunit));
       exports->Set(String::New("multipart"),    String::New(native_multipart));
