@@ -1367,9 +1367,7 @@ is ready to accept connections.
 
 ### server.listen(path)
 
-Start an HTTP UNIX socket server listening for connections on the given `path`.
-(Hint: use NGINX to load balance across many Node servers with this.)
-
+Start a UNIX socket server listening for connections on the given `path`.
 This function is asynchronous. `listening` will be emitted when the server
 is ready to accept connections.
 
