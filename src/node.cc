@@ -1268,6 +1268,7 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("dns"),          String::New(native_dns));
       exports->Set(String::New("events"),       String::New(native_events));
       exports->Set(String::New("file"),         String::New(native_file));
+      exports->Set(String::New("freelist"),     String::New(native_freelist));
       exports->Set(String::New("fs"),           String::New(native_fs));
       exports->Set(String::New("http"),         String::New(native_http));
       exports->Set(String::New("http_old"),     String::New(native_http_old));
