@@ -179,22 +179,18 @@ var events = eventsModule.exports;
 // nextTick()
 
 var nextTickQueue = [];
-var nextTickWatcher = new process.IdleWatcher();
-// Only debugger has maximum priority. Below that is the nextTickWatcher.
-nextTickWatcher.setPriority(process.EVMAXPRI-1);
 
-nextTickWatcher.callback = function () {
+process._tickCallback = function () {
   var l = nextTickQueue.length;
   while (l--) {
     var cb = nextTickQueue.shift();
     cb();
   }
-  if (nextTickQueue.length == 0) nextTickWatcher.stop();
 };
 
 process.nextTick = function (callback) {
   nextTickQueue.push(callback);
-  nextTickWatcher.start();
+  process._needTickCallback();
 };
 
 
