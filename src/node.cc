@@ -21,7 +21,10 @@
 #include <node_cares.h>
 #include <node_net.h>
 #include <node_file.h>
-#include <node_idle_watcher.h>
+#if 0
+// not in use
+# include <node_idle_watcher.h>
+#endif
 #include <node_http.h>
 #include <node_http_parser.h>
 #include <node_signal_watcher.h>
@@ -1432,7 +1435,8 @@ static void Load(int argc, char *argv[]) {
 
   // Initialize the C++ modules..................filename of module
   IOWatcher::Initialize(process);              // io_watcher.cc
-  IdleWatcher::Initialize(process);            // idle_watcher.cc
+  // Not in use at the moment.
+  //IdleWatcher::Initialize(process);            // idle_watcher.cc
   Timer::Initialize(process);                  // timer.cc
   DefineConstants(process);                    // constants.cc
 
