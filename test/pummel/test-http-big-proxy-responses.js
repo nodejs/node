@@ -6,34 +6,36 @@ url = require("url");
 
 // Produce a very large response.
 var chargen = http.createServer(function (req, res) {
-    var chunk = '01234567890123456789';
-    var len = req.headers['x-len'];
-    res.writeHead(200, {"transfer-encoding":"chunked"});
-    for (var i=0; i<len; i++) {
-  res.write(chunk);
-    }
-    res.end();
+  var chunk = '01234567890123456789';
+  var len = req.headers['x-len'];
+  res.writeHead(200, {"transfer-encoding":"chunked"});
+  for (var i=0; i<len; i++) {
+    print(',');
+    res.write(chunk);
+  }
+  res.end();
 });
 chargen.listen(9000);
 
 // Proxy to the chargen server.
 var proxy = http.createServer(function (req, res) {
-    var proxy_req = http.createClient(9000, 'localhost')
-  .request(req.method, req.url, req.headers);
-    proxy_req.addListener('response', function(proxy_res) {
-  res.writeHead(proxy_res.statusCode, proxy_res.headers);
-  proxy_res.addListener('data', function(chunk) {
+  var c = http.createClient(9000, 'localhost')
+  var proxy_req = c.request(req.method, req.url, req.headers);
+  proxy_req.addListener('response', function(proxy_res) {
+    res.writeHead(proxy_res.statusCode, proxy_res.headers);
+    proxy_res.addListener('data', function(chunk) {
+      print('.');
       res.write(chunk);
-  });
-  proxy_res.addListener('end', function() {
-      res.end();
-  });
     });
-    proxy_req.end();
+    proxy_res.addListener('end', function() {
+      res.end();
+    });
+  });
+  proxy_req.end();
 });
 proxy.listen(9001);
 
-var done = false; 
+var done = false;
 
 function call_chargen(list) {
   if (list.length > 0) {
@@ -47,8 +49,7 @@ function call_chargen(list) {
       });
     });
     req.end();
-  }
-  else {
+  } else {
     sys.puts("End of list.");
       proxy.end();
       chargen.end();
