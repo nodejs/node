@@ -26,20 +26,16 @@
 
 /* Begin PBXBuildFile section */
 		58950D5E0F55519800F3E8BA /* jump-target.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D500F55514900F3E8BA /* jump-target.cc */; };
-		58950D5F0F55519D00F3E8BA /* jump-target-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */; };
 		58950D5F0F55519D00F3E8BA /* jump-target-heavy.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D4F0F55514900F3E8BA /* jump-target-heavy.cc */; };
 		58950D600F5551A300F3E8BA /* jump-target.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D500F55514900F3E8BA /* jump-target.cc */; };
-		58950D610F5551A400F3E8BA /* jump-target-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D4E0F55514900F3E8BA /* jump-target-arm.cc */; };
 		58950D610F5551A400F3E8BA /* jump-target-light.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D4E0F55514900F3E8BA /* jump-target-light.cc */; };
 		58950D620F5551AF00F3E8BA /* register-allocator-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D530F55514900F3E8BA /* register-allocator-ia32.cc */; };
 		58950D630F5551AF00F3E8BA /* register-allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D540F55514900F3E8BA /* register-allocator.cc */; };
 		58950D640F5551B500F3E8BA /* register-allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D540F55514900F3E8BA /* register-allocator.cc */; };
 		58950D650F5551B600F3E8BA /* register-allocator-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D520F55514900F3E8BA /* register-allocator-arm.cc */; };
 		58950D660F5551C200F3E8BA /* virtual-frame.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D5A0F55514900F3E8BA /* virtual-frame.cc */; };
-		58950D670F5551C400F3E8BA /* virtual-frame-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */; };
 		58950D670F5551C400F3E8BA /* virtual-frame-heavy.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D580F55514900F3E8BA /* virtual-frame-heavy.cc */; };
 		58950D680F5551CB00F3E8BA /* virtual-frame.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D5A0F55514900F3E8BA /* virtual-frame.cc */; };
-		58950D690F5551CE00F3E8BA /* virtual-frame-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D560F55514900F3E8BA /* virtual-frame-arm.cc */; };
 		58950D690F5551CE00F3E8BA /* virtual-frame-light.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D560F55514900F3E8BA /* virtual-frame-light.cc */; };
 		8900116C0E71CA2300F91F35 /* libraries.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8900116B0E71CA2300F91F35 /* libraries.cc */; };
 		890A13FE0EE9C47F00E49346 /* interpreter-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */; };
@@ -132,7 +128,6 @@
 		89A88E250E71A6C20043BA31 /* token.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18E0E719B8F00D62E90 /* token.cc */; };
 		89A88E260E71A6C90043BA31 /* top.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1900E719B8F00D62E90 /* top.cc */; };
 		89A88E270E71A6CB0043BA31 /* unicode.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1930E719B8F00D62E90 /* unicode.cc */; };
-		89A88E280E71A6CC0043BA31 /* usage-analyzer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1950E719B8F00D62E90 /* usage-analyzer.cc */; };
 		89A88E290E71A6CE0043BA31 /* utils.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1970E719B8F00D62E90 /* utils.cc */; };
 		89A88E2A0E71A6D00043BA31 /* v8-counters.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1990E719B8F00D62E90 /* v8-counters.cc */; };
 		89A88E2B0E71A6D10043BA31 /* v8.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF19B0E719B8F00D62E90 /* v8.cc */; };
@@ -193,7 +188,6 @@
 		89F23C790E78D5B2006B2466 /* token.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18E0E719B8F00D62E90 /* token.cc */; };
 		89F23C7A0E78D5B2006B2466 /* top.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1900E719B8F00D62E90 /* top.cc */; };
 		89F23C7B0E78D5B2006B2466 /* unicode.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1930E719B8F00D62E90 /* unicode.cc */; };
-		89F23C7C0E78D5B2006B2466 /* usage-analyzer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1950E719B8F00D62E90 /* usage-analyzer.cc */; };
 		89F23C7D0E78D5B2006B2466 /* utils.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1970E719B8F00D62E90 /* utils.cc */; };
 		89F23C7E0E78D5B2006B2466 /* v8-counters.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1990E719B8F00D62E90 /* v8-counters.cc */; };
 		89F23C7F0E78D5B2006B2466 /* v8.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF19B0E719B8F00D62E90 /* v8.cc */; };
@@ -224,7 +218,29 @@
 		9F73E3B2114E61A100F84A5A /* profile-generator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F73E3AF114E61A100F84A5A /* profile-generator.cc */; };
 		9F92FAA90F8F28AD0089F02C /* func-name-inferrer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */; };
 		9F92FAAA0F8F28AD0089F02C /* func-name-inferrer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */; };
-		9FBE03DE10BD409900F8BFBA /* fast-codegen.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */; };
+		9FA37335116DD9F000C4CD55 /* vm-state.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA37333116DD9F000C4CD55 /* vm-state.cc */; };
+		9FA37336116DD9F000C4CD55 /* vm-state.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA37333116DD9F000C4CD55 /* vm-state.cc */; };
+		9FA38BB31175B2D200C4CD55 /* data-flow.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38B9C1175B2D200C4CD55 /* data-flow.cc */; };
+		9FA38BB41175B2D200C4CD55 /* diy-fp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38B9E1175B2D200C4CD55 /* diy-fp.cc */; };
+		9FA38BB51175B2D200C4CD55 /* fast-dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BA11175B2D200C4CD55 /* fast-dtoa.cc */; };
+		9FA38BB61175B2D200C4CD55 /* flow-graph.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BA31175B2D200C4CD55 /* flow-graph.cc */; };
+		9FA38BB71175B2D200C4CD55 /* full-codegen.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BA51175B2D200C4CD55 /* full-codegen.cc */; };
+		9FA38BB81175B2D200C4CD55 /* liveedit.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BA91175B2D200C4CD55 /* liveedit.cc */; };
+		9FA38BB91175B2D200C4CD55 /* type-info.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BAE1175B2D200C4CD55 /* type-info.cc */; };
+		9FA38BBA1175B2D200C4CD55 /* data-flow.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38B9C1175B2D200C4CD55 /* data-flow.cc */; };
+		9FA38BBB1175B2D200C4CD55 /* diy-fp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38B9E1175B2D200C4CD55 /* diy-fp.cc */; };
+		9FA38BBC1175B2D200C4CD55 /* fast-dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BA11175B2D200C4CD55 /* fast-dtoa.cc */; };
+		9FA38BBD1175B2D200C4CD55 /* flow-graph.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BA31175B2D200C4CD55 /* flow-graph.cc */; };
+		9FA38BBE1175B2D200C4CD55 /* full-codegen.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BA51175B2D200C4CD55 /* full-codegen.cc */; };
+		9FA38BBF1175B2D200C4CD55 /* liveedit.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BA91175B2D200C4CD55 /* liveedit.cc */; };
+		9FA38BC01175B2D200C4CD55 /* type-info.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BAE1175B2D200C4CD55 /* type-info.cc */; };
+		9FA38BC51175B2E500C4CD55 /* full-codegen-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BC21175B2E500C4CD55 /* full-codegen-ia32.cc */; };
+		9FA38BC61175B2E500C4CD55 /* jump-target-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BC31175B2E500C4CD55 /* jump-target-ia32.cc */; };
+		9FA38BC71175B2E500C4CD55 /* virtual-frame-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BC41175B2E500C4CD55 /* virtual-frame-ia32.cc */; };
+		9FA38BCE1175B30400C4CD55 /* assembler-thumb2.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BC91175B30400C4CD55 /* assembler-thumb2.cc */; };
+		9FA38BCF1175B30400C4CD55 /* full-codegen-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCB1175B30400C4CD55 /* full-codegen-arm.cc */; };
+		9FA38BD01175B30400C4CD55 /* jump-target-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCC1175B30400C4CD55 /* jump-target-arm.cc */; };
+		9FA38BD11175B30400C4CD55 /* virtual-frame-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCD1175B30400C4CD55 /* virtual-frame-arm.cc */; };
 		9FBE03DF10BD409900F8BFBA /* fast-codegen.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */; };
 		9FBE03E210BD40EA00F8BFBA /* fast-codegen-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03E110BD40EA00F8BFBA /* fast-codegen-ia32.cc */; };
 		9FBE03E510BD412600F8BFBA /* fast-codegen-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03E410BD412600F8BFBA /* fast-codegen-arm.cc */; };
@@ -294,21 +310,17 @@
 /* Begin PBXFileReference section */
 		22A76C900FF259E600FDC694 /* log-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "log-inl.h"; sourceTree = "<group>"; };
 		58242A1E0FA1F14D00BD6F59 /* json-delay.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "json-delay.js"; sourceTree = "<group>"; };
-		58950D4E0F55514900F3E8BA /* jump-target-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-arm.cc"; path = "arm/jump-target-arm.cc"; sourceTree = "<group>"; };
-		58950D4E0F55514900F3E8BA /* jump-target-light.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-light.cc"; path = "jump-target-light.cc"; sourceTree = "<group>"; };
-		58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-ia32.cc"; path = "ia32/jump-target-ia32.cc"; sourceTree = "<group>"; };
-		58950D4F0F55514900F3E8BA /* jump-target-heavy.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-heavy.cc"; path = "jump-target-heavy.cc"; sourceTree = "<group>"; };
+		58950D4E0F55514900F3E8BA /* jump-target-light.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target-light.cc"; sourceTree = "<group>"; };
+		58950D4F0F55514900F3E8BA /* jump-target-heavy.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target-heavy.cc"; sourceTree = "<group>"; };
 		58950D500F55514900F3E8BA /* jump-target.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target.cc"; sourceTree = "<group>"; };
 		58950D510F55514900F3E8BA /* jump-target.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target.h"; sourceTree = "<group>"; };
 		58950D520F55514900F3E8BA /* register-allocator-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "register-allocator-arm.cc"; path = "arm/register-allocator-arm.cc"; sourceTree = "<group>"; };
 		58950D530F55514900F3E8BA /* register-allocator-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "register-allocator-ia32.cc"; path = "ia32/register-allocator-ia32.cc"; sourceTree = "<group>"; };
 		58950D540F55514900F3E8BA /* register-allocator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "register-allocator.cc"; sourceTree = "<group>"; };
 		58950D550F55514900F3E8BA /* register-allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "register-allocator.h"; sourceTree = "<group>"; };
-		58950D560F55514900F3E8BA /* virtual-frame-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-arm.cc"; path = "arm/virtual-frame-arm.cc"; sourceTree = "<group>"; };
-		58950D560F55514900F3E8BA /* virtual-frame-light.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-light.cc"; path = "virtual-frame-light.cc"; sourceTree = "<group>"; };
+		58950D560F55514900F3E8BA /* virtual-frame-light.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame-light.cc"; sourceTree = "<group>"; };
 		58950D570F55514900F3E8BA /* virtual-frame-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "virtual-frame-arm.h"; path = "arm/virtual-frame-arm.h"; sourceTree = "<group>"; };
-		58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-ia32.cc"; path = "ia32/virtual-frame-ia32.cc"; sourceTree = "<group>"; };
-		58950D580F55514900F3E8BA /* virtual-frame-heavy.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-heavy.cc"; path = "virtual-frame-heavy.cc"; sourceTree = "<group>"; };
+		58950D580F55514900F3E8BA /* virtual-frame-heavy.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame-heavy.cc"; sourceTree = "<group>"; };
 		58950D590F55514900F3E8BA /* virtual-frame-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "virtual-frame-ia32.h"; path = "ia32/virtual-frame-ia32.h"; sourceTree = "<group>"; };
 		58950D5A0F55514900F3E8BA /* virtual-frame.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame.cc"; sourceTree = "<group>"; };
 		58950D5B0F55514900F3E8BA /* virtual-frame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame.h"; sourceTree = "<group>"; };
@@ -328,8 +340,6 @@
 		89495E470E79FC23001F68C3 /* compilation-cache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "compilation-cache.h"; sourceTree = "<group>"; };
 		8956B6CD0F5D86570033B5A2 /* debug-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-agent.cc"; sourceTree = "<group>"; };
 		8956B6CE0F5D86570033B5A2 /* debug-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "debug-agent.h"; sourceTree = "<group>"; };
-		895FA720107FFB15006F39D4 /* jump-target-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target-inl.h"; sourceTree = "<group>"; };
-		895FA720107FFB15006F39D4 /* jump-target-light-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target-light-inl.h"; sourceTree = "<group>"; };
 		895FA720107FFB15006F39D4 /* jump-target-heavy-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target-heavy-inl.h"; sourceTree = "<group>"; };
 		895FA725107FFB57006F39D4 /* codegen-ia32-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "codegen-ia32-inl.h"; path = "ia32/codegen-ia32-inl.h"; sourceTree = "<group>"; };
 		895FA72A107FFB85006F39D4 /* register-allocator-ia32-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "register-allocator-ia32-inl.h"; path = "ia32/register-allocator-ia32-inl.h"; sourceTree = "<group>"; };
@@ -504,8 +514,6 @@
 		897FF1920E719B8F00D62E90 /* unicode-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "unicode-inl.h"; sourceTree = "<group>"; };
 		897FF1930E719B8F00D62E90 /* unicode.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = unicode.cc; sourceTree = "<group>"; };
 		897FF1940E719B8F00D62E90 /* unicode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unicode.h; sourceTree = "<group>"; };
-		897FF1950E719B8F00D62E90 /* usage-analyzer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "usage-analyzer.cc"; sourceTree = "<group>"; };
-		897FF1960E719B8F00D62E90 /* usage-analyzer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "usage-analyzer.h"; sourceTree = "<group>"; };
 		897FF1970E719B8F00D62E90 /* utils.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = utils.cc; sourceTree = "<group>"; };
 		897FF1980E719B8F00D62E90 /* utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utils.h; sourceTree = "<group>"; };
 		897FF1990E719B8F00D62E90 /* v8-counters.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "v8-counters.cc"; sourceTree = "<group>"; };
@@ -579,6 +587,44 @@
 		9F73E3B0114E61A100F84A5A /* profile-generator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "profile-generator.h"; sourceTree = "<group>"; };
 		9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "func-name-inferrer.cc"; sourceTree = "<group>"; };
 		9F92FAA80F8F28AD0089F02C /* func-name-inferrer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "func-name-inferrer.h"; sourceTree = "<group>"; };
+		9FA36F62116BA26500C4CD55 /* v8-profiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "v8-profiler.h"; sourceTree = "<group>"; };
+		9FA37332116DD9F000C4CD55 /* vm-state-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "vm-state-inl.h"; sourceTree = "<group>"; };
+		9FA37333116DD9F000C4CD55 /* vm-state.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "vm-state.cc"; sourceTree = "<group>"; };
+		9FA37334116DD9F000C4CD55 /* vm-state.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "vm-state.h"; sourceTree = "<group>"; };
+		9FA38B9B1175B2D200C4CD55 /* cached-powers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "cached-powers.h"; sourceTree = "<group>"; };
+		9FA38B9C1175B2D200C4CD55 /* data-flow.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "data-flow.cc"; sourceTree = "<group>"; };
+		9FA38B9D1175B2D200C4CD55 /* data-flow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "data-flow.h"; sourceTree = "<group>"; };
+		9FA38B9E1175B2D200C4CD55 /* diy-fp.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "diy-fp.cc"; sourceTree = "<group>"; };
+		9FA38B9F1175B2D200C4CD55 /* diy-fp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "diy-fp.h"; sourceTree = "<group>"; };
+		9FA38BA01175B2D200C4CD55 /* double.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = double.h; sourceTree = "<group>"; };
+		9FA38BA11175B2D200C4CD55 /* fast-dtoa.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "fast-dtoa.cc"; sourceTree = "<group>"; };
+		9FA38BA21175B2D200C4CD55 /* fast-dtoa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "fast-dtoa.h"; sourceTree = "<group>"; };
+		9FA38BA31175B2D200C4CD55 /* flow-graph.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "flow-graph.cc"; sourceTree = "<group>"; };
+		9FA38BA41175B2D200C4CD55 /* flow-graph.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "flow-graph.h"; sourceTree = "<group>"; };
+		9FA38BA51175B2D200C4CD55 /* full-codegen.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "full-codegen.cc"; sourceTree = "<group>"; };
+		9FA38BA61175B2D200C4CD55 /* full-codegen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "full-codegen.h"; sourceTree = "<group>"; };
+		9FA38BA71175B2D200C4CD55 /* jump-target-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target-inl.h"; sourceTree = "<group>"; };
+		9FA38BA81175B2D200C4CD55 /* jump-target-light-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target-light-inl.h"; sourceTree = "<group>"; };
+		9FA38BA91175B2D200C4CD55 /* liveedit.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = liveedit.cc; sourceTree = "<group>"; };
+		9FA38BAA1175B2D200C4CD55 /* liveedit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = liveedit.h; sourceTree = "<group>"; };
+		9FA38BAB1175B2D200C4CD55 /* powers-ten.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "powers-ten.h"; sourceTree = "<group>"; };
+		9FA38BAC1175B2D200C4CD55 /* splay-tree-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "splay-tree-inl.h"; sourceTree = "<group>"; };
+		9FA38BAD1175B2D200C4CD55 /* splay-tree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "splay-tree.h"; sourceTree = "<group>"; };
+		9FA38BAE1175B2D200C4CD55 /* type-info.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "type-info.cc"; sourceTree = "<group>"; };
+		9FA38BAF1175B2D200C4CD55 /* type-info.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "type-info.h"; sourceTree = "<group>"; };
+		9FA38BB01175B2D200C4CD55 /* virtual-frame-heavy-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame-heavy-inl.h"; sourceTree = "<group>"; };
+		9FA38BB11175B2D200C4CD55 /* virtual-frame-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame-inl.h"; sourceTree = "<group>"; };
+		9FA38BB21175B2D200C4CD55 /* virtual-frame-light-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame-light-inl.h"; sourceTree = "<group>"; };
+		9FA38BC11175B2E500C4CD55 /* fast-codegen-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "fast-codegen-ia32.h"; path = "ia32/fast-codegen-ia32.h"; sourceTree = "<group>"; };
+		9FA38BC21175B2E500C4CD55 /* full-codegen-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "full-codegen-ia32.cc"; path = "ia32/full-codegen-ia32.cc"; sourceTree = "<group>"; };
+		9FA38BC31175B2E500C4CD55 /* jump-target-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-ia32.cc"; path = "ia32/jump-target-ia32.cc"; sourceTree = "<group>"; };
+		9FA38BC41175B2E500C4CD55 /* virtual-frame-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-ia32.cc"; path = "ia32/virtual-frame-ia32.cc"; sourceTree = "<group>"; };
+		9FA38BC81175B30400C4CD55 /* assembler-thumb2-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "assembler-thumb2-inl.h"; path = "arm/assembler-thumb2-inl.h"; sourceTree = "<group>"; };
+		9FA38BC91175B30400C4CD55 /* assembler-thumb2.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "assembler-thumb2.cc"; path = "arm/assembler-thumb2.cc"; sourceTree = "<group>"; };
+		9FA38BCA1175B30400C4CD55 /* assembler-thumb2.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "assembler-thumb2.h"; path = "arm/assembler-thumb2.h"; sourceTree = "<group>"; };
+		9FA38BCB1175B30400C4CD55 /* full-codegen-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "full-codegen-arm.cc"; path = "arm/full-codegen-arm.cc"; sourceTree = "<group>"; };
+		9FA38BCC1175B30400C4CD55 /* jump-target-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-arm.cc"; path = "arm/jump-target-arm.cc"; sourceTree = "<group>"; };
+		9FA38BCD1175B30400C4CD55 /* virtual-frame-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-arm.cc"; path = "arm/virtual-frame-arm.cc"; sourceTree = "<group>"; };
 		9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "fast-codegen.cc"; sourceTree = "<group>"; };
 		9FBE03DD10BD409900F8BFBA /* fast-codegen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "fast-codegen.h"; sourceTree = "<group>"; };
 		9FBE03E110BD40EA00F8BFBA /* fast-codegen-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "fast-codegen-ia32.cc"; path = "ia32/fast-codegen-ia32.cc"; sourceTree = "<group>"; };
@@ -632,8 +678,8 @@
 		8915B8660E719336009C4E19 = {
 			isa = PBXGroup;
 			children = (
-				897FF0CF0E71996900D62E90 /* v8 */,
 				897FF1C00E719CB600D62E90 /* Products */,
+				897FF0CF0E71996900D62E90 /* v8 */,
 			);
 			sourceTree = "<group>";
 		};
@@ -641,8 +687,8 @@
 			isa = PBXGroup;
 			children = (
 				897FF0D10E71999E00D62E90 /* include */,
-				897FF0D00E71999800D62E90 /* src */,
 				897FF1B30E719BCE00D62E90 /* samples */,
+				897FF0D00E71999800D62E90 /* src */,
 				897FF1B40E719BE800D62E90 /* tools */,
 			);
 			name = v8;
@@ -653,9 +699,9 @@
 			isa = PBXGroup;
 			children = (
 				897FF0D70E719AB300D62E90 /* C++ */,
+				89A9C1630E71C8E300BE6CCA /* generated */,
 				897FF0D80E719ABA00D62E90 /* js */,
 				897FF0DE0E719B3400D62E90 /* third_party */,
-				89A9C1630E71C8E300BE6CCA /* generated */,
 			);
 			path = src;
 			sourceTree = "<group>";
@@ -664,6 +710,7 @@
 			isa = PBXGroup;
 			children = (
 				897FF0D40E719A8500D62E90 /* v8-debug.h */,
+				9FA36F62116BA26500C4CD55 /* v8-profiler.h */,
 				897FF0D50E719A8500D62E90 /* v8.h */,
 			);
 			path = include;
@@ -672,6 +719,7 @@
 		897FF0D70E719AB300D62E90 /* C++ */ = {
 			isa = PBXGroup;
 			children = (
+				897FF1750E719B8F00D62E90 /* SConscript */,
 				897FF0F60E719B8F00D62E90 /* accessors.cc */,
 				897FF0F70E719B8F00D62E90 /* accessors.h */,
 				897FF0F80E719B8F00D62E90 /* allocation.cc */,
@@ -686,6 +734,9 @@
 				897FF1000E719B8F00D62E90 /* assembler-ia32-inl.h */,
 				897FF1010E719B8F00D62E90 /* assembler-ia32.cc */,
 				897FF1020E719B8F00D62E90 /* assembler-ia32.h */,
+				9FA38BC81175B30400C4CD55 /* assembler-thumb2-inl.h */,
+				9FA38BC91175B30400C4CD55 /* assembler-thumb2.cc */,
+				9FA38BCA1175B30400C4CD55 /* assembler-thumb2.h */,
 				897FF1030E719B8F00D62E90 /* assembler.cc */,
 				897FF1040E719B8F00D62E90 /* assembler.h */,
 				897FF1050E719B8F00D62E90 /* ast.cc */,
@@ -697,6 +748,7 @@
 				897FF10B0E719B8F00D62E90 /* builtins.cc */,
 				897FF10C0E719B8F00D62E90 /* builtins.h */,
 				89A15C630EE4661A00B48DEB /* bytecodes-irregexp.h */,
+				9FA38B9B1175B2D200C4CD55 /* cached-powers.h */,
 				897FF10D0E719B8F00D62E90 /* char-predicates-inl.h */,
 				897FF10E0E719B8F00D62E90 /* char-predicates.h */,
 				897FF10F0E719B8F00D62E90 /* checks.cc */,
@@ -731,36 +783,46 @@
 				897FF1220E719B8F00D62E90 /* counters.h */,
 				897FF1230E719B8F00D62E90 /* cpu-arm.cc */,
 				897FF1240E719B8F00D62E90 /* cpu-ia32.cc */,
-				897FF1250E719B8F00D62E90 /* cpu.h */,
 				9F2B37231152CEA0007CDAF4 /* cpu-profiler-inl.h */,
 				9F2B37241152CEA0007CDAF4 /* cpu-profiler.cc */,
 				9F2B37251152CEA0007CDAF4 /* cpu-profiler.h */,
+				897FF1250E719B8F00D62E90 /* cpu.h */,
+				9FA38B9C1175B2D200C4CD55 /* data-flow.cc */,
+				9FA38B9D1175B2D200C4CD55 /* data-flow.h */,
 				893A722A0F7B4A3200303DD2 /* dateparser-inl.h */,
 				897FF1260E719B8F00D62E90 /* dateparser.cc */,
 				897FF1270E719B8F00D62E90 /* dateparser.h */,
+				8956B6CD0F5D86570033B5A2 /* debug-agent.cc */,
+				8956B6CE0F5D86570033B5A2 /* debug-agent.h */,
 				898BD20C0EF6CC850068B00A /* debug-arm.cc */,
 				898BD20D0EF6CC850068B00A /* debug-ia32.cc */,
 				897FF1280E719B8F00D62E90 /* debug.cc */,
 				897FF1290E719B8F00D62E90 /* debug.h */,
-				8956B6CD0F5D86570033B5A2 /* debug-agent.cc */,
-				8956B6CE0F5D86570033B5A2 /* debug-agent.h */,
 				897FF12A0E719B8F00D62E90 /* disasm-arm.cc */,
 				897FF12B0E719B8F00D62E90 /* disasm-ia32.cc */,
 				897FF12C0E719B8F00D62E90 /* disasm.h */,
 				897FF12D0E719B8F00D62E90 /* disassembler.cc */,
 				897FF12E0E719B8F00D62E90 /* disassembler.h */,
+				9FA38B9E1175B2D200C4CD55 /* diy-fp.cc */,
+				9FA38B9F1175B2D200C4CD55 /* diy-fp.h */,
+				9FA38BA01175B2D200C4CD55 /* double.h */,
 				897FF12F0E719B8F00D62E90 /* dtoa-config.c */,
 				897FF1300E719B8F00D62E90 /* execution.cc */,
 				897FF1310E719B8F00D62E90 /* execution.h */,
 				897FF1320E719B8F00D62E90 /* factory.cc */,
 				897FF1330E719B8F00D62E90 /* factory.h */,
-				9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */,
-				9FBE03DD10BD409900F8BFBA /* fast-codegen.h */,
 				9FBE03E410BD412600F8BFBA /* fast-codegen-arm.cc */,
 				9FBE03E110BD40EA00F8BFBA /* fast-codegen-ia32.cc */,
+				9FA38BC11175B2E500C4CD55 /* fast-codegen-ia32.h */,
+				9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */,
+				9FBE03DD10BD409900F8BFBA /* fast-codegen.h */,
+				9FA38BA11175B2D200C4CD55 /* fast-dtoa.cc */,
+				9FA38BA21175B2D200C4CD55 /* fast-dtoa.h */,
 				89471C7F0EB23EE400B6874B /* flag-definitions.h */,
 				897FF1350E719B8F00D62E90 /* flags.cc */,
 				897FF1360E719B8F00D62E90 /* flags.h */,
+				9FA38BA31175B2D200C4CD55 /* flow-graph.cc */,
+				9FA38BA41175B2D200C4CD55 /* flow-graph.h */,
 				8981F5FE1010500F00D1520E /* frame-element.cc */,
 				8981F5FF1010500F00D1520E /* frame-element.h */,
 				897FF1370E719B8F00D62E90 /* frames-arm.cc */,
@@ -770,6 +832,10 @@
 				897FF13B0E719B8F00D62E90 /* frames-inl.h */,
 				897FF13C0E719B8F00D62E90 /* frames.cc */,
 				897FF13D0E719B8F00D62E90 /* frames.h */,
+				9FA38BCB1175B30400C4CD55 /* full-codegen-arm.cc */,
+				9FA38BC21175B2E500C4CD55 /* full-codegen-ia32.cc */,
+				9FA38BA51175B2D200C4CD55 /* full-codegen.cc */,
+				9FA38BA61175B2D200C4CD55 /* full-codegen.h */,
 				9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */,
 				9F92FAA80F8F28AD0089F02C /* func-name-inferrer.h */,
 				897FF13E0E719B8F00D62E90 /* global-handles.cc */,
@@ -781,10 +847,10 @@
 				897FF1440E719B8F00D62E90 /* hashmap.cc */,
 				897FF1450E719B8F00D62E90 /* hashmap.h */,
 				897FF1460E719B8F00D62E90 /* heap-inl.h */,
-				897FF1470E719B8F00D62E90 /* heap.cc */,
-				897FF1480E719B8F00D62E90 /* heap.h */,
 				9F11D99E105AF0A300EBE5B2 /* heap-profiler.cc */,
 				9F11D99F105AF0A300EBE5B2 /* heap-profiler.h */,
+				897FF1470E719B8F00D62E90 /* heap.cc */,
+				897FF1480E719B8F00D62E90 /* heap.h */,
 				897FF1490E719B8F00D62E90 /* ic-arm.cc */,
 				897FF14A0E719B8F00D62E90 /* ic-ia32.cc */,
 				897FF14B0E719B8F00D62E90 /* ic-inl.h */,
@@ -794,22 +860,28 @@
 				89A15C670EE4665300B48DEB /* interpreter-irregexp.h */,
 				897FF14E0E719B8F00D62E90 /* jsregexp.cc */,
 				897FF14F0E719B8F00D62E90 /* jsregexp.h */,
-				895FA720107FFB15006F39D4 /* jump-target-inl.h */,
+				9FA38BCC1175B30400C4CD55 /* jump-target-arm.cc */,
 				895FA720107FFB15006F39D4 /* jump-target-heavy-inl.h */,
-				895FA720107FFB15006F39D4 /* jump-target-light-inl.h */,
-				58950D4E0F55514900F3E8BA /* jump-target-arm.cc */,
-				58950D4E0F55514900F3E8BA /* jump-target-light.cc */,
-				58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */,
+				895FA720107FFB15006F39D4 /* jump-target-heavy-inl.h */,
+				895FA720107FFB15006F39D4 /* jump-target-heavy-inl.h */,
 				58950D4F0F55514900F3E8BA /* jump-target-heavy.cc */,
+				58950D4F0F55514900F3E8BA /* jump-target-heavy.cc */,
+				9FA38BC31175B2E500C4CD55 /* jump-target-ia32.cc */,
+				9FA38BA71175B2D200C4CD55 /* jump-target-inl.h */,
+				9FA38BA81175B2D200C4CD55 /* jump-target-light-inl.h */,
+				58950D4E0F55514900F3E8BA /* jump-target-light.cc */,
+				58950D4E0F55514900F3E8BA /* jump-target-light.cc */,
 				58950D500F55514900F3E8BA /* jump-target.cc */,
 				58950D510F55514900F3E8BA /* jump-target.h */,
 				897FF1500E719B8F00D62E90 /* list-inl.h */,
 				897FF1510E719B8F00D62E90 /* list.h */,
-				897FF1520E719B8F00D62E90 /* log.cc */,
-				897FF1530E719B8F00D62E90 /* log.h */,
+				9FA38BA91175B2D200C4CD55 /* liveedit.cc */,
+				9FA38BAA1175B2D200C4CD55 /* liveedit.h */,
 				22A76C900FF259E600FDC694 /* log-inl.h */,
 				9F4B7B870FCC877A00DC4117 /* log-utils.cc */,
 				9F4B7B880FCC877A00DC4117 /* log-utils.h */,
+				897FF1520E719B8F00D62E90 /* log.cc */,
+				897FF1530E719B8F00D62E90 /* log.h */,
 				897FF1540E719B8F00D62E90 /* macro-assembler-arm.cc */,
 				897FF1550E719B8F00D62E90 /* macro-assembler-arm.h */,
 				897FF1560E719B8F00D62E90 /* macro-assembler-ia32.cc */,
@@ -837,6 +909,7 @@
 				893A72230F7B0FF200303DD2 /* platform-posix.cc */,
 				897FF1690E719B8F00D62E90 /* platform-win32.cc */,
 				897FF16A0E719B8F00D62E90 /* platform.h */,
+				9FA38BAB1175B2D200C4CD55 /* powers-ten.h */,
 				897FF16B0E719B8F00D62E90 /* prettyprinter.cc */,
 				897FF16C0E719B8F00D62E90 /* prettyprinter.h */,
 				9F73E3AE114E61A100F84A5A /* profile-generator-inl.h */,
@@ -872,7 +945,6 @@
 				897FF1720E719B8F00D62E90 /* runtime.h */,
 				897FF1730E719B8F00D62E90 /* scanner.cc */,
 				897FF1740E719B8F00D62E90 /* scanner.h */,
-				897FF1750E719B8F00D62E90 /* SConscript */,
 				897FF1760E719B8F00D62E90 /* scopeinfo.cc */,
 				897FF1770E719B8F00D62E90 /* scopeinfo.h */,
 				897FF1780E719B8F00D62E90 /* scopes.cc */,
@@ -891,6 +963,8 @@
 				897FF1850E719B8F00D62E90 /* spaces-inl.h */,
 				897FF1860E719B8F00D62E90 /* spaces.cc */,
 				897FF1870E719B8F00D62E90 /* spaces.h */,
+				9FA38BAC1175B2D200C4CD55 /* splay-tree-inl.h */,
+				9FA38BAD1175B2D200C4CD55 /* splay-tree.h */,
 				897FF1880E719B8F00D62E90 /* string-stream.cc */,
 				897FF1890E719B8F00D62E90 /* string-stream.h */,
 				897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */,
@@ -901,11 +975,11 @@
 				897FF18F0E719B8F00D62E90 /* token.h */,
 				897FF1900E719B8F00D62E90 /* top.cc */,
 				897FF1910E719B8F00D62E90 /* top.h */,
+				9FA38BAE1175B2D200C4CD55 /* type-info.cc */,
+				9FA38BAF1175B2D200C4CD55 /* type-info.h */,
 				897FF1920E719B8F00D62E90 /* unicode-inl.h */,
 				897FF1930E719B8F00D62E90 /* unicode.cc */,
 				897FF1940E719B8F00D62E90 /* unicode.h */,
-				897FF1950E719B8F00D62E90 /* usage-analyzer.cc */,
-				897FF1960E719B8F00D62E90 /* usage-analyzer.h */,
 				897FF1970E719B8F00D62E90 /* utils.cc */,
 				897FF1980E719B8F00D62E90 /* utils.h */,
 				897FF1990E719B8F00D62E90 /* v8-counters.cc */,
@@ -918,14 +992,22 @@
 				897FF1A00E719B8F00D62E90 /* variables.h */,
 				897FF32F0FAA0ED200136CF6 /* version.cc */,
 				897FF3300FAA0ED200136CF6 /* version.h */,
-				58950D560F55514900F3E8BA /* virtual-frame-arm.cc */,
-				58950D560F55514900F3E8BA /* virtual-frame-light.cc */,
+				9FA38BCD1175B30400C4CD55 /* virtual-frame-arm.cc */,
 				58950D570F55514900F3E8BA /* virtual-frame-arm.h */,
-				58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */,
+				9FA38BB01175B2D200C4CD55 /* virtual-frame-heavy-inl.h */,
 				58950D580F55514900F3E8BA /* virtual-frame-heavy.cc */,
+				58950D580F55514900F3E8BA /* virtual-frame-heavy.cc */,
+				9FA38BC41175B2E500C4CD55 /* virtual-frame-ia32.cc */,
 				58950D590F55514900F3E8BA /* virtual-frame-ia32.h */,
+				9FA38BB11175B2D200C4CD55 /* virtual-frame-inl.h */,
+				9FA38BB21175B2D200C4CD55 /* virtual-frame-light-inl.h */,
+				58950D560F55514900F3E8BA /* virtual-frame-light.cc */,
+				58950D560F55514900F3E8BA /* virtual-frame-light.cc */,
 				58950D5A0F55514900F3E8BA /* virtual-frame.cc */,
 				58950D5B0F55514900F3E8BA /* virtual-frame.h */,
+				9FA37332116DD9F000C4CD55 /* vm-state-inl.h */,
+				9FA37333116DD9F000C4CD55 /* vm-state.cc */,
+				9FA37334116DD9F000C4CD55 /* vm-state.h */,
 				897FF1A10E719B8F00D62E90 /* zone-inl.h */,
 				897FF1A20E719B8F00D62E90 /* zone.cc */,
 				897FF1A30E719B8F00D62E90 /* zone.h */,
@@ -973,10 +1055,10 @@
 		897FF1B30E719BCE00D62E90 /* samples */ = {
 			isa = PBXGroup;
 			children = (
-				89A15C910EE46A1700B48DEB /* d8-readline.cc */,
 				893988150F2A3686007D5254 /* d8-debug.cc */,
 				893A72320F7B4AD700303DD2 /* d8-debug.h */,
 				89FB0E360F8E531900B04B3C /* d8-posix.cc */,
+				89A15C910EE46A1700B48DEB /* d8-readline.cc */,
 				89FB0E370F8E531900B04B3C /* d8-windows.cc */,
 				89A15C920EE46A1700B48DEB /* d8.cc */,
 				89A15C930EE46A1700B48DEB /* d8.h */,
@@ -999,11 +1081,11 @@
 		897FF1C00E719CB600D62E90 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				8970F2F00E719FB2006AE7B5 /* libv8.a */,
 				897F767A0E71B4CC007ACF34 /* v8_shell */,
-				89F23C870E78D5B2006B2466 /* libv8-arm.a */,
-				89F23C950E78D5B6006B2466 /* v8_shell-arm */,
 				8939880B0F2A35FA007D5254 /* v8_shell */,
+				89F23C950E78D5B6006B2466 /* v8_shell-arm */,
+				89F23C870E78D5B2006B2466 /* libv8-arm.a */,
+				8970F2F00E719FB2006AE7B5 /* libv8.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1154,7 +1236,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" json-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-debugger.js\"\\\n\" liveedit-debugger.js\"\\\n\" mirror-debugger.js\"\\\n\" date.js\"\\\n\" json.js\"\\\n\" regexp.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
 		};
 		89F23C3D0E78D5B2006B2466 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1167,7 +1249,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" json-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-debugger.js\"\\\n\" liveedit-debugger.js\"\\\n\" mirror-debugger.js\"\\\n\" date.js\"\\\n\" json.js\"\\\n\" regexp.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1176,10 +1258,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8939880D0F2A362A007D5254 /* d8.cc in Sources */,
 				893988160F2A3688007D5254 /* d8-debug.cc in Sources */,
 				893988330F2A3B8F007D5254 /* d8-js.cc in Sources */,
 				89FB0E3A0F8E533F00B04B3C /* d8-posix.cc in Sources */,
+				8939880D0F2A362A007D5254 /* d8.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1197,6 +1279,7 @@
 				89A88DF40E71A6160043BA31 /* builtins-ia32.cc in Sources */,
 				89A88DF50E71A6170043BA31 /* builtins.cc in Sources */,
 				89A88DF60E71A61C0043BA31 /* checks.cc in Sources */,
+				9F2B3712114FF62D007CDAF4 /* circular-queue.cc in Sources */,
 				893CCE640E71D83700357A03 /* code-stubs.cc in Sources */,
 				89A88DF70E71A6240043BA31 /* codegen-ia32.cc in Sources */,
 				89A88DF80E71A6260043BA31 /* codegen.cc in Sources */,
@@ -1206,31 +1289,44 @@
 				89A88DFB0E71A6440043BA31 /* conversions.cc in Sources */,
 				89A88DFC0E71A6460043BA31 /* counters.cc in Sources */,
 				89A88DFD0E71A6470043BA31 /* cpu-ia32.cc in Sources */,
+				9F2B37271152CEA0007CDAF4 /* cpu-profiler.cc in Sources */,
+				9FA38BBA1175B2D200C4CD55 /* data-flow.cc in Sources */,
 				89A88DFE0E71A6480043BA31 /* dateparser.cc in Sources */,
 				8956B6CF0F5D86730033B5A2 /* debug-agent.cc in Sources */,
 				898BD20E0EF6CC930068B00A /* debug-ia32.cc in Sources */,
 				89A88DFF0E71A6530043BA31 /* debug.cc in Sources */,
 				89A88E000E71A6540043BA31 /* disasm-ia32.cc in Sources */,
 				89A88E010E71A6550043BA31 /* disassembler.cc in Sources */,
+				9FA38BBB1175B2D200C4CD55 /* diy-fp.cc in Sources */,
 				89A88E020E71A65A0043BA31 /* dtoa-config.c in Sources */,
 				89A88E030E71A65B0043BA31 /* execution.cc in Sources */,
 				89A88E040E71A65D0043BA31 /* factory.cc in Sources */,
+				9FBE03E210BD40EA00F8BFBA /* fast-codegen-ia32.cc in Sources */,
+				9FA38BBC1175B2D200C4CD55 /* fast-dtoa.cc in Sources */,
 				89A88E050E71A65D0043BA31 /* flags.cc in Sources */,
+				9FA38BBD1175B2D200C4CD55 /* flow-graph.cc in Sources */,
+				8981F6001010501900D1520E /* frame-element.cc in Sources */,
 				89A88E060E71A6600043BA31 /* frames-ia32.cc in Sources */,
 				89A88E070E71A6610043BA31 /* frames.cc in Sources */,
+				9FA38BC51175B2E500C4CD55 /* full-codegen-ia32.cc in Sources */,
+				9FA38BBE1175B2D200C4CD55 /* full-codegen.cc in Sources */,
 				9F92FAA90F8F28AD0089F02C /* func-name-inferrer.cc in Sources */,
 				89A88E080E71A6620043BA31 /* global-handles.cc in Sources */,
 				89A88E090E71A6640043BA31 /* handles.cc in Sources */,
 				89A88E0A0E71A6650043BA31 /* hashmap.cc in Sources */,
+				9F11D9A0105AF0A300EBE5B2 /* heap-profiler.cc in Sources */,
 				89A88E0B0E71A66C0043BA31 /* heap.cc in Sources */,
 				89A88E0C0E71A66D0043BA31 /* ic-ia32.cc in Sources */,
 				89A88E0D0E71A66E0043BA31 /* ic.cc in Sources */,
 				89A15C850EE4678B00B48DEB /* interpreter-irregexp.cc in Sources */,
 				89A88E0E0E71A66F0043BA31 /* jsregexp.cc in Sources */,
-				58950D5E0F55519800F3E8BA /* jump-target.cc in Sources */,
-				58950D5F0F55519D00F3E8BA /* jump-target-ia32.cc in Sources */,
 				58950D5F0F55519D00F3E8BA /* jump-target-heavy.cc in Sources */,
+				58950D5F0F55519D00F3E8BA /* jump-target-heavy.cc in Sources */,
+				9FA38BC61175B2E500C4CD55 /* jump-target-ia32.cc in Sources */,
+				58950D5E0F55519800F3E8BA /* jump-target.cc in Sources */,
 				8900116C0E71CA2300F91F35 /* libraries.cc in Sources */,
+				9FA38BBF1175B2D200C4CD55 /* liveedit.cc in Sources */,
+				9F4B7B890FCC877A00DC4117 /* log-utils.cc in Sources */,
 				89A88E0F0E71A6740043BA31 /* log.cc in Sources */,
 				89A88E100E71A6770043BA31 /* macro-assembler-ia32.cc in Sources */,
 				89A88E110E71A6780043BA31 /* mark-compact.cc in Sources */,
@@ -1239,9 +1335,10 @@
 				89A88E140E71A6870043BA31 /* objects.cc in Sources */,
 				9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */,
 				89A88E150E71A68C0043BA31 /* parser.cc in Sources */,
-				893A72240F7B101400303DD2 /* platform-posix.cc in Sources */,
 				89A88E160E71A68E0043BA31 /* platform-macos.cc in Sources */,
+				893A72240F7B101400303DD2 /* platform-posix.cc in Sources */,
 				89A88E170E71A6950043BA31 /* prettyprinter.cc in Sources */,
+				9F73E3B2114E61A100F84A5A /* profile-generator.cc in Sources */,
 				89A88E180E71A6960043BA31 /* property.cc in Sources */,
 				89A15C7B0EE466EB00B48DEB /* regexp-macro-assembler-ia32.cc in Sources */,
 				89A15C830EE4675E00B48DEB /* regexp-macro-assembler-irregexp.cc in Sources */,
@@ -1264,26 +1361,20 @@
 				89A88E240E71A6BF0043BA31 /* stub-cache.cc in Sources */,
 				89A88E250E71A6C20043BA31 /* token.cc in Sources */,
 				89A88E260E71A6C90043BA31 /* top.cc in Sources */,
+				9FA38BC01175B2D200C4CD55 /* type-info.cc in Sources */,
 				89A88E270E71A6CB0043BA31 /* unicode.cc in Sources */,
-				89A88E280E71A6CC0043BA31 /* usage-analyzer.cc in Sources */,
 				89A88E290E71A6CE0043BA31 /* utils.cc in Sources */,
 				89A88E2A0E71A6D00043BA31 /* v8-counters.cc in Sources */,
 				89A88E2B0E71A6D10043BA31 /* v8.cc in Sources */,
 				89A88E2C0E71A6D20043BA31 /* v8threads.cc in Sources */,
 				89A88E2D0E71A6D50043BA31 /* variables.cc in Sources */,
 				89B933AF0FAA0F9600201304 /* version.cc in Sources */,
+				58950D670F5551C400F3E8BA /* virtual-frame-heavy.cc in Sources */,
+				9FA38BC71175B2E500C4CD55 /* virtual-frame-ia32.cc in Sources */,
 				58950D660F5551C200F3E8BA /* virtual-frame.cc in Sources */,
-				58950D660F5551C200F3E8BA /* virtual-frame-heavy.cc in Sources */,
-				58950D670F5551C400F3E8BA /* virtual-frame-ia32.cc in Sources */,
+				58950D660F5551C200F3E8BA /* virtual-frame.cc in Sources */,
+				9FA37336116DD9F000C4CD55 /* vm-state.cc in Sources */,
 				89A88E2E0E71A6D60043BA31 /* zone.cc in Sources */,
-				9F4B7B890FCC877A00DC4117 /* log-utils.cc in Sources */,
-				8981F6001010501900D1520E /* frame-element.cc in Sources */,
-				9F11D9A0105AF0A300EBE5B2 /* heap-profiler.cc in Sources */,
-				9FBE03DE10BD409900F8BFBA /* fast-codegen.cc in Sources */,
-				9FBE03E210BD40EA00F8BFBA /* fast-codegen-ia32.cc in Sources */,
-				9F73E3B2114E61A100F84A5A /* profile-generator.cc in Sources */,
-				9F2B3712114FF62D007CDAF4 /* circular-queue.cc in Sources */,
-				9F2B37271152CEA0007CDAF4 /* cpu-profiler.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1303,12 +1394,14 @@
 				89F23C400E78D5B2006B2466 /* allocation.cc in Sources */,
 				89F23C410E78D5B2006B2466 /* api.cc in Sources */,
 				89F23C970E78D5E3006B2466 /* assembler-arm.cc in Sources */,
+				9FA38BCE1175B30400C4CD55 /* assembler-thumb2.cc in Sources */,
 				89F23C430E78D5B2006B2466 /* assembler.cc in Sources */,
 				89F23C440E78D5B2006B2466 /* ast.cc in Sources */,
 				89F23C450E78D5B2006B2466 /* bootstrapper.cc in Sources */,
 				89F23C980E78D5E7006B2466 /* builtins-arm.cc in Sources */,
 				89F23C470E78D5B2006B2466 /* builtins.cc in Sources */,
 				89F23C480E78D5B2006B2466 /* checks.cc in Sources */,
+				9F2B3711114FF62D007CDAF4 /* circular-queue.cc in Sources */,
 				89F23C490E78D5B2006B2466 /* code-stubs.cc in Sources */,
 				89F23C990E78D5E9006B2466 /* codegen-arm.cc in Sources */,
 				89F23C4B0E78D5B2006B2466 /* codegen.cc in Sources */,
@@ -1319,31 +1412,45 @@
 				89F23C4E0E78D5B2006B2466 /* conversions.cc in Sources */,
 				89F23C4F0E78D5B2006B2466 /* counters.cc in Sources */,
 				89F23C9A0E78D5EC006B2466 /* cpu-arm.cc in Sources */,
+				9F2B37261152CEA0007CDAF4 /* cpu-profiler.cc in Sources */,
+				9FA38BB31175B2D200C4CD55 /* data-flow.cc in Sources */,
 				89F23C510E78D5B2006B2466 /* dateparser.cc in Sources */,
 				894599A30F5D8729008DA8FB /* debug-agent.cc in Sources */,
 				898BD20F0EF6CC9A0068B00A /* debug-arm.cc in Sources */,
 				89F23C520E78D5B2006B2466 /* debug.cc in Sources */,
 				89F23C9B0E78D5EE006B2466 /* disasm-arm.cc in Sources */,
 				89F23C540E78D5B2006B2466 /* disassembler.cc in Sources */,
+				9FA38BB41175B2D200C4CD55 /* diy-fp.cc in Sources */,
 				89F23C550E78D5B2006B2466 /* dtoa-config.c in Sources */,
 				89F23C560E78D5B2006B2466 /* execution.cc in Sources */,
 				89F23C570E78D5B2006B2466 /* factory.cc in Sources */,
+				9FBE03E510BD412600F8BFBA /* fast-codegen-arm.cc in Sources */,
+				9FBE03DF10BD409900F8BFBA /* fast-codegen.cc in Sources */,
+				9FA38BB51175B2D200C4CD55 /* fast-dtoa.cc in Sources */,
 				89F23C580E78D5B2006B2466 /* flags.cc in Sources */,
+				9FA38BB61175B2D200C4CD55 /* flow-graph.cc in Sources */,
+				8981F6011010502800D1520E /* frame-element.cc in Sources */,
 				89F23C9C0E78D5F1006B2466 /* frames-arm.cc in Sources */,
 				89F23C5A0E78D5B2006B2466 /* frames.cc in Sources */,
+				9FA38BCF1175B30400C4CD55 /* full-codegen-arm.cc in Sources */,
+				9FA38BB71175B2D200C4CD55 /* full-codegen.cc in Sources */,
 				9F92FAAA0F8F28AD0089F02C /* func-name-inferrer.cc in Sources */,
 				89F23C5B0E78D5B2006B2466 /* global-handles.cc in Sources */,
 				89F23C5C0E78D5B2006B2466 /* handles.cc in Sources */,
 				89F23C5D0E78D5B2006B2466 /* hashmap.cc in Sources */,
+				9F11D9A1105AF0A300EBE5B2 /* heap-profiler.cc in Sources */,
 				89F23C5E0E78D5B2006B2466 /* heap.cc in Sources */,
 				89F23C9D0E78D5FB006B2466 /* ic-arm.cc in Sources */,
 				89F23C600E78D5B2006B2466 /* ic.cc in Sources */,
 				890A13FE0EE9C47F00E49346 /* interpreter-irregexp.cc in Sources */,
 				89F23C610E78D5B2006B2466 /* jsregexp.cc in Sources */,
-				58950D600F5551A300F3E8BA /* jump-target.cc in Sources */,
-				58950D610F5551A400F3E8BA /* jump-target-arm.cc in Sources */,
+				9FA38BD01175B30400C4CD55 /* jump-target-arm.cc in Sources */,
 				58950D610F5551A400F3E8BA /* jump-target-light.cc in Sources */,
+				58950D610F5551A400F3E8BA /* jump-target-light.cc in Sources */,
+				58950D600F5551A300F3E8BA /* jump-target.cc in Sources */,
 				89F23C620E78D5B2006B2466 /* libraries.cc in Sources */,
+				9FA38BB81175B2D200C4CD55 /* liveedit.cc in Sources */,
+				9F4B7B8A0FCC877A00DC4117 /* log-utils.cc in Sources */,
 				89F23C630E78D5B2006B2466 /* log.cc in Sources */,
 				89F23C9E0E78D5FD006B2466 /* macro-assembler-arm.cc in Sources */,
 				89F23C650E78D5B2006B2466 /* mark-compact.cc in Sources */,
@@ -1352,17 +1459,18 @@
 				89F23C680E78D5B2006B2466 /* objects.cc in Sources */,
 				9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */,
 				89F23C690E78D5B2006B2466 /* parser.cc in Sources */,
-				893A72250F7B101B00303DD2 /* platform-posix.cc in Sources */,
 				89F23C6A0E78D5B2006B2466 /* platform-macos.cc in Sources */,
+				893A72250F7B101B00303DD2 /* platform-posix.cc in Sources */,
 				89F23C6B0E78D5B2006B2466 /* prettyprinter.cc in Sources */,
+				9F73E3B1114E61A100F84A5A /* profile-generator.cc in Sources */,
 				89F23C6C0E78D5B2006B2466 /* property.cc in Sources */,
 				890A14010EE9C4B000E49346 /* regexp-macro-assembler-arm.cc in Sources */,
 				890A14020EE9C4B400E49346 /* regexp-macro-assembler-irregexp.cc in Sources */,
 				890A14030EE9C4B500E49346 /* regexp-macro-assembler-tracer.cc in Sources */,
 				890A14040EE9C4B700E49346 /* regexp-macro-assembler.cc in Sources */,
 				8944AD110F1D4D570028D560 /* regexp-stack.cc in Sources */,
-				58950D640F5551B500F3E8BA /* register-allocator.cc in Sources */,
 				58950D650F5551B600F3E8BA /* register-allocator-arm.cc in Sources */,
+				58950D640F5551B500F3E8BA /* register-allocator.cc in Sources */,
 				89F23C6D0E78D5B2006B2466 /* rewriter.cc in Sources */,
 				89F23C6E0E78D5B2006B2466 /* runtime.cc in Sources */,
 				89F23C6F0E78D5B2006B2466 /* scanner.cc in Sources */,
@@ -1378,26 +1486,20 @@
 				89F23C780E78D5B2006B2466 /* stub-cache.cc in Sources */,
 				89F23C790E78D5B2006B2466 /* token.cc in Sources */,
 				89F23C7A0E78D5B2006B2466 /* top.cc in Sources */,
+				9FA38BB91175B2D200C4CD55 /* type-info.cc in Sources */,
 				89F23C7B0E78D5B2006B2466 /* unicode.cc in Sources */,
-				89F23C7C0E78D5B2006B2466 /* usage-analyzer.cc in Sources */,
 				89F23C7D0E78D5B2006B2466 /* utils.cc in Sources */,
 				89F23C7E0E78D5B2006B2466 /* v8-counters.cc in Sources */,
 				89F23C7F0E78D5B2006B2466 /* v8.cc in Sources */,
 				89F23C800E78D5B2006B2466 /* v8threads.cc in Sources */,
 				89F23C810E78D5B2006B2466 /* variables.cc in Sources */,
 				89B933B00FAA0F9D00201304 /* version.cc in Sources */,
+				9FA38BD11175B30400C4CD55 /* virtual-frame-arm.cc in Sources */,
+				58950D690F5551CE00F3E8BA /* virtual-frame-light.cc in Sources */,
 				58950D680F5551CB00F3E8BA /* virtual-frame.cc in Sources */,
-				58950D680F5551CB00F3E8BA /* virtual-frame-light.cc in Sources */,
-				58950D690F5551CE00F3E8BA /* virtual-frame-arm.cc in Sources */,
+				58950D680F5551CB00F3E8BA /* virtual-frame.cc in Sources */,
+				9FA37335116DD9F000C4CD55 /* vm-state.cc in Sources */,
 				89F23C820E78D5B2006B2466 /* zone.cc in Sources */,
-				9F4B7B8A0FCC877A00DC4117 /* log-utils.cc in Sources */,
-				8981F6011010502800D1520E /* frame-element.cc in Sources */,
-				9F11D9A1105AF0A300EBE5B2 /* heap-profiler.cc in Sources */,
-				9FBE03DF10BD409900F8BFBA /* fast-codegen.cc in Sources */,
-				9FBE03E510BD412600F8BFBA /* fast-codegen-arm.cc in Sources */,
-				9F73E3B1114E61A100F84A5A /* profile-generator.cc in Sources */,
-				9F2B3711114FF62D007CDAF4 /* circular-queue.cc in Sources */,
-				9F2B37261152CEA0007CDAF4 /* cpu-profiler.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -47,11 +47,8 @@ Call Call::sentinel_(NULL, NULL, 0);
 // ----------------------------------------------------------------------------
 // All the Accept member functions for each syntax tree node type.
 
-#define DECL_ACCEPT(type)                \
-  void type::Accept(AstVisitor* v) {        \
-    if (v->CheckStackOverflow()) return; \
-    v->Visit##type(this);                \
-  }
+#define DECL_ACCEPT(type)                                       \
+  void type::Accept(AstVisitor* v) { v->Visit##type(this); }
 AST_NODE_LIST(DECL_ACCEPT)
 #undef DECL_ACCEPT
 
@@ -240,6 +237,13 @@ bool Expression::GuaranteedSmiResult() {
 
 // ----------------------------------------------------------------------------
 // Implementation of AstVisitor
+
+bool AstVisitor::CheckStackOverflow() {
+  if (stack_overflow_) return true;
+  StackLimitCheck check;
+  if (!check.HasOverflowed()) return false;
+  return (stack_overflow_ = true);
+}
 
 
 void AstVisitor::VisitDeclarations(ZoneList<Declaration*>* declarations) {
@@ -749,117 +753,6 @@ bool CompareOperation::IsCritical() {
 }
 
 
-static inline void MarkIfNotLive(Expression* expr, List<AstNode*>* stack) {
-  if (!expr->is_live()) {
-    expr->mark_as_live();
-    stack->Add(expr);
-  }
-}
-
-
-// Overloaded functions for marking children of live code as live.
-void VariableProxy::ProcessNonLiveChildren(
-    List<AstNode*>* stack,
-    ZoneList<Expression*>* body_definitions,
-    int variable_count) {
-  // A reference to a stack-allocated variable depends on all the
-  // definitions reaching it.
-  BitVector* defs = reaching_definitions();
-  if (defs != NULL) {
-    ASSERT(var()->IsStackAllocated());
-    // The first variable_count definitions are the initial parameter and
-    // local declarations.
-    for (int i = variable_count; i < defs->length(); i++) {
-      if (defs->Contains(i)) {
-        MarkIfNotLive(body_definitions->at(i - variable_count), stack);
-      }
-    }
-  }
-}
-
-
-void Literal::ProcessNonLiveChildren(List<AstNode*>* stack,
-                                     ZoneList<Expression*>* body_definitions,
-                                     int variable_count) {
-  // Leaf node, no children.
-}
-
-
-void Assignment::ProcessNonLiveChildren(
-    List<AstNode*>* stack,
-    ZoneList<Expression*>* body_definitions,
-    int variable_count) {
-  Property* prop = target()->AsProperty();
-  VariableProxy* proxy = target()->AsVariableProxy();
-
-  if (prop != NULL) {
-    if (!prop->key()->IsPropertyName()) MarkIfNotLive(prop->key(), stack);
-    MarkIfNotLive(prop->obj(), stack);
-  } else if (proxy == NULL) {
-    // Must be a reference error.
-    ASSERT(!target()->IsValidLeftHandSide());
-    MarkIfNotLive(target(), stack);
-  } else if (is_compound()) {
-    // A variable assignment so lhs is an operand to the operation.
-    MarkIfNotLive(target(), stack);
-  }
-  MarkIfNotLive(value(), stack);
-}
-
-
-void Property::ProcessNonLiveChildren(List<AstNode*>* stack,
-                                      ZoneList<Expression*>* body_definitions,
-                                      int variable_count) {
-  if (!key()->IsPropertyName()) MarkIfNotLive(key(), stack);
-  MarkIfNotLive(obj(), stack);
-}
-
-
-void Call::ProcessNonLiveChildren(List<AstNode*>* stack,
-                                  ZoneList<Expression*>* body_definitions,
-                                  int variable_count) {
-  ZoneList<Expression*>* args = arguments();
-  for (int i = args->length() - 1; i >= 0; i--) {
-    MarkIfNotLive(args->at(i), stack);
-  }
-  MarkIfNotLive(expression(), stack);
-}
-
-
-void UnaryOperation::ProcessNonLiveChildren(
-    List<AstNode*>* stack,
-    ZoneList<Expression*>* body_definitions,
-    int variable_count) {
-  MarkIfNotLive(expression(), stack);
-}
-
-
-void CountOperation::ProcessNonLiveChildren(
-    List<AstNode*>* stack,
-    ZoneList<Expression*>* body_definitions,
-    int variable_count) {
-  MarkIfNotLive(expression(), stack);
-}
-
-
-void BinaryOperation::ProcessNonLiveChildren(
-    List<AstNode*>* stack,
-    ZoneList<Expression*>* body_definitions,
-    int variable_count) {
-  MarkIfNotLive(right(), stack);
-  MarkIfNotLive(left(), stack);
-}
-
-
-void CompareOperation::ProcessNonLiveChildren(
-    List<AstNode*>* stack,
-    ZoneList<Expression*>* body_definitions,
-    int variable_count) {
-  MarkIfNotLive(right(), stack);
-  MarkIfNotLive(left(), stack);
-}
-
-
 // Implementation of a copy visitor. The visitor create a deep copy
 // of ast nodes. Nodes that do not require a deep copy are copied
 // with the default copy constructor.
@@ -963,13 +856,11 @@ UnaryOperation::UnaryOperation(UnaryOperation* other, Expression* expression)
     : Expression(other), op_(other->op_), expression_(expression) {}
 
 
-BinaryOperation::BinaryOperation(BinaryOperation* other,
+BinaryOperation::BinaryOperation(Expression* other,
+                                 Token::Value op,
                                  Expression* left,
                                  Expression* right)
-    : Expression(other),
-      op_(other->op_),
-      left_(left),
-      right_(right) {}
+    : Expression(other), op_(op), left_(left), right_(right) {}
 
 
 CountOperation::CountOperation(CountOperation* other, Expression* expression)
@@ -1221,6 +1112,7 @@ void CopyAstVisitor::VisitCountOperation(CountOperation* expr) {
 
 void CopyAstVisitor::VisitBinaryOperation(BinaryOperation* expr) {
   expr_ = new BinaryOperation(expr,
+                              expr->op(),
                               DeepCopyExpr(expr->left()),
                               DeepCopyExpr(expr->right()));
 }

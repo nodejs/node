@@ -48,6 +48,10 @@ unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm)
 # Skip long running test in debug and allow it to timeout in release mode.
 regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 
+# Skip experimental liveedit drop frame on non-ia32 architectures.
+# debug-liveedit-check-stack: SKIP if $arch != ia32
+debug-liveedit-check-stack: SKIP
+
 [ $arch == arm ]
 
 # Slow tests which times out in debug mode.

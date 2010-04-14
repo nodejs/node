@@ -13,6 +13,7 @@
 
 #include "v8.h"
 #include "log.h"
+#include "cpu-profiler.h"
 #include "v8threads.h"
 #include "cctest.h"
 

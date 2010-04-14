@@ -164,7 +164,7 @@ function DebugEventDetails(response) {
       Debug.State.currentFrame = 0;
       details.text = result;
       break;
-      
+
     case 'exception':
       if (body.uncaught) {
         result += 'Uncaught: ';
@@ -212,7 +212,7 @@ function DebugEventDetails(response) {
 
 function SourceInfo(body) {
   var result = '';
-  
+
   if (body.script) {
     if (body.script.name) {
       result += body.script.name;
@@ -224,7 +224,7 @@ function SourceInfo(body) {
   result += body.sourceLine + 1;
   result += ' column ';
   result += body.sourceColumn + 1;
-  
+
   return result;
 }
 
@@ -297,20 +297,20 @@ function DebugRequest(cmd_line) {
     case 'bt':
       this.request_ = this.backtraceCommandToJSONRequest_(args);
       break;
-      
+
     case 'frame':
     case 'f':
       this.request_ = this.frameCommandToJSONRequest_(args);
       break;
-      
+
     case 'scopes':
       this.request_ = this.scopesCommandToJSONRequest_(args);
       break;
-      
+
     case 'scope':
       this.request_ = this.scopeCommandToJSONRequest_(args);
       break;
-      
+
     case 'print':
     case 'p':
       this.request_ = this.printCommandToJSONRequest_(args);
@@ -331,16 +331,16 @@ function DebugRequest(cmd_line) {
     case 'source':
       this.request_ = this.sourceCommandToJSONRequest_(args);
       break;
-      
+
     case 'scripts':
       this.request_ = this.scriptsCommandToJSONRequest_(args);
       break;
-      
+
     case 'break':
     case 'b':
       this.request_ = this.breakCommandToJSONRequest_(args);
       break;
-      
+
     case 'clear':
       this.request_ = this.clearCommandToJSONRequest_(args);
       break;
@@ -365,7 +365,7 @@ function DebugRequest(cmd_line) {
     default:
       throw new Error('Unknown command "' + cmd + '"');
   }
-  
+
   last_cmd = cmd;
 }
 
@@ -490,22 +490,22 @@ DebugRequest.prototype.stepCommandToJSONRequest_ = function(args) {
         case 'i':
           request.arguments.stepaction = 'in';
           break;
-          
+
         case 'min':
         case 'm':
           request.arguments.stepaction = 'min';
           break;
-          
+
         case 'next':
         case 'n':
           request.arguments.stepaction = 'next';
           break;
-          
+
         case 'out':
         case 'o':
           request.arguments.stepaction = 'out';
           break;
-          
+
         default:
           throw new Error('Invalid step argument "' + args[0] + '".');
       }
@@ -523,7 +523,7 @@ DebugRequest.prototype.stepCommandToJSONRequest_ = function(args) {
 DebugRequest.prototype.backtraceCommandToJSONRequest_ = function(args) {
   // Build a backtrace request from the text command.
   var request = this.createRequest('backtrace');
-  
+
   // Default is to show top 10 frames.
   request.arguments = {};
   request.arguments.fromFrame = 0;
@@ -626,7 +626,7 @@ DebugRequest.prototype.referencesCommandToJSONRequest_ = function(args) {
   if (args.length == 0) {
     throw new Error('Missing object id.');
   }
-  
+
   return this.makeReferencesJSONRequest_(args, 'referencedBy');
 };
 
@@ -637,7 +637,7 @@ DebugRequest.prototype.instancesCommandToJSONRequest_ = function(args) {
   if (args.length == 0) {
     throw new Error('Missing object id.');
   }
-  
+
   // Build a references request.
   return this.makeReferencesJSONRequest_(args, 'constructedBy');
 };
@@ -691,18 +691,18 @@ DebugRequest.prototype.scriptsCommandToJSONRequest_ = function(args) {
       case 'natives':
         request.arguments.types = ScriptTypeFlag(Debug.ScriptType.Native);
         break;
-        
+
       case 'extensions':
         request.arguments.types = ScriptTypeFlag(Debug.ScriptType.Extension);
         break;
-        
+
       case 'all':
         request.arguments.types =
             ScriptTypeFlag(Debug.ScriptType.Normal) |
             ScriptTypeFlag(Debug.ScriptType.Native) |
             ScriptTypeFlag(Debug.ScriptType.Extension);
         break;
-        
+
       default:
         throw new Error('Invalid argument "' + args[0] + '".');
     }
@@ -740,7 +740,7 @@ DebugRequest.prototype.breakCommandToJSONRequest_ = function(args) {
       type = 'script';
       var tmp = target.substring(pos + 1, target.length);
       target = target.substring(0, pos);
-      
+
       // Check for both line and column.
       pos = tmp.indexOf(':');
       if (pos > 0) {
@@ -755,7 +755,7 @@ DebugRequest.prototype.breakCommandToJSONRequest_ = function(args) {
     } else {
       type = 'function';
     }
-  
+
     request.arguments = {};
     request.arguments.type = type;
     request.arguments.target = target;
@@ -936,13 +936,13 @@ function DebugResponseDetails(response) {
         result += body.breakpoint;
         details.text = result;
         break;
-        
+
       case 'clearbreakpoint':
         result = 'cleared breakpoint #';
         result += body.breakpoint;
         details.text = result;
         break;
-        
+
       case 'backtrace':
         if (body.totalFrames == 0) {
           result = '(empty stack)';
@@ -956,14 +956,14 @@ function DebugResponseDetails(response) {
         }
         details.text = result;
         break;
-        
+
       case 'frame':
         details.text = SourceUnderline(body.sourceLineText,
                                        body.column);
         Debug.State.currentSourceLine = body.line;
         Debug.State.currentFrame = body.index;
         break;
-        
+
       case 'scopes':
         if (body.totalScopes == 0) {
           result = '(no scopes)';
@@ -987,7 +987,7 @@ function DebugResponseDetails(response) {
         result += formatObject_(scope_object_value, true);
         details.text = result;
         break;
-      
+
       case 'evaluate':
       case 'lookup':
         if (last_cmd == 'p' || last_cmd == 'print') {
@@ -1031,7 +1031,7 @@ function DebugResponseDetails(response) {
         }
         details.text = result;
         break;
-        
+
       case 'source':
         // Get the source from the response.
         var source = body.source;
@@ -1066,7 +1066,7 @@ function DebugResponseDetails(response) {
         }
         details.text = result;
         break;
-        
+
       case 'scripts':
         var result = '';
         for (i = 0; i < body.length; i++) {
@@ -1128,7 +1128,7 @@ function DebugResponseDetails(response) {
       case 'continue':
         details.text = "(running)";
         break;
-        
+
       default:
         details.text =
             'Response for unknown command \'' + response.command + '\'' +
@@ -1137,7 +1137,7 @@ function DebugResponseDetails(response) {
   } catch (e) {
     details.text = 'Error: "' + e + '" formatting response';
   }
-  
+
   return details;
 };
 
@@ -1254,7 +1254,7 @@ ProtocolValue.prototype.type = function() {
 
 
 /**
- * Get a metadata field from a protocol value. 
+ * Get a metadata field from a protocol value.
  * @return {Object} the metadata field value
  */
 ProtocolValue.prototype.field = function(name) {
@@ -1435,12 +1435,12 @@ function ArrayToJSONArray_(content) {
 
 
 function BooleanToJSON_(value) {
-  return String(value); 
+  return String(value);
 }
 
 
 function NumberToJSON_(value) {
-  return String(value); 
+  return String(value);
 }
 
 

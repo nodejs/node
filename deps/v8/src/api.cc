@@ -36,6 +36,7 @@
 #include "global-handles.h"
 #include "messages.h"
 #include "platform.h"
+#include "profile-generator-inl.h"
 #include "serialize.h"
 #include "snapshot.h"
 #include "top.h"
@@ -43,6 +44,7 @@
 #include "v8threads.h"
 #include "version.h"
 
+#include "../include/v8-profiler.h"
 
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
 
@@ -2639,12 +2641,20 @@ int String::Utf8Length() const {
 }
 
 
-int String::WriteUtf8(char* buffer, int capacity, int *ncharsRef) const {
+int String::WriteUtf8(char* buffer,
+                      int capacity,
+                      int* nchars_ref,
+                      WriteHints hints) const {
   if (IsDeadCheck("v8::String::WriteUtf8()")) return 0;
   LOG_API("String::WriteUtf8");
   ENTER_V8;
   i::Handle<i::String> str = Utils::OpenHandle(this);
   StringTracker::RecordWrite(str);
+  if (hints & HINT_MANY_WRITES_EXPECTED) {
+    // Flatten the string for efficiency.  This applies whether we are
+    // using StringInputBuffer or Get(i) to access the characters.
+    str->TryFlatten();
+  }
   write_input_buffer.Reset(0, *str);
   int len = str->length();
   // Encode the first K - 3 bytes directly into the buffer since we
@@ -2679,23 +2689,28 @@ int String::WriteUtf8(char* buffer, int capacity, int *ncharsRef) const {
       }
     }
   }
-  if (ncharsRef) *ncharsRef = nchars;
+  if (nchars_ref != NULL) *nchars_ref = nchars;
   if (i == len && (capacity == -1 || pos < capacity))
     buffer[pos++] = '\0';
   return pos;
 }
 
 
-int String::WriteAscii(char* buffer, int start, int length) const {
+int String::WriteAscii(char* buffer,
+                       int start,
+                       int length,
+                       WriteHints hints) const {
   if (IsDeadCheck("v8::String::WriteAscii()")) return 0;
   LOG_API("String::WriteAscii");
   ENTER_V8;
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   StringTracker::RecordWrite(str);
-  // Flatten the string for efficiency.  This applies whether we are
-  // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlatten();
+  if (hints & HINT_MANY_WRITES_EXPECTED) {
+    // Flatten the string for efficiency.  This applies whether we are
+    // using StringInputBuffer or Get(i) to access the characters.
+    str->TryFlatten();
+  }
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2713,13 +2728,21 @@ int String::WriteAscii(char* buffer, int start, int length) const {
 }
 
 
-int String::Write(uint16_t* buffer, int start, int length) const {
+int String::Write(uint16_t* buffer,
+                  int start,
+                  int length,
+                  WriteHints hints) const {
   if (IsDeadCheck("v8::String::Write()")) return 0;
   LOG_API("String::Write");
   ENTER_V8;
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   StringTracker::RecordWrite(str);
+  if (hints & HINT_MANY_WRITES_EXPECTED) {
+    // Flatten the string for efficiency.  This applies whether we are
+    // using StringInputBuffer or Get(i) to access the characters.
+    str->TryFlatten();
+  }
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2728,13 +2751,6 @@ int String::Write(uint16_t* buffer, int start, int length) const {
   if (length == -1 || end < length)
     buffer[end] = '\0';
   return end;
-}
-
-
-void v8::String::Flatten() {
-  EnsureInitialized("v8::String::Flatten()");
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  i::FlattenString(str);
 }
 
 
@@ -2866,6 +2882,7 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
 
 
 void v8::Object::SetPointerInInternalField(int index, void* value) {
+  ENTER_V8;
   i::Object* as_object = reinterpret_cast<i::Object*>(value);
   if (as_object->IsSmi()) {
     Utils::OpenHandle(this)->SetInternalField(index, as_object);
@@ -3430,6 +3447,7 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
   }
   i::Handle<i::JSObject> paragon_handle(i::JSObject::cast(paragon));
   EXCEPTION_PREAMBLE();
+  ENTER_V8;
   i::Handle<i::JSObject> result = i::Copy(paragon_handle);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(Local<Object>());
@@ -4007,6 +4025,131 @@ Local<Context> Debug::GetDebugContext() {
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
+
+
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
+Handle<String> CpuProfileNode::GetFunctionName() const {
+  IsDeadCheck("v8::CpuProfileNode::GetFunctionName");
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  const i::CodeEntry* entry = node->entry();
+  if (!entry->has_name_prefix()) {
+    return Handle<String>(ToApi<String>(
+        i::Factory::LookupAsciiSymbol(entry->name())));
+  } else {
+    return Handle<String>(ToApi<String>(i::Factory::NewConsString(
+        i::Factory::LookupAsciiSymbol(entry->name_prefix()),
+        i::Factory::LookupAsciiSymbol(entry->name()))));
+  }
+}
+
+
+Handle<String> CpuProfileNode::GetScriptResourceName() const {
+  IsDeadCheck("v8::CpuProfileNode::GetScriptResourceName");
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+      node->entry()->resource_name())));
+}
+
+
+int CpuProfileNode::GetLineNumber() const {
+  IsDeadCheck("v8::CpuProfileNode::GetLineNumber");
+  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->line_number();
+}
+
+
+double CpuProfileNode::GetTotalSamplesCount() const {
+  IsDeadCheck("v8::CpuProfileNode::GetTotalSamplesCount");
+  return reinterpret_cast<const i::ProfileNode*>(this)->total_ticks();
+}
+
+
+double CpuProfileNode::GetSelfSamplesCount() const {
+  IsDeadCheck("v8::CpuProfileNode::GetSelfSamplesCount");
+  return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
+}
+
+
+unsigned CpuProfileNode::GetCallUid() const {
+  IsDeadCheck("v8::CpuProfileNode::GetCallUid");
+  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->call_uid();
+}
+
+
+int CpuProfileNode::GetChildrenCount() const {
+  IsDeadCheck("v8::CpuProfileNode::GetChildrenCount");
+  return reinterpret_cast<const i::ProfileNode*>(this)->children()->length();
+}
+
+
+const CpuProfileNode* CpuProfileNode::GetChild(int index) const {
+  IsDeadCheck("v8::CpuProfileNode::GetChild");
+  const i::ProfileNode* child =
+      reinterpret_cast<const i::ProfileNode*>(this)->children()->at(index);
+  return reinterpret_cast<const CpuProfileNode*>(child);
+}
+
+
+unsigned CpuProfile::GetUid() const {
+  IsDeadCheck("v8::CpuProfile::GetUid");
+  return reinterpret_cast<const i::CpuProfile*>(this)->uid();
+}
+
+
+Handle<String> CpuProfile::GetTitle() const {
+  IsDeadCheck("v8::CpuProfile::GetTitle");
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+      profile->title())));
+}
+
+
+const CpuProfileNode* CpuProfile::GetBottomUpRoot() const {
+  IsDeadCheck("v8::CpuProfile::GetBottomUpRoot");
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return reinterpret_cast<const CpuProfileNode*>(profile->bottom_up()->root());
+}
+
+
+const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
+  IsDeadCheck("v8::CpuProfile::GetTopDownRoot");
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return reinterpret_cast<const CpuProfileNode*>(profile->top_down()->root());
+}
+
+
+int CpuProfiler::GetProfilesCount() {
+  IsDeadCheck("v8::CpuProfiler::GetProfilesCount");
+  return i::CpuProfiler::GetProfilesCount();
+}
+
+
+const CpuProfile* CpuProfiler::GetProfile(int index) {
+  IsDeadCheck("v8::CpuProfiler::GetProfile");
+  return reinterpret_cast<const CpuProfile*>(i::CpuProfiler::GetProfile(index));
+}
+
+
+const CpuProfile* CpuProfiler::FindProfile(unsigned uid) {
+  IsDeadCheck("v8::CpuProfiler::FindProfile");
+  return reinterpret_cast<const CpuProfile*>(i::CpuProfiler::FindProfile(uid));
+}
+
+
+void CpuProfiler::StartProfiling(Handle<String> title) {
+  IsDeadCheck("v8::CpuProfiler::StartProfiling");
+  i::CpuProfiler::StartProfiling(*Utils::OpenHandle(*title));
+}
+
+
+const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title) {
+  IsDeadCheck("v8::CpuProfiler::StopProfiling");
+  return reinterpret_cast<const CpuProfile*>(
+      i::CpuProfiler::StopProfiling(*Utils::OpenHandle(*title)));
+}
+
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+
 
 namespace internal {
 

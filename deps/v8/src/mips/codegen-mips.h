@@ -352,7 +352,7 @@ class CodeGenerator: public AstVisitor {
   void GenerateLog(ZoneList<Expression*>* args);
 
   // Fast support for Math.random().
-  void GenerateRandomPositiveSmi(ZoneList<Expression*>* args);
+  void GenerateRandomHeapNumber(ZoneList<Expression*>* args);
 
   void GenerateIsObject(ZoneList<Expression*>* args);
   void GenerateIsFunction(ZoneList<Expression*>* args);

@@ -27,23 +27,13 @@
 
 #include "v8.h"
 
-#include "codegen-inl.h"
-#include "register-allocator-inl.h"
-#include "virtual-frame-inl.h"
+#include "vm-state.h"
 
 namespace v8 {
 namespace internal {
 
-void VirtualFrame::Adjust(int count) {
-  ASSERT(count >= 0);
-  element_count_ += count;
-}
-
-
-// If there are any registers referenced only by the frame, spill one.
-Register VirtualFrame::SpillAnyRegister() {
-  UNIMPLEMENTED();
-  return no_reg;
-}
+#ifdef ENABLE_VMSTATE_TRACKING
+VMState* VMState::current_state_ = NULL;
+#endif
 
 } }  // namespace v8::internal

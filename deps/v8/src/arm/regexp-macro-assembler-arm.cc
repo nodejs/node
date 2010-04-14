@@ -163,7 +163,7 @@ void RegExpMacroAssemblerARM::Backtrack() {
   CheckPreemption();
   // Pop Code* offset from backtrack stack, add Code* and jump to location.
   Pop(r0);
-  __ add(pc, r0, Operand(r5));
+  __ add(pc, r0, Operand(code_pointer()));
 }
 
 
@@ -338,7 +338,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
   } else {
     ASSERT(mode_ == UC16);
     int argument_count = 3;
-    FrameAlign(argument_count, r2);
+    __ PrepareCallCFunction(argument_count, r2);
 
     // r0 - offset of start of capture
     // r1 - length of capture
@@ -360,7 +360,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
 
     ExternalReference function =
         ExternalReference::re_case_insensitive_compare_uc16();
-    CallCFunction(function, argument_count);
+    __ CallCFunction(function, argument_count);
 
     // Check if function returned non-zero for success or zero for failure.
     __ cmp(r0, Operand(0));
@@ -770,12 +770,12 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
 
     // Call GrowStack(backtrack_stackpointer())
     static const int num_arguments = 2;
-    FrameAlign(num_arguments, r0);
+    __ PrepareCallCFunction(num_arguments, r0);
     __ mov(r0, backtrack_stackpointer());
     __ add(r1, frame_pointer(), Operand(kStackHighEnd));
     ExternalReference grow_stack =
       ExternalReference::re_grow_stack();
-    CallCFunction(grow_stack, num_arguments);
+    __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ cmp(r0, Operand(0));
@@ -800,7 +800,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
                                        NULL,
                                        Code::ComputeFlags(Code::REGEXP),
                                        masm_->CodeObject());
-  LOG(RegExpCodeCreateEvent(*code, *source));
+  PROFILE(RegExpCodeCreateEvent(*code, *source));
   return Handle<Object>::cast(code);
 }
 
@@ -971,7 +971,7 @@ void RegExpMacroAssemblerARM::WriteStackPointerToRegister(int reg) {
 
 void RegExpMacroAssemblerARM::CallCheckStackGuardState(Register scratch) {
   static const int num_arguments = 3;
-  FrameAlign(num_arguments, scratch);
+  __ PrepareCallCFunction(num_arguments, scratch);
   // RegExp code frame pointer.
   __ mov(r2, frame_pointer());
   // Code* of self.
@@ -1183,47 +1183,12 @@ int RegExpMacroAssemblerARM::GetBacktrackConstantPoolEntry() {
 }
 
 
-void RegExpMacroAssemblerARM::FrameAlign(int num_arguments, Register scratch) {
-  int frameAlignment = OS::ActivationFrameAlignment();
-  // Up to four simple arguments are passed in registers r0..r3.
-  int stack_passed_arguments = (num_arguments <= 4) ? 0 : num_arguments - 4;
-  if (frameAlignment != 0) {
-    // Make stack end at alignment and make room for num_arguments - 4 words
-    // and the original value of sp.
-    __ mov(scratch, sp);
-    __ sub(sp, sp, Operand((stack_passed_arguments + 1) * kPointerSize));
-    ASSERT(IsPowerOf2(frameAlignment));
-    __ and_(sp, sp, Operand(-frameAlignment));
-    __ str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
-  } else {
-    __ sub(sp, sp, Operand(stack_passed_arguments * kPointerSize));
-  }
-}
-
-
-void RegExpMacroAssemblerARM::CallCFunction(ExternalReference function,
-                                            int num_arguments) {
-  __ mov(r5, Operand(function));
-  // Just call directly. The function called cannot cause a GC, or
-  // allow preemption, so the return address in the link register
-  // stays correct.
-  __ Call(r5);
-  int stack_passed_arguments = (num_arguments <= 4) ? 0 : num_arguments - 4;
-  if (OS::ActivationFrameAlignment() > kIntSize) {
-    __ ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
-  } else {
-    __ add(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));
-  }
-  __ mov(code_pointer(), Operand(masm_->CodeObject()));
-}
-
-
 void RegExpMacroAssemblerARM::CallCFunctionUsingStub(
     ExternalReference function,
     int num_arguments) {
   // Must pass all arguments in registers. The stub pushes on the stack.
   ASSERT(num_arguments <= 4);
-  __ mov(r5, Operand(function));
+  __ mov(code_pointer(), Operand(function));
   RegExpCEntryStub stub;
   __ CallStub(&stub);
   if (OS::ActivationFrameAlignment() != 0) {

@@ -131,6 +131,22 @@ void VirtualFrame::SetTypeForParamAt(int index, TypeInfo info) {
   elements_[param0_index() + index].set_type_info(info);
 }
 
+
+void VirtualFrame::Nip(int num_dropped) {
+  ASSERT(num_dropped >= 0);
+  if (num_dropped == 0) return;
+  Result tos = Pop();
+  if (num_dropped > 1) {
+    Drop(num_dropped - 1);
+  }
+  SetElementAt(0, &tos);
+}
+
+
+void VirtualFrame::Push(Smi* value) {
+  Push(Handle<Object> (value));
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_VIRTUAL_FRAME_HEAVY_INL_H_

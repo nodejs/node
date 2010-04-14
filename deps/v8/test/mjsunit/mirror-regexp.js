@@ -70,8 +70,8 @@ function testRegExpMirror(r) {
   assertEquals('regexp', mirror.type());
   assertFalse(mirror.isPrimitive());
   for (var p in expected_attributes) {
-    assertEquals(mirror.property(p).attributes(),
-                 expected_attributes[p],
+    assertEquals(expected_attributes[p],
+                 mirror.property(p).attributes(),
                  p + ' attributes');
   }
 

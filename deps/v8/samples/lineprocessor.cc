@@ -25,8 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+// This controls whether this sample is compiled with debugger support.
+// You may trace its usages in source text to see what parts of program
+// are responsible for debugging support.
+// Note that V8 itself should be compiled with enabled debugger support
+// to have it all working.
+#define SUPPORT_DEBUGGING
+
 #include <v8.h>
+
+#ifdef SUPPORT_DEBUGGING
 #include <v8-debug.h>
+#endif
+
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
@@ -103,8 +115,9 @@ v8::Handle<v8::Value> ReadLine(const v8::Arguments& args);
 bool RunCppCycle(v8::Handle<v8::Script> script, v8::Local<v8::Context> context,
                  bool report_exceptions);
 
-v8::Persistent<v8::Context> debug_message_context;
 
+#ifdef SUPPORT_DEBUGGING
+v8::Persistent<v8::Context> debug_message_context;
 
 void DispatchDebugMessages() {
   // We are in some random thread. We should already have v8::Locker acquired
@@ -122,6 +135,7 @@ void DispatchDebugMessages() {
 
   v8::Debug::ProcessDebugMessages();
 }
+#endif
 
 
 int RunMain(int argc, char* argv[]) {
@@ -132,9 +146,12 @@ int RunMain(int argc, char* argv[]) {
   v8::Handle<v8::Value> script_name(NULL);
   int script_param_counter = 0;
 
+#ifdef SUPPORT_DEBUGGING
   int port_number = -1;
   bool wait_for_connection = false;
   bool support_callback = false;
+#endif
+
   MainCycleType cycle_type = CycleInCpp;
 
   for (int i = 1; i < argc; i++) {
@@ -143,17 +160,19 @@ int RunMain(int argc, char* argv[]) {
       // Ignore any -f flags for compatibility with the other stand-
       // alone JavaScript engines.
       continue;
-    } else if (strcmp(str, "--callback") == 0) {
-      support_callback = true;
-    } else if (strcmp(str, "--wait-for-connection") == 0) {
-      wait_for_connection = true;
     } else if (strcmp(str, "--main-cycle-in-cpp") == 0) {
       cycle_type = CycleInCpp;
     } else if (strcmp(str, "--main-cycle-in-js") == 0) {
       cycle_type = CycleInJs;
+#ifdef SUPPORT_DEBUGGING
+    } else if (strcmp(str, "--callback") == 0) {
+      support_callback = true;
+    } else if (strcmp(str, "--wait-for-connection") == 0) {
+      wait_for_connection = true;
     } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
       port_number = atoi(argv[i + 1]);  // NOLINT
       i++;
+#endif
     } else if (strncmp(str, "--", 2) == 0) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
@@ -197,11 +216,11 @@ int RunMain(int argc, char* argv[]) {
   // Create a new execution environment containing the built-in
   // functions
   v8::Handle<v8::Context> context = v8::Context::New(NULL, global);
-  debug_message_context = v8::Persistent<v8::Context>::New(context);
-
-
   // Enter the newly created execution environment.
   v8::Context::Scope context_scope(context);
+
+#ifdef SUPPORT_DEBUGGING
+  debug_message_context = v8::Persistent<v8::Context>::New(context);
 
   v8::Locker locker;
 
@@ -210,10 +229,9 @@ int RunMain(int argc, char* argv[]) {
   }
 
   if (port_number != -1) {
-    const char* auto_break_param = "--debugger_auto_break";
-    v8::V8::SetFlagsFromString(auto_break_param, strlen(auto_break_param));
     v8::Debug::EnableAgent("lineprocessor", port_number, wait_for_connection);
   }
+#endif
 
   bool report_exceptions = true;
 
@@ -254,7 +272,9 @@ int RunMain(int argc, char* argv[]) {
 
 bool RunCppCycle(v8::Handle<v8::Script> script, v8::Local<v8::Context> context,
                  bool report_exceptions) {
+#ifdef SUPPORT_DEBUGGING
   v8::Locker lock;
+#endif
 
   v8::Handle<v8::String> fun_name = v8::String::New("ProcessLine");
   v8::Handle<v8::Value> process_val =
@@ -407,7 +427,9 @@ v8::Handle<v8::String> ReadLine() {
 
   char* res;
   {
+#ifdef SUPPORT_DEBUGGING
     v8::Unlocker unlocker;
+#endif
     res = fgets(buffer, kBufferSize, stdin);
   }
   if (res == NULL) {

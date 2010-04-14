@@ -166,3 +166,24 @@ for (var i = 1; i < 128; i++) {
   assertEquals(alpha[i], alphaStr[i]);
   assertEquals(String.fromCharCode(i), alphaStr[i]);
 }
+
+// Test for keyed ic.
+var foo = ['a12', ['a', 2, 'c'], 'a31', 42];
+var results = [1, 2, 3, NaN];
+for (var i = 0; i < 200; ++i) {
+  var index = Math.floor(i / 50);
+  var receiver = foo[index];
+  var expected = results[index];
+  var actual = +(receiver[1]);
+  assertEquals(expected, actual);
+}
+
+var keys = [0, '1', 2, 3.0];
+var str = 'abcd', arr = ['a', 'b', 'c', 'd'];
+for (var i = 0; i < 200; ++i) {
+  var index = Math.floor(i / 50);
+  var key = keys[index];
+  var expected = arr[index];
+  var actual = str[key];
+  assertEquals(expected, actual);
+}

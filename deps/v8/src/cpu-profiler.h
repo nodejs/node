@@ -28,11 +28,19 @@
 #ifndef V8_CPU_PROFILER_H_
 #define V8_CPU_PROFILER_H_
 
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+
 #include "circular-queue.h"
-#include "profile-generator.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class CodeEntry;
+class CodeMap;
+class CpuProfile;
+class CpuProfilesCollection;
+class ProfileGenerator;
 
 
 #define CODE_EVENTS_TYPE_LIST(V)                \
@@ -63,9 +71,7 @@ class CodeCreateEventRecord : public CodeEventRecord {
   CodeEntry* entry;
   unsigned size;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map)) {
-    code_map->AddCode(start, entry, size);
-  }
+  INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
 
 
@@ -74,9 +80,7 @@ class CodeMoveEventRecord : public CodeEventRecord {
   Address from;
   Address to;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map)) {
-    code_map->MoveCode(from, to);
-  }
+  INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
 
 
@@ -84,9 +88,7 @@ class CodeDeleteEventRecord : public CodeEventRecord {
  public:
   Address start;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map)) {
-    code_map->DeleteCode(start);
-  }
+  INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
 
 
@@ -95,33 +97,29 @@ class CodeAliasEventRecord : public CodeEventRecord {
   Address alias;
   Address start;
 
-  INLINE(void UpdateCodeMap(CodeMap* code_map)) {
-    code_map->AddAlias(alias, start);
-  }
+  INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
 
 
-class TickSampleEventRecord {
+class TickSampleEventRecord BASE_EMBEDDED {
  public:
-  // In memory, the first machine word of a TickSampleEventRecord will be the
-  // first entry of TickSample, that is -- a program counter field.
-  // TickSample is put first, because 'order' can become equal to
-  // SamplingCircularQueue::kClear, while program counter can't.
-  TickSample sample;
+  // The first machine word of a TickSampleEventRecord must not ever
+  // become equal to SamplingCircularQueue::kClear.  As both order and
+  // TickSample's first field are not reliable in this sense (order
+  // can overflow, TickSample can have all fields reset), we are
+  // forced to use an artificial filler field.
+  int filler;
   unsigned order;
+  TickSample sample;
 
-#if defined(__GNUC__) && (__GNUC__ < 4)
-  // Added to avoid 'all member functions in class are private' warning.
-  INLINE(unsigned get_order() const) { return order; }
-  // Added to avoid 'class only defines private constructors and
-  // has no friends' warning.
-  friend class TickSampleEventRecordFriend;
-#endif
+  static TickSampleEventRecord* cast(void* value) {
+    return reinterpret_cast<TickSampleEventRecord*>(value);
+  }
+
+  INLINE(static TickSampleEventRecord* init(void* value));
+
  private:
-  // Disable instantiation.
-  TickSampleEventRecord();
-
-  DISALLOW_COPY_AND_ASSIGN(TickSampleEventRecord);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(TickSampleEventRecord);
 };
 
 
@@ -138,6 +136,9 @@ class ProfilerEventsProcessor : public Thread {
   INLINE(bool running()) { return running_; }
 
   // Events adding methods. Called by VM threads.
+  void CallbackCreateEvent(Logger::LogEventsAndTags tag,
+                           const char* prefix, String* name,
+                           Address start);
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
                        String* name,
                        String* resource_name, int line_number,
@@ -153,6 +154,9 @@ class ProfilerEventsProcessor : public Thread {
   void FunctionCreateEvent(Address alias, Address start);
   void FunctionMoveEvent(Address from, Address to);
   void FunctionDeleteEvent(Address from);
+  void RegExpCodeCreateEvent(Logger::LogEventsAndTags tag,
+                             const char* prefix, String* name,
+                             Address start, unsigned size);
 
   // Tick sample events are filled directly in the buffer of the circular
   // queue (because the structure is of fixed width, but usually not all
@@ -172,6 +176,8 @@ class ProfilerEventsProcessor : public Thread {
   bool ProcessCodeEvent(unsigned* dequeue_order);
   bool ProcessTicks(unsigned dequeue_order);
 
+  INLINE(static bool FilterOutCodeCreateEvent(Logger::LogEventsAndTags tag));
+
   ProfileGenerator* generator_;
   bool running_;
   CircularQueue<CodeEventsContainer> events_buffer_;
@@ -179,7 +185,93 @@ class ProfilerEventsProcessor : public Thread {
   unsigned enqueue_order_;
 };
 
+} }  // namespace v8::internal
+
+
+#define PROFILE(Call)                                  \
+  LOG(Call);                                           \
+  do {                                                 \
+    if (v8::internal::CpuProfiler::is_profiling()) {   \
+      v8::internal::CpuProfiler::Call;                 \
+    }                                                  \
+  } while (false)
+#else
+#define PROFILE(Call) LOG(Call)
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+
+
+namespace v8 {
+namespace internal {
+
+class CpuProfiler {
+ public:
+  static void Setup();
+  static void TearDown();
+
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+  static void StartProfiling(const char* title);
+  static void StartProfiling(String* title);
+  static CpuProfile* StopProfiling(const char* title);
+  static CpuProfile* StopProfiling(String* title);
+  static int GetProfilesCount();
+  static CpuProfile* GetProfile(int index);
+  static CpuProfile* FindProfile(unsigned uid);
+
+  // Invoked from stack sampler (thread or signal handler.)
+  static TickSample* TickSampleEvent();
+
+  // Must be called via PROFILE macro, otherwise will crash when
+  // profiling is not enabled.
+  static void CallbackEvent(String* name, Address entry_point);
+  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                              Code* code, const char* comment);
+  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                              Code* code, String* name);
+  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                              Code* code, String* name,
+                              String* source, int line);
+  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                              Code* code, int args_count);
+  static void CodeMoveEvent(Address from, Address to);
+  static void CodeDeleteEvent(Address from);
+  static void FunctionCreateEvent(JSFunction* function);
+  static void FunctionMoveEvent(Address from, Address to);
+  static void FunctionDeleteEvent(Address from);
+  static void GetterCallbackEvent(String* name, Address entry_point);
+  static void RegExpCodeCreateEvent(Code* code, String* source);
+  static void SetterCallbackEvent(String* name, Address entry_point);
+
+  static INLINE(bool is_profiling()) {
+    return singleton_ != NULL && singleton_->processor_ != NULL;
+  }
+
+ private:
+  CpuProfiler();
+  ~CpuProfiler();
+  void StartCollectingProfile(const char* title);
+  void StartCollectingProfile(String* title);
+  void StartProcessorIfNotStarted();
+  CpuProfile* StopCollectingProfile(const char* title);
+  CpuProfile* StopCollectingProfile(String* title);
+  void StopProcessorIfLastProfile();
+
+  CpuProfilesCollection* profiles_;
+  unsigned next_profile_uid_;
+  ProfileGenerator* generator_;
+  ProfilerEventsProcessor* processor_;
+  int saved_logging_nesting_;
+
+  static CpuProfiler* singleton_;
+
+#else
+  static INLINE(bool is_profiling()) { return false; }
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(CpuProfiler);
+};
 
 } }  // namespace v8::internal
+
 
 #endif  // V8_CPU_PROFILER_H_

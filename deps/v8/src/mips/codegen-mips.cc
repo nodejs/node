@@ -890,7 +890,7 @@ void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateRandomHeapNumber(ZoneList<Expression*>* args) {
   UNIMPLEMENTED_MIPS();
 }
 

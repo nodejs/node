@@ -38,7 +38,7 @@ namespace internal {
 
 bool RegisterAllocator::IsReserved(Register reg) {
   return reg.is(rsp) || reg.is(rbp) || reg.is(rsi) ||
-      reg.is(kScratchRegister);
+      reg.is(kScratchRegister) || reg.is(kRootRegister);
 }
 
 

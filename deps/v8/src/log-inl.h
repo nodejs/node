@@ -29,96 +29,33 @@
 #define V8_LOG_INL_H_
 
 #include "log.h"
+#include "cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
 
-//
-// VMState class implementation.  A simple stack of VM states held by the
-// logger and partially threaded through the call stack.  States are pushed by
-// VMState construction and popped by destruction.
-//
 #ifdef ENABLE_LOGGING_AND_PROFILING
-inline const char* StateToString(StateTag state) {
-  switch (state) {
-    case JS:
-      return "JS";
-    case GC:
-      return "GC";
-    case COMPILER:
-      return "COMPILER";
-    case OTHER:
-      return "OTHER";
-    default:
-      UNREACHABLE();
-      return NULL;
+
+Logger::LogEventsAndTags Logger::ToNativeByScript(Logger::LogEventsAndTags tag,
+                                                  Script* script) {
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+  if ((tag == FUNCTION_TAG || tag == LAZY_COMPILE_TAG || tag == SCRIPT_TAG)
+      && script->type()->value() == Script::TYPE_NATIVE) {
+    switch (tag) {
+      case FUNCTION_TAG: return NATIVE_FUNCTION_TAG;
+      case LAZY_COMPILE_TAG: return NATIVE_LAZY_COMPILE_TAG;
+      case SCRIPT_TAG: return NATIVE_SCRIPT_TAG;
+      default: return tag;
+    }
+  } else {
+    return tag;
   }
+#else
+  return tag;
+#endif  // ENABLE_CPP_PROFILES_PROCESSOR
 }
 
-VMState::VMState(StateTag state) : disabled_(true), external_callback_(NULL) {
-  if (!Logger::is_logging()) {
-    return;
-  }
-
-  disabled_ = false;
-#if !defined(ENABLE_HEAP_PROTECTION)
-  // When not protecting the heap, there is no difference between
-  // EXTERNAL and OTHER.  As an optimization in that case, we will not
-  // perform EXTERNAL->OTHER transitions through the API.  We thus
-  // compress the two states into one.
-  if (state == EXTERNAL) state = OTHER;
-#endif
-  state_ = state;
-  previous_ = Logger::current_state_;
-  Logger::current_state_ = this;
-
-  if (FLAG_log_state_changes) {
-    LOG(UncheckedStringEvent("Entering", StateToString(state_)));
-    if (previous_ != NULL) {
-      LOG(UncheckedStringEvent("From", StateToString(previous_->state_)));
-    }
-  }
-
-#ifdef ENABLE_HEAP_PROTECTION
-  if (FLAG_protect_heap && previous_ != NULL) {
-    if (state_ == EXTERNAL) {
-      // We are leaving V8.
-      ASSERT(previous_->state_ != EXTERNAL);
-      Heap::Protect();
-    } else if (previous_->state_ == EXTERNAL) {
-      // We are entering V8.
-      Heap::Unprotect();
-    }
-  }
-#endif
-}
-
-
-VMState::~VMState() {
-  if (disabled_) return;
-  Logger::current_state_ = previous_;
-
-  if (FLAG_log_state_changes) {
-    LOG(UncheckedStringEvent("Leaving", StateToString(state_)));
-    if (previous_ != NULL) {
-      LOG(UncheckedStringEvent("To", StateToString(previous_->state_)));
-    }
-  }
-
-#ifdef ENABLE_HEAP_PROTECTION
-  if (FLAG_protect_heap && previous_ != NULL) {
-    if (state_ == EXTERNAL) {
-      // We are reentering V8.
-      ASSERT(previous_->state_ != EXTERNAL);
-      Heap::Unprotect();
-    } else if (previous_->state_ == EXTERNAL) {
-      // We are leaving V8.
-      Heap::Protect();
-    }
-  }
-#endif
-}
-#endif
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 } }  // namespace v8::internal

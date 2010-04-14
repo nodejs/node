@@ -821,19 +821,20 @@ TEST(LargeObjectSpaceContains) {
   Page* page = Page::FromAddress(current_top);
   Address current_page = page->address();
   Address next_page = current_page + Page::kPageSize;
-  int bytes_to_page = next_page - current_top;
+  int bytes_to_page = static_cast<int>(next_page - current_top);
   if (bytes_to_page <= FixedArray::kHeaderSize) {
     // Alas, need to cross another page to be able to
     // put desired value.
     next_page += Page::kPageSize;
-    bytes_to_page = next_page - current_top;
+    bytes_to_page = static_cast<int>(next_page - current_top);
   }
   CHECK(bytes_to_page > FixedArray::kHeaderSize);
 
   int* is_normal_page_ptr = &Page::FromAddress(next_page)->is_normal_page;
   Address is_normal_page_addr = reinterpret_cast<Address>(is_normal_page_ptr);
 
-  int bytes_to_allocate = (is_normal_page_addr - current_top) + kPointerSize;
+  int bytes_to_allocate =
+      static_cast<int>(is_normal_page_addr - current_top) + kPointerSize;
 
   int n_elements = (bytes_to_allocate - FixedArray::kHeaderSize) /
       kPointerSize;
@@ -917,7 +918,7 @@ TEST(Regression39128) {
   }
 
   // Step 3: now allocate fixed array and JSObject to fill the whole new space.
-  int to_fill = *limit_addr - *top_addr - object_size;
+  int to_fill = static_cast<int>(*limit_addr - *top_addr - object_size);
   int fixed_array_len = LenFromSize(to_fill);
   CHECK(fixed_array_len < FixedArray::kMaxLength);
 
@@ -935,7 +936,7 @@ TEST(Regression39128) {
   // Create a reference to object in new space in jsobject.
   jsobject->FastPropertyAtPut(-1, array);
 
-  CHECK_EQ(0L, (*limit_addr - *top_addr));
+  CHECK_EQ(0, static_cast<int>(*limit_addr - *top_addr));
 
   // Step 4: clone jsobject, but force always allocate first to create a clone
   // in old pointer space.

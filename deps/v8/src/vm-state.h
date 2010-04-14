@@ -25,25 +25,51 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-
-#include "codegen-inl.h"
-#include "register-allocator-inl.h"
-#include "virtual-frame-inl.h"
+#ifndef V8_VM_STATE_H_
+#define V8_VM_STATE_H_
 
 namespace v8 {
 namespace internal {
 
-void VirtualFrame::Adjust(int count) {
-  ASSERT(count >= 0);
-  element_count_ += count;
-}
+class VMState BASE_EMBEDDED {
+#ifdef ENABLE_VMSTATE_TRACKING
+ public:
+  inline VMState(StateTag state);
+  inline ~VMState();
 
+  StateTag state() { return state_; }
+  void set_external_callback(Address external_callback) {
+    external_callback_ = external_callback;
+  }
 
-// If there are any registers referenced only by the frame, spill one.
-Register VirtualFrame::SpillAnyRegister() {
-  UNIMPLEMENTED();
-  return no_reg;
-}
+  // Used for debug asserts.
+  static bool is_outermost_external() {
+    return current_state_ == NULL;
+  }
+
+  static StateTag current_state() {
+    return current_state_ ? current_state_->state() : EXTERNAL;
+  }
+
+  static Address external_callback() {
+    return current_state_ ? current_state_->external_callback_ : NULL;
+  }
+
+ private:
+  bool disabled_;
+  StateTag state_;
+  VMState* previous_;
+  Address external_callback_;
+
+  // A stack of VM states.
+  static VMState* current_state_;
+#else
+ public:
+  explicit VMState(StateTag state) {}
+#endif
+};
 
 } }  // namespace v8::internal
+
+
+#endif  // V8_VM_STATE_H_

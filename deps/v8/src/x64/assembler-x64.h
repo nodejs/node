@@ -1079,9 +1079,11 @@ class Assembler : public Malloced {
   void sahf();
 
   // SSE2 instructions
+  void movd(XMMRegister dst, Register src);
+
   void movsd(const Operand& dst, XMMRegister src);
-  void movsd(XMMRegister src, XMMRegister dst);
-  void movsd(XMMRegister src, const Operand& dst);
+  void movsd(XMMRegister dst, XMMRegister src);
+  void movsd(XMMRegister dst, const Operand& src);
 
   void cvttss2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, const Operand& src);
@@ -1090,6 +1092,8 @@ class Assembler : public Malloced {
   void cvtlsi2sd(XMMRegister dst, Register src);
   void cvtqsi2sd(XMMRegister dst, const Operand& src);
   void cvtqsi2sd(XMMRegister dst, Register src);
+
+  void cvtss2sd(XMMRegister dst, XMMRegister src);
 
   void addsd(XMMRegister dst, XMMRegister src);
   void subsd(XMMRegister dst, XMMRegister src);
@@ -1101,6 +1105,7 @@ class Assembler : public Malloced {
   void comisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, XMMRegister src);
 
+  // The first argument is the reg field, the second argument is the r/m field.
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, Register src);

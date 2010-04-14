@@ -143,15 +143,14 @@ bool Profiler::paused_ = false;
 // StackTracer implementation
 //
 void StackTracer::Trace(TickSample* sample) {
-  if (sample->state == GC) {
-    sample->frames_count = 0;
-    return;
-  }
+  sample->function = NULL;
+  sample->frames_count = 0;
+
+  if (sample->state == GC) return;
 
   const Address js_entry_sp = Top::js_entry_sp(Top::GetCurrentThread());
   if (js_entry_sp == 0) {
     // Not executing JS now.
-    sample->frames_count = 0;
     return;
   }
 
@@ -163,8 +162,7 @@ void StackTracer::Trace(TickSample* sample) {
   }
 
   int i = 0;
-  const Address callback = Logger::current_state_ != NULL ?
-      Logger::current_state_->external_callback() : NULL;
+  const Address callback = VMState::external_callback();
   if (callback != NULL) {
     sample->stack[i++] = callback;
   }
@@ -324,8 +322,6 @@ void Profiler::Run() {
 //
 Ticker* Logger::ticker_ = NULL;
 Profiler* Logger::profiler_ = NULL;
-VMState* Logger::current_state_ = NULL;
-VMState Logger::bottom_state_(EXTERNAL);
 SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 const char** Logger::log_events_ = NULL;
 CompressionHelper* Logger::compression_helper_ = NULL;
@@ -1300,7 +1296,7 @@ void Logger::LogCodeObject(Object* object) {
         tag = Logger::CALL_IC_TAG;
         break;
     }
-    LOG(CodeCreateEvent(tag, code_object, description));
+    PROFILE(CodeCreateEvent(tag, code_object, description));
   }
 }
 
@@ -1334,17 +1330,20 @@ void Logger::LogCompiledFunctions() {
         Handle<String> script_name(String::cast(script->name()));
         int line_num = GetScriptLineNumber(script, shared->start_position());
         if (line_num > 0) {
-          LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG,
-                              shared->code(), *func_name,
-                              *script_name, line_num + 1));
+          PROFILE(CodeCreateEvent(
+              Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
+              shared->code(), *func_name,
+              *script_name, line_num + 1));
         } else {
-          // Can't distinguish enum and script here, so always use Script.
-          LOG(CodeCreateEvent(Logger::SCRIPT_TAG,
-                              shared->code(), *script_name));
+          // Can't distinguish eval and script here, so always use Script.
+          PROFILE(CodeCreateEvent(
+              Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+              shared->code(), *script_name));
         }
       } else {
-        LOG(CodeCreateEvent(
-            Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
+        PROFILE(CodeCreateEvent(
+            Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
+            shared->code(), *func_name));
       }
     } else if (shared->IsApiFunction()) {
       // API function.
@@ -1354,10 +1353,10 @@ void Logger::LogCompiledFunctions() {
         CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
         Object* callback_obj = call_data->callback();
         Address entry_point = v8::ToCData<Address>(callback_obj);
-        LOG(CallbackEvent(*func_name, entry_point));
+        PROFILE(CallbackEvent(*func_name, entry_point));
       }
     } else {
-      LOG(CodeCreateEvent(
+      PROFILE(CodeCreateEvent(
           Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
     }
   }
@@ -1373,7 +1372,7 @@ void Logger::LogFunctionObjects() {
     if (!obj->IsJSFunction()) continue;
     JSFunction* jsf = JSFunction::cast(obj);
     if (!jsf->is_compiled()) continue;
-    LOG(FunctionCreateEvent(jsf));
+    PROFILE(FunctionCreateEvent(jsf));
   }
 }
 
@@ -1388,11 +1387,11 @@ void Logger::LogAccessorCallbacks() {
     String* name = String::cast(ai->name());
     Address getter_entry = v8::ToCData<Address>(ai->getter());
     if (getter_entry != 0) {
-      LOG(GetterCallbackEvent(name, getter_entry));
+      PROFILE(GetterCallbackEvent(name, getter_entry));
     }
     Address setter_entry = v8::ToCData<Address>(ai->setter());
     if (setter_entry != 0) {
-      LOG(SetterCallbackEvent(name, setter_entry));
+      PROFILE(SetterCallbackEvent(name, setter_entry));
     }
   }
 }
@@ -1475,7 +1474,7 @@ bool Logger::Setup() {
     }
   }
 
-  current_state_ = &bottom_state_;
+  ASSERT(VMState::is_outermost_external());
 
   ticker_ = new Ticker(kSamplingIntervalMs);
 
@@ -1557,6 +1556,5 @@ void Logger::EnableSlidingStateWindow() {
   }
 #endif
 }
-
 
 } }  // namespace v8::internal

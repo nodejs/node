@@ -160,6 +160,15 @@ var knownProblems = {
   // That can only be invoked on Array.prototype.
   "FinishArrayPrototypeSetup": true,
 
+  // Performance critical function which cannot afford type checks.
+  "_CallFunction": true,
+
+  // Tries to allocate based on argument, and (correctly) throws
+  // out-of-memory if the request is too large. In practice, the
+  // size will be the number of captures of a RegExp.
+  "RegExpConstructResult": true,
+  "_RegExpConstructResult": true,
+
   // LiveEdit feature is under development currently and has fragile input.
   "LiveEditFindSharedFunctionInfosForScript": true,
   "LiveEditGatherCompileInfo": true,

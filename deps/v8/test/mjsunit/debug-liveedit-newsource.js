@@ -25,25 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Flags: --expose-debug-as debug
+// Get the Debug object exposed from the debug context global object.
 
-#include "codegen-inl.h"
-#include "register-allocator-inl.h"
-#include "virtual-frame-inl.h"
+Debug = debug.Debug
 
-namespace v8 {
-namespace internal {
+eval("var something1 = 25; "
+     + " function ChooseAnimal() { return          'Cat';          } "
+     + " ChooseAnimal.Helper = function() { return 'Help!'; }");
 
-void VirtualFrame::Adjust(int count) {
-  ASSERT(count >= 0);
-  element_count_ += count;
-}
+assertEquals("Cat", ChooseAnimal());
 
+var script = Debug.findScript(ChooseAnimal);
 
-// If there are any registers referenced only by the frame, spill one.
-Register VirtualFrame::SpillAnyRegister() {
-  UNIMPLEMENTED();
-  return no_reg;
-}
+var new_source = script.source.replace("Cat", "Cap' + 'yb' + 'ara");
+print("new source: " + new_source);
 
-} }  // namespace v8::internal
+var change_log = new Array();
+Debug.LiveEdit.SetScriptSource(script, new_source, change_log);
+
+assertEquals("Capybara", ChooseAnimal());

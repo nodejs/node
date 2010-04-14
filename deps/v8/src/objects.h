@@ -3667,6 +3667,13 @@ class JSRegExp: public JSObject {
       FixedArray::kHeaderSize + kIrregexpUC16CodeIndex * kPointerSize;
   static const int kIrregexpCaptureCountOffset =
       FixedArray::kHeaderSize + kIrregexpCaptureCountIndex * kPointerSize;
+
+  // In-object fields.
+  static const int kSourceFieldIndex = 0;
+  static const int kGlobalFieldIndex = 1;
+  static const int kIgnoreCaseFieldIndex = 2;
+  static const int kMultilineFieldIndex = 3;
+  static const int kLastIndexFieldIndex = 4;
 };
 
 
@@ -4622,6 +4629,26 @@ class JSArray: public JSObject {
   void Expand(int minimum_size_of_backing_fixed_array);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArray);
+};
+
+
+// JSRegExpResult is just a JSArray with a specific initial map.
+// This initial map adds in-object properties for "index" and "input"
+// properties, as assigned by RegExp.prototype.exec, which allows
+// faster creation of RegExp exec results.
+// This class just holds constants used when creating the result.
+// After creation the result must be treated as a JSArray in all regards.
+class JSRegExpResult: public JSArray {
+ public:
+  // Offsets of object fields.
+  static const int kIndexOffset = JSArray::kSize;
+  static const int kInputOffset = kIndexOffset + kPointerSize;
+  static const int kSize = kInputOffset + kPointerSize;
+  // Indices of in-object properties.
+  static const int kIndexIndex = 0;
+  static const int kInputIndex = 1;
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSRegExpResult);
 };
 
 

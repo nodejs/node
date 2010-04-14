@@ -28,6 +28,8 @@
 #ifndef V8_ARM_CODEGEN_ARM_H_
 #define V8_ARM_CODEGEN_ARM_H_
 
+#include "ic-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -89,10 +91,6 @@ class Reference BASE_EMBEDDED {
   // reference is for a compound assignment.
   // If the reference is not consumed, it is left in place under its value.
   void GetValue();
-
-  // Generate code to pop a reference, push the value of the reference,
-  // and then spill the stack frame.
-  inline void GetValueAndSpill();
 
   // Generate code to store the value on top of the expression stack in the
   // reference.  The reference is expected to be immediately below the value
@@ -312,6 +310,9 @@ class CodeGenerator: public AstVisitor {
   void GenericBinaryOperation(Token::Value op,
                               OverwriteMode overwrite_mode,
                               int known_rhs = kUnknownIntValue);
+  void VirtualFrameBinaryOperation(Token::Value op,
+                                   OverwriteMode overwrite_mode,
+                                   int known_rhs = kUnknownIntValue);
   void Comparison(Condition cc,
                   Expression* left,
                   Expression* right,
@@ -321,6 +322,11 @@ class CodeGenerator: public AstVisitor {
                     Handle<Object> value,
                     bool reversed,
                     OverwriteMode mode);
+
+  void VirtualFrameSmiOperation(Token::Value op,
+                                Handle<Object> value,
+                                bool reversed,
+                                OverwriteMode mode);
 
   void CallWithArguments(ZoneList<Expression*>* arguments,
                          CallFunctionFlags flags,
@@ -387,7 +393,7 @@ class CodeGenerator: public AstVisitor {
   void GenerateLog(ZoneList<Expression*>* args);
 
   // Fast support for Math.random().
-  void GenerateRandomPositiveSmi(ZoneList<Expression*>* args);
+  void GenerateRandomHeapNumber(ZoneList<Expression*>* args);
 
   // Fast support for StringAdd.
   void GenerateStringAdd(ZoneList<Expression*>* args);
@@ -401,8 +407,13 @@ class CodeGenerator: public AstVisitor {
   // Support for direct calls from JavaScript to native RegExp code.
   void GenerateRegExpExec(ZoneList<Expression*>* args);
 
+  void GenerateRegExpConstructResult(ZoneList<Expression*>* args);
+
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
+
+  // Fast call for custom callbacks.
+  void GenerateCallFunction(ZoneList<Expression*>* args);
 
   // Fast call to math functions.
   void GenerateMathPow(ZoneList<Expression*>* args);
@@ -470,37 +481,68 @@ class GenericBinaryOpStub : public CodeStub {
  public:
   GenericBinaryOpStub(Token::Value op,
                       OverwriteMode mode,
+                      Register lhs,
+                      Register rhs,
                       int constant_rhs = CodeGenerator::kUnknownIntValue)
       : op_(op),
         mode_(mode),
+        lhs_(lhs),
+        rhs_(rhs),
         constant_rhs_(constant_rhs),
         specialized_on_rhs_(RhsIsOneWeWantToOptimizeFor(op, constant_rhs)),
+        runtime_operands_type_(BinaryOpIC::DEFAULT),
+        name_(NULL) { }
+
+  GenericBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info)
+      : op_(OpBits::decode(key)),
+        mode_(ModeBits::decode(key)),
+        lhs_(LhsRegister(RegisterBits::decode(key))),
+        rhs_(RhsRegister(RegisterBits::decode(key))),
+        constant_rhs_(KnownBitsForMinorKey(KnownIntBits::decode(key))),
+        specialized_on_rhs_(RhsIsOneWeWantToOptimizeFor(op_, constant_rhs_)),
+        runtime_operands_type_(type_info),
         name_(NULL) { }
 
  private:
   Token::Value op_;
   OverwriteMode mode_;
+  Register lhs_;
+  Register rhs_;
   int constant_rhs_;
   bool specialized_on_rhs_;
+  BinaryOpIC::TypeInfo runtime_operands_type_;
   char* name_;
 
   static const int kMaxKnownRhs = 0x40000000;
+  static const int kKnownRhsKeyBits = 6;
 
-  // Minor key encoding in 16 bits.
+  // Minor key encoding in 17 bits.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
   class OpBits: public BitField<Token::Value, 2, 6> {};
-  class KnownIntBits: public BitField<int, 8, 8> {};
+  class TypeInfoBits: public BitField<int, 8, 2> {};
+  class RegisterBits: public BitField<bool, 10, 1> {};
+  class KnownIntBits: public BitField<int, 11, kKnownRhsKeyBits> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
-    // Encode the parameters in a unique 16 bit value.
+    ASSERT((lhs_.is(r0) && rhs_.is(r1)) ||
+           (lhs_.is(r1) && rhs_.is(r0)));
+    // Encode the parameters in a unique 18 bit value.
     return OpBits::encode(op_)
            | ModeBits::encode(mode_)
-           | KnownIntBits::encode(MinorKeyForKnownInt());
+           | KnownIntBits::encode(MinorKeyForKnownInt())
+           | TypeInfoBits::encode(runtime_operands_type_)
+           | RegisterBits::encode(lhs_.is(r0));
   }
 
   void Generate(MacroAssembler* masm);
-  void HandleNonSmiBitwiseOp(MacroAssembler* masm);
+  void HandleNonSmiBitwiseOp(MacroAssembler* masm, Register lhs, Register rhs);
+  void HandleBinaryOpSlowCases(MacroAssembler* masm,
+                               Label* not_smi,
+                               Register lhs,
+                               Register rhs,
+                               const Builtins::JavaScript& builtin);
+  void GenerateTypeTransition(MacroAssembler* masm);
 
   static bool RhsIsOneWeWantToOptimizeFor(Token::Value op, int constant_rhs) {
     if (constant_rhs == CodeGenerator::kUnknownIntValue) return false;
@@ -524,7 +566,43 @@ class GenericBinaryOpStub : public CodeStub {
       key++;
       d >>= 1;
     }
+    ASSERT(key >= 0 && key < (1 << kKnownRhsKeyBits));
     return key;
+  }
+
+  int KnownBitsForMinorKey(int key) {
+    if (!key) return 0;
+    if (key <= 11) return key - 1;
+    int d = 1;
+    while (key != 12) {
+      key--;
+      d <<= 1;
+    }
+    return d;
+  }
+
+  Register LhsRegister(bool lhs_is_r0) {
+    return lhs_is_r0 ? r0 : r1;
+  }
+
+  Register RhsRegister(bool lhs_is_r0) {
+    return lhs_is_r0 ? r1 : r0;
+  }
+
+  bool ShouldGenerateSmiCode() {
+    return ((op_ != Token::DIV && op_ != Token::MOD) || specialized_on_rhs_) &&
+        runtime_operands_type_ != BinaryOpIC::HEAP_NUMBERS &&
+        runtime_operands_type_ != BinaryOpIC::STRINGS;
+  }
+
+  bool ShouldGenerateFPCode() {
+    return runtime_operands_type_ != BinaryOpIC::STRINGS;
+  }
+
+  virtual int GetCodeKind() { return Code::BINARY_OP_IC; }
+
+  virtual InlineCacheState GetICState() {
+    return BinaryOpIC::ToState(runtime_operands_type_);
   }
 
   const char* GetName();

@@ -33,7 +33,8 @@ namespace internal {
 
 class RegisterAllocatorConstants : public AllStatic {
  public:
-  static const int kNumRegisters = 12;
+  // No registers are currently managed by the register allocator on ARM.
+  static const int kNumRegisters = 0;
   static const int kInvalidRegister = -1;
 };
 

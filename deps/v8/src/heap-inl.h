@@ -236,19 +236,27 @@ AllocationSpace Heap::TargetSpaceId(InstanceType type) {
 
 void Heap::CopyBlock(Object** dst, Object** src, int byte_size) {
   ASSERT(IsAligned(byte_size, kPointerSize));
+  CopyWords(dst, src, byte_size / kPointerSize);
+}
 
-  // Use block copying memcpy if the segment we're copying is
-  // enough to justify the extra call/setup overhead.
-  static const int kBlockCopyLimit = 16 * kPointerSize;
 
-  if (byte_size >= kBlockCopyLimit) {
-    memcpy(dst, src, byte_size);
-  } else {
-    int remaining = byte_size / kPointerSize;
-    do {
-      remaining--;
+void Heap::MoveBlock(Object** dst, Object** src, size_t byte_size) {
+  ASSERT(IsAligned<size_t>(byte_size, kPointerSize));
+
+  int size_in_words = byte_size / kPointerSize;
+
+  if ((dst < src) || (dst >= (src + size_in_words))) {
+    ASSERT((dst >= (src + size_in_words)) ||
+           ((OffsetFrom(reinterpret_cast<Address>(src)) -
+             OffsetFrom(reinterpret_cast<Address>(dst))) >= kPointerSize));
+
+    Object** end = src + size_in_words;
+
+    while (src != end) {
       *dst++ = *src++;
-    } while (remaining > 0);
+    }
+  } else {
+    memmove(dst, src, byte_size);
   }
 }
 

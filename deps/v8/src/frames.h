@@ -114,6 +114,12 @@ class StackFrame BASE_EMBEDDED {
   // by the debugger.
   enum Id { NO_ID = 0 };
 
+  // Copy constructor; it breaks the connection to host iterator.
+  StackFrame(const StackFrame& original) {
+    this->state_ = original.state_;
+    this->iterator_ = NULL;
+  }
+
   // Type testers.
   bool is_entry() const { return type() == ENTRY; }
   bool is_entry_construct() const { return type() == ENTRY_CONSTRUCT; }
@@ -131,6 +137,8 @@ class StackFrame BASE_EMBEDDED {
 
   Address pc() const { return *pc_address(); }
   void set_pc(Address pc) { *pc_address() = pc; }
+
+  virtual void SetCallerFp(Address caller_fp) = 0;
 
   Address* pc_address() const { return state_.pc_address; }
 
@@ -200,7 +208,8 @@ class StackFrame BASE_EMBEDDED {
   friend class StackHandlerIterator;
   friend class SafeStackFrameIterator;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StackFrame);
+ private:
+  void operator=(const StackFrame& original);
 };
 
 
@@ -218,6 +227,7 @@ class EntryFrame: public StackFrame {
     ASSERT(frame->is_entry());
     return static_cast<EntryFrame*>(frame);
   }
+  virtual void SetCallerFp(Address caller_fp);
 
  protected:
   explicit EntryFrame(StackFrameIterator* iterator) : StackFrame(iterator) { }
@@ -268,6 +278,8 @@ class ExitFrame: public StackFrame {
   // Garbage collection support.
   virtual void Iterate(ObjectVisitor* v) const;
 
+  virtual void SetCallerFp(Address caller_fp);
+
   static ExitFrame* cast(StackFrame* frame) {
     ASSERT(frame->is_exit());
     return static_cast<ExitFrame*>(frame);
@@ -302,6 +314,8 @@ class StandardFrame: public StackFrame {
   inline Object* GetExpression(int index) const;
   inline void SetExpression(int index, Object* value);
   int ComputeExpressionsCount() const;
+
+  virtual void SetCallerFp(Address caller_fp);
 
   static StandardFrame* cast(StackFrame* frame) {
     ASSERT(frame->is_standard());
@@ -657,6 +671,10 @@ class StackFrameLocator BASE_EMBEDDED {
   StackFrameIterator iterator_;
 };
 
+
+// Reads all frames on the current stack and copies them into the current
+// zone memory.
+Vector<StackFrame*> CreateStackMap();
 
 } }  // namespace v8::internal
 

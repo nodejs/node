@@ -44,7 +44,6 @@ assertEquals('0000000000', repeat('0', 10));
 
 // assertEquals(, toNumber());
 
-
 assertEquals(123, toNumber(" 123"));
 assertEquals(123, toNumber("\n123"));
 assertEquals(123, toNumber("\r123"));
@@ -62,6 +61,10 @@ assertEquals(123, toNumber("\n123\n"));
 assertEquals(123, toNumber("\r123\r"));
 assertEquals(123, toNumber("\t123\t"));
 assertEquals(123, toNumber("\f123\f"));
+
+assertEquals(16, toNumber(" 0x10 "));
+assertEquals(NaN, toNumber("0x"));
+assertEquals(NaN, toNumber("0x "));
 
 assertTrue(isNaN(toNumber(" NaN ")));
 assertEquals(Infinity,  toNumber(" Infinity ") ," Infinity");
@@ -151,9 +154,31 @@ assertEquals(10, toNumber("0x00a"));
 assertEquals(10, toNumber("0x00A"));
 assertEquals(15, toNumber("0x00f"));
 assertEquals(15, toNumber("0x00F"));
+assertEquals(15, toNumber("0x00F "));
 assertEquals(Infinity,  toNumber("0x" + repeat('0', 1000) + '1'
                         + repeat('0', 1000)));
 assertEquals(-Infinity,  toNumber("-0x1" + repeat('0', 1000)));
+
+assertEquals(0x1000000 * 0x10000000, toNumber("0x10000000000000"));
+assertEquals(0x1000000 * 0x10000000 + 1, toNumber("0x10000000000001"));
+assertEquals(0x10 * 0x1000000 * 0x10000000, toNumber("0x100000000000000"));
+assertEquals(0x10 * 0x1000000 * 0x10000000, toNumber("0x100000000000001"));
+assertEquals(0x10 * 0x1000000 * 0x10000000, toNumber("0x100000000000007"));
+assertEquals(0x10 * 0x1000000 * 0x10000000, toNumber("0x100000000000008"));
+assertEquals(0x10 * (0x1000000 * 0x10000000 + 1),
+             toNumber("0x100000000000009"));
+assertEquals(0x10 * (0x1000000 * 0x10000000 + 1),
+             toNumber("0x10000000000000F"));
+assertEquals(0x10 * (0x1000000 * 0x10000000 + 1),
+             toNumber("0x100000000000010"));
+assertEquals(0x100000000000 * 0x1000000 * 0x10000000,
+             toNumber("0x1000000000000000000000000"));
+assertEquals(0x100000000000 * 0x1000000 * 0x10000000,
+             toNumber("0x1000000000000080000000000"));
+assertEquals(0x100000000000 * (0x1000000 * 0x10000000 + 1),
+             toNumber("0x1000000000000080000000001"));
+assertEquals(0x100000000000 * 0x1000000 * 0x10000000,
+             toNumber("  0x1000000000000000000000000  "));
 
 assertEquals(0, toNumber("00"));
 assertEquals(1, toNumber("01"));

@@ -39,54 +39,28 @@ namespace internal {
 // the parameters, and a return address.  All frame elements are in memory.
 VirtualFrame::VirtualFrame()
     : element_count_(parameter_count() + 2),
-      stack_pointer_(parameter_count() + 1) {
-  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
-    register_locations_[i] = kIllegalIndex;
-  }
-}
+      top_of_stack_state_(NO_TOS_REGISTERS),
+      register_allocation_map_(0) { }
 
 
 // When cloned, a frame is a deep copy of the original.
 VirtualFrame::VirtualFrame(VirtualFrame* original)
     : element_count_(original->element_count()),
-      stack_pointer_(original->stack_pointer_) {
-  memcpy(&register_locations_,
-         original->register_locations_,
-         sizeof(register_locations_));
-}
-
-
-void VirtualFrame::Push(Handle<Object> value) {
-  UNIMPLEMENTED();
-}
+      top_of_stack_state_(original->top_of_stack_state_),
+      register_allocation_map_(original->register_allocation_map_) { }
 
 
 bool VirtualFrame::Equals(VirtualFrame* other) {
-#ifdef DEBUG
-  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
-    if (register_location(i) != other->register_location(i)) {
-      return false;
-    }
-  }
-  if (element_count() != other->element_count()) return false;
-#endif
-  if (stack_pointer_ != other->stack_pointer_) return false;
+  ASSERT(element_count() == other->element_count());
+  if (top_of_stack_state_ != other->top_of_stack_state_) return false;
+  if (register_allocation_map_ != other->register_allocation_map_) return false;
 
   return true;
 }
 
 
-void VirtualFrame::SetTypeForLocalAt(int index, TypeInfo info) {
-  UNIMPLEMENTED();
-}
-
-
-// Everything is always spilled anyway.
-void VirtualFrame::SpillAll() {
-}
-
-
 void VirtualFrame::PrepareForReturn() {
+  SpillAll();
 }
 
 

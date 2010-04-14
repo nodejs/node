@@ -723,8 +723,68 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         InstallFunction(global, "RegExp", JS_REGEXP_TYPE, JSRegExp::kSize,
                         Top::initial_object_prototype(), Builtins::Illegal,
                         true);
-
     global_context()->set_regexp_function(*regexp_fun);
+
+    ASSERT(regexp_fun->has_initial_map());
+    Handle<Map> initial_map(regexp_fun->initial_map());
+
+    ASSERT_EQ(0, initial_map->inobject_properties());
+
+    Handle<DescriptorArray> descriptors = Factory::NewDescriptorArray(5);
+    PropertyAttributes final =
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+    int enum_index = 0;
+    {
+      // ECMA-262, section 15.10.7.1.
+      FieldDescriptor field(Heap::source_symbol(),
+                            JSRegExp::kSourceFieldIndex,
+                            final,
+                            enum_index++);
+      descriptors->Set(0, &field);
+    }
+    {
+      // ECMA-262, section 15.10.7.2.
+      FieldDescriptor field(Heap::global_symbol(),
+                            JSRegExp::kGlobalFieldIndex,
+                            final,
+                            enum_index++);
+      descriptors->Set(1, &field);
+    }
+    {
+      // ECMA-262, section 15.10.7.3.
+      FieldDescriptor field(Heap::ignore_case_symbol(),
+                            JSRegExp::kIgnoreCaseFieldIndex,
+                            final,
+                            enum_index++);
+      descriptors->Set(2, &field);
+    }
+    {
+      // ECMA-262, section 15.10.7.4.
+      FieldDescriptor field(Heap::multiline_symbol(),
+                            JSRegExp::kMultilineFieldIndex,
+                            final,
+                            enum_index++);
+      descriptors->Set(3, &field);
+    }
+    {
+      // ECMA-262, section 15.10.7.5.
+      PropertyAttributes writable =
+          static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
+      FieldDescriptor field(Heap::last_index_symbol(),
+                            JSRegExp::kLastIndexFieldIndex,
+                            writable,
+                            enum_index++);
+      descriptors->Set(4, &field);
+    }
+    descriptors->SetNextEnumerationIndex(enum_index);
+    descriptors->Sort();
+
+    initial_map->set_inobject_properties(5);
+    initial_map->set_pre_allocated_property_fields(5);
+    initial_map->set_unused_property_fields(0);
+    initial_map->set_instance_size(
+        initial_map->instance_size() + 5 * kPointerSize);
+    initial_map->set_instance_descriptors(*descriptors);
   }
 
   {  // -- J S O N
@@ -1175,6 +1235,62 @@ bool Genesis::InstallNatives() {
     // Set the lengths for the functions to satisfy ECMA-262.
     call->shared()->set_length(1);
     apply->shared()->set_length(2);
+  }
+
+  // Create a constructor for RegExp results (a variant of Array that
+  // predefines the two properties index and match).
+  {
+    // RegExpResult initial map.
+
+    // Find global.Array.prototype to inherit from.
+    Handle<JSFunction> array_constructor(global_context()->array_function());
+    Handle<JSObject> array_prototype(
+        JSObject::cast(array_constructor->instance_prototype()));
+
+    // Add initial map.
+    Handle<Map> initial_map =
+        Factory::NewMap(JS_ARRAY_TYPE, JSRegExpResult::kSize);
+    initial_map->set_constructor(*array_constructor);
+
+    // Set prototype on map.
+    initial_map->set_non_instance_prototype(false);
+    initial_map->set_prototype(*array_prototype);
+
+    // Update map with length accessor from Array and add "index" and "input".
+    Handle<Map> array_map(global_context()->js_array_map());
+    Handle<DescriptorArray> array_descriptors(
+        array_map->instance_descriptors());
+    ASSERT_EQ(1, array_descriptors->number_of_descriptors());
+
+    Handle<DescriptorArray> reresult_descriptors =
+        Factory::NewDescriptorArray(3);
+
+    reresult_descriptors->CopyFrom(0, *array_descriptors, 0);
+
+    int enum_index = 0;
+    {
+      FieldDescriptor index_field(Heap::index_symbol(),
+                                  JSRegExpResult::kIndexIndex,
+                                  NONE,
+                                  enum_index++);
+      reresult_descriptors->Set(1, &index_field);
+    }
+
+    {
+      FieldDescriptor input_field(Heap::input_symbol(),
+                                  JSRegExpResult::kInputIndex,
+                                  NONE,
+                                  enum_index++);
+      reresult_descriptors->Set(2, &input_field);
+    }
+    reresult_descriptors->Sort();
+
+    initial_map->set_inobject_properties(2);
+    initial_map->set_pre_allocated_property_fields(2);
+    initial_map->set_unused_property_fields(0);
+    initial_map->set_instance_descriptors(*reresult_descriptors);
+
+    global_context()->set_regexp_result_map(*initial_map);
   }
 
 #ifdef DEBUG

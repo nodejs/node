@@ -1013,7 +1013,7 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      Expression::Context context) {
   __ pop(r1);
-  GenericBinaryOpStub stub(op, NO_OVERWRITE);
+  GenericBinaryOpStub stub(op, NO_OVERWRITE, r1, r0);
   __ CallStub(&stub);
   Apply(context, r0);
 }
@@ -1609,7 +1609,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   __ mov(r1, Operand(expr->op() == Token::INC
                      ? Smi::FromInt(1)
                      : Smi::FromInt(-1)));
-  GenericBinaryOpStub stub(Token::ADD, NO_OVERWRITE);
+  GenericBinaryOpStub stub(Token::ADD, NO_OVERWRITE, r1, r0);
   __ CallStub(&stub);
   __ bind(&done);
 

@@ -180,6 +180,19 @@ void MacroAssembler::Drop(int count, Condition cond) {
 }
 
 
+void MacroAssembler::Swap(Register reg1, Register reg2, Register scratch) {
+  if (scratch.is(no_reg)) {
+    eor(reg1, reg1, Operand(reg2));
+    eor(reg2, reg2, Operand(reg1));
+    eor(reg1, reg1, Operand(reg2));
+  } else {
+    mov(scratch, reg1);
+    mov(reg1, reg2);
+    mov(reg2, scratch);
+  }
+}
+
+
 void MacroAssembler::Call(Label* target) {
   bl(target);
 }
@@ -187,6 +200,13 @@ void MacroAssembler::Call(Label* target) {
 
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
   mov(dst, Operand(value));
+}
+
+
+void MacroAssembler::Move(Register dst, Register src) {
+  if (!dst.is(src)) {
+    mov(dst, src);
+  }
 }
 
 
@@ -1534,6 +1554,45 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
   and_(scratch, type, Operand(kFlatAsciiStringMask));
   cmp(scratch, Operand(kFlatAsciiStringTag));
   b(ne, failure);
+}
+
+
+void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
+  int frameAlignment = OS::ActivationFrameAlignment();
+  // Up to four simple arguments are passed in registers r0..r3.
+  int stack_passed_arguments = (num_arguments <= 4) ? 0 : num_arguments - 4;
+  if (frameAlignment > kPointerSize) {
+    // Make stack end at alignment and make room for num_arguments - 4 words
+    // and the original value of sp.
+    mov(scratch, sp);
+    sub(sp, sp, Operand((stack_passed_arguments + 1) * kPointerSize));
+    ASSERT(IsPowerOf2(frameAlignment));
+    and_(sp, sp, Operand(-frameAlignment));
+    str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
+  } else {
+    sub(sp, sp, Operand(stack_passed_arguments * kPointerSize));
+  }
+}
+
+
+void MacroAssembler::CallCFunction(ExternalReference function,
+                                   int num_arguments) {
+  mov(ip, Operand(function));
+  CallCFunction(ip, num_arguments);
+}
+
+
+void MacroAssembler::CallCFunction(Register function, int num_arguments) {
+  // Just call directly. The function called cannot cause a GC, or
+  // allow preemption, so the return address in the link register
+  // stays correct.
+  Call(function);
+  int stack_passed_arguments = (num_arguments <= 4) ? 0 : num_arguments - 4;
+  if (OS::ActivationFrameAlignment() > kPointerSize) {
+    ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
+  } else {
+    add(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));
+  }
 }
 
 

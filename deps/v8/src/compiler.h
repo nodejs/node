@@ -138,10 +138,7 @@ class CompilationInfo BASE_EMBEDDED {
   // There should always be a function literal, but it may be set after
   // construction (for lazy compilation).
   FunctionLiteral* function() { return function_; }
-  void set_function(FunctionLiteral* literal) {
-    ASSERT(function_ == NULL);
-    function_ = literal;
-  }
+  void set_function(FunctionLiteral* literal) { function_ = literal; }
 
   // Simple accessors.
   bool is_eval() { return is_eval_; }

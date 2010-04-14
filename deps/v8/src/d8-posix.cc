@@ -663,10 +663,28 @@ Handle<Value> Shell::SetEnvironment(const Arguments& args) {
 }
 
 
+Handle<Value> Shell::UnsetEnvironment(const Arguments& args) {
+  if (args.Length() != 1) {
+    const char* message = "unsetenv() takes one argument";
+    return ThrowException(String::New(message));
+  }
+  String::Utf8Value var(args[0]);
+  if (*var == NULL) {
+    const char* message =
+        "os.setenv(): String conversion of variable name failed.";
+    return ThrowException(String::New(message));
+  }
+  unsetenv(*var);
+  return v8::Undefined();
+}
+
+
 void Shell::AddOSMethods(Handle<ObjectTemplate> os_templ) {
   os_templ->Set(String::New("system"), FunctionTemplate::New(System));
   os_templ->Set(String::New("chdir"), FunctionTemplate::New(ChangeDirectory));
   os_templ->Set(String::New("setenv"), FunctionTemplate::New(SetEnvironment));
+  os_templ->Set(String::New("unsetenv"),
+                FunctionTemplate::New(UnsetEnvironment));
   os_templ->Set(String::New("umask"), FunctionTemplate::New(SetUMask));
   os_templ->Set(String::New("mkdirp"), FunctionTemplate::New(MakeDirectory));
   os_templ->Set(String::New("rmdir"), FunctionTemplate::New(RemoveDirectory));

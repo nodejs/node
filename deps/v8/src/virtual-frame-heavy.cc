@@ -295,4 +295,18 @@ void VirtualFrame::PrepareForCall(int spilled_args, int dropped_args) {
 }
 
 
+// If there are any registers referenced only by the frame, spill one.
+Register VirtualFrame::SpillAnyRegister() {
+  // Find the leftmost (ordered by register number) register whose only
+  // reference is in the frame.
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+    if (is_used(i) && cgen()->allocator()->count(i) == 1) {
+      SpillElementAt(register_location(i));
+      ASSERT(!cgen()->allocator()->is_used(i));
+      return RegisterAllocator::ToRegister(i);
+    }
+  }
+  return no_reg;
+}
+
 } }  // namespace v8::internal

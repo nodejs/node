@@ -366,12 +366,12 @@ ssize_t DecodeWrite(char *buf,
   Local<String> str = val->ToString();
 
   if (encoding == UTF8) {
-    str->WriteUtf8(buf, buflen);
+    str->WriteUtf8(buf, buflen, NULL, String::HINT_MANY_WRITES_EXPECTED);
     return buflen;
   }
 
   if (encoding == ASCII) {
-    str->WriteAscii(buf, 0, buflen);
+    str->WriteAscii(buf, 0, buflen, String::HINT_MANY_WRITES_EXPECTED);
     return buflen;
   }
 
@@ -381,8 +381,7 @@ ssize_t DecodeWrite(char *buf,
 
   uint16_t * twobytebuf = new uint16_t[buflen];
 
-  str->Flatten();
-  str->Write(twobytebuf, 0, buflen);
+  str->Write(twobytebuf, 0, buflen, String::HINT_MANY_WRITES_EXPECTED);
 
   for (size_t i = 0; i < buflen; i++) {
     unsigned char *b = reinterpret_cast<unsigned char*>(&twobytebuf[i]);

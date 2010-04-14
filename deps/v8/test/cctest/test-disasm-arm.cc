@@ -248,6 +248,16 @@ TEST(Type0) {
   COMPARE(mvn(r5, Operand(r4), SetCC, cc),
           "31f05004       mvnccs r5, r4");
 
+  // Miscellaneous instructions encoded as type 0.
+  COMPARE(blx(ip),
+          "e12fff3c       blx ip");
+  COMPARE(bkpt(0),
+          "e1200070       bkpt 0");
+  COMPARE(bkpt(0xffff),
+          "e12fff7f       bkpt 65535");
+  COMPARE(clz(r6, r7),
+          "e16f6f17       clz r6, r7");
+
   VERIFY_RUN();
 }
 

@@ -492,11 +492,8 @@ class CodeGenerator: public AstVisitor {
   // Generate code that computes a shortcutting logical operation.
   void GenerateLogicalBooleanOperation(BinaryOperation* node);
 
-  void GenericBinaryOperation(
-      Token::Value op,
-      StaticType* type,
-      OverwriteMode overwrite_mode,
-      bool no_negative_zero);
+  void GenericBinaryOperation(BinaryOperation* expr,
+                              OverwriteMode overwrite_mode);
 
   // If possible, combine two constant smi values using op to produce
   // a smi result, and push it on the virtual frame, all at compile time.
@@ -505,22 +502,19 @@ class CodeGenerator: public AstVisitor {
 
   // Emit code to perform a binary operation on a constant
   // smi and a likely smi.  Consumes the Result operand.
-  Result ConstantSmiBinaryOperation(Token::Value op,
+  Result ConstantSmiBinaryOperation(BinaryOperation* expr,
                                     Result* operand,
                                     Handle<Object> constant_operand,
-                                    StaticType* type,
                                     bool reversed,
-                                    OverwriteMode overwrite_mode,
-                                    bool no_negative_zero);
+                                    OverwriteMode overwrite_mode);
 
   // Emit code to perform a binary operation on two likely smis.
   // The code to handle smi arguments is produced inline.
   // Consumes the Results left and right.
-  Result LikelySmiBinaryOperation(Token::Value op,
+  Result LikelySmiBinaryOperation(BinaryOperation* expr,
                                   Result* left,
                                   Result* right,
-                                  OverwriteMode overwrite_mode,
-                                  bool no_negative_zero);
+                                  OverwriteMode overwrite_mode);
 
 
   // Emit code to perform a binary operation on two untagged int32 values.
@@ -620,7 +614,7 @@ class CodeGenerator: public AstVisitor {
   void GenerateGetFramePointer(ZoneList<Expression*>* args);
 
   // Fast support for Math.random().
-  void GenerateRandomPositiveSmi(ZoneList<Expression*>* args);
+  void GenerateRandomHeapNumber(ZoneList<Expression*>* args);
 
   // Fast support for StringAdd.
   void GenerateStringAdd(ZoneList<Expression*>* args);
@@ -634,8 +628,13 @@ class CodeGenerator: public AstVisitor {
   // Support for direct calls from JavaScript to native RegExp code.
   void GenerateRegExpExec(ZoneList<Expression*>* args);
 
+  void GenerateRegExpConstructResult(ZoneList<Expression*>* args);
+
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
+
+  // Fast call for custom callbacks.
+  void GenerateCallFunction(ZoneList<Expression*>* args);
 
   // Fast call to math functions.
   void GenerateMathPow(ZoneList<Expression*>* args);

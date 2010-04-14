@@ -124,6 +124,12 @@ BreakPoint.prototype.source_position = function() {
 };
 
 
+BreakPoint.prototype.updateSourcePosition = function(new_position, script) {
+  this.source_position_ = new_position;
+  // TODO(635): also update line and column.
+};
+
+
 BreakPoint.prototype.hit_count = function() {
   return this.hit_count_;
 };
@@ -327,7 +333,7 @@ ScriptBreakPoint.prototype.matchesScript = function(script) {
   if (this.type_ == Debug.ScriptBreakPointType.ScriptId) {
     return this.script_id_ == script.id;
   } else {  // this.type_ == Debug.ScriptBreakPointType.ScriptName
-    return this.script_name_ == script.name &&
+    return this.script_name_ == script.nameOrSourceURL() &&
            script.line_offset <= this.line_  &&
            this.line_ < script.line_offset + script.lineCount();
   }
@@ -472,6 +478,11 @@ Debug.disassemble = function(f) {
 Debug.disassembleConstructor = function(f) {
   if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
   return %DebugDisassembleConstructor(f);
+};
+
+Debug.ExecuteInDebugContext = function(f, without_debugger) {
+  if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
+  return %ExecuteInDebugContext(f, !!without_debugger);
 };
 
 Debug.sourcePosition = function(f) {
@@ -1274,7 +1285,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         // Response controls running state.
         this.running_ = response.running;
       }
-      response.running = this.running_; 
+      response.running = this.running_;
       return response.toJSONProtocol();
     } catch (e) {
       // Failed to generate response - return generic error.
@@ -1870,12 +1881,12 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
         return response.failed('Invalid types "' + request.arguments.types + '"');
       }
     }
-    
+
     if (!IS_UNDEFINED(request.arguments.includeSource)) {
       includeSource = %ToBoolean(request.arguments.includeSource);
       response.setOption('includeSource', includeSource);
     }
-    
+
     if (IS_ARRAY(request.arguments.ids)) {
       idsToInclude = {};
       var ids = request.arguments.ids;
@@ -1966,13 +1977,6 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
     return response.failed('Missing arguments');
   }
   var script_id = request.arguments.script_id;
-  var change_pos = parseInt(request.arguments.change_pos);
-  var change_len = parseInt(request.arguments.change_len);
-  var new_string = request.arguments.new_string;
-  if (!IS_STRING(new_string)) {
-    response.failed('Argument "new_string" is not a string value');
-    return;
-  }
   
   var scripts = %DebugGetLoadedScripts();
 
@@ -1986,16 +1990,38 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
     response.failed('Script not found');
     return;
   }
+
+  // A function that calls a proper signature of LiveEdit API.  
+  var invocation;
   
   var change_log = new Array();
+  
+  if (IS_STRING(request.arguments.new_source)) {
+    var new_source = request.arguments.new_source;
+    invocation = function() {
+      return Debug.LiveEdit.SetScriptSource(the_script, new_source, change_log);
+    }
+  } else {
+    var change_pos = parseInt(request.arguments.change_pos);
+    var change_len = parseInt(request.arguments.change_len);
+    var new_string = request.arguments.new_string;
+    if (!IS_STRING(new_string)) {
+      response.failed('Argument "new_string" is not a string value');
+      return;
+    }
+    invocation = function() {
+      return Debug.LiveEditChangeScript(the_script, change_pos, change_len,
+          new_string, change_log);
+    }
+  }
+
   try {
-    Debug.LiveEditChangeScript(the_script, change_pos, change_len, new_string,
-                               change_log);
+    invocation();
   } catch (e) {
     if (e instanceof Debug.LiveEditChangeScript.Failure) {
       // Let's treat it as a "success" so that body with change_log will be
       // sent back. "change_log" will have "failure" field set.
-      change_log.push( { failure: true } ); 
+      change_log.push( { failure: true, message: e.toString() } ); 
     } else {
       throw e;
     }
@@ -2076,7 +2102,7 @@ function ObjectToProtocolObject_(object, mirror_serializer) {
       }
     }
   }
-  
+
   return content;
 }
 
@@ -2099,7 +2125,7 @@ function ArrayToProtocolArray_(array, mirror_serializer) {
 
 
 /**
- * Convert a value to its debugger protocol representation. 
+ * Convert a value to its debugger protocol representation.
  * @param {*} value The value to format as protocol value.
  * @param {MirrorSerializer} mirror_serializer The serializer to use if any
  *     mirror objects are encountered.

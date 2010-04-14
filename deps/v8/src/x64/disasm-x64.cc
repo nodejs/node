@@ -997,18 +997,23 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     // 0x66 0x0F prefix.
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
-    const char* mnemonic = "?";
-    if (opcode == 0x57) {
-      mnemonic = "xorpd";
-    } else if (opcode == 0x2E) {
-      mnemonic = "comisd";
-    } else if (opcode == 0x2F) {
-      mnemonic = "ucomisd";
+    if (opcode == 0x6E) {
+      AppendToBuffer("movd %s,", NameOfXMMRegister(regop));
+      current += PrintRightOperand(current);
     } else {
-      UnimplementedInstruction();
+      const char* mnemonic = "?";
+      if (opcode == 0x57) {
+        mnemonic = "xorpd";
+      } else if (opcode == 0x2E) {
+        mnemonic = "comisd";
+      } else if (opcode == 0x2F) {
+        mnemonic = "ucomisd";
+      } else {
+        UnimplementedInstruction();
+      }
+      AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
     }
-    AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
-    current += PrintRightXMMOperand(current);
   } else if (group_1_prefix_ == 0xF2) {
     // Beginning of instructions with prefix 0xF2.
 
@@ -1039,13 +1044,21 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     } else {
       UnimplementedInstruction();
     }
-  } else if (opcode == 0x2C && group_1_prefix_ == 0xF3) {
-    // Instruction with prefix 0xF3.
-
-    // CVTTSS2SI: Convert scalar single-precision FP to dword integer.
-    // Assert that mod is not 3, so source is memory, not an XMM register.
-    ASSERT_NE(0xC0, *current & 0xC0);
-    current += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, current);
+  } else if (group_1_prefix_ == 0xF3) {
+    // Instructions with prefix 0xF3.
+    if (opcode == 0x2C) {
+      // CVTTSS2SI: Convert scalar single-precision FP to dword integer.
+      // Assert that mod is not 3, so source is memory, not an XMM register.
+      ASSERT_NE(0xC0, *current & 0xC0);
+      current += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, current);
+    } else if (opcode == 0x5A) {
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("cvtss2sd %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+    } else {
+      UnimplementedInstruction();
+    }
   } else if (opcode == 0x1F) {
     // NOP
     int mod, regop, rm;

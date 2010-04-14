@@ -1,4 +1,4 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
+# Copyright 2010 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -52,9 +52,10 @@ else:
     GCC_EXTRA_CCFLAGS = []
     GCC_DTOA_EXTRA_CCFLAGS = []
 
-ANDROID_FLAGS = ['-march=armv5te',
-                 '-mtune=xscale',
-                 '-msoft-float',
+ANDROID_FLAGS = ['-march=armv7-a',
+                 '-mtune=cortex-a8',
+                 '-mfloat-abi=softfp',
+                 '-mfpu=vfp',
                  '-fpic',
                  '-mthumb-interwork',
                  '-funwind-tables',
@@ -69,6 +70,8 @@ ANDROID_FLAGS = ['-march=armv5te',
                  '-fomit-frame-pointer',
                  '-fno-strict-aliasing',
                  '-finline-limit=64',
+                 '-DCAN_USE_VFP_INSTRUCTIONS=1',
+                 '-DCAN_USE_ARMV7_INSTRUCTIONS=1',
                  '-MD']
 
 ANDROID_INCLUDES = [ANDROID_TOP + '/bionic/libc/arch-arm/include',
@@ -102,8 +105,17 @@ LIBRARY_FLAGS = {
     'mode:debug': {
       'CPPDEFINES': ['V8_ENABLE_CHECKS']
     },
+    'vmstate:on': {
+      'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING'],
+    },
+    'protectheap:on': {
+      'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING', 'ENABLE_HEAP_PROTECTION'],
+    },
     'profilingsupport:on': {
-      'CPPDEFINES':   ['ENABLE_LOGGING_AND_PROFILING'],
+      'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING', 'ENABLE_LOGGING_AND_PROFILING'],
+    },
+    'cppprofilesprocessor:on': {
+      'CPPDEFINES':   ['ENABLE_CPP_PROFILES_PROCESSOR'],
     },
     'debuggersupport:on': {
       'CPPDEFINES':   ['ENABLE_DEBUGGER_SUPPORT'],
@@ -668,10 +680,25 @@ SIMPLE_OPTIONS = {
     'default': 'static',
     'help': 'the type of library to produce'
   },
+  'vmstate': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable VM state tracking'
+  },
+  'protectheap': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable heap protection'
+  },
   'profilingsupport': {
     'values': ['on', 'off'],
     'default': 'on',
     'help': 'enable profiling of JavaScript code'
+  },
+  'cppprofilesprocessor': {
+    'values': ['on', 'off'],
+    'default': 'on',
+    'help': 'enable C++ profiles processor'
   },
   'debuggersupport': {
     'values': ['on', 'off'],

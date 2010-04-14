@@ -235,11 +235,11 @@ class CodeGeneratorPatcher {
   CodeGeneratorPatcher() {
     CodeGenerator::InlineRuntimeLUT genGetFramePointer =
         {&CodeGenerator::GenerateGetFramePointer, "_GetFramePointer", 0};
-    // _RandomPositiveSmi is not used in our tests. The one we replace need to
-    // have the same number of arguments as the one we put in, which is zero in
-    // this case.
+    // _RandomHeapNumber is just used as a dummy function that has zero
+    // arguments, the same as the _GetFramePointer function we actually patch
+    // in.
     bool result = CodeGenerator::PatchInlineRuntimeEntry(
-        NewString("_RandomPositiveSmi"),
+        NewString("_RandomHeapNumber"),
         genGetFramePointer, &oldInlineEntry);
     CHECK(result);
   }

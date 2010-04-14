@@ -26,232 +26,87 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "flow-graph.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
 
-void FlowGraph::AppendInstruction(AstNode* instruction) {
-  // Add a (non-null) AstNode to the end of the graph fragment.
-  ASSERT(instruction != NULL);
-  if (exit()->IsExitNode()) return;
-  if (!exit()->IsBlockNode()) AppendNode(new BlockNode());
-  BlockNode::cast(exit())->AddInstruction(instruction);
-}
-
-
-void FlowGraph::AppendNode(Node* node) {
-  // Add a node to the end of the graph.  An empty block is added to
-  // maintain edge-split form (that no join nodes or exit nodes as
-  // successors to branch nodes).
-  ASSERT(node != NULL);
-  if (exit()->IsExitNode()) return;
-  if (exit()->IsBranchNode() && (node->IsJoinNode() || node->IsExitNode())) {
-    AppendNode(new BlockNode());
-  }
-  exit()->AddSuccessor(node);
-  node->AddPredecessor(exit());
-  exit_ = node;
-}
-
-
-void FlowGraph::AppendGraph(FlowGraph* graph) {
-  // Add a flow graph fragment to the end of this one.  An empty block is
-  // added to maintain edge-split form (that no join nodes or exit nodes as
-  // successors to branch nodes).
-  ASSERT(graph != NULL);
-  if (exit()->IsExitNode()) return;
-  Node* node = graph->entry();
-  if (exit()->IsBranchNode() && (node->IsJoinNode() || node->IsExitNode())) {
-    AppendNode(new BlockNode());
-  }
-  exit()->AddSuccessor(node);
-  node->AddPredecessor(exit());
-  exit_ = graph->exit();
-}
-
-
-void FlowGraph::Split(BranchNode* branch,
-                      FlowGraph* left,
-                      FlowGraph* right,
-                      JoinNode* join) {
-  // Add the branch node, left flowgraph, join node.
-  AppendNode(branch);
-  AppendGraph(left);
-  AppendNode(join);
-
-  // Splice in the right flowgraph.
-  right->AppendNode(join);
-  branch->AddSuccessor(right->entry());
-  right->entry()->AddPredecessor(branch);
-}
-
-
-void FlowGraph::Loop(JoinNode* join,
-                     FlowGraph* condition,
-                     BranchNode* branch,
-                     FlowGraph* body) {
-  // Add the join, condition and branch.  Add join's predecessors in
-  // left-to-right order.
-  AppendNode(join);
-  body->AppendNode(join);
-  AppendGraph(condition);
-  AppendNode(branch);
-
-  // Splice in the body flowgraph.
-  branch->AddSuccessor(body->entry());
-  body->entry()->AddPredecessor(branch);
-}
-
-
-void ExitNode::Traverse(bool mark,
-                        ZoneList<Node*>* preorder,
-                        ZoneList<Node*>* postorder) {
+void BasicBlock::BuildTraversalOrder(ZoneList<BasicBlock*>* preorder,
+                                     ZoneList<BasicBlock*>* postorder,
+                                     bool mark) {
+  if (mark_ == mark) return;
+  mark_ = mark;
   preorder->Add(this);
-  postorder->Add(this);
-}
-
-
-void BlockNode::Traverse(bool mark,
-                         ZoneList<Node*>* preorder,
-                         ZoneList<Node*>* postorder) {
-  ASSERT(successor_ != NULL);
-  preorder->Add(this);
-  if (!successor_->IsMarkedWith(mark)) {
-    successor_->MarkWith(mark);
-    successor_->Traverse(mark, preorder, postorder);
+  if (right_successor_ != NULL) {
+    right_successor_->BuildTraversalOrder(preorder, postorder, mark);
+  }
+  if (left_successor_ != NULL) {
+    left_successor_->BuildTraversalOrder(preorder, postorder, mark);
   }
   postorder->Add(this);
 }
 
 
-void BranchNode::Traverse(bool mark,
-                          ZoneList<Node*>* preorder,
-                          ZoneList<Node*>* postorder) {
-  ASSERT(successor0_ != NULL && successor1_ != NULL);
-  preorder->Add(this);
-  if (!successor1_->IsMarkedWith(mark)) {
-    successor1_->MarkWith(mark);
-    successor1_->Traverse(mark, preorder, postorder);
-  }
-  if (!successor0_->IsMarkedWith(mark)) {
-    successor0_->MarkWith(mark);
-    successor0_->Traverse(mark, preorder, postorder);
-  }
-  postorder->Add(this);
-}
+FlowGraph* FlowGraphBuilder::Build(FunctionLiteral* lit) {
+  // Create new entry and exit nodes.  These will not change during
+  // construction.
+  entry_ = new BasicBlock(NULL);
+  exit_ = new BasicBlock(NULL);
+  // Begin accumulating instructions in the entry block.
+  current_ = entry_;
 
-
-void JoinNode::Traverse(bool mark,
-                        ZoneList<Node*>* preorder,
-                        ZoneList<Node*>* postorder) {
-  ASSERT(successor_ != NULL);
-  preorder->Add(this);
-  if (!successor_->IsMarkedWith(mark)) {
-    successor_->MarkWith(mark);
-    successor_->Traverse(mark, preorder, postorder);
-  }
-  postorder->Add(this);
-}
-
-
-void FlowGraphBuilder::Build(FunctionLiteral* lit) {
-  global_exit_ = new ExitNode();
+  VisitDeclarations(lit->scope()->declarations());
   VisitStatements(lit->body());
+  // In the event of stack overflow or failure to handle a syntactic
+  // construct, return an invalid flow graph.
+  if (HasStackOverflow()) return new FlowGraph(NULL, NULL);
 
-  if (HasStackOverflow()) return;
-
-  // The graph can end with a branch node (if the function ended with a
-  // loop).  Maintain edge-split form (no join nodes or exit nodes as
-  // successors to branch nodes).
-  if (graph_.exit()->IsBranchNode()) graph_.AppendNode(new BlockNode());
-  graph_.AppendNode(global_exit_);
-
-  // Build preorder and postorder traversal orders.  All the nodes in
-  // the graph have the same mark flag.  For the traversal, use that
-  // flag's negation.  Traversal will flip all the flags.
-  bool mark = graph_.entry()->IsMarkedWith(false);
-  graph_.entry()->MarkWith(mark);
-  graph_.entry()->Traverse(mark, &preorder_, &postorder_);
-}
-
-
-// This function peels off one iteration of a for-loop. The return value
-// is either a block statement containing the peeled loop or NULL in case
-// there is a stack overflow.
-static Statement* PeelForLoop(ForStatement* stmt) {
-  // Mark this for-statement as processed.
-  stmt->set_peel_this_loop(false);
-
-  // Create new block containing the init statement of the for-loop and
-  // an if-statement containing the peeled iteration and the original
-  // loop without the init-statement.
-  Block* block = new Block(NULL, 2, false);
-  if (stmt->init() != NULL) {
-    Statement* init = stmt->init();
-    // The init statement gets the statement position of the for-loop
-    // to make debugging of peeled loops possible.
-    init->set_statement_pos(stmt->statement_pos());
-    block->AddStatement(init);
-  }
-
-  // Copy the condition.
-  CopyAstVisitor copy_visitor;
-  Expression* cond_copy = stmt->cond() != NULL
-      ? copy_visitor.DeepCopyExpr(stmt->cond())
-      : new Literal(Factory::true_value());
-  if (copy_visitor.HasStackOverflow()) return NULL;
-
-  // Construct a block with the peeled body and the rest of the for-loop.
-  Statement* body_copy = copy_visitor.DeepCopyStmt(stmt->body());
-  if (copy_visitor.HasStackOverflow()) return NULL;
-
-  Statement* next_copy = stmt->next() != NULL
-      ? copy_visitor.DeepCopyStmt(stmt->next())
-      : new EmptyStatement();
-  if (copy_visitor.HasStackOverflow()) return NULL;
-
-  Block* peeled_body = new Block(NULL, 3, false);
-  peeled_body->AddStatement(body_copy);
-  peeled_body->AddStatement(next_copy);
-  peeled_body->AddStatement(stmt);
-
-  // Remove the duplicated init statement from the for-statement.
-  stmt->set_init(NULL);
-
-  // Create new test at the top and add it to the newly created block.
-  IfStatement* test = new IfStatement(cond_copy,
-                                      peeled_body,
-                                      new EmptyStatement());
-  block->AddStatement(test);
-  return block;
-}
-
-
-void FlowGraphBuilder::VisitStatements(ZoneList<Statement*>* stmts) {
-  for (int i = 0, len = stmts->length(); i < len; i++) {
-    stmts->at(i) = ProcessStatement(stmts->at(i));
-  }
-}
-
-
-Statement* FlowGraphBuilder::ProcessStatement(Statement* stmt) {
-  if (FLAG_loop_peeling &&
-      stmt->AsForStatement() != NULL &&
-      stmt->AsForStatement()->peel_this_loop()) {
-    Statement* tmp_stmt = PeelForLoop(stmt->AsForStatement());
-    if (tmp_stmt == NULL) {
-      SetStackOverflow();
-    } else {
-      stmt = tmp_stmt;
+  // If current is not the exit, add a link to the exit.
+  if (current_ != exit_) {
+    // If current already has a successor (i.e., will be a branch node) and
+    // if the exit already has a predecessor, insert an empty block to
+    // maintain edge split form.
+    if (current_->HasSuccessor() && exit_->HasPredecessor()) {
+      current_ = new BasicBlock(current_);
     }
+    Literal* undefined = new Literal(Factory::undefined_value());
+    current_->AddInstruction(new ReturnStatement(undefined));
+    exit_->AddPredecessor(current_);
   }
-  Visit(stmt);
-  return stmt;
+
+  FlowGraph* graph = new FlowGraph(entry_, exit_);
+  bool mark = !entry_->GetMark();
+  entry_->BuildTraversalOrder(graph->preorder(), graph->postorder(), mark);
+
+#ifdef DEBUG
+  // Number the nodes in reverse postorder.
+  int n = 0;
+  for (int i = graph->postorder()->length() - 1; i >= 0; --i) {
+    graph->postorder()->at(i)->set_number(n++);
+  }
+#endif
+
+  return graph;
 }
 
 
 void FlowGraphBuilder::VisitDeclaration(Declaration* decl) {
-  UNREACHABLE();
+  Variable* var = decl->proxy()->AsVariable();
+  Slot* slot = var->slot();
+  // We allow only declarations that do not require code generation.
+  // The following all require code generation: global variables and
+  // functions, variables with slot type LOOKUP, declarations with
+  // mode CONST, and functions.
+
+  if (var->is_global() ||
+      (slot != NULL && slot->type() == Slot::LOOKUP) ||
+      decl->mode() == Variable::CONST ||
+      decl->fun() != NULL) {
+    // Here and in the rest of the flow graph builder we indicate an
+    // unsupported syntactic construct by setting the stack overflow
+    // flag on the visitor.  This causes bailout of the visitor.
+    SetStackOverflow();
+  }
 }
 
 
@@ -271,21 +126,24 @@ void FlowGraphBuilder::VisitEmptyStatement(EmptyStatement* stmt) {
 
 
 void FlowGraphBuilder::VisitIfStatement(IfStatement* stmt) {
+  // Build a diamond in the flow graph.  First accumulate the instructions
+  // of the test in the current basic block.
   Visit(stmt->condition());
 
-  BranchNode* branch = new BranchNode();
-  FlowGraph original = graph_;
-  graph_ = FlowGraph::Empty();
-  stmt->set_then_statement(ProcessStatement(stmt->then_statement()));
+  // Remember the branch node and accumulate the true branch as its left
+  // successor.  This relies on the successors being added left to right.
+  BasicBlock* branch = current_;
+  current_ = new BasicBlock(branch);
+  Visit(stmt->then_statement());
 
-  FlowGraph left = graph_;
-  graph_ = FlowGraph::Empty();
-  stmt->set_else_statement(ProcessStatement(stmt->else_statement()));
+  // Construct a join node and then accumulate the false branch in a fresh
+  // successor of the branch node.
+  BasicBlock* join = new BasicBlock(current_);
+  current_ = new BasicBlock(branch);
+  Visit(stmt->else_statement());
+  join->AddPredecessor(current_);
 
-  if (HasStackOverflow()) return;
-  JoinNode* join = new JoinNode();
-  original.Split(branch, &left, &graph_, join);
-  graph_ = original;
+  current_ = join;
 }
 
 
@@ -330,23 +188,26 @@ void FlowGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void FlowGraphBuilder::VisitForStatement(ForStatement* stmt) {
-  if (stmt->init() != NULL) stmt->set_init(ProcessStatement(stmt->init()));
+  // Build a loop in the flow graph.  First accumulate the instructions of
+  // the initializer in the current basic block.
+  if (stmt->init() != NULL) Visit(stmt->init());
 
-  JoinNode* join = new JoinNode();
-  FlowGraph original = graph_;
-  graph_ = FlowGraph::Empty();
+  // Create a new basic block for the test.  This will be the join node.
+  BasicBlock* join = new BasicBlock(current_);
+  current_ = join;
   if (stmt->cond() != NULL) Visit(stmt->cond());
 
-  BranchNode* branch = new BranchNode();
-  FlowGraph condition = graph_;
-  graph_ = FlowGraph::Empty();
-  stmt->set_body(ProcessStatement(stmt->body()));
+  // The current node is the branch node.  Create a new basic block to begin
+  // the body.
+  BasicBlock* branch = current_;
+  current_ = new BasicBlock(branch);
+  Visit(stmt->body());
+  if (stmt->next() != NULL) Visit(stmt->next());
 
-  if (stmt->next() != NULL) stmt->set_next(ProcessStatement(stmt->next()));
-
-  if (HasStackOverflow()) return;
-  original.Loop(join, &condition, branch, &graph_);
-  graph_ = original;
+  // Add the backward edge from the end of the body and continue with the
+  // false arm of the branch.
+  join->AddPredecessor(current_);
+  current_ = new BasicBlock(branch);
 }
 
 
@@ -387,17 +248,18 @@ void FlowGraphBuilder::VisitConditional(Conditional* expr) {
 
 
 void FlowGraphBuilder::VisitSlot(Slot* expr) {
+  // Slots do not appear in the AST.
   UNREACHABLE();
 }
 
 
 void FlowGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
-  graph_.AppendInstruction(expr);
+  current_->AddInstruction(expr);
 }
 
 
 void FlowGraphBuilder::VisitLiteral(Literal* expr) {
-  graph_.AppendInstruction(expr);
+  current_->AddInstruction(expr);
 }
 
 
@@ -422,29 +284,30 @@ void FlowGraphBuilder::VisitCatchExtensionObject(CatchExtensionObject* expr) {
 
 
 void FlowGraphBuilder::VisitAssignment(Assignment* expr) {
+  // There are three basic kinds of assignment: variable assignments,
+  // property assignments, and invalid left-hand sides (which are translated
+  // to "throw ReferenceError" by the parser).
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   Property* prop = expr->target()->AsProperty();
-  // Left-hand side can be a variable or property (or reference error) but
-  // not both.
   ASSERT(var == NULL || prop == NULL);
   if (var != NULL) {
-    if (expr->is_compound()) Visit(expr->target());
-    Visit(expr->value());
-    if (var->IsStackAllocated()) {
-      // The first definition in the body is numbered n, where n is the
-      // number of parameters and stack-allocated locals.
-      expr->set_num(body_definitions_.length() + variable_count_);
-      body_definitions_.Add(expr);
+    if (expr->is_compound() && !expr->target()->IsTrivial()) {
+      Visit(expr->target());
     }
+    if (!expr->value()->IsTrivial()) Visit(expr->value());
+    current_->AddInstruction(expr);
 
   } else if (prop != NULL) {
-    Visit(prop->obj());
-    if (!prop->key()->IsPropertyName()) Visit(prop->key());
-    Visit(expr->value());
-  }
+    if (!prop->obj()->IsTrivial()) Visit(prop->obj());
+    if (!prop->key()->IsPropertyName() && !prop->key()->IsTrivial()) {
+      Visit(prop->key());
+    }
+    if (!expr->value()->IsTrivial()) Visit(expr->value());
+    current_->AddInstruction(expr);
 
-  if (HasStackOverflow()) return;
-  graph_.AppendInstruction(expr);
+  } else {
+    Visit(expr->target());
+  }
 }
 
 
@@ -454,23 +317,18 @@ void FlowGraphBuilder::VisitThrow(Throw* expr) {
 
 
 void FlowGraphBuilder::VisitProperty(Property* expr) {
-  Visit(expr->obj());
-  if (!expr->key()->IsPropertyName()) Visit(expr->key());
-
-  if (HasStackOverflow()) return;
-  graph_.AppendInstruction(expr);
+  if (!expr->obj()->IsTrivial()) Visit(expr->obj());
+  if (!expr->key()->IsPropertyName() && !expr->key()->IsTrivial()) {
+    Visit(expr->key());
+  }
+  current_->AddInstruction(expr);
 }
 
 
 void FlowGraphBuilder::VisitCall(Call* expr) {
   Visit(expr->expression());
-  ZoneList<Expression*>* arguments = expr->arguments();
-  for (int i = 0, len = arguments->length(); i < len; i++) {
-    Visit(arguments->at(i));
-  }
-
-  if (HasStackOverflow()) return;
-  graph_.AppendInstruction(expr);
+  VisitExpressions(expr->arguments());
+  current_->AddInstruction(expr);
 }
 
 
@@ -497,8 +355,7 @@ void FlowGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::ADD:
     case Token::SUB:
       Visit(expr->expression());
-      if (HasStackOverflow()) return;
-      graph_.AppendInstruction(expr);
+      current_->AddInstruction(expr);
       break;
 
     default:
@@ -509,16 +366,7 @@ void FlowGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
 
 void FlowGraphBuilder::VisitCountOperation(CountOperation* expr) {
   Visit(expr->expression());
-  Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
-  if (var != NULL && var->IsStackAllocated()) {
-    // The first definition in the body is numbered n, where n is the number
-    // of parameters and stack-allocated locals.
-    expr->set_num(body_definitions_.length() + variable_count_);
-    body_definitions_.Add(expr);
-  }
-
-  if (HasStackOverflow()) return;
-  graph_.AppendInstruction(expr);
+  current_->AddInstruction(expr);
 }
 
 
@@ -534,17 +382,16 @@ void FlowGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::BIT_XOR:
     case Token::BIT_AND:
     case Token::SHL:
+    case Token::SAR:
     case Token::SHR:
     case Token::ADD:
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
     case Token::MOD:
-    case Token::SAR:
-      Visit(expr->left());
-      Visit(expr->right());
-      if (HasStackOverflow()) return;
-      graph_.AppendInstruction(expr);
+      if (!expr->left()->IsTrivial()) Visit(expr->left());
+      if (!expr->right()->IsTrivial()) Visit(expr->right());
+      current_->AddInstruction(expr);
       break;
 
     default:
@@ -568,10 +415,9 @@ void FlowGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     case Token::GT:
     case Token::LTE:
     case Token::GTE:
-      Visit(expr->left());
-      Visit(expr->right());
-      if (HasStackOverflow()) return;
-      graph_.AppendInstruction(expr);
+      if (!expr->left()->IsTrivial()) Visit(expr->left());
+      if (!expr->right()->IsTrivial()) Visit(expr->right());
+      current_->AddInstruction(expr);
       break;
 
     default:
@@ -583,6 +429,335 @@ void FlowGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
 void FlowGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   SetStackOverflow();
 }
+
+
+#ifdef DEBUG
+
+// Print a textual representation of an instruction in a flow graph.
+class InstructionPrinter: public AstVisitor {
+ public:
+  InstructionPrinter() {}
+
+ private:
+  // Overridden from the base class.
+  virtual void VisitExpressions(ZoneList<Expression*>* exprs);
+
+  // AST node visit functions.
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+  DISALLOW_COPY_AND_ASSIGN(InstructionPrinter);
+};
+
+
+static void PrintSubexpression(Expression* expr) {
+  if (!expr->IsTrivial()) {
+    PrintF("@%d", expr->num());
+  } else if (expr->AsLiteral() != NULL) {
+    expr->AsLiteral()->handle()->Print();
+  } else if (expr->AsVariableProxy() != NULL) {
+    PrintF("%s", *expr->AsVariableProxy()->name()->ToCString());
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
+void InstructionPrinter::VisitExpressions(ZoneList<Expression*>* exprs) {
+  for (int i = 0; i < exprs->length(); ++i) {
+    if (i != 0) PrintF(", ");
+    PrintF("@%d", exprs->at(i)->num());
+  }
+}
+
+
+// We only define printing functions for the node types that can occur as
+// instructions in a flow graph.  The rest are unreachable.
+void InstructionPrinter::VisitDeclaration(Declaration* decl) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitBlock(Block* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitExpressionStatement(ExpressionStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitEmptyStatement(EmptyStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitIfStatement(IfStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitContinueStatement(ContinueStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitBreakStatement(BreakStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitReturnStatement(ReturnStatement* stmt) {
+  PrintF("return ");
+  PrintSubexpression(stmt->expression());
+}
+
+
+void InstructionPrinter::VisitWithEnterStatement(WithEnterStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitWithExitStatement(WithExitStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitSwitchStatement(SwitchStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitDoWhileStatement(DoWhileStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitWhileStatement(WhileStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitForStatement(ForStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitForInStatement(ForInStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitTryCatchStatement(TryCatchStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitDebuggerStatement(DebuggerStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitFunctionLiteral(FunctionLiteral* expr) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitConditional(Conditional* expr) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitSlot(Slot* expr) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitVariableProxy(VariableProxy* expr) {
+  Variable* var = expr->AsVariable();
+  if (var != NULL) {
+    PrintF("%s", *var->name()->ToCString());
+  } else {
+    ASSERT(expr->AsProperty() != NULL);
+    Visit(expr->AsProperty());
+  }
+}
+
+
+void InstructionPrinter::VisitLiteral(Literal* expr) {
+  expr->handle()->Print();
+}
+
+
+void InstructionPrinter::VisitRegExpLiteral(RegExpLiteral* expr) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitObjectLiteral(ObjectLiteral* expr) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitArrayLiteral(ArrayLiteral* expr) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitCatchExtensionObject(
+    CatchExtensionObject* expr) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitAssignment(Assignment* expr) {
+  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+  Property* prop = expr->target()->AsProperty();
+
+  // Print the left-hand side.
+  Visit(expr->target());
+  if (var == NULL && prop == NULL) return;  // Throw reference error.
+  PrintF(" = ");
+  // For compound assignments, print the left-hand side again and the
+  // corresponding binary operator.
+  if (expr->is_compound()) {
+    PrintSubexpression(expr->target());
+    PrintF(" %s ", Token::String(expr->binary_op()));
+  }
+
+  // Print the right-hand side.
+  PrintSubexpression(expr->value());
+}
+
+
+void InstructionPrinter::VisitThrow(Throw* expr) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitProperty(Property* expr) {
+  PrintSubexpression(expr->obj());
+  if (expr->key()->IsPropertyName()) {
+    PrintF(".");
+    ASSERT(expr->key()->AsLiteral() != NULL);
+    expr->key()->AsLiteral()->handle()->Print();
+  } else {
+    PrintF("[");
+    PrintSubexpression(expr->key());
+    PrintF("]");
+  }
+}
+
+
+void InstructionPrinter::VisitCall(Call* expr) {
+  PrintF("@%d(", expr->expression()->num());
+  VisitExpressions(expr->arguments());
+  PrintF(")");
+}
+
+
+void InstructionPrinter::VisitCallNew(CallNew* expr) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitCallRuntime(CallRuntime* expr) {
+  UNREACHABLE();
+}
+
+
+void InstructionPrinter::VisitUnaryOperation(UnaryOperation* expr) {
+  PrintF("%s(@%d)", Token::String(expr->op()), expr->expression()->num());
+}
+
+
+void InstructionPrinter::VisitCountOperation(CountOperation* expr) {
+  if (expr->is_prefix()) {
+    PrintF("%s@%d", Token::String(expr->op()), expr->expression()->num());
+  } else {
+    PrintF("@%d%s", expr->expression()->num(), Token::String(expr->op()));
+  }
+}
+
+
+void InstructionPrinter::VisitBinaryOperation(BinaryOperation* expr) {
+  PrintSubexpression(expr->left());
+  PrintF(" %s ", Token::String(expr->op()));
+  PrintSubexpression(expr->right());
+}
+
+
+void InstructionPrinter::VisitCompareOperation(CompareOperation* expr) {
+  PrintSubexpression(expr->left());
+  PrintF(" %s ", Token::String(expr->op()));
+  PrintSubexpression(expr->right());
+}
+
+
+void InstructionPrinter::VisitThisFunction(ThisFunction* expr) {
+  UNREACHABLE();
+}
+
+
+int BasicBlock::PrintAsText(int instruction_number) {
+  // Print a label for all blocks except the entry.
+  if (HasPredecessor()) {
+    PrintF("L%d:", number());
+  }
+
+  // Number and print the instructions.  Since AST child nodes are visited
+  // before their parents, the parent nodes can refer to them by number.
+  InstructionPrinter printer;
+  for (int i = 0; i < instructions_.length(); ++i) {
+    PrintF("\n%d ", instruction_number);
+    instructions_[i]->set_num(instruction_number++);
+    instructions_[i]->Accept(&printer);
+  }
+
+  // If this is the exit, print "exit".  If there is a single successor,
+  // print "goto" successor on a separate line.  If there are two
+  // successors, print "goto" successor on the same line as the last
+  // instruction in the block.  There is a blank line between blocks (and
+  // after the last one).
+  if (left_successor_ == NULL) {
+    PrintF("\nexit\n\n");
+  } else if (right_successor_ == NULL) {
+    PrintF("\ngoto L%d\n\n", left_successor_->number());
+  } else {
+    PrintF(", goto (L%d, L%d)\n\n",
+           left_successor_->number(),
+           right_successor_->number());
+  }
+
+  return instruction_number;
+}
+
+
+void FlowGraph::PrintAsText(Handle<String> name) {
+  PrintF("\n==== name = \"%s\" ====\n", *name->ToCString());
+  // Print nodes in reverse postorder.  Note that AST node numbers are used
+  // during printing of instructions and thus their current values are
+  // destroyed.
+  int number = 0;
+  for (int i = postorder_.length() - 1; i >= 0; --i) {
+    number = postorder_[i]->PrintAsText(number);
+  }
+}
+
+#endif  // DEBUG
 
 
 } }  // namespace v8::internal

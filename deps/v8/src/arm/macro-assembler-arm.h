@@ -70,8 +70,15 @@ class MacroAssembler: public Assembler {
   // from the stack, clobbering only the sp register.
   void Drop(int count, Condition cond = al);
 
+
+  // Swap two registers.  If the scratch register is omitted then a slightly
+  // less efficient form using xor instead of mov is emitted.
+  void Swap(Register reg1, Register reg2, Register scratch = no_reg);
+
   void Call(Label* target);
   void Move(Register dst, Handle<Object> value);
+  // May do nothing if the registers are identical.
+  void Move(Register dst, Register src);
   // Jumps to the label at the index given by the Smi in "index".
   void SmiJumpTable(Register index, Vector<Label*> targets);
   // Load an object from the root table.
@@ -365,6 +372,24 @@ class MacroAssembler: public Assembler {
   void TailCallRuntime(Runtime::FunctionId fid,
                        int num_arguments,
                        int result_size);
+
+  // Before calling a C-function from generated code, align arguments on stack.
+  // After aligning the frame, non-register arguments must be stored in
+  // sp[0], sp[4], etc., not pushed. The argument count assumes all arguments
+  // are word sized.
+  // Some compilers/platforms require the stack to be aligned when calling
+  // C++ code.
+  // Needs a scratch register to do some arithmetic. This register will be
+  // trashed.
+  void PrepareCallCFunction(int num_arguments, Register scratch);
+
+  // Calls a C function and cleans up the space for arguments allocated
+  // by PrepareCallCFunction. The called function is not allowed to trigger a
+  // garbage collection, since that might move the code and invalidate the
+  // return address (unless this is somehow accounted for by the called
+  // function).
+  void CallCFunction(ExternalReference function, int num_arguments);
+  void CallCFunction(Register function, int num_arguments);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin);

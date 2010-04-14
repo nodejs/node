@@ -391,6 +391,8 @@ DEFINE_bool(prof_auto, true,
 DEFINE_bool(prof_lazy, false,
             "Used with --prof, only does sampling and logging"
             " when profiler is active (implies --noprof_auto).")
+DEFINE_bool(prof_browser_mode, true,
+            "Used with --prof, turns on browser-compatible mode for profiling.")
 DEFINE_bool(log_regexp, false, "Log regular expression execution.")
 DEFINE_bool(sliding_state_window, false,
             "Update sliding state window counters.")
