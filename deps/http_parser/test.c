@@ -52,6 +52,8 @@ struct message {
   char headers [MAX_HEADERS][2][MAX_ELEMENT_SIZE];
   int should_keep_alive;
 
+  int upgrade;
+
   unsigned short http_major;
   unsigned short http_minor;
 
@@ -453,6 +455,40 @@ const struct message requests[] =
   ,.request_url= "/test"
   ,.num_headers= 0
   ,.headers= { }
+  ,.body= ""
+  }
+
+#define UPGRADE_REQUEST 16
+, {.name = "upgrade request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET /demo HTTP/1.1\r\n"
+         "Host: example.com\r\n"
+         "Connection: Upgrade\r\n"
+         "Sec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\n"
+         "Sec-WebSocket-Protocol: sample\r\n"
+         "Upgrade: WebSocket\r\n"
+         "Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n"
+         "Origin: http://example.com\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/demo"
+  ,.request_url= "/demo"
+  ,.num_headers= 7
+  ,.upgrade=1
+  ,.headers= { { "Host", "example.com" }
+             , { "Connection", "Upgrade" }
+             , { "Sec-WebSocket-Key2", "12998 5 Y3 1  .P00" }
+             , { "Sec-WebSocket-Protocol", "sample" }
+             , { "Upgrade", "WebSocket" }
+             , { "Sec-WebSocket-Key1", "4 @1  46546xW%0l 1 5" }
+             , { "Origin", "http://example.com" }
+             }
   ,.body= ""
   }
 
@@ -965,16 +1001,24 @@ test_message (const struct message *message)
   size_t read;
 
   read = parse(message->raw, strlen(message->raw));
+
+  if (message->upgrade && parser->upgrade) goto test;
+
   if (read != strlen(message->raw)) {
     print_error(message->raw, read);
     exit(1);
   }
 
   read = parse(NULL, 0);
+
+  if (message->upgrade && parser->upgrade) goto test;
+
   if (read != 0) {
     print_error(message->raw, read);
     exit(1);
   }
+
+test:
 
   if (num_messages != 1) {
     printf("\n*** num_messages != 1 after testing '%s' ***\n\n", message->name);
@@ -1009,6 +1053,13 @@ out:
 void
 test_multiple3 (const struct message *r1, const struct message *r2, const struct message *r3)
 {
+  int message_count = 1;
+  if (!r1->upgrade) {
+    message_count++;
+    if (!r2->upgrade) message_count++;
+  }
+  int has_upgrade = (message_count < 3 || r3->upgrade);
+
   char total[ strlen(r1->raw)
             + strlen(r2->raw)
             + strlen(r3->raw)
@@ -1025,25 +1076,37 @@ test_multiple3 (const struct message *r1, const struct message *r2, const struct
   size_t read;
 
   read = parse(total, strlen(total));
+
+  if (has_upgrade && parser->upgrade) goto test;
+
   if (read != strlen(total)) {
     print_error(total, read);
     exit(1);
   }
 
   read = parse(NULL, 0);
+
+  if (has_upgrade && parser->upgrade) goto test;
+
   if (read != 0) {
     print_error(total, read);
     exit(1);
   }
 
-  if (3 != num_messages) {
+test:
+
+  if (message_count != num_messages) {
     fprintf(stderr, "\n\n*** Parser didn't see 3 messages only %d *** \n", num_messages);
     exit(1);
   }
 
   if (!message_eq(0, r1)) exit(1);
-  if (!message_eq(1, r2)) exit(1);
-  if (!message_eq(2, r3)) exit(1);
+  if (message_count > 1) {
+    if (!message_eq(1, r2)) exit(1);
+    if (message_count > 2) {
+      if (!message_eq(2, r3)) exit(1);
+    }
+  }
 
   parser_free();
 }
