@@ -907,7 +907,7 @@ Example:
     grep.stdin.end();
 
 
-### child_process.exec(command, callback)
+### child_process.exec(command, [options, ] callback)
 
 High-level way to execute a command as a child process, buffer the
 output, and return it all in a callback.
@@ -927,6 +927,20 @@ output, and return it all in a callback.
 The callback gets the arguments `(error, stdout, stderr)`. On success, `error`
 will be `null`.  On error, `error` will be an instance of `Error` and `err.code`
 will be the exit code of the child process.
+
+There is a second optional argument to specify several options. The default options are
+
+    { encoding: 'utf8'
+    , timeout: 0
+    , maxBuffer: 200*1024
+    , killSignal: 'SIGKILL'
+    }
+
+If `timeout` is greater than 0, then it will kill the child process
+if it runs longer than `timeout` milliseconds. The child process is killed with
+`killSignal` (default: `'SIGKILL'`). `maxBuffer` specifies the largest
+amount of data allowed on stdout or stderr - if this value is exceeded then
+the child process is killed.
 
 
 
