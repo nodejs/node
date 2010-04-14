@@ -163,7 +163,7 @@ Buffer::Buffer(Buffer *parent, size_t start, size_t end) : ObjectWrap() {
   blob_ref(blob_);
 
   assert(start <= end);
-  off_ = start;
+  off_ = parent->off_ + start;
   length_ = end - start;
   assert(length_ <= parent->length_);
 

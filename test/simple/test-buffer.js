@@ -95,3 +95,14 @@ var slice = buffer.toString('utf8', 0, size);
 assert.equal(slice, testValue);
 
 
+// Test triple  slice
+var a = new Buffer(8);
+for (var i = 0; i < 8; i++) a[i] = i;
+var b = a.slice(4,8);
+assert.equal(4, b[0]);
+assert.equal(5, b[1]);
+assert.equal(6, b[2]);
+assert.equal(7, b[3]);
+var c = b.slice(2 , 4);
+assert.equal(6, c[0]);
+assert.equal(7, c[1]);
