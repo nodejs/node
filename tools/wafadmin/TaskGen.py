@@ -527,6 +527,9 @@ def exec_rule(self):
 				raise Utils.WafError('input file %r could not be found (%r)' % (x, self.path.abspath()))
 			tsk.inputs.append(y)
 
+	if self.allnodes:
+		tsk.inputs.extend(self.allnodes)
+
 	if getattr(self, 'scan', None):
 		cls.scan = self.scan
 

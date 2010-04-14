@@ -412,7 +412,7 @@ def build_impl(bld):
 
 	bld.install()
 
-excludes = '.bzr .bzrignore .git .gitignore .svn CVS .cvsignore .arch-ids {arch} SCCS BitKeeper .hg _MTN _darcs Makefile Makefile.in config.log'.split()
+excludes = '.bzr .bzrignore .git .gitignore .svn CVS .cvsignore .arch-ids {arch} SCCS BitKeeper .hg _MTN _darcs Makefile Makefile.in config.log .gitattributes .hgignore .hgtags'.split()
 dist_exts = '~ .rej .orig .pyc .pyo .bak .tar.bz2 tar.gz .zip .swp'.split()
 def dont_dist(name, src, build_dir):
 	global excludes, dist_exts
@@ -486,8 +486,8 @@ def dist(appname='', version=''):
 	# return return (distdirname, tarballname)
 	import tarfile
 
-	if not appname: appname = getattr(Utils.g_module, APPNAME, 'noname')
-	if not version: version = getattr(Utils.g_module, VERSION, '1.0')
+	if not appname: appname = Utils.g_module.APPNAME
+	if not version: version = Utils.g_module.VERSION
 
 	tmp_folder = appname + '-' + version
 	if g_gz in ['gz', 'bz2']:
@@ -545,8 +545,8 @@ def distcheck(appname='', version=''):
 	'''checks if the sources compile (tarball from 'dist')'''
 	import tempfile, tarfile
 
-	if not appname: appname = getattr(Utils.g_module, APPNAME, 'noname')
-	if not version: version = getattr(Utils.g_module, VERSION, '1.0')
+	if not appname: appname = Utils.g_module.APPNAME
+	if not version: version = Utils.g_module.VERSION
 
 	waf = os.path.abspath(sys.argv[0])
 	tarball = dist(appname, version)

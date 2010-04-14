@@ -17,9 +17,10 @@ def find_scc(conf):
 	#if not cc: cc = conf.find_program('gcc', var='CC')
 	if not cc: cc = conf.find_program('cc', var='CC')
 	if not cc: conf.fatal('suncc was not found')
+	cc = conf.cmd_to_list(cc)
 
 	try:
-		if not Utils.cmd_output('%s -flags' % cc):
+		if not Utils.cmd_output(cc + ['-flags']):
 			conf.fatal('suncc %r was not found' % cc)
 	except ValueError:
 		conf.fatal('suncc -flags could not be executed')

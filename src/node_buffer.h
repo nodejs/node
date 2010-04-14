@@ -37,7 +37,7 @@ class Buffer : public ObjectWrap {
     return constructor_template->HasInstance(obj);
   }
 
-  const char* data() const { return data_; }
+  char* data();
   size_t length() const { return length_; }
   struct Blob_* blob() const { return blob_; }
 
@@ -53,6 +53,7 @@ class Buffer : public ObjectWrap {
   static v8::Handle<v8::Value> Utf8Write(const v8::Arguments &args);
   static v8::Handle<v8::Value> ByteLength(const v8::Arguments &args);
   static v8::Handle<v8::Value> Unpack(const v8::Arguments &args);
+  static v8::Handle<v8::Value> Copy(const v8::Arguments &args);
 
   int AsciiWrite(char *string, int offset, int length);
   int Utf8Write(char *string, int offset, int length);
@@ -62,8 +63,8 @@ class Buffer : public ObjectWrap {
   Buffer(Buffer *parent, size_t start, size_t end);
   ~Buffer();
 
-  const char *data_;
-  size_t length_;
+  size_t off_; // offset inside blob_
+  size_t length_; // length inside blob_
   struct Blob_ *blob_;
 };
 

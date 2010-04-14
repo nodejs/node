@@ -17,6 +17,16 @@ for (var i = 0; i < 1024; i++) {
   assert.equal(i % 256, b[i]);
 }
 
+var c = new Buffer(512);
+
+var copied = b.copy(c, 0, 0, 512);
+assert.equal(512, copied);
+for (var i = 0; i < c.length; i++) {
+  print('.');
+  assert.equal(i % 256, c[i]);
+}
+
+
 var asciiString = "hello world";
 var offset = 100;
 for (var j = 0; j < 500; j++) {
@@ -24,12 +34,12 @@ for (var j = 0; j < 500; j++) {
   for (var i = 0; i < asciiString.length; i++) {
     b[i] = asciiString.charCodeAt(i);
   }
-  var asciiSlice = b.asciiSlice(0, asciiString.length);
+  var asciiSlice = b.toString('ascii', 0, asciiString.length);
   assert.equal(asciiString, asciiSlice);
 
   var written = b.asciiWrite(asciiString, offset);
   assert.equal(asciiString.length, written);
-  var asciiSlice = b.asciiSlice(offset, offset+asciiString.length);
+  var asciiSlice = b.toString('ascii', offset, offset+asciiString.length);
   assert.equal(asciiString, asciiSlice);
 
   var sliceA = b.slice(offset, offset+asciiString.length);
@@ -74,3 +84,14 @@ b[6] = 0xBE;
 b[7] = 0xEF;
 
 assert.deepEqual([0xDEADBEEF], b.unpack('N', 4));
+
+
+// Bug regression test
+var testValue = '\u00F6\u65E5\u672C\u8A9E'; // ö日本語
+var buffer = new Buffer(32);
+var size = buffer.utf8Write(testValue, 0);
+puts('bytes written to buffer: ' + size);
+var slice = buffer.toString('utf8', 0, size);
+assert.equal(slice, testValue);
+
+

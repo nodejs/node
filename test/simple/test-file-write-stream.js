@@ -12,7 +12,7 @@ var
     open: -1,
     drain: -2,
     close: -1,
-    closeCb: -1,
+    endCb: -1,
     write: -11,
   };
 
@@ -31,9 +31,9 @@ file
       file.write(EXPECTED);
     } else if (callbacks.drain == 0) {
       assert.equal(EXPECTED+EXPECTED, fs.readFileSync(fn));
-      file.close(function(err) {
+      file.end(function(err) {
         assert.ok(!err);
-        callbacks.closeCb++;
+        callbacks.endCb++;
       });
     }
   })

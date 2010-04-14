@@ -1,4 +1,25 @@
-2010.03.19, Version 0.1.33
+2010.04.09, Version 0.1.90
+
+  * Merge writing of networking system (net2)
+   - New Buffer object for binary data.
+   - Support UNIX sockets, Pipes
+   - Uniform stream API
+   - Currently no SSL
+   - Legacy modules can be accessed at 'http_old' and 'tcp_old'
+
+  * Replace udns with c-ares. (Krishna Rajendran)
+
+  * New documentation system using Markdown and Ronn
+    (Tim Caswell, Micheil Smith)
+
+  * Better idle-time GC
+
+  * Countless small bug fixes.
+
+  * Upgrade V8 to 2.2.X, WAF 1.5.15
+
+
+2010.03.19, Version 0.1.33, 618296ef571e873976f608d91a3d6b9e65fe8284
 
   * Include lib/ directory in node executable. Compile on demand.
 

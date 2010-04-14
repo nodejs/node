@@ -7,7 +7,7 @@ from os.path import join, dirname, abspath
 from logging import fatal
 
 cwd = os.getcwd()
-VERSION="0.1.33"
+VERSION="0.1.90"
 APPNAME="node.js"
 
 import js2c
@@ -128,7 +128,7 @@ def configure(conf):
   if Options.options.efence:
     conf.check(lib='efence', libpath=['/usr/lib', '/usr/local/lib'], uselib_store='EFENCE')
 
-  if not conf.check(lib="execinfo", libpath=['/usr/lib', '/usr/local/lib'], uselib_store="EXECINFO"):
+  if not conf.check(lib="execinfo", includes=['/usr/include', '/usr/local/include'], libpath=['/usr/lib', '/usr/local/lib'], uselib_store="EXECINFO"):
     # Note on Darwin/OS X: This will fail, but will still be used as the
     # execinfo stuff are part of the standard library.
     if sys.platform.startswith("freebsd"):
@@ -152,6 +152,8 @@ def configure(conf):
       conf.env.append_value("CCFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
       conf.env.append_value("CXXFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
 
+  conf.check(lib='rt', uselib_store='RT')
+
   if sys.platform.startswith("sunos"):
     if not conf.check(lib='socket', uselib_store="SOCKET"):
       conf.fatal("Cannot find socket library")
@@ -161,17 +163,14 @@ def configure(conf):
   conf.sub_config('deps/libeio')
   if not Options.options.system:
     conf.sub_config('deps/libev')
-    if sys.platform.startswith("sunos"):
-      conf_subproject(conf, 'deps/udns', 'LIBS="-lsocket -lnsl" ./configure')
-    else:
-      conf_subproject(conf, 'deps/udns', './configure')
+    conf.sub_config('deps/c-ares')
   else:
     if not conf.check(lib='v8', uselib_store='V8'):
       conf.fatal("Cannot find V8")
     if not conf.check(lib='ev', uselib_store='EV'):
       conf.fatal("Cannot find libev")
-    if not conf.check(lib='udns', uselib_store='UDNS'):
-      conf.fatal("Cannot find udns")
+    if not conf.check(lib='cares', uselib_store='CARES'):
+      conf.fatal("Cannot find c-ares")
 
   conf.define("HAVE_CONFIG_H", 1)
 
@@ -215,35 +214,6 @@ def configure(conf):
   conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O3'])
   conf.write_config_header("config.h")
 
-def build_udns(bld):
-  default_build_dir = bld.srcnode.abspath(bld.env_of_name("default"))
-
-  default_dir = join(default_build_dir, "deps/udns")
-
-  static_lib = bld.env["staticlib_PATTERN"] % "udns"
-
-  rule = 'cd "%s" && make'
-
-  default = bld.new_task_gen(
-    target= join("deps/udns", static_lib),
-    rule= rule % default_dir,
-    before= "cxx",
-    install_path= None
-  )
-
-  bld.env["CPPPATH_UDNS"] = "deps/udns"
-  t = join(bld.srcnode.abspath(bld.env_of_name("default")), default.target)
-  bld.env_of_name('default')["LINKFLAGS_UDNS"] = [t]
-
-  if bld.env["USE_DEBUG"]:
-    debug_build_dir = bld.srcnode.abspath(bld.env_of_name("debug"))
-    debug_dir = join(debug_build_dir, "deps/udns")
-    debug = default.clone("debug")
-    debug.rule = rule % debug_dir
-    t = join(bld.srcnode.abspath(bld.env_of_name("debug")), debug.target)
-    bld.env_of_name('debug')["LINKFLAGS_UDNS"] = [t]
-
-  bld.install_files('${PREFIX}/include/node/', 'deps/udns/udns.h')
 
 def v8_cmd(bld, variant):
   scons = join(cwd, 'tools/scons/scons.py')
@@ -304,9 +274,11 @@ def build_v8(bld):
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
 def build(bld):
+  print "DEST_OS: " + bld.env['DEST_OS']
+  print "DEST_CPU: " + bld.env['DEST_CPU']
+
   if not bld.env["USE_SYSTEM"]:
-    bld.add_subdirs('deps/libeio deps/libev')
-    build_udns(bld)
+    bld.add_subdirs('deps/libeio deps/libev deps/c-ares')
     build_v8(bld)
   else:
     bld.add_subdirs('deps/libeio')
@@ -411,7 +383,7 @@ def build(bld):
     src/node_io_watcher.cc
     src/node_child_process.cc
     src/node_constants.cc
-    src/node_dns.cc
+    src/node_cares.cc
     src/node_events.cc
     src/node_file.cc
     src/node_http.cc
@@ -430,15 +402,19 @@ def build(bld):
       src/ 
       deps/v8/include
       deps/libev
-      deps/udns
+      deps/c-ares
       deps/libeio
       deps/evcom 
       deps/http_parser
       deps/coupling
     """
-    node.add_objects = 'ev eio evcom http_parser coupling'
+
+    node.includes += ' deps/c-ares/' + bld.env['DEST_OS'] + '-' + bld.env['DEST_CPU']
+
+
+    node.add_objects = 'cares ev eio evcom http_parser coupling'
     node.uselib_local = ''
-    node.uselib = 'OPENSSL GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
+    node.uselib = 'RT OPENSSL GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
   else:
     node.includes = """
       src/
@@ -449,7 +425,7 @@ def build(bld):
     """
     node.add_objects = 'eio evcom http_parser coupling'
     node.uselib_local = 'eio'
-    node.uselib = 'EV OPENSSL GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
+    node.uselib = 'RT EV OPENSSL GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
 
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'

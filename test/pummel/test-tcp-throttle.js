@@ -13,7 +13,7 @@ puts("start server on port " + PORT);
 server = net.createServer(function (connection) {
   connection.addListener("connect", function () {
     assert.equal(false, connection.write(body));
-    connection.close();
+    connection.end();
   });
 });
 server.listen(PORT);
@@ -46,7 +46,7 @@ client.addListener("data", function (d) {
 
 client.addListener("end", function () {
   server.close();
-  client.close();
+  client.end();
 });
 
 process.addListener("exit", function () {

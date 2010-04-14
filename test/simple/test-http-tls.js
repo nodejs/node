@@ -54,7 +54,7 @@ var http_server=http.createServer(function (req, res) {
   req.addListener('end', function () {
     res.writeHead(200, {"Content-Type": "text/plain"});
     res.write("The path was " + url.parse(req.url).pathname);
-    res.close();
+    res.end();
     responses_sent += 1;
   });
 
@@ -78,7 +78,7 @@ req.addListener('response', function (res) {
   res.addListener('data', function (chunk) { body0 += chunk; });
   debug("Got /hello response");
 });
-req.close();
+req.end();
 
 setTimeout(function () {
   req = client.request("POST", "/world");
@@ -94,7 +94,7 @@ setTimeout(function () {
     res.addListener('data', function (chunk) { body1 += chunk; });
     debug("Got /world response");
   });
-  req.close();
+  req.end();
 }, 1);
 
 process.addListener("exit", function () {

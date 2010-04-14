@@ -4,6 +4,8 @@
 #include <stdlib.h> // malloc, free
 #include <v8.h>
 
+#include <string.h> // memcpy
+
 #include <arpa/inet.h>  // htons, htonl
 
 #include <node.h>
@@ -45,19 +47,24 @@ Persistent<FunctionTemplate> Buffer::constructor_template;
 struct Blob_ {
   unsigned int refs;
   size_t length;
-  char data[1];
+  char *data;
 };
 typedef struct Blob_ Blob;
 
 
 static inline Blob * blob_new(size_t length) {
-  size_t s = sizeof(Blob) - 1 + length;
-  Blob * blob  = (Blob*) malloc(s);
+  Blob * blob  = (Blob*) malloc(sizeof(Blob));
   if (!blob) return NULL;
-  V8::AdjustAmountOfExternalAllocatedMemory(s);
+
+  blob->data = (char*) malloc(length);
+  if (!blob->data) {
+    free(blob);
+    return NULL;
+  }
+
+  V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Blob) + length);
   blob->length = length;
   blob->refs = 0;
-  //fprintf(stderr, "alloc %d bytes\n", length);
   return blob;
 }
 
@@ -71,8 +78,8 @@ static inline void blob_unref(Blob *blob) {
   assert(blob->refs > 0);
   if (--blob->refs == 0) {
     //fprintf(stderr, "free %d bytes\n", blob->length);
-    size_t s = sizeof(Blob) - 1 + blob->length;
-    V8::AdjustAmountOfExternalAllocatedMemory(-s);
+    V8::AdjustAmountOfExternalAllocatedMemory(-(sizeof(Blob) + blob->length));
+    free(blob->data);
     free(blob);
   }
 }
@@ -131,9 +138,9 @@ Handle<Value> Buffer::New(const Arguments &args) {
   }
 
   buffer->Wrap(args.This());
-  args.This()->SetIndexedPropertiesToExternalArrayData((void*)buffer->data_,
+  args.This()->SetIndexedPropertiesToExternalArrayData(buffer->data(),
                                                        kExternalUnsignedByteArray,
-                                                       buffer->length_);
+                                                       buffer->length());
   args.This()->Set(length_symbol, Integer::New(buffer->length_));
   return args.This();
 }
@@ -141,8 +148,9 @@ Handle<Value> Buffer::New(const Arguments &args) {
 
 Buffer::Buffer(size_t length) : ObjectWrap() {
   blob_ = blob_new(length);
+  off_ = 0;
   length_ = length;
-  data_ = blob_->data;
+
   blob_ref(blob_);
 
   V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer));
@@ -155,9 +163,9 @@ Buffer::Buffer(Buffer *parent, size_t start, size_t end) : ObjectWrap() {
   blob_ref(blob_);
 
   assert(start <= end);
+  off_ = start;
   length_ = end - start;
   assert(length_ <= parent->length_);
-  data_ = parent->data_ + start;
 
   V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer));
 }
@@ -171,12 +179,17 @@ Buffer::~Buffer() {
 }
 
 
+char* Buffer::data() {
+  return blob_->data + off_;
+}
+
+
 Handle<Value> Buffer::BinarySlice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
 
-  const char *data = const_cast<char*>(parent->data_ + start);
+  const char *data = const_cast<char*>(parent->data() + start);
   //Local<String> string = String::New(data, end - start);
 
   Local<Value> b =  Encode(data, end - start, BINARY);
@@ -198,7 +211,7 @@ Handle<Value> Buffer::AsciiSlice(const Arguments &args) {
   assert(parent->blob_->refs >= 2);
 #endif
 
-  const char *data = const_cast<char*>(parent->data_ + start);
+  const char *data = const_cast<char*>(parent->data() + start);
   Local<String> string = String::New(data, end - start);
 
 
@@ -210,7 +223,7 @@ Handle<Value> Buffer::Utf8Slice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
-  const char *data = const_cast<char*>(parent->data_ + start);
+  const char *data = const_cast<char*>(parent->data() + start);
   Local<String> string = String::New(data, end - start);
   return scope.Close(string);
 }
@@ -222,6 +235,55 @@ Handle<Value> Buffer::Slice(const Arguments &args) {
   Local<Object> slice =
     constructor_template->GetFunction()->NewInstance(3, argv);
   return scope.Close(slice);
+}
+
+
+// var bytesCopied = buffer.copy(target, targetStart, sourceStart, sourceEnd);
+Handle<Value> Buffer::Copy(const Arguments &args) {
+  HandleScope scope;
+
+  Buffer *source = ObjectWrap::Unwrap<Buffer>(args.This());
+
+  if (!Buffer::HasInstance(args[0])) {
+    return ThrowException(Exception::TypeError(String::New(
+            "First arg should be a Buffer")));
+  }
+
+  Buffer *target = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+
+  ssize_t target_start = args[1]->Int32Value();
+  ssize_t source_start = args[2]->Int32Value();
+  ssize_t source_end = args[3]->IsInt32() ? args[3]->Int32Value()
+                                          : source->length();
+
+  if (source_end < source_start) {
+    return ThrowException(Exception::Error(String::New(
+            "sourceEnd < sourceStart")));
+  }
+
+  if (target_start >= target->length()) {
+    return ThrowException(Exception::Error(String::New(
+            "targetStart out of bounds")));
+  }
+
+  if (source_start >= source->length()) {
+    return ThrowException(Exception::Error(String::New(
+            "sourceStart out of bounds")));
+  }
+
+  if (source_end > source->length()) {
+    return ThrowException(Exception::Error(String::New(
+            "sourceEnd out of bounds")));
+  }
+
+  ssize_t to_copy = MIN(source_end - source_start,
+                        target->length() - target_start);
+
+  memcpy((void*)(target->data() + target_start),
+         (const void*)(source->data() + source_start),
+         to_copy);
+
+  return scope.Close(Integer::New(to_copy));
 }
 
 
@@ -244,9 +306,12 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  const char *p = buffer->data_ + offset;
+  const char *p = buffer->data() + offset;
 
+  s->Flatten();
   int written = s->WriteUtf8((char*)p, buffer->length_ - offset);
+
+  if (written > 0 && p[written-1] == '\0') written--;
 
   return scope.Close(Integer::New(written));
 }
@@ -272,10 +337,11 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  const char *p = buffer->data_ + offset;
+  const char *p = buffer->data() + offset;
 
   size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
 
+  s->Flatten();
   int written = s->WriteAscii((char*)p, 0, towrite);
   return scope.Close(Integer::New(written));
 }
@@ -300,7 +366,7 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  char *p = (char*)buffer->data_ + offset;
+  char *p = (char*)buffer->data() + offset;
 
   size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
 
@@ -342,7 +408,7 @@ Handle<Value> Buffer::Unpack(const Arguments &args) {
       // 32bit unsigned integer in network byte order
       case 'N':
         if (index + 3 >= buffer->length_) return OUT_OF_BOUNDS;
-        uint32 = htonl(*(uint32_t*)(buffer->data_ + index));
+        uint32 = htonl(*(uint32_t*)(buffer->data() + index));
         array->Set(Integer::New(i), Integer::NewFromUnsigned(uint32));
         index += 4;
         break;
@@ -350,7 +416,7 @@ Handle<Value> Buffer::Unpack(const Arguments &args) {
       // 16bit unsigned integer in network byte order
       case 'n':
         if (index + 1 >= buffer->length_) return OUT_OF_BOUNDS;
-        uint16 = htons(*(uint16_t*)(buffer->data_ + index));
+        uint16 = htons(*(uint16_t*)(buffer->data() + index));
         array->Set(Integer::New(i), Integer::NewFromUnsigned(uint16));
         index += 2;
         break;
@@ -358,7 +424,7 @@ Handle<Value> Buffer::Unpack(const Arguments &args) {
       // a single octet, unsigned.
       case 'o':
         if (index >= buffer->length_) return OUT_OF_BOUNDS;
-        uint8 = (uint8_t)buffer->data_[index];
+        uint8 = (uint8_t)buffer->data()[index];
         array->Set(Integer::New(i), Integer::NewFromUnsigned(uint8));
         index += 1;
         break;
@@ -414,6 +480,7 @@ void Buffer::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiWrite", Buffer::AsciiWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "binaryWrite", Buffer::BinaryWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "unpack", Buffer::Unpack);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "copy", Buffer::Copy);
 
   NODE_SET_METHOD(constructor_template->GetFunction(),
                   "byteLength",

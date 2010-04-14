@@ -2639,7 +2639,7 @@ int String::Utf8Length() const {
 }
 
 
-int String::WriteUtf8(char* buffer, int capacity) const {
+int String::WriteUtf8(char* buffer, int capacity, int *ncharsRef) const {
   if (IsDeadCheck("v8::String::WriteUtf8()")) return 0;
   LOG_API("String::WriteUtf8");
   ENTER_V8;
@@ -2653,10 +2653,12 @@ int String::WriteUtf8(char* buffer, int capacity) const {
   int fast_end = capacity - (unibrow::Utf8::kMaxEncodedSize - 1);
   int i;
   int pos = 0;
+  int nchars = 0;
   for (i = 0; i < len && (capacity == -1 || pos < fast_end); i++) {
     i::uc32 c = write_input_buffer.GetNext();
     int written = unibrow::Utf8::Encode(buffer + pos, c);
     pos += written;
+    nchars++;
   }
   if (i < len) {
     // For the last characters we need to check the length for each one
@@ -2670,12 +2672,14 @@ int String::WriteUtf8(char* buffer, int capacity) const {
         for (int j = 0; j < written; j++)
           buffer[pos + j] = intermediate[j];
         pos += written;
+        nchars++;
       } else {
         // We've reached the end of the buffer
         break;
       }
     }
   }
+  if (ncharsRef) *ncharsRef = nchars;
   if (i == len && (capacity == -1 || pos < capacity))
     buffer[pos++] = '\0';
   return pos;
@@ -2724,6 +2728,13 @@ int String::Write(uint16_t* buffer, int start, int length) const {
   if (length == -1 || end < length)
     buffer[end] = '\0';
   return end;
+}
+
+
+void v8::String::Flatten() {
+  EnsureInitialized("v8::String::Flatten()");
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  i::FlattenString(str);
 }
 
 

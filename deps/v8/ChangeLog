@@ -1,3 +1,10 @@
+2010-03-29: Version 2.2.0
+
+        Fixed a few minor bugs.
+
+        Performance improvements for string operations.
+
+
 2010-03-26: Version 2.1.10
 
         Fixed scons build issues.

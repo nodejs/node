@@ -25,7 +25,7 @@ var echoServer = tcp.createServer(function (connection) {
     connection.write(chunk, "binary");
   });
   connection.addListener("end", function () {
-    connection.close();
+    connection.end();
   });
 });
 echoServer.listen(PORT);
@@ -42,7 +42,7 @@ c.addListener("data", function (chunk) {
     c.write(String.fromCharCode(j), "binary");
     j++;
   } else {
-    c.close();
+    c.end();
   }
   recv += chunk;
 });

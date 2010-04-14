@@ -125,7 +125,7 @@ class ConfigurationContext(Utils.Context):
 		except (OSError, IOError):
 			self.fatal('could not open %r for writing' % path)
 
-		app = getattr(Utils.g_module, 'APPNAME', '')
+		app = Utils.g_module.APPNAME
 		if app:
 			ver = getattr(Utils.g_module, 'VERSION', '')
 			if ver:

@@ -10,8 +10,7 @@ var server = http.createServer(function (req, res) {
   res.writeHead(200, { "Content-Type": "text/plain"
                       , "Content-Length": body.length
                       });
-  res.write(body);
-  res.close();
+  res.end(body);
 });
 server.listen(PORT);
 
@@ -35,10 +34,10 @@ req1.addListener('response', function (res1) {
       res2.addListener('data', function (chunk) { body2 += chunk; });
       res2.addListener('end', function () { server.close(); });
     });
-    req2.close();
+    req2.end();
   });
 });
-req1.close();
+req1.end();
 
 process.addListener("exit", function () {
   assert.equal(body1_s, body1);

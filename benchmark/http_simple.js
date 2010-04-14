@@ -1,7 +1,11 @@
 path = require("path");
 
 var puts = require("sys").puts;
-http = require("http");
+
+var old = (process.argv[2] == 'old');
+
+http = require(old ? "http_old" : 'http');
+if (old) puts('old version');
 
 fixed = ""
 for (var i = 0; i < 20*1024; i++) {
@@ -49,6 +53,10 @@ http.createServer(function (req, res) {
                   , "Content-Length": content_length
                   }
                 );
-  res.write(body);
-  res.close();
+  if (old) {
+    res.write(body, 'ascii');
+    res.close();
+  } else {
+    res.end(body, 'ascii');
+  }
 }).listen(8000);

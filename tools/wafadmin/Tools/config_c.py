@@ -186,7 +186,8 @@ def exec_cfg(self, kw):
 		vars = Utils.to_list(kw['variables'])
 		for v in vars:
 			val = self.cmd_and_log('%s --variable=%s %s' % (kw['path'], v, kw['package']), kw).strip()
-			env.append_unique('%s_%s' % (uselib, v), val)
+			var = '%s_%s' % (uselib, v)
+			env[var] = val
 		if not 'okmsg' in kw:
 			kw['okmsg'] = 'ok'
 		return
@@ -541,10 +542,8 @@ def run_c_code(self, *k, **kw):
 
 	# if we need to run the program, try to get its result
 	if kw['execute']:
-		ak = {} # syntax for python < 2.5, don't touch
-		ak['stdout'] = ak['stderr'] = Utils.pproc.PIPE
 		args = Utils.to_list(kw.get('exec_args', []))
-		proc = Utils.pproc.Popen([lastprog], *args, **ak)
+		proc = Utils.pproc.Popen([lastprog] + args, stdout=Utils.pproc.PIPE, stderr=Utils.pproc.PIPE)
 		(out, err) = proc.communicate()
 		w = self.log.write
 		w(str(out))

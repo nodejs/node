@@ -855,12 +855,22 @@ class V8EXPORT String : public Primitive {
    * \param start The starting position within the string at which
    * copying begins.
    * \param length The number of bytes to copy from the string.
-   * \return The number of characters copied to the buffer
+   * \param nchars The number of characters written.
+   * \return The number of bytes copied to the buffer
    * excluding the NULL terminator.
    */
   int Write(uint16_t* buffer, int start = 0, int length = -1) const;  // UTF-16
   int WriteAscii(char* buffer, int start = 0, int length = -1) const;  // ASCII
-  int WriteUtf8(char* buffer, int length = -1) const; // UTF-8
+  int WriteUtf8(char* buffer,
+                int length = -1,
+                int* nchars = NULL) const; // UTF-8
+
+  /**
+   * Flatten internal memory. Operations on the string tend to run faster
+   * after flattening especially if the string is a concatenation of many
+   * others.
+   */
+  void Flatten();
 
   /**
    * A zero length string.

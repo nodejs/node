@@ -25,7 +25,7 @@ var server = http.createServer(function (req, res) {
   res.writeHead(200, {"Content-Type": "text/plain"});
   res.write("hello ");
   res.write("world\n");
-  res.close();
+  res.end();
 })
 server.listen(PORT);
 
@@ -46,7 +46,7 @@ c.addListener("data", function (chunk) {
 c.addListener("end", function () {
   client_got_eof = true;
   puts('got end');
-  c.close();
+  c.end();
 });
 
 c.addListener("close", function () {

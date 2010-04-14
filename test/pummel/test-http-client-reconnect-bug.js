@@ -8,7 +8,7 @@ var errorCount = 0;
 var eofCount = 0;
 
 var server = tcp.createServer(function(socket) {
-  socket.close();
+  socket.end();
 });
 server.listen(PORT);
 
@@ -28,7 +28,7 @@ var request = client.request("GET", "/", {"host": "localhost"});
 request.addListener('response', function(response) {
   sys.puts("STATUS: " + response.statusCode);
 });
-request.close();
+request.end();
 
 setTimeout(function () {
   server.close();

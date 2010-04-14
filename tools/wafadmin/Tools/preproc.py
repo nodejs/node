@@ -35,6 +35,10 @@ class PreprocError(Utils.WafError):
 
 POPFILE = '-'
 
+
+recursion_limit = 100
+"do not loop too much on header inclusion"
+
 go_absolute = 0
 "set to 1 to track headers on files in /usr/include - else absolute paths are ignored"
 
@@ -636,7 +640,7 @@ class c_parser(object):
 		filepath = node.abspath(self.env)
 
 		self.count_files += 1
-		if self.count_files > 30000: raise PreprocError("recursion limit exceeded")
+		if self.count_files > recursion_limit: raise PreprocError("recursion limit exceeded")
 		pc = self.parse_cache
 		debug('preproc: reading file %r', filepath)
 		try:

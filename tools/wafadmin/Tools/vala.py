@@ -3,7 +3,7 @@
 # Ali Sabil, 2007
 
 import os.path, shutil
-import Task, Runner, Utils, Logs, Build, Node
+import Task, Runner, Utils, Logs, Build, Node, Options
 from TaskGen import extension, after, before
 
 EXT_VALA = ['.vala', '.gs']
@@ -28,6 +28,9 @@ class valac_task(Task.Task):
 
 		if self.threading:
 			cmd.append('--thread')
+
+		if self.profile:
+			cmd.append('--profile=%s' % self.profile)
 
 		if self.target_glib:
 			cmd.append('--target-glib=%s' % self.target_glib)
@@ -134,13 +137,15 @@ def vala_file(self, node):
 		valatask = self.create_task('valac')
 		self.valatask = valatask
 		self.includes = Utils.to_list(getattr(self, 'includes', []))
+		self.uselib = self.to_list(self.uselib)
 		valatask.packages = []
 		valatask.packages_private = Utils.to_list(getattr(self, 'packages_private', []))
 		valatask.vapi_dirs = []
 		valatask.target = self.target
 		valatask.threading = False
 		valatask.install_path = self.install_path
-		valatask.target_glib = None
+		valatask.profile = getattr (self, 'profile', 'gobject')
+		valatask.target_glib = None #Deprecated
 
 		packages = Utils.to_list(getattr(self, 'packages', []))
 		vapi_dirs = Utils.to_list(getattr(self, 'vapi_dirs', []))
@@ -197,14 +202,24 @@ def vala_file(self, node):
 			except AttributeError:
 				Logs.warn("Unable to locate include directory: '%s'" % include)
 
-		if hasattr(self, 'threading'):
-			valatask.threading = self.threading
-			self.uselib = self.to_list(self.uselib)
-			if not 'GTHREAD' in self.uselib:
-				self.uselib.append('GTHREAD')
+		if valatask.profile == 'gobject':
+			if hasattr(self, 'target_glib'):
+				Logs.warn ('target_glib on vala tasks is deprecated --vala-target-glib=MAJOR.MINOR from the vala tool options')
 
-		if hasattr(self, 'target_glib'):
-			valatask.target_glib = self.target_glib
+			if getattr(Options.options, 'vala_target_glib', None):
+				valatask.target_glib = Options.options.vala_target_glib
+
+			if not 'GOBJECT' in self.uselib:
+				self.uselib.append('GOBJECT')
+
+		if hasattr(self, 'threading'):
+			if valatask.profile == 'gobject':
+				valatask.threading = self.threading
+				if not 'GTHREAD' in self.uselib:
+					self.uselib.append('GTHREAD')
+			else:
+				#Vala doesn't have threading support for dova nor posix
+				Logs.warn("Profile %s does not have threading support" % valatask.profile)
 
 		if hasattr(self, 'gir'):
 			valatask.gir = self.gir
@@ -244,8 +259,23 @@ def detect(conf):
 
 	valac = conf.find_program('valac', var='VALAC', mandatory=True)
 
+	if not conf.env["HAVE_GOBJECT"]:
+		pkg_args = {'package':      'gobject-2.0',
+		            'uselib_store': 'GOBJECT',
+		            'args':         '--cflags --libs'}
+		if getattr(Options.options, 'vala_target_glib', None):
+			pkg_args['atleast_version'] = Options.options.vala_target_glib
+
+		conf.check_cfg(**pkg_args)
+
 	if not conf.env["HAVE_GTHREAD"]:
-		conf.check_cfg(package='gthread-2.0', uselib_store='GTHREAD', args='--cflags --libs')
+		pkg_args = {'package':      'gthread-2.0',
+		            'uselib_store': 'GTHREAD',
+		            'args':         '--cflags --libs'}
+		if getattr(Options.options, 'vala_target_glib', None):
+			pkg_args['atleast_version'] = Options.options.vala_target_glib
+
+		conf.check_cfg(**pkg_args)
 
 	try:
 		output = Utils.cmd_output(valac + " --version", silent=True)
@@ -268,4 +298,10 @@ def detect(conf):
 
 	conf.env['VALAC_VERSION'] = valac_version
 	conf.env['VALAFLAGS'] = ''
+
+def set_options (opt):
+	valaopts = opt.add_option_group('Vala Compiler Options')
+	valaopts.add_option ('--vala-target-glib', default=None,
+	                     dest='vala_target_glib', metavar='MAJOR.MINOR',
+	                     help='Target version of glib for Vala GObject code generation')
 

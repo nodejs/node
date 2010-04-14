@@ -96,31 +96,25 @@ class qxx_task(Task.Task):
 			if d in mocfiles:
 				error("paranoia owns")
 				continue
+
 			# process that base.moc only once
 			mocfiles.append(d)
 
-			# find the extension - this search is done only once
-			ext = ''
-			try: ext = Options.options.qt_header_ext
-			except AttributeError: pass
-
-			if not ext:
-				base2 = d[:-4]
-				paths = [node.parent.srcpath(self.env), node.parent.bldpath(self.env)]
-				poss = [(x, y) for x in MOC_H for y in paths]
-				for (i, path) in poss:
-					try:
-						# TODO we could use find_resource
-						os.stat(os.path.join(path, base2+i))
-					except OSError:
-						pass
-					else:
-						ext = i
+			# find the extension (performed only when the .cpp has changes)
+			base2 = d[:-4]
+			for path in [node.parent] + self.generator.env['INC_PATHS']:
+				tree.rescan(path)
+				vals = getattr(Options.options, 'qt_header_ext', '') or MOC_H
+				for ex in vals:
+					h_node = path.find_resource(base2 + ex)
+					if h_node:
 						break
-				if not ext: raise Utils.WafError("no header found for %s which is a moc file" % str(d))
+				else:
+					continue
+				break
+			else:
+				raise Utils.WafError("no header found for %s which is a moc file" % str(d))
 
-			# next time we will not search for the extension (look at the 'for' loop below)
-			h_node = node.parent.find_resource(base2+i)
 			m_node = h_node.change_ext('.moc')
 			tree.node_deps[(self.inputs[0].parent.id, self.env.variant(), m_node.name)] = h_node
 
@@ -246,7 +240,8 @@ def apply_qt4(self):
 			if update:
 				trans.append(t.inputs[0])
 
-		if update and Options.options.trans_qt4:
+		trans_qt4 = getattr(Options.options, 'trans_qt4', False)
+		if update and trans_qt4:
 			# we need the cpp files given, except the rcc task we create after
 			# FIXME may be broken
 			u = Task.TaskCmd(translation_update, self.env, 2)
@@ -426,6 +421,11 @@ def detect_qt4(conf):
 						env.append_unique(kind + 'LIB_' + uselib, lib + d + ext)
 						conf.check_message_2('ok ' + path, 'GREEN')
 						break
+					path = os.path.join(qtbin, pat % (lib + d + ext))
+					if os.path.exists(path):
+						env.append_unique(kind + 'LIB_' + uselib, lib + d + ext)
+						conf.check_message_2('ok ' + path, 'GREEN')
+						break
 				else:
 					conf.check_message_2('not found', 'YELLOW')
 					continue
@@ -461,7 +461,8 @@ def detect_qt4(conf):
 	process_lib(vars_debug, 'LIBPATH_QTCORE_DEBUG')
 
 	# rpath if wanted
-	if Options.options.want_rpath:
+	want_rpath = getattr(Options.options, 'want_rpath', 1)
+	if want_rpath:
 		def process_rpath(vars_, coreval):
 			for d in vars_:
 				var = d.upper()

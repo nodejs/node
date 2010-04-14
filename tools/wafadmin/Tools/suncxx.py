@@ -14,10 +14,16 @@ def find_sxx(conf):
 	cc = None
 	if v['CXX']: cc = v['CXX']
 	elif 'CXX' in conf.environ: cc = conf.environ['CXX']
-	#if not cc: cc = conf.find_program('g++', var='CXX')
 	if not cc: cc = conf.find_program('c++', var='CXX')
-	if not cc: cc = conf.find_program('CC', var='CXX') #studio
 	if not cc: conf.fatal('sunc++ was not found')
+	cc = conf.cmd_to_list(cc)
+
+	try:
+		if not Utils.cmd_output(cc + ['-flags']):
+			conf.fatal('sunc++ %r was not found' % cc)
+	except ValueError:
+		conf.fatal('sunc++ -flags could not be executed')
+
 	v['CXX']  = cc
 	v['CXX_NAME'] = 'sun'
 

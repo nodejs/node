@@ -1,0 +1,26 @@
+import Options
+import platform
+
+PLATFORM_IS_DARWIN = platform.platform().find('Darwin') == 0
+PLATFORM_IS_LINUX = platform.platform().find('Linux') == 0
+PLATFORM_IS_SOLARIS = platform.platform().find('Sun') == 0
+PLATFORM_IS_FREEBSD = platform.platform().find('FreeBSD') == 0
+MACHINE_IS_AMD64 = platform.machine().find('amd64') == 0
+MACHINE_IS_I386 = platform.machine().find('i386') == 0
+
+def set_options(opt):
+  pass
+
+def configure(conf):
+  conf.env.append_value('CCFLAGS', ['-DHAVE_CONFIG_H=1'])
+
+def build(bld):
+  cares = bld.new_task_gen("cc")
+  cares.source = bld.path.ant_glob('*.c')
+  cares.target = 'cares'
+  cares.name = 'cares'
+  cares.includes = '. ./' + bld.env['DEST_OS'] + '-' + bld.env['DEST_CPU']
+  cares.install_path = None
+  if bld.env["USE_DEBUG"]:
+    cares.clone("debug");
+

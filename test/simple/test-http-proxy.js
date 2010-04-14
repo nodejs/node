@@ -9,7 +9,7 @@ var backend = http.createServer(function (req, res) {
   debug("backend request");
   res.writeHead(200, {"content-type": "text/plain"});
   res.write("hello world\n");
-  res.close();
+  res.end();
 });
 debug("listen backend")
 backend.listen(BACKEND_PORT);
@@ -24,11 +24,11 @@ var proxy = http.createServer(function (req, res) {
       res.write(chunk);
     });
     proxy_res.addListener("end", function() {
-      res.close();
+      res.end();
       debug("proxy res");
     });
   });
-  proxy_req.close();
+  proxy_req.end();
 });
 debug("listen proxy")
 proxy.listen(PROXY_PORT);
@@ -54,7 +54,7 @@ function startReq () {
        debug("closed both");
     });
   });
-  req.close();
+  req.end();
 }
 
 proxy.addListener('listening', startReq);

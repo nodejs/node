@@ -38,7 +38,7 @@ http.createServer(function (req, res) {
   setTimeout(function () {
     res.writeHead(200, {"Content-Type": "text/plain"});
     res.write(url.parse(req.url).pathname);
-    res.close();
+    res.end();
   }, 1);
 
 }).listen(PORT);
@@ -63,7 +63,7 @@ c.addListener("data", function (chunk) {
   if (requests_sent == 2) {
     c.write("GET / HTTP/1.1\r\nX-X: foo\r\n\r\n"
            +"GET / HTTP/1.1\r\nX-X: bar\r\n\r\n");
-    c.close();
+    c.end();
     assert.equal(c.readyState, "readOnly");
     requests_sent += 2;
   }

@@ -11,13 +11,14 @@ img {
   padding: 5em 0;
 }
 #toc {
-  position: fixed;
+  position: absolute;
   top: 2em;
   left: 0;
   width: 8em;
   font-size: 12pt;
   line-height: 150%;
 }
+@media all and (min-height: 650px) { #toc { position: fixed; }}
 #toctitle {
   display: none;
 }
