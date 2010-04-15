@@ -1,4 +1,26 @@
-2010.04.09, Version 0.1.90
+2010.04.15, Version 0.1.91
+
+  * Add incoming.httpVersion
+
+  * Object.prototype problem with C-Ares binding
+
+  * REPL can be run from multiple different streams. (Matt Ranney)
+
+  * After V8 heap is compact, don't use a timer every 2 seconds. 
+
+  * Improve nextTick implementation. 
+
+  * Add primative support for Upgrading HTTP connections.
+    (See commit log for docs 760bba5) 
+
+  * Add timeout and maxBuffer options to child_process.exec
+
+  * Fix bugs.
+
+  * Upgrade V8 to 2.2.3.1
+
+
+2010.04.09, Version 0.1.90, 07e64d45ffa1856e824c4fa6afd0442ba61d6fd8
 
   * Merge writing of networking system (net2)
    - New Buffer object for binary data.
