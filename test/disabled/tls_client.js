@@ -2,6 +2,7 @@ require('../common');
 var sys=require('sys');
 var net=require('net');
 var fs=require('fs');
+var crypto=require('crypto');
 
 //var client = net.createConnection(4443, "localhost");
 var client = net.createConnection(443, "www.microsoft.com");
@@ -10,7 +11,7 @@ var client = net.createConnection(443, "www.microsoft.com");
 var caPem = fs.readFileSync(fixturesDir+"/msca.pem");
 //var caPem = fs.readFileSync("ca.pem");
 
-var credentials = net.createCredentials({ca:caPem});
+var credentials = crypto.createCredentials({ca:caPem});
 
 client.setEncoding("UTF8");
 client.addListener("connect", function () {
