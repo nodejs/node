@@ -27,7 +27,6 @@ static int x509_verify_error;
 static inline const char *errno_string(int errorno) {
 #define ERRNO_CASE(e)  case e: return #e;
   switch (errorno) {
-
 #ifdef EACCES
   ERRNO_CASE(EACCES);
 #endif
@@ -945,16 +944,19 @@ Handle<Value> SecureStream::Close(const Arguments& args) {
 }
 
 
-void hex_encode(unsigned char *md_value, int md_len, char** md_hexdigest, int* md_hex_len) {
+void hex_encode(unsigned char *md_value, int md_len, char** md_hexdigest,
+                int* md_hex_len) {
   *md_hex_len = (2*(md_len));
   *md_hexdigest = (char *) malloc(*md_hex_len + 1);
-  for(int i = 0; i < md_len; i++) {
+  for (int i = 0; i < md_len; i++) {
     sprintf((char *)(*md_hexdigest + (i*2)), "%02x",  md_value[i]);
   }
 }
 
-#define hex2i(c) ((c) <= '9' ? ((c) - '0') : (c) <= 'Z' ? ((c) - 'A' + 10) : ((c) - 'a' + 10))
-void hex_decode(unsigned char *input, int length, char** buf64, int* buf64_len) {
+#define hex2i(c) ((c) <= '9' ? ((c) - '0') : (c) <= 'Z' ? ((c) - 'A' + 10) \
+                 : ((c) - 'a' + 10))
+void hex_decode(unsigned char *input, int length, char** buf64, 
+                int* buf64_len) {
   *buf64_len = (length/2);
   *buf64 = (char*) malloc(length/2 + 1);
   char *b = *buf64;
