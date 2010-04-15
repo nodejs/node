@@ -38,6 +38,7 @@ using namespace v8;
 
 
 static Persistent<String> length_symbol;
+static Persistent<String> chars_written_sym;
 Persistent<FunctionTemplate> Buffer::constructor_template;
 
 
@@ -308,10 +309,15 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   const char *p = buffer->data() + offset;
 
+  int char_written;
+
   int written = s->WriteUtf8((char*)p,
                              buffer->length_ - offset,
-                             NULL,
+                             &char_written,
                              String::HINT_MANY_WRITES_EXPECTED);
+
+  constructor_template->GetFunction()->Set(chars_written_sym,
+                                           Integer::New(char_written));
 
   if (written > 0 && p[written-1] == '\0') written--;
 
@@ -463,6 +469,7 @@ void Buffer::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   length_symbol = Persistent<String>::New(String::NewSymbol("length"));
+  chars_written_sym = Persistent<String>::New(String::NewSymbol("_charsWritten"));
 
   Local<FunctionTemplate> t = FunctionTemplate::New(Buffer::New);
   constructor_template = Persistent<FunctionTemplate>::New(t);

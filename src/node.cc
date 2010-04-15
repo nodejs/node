@@ -105,8 +105,21 @@ static ev_tstamp last_active;
 static ev_timer  gc_timer;
 static ev_check gc_check;
 static ev_idle  gc_idle;
-static bool needs_gc;
-#define GC_INTERVAL 2.0
+#define GC_INTERVAL 1.0
+
+static void gc_timer_start () {
+  if (!ev_is_active(&gc_timer)) {
+    ev_timer_start(EV_DEFAULT_UC_ &gc_timer);
+    ev_unref(EV_DEFAULT_UC);
+  }
+}
+
+static void gc_timer_stop () {
+  if (ev_is_active(&gc_timer)) {
+    ev_ref(EV_DEFAULT_UC);
+    ev_timer_stop(EV_DEFAULT_UC_ &gc_timer);
+  }
+}
 
 
 static void CheckIdleness(EV_P_ ev_timer *watcher, int revents) {
@@ -118,15 +131,10 @@ static void CheckIdleness(EV_P_ ev_timer *watcher, int revents) {
   ev_tstamp idle_time = ev_now(EV_DEFAULT_UC) - last_active;
 
   if (idle_time > GC_INTERVAL) {
-    if (needs_gc) {
-      needs_gc = false;
-      if (!V8::IdleNotification()) {
-        ev_idle_start(EV_DEFAULT_UC_ &gc_idle);
-      }
+    if (!V8::IdleNotification()) {
+      ev_idle_start(EV_DEFAULT_UC_ &gc_idle);
     }
-    // reset the timer
-    gc_timer.repeat = GC_INTERVAL;
-    ev_timer_again(EV_DEFAULT_UC_ watcher);
+    gc_timer_stop();
   }
 }
 
@@ -139,8 +147,8 @@ static void NotifyIdleness(EV_P_ ev_idle *watcher, int revents) {
 
   if (V8::IdleNotification()) {
     ev_idle_stop(EV_A_ watcher);
+    gc_timer_stop();
   }
-  needs_gc = false;
 }
 
 
@@ -152,23 +160,18 @@ static void Activity(EV_P_ ev_check *watcher, int revents) {
 
   // Don't count GC watchers as activity.
 
-  pending -= ev_is_pending(&gc_timer);
-  pending -= ev_is_pending(&gc_idle);
-  pending -= ev_is_pending(&next_tick_watcher);
-  //if (ev_is_pending(&gc_check)) pending--; // This probably never happens?
+  if (ev_is_pending(&gc_timer)) pending--;
+  if (ev_is_pending(&gc_idle)) pending--;
+  if (ev_is_pending(&gc_check)) pending--;
+
+  assert(pending >= 0);
 
   //fprintf(stderr, "activity, pending: %d\n", pending);
 
   if (pending) {
     last_active = ev_now(EV_DEFAULT_UC);
     ev_idle_stop(EV_DEFAULT_UC_ &gc_idle);
-
-    if (!needs_gc) {
-      gc_timer.repeat = GC_INTERVAL;
-      ev_timer_again(EV_DEFAULT_UC_ &gc_timer);
-    }
-
-    needs_gc = true;
+    gc_timer_start();
   }
 }
 
@@ -1607,10 +1610,7 @@ int main(int argc, char *argv[]) {
 
   ev_idle_init(&node::tick_spinner, node::Spin);
 
-  ev_init(&node::gc_timer, node::CheckIdleness);
-  node::gc_timer.repeat = GC_INTERVAL;
-  ev_timer_again(EV_DEFAULT_UC_ &node::gc_timer);
-  ev_unref(EV_DEFAULT_UC);
+  ev_timer_init(&node::gc_timer, node::CheckIdleness, 2*GC_INTERVAL, 2*GC_INTERVAL);
 
   ev_check_init(&node::gc_check, node::Activity);
   ev_check_start(EV_DEFAULT_UC_ &node::gc_check);

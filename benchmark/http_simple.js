@@ -4,6 +4,8 @@ var puts = require("sys").puts;
 
 var old = (process.argv[2] == 'old');
 
+puts('pid ' + process.pid);
+
 http = require(old ? "http_old" : 'http');
 if (old) puts('old version');
 
