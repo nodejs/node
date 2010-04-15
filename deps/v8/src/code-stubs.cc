@@ -64,7 +64,7 @@ void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
   OPROFILE(CreateNativeCodeRegion(GetName(),
                                   code->instruction_start(),
                                   code->instruction_size()));
-  LOG(CodeCreateEvent(Logger::STUB_TAG, code, GetName()));
+  PROFILE(CodeCreateEvent(Logger::STUB_TAG, code, GetName()));
   Counters::total_stubs_code_size.Increment(code->instruction_size());
 
 #ifdef ENABLE_DISASSEMBLER

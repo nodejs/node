@@ -221,8 +221,8 @@ bool StackGuard::IsStackOverflow() {
 
 void StackGuard::EnableInterrupts() {
   ExecutionAccess access;
-  if (IsSet(access)) {
-    set_limits(kInterruptLimit, access);
+  if (has_pending_interrupts(access)) {
+    set_interrupt_limits(access);
   }
 }
 
@@ -249,11 +249,6 @@ void StackGuard::DisableInterrupts() {
 }
 
 
-bool StackGuard::IsSet(const ExecutionAccess& lock) {
-  return thread_local_.interrupt_flags_ != 0;
-}
-
-
 bool StackGuard::IsInterrupted() {
   ExecutionAccess access;
   return thread_local_.interrupt_flags_ & INTERRUPT;
@@ -263,7 +258,7 @@ bool StackGuard::IsInterrupted() {
 void StackGuard::Interrupt() {
   ExecutionAccess access;
   thread_local_.interrupt_flags_ |= INTERRUPT;
-  set_limits(kInterruptLimit, access);
+  set_interrupt_limits(access);
 }
 
 
@@ -276,7 +271,7 @@ bool StackGuard::IsPreempted() {
 void StackGuard::Preempt() {
   ExecutionAccess access;
   thread_local_.interrupt_flags_ |= PREEMPT;
-  set_limits(kInterruptLimit, access);
+  set_interrupt_limits(access);
 }
 
 
@@ -289,7 +284,7 @@ bool StackGuard::IsTerminateExecution() {
 void StackGuard::TerminateExecution() {
   ExecutionAccess access;
   thread_local_.interrupt_flags_ |= TERMINATE;
-  set_limits(kInterruptLimit, access);
+  set_interrupt_limits(access);
 }
 
 
@@ -303,7 +298,7 @@ bool StackGuard::IsDebugBreak() {
 void StackGuard::DebugBreak() {
   ExecutionAccess access;
   thread_local_.interrupt_flags_ |= DEBUGBREAK;
-  set_limits(kInterruptLimit, access);
+  set_interrupt_limits(access);
 }
 
 
@@ -317,7 +312,7 @@ void StackGuard::DebugCommand() {
   if (FLAG_debugger_auto_break) {
     ExecutionAccess access;
     thread_local_.interrupt_flags_ |= DEBUGCOMMAND;
-    set_limits(kInterruptLimit, access);
+    set_interrupt_limits(access);
   }
 }
 #endif
@@ -325,7 +320,7 @@ void StackGuard::DebugCommand() {
 void StackGuard::Continue(InterruptFlag after_what) {
   ExecutionAccess access;
   thread_local_.interrupt_flags_ &= ~static_cast<int>(after_what);
-  if (thread_local_.interrupt_flags_ == 0) {
+  if (!should_postpone_interrupts(access) && !has_pending_interrupts(access)) {
     reset_limits(access);
   }
 }

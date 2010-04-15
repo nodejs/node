@@ -30,55 +30,112 @@
 
 Debug = debug.Debug
 
-eval(
-    "function ChooseAnimal(callback) {\n " +
-    "  callback();\n" +
-    "  return 'Cat';\n" +
-    "}\n"
-);
+unique_id = 1;
 
-function Noop() {}
-var res = ChooseAnimal(Noop);
+function TestBase(name) {
+  print("TestBase constructor: " + name);
 
-assertEquals("Cat", res);
+  this.ChooseAnimal = eval(
+      "/* " + unique_id + "*/\n" +
+      "(function ChooseAnimal(callback) {\n " +
+      "  callback();\n" +
+      "  return 'Cat';\n" +
+      "})\n"
+  );
+  // Prevents eval script caching.
+  unique_id++;
 
-var script = Debug.findScript(ChooseAnimal);
+  var script = Debug.findScript(this.ChooseAnimal);
 
-var orig_animal = "'Cat'";
-var patch_pos = script.source.indexOf(orig_animal);
-var new_animal_patch = "'Capybara'";
+  var orig_animal = "'Cat'";
+  var patch_pos = script.source.indexOf(orig_animal);
+  var new_animal_patch = "'Capybara'";
 
-var got_exception = false;
-var successfully_changed = false;
+  var got_exception = false;
+  var successfully_changed = false;
 
-function Changer() {
-  // Never try the same patch again.
-  assertEquals(false, successfully_changed);
-  var change_log = new Array();
-  try {
-    Debug.LiveEditChangeScript(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
-    successfully_changed = true;
-  } catch (e) {
-    if (e instanceof Debug.LiveEditChangeScript.Failure) {
-      got_exception = true;
-      print(e);
-    } else {
-      throw e;
+  // Should be called from Debug context.
+  this.ScriptChanger = function() {
+    assertEquals(false, successfully_changed, "applying patch second time");
+    // Runs in debugger context.
+    var change_log = new Array();
+    try {
+      Debug.LiveEditChangeScript(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+    } finally {
+      print("Change log: " + JSON.stringify(change_log) + "\n");
     }
-  }
-  print("Change log: " + JSON.stringify(change_log) + "\n");
+    successfully_changed = true;
+  };
 }
 
-var new_res = ChooseAnimal(Changer);
-// Function must be not pached.
-assertEquals("Cat", new_res);
+function Noop() {}
 
-assertEquals(true, got_exception);
+function WrapInCatcher(f, holder) {
+  return function() {
+    delete holder[0];
+    try {
+      f();
+    } catch (e) {
+      if (e instanceof Debug.LiveEditChangeScript.Failure) {
+        holder[0] = e;
+      } else {
+        throw e;
+      }
+    }
+  };
+}
 
-// This time it should succeed.
-Changer();
+function WrapInNativeCall(f) {
+  return function() {
+    return Debug.ExecuteInDebugContext(f, true);
+  };
+}
 
-new_res = ChooseAnimal(Noop);
-// Function must be not pached.
-assertEquals("Capybara", new_res);
+function WrapInDebuggerCall(f) {
+  return function() {
+    return Debug.ExecuteInDebugContext(f, false);
+  };
+}
+
+function WrapInRestartProof(f) {
+  var already_called = false;
+  return function() {
+    if (already_called) {
+      return;
+    }
+    already_called = true;
+    f();
+  }
+}
+
+function WrapInConstructor(f) {
+  return function() {
+    return new function() {
+      f();
+    };
+  }
+}
+
+
+// A series of tests. In each test we call ChooseAnimal function that calls
+// a callback that attempts to modify the function on the fly.
+
+test = new TestBase("First test ChooseAnimal without edit");
+assertEquals("Cat", test.ChooseAnimal(Noop));
+
+test = new TestBase("Test without function on stack");
+test.ScriptChanger();
+assertEquals("Capybara", test.ChooseAnimal(Noop));
+
+test = new TestBase("Test with function on stack");
+assertEquals("Capybara", test.ChooseAnimal(WrapInDebuggerCall(WrapInRestartProof(test.ScriptChanger))));
+
+
+test = new TestBase("Test with function on stack and with constructor frame");
+assertEquals("Capybara", test.ChooseAnimal(WrapInConstructor(WrapInDebuggerCall(WrapInRestartProof(test.ScriptChanger)))));
+
+test = new TestBase("Test with C++ frame above ChooseAnimal frame");
+exception_holder = {};
+assertEquals("Cat", test.ChooseAnimal(WrapInNativeCall(WrapInDebuggerCall(WrapInCatcher(test.ScriptChanger, exception_holder)))));
+assertTrue(!!exception_holder[0]);
 

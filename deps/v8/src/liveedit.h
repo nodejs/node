@@ -88,13 +88,26 @@ class LiveEdit : AllStatic {
   static void RelinkFunctionToScript(Handle<JSArray> shared_info_array,
                                      Handle<Script> script_handle);
 
-  static void PatchFunctionPositions(Handle<JSArray> shared_info_array,
-                                     Handle<JSArray> position_change_array);
+  // Returns an array of pairs (new source position, breakpoint_object/array)
+  // so that JS side could update positions in breakpoint objects.
+  static Handle<JSArray> PatchFunctionPositions(
+      Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array);
+
+  // Checks listed functions on stack and return array with corresponding
+  // FunctionPatchabilityStatus statuses; extra array element may
+  // contain general error message. Modifies the current stack and
+  // has restart the lowest found frames and drops all other frames above
+  // if possible and if do_drop is true.
+  static Handle<JSArray> CheckAndDropActivations(
+      Handle<JSArray> shared_info_array, bool do_drop);
 
   // A copy of this is in liveedit-debugger.js.
   enum FunctionPatchabilityStatus {
-    FUNCTION_AVAILABLE_FOR_PATCH = 0,
-    FUNCTION_BLOCKED_ON_STACK = 1
+    FUNCTION_AVAILABLE_FOR_PATCH = 1,
+    FUNCTION_BLOCKED_ON_ACTIVE_STACK = 2,
+    FUNCTION_BLOCKED_ON_OTHER_STACK = 3,
+    FUNCTION_BLOCKED_UNDER_NATIVE_CODE = 4,
+    FUNCTION_REPLACED_ON_ACTIVE_STACK = 5
   };
 };
 

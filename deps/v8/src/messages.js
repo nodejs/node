@@ -433,6 +433,30 @@ Script.prototype.lineCount = function() {
 
 
 /**
+ * Returns the name of script if available, contents of sourceURL comment
+ * otherwise. See 
+ * http://fbug.googlecode.com/svn/branches/firebug1.1/docs/ReleaseNotes_1.1.txt
+ * for details on using //@ sourceURL comment to identify scritps that don't
+ * have name.
+ * 
+ * @return {?string} script name if present, value for //@ sourceURL comment
+ * otherwise.
+ */
+Script.prototype.nameOrSourceURL = function() {
+  if (this.name)
+    return this.name;
+  // TODO(608): the spaces in a regexp below had to be escaped as \040 
+  // because this file is being processed by js2c whose handling of spaces
+  // in regexps is broken. Also, ['"] are excluded from allowed URLs to
+  // avoid matches against sources that invoke evals with sourceURL.
+  var sourceUrlPattern =
+    /\/\/@[\040\t]sourceURL=[\040\t]*([^\s'"]*)[\040\t]*$/m;
+  var match = sourceUrlPattern.exec(this.source);
+  return match ? match[1] : this.name;
+}
+
+
+/**
  * Class for source location. A source location is a position within some
  * source with the following properties:
  *   script   : script object for the source
@@ -743,7 +767,7 @@ function FormatEvalOrigin(script) {
   } else {
     eval_origin +=  "<anonymous>";
   }
-  
+
   var eval_from_script = script.eval_from_script;
   if (eval_from_script) {
     if (eval_from_script.compilation_type == COMPILATION_TYPE_EVAL) {
@@ -764,7 +788,7 @@ function FormatEvalOrigin(script) {
       }
     }
   }
-  
+
   return eval_origin;
 };
 

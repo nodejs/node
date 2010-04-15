@@ -90,33 +90,13 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
   }
 
   if (FLAG_use_flow_graph) {
-    int variable_count =
-        function->num_parameters() + function->scope()->num_stack_slots();
-    FlowGraphBuilder builder(variable_count);
-    builder.Build(function);
-
-    if (!builder.HasStackOverflow()) {
-      if (variable_count > 0) {
-        ReachingDefinitions rd(builder.postorder(),
-                               builder.body_definitions(),
-                               variable_count);
-        rd.Compute();
-
-        TypeAnalyzer ta(builder.postorder(),
-                        builder.body_definitions(),
-                        variable_count,
-                        function->num_parameters());
-        ta.Compute();
-
-        MarkLiveCode(builder.preorder(),
-                     builder.body_definitions(),
-                     variable_count);
-      }
-    }
+    FlowGraphBuilder builder;
+    FlowGraph* graph = builder.Build(function);
+    USE(graph);
 
 #ifdef DEBUG
     if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
-      builder.graph()->PrintText(function, builder.postorder());
+      graph->PrintAsText(function->name());
     }
 #endif
   }
@@ -237,14 +217,18 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   }
 
   if (script->name()->IsString()) {
-    LOG(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
-                        *code, String::cast(script->name())));
+    PROFILE(CodeCreateEvent(
+        is_eval ? Logger::EVAL_TAG :
+            Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+        *code, String::cast(script->name())));
     OPROFILE(CreateNativeCodeRegion(String::cast(script->name()),
                                     code->instruction_start(),
                                     code->instruction_size()));
   } else {
-    LOG(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
-                        *code, ""));
+    PROFILE(CodeCreateEvent(
+        is_eval ? Logger::EVAL_TAG :
+            Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+        *code, ""));
     OPROFILE(CreateNativeCodeRegion(is_eval ? "Eval" : "Script",
                                     code->instruction_start(),
                                     code->instruction_size()));
@@ -499,33 +483,13 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
     }
 
     if (FLAG_use_flow_graph) {
-      int variable_count =
-          literal->num_parameters() + literal->scope()->num_stack_slots();
-      FlowGraphBuilder builder(variable_count);
-      builder.Build(literal);
-
-      if (!builder.HasStackOverflow()) {
-        if (variable_count > 0) {
-          ReachingDefinitions rd(builder.postorder(),
-                                 builder.body_definitions(),
-                                 variable_count);
-          rd.Compute();
-
-          TypeAnalyzer ta(builder.postorder(),
-                          builder.body_definitions(),
-                          variable_count,
-                          literal->num_parameters());
-          ta.Compute();
-
-          MarkLiveCode(builder.preorder(),
-                       builder.body_definitions(),
-                       variable_count);
-        }
-      }
+      FlowGraphBuilder builder;
+      FlowGraph* graph = builder.Build(literal);
+      USE(graph);
 
 #ifdef DEBUG
       if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
-        builder.graph()->PrintText(literal, builder.postorder());
+        graph->PrintAsText(literal->name());
       }
 #endif
     }
@@ -625,20 +589,24 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   // Log the code generation. If source information is available
   // include script name and line number. Check explicitly whether
   // logging is enabled as finding the line number is not free.
-  if (Logger::is_logging() || OProfileAgent::is_enabled()) {
+  if (Logger::is_logging()
+      || OProfileAgent::is_enabled()
+      || CpuProfiler::is_profiling()) {
     Handle<String> func_name(name->length() > 0 ? *name : *inferred_name);
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, start_position) + 1;
       USE(line_num);
-      LOG(CodeCreateEvent(tag, *code, *func_name,
-                          String::cast(script->name()), line_num));
+      PROFILE(CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
+                              *code, *func_name,
+                              String::cast(script->name()), line_num));
       OPROFILE(CreateNativeCodeRegion(*func_name,
                                       String::cast(script->name()),
                                       line_num,
                                       code->instruction_start(),
                                       code->instruction_size()));
     } else {
-      LOG(CodeCreateEvent(tag, *code, *func_name));
+      PROFILE(CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
+                              *code, *func_name));
       OPROFILE(CreateNativeCodeRegion(*func_name,
                                       code->instruction_start(),
                                       code->instruction_size()));

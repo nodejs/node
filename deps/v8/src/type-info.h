@@ -156,6 +156,11 @@ class TypeInfo {
     return ((type_ & kDoubleType) == kDoubleType);
   }
 
+  inline bool IsString() {
+    ASSERT(type_ != kUninitializedType);
+    return ((type_ & kStringType) == kStringType);
+  }
+
   inline bool IsUninitialized() {
     return type_ == kUninitializedType;
   }

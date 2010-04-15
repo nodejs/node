@@ -737,7 +737,7 @@ bool CompileLazy(Handle<JSFunction> function,
                  ClearExceptionFlag flag) {
   CompilationInfo info(function, 0, receiver);
   bool result = CompileLazyHelper(&info, flag);
-  LOG(FunctionCreateEvent(*function));
+  PROFILE(FunctionCreateEvent(*function));
   return result;
 }
 
@@ -747,7 +747,7 @@ bool CompileLazyInLoop(Handle<JSFunction> function,
                        ClearExceptionFlag flag) {
   CompilationInfo info(function, 1, receiver);
   bool result = CompileLazyHelper(&info, flag);
-  LOG(FunctionCreateEvent(*function));
+  PROFILE(FunctionCreateEvent(*function));
   return result;
 }
 

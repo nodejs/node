@@ -814,6 +814,8 @@ Object* Debug::Break(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 0);
 
+  thread_local_.frames_are_dropped_ = false;
+
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it;
   JavaScriptFrame* frame = it.frame();
@@ -890,8 +892,13 @@ Object* Debug::Break(Arguments args) {
     PrepareStep(step_action, step_count);
   }
 
-  // Install jump to the call address which was overwritten.
-  SetAfterBreakTarget(frame);
+  if (thread_local_.frames_are_dropped_) {
+    // We must have been calling IC stub. Do not return there anymore.
+    Code* plain_return = Builtins::builtin(Builtins::PlainReturn_LiveEdit);
+    thread_local_.after_break_target_ = plain_return->entry();
+  } else {
+    SetAfterBreakTarget(frame);
+  }
 
   return Heap::undefined_value();
 }
@@ -1652,6 +1659,12 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
     // call which was overwritten by the call to DebugBreakXXX.
     thread_local_.after_break_target_ = Assembler::target_address_at(addr);
   }
+}
+
+
+void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id) {
+  thread_local_.frames_are_dropped_ = true;
+  thread_local_.break_frame_id_ = new_break_frame_id;
 }
 
 

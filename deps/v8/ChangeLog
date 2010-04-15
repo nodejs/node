@@ -1,3 +1,26 @@
+2010-04-14: Version 2.2.3
+
+        Added stack command and mem command to ARM simulator debugger.
+
+        Fixed scons snapshot and ARM build, and Windows X64 build issues.
+
+        Performance improvements on all platforms.
+
+
+2010-04-12: Version 2.2.2
+
+        Introduced new profiler API.
+
+        Fixed random number generator to produce full 32 random bits.
+
+
+2010-04-06: Version 2.2.1
+
+        Debugger improvements.
+
+        Fixed minor bugs.
+
+
 2010-03-29: Version 2.2.0
 
         Fixed a few minor bugs.

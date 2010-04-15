@@ -824,6 +824,25 @@ Result VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
 }
 
 
+Result VirtualFrame::CallJSFunction(int arg_count) {
+  Result function = Pop();
+
+  // InvokeFunction requires function in rdi.  Move it in there.
+  function.ToRegister(rdi);
+  function.Unuse();
+
+  // +1 for receiver.
+  PrepareForCall(arg_count + 1, arg_count + 1);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  ParameterCount count(arg_count);
+  __ InvokeFunction(rdi, count, CALL_FUNCTION);
+  RestoreContextRegister();
+  Result result = cgen()->allocator()->Allocate(rax);
+  ASSERT(result.is_valid());
+  return result;
+}
+
+
 void VirtualFrame::SyncElementBelowStackPointer(int index) {
   // Emit code to write elements below the stack pointer to their
   // (already allocated) stack address.

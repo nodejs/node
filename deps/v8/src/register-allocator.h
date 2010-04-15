@@ -213,7 +213,11 @@ class RegisterFile BASE_EMBEDDED {
   }
 
  private:
-  static const int kNumRegisters = RegisterAllocatorConstants::kNumRegisters;
+  // C++ doesn't like zero length arrays, so we make the array length 1 even if
+  // we don't need it.
+  static const int kNumRegisters =
+      (RegisterAllocatorConstants::kNumRegisters == 0) ?
+      1 : RegisterAllocatorConstants::kNumRegisters;
 
   int ref_counts_[kNumRegisters];
 

@@ -562,23 +562,18 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
   EnsureFromSpaceIsCommitted();
 
-  // Perform mark-sweep with optional compaction.
   if (collector == MARK_COMPACTOR) {
+    // Perform mark-sweep with optional compaction.
     MarkCompact(tracer);
-  }
 
-  // Always perform a scavenge to make room in new space.
-  Scavenge();
-
-  // Update the old space promotion limits after the scavenge due to
-  // promotions during scavenge.
-  if (collector == MARK_COMPACTOR) {
     int old_gen_size = PromotedSpaceSize();
     old_gen_promotion_limit_ =
         old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
     old_gen_allocation_limit_ =
         old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
     old_gen_exhausted_ = false;
+  } else {
+    Scavenge();
   }
 
   Counters::objs_since_last_young.Set(0);
@@ -764,6 +759,17 @@ static void VerifyNonPointerSpacePointers() {
 #endif
 
 
+void Heap::CheckNewSpaceExpansionCriteria() {
+  if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
+      survived_since_last_expansion_ > new_space_.Capacity()) {
+    // Grow the size of new space if there is room to grow and enough
+    // data has survived scavenge since the last expansion.
+    new_space_.Grow();
+    survived_since_last_expansion_ = 0;
+  }
+}
+
+
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
@@ -780,13 +786,7 @@ void Heap::Scavenge() {
   // Used for updating survived_since_last_expansion_ at function end.
   int survived_watermark = PromotedSpaceSize();
 
-  if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
-      survived_since_last_expansion_ > new_space_.Capacity()) {
-    // Grow the size of new space if there is room to grow and enough
-    // data has survived scavenge since the last expansion.
-    new_space_.Grow();
-    survived_since_last_expansion_ = 0;
-  }
+  CheckNewSpaceExpansionCriteria();
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
@@ -837,15 +837,17 @@ void Heap::Scavenge() {
 
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
-  ScavengeExternalStringTable();
+  UpdateNewSpaceReferencesInExternalStringTable(
+      &UpdateNewSpaceReferenceInExternalStringTableEntry);
+
   ASSERT(new_space_front == new_space_.top());
 
   // Set age mark.
   new_space_.set_age_mark(new_space_.top());
 
   // Update how much has survived scavenge.
-  survived_since_last_expansion_ +=
-      (PromotedSpaceSize() - survived_watermark) + new_space_.Size();
+  IncrementYoungSurvivorsCounter(
+      (PromotedSpaceSize() - survived_watermark) + new_space_.Size());
 
   LOG(ResourceEvent("scavenge", "end"));
 
@@ -853,7 +855,22 @@ void Heap::Scavenge() {
 }
 
 
-void Heap::ScavengeExternalStringTable() {
+String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Object** p) {
+  MapWord first_word = HeapObject::cast(*p)->map_word();
+
+  if (!first_word.IsForwardingAddress()) {
+    // Unreachable external string can be finalized.
+    FinalizeExternalString(String::cast(*p));
+    return NULL;
+  }
+
+  // String is still reachable.
+  return String::cast(first_word.ToForwardingAddress());
+}
+
+
+void Heap::UpdateNewSpaceReferencesInExternalStringTable(
+    ExternalStringTableUpdaterCallback updater_func) {
   ExternalStringTable::Verify();
 
   if (ExternalStringTable::new_space_strings_.is_empty()) return;
@@ -864,16 +881,10 @@ void Heap::ScavengeExternalStringTable() {
 
   for (Object** p = start; p < end; ++p) {
     ASSERT(Heap::InFromSpace(*p));
-    MapWord first_word = HeapObject::cast(*p)->map_word();
+    String* target = updater_func(p);
 
-    if (!first_word.IsForwardingAddress()) {
-      // Unreachable external string can be finalized.
-      FinalizeExternalString(String::cast(*p));
-      continue;
-    }
+    if (target == NULL) continue;
 
-    // String is still reachable.
-    String* target = String::cast(first_word.ToForwardingAddress());
     ASSERT(target->IsExternalString());
 
     if (Heap::InNewSpace(target)) {
@@ -1487,10 +1498,9 @@ Object* Heap::AllocateJSGlobalPropertyCell(Object* value) {
 }
 
 
-Object* Heap::CreateOddball(Map* map,
-                            const char* to_string,
+Object* Heap::CreateOddball(const char* to_string,
                             Object* to_number) {
-  Object* result = Allocate(map, OLD_DATA_SPACE);
+  Object* result = Allocate(oddball_map(), OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
   return Oddball::cast(result)->Initialize(to_string, to_number);
 }
@@ -1594,34 +1604,27 @@ bool Heap::CreateInitialObjects() {
   Oddball::cast(undefined_value())->set_to_string(String::cast(symbol));
   Oddball::cast(undefined_value())->set_to_number(nan_value());
 
-  // Assign the print strings for oddballs after creating symboltable.
-  symbol = LookupAsciiSymbol("null");
-  if (symbol->IsFailure()) return false;
-  Oddball::cast(null_value())->set_to_string(String::cast(symbol));
-  Oddball::cast(null_value())->set_to_number(Smi::FromInt(0));
-
   // Allocate the null_value
   obj = Oddball::cast(null_value())->Initialize("null", Smi::FromInt(0));
   if (obj->IsFailure()) return false;
 
-  obj = CreateOddball(oddball_map(), "true", Smi::FromInt(1));
+  obj = CreateOddball("true", Smi::FromInt(1));
   if (obj->IsFailure()) return false;
   set_true_value(obj);
 
-  obj = CreateOddball(oddball_map(), "false", Smi::FromInt(0));
+  obj = CreateOddball("false", Smi::FromInt(0));
   if (obj->IsFailure()) return false;
   set_false_value(obj);
 
-  obj = CreateOddball(oddball_map(), "hole", Smi::FromInt(-1));
+  obj = CreateOddball("hole", Smi::FromInt(-1));
   if (obj->IsFailure()) return false;
   set_the_hole_value(obj);
 
-  obj = CreateOddball(
-      oddball_map(), "no_interceptor_result_sentinel", Smi::FromInt(-2));
+  obj = CreateOddball("no_interceptor_result_sentinel", Smi::FromInt(-2));
   if (obj->IsFailure()) return false;
   set_no_interceptor_result_sentinel(obj);
 
-  obj = CreateOddball(oddball_map(), "termination_exception", Smi::FromInt(-3));
+  obj = CreateOddball("termination_exception", Smi::FromInt(-3));
   if (obj->IsFailure()) return false;
   set_termination_exception(obj);
 
@@ -1797,11 +1800,13 @@ Object* Heap::SmiOrNumberFromDouble(double value,
 }
 
 
-Object* Heap::NumberToString(Object* number) {
+Object* Heap::NumberToString(Object* number, bool check_number_string_cache) {
   Counters::number_to_string_runtime.Increment();
-  Object* cached = GetNumberStringCache(number);
-  if (cached != undefined_value()) {
-    return cached;
+  if (check_number_string_cache) {
+    Object* cached = GetNumberStringCache(number);
+    if (cached != undefined_value()) {
+      return cached;
+    }
   }
 
   char arr[100];
@@ -2313,7 +2318,8 @@ Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 
   Address old_addr = code->address();
 
-  int relocation_offset = code->relocation_start() - old_addr;
+  size_t relocation_offset =
+      static_cast<size_t>(code->relocation_start() - old_addr);
 
   Object* result;
   if (new_obj_size > MaxObjectSizeInPagedSpace()) {

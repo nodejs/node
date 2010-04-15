@@ -1228,6 +1228,92 @@ static Object* Runtime_RegExpExec(Arguments args) {
 }
 
 
+static Object* Runtime_RegExpConstructResult(Arguments args) {
+  ASSERT(args.length() == 3);
+  CONVERT_SMI_CHECKED(elements_count, args[0]);
+  if (elements_count > JSArray::kMaxFastElementsLength) {
+    return Top::ThrowIllegalOperation();
+  }
+  Object* new_object = Heap::AllocateFixedArrayWithHoles(elements_count);
+  if (new_object->IsFailure()) return new_object;
+  FixedArray* elements = FixedArray::cast(new_object);
+  new_object = Heap::AllocateRaw(JSRegExpResult::kSize,
+                                 NEW_SPACE,
+                                 OLD_POINTER_SPACE);
+  if (new_object->IsFailure()) return new_object;
+  {
+    AssertNoAllocation no_gc;
+    HandleScope scope;
+    reinterpret_cast<HeapObject*>(new_object)->
+        set_map(Top::global_context()->regexp_result_map());
+  }
+  JSArray* array = JSArray::cast(new_object);
+  array->set_properties(Heap::empty_fixed_array());
+  array->set_elements(elements);
+  array->set_length(Smi::FromInt(elements_count));
+  // Write in-object properties after the length of the array.
+  array->InObjectPropertyAtPut(JSRegExpResult::kIndexIndex, args[1]);
+  array->InObjectPropertyAtPut(JSRegExpResult::kInputIndex, args[2]);
+  return array;
+}
+
+
+static Object* Runtime_RegExpInitializeObject(Arguments args) {
+  AssertNoAllocation no_alloc;
+  ASSERT(args.length() == 5);
+  CONVERT_CHECKED(JSRegExp, regexp, args[0]);
+  CONVERT_CHECKED(String, source, args[1]);
+
+  Object* global = args[2];
+  if (!global->IsTrue()) global = Heap::false_value();
+
+  Object* ignoreCase = args[3];
+  if (!ignoreCase->IsTrue()) ignoreCase = Heap::false_value();
+
+  Object* multiline = args[4];
+  if (!multiline->IsTrue()) multiline = Heap::false_value();
+
+  Map* map = regexp->map();
+  Object* constructor = map->constructor();
+  if (constructor->IsJSFunction() &&
+      JSFunction::cast(constructor)->initial_map() == map) {
+    // If we still have the original map, set in-object properties directly.
+    regexp->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex, source);
+    // TODO(lrn): Consider skipping write barrier on booleans as well.
+    // Both true and false should be in oldspace at all times.
+    regexp->InObjectPropertyAtPut(JSRegExp::kGlobalFieldIndex, global);
+    regexp->InObjectPropertyAtPut(JSRegExp::kIgnoreCaseFieldIndex, ignoreCase);
+    regexp->InObjectPropertyAtPut(JSRegExp::kMultilineFieldIndex, multiline);
+    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
+                                  Smi::FromInt(0),
+                                  SKIP_WRITE_BARRIER);
+    return regexp;
+  }
+
+  // Map has changed, so use generic, but slower, method.
+  PropertyAttributes final =
+      static_cast<PropertyAttributes>(READ_ONLY | DONT_ENUM | DONT_DELETE);
+  PropertyAttributes writable =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
+  regexp->IgnoreAttributesAndSetLocalProperty(Heap::source_symbol(),
+                                              source,
+                                              final);
+  regexp->IgnoreAttributesAndSetLocalProperty(Heap::global_symbol(),
+                                              global,
+                                              final);
+  regexp->IgnoreAttributesAndSetLocalProperty(Heap::ignore_case_symbol(),
+                                              ignoreCase,
+                                              final);
+  regexp->IgnoreAttributesAndSetLocalProperty(Heap::multiline_symbol(),
+                                              multiline,
+                                              final);
+  regexp->IgnoreAttributesAndSetLocalProperty(Heap::last_index_symbol(),
+                                              Smi::FromInt(0),
+                                              writable);
+  return regexp;
+}
+
+
 static Object* Runtime_FinishArrayPrototypeSetup(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
@@ -1304,6 +1390,13 @@ static Object* Runtime_SpecialArrayFunctions(Arguments args) {
   InstallBuiltin(holder, "concat", Builtins::ArrayConcat);
 
   return *holder;
+}
+
+
+static Object* Runtime_GetGlobalReceiver(Arguments args) {
+  // Returns a real global receiver, not one of builtins object.
+  Context* global_context = Top::context()->global()->global_context();
+  return global_context->global()->global_receiver();
 }
 
 
@@ -1567,9 +1660,91 @@ static Object* Runtime_CharFromCode(Arguments args) {
   return CharFromCode(args[0]);
 }
 
+
+class FixedArrayBuilder {
+ public:
+  explicit FixedArrayBuilder(int initial_capacity)
+      : array_(Factory::NewFixedArrayWithHoles(initial_capacity)),
+        length_(0) {
+    // Require a non-zero initial size. Ensures that doubling the size to
+    // extend the array will work.
+    ASSERT(initial_capacity > 0);
+  }
+
+  explicit FixedArrayBuilder(Handle<FixedArray> backing_store)
+      : array_(backing_store),
+        length_(0) {
+    // Require a non-zero initial size. Ensures that doubling the size to
+    // extend the array will work.
+    ASSERT(backing_store->length() > 0);
+  }
+
+  bool HasCapacity(int elements) {
+    int length = array_->length();
+    int required_length = length_ + elements;
+    return (length >= required_length);
+  }
+
+  void EnsureCapacity(int elements) {
+    int length = array_->length();
+    int required_length = length_ + elements;
+    if (length < required_length) {
+      int new_length = length;
+      do {
+        new_length *= 2;
+      } while (new_length < required_length);
+      Handle<FixedArray> extended_array =
+          Factory::NewFixedArrayWithHoles(new_length);
+      array_->CopyTo(0, *extended_array, 0, length_);
+      array_ = extended_array;
+    }
+  }
+
+  void Add(Object* value) {
+    ASSERT(length_ < capacity());
+    array_->set(length_, value);
+    length_++;
+  }
+
+  void Add(Smi* value) {
+    ASSERT(length_ < capacity());
+    array_->set(length_, value);
+    length_++;
+  }
+
+  Handle<FixedArray> array() {
+    return array_;
+  }
+
+  int length() {
+    return length_;
+  }
+
+  int capacity() {
+    return array_->length();
+  }
+
+  Handle<JSArray> ToJSArray() {
+    Handle<JSArray> result_array = Factory::NewJSArrayWithElements(array_);
+    result_array->set_length(Smi::FromInt(length_));
+    return result_array;
+  }
+
+  Handle<JSArray> ToJSArray(Handle<JSArray> target_array) {
+    target_array->set_elements(*array_);
+    target_array->set_length(Smi::FromInt(length_));
+    return target_array;
+  }
+
+ private:
+  Handle<FixedArray> array_;
+  int length_;
+};
+
+
 // Forward declarations.
-static const int kStringBuilderConcatHelperLengthBits = 11;
-static const int kStringBuilderConcatHelperPositionBits = 19;
+const int kStringBuilderConcatHelperLengthBits = 11;
+const int kStringBuilderConcatHelperPositionBits = 19;
 
 template <typename schar>
 static inline void StringBuilderConcatHelper(String*,
@@ -1577,15 +1752,19 @@ static inline void StringBuilderConcatHelper(String*,
                                              FixedArray*,
                                              int);
 
-typedef BitField<int, 0, 11> StringBuilderSubstringLength;
-typedef BitField<int, 11, 19> StringBuilderSubstringPosition;
+typedef BitField<int, 0, kStringBuilderConcatHelperLengthBits>
+    StringBuilderSubstringLength;
+typedef BitField<int,
+                 kStringBuilderConcatHelperLengthBits,
+                 kStringBuilderConcatHelperPositionBits>
+    StringBuilderSubstringPosition;
+
 
 class ReplacementStringBuilder {
  public:
   ReplacementStringBuilder(Handle<String> subject, int estimated_part_count)
-      : subject_(subject),
-        parts_(Factory::NewFixedArray(estimated_part_count)),
-        part_count_(0),
+      : array_builder_(estimated_part_count),
+        subject_(subject),
         character_count_(0),
         is_ascii_(subject->IsAsciiRepresentation()) {
     // Require a non-zero initial size. Ensures that doubling the size to
@@ -1593,38 +1772,35 @@ class ReplacementStringBuilder {
     ASSERT(estimated_part_count > 0);
   }
 
-  void EnsureCapacity(int elements) {
-    int length = parts_->length();
-    int required_length = part_count_ + elements;
-    if (length < required_length) {
-      int new_length = length;
-      do {
-        new_length *= 2;
-      } while (new_length < required_length);
-      Handle<FixedArray> extended_array =
-          Factory::NewFixedArray(new_length);
-      parts_->CopyTo(0, *extended_array, 0, part_count_);
-      parts_ = extended_array;
-    }
-  }
-
-  void AddSubjectSlice(int from, int to) {
+  static inline void AddSubjectSlice(FixedArrayBuilder* builder,
+                                     int from,
+                                     int to) {
     ASSERT(from >= 0);
     int length = to - from;
     ASSERT(length > 0);
-    // Can we encode the slice in 11 bits for length and 19 bits for
-    // start position - as used by StringBuilderConcatHelper?
     if (StringBuilderSubstringLength::is_valid(length) &&
         StringBuilderSubstringPosition::is_valid(from)) {
       int encoded_slice = StringBuilderSubstringLength::encode(length) |
           StringBuilderSubstringPosition::encode(from);
-      AddElement(Smi::FromInt(encoded_slice));
+      builder->Add(Smi::FromInt(encoded_slice));
     } else {
       // Otherwise encode as two smis.
-      AddElement(Smi::FromInt(-length));
-      AddElement(Smi::FromInt(from));
+      builder->Add(Smi::FromInt(-length));
+      builder->Add(Smi::FromInt(from));
     }
-    IncrementCharacterCount(length);
+  }
+
+
+  void EnsureCapacity(int elements) {
+    array_builder_.EnsureCapacity(elements);
+  }
+
+
+  void AddSubjectSlice(int from, int to) {
+    AddSubjectSlice(&array_builder_, from, to);
+    // Can we encode the slice in 11 bits for length and 19 bits for
+    // start position - as used by StringBuilderConcatHelper?
+    IncrementCharacterCount(to - from);
   }
 
 
@@ -1640,7 +1816,7 @@ class ReplacementStringBuilder {
 
 
   Handle<String> ToString() {
-    if (part_count_ == 0) {
+    if (array_builder_.length() == 0) {
       return Factory::empty_string();
     }
 
@@ -1652,8 +1828,8 @@ class ReplacementStringBuilder {
       char* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
                                 char_buffer,
-                                *parts_,
-                                part_count_);
+                                *array_builder_.array(),
+                                array_builder_.length());
     } else {
       // Non-ASCII.
       joined_string = NewRawTwoByteString(character_count_);
@@ -1662,8 +1838,8 @@ class ReplacementStringBuilder {
       uc16* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
                                 char_buffer,
-                                *parts_,
-                                part_count_);
+                                *array_builder_.array(),
+                                array_builder_.length());
     }
     return joined_string;
   }
@@ -1676,8 +1852,14 @@ class ReplacementStringBuilder {
     character_count_ += by;
   }
 
- private:
+  Handle<JSArray> GetParts() {
+    Handle<JSArray> result =
+        Factory::NewJSArrayWithElements(array_builder_.array());
+    result->set_length(Smi::FromInt(array_builder_.length()));
+    return result;
+  }
 
+ private:
   Handle<String> NewRawAsciiString(int size) {
     CALL_HEAP_FUNCTION(Heap::AllocateRawAsciiString(size), String);
   }
@@ -1690,14 +1872,12 @@ class ReplacementStringBuilder {
 
   void AddElement(Object* element) {
     ASSERT(element->IsSmi() || element->IsString());
-    ASSERT(parts_->length() > part_count_);
-    parts_->set(part_count_, element);
-    part_count_++;
+    ASSERT(array_builder_.capacity() > array_builder_.length());
+    array_builder_.Add(element);
   }
 
+  FixedArrayBuilder array_builder_;
   Handle<String> subject_;
-  Handle<FixedArray> parts_;
-  int part_count_;
   int character_count_;
   bool is_ascii_;
 };
@@ -2105,7 +2285,6 @@ static Object* Runtime_StringReplaceRegExpWithString(Arguments args) {
 }
 
 
-
 // Cap on the maximal shift in the Boyer-Moore implementation. By setting a
 // limit, we can fix the size of tables.
 static const int kBMMaxShift = 0xff;
@@ -2363,7 +2542,7 @@ static inline int SingleCharIndexOf(Vector<const schar> string,
                pattern_char,
                string.length() - start_index));
     if (pos == NULL) return -1;
-    return pos - string.start();
+    return static_cast<int>(pos - string.start());
   }
   for (int i = start_index, n = string.length(); i < n; i++) {
     if (pattern_char == string[i]) {
@@ -2421,7 +2600,7 @@ static int SimpleIndexOf(Vector<const schar> subject,
         *complete = true;
         return -1;
       }
-      i = pos - subject.start();
+      i = static_cast<int>(pos - subject.start());
     } else {
       if (subject[i] != pattern_first_char) continue;
     }
@@ -2455,7 +2634,7 @@ static int SimpleIndexOf(Vector<const schar> subject,
                  pattern_first_char,
                  n - i + 1));
       if (pos == NULL) return -1;
-      i = pos - subject.start();
+      i = static_cast<int>(pos - subject.start());
     } else {
       if (subject[i] != pattern_first_char) continue;
     }
@@ -2866,6 +3045,475 @@ static Object* Runtime_StringMatch(Arguments args) {
   Handle<JSArray> result = Factory::NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(matches));
   return *result;
+}
+
+
+// Two smis before and after the match, for very long strings.
+const int kMaxBuilderEntriesPerRegExpMatch = 5;
+
+
+static void SetLastMatchInfoNoCaptures(Handle<String> subject,
+                                       Handle<JSArray> last_match_info,
+                                       int match_start,
+                                       int match_end) {
+  // Fill last_match_info with a single capture.
+  last_match_info->EnsureSize(2 + RegExpImpl::kLastMatchOverhead);
+  AssertNoAllocation no_gc;
+  FixedArray* elements = FixedArray::cast(last_match_info->elements());
+  RegExpImpl::SetLastCaptureCount(elements, 2);
+  RegExpImpl::SetLastInput(elements, *subject);
+  RegExpImpl::SetLastSubject(elements, *subject);
+  RegExpImpl::SetCapture(elements, 0, match_start);
+  RegExpImpl::SetCapture(elements, 1, match_end);
+}
+
+
+template <typename schar>
+static bool SearchCharMultiple(Vector<schar> subject,
+                               String* pattern,
+                               schar pattern_char,
+                               FixedArrayBuilder* builder,
+                               int* match_pos) {
+  // Position of last match.
+  int pos = *match_pos;
+  int subject_length = subject.length();
+  while (pos < subject_length) {
+    int match_end = pos + 1;
+    if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
+      *match_pos = pos;
+      return false;
+    }
+    int new_pos = SingleCharIndexOf(subject, pattern_char, match_end);
+    if (new_pos >= 0) {
+      // Match has been found.
+      if (new_pos > match_end) {
+        ReplacementStringBuilder::AddSubjectSlice(builder, match_end, new_pos);
+      }
+      pos = new_pos;
+      builder->Add(pattern);
+    } else {
+      break;
+    }
+  }
+  if (pos + 1 < subject_length) {
+    ReplacementStringBuilder::AddSubjectSlice(builder, pos + 1, subject_length);
+  }
+  *match_pos = pos;
+  return true;
+}
+
+
+static bool SearchCharMultiple(Handle<String> subject,
+                               Handle<String> pattern,
+                               Handle<JSArray> last_match_info,
+                               FixedArrayBuilder* builder) {
+  ASSERT(subject->IsFlat());
+  ASSERT_EQ(1, pattern->length());
+  uc16 pattern_char = pattern->Get(0);
+  // Treating position before first as initial "previous match position".
+  int match_pos = -1;
+
+  for (;;) {  // Break when search complete.
+    builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
+    AssertNoAllocation no_gc;
+    if (subject->IsAsciiRepresentation()) {
+      if (pattern_char > String::kMaxAsciiCharCode) {
+        break;
+      }
+      Vector<const char> subject_vector = subject->ToAsciiVector();
+      char pattern_ascii_char = static_cast<char>(pattern_char);
+      bool complete = SearchCharMultiple<const char>(subject_vector,
+                                                     *pattern,
+                                                     pattern_ascii_char,
+                                                     builder,
+                                                     &match_pos);
+      if (complete) break;
+    } else {
+      Vector<const uc16> subject_vector = subject->ToUC16Vector();
+      bool complete = SearchCharMultiple<const uc16>(subject_vector,
+                                                     *pattern,
+                                                     pattern_char,
+                                                     builder,
+                                                     &match_pos);
+      if (complete) break;
+    }
+  }
+
+  if (match_pos >= 0) {
+    SetLastMatchInfoNoCaptures(subject,
+                               last_match_info,
+                               match_pos,
+                               match_pos + 1);
+    return true;
+  }
+  return false;  // No matches at all.
+}
+
+
+template <typename schar, typename pchar>
+static bool SearchStringMultiple(Vector<schar> subject,
+                                 String* pattern,
+                                 Vector<pchar> pattern_string,
+                                 FixedArrayBuilder* builder,
+                                 int* match_pos) {
+  int pos = *match_pos;
+  int subject_length = subject.length();
+  int pattern_length = pattern_string.length();
+  int max_search_start = subject_length - pattern_length;
+  bool is_ascii = (sizeof(schar) == 1);
+  StringSearchStrategy strategy =
+      InitializeStringSearch(pattern_string, is_ascii);
+  switch (strategy) {
+    case SEARCH_FAIL: return false;
+    case SEARCH_SHORT:
+      while (pos <= max_search_start) {
+        if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
+          *match_pos = pos;
+          return false;
+        }
+        // Position of end of previous match.
+        int match_end = pos + pattern_length;
+        int new_pos = SimpleIndexOf(subject, pattern_string, match_end);
+        if (new_pos >= 0) {
+          // A match.
+          if (new_pos > match_end) {
+            ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                      match_end,
+                                                      new_pos);
+          }
+          pos = new_pos;
+          builder->Add(pattern);
+        } else {
+          break;
+        }
+      }
+      break;
+    case SEARCH_LONG:
+      while (pos  <= max_search_start) {
+        if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
+         *match_pos = pos;
+         return false;
+        }
+        int new_pos = ComplexIndexOf(subject,
+                                     pattern_string,
+                                     pos + pattern_length);
+        if (new_pos >= 0) {
+         // A match has been found.
+          if (new_pos > pos) {
+           ReplacementStringBuilder::AddSubjectSlice(builder, pos, new_pos);
+          }
+          pos = new_pos;
+          builder->Add(pattern);
+        } else {
+         break;
+        }
+      }
+      break;
+  }
+  if (pos < max_search_start) {
+    ReplacementStringBuilder::AddSubjectSlice(builder,
+                                              pos + pattern_length,
+                                              subject_length);
+  }
+  *match_pos = pos;
+  return true;
+}
+
+
+static bool SearchStringMultiple(Handle<String> subject,
+                                 Handle<String> pattern,
+                                 Handle<JSArray> last_match_info,
+                                 FixedArrayBuilder* builder) {
+  ASSERT(subject->IsFlat());
+  ASSERT(pattern->IsFlat());
+  ASSERT(pattern->length() > 1);
+
+  // Treating as if a previous match was before first character.
+  int match_pos = -pattern->length();
+
+  for (;;) {  // Break when search complete.
+    builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
+    AssertNoAllocation no_gc;
+    if (subject->IsAsciiRepresentation()) {
+      Vector<const char> subject_vector = subject->ToAsciiVector();
+      if (pattern->IsAsciiRepresentation()) {
+        if (SearchStringMultiple(subject_vector,
+                                 *pattern,
+                                 pattern->ToAsciiVector(),
+                                 builder,
+                                 &match_pos)) break;
+      } else {
+        if (SearchStringMultiple(subject_vector,
+                                 *pattern,
+                                 pattern->ToUC16Vector(),
+                                 builder,
+                                 &match_pos)) break;
+      }
+    } else {
+      Vector<const uc16> subject_vector = subject->ToUC16Vector();
+      if (pattern->IsAsciiRepresentation()) {
+        if (SearchStringMultiple(subject_vector,
+                                 *pattern,
+                                 pattern->ToAsciiVector(),
+                                 builder,
+                                 &match_pos)) break;
+      } else {
+        if (SearchStringMultiple(subject_vector,
+                                 *pattern,
+                                 pattern->ToUC16Vector(),
+                                 builder,
+                                 &match_pos)) break;
+      }
+    }
+  }
+
+  if (match_pos >= 0) {
+    SetLastMatchInfoNoCaptures(subject,
+                               last_match_info,
+                               match_pos,
+                               match_pos + pattern->length());
+    return true;
+  }
+  return false;  // No matches at all.
+}
+
+
+static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
+    Handle<String> subject,
+    Handle<JSRegExp> regexp,
+    Handle<JSArray> last_match_array,
+    FixedArrayBuilder* builder) {
+  ASSERT(subject->IsFlat());
+  int match_start = -1;
+  int match_end = 0;
+  int pos = 0;
+  int required_registers = RegExpImpl::IrregexpPrepare(regexp, subject);
+  if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
+
+  OffsetsVector registers(required_registers);
+  Vector<int> register_vector(registers.vector(), registers.length());
+  int subject_length = subject->length();
+
+  for (;;) {  // Break on failure, return on exception.
+    RegExpImpl::IrregexpResult result =
+        RegExpImpl::IrregexpExecOnce(regexp,
+                                     subject,
+                                     pos,
+                                     register_vector);
+    if (result == RegExpImpl::RE_SUCCESS) {
+      match_start = register_vector[0];
+      builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
+      if (match_end < match_start) {
+        ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                  match_end,
+                                                  match_start);
+      }
+      match_end = register_vector[1];
+      HandleScope loop_scope;
+      builder->Add(*Factory::NewSubString(subject, match_start, match_end));
+      if (match_start != match_end) {
+        pos = match_end;
+      } else {
+        pos = match_end + 1;
+        if (pos > subject_length) break;
+      }
+    } else if (result == RegExpImpl::RE_FAILURE) {
+      break;
+    } else {
+      ASSERT_EQ(result, RegExpImpl::RE_EXCEPTION);
+      return result;
+    }
+  }
+
+  if (match_start >= 0) {
+    if (match_end < subject_length) {
+      ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                match_end,
+                                                subject_length);
+    }
+    SetLastMatchInfoNoCaptures(subject,
+                               last_match_array,
+                               match_start,
+                               match_end);
+    return RegExpImpl::RE_SUCCESS;
+  } else {
+    return RegExpImpl::RE_FAILURE;  // No matches at all.
+  }
+}
+
+
+static RegExpImpl::IrregexpResult SearchRegExpMultiple(
+    Handle<String> subject,
+    Handle<JSRegExp> regexp,
+    Handle<JSArray> last_match_array,
+    FixedArrayBuilder* builder) {
+
+  ASSERT(subject->IsFlat());
+  int required_registers = RegExpImpl::IrregexpPrepare(regexp, subject);
+  if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
+
+  OffsetsVector registers(required_registers);
+  Vector<int> register_vector(registers.vector(), registers.length());
+
+  RegExpImpl::IrregexpResult result =
+      RegExpImpl::IrregexpExecOnce(regexp,
+                                   subject,
+                                   0,
+                                   register_vector);
+
+  int capture_count = regexp->CaptureCount();
+  int subject_length = subject->length();
+
+  // Position to search from.
+  int pos = 0;
+  // End of previous match. Differs from pos if match was empty.
+  int match_end = 0;
+  if (result == RegExpImpl::RE_SUCCESS) {
+    // Need to keep a copy of the previous match for creating last_match_info
+    // at the end, so we have two vectors that we swap between.
+    OffsetsVector registers2(required_registers);
+    Vector<int> prev_register_vector(registers2.vector(), registers2.length());
+
+    do {
+      int match_start = register_vector[0];
+      builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
+      if (match_end < match_start) {
+        ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                  match_end,
+                                                  match_start);
+      }
+      match_end = register_vector[1];
+
+      {
+        // Avoid accumulating new handles inside loop.
+        HandleScope temp_scope;
+        // Arguments array to replace function is match, captures, index and
+        // subject, i.e., 3 + capture count in total.
+        Handle<FixedArray> elements = Factory::NewFixedArray(3 + capture_count);
+        elements->set(0, *Factory::NewSubString(subject,
+                                                match_start,
+                                                match_end));
+        for (int i = 1; i <= capture_count; i++) {
+          int start = register_vector[i * 2];
+          if (start >= 0) {
+            int end = register_vector[i * 2 + 1];
+            ASSERT(start <= end);
+            Handle<String> substring = Factory::NewSubString(subject,
+                                                             start,
+                                                             end);
+            elements->set(i, *substring);
+          } else {
+            ASSERT(register_vector[i * 2 + 1] < 0);
+            elements->set(i, Heap::undefined_value());
+          }
+        }
+        elements->set(capture_count + 1, Smi::FromInt(match_start));
+        elements->set(capture_count + 2, *subject);
+        builder->Add(*Factory::NewJSArrayWithElements(elements));
+      }
+      // Swap register vectors, so the last successful match is in
+      // prev_register_vector.
+      Vector<int> tmp = prev_register_vector;
+      prev_register_vector = register_vector;
+      register_vector = tmp;
+
+      if (match_end > match_start) {
+        pos = match_end;
+      } else {
+        pos = match_end + 1;
+        if (pos > subject_length) {
+          break;
+        }
+      }
+
+      result = RegExpImpl::IrregexpExecOnce(regexp,
+                                            subject,
+                                            pos,
+                                            register_vector);
+    } while (result == RegExpImpl::RE_SUCCESS);
+
+    if (result != RegExpImpl::RE_EXCEPTION) {
+      // Finished matching, with at least one match.
+      if (match_end < subject_length) {
+        ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                  match_end,
+                                                  subject_length);
+      }
+
+      int last_match_capture_count = (capture_count + 1) * 2;
+      int last_match_array_size =
+          last_match_capture_count + RegExpImpl::kLastMatchOverhead;
+      last_match_array->EnsureSize(last_match_array_size);
+      AssertNoAllocation no_gc;
+      FixedArray* elements = FixedArray::cast(last_match_array->elements());
+      RegExpImpl::SetLastCaptureCount(elements, last_match_capture_count);
+      RegExpImpl::SetLastSubject(elements, *subject);
+      RegExpImpl::SetLastInput(elements, *subject);
+      for (int i = 0; i < last_match_capture_count; i++) {
+        RegExpImpl::SetCapture(elements, i, prev_register_vector[i]);
+      }
+      return RegExpImpl::RE_SUCCESS;
+    }
+  }
+  // No matches at all, return failure or exception result directly.
+  return result;
+}
+
+
+static Object* Runtime_RegExpExecMultiple(Arguments args) {
+  ASSERT(args.length() == 4);
+  HandleScope handles;
+
+  CONVERT_ARG_CHECKED(String, subject, 1);
+  if (!subject->IsFlat()) { FlattenString(subject); }
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_CHECKED(JSArray, last_match_info, 2);
+  CONVERT_ARG_CHECKED(JSArray, result_array, 3);
+
+  ASSERT(last_match_info->HasFastElements());
+  ASSERT(regexp->GetFlags().is_global());
+  Handle<FixedArray> result_elements;
+  if (result_array->HasFastElements()) {
+    result_elements =
+        Handle<FixedArray>(FixedArray::cast(result_array->elements()));
+  } else {
+    result_elements = Factory::NewFixedArrayWithHoles(16);
+  }
+  FixedArrayBuilder builder(result_elements);
+
+  if (regexp->TypeTag() == JSRegExp::ATOM) {
+    Handle<String> pattern(
+        String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex)));
+    int pattern_length = pattern->length();
+    if (pattern_length == 1) {
+      if (SearchCharMultiple(subject, pattern, last_match_info, &builder)) {
+        return *builder.ToJSArray(result_array);
+      }
+      return Heap::null_value();
+    }
+
+    if (!pattern->IsFlat()) FlattenString(pattern);
+    if (SearchStringMultiple(subject, pattern, last_match_info, &builder)) {
+      return *builder.ToJSArray(result_array);
+    }
+    return Heap::null_value();
+  }
+
+  ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
+
+  RegExpImpl::IrregexpResult result;
+  if (regexp->CaptureCount() == 0) {
+    result = SearchRegExpNoCaptureMultiple(subject,
+                                           regexp,
+                                           last_match_info,
+                                           &builder);
+  } else {
+    result = SearchRegExpMultiple(subject, regexp, last_match_info, &builder);
+  }
+  if (result == RegExpImpl::RE_SUCCESS) return *builder.ToJSArray(result_array);
+  if (result == RegExpImpl::RE_FAILURE) return Heap::null_value();
+  ASSERT_EQ(result, RegExpImpl::RE_EXCEPTION);
+  return Failure::Exception();
 }
 
 
@@ -3834,11 +4482,66 @@ static Object* Runtime_Typeof(Arguments args) {
 }
 
 
+static bool AreDigits(const char*s, int from, int to) {
+  for (int i = from; i < to; i++) {
+    if (s[i] < '0' || s[i] > '9') return false;
+  }
+
+  return true;
+}
+
+
+static int ParseDecimalInteger(const char*s, int from, int to) {
+  ASSERT(to - from < 10);  // Overflow is not possible.
+  ASSERT(from < to);
+  int d = s[from] - '0';
+
+  for (int i = from + 1; i < to; i++) {
+    d = 10 * d + (s[i] - '0');
+  }
+
+  return d;
+}
+
+
 static Object* Runtime_StringToNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, subject, args[0]);
   subject->TryFlatten();
+
+  // Fast case: short integer or some sorts of junk values.
+  int len = subject->length();
+  if (subject->IsSeqAsciiString()) {
+    if (len == 0) return Smi::FromInt(0);
+
+    char const* data = SeqAsciiString::cast(subject)->GetChars();
+    bool minus = (data[0] == '-');
+    int start_pos = (minus ? 1 : 0);
+
+    if (start_pos == len) {
+      return Heap::nan_value();
+    } else if (data[start_pos] > '9') {
+      // Fast check for a junk value. A valid string may start from a
+      // whitespace, a sign ('+' or '-'), the decimal point, a decimal digit or
+      // the 'I' character ('Infinity'). All of that have codes not greater than
+      // '9' except 'I'.
+      if (data[start_pos] != 'I') {
+        return Heap::nan_value();
+      }
+    } else if (len - start_pos < 10 && AreDigits(data, start_pos, len)) {
+      // The maximal/minimal smi has 10 digits. If the string has less digits we
+      // know it will fit into the smi-data type.
+      int d = ParseDecimalInteger(data, start_pos, len);
+      if (minus) {
+        if (d == 0) return Heap::minus_zero_value();
+        d = -d;
+      }
+      return Smi::FromInt(d);
+    }
+  }
+
+  // Slower case.
   return Heap::NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
 }
 
@@ -4075,49 +4778,9 @@ static Object* Runtime_StringParseInt(Arguments args) {
 
   s->TryFlatten();
 
-  int len = s->length();
-  int i;
-
-  // Skip leading white space.
-  for (i = 0; i < len && Scanner::kIsWhiteSpace.get(s->Get(i)); i++) ;
-  if (i == len) return Heap::nan_value();
-
-  // Compute the sign (default to +).
-  int sign = 1;
-  if (s->Get(i) == '-') {
-    sign = -1;
-    i++;
-  } else if (s->Get(i) == '+') {
-    i++;
-  }
-
-  // Compute the radix if 0.
-  if (radix == 0) {
-    radix = 10;
-    if (i < len && s->Get(i) == '0') {
-      radix = 8;
-      if (i + 1 < len) {
-        int c = s->Get(i + 1);
-        if (c == 'x' || c == 'X') {
-          radix = 16;
-          i += 2;
-        }
-      }
-    }
-  } else if (radix == 16) {
-    // Allow 0x or 0X prefix if radix is 16.
-    if (i + 1 < len && s->Get(i) == '0') {
-      int c = s->Get(i + 1);
-      if (c == 'x' || c == 'X') i += 2;
-    }
-  }
-
-  RUNTIME_ASSERT(2 <= radix && radix <= 36);
-  double value;
-  int end_index = StringToInt(s, i, radix, &value);
-  if (end_index != i) {
-    return Heap::NumberFromDouble(sign * value);
-  }
+  RUNTIME_ASSERT(radix == 0 || (2 <= radix && radix <= 36));
+  double value = StringToInt(s, radix);
+  return Heap::NumberFromDouble(value);
   return Heap::nan_value();
 }
 
@@ -4620,6 +5283,17 @@ static Object* Runtime_NumberToString(Arguments args) {
   RUNTIME_ASSERT(number->IsNumber());
 
   return Heap::NumberToString(number);
+}
+
+
+static Object* Runtime_NumberToStringSkipCache(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  Object* number = args[0];
+  RUNTIME_ASSERT(number->IsNumber());
+
+  return Heap::NumberToString(number, false);
 }
 
 
@@ -5692,7 +6366,7 @@ static const char kMonthInYear[] = {
 static inline void DateYMDFromTimeAfter1970(int date,
                                             int& year, int& month, int& day) {
 #ifdef DEBUG
-  int save_date = date;  // Need this for ASSERT in the end.
+  int save_date = date;  // Need this for ASSERT in the end.
 #endif
 
   year = 1970 + (4 * date + 2) / kDaysIn4Years;
@@ -5708,7 +6382,7 @@ static inline void DateYMDFromTimeAfter1970(int date,
 static inline void DateYMDFromTimeSlow(int date,
                                        int& year, int& month, int& day) {
 #ifdef DEBUG
-  int save_date = date;  // Need this for ASSERT in the end.
+  int save_date = date;  // Need this for ASSERT in the end.
 #endif
 
   date += kDaysOffset;
@@ -6471,21 +7145,6 @@ static Object* Runtime_DateDaylightSavingsOffset(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return Heap::NumberFromDouble(OS::DaylightSavingsOffset(x));
-}
-
-
-static Object* Runtime_NumberIsFinite(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-
-  CONVERT_DOUBLE_CHECKED(value, args[0]);
-  Object* result;
-  if (isnan(value) || (fpclassify(value) == FP_INFINITE)) {
-    result = Heap::false_value();
-  } else {
-    result = Heap::true_value();
-  }
-  return result;
 }
 
 
@@ -9034,6 +9693,8 @@ static Object* Runtime_LiveEditReplaceScript(Arguments args) {
   old_script->set_eval_from_instructions_offset(
       original_script->eval_from_instructions_offset());
 
+  // Drop line ends so that they will be recalculated.
+  original_script->set_line_ends(Heap::undefined_value());
 
   Debugger::OnAfterCompile(old_script, Debugger::SEND_WHEN_DEBUGGING);
 
@@ -9070,53 +9731,33 @@ static Object* Runtime_LiveEditRelinkFunctionToScript(Arguments args) {
 // array of groups of 3 numbers:
 // (change_begin, change_end, change_end_new_position).
 // Each group describes a change in text; groups are sorted by change_begin.
+// Returns an array of pairs (new source position, breakpoint_object/array)
+// so that JS side could update positions in breakpoint objects.
 static Object* Runtime_LiveEditPatchFunctionPositions(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;
   CONVERT_ARG_CHECKED(JSArray, shared_array, 0);
   CONVERT_ARG_CHECKED(JSArray, position_change_array, 1);
 
-  LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
+  Handle<Object> result =
+      LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
 
-  return Heap::undefined_value();
+  return *result;
 }
 
-
-static LiveEdit::FunctionPatchabilityStatus FindFunctionCodeOnStacks(
-    Handle<SharedFunctionInfo> shared) {
-  // TODO(635): check all threads, not only the current one.
-  for (StackFrameIterator it; !it.done(); it.Advance()) {
-    StackFrame* frame = it.frame();
-    if (frame->code() == shared->code()) {
-      return LiveEdit::FUNCTION_BLOCKED_ON_STACK;
-    }
-  }
-  return LiveEdit::FUNCTION_AVAILABLE_FOR_PATCH;
-}
 
 // For array of SharedFunctionInfo's (each wrapped in JSValue)
 // checks that none of them have activations on stacks (of any thread).
 // Returns array of the same length with corresponding results of
 // LiveEdit::FunctionPatchabilityStatus type.
-static Object* Runtime_LiveEditCheckStackActivations(Arguments args) {
-  ASSERT(args.length() == 1);
+static Object* Runtime_LiveEditCheckAndDropActivations(Arguments args) {
+  ASSERT(args.length() == 2);
   HandleScope scope;
   CONVERT_ARG_CHECKED(JSArray, shared_array, 0);
+  CONVERT_BOOLEAN_CHECKED(do_drop, args[1]);
 
 
-  int len = Smi::cast(shared_array->length())->value();
-  Handle<JSArray> result = Factory::NewJSArray(len);
-
-  for (int i = 0; i < len; i++) {
-    JSValue* wrapper = JSValue::cast(shared_array->GetElement(i));
-    Handle<SharedFunctionInfo> shared(
-        SharedFunctionInfo::cast(wrapper->value()));
-    LiveEdit::FunctionPatchabilityStatus check_res =
-        FindFunctionCodeOnStacks(shared);
-    SetElement(result, i, Handle<Smi>(Smi::FromInt(check_res)));
-  }
-
-  return *result;
+  return *LiveEdit::CheckAndDropActivations(shared_array, do_drop);
 }
 
 
@@ -9138,7 +9779,8 @@ static Object* Runtime_GetFunctionCodePositionFromSource(Arguments args) {
     // Check if this break point is closer that what was previously found.
     if (source_position <= statement_position &&
         statement_position - source_position < distance) {
-      closest_pc = it.rinfo()->pc() - code->instruction_start();
+      closest_pc =
+          static_cast<int>(it.rinfo()->pc() - code->instruction_start());
       distance = statement_position - source_position;
       // Check whether we can't get any closer.
       if (distance == 0) break;
@@ -9147,6 +9789,35 @@ static Object* Runtime_GetFunctionCodePositionFromSource(Arguments args) {
   }
 
   return Smi::FromInt(closest_pc);
+}
+
+
+// Calls specified function with or without entering the debugger.
+// This is used in unit tests to run code as if debugger is entered or simply
+// to have a stack with C++ frame in the middle.
+static Object* Runtime_ExecuteInDebugContext(Arguments args) {
+  ASSERT(args.length() == 2);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_BOOLEAN_CHECKED(without_debugger, args[1]);
+
+  Handle<Object> result;
+  bool pending_exception;
+  {
+    if (without_debugger) {
+      result = Execution::Call(function, Top::global(), 0, NULL,
+                               &pending_exception);
+    } else {
+      EnterDebugger enter_debugger;
+      result = Execution::Call(function, Top::global(), 0, NULL,
+                               &pending_exception);
+    }
+  }
+  if (!pending_exception) {
+    return *result;
+  } else {
+    return Failure::Exception();
+  }
 }
 
 

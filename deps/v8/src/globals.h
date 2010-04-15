@@ -112,8 +112,9 @@ typedef byte* Address;
 #define V8PRIxPTR "lx"
 #endif
 
-#if defined(__APPLE__) && defined(__MACH__)
-#define USING_MAC_ABI
+#if (defined(__APPLE__) && defined(__MACH__)) || \
+    defined(__FreeBSD__) || defined(__OpenBSD__)
+#define USING_BSD_ABI
 #endif
 
 // Code-point values in Unicode 4.0 are 21 bits wide.
@@ -457,7 +458,7 @@ struct AccessorDescriptor {
 
 // Logging and profiling.
 // A StateTag represents a possible state of the VM.  When compiled with
-// ENABLE_LOGGING_AND_PROFILING, the logger maintains a stack of these.
+// ENABLE_VMSTATE_TRACKING, the logger maintains a stack of these.
 // Creating a VMState object enters a state by pushing on the stack, and
 // destroying a VMState object leaves a state by popping the current state
 // from the stack.

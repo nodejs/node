@@ -244,7 +244,7 @@ function URIDecode(uri) {
     if (cc == 61) return true;
     // ?@
     if (63 <= cc && cc <= 64) return true;
-    
+
     return false;
   };
   var string = ToString(uri);
@@ -268,7 +268,7 @@ function isAlphaNumeric(cc) {
   if (65 <= cc && cc <= 90) return true;
   // 0 - 9
   if (48 <= cc && cc <= 57) return true;
-  
+
   return false;
 }
 
@@ -293,7 +293,7 @@ function URIEncode(uri) {
     if (cc == 95) return true;
     // ~
     if (cc == 126) return true;
-    
+
     return false;
   };
 
@@ -316,7 +316,7 @@ function URIEncodeComponent(component) {
     if (cc == 95) return true;
     // ~
     if (cc == 126) return true;
-    
+
     return false;
   };
 
@@ -327,14 +327,14 @@ function URIEncodeComponent(component) {
 
 function HexValueOf(c) {
   var code = c.charCodeAt(0);
-  
+
   // 0-9
   if (code >= 48 && code <= 57) return code - 48;
   // A-F
   if (code >= 65 && code <= 70) return code - 55;
   // a-f
   if (code >= 97 && code <= 102) return code - 87;
-  
+
   return -1;
 }
 

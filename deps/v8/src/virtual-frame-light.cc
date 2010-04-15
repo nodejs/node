@@ -36,17 +36,14 @@ namespace internal {
 
 void VirtualFrame::Adjust(int count) {
   ASSERT(count >= 0);
-  ASSERT(stack_pointer_ == element_count() - 1);
-
   element_count_ += count;
-  stack_pointer_ += count;
 }
 
 
-// Make the type of the element at a given index be MEMORY.
-void VirtualFrame::SpillElementAt(int index) {
+// If there are any registers referenced only by the frame, spill one.
+Register VirtualFrame::SpillAnyRegister() {
   UNIMPLEMENTED();
+  return no_reg;
 }
-
 
 } }  // namespace v8::internal

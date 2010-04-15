@@ -272,65 +272,6 @@ class AssignedVariablesAnalyzer : public AstVisitor {
 };
 
 
-class ReachingDefinitions BASE_EMBEDDED {
- public:
-  ReachingDefinitions(ZoneList<Node*>* postorder,
-                      ZoneList<Expression*>* body_definitions,
-                      int variable_count)
-      : postorder_(postorder),
-        body_definitions_(body_definitions),
-        variable_count_(variable_count) {
-  }
-
-  static int IndexFor(Variable* var, int variable_count);
-
-  void Compute();
-
- private:
-  // A (postorder) list of flow-graph nodes in the body.
-  ZoneList<Node*>* postorder_;
-
-  // A list of all the definitions in the body.
-  ZoneList<Expression*>* body_definitions_;
-
-  int variable_count_;
-
-  DISALLOW_COPY_AND_ASSIGN(ReachingDefinitions);
-};
-
-
-class TypeAnalyzer BASE_EMBEDDED {
- public:
-  TypeAnalyzer(ZoneList<Node*>* postorder,
-              ZoneList<Expression*>* body_definitions,
-               int variable_count,
-               int param_count)
-      : postorder_(postorder),
-        body_definitions_(body_definitions),
-        variable_count_(variable_count),
-        param_count_(param_count) {}
-
-  void Compute();
-
- private:
-  // Get the primitity of definition number i. Definitions are numbered
-  // by the flow graph builder.
-  bool IsPrimitiveDef(int def_num);
-
-  ZoneList<Node*>* postorder_;
-  ZoneList<Expression*>* body_definitions_;
-  int variable_count_;
-  int param_count_;
-
-  DISALLOW_COPY_AND_ASSIGN(TypeAnalyzer);
-};
-
-
-void MarkLiveCode(ZoneList<Node*>* nodes,
-                  ZoneList<Expression*>* body_definitions,
-                  int variable_count);
-
-
 } }  // namespace v8::internal
 
 

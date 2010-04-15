@@ -151,22 +151,17 @@ enum Opcode {
 };
 
 
-// Some special instructions encoded as a TEQ with S=0 (bit 20).
-enum Opcode9Bits {
+// The bits for bit 7-4 for some type 0 miscellaneous instructions.
+enum MiscInstructionsBits74 {
+  // With bits 22-21 01.
   BX   =  1,
   BXJ  =  2,
   BLX  =  3,
-  BKPT =  7
-};
+  BKPT =  7,
 
-
-// Some special instructions encoded as a CMN with S=0 (bit 20).
-enum Opcode11Bits {
+  // With bits 22-21 11.
   CLZ  =  1
 };
-
-
-// S
 
 
 // Shifter types for Data-processing operands as defined in section A5.1.2.
@@ -309,6 +304,12 @@ class Instr {
   // Test for special encodings of type 0 instructions (extra loads and stores,
   // as well as multiplications).
   inline bool IsSpecialType0() const { return (Bit(7) == 1) && (Bit(4) == 1); }
+
+  // Test for miscellaneous instructions encodings of type 0 instructions.
+  inline bool IsMiscType0() const { return (Bit(24) == 1)
+                                           && (Bit(23) == 0)
+                                           && (Bit(20) == 0)
+                                           && ((Bit(7) == 0)); }
 
   // Special accessors that test for existence of a value.
   inline bool HasS()    const { return SField() == 1; }

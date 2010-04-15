@@ -104,7 +104,23 @@ void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
 }
 
 
+void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
+  masm->Abort("LiveEdit frame dropping is not supported on mips");
+}
+
+void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
+  masm->Abort("LiveEdit frame dropping is not supported on mips");
+}
+
 #undef __
+
+
+void Debug::SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
+                                   Handle<Code> code) {
+  UNREACHABLE();
+}
+const int Debug::kFrameDropperFrameSize = -1;
+
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 

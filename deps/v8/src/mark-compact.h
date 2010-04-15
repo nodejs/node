@@ -407,26 +407,26 @@ class MarkCompactCollector: public AllStatic {
   // Counters used for debugging the marking phase of mark-compact or
   // mark-sweep collection.
 
-  // Number of live objects in Heap::to_space_.
-  static int live_young_objects_;
+  // Size of live objects in Heap::to_space_.
+  static int live_young_objects_size_;
 
-  // Number of live objects in Heap::old_pointer_space_.
-  static int live_old_pointer_objects_;
+  // Size of live objects in Heap::old_pointer_space_.
+  static int live_old_pointer_objects_size_;
 
-  // Number of live objects in Heap::old_data_space_.
-  static int live_old_data_objects_;
+  // Size of live objects in Heap::old_data_space_.
+  static int live_old_data_objects_size_;
 
-  // Number of live objects in Heap::code_space_.
-  static int live_code_objects_;
+  // Size of live objects in Heap::code_space_.
+  static int live_code_objects_size_;
 
-  // Number of live objects in Heap::map_space_.
-  static int live_map_objects_;
+  // Size of live objects in Heap::map_space_.
+  static int live_map_objects_size_;
 
-  // Number of live objects in Heap::cell_space_.
-  static int live_cell_objects_;
+  // Size of live objects in Heap::cell_space_.
+  static int live_cell_objects_size_;
 
-  // Number of live objects in Heap::lo_space_.
-  static int live_lo_objects_;
+  // Size of live objects in Heap::lo_space_.
+  static int live_lo_objects_size_;
 
   // Number of live bytes in this collection.
   static int live_bytes_;

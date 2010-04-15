@@ -1240,7 +1240,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Set up the roots register.
   ExternalReference roots_address = ExternalReference::roots_address();
-  __ movq(r13, roots_address);
+  __ movq(kRootRegister, roots_address);
 
   // Current stack contents:
   // [rsp + 2 * kPointerSize ... ]: Internal frame

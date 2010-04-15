@@ -111,6 +111,7 @@ SOURCES = {
     variables.cc
     version.cc
     virtual-frame.cc
+    vm-state.cc
     zone.cc
     """),
   'arch:arm': Split("""
@@ -305,7 +306,12 @@ def ConfigureObjectFiles():
   source_objs = context.ConfigureObject(env, source_files)
   non_snapshot_files = [dtoa_obj, source_objs]
 
-  # Create snapshot if necessary.
+  # Create snapshot if necessary.  For cross compilation you should either
+  # do without snapshots and take the performance hit or you should build a
+  # host VM with the simulator=arm and snapshot=on options and then take the
+  # resulting snapshot.cc file from obj/release and put it in the src
+  # directory.  Then rebuild the VM with the cross compiler and specify
+  # snapshot=nobuild on the scons command line.
   empty_snapshot_obj = context.ConfigureObject(env, 'snapshot-empty.cc')
   mksnapshot_env = env.Copy()
   mksnapshot_env.Replace(**context.flags['mksnapshot'])
@@ -315,7 +321,7 @@ def ConfigureObjectFiles():
     if context.build_snapshot:
       snapshot_cc = env.Snapshot('snapshot.cc', mksnapshot, LOGFILE=File('snapshot.log').abspath)
     else:
-      snapshot_cc = Command('snapshot.cc', [], [])
+      snapshot_cc = 'snapshot.cc'
     snapshot_obj = context.ConfigureObject(env, snapshot_cc, CPPPATH=['.'])
   else:
     snapshot_obj = empty_snapshot_obj

@@ -119,6 +119,8 @@ class SamplingCircularQueue {
   byte* positions_;
   ProducerPosition* producer_pos_;
   ConsumerPosition* consumer_pos_;
+
+  DISALLOW_COPY_AND_ASSIGN(SamplingCircularQueue);
 };
 
 

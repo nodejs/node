@@ -588,6 +588,20 @@ function TimeString(time) {
 
 
 function LocalTimezoneString(time) {
+  var old_timezone = timezone_cache_timezone;
+  var timezone = LocalTimezone(time);
+  if (old_timezone && timezone != old_timezone) {
+    // If the timezone string has changed from the one that we cached,
+    // the local time offset may now be wrong. So we need to update it
+    // and try again.
+    local_time_offset = %DateLocalTimeOffset();
+    // We also need to invalidate the DST cache as the new timezone may have
+    // different DST times.
+    var dst_cache = DST_offset_cache;
+    dst_cache.start = 0;
+    dst_cache.end = -1;
+  }
+
   var timezoneOffset =
       (DaylightSavingsOffset(time) + local_time_offset) / msPerMinute;
   var sign = (timezoneOffset >= 0) ? 1 : -1;
@@ -595,7 +609,7 @@ function LocalTimezoneString(time) {
   var min   = FLOOR((sign * timezoneOffset)%60);
   var gmt = ' GMT' + ((sign == 1) ? '+' : '-') +
       TwoDigitString(hours) + TwoDigitString(min);
-  return gmt + ' (' +  LocalTimezone(time) + ')';
+  return gmt + ' (' +  timezone + ')';
 }
 
 
@@ -654,7 +668,8 @@ function DateNow() {
 function DateToString() {
   var t = DATE_VALUE(this);
   if (NUMBER_IS_NAN(t)) return kInvalidDate;
-  return DatePrintString(LocalTimeNoCheck(t)) + LocalTimezoneString(t);
+  var time_zone_string = LocalTimezoneString(t);  // May update local offset.
+  return DatePrintString(LocalTimeNoCheck(t)) + time_zone_string;
 }
 
 
@@ -670,8 +685,8 @@ function DateToDateString() {
 function DateToTimeString() {
   var t = DATE_VALUE(this);
   if (NUMBER_IS_NAN(t)) return kInvalidDate;
-  var lt = LocalTimeNoCheck(t);
-  return TimeString(lt) + LocalTimezoneString(lt);
+  var time_zone_string = LocalTimezoneString(t);  // May update local offset.
+  return TimeString(LocalTimeNoCheck(t)) + time_zone_string;
 }
 
 

@@ -77,23 +77,10 @@ DeferredCode::DeferredCode()
   ASSERT(position_ != RelocInfo::kNoPosition);
 
   CodeGeneratorScope::Current()->AddDeferred(this);
-#ifdef DEBUG
-  comment_ = "";
-#endif
 
-  // Copy the register locations from the code generator's frame.
-  // These are the registers that will be spilled on entry to the
-  // deferred code and restored on exit.
-  VirtualFrame* frame = CodeGeneratorScope::Current()->frame();
-  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
-    int loc = frame->register_location(i);
-    if (loc == VirtualFrame::kIllegalIndex) {
-      registers_[i] = kIgnore;
-    } else {
-      // Needs to be restored on exit but not saved on entry.
-      registers_[i] = frame->fp_relative(loc) | kSyncedFlag;
-    }
-  }
+#ifdef DEBUG
+  CodeGeneratorScope::Current()->frame()->AssertIsSpilled();
+#endif
 }
 
 } }  // namespace v8::internal

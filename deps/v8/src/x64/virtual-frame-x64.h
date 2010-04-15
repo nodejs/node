@@ -318,6 +318,10 @@ class VirtualFrame : public ZoneObject {
   // arguments are consumed by the call.
   Result CallStub(CodeStub* stub, Result* arg0, Result* arg1);
 
+  // Call JS function from top of the stack with arguments
+  // taken from the stack.
+  Result CallJSFunction(int arg_count);
+
   // Call runtime given the number of arguments expected on (and
   // removed from) the stack.
   Result CallRuntime(Runtime::Function* f, int arg_count);

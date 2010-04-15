@@ -103,7 +103,7 @@ Object* StubCache::ComputeLoadField(String* name,
     LoadStubCompiler compiler;
     code = compiler.CompileLoadField(receiver, holder, field_index, name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -122,7 +122,7 @@ Object* StubCache::ComputeLoadCallback(String* name,
     LoadStubCompiler compiler;
     code = compiler.CompileLoadCallback(name, receiver, holder, callback);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -141,7 +141,7 @@ Object* StubCache::ComputeLoadConstant(String* name,
     LoadStubCompiler compiler;
     code = compiler.CompileLoadConstant(receiver, holder, value, name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -158,7 +158,7 @@ Object* StubCache::ComputeLoadInterceptor(String* name,
     LoadStubCompiler compiler;
     code = compiler.CompileLoadInterceptor(receiver, holder, name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -187,7 +187,7 @@ Object* StubCache::ComputeLoadGlobal(String* name,
                                       name,
                                       is_dont_delete);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -205,7 +205,7 @@ Object* StubCache::ComputeKeyedLoadField(String* name,
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadField(name, receiver, holder, field_index);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -224,7 +224,7 @@ Object* StubCache::ComputeKeyedLoadConstant(String* name,
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadConstant(name, receiver, holder, value);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -242,7 +242,7 @@ Object* StubCache::ComputeKeyedLoadInterceptor(String* name,
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadInterceptor(receiver, holder, name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -261,7 +261,7 @@ Object* StubCache::ComputeKeyedLoadCallback(String* name,
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadCallback(name, receiver, holder, callback);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -279,7 +279,7 @@ Object* StubCache::ComputeKeyedLoadArrayLength(String* name,
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadArrayLength(name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -296,7 +296,7 @@ Object* StubCache::ComputeKeyedLoadStringLength(String* name,
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadStringLength(name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -313,7 +313,7 @@ Object* StubCache::ComputeKeyedLoadFunctionPrototype(String* name,
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadFunctionPrototype(name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -332,7 +332,7 @@ Object* StubCache::ComputeStoreField(String* name,
     StoreStubCompiler compiler;
     code = compiler.CompileStoreField(receiver, field_index, transition, name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -349,7 +349,7 @@ Object* StubCache::ComputeStoreGlobal(String* name,
     StoreStubCompiler compiler;
     code = compiler.CompileStoreGlobal(receiver, cell, name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -367,7 +367,7 @@ Object* StubCache::ComputeStoreCallback(String* name,
     StoreStubCompiler compiler;
     code = compiler.CompileStoreCallback(receiver, callback, name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -384,7 +384,7 @@ Object* StubCache::ComputeStoreInterceptor(String* name,
     StoreStubCompiler compiler;
     code = compiler.CompileStoreInterceptor(receiver, name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -401,7 +401,8 @@ Object* StubCache::ComputeKeyedStoreField(String* name, JSObject* receiver,
     KeyedStoreStubCompiler compiler;
     code = compiler.CompileStoreField(receiver, field_index, transition, name);
     if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(
+        Logger::KEYED_STORE_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -445,7 +446,7 @@ Object* StubCache::ComputeCallConstant(int argc,
     code = compiler.CompileCallConstant(object, holder, function, name, check);
     if (code->IsFailure()) return code;
     ASSERT_EQ(flags, Code::cast(code)->flags());
-    LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -482,7 +483,7 @@ Object* StubCache::ComputeCallField(int argc,
                                      name);
     if (code->IsFailure()) return code;
     ASSERT_EQ(flags, Code::cast(code)->flags());
-    LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -518,7 +519,7 @@ Object* StubCache::ComputeCallInterceptor(int argc,
                                            name);
     if (code->IsFailure()) return code;
     ASSERT_EQ(flags, Code::cast(code)->flags());
-    LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -556,7 +557,7 @@ Object* StubCache::ComputeCallGlobal(int argc,
     code = compiler.CompileCallGlobal(receiver, holder, cell, function, name);
     if (code->IsFailure()) return code;
     ASSERT_EQ(flags, Code::cast(code)->flags());
-    LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
+    PROFILE(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
@@ -701,8 +702,8 @@ Object* StubCache::ComputeLazyCompile(int argc) {
   if (result->IsCode()) {
     Code* code = Code::cast(result);
     USE(code);
-    LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG,
-                        code, code->arguments_count()));
+    PROFILE(CodeCreateEvent(Logger::LAZY_COMPILE_TAG,
+                            code, code->arguments_count()));
   }
   return result;
 }
@@ -939,8 +940,8 @@ Object* StubCompiler::CompileCallInitialize(Code::Flags flags) {
     Counters::call_initialize_stubs.Increment();
     Code* code = Code::cast(result);
     USE(code);
-    LOG(CodeCreateEvent(Logger::CALL_INITIALIZE_TAG,
-                        code, code->arguments_count()));
+    PROFILE(CodeCreateEvent(Logger::CALL_INITIALIZE_TAG,
+                            code, code->arguments_count()));
   }
   return result;
 }
@@ -957,8 +958,8 @@ Object* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
     Counters::call_premonomorphic_stubs.Increment();
     Code* code = Code::cast(result);
     USE(code);
-    LOG(CodeCreateEvent(Logger::CALL_PRE_MONOMORPHIC_TAG,
-                        code, code->arguments_count()));
+    PROFILE(CodeCreateEvent(Logger::CALL_PRE_MONOMORPHIC_TAG,
+                            code, code->arguments_count()));
   }
   return result;
 }
@@ -973,8 +974,8 @@ Object* StubCompiler::CompileCallNormal(Code::Flags flags) {
     Counters::call_normal_stubs.Increment();
     Code* code = Code::cast(result);
     USE(code);
-    LOG(CodeCreateEvent(Logger::CALL_NORMAL_TAG,
-                        code, code->arguments_count()));
+    PROFILE(CodeCreateEvent(Logger::CALL_NORMAL_TAG,
+                            code, code->arguments_count()));
   }
   return result;
 }
@@ -989,8 +990,8 @@ Object* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
     Counters::call_megamorphic_stubs.Increment();
     Code* code = Code::cast(result);
     USE(code);
-    LOG(CodeCreateEvent(Logger::CALL_MEGAMORPHIC_TAG,
-                        code, code->arguments_count()));
+    PROFILE(CodeCreateEvent(Logger::CALL_MEGAMORPHIC_TAG,
+                            code, code->arguments_count()));
   }
   return result;
 }
@@ -1005,7 +1006,8 @@ Object* StubCompiler::CompileCallMiss(Code::Flags flags) {
     Counters::call_megamorphic_stubs.Increment();
     Code* code = Code::cast(result);
     USE(code);
-    LOG(CodeCreateEvent(Logger::CALL_MISS_TAG, code, code->arguments_count()));
+    PROFILE(CodeCreateEvent(Logger::CALL_MISS_TAG,
+                            code, code->arguments_count()));
   }
   return result;
 }
@@ -1019,8 +1021,8 @@ Object* StubCompiler::CompileCallDebugBreak(Code::Flags flags) {
   if (!result->IsFailure()) {
     Code* code = Code::cast(result);
     USE(code);
-    LOG(CodeCreateEvent(Logger::CALL_DEBUG_BREAK_TAG,
-                        code, code->arguments_count()));
+    PROFILE(CodeCreateEvent(Logger::CALL_DEBUG_BREAK_TAG,
+                            code, code->arguments_count()));
   }
   return result;
 }
@@ -1036,8 +1038,8 @@ Object* StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
   if (!result->IsFailure()) {
     Code* code = Code::cast(result);
     USE(code);
-    LOG(CodeCreateEvent(Logger::CALL_DEBUG_PREPARE_STEP_IN_TAG,
-                        code, code->arguments_count()));
+    PROFILE(CodeCreateEvent(Logger::CALL_DEBUG_PREPARE_STEP_IN_TAG,
+                            code, code->arguments_count()));
   }
   return result;
 }
@@ -1124,7 +1126,7 @@ Object* ConstructStubCompiler::GetCode() {
   if (!result->IsFailure()) {
     Code* code = Code::cast(result);
     USE(code);
-    LOG(CodeCreateEvent(Logger::STUB_TAG, code, "ConstructStub"));
+    PROFILE(CodeCreateEvent(Logger::STUB_TAG, code, "ConstructStub"));
   }
   return result;
 }

@@ -24,6 +24,7 @@ Features:
     * request path, query string, fragment
     * message body
   * Defends against buffer overflow attacks.
+  * Upgrade support
 
 Usage
 -----
@@ -59,7 +60,9 @@ When data is received on the socket execute the parser and check for errors.
      */
     nparsed = http_parser_execute(parser, settings, buf, recved);
 
-    if (nparsed != recved) {
+    if (parser->upgrade) {
+      /* handle new protocol */
+    } else if (nparsed != recved) {
       /* Handle error. Usually just close the connection. */
     }
 
@@ -84,6 +87,34 @@ It does not decode the content-encoding (gzip). Not all HTTP applications
 need to inspect the body. Decoding gzip is non-neglagable amount of
 processing (and requires making allocations). HTTP proxies using this
 parser, for example, would not want such a feature.
+
+The Special Problem of Upgrade
+------------------------------
+
+HTTP supports upgrading the connection to a different protocol. An
+increasingly common example of this is the Web Socket protocol which sends
+a request like
+
+        GET /demo HTTP/1.1
+        Upgrade: WebSocket
+        Connection: Upgrade
+        Host: example.com
+        Origin: http://example.com
+        WebSocket-Protocol: sample
+
+followed by non-HTTP data.
+
+(See http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75 for more
+information the Web Socket protocol.)
+
+To support this, the parser will treat this as a normal HTTP message without a
+body. Issuing both on_headers_complete and on_message_complete callbacks. However
+http_parser_execute() may finish without parsing the entire supplied buffer.
+
+The user needs to check if parser->upgrade has been set to 1 after
+http_parser_execute() returns to determine if a premature exit was due to an
+upgrade or an error.
+
 
 Callbacks
 ---------

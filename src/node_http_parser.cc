@@ -61,6 +61,7 @@ static Persistent<String> http_version_sym;
 static Persistent<String> version_major_sym;
 static Persistent<String> version_minor_sym;
 static Persistent<String> should_keep_alive_sym;
+static Persistent<String> upgrade_sym;
 
 static struct http_parser_settings settings;
 
@@ -165,6 +166,8 @@ class Parser : public ObjectWrap {
     message_info->Set(should_keep_alive_sym,
         http_should_keep_alive(p) ? True() : False());
 
+    message_info->Set(upgrade_sym, p->upgrade ? True() : False());
+
     Local<Value> argv[1] = { message_info };
 
     Local<Value> ret = cb->Call(parser->handle_, 1, argv);
@@ -243,7 +246,7 @@ class Parser : public ObjectWrap {
     Local<Integer> nparsed_obj = Integer::New(nparsed);
     // If there was a parse error in one of the callbacks 
     // TODO What if there is an error on EOF?
-    if (nparsed != len) {
+    if (!parser->parser_.upgrade && nparsed != len) {
       Local<Value> e = Exception::Error(String::New("Parse Error"));
       Local<Object> obj = e->ToObject();
       obj->Set(String::NewSymbol("bytesParsed"), nparsed_obj);
@@ -345,6 +348,7 @@ void InitHttpParser(Handle<Object> target) {
   version_major_sym = NODE_PSYMBOL("versionMajor");
   version_minor_sym = NODE_PSYMBOL("versionMinor");
   should_keep_alive_sym = NODE_PSYMBOL("shouldKeepAlive");
+  upgrade_sym = NODE_PSYMBOL("upgrade");
 
   settings.on_message_begin    = Parser::on_message_begin;
   settings.on_path             = Parser::on_path;

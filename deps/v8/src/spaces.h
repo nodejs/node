@@ -301,6 +301,12 @@ class Space : public Malloced {
 
   virtual int Size() = 0;
 
+#ifdef ENABLE_HEAP_PROTECTION
+  // Protect/unprotect the space by marking it read-only/writable.
+  virtual void Protect() = 0;
+  virtual void Unprotect() = 0;
+#endif
+
 #ifdef DEBUG
   virtual void Print() = 0;
 #endif
@@ -1168,6 +1174,12 @@ class SemiSpace : public Space {
   bool is_committed() { return committed_; }
   bool Commit();
   bool Uncommit();
+
+#ifdef ENABLE_HEAP_PROTECTION
+  // Protect/unprotect the space by marking it read-only/writable.
+  virtual void Protect() {}
+  virtual void Unprotect() {}
+#endif
 
 #ifdef DEBUG
   virtual void Print();

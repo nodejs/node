@@ -34,6 +34,7 @@
 #include "scopes.h"
 #include "global-handles.h"
 #include "debug.h"
+#include "memory.h"
 
 namespace v8 {
 namespace internal {
@@ -446,6 +447,13 @@ static void ReplaceCodeObject(Code* original, Code* substitution) {
 }
 
 
+// Check whether the code is natural function code (not a lazy-compile stub
+// code).
+static bool IsJSFunctionCode(Code* code) {
+  return code->kind() == Code::FUNCTION;
+}
+
+
 void LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
                                    Handle<JSArray> shared_info_array) {
   HandleScope scope;
@@ -455,15 +463,30 @@ void LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
-  ReplaceCodeObject(shared_info->code(),
-                       *(compile_info_wrapper.GetFunctionCode()));
+
+  if (IsJSFunctionCode(shared_info->code())) {
+    ReplaceCodeObject(shared_info->code(),
+                      *(compile_info_wrapper.GetFunctionCode()));
+  }
+
+  if (shared_info->debug_info()->IsDebugInfo()) {
+    Handle<DebugInfo> debug_info(DebugInfo::cast(shared_info->debug_info()));
+    Handle<Code> new_original_code =
+        Factory::CopyCode(compile_info_wrapper.GetFunctionCode());
+    debug_info->set_original_code(*new_original_code);
+  }
 
   shared_info->set_start_position(compile_info_wrapper.GetStartPosition());
   shared_info->set_end_position(compile_info_wrapper.GetEndPosition());
-  // update breakpoints, original code, constructor stub
+
+  shared_info->set_construct_stub(
+      Builtins::builtin(Builtins::JSConstructStubGeneric));
+  // update breakpoints
 }
 
 
+// TODO(635): Eval caches its scripts (same text -- same compiled info).
+// Make sure we clear such caches.
 void LiveEdit::RelinkFunctionToScript(Handle<JSArray> shared_info_array,
                                       Handle<Script> script_handle) {
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
@@ -535,8 +558,9 @@ class RelocInfoBuffer {
 
   Vector<byte> GetResult() {
     // Return the bytes from pos up to end of buffer.
-    return Vector<byte>(reloc_info_writer_.pos(),
-                        buffer_ + buffer_size_ - reloc_info_writer_.pos());
+    int result_size =
+        static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer_.pos());
+    return Vector<byte>(reloc_info_writer_.pos(), result_size);
   }
 
  private:
@@ -558,7 +582,8 @@ class RelocInfoBuffer {
     byte* new_buffer = NewArray<byte>(new_buffer_size);
 
     // Copy the data.
-    int curently_used_size = buffer_ + buffer_size_ - reloc_info_writer_.pos();
+    int curently_used_size =
+        static_cast<int>(buffer_ + buffer_size_ - reloc_info_writer_.pos());
     memmove(new_buffer + new_buffer_size - curently_used_size,
             reloc_info_writer_.pos(), curently_used_size);
 
@@ -621,13 +646,28 @@ static Handle<Code> PatchPositionsInCode(Handle<Code> code,
 }
 
 
-void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
-                                      Handle<JSArray> position_change_array) {
+static Handle<Object> GetBreakPointObjectsForJS(
+    Handle<BreakPointInfo> break_point_info) {
+  if (break_point_info->break_point_objects()->IsFixedArray()) {
+    Handle<FixedArray> fixed_array(
+        FixedArray::cast(break_point_info->break_point_objects()));
+    Handle<Object> array = Factory::NewJSArrayWithElements(fixed_array);
+    return array;
+  } else {
+    return Handle<Object>(break_point_info->break_point_objects());
+  }
+}
+
+
+Handle<JSArray> LiveEdit::PatchFunctionPositions(
+    Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array) {
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
   Handle<SharedFunctionInfo> info = shared_info_wrapper.GetInfo();
 
-  info->set_start_position(TranslatePosition(info->start_position(),
-                                             position_change_array));
+  int old_function_start = info->start_position();
+  int new_function_start = TranslatePosition(old_function_start,
+                                             position_change_array);
+  info->set_start_position(new_function_start);
   info->set_end_position(TranslatePosition(info->end_position(),
                                            position_change_array));
 
@@ -635,16 +675,23 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
       TranslatePosition(info->function_token_position(),
       position_change_array));
 
-  // Patch relocation info section of the code.
-  Handle<Code> patched_code = PatchPositionsInCode(Handle<Code>(info->code()),
-                                                   position_change_array);
-  if (*patched_code != info->code()) {
-    // Replace all references to the code across the heap. In particular,
-    // some stubs may refer to this code and this code may be being executed
-    // on stack (it is safe to substitute the code object on stack, because
-    // we only change the structure of rinfo and leave instructions untouched).
-    ReplaceCodeObject(info->code(), *patched_code);
+  if (IsJSFunctionCode(info->code())) {
+    // Patch relocation info section of the code.
+    Handle<Code> patched_code = PatchPositionsInCode(Handle<Code>(info->code()),
+                                                     position_change_array);
+    if (*patched_code != info->code()) {
+      // Replace all references to the code across the heap. In particular,
+      // some stubs may refer to this code and this code may be being executed
+      // on stack (it is safe to substitute the code object on stack, because
+      // we only change the structure of rinfo and leave instructions
+      // untouched).
+      ReplaceCodeObject(info->code(), *patched_code);
+    }
   }
+
+
+  Handle<JSArray> result = Factory::NewJSArray(0);
+  int result_len = 0;
 
   if (info->debug_info()->IsDebugInfo()) {
     Handle<DebugInfo> debug_info(DebugInfo::cast(info->debug_info()));
@@ -664,12 +711,288 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
       }
       Handle<BreakPointInfo> info(
           BreakPointInfo::cast(break_point_infos->get(i)));
-      int new_position = TranslatePosition(info->source_position()->value(),
+      int old_in_script_position = info->source_position()->value() +
+          old_function_start;
+      int new_in_script_position = TranslatePosition(old_in_script_position,
           position_change_array);
-      info->set_source_position(Smi::FromInt(new_position));
+      info->set_source_position(
+          Smi::FromInt(new_in_script_position - new_function_start));
+      if (old_in_script_position != new_in_script_position) {
+        SetElement(result, result_len,
+                   Handle<Smi>(Smi::FromInt(new_in_script_position)));
+        SetElement(result, result_len + 1,
+                   GetBreakPointObjectsForJS(info));
+        result_len += 2;
+      }
     }
   }
-  // TODO(635): Also patch breakpoint objects in JS.
+  return result;
+}
+
+
+// Check an activation against list of functions. If there is a function
+// that matches, its status in result array is changed to status argument value.
+static bool CheckActivation(Handle<JSArray> shared_info_array,
+                            Handle<JSArray> result, StackFrame* frame,
+                            LiveEdit::FunctionPatchabilityStatus status) {
+  if (!frame->is_java_script()) {
+    return false;
+  }
+  int len = Smi::cast(shared_info_array->length())->value();
+  for (int i = 0; i < len; i++) {
+    JSValue* wrapper = JSValue::cast(shared_info_array->GetElement(i));
+    Handle<SharedFunctionInfo> shared(
+        SharedFunctionInfo::cast(wrapper->value()));
+
+    if (frame->code() == shared->code()) {
+      SetElement(result, i, Handle<Smi>(Smi::FromInt(status)));
+      return true;
+    }
+  }
+  return false;
+}
+
+
+// Iterates over handler chain and removes all elements that are inside
+// frames being dropped.
+static bool FixTryCatchHandler(StackFrame* top_frame,
+                               StackFrame* bottom_frame) {
+  Address* pointer_address =
+      &Memory::Address_at(Top::get_address_from_id(Top::k_handler_address));
+
+  while (*pointer_address < top_frame->sp()) {
+    pointer_address = &Memory::Address_at(*pointer_address);
+  }
+  Address* above_frame_address = pointer_address;
+  while (*pointer_address < bottom_frame->fp()) {
+    pointer_address = &Memory::Address_at(*pointer_address);
+  }
+  bool change = *above_frame_address != *pointer_address;
+  *above_frame_address = *pointer_address;
+  return change;
+}
+
+
+// Removes specified range of frames from stack. There may be 1 or more
+// frames in range. Anyway the bottom frame is restarted rather than dropped,
+// and therefore has to be a JavaScript frame.
+// Returns error message or NULL.
+static const char* DropFrames(Vector<StackFrame*> frames,
+                              int top_frame_index,
+                              int bottom_js_frame_index) {
+  StackFrame* pre_top_frame = frames[top_frame_index - 1];
+  StackFrame* top_frame = frames[top_frame_index];
+  StackFrame* bottom_js_frame = frames[bottom_js_frame_index];
+
+  ASSERT(bottom_js_frame->is_java_script());
+
+  // Check the nature of the top frame.
+  if (pre_top_frame->code()->is_inline_cache_stub() &&
+      pre_top_frame->code()->ic_state() == DEBUG_BREAK) {
+    // OK, we can drop inline cache calls.
+  } else if (pre_top_frame->code() ==
+      Builtins::builtin(Builtins::FrameDropper_LiveEdit)) {
+    // OK, we can drop our own code.
+  } else if (pre_top_frame->code()->kind() == Code::STUB &&
+      pre_top_frame->code()->major_key()) {
+    // Unit Test entry, it's fine, we support this case.
+  } else {
+    return "Unknown structure of stack above changing function";
+  }
+
+  Address unused_stack_top = top_frame->sp();
+  Address unused_stack_bottom = bottom_js_frame->fp()
+      - Debug::kFrameDropperFrameSize * kPointerSize  // Size of the new frame.
+      + kPointerSize;  // Bigger address end is exclusive.
+
+  if (unused_stack_top > unused_stack_bottom) {
+    return "Not enough space for frame dropper frame";
+  }
+
+  // Committing now. After this point we should return only NULL value.
+
+  FixTryCatchHandler(pre_top_frame, bottom_js_frame);
+  // Make sure FixTryCatchHandler is idempotent.
+  ASSERT(!FixTryCatchHandler(pre_top_frame, bottom_js_frame));
+
+  Handle<Code> code(Builtins::builtin(Builtins::FrameDropper_LiveEdit));
+  top_frame->set_pc(code->entry());
+  pre_top_frame->SetCallerFp(bottom_js_frame->fp());
+
+  Debug::SetUpFrameDropperFrame(bottom_js_frame, code);
+
+  for (Address a = unused_stack_top;
+      a < unused_stack_bottom;
+      a += kPointerSize) {
+    Memory::Object_at(a) = Smi::FromInt(0);
+  }
+
+  return NULL;
+}
+
+
+static bool IsDropableFrame(StackFrame* frame) {
+  return !frame->is_exit();
+}
+
+// Fills result array with statuses of functions. Modifies the stack
+// removing all listed function if possible and if do_drop is true.
+static const char* DropActivationsInActiveThread(
+    Handle<JSArray> shared_info_array, Handle<JSArray> result, bool do_drop) {
+
+  ZoneScope scope(DELETE_ON_EXIT);
+  Vector<StackFrame*> frames = CreateStackMap();
+
+  int array_len = Smi::cast(shared_info_array->length())->value();
+
+  int top_frame_index = -1;
+  int frame_index = 0;
+  for (; frame_index < frames.length(); frame_index++) {
+    StackFrame* frame = frames[frame_index];
+    if (frame->id() == Debug::break_frame_id()) {
+      top_frame_index = frame_index;
+      break;
+    }
+    if (CheckActivation(shared_info_array, result, frame,
+                        LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE)) {
+      // We are still above break_frame. It is not a target frame,
+      // it is a problem.
+      return "Debugger mark-up on stack is not found";
+    }
+  }
+
+  if (top_frame_index == -1) {
+    // We haven't found break frame, but no function is blocking us anyway.
+    return NULL;
+  }
+
+  bool target_frame_found = false;
+  int bottom_js_frame_index = top_frame_index;
+  bool c_code_found = false;
+
+  for (; frame_index < frames.length(); frame_index++) {
+    StackFrame* frame = frames[frame_index];
+    if (!IsDropableFrame(frame)) {
+      c_code_found = true;
+      break;
+    }
+    if (CheckActivation(shared_info_array, result, frame,
+                        LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
+      target_frame_found = true;
+      bottom_js_frame_index = frame_index;
+    }
+  }
+
+  if (c_code_found) {
+    // There is a C frames on stack. Check that there are no target frames
+    // below them.
+    for (; frame_index < frames.length(); frame_index++) {
+      StackFrame* frame = frames[frame_index];
+      if (frame->is_java_script()) {
+        if (CheckActivation(shared_info_array, result, frame,
+                            LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE)) {
+          // Cannot drop frame under C frames.
+          return NULL;
+        }
+      }
+    }
+  }
+
+  if (!do_drop) {
+    // We are in check-only mode.
+    return NULL;
+  }
+
+  if (!target_frame_found) {
+    // Nothing to drop.
+    return NULL;
+  }
+
+  const char* error_message = DropFrames(frames, top_frame_index,
+                                         bottom_js_frame_index);
+
+  if (error_message != NULL) {
+    return error_message;
+  }
+
+  // Adjust break_frame after some frames has been dropped.
+  StackFrame::Id new_id = StackFrame::NO_ID;
+  for (int i = bottom_js_frame_index + 1; i < frames.length(); i++) {
+    if (frames[i]->type() == StackFrame::JAVA_SCRIPT) {
+      new_id = frames[i]->id();
+      break;
+    }
+  }
+  Debug::FramesHaveBeenDropped(new_id);
+
+  // Replace "blocked on active" with "replaced on active" status.
+  for (int i = 0; i < array_len; i++) {
+    if (result->GetElement(i) ==
+        Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
+      result->SetElement(i, Smi::FromInt(
+          LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK));
+    }
+  }
+  return NULL;
+}
+
+
+class InactiveThreadActivationsChecker : public ThreadVisitor {
+ public:
+  InactiveThreadActivationsChecker(Handle<JSArray> shared_info_array,
+                                   Handle<JSArray> result)
+      : shared_info_array_(shared_info_array), result_(result),
+        has_blocked_functions_(false) {
+  }
+  void VisitThread(ThreadLocalTop* top) {
+    for (StackFrameIterator it(top); !it.done(); it.Advance()) {
+      has_blocked_functions_ |= CheckActivation(
+          shared_info_array_, result_, it.frame(),
+          LiveEdit::FUNCTION_BLOCKED_ON_OTHER_STACK);
+    }
+  }
+  bool HasBlockedFunctions() {
+    return has_blocked_functions_;
+  }
+
+ private:
+  Handle<JSArray> shared_info_array_;
+  Handle<JSArray> result_;
+  bool has_blocked_functions_;
+};
+
+
+Handle<JSArray> LiveEdit::CheckAndDropActivations(
+    Handle<JSArray> shared_info_array, bool do_drop) {
+  int len = Smi::cast(shared_info_array->length())->value();
+
+  Handle<JSArray> result = Factory::NewJSArray(len);
+
+  // Fill the default values.
+  for (int i = 0; i < len; i++) {
+    SetElement(result, i,
+               Handle<Smi>(Smi::FromInt(FUNCTION_AVAILABLE_FOR_PATCH)));
+  }
+
+
+  // First check inactive threads. Fail if some functions are blocked there.
+  InactiveThreadActivationsChecker inactive_threads_checker(shared_info_array,
+                                                            result);
+  ThreadManager::IterateThreads(&inactive_threads_checker);
+  if (inactive_threads_checker.HasBlockedFunctions()) {
+    return result;
+  }
+
+  // Try to drop activations from the current stack.
+  const char* error_message =
+      DropActivationsInActiveThread(shared_info_array, result, do_drop);
+  if (error_message != NULL) {
+    // Add error message as an array extra element.
+    Vector<const char> vector_message(error_message, StrLength(error_message));
+    Handle<String> str = Factory::NewStringFromAscii(vector_message);
+    SetElement(result, len, str);
+  }
+  return result;
 }
 
 

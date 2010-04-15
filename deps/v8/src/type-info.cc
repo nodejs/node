@@ -41,6 +41,8 @@ TypeInfo TypeInfo::TypeFromValue(Handle<Object> value) {
     info = TypeInfo::IsInt32Double(HeapNumber::cast(*value)->value())
         ? TypeInfo::Integer32()
         : TypeInfo::Double();
+  } else if (value->IsString()) {
+    info = TypeInfo::String();
   } else {
     info = TypeInfo::Unknown();
   }

@@ -165,7 +165,7 @@ function MathPow(x, y) {
 
 // ECMA 262 - 15.8.2.14
 function MathRandom() {
-  return %_RandomPositiveSmi() / 0x40000000;
+  return %_RandomHeapNumber();
 }
 
 // ECMA 262 - 15.8.2.15

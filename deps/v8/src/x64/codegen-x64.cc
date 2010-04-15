@@ -1494,6 +1494,26 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
 }
 
 
+void CodeGenerator::SetTypeForStackSlot(Slot* slot, TypeInfo info) {
+  ASSERT(slot->type() == Slot::LOCAL || slot->type() == Slot::PARAMETER);
+  if (slot->type() == Slot::LOCAL) {
+    frame_->SetTypeForLocalAt(slot->index(), info);
+  } else {
+    frame_->SetTypeForParamAt(slot->index(), info);
+  }
+  if (FLAG_debug_code && info.IsSmi()) {
+    if (slot->type() == Slot::LOCAL) {
+      frame_->PushLocalAt(slot->index());
+    } else {
+      frame_->PushParameterAt(slot->index());
+    }
+    Result var = frame_->Pop();
+    var.ToRegister();
+    __ AbortIfNotSmi(var.reg(), "Non-smi value in smi-typed stack slot.");
+  }
+}
+
+
 void CodeGenerator::VisitForStatement(ForStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ ForStatement");
@@ -1587,6 +1607,17 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   }
 
   CheckStack();  // TODO(1222600): ignore if body contains calls.
+
+  // We know that the loop index is a smi if it is not modified in the
+  // loop body and it is checked against a constant limit in the loop
+  // condition.  In this case, we reset the static type information of the
+  // loop index to smi before compiling the body, the update expression, and
+  // the bottom check of the loop condition.
+  if (node->is_fast_smi_loop()) {
+    // Set number type of the loop variable to smi.
+    SetTypeForStackSlot(node->loop_variable()->slot(), TypeInfo::Smi());
+  }
+
   Visit(node->body());
 
   // If there is an update expression, compile it if necessary.
@@ -1604,6 +1635,13 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
       CodeForStatementPosition(node);
       Visit(node->next());
     }
+  }
+
+  // Set the type of the loop variable to smi before compiling the test
+  // expression if we are in a fast smi loop condition.
+  if (node->is_fast_smi_loop() && has_valid_frame()) {
+    // Set number type of the loop variable to smi.
+    SetTypeForStackSlot(node->loop_variable()->slot(), TypeInfo::Smi());
   }
 
   // Based on the condition analysis, compile the backward jump as
@@ -3129,14 +3167,16 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
-// The value in dst was optimistically incremented or decremented.  The
-// result overflowed or was not smi tagged.  Undo the operation, call
-// into the runtime to convert the argument to a number, and call the
-// specialized add or subtract stub.  The result is left in dst.
+// The value in dst was optimistically incremented or decremented.
+// The result overflowed or was not smi tagged.  Call into the runtime
+// to convert the argument to a number, and call the specialized add
+// or subtract stub.  The result is left in dst.
 class DeferredPrefixCountOperation: public DeferredCode {
  public:
-  DeferredPrefixCountOperation(Register dst, bool is_increment)
-      : dst_(dst), is_increment_(is_increment) {
+  DeferredPrefixCountOperation(Register dst,
+                               bool is_increment,
+                               TypeInfo input_type)
+      : dst_(dst), is_increment_(is_increment), input_type_(input_type) {
     set_comment("[ DeferredCountOperation");
   }
 
@@ -3145,32 +3185,45 @@ class DeferredPrefixCountOperation: public DeferredCode {
  private:
   Register dst_;
   bool is_increment_;
+  TypeInfo input_type_;
 };
 
 
 void DeferredPrefixCountOperation::Generate() {
-  __ push(dst_);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
-  __ push(rax);
-  __ Push(Smi::FromInt(1));
-  if (is_increment_) {
-    __ CallRuntime(Runtime::kNumberAdd, 2);
+  Register left;
+  if (input_type_.IsNumber()) {
+    left = dst_;
   } else {
-    __ CallRuntime(Runtime::kNumberSub, 2);
+    __ push(dst_);
+    __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+    left = rax;
   }
+
+  GenericBinaryOpStub stub(is_increment_ ? Token::ADD : Token::SUB,
+                           NO_OVERWRITE,
+                           NO_GENERIC_BINARY_FLAGS,
+                           TypeInfo::Number());
+  stub.GenerateCall(masm_, left, Smi::FromInt(1));
+
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
 
-// The value in dst was optimistically incremented or decremented.  The
-// result overflowed or was not smi tagged.  Undo the operation and call
-// into the runtime to convert the argument to a number.  Update the
-// original value in old.  Call the specialized add or subtract stub.
-// The result is left in dst.
+// The value in dst was optimistically incremented or decremented.
+// The result overflowed or was not smi tagged.  Call into the runtime
+// to convert the argument to a number.  Update the original value in
+// old.  Call the specialized add or subtract stub.  The result is
+// left in dst.
 class DeferredPostfixCountOperation: public DeferredCode {
  public:
-  DeferredPostfixCountOperation(Register dst, Register old, bool is_increment)
-      : dst_(dst), old_(old), is_increment_(is_increment) {
+  DeferredPostfixCountOperation(Register dst,
+                                Register old,
+                                bool is_increment,
+                                TypeInfo input_type)
+      : dst_(dst),
+        old_(old),
+        is_increment_(is_increment),
+        input_type_(input_type) {
     set_comment("[ DeferredCountOperation");
   }
 
@@ -3180,24 +3233,28 @@ class DeferredPostfixCountOperation: public DeferredCode {
   Register dst_;
   Register old_;
   bool is_increment_;
+  TypeInfo input_type_;
 };
 
 
 void DeferredPostfixCountOperation::Generate() {
-  __ push(dst_);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
-
-  // Save the result of ToNumber to use as the old value.
-  __ push(rax);
-
-  // Call the runtime for the addition or subtraction.
-  __ push(rax);
-  __ Push(Smi::FromInt(1));
-  if (is_increment_) {
-    __ CallRuntime(Runtime::kNumberAdd, 2);
+  Register left;
+  if (input_type_.IsNumber()) {
+    __ push(dst_);  // Save the input to use as the old value.
+    left = dst_;
   } else {
-    __ CallRuntime(Runtime::kNumberSub, 2);
+    __ push(dst_);
+    __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+    __ push(rax);  // Save the result of ToNumber to use as the old value.
+    left = rax;
   }
+
+  GenericBinaryOpStub stub(is_increment_ ? Token::ADD : Token::SUB,
+                           NO_OVERWRITE,
+                           NO_GENERIC_BINARY_FLAGS,
+                           TypeInfo::Number());
+  stub.GenerateCall(masm_, left, Smi::FromInt(1));
+
   if (!dst_.is(rax)) __ movq(dst_, rax);
   __ pop(old_);
 }
@@ -3238,6 +3295,14 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       old_value = allocator_->Allocate();
       ASSERT(old_value.is_valid());
       __ movq(old_value.reg(), new_value.reg());
+
+      // The return value for postfix operations is ToNumber(input).
+      // Keep more precise type info if the input is some kind of
+      // number already. If the input is not a number we have to wait
+      // for the deferred code to convert it.
+      if (new_value.type_info().IsNumber()) {
+        old_value.set_type_info(new_value.type_info());
+      }
     }
     // Ensure the new value is writable.
     frame_->Spill(new_value.reg());
@@ -3246,10 +3311,12 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     if (is_postfix) {
       deferred = new DeferredPostfixCountOperation(new_value.reg(),
                                                    old_value.reg(),
-                                                   is_increment);
+                                                   is_increment,
+                                                   new_value.type_info());
     } else {
       deferred = new DeferredPrefixCountOperation(new_value.reg(),
-                                                  is_increment);
+                                                  is_increment,
+                                                  new_value.type_info());
     }
 
     __ JumpIfNotSmi(new_value.reg(), deferred->entry_label());
@@ -3266,6 +3333,15 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     }
     __ movq(new_value.reg(), kScratchRegister);
     deferred->BindExit();
+
+    // Postfix count operations return their input converted to
+    // number. The case when the input is already a number is covered
+    // above in the allocation code for old_value.
+    if (is_postfix && !new_value.type_info().IsNumber()) {
+      old_value.set_type_info(TypeInfo::Number());
+    }
+
+    new_value.set_type_info(TypeInfo::Number());
 
     // Postfix: store the old value in the allocated slot under the
     // reference.
@@ -3734,12 +3810,32 @@ void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
-  // ArgumentsAccessStub takes the parameter count as an input argument
-  // in register eax.  Create a constant result for it.
-  Result count(Handle<Smi>(Smi::FromInt(scope()->num_parameters())));
-  // Call the shared stub to get to the arguments.length.
-  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
-  Result result = frame_->CallStub(&stub, &count);
+
+  Result fp = allocator_->Allocate();
+  Result result = allocator_->Allocate();
+  ASSERT(fp.is_valid() && result.is_valid());
+
+  Label exit;
+
+  // Get the number of formal parameters.
+  __ Move(result.reg(), Smi::FromInt(scope()->num_parameters()));
+
+  // Check if the calling frame is an arguments adaptor frame.
+  __ movq(fp.reg(), Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ SmiCompare(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
+                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(not_equal, &exit);
+
+  // Arguments adaptor case: Read the arguments length from the
+  // adaptor frame.
+  __ movq(result.reg(),
+          Operand(fp.reg(), ArgumentsAdaptorFrameConstants::kLengthOffset));
+
+  __ bind(&exit);
+  result.set_type_info(TypeInfo::Smi());
+  if (FLAG_debug_code) {
+    __ AbortIfNotSmi(result.reg(), "Computed arguments.length is not a smi.");
+  }
   frame_->Push(&result);
 }
 
@@ -4016,19 +4112,43 @@ void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateRandomHeapNumber(
+    ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   frame_->SpillAll();
-  __ push(rsi);
 
-  static const int num_arguments = 0;
-  __ PrepareCallCFunction(num_arguments);
+  Label slow_allocate_heapnumber;
+  Label heapnumber_allocated;
+  __ AllocateHeapNumber(rbx, rcx, &slow_allocate_heapnumber);
+  __ jmp(&heapnumber_allocated);
 
-  // Call V8::RandomPositiveSmi().
-  __ CallCFunction(ExternalReference::random_positive_smi_function(),
-                   num_arguments);
+  __ bind(&slow_allocate_heapnumber);
+  // To allocate a heap number, and ensure that it is not a smi, we
+  // call the runtime function FUnaryMinus on 0, returning the double
+  // -0.0.  A new, distinct heap number is returned each time.
+  __ Push(Smi::FromInt(0));
+  __ CallRuntime(Runtime::kNumberUnaryMinus, 1);
+  __ movq(rbx, rax);
 
-  __ pop(rsi);
+  __ bind(&heapnumber_allocated);
+
+  // Return a random uint32 number in rax.
+  // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
+  __ PrepareCallCFunction(0);
+  __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+
+  // Convert 32 random bits in eax to 0.(32 random bits) in a double
+  // by computing:
+  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+  __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
+  __ movd(xmm1, rcx);
+  __ movd(xmm0, rax);
+  __ cvtss2sd(xmm1, xmm1);
+  __ xorpd(xmm0, xmm1);
+  __ subsd(xmm0, xmm1);
+  __ movsd(FieldOperand(rbx, HeapNumber::kValueOffset), xmm0);
+
+  __ movq(rax, rbx);
   Result result = allocator_->Allocate(rax);
   frame_->Push(&result);
 }
@@ -4048,6 +4168,97 @@ void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
+  // No stub. This code only occurs a few times in regexp.js.
+  const int kMaxInlineLength = 100;
+  ASSERT_EQ(3, args->length());
+  Load(args->at(0));  // Size of array, smi.
+  Load(args->at(1));  // "index" property value.
+  Load(args->at(2));  // "input" property value.
+  {
+    VirtualFrame::SpilledScope spilled_scope;
+
+    Label slowcase;
+    Label done;
+    __ movq(r8, Operand(rsp, kPointerSize * 2));
+    __ JumpIfNotSmi(r8, &slowcase);
+    __ SmiToInteger32(rbx, r8);
+    __ cmpl(rbx, Immediate(kMaxInlineLength));
+    __ j(above, &slowcase);
+    // Smi-tagging is equivalent to multiplying by 2.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize == 1);
+    // Allocate RegExpResult followed by FixedArray with size in ebx.
+    // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
+    // Elements:  [Map][Length][..elements..]
+    __ AllocateInNewSpace(JSRegExpResult::kSize + FixedArray::kHeaderSize,
+                          times_pointer_size,
+                          rbx,  // In: Number of elements.
+                          rax,  // Out: Start of allocation (tagged).
+                          rcx,  // Out: End of allocation.
+                          rdx,  // Scratch register
+                          &slowcase,
+                          TAG_OBJECT);
+    // rax: Start of allocated area, object-tagged.
+    // rbx: Number of array elements as int32.
+    // r8: Number of array elements as smi.
+
+    // Set JSArray map to global.regexp_result_map().
+    __ movq(rdx, ContextOperand(rsi, Context::GLOBAL_INDEX));
+    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalContextOffset));
+    __ movq(rdx, ContextOperand(rdx, Context::REGEXP_RESULT_MAP_INDEX));
+    __ movq(FieldOperand(rax, HeapObject::kMapOffset), rdx);
+
+    // Set empty properties FixedArray.
+    __ Move(FieldOperand(rax, JSObject::kPropertiesOffset),
+            Factory::empty_fixed_array());
+
+    // Set elements to point to FixedArray allocated right after the JSArray.
+    __ lea(rcx, Operand(rax, JSRegExpResult::kSize));
+    __ movq(FieldOperand(rax, JSObject::kElementsOffset), rcx);
+
+    // Set input, index and length fields from arguments.
+    __ pop(FieldOperand(rax, JSRegExpResult::kInputOffset));
+    __ pop(FieldOperand(rax, JSRegExpResult::kIndexOffset));
+    __ lea(rsp, Operand(rsp, kPointerSize));
+    __ movq(FieldOperand(rax, JSArray::kLengthOffset), r8);
+
+    // Fill out the elements FixedArray.
+    // rax: JSArray.
+    // rcx: FixedArray.
+    // rbx: Number of elements in array as int32.
+
+    // Set map.
+    __ Move(FieldOperand(rcx, HeapObject::kMapOffset),
+            Factory::fixed_array_map());
+    // Set length.
+    __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rbx);
+    // Fill contents of fixed-array with the-hole.
+    __ Move(rdx, Factory::the_hole_value());
+    __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
+    // Fill fixed array elements with hole.
+    // rax: JSArray.
+    // rbx: Number of elements in array that remains to be filled, as int32.
+    // rcx: Start of elements in FixedArray.
+    // rdx: the hole.
+    Label loop;
+    __ testl(rbx, rbx);
+    __ bind(&loop);
+    __ j(less_equal, &done);  // Jump if ecx is negative or zero.
+    __ subl(rbx, Immediate(1));
+    __ movq(Operand(rcx, rbx, times_pointer_size, 0), rdx);
+    __ jmp(&loop);
+
+    __ bind(&slowcase);
+    __ CallRuntime(Runtime::kRegExpConstructResult, 3);
+
+    __ bind(&done);
+  }
+  frame_->Forget(3);
+  frame_->Push(rax);
+}
+
+
 void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
 
@@ -4056,6 +4267,22 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
 
   NumberToStringStub stub;
   Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
+  Comment cmnt(masm_, "[ GenerateCallFunction");
+
+  ASSERT(args->length() >= 2);
+
+  int n_args = args->length() - 2;  // for receiver and function.
+  Load(args->at(0));  // receiver
+  for (int i = 0; i < n_args; i++) {
+    Load(args->at(i + 1));
+  }
+  Load(args->at(n_args + 1));  // function
+  Result result = frame_->CallJSFunction(n_args);
   frame_->Push(&result);
 }
 
@@ -5014,14 +5241,28 @@ void CodeGenerator::Comparison(AstNode* node,
   ASSERT(cc == less || cc == equal || cc == greater_equal);
 
   // If either side is a constant smi, optimize the comparison.
-  bool left_side_constant_smi =
-      left_side.is_constant() && left_side.handle()->IsSmi();
-  bool right_side_constant_smi =
-      right_side.is_constant() && right_side.handle()->IsSmi();
-  bool left_side_constant_null =
-      left_side.is_constant() && left_side.handle()->IsNull();
-  bool right_side_constant_null =
-      right_side.is_constant() && right_side.handle()->IsNull();
+  bool left_side_constant_smi = false;
+  bool left_side_constant_null = false;
+  bool left_side_constant_1_char_string = false;
+  if (left_side.is_constant()) {
+    left_side_constant_smi = left_side.handle()->IsSmi();
+    left_side_constant_null = left_side.handle()->IsNull();
+    left_side_constant_1_char_string =
+        (left_side.handle()->IsString() &&
+         String::cast(*left_side.handle())->length() == 1 &&
+         String::cast(*left_side.handle())->IsAsciiRepresentation());
+  }
+  bool right_side_constant_smi = false;
+  bool right_side_constant_null = false;
+  bool right_side_constant_1_char_string = false;
+  if (right_side.is_constant()) {
+    right_side_constant_smi = right_side.handle()->IsSmi();
+    right_side_constant_null = right_side.handle()->IsNull();
+    right_side_constant_1_char_string =
+        (right_side.handle()->IsString() &&
+         String::cast(*right_side.handle())->length() == 1 &&
+         String::cast(*right_side.handle())->IsAsciiRepresentation());
+  }
 
   if (left_side_constant_smi || right_side_constant_smi) {
     if (left_side_constant_smi && right_side_constant_smi) {
@@ -5161,6 +5402,141 @@ void CodeGenerator::Comparison(AstNode* node,
       operand.Unuse();
       dest->Split(not_zero);
     }
+  } else if (left_side_constant_1_char_string ||
+             right_side_constant_1_char_string) {
+    if (left_side_constant_1_char_string && right_side_constant_1_char_string) {
+      // Trivial case, comparing two constants.
+      int left_value = String::cast(*left_side.handle())->Get(0);
+      int right_value = String::cast(*right_side.handle())->Get(0);
+      switch (cc) {
+        case less:
+          dest->Goto(left_value < right_value);
+          break;
+        case equal:
+          dest->Goto(left_value == right_value);
+          break;
+        case greater_equal:
+          dest->Goto(left_value >= right_value);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      // Only one side is a constant 1 character string.
+      // If left side is a constant 1-character string, reverse the operands.
+      // Since one side is a constant string, conversion order does not matter.
+      if (left_side_constant_1_char_string) {
+        Result temp = left_side;
+        left_side = right_side;
+        right_side = temp;
+        cc = ReverseCondition(cc);
+        // This may reintroduce greater or less_equal as the value of cc.
+        // CompareStub and the inline code both support all values of cc.
+      }
+      // Implement comparison against a constant string, inlining the case
+      // where both sides are strings.
+      left_side.ToRegister();
+
+      // Here we split control flow to the stub call and inlined cases
+      // before finally splitting it to the control destination.  We use
+      // a jump target and branching to duplicate the virtual frame at
+      // the first split.  We manually handle the off-frame references
+      // by reconstituting them on the non-fall-through path.
+      JumpTarget is_not_string, is_string;
+      Register left_reg = left_side.reg();
+      Handle<Object> right_val = right_side.handle();
+      ASSERT(StringShape(String::cast(*right_val)).IsSymbol());
+      Condition is_smi = masm()->CheckSmi(left_reg);
+      is_not_string.Branch(is_smi, &left_side);
+      Result temp = allocator_->Allocate();
+      ASSERT(temp.is_valid());
+      __ movq(temp.reg(),
+              FieldOperand(left_reg, HeapObject::kMapOffset));
+      __ movzxbl(temp.reg(),
+                 FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
+      // If we are testing for equality then make use of the symbol shortcut.
+      // Check if the left hand side has the same type as the right hand
+      // side (which is always a symbol).
+      if (cc == equal) {
+        Label not_a_symbol;
+        ASSERT(kSymbolTag != 0);
+        // Ensure that no non-strings have the symbol bit set.
+        ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+        __ testb(temp.reg(), Immediate(kIsSymbolMask));  // Test the symbol bit.
+        __ j(zero, &not_a_symbol);
+        // They are symbols, so do identity compare.
+        __ Cmp(left_reg, right_side.handle());
+        dest->true_target()->Branch(equal);
+        dest->false_target()->Branch(not_equal);
+        __ bind(&not_a_symbol);
+      }
+      // Call the compare stub if the left side is not a flat ascii string.
+      __ andb(temp.reg(),
+              Immediate(kIsNotStringMask |
+                        kStringRepresentationMask |
+                        kStringEncodingMask));
+      __ cmpb(temp.reg(),
+              Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
+      temp.Unuse();
+      is_string.Branch(equal, &left_side);
+
+      // Setup and call the compare stub.
+      is_not_string.Bind(&left_side);
+      CompareStub stub(cc, strict, kCantBothBeNaN);
+      Result result = frame_->CallStub(&stub, &left_side, &right_side);
+      result.ToRegister();
+      __ SmiCompare(result.reg(), Smi::FromInt(0));
+      result.Unuse();
+      dest->true_target()->Branch(cc);
+      dest->false_target()->Jump();
+
+      is_string.Bind(&left_side);
+      // left_side is a sequential ASCII string.
+      ASSERT(left_side.reg().is(left_reg));
+      right_side = Result(right_val);
+      Result temp2 = allocator_->Allocate();
+      ASSERT(temp2.is_valid());
+      // Test string equality and comparison.
+      if (cc == equal) {
+        Label comparison_done;
+        __ cmpl(FieldOperand(left_side.reg(), String::kLengthOffset),
+                Immediate(1));
+        __ j(not_equal, &comparison_done);
+        uint8_t char_value =
+            static_cast<uint8_t>(String::cast(*right_val)->Get(0));
+        __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
+                Immediate(char_value));
+        __ bind(&comparison_done);
+      } else {
+        __ movl(temp2.reg(),
+                FieldOperand(left_side.reg(), String::kLengthOffset));
+        __ subl(temp2.reg(), Immediate(1));
+        Label comparison;
+        // If the length is 0 then the subtraction gave -1 which compares less
+        // than any character.
+        __ j(negative, &comparison);
+        // Otherwise load the first character.
+        __ movzxbl(temp2.reg(),
+                   FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize));
+        __ bind(&comparison);
+        // Compare the first character of the string with the
+        // constant 1-character string.
+        uint8_t char_value =
+            static_cast<uint8_t>(String::cast(*right_side.handle())->Get(0));
+        __ cmpb(temp2.reg(), Immediate(char_value));
+        Label characters_were_different;
+        __ j(not_equal, &characters_were_different);
+        // If the first character is the same then the long string sorts after
+        // the short one.
+        __ cmpl(FieldOperand(left_side.reg(), String::kLengthOffset),
+               Immediate(1));
+        __ bind(&characters_were_different);
+      }
+      temp2.Unuse();
+      left_side.Unuse();
+      right_side.Unuse();
+      dest->Split(cc);
+    }
   } else {  // Neither side is a constant Smi or null.
     // If either side is a non-smi constant, skip the smi check.
     bool known_non_smi =
@@ -5254,8 +5630,13 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   Result left = frame_->Pop();
 
   if (op == Token::ADD) {
-    bool left_is_string = left.is_constant() && left.handle()->IsString();
-    bool right_is_string = right.is_constant() && right.handle()->IsString();
+    const bool left_is_string = left.type_info().IsString();
+    const bool right_is_string = right.type_info().IsString();
+    // Make sure constant strings have string type info.
+    ASSERT(!(left.is_constant() && left.handle()->IsString()) ||
+           left_is_string);
+    ASSERT(!(right.is_constant() && right.handle()->IsString()) ||
+           right_is_string);
     if (left_is_string || right_is_string) {
       frame_->Push(&left);
       frame_->Push(&right);
@@ -5264,7 +5645,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         if (right_is_string) {
           // TODO(lrn): if both are constant strings
           // -- do a compile time cons, if allocation during codegen is allowed.
-          answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
+          StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+          answer = frame_->CallStub(&stub, 2);
         } else {
           answer =
             frame_->InvokeBuiltin(Builtins::STRING_ADD_LEFT, CALL_FUNCTION, 2);
@@ -5273,6 +5655,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         answer =
           frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
       }
+      answer.set_type_info(TypeInfo::String());
       frame_->Push(&answer);
       return;
     }
@@ -5358,10 +5741,13 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
           : TypeInfo::Number();
       break;
     case Token::ADD:
-      // Result could be a string or a number. Check types of inputs.
-      result_type = operands_type.IsNumber()
-          ? TypeInfo::Number()
-          : TypeInfo::Unknown();
+      if (operands_type.IsNumber()) {
+        result_type = TypeInfo::Number();
+      } else if (operands_type.IsString()) {
+        result_type = TypeInfo::String();
+      } else {
+        result_type = TypeInfo::Unknown();
+      }
       break;
     case Token::SUB:
     case Token::MUL:
@@ -7739,23 +8125,6 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor;
-  __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ SmiCompare(Operand(rdx, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-
-  // Arguments adaptor case: Read the arguments length from the
-  // adaptor frame and return it.
-  // Otherwise nothing to do: The number of formal parameters has already been
-  // passed in register eax by calling function. Just return it.
-  __ cmovq(equal, rax,
-           Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ ret(0);
-}
-
-
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Check that stack should contain next handler, frame pointer, state and
   // return address in that order.
@@ -8994,15 +9363,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       break;
     default:
       UNREACHABLE();
-  }
-
-  // TODO(kaznacheev) Remove this (along with clearing) if it does not harm
-  // performance.
-  // Generate an unreachable reference to the DEFAULT stub so that it can be
-  // found at the end of this stub when clearing ICs at GC.
-  if (runtime_operands_type_ != BinaryOpIC::DEFAULT) {
-    GenericBinaryOpStub uninit(MinorKey(), BinaryOpIC::DEFAULT);
-    __ TailCallStub(&uninit);
   }
 }
 

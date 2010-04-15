@@ -36,25 +36,4 @@
 #include "virtual-frame-light-inl.h"
 #endif
 
-
-namespace v8 {
-namespace internal {
-
-void VirtualFrame::Push(Smi* value) {
-  Push(Handle<Object> (value));
-}
-
-
-void VirtualFrame::Nip(int num_dropped) {
-  ASSERT(num_dropped >= 0);
-  if (num_dropped == 0) return;
-  Result tos = Pop();
-  if (num_dropped > 1) {
-    Drop(num_dropped - 1);
-  }
-  SetElementAt(0, &tos);
-}
-
-} }  // namespace v8::internal
-
 #endif  // V8_VIRTUAL_FRAME_INL_H_

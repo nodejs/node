@@ -92,9 +92,6 @@ Register RegisterAllocator::ToRegister(int num) {
 
 void RegisterAllocator::Initialize() {
   Reset();
-  // The non-reserved r1 and lr registers are live on JS function entry.
-  Use(r1);  // JS function.
-  Use(lr);  // Return address.
 }
 
 

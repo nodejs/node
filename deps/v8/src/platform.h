@@ -516,18 +516,18 @@ class Socket {
 class TickSample {
  public:
   TickSample()
-      : pc(NULL),
+      : state(OTHER),
+        pc(NULL),
         sp(NULL),
         fp(NULL),
         function(NULL),
-        state(OTHER),
         frames_count(0) {}
+  StateTag state;  // The state of the VM.
   Address pc;  // Instruction pointer.
   Address sp;  // Stack pointer.
   Address fp;  // Frame pointer.
   Address function;  // The last called JS function.
-  StateTag state;  // The state of the VM.
-  static const int kMaxFramesCount = 100;
+  static const int kMaxFramesCount = 64;
   Address stack[kMaxFramesCount];  // Call stack.
   int frames_count;  // Number of captured frames.
 };

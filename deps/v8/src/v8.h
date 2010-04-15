@@ -67,7 +67,9 @@
 #include "spaces-inl.h"
 #include "heap-inl.h"
 #include "log-inl.h"
+#include "cpu-profiler-inl.h"
 #include "handles-inl.h"
+#include "vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -94,7 +96,7 @@ class V8 : public AllStatic {
 
   // Random number generation support. Not cryptographically safe.
   static uint32_t Random();
-  static Smi* RandomPositiveSmi();
+  static Object* FillHeapNumberWithRandom(Object* heap_number);
 
   // Idle notification directly from the API.
   static bool IdleNotification();

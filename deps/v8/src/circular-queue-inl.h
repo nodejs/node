@@ -38,7 +38,8 @@ template<typename Record>
 CircularQueue<Record>::CircularQueue(int desired_buffer_size_in_bytes)
     : buffer_(NewArray<Record>(desired_buffer_size_in_bytes / sizeof(Record))),
       buffer_end_(buffer_ + desired_buffer_size_in_bytes / sizeof(Record)),
-      enqueue_semaphore_(OS::CreateSemaphore((buffer_end_ - buffer_) - 1)),
+      enqueue_semaphore_(
+          OS::CreateSemaphore(static_cast<int>(buffer_end_ - buffer_) - 1)),
       enqueue_pos_(buffer_),
       dequeue_pos_(buffer_) {
   // To be able to distinguish between a full and an empty queue

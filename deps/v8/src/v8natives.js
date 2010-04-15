@@ -82,7 +82,10 @@ function GlobalIsNaN(number) {
 
 // ECMA 262 - 15.1.5
 function GlobalIsFinite(number) {
-  return %NumberIsFinite(ToNumber(number));
+  if (!IS_NUMBER(number)) number = ToNumber(number);
+
+  // NaN - NaN == NaN, Infinity - Infinity == NaN, -Infinity - -Infinity == NaN.
+  return %_IsSmi(number) || number - number == 0;
 }
 
 
@@ -482,7 +485,7 @@ PropertyDescriptor.prototype.hasSetter = function() {
 // ES5 section 8.12.1.
 function GetOwnProperty(obj, p) {
   var desc = new PropertyDescriptor();
-  
+
   // An array with:
   //  obj is a data property [false, value, Writeable, Enumerable, Configurable]
   //  obj is an accessor [true, Get, Set, Enumerable, Configurable]
@@ -522,7 +525,7 @@ function HasProperty(obj, p) {
 }
 
 
-// ES5 8.12.9.  
+// ES5 8.12.9.
 function DefineOwnProperty(obj, p, desc, should_throw) {
   var current = GetOwnProperty(obj, p);
   var extensible = %IsExtensible(ToObject(obj));
@@ -558,7 +561,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     }
   }
 
-  // Send flags - enumerable and configurable are common - writable is 
+  // Send flags - enumerable and configurable are common - writable is
   // only send to the data descriptor.
   // Take special care if enumerable and configurable is not defined on
   // desc (we need to preserve the existing values from current).
@@ -602,7 +605,7 @@ function ObjectGetPrototypeOf(obj) {
 }
 
 
-// ES5 section 15.2.3.3 
+// ES5 section 15.2.3.3
 function ObjectGetOwnPropertyDescriptor(obj, p) {
   if ((!IS_OBJECT(obj) || IS_NULL_OR_UNDEFINED(obj)) && !IS_FUNCTION(obj) &&
       !IS_UNDETECTABLE(obj))

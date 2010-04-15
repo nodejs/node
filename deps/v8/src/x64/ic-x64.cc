@@ -524,7 +524,32 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   //  -- rsp[16] : receiver
   // -----------------------------------
 
-  GenerateGeneric(masm);
+  Label miss, index_ok;
+
+  // Check that the receiver isn't a smi.
+  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
+  __ JumpIfSmi(rcx, &miss);
+
+  // Check that the receiver is a string.
+  Condition is_string = masm->IsObjectStringType(rcx, rax, rbx);
+  __ j(NegateCondition(is_string), &miss);
+
+  // Check if key is a smi or a heap number.
+  __ movq(rax, Operand(rsp, kPointerSize));
+  __ JumpIfSmi(rax, &index_ok);
+  __ CheckMap(rax, Factory::heap_number_map(), &miss, false);
+
+  __ bind(&index_ok);
+  // Duplicate receiver and key since they are expected on the stack after
+  // the KeyedLoadIC call.
+  __ pop(rbx);  // return address
+  __ push(rcx);  // receiver
+  __ push(rax);  // key
+  __ push(rbx);  // return address
+  __ InvokeBuiltin(Builtins::STRING_CHAR_AT, JUMP_FUNCTION);
+
+  __ bind(&miss);
+  GenerateMiss(masm);
 }
 
 

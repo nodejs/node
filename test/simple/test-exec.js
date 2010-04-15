@@ -9,6 +9,7 @@ exec("ls /", function (err, stdout, stderr) {
     puts("error!: " + err.code);
     puts("stdout: " + JSON.stringify(stdout));
     puts("stderr: " + JSON.stringify(stderr));
+    assert.equal(false, err.killed);
   } else {
     success_count++;
     p(stdout);
@@ -21,6 +22,7 @@ exec("ls /DOES_NOT_EXIST", function (err, stdout, stderr) {
     error_count++;
     assert.equal("", stdout);
     assert.equal(true, err.code != 0);
+    assert.equal(false, err.killed);
     puts("error code: " + err.code);
     puts("stdout: " + JSON.stringify(stdout));
     puts("stderr: " + JSON.stringify(stderr));
@@ -31,6 +33,15 @@ exec("ls /DOES_NOT_EXIST", function (err, stdout, stderr) {
   }
 });
 
+exec("sleep 10", { timeout: 50 }, function (err, stdout, stderr) {
+  assert.ok(err);
+  assert.ok(err.killed);
+});
+
+exec('python -c "print 200000*\'C\'"', { maxBuffer: 1000 }, function (err, stdout, stderr) {
+  assert.ok(err);
+  assert.ok(err.killed);
+});
 
 process.addListener("exit", function () {
   assert.equal(1, success_count);

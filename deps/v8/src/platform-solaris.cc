@@ -533,7 +533,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample.fp = 0;
 
   // We always sample the VM state.
-  sample.state = Logger::state();
+  sample.state = VMState::current_state();
 
   active_sampler_->Tick(&sample);
 }

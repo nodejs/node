@@ -175,6 +175,7 @@ class Shell: public i::AllStatic {
   static Handle<Value> System(const Arguments& args);
   static Handle<Value> ChangeDirectory(const Arguments& args);
   static Handle<Value> SetEnvironment(const Arguments& args);
+  static Handle<Value> UnsetEnvironment(const Arguments& args);
   static Handle<Value> SetUMask(const Arguments& args);
   static Handle<Value> MakeDirectory(const Arguments& args);
   static Handle<Value> RemoveDirectory(const Arguments& args);

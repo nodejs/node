@@ -382,6 +382,12 @@ void EntryFrame::ComputeCallerState(State* state) const {
 }
 
 
+void EntryFrame::SetCallerFp(Address caller_fp) {
+  const int offset = EntryFrameConstants::kCallerFPOffset;
+  Memory::Address_at(this->fp() + offset) = caller_fp;
+}
+
+
 StackFrame::Type EntryFrame::GetCallerState(State* state) const {
   const int offset = EntryFrameConstants::kCallerFPOffset;
   Address fp = Memory::Address_at(this->fp() + offset);
@@ -414,6 +420,11 @@ void ExitFrame::ComputeCallerState(State* state) const {
 }
 
 
+void ExitFrame::SetCallerFp(Address caller_fp) {
+  Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset) = caller_fp;
+}
+
+
 Address ExitFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPDisplacement;
 }
@@ -440,6 +451,12 @@ void StandardFrame::ComputeCallerState(State* state) const {
   state->sp = caller_sp();
   state->fp = caller_fp();
   state->pc_address = reinterpret_cast<Address*>(ComputePCAddress(fp()));
+}
+
+
+void StandardFrame::SetCallerFp(Address caller_fp) {
+  Memory::Address_at(fp() + StandardFrameConstants::kCallerFPOffset) =
+      caller_fp;
 }
 
 
@@ -764,6 +781,42 @@ int JSCallerSavedCode(int n) {
   }
   ASSERT(0 <= n && n < kNumJSCallerSaved);
   return reg_code[n];
+}
+
+
+#define DEFINE_WRAPPER(type, field)                              \
+class field##_Wrapper : public ZoneObject {                      \
+ public:  /* NOLINT */                                           \
+  field##_Wrapper(const field& original) : frame_(original) {    \
+  }                                                              \
+  field frame_;                                                  \
+};
+STACK_FRAME_TYPE_LIST(DEFINE_WRAPPER)
+#undef DEFINE_WRAPPER
+
+static StackFrame* AllocateFrameCopy(StackFrame* frame) {
+#define FRAME_TYPE_CASE(type, field) \
+  case StackFrame::type: { \
+    field##_Wrapper* wrapper = \
+        new field##_Wrapper(*(reinterpret_cast<field*>(frame))); \
+    return &wrapper->frame_; \
+  }
+
+  switch (frame->type()) {
+    STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
+    default: UNREACHABLE();
+  }
+#undef FRAME_TYPE_CASE
+  return NULL;
+}
+
+Vector<StackFrame*> CreateStackMap() {
+  ZoneList<StackFrame*> list(10);
+  for (StackFrameIterator it; !it.done(); it.Advance()) {
+    StackFrame* frame = AllocateFrameCopy(it.frame());
+    list.Add(frame);
+  }
+  return list.ToVector();
 }
 
 

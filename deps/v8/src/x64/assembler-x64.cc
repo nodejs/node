@@ -119,8 +119,8 @@ void CpuFeatures::Probe()  {
   Object* code =
       Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB), NULL);
   if (!code->IsCode()) return;
-  LOG(CodeCreateEvent(Logger::BUILTIN_TAG,
-                      Code::cast(code), "CpuFeatures::Probe"));
+  PROFILE(CodeCreateEvent(Logger::BUILTIN_TAG,
+                          Code::cast(code), "CpuFeatures::Probe"));
   typedef uint64_t (*F0)();
   F0 probe = FUNCTION_CAST<F0>(Code::cast(code)->entry());
   supported_ = probe();
@@ -2385,6 +2385,17 @@ void Assembler::emit_farith(int b1, int b2, int i) {
 
 // SSE 2 operations.
 
+void Assembler::movd(XMMRegister dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x6E);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::movsd(const Operand& dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2469,6 +2480,17 @@ void Assembler::cvtqsi2sd(XMMRegister dst, Register src) {
   emit_rex_64(dst, src);
   emit(0x0F);
   emit(0x2A);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::cvtss2sd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x5A);
   emit_sse_operand(dst, src);
 }
 

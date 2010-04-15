@@ -388,3 +388,51 @@ try {
   assertTrue(String(e).indexOf("Stack overflow") >= 0, "overflow");
 }
 
+
+// Test that compile works on modified objects
+var re = /re+/;
+assertEquals("re+", re.source);
+assertFalse(re.global);
+assertFalse(re.ignoreCase);
+assertFalse(re.multiline);
+assertEquals(0, re.lastIndex);
+
+re.compile("ro+", "gim");
+assertEquals("ro+", re.source);
+assertTrue(re.global);
+assertTrue(re.ignoreCase);
+assertTrue(re.multiline);
+assertEquals(0, re.lastIndex);
+
+re.lastIndex = 42;
+re.someOtherProperty = 42;
+re.someDeletableProperty = 42;
+re[37] = 37;  
+re[42] = 42;  
+
+re.compile("ra+", "i");
+assertEquals("ra+", re.source);
+assertFalse(re.global);
+assertTrue(re.ignoreCase);
+assertFalse(re.multiline);
+assertEquals(0, re.lastIndex);
+
+assertEquals(42, re.someOtherProperty);
+assertEquals(42, re.someDeletableProperty);
+assertEquals(37, re[37]);
+assertEquals(42, re[42]);
+
+re.lastIndex = -1;
+re.someOtherProperty = 37;
+re[42] = 37;
+assertTrue(delete re[37]);
+assertTrue(delete re.someDeletableProperty);
+re.compile("ri+", "gm");
+
+assertEquals("ri+", re.source);
+assertTrue(re.global);
+assertFalse(re.ignoreCase);
+assertTrue(re.multiline);
+assertEquals(0, re.lastIndex);
+assertEquals(37, re.someOtherProperty);
+assertEquals(37, re[42]);

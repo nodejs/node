@@ -58,8 +58,10 @@ SamplingCircularQueue::SamplingCircularQueue(int record_size_in_bytes,
   // updates of positions by different processor cores.
   const int positions_size =
       RoundUp(1, kProcessorCacheLineSize) +
-      RoundUp(sizeof(ProducerPosition), kProcessorCacheLineSize) +
-      RoundUp(sizeof(ConsumerPosition), kProcessorCacheLineSize);
+      RoundUp(static_cast<int>(sizeof(ProducerPosition)),
+              kProcessorCacheLineSize) +
+      RoundUp(static_cast<int>(sizeof(ConsumerPosition)),
+              kProcessorCacheLineSize);
   positions_ = NewArray<byte>(positions_size);
 
   producer_pos_ = reinterpret_cast<ProducerPosition*>(

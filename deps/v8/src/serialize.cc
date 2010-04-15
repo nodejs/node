@@ -329,10 +329,15 @@ void ExternalReferenceTable::PopulateTable() {
       RUNTIME_ENTRY,
       1,
       "Runtime::PerformGC");
-  Add(ExternalReference::random_positive_smi_function().address(),
+  Add(ExternalReference::fill_heap_number_with_random_function().address(),
       RUNTIME_ENTRY,
       2,
-      "V8::RandomPositiveSmi");
+      "V8::FillHeapNumberWithRandom");
+
+  Add(ExternalReference::random_uint32_function().address(),
+      RUNTIME_ENTRY,
+      3,
+      "V8::Random");
 
   // Miscellaneous
   Add(ExternalReference::the_hole_value_location().address(),

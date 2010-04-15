@@ -37,6 +37,7 @@ namespace internal {
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
 static const Register kScratchRegister = { 10 };  // r10.
+static const Register kRootRegister = { 13 };     // r13
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
@@ -502,6 +503,9 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is not a number. Used in debug code.
   void AbortIfNotNumber(Register object, const char* msg);
+
+  // Abort execution if argument is not a smi. Used in debug code.
+  void AbortIfNotSmi(Register object, const char* msg);
 
   // ---------------------------------------------------------------------------
   // Exception handling

@@ -1803,37 +1803,38 @@ class Sampler::PlatformData : public Malloced {
     // Context used for sampling the register state of the profiled thread.
     CONTEXT context;
     memset(&context, 0, sizeof(context));
-    // Loop until the sampler is disengaged.
-    while (sampler_->IsActive()) {
-      TickSample sample;
+    // Loop until the sampler is disengaged, keeping the specified samling freq.
+    for ( ; sampler_->IsActive(); Sleep(sampler_->interval_)) {
+      TickSample sample_obj;
+      TickSample* sample = NULL;
+#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+      sample = CpuProfiler::TickSampleEvent();
+#endif
+      if (sample == NULL) sample = &sample_obj;
 
       // We always sample the VM state.
-      sample.state = Logger::state();
-
+      sample->state = VMState::current_state();
       // If profiling, we record the pc and sp of the profiled thread.
       if (sampler_->IsProfiling()
           && SuspendThread(profiled_thread_) != (DWORD)-1) {
         context.ContextFlags = CONTEXT_FULL;
         if (GetThreadContext(profiled_thread_, &context) != 0) {
 #if V8_HOST_ARCH_X64
-          sample.pc = reinterpret_cast<Address>(context.Rip);
-          sample.sp = reinterpret_cast<Address>(context.Rsp);
-          sample.fp = reinterpret_cast<Address>(context.Rbp);
+          sample->pc = reinterpret_cast<Address>(context.Rip);
+          sample->sp = reinterpret_cast<Address>(context.Rsp);
+          sample->fp = reinterpret_cast<Address>(context.Rbp);
 #else
-          sample.pc = reinterpret_cast<Address>(context.Eip);
-          sample.sp = reinterpret_cast<Address>(context.Esp);
-          sample.fp = reinterpret_cast<Address>(context.Ebp);
+          sample->pc = reinterpret_cast<Address>(context.Eip);
+          sample->sp = reinterpret_cast<Address>(context.Esp);
+          sample->fp = reinterpret_cast<Address>(context.Ebp);
 #endif
-          sampler_->SampleStack(&sample);
+          sampler_->SampleStack(sample);
         }
         ResumeThread(profiled_thread_);
       }
 
       // Invoke tick handler with program counter and stack pointer.
-      sampler_->Tick(&sample);
-
-      // Wait until next sampling.
-      Sleep(sampler_->interval_);
+      sampler_->Tick(sample);
     }
   }
 };

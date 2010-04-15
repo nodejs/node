@@ -199,12 +199,24 @@ class StackGuard : public AllStatic {
 
  private:
   // You should hold the ExecutionAccess lock when calling this method.
-  static bool IsSet(const ExecutionAccess& lock);
+  static bool has_pending_interrupts(const ExecutionAccess& lock) {
+    // Sanity check: We shouldn't be asking about pending interrupts
+    // unless we're not postponing them anymore.
+    ASSERT(!should_postpone_interrupts(lock));
+    return thread_local_.interrupt_flags_ != 0;
+  }
 
   // You should hold the ExecutionAccess lock when calling this method.
-  static void set_limits(uintptr_t value, const ExecutionAccess& lock) {
-    thread_local_.jslimit_ = value;
-    thread_local_.climit_ = value;
+  static bool should_postpone_interrupts(const ExecutionAccess& lock) {
+    return thread_local_.postpone_interrupts_nesting_ > 0;
+  }
+
+  // You should hold the ExecutionAccess lock when calling this method.
+  static void set_interrupt_limits(const ExecutionAccess& lock) {
+    // Ignore attempts to interrupt when interrupts are postponed.
+    if (should_postpone_interrupts(lock)) return;
+    thread_local_.jslimit_ = kInterruptLimit;
+    thread_local_.climit_ = kInterruptLimit;
     Heap::SetStackLimits();
   }
 

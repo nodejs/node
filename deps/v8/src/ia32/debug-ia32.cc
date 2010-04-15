@@ -206,7 +206,57 @@ void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
 }
 
 
+void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
+  masm->ret(0);
+}
+
+// FrameDropper is a code replacement for a JavaScript frame with possibly
+// several frames above.
+// There is no calling conventions here, because it never actually gets called,
+// it only gets returned to.
+// Frame structure (conforms InternalFrame structure):
+//   -- JSFunction
+//   -- code
+//   -- SMI maker
+//   -- context
+//   -- frame base
+void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
+  // We do not know our frame height, but set esp based on ebp.
+  __ lea(esp, Operand(ebp, -4 * kPointerSize));
+
+  __ pop(edi);  // function
+
+  // Skip code self-reference and marker.
+  __ add(Operand(esp), Immediate(2 * kPointerSize));
+
+  __ pop(esi);  // Context.
+  __ pop(ebp);
+
+  // Get function code.
+  __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
+  __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
+
+  // Re-run JSFunction, edi is function, esi is context.
+  __ jmp(Operand(edx));
+}
+
 #undef __
+
+
+void Debug::SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
+                                   Handle<Code> code) {
+  ASSERT(bottom_js_frame->is_java_script());
+
+  Address fp = bottom_js_frame->fp();
+  Memory::Object_at(fp - 4 * kPointerSize) =
+      Memory::Object_at(fp - 2 * kPointerSize);  // Move edi (function).
+
+  Memory::Object_at(fp - 3 * kPointerSize) = *code;
+  Memory::Object_at(fp - 2 * kPointerSize) = Smi::FromInt(StackFrame::INTERNAL);
+}
+const int Debug::kFrameDropperFrameSize = 5;
+
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
