@@ -444,7 +444,7 @@ This will generate:
 
     $ node process-2.js one two=three four
     0: node
-    1: /Users/mjr/work/node_docs/data/v0.1.31/examples/process-2.js
+    1: /Users/mjr/work/node/process-2.js
     2: one
     3: two=three
     4: four
@@ -2239,38 +2239,129 @@ The unescape function used by `querystring.parse`, provided so that it could be 
 ## REPL
 
 A Read-Eval-Print-Loop is available both as a standalone program and easily
-includable in other programs. 
+includable in other programs.  REPL provides a way to interactively run
+JavaScript and see the results.  It can be used for debugging, testing, or
+just trying things out.
 
 The standalone REPL is called `node-repl` and is installed at
-`$PREFIX/bin/node-repl`. It's recommended to use it with the program
-`rlwrap` for a better user interface. I set 
+`$PREFIX/bin/node-repl`.
 
-    alias node-repl='rlwrap node-repl'
+    mjr:~$ /usr/local/bin/node-repl
+    Welcome to the Node.js REPL.
+    Enter ECMAScript at the prompt.
+    Tip 1: Use 'rlwrap node-repl' for a better interface
+    Tip 2: Type Control-D to exit.
+    Type '.help' for options.
+    node> a = [ 1, 2, 3];
+    [ 1, 2, 3 ]
+    node> a.forEach(function (v) {
+    ...   sys.puts(v);
+    ...   });
+    1
+    2
+    3
 
-in my zsh configuration.
 
-Inside the REPL, Control+D will exit. The special variable `_` (underscore) contains the
-result of the last expression.
+### repl.start(prompt, stream)
 
-The library is called `/repl.js` and it can be used like this:
+Starts a REPL with `prompt` as the prompt and `stream` for all I/O.  `pomrpt`
+is optional and defaults to `node> `.  `stream` is optional and defaults to 
+`process.openStdin()`.
 
-    var sys = require('sys'),
-        net = require('net'),
-       repl = require('repl');
-    nconnections = 0;
-    net.createServer(function (c) {
-      sys.error('Connection!');
-      nconnections += 1;
-      c.end();
-    }).listen(5000);
-    repl.start('simple tcp server> ');
+Multiple REPLs may be started against the same running instance of node.  Each
+will share the same global object but will have unique I/O.
 
-The repl provides access to any variables in the global scope. You can expose a variable 
-to the repl explicitly by assigning it to the `repl.scope` object:
+Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
 
-    var count = 5;
-    repl.start();
-    repl.scope.count = count;
+    var sys = require("sys"),
+        net = require("net"),
+        repl = require("repl");
+
+    connections = 0;
+
+    repl.start("node via stdin> ");
+
+    net.createServer(function (socket) {
+      connections += 1;
+      repl.start("node via Unix socket> ", socket);
+    }).listen("/tmp/node-repl-sock");
+
+    net.createServer(function (socket) {
+      connections += 1;
+      repl.start("node via TCP socket> ", socket);
+    }).listen(5001);
+
+Running this program from the command line will start a REPL on stdin.  Other
+REPL clients may connect through the Unix socket or TCP socket. `telnet` is useful
+for connecting to TCP sockets, and `socat` can be used to connect to both Unix and
+TCP sockets.
+
+By starting a REPL from a Unix socket-based server instead of stdin, you can 
+connect to a long-running node process without restarting it.
+
+
+### readline support
+
+Interactive command history for REPL is available from external programs like `rlwrap`
+or `socat`.  These programs are available from many Unix package managers.
+
+To start the standalone REPL with `rlwrap`:
+
+    rlwarp node-repl
+    
+It might be convenient to use this alias in your shell configuration:
+
+    alias repl='rlwrap node-repl'
+
+Using `socat` to connect to a Unix socket:
+
+    socat READLINE UNIX-CONNECT:/tmp/node-repl-sock
+
+Using `socat` to connect to a TCP socket on localhost:
+
+    socat READLINE TCP-CONNECT:localhost:5001
+
+
+### REPL Features
+
+Inside the REPL, Control+D will exit.  Multi-line expressions can be input.
+
+The special variable `_` (underscore) contains the result of the last expression.
+
+    node> [ "a", "b", "c" ]
+    [ 'a', 'b', 'c' ]
+    node> _.length 
+    3
+    node> _ += 1
+    4
+
+The REPL provides access to any variables in the global scope. You can expose a variable 
+to the REPL explicitly by assigning it to the `scope` object associated with each
+`REPLServer`.  For example:
+
+    // repl_test.js
+    var repl = require("repl"),
+        message = "message";
+
+    repl.start().scope.m = message;
+
+Things in the `scope` object appear as local within the REPL:
+
+    mjr:~$ node repl_test.js 
+    node> m
+    'message'
+
+There are a few special REPL commands:
+
+  - `.break` - While inputting a multi-line expression, sometimes you get lost or just don't care 
+  about completing it.  `.break` will start over.
+  
+  - `.clear` - Resets the `scope` object to an empty object and clears any multi-line expression.
+  
+  - `.exit` - Close the I/O stream, which will cause the REPL to exit.
+
+  - `.help` - Show this list of special commands.
+  
 
 
 ## Addons
