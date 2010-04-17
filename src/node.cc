@@ -38,6 +38,7 @@
 #ifdef HAVE_OPENSSL
 #include <node_crypto.h>
 #endif
+#include <node_script.h>
 
 #include <v8-debug.h>
 
@@ -520,7 +521,7 @@ Local<Value> ExecuteString(Local<String> source, Local<Value> filename) {
   HandleScope scope;
   TryCatch try_catch;
 
-  Local<Script> script = Script::Compile(source, filename);
+  Local<v8::Script> script = v8::Script::Compile(source, filename);
   if (script.IsEmpty()) {
     ReportException(try_catch);
     exit(1);
@@ -1020,7 +1021,7 @@ Handle<Value> EvalCX(const Arguments& args) {
   // Catch errors
   TryCatch try_catch;
 
-  Local<Script> script = Script::Compile(code, filename);
+  Local<v8::Script> script = v8::Script::Compile(code, filename);
   Handle<Value> result;
 
   if (script.IsEmpty()) {
@@ -1061,7 +1062,7 @@ Handle<Value> Compile(const Arguments& args) {
 
   TryCatch try_catch;
 
-  Local<Script> script = Script::Compile(source, filename);
+  Local<v8::Script> script = v8::Script::Compile(source, filename);
   if (try_catch.HasCaught()) {
     // Hack because I can't get a proper stacktrace on SyntaxError
     ReportException(try_catch, true);
@@ -1323,6 +1324,15 @@ static Handle<Value> Binding(const Arguments& args) {
       binding_cache->Set(module, exports);
     }
   #endif
+  } else if (!strcmp(*module_v, "evals")) {
+    if (binding_cache->Has(module)) {
+      exports = binding_cache->Get(module)->ToObject();
+    } else {
+      exports = Object::New();
+      node::Script::Initialize(exports);
+      binding_cache->Set(module, exports);
+    }
+
   } else if (!strcmp(*module_v, "natives")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();
@@ -1422,7 +1432,7 @@ static void Load(int argc, char *argv[]) {
   // define various internal methods
   NODE_SET_METHOD(process, "loop", Loop);
   NODE_SET_METHOD(process, "unloop", Unloop);
-  NODE_SET_METHOD(process, "evalcx", EvalCX);
+//   NODE_SET_METHOD(process, "evalcx", EvalCX);
   NODE_SET_METHOD(process, "compile", Compile);
   NODE_SET_METHOD(process, "_byteLength", ByteLength);
   NODE_SET_METHOD(process, "_needTickCallback", NeedTickCallback);

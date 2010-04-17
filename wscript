@@ -392,6 +392,7 @@ def build(bld):
     src/node_stat_watcher.cc
     src/node_stdio.cc
     src/node_timer.cc
+    src/node_script.cc
   """
   if bld.env["USE_OPENSSL"]:
     node.source += "src/node_crypto.cc"

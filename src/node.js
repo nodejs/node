@@ -100,6 +100,7 @@ process.assert = function (x, msg) {
   if (!(x)) throw new Error(msg || "assertion error");
 };
 
+process.evalcx = process.binding('evals').Script.runInNewContext;
 
 // Event
 
