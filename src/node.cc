@@ -992,62 +992,6 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   return Undefined();
 }
 
-// evalcx(code, sandbox={})
-// Executes code in a new context
-Handle<Value> EvalCX(const Arguments& args) {
-  HandleScope scope;
-
-  Local<String> code = args[0]->ToString();
-  Local<Object> sandbox = args.Length() > 1 ? args[1]->ToObject()
-                                            : Object::New();
-  Local<String> filename = args.Length() > 2 ? args[2]->ToString()
-                                             : String::New("evalcx");
-  // Create the new context
-  Persistent<Context> context = Context::New();
-
-  // Enter and compile script
-  context->Enter();
-
-  // Copy objects from global context, to our brand new context
-  Handle<Array> keys = sandbox->GetPropertyNames();
-
-  unsigned int i;
-  for (i = 0; i < keys->Length(); i++) {
-    Handle<String> key = keys->Get(Integer::New(i))->ToString();
-    Handle<Value> value = sandbox->Get(key);
-    context->Global()->Set(key, value);
-  }
-
-  // Catch errors
-  TryCatch try_catch;
-
-  Local<v8::Script> script = v8::Script::Compile(code, filename);
-  Handle<Value> result;
-
-  if (script.IsEmpty()) {
-    result = ThrowException(try_catch.Exception());
-  } else {
-    result = script->Run();
-    if (result.IsEmpty()) {
-      result = ThrowException(try_catch.Exception());
-    } else {
-      // success! copy changes back onto the sandbox object.
-      keys = context->Global()->GetPropertyNames();
-      for (i = 0; i < keys->Length(); i++) {
-        Handle<String> key = keys->Get(Integer::New(i))->ToString();
-        Handle<Value> value = context->Global()->Get(key);
-        sandbox->Set(key, value);
-      }
-    }
-  }
-
-  // Clean up, clean up, everybody everywhere!
-  context->DetachGlobal();
-  context->Exit();
-  context.Dispose();
-
-  return scope.Close(result);
-}
 
 Handle<Value> Compile(const Arguments& args) {
   HandleScope scope;
@@ -1432,7 +1376,6 @@ static void Load(int argc, char *argv[]) {
   // define various internal methods
   NODE_SET_METHOD(process, "loop", Loop);
   NODE_SET_METHOD(process, "unloop", Unloop);
-//   NODE_SET_METHOD(process, "evalcx", EvalCX);
   NODE_SET_METHOD(process, "compile", Compile);
   NODE_SET_METHOD(process, "_byteLength", ByteLength);
   NODE_SET_METHOD(process, "_needTickCallback", NeedTickCallback);
