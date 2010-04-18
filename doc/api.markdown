@@ -490,7 +490,9 @@ Example of using `process.compile` and `eval` to run the same code:
 `process.compile` does not have access to the local scope, so `localVar` is unchanged.
 `eval` does have access to the local scope, so `localVar` is changed.
 
-See also: `process.evalcx`
+In case of syntax error in `code`, `process.compile` exits node.
+
+See also: `Script`
 
 
 ### process.cwd()
@@ -503,27 +505,6 @@ Returns the current working directory of the process.
 ### process.env
 
 An object containing the user environment. See environ(7).
-
-
-
-### process.evalcx(code, sandbox, filename)
-
-Similar to `eval` and `process.compile`.  `process.evalcx` compiles `code` to run in `sandbox`
-as if it were loaded from `filename`.  The object `sandbox` will be used as the global object for
-`code`.  `sandbox` and `filename` are optional.
-
-    var sys = require('sys'),
-        sandbox = {
-          animal: 'cat',
-          count: 2
-        };
-
-    process.evalcx('count += 1; name = 'kitty'', sandbox, 'myfile.js');
-    sys.puts(sys.inspect(sandbox));
-
-Note that running untrusted code is a tricky business requiring great care.  To prevent accidental
-global variable leakage, `process.evalcx` is quite useful, but to safely run untrusted code, many more steps
-must be taken.
 
 
 
@@ -941,6 +922,128 @@ if it runs longer than `timeout` milliseconds. The child process is killed with
 `killSignal` (default: `'SIGKILL'`). `maxBuffer` specifies the largest
 amount of data allowed on stdout or stderr - if this value is exceeded then
 the child process is killed.
+
+
+
+## Script
+
+`Script` class provides with compiling, remembering and running pieces of Javascript code. You can get `Script` class by issuing
+
+    var Script = process.binding('evals').Script;
+
+
+
+### Script.runInThisContext(code, filename='evalmachine.< anonymous >')
+
+Similar to `process.compile`.  `Script.runInThisContext` compiles `code` as if it were loaded from `filename`,
+runs it and returns the result. Running code does not have access to local scope. `filename` is optional.
+
+Example of using `Script.runInThisContext` and `eval` to run the same code:
+
+    var sys = require('sys'),
+        localVar = 123,
+        usingscript, evaled;
+
+    usingscript = Script.runInThisContext('localVar = 1;', 'myfile.js');
+    sys.puts('localVar: ' + localVar + ', usingscript: ' + usingscript);
+    evaled = eval('localVar = 1;');
+    sys.puts('localVar: ' + localVar + ', evaled: ' + evaled);
+
+    // localVar: 123, usingscript: 1
+    // localVar: 1, evaled: 1
+
+`Script.runInThisContext` does not have access to the local scope, so `localVar` is unchanged.
+`eval` does have access to the local scope, so `localVar` is changed.
+
+In case of syntax error in `code`, `Script.runInThisContext` emits the syntax error to stderr
+and throws.an exception.
+
+
+
+### Script.runInNewContext(code, sandbox={}, filename='evalmachine.< anonymous >')
+
+`Script.runInNewContext` compiles `code` to run in `sandbox` as if it were loaded from `filename`,
+then runs it and returns the result. Running code does not have access to local scope and
+the object `sandbox` will be used as the global object for `code`.
+`sandbox` and `filename` are optional.
+
+    var sys = require('sys'),
+        sandbox = {
+          animal: 'cat',
+          count: 2
+        };
+
+    Script.runInNewContext('count += 1; name = 'kitty'', sandbox, 'myfile.js');
+    sys.puts(sys.inspect(sandbox));
+
+Note that running untrusted code is a tricky business requiring great care.  To prevent accidental
+global variable leakage, `Script.runInNewContext` is quite useful, but to safely run untrusted code, many more steps
+must be taken.
+
+In case of syntax error in `code`, `Script.runInThisContext` emits the syntax error to stderr
+and throws.an exception.
+
+
+
+### new Script(code, filename='evalmachine.< anonymous >')
+
+`new Script` compiles `code` as if it were loaded from `filename`,
+but does not run it. Instead, it returns Script object representing this compiled code.
+This script can be run later many times using methods below.
+The returned script is not bound to any global object,
+it is bound before each run, just for that run. `filename` is optional.
+
+In case of syntax error in `code`, `new Script` emits the syntax error to stderr
+and throws.an exception.
+
+
+
+### script.runInThisContext()
+
+Similar to "static" version in `Script.runInThisContext`, but now being a method of precompiled Script object.
+`script.runInThisContext` runs the code of `script` and returns the result. Running code does not have access to local scope
+and is run for actual `global` object (v8: in actual context).
+
+Example of using `script.runInThisContext` and `eval` to run the same code:
+
+    var sys = require('sys'),
+        localVar = 123,
+        script, usingscript, evaled;
+
+    script = new Script('localVar = 1', 'myfile.js');
+    usingscript = script.runInThisContext();
+    sys.puts('localVar: ' + localVar + ', usingscript: ' + usingscript);
+    evaled = eval('localVar = 1;');
+    sys.puts('localVar: ' + localVar + ', evaled: ' + evaled);
+
+    // localVar: 123, usingscript: 1
+    // localVar: 1, evaled: 1
+
+`script.runInThisContext` does not have access to the local scope, so `localVar` is unchanged.
+`eval` does have access to the local scope, so `localVar` is changed.
+
+
+
+### script.runInNewContext(sandbox={})
+
+Similar to "static" version in `Script.runInNewContext`, but now being a method of precompiled Script object.
+`script.runInNewContext` runs the code of `script` in a `sandbox` and returns the result.
+Running code does not have access to local scope and the object `sandbox` will be used as the global object for the code.
+`sandbox`is optional.
+
+    var sys = require('sys'),
+        script = new Script('count += 1; name = 'kitty'', 'myfile.js'),
+        sandbox = {
+          animal: 'cat',
+          count: 2
+        };
+
+    script.runInNewContext(sandbox);
+    sys.puts(sys.inspect(sandbox));
+
+Note that running untrusted code is a tricky business requiring great care.  To prevent accidental
+global variable leakage, `Script.runInNewContext` is quite useful, but to safely run untrusted code, many more steps
+must be taken.
 
 
 
