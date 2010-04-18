@@ -140,6 +140,12 @@ def configure(conf):
                     uselib_store='OPENSSL'):
     conf.env["USE_OPENSSL"] = True
     conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
+  else:
+    libcrypto = conf.check(lib='crypto', uselib_store='OPENSSL')
+    libssl = conf.check(lib='ssl', uselib_store='OPENSSL')
+    if libcrypto and libssl:
+      conf.env["USE_OPENSSL"] = True
+      conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
 
   if conf.check_cfg(package='gnutls',
                     args='--cflags --libs',
