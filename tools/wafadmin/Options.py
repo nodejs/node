@@ -25,6 +25,10 @@ except KeyError: cache_global = ''
 platform = Utils.unversioned_sys_platform()
 conf_file = 'conf-runs-%s-%d.pickle' % (platform, ABI)
 
+remote_repo = ['http://waf.googlecode.com/svn/']
+"""remote directory for the plugins"""
+
+
 # Such a command-line should work:  JOBS=4 PREFIX=/opt/ DESTDIR=/tmp/ahoj/ waf configure
 default_prefix = os.environ.get('PREFIX')
 if not default_prefix:

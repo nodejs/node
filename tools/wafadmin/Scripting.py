@@ -508,7 +508,10 @@ def dist(appname='', version=''):
 		pass
 
 	# copy the files into the temporary folder
-	copytree('.', tmp_folder, getattr(Utils.g_module, BLDDIR, None))
+	blddir = getattr(Utils.g_module, BLDDIR, None)
+	if not blddir:
+		blddir = getattr(Utils.g_module, 'out', None)
+	copytree('.', tmp_folder, blddir)
 
 	# undocumented hook for additional cleanup
 	dist_hook = getattr(Utils.g_module, 'dist_hook', None)
@@ -541,7 +544,7 @@ def dist(appname='', version=''):
 	return arch_name
 
 # FIXME waf 1.6 a unique ctx parameter, and remove the optional appname and version
-def distcheck(appname='', version=''):
+def distcheck(appname='', version='', subdir=''):
 	'''checks if the sources compile (tarball from 'dist')'''
 	import tempfile, tarfile
 
@@ -550,14 +553,25 @@ def distcheck(appname='', version=''):
 
 	waf = os.path.abspath(sys.argv[0])
 	tarball = dist(appname, version)
+
+	path = appname + '-' + version
+
+	# remove any previous instance
+	if os.path.exists(path):
+		shutil.rmtree(path)
+
 	t = tarfile.open(tarball)
 	for x in t: t.extract(x)
 	t.close()
 
-	path = appname + '-' + version
+	# build_path is the directory for the waf invocation
+	if subdir:
+		build_path = os.path.join(path, subdir)
+	else:
+		build_path = path
 
 	instdir = tempfile.mkdtemp('.inst', '%s-%s' % (appname, version))
-	ret = Utils.pproc.Popen([waf, 'configure', 'install', 'uninstall', '--destdir=' + instdir], cwd=path).wait()
+	ret = Utils.pproc.Popen([waf, 'configure', 'build', 'install', 'uninstall', '--destdir=' + instdir], cwd=build_path).wait()
 	if ret:
 		raise Utils.WafError('distcheck failed with code %i' % ret)
 

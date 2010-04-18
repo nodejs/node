@@ -211,6 +211,7 @@ def create_uic_task(self, node):
 	"hook for uic tasks"
 	uictask = self.create_task('ui4', node)
 	uictask.outputs = [self.path.find_or_declare(self.env['ui_PATTERN'] % node.name[:-3])]
+	return uictask
 
 class qt4_taskgen(cxx.cxx_taskgen):
 	def __init__(self, *k, **kw):
@@ -267,6 +268,7 @@ def cxx_hook(self, node):
 
 	task = self.create_task('qxx', node, node.change_ext(obj_ext))
 	self.compiled_tasks.append(task)
+	return task
 
 def process_qm2rcc(task):
 	outfile = task.outputs[0].abspath(task.env)

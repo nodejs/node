@@ -15,12 +15,11 @@ TaskGen.declare_chain(
 	name = 'flex',
 	rule = '${FLEX} -o${TGT} ${FLEXFLAGS} ${SRC}',
 	ext_in = '.l',
+	ext_out = '.c .cxx'
 	decider = decide_ext,
-	before = 'cc cxx',
 )
 
 def detect(conf):
 	conf.find_program('flex', var='FLEX', mandatory=True)
-	v = conf.env
-	v['FLEXFLAGS'] = ''
+	conf.env['FLEXFLAGS'] = ''
 

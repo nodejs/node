@@ -489,26 +489,30 @@ def exec_rule(self):
 
 	# get the function and the variables
 	func = self.rule
+
 	vars2 = []
 	if isinstance(func, str):
 		# use the shell by default for user-defined commands
 		(func, vars2) = Task.compile_fun('', self.rule, shell=getattr(self, 'shell', True))
 		func.code = self.rule
-	vars = getattr(self, 'vars', vars2)
-	if not vars:
-		if isinstance(self.rule, str):
-			vars = self.rule
-		else:
-			vars = Utils.h_fun(self.rule)
 
 	# create the task class
 	name = getattr(self, 'name', None) or self.target or self.rule
 	if not isinstance(name, str):
 		name = str(self.idx)
-	cls = Task.task_type_from_func(name, func, vars)
+	cls = Task.task_type_from_func(name, func, getattr(self, 'vars', vars2))
 
 	# now create one instance
 	tsk = self.create_task(name)
+
+	dep_vars = getattr(self, 'dep_vars', ['ruledeps'])
+	if dep_vars:
+		tsk.dep_vars = dep_vars
+	if isinstance(self.rule, str):
+		tsk.env.ruledeps = self.rule
+	else:
+		# only works if the function is in a global module such as a waf tool
+		tsk.env.ruledeps = Utils.h_fun(self.rule)
 
 	# we assume that the user knows that without inputs or outputs
 	#if not getattr(self, 'target', None) and not getattr(self, 'source', None):

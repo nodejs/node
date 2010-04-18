@@ -523,9 +523,9 @@ class BuildContext(Utils.Context):
 				if node.id & 3 != Node.BUILD:
 					continue
 
-				for dct in self.node_sigs:
+				for dct in self.node_sigs.values():
 					if node.id in dct:
-						dict.__delitem__(node.id)
+						dct.__delitem__(node.id)
 
 				# the policy is to avoid removing nodes representing directories
 				src_dir_node.childs.__delitem__(node.name)
@@ -809,6 +809,27 @@ class BuildContext(Utils.Context):
 			destpath = os.path.join(destdir, self.red.sub('', destpath))
 		return destpath
 
+	def install_dir(self, path, env=None):
+		"""
+		create empty folders for the installation (very rarely used)
+		"""
+		if env:
+			assert isinstance(env, Environment.Environment), "invalid parameter"
+		else:
+			env = self.env
+
+		if not path:
+			return []
+
+		destpath = self.get_install_path(path, env)
+
+		if self.is_install > 0:
+			info('* creating %s' % destpath)
+			Utils.check_dir(destpath)
+		elif self.is_install < 0:
+			info('* removing %s' % destpath)
+			self.uninstall.append(destpath + '/xxx') # yes, ugly
+
 	def install_files(self, path, files, env=None, chmod=O644, relative_trick=False, cwd=None):
 		"""To install files only after they have been built, put the calls in a method named
 		post_build on the top-level wscript
@@ -992,6 +1013,7 @@ class BuildContext(Utils.Context):
 	def use_the_magic(self):
 		Task.algotype = Task.MAXPARALLEL
 		Task.file_deps = Task.extract_deps
+		self.magic = True
 
 	install_as = group_method(install_as)
 	install_files = group_method(install_files)

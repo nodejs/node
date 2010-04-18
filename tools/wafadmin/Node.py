@@ -129,6 +129,7 @@ class Node(object):
 		return self.id & 3
 
 	def set_type(self, t):
+		"dangerous, you are not supposed to use this"
 		self.id = self.id + t - self.id & 3
 
 	def dirs(self):

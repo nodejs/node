@@ -209,7 +209,7 @@ def default_cc(self):
 @feature('cprogram', 'dprogram', 'cstaticlib', 'dstaticlib', 'cshlib', 'dshlib')
 def apply_verif(self):
 	"""no particular order, used for diagnostic"""
-	if not (self.source or getattr(self, 'add_objects', None) or getattr(self, 'uselib_local', None)):
+	if not (self.source or getattr(self, 'add_objects', None) or getattr(self, 'uselib_local', None) or getattr(self, 'obj_files', None)):
 		raise Utils.WafError('no source files specified for %s' % self)
 	if not self.target:
 		raise Utils.WafError('no target for %s' % self)

@@ -42,7 +42,7 @@ The role of the Task Manager is to give the tasks in order (groups of task that 
 
 """
 
-import os, shutil, sys, re, random, datetime, tempfile
+import os, shutil, sys, re, random, datetime, tempfile, shlex
 from Utils import md5
 import Build, Runner, Utils, Node, Logs, Options
 from Logs import debug, warn, error
@@ -395,6 +395,9 @@ class TaskBase(object):
 
 	def exec_command(self, *k, **kw):
 		"use this for executing commands from tasks"
+		# TODO in waf 1.6, eliminate bld.exec_command, and move the cwd processing to here
+		if self.env['env']:
+			kw['env'] = self.env['env']
 		return self.generator.bld.exec_command(*k, **kw)
 
 	def runnable_status(self):
@@ -656,7 +659,7 @@ class Task(TaskBase):
 			try:
 				os.stat(node.abspath(env))
 			except OSError:
-				self.has_run = MISSING
+				self.hasrun = MISSING
 				self.err_msg = '-> missing file: %r' % node.abspath(env)
 				raise Utils.WafError
 
@@ -753,7 +756,8 @@ class Task(TaskBase):
 
 		for node in self.outputs:
 			self.generator.bld.node_sigs[variant][node.id] = sig
-			self.generator.bld.printout('restoring from cache %r\n' % node.bldpath(env))
+			if Options.options.progress_bar < 1:
+				self.generator.bld.printout('restoring from cache %r\n' % node.bldpath(env))
 
 		self.cached = True
 		return 1
@@ -871,7 +875,14 @@ class Task(TaskBase):
 			sig = self.compute_sig_implicit_deps()
 		except KeyError:
 			try:
-				nodes = bld.node_deps.get(self.unique_id(), [])
+				nodes = []
+				for k in bld.node_deps.get(self.unique_id(), []):
+					if k.id & 3 == 2: # Node.FILE:
+						if not k.id in bld.node_sigs[0]:
+							nodes.append(k)
+					else:
+						if not k.id in bld.node_sigs[self.env.variant()]:
+							nodes.append(k)
 			except:
 				nodes = '?'
 			raise Utils.WafError('Missing node signature for %r (for implicit dependencies %r)' % (nodes, self))
@@ -980,9 +991,8 @@ def compile_fun_noshell(name, line):
 			app('lst.extend(to_list(env[%r]))' % var)
 			if not var in dvars: dvars.append(var)
 
-	if extr:
-		if params[-1]:
-			app("lst.extend(%r)" % params[-1].split())
+	if params[-1]:
+		app("lst.extend(%r)" % shlex.split(params[-1]))
 
 	fun = COMPILE_TEMPLATE_NOSHELL % "\n\t".join(buf)
 	debug('action: %s', fun)
@@ -1068,6 +1078,9 @@ def update_outputs(cls):
 			new_sig  = self.signature()
 			prev_sig = bld.task_sigs[self.unique_id()][0]
 			if prev_sig == new_sig:
+				for x in self.outputs:
+					if not x.id in bld.node_sigs[self.env.variant()]:
+						return RUN_ME
 				return SKIP_ME
 		except KeyError:
 			pass

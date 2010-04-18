@@ -22,9 +22,16 @@ Note: the c/c++ related code is in the module config_c
 import os, shlex, sys, time
 try: import cPickle
 except ImportError: import pickle as cPickle
-import Environment, Utils, Options
+import Environment, Utils, Options, Logs
 from Logs import warn
 from Constants import *
+
+try:
+	from urllib import request
+except:
+	from urllib import urlopen
+else:
+	urlopen = request.urlopen
 
 conf_template = '''# project %(app)s configured on %(now)s by
 # waf %(wafver)s (abi %(abi)s, python %(pyver)x on %(systype)s)
@@ -166,9 +173,40 @@ class ConfigurationContext(Utils.Context):
 				continue
 			self.tool_cache.append(mag)
 
+			if not tooldir:
+				# check if the tool exists in the Tools or 3rdparty folders
+				_Tools = Options.tooldir[0]
+				_3rdparty = os.sep.join((_Tools, '..', '3rdparty'))
+				for d in (_Tools, _3rdparty):
+					lst = os.listdir(d)
+					if tool + '.py' in lst:
+						break
+				else:
+					# try to download the tool from the repository then
+					for x in Utils.to_list(Options.remote_repo):
+						for sub in ['branches/waf-%s/wafadmin/3rdparty' % WAFVERSION, 'trunk/wafadmin/3rdparty']:
+							url = '/'.join((x, sub, tool + '.py'))
+							try:
+								web = urlopen(url)
+								if web.getcode() != 200:
+									continue
+							except Exception, e:
+								# on python3 urlopen throws an exception
+								continue
+							else:
+								try:
+									loc = open(_3rdparty + os.sep + tool + '.py', 'wb')
+									loc.write(web.read())
+									web.close()
+								finally:
+									loc.close()
+								Logs.warn('downloaded %s from %s' % (tool, url))
+						else:
+								break
+
 			module = Utils.load_tool(tool, tooldir)
 
-			if funs:
+			if funs is not None:
 				self.eval_rules(funs)
 			else:
 				func = getattr(module, 'detect', None)
@@ -276,7 +314,7 @@ class ConfigurationContext(Utils.Context):
 				ret = find_program_impl(self.env, x, path_list, var, environ=self.environ)
 				if ret: break
 
-		self.check_message_1('Check for program %s' % ' or '.join(filename))
+		self.check_message_1('Checking for program %s' % ' or '.join(filename))
 		self.log.write('  find program=%r paths=%r var=%r\n  -> %r\n' % (filename, path_list, var, ret))
 		if ret:
 			Utils.pprint('GREEN', str(ret))

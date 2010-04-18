@@ -273,7 +273,8 @@ def load_module(file_path, name=WSCRIPT_FILE):
 	try:
 		exec(compile(code, file_path, 'exec'), module.__dict__)
 	except Exception:
-		raise WscriptError(traceback.format_exc(), file_path)
+		exc_type, exc_value, tb = sys.exc_info()
+		raise WscriptError("".join(traceback.format_exception(exc_type, exc_value, tb)), file_path)
 	sys.path.pop(0)
 
 	g_loaded_modules[file_path] = module
@@ -325,7 +326,7 @@ else:
 		# we actually try the function once to see if it is suitable
 		try:
 			myfun()
-		except IOError:
+		except:
 			pass
 		else:
 			get_term_cols = myfun
@@ -645,7 +646,8 @@ class Context(object):
 					try:
 						exec(compile(txt, file_path, 'exec'), dc)
 					except Exception:
-						raise WscriptError(traceback.format_exc(), base)
+						exc_type, exc_value, tb = sys.exc_info()
+						raise WscriptError("".join(traceback.format_exception(exc_type, exc_value, tb)), base)
 				finally:
 					self.curdir = old
 				if getattr(self.__class__, 'post_recurse', None):

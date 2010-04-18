@@ -203,11 +203,13 @@ MACOSX_DEPLOYMENT_TARGET = %r
 			if lib.startswith('-l'):
 				lib = lib[2:] # strip '-l'
 			env.append_value('LIB_PYEMBED', lib)
+
 	if python_SHLIBS is not None:
 		for lib in python_SHLIBS.split():
 			if lib.startswith('-l'):
-				lib = lib[2:] # strip '-l'
-			env.append_value('LIB_PYEMBED', lib)
+				env.append_value('LIB_PYEMBED', lib[2:]) # strip '-l'
+			else:
+				env.append_value('LINKFLAGS_PYEMBED', lib)
 
 	if Options.platform != 'darwin' and python_LDFLAGS:
 		env.append_value('LINKFLAGS_PYEMBED', python_LDFLAGS.split())
@@ -283,17 +285,8 @@ MACOSX_DEPLOYMENT_TARGET = %r
 		env.append_value('CXXFLAGS_PYEXT', '-fno-strict-aliasing')
 
 	# See if it compiles
-	test_env = env.copy()
-	a = test_env.append_value
-	a('CPPPATH', env['CPPPATH_PYEMBED'])
-	a('LIBPATH', env['LIBPATH_PYEMBED'])
-	a('LIB', env['LIB_PYEMBED'])
-	a('LINKFLAGS', env['LINKFLAGS_PYEMBED'])
-	a('CXXFLAGS', env['CXXFLAGS_PYEMBED'])
-	a('CCFLAGS', env['CCFLAGS_PYEMBED'])
-
 	conf.check(header_name='Python.h', define_name='HAVE_PYTHON_H',
-		   env=test_env, fragment=FRAG_2,
+		   uselib='PYEMBED', fragment=FRAG_2,
 		   errmsg='Could not find the python development headers', mandatory=1)
 
 @conf

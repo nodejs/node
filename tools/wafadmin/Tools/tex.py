@@ -196,9 +196,11 @@ def apply_tex(self):
 
 		if self.type == 'latex':
 			if 'ps' in outs:
-				self.create_task('dvips', task.outputs, node.change_ext('.ps'))
+				tsk = self.create_task('dvips', task.outputs, node.change_ext('.ps'))
+				tsk.env.env = {'TEXINPUTS' : node.parent.abspath() + ':' + self.path.abspath() + ':' + self.path.abspath(self.env)}
 			if 'pdf' in outs:
-				self.create_task('dvipdf', task.outputs, node.change_ext('.pdf'))
+				tsk = self.create_task('dvipdf', task.outputs, node.change_ext('.pdf'))
+				tsk.env.env = {'TEXINPUTS' : node.parent.abspath() + ':' + self.path.abspath() + ':' + self.path.abspath(self.env)}
 		elif self.type == 'pdflatex':
 			if 'ps' in outs:
 				self.create_task('pdf2ps', task.outputs, node.change_ext('.ps'))

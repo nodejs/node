@@ -134,6 +134,8 @@ def create_task_macplist(self):
 @feature('cshlib')
 def apply_link_osx(self):
 	name = self.link_task.outputs[0].name
+	if not self.install_path:
+		return
 	if getattr(self, 'vnum', None):
 		name = name.replace('.dylib', '.%s.dylib' % self.vnum)
 

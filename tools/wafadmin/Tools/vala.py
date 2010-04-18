@@ -279,7 +279,7 @@ def detect(conf):
 
 	try:
 		output = Utils.cmd_output(valac + " --version", silent=True)
-		version = output.split(' ', 1)[-1].strip().split(".")
+		version = output.split(' ', 1)[-1].strip().split(".")[0:3]
 		version = [int(x) for x in version]
 		valac_version = tuple(version)
 	except Exception:
