@@ -102,6 +102,18 @@ Node supports 3 string encodings. UTF-8 (`'utf8'`), ASCII (`'ascii'`), and
 Binary (`'binary'`). `'ascii'` and `'binary'` only look at the first 8 bits
 of the 16bit JavaScript string characters.
 
+### Buffer.byteLength(string, encoding)
+Gives the actual byte length of a string.  This is not the same as
+`String.prototype.length` since that returns the number of *characters* in a
+string.
+
+    // Takes in a UTF8 string, gives back a buffer
+    function stringToBuffer(string) {
+      var buffer = new Buffer(Buffer.byteLength(string));
+      buffer.utf8Write(string);
+      return buffer;
+    };
+
 ### new Buffer(size)
 Allocates a new buffer of `size` octets.
 
