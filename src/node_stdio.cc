@@ -12,7 +12,6 @@ namespace node {
 
 
 static struct coupling *stdin_coupling = NULL;
-static struct coupling *stdout_coupling = NULL;
 
 static int stdin_fd = -1;
 static int stdout_fd = -1;
@@ -81,6 +80,14 @@ static Handle<Value> OpenStdin(const Arguments& args) {
   return scope.Close(Integer::New(stdin_fd));
 }
 
+static Handle<Value>
+IsStdoutBlocking (const Arguments& args)
+{
+  HandleScope scope;
+  bool tty = isatty(STDOUT_FILENO);
+  return scope.Close(Boolean::New(!tty));
+}
+
 
 void Stdio::Flush() {
   if (stdin_flags != -1) {
@@ -95,35 +102,26 @@ void Stdio::Flush() {
     close(stdout_fd);
     stdout_fd = -1;
   }
-
-  if (stdout_coupling) {
-    coupling_join(stdout_coupling);
-    coupling_destroy(stdout_coupling);
-    stdout_coupling = NULL;
-  }
 }
 
 
 void Stdio::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
 
+  stdout_fd = STDOUT_FILENO;
+
   if (isatty(STDOUT_FILENO)) {
     // XXX selecting on tty fds wont work in windows.
     // Must ALWAYS make a coupling on shitty platforms.
-    stdout_fd = STDOUT_FILENO;
-  } else {
-    stdout_coupling = coupling_new_push(STDOUT_FILENO);
-    stdout_fd = coupling_nonblocking_fd(stdout_coupling);
+    stdout_flags = fcntl(stdout_fd, F_GETFL, 0);
+    int r = fcntl(stdout_fd, F_SETFL, stdout_flags | O_NONBLOCK);
   }
-
-  stdout_flags = fcntl(stdout_fd, F_GETFL, 0);
-
-  int r = fcntl(stdout_fd, F_SETFL, stdout_flags | O_NONBLOCK);
 
   target->Set(String::NewSymbol("stdoutFD"), Integer::New(stdout_fd));
 
   NODE_SET_METHOD(target, "writeError", WriteError);
   NODE_SET_METHOD(target, "openStdin", OpenStdin);
+  NODE_SET_METHOD(target, "isStdoutBlocking", IsStdoutBlocking);
 }
 
 

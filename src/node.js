@@ -129,8 +129,17 @@ global.clearInterval = global.clearTimeout;
 var stdout;
 process.__defineGetter__('stdout', function () {
   if (stdout) return stdout;
-  var net = module.requireNative('net');
-  stdout = new net.Stream(process.binding('stdio').stdoutFD);
+
+  var binding = process.binding('stdio'),
+      net = module.requireNative('net'),
+      fs = module.requireNative('fs'),
+      fd = binding.stdoutFD;
+
+  if (binding.isStdoutBlocking()) {
+    stdout = new fs.FileWriteStream(null, {fd: fd});
+  } else {
+    stdout = new net.Stream(fd);
+  }
 
   return stdout;
 });
