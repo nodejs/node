@@ -1485,6 +1485,8 @@ address.
 
 To listen to a unix socket, supply a filename instead of port and hostname.
 
+**If you give a port number as a string, the system will interpret it as a filename in the current directory and create a unix socket.**
+
 This function is asynchronous. `listening` will be emitted when the server
 is ready to accept connections.
 
