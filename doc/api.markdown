@@ -2042,6 +2042,15 @@ Disables the Nagle algorithm. By default TCP connections use the Nagle
 algorithm, they buffer data before sending it off. Setting `noDelay` will
 immediately fire off data each time `stream.write()` is called.
 
+### stream.setKeepAlive(enable=false, initialDelay)
+
+Enable/disable keep-alive functionality, and optionally set the initial
+delay before the first keepalive probe is sent on an idle stream.
+Set `initialDelay` (in milliseconds) to set the delay between the last
+data packet received and the first keepalive probe. Setting 0 for
+initialDelay will leave the value unchanged from the default
+(or previous) setting.
+
 
 ## DNS
 

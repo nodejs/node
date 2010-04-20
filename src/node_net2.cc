@@ -1062,10 +1062,42 @@ static Handle<Value> SetNoDelay(const Arguments& args) {
   if (r < 0) {
     return ThrowException(ErrnoException(errno, "setsockopt"));
   }
-
   return Undefined();
 }
 
+
+static Handle<Value> SetKeepAlive(const Arguments& args) {
+  int r;
+  HandleScope scope;
+
+  bool enable = false;
+  int time = 0;
+
+  FD_ARG(args[0])
+
+  if (args.Length() > 0) enable = args[1]->IsTrue();
+  if (enable == true) {
+    time = args[2]->Int32Value();
+  }
+
+  int flags = enable ? 1 : 0;
+  r = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&flags, sizeof(flags));
+  if ((time > 0)&&(r >= 0)) {
+#if defined(__APPLE__)
+    // Mac uses a different setting name than Linux
+    r = setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, (void *)&time, sizeof(time));
+#elif defined(__sun)
+    // Solaris doesn't support TCP_KEEPIDLE, so do nothing here
+#else
+    // assume anything else uses the Linux/BSD method
+    r = setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, (void *)&time, sizeof(time));
+#endif
+  }
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "setsockopt"));
+  }
+  return Undefined();
+}
 
 //
 // G E T A D D R I N F O
@@ -1287,6 +1319,7 @@ void InitNet2(Handle<Object> target) {
   NODE_SET_METHOD(target, "socketError", SocketError);
   NODE_SET_METHOD(target, "toRead", ToRead);
   NODE_SET_METHOD(target, "setNoDelay", SetNoDelay);
+  NODE_SET_METHOD(target, "setKeepAlive", SetKeepAlive);
   NODE_SET_METHOD(target, "getsockname", GetSockName);
   NODE_SET_METHOD(target, "getpeername", GetPeerName);
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
