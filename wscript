@@ -136,13 +136,18 @@ def configure(conf):
 
   if conf.check_cfg(package='openssl',
                     args='--cflags --libs',
-                    #libpath=['/usr/lib', '/usr/local/lib'],
                     uselib_store='OPENSSL'):
     conf.env["USE_OPENSSL"] = True
     conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
   else:
-    libcrypto = conf.check(lib='crypto', uselib_store='OPENSSL')
-    libssl = conf.check(lib='ssl', uselib_store='OPENSSL')
+    libssl = conf.check_cc(lib='ssl',
+                           header_name='openssl/ssl.h',
+                           function_name='SSL_library_init',
+                           libpath=['/usr/lib', '/usr/local/lib', '/opt/local/lib', '/usr/sfw/lib'],
+                           uselib_store='OPENSSL')
+    libcrypto = conf.check_cc(lib='crypto',
+                              header_name='openssl/crypto.h',
+                              uselib_store='OPENSSL')
     if libcrypto and libssl:
       conf.env["USE_OPENSSL"] = True
       conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
