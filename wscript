@@ -294,16 +294,6 @@ def build(bld):
   if bld.env["USE_DEBUG"]:
     http_parser.clone("debug")
 
-  ### coupling
-  coupling = bld.new_task_gen("cc")
-  coupling.source = "deps/coupling/coupling.c"
-  coupling.includes = "deps/coupling/"
-  coupling.name = "coupling"
-  coupling.target = "coupling"
-  coupling.install_path = None
-  if bld.env["USE_DEBUG"]:
-    coupling.clone("debug")
-
   ### src/native.cc
   def make_macros(loc, content):
     f = open(loc, 'w')
@@ -387,13 +377,12 @@ def build(bld):
       deps/c-ares
       deps/libeio
       deps/http_parser
-      deps/coupling
     """
 
     node.includes += ' deps/c-ares/' + bld.env['DEST_OS'] + '-' + bld.env['DEST_CPU']
 
 
-    node.add_objects = 'cares ev eio http_parser coupling'
+    node.add_objects = 'cares ev eio http_parser'
     node.uselib_local = ''
     node.uselib = 'RT OPENSSL V8 EXECINFO DL KVM SOCKET NSL'
   else:
@@ -401,9 +390,8 @@ def build(bld):
       src/
       deps/libeio
       deps/http_parser
-      deps/coupling
     """
-    node.add_objects = 'eio http_parser coupling'
+    node.add_objects = 'eio http_parser'
     node.uselib_local = 'eio'
     node.uselib = 'RT EV OPENSSL CARES V8 EXECINFO DL KVM SOCKET NSL'
 
