@@ -1303,10 +1303,11 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("repl"),         String::New(native_repl));
       exports->Set(String::New("sys"),          String::New(native_sys));
       exports->Set(String::New("tcp"),          String::New(native_tcp));
-      exports->Set(String::New("tcp_old"),     String::New(native_tcp_old));
+      exports->Set(String::New("tcp_old"),      String::New(native_tcp_old));
       exports->Set(String::New("uri"),          String::New(native_uri));
       exports->Set(String::New("url"),          String::New(native_url));
       exports->Set(String::New("utils"),        String::New(native_utils));
+      exports->Set(String::New("events"),       String::New(native_events));
       binding_cache->Set(module, exports);
     }
 
