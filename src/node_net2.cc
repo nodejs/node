@@ -1084,13 +1084,11 @@ static Handle<Value> SetKeepAlive(const Arguments& args) {
   r = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&flags, sizeof(flags));
   if ((time > 0)&&(r >= 0)) {
 #if defined(__APPLE__)
-    // Mac uses a different setting name than Linux
     r = setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, (void *)&time, sizeof(time));
-#elif defined(__sun)
-    // Solaris doesn't support TCP_KEEPIDLE, so do nothing here
-#else
-    // assume anything else uses the Linux/BSD method
+#elif defined(__linux__)
     r = setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, (void *)&time, sizeof(time));
+#else
+    // Solaris nor FreeBSD support TCP_KEEPIDLE, so do nothing here.
 #endif
   }
   if (r < 0) {
