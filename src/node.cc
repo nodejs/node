@@ -1307,8 +1307,8 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("uri"),          String::New(native_uri));
       exports->Set(String::New("url"),          String::New(native_url));
       exports->Set(String::New("utils"),        String::New(native_utils));
-      exports->Set(String::New("events"),       String::New(native_events));
       exports->Set(String::New("path"),         String::New(native_path));
+      exports->Set(String::New("module"),       String::New(native_module));
       binding_cache->Set(module, exports);
     }
 
