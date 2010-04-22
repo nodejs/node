@@ -1313,7 +1313,6 @@ static Handle<Value> Binding(const Arguments& args) {
     }
 
   } else {
-    assert(0);
     return ThrowException(Exception::Error(String::New("No such module")));
   }
 
