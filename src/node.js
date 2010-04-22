@@ -131,6 +131,9 @@ process.__defineGetter__('stdout', function () {
   if (stdout) return stdout;
   var net = module.requireNative('net');
   stdout = new net.Stream(process.binding('stdio').stdoutFD);
+
+  stdout.addListener('error', function (err) { throw err; });
+
   return stdout;
 });
 
@@ -140,6 +143,7 @@ process.openStdin = function () {
   var net = module.requireNative('net');
   var fd = process.binding('stdio').openStdin();
   stdin = new net.Stream(fd);
+  stdin.addListener('error', function (err) { throw err; });
   stdin.resume();
   stdin.readable = true;
   return stdin;
