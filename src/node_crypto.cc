@@ -352,23 +352,6 @@ static int verify_callback(int ok, X509_STORE_CTX *ctx) {
   return(ok);
 }
 
-static inline Local<Value> ErrnoException(int errorno,
-                                          const char *syscall,
-                                          const char *msg = "") {
-  Local<String> estring = String::NewSymbol(errno_string(errorno));
-  if (!msg[0]) msg = strerror(errorno);
-  Local<String> message = String::NewSymbol(msg);
-
-  Local<String> cons1 = String::Concat(estring, String::NewSymbol(", "));
-  Local<String> cons2 = String::Concat(cons1, message);
-
-  Local<Value> e = Exception::Error(cons2);
-
-  Local<Object> obj = e->ToObject();
-  obj->Set(errno_symbol, Integer::New(errorno));
-  obj->Set(syscall_symbol, String::NewSymbol(syscall));
-  return e;
-}
 
 void SecureContext::Initialize(Handle<Object> target) {
   HandleScope scope;

@@ -77,7 +77,6 @@ struct QueryArg {
 
 
 Persistent<FunctionTemplate> Channel::constructor_template;
-static Persistent<String> errno_symbol;
 static Persistent<String> priority_symbol;
 static Persistent<String> weight_symbol;
 static Persistent<String> port_symbol;
@@ -98,7 +97,6 @@ void Cares::Initialize(Handle<Object> target) {
 
   target->Set(String::NewSymbol("SOCKET_BAD"), Integer::New(ARES_SOCKET_BAD));
 
-  errno_symbol = NODE_PSYMBOL("errno");
   priority_symbol = NODE_PSYMBOL("priority");
   weight_symbol = NODE_PSYMBOL("weight");
   port_symbol = NODE_PSYMBOL("port");
@@ -166,9 +164,7 @@ static Local<Array> HostEntToNames(struct hostent* hostent) {
 static void ResolveError(Persistent<Function> &cb, int status) {
   HandleScope scope;
 
-  Local<Value> e = Exception::Error(String::NewSymbol(ares_strerror(status)));
-  Local<Object> obj = e->ToObject();
-  obj->Set(errno_symbol, Integer::New(status));
+  Local<Value> e = ErrnoException(status, NULL, ares_strerror(status));
 
   TryCatch try_catch;
 

@@ -77,5 +77,9 @@ static inline void cb_destroy(v8::Persistent<v8::Function> * cb) {
   delete cb;
 }
 
+v8::Local<v8::Value> ErrnoException(int errorno,
+                                    const char *syscall = NULL,
+                                    const char *msg = "");
+
 }  // namespace node
 #endif  // SRC_NODE_H_

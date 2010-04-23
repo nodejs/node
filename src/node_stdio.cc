@@ -21,14 +21,6 @@ static int stdout_flags = -1;
 static int stdin_flags = -1;
 
 
-static Local<Value> errno_exception(int errorno) {
-  Local<Value> e = Exception::Error(String::NewSymbol(strerror(errorno)));
-  Local<Object> obj = e->ToObject();
-  obj->Set(String::NewSymbol("errno"), Integer::New(errorno));
-  return e;
-}
-
-
 /* STDERR IS ALWAY SYNC ALWAYS UTF8 */
 static Handle<Value>
 WriteError (const Arguments& args)
@@ -49,7 +41,7 @@ WriteError (const Arguments& args)
         usleep(100);
         continue;
       }
-      return ThrowException(errno_exception(errno));
+      return ThrowException(ErrnoException(errno, "write"));
     }
     written += (size_t)r;
   }

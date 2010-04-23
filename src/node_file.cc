@@ -1,4 +1,5 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+#include <node.h>
 #include <node_file.h>
 #include <node_buffer.h>
 
@@ -28,13 +29,6 @@ using namespace v8;
 static Persistent<String> encoding_symbol;
 static Persistent<String> errno_symbol;
 
-static inline Local<Value> errno_exception(int errorno) {
-  Local<Value> e = Exception::Error(String::NewSymbol(strerror(errorno)));
-  Local<Object> obj = e->ToObject();
-  obj->Set(errno_symbol, Integer::New(errorno));
-  return e;
-}
-
 static int After(eio_req *req) {
   HandleScope scope;
 
@@ -47,7 +41,7 @@ static int After(eio_req *req) {
 
   if (req->errorno != 0) {
     argc = 1;
-    argv[0] = errno_exception(req->errorno);
+    argv[0] = ErrnoException(req->errorno);
   } else {
     // Note: the error is always given the first argument of the callback.
     // If there is no error then then the first argument is null.
@@ -171,7 +165,7 @@ static Handle<Value> Close(const Arguments& args) {
     ASYNC_CALL(close, args[1], fd)
   } else {
     int ret = close(fd);
-    if (ret != 0) return ThrowException(errno_exception(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno));
     return Undefined();
   }
 }
@@ -190,7 +184,7 @@ static Handle<Value> Stat(const Arguments& args) {
   } else {
     struct stat s;
     int ret = stat(*path, &s);
-    if (ret != 0) return ThrowException(errno_exception(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno));
     return scope.Close(BuildStatsObject(&s));
   }
 }
@@ -209,7 +203,7 @@ static Handle<Value> LStat(const Arguments& args) {
   } else {
     struct stat s;
     int ret = lstat(*path, &s);
-    if (ret != 0) return ThrowException(errno_exception(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno));
     return scope.Close(BuildStatsObject(&s));
   }
 }
@@ -228,7 +222,7 @@ static Handle<Value> Symlink(const Arguments& args) {
     ASYNC_CALL(symlink, args[2], *dest, *path)
   } else {
     int ret = symlink(*dest, *path);
-    if (ret != 0) return ThrowException(errno_exception(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno));
     return Undefined();
   }
 }
@@ -247,7 +241,7 @@ static Handle<Value> Link(const Arguments& args) {
     ASYNC_CALL(link, args[2], *orig_path, *new_path)
   } else {
     int ret = link(*orig_path, *new_path);
-    if (ret != 0) return ThrowException(errno_exception(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno));
     return Undefined();
   }
 }
@@ -266,7 +260,7 @@ static Handle<Value> ReadLink(const Arguments& args) {
   } else {
     char buf[PATH_MAX];
     ssize_t bz = readlink(*path, buf, PATH_MAX);
-    if (bz == -1) return ThrowException(errno_exception(errno));
+    if (bz == -1) return ThrowException(ErrnoException(errno));
     return scope.Close(String::New(buf, bz));
   }
 }
@@ -285,7 +279,7 @@ static Handle<Value> Rename(const Arguments& args) {
     ASYNC_CALL(rename, args[2], *old_path, *new_path)
   } else {
     int ret = rename(*old_path, *new_path);
-    if (ret != 0) return ThrowException(errno_exception(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno));
     return Undefined();
   }
 }
@@ -304,7 +298,7 @@ static Handle<Value> Truncate(const Arguments& args) {
     ASYNC_CALL(ftruncate, args[2], fd, len)
   } else {
     int ret = ftruncate(fd, len);
-    if (ret != 0) return ThrowException(errno_exception(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno));
     return Undefined();
   }
 }
@@ -322,7 +316,7 @@ static Handle<Value> Unlink(const Arguments& args) {
     ASYNC_CALL(unlink, args[1], *path)
   } else {
     int ret = unlink(*path);
-    if (ret != 0) return ThrowException(errno_exception(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno));
     return Undefined();
   }
 }
@@ -340,7 +334,7 @@ static Handle<Value> RMDir(const Arguments& args) {
     ASYNC_CALL(rmdir, args[1], *path)
   } else {
     int ret = rmdir(*path);
-    if (ret != 0) return ThrowException(errno_exception(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno));
     return Undefined();
   }
 }
@@ -359,7 +353,7 @@ static Handle<Value> MKDir(const Arguments& args) {
     ASYNC_CALL(mkdir, args[2], *path, mode)
   } else {
     int ret = mkdir(*path, mode);
-    if (ret != 0) return ThrowException(errno_exception(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno));
     return Undefined();
   }
 }
@@ -384,7 +378,7 @@ static Handle<Value> SendFile(const Arguments& args) {
   } else {
     ssize_t sent = eio_sendfile_sync (out_fd, in_fd, in_offset, length);
     // XXX is this the right errno to use?
-    if (sent < 0) return ThrowException(errno_exception(errno));
+    if (sent < 0) return ThrowException(ErrnoException(errno));
     return Integer::New(sent);
   }
 }
@@ -402,7 +396,7 @@ static Handle<Value> ReadDir(const Arguments& args) {
     ASYNC_CALL(readdir, args[1], *path, 0 /*flags*/)
   } else {
     DIR *dir = opendir(*path);
-    if (!dir) return ThrowException(errno_exception(errno));
+    if (!dir) return ThrowException(ErrnoException(errno));
 
     struct dirent *ent;
 
@@ -443,7 +437,7 @@ static Handle<Value> Open(const Arguments& args) {
     ASYNC_CALL(open, args[3], *path, flags, mode)
   } else {
     int fd = open(*path, flags, mode);
-    if (fd < 0) return ThrowException(errno_exception(errno));
+    if (fd < 0) return ThrowException(ErrnoException(errno));
     return scope.Close(Integer::New(fd));
   }
 }
@@ -561,7 +555,7 @@ static Handle<Value> Write(const Arguments& args) {
     } else {
       written = pwrite(fd, buf, len, pos);
     }
-    if (written < 0) return ThrowException(errno_exception(errno));
+    if (written < 0) return ThrowException(ErrnoException(errno));
     return scope.Close(Integer::New(written));
   }
 }
@@ -600,7 +594,7 @@ static Handle<Value> Read(const Arguments& args) {
     } else {
       ret = pread(fd, buf, MIN(len, READ_BUF_LEN), offset);
     }
-    if (ret < 0) return ThrowException(errno_exception(errno));
+    if (ret < 0) return ThrowException(ErrnoException(errno));
     Local<Array> a = Array::New(2);
     a->Set(Integer::New(0), Encode(buf, ret, encoding));
     a->Set(Integer::New(1), Integer::New(ret));
@@ -624,7 +618,7 @@ static Handle<Value> Chmod(const Arguments& args){
     ASYNC_CALL(chmod, args[2], *path, mode);
   } else {
     int ret = chmod(*path, mode);
-    if (ret != 0) return ThrowException(errno_exception(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno));
     return Undefined();
   }
 }
