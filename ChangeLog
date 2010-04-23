@@ -1,4 +1,20 @@
-2010.04.15, Version 0.1.91
+2010.04.23, Version 0.1.92
+
+  * OpenSSL support. Still undocumented (see tests). (Rhys Jones)
+
+  * API: Unhandled 'error' events throw.
+
+  * Script class with eval-function-family in binding('evals') plus tests.
+    (Herbert Vojcik)
+
+  * stream.setKeepAlive (Julian Lamb)
+
+  * Bugfix: Force no body on http 204 and 304
+
+  * Upgrade Waf to 1.5.16, V8 to 2.2.4.2
+
+
+2010.04.15, Version 0.1.91, 311d7dee19034ff1c6bc9098c36973b8d687eaba
 
   * Add incoming.httpVersion
 
@@ -6,12 +22,12 @@
 
   * REPL can be run from multiple different streams. (Matt Ranney)
 
-  * After V8 heap is compact, don't use a timer every 2 seconds. 
+  * After V8 heap is compact, don't use a timer every 2 seconds.
 
-  * Improve nextTick implementation. 
+  * Improve nextTick implementation.
 
   * Add primative support for Upgrading HTTP connections.
-    (See commit log for docs 760bba5) 
+    (See commit log for docs 760bba5)
 
   * Add timeout and maxBuffer options to child_process.exec
 
@@ -320,7 +336,7 @@
 
   * Bugfix: correctly check kqueue and epoll. (Rasmus Andersson)
 
-  * Upgrade WAF to 1.5.10 
+  * Upgrade WAF to 1.5.10
 
   * Bugfix: posix.statSync() was crashing
 
@@ -434,12 +450,12 @@
     - __module becomes module
 
   * API: Many namespacing changes
-    - Move node.* into process.* 
+    - Move node.* into process.*
     - Move node.dns into module "dns"
     - Move node.fs into module "posix"
     - process is no longer the global object. GLOBAL is.
 
-  For more information on the API changes see: 
+  For more information on the API changes see:
     http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/6
     http://thread.gmane.org/gmane.comp.lang.javascript.nodejs/14
 
@@ -501,7 +517,7 @@
 
   * Feature: Multipart stream parser (Felix Geisendörfer)
 
-  * API: Move node.puts(), node.exec() and others to /utils.js 
+  * API: Move node.puts(), node.exec() and others to /utils.js
 
   * API: Move http, tcp libraries to /http.js and /tcp.js
 
@@ -524,7 +540,7 @@
     whole files at once.
 
 
-2009.09.24, Version 0.1.12, 2f56ccb45e87510de712f56705598b3b4e3548ec 
+2009.09.24, Version 0.1.12, 2f56ccb45e87510de712f56705598b3b4e3548ec
 
   * Feature: System modules, node.libraryPaths
 
@@ -543,7 +559,7 @@
 
   * API: default to utf8 encoding for node.fs.cat()
 
-  * API: add node.exec() 
+  * API: add node.exec()
 
   * API: node.fs.read() takes a normal encoding parameter.
 
