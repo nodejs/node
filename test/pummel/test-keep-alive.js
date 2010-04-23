@@ -5,9 +5,9 @@ exec = require("child_process").exec;
 
 body = "hello world\n";
 server = http.createServer(function (req, res) {
-  res.writeHead(200, { 
-    "Content-Length": body.length, 
-    "Content-Type": "text/plain", 
+  res.writeHead(200, {
+    "Content-Length": body.length,
+    "Content-Type": "text/plain"
   });
   res.write(body);
   res.end();

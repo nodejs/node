@@ -5,6 +5,8 @@ starttime = null;
 timeouttime = null;
 timeout = 1000;
 
+gotError = false
+
 var echo_server = net.createServer(function (socket) {
   socket.setTimeout(timeout);
 
@@ -13,6 +15,11 @@ var echo_server = net.createServer(function (socket) {
     timeouttime = new Date;
     p(timeouttime);
   });
+
+  socket.addListener("error", function (e) {
+    assert.ok(e instanceof Error);
+    gotError = true;
+  })
 
   socket.addListener("data", function (d) {
     puts(d);
@@ -77,4 +84,6 @@ process.addListener("exit", function () {
 
   // Allow for 800 milliseconds more
   assert.ok(diff < timeout + 800);
+
+  assert.ok(gotError);
 });
