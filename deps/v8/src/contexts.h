@@ -83,6 +83,7 @@ enum ContextLookupFlags {
   V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun) \
   V(CONFIGURE_GLOBAL_INDEX, JSFunction, configure_global_fun) \
   V(FUNCTION_CACHE_INDEX, JSObject, function_cache) \
+  V(JSFUNCTION_RESULT_CACHES_INDEX, FixedArray, jsfunction_result_caches) \
   V(RUNTIME_CONTEXT_INDEX, Context, runtime_context) \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate) \
   V(CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, JSFunction, \
@@ -205,6 +206,7 @@ class Context: public FixedArray {
     GET_STACK_TRACE_LINE_INDEX,
     CONFIGURE_GLOBAL_INDEX,
     FUNCTION_CACHE_INDEX,
+    JSFUNCTION_RESULT_CACHES_INDEX,
     RUNTIME_CONTEXT_INDEX,
     CALL_AS_FUNCTION_DELEGATE_INDEX,
     CALL_AS_CONSTRUCTOR_DELEGATE_INDEX,

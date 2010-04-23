@@ -58,7 +58,7 @@ var new_animal_patch = "'Capybara' + p";
 // because old value of parameter "p" was not saved.
 // Instead it patches ChooseAnimal.
 var change_log = new Array();
-Debug.LiveEditChangeScript(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+Debug.LiveEdit.ApplyPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
 print("Change log: " + JSON.stringify(change_log) + "\n");
 
 var new_closure = ChooseAnimal(19);

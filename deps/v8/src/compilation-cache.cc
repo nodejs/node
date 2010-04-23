@@ -270,7 +270,7 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
       if (probe->IsSharedFunctionInfo()) {
         Handle<SharedFunctionInfo> function_info =
             Handle<SharedFunctionInfo>::cast(probe);
-        // Break when we've found a suitable boilerplate function that
+        // Break when we've found a suitable shared function info that
         // matches the origin.
         if (HasOrigin(function_info, name, line_offset, column_offset)) {
           result = *function_info;

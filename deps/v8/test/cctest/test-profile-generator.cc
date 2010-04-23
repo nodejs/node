@@ -2,7 +2,7 @@
 //
 // Tests of profiles generator and utilities.
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "v8.h"
 #include "profile-generator-inl.h"
@@ -17,12 +17,13 @@ using i::CpuProfilesCollection;
 using i::ProfileNode;
 using i::ProfileTree;
 using i::ProfileGenerator;
+using i::SampleRateCalculator;
 using i::TickSample;
 using i::Vector;
 
 
 TEST(ProfileNodeFindOrAddChild) {
-  ProfileNode node(NULL);
+  ProfileNode node(NULL, NULL);
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0);
   ProfileNode* childNode1 = node.FindOrAddChild(&entry1);
   CHECK_NE(NULL, childNode1);
@@ -424,7 +425,7 @@ TEST(RecordTickSample) {
   sample3.frames_count = 2;
   generator.RecordTickSample(sample3);
 
-  CpuProfile* profile = profiles.StopProfiling("");
+  CpuProfile* profile = profiles.StopProfiling("", 1);
   CHECK_NE(NULL, profile);
   ProfileTreeTestHelper top_down_test_helper(profile->top_down());
   CHECK_EQ(NULL, top_down_test_helper.Walk(entry2));
@@ -443,4 +444,54 @@ TEST(RecordTickSample) {
   CHECK_EQ(entry1, node4->entry());
 }
 
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+
+TEST(SampleRateCalculator) {
+  const double kSamplingIntervalMs = i::Logger::kSamplingIntervalMs;
+
+  // Verify that ticking exactly in query intervals results in the
+  // initial sampling interval.
+  double time = 0.0;
+  SampleRateCalculator calc1;
+  CHECK_EQ(kSamplingIntervalMs, calc1.ticks_per_ms());
+  calc1.UpdateMeasurements(time);
+  CHECK_EQ(kSamplingIntervalMs, calc1.ticks_per_ms());
+  time += SampleRateCalculator::kWallTimeQueryIntervalMs;
+  calc1.UpdateMeasurements(time);
+  CHECK_EQ(kSamplingIntervalMs, calc1.ticks_per_ms());
+  time += SampleRateCalculator::kWallTimeQueryIntervalMs;
+  calc1.UpdateMeasurements(time);
+  CHECK_EQ(kSamplingIntervalMs, calc1.ticks_per_ms());
+  time += SampleRateCalculator::kWallTimeQueryIntervalMs;
+  calc1.UpdateMeasurements(time);
+  CHECK_EQ(kSamplingIntervalMs, calc1.ticks_per_ms());
+
+  SampleRateCalculator calc2;
+  time = 0.0;
+  CHECK_EQ(kSamplingIntervalMs, calc2.ticks_per_ms());
+  calc2.UpdateMeasurements(time);
+  CHECK_EQ(kSamplingIntervalMs, calc2.ticks_per_ms());
+  time += SampleRateCalculator::kWallTimeQueryIntervalMs * 0.5;
+  calc2.UpdateMeasurements(time);
+  // (1.0 + 2.0) / 2
+  CHECK_EQ(kSamplingIntervalMs * 1.5, calc2.ticks_per_ms());
+  time += SampleRateCalculator::kWallTimeQueryIntervalMs * 0.75;
+  calc2.UpdateMeasurements(time);
+  // (1.0 + 2.0 + 2.0) / 3
+  CHECK_EQ(kSamplingIntervalMs * 1.66666, calc2.ticks_per_ms());
+
+  SampleRateCalculator calc3;
+  time = 0.0;
+  CHECK_EQ(kSamplingIntervalMs, calc3.ticks_per_ms());
+  calc3.UpdateMeasurements(time);
+  CHECK_EQ(kSamplingIntervalMs, calc3.ticks_per_ms());
+  time += SampleRateCalculator::kWallTimeQueryIntervalMs * 2;
+  calc3.UpdateMeasurements(time);
+  // (1.0 + 0.5) / 2
+  CHECK_EQ(kSamplingIntervalMs * 0.75, calc3.ticks_per_ms());
+  time += SampleRateCalculator::kWallTimeQueryIntervalMs * 1.5;
+  calc3.UpdateMeasurements(time);
+  // (1.0 + 0.5 + 0.5) / 3
+  CHECK_EQ(kSamplingIntervalMs * 0.66666, calc3.ticks_per_ms());
+}
+
+#endif  // ENABLE_LOGGING_AND_PROFILING

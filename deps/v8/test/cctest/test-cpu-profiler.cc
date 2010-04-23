@@ -2,7 +2,7 @@
 //
 // Tests of profiles generator and utilities.
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "v8.h"
 #include "cpu-profiler-inl.h"
@@ -176,7 +176,7 @@ TEST(TickEvents) {
 
   processor.Stop();
   processor.Join();
-  CpuProfile* profile = profiles.StopProfiling("");
+  CpuProfile* profile = profiles.StopProfiling("", 1);
   CHECK_NE(NULL, profile);
 
   // Check call trees.
@@ -222,4 +222,4 @@ TEST(TickEvents) {
   CHECK_EQ("bbb", bottom_up_ddd_stub_children->last()->entry()->name());
 }
 
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+#endif  // ENABLE_LOGGING_AND_PROFILING

@@ -1212,7 +1212,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ movq(rbx, Operand(kScratchRegister, EntryFrameConstants::kArgvOffset));
   // Load the function pointer into rdi.
   __ movq(rdi, rdx);
-#else  // !defined(_WIN64)
+#else  // _WIN64
   // GCC parameters in:
   // rdi : entry (ignored)
   // rsi : function

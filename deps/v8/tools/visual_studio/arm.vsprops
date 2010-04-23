@@ -8,7 +8,7 @@
 	>
 	<Tool
 		Name="VCCLCompilerTool"
-		PreprocessorDefinitions="_USE_32BIT_TIME_T;V8_TARGET_ARCH_ARM;V8_NATIVE_REGEXP"
+		PreprocessorDefinitions="_USE_32BIT_TIME_T;V8_TARGET_ARCH_ARM"
 		DisableSpecificWarnings="4996"
 	/>
 </VisualStudioPropertySheet>

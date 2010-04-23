@@ -290,6 +290,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   set_in_spilled_code(false);
 
   // Adjust for function-level loop nesting.
+  ASSERT_EQ(0, loop_nesting_);
   loop_nesting_ += info->loop_nesting();
 
   JumpTarget::set_compiling_deferred_code(false);
@@ -483,11 +484,11 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   }
 
   // Adjust for function-level loop nesting.
-  loop_nesting_ -= info->loop_nesting();
+  ASSERT_EQ(loop_nesting_, info->loop_nesting());
+  loop_nesting_ = 0;
 
   // Code generation state must be reset.
   ASSERT(state_ == NULL);
-  ASSERT(loop_nesting() == 0);
   ASSERT(!function_return_is_shadowed_);
   function_return_.Unuse();
   DeleteFrame();
@@ -2282,8 +2283,8 @@ void CodeGenerator::InstantiateFunction(
     Result answer = frame_->CallStub(&stub, 1);
     frame_->Push(&answer);
   } else {
-    // Call the runtime to instantiate the function boilerplate
-    // object.
+    // Call the runtime to instantiate the function based on the
+    // shared function info.
     frame_->EmitPush(rsi);
     frame_->EmitPush(function_info);
     Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
@@ -4256,6 +4257,82 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
   }
   frame_->Forget(3);
   frame_->Push(rax);
+}
+
+
+class DeferredSearchCache: public DeferredCode {
+ public:
+  DeferredSearchCache(Register dst, Register cache, Register key)
+      : dst_(dst), cache_(cache), key_(key) {
+    set_comment("[ DeferredSearchCache");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_, cache_, key_;
+};
+
+
+void DeferredSearchCache::Generate() {
+  __ push(cache_);
+  __ push(key_);
+  __ CallRuntime(Runtime::kGetFromCache, 2);
+  if (!dst_.is(rax)) {
+    __ movq(dst_, rax);
+  }
+}
+
+
+void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  ASSERT_NE(NULL, args->at(0)->AsLiteral());
+  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
+
+  Handle<FixedArray> jsfunction_result_caches(
+      Top::global_context()->jsfunction_result_caches());
+  if (jsfunction_result_caches->length() <= cache_id) {
+    __ Abort("Attempt to use undefined cache.");
+    frame_->Push(Factory::undefined_value());
+    return;
+  }
+  Handle<FixedArray> cache_obj(
+      FixedArray::cast(jsfunction_result_caches->get(cache_id)));
+
+  Load(args->at(1));
+  Result key = frame_->Pop();
+  key.ToRegister();
+
+  Result cache = allocator()->Allocate();
+  __ movq(cache.reg(), cache_obj, RelocInfo::EMBEDDED_OBJECT);
+
+  Result tmp = allocator()->Allocate();
+
+  DeferredSearchCache* deferred = new DeferredSearchCache(tmp.reg(),
+                                                          cache.reg(),
+                                                          key.reg());
+
+  const int kFingerOffset =
+      FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
+  // tmp.reg() now holds finger offset as a smi.
+  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  __ movq(tmp.reg(), FieldOperand(cache.reg(), kFingerOffset));
+  SmiIndex index =
+      masm()->SmiToIndex(kScratchRegister, tmp.reg(), kPointerSizeLog2);
+  __ cmpq(key.reg(), FieldOperand(cache.reg(),
+                                  index.reg,
+                                  index.scale,
+                                  FixedArray::kHeaderSize));
+  deferred->Branch(not_equal);
+
+  __ movq(tmp.reg(), FieldOperand(cache.reg(),
+                                  index.reg,
+                                  index.scale,
+                                  kPointerSize + FixedArray::kHeaderSize));
+
+  deferred->BindExit();
+  frame_->Push(&tmp);
 }
 
 
@@ -7240,9 +7317,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
   // at compilation.
-#ifndef V8_NATIVE_REGEXP
+#ifdef V8_INTERPRETED_REGEXP
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-#else  // V8_NATIVE_REGEXP
+#else  // V8_INTERPRETED_REGEXP
   if (!FLAG_regexp_entry_native) {
     __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
     return;
@@ -7318,7 +7395,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // rcx: RegExp data (FixedArray)
   // rdx: Number of capture registers
   // Check that the third argument is a positive smi less than the string
-  // length. A negative value will be greater (usigned comparison).
+  // length. A negative value will be greater (unsigned comparison).
   __ movq(rax, Operand(rsp, kPreviousIndexOffset));
   __ SmiToInteger32(rax, rax);
   __ cmpl(rax, rbx);
@@ -7364,9 +7441,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  __ movl(rdx, rbx);
-  __ andb(rdx, Immediate(kStringRepresentationMask));
-  __ cmpb(rdx, Immediate(kConsStringTag));
+  __ andb(rbx, Immediate(kStringRepresentationMask));
+  __ cmpb(rbx, Immediate(kConsStringTag));
   __ j(not_equal, &runtime);
   __ movq(rdx, FieldOperand(rax, ConsString::kSecondOffset));
   __ Cmp(rdx, Factory::empty_string());
@@ -7385,7 +7461,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // rcx: RegExp data (FixedArray)
   // Check that the irregexp code has been generated for an ascii string. If
   // it has, the field contains a code object otherwise it contains the hole.
-  __ cmpb(rbx, Immediate(kStringTag | kSeqStringTag | kTwoByteStringTag));
+  const int kSeqTwoByteString = kStringTag | kSeqStringTag | kTwoByteStringTag;
+  __ cmpb(rbx, Immediate(kSeqTwoByteString));
   __ j(equal, &seq_two_byte_string);
   if (FLAG_debug_code) {
     __ cmpb(rbx, Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
@@ -7511,7 +7588,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Result must now be exception. If there is no pending exception already a
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
-  // TODO(592) Rerunning the RegExp to get the stack overflow exception.
+  // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception_address(Top::k_pending_exception_address);
   __ movq(kScratchRegister, pending_exception_address);
   __ Cmp(kScratchRegister, Factory::the_hole_value());
@@ -7558,7 +7635,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // rcx: offsets vector
   // rdx: number of capture registers
   Label next_capture, done;
-  __ movq(rax, Operand(rsp, kPreviousIndexOffset));
   // Capture register counter starts from number of capture registers and
   // counts down until wraping after zero.
   __ bind(&next_capture);
@@ -7583,7 +7659,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-#endif  // V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 }
 
 
@@ -8159,7 +8235,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
                               bool do_gc,
-                              bool always_allocate_scope) {
+                              bool always_allocate_scope,
+                              int /* alignment_skew */) {
   // rax: result parameter for PerformGC, if any.
   // rbx: pointer to C function  (C callee-saved).
   // rbp: frame pointer  (restored after C call).
@@ -8173,11 +8250,19 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Complex results must be written to address passed as first argument.
   // AMD64 calling convention: a struct of two pointers in rax+rdx
 
+  // Check stack alignment.
+  if (FLAG_debug_code) {
+    __ CheckStackAlignment();
+  }
+
   if (do_gc) {
-    // Pass failure code returned from last attempt as first argument to GC.
+    // Pass failure code returned from last attempt as first argument to
+    // PerformGC. No need to use PrepareCallCFunction/CallCFunction here as the
+    // stack is known to be aligned. This function takes one argument which is
+    // passed in register.
 #ifdef _WIN64
     __ movq(rcx, rax);
-#else  // ! defined(_WIN64)
+#else  // _WIN64
     __ movq(rdi, rax);
 #endif
     __ movq(kScratchRegister,
@@ -8211,7 +8296,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     __ lea(rdx, Operand(rsp, 4 * kPointerSize));
   }
 
-#else  // ! defined(_WIN64)
+#else  // _WIN64
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
   __ movq(rdi, r14);  // argc.
   __ movq(rsi, r15);  // argv.

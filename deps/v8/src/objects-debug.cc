@@ -725,7 +725,6 @@ void String::StringVerify() {
 void JSFunction::JSFunctionPrint() {
   HeapObject::PrintHeader("Function");
   PrintF(" - map = 0x%p\n", map());
-  PrintF(" - is boilerplate: %s\n", IsBoilerplate() ? "yes" : "no");
   PrintF(" - initial_map = ");
   if (has_initial_map()) {
     initial_map()->ShortPrint();

@@ -42,6 +42,358 @@ namespace internal {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
+
+// A simple implementation of dynamic programming algorithm. It solves
+// the problem of finding the difference of 2 arrays. It uses a table of results
+// of subproblems. Each cell contains a number together with 2-bit flag
+// that helps building the chunk list.
+class Differencer {
+ public:
+  explicit Differencer(Compare::Input* input)
+      : input_(input), len1_(input->getLength1()), len2_(input->getLength2()) {
+    buffer_ = NewArray<int>(len1_ * len2_);
+  }
+  ~Differencer() {
+    DeleteArray(buffer_);
+  }
+
+  void Initialize() {
+    int array_size = len1_ * len2_;
+    for (int i = 0; i < array_size; i++) {
+      buffer_[i] = kEmptyCellValue;
+    }
+  }
+
+  // Makes sure that result for the full problem is calculated and stored
+  // in the table together with flags showing a path through subproblems.
+  void FillTable() {
+    CompareUpToTail(0, 0);
+  }
+
+  void SaveResult(Compare::Output* chunk_writer) {
+    ResultWriter writer(chunk_writer);
+
+    int pos1 = 0;
+    int pos2 = 0;
+    while (true) {
+      if (pos1 < len1_) {
+        if (pos2 < len2_) {
+          Direction dir = get_direction(pos1, pos2);
+          switch (dir) {
+            case EQ:
+              writer.eq();
+              pos1++;
+              pos2++;
+              break;
+            case SKIP1:
+              writer.skip1(1);
+              pos1++;
+              break;
+            case SKIP2:
+            case SKIP_ANY:
+              writer.skip2(1);
+              pos2++;
+              break;
+            default:
+              UNREACHABLE();
+          }
+        } else {
+          writer.skip1(len1_ - pos1);
+          break;
+        }
+      } else {
+        if (len2_ != pos2) {
+          writer.skip2(len2_ - pos2);
+        }
+        break;
+      }
+    }
+    writer.close();
+  }
+
+ private:
+  Compare::Input* input_;
+  int* buffer_;
+  int len1_;
+  int len2_;
+
+  enum Direction {
+    EQ = 0,
+    SKIP1,
+    SKIP2,
+    SKIP_ANY,
+
+    MAX_DIRECTION_FLAG_VALUE = SKIP_ANY
+  };
+
+  // Computes result for a subtask and optionally caches it in the buffer table.
+  // All results values are shifted to make space for flags in the lower bits.
+  int CompareUpToTail(int pos1, int pos2) {
+    if (pos1 < len1_) {
+      if (pos2 < len2_) {
+        int cached_res = get_value4(pos1, pos2);
+        if (cached_res == kEmptyCellValue) {
+          Direction dir;
+          int res;
+          if (input_->equals(pos1, pos2)) {
+            res = CompareUpToTail(pos1 + 1, pos2 + 1);
+            dir = EQ;
+          } else {
+            int res1 = CompareUpToTail(pos1 + 1, pos2) +
+                (1 << kDirectionSizeBits);
+            int res2 = CompareUpToTail(pos1, pos2 + 1) +
+                (1 << kDirectionSizeBits);
+            if (res1 == res2) {
+              res = res1;
+              dir = SKIP_ANY;
+            } else if (res1 < res2) {
+              res = res1;
+              dir = SKIP1;
+            } else {
+              res = res2;
+              dir = SKIP2;
+            }
+          }
+          set_value4_and_dir(pos1, pos2, res, dir);
+          cached_res = res;
+        }
+        return cached_res;
+      } else {
+        return (len1_ - pos1) << kDirectionSizeBits;
+      }
+    } else {
+      return (len2_ - pos2) << kDirectionSizeBits;
+    }
+  }
+
+  inline int& get_cell(int i1, int i2) {
+    return buffer_[i1 + i2 * len1_];
+  }
+
+  // Each cell keeps a value plus direction. Value is multiplied by 4.
+  void set_value4_and_dir(int i1, int i2, int value4, Direction dir) {
+    ASSERT((value4 & kDirectionMask) == 0);
+    get_cell(i1, i2) = value4 | dir;
+  }
+
+  int get_value4(int i1, int i2) {
+    return get_cell(i1, i2) & (kMaxUInt32 ^ kDirectionMask);
+  }
+  Direction get_direction(int i1, int i2) {
+    return static_cast<Direction>(get_cell(i1, i2) & kDirectionMask);
+  }
+
+  static const int kDirectionSizeBits = 2;
+  static const int kDirectionMask = (1 << kDirectionSizeBits) - 1;
+  static const int kEmptyCellValue = -1 << kDirectionSizeBits;
+
+  // This method only holds static assert statement (unfortunately you cannot
+  // place one in class scope).
+  void StaticAssertHolder() {
+    STATIC_ASSERT(MAX_DIRECTION_FLAG_VALUE < (1 << kDirectionSizeBits));
+  }
+
+  class ResultWriter {
+   public:
+    explicit ResultWriter(Compare::Output* chunk_writer)
+        : chunk_writer_(chunk_writer), pos1_(0), pos2_(0),
+          pos1_begin_(-1), pos2_begin_(-1), has_open_chunk_(false) {
+    }
+    void eq() {
+      FlushChunk();
+      pos1_++;
+      pos2_++;
+    }
+    void skip1(int len1) {
+      StartChunk();
+      pos1_ += len1;
+    }
+    void skip2(int len2) {
+      StartChunk();
+      pos2_ += len2;
+    }
+    void close() {
+      FlushChunk();
+    }
+
+   private:
+    Compare::Output* chunk_writer_;
+    int pos1_;
+    int pos2_;
+    int pos1_begin_;
+    int pos2_begin_;
+    bool has_open_chunk_;
+
+    void StartChunk() {
+      if (!has_open_chunk_) {
+        pos1_begin_ = pos1_;
+        pos2_begin_ = pos2_;
+        has_open_chunk_ = true;
+      }
+    }
+
+    void FlushChunk() {
+      if (has_open_chunk_) {
+        chunk_writer_->AddChunk(pos1_begin_, pos2_begin_,
+                                pos1_ - pos1_begin_, pos2_ - pos2_begin_);
+        has_open_chunk_ = false;
+      }
+    }
+  };
+};
+
+
+void Compare::CalculateDifference(Compare::Input* input,
+                                  Compare::Output* result_writer) {
+  Differencer differencer(input);
+  differencer.Initialize();
+  differencer.FillTable();
+  differencer.SaveResult(result_writer);
+}
+
+
+static bool CompareSubstrings(Handle<String> s1, int pos1,
+                              Handle<String> s2, int pos2, int len) {
+  static StringInputBuffer buf1;
+  static StringInputBuffer buf2;
+  buf1.Reset(*s1);
+  buf1.Seek(pos1);
+  buf2.Reset(*s2);
+  buf2.Seek(pos2);
+  for (int i = 0; i < len; i++) {
+    ASSERT(buf1.has_more() && buf2.has_more());
+    if (buf1.GetNext() != buf2.GetNext()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+// Wraps raw n-elements line_ends array as a list of n+1 lines. The last line
+// never has terminating new line character.
+class LineEndsWrapper {
+ public:
+  explicit LineEndsWrapper(Handle<String> string)
+      : ends_array_(CalculateLineEnds(string, false)),
+        string_len_(string->length()) {
+  }
+  int length() {
+    return ends_array_->length() + 1;
+  }
+  // Returns start for any line including start of the imaginary line after
+  // the last line.
+  int GetLineStart(int index) {
+    if (index == 0) {
+      return 0;
+    } else {
+      return GetLineEnd(index - 1);
+    }
+  }
+  int GetLineEnd(int index) {
+    if (index == ends_array_->length()) {
+      // End of the last line is always an end of the whole string.
+      // If the string ends with a new line character, the last line is an
+      // empty string after this character.
+      return string_len_;
+    } else {
+      return GetPosAfterNewLine(index);
+    }
+  }
+
+ private:
+  Handle<FixedArray> ends_array_;
+  int string_len_;
+
+  int GetPosAfterNewLine(int index) {
+    return Smi::cast(ends_array_->get(index))->value() + 1;
+  }
+};
+
+
+// Represents 2 strings as 2 arrays of lines.
+class LineArrayCompareInput : public Compare::Input {
+ public:
+  LineArrayCompareInput(Handle<String> s1, Handle<String> s2,
+                        LineEndsWrapper line_ends1, LineEndsWrapper line_ends2)
+      : s1_(s1), s2_(s2), line_ends1_(line_ends1), line_ends2_(line_ends2) {
+  }
+  int getLength1() {
+    return line_ends1_.length();
+  }
+  int getLength2() {
+    return line_ends2_.length();
+  }
+  bool equals(int index1, int index2) {
+    int line_start1 = line_ends1_.GetLineStart(index1);
+    int line_start2 = line_ends2_.GetLineStart(index2);
+    int line_end1 = line_ends1_.GetLineEnd(index1);
+    int line_end2 = line_ends2_.GetLineEnd(index2);
+    int len1 = line_end1 - line_start1;
+    int len2 = line_end2 - line_start2;
+    if (len1 != len2) {
+      return false;
+    }
+    return CompareSubstrings(s1_, line_start1, s2_, line_start2, len1);
+  }
+
+ private:
+  Handle<String> s1_;
+  Handle<String> s2_;
+  LineEndsWrapper line_ends1_;
+  LineEndsWrapper line_ends2_;
+};
+
+
+// Stores compare result in JSArray. Each chunk is stored as 3 array elements:
+// (pos1, len1, len2).
+class LineArrayCompareOutput : public Compare::Output {
+ public:
+  LineArrayCompareOutput(LineEndsWrapper line_ends1, LineEndsWrapper line_ends2)
+      : array_(Factory::NewJSArray(10)), current_size_(0),
+        line_ends1_(line_ends1), line_ends2_(line_ends2) {
+  }
+
+  void AddChunk(int line_pos1, int line_pos2, int line_len1, int line_len2) {
+    int char_pos1 = line_ends1_.GetLineStart(line_pos1);
+    int char_pos2 = line_ends2_.GetLineStart(line_pos2);
+    int char_len1 = line_ends1_.GetLineStart(line_pos1 + line_len1) - char_pos1;
+    int char_len2 = line_ends2_.GetLineStart(line_pos2 + line_len2) - char_pos2;
+
+    SetElement(array_, current_size_, Handle<Object>(Smi::FromInt(char_pos1)));
+    SetElement(array_, current_size_ + 1,
+               Handle<Object>(Smi::FromInt(char_len1)));
+    SetElement(array_, current_size_ + 2,
+               Handle<Object>(Smi::FromInt(char_len2)));
+    current_size_ += 3;
+  }
+
+  Handle<JSArray> GetResult() {
+    return array_;
+  }
+
+ private:
+  Handle<JSArray> array_;
+  int current_size_;
+  LineEndsWrapper line_ends1_;
+  LineEndsWrapper line_ends2_;
+};
+
+
+Handle<JSArray> LiveEdit::CompareStringsLinewise(Handle<String> s1,
+                                                 Handle<String> s2) {
+  LineEndsWrapper line_ends1(s1);
+  LineEndsWrapper line_ends2(s2);
+
+  LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
+  LineArrayCompareOutput output(line_ends1, line_ends2);
+
+  Compare::CalculateDifference(&input, &output);
+
+  return output.GetResult();
+}
+
+
 static void CompileScriptForTracker(Handle<Script> script) {
   const bool is_eval = false;
   const bool is_global = true;

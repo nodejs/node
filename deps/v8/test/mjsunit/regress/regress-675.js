@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,35 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_LOG_INL_H_
-#define V8_LOG_INL_H_
+// Regression test for http://code.google.com/p/v8/issues/detail?id=675.
+//
+// Test that load ICs for nonexistent properties check global
+// property cells.
 
-#include "log.h"
-#include "cpu-profiler.h"
+function f() { return this.x; }
 
-namespace v8 {
-namespace internal {
+// Initialize IC for nonexistent x property on global object.
+f();
+f();
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
+// Assign to global property cell for x.
+this.x = 23;
 
-Logger::LogEventsAndTags Logger::ToNativeByScript(Logger::LogEventsAndTags tag,
-                                                  Script* script) {
-  if ((tag == FUNCTION_TAG || tag == LAZY_COMPILE_TAG || tag == SCRIPT_TAG)
-      && script->type()->value() == Script::TYPE_NATIVE) {
-    switch (tag) {
-      case FUNCTION_TAG: return NATIVE_FUNCTION_TAG;
-      case LAZY_COMPILE_TAG: return NATIVE_LAZY_COMPILE_TAG;
-      case SCRIPT_TAG: return NATIVE_SCRIPT_TAG;
-      default: return tag;
-    }
-  } else {
-    return tag;
-  }
-}
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
+// Check that we bail out from the IC.
+assertEquals(23, f());
 
 
-} }  // namespace v8::internal
+// Same test, but test that the global property cell is also checked
+// if the global object is the last object in the prototype chain for
+// the load.
+this.__proto__ = null;
+function g() { return this.y; }
 
-#endif  // V8_LOG_INL_H_
+// Initialize IC.
+g();
+g();
+
+// Update global property cell.
+this.y = 42;
+
+// Check that IC bails out.
+assertEquals(42, g());
+

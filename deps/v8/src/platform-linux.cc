@@ -159,7 +159,7 @@ int OS::ActivationFrameAlignment() {
 #elif V8_TARGET_ARCH_MIPS
   return 8;
 #endif
-  // With gcc 4.4 the tree vectorization optimiser can generate code
+  // With gcc 4.4 the tree vectorization optimizer can generate code
   // that requires 16 byte alignment such as movdqa on x86.
   return 16;
 }
@@ -728,10 +728,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   if (active_sampler_ == NULL) return;
 
   TickSample sample_obj;
-  TickSample* sample = NULL;
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-  sample = CpuProfiler::TickSampleEvent();
-#endif
+  TickSample* sample = CpuProfiler::TickSampleEvent();
   if (sample == NULL) sample = &sample_obj;
 
   // We always sample the VM state.

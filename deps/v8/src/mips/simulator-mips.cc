@@ -139,7 +139,7 @@ void Debugger::Stop(Instruction* instr) {
   sim_->set_pc(sim_->get_pc() + Instruction::kInstructionSize);
   Debug();
 }
-#endif  // def GENERATED_CODE_COVERAGE
+#endif  // GENERATED_CODE_COVERAGE
 
 
 int32_t Debugger::GetRegisterValue(int regnum) {
@@ -1644,5 +1644,5 @@ uintptr_t Simulator::PopAddress() {
 
 } }  // namespace assembler::mips
 
-#endif  // !defined(__mips)
+#endif  // __mips
 

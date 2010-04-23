@@ -60,7 +60,7 @@ function TestBase(name) {
     // Runs in debugger context.
     var change_log = new Array();
     try {
-      Debug.LiveEditChangeScript(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+      Debug.LiveEdit.ApplyPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
     } finally {
       print("Change log: " + JSON.stringify(change_log) + "\n");
     }
@@ -76,7 +76,7 @@ function WrapInCatcher(f, holder) {
     try {
       f();
     } catch (e) {
-      if (e instanceof Debug.LiveEditChangeScript.Failure) {
+      if (e instanceof Debug.LiveEdit.Failure) {
         holder[0] = e;
       } else {
         throw e;

@@ -288,6 +288,8 @@ namespace internal {
   F(LocalKeys, 1, 1) \
   /* Handle scopes */ \
   F(DeleteHandleScopeExtensions, 0, 1) \
+  /* Cache suport */ \
+  F(GetFromCache, 2, 1) \
   \
   /* Pseudo functions - handled as macros by parser */ \
   F(IS_VAR, 1, 1)
@@ -338,6 +340,7 @@ namespace internal {
   F(LiveEditRelinkFunctionToScript, 2, 1) \
   F(LiveEditPatchFunctionPositions, 2, 1) \
   F(LiveEditCheckAndDropActivations, 2, 1) \
+  F(LiveEditCompareStringsLinewise, 2, 1) \
   F(GetFunctionCodePositionFromSource, 2, 1) \
   F(ExecuteInDebugContext, 2, 1)
 #else

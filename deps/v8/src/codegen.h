@@ -124,6 +124,7 @@ namespace internal {
   F(StringCompare, 2, 1)                                                     \
   F(RegExpExec, 4, 1)                                                        \
   F(RegExpConstructResult, 3, 1)                                             \
+  F(GetFromCache, 2, 1)                                                      \
   F(NumberToString, 1, 1)                                                    \
   F(MathPow, 2, 1)                                                           \
   F(MathSin, 1, 1)                                                           \
@@ -424,7 +425,8 @@ class CEntryStub : public CodeStub {
                     Label* throw_termination_exception,
                     Label* throw_out_of_memory_exception,
                     bool do_gc,
-                    bool always_allocate_scope);
+                    bool always_allocate_scope,
+                    int alignment_skew = 0);
   void GenerateThrowTOS(MacroAssembler* masm);
   void GenerateThrowUncatchable(MacroAssembler* masm,
                                 UncatchableExceptionType type);

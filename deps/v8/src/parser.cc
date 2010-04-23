@@ -1959,7 +1959,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
       extension_->GetNativeFunction(v8::Utils::ToLocal(name));
   ASSERT(!fun_template.IsEmpty());
 
-  // Instantiate the function and create a boilerplate function from it.
+  // Instantiate the function and create a shared function info from it.
   Handle<JSFunction> fun = Utils::OpenHandle(*fun_template->GetFunction());
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
@@ -1968,7 +1968,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
       Factory::NewSharedFunctionInfo(name, literals, code);
   shared->set_construct_stub(*construct_stub);
 
-  // Copy the function data to the boilerplate.
+  // Copy the function data to the shared function info.
   shared->set_function_data(fun->shared()->function_data());
   int parameters = fun->shared()->formal_parameter_count();
   shared->set_formal_parameter_count(parameters);

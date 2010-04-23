@@ -117,6 +117,7 @@ class Shell: public i::AllStatic {
                             Handle<Value> name,
                             bool print_result,
                             bool report_exceptions);
+  static const char* ToCString(const v8::String::Utf8Value& value);
   static void ReportException(TryCatch* try_catch);
   static void Initialize();
   static void OnExit();

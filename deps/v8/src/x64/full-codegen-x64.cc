@@ -780,7 +780,8 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
-  // Build the function boilerplate and instantiate it.
+  // Build the shared function info and instantiate the function based
+  // on it.
   Handle<SharedFunctionInfo> function_info =
       Compiler::BuildFunctionInfo(expr, script(), this);
   if (HasStackOverflow()) return;

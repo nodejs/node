@@ -147,6 +147,9 @@ const int kPointerSizeLog2 = 2;
 const intptr_t kIntptrSignBit = 0x80000000;
 #endif
 
+// Mask for the sign bit in a smi.
+const intptr_t kSmiSignMask = kIntptrSignBit;
+
 const int kObjectAlignmentBits = kPointerSizeLog2;
 const intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
 const intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
@@ -428,7 +431,11 @@ enum PropertyType {
   CONSTANT_TRANSITION = 6,  // only in fast mode
   NULL_DESCRIPTOR     = 7,  // only in fast mode
   // All properties before MAP_TRANSITION are real.
-  FIRST_PHANTOM_PROPERTY_TYPE = MAP_TRANSITION
+  FIRST_PHANTOM_PROPERTY_TYPE = MAP_TRANSITION,
+  // There are no IC stubs for NULL_DESCRIPTORS. Therefore,
+  // NULL_DESCRIPTOR can be used as the type flag for IC stubs for
+  // nonexistent properties.
+  NONEXISTENT = NULL_DESCRIPTOR
 };
 
 

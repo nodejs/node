@@ -541,7 +541,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                               code);
   }
 
-  // Create a boilerplate function.
+  // Create a shared function info object.
   Handle<SharedFunctionInfo> result =
       Factory::NewSharedFunctionInfo(literal->name(),
                                      literal->materialized_literal_count(),

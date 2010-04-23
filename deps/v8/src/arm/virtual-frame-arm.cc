@@ -507,6 +507,9 @@ void VirtualFrame::SpillAll() {
       // Fall through.
     case NO_TOS_REGISTERS:
       break;
+    default:
+      UNREACHABLE();
+      break;
   }
   ASSERT(register_allocation_map_ == 0);  // Not yet implemented.
 }

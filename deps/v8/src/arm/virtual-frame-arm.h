@@ -376,8 +376,15 @@ class VirtualFrame : public ZoneObject {
   static const int kPreallocatedElements = 5 + 8;  // 8 expression stack slots.
 
   // 5 states for the top of stack, which can be in memory or in r0 and r1.
-  enum TopOfStack { NO_TOS_REGISTERS, R0_TOS, R1_TOS, R1_R0_TOS, R0_R1_TOS,
-                    TOS_STATES};
+  enum TopOfStack {
+    NO_TOS_REGISTERS,
+    R0_TOS,
+    R1_TOS,
+    R1_R0_TOS,
+    R0_R1_TOS,
+    TOS_STATES
+  };
+
   static const int kMaxTOSRegisters = 2;
 
   static const bool kR0InUse[TOS_STATES];

@@ -715,8 +715,6 @@ DebugRequest.prototype.scriptsCommandToJSONRequest_ = function(args) {
 // Create a JSON request for the break command.
 DebugRequest.prototype.breakCommandToJSONRequest_ = function(args) {
   // Build a evaluate request from the text command.
-  var request = this.createRequest('setbreakpoint');
-
   // Process arguments if any.
   if (args && args.length > 0) {
     var target = args;
@@ -725,6 +723,8 @@ DebugRequest.prototype.breakCommandToJSONRequest_ = function(args) {
     var column;
     var condition;
     var pos;
+
+    var request = this.createRequest('setbreakpoint');
 
     // Check for breakpoint condition.
     pos = args.indexOf(' ');
@@ -763,7 +763,7 @@ DebugRequest.prototype.breakCommandToJSONRequest_ = function(args) {
     request.arguments.column = column;
     request.arguments.condition = condition;
   } else {
-    throw new Error('Invalid break arguments.');
+    var request = this.createRequest('suspend');
   }
 
   return request.toJSONProtocol();
@@ -817,6 +817,7 @@ DebugRequest.prototype.helpCommand_ = function(args) {
     print('warning: arguments to \'help\' are ignored');
   }
 
+  print('break');
   print('break location [condition]');
   print('  break on named function: location is a function name');
   print('  break on function: location is #<id>#');
@@ -931,6 +932,10 @@ function DebugResponseDetails(response) {
     var body = response.body();
     var result = '';
     switch (response.command()) {
+      case 'suspend':
+        details.text = 'stopped';
+        break;
+        
       case 'setbreakpoint':
         result = 'set breakpoint #';
         result += body.breakpoint;

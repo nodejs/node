@@ -62,7 +62,7 @@ function ReadMarkerPositions(func) {
 function ReadPCMap(func, positions) {
   var res = new Array();
   for (var i = 0; i < positions.length; i++) {
-    res.push(Debug.LiveEditChangeScript.GetPcFromSourcePos(func, positions[i]));
+    res.push(Debug.LiveEdit.GetPcFromSourcePos(func, positions[i]));
   }
   return res;
 }
@@ -80,7 +80,7 @@ var patch_pos = script.source.indexOf(orig_animal);
 var new_animal_patch = "'Capybara'";
 
 var change_log = new Array();
-Debug.LiveEditChangeScript(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+Debug.LiveEdit.ApplyPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
 print("Change log: " + JSON.stringify(change_log) + "\n");
 
 var res = ChooseAnimal();

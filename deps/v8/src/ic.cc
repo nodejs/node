@@ -694,8 +694,8 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
                           State state,
                           Handle<Object> object,
                           Handle<String> name) {
-  // Bail out if we didn't find a result.
-  if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
+  // Bail out if the result is not cacheable.
+  if (!lookup->IsCacheable()) return;
 
   // Loading properties from values is not common, so don't try to
   // deal with non-JS objects here.
@@ -709,6 +709,9 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
     code = pre_monomorphic_stub();
+  } else if (!lookup->IsProperty()) {
+    // Nonexistent property. The result is undefined.
+    code = StubCache::ComputeLoadNonexistent(*name, *receiver);
   } else {
     // Compute monomorphic stub.
     switch (lookup->type()) {

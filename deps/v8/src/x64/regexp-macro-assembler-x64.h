@@ -31,7 +31,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_NATIVE_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
 
 class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
  public:
@@ -271,7 +271,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   Label stack_overflow_label_;
 };
 
-#endif  // V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 
 }}  // namespace v8::internal
 

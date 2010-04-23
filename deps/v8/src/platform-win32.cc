@@ -1806,10 +1806,7 @@ class Sampler::PlatformData : public Malloced {
     // Loop until the sampler is disengaged, keeping the specified samling freq.
     for ( ; sampler_->IsActive(); Sleep(sampler_->interval_)) {
       TickSample sample_obj;
-      TickSample* sample = NULL;
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-      sample = CpuProfiler::TickSampleEvent();
-#endif
+      TickSample* sample = CpuProfiler::TickSampleEvent();
       if (sample == NULL) sample = &sample_obj;
 
       // We always sample the VM state.

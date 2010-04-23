@@ -109,6 +109,44 @@ class LiveEdit : AllStatic {
     FUNCTION_BLOCKED_UNDER_NATIVE_CODE = 4,
     FUNCTION_REPLACED_ON_ACTIVE_STACK = 5
   };
+
+  // Compares 2 strings line-by-line and returns diff in form of array of
+  // triplets (pos1, len1, len2) describing list of diff chunks.
+  static Handle<JSArray> CompareStringsLinewise(Handle<String> s1,
+                                                Handle<String> s2);
+};
+
+
+// A general-purpose comparator between 2 arrays.
+class Compare {
+ public:
+
+  // Holds 2 arrays of some elements allowing to compare any pair of
+  // element from the first array and element from the second array.
+  class Input {
+   public:
+    virtual int getLength1() = 0;
+    virtual int getLength2() = 0;
+    virtual bool equals(int index1, int index2) = 0;
+
+   protected:
+    virtual ~Input() {}
+  };
+
+  // Receives compare result as a series of chunks.
+  class Output {
+   public:
+    // Puts another chunk in result list. Note that technically speaking
+    // only 3 arguments actually needed with 4th being derivable.
+    virtual void AddChunk(int pos1, int pos2, int len1, int len2) = 0;
+
+   protected:
+    virtual ~Output() {}
+  };
+
+  // Finds the difference between 2 arrays of elements.
+  static void CalculateDifference(Input* input,
+                                  Output* result_writer);
 };
 
 #endif  // ENABLE_DEBUGGER_SUPPORT

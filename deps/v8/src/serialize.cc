@@ -422,7 +422,7 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       21,
       "compile_array_push");
-#ifdef V8_NATIVE_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16().address(),
       UNCLASSIFIED,
       22,
@@ -439,7 +439,7 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       25,
       "NativeRegExpMacroAssembler::word_character_map");
-#endif
+#endif  // V8_INTERPRETED_REGEXP
   // Keyed lookup cache.
   Add(ExternalReference::keyed_lookup_cache_keys().address(),
       UNCLASSIFIED,

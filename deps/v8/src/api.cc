@@ -4027,7 +4027,7 @@ Local<Context> Debug::GetDebugContext() {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 Handle<String> CpuProfileNode::GetFunctionName() const {
   IsDeadCheck("v8::CpuProfileNode::GetFunctionName");
@@ -4055,6 +4055,18 @@ Handle<String> CpuProfileNode::GetScriptResourceName() const {
 int CpuProfileNode::GetLineNumber() const {
   IsDeadCheck("v8::CpuProfileNode::GetLineNumber");
   return reinterpret_cast<const i::ProfileNode*>(this)->entry()->line_number();
+}
+
+
+double CpuProfileNode::GetTotalTime() const {
+  IsDeadCheck("v8::CpuProfileNode::GetTotalTime");
+  return reinterpret_cast<const i::ProfileNode*>(this)->GetTotalMillis();
+}
+
+
+double CpuProfileNode::GetSelfTime() const {
+  IsDeadCheck("v8::CpuProfileNode::GetSelfTime");
+  return reinterpret_cast<const i::ProfileNode*>(this)->GetSelfMillis();
 }
 
 
@@ -4148,7 +4160,7 @@ const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title) {
       i::CpuProfiler::StopProfiling(*Utils::OpenHandle(*title)));
 }
 
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 namespace internal {

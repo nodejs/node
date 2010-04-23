@@ -28,3 +28,13 @@
 var str="ABC abc";
 var r = str.search('a');
 assertEquals(r, 4);
+
+// Test for a lot of different string.
+
+var s = "";
+for (var i = 0; i < 100; i++) {
+  s += i;
+  var r = s.search(s);
+  assertEquals(0, r);
+}
+

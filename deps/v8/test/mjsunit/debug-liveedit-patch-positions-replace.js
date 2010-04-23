@@ -59,7 +59,7 @@ var new_body_patch = "{return 'Capybara';" +
 
 var change_log = new Array();
 function Changer() {
-  Debug.LiveEditChangeScript(script, patch_pos, orig_body.length, new_body_patch, change_log);
+  Debug.LiveEdit.ApplyPatch(script, patch_pos, orig_body.length, new_body_patch, change_log);
   print("Change log: " + JSON.stringify(change_log) + "\n");
 }
 

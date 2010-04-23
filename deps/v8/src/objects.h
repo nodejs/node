@@ -76,6 +76,7 @@
 //             - MapCache
 //           - Context
 //           - GlobalContext
+//           - JSFunctionResultCache
 //       - String
 //         - SeqString
 //           - SeqAsciiString
@@ -2307,6 +2308,25 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
 };
 
 
+// JSFunctionResultCache caches results of some JSFunction invocation.
+// It is a fixed array with fixed structure:
+//   [0]: factory function
+//   [1]: finger index
+//   [2]: current cache size
+//   [3]: dummy field.
+// The rest of array are key/value pairs.
+class JSFunctionResultCache: public FixedArray {
+ public:
+  static const int kFactoryIndex = 0;
+  static const int kFingerIndex = kFactoryIndex + 1;
+  static const int kCacheSizeIndex = kFingerIndex + 1;
+  static const int kDummyIndex = kCacheSizeIndex + 1;
+  static const int kEntriesIndex = kDummyIndex + 1;
+
+  static const int kEntrySize = 2;  // key + value
+};
+
+
 // ByteArray represents fixed sized byte arrays.  Used by the outside world,
 // such as PCRE, and also by the memory allocator and garbage collector to
 // fill in free blocks in the heap.
@@ -3346,10 +3366,6 @@ class JSFunction: public JSObject {
   inline Code* code();
   inline void set_code(Code* value);
 
-  // Tells whether this function is a context-independent boilerplate
-  // function.
-  inline bool IsBoilerplate();
-
   // Tells whether this function is builtin.
   inline bool IsBuiltin();
 
@@ -3525,6 +3541,10 @@ class JSBuiltinsObject: public GlobalObject {
   inline Object* javascript_builtin(Builtins::JavaScript id);
   inline void set_javascript_builtin(Builtins::JavaScript id, Object* value);
 
+  // Accessors for code of the runtime routines written in JavaScript.
+  inline Code* javascript_builtin_code(Builtins::JavaScript id);
+  inline void set_javascript_builtin_code(Builtins::JavaScript id, Code* value);
+
   // Casting.
   static inline JSBuiltinsObject* cast(Object* obj);
 
@@ -3535,11 +3555,23 @@ class JSBuiltinsObject: public GlobalObject {
 #endif
 
   // Layout description.  The size of the builtins object includes
-  // room for one pointer per runtime routine written in javascript.
+  // room for two pointers per runtime routine written in javascript
+  // (function and code object).
   static const int kJSBuiltinsCount = Builtins::id_count;
   static const int kJSBuiltinsOffset = GlobalObject::kHeaderSize;
+  static const int kJSBuiltinsCodeOffset =
+      GlobalObject::kHeaderSize + (kJSBuiltinsCount * kPointerSize);
   static const int kSize =
-      kJSBuiltinsOffset + (kJSBuiltinsCount * kPointerSize);
+      kJSBuiltinsCodeOffset + (kJSBuiltinsCount * kPointerSize);
+
+  static int OffsetOfFunctionWithId(Builtins::JavaScript id) {
+    return kJSBuiltinsOffset + id * kPointerSize;
+  }
+
+  static int OffsetOfCodeWithId(Builtins::JavaScript id) {
+    return kJSBuiltinsCodeOffset + id * kPointerSize;
+  }
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSBuiltinsObject);
 };

@@ -89,7 +89,6 @@ class ZoneScopeInfo;
   V(Map, code_map, CodeMap)                                                    \
   V(Map, oddball_map, OddballMap)                                              \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
-  V(Map, boilerplate_function_map, BoilerplateFunctionMap)                     \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, proxy_map, ProxyMap)                                                  \
   V(Object, nan_value, NanValue)                                               \
@@ -111,7 +110,7 @@ class ZoneScopeInfo;
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
 
-#if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
+#if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
 #define STRONG_ROOT_LIST(V)                                                    \
   UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
   V(Code, re_c_entry_code, RegExpCEntryCode)
@@ -484,7 +483,9 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateFixedArrayWithHoles(int length);
+  static Object* AllocateFixedArrayWithHoles(
+      int length,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // AllocateHashTable is identical to AllocateFixedArray except
   // that the resulting object has hash_table_map as map.
@@ -896,8 +897,10 @@ class Heap : public AllStatic {
   // Returns the adjusted value.
   static inline int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
 
-  // Allocate unitialized fixed array (pretenure == NON_TENURE).
+  // Allocate uninitialized fixed array.
   static Object* AllocateRawFixedArray(int length);
+  static Object* AllocateRawFixedArray(int length,
+                                       PretenureFlag pretenure);
 
   // True if we have reached the allocation limit in the old generation that
   // should force the next GC (caused normally) to be a full one.
@@ -955,7 +958,7 @@ class Heap : public AllStatic {
 
   // Optimized version of memmove for blocks with pointer size aligned sizes and
   // pointer size aligned addresses.
-  static inline void MoveBlock(Object** dst, Object** src, size_t byte_size);
+  static inline void MoveBlock(Object** dst, Object** src, int byte_size);
 
   // Check new space expansion criteria and expand semispaces if it was hit.
   static void CheckNewSpaceExpansionCriteria();

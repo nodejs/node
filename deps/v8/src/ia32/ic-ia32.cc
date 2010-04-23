@@ -491,39 +491,72 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
 void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- eax    : key
+  //  -- eax    : key (index)
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label miss, index_ok;
+  Label miss;
+  Label not_positive_smi;
+  Label slow_char_code;
+  Label got_char_code;
 
-  // Pop return address.
-  // Performing the load early is better in the common case.
-  __ pop(ebx);
+  Register receiver = edx;
+  Register index = eax;
+  Register code = ebx;
+  Register scratch = ecx;
 
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
-  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ test(ecx, Immediate(kIsNotStringMask));
-  __ j(not_zero, &miss);
+  StringHelper::GenerateFastCharCodeAt(masm,
+                                       receiver,
+                                       index,
+                                       scratch,
+                                       code,
+                                       &miss,  // When not a string.
+                                       &not_positive_smi,
+                                       &slow_char_code);
+  // If we didn't bail out, code register contains smi tagged char
+  // code.
+  __ bind(&got_char_code);
+  StringHelper::GenerateCharFromCode(masm, code, eax, JUMP_FUNCTION);
+#ifdef DEBUG
+  __ Abort("Unexpected fall-through from char from code tail call");
+#endif
 
   // Check if key is a smi or a heap number.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &index_ok);
+  __ bind(&not_positive_smi);
+  ASSERT(kSmiTag == 0);
+  __ test(index, Immediate(kSmiTagMask));
+  __ j(zero, &slow_char_code);
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
   __ cmp(ecx, Factory::heap_number_map());
   __ j(not_equal, &miss);
 
-  __ bind(&index_ok);
-  // Push receiver and key on the stack, and make a tail call.
-  __ push(edx);  // receiver
-  __ push(eax);  // key
-  __ push(ebx);  // return address
-  __ InvokeBuiltin(Builtins::STRING_CHAR_AT, JUMP_FUNCTION);
+  // Push receiver and key on the stack (now that we know they are a
+  // string and a number), and call runtime.
+  __ bind(&slow_char_code);
+  __ EnterInternalFrame();
+  __ push(receiver);
+  __ push(index);
+  __ CallRuntime(Runtime::kStringCharCodeAt, 2);
+  ASSERT(!code.is(eax));
+  __ mov(code, eax);
+  __ LeaveInternalFrame();
+
+  // Check if the runtime call returned NaN char code. If yes, return
+  // undefined. Otherwise, we can continue.
+  if (FLAG_debug_code) {
+    ASSERT(kSmiTag == 0);
+    __ test(code, Immediate(kSmiTagMask));
+    __ j(zero, &got_char_code);
+    __ mov(scratch, FieldOperand(code, HeapObject::kMapOffset));
+    __ cmp(scratch, Factory::heap_number_map());
+    __ Assert(equal, "StringCharCodeAt must return smi or heap number");
+  }
+  __ cmp(code, Factory::nan_value());
+  __ j(not_equal, &got_char_code);
+  __ Set(eax, Immediate(Factory::undefined_value()));
+  __ ret(0);
 
   __ bind(&miss);
-  __ push(ebx);
   GenerateMiss(masm);
 }
 

@@ -55,6 +55,7 @@ SOURCES = {
     'test-heap.cc',
     'test-heap-profiler.cc',
     'test-list.cc',
+    'test-liveedit.cc',
     'test-lock.cc',
     'test-log.cc',
     'test-log-utils.cc',

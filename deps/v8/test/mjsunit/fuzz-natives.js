@@ -169,6 +169,10 @@ var knownProblems = {
   "RegExpConstructResult": true,
   "_RegExpConstructResult": true,
 
+  // This function performs some checks compile time (it requires its first
+  // argument to be a compile time smi).
+  "_GetFromCache": true,
+
   // LiveEdit feature is under development currently and has fragile input.
   "LiveEditFindSharedFunctionInfosForScript": true,
   "LiveEditGatherCompileInfo": true,

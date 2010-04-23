@@ -32,12 +32,13 @@ namespace v8 {
 namespace internal {
 
 
-// The compilation cache keeps function boilerplates for compiled
-// scripts and evals. The boilerplates are looked up using the source
-// string as the key. For regular expressions the compilation data is cached.
+// The compilation cache keeps shared function infos for compiled
+// scripts and evals. The shared function infos are looked up using
+// the source string as the key. For regular expressions the
+// compilation data is cached.
 class CompilationCache {
  public:
-  // Finds the script function boilerplate for a source
+  // Finds the script shared function info for a source
   // string. Returns an empty handle if the cache doesn't contain a
   // script for the given source string with the right origin.
   static Handle<SharedFunctionInfo> LookupScript(Handle<String> source,
@@ -45,7 +46,7 @@ class CompilationCache {
                                                  int line_offset,
                                                  int column_offset);
 
-  // Finds the function boilerplate for a source string for eval in a
+  // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
   // contain a script for the given source string.
   static Handle<SharedFunctionInfo> LookupEval(Handle<String> source,
@@ -57,13 +58,13 @@ class CompilationCache {
   static Handle<FixedArray> LookupRegExp(Handle<String> source,
                                          JSRegExp::Flags flags);
 
-  // Associate the (source, kind) pair to the boilerplate. This may
-  // overwrite an existing mapping.
+  // Associate the (source, kind) pair to the shared function
+  // info. This may overwrite an existing mapping.
   static void PutScript(Handle<String> source,
                         Handle<SharedFunctionInfo> function_info);
 
   // Associate the (source, context->closure()->shared(), kind) triple
-  // with the boilerplate. This may overwrite an existing mapping.
+  // with the shared function info. This may overwrite an existing mapping.
   static void PutEval(Handle<String> source,
                       Handle<Context> context,
                       bool is_global,

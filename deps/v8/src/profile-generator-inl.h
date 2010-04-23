@@ -28,7 +28,7 @@
 #ifndef V8_PROFILE_GENERATOR_INL_H_
 #define V8_PROFILE_GENERATOR_INL_H_
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "profile-generator.h"
 
@@ -59,8 +59,9 @@ bool CodeEntry::is_js_function_tag(Logger::LogEventsAndTags tag) {
 }
 
 
-ProfileNode::ProfileNode(CodeEntry* entry)
-    : entry_(entry),
+ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
+    : tree_(tree),
+      entry_(entry),
       total_ticks_(0),
       self_ticks_(0),
       children_(CodeEntriesMatch) {
@@ -118,6 +119,6 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
 
 } }  // namespace v8::internal
 
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 #endif  // V8_PROFILE_GENERATOR_INL_H_

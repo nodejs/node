@@ -43,9 +43,11 @@ Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
 }
 
 
-Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size) {
+Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
+                                                   PretenureFlag pretenure) {
   ASSERT(0 <= size);
-  CALL_HEAP_FUNCTION(Heap::AllocateFixedArrayWithHoles(size), FixedArray);
+  CALL_HEAP_FUNCTION(Heap::AllocateFixedArrayWithHoles(size, pretenure),
+                     FixedArray);
 }
 
 
@@ -312,7 +314,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
                   context->global_context());
   }
   result->set_literals(*literals);
-  ASSERT(!result->IsBoilerplate());
   return result;
 }
 

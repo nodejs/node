@@ -240,8 +240,8 @@ void Heap::CopyBlock(Object** dst, Object** src, int byte_size) {
 }
 
 
-void Heap::MoveBlock(Object** dst, Object** src, size_t byte_size) {
-  ASSERT(IsAligned<size_t>(byte_size, kPointerSize));
+void Heap::MoveBlock(Object** dst, Object** src, int byte_size) {
+  ASSERT(IsAligned(byte_size, kPointerSize));
 
   int size_in_words = byte_size / kPointerSize;
 

@@ -46,7 +46,7 @@
 #include "regexp-macro-assembler.h"
 #include "platform.h"
 // Include native regexp-macro-assembler.
-#ifdef V8_NATIVE_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
 #include "ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
@@ -56,7 +56,7 @@
 #else  // Unknown architecture.
 #error "Unknown architecture."
 #endif  // Target architecture.
-#endif  // V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 
 namespace v8 {
 namespace internal {
@@ -680,7 +680,7 @@ ExternalReference ExternalReference::compile_array_push_call() {
 }
 
 
-#ifdef V8_NATIVE_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
 
 ExternalReference ExternalReference::re_check_stack_guard_state() {
   Address function;
@@ -723,7 +723,7 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size() {
   return ExternalReference(RegExpStack::memory_size_address());
 }
 
-#endif
+#endif  // V8_INTERPRETED_REGEXP
 
 
 static double add_two_doubles(double x, double y) {

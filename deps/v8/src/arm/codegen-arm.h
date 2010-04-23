@@ -215,8 +215,10 @@ class CodeGenerator: public AstVisitor {
   JumpTarget* true_target() const  { return state_->true_target(); }
   JumpTarget* false_target() const  { return state_->false_target(); }
 
-  // We don't track loop nesting level on ARM yet.
-  int loop_nesting() const { return 0; }
+  // Track loop nesting level.
+  int loop_nesting() const { return loop_nesting_; }
+  void IncrementLoopNesting() { loop_nesting_++; }
+  void DecrementLoopNesting() { loop_nesting_--; }
 
   // Node visitors.
   void VisitStatements(ZoneList<Statement*>* statements);
@@ -284,6 +286,7 @@ class CodeGenerator: public AstVisitor {
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
   // Store the value on top of the stack to a slot.
   void StoreToSlot(Slot* slot, InitState init_state);
+
   // Load a keyed property, leaving it in r0.  The receiver and key are
   // passed on the stack, and remain there.
   void EmitKeyedLoad(bool is_global);
@@ -409,6 +412,9 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateRegExpConstructResult(ZoneList<Expression*>* args);
 
+  // Support for fast native caches.
+  void GenerateGetFromCache(ZoneList<Expression*>* args);
+
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
@@ -455,6 +461,7 @@ class CodeGenerator: public AstVisitor {
   RegisterAllocator* allocator_;
   Condition cc_reg_;
   CodeGenState* state_;
+  int loop_nesting_;
 
   // Jump targets
   BreakTarget function_return_;

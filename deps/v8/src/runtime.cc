@@ -1798,8 +1798,6 @@ class ReplacementStringBuilder {
 
   void AddSubjectSlice(int from, int to) {
     AddSubjectSlice(&array_builder_, from, to);
-    // Can we encode the slice in 11 bits for length and 19 bits for
-    // start position - as used by StringBuilderConcatHelper?
     IncrementCharacterCount(to - from);
   }
 
@@ -5427,7 +5425,7 @@ static Object* Runtime_StringAdd(Arguments args) {
 }
 
 
-template<typename sinkchar>
+template <typename sinkchar>
 static inline void StringBuilderConcatHelper(String* special,
                                              sinkchar* sink,
                                              FixedArray* fixed_array,
@@ -5498,33 +5496,41 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
 
   bool ascii = special->IsAsciiRepresentation();
   int position = 0;
-  int increment = 0;
   for (int i = 0; i < array_length; i++) {
+    int increment = 0;
     Object* elt = fixed_array->get(i);
     if (elt->IsSmi()) {
       // Smi encoding of position and length.
-      int len = Smi::cast(elt)->value();
-      if (len > 0) {
+      int smi_value = Smi::cast(elt)->value();
+      int pos;
+      int len;
+      if (smi_value > 0) {
         // Position and length encoded in one smi.
-        int pos = len >> 11;
-        len &= 0x7ff;
-        if (pos + len > special_length) {
-          return Top::Throw(Heap::illegal_argument_symbol());
-        }
-        increment = len;
+        pos = StringBuilderSubstringPosition::decode(smi_value);
+        len = StringBuilderSubstringLength::decode(smi_value);
       } else {
         // Position and length encoded in two smis.
-        increment = (-len);
-        // Get the position and check that it is also a smi.
+        len = -smi_value;
+        // Get the position and check that it is a positive smi.
         i++;
         if (i >= array_length) {
           return Top::Throw(Heap::illegal_argument_symbol());
         }
-        Object* pos = fixed_array->get(i);
-        if (!pos->IsSmi()) {
+        Object* next_smi = fixed_array->get(i);
+        if (!next_smi->IsSmi()) {
+          return Top::Throw(Heap::illegal_argument_symbol());
+        }
+        pos = Smi::cast(next_smi)->value();
+        if (pos < 0) {
           return Top::Throw(Heap::illegal_argument_symbol());
         }
       }
+      ASSERT(pos >= 0);
+      ASSERT(len >= 0);
+      if (pos > special_length || len > special_length - pos) {
+        return Top::Throw(Heap::illegal_argument_symbol());
+      }
+      increment = len;
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
       int element_length = element->length();
@@ -9756,9 +9762,20 @@ static Object* Runtime_LiveEditCheckAndDropActivations(Arguments args) {
   CONVERT_ARG_CHECKED(JSArray, shared_array, 0);
   CONVERT_BOOLEAN_CHECKED(do_drop, args[1]);
 
-
   return *LiveEdit::CheckAndDropActivations(shared_array, do_drop);
 }
+
+// Compares 2 strings line-by-line and returns diff in form of JSArray of
+// triplets (pos1, len1, len2) describing list of diff chunks.
+static Object* Runtime_LiveEditCompareStringsLinewise(Arguments args) {
+  ASSERT(args.length() == 2);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(String, s1, 0);
+  CONVERT_ARG_CHECKED(String, s2, 1);
+
+  return *LiveEdit::CompareStringsLinewise(s1, s2);
+}
+
 
 
 // A testing entry. Returns statement position which is the closest to
@@ -10006,6 +10023,91 @@ static Object* Runtime_DeleteHandleScopeExtensions(Arguments args) {
   return Heap::undefined_value();
 }
 
+
+static Object* CacheMiss(FixedArray* cache_obj, int index, Object* key_obj) {
+  ASSERT(index % 2 == 0);  // index of the key
+  ASSERT(index >= JSFunctionResultCache::kEntriesIndex);
+  ASSERT(index < cache_obj->length());
+
+  HandleScope scope;
+
+  Handle<FixedArray> cache(cache_obj);
+  Handle<Object> key(key_obj);
+  Handle<JSFunction> factory(JSFunction::cast(
+        cache->get(JSFunctionResultCache::kFactoryIndex)));
+  // TODO(antonm): consider passing a receiver when constructing a cache.
+  Handle<Object> receiver(Top::global_context()->global());
+
+  Handle<Object> value;
+  {
+    // This handle is nor shared, nor used later, so it's safe.
+    Object** argv[] = { key.location() };
+    bool pending_exception = false;
+    value = Execution::Call(factory,
+                            receiver,
+                            1,
+                            argv,
+                            &pending_exception);
+    if (pending_exception) return Failure::Exception();
+  }
+
+  cache->set(index, *key);
+  cache->set(index + 1, *value);
+  cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(index));
+
+  return *value;
+}
+
+
+static Object* Runtime_GetFromCache(Arguments args) {
+  // This is only called from codegen, so checks might be more lax.
+  CONVERT_CHECKED(FixedArray, cache, args[0]);
+  Object* key = args[1];
+
+  const int finger_index =
+      Smi::cast(cache->get(JSFunctionResultCache::kFingerIndex))->value();
+
+  Object* o = cache->get(finger_index);
+  if (o == key) {
+    // The fastest case: hit the same place again.
+    return cache->get(finger_index + 1);
+  }
+
+  for (int i = finger_index - 2;
+       i >= JSFunctionResultCache::kEntriesIndex;
+       i -= 2) {
+    o = cache->get(i);
+    if (o == key) {
+      cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(i));
+      return cache->get(i + 1);
+    }
+  }
+
+  const int size =
+      Smi::cast(cache->get(JSFunctionResultCache::kCacheSizeIndex))->value();
+  ASSERT(size <= cache->length());
+
+  for (int i = size - 2; i > finger_index; i -= 2) {
+    o = cache->get(i);
+    if (o == key) {
+      cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(i));
+      return cache->get(i + 1);
+    }
+  }
+
+  // Cache miss.  If we have spare room, put new data into it, otherwise
+  // evict post finger entry which must be least recently used.
+  if (size < cache->length()) {
+    cache->set(JSFunctionResultCache::kCacheSizeIndex, Smi::FromInt(size + 2));
+    return CacheMiss(cache, size, key);
+  } else {
+    int target_index = finger_index + JSFunctionResultCache::kEntrySize;
+    if (target_index == cache->length()) {
+      target_index = JSFunctionResultCache::kEntriesIndex;
+    }
+    return CacheMiss(cache, target_index, key);
+  }
+}
 
 #ifdef DEBUG
 // ListNatives is ONLY used by the fuzz-natives.js in debug mode

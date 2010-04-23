@@ -712,10 +712,9 @@ function ArraySort(comparefn) {
   function InsertionSort(a, from, to) {
     for (var i = from + 1; i < to; i++) {
       var element = a[i];
-      var key = %_IsSmi(element) ? element : ToString(element);
       for (var j = i - 1; j >= from; j--) {
         var tmp = a[j];
-        var order = Compare(tmp, key);
+        var order = Compare(tmp, element);
         if (order > 0) {
           a[j + 1] = tmp;
         } else {
@@ -734,9 +733,6 @@ function ArraySort(comparefn) {
     }
     var pivot_index = $floor($random() * (to - from)) + from;
     var pivot = a[pivot_index];
-    // Pre-convert the element to a string for comparison if we know
-    // it will happen on each compare anyway.
-    var pivot_key = %_IsSmi(pivot) ? pivot : ToString(pivot);
     // Issue 95: Keep the pivot element out of the comparisons to avoid
     // infinite recursion if comparefn(pivot, pivot) != 0.
     a[pivot_index] = a[from];
@@ -747,7 +743,7 @@ function ArraySort(comparefn) {
     // From i to high_start are elements that haven't been compared yet.
     for (var i = from + 1; i < high_start; ) {
       var element = a[i];
-      var order = Compare(element, pivot_key);
+      var order = Compare(element, pivot);
       if (order < 0) {
         a[i] = a[low_end];
         a[low_end] = element;

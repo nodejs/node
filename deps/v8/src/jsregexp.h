@@ -42,10 +42,10 @@ class RegExpImpl {
  public:
   // Whether V8 is compiled with native regexp support or not.
   static bool UsesNativeRegExp() {
-#ifdef V8_NATIVE_REGEXP
-    return true;
-#else
+#ifdef V8_INTERPRETED_REGEXP
     return false;
+#else
+    return true;
 #endif
   }
 

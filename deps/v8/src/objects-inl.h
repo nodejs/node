@@ -2491,11 +2491,6 @@ bool SharedFunctionInfo::HasCustomCallGenerator() {
 }
 
 
-bool JSFunction::IsBoilerplate() {
-  return map() == Heap::boilerplate_function_map();
-}
-
-
 bool JSFunction::IsBuiltin() {
   return context()->global()->IsJSBuiltinsObject();
 }
@@ -2580,22 +2575,35 @@ bool JSFunction::is_compiled() {
 
 
 int JSFunction::NumberOfLiterals() {
-  ASSERT(!IsBoilerplate());
   return literals()->length();
 }
 
 
 Object* JSBuiltinsObject::javascript_builtin(Builtins::JavaScript id) {
   ASSERT(0 <= id && id < kJSBuiltinsCount);
-  return READ_FIELD(this, kJSBuiltinsOffset + (id * kPointerSize));
+  return READ_FIELD(this, OffsetOfFunctionWithId(id));
 }
 
 
 void JSBuiltinsObject::set_javascript_builtin(Builtins::JavaScript id,
                                               Object* value) {
   ASSERT(0 <= id && id < kJSBuiltinsCount);
-  WRITE_FIELD(this, kJSBuiltinsOffset + (id * kPointerSize), value);
-  WRITE_BARRIER(this, kJSBuiltinsOffset + (id * kPointerSize));
+  WRITE_FIELD(this, OffsetOfFunctionWithId(id), value);
+  WRITE_BARRIER(this, OffsetOfFunctionWithId(id));
+}
+
+
+Code* JSBuiltinsObject::javascript_builtin_code(Builtins::JavaScript id) {
+  ASSERT(0 <= id && id < kJSBuiltinsCount);
+  return Code::cast(READ_FIELD(this, OffsetOfCodeWithId(id)));
+}
+
+
+void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
+                                                   Code* value) {
+  ASSERT(0 <= id && id < kJSBuiltinsCount);
+  WRITE_FIELD(this, OffsetOfCodeWithId(id), value);
+  ASSERT(!Heap::InNewSpace(value));
 }
 
 

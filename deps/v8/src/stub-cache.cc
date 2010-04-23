@@ -93,6 +93,38 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
 }
 
 
+Object* StubCache::ComputeLoadNonexistent(String* name, JSObject* receiver) {
+  // If no global objects are present in the prototype chain, the load
+  // nonexistent IC stub can be shared for all names for a given map
+  // and we use the empty string for the map cache in that case.  If
+  // there are global objects involved, we need to check global
+  // property cells in the stub and therefore the stub will be
+  // specific to the name.
+  String* cache_name = Heap::empty_string();
+  if (receiver->IsGlobalObject()) cache_name = name;
+  JSObject* last = receiver;
+  while (last->GetPrototype() != Heap::null_value()) {
+    last = JSObject::cast(last->GetPrototype());
+    if (last->IsGlobalObject()) cache_name = name;
+  }
+  // Compile the stub that is either shared for all names or
+  // name specific if there are global objects involved.
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::LOAD_IC, NONEXISTENT);
+  Object* code = receiver->map()->FindInCodeCache(cache_name, flags);
+  if (code->IsUndefined()) {
+    LoadStubCompiler compiler;
+    code = compiler.CompileLoadNonexistent(cache_name, receiver, last);
+    if (code->IsFailure()) return code;
+    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), cache_name));
+    Object* result =
+        receiver->map()->UpdateCodeCache(cache_name, Code::cast(code));
+    if (result->IsFailure()) return result;
+  }
+  return Set(name, receiver->map(), Code::cast(code));
+}
+
+
 Object* StubCache::ComputeLoadField(String* name,
                                     JSObject* receiver,
                                     JSObject* holder,

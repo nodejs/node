@@ -102,7 +102,7 @@ bool CounterMap::Match(void* key1, void* key2) {
 
 
 // Converts a V8 value to a C string.
-const char* ToCString(const v8::String::Utf8Value& value) {
+const char* Shell::ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<string conversion failed>";
 }
 

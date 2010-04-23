@@ -87,7 +87,7 @@ class CompressionHelper;
 #define LOG(Call) ((void) 0)
 #endif
 
-#define LOG_EVENTS_AND_TAGS_LIST_NO_NATIVES(V) \
+#define LOG_EVENTS_AND_TAGS_LIST(V) \
   V(CODE_CREATION_EVENT,            "code-creation",          "cc")       \
   V(CODE_MOVE_EVENT,                "code-move",              "cm")       \
   V(CODE_DELETE_EVENT,              "code-delete",            "cd")       \
@@ -116,19 +116,13 @@ class CompressionHelper;
   V(REG_EXP_TAG,                    "RegExp",                 "re")       \
   V(SCRIPT_TAG,                     "Script",                 "sc")       \
   V(STORE_IC_TAG,                   "StoreIC",                "sic")      \
-  V(STUB_TAG,                       "Stub",                   "s")
-
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
-// Add 'NATIVE_' cases for functions and scripts, but map them to
-// original tags when writing to the log.
-#define LOG_EVENTS_AND_TAGS_LIST(V) \
-  LOG_EVENTS_AND_TAGS_LIST_NO_NATIVES(V)                                  \
+  V(STUB_TAG,                       "Stub",                   "s")        \
   V(NATIVE_FUNCTION_TAG,            "Function",               "f")        \
   V(NATIVE_LAZY_COMPILE_TAG,        "LazyCompile",            "lc")       \
   V(NATIVE_SCRIPT_TAG,              "Script",                 "sc")
-#else
-#define LOG_EVENTS_AND_TAGS_LIST(V) LOG_EVENTS_AND_TAGS_LIST_NO_NATIVES(V)
-#endif
+// Note that 'NATIVE_' cases for functions and scripts are mapped onto
+// original tags when writing to the log.
+
 
 class Logger {
  public:
@@ -274,10 +268,10 @@ class Logger {
   // Converts tag to a corresponding NATIVE_... if the script is native.
   INLINE(static LogEventsAndTags ToNativeByScript(LogEventsAndTags, Script*));
 
- private:
-
   // Profiler's sampling interval (in milliseconds).
   static const int kSamplingIntervalMs = 1;
+
+ private:
 
   // Size of window used for log records compression.
   static const int kCompressionWindowSize = 4;

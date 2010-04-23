@@ -116,8 +116,8 @@ class MacroAssembler: public Assembler {
   // Leave the current exit frame. Expects the return value in r0.
   void LeaveExitFrame(ExitFrame::Mode mode);
 
-  // Align the stack by optionally pushing a Smi zero.
-  void AlignStack(int offset);
+  // Get the actual activation frame alignment for target environment.
+  static int ActivationFrameAlignment();
 
   void LoadContext(Register dst, int context_chain_length);
 

@@ -31,14 +31,12 @@
     'gcc_version%': 'unknown',
     'target_arch%': 'ia32',
     'v8_use_snapshot%': 'true',
-    'v8_regexp%': 'native',
   },
   'target_defaults': {
     'defines': [
       'ENABLE_LOGGING_AND_PROFILING',
       'ENABLE_DEBUGGER_SUPPORT',
       'ENABLE_VMSTATE_TRACKING',
-      'ENABLE_CPP_PROFILES_PROCESSOR',
     ],
     'conditions': [
       ['target_arch=="arm"', {
@@ -49,13 +47,11 @@
       ['target_arch=="ia32"', {
         'defines': [
           'V8_TARGET_ARCH_IA32',
-          'V8_NATIVE_REGEXP',
         ],
       }],
       ['target_arch=="x64"', {
         'defines': [
           'V8_TARGET_ARCH_X64',
-          'V8_NATIVE_REGEXP',
         ],
       }],
     ],

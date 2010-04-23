@@ -228,6 +228,7 @@ class Genesis BASE_EMBEDDED {
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
   bool InstallNatives();
+  void InstallJSFunctionResultCaches();
   // Used both for deserialized and from-scratch contexts to add the extensions
   // provided.
   static bool InstallExtensions(Handle<Context> global_context,
@@ -1301,6 +1302,44 @@ bool Genesis::InstallNatives() {
 }
 
 
+// Do not forget to update macros.py with named constant
+// of cache id.
+#define JSFUNCTION_RESULT_CACHE_LIST(F) \
+  F(16, global_context()->regexp_function())
+
+
+static FixedArray* CreateCache(int size, JSFunction* factory) {
+  // Caches are supposed to live for a long time, allocate in old space.
+  int array_size = JSFunctionResultCache::kEntriesIndex + 2 * size;
+  Handle<FixedArray> cache =
+      Factory::NewFixedArrayWithHoles(array_size, TENURED);
+  cache->set(JSFunctionResultCache::kFactoryIndex, factory);
+  cache->set(JSFunctionResultCache::kFingerIndex,
+      Smi::FromInt(JSFunctionResultCache::kEntriesIndex));
+  cache->set(JSFunctionResultCache::kCacheSizeIndex,
+      Smi::FromInt(JSFunctionResultCache::kEntriesIndex));
+  return *cache;
+}
+
+
+void Genesis::InstallJSFunctionResultCaches() {
+  const int kNumberOfCaches = 0 +
+#define F(size, func) + 1
+    JSFUNCTION_RESULT_CACHE_LIST(F)
+#undef F
+  ;
+
+  Handle<FixedArray> caches = Factory::NewFixedArray(kNumberOfCaches, TENURED);
+
+  int index = 0;
+#define F(size, func) caches->set(index++, CreateCache(size, func));
+    JSFUNCTION_RESULT_CACHE_LIST(F)
+#undef F
+
+  global_context()->set_jsfunction_result_caches(*caches);
+}
+
+
 int BootstrapperActive::nesting_ = 0;
 
 
@@ -1453,6 +1492,7 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     Handle<SharedFunctionInfo> shared
         = Handle<SharedFunctionInfo>(function->shared());
     if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
+    builtins->set_javascript_builtin_code(id, shared->code());
   }
   return true;
 }
@@ -1664,6 +1704,7 @@ Genesis::Genesis(Handle<Object> global_object,
     HookUpGlobalProxy(inner_global, global_proxy);
     InitializeGlobal(inner_global, empty_function);
     if (!InstallNatives()) return;
+    InstallJSFunctionResultCaches();
 
     MakeFunctionInstancePrototypeWritable();
 

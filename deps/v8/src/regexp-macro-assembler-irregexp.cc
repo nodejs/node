@@ -36,7 +36,7 @@
 namespace v8 {
 namespace internal {
 
-#ifndef V8_NATIVE_REGEXP
+#ifdef V8_INTERPRETED_REGEXP
 
 RegExpMacroAssemblerIrregexp::RegExpMacroAssemblerIrregexp(Vector<byte> buffer)
     : buffer_(buffer),
@@ -459,6 +459,6 @@ void RegExpMacroAssemblerIrregexp::Expand() {
   }
 }
 
-#endif  // !V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 
 } }  // namespace v8::internal

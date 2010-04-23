@@ -1,3 +1,12 @@
+2010-04-21: Version 2.3.4
+
+        Fixed warnings on arm on newer GCC versions.
+
+        Fixed a number of minor bugs.
+
+        Performance improvements on all platforms.
+
+
 2010-04-14: Version 2.2.3
 
         Added stack command and mem command to ARM simulator debugger.

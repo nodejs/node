@@ -30,7 +30,7 @@
 
 #include "cpu-profiler.h"
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "circular-queue-inl.h"
 #include "profile-generator-inl.h"
@@ -71,6 +71,7 @@ TickSampleEventRecord* TickSampleEventRecord::init(void* value) {
 
 
 TickSample* ProfilerEventsProcessor::TickSampleEvent() {
+  generator_->Tick();
   TickSampleEventRecord* evt =
       TickSampleEventRecord::init(ticks_buffer_.Enqueue());
   evt->order = enqueue_order_;  // No increment!
@@ -93,6 +94,6 @@ bool ProfilerEventsProcessor::FilterOutCodeCreateEvent(
 
 } }  // namespace v8::internal
 
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 #endif  // V8_CPU_PROFILER_INL_H_

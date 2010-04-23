@@ -43,7 +43,7 @@
 #include "regexp-macro-assembler-irregexp.h"
 #include "regexp-stack.h"
 
-#ifdef V8_NATIVE_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
 #include "ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
@@ -122,6 +122,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   }
   FlattenString(pattern);
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
+  PostponeInterruptsScope postpone;
   RegExpCompileData parse_result;
   FlatStringReader reader(pattern);
   if (!ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
@@ -235,10 +236,10 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
 // returns false.
 bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   Object* compiled_code = re->DataAt(JSRegExp::code_index(is_ascii));
-#ifdef V8_NATIVE_REGEXP
-  if (compiled_code->IsCode()) return true;
-#else  // ! V8_NATIVE_REGEXP (RegExp interpreter code)
+#ifdef V8_INTERPRETED_REGEXP
   if (compiled_code->IsByteArray()) return true;
+#else  // V8_INTERPRETED_REGEXP (RegExp native code)
+  if (compiled_code->IsCode()) return true;
 #endif
   return CompileIrregexp(re, is_ascii);
 }
@@ -247,6 +248,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii) {
 bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   // Compile the RegExp.
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
+  PostponeInterruptsScope postpone;
   Object* entry = re->DataAt(JSRegExp::code_index(is_ascii));
   if (entry->IsJSObject()) {
     // If it's a JSObject, a previous compilation failed and threw this object.
@@ -358,14 +360,14 @@ int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
   if (!EnsureCompiledIrregexp(regexp, is_ascii)) {
     return -1;
   }
-#ifdef V8_NATIVE_REGEXP
+#ifdef V8_INTERPRETED_REGEXP
+  // Byte-code regexp needs space allocated for all its registers.
+  return IrregexpNumberOfRegisters(FixedArray::cast(regexp->data()));
+#else  // V8_INTERPRETED_REGEXP
   // Native regexp only needs room to output captures. Registers are handled
   // internally.
   return (IrregexpNumberOfCaptures(FixedArray::cast(regexp->data())) + 1) * 2;
-#else  // !V8_NATIVE_REGEXP
-  // Byte-code regexp needs space allocated for all its registers.
-  return IrregexpNumberOfRegisters(FixedArray::cast(regexp->data()));
-#endif  // V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 }
 
 
@@ -379,7 +381,7 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
   ASSERT(index <= subject->length());
   ASSERT(subject->IsFlat());
 
-#ifdef V8_NATIVE_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
   ASSERT(output.length() >=
       (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
   do {
@@ -412,7 +414,7 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
   } while (true);
   UNREACHABLE();
   return RE_EXCEPTION;
-#else  // ndef V8_NATIVE_REGEXP
+#else  // V8_INTERPRETED_REGEXP
 
   ASSERT(output.length() >= IrregexpNumberOfRegisters(*irregexp));
   bool is_ascii = subject->IsAsciiRepresentation();
@@ -433,7 +435,7 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
     return RE_SUCCESS;
   }
   return RE_FAILURE;
-#endif  // ndef V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 }
 
 
@@ -444,7 +446,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   ASSERT_EQ(jsregexp->TypeTag(), JSRegExp::IRREGEXP);
 
   // Prepare space for the return values.
-#ifndef V8_NATIVE_REGEXP
+#ifdef V8_INTERPRETED_REGEXP
 #ifdef DEBUG
   if (FLAG_trace_regexp_bytecodes) {
     String* pattern = jsregexp->Pattern();
@@ -5230,7 +5232,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
   NodeInfo info = *node->info();
 
   // Create the correct assembler for the architecture.
-#ifdef V8_NATIVE_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
   // Native regexp implementation.
 
   NativeRegExpMacroAssembler::Mode mode =
@@ -5245,11 +5247,11 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
   RegExpMacroAssemblerARM macro_assembler(mode, (data->capture_count + 1) * 2);
 #endif
 
-#else  // ! V8_NATIVE_REGEXP
+#else  // V8_INTERPRETED_REGEXP
   // Interpreted regexp implementation.
   EmbeddedVector<byte, 1024> codes;
   RegExpMacroAssemblerIrregexp macro_assembler(codes);
-#endif
+#endif  // V8_INTERPRETED_REGEXP
 
   return compiler.Assemble(&macro_assembler,
                            node,

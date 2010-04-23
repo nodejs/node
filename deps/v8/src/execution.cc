@@ -46,9 +46,6 @@ static Handle<Object> Invoke(bool construct,
                              int argc,
                              Object*** args,
                              bool* has_pending_exception) {
-  // Make sure we have a real function, not a boilerplate function.
-  ASSERT(!func->IsBoilerplate());
-
   // Entering JavaScript.
   VMState state(JS);
 

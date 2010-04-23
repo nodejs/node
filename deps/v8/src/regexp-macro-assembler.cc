@@ -52,7 +52,7 @@ bool RegExpMacroAssembler::CanReadUnaligned() {
 }
 
 
-#ifdef V8_NATIVE_REGEXP  // Avoid unused code, e.g., on ARM.
+#ifndef V8_INTERPRETED_REGEXP  // Avoid unused code, e.g., on ARM.
 
 NativeRegExpMacroAssembler::NativeRegExpMacroAssembler() {
 }
@@ -258,5 +258,6 @@ Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,
   return new_stack_base - stack_content_size;
 }
 
-#endif  // V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
+
 } }  // namespace v8::internal

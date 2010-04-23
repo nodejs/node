@@ -630,6 +630,9 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateRegExpConstructResult(ZoneList<Expression*>* args);
 
+  // Support for fast native caches.
+  void GenerateGetFromCache(ZoneList<Expression*>* args);
+
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
@@ -880,53 +883,85 @@ class GenericBinaryOpStub: public CodeStub {
 };
 
 
-class StringStubBase: public CodeStub {
+class StringHelper : public AllStatic {
  public:
+  // Generates fast code for getting a char code out of a string
+  // object at the given index. May bail out for three reasons (in the
+  // listed order):
+  //   * Receiver is not a string (receiver_not_string label).
+  //   * Index is not a positive smi (index_not_positive_smi label).
+  //   * Some other reason (slow_case label). In this case it's
+  //     guaranteed that the above conditions are not violated,
+  //     e.g. it's safe to assume the receiver is a string and the
+  //     index is a positive smi.
+  // When successful, object, index, and scratch are clobbered.
+  // Otherwise, scratch and result are clobbered.
+  static void GenerateFastCharCodeAt(MacroAssembler* masm,
+                                     Register object,
+                                     Register index,
+                                     Register scratch,
+                                     Register result,
+                                     Label* receiver_not_string,
+                                     Label* index_not_positive_smi,
+                                     Label* slow_case);
+
+  // Generates code for creating a one-char string from the given char
+  // code. May do a runtime call, so any register can be clobbered
+  // and, if the given invoke flag specifies a call, an internal frame
+  // is required. In tail call mode the result must be eax register.
+  static void GenerateCharFromCode(MacroAssembler* masm,
+                                   Register code,
+                                   Register result,
+                                   InvokeFlag flag);
+
   // Generate code for copying characters using a simple loop. This should only
   // be used in places where the number of characters is small and the
   // additional setup and checking in GenerateCopyCharactersREP adds too much
   // overhead. Copying of overlapping regions is not supported.
-  void GenerateCopyCharacters(MacroAssembler* masm,
-                              Register dest,
-                              Register src,
-                              Register count,
-                              Register scratch,
-                              bool ascii);
+  static void GenerateCopyCharacters(MacroAssembler* masm,
+                                     Register dest,
+                                     Register src,
+                                     Register count,
+                                     Register scratch,
+                                     bool ascii);
 
   // Generate code for copying characters using the rep movs instruction.
   // Copies ecx characters from esi to edi. Copying of overlapping regions is
   // not supported.
-  void GenerateCopyCharactersREP(MacroAssembler* masm,
-                                 Register dest,     // Must be edi.
-                                 Register src,      // Must be esi.
-                                 Register count,    // Must be ecx.
-                                 Register scratch,  // Neither of the above.
-                                 bool ascii);
+  static void GenerateCopyCharactersREP(MacroAssembler* masm,
+                                        Register dest,     // Must be edi.
+                                        Register src,      // Must be esi.
+                                        Register count,    // Must be ecx.
+                                        Register scratch,  // Neither of above.
+                                        bool ascii);
 
   // Probe the symbol table for a two character string. If the string is
   // not found by probing a jump to the label not_found is performed. This jump
   // does not guarantee that the string is not in the symbol table. If the
   // string is found the code falls through with the string in register eax.
-  void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
-                                            Register c1,
-                                            Register c2,
-                                            Register scratch1,
-                                            Register scratch2,
-                                            Register scratch3,
-                                            Label* not_found);
+  static void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+                                                   Register c1,
+                                                   Register c2,
+                                                   Register scratch1,
+                                                   Register scratch2,
+                                                   Register scratch3,
+                                                   Label* not_found);
 
   // Generate string hash.
-  void GenerateHashInit(MacroAssembler* masm,
-                        Register hash,
-                        Register character,
-                        Register scratch);
-  void GenerateHashAddCharacter(MacroAssembler* masm,
-                                Register hash,
-                                Register character,
-                                Register scratch);
-  void GenerateHashGetHash(MacroAssembler* masm,
-                           Register hash,
-                           Register scratch);
+  static void GenerateHashInit(MacroAssembler* masm,
+                               Register hash,
+                               Register character,
+                               Register scratch);
+  static void GenerateHashAddCharacter(MacroAssembler* masm,
+                                       Register hash,
+                                       Register character,
+                                       Register scratch);
+  static void GenerateHashGetHash(MacroAssembler* masm,
+                                  Register hash,
+                                  Register scratch);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
 };
 
 
@@ -937,7 +972,7 @@ enum StringAddFlags {
 };
 
 
-class StringAddStub: public StringStubBase {
+class StringAddStub: public CodeStub {
  public:
   explicit StringAddStub(StringAddFlags flags) {
     string_check_ = ((flags & NO_STRING_CHECK_IN_STUB) == 0);
@@ -954,7 +989,7 @@ class StringAddStub: public StringStubBase {
 };
 
 
-class SubStringStub: public StringStubBase {
+class SubStringStub: public CodeStub {
  public:
   SubStringStub() {}
 
@@ -966,7 +1001,7 @@ class SubStringStub: public StringStubBase {
 };
 
 
-class StringCompareStub: public StringStubBase {
+class StringCompareStub: public CodeStub {
  public:
   explicit StringCompareStub() {
   }

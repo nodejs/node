@@ -28,7 +28,7 @@
 #ifndef V8_CPU_PROFILER_H_
 #define V8_CPU_PROFILER_H_
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "circular-queue.h"
 
@@ -197,7 +197,7 @@ class ProfilerEventsProcessor : public Thread {
   } while (false)
 #else
 #define PROFILE(Call) LOG(Call)
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 namespace v8 {
@@ -208,7 +208,7 @@ class CpuProfiler {
   static void Setup();
   static void TearDown();
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
   static void StartProfiling(const char* title);
   static void StartProfiling(String* title);
   static CpuProfile* StopProfiling(const char* title);
@@ -265,7 +265,7 @@ class CpuProfiler {
 
 #else
   static INLINE(bool is_profiling()) { return false; }
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);

@@ -31,7 +31,7 @@
 namespace v8 {
 namespace internal {
 
-#ifndef V8_NATIVE_REGEXP
+#ifdef V8_INTERPRETED_REGEXP
 
 class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
  public:
@@ -134,7 +134,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpMacroAssemblerIrregexp);
 };
 
-#endif  // !V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 
 } }  // namespace v8::internal
 

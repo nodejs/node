@@ -83,6 +83,9 @@ const kMaxMonth = 10000000;
 const kMinDate  = -100000000;
 const kMaxDate  = 100000000;
 
+# Native cache ids.
+const STRING_TO_REGEXP_CACHE_ID = 0;
+
 # Type query macros.
 #
 # Note: We have special support for typeof(foo) === 'bar' in the compiler.

@@ -32,14 +32,14 @@ namespace v8 {
 namespace internal {
 
 
-#ifndef V8_NATIVE_REGEXP
+#ifdef V8_INTERPRETED_REGEXP
 class RegExpMacroAssemblerARM: public RegExpMacroAssembler {
  public:
   RegExpMacroAssemblerARM();
   virtual ~RegExpMacroAssemblerARM();
 };
 
-#else
+#else  // V8_INTERPRETED_REGEXP
 class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
  public:
   RegExpMacroAssemblerARM(Mode mode, int registers_to_save);
@@ -258,7 +258,7 @@ class RegExpCEntryStub: public CodeStub {
   const char* GetName() { return "RegExpCEntryStub"; }
 };
 
-#endif  // V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 
 
 }}  // namespace v8::internal

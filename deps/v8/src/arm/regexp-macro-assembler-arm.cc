@@ -39,7 +39,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_NATIVE_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
 /*
  * This assembler uses the following register assignment convention
  * - r5 : Pointer to current code object (Code*) including heap object tag.
@@ -611,7 +611,6 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   __ add(frame_pointer(), sp, Operand(4 * kPointerSize));
   __ push(r0);  // Make room for "position - 1" constant (value is irrelevant).
   __ push(r0);  // Make room for "at start" constant (value is irrelevant).
-
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
   Label stack_ok;
@@ -1001,6 +1000,12 @@ int RegExpMacroAssemblerARM::CheckStackGuardState(Address* return_address,
   // If not real stack overflow the stack guard was used to interrupt
   // execution for another purpose.
 
+  // If this is a direct call from JavaScript retry the RegExp forcing the call
+  // through the runtime system. Currently the direct call cannot handle a GC.
+  if (frame_entry<int>(re_frame, kDirectCall) == 1) {
+    return RETRY;
+  }
+
   // Prepare for possible GC.
   HandleScope handles;
   Handle<Code> code_handle(re_code);
@@ -1230,6 +1235,6 @@ void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
 
 #undef __
 
-#endif  // V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 
 }}  // namespace v8::internal

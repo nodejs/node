@@ -1970,7 +1970,7 @@ DebugCommandProcessor.prototype.profileRequest_ = function(request, response) {
 
 
 DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response) {
-  if (!Debug.LiveEditChangeScript) {
+  if (!Debug.LiveEdit) {
     return response.failed('LiveEdit feature is not supported');
   }
   if (!request.arguments) {
@@ -2010,7 +2010,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
       return;
     }
     invocation = function() {
-      return Debug.LiveEditChangeScript(the_script, change_pos, change_len,
+      return Debug.LiveEdit.ApplyPatch(the_script, change_pos, change_len,
           new_string, change_log);
     }
   }
@@ -2018,7 +2018,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
   try {
     invocation();
   } catch (e) {
-    if (e instanceof Debug.LiveEditChangeScript.Failure) {
+    if (e instanceof Debug.LiveEdit.Failure) {
       // Let's treat it as a "success" so that body with change_log will be
       // sent back. "change_log" will have "failure" field set.
       change_log.push( { failure: true, message: e.toString() } ); 

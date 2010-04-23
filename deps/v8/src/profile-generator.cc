@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef ENABLE_CPP_PROFILES_PROCESSOR
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "v8.h"
 
@@ -54,11 +54,21 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
       children_.Lookup(entry, CodeEntryHash(entry), true);
   if (map_entry->value == NULL) {
     // New node added.
-    ProfileNode* new_node = new ProfileNode(entry);
+    ProfileNode* new_node = new ProfileNode(tree_, entry);
     map_entry->value = new_node;
     children_list_.Add(new_node);
   }
   return reinterpret_cast<ProfileNode*>(map_entry->value);
+}
+
+
+double ProfileNode::GetSelfMillis() const {
+  return tree_->TicksToMillis(self_ticks_);
+}
+
+
+double ProfileNode::GetTotalMillis() const {
+  return tree_->TicksToMillis(total_ticks_);
 }
 
 
@@ -95,13 +105,13 @@ class DeleteNodesCallback {
 
 ProfileTree::ProfileTree()
     : root_entry_(Logger::FUNCTION_TAG, "", "(root)", "", 0),
-      root_(new ProfileNode(&root_entry_)) {
+      root_(new ProfileNode(this, &root_entry_)) {
 }
 
 
 ProfileTree::~ProfileTree() {
   DeleteNodesCallback cb;
-  TraverseBreadthFirstPostOrder(&cb);
+  TraverseDepthFirstPostOrder(&cb);
 }
 
 
@@ -131,6 +141,11 @@ void ProfileTree::AddPathFromStart(const Vector<CodeEntry*>& path) {
 }
 
 
+void ProfileTree::SetTickRatePerMs(double ticks_per_ms) {
+  ms_to_ticks_scale_ = ticks_per_ms > 0 ? 1.0 / ticks_per_ms : 1.0;
+}
+
+
 namespace {
 
 class Position {
@@ -153,9 +168,9 @@ class Position {
 }  // namespace
 
 
-// Non-recursive implementation of breadth-first post-order tree traversal.
+// Non-recursive implementation of a depth-first post-order tree traversal.
 template <typename Callback>
-void ProfileTree::TraverseBreadthFirstPostOrder(Callback* callback) {
+void ProfileTree::TraverseDepthFirstPostOrder(Callback* callback) {
   List<Position> stack(10);
   stack.Add(Position(root_));
   do {
@@ -194,12 +209,14 @@ class CalculateTotalTicksCallback {
 
 void ProfileTree::CalculateTotalTicks() {
   CalculateTotalTicksCallback cb;
-  TraverseBreadthFirstPostOrder(&cb);
+  TraverseDepthFirstPostOrder(&cb);
 }
 
 
 void ProfileTree::ShortPrint() {
-  OS::Print("root: %u %u\n", root_->total_ticks(), root_->self_ticks());
+  OS::Print("root: %u %u %.2fms %.2fms\n",
+            root_->total_ticks(), root_->self_ticks(),
+            root_->GetTotalMillis(), root_->GetSelfMillis());
 }
 
 
@@ -212,6 +229,12 @@ void CpuProfile::AddPath(const Vector<CodeEntry*>& path) {
 void CpuProfile::CalculateTotalTicks() {
   top_down_.CalculateTotalTicks();
   bottom_up_.CalculateTotalTicks();
+}
+
+
+void CpuProfile::SetActualSamplingRate(double actual_sampling_rate) {
+  top_down_.SetTickRatePerMs(actual_sampling_rate);
+  bottom_up_.SetTickRatePerMs(actual_sampling_rate);
 }
 
 
@@ -326,7 +349,8 @@ bool CpuProfilesCollection::StartProfiling(String* title, unsigned uid) {
 }
 
 
-CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
+CpuProfile* CpuProfilesCollection::StopProfiling(const char* title,
+                                                 double actual_sampling_rate) {
   const int title_len = StrLength(title);
   CpuProfile* profile = NULL;
   current_profiles_semaphore_->Wait();
@@ -340,6 +364,7 @@ CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
 
   if (profile != NULL) {
     profile->CalculateTotalTicks();
+    profile->SetActualSamplingRate(actual_sampling_rate);
     profiles_.Add(profile);
     HashMap::Entry* entry =
         profiles_uids_.Lookup(reinterpret_cast<void*>(profile->uid()),
@@ -352,8 +377,9 @@ CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
 }
 
 
-CpuProfile* CpuProfilesCollection::StopProfiling(String* title) {
-  return StopProfiling(GetName(title));
+CpuProfile* CpuProfilesCollection::StopProfiling(String* title,
+                                                 double actual_sampling_rate) {
+  return StopProfiling(GetName(title), actual_sampling_rate);
 }
 
 
@@ -466,6 +492,29 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
 }
 
 
+void SampleRateCalculator::Tick() {
+  if (--wall_time_query_countdown_ == 0)
+    UpdateMeasurements(OS::TimeCurrentMillis());
+}
+
+
+void SampleRateCalculator::UpdateMeasurements(double current_time) {
+  if (measurements_count_++ != 0) {
+    const double measured_ticks_per_ms =
+        (kWallTimeQueryIntervalMs * ticks_per_ms_) /
+        (current_time - last_wall_time_);
+    // Update the average value.
+    ticks_per_ms_ +=
+        (measured_ticks_per_ms - ticks_per_ms_) / measurements_count_;
+    // Update the externally accessible result.
+    result_ = static_cast<AtomicWord>(ticks_per_ms_ * kResultScale);
+  }
+  last_wall_time_ = current_time;
+  wall_time_query_countdown_ =
+      static_cast<unsigned>(kWallTimeQueryIntervalMs * ticks_per_ms_);
+}
+
+
 const char* ProfileGenerator::kAnonymousFunctionName = "(anonymous function)";
 const char* ProfileGenerator::kProgramEntryName = "(program)";
 const char* ProfileGenerator::kGarbageCollectorEntryName =
@@ -513,8 +562,17 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   }
 
   if (FLAG_prof_browser_mode) {
-    // Put VM state as the topmost entry.
-    *entry++ = EntryForVMState(sample.state);
+    bool no_symbolized_entries = true;
+    for (CodeEntry** e = entries.start(); e != entry; ++e) {
+      if (*e != NULL) {
+        no_symbolized_entries = false;
+        break;
+      }
+    }
+    // If no frames were symbolized, put the VM state entry in.
+    if (no_symbolized_entries) {
+      *entry++ = EntryForVMState(sample.state);
+    }
   }
 
   profiles_->AddPathToCurrentProfiles(entries);
@@ -522,4 +580,4 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
 
 } }  // namespace v8::internal
 
-#endif  // ENABLE_CPP_PROFILES_PROCESSOR
+#endif  // ENABLE_LOGGING_AND_PROFILING

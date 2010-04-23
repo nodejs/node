@@ -737,6 +737,9 @@ class MacroAssembler: public Assembler {
   // Print a message to stdout and abort execution.
   void Abort(const char* msg);
 
+  // Check that the stack is aligned.
+  void CheckStackAlignment();
+
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() { return generating_stub_; }

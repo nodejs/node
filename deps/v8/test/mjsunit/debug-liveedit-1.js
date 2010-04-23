@@ -43,6 +43,6 @@ var patch_pos = script.source.indexOf(orig_animal);
 var new_animal_patch = "Cap' + 'y' + 'bara";
 
 var change_log = new Array();
-Debug.LiveEditChangeScript(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+Debug.LiveEdit.ApplyPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
 
 assertEquals("Capybara", ChooseAnimal());

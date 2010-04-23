@@ -1189,8 +1189,7 @@ String* JSObject::class_name() {
 
 String* JSObject::constructor_name() {
   if (IsJSFunction()) {
-    return JSFunction::cast(this)->IsBoilerplate() ?
-      Heap::function_class_symbol() : Heap::closure_symbol();
+    return Heap::closure_symbol();
   }
   if (map()->constructor()->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(map()->constructor());
@@ -2519,9 +2518,8 @@ bool JSObject::ReferencesObject(Object* obj) {
       break;
   }
 
-  // For functions check the context. Boilerplate functions do
-  // not have to be traversed since they have no real context.
-  if (IsJSFunction() && !JSFunction::cast(this)->IsBoilerplate()) {
+  // For functions check the context.
+  if (IsJSFunction()) {
     // Get the constructor function for arguments array.
     JSObject* arguments_boilerplate =
         Top::context()->global_context()->arguments_boilerplate();

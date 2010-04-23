@@ -649,6 +649,26 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 };
 
 
+// Generate code to check that a global property cell is empty. Create
+// the property cell at compilation time if no cell exists for the
+// property.
+static Object* GenerateCheckPropertyCell(MacroAssembler* masm,
+                                         GlobalObject* global,
+                                         String* name,
+                                         Register scratch,
+                                         Label* miss) {
+  Object* probe = global->EnsurePropertyCell(name);
+  if (probe->IsFailure()) return probe;
+  JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(probe);
+  ASSERT(cell->value()->IsTheHole());
+  __ Move(scratch, Handle<Object>(cell));
+  __ Cmp(FieldOperand(scratch, JSGlobalPropertyCell::kValueOffset),
+         Factory::the_hole_value());
+  __ j(not_equal, miss);
+  return cell;
+}
+
+
 #undef __
 
 #define __ ACCESS_MASM((masm()))
@@ -1141,6 +1161,51 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
 
   // Return the generated code.
   return GetCode(CONSTANT_FUNCTION, name);
+}
+
+
+Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
+                                                 JSObject* object,
+                                                 JSObject* last) {
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+  Label miss;
+
+  // Load receiver.
+  __ movq(rax, Operand(rsp, kPointerSize));
+
+  // Chech that receiver is not a smi.
+  __ JumpIfSmi(rax, &miss);
+
+  // Check the maps of the full prototype chain. Also check that
+  // global property cells up to (but not including) the last object
+  // in the prototype chain are empty.
+  CheckPrototypes(object, rax, last, rbx, rdx, name, &miss);
+
+  // If the last object in the prototype chain is a global object,
+  // check that the global property cell is empty.
+  if (last->IsGlobalObject()) {
+    Object* cell = GenerateCheckPropertyCell(masm(),
+                                             GlobalObject::cast(last),
+                                             name,
+                                             rdx,
+                                             &miss);
+    if (cell->IsFailure()) return cell;
+  }
+
+  // Return undefined if maps of the full prototype chain are still the
+  // same and no global property with this name contains a value.
+  __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+  __ ret(0);
+
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NONEXISTENT, Heap::empty_string());
 }
 
 
@@ -1765,21 +1830,19 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
       __ CheckMaps(object, object_reg, holder, holder_reg, scratch, miss);
 
   // If we've skipped any global objects, it's not enough to verify
-  // that their maps haven't changed.
+  // that their maps haven't changed.  We also need to check that the
+  // property cell for the property is still empty.
   while (object != holder) {
     if (object->IsGlobalObject()) {
-      GlobalObject* global = GlobalObject::cast(object);
-      Object* probe = global->EnsurePropertyCell(name);
-      if (probe->IsFailure()) {
-        set_failure(Failure::cast(probe));
+      Object* cell = GenerateCheckPropertyCell(masm(),
+                                               GlobalObject::cast(object),
+                                               name,
+                                               scratch,
+                                               miss);
+      if (cell->IsFailure()) {
+        set_failure(Failure::cast(cell));
         return result;
       }
-      JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(probe);
-      ASSERT(cell->value()->IsTheHole());
-      __ Move(scratch, Handle<Object>(cell));
-      __ Cmp(FieldOperand(scratch, JSGlobalPropertyCell::kValueOffset),
-             Factory::the_hole_value());
-      __ j(not_equal, miss);
     }
     object = JSObject::cast(object->GetPrototype());
   }

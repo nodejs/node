@@ -140,7 +140,8 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   set_in_spilled_code(false);
 
   // Adjust for function-level loop nesting.
-  loop_nesting_ += info->loop_nesting();
+  ASSERT_EQ(0, loop_nesting_);
+  loop_nesting_ = info->loop_nesting();
 
   JumpTarget::set_compiling_deferred_code(false);
 
@@ -333,7 +334,8 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   }
 
   // Adjust for function-level loop nesting.
-  loop_nesting_ -= info->loop_nesting();
+  ASSERT_EQ(info->loop_nesting(), loop_nesting_);
+  loop_nesting_ = 0;
 
   // Code generation state must be reset.
   ASSERT(state_ == NULL);
@@ -2346,7 +2348,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(
                                            smi_value,
                                            overwrite_mode);
         // Check for negative or non-Smi left hand side.
-        __ test(operand->reg(), Immediate(kSmiTagMask | 0x80000000));
+        __ test(operand->reg(), Immediate(kSmiTagMask | kSmiSignMask));
         deferred->Branch(not_zero);
         if (int_value < 0) int_value = -int_value;
         if (int_value == 1) {
@@ -4659,8 +4661,8 @@ Result CodeGenerator::InstantiateFunction(
     frame()->EmitPush(Immediate(function_info));
     return frame()->CallStub(&stub, 1);
   } else {
-    // Call the runtime to instantiate the function boilerplate
-    // object.
+    // Call the runtime to instantiate the function based on the
+    // shared function info.
     frame()->EmitPush(esi);
     frame()->EmitPush(Immediate(function_info));
     return frame()->CallRuntime(Runtime::kNewClosure, 2);
@@ -5899,7 +5901,7 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   Result value = frame_->Pop();
   value.ToRegister();
   ASSERT(value.is_valid());
-  __ test(value.reg(), Immediate(kSmiTagMask | 0x80000000));
+  __ test(value.reg(), Immediate(kSmiTagMask | kSmiSignMask));
   value.Unuse();
   destination()->Split(zero);
 }
@@ -5915,42 +5917,10 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   Comment(masm_, "[ GenerateFastCharCodeAt");
   ASSERT(args->length() == 2);
 
-  Label slow_case;
-  Label end;
-  Label not_a_flat_string;
-  Label try_again_with_new_string;
-  Label ascii_string;
-  Label got_char_code;
-
   Load(args->at(0));
   Load(args->at(1));
   Result index = frame_->Pop();
   Result object = frame_->Pop();
-
-  // Get register ecx to use as shift amount later.
-  Result shift_amount;
-  if (object.is_register() && object.reg().is(ecx)) {
-    Result fresh = allocator_->Allocate();
-    shift_amount = object;
-    object = fresh;
-    __ mov(object.reg(), ecx);
-  }
-  if (index.is_register() && index.reg().is(ecx)) {
-    Result fresh = allocator_->Allocate();
-    shift_amount = index;
-    index = fresh;
-    __ mov(index.reg(), ecx);
-  }
-  // There could be references to ecx in the frame. Allocating will
-  // spill them, otherwise spill explicitly.
-  if (shift_amount.is_valid()) {
-    frame_->Spill(ecx);
-  } else {
-    shift_amount = allocator()->Allocate(ecx);
-  }
-  ASSERT(shift_amount.is_register());
-  ASSERT(shift_amount.reg().is(ecx));
-  ASSERT(allocator_->count(ecx) == 1);
 
   // We will mutate the index register and possibly the object register.
   // The case where they are somehow the same register is handled
@@ -5961,93 +5931,33 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   frame_->Spill(object.reg());
   frame_->Spill(index.reg());
 
-  // We need a single extra temporary register.
-  Result temp = allocator()->Allocate();
-  ASSERT(temp.is_valid());
+  // We need two extra registers.
+  Result result = allocator()->Allocate();
+  ASSERT(result.is_valid());
+  Result scratch = allocator()->Allocate();
+  ASSERT(scratch.is_valid());
 
   // There is no virtual frame effect from here up to the final result
   // push.
-
-  // If the receiver is a smi trigger the slow case.
-  ASSERT(kSmiTag == 0);
-  __ test(object.reg(), Immediate(kSmiTagMask));
-  __ j(zero, &slow_case);
-
-  // If the index is negative or non-smi trigger the slow case.
-  ASSERT(kSmiTag == 0);
-  __ test(index.reg(), Immediate(kSmiTagMask | 0x80000000));
-  __ j(not_zero, &slow_case);
-  // Untag the index.
-  __ SmiUntag(index.reg());
-
-  __ bind(&try_again_with_new_string);
-  // Fetch the instance type of the receiver into ecx.
-  __ mov(ecx, FieldOperand(object.reg(), HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  // If the receiver is not a string trigger the slow case.
-  __ test(ecx, Immediate(kIsNotStringMask));
-  __ j(not_zero, &slow_case);
-
-  // Fetch the length field into the temporary register.
-  __ mov(temp.reg(), FieldOperand(object.reg(), String::kLengthOffset));
-  // Check for index out of range.
-  __ cmp(index.reg(), Operand(temp.reg()));
-  __ j(greater_equal, &slow_case);
-  // Reload the instance type (into the temp register this time)..
-  __ mov(temp.reg(), FieldOperand(object.reg(), HeapObject::kMapOffset));
-  __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
-
-  // We need special handling for non-flat strings.
-  ASSERT(kSeqStringTag == 0);
-  __ test(temp.reg(), Immediate(kStringRepresentationMask));
-  __ j(not_zero, &not_a_flat_string);
-  // Check for 1-byte or 2-byte string.
-  __ test(temp.reg(), Immediate(kStringEncodingMask));
-  __ j(not_zero, &ascii_string);
-
-  // 2-byte string.
-  // Load the 2-byte character code into the temp register.
-  __ movzx_w(temp.reg(), FieldOperand(object.reg(),
-                                      index.reg(),
-                                      times_2,
-                                      SeqTwoByteString::kHeaderSize));
-  __ jmp(&got_char_code);
-
-  // ASCII string.
-  __ bind(&ascii_string);
-  // Load the byte into the temp register.
-  __ movzx_b(temp.reg(), FieldOperand(object.reg(),
-                                      index.reg(),
-                                      times_1,
-                                      SeqAsciiString::kHeaderSize));
-  __ bind(&got_char_code);
-  __ SmiTag(temp.reg());
-  __ jmp(&end);
-
-  // Handle non-flat strings.
-  __ bind(&not_a_flat_string);
-  __ and_(temp.reg(), kStringRepresentationMask);
-  __ cmp(temp.reg(), kConsStringTag);
-  __ j(not_equal, &slow_case);
-
-  // ConsString.
-  // Check that the right hand side is the empty string (ie if this is really a
-  // flat string in a cons string).  If that is not the case we would rather go
-  // to the runtime system now, to flatten the string.
-  __ mov(temp.reg(), FieldOperand(object.reg(), ConsString::kSecondOffset));
-  __ cmp(Operand(temp.reg()), Factory::empty_string());
-  __ j(not_equal, &slow_case);
-  // Get the first of the two strings.
-  __ mov(object.reg(), FieldOperand(object.reg(), ConsString::kFirstOffset));
-  __ jmp(&try_again_with_new_string);
+  Label slow_case;
+  Label exit;
+  StringHelper::GenerateFastCharCodeAt(masm_,
+                                       object.reg(),
+                                       index.reg(),
+                                       scratch.reg(),
+                                       result.reg(),
+                                       &slow_case,
+                                       &slow_case,
+                                       &slow_case);
+  __ jmp(&exit);
 
   __ bind(&slow_case);
   // Move the undefined value into the result register, which will
   // trigger the slow case.
-  __ Set(temp.reg(), Immediate(Factory::undefined_value()));
+  __ Set(result.reg(), Immediate(Factory::undefined_value()));
 
-  __ bind(&end);
-  frame_->Push(&temp);
+  __ bind(&exit);
+  frame_->Push(&result);
 }
 
 
@@ -6056,46 +5966,22 @@ void CodeGenerator::GenerateCharFromCode(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
   Load(args->at(0));
+
   Result code = frame_->Pop();
   code.ToRegister();
   ASSERT(code.is_valid());
 
-  Result temp = allocator()->Allocate();
-  ASSERT(temp.is_valid());
+  // StringHelper::GenerateCharFromCode may do a runtime call.
+  frame_->SpillAll();
 
-  JumpTarget slow_case;
-  JumpTarget exit;
+  Result result = allocator()->Allocate();
+  ASSERT(result.is_valid());
 
-  // Fast case of Heap::LookupSingleCharacterStringFromCode.
-  ASSERT(kSmiTag == 0);
-  ASSERT(kSmiShiftSize == 0);
-  ASSERT(IsPowerOf2(String::kMaxAsciiCharCode + 1));
-  __ test(code.reg(),
-          Immediate(kSmiTagMask |
-                    ((~String::kMaxAsciiCharCode) << kSmiTagSize)));
-  slow_case.Branch(not_zero, &code, not_taken);
-
-  __ Set(temp.reg(), Immediate(Factory::single_character_string_cache()));
-  ASSERT(kSmiTag == 0);
-  ASSERT(kSmiTagSize == 1);
-  ASSERT(kSmiShiftSize == 0);
-  // At this point code register contains smi tagged ascii char code.
-  __ mov(temp.reg(), FieldOperand(temp.reg(),
-                                  code.reg(), times_half_pointer_size,
-                                  FixedArray::kHeaderSize));
-  __ cmp(temp.reg(), Factory::undefined_value());
-  slow_case.Branch(equal, &code, not_taken);
-  code.Unuse();
-
-  frame_->Push(&temp);
-  exit.Jump();
-
-  slow_case.Bind(&code);
-  frame_->Push(&code);
-  Result result = frame_->CallRuntime(Runtime::kCharFromCode, 1);
+  StringHelper::GenerateCharFromCode(masm_,
+                                     code.reg(),
+                                     result.reg(),
+                                     CALL_FUNCTION);
   frame_->Push(&result);
-
-  exit.Bind();
 }
 
 
@@ -6625,6 +6511,80 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
   }
   frame_->Forget(3);
   frame_->Push(eax);
+}
+
+
+class DeferredSearchCache: public DeferredCode {
+ public:
+  DeferredSearchCache(Register dst, Register cache, Register key)
+      : dst_(dst), cache_(cache), key_(key) {
+    set_comment("[ DeferredSearchCache");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_, cache_, key_;
+};
+
+
+void DeferredSearchCache::Generate() {
+  __ push(cache_);
+  __ push(key_);
+  __ CallRuntime(Runtime::kGetFromCache, 2);
+  if (!dst_.is(eax)) {
+    __ mov(dst_, eax);
+  }
+}
+
+
+void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  ASSERT_NE(NULL, args->at(0)->AsLiteral());
+  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
+
+  Handle<FixedArray> jsfunction_result_caches(
+      Top::global_context()->jsfunction_result_caches());
+  if (jsfunction_result_caches->length() <= cache_id) {
+    __ Abort("Attempt to use undefined cache.");
+    frame_->Push(Factory::undefined_value());
+    return;
+  }
+  Handle<FixedArray> cache_obj(
+      FixedArray::cast(jsfunction_result_caches->get(cache_id)));
+
+  Load(args->at(1));
+  Result key = frame_->Pop();
+  key.ToRegister();
+
+  Result cache = allocator()->Allocate();
+  __ mov(cache.reg(), cache_obj);
+
+  Result tmp = allocator()->Allocate();
+
+  DeferredSearchCache* deferred = new DeferredSearchCache(tmp.reg(),
+                                                          cache.reg(),
+                                                          key.reg());
+
+  const int kFingerOffset =
+      FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
+  // tmp.reg() now holds finger offset as a smi.
+  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  __ mov(tmp.reg(), FieldOperand(cache.reg(), kFingerOffset));
+  __ cmp(key.reg(), FieldOperand(cache.reg(),
+                                 tmp.reg(),  // as smi
+                                 times_half_pointer_size,
+                                 FixedArray::kHeaderSize));
+  deferred->Branch(not_equal);
+
+  __ mov(tmp.reg(), FieldOperand(cache.reg(),
+                                 tmp.reg(),  // as smi
+                                 times_half_pointer_size,
+                                 kPointerSize + FixedArray::kHeaderSize));
+
+  deferred->BindExit();
+  frame_->Push(&tmp);
 }
 
 
@@ -8446,7 +8406,7 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     }
 
     // Check that the key is a non-negative smi.
-    __ test(key.reg(), Immediate(kSmiTagMask | 0x80000000));
+    __ test(key.reg(), Immediate(kSmiTagMask | kSmiSignMask));
     deferred->Branch(not_zero);
 
     // Check that the receiver is not a smi.
@@ -10732,9 +10692,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
   // at compilation.
-#ifndef V8_NATIVE_REGEXP
+#ifdef V8_INTERPRETED_REGEXP
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-#else  // V8_NATIVE_REGEXP
+#else  // V8_INTERPRETED_REGEXP
   if (!FLAG_regexp_entry_native) {
     __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
     return;
@@ -10811,9 +10771,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // ebx: Length of subject string
   // ecx: RegExp data (FixedArray)
   // edx: Number of capture registers
-  // Check that the third argument is a positive smi.
   // Check that the third argument is a positive smi less than the subject
-  // string length. A negative value will be greater (usigned comparison).
+  // string length. A negative value will be greater (unsigned comparison).
   __ mov(eax, Operand(esp, kPreviousIndexOffset));
   __ SmiUntag(eax);
   __ cmp(eax, Operand(ebx));
@@ -10860,9 +10819,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  __ mov(edx, ebx);
-  __ and_(edx, kStringRepresentationMask);
-  __ cmp(edx, kConsStringTag);
+  __ and_(ebx, kStringRepresentationMask);
+  __ cmp(ebx, kConsStringTag);
   __ j(not_equal, &runtime);
   __ mov(edx, FieldOperand(eax, ConsString::kSecondOffset));
   __ cmp(Operand(edx), Factory::empty_string());
@@ -10881,7 +10839,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // ecx: RegExp data (FixedArray)
   // Check that the irregexp code has been generated for an ascii string. If
   // it has, the field contains a code object otherwise it contains the hole.
-  __ cmp(ebx, kStringTag | kSeqStringTag | kTwoByteStringTag);
+  const int kSeqTwoByteString = kStringTag | kSeqStringTag | kTwoByteStringTag;
+  __ cmp(ebx, kSeqTwoByteString);
   __ j(equal, &seq_two_byte_string);
   if (FLAG_debug_code) {
     __ cmp(ebx, kStringTag | kSeqStringTag | kAsciiStringTag);
@@ -10977,7 +10936,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Result must now be exception. If there is no pending exception already a
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
-  // TODO(592) Rerunning the RegExp to get the stack overflow exception.
+  // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception(Top::k_pending_exception_address);
   __ mov(eax,
          Operand::StaticVariable(ExternalReference::the_hole_value_location()));
@@ -11028,7 +10987,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // ecx: offsets vector
   // edx: number of capture registers
   Label next_capture, done;
-  __ mov(eax, Operand(esp, kPreviousIndexOffset));
   // Capture register counter starts from number of capture registers and
   // counts down until wraping after zero.
   __ bind(&next_capture);
@@ -11053,7 +11011,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-#endif  // V8_NATIVE_REGEXP
+#endif  // V8_INTERPRETED_REGEXP
 }
 
 
@@ -11657,7 +11615,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
                               bool do_gc,
-                              bool always_allocate_scope) {
+                              bool always_allocate_scope,
+                              int /* alignment_skew */) {
   // eax: result parameter for PerformGC, if any
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
@@ -11667,7 +11626,17 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Result returned in eax, or eax+edx if result_size_ is 2.
 
+  // Check stack alignment.
+  if (FLAG_debug_code) {
+    __ CheckStackAlignment();
+  }
+
   if (do_gc) {
+    // Pass failure code returned from last attempt as first argument to
+    // PerformGC. No need to use PrepareCallCFunction/CallCFunction here as the
+    // stack alignment is known to be correct. This function takes one argument
+    // which is passed on the stack, and we know that the stack has been
+    // prepared to pass at least one argument.
     __ mov(Operand(esp, 0 * kPointerSize), eax);  // Result.
     __ call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
   }
@@ -12069,6 +12038,154 @@ const char* CompareStub::GetName() {
 }
 
 
+void StringHelper::GenerateFastCharCodeAt(MacroAssembler* masm,
+                                          Register object,
+                                          Register index,
+                                          Register scratch,
+                                          Register result,
+                                          Label* receiver_not_string,
+                                          Label* index_not_positive_smi,
+                                          Label* slow_case) {
+  Label not_a_flat_string;
+  Label try_again_with_new_string;
+  Label ascii_string;
+  Label got_char_code;
+
+  // If the receiver is a smi trigger the non-string case.
+  ASSERT(kSmiTag == 0);
+  __ test(object, Immediate(kSmiTagMask));
+  __ j(zero, receiver_not_string);
+
+  // Fetch the instance type of the receiver into result register.
+  __ mov(result, FieldOperand(object, HeapObject::kMapOffset));
+  __ movzx_b(result, FieldOperand(result, Map::kInstanceTypeOffset));
+  // If the receiver is not a string trigger the non-string case.
+  __ test(result, Immediate(kIsNotStringMask));
+  __ j(not_zero, receiver_not_string);
+
+  // If the index is negative or non-smi trigger the non-positive-smi
+  // case.
+  ASSERT(kSmiTag == 0);
+  __ test(index, Immediate(kSmiTagMask | kSmiSignMask));
+  __ j(not_zero, index_not_positive_smi);
+
+  // Put untagged index into scratch register.
+  __ mov(scratch, index);
+  __ SmiUntag(scratch);
+
+  // Check for index out of range.
+  __ cmp(scratch, FieldOperand(object, String::kLengthOffset));
+  __ j(greater_equal, slow_case);
+
+  __ bind(&try_again_with_new_string);
+  // ----------- S t a t e -------------
+  //  -- object  : string to access
+  //  -- result  : instance type of the string
+  //  -- scratch : positive smi index < length
+  // -----------------------------------
+
+  // We need special handling for non-flat strings.
+  ASSERT(kSeqStringTag == 0);
+  __ test(result, Immediate(kStringRepresentationMask));
+  __ j(not_zero, &not_a_flat_string);
+
+  // Check for 1-byte or 2-byte string.
+  ASSERT(kAsciiStringTag != 0);
+  __ test(result, Immediate(kStringEncodingMask));
+  __ j(not_zero, &ascii_string);
+
+  // 2-byte string.
+  // Load the 2-byte character code into the temp register.
+  __ movzx_w(result, FieldOperand(object,
+                                  scratch, times_2,
+                                  SeqTwoByteString::kHeaderSize));
+  __ jmp(&got_char_code);
+
+  // Handle non-flat strings.
+  __ bind(&not_a_flat_string);
+  __ and_(result, kStringRepresentationMask);
+  __ cmp(result, kConsStringTag);
+  __ j(not_equal, slow_case);
+
+  // ConsString.
+  // Check whether the right hand side is the empty string (i.e. if
+  // this is really a flat string in a cons string). If that is not
+  // the case we would rather go to the runtime system now to flatten
+  // the string.
+  __ mov(result, FieldOperand(object, ConsString::kSecondOffset));
+  __ cmp(Operand(result), Factory::empty_string());
+  __ j(not_equal, slow_case);
+  // Get the first of the two strings and load its instance type.
+  __ mov(object, FieldOperand(object, ConsString::kFirstOffset));
+  __ mov(result, FieldOperand(object, HeapObject::kMapOffset));
+  __ movzx_b(result, FieldOperand(result, Map::kInstanceTypeOffset));
+  __ jmp(&try_again_with_new_string);
+
+  // ASCII string.
+  __ bind(&ascii_string);
+  // Load the byte into the temp register.
+  __ movzx_b(result, FieldOperand(object,
+                                  scratch, times_1,
+                                  SeqAsciiString::kHeaderSize));
+  __ bind(&got_char_code);
+  __ SmiTag(result);
+}
+
+
+void StringHelper::GenerateCharFromCode(MacroAssembler* masm,
+                                        Register code,
+                                        Register result,
+                                        InvokeFlag flag) {
+  ASSERT(!code.is(result));
+
+  Label slow_case;
+  Label exit;
+
+  // Fast case of Heap::LookupSingleCharacterStringFromCode.
+  ASSERT(kSmiTag == 0);
+  ASSERT(kSmiShiftSize == 0);
+  ASSERT(IsPowerOf2(String::kMaxAsciiCharCode + 1));
+  __ test(code,
+          Immediate(kSmiTagMask |
+                    ((~String::kMaxAsciiCharCode) << kSmiTagSize)));
+  __ j(not_zero, &slow_case, not_taken);
+
+  __ Set(result, Immediate(Factory::single_character_string_cache()));
+  ASSERT(kSmiTag == 0);
+  ASSERT(kSmiTagSize == 1);
+  ASSERT(kSmiShiftSize == 0);
+  // At this point code register contains smi tagged ascii char code.
+  __ mov(result, FieldOperand(result,
+                              code, times_half_pointer_size,
+                              FixedArray::kHeaderSize));
+  __ cmp(result, Factory::undefined_value());
+  __ j(equal, &slow_case, not_taken);
+  __ jmp(&exit);
+
+  __ bind(&slow_case);
+  if (flag == CALL_FUNCTION) {
+    __ push(code);
+    __ CallRuntime(Runtime::kCharFromCode, 1);
+    if (!result.is(eax)) {
+      __ mov(result, eax);
+    }
+  } else {
+    ASSERT(flag == JUMP_FUNCTION);
+    ASSERT(result.is(eax));
+    __ pop(eax);  // Save return address.
+    __ push(code);
+    __ push(eax);  // Restore return address.
+    __ TailCallRuntime(Runtime::kCharFromCode, 1, 1);
+  }
+
+  __ bind(&exit);
+  if (flag == JUMP_FUNCTION) {
+    ASSERT(result.is(eax));
+    __ ret(0);
+  }
+}
+
+
 void StringAddStub::Generate(MacroAssembler* masm) {
   Label string_add_runtime;
 
@@ -12135,8 +12252,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Try to lookup two character string in symbol table. If it is not found
   // just allocate a new one.
   Label make_two_character_string, make_flat_ascii_string;
-  GenerateTwoCharacterSymbolTableProbe(masm, ebx, ecx, eax, edx, edi,
-                                       &make_two_character_string);
+  StringHelper::GenerateTwoCharacterSymbolTableProbe(
+      masm, ebx, ecx, eax, edx, edi, &make_two_character_string);
   __ IncrementCounter(&Counters::string_add_native, 1);
   __ ret(2 * kPointerSize);
 
@@ -12228,7 +12345,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // ecx: first character of result
   // edx: first char of first argument
   // edi: length of first argument
-  GenerateCopyCharacters(masm, ecx, edx, edi, ebx, true);
+  StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, true);
   // Load second argument and locate first character.
   __ mov(edx, Operand(esp, 1 * kPointerSize));
   __ mov(edi, FieldOperand(edx, String::kLengthOffset));
@@ -12237,7 +12354,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // ecx: next character of result
   // edx: first char of second argument
   // edi: length of second argument
-  GenerateCopyCharacters(masm, ecx, edx, edi, ebx, true);
+  StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, true);
   __ IncrementCounter(&Counters::string_add_native, 1);
   __ ret(2 * kPointerSize);
 
@@ -12267,7 +12384,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // ecx: first character of result
   // edx: first char of first argument
   // edi: length of first argument
-  GenerateCopyCharacters(masm, ecx, edx, edi, ebx, false);
+  StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, false);
   // Load second argument and locate first character.
   __ mov(edx, Operand(esp, 1 * kPointerSize));
   __ mov(edi, FieldOperand(edx, String::kLengthOffset));
@@ -12276,7 +12393,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // ecx: next character of result
   // edx: first char of second argument
   // edi: length of second argument
-  GenerateCopyCharacters(masm, ecx, edx, edi, ebx, false);
+  StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, false);
   __ IncrementCounter(&Counters::string_add_native, 1);
   __ ret(2 * kPointerSize);
 
@@ -12286,12 +12403,12 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StringStubBase::GenerateCopyCharacters(MacroAssembler* masm,
-                                            Register dest,
-                                            Register src,
-                                            Register count,
-                                            Register scratch,
-                                            bool ascii) {
+void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
+                                          Register dest,
+                                          Register src,
+                                          Register count,
+                                          Register scratch,
+                                          bool ascii) {
   Label loop;
   __ bind(&loop);
   // This loop just copies one character at a time, as it is only used for very
@@ -12312,12 +12429,12 @@ void StringStubBase::GenerateCopyCharacters(MacroAssembler* masm,
 }
 
 
-void StringStubBase::GenerateCopyCharactersREP(MacroAssembler* masm,
-                                               Register dest,
-                                               Register src,
-                                               Register count,
-                                               Register scratch,
-                                               bool ascii) {
+void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
+                                             Register dest,
+                                             Register src,
+                                             Register count,
+                                             Register scratch,
+                                             bool ascii) {
   // Copy characters using rep movs of doublewords. Align destination on 4 byte
   // boundary before starting rep movs. Copy remaining characters after running
   // rep movs.
@@ -12372,13 +12489,13 @@ void StringStubBase::GenerateCopyCharactersREP(MacroAssembler* masm,
 }
 
 
-void StringStubBase::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
-                                                          Register c1,
-                                                          Register c2,
-                                                          Register scratch1,
-                                                          Register scratch2,
-                                                          Register scratch3,
-                                                          Label* not_found) {
+void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+                                                        Register c1,
+                                                        Register c2,
+                                                        Register scratch1,
+                                                        Register scratch2,
+                                                        Register scratch3,
+                                                        Label* not_found) {
   // Register scratch3 is the general scratch register in this function.
   Register scratch = scratch3;
 
@@ -12492,10 +12609,10 @@ void StringStubBase::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 }
 
 
-void StringStubBase::GenerateHashInit(MacroAssembler* masm,
-                                      Register hash,
-                                      Register character,
-                                      Register scratch) {
+void StringHelper::GenerateHashInit(MacroAssembler* masm,
+                                    Register hash,
+                                    Register character,
+                                    Register scratch) {
   // hash = character + (character << 10);
   __ mov(hash, character);
   __ shl(hash, 10);
@@ -12507,10 +12624,10 @@ void StringStubBase::GenerateHashInit(MacroAssembler* masm,
 }
 
 
-void StringStubBase::GenerateHashAddCharacter(MacroAssembler* masm,
-                                              Register hash,
-                                              Register character,
-                                              Register scratch) {
+void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
+                                            Register hash,
+                                            Register character,
+                                            Register scratch) {
   // hash += character;
   __ add(hash, Operand(character));
   // hash += hash << 10;
@@ -12524,9 +12641,9 @@ void StringStubBase::GenerateHashAddCharacter(MacroAssembler* masm,
 }
 
 
-void StringStubBase::GenerateHashGetHash(MacroAssembler* masm,
-                                         Register hash,
-                                         Register scratch) {
+void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
+                                       Register hash,
+                                       Register scratch) {
   // hash += hash << 3;
   __ mov(scratch, hash);
   __ shl(scratch, 3);
@@ -12600,8 +12717,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Try to lookup two character string in symbol table.
   Label make_two_character_string;
-  GenerateTwoCharacterSymbolTableProbe(masm, ebx, ecx, eax, edx, edi,
-                                     &make_two_character_string);
+  StringHelper::GenerateTwoCharacterSymbolTableProbe(
+      masm, ebx, ecx, eax, edx, edi, &make_two_character_string);
   __ ret(3 * kPointerSize);
 
   __ bind(&make_two_character_string);
@@ -12640,7 +12757,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // edx: original value of esi
   // edi: first character of result
   // esi: character of sub string start
-  GenerateCopyCharactersREP(masm, edi, esi, ecx, ebx, true);
+  StringHelper::GenerateCopyCharactersREP(masm, edi, esi, ecx, ebx, true);
   __ mov(esi, edx);  // Restore esi.
   __ IncrementCounter(&Counters::sub_string_native, 1);
   __ ret(3 * kPointerSize);
@@ -12679,7 +12796,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // edx: original value of esi
   // edi: first character of result
   // esi: character of sub string start
-  GenerateCopyCharactersREP(masm, edi, esi, ecx, ebx, false);
+  StringHelper::GenerateCopyCharactersREP(masm, edi, esi, ecx, ebx, false);
   __ mov(esi, edx);  // Restore esi.
   __ IncrementCounter(&Counters::sub_string_native, 1);
   __ ret(3 * kPointerSize);

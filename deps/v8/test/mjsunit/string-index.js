@@ -35,6 +35,14 @@ assertEquals("F", foo[0]);
 assertEquals("o", foo[1]);
 assertEquals("o", foo[2]);
 
+// Test string keyed load IC.
+for (var i = 0; i < 10; i++) {
+  assertEquals("F", foo[0]);
+  assertEquals("o", foo[1]);
+  assertEquals("o", foo[2]);
+  assertEquals("F", (foo[0] + "BarBazQuuxFooBarQuux")[0]);
+}
+
 assertEquals("F", foo["0" + ""], "string index");
 assertEquals("o", foo["1"], "string index");
 assertEquals("o", foo["2"], "string index");
@@ -178,9 +186,9 @@ for (var i = 0; i < 200; ++i) {
   assertEquals(expected, actual);
 }
 
-var keys = [0, '1', 2, 3.0];
-var str = 'abcd', arr = ['a', 'b', 'c', 'd'];
-for (var i = 0; i < 200; ++i) {
+var keys = [0, '1', 2, 3.0, -1, 10];
+var str = 'abcd', arr = ['a', 'b', 'c', 'd', undefined, undefined];
+for (var i = 0; i < 300; ++i) {
   var index = Math.floor(i / 50);
   var key = keys[index];
   var expected = arr[index];

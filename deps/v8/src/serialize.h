@@ -503,7 +503,8 @@ class PartialSerializer : public Serializer {
     // unique ID, and deserializing several partial snapshots containing script
     // would cause dupes.
     ASSERT(!o->IsScript());
-    return o->IsString() || o->IsSharedFunctionInfo() || o->IsHeapNumber();
+    return o->IsString() || o->IsSharedFunctionInfo() ||
+           o->IsHeapNumber() || o->IsCode();
   }
 
  private:

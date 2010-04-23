@@ -47,7 +47,9 @@ class Factory : public AllStatic {
       PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a new fixed array with non-existing entries (the hole).
-  static Handle<FixedArray> NewFixedArrayWithHoles(int size);
+  static Handle<FixedArray> NewFixedArrayWithHoles(
+      int size,
+      PretenureFlag pretenure = NOT_TENURED);
 
   static Handle<NumberDictionary> NewNumberDictionary(int at_least_space_for);
 

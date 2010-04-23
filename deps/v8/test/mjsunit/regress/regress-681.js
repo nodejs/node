@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,35 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_LOG_INL_H_
-#define V8_LOG_INL_H_
-
-#include "log.h"
-#include "cpu-profiler.h"
-
-namespace v8 {
-namespace internal {
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
-Logger::LogEventsAndTags Logger::ToNativeByScript(Logger::LogEventsAndTags tag,
-                                                  Script* script) {
-  if ((tag == FUNCTION_TAG || tag == LAZY_COMPILE_TAG || tag == SCRIPT_TAG)
-      && script->type()->value() == Script::TYPE_NATIVE) {
-    switch (tag) {
-      case FUNCTION_TAG: return NATIVE_FUNCTION_TAG;
-      case LAZY_COMPILE_TAG: return NATIVE_LAZY_COMPILE_TAG;
-      case SCRIPT_TAG: return NATIVE_SCRIPT_TAG;
-      default: return tag;
-    }
-  } else {
-    return tag;
-  }
-}
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
+// Regression test for http://code.google.com/p/v8/issues/detail?id=681.
+//
+// Test that load ICs for nonexistent properties bail out on smi receiver.
 
 
-} }  // namespace v8::internal
+var x = {};
+function f() { return x.y; }
 
-#endif  // V8_LOG_INL_H_
+// Initialize IC for nonexistent y property on x.
+f();
+f();
+
+// Make x a smi.
+x = 23;
+
+// Check that we bail out from the IC.
+assertEquals(undefined, f());

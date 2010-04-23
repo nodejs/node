@@ -529,10 +529,16 @@ function ApplyReplacementFunction(replace, matchInfo, subject) {
   return replace.apply(null, parameters);
 }
 
-
 // ECMA-262 section 15.5.4.12
 function StringSearch(re) {
-  var regexp = new $RegExp(re);
+  var regexp;
+  if (IS_STRING(re)) {
+    regexp = %_GetFromCache(STRING_TO_REGEXP_CACHE_ID, re);
+  } else if (IS_REGEXP(re)) {
+    regexp = re;
+  } else {
+    regexp = new $RegExp(re);
+  }
   var s = TO_STRING_INLINE(this);
   var match = DoRegExpExec(regexp, s, 0);
   if (match) {
@@ -925,10 +931,10 @@ ReplaceResultBuilder.prototype.add = function(str) {
 
 ReplaceResultBuilder.prototype.addSpecialSlice = function(start, end) {
   var len = end - start;
-  if (len == 0) return;
+  if (start < 0 || len <= 0) return;
   var elements = this.elements;
   if (start < 0x80000 && len < 0x800) {
-    elements[elements.length] = (start << 11) + len;
+    elements[elements.length] = (start << 11) | len;
   } else {
     // 0 < len <= String::kMaxLength and Smi::kMaxValue >= String::kMaxLength,
     // so -len is a smi.

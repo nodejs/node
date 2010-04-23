@@ -1249,6 +1249,11 @@ void Simulator::SoftwareInterrupt(Instr* instr) {
   int swi = instr->SwiField();
   switch (swi) {
     case call_rt_redirected: {
+      // Check if stack is aligned. Error if not aligned is reported below to
+      // include information on the function called.
+      bool stack_aligned =
+          (get_register(sp)
+           & (::v8::internal::FLAG_sim_stack_alignment - 1)) == 0;
       Redirection* redirection = Redirection::FromSwiInstruction(instr);
       int32_t arg0 = get_register(r0);
       int32_t arg1 = get_register(r1);
@@ -1262,12 +1267,17 @@ void Simulator::SoftwareInterrupt(Instr* instr) {
             reinterpret_cast<intptr_t>(redirection->external_function());
         SimulatorRuntimeFPCall target =
             reinterpret_cast<SimulatorRuntimeFPCall>(external);
-        if (::v8::internal::FLAG_trace_sim) {
+        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           double x, y;
           GetFpArgs(&x, &y);
-          PrintF("Call to host function at %p with args %f, %f\n",
+          PrintF("Call to host function at %p with args %f, %f",
                  FUNCTION_ADDR(target), x, y);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08x\n", get_register(sp));
+          }
+          PrintF("\n");
         }
+        CHECK(stack_aligned);
         double result = target(arg0, arg1, arg2, arg3);
         SetFpResult(result);
       } else {
@@ -1275,15 +1285,20 @@ void Simulator::SoftwareInterrupt(Instr* instr) {
             reinterpret_cast<int32_t>(redirection->external_function());
         SimulatorRuntimeCall target =
             reinterpret_cast<SimulatorRuntimeCall>(external);
-        if (::v8::internal::FLAG_trace_sim) {
+        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF(
-              "Call to host function at %p with args %08x, %08x, %08x, %08x\n",
+              "Call to host function at %p with args %08x, %08x, %08x, %08x",
               FUNCTION_ADDR(target),
               arg0,
               arg1,
               arg2,
               arg3);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08x\n", get_register(sp));
+          }
+          PrintF("\n");
         }
+        CHECK(stack_aligned);
         int64_t result = target(arg0, arg1, arg2, arg3);
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
@@ -2524,4 +2539,4 @@ uintptr_t Simulator::PopAddress() {
 
 } }  // namespace assembler::arm
 
-#endif  // !defined(__arm__)
+#endif  // __arm__
