@@ -1,144 +1,310 @@
-<html> 
+<!DOCTYPE html>
 <head> 
-  <meta http-equiv='content-type' value='text/html;charset=utf8'> 
-  <meta name='generator' value='Ronn/v0.4.1'> 
-  <title>node(1) -- evented I/O for V8 JavaScript</title> 
-  <style type='text/css'> 
-    body {margin:0}
-    #man, #man code, #man pre, #man tt, #man kbd, #man samp {
-      font-family:consolas,monospace;
-      font-size:16px;
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta name='generator' value='Ronn/v0.4.1'> 
+	<title>node(1) -- evented I/O for V8 JavaScript</title> 
+	<style type='text/css'> 
+		*{
+			margin: 0;padding: 0;
+		}
+		html,body
+		{
+			height: 100%;
+		}
+		body
+		{
+			font-family:helvetica, arial, sans serif;
+			background:#22252a;
+			color:#eee;
+			font-size:16px;
       line-height:1.3;
-      color:#343331;
-      background:#fff; }
-    #man { max-width:89ex; text-align:justify; margin:0 25px 25px 10px }
-    #man h1, #man h2, #man h3 { color:#232221;clear:left }
-    #man h1 { font-size:28px; margin:15px 0 30px 0; text-align:center }
-    #man h2 { font-size:18px; margin-bottom:0; margin-top:10px; line-height:1.3; }
-    #man h3 { font-size:16px; margin:0 0 0 4ex; }
-    #man p, #man ul, #man ol, #man dl, #man pre { margin:0 0 18px 0; }
-    #man pre {
-      color:#333231;
-      background:#edeceb;
-      padding:5px 7px;
-      margin:0px 0 20px 0;
-      border-left:2ex solid #ddd}
-    #man pre + h2, #man pre + h3 {
-      margin-top:22px;
-    }
-    #man h2 + pre, #man h3 + pre {
-      margin-top:5px;
-    }
-    #man > p, #man > ul, #man > ol, #man > dl, #man > pre { margin-left:8ex; }
-    #man dt { margin:0; clear:left }
-    #man dt.flush { float:left; width:8ex }
-    #man dd { margin:0 0 0 9ex }
-    #man code, #man strong, #man b { font-weight:bold; color:#131211; }
-    #man pre code { font-weight:normal; color:#232221; background:inherit }
-    #man em, var, u {
-      font-style:normal; color:#333231; border-bottom:1px solid #999; }
-    #man h1.man-title { display:none; }
-    #man ol.man, #man ol.man li { margin:2px 0 10px 0; padding:0;
-      float:left; width:33%; list-style-type:none;
-      text-transform:uppercase; font-size:18px; color:#999;
-      letter-spacing:1px;}
-    #man ol.man { width:100%; }
-    #man ol.man li.tl { text-align:left }
-    #man ol.man li.tc { text-align:center;letter-spacing:4px }
-    #man ol.man li.tr { text-align:right }
-    #man ol.man a { color:#999 }
-    #man ol.man a:hover { color:#333231 }
+			position:relative;
+			min-width: 690px;
+		}
+		a
+		{
+			color:#CD5;
+		}
+		a:focus
+		{
+			outline: none;
+			-moz-outline: none;
+		}
+		pre
+		{
+			overflow: hidden;
+		}
+		li
+		{
+			list-style: inside;
+		}
+		#man,#man code,#man pre,#man tt,#man kbd,#man samp
+		{
+			line-height:1.6;
+			color:#eee;
+			background:#22252a;
+		}
 
+		#man
+		{
+			margin: 0;
+			position: absolute;
+			top:0;
+			bottom:0;
+			left: 225px;
+			right: 0;
+			overflow: auto;
+		}
+		#man-content
+		{
+			padding: 0 20px;
+			max-width: 650px;
+		}
+		#man h1,#man h2,#man h3
+		{
+			color:#DCDDDE;
+			clear:left;		
+		}
 
+		#man h1
+		{
+			background:url("http://nodejs.org/logo.png") no-repeat scroll center 0 transparent;
+			height:111px;
+			margin:15px 0 20px;
+			text-align:center;
+			text-indent:-2000px;
+		}
 
-#man {
-  width: 50%;
-  margin: 0 0 0 17em;
-}
+		#man h2
+		{
+			font-size:18px;
+			background:#000;
+			color:#CD5;
+			margin:10px 0;
+			padding:5px 10px;
+		}
 
-#toc {
-  font-family:consolas,monospace;
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 15em;
-  border-right: 1px solid #ccc;
-  overflow: auto;
-}
+		#man h3
+		{
+			font-size:16px;
+			margin:0 0 0 0ex;
+		}
 
-#toc #toctitle {
-  background: #eee;
-  padding: 1em;
-}
+		#man p,#man ul,#man ol,#man dl,#man pre
+		{
+			margin:0 0 18px;
+		}
 
-#toc a {
-  text-decoration: none;
-}
+		#man pre
+		{
+			color:#CCCDCE;
+			background:#121314;
+			border-left:2ex solid #222;
+			margin:0 0 20px;
+			padding:5px 7px;
+		}
 
-  #toc ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-    #toc ul li {
-      margin: 0;
-    }
-    #toc ul li a {
-      padding: 0.2em 0.4em;
-    }
-    #toc ul li {
-      padding: 0.4em 0;
-    }
-    #toc ul li.topLevel a {
-      padding-left: 2.4em;
-    }
-      #toc ul li ul {
-        margin: 0.4em 0 0 0;
-      }
-      #toc ul li ul li {
-        padding: 0.4em 0 0.4em 1em;
-      }
-    #toc ul li .toggler {
-      width: 1em;
-      display: block;
-      float: left;
-      padding: 0;
-      margin: 0 0 0 1em;
-    }
-    
-    
-    h2 {
-      margin: 0;
-      padding: 2em 0 0.5em 0;
-    }
-    
-    h3 {
-      margin: 0;
-      padding: 2em 0 0;
-    }
+		#man pre + h2,#man pre + h3
+		{
+			margin-top:22px;
+		}
 
+		#man h2 + pre,#man h3 + pre
+		{
+			margin-top:5px;
+		}
 
-  </style>
-  <script type="text/javascript" src="./jquery.js"></script>
-  <script type="text/javascript" src="./doc.js"></script>
-<!-- FIXME for light background
-  <script type="text/javascript" src="./sh_main.js"></script>
-  <script type="text/javascript" src="./sh_javascript.min.js"></script>
-<link rel="stylesheet" href="./sh_vim-dark.css" type="text/css" /> 
--->
+		#man > p,#man > ul,#man > ol,#man > dl,#man > pre
+		{
+			margin-left:5%;
+		}
+
+		#man dt
+		{
+			clear:left;
+			margin:0;
+		}
+
+		#man dt.flush
+		{
+			float:left;
+			width:8ex;
+		}
+
+		#man dd
+		{
+			margin:0 0 0 9ex;
+		}
+
+		#man code,#man strong,#man b
+		{
+			font-weight:bold;
+			color:#ECEDEE;
+		}
+
+		#man pre code
+		{
+			font-weight:normal;
+			color:#DCDDDE;
+			background:inherit;
+		}
+
+		#man em,var,u
+		{
+			font-style:normal;
+			color:#CCCDCE;
+			border-bottom:1px solid #999;
+		}
+
+		#man ol.man,#man ol.man li
+		{
+			float:left;
+			width:33%;
+			list-style-type:none;
+			text-transform:uppercase;
+			font-size:18px;
+			color:#666;
+			letter-spacing:1px;
+			margin:2px 0 10px;
+			padding:0;
+		}
+
+		#man ol.man
+		{
+			width:100%;
+		}
+
+		#man ol.man li.tl
+		{
+			text-align:left;
+		}
+
+		#man ol.man li.tc
+		{
+			text-align:center;
+			letter-spacing:4px;
+		}
+
+		#man ol.man li.tr
+		{
+			text-align:right;
+		}
+
+		#man ol.man a
+		{
+			color:#666;
+		}
+
+		#man ol.man a:hover
+		{
+			color:#CCCDCE;
+		}
+
+		#toc
+		{
+			position: absolute;
+			top:0;
+			bottom:0;
+			left: 0;
+			padding-left: 30px;
+			width: 195px;
+			overflow: auto;
+			overflow-x: hidden;
+			font-size: 15px;
+		}
+		#toc li
+		{
+			text-wrap: word-wrap;
+		}
+		#toc a
+		{
+			display: inline-block;
+			width: 100%;
+			color: #fff;
+			text-decoration:none;
+		}
+		#toc > a:hover
+		{
+			color: rgba(255,255,255,0.7);
+		}
+		#toc > ul > li
+		{
+			border-bottom:1px solid #0f1214;
+			padding:5px 0 5px 5px;
+			list-style: none;
+			line-height: 1.3;
+		}
+		#toc ul ul
+		{
+			display: none;
+		}
+		#toc ul ul > li
+		{
+			border-top:1px solid rgba(0, 0, 0, 0.1);
+			color:#FFFFFF;
+			font-size:85%;
+			line-height:1.3;
+			list-style:disc outside none;
+			margin-left:25px;
+			max-width:165px;
+			padding:3px 0 5px 5px;
+		}
+		#toc li.active > a
+		{
+			color:#CD5;
+		}
+
+		.sh_sourceCode
+		{
+			font-family: monospace;
+			overflow:hidden;
+		}
+
+		#toc .toggler
+		{
+			-moz-user-select:none;
+			background:none repeat scroll 0 0 #000000;
+			color:#FFFFFF;
+			display:inline-block;
+			font-weight:bold;
+			height:31px;
+			line-height:32px;
+			margin:-5px 8px -18px -33px;
+			outline:medium none;
+			padding:0;
+			text-align:center;
+			width:25px;
+		}
+		.current-section
+		{
+			position: fixed;
+			top: 0;
+			margin: 0 !important;
+		}
+		#toctitle
+		{
+			background:none repeat scroll 0 0 #000000;
+			color:#CCDD55;
+			font-size:18px;
+			margin: 0 0 10px -30px;
+			padding: 10px;
+		}
+	</style>
+<link rel="stylesheet" href="./sh_vim-dark.css" type="text/css" />
 </head>
 <body>
+
 <div id="toc">
 	<div id="toctitle">Node v0.1.91</div>
 	<noscript>JavaScript must be enabled in your browser to display the table of contents.</noscript>
 </div>
 <div id='man'>
-
+<div id="man-content">
 <h1 class='man-title'>node(1)</h1>
 
 <ol class='head man'>
   <li class='tl'>node(1)</li>
+
   <li class='tc'></li>
   <li class='tr'>node(1)</li>
 </ol>
