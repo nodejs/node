@@ -9,6 +9,12 @@
 
 #include <errno.h>
 
+#if OPENSSL_VERSION_NUMBER >= 0x1000000fL
+# define OPENSSL_CONST const
+#else
+# define OPENSSL_CONST
+#endif
+
 namespace node {
 
 using namespace v8;
@@ -383,7 +389,7 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  SSL_METHOD *method = SSLv23_method();
+  OPENSSL_CONST SSL_METHOD *method = SSLv23_method();
 
   if (args.Length() == 1) {
     if (!args[0]->IsString())
@@ -901,7 +907,7 @@ Handle<Value> SecureStream::GetCurrentCipher(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
-  SSL_CIPHER *c;
+  OPENSSL_CONST SSL_CIPHER *c;
 
   if ( ss->pSSL == NULL ) return Undefined();
   c = SSL_get_current_cipher(ss->pSSL);
