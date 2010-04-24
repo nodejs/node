@@ -395,7 +395,7 @@ def build(bld):
 
     node.add_objects = 'cares ev eio http_parser coupling'
     node.uselib_local = ''
-    node.uselib = 'RT OPENSSL UDNS V8 EXECINFO DL KVM SOCKET NSL'
+    node.uselib = 'RT OPENSSL V8 EXECINFO DL KVM SOCKET NSL'
   else:
     node.includes = """
       src/
@@ -405,7 +405,7 @@ def build(bld):
     """
     node.add_objects = 'eio http_parser coupling'
     node.uselib_local = 'eio'
-    node.uselib = 'RT EV OPENSSL UDNS V8 EXECINFO DL KVM SOCKET NSL'
+    node.uselib = 'RT EV OPENSSL CARES V8 EXECINFO DL KVM SOCKET NSL'
 
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'
