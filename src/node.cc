@@ -19,13 +19,11 @@
 #include <node_net2.h>
 #include <node_events.h>
 #include <node_cares.h>
-#include <node_net.h>
 #include <node_file.h>
 #if 0
 // not in use
 # include <node_idle_watcher.h>
 #endif
-#include <node_http.h>
 #include <node_http_parser.h>
 #include <node_signal_watcher.h>
 #include <node_stat_watcher.h>
@@ -1516,29 +1514,6 @@ static Handle<Value> Binding(const Arguments& args) {
       binding_cache->Set(module, exports);
     }
 
-  } else if (!strcmp(*module_v, "http")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      // Warning: When calling requireBinding('http') from javascript then
-      // be sure that you call requireBinding('tcp') before it.
-      assert(binding_cache->Has(String::New("tcp")));
-      exports = Object::New();
-      HTTPServer::Initialize(exports);
-      HTTPConnection::Initialize(exports);
-      binding_cache->Set(module, exports);
-    }
-
-  } else if (!strcmp(*module_v, "tcp")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
-      Server::Initialize(exports);
-      Connection::Initialize(exports);
-      binding_cache->Set(module, exports);
-    }
-
   } else if (!strcmp(*module_v, "cares")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();
@@ -1643,7 +1618,6 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("freelist"),     String::New(native_freelist));
       exports->Set(String::New("fs"),           String::New(native_fs));
       exports->Set(String::New("http"),         String::New(native_http));
-      exports->Set(String::New("http_old"),     String::New(native_http_old));
       exports->Set(String::New("crypto"),       String::New(native_crypto));
       exports->Set(String::New("ini"),          String::New(native_ini));
       exports->Set(String::New("mjsunit"),      String::New(native_mjsunit));
@@ -1653,7 +1627,6 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("repl"),         String::New(native_repl));
       exports->Set(String::New("sys"),          String::New(native_sys));
       exports->Set(String::New("tcp"),          String::New(native_tcp));
-      exports->Set(String::New("tcp_old"),      String::New(native_tcp_old));
       exports->Set(String::New("uri"),          String::New(native_uri));
       exports->Set(String::New("url"),          String::New(native_url));
       exports->Set(String::New("utils"),        String::New(native_utils));
@@ -1895,9 +1868,6 @@ int main(int argc, char *argv[]) {
     node::PrintHelp();
     return 1;
   }
-
-  // Ignore the SIGPIPE
-  evcom_ignore_sigpipe();
 
   // Initialize the default ev loop.
 #ifdef __sun

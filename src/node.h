@@ -5,7 +5,6 @@
 #include <ev.h>
 #include <eio.h>
 #include <v8.h>
-#include <evcom.h>
 #include <sys/types.h> /* struct stat */
 #include <sys/stat.h>
 

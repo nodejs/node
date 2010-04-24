@@ -295,22 +295,6 @@ def build(bld):
     bld.add_subdirs('deps/libeio')
 
 
-
-  ### evcom
-  evcom = bld.new_task_gen("cc")
-  evcom.source = "deps/evcom/evcom.c"
-  if not bld.env["USE_SYSTEM"]:
-    evcom.includes = "deps/evcom/ deps/libev/"
-  else:
-    evcom.includes = "deps/evcom/"
-  evcom.name = "evcom"
-  evcom.target = "evcom"
-  evcom.uselib = "GPGERROR GNUTLS"
-  evcom.install_path = None
-  if bld.env["USE_DEBUG"]:
-    evcom.clone("debug")
-  bld.install_files('${PREFIX}/include/node/', 'deps/evcom/evcom.h')
-
   ### http_parser
   http_parser = bld.new_task_gen("cc")
   http_parser.source = "deps/http_parser/http_parser.c"
@@ -397,8 +381,6 @@ def build(bld):
     src/node_cares.cc
     src/node_events.cc
     src/node_file.cc
-    src/node_http.cc
-    src/node_net.cc
     src/node_signal_watcher.cc
     src/node_stat_watcher.cc
     src/node_stdio.cc
@@ -415,7 +397,6 @@ def build(bld):
       deps/libev
       deps/c-ares
       deps/libeio
-      deps/evcom 
       deps/http_parser
       deps/coupling
     """
@@ -423,18 +404,17 @@ def build(bld):
     node.includes += ' deps/c-ares/' + bld.env['DEST_OS'] + '-' + bld.env['DEST_CPU']
 
 
-    node.add_objects = 'cares ev eio evcom http_parser coupling'
+    node.add_objects = 'cares ev eio http_parser coupling'
     node.uselib_local = ''
     node.uselib = 'RT OPENSSL GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
   else:
     node.includes = """
       src/
       deps/libeio
-      deps/evcom 
       deps/http_parser
       deps/coupling
     """
-    node.add_objects = 'eio evcom http_parser coupling'
+    node.add_objects = 'eio http_parser coupling'
     node.uselib_local = 'eio'
     node.uselib = 'RT EV OPENSSL GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
 
@@ -478,7 +458,6 @@ def build(bld):
     src/node.h
     src/node_object_wrap.h
     src/node_events.h
-    src/node_net.h
   """)
 
   # Only install the man page if it exists. 

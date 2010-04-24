@@ -4,6 +4,10 @@
 #include <v8.h>
 #include <ares.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 

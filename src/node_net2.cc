@@ -14,6 +14,8 @@
 #include <fcntl.h>
 #include <arpa/inet.h> /* inet_pton */
 
+#include <netdb.h>
+
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
