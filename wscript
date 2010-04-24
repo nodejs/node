@@ -152,17 +152,6 @@ def configure(conf):
       conf.env["USE_OPENSSL"] = True
       conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
 
-  if conf.check_cfg(package='gnutls',
-                    args='--cflags --libs',
-                    atleast_version='2.5.0',
-                    #libpath=['/usr/lib', '/usr/local/lib'],
-                    uselib_store='GNUTLS'):
-    if conf.check(lib='gpg-error',
-                  libpath=['/usr/lib', '/usr/local/lib', '/opt/local/lib'],
-                  uselib_store='GPGERROR'):
-      conf.env.append_value("CCFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
-      conf.env.append_value("CXXFLAGS", "-DEVCOM_HAVE_GNUTLS=1")
-
   conf.check(lib='rt', uselib_store='RT')
 
   if sys.platform.startswith("sunos"):
@@ -406,7 +395,7 @@ def build(bld):
 
     node.add_objects = 'cares ev eio http_parser coupling'
     node.uselib_local = ''
-    node.uselib = 'RT OPENSSL GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
+    node.uselib = 'RT OPENSSL UDNS V8 EXECINFO DL KVM SOCKET NSL'
   else:
     node.includes = """
       src/
@@ -416,7 +405,7 @@ def build(bld):
     """
     node.add_objects = 'eio http_parser coupling'
     node.uselib_local = 'eio'
-    node.uselib = 'RT EV OPENSSL GNUTLS GPGERROR UDNS V8 EXECINFO DL KVM SOCKET NSL'
+    node.uselib = 'RT EV OPENSSL UDNS V8 EXECINFO DL KVM SOCKET NSL'
 
   node.install_path = '${PREFIX}/lib'
   node.install_path = '${PREFIX}/bin'
