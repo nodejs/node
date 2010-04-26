@@ -21,7 +21,7 @@ var hosts = ['example.com', 'example.org',
              '_xmpp-client._tcp.google.com', // SRV
              'oakalynhall.co.uk']; // Multiple PTR replies
 
-var records = ['A', 'AAAA', 'TXT', 'SRV'];
+var records = ['A', 'AAAA', 'MX', 'TXT', 'SRV'];
 
 var i = hosts.length;
 while (i--) {
