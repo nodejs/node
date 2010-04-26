@@ -35,9 +35,9 @@ one-to-one correspondence.  As an example, `foo.js` loads the module
 
 The contents of `foo.js`:
 
-    var circle = require('./circle'),
+    var circle = require('./circle');
     var sys = require('sys');
-    sys.puts( 'The area of a circle of radius 4 is ' 
+    sys.puts( 'The area of a circle of radius 4 is '
             + circle.area(4));
 
 The contents of `circle.js`:
