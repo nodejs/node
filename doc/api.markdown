@@ -1773,7 +1773,8 @@ Example of connecting to `google.com`:
     var sys = require('sys'),
        http = require('http');
     var google = http.createClient(80, 'www.google.com');
-    var request = google.request('GET', '/', {'host': 'www.google.com'});
+    var request = google.request('GET', '/',
+      {'host': 'www.google.com'});
     request.addListener('response', function (response) {
       sys.puts('STATUS: ' + response.statusCode);
       sys.puts('HEADERS: ' + JSON.stringify(response.headers));
@@ -2184,9 +2185,11 @@ resolves the IP addresses which are returned.
         var a = addresses[i];
         dns.reverse(a, function (err, domains) {
           if (err) {
-            sys.puts('reverse for ' + a + ' failed: ' + err.message);
+            sys.puts('reverse for ' + a + ' failed: ' + 
+              err.message);
           } else {
-            sys.puts('reverse for ' + a + ': ' + JSON.stringify(domains));
+            sys.puts('reverse for ' + a + ': ' + 
+              JSON.stringify(domains));
           }
         });
       }
@@ -2211,7 +2214,8 @@ the error in English.
 ### dns.resolve4(domain, callback)
 
 The same as `dns.resolve()`, but only for IPv4 queries (`A` records). 
-`addresses` is an array of IPv4 addresses (e.g.  `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
+`addresses` is an array of IPv4 addresses (e.g.  
+`['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
 ### dns.resolve6(domain, callback)
 
@@ -2235,7 +2239,8 @@ The same as `dns.resolve()`, but only for text queries (`TXT` records).
 
 The same as `dns.resolve()`, but only for service records (`SRV` records).
 `addresses` is an array of the SRV records available for `domain`. Properties
-of SRV records are priority, weight, port, and name (e.g., `[{'priority': 10, {'weight': 5, 'port': 21223, 'name': 'service.example.com'}, ...]`).
+of SRV records are priority, weight, port, and name (e.g., 
+`[{'priority': 10, {'weight': 5, 'port': 21223, 'name': 'service.example.com'}, ...]`).
 
 ### dns.reverse(ip, callback)
 
@@ -2311,7 +2316,8 @@ This module contains utilities for dealing with file paths.  Use
 
 Join all arguments together and resolve the resulting path.  Example:
 
-    node> require('path').join('/foo', 'bar', 'baz/asdf', 'quux', '..')
+    node> require('path').join(
+    ...   '/foo', 'bar', 'baz/asdf', 'quux', '..')
     '/foo/bar/baz/asdf'
 
 ### path.normalizeArray(arr)
@@ -2580,9 +2586,9 @@ to the REPL explicitly by assigning it to the `scope` object associated with eac
 
     // repl_test.js
     var repl = require("repl"),
-        message = "message";
+        msg = "message";
 
-    repl.start().scope.m = message;
+    repl.start().scope.m = msg;
 
 Things in the `scope` object appear as local within the REPL:
 
@@ -2612,22 +2618,22 @@ one-to-one correspondence.  As an example, `foo.js` loads the module
 
 The contents of `foo.js`:
 
-  var circle = require('./circle'),
-      sys = require('sys');
-  sys.puts( 'The area of a circle of radius 4 is '
-          + circle.area(4));
+    var circle = require('./circle'),
+        sys = require('sys');
+    sys.puts( 'The area of a circle of radius 4 is '
+      + circle.area(4));
 
 The contents of `circle.js`:
 
-  var PI = 3.14;
+    var PI = 3.14;
 
-  exports.area = function (r) {
-    return PI * r * r;
-  };
+    exports.area = function (r) {
+      return PI * r * r;
+    };
 
-  exports.circumference = function (r) {
-    return 2 * PI * r;
-  };
+    exports.circumference = function (r) {
+      return 2 * PI * r;
+    };
 
 The module `circle.js` has exported the functions `area()` and
 `circumference()`.  To export an object, add to the special `exports`
@@ -2742,4 +2748,4 @@ All Node addons must export a function called `init` with this signature:
     extern 'C' void init (Handle<Object> target) 
 
 For the moment, that is all the documentation on addons. Please see
-<http://github.com/ry/node_postgres[node_postgres]> for a real example.
+<http://github.com/ry/node_postgres> for a real example.
