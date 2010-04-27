@@ -304,8 +304,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 #endif
 
   // New scope to get automatic timing calculation.
-  {  // NOLINT
-    HistogramTimerScope codegen_timer(&Counters::code_generation);
+  { HistogramTimerScope codegen_timer(&Counters::code_generation);
     CodeGenState state(this);
 
     // Entry:
@@ -3118,6 +3117,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         GenericUnaryOpStub stub(Token::SUB, overwrite);
         Result operand = frame_->Pop();
         Result answer = frame_->CallStub(&stub, &operand);
+        answer.set_type_info(TypeInfo::Number());
         frame_->Push(&answer);
         break;
       }
@@ -3141,6 +3141,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         frame_->Spill(answer.reg());
         __ SmiNot(answer.reg(), answer.reg());
         continue_label.Bind(&answer);
+        answer.set_type_info(TypeInfo::Smi());
         frame_->Push(&answer);
         break;
       }
@@ -3149,6 +3150,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         // Smi check.
         JumpTarget continue_label;
         Result operand = frame_->Pop();
+        TypeInfo operand_info = operand.type_info();
         operand.ToRegister();
         Condition is_smi = masm_->CheckSmi(operand.reg());
         continue_label.Branch(is_smi, &operand);
@@ -3157,10 +3159,16 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
                                               CALL_FUNCTION, 1);
 
         continue_label.Bind(&answer);
+        if (operand_info.IsSmi()) {
+          answer.set_type_info(TypeInfo::Smi());
+        } else if (operand_info.IsInteger32()) {
+          answer.set_type_info(TypeInfo::Integer32());
+        } else {
+          answer.set_type_info(TypeInfo::Number());
+        }
         frame_->Push(&answer);
         break;
       }
-
       default:
         UNREACHABLE();
     }
@@ -4297,17 +4305,23 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
     frame_->Push(Factory::undefined_value());
     return;
   }
-  Handle<FixedArray> cache_obj(
-      FixedArray::cast(jsfunction_result_caches->get(cache_id)));
 
   Load(args->at(1));
   Result key = frame_->Pop();
   key.ToRegister();
 
   Result cache = allocator()->Allocate();
-  __ movq(cache.reg(), cache_obj, RelocInfo::EMBEDDED_OBJECT);
+  ASSERT(cache.is_valid());
+  __ movq(cache.reg(), ContextOperand(rsi, Context::GLOBAL_INDEX));
+  __ movq(cache.reg(),
+          FieldOperand(cache.reg(), GlobalObject::kGlobalContextOffset));
+  __ movq(cache.reg(),
+          ContextOperand(cache.reg(), Context::JSFUNCTION_RESULT_CACHES_INDEX));
+  __ movq(cache.reg(),
+          FieldOperand(cache.reg(), FixedArray::OffsetOfElementAt(cache_id)));
 
   Result tmp = allocator()->Allocate();
+  ASSERT(tmp.is_valid());
 
   DeferredSearchCache* deferred = new DeferredSearchCache(tmp.reg(),
                                                           cache.reg(),
@@ -5297,6 +5311,15 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
 }
 
 
+static bool CouldBeNaN(const Result& result) {
+  if (result.type_info().IsSmi()) return false;
+  if (result.type_info().IsInteger32()) return false;
+  if (!result.is_constant()) return true;
+  if (!result.handle()->IsHeapNumber()) return false;
+  return isnan(HeapNumber::cast(*result.handle())->value());
+}
+
+
 void CodeGenerator::Comparison(AstNode* node,
                                Condition cc,
                                bool strict,
@@ -5614,15 +5637,29 @@ void CodeGenerator::Comparison(AstNode* node,
       right_side.Unuse();
       dest->Split(cc);
     }
-  } else {  // Neither side is a constant Smi or null.
+  } else {
+    // Neither side is a constant Smi, constant 1-char string, or constant null.
     // If either side is a non-smi constant, skip the smi check.
     bool known_non_smi =
         (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
         (right_side.is_constant() && !right_side.handle()->IsSmi());
+
+    NaNInformation nan_info =
+        (CouldBeNaN(left_side) && CouldBeNaN(right_side)) ?
+        kBothCouldBeNaN :
+        kCantBothBeNaN;
+
     left_side.ToRegister();
     right_side.ToRegister();
 
     if (known_non_smi) {
+      // If at least one of the objects is not NaN, then if the objects
+      // are identical, they are equal.
+      if (nan_info == kCantBothBeNaN && cc == equal) {
+        __ cmpq(left_side.reg(), right_side.reg());
+        dest->true_target()->Branch(equal);
+      }
+
       // When non-smi, call out to the compare stub.
       CompareStub stub(cc, strict);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
@@ -5642,7 +5679,14 @@ void CodeGenerator::Comparison(AstNode* node,
 
       Condition both_smi = masm_->CheckBothSmi(left_reg, right_reg);
       is_smi.Branch(both_smi);
-      // When non-smi, call out to the compare stub.
+      // When non-smi, call out to the compare stub, after inlined checks.
+      // If at least one of the objects is not NaN, then if the objects
+      // are identical, they are equal.
+      if (nan_info == kCantBothBeNaN && cc == equal) {
+        __ cmpq(left_side.reg(), right_side.reg());
+        dest->true_target()->Branch(equal);
+      }
+
       CompareStub stub(cc, strict);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       __ SmiTest(answer.reg());  // Sets both zero and sign flags.
@@ -5688,6 +5732,57 @@ void DeferredInlineBinaryOperation::Generate() {
   GenericBinaryOpStub stub(op_, mode_, NO_SMI_CODE_IN_STUB);
   stub.GenerateCall(masm_, left_, right_);
   if (!dst_.is(rax)) __ movq(dst_, rax);
+}
+
+
+static TypeInfo CalculateTypeInfo(TypeInfo operands_type,
+                                  Token::Value op,
+                                  const Result& right,
+                                  const Result& left) {
+  // Set TypeInfo of result according to the operation performed.
+  // We rely on the fact that smis have a 32 bit payload on x64.
+  STATIC_ASSERT(kSmiValueSize == 32);
+  switch (op) {
+    case Token::COMMA:
+      return right.type_info();
+    case Token::OR:
+    case Token::AND:
+      // Result type can be either of the two input types.
+      return operands_type;
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+      // Result is always a smi.
+      return TypeInfo::Smi();
+    case Token::SAR:
+    case Token::SHL:
+      // Result is always a smi.
+      return TypeInfo::Smi();
+    case Token::SHR:
+      // Result of x >>> y is always a smi if masked y >= 1, otherwise a number.
+      return (right.is_constant() && right.handle()->IsSmi()
+                     && (Smi::cast(*right.handle())->value() & 0x1F) >= 1)
+          ? TypeInfo::Smi()
+          : TypeInfo::Number();
+    case Token::ADD:
+      if (operands_type.IsNumber()) {
+        return TypeInfo::Number();
+      } else if (left.type_info().IsString() || right.type_info().IsString()) {
+        return TypeInfo::String();
+      } else {
+        return TypeInfo::Unknown();
+      }
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
+      // Result is always a number.
+      return TypeInfo::Number();
+    default:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+  return TypeInfo::Unknown();
 }
 
 
@@ -5756,6 +5851,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   TypeInfo operands_type =
       TypeInfo::Combine(left.type_info(), right.type_info());
 
+  TypeInfo result_type = CalculateTypeInfo(operands_type, op, right, left);
+
   Result answer;
   if (left_is_non_smi_constant || right_is_non_smi_constant) {
     GenericBinaryOpStub stub(op,
@@ -5786,56 +5883,6 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     }
   }
 
-  // Set TypeInfo of result according to the operation performed.
-  // We rely on the fact that smis have a 32 bit payload on x64.
-  ASSERT(kSmiValueSize == 32);
-  TypeInfo result_type = TypeInfo::Unknown();
-  switch (op) {
-    case Token::COMMA:
-      result_type = right.type_info();
-      break;
-    case Token::OR:
-    case Token::AND:
-      // Result type can be either of the two input types.
-      result_type = operands_type;
-      break;
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND:
-      // Result is always a smi.
-      result_type = TypeInfo::Smi();
-      break;
-    case Token::SAR:
-    case Token::SHL:
-      // Result is always a smi.
-      result_type = TypeInfo::Smi();
-      break;
-    case Token::SHR:
-      // Result of x >>> y is always a smi if y >= 1, otherwise a number.
-      result_type = (right.is_constant() && right.handle()->IsSmi()
-                     && Smi::cast(*right.handle())->value() >= 1)
-          ? TypeInfo::Smi()
-          : TypeInfo::Number();
-      break;
-    case Token::ADD:
-      if (operands_type.IsNumber()) {
-        result_type = TypeInfo::Number();
-      } else if (operands_type.IsString()) {
-        result_type = TypeInfo::String();
-      } else {
-        result_type = TypeInfo::Unknown();
-      }
-      break;
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV:
-    case Token::MOD:
-      // Result is always a number.
-      result_type = TypeInfo::Number();
-      break;
-    default:
-      UNREACHABLE();
-  }
   answer.set_type_info(result_type);
   frame_->Push(&answer);
 }

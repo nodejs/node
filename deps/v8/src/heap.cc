@@ -2188,9 +2188,11 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
-    filler->set_map(Heap::one_pointer_filler_map());
+    filler->set_map(one_pointer_filler_map());
+  } else if (size == 2 * kPointerSize) {
+    filler->set_map(two_pointer_filler_map());
   } else {
-    filler->set_map(Heap::byte_array_map());
+    filler->set_map(byte_array_map());
     ByteArray::cast(filler)->set_length(ByteArray::LengthFor(size));
   }
 }

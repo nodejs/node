@@ -669,3 +669,12 @@ intConversion();
 function shiftByZero(n) { return n << 0; }
 
 assertEquals(3, shiftByZero(3.1415));
+
+// Verify that the static type information of x >>> 32 is computed correctly.
+function LogicalShiftRightByMultipleOf32(x) {
+  x = x >>> 32;
+  return x + x;
+}
+
+assertEquals(4589934592, LogicalShiftRightByMultipleOf32(-2000000000));
+assertEquals(4589934592, LogicalShiftRightByMultipleOf32(-2000000000));

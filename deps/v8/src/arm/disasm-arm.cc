@@ -34,10 +34,9 @@
 //   NameConverter converter;
 //   Disassembler d(converter);
 //   for (byte* pc = begin; pc < end;) {
-//     char buffer[128];
-//     buffer[0] = '\0';
+//     v8::internal::EmbeddedVector<char, 256> buffer;
 //     byte* prev_pc = pc;
-//     pc += d.InstructionDecode(buffer, sizeof buffer, pc);
+//     pc += d.InstructionDecode(buffer, pc);
 //     printf("%p    %08x      %s\n",
 //            prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer);
 //   }

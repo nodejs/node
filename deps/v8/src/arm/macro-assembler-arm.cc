@@ -117,18 +117,19 @@ void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
   //  ldr ip, [pc, #...]
   //  blx ip
 
-  // The two instructions (ldr and blx) could be separated by a literal
+  // The two instructions (ldr and blx) could be separated by a constant
   // pool and the code would still work. The issue comes from the
   // patching code which expect the ldr to be just above the blx.
-  BlockConstPoolFor(2);
-  // Statement positions are expected to be recorded when the target
-  // address is loaded. The mov method will automatically record
-  // positions when pc is the target, since this is not the case here
-  // we have to do it explicitly.
-  WriteRecordedPositions();
+  { BlockConstPoolScope block_const_pool(this);
+    // Statement positions are expected to be recorded when the target
+    // address is loaded. The mov method will automatically record
+    // positions when pc is the target, since this is not the case here
+    // we have to do it explicitly.
+    WriteRecordedPositions();
 
-  mov(ip, Operand(target, rmode), LeaveCC, cond);
-  blx(ip, cond);
+    mov(ip, Operand(target, rmode), LeaveCC, cond);
+    blx(ip, cond);
+  }
 
   ASSERT(kCallTargetAddressOffset == 2 * kInstrSize);
 #else

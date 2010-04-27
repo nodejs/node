@@ -306,6 +306,7 @@ Assembler::Assembler(void* buffer, int buffer_size) {
   reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
   num_prinfo_ = 0;
   next_buffer_check_ = 0;
+  const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   last_const_pool_end_ = 0;
   last_bound_pos_ = 0;
@@ -317,6 +318,7 @@ Assembler::Assembler(void* buffer, int buffer_size) {
 
 
 Assembler::~Assembler() {
+  ASSERT(const_pool_blocked_nesting_ == 0);
   if (own_buffer_) {
     if (spare_buffer_ == NULL && buffer_size_ == kMinimalBufferSize) {
       spare_buffer_ = buffer_;
@@ -348,6 +350,51 @@ void Assembler::Align(int m) {
 }
 
 
+bool Assembler::IsNop(Instr instr, int type) {
+  // Check for mov rx, rx.
+  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
+  return instr == (al | 13*B21 | type*B12 | type);
+}
+
+
+bool Assembler::IsBranch(Instr instr) {
+  return (instr & (B27 | B25)) == (B27 | B25);
+}
+
+
+int Assembler::GetBranchOffset(Instr instr) {
+  ASSERT(IsBranch(instr));
+  // Take the jump offset in the lower 24 bits, sign extend it and multiply it
+  // with 4 to get the offset in bytes.
+  return ((instr & Imm24Mask) << 8) >> 6;
+}
+
+
+bool Assembler::IsLdrRegisterImmediate(Instr instr) {
+  return (instr & (B27 | B26 | B25 | B22 | B20)) == (B26 | B20);
+}
+
+
+int Assembler::GetLdrRegisterImmediateOffset(Instr instr) {
+  ASSERT(IsLdrRegisterImmediate(instr));
+  bool positive = (instr & B23) == B23;
+  int offset = instr & Off12Mask;  // Zero extended offset.
+  return positive ? offset : -offset;
+}
+
+
+Instr Assembler::SetLdrRegisterImmediateOffset(Instr instr, int offset) {
+  ASSERT(IsLdrRegisterImmediate(instr));
+  bool positive = offset >= 0;
+  if (!positive) offset = -offset;
+  ASSERT(is_uint12(offset));
+  // Set bit indicating whether the offset should be added.
+  instr = (instr & ~B23) | (positive ? B23 : 0);
+  // Set the actual offset.
+  return (instr & ~Off12Mask) | offset;
+}
+
+
 // Labels refer to positions in the (to be) generated code.
 // There are bound, linked, and unused labels.
 //
@@ -371,10 +418,10 @@ int Assembler::target_at(int pos)  {
   }
   ASSERT((instr & 7*B25) == 5*B25);  // b, bl, or blx imm24
   int imm26 = ((instr & Imm24Mask) << 8) >> 6;
-  if ((instr & CondMask) == nv && (instr & B24) != 0)
+  if ((instr & CondMask) == nv && (instr & B24) != 0) {
     // blx uses bit 24 to encode bit 2 of imm26
     imm26 += 2;
-
+  }
   return pos + kPcLoadDelta + imm26;
 }
 
@@ -902,6 +949,10 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   if (dst.is(pc)) {
     WriteRecordedPositions();
   }
+  // Don't allow nop instructions in the form mov rn, rn to be generated using
+  // the mov instruction. They must be generated using nop(int)
+  // pseudo instructions.
+  ASSERT(!(src.is_reg() && src.rm().is(dst) && s == LeaveCC && cond == al));
   addrmod1(cond | 13*B21 | s, r0, dst, src);
 }
 
@@ -1691,6 +1742,13 @@ void Assembler::vmrs(Register dst, Condition cond) {
 
 
 // Pseudo instructions.
+void Assembler::nop(int type) {
+  // This is mov rx, rx.
+  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
+  emit(al | 13*B21 | type*B12 | type);
+}
+
+
 void Assembler::lea(Register dst,
                     const MemOperand& x,
                     SBit s,
@@ -1723,11 +1781,6 @@ bool Assembler::ImmediateFitsAddrMode1Instruction(int32_t imm32) {
   uint32_t dummy1;
   uint32_t dummy2;
   return fits_shifter(imm32, &dummy1, &dummy2, NULL);
-}
-
-
-void Assembler::BlockConstPoolFor(int instructions) {
-  BlockConstPoolBefore(pc_offset() + instructions * kInstrSize);
 }
 
 
@@ -1894,12 +1947,17 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   // However, some small sequences of instructions must not be broken up by the
   // insertion of a constant pool; such sequences are protected by setting
-  // no_const_pool_before_, which is checked here. Also, recursive calls to
-  // CheckConstPool are blocked by no_const_pool_before_.
-  if (pc_offset() < no_const_pool_before_) {
+  // either const_pool_blocked_nesting_ or no_const_pool_before_, which are
+  // both checked here. Also, recursive calls to CheckConstPool are blocked by
+  // no_const_pool_before_.
+  if (const_pool_blocked_nesting_ > 0 || pc_offset() < no_const_pool_before_) {
     // Emission is currently blocked; make sure we try again as soon as
     // possible.
-    next_buffer_check_ = no_const_pool_before_;
+    if (const_pool_blocked_nesting_ > 0) {
+      next_buffer_check_ = pc_offset() + kInstrSize;
+    } else {
+      next_buffer_check_ = no_const_pool_before_;
+    }
 
     // Something is wrong if emission is forced and blocked at the same time.
     ASSERT(!force_emit);

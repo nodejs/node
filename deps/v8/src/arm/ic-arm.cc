@@ -27,7 +27,9 @@
 
 #include "v8.h"
 
+#include "assembler-arm.h"
 #include "codegen-inl.h"
+#include "disasm.h"
 #include "ic-inl.h"
 #include "runtime.h"
 #include "stub-cache.h"
@@ -561,21 +563,72 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-// TODO(181): Implement map patching once loop nesting is tracked on the
-// ARM platform so we can generate inlined fast-case code loads in
-// loops.
-void LoadIC::ClearInlinedVersion(Address address) {}
-bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
-  return false;
+void LoadIC::ClearInlinedVersion(Address address) {
+  // Reset the map check of the inlined inobject property load (if present) to
+  // guarantee failure by holding an invalid map (the null value). The offset
+  // can be patched to anything.
+  PatchInlinedLoad(address, Heap::null_value(), 0);
 }
 
+
+bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
+  // If the instruction after the call site is not the pseudo instruction nop1
+  // then this is not related to an inlined in-object property load. The nop1
+  // instruction is located just after the call to the IC in the deferred code
+  // handling the miss in the inlined code. After the nop1 instruction there is
+  // a branch instruction for jumping back from the deferred code.
+  Address address_after_call = address + Assembler::kCallTargetAddressOffset;
+  Instr instr_after_call = Assembler::instr_at(address_after_call);
+  if (!Assembler::IsNop(instr_after_call, NAMED_PROPERTY_LOAD_INLINED)) {
+    return false;
+  }
+  ASSERT_EQ(0, RegisterAllocator::kNumRegisters);
+  Address address_after_nop1 = address_after_call + Assembler::kInstrSize;
+  Instr instr_after_nop1 = Assembler::instr_at(address_after_nop1);
+  ASSERT(Assembler::IsBranch(instr_after_nop1));
+
+  // Find the end of the inlined code for handling the load.
+  int b_offset =
+      Assembler::GetBranchOffset(instr_after_nop1) + Assembler::kPcLoadDelta;
+  ASSERT(b_offset < 0);  // Jumping back from deferred code.
+  Address inline_end_address = address_after_nop1 + b_offset;
+
+  // Patch the offset of the property load instruction (ldr r0, [r1, #+XXX]).
+  // The immediate must be represenatble in 12 bits.
+  ASSERT((JSObject::kMaxInstanceSize - JSObject::kHeaderSize) < (1 << 12));
+  Address ldr_property_instr_address = inline_end_address - 4;
+  ASSERT(Assembler::IsLdrRegisterImmediate(
+      Assembler::instr_at(ldr_property_instr_address)));
+  Instr ldr_property_instr = Assembler::instr_at(ldr_property_instr_address);
+  ldr_property_instr = Assembler::SetLdrRegisterImmediateOffset(
+      ldr_property_instr, offset - kHeapObjectTag);
+  Assembler::instr_at_put(ldr_property_instr_address, ldr_property_instr);
+
+  // Indicate that code has changed.
+  CPU::FlushICache(ldr_property_instr_address, 1 * Assembler::kInstrSize);
+
+  // Patch the map check.
+  Address ldr_map_instr_address = inline_end_address - 16;
+  Assembler::set_target_address_at(ldr_map_instr_address,
+                                   reinterpret_cast<Address>(map));
+  return true;
+}
+
+
 void KeyedLoadIC::ClearInlinedVersion(Address address) {}
+
+
 bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
   return false;
 }
 
+
 void KeyedStoreIC::ClearInlinedVersion(Address address) {}
+
+
 void KeyedStoreIC::RestoreInlinedVersion(Address address) {}
+
+
 bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
   return false;
 }
@@ -656,8 +709,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ b(ne, &check_pixel_array);
   // Check that the key (index) is within bounds.
   __ ldr(r3, FieldMemOperand(r1, Array::kLengthOffset));
-  __ cmp(r0, Operand(r3));
-  __ b(ge, &slow);
+  __ cmp(r0, r3);
+  __ b(hs, &slow);
   // Fast case: Do the load.
   __ add(r3, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2));

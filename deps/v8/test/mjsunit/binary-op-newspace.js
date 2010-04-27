@@ -25,44 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
+/**
+ * @fileoverview Check that a mod where the stub code hits a failure
+ * in heap number allocation still works.
+ */
 
-Debug = debug.Debug
+// Flags: --max-new-space-size=131072
 
-eval("var something1 = 25; \n"
-     + "var something2 = 2010; \n"
-     + "function ChooseAnimal() {\n"
-     + "  return 'Cat';\n"
-     + "} \n"
-     + "function ChooseFurniture() {\n"
-     + "  return 'Table';\n"
-     + "} \n"
-     + "function ChooseNumber() { return 17; } \n"
-     + "ChooseAnimal.Factory = function Factory() {\n"
-     + "  return function FactoryImpl(name) {\n"
-     + "    return 'Help ' + name;\n"
-     + "  }\n"
-     + "}\n");
+function f(x) {
+  return x % 3;
+}
 
-assertEquals("Cat", ChooseAnimal());
-assertEquals(25, something1);
+function test() {
+  for (var i = 0; i < 20000; i++) {
+    assertEquals(-1 / 0, 1 / f(-3));
+  }
+}
 
-var script = Debug.findScript(ChooseAnimal);
-
-var new_source = script.source.replace("Cat", "Cap' + 'yb' + 'ara");
-var new_source = new_source.replace("25", "26");
-var new_source = new_source.replace("Help", "Hello");
-var new_source = new_source.replace("17", "18");
-print("new source: " + new_source);
-
-var change_log = new Array();
-Debug.LiveEdit.SetScriptSource(script, new_source, change_log);
-print("Change log: " + JSON.stringify(change_log) + "\n");
-
-assertEquals("Capybara", ChooseAnimal());
-// Global variable do not get changed (without restarting script).
-assertEquals(25, something1);
-// Function is oneliner, so currently it is treated as damaged and not patched.
-assertEquals(17, ChooseNumber());
-assertEquals("Hello Peter", ChooseAnimal.Factory()("Peter"));
+test();

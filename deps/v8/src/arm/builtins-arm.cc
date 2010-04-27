@@ -593,7 +593,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&loop);
       __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
       __ bind(&entry);
-      __ cmp(r5, Operand(r6));
+      __ cmp(r5, r6);
       __ b(lt, &loop);
     }
 
@@ -666,7 +666,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&loop);
       __ str(r7, MemOperand(r2, kPointerSize, PostIndex));
       __ bind(&entry);
-      __ cmp(r2, Operand(r6));
+      __ cmp(r2, r6);
       __ b(lt, &loop);
     }
 
@@ -863,7 +863,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ ldr(r0, MemOperand(r0));  // dereference handle
   __ push(r0);  // push parameter
   __ bind(&entry);
-  __ cmp(r4, Operand(r2));
+  __ cmp(r4, r2);
   __ b(ne, &loop);
 
   // Initialize all JavaScript callee-saved registers, since they will be seen
@@ -1213,7 +1213,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   Label invoke, dont_adapt_arguments;
 
   Label enough, too_few;
-  __ cmp(r0, Operand(r2));
+  __ cmp(r0, r2);
   __ b(lt, &too_few);
   __ cmp(r2, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ b(eq, &dont_adapt_arguments);

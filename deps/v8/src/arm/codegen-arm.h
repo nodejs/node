@@ -144,6 +144,24 @@ class CodeGenState BASE_EMBEDDED {
 
 
 // -------------------------------------------------------------------------
+// Arguments allocation mode
+
+enum ArgumentsAllocationMode {
+  NO_ARGUMENTS_ALLOCATION,
+  EAGER_ARGUMENTS_ALLOCATION,
+  LAZY_ARGUMENTS_ALLOCATION
+};
+
+
+// Different nop operations are used by the code generator to detect certain
+// states of the generated code.
+enum NopMarkerTypes {
+  NON_MARKING_NOP = 0,
+  NAMED_PROPERTY_LOAD_INLINED
+};
+
+
+// -------------------------------------------------------------------------
 // CodeGenerator
 
 class CodeGenerator: public AstVisitor {
@@ -241,6 +259,12 @@ class CodeGenerator: public AstVisitor {
   // Main code generation function
   void Generate(CompilationInfo* info);
 
+  // Returns the arguments allocation mode.
+  ArgumentsAllocationMode ArgumentsMode();
+
+  // Store the arguments object and allocate it if necessary.
+  void StoreArgumentsObject(bool initial);
+
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
   void UnloadReference(Reference* ref);
@@ -284,8 +308,13 @@ class CodeGenerator: public AstVisitor {
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
+  void LoadFromSlotCheckForArguments(Slot* slot, TypeofState state);
   // Store the value on top of the stack to a slot.
   void StoreToSlot(Slot* slot, InitState init_state);
+
+  // Load a named property, leaving it in r0. The receiver is passed on the
+  // stack, and remains there.
+  void EmitNamedLoad(Handle<String> name, bool is_contextual);
 
   // Load a keyed property, leaving it in r0.  The receiver and key are
   // passed on the stack, and remain there.
@@ -334,6 +363,14 @@ class CodeGenerator: public AstVisitor {
   void CallWithArguments(ZoneList<Expression*>* arguments,
                          CallFunctionFlags flags,
                          int position);
+
+  // An optimized implementation of expressions of the form
+  // x.apply(y, arguments).  We call x the applicand and y the receiver.
+  // The optimization avoids allocating an arguments object if possible.
+  void CallApplyLazy(Expression* applicand,
+                     Expression* receiver,
+                     VariableProxy* arguments,
+                     int position);
 
   // Control flow
   void Branch(bool if_true, JumpTarget* target);

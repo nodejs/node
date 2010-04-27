@@ -115,7 +115,9 @@ function CompileRegExp(pattern, flags) {
 
 
 function DoRegExpExec(regexp, string, index) {
-  return %_RegExpExec(regexp, string, index, lastMatchInfo);
+  var result = %_RegExpExec(regexp, string, index, lastMatchInfo);
+  if (result !== null) lastMatchInfoOverride = null;
+  return result;
 }
 
 
@@ -136,7 +138,7 @@ var regExpCache = new RegExpCache();
 
 
 function CloneRegExpResult(array) {
-  if (array == null) return null; 
+  if (array == null) return null;
   var length = array.length;
   var answer = %_RegExpConstructResult(length, array.index, array.input);
   for (var i = 0; i < length; i++) {
@@ -237,7 +239,7 @@ function RegExpExec(string) {
     cache.type = 'exec';
     return matchIndices;        // No match.
   }
-
+  lastMatchInfoOverride = null;
   var result = BuildResultFromMatchInfo(matchIndices, s);
 
   if (this.global) {
@@ -312,7 +314,7 @@ function RegExpTest(string) {
     cache.answer = false;
     return false;
   }
-
+  lastMatchInfoOverride = null;
   if (this.global) this.lastIndex = lastMatchInfo[CAPTURE1];
   cache.answer = true;
   return true;
@@ -340,7 +342,9 @@ function RegExpToString() {
 // on the captures array of the last successful match and the subject string
 // of the last successful match.
 function RegExpGetLastMatch() {
-  if (lastMatchInfoOverride) { return lastMatchInfoOverride[0]; }
+  if (lastMatchInfoOverride !== null) {
+    return lastMatchInfoOverride[0];
+  }
   var regExpSubject = LAST_SUBJECT(lastMatchInfo);
   return SubString(regExpSubject,
                    lastMatchInfo[CAPTURE0],

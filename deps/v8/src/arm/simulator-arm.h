@@ -89,10 +89,42 @@ class SimulatorStack : public v8::internal::AllStatic {
 
 
 #include "constants-arm.h"
+#include "hashmap.h"
 
 
 namespace assembler {
 namespace arm {
+
+class CachePage {
+ public:
+  static const int LINE_VALID = 0;
+  static const int LINE_INVALID = 1;
+
+  static const int kPageShift = 12;
+  static const int kPageSize = 1 << kPageShift;
+  static const int kPageMask = kPageSize - 1;
+  static const int kLineShift = 2;  // The cache line is only 4 bytes right now.
+  static const int kLineLength = 1 << kLineShift;
+  static const int kLineMask = kLineLength - 1;
+
+  CachePage() {
+    memset(&validity_map_, LINE_INVALID, sizeof(validity_map_));
+  }
+
+  char* ValidityByte(int offset) {
+    return &validity_map_[offset >> kLineShift];
+  }
+
+  char* CachedData(int offset) {
+    return &data_[offset];
+  }
+
+ private:
+  char data_[kPageSize];   // The cached data.
+  static const int kValidityMapSize = kPageSize >> kLineShift;
+  char validity_map_[kValidityMapSize];  // One byte per line.
+};
+
 
 class Simulator {
  public:
@@ -161,6 +193,9 @@ class Simulator {
 
   // Pop an address from the JS stack.
   uintptr_t PopAddress();
+
+  // ICache checking.
+  static void FlushICache(void* start, size_t size);
 
  private:
   enum special_values {
@@ -239,6 +274,11 @@ class Simulator {
   // Executes one instruction.
   void InstructionDecode(Instr* instr);
 
+  // ICache.
+  static void CheckICache(Instr* instr);
+  static void FlushOnePage(intptr_t start, int size);
+  static CachePage* GetCachePage(void* page);
+
   // Runtime call support.
   static void* RedirectExternalReference(void* external_function,
                                          bool fp_return);
@@ -275,6 +315,9 @@ class Simulator {
   bool pc_modified_;
   int icount_;
   static bool initialized_;
+
+  // Icache simulation
+  static v8::internal::HashMap* i_cache_;
 
   // Registered breakpoints.
   Instr* break_pc_;

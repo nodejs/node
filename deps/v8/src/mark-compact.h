@@ -37,7 +37,11 @@ namespace internal {
 typedef bool (*IsAliveFunction)(HeapObject* obj, int* size, int* offset);
 
 // Callback function for non-live blocks in the old generation.
-typedef void (*DeallocateFunction)(Address start, int size_in_bytes);
+// If add_to_freelist is false then just accounting stats are updated and
+// no attempt to add area to free list is made.
+typedef void (*DeallocateFunction)(Address start,
+                                   int size_in_bytes,
+                                   bool add_to_freelist);
 
 
 // Forward declarations.
@@ -313,11 +317,25 @@ class MarkCompactCollector: public AllStatic {
 
   // Callback functions for deallocating non-live blocks in the old
   // generation.
-  static void DeallocateOldPointerBlock(Address start, int size_in_bytes);
-  static void DeallocateOldDataBlock(Address start, int size_in_bytes);
-  static void DeallocateCodeBlock(Address start, int size_in_bytes);
-  static void DeallocateMapBlock(Address start, int size_in_bytes);
-  static void DeallocateCellBlock(Address start, int size_in_bytes);
+  static void DeallocateOldPointerBlock(Address start,
+                                        int size_in_bytes,
+                                        bool add_to_freelist);
+
+  static void DeallocateOldDataBlock(Address start,
+                                     int size_in_bytes,
+                                     bool add_to_freelist);
+
+  static void DeallocateCodeBlock(Address start,
+                                  int size_in_bytes,
+                                  bool add_to_freelist);
+
+  static void DeallocateMapBlock(Address start,
+                                 int size_in_bytes,
+                                 bool add_to_freelist);
+
+  static void DeallocateCellBlock(Address start,
+                                  int size_in_bytes,
+                                  bool add_to_freelist);
 
   // If we are not compacting the heap, we simply sweep the spaces except
   // for the large object space, clearing mark bits and adding unmarked

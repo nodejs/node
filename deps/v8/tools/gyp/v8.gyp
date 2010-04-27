@@ -29,7 +29,7 @@
   'variables': {
     'msvs_use_common_release': 0,
     'gcc_version%': 'unknown',
-    'target_arch%': 'ia32',
+    'v8_target_arch%': '<(target_arch)',
     'v8_use_snapshot%': 'true',
   },
   'target_defaults': {
@@ -39,17 +39,17 @@
       'ENABLE_VMSTATE_TRACKING',
     ],
     'conditions': [
-      ['target_arch=="arm"', {
+      ['v8_target_arch=="arm"', {
         'defines': [
           'V8_TARGET_ARCH_ARM',
         ],
       }],
-      ['target_arch=="ia32"', {
+      ['v8_target_arch=="ia32"', {
         'defines': [
           'V8_TARGET_ARCH_IA32',
         ],
       }],
-      ['target_arch=="x64"', {
+      ['v8_target_arch=="x64"', {
         'defines': [
           'V8_TARGET_ARCH_X64',
         ],
@@ -204,7 +204,7 @@
       'conditions': [
         # The ARM assembler assumes the host is 32 bits, so force building
         # 32-bit host tools.
-        ['target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
+        ['v8_target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
           'cflags': ['-m32'],
           'ldflags': ['-m32'],
         }]
@@ -264,8 +264,8 @@
         '../../src/cpu-profiler-inl.h',
         '../../src/cpu-profiler.cc',
         '../../src/cpu-profiler.h',
-	'../../src/data-flow.cc',
-	'../../src/data-flow.h',
+        '../../src/data-flow.cc',
+        '../../src/data-flow.h',
         '../../src/dateparser.cc',
         '../../src/dateparser.h',
         '../../src/dateparser-inl.h',
@@ -396,8 +396,8 @@
         '../../src/token.h',
         '../../src/top.cc',
         '../../src/top.h',
-	'../../src/type-info.cc',
-	'../../src/type-info.h',
+        '../../src/type-info.cc',
+        '../../src/type-info.h',
         '../../src/unicode-inl.h',
         '../../src/unicode.cc',
         '../../src/unicode.h',
@@ -424,7 +424,7 @@
         '../../src/zone.h',
       ],
       'conditions': [
-        ['target_arch=="arm"', {
+        ['v8_target_arch=="arm"', {
           'include_dirs+': [
             '../../src/arm',
           ],
@@ -470,7 +470,7 @@
             }]
           ]
         }],
-        ['target_arch=="ia32"', {
+        ['v8_target_arch=="ia32"', {
           'include_dirs+': [
             '../../src/ia32',
           ],
@@ -505,7 +505,7 @@
             '../../src/ia32/virtual-frame-ia32.h',
           ],
         }],
-        ['target_arch=="x64"', {
+        ['v8_target_arch=="x64"', {
           'include_dirs+': [
             '../../src/x64',
           ],
@@ -656,7 +656,7 @@
       'conditions': [
         # The ARM assembler assumes the host is 32 bits, so force building
         # 32-bit host tools.
-        ['target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
+        ['v8_target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
           'cflags': ['-m32'],
           'ldflags': ['-m32'],
         }]

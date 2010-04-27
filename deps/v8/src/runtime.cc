@@ -9766,7 +9766,7 @@ static Object* Runtime_LiveEditCheckAndDropActivations(Arguments args) {
 }
 
 // Compares 2 strings line-by-line and returns diff in form of JSArray of
-// triplets (pos1, len1, len2) describing list of diff chunks.
+// triplets (pos1, pos1_end, pos2_end) describing list of diff chunks.
 static Object* Runtime_LiveEditCompareStringsLinewise(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;

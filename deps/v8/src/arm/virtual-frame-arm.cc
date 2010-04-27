@@ -299,6 +299,12 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 }
 
 
+void VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  CallCodeObject(ic, mode, 0);
+}
+
+
 void VirtualFrame::CallCodeObject(Handle<Code> code,
                                   RelocInfo::Mode rmode,
                                   int dropped_args) {

@@ -1,4 +1,18 @@
-2010-04-21: Version 2.3.4
+2010-04-26: Version 2.2.5
+
+        Various performance improvements (especially for ARM and x64)
+
+        Fixed bug in CPU profiling (http://crbug.com/42137)
+
+        Fixed a bug with the natives cache.
+        
+        Fixed two bugs in the ARM code generator that can cause 
+        wrong calculations.
+
+        Fixed a bug that may cause a wrong result for shift operations.
+
+
+2010-04-21: Version 2.2.4
 
         Fixed warnings on arm on newer GCC versions.
 

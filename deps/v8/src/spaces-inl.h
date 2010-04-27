@@ -145,6 +145,40 @@ bool Page::IsRSetSet(Address address, int offset) {
 }
 
 
+bool Page::GetPageFlag(PageFlag flag) {
+  return (flags & flag) != 0;
+}
+
+
+void Page::SetPageFlag(PageFlag flag, bool value) {
+  if (value) {
+    flags |= flag;
+  } else {
+    flags &= ~flag;
+  }
+}
+
+
+bool Page::WasInUseBeforeMC() {
+  return GetPageFlag(WAS_IN_USE_BEFORE_MC);
+}
+
+
+void Page::SetWasInUseBeforeMC(bool was_in_use) {
+  SetPageFlag(WAS_IN_USE_BEFORE_MC, was_in_use);
+}
+
+
+bool Page::IsLargeObjectPage() {
+  return !GetPageFlag(IS_NORMAL_PAGE);
+}
+
+
+void Page::SetIsLargeObjectPage(bool is_large_object_page) {
+  SetPageFlag(IS_NORMAL_PAGE, !is_large_object_page);
+}
+
+
 // -----------------------------------------------------------------------------
 // MemoryAllocator
 

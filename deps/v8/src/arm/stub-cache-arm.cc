@@ -53,7 +53,7 @@ static void ProbeTable(MacroAssembler* masm,
   // Check that the key in the entry matches the name.
   __ mov(ip, Operand(key_offset));
   __ ldr(ip, MemOperand(ip, offset, LSL, 1));
-  __ cmp(name, Operand(ip));
+  __ cmp(name, ip);
   __ b(ne, &miss);
 
   // Get the code entry from the cache.

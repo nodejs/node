@@ -896,7 +896,7 @@ class Assembler : public Malloced {
             const Condition cond = al);
 
   // Pseudo instructions
-  void nop()  { mov(r0, Operand(r0)); }
+  void nop(int type = 0);
 
   void push(Register src, Condition cond = al) {
     str(src, MemOperand(sp, 4, NegPreIndex), cond);
@@ -925,9 +925,21 @@ class Assembler : public Malloced {
   // Check whether an immediate fits an addressing mode 1 instruction.
   bool ImmediateFitsAddrMode1Instruction(int32_t imm32);
 
-  // Postpone the generation of the constant pool for the specified number of
-  // instructions.
-  void BlockConstPoolFor(int instructions);
+  // Class for scoping postponing the constant pool generation.
+  class BlockConstPoolScope {
+   public:
+    explicit BlockConstPoolScope(Assembler* assem) : assem_(assem) {
+      assem_->StartBlockConstPool();
+    }
+    ~BlockConstPoolScope() {
+      assem_->EndBlockConstPool();
+    }
+
+   private:
+    Assembler* assem_;
+
+    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
+  };
 
   // Debugging
 
@@ -946,14 +958,30 @@ class Assembler : public Malloced {
   int current_position() const { return current_position_; }
   int current_statement_position() const { return current_position_; }
 
+  void StartBlockConstPool() {
+    const_pool_blocked_nesting_++;
+  }
+  void EndBlockConstPool() {
+    const_pool_blocked_nesting_--;
+  }
+
+  // Read/patch instructions
+  static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
+  static void instr_at_put(byte* pc, Instr instr) {
+    *reinterpret_cast<Instr*>(pc) = instr;
+  }
+  static bool IsNop(Instr instr, int type = 0);
+  static bool IsBranch(Instr instr);
+  static int GetBranchOffset(Instr instr);
+  static bool IsLdrRegisterImmediate(Instr instr);
+  static int GetLdrRegisterImmediateOffset(Instr instr);
+  static Instr SetLdrRegisterImmediateOffset(Instr instr, int offset);
+
+
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Read/patch instructions
-  static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
-  void instr_at_put(byte* pc, Instr instr) {
-    *reinterpret_cast<Instr*>(pc) = instr;
-  }
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
   void instr_at_put(int pos, Instr instr) {
     *reinterpret_cast<Instr*>(buffer_ + pos) = instr;
@@ -1022,8 +1050,9 @@ class Assembler : public Malloced {
   // distance between pools.
   static const int kMaxDistBetweenPools = 4*KB - 2*kBufferCheckInterval;
 
-  // Emission of the constant pool may be blocked in some code sequences
-  int no_const_pool_before_;  // block emission before this pc offset
+  // Emission of the constant pool may be blocked in some code sequences.
+  int const_pool_blocked_nesting_;  // Block emission if this is not zero.
+  int no_const_pool_before_;  // Block emission before this pc offset.
 
   // Keep track of the last emitted pool to guarantee a maximal distance
   int last_const_pool_end_;  // pc offset following the last constant pool
@@ -1075,6 +1104,7 @@ class Assembler : public Malloced {
   friend class RegExpMacroAssemblerARM;
   friend class RelocInfo;
   friend class CodePatcher;
+  friend class BlockConstPoolScope;
 };
 
 } }  // namespace v8::internal

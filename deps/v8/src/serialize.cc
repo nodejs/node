@@ -836,6 +836,9 @@ void Deserializer::ReadChunk(Object** current,
       case START_NEW_PAGE_SERIALIZATION: {
         int space = source_->Get();
         pages_[space].Add(last_object_address_);
+        if (space == CODE_SPACE) {
+          CPU::FlushICache(last_object_address_, Page::kPageSize);
+        }
         break;
       }
       case NATIVES_STRING_RESOURCE: {

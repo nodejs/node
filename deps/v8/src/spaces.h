@@ -167,8 +167,17 @@ class Page {
     return 0 == (OffsetFrom(a) & kPageAlignmentMask);
   }
 
+  // True if this page was in use before current compaction started.
+  // Result is valid only for pages owned by paged spaces and
+  // only after PagedSpace::PrepareForMarkCompact was called.
+  inline bool WasInUseBeforeMC();
+
+  inline void SetWasInUseBeforeMC(bool was_in_use);
+
   // True if this page is a large object page.
-  bool IsLargeObjectPage() { return (is_normal_page & 0x1) == 0; }
+  inline bool IsLargeObjectPage();
+
+  inline void SetIsLargeObjectPage(bool is_large_object_page);
 
   // Returns the offset of a given address to this page.
   INLINE(int Offset(Address a)) {
@@ -244,6 +253,14 @@ class Page {
   // Maximum object size that fits in a page.
   static const int kMaxHeapObjectSize = kObjectAreaSize;
 
+  enum PageFlag {
+    IS_NORMAL_PAGE = 1 << 0,
+    WAS_IN_USE_BEFORE_MC = 1 << 1
+  };
+
+  inline bool GetPageFlag(PageFlag flag);
+  inline void SetPageFlag(PageFlag flag, bool value);
+
   //---------------------------------------------------------------------------
   // Page header description.
   //
@@ -262,7 +279,8 @@ class Page {
   // second word *may* (if the page start and large object chunk start are
   // the same) contain the large object chunk size.  In either case, the
   // low-order bit for large object pages will be cleared.
-  int is_normal_page;
+  // For normal pages this word is used to store various page flags.
+  int flags;
 
   // The following fields may overlap with remembered set, they can only
   // be used in the mark-compact collector when remembered set is not
@@ -407,6 +425,13 @@ class CodeRange : public AllStatic {
 //
 // The memory allocator also allocates chunks for the large object space, but
 // they are managed by the space itself.  The new space does not expand.
+//
+// The fact that pages for paged spaces are allocated and deallocated in chunks
+// induces a constraint on the order of pages in a linked lists. We say that
+// pages are linked in the chunk-order if and only if every two consecutive
+// pages from the same chunk are consecutive in the linked list.
+//
+
 
 class MemoryAllocator : public AllStatic {
  public:
@@ -466,12 +491,17 @@ class MemoryAllocator : public AllStatic {
   static Page* AllocatePages(int requested_pages, int* allocated_pages,
                              PagedSpace* owner);
 
-  // Frees pages from a given page and after. If 'p' is the first page
-  // of a chunk, pages from 'p' are freed and this function returns an
-  // invalid page pointer. Otherwise, the function searches a page
-  // after 'p' that is the first page of a chunk. Pages after the
-  // found page are freed and the function returns 'p'.
+  // Frees pages from a given page and after. Requires pages to be
+  // linked in chunk-order (see comment for class).
+  // If 'p' is the first page of a chunk, pages from 'p' are freed
+  // and this function returns an invalid page pointer.
+  // Otherwise, the function searches a page after 'p' that is
+  // the first page of a chunk. Pages after the found page
+  // are freed and the function returns 'p'.
   static Page* FreePages(Page* p);
+
+  // Frees all pages owned by given space.
+  static void FreeAllPages(PagedSpace* space);
 
   // Allocates and frees raw memory of certain size.
   // These are just thin wrappers around OS::Allocate and OS::Free,
@@ -510,6 +540,15 @@ class MemoryAllocator : public AllStatic {
   // Finds the first/last page in the same chunk as a given page.
   static Page* FindFirstPageInSameChunk(Page* p);
   static Page* FindLastPageInSameChunk(Page* p);
+
+  // Relinks list of pages owned by space to make it chunk-ordered.
+  // Returns new first and last pages of space.
+  // Also returns last page in relinked list which has WasInUsedBeforeMC
+  // flag set.
+  static void RelinkPageListInChunkOrder(PagedSpace* space,
+                                         Page** first_page,
+                                         Page** last_page,
+                                         Page** last_page_in_use);
 
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect a block of memory by marking it read-only/writable.
@@ -599,6 +638,12 @@ class MemoryAllocator : public AllStatic {
   // used as a marking stack and its page headers are destroyed.
   static Page* InitializePagesInChunk(int chunk_id, int pages_in_chunk,
                                       PagedSpace* owner);
+
+  static Page* RelinkPagesInChunk(int chunk_id,
+                                  Address chunk_start,
+                                  size_t chunk_size,
+                                  Page* prev,
+                                  Page** last_page_in_use);
 };
 
 
@@ -880,9 +925,16 @@ class PagedSpace : public Space {
   void ClearRSet();
 
   // Prepares for a mark-compact GC.
-  virtual void PrepareForMarkCompact(bool will_compact) = 0;
+  virtual void PrepareForMarkCompact(bool will_compact);
 
-  virtual Address PageAllocationTop(Page* page) = 0;
+  // The top of allocation in a page in this space. Undefined if page is unused.
+  Address PageAllocationTop(Page* page) {
+    return page == TopPageOf(allocation_info_) ? top()
+        : PageAllocationLimit(page);
+  }
+
+  // The limit of allocation for a page in this space.
+  virtual Address PageAllocationLimit(Page* page) = 0;
 
   // Current capacity without growing (Size() + Available() + Waste()).
   int Capacity() { return accounting_stats_.Capacity(); }
@@ -919,6 +971,16 @@ class PagedSpace : public Space {
 
   // Used by ReserveSpace.
   virtual void PutRestOfCurrentPageOnFreeList(Page* current_page) = 0;
+
+  // Free all pages in range from prev (exclusive) to last (inclusive).
+  // Freed pages are moved to the end of page list.
+  void FreePages(Page* prev, Page* last);
+
+  // Set space allocation info.
+  void SetTop(Address top) {
+    allocation_info_.top = top;
+    allocation_info_.limit = PageAllocationLimit(Page::FromAllocationTop(top));
+  }
 
   // ---------------------------------------------------------------------------
   // Mark-compact collection support functions
@@ -968,6 +1030,9 @@ class PagedSpace : public Space {
   static void ResetCodeStatistics();
 #endif
 
+  // Returns the page of the allocation pointer.
+  Page* AllocationTopPage() { return TopPageOf(allocation_info_); }
+
  protected:
   // Maximum capacity of this space.
   int max_capacity_;
@@ -981,6 +1046,10 @@ class PagedSpace : public Space {
   // The last page in this space.  Initially set in Setup, updated in
   // Expand and Shrink.
   Page* last_page_;
+
+  // True if pages owned by this space are linked in chunk-order.
+  // See comment for class MemoryAllocator for definition of chunk-order.
+  bool page_list_is_chunk_ordered_;
 
   // Normal allocation information.
   AllocationInfo allocation_info_;
@@ -1043,8 +1112,6 @@ class PagedSpace : public Space {
   void DoPrintRSet(const char* space_name);
 #endif
  private:
-  // Returns the page of the allocation pointer.
-  Page* AllocationTopPage() { return TopPageOf(allocation_info_); }
 
   // Returns a pointer to the page of the relocation pointer.
   Page* MCRelocationTopPage() { return TopPageOf(mc_forwarding_info_); }
@@ -1664,17 +1731,22 @@ class OldSpace : public PagedSpace {
   // pointer).
   int AvailableFree() { return free_list_.available(); }
 
-  // The top of allocation in a page in this space. Undefined if page is unused.
-  virtual Address PageAllocationTop(Page* page) {
-    return page == TopPageOf(allocation_info_) ? top() : page->ObjectAreaEnd();
+  // The limit of allocation for a page in this space.
+  virtual Address PageAllocationLimit(Page* page) {
+    return page->ObjectAreaEnd();
   }
 
   // Give a block of memory to the space's free list.  It might be added to
   // the free list or accounted as waste.
-  void Free(Address start, int size_in_bytes) {
-    int wasted_bytes = free_list_.Free(start, size_in_bytes);
+  // If add_to_freelist is false then just accounting stats are updated and
+  // no attempt to add area to free list is made.
+  void Free(Address start, int size_in_bytes, bool add_to_freelist) {
     accounting_stats_.DeallocateBytes(size_in_bytes);
-    accounting_stats_.WasteBytes(wasted_bytes);
+
+    if (add_to_freelist) {
+      int wasted_bytes = free_list_.Free(start, size_in_bytes);
+      accounting_stats_.WasteBytes(wasted_bytes);
+    }
   }
 
   // Prepare for full garbage collection.  Resets the relocation pointer and
@@ -1727,17 +1799,20 @@ class FixedSpace : public PagedSpace {
     page_extra_ = Page::kObjectAreaSize % object_size_in_bytes;
   }
 
-  // The top of allocation in a page in this space. Undefined if page is unused.
-  virtual Address PageAllocationTop(Page* page) {
-    return page == TopPageOf(allocation_info_) ? top()
-        : page->ObjectAreaEnd() - page_extra_;
+  // The limit of allocation for a page in this space.
+  virtual Address PageAllocationLimit(Page* page) {
+    return page->ObjectAreaEnd() - page_extra_;
   }
 
   int object_size_in_bytes() { return object_size_in_bytes_; }
 
   // Give a fixed sized block of memory to the space's free list.
-  void Free(Address start) {
-    free_list_.Free(start);
+  // If add_to_freelist is false then just accounting stats are updated and
+  // no attempt to add area to free list is made.
+  void Free(Address start, bool add_to_freelist) {
+    if (add_to_freelist) {
+      free_list_.Free(start);
+    }
     accounting_stats_.DeallocateBytes(object_size_in_bytes_);
   }
 

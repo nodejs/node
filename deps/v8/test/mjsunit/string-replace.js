@@ -30,7 +30,7 @@
  */
 
 function replaceTest(result, subject, pattern, replacement) {
-  var name = 
+  var name =
     "\"" + subject + "\".replace(" + pattern + ", " + replacement + ")";
   assertEquals(result, subject.replace(pattern, replacement), name);
 }
@@ -114,8 +114,8 @@ replaceTest("xaxe$xcx", short, /b/, "e$");
 replaceTest("xaxe$xcx", short, /b/g, "e$");
 
 
-replaceTest("[$$$1$$a1abb1bb0$002$3$03][$$$1$$b1bcc1cc0$002$3$03]c", 
-            "abc", /(.)(?=(.))/g, "[$$$$$$1$$$$$11$01$2$21$02$020$002$3$03]"); 
+replaceTest("[$$$1$$a1abb1bb0$002$3$03][$$$1$$b1bcc1cc0$002$3$03]c",
+            "abc", /(.)(?=(.))/g, "[$$$$$$1$$$$$11$01$2$21$02$020$002$3$03]");
 
 // Replace with functions.
 
@@ -189,5 +189,21 @@ replaceTest("string true", "string x", /x/g, function() { return true; });
 replaceTest("string null", "string x", /x/g, function() { return null; });
 replaceTest("string undefined", "string x", /x/g, function() { return undefined; });
 
-replaceTest("aundefinedbundefinedcundefined", 
+replaceTest("aundefinedbundefinedcundefined",
             "abc", /(.)|(.)/g, function(m, m1, m2, i, s) { return m1+m2; });
+
+// Test nested calls to replace, including that it sets RegExp.$& correctly.
+
+function replacer(m,i,s) {
+  assertEquals(m,RegExp['$&']);
+  return "[" + RegExp['$&'] + "-"
+             + m.replace(/./g,"$&$&") + "-"
+             + m.replace(/./g,function() { return RegExp['$&']; })
+             + "-" + RegExp['$&'] + "]";
+}
+
+replaceTest("[ab-aabb-ab-b][az-aazz-az-z]",
+            "abaz", /a./g, replacer);
+
+replaceTest("[ab-aabb-ab-b][az-aazz-az-z]",
+            "abaz", /a(.)/g, replacer);

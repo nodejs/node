@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // CPU specific code for arm independent of OS goes here.
-#if defined(__arm__)
+#ifdef __arm__
 #include <sys/syscall.h>  // for cache flushing.
 #endif
 
@@ -34,6 +34,10 @@
 
 #include "cpu.h"
 #include "macro-assembler.h"
+
+#ifndef __arm__
+#include "simulator-arm.h"  // for cache flushing.
+#endif
 
 namespace v8 {
 namespace internal {
@@ -46,9 +50,11 @@ void CPU::Setup() {
 void CPU::FlushICache(void* start, size_t size) {
 #if !defined (__arm__)
   // Not generating ARM instructions for C-code. This means that we are
-  // building an ARM emulator based target. No I$ flushes are necessary.
+  // building an ARM emulator based target.  We should notify the simulator
+  // that the Icache was flushed.
   // None of this code ends up in the snapshot so there are no issues
   // around whether or not to generate the code when building snapshots.
+  assembler::arm::Simulator::FlushICache(start, size);
 #else
   // Ideally, we would call
   //   syscall(__ARM_NR_cacheflush, start,

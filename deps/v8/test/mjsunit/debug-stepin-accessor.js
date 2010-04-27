@@ -36,7 +36,7 @@ var expected_source_line_text = null;
 var expected_function_name = null;
 
 // Simple debug event handler which first time will cause 'step in' action
-// to get into g.call and than check that execution is pauesed inside
+// to get into g.call and than check that execution is stopped inside
 // function 'g'.
 function listener(event, exec_state, event_data, data) {
   try {

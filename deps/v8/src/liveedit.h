@@ -111,7 +111,7 @@ class LiveEdit : AllStatic {
   };
 
   // Compares 2 strings line-by-line and returns diff in form of array of
-  // triplets (pos1, len1, len2) describing list of diff chunks.
+  // triplets (pos1, pos1_end, pos2_end) describing list of diff chunks.
   static Handle<JSArray> CompareStringsLinewise(Handle<String> s1,
                                                 Handle<String> s2);
 };

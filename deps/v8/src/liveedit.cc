@@ -346,7 +346,7 @@ class LineArrayCompareInput : public Compare::Input {
 
 
 // Stores compare result in JSArray. Each chunk is stored as 3 array elements:
-// (pos1, len1, len2).
+// (pos1_begin, pos1_end, pos2_end).
 class LineArrayCompareOutput : public Compare::Output {
  public:
   LineArrayCompareOutput(LineEndsWrapper line_ends1, LineEndsWrapper line_ends2)
@@ -362,9 +362,9 @@ class LineArrayCompareOutput : public Compare::Output {
 
     SetElement(array_, current_size_, Handle<Object>(Smi::FromInt(char_pos1)));
     SetElement(array_, current_size_ + 1,
-               Handle<Object>(Smi::FromInt(char_len1)));
+               Handle<Object>(Smi::FromInt(char_pos1 + char_len1)));
     SetElement(array_, current_size_ + 2,
-               Handle<Object>(Smi::FromInt(char_len2)));
+               Handle<Object>(Smi::FromInt(char_pos2 + char_len2)));
     current_size_ += 3;
   }
 
@@ -717,8 +717,8 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
   }
 
   void VisitCodeTarget(RelocInfo* rinfo) {
-    ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
-    if (Code::GetCodeFromTargetAddress(rinfo->target_address()) == original_) {
+    if (RelocInfo::IsCodeTarget(rinfo->rmode()) &&
+        Code::GetCodeFromTargetAddress(rinfo->target_address()) == original_) {
       reloc_infos_.Add(*rinfo);
     }
   }

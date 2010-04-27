@@ -830,11 +830,11 @@ TEST(LargeObjectSpaceContains) {
   }
   CHECK(bytes_to_page > FixedArray::kHeaderSize);
 
-  int* is_normal_page_ptr = &Page::FromAddress(next_page)->is_normal_page;
-  Address is_normal_page_addr = reinterpret_cast<Address>(is_normal_page_ptr);
+  int* flags_ptr = &Page::FromAddress(next_page)->flags;
+  Address flags_addr = reinterpret_cast<Address>(flags_ptr);
 
   int bytes_to_allocate =
-      static_cast<int>(is_normal_page_addr - current_top) + kPointerSize;
+      static_cast<int>(flags_addr - current_top) + kPointerSize;
 
   int n_elements = (bytes_to_allocate - FixedArray::kHeaderSize) /
       kPointerSize;
@@ -843,7 +843,7 @@ TEST(LargeObjectSpaceContains) {
       Heap::AllocateFixedArray(n_elements));
 
   int index = n_elements - 1;
-  CHECK_EQ(is_normal_page_ptr,
+  CHECK_EQ(flags_ptr,
            HeapObject::RawField(array, FixedArray::OffsetOfElementAt(index)));
   array->set(index, Smi::FromInt(0));
   // This chould have turned next page into LargeObjectPage:

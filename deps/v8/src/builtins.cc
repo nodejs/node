@@ -348,15 +348,7 @@ static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  if (to_trim == 1) {
-    former_start[0] = Heap::raw_unchecked_one_pointer_filler_map();
-  } else if (to_trim == 2) {
-    former_start[0] = Heap::raw_unchecked_two_pointer_filler_map();
-  } else {
-    former_start[0] = Heap::raw_unchecked_byte_array_map();
-    ByteArray* as_byte_array = reinterpret_cast<ByteArray*>(elms);
-    as_byte_array->set_length(ByteArray::LengthFor(to_trim * kPointerSize));
-  }
+  Heap::CreateFillerObjectAt(elms->address(), to_trim * kPointerSize);
 
   former_start[to_trim] = Heap::fixed_array_map();
   former_start[to_trim + 1] = reinterpret_cast<Object*>(len - to_trim);

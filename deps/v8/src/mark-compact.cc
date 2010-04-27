@@ -1055,6 +1055,7 @@ void MarkCompactCollector::EncodeForwardingAddressesInPagedSpace(
   PageIterator it(space, PageIterator::PAGES_IN_USE);
   while (it.has_next()) {
     Page* p = it.next();
+
     // The offset of each live object in the page from the first live object
     // in the page.
     int offset = 0;
@@ -1277,6 +1278,29 @@ static void SweepNewSpace(NewSpace* space) {
 
 static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
   PageIterator it(space, PageIterator::PAGES_IN_USE);
+
+  // During sweeping of paged space we are trying to find longest sequences
+  // of pages without live objects and free them (instead of putting them on
+  // the free list).
+
+  // Page preceding current.
+  Page* prev = Page::FromAddress(NULL);
+
+  // First empty page in a sequence.
+  Page* first_empty_page = Page::FromAddress(NULL);
+
+  // Page preceding first empty page.
+  Page* prec_first_empty_page = Page::FromAddress(NULL);
+
+  // If last used page of space ends with a sequence of dead objects
+  // we can adjust allocation top instead of puting this free area into
+  // the free list. Thus during sweeping we keep track of such areas
+  // and defer their deallocation until the sweeping of the next page
+  // is done: if one of the next pages contains live objects we have
+  // to put such area into the free list.
+  Address last_free_start = NULL;
+  int last_free_size = 0;
+
   while (it.has_next()) {
     Page* p = it.next();
 
@@ -1291,8 +1315,9 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
       if (object->IsMarked()) {
         object->ClearMark();
         MarkCompactCollector::tracer()->decrement_marked_count();
+
         if (!is_previous_alive) {  // Transition from free to live.
-          dealloc(free_start, static_cast<int>(current - free_start));
+          dealloc(free_start, static_cast<int>(current - free_start), true);
           is_previous_alive = true;
         }
       } else {
@@ -1306,39 +1331,113 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
       // loop.
     }
 
-    // If the last region was not live we need to deallocate from
-    // free_start to the allocation top in the page.
-    if (!is_previous_alive) {
-      int free_size = static_cast<int>(p->AllocationTop() - free_start);
-      if (free_size > 0) {
-        dealloc(free_start, free_size);
+    bool page_is_empty = (p->ObjectAreaStart() == p->AllocationTop())
+        || (!is_previous_alive && free_start == p->ObjectAreaStart());
+
+    if (page_is_empty) {
+      // This page is empty. Check whether we are in the middle of
+      // sequence of empty pages and start one if not.
+      if (!first_empty_page->is_valid()) {
+        first_empty_page = p;
+        prec_first_empty_page = prev;
+      }
+
+      if (!is_previous_alive) {
+        // There are dead objects on this page. Update space accounting stats
+        // without putting anything into free list.
+        int size_in_bytes = static_cast<int>(p->AllocationTop() - free_start);
+        if (size_in_bytes > 0) {
+          dealloc(free_start, size_in_bytes, false);
+        }
+      }
+    } else {
+      // This page is not empty. Sequence of empty pages ended on the previous
+      // one.
+      if (first_empty_page->is_valid()) {
+        space->FreePages(prec_first_empty_page, prev);
+        prec_first_empty_page = first_empty_page = Page::FromAddress(NULL);
+      }
+
+      // If there is a free ending area on one of the previous pages we have
+      // deallocate that area and put it on the free list.
+      if (last_free_size > 0) {
+        dealloc(last_free_start, last_free_size, true);
+        last_free_start = NULL;
+        last_free_size  = 0;
+      }
+
+      // If the last region of this page was not live we remember it.
+      if (!is_previous_alive) {
+        ASSERT(last_free_size == 0);
+        last_free_size = static_cast<int>(p->AllocationTop() - free_start);
+        last_free_start = free_start;
       }
     }
+
+    prev = p;
+  }
+
+  // We reached end of space. See if we need to adjust allocation top.
+  Address new_allocation_top = NULL;
+
+  if (first_empty_page->is_valid()) {
+    // Last used pages in space are empty. We can move allocation top backwards
+    // to the beginning of first empty page.
+    ASSERT(prev == space->AllocationTopPage());
+
+    new_allocation_top = first_empty_page->ObjectAreaStart();
+  }
+
+  if (last_free_size > 0) {
+    // There was a free ending area on the previous page.
+    // Deallocate it without putting it into freelist and move allocation
+    // top to the beginning of this free area.
+    dealloc(last_free_start, last_free_size, false);
+    new_allocation_top = last_free_start;
+  }
+
+  if (new_allocation_top != NULL) {
+#ifdef DEBUG
+    Page* new_allocation_top_page = Page::FromAllocationTop(new_allocation_top);
+    if (!first_empty_page->is_valid()) {
+      ASSERT(new_allocation_top_page == space->AllocationTopPage());
+    } else if (last_free_size > 0) {
+      ASSERT(new_allocation_top_page == prec_first_empty_page);
+    } else {
+      ASSERT(new_allocation_top_page == first_empty_page);
+    }
+#endif
+
+    space->SetTop(new_allocation_top);
   }
 }
 
 
 void MarkCompactCollector::DeallocateOldPointerBlock(Address start,
-                                                     int size_in_bytes) {
+                                                     int size_in_bytes,
+                                                     bool add_to_freelist) {
   Heap::ClearRSetRange(start, size_in_bytes);
-  Heap::old_pointer_space()->Free(start, size_in_bytes);
+  Heap::old_pointer_space()->Free(start, size_in_bytes, add_to_freelist);
 }
 
 
 void MarkCompactCollector::DeallocateOldDataBlock(Address start,
-                                                  int size_in_bytes) {
-  Heap::old_data_space()->Free(start, size_in_bytes);
+                                                  int size_in_bytes,
+                                                  bool add_to_freelist) {
+  Heap::old_data_space()->Free(start, size_in_bytes, add_to_freelist);
 }
 
 
 void MarkCompactCollector::DeallocateCodeBlock(Address start,
-                                               int size_in_bytes) {
-  Heap::code_space()->Free(start, size_in_bytes);
+                                               int size_in_bytes,
+                                               bool add_to_freelist) {
+  Heap::code_space()->Free(start, size_in_bytes, add_to_freelist);
 }
 
 
 void MarkCompactCollector::DeallocateMapBlock(Address start,
-                                              int size_in_bytes) {
+                                              int size_in_bytes,
+                                              bool add_to_freelist) {
   // Objects in map space are assumed to have size Map::kSize and a
   // valid map in their first word.  Thus, we break the free block up into
   // chunks and free them separately.
@@ -1346,13 +1445,14 @@ void MarkCompactCollector::DeallocateMapBlock(Address start,
   Heap::ClearRSetRange(start, size_in_bytes);
   Address end = start + size_in_bytes;
   for (Address a = start; a < end; a += Map::kSize) {
-    Heap::map_space()->Free(a);
+    Heap::map_space()->Free(a, add_to_freelist);
   }
 }
 
 
 void MarkCompactCollector::DeallocateCellBlock(Address start,
-                                               int size_in_bytes) {
+                                               int size_in_bytes,
+                                               bool add_to_freelist) {
   // Free-list elements in cell space are assumed to have a fixed size.
   // We break the free block into chunks and add them to the free list
   // individually.
@@ -1361,7 +1461,7 @@ void MarkCompactCollector::DeallocateCellBlock(Address start,
   Heap::ClearRSetRange(start, size_in_bytes);
   Address end = start + size_in_bytes;
   for (Address a = start; a < end; a += size) {
-    Heap::cell_space()->Free(a);
+    Heap::cell_space()->Free(a, add_to_freelist);
   }
 }
 
