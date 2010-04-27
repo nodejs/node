@@ -9,7 +9,7 @@
 
 #include <errno.h>
 
-#if OPENSSL_VERSION_NUMBER >= 0x1000000fL
+#if OPENSSL_VERSION_NUMBER >= 0x10000000L
 # define OPENSSL_CONST const
 #else
 # define OPENSSL_CONST
