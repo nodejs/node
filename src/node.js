@@ -147,11 +147,20 @@ process.__defineGetter__('stdout', function () {
 var stdin;
 process.openStdin = function () {
   if (stdin) return stdin;
-  var net = module.requireNative('net');
-  var fd = process.binding('stdio').openStdin();
-  stdin = new net.Stream(fd);
+
+  var net = module.requireNative('net')
+    , fs = module.requireNative('fs')
+    , fd = process.binding('stdio').openStdin();
+
+  if (process.binding('stdio').isStdinBlocking()) {
+    stdin = new net.Stream(fd);
+    stdin.readable = true;
+  } else {
+    stdin = new fs.FileReadStream(null, {fd: fd});
+  }
+
   stdin.resume();
-  stdin.readable = true;
+
   return stdin;
 };
 

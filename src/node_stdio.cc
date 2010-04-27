@@ -1,6 +1,5 @@
 #include <node_stdio.h>
 #include <node_events.h>
-#include <coupling.h>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -10,8 +9,6 @@
 using namespace v8;
 namespace node {
 
-
-static struct coupling *stdin_coupling = NULL;
 
 static int stdin_fd = -1;
 static int stdout_fd = -1;
@@ -56,28 +53,31 @@ static Handle<Value> OpenStdin(const Arguments& args) {
     return ThrowException(Exception::Error(String::New("stdin already open")));
   }
 
+  stdin_fd = STDIN_FILENO;
   if (isatty(STDIN_FILENO)) {
     // XXX selecting on tty fds wont work in windows.
     // Must ALWAYS make a coupling on shitty platforms.
-    stdin_fd = STDIN_FILENO;
-  } else {
-    stdin_coupling = coupling_new_pull(STDIN_FILENO);
-    stdin_fd = coupling_nonblocking_fd(stdin_coupling);
-  }
+    stdin_flags = fcntl(stdin_fd, F_GETFL, 0);
+    if (stdin_flags == -1) {
+      // TODO DRY
+      return ThrowException(Exception::Error(String::New("fcntl error!")));
+    }
 
-  stdin_flags = fcntl(stdin_fd, F_GETFL, 0);
-  if (stdin_flags == -1) {
-    // TODO DRY
-    return ThrowException(Exception::Error(String::New("fcntl error!")));
-  }
-
-  int r = fcntl(stdin_fd, F_SETFL, stdin_flags | O_NONBLOCK);
-  if (r == -1) {
-    // TODO DRY
-    return ThrowException(Exception::Error(String::New("fcntl error!")));
+    int r = fcntl(stdin_fd, F_SETFL, stdin_flags | O_NONBLOCK);
+    if (r == -1) {
+      // TODO DRY
+      return ThrowException(Exception::Error(String::New("fcntl error!")));
+    }
   }
 
   return scope.Close(Integer::New(stdin_fd));
+}
+
+static Handle<Value>
+IsStdinBlocking (const Arguments& args)
+{
+  HandleScope scope;
+  return scope.Close(Boolean::New(isatty(STDIN_FILENO)));
 }
 
 static Handle<Value>
@@ -122,6 +122,7 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "writeError", WriteError);
   NODE_SET_METHOD(target, "openStdin", OpenStdin);
   NODE_SET_METHOD(target, "isStdoutBlocking", IsStdoutBlocking);
+  NODE_SET_METHOD(target, "isStdinBlocking", IsStdinBlocking);
 }
 
 
