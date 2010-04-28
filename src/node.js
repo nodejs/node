@@ -26,7 +26,7 @@ process.createChildProcess = removed("childProcess API has changed. See doc/api.
 process.inherits = removed("process.inherits() has moved to sys.inherits.");
 
 process.assert = function (x, msg) {
-  if (!(x)) throw new Error(msg || "assertion error");
+  if (!x) throw new Error(msg || "assertion error");
 };
 
 process.evalcx = process.binding('evals').Script.runInNewContext;
@@ -36,10 +36,8 @@ process.evalcx = process.binding('evals').Script.runInNewContext;
 var nextTickQueue = [];
 
 process._tickCallback = function () {
-  var l = nextTickQueue.length;
-  while (l--) {
-    var cb = nextTickQueue.shift();
-    cb();
+  for (var l = nextTickQueue.length; l; l--) {
+    nextTickQueue.shift()();
   }
 };
 
@@ -135,9 +133,9 @@ var stdin;
 process.openStdin = function () {
   if (stdin) return stdin;
 
-  var net = module.requireNative('net')
-    , fs = module.requireNative('fs')
-    , fd = process.binding('stdio').openStdin();
+  var net = basicRequire('net'),
+    fs = basicRequire('fs'),
+    fd = process.binding('stdio').openStdin();
 
   if (process.binding('stdio').isStdinBlocking()) {
     stdin = new net.Stream(fd);
