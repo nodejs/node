@@ -141,11 +141,12 @@ var stdin;
 process.openStdin = function () {
   if (stdin) return stdin;
 
-  var net = module.requireNative('net'),
+var binding = process.binding('stdio'),
+    net = module.requireNative('net'),
     fs = module.requireNative('fs'),
-    fd = process.binding('stdio').openStdin();
+    fd = binding.openStdin();
 
-  if (process.binding('stdio').isStdinBlocking()) {
+  if (binding.isStdinBlocking()) {
     stdin = new net.Stream(fd);
     stdin.readable = true;
   } else {
