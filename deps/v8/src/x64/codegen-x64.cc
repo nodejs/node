@@ -202,10 +202,20 @@ class FloatingPointHelper : public AllStatic {
   // Code pattern for loading a floating point value. Input value must
   // be either a smi or a heap number object (fp value). Requirements:
   // operand in src register. Returns operand as floating point number
-  // in XMM register
+  // in XMM register.  May destroy src register.
   static void LoadFloatOperand(MacroAssembler* masm,
                                Register src,
                                XMMRegister dst);
+
+  // Code pattern for loading a possible number into a XMM register.
+  // If the contents of src is not a number, control branches to
+  // the Label not_number.  If contents of src is a smi or a heap number
+  // object (fp value), it is loaded into the XMM register as a double.
+  // The register src is not changed, and src may not be kScratchRegister.
+  static void LoadFloatOperand(MacroAssembler* masm,
+                               Register src,
+                               XMMRegister dst,
+                               Label *not_number);
 
   // Code pattern for loading floating point values. Input values must
   // be either smi or heap number objects (fp values). Requirements:
@@ -5320,6 +5330,22 @@ static bool CouldBeNaN(const Result& result) {
 }
 
 
+// Convert from signed to unsigned comparison to match the way EFLAGS are set
+// by FPU and XMM compare instructions.
+static Condition DoubleCondition(Condition cc) {
+  switch (cc) {
+    case less:          return below;
+    case equal:         return equal;
+    case less_equal:    return below_equal;
+    case greater:       return above;
+    case greater_equal: return above_equal;
+    default:            UNREACHABLE();
+  }
+  UNREACHABLE();
+  return equal;
+}
+
+
 void CodeGenerator::Comparison(AstNode* node,
                                Condition cc,
                                bool strict,
@@ -5391,7 +5417,7 @@ void CodeGenerator::Comparison(AstNode* node,
         left_side = right_side;
         right_side = temp;
         cc = ReverseCondition(cc);
-        // This may reintroduce greater or less_equal as the value of cc.
+        // This may re-introduce greater or less_equal as the value of cc.
         // CompareStub and the inline code both support all values of cc.
       }
       // Implement comparison against a constant Smi, inlining the case
@@ -5434,22 +5460,13 @@ void CodeGenerator::Comparison(AstNode* node,
         // Jump to builtin for NaN.
         not_number.Branch(parity_even, &left_side);
         left_side.Unuse();
-        Condition double_cc = cc;
-        switch (cc) {
-          case less:          double_cc = below;       break;
-          case equal:         double_cc = equal;       break;
-          case less_equal:    double_cc = below_equal; break;
-          case greater:       double_cc = above;       break;
-          case greater_equal: double_cc = above_equal; break;
-          default: UNREACHABLE();
-        }
-        dest->true_target()->Branch(double_cc);
+        dest->true_target()->Branch(DoubleCondition(cc));
         dest->false_target()->Jump();
         not_number.Bind(&left_side);
       }
 
       // Setup and call the compare stub.
-      CompareStub stub(cc, strict);
+      CompareStub stub(cc, strict, kCantBothBeNaN);
       Result result = frame_->CallStub(&stub, &left_side, &right_side);
       result.ToRegister();
       __ testq(result.reg(), result.reg());
@@ -5642,17 +5659,34 @@ void CodeGenerator::Comparison(AstNode* node,
     // If either side is a non-smi constant, skip the smi check.
     bool known_non_smi =
         (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
-        (right_side.is_constant() && !right_side.handle()->IsSmi());
+        (right_side.is_constant() && !right_side.handle()->IsSmi()) ||
+        left_side.type_info().IsDouble() ||
+        right_side.type_info().IsDouble();
 
     NaNInformation nan_info =
         (CouldBeNaN(left_side) && CouldBeNaN(right_side)) ?
         kBothCouldBeNaN :
         kCantBothBeNaN;
 
+    // Inline number comparison handling any combination of smi's and heap
+    // numbers if:
+    //   code is in a loop
+    //   the compare operation is different from equal
+    //   compare is not a for-loop comparison
+    // The reason for excluding equal is that it will most likely be done
+    // with smi's (not heap numbers) and the code to comparing smi's is inlined
+    // separately. The same reason applies for for-loop comparison which will
+    // also most likely be smi comparisons.
+    bool is_loop_condition = (node->AsExpression() != NULL)
+        && node->AsExpression()->is_loop_condition();
+    bool inline_number_compare =
+        loop_nesting() > 0 && cc != equal && !is_loop_condition;
+
     left_side.ToRegister();
     right_side.ToRegister();
 
     if (known_non_smi) {
+      // Inlined equality check:
       // If at least one of the objects is not NaN, then if the objects
       // are identical, they are equal.
       if (nan_info == kCantBothBeNaN && cc == equal) {
@@ -5660,8 +5694,15 @@ void CodeGenerator::Comparison(AstNode* node,
         dest->true_target()->Branch(equal);
       }
 
-      // When non-smi, call out to the compare stub.
-      CompareStub stub(cc, strict);
+      // Inlined number comparison:
+      if (inline_number_compare) {
+        GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
+      }
+
+      // Call the compare stub.
+      // TODO(whesse@chromium.org): Enable the inlining flag once
+      // GenerateInlineNumberComparison is implemented.
+      CompareStub stub(cc, strict, nan_info, true || !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       // The result is a Smi, which is negative, zero, or positive.
       __ SmiTest(answer.reg());  // Sets both zero and sign flag.
@@ -5679,15 +5720,23 @@ void CodeGenerator::Comparison(AstNode* node,
 
       Condition both_smi = masm_->CheckBothSmi(left_reg, right_reg);
       is_smi.Branch(both_smi);
-      // When non-smi, call out to the compare stub, after inlined checks.
-      // If at least one of the objects is not NaN, then if the objects
-      // are identical, they are equal.
+
+      // Inline the equality check if both operands can't be a NaN. If both
+      // objects are the same they are equal.
       if (nan_info == kCantBothBeNaN && cc == equal) {
         __ cmpq(left_side.reg(), right_side.reg());
         dest->true_target()->Branch(equal);
       }
 
-      CompareStub stub(cc, strict);
+      // Inlined number comparison:
+      if (inline_number_compare) {
+        GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
+      }
+
+      // Call the compare stub.
+      // TODO(whesse@chromium.org): Enable the inlining flag once
+      // GenerateInlineNumberComparison is implemented.
+      CompareStub stub(cc, strict, nan_info, true || !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       __ SmiTest(answer.reg());  // Sets both zero and sign flags.
       answer.Unuse();
@@ -5703,6 +5752,17 @@ void CodeGenerator::Comparison(AstNode* node,
       dest->Split(cc);
     }
   }
+}
+
+
+void CodeGenerator::GenerateInlineNumberComparison(Result* left_side,
+                                                   Result* right_side,
+                                                   Condition cc,
+                                                   ControlDestination* dest) {
+  ASSERT(left_side->is_register());
+  ASSERT(right_side->is_register());
+  // TODO(whesse@chromium.org): Implement this function, and enable the
+  // corresponding flags in the CompareStub.
 }
 
 
@@ -7710,6 +7770,18 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 }
 
 
+void NumberToStringStub::GenerateConvertHashCodeToIndex(MacroAssembler* masm,
+                                                        Register hash,
+                                                        Register mask) {
+  __ and_(hash, mask);
+  // Each entry in string cache consists of two pointer sized fields,
+  // but times_twice_pointer_size (multiplication by 16) scale factor
+  // is not supported by addrmode on x64 platform.
+  // So we have to premultiply entry index before lookup.
+  __ shl(hash, Immediate(kPointerSizeLog2 + 1));
+}
+
+
 void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register object,
                                                          Register result,
@@ -7717,12 +7789,6 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register scratch2,
                                                          bool object_is_smi,
                                                          Label* not_found) {
-  // Currently only lookup for smis. Check for smi if object is not known to be
-  // a smi.
-  if (!object_is_smi) {
-    __ JumpIfNotSmi(object, not_found);
-  }
-
   // Use of registers. Register result is used as a temporary.
   Register number_string_cache = result;
   Register mask = scratch1;
@@ -7738,28 +7804,57 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   __ subl(mask, Immediate(1));  // Make mask.
 
   // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value.
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label is_smi;
+  Label load_result_from_cache;
+  if (!object_is_smi) {
+    __ JumpIfSmi(object, &is_smi);
+    __ CheckMap(object, Factory::heap_number_map(), not_found, true);
+
+    ASSERT_EQ(8, kDoubleSize);
+    __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
+    __ xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset));
+    GenerateConvertHashCodeToIndex(masm, scratch, mask);
+
+    Register index = scratch;
+    Register probe = mask;
+    __ movq(probe,
+            FieldOperand(number_string_cache,
+                         index,
+                         times_1,
+                         FixedArray::kHeaderSize));
+    __ JumpIfSmi(probe, not_found);
+    ASSERT(CpuFeatures::IsSupported(SSE2));
+    CpuFeatures::Scope fscope(SSE2);
+    __ movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
+    __ movsd(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
+    __ comisd(xmm0, xmm1);
+    __ j(parity_even, not_found);  // Bail out if NaN is involved.
+    __ j(not_equal, not_found);  // The cache did not contain this value.
+    __ jmp(&load_result_from_cache);
+  }
+
+  __ bind(&is_smi);
   __ movq(scratch, object);
   __ SmiToInteger32(scratch, scratch);
-  __ andl(scratch, mask);
+  GenerateConvertHashCodeToIndex(masm, scratch, mask);
 
-  // Each entry in string cache consists of two pointer sized fields,
-  // but times_twice_pointer_size (multiplication by 16) scale factor
-  // is not supported by addrmode on x64 platform.
-  // So we have to premultiply entry index before lookup
-  __ shl(scratch, Immediate(kPointerSizeLog2 + 1));
+  Register index = scratch;
   // Check if the entry is the smi we are looking for.
   __ cmpq(object,
           FieldOperand(number_string_cache,
-                       scratch,
+                       index,
                        times_1,
                        FixedArray::kHeaderSize));
   __ j(not_equal, not_found);
 
   // Get the result from the cache.
+  __ bind(&load_result_from_cache);
   __ movq(result,
           FieldOperand(number_string_cache,
-                       scratch,
+                       index,
                        times_1,
                        FixedArray::kHeaderSize + kPointerSize));
   __ IncrementCounter(&Counters::number_to_string_native, 1);
@@ -7777,9 +7872,16 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
-  __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
+  __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
 }
 
+
+static int NegativeComparisonResult(Condition cc) {
+  ASSERT(cc != equal);
+  ASSERT((cc == less) || (cc == less_equal)
+      || (cc == greater) || (cc == greater_equal));
+  return (cc == greater || cc == greater_equal) ? LESS : GREATER;
+}
 
 void CompareStub::Generate(MacroAssembler* masm) {
   Label call_builtin, done;
@@ -7787,53 +7889,76 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // NOTICE! This code is only reached after a smi-fast-case check, so
   // it is certain that at least one operand isn't a smi.
 
-  if (cc_ == equal) {  // Both strict and non-strict.
-    Label slow;  // Fallthrough label.
-    // Equality is almost reflexive (everything but NaN), so start by testing
-    // for "identity and not NaN".
-    {
-      Label not_identical;
-      __ cmpq(rax, rdx);
-      __ j(not_equal, &not_identical);
-      // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
-      // so we do the second best thing - test it ourselves.
+  // Identical objects can be compared fast, but there are some tricky cases
+  // for NaN and undefined.
+  {
+    Label not_identical;
+    __ cmpq(rax, rdx);
+    __ j(not_equal, &not_identical);
 
-      if (never_nan_nan_) {
-        __ xor_(rax, rax);
-        __ ret(0);
-      } else {
-        Label return_equal;
-        Label heap_number;
-        // If it's not a heap number, then return equal.
-        __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
-               Factory::heap_number_map());
-        __ j(equal, &heap_number);
-        __ bind(&return_equal);
-        __ xor_(rax, rax);
-        __ ret(0);
+    if (cc_ != equal) {
+      // Check for undefined.  undefined OP undefined is false even though
+      // undefined == undefined.
+      Label check_for_nan;
+      __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
+      __ j(not_equal, &check_for_nan);
+      __ Set(rax, NegativeComparisonResult(cc_));
+      __ ret(0);
+      __ bind(&check_for_nan);
+    }
 
-        __ bind(&heap_number);
-        // It is a heap number, so return non-equal if it's NaN and equal if
-        // it's not NaN.
-        // The representation of NaN values has all exponent bits (52..62) set,
-        // and not all mantissa bits (0..51) clear.
-        // We only allow QNaNs, which have bit 51 set (which also rules out
-        // the value being Infinity).
+    // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
+    // so we do the second best thing - test it ourselves.
+    // Note: if cc_ != equal, never_nan_nan_ is not used.
+    if (never_nan_nan_ && (cc_ == equal)) {
+      __ Set(rax, EQUAL);
+      __ ret(0);
+    } else {
+      Label return_equal;
+      Label heap_number;
+      // If it's not a heap number, then return equal.
+      __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
+             Factory::heap_number_map());
+      __ j(equal, &heap_number);
+      __ bind(&return_equal);
+      __ Set(rax, EQUAL);
+      __ ret(0);
 
-        // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
-        // all bits in the mask are set. We only need to check the word
-        // that contains the exponent and high bit of the mantissa.
-        ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
-        __ movl(rdx, FieldOperand(rdx, HeapNumber::kExponentOffset));
-        __ xorl(rax, rax);
-        __ addl(rdx, rdx);  // Shift value and mask so mask applies to top bits.
-        __ cmpl(rdx, Immediate(kQuietNaNHighBitsMask << 1));
+      __ bind(&heap_number);
+      // It is a heap number, so return non-equal if it's NaN and equal if
+      // it's not NaN.
+      // The representation of NaN values has all exponent bits (52..62) set,
+      // and not all mantissa bits (0..51) clear.
+      // We only allow QNaNs, which have bit 51 set (which also rules out
+      // the value being Infinity).
+
+      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
+      // all bits in the mask are set. We only need to check the word
+      // that contains the exponent and high bit of the mantissa.
+      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
+      __ movl(rdx, FieldOperand(rdx, HeapNumber::kExponentOffset));
+      __ xorl(rax, rax);
+      __ addl(rdx, rdx);  // Shift value and mask so mask applies to top bits.
+      __ cmpl(rdx, Immediate(kQuietNaNHighBitsMask << 1));
+      if (cc_ == equal) {
         __ setcc(above_equal, rax);
         __ ret(0);
+      } else {
+        Label nan;
+        __ j(above_equal, &nan);
+        __ Set(rax, EQUAL);
+        __ ret(0);
+        __ bind(&nan);
+        __ Set(rax, NegativeComparisonResult(cc_));
+        __ ret(0);
       }
-
-      __ bind(&not_identical);
     }
+
+    __ bind(&not_identical);
+  }
+
+  if (cc_ == equal) {  // Both strict and non-strict.
+    Label slow;  // Fallthrough label.
 
     // If we're doing a strict equality comparison, we don't have to do
     // type conversion, so we generate code to do fast comparison for objects
@@ -7896,36 +8021,43 @@ void CompareStub::Generate(MacroAssembler* masm) {
   __ push(rdx);
   __ push(rcx);
 
-  // Inlined floating point compare.
-  // Call builtin if operands are not floating point or smi.
-  Label check_for_symbols;
-  // Push arguments on stack, for helper functions.
-  FloatingPointHelper::CheckNumberOperands(masm, &check_for_symbols);
-  FloatingPointHelper::LoadFloatOperands(masm, rax, rdx);
-  __ FCmp();
+  // Generate the number comparison code.
+  if (include_number_compare_) {
+    Label non_number_comparison;
+    Label unordered;
+    FloatingPointHelper::LoadFloatOperand(masm, rdx, xmm0,
+                                          &non_number_comparison);
+    FloatingPointHelper::LoadFloatOperand(masm, rax, xmm1,
+                                          &non_number_comparison);
 
-  // Jump to builtin for NaN.
-  __ j(parity_even, &call_builtin);
+    __ comisd(xmm0, xmm1);
 
-  // TODO(1243847): Use cmov below once CpuFeatures are properly hooked up.
-  Label below_lbl, above_lbl;
-  // use rdx, rax to convert unsigned to signed comparison
-  __ j(below, &below_lbl);
-  __ j(above, &above_lbl);
+    // Don't base result on EFLAGS when a NaN is involved.
+    __ j(parity_even, &unordered);
+    // Return a result of -1, 0, or 1, based on EFLAGS.
+    __ movq(rax, Immediate(0));  // equal
+    __ movq(rcx, Immediate(1));
+    __ cmovq(above, rax, rcx);
+    __ movq(rcx, Immediate(-1));
+    __ cmovq(below, rax, rcx);
+    __ ret(2 * kPointerSize);  // rax, rdx were pushed
 
-  __ xor_(rax, rax);  // equal
-  __ ret(2 * kPointerSize);
+    // If one of the numbers was NaN, then the result is always false.
+    // The cc is never not-equal.
+    __ bind(&unordered);
+    ASSERT(cc_ != not_equal);
+    if (cc_ == less || cc_ == less_equal) {
+      __ Set(rax, 1);
+    } else {
+      __ Set(rax, -1);
+    }
+    __ ret(2 * kPointerSize);  // rax, rdx were pushed
 
-  __ bind(&below_lbl);
-  __ movq(rax, Immediate(-1));
-  __ ret(2 * kPointerSize);
-
-  __ bind(&above_lbl);
-  __ movq(rax, Immediate(1));
-  __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    // The number comparison code did not provide a valid result.
+    __ bind(&non_number_comparison);
+  }
 
   // Fast negative check for symbol-to-symbol equality.
-  __ bind(&check_for_symbols);
   Label check_for_strings;
   if (cc_ == equal) {
     BranchIfNonSymbol(masm, &check_for_strings, rax, kScratchRegister);
@@ -7968,14 +8100,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     builtin = strict_ ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
   } else {
     builtin = Builtins::COMPARE;
-    int ncr;  // NaN compare result
-    if (cc_ == less || cc_ == less_equal) {
-      ncr = GREATER;
-    } else {
-      ASSERT(cc_ == greater || cc_ == greater_equal);  // remaining cases
-      ncr = LESS;
-    }
-    __ Push(Smi::FromInt(ncr));
+    __ Push(Smi::FromInt(NegativeComparisonResult(cc_)));
   }
 
   // Restore return address on the stack.
@@ -8759,6 +8884,27 @@ void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
   __ bind(&load_smi);
   __ SmiToInteger32(src, src);
   __ cvtlsi2sd(dst, src);
+
+  __ bind(&done);
+}
+
+
+void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
+                                           Register src,
+                                           XMMRegister dst,
+                                           Label* not_number) {
+  Label load_smi, done;
+  ASSERT(!src.is(kScratchRegister));
+  __ JumpIfSmi(src, &load_smi);
+  __ LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
+  __ cmpq(FieldOperand(src, HeapObject::kMapOffset), kScratchRegister);
+  __ j(not_equal, not_number);
+  __ movsd(dst, FieldOperand(src, HeapNumber::kValueOffset));
+  __ jmp(&done);
+
+  __ bind(&load_smi);
+  __ SmiToInteger32(kScratchRegister, src);
+  __ cvtlsi2sd(dst, kScratchRegister);
 
   __ bind(&done);
 }

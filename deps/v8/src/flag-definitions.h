@@ -232,6 +232,7 @@ DEFINE_bool(optimize_ast, true, "optimize the ast")
 
 // simulator-arm.cc and simulator-mips.cc
 DEFINE_bool(trace_sim, false, "Trace simulator execution")
+DEFINE_bool(check_icache, false, "Check icache flushes in ARM simulator")
 DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions")
 DEFINE_int(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")

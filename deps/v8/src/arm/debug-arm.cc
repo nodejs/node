@@ -133,9 +133,9 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC load (from ic-arm.cc).
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
+  //  -- r0    : receiver
   //  -- [sp]  : receiver
   // -----------------------------------
   // Registers r0 and r2 contain objects that need to be pushed on the

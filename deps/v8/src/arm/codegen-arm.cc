@@ -351,17 +351,17 @@ void CodeGenerator::Generate(CompilationInfo* info) {
       int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
       masm_->add(sp, sp, Operand(sp_delta));
       masm_->Jump(lr);
-    }
 
 #ifdef DEBUG
-    // Check that the size of the code used for returning matches what is
-    // expected by the debugger. If the sp_delts above cannot be encoded in the
-    // add instruction the add will generate two instructions.
-    int return_sequence_length =
-        masm_->InstructionsGeneratedSince(&check_exit_codesize);
-    CHECK(return_sequence_length == Assembler::kJSReturnSequenceLength ||
-          return_sequence_length == Assembler::kJSReturnSequenceLength + 1);
+      // Check that the size of the code used for returning matches what is
+      // expected by the debugger. If the sp_delts above cannot be encoded in
+      // the add instruction the add will generate two instructions.
+      int return_sequence_length =
+          masm_->InstructionsGeneratedSince(&check_exit_codesize);
+      CHECK(return_sequence_length == Assembler::kJSReturnSequenceLength ||
+            return_sequence_length == Assembler::kJSReturnSequenceLength + 1);
 #endif
+    }
   }
 
   // Adjust for function-level loop nesting.
@@ -570,9 +570,9 @@ void CodeGenerator::Load(Expression* expr) {
 
 
 void CodeGenerator::LoadGlobal() {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
-  __ ldr(r0, GlobalObject());
-  frame_->EmitPush(r0);
+  Register reg = frame_->GetTOSRegister();
+  __ ldr(reg, GlobalObject());
+  frame_->EmitPush(reg);
 }
 
 
@@ -619,7 +619,7 @@ void CodeGenerator::StoreArgumentsObject(bool initial) {
     __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
     __ mov(r0, Operand(Smi::FromInt(scope()->num_parameters())));
     frame_->Adjust(3);
-    __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
+    __ Push(r2, r1, r0);
     frame_->CallStub(&stub, 3);
     frame_->EmitPush(r0);
   }
@@ -687,7 +687,6 @@ Reference::~Reference() {
 
 
 void CodeGenerator::LoadReference(Reference* ref) {
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ LoadReference");
   Expression* e = ref->expression();
   Property* property = e->AsProperty();
@@ -696,11 +695,11 @@ void CodeGenerator::LoadReference(Reference* ref) {
   if (property != NULL) {
     // The expression is either a property or a variable proxy that rewrites
     // to a property.
-    LoadAndSpill(property->obj());
+    Load(property->obj());
     if (property->key()->IsPropertyName()) {
       ref->set_type(Reference::NAMED);
     } else {
-      LoadAndSpill(property->key());
+      Load(property->key());
       ref->set_type(Reference::KEYED);
     }
   } else if (var != NULL) {
@@ -715,6 +714,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
     }
   } else {
     // Anything else is a runtime error.
+    VirtualFrame::SpilledScope spilled_scope(frame_);
     LoadAndSpill(e);
     frame_->CallRuntime(Runtime::kThrowReferenceError, 1);
   }
@@ -1527,6 +1527,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   LoadAndSpill(applicand);
   Handle<String> name = Factory::LookupAsciiSymbol("apply");
   __ mov(r2, Operand(name));
+  __ ldr(r0, MemOperand(sp, 0));
   frame_->CallLoadIC(RelocInfo::CODE_TARGET);
   frame_->EmitPush(r0);
 
@@ -2948,9 +2949,10 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 
 void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
   if (slot->type() == Slot::LOOKUP) {
-    VirtualFrame::SpilledScope spilled_scope(frame_);
     ASSERT(slot->var()->is_dynamic());
 
+    // JumpTargets do not yet support merging frames so the frame must be
+    // spilled when jumping to these targets.
     JumpTarget slow;
     JumpTarget done;
 
@@ -2960,16 +2962,18 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     // perform a runtime call for all variables in the scope
     // containing the eval.
     if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
-      LoadFromGlobalSlotCheckExtensions(slot, typeof_state, r1, r2, &slow);
+      LoadFromGlobalSlotCheckExtensions(slot, typeof_state, &slow);
       // If there was no control flow to slow, we can exit early.
       if (!slow.is_linked()) {
         frame_->EmitPush(r0);
         return;
       }
+      frame_->SpillAll();
 
       done.Jump();
 
     } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+      frame_->SpillAll();
       Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
       // Only generate the fast case for locals that rewrite to slots.
       // This rules out argument loads.
@@ -2992,6 +2996,7 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     }
 
     slow.Bind();
+    VirtualFrame::SpilledScope spilled_scope(frame_);
     frame_->EmitPush(cp);
     __ mov(r0, Operand(slot->var()->name()));
     frame_->EmitPush(r0);
@@ -3143,16 +3148,17 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
 
 void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                                       TypeofState typeof_state,
-                                                      Register tmp,
-                                                      Register tmp2,
                                                       JumpTarget* slow) {
   // Check that no extension objects have been created by calls to
   // eval from the current scope to the global scope.
+  Register tmp = frame_->scratch0();
+  Register tmp2 = frame_->scratch1();
   Register context = cp;
   Scope* s = scope();
   while (s != NULL) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_eval()) {
+        frame_->SpillAll();
         // Check that extension is NULL.
         __ ldr(tmp2, ContextOperand(context, Context::EXTENSION_INDEX));
         __ tst(tmp2, tmp2);
@@ -3170,6 +3176,7 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
   }
 
   if (s->is_eval_scope()) {
+    frame_->SpillAll();
     Label next, fast;
     __ Move(tmp, context);
     __ bind(&next);
@@ -3192,6 +3199,7 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
   // Load the global object.
   LoadGlobal();
   // Setup the name register and call load IC.
+  frame_->SpillAllButCopyTOSToR0();
   __ mov(r2, Operand(slot->var()->name()));
   frame_->CallLoadIC(typeof_state == INSIDE_TYPEOF
                      ? RelocInfo::CODE_TARGET
@@ -3524,7 +3532,6 @@ void CodeGenerator::VisitProperty(Property* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment cmnt(masm_, "[ Property");
 
   { Reference property(this, node);
@@ -3703,7 +3710,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
       LoadAndSpill(property->obj());
       LoadAndSpill(property->key());
-      EmitKeyedLoad(false);
+      EmitKeyedLoad();
       frame_->Drop();  // key
       // Put the function below the receiver.
       if (property->is_synthetic()) {
@@ -4437,8 +4444,7 @@ class DeferredSearchCache: public DeferredCode {
 
 
 void DeferredSearchCache::Generate() {
-  __ push(cache_);
-  __ push(key_);
+  __ Push(cache_, key_);
   __ CallRuntime(Runtime::kGetFromCache, 2);
   if (!dst_.is(r0)) {
     __ mov(dst_, r0);
@@ -5231,34 +5237,105 @@ class DeferredReferenceGetNamedValue: public DeferredCode {
     set_comment("[ DeferredReferenceGetNamedValue");
   }
 
-  virtual void BeforeGenerate();
   virtual void Generate();
-  virtual void AfterGenerate();
 
  private:
   Handle<String> name_;
 };
 
 
-void DeferredReferenceGetNamedValue::BeforeGenerate() {
-  __ StartBlockConstPool();
-}
-
-
 void DeferredReferenceGetNamedValue::Generate() {
-  __ IncrementCounter(&Counters::named_load_inline_miss, 1, r1, r2);
-  // Setup the name register and call load IC.
+  Register scratch1 = VirtualFrame::scratch0();
+  Register scratch2 = VirtualFrame::scratch1();
+  __ DecrementCounter(&Counters::named_load_inline, 1, scratch1, scratch2);
+  __ IncrementCounter(&Counters::named_load_inline_miss, 1, scratch1, scratch2);
+
+  // Setup the registers and call load IC.
+  // On entry to this deferred code, r0 is assumed to already contain the
+  // receiver from the top of the stack.
   __ mov(r2, Operand(name_));
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  __ Call(ic, RelocInfo::CODE_TARGET);
-  // The call must be followed by a nop(1) instruction to indicate that the
-  // inobject has been inlined.
-  __ nop(NAMED_PROPERTY_LOAD_INLINED);
+
+  // The rest of the instructions in the deferred code must be together.
+  { Assembler::BlockConstPoolScope block_const_pool(masm_);
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // The call must be followed by a nop(1) instruction to indicate that the
+    // in-object has been inlined.
+    __ nop(PROPERTY_ACCESS_INLINED);
+
+    // Block the constant pool for one more instruction after leaving this
+    // constant pool block scope to include the branch instruction ending the
+    // deferred code.
+    __ BlockConstPoolFor(1);
+  }
 }
 
 
-void DeferredReferenceGetNamedValue::AfterGenerate() {
-  __ EndBlockConstPool();
+class DeferredReferenceGetKeyedValue: public DeferredCode {
+ public:
+  DeferredReferenceGetKeyedValue() {
+    set_comment("[ DeferredReferenceGetKeyedValue");
+  }
+
+  virtual void Generate();
+};
+
+
+void DeferredReferenceGetKeyedValue::Generate() {
+  Register scratch1 = VirtualFrame::scratch0();
+  Register scratch2 = VirtualFrame::scratch1();
+  __ DecrementCounter(&Counters::keyed_load_inline, 1, scratch1, scratch2);
+  __ IncrementCounter(&Counters::keyed_load_inline_miss, 1, scratch1, scratch2);
+
+  // The rest of the instructions in the deferred code must be together.
+  { Assembler::BlockConstPoolScope block_const_pool(masm_);
+    // Call keyed load IC. It has all arguments on the stack.
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // The call must be followed by a nop instruction to indicate that the
+    // keyed load has been inlined.
+    __ nop(PROPERTY_ACCESS_INLINED);
+
+    // Block the constant pool for one more instruction after leaving this
+    // constant pool block scope to include the branch instruction ending the
+    // deferred code.
+    __ BlockConstPoolFor(1);
+  }
+}
+
+
+class DeferredReferenceSetKeyedValue: public DeferredCode {
+ public:
+  DeferredReferenceSetKeyedValue() {
+    set_comment("[ DeferredReferenceSetKeyedValue");
+  }
+
+  virtual void Generate();
+};
+
+
+void DeferredReferenceSetKeyedValue::Generate() {
+  Register scratch1 = VirtualFrame::scratch0();
+  Register scratch2 = VirtualFrame::scratch1();
+  __ DecrementCounter(&Counters::keyed_store_inline, 1, scratch1, scratch2);
+  __ IncrementCounter(
+      &Counters::keyed_store_inline_miss, 1, scratch1, scratch2);
+
+  // The rest of the instructions in the deferred code must be together.
+  { Assembler::BlockConstPoolScope block_const_pool(masm_);
+    // Call keyed load IC. It has receiver amd key on the stack and the value to
+    // store in r0.
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // The call must be followed by a nop instruction to indicate that the
+    // keyed store has been inlined.
+    __ nop(PROPERTY_ACCESS_INLINED);
+
+    // Block the constant pool for one more instruction after leaving this
+    // constant pool block scope to include the branch instruction ending the
+    // deferred code.
+    __ BlockConstPoolFor(1);
+  }
 }
 
 
@@ -5266,63 +5343,231 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
   if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
     Comment cmnt(masm(), "[ Load from named Property");
     // Setup the name register and call load IC.
+    frame_->SpillAllButCopyTOSToR0();
     __ mov(r2, Operand(name));
     frame_->CallLoadIC(is_contextual
                        ? RelocInfo::CODE_TARGET_CONTEXT
                        : RelocInfo::CODE_TARGET);
   } else {
-    // Inline the inobject property case.
+    // Inline the in-object property case.
     Comment cmnt(masm(), "[ Inlined named property load");
 
-    DeferredReferenceGetNamedValue* deferred =
-        new DeferredReferenceGetNamedValue(name);
+    // Counter will be decremented in the deferred code. Placed here to avoid
+    // having it in the instruction stream below where patching will occur.
+    __ IncrementCounter(&Counters::named_load_inline, 1,
+                        frame_->scratch0(), frame_->scratch1());
 
     // The following instructions are the inlined load of an in-object property.
     // Parts of this code is patched, so the exact instructions generated needs
     // to be fixed. Therefore the instruction pool is blocked when generating
     // this code
+
+    // Load the receiver from the stack.
+    frame_->SpillAllButCopyTOSToR0();
+
+    DeferredReferenceGetNamedValue* deferred =
+        new DeferredReferenceGetNamedValue(name);
+
 #ifdef DEBUG
-    int kInlinedNamedLoadInstructions = 8;
+    int kInlinedNamedLoadInstructions = 7;
     Label check_inlined_codesize;
     masm_->bind(&check_inlined_codesize);
 #endif
-    { Assembler::BlockConstPoolScope block_const_pool(masm_);
-      // Load the receiver from the stack.
-      __ ldr(r1, MemOperand(sp, 0));
 
+    { Assembler::BlockConstPoolScope block_const_pool(masm_);
       // Check that the receiver is a heap object.
-      __ tst(r1, Operand(kSmiTagMask));
+      __ tst(r0, Operand(kSmiTagMask));
       deferred->Branch(eq);
 
       // Check the map. The null map used below is patched by the inline cache
       // code.
-      __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+      __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
       __ mov(r3, Operand(Factory::null_value()));
       __ cmp(r2, r3);
       deferred->Branch(ne);
 
-      // Use initially use an invalid index. The index will be patched by the
+      // Initially use an invalid index. The index will be patched by the
       // inline cache code.
-      __ ldr(r0, MemOperand(r1, 0));
+      __ ldr(r0, MemOperand(r0, 0));
+
+      // Make sure that the expected number of instructions are generated.
+      ASSERT_EQ(kInlinedNamedLoadInstructions,
+                masm_->InstructionsGeneratedSince(&check_inlined_codesize));
     }
 
-    // Make sure that the expected number of instructions are generated.
-    ASSERT_EQ(kInlinedNamedLoadInstructions,
-              masm_->InstructionsGeneratedSince(&check_inlined_codesize));
-
-    __ IncrementCounter(&Counters::named_load_inline, 1, r1, r2);
     deferred->BindExit();
   }
 }
 
 
-void CodeGenerator::EmitKeyedLoad(bool is_global) {
-  Comment cmnt(masm_, "[ Load from keyed Property");
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  RelocInfo::Mode rmode = is_global
-                          ? RelocInfo::CODE_TARGET_CONTEXT
-                          : RelocInfo::CODE_TARGET;
-  frame_->CallCodeObject(ic, rmode, 0);
+void CodeGenerator::EmitKeyedLoad() {
+  if (loop_nesting() == 0) {
+    VirtualFrame::SpilledScope spilled(frame_);
+    Comment cmnt(masm_, "[ Load from keyed property");
+    frame_->CallKeyedLoadIC();
+  } else {
+    // Inline the keyed load.
+    Comment cmnt(masm_, "[ Inlined load from keyed property");
+
+    // Counter will be decremented in the deferred code. Placed here to avoid
+    // having it in the instruction stream below where patching will occur.
+    __ IncrementCounter(&Counters::keyed_load_inline, 1,
+                        frame_->scratch0(), frame_->scratch1());
+
+    // Load the receiver and key  from the stack.
+    frame_->SpillAllButCopyTOSToR1R0();
+    Register receiver = r0;
+    Register key = r1;
+    VirtualFrame::SpilledScope spilled(frame_);
+
+    DeferredReferenceGetKeyedValue* deferred =
+        new DeferredReferenceGetKeyedValue();
+
+    // Check that the receiver is a heap object.
+    __ tst(receiver, Operand(kSmiTagMask));
+    deferred->Branch(eq);
+
+    // The following instructions are the part of the inlined load keyed
+    // property code which can be patched. Therefore the exact number of
+    // instructions generated need to be fixed, so the constant pool is blocked
+    // while generating this code.
+#ifdef DEBUG
+    int kInlinedKeyedLoadInstructions = 19;
+    Label check_inlined_codesize;
+    masm_->bind(&check_inlined_codesize);
+#endif
+    { Assembler::BlockConstPoolScope block_const_pool(masm_);
+      Register scratch1 = VirtualFrame::scratch0();
+      Register scratch2 = VirtualFrame::scratch1();
+      // Check the map. The null map used below is patched by the inline cache
+      // code.
+      __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
+      __ mov(scratch2, Operand(Factory::null_value()));
+      __ cmp(scratch1, scratch2);
+      deferred->Branch(ne);
+
+      // Check that the key is a smi.
+      __ tst(key, Operand(kSmiTagMask));
+      deferred->Branch(ne);
+
+      // Get the elements array from the receiver and check that it
+      // is not a dictionary.
+      __ ldr(scratch1, FieldMemOperand(receiver, JSObject::kElementsOffset));
+      __ ldr(scratch2, FieldMemOperand(scratch1, JSObject::kMapOffset));
+      __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+      __ cmp(scratch2, ip);
+      deferred->Branch(ne);
+
+      // Check that key is within bounds. Use unsigned comparison to handle
+      // negative keys.
+      __ ldr(scratch2, FieldMemOperand(scratch1, FixedArray::kLengthOffset));
+      __ cmp(scratch2, Operand(key, ASR, kSmiTagSize));
+      deferred->Branch(ls);  // Unsigned less equal.
+
+      // Load and check that the result is not the hole (key is a smi).
+      __ LoadRoot(scratch2, Heap::kTheHoleValueRootIndex);
+      __ add(scratch1,
+             scratch1,
+             Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ ldr(r0,
+             MemOperand(scratch1, key, LSL,
+                        kPointerSizeLog2 - (kSmiTagSize + kSmiShiftSize)));
+      __ cmp(r0, scratch2);
+      // This is the only branch to deferred where r0 and r1 do not contain the
+      // receiver and key.  We can't just load undefined here because we have to
+      // check the prototype.
+      deferred->Branch(eq);
+
+      // Make sure that the expected number of instructions are generated.
+      ASSERT_EQ(kInlinedKeyedLoadInstructions,
+                masm_->InstructionsGeneratedSince(&check_inlined_codesize));
+    }
+
+    deferred->BindExit();
+  }
+}
+
+
+void CodeGenerator::EmitKeyedStore(StaticType* key_type) {
+  frame_->AssertIsSpilled();
+  // Generate inlined version of the keyed store if the code is in a loop
+  // and the key is likely to be a smi.
+  if (loop_nesting() > 0 && key_type->IsLikelySmi()) {
+    // Inline the keyed store.
+    Comment cmnt(masm_, "[ Inlined store to keyed property");
+
+    DeferredReferenceSetKeyedValue* deferred =
+        new DeferredReferenceSetKeyedValue();
+
+    // Counter will be decremented in the deferred code. Placed here to avoid
+    // having it in the instruction stream below where patching will occur.
+    __ IncrementCounter(&Counters::keyed_store_inline, 1,
+                        frame_->scratch0(), frame_->scratch1());
+
+    // Check that the value is a smi. As this inlined code does not set the
+    // write barrier it is only possible to store smi values.
+    __ tst(r0, Operand(kSmiTagMask));
+    deferred->Branch(ne);
+
+    // Load the key and receiver from the stack.
+    __ ldr(r1, MemOperand(sp, 0));
+    __ ldr(r2, MemOperand(sp, kPointerSize));
+
+    // Check that the key is a smi.
+    __ tst(r1, Operand(kSmiTagMask));
+    deferred->Branch(ne);
+
+    // Check that the receiver is a heap object.
+    __ tst(r2, Operand(kSmiTagMask));
+    deferred->Branch(eq);
+
+    // Check that the receiver is a JSArray.
+    __ CompareObjectType(r2, r3, r3, JS_ARRAY_TYPE);
+    deferred->Branch(ne);
+
+    // Check that the key is within bounds. Both the key and the length of
+    // the JSArray are smis. Use unsigned comparison to handle negative keys.
+    __ ldr(r3, FieldMemOperand(r2, JSArray::kLengthOffset));
+    __ cmp(r3, r1);
+    deferred->Branch(ls);  // Unsigned less equal.
+
+    // The following instructions are the part of the inlined store keyed
+    // property code which can be patched. Therefore the exact number of
+    // instructions generated need to be fixed, so the constant pool is blocked
+    // while generating this code.
+#ifdef DEBUG
+    int kInlinedKeyedStoreInstructions = 7;
+    Label check_inlined_codesize;
+    masm_->bind(&check_inlined_codesize);
+#endif
+    { Assembler::BlockConstPoolScope block_const_pool(masm_);
+      // Get the elements array from the receiver and check that it
+      // is not a dictionary.
+      __ ldr(r3, FieldMemOperand(r2, JSObject::kElementsOffset));
+      __ ldr(r4, FieldMemOperand(r3, JSObject::kMapOffset));
+      // Read the fixed array map from the constant pool (not from the root
+      // array) so that the value can be patched.  When debugging, we patch this
+      // comparison to always fail so that we will hit the IC call in the
+      // deferred code which will allow the debugger to break for fast case
+      // stores.
+      __ mov(r5, Operand(Factory::fixed_array_map()));
+      __ cmp(r4, r5);
+      deferred->Branch(ne);
+
+      // Store the value.
+      __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ str(r0, MemOperand(r3, r1, LSL,
+                            kPointerSizeLog2 - (kSmiTagSize + kSmiShiftSize)));
+
+      // Make sure that the expected number of instructions are generated.
+      ASSERT_EQ(kInlinedKeyedStoreInstructions,
+                masm_->InstructionsGeneratedSince(&check_inlined_codesize));
+    }
+
+    deferred->BindExit();
+  } else {
+    frame()->CallKeyedStoreIC();
+  }
 }
 
 
@@ -5381,12 +5626,8 @@ void Reference::GetValue() {
     }
 
     case KEYED: {
-      // TODO(181): Implement inlined version of array indexing once
-      // loop nesting is properly tracked on ARM.
       ASSERT(property != NULL);
-      Variable* var = expression_->AsVariableProxy()->AsVariable();
-      ASSERT(var == NULL || var->is_global());
-      cgen_->EmitKeyedLoad(var != NULL);
+      cgen_->EmitKeyedLoad();
       cgen_->frame()->EmitPush(r0);
       break;
     }
@@ -5443,10 +5684,8 @@ void Reference::SetValue(InitState init_state) {
       ASSERT(property != NULL);
       cgen_->CodeForSourcePosition(property->position());
 
-      // Call IC code.
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      frame->EmitPop(r0);  // value
-      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
+      frame->EmitPop(r0);  // Value.
+      cgen_->EmitKeyedStore(property->key()->type());
       frame->EmitPush(r0);
       cgen_->UnloadReference(this);
       break;
@@ -5497,8 +5736,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   // Create a new closure through the slower runtime call.
   __ bind(&gc);
-  __ push(cp);
-  __ push(r3);
+  __ Push(cp, r3);
   __ TailCallRuntime(Runtime::kNewClosure, 2, 1);
 }
 
@@ -6145,20 +6383,12 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register result,
                                                          Register scratch1,
                                                          Register scratch2,
+                                                         Register scratch3,
                                                          bool object_is_smi,
                                                          Label* not_found) {
-  // Currently only lookup for smis. Check for smi if object is not known to be
-  // a smi.
-  if (!object_is_smi) {
-    ASSERT(kSmiTag == 0);
-    __ tst(object, Operand(kSmiTagMask));
-    __ b(ne, not_found);
-  }
-
   // Use of registers. Register result is used as a temporary.
   Register number_string_cache = result;
-  Register mask = scratch1;
-  Register scratch = scratch2;
+  Register mask = scratch3;
 
   // Load the number string cache.
   __ LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
@@ -6171,9 +6401,55 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   __ sub(mask, mask, Operand(1));  // Make mask.
 
   // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value.
-  __ and_(scratch, mask, Operand(object, ASR, 1));
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label is_smi;
+  Label load_result_from_cache;
+  if (!object_is_smi) {
+    __ BranchOnSmi(object, &is_smi);
+    if (CpuFeatures::IsSupported(VFP3)) {
+      CpuFeatures::Scope scope(VFP3);
+      __ CheckMap(object,
+                  scratch1,
+                  Factory::heap_number_map(),
+                  not_found,
+                  true);
 
+      ASSERT_EQ(8, kDoubleSize);
+      __ add(scratch1,
+             object,
+             Operand(HeapNumber::kValueOffset - kHeapObjectTag));
+      __ ldm(ia, scratch1, scratch1.bit() | scratch2.bit());
+      __ eor(scratch1, scratch1, Operand(scratch2));
+      __ and_(scratch1, scratch1, Operand(mask));
+
+      // Calculate address of entry in string cache: each entry consists
+      // of two pointer sized fields.
+      __ add(scratch1,
+             number_string_cache,
+             Operand(scratch1, LSL, kPointerSizeLog2 + 1));
+
+      Register probe = mask;
+      __ ldr(probe,
+             FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+      __ BranchOnSmi(probe, not_found);
+      __ sub(scratch2, object, Operand(kHeapObjectTag));
+      __ vldr(d0, scratch2, HeapNumber::kValueOffset);
+      __ sub(probe, probe, Operand(kHeapObjectTag));
+      __ vldr(d1, probe, HeapNumber::kValueOffset);
+      __ vcmp(d0, d1);
+      __ vmrs(pc);
+      __ b(ne, not_found);  // The cache did not contain this value.
+      __ b(&load_result_from_cache);
+    } else {
+      __ b(not_found);
+    }
+  }
+
+  __ bind(&is_smi);
+  Register scratch = scratch1;
+  __ and_(scratch, mask, Operand(object, ASR, 1));
   // Calculate address of entry in string cache: each entry consists
   // of two pointer sized fields.
   __ add(scratch,
@@ -6181,15 +6457,15 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
          Operand(scratch, LSL, kPointerSizeLog2 + 1));
 
   // Check if the entry is the smi we are looking for.
-  Register object1 = scratch1;
-  __ ldr(object1, FieldMemOperand(scratch, FixedArray::kHeaderSize));
-  __ cmp(object, object1);
+  Register probe = mask;
+  __ ldr(probe, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  __ cmp(object, probe);
   __ b(ne, not_found);
 
   // Get the result from the cache.
+  __ bind(&load_result_from_cache);
   __ ldr(result,
          FieldMemOperand(scratch, FixedArray::kHeaderSize + kPointerSize));
-
   __ IncrementCounter(&Counters::number_to_string_native,
                       1,
                       scratch1,
@@ -6203,13 +6479,13 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(sp, 0));
 
   // Generate code to lookup number in the number string cache.
-  GenerateLookupNumberStringCache(masm, r1, r0, r2, r3, false, &runtime);
+  GenerateLookupNumberStringCache(masm, r1, r0, r2, r3, r4, false, &runtime);
   __ add(sp, sp, Operand(1 * kPointerSize));
   __ Ret();
 
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
-  __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
+  __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
 }
 
 
@@ -6328,8 +6604,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   __ bind(&slow);
 
-  __ push(r1);
-  __ push(r0);
+  __ Push(r1, r0);
   // Figure out which native to call and setup the arguments.
   Builtins::JavaScript native;
   if (cc_ == eq) {
@@ -6594,8 +6869,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
   __ bind(&slow);
 
   // Push arguments to the stack
-  __ push(r1);
-  __ push(r0);
+  __ Push(r1, r0);
 
   if (Token::ADD == op_) {
     // Test for string arguments before calling runtime.
@@ -6624,7 +6898,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     // First argument is a string, second is a smi. Try to lookup the number
     // string for the smi in the number string cache.
     NumberToStringStub::GenerateLookupNumberStringCache(
-        masm, r0, r2, r4, r5, true, &string1);
+        masm, r0, r2, r4, r5, r6, true, &string1);
 
     // Replace second argument on stack and tailcall string add stub to make
     // the result.
@@ -6849,8 +7123,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
 
   // If all else failed then we go to the runtime system.
   __ bind(&slow);
-  __ push(lhs);  // restore stack
-  __ push(rhs);
+  __ Push(lhs, rhs);  // Restore stack.
   switch (op_) {
     case Token::BIT_OR:
       __ InvokeBuiltin(Builtins::BIT_OR, JUMP_JS);
@@ -7248,8 +7521,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   Label get_result;
 
-  __ push(r1);
-  __ push(r0);
+  __ Push(r1, r0);
 
   // Internal frame is necessary to handle exceptions properly.
   __ EnterInternalFrame();
@@ -7723,7 +7995,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ mov(r6, Operand(Smi::FromInt(marker)));
   __ mov(r5, Operand(ExternalReference(Top::k_c_entry_fp_address)));
   __ ldr(r5, MemOperand(r5));
-  __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | r8.bit());
+  __ Push(r8, r7, r6, r5);
 
   // Setup frame pointer for the frame to be pushed.
   __ add(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));

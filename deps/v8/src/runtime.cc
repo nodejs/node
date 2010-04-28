@@ -3162,7 +3162,7 @@ static bool SearchStringMultiple(Vector<schar> subject,
   StringSearchStrategy strategy =
       InitializeStringSearch(pattern_string, is_ascii);
   switch (strategy) {
-    case SEARCH_FAIL: return false;
+    case SEARCH_FAIL: break;
     case SEARCH_SHORT:
       while (pos <= max_search_start) {
         if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
@@ -3189,16 +3189,17 @@ static bool SearchStringMultiple(Vector<schar> subject,
     case SEARCH_LONG:
       while (pos  <= max_search_start) {
         if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
-         *match_pos = pos;
-         return false;
+          *match_pos = pos;
+          return false;
         }
-        int new_pos = ComplexIndexOf(subject,
-                                     pattern_string,
-                                     pos + pattern_length);
+        int match_end = pos + pattern_length;
+        int new_pos = ComplexIndexOf(subject, pattern_string, match_end);
         if (new_pos >= 0) {
-         // A match has been found.
-          if (new_pos > pos) {
-           ReplacementStringBuilder::AddSubjectSlice(builder, pos, new_pos);
+          // A match has been found.
+          if (new_pos > match_end) {
+            ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                      match_end,
+                                                      new_pos);
           }
           pos = new_pos;
           builder->Add(pattern);

@@ -800,9 +800,10 @@ void Assembler::b(int branch_offset, Condition cond) {
   ASSERT(is_int24(imm24));
   emit(cond | B27 | B25 | (imm24 & Imm24Mask));
 
-  if (cond == al)
+  if (cond == al) {
     // Dead code is a good location to emit the constant pool.
     CheckConstPool(false, false);
+  }
 }
 
 
@@ -1781,6 +1782,11 @@ bool Assembler::ImmediateFitsAddrMode1Instruction(int32_t imm32) {
   uint32_t dummy1;
   uint32_t dummy2;
   return fits_shifter(imm32, &dummy1, &dummy2, NULL);
+}
+
+
+void Assembler::BlockConstPoolFor(int instructions) {
+  BlockConstPoolBefore(pc_offset() + instructions * kInstrSize);
 }
 
 

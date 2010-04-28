@@ -898,7 +898,7 @@ class Assembler : public Malloced {
 
   int pc_offset() const { return pc_ - buffer_; }
   int current_position() const { return current_position_; }
-  int current_statement_position() const { return current_position_; }
+  int current_statement_position() const { return current_statement_position_; }
 
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }

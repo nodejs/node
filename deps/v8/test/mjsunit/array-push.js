@@ -103,3 +103,13 @@
     assertEquals(29, a.push(29));
   }
 })();
+
+// Test the case of not JSArray receiver.
+// Regression test for custom call generators, see issue 684.
+(function() {
+  var x = {__proto__: []};
+  for (var i = 0; i < 100; i++) {
+    x.push("a");
+    assertEquals(i + 1, x.length, i + 'th iteration');
+  }
+})();

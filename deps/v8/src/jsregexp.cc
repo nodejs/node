@@ -4872,17 +4872,18 @@ void Analysis::VisitAssertion(AssertionNode* that) {
 
     SetRelation word_relation =
         CharacterRange::WordCharacterRelation(following_chars);
-    if (word_relation.ContainedIn()) {
-      // Following character is definitely a word character.
-      type = (type == AssertionNode::AT_BOUNDARY) ?
-                  AssertionNode::AFTER_NONWORD_CHARACTER :
-                  AssertionNode::AFTER_WORD_CHARACTER;
-      that->set_type(type);
-    } else if (word_relation.Disjoint()) {
+    if (word_relation.Disjoint()) {
+      // Includes the case where following_chars is empty (e.g., end-of-input).
       // Following character is definitely *not* a word character.
       type = (type == AssertionNode::AT_BOUNDARY) ?
-                  AssertionNode::AFTER_WORD_CHARACTER :
-                  AssertionNode::AFTER_NONWORD_CHARACTER;
+                 AssertionNode::AFTER_WORD_CHARACTER :
+                 AssertionNode::AFTER_NONWORD_CHARACTER;
+      that->set_type(type);
+    } else if (word_relation.ContainedIn()) {
+      // Following character is definitely a word character.
+      type = (type == AssertionNode::AT_BOUNDARY) ?
+                 AssertionNode::AFTER_NONWORD_CHARACTER :
+                 AssertionNode::AFTER_WORD_CHARACTER;
       that->set_type(type);
     }
   }

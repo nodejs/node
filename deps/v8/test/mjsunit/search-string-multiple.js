@@ -25,21 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-/**
- * @fileoverview Check that a mod where the stub code hits a failure
- * in heap number allocation still works.
- */
+// Test search and replace where we search for a string, not a regexp.
 
-// Flags: --max-new-space-size=262144
-
-function f(x) {
-  return x % 3;
+function TestCase(id, expected_output, regexp_source, flags, input) {
+  print(id);
+  var re = new RegExp(regexp_source, flags);
+  var output = input.replace(re, MakeReplaceString);
+  assertEquals(expected_output, output, id);
 }
 
-function test() {
-  for (var i = 0; i < 40000; i++) {
-    assertEquals(-1 / 0, 1 / f(-3));
+
+function MakeReplaceString() {
+  // Arg 0 is the match, n captures follow, n + 1 is offset of match, n + 2 is
+  // the subject.
+  var l = arguments.length;
+  var a = new Array(l - 3);
+  a.push(arguments[0]);
+  for (var i = 2; i < l - 2; i++) {
+    a.push(arguments[i]);
   }
+  return "[@" + arguments[l - 2] + ":" + a.join(",") + "]";
 }
 
-test();
+
+(function () {
+  TestCase(1,
+           "ajaxNiceForm.villesHome([@24:#OBJ#])",
+           "#OBJ#",
+           "g",
+           "ajaxNiceForm.villesHome(#OBJ#)");
+  TestCase(2,
+           "A long string with no non-ASCII characters",
+           "Unicode string \u1234",
+           "g",
+           "A long string with no non-ASCII characters");
+})();

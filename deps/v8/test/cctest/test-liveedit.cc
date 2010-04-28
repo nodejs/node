@@ -38,7 +38,7 @@ using namespace v8::internal;
 // Anonymous namespace.
 namespace {
 
-class StringCompareInput : public Compare::Input {
+class StringCompareInput : public Comparator::Input {
  public:
   StringCompareInput(const char* s1, const char* s2) : s1_(s1), s2_(s2) {
   }
@@ -72,7 +72,7 @@ class DiffChunkStruct : public ZoneObject {
 };
 
 
-class ListDiffOutputWriter : public Compare::Output {
+class ListDiffOutputWriter : public Comparator::Output {
  public:
   explicit ListDiffOutputWriter(DiffChunkStruct** next_chunk_pointer)
       : next_chunk_pointer_(next_chunk_pointer) {
@@ -98,7 +98,7 @@ void CompareStringsOneWay(const char* s1, const char* s2,
   DiffChunkStruct* first_chunk;
   ListDiffOutputWriter writer(&first_chunk);
 
-  Compare::CalculateDifference(&input, &writer);
+  Comparator::CalculateDifference(&input, &writer);
 
   int len1 = StrLength(s1);
   int len2 = StrLength(s2);

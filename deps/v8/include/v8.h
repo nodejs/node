@@ -767,7 +767,7 @@ class V8EXPORT Value : public Data {
   bool IsInt32() const;
 
   /**
-   * Returns true if this value is a 32-bit signed integer.
+   * Returns true if this value is a 32-bit unsigned integer.
    */
   bool IsUint32() const;
 

@@ -569,6 +569,7 @@ THREADED_TEST(UsingExternalAsciiString) {
 
 THREADED_TEST(ScavengeExternalString) {
   TestResource::dispose_count = 0;
+  bool in_new_space = false;
   {
     v8::HandleScope scope;
     uint16_t* two_byte_string = AsciiToTwoByteString("test string");
@@ -576,16 +577,18 @@ THREADED_TEST(ScavengeExternalString) {
         String::NewExternal(new TestResource(two_byte_string));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     i::Heap::CollectGarbage(0, i::NEW_SPACE);
-    CHECK(i::Heap::InNewSpace(*istring));
+    in_new_space = i::Heap::InNewSpace(*istring);
+    CHECK(in_new_space || i::Heap::old_data_space()->Contains(*istring));
     CHECK_EQ(0, TestResource::dispose_count);
   }
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);
+  i::Heap::CollectGarbage(0, in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
   CHECK_EQ(1, TestResource::dispose_count);
 }
 
 
 THREADED_TEST(ScavengeExternalAsciiString) {
   TestAsciiResource::dispose_count = 0;
+  bool in_new_space = false;
   {
     v8::HandleScope scope;
     const char* one_byte_string = "test string";
@@ -593,10 +596,11 @@ THREADED_TEST(ScavengeExternalAsciiString) {
         new TestAsciiResource(i::StrDup(one_byte_string)));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     i::Heap::CollectGarbage(0, i::NEW_SPACE);
-    CHECK(i::Heap::InNewSpace(*istring));
+    in_new_space = i::Heap::InNewSpace(*istring);
+    CHECK(in_new_space || i::Heap::old_data_space()->Contains(*istring));
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);
+  i::Heap::CollectGarbage(0, in_new_space ? i::NEW_SPACE : i::OLD_DATA_SPACE);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
 

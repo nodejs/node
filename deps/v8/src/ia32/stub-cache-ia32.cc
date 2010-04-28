@@ -1241,6 +1241,11 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   // -----------------------------------
   ASSERT(check == RECEIVER_MAP_CHECK);
 
+  // If object is not an array, bail out to regular call.
+  if (!object->IsJSArray()) {
+    return Heap::undefined_value();
+  }
+
   Label miss;
 
   // Get the receiver from the stack.
@@ -1389,6 +1394,11 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   // -----------------------------------
   ASSERT(check == RECEIVER_MAP_CHECK);
 
+  // If object is not an array, bail out to regular call.
+  if (!object->IsJSArray()) {
+    return Heap::undefined_value();
+  }
+
   Label miss, empty_array, call_builtin;
 
   // Get the receiver from the stack.
@@ -1476,7 +1486,11 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   if (function_info->HasCustomCallGenerator()) {
     CustomCallGenerator generator =
         ToCData<CustomCallGenerator>(function_info->function_data());
-    return generator(this, object, holder, function, name, check);
+    Object* result = generator(this, object, holder, function, name, check);
+    // undefined means bail out to regular compiler.
+    if (!result->IsUndefined()) {
+      return result;
+    }
   }
 
   Label miss_in_smi_check;

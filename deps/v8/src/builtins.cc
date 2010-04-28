@@ -300,35 +300,6 @@ static void FillWithHoles(FixedArray* dst, int from, int to) {
 }
 
 
-static FixedArray* LeftTrimFixedArray(FixedArray* elms) {
-  // For now this trick is only applied to fixed arrays in new space.
-  // In large object space the object's start must coincide with chunk
-  // and thus the trick is just not applicable.
-  // In old space we do not use this trick to avoid dealing with
-  // remembered sets.
-  ASSERT(Heap::new_space()->Contains(elms));
-
-  STATIC_ASSERT(FixedArray::kMapOffset == 0);
-  STATIC_ASSERT(FixedArray::kLengthOffset == kPointerSize);
-  STATIC_ASSERT(FixedArray::kHeaderSize == 2 * kPointerSize);
-
-  Object** former_start = HeapObject::RawField(elms, 0);
-
-  const int len = elms->length();
-
-  // Technically in new space this write might be omitted (except for
-  // debug mode which iterates through the heap), but to play safer
-  // we still do it.
-  former_start[0] = Heap::raw_unchecked_one_pointer_filler_map();
-
-  former_start[1] = Heap::fixed_array_map();
-  former_start[2] = reinterpret_cast<Object*>(len - 1);
-
-  ASSERT_EQ(elms->address() + kPointerSize, (elms + kPointerSize)->address());
-  return elms + kPointerSize;
-}
-
-
 static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
   // For now this trick is only applied to fixed arrays in new space.
   // In large object space the object's start must coincide with chunk
@@ -527,7 +498,7 @@ BUILTIN(ArrayShift) {
   if (Heap::new_space()->Contains(elms)) {
     // As elms still in the same space they used to be (new space),
     // there is no need to update remembered set.
-    array->set_elements(LeftTrimFixedArray(elms), SKIP_WRITE_BARRIER);
+    array->set_elements(LeftTrimFixedArray(elms, 1), SKIP_WRITE_BARRIER);
   } else {
     // Shift the elements.
     AssertNoAllocation no_gc;

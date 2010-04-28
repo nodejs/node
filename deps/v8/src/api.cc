@@ -4020,8 +4020,8 @@ void Debug::ProcessDebugMessages() {
 }
 
 Local<Context> Debug::GetDebugContext() {
-  i::EnterDebugger debugger;
-  return Utils::ToLocal(i::Debug::debug_context());
+  ENTER_V8;
+  return Utils::ToLocal(i::Debugger::GetDebugContext());
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT

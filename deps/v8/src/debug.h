@@ -665,9 +665,12 @@ class Debugger {
 
   static void CallMessageDispatchHandler();
 
+  static Handle<Context> GetDebugContext();
+
   // Unload the debugger if possible. Only called when no debugger is currently
   // active.
   static void UnloadDebugger();
+  friend void ForceUnloadDebugger();  // In test-debug.cc
 
   inline static bool EventActive(v8::DebugEvent event) {
     ScopedLock with(debugger_access_);

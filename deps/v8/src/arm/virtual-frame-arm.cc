@@ -88,7 +88,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
       break;
     case CASE_NUMBER(NO_TOS_REGISTERS, R1_R0_TOS):
       __ pop(r1);
-      __ pop(r1);
+      __ pop(r0);
       break;
     case CASE_NUMBER(R0_TOS, NO_TOS_REGISTERS):
       __ push(r0);
@@ -121,8 +121,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
       __ pop(r0);
       break;
     case CASE_NUMBER(R0_R1_TOS, NO_TOS_REGISTERS):
-      __ push(r1);
-      __ push(r0);
+      __ Push(r1, r0);
       break;
     case CASE_NUMBER(R0_R1_TOS, R0_TOS):
       __ push(r1);
@@ -137,8 +136,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
       __ Swap(r0, r1, ip);
       break;
     case CASE_NUMBER(R1_R0_TOS, NO_TOS_REGISTERS):
-      __ push(r0);
-      __ push(r1);
+      __ Push(r0, r1);
       break;
     case CASE_NUMBER(R1_R0_TOS, R0_TOS):
       __ push(r0);
@@ -270,6 +268,7 @@ void VirtualFrame::CallJSFunction(int arg_count) {
 
 
 void VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+  ASSERT(SpilledScope::is_spilled());
   Forget(arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(f, arg_count);
@@ -302,6 +301,18 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 void VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   CallCodeObject(ic, mode, 0);
+}
+
+
+void VirtualFrame::CallKeyedLoadIC() {
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
+}
+
+
+void VirtualFrame::CallKeyedStoreIC() {
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
 }
 
 
@@ -395,6 +406,61 @@ void VirtualFrame::EmitPop(Register reg) {
     top_of_stack_state_ = kStateAfterPop[top_of_stack_state_];
   }
   element_count_--;
+}
+
+
+void VirtualFrame::SpillAllButCopyTOSToR0() {
+  switch (top_of_stack_state_) {
+    case NO_TOS_REGISTERS:
+      __ ldr(r0, MemOperand(sp, 0));
+      break;
+    case R0_TOS:
+      __ push(r0);
+      break;
+    case R1_TOS:
+      __ push(r1);
+      __ mov(r0, r1);
+      break;
+    case R0_R1_TOS:
+      __ Push(r1, r0);
+      break;
+    case R1_R0_TOS:
+      __ Push(r0, r1);
+      __ mov(r0, r1);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  top_of_stack_state_ = NO_TOS_REGISTERS;
+}
+
+
+void VirtualFrame::SpillAllButCopyTOSToR1R0() {
+  switch (top_of_stack_state_) {
+    case NO_TOS_REGISTERS:
+      __ ldr(r1, MemOperand(sp, 0));
+      __ ldr(r0, MemOperand(sp, kPointerSize));
+      break;
+    case R0_TOS:
+      __ push(r0);
+      __ mov(r1, r0);
+      __ ldr(r0, MemOperand(sp, kPointerSize));
+      break;
+    case R1_TOS:
+      __ push(r1);
+      __ ldr(r0, MemOperand(sp, kPointerSize));
+      break;
+    case R0_R1_TOS:
+      __ Push(r1, r0);
+      __ Swap(r0, r1, ip);
+      break;
+    case R1_R0_TOS:
+      __ Push(r0, r1);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  top_of_stack_state_ = NO_TOS_REGISTERS;
 }
 
 

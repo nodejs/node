@@ -118,7 +118,7 @@ class LiveEdit : AllStatic {
 
 
 // A general-purpose comparator between 2 arrays.
-class Compare {
+class Comparator {
  public:
 
   // Holds 2 arrays of some elements allowing to compare any pair of

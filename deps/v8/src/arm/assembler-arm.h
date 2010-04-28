@@ -941,6 +941,10 @@ class Assembler : public Malloced {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
+  // Postpone the generation of the constant pool for the specified number of
+  // instructions.
+  void BlockConstPoolFor(int instructions);
+
   // Debugging
 
   // Mark address of the ExitJSFrame code.
@@ -956,14 +960,7 @@ class Assembler : public Malloced {
 
   int pc_offset() const { return pc_ - buffer_; }
   int current_position() const { return current_position_; }
-  int current_statement_position() const { return current_position_; }
-
-  void StartBlockConstPool() {
-    const_pool_blocked_nesting_++;
-  }
-  void EndBlockConstPool() {
-    const_pool_blocked_nesting_--;
-  }
+  int current_statement_position() const { return current_statement_position_; }
 
   // Read/patch instructions
   static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
@@ -999,6 +996,13 @@ class Assembler : public Malloced {
   // Block the emission of the constant pool before pc_offset
   void BlockConstPoolBefore(int pc_offset) {
     if (no_const_pool_before_ < pc_offset) no_const_pool_before_ = pc_offset;
+  }
+
+  void StartBlockConstPool() {
+    const_pool_blocked_nesting_++;
+  }
+  void EndBlockConstPool() {
+    const_pool_blocked_nesting_--;
   }
 
  private:

@@ -157,7 +157,7 @@ enum ArgumentsAllocationMode {
 // states of the generated code.
 enum NopMarkerTypes {
   NON_MARKING_NOP = 0,
-  NAMED_PROPERTY_LOAD_INLINED
+  PROPERTY_ACCESS_INLINED
 };
 
 
@@ -318,12 +318,14 @@ class CodeGenerator: public AstVisitor {
 
   // Load a keyed property, leaving it in r0.  The receiver and key are
   // passed on the stack, and remain there.
-  void EmitKeyedLoad(bool is_global);
+  void EmitKeyedLoad();
+
+  // Store a keyed property. Key and receiver are on the stack and the value is
+  // in r0. Result is returned in r0.
+  void EmitKeyedStore(StaticType* key_type);
 
   void LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                          TypeofState typeof_state,
-                                         Register tmp,
-                                         Register tmp2,
                                          JumpTarget* slow);
 
   // Special code for typeof expressions: Unfortunately, we must
@@ -839,6 +841,7 @@ class NumberToStringStub: public CodeStub {
                                               Register result,
                                               Register scratch1,
                                               Register scratch2,
+                                              Register scratch3,
                                               bool object_is_smi,
                                               Label* not_found);
 

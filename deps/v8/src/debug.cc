@@ -2133,6 +2133,13 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
 }
 
 
+Handle<Context> Debugger::GetDebugContext() {
+    never_unload_debugger_ = true;
+    EnterDebugger debugger;
+    return Debug::debug_context();
+}
+
+
 void Debugger::UnloadDebugger() {
   // Make sure that there are no breakpoints left.
   Debug::ClearAllBreakPoints();

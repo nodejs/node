@@ -436,6 +436,12 @@ void CheckDebuggerUnloaded(bool check_functions) {
 }
 
 
+void ForceUnloadDebugger() {
+  Debugger::never_unload_debugger_ = false;
+  Debugger::UnloadDebugger();
+}
+
+
 } }  // namespace v8::internal
 
 
@@ -6139,3 +6145,5 @@ TEST(CallingContextIsNotDebugContext) {
   debugger_context = v8::Handle<v8::Context>();
   CheckDebuggerUnloaded();
 }
+
+

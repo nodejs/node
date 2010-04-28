@@ -59,3 +59,14 @@
     assertEquals(0, a.length, "length 9th pop");
   }
 })();
+
+// Test the case of not JSArray receiver.
+// Regression test for custom call generators, see issue 684.
+(function() {
+  var a = [];
+  for (var i = 0; i < 100; i++) a.push(i);
+  var x = {__proto__: a};
+  for (var i = 0; i < 100; i++) {
+    assertEquals(99 - i, x.pop(), i + 'th iteration');
+  }
+})();

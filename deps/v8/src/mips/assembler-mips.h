@@ -522,7 +522,9 @@ class Assembler : public Malloced {
 
   int32_t pc_offset() const { return pc_ - buffer_; }
   int32_t current_position() const { return current_position_; }
-  int32_t current_statement_position() const { return current_position_; }
+  int32_t current_statement_position() const {
+    return current_statement_position_;
+  }
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting

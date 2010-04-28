@@ -541,7 +541,6 @@ void Simulator::FlushOnePage(intptr_t start, int size) {
 
 
 void Simulator::CheckICache(Instr* instr) {
-#ifdef DEBUG
   intptr_t address = reinterpret_cast<intptr_t>(instr);
   void* page = reinterpret_cast<void*>(address & (~CachePage::kPageMask));
   void* line = reinterpret_cast<void*>(address & (~CachePage::kLineMask));
@@ -560,7 +559,6 @@ void Simulator::CheckICache(Instr* instr) {
     memcpy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
-#endif
 }
 
 
@@ -2441,7 +2439,9 @@ void Simulator::DecodeType6CoprocessorIns(Instr* instr) {
 
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instr* instr) {
-  CheckICache(instr);
+  if (v8::internal::FLAG_check_icache) {
+    CheckICache(instr);
+  }
   pc_modified_ = false;
   if (::v8::internal::FLAG_trace_sim) {
     disasm::NameConverter converter;

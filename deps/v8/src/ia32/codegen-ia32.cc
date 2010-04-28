@@ -8340,7 +8340,7 @@ Result CodeGenerator::EmitKeyedLoad() {
     deferred->Branch(not_equal);
 
     // Shift the key to get the actual index value and check that
-    // it is within bounds.
+    // it is within bounds. Use unsigned comparison to handle negative keys.
     __ mov(result.reg(), key.reg());
     __ SmiUntag(result.reg());
     __ cmp(result.reg(),
@@ -8413,27 +8413,27 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
       deferred->Branch(not_zero);
     }
 
-    // Check that the key is a non-negative smi.
-    __ test(key.reg(), Immediate(kSmiTagMask | kSmiSignMask));
-    deferred->Branch(not_zero);
+    // Check that the key is a smi.
+    if (!key.is_smi()) {
+      __ test(key.reg(), Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(key.reg());
+    }
 
     // Check that the receiver is not a smi.
     __ test(receiver.reg(), Immediate(kSmiTagMask));
     deferred->Branch(zero);
 
     // Check that the receiver is a JSArray.
-    __ mov(tmp.reg(),
-           FieldOperand(receiver.reg(), HeapObject::kMapOffset));
-    __ movzx_b(tmp.reg(),
-               FieldOperand(tmp.reg(), Map::kInstanceTypeOffset));
-    __ cmp(tmp.reg(), JS_ARRAY_TYPE);
+    __ CmpObjectType(receiver.reg(), JS_ARRAY_TYPE, tmp.reg());
     deferred->Branch(not_equal);
 
     // Check that the key is within bounds.  Both the key and the length of
-    // the JSArray are smis.
+    // the JSArray are smis. Use unsigned comparison to handle negative keys.
     __ cmp(key.reg(),
            FieldOperand(receiver.reg(), JSArray::kLengthOffset));
-    deferred->Branch(greater_equal);
+    deferred->Branch(above_equal);
 
     // Get the elements array from the receiver and check that it is not a
     // dictionary.

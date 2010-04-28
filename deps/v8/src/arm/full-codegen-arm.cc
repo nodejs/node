@@ -125,7 +125,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info, Mode mode) {
       __ add(r2, fp,
              Operand(StandardFrameConstants::kCallerSPOffset + offset));
       __ mov(r1, Operand(Smi::FromInt(scope()->num_parameters())));
-      __ stm(db_w, sp, r3.bit() | r2.bit() | r1.bit());
+      __ Push(r3, r2, r1);
 
       // Arguments to ArgumentsAccessStub:
       //   function, receiver address, parameter count.
@@ -696,8 +696,8 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in r2 and the global
     // object on the stack.
-    __ ldr(ip, CodeGenerator::GlobalObject());
-    __ push(ip);
+    __ ldr(r0, CodeGenerator::GlobalObject());
+    __ push(r0);
     __ mov(r2, Operand(var->name()));
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
@@ -739,7 +739,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     __ mov(r1, Operand(key_literal->handle()));
 
     // Push both as arguments to ic.
-    __ stm(db_w, sp, r2.bit() | r1.bit());
+    __ Push(r2, r1);
 
     // Do a keyed property load.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
@@ -771,7 +771,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ mov(r3, Operand(Smi::FromInt(expr->literal_index())));
   __ mov(r2, Operand(expr->pattern()));
   __ mov(r1, Operand(expr->flags()));
-  __ stm(db_w, sp, r4.bit() | r3.bit() | r2.bit() | r1.bit());
+  __ Push(r4, r3, r2, r1);
   __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
   __ bind(&done);
   Apply(context_, r0);
@@ -785,7 +785,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   __ mov(r2, Operand(Smi::FromInt(expr->literal_index())));
   __ mov(r1, Operand(expr->constant_properties()));
   __ mov(r0, Operand(Smi::FromInt(expr->fast_elements() ? 1 : 0)));
-  __ stm(db_w, sp, r3.bit() | r2.bit() | r1.bit() | r0.bit());
+  __ Push(r3, r2, r1, r0);
   if (expr->depth() > 1) {
     __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
   } else {
@@ -860,7 +860,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
   __ mov(r2, Operand(Smi::FromInt(expr->literal_index())));
   __ mov(r1, Operand(expr->constant_elements()));
-  __ stm(db_w, sp, r3.bit() | r2.bit() | r1.bit());
+  __ Push(r3, r2, r1);
   if (expr->depth() > 1) {
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
   } else {
@@ -997,6 +997,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ mov(r2, Operand(key->handle()));
+  __ ldr(r0, MemOperand(sp, 0));
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 }

@@ -49,7 +49,7 @@ namespace internal {
 // that helps building the chunk list.
 class Differencer {
  public:
-  explicit Differencer(Compare::Input* input)
+  explicit Differencer(Comparator::Input* input)
       : input_(input), len1_(input->getLength1()), len2_(input->getLength2()) {
     buffer_ = NewArray<int>(len1_ * len2_);
   }
@@ -70,7 +70,7 @@ class Differencer {
     CompareUpToTail(0, 0);
   }
 
-  void SaveResult(Compare::Output* chunk_writer) {
+  void SaveResult(Comparator::Output* chunk_writer) {
     ResultWriter writer(chunk_writer);
 
     int pos1 = 0;
@@ -112,7 +112,7 @@ class Differencer {
   }
 
  private:
-  Compare::Input* input_;
+  Comparator::Input* input_;
   int* buffer_;
   int len1_;
   int len2_;
@@ -195,7 +195,7 @@ class Differencer {
 
   class ResultWriter {
    public:
-    explicit ResultWriter(Compare::Output* chunk_writer)
+    explicit ResultWriter(Comparator::Output* chunk_writer)
         : chunk_writer_(chunk_writer), pos1_(0), pos2_(0),
           pos1_begin_(-1), pos2_begin_(-1), has_open_chunk_(false) {
     }
@@ -217,7 +217,7 @@ class Differencer {
     }
 
    private:
-    Compare::Output* chunk_writer_;
+    Comparator::Output* chunk_writer_;
     int pos1_;
     int pos2_;
     int pos1_begin_;
@@ -243,8 +243,8 @@ class Differencer {
 };
 
 
-void Compare::CalculateDifference(Compare::Input* input,
-                                  Compare::Output* result_writer) {
+void Comparator::CalculateDifference(Comparator::Input* input,
+                                     Comparator::Output* result_writer) {
   Differencer differencer(input);
   differencer.Initialize();
   differencer.FillTable();
@@ -312,7 +312,7 @@ class LineEndsWrapper {
 
 
 // Represents 2 strings as 2 arrays of lines.
-class LineArrayCompareInput : public Compare::Input {
+class LineArrayCompareInput : public Comparator::Input {
  public:
   LineArrayCompareInput(Handle<String> s1, Handle<String> s2,
                         LineEndsWrapper line_ends1, LineEndsWrapper line_ends2)
@@ -347,7 +347,7 @@ class LineArrayCompareInput : public Compare::Input {
 
 // Stores compare result in JSArray. Each chunk is stored as 3 array elements:
 // (pos1_begin, pos1_end, pos2_end).
-class LineArrayCompareOutput : public Compare::Output {
+class LineArrayCompareOutput : public Comparator::Output {
  public:
   LineArrayCompareOutput(LineEndsWrapper line_ends1, LineEndsWrapper line_ends2)
       : array_(Factory::NewJSArray(10)), current_size_(0),
@@ -388,7 +388,7 @@ Handle<JSArray> LiveEdit::CompareStringsLinewise(Handle<String> s1,
   LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
   LineArrayCompareOutput output(line_ends1, line_ends2);
 
-  Compare::CalculateDifference(&input, &output);
+  Comparator::CalculateDifference(&input, &output);
 
   return output.GetResult();
 }

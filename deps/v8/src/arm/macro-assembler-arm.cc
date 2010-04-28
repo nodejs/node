@@ -1101,11 +1101,11 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
 }
 
 
-void MacroAssembler::CompareObjectType(Register function,
+void MacroAssembler::CompareObjectType(Register object,
                                        Register map,
                                        Register type_reg,
                                        InstanceType type) {
-  ldr(map, FieldMemOperand(function, HeapObject::kMapOffset));
+  ldr(map, FieldMemOperand(object, HeapObject::kMapOffset));
   CompareInstanceType(map, type_reg, type);
 }
 

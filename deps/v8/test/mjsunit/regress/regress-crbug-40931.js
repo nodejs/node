@@ -25,21 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-/**
- * @fileoverview Check that a mod where the stub code hits a failure
- * in heap number allocation still works.
- */
+// See http://crbug.com/40931
 
-// Flags: --max-new-space-size=262144
+// To reproduce this we need to split a comma separated string and check the
+// indices which should only contain the numeric indices corresponding to the
+// number of values of the split.
 
-function f(x) {
-  return x % 3;
-}
+var names = "a,b,c,d";
 
-function test() {
-  for (var i = 0; i < 40000; i++) {
-    assertEquals(-1 / 0, 1 / f(-3));
+for(var i = 0; i < 10; i++) {
+  var splitNames = names.split(/,/);
+  var forInNames = [];
+  var count = 0;
+  for (name in splitNames) {
+    forInNames[count++] = name;
   }
+  forInNames.sort();
+  assertEquals("0,1,2,3", forInNames.join());
 }
-
-test();

@@ -436,3 +436,51 @@ assertTrue(re.multiline);
 assertEquals(0, re.lastIndex);
 assertEquals(37, re.someOtherProperty);
 assertEquals(37, re[42]);
+
+// Test boundary-checks.
+function assertRegExpTest(re, input, test) { 
+  assertEquals(test, re.test(input), "test:" + re + ":" + input);
+}
+
+assertRegExpTest(/b\b/, "b", true);
+assertRegExpTest(/b\b$/, "b", true);
+assertRegExpTest(/\bb/, "b", true);
+assertRegExpTest(/^\bb/, "b", true);
+assertRegExpTest(/,\b/, ",", false);
+assertRegExpTest(/,\b$/, ",", false);
+assertRegExpTest(/\b,/, ",", false);
+assertRegExpTest(/^\b,/, ",", false);
+
+assertRegExpTest(/b\B/, "b", false);
+assertRegExpTest(/b\B$/, "b", false);
+assertRegExpTest(/\Bb/, "b", false);
+assertRegExpTest(/^\Bb/, "b", false);
+assertRegExpTest(/,\B/, ",", true);
+assertRegExpTest(/,\B$/, ",", true);
+assertRegExpTest(/\B,/, ",", true);
+assertRegExpTest(/^\B,/, ",", true);
+
+assertRegExpTest(/b\b/, "b,", true);
+assertRegExpTest(/b\b/, "ba", false);
+assertRegExpTest(/b\B/, "b,", false);
+assertRegExpTest(/b\B/, "ba", true);
+
+assertRegExpTest(/b\Bb/, "bb", true);
+assertRegExpTest(/b\bb/, "bb", false);
+
+assertRegExpTest(/b\b[,b]/, "bb", false);
+assertRegExpTest(/b\B[,b]/, "bb", true);
+assertRegExpTest(/b\b[,b]/, "b,", true);
+assertRegExpTest(/b\B[,b]/, "b,", false);
+
+assertRegExpTest(/[,b]\bb/, "bb", false);
+assertRegExpTest(/[,b]\Bb/, "bb", true);
+assertRegExpTest(/[,b]\bb/, ",b", true);
+assertRegExpTest(/[,b]\Bb/, ",b", false);
+
+assertRegExpTest(/[,b]\b[,b]/, "bb", false);
+assertRegExpTest(/[,b]\B[,b]/, "bb", true);
+assertRegExpTest(/[,b]\b[,b]/, ",b", true);
+assertRegExpTest(/[,b]\B[,b]/, ",b", false);
+assertRegExpTest(/[,b]\b[,b]/, "b,", true);
+assertRegExpTest(/[,b]\B[,b]/, "b,", false);

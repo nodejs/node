@@ -1211,8 +1211,8 @@ static void SweepNewSpace(NewSpace* space) {
       size = object->Size();
       survivors_size += size;
 
-      if (Heap::ShouldBePromoted(current, size) &&
-          TryPromoteObject(object, size)) {
+      // Aggressively promote young survivors to the old space.
+      if (TryPromoteObject(object, size)) {
         continue;
       }
 
