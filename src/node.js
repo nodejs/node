@@ -139,6 +139,11 @@ process.__defineGetter__('stdout', function () {
     stdout = new fs.FileWriteStream(null, {fd: fd});
   } else {
     stdout = new net.Stream(fd);
+    // FIXME Should probably have an option in net.Stream to create a stream from
+    // an existing fd which is writable only. But for now we'll just add
+    // this hack and set the `readable` member to false.
+    // Test: ./node test/fixtures/echo.js < /etc/passwd
+    stdout.readable = false;
   }
 
   return stdout;
