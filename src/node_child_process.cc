@@ -9,6 +9,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#ifdef __FreeBSD__
+#include <sys/wait.h>
+#endif
 
 extern char **environ;
 
