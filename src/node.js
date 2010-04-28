@@ -22,26 +22,8 @@ process.error = removed("process.error() has moved. Use require('sys') to bring 
 process.watchFile = removed("process.watchFile() has moved to fs.watchFile()");
 process.unwatchFile = removed("process.unwatchFile() has moved to fs.unwatchFile()");
 process.mixin = removed('process.mixin() has been removed.');
-
-GLOBAL.node = {};
-
-node.createProcess = removed("node.createProcess() has been changed to process.createChildProcess() update your code");
 process.createChildProcess = removed("childProcess API has changed. See doc/api.txt.");
-node.exec = removed("process.exec() has moved. Use require('sys') to bring it back.");
-node.inherits = removed("node.inherits() has moved. Use require('sys') to access it.");
 process.inherits = removed("process.inherits() has moved to sys.inherits.");
-
-node.http = {};
-node.http.createServer = removed("node.http.createServer() has moved. Use require('http') to access it.");
-node.http.createClient = removed("node.http.createClient() has moved. Use require('http') to access it.");
-
-node.tcp = {};
-node.tcp.createServer = removed("node.tcp.createServer() has moved. Use require('tcp') to access it.");
-node.tcp.createConnection = removed("node.tcp.createConnection() has moved. Use require('tcp') to access it.");
-
-node.dns = {};
-node.dns.createConnection = removed("node.dns.createConnection() has moved. Use require('dns') to access it.");
-
 
 process.assert = function (x, msg) {
   if (!(x)) throw new Error(msg || "assertion error");
