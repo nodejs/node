@@ -301,8 +301,10 @@ static inline const char *errno_string(int errorno) {
 
 #ifdef EAGAIN
   ERRNO_CASE(EAGAIN);
-#else
-# ifdef EWOULDBLOCK
+#endif
+
+#ifdef EWOULDBLOCK
+# if EAGAIN != EWOULDBLOCK
   ERRNO_CASE(EWOULDBLOCK);
 # endif
 #endif
