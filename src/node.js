@@ -136,7 +136,7 @@ process.__defineGetter__('stdout', function () {
       fd = binding.stdoutFD;
 
   if (binding.isStdoutBlocking()) {
-    stdout = new fs.FileWriteStream(null, {fd: fd});
+    stdout = new fs.WriteStream(null, {fd: fd});
   } else {
     stdout = new net.Stream(fd);
     // FIXME Should probably have an option in net.Stream to create a stream from
@@ -161,7 +161,7 @@ process.openStdin = function () {
     stdin = new net.Stream(fd);
     stdin.readable = true;
   } else {
-    stdin = new fs.FileReadStream(null, {fd: fd});
+    stdin = new fs.ReadStream(null, {fd: fd});
   }
 
   stdin.resume();

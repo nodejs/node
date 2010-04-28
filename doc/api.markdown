@@ -1455,13 +1455,13 @@ Objects returned from `fs.stat()` and `fs.lstat()` are of this type.
  - `stats.isSocket()`
 
 
-## fs.FileReadStream
+## fs.ReadStream
 
-`FileReadStream` is a readable stream.
+`ReadStream` is a readable stream.
 
 ### fs.createReadStream(path, [options])
 
-Returns a new FileReadStream object.
+Returns a new ReadStream object.
 
 `options` is an object with the following defaults:
 
@@ -1490,13 +1490,13 @@ Resumes the stream. Together with `pause()` this useful to throttle reading.
 Allows to close the stream before the `'end'` is reached. No more events other
 than `'close'` will be fired after this method has been called.
 
-## fs.FileWriteStream
+## fs.WriteStream
 
-`FileWriteStream` is a writable stream.
+`WriteStream` is a writable stream.
 
 ### fs.createWriteStream(path, [options])
 
-Returns a new FileWriteStream object.
+Returns a new WriteStream object.
 `options` is an object with the following defaults:
 
     { 'flags': 'w'
