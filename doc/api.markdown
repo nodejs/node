@@ -1509,14 +1509,13 @@ Returns a new FileWriteStream object.
 A boolean that is `true` by default, but turns `false` after an `'error'`
 occurred or `end()` / `destroy()` was called.
 
-### writeStream.write(data)
+### writeStream.write(data, encoding='utf8')
 
 Returns `true` if the data was flushed to the kernel, and `false` if it was
 queued up for being written later. A `'drain'` will fire after all queued data
 has been written.
 
-You can also specify `callback` to be notified when the data from this write
-has been flushed. The first param is `err`, the second is `bytesWritten`.
+The second optional parameter specifies the encoding of for the string.
 
 ### writeStream.end()
 

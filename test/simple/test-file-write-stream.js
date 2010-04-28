@@ -13,7 +13,6 @@ var
     drain: -2,
     close: -1,
     endCb: -1,
-    write: -11,
   };
 
 file
@@ -48,10 +47,7 @@ file
 
 for (var i = 0; i < 11; i++) {
   (function(i) {
-    assert.strictEqual(false, file.write(i, function(err, bytesWritten) {
-      callbacks.write++;
-      assert.equal(new String(i).length, bytesWritten);
-    }));
+    assert.strictEqual(false, file.write(i));
   })(i);
 }
 
