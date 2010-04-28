@@ -141,8 +141,8 @@ var stdin;
 process.openStdin = function () {
   if (stdin) return stdin;
 
-  var net = basicRequire('net'),
-    fs = basicRequire('fs'),
+  var net = module.requireNative('net'),
+    fs = module.requireNative('fs'),
     fd = process.binding('stdio').openStdin();
 
   if (process.binding('stdio').isStdinBlocking()) {
