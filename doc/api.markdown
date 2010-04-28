@@ -2459,7 +2459,7 @@ Take a base URL, and a href URL, and resolve them as a browser would for an anch
 
 This module provides utilities for dealing with query strings.  It provides the following methods:
 
-### querystring.stringify(obj, sep='&', eq='=')
+### querystring.stringify(obj, sep='&', eq='=', munge=true)
 
 Serialize an object to a query string.  Optionally override the default separator and assignment characters.
 Example:
@@ -2467,6 +2467,32 @@ Example:
     querystring.stringify({foo: 'bar'})
     // returns
     'foo=bar'
+
+    querystring.stringify({foo: 'bar', baz: 'bob'}, ';', ':')
+    // returns
+    'foo:bar;baz:bob'
+
+By default, this function will perform PHP/Rails-style parameter mungeing for arrays and objects used as
+values within `obj`.
+Example:
+
+    querystring.stringify({foo: 'bar', foo: 'baz', foo: 'boz'})
+    // returns
+    'foo[]=bar&foo[]=baz&foo[]=boz'
+
+    querystring.stringify({foo: {bar: 'baz'}})
+    // returns
+    'foo[bar]=baz'
+
+If you wish to disable the array mungeing (e.g. when generating parameters for a Java servlet), you
+can set the `munge` argument to `false`.
+Example:
+
+    querystring.stringify({foo: 'bar', foo: 'baz', foo: 'boz'}, '&', '=', false)
+    // returns
+    'foo=bar&foo=baz&foo=boz'
+
+Note that when `munge` is `false`, parameter names with object values will still be munged.
 
 ### querystring.parse(str, sep='&', eq='=')
 
@@ -2477,6 +2503,8 @@ Deserialize a query string to an object.  Optionally override the default separa
     { 'a': 'b'
     , 'b': 'c'
     }
+
+This function can parse both munged and unmunged query strings (see `stringify` for details).
 
 ### querystring.escape
 

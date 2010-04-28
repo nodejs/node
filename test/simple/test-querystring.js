@@ -58,6 +58,16 @@ var qsWeirdObjects = [
 ];
 }
 
+var qsNoMungeTestCases = [
+  ["", {}],
+  ["foo=bar&foo=baz", {"foo": ["bar", "baz"]}],
+  ["blah=burp", {"blah": "burp"}],
+  ["gragh=1&gragh=3&goo=2", {"gragh": ["1", "3"], "goo": "2"}],
+  ["frappucino=muffin&goat%5B%5D=scone&pond=moose",
+   {"frappucino": "muffin", "goat[]": "scone", "pond": "moose"}],
+  ["obj%5Btrololol%5D=yes&obj%5Blololo%5D=no", {"obj": {"trololol": "yes", "lololo": "no"}}],
+];
+
 // test that the canonical qs is parsed properly.
 qsTestCases.forEach(function (testCase) {
   assert.deepEqual(testCase[2], qs.parse(testCase[0]));
@@ -71,6 +81,10 @@ qsColonTestCases.forEach(function (testCase) {
 // test the weird objects, that they get parsed properly
 qsWeirdObjects.forEach(function (testCase) {
   assert.deepEqual(testCase[2], qs.parse(testCase[1]));
+});
+
+qsNoMungeTestCases.forEach(function (testCase) {
+  assert.deepEqual(testCase[0], qs.stringify(testCase[1], "&", "=", false));
 });
 
 // test the nested qs-in-qs case
