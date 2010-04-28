@@ -29,7 +29,15 @@ process.assert = function (x, msg) {
   if (!x) throw new Error(msg || "assertion error");
 };
 
-process.evalcx = process.binding('evals').Script.runInNewContext;
+var evalcxMsg;
+process.evalcx = function () {
+  if (!evalcxMsg) {
+    process.binding('stdio').writeError(evalcxMsg =
+      "process.evalcx is deprecated. Use Script.runInNewContext instead.\n");
+  }
+  return process.binding('evals').Script
+    .runInNewContext.apply(null, arguments);
+};
 
 // nextTick()
 
