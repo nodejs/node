@@ -469,12 +469,14 @@ static inline const char *errno_string(int errorno) {
   ERRNO_CASE(ENOEXEC);
 #endif
 
-#ifdef ENOLCK
-  ERRNO_CASE(ENOLCK);
-#endif
-
 #ifdef ENOLINK
   ERRNO_CASE(ENOLINK);
+#endif
+
+#ifdef ENOLCK
+# if ENOLINK != ENOLCK
+  ERRNO_CASE(ENOLCK);
+# endif
 #endif
 
 #ifdef ENOMEM
@@ -725,7 +727,9 @@ const char *signo_string(int signo) {
 #endif
 
 #ifdef SIGPOLL
+# if SIGPOLL != SIGIO
   SIGNO_CASE(SIGPOLL);
+# endif
 #endif
 
 #ifdef SIGLOST
@@ -738,10 +742,6 @@ const char *signo_string(int signo) {
 
 #ifdef SIGSYS
   SIGNO_CASE(SIGSYS);
-#endif
-
-#ifdef SIGUNUSED
-  SIGNO_CASE(SIGUNUSED);
 #endif
 
   default: return "";
