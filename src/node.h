@@ -80,5 +80,6 @@ v8::Local<v8::Value> ErrnoException(int errorno,
                                     const char *syscall = NULL,
                                     const char *msg = "");
 
+const char *signo_string(int errorno);
 }  // namespace node
 #endif  // SRC_NODE_H_

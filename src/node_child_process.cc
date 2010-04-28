@@ -1,5 +1,6 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #include <node_child_process.h>
+#include <node.h>
 
 #include <assert.h>
 #include <string.h>
@@ -244,7 +245,7 @@ int ChildProcess::Spawn(const char *file,
 }
 
 
-void ChildProcess::OnExit(int code) {
+void ChildProcess::OnExit(int status) {
   HandleScope scope;
 
   pid_ = -1;
@@ -258,10 +259,20 @@ void ChildProcess::OnExit(int code) {
 
   TryCatch try_catch;
 
-  Local<Value> argv[1];
-  argv[0] = Integer::New(code);
+  Local<Value> argv[2];
+  if (WIFEXITED(status)) {
+    argv[0] = Integer::New(WEXITSTATUS(status));
+  } else {
+    argv[0] = Local<Value>::New(Null());
+  }
 
-  onexit->Call(handle_, 1, argv);
+  if (WIFSIGNALED(status)) {
+    argv[1] = String::NewSymbol(signo_string(WTERMSIG(status)));
+  } else {
+    argv[1] = Local<Value>::New(Null());
+  }
+
+  onexit->Call(handle_, 2, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);

@@ -849,12 +849,17 @@ Child processes always have three streams associated with them. `child.stdin`,
 
 ### Event:  'exit'
 
-`function (code) {} `
+`function (code, signal) {} `
 
-This event is emitted after the child process ends. `code` is the final exit
-code of the process.  After this event is emitted, the `'output'` and
-`'error'` callbacks will no longer be made.
+This event is emitted after the child process ends. If the process terminated
+normally, `code` is the final exit code of the process, otherwise `null`. If
+the process terminated due to receipt of a signal, `signal` is the string name
+of the signal, otherwise `null`.
 
+After this event is emitted, the `'output'` and `'error'` callbacks will no
+longer be made.
+
+See `waitpid(2)`
 
 ### child_process.spawn(command, args, env)
 
@@ -906,8 +911,8 @@ be sent `'SIGTERM'`. See `signal(7)` for a list of available signals.
         spawn = require('child_process').spawn,
         grep  = spawn('grep', ['ssh']);
 
-    grep.addListener('exit', function (code) {
-      sys.puts('child process exited with code ' + code);
+    grep.addListener('exit', function (code, signal) {
+      sys.puts('child process terminated due to receipt of signal '+signal);
     });
 
     // send SIGHUP to process
@@ -1013,7 +1018,8 @@ output, and return it all in a callback.
 
 The callback gets the arguments `(error, stdout, stderr)`. On success, `error`
 will be `null`.  On error, `error` will be an instance of `Error` and `err.code`
-will be the exit code of the child process.
+will be the exit code of the child process, and `err.signal` will be set to the
+signal that terminated the process.
 
 There is a second optional argument to specify several options. The default options are
 

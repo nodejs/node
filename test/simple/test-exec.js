@@ -23,6 +23,7 @@ exec("ls /DOES_NOT_EXIST", function (err, stdout, stderr) {
     assert.equal("", stdout);
     assert.equal(true, err.code != 0);
     assert.equal(false, err.killed);
+    assert.strictEqual(null, err.signal);
     puts("error code: " + err.code);
     puts("stdout: " + JSON.stringify(stdout));
     puts("stderr: " + JSON.stringify(stderr));
@@ -36,11 +37,13 @@ exec("ls /DOES_NOT_EXIST", function (err, stdout, stderr) {
 exec("sleep 10", { timeout: 50 }, function (err, stdout, stderr) {
   assert.ok(err);
   assert.ok(err.killed);
+  assert.equal(err.signal, 'SIGKILL');
 });
 
 exec('python -c "print 200000*\'C\'"', { maxBuffer: 1000 }, function (err, stdout, stderr) {
   assert.ok(err);
   assert.ok(err.killed);
+  assert.equal(err.signal, 'SIGKILL');
 });
 
 process.addListener("exit", function () {
