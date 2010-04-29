@@ -34,6 +34,8 @@
 #define MAX_HEADERS 10
 #define MAX_ELEMENT_SIZE 500
 
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+
 static http_parser *parser;
 
 struct message {
@@ -47,6 +49,7 @@ struct message {
   char fragment[MAX_ELEMENT_SIZE];
   char query_string[MAX_ELEMENT_SIZE];
   char body[MAX_ELEMENT_SIZE];
+  size_t body_size;
   int num_headers;
   enum { NONE=0, FIELD, VALUE } last_header_element;
   char headers [MAX_HEADERS][2][MAX_ELEMENT_SIZE];
@@ -597,6 +600,7 @@ const struct message responses[] =
   ,.status_code= 404
   ,.num_headers= 0
   ,.headers= {}
+  ,.body_size= 0
   ,.body= ""
   }
 
@@ -639,6 +643,7 @@ const struct message responses[] =
     { {"Content-Type", "text/plain" }
     , {"Transfer-Encoding", "chunked" }
     }
+  ,.body_size = 37+28
   ,.body =
          "This is the data in the first chunk\r\n"
          "and this is the second one\r\n"
@@ -785,7 +790,17 @@ body_cb (http_parser *p, const char *buf, size_t len)
 {
   assert(p == parser);
   strncat(messages[num_messages].body, buf, len);
+  messages[num_messages].body_size += len;
  // printf("body_cb: '%s'\n", requests[num_messages].body);
+  return 0;
+}
+
+int
+count_body_cb (http_parser *p, const char *buf, size_t len)
+{
+  assert(p == parser);
+  assert(buf);
+  messages[num_messages].body_size += len;
   return 0;
 }
 
@@ -830,7 +845,7 @@ message_complete_cb (http_parser *p)
   return 0;
 }
 
-static http_parser_settings settings = 
+static http_parser_settings settings =
   {.on_message_begin = message_begin_cb
   ,.on_header_field = header_field_cb
   ,.on_header_value = header_value_cb
@@ -839,6 +854,19 @@ static http_parser_settings settings =
   ,.on_fragment = fragment_cb
   ,.on_query_string = query_string_cb
   ,.on_body = body_cb
+  ,.on_headers_complete = headers_complete_cb
+  ,.on_message_complete = message_complete_cb
+  };
+
+static http_parser_settings settings_count_body =
+  {.on_message_begin = message_begin_cb
+  ,.on_header_field = header_field_cb
+  ,.on_header_value = header_value_cb
+  ,.on_path = request_path_cb
+  ,.on_url = request_url_cb
+  ,.on_fragment = fragment_cb
+  ,.on_query_string = query_string_cb
+  ,.on_body = count_body_cb
   ,.on_headers_complete = headers_complete_cb
   ,.on_message_complete = message_complete_cb
   };
@@ -871,6 +899,14 @@ inline size_t parse (const char *buf, size_t len)
   size_t nparsed;
   currently_parsing_eof = (len == 0);
   nparsed = http_parser_execute(parser, settings, buf, len);
+  return nparsed;
+}
+
+inline size_t parse_count_body (const char *buf, size_t len)
+{
+  size_t nparsed;
+  currently_parsing_eof = (len == 0);
+  nparsed = http_parser_execute(parser, settings_count_body, buf, len);
   return nparsed;
 }
 
@@ -936,7 +972,11 @@ message_eq (int index, const struct message *expected)
   MESSAGE_CHECK_STR_EQ(expected, m, query_string);
   MESSAGE_CHECK_STR_EQ(expected, m, fragment);
   MESSAGE_CHECK_STR_EQ(expected, m, request_url);
-  MESSAGE_CHECK_STR_EQ(expected, m, body);
+  if (expected->body_size) {
+    MESSAGE_CHECK_NUM_EQ(expected, m, body_size);
+  } else {
+    MESSAGE_CHECK_STR_EQ(expected, m, body);
+  }
 
   MESSAGE_CHECK_NUM_EQ(expected, m, num_headers);
 
@@ -1019,6 +1059,42 @@ test_message (const struct message *message)
   }
 
 test:
+
+  if (num_messages != 1) {
+    printf("\n*** num_messages != 1 after testing '%s' ***\n\n", message->name);
+    exit(1);
+  }
+
+  if(!message_eq(0, message)) exit(1);
+
+  parser_free();
+}
+
+void
+test_message_count_body (const struct message *message)
+{
+  parser_init(message->type);
+
+  size_t read;
+  size_t l = strlen(message->raw);
+  size_t i, toread;
+  size_t chunk = 4024;
+
+  for (i = 0; i < l; i+= chunk) {
+    toread = MIN(l-i, chunk);
+    read = parse_count_body(message->raw + i, toread);
+    if (read != toread) {
+      print_error(message->raw, read);
+      exit(1);
+    }
+  }
+
+
+  read = parse_count_body(NULL, 0);
+  if (read != 0) {
+    print_error(message->raw, read);
+    exit(1);
+  }
 
   if (num_messages != 1) {
     printf("\n*** num_messages != 1 after testing '%s' ***\n\n", message->name);
@@ -1214,6 +1290,50 @@ error:
   exit(1);
 }
 
+// user required to free the result
+// string terminated by \0
+char *
+create_large_chunked_message (int body_size_in_kb, const char* headers)
+{
+  int i;
+  size_t needed, wrote = 0;
+  size_t headers_len = strlen(headers);
+  size_t bufsize = headers_len + 10;
+  char * buf = malloc(bufsize);
+
+  strncpy(buf, headers, headers_len);
+  wrote += headers_len;
+
+  for (i = 0; i < body_size_in_kb; i++) {
+    // write 1kb chunk into the body.
+    needed = 5 + 1024 + 2; // "400\r\nCCCC...CCCC\r\n"
+    if (bufsize - wrote < needed) {
+      buf = realloc(buf, bufsize + needed);
+      bufsize += needed;
+    }
+
+    strcpy(buf + wrote, "400\r\n");
+    wrote += 5;
+    memset(buf + wrote, 'C', 1024);
+    wrote += 1024;
+    strcpy(buf + wrote, "\r\n");
+    wrote += 2;
+  }
+
+  needed = 5; // "0\r\n\r\n"
+  if (bufsize - wrote < needed) {
+    buf = realloc(buf, bufsize + needed);
+    bufsize += needed;
+  }
+  strcpy(buf + wrote, "0\r\n\r\n");
+  wrote += 5;
+
+  assert(buf[wrote] == 0);
+
+  return buf;
+}
+
+
 int
 main (void)
 {
@@ -1242,6 +1362,38 @@ main (void)
       }
     }
   }
+
+  test_message_count_body(&responses[NO_HEADERS_NO_BODY_404]);
+  test_message_count_body(&responses[TRAILING_SPACE_ON_CHUNKED_BODY]);
+
+  // test very large chunked response
+  {
+    char * msg = create_large_chunked_message(31337,
+      "HTTP/1.0 200 OK\r\n"
+      "Transfer-Encoding: chunked\r\n"
+      "Content-Type: text/plain\r\n"
+      "\r\n");
+    struct message large_chunked =
+      {.name= "large chunked"
+      ,.type= HTTP_RESPONSE
+      ,.raw= msg
+      ,.should_keep_alive= FALSE
+      ,.message_complete_on_eof= FALSE
+      ,.http_major= 1
+      ,.http_minor= 0
+      ,.status_code= 200
+      ,.num_headers= 2
+      ,.headers=
+        { { "Transfer-Encoding", "chunked" }
+        , { "Content-Type", "text/plain" }
+        }
+      ,.body_size= 31337*1024
+      };
+    test_message_count_body(&large_chunked);
+    free(msg);
+  }
+
+
 
   printf("response scan 1/1      ");
   test_scan( &responses[TRAILING_SPACE_ON_CHUNKED_BODY]

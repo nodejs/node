@@ -195,7 +195,8 @@ enum state
   , s_body_identity_eof
   };
 
-#define PARSING_HEADER(state) (state <= s_headers_almost_done)
+
+#define PARSING_HEADER(state) (state <= s_headers_almost_done && 0 == (parser->flags & F_TRAILING))
 
 
 enum header_states
