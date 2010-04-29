@@ -12,7 +12,7 @@ var chargen = http.createServer(function (req, res) {
   assert.ok(len > 0);
   res.writeHead(200, {"transfer-encoding":"chunked"});
   for (var i=0; i<len; i++) {
-    //print(',');
+    if (i % 1000 == 0) print(',');
     res.write(chunk);
   }
   res.end();
@@ -38,8 +38,10 @@ var proxy = http.createServer(function (req, res) {
   proxy_req.addListener('response', function(proxy_res) {
     res.writeHead(proxy_res.statusCode, proxy_res.headers);
 
+    var count = 0;
+
     proxy_res.addListener('data', function(d) {
-      //print('.');
+      if (count++ % 1000 == 0) print('.');
       res.write(d);
       sent += d.length;
       assert.ok(sent <= (len*chunk.length));
