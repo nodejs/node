@@ -1,4 +1,23 @@
-2010.04.23, Version 0.1.92
+2010.04.29, Version 0.1.93
+
+  * Fixed no 'end' event on long chunked HTTP messages
+    http://github.com/ry/node/issues/#issue/77
+
+  * Remove legacy modules http_old and tcp_old
+
+  * Support DNS MX queries (Jérémy Lal)
+
+  * Fix large socket write (tlb@tlb.org)
+
+  * Fix child process exit codes (Felix Geisendörfer)
+
+  * Allow callers to disable PHP/Rails style parameter mungeing in
+    querystring.stringify (Thomas Lee)
+
+  * Upgrade V8 to 2.2.6
+
+
+2010.04.23, Version 0.1.92, caa828a242f39b6158084ef4376355161c14fe34
 
   * OpenSSL support. Still undocumented (see tests). (Rhys Jones)
 
