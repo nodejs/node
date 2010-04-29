@@ -2380,7 +2380,7 @@ is no '.' then it returns an empty string.  Examples:
 Test whether or not the given path exists.  Then, call the `callback` argument with either true or false.  Example:
 
     path.exists('/etc/passwd', function (exists) {
-      sys.debug(exists ? 'it's there' : 'no passwd!');
+      sys.debug(exists ? "it's there" : "no passwd!");
     });
 
 
