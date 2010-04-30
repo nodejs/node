@@ -1594,6 +1594,13 @@ options argument for `net.Server`.
 
 The `request_listener` is a function which is automatically
 added to the `'request'` event.
+ 
+### Event: 'clientError'
+
+`function (exception) {}`
+
+If a client connection emits an 'error' event - it will forwarded here.
+
 
 ### server.listen(port, hostname)
 
