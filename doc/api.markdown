@@ -1642,7 +1642,10 @@ the user--and passed as the first argument to a `'request'` listener.
 
 This is an EventEmitter with the following events:
 
-- **`'data'`** - `callback(chunk)`:
+### Event: 'data'
+
+`function (chunk) { }`
+
 Emitted when a piece of the message body is received.
 
 Example: A chunk of the body is given as the single
@@ -1650,7 +1653,10 @@ argument. The transfer-encoding has been decoded.  The
 body chunk is a string.  The body encoding is set with
 `request.setBodyEncoding()`.
 
-- **`'end'`** - `callback()`:
+### Event: 'end'
+
+`function () { }`
+
 Emitted exactly once for each message. No arguments.  After
 emitted no other events will be emitted on the request.
 
@@ -1870,7 +1876,10 @@ event, the entire body will be caught.
 This is a writable stream.
 This is an `EventEmitter` with the following events:
 
-- **`'response'`** - `callback(response)`:
+### Event 'response'
+
+`function (response) { }`
+
 Emitted when a response is received to this request. This event is emitted only once. The
 `response` argument will be an instance of `http.ClientResponse`.
 
