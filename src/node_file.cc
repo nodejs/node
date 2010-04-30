@@ -533,13 +533,19 @@ static Handle<Value> Write(const Arguments& args) {
     // Normally here I would do
     //   ASYNC_CALL(write, cb, fd, buf, len, pos)
     // however, I'm trying to support a legacy interface; where in the
-    // String version a buffer is allocated to encode into. In the After()
-    // function it is freed. However in the other version, we just increase
-    // the reference count to a buffer. We have to let After() know which
-    // version is being done so it can know if it needs to free 'buf' or
-    // not. We do that by using req->int3.
+    // String version a chunk of memory is allocated for the string to be
+    // decoded into. In the After() function it is freed.
+    //
+    // However in the Buffer version, we increase the reference count
+    // to the Buffer while we're in the thread pool.
+    //
+    // We have to let After() know which version is being done so it can
+    // know if it needs to free 'buf' or not. We do that by using
+    // req->int3.
+    //
     //   req->int3 == 1 legacy, String version. Need to free `buf`.
     //   req->int3 == 0 Buffer version. Don't do anything.
+    //
     eio_req *req = eio_write(fd, buf, len, pos,
                              EIO_PRI_DEFAULT,
                              After,
@@ -560,7 +566,7 @@ static Handle<Value> Write(const Arguments& args) {
   }
 }
 
-/* node.fs.read(fd, length, position, encoding)
+/* fs.read(fd, length, position, encoding)
  * Wrapper for read(2).
  *
  * 0 fd        integer. file descriptor
@@ -602,7 +608,7 @@ static Handle<Value> Read(const Arguments& args) {
   }
 }
 
-/* node.fs.chmod(fd, mode);
+/* fs.chmod(fd, mode);
  * Wrapper for chmod(1) / EIO_CHMOD
  */
 static Handle<Value> Chmod(const Arguments& args){
