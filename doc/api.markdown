@@ -1584,7 +1584,7 @@ This is an EventEmitter with the following events:
  Emitted when the server closes. 
 
 
-### http.createServer(request_listener, [options])
+### http.createServer(requestListener, [options])
 
 Returns a new web server object.
 
@@ -1592,9 +1592,16 @@ The `options` argument is optional. The
 `options` argument accepts the same values as the
 options argument for `net.Server`.
 
-The `request_listener` is a function which is automatically
+The `requestListener` is a function which is automatically
 added to the `'request'` event.
- 
+
+### Event: 'request'
+
+`function (request, response) {}`
+
+Emitted each time there is request. Note that there may be multiple requests
+per connection (in the case of keep-alive connections).
+
 ### Event: 'clientError'
 
 `function (exception) {}`
