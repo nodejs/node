@@ -262,17 +262,17 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
             "sourceEnd < sourceStart")));
   }
 
-  if (target_start >= target->length()) {
+  if (target_start < 0 || target_start > target->length()) {
     return ThrowException(Exception::Error(String::New(
             "targetStart out of bounds")));
   }
 
-  if (source_start >= source->length()) {
+  if (source_start < 0 || source_start > source->length()) {
     return ThrowException(Exception::Error(String::New(
             "sourceStart out of bounds")));
   }
 
-  if (source_end > source->length()) {
+  if (source_end < 0 || source_end > source->length()) {
     return ThrowException(Exception::Error(String::New(
             "sourceEnd out of bounds")));
   }
