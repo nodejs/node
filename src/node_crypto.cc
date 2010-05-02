@@ -28,8 +28,6 @@ static Persistent<String> valid_to_symbol;
 static Persistent<String> name_symbol;
 static Persistent<String> version_symbol;
 
-static int x509_verify_error;
-
 static inline const char *errno_string(int errorno) {
 #define ERRNO_CASE(e)  case e: return #e;
   switch (errorno) {
@@ -354,8 +352,7 @@ static inline const char *errno_string(int errorno) {
 
 
 static int verify_callback(int ok, X509_STORE_CTX *ctx) {
-  x509_verify_error = ctx->error;
-  return(ok);
+  return(1); // Ignore errors by now. VerifyPeer will catch them by using SSL_get_verify_result.
 }
 
 
@@ -431,6 +428,7 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
   // SSL_CTX_set_session_cache_mode(sc->pCtx,SSL_SESS_CACHE_OFF);
 
   sc->caStore = X509_STORE_new();
+  SSL_CTX_set_cert_store(sc->pCtx, sc->caStore);
   return True();
 }
 
@@ -604,6 +602,7 @@ Handle<Value> SecureStream::New(const Arguments& args) {
   p->pbioRead = BIO_new(BIO_s_mem());
   p->pbioWrite = BIO_new(BIO_s_mem());
   SSL_set_bio(p->pSSL, p->pbioRead, p->pbioWrite);
+  SSL_set_verify(p->pSSL, SSL_VERIFY_PEER, verify_callback);
   p->server = isServer>0;
   if (p->server) {
     SSL_set_accept_state(p->pSSL);
@@ -873,20 +872,8 @@ Handle<Value> SecureStream::VerifyPeer(const Arguments& args) {
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args[0]->ToObject());
 
   if (ss->pSSL == NULL) return False();
-  if (sc->caStore == NULL) return False();
 
-  X509 *cert = SSL_get_peer_certificate(ss->pSSL);
-  STACK_OF(X509) *certChain = SSL_get_peer_cert_chain(ss->pSSL);
-  X509_STORE_set_verify_cb_func(sc->caStore, verify_callback);
-  X509_STORE_CTX *storeCtx = X509_STORE_CTX_new();
-  X509_STORE_CTX_init(storeCtx, sc->caStore, cert, certChain);
-
-  x509_verify_error = 0;
-  // OS X Bug in openssl : x509_verify_cert is always true?
-  // This is why we have our global.
-  X509_verify_cert(storeCtx);
-
-  X509_STORE_CTX_free(storeCtx);
+  long x509_verify_error = SSL_get_verify_result(ss->pSSL);
 
   // Can also check for:
   // X509_V_ERR_CERT_HAS_EXPIRED
