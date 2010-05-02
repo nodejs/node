@@ -51,6 +51,7 @@ class SecureStream : ObjectWrap {
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
   static v8::Handle<v8::Value> ReadInject(const v8::Arguments& args);
   static v8::Handle<v8::Value> ReadExtract(const v8::Arguments& args);
+  static v8::Handle<v8::Value> ReadPending(const v8::Arguments& args);
   static v8::Handle<v8::Value> WriteCanExtract(const v8::Arguments& args);
   static v8::Handle<v8::Value> WriteExtract(const v8::Arguments& args);
   static v8::Handle<v8::Value> WriteInject(const v8::Arguments& args);

@@ -566,6 +566,8 @@ void SecureStream::Initialize(Handle<Object> target) {
                             SecureStream::WriteInject);
   NODE_SET_PROTOTYPE_METHOD(t, "writeExtract",
                             SecureStream::WriteExtract);
+  NODE_SET_PROTOTYPE_METHOD(t, "readPending",
+                            SecureStream::ReadPending);
   NODE_SET_PROTOTYPE_METHOD(t, "writeCanExtract",
                             SecureStream::WriteCanExtract);
   NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate",
@@ -715,6 +717,14 @@ Handle<Value> SecureStream::ReadExtract(const Arguments& args) {
   }
 
   return scope.Close(Integer::New(bytes_read));
+}
+
+Handle<Value> SecureStream::ReadPending(const Arguments& args) {
+  HandleScope scope;
+
+  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  int bytes_pending = BIO_pending(ss->pbioRead);
+  return scope.Close(Integer::New(bytes_pending));
 }
 
 Handle<Value> SecureStream::WriteCanExtract(const Arguments& args) {
