@@ -2581,7 +2581,7 @@ The standalone REPL is called `node-repl` and is installed at
 
 ### repl.start(prompt, stream)
 
-Starts a REPL with `prompt` as the prompt and `stream` for all I/O.  `pomrpt`
+Starts a REPL with `prompt` as the prompt and `stream` for all I/O.  `prompt`
 is optional and defaults to `node> `.  `stream` is optional and defaults to 
 `process.openStdin()`.
 
@@ -2624,7 +2624,7 @@ or `socat`.  These programs are available from many Unix package managers.
 
 To start the standalone REPL with `rlwrap`:
 
-    rlwarp node-repl
+    rlwrap node-repl
     
 It might be convenient to use this alias in your shell configuration:
 
