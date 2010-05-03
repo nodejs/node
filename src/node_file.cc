@@ -451,7 +451,7 @@ static Handle<Value> Open(const Arguments& args) {
 
 #define GET_OFFSET(a) (a)->IsInt32() ? (a)->IntegerValue() : -1;
 
-// write(fd, data, position, enc, callback)
+// bytesWritten = write(fd, data, position, enc, callback)
 // Wrapper for write(2).
 //
 // 0 fd        integer. file descriptor
@@ -565,14 +565,12 @@ static Handle<Value> Write(const Arguments& args) {
     return Undefined();
 
   } else {
+    written = pos < 0 ? write(fd, buf, len) : pwrite(fd, buf, len, pos);
     if (legacy) {
-      written = pos < 0 ? write(fd, buf, len) : pwrite(fd, buf, len, pos);
       delete [] reinterpret_cast<char*>(buf);
-      if (written < 0) return ThrowException(ErrnoException(errno));
-      return scope.Close(Integer::New(written));
-    } else {
-      assert(0 && "fs.writeSync() with buffers is not yet supported");
     }
+    if (written < 0) return ThrowException(ErrnoException(errno));
+    return scope.Close(Integer::New(written));
   }
 }
 
