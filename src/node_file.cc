@@ -579,7 +579,7 @@ static Handle<Value> Write(const Arguments& args) {
 /*
  * Wrapper for read(2).
  *
- * fs.read(fd, buffer, offset, length, position)
+ * bytesRead = fs.read(fd, buffer, offset, length, position)
  *
  * 0 fd        integer. file descriptor
  * 1 buffer    instance of Buffer
@@ -587,9 +587,9 @@ static Handle<Value> Write(const Arguments& args) {
  * 3 length    integer. length to read
  * 4 position  file position - null for current position
  *
- *  - OR - 
+ *  - OR -
  *
- * fs.read(fd, length, position, encoding)
+ * [string, bytesRead] = fs.read(fd, length, position, encoding)
  *
  * 0 fd        integer. file descriptor
  * 1 length    integer. length to read
@@ -688,22 +688,24 @@ static Handle<Value> Read(const Arguments& args) {
     return Undefined();
 
   } else {
+    // SYNC
+    ssize_t ret;
+
     if (legacy) {
 #define READ_BUF_LEN (16*1024)
-      char buf[READ_BUF_LEN];
-      ssize_t ret;
-      if (pos < 0) {
-        ret = read(fd, buf, MIN(len, READ_BUF_LEN));
-      } else {
-        ret = pread(fd, buf, MIN(len, READ_BUF_LEN), pos);
-      }
+      char buf2[READ_BUF_LEN];
+      ret = pos < 0 ? read(fd, buf2, MIN(len, READ_BUF_LEN))
+                    : pread(fd, buf2, MIN(len, READ_BUF_LEN), pos);
       if (ret < 0) return ThrowException(ErrnoException(errno));
       Local<Array> a = Array::New(2);
-      a->Set(Integer::New(0), Encode(buf, ret, encoding));
+      a->Set(Integer::New(0), Encode(buf2, ret, encoding));
       a->Set(Integer::New(1), Integer::New(ret));
       return scope.Close(a);
     } else {
-      assert(0 && "fs.readSync() with buffers is not support yet");
+      ret = pos < 0 ? read(fd, buf, len) : pread(fd, buf, len, pos);
+      if (ret < 0) return ThrowException(ErrnoException(errno));
+      Local<Integer> bytesRead = Integer::New(ret);
+      return scope.Close(bytesRead);
     }
   }
 }
