@@ -89,11 +89,18 @@ static int After(eio_req *req) {
 
       case EIO_READ:
       {
-        argc = 3;
-        Local<Object> obj = Local<Object>::New(*callback);
-        Local<Value> enc_val = obj->GetHiddenValue(encoding_symbol);
-        argv[1] = Encode(req->ptr2, req->result, ParseEncoding(enc_val));
-        argv[2] = Integer::New(req->result);
+        if (req->int3) {
+          // legacy interface
+          Local<Object> obj = Local<Object>::New(*callback);
+          Local<Value> enc_val = obj->GetHiddenValue(encoding_symbol);
+          argv[1] = Encode(req->ptr2, req->result, ParseEncoding(enc_val));
+          argv[2] = Integer::New(req->result);
+          argc = 3;
+        } else {
+          // Buffer interface
+          argv[1] = Integer::New(req->result);
+          argc = 2;
+        }
         break;
       }
 
@@ -442,6 +449,8 @@ static Handle<Value> Open(const Arguments& args) {
   }
 }
 
+#define GET_OFFSET(a) (a)->IsInt32() ? (a)->IntegerValue() : -1;
+
 // write(fd, data, position, enc, callback)
 // Wrapper for write(2).
 //
@@ -501,7 +510,7 @@ static Handle<Value> Write(const Arguments& args) {
             String::New("Length is extends beyond buffer")));
     }
 
-    pos = args[4]->IsNumber() ? args[4]->IntegerValue() : -1;
+    pos = GET_OFFSET(args[4]);
 
     buf = (char*)buffer->data() + off;
 
@@ -511,7 +520,7 @@ static Handle<Value> Write(const Arguments& args) {
     legacy = true;
     // legacy interface.. args[1] is a string
 
-    pos = args[2]->IsNumber() ? args[2]->IntegerValue() : -1;
+    pos = GET_OFFSET(args[2]);
 
     enum encoding enc = ParseEncoding(args[3]);
 
@@ -556,52 +565,146 @@ static Handle<Value> Write(const Arguments& args) {
     return Undefined();
 
   } else {
-    written = pos < 0 ? write(fd, buf, len) : pwrite(fd, buf, len, pos);
-    delete [] reinterpret_cast<char*>(buf);
-    if (written < 0) return ThrowException(ErrnoException(errno));
-    return scope.Close(Integer::New(written));
+    if (legacy) {
+      written = pos < 0 ? write(fd, buf, len) : pwrite(fd, buf, len, pos);
+      delete [] reinterpret_cast<char*>(buf);
+      if (written < 0) return ThrowException(ErrnoException(errno));
+      return scope.Close(Integer::New(written));
+    } else {
+      assert(0 && "fs.writeSync() with buffers is not yet supported");
+    }
   }
 }
 
-/* fs.read(fd, length, position, encoding)
+/*
  * Wrapper for read(2).
+ *
+ * fs.read(fd, buffer, offset, length, position)
+ *
+ * 0 fd        integer. file descriptor
+ * 1 buffer    instance of Buffer
+ * 2 offset    integer. offset to start reading into inside buffer
+ * 3 length    integer. length to read
+ * 4 position  file position - null for current position
+ *
+ *  - OR - 
+ *
+ * fs.read(fd, length, position, encoding)
  *
  * 0 fd        integer. file descriptor
  * 1 length    integer. length to read
  * 2 position  if integer, position to read from in the file.
  *             if null, read from the current position
  * 3 encoding
+ *
  */
 static Handle<Value> Read(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 2 || !args[0]->IsInt32() || !args[1]->IsNumber()) {
+  if (args.Length() < 2 || !args[0]->IsInt32()) {
     return THROW_BAD_ARGS;
   }
 
   int fd = args[0]->Int32Value();
-  size_t len = args[1]->IntegerValue();
-  off_t offset = args[2]->IsNumber() ? args[2]->IntegerValue() : -1;
-  enum encoding encoding = ParseEncoding(args[3]);
 
-  if (args[4]->IsFunction()) {
-    Local<Object> obj = args[4]->ToObject();
-    obj->SetHiddenValue(encoding_symbol, args[3]);
-    ASYNC_CALL(read, args[4], fd, NULL, len, offset)
-  } else {
-#define READ_BUF_LEN (16*1024)
-    char *buf[READ_BUF_LEN];
-    ssize_t ret;
-    if (offset < 0) {
-      ret = read(fd, buf, MIN(len, READ_BUF_LEN));
-    } else {
-      ret = pread(fd, buf, MIN(len, READ_BUF_LEN), offset);
+  Local<Value> cb;
+  bool legacy;
+
+  size_t len;
+  off_t pos;
+  enum encoding encoding;
+
+  char * buf = NULL;
+
+  if (Buffer::HasInstance(args[1])) {
+    legacy = false;
+    // 0 fd        integer. file descriptor
+    // 1 buffer    instance of Buffer
+    // 2 offset    integer. offset to start reading into inside buffer
+    // 3 length    integer. length to read
+    // 4 position  file position - null for current position
+    Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
+
+    size_t off = args[2]->Int32Value();
+    if (off >= buffer->length()) {
+      return ThrowException(Exception::Error(
+            String::New("Offset is out of bounds")));
     }
-    if (ret < 0) return ThrowException(ErrnoException(errno));
-    Local<Array> a = Array::New(2);
-    a->Set(Integer::New(0), Encode(buf, ret, encoding));
-    a->Set(Integer::New(1), Integer::New(ret));
-    return scope.Close(a);
+
+    len = args[3]->Int32Value();
+    if (off + len > buffer->length()) {
+      return ThrowException(Exception::Error(
+            String::New("Length is extends beyond buffer")));
+    }
+
+    pos = GET_OFFSET(args[4]);
+
+    buf = (char*)buffer->data() + off;
+
+    cb = args[5];
+
+  } else {
+    legacy = true;
+    // 0 fd        integer. file descriptor
+    // 1 length    integer. length to read
+    // 2 position  if integer, position to read from in the file.
+    //             if null, read from the current position
+    // 3 encoding
+    len = args[1]->IntegerValue();
+    pos = GET_OFFSET(args[2]);
+    encoding = ParseEncoding(args[3]);
+
+    buf = NULL; // libeio will allocate and free it.
+
+    cb = args[4];
+  }
+
+
+  if (cb->IsFunction()) {
+    // WARNING: HACK AGAIN, PROCEED WITH CAUTION
+    // Normally here I would do
+    //   ASYNC_CALL(read, args[4], fd, NULL, len, offset)
+    // but I'm trying to support a legacy interface where it's acceptable to
+    // return a string in the callback. As well as a new Buffer interface
+    // which reads data into a user supplied buffer.
+
+    // Set the encoding on the callback
+    if (legacy) {
+      Local<Object> obj = cb->ToObject();
+      obj->SetHiddenValue(encoding_symbol, args[3]);
+    }
+
+    if (legacy) assert(buf == NULL);
+
+    
+    eio_req *req = eio_read(fd, buf, len, pos,
+                             EIO_PRI_DEFAULT,
+                             After,
+                             cb_persist(cb));
+    assert(req);
+
+    req->int3 = legacy ? 1 : 0;
+    ev_ref(EV_DEFAULT_UC);
+    return Undefined();
+
+  } else {
+    if (legacy) {
+#define READ_BUF_LEN (16*1024)
+      char buf[READ_BUF_LEN];
+      ssize_t ret;
+      if (pos < 0) {
+        ret = read(fd, buf, MIN(len, READ_BUF_LEN));
+      } else {
+        ret = pread(fd, buf, MIN(len, READ_BUF_LEN), pos);
+      }
+      if (ret < 0) return ThrowException(ErrnoException(errno));
+      Local<Array> a = Array::New(2);
+      a->Set(Integer::New(0), Encode(buf, ret, encoding));
+      a->Set(Integer::New(1), Integer::New(ret));
+      return scope.Close(a);
+    } else {
+      assert(0 && "fs.readSync() with buffers is not support yet");
+    }
   }
 }
 
