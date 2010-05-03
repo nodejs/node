@@ -334,7 +334,7 @@ indicate that it is safe to write again.
 
 `function (exception) { }`
 
-Emitted on error with the exception `e`.
+Emitted on error with the exception `exception`.
 
 ### Event: 'close'
 
@@ -436,7 +436,7 @@ It is an instance of `EventEmitter`.
 
 ### Event: 'exit'
 
-`function () {} `
+`function () {}`
 
 Emitted when the process is about to exit.  This is a good hook to perform
 constant time checks of the module's state (like for unit tests).  The main
@@ -456,7 +456,7 @@ Example of listening for `exit`:
 
 ### Event: 'uncaughtException'
 
-`function (err) { } `
+`function (err) { }`
 
 Emitted when an exception bubbles all the way back to the event loop. If a
 listener is added for this exception, the default action (which is to print
@@ -475,7 +475,7 @@ Example of listening for `uncaughtException`:
     }, 500);
 
     // Intentionally cause an exception, but don't catch it.
-    nonexistantFunc();
+    nonexistentFunc();
     sys.puts('This will not run.');
 
 Note that `uncaughtException` is a very crude mechanism for exception
@@ -747,8 +747,8 @@ given, otherwise returns the current mask.
         oldmask, newmask = 0644;
 
     oldmask = process.umask(newmask);
-    // these octal numbers don't display right in JavaScript
-    sys.puts('Changed umask from: ' + oldmask + ' to ' + newmask);
+    sys.puts('Changed umask from: ' + oldmask.toString(8) +
+             ' to ' + newmask.toString(8));
 
 
 
@@ -760,14 +760,14 @@ them.
 
 ### sys.puts(string)
 
-Outputs `string` and a trailing new-line to `stdout`.
+Outputs `string` and a trailing newline to `stdout`.
 
     require('sys').puts('String with a newline');
 
 
 ### sys.print(string)
 
-Like `puts()` but without the trailing new-line.
+Like `puts()` but without the trailing newline.
 
     require('sys').print('String with no newline');
 
@@ -849,7 +849,7 @@ Child processes always have three streams associated with them. `child.stdin`,
 
 ### Event:  'exit'
 
-`function (code, signal) {} `
+`function (code, signal) {}`
 
 This event is emitted after the child process ends. If the process terminated
 normally, `code` is the final exit code of the process, otherwise `null`. If
@@ -859,7 +859,7 @@ of the signal, otherwise `null`.
 After this event is emitted, the `'output'` and `'error'` callbacks will no
 longer be made.
 
-See `waitpid(2)`
+See `waitpid(2)`.
 
 ### child_process.spawn(command, args, env)
 
@@ -1418,7 +1418,7 @@ Asynchronously writes data to a file. Example:
 
     fs.writeFile('message.txt', 'Hello Node', function (err) {
       if (err) throw err;
-      sys.puts('It's saved!');
+      sys.puts('It\'s saved!');
     });
 
 ### fs.writeFileSync(filename, data, encoding='utf8')
@@ -1480,7 +1480,7 @@ Returns a new ReadStream object.
 ### readStream.readable
 
 A boolean that is `true` by default, but turns `false` after an `'error'`
-occured, the stream came to an 'end', or `destroy()` was called.
+occured, the stream came to an `'end'`, or `destroy()` was called.
 
 ### readStream.pause()
 
