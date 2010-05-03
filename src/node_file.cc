@@ -564,11 +564,8 @@ static Handle<Value> Write(const Arguments& args) {
 
   } else {
     if (legacy) {
-      if (pos < 0) {
-        written = write(fd, buf, len);
-      } else {
-        written = pwrite(fd, buf, len, pos);
-      }
+      written = pos < 0 ? write(fd, buf, len) : pwrite(fd, buf, len, pos);
+      delete [] reinterpret_cast<char*>(buf);
       if (written < 0) return ThrowException(ErrnoException(errno));
       return scope.Close(Integer::New(written));
     } else {
