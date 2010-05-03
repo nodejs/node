@@ -1,5 +1,7 @@
 path = require("path");
 
+port = parseInt(process.env.PORT || 8000);
+
 var puts = require("sys").puts;
 
 var old = (process.argv[2] == 'old');
@@ -61,4 +63,6 @@ http.createServer(function (req, res) {
   } else {
     res.end(body, 'ascii');
   }
-}).listen(8000);
+}).listen(port);
+
+puts('Listening at http://127.0.0.1:'+port+'/');
