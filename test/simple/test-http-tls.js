@@ -32,10 +32,10 @@ var https_server = http.createServer(function (req, res) {
   res.id = request_number;
   req.id = request_number++;
 
-    var verified = c.verifyPeer();
-    var peerDN = JSON.stringify(c.getPeerCertificate());
-    assert.equal(verified, true);
-    assert.equal(peerDN, '{"subject":"/C=UK/ST=Acknack Ltd/L=Rhys Jones'
+  var verified = res.connection.verifyPeer();
+  var peerDN = JSON.stringify(req.connection.getPeerCertificate());
+  assert.equal(verified, true);
+  assert.equal(peerDN, '{"subject":"/C=UK/ST=Acknack Ltd/L=Rhys Jones'
 		 + '/O=node.js/OU=Test TLS Certificate/CN=localhost",'
 		 + '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js'
 		 + '/OU=Test TLS Certificate/CN=localhost","valid_from":'
@@ -84,7 +84,7 @@ c.addListener("connect", function () {
 c.addListener("secure", function () {
     var verified = c.verifyPeer();
     var peerDN = JSON.stringify(c.getPeerCertificate());
-    //assert.equal(verified, 1);
+    assert.equal(verified, true);
     assert.equal(peerDN, '{"subject":"/C=UK/ST=Acknack Ltd/L=Rhys Jones'
 		 + '/O=node.js/OU=Test TLS Certificate/CN=localhost",'
 		 + '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js'
