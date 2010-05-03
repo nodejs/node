@@ -210,8 +210,8 @@ def configure(conf):
 
   # Configure default variant
   conf.setenv('default')
-  conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-O3'])
-  conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-O3'])
+  conf.env.append_value('CCFLAGS', ['-DNDEBUG', '-g', '-O3'])
+  conf.env.append_value('CXXFLAGS', ['-DNDEBUG', '-g', '-O3'])
   conf.write_config_header("config.h")
 
 
