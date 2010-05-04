@@ -592,19 +592,30 @@ Handle<Value> SecureStream::New(const Arguments& args) {
   SecureStream *p = new SecureStream();
   p->Wrap(args.Holder());
 
-  if (args.Length() != 2 ||
-      !args[0]->IsObject() ||
-      !args[1]->IsNumber()) {
-    return ThrowException(Exception::Error(String::New("Bad arguments.")));
+  if (args.Length() <1 ||
+      !args[0]->IsObject()) {
+    return ThrowException(Exception::Error(String::New("First argument must be a crypto module Credentials")));
   }
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args[0]->ToObject());
-  int isServer = args[1]->Int32Value();
+  int isServer = 0;
+  int shouldVerify = 0;
+  if (args.Length() >=2 &&
+      args[1]->IsNumber()) {
+    isServer = args[1]->Int32Value();
+  }
+  if (args.Length() >=3 &&
+      args[2]->IsNumber()) {
+    shouldVerify = args[2]->Int32Value();
+  }
 
   p->pSSL = SSL_new(sc->pCtx);
   p->pbioRead = BIO_new(BIO_s_mem());
   p->pbioWrite = BIO_new(BIO_s_mem());
   SSL_set_bio(p->pSSL, p->pbioRead, p->pbioWrite);
-  SSL_set_verify(p->pSSL, SSL_VERIFY_PEER, verify_callback);
+  p->shouldVerify = shouldVerify>0;
+  if (p->shouldVerify) {
+    SSL_set_verify(p->pSSL, SSL_VERIFY_PEER, verify_callback);
+  }
   p->server = isServer>0;
   if (p->server) {
     SSL_set_accept_state(p->pSSL);
@@ -882,6 +893,10 @@ Handle<Value> SecureStream::VerifyPeer(const Arguments& args) {
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args[0]->ToObject());
 
   if (ss->pSSL == NULL) return False();
+  if (!ss->shouldVerify) return False();
+  X509* peer_cert = SSL_get_peer_certificate(ss->pSSL);
+  if (peer_cert==NULL) return False();
+  X509_free(peer_cert);
 
   long x509_verify_error = SSL_get_verify_result(ss->pSSL);
 

@@ -73,6 +73,7 @@ class SecureStream : ObjectWrap {
   BIO *pbioWrite;
   SSL *pSSL;
   bool server;
+  bool shouldVerify;
 };
 
 void InitCrypto(v8::Handle<v8::Object> target);

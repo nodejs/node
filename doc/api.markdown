@@ -1556,6 +1556,7 @@ HTTP API is very low-level. It deals with stream handling and message
 parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.
 
+HTTPS is supported if OpenSSL is available on the underlying platform.
 
 ## http.Server
 
@@ -1645,6 +1646,12 @@ Start a UNIX socket server listening for connections on the given `path`.
 This function is asynchronous. `listening` will be emitted when the server
 is ready to accept connections.
 
+
+### server.setSecure(credentials)
+
+Enables HTTPS support for the server, with the crypto module credentials specifying the private key and certificate of the server, and optionally the CA certificates for use in client authentication.
+
+If the credentials hold one or more CA certificates, then the server will request for the client to submit a client certificate as part of the HTTPS connection handshake. The validity and content of this can be accessed via verifyPeer() and getPeerCertificate() from the server's request.connection.
 
 ### server.close()
 
@@ -1750,6 +1757,8 @@ Resumes a paused request.
 
 The `net.Stream` object assocated with the connection.
 
+With HTTPS support, use request.connection.verifyPeer() and request.connection.getPeerCertificate() to obtain the client's authentication details.
+
 
 ## http.ServerResponse
 
@@ -1827,11 +1836,15 @@ Example of connecting to `google.com`:
     request.end();
 
 
-### http.createClient(port, host)
+### http.createClient(port, host, secure, credentials)
 
 Constructs a new HTTP client. `port` and
 `host` refer to the server to be connected to. A
 stream is not established until a request is issued.
+
+`secure` is an optional boolean flag to enable https support and `credentials` is an optional credentials object from the crypto module, which may hold the client's private key, certificate, and a list of trusted CA certificates.
+
+If the connection is secure, but no explicit CA certificates are passed in the credentials, then node.js will default to the publicly trusted list of CA certificates, as given in http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 
 ### client.request([method], path, [request_headers])
 
@@ -1852,6 +1865,13 @@ the request. One needs to call `request.end()` to finalize the request and
 retrieve the response.  (This sounds convoluted but it provides a chance for
 the user to stream a body to the server with `request.write()`.)
 
+### client.verifyPeer()
+
+Returns true or false depending on the validity of the server's certificate in the context of the defined or default list of trusted CA certificates.
+
+### client.getPeerCertificate()
+
+Returns a JSON structure detailing the server's certificate, containing a dictionary with keys for the certificate 'subject', 'issuer', 'valid_from' and 'valid_to'
 
 
 ## http.ClientRequest
@@ -2075,6 +2095,13 @@ Emitted when a stream connection successfully is established.
 See `connect()`.
 
 
+### Event: 'secure'
+
+`function () { }`
+
+Emitted when a stream connection successfully establishes a HTTPS handshake with its peer.
+
+
 ### Event: 'data'
 
 `function (data) { }`
@@ -2156,6 +2183,21 @@ Either `'closed'`, `'open'`, `'opening'`, `'readOnly'`, or `'writeOnly'`.
 Sets the encoding (either `'ascii'`, `'utf8'`, or `'binary'`) for data that is
 received.
 
+### stream.setSecure(credentials)
+
+Enables HTTPS support for the stream, with the crypto module credentials specifying the private key and certificate of the stream, and optionally the CA certificates for use in peer authentication.
+
+If the credentials hold one ore more CA certificates, then the stream will request for the peer to submit a client certificate as part of the HTTPS connection handshake. The validity and content of this can be accessed via verifyPeer() and getPeerCertificate().
+
+### stream.verifyPeer()
+
+Returns true or false depending on the validity of the peers's certificate in the context of the defined or default list of trusted CA certificates.
+
+### stream.getPeerCertificate()
+
+Returns a JSON structure detailing the peer's certificate, containing a dictionary with keys for the certificate 'subject', 'issuer', 'valid_from' and 'valid_to'
+
+
 ### stream.write(data, encoding='ascii')
 
 Sends data on the stream. The second parameter specifies the encoding in
@@ -2208,6 +2250,118 @@ Set `initialDelay` (in milliseconds) to set the delay between the last
 data packet received and the first keepalive probe. Setting 0 for
 initialDelay will leave the value unchanged from the default
 (or previous) setting.
+
+
+## Crypto
+
+Use `require('crypto')` to access this module.
+
+The crypto module requires OpenSSL to be available on the underlying platform. It offers a way of encapsulating secure credentials to be used as part of a secure HTTPS net or http connection.
+
+It also offers a set of wrappers for OpenSSL's hash, hmac, cipher, decipher, sign and verify methods.
+
+### crypto.createCredentials(details)
+
+Creates a credentials object, with the optional details being a dictionary with keys:
+
+`key` : a string holding the PEM encoded private key
+
+`cert` : a string holding the PEM encoded certificate
+
+`ca` : either a string or list of strings of PEM encoded CA certificates to trust.
+
+If no 'ca' details are given, then node.js will use the default publicly trusted list of CAs as given in 
+http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
+
+
+### crypto.createHash(algorithm)
+
+Creates and returns a hash object, a cryptographic hash with the given algorithm which can be used to generate hash digests.
+
+`algorithm` is dependent on the available algorithms supported by the version of OpenSSL on the platform. Examples are sha1, md5, sha256, sha512, etc. On recent releases, `openssl list-message-digest-algorithms` will display the available digest algorithms.
+
+### hash.update(data)
+
+Updates the hash content with the given `data`. This can be called many times with new data as it is streamed.
+
+### hash.digest(encoding)
+
+Calculates the digest of all of the passed data to be hashed. The `encoding` can be 'hex', 'binary' or 'base64'.
+
+
+### crypto.createHmac(algorithm, key)
+
+Creates and returns a hmac object, a cryptographic hmac with the given algorithm and key.
+
+`algorithm` is dependent on the available algorithms supported by OpenSSL - see createHash above.
+`key` is the hmac key to be used.
+
+### hmac.update(data)
+
+Update the hmac content with the given `data`. This can be called many times with new data as it is streamed.
+
+### hmac.digest(encoding)
+
+Calculates the digest of all of the passed data to the hmac. The `encoding` can be 'hex', 'binary' or 'base64'.
+
+
+### crypto.createCipher(algorithm, key)
+
+Creates and returns a cipher object, with the given algorithm and key.
+
+`algorithm` is dependent on OpenSSL, examples are aes192, etc. On recent releases, `openssl list-cipher-algorithms` will display the available cipher algorithms.
+
+### cipher.update(data, input_encoding, output_encoding)
+
+Updates the cipher with `data`, the encoding of which is given in `input_encoding` and can be 'utf8', 'ascii' or 'binary'. The `output_encoding` specifies the output format of the enciphered data, and can be 'binary', 'base64'  or 'hex'.
+
+Returns the enciphered contents, and can be called many times with new data as it is streamed.
+
+### cipher.final(output_encoding)
+
+Returns any remaining enciphered contents, with `output_encoding` as update above.
+
+### crypto.createDecipher(algorithm, key)
+
+Creates and returns a decipher object, with the given algorithm and key. This is the mirror of the cipher object above.
+
+### decipher.update(data, input_encoding, output_encoding)
+
+Updates the decipher with `data`, which is encoded in 'binary', 'base64' or 'hex'. The `output_decoding` specifies in what format to return the deciphered plaintext - either 'binary', 'ascii' or 'utf8'.
+
+### decipher.final(output_encoding)
+
+Returns any remaining plaintext which is deciphered, with `output_encoding' as update above.
+
+
+### crypto.createSign(algorithm)
+
+Creates and returns a signing object, with the given algorithm. On recent OpenSSL releases, `openssl list-public-key-algorithms` will display the available signing algorithms. Examples are 'RSA-SHA256'.
+
+### signer.update(data)
+
+Updates the signer object with data. This can be called many times with new data as it is streamed.
+
+### signer.sign(private_key, output_format)
+
+Calculates the signature on all the updated data passed through the signer. `private_key` is a string containing the PEM encoded private key for signing.
+
+Returns the signature in `output_format` which can be 'binary', 'hex' or 'base64'
+
+### crypto.createVerify(algorithm)
+
+Creates and returns a verification object, with the given algorithm. This is the mirror of the signing object above.
+
+### verifier.update(data)
+
+Updates the verifyer object with data. This can be called many times with new data as it is streamed.
+
+### verifier.verify(public_key, signature, signature_format)
+
+Verifies the signed data by using the `public_key` which is a string containing the PEM encoded public key, and `signature`, which is the previously calculates signature for the data, in the `signature_format` which can be 'binary', 'hex' or 'base64'.
+
+Returns true or false depending on the validity of the signature for the data and public key.
+
 
 
 ## DNS
