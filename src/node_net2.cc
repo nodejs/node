@@ -671,12 +671,12 @@ static Handle<Value> SendFD(const Arguments& args) {
   msg.msg_namelen = 0;
   msg.msg_flags = 0;
   msg.msg_control = (void *) control_msg;
+  msg.msg_controllen = CMSG_LEN(sizeof(fd_to_send));
   cmsg = CMSG_FIRSTHDR(&msg);
   cmsg->cmsg_level = SOL_SOCKET;
   cmsg->cmsg_type = SCM_RIGHTS;
-  cmsg->cmsg_len = CMSG_LEN(sizeof(fd_to_send));
+  cmsg->cmsg_len = msg.msg_controllen;
   *(int*) CMSG_DATA(cmsg) = fd_to_send;
-  msg.msg_controllen = cmsg->cmsg_len;
 
   ssize_t written = sendmsg(fd, &msg, 0);
 
