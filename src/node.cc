@@ -2017,6 +2017,14 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+
+  // Ignore SIGPIPE
+  struct sigaction sa;
+  bzero(&sa, sizeof(sa));
+  sa.sa_handler = SIG_IGN;
+  sigaction(SIGPIPE, &sa, NULL);
+
+
   // Initialize the default ev loop.
 #ifdef __sun
   // TODO(Ryan) I'm experiencing abnormally high load using Solaris's
