@@ -49,10 +49,8 @@ doc/api.html: doc/api.markdown doc/api_header.html doc/api_footer.html
 	| sed "s/<h2>\(.*\)<\/h2>/<h2 id=\"\1\">\1<\/h2>/g" \
 	| cat doc/api_header.html - doc/api_footer.html > doc/api.html
 
-doc/changelog.html: ChangeLog
-	echo '<html><head><title>Node.js ChangeLog</title> <link rel="stylesheet" href="./pipe.css" type="text/css" /> <link rel="stylesheet" href="./pipe-quirks.css" type="text/css" /> <body><h1>Node.js ChangeLog</h1> <pre>' > doc/changelog.html
-	cat ChangeLog >> doc/changelog.html
-	echo '</pre></body></html>' >> doc/changelog.html
+doc/changelog.html: ChangeLog doc/changelog_header.html doc/changelog_footer.html
+	cat doc/changelog_header.html ChangeLog doc/changelog_footer.html > doc/changelog.html
 
 doc/node.1: doc/api.markdown
 	ronn --roff doc/api.markdown > doc/node.1
