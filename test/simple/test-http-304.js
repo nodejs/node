@@ -8,12 +8,12 @@ s = http.createServer(function (request, response) {
   response.writeHead(304);
   response.end();
 })
-s.listen(8000);
-sys.puts('Server running at http://127.0.0.1:8000/')
+s.listen(PORT);
+sys.puts('Server running at http://127.0.0.1:'+PORT+'/')
 
 s.addListener('listening', function () {
 
-  childProcess.exec('curl http://127.0.0.1:8000/', function (err, stdout, stderr) {
+  childProcess.exec('curl http://127.0.0.1:'+PORT+'/', function (err, stdout, stderr) {
     if (err) throw err;
     s.close();
     sys.puts('curled response correctly');
