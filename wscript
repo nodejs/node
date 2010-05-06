@@ -434,6 +434,7 @@ def build(bld):
     config.h
     src/node.h
     src/node_object_wrap.h
+    src/node_buffer.h
     src/node_events.h
   """)
 
