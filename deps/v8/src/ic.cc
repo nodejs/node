@@ -615,7 +615,8 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
     }
 
     // Use specialized code for getting prototype of functions.
-    if (object->IsJSFunction() && name->Equals(Heap::prototype_symbol())) {
+    if (object->IsJSFunction() && name->Equals(Heap::prototype_symbol()) &&
+        JSFunction::cast(*object)->should_have_prototype()) {
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
 #endif
@@ -824,7 +825,8 @@ Object* KeyedLoadIC::Load(State state,
       }
 
       // Use specialized code for getting prototype of functions.
-      if (object->IsJSFunction() && name->Equals(Heap::prototype_symbol())) {
+      if (object->IsJSFunction() && name->Equals(Heap::prototype_symbol()) &&
+        JSFunction::cast(*object)->should_have_prototype()) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(object);
         Object* code =
             StubCache::ComputeKeyedLoadFunctionPrototype(*name, *function);

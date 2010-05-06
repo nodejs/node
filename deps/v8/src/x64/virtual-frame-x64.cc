@@ -226,6 +226,31 @@ void VirtualFrame::EmitPush(Heap::RootListIndex index, TypeInfo info) {
 }
 
 
+void VirtualFrame::Push(Expression* expr) {
+  ASSERT(expr->IsTrivial());
+
+  Literal* lit = expr->AsLiteral();
+  if (lit != NULL) {
+    Push(lit->handle());
+    return;
+  }
+
+  VariableProxy* proxy = expr->AsVariableProxy();
+  if (proxy != NULL) {
+    Slot* slot = proxy->var()->slot();
+    if (slot->type() == Slot::LOCAL) {
+      PushLocalAt(slot->index());
+      return;
+    }
+    if (slot->type() == Slot::PARAMETER) {
+      PushParameterAt(slot->index());
+      return;
+    }
+  }
+  UNREACHABLE();
+}
+
+
 void VirtualFrame::Drop(int count) {
   ASSERT(count >= 0);
   ASSERT(height() >= count);

@@ -61,7 +61,7 @@ static const int maximal_target_exponent = -32;
 // Output: returns true if the buffer is guaranteed to contain the closest
 //    representable number to the input.
 //  Modifies the generated digits in the buffer to approach (round towards) w.
-bool RoundWeed(char* buffer,
+bool RoundWeed(Vector<char> buffer,
                int length,
                uint64_t distance_too_high_w,
                uint64_t unsafe_interval,
@@ -324,7 +324,7 @@ static void BiggestPowerTen(uint32_t number,
 bool DigitGen(DiyFp low,
               DiyFp w,
               DiyFp high,
-              char* buffer,
+              Vector<char> buffer,
               int* length,
               int* kappa) {
   ASSERT(low.e() == w.e() && w.e() == high.e());
@@ -437,7 +437,7 @@ bool DigitGen(DiyFp low,
 // The last digit will be closest to the actual v. That is, even if several
 // digits might correctly yield 'v' when read again, the closest will be
 // computed.
-bool grisu3(double v, char* buffer, int* length, int* decimal_exponent) {
+bool grisu3(double v, Vector<char> buffer, int* length, int* decimal_exponent) {
   DiyFp w = Double(v).AsNormalizedDiyFp();
   // boundary_minus and boundary_plus are the boundaries between v and its
   // closest floating-point neighbors. Any number strictly between
@@ -488,7 +488,11 @@ bool grisu3(double v, char* buffer, int* length, int* decimal_exponent) {
 }
 
 
-bool FastDtoa(double v, char* buffer, int* sign, int* length, int* point) {
+bool FastDtoa(double v,
+              Vector<char> buffer,
+              int* sign,
+              int* length,
+              int* point) {
   ASSERT(v != 0);
   ASSERT(!Double(v).IsSpecial());
 

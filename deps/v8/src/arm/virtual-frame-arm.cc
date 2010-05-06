@@ -298,19 +298,38 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 }
 
 
-void VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
+void VirtualFrame::CallLoadIC(Handle<String> name, RelocInfo::Mode mode) {
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  SpillAllButCopyTOSToR0();
+  __ mov(r2, Operand(name));
   CallCodeObject(ic, mode, 0);
+}
+
+
+void VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  PopToR0();
+  if (is_contextual) {
+    SpillAll();
+    __ ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  } else {
+    EmitPop(r1);
+    SpillAll();
+  }
+  __ mov(r2, Operand(name));
+  CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
 }
 
 
 void VirtualFrame::CallKeyedLoadIC() {
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  SpillAllButCopyTOSToR0();
   CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
 }
 
 
 void VirtualFrame::CallKeyedStoreIC() {
+  ASSERT(SpilledScope::is_spilled());
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
 }
@@ -477,6 +496,38 @@ Register VirtualFrame::Peek() {
 }
 
 
+void VirtualFrame::Dup() {
+  AssertIsNotSpilled();
+  switch (top_of_stack_state_) {
+    case NO_TOS_REGISTERS:
+      __ ldr(r0, MemOperand(sp, 0));
+      top_of_stack_state_ = R0_TOS;
+      break;
+    case R0_TOS:
+      __ mov(r1, r0);
+      top_of_stack_state_ = R0_R1_TOS;
+      break;
+    case R1_TOS:
+      __ mov(r0, r1);
+      top_of_stack_state_ = R0_R1_TOS;
+      break;
+    case R0_R1_TOS:
+      __ push(r1);
+      __ mov(r1, r0);
+      // No need to change state as r0 and r1 now contains the same value.
+      break;
+    case R1_R0_TOS:
+      __ push(r0);
+      __ mov(r0, r1);
+      // No need to change state as r0 and r1 now contains the same value.
+      break;
+    default:
+      UNREACHABLE();
+  }
+  element_count_++;
+}
+
+
 Register VirtualFrame::PopToRegister(Register but_not_to_this_one) {
   ASSERT(but_not_to_this_one.is(r0) ||
          but_not_to_this_one.is(r1) ||
@@ -541,6 +592,19 @@ Register VirtualFrame::GetTOSRegister() {
 }
 
 
+void VirtualFrame::EmitPush(Operand operand) {
+  element_count_++;
+  if (SpilledScope::is_spilled()) {
+    __ mov(r0, operand);
+    __ push(r0);
+    return;
+  }
+  EnsureOneFreeTOSRegister();
+  top_of_stack_state_ = kStateAfterPush[top_of_stack_state_];
+  __ mov(kTopRegister[top_of_stack_state_], operand);
+}
+
+
 void VirtualFrame::EmitPush(MemOperand operand) {
   element_count_++;
   if (SpilledScope::is_spilled()) {
@@ -551,6 +615,19 @@ void VirtualFrame::EmitPush(MemOperand operand) {
   EnsureOneFreeTOSRegister();
   top_of_stack_state_ = kStateAfterPush[top_of_stack_state_];
   __ ldr(kTopRegister[top_of_stack_state_], operand);
+}
+
+
+void VirtualFrame::EmitPushRoot(Heap::RootListIndex index) {
+  element_count_++;
+  if (SpilledScope::is_spilled()) {
+    __ LoadRoot(r0, index);
+    __ push(r0);
+    return;
+  }
+  EnsureOneFreeTOSRegister();
+  top_of_stack_state_ = kStateAfterPush[top_of_stack_state_];
+  __ LoadRoot(kTopRegister[top_of_stack_state_], index);
 }
 
 

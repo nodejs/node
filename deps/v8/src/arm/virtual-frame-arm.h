@@ -308,9 +308,13 @@ class VirtualFrame : public ZoneObject {
                      InvokeJSFlags flag,
                      int arg_count);
 
-  // Call load IC. Receiver is on the stack and the property name is in r2.
+  // Call load IC. Receiver is on the stack. Result is returned in r0.
+  void CallLoadIC(Handle<String> name, RelocInfo::Mode mode);
+
+  // Call store IC. If the load is contextual, value is found on top of the
+  // frame. If not, value and receiver are on the frame. Both are consumed.
   // Result is returned in r0.
-  void CallLoadIC(RelocInfo::Mode mode);
+  void CallStoreIC(Handle<String> name, bool is_contextual);
 
   // Call keyed load IC. Key and receiver are on the stack. Result is returned
   // in r0.
@@ -348,6 +352,9 @@ class VirtualFrame : public ZoneObject {
   // must be copied to a scratch register before modification.
   Register Peek();
 
+  // Duplicate the top of stack.
+  void Dup();
+
   // Flushes all registers, but it puts a copy of the top-of-stack in r0.
   void SpillAllButCopyTOSToR0();
 
@@ -372,7 +379,9 @@ class VirtualFrame : public ZoneObject {
   // Push an element on top of the expression stack and emit a
   // corresponding push instruction.
   void EmitPush(Register reg);
+  void EmitPush(Operand operand);
   void EmitPush(MemOperand operand);
+  void EmitPushRoot(Heap::RootListIndex index);
 
   // Get a register which is free and which must be immediately used to
   // push on the top of the stack.

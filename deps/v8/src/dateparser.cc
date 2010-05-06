@@ -33,6 +33,16 @@ namespace v8 {
 namespace internal {
 
 bool DateParser::DayComposer::Write(FixedArray* output) {
+  // Set year to 0 by default.
+  if (index_ < 1) {
+    comp_[index_++] = 1;
+  }
+
+  // Day and month defaults to 1.
+  while (index_ < kSize) {
+      comp_[index_++] = 1;
+  }
+
   int year = 0;  // Default year is 0 (=> 2000) for KJS compatibility.
   int month = kNone;
   int day = kNone;
@@ -88,6 +98,7 @@ bool DateParser::TimeComposer::Write(FixedArray* output) {
   int& hour = comp_[0];
   int& minute = comp_[1];
   int& second = comp_[2];
+  int& millisecond = comp_[3];
 
   if (hour_offset_ != kNone) {
     if (!IsHour12(hour)) return false;
@@ -95,11 +106,13 @@ bool DateParser::TimeComposer::Write(FixedArray* output) {
     hour += hour_offset_;
   }
 
-  if (!IsHour(hour) || !IsMinute(minute) || !IsSecond(second)) return false;
+  if (!IsHour(hour) || !IsMinute(minute) ||
+      !IsSecond(second) || !IsMillisecond(millisecond)) return false;
 
   output->set(HOUR, Smi::FromInt(hour));
   output->set(MINUTE, Smi::FromInt(minute));
   output->set(SECOND, Smi::FromInt(second));
+  output->set(MILLISECOND, Smi::FromInt(millisecond));
   return true;
 }
 
@@ -134,6 +147,7 @@ const int8_t DateParser::KeywordTable::
   {'p', 'm', '\0', DateParser::AM_PM, 12},
   {'u', 't', '\0', DateParser::TIME_ZONE_NAME, 0},
   {'u', 't', 'c', DateParser::TIME_ZONE_NAME, 0},
+  {'z', '\0', '\0', DateParser::TIME_ZONE_NAME, 0},
   {'g', 'm', 't', DateParser::TIME_ZONE_NAME, 0},
   {'c', 'd', 't', DateParser::TIME_ZONE_NAME, -5},
   {'c', 's', 't', DateParser::TIME_ZONE_NAME, -6},

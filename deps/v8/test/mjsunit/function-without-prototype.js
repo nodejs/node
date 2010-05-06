@@ -25,24 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
+// Tests that function does not have prototype.
+function testPrototype(f) {
+  assertFalse('prototype' in f);
+  assertEquals(undefined, f.prototype);
+  f.prototype = 42;
+  assertEquals(42, f.prototype);
+  assertTrue('prototype' in f);
+}
 
-Debug = debug.Debug
+// Tests that construction from function throws.
+function testConstruction(name) {
+  assertThrows("new " + name + "()");
+  eval(name + ".prototype = 42;");
+  assertThrows("new " + name + "()");
+}
 
-eval("var something1 = 25; "
-     + " function ChooseAnimal() { return          'Cat';          } "
-     + " ChooseAnimal.Helper = function() { return 'Help!'; }");
+testPrototype(eval);
+testPrototype(Array.prototype.push);
+testPrototype(Function.prototype.call);
+testPrototype(String.fromCharCode);
+var date = new Date();
+testPrototype(date.toString);
 
-assertEquals("Cat", ChooseAnimal());
-
-var script = Debug.findScript(ChooseAnimal);
-
-var orig_animal = "Cat";
-var patch_pos = script.source.indexOf(orig_animal);
-var new_animal_patch = "Cap' + 'y' + 'bara";
-
-var change_log = new Array();
-Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
-
-assertEquals("Capybara", ChooseAnimal());
+testConstruction("parseInt");
+testConstruction("Function.prototype.apply");
+var regexp = /abc/g;
+testConstruction("regexp.test");

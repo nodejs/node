@@ -457,10 +457,8 @@ class CodeGenerator: public AstVisitor {
   // Generate code that computes a shortcutting logical operation.
   void GenerateLogicalBooleanOperation(BinaryOperation* node);
 
-  void GenericBinaryOperation(
-      Token::Value op,
-      StaticType* type,
-      OverwriteMode overwrite_mode);
+  void GenericBinaryOperation(BinaryOperation* expr,
+                              OverwriteMode overwrite_mode);
 
   // If possible, combine two constant smi values using op to produce
   // a smi result, and push it on the virtual frame, all at compile time.
@@ -469,17 +467,16 @@ class CodeGenerator: public AstVisitor {
 
   // Emit code to perform a binary operation on a constant
   // smi and a likely smi.  Consumes the Result *operand.
-  Result ConstantSmiBinaryOperation(Token::Value op,
+  Result ConstantSmiBinaryOperation(BinaryOperation* expr,
                                     Result* operand,
                                     Handle<Object> constant_operand,
-                                    StaticType* type,
                                     bool reversed,
                                     OverwriteMode overwrite_mode);
 
   // Emit code to perform a binary operation on two likely smis.
   // The code to handle smi arguments is produced inline.
   // Consumes the Results *left and *right.
-  Result LikelySmiBinaryOperation(Token::Value op,
+  Result LikelySmiBinaryOperation(BinaryOperation* expr,
                                   Result* left,
                                   Result* right,
                                   OverwriteMode overwrite_mode);
@@ -594,6 +591,11 @@ class CodeGenerator: public AstVisitor {
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
+  // Fast swapping of elements. Takes three expressions, the object and two
+  // indices. This should only be used if the indices are known to be
+  // non-negative and within bounds of the elements array at the call site.
+  void GenerateSwapElements(ZoneList<Expression*>* args);
+
   // Fast call for custom callbacks.
   void GenerateCallFunction(ZoneList<Expression*>* args);
 
@@ -669,6 +671,22 @@ class CodeGenerator: public AstVisitor {
   friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
+};
+
+
+// Compute a transcendental math function natively, or call the
+// TranscendentalCache runtime function.
+class TranscendentalCacheStub: public CodeStub {
+ public:
+  explicit TranscendentalCacheStub(TranscendentalCache::Type type)
+      : type_(type) {}
+  void Generate(MacroAssembler* masm);
+ private:
+  TranscendentalCache::Type type_;
+  Major MajorKey() { return TranscendentalCache; }
+  int MinorKey() { return type_; }
+  Runtime::FunctionId RuntimeFunction();
+  void GenerateOperation(MacroAssembler* masm, Label* on_nan_result);
 };
 
 
@@ -816,54 +834,88 @@ class GenericBinaryOpStub: public CodeStub {
   }
 };
 
-
-class StringStubBase: public CodeStub {
+class StringHelper : public AllStatic {
  public:
+  // Generates fast code for getting a char code out of a string
+  // object at the given index. May bail out for four reasons (in the
+  // listed order):
+  //   * Receiver is not a string (receiver_not_string label).
+  //   * Index is not a smi (index_not_smi label).
+  //   * Index is out of range (index_out_of_range).
+  //   * Some other reason (slow_case label). In this case it's
+  //     guaranteed that the above conditions are not violated,
+  //     e.g. it's safe to assume the receiver is a string and the
+  //     index is a non-negative smi < length.
+  // When successful, object, index, and scratch are clobbered.
+  // Otherwise, scratch and result are clobbered.
+  static void GenerateFastCharCodeAt(MacroAssembler* masm,
+                                     Register object,
+                                     Register index,
+                                     Register scratch,
+                                     Register result,
+                                     Label* receiver_not_string,
+                                     Label* index_not_smi,
+                                     Label* index_out_of_range,
+                                     Label* slow_case);
+
+  // Generates code for creating a one-char string from the given char
+  // code. May do a runtime call, so any register can be clobbered
+  // and, if the given invoke flag specifies a call, an internal frame
+  // is required. In tail call mode the result must be rax register.
+  static void GenerateCharFromCode(MacroAssembler* masm,
+                                   Register code,
+                                   Register result,
+                                   Register scratch,
+                                   InvokeFlag flag);
+
   // Generate code for copying characters using a simple loop. This should only
   // be used in places where the number of characters is small and the
   // additional setup and checking in GenerateCopyCharactersREP adds too much
   // overhead. Copying of overlapping regions is not supported.
-  void GenerateCopyCharacters(MacroAssembler* masm,
-                              Register dest,
-                              Register src,
-                              Register count,
-                              bool ascii);
+  static void GenerateCopyCharacters(MacroAssembler* masm,
+                                     Register dest,
+                                     Register src,
+                                     Register count,
+                                     bool ascii);
 
   // Generate code for copying characters using the rep movs instruction.
   // Copies rcx characters from rsi to rdi. Copying of overlapping regions is
   // not supported.
-  void GenerateCopyCharactersREP(MacroAssembler* masm,
-                                 Register dest,     // Must be rdi.
-                                 Register src,      // Must be rsi.
-                                 Register count,    // Must be rcx.
-                                 bool ascii);
+  static void GenerateCopyCharactersREP(MacroAssembler* masm,
+                                        Register dest,     // Must be rdi.
+                                        Register src,      // Must be rsi.
+                                        Register count,    // Must be rcx.
+                                        bool ascii);
 
 
   // Probe the symbol table for a two character string. If the string is
   // not found by probing a jump to the label not_found is performed. This jump
   // does not guarantee that the string is not in the symbol table. If the
   // string is found the code falls through with the string in register rax.
-  void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
-                                            Register c1,
-                                            Register c2,
-                                            Register scratch1,
-                                            Register scratch2,
-                                            Register scratch3,
-                                            Register scratch4,
-                                            Label* not_found);
+  static void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+                                                   Register c1,
+                                                   Register c2,
+                                                   Register scratch1,
+                                                   Register scratch2,
+                                                   Register scratch3,
+                                                   Register scratch4,
+                                                   Label* not_found);
 
   // Generate string hash.
-  void GenerateHashInit(MacroAssembler* masm,
-                        Register hash,
-                        Register character,
-                        Register scratch);
-  void GenerateHashAddCharacter(MacroAssembler* masm,
-                                Register hash,
-                                Register character,
-                                Register scratch);
-  void GenerateHashGetHash(MacroAssembler* masm,
-                           Register hash,
-                           Register scratch);
+  static void GenerateHashInit(MacroAssembler* masm,
+                               Register hash,
+                               Register character,
+                               Register scratch);
+  static void GenerateHashAddCharacter(MacroAssembler* masm,
+                                       Register hash,
+                                       Register character,
+                                       Register scratch);
+  static void GenerateHashGetHash(MacroAssembler* masm,
+                                  Register hash,
+                                  Register scratch);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
 };
 
 
@@ -874,7 +926,7 @@ enum StringAddFlags {
 };
 
 
-class StringAddStub: public StringStubBase {
+class StringAddStub: public CodeStub {
  public:
   explicit StringAddStub(StringAddFlags flags) {
     string_check_ = ((flags & NO_STRING_CHECK_IN_STUB) == 0);
@@ -891,7 +943,7 @@ class StringAddStub: public StringStubBase {
 };
 
 
-class SubStringStub: public StringStubBase {
+class SubStringStub: public CodeStub {
  public:
   SubStringStub() {}
 
@@ -959,6 +1011,42 @@ class NumberToStringStub: public CodeStub {
     PrintF("NumberToStringStub\n");
   }
 #endif
+};
+
+
+class RecordWriteStub : public CodeStub {
+ public:
+  RecordWriteStub(Register object, Register addr, Register scratch)
+      : object_(object), addr_(addr), scratch_(scratch) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Register object_;
+  Register addr_;
+  Register scratch_;
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("RecordWriteStub (object reg %d), (addr reg %d), (scratch reg %d)\n",
+           object_.code(), addr_.code(), scratch_.code());
+  }
+#endif
+
+  // Minor key encoding in 12 bits. 4 bits for each of the three
+  // registers (object, address and scratch) OOOOAAAASSSS.
+  class ScratchBits : public BitField<uint32_t, 0, 4> {};
+  class AddressBits : public BitField<uint32_t, 4, 4> {};
+  class ObjectBits : public BitField<uint32_t, 8, 4> {};
+
+  Major MajorKey() { return RecordWrite; }
+
+  int MinorKey() {
+    // Encode the registers.
+    return ObjectBits::encode(object_.code()) |
+           AddressBits::encode(addr_.code()) |
+           ScratchBits::encode(scratch_.code());
+  }
 };
 
 

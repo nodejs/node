@@ -28,21 +28,42 @@
 // Flags: --expose-debug-as debug
 // Get the Debug object exposed from the debug context global object.
 
+// In this test case we edit a script so that techincally function text
+// hasen't been changed. However actually function became one level more nested
+// and must be recompiled because it uses variable from outer scope.
+
+
 Debug = debug.Debug
 
-eval("var something1 = 25; "
-     + " function ChooseAnimal() { return          'Cat';          } "
-     + " ChooseAnimal.Helper = function() { return 'Help!'; }");
+var function_z_text =
+"  function Z() {\n"
++ "    return 2 + p;\n"
++ "  }\n";
 
-assertEquals("Cat", ChooseAnimal());
+eval(
+"function Factory(p) {\n"
++ "return (\n"
++ function_z_text
++ ");\n"
++ "}\n"
+);
 
-var script = Debug.findScript(ChooseAnimal);
+var z6 = Factory(6);
+assertEquals(8, z6());
 
-var orig_animal = "Cat";
-var patch_pos = script.source.indexOf(orig_animal);
-var new_animal_patch = "Cap' + 'y' + 'bara";
+var script = Debug.findScript(Factory);
+
+var new_source = script.source.replace(function_z_text, "function Intermediate() {\nreturn (\n" + function_z_text + ")\n;\n}\n");
+print("new source: " + new_source);
 
 var change_log = new Array();
-Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+Debug.LiveEdit.SetScriptSource(script, new_source, change_log);
+print("Change log: " + JSON.stringify(change_log) + "\n");
 
-assertEquals("Capybara", ChooseAnimal());
+assertEquals(8, z6());
+
+var z100 = Factory(100)();
+
+assertEquals(102, z100());
+
+

@@ -60,7 +60,7 @@ function TestBase(name) {
     // Runs in debugger context.
     var change_log = new Array();
     try {
-      Debug.LiveEdit.ApplyPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+      Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
     } finally {
       print("Change log: " + JSON.stringify(change_log) + "\n");
     }

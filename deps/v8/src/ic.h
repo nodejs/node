@@ -301,7 +301,6 @@ class KeyedLoadIC: public IC {
   // Clear the use of the inlined version.
   static void ClearInlinedVersion(Address address);
 
- private:
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
   // Access check is necessary explicitly since generic stub does not perform
@@ -309,6 +308,7 @@ class KeyedLoadIC: public IC {
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
+ private:
   // Update the inline cache.
   void UpdateCaches(LookupResult* lookup,
                     State state,

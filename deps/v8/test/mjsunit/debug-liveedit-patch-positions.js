@@ -80,7 +80,7 @@ var patch_pos = script.source.indexOf(orig_animal);
 var new_animal_patch = "'Capybara'";
 
 var change_log = new Array();
-Debug.LiveEdit.ApplyPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
 print("Change log: " + JSON.stringify(change_log) + "\n");
 
 var res = ChooseAnimal();

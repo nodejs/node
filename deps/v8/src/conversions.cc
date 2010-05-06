@@ -769,9 +769,11 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
 
       char* decimal_rep;
       bool used_gay_dtoa = false;
-      char fast_dtoa_buffer[kFastDtoaMaximalLength + 1];
+      const int kFastDtoaBufferCapacity = kFastDtoaMaximalLength + 1;
+      char fast_dtoa_buffer[kFastDtoaBufferCapacity];
       int length;
-      if (FastDtoa(v, fast_dtoa_buffer, &sign, &length, &decimal_point)) {
+      if (FastDtoa(v, Vector<char>(fast_dtoa_buffer, kFastDtoaBufferCapacity),
+                   &sign, &length, &decimal_point)) {
         decimal_rep = fast_dtoa_buffer;
       } else {
         decimal_rep = dtoa(v, 0, 0, &decimal_point, &sign, NULL);

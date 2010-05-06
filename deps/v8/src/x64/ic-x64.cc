@@ -523,30 +523,69 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   //  -- rsp[8] : name
   //  -- rsp[16] : receiver
   // -----------------------------------
+  Label miss;
+  Label index_not_smi;
+  Label index_out_of_range;
+  Label slow_char_code;
+  Label got_char_code;
 
-  Label miss, index_ok;
+  Register receiver = rdx;
+  Register index = rax;
+  Register code = rbx;
+  Register scratch = rcx;
 
-  // Check that the receiver isn't a smi.
-  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
-  __ JumpIfSmi(rcx, &miss);
+  __ movq(index, Operand(rsp, 1 * kPointerSize));
+  __ movq(receiver, Operand(rsp, 2 * kPointerSize));
 
-  // Check that the receiver is a string.
-  Condition is_string = masm->IsObjectStringType(rcx, rax, rbx);
-  __ j(NegateCondition(is_string), &miss);
+  StringHelper::GenerateFastCharCodeAt(masm,
+                                       receiver,
+                                       index,
+                                       scratch,
+                                       code,
+                                       &miss,  // When not a string.
+                                       &index_not_smi,
+                                       &index_out_of_range,
+                                       &slow_char_code);
+  // If we didn't bail out, code register contains smi tagged char
+  // code.
+  __ bind(&got_char_code);
+  StringHelper::GenerateCharFromCode(masm, code, rax, scratch, JUMP_FUNCTION);
+#ifdef DEBUG
+  __ Abort("Unexpected fall-through from char from code tail call");
+#endif
 
-  // Check if key is a smi or a heap number.
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ JumpIfSmi(rax, &index_ok);
-  __ CheckMap(rax, Factory::heap_number_map(), &miss, false);
+  // Check if key is a heap number.
+  __ bind(&index_not_smi);
+  __ CompareRoot(FieldOperand(index, HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &miss);
 
-  __ bind(&index_ok);
-  // Duplicate receiver and key since they are expected on the stack after
-  // the KeyedLoadIC call.
-  __ pop(rbx);  // return address
-  __ push(rcx);  // receiver
-  __ push(rax);  // key
-  __ push(rbx);  // return address
-  __ InvokeBuiltin(Builtins::STRING_CHAR_AT, JUMP_FUNCTION);
+  // Push receiver and key on the stack (now that we know they are a
+  // string and a number), and call runtime.
+  __ bind(&slow_char_code);
+  __ EnterInternalFrame();
+  __ push(receiver);
+  __ push(index);
+  __ CallRuntime(Runtime::kStringCharCodeAt, 2);
+  ASSERT(!code.is(rax));
+  __ movq(code, rax);
+  __ LeaveInternalFrame();
+
+  // Check if the runtime call returned NaN char code. If yes, return
+  // undefined. Otherwise, we can continue.
+  if (FLAG_debug_code) {
+    ASSERT(kSmiTag == 0);
+    __ JumpIfSmi(code, &got_char_code);
+    __ CompareRoot(FieldOperand(code, HeapObject::kMapOffset),
+                   Heap::kHeapNumberMapRootIndex);
+    __ Assert(equal, "StringCharCodeAt must return smi or heap number");
+  }
+  __ CompareRoot(code, Heap::kNanValueRootIndex);
+  __ j(not_equal, &got_char_code);
+
+  __ bind(&index_out_of_range);
+  __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+  __ ret(0);
 
   __ bind(&miss);
   GenerateMiss(masm);

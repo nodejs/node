@@ -1164,4 +1164,71 @@ Object* ConstructStubCompiler::GetCode() {
 }
 
 
+CallOptimization::CallOptimization(LookupResult* lookup) {
+  if (!lookup->IsProperty() || !lookup->IsCacheable() ||
+      lookup->type() != CONSTANT_FUNCTION) {
+    Initialize(NULL);
+  } else {
+    // We only optimize constant function calls.
+    Initialize(lookup->GetConstantFunction());
+  }
+}
+
+CallOptimization::CallOptimization(JSFunction* function) {
+  Initialize(function);
+}
+
+
+int CallOptimization::GetPrototypeDepthOfExpectedType(JSObject* object,
+                                                      JSObject* holder) const {
+  ASSERT(is_simple_api_call_);
+  if (expected_receiver_type_ == NULL) return 0;
+  int depth = 0;
+  while (object != holder) {
+    if (object->IsInstanceOf(expected_receiver_type_)) return depth;
+    object = JSObject::cast(object->GetPrototype());
+    ++depth;
+  }
+  if (holder->IsInstanceOf(expected_receiver_type_)) return depth;
+  return kInvalidProtoDepth;
+}
+
+
+void CallOptimization::Initialize(JSFunction* function) {
+  constant_function_ = NULL;
+  is_simple_api_call_ = false;
+  expected_receiver_type_ = NULL;
+  api_call_info_ = NULL;
+
+  if (function == NULL || !function->is_compiled()) return;
+
+  constant_function_ = function;
+  AnalyzePossibleApiFunction(function);
+}
+
+
+void CallOptimization::AnalyzePossibleApiFunction(JSFunction* function) {
+  SharedFunctionInfo* sfi = function->shared();
+  if (!sfi->IsApiFunction()) return;
+  FunctionTemplateInfo* info = sfi->get_api_func_data();
+
+  // Require a C++ callback.
+  if (info->call_code()->IsUndefined()) return;
+  api_call_info_ = CallHandlerInfo::cast(info->call_code());
+
+  // Accept signatures that either have no restrictions at all or
+  // only have restrictions on the receiver.
+  if (!info->signature()->IsUndefined()) {
+    SignatureInfo* signature = SignatureInfo::cast(info->signature());
+    if (!signature->args()->IsUndefined()) return;
+    if (!signature->receiver()->IsUndefined()) {
+      expected_receiver_type_ =
+          FunctionTemplateInfo::cast(signature->receiver());
+    }
+  }
+
+  is_simple_api_call_ = true;
+}
+
+
 } }  // namespace v8::internal

@@ -164,8 +164,7 @@ enum BuiltinExtraArguments {
   V(STRING_ADD_LEFT, 1)                  \
   V(STRING_ADD_RIGHT, 1)                 \
   V(APPLY_PREPARE, 1)                    \
-  V(APPLY_OVERFLOW, 1)                   \
-  V(STRING_CHAR_AT, 1)
+  V(APPLY_OVERFLOW, 1)
 
 
 class ObjectVisitor;

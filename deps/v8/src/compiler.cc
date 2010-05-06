@@ -192,6 +192,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   FunctionLiteral* lit =
       MakeAST(is_global, script, extension, pre_data, is_json);
 
+  LiveEditFunctionTracker live_edit_tracker(lit);
+
   // Check for parse errors.
   if (lit == NULL) {
     ASSERT(Top::has_pending_exception());
@@ -252,6 +254,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   // Notify debugger
   Debugger::OnAfterCompile(script, Debugger::NO_AFTER_COMPILE_FLAGS);
 #endif
+
+  live_edit_tracker.RecordFunctionInfo(result, lit);
 
   return result;
 }
@@ -448,6 +452,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                                                        Handle<Script> script,
                                                        AstVisitor* caller) {
+  LiveEditFunctionTracker live_edit_tracker(literal);
 #ifdef DEBUG
   // We should not try to compile the same function literal more than
   // once.
@@ -552,6 +557,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // the resulting function.
   SetExpectedNofPropertiesFromEstimate(result,
                                        literal->expected_property_count());
+  live_edit_tracker.RecordFunctionInfo(result, literal);
   return result;
 }
 

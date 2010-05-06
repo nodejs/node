@@ -996,23 +996,44 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   if (operand_size_ == 0x66) {
     // 0x66 0x0F prefix.
     int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
-    if (opcode == 0x6E) {
-      AppendToBuffer("movd %s,", NameOfXMMRegister(regop));
-      current += PrintRightOperand(current);
-    } else {
-      const char* mnemonic = "?";
-      if (opcode == 0x57) {
-        mnemonic = "xorpd";
-      } else if (opcode == 0x2E) {
-        mnemonic = "comisd";
-      } else if (opcode == 0x2F) {
-        mnemonic = "ucomisd";
+    if (opcode == 0x3A) {
+      byte third_byte = *current;
+      current = data + 3;
+      if (third_byte == 0x17) {
+        get_modrm(*current, &mod, &regop, &rm);
+        AppendToBuffer("extractps ");  // reg/m32, xmm, imm8
+        current += PrintRightOperand(current);
+        AppendToBuffer(", %s, %d", NameOfCPURegister(regop), (*current) & 3);
+        current += 1;
       } else {
         UnimplementedInstruction();
       }
-      AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
-      current += PrintRightXMMOperand(current);
+    } else {
+      get_modrm(*current, &mod, &regop, &rm);
+      if (opcode == 0x6E) {
+        AppendToBuffer("mov%c %s,",
+                       rex_w() ? 'q' : 'd',
+                       NameOfXMMRegister(regop));
+        current += PrintRightOperand(current);
+      } else if (opcode == 0x7E) {
+        AppendToBuffer("mov%c %s,",
+                       rex_w() ? 'q' : 'd',
+                       NameOfCPURegister(regop));
+        current += PrintRightXMMOperand(current);
+      } else {
+        const char* mnemonic = "?";
+        if (opcode == 0x57) {
+          mnemonic = "xorpd";
+        } else if (opcode == 0x2E) {
+          mnemonic = "comisd";
+        } else if (opcode == 0x2F) {
+          mnemonic = "ucomisd";
+        } else {
+          UnimplementedInstruction();
+        }
+        AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+      }
     }
   } else if (group_1_prefix_ == 0xF2) {
     // Beginning of instructions with prefix 0xF2.
@@ -1035,7 +1056,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightOperand(current);
-    } else if ((opcode & 0xF8) == 0x58) {
+    } else if ((opcode & 0xF8) == 0x58 || opcode == 0x51) {
       // XMM arithmetic. Mnemonic was retrieved at the start of this function.
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
@@ -1126,6 +1147,8 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "cvtsi2sd";
     case 0x31:
       return "rdtsc";
+    case 0x51:  // F2 prefix.
+      return "sqrtsd";
     case 0x58:  // F2 prefix.
       return "addsd";
     case 0x59:  // F2 prefix.

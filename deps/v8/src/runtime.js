@@ -471,17 +471,6 @@ function TO_STRING() {
 }
 
 
-// Specialized version of String.charAt. It assumes string as
-// the receiver type and that the index is a number.
-function STRING_CHAR_AT(pos) {
-  var char_code = %_FastCharCodeAt(this, pos);
-  if (!%_IsSmi(char_code)) {
-    return %StringCharAt(this, pos);
-  }
-  return %_CharFromCode(char_code);
-}
-
-
 /* -------------------------------------
    - - -   C o n v e r s i o n s   - - -
    -------------------------------------

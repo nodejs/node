@@ -4906,6 +4906,7 @@ Object* JSFunction::SetInstancePrototype(Object* value) {
 
 
 Object* JSFunction::SetPrototype(Object* value) {
+  ASSERT(should_have_prototype());
   Object* construct_prototype = value;
 
   // If the value is not a JSObject, store the value in the map's
@@ -4928,6 +4929,14 @@ Object* JSFunction::SetPrototype(Object* value) {
   }
 
   return SetInstancePrototype(construct_prototype);
+}
+
+
+Object* JSFunction::RemovePrototype() {
+  ASSERT(map() == context()->global_context()->function_map());
+  set_map(context()->global_context()->function_without_prototype_map());
+  set_prototype_or_initial_map(Heap::the_hole_value());
+  return this;
 }
 
 

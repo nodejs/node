@@ -72,37 +72,46 @@ void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
 }
 
 
-static void RecordWriteHelper(MacroAssembler* masm,
-                              Register object,
-                              Register addr,
-                              Register scratch) {
+void MacroAssembler::RecordWriteHelper(Register object,
+                                       Register addr,
+                                       Register scratch) {
+  if (FLAG_debug_code) {
+    // Check that the object is not in new space.
+    Label not_in_new_space;
+    InNewSpace(object, scratch, not_equal, &not_in_new_space);
+    Abort("new-space object passed to RecordWriteHelper");
+    bind(&not_in_new_space);
+  }
+
   Label fast;
 
   // Compute the page start address from the heap object pointer, and reuse
   // the 'object' register for it.
   ASSERT(is_int32(~Page::kPageAlignmentMask));
-  masm->and_(object,
-             Immediate(static_cast<int32_t>(~Page::kPageAlignmentMask)));
+  and_(object,
+       Immediate(static_cast<int32_t>(~Page::kPageAlignmentMask)));
   Register page_start = object;
 
   // Compute the bit addr in the remembered set/index of the pointer in the
   // page. Reuse 'addr' as pointer_offset.
-  masm->subq(addr, page_start);
-  masm->shr(addr, Immediate(kPointerSizeLog2));
+  subq(addr, page_start);
+  shr(addr, Immediate(kPointerSizeLog2));
   Register pointer_offset = addr;
 
   // If the bit offset lies beyond the normal remembered set range, it is in
   // the extra remembered set area of a large object.
-  masm->cmpq(pointer_offset, Immediate(Page::kPageSize / kPointerSize));
-  masm->j(less, &fast);
+  cmpq(pointer_offset, Immediate(Page::kPageSize / kPointerSize));
+  j(below, &fast);
+
+  // We have a large object containing pointers. It must be a FixedArray.
 
   // Adjust 'page_start' so that addressing using 'pointer_offset' hits the
   // extra remembered set after the large object.
 
   // Load the array length into 'scratch'.
-  masm->movl(scratch,
-             Operand(page_start,
-                     Page::kObjectStartOffset + FixedArray::kLengthOffset));
+  movl(scratch,
+       Operand(page_start,
+               Page::kObjectStartOffset + FixedArray::kLengthOffset));
   Register array_length = scratch;
 
   // Extra remembered set starts right after the large object (a FixedArray), at
@@ -111,59 +120,17 @@ static void RecordWriteHelper(MacroAssembler* masm,
   // Add the delta between the end of the normal RSet and the start of the
   // extra RSet to 'page_start', so that addressing the bit using
   // 'pointer_offset' hits the extra RSet words.
-  masm->lea(page_start,
-            Operand(page_start, array_length, times_pointer_size,
-                    Page::kObjectStartOffset + FixedArray::kHeaderSize
-                        - Page::kRSetEndOffset));
+  lea(page_start,
+      Operand(page_start, array_length, times_pointer_size,
+              Page::kObjectStartOffset + FixedArray::kHeaderSize
+                  - Page::kRSetEndOffset));
 
   // NOTE: For now, we use the bit-test-and-set (bts) x86 instruction
   // to limit code size. We should probably evaluate this decision by
   // measuring the performance of an equivalent implementation using
   // "simpler" instructions
-  masm->bind(&fast);
-  masm->bts(Operand(page_start, Page::kRSetOffset), pointer_offset);
-}
-
-
-class RecordWriteStub : public CodeStub {
- public:
-  RecordWriteStub(Register object, Register addr, Register scratch)
-      : object_(object), addr_(addr), scratch_(scratch) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Register object_;
-  Register addr_;
-  Register scratch_;
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("RecordWriteStub (object reg %d), (addr reg %d), (scratch reg %d)\n",
-           object_.code(), addr_.code(), scratch_.code());
-  }
-#endif
-
-  // Minor key encoding in 12 bits of three registers (object, address and
-  // scratch) OOOOAAAASSSS.
-  class ScratchBits : public BitField<uint32_t, 0, 4> {};
-  class AddressBits : public BitField<uint32_t, 4, 4> {};
-  class ObjectBits : public BitField<uint32_t, 8, 4> {};
-
-  Major MajorKey() { return RecordWrite; }
-
-  int MinorKey() {
-    // Encode the registers.
-    return ObjectBits::encode(object_.code()) |
-           AddressBits::encode(addr_.code()) |
-           ScratchBits::encode(scratch_.code());
-  }
-};
-
-
-void RecordWriteStub::Generate(MacroAssembler* masm) {
-  RecordWriteHelper(masm, object_, addr_, scratch_);
-  masm->ret(0);
+  bind(&fast);
+  bts(Operand(page_start, Page::kRSetOffset), pointer_offset);
 }
 
 
@@ -184,7 +151,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   // First, check if a remembered set write is even needed. The tests below
   // catch stores of Smis and stores into young gen (which does not have space
-  // for the remembered set bits.
+  // for the remembered set bits).
   Label done;
   JumpIfSmi(value, &done);
 
@@ -219,12 +186,7 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
 
   // Test that the object address is not in the new space.  We cannot
   // set remembered set bits in the new space.
-  movq(scratch, object);
-  ASSERT(is_int32(static_cast<int64_t>(Heap::NewSpaceMask())));
-  and_(scratch, Immediate(static_cast<int32_t>(Heap::NewSpaceMask())));
-  movq(kScratchRegister, ExternalReference::new_space_start());
-  cmpq(scratch, kScratchRegister);
-  j(equal, &done);
+  InNewSpace(object, scratch, equal, &done);
 
   // The offset is relative to a tagged or untagged HeapObject pointer,
   // so either offset or offset + kHeapObjectTag must be a
@@ -237,11 +199,11 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
   // We make sure that an offset is inside the right limits whether it is
   // tagged or untagged.
   if ((offset > 0) && (offset < Page::kMaxHeapObjectSize - kHeapObjectTag)) {
-    // Compute the bit offset in the remembered set, leave it in 'value'.
+    // Compute the bit offset in the remembered set, leave it in 'scratch'.
     lea(scratch, Operand(object, offset));
     ASSERT(is_int32(Page::kPageAlignmentMask));
     and_(scratch, Immediate(static_cast<int32_t>(Page::kPageAlignmentMask)));
-    shr(scratch, Immediate(kObjectAlignmentBits));
+    shr(scratch, Immediate(kPointerSizeLog2));
 
     // Compute the page address from the heap object pointer, leave it in
     // 'object' (immediate value is sign extended).
@@ -260,15 +222,15 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
       // array access: calculate the destination address in the same manner as
       // KeyedStoreIC::GenerateGeneric.
       SmiIndex index = SmiToIndex(smi_index, smi_index, kPointerSizeLog2);
-      lea(dst, Operand(object,
-                       index.reg,
-                       index.scale,
-                       FixedArray::kHeaderSize - kHeapObjectTag));
+      lea(dst, FieldOperand(object,
+                            index.reg,
+                            index.scale,
+                            FixedArray::kHeaderSize));
     }
     // If we are already generating a shared stub, not inlining the
     // record write code isn't going to save us any memory.
     if (generating_stub()) {
-      RecordWriteHelper(this, object, dst, scratch);
+      RecordWriteHelper(object, dst, scratch);
     } else {
       RecordWriteStub stub(object, dst, scratch);
       CallStub(&stub);
@@ -283,6 +245,41 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
     movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(scratch, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(smi_index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+  }
+}
+
+
+void MacroAssembler::InNewSpace(Register object,
+                                Register scratch,
+                                Condition cc,
+                                Label* branch) {
+  if (Serializer::enabled()) {
+    // Can't do arithmetic on external references if it might get serialized.
+    // The mask isn't really an address.  We load it as an external reference in
+    // case the size of the new space is different between the snapshot maker
+    // and the running system.
+    if (scratch.is(object)) {
+      movq(kScratchRegister, ExternalReference::new_space_mask());
+      and_(scratch, kScratchRegister);
+    } else {
+      movq(scratch, ExternalReference::new_space_mask());
+      and_(scratch, object);
+    }
+    movq(kScratchRegister, ExternalReference::new_space_start());
+    cmpq(scratch, kScratchRegister);
+    j(cc, branch);
+  } else {
+    ASSERT(is_int32(static_cast<int64_t>(Heap::NewSpaceMask())));
+    intptr_t new_space_start =
+        reinterpret_cast<intptr_t>(Heap::NewSpaceStart());
+    movq(kScratchRegister, -new_space_start, RelocInfo::NONE);
+    if (scratch.is(object)) {
+      addq(scratch, kScratchRegister);
+    } else {
+      lea(scratch, Operand(object, kScratchRegister, times_1, 0));
+    }
+    and_(scratch, Immediate(static_cast<int32_t>(Heap::NewSpaceMask())));
+    j(cc, branch);
   }
 }
 
@@ -599,6 +596,11 @@ void MacroAssembler::SmiCompare(Register dst, Smi* src) {
 }
 
 
+void MacroAssembler::SmiCompare(Register  dst, const Operand& src) {
+  cmpq(dst, src);
+}
+
+
 void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
   cmpq(dst, src);
 }
@@ -734,7 +736,17 @@ void MacroAssembler::SmiAdd(Register dst,
                             Register src2,
                             Label* on_not_smi_result) {
   ASSERT(!dst.is(src2));
-  if (dst.is(src1)) {
+  if (on_not_smi_result == NULL) {
+    // No overflow checking. Use only when it's known that
+    // overflowing is impossible.
+    if (dst.is(src1)) {
+      addq(dst, src2);
+    } else {
+      movq(dst, src1);
+      addq(dst, src2);
+    }
+    Assert(no_overflow, "Smi addition onverflow");
+  } else if (dst.is(src1)) {
     addq(dst, src2);
     Label smi_result;
     j(no_overflow, &smi_result);
@@ -780,6 +792,35 @@ void MacroAssembler::SmiSub(Register dst,
   }
 }
 
+
+void MacroAssembler::SmiSub(Register dst,
+                            Register src1,
+                            Operand const& src2,
+                            Label* on_not_smi_result) {
+  if (on_not_smi_result == NULL) {
+    // No overflow checking. Use only when it's known that
+    // overflowing is impossible (e.g., subtracting two positive smis).
+    if (dst.is(src1)) {
+      subq(dst, src2);
+    } else {
+      movq(dst, src1);
+      subq(dst, src2);
+    }
+    Assert(no_overflow, "Smi substraction onverflow");
+  } else if (dst.is(src1)) {
+    subq(dst, src2);
+    Label smi_result;
+    j(no_overflow, &smi_result);
+    // Restore src1.
+    addq(src1, src2);
+    jmp(on_not_smi_result);
+    bind(&smi_result);
+  } else {
+    movq(dst, src1);
+    subq(dst, src2);
+    j(overflow, on_not_smi_result);
+  }
+}
 
 void MacroAssembler::SmiMul(Register dst,
                             Register src1,
@@ -2172,6 +2213,7 @@ Register MacroAssembler::CheckMaps(JSObject* object,
                                    JSObject* holder,
                                    Register holder_reg,
                                    Register scratch,
+                                   int save_at_depth,
                                    Label* miss) {
   // Make sure there's no overlap between scratch and the other
   // registers.
@@ -2181,7 +2223,11 @@ Register MacroAssembler::CheckMaps(JSObject* object,
   // iteration, reg is an alias for object_reg, on later iterations,
   // it is an alias for holder_reg.
   Register reg = object_reg;
-  int depth = 1;
+  int depth = 0;
+
+  if (save_at_depth == depth) {
+    movq(Operand(rsp, kPointerSize), object_reg);
+  }
 
   // Check the maps in the prototype chain.
   // Traverse the prototype chain from the object and do map checks.
@@ -2231,6 +2277,10 @@ Register MacroAssembler::CheckMaps(JSObject* object,
       Move(reg, Handle<JSObject>(prototype));
     }
 
+    if (save_at_depth == depth) {
+      movq(Operand(rsp, kPointerSize), reg);
+    }
+
     // Go to the next object in the prototype chain.
     object = prototype;
   }
@@ -2240,7 +2290,7 @@ Register MacroAssembler::CheckMaps(JSObject* object,
   j(not_equal, miss);
 
   // Log the check depth.
-  LOG(IntEvent("check-maps-depth", depth));
+  LOG(IntEvent("check-maps-depth", depth + 1));
 
   // Perform security check for access to the global object and return
   // the holder register.
@@ -2326,7 +2376,7 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
   // Just return if allocation top is already known.
   if ((flags & RESULT_CONTAINS_TOP) != 0) {
     // No use of scratch if allocation top is provided.
-    ASSERT(scratch.is(no_reg));
+    ASSERT(!scratch.is_valid());
 #ifdef DEBUG
     // Assert that result actually contains top on entry.
     movq(kScratchRegister, new_space_allocation_top);
@@ -2336,14 +2386,17 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
     return;
   }
 
-  // Move address of new object to result. Use scratch register if available.
-  if (scratch.is(no_reg)) {
-    movq(kScratchRegister, new_space_allocation_top);
-    movq(result, Operand(kScratchRegister, 0));
-  } else {
+  // Move address of new object to result. Use scratch register if available,
+  // and keep address in scratch until call to UpdateAllocationTopHelper.
+  if (scratch.is_valid()) {
     ASSERT(!scratch.is(result_end));
     movq(scratch, new_space_allocation_top);
     movq(result, Operand(scratch, 0));
+  } else if (result.is(rax)) {
+    load_rax(new_space_allocation_top);
+  } else {
+    movq(kScratchRegister, new_space_allocation_top);
+    movq(result, Operand(kScratchRegister, 0));
   }
 }
 
@@ -2364,11 +2417,11 @@ void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
     store_rax(new_space_allocation_top);
   } else {
     // Register required - use scratch provided if available.
-    if (scratch.is(no_reg)) {
+    if (scratch.is_valid()) {
+      movq(Operand(scratch, 0), result_end);
+    } else {
       movq(kScratchRegister, new_space_allocation_top);
       movq(Operand(kScratchRegister, 0), result_end);
-    } else {
-      movq(Operand(scratch, 0), result_end);
     }
   }
 }
@@ -2388,16 +2441,29 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
       ExternalReference::new_space_allocation_limit_address();
-  lea(result_end, Operand(result, object_size));
+
+  Register top_reg = result_end.is_valid() ? result_end : result;
+
+  if (top_reg.is(result)) {
+    addq(top_reg, Immediate(object_size));
+  } else {
+    lea(top_reg, Operand(result, object_size));
+  }
   movq(kScratchRegister, new_space_allocation_limit);
-  cmpq(result_end, Operand(kScratchRegister, 0));
+  cmpq(top_reg, Operand(kScratchRegister, 0));
   j(above, gc_required);
 
   // Update allocation top.
-  UpdateAllocationTopHelper(result_end, scratch);
+  UpdateAllocationTopHelper(top_reg, scratch);
 
-  // Tag the result if requested.
-  if ((flags & TAG_OBJECT) != 0) {
+  if (top_reg.is(result)) {
+    if ((flags & TAG_OBJECT) != 0) {
+      subq(result, Immediate(object_size - kHeapObjectTag));
+    } else {
+      subq(result, Immediate(object_size));
+    }
+  } else if ((flags & TAG_OBJECT) != 0) {
+    // Tag the result if requested.
     addq(result, Immediate(kHeapObjectTag));
   }
 }
@@ -2504,11 +2570,16 @@ void MacroAssembler::AllocateTwoByteString(Register result,
                                            Label* gc_required) {
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
-  ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
+  const int kHeaderAlignment = SeqTwoByteString::kHeaderSize &
+                               kObjectAlignmentMask;
   ASSERT(kShortSize == 2);
   // scratch1 = length * 2 + kObjectAlignmentMask.
-  lea(scratch1, Operand(length, length, times_1, kObjectAlignmentMask));
+  lea(scratch1, Operand(length, length, times_1, kObjectAlignmentMask +
+                kHeaderAlignment));
   and_(scratch1, Immediate(~kObjectAlignmentMask));
+  if (kHeaderAlignment > 0) {
+    subq(scratch1, Immediate(kHeaderAlignment));
+  }
 
   // Allocate two byte string in new space.
   AllocateInNewSpace(SeqTwoByteString::kHeaderSize,
@@ -2523,7 +2594,8 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   // Set the map, length and hash field.
   LoadRoot(kScratchRegister, Heap::kStringMapRootIndex);
   movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
-  movl(FieldOperand(result, String::kLengthOffset), length);
+  Integer32ToSmi(scratch1, length);
+  movq(FieldOperand(result, String::kLengthOffset), scratch1);
   movl(FieldOperand(result, String::kHashFieldOffset),
        Immediate(String::kEmptyHashField));
 }
@@ -2537,11 +2609,15 @@ void MacroAssembler::AllocateAsciiString(Register result,
                                          Label* gc_required) {
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
-  ASSERT((SeqAsciiString::kHeaderSize & kObjectAlignmentMask) == 0);
+  const int kHeaderAlignment = SeqAsciiString::kHeaderSize &
+                               kObjectAlignmentMask;
   movl(scratch1, length);
   ASSERT(kCharSize == 1);
-  addq(scratch1, Immediate(kObjectAlignmentMask));
+  addq(scratch1, Immediate(kObjectAlignmentMask + kHeaderAlignment));
   and_(scratch1, Immediate(~kObjectAlignmentMask));
+  if (kHeaderAlignment > 0) {
+    subq(scratch1, Immediate(kHeaderAlignment));
+  }
 
   // Allocate ascii string in new space.
   AllocateInNewSpace(SeqAsciiString::kHeaderSize,
@@ -2556,7 +2632,8 @@ void MacroAssembler::AllocateAsciiString(Register result,
   // Set the map, length and hash field.
   LoadRoot(kScratchRegister, Heap::kAsciiStringMapRootIndex);
   movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
-  movl(FieldOperand(result, String::kLengthOffset), length);
+  Integer32ToSmi(scratch1, length);
+  movq(FieldOperand(result, String::kLengthOffset), scratch1);
   movl(FieldOperand(result, String::kHashFieldOffset),
        Immediate(String::kEmptyHashField));
 }

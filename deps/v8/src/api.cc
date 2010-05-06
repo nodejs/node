@@ -3646,6 +3646,8 @@ void V8::ResumeProfilerEx(int flags, int tag) {
     // those modules which haven't been started prior to making a
     // snapshot.
 
+    // Make a GC prior to taking a snapshot.
+    i::Heap::CollectAllGarbage(false);
     // Reset snapshot flag and CPU module flags.
     flags &= ~(PROFILER_MODULE_HEAP_SNAPSHOT | PROFILER_MODULE_CPU);
     const int current_flags = i::Logger::GetActiveProfilerModules();
@@ -4020,6 +4022,7 @@ void Debug::ProcessDebugMessages() {
 }
 
 Local<Context> Debug::GetDebugContext() {
+  EnsureInitialized("v8::Debug::GetDebugContext()");
   ENTER_V8;
   return Utils::ToLocal(i::Debugger::GetDebugContext());
 }

@@ -450,7 +450,6 @@ Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
   CodeGenerator::MakeCodePrologue(info);
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
-  LiveEditFunctionTracker live_edit_tracker(info->function());
 
   FullCodeGenerator cgen(&masm);
   cgen.Generate(info, PRIMARY);
@@ -459,9 +458,7 @@ Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
     return Handle<Code>::null();
   }
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);
-  Handle<Code> result = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
-  live_edit_tracker.RecordFunctionCode(result);
-  return result;
+  return CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
 }
 
 

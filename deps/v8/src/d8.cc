@@ -447,9 +447,10 @@ void Shell::Initialize() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Install the debugger object in the utility scope
   i::Debug::Load();
-  i::JSObject* debug = i::Debug::debug_context()->global();
+  i::Handle<i::JSObject> debug
+      = i::Handle<i::JSObject>(i::Debug::debug_context()->global());
   utility_context_->Global()->Set(String::New("$debug"),
-                                  Utils::ToLocal(&debug));
+                                  Utils::ToLocal(debug));
 #endif
 
   // Run the d8 shell utility script in the utility context

@@ -86,6 +86,20 @@ class MacroAssembler: public Assembler {
                 Heap::RootListIndex index,
                 Condition cond = al);
 
+
+  // Check if object is in new space.
+  // scratch can be object itself, but it will be clobbered.
+  void InNewSpace(Register object,
+                  Register scratch,
+                  Condition cc,  // eq for new space, ne otherwise
+                  Label* branch);
+
+
+  // Set the remebered set bit for an offset into an
+  // object. RecordWriteHelper only works if the object is not in new
+  // space.
+  void RecordWriteHelper(Register object, Register offset, Register scracth);
+
   // Sets the remembered set bit for [address+offset], where address is the
   // address of the heap object 'object'.  The address must be in the first 8K
   // of an allocated page. The 'scratch' register is used in the
@@ -243,9 +257,14 @@ class MacroAssembler: public Assembler {
   // clobbered if it the same as the holder register. The function
   // returns a register containing the holder - either object_reg or
   // holder_reg.
+  // The function can optionally (when save_at_depth !=
+  // kInvalidProtoDepth) save the object at the given depth by moving
+  // it to [sp].
   Register CheckMaps(JSObject* object, Register object_reg,
                      JSObject* holder, Register holder_reg,
-                     Register scratch, Label* miss);
+                     Register scratch,
+                     int save_at_depth,
+                     Label* miss);
 
   // Generate code for checking access rights - used for security checks
   // on access to global objects across environments. The holder register
@@ -552,6 +571,12 @@ class MacroAssembler: public Assembler {
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
+
+  void InitializeNewString(Register string,
+                           Register length,
+                           Heap::RootListIndex map_index,
+                           Register scratch1,
+                           Register scratch2);
 
   bool generating_stub_;
   bool allow_stub_calls_;

@@ -415,6 +415,10 @@ class VirtualFrame : public ZoneObject {
     result->Unuse();
   }
 
+  // Pushing an expression expects that the expression is trivial (according
+  // to Expression::IsTrivial).
+  void Push(Expression* expr);
+
   // Nip removes zero or more elements from immediately below the top
   // of the frame, leaving the previous top-of-frame value on top of
   // the frame.  Nip(k) is equivalent to x = Pop(), Drop(k), Push(x).

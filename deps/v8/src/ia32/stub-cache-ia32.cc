@@ -221,7 +221,6 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
 
   // Load length from the string and convert to a smi.
   __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
-  __ SmiTag(eax);
   __ ret(0);
 
   // Check if the object is a JSValue wrapper.
@@ -234,7 +233,6 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   __ mov(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
   GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
   __ mov(eax, FieldOperand(scratch2, String::kLengthOffset));
-  __ SmiTag(eax);
   __ ret(0);
 }
 
@@ -474,107 +472,6 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 
  private:
   Register name_;
-};
-
-
-// Holds information about possible function call optimizations.
-class CallOptimization BASE_EMBEDDED {
- public:
-  explicit CallOptimization(LookupResult* lookup) {
-    if (!lookup->IsProperty() || !lookup->IsCacheable() ||
-        lookup->type() != CONSTANT_FUNCTION) {
-      Initialize(NULL);
-    } else {
-      // We only optimize constant function calls.
-      Initialize(lookup->GetConstantFunction());
-    }
-  }
-
-  explicit CallOptimization(JSFunction* function) {
-    Initialize(function);
-  }
-
-  bool is_constant_call() const {
-    return constant_function_ != NULL;
-  }
-
-  JSFunction* constant_function() const {
-    ASSERT(constant_function_ != NULL);
-    return constant_function_;
-  }
-
-  bool is_simple_api_call() const {
-    return is_simple_api_call_;
-  }
-
-  FunctionTemplateInfo* expected_receiver_type() const {
-    ASSERT(is_simple_api_call_);
-    return expected_receiver_type_;
-  }
-
-  CallHandlerInfo* api_call_info() const {
-    ASSERT(is_simple_api_call_);
-    return api_call_info_;
-  }
-
-  // Returns the depth of the object having the expected type in the
-  // prototype chain between the two arguments.
-  int GetPrototypeDepthOfExpectedType(JSObject* object,
-                                      JSObject* holder) const {
-    ASSERT(is_simple_api_call_);
-    if (expected_receiver_type_ == NULL) return 0;
-    int depth = 0;
-    while (object != holder) {
-      if (object->IsInstanceOf(expected_receiver_type_)) return depth;
-      object = JSObject::cast(object->GetPrototype());
-      ++depth;
-    }
-    if (holder->IsInstanceOf(expected_receiver_type_)) return depth;
-    return kInvalidProtoDepth;
-  }
-
- private:
-  void Initialize(JSFunction* function) {
-    constant_function_ = NULL;
-    is_simple_api_call_ = false;
-    expected_receiver_type_ = NULL;
-    api_call_info_ = NULL;
-
-    if (function == NULL || !function->is_compiled()) return;
-
-    constant_function_ = function;
-    AnalyzePossibleApiFunction(function);
-  }
-
-  // Determines whether the given function can be called using the
-  // fast api call builtin.
-  void AnalyzePossibleApiFunction(JSFunction* function) {
-    SharedFunctionInfo* sfi = function->shared();
-    if (!sfi->IsApiFunction()) return;
-    FunctionTemplateInfo* info = sfi->get_api_func_data();
-
-    // Require a C++ callback.
-    if (info->call_code()->IsUndefined()) return;
-    api_call_info_ = CallHandlerInfo::cast(info->call_code());
-
-    // Accept signatures that either have no restrictions at all or
-    // only have restrictions on the receiver.
-    if (!info->signature()->IsUndefined()) {
-      SignatureInfo* signature = SignatureInfo::cast(info->signature());
-      if (!signature->args()->IsUndefined()) return;
-      if (!signature->receiver()->IsUndefined()) {
-        expected_receiver_type_ =
-            FunctionTemplateInfo::cast(signature->receiver());
-      }
-    }
-
-    is_simple_api_call_ = true;
-  }
-
-  JSFunction* constant_function_;
-  bool is_simple_api_call_;
-  FunctionTemplateInfo* expected_receiver_type_;
-  CallHandlerInfo* api_call_info_;
 };
 
 
@@ -1280,7 +1177,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
       STATIC_ASSERT(kSmiTagSize == 1);
       STATIC_ASSERT(kSmiTag == 0);
-      __ add(Operand(eax), Immediate(argc << 1));
+      __ add(Operand(eax), Immediate(Smi::FromInt(argc)));
 
       // Get the element's length into ecx.
       __ mov(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
@@ -1333,7 +1230,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ j(not_equal, &call_builtin);
       __ add(Operand(ecx), Immediate(kAllocationDelta * kPointerSize));
       __ cmp(ecx, Operand::StaticVariable(new_space_allocation_limit));
-      __ j(greater, &call_builtin);
+      __ j(above, &call_builtin);
 
       // We fit and could grow elements.
       __ mov(Operand::StaticVariable(new_space_allocation_top), ecx);
@@ -1399,7 +1296,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
     return Heap::undefined_value();
   }
 
-  Label miss, empty_array, call_builtin;
+  Label miss, return_undefined, call_builtin;
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -1408,7 +1305,6 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
   __ j(zero, &miss);
-
   CheckPrototypes(JSObject::cast(object), edx,
                   holder, ebx,
                   eax, name, &miss);
@@ -1424,7 +1320,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   // Get the array's length into ecx and calculate new length.
   __ mov(ecx, FieldOperand(edx, JSArray::kLengthOffset));
   __ sub(Operand(ecx), Immediate(Smi::FromInt(1)));
-  __ j(negative, &empty_array);
+  __ j(negative, &return_undefined);
 
   // Get the last element.
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -1445,12 +1341,11 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
          Immediate(Factory::the_hole_value()));
   __ ret((argc + 1) * kPointerSize);
 
-  __ bind(&empty_array);
+  __ bind(&return_undefined);
   __ mov(eax, Immediate(Factory::undefined_value()));
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&call_builtin);
-
   __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPop),
                                argc + 1,
                                1);

@@ -28,43 +28,70 @@
 // Flags: --expose-debug-as debug
 // Get the Debug object exposed from the debug context global object.
 
-
 Debug = debug.Debug
 
+var function_z_text =
+"  function Z() {\n"
++ "    return 'Z';\n" // Breakpoint line ( #6 )
++ "  }\n";
 
 eval(
-    "function ChooseAnimal(p) {\n " +
-    "  if (p == 7) {\n" + // Use p
-    "    return;\n" +
-    "  }\n" +
-    "  return function Chooser() {\n" +
-    "    return 'Cat';\n" +
-    "  };\n" +
-    "}\n"
+"function F25() {\n"
++ "  return 25;\n" // Breakpoint line ( #1 )
++ "}\n"
++ "function F26 () {\n"
++ "  var x = 20;\n"
++ function_z_text // function takes exactly 3 lines
+//                 // Breakpoint line ( #6 )
+//
++ "  var y = 6;\n"
++ "  return x + y;\n"
++ "}\n"
++ "function Nested() {\n"
++ "  var a = 30;\n"
++ "  return function F27() {\n"
++ "    var b = 3;\n" // Breakpoint line ( #14 )
++ "    return a - b;\n"
++ "  }\n"
++ "}\n"
 );
 
-var old_closure = ChooseAnimal(19);
 
-assertEquals("Cat", old_closure());
+assertEquals(25, F25());
+assertEquals(26, F26());
 
-var script = Debug.findScript(ChooseAnimal);
+var script = Debug.findScript(F25);
 
-var orig_animal = "'Cat'";
-var patch_pos = script.source.indexOf(orig_animal);
-var new_animal_patch = "'Capybara' + p";
+Debug.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId, script.id, 1, 1, "true || false || false");
+Debug.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId, script.id, 6, 1, "true || false || false");
+Debug.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId, script.id, 14, 1, "true || false || false");
 
-// We patch innermost function "Chooser".
-// However, this does not actually patch existing "Chooser" instances,
-// because old value of parameter "p" was not saved.
-// Instead it patches ChooseAnimal.
+assertEquals(3, Debug.scriptBreakPoints().length);
+
+var new_source = script.source.replace(function_z_text, "");
+print("new source: " + new_source);
+
 var change_log = new Array();
-Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos, orig_animal.length, new_animal_patch, change_log);
+Debug.LiveEdit.SetScriptSource(script, new_source, change_log);
 print("Change log: " + JSON.stringify(change_log) + "\n");
 
-var new_closure = ChooseAnimal(19);
-// New instance of closure is patched.
-assertEquals("Capybara19", new_closure());
+var breaks = Debug.scriptBreakPoints();
 
-// Old instance of closure is not patched.
-assertEquals("Cat", old_closure());
+// One breakpoint gets duplicated in a old version of script.
+assertTrue(breaks.length > 3 + 1);
+
+var breakpoints_in_script = 0;
+var break_position_map = {};
+for (var i = 0; i < breaks.length; i++) {
+  if (breaks[i].script_id() == script.id) {
+    break_position_map[breaks[i].line()] = true;
+    breakpoints_in_script++;
+  }
+}
+
+assertEquals(3, breakpoints_in_script);
+
+// Check 2 breakpoints. The one in deleted function should have been moved somewhere.
+assertTrue(break_position_map[1]);
+assertTrue(break_position_map[11]);
 

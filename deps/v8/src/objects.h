@@ -606,6 +606,7 @@ class Object BASE_EMBEDDED {
   inline bool IsHashTable();
   inline bool IsDictionary();
   inline bool IsSymbolTable();
+  inline bool IsJSFunctionResultCache();
   inline bool IsCompilationCacheTable();
   inline bool IsCodeCacheHashTable();
   inline bool IsMapCache();
@@ -1116,6 +1117,8 @@ class HeapNumber: public HeapObject {
   static const uint32_t kSignMask = 0x80000000u;
   static const uint32_t kExponentMask = 0x7ff00000u;
   static const uint32_t kMantissaMask = 0xfffffu;
+  static const int kMantissaBits = 52;
+  static const int KExponentBits = 11;
   static const int kExponentBias = 1023;
   static const int kExponentShift = 20;
   static const int kMantissaBitsInTopWord = 20;
@@ -2324,6 +2327,16 @@ class JSFunctionResultCache: public FixedArray {
   static const int kEntriesIndex = kDummyIndex + 1;
 
   static const int kEntrySize = 2;  // key + value
+
+  inline void MakeZeroSize();
+  inline void Clear();
+
+  // Casting
+  static inline JSFunctionResultCache* cast(Object* obj);
+
+#ifdef DEBUG
+  void JSFunctionResultCacheVerify();
+#endif
 };
 
 
@@ -2854,6 +2867,12 @@ class Map: public HeapObject {
   inline void set_non_instance_prototype(bool value);
   inline bool has_non_instance_prototype();
 
+  // Tells whether function has special prototype property. If not, prototype
+  // property will not be created when accessed (will return undefined),
+  // and construction from this function will not be allowed.
+  inline void set_function_with_prototype(bool value);
+  inline bool function_with_prototype();
+
   // Tells whether the instance with this map should be ignored by the
   // __proto__ accessor.
   inline void set_is_hidden_prototype() {
@@ -3030,6 +3049,7 @@ class Map: public HeapObject {
 
   // Bit positions for bit field 2
   static const int kIsExtensible = 0;
+  static const int kFunctionWithPrototype = 1;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;
@@ -3395,6 +3415,11 @@ class JSFunction: public JSObject {
   inline Object* instance_prototype();
   Object* SetInstancePrototype(Object* value);
   Object* SetPrototype(Object* value);
+
+  // After prototype is removed, it will not be created when accessed, and
+  // [[Construct]] from this function will not be allowed.
+  Object* RemovePrototype();
+  inline bool should_have_prototype();
 
   // Accessor for this function's initial map's [[class]]
   // property. This is primarily used by ECMA native functions.  This
@@ -4063,7 +4088,7 @@ class String: public HeapObject {
 
   // Layout description.
   static const int kLengthOffset = HeapObject::kHeaderSize;
-  static const int kHashFieldOffset = kLengthOffset + kIntSize;
+  static const int kHashFieldOffset = kLengthOffset + kPointerSize;
   static const int kSize = kHashFieldOffset + kIntSize;
   // Notice: kSize is not pointer-size aligned if pointers are 64-bit.
 

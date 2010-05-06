@@ -728,7 +728,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     ASSERT_NOT_NULL(object_slot);
 
     // Load the object.
-    Move(r2, object_slot);
+    Move(r1, object_slot);
 
     // Assert that the key is a smi.
     Literal* key_literal = property->key()->AsLiteral();
@@ -736,12 +736,12 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     ASSERT(key_literal->handle()->IsSmi());
 
     // Load the key.
-    __ mov(r1, Operand(key_literal->handle()));
+    __ mov(r0, Operand(key_literal->handle()));
 
     // Push both as arguments to ic.
-    __ Push(r2, r1);
+    __ Push(r1, r0);
 
-    // Do a keyed property load.
+    // Call keyed load IC. It has all arguments on the stack and the key in r0.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
 
@@ -1005,6 +1005,8 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
+  // Call keyed load IC. It has all arguments on the stack and the key in r0.
+  __ ldr(r0, MemOperand(sp, 0));
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 }
@@ -1247,6 +1249,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       VisitForValue(prop->key(), kStack);
       // Record source code position for IC call.
       SetSourcePosition(prop->position());
+      // Call keyed load IC. It has all arguments on the stack and the key in
+      // r0.
+      __ ldr(r0, MemOperand(sp, 0));
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
       // Load receiver object into r1.

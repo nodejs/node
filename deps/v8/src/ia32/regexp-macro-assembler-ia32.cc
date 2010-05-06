@@ -1102,19 +1102,22 @@ void RegExpMacroAssemblerIA32::BranchOrBacktrack(Condition condition,
 
 
 void RegExpMacroAssemblerIA32::SafeCall(Label* to) {
-  __ call(to);
+  Label return_to;
+  __ push(Immediate::CodeRelativeOffset(&return_to));
+  __ jmp(to);
+  __ bind(&return_to);
 }
 
 
 void RegExpMacroAssemblerIA32::SafeReturn() {
-  __ add(Operand(esp, 0), Immediate(masm_->CodeObject()));
-  __ ret(0);
+  __ pop(ebx);
+  __ add(Operand(ebx), Immediate(masm_->CodeObject()));
+  __ jmp(Operand(ebx));
 }
 
 
 void RegExpMacroAssemblerIA32::SafeCallTarget(Label* name) {
   __ bind(name);
-  __ sub(Operand(esp, 0), Immediate(masm_->CodeObject()));
 }
 
 

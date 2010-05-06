@@ -124,12 +124,6 @@ BreakPoint.prototype.source_position = function() {
 };
 
 
-BreakPoint.prototype.updateSourcePosition = function(new_position, script) {
-  this.source_position_ = new_position;
-  // TODO(635): also update line and column.
-};
-
-
 BreakPoint.prototype.hit_count = function() {
   return this.hit_count_;
 };
@@ -245,6 +239,21 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
 }
 
 
+//Creates a clone of script breakpoint that is linked to another script.
+ScriptBreakPoint.prototype.cloneForOtherScript = function (other_script) {
+  var copy = new ScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
+      other_script.id, this.line_, this.column_, this.groupId_);
+  copy.number_ = next_break_point_number++;
+  script_break_points.push(copy);
+  
+  copy.hit_count_ = this.hit_count_;
+  copy.active_ = this.active_;
+  copy.condition_ = this.condition_;
+  copy.ignoreCount_ = this.ignoreCount_;
+  return copy;
+}
+
+
 ScriptBreakPoint.prototype.number = function() {
   return this.number_;
 };
@@ -278,6 +287,13 @@ ScriptBreakPoint.prototype.line = function() {
 ScriptBreakPoint.prototype.column = function() {
   return this.column_;
 };
+
+
+ScriptBreakPoint.prototype.update_positions = function(line, column) {
+  this.line_ = line;
+  this.column_ = column;
+}
+
 
 
 ScriptBreakPoint.prototype.hit_count = function() {
@@ -403,6 +419,17 @@ function UpdateScriptBreakPoints(script) {
       script_break_points[i].set(script);
     }
   }
+}
+
+
+function GetScriptBreakPoints(script) {
+  var result = [];
+  for (var i = 0; i < script_break_points.length; i++) {
+    if (script_break_points[i].matchesScript(script)) {
+      result.push(script_break_points[i]);
+    }
+  }
+  return result;
 }
 
 
@@ -1991,32 +2018,16 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
     return;
   }
 
-  // A function that calls a proper signature of LiveEdit API.  
-  var invocation;
-  
   var change_log = new Array();
   
-  if (IS_STRING(request.arguments.new_source)) {
-    var new_source = request.arguments.new_source;
-    invocation = function() {
-      return Debug.LiveEdit.SetScriptSource(the_script, new_source, change_log);
-    }
-  } else {
-    var change_pos = parseInt(request.arguments.change_pos);
-    var change_len = parseInt(request.arguments.change_len);
-    var new_string = request.arguments.new_string;
-    if (!IS_STRING(new_string)) {
-      response.failed('Argument "new_string" is not a string value');
-      return;
-    }
-    invocation = function() {
-      return Debug.LiveEdit.ApplyPatch(the_script, change_pos, change_len,
-          new_string, change_log);
-    }
+  if (!IS_STRING(request.arguments.new_source)) {
+    throw "new_source argument expected";
   }
 
+  var new_source = request.arguments.new_source;
+  
   try {
-    invocation();
+    Debug.LiveEdit.SetScriptSource(the_script, new_source, change_log);
   } catch (e) {
     if (e instanceof Debug.LiveEdit.Failure) {
       // Let's treat it as a "success" so that body with change_log will be

@@ -1,13 +1,26 @@
+2010-05-05: Version 2.2.8
+
+        Performance improvements in the x64 and ARM backends.
+
+
+2010-05-03: Version 2.2.7
+
+        Added support for ES5 date time string format to Date.parse.
+
+        Performance improvements in the x64 backend.
+
+
 2010-04-28: Version 2.2.6
 
-        Add "amd64" as recognized architecture in scons build script
+        Added "amd64" as recognized architecture in scons build script
         (by Ryan Dahl <coldredlemur@gmail.com>).
 
-        Fix bug in String search and replace with very simple RegExps.
+        Fixed bug in String search and replace with very simple RegExps.
 
-        Fix bug in RegExp containing "\b^".
+        Fixed bug in RegExp containing "\b^".
 
         Performance improvements on all platforms.
+
 
 2010-04-26: Version 2.2.5
 

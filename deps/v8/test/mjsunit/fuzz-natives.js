@@ -160,6 +160,8 @@ var knownProblems = {
   // That can only be invoked on Array.prototype.
   "FinishArrayPrototypeSetup": true,
 
+  "_SwapElements": true,
+
   // Performance critical function which cannot afford type checks.
   "_CallFunction": true,
 
@@ -172,15 +174,6 @@ var knownProblems = {
   // This function performs some checks compile time (it requires its first
   // argument to be a compile time smi).
   "_GetFromCache": true,
-
-  // LiveEdit feature is under development currently and has fragile input.
-  "LiveEditFindSharedFunctionInfosForScript": true,
-  "LiveEditGatherCompileInfo": true,
-  "LiveEditReplaceScript": true,
-  "LiveEditReplaceFunctionCode": true,
-  "LiveEditRelinkFunctionToScript": true,
-  "LiveEditPatchFunctionPositions": true,
-  "LiveEditCheckStackActivations": true
 };
 
 var currentlyUncallable = {

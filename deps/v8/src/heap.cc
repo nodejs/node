@@ -306,6 +306,7 @@ void Heap::ReportStatisticsAfterGC() {
 
 void Heap::GarbageCollectionPrologue() {
   TranscendentalCache::Clear();
+  ClearJSFunctionResultCaches();
   gc_count_++;
   unflattened_strings_length_ = 0;
 #ifdef DEBUG
@@ -538,6 +539,28 @@ void Heap::EnsureFromSpaceIsCommitted() {
   // Committing memory to from space failed again.
   // Memory is exhausted and we will die.
   V8::FatalProcessOutOfMemory("Committing semi space failed.");
+}
+
+
+class ClearThreadJSFunctionResultCachesVisitor: public ThreadVisitor  {
+  virtual void VisitThread(ThreadLocalTop* top) {
+    Context* context = top->context_;
+    if (context == NULL) return;
+
+    FixedArray* caches =
+      context->global()->global_context()->jsfunction_result_caches();
+    int length = caches->length();
+    for (int i = 0; i < length; i++) {
+      JSFunctionResultCache::cast(caches->get(i))->Clear();
+    }
+  }
+};
+
+
+void Heap::ClearJSFunctionResultCaches() {
+  if (Bootstrapper::IsActive()) return;
+  ClearThreadJSFunctionResultCachesVisitor visitor;
+  ThreadManager::IterateThreads(&visitor);
 }
 
 
@@ -1761,41 +1784,6 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
 }
 
 
-Object* Heap::SmiOrNumberFromDouble(double value,
-                                    bool new_object,
-                                    PretenureFlag pretenure) {
-  // We need to distinguish the minus zero value and this cannot be
-  // done after conversion to int. Doing this by comparing bit
-  // patterns is faster than using fpclassify() et al.
-  static const DoubleRepresentation plus_zero(0.0);
-  static const DoubleRepresentation minus_zero(-0.0);
-  static const DoubleRepresentation nan(OS::nan_value());
-  ASSERT(minus_zero_value() != NULL);
-  ASSERT(sizeof(plus_zero.value) == sizeof(plus_zero.bits));
-
-  DoubleRepresentation rep(value);
-  if (rep.bits == plus_zero.bits) return Smi::FromInt(0);  // not uncommon
-  if (rep.bits == minus_zero.bits) {
-    return new_object ? AllocateHeapNumber(-0.0, pretenure)
-                      : minus_zero_value();
-  }
-  if (rep.bits == nan.bits) {
-    return new_object
-        ? AllocateHeapNumber(OS::nan_value(), pretenure)
-        : nan_value();
-  }
-
-  // Try to represent the value as a tagged small integer.
-  int int_value = FastD2I(value);
-  if (value == FastI2D(int_value) && Smi::IsValid(int_value)) {
-    return Smi::FromInt(int_value);
-  }
-
-  // Materialize the value in the heap.
-  return AllocateHeapNumber(value, pretenure);
-}
-
-
 Object* Heap::NumberToString(Object* number, bool check_number_string_cache) {
   Counters::number_to_string_runtime.Increment();
   if (check_number_string_cache) {
@@ -1853,17 +1841,24 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
 }
 
 
-Object* Heap::NewNumberFromDouble(double value, PretenureFlag pretenure) {
-  return SmiOrNumberFromDouble(value,
-                               true /* number object must be new */,
-                               pretenure);
-}
-
-
 Object* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
-  return SmiOrNumberFromDouble(value,
-                               false /* use preallocated NaN, -0.0 */,
-                               pretenure);
+  // We need to distinguish the minus zero value and this cannot be
+  // done after conversion to int. Doing this by comparing bit
+  // patterns is faster than using fpclassify() et al.
+  static const DoubleRepresentation minus_zero(-0.0);
+
+  DoubleRepresentation rep(value);
+  if (rep.bits == minus_zero.bits) {
+    return AllocateHeapNumber(-0.0, pretenure);
+  }
+
+  int int_value = FastD2I(value);
+  if (value == int_value && Smi::IsValid(int_value)) {
+    return Smi::FromInt(int_value);
+  }
+
+  // Materialize the value in the heap.
+  return AllocateHeapNumber(value, pretenure);
 }
 
 

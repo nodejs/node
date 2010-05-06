@@ -42,7 +42,7 @@ namespace internal {
 template<class T>
 class Handle {
  public:
-  INLINE(Handle(T** location)) { location_ = location; }
+  INLINE(explicit Handle(T** location)) { location_ = location; }
   INLINE(explicit Handle(T* obj));
 
   INLINE(Handle()) : location_(NULL) {}

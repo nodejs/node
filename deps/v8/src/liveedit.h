@@ -67,8 +67,9 @@ class LiveEditFunctionTracker {
  public:
   explicit LiveEditFunctionTracker(FunctionLiteral* fun);
   ~LiveEditFunctionTracker();
-  void RecordFunctionCode(Handle<Code> code);
-  void RecordFunctionScope(Scope* scope);
+  void RecordFunctionInfo(Handle<SharedFunctionInfo> info,
+                          FunctionLiteral* lit);
+  void RecordRootFunctionInfo(Handle<Code> code);
 
   static bool IsActive();
 };
@@ -82,16 +83,28 @@ class LiveEdit : AllStatic {
 
   static void WrapSharedFunctionInfos(Handle<JSArray> array);
 
-  static void ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
-                                  Handle<JSArray> shared_info_array);
+  static Object* ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
+                                     Handle<JSArray> shared_info_array);
 
-  static void RelinkFunctionToScript(Handle<JSArray> shared_info_array,
-                                     Handle<Script> script_handle);
+  // Updates script field in FunctionSharedInfo.
+  static void SetFunctionScript(Handle<JSValue> function_wrapper,
+                                Handle<Object> script_handle);
 
-  // Returns an array of pairs (new source position, breakpoint_object/array)
-  // so that JS side could update positions in breakpoint objects.
-  static Handle<JSArray> PatchFunctionPositions(
+  static Object* PatchFunctionPositions(
       Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array);
+
+  // For a script updates its source field. If old_script_name is provided
+  // (i.e. is a String), also creates a copy of the script with its original
+  // source and sends notification to debugger.
+  static Object* ChangeScriptSource(Handle<Script> original_script,
+                                    Handle<String> new_source,
+                                    Handle<Object> old_script_name);
+
+  // In a code of a parent function replaces original function as embedded
+  // object with a substitution one.
+  static void ReplaceRefToNestedFunction(Handle<JSValue> parent_function_shared,
+                                         Handle<JSValue> orig_function_shared,
+                                         Handle<JSValue> subst_function_shared);
 
   // Checks listed functions on stack and return array with corresponding
   // FunctionPatchabilityStatus statuses; extra array element may

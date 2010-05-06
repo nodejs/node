@@ -636,6 +636,11 @@ class CodeGenerator: public AstVisitor {
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
+  // Fast swapping of elements. Takes three expressions, the object and two
+  // indices. This should only be used if the indices are known to be
+  // non-negative and within bounds of the elements array at the call site.
+  void GenerateSwapElements(ZoneList<Expression*>* args);
+
   // Fast call for custom callbacks.
   void GenerateCallFunction(ZoneList<Expression*>* args);
 
@@ -886,14 +891,15 @@ class GenericBinaryOpStub: public CodeStub {
 class StringHelper : public AllStatic {
  public:
   // Generates fast code for getting a char code out of a string
-  // object at the given index. May bail out for three reasons (in the
+  // object at the given index. May bail out for four reasons (in the
   // listed order):
   //   * Receiver is not a string (receiver_not_string label).
-  //   * Index is not a positive smi (index_not_positive_smi label).
+  //   * Index is not a smi (index_not_smi label).
+  //   * Index is out of range (index_out_of_range).
   //   * Some other reason (slow_case label). In this case it's
   //     guaranteed that the above conditions are not violated,
   //     e.g. it's safe to assume the receiver is a string and the
-  //     index is a positive smi.
+  //     index is a non-negative smi < length.
   // When successful, object, index, and scratch are clobbered.
   // Otherwise, scratch and result are clobbered.
   static void GenerateFastCharCodeAt(MacroAssembler* masm,
@@ -902,7 +908,8 @@ class StringHelper : public AllStatic {
                                      Register scratch,
                                      Register result,
                                      Label* receiver_not_string,
-                                     Label* index_not_positive_smi,
+                                     Label* index_not_smi,
+                                     Label* index_out_of_range,
                                      Label* slow_case);
 
   // Generates code for creating a one-char string from the given char
@@ -1075,8 +1082,8 @@ class RecordWriteStub : public CodeStub {
   }
 #endif
 
-  // Minor key encoding in 12 bits of three registers (object, address and
-  // scratch) OOOOAAAASSSS.
+  // Minor key encoding in 12 bits. 4 bits for each of the three
+  // registers (object, address and scratch) OOOOAAAASSSS.
   class ScratchBits: public BitField<uint32_t, 0, 4> {};
   class AddressBits: public BitField<uint32_t, 4, 4> {};
   class ObjectBits: public BitField<uint32_t, 8, 4> {};

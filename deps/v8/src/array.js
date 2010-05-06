@@ -684,8 +684,7 @@ function ArraySort(comparefn) {
     var pivot = a[pivot_index];
     // Issue 95: Keep the pivot element out of the comparisons to avoid
     // infinite recursion if comparefn(pivot, pivot) != 0.
-    a[pivot_index] = a[from];
-    a[from] = pivot;
+    %_SwapElements(a, from, pivot_index);
     var low_end = from;   // Upper bound of the elements lower than pivot.
     var high_start = to;  // Lower bound of the elements greater than pivot.
     // From low_end to i are elements equal to pivot.
@@ -694,14 +693,12 @@ function ArraySort(comparefn) {
       var element = a[i];
       var order = %_CallFunction(global_receiver, element, pivot, comparefn);
       if (order < 0) {
-        a[i] = a[low_end];
-        a[low_end] = element;
+        %_SwapElements(a, i, low_end);
         i++;
         low_end++;
       } else if (order > 0) {
         high_start--;
-        a[i] = a[high_start];
-        a[high_start] = element;
+        %_SwapElements(a, i, high_start);
       } else {  // order == 0
         i++;
       }

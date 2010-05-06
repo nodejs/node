@@ -195,3 +195,43 @@ for (var i = 0; i < 300; ++i) {
   var actual = str[key];
   assertEquals(expected, actual);
 }
+
+// Test heap number case.
+var keys = [0, Math.floor(2) * 0.5];
+var str = 'ab', arr = ['a', 'b'];
+for (var i = 0; i < 100; ++i) {
+  var index = Math.floor(i / 50);
+  var key = keys[index];
+  var expected = arr[index];
+  var actual = str[key];
+  assertEquals(expected, actual);
+}
+
+// Test out of range case.
+var keys = [0, -1];
+var str = 'ab', arr = ['a', undefined];
+for (var i = 0; i < 100; ++i) {
+  var index = Math.floor(i / 50);
+  var key = keys[index];
+  var expected = arr[index];
+  var actual = str[key];
+  assertEquals(expected, actual);
+}
+
+var keys = [0, 10];
+var str = 'ab', arr = ['a', undefined];
+for (var i = 0; i < 100; ++i) {
+  var index = Math.floor(i / 50);
+  var key = keys[index];
+  var expected = arr[index];
+  var actual = str[key];
+  assertEquals(expected, actual);
+}
+
+// Test two byte string.
+var str = '\u0427', arr = ['\u0427'];
+for (var i = 0; i < 50; ++i) {
+  var expected = arr[0];
+  var actual = str[0];
+  assertEquals(expected, actual);
+}

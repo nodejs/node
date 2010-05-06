@@ -527,13 +527,6 @@ class Heap : public AllStatic {
   // Please note this does not perform a garbage collection.
   static Object* AllocateArgumentsObject(Object* callee, int length);
 
-  // Converts a double into either a Smi or a HeapNumber object.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  static Object* NewNumberFromDouble(double value,
-                                     PretenureFlag pretenure = NOT_TENURED);
-
   // Same as NewNumberFromDouble, but may return a preallocated/immutable
   // number object (e.g., minus_zero_value_, nan_value_)
   static Object* NumberFromDouble(double value,
@@ -1131,12 +1124,6 @@ class Heap : public AllStatic {
                                        GarbageCollector collector,
                                        GCTracer* tracer);
 
-  // Returns either a Smi or a Number object from 'value'. If 'new_object'
-  // is false, it may return a preallocated immutable object.
-  static Object* SmiOrNumberFromDouble(double value,
-                                       bool new_object,
-                                       PretenureFlag pretenure = NOT_TENURED);
-
   // Allocate an uninitialized object in map space.  The behavior is identical
   // to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that (a) it doesn't
   // have to test the allocation space argument and (b) can reduce code size
@@ -1190,6 +1177,8 @@ class Heap : public AllStatic {
   static inline HeapObject* MigrateObject(HeapObject* source,
                                           HeapObject* target,
                                           int size);
+
+  static void ClearJSFunctionResultCaches();
 
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   // Record the copy of an object in the NewSpace's statistics.

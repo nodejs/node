@@ -1019,6 +1019,7 @@ class Assembler : public Malloced {
 
   void fld1();
   void fldz();
+  void fldpi();
 
   void fld_s(const Operand& adr);
   void fld_d(const Operand& adr);
@@ -1080,6 +1081,10 @@ class Assembler : public Malloced {
 
   // SSE2 instructions
   void movd(XMMRegister dst, Register src);
+  void movd(Register dst, XMMRegister src);
+  void movq(XMMRegister dst, Register src);
+  void movq(Register dst, XMMRegister src);
+  void extractps(Register dst, XMMRegister src, byte imm8);
 
   void movsd(const Operand& dst, XMMRegister src);
   void movsd(XMMRegister dst, XMMRegister src);
@@ -1101,6 +1106,7 @@ class Assembler : public Malloced {
   void divsd(XMMRegister dst, XMMRegister src);
 
   void xorpd(XMMRegister dst, XMMRegister src);
+  void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void comisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, XMMRegister src);
@@ -1109,6 +1115,7 @@ class Assembler : public Malloced {
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, Register src);
+  void emit_sse_operand(Register dst, XMMRegister src);
 
   // Use either movsd or movlpd.
   // void movdbl(XMMRegister dst, const Operand& src);
@@ -1175,8 +1182,9 @@ class Assembler : public Malloced {
   // the top bit of both register codes.
   // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
   // REX.W is set.
-  inline void emit_rex_64(Register reg, Register rm_reg);
   inline void emit_rex_64(XMMRegister reg, Register rm_reg);
+  inline void emit_rex_64(Register reg, XMMRegister rm_reg);
+  inline void emit_rex_64(Register reg, Register rm_reg);
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of the destination, index, and base register codes.
@@ -1234,8 +1242,12 @@ class Assembler : public Malloced {
   inline void emit_optional_rex_32(XMMRegister reg, XMMRegister base);
 
   // As for emit_optional_rex_32(Register, Register), except that
-  // the registers are XMM registers.
+  // one of the registers is an XMM registers.
   inline void emit_optional_rex_32(XMMRegister reg, Register base);
+
+  // As for emit_optional_rex_32(Register, Register), except that
+  // one of the registers is an XMM registers.
+  inline void emit_optional_rex_32(Register reg, XMMRegister base);
 
   // As for emit_optional_rex_32(Register, const Operand&), except that
   // the register is an XMM register.

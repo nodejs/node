@@ -54,16 +54,25 @@ bool DateParser::Parse(Vector<Char> str, FixedArray* out) {
         } else {
           // n + ":"
           if (!time.Add(n)) return false;
+          in.Skip('.');
         }
+      } else if (in.Skip('.') && time.IsExpecting(n)) {
+        time.Add(n);
+        if (!in.IsAsciiDigit()) return false;
+        int n = in.ReadUnsignedNumber();
+        time.AddFinal(n);
       } else if (tz.IsExpecting(n)) {
         tz.SetAbsoluteMinute(n);
       } else if (time.IsExpecting(n)) {
         time.AddFinal(n);
-        // Require end or white space immediately after finalizing time.
-        if (!in.IsEnd() && !in.SkipWhiteSpace()) return false;
+        // Require end, white space or Z immediately after finalizing time.
+        if (!in.IsEnd() && !in.SkipWhiteSpace() && !in.Is('Z')) return false;
       } else {
         if (!day.Add(n)) return false;
         in.Skip('-');  // Ignore suffix '-' for year, month, or day.
+        // Skip trailing 'T' for ECMAScript 5 date string format but make
+        // sure that it is followed by a digit (for the time).
+        if (in.Skip('T') && !in.IsAsciiDigit()) return false;
       }
     } else if (in.IsAsciiAlphaOrAbove()) {
       // Parse a "word" (sequence of chars. >= 'A').

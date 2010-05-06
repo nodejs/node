@@ -54,6 +54,7 @@ function InstallFunctions(object, attributes, functions) {
     var key = functions[i];
     var f = functions[i + 1];
     %FunctionSetName(f, key);
+    %FunctionRemovePrototype(f);
     %SetProperty(object, key, f, attributes);
   }
   %ToFastProperties(object);

@@ -89,6 +89,11 @@ void Assembler::emit_rex_64(XMMRegister reg, Register rm_reg) {
 }
 
 
+void Assembler::emit_rex_64(Register reg, XMMRegister rm_reg) {
+  emit(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
+}
+
+
 void Assembler::emit_rex_64(Register reg, const Operand& op) {
   emit(0x48 | reg.high_bit() << 2 | op.rex_);
 }
@@ -155,6 +160,12 @@ void Assembler::emit_optional_rex_32(XMMRegister reg, XMMRegister base) {
 
 
 void Assembler::emit_optional_rex_32(XMMRegister reg, Register base) {
+  byte rex_bits =  (reg.code() & 0x8) >> 1 | (base.code() & 0x8) >> 3;
+  if (rex_bits != 0) emit(0x40 | rex_bits);
+}
+
+
+void Assembler::emit_optional_rex_32(Register reg, XMMRegister base) {
   byte rex_bits =  (reg.code() & 0x8) >> 1 | (base.code() & 0x8) >> 3;
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }

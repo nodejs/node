@@ -205,7 +205,6 @@ var testCasesPDT = [
     'Saturday, 01-Jan-00 01:00:00 PDT',
     '01 Jan 00 01:00 -0700'];
 
-
 // Local time cases.
 var testCasesLocalTime = [
     // Allow timezone ommision.
@@ -233,6 +232,27 @@ var testCasesMisc = [
     ['Saturday, 01-Jan-00 08:00 PM UT', 946756800000],
     ['01 Jan 00 08:00 PM +0000', 946756800000]];
 
+// Test different version of the ES5 date time string format.
+var testCasesES5Misc = [
+    ['2000-01-01T08:00:00.000Z', 946713600000],
+    ['2000-01-01T08:00:00Z', 946713600000],
+    ['2000-01-01T08:00Z', 946713600000],
+    ['2000-01T08:00:00.000Z', 946713600000],
+    ['2000T08:00:00.000Z', 946713600000],
+    ['2000T08:00Z', 946713600000],
+    ['2000-01T00:00:00.000-08:00', 946713600000],
+    ['2000-01T08:00:00.001Z', 946713600001],
+    ['2000-01T08:00:00.099Z', 946713600099],
+    ['2000-01T08:00:00.999Z', 946713600999],
+    ['2000-01T00:00:00.001-08:00', 946713600001]];
+
+var testCasesES5MiscNegative = [
+    '2000-01-01TZ',
+    '2000-01-01T60Z',
+    '2000-01-01T60:60Z',
+    '2000-01-0108:00Z',
+    '2000-01-01T08Z'];
+
 
 // Run all the tests.
 testCasesUT.forEach(testDateParse);
@@ -247,6 +267,12 @@ testCasesPST.forEach(testDateParse);
 testCasesPDT.forEach(testDateParse);
 testCasesLocalTime.forEach(testDateParseLocalTime);
 testCasesMisc.forEach(testDateParseMisc);
+
+// ES5 date time string format compliance.
+testCasesES5Misc.forEach(testDateParseMisc);
+testCasesES5MiscNegative.forEach(function (s) {
+    assertTrue(isNaN(Date.parse(s)), s + " is not NaN.");
+});
 
 
 // Test that we can parse our own date format.

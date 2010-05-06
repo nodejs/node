@@ -31,7 +31,6 @@
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"
-#include "liveedit.h"
 #include "oprofile-agent.h"
 #include "prettyprinter.h"
 #include "register-allocator-inl.h"
@@ -204,7 +203,6 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
 // all the pieces into a Code object. This function is only to be called by
 // the compiler.cc code.
 Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
-  LiveEditFunctionTracker live_edit_tracker(info->function());
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
@@ -216,7 +214,6 @@ Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
   MacroAssembler masm(NULL, kInitialBufferSize);
   CodeGenerator cgen(&masm);
   CodeGeneratorScope scope(&cgen);
-  live_edit_tracker.RecordFunctionScope(info->function()->scope());
   cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
@@ -225,9 +222,7 @@ Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
 
   InLoopFlag in_loop = (cgen.loop_nesting() != 0) ? IN_LOOP : NOT_IN_LOOP;
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, in_loop);
-  Handle<Code> result = MakeCodeEpilogue(cgen.masm(), flags, info);
-  live_edit_tracker.RecordFunctionCode(result);
-  return result;
+  return MakeCodeEpilogue(cgen.masm(), flags, info);
 }
 
 

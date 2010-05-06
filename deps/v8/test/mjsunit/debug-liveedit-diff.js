@@ -31,7 +31,7 @@
 Debug = debug.Debug
 
 function CheckCompareOneWay(s1, s2) {
-  var diff_array = Debug.LiveEdit.CompareStringsLinewise(s1, s2);
+  var diff_array = Debug.LiveEdit.TestApi.CompareStringsLinewise(s1, s2);
 
   var pos1 = 0;
   var pos2 = 0;

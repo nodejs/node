@@ -48,7 +48,11 @@ static const int kFastDtoaMaximalLength = 17;
 // one closest to v.
 // The variable 'sign' will be '0' if the given number is positive, and '1'
 //   otherwise.
-bool FastDtoa(double d, char* buffer, int* sign, int* length, int* point);
+bool FastDtoa(double d,
+              Vector<char> buffer,
+              int* sign,
+              int* length,
+              int* point);
 
 } }  // namespace v8::internal
 

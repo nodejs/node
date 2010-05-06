@@ -417,6 +417,8 @@ static void CompileScriptForTracker(Handle<Script> script) {
 
   // Compile the code.
   CompilationInfo info(lit, script, is_eval);
+
+  LiveEditFunctionTracker tracker(lit);
   Handle<Code> code = MakeCodeForLiveEdit(&info);
 
   // Check for stack-overflow exceptions.
@@ -424,6 +426,7 @@ static void CompileScriptForTracker(Handle<Script> script) {
     Top::StackOverflow();
     return;
   }
+  tracker.RecordRootFunctionInfo(code);
 }
 
 // Unwraps JSValue object, returning its field "value"
@@ -501,8 +504,12 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
     Handle<JSValue> wrapper = WrapInJSValue(*function_code);
     this->SetField(kCodeOffset_, wrapper);
   }
-  void SetScopeInfo(Handle<JSArray> scope_info_array) {
+  void SetScopeInfo(Handle<Object> scope_info_array) {
     this->SetField(kScopeInfoOffset_, scope_info_array);
+  }
+  void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info) {
+    Handle<JSValue> info_holder = WrapInJSValue(*info);
+    this->SetField(kSharedFunctionInfoOffset_, info_holder);
   }
   int GetParentIndex() {
     return this->GetSmiValueField(kParentIndexOffset_);
@@ -527,7 +534,8 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   static const int kCodeOffset_ = 4;
   static const int kScopeInfoOffset_ = 5;
   static const int kParentIndexOffset_ = 6;
-  static const int kSize_ = 7;
+  static const int kSharedFunctionInfoOffset_ = 7;
+  static const int kSize_ = 8;
 
   friend class JSArrayBasedStruct<FunctionInfoWrapper>;
 };
@@ -537,6 +545,11 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
 // wrapped into BlindReference for sanitizing reasons.
 class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
  public:
+  static bool IsInstance(Handle<JSArray> array) {
+    return array->length() == Smi::FromInt(kSize_) &&
+        array->GetElement(kSharedInfoOffset_)->IsJSValue();
+  }
+
   explicit SharedInfoWrapper(Handle<JSArray> array)
       : JSArrayBasedStruct<SharedInfoWrapper>(array) {
   }
@@ -593,7 +606,11 @@ class FunctionInfoListener {
     current_parent_index_ = info.GetParentIndex();
   }
 
-  void FunctionScope(Scope* scope) {
+// TODO(LiveEdit): Move private method below.
+//     This private section was created here to avoid moving the function
+//      to keep already complex diff simpler.
+ private:
+  Object* SerializeFunctionScope(Scope* scope) {
     HandleScope handle_scope;
 
     Handle<JSArray> scope_info_list = Factory::NewJSArray(10);
@@ -604,7 +621,7 @@ class FunctionInfoListener {
     // scopes of this chain.
     Scope* outer_scope = scope->outer_scope();
     if (outer_scope == NULL) {
-      return;
+      return Heap::undefined_value();
     }
     do {
       ZoneList<Variable*> list(10);
@@ -645,15 +662,31 @@ class FunctionInfoListener {
       outer_scope = outer_scope->outer_scope();
     } while (outer_scope != NULL);
 
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
-    info.SetScopeInfo(scope_info_list);
+    return *scope_info_list;
   }
 
+ public:
+  // Saves only function code, because for a script function we
+  // may never create a SharedFunctionInfo object.
   void FunctionCode(Handle<Code> function_code) {
     FunctionInfoWrapper info =
         FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
     info.SetFunctionCode(function_code);
+  }
+
+  // Saves full information about a function: its code, its scope info
+  // and a SharedFunctionInfo object.
+  void FunctionInfo(Handle<SharedFunctionInfo> shared, Scope* scope) {
+    if (!shared->IsSharedFunctionInfo()) {
+      return;
+    }
+    FunctionInfoWrapper info =
+        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
+    info.SetFunctionCode(Handle<Code>(shared->code()));
+    info.SetSharedFunctionInfo(shared);
+
+    Handle<Object> scope_info_list(SerializeFunctionScope(scope));
+    info.SetScopeInfo(scope_info_list);
   }
 
   Handle<JSArray> GetResult() {
@@ -806,15 +839,18 @@ static bool IsJSFunctionCode(Code* code) {
 }
 
 
-void LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
-                                   Handle<JSArray> shared_info_array) {
+Object* LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
+                                      Handle<JSArray> shared_info_array) {
   HandleScope scope;
+
+  if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
+    return Top::ThrowIllegalOperation();
+  }
 
   FunctionInfoWrapper compile_info_wrapper(new_compile_info_array);
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
-
 
   if (IsJSFunctionCode(shared_info->code())) {
     ReplaceCodeObject(shared_info->code(),
@@ -833,17 +869,17 @@ void LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
 
   shared_info->set_construct_stub(
       Builtins::builtin(Builtins::JSConstructStubGeneric));
-  // update breakpoints
+
+  return Heap::undefined_value();
 }
 
 
 // TODO(635): Eval caches its scripts (same text -- same compiled info).
 // Make sure we clear such caches.
-void LiveEdit::RelinkFunctionToScript(Handle<JSArray> shared_info_array,
-                                      Handle<Script> script_handle) {
-  SharedInfoWrapper shared_info_wrapper(shared_info_array);
-  Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
-
+void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
+                                 Handle<Object> script_handle) {
+  Handle<SharedFunctionInfo> shared_info =
+      Handle<SharedFunctionInfo>::cast(UnwrapJSValue(function_wrapper));
   shared_info->set_script(*script_handle);
 }
 
@@ -998,21 +1034,13 @@ static Handle<Code> PatchPositionsInCode(Handle<Code> code,
 }
 
 
-static Handle<Object> GetBreakPointObjectsForJS(
-    Handle<BreakPointInfo> break_point_info) {
-  if (break_point_info->break_point_objects()->IsFixedArray()) {
-    Handle<FixedArray> fixed_array(
-        FixedArray::cast(break_point_info->break_point_objects()));
-    Handle<Object> array = Factory::NewJSArrayWithElements(fixed_array);
-    return array;
-  } else {
-    return Handle<Object>(break_point_info->break_point_objects());
-  }
-}
-
-
-Handle<JSArray> LiveEdit::PatchFunctionPositions(
+Object* LiveEdit::PatchFunctionPositions(
     Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array) {
+
+  if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
+    return Top::ThrowIllegalOperation();
+  }
+
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
   Handle<SharedFunctionInfo> info = shared_info_wrapper.GetInfo();
 
@@ -1041,44 +1069,72 @@ Handle<JSArray> LiveEdit::PatchFunctionPositions(
     }
   }
 
+  return Heap::undefined_value();
+}
 
-  Handle<JSArray> result = Factory::NewJSArray(0);
-  int result_len = 0;
 
-  if (info->debug_info()->IsDebugInfo()) {
-    Handle<DebugInfo> debug_info(DebugInfo::cast(info->debug_info()));
-    Handle<Code> patched_orig_code =
-        PatchPositionsInCode(Handle<Code>(debug_info->original_code()),
-                             position_change_array);
-    if (*patched_orig_code != debug_info->original_code()) {
-      // Do not use expensive ReplaceCodeObject for original_code, because we
-      // do not expect any other references except this one.
-      debug_info->set_original_code(*patched_orig_code);
-    }
+static Handle<Script> CreateScriptCopy(Handle<Script> original) {
+  Handle<String> original_source(String::cast(original->source()));
 
-    Handle<FixedArray> break_point_infos(debug_info->break_points());
-    for (int i = 0; i < break_point_infos->length(); i++) {
-      if (!break_point_infos->get(i)->IsBreakPointInfo()) {
-        continue;
-      }
-      Handle<BreakPointInfo> info(
-          BreakPointInfo::cast(break_point_infos->get(i)));
-      int old_in_script_position = info->source_position()->value() +
-          old_function_start;
-      int new_in_script_position = TranslatePosition(old_in_script_position,
-          position_change_array);
-      info->set_source_position(
-          Smi::FromInt(new_in_script_position - new_function_start));
-      if (old_in_script_position != new_in_script_position) {
-        SetElement(result, result_len,
-                   Handle<Smi>(Smi::FromInt(new_in_script_position)));
-        SetElement(result, result_len + 1,
-                   GetBreakPointObjectsForJS(info));
-        result_len += 2;
+  Handle<Script> copy = Factory::NewScript(original_source);
+
+  copy->set_name(original->name());
+  copy->set_line_offset(original->line_offset());
+  copy->set_column_offset(original->column_offset());
+  copy->set_data(original->data());
+  copy->set_type(original->type());
+  copy->set_context_data(original->context_data());
+  copy->set_compilation_type(original->compilation_type());
+  copy->set_eval_from_shared(original->eval_from_shared());
+  copy->set_eval_from_instructions_offset(
+      original->eval_from_instructions_offset());
+
+  return copy;
+}
+
+
+Object* LiveEdit::ChangeScriptSource(Handle<Script> original_script,
+                                     Handle<String> new_source,
+                                     Handle<Object> old_script_name) {
+  Handle<Object> old_script_object;
+  if (old_script_name->IsString()) {
+    Handle<Script> old_script = CreateScriptCopy(original_script);
+    old_script->set_name(String::cast(*old_script_name));
+    old_script_object = old_script;
+    Debugger::OnAfterCompile(old_script, Debugger::SEND_WHEN_DEBUGGING);
+  } else {
+    old_script_object = Handle<Object>(Heap::null_value());
+  }
+
+  original_script->set_source(*new_source);
+
+  // Drop line ends so that they will be recalculated.
+  original_script->set_line_ends(Heap::undefined_value());
+
+  return *old_script_object;
+}
+
+
+
+void LiveEdit::ReplaceRefToNestedFunction(
+    Handle<JSValue> parent_function_wrapper,
+    Handle<JSValue> orig_function_wrapper,
+    Handle<JSValue> subst_function_wrapper) {
+
+  Handle<SharedFunctionInfo> parent_shared =
+      Handle<SharedFunctionInfo>::cast(UnwrapJSValue(parent_function_wrapper));
+  Handle<SharedFunctionInfo> orig_shared =
+      Handle<SharedFunctionInfo>::cast(UnwrapJSValue(orig_function_wrapper));
+  Handle<SharedFunctionInfo> subst_shared =
+      Handle<SharedFunctionInfo>::cast(UnwrapJSValue(subst_function_wrapper));
+
+  for (RelocIterator it(parent_shared->code()); !it.done(); it.next()) {
+    if (it.rinfo()->rmode() == RelocInfo::EMBEDDED_OBJECT) {
+      if (it.rinfo()->target_object() == *orig_shared) {
+        it.rinfo()->set_target_object(*subst_shared);
       }
     }
   }
-  return result;
 }
 
 
@@ -1362,17 +1418,16 @@ LiveEditFunctionTracker::~LiveEditFunctionTracker() {
 }
 
 
-void LiveEditFunctionTracker::RecordFunctionCode(Handle<Code> code) {
+void LiveEditFunctionTracker::RecordFunctionInfo(
+    Handle<SharedFunctionInfo> info, FunctionLiteral* lit) {
   if (active_function_info_listener != NULL) {
-    active_function_info_listener->FunctionCode(code);
+    active_function_info_listener->FunctionInfo(info, lit->scope());
   }
 }
 
 
-void LiveEditFunctionTracker::RecordFunctionScope(Scope* scope) {
-  if (active_function_info_listener != NULL) {
-    active_function_info_listener->FunctionScope(scope);
-  }
+void LiveEditFunctionTracker::RecordRootFunctionInfo(Handle<Code> code) {
+  active_function_info_listener->FunctionCode(code);
 }
 
 
@@ -1393,11 +1448,12 @@ LiveEditFunctionTracker::~LiveEditFunctionTracker() {
 }
 
 
-void LiveEditFunctionTracker::RecordFunctionCode(Handle<Code> code) {
+void LiveEditFunctionTracker::RecordFunctionInfo(
+    Handle<SharedFunctionInfo> info, FunctionLiteral* lit) {
 }
 
 
-void LiveEditFunctionTracker::RecordFunctionScope(Scope* scope) {
+void LiveEditFunctionTracker::RecordRootFunctionInfo(Handle<Code> code) {
 }
 
 

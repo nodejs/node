@@ -615,6 +615,55 @@ class ConstructStubCompiler: public StubCompiler {
 };
 
 
+// Holds information about possible function call optimizations.
+class CallOptimization BASE_EMBEDDED {
+ public:
+  explicit CallOptimization(LookupResult* lookup);
+
+  explicit CallOptimization(JSFunction* function);
+
+  bool is_constant_call() const {
+    return constant_function_ != NULL;
+  }
+
+  JSFunction* constant_function() const {
+    ASSERT(constant_function_ != NULL);
+    return constant_function_;
+  }
+
+  bool is_simple_api_call() const {
+    return is_simple_api_call_;
+  }
+
+  FunctionTemplateInfo* expected_receiver_type() const {
+    ASSERT(is_simple_api_call_);
+    return expected_receiver_type_;
+  }
+
+  CallHandlerInfo* api_call_info() const {
+    ASSERT(is_simple_api_call_);
+    return api_call_info_;
+  }
+
+  // Returns the depth of the object having the expected type in the
+  // prototype chain between the two arguments.
+  int GetPrototypeDepthOfExpectedType(JSObject* object,
+                                      JSObject* holder) const;
+
+ private:
+  void Initialize(JSFunction* function);
+
+  // Determines whether the given function can be called using the
+  // fast api call builtin.
+  void AnalyzePossibleApiFunction(JSFunction* function);
+
+  JSFunction* constant_function_;
+  bool is_simple_api_call_;
+  FunctionTemplateInfo* expected_receiver_type_;
+  CallHandlerInfo* api_call_info_;
+};
+
+
 typedef Object* (*CustomCallGenerator)(CallStubCompiler* compiler,
                                        Object* object,
                                        JSObject* holder,

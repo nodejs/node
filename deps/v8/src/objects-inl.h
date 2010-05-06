@@ -569,6 +569,22 @@ bool Object::IsSymbolTable() {
 }
 
 
+bool Object::IsJSFunctionResultCache() {
+  if (!IsFixedArray()) return false;
+  FixedArray* self = FixedArray::cast(this);
+  int length = self->length();
+  if (length < JSFunctionResultCache::kEntriesIndex) return false;
+  if ((length - JSFunctionResultCache::kEntriesIndex)
+      % JSFunctionResultCache::kEntrySize != 0) {
+    return false;
+  }
+#ifdef DEBUG
+  reinterpret_cast<JSFunctionResultCache*>(this)->JSFunctionResultCacheVerify();
+#endif
+  return true;
+}
+
+
 bool Object::IsCompilationCacheTable() {
   return IsHashTable();
 }
@@ -1594,6 +1610,7 @@ void NumberDictionary::set_requires_slow_elements() {
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(SymbolTable)
+CAST_ACCESSOR(JSFunctionResultCache)
 CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(CodeCacheHashTable)
 CAST_ACCESSOR(MapCache)
@@ -1651,7 +1668,7 @@ HashTable<Shape, Key>* HashTable<Shape, Key>::cast(Object* obj) {
 INT_ACCESSORS(Array, length, kLengthOffset)
 
 
-INT_ACCESSORS(String, length, kLengthOffset)
+SMI_ACCESSORS(String, length, kLengthOffset)
 
 
 uint32_t String::hash_field() {
@@ -1773,14 +1790,12 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
 
 
 int SeqTwoByteString::SeqTwoByteStringSize(InstanceType instance_type) {
-  uint32_t length = READ_INT_FIELD(this, kLengthOffset);
-  return SizeFor(length);
+  return SizeFor(length());
 }
 
 
 int SeqAsciiString::SeqAsciiStringSize(InstanceType instance_type) {
-  uint32_t length = READ_INT_FIELD(this, kLengthOffset);
-  return SizeFor(length);
+  return SizeFor(length());
 }
 
 
@@ -1835,6 +1850,20 @@ ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
 void ExternalTwoByteString::set_resource(
     ExternalTwoByteString::Resource* resource) {
   *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)) = resource;
+}
+
+
+void JSFunctionResultCache::MakeZeroSize() {
+  set(kFingerIndex, Smi::FromInt(kEntriesIndex));
+  set(kCacheSizeIndex, Smi::FromInt(kEntriesIndex));
+}
+
+
+void JSFunctionResultCache::Clear() {
+  int cache_size = Smi::cast(get(kCacheSizeIndex))->value();
+  Object** entries_start = RawField(this, OffsetOfElementAt(kEntriesIndex));
+  MemsetPointer(entries_start, Heap::the_hole_value(), cache_size);
+  MakeZeroSize();
 }
 
 
@@ -2110,6 +2139,20 @@ void Map::set_non_instance_prototype(bool value) {
 
 bool Map::has_non_instance_prototype() {
   return ((1 << kHasNonInstancePrototype) & bit_field()) != 0;
+}
+
+
+void Map::set_function_with_prototype(bool value) {
+  if (value) {
+    set_bit_field2(bit_field2() | (1 << kFunctionWithPrototype));
+  } else {
+    set_bit_field2(bit_field2() & ~(1 << kFunctionWithPrototype));
+  }
+}
+
+
+bool Map::function_with_prototype() {
+  return ((1 << kFunctionWithPrototype) & bit_field2()) != 0;
 }
 
 
@@ -2566,6 +2609,10 @@ Object* JSFunction::prototype() {
   // value, that value is stored in the constructor field of the map.
   if (map()->has_non_instance_prototype()) return map()->constructor();
   return instance_prototype();
+}
+
+bool JSFunction::should_have_prototype() {
+  return map()->function_with_prototype();
 }
 
 

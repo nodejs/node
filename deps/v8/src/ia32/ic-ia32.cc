@@ -496,7 +496,8 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   //  -- esp[0] : return address
   // -----------------------------------
   Label miss;
-  Label not_positive_smi;
+  Label index_not_smi;
+  Label index_out_of_range;
   Label slow_char_code;
   Label got_char_code;
 
@@ -511,7 +512,8 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
                                        scratch,
                                        code,
                                        &miss,  // When not a string.
-                                       &not_positive_smi,
+                                       &index_not_smi,
+                                       &index_out_of_range,
                                        &slow_char_code);
   // If we didn't bail out, code register contains smi tagged char
   // code.
@@ -521,14 +523,9 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   __ Abort("Unexpected fall-through from char from code tail call");
 #endif
 
-  // Check if key is a smi or a heap number.
-  __ bind(&not_positive_smi);
-  ASSERT(kSmiTag == 0);
-  __ test(index, Immediate(kSmiTagMask));
-  __ j(zero, &slow_char_code);
-  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ cmp(ecx, Factory::heap_number_map());
-  __ j(not_equal, &miss);
+  // Check if key is a heap number.
+  __ bind(&index_not_smi);
+  __ CheckMap(index, Factory::heap_number_map(), &miss, true);
 
   // Push receiver and key on the stack (now that we know they are a
   // string and a number), and call runtime.
@@ -553,6 +550,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   }
   __ cmp(code, Factory::nan_value());
   __ j(not_equal, &got_char_code);
+  __ bind(&index_out_of_range);
   __ Set(eax, Immediate(Factory::undefined_value()));
   __ ret(0);
 

@@ -1328,6 +1328,32 @@ bool DescriptorArray::IsSortedNoDuplicates() {
 }
 
 
+void JSFunctionResultCache::JSFunctionResultCacheVerify() {
+  JSFunction::cast(get(kFactoryIndex))->Verify();
+
+  int size = Smi::cast(get(kCacheSizeIndex))->value();
+  ASSERT(kEntriesIndex <= size);
+  ASSERT(size <= length());
+  ASSERT_EQ(0, size % kEntrySize);
+
+  int finger = Smi::cast(get(kFingerIndex))->value();
+  ASSERT(kEntriesIndex <= finger);
+  ASSERT(finger < size || finger == kEntriesIndex);
+  ASSERT_EQ(0, finger % kEntrySize);
+
+  if (FLAG_enable_slow_asserts) {
+    for (int i = kEntriesIndex; i < size; i++) {
+      ASSERT(!get(i)->IsTheHole());
+      get(i)->Verify();
+    }
+    for (int i = size; i < length(); i++) {
+      ASSERT(get(i)->IsTheHole());
+      get(i)->Verify();
+    }
+  }
+}
+
+
 #endif  // DEBUG
 
 } }  // namespace v8::internal

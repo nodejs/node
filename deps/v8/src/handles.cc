@@ -203,6 +203,7 @@ void FlattenString(Handle<String> string) {
 
 Handle<Object> SetPrototype(Handle<JSFunction> function,
                             Handle<Object> prototype) {
+  ASSERT(function->should_have_prototype());
   CALL_HEAP_FUNCTION(Accessors::FunctionSetPrototype(*function,
                                                      *prototype,
                                                      NULL),

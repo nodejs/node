@@ -3014,7 +3014,7 @@ template <> struct InternalConstants<4> {
 
 // Internal constants for 64-bit systems.
 template <> struct InternalConstants<8> {
-  static const int kStringResourceOffset = 2 * sizeof(void*);
+  static const int kStringResourceOffset = 3 * sizeof(void*);
 };
 
 /**

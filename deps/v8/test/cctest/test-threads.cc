@@ -50,3 +50,87 @@ TEST(Preemption) {
 
   script->Run();
 }
+
+
+enum Turn {
+  FILL_CACHE,
+  CLEAN_CACHE,
+  SECOND_TIME_FILL_CACHE,
+  DONE
+};
+
+static Turn turn = FILL_CACHE;
+
+
+class ThreadA: public v8::internal::Thread {
+ public:
+  void Run() {
+    v8::Locker locker;
+    v8::HandleScope scope;
+    v8::Context::Scope context_scope(v8::Context::New());
+
+    CHECK_EQ(FILL_CACHE, turn);
+
+    // Fill String.search cache.
+    v8::Handle<v8::Script> script = v8::Script::Compile(
+        v8::String::New(
+          "for (var i = 0; i < 3; i++) {"
+          "  var result = \"a\".search(\"a\");"
+          "  if (result != 0) throw \"result: \" + result + \" @\" + i;"
+          "};"
+          "true"));
+    CHECK(script->Run()->IsTrue());
+
+    turn = CLEAN_CACHE;
+    do {
+      {
+        v8::Unlocker unlocker;
+        Thread::YieldCPU();
+      }
+    } while (turn != SECOND_TIME_FILL_CACHE);
+
+    // Rerun the script.
+    CHECK(script->Run()->IsTrue());
+
+    turn = DONE;
+  }
+};
+
+
+class ThreadB: public v8::internal::Thread {
+ public:
+  void Run() {
+    do {
+      {
+        v8::Locker locker;
+        if (turn == CLEAN_CACHE) {
+          v8::HandleScope scope;
+          v8::Context::Scope context_scope(v8::Context::New());
+
+          // Clear the caches by forcing major GC.
+          v8::internal::Heap::CollectAllGarbage(false);
+          turn = SECOND_TIME_FILL_CACHE;
+          break;
+        }
+      }
+
+      Thread::YieldCPU();
+    } while (true);
+  }
+};
+
+
+TEST(JSFunctionResultCachesInTwoThreads) {
+  v8::V8::Initialize();
+
+  ThreadA threadA;
+  ThreadB threadB;
+
+  threadA.Start();
+  threadB.Start();
+
+  threadA.Join();
+  threadB.Join();
+
+  CHECK_EQ(DONE, turn);
+}

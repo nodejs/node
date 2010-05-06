@@ -573,7 +573,8 @@ TEST(LinearAllocation) {
         FixedArray::kHeaderSize + kSmallFixedArrayLength * kPointerSize;
     const int kSmallStringLength = 16;
     const int kSmallStringSize =
-        SeqAsciiString::kHeaderSize + kSmallStringLength;
+        (SeqAsciiString::kHeaderSize + kSmallStringLength +
+        kObjectAlignmentMask) & ~kObjectAlignmentMask;
     const int kMapSize = Map::kSize;
 
     Object* new_last = NULL;

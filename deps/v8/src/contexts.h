@@ -74,6 +74,7 @@ enum ContextLookupFlags {
   V(INSTANTIATE_FUN_INDEX, JSFunction, instantiate_fun) \
   V(CONFIGURE_INSTANCE_FUN_INDEX, JSFunction, configure_instance_fun) \
   V(FUNCTION_MAP_INDEX, Map, function_map) \
+  V(FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, function_without_prototype_map) \
   V(FUNCTION_INSTANCE_MAP_INDEX, Map, function_instance_map) \
   V(JS_ARRAY_MAP_INDEX, Map, js_array_map)\
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)\
@@ -179,6 +180,7 @@ class Context: public FixedArray {
     JS_ARRAY_MAP_INDEX,
     REGEXP_RESULT_MAP_INDEX,
     FUNCTION_MAP_INDEX,
+    FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
     FUNCTION_INSTANCE_MAP_INDEX,
     INITIAL_OBJECT_PROTOTYPE_INDEX,
     BOOLEAN_FUNCTION_INDEX,

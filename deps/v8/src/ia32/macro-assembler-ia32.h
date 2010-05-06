@@ -48,7 +48,9 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
-
+  // Set the remebered set bit for an address which points into an
+  // object. RecordWriteHelper only works if the object is not in new
+  // space.
   void RecordWriteHelper(Register object,
                          Register addr,
                          Register scratch);
