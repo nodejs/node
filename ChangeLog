@@ -1,4 +1,32 @@
-2010.04.29, Version 0.1.93
+2010.05.06, Version 0.1.94
+
+* Look in /usr/local/lib/node for modules, so that there's a way 
+  to install modules globally (Issac Schlueter)
+
+* SSL improvements (Rhys Jones, Paulo Matias)
+
+* Added c-ares headers for linux-arm (Jonathan Knezek)
+
+* Add symbols to release build
+
+* HTTP upgrade improvements, docs (Micheil Smith)
+
+* HTTP server emits 'clientError' instead of printing message
+
+* Bugfix: Don't emit 'error' twice from http.Client
+
+* Bugfix: Ignore SIGPIPE
+
+* Bugfix: destroy() instead of end() http connection at end of
+  pipeline
+
+* Bugfix: http.Client may be prematurely released back to the 
+  free pool.  (Thomas Lee)
+
+* Upgrade V8 to 2.2.8
+
+
+2010.04.29, Version 0.1.93, 557ba6bd97bad3afe0f9bd3ac07efac0a39978c1
 
   * Fixed no 'end' event on long chunked HTTP messages
     http://github.com/ry/node/issues/#issue/77
