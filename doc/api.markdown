@@ -668,6 +668,12 @@ Gets/sets the user identity of the process. (See setuid(2).)  This is the numeri
     }
 
 
+### process.version
+
+A compiled-in property that exposes `NODE_VERSION`.
+
+    require('sys').puts('Version: ' + process.version);
+
 ### process.installPrefix
 
 A compiled-in property that exposes `NODE_PREFIX`.
