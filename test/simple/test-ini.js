@@ -8,7 +8,7 @@ debug("load fixtures/fixture.ini");
 
 p = path.join(fixturesDir, "fixture.ini");
 
-fs.readFile(p,function(err, data) {
+fs.readFile(p, 'utf8', function(err, data) {
   if (err) throw err;
 
   assert.equal(typeof parse, 'function');

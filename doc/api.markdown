@@ -1396,7 +1396,7 @@ is a string--what was read--and `bytesRead` is the number of bytes read.
 
 Synchronous version of `fs.read`. Returns an array `[data, bytesRead]`.
 
-### fs.readFile(filename, encoding='utf8', callback)
+### fs.readFile(filename, [encoding,] callback)
 
 Asynchronously reads the entire contents of a file. Example:
 
@@ -1407,6 +1407,8 @@ Asynchronously reads the entire contents of a file. Example:
 
 The callback is passed two arguments `(err, data)`, where `data` is the
 contents of the file.
+
+If no encoding is specified, then the raw buffer is returned.
 
 ### fs.readFileSync(filename, encoding='utf8')
 
