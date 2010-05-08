@@ -928,7 +928,7 @@ Local<Object> BuildStatsObject(struct stat * s) {
   stats->Set(rdev_symbol, Integer::New(s->st_rdev));
 
   /* total size, in bytes */
-  stats->Set(size_symbol, Integer::New(s->st_size));
+  stats->Set(size_symbol, Number::New(s->st_size));
 
   /* blocksize for filesystem I/O */
   stats->Set(blksize_symbol, Integer::New(s->st_blksize));
