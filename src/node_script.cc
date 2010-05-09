@@ -79,53 +79,6 @@ const char* ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<str conversion failed>";
 }
 
-
-static void ReportException(TryCatch &try_catch, bool show_line = false, bool show_rest = true) {
-  Handle<Message> message = try_catch.Message();
-
-  Handle<Value> error = try_catch.Exception();
-  Handle<String> stack;
-
-  if (error->IsObject()) {
-    Handle<Object> obj = Handle<Object>::Cast(error);
-    Handle<Value> raw_stack = obj->Get(String::New("stack"));
-    if (raw_stack->IsString()) stack = Handle<String>::Cast(raw_stack);
-  }
-
-  if (show_line && !message.IsEmpty()) {
-    // Print (filename):(line number): (message).
-    String::Utf8Value filename(message->GetScriptResourceName());
-    const char* filename_string = ToCString(filename);
-    int linenum = message->GetLineNumber();
-    fprintf(stderr, "%s:%i\n", filename_string, linenum);
-    // Print line of source code.
-    String::Utf8Value sourceline(message->GetSourceLine());
-    const char* sourceline_string = ToCString(sourceline);
-    fprintf(stderr, "%s\n", sourceline_string);
-    // Print wavy underline (GetUnderline is deprecated).
-    int start = message->GetStartColumn();
-    for (int i = 0; i < start; i++) {
-      fprintf(stderr, " ");
-    }
-    int end = message->GetEndColumn();
-    for (int i = start; i < end; i++) {
-      fprintf(stderr, "^");
-    }
-    fprintf(stderr, "\n");
-  }
-
-  if (show_rest) {
-    if (stack.IsEmpty()) {
-      message->PrintCurrentStackTrace(stderr);
-    } else {
-      String::Utf8Value trace(stack);
-      fprintf(stderr, "%s\n", *trace);
-    }
-  }
-  fflush(stderr);
-}
-
-
 template <node::Script::EvalInputFlags iFlag,
   node::Script::EvalContextFlags cFlag,
   node::Script::EvalOutputFlags oFlag>
@@ -181,7 +134,6 @@ Handle<Value> node::Script::EvalMachine(const Arguments& args) {
     script = oFlag == returnResult ? v8::Script::Compile(code, filename) : v8::Script::New(code, filename);
     if (script.IsEmpty()) {
       // Hack because I can't get a proper stacktrace on SyntaxError
-      ReportException(try_catch, true, false);
       result = ThrowException(try_catch.Exception());
     }
   } else {
