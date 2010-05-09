@@ -954,7 +954,7 @@ const char* ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<str conversion failed>";
 }
 
-static void ReportException(TryCatch &try_catch, bool show_line = false) {
+static void ReportException(TryCatch &try_catch, bool show_line) {
   Handle<Message> message = try_catch.Message();
 
   Handle<Value> error = try_catch.Exception();
@@ -975,10 +975,31 @@ static void ReportException(TryCatch &try_catch, bool show_line = false) {
     // Print line of source code.
     String::Utf8Value sourceline(message->GetSourceLine());
     const char* sourceline_string = ToCString(sourceline);
-    fprintf(stderr, "%s\n", sourceline_string);
+
+    // HACK HACK HACK
+    //
+    // FIXME
+    //
+    // Because of how CommonJS modules work, all scripts are wrapped with a
+    // "function (function (exports, __filename, ...) {"
+    // to provide script local variables.
+    //
+    // When reporting errors on the first line of a script, this wrapper
+    // function is leaked to the user. This HACK is to remove it. The length
+    // of the wrapper is 62. That wrapper is defined in lib/module.js
+    //
+    // If that wrapper is ever changed, then this number also has to be
+    // updated. Or - someone could clean this up so that the two peices
+    // don't need to be changed.
+    //
+    // Even better would be to get support into V8 for wrappers that
+    // shouldn't be reported to users.
+    int offset = linenum == 1 ? 62 : 0;
+
+    fprintf(stderr, "%s\n", sourceline_string + offset);
     // Print wavy underline (GetUnderline is deprecated).
     int start = message->GetStartColumn();
-    for (int i = 0; i < start; i++) {
+    for (int i = offset; i < start; i++) {
       fprintf(stderr, " ");
     }
     int end = message->GetEndColumn();
@@ -1004,13 +1025,13 @@ Local<Value> ExecuteString(Local<String> source, Local<Value> filename) {
 
   Local<v8::Script> script = v8::Script::Compile(source, filename);
   if (script.IsEmpty()) {
-    ReportException(try_catch);
+    ReportException(try_catch, true);
     exit(1);
   }
 
   Local<Value> result = script->Run();
   if (result.IsEmpty()) {
-    ReportException(try_catch);
+    ReportException(try_catch, true);
     exit(1);
   }
 
@@ -1523,7 +1544,10 @@ Handle<Value> Compile(const Arguments& args) {
   }
 
   Local<Value> result = script->Run();
-  if (try_catch.HasCaught()) return try_catch.ReThrow();
+  if (try_catch.HasCaught()) {
+    ReportException(try_catch, false);
+    exit(1);
+  }
 
   return scope.Close(result);
 }
@@ -1544,7 +1568,7 @@ void FatalException(TryCatch &try_catch) {
 
   // Check if uncaught_exception_counter indicates a recursion
   if (uncaught_exception_counter > 0) {
-    ReportException(try_catch);
+    ReportException(try_catch, true);
     exit(1);
   }
 
@@ -1570,7 +1594,7 @@ void FatalException(TryCatch &try_catch) {
   uint32_t length = listener_array->Length();
   // Report and exit if process has no "uncaughtException" listener
   if (length == 0) {
-    ReportException(try_catch);
+    ReportException(try_catch, true);
     exit(1);
   }
 
@@ -1899,18 +1923,14 @@ static void Load(int argc, char *argv[]) {
 
   // The node.js file returns a function 'f'
 
-#ifndef NDEBUG
   TryCatch try_catch;
-#endif
 
   Local<Value> f_value = ExecuteString(String::New(native_node),
                                        String::New("node.js"));
-#ifndef NDEBUG
   if (try_catch.HasCaught())  {
-    ReportException(try_catch);
+    ReportException(try_catch, true);
     exit(10);
   }
-#endif
   assert(f_value->IsFunction());
   Local<Function> f = Local<Function>::Cast(f_value);
 
@@ -1926,12 +1946,10 @@ static void Load(int argc, char *argv[]) {
 
   f->Call(global, 1, args);
 
-#ifndef NDEBUG
   if (try_catch.HasCaught())  {
-    ReportException(try_catch);
+    ReportException(try_catch, true);
     exit(11);
   }
-#endif
 }
 
 static void PrintHelp();

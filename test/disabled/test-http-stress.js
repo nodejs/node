@@ -1,40 +1,40 @@
 require("../common");
 
-var request_count = 1000;
-var response_body = '{"ok": true}';
+http = require("http");
 
-var server = process.http.createServer(function(req, res) {
- res.sendHeader(200, {'Content-Type': 'text/javascript'});
- res.sendBody(response_body);
- res.finish();
+var request_count = 1000;
+var body = '{"ok": true}';
+
+var server = http.createServer(function(req, res) {
+ res.writeHead(200, {'Content-Type': 'text/javascript'});
+ res.write(body);
+ res.end();
 });
-server.listen(PORT, 4024);
+server.listen(PORT);
 
 var requests_ok = 0;
 var requests_complete = 0;
 
-function onLoad () {
+server.addListener('listening', function () {
  for (var i = 0; i < request_count; i++) {
-   process.http.cat('http://localhost:'+PORT+'/', 'utf8')
-     .addCallback(function (content) {
-       assert.equal(response_body, content)
+   http.cat('http://localhost:'+PORT+'/', 'utf8', function (err, content) {
+     requests_complete++;
+     if (err) {
+       print("-");
+     } else {
+       assert.equal(body, content)
        print(".");
        requests_ok++;
-       requests_complete++;
-       if (requests_ok == request_count) {
-         puts("\nrequests ok: " + requests_ok);
-         server.close();
-       }
-     })
-     .addErrback(function() {
-       print("-");
-       requests_complete++;
-       //process.debug("error " + i);
-     });
+     }
+     if (requests_complete == request_count) {
+       puts("\nrequests ok: " + requests_ok);
+       server.close();
+     }
+   });
  }
-}
+});
 
 process.addListener("exit", function () {
-  assert.equal(request_count, requests_complete); 
-  assert.equal(request_count, requests_ok); 
+  assert.equal(request_count, requests_complete);
+  assert.equal(request_count, requests_ok);
 });

@@ -1,0 +1,3 @@
+
+JSON.parse(undefined);
+
