@@ -44,12 +44,6 @@
 #ifndef V8_PLATFORM_H_
 #define V8_PLATFORM_H_
 
-#ifdef __sun
-// On Solaris, to get isinf, INFINITY, fpclassify and other macros one needs
-// to define this symbol
-#define __C99FEATURES__ 1
-#endif
-
 #define V8_INFINITY INFINITY
 
 // Windows specific stuff.
