@@ -444,9 +444,6 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference scheduled_exception_address();
 
-  static ExternalReference compile_array_pop_call();
-  static ExternalReference compile_array_push_call();
-
   Address address() const {return reinterpret_cast<Address>(address_);}
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

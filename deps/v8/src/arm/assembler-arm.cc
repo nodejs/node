@@ -1157,6 +1157,35 @@ void Assembler::ldrsh(Register dst, const MemOperand& src, Condition cond) {
 }
 
 
+void Assembler::ldrd(Register dst, const MemOperand& src, Condition cond) {
+  ASSERT(src.rm().is(no_reg));
+#ifdef CAN_USE_ARMV7_INSTRUCTIONS
+  addrmod3(cond | B7 | B6 | B4, dst, src);
+#else
+  ldr(dst, src, cond);
+  MemOperand src1(src);
+  src1.set_offset(src1.offset() + 4);
+  Register dst1(dst);
+  dst1.code_ = dst1.code_ + 1;
+  ldr(dst1, src1, cond);
+#endif
+}
+
+
+void Assembler::strd(Register src, const MemOperand& dst, Condition cond) {
+  ASSERT(dst.rm().is(no_reg));
+#ifdef CAN_USE_ARMV7_INSTRUCTIONS
+  addrmod3(cond | B7 | B6 | B5 | B4, src, dst);
+#else
+  str(src, dst, cond);
+  MemOperand dst1(dst);
+  dst1.set_offset(dst1.offset() + 4);
+  Register src1(src);
+  src1.code_ = src1.code_ + 1;
+  str(src1, dst1, cond);
+#endif
+}
+
 // Load/Store multiple instructions.
 void Assembler::ldm(BlockAddrMode am,
                     Register base,

@@ -126,6 +126,8 @@ template <class T> class Persistent;
 class FunctionTemplate;
 class ObjectTemplate;
 class Data;
+class StackTrace;
+class StackFrame;
 
 namespace internal {
 
@@ -691,6 +693,106 @@ class V8EXPORT Message {
 
   // TODO(1245381): Print to a string instead of on a FILE.
   static void PrintCurrentStackTrace(FILE* out);
+
+  static const int kNoLineNumberInfo = 0;
+  static const int kNoColumnInfo = 0;
+};
+
+
+/**
+ * Representation of a JavaScript stack trace. The information collected is a
+ * snapshot of the execution stack and the information remains valid after
+ * execution continues.
+ */
+class V8EXPORT StackTrace {
+ public:
+  /**
+   * Flags that determine what information is placed captured for each
+   * StackFrame when grabbing the current stack trace.
+   */
+  enum StackTraceOptions {
+    kLineNumber = 1,
+    kColumnOffset = 1 << 1 | kLineNumber,
+    kScriptName = 1 << 2,
+    kFunctionName = 1 << 3,
+    kIsEval = 1 << 4,
+    kIsConstructor = 1 << 5,
+    kOverview = kLineNumber | kColumnOffset | kScriptName | kFunctionName,
+    kDetailed = kOverview | kIsEval | kIsConstructor
+  };
+
+  /**
+   * Returns a StackFrame at a particular index.
+   */
+  Local<StackFrame> GetFrame(uint32_t index) const;
+
+  /**
+   * Returns the number of StackFrames.
+   */
+  int GetFrameCount() const;
+
+  /**
+   * Returns StackTrace as a v8::Array that contains StackFrame objects.
+   */
+  Local<Array> AsArray();
+
+  /**
+   * Grab a snapshot of the the current JavaScript execution stack.
+   *
+   * \param frame_limit The maximum number of stack frames we want to capture.
+   * \param options Enumerates the set of things we will capture for each
+   *   StackFrame.
+   */
+  static Local<StackTrace> CurrentStackTrace(
+      int frame_limit,
+      StackTraceOptions options = kOverview);
+};
+
+
+/**
+ * A single JavaScript stack frame.
+ */
+class V8EXPORT StackFrame {
+ public:
+  /**
+   * Returns the number, 1-based, of the line for the associate function call.
+   * This method will return Message::kNoLineNumberInfo if it is unable to
+   * retrieve the line number, or if kLineNumber was not passed as an option
+   * when capturing the StackTrace.
+   */
+  int GetLineNumber() const;
+
+  /**
+   * Returns the 1-based column offset on the line for the associated function
+   * call.
+   * This method will return Message::kNoColumnInfo if it is unable to retrieve
+   * the column number, or if kColumnOffset was not passed as an option when
+   * capturing the StackTrace.
+   */
+  int GetColumn() const;
+
+  /**
+   * Returns the name of the resource that contains the script for the
+   * function for this StackFrame.
+   */
+  Local<String> GetScriptName() const;
+
+  /**
+   * Returns the name of the function associated with this stack frame.
+   */
+  Local<String> GetFunctionName() const;
+
+  /**
+   * Returns whether or not the associated function is compiled via a call to
+   * eval().
+   */
+  bool IsEval() const;
+
+  /**
+   * Returns whther or not the associated function is called as a
+   * constructor via "new".
+   */
+  bool IsConstructor() const;
 };
 
 
@@ -2122,7 +2224,7 @@ class V8EXPORT ResourceConstraints {
 };
 
 
-bool SetResourceConstraints(ResourceConstraints* constraints);
+bool V8EXPORT SetResourceConstraints(ResourceConstraints* constraints);
 
 
 // --- E x c e p t i o n s ---

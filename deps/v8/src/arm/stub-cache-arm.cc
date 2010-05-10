@@ -1121,11 +1121,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  String* function_name = NULL;
-  if (function->shared()->name()->IsString()) {
-    function_name = String::cast(function->shared()->name());
-  }
-  return GetCode(CONSTANT_FUNCTION, function_name);
+  return GetCode(function);
 }
 
 
@@ -1175,11 +1171,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  String* function_name = NULL;
-  if (function->shared()->name()->IsString()) {
-    function_name = String::cast(function->shared()->name());
-  }
-  return GetCode(CONSTANT_FUNCTION, function_name);
+  return GetCode(function);
 }
 
 
@@ -1194,9 +1186,9 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   // -----------------------------------
   SharedFunctionInfo* function_info = function->shared();
   if (function_info->HasCustomCallGenerator()) {
-    CustomCallGenerator generator =
-        ToCData<CustomCallGenerator>(function_info->function_data());
-    Object* result = generator(this, object, holder, function, name, check);
+    const int id = function_info->custom_call_generator_id();
+    Object* result =
+        CompileCustomCall(id, object, holder, function, name, check);
     // undefined means bail out to regular compiler.
     if (!result->IsUndefined()) {
       return result;
@@ -1334,11 +1326,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  String* function_name = NULL;
-  if (function->shared()->name()->IsString()) {
-    function_name = String::cast(function->shared()->name());
-  }
-  return GetCode(CONSTANT_FUNCTION, function_name);
+  return GetCode(function);
 }
 
 
@@ -1825,8 +1813,7 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
-  //  -- sp[0] : key
-  //  -- sp[4] : receiver
+  //  -- r1    : receiver
   // -----------------------------------
   Label miss;
 
@@ -1834,7 +1821,6 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
   __ cmp(r0, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  __ ldr(r1, MemOperand(sp, kPointerSize));  // Receiver.
   GenerateLoadField(receiver, holder, r1, r2, r3, index, name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -1850,8 +1836,7 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
-  //  -- sp[0] : key
-  //  -- sp[4] : receiver
+  //  -- r1    : receiver
   // -----------------------------------
   Label miss;
 
@@ -1860,7 +1845,6 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   __ b(ne, &miss);
 
   Failure* failure = Failure::InternalError();
-  __ ldr(r1, MemOperand(sp, kPointerSize));  // Receiver.
   bool success = GenerateLoadCallback(receiver, holder, r1, r0, r2, r3,
                                       callback, name, &miss, &failure);
   if (!success) return failure;
@@ -1879,8 +1863,7 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
-  //  -- sp[0] : key
-  //  -- sp[4] : receiver
+  //  -- r1    : receiver
   // -----------------------------------
   Label miss;
 
@@ -1888,7 +1871,6 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
   __ cmp(r0, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  __ ldr(r1, MemOperand(sp, kPointerSize));  // Receiver.
   GenerateLoadConstant(receiver, holder, r1, r2, r3, value, name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -1904,8 +1886,7 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
-  //  -- sp[0] : key
-  //  -- sp[4] : receiver
+  //  -- r1    : receiver
   // -----------------------------------
   Label miss;
 
@@ -1915,7 +1896,6 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 
   LookupResult lookup;
   LookupPostInterceptor(holder, name, &lookup);
-  __ ldr(r1, MemOperand(sp, kPointerSize));  // Receiver.
   GenerateLoadInterceptor(receiver,
                           holder,
                           &lookup,
@@ -1936,8 +1916,7 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
-  //  -- sp[0] : key
-  //  -- sp[4] : receiver
+  //  -- r1    : receiver
   // -----------------------------------
   Label miss;
 
@@ -1945,7 +1924,6 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   __ cmp(r0, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  __ ldr(r1, MemOperand(sp, kPointerSize));  // Receiver.
   GenerateLoadArrayLength(masm(), r1, r2, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -1958,8 +1936,7 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
-  //  -- sp[0] : key
-  //  -- sp[4] : receiver
+  //  -- r1    : receiver
   // -----------------------------------
   Label miss;
   __ IncrementCounter(&Counters::keyed_load_string_length, 1, r1, r3);
@@ -1968,7 +1945,6 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   __ cmp(r0, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  __ ldr(r1, MemOperand(sp, kPointerSize));  // Receiver.
   GenerateLoadStringLength(masm(), r1, r2, r3, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_string_length, 1, r1, r3);
@@ -1984,8 +1960,7 @@ Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
-  //  -- sp[0] : key
-  //  -- sp[4] : receiver
+  //  -- r1    : receiver
   // -----------------------------------
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
@@ -2085,7 +2060,7 @@ Object* ConstructStubCompiler::CompileConstructStub(
                         r5,
                         r6,
                         &generic_stub_call,
-                        NO_ALLOCATION_FLAGS);
+                        SIZE_IN_WORDS);
 
   // Allocated the JSObject, now initialize the fields. Map is set to initial
   // map and properties and elements are set to empty fixed array.

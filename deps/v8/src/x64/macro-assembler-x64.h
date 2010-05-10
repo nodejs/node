@@ -33,6 +33,17 @@
 namespace v8 {
 namespace internal {
 
+// Flags used for the AllocateInNewSpace functions.
+enum AllocationFlags {
+  // No special flags.
+  NO_ALLOCATION_FLAGS = 0,
+  // Return the pointer to the allocated already tagged as a heap object.
+  TAG_OBJECT = 1 << 0,
+  // The content of the result register already contains the allocation top in
+  // new space.
+  RESULT_CONTAINS_TOP = 1 << 1
+};
+
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
@@ -62,6 +73,7 @@ class MacroAssembler: public Assembler {
   void CompareRoot(Register with, Heap::RootListIndex index);
   void CompareRoot(Operand with, Heap::RootListIndex index);
   void PushRoot(Heap::RootListIndex index);
+  void StoreRoot(Register source, Heap::RootListIndex index);
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -374,8 +386,7 @@ class MacroAssembler: public Assembler {
 
   void SmiShiftLeftConstant(Register dst,
                             Register src,
-                            int shift_value,
-                            Label* on_not_smi_result);
+                            int shift_value);
   void SmiShiftLogicalRightConstant(Register dst,
                                   Register src,
                                   int shift_value,
@@ -388,8 +399,7 @@ class MacroAssembler: public Assembler {
   // Uses and clobbers rcx, so dst may not be rcx.
   void SmiShiftLeft(Register dst,
                     Register src1,
-                    Register src2,
-                    Label* on_not_smi_result);
+                    Register src2);
   // Shifts a smi value to the right, shifting in zero bits at the top, and
   // returns the unsigned intepretation of the result if that is a smi.
   // Uses and clobbers rcx, so dst may not be rcx.

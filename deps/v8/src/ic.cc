@@ -596,10 +596,16 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
 #endif
+      Map* map = HeapObject::cast(*object)->map();
+      if (object->IsString()) {
+        const int offset = String::kLengthOffset;
+        PatchInlinedLoad(address(), map, offset);
+      }
+
       Code* target = NULL;
       target = Builtins::builtin(Builtins::LoadIC_StringLength);
       set_target(target);
-      StubCache::Set(*name, HeapObject::cast(*object)->map(), target);
+      StubCache::Set(*name, map, target);
       return Smi::FromInt(String::cast(*object)->length());
     }
 
@@ -608,9 +614,13 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
 #endif
+      Map* map = HeapObject::cast(*object)->map();
+      const int offset = JSArray::kLengthOffset;
+      PatchInlinedLoad(address(), map, offset);
+
       Code* target = Builtins::builtin(Builtins::LoadIC_ArrayLength);
       set_target(target);
-      StubCache::Set(*name, HeapObject::cast(*object)->map(), target);
+      StubCache::Set(*name, map, target);
       return JSArray::cast(*object)->length();
     }
 

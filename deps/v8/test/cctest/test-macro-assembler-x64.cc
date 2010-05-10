@@ -1737,99 +1737,51 @@ void TestSmiShiftLeft(MacroAssembler* masm, Label* exit, int id, int x) {
     // rax == id + i * 10.
     int shift = shifts[i];
     int result = x << shift;
-    if (Smi::IsValid(result)) {
-      __ Move(r8, Smi::FromInt(result));
-      __ Move(rcx, Smi::FromInt(x));
-      __ SmiShiftLeftConstant(r9, rcx, shift, exit);
+    CHECK(Smi::IsValid(result));
+    __ Move(r8, Smi::FromInt(result));
+    __ Move(rcx, Smi::FromInt(x));
+    __ SmiShiftLeftConstant(r9, rcx, shift);
 
-      __ incq(rax);
-      __ SmiCompare(r9, r8);
-      __ j(not_equal, exit);
+    __ incq(rax);
+    __ SmiCompare(r9, r8);
+    __ j(not_equal, exit);
 
-      __ incq(rax);
-      __ Move(rcx, Smi::FromInt(x));
-      __ SmiShiftLeftConstant(rcx, rcx, shift, exit);
+    __ incq(rax);
+    __ Move(rcx, Smi::FromInt(x));
+    __ SmiShiftLeftConstant(rcx, rcx, shift);
 
-      __ incq(rax);
-      __ SmiCompare(rcx, r8);
-      __ j(not_equal, exit);
+    __ incq(rax);
+    __ SmiCompare(rcx, r8);
+    __ j(not_equal, exit);
 
-      __ incq(rax);
-      __ Move(rdx, Smi::FromInt(x));
-      __ Move(rcx, Smi::FromInt(shift));
-      __ SmiShiftLeft(r9, rdx, rcx, exit);
+    __ incq(rax);
+    __ Move(rdx, Smi::FromInt(x));
+    __ Move(rcx, Smi::FromInt(shift));
+    __ SmiShiftLeft(r9, rdx, rcx);
 
-      __ incq(rax);
-      __ SmiCompare(r9, r8);
-      __ j(not_equal, exit);
+    __ incq(rax);
+    __ SmiCompare(r9, r8);
+    __ j(not_equal, exit);
 
-      __ incq(rax);
-      __ Move(rdx, Smi::FromInt(x));
-      __ Move(r11, Smi::FromInt(shift));
-      __ SmiShiftLeft(r9, rdx, r11, exit);
+    __ incq(rax);
+    __ Move(rdx, Smi::FromInt(x));
+    __ Move(r11, Smi::FromInt(shift));
+    __ SmiShiftLeft(r9, rdx, r11);
 
-      __ incq(rax);
-      __ SmiCompare(r9, r8);
-      __ j(not_equal, exit);
+    __ incq(rax);
+    __ SmiCompare(r9, r8);
+    __ j(not_equal, exit);
 
-      __ incq(rax);
-      __ Move(rdx, Smi::FromInt(x));
-      __ Move(r11, Smi::FromInt(shift));
-      __ SmiShiftLeft(rdx, rdx, r11, exit);
+    __ incq(rax);
+    __ Move(rdx, Smi::FromInt(x));
+    __ Move(r11, Smi::FromInt(shift));
+    __ SmiShiftLeft(rdx, rdx, r11);
 
-      __ incq(rax);
-      __ SmiCompare(rdx, r8);
-      __ j(not_equal, exit);
+    __ incq(rax);
+    __ SmiCompare(rdx, r8);
+    __ j(not_equal, exit);
 
-      __ incq(rax);
-    } else {
-      // Cannot happen with long smis.
-      Label fail_ok;
-      __ Move(rcx, Smi::FromInt(x));
-      __ movq(r11, rcx);
-      __ SmiShiftLeftConstant(r9, rcx, shift, &fail_ok);
-      __ jmp(exit);
-      __ bind(&fail_ok);
-
-      __ incq(rax);
-      __ SmiCompare(rcx, r11);
-      __ j(not_equal, exit);
-
-      __ incq(rax);
-      Label fail_ok2;
-      __ SmiShiftLeftConstant(rcx, rcx, shift, &fail_ok2);
-      __ jmp(exit);
-      __ bind(&fail_ok2);
-
-      __ incq(rax);
-      __ SmiCompare(rcx, r11);
-      __ j(not_equal, exit);
-
-      __ incq(rax);
-      __ Move(r8, Smi::FromInt(shift));
-      Label fail_ok3;
-      __ SmiShiftLeft(r9, rcx, r8, &fail_ok3);
-      __ jmp(exit);
-      __ bind(&fail_ok3);
-
-      __ incq(rax);
-      __ SmiCompare(rcx, r11);
-      __ j(not_equal, exit);
-
-      __ incq(rax);
-      __ Move(r8, Smi::FromInt(shift));
-      __ movq(rdx, r11);
-      Label fail_ok4;
-      __ SmiShiftLeft(rdx, rdx, r8, &fail_ok4);
-      __ jmp(exit);
-      __ bind(&fail_ok4);
-
-      __ incq(rax);
-      __ SmiCompare(rdx, r11);
-      __ j(not_equal, exit);
-
-      __ addq(rax, Immediate(3));
-    }
+    __ incq(rax);
   }
 }
 

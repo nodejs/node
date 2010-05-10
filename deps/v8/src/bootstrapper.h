@@ -80,10 +80,6 @@ class Bootstrapper : public AllStatic {
   // Tells whether bootstrapping is active.
   static bool IsActive() { return BootstrapperActive::IsActive(); }
 
-  // Encoding/decoding support for fixup flags.
-  class FixupFlagsUseCodeObject: public BitField<bool, 0, 1> {};
-  class FixupFlagsArgumentsCount: public BitField<uint32_t, 1, 32-1> {};
-
   // Support for thread preemption.
   static int ArchiveSpacePerThread();
   static char* ArchiveState(char* to);

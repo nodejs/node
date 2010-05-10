@@ -181,15 +181,15 @@ void DebuggerAgentSession::Run() {
       buf.GetNext();
       len++;
     }
-    int16_t* temp = NewArray<int16_t>(len + 1);
+    ScopedVector<int16_t> temp(len + 1);
     buf.Reset(*message, StrLength(*message));
     for (int i = 0; i < len; i++) {
       temp[i] = buf.GetNext();
     }
 
     // Send the request received to the debugger.
-    v8::Debug::SendCommand(reinterpret_cast<const uint16_t *>(temp), len);
-    DeleteArray(temp);
+    v8::Debug::SendCommand(reinterpret_cast<const uint16_t *>(temp.start()),
+                           len);
   }
 }
 

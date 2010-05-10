@@ -239,6 +239,9 @@ class LoadIC: public IC {
   static void GenerateStringLength(MacroAssembler* masm);
   static void GenerateFunctionPrototype(MacroAssembler* masm);
 
+  // Clear the use of the inlined version.
+  static void ClearInlinedVersion(Address address);
+
   // The offset from the inlined patch site to the start of the
   // inlined load instruction.  It is architecture-dependent, and not
   // used on ARM.
@@ -264,9 +267,6 @@ class LoadIC: public IC {
   }
 
   static void Clear(Address address, Code* target);
-
-  // Clear the use of the inlined version.
-  static void ClearInlinedVersion(Address address);
 
   static bool PatchInlinedLoad(Address address, Object* map, int index);
 

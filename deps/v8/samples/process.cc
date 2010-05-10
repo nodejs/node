@@ -294,7 +294,7 @@ Handle<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
 
   // Fetch the template for creating JavaScript map wrappers.
   // It only has to be created once, which we do on demand.
-  if (request_template_.IsEmpty()) {
+  if (map_template_.IsEmpty()) {
     Handle<ObjectTemplate> raw_template = MakeMapTemplate();
     map_template_ = Persistent<ObjectTemplate>::New(raw_template);
   }

@@ -670,16 +670,6 @@ ExternalReference ExternalReference::scheduled_exception_address() {
 }
 
 
-ExternalReference ExternalReference::compile_array_pop_call() {
-  return ExternalReference(FUNCTION_ADDR(CompileArrayPopCall));
-}
-
-
-ExternalReference ExternalReference::compile_array_push_call() {
-  return ExternalReference(FUNCTION_ADDR(CompileArrayPushCall));
-}
-
-
 #ifndef V8_INTERPRETED_REGEXP
 
 ExternalReference ExternalReference::re_check_stack_guard_state() {

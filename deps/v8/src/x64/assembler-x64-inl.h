@@ -34,7 +34,7 @@
 namespace v8 {
 namespace internal {
 
-Condition NegateCondition(Condition cc) {
+inline Condition NegateCondition(Condition cc) {
   return static_cast<Condition>(cc ^ 1);
 }
 

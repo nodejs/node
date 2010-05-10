@@ -265,7 +265,10 @@ class Top {
   static void PrintStackTrace(FILE* out, char* thread_data);
   static void PrintStack(StringStream* accumulator);
   static void PrintStack();
-  static Handle<String> StackTrace();
+  static Handle<String> StackTraceString();
+  static Local<StackTrace> CaptureCurrentStackTrace(
+      int frame_limit,
+      StackTrace::StackTraceOptions options);
 
   // Returns if the top context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be

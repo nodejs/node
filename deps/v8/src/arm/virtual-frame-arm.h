@@ -316,8 +316,8 @@ class VirtualFrame : public ZoneObject {
   // Result is returned in r0.
   void CallStoreIC(Handle<String> name, bool is_contextual);
 
-  // Call keyed load IC. Key and receiver are on the stack. Result is returned
-  // in r0.
+  // Call keyed load IC. Key and receiver are on the stack. Both are consumed.
+  // Result is returned in r0.
   void CallKeyedLoadIC();
 
   // Call keyed store IC. Key and receiver are on the stack and the value is in
@@ -354,6 +354,9 @@ class VirtualFrame : public ZoneObject {
 
   // Duplicate the top of stack.
   void Dup();
+
+  // Duplicate the two elements on top of stack.
+  void Dup2();
 
   // Flushes all registers, but it puts a copy of the top-of-stack in r0.
   void SpillAllButCopyTOSToR0();

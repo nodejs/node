@@ -48,7 +48,7 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 // A reference is a C++ stack-allocated object that puts a
 // reference on the virtual frame.  The reference may be consumed
-// by GetValue, TakeValue, SetValue, and Codegen::UnloadReference.
+// by GetValue, TakeValue and SetValue.
 // When the lifetime (scope) of a valid reference ends, it must have
 // been consumed, and be in state UNLOADED.
 class Reference BASE_EMBEDDED {
@@ -414,7 +414,6 @@ class CodeGenerator: public AstVisitor {
 
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
-  void UnloadReference(Reference* ref);
 
   static Operand ContextOperand(Register context, int index) {
     return Operand(context, Context::SlotOffset(index));

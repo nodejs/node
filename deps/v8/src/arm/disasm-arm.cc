@@ -418,6 +418,12 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
         ASSERT(STRING_STARTS_WITH(format, "memop"));
         if (instr->HasL()) {
           Print("ldr");
+        } else if ((instr->Bits(27, 25) == 0) && (instr->Bit(20) == 0)) {
+          if (instr->Bits(7, 4) == 0xf) {
+            Print("strd");
+          } else {
+            Print("ldrd");
+          }
         } else {
           Print("str");
         }
@@ -613,6 +619,47 @@ void Decoder::DecodeType01(Instr* instr) {
         }
       } else {
         Unknown(instr);  // not used by V8
+      }
+    } else if ((instr->Bit(20) == 0) && ((instr->Bits(7, 4) & 0xd) == 0xd)) {
+      // ldrd, strd
+      switch (instr->PUField()) {
+        case 0: {
+          if (instr->Bit(22) == 0) {
+            Format(instr, "'memop'cond's 'rd, ['rn], -'rm");
+          } else {
+            Format(instr, "'memop'cond's 'rd, ['rn], #-'off8");
+          }
+          break;
+        }
+        case 1: {
+          if (instr->Bit(22) == 0) {
+            Format(instr, "'memop'cond's 'rd, ['rn], +'rm");
+          } else {
+            Format(instr, "'memop'cond's 'rd, ['rn], #+'off8");
+          }
+          break;
+        }
+        case 2: {
+          if (instr->Bit(22) == 0) {
+            Format(instr, "'memop'cond's 'rd, ['rn, -'rm]'w");
+          } else {
+            Format(instr, "'memop'cond's 'rd, ['rn, #-'off8]'w");
+          }
+          break;
+        }
+        case 3: {
+          if (instr->Bit(22) == 0) {
+            Format(instr, "'memop'cond's 'rd, ['rn, +'rm]'w");
+          } else {
+            Format(instr, "'memop'cond's 'rd, ['rn, #+'off8]'w");
+          }
+          break;
+        }
+        default: {
+          // The PU field is a 2-bit field.
+          UNREACHABLE();
+          break;
+        }
       }
     } else {
       // extra load/store instructions

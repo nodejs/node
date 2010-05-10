@@ -674,6 +674,8 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   Top::MarkCompactPrologue(is_compacting);
   ThreadManager::MarkCompactPrologue(is_compacting);
 
+  CompletelyClearInstanceofCache();
+
   if (is_compacting) FlushNumberStringCache();
 }
 
@@ -1684,6 +1686,10 @@ bool Heap::CreateInitialObjects() {
   obj = NumberDictionary::Allocate(64);
   if (obj->IsFailure()) return false;
   set_non_monomorphic_cache(NumberDictionary::cast(obj));
+
+  set_instanceof_cache_function(Smi::FromInt(0));
+  set_instanceof_cache_map(Smi::FromInt(0));
+  set_instanceof_cache_answer(Smi::FromInt(0));
 
   CreateFixedStubs();
 

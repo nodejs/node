@@ -159,6 +159,7 @@ class Simulator {
   // instruction.
   void set_register(int reg, int32_t value);
   int32_t get_register(int reg) const;
+  void set_dw_register(int dreg, const int* dbl);
 
   // Support for VFP.
   void set_s_register(int reg, unsigned int value);
@@ -251,6 +252,9 @@ class Simulator {
 
   inline int ReadW(int32_t addr, Instr* instr);
   inline void WriteW(int32_t addr, int value, Instr* instr);
+
+  int32_t* ReadDW(int32_t addr);
+  void WriteDW(int32_t addr, int32_t value1, int32_t value2);
 
   // Executing is handled based on the instruction type.
   void DecodeType01(Instr* instr);  // both type 0 and type 1 rolled into one

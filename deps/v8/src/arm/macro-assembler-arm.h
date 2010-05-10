@@ -52,6 +52,21 @@ enum InvokeJSFlags {
 };
 
 
+// Flags used for the AllocateInNewSpace functions.
+enum AllocationFlags {
+  // No special flags.
+  NO_ALLOCATION_FLAGS = 0,
+  // Return the pointer to the allocated already tagged as a heap object.
+  TAG_OBJECT = 1 << 0,
+  // The content of the result register already contains the allocation top in
+  // new space.
+  RESULT_CONTAINS_TOP = 1 << 1,
+  // Specify that the requested size of the space to allocate is specified in
+  // words instead of bytes.
+  SIZE_IN_WORDS = 1 << 2
+};
+
+
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
  public:
@@ -85,6 +100,10 @@ class MacroAssembler: public Assembler {
   void LoadRoot(Register destination,
                 Heap::RootListIndex index,
                 Condition cond = al);
+  // Store an object to the root table.
+  void StoreRoot(Register source,
+                 Heap::RootListIndex index,
+                 Condition cond = al);
 
 
   // Check if object is in new space.
@@ -280,7 +299,9 @@ class MacroAssembler: public Assembler {
   // Allocate an object in new space. The object_size is specified in words (not
   // bytes). If the new space is exhausted control continues at the gc_required
   // label. The allocated object is returned in result. If the flag
-  // tag_allocated_object is true the result is tagged as as a heap object.
+  // tag_allocated_object is true the result is tagged as as a heap object. All
+  // registers are clobbered also when control continues at the gc_required
+  // label.
   void AllocateInNewSpace(int object_size,
                           Register result,
                           Register scratch1,
@@ -324,8 +345,9 @@ class MacroAssembler: public Assembler {
                                Register scratch2,
                                Label* gc_required);
 
-  // Allocates a heap number or jumps to the need_gc label if the young space
-  // is full and a scavenge is needed.
+  // Allocates a heap number or jumps to the gc_required label if the young
+  // space is full and a scavenge is needed. All registers are clobbered also
+  // when control continues at the gc_required label.
   void AllocateHeapNumber(Register result,
                           Register scratch1,
                           Register scratch2,

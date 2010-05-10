@@ -31,8 +31,8 @@
 #include "v8.h"
 
 #include "conversions-inl.h"
+#include "dtoa.h"
 #include "factory.h"
-#include "fast-dtoa.h"
 #include "scanner.h"
 
 namespace v8 {
@@ -766,15 +766,16 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
     default: {
       int decimal_point;
       int sign;
-
       char* decimal_rep;
       bool used_gay_dtoa = false;
-      const int kFastDtoaBufferCapacity = kFastDtoaMaximalLength + 1;
-      char fast_dtoa_buffer[kFastDtoaBufferCapacity];
+      const int kV8DtoaBufferCapacity = kBase10MaximalLength + 1;
+      char v8_dtoa_buffer[kV8DtoaBufferCapacity];
       int length;
-      if (FastDtoa(v, Vector<char>(fast_dtoa_buffer, kFastDtoaBufferCapacity),
-                   &sign, &length, &decimal_point)) {
-        decimal_rep = fast_dtoa_buffer;
+
+      if (DoubleToAscii(v, DTOA_SHORTEST, 0,
+                        Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
+                        &sign, &length, &decimal_point)) {
+        decimal_rep = v8_dtoa_buffer;
       } else {
         decimal_rep = dtoa(v, 0, 0, &decimal_point, &sign, NULL);
         used_gay_dtoa = true;
@@ -842,7 +843,11 @@ const char* IntToCString(int n, Vector<char> buffer) {
 
 
 char* DoubleToFixedCString(double value, int f) {
+  const int kMaxDigitsBeforePoint = 20;
+  const double kFirstNonFixed = 1e21;
+  const int kMaxDigitsAfterPoint = 20;
   ASSERT(f >= 0);
+  ASSERT(f <= kMaxDigitsAfterPoint);
 
   bool negative = false;
   double abs_value = value;
@@ -851,7 +856,9 @@ char* DoubleToFixedCString(double value, int f) {
     negative = true;
   }
 
-  if (abs_value >= 1e21) {
+  // If abs_value has more than kMaxDigitsBeforePoint digits before the point
+  // use the non-fixed conversion routine.
+  if (abs_value >= kFirstNonFixed) {
     char arr[100];
     Vector<char> buffer(arr, ARRAY_SIZE(arr));
     return StrDup(DoubleToCString(value, buffer));
@@ -860,8 +867,16 @@ char* DoubleToFixedCString(double value, int f) {
   // Find a sufficiently precise decimal representation of n.
   int decimal_point;
   int sign;
-  char* decimal_rep = dtoa(abs_value, 3, f, &decimal_point, &sign, NULL);
-  int decimal_rep_length = StrLength(decimal_rep);
+  // Add space for the '.' and the '\0' byte.
+  const int kDecimalRepCapacity =
+      kMaxDigitsBeforePoint + kMaxDigitsAfterPoint + 2;
+  char decimal_rep[kDecimalRepCapacity];
+  int decimal_rep_length;
+  bool status = DoubleToAscii(value, DTOA_FIXED, f,
+                              Vector<char>(decimal_rep, kDecimalRepCapacity),
+                              &sign, &decimal_rep_length, &decimal_point);
+  USE(status);
+  ASSERT(status);
 
   // Create a representation that is padded with zeros if needed.
   int zero_prefix_length = 0;
@@ -884,7 +899,6 @@ char* DoubleToFixedCString(double value, int f) {
   rep_builder.AddString(decimal_rep);
   rep_builder.AddPadding('0', zero_postfix_length);
   char* rep = rep_builder.Finalize();
-  freedtoa(decimal_rep);
 
   // Create the result string by appending a minus and putting in a
   // decimal point if needed.

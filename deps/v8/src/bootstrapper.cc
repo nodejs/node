@@ -37,6 +37,7 @@
 #include "macro-assembler.h"
 #include "natives.h"
 #include "snapshot.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -228,6 +229,7 @@ class Genesis BASE_EMBEDDED {
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
   bool InstallNatives();
+  void InstallCustomCallGenerators();
   void InstallJSFunctionResultCaches();
   // Used both for deserialized and from-scratch contexts to add the extensions
   // provided.
@@ -1229,6 +1231,8 @@ bool Genesis::InstallNatives() {
 
   InstallNativeFunctions();
 
+  InstallCustomCallGenerators();
+
   // Install Function.prototype.call and apply.
   { Handle<String> key = Factory::function_class_symbol();
     Handle<JSFunction> function =
@@ -1323,6 +1327,29 @@ bool Genesis::InstallNatives() {
 #endif
 
   return true;
+}
+
+
+static void InstallCustomCallGenerator(Handle<JSFunction> holder_function,
+                                       const char* function_name,
+                                       int id) {
+  Handle<JSObject> proto(JSObject::cast(holder_function->instance_prototype()));
+  Handle<String> name = Factory::LookupAsciiSymbol(function_name);
+  Handle<JSFunction> function(JSFunction::cast(proto->GetProperty(*name)));
+  function->shared()->set_function_data(Smi::FromInt(id));
+}
+
+
+void Genesis::InstallCustomCallGenerators() {
+  HandleScope scope;
+#define INSTALL_CALL_GENERATOR(holder_fun, fun_name, name)                \
+  {                                                                       \
+    Handle<JSFunction> holder(global_context()->holder_fun##_function()); \
+    const int id = CallStubCompiler::k##name##CallGenerator;              \
+    InstallCustomCallGenerator(holder, #fun_name, id);                    \
+  }
+  CUSTOM_CALL_IC_GENERATORS(INSTALL_CALL_GENERATOR)
+#undef INSTALL_CALL_GENERATOR
 }
 
 

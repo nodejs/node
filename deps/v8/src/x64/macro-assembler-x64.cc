@@ -50,6 +50,11 @@ void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
 }
 
 
+void MacroAssembler::StoreRoot(Register source, Heap::RootListIndex index) {
+  movq(Operand(kRootRegister, index << kPointerSizeLog2), source);
+}
+
+
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
   push(Operand(kRootRegister, index << kPointerSizeLog2));
 }
@@ -1227,8 +1232,7 @@ void MacroAssembler::SmiShiftLogicalRightConstant(Register dst,
 
 void MacroAssembler::SmiShiftLeftConstant(Register dst,
                                           Register src,
-                                          int shift_value,
-                                          Label* on_not_smi_result) {
+                                          int shift_value) {
   if (!dst.is(src)) {
     movq(dst, src);
   }
@@ -1240,8 +1244,7 @@ void MacroAssembler::SmiShiftLeftConstant(Register dst,
 
 void MacroAssembler::SmiShiftLeft(Register dst,
                                   Register src1,
-                                  Register src2,
-                                  Label* on_not_smi_result) {
+                                  Register src2) {
   ASSERT(!dst.is(rcx));
   Label result_ok;
   // Untag shift amount.

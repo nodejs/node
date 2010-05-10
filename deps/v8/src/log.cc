@@ -1313,9 +1313,8 @@ void Logger::LogCodeObjects() {
 void Logger::LogCompiledFunctions() {
   HandleScope scope;
   const int compiled_funcs_count = EnumerateCompiledFunctions(NULL);
-  Handle<SharedFunctionInfo>* sfis =
-      NewArray< Handle<SharedFunctionInfo> >(compiled_funcs_count);
-  EnumerateCompiledFunctions(sfis);
+  ScopedVector< Handle<SharedFunctionInfo> > sfis(compiled_funcs_count);
+  EnumerateCompiledFunctions(sfis.start());
 
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
@@ -1360,8 +1359,6 @@ void Logger::LogCompiledFunctions() {
           Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
     }
   }
-
-  DeleteArray(sfis);
 }
 
 

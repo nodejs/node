@@ -46,6 +46,12 @@ namespace internal {
 #elif defined(__ARMEL__)
 #define V8_HOST_ARCH_ARM 1
 #define V8_HOST_ARCH_32_BIT 1
+// Some CPU-OS combinations allow unaligned access on ARM. We assume
+// that unaligned accesses are not allowed unless the build system
+// defines the CAN_USE_UNALIGNED_ACCESSES macro to be non-zero.
+#if CAN_USE_UNALIGNED_ACCESSES
+#define V8_HOST_CAN_READ_UNALIGNED 1
+#endif
 #elif defined(_MIPS_ARCH_MIPS32R2)
 #define V8_HOST_ARCH_MIPS 1
 #define V8_HOST_ARCH_32_BIT 1
@@ -73,6 +79,12 @@ namespace internal {
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
 #define V8_TARGET_CAN_READ_UNALIGNED 1
 #elif V8_TARGET_ARCH_ARM
+// Some CPU-OS combinations allow unaligned access on ARM. We assume
+// that unaligned accesses are not allowed unless the build system
+// defines the CAN_USE_UNALIGNED_ACCESSES macro to be non-zero.
+#if CAN_USE_UNALIGNED_ACCESSES
+#define V8_TARGET_CAN_READ_UNALIGNED 1
+#endif
 #elif V8_TARGET_ARCH_MIPS
 #else
 #error Target architecture is not supported by v8

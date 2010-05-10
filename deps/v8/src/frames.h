@@ -357,6 +357,7 @@ class StandardFrame: public StackFrame {
 
  private:
   friend class StackFrame;
+  friend class StackFrameIterator;
 };
 
 

@@ -360,7 +360,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
       frame_->AllocateStackSlots();
 
       // Allocate the local context if needed.
-      int heap_slots = scope()->num_heap_slots();
+      int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
       if (heap_slots > 0) {
         Comment cmnt(masm_, "[ allocate local context");
         // Allocate local context.
@@ -2866,9 +2866,63 @@ void CodeGenerator::VisitCall(Call* node) {
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
     // ----------------------------------
-    // JavaScript example: 'with (obj) foo(1, 2, 3)'  // foo is in obj
+    // JavaScript examples:
+    //
+    //  with (obj) foo(1, 2, 3)  // foo is in obj
+    //
+    //  function f() {};
+    //  function g() {
+    //    eval(...);
+    //    f();  // f could be in extension object
+    //  }
     // ----------------------------------
 
+    JumpTarget slow;
+    JumpTarget done;
+
+    // Generate fast-case code for variables that might be shadowed by
+    // eval-introduced variables.  Eval is used a lot without
+    // introducing variables.  In those cases, we do not want to
+    // perform a runtime call for all variables in the scope
+    // containing the eval.
+    Result function;
+    if (var->mode() == Variable::DYNAMIC_GLOBAL) {
+      function = LoadFromGlobalSlotCheckExtensions(var->slot(),
+                                                   NOT_INSIDE_TYPEOF,
+                                                   &slow);
+      frame_->Push(&function);
+      LoadGlobalReceiver();
+      done.Jump();
+
+    } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
+      Slot* potential_slot = var->local_if_not_shadowed()->slot();
+      // Only generate the fast case for locals that rewrite to slots.
+      // This rules out argument loads because eval forces arguments
+      // access to be through the arguments object.
+      if (potential_slot != NULL) {
+        // Allocate a fresh register to use as a temp in
+        // ContextSlotOperandCheckExtensions and to hold the result
+        // value.
+        function = allocator()->Allocate();
+        ASSERT(function.is_valid());
+        __ movq(function.reg(),
+                ContextSlotOperandCheckExtensions(potential_slot,
+                                                  function,
+                                                  &slow));
+        JumpTarget push_function_and_receiver;
+        if (potential_slot->var()->mode() == Variable::CONST) {
+          __ CompareRoot(function.reg(), Heap::kTheHoleValueRootIndex);
+          push_function_and_receiver.Branch(not_equal, &function);
+          __ LoadRoot(function.reg(), Heap::kUndefinedValueRootIndex);
+        }
+        push_function_and_receiver.Bind(&function);
+        frame_->Push(&function);
+        LoadGlobalReceiver();
+        done.Jump();
+      }
+    }
+
+    slow.Bind();
     // Load the function from the context.  Sync the frame so we can
     // push the arguments directly into place.
     frame_->SyncRange(0, frame_->element_count() - 1);
@@ -2887,6 +2941,7 @@ void CodeGenerator::VisitCall(Call* node) {
     ASSERT(!allocator()->is_used(rdx));
     frame_->EmitPush(rdx);
 
+    done.Bind();
     // Call the function.
     CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
 
@@ -4392,7 +4447,7 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
     __ Move(FieldOperand(rcx, HeapObject::kMapOffset),
             Factory::fixed_array_map());
     // Set length.
-    __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rbx);
+    __ movl(FieldOperand(rcx, FixedArray::kLengthOffset), rbx);
     // Fill contents of fixed-array with the-hole.
     __ Move(rdx, Factory::the_hole_value());
     __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
@@ -4421,22 +4476,142 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
 
 class DeferredSearchCache: public DeferredCode {
  public:
-  DeferredSearchCache(Register dst, Register cache, Register key)
-      : dst_(dst), cache_(cache), key_(key) {
+  DeferredSearchCache(Register dst,
+                      Register cache,
+                      Register key,
+                      Register scratch)
+      : dst_(dst), cache_(cache), key_(key), scratch_(scratch) {
     set_comment("[ DeferredSearchCache");
   }
 
   virtual void Generate();
 
  private:
-  Register dst_, cache_, key_;
+  Register dst_;    // on invocation index of finger (as Smi), on exit
+                    // holds value being looked up.
+  Register cache_;  // instance of JSFunctionResultCache.
+  Register key_;    // key being looked up.
+  Register scratch_;
 };
 
 
+// Return a position of the element at |index| + |additional_offset|
+// in FixedArray pointer to which is held in |array|.  |index| is int32.
+static Operand ArrayElement(Register array,
+                            Register index,
+                            int additional_offset = 0) {
+  int offset = FixedArray::kHeaderSize + additional_offset * kPointerSize;
+  return FieldOperand(array, index, times_pointer_size, offset);
+}
+
+
 void DeferredSearchCache::Generate() {
-  __ push(cache_);
+  Label first_loop, search_further, second_loop, cache_miss;
+
+  Immediate kEntriesIndexImm = Immediate(JSFunctionResultCache::kEntriesIndex);
+  Immediate kEntrySizeImm = Immediate(JSFunctionResultCache::kEntrySize);
+
+  __ SmiToInteger32(dst_, dst_);
+  // Check the cache from finger to start of the cache.
+  __ bind(&first_loop);
+  __ subq(dst_, kEntrySizeImm);
+  __ cmpq(dst_, kEntriesIndexImm);
+  __ j(less, &search_further);
+
+  __ cmpq(ArrayElement(cache_, dst_), key_);
+  __ j(not_equal, &first_loop);
+
+  __ Integer32ToSmi(scratch_, dst_);
+  __ movq(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), scratch_);
+  __ movq(dst_, ArrayElement(cache_, dst_, 1));
+  __ jmp(exit_label());
+
+  __ bind(&search_further);
+
+  // Check the cache from end of cache up to finger.
+  __ movq(dst_, FieldOperand(cache_, JSFunctionResultCache::kCacheSizeOffset));
+  __ movq(scratch_, FieldOperand(cache_, JSFunctionResultCache::kFingerOffset));
+  __ SmiToInteger32(dst_, dst_);
+  __ SmiToInteger32(scratch_, scratch_);
+
+  __ bind(&second_loop);
+  __ subq(dst_, kEntrySizeImm);
+  __ cmpq(dst_, scratch_);
+  __ j(less_equal, &cache_miss);
+
+  __ cmpq(ArrayElement(cache_, dst_), key_);
+  __ j(not_equal, &second_loop);
+
+  __ Integer32ToSmi(scratch_, dst_);
+  __ movq(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), scratch_);
+  __ movq(dst_, ArrayElement(cache_, dst_, 1));
+  __ jmp(exit_label());
+
+  __ bind(&cache_miss);
+  __ push(cache_);  // store a reference to cache
+  __ push(key_);  // store a key
+  Handle<Object> receiver(Top::global_context()->global());
+  __ Push(receiver);
   __ push(key_);
-  __ CallRuntime(Runtime::kGetFromCache, 2);
+  // On x64 function must be in rdi.
+  __ movq(rdi, FieldOperand(cache_, JSFunctionResultCache::kFactoryOffset));
+  ParameterCount expected(1);
+  __ InvokeFunction(rdi, expected, CALL_FUNCTION);
+
+  // Find a place to put new cached value into.
+  Label add_new_entry, update_cache;
+  __ movq(rcx, Operand(rsp, kPointerSize));  // restore the cache
+  // Possible optimization: cache size is constant for the given cache
+  // so technically we could use a constant here.  However, if we have
+  // cache miss this optimization would hardly matter much.
+
+  // Check if we could add new entry to cache.
+  __ movl(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
+  __ movq(r9, FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset));
+  __ SmiToInteger32(r9, r9);
+  __ cmpq(rbx, r9);
+  __ j(greater, &add_new_entry);
+
+  // Check if we could evict entry after finger.
+  __ movq(rdx, FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
+  __ SmiToInteger32(rdx, rdx);
+  __ addq(rdx, kEntrySizeImm);
+  Label forward;
+  __ cmpq(rbx, rdx);
+  __ j(greater, &forward);
+  // Need to wrap over the cache.
+  __ movq(rdx, kEntriesIndexImm);
+  __ bind(&forward);
+  __ Integer32ToSmi(r9, rdx);
+  __ jmp(&update_cache);
+
+  __ bind(&add_new_entry);
+  // r9 holds cache size as int.
+  __ movq(rdx, r9);
+  __ Integer32ToSmi(r9, r9);
+  __ SmiAddConstant(rbx, r9, Smi::FromInt(JSFunctionResultCache::kEntrySize));
+  __ movq(FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset), rbx);
+
+  // Update the cache itself.
+  // rdx holds the index as int.
+  // r9 holds the index as smi.
+  __ bind(&update_cache);
+  __ pop(rbx);  // restore the key
+  __ movq(FieldOperand(rcx, JSFunctionResultCache::kFingerOffset), r9);
+  // Store key.
+  __ movq(ArrayElement(rcx, rdx), rbx);
+  __ RecordWrite(rcx, 0, rbx, r9);
+
+  // Store value.
+  __ pop(rcx);  // restore the cache.
+  __ movq(rdx, FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
+  __ SmiAddConstant(rdx, rdx, Smi::FromInt(1));
+  __ movq(r9, rdx);
+  __ SmiToInteger32(rdx, rdx);
+  __ movq(rbx, rax);
+  __ movq(ArrayElement(rcx, rdx), rbx);
+  __ RecordWrite(rcx, 0, rbx, r9);
+
   if (!dst_.is(rax)) {
     __ movq(dst_, rax);
   }
@@ -4474,27 +4649,28 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
   Result tmp = allocator()->Allocate();
   ASSERT(tmp.is_valid());
 
+  Result scratch = allocator()->Allocate();
+  ASSERT(scratch.is_valid());
+
   DeferredSearchCache* deferred = new DeferredSearchCache(tmp.reg(),
                                                           cache.reg(),
-                                                          key.reg());
+                                                          key.reg(),
+                                                          scratch.reg());
 
   const int kFingerOffset =
       FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
   // tmp.reg() now holds finger offset as a smi.
-  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ movq(tmp.reg(), FieldOperand(cache.reg(), kFingerOffset));
   SmiIndex index =
       masm()->SmiToIndex(kScratchRegister, tmp.reg(), kPointerSizeLog2);
   __ cmpq(key.reg(), FieldOperand(cache.reg(),
-                                  index.reg,
-                                  index.scale,
+                                  index.reg, index.scale,
                                   FixedArray::kHeaderSize));
+  // Do NOT alter index.reg or tmp.reg() before cmpq below.
   deferred->Branch(not_equal);
-
   __ movq(tmp.reg(), FieldOperand(cache.reg(),
-                                  index.reg,
-                                  index.scale,
-                                  kPointerSize + FixedArray::kHeaderSize));
+                                  index.reg, index.scale,
+                                  FixedArray::kHeaderSize + kPointerSize));
 
   deferred->BindExit();
   frame_->Push(&tmp);
@@ -5178,7 +5354,8 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
       Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
       // Only generate the fast case for locals that rewrite to slots.
-      // This rules out argument loads.
+      // This rules out argument loads because eval forces arguments
+      // access to be through the arguments object.
       if (potential_slot != NULL) {
         // Allocate a fresh register to use as a temp in
         // ContextSlotOperandCheckExtensions and to hold the result
@@ -5683,48 +5860,55 @@ void CodeGenerator::Comparison(AstNode* node,
       // by reconstituting them on the non-fall-through path.
       JumpTarget is_smi;
 
-      Condition left_is_smi = masm_->CheckSmi(left_side.reg());
-      is_smi.Branch(left_is_smi);
-
-      bool is_loop_condition = (node->AsExpression() != NULL) &&
-          node->AsExpression()->is_loop_condition();
-      if (!is_loop_condition && right_val->IsSmi()) {
-        // Right side is a constant smi and left side has been checked
-        // not to be a smi.
-        JumpTarget not_number;
-        __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
-               Factory::heap_number_map());
-        not_number.Branch(not_equal, &left_side);
-        __ movsd(xmm1,
-                 FieldOperand(left_reg, HeapNumber::kValueOffset));
-        int value = Smi::cast(*right_val)->value();
-        if (value == 0) {
-          __ xorpd(xmm0, xmm0);
-        } else {
-          Result temp = allocator()->Allocate();
-          __ movl(temp.reg(), Immediate(value));
-          __ cvtlsi2sd(xmm0, temp.reg());
-          temp.Unuse();
+      if (left_side.is_smi()) {
+        if (FLAG_debug_code) {
+          __ AbortIfNotSmi(left_side.reg(), "Non-smi value inferred as smi.");
         }
-        __ ucomisd(xmm1, xmm0);
-        // Jump to builtin for NaN.
-        not_number.Branch(parity_even, &left_side);
-        left_side.Unuse();
-        dest->true_target()->Branch(DoubleCondition(cc));
+      } else {
+        Condition left_is_smi = masm_->CheckSmi(left_side.reg());
+        is_smi.Branch(left_is_smi);
+
+        bool is_loop_condition = (node->AsExpression() != NULL) &&
+            node->AsExpression()->is_loop_condition();
+        if (!is_loop_condition && right_val->IsSmi()) {
+          // Right side is a constant smi and left side has been checked
+          // not to be a smi.
+          JumpTarget not_number;
+          __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
+                 Factory::heap_number_map());
+          not_number.Branch(not_equal, &left_side);
+          __ movsd(xmm1,
+              FieldOperand(left_reg, HeapNumber::kValueOffset));
+          int value = Smi::cast(*right_val)->value();
+          if (value == 0) {
+            __ xorpd(xmm0, xmm0);
+          } else {
+            Result temp = allocator()->Allocate();
+            __ movl(temp.reg(), Immediate(value));
+            __ cvtlsi2sd(xmm0, temp.reg());
+            temp.Unuse();
+          }
+          __ ucomisd(xmm1, xmm0);
+          // Jump to builtin for NaN.
+          not_number.Branch(parity_even, &left_side);
+          left_side.Unuse();
+          dest->true_target()->Branch(DoubleCondition(cc));
+          dest->false_target()->Jump();
+          not_number.Bind(&left_side);
+        }
+
+        // Setup and call the compare stub.
+        CompareStub stub(cc, strict, kCantBothBeNaN);
+        Result result = frame_->CallStub(&stub, &left_side, &right_side);
+        result.ToRegister();
+        __ testq(result.reg(), result.reg());
+        result.Unuse();
+        dest->true_target()->Branch(cc);
         dest->false_target()->Jump();
-        not_number.Bind(&left_side);
+
+        is_smi.Bind();
       }
 
-      // Setup and call the compare stub.
-      CompareStub stub(cc, strict, kCantBothBeNaN);
-      Result result = frame_->CallStub(&stub, &left_side, &right_side);
-      result.ToRegister();
-      __ testq(result.reg(), result.reg());
-      result.Unuse();
-      dest->true_target()->Branch(cc);
-      dest->false_target()->Jump();
-
-      is_smi.Bind();
       left_side = Result(left_reg);
       right_side = Result(right_val);
       // Test smi equality and comparison by signed int comparison.
@@ -5896,7 +6080,7 @@ void CodeGenerator::Comparison(AstNode* node,
         // If the first character is the same then the long string sorts after
         // the short one.
         __ SmiCompare(FieldOperand(left_side.reg(), String::kLengthOffset),
-               Smi::FromInt(1));
+                      Smi::FromInt(1));
         __ bind(&characters_were_different);
       }
       temp2.Unuse();
@@ -6404,10 +6588,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                                  Handle<Object> value,
                                                  bool reversed,
                                                  OverwriteMode overwrite_mode) {
-  // NOTE: This is an attempt to inline (a bit) more of the code for
-  // some possible smi operations (like + and -) when (at least) one
-  // of the operands is a constant smi.
-  // Consumes the argument "operand".
+  // Generate inline code for a binary operation when one of the
+  // operands is a constant smi.  Consumes the argument "operand".
   if (IsUnsafeSmi(value)) {
     Result unsafe_operand(value);
     if (reversed) {
@@ -6528,43 +6710,37 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
 
     case Token::SHL:
       if (reversed) {
-        // Move operand into rcx and also into a second register.
-        // If operand is already in a register, take advantage of that.
-        // This lets us modify rcx, but still bail out to deferred code.
-        Result right;
-        Result right_copy_in_rcx;
-        TypeInfo right_type_info = operand->type_info();
         operand->ToRegister();
-        if (operand->reg().is(rcx)) {
-          right = allocator()->Allocate();
-          __ movq(right.reg(), rcx);
-          frame_->Spill(rcx);
-          right_copy_in_rcx = *operand;
-        } else {
-          right_copy_in_rcx = allocator()->Allocate(rcx);
-          __ movq(rcx, operand->reg());
-          right = *operand;
-        }
-        operand->Unuse();
 
-        answer = allocator()->Allocate();
+        // We need rcx to be available to hold operand, and to be spilled.
+        // SmiShiftLeft implicitly modifies rcx.
+        if (operand->reg().is(rcx)) {
+          frame_->Spill(operand->reg());
+          answer = allocator()->Allocate();
+        } else {
+          Result rcx_reg = allocator()->Allocate(rcx);
+          // answer must not be rcx.
+          answer = allocator()->Allocate();
+          // rcx_reg goes out of scope.
+        }
+
         DeferredInlineSmiOperationReversed* deferred =
             new DeferredInlineSmiOperationReversed(op,
                                                    answer.reg(),
                                                    smi_value,
-                                                   right.reg(),
+                                                   operand->reg(),
                                                    overwrite_mode);
-        __ movq(answer.reg(), Immediate(int_value));
-        __ SmiToInteger32(rcx, rcx);
-        if (!right_type_info.IsSmi()) {
-          Condition is_smi = masm_->CheckSmi(right.reg());
+        if (!operand->type_info().IsSmi()) {
+          Condition is_smi = masm_->CheckSmi(operand->reg());
           deferred->Branch(NegateCondition(is_smi));
         } else if (FLAG_debug_code) {
-          __ AbortIfNotSmi(right.reg(),
+          __ AbortIfNotSmi(operand->reg(),
               "Static type info claims non-smi is smi in (const SHL smi).");
         }
-        __ shl_cl(answer.reg());
-        __ Integer32ToSmi(answer.reg(), answer.reg());
+
+        __ Move(answer.reg(), smi_value);
+        __ SmiShiftLeft(answer.reg(), answer.reg(), operand->reg());
+        operand->Unuse();
 
         deferred->BindExit();
       } else {
@@ -6597,8 +6773,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
           __ JumpIfNotSmi(operand->reg(), deferred->entry_label());
           __ SmiShiftLeftConstant(answer.reg(),
                                   operand->reg(),
-                                  shift_value,
-                                  deferred->entry_label());
+                                  shift_value);
           deferred->BindExit();
           operand->Unuse();
         }
@@ -6685,10 +6860,19 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
   return answer;
 }
 
+
+// Implements a binary operation using a deferred code object and some
+// inline code to operate on smis quickly.
 Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                                Result* left,
                                                Result* right,
                                                OverwriteMode overwrite_mode) {
+  // Copy the type info because left and right may be overwritten.
+  TypeInfo left_type_info = left->type_info();
+  TypeInfo right_type_info = right->type_info();
+  USE(left_type_info);
+  USE(right_type_info);
+  // TODO(X64): Use type information in calculations.
   Token::Value op = expr->op();
   Result answer;
   // Special handling of div and mod because they use fixed registers.
@@ -6813,9 +6997,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           left->reg(),
                                           rcx,
                                           overwrite_mode);
-    __ movq(answer.reg(), left->reg());
-    __ or_(answer.reg(), rcx);
-    __ JumpIfNotSmi(answer.reg(), deferred->entry_label());
+    __ JumpIfNotBothSmi(left->reg(), rcx, deferred->entry_label());
 
     // Perform the operation.
     switch (op) {
@@ -6832,8 +7014,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
       case Token::SHL: {
         __ SmiShiftLeft(answer.reg(),
                         left->reg(),
-                        rcx,
-                        deferred->entry_label());
+                        rcx);
         break;
       }
       default:
@@ -8795,6 +8976,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   //   rsp[0] : return address
   //   rsp[1] : function pointer
   //   rsp[2] : value
+  // Returns a bitwise zero to indicate that the value
+  // is and instance of the function and anything else to
+  // indicate that the value is not an instance.
 
   // Get the object - go slow case if it's a smi.
   Label slow;
@@ -8809,6 +8993,18 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Get the prototype of the function.
   __ movq(rdx, Operand(rsp, 1 * kPointerSize));
+  // rdx is function, rax is map.
+
+  // Look up the function and the map in the instanceof cache.
+  Label miss;
+  __ CompareRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
+  __ j(not_equal, &miss);
+  __ CompareRoot(rax, Heap::kInstanceofCacheMapRootIndex);
+  __ j(not_equal, &miss);
+  __ LoadRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&miss);
   __ TryGetFunctionPrototype(rdx, rbx, &slow);
 
   // Check that the function prototype is a JS object.
@@ -8818,7 +9014,13 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
   __ j(above, &slow);
 
-  // Register mapping: rax is object map and rbx is function prototype.
+  // Register mapping:
+  //   rax is object map.
+  //   rdx is function.
+  //   rbx is function prototype.
+  __ StoreRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
+  __ StoreRoot(rax, Heap::kInstanceofCacheMapRootIndex);
+
   __ movq(rcx, FieldOperand(rax, Map::kPrototypeOffset));
 
   // Loop through the prototype chain looking for the function prototype.
@@ -8828,6 +9030,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ cmpq(rcx, rbx);
   __ j(equal, &is_instance);
   __ cmpq(rcx, kScratchRegister);
+  // The code at is_not_instance assumes that kScratchRegister contains a
+  // non-zero GCable value (the null object in this case).
   __ j(equal, &is_not_instance);
   __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
   __ movq(rcx, FieldOperand(rcx, Map::kPrototypeOffset));
@@ -8835,10 +9039,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   __ bind(&is_instance);
   __ xorl(rax, rax);
+  // Store bitwise zero in the cache.  This is a Smi in GC terms.
+  ASSERT_EQ(0, kSmiTag);
+  __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
   __ ret(2 * kPointerSize);
 
   __ bind(&is_not_instance);
-  __ movl(rax, Immediate(1));
+  // We have to store a non-zero value in the cache.
+  __ StoreRoot(kScratchRegister, Heap::kInstanceofCacheAnswerRootIndex);
   __ ret(2 * kPointerSize);
 
   // Slow-case: Go through the JavaScript implementation.
@@ -8930,7 +9138,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ movq(FieldOperand(rax, JSObject::kElementsOffset), rdi);
   __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
   __ movq(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);
-  __ movq(FieldOperand(rdi, FixedArray::kLengthOffset), rcx);
+  __ movl(FieldOperand(rdi, FixedArray::kLengthOffset), rcx);
 
   // Copy the fixed array slots.
   Label loop;
@@ -9860,12 +10068,27 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
     __ movq(left, Operand(rsp, 2 * kPointerSize));
   }
 
-  // 2. Smi check both operands. Skip the check for OR as it is better combined
-  // with the actual operation.
   Label not_smis;
-  if (op_ != Token::BIT_OR) {
-    Comment smi_check_comment(masm, "-- Smi check arguments");
-    __ JumpIfNotBothSmi(left, right, &not_smis);
+  // 2. Smi check both operands.
+  if (static_operands_type_.IsSmi()) {
+    // Skip smi check if we know that both arguments are smis.
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(left, "Static type check claimed non-smi is smi.");
+      __ AbortIfNotSmi(right, "Static type check claimed non-smi is smi.");
+    }
+    if (op_ == Token::BIT_OR) {
+      // Handle OR here, since we do extra smi-checking in the or code below.
+      __ SmiOr(right, right, left);
+      GenerateReturn(masm);
+      return;
+    }
+  } else {
+    if (op_ != Token::BIT_OR) {
+      // Skip the check for OR as it is better combined with the
+      // actual operation.
+      Comment smi_check_comment(masm, "-- Smi check arguments");
+      __ JumpIfNotBothSmi(left, right, &not_smis);
+    }
   }
 
   // 3. Operands are both smis (except for OR), perform the operation leaving
@@ -9929,7 +10152,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           __ SmiShiftLogicalRight(left, left, right, slow);
           break;
         case Token::SHL:
-          __ SmiShiftLeft(left, left, right, slow);
+          __ SmiShiftLeft(left, left, right);
           break;
         default:
           UNREACHABLE();
@@ -9953,6 +10176,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
     case Token::SUB:
     case Token::MUL:
     case Token::DIV: {
+      ASSERT(use_fp_on_smis.is_linked());
       __ bind(&use_fp_on_smis);
       if (op_ == Token::DIV) {
         __ movq(rdx, rax);

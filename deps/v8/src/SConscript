@@ -58,6 +58,7 @@ SOURCES = {
     debug.cc
     disassembler.cc
     diy-fp.cc
+    dtoa.cc
     execution.cc
     factory.cc
     flags.cc
@@ -68,6 +69,7 @@ SOURCES = {
     func-name-inferrer.cc
     global-handles.cc
     fast-dtoa.cc
+    fixed-dtoa.cc
     handles.cc
     hashmap.cc
     heap-profiler.cc

@@ -678,3 +678,10 @@ function LogicalShiftRightByMultipleOf32(x) {
 
 assertEquals(4589934592, LogicalShiftRightByMultipleOf32(-2000000000));
 assertEquals(4589934592, LogicalShiftRightByMultipleOf32(-2000000000));
+
+// Verify that the shift amount is reduced modulo 32, not modulo 64.
+function LeftShiftThreeBy(x) {return 3 << x;}
+assertEquals(24, LeftShiftThreeBy(3));
+assertEquals(24, LeftShiftThreeBy(35));
+assertEquals(24, LeftShiftThreeBy(67));
+assertEquals(24, LeftShiftThreeBy(-29));

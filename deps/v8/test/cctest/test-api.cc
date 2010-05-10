@@ -9584,6 +9584,120 @@ THREADED_TEST(StackTrace) {
 }
 
 
+// Checks that a StackFrame has certain expected values.
+void checkStackFrame(const char* expected_script_name,
+    const char* expected_func_name, int expected_line_number,
+    int expected_column, bool is_eval, bool is_constructor,
+    v8::Handle<v8::StackFrame> frame) {
+  v8::HandleScope scope;
+  v8::String::Utf8Value func_name(frame->GetFunctionName());
+  v8::String::Utf8Value script_name(frame->GetScriptName());
+  if (*script_name == NULL) {
+    // The situation where there is no associated script, like for evals.
+    CHECK(expected_script_name == NULL);
+  } else {
+    CHECK(strstr(*script_name, expected_script_name) != NULL);
+  }
+  CHECK(strstr(*func_name, expected_func_name) != NULL);
+  CHECK_EQ(expected_line_number, frame->GetLineNumber());
+  CHECK_EQ(expected_column, frame->GetColumn());
+  CHECK_EQ(is_eval, frame->IsEval());
+  CHECK_EQ(is_constructor, frame->IsConstructor());
+}
+
+
+v8::Handle<Value> AnalyzeStackInNativeCode(const v8::Arguments& args) {
+  v8::HandleScope scope;
+  const char* origin = "capture-stack-trace-test";
+  const int kOverviewTest = 1;
+  const int kDetailedTest = 2;
+
+  ASSERT(args.Length() == 1);
+
+  int testGroup = args[0]->Int32Value();
+  if (testGroup == kOverviewTest) {
+    v8::Handle<v8::StackTrace> stackTrace =
+        v8::StackTrace::CurrentStackTrace(10, v8::StackTrace::kOverview);
+    CHECK_EQ(4, stackTrace->GetFrameCount());
+    checkStackFrame(origin, "bar", 2, 10, false, false,
+                    stackTrace->GetFrame(0));
+    checkStackFrame(origin, "foo", 6, 3, false, false,
+                    stackTrace->GetFrame(1));
+    checkStackFrame(NULL, "", 1, 1, false, false,
+                    stackTrace->GetFrame(2));
+    // The last frame is an anonymous function that has the initial call.
+    checkStackFrame(origin, "", 8, 7, false, false,
+                    stackTrace->GetFrame(3));
+
+    CHECK(stackTrace->AsArray()->IsArray());
+  } else if (testGroup == kDetailedTest) {
+    v8::Handle<v8::StackTrace> stackTrace =
+        v8::StackTrace::CurrentStackTrace(10, v8::StackTrace::kDetailed);
+    CHECK_EQ(4, stackTrace->GetFrameCount());
+    checkStackFrame(origin, "bat", 4, 22, false, false,
+                    stackTrace->GetFrame(0));
+    checkStackFrame(origin, "baz", 8, 3, false, true,
+                    stackTrace->GetFrame(1));
+    checkStackFrame(NULL, "", 1, 1, true, false,
+                    stackTrace->GetFrame(2));
+    // The last frame is an anonymous function that has the initial call to foo.
+    checkStackFrame(origin, "", 10, 1, false, false,
+                    stackTrace->GetFrame(3));
+
+    CHECK(stackTrace->AsArray()->IsArray());
+  }
+  return v8::Undefined();
+}
+
+
+// Tests the C++ StackTrace API.
+THREADED_TEST(CaptureStackTrace) {
+  v8::HandleScope scope;
+  v8::Handle<v8::String> origin = v8::String::New("capture-stack-trace-test");
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("AnalyzeStackInNativeCode"),
+             v8::FunctionTemplate::New(AnalyzeStackInNativeCode));
+  LocalContext context(0, templ);
+
+  // Test getting OVERVIEW information. Should ignore information that is not
+  // script name, function name, line number, and column offset.
+  const char *overview_source =
+    "function bar() {\n"
+    "  var y; AnalyzeStackInNativeCode(1);\n"
+    "}\n"
+    "function foo() {\n"
+    "\n"
+    "  bar();\n"
+    "}\n"
+    "var x;eval('new foo();');";
+  v8::Handle<v8::String> overview_src = v8::String::New(overview_source);
+  v8::Handle<Value> overview_result =
+      v8::Script::New(overview_src, origin)->Run();
+  ASSERT(!overview_result.IsEmpty());
+  ASSERT(overview_result->IsObject());
+
+  // Test getting DETAILED information.
+  const char *detailed_source =
+    "function bat() {AnalyzeStackInNativeCode(2);\n"
+    "}\n"
+    "\n"
+    "function baz() {\n"
+    "  bat();\n"
+    "}\n"
+    "eval('new baz();');";
+  v8::Handle<v8::String> detailed_src = v8::String::New(detailed_source);
+  // Make the script using a non-zero line and column offset.
+  v8::Handle<v8::Integer> line_offset = v8::Integer::New(3);
+  v8::Handle<v8::Integer> column_offset = v8::Integer::New(5);
+  v8::ScriptOrigin detailed_origin(origin, line_offset, column_offset);
+  v8::Handle<v8::Script> detailed_script(
+      v8::Script::New(detailed_src, &detailed_origin));
+  v8::Handle<Value> detailed_result = detailed_script->Run();
+  ASSERT(!detailed_result.IsEmpty());
+  ASSERT(detailed_result->IsObject());
+}
+
+
 // Test that idle notification can be handled and eventually returns true.
 THREADED_TEST(IdleNotification) {
   bool rv = false;
@@ -10154,4 +10268,121 @@ TEST(GCCallbacks) {
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(2, prologue_call_count_second);
   CHECK_EQ(2, epilogue_call_count_second);
+}
+
+
+THREADED_TEST(AddToJSFunctionResultCache) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+
+  LocalContext context;
+
+  const char* code =
+      "(function() {"
+      "  var key0 = 'a';"
+      "  var key1 = 'b';"
+      "  var r0 = %_GetFromCache(0, key0);"
+      "  var r1 = %_GetFromCache(0, key1);"
+      "  var r0_ = %_GetFromCache(0, key0);"
+      "  if (r0 !== r0_)"
+      "    return 'Different results for ' + key0 + ': ' + r0 + ' vs. ' + r0_;"
+      "  var r1_ = %_GetFromCache(0, key1);"
+      "  if (r1 !== r1_)"
+      "    return 'Different results for ' + key1 + ': ' + r1 + ' vs. ' + r1_;"
+      "  return 'PASSED';"
+      "})()";
+  v8::internal::Heap::ClearJSFunctionResultCaches();
+  ExpectString(code, "PASSED");
+}
+
+
+static const int k0CacheSize = 16;
+
+THREADED_TEST(FillJSFunctionResultCache) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+
+  LocalContext context;
+
+  const char* code =
+      "(function() {"
+      "  var k = 'a';"
+      "  var r = %_GetFromCache(0, k);"
+      "  for (var i = 0; i < 16; i++) {"
+      "    %_GetFromCache(0, 'a' + i);"
+      "  };"
+      "  if (r === %_GetFromCache(0, k))"
+      "    return 'FAILED: k0CacheSize is too small';"
+      "  return 'PASSED';"
+      "})()";
+  v8::internal::Heap::ClearJSFunctionResultCaches();
+  ExpectString(code, "PASSED");
+}
+
+
+THREADED_TEST(RoundRobinGetFromCache) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+
+  LocalContext context;
+
+  const char* code =
+      "(function() {"
+      "  var keys = [];"
+      "  for (var i = 0; i < 16; i++) keys.push(i);"
+      "  var values = [];"
+      "  for (var i = 0; i < 16; i++) values[i] = %_GetFromCache(0, keys[i]);"
+      "  for (var i = 0; i < 16; i++) {"
+      "    var v = %_GetFromCache(0, keys[i]);"
+      "    if (v !== values[i])"
+      "      return 'Wrong value for ' + "
+      "          keys[i] + ': ' + v + ' vs. ' + values[i];"
+      "  };"
+      "  return 'PASSED';"
+      "})()";
+  v8::internal::Heap::ClearJSFunctionResultCaches();
+  ExpectString(code, "PASSED");
+}
+
+
+THREADED_TEST(ReverseGetFromCache) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+
+  LocalContext context;
+
+  const char* code =
+      "(function() {"
+      "  var keys = [];"
+      "  for (var i = 0; i < 16; i++) keys.push(i);"
+      "  var values = [];"
+      "  for (var i = 0; i < 16; i++) values[i] = %_GetFromCache(0, keys[i]);"
+      "  for (var i = 15; i >= 16; i--) {"
+      "    var v = %_GetFromCache(0, keys[i]);"
+      "    if (v !== values[i])"
+      "      return 'Wrong value for ' + "
+      "          keys[i] + ': ' + v + ' vs. ' + values[i];"
+      "  };"
+      "  return 'PASSED';"
+      "})()";
+  v8::internal::Heap::ClearJSFunctionResultCaches();
+  ExpectString(code, "PASSED");
+}
+
+
+THREADED_TEST(TestEviction) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+
+  LocalContext context;
+
+  const char* code =
+      "(function() {"
+      "  for (var i = 0; i < 2*16; i++) {"
+      "    %_GetFromCache(0, 'a' + i);"
+      "  };"
+      "  return 'PASSED';"
+      "})()";
+  v8::internal::Heap::ClearJSFunctionResultCaches();
+  ExpectString(code, "PASSED");
 }

@@ -52,14 +52,13 @@ namespace internal {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 static void PrintLn(v8::Local<v8::Value> value) {
   v8::Local<v8::String> s = value->ToString();
-  char* data = NewArray<char>(s->Length() + 1);
-  if (data == NULL) {
+  ScopedVector<char> data(s->Length() + 1);
+  if (data.start() == NULL) {
     V8::FatalProcessOutOfMemory("PrintLn");
     return;
   }
-  s->WriteAscii(data);
-  PrintF("%s\n", data);
-  DeleteArray(data);
+  s->WriteAscii(data.start());
+  PrintF("%s\n", data.start());
 }
 
 
@@ -431,8 +430,13 @@ void BreakLocationIterator::SetDebugBreakAtIC() {
     // is set the patching performed by the runtime system will take place in
     // the code copy and will therefore have no effect on the running code
     // keeping it from using the inlined code.
-    if (code->is_keyed_load_stub()) KeyedLoadIC::ClearInlinedVersion(pc());
-    if (code->is_keyed_store_stub()) KeyedStoreIC::ClearInlinedVersion(pc());
+    if (code->is_keyed_load_stub()) {
+      KeyedLoadIC::ClearInlinedVersion(pc());
+    } else if (code->is_keyed_store_stub()) {
+      KeyedStoreIC::ClearInlinedVersion(pc());
+    } else if (code->is_load_stub()) {
+      LoadIC::ClearInlinedVersion(pc());
+    }
   }
 }
 

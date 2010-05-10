@@ -323,7 +323,8 @@ void VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
 
 void VirtualFrame::CallKeyedLoadIC() {
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  SpillAllButCopyTOSToR0();
+  PopToR1R0();
+  SpillAll();
   CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
 }
 
@@ -505,26 +506,69 @@ void VirtualFrame::Dup() {
       break;
     case R0_TOS:
       __ mov(r1, r0);
+      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
       top_of_stack_state_ = R0_R1_TOS;
       break;
     case R1_TOS:
       __ mov(r0, r1);
+      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
       top_of_stack_state_ = R0_R1_TOS;
       break;
     case R0_R1_TOS:
       __ push(r1);
       __ mov(r1, r0);
-      // No need to change state as r0 and r1 now contains the same value.
+      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
+      top_of_stack_state_ = R0_R1_TOS;
       break;
     case R1_R0_TOS:
       __ push(r0);
       __ mov(r0, r1);
-      // No need to change state as r0 and r1 now contains the same value.
+      // r0 and r1 contains the same value. Prefer a state with r0 holding TOS.
+      top_of_stack_state_ = R0_R1_TOS;
       break;
     default:
       UNREACHABLE();
   }
   element_count_++;
+}
+
+
+void VirtualFrame::Dup2() {
+  if (SpilledScope::is_spilled()) {
+    __ ldr(ip, MemOperand(sp, kPointerSize));
+    __ push(ip);
+    __ ldr(ip, MemOperand(sp, kPointerSize));
+    __ push(ip);
+  } else {
+    switch (top_of_stack_state_) {
+      case NO_TOS_REGISTERS:
+        __ ldr(r0, MemOperand(sp, 0));
+        __ ldr(r1, MemOperand(sp, kPointerSize));
+        top_of_stack_state_ = R0_R1_TOS;
+        break;
+      case R0_TOS:
+        __ push(r0);
+        __ ldr(r1, MemOperand(sp, kPointerSize));
+        top_of_stack_state_ = R0_R1_TOS;
+        break;
+      case R1_TOS:
+        __ push(r1);
+        __ ldr(r0, MemOperand(sp, kPointerSize));
+        top_of_stack_state_ = R1_R0_TOS;
+        break;
+      case R0_R1_TOS:
+        __ Push(r1, r0);
+        top_of_stack_state_ = R0_R1_TOS;
+        break;
+      case R1_R0_TOS:
+        __ Push(r0, r1);
+        top_of_stack_state_ = R1_R0_TOS;
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  element_count_ += 2;
 }
 
 

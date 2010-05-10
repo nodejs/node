@@ -109,7 +109,7 @@ class V8EXPORT CpuProfileNode {
   /** Retrieves a child node by index. */
   const CpuProfileNode* GetChild(int index) const;
 
-  static const int kNoLineNumberInfo = 0;
+  static const int kNoLineNumberInfo = Message::kNoLineNumberInfo;
 };
 
 

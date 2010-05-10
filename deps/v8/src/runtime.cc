@@ -1325,18 +1325,9 @@ static Object* Runtime_FinishArrayPrototypeSetup(Arguments args) {
 }
 
 
-static void SetCustomCallGenerator(Handle<JSFunction> function,
-                                   ExternalReference* generator) {
-  if (function->shared()->function_data()->IsUndefined()) {
-    function->shared()->set_function_data(*FromCData(generator->address()));
-  }
-}
-
-
 static Handle<JSFunction> InstallBuiltin(Handle<JSObject> holder,
                                          const char* name,
-                                         Builtins::Name builtin_name,
-                                         ExternalReference* generator = NULL) {
+                                         Builtins::Name builtin_name) {
   Handle<String> key = Factory::LookupAsciiSymbol(name);
   Handle<Code> code(Builtins::builtin(builtin_name));
   Handle<JSFunction> optimized = Factory::NewFunction(key,
@@ -1345,31 +1336,8 @@ static Handle<JSFunction> InstallBuiltin(Handle<JSObject> holder,
                                                       code,
                                                       false);
   optimized->shared()->DontAdaptArguments();
-  if (generator != NULL) {
-    SetCustomCallGenerator(optimized, generator);
-  }
   SetProperty(holder, key, optimized, NONE);
   return optimized;
-}
-
-
-Object* CompileArrayPushCall(CallStubCompiler* compiler,
-                             Object* object,
-                             JSObject* holder,
-                             JSFunction* function,
-                             String* name,
-                             StubCompiler::CheckType check) {
-  return compiler->CompileArrayPushCall(object, holder, function, name, check);
-}
-
-
-Object* CompileArrayPopCall(CallStubCompiler* compiler,
-                            Object* object,
-                            JSObject* holder,
-                            JSFunction* function,
-                            String* name,
-                            StubCompiler::CheckType check) {
-  return compiler->CompileArrayPopCall(object, holder, function, name, check);
 }
 
 
@@ -1378,11 +1346,8 @@ static Object* Runtime_SpecialArrayFunctions(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, holder, 0);
 
-  ExternalReference pop = ExternalReference::compile_array_pop_call();
-  ExternalReference push = ExternalReference::compile_array_push_call();
-
-  InstallBuiltin(holder, "pop", Builtins::ArrayPop, &pop);
-  InstallBuiltin(holder, "push", Builtins::ArrayPush, &push);
+  InstallBuiltin(holder, "pop", Builtins::ArrayPop);
+  InstallBuiltin(holder, "push", Builtins::ArrayPush);
   InstallBuiltin(holder, "shift", Builtins::ArrayShift);
   InstallBuiltin(holder, "unshift", Builtins::ArrayUnshift);
   InstallBuiltin(holder, "slice", Builtins::ArraySlice);

@@ -42,6 +42,9 @@ var COMPILATION_TYPE_JSON = 2;
 var kVowelSounds = 0;
 var kCapitalVowelSounds = 0;
 
+// Matches Messages::kNoLineNumberInfo from v8.h
+var kNoLineNumberInfo = 0;
+
 // If this object gets passed to an error constructor the error will
 // get an accessor for .message that constructs a descriptive error
 // message on access.
@@ -203,9 +206,9 @@ function FormatMessage(message) {
 
 
 function GetLineNumber(message) {
-  if (message.startPos == -1) return -1;
+  if (message.startPos == -1) return kNoLineNumberInfo;
   var location = message.script.locationFromPosition(message.startPos, true);
-  if (location == null) return -1;
+  if (location == null) return kNoLineNumberInfo;
   return location.line + 1;
 }
 

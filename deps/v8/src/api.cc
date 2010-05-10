@@ -1438,7 +1438,7 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
 
 
 int Message::GetLineNumber() const {
-  ON_BAILOUT("v8::Message::GetLineNumber()", return -1);
+  ON_BAILOUT("v8::Message::GetLineNumber()", return kNoLineNumberInfo);
   ENTER_V8;
   HandleScope scope;
   EXCEPTION_PREAMBLE();
@@ -1470,7 +1470,7 @@ int Message::GetEndPosition() const {
 
 
 int Message::GetStartColumn() const {
-  if (IsDeadCheck("v8::Message::GetStartColumn()")) return 0;
+  if (IsDeadCheck("v8::Message::GetStartColumn()")) return kNoColumnInfo;
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
@@ -1485,7 +1485,7 @@ int Message::GetStartColumn() const {
 
 
 int Message::GetEndColumn() const {
-  if (IsDeadCheck("v8::Message::GetEndColumn()")) return 0;
+  if (IsDeadCheck("v8::Message::GetEndColumn()")) return kNoColumnInfo;
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
@@ -1522,6 +1522,118 @@ void Message::PrintCurrentStackTrace(FILE* out) {
   if (IsDeadCheck("v8::Message::PrintCurrentStackTrace()")) return;
   ENTER_V8;
   i::Top::PrintCurrentStackTrace(out);
+}
+
+
+// --- S t a c k T r a c e ---
+
+Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
+  if (IsDeadCheck("v8::StackTrace::GetFrame()")) return Local<StackFrame>();
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::JSArray> self = Utils::OpenHandle(this);
+  i::Handle<i::JSObject> obj(i::JSObject::cast(self->GetElement(index)));
+  return scope.Close(Utils::StackFrameToLocal(obj));
+}
+
+
+int StackTrace::GetFrameCount() const {
+  if (IsDeadCheck("v8::StackTrace::GetFrameCount()")) return -1;
+  ENTER_V8;
+  return i::Smi::cast(Utils::OpenHandle(this)->length())->value();
+}
+
+
+Local<Array> StackTrace::AsArray() {
+  if (IsDeadCheck("v8::StackTrace::AsArray()")) Local<Array>();
+  ENTER_V8;
+  return Utils::ToLocal(Utils::OpenHandle(this));
+}
+
+
+Local<StackTrace> StackTrace::CurrentStackTrace(int frame_limit,
+    StackTraceOptions options) {
+  if (IsDeadCheck("v8::StackTrace::CurrentStackTrace()")) Local<StackTrace>();
+  ENTER_V8;
+  return i::Top::CaptureCurrentStackTrace(frame_limit, options);
+}
+
+
+// --- S t a c k F r a m e ---
+
+int StackFrame::GetLineNumber() const {
+  if (IsDeadCheck("v8::StackFrame::GetLineNumber()")) {
+    return Message::kNoLineNumberInfo;
+  }
+  ENTER_V8;
+  i::HandleScope scope;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> line = GetProperty(self, "lineNumber");
+  if (!line->IsSmi()) {
+    return Message::kNoLineNumberInfo;
+  }
+  return i::Smi::cast(*line)->value();
+}
+
+
+int StackFrame::GetColumn() const {
+  if (IsDeadCheck("v8::StackFrame::GetColumn()")) {
+    return Message::kNoColumnInfo;
+  }
+  ENTER_V8;
+  i::HandleScope scope;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> column = GetProperty(self, "column");
+  if (!column->IsSmi()) {
+    return Message::kNoColumnInfo;
+  }
+  return i::Smi::cast(*column)->value();
+}
+
+
+Local<String> StackFrame::GetScriptName() const {
+  if (IsDeadCheck("v8::StackFrame::GetScriptName()")) return Local<String>();
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> name = GetProperty(self, "scriptName");
+  if (!name->IsString()) {
+    return Local<String>();
+  }
+  return scope.Close(Local<String>::Cast(Utils::ToLocal(name)));
+}
+
+
+Local<String> StackFrame::GetFunctionName() const {
+  if (IsDeadCheck("v8::StackFrame::GetFunctionName()")) return Local<String>();
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> name = GetProperty(self, "functionName");
+  if (!name->IsString()) {
+    return Local<String>();
+  }
+  return scope.Close(Local<String>::Cast(Utils::ToLocal(name)));
+}
+
+
+bool StackFrame::IsEval() const {
+  if (IsDeadCheck("v8::StackFrame::IsEval()")) return false;
+  ENTER_V8;
+  i::HandleScope scope;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> is_eval = GetProperty(self, "isEval");
+  return is_eval->IsTrue();
+}
+
+
+bool StackFrame::IsConstructor() const {
+  if (IsDeadCheck("v8::StackFrame::IsConstructor()")) return false;
+  ENTER_V8;
+  i::HandleScope scope;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> is_constructor = GetProperty(self, "isConstructor");
+  return is_constructor->IsTrue();
 }
 
 
@@ -2185,10 +2297,10 @@ Local<String> v8::Object::ObjectProtoToString() {
       int postfix_len = i::StrLength(postfix);
 
       int buf_len = prefix_len + str_len + postfix_len;
-      char* buf = i::NewArray<char>(buf_len);
+      i::ScopedVector<char> buf(buf_len);
 
       // Write prefix.
-      char* ptr = buf;
+      char* ptr = buf.start();
       memcpy(ptr, prefix, prefix_len * v8::internal::kCharSize);
       ptr += prefix_len;
 
@@ -2200,8 +2312,7 @@ Local<String> v8::Object::ObjectProtoToString() {
       memcpy(ptr, postfix, postfix_len * v8::internal::kCharSize);
 
       // Copy the buffer into a heap-allocated string and return it.
-      Local<String> result = v8::String::New(buf, buf_len);
-      i::DeleteArray(buf);
+      Local<String> result = v8::String::New(buf.start(), buf_len);
       return result;
     }
   }

@@ -28,17 +28,55 @@
 // Tests loading of properties across eval calls.
 
 var x = 1;
+function global_function() { return 'global'; }
+const const_uninitialized;
+const const_initialized = function() { return "const_global"; }
 
 // Test loading across an eval call that does not shadow variables.
 function testNoShadowing() {
   var y = 2;
+  function local_function() { return 'local'; }
+  const local_const_uninitialized;
+  const local_const_initialized = function() { return "const_local"; }
   function f() {
     eval('1');
     assertEquals(1, x);
     assertEquals(2, y);
+    assertEquals('global', global_function());
+    assertEquals('local', local_function());
+    try {
+      const_uninitialized();
+      assertUnreachable();
+    } catch(e) {
+      // Ignore.
+    }
+    assertEquals('const_global', const_initialized());
+    try {
+      local_const_uninitialized();
+      assertUnreachable();
+    } catch(e) {
+      // Ignore.
+    }
+    assertEquals('const_local', local_const_initialized());
     function g() {
       assertEquals(1, x);
       assertEquals(2, y);
+      assertEquals('global', global_function());
+      assertEquals('local', local_function());
+      try {
+        const_uninitialized();
+        assertUnreachable();
+      } catch(e) {
+        // Ignore.
+      }
+      assertEquals('const_global', const_initialized());
+      try {
+        local_const_uninitialized();
+        assertUnreachable();
+      } catch(e) {
+        // Ignore.
+      }
+      assertEquals('const_local', local_const_initialized());
     }
     g();
   }
@@ -50,14 +88,19 @@ testNoShadowing();
 // Test loading across eval calls that do not shadow variables.
 function testNoShadowing2() {
   var y = 2;
+  function local_function() { return 'local'; }
   eval('1');
   function f() {
     eval('1');
     assertEquals(1, x);
     assertEquals(2, y);
+    assertEquals('global', global_function());
+    assertEquals('local', local_function());
     function g() {
       assertEquals(1, x);
       assertEquals(2, y);
+      assertEquals('global', global_function());
+      assertEquals('local', local_function());
     }
     g();
   }
@@ -69,13 +112,20 @@ testNoShadowing2();
 // Test loading across an eval call that shadows variables.
 function testShadowing() {
   var y = 2;
+  function local_function() { return 'local'; }
   function f() {
     eval('var x = 3; var y = 4;');
     assertEquals(3, x);
     assertEquals(4, y);
+    eval('function local_function() { return "new_local"; }');
+    eval('function global_function() { return "new_nonglobal"; }');
+    assertEquals('new_nonglobal', global_function());
+    assertEquals('new_local', local_function());
     function g() {
       assertEquals(3, x);
       assertEquals(4, y);
+      assertEquals('new_nonglobal', global_function());
+      assertEquals('new_local', local_function());
     }
     g();
   }

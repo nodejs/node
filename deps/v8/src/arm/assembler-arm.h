@@ -448,6 +448,18 @@ class MemOperand BASE_EMBEDDED {
   explicit MemOperand(Register rn, Register rm,
                       ShiftOp shift_op, int shift_imm, AddrMode am = Offset);
 
+  void set_offset(int32_t offset) {
+      ASSERT(rm_.is(no_reg));
+      offset_ = offset;
+  }
+
+  uint32_t offset() {
+      ASSERT(rm_.is(no_reg));
+      return offset_;
+  }
+
+  Register rm() const {return rm_;}
+
  private:
   Register rn_;  // base
   Register rm_;  // register offset
@@ -755,6 +767,8 @@ class Assembler : public Malloced {
   void strh(Register src, const MemOperand& dst, Condition cond = al);
   void ldrsb(Register dst, const MemOperand& src, Condition cond = al);
   void ldrsh(Register dst, const MemOperand& src, Condition cond = al);
+  void ldrd(Register dst, const MemOperand& src, Condition cond = al);
+  void strd(Register src, const MemOperand& dst, Condition cond = al);
 
   // Load/Store multiple instructions
   void ldm(BlockAddrMode am, Register base, RegList dst, Condition cond = al);

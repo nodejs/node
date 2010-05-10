@@ -376,14 +376,12 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
   // backtrace is a glibc extension.
 #ifdef __GLIBC__
   int frames_size = frames.length();
-  void** addresses = NewArray<void*>(frames_size);
+  ScopedVector<void*> addresses(frames_size);
 
-  int frames_count = backtrace(addresses, frames_size);
+  int frames_count = backtrace(addresses.start(), frames_size);
 
-  char** symbols;
-  symbols = backtrace_symbols(addresses, frames_count);
+  char** symbols = backtrace_symbols(addresses.start(), frames_count);
   if (symbols == NULL) {
-    DeleteArray(addresses);
     return kStackWalkError;
   }
 
@@ -398,7 +396,6 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
     frames[i].text[kStackWalkMaxTextLen - 1] = '\0';
   }
 
-  DeleteArray(addresses);
   free(symbols);
 
   return frames_count;

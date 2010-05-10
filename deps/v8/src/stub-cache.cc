@@ -1142,6 +1142,29 @@ Object* KeyedStoreStubCompiler::GetCode(PropertyType type, String* name) {
 }
 
 
+Object* CallStubCompiler::CompileCustomCall(int generator_id,
+                                            Object* object,
+                                            JSObject* holder,
+                                            JSFunction* function,
+                                            String* fname,
+                                            CheckType check) {
+    ASSERT(generator_id >= 0 && generator_id < kNumCallGenerators);
+    switch (generator_id) {
+#define CALL_GENERATOR_CASE(ignored1, ignored2, name)          \
+      case k##name##CallGenerator:                             \
+        return CallStubCompiler::Compile##name##Call(object,   \
+                                                     holder,   \
+                                                     function, \
+                                                     fname,    \
+                                                     check);
+      CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
+#undef CALL_GENERATOR_CASE
+    }
+    UNREACHABLE();
+    return Heap::undefined_value();
+}
+
+
 Object* CallStubCompiler::GetCode(PropertyType type, String* name) {
   int argc = arguments_.immediate();
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC,
@@ -1149,6 +1172,15 @@ Object* CallStubCompiler::GetCode(PropertyType type, String* name) {
                                                     in_loop_,
                                                     argc);
   return GetCodeWithFlags(flags, name);
+}
+
+
+Object* CallStubCompiler::GetCode(JSFunction* function) {
+  String* function_name = NULL;
+  if (function->shared()->name()->IsString()) {
+    function_name = String::cast(function->shared()->name());
+  }
+  return GetCode(CONSTANT_FUNCTION, function_name);
 }
 
 

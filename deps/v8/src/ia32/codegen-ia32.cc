@@ -829,14 +829,6 @@ void CodeGenerator::LoadReference(Reference* ref) {
 }
 
 
-void CodeGenerator::UnloadReference(Reference* ref) {
-  // Pop a reference from the stack while preserving TOS.
-  Comment cmnt(masm_, "[ UnloadReference");
-  frame_->Nip(ref->size());
-  ref->set_unloaded();
-}
-
-
 // ECMA-262, section 9.2, page 30: ToBoolean(). Pop the top of stack and
 // convert it to a boolean in the condition code register or jump to
 // 'false_target'/'true_target' as appropriate.
@@ -1426,6 +1418,9 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                                Result* left,
                                                Result* right,
                                                OverwriteMode overwrite_mode) {
+  // Copy the type info because left and right may be overwritten.
+  TypeInfo left_type_info = left->type_info();
+  TypeInfo right_type_info = right->type_info();
   Token::Value op = expr->op();
   Result answer;
   // Special handling of div and mod because they use fixed registers.
@@ -1501,8 +1496,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           (op == Token::DIV) ? eax : edx,
                                           left->reg(),
                                           right->reg(),
-                                          left->type_info(),
-                                          right->type_info(),
+                                          left_type_info,
+                                          right_type_info,
                                           overwrite_mode);
     if (left->reg().is(right->reg())) {
       __ test(left->reg(), Immediate(kSmiTagMask));
@@ -1605,18 +1600,18 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           answer.reg(),
                                           left->reg(),
                                           ecx,
-                                          left->type_info(),
-                                          right->type_info(),
+                                          left_type_info,
+                                          right_type_info,
                                           overwrite_mode);
 
     Label do_op, left_nonsmi;
     // If right is a smi we make a fast case if left is either a smi
     // or a heapnumber.
-    if (CpuFeatures::IsSupported(SSE2) && right->type_info().IsSmi()) {
+    if (CpuFeatures::IsSupported(SSE2) && right_type_info.IsSmi()) {
       CpuFeatures::Scope use_sse2(SSE2);
       __ mov(answer.reg(), left->reg());
       // Fast case - both are actually smis.
-      if (!left->type_info().IsSmi()) {
+      if (!left_type_info.IsSmi()) {
         __ test(answer.reg(), Immediate(kSmiTagMask));
         __ j(not_zero, &left_nonsmi);
       } else {
@@ -1640,7 +1635,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
       deferred->Branch(negative);
     } else {
       CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
-                         left->type_info(), right->type_info(), deferred);
+                         left_type_info, right_type_info, deferred);
 
       // Untag both operands.
       __ mov(answer.reg(), left->reg());
@@ -1713,11 +1708,11 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                         answer.reg(),
                                         left->reg(),
                                         right->reg(),
-                                        left->type_info(),
-                                        right->type_info(),
+                                        left_type_info,
+                                        right_type_info,
                                         overwrite_mode);
   CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
-                     left->type_info(), right->type_info(), deferred);
+                     left_type_info, right_type_info, deferred);
 
   __ mov(answer.reg(), left->reg());
   switch (op) {
@@ -1988,18 +1983,13 @@ void DeferredInlineSmiSub::Generate() {
 }
 
 
-Result CodeGenerator::ConstantSmiBinaryOperation(
-    BinaryOperation* expr,
-    Result* operand,
-    Handle<Object> value,
-    bool reversed,
-    OverwriteMode overwrite_mode) {
-  // NOTE: This is an attempt to inline (a bit) more of the code for
-  // some possible smi operations (like + and -) when (at least) one
-  // of the operands is a constant smi.
-  // Consumes the argument "operand".
-  // TODO(199): Optimize some special cases of operations involving a
-  // smi literal (multiply by 2, shift by 0, etc.).
+Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
+                                                 Result* operand,
+                                                 Handle<Object> value,
+                                                 bool reversed,
+                                                 OverwriteMode overwrite_mode) {
+  // Generate inline code for a binary operation when one of the
+  // operands is a constant smi.  Consumes the argument "operand".
   if (IsUnsafeSmi(value)) {
     Result unsafe_operand(value);
     if (reversed) {
@@ -2499,7 +2489,9 @@ void CodeGenerator::Comparison(AstNode* node,
       // by reconstituting them on the non-fall-through path.
 
       if (left_side.is_smi()) {
-        if (FLAG_debug_code) __ AbortIfNotSmi(left_side.reg());
+        if (FLAG_debug_code) {
+          __ AbortIfNotSmi(left_side.reg());
+        }
       } else {
         JumpTarget is_smi;
         __ test(left_side.reg(), Immediate(kSmiTagMask));
@@ -2528,7 +2520,7 @@ void CodeGenerator::Comparison(AstNode* node,
             __ cvtsi2sd(xmm0, Operand(temp.reg()));
             temp.Unuse();
           }
-          __ comisd(xmm1, xmm0);
+          __ ucomisd(xmm1, xmm0);
           // Jump to builtin for NaN.
           not_number.Branch(parity_even, &left_side);
           left_side.Unuse();
@@ -2819,11 +2811,7 @@ void CodeGenerator::Comparison(AstNode* node,
       // number comparison in the stub if it was inlined.
       CompareStub stub(cc, strict, nan_info, !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      if (cc == equal) {
-        __ test(answer.reg(), Operand(answer.reg()));
-      } else {
-        __ cmp(answer.reg(), 0);
-      }
+      __ test(answer.reg(), Operand(answer.reg()));
       answer.Unuse();
       dest->true_target()->Branch(cc);
       dest->false_target()->Jump();
@@ -4750,7 +4738,8 @@ Result CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
       Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
       // Only generate the fast case for locals that rewrite to slots.
-      // This rules out argument loads.
+      // This rules out argument loads because eval forces arguments
+      // access to be through the arguments object.
       if (potential_slot != NULL) {
         // Allocate a fresh register to use as a temp in
         // ContextSlotOperandCheckExtensions and to hold the result
@@ -5774,11 +5763,66 @@ void CodeGenerator::VisitCall(Call* node) {
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
     // ----------------------------------
-    // JavaScript example: 'with (obj) foo(1, 2, 3)'  // foo is in obj
+    // JavaScript examples:
+    //
+    //  with (obj) foo(1, 2, 3)  // foo is in obj
+    //
+    //  function f() {};
+    //  function g() {
+    //    eval(...);
+    //    f();  // f could be in extension object
+    //  }
     // ----------------------------------
 
-    // Load the function from the context.  Sync the frame so we can
-    // push the arguments directly into place.
+    JumpTarget slow;
+    JumpTarget done;
+
+    // Generate fast-case code for variables that might be shadowed by
+    // eval-introduced variables.  Eval is used a lot without
+    // introducing variables.  In those cases, we do not want to
+    // perform a runtime call for all variables in the scope
+    // containing the eval.
+    Result function;
+    if (var->mode() == Variable::DYNAMIC_GLOBAL) {
+      function = LoadFromGlobalSlotCheckExtensions(var->slot(),
+                                                   NOT_INSIDE_TYPEOF,
+                                                   &slow);
+      frame_->Push(&function);
+      LoadGlobalReceiver();
+      done.Jump();
+
+    } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
+      Slot* potential_slot = var->local_if_not_shadowed()->slot();
+      // Only generate the fast case for locals that rewrite to slots.
+      // This rules out argument loads because eval forces arguments
+      // access to be through the arguments object.
+      if (potential_slot != NULL) {
+        // Allocate a fresh register to use as a temp in
+        // ContextSlotOperandCheckExtensions and to hold the result
+        // value.
+        function = allocator()->Allocate();
+        ASSERT(function.is_valid());
+        __ mov(function.reg(),
+               ContextSlotOperandCheckExtensions(potential_slot,
+                                                 function,
+                                                 &slow));
+        JumpTarget push_function_and_receiver;
+        if (potential_slot->var()->mode() == Variable::CONST) {
+          __ cmp(function.reg(), Factory::the_hole_value());
+          push_function_and_receiver.Branch(not_equal, &function);
+          __ mov(function.reg(), Factory::undefined_value());
+        }
+        push_function_and_receiver.Bind(&function);
+        frame_->Push(&function);
+        LoadGlobalReceiver();
+        done.Jump();
+      }
+    }
+
+    slow.Bind();
+    // Enter the runtime system to load the function from the context.
+    // Sync the frame so we can push the arguments directly into
+    // place.
     frame_->SyncRange(0, frame_->element_count() - 1);
     frame_->EmitPush(esi);
     frame_->EmitPush(Immediate(var->name()));
@@ -5795,6 +5839,7 @@ void CodeGenerator::VisitCall(Call* node) {
     ASSERT(!allocator()->is_used(edx));
     frame_->EmitPush(edx);
 
+    done.Bind();
     // Call the function.
     CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
 
@@ -6582,14 +6627,120 @@ class DeferredSearchCache: public DeferredCode {
   virtual void Generate();
 
  private:
-  Register dst_, cache_, key_;
+  Register dst_;    // on invocation Smi index of finger, on exit
+                    // holds value being looked up.
+  Register cache_;  // instance of JSFunctionResultCache.
+  Register key_;    // key being looked up.
 };
 
 
+// Return a position of the element at |index_as_smi| + |additional_offset|
+// in FixedArray pointer to which is held in |array|.  |index_as_smi| is Smi.
+static Operand ArrayElement(Register array,
+                            Register index_as_smi,
+                            int additional_offset = 0) {
+  int offset = FixedArray::kHeaderSize + additional_offset * kPointerSize;
+  return FieldOperand(array, index_as_smi, times_half_pointer_size, offset);
+}
+
+
 void DeferredSearchCache::Generate() {
-  __ push(cache_);
+  Label first_loop, search_further, second_loop, cache_miss;
+
+  // Smi-tagging is equivalent to multiplying by 2.
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
+  Smi* kEntrySizeSmi = Smi::FromInt(JSFunctionResultCache::kEntrySize);
+  Smi* kEntriesIndexSmi = Smi::FromInt(JSFunctionResultCache::kEntriesIndex);
+
+  // Check the cache from finger to start of the cache.
+  __ bind(&first_loop);
+  __ sub(Operand(dst_), Immediate(kEntrySizeSmi));
+  __ cmp(Operand(dst_), Immediate(kEntriesIndexSmi));
+  __ j(less, &search_further);
+
+  __ cmp(key_, ArrayElement(cache_, dst_));
+  __ j(not_equal, &first_loop);
+
+  __ mov(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
+  __ mov(dst_, ArrayElement(cache_, dst_, 1));
+  __ jmp(exit_label());
+
+  __ bind(&search_further);
+
+  // Check the cache from end of cache up to finger.
+  __ mov(dst_, FieldOperand(cache_, JSFunctionResultCache::kCacheSizeOffset));
+
+  __ bind(&second_loop);
+  __ sub(Operand(dst_), Immediate(kEntrySizeSmi));
+    // Consider prefetching into some reg.
+  __ cmp(dst_, FieldOperand(cache_, JSFunctionResultCache::kFingerOffset));
+  __ j(less_equal, &cache_miss);
+
+  __ cmp(key_, ArrayElement(cache_, dst_));
+  __ j(not_equal, &second_loop);
+
+  __ mov(FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
+  __ mov(dst_, ArrayElement(cache_, dst_, 1));
+  __ jmp(exit_label());
+
+  __ bind(&cache_miss);
+  __ push(cache_);  // store a reference to cache
+  __ push(key_);  // store a key
+  Handle<Object> receiver(Top::global_context()->global());
+  __ push(Immediate(receiver));
   __ push(key_);
-  __ CallRuntime(Runtime::kGetFromCache, 2);
+  // On ia32 function must be in edi.
+  __ mov(edi, FieldOperand(cache_, JSFunctionResultCache::kFactoryOffset));
+  ParameterCount expected(1);
+  __ InvokeFunction(edi, expected, CALL_FUNCTION);
+
+  // Find a place to put new cached value into.
+  Label add_new_entry, update_cache;
+  __ mov(ecx, Operand(esp, kPointerSize));  // restore the cache
+  // Possible optimization: cache size is constant for the given cache
+  // so technically we could use a constant here.  However, if we have
+  // cache miss this optimization would hardly matter much.
+
+  // Check if we could add new entry to cache.
+  __ mov(ebx, FieldOperand(ecx, FixedArray::kLengthOffset));
+  __ SmiTag(ebx);
+  __ cmp(ebx, FieldOperand(ecx, JSFunctionResultCache::kCacheSizeOffset));
+  __ j(greater, &add_new_entry);
+
+  // Check if we could evict entry after finger.
+  __ mov(edx, FieldOperand(ecx, JSFunctionResultCache::kFingerOffset));
+  __ add(Operand(edx), Immediate(kEntrySizeSmi));
+  __ cmp(ebx, Operand(edx));
+  __ j(greater, &update_cache);
+
+  // Need to wrap over the cache.
+  __ mov(edx, Immediate(kEntriesIndexSmi));
+  __ jmp(&update_cache);
+
+  __ bind(&add_new_entry);
+  __ mov(edx, FieldOperand(ecx, JSFunctionResultCache::kCacheSizeOffset));
+  __ lea(ebx, Operand(edx, JSFunctionResultCache::kEntrySize << 1));
+  __ mov(FieldOperand(ecx, JSFunctionResultCache::kCacheSizeOffset), ebx);
+
+  // Update the cache itself.
+  // edx holds the index.
+  __ bind(&update_cache);
+  __ pop(ebx);  // restore the key
+  __ mov(FieldOperand(ecx, JSFunctionResultCache::kFingerOffset), edx);
+  // Store key.
+  __ mov(ArrayElement(ecx, edx), ebx);
+  __ RecordWrite(ecx, 0, ebx, edx);
+
+  // Store value.
+  __ pop(ecx);  // restore the cache.
+  __ mov(edx, FieldOperand(ecx, JSFunctionResultCache::kFingerOffset));
+  __ add(Operand(edx), Immediate(Smi::FromInt(1)));
+  __ mov(ebx, eax);
+  __ mov(ArrayElement(ecx, edx), ebx);
+  __ RecordWrite(ecx, 0, ebx, edx);
+
   if (!dst_.is(eax)) {
     __ mov(dst_, eax);
   }
@@ -6631,21 +6782,14 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
                                                           cache.reg(),
                                                           key.reg());
 
-  const int kFingerOffset =
-      FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
   // tmp.reg() now holds finger offset as a smi.
   ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  __ mov(tmp.reg(), FieldOperand(cache.reg(), kFingerOffset));
-  __ cmp(key.reg(), FieldOperand(cache.reg(),
-                                 tmp.reg(),  // as smi
-                                 times_half_pointer_size,
-                                 FixedArray::kHeaderSize));
+  __ mov(tmp.reg(), FieldOperand(cache.reg(),
+                    JSFunctionResultCache::kFingerOffset));
+  __ cmp(key.reg(), ArrayElement(cache.reg(), tmp.reg()));
   deferred->Branch(not_equal);
 
-  __ mov(tmp.reg(), FieldOperand(cache.reg(),
-                                 tmp.reg(),  // as smi
-                                 times_half_pointer_size,
-                                 kPointerSize + FixedArray::kHeaderSize));
+  __ mov(tmp.reg(), ArrayElement(cache.reg(), tmp.reg(), 1));
 
   deferred->BindExit();
   frame_->Push(&tmp);
@@ -10958,7 +11102,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // string length. A negative value will be greater (unsigned comparison).
   __ mov(eax, Operand(esp, kPreviousIndexOffset));
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &runtime);
+  __ j(not_zero, &runtime);
   __ cmp(eax, Operand(ebx));
   __ j(above_equal, &runtime);
 
@@ -12128,6 +12272,22 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Get the prototype of the function.
   __ mov(edx, Operand(esp, 1 * kPointerSize));  // 1 ~ return address
+  // edx is function, eax is map.
+
+  // Look up the function and the map in the instanceof cache.
+  Label miss;
+  ExternalReference roots_address = ExternalReference::roots_address();
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
+  __ cmp(edx, Operand::StaticArray(ecx, times_pointer_size, roots_address));
+  __ j(not_equal, &miss);
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheMapRootIndex));
+  __ cmp(eax, Operand::StaticArray(ecx, times_pointer_size, roots_address));
+  __ j(not_equal, &miss);
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+  __ mov(eax, Operand::StaticArray(ecx, times_pointer_size, roots_address));
+  __ ret(2 * kPointerSize);
+
+  __ bind(&miss);
   __ TryGetFunctionPrototype(edx, ebx, ecx, &slow);
 
   // Check that the function prototype is a JS object.
@@ -12140,7 +12300,15 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ cmp(ecx, LAST_JS_OBJECT_TYPE);
   __ j(greater, &slow, not_taken);
 
-  // Register mapping: eax is object map and ebx is function prototype.
+  // Register mapping:
+  //   eax is object map.
+  //   edx is function.
+  //   ebx is function prototype.
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheMapRootIndex));
+  __ mov(Operand::StaticArray(ecx, times_pointer_size, roots_address), eax);
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
+  __ mov(Operand::StaticArray(ecx, times_pointer_size, roots_address), edx);
+
   __ mov(ecx, FieldOperand(eax, Map::kPrototypeOffset));
 
   // Loop through the prototype chain looking for the function prototype.
@@ -12156,10 +12324,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   __ bind(&is_instance);
   __ Set(eax, Immediate(0));
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+  __ mov(Operand::StaticArray(ecx, times_pointer_size, roots_address), eax);
   __ ret(2 * kPointerSize);
 
   __ bind(&is_not_instance);
   __ Set(eax, Immediate(Smi::FromInt(1)));
+  __ mov(ecx, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+  __ mov(Operand::StaticArray(ecx, times_pointer_size, roots_address), eax);
   __ ret(2 * kPointerSize);
 
   // Slow-case: Go through the JavaScript implementation.

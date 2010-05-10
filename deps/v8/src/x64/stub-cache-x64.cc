@@ -870,9 +870,9 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
   SharedFunctionInfo* function_info = function->shared();
   if (function_info->HasCustomCallGenerator()) {
-    CustomCallGenerator generator =
-        ToCData<CustomCallGenerator>(function_info->function_data());
-    Object* result = generator(this, object, holder, function, name, check);
+    const int id = function_info->custom_call_generator_id();
+    Object* result =
+        CompileCustomCall(id, object, holder, function, name, check);
     // undefined means bail out to regular compiler.
     if (!result->IsUndefined()) {
       return result;
@@ -1007,11 +1007,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  String* function_name = NULL;
-  if (function->shared()->name()->IsString()) {
-    function_name = String::cast(function->shared()->name());
-  }
-  return GetCode(CONSTANT_FUNCTION, function_name);
+  return GetCode(function);
 }
 
 
@@ -1198,7 +1194,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
       // Increment element's and array's sizes.
-      __ addq(FieldOperand(rbx, FixedArray::kLengthOffset),
+      __ addl(FieldOperand(rbx, FixedArray::kLengthOffset),
               Immediate(kAllocationDelta));
       __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rax);
 
@@ -1219,11 +1215,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  String* function_name = NULL;
-  if (function->shared()->name()->IsString()) {
-    function_name = String::cast(function->shared()->name());
-  }
-  return GetCode(CONSTANT_FUNCTION, function_name);
+  return GetCode(function);
 }
 
 
@@ -1308,11 +1300,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  String* function_name = NULL;
-  if (function->shared()->name()->IsString()) {
-    function_name = String::cast(function->shared()->name());
-  }
-  return GetCode(CONSTANT_FUNCTION, function_name);
+  return GetCode(function);
 }
 
 

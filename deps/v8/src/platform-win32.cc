@@ -1249,16 +1249,16 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 
     // Try to locate a symbol for this frame.
     DWORD64 symbol_displacement;
-    IMAGEHLP_SYMBOL64* symbol = NULL;
-    symbol = NewArray<IMAGEHLP_SYMBOL64>(kStackWalkMaxNameLen);
-    if (!symbol) return kStackWalkError;  // Out of memory.
-    memset(symbol, 0, sizeof(IMAGEHLP_SYMBOL64) + kStackWalkMaxNameLen);
-    symbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
-    symbol->MaxNameLength = kStackWalkMaxNameLen;
+    SmartPointer<IMAGEHLP_SYMBOL64> symbol(
+        NewArray<IMAGEHLP_SYMBOL64>(kStackWalkMaxNameLen));
+    if (symbol.is_empty()) return kStackWalkError;  // Out of memory.
+    memset(*symbol, 0, sizeof(IMAGEHLP_SYMBOL64) + kStackWalkMaxNameLen);
+    (*symbol)->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
+    (*symbol)->MaxNameLength = kStackWalkMaxNameLen;
     ok = _SymGetSymFromAddr64(process_handle,             // hProcess
                               stack_frame.AddrPC.Offset,  // Address
                               &symbol_displacement,       // Displacement
-                              symbol);                    // Symbol
+                              *symbol);                   // Symbol
     if (ok) {
       // Try to locate more source information for the symbol.
       IMAGEHLP_LINE64 Line;
@@ -1276,13 +1276,13 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
         SNPrintF(MutableCStrVector(frames[frames_count].text,
                                    kStackWalkMaxTextLen),
                  "%s %s:%d:%d",
-                 symbol->Name, Line.FileName, Line.LineNumber,
+                 (*symbol)->Name, Line.FileName, Line.LineNumber,
                  line_displacement);
       } else {
         SNPrintF(MutableCStrVector(frames[frames_count].text,
                                    kStackWalkMaxTextLen),
                  "%s",
-                 symbol->Name);
+                 (*symbol)->Name);
       }
       // Make sure line termination is in place.
       frames[frames_count].text[kStackWalkMaxTextLen - 1] = '\0';
@@ -1294,11 +1294,9 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
       // module will never be found).
       int err = GetLastError();
       if (err != ERROR_MOD_NOT_FOUND) {
-        DeleteArray(symbol);
         break;
       }
     }
-    DeleteArray(symbol);
 
     frames_count++;
   }

@@ -31,13 +31,13 @@
 namespace v8 {
 namespace internal {
 
-struct GayShortest {
+struct PrecomputedShortest {
   double v;
   const char* representation;
   int decimal_point;
 };
 
-Vector<const GayShortest> PrecomputedShortestRepresentations();
+Vector<const PrecomputedShortest> PrecomputedShortestRepresentations();
 
 } }  // namespace v8::internal
 

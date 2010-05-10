@@ -377,7 +377,7 @@ static Object* CallJsBuiltin(const char* name,
                   name);
   ASSERT(js_builtin->IsJSFunction());
   Handle<JSFunction> function(Handle<JSFunction>::cast(js_builtin));
-  Vector<Object**> argv(Vector<Object**>::New(args.length() - 1));
+  ScopedVector<Object**> argv(args.length() - 1);
   int n_args = args.length() - 1;
   for (int i = 0; i < n_args; i++) {
     argv[i] = args.at<Object>(i + 1).location();
@@ -388,7 +388,6 @@ static Object* CallJsBuiltin(const char* name,
                                           n_args,
                                           argv.start(),
                                           &pending_exception);
-  argv.Dispose();
   if (pending_exception) return Failure::Exception();
   return *result;
 }

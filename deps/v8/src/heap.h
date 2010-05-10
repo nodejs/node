@@ -93,6 +93,9 @@ class ZoneScopeInfo;
   V(Map, proxy_map, ProxyMap)                                                  \
   V(Object, nan_value, NanValue)                                               \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
+  V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
+  V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
+  V(Object, instanceof_cache_answer, InstanceofCacheAnswer)                    \
   V(String, empty_string, EmptyString)                                         \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Map, neander_map, NeanderMap)                                              \
@@ -360,6 +363,11 @@ class Heap : public AllStatic {
 
   // Allocates an empty code cache.
   static Object* AllocateCodeCache();
+
+  // Clear the Instanceof cache (used when a prototype changes).
+  static void ClearInstanceofCache() {
+    set_instanceof_cache_function(the_hole_value());
+  }
 
   // Allocates and fully initializes a String.  There are two String
   // encodings: ASCII and two byte. One should choose between the three string
@@ -971,6 +979,8 @@ class Heap : public AllStatic {
 
   static int MaxObjectSizeInNewSpace() { return kMaxObjectSizeInNewSpace; }
 
+  static void ClearJSFunctionResultCaches();
+
  private:
   static int reserved_semispace_size_;
   static int max_semispace_size_;
@@ -1171,14 +1181,19 @@ class Heap : public AllStatic {
   static void MarkCompactPrologue(bool is_compacting);
   static void MarkCompactEpilogue(bool is_compacting);
 
+  // Completely clear the Instanceof cache (to stop it keeping objects alive
+  // around a GC).
+  static void CompletelyClearInstanceofCache() {
+    set_instanceof_cache_map(the_hole_value());
+    set_instanceof_cache_function(the_hole_value());
+  }
+
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source
   // object.  Returns the target object.
   static inline HeapObject* MigrateObject(HeapObject* source,
                                           HeapObject* target,
                                           int size);
-
-  static void ClearJSFunctionResultCaches();
 
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   // Record the copy of an object in the NewSpace's statistics.

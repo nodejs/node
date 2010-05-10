@@ -34,6 +34,7 @@ Import('context object_files')
 
 SOURCES = {
   'all': [
+    'gay-fixed.cc',
     'gay-shortest.cc',
     'test-accessors.cc',
     'test-alloc.cc',
@@ -49,6 +50,7 @@ SOURCES = {
     'test-diy-fp.cc',
     'test-double.cc',
     'test-fast-dtoa.cc',
+    'test-fixed-dtoa.cc',
     'test-flags.cc',
     'test-func-name-inference.cc',
     'test-hashmap.cc',

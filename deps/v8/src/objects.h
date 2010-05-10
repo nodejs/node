@@ -2328,6 +2328,10 @@ class JSFunctionResultCache: public FixedArray {
 
   static const int kEntrySize = 2;  // key + value
 
+  static const int kFactoryOffset = kHeaderSize;
+  static const int kFingerOffset = kFactoryOffset + kPointerSize;
+  static const int kCacheSizeOffset = kFingerOffset + kPointerSize;
+
   inline void MakeZeroSize();
   inline void Clear();
 
@@ -3200,7 +3204,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // [function data]: This field holds some additional data for function.
   // Currently it either has FunctionTemplateInfo to make benefit the API
-  // or Proxy wrapping CustomCallGenerator.
+  // or Smi identifying a custom call generator.
   // In the long run we don't want all functions to have this field but
   // we can fix that when we have a better model for storing hidden data
   // on objects.
@@ -3209,6 +3213,7 @@ class SharedFunctionInfo: public HeapObject {
   inline bool IsApiFunction();
   inline FunctionTemplateInfo* get_api_func_data();
   inline bool HasCustomCallGenerator();
+  inline int custom_call_generator_id();
 
   // [script info]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)

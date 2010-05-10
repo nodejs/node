@@ -1210,14 +1210,31 @@ void RegExpMacroAssemblerARM::LoadCurrentCharacterUnchecked(int cp_offset,
     __ add(r0, current_input_offset(), Operand(cp_offset * char_size()));
     offset = r0;
   }
-  // We assume that we cannot do unaligned loads on ARM, so this function
-  // must only be used to load a single character at a time.
+  // The ldr, str, ldrh, strh instructions can do unaligned accesses, if the CPU
+  // and the operating system running on the target allow it.
+  // If unaligned load/stores are not supported then this function must only
+  // be used to load a single character at a time.
+#if !V8_TARGET_CAN_READ_UNALIGNED
   ASSERT(characters == 1);
+#endif
+
   if (mode_ == ASCII) {
-    __ ldrb(current_character(), MemOperand(end_of_input_address(), offset));
+    if (characters == 4) {
+      __ ldr(current_character(), MemOperand(end_of_input_address(), offset));
+    } else if (characters == 2) {
+      __ ldrh(current_character(), MemOperand(end_of_input_address(), offset));
+    } else {
+      ASSERT(characters == 1);
+      __ ldrb(current_character(), MemOperand(end_of_input_address(), offset));
+    }
   } else {
     ASSERT(mode_ == UC16);
-    __ ldrh(current_character(), MemOperand(end_of_input_address(), offset));
+    if (characters == 2) {
+      __ ldr(current_character(), MemOperand(end_of_input_address(), offset));
+    } else {
+      ASSERT(characters == 1);
+      __ ldrh(current_character(), MemOperand(end_of_input_address(), offset));
+    }
   }
 }
 

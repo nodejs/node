@@ -314,7 +314,7 @@ static void BiggestPowerTen(uint32_t number,
 //  w's fractional part is therefore 0x567890abcdef.
 // Printing w's integral part is easy (simply print 0x1234 in decimal).
 // In order to print its fraction we repeatedly multiply the fraction by 10 and
-// get each digit. Example the first digit after the comma would be computed by
+// get each digit. Example the first digit after the point would be computed by
 //   (0x567890abcdef * 10) >> 48. -> 3
 // The whole thing becomes slightly more complicated because we want to stop
 // once we have enough digits. That is, once the digits inside the buffer
@@ -490,18 +490,11 @@ bool grisu3(double v, Vector<char> buffer, int* length, int* decimal_exponent) {
 
 bool FastDtoa(double v,
               Vector<char> buffer,
-              int* sign,
               int* length,
               int* point) {
-  ASSERT(v != 0);
+  ASSERT(v > 0);
   ASSERT(!Double(v).IsSpecial());
 
-  if (v < 0) {
-    v = -v;
-    *sign = 1;
-  } else {
-    *sign = 0;
-  }
   int decimal_exponent;
   bool result = grisu3(v, buffer, length, &decimal_exponent);
   *point = *length + decimal_exponent;

@@ -738,15 +738,10 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     // Load the key.
     __ mov(r0, Operand(key_literal->handle()));
 
-    // Push both as arguments to ic.
-    __ Push(r1, r0);
-
-    // Call keyed load IC. It has all arguments on the stack and the key in r0.
+    // Call keyed load IC. It has arguments key and receiver in r0 and r1.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
-
-    // Drop key and object left on the stack by IC, and push the result.
-    DropAndApply(2, context, r0);
+    Apply(context, r0);
   }
 }
 
@@ -935,8 +930,16 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       }
       break;
     case KEYED_PROPERTY:
-      VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kStack);
+      // We need the key and receiver on both the stack and in r0 and r1.
+      if (expr->is_compound()) {
+        VisitForValue(prop->obj(), kStack);
+        VisitForValue(prop->key(), kAccumulator);
+        __ ldr(r1, MemOperand(sp, 0));
+        __ push(r0);
+      } else {
+        VisitForValue(prop->obj(), kStack);
+        VisitForValue(prop->key(), kStack);
+      }
       break;
   }
 
@@ -1005,8 +1008,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
-  // Call keyed load IC. It has all arguments on the stack and the key in r0.
-  __ ldr(r0, MemOperand(sp, 0));
+  // Call keyed load IC. It has arguments key and receiver in r0 and r1.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 }
@@ -1171,10 +1173,10 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
     // Drop receiver left on the stack by IC.
     DropAndApply(1, context_, r0);
   } else {
-    VisitForValue(expr->key(), kStack);
+    VisitForValue(expr->key(), kAccumulator);
+    __ pop(r1);
     EmitKeyedPropertyLoad(expr);
-    // Drop key and receiver left on the stack by IC.
-    DropAndApply(2, context_, r0);
+    Apply(context_, r0);
   }
 }
 
@@ -1246,24 +1248,31 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Call to a keyed property, use keyed load IC followed by function
       // call.
       VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kStack);
+      VisitForValue(prop->key(), kAccumulator);
       // Record source code position for IC call.
       SetSourcePosition(prop->position());
-      // Call keyed load IC. It has all arguments on the stack and the key in
-      // r0.
-      __ ldr(r0, MemOperand(sp, 0));
+      if (prop->is_synthetic()) {
+        __ pop(r1);  // We do not need to keep the receiver.
+      } else {
+        __ ldr(r1, MemOperand(sp, 0));  // Keep receiver, to call function on.
+      }
+
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
-      // Load receiver object into r1.
       if (prop->is_synthetic()) {
+        // Push result (function).
+        __ push(r0);
+        // Push Global receiver.
         __ ldr(r1, CodeGenerator::GlobalObject());
         __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
+        __ push(r1);
       } else {
-        __ ldr(r1, MemOperand(sp, kPointerSize));
+        // Pop receiver.
+        __ pop(r1);
+        // Push result (function).
+        __ push(r0);
+        __ push(r1);
       }
-      // Overwrite (object, key) with (function, receiver).
-      __ str(r0, MemOperand(sp, kPointerSize));
-      __ str(r1, MemOperand(sp));
       EmitCallWithStub(expr);
     }
   } else {
@@ -1552,7 +1561,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     if (assign_type == NAMED_PROPERTY) {
       EmitNamedPropertyLoad(prop);
     } else {
-      VisitForValue(prop->key(), kStack);
+      VisitForValue(prop->key(), kAccumulator);
+      __ ldr(r1, MemOperand(sp, 0));
+      __ push(r0);
       EmitKeyedPropertyLoad(prop);
     }
   }

@@ -2530,7 +2530,13 @@ FunctionTemplateInfo* SharedFunctionInfo::get_api_func_data() {
 
 
 bool SharedFunctionInfo::HasCustomCallGenerator() {
-  return function_data()->IsProxy();
+  return function_data()->IsSmi();
+}
+
+
+int SharedFunctionInfo::custom_call_generator_id() {
+  ASSERT(HasCustomCallGenerator());
+  return Smi::cast(function_data())->value();
 }
 
 
