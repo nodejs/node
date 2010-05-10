@@ -114,6 +114,8 @@ def configure(conf):
   conf.env["USE_DEBUG"] = Options.options.debug
   conf.env["USE_SYSTEM"] = Options.options.system
 
+  conf.check_cc(header_name="strings.h")
+
   conf.check(lib='dl', uselib_store='DL')
   if not sys.platform.startswith("sunos"):
     conf.env.append_value("CCFLAGS", "-rdynamic")

@@ -4,7 +4,11 @@
 #include <node.h>
 #include <node_buffer.h>
 
-#include <string.h>
+#ifdef HAVE_STRINGS_H
+# include <strings.h>
+#else
+# include <string.h>
+#endif
 #include <stdlib.h>
 
 #include <sys/types.h>

@@ -3,7 +3,6 @@
 #include <node.h>
 
 #include <assert.h>
-#include <string.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -11,6 +10,12 @@
 #include <sys/types.h>
 #ifdef __FreeBSD__
 #include <sys/wait.h>
+#endif
+
+#ifdef HAVE_STRINGS_H
+# include <strings.h>
+#else
+# include <string.h>
 #endif
 
 extern char **environ;
