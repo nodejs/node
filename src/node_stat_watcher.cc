@@ -2,12 +2,8 @@
 #include <node_stat_watcher.h>
 
 #include <assert.h>
+#include <string.h>
 #include <stdlib.h>
-#ifdef HAVE_STRINGS_H
-# include <strings.h>
-#else
-# include <string.h>
-#endif
 
 namespace node {
 

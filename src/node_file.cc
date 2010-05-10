@@ -10,14 +10,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
+#include <string.h>
 #include <errno.h>
 #include <limits.h>
-
-#ifdef HAVE_STRINGS_H
-# include <strings.h>
-#else
-# include <string.h>
-#endif
 
 /* used for readlink, AIX doesn't provide it */
 #ifndef PATH_MAX

@@ -3,11 +3,7 @@
 
 #include <unistd.h>
 #include <fcntl.h>
-#ifdef HAVE_STRINGS_H
-# include <strings.h>
-#else
-# include <string.h>
-#endif
+#include <string.h>
 #include <errno.h>
 
 using namespace v8;

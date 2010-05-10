@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
 #include <limits.h> /* PATH_MAX */
 #include <assert.h>
 #include <unistd.h>
@@ -12,12 +13,6 @@
 #include <dlfcn.h> /* dlopen(), dlsym() */
 #include <sys/types.h>
 #include <unistd.h> /* setuid, getuid */
-
-#ifdef HAVE_STRINGS_H
-# include <strings.h>
-#else
-# include <string.h>
-#endif
 
 #include <node_buffer.h>
 #include <node_io_watcher.h>

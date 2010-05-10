@@ -4,13 +4,7 @@
 #include <stdlib.h> // malloc, free
 #include <v8.h>
 
-// memcpy
-#ifdef HAVE_STRINGS_H
-# include <strings.h>
-#else
-# include <string.h>
-#endif
-
+#include <string.h> // memcpy
 
 #include <arpa/inet.h>  // htons, htonl
 
