@@ -11,10 +11,10 @@ CUR_DIR=$PWD
 
 #possible relative path
 WORKINGDIR=`dirname $0`
-cd $WORKINGDIR
+cd "$WORKINGDIR"
 #abs path
 WORKINGDIR=`pwd`
-cd $CUR_DIR
+cd "$CUR_DIR"
 
 "${WORKINGDIR}/tools/waf-light" --jobs=1 configure $*
 
