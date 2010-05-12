@@ -73,6 +73,7 @@ static int After(eio_req *req) {
 
       case EIO_STAT:
       case EIO_LSTAT:
+      case EIO_FSTAT:
       {
         struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
         argc = 2;
@@ -210,6 +211,25 @@ static Handle<Value> LStat(const Arguments& args) {
   } else {
     struct stat s;
     int ret = lstat(*path, &s);
+    if (ret != 0) return ThrowException(ErrnoException(errno));
+    return scope.Close(BuildStatsObject(&s));
+  }
+}
+
+static Handle<Value> FStat(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 1 || !args[0]->IsInt32()) {
+    return THROW_BAD_ARGS;
+  }
+
+  int fd = args[0]->Int32Value();
+
+  if (args[1]->IsFunction()) {
+    ASYNC_CALL(fstat, args[1], fd)
+  } else {
+    struct stat s;
+    int ret = fstat(fd, &s);
     if (ret != 0) return ThrowException(ErrnoException(errno));
     return scope.Close(BuildStatsObject(&s));
   }
@@ -744,6 +764,7 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "readdir", ReadDir);
   NODE_SET_METHOD(target, "stat", Stat);
   NODE_SET_METHOD(target, "lstat", LStat);
+  NODE_SET_METHOD(target, "fstat", FStat);
   NODE_SET_METHOD(target, "link", Link);
   NODE_SET_METHOD(target, "symlink", Symlink);
   NODE_SET_METHOD(target, "readlink", ReadLink);

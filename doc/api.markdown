@@ -1269,9 +1269,9 @@ Asynchronous chmod(2). No arguments other than a possible exception are given to
 
 Synchronous chmod(2).
   
-### fs.stat(path, callback), fs.lstat(path, callback)
+### fs.stat(path, callback), fs.lstat(path, callback), fs.fstat(fd, callback)
 
-Asynchronous stat(2) or lstat(2). The callback gets two arguments `(err, stats)` where `stats` is a `fs.Stats` object. It looks like this:
+Asynchronous stat(2), lstat(2) or fstat(2). The callback gets two arguments `(err, stats)` where `stats` is a `fs.Stats` object. It looks like this:
 
     { dev: 2049
     , ino: 305352
@@ -1290,9 +1290,9 @@ Asynchronous stat(2) or lstat(2). The callback gets two arguments `(err, stats)`
 
 See the `fs.Stats` section below for more information.
 
-### fs.statSync(path), fs.lstatSync(path)
+### fs.statSync(path), fs.lstatSync(path), fs.fstatSync(fd)
 
-Synchronous stat(2) or lstat(2). Returns an instance of `fs.Stats`.
+Synchronous stat(2), lstat(2) or fstat(2). Returns an instance of `fs.Stats`.
 
 ### fs.link(srcpath, dstpath, callback)
 
