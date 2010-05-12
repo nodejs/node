@@ -2935,14 +2935,14 @@ knowledge of several libraries:
    `src/file.cc` so you will probably not need to use it. If you do need it,
    look at the header file `deps/libeio/eio.h`.
 
- - Internal Node libraries. Most importantly is the `node::EventEmitter`
-   class which you will likely want to derive from. 
+ - Internal Node libraries. Most importantly is the `node::ObjectWrap`
+   class which you will likely want to derive from.
 
- - Others. Look in `deps/` for what else is available. 
+ - Others. Look in `deps/` for what else is available.
 
 Node statically compiles all its dependencies into the executable. When
 compiling your module, you don't need to worry about linking to any of these
-libraries. 
+libraries.
 
 To get started let's make a small Addon which does the following except in
 C++:
@@ -2990,7 +2990,7 @@ provided for the ease of users.
 
 All Node addons must export a function called `init` with this signature:
 
-    extern 'C' void init (Handle<Object> target) 
+    extern 'C' void init (Handle<Object> target)
 
 For the moment, that is all the documentation on addons. Please see
 <http://github.com/ry/node_postgres> for a real example.
