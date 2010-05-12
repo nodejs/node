@@ -2124,8 +2124,11 @@ call `stream.end()` when this event is emitted.
 
 `function () { }`
 
-Emitted if the stream times out from inactivity. The
-`'close'` event will be emitted immediately following this event.
+Emitted if the stream times out from inactivity. This is only to notify that
+the stream has been idle. The user must manually close the connection.
+
+See also: `stream.setTimeout()`
+
 
 ### Event: 'drain'
 
@@ -2233,10 +2236,13 @@ Resumes reading after a call to `pause()`.
 ### stream.setTimeout(timeout)
 
 Sets the stream to timeout after `timeout` milliseconds of inactivity on
-the stream. By default all `net.Stream` objects have a timeout of 60
-seconds (60000 ms).
+the stream. By default `net.Stream` do not have a timeout.
 
-If `timeout` is 0, then the idle timeout is disabled.
+When an idle timeout is triggered the stream will receive a `'timeout'`
+event but the connection will not be severed. The user must manually `end()`
+or `destroy()` the stream.
+
+If `timeout` is 0, then the existing idle timeout is disabled.
 
 ### stream.setNoDelay(noDelay=true)
 

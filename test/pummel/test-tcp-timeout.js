@@ -5,8 +5,6 @@ starttime = null;
 timeouttime = null;
 timeout = 1000;
 
-gotError = false
-
 var echo_server = net.createServer(function (socket) {
   socket.setTimeout(timeout);
 
@@ -14,11 +12,11 @@ var echo_server = net.createServer(function (socket) {
     puts("server timeout");
     timeouttime = new Date;
     p(timeouttime);
+    socket.destroy();
   });
 
   socket.addListener("error", function (e) {
-    assert.ok(e instanceof Error);
-    gotError = true;
+    throw new Error("Server side socket should not get error. We disconnect willingly.");
   })
 
   socket.addListener("data", function (d) {
@@ -59,8 +57,7 @@ client.addListener("data", function (chunk) {
 });
 
 client.addListener("timeout", function () {
-  puts("client timeout - this shouldn't happen");
-  assert.ok(false);
+  throw new Error("client timeout - this shouldn't happen");
 });
 
 client.addListener("end", function () {
@@ -84,6 +81,4 @@ process.addListener("exit", function () {
 
   // Allow for 800 milliseconds more
   assert.ok(diff < timeout + 800);
-
-  assert.ok(gotError);
 });
