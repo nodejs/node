@@ -8,15 +8,6 @@ server = http.createServer(function (req, res) {
 
   req.connection.addListener('timeout', function(){
     sys.debug("TIMEOUT");
-
-    var body="timeout\n";
-    res.writeHead(200, {
-      'Content-Type': 'text/plain',
-      'Content-Length': body.length,
-      'Connection':'close'
-    });
-    res.end(body);
-    req.connection.end();
     server.close();
   });
 });
@@ -32,8 +23,6 @@ server.addListener('listening', function () {
 
   http.cat('http://localhost:8000/', 'utf8', function (err, content) {
     clearTimeout(errorTimer);
-    if (err) throw err;
     sys.puts('HTTP REQUEST COMPLETE (this is good)');
-    sys.puts(content);
   });
 });
