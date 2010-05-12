@@ -223,12 +223,23 @@ is emitted. These functions are called _listeners_.
 All EventEmitters emit the event `'newListener'` when new listeners are
 added.
 
+When an EventEmitter experiences an error, the typical action is to emit an
+`'error'` event.  Error events are special--if there is no handler for them
+they will print a stack trace and exit the program.
+
 ### Event: 'newListener'
 
 `function (event, listener) { }`
 
 This event is made any time someone adds a new listener.
 
+### Event: 'error'
+
+`function (exception) { }`
+
+If an error was encountered, then this event is emitted. This event is
+special - when there are no listeners to receive the error Node will
+terminate execution and display the exception's stack trace.
 
 ### emitter.addListener(event, listener)
 
