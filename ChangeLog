@@ -1,4 +1,28 @@
-2010.05.06, Version 0.1.94
+2010.05.13, Version 0.1.95
+
+* Change GC idle notify so that it runs alongside setInterval
+
+* Install node_buffer.h on make install
+
+* fs.readFile returns Buffer by default (Tim Caswell)
+
+* Fix error reporting in child_process callbacks
+
+* Better logic for testing if an argument is a port
+
+* Improve error reporting (single line "node.js:176:9" errors)
+
+* Bugfix: Some http responses being truncated (appeared in 0.1.94)
+
+* Fix long standing net idle timeout bugs. Enable 2 minute timeout
+  by default in HTTP servers.
+
+* Add fs.fstat (Ben Noordhuis)
+
+* Upgrade to V8 2.2.9
+
+
+2010.05.06, Version 0.1.94, f711d5343b29d1e72e87107315708e40951a7826
 
 * Look in /usr/local/lib/node for modules, so that there's a way 
   to install modules globally (Issac Schlueter)
