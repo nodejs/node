@@ -76,14 +76,13 @@ VERSION=$(shell git describe)
 TARNAME=node-$(VERSION)
 
 dist: doc/node.1 doc/api.html
-	git archive --prefix=$(TARNAME)/ HEAD > $(TARNAME).tar
+	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
 	mkdir -p $(TARNAME)/doc
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp doc/api.html $(TARNAME)/doc/api.html
-	tar rf $(TARNAME).tar   \
-		$(TARNAME)/doc/node.1 \
-		$(TARNAME)/doc/api.html
-	rm -r $(TARNAME)
+	rm -rf $(TARNAME)/deps/v8/test # too big
+	tar -cf $(TARNAME).tar $(TARNAME)
+	rm -rf $(TARNAME)
 	gzip -f -9 $(TARNAME).tar
 
 .PHONY: benchmark clean docclean dist distclean check uninstall install all test test-all website-upload
