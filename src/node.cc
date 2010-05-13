@@ -119,7 +119,7 @@ static void StartGCTimer () {
 static void StopGCTimer () {
   if (ev_is_active(&gc_timer)) {
     ev_ref(EV_DEFAULT_UC);
-    ev_timer_stop(&gc_timer);
+    ev_timer_stop(EV_DEFAULT_UC_ &gc_timer);
   }
 }
 
@@ -141,7 +141,7 @@ static void Check(EV_P_ ev_check *watcher, int revents) {
   assert(watcher == &gc_check);
   assert(revents == EV_CHECK);
 
-  tick_times[tick_time_head] = ev_now();
+  tick_times[tick_time_head] = ev_now(EV_DEFAULT_UC);
   tick_time_head = (tick_time_head + 1) % RPM_SAMPLES;
 
   StartGCTimer();
@@ -1398,7 +1398,7 @@ static void CheckStatus(EV_P_ ev_timer *watcher, int revents) {
   }
 #endif // HAVE_GETMEM
 
-  double d = ev_now() - TICK_TIME(3);
+  double d = ev_now(EV_DEFAULT_UC) - TICK_TIME(3);
 
   //printfb("timer d = %f\n", d);
 
