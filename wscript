@@ -38,6 +38,12 @@ def set_options(opt):
                 , help='Build using system libraries and headers (like a debian build) [Default: False]'
                 , dest='system'
                 )
+  opt.add_option( '--without-ssl'
+                , action='store_true'
+                , default=False
+                , help='Build without SSL'
+                , dest='without_ssl'
+                )
 
 def configure(conf):
   conf.check_tool('compiler_cxx')
@@ -68,23 +74,24 @@ def configure(conf):
     if sys.platform.startswith("freebsd"):
       conf.fatal("Install the libexecinfo port from /usr/ports/devel/libexecinfo.")
 
-  if conf.check_cfg(package='openssl',
-                    args='--cflags --libs',
-                    uselib_store='OPENSSL'):
-    conf.env["USE_OPENSSL"] = True
-    conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
-  else:
-    libssl = conf.check_cc(lib='ssl',
-                           header_name='openssl/ssl.h',
-                           function_name='SSL_library_init',
-                           libpath=['/usr/lib', '/usr/local/lib', '/opt/local/lib', '/usr/sfw/lib'],
-                           uselib_store='OPENSSL')
-    libcrypto = conf.check_cc(lib='crypto',
-                              header_name='openssl/crypto.h',
-                              uselib_store='OPENSSL')
-    if libcrypto and libssl:
+  if not Options.options.without_ssl:
+    if conf.check_cfg(package='openssl',
+                      args='--cflags --libs',
+                      uselib_store='OPENSSL'):
       conf.env["USE_OPENSSL"] = True
       conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
+    else:
+      libssl = conf.check_cc(lib='ssl',
+                             header_name='openssl/ssl.h',
+                             function_name='SSL_library_init',
+                             libpath=['/usr/lib', '/usr/local/lib', '/opt/local/lib', '/usr/sfw/lib'],
+                             uselib_store='OPENSSL')
+      libcrypto = conf.check_cc(lib='crypto',
+                                header_name='openssl/crypto.h',
+                                uselib_store='OPENSSL')
+      if libcrypto and libssl:
+        conf.env["USE_OPENSSL"] = True
+        conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
 
   conf.check(lib='rt', uselib_store='RT')
 
