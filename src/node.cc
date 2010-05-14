@@ -958,15 +958,6 @@ const char* ToCString(const v8::String::Utf8Value& value) {
 static void ReportException(TryCatch &try_catch, bool show_line) {
   Handle<Message> message = try_catch.Message();
 
-  Handle<Value> error = try_catch.Exception();
-  Handle<String> stack;
-
-  if (error->IsObject()) {
-    Handle<Object> obj = Handle<Object>::Cast(error);
-    Handle<Value> raw_stack = obj->Get(String::New("stack"));
-    if (raw_stack->IsString()) stack = Handle<String>::Cast(raw_stack);
-  }
-
   if (show_line && !message.IsEmpty()) {
     // Print (filename):(line number): (message).
     String::Utf8Value filename(message->GetScriptResourceName());
@@ -1010,10 +1001,9 @@ static void ReportException(TryCatch &try_catch, bool show_line) {
     fprintf(stderr, "\n");
   }
 
-  if (stack.IsEmpty()) {
-    message->PrintCurrentStackTrace(stderr);
-  } else {
-    String::Utf8Value trace(stack);
+  String::Utf8Value trace(try_catch.StackTrace());
+
+  if (trace.length() > 0) {
     fprintf(stderr, "%s\n", *trace);
   }
   fflush(stderr);
