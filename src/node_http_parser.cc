@@ -19,9 +19,6 @@
 // No copying is performed when slicing the buffer, only small reference
 // allocations.
 
- #include <execinfo.h>
- #include <stdio.h>
- #include <stdlib.h>
  
 namespace node {
 

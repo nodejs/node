@@ -83,6 +83,13 @@ int random();
 
 #endif  // WIN32
 
+#ifdef __sun
+# if !defined(signbit)
+int signbit(double x);
+# endif
+#endif
+
+
 // GCC specific stuff
 #ifdef __GNUC__
 
