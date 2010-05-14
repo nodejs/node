@@ -78,7 +78,8 @@ static inline void cb_destroy(v8::Persistent<v8::Function> * cb) {
 
 v8::Local<v8::Value> ErrnoException(int errorno,
                                     const char *syscall = NULL,
-                                    const char *msg = "");
+                                    const char *msg = "",
+                                    const char *path = NULL);
 
 const char *signo_string(int errorno);
 }  // namespace node

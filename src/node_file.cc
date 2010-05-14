@@ -41,12 +41,26 @@ static int After(eio_req *req) {
 
   if (req->errorno != 0) {
     argc = 1;
-    argv[0] = ErrnoException(req->errorno);
+    switch (req->type) {
+      case EIO_STAT:
+      case EIO_LSTAT:
+      case EIO_LINK:
+      case EIO_UNLINK:
+      case EIO_RMDIR:
+      case EIO_RENAME:
+      case EIO_READLINK:
+      case EIO_OPEN:
+      case EIO_CHMOD:
+      case EIO_MKDIR:
+        argv[0] = ErrnoException(req->errorno, NULL, "", static_cast<const char*>(req->ptr1));
+        break;
+      default:
+        argv[0] = ErrnoException(req->errorno);
+    }
   } else {
     // Note: the error is always given the first argument of the callback.
     // If there is no error then then the first argument is null.
     argv[0] = Local<Value>::New(Null());
-
     switch (req->type) {
       case EIO_CLOSE:
       case EIO_RENAME:
@@ -194,7 +208,7 @@ static Handle<Value> Stat(const Arguments& args) {
   } else {
     struct stat s;
     int ret = stat(*path, &s);
-    if (ret != 0) return ThrowException(ErrnoException(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
     return scope.Close(BuildStatsObject(&s));
   }
 }
@@ -213,7 +227,7 @@ static Handle<Value> LStat(const Arguments& args) {
   } else {
     struct stat s;
     int ret = lstat(*path, &s);
-    if (ret != 0) return ThrowException(ErrnoException(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
     return scope.Close(BuildStatsObject(&s));
   }
 }
@@ -270,7 +284,7 @@ static Handle<Value> Link(const Arguments& args) {
     ASYNC_CALL(link, args[2], *orig_path, *new_path)
   } else {
     int ret = link(*orig_path, *new_path);
-    if (ret != 0) return ThrowException(ErrnoException(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *orig_path));
     return Undefined();
   }
 }
@@ -289,7 +303,7 @@ static Handle<Value> ReadLink(const Arguments& args) {
   } else {
     char buf[PATH_MAX];
     ssize_t bz = readlink(*path, buf, PATH_MAX);
-    if (bz == -1) return ThrowException(ErrnoException(errno));
+    if (bz == -1) return ThrowException(ErrnoException(errno, NULL, "", *path));
     return scope.Close(String::New(buf, bz));
   }
 }
@@ -308,7 +322,7 @@ static Handle<Value> Rename(const Arguments& args) {
     ASYNC_CALL(rename, args[2], *old_path, *new_path)
   } else {
     int ret = rename(*old_path, *new_path);
-    if (ret != 0) return ThrowException(ErrnoException(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *old_path));
     return Undefined();
   }
 }
@@ -385,7 +399,7 @@ static Handle<Value> Unlink(const Arguments& args) {
     ASYNC_CALL(unlink, args[1], *path)
   } else {
     int ret = unlink(*path);
-    if (ret != 0) return ThrowException(ErrnoException(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
     return Undefined();
   }
 }
@@ -403,7 +417,7 @@ static Handle<Value> RMDir(const Arguments& args) {
     ASYNC_CALL(rmdir, args[1], *path)
   } else {
     int ret = rmdir(*path);
-    if (ret != 0) return ThrowException(ErrnoException(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
     return Undefined();
   }
 }
@@ -422,7 +436,7 @@ static Handle<Value> MKDir(const Arguments& args) {
     ASYNC_CALL(mkdir, args[2], *path, mode)
   } else {
     int ret = mkdir(*path, mode);
-    if (ret != 0) return ThrowException(ErrnoException(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
     return Undefined();
   }
 }
@@ -465,7 +479,7 @@ static Handle<Value> ReadDir(const Arguments& args) {
     ASYNC_CALL(readdir, args[1], *path, 0 /*flags*/)
   } else {
     DIR *dir = opendir(*path);
-    if (!dir) return ThrowException(ErrnoException(errno));
+    if (!dir) return ThrowException(ErrnoException(errno, NULL, "", *path));
 
     struct dirent *ent;
 
@@ -506,7 +520,7 @@ static Handle<Value> Open(const Arguments& args) {
     ASYNC_CALL(open, args[3], *path, flags, mode)
   } else {
     int fd = open(*path, flags, mode);
-    if (fd < 0) return ThrowException(ErrnoException(errno));
+    if (fd < 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
     return scope.Close(Integer::New(fd));
   }
 }
@@ -786,7 +800,7 @@ static Handle<Value> Chmod(const Arguments& args){
     ASYNC_CALL(chmod, args[2], *path, mode);
   } else {
     int ret = chmod(*path, mode);
-    if (ret != 0) return ThrowException(ErrnoException(errno));
+    if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
     return Undefined();
   }
 }

@@ -51,6 +51,7 @@ static Persistent<Object> process;
 
 static Persistent<String> errno_symbol;
 static Persistent<String> syscall_symbol;
+static Persistent<String> errpath_symbol;
 
 static Persistent<String> dev_symbol;
 static Persistent<String> ino_symbol;
@@ -737,7 +738,9 @@ const char *signo_string(int signo) {
 
 Local<Value> ErrnoException(int errorno,
                             const char *syscall,
-                            const char *msg) {
+                            const char *msg,
+                            const char *path) {
+  Local<Value> e;
   Local<String> estring = String::NewSymbol(errno_string(errorno));
   if (!msg[0]) msg = strerror(errorno);
   Local<String> message = String::NewSymbol(msg);
@@ -745,16 +748,25 @@ Local<Value> ErrnoException(int errorno,
   Local<String> cons1 = String::Concat(estring, String::NewSymbol(", "));
   Local<String> cons2 = String::Concat(cons1, message);
 
-  Local<Value> e = Exception::Error(cons2);
-
-  Local<Object> obj = e->ToObject();
-
   if (errno_symbol.IsEmpty()) {
     syscall_symbol = NODE_PSYMBOL("syscall");
     errno_symbol = NODE_PSYMBOL("errno");
+    errpath_symbol = NODE_PSYMBOL("path");
   }
 
+  if (path) {
+    Local<String> cons3 = String::Concat(cons2, String::NewSymbol(" '"));
+    Local<String> cons4 = String::Concat(cons3, String::New(path));
+    Local<String> cons5 = String::Concat(cons4, String::NewSymbol("'"));
+    e = Exception::Error(cons5);
+  } else {
+    e = Exception::Error(cons2);
+  }
+
+  Local<Object> obj = e->ToObject();
+
   obj->Set(errno_symbol, Integer::New(errorno));
+  if (path) obj->Set(errpath_symbol, String::New(path));
   if (syscall) obj->Set(syscall_symbol, String::NewSymbol(syscall));
   return e;
 }
