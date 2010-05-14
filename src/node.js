@@ -74,9 +74,10 @@ process.addListener("newListener", function (event) {
   if (isSignal(event) && process.listeners(event).length === 0) {
     var b = process.binding('signal_watcher');
     var w = new b.SignalWatcher(process[event]);
-    w.addListener("signal", function () {
+    w.callback = function () {
       process.emit(event);
-    });
+    };
+    w.start();
   }
 });
 

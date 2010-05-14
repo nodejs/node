@@ -7,38 +7,46 @@ namespace node {
 using namespace v8;
 
 Persistent<FunctionTemplate> SignalWatcher::constructor_template;
-static Persistent<String> signal_symbol;
+static Persistent<String> callback_symbol;
 
 void SignalWatcher::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(SignalWatcher::New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
-  constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   constructor_template->SetClassName(String::NewSymbol("SignalWatcher"));
 
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", SignalWatcher::Start);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", SignalWatcher::Stop);
-
-  signal_symbol = NODE_PSYMBOL("signal");
 
   target->Set(String::NewSymbol("SignalWatcher"),
       constructor_template->GetFunction());
+  
+  callback_symbol = NODE_PSYMBOL("callback");
 }
 
-void SignalWatcher::OnSignal(EV_P_ ev_signal *watcher, int revents) {
+void SignalWatcher::Callback(EV_P_ ev_signal *watcher, int revents) {
   SignalWatcher *w = static_cast<SignalWatcher*>(watcher->data);
+
+  assert(watcher == &w->watcher_);
+
   HandleScope scope;
 
-  assert(revents == EV_SIGNAL);
+  Local<Value> callback_v = w->handle_->Get(callback_symbol);
+  if (!callback_v->IsFunction()) {
+    w->Stop();
+    return;
+  }
 
-  w->Emit(signal_symbol, 0, NULL);
-}
+  Local<Function> callback = Local<Function>::Cast(callback_v);
 
-SignalWatcher::~SignalWatcher() {
-  if (watcher_.active) {
-    ev_ref(EV_DEFAULT_UC);
-    ev_signal_stop(EV_DEFAULT_UC_ &watcher_);
+  TryCatch try_catch;
+
+  callback->Call(w->handle_, 0, NULL);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
   }
 }
 
@@ -51,30 +59,40 @@ Handle<Value> SignalWatcher::New(const Arguments& args) {
 
   int sig = args[0]->Int32Value();
 
-  SignalWatcher *w = new SignalWatcher();
+  SignalWatcher *w = new SignalWatcher(sig);
   w->Wrap(args.Holder());
-
-  ev_signal_init(&w->watcher_, SignalWatcher::OnSignal, sig);
-  w->watcher_.data = w;
-  // Give signal handlers very high priority. The only thing that has higher
-  // priority is the garbage collector check.
-  ev_set_priority(&w->watcher_, EV_MAXPRI-1);
-  ev_signal_start(EV_DEFAULT_UC_ &w->watcher_);
-  ev_unref(EV_DEFAULT_UC);
-
-  w->Ref();
 
   return args.This();
 }
 
+Handle<Value> SignalWatcher::Start(const Arguments& args) {
+  HandleScope scope;
+  SignalWatcher *w = ObjectWrap::Unwrap<SignalWatcher>(args.Holder());
+  w->Start();
+  return Undefined();
+}
+
+void SignalWatcher::Start () {
+  if (!watcher_.active) {
+    ev_signal_start(EV_DEFAULT_UC_ &watcher_);
+    ev_unref(EV_DEFAULT_UC);
+    Ref();
+  }
+}
+
 Handle<Value> SignalWatcher::Stop(const Arguments& args) {
   HandleScope scope;
-
   SignalWatcher *w = ObjectWrap::Unwrap<SignalWatcher>(args.Holder());
-  ev_ref(EV_DEFAULT_UC);
-  ev_signal_stop(EV_DEFAULT_UC_ &w->watcher_);
-  w->Unref();
+  w->Stop();
   return Undefined();
+}
+
+void SignalWatcher::Stop () {
+  if (watcher_.active) {
+    ev_ref(EV_DEFAULT_UC);
+    ev_signal_stop(EV_DEFAULT_UC_ &watcher_);
+    Unref();
+  }
 }
 
 }  // namespace node

@@ -10,21 +10,32 @@
 
 namespace node {
 
-class SignalWatcher : EventEmitter {
+class SignalWatcher : ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
 
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
-  SignalWatcher() : EventEmitter() { }
-  ~SignalWatcher();
+  SignalWatcher(int sig) : ObjectWrap() {
+    ev_signal_init(&watcher_, SignalWatcher::Callback, sig);
+    watcher_.data = this;
+  }
+  
+  ~SignalWatcher() {
+    ev_signal_stop(EV_DEFAULT_UC_ &watcher_);
+  }
 
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Start(const v8::Arguments& args);
   static v8::Handle<v8::Value> Stop(const v8::Arguments& args);
 
  private:
-  static void OnSignal(EV_P_ ev_signal *watcher, int revents);
+  static void Callback(EV_P_ ev_signal *watcher, int revents);
+  
+  void Start();
+  void Stop();
+  
   ev_signal watcher_;
 };
 
