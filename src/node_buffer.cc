@@ -39,6 +39,7 @@ using namespace v8;
 
 static Persistent<String> length_symbol;
 static Persistent<String> chars_written_sym;
+static Persistent<String> write_sym;
 Persistent<FunctionTemplate> Buffer::constructor_template;
 
 
@@ -128,6 +129,18 @@ Handle<Value> Buffer::New(const Arguments &args) {
     size_t length = args[0]->Uint32Value();
     buffer = new Buffer(length);
 
+  } else if (args[0]->IsArray()) {
+    Local<Array> a = Local<Array>::Cast(args[0]);
+    buffer = new Buffer(a->Length());
+    char *p = buffer->data();
+    for (int i = 0; i < a->Length(); i++) {
+      p[i] = a->Get(i)->Uint32Value();
+    }
+  } else if (args[0]->IsString()) {
+    Local<String> s = args[0]->ToString();
+    enum encoding e = ParseEncoding(args[1], UTF8);
+    int length = e == UTF8 ? s->Utf8Length() : s->Length();
+    buffer = new Buffer(length);
   } else if (Buffer::HasInstance(args[0]) && args.Length() > 2) {
     // var slice = new Buffer(buffer, 123, 130);
     // args: parent, start, end
@@ -143,6 +156,27 @@ Handle<Value> Buffer::New(const Arguments &args) {
                                                        kExternalUnsignedByteArray,
                                                        buffer->length());
   args.This()->Set(length_symbol, Integer::New(buffer->length_));
+
+  if (args[0]->IsString()) {
+    if (write_sym.IsEmpty()) {
+      write_sym = Persistent<String>::New(String::NewSymbol("write"));
+    }
+
+    Local<Value> write_v = args.This()->Get(write_sym);
+    assert(write_v->IsFunction());
+    Local<Function> write = Local<Function>::Cast(write_v);
+
+    Local<Value> argv[2] = { args[0], args[1] };
+
+    TryCatch try_catch;
+
+    write->Call(args.This(), 2, argv);
+
+    if (try_catch.HasCaught()) {
+      FatalException(try_catch);
+    }
+  }
+
   return args.This();
 }
 

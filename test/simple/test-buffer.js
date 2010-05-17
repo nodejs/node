@@ -106,3 +106,16 @@ assert.equal(7, b[3]);
 var c = b.slice(2 , 4);
 assert.equal(6, c[0]);
 assert.equal(7, c[1]);
+
+
+var d = new Buffer([23, 42, 255]);
+assert.equal(d.length, 3);
+assert.equal(d[0], 23);
+assert.equal(d[1], 42);
+assert.equal(d[2], 255);
+
+var e = new Buffer('über');
+assert.deepEqual(e, new Buffer([195, 188, 98, 101, 114]));
+
+var f = new Buffer('über', 'ascii');
+assert.deepEqual(f, new Buffer([252, 98, 101, 114]));

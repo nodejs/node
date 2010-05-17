@@ -68,6 +68,14 @@ strip the high bit if set.
 
 Allocates a new buffer of `size` octets.
 
+### new Buffer(array)
+
+Allocates a new buffer using an `array` of octets.
+
+### new Buffer(str, encoding = 'utf8')
+
+Allocates a new buffer containing the given `str`.
+
 ### buffer.write(string, encoding, offset)
 
 Writes `string` to the buffer at `offset` using the given encoding. Returns
