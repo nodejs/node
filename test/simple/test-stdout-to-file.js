@@ -1,19 +1,52 @@
 require('../common');
-var path = require('path')
-  , childProccess = require('child_process')
-  , fs = require('fs')
-  , stdoutScript = path.join(path.dirname(__dirname), 'fixtures/stdout.js')
-  , tmpFile = path.join(path.dirname(__dirname), 'fixtures/stdout.txt')
-  , cmd = process.argv[0]+' '+stdoutScript+' > '+tmpFile;
+path = require('path');
+childProccess = require('child_process');
+fs = require('fs');
+scriptString = path.join(fixturesDir, 'print-chars.js');
+scriptBuffer = path.join(fixturesDir, 'print-chars-from-buffer.js');
+tmpFile = path.join(fixturesDir, 'stdout.txt');
 
-try {
-  fs.unlinkSync(tmpFile);
-} catch (e) {}
+function test (size, useBuffer, cb) {
+  var cmd = process.argv[0]
+          + ' '
+          + (useBuffer ? scriptBuffer : scriptString)
+          + ' '
+          + size
+          + ' > '
+          + tmpFile
+          ;
 
-childProccess.exec(cmd, function(err) {
-  if (err) throw err;
+  try {
+    fs.unlinkSync(tmpFile);
+  } catch (e) {}
 
-  var data = fs.readFileSync(tmpFile);
-  assert.equal(data, "test\n");
-  fs.unlinkSync(tmpFile);
+  print(size + ' chars to ' + tmpFile + '...');
+
+  childProccess.exec(cmd, function(err) {
+    if (err) throw err;
+
+    puts('done!');
+
+    var stat = fs.statSync(tmpFile);
+
+    puts(tmpFile + ' has ' + stat.size + ' bytes');
+
+    assert.equal(size, stat.size);
+    fs.unlinkSync(tmpFile);
+
+    cb();
+  });
+}
+
+finished = false;
+test(1024*1024, false, function () {
+  puts("Done printing with string");
+  test(1024*1024, true, function () {
+    puts("Done printing with buffer");
+    finished = true;
+  });
+});
+
+process.addListener('exit', function () {
+  assert.ok(finished);
 });
