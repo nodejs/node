@@ -167,11 +167,54 @@ static Local<Array> HostEntToNames(struct hostent* hostent) {
   return names;
 }
 
+static inline const char *ares_errno_string(int errorno) {
+#define ERRNO_CASE(e)  case ARES_##e: return #e;
+  switch (errorno) {
+    ERRNO_CASE(SUCCESS)
+    ERRNO_CASE(ENODATA)
+    ERRNO_CASE(EFORMERR)
+    ERRNO_CASE(ESERVFAIL)
+    ERRNO_CASE(ENOTFOUND)
+    ERRNO_CASE(ENOTIMP)
+    ERRNO_CASE(EREFUSED)
+    ERRNO_CASE(EBADQUERY)
+    ERRNO_CASE(EBADNAME)
+    ERRNO_CASE(EBADFAMILY)
+    ERRNO_CASE(EBADRESP)
+    ERRNO_CASE(ECONNREFUSED)
+    ERRNO_CASE(ETIMEOUT)
+    ERRNO_CASE(EOF)
+    ERRNO_CASE(EFILE)
+    ERRNO_CASE(ENOMEM)
+    ERRNO_CASE(EDESTRUCTION)
+    ERRNO_CASE(EBADSTR)
+    ERRNO_CASE(EBADFLAGS)
+    ERRNO_CASE(ENONAME)
+    ERRNO_CASE(EBADHINTS)
+    ERRNO_CASE(ENOTINITIALIZED)
+    ERRNO_CASE(ELOADIPHLPAPI)
+    ERRNO_CASE(EADDRGETNETWORKPARAMS)
+    ERRNO_CASE(ECANCELLED)
+    default:
+      assert(0 && "Unhandled c-ares errno");
+      return "(UNKNOWN)";
+  }
+}
+
 
 static void ResolveError(Persistent<Function> &cb, int status) {
   HandleScope scope;
 
-  Local<Value> e = ErrnoException(status, NULL, ares_strerror(status));
+  Local<String> code = String::NewSymbol(ares_errno_string(status));
+  Local<String> message = String::NewSymbol(ares_strerror(status));
+
+  Local<String> cons1 = String::Concat(code, String::NewSymbol(", "));
+  Local<String> cons2 = String::Concat(cons1, message);
+
+  Local<Value> e = Exception::Error(cons2);
+
+  Local<Object> obj = e->ToObject();
+  obj->Set(String::NewSymbol("errno"), Integer::New(status));
 
   TryCatch try_catch;
 
