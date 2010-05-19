@@ -1392,11 +1392,15 @@ or 'a+'. The callback gets two arguments `(err, fd)`.
 
 Synchronous open(2). 
 
-### fs.write(fd, data, position, encoding, callback)
+### fs.write(fd, buffer, offset, length, position, callback)
 
-Write data to the file specified by `fd`.  `position` refers to the offset
-from the beginning of the file where this data should be written. If
-`position` is `null`, the data will be written at the current position.
+Write `buffer` to the file specified by `fd`.
+
+`offset` and `length` determine the part of the buffer to be written.
+
+`position` refers to the offset from the beginning of the file where this data
+should be written. If `position` is `null`, the data will be written at the
+current position.
 See pwrite(2).
 
 The callback will be given two arguments `(err, written)` where `written`
