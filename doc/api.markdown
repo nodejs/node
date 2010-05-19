@@ -1596,14 +1596,13 @@ This is an EventEmitter with the following events:
  `request` is an instance of `http.ServerRequest` and `response` is
  an instance of `http.ServerResponse`
 
-### Event: 'stream'
+### Event: 'connection'
 
 `function (stream) { }`
 
- When a new TCP stream is established.
- `stream` is an object of type `http.Connection`. Usually users
- will not want to access this event. The `stream` can also be
- accessed at `request.stream`.
+ When a new TCP stream is established. `stream` is an object of type
+ `net.Stream`. Usually users will not want to access this event. The
+ `stream` can also be accessed at `request.connection`.
 
 ### Event: 'close'
 
@@ -1784,7 +1783,9 @@ Resumes a paused request.
 
 The `net.Stream` object assocated with the connection.
 
-With HTTPS support, use request.connection.verifyPeer() and request.connection.getPeerCertificate() to obtain the client's authentication details.
+With HTTPS support, use request.connection.verifyPeer() and
+request.connection.getPeerCertificate() to obtain the client's
+authentication details.
 
 
 ## http.ServerResponse
