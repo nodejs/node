@@ -1,14 +1,14 @@
 require('../common');
-var path = require('path')
-  , Buffer = require('buffer').Buffer
-  , fs = require('fs')
-  , fn = path.join(fixturesDir, 'write.txt')
-  , expected = new Buffer('hello')
-  , openCalled = 0
-  , writeCalled = 0;
+var path = require('path'),
+    Buffer = require('buffer').Buffer,
+    fs = require('fs'),
+    filename = path.join(fixturesDir, 'write.txt'),
+    expected = new Buffer('hello'),
+    openCalled = 0,
+    writeCalled = 0;
 
 
-fs.open(fn, 'w', 0644, function (err, fd) {
+fs.open(filename, 'w', 0644, function (err, fd) {
   openCalled++;
   if (err) throw err;
 
@@ -19,14 +19,14 @@ fs.open(fn, 'w', 0644, function (err, fd) {
     assert.equal(expected.length, written);
     fs.closeSync(fd);
 
-    var found = fs.readFileSync(fn);
-    assert.deepEqual(found, expected.toString());
-    fs.unlinkSync(fn);
+    var found = fs.readFileSync(filename);
+    assert.deepEqual(expected.toString(), found);
+    fs.unlinkSync(filename);
   });
 });
 
 process.addListener("exit", function () {
-  assert.equal(openCalled, 1);
-  assert.equal(writeCalled, 1);
+  assert.equal(1, openCalled);
+  assert.equal(1, writeCalled);
 });
 

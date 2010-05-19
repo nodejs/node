@@ -568,7 +568,7 @@ static Handle<Value> Write(const Arguments& args) {
     ASYNC_CALL(write, cb, fd, buf, len, pos)
   } else {
     ssize_t written = pos < 0 ? write(fd, buf, len) : pwrite(fd, buf, len, pos);
-    if (written < 0) return ThrowException(ErrnoException(errno));
+    if (written < 0) return ThrowException(ErrnoException(errno, "write"));
     return scope.Close(Integer::New(written));
   }
 }
