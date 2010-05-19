@@ -14,6 +14,8 @@
 #include <dlfcn.h> /* dlopen(), dlsym() */
 #include <sys/types.h>
 #include <unistd.h> /* setuid, getuid */
+#include <pwd.h> /* getpwnam() */
+#include <grp.h> /* getgrnam() */
 
 #include <node_buffer.h>
 #include <node_io_watcher.h>
@@ -89,6 +91,10 @@ static Persistent<String> tick_callback_sym;
 static ev_async eio_want_poll_notifier;
 static ev_async eio_done_poll_notifier;
 static ev_idle  eio_poller;
+
+// Buffer for getpwnam_r(), getgrpam_r(); keep this scoped at file-level rather
+// than method-level to avoid excess stack usage.
+static char getbuf[1024];
 
 // We need to notify V8 when we're idle so that it can run the garbage
 // collector. The interface to this is V8::IdleNotification(). It returns
@@ -1152,11 +1158,29 @@ static Handle<Value> SetGid(const Arguments& args) {
       String::New("setgid requires 1 argument")));
   }
 
-  Local<Integer> given_gid = args[0]->ToInteger();
-  int gid = given_gid->Int32Value();
+  int gid;
+ 
+  if (args[0]->IsNumber()) {
+    gid = args[0]->Int32Value();
+  } else if (args[0]->IsString()) {
+    String::Utf8Value grpnam(args[0]->ToString());
+    struct group grp, *grpp = NULL;
+    int err;
+
+    if ((err = getgrnam_r(*grpnam, &grp, getbuf, sizeof(getbuf), &grpp)) ||
+        grpp == NULL) {
+      return ThrowException(ErrnoException(errno, "getgrnam_r"));
+    }
+
+    gid = grpp->gr_gid;
+  } else {
+    return ThrowException(Exception::Error(
+      String::New("setgid argument must be a number or a string")));
+  }
+
   int result;
   if ((result = setgid(gid)) != 0) {
-    return ThrowException(Exception::Error(String::New(strerror(errno))));
+    return ThrowException(ErrnoException(errno, "setgid"));
   }
   return Undefined();
 }
@@ -1169,11 +1193,29 @@ static Handle<Value> SetUid(const Arguments& args) {
           String::New("setuid requires 1 argument")));
   }
 
-  Local<Integer> given_uid = args[0]->ToInteger();
-  int uid = given_uid->Int32Value();
+  int uid;
+
+  if (args[0]->IsNumber()) {
+    uid = args[0]->Int32Value();
+  } else if (args[0]->IsString()) {
+    String::Utf8Value pwnam(args[0]->ToString());
+    struct passwd pwd, *pwdp = NULL;
+    int err;
+
+    if ((err = getpwnam_r(*pwnam, &pwd, getbuf, sizeof(getbuf), &pwdp)) ||
+        pwdp == NULL) {
+      return ThrowException(ErrnoException(errno, "getpwnam_r"));
+    }
+
+    uid = pwdp->pw_uid;
+  } else {
+    return ThrowException(Exception::Error(
+      String::New("setuid argument must be a number or a string")));
+  }
+
   int result;
   if ((result = setuid(uid)) != 0) {
-    return ThrowException(Exception::Error(String::New(strerror(errno))));
+    return ThrowException(ErrnoException(errno, "setuid"));
   }
   return Undefined();
 }
