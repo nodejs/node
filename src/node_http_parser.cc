@@ -70,7 +70,12 @@ static struct http_parser_settings settings;
     if (!cb_value->IsFunction()) return 0;                               \
     Local<Function> cb = Local<Function>::Cast(cb_value);                \
     Local<Value> ret = cb->Call(parser->handle_, 0, NULL);               \
-    return ret.IsEmpty() ? -1 : 0;                                       \
+    if (ret.IsEmpty()) {                                                 \
+      parser->got_exception_ = true;                                     \
+      return -1;                                                         \
+    } else {                                                             \
+      return 0;                                                          \
+    }                                                                    \
   }
 
 // Callback prototype for http_data_cb
@@ -87,7 +92,12 @@ static struct http_parser_settings settings;
                            };                                            \
     Local<Value> ret = cb->Call(parser->handle_, 3, argv);               \
     assert(parser->buffer_);                                             \
-    return ret.IsEmpty() ? -1 : 0;                                       \
+    if (ret.IsEmpty()) {                                                 \
+      parser->got_exception_ = true;                                     \
+      return -1;                                                         \
+    } else {                                                             \
+      return 0;                                                          \
+    }                                                                    \
   }
 
 
@@ -169,7 +179,12 @@ class Parser : public ObjectWrap {
 
     Local<Value> ret = cb->Call(parser->handle_, 1, argv);
 
-    return ret.IsEmpty() ? -1 : 0;
+    if (ret.IsEmpty()) {
+      parser->got_exception_ = true;
+      return -1;
+    } else {
+      return 0;
+    }
   }
 
   static Handle<Value> New(const Arguments& args) {
@@ -225,10 +240,9 @@ class Parser : public ObjectWrap {
             String::New("Length is extends beyond buffer")));
     }
 
-    TryCatch try_catch;
-
     // Assign 'buffer_' while we parse. The callbacks will access that varible.
     parser->buffer_ = buffer;
+    parser->got_exception_ = false;
 
     size_t nparsed =
       http_parser_execute(&parser->parser_, settings, buffer->data()+off, len);
@@ -238,20 +252,19 @@ class Parser : public ObjectWrap {
     parser->buffer_ = NULL;
 
     // If there was an exception in one of the callbacks
-    if (try_catch.HasCaught()) return try_catch.ReThrow();
+    if (parser->got_exception_) return Local<Value>();
 
     Local<Integer> nparsed_obj = Integer::New(nparsed);
     // If there was a parse error in one of the callbacks 
     // TODO What if there is an error on EOF?
     if (!parser->parser_.upgrade && nparsed != len) {
-      Local<Value> e = Exception::Error(String::New("Parse Error"));
+      Local<Value> e = Exception::Error(String::NewSymbol("Parse Error"));
       Local<Object> obj = e->ToObject();
       obj->Set(String::NewSymbol("bytesParsed"), nparsed_obj);
-      return ThrowException(e);
+      return scope.Close(e);
+    } else {
+      return scope.Close(nparsed_obj);
     }
-
-    assert(!parser->buffer_);
-    return scope.Close(nparsed_obj);
   }
 
   static Handle<Value> Finish(const Arguments& args) {
@@ -260,8 +273,11 @@ class Parser : public ObjectWrap {
     Parser *parser = ObjectWrap::Unwrap<Parser>(args.This());
 
     assert(!parser->buffer_);
+    parser->got_exception_ = false;
 
     http_parser_execute(&(parser->parser_), settings, NULL, 0);
+
+    if (parser->got_exception_) return Local<Value>();
 
     return Undefined();
   }
@@ -294,6 +310,7 @@ class Parser : public ObjectWrap {
   }
 
   Buffer * buffer_;  // The buffer currently being parsed.
+  bool got_exception_;
   http_parser parser_;
 };
 

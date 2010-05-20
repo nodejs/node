@@ -10,18 +10,20 @@ server = http.createServer(function (req, res) {
 
 server.addListener('upgrade', function (req, socket, upgradeHead) {
   error('got upgrade event');
-  // test that throwing an error from upgrade gets forworded
-  // to the server'server 'error' event.
+  // test that throwing an error from upgrade gets 
+  // is uncaught
   throw new Error('upgrade error');
 });
 
 gotError = false;
 
-server.addListener('clientError', function (e) {
+process.addListener('uncaughtException', function (e) {
   error('got "clientError" event');
   assert.equal('upgrade error', e.message);
   gotError = true;
+  process.exit(0);
 });
+
 
 server.listen(PORT);
 
