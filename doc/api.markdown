@@ -1410,20 +1410,24 @@ specifies how many _bytes_ were written.
 
 Synchronous version of `fs.write()`. Returns the number of bytes written.
 
-### fs.read(fd, length, position, encoding, callback)
+### fs.read(fd, buffer, offset, length, position, callback)
 
 Read data from the file specified by `fd`.
+
+`buffer` is the buffer that the data will be written to.
+
+`offset` is offset within the buffer where writing will start.
 
 `length` is an integer specifying the number of bytes to read.
 
 `position` is an integer specifying where to begin reading from in the file.
+If `position` is `null`, data will be read from the current file position.
 
-The callback is given three arguments, `(err, data, bytesRead)` where `data`
-is a string--what was read--and `bytesRead` is the number of bytes read.
+The callback is given the two arguments, `(err, bytesRead)`.
 
-### fs.readSync(fd, length, position, encoding)
+### fs.readSync(fd, buffer, offset, length, position)
 
-Synchronous version of `fs.read`. Returns an array `[data, bytesRead]`.
+Synchronous version of `fs.read`. Returns the number of `bytesRead`.
 
 ### fs.readFile(filename, [encoding,] callback)
 
