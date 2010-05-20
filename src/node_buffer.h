@@ -30,6 +30,12 @@ struct Blob_;
 
 class Buffer : public ObjectWrap {
  public:
+  static v8::Persistent<v8::FunctionTemplate> constructor_template;
+
+  Buffer(size_t length);
+  Buffer(Buffer *parent, size_t start, size_t end);
+  ~Buffer();
+
   static void Initialize(v8::Handle<v8::Object> target);
   static inline bool HasInstance(v8::Handle<v8::Value> val) {
     if (!val->IsObject()) return false;
@@ -42,7 +48,6 @@ class Buffer : public ObjectWrap {
   struct Blob_* blob() const { return blob_; }
 
  protected:
-  static v8::Persistent<v8::FunctionTemplate> constructor_template;
   static v8::Handle<v8::Value> New(const v8::Arguments &args);
   static v8::Handle<v8::Value> Slice(const v8::Arguments &args);
   static v8::Handle<v8::Value> BinarySlice(const v8::Arguments &args);
@@ -59,10 +64,6 @@ class Buffer : public ObjectWrap {
   int Utf8Write(char *string, int offset, int length);
 
  private:
-  Buffer(size_t length);
-  Buffer(Buffer *parent, size_t start, size_t end);
-  ~Buffer();
-
   size_t off_; // offset inside blob_
   size_t length_; // length inside blob_
   struct Blob_ *blob_;
