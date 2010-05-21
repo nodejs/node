@@ -69,7 +69,7 @@ static Handle<Value>
 IsStdinBlocking (const Arguments& args)
 {
   HandleScope scope;
-  return scope.Close(Boolean::New(isatty(STDIN_FILENO)));
+  return scope.Close(Boolean::New(!isatty(STDIN_FILENO)));
 }
 
 static Handle<Value>

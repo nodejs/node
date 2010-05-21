@@ -175,10 +175,10 @@ process.openStdin = function () {
       fd = binding.openStdin();
 
   if (binding.isStdinBlocking()) {
+    stdin = new fs.ReadStream(null, {fd: fd});
+  } else {
     stdin = new net.Stream(fd);
     stdin.readable = true;
-  } else {
-    stdin = new fs.ReadStream(null, {fd: fd});
   }
 
   stdin.resume();
