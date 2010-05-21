@@ -10,9 +10,6 @@ using namespace v8;
 namespace node {
 
 
-static int stdin_fd = -1;
-static int stdout_fd = -1;
-
 static int stdout_flags = -1;
 static int stdin_flags = -1;
 
@@ -49,28 +46,23 @@ WriteError (const Arguments& args)
 static Handle<Value> OpenStdin(const Arguments& args) {
   HandleScope scope;
 
-  if (stdin_fd >= 0) {
-    return ThrowException(Exception::Error(String::New("stdin already open")));
-  }
-
-  stdin_fd = STDIN_FILENO;
   if (isatty(STDIN_FILENO)) {
     // XXX selecting on tty fds wont work in windows.
     // Must ALWAYS make a coupling on shitty platforms.
-    stdin_flags = fcntl(stdin_fd, F_GETFL, 0);
+    stdin_flags = fcntl(STDIN_FILENO, F_GETFL, 0);
     if (stdin_flags == -1) {
       // TODO DRY
       return ThrowException(Exception::Error(String::New("fcntl error!")));
     }
 
-    int r = fcntl(stdin_fd, F_SETFL, stdin_flags | O_NONBLOCK);
+    int r = fcntl(STDIN_FILENO, F_SETFL, stdin_flags | O_NONBLOCK);
     if (r == -1) {
       // TODO DRY
       return ThrowException(Exception::Error(String::New("fcntl error!")));
     }
   }
 
-  return scope.Close(Integer::New(stdin_fd));
+  return scope.Close(Integer::New(STDIN_FILENO));
 }
 
 static Handle<Value>
@@ -91,16 +83,15 @@ IsStdoutBlocking (const Arguments& args)
 
 void Stdio::Flush() {
   if (stdin_flags != -1) {
-    fcntl(stdin_fd, F_SETFL, stdin_flags & ~O_NONBLOCK);
+    fcntl(STDIN_FILENO, F_SETFL, stdin_flags & ~O_NONBLOCK);
   }
 
-  if (stdout_fd >= 0) {
+  if (STDOUT_FILENO >= 0) {
     if (stdout_flags != -1) {
-      fcntl(stdout_fd, F_SETFL, stdout_flags & ~O_NONBLOCK);
+      fcntl(STDOUT_FILENO, F_SETFL, stdout_flags & ~O_NONBLOCK);
     }
 
-    close(stdout_fd);
-    stdout_fd = -1;
+    close(STDOUT_FILENO);
   }
 }
 
@@ -108,16 +99,14 @@ void Stdio::Flush() {
 void Stdio::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
 
-  stdout_fd = STDOUT_FILENO;
-
   if (isatty(STDOUT_FILENO)) {
     // XXX selecting on tty fds wont work in windows.
     // Must ALWAYS make a coupling on shitty platforms.
-    stdout_flags = fcntl(stdout_fd, F_GETFL, 0);
-    int r = fcntl(stdout_fd, F_SETFL, stdout_flags | O_NONBLOCK);
+    stdout_flags = fcntl(STDOUT_FILENO, F_GETFL, 0);
+    int r = fcntl(STDOUT_FILENO, F_SETFL, stdout_flags | O_NONBLOCK);
   }
 
-  target->Set(String::NewSymbol("stdoutFD"), Integer::New(stdout_fd));
+  target->Set(String::NewSymbol("stdoutFD"), Integer::New(STDOUT_FILENO));
 
   NODE_SET_METHOD(target, "writeError", WriteError);
   NODE_SET_METHOD(target, "openStdin", OpenStdin);
