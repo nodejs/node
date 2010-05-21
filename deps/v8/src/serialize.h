@@ -137,17 +137,23 @@ class SnapshotByteSource {
 };
 
 
-// It is very common to have a reference to the object at word 10 in space 2,
-// the object at word 5 in space 2 and the object at word 28 in space 4.  This
-// only works for objects in the first page of a space.
-#define COMMON_REFERENCE_PATTERNS(f)                              \
-  f(kNumberOfSpaces, 2, 10)                                       \
-  f(kNumberOfSpaces + 1, 2, 5)                                    \
-  f(kNumberOfSpaces + 2, 4, 28)                                   \
-  f(kNumberOfSpaces + 3, 2, 21)                                   \
-  f(kNumberOfSpaces + 4, 2, 98)                                   \
-  f(kNumberOfSpaces + 5, 2, 67)                                   \
-  f(kNumberOfSpaces + 6, 4, 132)
+// It is very common to have a reference to objects at certain offsets in the
+// heap.  These offsets have been determined experimentally.  We code
+// references to such objects in a single byte that encodes the way the pointer
+// is written (only plain pointers allowed), the space number and the offset.
+// This only works for objects in the first page of a space.  Don't use this for
+// things in newspace since it bypasses the write barrier.
+
+static const int k64 = (sizeof(uintptr_t) - 4) / 4;
+
+#define COMMON_REFERENCE_PATTERNS(f)                               \
+  f(kNumberOfSpaces, 2, (11 - k64))                                \
+  f((kNumberOfSpaces + 1), 2, 0)                                   \
+  f((kNumberOfSpaces + 2), 2, (142 - 16 * k64))                    \
+  f((kNumberOfSpaces + 3), 2, (74 - 15 * k64))                     \
+  f((kNumberOfSpaces + 4), 2, 5)                                   \
+  f((kNumberOfSpaces + 5), 1, 135)                                 \
+  f((kNumberOfSpaces + 6), 2, (228 - 39 * k64))
 
 #define COMMON_RAW_LENGTHS(f)        \
   f(1, 1)  \
@@ -175,37 +181,63 @@ class SerializerDeserializer: public ObjectVisitor {
   static void SetSnapshotCacheSize(int size);
 
  protected:
-  enum DataType {
-    RAW_DATA_SERIALIZATION = 0,
-    // And 15 common raw lengths.
-    OBJECT_SERIALIZATION = 16,
-    // One variant per space.
-    CODE_OBJECT_SERIALIZATION = 25,
-    // One per space (only code spaces in use).
-    EXTERNAL_REFERENCE_SERIALIZATION = 34,
-    EXTERNAL_BRANCH_TARGET_SERIALIZATION = 35,
-    SYNCHRONIZE = 36,
-    START_NEW_PAGE_SERIALIZATION = 37,
-    NATIVES_STRING_RESOURCE = 38,
-    ROOT_SERIALIZATION = 39,
-    PARTIAL_SNAPSHOT_CACHE_ENTRY = 40,
-    // Free: 41-47.
-    BACKREF_SERIALIZATION = 48,
-    // One per space, must be kSpaceMask aligned.
-    // Free: 57-63.
-    REFERENCE_SERIALIZATION = 64,
-    // One per space and common references.  Must be kSpaceMask aligned.
-    CODE_BACKREF_SERIALIZATION = 80,
-    // One per space, must be kSpaceMask aligned.
-    // Free: 89-95.
-    CODE_REFERENCE_SERIALIZATION = 96
-    // One per space, must be kSpaceMask aligned.
-    // Free: 105-255.
+  // Where the pointed-to object can be found:
+  enum Where {
+    kNewObject = 0,                 // Object is next in snapshot.
+    // 1-8                             One per space.
+    kRootArray = 0x9,               // Object is found in root array.
+    kPartialSnapshotCache = 0xa,    // Object is in the cache.
+    kExternalReference = 0xb,       // Pointer to an external reference.
+    // 0xc-0xf                         Free.
+    kBackref = 0x10,                 // Object is described relative to end.
+    // 0x11-0x18                       One per space.
+    // 0x19-0x1f                       Common backref offsets.
+    kFromStart = 0x20,              // Object is described relative to start.
+    // 0x21-0x28                       One per space.
+    // 0x29-0x2f                       Free.
+    // 0x30-0x3f                       Used by misc tags below.
+    kPointedToMask = 0x3f
   };
+
+  // How to code the pointer to the object.
+  enum HowToCode {
+    kPlain = 0,                          // Straight pointer.
+    // What this means depends on the architecture:
+    kFromCode = 0x40,                    // A pointer inlined in code.
+    kHowToCodeMask = 0x40
+  };
+
+  // Where to point within the object.
+  enum WhereToPoint {
+    kStartOfObject = 0,
+    kFirstInstruction = 0x80,
+    kWhereToPointMask = 0x80
+  };
+
+  // Misc.
+  // Raw data to be copied from the snapshot.
+  static const int kRawData = 0x30;
+  // Some common raw lengths: 0x31-0x3f
+  // A tag emitted at strategic points in the snapshot to delineate sections.
+  // If the deserializer does not find these at the expected moments then it
+  // is an indication that the snapshot and the VM do not fit together.
+  // Examine the build process for architecture, version or configuration
+  // mismatches.
+  static const int kSynchronize = 0x70;
+  // Used for the source code of the natives, which is in the executable, but
+  // is referred to from external strings in the snapshot.
+  static const int kNativesStringResource = 0x71;
+  static const int kNewPage = 0x72;
+  // 0x73-0x7f                            Free.
+  // 0xb0-0xbf                            Free.
+  // 0xf0-0xff                            Free.
+
+
   static const int kLargeData = LAST_SPACE;
   static const int kLargeCode = kLargeData + 1;
   static const int kLargeFixedArray = kLargeCode + 1;
   static const int kNumberOfSpaces = kLargeFixedArray + 1;
+  static const int kAnyOldSpace = -1;
 
   // A bitmask for getting the space out of an instruction.
   static const int kSpaceMask = 15;
@@ -396,10 +428,6 @@ class Serializer : public SerializerDeserializer {
 #endif
 
  protected:
-  enum ReferenceRepresentation {
-    TAGGED_REPRESENTATION,      // A tagged object reference.
-    CODE_TARGET_REPRESENTATION  // A reference to first instruction in target.
-  };
   static const int kInvalidRootIndex = -1;
   virtual int RootIndex(HeapObject* heap_object) = 0;
   virtual bool ShouldBeInThePartialSnapshotCache(HeapObject* o) = 0;
@@ -409,11 +437,12 @@ class Serializer : public SerializerDeserializer {
     ObjectSerializer(Serializer* serializer,
                      Object* o,
                      SnapshotByteSink* sink,
-                     ReferenceRepresentation representation)
+                     HowToCode how_to_code,
+                     WhereToPoint where_to_point)
       : serializer_(serializer),
         object_(HeapObject::cast(o)),
         sink_(sink),
-        reference_representation_(representation),
+        reference_representation_(how_to_code + where_to_point),
         bytes_processed_so_far_(0) { }
     void Serialize();
     void VisitPointers(Object** start, Object** end);
@@ -435,16 +464,18 @@ class Serializer : public SerializerDeserializer {
     Serializer* serializer_;
     HeapObject* object_;
     SnapshotByteSink* sink_;
-    ReferenceRepresentation reference_representation_;
+    int reference_representation_;
     int bytes_processed_so_far_;
   };
 
   virtual void SerializeObject(Object* o,
-                               ReferenceRepresentation representation) = 0;
+                               HowToCode how_to_code,
+                               WhereToPoint where_to_point) = 0;
   void SerializeReferenceToPreviousObject(
       int space,
       int address,
-      ReferenceRepresentation reference_representation);
+      HowToCode how_to_code,
+      WhereToPoint where_to_point);
   void InitializeAllocators();
   // This will return the space for an object.  If the object is in large
   // object space it may return kLargeCode or kLargeFixedArray in order
@@ -492,7 +523,8 @@ class PartialSerializer : public Serializer {
   // Serialize the objects reachable from a single object pointer.
   virtual void Serialize(Object** o);
   virtual void SerializeObject(Object* o,
-                               ReferenceRepresentation representation);
+                               HowToCode how_to_code,
+                               WhereToPoint where_to_point);
 
  protected:
   virtual int RootIndex(HeapObject* o);
@@ -528,7 +560,8 @@ class StartupSerializer : public Serializer {
   // 3) Weak references (eg the symbol table).
   virtual void SerializeStrongReferences();
   virtual void SerializeObject(Object* o,
-                               ReferenceRepresentation representation);
+                               HowToCode how_to_code,
+                               WhereToPoint where_to_point);
   void SerializeWeakReferences();
   void Serialize() {
     SerializeStrongReferences();

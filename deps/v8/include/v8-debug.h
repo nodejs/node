@@ -144,6 +144,39 @@ class EXPORT Debug {
   
 
   /**
+   * An event details object passed to the debug event listener.
+   */
+  class EventDetails {
+   public:
+    /**
+     * Event type.
+     */
+    virtual DebugEvent GetEvent() const = 0;
+
+    /**
+     * Access to execution state and event data of the debug event. Don't store
+     * these cross callbacks as their content becomes invalid.
+     */
+    virtual Handle<Object> GetExecutionState() const = 0;
+    virtual Handle<Object> GetEventData() const = 0;
+
+    /**
+     * Get the context active when the debug event happened. Note this is not
+     * the current active context as the JavaScript part of the debugger is
+     * running in it's own context which is entered at this point.
+     */
+    virtual Handle<Context> GetEventContext() const = 0;
+
+    /**
+     * Client data passed with the corresponding callbak whet it was registered.
+     */
+    virtual Handle<Value> GetCallbackData() const = 0;
+
+    virtual ~EventDetails() {}
+  };
+
+
+  /**
    * Debug event callback function.
    *
    * \param event the type of the debug event that triggered the callback
@@ -157,6 +190,15 @@ class EXPORT Debug {
                                 Handle<Object> event_data,
                                 Handle<Value> data);
 
+  /**
+   * Debug event callback function.
+   *
+   * \param event_details object providing information about the debug event
+   *
+   * A EventCallback2 does not take possession of the event data,
+   * and must not rely on the data persisting after the handler returns.
+   */
+  typedef void (*EventCallback2)(const EventDetails& event_details);
 
   /**
    * Debug message callback function.
@@ -165,7 +207,7 @@ class EXPORT Debug {
    * \param length length of the message
    * \param client_data the data value passed when registering the message handler
 
-   * A MessageHandler does not take posession of the message string,
+   * A MessageHandler does not take possession of the message string,
    * and must not rely on the data persisting after the handler returns.
    *
    * This message handler is deprecated. Use MessageHandler2 instead.
@@ -178,7 +220,7 @@ class EXPORT Debug {
    *
    * \param message the debug message handler message object
 
-   * A MessageHandler does not take posession of the message data,
+   * A MessageHandler does not take possession of the message data,
    * and must not rely on the data persisting after the handler returns.
    */
   typedef void (*MessageHandler2)(const Message& message);
@@ -196,6 +238,8 @@ class EXPORT Debug {
   // Set a C debug event listener.
   static bool SetDebugEventListener(EventCallback that,
                                     Handle<Value> data = Handle<Value>());
+  static bool SetDebugEventListener2(EventCallback2 that,
+                                     Handle<Value> data = Handle<Value>());
 
   // Set a JavaScript debug event listener.
   static bool SetDebugEventListener(v8::Handle<v8::Object> that,

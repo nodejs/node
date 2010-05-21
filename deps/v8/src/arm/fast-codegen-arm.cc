@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_ARM)
+
 #include "codegen-inl.h"
 #include "fast-codegen.h"
 #include "scopes.h"
@@ -236,3 +238,5 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_ARM

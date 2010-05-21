@@ -29,10 +29,13 @@
 #define V8_ARM_VIRTUAL_FRAME_ARM_H_
 
 #include "register-allocator.h"
-#include "scopes.h"
 
 namespace v8 {
 namespace internal {
+
+// This dummy class is only used to create invalid virtual frames.
+extern class InvalidVirtualFrameInitializer {}* kInvalidVirtualFrameInitializer;
+
 
 // -------------------------------------------------------------------------
 // Virtual frames
@@ -82,26 +85,8 @@ class VirtualFrame : public ZoneObject {
     // is not spilled, ie. where register allocation occurs.  Eventually
     // when RegisterAllocationScope is ubiquitous it can be removed
     // along with the (by then unused) SpilledScope class.
-    explicit RegisterAllocationScope(CodeGenerator* cgen)
-      : cgen_(cgen),
-        old_is_spilled_(SpilledScope::is_spilled_) {
-      SpilledScope::is_spilled_ = false;
-      if (old_is_spilled_) {
-        VirtualFrame* frame = cgen->frame();
-        if (frame != NULL) {
-          frame->AssertIsSpilled();
-        }
-      }
-    }
-    ~RegisterAllocationScope() {
-      SpilledScope::is_spilled_ = old_is_spilled_;
-      if (old_is_spilled_) {
-        VirtualFrame* frame = cgen_->frame();
-        if (frame != NULL) {
-          frame->SpillAll();
-        }
-      }
-    }
+    inline explicit RegisterAllocationScope(CodeGenerator* cgen);
+    inline ~RegisterAllocationScope();
 
    private:
     CodeGenerator* cgen_;
@@ -116,19 +101,20 @@ class VirtualFrame : public ZoneObject {
   // Construct an initial virtual frame on entry to a JS function.
   inline VirtualFrame();
 
+  // Construct an invalid virtual frame, used by JumpTargets.
+  inline VirtualFrame(InvalidVirtualFrameInitializer* dummy);
+
   // Construct a virtual frame as a clone of an existing one.
   explicit inline VirtualFrame(VirtualFrame* original);
 
-  CodeGenerator* cgen() { return CodeGeneratorScope::Current(); }
-  MacroAssembler* masm() { return cgen()->masm(); }
+  inline CodeGenerator* cgen();
+  inline MacroAssembler* masm();
 
   // The number of elements on the virtual frame.
   int element_count() { return element_count_; }
 
   // The height of the virtual expression stack.
-  int height() {
-    return element_count() - expression_base_index();
-  }
+  inline int height();
 
   bool is_used(int num) {
     switch (num) {
@@ -158,10 +144,6 @@ class VirtualFrame : public ZoneObject {
         return false;
       }
     }
-  }
-
-  bool is_used(Register reg) {
-    return is_used(RegisterAllocator::ToNumber(reg));
   }
 
   // Add extra in-memory elements to the top of the frame to match an actual
@@ -247,16 +229,13 @@ class VirtualFrame : public ZoneObject {
 
   // An element of the expression stack as an assembly operand.
   MemOperand ElementAt(int index) {
-    AssertIsSpilled();
-    return MemOperand(sp, index * kPointerSize);
+    int adjusted_index = index - kVirtualElements[top_of_stack_state_];
+    ASSERT(adjusted_index >= 0);
+    return MemOperand(sp, adjusted_index * kPointerSize);
   }
 
   // A frame-allocated local as an assembly operand.
-  MemOperand LocalAt(int index) {
-    ASSERT(0 <= index);
-    ASSERT(index < local_count());
-    return MemOperand(fp, kLocal0Offset - index * kPointerSize);
-  }
+  inline MemOperand LocalAt(int index);
 
   // Push the address of the receiver slot on the frame.
   void PushReceiverSlotAddress();
@@ -268,26 +247,17 @@ class VirtualFrame : public ZoneObject {
   MemOperand Context() { return MemOperand(fp, kContextOffset); }
 
   // A parameter as an assembly operand.
-  MemOperand ParameterAt(int index) {
-    // Index -1 corresponds to the receiver.
-    ASSERT(-1 <= index);  // -1 is the receiver.
-    ASSERT(index <= parameter_count());
-    return MemOperand(fp, (1 + parameter_count() - index) * kPointerSize);
-  }
+  inline MemOperand ParameterAt(int index);
 
   // The receiver frame slot.
-  MemOperand Receiver() { return ParameterAt(-1); }
+  inline MemOperand Receiver();
 
   // Push a try-catch or try-finally handler on top of the virtual frame.
   void PushTryHandler(HandlerType type);
 
   // Call stub given the number of arguments it expects on (and
   // removes from) the stack.
-  void CallStub(CodeStub* stub, int arg_count) {
-    if (arg_count != 0) Forget(arg_count);
-    ASSERT(cgen()->HasValidEntryRegisters());
-    masm()->CallStub(stub);
-  }
+  inline void CallStub(CodeStub* stub, int arg_count);
 
   // Call JS function from top of the stack with arguments
   // taken from the stack.
@@ -308,7 +278,8 @@ class VirtualFrame : public ZoneObject {
                      InvokeJSFlags flag,
                      int arg_count);
 
-  // Call load IC. Receiver is on the stack. Result is returned in r0.
+  // Call load IC. Receiver is on the stack and is consumed. Result is returned
+  // in r0.
   void CallLoadIC(Handle<String> name, RelocInfo::Mode mode);
 
   // Call store IC. If the load is contextual, value is found on top of the
@@ -320,8 +291,8 @@ class VirtualFrame : public ZoneObject {
   // Result is returned in r0.
   void CallKeyedLoadIC();
 
-  // Call keyed store IC. Key and receiver are on the stack and the value is in
-  // r0. Result is returned in r0.
+  // Call keyed store IC. Value, key and receiver are on the stack. All three
+  // are consumed. Result is returned in r0.
   void CallKeyedStoreIC();
 
   // Call into an IC stub given the number of arguments it removes
@@ -386,6 +357,12 @@ class VirtualFrame : public ZoneObject {
   void EmitPush(MemOperand operand);
   void EmitPushRoot(Heap::RootListIndex index);
 
+  // Overwrite the nth thing on the stack.  If the nth position is in a
+  // register then this turns into a mov, otherwise an str.  Afterwards
+  // you can still use the register even if it is a register that can be
+  // used for TOS (r0 or r1).
+  void SetElementAt(Register reg, int this_far_down);
+
   // Get a register which is free and which must be immediately used to
   // push on the top of the stack.
   Register GetTOSRegister();
@@ -449,13 +426,13 @@ class VirtualFrame : public ZoneObject {
   int stack_pointer() { return element_count_ - 1; }
 
   // The number of frame-allocated locals and parameters respectively.
-  int parameter_count() { return cgen()->scope()->num_parameters(); }
-  int local_count() { return cgen()->scope()->num_stack_slots(); }
+  inline int parameter_count();
+  inline int local_count();
 
   // The index of the element that is at the processor's frame pointer
   // (the fp register).  The parameters, receiver, function, and context
   // are below the frame pointer.
-  int frame_pointer() { return parameter_count() + 3; }
+  inline int frame_pointer();
 
   // The index of the first parameter.  The receiver lies below the first
   // parameter.
@@ -463,26 +440,22 @@ class VirtualFrame : public ZoneObject {
 
   // The index of the context slot in the frame.  It is immediately
   // below the frame pointer.
-  int context_index() { return frame_pointer() - 1; }
+  inline int context_index();
 
   // The index of the function slot in the frame.  It is below the frame
   // pointer and context slot.
-  int function_index() { return frame_pointer() - 2; }
+  inline int function_index();
 
   // The index of the first local.  Between the frame pointer and the
   // locals lies the return address.
-  int local0_index() { return frame_pointer() + 2; }
+  inline int local0_index();
 
   // The index of the base of the expression stack.
-  int expression_base_index() { return local0_index() + local_count(); }
+  inline int expression_base_index();
 
   // Convert a frame index into a frame pointer relative offset into the
   // actual stack.
-  int fp_relative(int index) {
-    ASSERT(index < element_count());
-    ASSERT(frame_pointer() < element_count());  // FP is on the frame.
-    return (frame_pointer() - index) * kPointerSize;
-  }
+  inline int fp_relative(int index);
 
   // Spill all elements in registers. Spill the top spilled_args elements
   // on the frame.  Sync all other frame elements.
@@ -494,10 +467,13 @@ class VirtualFrame : public ZoneObject {
   // onto the physical stack and made free.
   void EnsureOneFreeTOSRegister();
 
+  // Emit instructions to get the top of stack state from where we are to where
+  // we want to be.
+  void MergeTOSTo(TopOfStack expected_state);
+
   inline bool Equals(VirtualFrame* other);
 
   friend class JumpTarget;
-  friend class DeferredCode;
 };
 
 

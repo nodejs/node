@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_ARM)
+
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"
@@ -397,10 +399,10 @@ void FullCodeGenerator::Apply(Expression::Context context,
     case Expression::kValue: {
       Label done;
       __ bind(materialize_true);
-      __ mov(result_register(), Operand(Factory::true_value()));
+      __ LoadRoot(result_register(), Heap::kTrueValueRootIndex);
       __ jmp(&done);
       __ bind(materialize_false);
-      __ mov(result_register(), Operand(Factory::false_value()));
+      __ LoadRoot(result_register(), Heap::kFalseValueRootIndex);
       __ bind(&done);
       switch (location_) {
         case kAccumulator:
@@ -417,7 +419,7 @@ void FullCodeGenerator::Apply(Expression::Context context,
 
     case Expression::kValueTest:
       __ bind(materialize_true);
-      __ mov(result_register(), Operand(Factory::true_value()));
+      __ LoadRoot(result_register(), Heap::kTrueValueRootIndex);
       switch (location_) {
         case kAccumulator:
           break;
@@ -430,7 +432,7 @@ void FullCodeGenerator::Apply(Expression::Context context,
 
     case Expression::kTestValue:
       __ bind(materialize_false);
-      __ mov(result_register(), Operand(Factory::false_value()));
+      __ LoadRoot(result_register(), Heap::kFalseValueRootIndex);
       switch (location_) {
         case kAccumulator:
           break;
@@ -640,11 +642,11 @@ void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
       }
 
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      __ pop(r1);  // Key.
+      __ pop(r2);  // Receiver.
       __ Call(ic, RelocInfo::CODE_TARGET);
 
-      // Value in r0 is ignored (declarations are statements).  Receiver
-      // and key on stack are discarded.
-      __ Drop(2);
+      // Value in r0 is ignored (declarations are statements).
     }
   }
 }
@@ -661,19 +663,29 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
-  Comment cmnt(masm_, "[ FunctionLiteral");
+void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
+  UNREACHABLE();
+}
 
-  // Build the shared function info and instantiate the function based
-  // on it.
-  Handle<SharedFunctionInfo> function_info =
-      Compiler::BuildFunctionInfo(expr, script(), this);
-  if (HasStackOverflow()) return;
 
-  // Create a new closure.
-  __ mov(r0, Operand(function_info));
-  __ stm(db_w, sp, cp.bit() | r0.bit());
-  __ CallRuntime(Runtime::kNewClosure, 2);
+void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
+  UNREACHABLE();
+}
+
+
+void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info) {
+  // Use the fast case closure allocation code that allocates in new
+  // space for nested functions that don't need literals cloning.
+  if (scope()->is_function_scope() && info->num_literals() == 0) {
+    FastNewClosureStub stub;
+    __ mov(r0, Operand(info));
+    __ push(r0);
+    __ CallStub(&stub);
+  } else {
+    __ mov(r0, Operand(info));
+    __ stm(db_w, sp, cp.bit() | r0.bit());
+    __ CallRuntime(Runtime::kNewClosure, 2);
+  }
   Apply(context_, r0);
 }
 
@@ -695,13 +707,12 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
   if (var->is_global() && !var->is_this()) {
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in r2 and the global
-    // object on the stack.
+    // object (receiver) in r0.
     __ ldr(r0, CodeGenerator::GlobalObject());
-    __ push(r0);
     __ mov(r2, Operand(var->name()));
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-    DropAndApply(1, context, r0);
+    Apply(context, r0);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
     Comment cmnt(masm_, "Lookup slot");
@@ -904,7 +915,13 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
 void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
-  ASSERT(expr->op() != Token::INIT_CONST);
+  // Invalid left-hand sides are rewritten to have a 'throw ReferenceError'
+  // on the left-hand side.
+  if (!expr->target()->IsValidLeftHandSide()) {
+    VisitForEffect(expr->target());
+    return;
+  }
+
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
@@ -984,6 +1001,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   switch (assign_type) {
     case VARIABLE:
       EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
+                             expr->op(),
                              context_);
       break;
     case NAMED_PROPERTY:
@@ -1000,7 +1018,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ mov(r2, Operand(key->handle()));
-  __ ldr(r0, MemOperand(sp, 0));
+  // Call load IC. It has arguments receiver and property name r0 and r2.
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 }
@@ -1024,14 +1042,13 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
 
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var,
+                                               Token::Value op,
                                                Expression::Context context) {
-  // Three main cases: global variables, lookup slots, and all other
-  // types of slots.  Left-hand-side parameters that rewrite to
-  // explicit property accesses do not reach here.
+  // Left-hand sides that rewrite to explicit property accesses do not reach
+  // here.
   ASSERT(var != NULL);
   ASSERT(var->is_global() || var->slot() != NULL);
 
-  Slot* slot = var->slot();
   if (var->is_global()) {
     ASSERT(!var->is_this());
     // Assignment to a global variable.  Use inline caching for the
@@ -1042,43 +1059,61 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
 
-  } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
-    __ push(result_register());  // Value.
-    __ mov(r1, Operand(var->name()));
-    __ stm(db_w, sp, cp.bit() | r1.bit());  // Context and name.
-    __ CallRuntime(Runtime::kStoreContextSlot, 3);
-
-  } else if (var->slot() != NULL) {
+  } else if (var->mode() != Variable::CONST || op == Token::INIT_CONST) {
+    // Perform the assignment for non-const variables and for initialization
+    // of const variables.  Const assignments are simply skipped.
+    Label done;
     Slot* slot = var->slot();
     switch (slot->type()) {
-      case Slot::LOCAL:
       case Slot::PARAMETER:
+      case Slot::LOCAL:
+        if (op == Token::INIT_CONST) {
+          // Detect const reinitialization by checking for the hole value.
+          __ ldr(r1, MemOperand(fp, SlotOffset(slot)));
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ cmp(r1, ip);
+          __ b(ne, &done);
+        }
+        // Perform the assignment.
         __ str(result_register(), MemOperand(fp, SlotOffset(slot)));
         break;
 
       case Slot::CONTEXT: {
         MemOperand target = EmitSlotSearch(slot, r1);
+        if (op == Token::INIT_CONST) {
+          // Detect const reinitialization by checking for the hole value.
+          __ ldr(r1, target);
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ cmp(r1, ip);
+          __ b(ne, &done);
+        }
+        // Perform the assignment and issue the write barrier.
         __ str(result_register(), target);
-
         // RecordWrite may destroy all its register arguments.
         __ mov(r3, result_register());
         int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-
         __ mov(r2, Operand(offset));
         __ RecordWrite(r1, r2, r3);
         break;
       }
 
       case Slot::LOOKUP:
-        UNREACHABLE();
+        // Call the runtime for the assignment.  The runtime will ignore
+        // const reinitialization.
+        __ push(r0);  // Value.
+        __ mov(r0, Operand(slot->var()->name()));
+        __ Push(cp, r0);  // Context and name.
+        if (op == Token::INIT_CONST) {
+          // The runtime will ignore const redeclaration.
+          __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+        } else {
+          __ CallRuntime(Runtime::kStoreContextSlot, 3);
+        }
         break;
     }
-
-  } else {
-    // Variables rewritten as properties are not treated as variables in
-    // assignments.
-    UNREACHABLE();
+    __ bind(&done);
   }
+
   Apply(context, result_register());
 }
 
@@ -1103,6 +1138,8 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
+  // Load receiver to r1. Leave a copy in the stack if needed for turning the
+  // receiver into fast case.
   if (expr->ends_initialization_block()) {
     __ ldr(r1, MemOperand(sp));
   } else {
@@ -1115,7 +1152,8 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
     __ push(r0);  // Result of assignment, saved even if not needed.
-    __ ldr(ip, MemOperand(sp, kPointerSize));  // Receiver is under value.
+    // Receiver is under the result value.
+    __ ldr(ip, MemOperand(sp, kPointerSize));
     __ push(ip);
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(r0);
@@ -1143,21 +1181,30 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
 
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
+  __ pop(r1);  // Key.
+  // Load receiver to r2. Leave a copy in the stack if needed for turning the
+  // receiver into fast case.
+  if (expr->ends_initialization_block()) {
+    __ ldr(r2, MemOperand(sp));
+  } else {
+    __ pop(r2);
+  }
+
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
     __ push(r0);  // Result of assignment, saved even if not needed.
-    // Receiver is under the key and value.
-    __ ldr(ip, MemOperand(sp, 2 * kPointerSize));
+    // Receiver is under the result value.
+    __ ldr(ip, MemOperand(sp, kPointerSize));
     __ push(ip);
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(r0);
+    DropAndApply(1, context_, r0);
+  } else {
+    Apply(context_, r0);
   }
-
-  // Receiver and key are still on stack.
-  DropAndApply(2, context_, r0);
 }
 
 
@@ -1165,14 +1212,12 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
   Comment cmnt(masm_, "[ Property");
   Expression* key = expr->key();
 
-  // Evaluate receiver.
-  VisitForValue(expr->obj(), kStack);
-
   if (key->IsPropertyName()) {
+    VisitForValue(expr->obj(), kAccumulator);
     EmitNamedPropertyLoad(expr);
-    // Drop receiver left on the stack by IC.
-    DropAndApply(1, context_, r0);
+    Apply(context_, r0);
   } else {
+    VisitForValue(expr->obj(), kStack);
     VisitForValue(expr->key(), kAccumulator);
     __ pop(r1);
     EmitKeyedPropertyLoad(expr);
@@ -1445,13 +1490,12 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           proxy->var()->is_global()) {
         Comment cmnt(masm_, "Global variable");
         __ ldr(r0, CodeGenerator::GlobalObject());
-        __ push(r0);
         __ mov(r2, Operand(proxy->name()));
         Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
         // Use a regular load, not a contextual load, to avoid a reference
         // error.
         __ Call(ic, RelocInfo::CODE_TARGET);
-        __ str(r0, MemOperand(sp));
+        __ push(r0);
       } else if (proxy != NULL &&
                  proxy->var()->slot() != NULL &&
                  proxy->var()->slot()->type() == Slot::LOOKUP) {
@@ -1557,10 +1601,13 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ mov(ip, Operand(Smi::FromInt(0)));
       __ push(ip);
     }
-    VisitForValue(prop->obj(), kStack);
     if (assign_type == NAMED_PROPERTY) {
+      // Put the object both on the stack and in the accumulator.
+      VisitForValue(prop->obj(), kAccumulator);
+      __ push(r0);
       EmitNamedPropertyLoad(prop);
     } else {
+      VisitForValue(prop->obj(), kStack);
       VisitForValue(prop->key(), kAccumulator);
       __ ldr(r1, MemOperand(sp, 0));
       __ push(r0);
@@ -1631,6 +1678,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case VARIABLE:
       if (expr->is_postfix()) {
         EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
+                               Token::ASSIGN,
                                Expression::kEffect);
         // For all contexts except kEffect: We have the result on
         // top of the stack.
@@ -1639,6 +1687,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         }
       } else {
         EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
+                               Token::ASSIGN,
                                context_);
       }
       break;
@@ -1657,15 +1706,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     }
     case KEYED_PROPERTY: {
+      __ pop(r1);  // Key.
+      __ pop(r2);  // Receiver.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
       if (expr->is_postfix()) {
-        __ Drop(2);  // Result is on the stack under the key and the receiver.
         if (context_ != Expression::kEffect) {
           ApplyTOS(context_);
         }
       } else {
-        DropAndApply(2, context_, r0);
+        Apply(context_, r0);
       }
       break;
     }
@@ -1877,3 +1927,5 @@ void FullCodeGenerator::ExitFinallyBlock() {
 #undef __
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_ARM

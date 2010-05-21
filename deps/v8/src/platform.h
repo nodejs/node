@@ -83,8 +83,9 @@ int random();
 
 #endif  // WIN32
 
+
 #ifdef __sun
-# if !defined(signbit)
+# ifndef signbit
 int signbit(double x);
 # endif
 #endif

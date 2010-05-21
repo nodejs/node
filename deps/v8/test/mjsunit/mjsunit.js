@@ -27,6 +27,8 @@
 
 function MjsUnitAssertionError(message) {
   this.message = message;
+  // This allows fetching the stack trace using TryCatch::StackTrace.
+  this.stack = new Error("").stack;
 }
 
 MjsUnitAssertionError.prototype.toString = function () {

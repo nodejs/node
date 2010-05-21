@@ -35,6 +35,9 @@ namespace v8 {
 namespace internal {
 
 
+bool JumpTarget::compiling_deferred_code_ = false;
+
+
 void JumpTarget::Jump(Result* arg) {
   ASSERT(cgen()->has_valid_frame());
 
@@ -357,6 +360,66 @@ DeferredCode::DeferredCode()
       int offset = frame->fp_relative(loc);
       registers_[i] = (offset < sp_offset) ? kPush : offset;
     }
+  }
+}
+
+
+void JumpTarget::Unuse() {
+  reaching_frames_.Clear();
+  merge_labels_.Clear();
+  entry_frame_ = NULL;
+  entry_label_.Unuse();
+}
+
+
+void JumpTarget::AddReachingFrame(VirtualFrame* frame) {
+  ASSERT(reaching_frames_.length() == merge_labels_.length());
+  ASSERT(entry_frame_ == NULL);
+  Label fresh;
+  merge_labels_.Add(fresh);
+  reaching_frames_.Add(frame);
+}
+
+
+// -------------------------------------------------------------------------
+// BreakTarget implementation.
+
+void BreakTarget::set_direction(Directionality direction) {
+  JumpTarget::set_direction(direction);
+  ASSERT(cgen()->has_valid_frame());
+  expected_height_ = cgen()->frame()->height();
+}
+
+
+void BreakTarget::CopyTo(BreakTarget* destination) {
+  ASSERT(destination != NULL);
+  destination->direction_ = direction_;
+  destination->reaching_frames_.Rewind(0);
+  destination->reaching_frames_.AddAll(reaching_frames_);
+  destination->merge_labels_.Rewind(0);
+  destination->merge_labels_.AddAll(merge_labels_);
+  destination->entry_frame_ = entry_frame_;
+  destination->entry_label_ = entry_label_;
+  destination->expected_height_ = expected_height_;
+}
+
+
+void BreakTarget::Branch(Condition cc, Hint hint) {
+  ASSERT(cgen()->has_valid_frame());
+
+  int count = cgen()->frame()->height() - expected_height_;
+  if (count > 0) {
+    // We negate and branch here rather than using DoBranch's negate
+    // and branch.  This gives us a hook to remove statement state
+    // from the frame.
+    JumpTarget fall_through;
+    // Branch to fall through will not negate, because it is a
+    // forward-only target.
+    fall_through.Branch(NegateCondition(cc), NegateHint(hint));
+    Jump();  // May emit merge code here.
+    fall_through.Bind();
+  } else {
+    DoBranch(cc, hint);
   }
 }
 

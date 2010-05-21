@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_IA32)
+
 #include "codegen-inl.h"
 #include "ic-inl.h"
 #include "runtime.h"
@@ -868,7 +870,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ecx: key (a smi)
   // edx: receiver
   // edi: FixedArray receiver->elements
-  __ mov(FieldOperand(edi, ecx, times_2, FixedArray::kHeaderSize), eax);
+  __ mov(CodeGenerator::FixedArrayElementOperand(edi, ecx), eax);
   // Update write barrier for the elements array address.
   __ mov(edx, Operand(eax));
   __ RecordWrite(edi, 0, edx, ecx);
@@ -1643,3 +1645,5 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_IA32

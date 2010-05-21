@@ -141,13 +141,15 @@ void ProfilerEventsProcessor::CodeDeleteEvent(Address from) {
 
 
 void ProfilerEventsProcessor::FunctionCreateEvent(Address alias,
-                                                  Address start) {
+                                                  Address start,
+                                                  int security_token_id) {
   CodeEventsContainer evt_rec;
   CodeAliasEventRecord* rec = &evt_rec.CodeAliasEventRecord_;
   rec->type = CodeEventRecord::CODE_ALIAS;
   rec->order = ++enqueue_order_;
-  rec->alias = alias;
-  rec->start = start;
+  rec->start = alias;
+  rec->entry = generator_->NewCodeEntry(security_token_id);
+  rec->code_start = start;
   events_buffer_.Enqueue(evt_rec);
 }
 
@@ -257,26 +259,30 @@ CpuProfile* CpuProfiler::StopProfiling(const char* title) {
 }
 
 
-CpuProfile* CpuProfiler::StopProfiling(String* title) {
-  return is_profiling() ? singleton_->StopCollectingProfile(title) : NULL;
+CpuProfile* CpuProfiler::StopProfiling(Object* security_token, String* title) {
+  return is_profiling() ?
+      singleton_->StopCollectingProfile(security_token, title) : NULL;
 }
 
 
 int CpuProfiler::GetProfilesCount() {
   ASSERT(singleton_ != NULL);
-  return singleton_->profiles_->profiles()->length();
+  // The count of profiles doesn't depend on a security token.
+  return singleton_->profiles_->Profiles(CodeEntry::kNoSecurityToken)->length();
 }
 
 
-CpuProfile* CpuProfiler::GetProfile(int index) {
+CpuProfile* CpuProfiler::GetProfile(Object* security_token, int index) {
   ASSERT(singleton_ != NULL);
-  return singleton_->profiles_->profiles()->at(index);
+  const int token = singleton_->token_enumerator_->GetTokenId(security_token);
+  return singleton_->profiles_->Profiles(token)->at(index);
 }
 
 
-CpuProfile* CpuProfiler::FindProfile(unsigned uid) {
+CpuProfile* CpuProfiler::FindProfile(Object* security_token, unsigned uid) {
   ASSERT(singleton_ != NULL);
-  return singleton_->profiles_->GetProfile(uid);
+  const int token = singleton_->token_enumerator_->GetTokenId(security_token);
+  return singleton_->profiles_->GetProfile(token, uid);
 }
 
 
@@ -348,8 +354,15 @@ void CpuProfiler::CodeDeleteEvent(Address from) {
 
 
 void CpuProfiler::FunctionCreateEvent(JSFunction* function) {
+  int security_token_id = CodeEntry::kNoSecurityToken;
+  if (function->unchecked_context()->IsContext()) {
+    security_token_id = singleton_->token_enumerator_->GetTokenId(
+        function->context()->global_context()->security_token());
+  }
   singleton_->processor_->FunctionCreateEvent(
-      function->address(), function->code()->address());
+      function->address(),
+      function->code()->address(),
+      security_token_id);
 }
 
 
@@ -388,12 +401,14 @@ void CpuProfiler::SetterCallbackEvent(String* name, Address entry_point) {
 CpuProfiler::CpuProfiler()
     : profiles_(new CpuProfilesCollection()),
       next_profile_uid_(1),
+      token_enumerator_(new TokenEnumerator()),
       generator_(NULL),
       processor_(NULL) {
 }
 
 
 CpuProfiler::~CpuProfiler() {
+  delete token_enumerator_;
   delete profiles_;
 }
 
@@ -438,7 +453,9 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 CpuProfile* CpuProfiler::StopCollectingProfile(const char* title) {
   const double actual_sampling_rate = generator_->actual_sampling_rate();
   StopProcessorIfLastProfile();
-  CpuProfile* result = profiles_->StopProfiling(title, actual_sampling_rate);
+  CpuProfile* result = profiles_->StopProfiling(CodeEntry::kNoSecurityToken,
+                                                title,
+                                                actual_sampling_rate);
   if (result != NULL) {
     result->Print();
   }
@@ -446,10 +463,12 @@ CpuProfile* CpuProfiler::StopCollectingProfile(const char* title) {
 }
 
 
-CpuProfile* CpuProfiler::StopCollectingProfile(String* title) {
+CpuProfile* CpuProfiler::StopCollectingProfile(Object* security_token,
+                                               String* title) {
   const double actual_sampling_rate = generator_->actual_sampling_rate();
   StopProcessorIfLastProfile();
-  return profiles_->StopProfiling(title, actual_sampling_rate);
+  int token = token_enumerator_->GetTokenId(security_token);
+  return profiles_->StopProfiling(token, title, actual_sampling_rate);
 }
 
 

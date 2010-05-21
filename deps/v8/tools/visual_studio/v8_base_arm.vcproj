@@ -205,6 +205,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\ast-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\ast.cc"
 				>
 			</File>
@@ -594,6 +598,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\jump-target-light-inl.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jump-target-light.h"
 				>
 			</File>
 			<File
@@ -1010,6 +1018,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\virtual-frame.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\arm\virtual-frame-arm-inl.h"
 				>
 			</File>
 			<File

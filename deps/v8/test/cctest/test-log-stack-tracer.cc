@@ -66,28 +66,6 @@ static void DoTraceHideCEntryFPAddress(Address fp) {
 }
 
 
-static void CheckRetAddrIsInFunction(const char* func_name,
-                                     Address ret_addr,
-                                     Address func_start_addr,
-                                     unsigned int func_len) {
-  printf("CheckRetAddrIsInFunction \"%s\": %p %p %p\n",
-         func_name, func_start_addr, ret_addr, func_start_addr + func_len);
-  CHECK_GE(ret_addr, func_start_addr);
-  CHECK_GE(func_start_addr + func_len, ret_addr);
-}
-
-
-static void CheckRetAddrIsInJSFunction(const char* func_name,
-                                       Address ret_addr,
-                                       Handle<JSFunction> func) {
-  v8::internal::Code* func_code = func->code();
-  CheckRetAddrIsInFunction(
-      func_name, ret_addr,
-      func_code->instruction_start(),
-      func_code->ExecutableSize());
-}
-
-
 // --- T r a c e   E x t e n s i o n ---
 
 class TraceExtension : public v8::Extension {
@@ -209,11 +187,16 @@ static Handle<JSFunction> GetGlobalJSFunction(const char* name) {
 }
 
 
-static void CheckRetAddrIsInJSFunction(const char* func_name,
-                                               Address ret_addr) {
-  CheckRetAddrIsInJSFunction(func_name,
-                             ret_addr,
-                             GetGlobalJSFunction(func_name));
+static void CheckObjectIsJSFunction(const char* func_name,
+                                    Address addr) {
+  i::Object* obj = reinterpret_cast<i::Object*>(addr);
+  CHECK(obj->IsJSFunction());
+  CHECK(JSFunction::cast(obj)->shared()->name()->IsString());
+  i::SmartPointer<char> found_name =
+      i::String::cast(
+          JSFunction::cast(
+              obj)->shared()->name())->ToCString();
+  CHECK_EQ(func_name, *found_name);
 }
 
 
@@ -272,6 +255,7 @@ static void CreateTraceCallerFunction(const char* func_name,
   Handle<JSFunction> func = CompileFunction(trace_call_buf.start());
   CHECK(!func.is_null());
   i::FLAG_allow_natives_syntax = allow_natives_syntax;
+  func->shared()->set_name(*NewString(func_name));
 
 #ifdef DEBUG
   v8::internal::Code* func_code = func->code();
@@ -289,6 +273,13 @@ static void CreateTraceCallerFunction(const char* func_name,
 // StackTracer uses Top::c_entry_fp as a starting point for stack
 // walking.
 TEST(CFromJSStackTrace) {
+#if defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_X64)
+  // TODO(711) The hack of replacing the inline runtime function
+  // RandomHeapNumber with GetFrameNumber does not work with the way the full
+  // compiler generates inline runtime calls.
+  i::FLAG_force_full_compiler = false;
+#endif
+
   TickSample sample;
   InitTraceEnv(&sample);
 
@@ -313,10 +304,8 @@ TEST(CFromJSStackTrace) {
   //           StackTracer::Trace
   CHECK_GT(sample.frames_count, 1);
   // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
-  CheckRetAddrIsInJSFunction("JSFuncDoTrace",
-                             sample.stack[0]);
-  CheckRetAddrIsInJSFunction("JSTrace",
-                             sample.stack[1]);
+  CheckObjectIsJSFunction("JSFuncDoTrace", sample.stack[0]);
+  CheckObjectIsJSFunction("JSTrace", sample.stack[1]);
 }
 
 
@@ -326,6 +315,13 @@ TEST(CFromJSStackTrace) {
 // Top::c_entry_fp value. In this case, StackTracer uses passed frame
 // pointer value as a starting point for stack walking.
 TEST(PureJSStackTrace) {
+#if defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_X64)
+  // TODO(711) The hack of replacing the inline runtime function
+  // RandomHeapNumber with GetFrameNumber does not work with the way the full
+  // compiler generates inline runtime calls.
+  i::FLAG_force_full_compiler = false;
+#endif
+
   TickSample sample;
   InitTraceEnv(&sample);
 
@@ -359,10 +355,8 @@ TEST(PureJSStackTrace) {
            sample.function);
   CHECK_GT(sample.frames_count, 1);
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
-  CheckRetAddrIsInJSFunction("JSTrace",
-                             sample.stack[0]);
-  CheckRetAddrIsInJSFunction("OuterJSTrace",
-                             sample.stack[1]);
+  CheckObjectIsJSFunction("JSTrace", sample.stack[0]);
+  CheckObjectIsJSFunction("OuterJSTrace", sample.stack[1]);
 }
 
 

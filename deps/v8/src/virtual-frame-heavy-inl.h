@@ -31,6 +31,8 @@
 #include "type-info.h"
 #include "register-allocator.h"
 #include "scopes.h"
+#include "register-allocator-inl.h"
+#include "codegen-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -145,6 +147,44 @@ void VirtualFrame::Nip(int num_dropped) {
 
 void VirtualFrame::Push(Smi* value) {
   Push(Handle<Object> (value));
+}
+
+
+int VirtualFrame::register_location(Register reg) {
+  return register_locations_[RegisterAllocator::ToNumber(reg)];
+}
+
+
+void VirtualFrame::set_register_location(Register reg, int index) {
+  register_locations_[RegisterAllocator::ToNumber(reg)] = index;
+}
+
+
+bool VirtualFrame::is_used(Register reg) {
+  return register_locations_[RegisterAllocator::ToNumber(reg)]
+      != kIllegalIndex;
+}
+
+
+void VirtualFrame::SetElementAt(int index, Handle<Object> value) {
+  Result temp(value);
+  SetElementAt(index, &temp);
+}
+
+
+Result VirtualFrame::CallStub(CodeStub* stub, int arg_count) {
+  PrepareForCall(arg_count, arg_count);
+  return RawCallStub(stub);
+}
+
+
+int VirtualFrame::parameter_count() {
+  return cgen()->scope()->num_parameters();
+}
+
+
+int VirtualFrame::local_count() {
+  return cgen()->scope()->num_stack_slots();
 }
 
 } }  // namespace v8::internal

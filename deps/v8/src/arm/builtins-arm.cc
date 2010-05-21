@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_ARM)
+
 #include "codegen-inl.h"
 #include "debug.h"
 #include "runtime.h"
@@ -130,7 +132,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // of the JSArray.
   // result: JSObject
   // scratch2: start of next object
-  __ lea(scratch1, MemOperand(result, JSArray::kSize));
+  __ add(scratch1, result, Operand(JSArray::kSize));
   __ str(scratch1, FieldMemOperand(result, JSArray::kElementsOffset));
 
   // Clear the heap tag on the elements array.
@@ -1311,3 +1313,5 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 #undef __
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_ARM

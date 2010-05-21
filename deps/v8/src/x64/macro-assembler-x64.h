@@ -306,6 +306,10 @@ class MacroAssembler: public Assembler {
   // No overflow testing on the result is done.
   void SmiAddConstant(Register dst, Register src, Smi* constant);
 
+  // Add an integer constant to a tagged smi, giving a tagged smi as result.
+  // No overflow testing on the result is done.
+  void SmiAddConstant(const Operand& dst, Smi* constant);
+
   // Add an integer constant to a tagged smi, giving a tagged smi as result,
   // or jumping to a label if the result cannot be represented by a smi.
   void SmiAddConstant(Register dst,
@@ -349,7 +353,7 @@ class MacroAssembler: public Assembler {
 
   void SmiSub(Register dst,
               Register src1,
-              Operand const& src2,
+              const Operand& src2,
               Label* on_not_smi_result);
 
   // Multiplies smi values and return the result as a smi,
@@ -533,10 +537,10 @@ class MacroAssembler: public Assembler {
   void FCmp();
 
   // Abort execution if argument is not a number. Used in debug code.
-  void AbortIfNotNumber(Register object, const char* msg);
+  void AbortIfNotNumber(Register object);
 
   // Abort execution if argument is not a smi. Used in debug code.
-  void AbortIfNotSmi(Register object, const char* msg);
+  void AbortIfNotSmi(Register object);
 
   // ---------------------------------------------------------------------------
   // Exception handling

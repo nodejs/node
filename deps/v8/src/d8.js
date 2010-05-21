@@ -341,6 +341,11 @@ function DebugRequest(cmd_line) {
       this.request_ = this.breakCommandToJSONRequest_(args);
       break;
 
+    case 'breakpoints':
+    case 'bb':
+      this.request_ = this.breakpointsCommandToJSONRequest_(args);
+      break;
+
     case 'clear':
       this.request_ = this.clearCommandToJSONRequest_(args);
       break;
@@ -770,6 +775,15 @@ DebugRequest.prototype.breakCommandToJSONRequest_ = function(args) {
 };
 
 
+DebugRequest.prototype.breakpointsCommandToJSONRequest_ = function(args) {
+  if (args && args.length > 0) {
+    throw new Error('Unexpected arguments.');
+  }
+  var request = this.createRequest('listbreakpoints');
+  return request.toJSONProtocol();
+};
+
+
 // Create a JSON request for the clear command.
 DebugRequest.prototype.clearCommandToJSONRequest_ = function(args) {
   // Build a evaluate request from the text command.
@@ -945,6 +959,39 @@ function DebugResponseDetails(response) {
       case 'clearbreakpoint':
         result = 'cleared breakpoint #';
         result += body.breakpoint;
+        details.text = result;
+        break;
+        
+      case 'listbreakpoints':
+        result = 'breakpoints: (' + body.breakpoints.length + ')';
+        for (var i = 0; i < body.breakpoints.length; i++) {
+          var breakpoint = body.breakpoints[i];
+          result += '\n id=' + breakpoint.number;
+          result += ' type=' + breakpoint.type;
+          if (breakpoint.script_id) {
+              result += ' script_id=' + breakpoint.script_id;
+          }
+          if (breakpoint.script_name) {
+              result += ' script_name=' + breakpoint.script_name;
+          }
+          result += ' line=' + breakpoint.line;
+          if (breakpoint.column != null) {
+            result += ' column=' + breakpoint.column;
+          }
+          if (breakpoint.groupId) {
+            result += ' groupId=' + breakpoint.groupId;
+          }
+          if (breakpoint.ignoreCount) {
+              result += ' ignoreCount=' + breakpoint.ignoreCount;
+          }
+          if (breakpoint.active === false) {
+            result += ' inactive';
+          }
+          if (breakpoint.condition) {
+            result += ' condition=' + breakpoint.condition;
+          }
+          result += ' hit_count=' + breakpoint.hit_count;
+        }
         details.text = result;
         break;
 
@@ -1136,8 +1183,8 @@ function DebugResponseDetails(response) {
 
       default:
         details.text =
-            'Response for unknown command \'' + response.command + '\'' +
-            ' (' + json_response + ')';
+            'Response for unknown command \'' + response.command() + '\'' +
+            ' (' + response.raw_json() + ')';
     }
   } catch (e) {
     details.text = 'Error: "' + e + '" formatting response';
@@ -1153,6 +1200,7 @@ function DebugResponseDetails(response) {
  * @constructor
  */
 function ProtocolPackage(json) {
+  this.raw_json_ = json;
   this.packet_ = JSON.parse(json);
   this.refs_ = [];
   if (this.packet_.refs) {
@@ -1240,6 +1288,11 @@ ProtocolPackage.prototype.lookup = function(handle) {
   } else {
     return new ProtocolReference(handle);
   }
+}
+
+
+ProtocolPackage.prototype.raw_json = function() {
+  return this.raw_json_;
 }
 
 

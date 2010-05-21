@@ -48,7 +48,7 @@
 
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
 
-#ifdef ENABLE_HEAP_PROTECTION
+#ifdef ENABLE_VMSTATE_TRACKING
 #define ENTER_V8 i::VMState __state__(i::OTHER)
 #define LEAVE_V8 i::VMState __state__(i::EXTERNAL)
 #else
@@ -3992,9 +3992,39 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 // --- D e b u g   S u p p o r t ---
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
+
+static v8::Debug::EventCallback event_callback = NULL;
+
+static void EventCallbackWrapper(const v8::Debug::EventDetails& event_details) {
+  if (event_callback) {
+    event_callback(event_details.GetEvent(),
+                   event_details.GetExecutionState(),
+                   event_details.GetEventData(),
+                   event_details.GetCallbackData());
+  }
+}
+
+
 bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   EnsureInitialized("v8::Debug::SetDebugEventListener()");
   ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
+  ENTER_V8;
+
+  event_callback = that;
+
+  HandleScope scope;
+  i::Handle<i::Object> proxy = i::Factory::undefined_value();
+  if (that != NULL) {
+    proxy = i::Factory::NewProxy(FUNCTION_ADDR(EventCallbackWrapper));
+  }
+  i::Debugger::SetEventListener(proxy, Utils::OpenHandle(*data));
+  return true;
+}
+
+
+bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
+  EnsureInitialized("v8::Debug::SetDebugEventListener2()");
+  ON_BAILOUT("v8::Debug::SetDebugEventListener2()", return false);
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::Object> proxy = i::Factory::undefined_value();
@@ -4250,15 +4280,23 @@ int CpuProfiler::GetProfilesCount() {
 }
 
 
-const CpuProfile* CpuProfiler::GetProfile(int index) {
+const CpuProfile* CpuProfiler::GetProfile(int index,
+                                          Handle<Value> security_token) {
   IsDeadCheck("v8::CpuProfiler::GetProfile");
-  return reinterpret_cast<const CpuProfile*>(i::CpuProfiler::GetProfile(index));
+  return reinterpret_cast<const CpuProfile*>(
+      i::CpuProfiler::GetProfile(
+          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
+          index));
 }
 
 
-const CpuProfile* CpuProfiler::FindProfile(unsigned uid) {
+const CpuProfile* CpuProfiler::FindProfile(unsigned uid,
+                                           Handle<Value> security_token) {
   IsDeadCheck("v8::CpuProfiler::FindProfile");
-  return reinterpret_cast<const CpuProfile*>(i::CpuProfiler::FindProfile(uid));
+  return reinterpret_cast<const CpuProfile*>(
+      i::CpuProfiler::FindProfile(
+          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
+          uid));
 }
 
 
@@ -4268,10 +4306,13 @@ void CpuProfiler::StartProfiling(Handle<String> title) {
 }
 
 
-const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title) {
+const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title,
+                                             Handle<Value> security_token) {
   IsDeadCheck("v8::CpuProfiler::StopProfiling");
   return reinterpret_cast<const CpuProfile*>(
-      i::CpuProfiler::StopProfiling(*Utils::OpenHandle(*title)));
+      i::CpuProfiler::StopProfiling(
+          security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
+          *Utils::OpenHandle(*title)));
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

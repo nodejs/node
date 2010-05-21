@@ -41,6 +41,7 @@ function testNoShadowing() {
   function f() {
     eval('1');
     assertEquals(1, x);
+    try { typeof(asdf); } catch(e) { assertUnreachable(); }
     assertEquals(2, y);
     assertEquals('global', global_function());
     assertEquals('local', local_function());
@@ -60,6 +61,7 @@ function testNoShadowing() {
     assertEquals('const_local', local_const_initialized());
     function g() {
       assertEquals(1, x);
+      try { typeof(asdf); } catch(e) { assertUnreachable(); }
       assertEquals(2, y);
       assertEquals('global', global_function());
       assertEquals('local', local_function());

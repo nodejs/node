@@ -988,7 +988,7 @@ class RelocInfoBuffer {
   byte* buffer_;
   int buffer_size_;
 
-  static const int kBufferGap = 8;
+  static const int kBufferGap = RelocInfoWriter::kMaxSize;
   static const int kMaximalBufferSize = 512*MB;
 };
 

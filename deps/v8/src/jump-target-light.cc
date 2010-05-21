@@ -34,41 +34,6 @@ namespace v8 {
 namespace internal {
 
 
-void JumpTarget::Jump(Result* arg) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Branch(Condition cc, Result* arg, Hint hint) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Branch(Condition cc, Result* arg0, Result* arg1, Hint hint) {
-  UNIMPLEMENTED();
-}
-
-
-void BreakTarget::Branch(Condition cc, Result* arg, Hint hint) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Bind(Result* arg) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Bind(Result* arg0, Result* arg1) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::ComputeEntryFrame() {
-  UNIMPLEMENTED();
-}
-
-
 DeferredCode::DeferredCode()
     : masm_(CodeGeneratorScope::Current()->masm()),
       statement_position_(masm_->current_statement_position()),
@@ -81,6 +46,64 @@ DeferredCode::DeferredCode()
 #ifdef DEBUG
   CodeGeneratorScope::Current()->frame()->AssertIsSpilled();
 #endif
+}
+
+
+// -------------------------------------------------------------------------
+// BreakTarget implementation.
+
+
+void BreakTarget::SetExpectedHeight() {
+  expected_height_ = cgen()->frame()->height();
+}
+
+
+void BreakTarget::Jump() {
+  ASSERT(cgen()->has_valid_frame());
+
+  int count = cgen()->frame()->height() - expected_height_;
+  if (count > 0) {
+    cgen()->frame()->Drop(count);
+  }
+  DoJump();
+}
+
+
+void BreakTarget::Branch(Condition cc, Hint hint) {
+  if (cc == al) {
+    Jump();
+    return;
+  }
+
+  ASSERT(cgen()->has_valid_frame());
+
+  int count = cgen()->frame()->height() - expected_height_;
+  if (count > 0) {
+    // We negate and branch here rather than using DoBranch's negate
+    // and branch.  This gives us a hook to remove statement state
+    // from the frame.
+    JumpTarget fall_through;
+    // Branch to fall through will not negate, because it is a
+    // forward-only target.
+    fall_through.Branch(NegateCondition(cc), NegateHint(hint));
+    // Emit merge code.
+    cgen()->frame()->Drop(count);
+    DoJump();
+    fall_through.Bind();
+  } else {
+    DoBranch(cc, hint);
+  }
+}
+
+
+void BreakTarget::Bind() {
+  if (cgen()->has_valid_frame()) {
+    int count = cgen()->frame()->height() - expected_height_;
+    if (count > 0) {
+      cgen()->frame()->Drop(count);
+    }
+  }
+  DoBind();
 }
 
 } }  // namespace v8::internal

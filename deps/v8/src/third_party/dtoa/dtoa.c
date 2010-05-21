@@ -164,7 +164,11 @@
  */
 
 #ifndef Long
+#if __LP64__
+#define Long int
+#else
 #define Long long
+#endif
 #endif
 #ifndef ULong
 typedef unsigned Long ULong;

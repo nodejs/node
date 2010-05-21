@@ -4001,16 +4001,27 @@ class String: public HeapObject {
   // to this method are not efficient unless the string is flat.
   inline uint16_t Get(int index);
 
-  // Try to flatten the top level ConsString that is hiding behind this
-  // string.  This is a no-op unless the string is a ConsString.  Flatten
-  // mutates the ConsString and might return a failure.
-  Object* SlowTryFlatten(PretenureFlag pretenure);
-
-  // Try to flatten the string.  Checks first inline to see if it is necessary.
-  // Do not handle allocation failures.  After calling TryFlatten, the
-  // string could still be a ConsString, in which case a failure is returned.
-  // Use FlattenString from Handles.cc to be sure to flatten.
+  // Try to flatten the string.  Checks first inline to see if it is
+  // necessary.  Does nothing if the string is not a cons string.
+  // Flattening allocates a sequential string with the same data as
+  // the given string and mutates the cons string to a degenerate
+  // form, where the first component is the new sequential string and
+  // the second component is the empty string.  If allocation fails,
+  // this function returns a failure.  If flattening succeeds, this
+  // function returns the sequential string that is now the first
+  // component of the cons string.
+  //
+  // Degenerate cons strings are handled specially by the garbage
+  // collector (see IsShortcutCandidate).
+  //
+  // Use FlattenString from Handles.cc to flatten even in case an
+  // allocation failure happens.
   inline Object* TryFlatten(PretenureFlag pretenure = NOT_TENURED);
+
+  // Convenience function.  Has exactly the same behavior as
+  // TryFlatten(), except in the case of failure returns the original
+  // string.
+  inline String* TryFlattenGetString(PretenureFlag pretenure = NOT_TENURED);
 
   Vector<const char> ToAsciiVector();
   Vector<const uc16> ToUC16Vector();
@@ -4197,6 +4208,11 @@ class String: public HeapObject {
                                   unsigned max_chars);
 
  private:
+  // Try to flatten the top level ConsString that is hiding behind this
+  // string.  This is a no-op unless the string is a ConsString.  Flatten
+  // mutates the ConsString and might return a failure.
+  Object* SlowTryFlatten(PretenureFlag pretenure);
+
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.
   bool SlowEquals(String* other);

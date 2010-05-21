@@ -136,12 +136,7 @@ SOURCES = {
     arm/register-allocator-arm.cc
     arm/stub-cache-arm.cc
     arm/virtual-frame-arm.cc
-    """),
-  'armvariant:arm': Split("""
     arm/assembler-arm.cc
-    """),
-  'armvariant:thumb2': Split("""
-    arm/assembler-thumb2.cc
     """),
   'arch:mips': Split("""
     fast-codegen.cc

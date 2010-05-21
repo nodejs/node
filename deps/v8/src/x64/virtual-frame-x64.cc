@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_X64)
+
 #include "codegen-inl.h"
 #include "register-allocator-inl.h"
 #include "scopes.h"
@@ -1029,6 +1031,46 @@ void VirtualFrame::DebugBreak() {
 #endif
 
 
+// This function assumes that the only results that could be in a_reg or b_reg
+// are a and b.  Other results can be live, but must not be in a_reg or b_reg.
+void VirtualFrame::MoveResultsToRegisters(Result* a,
+                                          Result* b,
+                                          Register a_reg,
+                                          Register b_reg) {
+  ASSERT(!a_reg.is(b_reg));
+  // Assert that cgen()->allocator()->count(a_reg) is accounted for by a and b.
+  ASSERT(cgen()->allocator()->count(a_reg) <= 2);
+  ASSERT(cgen()->allocator()->count(a_reg) != 2 || a->reg().is(a_reg));
+  ASSERT(cgen()->allocator()->count(a_reg) != 2 || b->reg().is(a_reg));
+  ASSERT(cgen()->allocator()->count(a_reg) != 1 ||
+         (a->is_register() && a->reg().is(a_reg)) ||
+         (b->is_register() && b->reg().is(a_reg)));
+  // Assert that cgen()->allocator()->count(b_reg) is accounted for by a and b.
+  ASSERT(cgen()->allocator()->count(b_reg) <= 2);
+  ASSERT(cgen()->allocator()->count(b_reg) != 2 || a->reg().is(b_reg));
+  ASSERT(cgen()->allocator()->count(b_reg) != 2 || b->reg().is(b_reg));
+  ASSERT(cgen()->allocator()->count(b_reg) != 1 ||
+         (a->is_register() && a->reg().is(b_reg)) ||
+         (b->is_register() && b->reg().is(b_reg)));
+
+  if (a->is_register() && a->reg().is(a_reg)) {
+    b->ToRegister(b_reg);
+  } else if (!cgen()->allocator()->is_used(a_reg)) {
+    a->ToRegister(a_reg);
+    b->ToRegister(b_reg);
+  } else if (cgen()->allocator()->is_used(b_reg)) {
+    // a must be in b_reg, b in a_reg.
+    __ xchg(a_reg, b_reg);
+    // Results a and b will be invalidated, so it is ok if they are switched.
+  } else {
+    b->ToRegister(b_reg);
+    a->ToRegister(a_reg);
+  }
+  a->Unuse();
+  b->Unuse();
+}
+
+
 Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   // Name and receiver are on the top of the frame.  The IC expects
   // name in rcx and receiver on the stack.  It does not drop the
@@ -1051,15 +1093,52 @@ Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
 }
 
 
-Result VirtualFrame::CallKeyedStoreIC() {
-  // Value, key, and receiver are on the top of the frame.  The IC
-  // expects value in rax and key and receiver on the stack.  It does
-  // not drop the key and receiver.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-  Result value = Pop();
-  PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
-  value.ToRegister(rax);
-  value.Unuse();
+Result VirtualFrame::CallCommonStoreIC(Handle<Code> ic,
+                                       Result* value,
+                                       Result* key,
+                                       Result* receiver) {
+  // The IC expects value in rax, key in rcx, and receiver in rdx.
+  PrepareForCall(0, 0);
+  // If one of the three registers is free, or a value is already
+  // in the correct register, move the remaining two values using
+  // MoveResultsToRegisters().
+  if (!cgen()->allocator()->is_used(rax) ||
+      (value->is_register() && value->reg().is(rax))) {
+    if (!cgen()->allocator()->is_used(rax)) {
+      value->ToRegister(rax);
+    }
+    MoveResultsToRegisters(key, receiver, rcx, rdx);
+    value->Unuse();
+  } else if (!cgen()->allocator()->is_used(rcx) ||
+             (key->is_register() && key->reg().is(rcx))) {
+    if (!cgen()->allocator()->is_used(rcx)) {
+      key->ToRegister(rcx);
+    }
+    MoveResultsToRegisters(value, receiver, rax, rdx);
+    key->Unuse();
+  } else if (!cgen()->allocator()->is_used(rdx) ||
+             (receiver->is_register() && receiver->reg().is(rdx))) {
+    if (!cgen()->allocator()->is_used(rdx)) {
+      receiver->ToRegister(rdx);
+    }
+    MoveResultsToRegisters(key, value, rcx, rax);
+    receiver->Unuse();
+  } else {
+    // Otherwise, no register is free, and no value is in the correct place.
+    // We have one of the two circular permutations of eax, ecx, edx.
+    ASSERT(value->is_register());
+    if (value->reg().is(rcx)) {
+      __ xchg(rax, rdx);
+      __ xchg(rax, rcx);
+    } else {
+      __ xchg(rax, rcx);
+      __ xchg(rax, rdx);
+    }
+    value->Unuse();
+    key->Unuse();
+    receiver->Unuse();
+  }
+
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 
@@ -1106,51 +1185,6 @@ Result VirtualFrame::CallConstructor(int arg_count) {
 }
 
 
-Result VirtualFrame::CallStoreIC() {
-  // Name, value, and receiver are on top of the frame.  The IC
-  // expects name in rcx, value in rax, and receiver in edx.
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-  Result name = Pop();
-  Result value = Pop();
-  Result receiver = Pop();
-  PrepareForCall(0, 0);
-
-  // Optimized for case in which name is a constant value.
-  if (name.is_register() && (name.reg().is(rdx) || name.reg().is(rax))) {
-    if (!is_used(rcx)) {
-      name.ToRegister(rcx);
-    } else if (!is_used(rbx)) {
-      name.ToRegister(rbx);
-    } else {
-      ASSERT(!is_used(rdi));  // Only three results are live, so rdi is free.
-      name.ToRegister(rdi);
-    }
-  }
-  // Now name is not in edx or eax, so we can fix them, then move name to ecx.
-  if (value.is_register() && value.reg().is(rdx)) {
-    if (receiver.is_register() && receiver.reg().is(rax)) {
-      // Wrong registers.
-      __ xchg(rax, rdx);
-    } else {
-      // Register rax is free for value, which frees rcx for receiver.
-      value.ToRegister(rax);
-      receiver.ToRegister(rdx);
-    }
-  } else {
-    // Register rcx is free for receiver, which guarantees rax is free for
-    // value.
-    receiver.ToRegister(rdx);
-    value.ToRegister(rax);
-  }
-  // Receiver and value are in the right place, so rcx is free for name.
-  name.ToRegister(rcx);
-  name.Unuse();
-  value.Unuse();
-  receiver.Unuse();
-  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
-}
-
-
 void VirtualFrame::PushTryHandler(HandlerType type) {
   ASSERT(cgen()->HasValidEntryRegisters());
   // Grow the expression stack by handler size less one (the return
@@ -1163,3 +1197,5 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 #undef __
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_X64

@@ -524,6 +524,27 @@ class MessageImpl: public v8::Debug::Message {
 };
 
 
+// Details of the debug event delivered to the debug event listener.
+class EventDetailsImpl : public v8::Debug::EventDetails {
+ public:
+  EventDetailsImpl(DebugEvent event,
+                   Handle<JSObject> exec_state,
+                   Handle<JSObject> event_data,
+                   Handle<Object> callback_data);
+  virtual DebugEvent GetEvent() const;
+  virtual v8::Handle<v8::Object> GetExecutionState() const;
+  virtual v8::Handle<v8::Object> GetEventData() const;
+  virtual v8::Handle<v8::Context> GetEventContext() const;
+  virtual v8::Handle<v8::Value> GetCallbackData() const;
+ private:
+  DebugEvent event_;  // Debug event causing the break.
+  Handle<JSObject> exec_state_;  // Current execution state.
+  Handle<JSObject> event_data_;  // Data associated with the event.
+  Handle<Object> callback_data_;  // User data passed with the callback when
+                                  // it was registered.
+};
+
+
 // Message send by user to v8 debugger or debugger output message.
 // In addition to command text it may contain a pointer to some user data
 // which are expected to be passed along with the command reponse to message
@@ -693,8 +714,9 @@ class Debugger {
   static void set_loading_debugger(bool v) { is_loading_debugger_ = v; }
   static bool is_loading_debugger() { return Debugger::is_loading_debugger_; }
 
- private:
   static bool IsDebuggerActive();
+
+ private:
   static void ListenersChanged();
 
   static Mutex* debugger_access_;  // Mutex guarding debugger variables.

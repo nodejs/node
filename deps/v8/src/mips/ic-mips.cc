@@ -29,6 +29,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_MIPS)
+
 #include "codegen-inl.h"
 #include "ic-inl.h"
 #include "runtime.h"
@@ -215,3 +217,4 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
 
 } }  // namespace v8::internal
 
+#endif  // V8_TARGET_ARCH_MIPS

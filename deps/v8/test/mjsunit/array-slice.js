@@ -127,6 +127,53 @@
 
 
 // Now check the case with array of holes and some elements on prototype.
+// Note: that is important that this test runs before the next one
+// as the next one tampers Array.prototype.
+(function() {
+  var len = 9;
+  var array = new Array(len);
+
+  var at3 = "@3";
+  var at7 = "@7";
+
+  for (var i = 0; i < 7; i++) {
+    var array_proto = [];
+    array_proto[3] = at3;
+    array_proto[7] = at7;
+    array.__proto__ = array_proto;
+
+    assertEquals(len, array.length);
+    for (var i = 0; i < array.length; i++) {
+      assertEquals(array[i], array_proto[i]);
+    }
+
+    var sliced = array.slice();
+
+    assertEquals(len, sliced.length);
+
+    assertTrue(delete array_proto[3]);
+    assertTrue(delete array_proto[7]);
+
+    // Note that slice copies values from prototype into the array.
+    assertEquals(array[3], undefined);
+    assertFalse(array.hasOwnProperty(3));
+    assertEquals(sliced[3], at3);
+    assertTrue(sliced.hasOwnProperty(3));
+
+    assertEquals(array[7], undefined);
+    assertFalse(array.hasOwnProperty(7));
+    assertEquals(sliced[7], at7);
+    assertTrue(sliced.hasOwnProperty(7));
+
+    // ... but keeps the rest as holes:
+    array_proto[5] = "@5";
+    assertEquals(array[5], array_proto[5]);
+    assertFalse(array.hasOwnProperty(5));
+  }
+})();
+
+
+// Now check the case with array of holes and some elements on prototype.
 (function() {
   var len = 9;
   var array = new Array(len);

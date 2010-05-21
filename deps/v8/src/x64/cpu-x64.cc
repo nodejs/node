@@ -33,6 +33,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_X64)
+
 #include "cpu.h"
 #include "macro-assembler.h"
 
@@ -77,3 +79,5 @@ void CPU::DebugBreak() {
 }
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_X64

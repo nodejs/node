@@ -80,10 +80,7 @@ function EQUALS(y) {
     } else {
       // x is not a number, boolean, null or undefined.
       if (y == null) return 1;  // not equal
-      if (IS_OBJECT(y)) {
-        return %_ObjectEquals(x, y) ? 0 : 1;
-      }
-      if (IS_FUNCTION(y)) {
+      if (IS_SPEC_OBJECT_OR_NULL(y)) {
         return %_ObjectEquals(x, y) ? 0 : 1;
       }
 
@@ -344,7 +341,7 @@ function DELETE(key) {
 
 // ECMA-262, section 11.8.7, page 54.
 function IN(x) {
-  if (x == null || (!IS_OBJECT(x) && !IS_FUNCTION(x))) {
+  if (x == null || !IS_SPEC_OBJECT_OR_NULL(x)) {
     throw %MakeTypeError('invalid_in_operator_use', [this, x]);
   }
   return %_IsNonNegativeSmi(this) ? %HasElement(x, this) : %HasProperty(x, %ToString(this));
@@ -362,13 +359,13 @@ function INSTANCE_OF(F) {
   }
 
   // If V is not an object, return false.
-  if (IS_NULL(V) || (!IS_OBJECT(V) && !IS_FUNCTION(V))) {
+  if (IS_NULL(V) || !IS_SPEC_OBJECT_OR_NULL(V)) {
     return 1;
   }
 
   // Get the prototype of F; if it is not an object, throw an error.
   var O = F.prototype;
-  if (IS_NULL(O) || (!IS_OBJECT(O) && !IS_FUNCTION(O))) {
+  if (IS_NULL(O) || !IS_SPEC_OBJECT_OR_NULL(O)) {
     throw %MakeTypeError('instanceof_nonobject_proto', [O]);
   }
 
@@ -482,7 +479,7 @@ function ToPrimitive(x, hint) {
   // Fast case check.
   if (IS_STRING(x)) return x;
   // Normal behavior.
-  if (!IS_OBJECT(x) && !IS_FUNCTION(x)) return x;
+  if (!IS_SPEC_OBJECT_OR_NULL(x)) return x;
   if (x == null) return x;  // check for null, undefined
   if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
   return (hint == NUMBER_HINT) ? %DefaultNumber(x) : %DefaultString(x);
@@ -587,7 +584,7 @@ function SameValue(x, y) {
 // Returns if the given x is a primitive value - not an object or a
 // function.
 function IsPrimitive(x) {
-  if (!IS_OBJECT(x) && !IS_FUNCTION(x)) {
+  if (!IS_SPEC_OBJECT_OR_NULL(x)) {
     return true;
   } else {
     // Even though the type of null is "object", null is still

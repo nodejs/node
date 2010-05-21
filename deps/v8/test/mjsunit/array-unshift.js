@@ -37,8 +37,8 @@
 })();
 
 
-// Check that unshif with no args has a side-effect of
-// feeling the holes with elements from the prototype
+// Check that unshift with no args has a side-effect of
+// filling the holes with elements from the prototype
 // (if present, of course)
 (function() {
   var len = 3;
@@ -113,6 +113,81 @@
   assertTrue(delete Array.prototype[3]);
   assertTrue(delete Array.prototype[5]);
   assertTrue(delete Array.prototype[7]);
+})();
+
+// Check that unshift with no args has a side-effect of
+// filling the holes with elements from the prototype
+// (if present, of course)
+(function() {
+  var len = 3;
+  var array = new Array(len);
+
+  var at0 = '@0';
+  var at2 = '@2';
+
+  var array_proto = [];
+  array_proto[0] = at0;
+  array_proto[2] = at2;
+  array.__proto__ = array_proto;
+
+  // array owns nothing...
+  assertFalse(array.hasOwnProperty(0));
+  assertFalse(array.hasOwnProperty(1));
+  assertFalse(array.hasOwnProperty(2));
+
+  // ... but sees values from array_proto.
+  assertEquals(array[0], at0);
+  assertEquals(array[1], undefined);
+  assertEquals(array[2], at2);
+
+  assertEquals(len, array.unshift());
+
+  // unshift makes array own 0 and 2...
+  assertTrue(array.hasOwnProperty(0));
+  assertFalse(array.hasOwnProperty(1));
+  assertTrue(array.hasOwnProperty(2));
+
+  // ... so they are not affected be delete.
+  assertEquals(array[0], at0);
+  assertEquals(array[1], undefined);
+  assertEquals(array[2], at2);
+})();
+
+
+// Now check the case with array of holes and some elements on prototype.
+(function() {
+  var len = 9;
+  var array = new Array(len);
+  var array_proto = []
+  array_proto[3] = "@3";
+  array_proto[7] = "@7";
+  array.__proto__ = array_proto;
+
+  assertEquals(len, array.length);
+  for (var i = 0; i < array.length; i++) {
+    assertEquals(array[i], array_proto[i]);
+  }
+
+  assertEquals(len + 1, array.unshift('head'));
+
+  assertEquals(len + 1, array.length);
+  // Note that unshift copies values from prototype into the array.
+  assertEquals(array[4], array_proto[3]);
+  assertTrue(array.hasOwnProperty(4));
+
+  assertEquals(array[8], array_proto[7]);
+  assertTrue(array.hasOwnProperty(8));
+
+  // ... but keeps the rest as holes:
+  array_proto[5] = "@5";
+  assertEquals(array[5], array_proto[5]);
+  assertFalse(array.hasOwnProperty(5));
+
+  assertEquals(array[3], array_proto[3]);
+  assertFalse(array.hasOwnProperty(3));
+
+  assertEquals(array[7], array_proto[7]);
+  assertFalse(array.hasOwnProperty(7));
 })();
 
 // Check the behaviour when approaching maximal values for length.

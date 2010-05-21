@@ -72,6 +72,17 @@ static Handle<Code> ComputeCallDebugPrepareStepIn(int argc) {
 }
 
 
+static v8::Handle<v8::Context> GetDebugEventContext() {
+  Handle<Context> context = Debug::debugger_entry()->GetContext();
+  // Top::context() may have been NULL when "script collected" event occured.
+  if (*context == NULL) {
+    return v8::Local<v8::Context>();
+  }
+  Handle<Context> global_context(context->global_context());
+  return v8::Utils::ToLocal(global_context);
+}
+
+
 BreakLocationIterator::BreakLocationIterator(Handle<DebugInfo> debug_info,
                                              BreakLocatorType type) {
   debug_info_ = debug_info;
@@ -2112,12 +2123,14 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
     if (event_listener_->IsProxy()) {
       // C debug event listener.
       Handle<Proxy> callback_obj(Handle<Proxy>::cast(event_listener_));
-      v8::Debug::EventCallback callback =
-            FUNCTION_CAST<v8::Debug::EventCallback>(callback_obj->proxy());
-      callback(event,
-               v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
-               v8::Utils::ToLocal(event_data),
-               v8::Utils::ToLocal(Handle<Object>::cast(event_listener_data_)));
+      v8::Debug::EventCallback2 callback =
+            FUNCTION_CAST<v8::Debug::EventCallback2>(callback_obj->proxy());
+      EventDetailsImpl event_details(
+          event,
+          Handle<JSObject>::cast(exec_state),
+          event_data,
+          event_listener_data_);
+      callback(event_details);
     } else {
       // JavaScript debug event listener.
       ASSERT(event_listener_->IsJSFunction());
@@ -2643,19 +2656,50 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
 
 
 v8::Handle<v8::Context> MessageImpl::GetEventContext() const {
-  Handle<Context> context = Debug::debugger_entry()->GetContext();
-  // Top::context() may have been NULL when "script collected" event occured.
-  if (*context == NULL) {
-    ASSERT(event_ == v8::ScriptCollected);
-    return v8::Local<v8::Context>();
-  }
-  Handle<Context> global_context(context->global_context());
-  return v8::Utils::ToLocal(global_context);
+  v8::Handle<v8::Context> context = GetDebugEventContext();
+  // Top::context() may be NULL when "script collected" event occures.
+  ASSERT(!context.IsEmpty() || event_ == v8::ScriptCollected);
+  return GetDebugEventContext();
 }
 
 
 v8::Debug::ClientData* MessageImpl::GetClientData() const {
   return client_data_;
+}
+
+
+EventDetailsImpl::EventDetailsImpl(DebugEvent event,
+                                   Handle<JSObject> exec_state,
+                                   Handle<JSObject> event_data,
+                                   Handle<Object> callback_data)
+    : event_(event),
+      exec_state_(exec_state),
+      event_data_(event_data),
+      callback_data_(callback_data) {}
+
+
+DebugEvent EventDetailsImpl::GetEvent() const {
+  return event_;
+}
+
+
+v8::Handle<v8::Object> EventDetailsImpl::GetExecutionState() const {
+  return v8::Utils::ToLocal(exec_state_);
+}
+
+
+v8::Handle<v8::Object> EventDetailsImpl::GetEventData() const {
+  return v8::Utils::ToLocal(event_data_);
+}
+
+
+v8::Handle<v8::Context> EventDetailsImpl::GetEventContext() const {
+  return GetDebugEventContext();
+}
+
+
+v8::Handle<v8::Value> EventDetailsImpl::GetCallbackData() const {
+  return v8::Utils::ToLocal(callback_data_);
 }
 
 

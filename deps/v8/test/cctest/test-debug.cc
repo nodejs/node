@@ -6196,7 +6196,28 @@ TEST(DebugContextIsPreservedBetweenAccesses) {
   v8::Local<v8::Context> context1 = v8::Debug::GetDebugContext();
   v8::Local<v8::Context> context2 = v8::Debug::GetDebugContext();
   CHECK_EQ(*context1, *context2);
-  // Make sure debugger is unloaded before running other tests.
-  v8::internal::ForceUnloadDebugger();
+}
+
+
+static v8::Handle<v8::Value> expected_callback_data;
+static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
+  CHECK(details.GetEventContext() == expected_context);
+  CHECK_EQ(expected_callback_data, details.GetCallbackData());
+}
+
+// Check that event details contain context where debug event occured.
+TEST(DebugEventContext) {
+  v8::HandleScope scope;
+  expected_callback_data = v8::Int32::New(2010);
+  v8::Debug::SetDebugEventListener2(DebugEventContextChecker,
+                                    expected_callback_data);
+  expected_context = v8::Context::New();
+  v8::Context::Scope context_scope(expected_context);
+  v8::Script::Compile(v8::String::New("(function(){debugger;})();"))->Run();
+  expected_context.Dispose();
+  expected_context.Clear();
+  v8::Debug::SetDebugEventListener(NULL);
+  expected_context_data = v8::Handle<v8::Value>();
   CheckDebuggerUnloaded();
 }
+

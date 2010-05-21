@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_ARM)
+
 #include "ic-inl.h"
 #include "codegen-inl.h"
 #include "stub-cache.h"
@@ -506,8 +508,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
       ASSERT(callback->getter() != NULL);
 
       Label cleanup;
-      __ pop(scratch2);
-      __ Push(receiver, scratch2);
+      __ push(receiver);
 
       holder = stub_compiler->CheckPrototypes(holder_obj, holder,
                                               lookup->holder(), scratch1,
@@ -526,9 +527,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
       __ TailCallExternalReference(ref, 5, 1);
 
       __ bind(&cleanup);
-      __ pop(scratch1);
       __ pop(scratch2);
-      __ push(scratch1);
     }
   }
 
@@ -1618,14 +1617,10 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
                                                  JSObject* object,
                                                  JSObject* last) {
   // ----------- S t a t e -------------
-  //  -- r2    : name
+  //  -- r0    : receiver
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
-
-  // Load receiver.
-  __ ldr(r0, MemOperand(sp, 0));
 
   // Check that receiver is not a smi.
   __ tst(r0, Operand(kSmiTagMask));
@@ -1663,13 +1658,11 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
                                            int index,
                                            String* name) {
   // ----------- S t a t e -------------
+  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
 
   GenerateLoadField(object, holder, r0, r3, r1, index, name, &miss);
   __ bind(&miss);
@@ -1685,13 +1678,12 @@ Object* LoadStubCompiler::CompileLoadCallback(String* name,
                                               JSObject* holder,
                                               AccessorInfo* callback) {
   // ----------- S t a t e -------------
+  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
 
-  __ ldr(r0, MemOperand(sp, 0));
   Failure* failure = Failure::InternalError();
   bool success = GenerateLoadCallback(object, holder, r0, r2, r3, r1,
                                       callback, name, &miss, &failure);
@@ -1710,13 +1702,11 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
                                               Object* value,
                                               String* name) {
   // ----------- S t a t e -------------
+  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp] : receiver
   // -----------------------------------
   Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
 
   GenerateLoadConstant(object, holder, r0, r3, r1, value, name, &miss);
   __ bind(&miss);
@@ -1731,13 +1721,11 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
                                                  JSObject* holder,
                                                  String* name) {
   // ----------- S t a t e -------------
+  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
 
   LookupResult lookup;
   LookupPostInterceptor(holder, name, &lookup);
@@ -1764,10 +1752,9 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
                                             String* name,
                                             bool is_dont_delete) {
   // ----------- S t a t e -------------
+  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- r0    : receiver
-  //  -- sp[0] : receiver
   // -----------------------------------
   Label miss;
 
@@ -1974,32 +1961,31 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                                                   String* name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
-  //  -- r2    : name
+  //  -- r1    : key
+  //  -- r2    : receiver
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
 
-  __ IncrementCounter(&Counters::keyed_store_field, 1, r1, r3);
+  __ IncrementCounter(&Counters::keyed_store_field, 1, r3, r4);
 
   // Check that the name has not changed.
-  __ cmp(r2, Operand(Handle<String>(name)));
+  __ cmp(r1, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  // Load receiver from the stack.
-  __ ldr(r3, MemOperand(sp));
-  // r1 is used as scratch register, r3 and r2 might be clobbered.
+  // r3 is used as scratch register. r1 and r2 keep their values if a jump to
+  // the miss label is generated.
   GenerateStoreField(masm(),
                      object,
                      index,
                      transition,
-                     r3, r2, r1,
+                     r2, r1, r3,
                      &miss);
   __ bind(&miss);
 
-  __ DecrementCounter(&Counters::keyed_store_field, 1, r1, r3);
-  __ mov(r2, Operand(Handle<String>(name)));  // restore name register.
+  __ DecrementCounter(&Counters::keyed_store_field, 1, r3, r4);
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
+
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -2153,3 +2139,5 @@ Object* ConstructStubCompiler::CompileConstructStub(
 #undef __
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_ARM

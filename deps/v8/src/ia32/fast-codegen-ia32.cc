@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_IA32)
+
 #include "codegen-inl.h"
 #include "fast-codegen.h"
 #include "data-flow.h"
@@ -948,3 +950,5 @@ void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_IA32

@@ -78,6 +78,7 @@ void MarkCompactCollector::CollectGarbage() {
   SweepLargeObjectSpace();
 
   if (IsCompacting()) {
+    GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_COMPACT);
     EncodeForwardingAddresses();
 
     UpdatePointers();
@@ -678,6 +679,7 @@ void MarkCompactCollector::ProcessObjectGroups(MarkingVisitor* visitor) {
 
 
 void MarkCompactCollector::MarkLiveObjects() {
+  GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_MARK);
 #ifdef DEBUG
   ASSERT(state_ == PREPARE_GC);
   state_ = MARK_LIVE_OBJECTS;
@@ -1163,6 +1165,8 @@ static bool TryPromoteObject(HeapObject* object, int object_size) {
       HeapObject* target = HeapObject::cast(result);
       MigrateObject(target->address(), object->address(), object_size);
       Heap::UpdateRSet(target);
+      MarkCompactCollector::tracer()->
+          increment_promoted_objects_size(object_size);
       return true;
     }
   } else {
@@ -1177,6 +1181,8 @@ static bool TryPromoteObject(HeapObject* object, int object_size) {
       if (target_space == Heap::old_pointer_space()) {
         Heap::UpdateRSet(target);
       }
+      MarkCompactCollector::tracer()->
+          increment_promoted_objects_size(object_size);
       return true;
     }
   }
@@ -1735,6 +1741,8 @@ MapCompact::MapUpdatingVisitor MapCompact::map_updating_visitor_;
 
 
 void MarkCompactCollector::SweepSpaces() {
+  GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP);
+
   ASSERT(state_ == SWEEP_SPACES);
   ASSERT(!IsCompacting());
   // Noncompacting collections simply sweep the spaces to clear the mark

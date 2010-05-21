@@ -29,6 +29,8 @@
 #include <cstdarg>
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_MIPS)
+
 #include "disasm.h"
 #include "assembler.h"
 #include "globals.h"    // Need the BitCast
@@ -1646,3 +1648,4 @@ uintptr_t Simulator::PopAddress() {
 
 #endif  // __mips
 
+#endif  // V8_TARGET_ARCH_MIPS

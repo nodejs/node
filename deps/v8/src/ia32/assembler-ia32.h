@@ -194,7 +194,6 @@ inline Hint NegateHint(Hint hint) {
 class Immediate BASE_EMBEDDED {
  public:
   inline explicit Immediate(int x);
-  inline explicit Immediate(const char* s);
   inline explicit Immediate(const ExternalReference& ext);
   inline explicit Immediate(Handle<Object> handle);
   inline explicit Immediate(Smi* value);
@@ -551,6 +550,7 @@ class Assembler : public Malloced {
   // Repetitive string instructions.
   void rep_movs();
   void rep_stos();
+  void stos();
 
   // Exchange two registers
   void xchg(Register dst, Register src);

@@ -28,7 +28,6 @@
 #ifndef V8_CODEGEN_H_
 #define V8_CODEGEN_H_
 
-#include "ast.h"
 #include "code-stubs.h"
 #include "runtime.h"
 #include "type-info.h"
@@ -115,7 +114,7 @@ namespace internal {
   F(CharFromCode, 1, 1)                                                      \
   F(ObjectEquals, 2, 1)                                                      \
   F(Log, 3, 1)                                                               \
-  F(RandomHeapNumber, 0, 1)                                          \
+  F(RandomHeapNumber, 0, 1)                                                  \
   F(IsObject, 1, 1)                                                          \
   F(IsFunction, 1, 1)                                                        \
   F(IsUndetectableObject, 1, 1)                                              \

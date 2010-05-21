@@ -299,5 +299,10 @@ void ReportException(v8::TryCatch* try_catch) {
       printf("^");
     }
     printf("\n");
+    v8::String::Utf8Value stack_trace(try_catch->StackTrace());
+    if (stack_trace.length() > 0) {
+      const char* stack_trace_string = ToCString(stack_trace);
+      printf("%s\n", stack_trace_string);
+    }
   }
 }

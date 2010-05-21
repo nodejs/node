@@ -41,7 +41,7 @@ class CodeMap;
 class CpuProfile;
 class CpuProfilesCollection;
 class ProfileGenerator;
-
+class TokenEnumerator;
 
 #define CODE_EVENTS_TYPE_LIST(V)                \
   V(CODE_CREATION, CodeCreateEventRecord)       \
@@ -94,8 +94,9 @@ class CodeDeleteEventRecord : public CodeEventRecord {
 
 class CodeAliasEventRecord : public CodeEventRecord {
  public:
-  Address alias;
   Address start;
+  CodeEntry* entry;
+  Address code_start;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -151,7 +152,7 @@ class ProfilerEventsProcessor : public Thread {
                        Address start, unsigned size);
   void CodeMoveEvent(Address from, Address to);
   void CodeDeleteEvent(Address from);
-  void FunctionCreateEvent(Address alias, Address start);
+  void FunctionCreateEvent(Address alias, Address start, int security_token_id);
   void FunctionMoveEvent(Address from, Address to);
   void FunctionDeleteEvent(Address from);
   void RegExpCodeCreateEvent(Logger::LogEventsAndTags tag,
@@ -212,10 +213,10 @@ class CpuProfiler {
   static void StartProfiling(const char* title);
   static void StartProfiling(String* title);
   static CpuProfile* StopProfiling(const char* title);
-  static CpuProfile* StopProfiling(String* title);
+  static CpuProfile* StopProfiling(Object* security_token, String* title);
   static int GetProfilesCount();
-  static CpuProfile* GetProfile(int index);
-  static CpuProfile* FindProfile(unsigned uid);
+  static CpuProfile* GetProfile(Object* security_token, int index);
+  static CpuProfile* FindProfile(Object* security_token, unsigned uid);
 
   // Invoked from stack sampler (thread or signal handler.)
   static TickSample* TickSampleEvent();
@@ -252,11 +253,12 @@ class CpuProfiler {
   void StartCollectingProfile(String* title);
   void StartProcessorIfNotStarted();
   CpuProfile* StopCollectingProfile(const char* title);
-  CpuProfile* StopCollectingProfile(String* title);
+  CpuProfile* StopCollectingProfile(Object* security_token, String* title);
   void StopProcessorIfLastProfile();
 
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;
+  TokenEnumerator* token_enumerator_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   int saved_logging_nesting_;

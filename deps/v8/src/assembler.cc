@@ -424,8 +424,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "no reloc";
     case RelocInfo::EMBEDDED_OBJECT:
       return "embedded object";
-    case RelocInfo::EMBEDDED_STRING:
-      return "embedded string";
     case RelocInfo::CONSTRUCT_CALL:
       return "code target (js construct call)";
     case RelocInfo::CODE_TARGET_CONTEXT:
@@ -508,7 +506,6 @@ void RelocInfo::Verify() {
       ASSERT(code->address() == HeapObject::cast(found)->address());
       break;
     }
-    case RelocInfo::EMBEDDED_STRING:
     case RUNTIME_ENTRY:
     case JS_RETURN:
     case COMMENT:

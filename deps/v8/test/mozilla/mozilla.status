@@ -161,6 +161,7 @@ js1_5/Regress/regress-416628: PASS || FAIL || TIMEOUT if $mode == debug
 # In Denmark the adjustment starts one week earlier!.
 # Tests based on shell that use dates in this gap are flaky.
 ecma/Date/15.9.5.10-1: PASS || FAIL
+ecma/Date/15.9.5.10-2: PASS || TIMEOUT if ($arch == arm && $mode == debug)
 ecma/Date/15.9.5.12-1: PASS || FAIL
 ecma/Date/15.9.5.14: PASS || FAIL
 ecma/Date/15.9.5.34-1: PASS || FAIL

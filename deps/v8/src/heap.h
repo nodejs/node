@@ -981,6 +981,8 @@ class Heap : public AllStatic {
 
   static void ClearJSFunctionResultCaches();
 
+  static GCTracer* tracer() { return tracer_; }
+
  private:
   static int reserved_semispace_size_;
   static int max_semispace_size_;
@@ -1020,6 +1022,7 @@ class Heap : public AllStatic {
   static int PromotedExternalMemorySize();
 
   static int mc_count_;  // how many mark-compact collections happened
+  static int ms_count_;  // how many mark-sweep collections happened
   static int gc_count_;  // how many gc happened
 
   // Total length of the strings we failed to flatten since the last GC.
@@ -1222,6 +1225,8 @@ class Heap : public AllStatic {
   static inline Object* InitializeFunction(JSFunction* function,
                                            SharedFunctionInfo* shared,
                                            Object* prototype);
+
+  static GCTracer* tracer_;
 
 
   // Initializes the number to string cache based on the max semispace size.
@@ -1629,19 +1634,30 @@ class DisableAssertNoAllocation {
 
 class GCTracer BASE_EMBEDDED {
  public:
-  // Time spent while in the external scope counts towards the
-  // external time in the tracer and will be reported separately.
-  class ExternalScope BASE_EMBEDDED {
+  class Scope BASE_EMBEDDED {
    public:
-    explicit ExternalScope(GCTracer* tracer) : tracer_(tracer) {
+    enum ScopeId {
+      EXTERNAL,
+      MC_MARK,
+      MC_SWEEP,
+      MC_COMPACT,
+      kNumberOfScopes
+    };
+
+    Scope(GCTracer* tracer, ScopeId scope)
+        : tracer_(tracer),
+        scope_(scope) {
       start_time_ = OS::TimeCurrentMillis();
     }
-    ~ExternalScope() {
-      tracer_->external_time_ += OS::TimeCurrentMillis() - start_time_;
+
+    ~Scope() {
+      ASSERT((0 <= scope_) && (scope_ < kNumberOfScopes));
+      tracer_->scopes_[scope_] += OS::TimeCurrentMillis() - start_time_;
     }
 
    private:
     GCTracer* tracer_;
+    ScopeId scope_;
     double start_time_;
   };
 
@@ -1667,6 +1683,19 @@ class GCTracer BASE_EMBEDDED {
 
   int marked_count() { return marked_count_; }
 
+  void increment_promoted_objects_size(int object_size) {
+    promoted_objects_size_ += object_size;
+  }
+
+  // Returns maximum GC pause.
+  static int get_max_gc_pause() { return max_gc_pause_; }
+
+  // Returns maximum size of objects alive after GC.
+  static int get_max_alive_after_gc() { return max_alive_after_gc_; }
+
+  // Returns minimal interval between two subsequent collections.
+  static int get_min_in_mutator() { return min_in_mutator_; }
+
  private:
   // Returns a string matching the collector.
   const char* CollectorString();
@@ -1677,11 +1706,8 @@ class GCTracer BASE_EMBEDDED {
   }
 
   double start_time_;  // Timestamp set in the constructor.
-  double start_size_;  // Size of objects in heap set in constructor.
+  int start_size_;  // Size of objects in heap set in constructor.
   GarbageCollector collector_;  // Type of collector.
-
-  // Keep track of the amount of time spent in external callbacks.
-  double external_time_;
 
   // A count (including this one, eg, the first collection is 1) of the
   // number of garbage collections.
@@ -1706,6 +1732,38 @@ class GCTracer BASE_EMBEDDED {
   // The count from the end of the previous full GC.  Will be zero if there
   // was no previous full GC.
   int previous_marked_count_;
+
+  // Amounts of time spent in different scopes during GC.
+  double scopes_[Scope::kNumberOfScopes];
+
+  // Total amount of space either wasted or contained in one of free lists
+  // before the current GC.
+  int in_free_list_or_wasted_before_gc_;
+
+  // Difference between space used in the heap at the beginning of the current
+  // collection and the end of the previous collection.
+  int allocated_since_last_gc_;
+
+  // Amount of time spent in mutator that is time elapsed between end of the
+  // previous collection and the beginning of the current one.
+  double spent_in_mutator_;
+
+  // Size of objects promoted during the current collection.
+  int promoted_objects_size_;
+
+  // Maximum GC pause.
+  static int max_gc_pause_;
+
+  // Maximum size of objects alive after GC.
+  static int max_alive_after_gc_;
+
+  // Minimal interval between two subsequent collections.
+  static int min_in_mutator_;
+
+  // Size of objects alive after last GC.
+  static int alive_after_last_gc_;
+
+  static double last_gc_end_timestamp_;
 };
 
 

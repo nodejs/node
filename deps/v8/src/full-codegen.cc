@@ -760,11 +760,6 @@ void FullCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
-  UNREACHABLE();
-}
-
-
 void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Comment cmnt(masm_, "[ DoWhileStatement");
   SetStatementPosition(stmt);
@@ -810,6 +805,7 @@ void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   Visit(stmt->body());
 
   __ bind(loop_statement.continue_target());
+
   // Check stack before looping.
   __ StackLimitCheck(&stack_limit_hit);
   __ bind(&stack_check_success);
@@ -869,11 +865,6 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
 
   __ bind(loop_statement.break_target());
   decrement_loop_depth();
-}
-
-
-void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
-  UNREACHABLE();
 }
 
 
@@ -995,12 +986,6 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
-    SharedFunctionInfoLiteral* expr) {
-  UNREACHABLE();
-}
-
-
 void FullCodeGenerator::VisitConditional(Conditional* expr) {
   Comment cmnt(masm_, "[ Conditional");
   Label true_case, false_case, done;
@@ -1031,6 +1016,24 @@ void FullCodeGenerator::VisitSlot(Slot* expr) {
 void FullCodeGenerator::VisitLiteral(Literal* expr) {
   Comment cmnt(masm_, "[ Literal");
   Apply(context_, expr);
+}
+
+
+void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
+  Comment cmnt(masm_, "[ FunctionLiteral");
+
+  // Build the function boilerplate and instantiate it.
+  Handle<SharedFunctionInfo> function_info =
+      Compiler::BuildFunctionInfo(expr, script(), this);
+  if (HasStackOverflow()) return;
+  EmitNewClosure(function_info);
+}
+
+
+void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* expr) {
+  Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
+  EmitNewClosure(expr->shared_function_info());
 }
 
 

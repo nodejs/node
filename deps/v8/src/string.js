@@ -241,7 +241,13 @@ function StringReplace(search, replace) {
     %_Log('regexp', 'regexp-replace,%0r,%1S', [search, subject]);
     if (IS_FUNCTION(replace)) {
       regExpCache.type = 'none';
-      return StringReplaceRegExpWithFunction(subject, search, replace);
+      if (search.global) {
+        return StringReplaceGlobalRegExpWithFunction(subject, search, replace);
+      } else {
+        return StringReplaceNonGlobalRegExpWithFunction(subject,
+                                                        search,
+                                                        replace);
+      }
     } else {
       return StringReplaceRegExp(subject, search, replace);
     }
@@ -396,9 +402,9 @@ function CaptureString(string, lastCaptureInfo, index) {
   var scaled = index << 1;
   // Compute start and end.
   var start = lastCaptureInfo[CAPTURE(scaled)];
+  // If start isn't valid, return undefined.
+  if (start < 0) return;
   var end = lastCaptureInfo[CAPTURE(scaled + 1)];
-  // If either start or end is missing return undefined.
-  if (start < 0 || end < 0) return;
   return SubString(string, start, end);
 };
 
@@ -410,9 +416,8 @@ function addCaptureString(builder, matchInfo, index) {
   var scaled = index << 1;
   // Compute start and end.
   var start = matchInfo[CAPTURE(scaled)];
+  if (start < 0) return;
   var end = matchInfo[CAPTURE(scaled + 1)];
-  // If either start or end is missing return.
-  if (start < 0 || end <= start) return;
   builder.addSpecialSlice(start, end);
 };
 
@@ -423,111 +428,115 @@ var reusableReplaceArray = $Array(16);
 
 // Helper function for replacing regular expressions with the result of a
 // function application in String.prototype.replace.
-function StringReplaceRegExpWithFunction(subject, regexp, replace) {
-  if (regexp.global) {
-    var resultArray = reusableReplaceArray;
-    if (resultArray) {
-      reusableReplaceArray = null;
-    } else {
-      // Inside a nested replace (replace called from the replacement function
-      // of another replace) or we have failed to set the reusable array
-      // back due to an exception in a replacement function. Create a new
-      // array to use in the future, or until the original is written back.
-      resultArray = $Array(16);
-    }
-
-    var res = %RegExpExecMultiple(regexp,
-                                  subject,
-                                  lastMatchInfo,
-                                  resultArray);
-    regexp.lastIndex = 0;
-    if (IS_NULL(res)) {
-      // No matches at all.
-      return subject;
-    }
-    var len = res.length;
-    var i = 0;
-    if (NUMBER_OF_CAPTURES(lastMatchInfo) == 2) {
-      var match_start = 0;
-      var override = [null, 0, subject];
-      while (i < len) {
-        var elem = res[i];
-        if (%_IsSmi(elem)) {
-          if (elem > 0) {
-            match_start = (elem >> 11) + (elem & 0x7ff);
-          } else {
-            match_start = res[++i] - elem;
-          }
-        } else {
-          override[0] = elem;
-          override[1] = match_start;
-          lastMatchInfoOverride = override;
-          var func_result = replace.call(null, elem, match_start, subject);
-          if (!IS_STRING(func_result)) {
-            func_result = NonStringToString(func_result);
-          }
-          res[i] = func_result;
-          match_start += elem.length;
-        }
-        i++;
-      }
-    } else {
-      while (i < len) {
-        var elem = res[i];
-        if (!%_IsSmi(elem)) {
-          // elem must be an Array.
-          // Use the apply argument as backing for global RegExp properties.
-          lastMatchInfoOverride = elem;
-          var func_result = replace.apply(null, elem);
-          if (!IS_STRING(func_result)) {
-            func_result = NonStringToString(func_result);
-          }
-          res[i] = func_result;
-        }
-        i++;
-      }
-    }
-    var resultBuilder = new ReplaceResultBuilder(subject, res);
-    var result = resultBuilder.generate();
-    resultArray.length = 0;
-    reusableReplaceArray = resultArray;
-    return result;
-  } else { // Not a global regexp, no need to loop.
-    var matchInfo = DoRegExpExec(regexp, subject, 0);
-    if (IS_NULL(matchInfo)) return subject;
-
-    var result = new ReplaceResultBuilder(subject);
-    result.addSpecialSlice(0, matchInfo[CAPTURE0]);
-    var endOfMatch = matchInfo[CAPTURE1];
-    result.add(ApplyReplacementFunction(replace, matchInfo, subject));
-    // Can't use matchInfo any more from here, since the function could
-    // overwrite it.
-    result.addSpecialSlice(endOfMatch, subject.length);
-    return result.generate();
+function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
+  var resultArray = reusableReplaceArray;
+  if (resultArray) {
+    reusableReplaceArray = null;
+  } else {
+    // Inside a nested replace (replace called from the replacement function
+    // of another replace) or we have failed to set the reusable array
+    // back due to an exception in a replacement function. Create a new
+    // array to use in the future, or until the original is written back.
+    resultArray = $Array(16);
   }
+  var res = %RegExpExecMultiple(regexp,
+                                subject,
+                                lastMatchInfo,
+                                resultArray);
+  regexp.lastIndex = 0;
+  if (IS_NULL(res)) {
+    // No matches at all.
+    reusableReplaceArray = resultArray;
+    return subject;
+  }
+  var len = res.length;
+  var i = 0;
+  if (NUMBER_OF_CAPTURES(lastMatchInfo) == 2) {
+    var match_start = 0;
+    var override = [null, 0, subject];
+    var receiver = %GetGlobalReceiver();
+    while (i < len) {
+      var elem = res[i];
+      if (%_IsSmi(elem)) {
+        if (elem > 0) {
+          match_start = (elem >> 11) + (elem & 0x7ff);
+        } else {
+          match_start = res[++i] - elem;
+        }
+      } else {
+        override[0] = elem;
+        override[1] = match_start;
+        lastMatchInfoOverride = override;
+        var func_result =
+            %_CallFunction(receiver, elem, match_start, subject, replace);
+        if (!IS_STRING(func_result)) {
+          func_result = NonStringToString(func_result);
+        }
+        res[i] = func_result;
+        match_start += elem.length;
+      }
+      i++;
+    }
+  } else {
+    while (i < len) {
+      var elem = res[i];
+      if (!%_IsSmi(elem)) {
+        // elem must be an Array.
+        // Use the apply argument as backing for global RegExp properties.
+        lastMatchInfoOverride = elem;
+        var func_result = replace.apply(null, elem);
+        if (!IS_STRING(func_result)) {
+          func_result = NonStringToString(func_result);
+        }
+        res[i] = func_result;
+      }
+      i++;
+    }
+  }
+  var resultBuilder = new ReplaceResultBuilder(subject, res);
+  var result = resultBuilder.generate();
+  resultArray.length = 0;
+  reusableReplaceArray = resultArray;
+  return result;
 }
 
 
-// Helper function to apply a string replacement function once.
-function ApplyReplacementFunction(replace, matchInfo, subject) {
+function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
+  var matchInfo = DoRegExpExec(regexp, subject, 0);
+  if (IS_NULL(matchInfo)) return subject;
+  var result = new ReplaceResultBuilder(subject);
+  var index = matchInfo[CAPTURE0];
+  result.addSpecialSlice(0, index);
+  var endOfMatch = matchInfo[CAPTURE1];
   // Compute the parameter list consisting of the match, captures, index,
   // and subject for the replace function invocation.
-  var index = matchInfo[CAPTURE0];
   // The number of captures plus one for the match.
   var m = NUMBER_OF_CAPTURES(matchInfo) >> 1;
+  var replacement;
   if (m == 1) {
-    var s = CaptureString(subject, matchInfo, 0);
+    // No captures, only the match, which is always valid.
+    var s = SubString(subject, index, endOfMatch);
     // Don't call directly to avoid exposing the built-in global object.
-    return replace.call(null, s, index, subject);
+    replacement =
+        %_CallFunction(%GetGlobalReceiver(), s, index, subject, replace);
+  } else {
+    var parameters = $Array(m + 2);
+    for (var j = 0; j < m; j++) {
+      parameters[j] = CaptureString(subject, matchInfo, j);
+    }
+    parameters[j] = index;
+    parameters[j + 1] = subject;
+
+    replacement = replace.apply(null, parameters);
   }
-  var parameters = $Array(m + 2);
-  for (var j = 0; j < m; j++) {
-    parameters[j] = CaptureString(subject, matchInfo, j);
-  }
-  parameters[j] = index;
-  parameters[j + 1] = subject;
-  return replace.apply(null, parameters);
+
+  result.add(replacement);  // The add method converts to string if necessary.
+  // Can't use matchInfo any more from here, since the function could
+  // overwrite it.
+  result.addSpecialSlice(endOfMatch, subject.length);
+  return result.generate();
 }
+
 
 // ECMA-262 section 15.5.4.12
 function StringSearch(re) {

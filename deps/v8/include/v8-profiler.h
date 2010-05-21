@@ -140,22 +140,37 @@ class V8EXPORT CpuProfile {
 class V8EXPORT CpuProfiler {
  public:
   /**
+   * A note on security tokens usage. As scripts from different
+   * origins can run inside a single V8 instance, it is possible to
+   * have functions from different security contexts intermixed in a
+   * single CPU profile. To avoid exposing function names belonging to
+   * other contexts, filtering by security token is performed while
+   * obtaining profiling results.
+   */
+
+  /**
    * Returns the number of profiles collected (doesn't include
    * profiles that are being collected at the moment of call.)
    */
   static int GetProfilesCount();
 
   /** Returns a profile by index. */
-  static const CpuProfile* GetProfile(int index);
+  static const CpuProfile* GetProfile(
+      int index,
+      Handle<Value> security_token = Handle<Value>());
 
   /** Returns a profile by uid. */
-  static const CpuProfile* FindProfile(unsigned uid);
+  static const CpuProfile* FindProfile(
+      unsigned uid,
+      Handle<Value> security_token = Handle<Value>());
 
   /**
    * Starts collecting CPU profile. Title may be an empty string. It
    * is allowed to have several profiles being collected at
    * once. Attempts to start collecting several profiles with the same
-   * title are silently ignored.
+   * title are silently ignored. While collecting a profile, functions
+   * from all security contexts are included in it. The token-based
+   * filtering is only performed when querying for a profile.
    */
   static void StartProfiling(Handle<String> title);
 
@@ -163,7 +178,9 @@ class V8EXPORT CpuProfiler {
    * Stops collecting CPU profile with a given title and returns it.
    * If the title given is empty, finishes the last profile started.
    */
-  static const CpuProfile* StopProfiling(Handle<String> title);
+  static const CpuProfile* StopProfiling(
+      Handle<String> title,
+      Handle<Value> security_token = Handle<Value>());
 };
 
 

@@ -30,6 +30,9 @@
 #include <stdarg.h>
 
 #include "v8.h"
+
+#if defined(V8_TARGET_ARCH_X64)
+
 #include "disasm.h"
 
 namespace disasm {
@@ -1671,3 +1674,5 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
 }
 
 }  // namespace disasm
+
+#endif  // V8_TARGET_ARCH_X64

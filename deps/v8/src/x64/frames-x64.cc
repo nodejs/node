@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_X64)
+
 #include "frames-inl.h"
 
 namespace v8 {
@@ -107,3 +109,5 @@ byte* ArgumentsAdaptorFrame::GetCallerStackPointer() const {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_X64

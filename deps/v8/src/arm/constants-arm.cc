@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_ARM)
+
 #include "constants-arm.h"
 
 
@@ -128,3 +130,5 @@ int Registers::Number(const char* name) {
 
 
 } }  // namespace assembler::arm
+
+#endif  // V8_TARGET_ARCH_ARM

@@ -238,7 +238,15 @@ function LocalTime(time) {
   return time + DaylightSavingsOffset(time) + local_time_offset;
 }
 
+
+var ltcache = {
+  key: null, 
+  val: null
+};
+
 function LocalTimeNoCheck(time) {
+  var ltc = ltcache;
+  if (%_ObjectEquals(time, ltc.key)) return ltc.val;
   if (time < -MAX_TIME_MS || time > MAX_TIME_MS) {
     return $NaN;
   }
@@ -252,7 +260,8 @@ function LocalTimeNoCheck(time) {
   } else {
     var dst_offset = DaylightSavingsOffset(time);
   }
-  return time + local_time_offset + dst_offset;
+  ltc.key = time;
+  return (ltc.val = time + local_time_offset + dst_offset);
 }
 
 

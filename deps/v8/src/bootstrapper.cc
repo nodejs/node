@@ -1753,8 +1753,8 @@ Genesis::Genesis(Handle<Object> global_object,
         CreateNewGlobals(global_template, global_object, &inner_global);
     HookUpGlobalProxy(inner_global, global_proxy);
     InitializeGlobal(inner_global, empty_function);
-    if (!InstallNatives()) return;
     InstallJSFunctionResultCaches();
+    if (!InstallNatives()) return;
 
     MakeFunctionInstancePrototypeWritable();
 

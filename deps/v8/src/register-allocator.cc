@@ -84,15 +84,16 @@ Result RegisterAllocator::Allocate() {
 
 Result RegisterAllocator::Allocate(Register target) {
   // If the target is not referenced, it can simply be allocated.
-  if (!is_used(target)) {
+  if (!is_used(RegisterAllocator::ToNumber(target))) {
     return Result(target);
   }
   // If the target is only referenced in the frame, it can be spilled and
   // then allocated.
   ASSERT(cgen_->has_valid_frame());
-  if (cgen_->frame()->is_used(target) && count(target) == 1)  {
+  if (cgen_->frame()->is_used(RegisterAllocator::ToNumber(target)) &&
+      count(target) == 1)  {
     cgen_->frame()->Spill(target);
-    ASSERT(!is_used(target));
+    ASSERT(!is_used(RegisterAllocator::ToNumber(target)));
     return Result(target);
   }
   // Otherwise (if it's referenced outside the frame) we cannot allocate it.

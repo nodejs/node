@@ -59,6 +59,24 @@ namespace internal {
 #error Host architecture was not detected as supported by v8
 #endif
 
+// Target architecture detection. This may be set externally. If not, detect
+// in the same way as the host architecture, that is, target the native
+// environment as presented by the compiler.
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_IA32) && \
+    !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_MIPS)
+#if defined(_M_X64) || defined(__x86_64__)
+#define V8_TARGET_ARCH_X64 1
+#elif defined(_M_IX86) || defined(__i386__)
+#define V8_TARGET_ARCH_IA32 1
+#elif defined(__ARMEL__)
+#define V8_TARGET_ARCH_ARM 1
+#elif defined(_MIPS_ARCH_MIPS32R2)
+#define V8_TARGET_ARCH_MIPS 1
+#else
+#error Target architecture was not detected as supported by v8
+#endif
+#endif
+
 // Check for supported combinations of host and target architectures.
 #if defined(V8_TARGET_ARCH_IA32) && !defined(V8_HOST_ARCH_IA32)
 #error Target architecture ia32 is only supported on ia32 host

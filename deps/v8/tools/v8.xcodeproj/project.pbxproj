@@ -237,7 +237,6 @@
 		9FA38BC51175B2E500C4CD55 /* full-codegen-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BC21175B2E500C4CD55 /* full-codegen-ia32.cc */; };
 		9FA38BC61175B2E500C4CD55 /* jump-target-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BC31175B2E500C4CD55 /* jump-target-ia32.cc */; };
 		9FA38BC71175B2E500C4CD55 /* virtual-frame-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BC41175B2E500C4CD55 /* virtual-frame-ia32.cc */; };
-		9FA38BCE1175B30400C4CD55 /* assembler-thumb2.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BC91175B30400C4CD55 /* assembler-thumb2.cc */; };
 		9FA38BCF1175B30400C4CD55 /* full-codegen-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCB1175B30400C4CD55 /* full-codegen-arm.cc */; };
 		9FA38BD01175B30400C4CD55 /* jump-target-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCC1175B30400C4CD55 /* jump-target-arm.cc */; };
 		9FA38BD11175B30400C4CD55 /* virtual-frame-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCD1175B30400C4CD55 /* virtual-frame-arm.cc */; };
@@ -619,9 +618,6 @@
 		9FA38BC21175B2E500C4CD55 /* full-codegen-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "full-codegen-ia32.cc"; path = "ia32/full-codegen-ia32.cc"; sourceTree = "<group>"; };
 		9FA38BC31175B2E500C4CD55 /* jump-target-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-ia32.cc"; path = "ia32/jump-target-ia32.cc"; sourceTree = "<group>"; };
 		9FA38BC41175B2E500C4CD55 /* virtual-frame-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-ia32.cc"; path = "ia32/virtual-frame-ia32.cc"; sourceTree = "<group>"; };
-		9FA38BC81175B30400C4CD55 /* assembler-thumb2-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "assembler-thumb2-inl.h"; path = "arm/assembler-thumb2-inl.h"; sourceTree = "<group>"; };
-		9FA38BC91175B30400C4CD55 /* assembler-thumb2.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "assembler-thumb2.cc"; path = "arm/assembler-thumb2.cc"; sourceTree = "<group>"; };
-		9FA38BCA1175B30400C4CD55 /* assembler-thumb2.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "assembler-thumb2.h"; path = "arm/assembler-thumb2.h"; sourceTree = "<group>"; };
 		9FA38BCB1175B30400C4CD55 /* full-codegen-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "full-codegen-arm.cc"; path = "arm/full-codegen-arm.cc"; sourceTree = "<group>"; };
 		9FA38BCC1175B30400C4CD55 /* jump-target-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-arm.cc"; path = "arm/jump-target-arm.cc"; sourceTree = "<group>"; };
 		9FA38BCD1175B30400C4CD55 /* virtual-frame-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-arm.cc"; path = "arm/virtual-frame-arm.cc"; sourceTree = "<group>"; };
@@ -734,9 +730,6 @@
 				897FF1000E719B8F00D62E90 /* assembler-ia32-inl.h */,
 				897FF1010E719B8F00D62E90 /* assembler-ia32.cc */,
 				897FF1020E719B8F00D62E90 /* assembler-ia32.h */,
-				9FA38BC81175B30400C4CD55 /* assembler-thumb2-inl.h */,
-				9FA38BC91175B30400C4CD55 /* assembler-thumb2.cc */,
-				9FA38BCA1175B30400C4CD55 /* assembler-thumb2.h */,
 				897FF1030E719B8F00D62E90 /* assembler.cc */,
 				897FF1040E719B8F00D62E90 /* assembler.h */,
 				897FF1050E719B8F00D62E90 /* ast.cc */,
@@ -1394,7 +1387,6 @@
 				89F23C400E78D5B2006B2466 /* allocation.cc in Sources */,
 				89F23C410E78D5B2006B2466 /* api.cc in Sources */,
 				89F23C970E78D5E3006B2466 /* assembler-arm.cc in Sources */,
-				9FA38BCE1175B30400C4CD55 /* assembler-thumb2.cc in Sources */,
 				89F23C430E78D5B2006B2466 /* assembler.cc in Sources */,
 				89F23C440E78D5B2006B2466 /* ast.cc in Sources */,
 				89F23C450E78D5B2006B2466 /* bootstrapper.cc in Sources */,

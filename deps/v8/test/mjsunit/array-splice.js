@@ -255,6 +255,56 @@
 
   for (var i = 0; i < 7; i++) {
     var array = new Array(len);
+    var array_proto = [];
+    array_proto[3] = at3;
+    array_proto[7] = at7;
+    array.__proto__ = array_proto;
+
+    var spliced = array.splice(2, 2, 'one', undefined, 'two');
+
+    // Second hole (at index 3) of array turns into
+    // value of Array.prototype[3] while copying.
+    assertEquals([, at3], spliced);
+    assertEquals([, , 'one', undefined, 'two', , , at7, at7, ,], array);
+
+    // ... but array[3] and array[7] is actually a hole:
+    assertTrue(delete array_proto[3]);
+    assertEquals(undefined, array[3]);
+    assertTrue(delete array_proto[7]);
+    assertEquals(undefined, array[7]);
+
+    // and now check hasOwnProperty
+    assertFalse(array.hasOwnProperty(0), "array.hasOwnProperty(0)");
+    assertFalse(array.hasOwnProperty(1), "array.hasOwnProperty(1)");
+    assertTrue(array.hasOwnProperty(2));
+    assertTrue(array.hasOwnProperty(3));
+    assertTrue(array.hasOwnProperty(4));
+    assertFalse(array.hasOwnProperty(5), "array.hasOwnProperty(5)");
+    assertFalse(array.hasOwnProperty(6), "array.hasOwnProperty(6)");
+    assertFalse(array.hasOwnProperty(7), "array.hasOwnProperty(7)");
+    assertTrue(array.hasOwnProperty(8));
+    assertFalse(array.hasOwnProperty(9), "array.hasOwnProperty(9)");
+
+    // and now check couple of indices above length.
+    assertFalse(array.hasOwnProperty(10), "array.hasOwnProperty(10)");
+    assertFalse(array.hasOwnProperty(15), "array.hasOwnProperty(15)");
+    assertFalse(array.hasOwnProperty(31), "array.hasOwnProperty(31)");
+    assertFalse(array.hasOwnProperty(63), "array.hasOwnProperty(63)");
+    assertFalse(array.hasOwnProperty(2 << 32 - 1),
+                "array.hasOwnProperty(2 << 31 - 1)");
+  }
+})();
+
+
+// Now check the case with array of holes and some elements on prototype.
+(function() {
+  var len = 9;
+
+  var at3 = "@3";
+  var at7 = "@7";
+
+  for (var i = 0; i < 7; i++) {
+    var array = new Array(len);
     Array.prototype[3] = at3;
     Array.prototype[7] = at7;
 
@@ -265,7 +315,9 @@
     assertEquals([, at3], spliced);
     assertEquals([, , 'one', undefined, 'two', , , at7, at7, ,], array);
 
-    // ... but array[7] is actually a hole:
+    // ... but array[3] and array[7] is actually a hole:
+    assertTrue(delete Array.prototype[3]);
+    assertEquals(undefined, array[3]);
     assertTrue(delete Array.prototype[7]);
     assertEquals(undefined, array[7]);
 
@@ -286,7 +338,8 @@
     assertFalse(array.hasOwnProperty(15), "array.hasOwnProperty(15)");
     assertFalse(array.hasOwnProperty(31), "array.hasOwnProperty(31)");
     assertFalse(array.hasOwnProperty(63), "array.hasOwnProperty(63)");
-    assertFalse(array.hasOwnProperty(2 << 32 - 1), "array.hasOwnProperty(2 << 31 - 1)");
+    assertFalse(array.hasOwnProperty(2 << 32 - 1),
+                "array.hasOwnProperty(2 << 31 - 1)");
   }
 })();
 

@@ -115,7 +115,10 @@ int Heap::external_allocation_limit_ = 0;
 Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 
 int Heap::mc_count_ = 0;
+int Heap::ms_count_ = 0;
 int Heap::gc_count_ = 0;
+
+GCTracer* Heap::tracer_ = NULL;
 
 int Heap::unflattened_strings_length_ = 0;
 
@@ -130,6 +133,11 @@ int Heap::allocation_timeout_ = 0;
 bool Heap::disallow_allocation_failure_ = false;
 #endif  // DEBUG
 
+int GCTracer::alive_after_last_gc_ = 0;
+double GCTracer::last_gc_end_timestamp_ = 0.0;
+int GCTracer::max_gc_pause_ = 0;
+int GCTracer::max_alive_after_gc_ = 0;
+int GCTracer::min_in_mutator_ = kMaxInt;
 
 int Heap::Capacity() {
   if (!HasBeenSetup()) return 0;
@@ -570,7 +578,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
   VerifySymbolTable();
   if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
     ASSERT(!allocation_allowed_);
-    GCTracer::ExternalScope scope(tracer);
+    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     global_gc_prologue_callback_();
   }
 
@@ -596,14 +604,16 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
         old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
     old_gen_exhausted_ = false;
   } else {
+    tracer_ = tracer;
     Scavenge();
+    tracer_ = NULL;
   }
 
   Counters::objs_since_last_young.Set(0);
 
   if (collector == MARK_COMPACTOR) {
     DisableAssertNoAllocation allow_allocation;
-    GCTracer::ExternalScope scope(tracer);
+    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     GlobalHandles::PostGarbageCollectionProcessing();
   }
 
@@ -627,7 +637,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
   if (collector == MARK_COMPACTOR && global_gc_epilogue_callback_) {
     ASSERT(!allocation_allowed_);
-    GCTracer::ExternalScope scope(tracer);
+    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     global_gc_epilogue_callback_();
   }
   VerifySymbolTable();
@@ -636,7 +646,11 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
 void Heap::MarkCompact(GCTracer* tracer) {
   gc_state_ = MARK_COMPACT;
-  mc_count_++;
+  if (MarkCompactCollector::IsCompacting()) {
+    mc_count_++;
+  } else {
+    ms_count_++;
+  }
   tracer->set_full_gc_count(mc_count_);
   LOG(ResourceEvent("markcompact", "begin"));
 
@@ -1179,6 +1193,7 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
         node->set_size(object_size);
 
         *p = target;
+        tracer()->increment_promoted_objects_size(object_size);
         return;
       }
     } else {
@@ -1214,6 +1229,7 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
           (*p)->Iterate(&v);
 #endif
         }
+        tracer()->increment_promoted_objects_size(object_size);
         return;
       }
     }
@@ -2064,7 +2080,7 @@ Object* Heap::AllocateSubString(String* buffer,
   }
 
   // Make an attempt to flatten the buffer to reduce access time.
-  buffer->TryFlatten();
+  buffer = buffer->TryFlattenGetString();
 
   Object* result = buffer->IsAsciiRepresentation()
       ? AllocateRawAsciiString(length, pretenure )
@@ -3760,6 +3776,17 @@ void Heap::SetStackLimits() {
 
 
 void Heap::TearDown() {
+  if (FLAG_print_cumulative_gc_stat) {
+    PrintF("\n\n");
+    PrintF("gc_count=%d ", gc_count_);
+    PrintF("mark_sweep_count=%d ", ms_count_);
+    PrintF("mark_compact_count=%d ", mc_count_);
+    PrintF("max_gc_pause=%d ", GCTracer::get_max_gc_pause());
+    PrintF("min_in_mutator=%d ", GCTracer::get_min_in_mutator());
+    PrintF("max_alive_after_gc=%d ", GCTracer::get_max_alive_after_gc());
+    PrintF("\n\n");
+  }
+
   GlobalHandles::TearDown();
 
   ExternalStringTable::TearDown();
@@ -4235,33 +4262,114 @@ void Heap::TracePathToGlobal() {
 #endif
 
 
+static int CountTotalHolesSize() {
+  int holes_size = 0;
+  OldSpaces spaces;
+  for (OldSpace* space = spaces.next();
+       space != NULL;
+       space = spaces.next()) {
+    holes_size += space->Waste() + space->AvailableFree();
+  }
+  return holes_size;
+}
+
+
 GCTracer::GCTracer()
     : start_time_(0.0),
-      start_size_(0.0),
-      external_time_(0.0),
+      start_size_(0),
       gc_count_(0),
       full_gc_count_(0),
       is_compacting_(false),
-      marked_count_(0) {
+      marked_count_(0),
+      allocated_since_last_gc_(0),
+      spent_in_mutator_(0),
+      promoted_objects_size_(0) {
   // These two fields reflect the state of the previous full collection.
   // Set them before they are changed by the collector.
   previous_has_compacted_ = MarkCompactCollector::HasCompacted();
   previous_marked_count_ = MarkCompactCollector::previous_marked_count();
-  if (!FLAG_trace_gc) return;
+  if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
   start_time_ = OS::TimeCurrentMillis();
-  start_size_ = SizeOfHeapObjects();
+  start_size_ = Heap::SizeOfObjects();
+
+  for (int i = 0; i < Scope::kNumberOfScopes; i++) {
+    scopes_[i] = 0;
+  }
+
+  in_free_list_or_wasted_before_gc_ = CountTotalHolesSize();
+
+  allocated_since_last_gc_ = Heap::SizeOfObjects() - alive_after_last_gc_;
+
+  if (last_gc_end_timestamp_ > 0) {
+    spent_in_mutator_ = Max(start_time_ - last_gc_end_timestamp_, 0.0);
+  }
 }
 
 
 GCTracer::~GCTracer() {
-  if (!FLAG_trace_gc) return;
   // Printf ONE line iff flag is set.
-  int time = static_cast<int>(OS::TimeCurrentMillis() - start_time_);
-  int external_time = static_cast<int>(external_time_);
-  PrintF("%s %.1f -> %.1f MB, ",
-         CollectorString(), start_size_, SizeOfHeapObjects());
-  if (external_time > 0) PrintF("%d / ", external_time);
-  PrintF("%d ms.\n", time);
+  if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
+
+  bool first_gc = (last_gc_end_timestamp_ == 0);
+
+  alive_after_last_gc_ = Heap::SizeOfObjects();
+  last_gc_end_timestamp_ = OS::TimeCurrentMillis();
+
+  int time = static_cast<int>(last_gc_end_timestamp_ - start_time_);
+
+  // Update cumulative GC statistics if required.
+  if (FLAG_print_cumulative_gc_stat) {
+    max_gc_pause_ = Max(max_gc_pause_, time);
+    max_alive_after_gc_ = Max(max_alive_after_gc_, alive_after_last_gc_);
+    if (!first_gc) {
+      min_in_mutator_ = Min(min_in_mutator_,
+                            static_cast<int>(spent_in_mutator_));
+    }
+  }
+
+  if (!FLAG_trace_gc_nvp) {
+    int external_time = static_cast<int>(scopes_[Scope::EXTERNAL]);
+
+    PrintF("%s %.1f -> %.1f MB, ",
+           CollectorString(),
+           static_cast<double>(start_size_) / MB,
+           SizeOfHeapObjects());
+
+    if (external_time > 0) PrintF("%d / ", external_time);
+    PrintF("%d ms.\n", time);
+  } else {
+    PrintF("pause=%d ", time);
+    PrintF("mutator=%d ",
+           static_cast<int>(spent_in_mutator_));
+
+    PrintF("gc=");
+    switch (collector_) {
+      case SCAVENGER:
+        PrintF("s");
+        break;
+      case MARK_COMPACTOR:
+        PrintF(MarkCompactCollector::HasCompacted() ? "mc" : "ms");
+        break;
+      default:
+        UNREACHABLE();
+    }
+    PrintF(" ");
+
+    PrintF("external=%d ", static_cast<int>(scopes_[Scope::EXTERNAL]));
+    PrintF("mark=%d ", static_cast<int>(scopes_[Scope::MC_MARK]));
+    PrintF("sweep=%d ", static_cast<int>(scopes_[Scope::MC_SWEEP]));
+    PrintF("compact=%d ", static_cast<int>(scopes_[Scope::MC_COMPACT]));
+
+    PrintF("total_size_before=%d ", start_size_);
+    PrintF("total_size_after=%d ", Heap::SizeOfObjects());
+    PrintF("holes_size_before=%d ", in_free_list_or_wasted_before_gc_);
+    PrintF("holes_size_after=%d ", CountTotalHolesSize());
+
+    PrintF("allocated=%d ", allocated_since_last_gc_);
+    PrintF("promoted=%d ", promoted_objects_size_);
+
+    PrintF("\n");
+  }
 
 #if defined(ENABLE_LOGGING_AND_PROFILING)
   Heap::PrintShortHeapStatistics();

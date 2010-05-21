@@ -28,12 +28,22 @@
 #ifndef V8_VIRTUAL_FRAME_LIGHT_INL_H_
 #define V8_VIRTUAL_FRAME_LIGHT_INL_H_
 
-#include "type-info.h"
+#include "codegen.h"
 #include "register-allocator.h"
 #include "scopes.h"
+#include "type-info.h"
+
+#include "codegen-inl.h"
+#include "jump-target-light-inl.h"
 
 namespace v8 {
 namespace internal {
+
+VirtualFrame::VirtualFrame(InvalidVirtualFrameInitializer* dummy)
+    : element_count_(0),
+      top_of_stack_state_(NO_TOS_REGISTERS),
+      register_allocation_map_(0) { }
+
 
 // On entry to a function, the virtual frame already contains the receiver,
 // the parameters, and a return address.  All frame elements are in memory.
@@ -63,6 +73,87 @@ void VirtualFrame::PrepareForReturn() {
   SpillAll();
 }
 
+
+VirtualFrame::RegisterAllocationScope::RegisterAllocationScope(
+    CodeGenerator* cgen)
+  : cgen_(cgen),
+    old_is_spilled_(SpilledScope::is_spilled_) {
+  SpilledScope::is_spilled_ = false;
+  if (old_is_spilled_) {
+    VirtualFrame* frame = cgen->frame();
+    if (frame != NULL) {
+      frame->AssertIsSpilled();
+    }
+  }
+}
+
+
+VirtualFrame::RegisterAllocationScope::~RegisterAllocationScope() {
+  SpilledScope::is_spilled_ = old_is_spilled_;
+  if (old_is_spilled_) {
+    VirtualFrame* frame = cgen_->frame();
+    if (frame != NULL) {
+      frame->SpillAll();
+    }
+  }
+}
+
+
+CodeGenerator* VirtualFrame::cgen() { return CodeGeneratorScope::Current(); }
+
+
+MacroAssembler* VirtualFrame::masm() { return cgen()->masm(); }
+
+
+void VirtualFrame::CallStub(CodeStub* stub, int arg_count) {
+  if (arg_count != 0) Forget(arg_count);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  masm()->CallStub(stub);
+}
+
+
+int VirtualFrame::parameter_count() {
+  return cgen()->scope()->num_parameters();
+}
+
+
+int VirtualFrame::local_count() { return cgen()->scope()->num_stack_slots(); }
+
+
+int VirtualFrame::frame_pointer() { return parameter_count() + 3; }
+
+
+int VirtualFrame::context_index() { return frame_pointer() - 1; }
+
+
+int VirtualFrame::function_index() { return frame_pointer() - 2; }
+
+
+int VirtualFrame::local0_index() { return frame_pointer() + 2; }
+
+
+int VirtualFrame::fp_relative(int index) {
+  ASSERT(index < element_count());
+  ASSERT(frame_pointer() < element_count());  // FP is on the frame.
+  return (frame_pointer() - index) * kPointerSize;
+}
+
+
+int VirtualFrame::expression_base_index() {
+  return local0_index() + local_count();
+}
+
+
+int VirtualFrame::height() {
+  return element_count() - expression_base_index();
+}
+
+
+MemOperand VirtualFrame::LocalAt(int index) {
+  ASSERT(0 <= index);
+  ASSERT(index < local_count());
+  return MemOperand(fp, kLocal0Offset - index * kPointerSize);
+}
 
 } }  // namespace v8::internal
 

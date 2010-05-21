@@ -205,6 +205,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\ast-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\ast.cc"
 				>
 			</File>
@@ -587,6 +591,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\jump-target-heavy-inl.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jump-target-heavy.h"
 				>
 			</File>
 			<File

@@ -27,7 +27,10 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_ARM)
+
 #include "assembler-arm.h"
+#include "codegen.h"
 #include "codegen-inl.h"
 #include "disasm.h"
 #include "ic-inl.h"
@@ -639,7 +642,9 @@ bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
 
   // Patch the map check.
   Address ldr_map_instr_address =
-      inline_end_address - 18 * Assembler::kInstrSize;
+      inline_end_address -
+      (CodeGenerator::kInlinedKeyedLoadInstructionsAfterPatch *
+      Assembler::kInstrSize);
   Assembler::set_target_address_at(ldr_map_instr_address,
                                    reinterpret_cast<Address>(map));
   return true;
@@ -669,7 +674,9 @@ bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
 
   // Patch the map check.
   Address ldr_map_instr_address =
-      inline_end_address - 5 * Assembler::kInstrSize;
+      inline_end_address -
+      (CodeGenerator::kInlinedKeyedStoreInstructionsAfterPatch *
+      Assembler::kInstrSize);
   Assembler::set_target_address_at(ldr_map_instr_address,
                                    reinterpret_cast<Address>(map));
   return true;
@@ -1204,13 +1211,13 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- r0     : value
+  //  -- r1     : key
+  //  -- r2     : receiver
   //  -- lr     : return address
-  //  -- sp[0]  : key
-  //  -- sp[1]  : receiver
   // -----------------------------------
 
-  __ ldm(ia, sp, r2.bit() | r3.bit());
-  __ Push(r3, r2, r0);
+  // Push receiver, key and value for runtime call.
+  __ Push(r2, r1, r0);
 
   ExternalReference ref = ExternalReference(IC_Utility(kKeyedStoreIC_Miss));
   __ TailCallExternalReference(ref, 3, 1);
@@ -1220,12 +1227,13 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- r0     : value
+  //  -- r1     : key
+  //  -- r2     : receiver
   //  -- lr     : return address
-  //  -- sp[0]  : key
-  //  -- sp[1]  : receiver
   // -----------------------------------
-  __ ldm(ia, sp, r1.bit() | r3.bit());  // r0 == value, r1 == key, r3 == object
-  __ Push(r3, r1, r0);
+
+  // Push receiver, key and value for runtime call.
+  __ Push(r2, r1, r0);
 
   __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
 }
@@ -1234,147 +1242,135 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- r0     : value
+  //  -- r1     : key
+  //  -- r2     : receiver
   //  -- lr     : return address
-  //  -- sp[0]  : key
-  //  -- sp[1]  : receiver
   // -----------------------------------
-  Label slow, fast, array, extra, exit, check_pixel_array;
+  Label slow, fast, array, extra, check_pixel_array;
 
-  // Get the key and the object from the stack.
-  __ ldm(ia, sp, r1.bit() | r3.bit());  // r1 = key, r3 = receiver
+  // Register usage.
+  Register value = r0;
+  Register key = r1;
+  Register receiver = r2;
+  Register elements = r3;  // Elements array of the receiver.
+  // r4 and r5 are used as general scratch registers.
+
   // Check that the key is a smi.
-  __ tst(r1, Operand(kSmiTagMask));
+  __ tst(key, Operand(kSmiTagMask));
   __ b(ne, &slow);
   // Check that the object isn't a smi.
-  __ tst(r3, Operand(kSmiTagMask));
+  __ tst(receiver, Operand(kSmiTagMask));
   __ b(eq, &slow);
   // Get the map of the object.
-  __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
+  __ ldr(r4, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
   // to do this because this generic stub does not perform map checks.
-  __ ldrb(ip, FieldMemOperand(r2, Map::kBitFieldOffset));
+  __ ldrb(ip, FieldMemOperand(r4, Map::kBitFieldOffset));
   __ tst(ip, Operand(1 << Map::kIsAccessCheckNeeded));
   __ b(ne, &slow);
   // Check if the object is a JS array or not.
-  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  __ cmp(r2, Operand(JS_ARRAY_TYPE));
-  // r1 == key.
+  __ ldrb(r4, FieldMemOperand(r4, Map::kInstanceTypeOffset));
+  __ cmp(r4, Operand(JS_ARRAY_TYPE));
   __ b(eq, &array);
   // Check that the object is some kind of JS object.
-  __ cmp(r2, Operand(FIRST_JS_OBJECT_TYPE));
+  __ cmp(r4, Operand(FIRST_JS_OBJECT_TYPE));
   __ b(lt, &slow);
 
-
   // Object case: Check key against length in the elements array.
-  __ ldr(r3, FieldMemOperand(r3, JSObject::kElementsOffset));
+  __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
-  __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
+  __ ldr(r4, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-  __ cmp(r2, ip);
+  __ cmp(r4, ip);
   __ b(ne, &check_pixel_array);
   // Untag the key (for checking against untagged length in the fixed array).
-  __ mov(r1, Operand(r1, ASR, kSmiTagSize));
+  __ mov(r4, Operand(key, ASR, kSmiTagSize));
   // Compute address to store into and check array bounds.
-  __ add(r2, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2));
-  __ ldr(ip, FieldMemOperand(r3, FixedArray::kLengthOffset));
-  __ cmp(r1, Operand(ip));
+  __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  __ cmp(r4, Operand(ip));
   __ b(lo, &fast);
 
-
-  // Slow case:
+  // Slow case, handle jump to runtime.
   __ bind(&slow);
+  // Entry registers are intact.
+  // r0: value.
+  // r1: key.
+  // r2: receiver.
   GenerateRuntimeSetProperty(masm);
 
   // Check whether the elements is a pixel array.
-  // r0: value
-  // r1: index (as a smi), zero-extended.
-  // r3: elements array
+  // r4: elements map.
   __ bind(&check_pixel_array);
   __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
-  __ cmp(r2, ip);
+  __ cmp(r4, ip);
   __ b(ne, &slow);
   // Check that the value is a smi. If a conversion is needed call into the
   // runtime to convert and clamp.
-  __ BranchOnNotSmi(r0, &slow);
-  __ mov(r1, Operand(r1, ASR, kSmiTagSize));  // Untag the key.
-  __ ldr(ip, FieldMemOperand(r3, PixelArray::kLengthOffset));
-  __ cmp(r1, Operand(ip));
+  __ BranchOnNotSmi(value, &slow);
+  __ mov(r4, Operand(key, ASR, kSmiTagSize));  // Untag the key.
+  __ ldr(ip, FieldMemOperand(elements, PixelArray::kLengthOffset));
+  __ cmp(r4, Operand(ip));
   __ b(hs, &slow);
-  __ mov(r4, r0);  // Save the value.
-  __ mov(r0, Operand(r0, ASR, kSmiTagSize));  // Untag the value.
+  __ mov(r5, Operand(value, ASR, kSmiTagSize));  // Untag the value.
   {  // Clamp the value to [0..255].
     Label done;
-    __ tst(r0, Operand(0xFFFFFF00));
+    __ tst(r5, Operand(0xFFFFFF00));
     __ b(eq, &done);
-    __ mov(r0, Operand(0), LeaveCC, mi);  // 0 if negative.
-    __ mov(r0, Operand(255), LeaveCC, pl);  // 255 if positive.
+    __ mov(r5, Operand(0), LeaveCC, mi);  // 0 if negative.
+    __ mov(r5, Operand(255), LeaveCC, pl);  // 255 if positive.
     __ bind(&done);
   }
-  __ ldr(r2, FieldMemOperand(r3, PixelArray::kExternalPointerOffset));
-  __ strb(r0, MemOperand(r2, r1));
-  __ mov(r0, Operand(r4));  // Return the original value.
+  // Get the pointer to the external array. This clobbers elements.
+  __ ldr(elements,
+         FieldMemOperand(elements, PixelArray::kExternalPointerOffset));
+  __ strb(r5, MemOperand(elements, r4));  // Elements is now external array.
   __ Ret();
-
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
   // element to the array by writing to array[array.length].
-  // r0 == value, r1 == key, r2 == elements, r3 == object
   __ bind(&extra);
-  __ b(ne, &slow);  // do not leave holes in the array
-  __ mov(r1, Operand(r1, ASR, kSmiTagSize));  // untag
-  __ ldr(ip, FieldMemOperand(r2, Array::kLengthOffset));
-  __ cmp(r1, Operand(ip));
+  // Condition code from comparing key and array length is still available.
+  __ b(ne, &slow);  // Only support writing to writing to array[array.length].
+  // Check for room in the elements backing store.
+  __ mov(r4, Operand(key, ASR, kSmiTagSize));  // Untag key.
+  __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  __ cmp(r4, Operand(ip));
   __ b(hs, &slow);
-  __ mov(r1, Operand(r1, LSL, kSmiTagSize));  // restore tag
-  __ add(r1, r1, Operand(1 << kSmiTagSize));  // and increment
-  __ str(r1, FieldMemOperand(r3, JSArray::kLengthOffset));
-  __ mov(r3, Operand(r2));
-  // NOTE: Computing the address to store into must take the fact
-  // that the key has been incremented into account.
-  int displacement = FixedArray::kHeaderSize - kHeapObjectTag -
-      ((1 << kSmiTagSize) * 2);
-  __ add(r2, r2, Operand(displacement));
-  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
+  // Calculate key + 1 as smi.
+  ASSERT_EQ(0, kSmiTag);
+  __ add(r4, key, Operand(Smi::FromInt(1)));
+  __ str(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
   __ b(&fast);
-
 
   // Array case: Get the length and the elements array from the JS
   // array. Check that the array is in fast mode; if it is the
   // length is always a smi.
-  // r0 == value, r3 == object
   __ bind(&array);
-  __ ldr(r2, FieldMemOperand(r3, JSObject::kElementsOffset));
-  __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ ldr(r4, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-  __ cmp(r1, ip);
+  __ cmp(r4, ip);
   __ b(ne, &slow);
 
-  // Check the key against the length in the array, compute the
-  // address to store into and fall through to fast case.
-  __ ldr(r1, MemOperand(sp));  // restore key
-  // r0 == value, r1 == key, r2 == elements, r3 == object.
-  __ ldr(ip, FieldMemOperand(r3, JSArray::kLengthOffset));
-  __ cmp(r1, Operand(ip));
+  // Check the key against the length in the array.
+  __ ldr(ip, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  __ cmp(key, Operand(ip));
   __ b(hs, &extra);
-  __ mov(r3, Operand(r2));
-  __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
+  // Fall through to fast case.
 
-
-  // Fast case: Do the store.
-  // r0 == value, r2 == address to store into, r3 == elements
   __ bind(&fast);
-  __ str(r0, MemOperand(r2));
+  // Fast case, store the value to the elements backing store.
+  __ add(r5, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(r5, r5, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ str(value, MemOperand(r5));
   // Skip write barrier if the written value is a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &exit);
+  __ tst(value, Operand(kSmiTagMask));
+  __ Ret(eq);
   // Update write barrier for the elements array address.
-  __ sub(r1, r2, Operand(r3));
-  __ RecordWrite(r3, r1, r2);
+  __ sub(r4, r5, Operand(elements));
+  __ RecordWrite(elements, r4, r5);
 
-  __ bind(&exit);
   __ Ret();
 }
 
@@ -1468,20 +1464,23 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
                                          ExternalArrayType array_type) {
   // ---------- S t a t e --------------
   //  -- r0     : value
+  //  -- r1     : key
+  //  -- r2     : receiver
   //  -- lr     : return address
-  //  -- sp[0]  : key
-  //  -- sp[1]  : receiver
   // -----------------------------------
   Label slow, check_heap_number;
 
-  // Get the key and the object from the stack.
-  __ ldm(ia, sp, r1.bit() | r2.bit());  // r1 = key, r2 = receiver
+  // Register usage.
+  Register value = r0;
+  Register key = r1;
+  Register receiver = r2;
+  // r3 mostly holds the elements array or the destination external array.
 
   // Check that the object isn't a smi.
-  __ BranchOnSmi(r2, &slow);
+  __ BranchOnSmi(receiver, &slow);
 
-  // Check that the object is a JS object. Load map into r3
-  __ CompareObjectType(r2, r3, r4, FIRST_JS_OBJECT_TYPE);
+  // Check that the object is a JS object. Load map into r3.
+  __ CompareObjectType(receiver, r3, r4, FIRST_JS_OBJECT_TYPE);
   __ b(le, &slow);
 
   // Check that the receiver does not require access checks.  We need
@@ -1491,73 +1490,70 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   __ b(ne, &slow);
 
   // Check that the key is a smi.
-  __ BranchOnNotSmi(r1, &slow);
+  __ BranchOnNotSmi(key, &slow);
 
-  // Check that the elements array is the appropriate type of
-  // ExternalArray.
-  // r0: value
-  // r1: index (smi)
-  // r2: object
-  __ ldr(r2, FieldMemOperand(r2, JSObject::kElementsOffset));
-  __ ldr(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
+  // Check that the elements array is the appropriate type of ExternalArray.
+  __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ ldr(r4, FieldMemOperand(r3, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::RootIndexForExternalArrayType(array_type));
-  __ cmp(r3, ip);
+  __ cmp(r4, ip);
   __ b(ne, &slow);
 
   // Check that the index is in range.
-  __ mov(r1, Operand(r1, ASR, kSmiTagSize));  // Untag the index.
-  __ ldr(ip, FieldMemOperand(r2, ExternalArray::kLengthOffset));
-  __ cmp(r1, ip);
+  __ mov(r4, Operand(key, ASR, kSmiTagSize));  // Untag the index.
+  __ ldr(ip, FieldMemOperand(r3, ExternalArray::kLengthOffset));
+  __ cmp(r4, ip);
   // Unsigned comparison catches both negative and too-large values.
   __ b(hs, &slow);
 
   // Handle both smis and HeapNumbers in the fast path. Go to the
   // runtime for all other kinds of values.
-  // r0: value
-  // r1: index (integer)
-  // r2: array
-  __ BranchOnNotSmi(r0, &check_heap_number);
-  __ mov(r3, Operand(r0, ASR, kSmiTagSize));  // Untag the value.
-  __ ldr(r2, FieldMemOperand(r2, ExternalArray::kExternalPointerOffset));
+  // r3: external array.
+  // r4: key (integer).
+  __ BranchOnNotSmi(value, &check_heap_number);
+  __ mov(r5, Operand(value, ASR, kSmiTagSize));  // Untag the value.
+  __ ldr(r3, FieldMemOperand(r3, ExternalArray::kExternalPointerOffset));
 
-  // r1: index (integer)
-  // r2: base pointer of external storage
-  // r3: value (integer)
+  // r3: base pointer of external storage.
+  // r4: key (integer).
+  // r5: value (integer).
   switch (array_type) {
     case kExternalByteArray:
     case kExternalUnsignedByteArray:
-      __ strb(r3, MemOperand(r2, r1, LSL, 0));
+      __ strb(r5, MemOperand(r3, r4, LSL, 0));
       break;
     case kExternalShortArray:
     case kExternalUnsignedShortArray:
-      __ strh(r3, MemOperand(r2, r1, LSL, 1));
+      __ strh(r5, MemOperand(r3, r4, LSL, 1));
       break;
     case kExternalIntArray:
     case kExternalUnsignedIntArray:
-      __ str(r3, MemOperand(r2, r1, LSL, 2));
+      __ str(r5, MemOperand(r3, r4, LSL, 2));
       break;
     case kExternalFloatArray:
       // Need to perform int-to-float conversion.
-      ConvertIntToFloat(masm, r3, r4, r5, r6);
-      __ str(r4, MemOperand(r2, r1, LSL, 2));
+      ConvertIntToFloat(masm, r5, r6, r7, r9);
+      __ str(r6, MemOperand(r3, r4, LSL, 2));
       break;
     default:
       UNREACHABLE();
       break;
   }
 
-  // r0: value
+  // Entry registers are intact, r0 holds the value which is the return value.
   __ Ret();
 
 
-  // r0: value
-  // r1: index (integer)
-  // r2: external array object
+  // r3: external array.
+  // r4: index (integer).
   __ bind(&check_heap_number);
-  __ CompareObjectType(r0, r3, r4, HEAP_NUMBER_TYPE);
+  __ CompareObjectType(value, r5, r6, HEAP_NUMBER_TYPE);
   __ b(ne, &slow);
 
-  __ ldr(r2, FieldMemOperand(r2, ExternalArray::kExternalPointerOffset));
+  __ ldr(r3, FieldMemOperand(r3, ExternalArray::kExternalPointerOffset));
+
+  // r3: base pointer of external storage.
+  // r4: key (integer).
 
   // The WebGL specification leaves the behavior of storing NaN and
   // +/-Infinity into integer arrays basically undefined. For more
@@ -1567,13 +1563,13 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 
     // vldr requires offset to be a multiple of 4 so we can not
     // include -kHeapObjectTag into it.
-    __ sub(r3, r0, Operand(kHeapObjectTag));
-    __ vldr(d0, r3, HeapNumber::kValueOffset);
+    __ sub(r5, r0, Operand(kHeapObjectTag));
+    __ vldr(d0, r5, HeapNumber::kValueOffset);
 
     if (array_type == kExternalFloatArray) {
       __ vcvt_f32_f64(s0, d0);
-      __ vmov(r3, s0);
-      __ str(r3, MemOperand(r2, r1, LSL, 2));
+      __ vmov(r5, s0);
+      __ str(r5, MemOperand(r3, r4, LSL, 2));
     } else {
       Label done;
 
@@ -1582,38 +1578,38 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       __ vcmp(d0, d0);
       // Move vector status bits to normal status bits.
       __ vmrs(v8::internal::pc);
-      __ mov(r3, Operand(0), LeaveCC, vs);  // NaN converts to 0
+      __ mov(r5, Operand(0), LeaveCC, vs);  // NaN converts to 0.
       __ b(vs, &done);
 
-      // Test whether exponent equal to 0x7FF (infinity or NaN)
-      __ vmov(r4, r3, d0);
+      // Test whether exponent equal to 0x7FF (infinity or NaN).
+      __ vmov(r6, r7, d0);
       __ mov(r5, Operand(0x7FF00000));
-      __ and_(r3, r3, Operand(r5));
-      __ teq(r3, Operand(r5));
-      __ mov(r3, Operand(0), LeaveCC, eq);
+      __ and_(r6, r6, Operand(r5));
+      __ teq(r6, Operand(r5));
+      __ mov(r6, Operand(0), LeaveCC, eq);
 
-      // Not infinity or NaN simply convert to int
+      // Not infinity or NaN simply convert to int.
       if (IsElementTypeSigned(array_type)) {
         __ vcvt_s32_f64(s0, d0, ne);
       } else {
         __ vcvt_u32_f64(s0, d0, ne);
       }
 
-      __ vmov(r3, s0, ne);
+      __ vmov(r5, s0, ne);
 
       __ bind(&done);
       switch (array_type) {
         case kExternalByteArray:
         case kExternalUnsignedByteArray:
-          __ strb(r3, MemOperand(r2, r1, LSL, 0));
+          __ strb(r5, MemOperand(r3, r4, LSL, 0));
           break;
         case kExternalShortArray:
         case kExternalUnsignedShortArray:
-          __ strh(r3, MemOperand(r2, r1, LSL, 1));
+          __ strh(r5, MemOperand(r3, r4, LSL, 1));
           break;
         case kExternalIntArray:
         case kExternalUnsignedIntArray:
-          __ str(r3, MemOperand(r2, r1, LSL, 2));
+          __ str(r5, MemOperand(r3, r4, LSL, 2));
           break;
         default:
           UNREACHABLE();
@@ -1621,12 +1617,12 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       }
     }
 
-    // r0: original value
+    // Entry registers are intact, r0 holds the value which is the return value.
     __ Ret();
   } else {
-    // VFP3 is not available do manual conversions
-    __ ldr(r3, FieldMemOperand(r0, HeapNumber::kExponentOffset));
-    __ ldr(r4, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
+    // VFP3 is not available do manual conversions.
+    __ ldr(r5, FieldMemOperand(value, HeapNumber::kExponentOffset));
+    __ ldr(r6, FieldMemOperand(value, HeapNumber::kMantissaOffset));
 
     if (array_type == kExternalFloatArray) {
       Label done, nan_or_infinity_or_zero;
@@ -1638,106 +1634,108 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 
       // Test for all special exponent values: zeros, subnormal numbers, NaNs
       // and infinities. All these should be converted to 0.
-      __ mov(r5, Operand(HeapNumber::kExponentMask));
-      __ and_(r6, r3, Operand(r5), SetCC);
+      __ mov(r7, Operand(HeapNumber::kExponentMask));
+      __ and_(r9, r5, Operand(r7), SetCC);
       __ b(eq, &nan_or_infinity_or_zero);
 
-      __ teq(r6, Operand(r5));
-      __ mov(r6, Operand(kBinary32ExponentMask), LeaveCC, eq);
+      __ teq(r9, Operand(r7));
+      __ mov(r9, Operand(kBinary32ExponentMask), LeaveCC, eq);
       __ b(eq, &nan_or_infinity_or_zero);
 
       // Rebias exponent.
-      __ mov(r6, Operand(r6, LSR, HeapNumber::kExponentShift));
-      __ add(r6,
-             r6,
+      __ mov(r9, Operand(r9, LSR, HeapNumber::kExponentShift));
+      __ add(r9,
+             r9,
              Operand(kBinary32ExponentBias - HeapNumber::kExponentBias));
 
-      __ cmp(r6, Operand(kBinary32MaxExponent));
-      __ and_(r3, r3, Operand(HeapNumber::kSignMask), LeaveCC, gt);
-      __ orr(r3, r3, Operand(kBinary32ExponentMask), LeaveCC, gt);
+      __ cmp(r9, Operand(kBinary32MaxExponent));
+      __ and_(r5, r5, Operand(HeapNumber::kSignMask), LeaveCC, gt);
+      __ orr(r5, r5, Operand(kBinary32ExponentMask), LeaveCC, gt);
       __ b(gt, &done);
 
-      __ cmp(r6, Operand(kBinary32MinExponent));
-      __ and_(r3, r3, Operand(HeapNumber::kSignMask), LeaveCC, lt);
+      __ cmp(r9, Operand(kBinary32MinExponent));
+      __ and_(r5, r5, Operand(HeapNumber::kSignMask), LeaveCC, lt);
       __ b(lt, &done);
 
-      __ and_(r7, r3, Operand(HeapNumber::kSignMask));
-      __ and_(r3, r3, Operand(HeapNumber::kMantissaMask));
-      __ orr(r7, r7, Operand(r3, LSL, kMantissaInHiWordShift));
-      __ orr(r7, r7, Operand(r4, LSR, kMantissaInLoWordShift));
-      __ orr(r3, r7, Operand(r6, LSL, kBinary32ExponentShift));
+      __ and_(r7, r5, Operand(HeapNumber::kSignMask));
+      __ and_(r5, r5, Operand(HeapNumber::kMantissaMask));
+      __ orr(r7, r7, Operand(r5, LSL, kMantissaInHiWordShift));
+      __ orr(r7, r7, Operand(r6, LSR, kMantissaInLoWordShift));
+      __ orr(r5, r7, Operand(r9, LSL, kBinary32ExponentShift));
 
       __ bind(&done);
-      __ str(r3, MemOperand(r2, r1, LSL, 2));
+      __ str(r5, MemOperand(r3, r4, LSL, 2));
+      // Entry registers are intact, r0 holds the value which is the return
+      // value.
       __ Ret();
 
       __ bind(&nan_or_infinity_or_zero);
-      __ and_(r7, r3, Operand(HeapNumber::kSignMask));
-      __ and_(r3, r3, Operand(HeapNumber::kMantissaMask));
-      __ orr(r6, r6, r7);
-      __ orr(r6, r6, Operand(r3, LSL, kMantissaInHiWordShift));
-      __ orr(r3, r6, Operand(r4, LSR, kMantissaInLoWordShift));
+      __ and_(r7, r5, Operand(HeapNumber::kSignMask));
+      __ and_(r5, r5, Operand(HeapNumber::kMantissaMask));
+      __ orr(r9, r9, r7);
+      __ orr(r9, r9, Operand(r5, LSL, kMantissaInHiWordShift));
+      __ orr(r5, r9, Operand(r6, LSR, kMantissaInLoWordShift));
       __ b(&done);
     } else {
-      bool is_signed_type  = IsElementTypeSigned(array_type);
+      bool is_signed_type = IsElementTypeSigned(array_type);
       int meaningfull_bits = is_signed_type ? (kBitsPerInt - 1) : kBitsPerInt;
-      int32_t min_value    = is_signed_type ? 0x80000000 : 0x00000000;
+      int32_t min_value = is_signed_type ? 0x80000000 : 0x00000000;
 
       Label done, sign;
 
       // Test for all special exponent values: zeros, subnormal numbers, NaNs
       // and infinities. All these should be converted to 0.
-      __ mov(r5, Operand(HeapNumber::kExponentMask));
-      __ and_(r6, r3, Operand(r5), SetCC);
-      __ mov(r3, Operand(0), LeaveCC, eq);
+      __ mov(r7, Operand(HeapNumber::kExponentMask));
+      __ and_(r9, r5, Operand(r7), SetCC);
+      __ mov(r5, Operand(0), LeaveCC, eq);
       __ b(eq, &done);
 
-      __ teq(r6, Operand(r5));
-      __ mov(r3, Operand(0), LeaveCC, eq);
+      __ teq(r9, Operand(r7));
+      __ mov(r5, Operand(0), LeaveCC, eq);
       __ b(eq, &done);
 
       // Unbias exponent.
-      __ mov(r6, Operand(r6, LSR, HeapNumber::kExponentShift));
-      __ sub(r6, r6, Operand(HeapNumber::kExponentBias), SetCC);
+      __ mov(r9, Operand(r9, LSR, HeapNumber::kExponentShift));
+      __ sub(r9, r9, Operand(HeapNumber::kExponentBias), SetCC);
       // If exponent is negative than result is 0.
-      __ mov(r3, Operand(0), LeaveCC, mi);
+      __ mov(r5, Operand(0), LeaveCC, mi);
       __ b(mi, &done);
 
-      // If exponent is too big than result is minimal value
-      __ cmp(r6, Operand(meaningfull_bits - 1));
-      __ mov(r3, Operand(min_value), LeaveCC, ge);
+      // If exponent is too big than result is minimal value.
+      __ cmp(r9, Operand(meaningfull_bits - 1));
+      __ mov(r5, Operand(min_value), LeaveCC, ge);
       __ b(ge, &done);
 
-      __ and_(r5, r3, Operand(HeapNumber::kSignMask), SetCC);
-      __ and_(r3, r3, Operand(HeapNumber::kMantissaMask));
-      __ orr(r3, r3, Operand(1u << HeapNumber::kMantissaBitsInTopWord));
+      __ and_(r7, r5, Operand(HeapNumber::kSignMask), SetCC);
+      __ and_(r5, r5, Operand(HeapNumber::kMantissaMask));
+      __ orr(r5, r5, Operand(1u << HeapNumber::kMantissaBitsInTopWord));
 
-      __ rsb(r6, r6, Operand(HeapNumber::kMantissaBitsInTopWord), SetCC);
-      __ mov(r3, Operand(r3, LSR, r6), LeaveCC, pl);
+      __ rsb(r9, r9, Operand(HeapNumber::kMantissaBitsInTopWord), SetCC);
+      __ mov(r5, Operand(r5, LSR, r9), LeaveCC, pl);
       __ b(pl, &sign);
 
-      __ rsb(r6, r6, Operand(0));
-      __ mov(r3, Operand(r3, LSL, r6));
-      __ rsb(r6, r6, Operand(meaningfull_bits));
-      __ orr(r3, r3, Operand(r4, LSR, r6));
+      __ rsb(r9, r9, Operand(0));
+      __ mov(r5, Operand(r5, LSL, r9));
+      __ rsb(r9, r9, Operand(meaningfull_bits));
+      __ orr(r5, r5, Operand(r6, LSR, r9));
 
       __ bind(&sign);
-      __ teq(r5, Operand(0));
-      __ rsb(r3, r3, Operand(0), LeaveCC, ne);
+      __ teq(r7, Operand(0));
+      __ rsb(r5, r5, Operand(0), LeaveCC, ne);
 
       __ bind(&done);
       switch (array_type) {
         case kExternalByteArray:
         case kExternalUnsignedByteArray:
-          __ strb(r3, MemOperand(r2, r1, LSL, 0));
+          __ strb(r5, MemOperand(r3, r4, LSL, 0));
           break;
         case kExternalShortArray:
         case kExternalUnsignedShortArray:
-          __ strh(r3, MemOperand(r2, r1, LSL, 1));
+          __ strh(r5, MemOperand(r3, r4, LSL, 1));
           break;
         case kExternalIntArray:
         case kExternalUnsignedIntArray:
-          __ str(r3, MemOperand(r2, r1, LSL, 2));
+          __ str(r5, MemOperand(r3, r4, LSL, 2));
           break;
         default:
           UNREACHABLE();
@@ -1748,6 +1746,11 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 
   // Slow case: call runtime.
   __ bind(&slow);
+
+  // Entry registers are intact.
+  // r0: value
+  // r1: key
+  // r2: receiver
   GenerateRuntimeSetProperty(masm);
 }
 
@@ -1838,3 +1841,5 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
 
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_ARM

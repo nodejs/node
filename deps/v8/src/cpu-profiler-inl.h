@@ -54,7 +54,7 @@ void CodeDeleteEventRecord::UpdateCodeMap(CodeMap* code_map) {
 
 
 void CodeAliasEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->AddAlias(alias, start);
+  code_map->AddAlias(start, entry, code_start);
 }
 
 

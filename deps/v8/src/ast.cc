@@ -32,6 +32,8 @@
 #include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
+#include "ast-inl.h"
+#include "jump-target-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -786,6 +788,13 @@ Block::Block(Block* other, ZoneList<Statement*>* statements)
 }
 
 
+WhileStatement::WhileStatement(ZoneStringList* labels)
+    : IterationStatement(labels),
+      cond_(NULL),
+      may_have_function_literal_(true) {
+}
+
+
 ExpressionStatement::ExpressionStatement(ExpressionStatement* other,
                                          Expression* expression)
     : Statement(other), expression_(expression) {}
@@ -807,6 +816,11 @@ EmptyStatement::EmptyStatement(EmptyStatement* other) : Statement(other) {}
 IterationStatement::IterationStatement(IterationStatement* other,
                                        Statement* body)
     : BreakableStatement(other), body_(body) {}
+
+
+CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements)
+    : label_(label), statements_(statements) {
+}
 
 
 ForStatement::ForStatement(ForStatement* other,

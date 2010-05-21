@@ -35,14 +35,34 @@
 namespace v8 {
 namespace internal {
 
+class TokenEnumerator {
+ public:
+  TokenEnumerator();
+  ~TokenEnumerator();
+  int GetTokenId(Object* token);
+
+ private:
+  static void TokenRemovedCallback(v8::Persistent<v8::Value> handle,
+                                   void* parameter);
+  void TokenRemoved(Object** token_location);
+
+  List<Object**> token_locations_;
+  List<bool> token_removed_;
+
+  friend class TokenEnumeratorTester;
+};
+
+
 class CodeEntry {
  public:
+  explicit INLINE(CodeEntry(int security_token_id));
   // CodeEntry doesn't own name strings, just references them.
   INLINE(CodeEntry(Logger::LogEventsAndTags tag,
                    const char* name_prefix,
                    const char* name,
                    const char* resource_name,
-                   int line_number));
+                   int line_number,
+                   int security_token_id));
 
   INLINE(bool is_js_function() const) { return is_js_function_tag(tag_); }
   INLINE(const char* name_prefix() const) { return name_prefix_; }
@@ -51,18 +71,24 @@ class CodeEntry {
   INLINE(const char* resource_name() const) { return resource_name_; }
   INLINE(int line_number() const) { return line_number_; }
   INLINE(unsigned call_uid() const) { return call_uid_; }
+  INLINE(int security_token_id() const) { return security_token_id_; }
 
   INLINE(static bool is_js_function_tag(Logger::LogEventsAndTags tag));
 
+  void CopyData(const CodeEntry& source);
+
   static const char* kEmptyNamePrefix;
+  static const int kNoSecurityToken = -1;
+  static const int kInheritsSecurityToken = -2;
 
  private:
-  const unsigned call_uid_;
+  unsigned call_uid_;
   Logger::LogEventsAndTags tag_;
   const char* name_prefix_;
   const char* name_;
   const char* resource_name_;
   int line_number_;
+  int security_token_id_;
 
   static unsigned next_call_uid_;
 
@@ -79,6 +105,7 @@ class ProfileNode {
   ProfileNode* FindChild(CodeEntry* entry);
   ProfileNode* FindOrAddChild(CodeEntry* entry);
   INLINE(void IncrementSelfTicks()) { ++self_ticks_; }
+  INLINE(void IncreaseSelfTicks(unsigned amount)) { self_ticks_ += amount; }
   INLINE(void IncreaseTotalTicks(unsigned amount)) { total_ticks_ += amount; }
 
   INLINE(CodeEntry* entry() const) { return entry_; }
@@ -119,6 +146,7 @@ class ProfileTree {
   void AddPathFromEnd(const Vector<CodeEntry*>& path);
   void AddPathFromStart(const Vector<CodeEntry*>& path);
   void CalculateTotalTicks();
+  void FilteredClone(ProfileTree* src, int security_token_id);
 
   double TicksToMillis(unsigned ticks) const {
     return ticks * ms_to_ticks_scale_;
@@ -133,7 +161,7 @@ class ProfileTree {
 
  private:
   template <typename Callback>
-  void TraverseDepthFirstPostOrder(Callback* callback);
+  void TraverseDepthFirst(Callback* callback);
 
   CodeEntry root_entry_;
   ProfileNode* root_;
@@ -152,6 +180,7 @@ class CpuProfile {
   void AddPath(const Vector<CodeEntry*>& path);
   void CalculateTotalTicks();
   void SetActualSamplingRate(double actual_sampling_rate);
+  CpuProfile* FilteredClone(int security_token_id);
 
   INLINE(const char* title() const) { return title_; }
   INLINE(unsigned uid() const) { return uid_; }
@@ -179,7 +208,7 @@ class CodeMap {
   INLINE(void AddCode(Address addr, CodeEntry* entry, unsigned size));
   INLINE(void MoveCode(Address from, Address to));
   INLINE(void DeleteCode(Address addr));
-  void AddAlias(Address alias, Address addr);
+  void AddAlias(Address start, CodeEntry* entry, Address code_start);
   CodeEntry* FindEntry(Address addr);
 
   void Print();
@@ -221,10 +250,14 @@ class CpuProfilesCollection {
 
   bool StartProfiling(const char* title, unsigned uid);
   bool StartProfiling(String* title, unsigned uid);
-  CpuProfile* StopProfiling(const char* title, double actual_sampling_rate);
-  CpuProfile* StopProfiling(String* title, double actual_sampling_rate);
-  INLINE(List<CpuProfile*>* profiles()) { return &profiles_; }
-  CpuProfile* GetProfile(unsigned uid);
+  CpuProfile* StopProfiling(int security_token_id,
+                            const char* title,
+                            double actual_sampling_rate);
+  CpuProfile* StopProfiling(int security_token_id,
+                            String* title,
+                            double actual_sampling_rate);
+  List<CpuProfile*>* Profiles(int security_token_id);
+  CpuProfile* GetProfile(int security_token_id, unsigned uid);
   inline bool is_last_profile();
 
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
@@ -233,6 +266,7 @@ class CpuProfilesCollection {
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
                           const char* name_prefix, String* name);
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, int args_count);
+  CodeEntry* NewCodeEntry(int security_token_id);
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(const Vector<CodeEntry*>& path);
@@ -242,13 +276,15 @@ class CpuProfilesCollection {
   INLINE(const char* GetFunctionName(const char* name));
   const char* GetName(String* name);
   const char* GetName(int args_count);
+  List<CpuProfile*>* GetProfilesList(int security_token_id);
+  int TokenToIndex(int security_token_id);
 
   INLINE(static bool StringsMatch(void* key1, void* key2)) {
     return strcmp(reinterpret_cast<char*>(key1),
                   reinterpret_cast<char*>(key2)) == 0;
   }
 
-  INLINE(static bool CpuProfilesMatch(void* key1, void* key2)) {
+  INLINE(static bool UidsMatch(void* key1, void* key2)) {
     return key1 == key2;
   }
 
@@ -257,8 +293,8 @@ class CpuProfilesCollection {
   // args_count -> char*
   List<char*> args_count_names_;
   List<CodeEntry*> code_entries_;
-  List<CpuProfile*> profiles_;
-  // uid -> CpuProfile*
+  List<List<CpuProfile*>* > profiles_by_token_;
+  // uid -> index
   HashMap profiles_uids_;
 
   // Accessed by VM thread and profile generator thread.
@@ -330,6 +366,10 @@ class ProfileGenerator {
   INLINE(CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
                                  int args_count)) {
     return profiles_->NewCodeEntry(tag, args_count);
+  }
+
+  INLINE(CodeEntry* NewCodeEntry(int security_token_id)) {
+    return profiles_->NewCodeEntry(security_token_id);
   }
 
   void RecordTickSample(const TickSample& sample);

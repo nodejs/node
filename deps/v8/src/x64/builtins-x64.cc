@@ -26,6 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "v8.h"
+
+#if defined(V8_TARGET_ARCH_X64)
+
 #include "codegen-inl.h"
 #include "macro-assembler.h"
 
@@ -1296,3 +1299,5 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_X64

@@ -31,6 +31,7 @@
 #include "type-info.h"
 #include "register-allocator.h"
 #include "scopes.h"
+#include "codegen.h"
 
 namespace v8 {
 namespace internal {
@@ -98,23 +99,16 @@ class VirtualFrame : public ZoneObject {
     return register_locations_[num];
   }
 
-  int register_location(Register reg) {
-    return register_locations_[RegisterAllocator::ToNumber(reg)];
-  }
+  inline int register_location(Register reg);
 
-  void set_register_location(Register reg, int index) {
-    register_locations_[RegisterAllocator::ToNumber(reg)] = index;
-  }
+  inline void set_register_location(Register reg, int index);
 
   bool is_used(int num) {
     ASSERT(num >= 0 && num < RegisterAllocator::kNumRegisters);
     return register_locations_[num] != kIllegalIndex;
   }
 
-  bool is_used(Register reg) {
-    return register_locations_[RegisterAllocator::ToNumber(reg)]
-        != kIllegalIndex;
-  }
+  inline bool is_used(Register reg);
 
   // Add extra in-memory elements to the top of the frame to match an actual
   // frame (eg, the frame after an exception handler is pushed).  No code is
@@ -150,6 +144,9 @@ class VirtualFrame : public ZoneObject {
   // register spilled or no_reg if it was not possible to free any register
   // (ie, they all have frame-external references).
   Register SpillAnyRegister();
+
+  // Spill the top element of the frame to memory.
+  void SpillTop() { SpillElementAt(element_count() - 1); }
 
   // Sync the range of elements in [begin, end] with memory.
   void SyncRange(int begin, int end);
@@ -218,10 +215,7 @@ class VirtualFrame : public ZoneObject {
   void SetElementAt(int index, Result* value);
 
   // Set a frame element to a constant.  The index is frame-top relative.
-  void SetElementAt(int index, Handle<Object> value) {
-    Result temp(value);
-    SetElementAt(index, &temp);
-  }
+  inline void SetElementAt(int index, Handle<Object> value);
 
   void PushElementAt(int index) {
     PushFrameSlotAt(element_count() - index - 1);
@@ -302,10 +296,7 @@ class VirtualFrame : public ZoneObject {
 
   // Call stub given the number of arguments it expects on (and
   // removes from) the stack.
-  Result CallStub(CodeStub* stub, int arg_count) {
-    PrepareForCall(arg_count, arg_count);
-    return RawCallStub(stub);
-  }
+  inline Result CallStub(CodeStub* stub, int arg_count);
 
   // Call stub that takes a single argument passed in eax.  The
   // argument is given as a result which does not have to be eax or
@@ -345,13 +336,33 @@ class VirtualFrame : public ZoneObject {
   // frame.  They are not dropped.
   Result CallKeyedLoadIC(RelocInfo::Mode mode);
 
-  // Call store IC.  Name, value, and receiver are found on top of the
-  // frame.  Receiver is not dropped.
-  Result CallStoreIC();
+
+  // Calling a store IC and a keyed store IC differ only by which ic is called
+  // and by the order of the three arguments on the frame.
+  Result CallCommonStoreIC(Handle<Code> ic,
+                           Result* value,
+                           Result *key,
+                           Result* receiver);
+
+  // Call store IC.  Name, value, and receiver are found on top
+  // of the frame.  All are dropped.
+  Result CallStoreIC() {
+    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+    Result name = Pop();
+    Result value = Pop();
+    Result receiver = Pop();
+    return CallCommonStoreIC(ic, &value, &name, &receiver);
+  }
 
   // Call keyed store IC.  Value, key, and receiver are found on top
-  // of the frame.  Key and receiver are not dropped.
-  Result CallKeyedStoreIC();
+  // of the frame.  All are dropped.
+  Result CallKeyedStoreIC() {
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+    Result value = Pop();
+    Result key = Pop();
+    Result receiver = Pop();
+    return CallCommonStoreIC(ic, &value, &key, &receiver);
+  }
 
   // Call call IC.  Function name, arguments, and receiver are found on top
   // of the frame and dropped by the call.
@@ -446,8 +457,8 @@ class VirtualFrame : public ZoneObject {
   int register_locations_[RegisterAllocator::kNumRegisters];
 
   // The number of frame-allocated locals and parameters respectively.
-  int parameter_count() { return cgen()->scope()->num_parameters(); }
-  int local_count() { return cgen()->scope()->num_stack_slots(); }
+  inline int parameter_count();
+  inline int local_count();
 
   // The index of the element that is at the processor's frame pointer
   // (the ebp register).  The parameters, receiver, and return address
@@ -559,6 +570,14 @@ class VirtualFrame : public ZoneObject {
   // is returned.  Otherwise, returns kIllegalIndex.
   // Register counts are correctly updated.
   int InvalidateFrameSlotAt(int index);
+
+  // This function assumes that a and b are the only results that could be in
+  // the registers a_reg or b_reg.  Other results can be live, but must not
+  //  be in the registers a_reg or b_reg.  The results a and b are invalidated.
+  void MoveResultsToRegisters(Result* a,
+                              Result* b,
+                              Register a_reg,
+                              Register b_reg);
 
   // Call a code stub that has already been prepared for calling (via
   // PrepareForCall).

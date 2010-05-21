@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_IA32)
+
 #include "codegen-inl.h"
 
 namespace v8 {
@@ -806,6 +808,7 @@ static void AllocateJSArray(MacroAssembler* masm,
                             Label* gc_required) {
   ASSERT(scratch.is(edi));  // rep stos destination
   ASSERT(!fill_with_hole || array_size.is(ecx));  // rep stos count
+  ASSERT(!fill_with_hole || !result.is(eax));  // result is never eax
 
   // Load the initial map from the array function.
   __ mov(elements_array,
@@ -863,15 +866,22 @@ static void AllocateJSArray(MacroAssembler* masm,
   if (fill_with_hole) {
     __ lea(edi, Operand(elements_array,
                         FixedArray::kHeaderSize - kHeapObjectTag));
-
-    __ push(eax);
     __ mov(eax, Factory::the_hole_value());
-
     __ cld();
+    // Do not use rep stos when filling less than kRepStosThreshold
+    // words.
+    const int kRepStosThreshold = 16;
+    Label loop, entry, done;
+    __ cmp(ecx, kRepStosThreshold);
+    __ j(below, &loop);  // Note: ecx > 0.
     __ rep_stos();
-
-    // Restore saved registers.
-    __ pop(eax);
+    __ jmp(&done);
+    __ bind(&loop);
+    __ stos();
+    __ bind(&entry);
+    __ cmp(edi, Operand(elements_array_end));
+    __ j(below, &loop);
+    __ bind(&done);
   }
 }
 
@@ -970,13 +980,14 @@ static void ArrayNativeCode(MacroAssembler* masm,
   AllocateJSArray(masm,
                   edi,
                   ecx,
-                  eax,
                   ebx,
+                  eax,
                   edx,
                   edi,
                   true,
                   &prepare_generic_code_call);
   __ IncrementCounter(&Counters::array_function_native, 1);
+  __ mov(eax, ebx);
   __ pop(ebx);
   if (construct_call) {
     __ pop(edi);
@@ -1067,7 +1078,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : last argument
   // -----------------------------------
-  Label generic_array_code, one_or_more_arguments, two_or_more_arguments;
+  Label generic_array_code;
 
   // Get the Array function.
   GenerateLoadArrayFunction(masm, edi);
@@ -1247,3 +1258,5 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 #undef __
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_IA32

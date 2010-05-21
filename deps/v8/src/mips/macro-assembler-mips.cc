@@ -29,6 +29,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_MIPS)
+
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
@@ -1321,3 +1323,4 @@ void MacroAssembler::AlignStack(int offset) {
 
 } }  // namespace v8::internal
 
+#endif  // V8_TARGET_ARCH_MIPS

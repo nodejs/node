@@ -80,6 +80,11 @@ struct Register {
     return 1 << code_;
   }
 
+  void set_code(int code) {
+    code_ = code;
+    ASSERT(is_valid());
+  }
+
   // Unfortunately we can't make this private in a struct.
   int code_;
 };
@@ -458,7 +463,8 @@ class MemOperand BASE_EMBEDDED {
       return offset_;
   }
 
-  Register rm() const {return rm_;}
+  Register rn() const { return rn_; }
+  Register rm() const { return rm_; }
 
  private:
   Register rn_;  // base
@@ -774,10 +780,6 @@ class Assembler : public Malloced {
   void ldm(BlockAddrMode am, Register base, RegList dst, Condition cond = al);
   void stm(BlockAddrMode am, Register base, RegList src, Condition cond = al);
 
-  // Semaphore instructions
-  void swp(Register dst, Register src, Register base, Condition cond = al);
-  void swpb(Register dst, Register src, Register base, Condition cond = al);
-
   // Exception-generating instructions and debugging support
   void stop(const char* msg);
 
@@ -924,10 +926,6 @@ class Assembler : public Malloced {
     add(sp, sp, Operand(kPointerSize));
   }
 
-  // Load effective address of memory operand x into register dst
-  void lea(Register dst, const MemOperand& x,
-           SBit s = LeaveCC, Condition cond = al);
-
   // Jump unconditionally to given label.
   void jmp(Label* L) { b(L, al); }
 
@@ -976,6 +974,12 @@ class Assembler : public Malloced {
   int current_position() const { return current_position_; }
   int current_statement_position() const { return current_statement_position_; }
 
+  bool can_peephole_optimize(int instructions) {
+    if (!FLAG_peephole_optimization) return false;
+    if (last_bound_pos_ > pc_offset() - instructions * kInstrSize) return false;
+    return reloc_info_writer.last_pc() <= pc_ - instructions * kInstrSize;
+  }
+
   // Read/patch instructions
   static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
   static void instr_at_put(byte* pc, Instr instr) {
@@ -987,6 +991,13 @@ class Assembler : public Malloced {
   static bool IsLdrRegisterImmediate(Instr instr);
   static int GetLdrRegisterImmediateOffset(Instr instr);
   static Instr SetLdrRegisterImmediateOffset(Instr instr, int offset);
+  static Register GetRd(Instr instr);
+  static bool IsPush(Instr instr);
+  static bool IsPop(Instr instr);
+  static bool IsStrRegFpOffset(Instr instr);
+  static bool IsLdrRegFpOffset(Instr instr);
+  static bool IsStrRegFpNegOffset(Instr instr);
+  static bool IsLdrRegFpNegOffset(Instr instr);
 
 
  protected:

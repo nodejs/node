@@ -81,6 +81,34 @@
     }
     Array.prototype.length = 0;  // Clean-up.
   }
+
+  // Check that pop works on inherited properties for
+  // arrays with array prototype.
+  for (var i = 0; i < 10 ;i++) {  // Ensure ICs are stabilized.
+    var array_proto = [];
+    array_proto[1] = 1;
+    array_proto[3] = 3;
+    array_proto[5] = 5;
+    array_proto[7] = 7;
+    array_proto[9] = 9;
+    a = [0,1,2,,4,,6,7,8,,];
+    a.__proto__ = array_proto;
+    assertEquals(10, a.length, "array_proto-inherit-initial-length");
+    for (var j = 9; j >= 0; j--) {
+      assertEquals(j + 1, a.length, "array_proto-inherit-pre-length-" + j);
+      assertTrue(j in a, "array_proto-has property " + j);
+      var own = a.hasOwnProperty(j);
+      var inherited = array_proto.hasOwnProperty(j);
+      assertEquals(j, a.pop(), "array_proto-inherit-pop");
+      assertEquals(j, a.length, "array_proto-inherit-post-length");
+      assertFalse(a.hasOwnProperty(j), "array_proto-inherit-deleted-own-" + j);
+      assertEquals(inherited, array_proto.hasOwnProperty(j),
+                   "array_proto-inherit-not-deleted-inherited" + j);
+    }
+  }
+
+  // Check that pop works on inherited properties for
+  // arrays with array prototype.
 })();
 
 // Test the case of not JSArray receiver.

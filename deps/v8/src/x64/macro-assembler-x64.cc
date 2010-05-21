@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_X64)
+
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "assembler-x64.h"
@@ -800,7 +802,7 @@ void MacroAssembler::SmiSub(Register dst,
 
 void MacroAssembler::SmiSub(Register dst,
                             Register src1,
-                            Operand const& src2,
+                            const Operand& src2,
                             Label* on_not_smi_result) {
   if (on_not_smi_result == NULL) {
     // No overflow checking. Use only when it's known that
@@ -914,6 +916,14 @@ void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
   } else {
     Move(dst, constant);
     addq(dst, src);
+  }
+}
+
+
+void MacroAssembler::SmiAddConstant(const Operand& dst, Smi* constant) {
+  if (constant->value() != 0) {
+    Move(kScratchRegister, constant);
+    addq(dst, kScratchRegister);
   }
 }
 
@@ -1730,23 +1740,21 @@ void MacroAssembler::CheckMap(Register obj,
 }
 
 
-void MacroAssembler::AbortIfNotNumber(Register object, const char* msg) {
+void MacroAssembler::AbortIfNotNumber(Register object) {
   Label ok;
   Condition is_smi = CheckSmi(object);
   j(is_smi, &ok);
   Cmp(FieldOperand(object, HeapObject::kMapOffset),
       Factory::heap_number_map());
-  Assert(equal, msg);
+  Assert(equal, "Operand not a number");
   bind(&ok);
 }
 
 
-void MacroAssembler::AbortIfNotSmi(Register object, const char* msg) {
+void MacroAssembler::AbortIfNotSmi(Register object) {
   Label ok;
   Condition is_smi = CheckSmi(object);
-  j(is_smi, &ok);
-  Assert(equal, msg);
-  bind(&ok);
+  Assert(is_smi, "Operand not a smi");
 }
 
 
@@ -2766,3 +2774,5 @@ CodePatcher::~CodePatcher() {
 }
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_X64

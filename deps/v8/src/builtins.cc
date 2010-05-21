@@ -330,22 +330,19 @@ static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
 }
 
 
-static bool ArrayPrototypeHasNoElements() {
+static bool ArrayPrototypeHasNoElements(Context* global_context,
+                                        JSObject* array_proto) {
   // This method depends on non writability of Object and Array prototype
   // fields.
-  Context* global_context = Top::context()->global_context();
-  // Array.prototype
-  JSObject* proto =
-      JSObject::cast(global_context->array_function()->prototype());
-  if (proto->elements() != Heap::empty_fixed_array()) return false;
+  if (array_proto->elements() != Heap::empty_fixed_array()) return false;
   // Hidden prototype
-  proto = JSObject::cast(proto->GetPrototype());
-  ASSERT(proto->elements() == Heap::empty_fixed_array());
+  array_proto = JSObject::cast(array_proto->GetPrototype());
+  ASSERT(array_proto->elements() == Heap::empty_fixed_array());
   // Object.prototype
-  proto = JSObject::cast(proto->GetPrototype());
-  if (proto != global_context->initial_object_prototype()) return false;
-  if (proto->elements() != Heap::empty_fixed_array()) return false;
-  ASSERT(proto->GetPrototype()->IsNull());
+  array_proto = JSObject::cast(array_proto->GetPrototype());
+  if (array_proto != global_context->initial_object_prototype()) return false;
+  if (array_proto->elements() != Heap::empty_fixed_array()) return false;
+  ASSERT(array_proto->GetPrototype()->IsNull());
   return true;
 }
 
@@ -365,6 +362,18 @@ static bool IsJSArrayWithFastElements(Object* receiver,
 
   *elements = FixedArray::cast(elms);
   return true;
+}
+
+
+static bool IsFastElementMovingAllowed(Object* receiver,
+                                       FixedArray** elements) {
+  if (!IsJSArrayWithFastElements(receiver, elements)) return false;
+
+  Context* global_context = Top::context()->global_context();
+  JSObject* array_proto =
+      JSObject::cast(global_context->array_function()->prototype());
+  if (JSArray::cast(receiver)->GetPrototype() != array_proto) return false;
+  return ArrayPrototypeHasNoElements(global_context, array_proto);
 }
 
 
@@ -465,11 +474,7 @@ BUILTIN(ArrayPop) {
     return top;
   }
 
-  // Remember to check the prototype chain.
-  JSFunction* array_function =
-      Top::context()->global_context()->array_function();
-  JSObject* prototype = JSObject::cast(array_function->prototype());
-  top = prototype->GetElement(len - 1);
+  top = array->GetPrototype()->GetElement(len - 1);
 
   return top;
 }
@@ -478,8 +483,7 @@ BUILTIN(ArrayPop) {
 BUILTIN(ArrayShift) {
   Object* receiver = *args.receiver();
   FixedArray* elms = NULL;
-  if (!IsJSArrayWithFastElements(receiver, &elms)
-      || !ArrayPrototypeHasNoElements()) {
+  if (!IsFastElementMovingAllowed(receiver, &elms)) {
     return CallJsBuiltin("ArrayShift", args);
   }
   JSArray* array = JSArray::cast(receiver);
@@ -515,8 +519,7 @@ BUILTIN(ArrayShift) {
 BUILTIN(ArrayUnshift) {
   Object* receiver = *args.receiver();
   FixedArray* elms = NULL;
-  if (!IsJSArrayWithFastElements(receiver, &elms)
-      || !ArrayPrototypeHasNoElements()) {
+  if (!IsFastElementMovingAllowed(receiver, &elms)) {
     return CallJsBuiltin("ArrayUnshift", args);
   }
   JSArray* array = JSArray::cast(receiver);
@@ -565,8 +568,7 @@ BUILTIN(ArrayUnshift) {
 BUILTIN(ArraySlice) {
   Object* receiver = *args.receiver();
   FixedArray* elms = NULL;
-  if (!IsJSArrayWithFastElements(receiver, &elms)
-      || !ArrayPrototypeHasNoElements()) {
+  if (!IsFastElementMovingAllowed(receiver, &elms)) {
     return CallJsBuiltin("ArraySlice", args);
   }
   JSArray* array = JSArray::cast(receiver);
@@ -635,8 +637,7 @@ BUILTIN(ArraySlice) {
 BUILTIN(ArraySplice) {
   Object* receiver = *args.receiver();
   FixedArray* elms = NULL;
-  if (!IsJSArrayWithFastElements(receiver, &elms)
-      || !ArrayPrototypeHasNoElements()) {
+  if (!IsFastElementMovingAllowed(receiver, &elms)) {
     return CallJsBuiltin("ArraySplice", args);
   }
   JSArray* array = JSArray::cast(receiver);
@@ -788,7 +789,10 @@ BUILTIN(ArraySplice) {
 
 
 BUILTIN(ArrayConcat) {
-  if (!ArrayPrototypeHasNoElements()) {
+  Context* global_context = Top::context()->global_context();
+  JSObject* array_proto =
+      JSObject::cast(global_context->array_function()->prototype());
+  if (!ArrayPrototypeHasNoElements(global_context, array_proto)) {
     return CallJsBuiltin("ArrayConcat", args);
   }
 
@@ -798,7 +802,8 @@ BUILTIN(ArrayConcat) {
   int result_len = 0;
   for (int i = 0; i < n_arguments; i++) {
     Object* arg = args[i];
-    if (!arg->IsJSArray() || !JSArray::cast(arg)->HasFastElements()) {
+    if (!arg->IsJSArray() || !JSArray::cast(arg)->HasFastElements()
+        || JSArray::cast(arg)->GetPrototype() != array_proto) {
       return CallJsBuiltin("ArrayConcat", args);
     }
 

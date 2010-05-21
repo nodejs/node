@@ -57,6 +57,8 @@
 
 #include "v8.h"
 
+#if defined(V8_TARGET_ARCH_MIPS)
+
 #include "constants-mips.h"
 #include "disasm.h"
 #include "macro-assembler.h"
@@ -782,3 +784,4 @@ void Disassembler::Disassemble(FILE* f, byte_* begin, byte_* end) {
 
 }  // namespace disasm
 
+#endif  // V8_TARGET_ARCH_MIPS

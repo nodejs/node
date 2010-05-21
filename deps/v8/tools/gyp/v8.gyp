@@ -39,19 +39,28 @@
       'ENABLE_VMSTATE_TRACKING',
     ],
     'conditions': [
-      ['v8_target_arch=="arm"', {
-        'defines': [
-          'V8_TARGET_ARCH_ARM',
-        ],
-      }],
-      ['v8_target_arch=="ia32"', {
-        'defines': [
-          'V8_TARGET_ARCH_IA32',
-        ],
-      }],
-      ['v8_target_arch=="x64"', {
-        'defines': [
-          'V8_TARGET_ARCH_X64',
+      ['OS!="mac"', {
+        # TODO(mark): The OS!="mac" conditional is temporary. It can be
+        # removed once the Mac Chromium build stops setting target_arch to
+        # ia32 and instead sets it to mac. Other checks in this file for
+        # OS=="mac" can be removed at that time as well. This can be cleaned
+        # up once http://crbug.com/44205 is fixed.
+        'conditions': [
+          ['v8_target_arch=="arm"', {
+            'defines': [
+              'V8_TARGET_ARCH_ARM',
+            ],
+          }],
+          ['v8_target_arch=="ia32"', {
+            'defines': [
+              'V8_TARGET_ARCH_IA32',
+            ],
+          }],
+          ['v8_target_arch=="x64"', {
+            'defines': [
+              'V8_TARGET_ARCH_X64',
+            ],
+          }],
         ],
       }],
     ],
@@ -229,6 +238,7 @@
         '../../src/assembler.cc',
         '../../src/assembler.h',
         '../../src/ast.cc',
+        '../../src/ast-inl.h',
         '../../src/ast.h',
         '../../src/bootstrapper.cc',
         '../../src/bootstrapper.h',
@@ -434,6 +444,7 @@
           ],
           'sources': [
             '../../src/fast-codegen.cc',
+            '../../src/jump-target-light.h',
             '../../src/jump-target-light-inl.h',
             '../../src/jump-target-light.cc',
             '../../src/virtual-frame-light-inl.h',
@@ -462,6 +473,7 @@
             '../../src/arm/register-allocator-arm.cc',
             '../../src/arm/simulator-arm.cc',
             '../../src/arm/stub-cache-arm.cc',
+            '../../src/arm/virtual-frame-arm-inl.h',
             '../../src/arm/virtual-frame-arm.cc',
             '../../src/arm/virtual-frame-arm.h',
           ],
@@ -474,11 +486,12 @@
             }]
           ]
         }],
-        ['v8_target_arch=="ia32"', {
+        ['v8_target_arch=="ia32" or v8_target_arch=="mac" or OS=="mac"', {
           'include_dirs+': [
             '../../src/ia32',
           ],
           'sources': [
+            '../../src/jump-target-heavy.h',
             '../../src/jump-target-heavy-inl.h',
             '../../src/jump-target-heavy.cc',
             '../../src/virtual-frame-heavy-inl.h',
@@ -509,12 +522,13 @@
             '../../src/ia32/virtual-frame-ia32.h',
           ],
         }],
-        ['v8_target_arch=="x64"', {
+        ['v8_target_arch=="x64" or v8_target_arch=="mac" or OS=="mac"', {
           'include_dirs+': [
             '../../src/x64',
           ],
           'sources': [
             '../../src/fast-codegen.cc',
+            '../../src/jump-target-heavy.h',
             '../../src/jump-target-heavy-inl.h',
             '../../src/jump-target-heavy.cc',
             '../../src/virtual-frame-heavy-inl.h',

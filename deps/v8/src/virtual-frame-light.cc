@@ -46,4 +46,7 @@ Register VirtualFrame::SpillAnyRegister() {
   return no_reg;
 }
 
+
+InvalidVirtualFrameInitializer* kInvalidVirtualFrameInitializer = NULL;
+
 } }  // namespace v8::internal

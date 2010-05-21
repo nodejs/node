@@ -100,10 +100,10 @@ private:
 DEFINE_bool(debug_code, false,
             "generate extra code (comments, assertions) for debugging")
 DEFINE_bool(emit_branch_hints, false, "emit branch hints")
-DEFINE_bool(push_pop_elimination, true,
-            "eliminate redundant push/pops in assembly code")
-DEFINE_bool(print_push_pop_elimination, false,
-            "print elimination of redundant push/pops in assembly code")
+DEFINE_bool(peephole_optimization, true,
+            "perform peephole optimizations in assembly code")
+DEFINE_bool(print_peephole_optimization, false,
+            "print peephole optimizations in assembly code")
 DEFINE_bool(enable_sse2, true,
             "enable use of SSE2 instructions if available")
 DEFINE_bool(enable_sse3, true,
@@ -149,6 +149,10 @@ DEFINE_bool(full_compiler, true, "enable dedicated backend for run-once code")
 DEFINE_bool(fast_compiler, false, "enable speculative optimizing backend")
 DEFINE_bool(always_full_compiler, false,
             "try to use the dedicated run-once backend for all code")
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
+DEFINE_bool(force_full_compiler, false,
+            "force use of the dedicated run-once backend for all code")
+#endif
 DEFINE_bool(always_fast_compiler, false,
             "try to use the speculative optimizing backend for all code")
 DEFINE_bool(trace_bailout, false,
@@ -182,6 +186,11 @@ DEFINE_bool(gc_global, false, "always perform global GCs")
 DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_bool(trace_gc, false,
             "print one trace line following each garbage collection")
+DEFINE_bool(trace_gc_nvp, false,
+            "print one detailed trace line in name=value format "
+            "after each garbage collection")
+DEFINE_bool(print_cumulative_gc_stat, false,
+            "print cumulative GC statistics in name=value format on exit")
 DEFINE_bool(trace_gc_verbose, false,
             "print more details following each garbage collection")
 DEFINE_bool(collect_maps, true,

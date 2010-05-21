@@ -262,3 +262,15 @@ function bar_loop() {
 }
 
 bar_loop();
+
+
+// Test for assignment using a keyed store ic:
+function store_i_in_element_i_of_object_i() {
+  var i = new Object();
+  i[i] = i;
+}
+
+// Run three times to exercise caches.
+store_i_in_element_i_of_object_i();
+store_i_in_element_i_of_object_i();
+store_i_in_element_i_of_object_i();

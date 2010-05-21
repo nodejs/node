@@ -46,16 +46,16 @@ var kSplayTreePayloadDepth = 5;
 var splayTree = null;
 
 
-function GeneratePayloadTree(depth, key) {
+function GeneratePayloadTree(depth, tag) {
   if (depth == 0) {
     return {
       array  : [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ],
-      string : 'String for key ' + key + ' in leaf node'
+      string : 'String for key ' + tag + ' in leaf node'
     };
   } else {
     return {
-      left:  GeneratePayloadTree(depth - 1, key),
-      right: GeneratePayloadTree(depth - 1, key)
+      left:  GeneratePayloadTree(depth - 1, tag),
+      right: GeneratePayloadTree(depth - 1, tag)
     };
   }
 }
@@ -74,7 +74,8 @@ function InsertNewNode() {
   do {
     key = GenerateKey();
   } while (splayTree.find(key) != null);
-  splayTree.insert(key, GeneratePayloadTree(kSplayTreePayloadDepth, key));
+  var payload = GeneratePayloadTree(kSplayTreePayloadDepth, String(key));
+  splayTree.insert(key, payload);
   return key;
 }
 

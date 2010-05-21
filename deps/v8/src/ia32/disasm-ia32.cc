@@ -30,6 +30,9 @@
 #include <stdarg.h>
 
 #include "v8.h"
+
+#if defined(V8_TARGET_ARCH_IA32)
+
 #include "disasm.h"
 
 namespace disasm {
@@ -90,6 +93,7 @@ static ByteMnemonic zero_operands_instr[] = {
   {0x99, "cdq", UNSET_OP_ORDER},
   {0x9B, "fwait", UNSET_OP_ORDER},
   {0xFC, "cld", UNSET_OP_ORDER},
+  {0xAB, "stos", UNSET_OP_ORDER},
   {-1, "", UNSET_OP_ORDER}
 };
 
@@ -1438,3 +1442,5 @@ int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
 
 
 }  // namespace disasm
+
+#endif  // V8_TARGET_ARCH_IA32

@@ -1266,6 +1266,8 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         this.clearBreakPointRequest_(request, response);
       } else if (request.command == 'clearbreakpointgroup') {
         this.clearBreakPointGroupRequest_(request, response);
+      } else if (request.command == 'listbreakpoints') {
+        this.listBreakpointsRequest_(request, response);
       } else if (request.command == 'backtrace') {
         this.backtraceRequest_(request, response);
       } else if (request.command == 'frame') {
@@ -1579,6 +1581,35 @@ DebugCommandProcessor.prototype.clearBreakPointRequest_ = function(request, resp
 
   // Add the cleared break point number to the response.
   response.body = { breakpoint: break_point }
+}
+
+DebugCommandProcessor.prototype.listBreakpointsRequest_ = function(request, response) {
+  var array = [];
+  for (var i = 0; i < script_break_points.length; i++) {
+    var break_point = script_break_points[i];
+
+    var description = {
+      number: break_point.number(),
+      line: break_point.line(),
+      column: break_point.column(),
+      groupId: break_point.groupId(),
+      hit_count: break_point.hit_count(),
+      active: break_point.active(),
+      condition: break_point.condition(),
+      ignoreCount: break_point.ignoreCount()
+    }
+    
+    if (break_point.type() == Debug.ScriptBreakPointType.ScriptId) {
+      description.type = 'scriptId';
+      description.script_id = break_point.script_id();
+    } else {
+      description.type = 'scriptName';
+      description.script_name = break_point.script_name();
+    }
+    array.push(description);
+  }
+  
+  response.body = { breakpoints: array }
 }
 
 

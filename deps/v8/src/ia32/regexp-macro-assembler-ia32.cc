@@ -26,6 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "v8.h"
+
+#if defined(V8_TARGET_ARCH_IA32)
+
 #include "unicode.h"
 #include "log.h"
 #include "ast.h"
@@ -51,7 +54,7 @@ namespace internal {
  * - esp : points to tip of C stack.
  * - ecx : points to tip of backtrack stack
  *
- * The registers eax, ebx and ecx are free to use for computations.
+ * The registers eax and ebx are free to use for computations.
  *
  * Each call to a public method should retain this convention.
  * The stack will have the following structure:
@@ -72,8 +75,6 @@ namespace internal {
  *       - backup of caller ebx
  *       - Offset of location before start of input (effectively character
  *         position -1). Used to initialize capture registers to a non-position.
- *       - Boolean at start (if 1, we are starting at the start of the string,
- *         otherwise 0)
  *       - register 0  ebp[-4]  (Only positions must be stored in the first
  *       - register 1  ebp[-8]   num_saved_registers_ registers)
  *       - ...
@@ -178,8 +179,8 @@ void RegExpMacroAssemblerIA32::CheckCharacterGT(uc16 limit, Label* on_greater) {
 void RegExpMacroAssemblerIA32::CheckAtStart(Label* on_at_start) {
   Label not_at_start;
   // Did we start the match at the start of the string at all?
-  __ cmp(Operand(ebp, kAtStart), Immediate(0));
-  BranchOrBacktrack(equal, &not_at_start);
+  __ cmp(Operand(ebp, kStartIndex), Immediate(0));
+  BranchOrBacktrack(not_equal, &not_at_start);
   // If we did, are we still at the start of the input?
   __ lea(eax, Operand(esi, edi, times_1, 0));
   __ cmp(eax, Operand(ebp, kInputStart));
@@ -190,8 +191,8 @@ void RegExpMacroAssemblerIA32::CheckAtStart(Label* on_at_start) {
 
 void RegExpMacroAssemblerIA32::CheckNotAtStart(Label* on_not_at_start) {
   // Did we start the match at the start of the string at all?
-  __ cmp(Operand(ebp, kAtStart), Immediate(0));
-  BranchOrBacktrack(equal, on_not_at_start);
+  __ cmp(Operand(ebp, kStartIndex), Immediate(0));
+  BranchOrBacktrack(not_equal, on_not_at_start);
   // If we did, are we still at the start of the input?
   __ lea(eax, Operand(esi, edi, times_1, 0));
   __ cmp(eax, Operand(ebp, kInputStart));
@@ -209,6 +210,15 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
                                                int cp_offset,
                                                Label* on_failure,
                                                bool check_end_of_string) {
+#ifdef DEBUG
+  // If input is ASCII, don't even bother calling here if the string to
+  // match contains a non-ascii character.
+  if (mode_ == ASCII) {
+    for (int i = 0; i < str.length(); i++) {
+      ASSERT(str[i] <= String::kMaxAsciiCharCodeU);
+    }
+  }
+#endif
   int byte_length = str.length() * char_size();
   int byte_offset = cp_offset * char_size();
   if (check_end_of_string) {
@@ -222,14 +232,56 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
     on_failure = &backtrack_label_;
   }
 
-  for (int i = 0; i < str.length(); i++) {
+  // Do one character test first to minimize loading for the case that
+  // we don't match at all (loading more than one character introduces that
+  // chance of reading unaligned and reading across cache boundaries).
+  // If the first character matches, expect a larger chance of matching the
+  // string, and start loading more characters at a time.
+  if (mode_ == ASCII) {
+    __ cmpb(Operand(esi, edi, times_1, byte_offset),
+            static_cast<int8_t>(str[0]));
+  } else {
+    // Don't use 16-bit immediate. The size changing prefix throws off
+    // pre-decoding.
+    __ movzx_w(eax,
+               Operand(esi, edi, times_1, byte_offset));
+    __ cmp(eax, static_cast<int32_t>(str[0]));
+  }
+  BranchOrBacktrack(not_equal, on_failure);
+
+  __ lea(ebx, Operand(esi, edi, times_1, 0));
+  for (int i = 1, n = str.length(); i < n;) {
     if (mode_ == ASCII) {
-      __ cmpb(Operand(esi, edi, times_1, byte_offset + i),
-              static_cast<int8_t>(str[i]));
+      if (i <= n - 4) {
+        int combined_chars =
+            (static_cast<uint32_t>(str[i + 0]) << 0) |
+            (static_cast<uint32_t>(str[i + 1]) << 8) |
+            (static_cast<uint32_t>(str[i + 2]) << 16) |
+            (static_cast<uint32_t>(str[i + 3]) << 24);
+        __ cmp(Operand(ebx, byte_offset + i), Immediate(combined_chars));
+        i += 4;
+      } else {
+        __ cmpb(Operand(ebx, byte_offset + i),
+                static_cast<int8_t>(str[i]));
+        i += 1;
+      }
     } else {
       ASSERT(mode_ == UC16);
-      __ cmpw(Operand(esi, edi, times_1, byte_offset + i * sizeof(uc16)),
-              Immediate(str[i]));
+      if (i <= n - 2) {
+        __ cmp(Operand(ebx, byte_offset + i * sizeof(uc16)),
+               Immediate(*reinterpret_cast<const int*>(&str[i])));
+        i += 2;
+      } else {
+        // Avoid a 16-bit immediate operation. It uses the length-changing
+        // 0x66 prefix which causes pre-decoder misprediction and pipeline
+        // stalls. See
+        // "Intel(R) 64 and IA-32 Architectures Optimization Reference Manual"
+        // (248966.pdf) section 3.4.2.3 "Length-Changing Prefixes (LCP)"
+        __ movzx_w(eax,
+                   Operand(ebx, byte_offset + i * sizeof(uc16)));
+        __ cmp(eax, static_cast<int32_t>(str[i]));
+        i += 1;
+      }
     }
     BranchOrBacktrack(not_equal, on_failure);
   }
@@ -625,7 +677,6 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ push(edi);
   __ push(ebx);  // Callee-save on MacOS.
   __ push(Immediate(0));  // Make room for "input start - 1" constant.
-  __ push(Immediate(0));  // Make room for "at start" constant.
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
@@ -677,14 +728,6 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // position registers.
   __ mov(Operand(ebp, kInputStartMinusOne), eax);
 
-  // Determine whether the start index is zero, that is at the start of the
-  // string, and store that value in a local variable.
-  __ xor_(Operand(ecx), ecx);  // setcc only operates on cl (lower byte of ecx).
-  // Register ebx still holds -stringIndex.
-  __ test(ebx, Operand(ebx));
-  __ setcc(zero, ecx);  // 1 if 0 (start of string), 0 if positive.
-  __ mov(Operand(ebp, kAtStart), ecx);
-
   if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
     // Fill saved registers with initial value = start offset - 1
     // Fill in stack push order, to avoid accessing across an unwritten
@@ -712,8 +755,8 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ mov(backtrack_stackpointer(), Operand(ebp, kStackHighEnd));
   // Load previous char as initial value of current-character.
   Label at_start;
-  __ cmp(Operand(ebp, kAtStart), Immediate(0));
-  __ j(not_equal, &at_start);
+  __ cmp(Operand(ebp, kStartIndex), Immediate(0));
+  __ j(equal, &at_start);
   LoadCurrentCharacterUnchecked(-1, 1);  // Load previous char.
   __ jmp(&start_label_);
   __ bind(&at_start);
@@ -1201,3 +1244,5 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
 #endif  // V8_INTERPRETED_REGEXP
 
 }}  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_IA32

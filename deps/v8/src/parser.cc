@@ -33,11 +33,14 @@
 #include "codegen.h"
 #include "compiler.h"
 #include "messages.h"
+#include "parser.h"
 #include "platform.h"
 #include "runtime.h"
-#include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
+
+#include "ast-inl.h"
+#include "jump-target-inl.h"
 
 namespace v8 {
 namespace internal {

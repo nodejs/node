@@ -169,13 +169,6 @@ Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
 }
 
 
-Operand::Operand(const char* s) {
-  rm_ = no_reg;
-  imm32_ = reinterpret_cast<int32_t>(s);
-  rmode_ = RelocInfo::EMBEDDED_STRING;
-}
-
-
 Operand::Operand(const ExternalReference& f)  {
   rm_ = no_reg;
   imm32_ = reinterpret_cast<int32_t>(f.address());

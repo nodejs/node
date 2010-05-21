@@ -1691,10 +1691,16 @@ bool String::Equals(String* other) {
 
 
 Object* String::TryFlatten(PretenureFlag pretenure) {
-  // We don't need to flatten strings that are already flat.  Since this code
-  // is inlined, it can be helpful in the flat case to not call out to Flatten.
-  if (IsFlat()) return this;
+  if (!StringShape(this).IsCons()) return this;
+  ConsString* cons = ConsString::cast(this);
+  if (cons->second()->length() == 0) return cons->first();
   return SlowTryFlatten(pretenure);
+}
+
+
+String* String::TryFlattenGetString(PretenureFlag pretenure) {
+  Object* flat = TryFlatten(pretenure);
+  return flat->IsFailure() ? this : String::cast(flat);
 }
 
 

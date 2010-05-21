@@ -120,7 +120,21 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
       ? info->scope()->is_global_scope()
       : (shared->is_toplevel() || shared->try_full_codegen());
 
-  if (FLAG_always_full_compiler || (FLAG_full_compiler && is_run_once)) {
+  bool force_full_compiler = false;
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
+  // On ia32 the full compiler can compile all code whereas the other platforms
+  // the constructs supported is checked by the associated syntax checker. When
+  // --always-full-compiler is used on ia32 the syntax checker is still in
+  // effect, but there is a special flag --force-full-compiler to ignore the
+  // syntax checker completely and use the full compiler for all code. Also
+  // when debugging on ia32 the full compiler will be used for all code.
+  force_full_compiler =
+      Debugger::IsDebuggerActive() || FLAG_force_full_compiler;
+#endif
+
+  if (force_full_compiler) {
+    return FullCodeGenerator::MakeCode(info);
+  } else if (FLAG_always_full_compiler || (FLAG_full_compiler && is_run_once)) {
     FullCodeGenSyntaxChecker checker;
     checker.Check(function);
     if (checker.has_supported_syntax()) {
