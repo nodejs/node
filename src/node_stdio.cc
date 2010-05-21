@@ -65,19 +65,27 @@ static Handle<Value> OpenStdin(const Arguments& args) {
   return scope.Close(Integer::New(STDIN_FILENO));
 }
 
-static Handle<Value>
-IsStdinBlocking (const Arguments& args)
-{
-  HandleScope scope;
-  return scope.Close(Boolean::New(!isatty(STDIN_FILENO)));
+
+static bool IsBlocking(int fd) {
+  if (isatty(fd)) return false;
+  struct stat s;
+  if (fstat(fd, &s)) {
+    perror("fstat");
+    return true;
+  }
+  if (s.st_mode & S_IFSOCK == S_IFSOCK) return false;
+  if (s.st_mode & S_IFIFO == S_IFIFO) return false;
+  return true;
 }
 
-static Handle<Value>
-IsStdoutBlocking (const Arguments& args)
-{
-  HandleScope scope;
-  bool tty = isatty(STDOUT_FILENO);
-  return scope.Close(Boolean::New(!tty));
+
+static Handle<Value> IsStdinBlocking(const Arguments& arg) {
+  return IsBlocking(STDIN_FILENO) ? True() : False();
+}
+
+
+static Handle<Value> IsStdoutBlocking(const Arguments& args) {
+  return IsBlocking(STDOUT_FILENO) ? True() : False();
 }
 
 
