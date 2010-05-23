@@ -29,6 +29,10 @@
 
 #include <errno.h>
 
+#ifdef __OpenBSD__
+#include <sys/uio.h>
+#endif
+
 
 namespace node {
 

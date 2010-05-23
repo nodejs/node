@@ -11,6 +11,11 @@
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 
+#ifdef __OpenBSD__
+# ifndef ns_t_a
+#  include <nameser.h>
+# endif
+#endif  // __OpenBSD__
 
 namespace node {
 

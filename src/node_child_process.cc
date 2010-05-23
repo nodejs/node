@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__ ) || defined(__OpenBSD__)
 #include <sys/wait.h>
 #endif
 
