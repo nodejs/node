@@ -55,6 +55,7 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <assert.h>
+#include <stdint.h>
 
 #ifndef EIO_FINISH
 # define EIO_FINISH(req)  ((req)->finish) && !EIO_CANCELLED (req) ? (req)->finish (req) : 0
@@ -224,10 +225,10 @@ static volatile unsigned int nready;   /* reqlock */
 static volatile unsigned int npending; /* reqlock */
 static volatile unsigned int max_idle = 4;
 
-static mutex_t wrklock = X_MUTEX_INIT;
-static mutex_t reslock = X_MUTEX_INIT;
-static mutex_t reqlock = X_MUTEX_INIT;
-static cond_t  reqwait = X_COND_INIT;
+static xmutex_t wrklock = X_MUTEX_INIT;
+static xmutex_t reslock = X_MUTEX_INIT;
+static xmutex_t reqlock = X_MUTEX_INIT;
+static xcond_t  reqwait = X_COND_INIT;
 
 #if !HAVE_PREADWRITE
 /*
@@ -235,7 +236,7 @@ static cond_t  reqwait = X_COND_INIT;
  * normal read/write by using a mutex. slows down execution a lot,
  * but that's your problem, not mine.
  */
-static mutex_t preadwritelock = X_MUTEX_INIT;
+static xmutex_t preadwritelock = X_MUTEX_INIT;
 #endif
 
 typedef struct etp_worker
@@ -243,7 +244,7 @@ typedef struct etp_worker
   /* locked by wrklock */
   struct etp_worker *prev, *next;
 
-  thread_t tid;
+  xthread_t tid;
 
   /* locked by reslock, reqlock or wrklock */
   ETP_REQ *req; /* currently processed request */
