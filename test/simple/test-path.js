@@ -12,6 +12,27 @@ assert.equal(path.dirname("/a"), "/");
 assert.equal(path.dirname("/"), "/");
 path.exists(f, function (y) { assert.equal(y, true) });
 
+assert.equal(path.extname(""), "");
+assert.equal(path.extname("/path/to/file"), "");
+assert.equal(path.extname("/path/to/file.ext"), ".ext");
+assert.equal(path.extname("/path.to/file.ext"), ".ext");
+assert.equal(path.extname("/path.to/file"), "");
+assert.equal(path.extname("/path.to/.file"), "");
+assert.equal(path.extname("/path.to/.file.ext"), ".ext");
+assert.equal(path.extname("/path/to/f.ext"), ".ext");
+assert.equal(path.extname("/path/to/..ext"), ".ext");
+assert.equal(path.extname("file"), "");
+assert.equal(path.extname("file.ext"), ".ext");
+assert.equal(path.extname(".file"), "");
+assert.equal(path.extname(".file.ext"), ".ext");
+assert.equal(path.extname("/file"), "");
+assert.equal(path.extname("/file.ext"), ".ext");
+assert.equal(path.extname("/.file"), "");
+assert.equal(path.extname("/.file.ext"), ".ext");
+assert.equal(path.extname(".path/file.ext"), ".ext");
+assert.equal(path.extname("file.ext.ext"), ".ext");
+assert.equal(path.extname("file."), ".");
+
 assert.equal(path.join(".", "fixtures/b", "..", "/b/c.js"), "fixtures/b/c.js");
 
 assert.equal(path.normalize("./fixtures///b/../b/c.js"), "fixtures/b/c.js");

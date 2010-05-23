@@ -2611,8 +2611,9 @@ Return the last portion of a path.  Similar to the Unix `basename` command.  Exa
 
 ### path.extname(p)
 
-Return the extension of the path.  Everything after the last '.', if there
-is no '.' then it returns an empty string.  Examples:
+Return the extension of the path.  Everything after the last '.' in the last portion
+of the path.  If there is no '.' in the last portion of the path or the only '.' is
+the first character, then it returns an empty string.  Examples:
 
     path.extname('index.html')
     // returns 
