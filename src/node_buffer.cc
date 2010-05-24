@@ -119,6 +119,15 @@ class AsciiSliceExt: public String::ExternalAsciiStringResource {
 };
 #endif
 
+Buffer* Buffer::New(size_t size) {
+  HandleScope scope;
+
+  Local<Value> arg = Integer::NewFromUnsigned(size);
+  Local<Object> b = constructor_template->GetFunction()->NewInstance(1, &arg);
+
+  return ObjectWrap::Unwrap<Buffer>(b);
+}
+
 
 Handle<Value> Buffer::New(const Arguments &args) {
   HandleScope scope;

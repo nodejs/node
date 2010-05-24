@@ -13,7 +13,6 @@ class ObjectWrap {
   }
 
   virtual ~ObjectWrap ( ) {
-    assert(handle_.IsNearDeath());
     handle_->SetInternalField(0, v8::Undefined());
     handle_.Dispose();
     handle_.Clear();
