@@ -49,6 +49,12 @@ typedef struct http_parser_settings http_parser_settings;
 /* Callbacks should return non-zero to indicate an error. The parser will
  * then halt execution.
  *
+ * The one exception is on_headers_complete. In a HTTP_RESPONSE parser
+ * returning '1' from on_headers_complete will tell the parser that it
+ * should not expect a body. This is used when receiving a response to a
+ * HEAD request which may contain 'Content-Length' or 'Transfer-Encoding:
+ * chunked' headers that indicate the presence of a body.
+ *
  * http_data_cb does not return data chunks. It will be call arbitrarally
  * many times for each string. E.G. you might get 10 callbacks for "on_path"
  * each providing just a few characters more data.
@@ -149,7 +155,7 @@ void http_parser_init(http_parser *parser, enum http_parser_type type);
 
 
 size_t http_parser_execute(http_parser *parser,
-                           http_parser_settings settings,
+                           const http_parser_settings *settings,
                            const char *data,
                            size_t len);
 

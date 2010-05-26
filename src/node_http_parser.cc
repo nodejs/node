@@ -245,7 +245,7 @@ class Parser : public ObjectWrap {
     parser->got_exception_ = false;
 
     size_t nparsed =
-      http_parser_execute(&parser->parser_, settings, buffer->data()+off, len);
+      http_parser_execute(&parser->parser_, &settings, buffer->data()+off, len);
 
     // Unassign the 'buffer_' variable
     assert(parser->buffer_);
@@ -275,7 +275,7 @@ class Parser : public ObjectWrap {
     assert(!parser->buffer_);
     parser->got_exception_ = false;
 
-    http_parser_execute(&(parser->parser_), settings, NULL, 0);
+    http_parser_execute(&(parser->parser_), &settings, NULL, 0);
 
     if (parser->got_exception_) return Local<Value>();
 

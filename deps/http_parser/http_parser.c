@@ -37,8 +37,8 @@
 
 #define CALLBACK2(FOR)                                               \
 do {                                                                 \
-  if (settings.on_##FOR) {                                           \
-    if (0 != settings.on_##FOR(parser)) return (p - data);           \
+  if (settings->on_##FOR) {                                          \
+    if (0 != settings->on_##FOR(parser)) return (p - data);          \
   }                                                                  \
 } while (0)
 
@@ -55,8 +55,8 @@ do {                                                                 \
   if (parser->FOR##_mark) {                                          \
     parser->FOR##_size += p - parser->FOR##_mark;                    \
     if (parser->FOR##_size > MAX_FIELD_SIZE) return (p - data);      \
-    if (settings.on_##FOR) {                                         \
-      if (0 != settings.on_##FOR(parser,                             \
+    if (settings->on_##FOR) {                                        \
+      if (0 != settings->on_##FOR(parser,                            \
                                  parser->FOR##_mark,                 \
                                  p - parser->FOR##_mark))            \
       {                                                              \
@@ -232,6 +232,7 @@ enum flags
   , F_CONNECTION_CLOSE      = 1 << 2
   , F_TRAILING              = 1 << 3
   , F_UPGRADE               = 1 << 4
+  , F_SKIPBODY              = 1 << 5
   };
 
 
@@ -282,7 +283,7 @@ enum flags
 
 
 size_t http_parser_execute (http_parser *parser,
-                            http_parser_settings settings,
+                            const http_parser_settings *settings,
                             const char *data,
                             size_t len)
 {
@@ -1327,7 +1328,25 @@ size_t http_parser_execute (http_parser *parser,
 
         if (parser->flags & F_UPGRADE) parser->upgrade = 1;
 
-        CALLBACK2(headers_complete);
+        /* Here we call the headers_complete callback. This is somewhat
+         * different than other callbacks because if the user returns 1, we
+         * will interpret that as saying that this message has no body. This
+         * is needed for the annoying case of recieving a response to a HEAD
+         * request.
+         */
+        if (settings->on_headers_complete) {
+          switch (settings->on_headers_complete(parser)) {
+            case 0:
+              break;
+
+            case 1:
+              parser->flags |= F_SKIPBODY;
+              break;
+
+            default:
+              return p - data; /* Error */
+          }
+        }
 
         // Exit, the rest of the connect is in a different protocol.
         if (parser->flags & F_UPGRADE) {
@@ -1335,7 +1354,10 @@ size_t http_parser_execute (http_parser *parser,
           return (p - data);
         }
 
-        if (parser->flags & F_CHUNKED) {
+        if (parser->flags & F_SKIPBODY) {
+          CALLBACK2(message_complete);
+          state = NEW_MESSAGE();
+        } else if (parser->flags & F_CHUNKED) {
           /* chunked encoding - ignore Content-Length header */
           state = s_chunk_size_start;
         } else {
@@ -1364,7 +1386,7 @@ size_t http_parser_execute (http_parser *parser,
       case s_body_identity:
         to_read = MIN(pe - p, (ssize_t)(parser->content_length - parser->body_read));
         if (to_read > 0) {
-          if (settings.on_body) settings.on_body(parser, p, to_read);
+          if (settings->on_body) settings->on_body(parser, p, to_read);
           p += to_read - 1;
           parser->body_read += to_read;
           if (parser->body_read == parser->content_length) {
@@ -1378,7 +1400,7 @@ size_t http_parser_execute (http_parser *parser,
       case s_body_identity_eof:
         to_read = pe - p;
         if (to_read > 0) {
-          if (settings.on_body) settings.on_body(parser, p, to_read);
+          if (settings->on_body) settings->on_body(parser, p, to_read);
           p += to_read - 1;
           parser->body_read += to_read;
         }
@@ -1451,7 +1473,7 @@ size_t http_parser_execute (http_parser *parser,
         to_read = MIN(pe - p, (ssize_t)(parser->content_length));
 
         if (to_read > 0) {
-          if (settings.on_body) settings.on_body(parser, p, to_read);
+          if (settings->on_body) settings->on_body(parser, p, to_read);
           p += to_read - 1;
         }
 

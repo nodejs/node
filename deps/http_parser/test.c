@@ -898,7 +898,7 @@ inline size_t parse (const char *buf, size_t len)
 {
   size_t nparsed;
   currently_parsing_eof = (len == 0);
-  nparsed = http_parser_execute(parser, settings, buf, len);
+  nparsed = http_parser_execute(parser, &settings, buf, len);
   return nparsed;
 }
 
@@ -906,7 +906,7 @@ inline size_t parse_count_body (const char *buf, size_t len)
 {
   size_t nparsed;
   currently_parsing_eof = (len == 0);
-  nparsed = http_parser_execute(parser, settings_count_body, buf, len);
+  nparsed = http_parser_execute(parser, &settings_count_body, buf, len);
   return nparsed;
 }
 
