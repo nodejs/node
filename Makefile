@@ -1,7 +1,7 @@
-JOBS?=1 # The number of parallel processes. Use 'JOBS=2 make' for more.
-WAF=python tools/waf-light --jobs=$(JOBS)
+WAF=python tools/waf-light
 
 all:
+	echo $(WAF)
 	@$(WAF) build
 
 all-debug:

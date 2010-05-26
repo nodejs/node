@@ -15,6 +15,11 @@ import js2c
 srcdir = '.'
 blddir = 'build'
 
+
+jobs=1
+if os.environ.has_key('JOBS'):
+  jobs = int(os.environ['JOBS'])
+
 def set_options(opt):
   # the gcc module provides a --debug-level option
   opt.tool_options('compiler_cxx')
@@ -232,6 +237,7 @@ def build_v8(bld):
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
 def build(bld):
+  Options.options.jobs=jobs
   print "DEST_OS: " + bld.env['DEST_OS']
   print "DEST_CPU: " + bld.env['DEST_CPU']
   print "Parallel Jobs: " + str(Options.options.jobs)
