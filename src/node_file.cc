@@ -51,6 +51,7 @@ static int After(eio_req *req) {
       case EIO_READLINK:
       case EIO_OPEN:
       case EIO_CHMOD:
+      case EIO_CHOWN:
       case EIO_MKDIR:
         argv[0] = ErrnoException(req->errorno, NULL, "", static_cast<const char*>(req->ptr1));
         break;
@@ -73,6 +74,7 @@ static int After(eio_req *req) {
       case EIO_LINK:
       case EIO_SYMLINK:
       case EIO_CHMOD:
+      case EIO_CHOWN:
         argc = 0;
         break;
 
@@ -630,18 +632,19 @@ static Handle<Value> Read(const Arguments& args) {
   }
 }
 
+
 /* fs.chmod(fd, mode);
  * Wrapper for chmod(1) / EIO_CHMOD
  */
-static Handle<Value> Chmod(const Arguments& args){
+static Handle<Value> Chmod(const Arguments& args) {
   HandleScope scope;
-  
+
   if(args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
     return THROW_BAD_ARGS;
   }
   String::Utf8Value path(args[0]->ToString());
   mode_t mode = static_cast<mode_t>(args[1]->Int32Value());
-  
+
   if(args[2]->IsFunction()) {
     ASYNC_CALL(chmod, args[2], *path, mode);
   } else {
@@ -651,6 +654,33 @@ static Handle<Value> Chmod(const Arguments& args){
   }
 }
 
+
+/* fs.chown(fd, uid, gid);
+ * Wrapper for chown(1) / EIO_CHOWN
+ */
+static Handle<Value> Chown(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 3 || !args[0]->IsString()) {
+    return THROW_BAD_ARGS;
+  }
+
+  if (!args[1]->IsInt32() || !args[2]->IsInt32()) {
+    return ThrowException(Exception::Error(String::New("User and Group IDs must be an integer.")));
+  }
+
+  String::Utf8Value path(args[0]->ToString());
+  uid_t uid = static_cast<uid_t>(args[1]->Int32Value());
+  gid_t gid = static_cast<gid_t>(args[2]->Int32Value());
+
+  if (args[3]->IsFunction()) {
+    ASYNC_CALL(chown, args[3], *path, uid, gid);
+  } else {
+    int ret = chown(*path, uid, gid);
+    if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
+    return Undefined();
+  }
+}
 
 void File::Initialize(Handle<Object> target) {
   HandleScope scope;
@@ -676,6 +706,7 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "write", Write);
   
   NODE_SET_METHOD(target, "chmod", Chmod);
+  NODE_SET_METHOD(target, "chown", Chown);
 
   errno_symbol = NODE_PSYMBOL("errno");
   encoding_symbol = NODE_PSYMBOL("node:encoding");
