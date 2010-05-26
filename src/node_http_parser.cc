@@ -177,13 +177,13 @@ class Parser : public ObjectWrap {
 
     Local<Value> argv[1] = { message_info };
 
-    Local<Value> ret = cb->Call(parser->handle_, 1, argv);
+    Local<Value> head_response = cb->Call(parser->handle_, 1, argv);
 
-    if (ret.IsEmpty()) {
+    if (head_response.IsEmpty()) {
       parser->got_exception_ = true;
       return -1;
     } else {
-      return 0;
+      return head_response->IsTrue() ? 1 : 0;
     }
   }
 
