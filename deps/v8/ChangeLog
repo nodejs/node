@@ -1,3 +1,11 @@
+2010-05-26: Version 2.2.12
+
+        Allowed accessors to be defined on objects rather than just object
+        templates.
+
+        Changed the ScriptData API.
+
+
 2010-05-21: Version 2.2.11
 
         Fix crash bug in liveedit on 64 bit.

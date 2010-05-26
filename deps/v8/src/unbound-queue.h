@@ -25,29 +25,42 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CIRCULAR_BUFFER_INL_H_
-#define V8_CIRCULAR_BUFFER_INL_H_
-
-#include "circular-queue.h"
+#ifndef V8_UNBOUND_QUEUE_
+#define V8_UNBOUND_QUEUE_
 
 namespace v8 {
 namespace internal {
 
 
-void* SamplingCircularQueue::Enqueue() {
-  WrapPositionIfNeeded(&producer_pos_->enqueue_pos);
-  void* result = producer_pos_->enqueue_pos;
-  producer_pos_->enqueue_pos += record_size_;
-  return result;
-}
+// Lock-free unbound queue for small records.  Intended for
+// transferring small records between a Single producer and a Single
+// consumer. Doesn't have restrictions on the number of queued
+// elements, so producer never blocks.  Implemented after Herb
+// Sutter's article:
+// http://www.ddj.com/high-performance-computing/210604448
+template<typename Record>
+class UnboundQueue BASE_EMBEDDED {
+ public:
+  inline UnboundQueue();
+  inline ~UnboundQueue();
 
+  INLINE(void Dequeue(Record* rec));
+  INLINE(void Enqueue(const Record& rec));
+  INLINE(bool IsEmpty()) { return divider_ == last_; }
 
-void SamplingCircularQueue::WrapPositionIfNeeded(
-    SamplingCircularQueue::Cell** pos) {
-  if (**pos == kEnd) *pos = buffer_;
-}
+ private:
+  INLINE(void DeleteFirst());
+
+  struct Node;
+
+  Node* first_;
+  AtomicWord divider_;  // Node*
+  AtomicWord last_;     // Node*
+
+  DISALLOW_COPY_AND_ASSIGN(UnboundQueue);
+};
 
 
 } }  // namespace v8::internal
 
-#endif  // V8_CIRCULAR_BUFFER_INL_H_
+#endif  // V8_UNBOUND_QUEUE_

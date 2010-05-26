@@ -938,6 +938,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\unbound-queue-inl.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\unbound-queue.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\unicode-inl.h"
 				>
 			</File>

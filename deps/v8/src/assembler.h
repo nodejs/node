@@ -38,6 +38,7 @@
 #include "runtime.h"
 #include "top.h"
 #include "token.h"
+#include "objects.h"
 
 namespace v8 {
 namespace internal {
@@ -199,9 +200,23 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Object** target_object_address());
   INLINE(void set_target_object(Object* target));
 
-  // Read the address of the word containing the target_address. Can only
-  // be called if IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY.
+  // Read the address of the word containing the target_address in an
+  // instruction stream.  What this means exactly is architecture-independent.
+  // The only architecture-independent user of this function is the serializer.
+  // The serializer uses it to find out how many raw bytes of instruction to
+  // output before the next target.  Architecture-independent code shouldn't
+  // dereference the pointer it gets back from this.
   INLINE(Address target_address_address());
+  // This indicates how much space a target takes up when deserializing a code
+  // stream.  For most architectures this is just the size of a pointer.  For
+  // an instruction like movw/movt where the target bits are mixed into the
+  // instruction bits the size of the target will be zero, indicating that the
+  // serializer should not step forwards in memory after a target is resolved
+  // and written.  In this case the target_address_address function above
+  // should return the end of the instructions to be patched, allowing the
+  // deserializer to deserialize the instructions as raw bytes and put them in
+  // place, ready to be patched with the target.
+  INLINE(int target_address_size());
 
   // Read/modify the reference in the instruction this relocation
   // applies to; can only be called if rmode_ is external_reference
@@ -215,6 +230,8 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Object* call_object());
   INLINE(Object** call_object_address());
   INLINE(void set_call_object(Object* target));
+
+  inline void Visit(ObjectVisitor* v);
 
   // Patch the code with some other code.
   void PatchCode(byte* instructions, int instruction_count);

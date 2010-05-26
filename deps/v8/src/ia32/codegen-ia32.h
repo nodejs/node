@@ -459,8 +459,8 @@ class CodeGenerator: public AstVisitor {
   void LoadWithSafeInt32ModeDisabled(Expression* expr);
 
   // Read a value from a slot and leave it on top of the expression stack.
-  Result LoadFromSlot(Slot* slot, TypeofState typeof_state);
-  Result LoadFromSlotCheckForArguments(Slot* slot, TypeofState typeof_state);
+  void LoadFromSlot(Slot* slot, TypeofState typeof_state);
+  void LoadFromSlotCheckForArguments(Slot* slot, TypeofState typeof_state);
   Result LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                            TypeofState typeof_state,
                                            JumpTarget* slow);

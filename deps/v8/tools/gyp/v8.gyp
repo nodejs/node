@@ -412,6 +412,8 @@
         '../../src/top.h',
         '../../src/type-info.cc',
         '../../src/type-info.h',
+        '../../src/unbound-queue-inl.h',
+        '../../src/unbound-queue.h',
         '../../src/unicode-inl.h',
         '../../src/unicode.cc',
         '../../src/unicode.h',

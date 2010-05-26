@@ -185,6 +185,18 @@ class MacroAssembler: public Assembler {
     }
   }
 
+  // Load two consecutive registers with two consecutive memory locations.
+  void Ldrd(Register dst1,
+            Register dst2,
+            const MemOperand& src,
+            Condition cond = al);
+
+  // Store two consecutive registers to two consecutive memory locations.
+  void Strd(Register src1,
+            Register src2,
+            const MemOperand& dst,
+            Condition cond = al);
+
   // ---------------------------------------------------------------------------
   // Stack limit support
 

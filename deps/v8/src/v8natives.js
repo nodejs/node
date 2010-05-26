@@ -434,6 +434,11 @@ PropertyDescriptor.prototype.isWritable = function() {
 }
 
 
+PropertyDescriptor.prototype.hasWritable = function() {
+  return this.hasWritable_;
+}
+
+
 PropertyDescriptor.prototype.setConfigurable = function(configurable) {
   this.configurable_ = configurable;
   this.hasConfigurable_ = true;
@@ -537,6 +542,22 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     throw MakeTypeError("define_disallowed", ["defineProperty"]);
 
   if (!IS_UNDEFINED(current) && !current.isConfigurable()) {
+      // Step 5 and 6
+     if ((!desc.hasEnumerable() || 
+          SameValue(desc.isEnumerable() && current.isEnumerable())) &&
+         (!desc.hasConfigurable() || 
+          SameValue(desc.isConfigurable(), current.isConfigurable())) &&
+         (!desc.hasWritable() || 
+          SameValue(desc.isWritable(), current.isWritable())) &&
+         (!desc.hasValue() ||
+          SameValue(desc.getValue(), current.getValue())) &&
+         (!desc.hasGetter() ||
+          SameValue(desc.getGet(), current.getGet())) &&
+         (!desc.hasSetter() ||
+          SameValue(desc.getSet(), current.getSet()))) {
+       return true;
+     }
+
     // Step 7
     if (desc.isConfigurable() ||  desc.isEnumerable() != current.isEnumerable())
       throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
@@ -583,7 +604,13 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     flag |= DONT_DELETE;
 
   if (IsDataDescriptor(desc) || IsGenericDescriptor(desc)) {
-    flag |= desc.isWritable() ? 0 : READ_ONLY;
+    if (desc.hasWritable()) {
+      flag |= desc.isWritable() ? 0 : READ_ONLY;
+    } else if (!IS_UNDEFINED(current)) {
+      flag |= current.isWritable() ? 0 : READ_ONLY;
+    } else {
+      flag |= READ_ONLY;
+    }
     %DefineOrRedefineDataProperty(obj, p, desc.getValue(), flag);
   } else {
     if (desc.hasGetter() && IS_FUNCTION(desc.getGet())) {
@@ -673,8 +700,9 @@ function ObjectCreate(proto, properties) {
 // ES5 section 15.2.3.6.
 function ObjectDefineProperty(obj, p, attributes) {
   if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
-      !IS_UNDETECTABLE(obj))
+      !IS_UNDETECTABLE(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["defineProperty"]);
+  }
   var name = ToString(p);
   var desc = ToPropertyDescriptor(attributes);
   DefineOwnProperty(obj, name, desc, true);

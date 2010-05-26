@@ -370,8 +370,7 @@ Local<StackTrace> Top::CaptureCurrentStackTrace(
   v8::HandleScope scope;
   // Ensure no negative values.
   int limit = Max(frame_limit, 0);
-  Handle<JSArray> stackTrace = Factory::NewJSArray(frame_limit);
-  FixedArray* frames = FixedArray::cast(stackTrace->elements());
+  Handle<JSArray> stack_trace = Factory::NewJSArray(frame_limit);
 
   Handle<String> column_key =  Factory::LookupAsciiSymbol("column");
   Handle<String> line_key =  Factory::LookupAsciiSymbol("lineNumber");
@@ -438,13 +437,13 @@ Local<StackTrace> Top::CaptureCurrentStackTrace(
       SetProperty(stackFrame, constructor_key, is_constructor, NONE);
     }
 
-    frames->set(frames_seen, *stackFrame);
+    FixedArray::cast(stack_trace->elements())->set(frames_seen, *stackFrame);
     frames_seen++;
     it.Advance();
   }
 
-  stackTrace->set_length(Smi::FromInt(frames_seen));
-  return scope.Close(Utils::StackTraceToLocal(stackTrace));
+  stack_trace->set_length(Smi::FromInt(frames_seen));
+  return scope.Close(Utils::StackTraceToLocal(stack_trace));
 }
 
 

@@ -126,6 +126,7 @@ template <class T> class Persistent;
 class FunctionTemplate;
 class ObjectTemplate;
 class Data;
+class AccessorInfo;
 class StackTrace;
 class StackFrame;
 
@@ -512,11 +513,37 @@ class V8EXPORT Data {
 class V8EXPORT ScriptData {  // NOLINT
  public:
   virtual ~ScriptData() { }
+  /**
+   * Pre-compiles the specified script (context-independent).
+   *
+   * \param input Pointer to UTF-8 script source code.
+   * \param length Length of UTF-8 script source code.
+   */
   static ScriptData* PreCompile(const char* input, int length);
-  static ScriptData* New(unsigned* data, int length);
 
+  /**
+   * Load previous pre-compilation data.
+   *
+   * \param data Pointer to data returned by a call to Data() of a previous
+   *   ScriptData. Ownership is not transferred.
+   * \param length Length of data.
+   */
+  static ScriptData* New(const char* data, int length);
+
+  /**
+   * Returns the length of Data().
+   */
   virtual int Length() = 0;
-  virtual unsigned* Data() = 0;
+
+  /**
+   * Returns a serialized representation of this ScriptData that can later be
+   * passed to New(). NOTE: Serialized data is platform-dependent.
+   */
+  virtual const char* Data() = 0;
+
+  /**
+   * Returns true if the source code could not be parsed.
+   */
   virtual bool HasError() = 0;
 };
 
@@ -1306,6 +1333,41 @@ enum ExternalArrayType {
 };
 
 /**
+ * Accessor[Getter|Setter] are used as callback functions when
+ * setting|getting a particular property. See Object and ObjectTemplate's
+ * method SetAccessor.
+ */
+typedef Handle<Value> (*AccessorGetter)(Local<String> property,
+                                        const AccessorInfo& info);
+
+
+typedef void (*AccessorSetter)(Local<String> property,
+                               Local<Value> value,
+                               const AccessorInfo& info);
+
+
+/**
+ * Access control specifications.
+ *
+ * Some accessors should be accessible across contexts.  These
+ * accessors have an explicit access control parameter which specifies
+ * the kind of cross-context access that should be allowed.
+ *
+ * Additionally, for security, accessors can prohibit overwriting by
+ * accessors defined in JavaScript.  For objects that have such
+ * accessors either locally or in their prototype chain it is not
+ * possible to overwrite the accessor by using __defineGetter__ or
+ * __defineSetter__ from JavaScript code.
+ */
+enum AccessControl {
+  DEFAULT               = 0,
+  ALL_CAN_READ          = 1,
+  ALL_CAN_WRITE         = 1 << 1,
+  PROHIBITS_OVERWRITING = 1 << 2
+};
+
+
+/**
  * A JavaScript object (ECMA-262, 4.3.3)
  */
 class V8EXPORT Object : public Value {
@@ -1346,6 +1408,13 @@ class V8EXPORT Object : public Value {
   bool Has(uint32_t index);
 
   bool Delete(uint32_t index);
+
+  bool SetAccessor(Handle<String> name,
+                   AccessorGetter getter,
+                   AccessorSetter setter = 0,
+                   Handle<Value> data = Handle<Value>(),
+                   AccessControl settings = DEFAULT,
+                   PropertyAttribute attribute = None);
 
   /**
    * Returns an array containing the names of the enumerable properties
@@ -1642,19 +1711,6 @@ typedef Handle<Value> (*InvocationCallback)(const Arguments& args);
 typedef int (*LookupCallback)(Local<Object> self, Local<String> name);
 
 /**
- * Accessor[Getter|Setter] are used as callback functions when
- * setting|getting a particular property. See objectTemplate::SetAccessor.
- */
-typedef Handle<Value> (*AccessorGetter)(Local<String> property,
-                                        const AccessorInfo& info);
-
-
-typedef void (*AccessorSetter)(Local<String> property,
-                               Local<Value> value,
-                               const AccessorInfo& info);
-
-
-/**
  * NamedProperty[Getter|Setter] are used as interceptors on object.
  * See ObjectTemplate::SetNamedPropertyHandler.
  */
@@ -1731,27 +1787,6 @@ typedef Handle<Boolean> (*IndexedPropertyDeleter)(uint32_t index,
  * indexed property getter intercepts.
  */
 typedef Handle<Array> (*IndexedPropertyEnumerator)(const AccessorInfo& info);
-
-
-/**
- * Access control specifications.
- *
- * Some accessors should be accessible across contexts.  These
- * accessors have an explicit access control parameter which specifies
- * the kind of cross-context access that should be allowed.
- *
- * Additionally, for security, accessors can prohibit overwriting by
- * accessors defined in JavaScript.  For objects that have such
- * accessors either locally or in their prototype chain it is not
- * possible to overwrite the accessor by using __defineGetter__ or
- * __defineSetter__ from JavaScript code.
- */
-enum AccessControl {
-  DEFAULT               = 0,
-  ALL_CAN_READ          = 1,
-  ALL_CAN_WRITE         = 1 << 1,
-  PROHIBITS_OVERWRITING = 1 << 2
-};
 
 
 /**
@@ -2866,7 +2901,12 @@ class V8EXPORT Context {
    */
   void ReattachGlobal(Handle<Object> global_object);
 
-  /** Creates a new context. */
+  /** Creates a new context.
+   *
+   * Returns a persistent handle to the newly allocated context. This
+   * persistent handle has to be disposed when the context is no
+   * longer used so the context can be garbage collected.
+   */
   static Persistent<Context> New(
       ExtensionConfiguration* extensions = NULL,
       Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),

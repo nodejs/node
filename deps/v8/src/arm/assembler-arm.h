@@ -773,8 +773,12 @@ class Assembler : public Malloced {
   void strh(Register src, const MemOperand& dst, Condition cond = al);
   void ldrsb(Register dst, const MemOperand& src, Condition cond = al);
   void ldrsh(Register dst, const MemOperand& src, Condition cond = al);
-  void ldrd(Register dst, const MemOperand& src, Condition cond = al);
-  void strd(Register src, const MemOperand& dst, Condition cond = al);
+  void ldrd(Register dst1,
+            Register dst2,
+            const MemOperand& src, Condition cond = al);
+  void strd(Register src1,
+            Register src2,
+            const MemOperand& dst, Condition cond = al);
 
   // Load/Store multiple instructions
   void ldm(BlockAddrMode am, Register base, RegList dst, Condition cond = al);

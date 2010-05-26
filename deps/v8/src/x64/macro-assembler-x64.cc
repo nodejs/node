@@ -603,7 +603,7 @@ void MacroAssembler::SmiCompare(Register dst, Smi* src) {
 }
 
 
-void MacroAssembler::SmiCompare(Register  dst, const Operand& src) {
+void MacroAssembler::SmiCompare(Register dst, const Operand& src) {
   cmpq(dst, src);
 }
 
@@ -614,13 +614,7 @@ void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
 
 
 void MacroAssembler::SmiCompare(const Operand& dst, Smi* src) {
-  if (src->value() == 0) {
-    // Only tagged long smi to have 32-bit representation.
-    cmpq(dst, Immediate(0));
-  } else {
-    Move(kScratchRegister, src);
-    cmpq(dst, kScratchRegister);
-  }
+  cmpl(Operand(dst, kIntSize), Immediate(src->value()));
 }
 
 
@@ -922,8 +916,7 @@ void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
 
 void MacroAssembler::SmiAddConstant(const Operand& dst, Smi* constant) {
   if (constant->value() != 0) {
-    Move(kScratchRegister, constant);
-    addq(dst, kScratchRegister);
+    addl(Operand(dst, kIntSize), Immediate(constant->value()));
   }
 }
 
@@ -1607,13 +1600,7 @@ void MacroAssembler::Drop(int stack_elements) {
 
 
 void MacroAssembler::Test(const Operand& src, Smi* source) {
-  intptr_t smi = reinterpret_cast<intptr_t>(source);
-  if (is_int32(smi)) {
-    testl(src, Immediate(static_cast<int32_t>(smi)));
-  } else {
-    Move(kScratchRegister, source);
-    testq(src, kScratchRegister);
-  }
+  testl(Operand(src, kIntSize), Immediate(source->value()));
 }
 
 

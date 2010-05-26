@@ -277,6 +277,8 @@ class OS {
   // the platform doesn't care. Guaranteed to be a power of two.
   static int ActivationFrameAlignment();
 
+  static void ReleaseStore(volatile AtomicWord* ptr, AtomicWord value);
+
  private:
   static const int msPerSecond = 1000;
 

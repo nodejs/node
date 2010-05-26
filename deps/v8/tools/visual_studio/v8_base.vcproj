@@ -144,6 +144,30 @@
 					/>
 				</FileConfiguration>
 			</File>
+    		<File
+				RelativePath="..\..\src\dtoa.cc"
+				>
+			</File>
+    		<File
+				RelativePath="..\..\src\dtoa.h"
+				>
+			</File>
+    		<File
+				RelativePath="..\..\src\fast-dtoa.cc"
+				>
+			</File>
+    		<File
+				RelativePath="..\..\src\fast-dtoa.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\fixed-dtoa.cc"
+				>
+			</File>
+    		<File
+				RelativePath="..\..\src\fixed-dtoa.h"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="src"
@@ -958,6 +982,14 @@
 			</File>
 			<File
 				RelativePath="..\..\src\type-info.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\unbound-queue-inl.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\unbound-queue.h"
 				>
 			</File>
 			<File

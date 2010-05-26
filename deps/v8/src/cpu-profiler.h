@@ -31,6 +31,7 @@
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "circular-queue.h"
+#include "unbound-queue.h"
 
 namespace v8 {
 namespace internal {
@@ -181,7 +182,7 @@ class ProfilerEventsProcessor : public Thread {
 
   ProfileGenerator* generator_;
   bool running_;
-  CircularQueue<CodeEventsContainer> events_buffer_;
+  UnboundQueue<CodeEventsContainer> events_buffer_;
   SamplingCircularQueue ticks_buffer_;
   unsigned enqueue_order_;
 };

@@ -74,6 +74,8 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
 
   inline CodeGenerator* cgen();
 
+  Label* entry_label() { return &entry_label_; }
+
   const VirtualFrame* entry_frame() const {
     return entry_frame_set_ ? &entry_frame_ : NULL;
   }

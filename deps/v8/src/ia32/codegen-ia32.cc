@@ -695,9 +695,7 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
   } else if (variable != NULL && variable->slot() != NULL) {
     // For a variable that rewrites to a slot, we signal it is the immediate
     // subexpression of a typeof.
-    Result result =
-        LoadFromSlotCheckForArguments(variable->slot(), INSIDE_TYPEOF);
-    frame()->Push(&result);
+    LoadFromSlotCheckForArguments(variable->slot(), INSIDE_TYPEOF);
   } else {
     // Anything else can be handled normally.
     Load(expr);
@@ -746,7 +744,8 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     // We have to skip storing into the arguments slot if it has already
     // been written to. This can happen if the a function has a local
     // variable named 'arguments'.
-    Result probe = LoadFromSlot(arguments->slot(), NOT_INSIDE_TYPEOF);
+    LoadFromSlot(arguments->slot(), NOT_INSIDE_TYPEOF);
+    Result probe = frame_->Pop();
     if (probe.is_constant()) {
       // We have to skip updating the arguments object if it has
       // been assigned a proper value.
@@ -3026,9 +3025,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // Load the receiver and the existing arguments object onto the
   // expression stack. Avoid allocating the arguments object here.
   Load(receiver);
-  Result existing_args =
-      LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
-  frame()->Push(&existing_args);
+  LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
 
   // Emit the source position information after having loaded the
   // receiver and the arguments.
@@ -4719,19 +4716,19 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 }
 
 
-Result CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
-  Result result;
+void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->is_dynamic());
     JumpTarget slow;
     JumpTarget done;
+    Result value;
 
     // Generate fast case for loading from slots that correspond to
     // local/global variables or arguments unless they are shadowed by
     // eval-introduced bindings.
     EmitDynamicLoadFromSlotFastCase(slot,
                                     typeof_state,
-                                    &result,
+                                    &value,
                                     &slow,
                                     &done);
 
@@ -4743,14 +4740,14 @@ Result CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     frame()->EmitPush(esi);
     frame()->EmitPush(Immediate(slot->var()->name()));
     if (typeof_state == INSIDE_TYPEOF) {
-      result =
+      value =
           frame()->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
     } else {
-      result = frame()->CallRuntime(Runtime::kLoadContextSlot, 2);
+      value = frame()->CallRuntime(Runtime::kLoadContextSlot, 2);
     }
 
-    done.Bind(&result);
-    return result;
+    done.Bind(&value);
+    frame_->Push(&value);
 
   } else if (slot->var()->mode() == Variable::CONST) {
     // Const slots may contain 'the hole' value (the constant hasn't been
@@ -4767,15 +4764,13 @@ Result CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     __ j(not_equal, &exit);
     __ mov(ecx, Factory::undefined_value());
     __ bind(&exit);
-    return Result(ecx);
+    frame()->EmitPush(ecx);
 
   } else if (slot->type() == Slot::PARAMETER) {
     frame()->PushParameterAt(slot->index());
-    return frame()->Pop();
 
   } else if (slot->type() == Slot::LOCAL) {
     frame()->PushLocalAt(slot->index());
-    return frame()->Pop();
 
   } else {
     // The other remaining slot types (LOOKUP and GLOBAL) cannot reach
@@ -4784,46 +4779,48 @@ Result CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     // The use of SlotOperand below is safe for an unspilled frame
     // because it will always be a context slot.
     ASSERT(slot->type() == Slot::CONTEXT);
-    result = allocator()->Allocate();
-    ASSERT(result.is_valid());
-    __ mov(result.reg(), SlotOperand(slot, result.reg()));
-    return result;
+    Result temp = allocator()->Allocate();
+    ASSERT(temp.is_valid());
+    __ mov(temp.reg(), SlotOperand(slot, temp.reg()));
+    frame()->Push(&temp);
   }
 }
 
 
-Result CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
+void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
                                                     TypeofState state) {
-  Result result = LoadFromSlot(slot, state);
+  LoadFromSlot(slot, state);
 
   // Bail out quickly if we're not using lazy arguments allocation.
-  if (ArgumentsMode() != LAZY_ARGUMENTS_ALLOCATION) return result;
+  if (ArgumentsMode() != LAZY_ARGUMENTS_ALLOCATION) return;
 
   // ... or if the slot isn't a non-parameter arguments slot.
-  if (slot->type() == Slot::PARAMETER || !slot->is_arguments()) return result;
+  if (slot->type() == Slot::PARAMETER || !slot->is_arguments()) return;
 
   // If the loaded value is a constant, we know if the arguments
   // object has been lazily loaded yet.
+  Result result = frame()->Pop();
   if (result.is_constant()) {
     if (result.handle()->IsTheHole()) {
-      result.Unuse();
-      return StoreArgumentsObject(false);
-    } else {
-      return result;
+      result = StoreArgumentsObject(false);
     }
+    frame()->Push(&result);
+    return;
   }
-
+  ASSERT(result.is_register());
   // The loaded value is in a register. If it is the sentinel that
   // indicates that we haven't loaded the arguments object yet, we
   // need to do it now.
   JumpTarget exit;
   __ cmp(Operand(result.reg()), Immediate(Factory::the_hole_value()));
-  exit.Branch(not_equal, &result);
+  frame()->Push(&result);
+  exit.Branch(not_equal);
 
-  result.Unuse();
   result = StoreArgumentsObject(false);
-  exit.Bind(&result);
-  return result;
+  frame()->SetElementAt(0, &result);
+  result.Unuse();
+  exit.Bind();
+  return;
 }
 
 
@@ -5073,8 +5070,7 @@ void CodeGenerator::VisitSlot(Slot* slot) {
       UNREACHABLE();
     }
   } else {
-    Result result = LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
-    frame()->Push(&result);
+    LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
   }
 }
 
@@ -5395,8 +5391,7 @@ void CodeGenerator::EmitSlotAssignment(Assignment* node) {
   if (node->is_compound()) {
     // For a compound assignment the right-hand side is a binary operation
     // between the current property value and the actual right-hand side.
-    Result result = LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
-    frame()->Push(&result);
+    LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
     Load(node->value());
 
     // Perform the binary operation.
@@ -8603,15 +8598,15 @@ Result CodeGenerator::EmitKeyedLoad() {
   if (loop_nesting() > 0) {
     Comment cmnt(masm_, "[ Inlined load from keyed Property");
 
-    Result key = frame_->Pop();
-    Result receiver = frame_->Pop();
-    key.ToRegister();
-    receiver.ToRegister();
-
     // Use a fresh temporary to load the elements without destroying
     // the receiver which is needed for the deferred slow case.
     Result elements = allocator()->Allocate();
     ASSERT(elements.is_valid());
+
+    Result key = frame_->Pop();
+    Result receiver = frame_->Pop();
+    key.ToRegister();
+    receiver.ToRegister();
 
     // Use a fresh temporary for the index and later the loaded
     // value.
@@ -8626,6 +8621,7 @@ Result CodeGenerator::EmitKeyedLoad() {
     __ test(receiver.reg(), Immediate(kSmiTagMask));
     deferred->Branch(zero);
 
+    // Check that the receiver has the expected map.
     // Initially, use an invalid map. The map is patched in the IC
     // initialization code.
     __ bind(deferred->patch_site());
@@ -8659,7 +8655,6 @@ Result CodeGenerator::EmitKeyedLoad() {
            FieldOperand(elements.reg(), FixedArray::kLengthOffset));
     deferred->Branch(above_equal);
 
-    // Load and check that the result is not the hole.
     __ mov(result.reg(), Operand(elements.reg(),
                                  result.reg(),
                                  times_4,
@@ -8857,10 +8852,8 @@ void Reference::GetValue() {
       Comment cmnt(masm, "[ Load from Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
-      Result result =
-          cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
+      cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
       if (!persist_after_get_) set_unloaded();
-      cgen_->frame()->Push(&result);
       break;
     }
 

@@ -2222,9 +2222,7 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(eax, Map::kInstanceTypeOffset));
-  __ cmp(ebx, FIRST_JS_OBJECT_TYPE);
+  __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, eax);  // Map is now in eax.
   __ j(below, &null);
 
   // As long as JS_FUNCTION_TYPE is the last instance type and it is

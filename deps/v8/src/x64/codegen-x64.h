@@ -449,10 +449,13 @@ class CodeGenerator: public AstVisitor {
   // value in place.
   void StoreToSlot(Slot* slot, InitState init_state);
 
+  // Receiver is passed on the frame and not consumed.
+  Result EmitNamedLoad(Handle<String> name, bool is_contextual);
+
   // Load a property of an object, returning it in a Result.
   // The object and the property name are passed on the stack, and
   // not changed.
-  Result EmitKeyedLoad(bool is_global);
+  Result EmitKeyedLoad();
 
   // Special code for typeof expressions: Unfortunately, we must
   // be careful when loading the expression in 'typeof'

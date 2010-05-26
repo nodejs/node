@@ -2217,7 +2217,7 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rax);
+  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rax);  // Map is now in rax.
   __ j(below, &null);
 
   // As long as JS_FUNCTION_TYPE is the last instance type and it is

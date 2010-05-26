@@ -603,9 +603,8 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
  public:
   explicit DeferredReferenceGetKeyedValue(Register dst,
                                           Register receiver,
-                                          Register key,
-                                          bool is_global)
-      : dst_(dst), receiver_(receiver), key_(key), is_global_(is_global) {
+                                          Register key)
+      : dst_(dst), receiver_(receiver), key_(key) {
     set_comment("[ DeferredReferenceGetKeyedValue");
   }
 
@@ -618,7 +617,6 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
   Register dst_;
   Register receiver_;
   Register key_;
-  bool is_global_;
 };
 
 
@@ -633,10 +631,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  RelocInfo::Mode mode = is_global_
-                         ? RelocInfo::CODE_TARGET_CONTEXT
-                         : RelocInfo::CODE_TARGET;
-  __ Call(ic, mode);
+  __ Call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the __
   // macro because the macro sometimes uses macro expansion to turn
@@ -5693,7 +5688,7 @@ void CodeGenerator::EmitDynamicLoadFromSlotFastCase(Slot* slot,
                                                     slow));
           frame_->Push(&arguments);
           frame_->Push(key_literal->handle());
-          *result = EmitKeyedLoad(false);
+          *result = EmitKeyedLoad();
           frame_->Drop(2);  // Drop key and receiver.
           done->Jump(result);
         }
@@ -7188,8 +7183,89 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
 }
 
 
-Result CodeGenerator::EmitKeyedLoad(bool is_global) {
-  Comment cmnt(masm_, "[ Load from keyed Property");
+Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Result result;
+  // Do not inline the inobject property case for loads from the global
+  // object.  Also do not inline for unoptimized code.  This saves time
+  // in the code generator.  Unoptimized code is toplevel code or code
+  // that is not in a loop.
+  if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
+    Comment cmnt(masm(), "[ Load from named Property");
+    frame()->Push(name);
+
+    RelocInfo::Mode mode = is_contextual
+        ? RelocInfo::CODE_TARGET_CONTEXT
+        : RelocInfo::CODE_TARGET;
+    result = frame()->CallLoadIC(mode);
+    // A test rax instruction following the call signals that the
+    // inobject property case was inlined.  Ensure that there is not
+    // a test rax instruction here.
+    __ nop();
+  } else {
+    // Inline the inobject property case.
+    Comment cmnt(masm(), "[ Inlined named property load");
+    Result receiver = frame()->Pop();
+    receiver.ToRegister();
+    result = allocator()->Allocate();
+    ASSERT(result.is_valid());
+
+    // Cannot use r12 for receiver, because that changes
+    // the distance between a call and a fixup location,
+    // due to a special encoding of r12 as r/m in a ModR/M byte.
+    if (receiver.reg().is(r12)) {
+      frame()->Spill(receiver.reg());  // It will be overwritten with result.
+      // Swap receiver and value.
+      __ movq(result.reg(), receiver.reg());
+      Result temp = receiver;
+      receiver = result;
+      result = temp;
+    }
+
+    DeferredReferenceGetNamedValue* deferred =
+        new DeferredReferenceGetNamedValue(result.reg(), receiver.reg(), name);
+
+    // Check that the receiver is a heap object.
+    __ JumpIfSmi(receiver.reg(), deferred->entry_label());
+
+    __ bind(deferred->patch_site());
+    // This is the map check instruction that will be patched (so we can't
+    // use the double underscore macro that may insert instructions).
+    // Initially use an invalid map to force a failure.
+    masm()->Move(kScratchRegister, Factory::null_value());
+    masm()->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+                 kScratchRegister);
+    // This branch is always a forwards branch so it's always a fixed
+    // size which allows the assert below to succeed and patching to work.
+    // Don't use deferred->Branch(...), since that might add coverage code.
+    masm()->j(not_equal, deferred->entry_label());
+
+    // The delta from the patch label to the load offset must be
+    // statically known.
+    ASSERT(masm()->SizeOfCodeGeneratedSince(deferred->patch_site()) ==
+           LoadIC::kOffsetToLoadInstruction);
+    // The initial (invalid) offset has to be large enough to force
+    // a 32-bit instruction encoding to allow patching with an
+    // arbitrary offset.  Use kMaxInt (minus kHeapObjectTag).
+    int offset = kMaxInt;
+    masm()->movq(result.reg(), FieldOperand(receiver.reg(), offset));
+
+    __ IncrementCounter(&Counters::named_load_inline, 1);
+    deferred->BindExit();
+    frame()->Push(&receiver);
+  }
+  ASSERT(frame()->height() == original_height);
+  return result;
+}
+
+
+Result CodeGenerator::EmitKeyedLoad() {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Result result;
   // Inline array load code if inside of a loop.  We do not know
   // the receiver map yet, so we initially generate the code with
   // a check against an invalid map.  In the inline cache code, we
@@ -7197,34 +7273,30 @@ Result CodeGenerator::EmitKeyedLoad(bool is_global) {
   if (loop_nesting() > 0) {
     Comment cmnt(masm_, "[ Inlined load from keyed Property");
 
+    // Use a fresh temporary to load the elements without destroying
+    // the receiver which is needed for the deferred slow case.
+    // Allocate the temporary early so that we use rax if it is free.
+    Result elements = allocator()->Allocate();
+    ASSERT(elements.is_valid());
+
+
     Result key = frame_->Pop();
     Result receiver = frame_->Pop();
     key.ToRegister();
     receiver.ToRegister();
 
-    // Use a fresh temporary to load the elements without destroying
-    // the receiver which is needed for the deferred slow case.
-    Result elements = allocator()->Allocate();
-    ASSERT(elements.is_valid());
-
-    // Use a fresh temporary for the index and later the loaded
-    // value.
+    // Use a fresh temporary for the index
     Result index = allocator()->Allocate();
     ASSERT(index.is_valid());
 
     DeferredReferenceGetKeyedValue* deferred =
-        new DeferredReferenceGetKeyedValue(index.reg(),
+        new DeferredReferenceGetKeyedValue(elements.reg(),
                                            receiver.reg(),
-                                           key.reg(),
-                                           is_global);
+                                           key.reg());
 
-    // Check that the receiver is not a smi (only needed if this
-    // is not a load from the global context) and that it has the
-    // expected map.
-    if (!is_global) {
-      __ JumpIfSmi(receiver.reg(), deferred->entry_label());
-    }
+    __ JumpIfSmi(receiver.reg(), deferred->entry_label());
 
+    // Check that the receiver has the expected map.
     // Initially, use an invalid map. The map is patched in the IC
     // initialization code.
     __ bind(deferred->patch_site());
@@ -7255,7 +7327,6 @@ Result CodeGenerator::EmitKeyedLoad(bool is_global) {
     __ cmpl(index.reg(),
             FieldOperand(elements.reg(), FixedArray::kLengthOffset));
     deferred->Branch(above_equal);
-
     // The index register holds the un-smi-tagged key. It has been
     // zero-extended to 64-bits, so it can be used directly as index in the
     // operand below.
@@ -7266,39 +7337,33 @@ Result CodeGenerator::EmitKeyedLoad(bool is_global) {
     // heuristic about which register to reuse.  For example, if
     // one is rax, the we can reuse that one because the value
     // coming from the deferred code will be in rax.
-    Result value = index;
-    __ movq(value.reg(),
+    __ movq(elements.reg(),
             Operand(elements.reg(),
                     index.reg(),
                     times_pointer_size,
                     FixedArray::kHeaderSize - kHeapObjectTag));
+    result = elements;
     elements.Unuse();
     index.Unuse();
-    __ CompareRoot(value.reg(), Heap::kTheHoleValueRootIndex);
+    __ CompareRoot(result.reg(), Heap::kTheHoleValueRootIndex);
     deferred->Branch(equal);
     __ IncrementCounter(&Counters::keyed_load_inline, 1);
 
     deferred->BindExit();
-    // Restore the receiver and key to the frame and push the
-    // result on top of it.
     frame_->Push(&receiver);
     frame_->Push(&key);
-    return value;
-
   } else {
     Comment cmnt(masm_, "[ Load from keyed Property");
-    RelocInfo::Mode mode = is_global
-        ? RelocInfo::CODE_TARGET_CONTEXT
-        : RelocInfo::CODE_TARGET;
-    Result answer = frame_->CallKeyedLoadIC(mode);
+    result = frame_->CallKeyedLoadIC(RelocInfo::CODE_TARGET);
     // Make sure that we do not have a test instruction after the
     // call.  A test instruction after the call is used to
     // indicate that we have generated an inline version of the
     // keyed load.  The explicit nop instruction is here because
     // the push that follows might be peep-hole optimized away.
     __ nop();
-    return answer;
   }
+  ASSERT(frame()->height() == original_height);
+  return result;
 }
 
 
@@ -7341,6 +7406,7 @@ void Reference::GetValue() {
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
+      if (!persist_after_get_) set_unloaded();
       break;
     }
 
@@ -7348,100 +7414,28 @@ void Reference::GetValue() {
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
-
-      // Do not inline the inobject property case for loads from the global
-      // object.  Also do not inline for unoptimized code.  This saves time
-      // in the code generator.  Unoptimized code is toplevel code or code
-      // that is not in a loop.
-      if (is_global ||
-          cgen_->scope()->is_global_scope() ||
-          cgen_->loop_nesting() == 0) {
-        Comment cmnt(masm, "[ Load from named Property");
-        cgen_->frame()->Push(GetName());
-
-        RelocInfo::Mode mode = is_global
-                               ? RelocInfo::CODE_TARGET_CONTEXT
-                               : RelocInfo::CODE_TARGET;
-        Result answer = cgen_->frame()->CallLoadIC(mode);
-        // A test rax instruction following the call signals that the
-        // inobject property case was inlined.  Ensure that there is not
-        // a test rax instruction here.
-        __ nop();
-        cgen_->frame()->Push(&answer);
-      } else {
-        // Inline the inobject property case.
-        Comment cmnt(masm, "[ Inlined named property load");
-        Result receiver = cgen_->frame()->Pop();
-        receiver.ToRegister();
-        Result value = cgen_->allocator()->Allocate();
-        ASSERT(value.is_valid());
-        // Cannot use r12 for receiver, because that changes
-        // the distance between a call and a fixup location,
-        // due to a special encoding of r12 as r/m in a ModR/M byte.
-        if (receiver.reg().is(r12)) {
-          // Swap receiver and value.
-          __ movq(value.reg(), receiver.reg());
-          Result temp = receiver;
-          receiver = value;
-          value = temp;
-          cgen_->frame()->Spill(value.reg());  // r12 may have been shared.
-        }
-
-        DeferredReferenceGetNamedValue* deferred =
-            new DeferredReferenceGetNamedValue(value.reg(),
-                                               receiver.reg(),
-                                               GetName());
-
-        // Check that the receiver is a heap object.
-        __ JumpIfSmi(receiver.reg(), deferred->entry_label());
-
-        __ bind(deferred->patch_site());
-        // This is the map check instruction that will be patched (so we can't
-        // use the double underscore macro that may insert instructions).
-        // Initially use an invalid map to force a failure.
-        masm->Move(kScratchRegister, Factory::null_value());
-        masm->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
-                   kScratchRegister);
-        // This branch is always a forwards branch so it's always a fixed
-        // size which allows the assert below to succeed and patching to work.
-        // Don't use deferred->Branch(...), since that might add coverage code.
-        masm->j(not_equal, deferred->entry_label());
-
-        // The delta from the patch label to the load offset must be
-        // statically known.
-        ASSERT(masm->SizeOfCodeGeneratedSince(deferred->patch_site()) ==
-               LoadIC::kOffsetToLoadInstruction);
-        // The initial (invalid) offset has to be large enough to force
-        // a 32-bit instruction encoding to allow patching with an
-        // arbitrary offset.  Use kMaxInt (minus kHeapObjectTag).
-        int offset = kMaxInt;
-        masm->movq(value.reg(), FieldOperand(receiver.reg(), offset));
-
-        __ IncrementCounter(&Counters::named_load_inline, 1);
-        deferred->BindExit();
-        cgen_->frame()->Push(&receiver);
-        cgen_->frame()->Push(&value);
+      Result result = cgen_->EmitNamedLoad(GetName(), is_global);
+      cgen_->frame()->Push(&result);
+      if (!persist_after_get_) {
+        cgen_->UnloadReference(this);
       }
       break;
     }
 
     case KEYED: {
-      Comment cmnt(masm, "[ Load from keyed Property");
-      Variable* var = expression_->AsVariableProxy()->AsVariable();
-      bool is_global = var != NULL;
-      ASSERT(!is_global || var->is_global());
+      // A load of a bare identifier (load from global) cannot be keyed.
+      ASSERT(expression_->AsVariableProxy()->AsVariable() == NULL);
 
-      Result value = cgen_->EmitKeyedLoad(is_global);
+      Result value = cgen_->EmitKeyedLoad();
       cgen_->frame()->Push(&value);
+      if (!persist_after_get_) {
+        cgen_->UnloadReference(this);
+      }
       break;
     }
 
     default:
       UNREACHABLE();
-  }
-
-  if (!persist_after_get_) {
-    cgen_->UnloadReference(this);
   }
 }
 

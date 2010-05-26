@@ -436,7 +436,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
                         Register holder,
                         Register scratch1,
                         Register scratch2,
-                        JSObject* holder_obj,
+                        JSObject* interceptor_holder,
                         LookupResult* lookup,
                         String* name,
                         Label* miss_label) {
@@ -456,7 +456,8 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
     }
 
     if (!optimize) {
-      CompileRegular(masm, receiver, holder, scratch2, holder_obj, miss_label);
+      CompileRegular(masm, receiver, holder, scratch2, interceptor_holder,
+                     miss_label);
       return;
     }
 
@@ -466,14 +467,18 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
     __ push(receiver);
     __ Push(holder, name_);
 
+    // Invoke an interceptor.  Note: map checks from receiver to
+    // interceptor's holder has been compiled before (see a caller
+    // of this method.)
     CompileCallLoadPropertyWithInterceptor(masm,
                                            receiver,
                                            holder,
                                            name_,
-                                           holder_obj);
+                                           interceptor_holder);
 
+    // Check if interceptor provided a value for property.  If it's
+    // the case, return immediately.
     Label interceptor_failed;
-    // Compare with no_interceptor_result_sentinel.
     __ LoadRoot(scratch1, Heap::kNoInterceptorResultSentinelRootIndex);
     __ cmp(r0, scratch1);
     __ b(eq, &interceptor_failed);
@@ -488,13 +493,17 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
     __ LeaveInternalFrame();
 
     if (lookup->type() == FIELD) {
-      holder = stub_compiler->CheckPrototypes(holder_obj,
+      // We found FIELD property in prototype chain of interceptor's holder.
+      // Check that the maps from interceptor's holder to field's holder
+      // haven't changed...
+      holder = stub_compiler->CheckPrototypes(interceptor_holder,
                                               holder,
                                               lookup->holder(),
                                               scratch1,
                                               scratch2,
                                               name,
                                               miss_label);
+      // ... and retrieve a field from field's holder.
       stub_compiler->GenerateFastPropertyLoad(masm,
                                               r0,
                                               holder,
@@ -502,30 +511,38 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
                                               lookup->GetFieldIndex());
       __ Ret();
     } else {
+      // We found CALLBACKS property in prototype chain of interceptor's
+      // holder.
       ASSERT(lookup->type() == CALLBACKS);
       ASSERT(lookup->GetCallbackObject()->IsAccessorInfo());
       ASSERT(callback != NULL);
       ASSERT(callback->getter() != NULL);
 
+      // Prepare for tail call: push receiver to stack.
       Label cleanup;
       __ push(receiver);
 
-      holder = stub_compiler->CheckPrototypes(holder_obj, holder,
+      // Check that the maps from interceptor's holder to callback's holder
+      // haven't changed.
+      holder = stub_compiler->CheckPrototypes(interceptor_holder, holder,
                                               lookup->holder(), scratch1,
                                               scratch2,
                                               name,
                                               &cleanup);
 
+      // Continue tail call preparation: push remaining parameters.
       __ push(holder);
       __ Move(holder, Handle<AccessorInfo>(callback));
       __ push(holder);
       __ ldr(scratch1, FieldMemOperand(holder, AccessorInfo::kDataOffset));
       __ Push(scratch1, name_);
 
+      // Tail call to runtime.
       ExternalReference ref =
           ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
       __ TailCallExternalReference(ref, 5, 1);
 
+      // Clean up code: we pushed receiver and need to remove it.
       __ bind(&cleanup);
       __ pop(scratch2);
     }
@@ -536,9 +553,9 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
                       Register receiver,
                       Register holder,
                       Register scratch,
-                      JSObject* holder_obj,
+                      JSObject* interceptor_holder,
                       Label* miss_label) {
-    PushInterceptorArguments(masm, receiver, holder, name_, holder_obj);
+    PushInterceptorArguments(masm, receiver, holder, name_, interceptor_holder);
 
     ExternalReference ref = ExternalReference(
         IC_Utility(IC::kLoadPropertyWithInterceptorForLoad));
@@ -714,7 +731,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                        Register receiver,
                        Register scratch1,
                        Register scratch2,
-                       JSObject* holder_obj,
+                       JSObject* interceptor_holder,
                        LookupResult* lookup,
                        String* name,
                        const CallOptimization& optimization,
@@ -727,10 +744,13 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     bool can_do_fast_api_call = false;
     if (optimization.is_simple_api_call() &&
        !lookup->holder()->IsGlobalObject()) {
-     depth1 = optimization.GetPrototypeDepthOfExpectedType(object, holder_obj);
+     depth1 =
+         optimization.GetPrototypeDepthOfExpectedType(object,
+                                                      interceptor_holder);
      if (depth1 == kInvalidProtoDepth) {
-       depth2 = optimization.GetPrototypeDepthOfExpectedType(holder_obj,
-                                                             lookup->holder());
+       depth2 =
+           optimization.GetPrototypeDepthOfExpectedType(interceptor_holder,
+                                                        lookup->holder());
      }
      can_do_fast_api_call = (depth1 != kInvalidProtoDepth) ||
                             (depth2 != kInvalidProtoDepth);
@@ -745,23 +765,31 @@ class CallInterceptorCompiler BASE_EMBEDDED {
       ReserveSpaceForFastApiCall(masm, scratch1);
     }
 
+    // Check that the maps from receiver to interceptor's holder
+    // haven't changed and thus we can invoke interceptor.
     Label miss_cleanup;
     Label* miss = can_do_fast_api_call ? &miss_cleanup : miss_label;
     Register holder =
-        stub_compiler_->CheckPrototypes(object, receiver, holder_obj, scratch1,
-                                        scratch2, name, depth1, miss);
+        stub_compiler_->CheckPrototypes(object, receiver, interceptor_holder,
+                                        scratch1, scratch2, name,
+                                        depth1, miss);
 
+    // Invoke an interceptor and if it provides a value,
+    // branch to |regular_invoke|.
     Label regular_invoke;
-    LoadWithInterceptor(masm, receiver, holder, holder_obj, scratch2,
+    LoadWithInterceptor(masm, receiver, holder, interceptor_holder, scratch2,
                         &regular_invoke);
 
-    // Generate code for the failed interceptor case.
+    // Interceptor returned nothing for this property.  Try to use cached
+    // constant function.
 
-    // Check the lookup is still valid.
-    stub_compiler_->CheckPrototypes(holder_obj, receiver,
+    // Check that the maps from interceptor's holder to constant function's
+    // holder haven't changed and thus we can use cached constant function.
+    stub_compiler_->CheckPrototypes(interceptor_holder, receiver,
                                     lookup->holder(), scratch1,
                                     scratch2, name, depth2, miss);
 
+    // Invoke function.
     if (can_do_fast_api_call) {
       GenerateFastApiCall(masm, optimization, arguments_.immediate());
     } else {
@@ -769,12 +797,14 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                         JUMP_FUNCTION);
     }
 
+    // Deferred code for fast API call case---clean preallocated space.
     if (can_do_fast_api_call) {
       __ bind(&miss_cleanup);
       FreeSpaceForFastApiCall(masm);
       __ b(miss_label);
     }
 
+    // Invoke a regular function.
     __ bind(&regular_invoke);
     if (can_do_fast_api_call) {
       FreeSpaceForFastApiCall(masm);
@@ -787,10 +817,10 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                       Register scratch1,
                       Register scratch2,
                       String* name,
-                      JSObject* holder_obj,
+                      JSObject* interceptor_holder,
                       Label* miss_label) {
     Register holder =
-        stub_compiler_->CheckPrototypes(object, receiver, holder_obj,
+        stub_compiler_->CheckPrototypes(object, receiver, interceptor_holder,
                                         scratch1, scratch2, name,
                                         miss_label);
 
@@ -803,7 +833,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                              receiver,
                              holder,
                              name_,
-                             holder_obj);
+                             interceptor_holder);
 
     __ CallExternalReference(
           ExternalReference(

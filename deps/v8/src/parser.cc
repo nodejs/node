@@ -5073,12 +5073,12 @@ ScriptDataImpl::~ScriptDataImpl() {
 
 
 int ScriptDataImpl::Length() {
-  return store_.length();
+  return store_.length() * sizeof(unsigned);
 }
 
 
-unsigned* ScriptDataImpl::Data() {
-  return store_.start();
+const char* ScriptDataImpl::Data() {
+  return reinterpret_cast<const char*>(store_.start());
 }
 
 

@@ -627,6 +627,8 @@
 		9FBE03E410BD412600F8BFBA /* fast-codegen-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "fast-codegen-arm.cc"; path = "arm/fast-codegen-arm.cc"; sourceTree = "<group>"; };
 		9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "oprofile-agent.cc"; sourceTree = "<group>"; };
 		9FC86ABC0F5FEDAC00F22668 /* oprofile-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "oprofile-agent.h"; sourceTree = "<group>"; };
+		9FF7A28211A642EA0051B8F2 /* unbound-queue-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "unbound-queue-inl.h"; sourceTree = "<group>"; };
+		9FF7A28311A642EA0051B8F2 /* unbound-queue.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "unbound-queue.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -970,6 +972,8 @@
 				897FF1910E719B8F00D62E90 /* top.h */,
 				9FA38BAE1175B2D200C4CD55 /* type-info.cc */,
 				9FA38BAF1175B2D200C4CD55 /* type-info.h */,
+				9FF7A28211A642EA0051B8F2 /* unbound-queue-inl.h */,
+				9FF7A28311A642EA0051B8F2 /* unbound-queue.h */,
 				897FF1920E719B8F00D62E90 /* unicode-inl.h */,
 				897FF1930E719B8F00D62E90 /* unicode.cc */,
 				897FF1940E719B8F00D62E90 /* unicode.h */,

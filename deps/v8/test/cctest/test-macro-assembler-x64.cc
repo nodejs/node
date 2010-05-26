@@ -61,6 +61,7 @@ using v8::internal::r12;  // Remember: r12..r15 are callee save!
 using v8::internal::r13;
 using v8::internal::r14;
 using v8::internal::r15;
+using v8::internal::times_pointer_size;
 using v8::internal::FUNCTION_CAST;
 using v8::internal::CodeDesc;
 using v8::internal::less_equal;
@@ -75,6 +76,8 @@ using v8::internal::positive;
 using v8::internal::Smi;
 using v8::internal::kSmiTagMask;
 using v8::internal::kSmiValueSize;
+using v8::internal::kPointerSize;
+using v8::internal::kIntSize;
 
 // Test the x64 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
@@ -2051,6 +2054,360 @@ TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
 }
+
+
+TEST(OperandOffset) {
+  int data[256];
+  for (int i = 0; i < 256; i++) { data[i] = i * 0x01010101; }
+
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer =
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+                                      &actual_size,
+                                      true));
+  CHECK(buffer);
+  HandleScope handles;
+  MacroAssembler assembler(buffer, static_cast<int>(actual_size));
+
+  MacroAssembler* masm = &assembler;
+  masm->set_allow_stub_calls(false);
+  Label exit;
+
+  __ push(r12);
+  __ push(r13);
+  __ push(rbx);
+  __ push(rbp);
+  __ push(Immediate(0x100));  // <-- rbp
+  __ movq(rbp, rsp);
+  __ push(Immediate(0x101));
+  __ push(Immediate(0x102));
+  __ push(Immediate(0x103));
+  __ push(Immediate(0x104));
+  __ push(Immediate(0x105));  // <-- rbx
+  __ push(Immediate(0x106));
+  __ push(Immediate(0x107));
+  __ push(Immediate(0x108));
+  __ push(Immediate(0x109));  // <-- rsp
+  // rbp = rsp[9]
+  // r12 = rsp[3]
+  // rbx = rsp[5]
+  // r13 = rsp[7]
+  __ lea(r12, Operand(rsp, 3 * kPointerSize));
+  __ lea(r13, Operand(rbp, -3 * kPointerSize));
+  __ lea(rbx, Operand(rbp, -5 * kPointerSize));
+  __ movl(rcx, Immediate(2));
+  __ movq(r8, reinterpret_cast<uintptr_t>(&data[128]), RelocInfo::NONE);
+  __ movl(rax, Immediate(1));
+
+  Operand sp0 = Operand(rsp, 0);
+
+  // Test 1.
+  __ movl(rdx, sp0);  // Sanity check.
+  __ cmpl(rdx, Immediate(0x109));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  // Test 2.
+  // Zero to non-zero displacement.
+  __ movl(rdx, Operand(sp0, 2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x107));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  Operand sp2 = Operand(rsp, 2 * kPointerSize);
+
+  // Test 3.
+  __ movl(rdx, sp2);  // Sanity check.
+  __ cmpl(rdx, Immediate(0x107));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(sp2, 2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x105));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  // Non-zero to zero displacement.
+  __ movl(rdx, Operand(sp2, -2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x109));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  Operand sp2c2 = Operand(rsp, rcx, times_pointer_size, 2 * kPointerSize);
+
+  // Test 6.
+  __ movl(rdx, sp2c2);  // Sanity check.
+  __ cmpl(rdx, Immediate(0x105));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(sp2c2, 2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x103));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  // Non-zero to zero displacement.
+  __ movl(rdx, Operand(sp2c2, -2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x107));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+
+  Operand bp0 = Operand(rbp, 0);
+
+  // Test 9.
+  __ movl(rdx, bp0);  // Sanity check.
+  __ cmpl(rdx, Immediate(0x100));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  // Zero to non-zero displacement.
+  __ movl(rdx, Operand(bp0, -2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x102));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  Operand bp2 = Operand(rbp, -2 * kPointerSize);
+
+  // Test 11.
+  __ movl(rdx, bp2);  // Sanity check.
+  __ cmpl(rdx, Immediate(0x102));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  // Non-zero to zero displacement.
+  __ movl(rdx, Operand(bp2, 2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x100));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(bp2, -2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x104));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  Operand bp2c4 = Operand(rbp, rcx, times_pointer_size, -4 * kPointerSize);
+
+  // Test 14:
+  __ movl(rdx, bp2c4);  // Sanity check.
+  __ cmpl(rdx, Immediate(0x102));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(bp2c4, 2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x100));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(bp2c4, -2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x104));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  Operand bx0 = Operand(rbx, 0);
+
+  // Test 17.
+  __ movl(rdx, bx0);  // Sanity check.
+  __ cmpl(rdx, Immediate(0x105));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(bx0, 5 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x100));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(bx0, -4 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x109));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  Operand bx2 = Operand(rbx, 2 * kPointerSize);
+
+  // Test 20.
+  __ movl(rdx, bx2);  // Sanity check.
+  __ cmpl(rdx, Immediate(0x103));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(bx2, 2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x101));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  // Non-zero to zero displacement.
+  __ movl(rdx, Operand(bx2, -2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x105));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  Operand bx2c2 = Operand(rbx, rcx, times_pointer_size, -2 * kPointerSize);
+
+  // Test 23.
+  __ movl(rdx, bx2c2);  // Sanity check.
+  __ cmpl(rdx, Immediate(0x105));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(bx2c2, 2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x103));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(bx2c2, -2 * kPointerSize));
+  __ cmpl(rdx, Immediate(0x107));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  Operand r80 = Operand(r8, 0);
+
+  // Test 26.
+  __ movl(rdx, r80);  // Sanity check.
+  __ cmpl(rdx, Immediate(0x80808080));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r80, -8 * kIntSize));
+  __ cmpl(rdx, Immediate(0x78787878));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r80, 8 * kIntSize));
+  __ cmpl(rdx, Immediate(0x88888888));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r80, -64 * kIntSize));
+  __ cmpl(rdx, Immediate(0x40404040));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r80, 64 * kIntSize));
+  __ cmpl(rdx, Immediate(0xC0C0C0C0));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  Operand r88 = Operand(r8, 8 * kIntSize);
+
+  // Test 31.
+  __ movl(rdx, r88);  // Sanity check.
+  __ cmpl(rdx, Immediate(0x88888888));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r88, -8 * kIntSize));
+  __ cmpl(rdx, Immediate(0x80808080));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r88, 8 * kIntSize));
+  __ cmpl(rdx, Immediate(0x90909090));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r88, -64 * kIntSize));
+  __ cmpl(rdx, Immediate(0x48484848));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r88, 64 * kIntSize));
+  __ cmpl(rdx, Immediate(0xC8C8C8C8));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+
+  Operand r864 = Operand(r8, 64 * kIntSize);
+
+  // Test 36.
+  __ movl(rdx, r864);  // Sanity check.
+  __ cmpl(rdx, Immediate(0xC0C0C0C0));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r864, -8 * kIntSize));
+  __ cmpl(rdx, Immediate(0xB8B8B8B8));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r864, 8 * kIntSize));
+  __ cmpl(rdx, Immediate(0xC8C8C8C8));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r864, -64 * kIntSize));
+  __ cmpl(rdx, Immediate(0x80808080));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r864, 32 * kIntSize));
+  __ cmpl(rdx, Immediate(0xE0E0E0E0));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  // 32-bit offset to 8-bit offset.
+  __ movl(rdx, Operand(r864, -60 * kIntSize));
+  __ cmpl(rdx, Immediate(0x84848484));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r864, 60 * kIntSize));
+  __ cmpl(rdx, Immediate(0xFCFCFCFC));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  // Test unaligned offsets.
+
+  // Test 43.
+  __ movl(rdx, Operand(r80, 2));
+  __ cmpl(rdx, Immediate(0x81818080));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r80, -2));
+  __ cmpl(rdx, Immediate(0x80807F7F));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r80, 126));
+  __ cmpl(rdx, Immediate(0xA0A09F9F));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r80, -126));
+  __ cmpl(rdx, Immediate(0x61616060));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r80, 254));
+  __ cmpl(rdx, Immediate(0xC0C0BFBF));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  __ movl(rdx, Operand(r80, -254));
+  __ cmpl(rdx, Immediate(0x41414040));
+  __ j(not_equal, &exit);
+  __ incq(rax);
+
+  // Success.
+
+  __ movl(rax, Immediate(0));
+  __ bind(&exit);
+  __ lea(rsp, Operand(rbp, kPointerSize));
+  __ pop(rbp);
+  __ pop(rbx);
+  __ pop(r13);
+  __ pop(r12);
+  __ ret(0);
+
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  // Call the function from C++.
+  int result = FUNCTION_CAST<F0>(buffer)();
+  CHECK_EQ(0, result);
+}
+
 
 
 #undef __

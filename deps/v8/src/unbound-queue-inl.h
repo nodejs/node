@@ -25,29 +25,63 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CIRCULAR_BUFFER_INL_H_
-#define V8_CIRCULAR_BUFFER_INL_H_
+#ifndef V8_UNBOUND_QUEUE_INL_H_
+#define V8_UNBOUND_QUEUE_INL_H_
 
-#include "circular-queue.h"
+#include "unbound-queue.h"
 
 namespace v8 {
 namespace internal {
 
+template<typename Record>
+struct UnboundQueue<Record>::Node: public Malloced {
+  explicit Node(const Record& value)
+      : value(value), next(NULL) {
+  }
 
-void* SamplingCircularQueue::Enqueue() {
-  WrapPositionIfNeeded(&producer_pos_->enqueue_pos);
-  void* result = producer_pos_->enqueue_pos;
-  producer_pos_->enqueue_pos += record_size_;
-  return result;
+  Record value;
+  Node* next;
+};
+
+
+template<typename Record>
+UnboundQueue<Record>::UnboundQueue() {
+  first_ = new Node(Record());
+  divider_ = last_ = reinterpret_cast<AtomicWord>(first_);
 }
 
 
-void SamplingCircularQueue::WrapPositionIfNeeded(
-    SamplingCircularQueue::Cell** pos) {
-  if (**pos == kEnd) *pos = buffer_;
+template<typename Record>
+UnboundQueue<Record>::~UnboundQueue() {
+  while (first_ != NULL) DeleteFirst();
 }
 
+
+template<typename Record>
+void UnboundQueue<Record>::DeleteFirst() {
+  Node* tmp = first_;
+  first_ = tmp->next;
+  delete tmp;
+}
+
+
+template<typename Record>
+void UnboundQueue<Record>::Dequeue(Record* rec) {
+  ASSERT(divider_ != last_);
+  Node* next = reinterpret_cast<Node*>(divider_)->next;
+  *rec = next->value;
+  OS::ReleaseStore(&divider_, reinterpret_cast<AtomicWord>(next));
+}
+
+
+template<typename Record>
+void UnboundQueue<Record>::Enqueue(const Record& rec) {
+  Node*& next = reinterpret_cast<Node*>(last_)->next;
+  next = new Node(rec);
+  OS::ReleaseStore(&last_, reinterpret_cast<AtomicWord>(next));
+  while (first_ != reinterpret_cast<Node*>(divider_)) DeleteFirst();
+}
 
 } }  // namespace v8::internal
 
-#endif  // V8_CIRCULAR_BUFFER_INL_H_
+#endif  // V8_UNBOUND_QUEUE_INL_H_

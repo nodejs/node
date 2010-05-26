@@ -32,32 +32,6 @@ namespace v8 {
 namespace internal {
 
 
-// Lock-based blocking circular queue for small records.  Intended for
-// transfer of small records between a single producer and a single
-// consumer. Blocks on enqueue operation if the queue is full.
-template<typename Record>
-class CircularQueue {
- public:
-  inline explicit CircularQueue(int desired_buffer_size_in_bytes);
-  inline ~CircularQueue();
-
-  INLINE(void Dequeue(Record* rec));
-  INLINE(void Enqueue(const Record& rec));
-  INLINE(bool IsEmpty()) { return enqueue_pos_ == dequeue_pos_; }
-
- private:
-  INLINE(Record* Next(Record* curr));
-
-  Record* buffer_;
-  Record* const buffer_end_;
-  Semaphore* enqueue_semaphore_;
-  Record* enqueue_pos_;
-  Record* dequeue_pos_;
-
-  DISALLOW_COPY_AND_ASSIGN(CircularQueue);
-};
-
-
 // Lock-free cache-friendly sampling circular queue for large
 // records. Intended for fast transfer of large records between a
 // single producer and a single consumer. If the queue is full,

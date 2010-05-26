@@ -1248,6 +1248,8 @@ class JSObject: public HeapObject {
                          PropertyAttributes attributes);
   Object* LookupAccessor(String* name, bool is_getter);
 
+  Object* DefineAccessor(AccessorInfo* info);
+
   // Used from Object::GetProperty().
   Object* GetPropertyWithFailedAccessCheck(Object* receiver,
                                            LookupResult* result,
@@ -1370,7 +1372,7 @@ class JSObject: public HeapObject {
   void LookupRealNamedProperty(String* name, LookupResult* result);
   void LookupRealNamedPropertyInPrototypes(String* name, LookupResult* result);
   void LookupCallbackSetterInPrototypes(String* name, LookupResult* result);
-  Object* LookupCallbackSetterInPrototypes(uint32_t index);
+  bool SetElementWithCallbackSetterInPrototypes(uint32_t index, Object* value);
   void LookupCallback(String* name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
@@ -1539,6 +1541,14 @@ class JSObject: public HeapObject {
   Object* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
 
  private:
+  Object* GetElementWithCallback(Object* receiver,
+                                 Object* structure,
+                                 uint32_t index,
+                                 Object* holder);
+  Object* SetElementWithCallback(Object* structure,
+                                 uint32_t index,
+                                 Object* value,
+                                 JSObject* holder);
   Object* SetElementWithInterceptor(uint32_t index, Object* value);
   Object* SetElementWithoutInterceptor(uint32_t index, Object* value);
 
@@ -1569,6 +1579,13 @@ class JSObject: public HeapObject {
   // Returns true if most of the elements backing storage is used.
   bool HasDenseElements();
 
+  bool CanSetCallback(String* name);
+  Object* SetElementCallback(uint32_t index,
+                             Object* structure,
+                             PropertyAttributes attributes);
+  Object* SetPropertyCallback(String* name,
+                              Object* structure,
+                              PropertyAttributes attributes);
   Object* DefineGetterSetter(String* name, PropertyAttributes attributes);
 
   void LookupInDescriptor(String* name, LookupResult* result);

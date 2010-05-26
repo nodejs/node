@@ -53,36 +53,46 @@ try {
   assertTrue(/called on non-object/.test(e));
 }
 
-// Object
+// Object.
 var obj1 = {};
 
-// Values
+// Values.
 var val1 = 0;
 var val2 = 0;
 var val3 = 0;
 
-// Descriptors
+function setter1() {val1++; }
+function getter1() {return val1; }
+
+function setter2() {val2++; }
+function getter2() {return val2; }
+
+function setter3() {val3++; }
+function getter3() {return val3; }
+
+
+// Descriptors.
 var emptyDesc = {};
 
 var accessorConfigurable = { 
-    set: function() { val1++; },
-    get: function() { return val1; },
+    set: setter1,
+    get: getter1,
     configurable: true
 };
 
 var accessorNoConfigurable = {
-    set: function() { val2++; },
-    get: function() { return val2; },
+    set: setter2,
+    get: getter2,
     configurable: false 
 };
 
 var accessorOnlySet = {
-  set: function() { val3++; },
+  set: setter3,
   configurable: true
 };
 
 var accessorOnlyGet = {
-  get: function() { return val3; },
+  get: getter3,
   configurable: true
 };
 
@@ -200,7 +210,7 @@ assertEquals(2, val1);
 assertEquals(4, val2);
 assertEquals(4, obj1.bar);
 
-// Define an accessor that has only a setter
+// Define an accessor that has only a setter.
 Object.defineProperty(obj1, "setOnly", accessorOnlySet);
 desc = Object.getOwnPropertyDescriptor(obj1, "setOnly");
 assertTrue(desc.configurable);
@@ -212,7 +222,7 @@ assertEquals(desc.get, undefined);
 assertEquals(1, obj1.setOnly = 1);
 assertEquals(1, val3);
 
-// Add a getter - should not touch the setter
+// Add a getter - should not touch the setter.
 Object.defineProperty(obj1, "setOnly", accessorOnlyGet);
 desc = Object.getOwnPropertyDescriptor(obj1, "setOnly");
 assertTrue(desc.configurable);
@@ -256,7 +266,7 @@ obj1.foobar = 1001;
 assertEquals(obj1.foobar, 1000);
 
 
-// Redefine to writable descriptor - now writing to foobar should be allowed
+// Redefine to writable descriptor - now writing to foobar should be allowed.
 Object.defineProperty(obj1, "foobar", dataWritable);
 desc = Object.getOwnPropertyDescriptor(obj1, "foobar");
 assertEquals(obj1.foobar, 3000);
@@ -279,7 +289,7 @@ desc = Object.getOwnPropertyDescriptor(obj1, "foobar");
 assertEquals(obj1.foobar, 2000);
 assertEquals(desc.value, 2000);
 assertFalse(desc.configurable);
-assertFalse(desc.writable);
+assertTrue(desc.writable);
 assertFalse(desc.enumerable);
 assertEquals(desc.get, undefined);
 assertEquals(desc.set, undefined);
@@ -307,7 +317,7 @@ desc = Object.getOwnPropertyDescriptor(obj1, "foobar");
 assertEquals(obj1.foobar, 2000);
 assertEquals(desc.value, 2000);
 assertFalse(desc.configurable);
-assertFalse(desc.writable);
+assertTrue(desc.writable);
 assertFalse(desc.enumerable);
 assertEquals(desc.get, undefined);
 assertEquals(desc.set, undefined);
@@ -375,7 +385,7 @@ assertEquals(desc.set, undefined);
 
 
 // Redefinition of an accessor defined using __defineGetter__ and 
-// __defineSetter__
+// __defineSetter__.
 function get(){return this.x}
 function set(x){this.x=x};
 
@@ -442,7 +452,7 @@ assertEquals(1, obj4.bar = 1);
 assertEquals(5, val1);
 assertEquals(5, obj4.bar);
 
-// Make sure an error is thrown when trying to access to redefined function
+// Make sure an error is thrown when trying to access to redefined function.
 try {
   obj4.bar();
   assertTrue(false);
@@ -453,7 +463,7 @@ try {
 
 // Test runtime calls to DefineOrRedefineDataProperty and
 // DefineOrRedefineAccessorProperty - make sure we don't 
-// crash
+// crash.
 try {
   %DefineOrRedefineAccessorProperty(0, 0, 0, 0, 0);
 } catch (e) {
@@ -496,4 +506,211 @@ try {
   %DefineOrRedefineDataProperty(null, 'foo', 0, 0);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
+}
+
+// Test that all possible differences in step 6 in DefineOwnProperty are
+// exercised, i.e., any difference in the given property descriptor and the
+// existing properties should not return true, but throw an error if the
+// existing configurable property is false. 
+
+var obj5 = {};
+// Enumerable will default to false.
+Object.defineProperty(obj5, 'foo', accessorNoConfigurable);
+desc = Object.getOwnPropertyDescriptor(obj5, 'foo');
+// First, test that we are actually allowed to set the accessor if all
+// values are of the descriptor are the same as the existing one.
+Object.defineProperty(obj5, 'foo', accessorNoConfigurable);
+
+// Different setter.
+var descDifferent = {
+  configurable:false,
+  enumerable:false,
+  set: setter1,
+  get: getter2
+};
+
+try {
+  Object.defineProperty(obj5, 'foo', descDifferent);
+  assertTrue(false);
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
+}
+
+// Different getter.
+descDifferent = {
+  configurable:false,
+  enumerable:false,
+  set: setter2,
+  get: getter1
+};
+
+try {
+  Object.defineProperty(obj5, 'foo', descDifferent);
+  assertTrue(false);
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
+}
+
+// Different enumerable.
+descDifferent = {
+  configurable:false,
+  enumerable:true,
+  set: setter2,
+  get: getter2
+};
+
+try {
+  Object.defineProperty(obj5, 'foo', descDifferent);
+  assertTrue(false);
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
+}
+
+// Different configurable.
+descDifferent = {
+  configurable:false,
+  enumerable:true,
+  set: setter2,
+  get: getter2
+};
+
+try {
+  Object.defineProperty(obj5, 'foo', descDifferent);
+  assertTrue(false);
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
+}
+
+// No difference.
+descDifferent = {
+  configurable:false,
+  enumerable:false,
+  set: setter2,
+  get: getter2
+};
+// Make sure we can still redefine if all properties are the same.
+Object.defineProperty(obj5, 'foo', descDifferent);
+
+// Make sure that obj5 still holds the original values.
+desc = Object.getOwnPropertyDescriptor(obj5, 'foo');
+assertEquals(desc.get, getter2);
+assertEquals(desc.set, setter2);
+assertFalse(desc.enumerable);
+assertFalse(desc.configurable);
+
+
+// Also exercise step 6 on data property, writable and enumerable
+// defaults to false.
+Object.defineProperty(obj5, 'bar', dataNoConfigurable);
+
+// Test that redefinition with the same property descriptor is possible
+Object.defineProperty(obj5, 'bar', dataNoConfigurable);
+
+// Different value.
+descDifferent = {
+  configurable:false,
+  enumerable:false,
+  writable: false,
+  value: 1999
+};
+
+try {
+  Object.defineProperty(obj5, 'bar', descDifferent);
+  assertTrue(false);
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
+}
+
+// Different writable.
+descDifferent = {
+  configurable:false,
+  enumerable:false,
+  writable: true,
+  value: 2000
+};
+
+try {
+  Object.defineProperty(obj5, 'bar', descDifferent);
+  assertTrue(false);
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
+}
+
+
+// Different enumerable.
+descDifferent = {
+  configurable:false,
+  enumerable:true ,
+  writable:false,
+  value: 2000
+};
+
+try {
+  Object.defineProperty(obj5, 'bar', descDifferent);
+  assertTrue(false);
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
+}
+
+
+// Different configurable.
+descDifferent = {
+  configurable:true,
+  enumerable:false,
+  writable:false,
+  value: 2000
+};
+
+try {
+  Object.defineProperty(obj5, 'bar', descDifferent);
+  assertTrue(false);
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
+}
+
+// No difference.
+descDifferent = {
+  configurable:false,
+  enumerable:false,
+  writable:false,
+  value:2000
+};
+// Make sure we can still redefine if all properties are the same.
+Object.defineProperty(obj5, 'bar', descDifferent);
+
+// Make sure that obj5 still holds the original values.
+desc = Object.getOwnPropertyDescriptor(obj5, 'bar');
+assertEquals(desc.value, 2000);
+assertFalse(desc.writable);
+assertFalse(desc.enumerable);
+assertFalse(desc.configurable);
+
+
+// Make sure that we can't overwrite +0 with -0 and vice versa.
+var descMinusZero = {value: -0, configurable: false};
+var descPlusZero = {value: +0, configurable: false};
+
+Object.defineProperty(obj5, 'minuszero', descMinusZero);
+
+// Make sure we can redefine with -0.
+Object.defineProperty(obj5, 'minuszero', descMinusZero);
+
+try {
+  Object.defineProperty(obj5, 'minuszero', descPlusZero);
+  assertUnreachable();
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
+}
+
+
+Object.defineProperty(obj5, 'pluszero', descPlusZero);
+
+// Make sure we can redefine with +0.
+Object.defineProperty(obj5, 'pluszero', descPlusZero);
+
+try {
+  Object.defineProperty(obj5, 'pluszero', descMinusZero);
+  assertUnreachable();
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
 }

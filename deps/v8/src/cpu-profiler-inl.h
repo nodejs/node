@@ -34,6 +34,7 @@
 
 #include "circular-queue-inl.h"
 #include "profile-generator-inl.h"
+#include "unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {

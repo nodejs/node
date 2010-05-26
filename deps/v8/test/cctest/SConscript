@@ -71,6 +71,7 @@ SOURCES = {
     'test-strings.cc',
     'test-threads.cc',
     'test-thread-termination.cc',
+    'test-unbound-queue.cc',
     'test-utils.cc',
     'test-version.cc'
   ],

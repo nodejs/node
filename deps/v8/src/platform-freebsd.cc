@@ -290,7 +290,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 
   int frames_count = backtrace(addresses.start(), frames_size);
 
-  char** symbols = backtrace_symbols(addresses, frames_count);
+  char** symbols = backtrace_symbols(addresses.start(), frames_count);
   if (symbols == NULL) {
     return kStackWalkError;
   }

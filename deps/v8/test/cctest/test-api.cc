@@ -76,6 +76,11 @@ static void ExpectBoolean(const char* code, bool expected) {
 }
 
 
+static void ExpectTrue(const char* code) {
+  ExpectBoolean(code, true);
+}
+
+
 static void ExpectObject(const char* code, Local<Value> expected) {
   Local<Value> result = CompileRun(code);
   CHECK(result->Equals(expected));
@@ -2506,7 +2511,7 @@ THREADED_TEST(DefinePropertyOnAPIAccessor) {
 
   // Uses getOwnPropertyDescriptor to check the configurable status
   Local<Script> script_desc
-    = Script::Compile(v8_str("var prop =Object.getOwnPropertyDescriptor( "
+    = Script::Compile(v8_str("var prop = Object.getOwnPropertyDescriptor( "
                              "obj, 'x');"
                              "prop.configurable;"));
   Local<Value> result = script_desc->Run();
@@ -2592,7 +2597,166 @@ THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
 }
 
 
+static v8::Handle<v8::Object> GetGlobalProperty(LocalContext* context,
+                                                char const* name) {
+  return v8::Handle<v8::Object>::Cast((*context)->Global()->Get(v8_str(name)));
+}
 
+
+THREADED_TEST(DefineAPIAccessorOnObject) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  LocalContext context;
+
+  context->Global()->Set(v8_str("obj1"), templ->NewInstance());
+  CompileRun("var obj2 = {};");
+
+  CHECK(CompileRun("obj1.x")->IsUndefined());
+  CHECK(CompileRun("obj2.x")->IsUndefined());
+
+  CHECK(GetGlobalProperty(&context, "obj1")->
+      SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("donut")));
+
+  ExpectString("obj1.x", "x");
+  CHECK(CompileRun("obj2.x")->IsUndefined());
+
+  CHECK(GetGlobalProperty(&context, "obj2")->
+      SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("donut")));
+
+  ExpectString("obj1.x", "x");
+  ExpectString("obj2.x", "x");
+
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj1, 'x').configurable");
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj2, 'x').configurable");
+
+  CompileRun("Object.defineProperty(obj1, 'x',"
+             "{ get: function() { return 'y'; }, configurable: true })");
+
+  ExpectString("obj1.x", "y");
+  ExpectString("obj2.x", "x");
+
+  CompileRun("Object.defineProperty(obj2, 'x',"
+             "{ get: function() { return 'y'; }, configurable: true })");
+
+  ExpectString("obj1.x", "y");
+  ExpectString("obj2.x", "y");
+
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj1, 'x').configurable");
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj2, 'x').configurable");
+
+  CHECK(GetGlobalProperty(&context, "obj1")->
+      SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("donut")));
+  CHECK(GetGlobalProperty(&context, "obj2")->
+      SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("donut")));
+
+  ExpectString("obj1.x", "x");
+  ExpectString("obj2.x", "x");
+
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj1, 'x').configurable");
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj2, 'x').configurable");
+
+  // Define getters/setters, but now make them not configurable.
+  CompileRun("Object.defineProperty(obj1, 'x',"
+             "{ get: function() { return 'z'; }, configurable: false })");
+  CompileRun("Object.defineProperty(obj2, 'x',"
+             "{ get: function() { return 'z'; }, configurable: false })");
+
+  ExpectTrue("!Object.getOwnPropertyDescriptor(obj1, 'x').configurable");
+  ExpectTrue("!Object.getOwnPropertyDescriptor(obj2, 'x').configurable");
+
+  ExpectString("obj1.x", "z");
+  ExpectString("obj2.x", "z");
+
+  CHECK(!GetGlobalProperty(&context, "obj1")->
+      SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("donut")));
+  CHECK(!GetGlobalProperty(&context, "obj2")->
+      SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("donut")));
+
+  ExpectString("obj1.x", "z");
+  ExpectString("obj2.x", "z");
+}
+
+
+THREADED_TEST(DontDeleteAPIAccessorsCannotBeOverriden) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  LocalContext context;
+
+  context->Global()->Set(v8_str("obj1"), templ->NewInstance());
+  CompileRun("var obj2 = {};");
+
+  CHECK(GetGlobalProperty(&context, "obj1")->SetAccessor(
+        v8_str("x"),
+        GetXValue, NULL,
+        v8_str("donut"), v8::DEFAULT, v8::DontDelete));
+  CHECK(GetGlobalProperty(&context, "obj2")->SetAccessor(
+        v8_str("x"),
+        GetXValue, NULL,
+        v8_str("donut"), v8::DEFAULT, v8::DontDelete));
+
+  ExpectString("obj1.x", "x");
+  ExpectString("obj2.x", "x");
+
+  ExpectTrue("!Object.getOwnPropertyDescriptor(obj1, 'x').configurable");
+  ExpectTrue("!Object.getOwnPropertyDescriptor(obj2, 'x').configurable");
+
+  CHECK(!GetGlobalProperty(&context, "obj1")->
+      SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("donut")));
+  CHECK(!GetGlobalProperty(&context, "obj2")->
+      SetAccessor(v8_str("x"), GetXValue, NULL, v8_str("donut")));
+
+  {
+    v8::TryCatch try_catch;
+    CompileRun("Object.defineProperty(obj1, 'x',"
+        "{get: function() { return 'func'; }})");
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value(try_catch.Exception());
+    CHECK_EQ(*exception_value,
+            "TypeError: Cannot redefine property: defineProperty");
+  }
+  {
+    v8::TryCatch try_catch;
+    CompileRun("Object.defineProperty(obj2, 'x',"
+        "{get: function() { return 'func'; }})");
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value(try_catch.Exception());
+    CHECK_EQ(*exception_value,
+            "TypeError: Cannot redefine property: defineProperty");
+  }
+}
+
+
+static v8::Handle<Value> Get239Value(Local<String> name,
+                                     const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  CHECK_EQ(info.Data(), v8_str("donut"));
+  CHECK_EQ(name, v8_str("239"));
+  return name;
+}
+
+
+THREADED_TEST(ElementAPIAccessor) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  LocalContext context;
+
+  context->Global()->Set(v8_str("obj1"), templ->NewInstance());
+  CompileRun("var obj2 = {};");
+
+  CHECK(GetGlobalProperty(&context, "obj1")->SetAccessor(
+        v8_str("239"),
+        Get239Value, NULL,
+        v8_str("donut")));
+  CHECK(GetGlobalProperty(&context, "obj2")->SetAccessor(
+        v8_str("239"),
+        Get239Value, NULL,
+        v8_str("donut")));
+
+  ExpectString("obj1[239]", "239");
+  ExpectString("obj2[239]", "239");
+  ExpectString("obj1['239']", "239");
+  ExpectString("obj2['239']", "239");
+}
 
 
 v8::Persistent<Value> xValue;
@@ -8003,8 +8167,8 @@ TEST(PreCompile) {
   // TODO(155): This test would break without the initialization of V8. This is
   // a workaround for now to make this test not fail.
   v8::V8::Initialize();
-  const char *script = "function foo(a) { return a+1; }";
-  v8::ScriptData *sd =
+  const char* script = "function foo(a) { return a+1; }";
+  v8::ScriptData* sd =
       v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK_NE(sd->Length(), 0);
   CHECK_NE(sd->Data(), NULL);
@@ -8015,8 +8179,8 @@ TEST(PreCompile) {
 
 TEST(PreCompileWithError) {
   v8::V8::Initialize();
-  const char *script = "function foo(a) { return 1 * * 2; }";
-  v8::ScriptData *sd =
+  const char* script = "function foo(a) { return 1 * * 2; }";
+  v8::ScriptData* sd =
       v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK(sd->HasError());
   delete sd;
@@ -8025,10 +8189,49 @@ TEST(PreCompileWithError) {
 
 TEST(Regress31661) {
   v8::V8::Initialize();
-  const char *script = " The Definintive Guide";
-  v8::ScriptData *sd =
+  const char* script = " The Definintive Guide";
+  v8::ScriptData* sd =
       v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK(sd->HasError());
+  delete sd;
+}
+
+
+// Tests that ScriptData can be serialized and deserialized.
+TEST(PreCompileSerialization) {
+  v8::V8::Initialize();
+  const char* script = "function foo(a) { return a+1; }";
+  v8::ScriptData* sd =
+      v8::ScriptData::PreCompile(script, i::StrLength(script));
+
+  // Serialize.
+  int serialized_data_length = sd->Length();
+  char* serialized_data = i::NewArray<char>(serialized_data_length);
+  memcpy(serialized_data, sd->Data(), serialized_data_length);
+
+  // Deserialize.
+  v8::ScriptData* deserialized_sd =
+      v8::ScriptData::New(serialized_data, serialized_data_length);
+
+  // Verify that the original is the same as the deserialized.
+  CHECK_EQ(sd->Length(), deserialized_sd->Length());
+  CHECK_EQ(0, memcmp(sd->Data(), deserialized_sd->Data(), sd->Length()));
+  CHECK_EQ(sd->HasError(), deserialized_sd->HasError());
+
+  delete sd;
+  delete deserialized_sd;
+}
+
+
+// Attempts to deserialize bad data.
+TEST(PreCompileDeserializationError) {
+  v8::V8::Initialize();
+  const char* data = "DONT CARE";
+  int invalid_size = 3;
+  v8::ScriptData* sd = v8::ScriptData::New(data, invalid_size);
+
+  CHECK_EQ(0, sd->Length());
+
   delete sd;
 }
 

@@ -29,6 +29,7 @@
 #define V8_X64_ASSEMBLER_X64_INL_H_
 
 #include "cpu.h"
+#include "debug.h"
 #include "memory.h"
 
 namespace v8 {
@@ -229,6 +230,15 @@ Address RelocInfo::target_address_address() {
 }
 
 
+int RelocInfo::target_address_size() {
+  if (IsCodedSpecially()) {
+    return Assembler::kCallTargetSize;
+  } else {
+    return Assembler::kExternalTargetSize;
+  }
+}
+
+
 void RelocInfo::set_target_address(Address target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   if (IsCodeTarget(rmode_)) {
@@ -319,6 +329,27 @@ Object** RelocInfo::call_object_address() {
   return reinterpret_cast<Object**>(
       pc_ + Assembler::kPatchReturnSequenceAddressOffset);
 }
+
+
+void RelocInfo::Visit(ObjectVisitor* visitor) {
+  RelocInfo::Mode mode = rmode();
+  if (mode == RelocInfo::EMBEDDED_OBJECT) {
+    visitor->VisitPointer(target_object_address());
+  } else if (RelocInfo::IsCodeTarget(mode)) {
+    visitor->VisitCodeTarget(this);
+  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
+    visitor->VisitExternalReference(target_reference_address());
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  } else if (Debug::has_break_points() &&
+             RelocInfo::IsJSReturn(mode) &&
+             IsPatchedReturnSequence()) {
+    visitor->VisitDebugTarget(this);
+#endif
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
+    visitor->VisitRuntimeEntry(this);
+  }
+}
+
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand

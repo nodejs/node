@@ -300,12 +300,16 @@ class Operand BASE_EMBEDDED {
           ScaleFactor scale,
           int32_t disp);
 
+  // Offset from existing memory operand.
+  // Offset is added to existing displacement as 32-bit signed values and
+  // this must not overflow.
+  Operand(const Operand& base, int32_t offset);
+
  private:
   byte rex_;
   byte buf_[10];
   // The number of bytes in buf_.
   unsigned int len_;
-  RelocInfo::Mode rmode_;
 
   // Set the ModR/M byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.

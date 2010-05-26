@@ -46,7 +46,6 @@ static const int kTickSamplesBufferChunksCount = 16;
 ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
     : generator_(generator),
       running_(false),
-      events_buffer_(kEventsBufferSize),
       ticks_buffer_(sizeof(TickSampleEventRecord),
                     kTickSamplesBufferChunkSize,
                     kTickSamplesBufferChunksCount),

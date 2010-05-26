@@ -165,6 +165,28 @@ int OS::ActivationFrameAlignment() {
 }
 
 
+#ifdef V8_TARGET_ARCH_ARM
+// 0xffff0fa0 is the hard coded address of a function provided by
+// the kernel which implements a memory barrier. On older
+// ARM architecture revisions (pre-v6) this may be implemented using
+// a syscall. This address is stable, and in active use (hard coded)
+// by at least glibc-2.7 and the Android C library.
+typedef void (*LinuxKernelMemoryBarrierFunc)(void);
+LinuxKernelMemoryBarrierFunc pLinuxKernelMemoryBarrier __attribute__((weak)) =
+    (LinuxKernelMemoryBarrierFunc) 0xffff0fa0;
+#endif
+
+void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
+#if defined(V8_TARGET_ARCH_ARM) && defined(__arm__)  // don't use on a simulator
+  pLinuxKernelMemoryBarrier();
+#else
+  __asm__ __volatile__("" : : : "memory");
+  // An x86 store acts as a release barrier.
+#endif
+  *ptr = value;
+}
+
+
 const char* OS::LocalTimezone(double time) {
   if (isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));

@@ -1299,7 +1299,7 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(RelocInfo* rinfo) {
   }
   sink_->Put(kExternalReference + representation, "ExternalReference");
   sink_->PutInt(encoding, "reference id");
-  bytes_processed_so_far_ += Assembler::kExternalTargetSize;
+  bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
 
@@ -1309,7 +1309,7 @@ void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
   OutputRawData(target_start);
   Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   serializer_->SerializeObject(target, kFromCode, kFirstInstruction);
-  bytes_processed_so_far_ += Assembler::kCallTargetSize;
+  bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
 

@@ -248,6 +248,10 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\test\cctest\test-unbound-queue.cc"
+			>
+		</File>
+		<File
 			RelativePath="..\..\test\cctest\test-utils.cc"
 			>
 		</File>

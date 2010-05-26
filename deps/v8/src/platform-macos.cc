@@ -39,6 +39,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <libkern/OSAtomic.h>
 #include <mach/mach.h>
 #include <mach/semaphore.h>
 #include <mach/task.h>
@@ -256,6 +257,12 @@ int OS::ActivationFrameAlignment() {
   // OS X activation frames must be 16 byte-aligned; see "Mac OS X ABI
   // Function Call Guide".
   return 16;
+}
+
+
+void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
+  OSMemoryBarrier();
+  *ptr = value;
 }
 
 

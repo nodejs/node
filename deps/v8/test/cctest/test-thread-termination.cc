@@ -308,3 +308,48 @@ TEST(TerminateLoadICException) {
   v8::Script::Compile(source)->Run();
   context.Dispose();
 }
+
+v8::Handle<v8::Value> ReenterAfterTermination(const v8::Arguments& args) {
+  v8::TryCatch try_catch;
+  CHECK(!v8::V8::IsExecutionTerminating());
+  v8::Script::Compile(v8::String::New("function f() {"
+                                      "  var term = true;"
+                                      "  try {"
+                                      "    while(true) {"
+                                      "      if (term) terminate();"
+                                      "      term = false;"
+                                      "    }"
+                                      "    fail();"
+                                      "  } catch(e) {"
+                                      "    fail();"
+                                      "  }"
+                                      "}"
+                                      "f()"))->Run();
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.Exception()->IsNull());
+  CHECK(try_catch.Message().IsEmpty());
+  CHECK(!try_catch.CanContinue());
+  CHECK(v8::V8::IsExecutionTerminating());
+  v8::Script::Compile(v8::String::New("function f() { fail(); } f()"))->Run();
+  return v8::Undefined();
+}
+
+// Test that reentry into V8 while the termination exception is still pending
+// (has not yet unwound the 0-level JS frame) does not crash.
+TEST(TerminateAndReenterFromThreadItself) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> global =
+      CreateGlobalTemplate(TerminateCurrentThread, ReenterAfterTermination);
+  v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
+  v8::Context::Scope context_scope(context);
+  CHECK(!v8::V8::IsExecutionTerminating());
+  v8::Handle<v8::String> source =
+      v8::String::New("try { loop(); fail(); } catch(e) { fail(); }");
+  v8::Script::Compile(source)->Run();
+  CHECK(!v8::V8::IsExecutionTerminating());
+  // Check we can run JS again after termination.
+  CHECK(v8::Script::Compile(v8::String::New("function f() { return true; }"
+                                            "f()"))->Run()->IsTrue());
+  context.Dispose();
+}
+

@@ -25,29 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CIRCULAR_BUFFER_INL_H_
-#define V8_CIRCULAR_BUFFER_INL_H_
+// This regression test is used to ensure that Object.defineProperty
+// can't be called with an empty property descriptor on a non-configurable
+// existing property and override the existing property.
+// See: http://code.google.com/p/v8/issues/detail?id=712
 
-#include "circular-queue.h"
-
-namespace v8 {
-namespace internal {
-
-
-void* SamplingCircularQueue::Enqueue() {
-  WrapPositionIfNeeded(&producer_pos_->enqueue_pos);
-  void* result = producer_pos_->enqueue_pos;
-  producer_pos_->enqueue_pos += record_size_;
-  return result;
-}
-
-
-void SamplingCircularQueue::WrapPositionIfNeeded(
-    SamplingCircularQueue::Cell** pos) {
-  if (**pos == kEnd) *pos = buffer_;
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_CIRCULAR_BUFFER_INL_H_
+var obj = {};
+Object.defineProperty(obj, "x", { get: function() { return "42"; },
+                                  configurable: false });
+assertEquals(obj.x, "42");
+Object.defineProperty(obj, 'x', {});
+assertEquals(obj.x, "42");

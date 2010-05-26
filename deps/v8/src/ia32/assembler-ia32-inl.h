@@ -38,6 +38,7 @@
 #define V8_IA32_ASSEMBLER_IA32_INL_H_
 
 #include "cpu.h"
+#include "debug.h"
 
 namespace v8 {
 namespace internal {
@@ -74,6 +75,11 @@ Address RelocInfo::target_address() {
 Address RelocInfo::target_address_address() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   return reinterpret_cast<Address>(pc_);
+}
+
+
+int RelocInfo::target_address_size() {
+  return Assembler::kExternalTargetSize;
 }
 
 
@@ -145,6 +151,26 @@ void RelocInfo::set_call_object(Object* target) {
 
 bool RelocInfo::IsPatchedReturnSequence() {
   return *pc_ == 0xE8;
+}
+
+
+void RelocInfo::Visit(ObjectVisitor* visitor) {
+  RelocInfo::Mode mode = rmode();
+  if (mode == RelocInfo::EMBEDDED_OBJECT) {
+    visitor->VisitPointer(target_object_address());
+  } else if (RelocInfo::IsCodeTarget(mode)) {
+    visitor->VisitCodeTarget(this);
+  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
+    visitor->VisitExternalReference(target_reference_address());
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  } else if (Debug::has_break_points() &&
+             RelocInfo::IsJSReturn(mode) &&
+             IsPatchedReturnSequence()) {
+    visitor->VisitDebugTarget(this);
+#endif
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
+    visitor->VisitRuntimeEntry(this);
+  }
 }
 
 

@@ -39,6 +39,7 @@
 
 #include "arm/assembler-arm.h"
 #include "cpu.h"
+#include "debug.h"
 
 
 namespace v8 {
@@ -70,6 +71,11 @@ Address RelocInfo::target_address() {
 Address RelocInfo::target_address_address() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   return reinterpret_cast<Address>(Assembler::target_address_address_at(pc_));
+}
+
+
+int RelocInfo::target_address_size() {
+  return Assembler::kExternalTargetSize;
 }
 
 
@@ -159,6 +165,26 @@ bool RelocInfo::IsPatchedReturnSequence() {
   return (current_instr == kMovLrPc)
           && ((next_instr & kLdrPCMask) == kLdrPCPattern);
 #endif
+}
+
+
+void RelocInfo::Visit(ObjectVisitor* visitor) {
+  RelocInfo::Mode mode = rmode();
+  if (mode == RelocInfo::EMBEDDED_OBJECT) {
+    visitor->VisitPointer(target_object_address());
+  } else if (RelocInfo::IsCodeTarget(mode)) {
+    visitor->VisitCodeTarget(this);
+  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
+    visitor->VisitExternalReference(target_reference_address());
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  } else if (Debug::has_break_points() &&
+             RelocInfo::IsJSReturn(mode) &&
+             IsPatchedReturnSequence()) {
+    visitor->VisitDebugTarget(this);
+#endif
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
+    visitor->VisitRuntimeEntry(this);
+  }
 }
 
 
