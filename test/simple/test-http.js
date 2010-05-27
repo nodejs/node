@@ -2,6 +2,10 @@ require("../common");
 http = require("http");
 url = require("url");
 
+function p (x) {
+  error(inspect(x));
+}
+
 var responses_sent = 0;
 var responses_recvd = 0;
 var body0 = "";
@@ -38,14 +42,14 @@ http.createServer(function (req, res) {
 
 var client = http.createClient(PORT);
 var req = client.request("/hello", {"Accept": "*/*", "Foo": "bar"});
+req.end();
 req.addListener('response', function (res) {
   assert.equal(200, res.statusCode);
   responses_recvd += 1;
-  res.setBodyEncoding("ascii");
+  res.setEncoding("utf8");
   res.addListener('data', function (chunk) { body0 += chunk; });
   debug("Got /hello response");
 });
-req.end();
 
 setTimeout(function () {
   req = client.request("POST", "/world");

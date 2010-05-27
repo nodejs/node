@@ -21,18 +21,21 @@ http.createServer(function (req, res) {
   }
 
   if (req.id == 1) {
+    error("req 1");
     assert.equal("POST", req.method);
     assert.equal("/quit", url.parse(req.url).pathname);
   }
 
   if (req.id == 2) {
+    error("req 2");
     assert.equal("foo", req.headers['x-x']);
   }
 
   if (req.id == 3) {
+    error("req 3");
     assert.equal("bar", req.headers['x-x']);
     this.close();
-    //puts("server closed");
+    error("server closed");
   }
 
   setTimeout(function () {

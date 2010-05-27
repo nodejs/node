@@ -30,8 +30,10 @@ var req = client.request('POST', '/');
 req.write('1\n');
 req.write('2\n');
 req.write('3\n');
+req.end();
 
-puts("client finished sending request");
+error("client finished sending request");
+
 req.addListener('response', function(res) {
   res.setEncoding("utf8");
   res.addListener('data', function(chunk) {
@@ -42,7 +44,6 @@ req.addListener('response', function(res) {
     server.close();
   });
 });
-req.end();
 
 process.addListener("exit", function () {
   assert.equal("1\n2\n3\n", sent_body);
