@@ -7,38 +7,27 @@ require('../common');
 Buffer = require('buffer').Buffer;
 path = require('path');
 fs = require('fs');
-fn = path.join(fixturesDir, 'test_ca.pem');
+fn = path.join(fixturesDir, 'elipses.txt');
 
-file = fs.createReadStream(fn);
-
-callbacks = {
-  open: -1,
-  end: -1,
-  data: -1,
-  close: -1,
-  destroy: -1
-};
+callbacks = { open: 0, end: 0, close: 0, destroy: 0 };
 
 paused = false;
 
-fileContent = '';
+file = fs.createReadStream(fn);
 
 file.addListener('open', function(fd) {
+  file.length = 0;
   callbacks.open++;
   assert.equal('number', typeof fd);
   assert.ok(file.readable);
 });
 
-file.addListener('error', function(err) {
-  throw err;
-});
 
 file.addListener('data', function(data) {
-  callbacks.data++;
   assert.ok(data instanceof Buffer);
   assert.ok(!paused);
-  fileContent += data;
-  
+  file.length += data.length;
+
   paused = true;
   file.pause();
   assert.ok(file.paused);
@@ -50,15 +39,17 @@ file.addListener('data', function(data) {
   }, 10);
 });
 
+
 file.addListener('end', function(chunk) {
   callbacks.end++;
 });
+
 
 file.addListener('close', function() {
   callbacks.close++;
   assert.ok(!file.readable);
 
-  assert.equal(fs.readFileSync(fn), fileContent);
+  //assert.equal(fs.readFileSync(fn), fileContent);
 });
 
 var file2 = fs.createReadStream(fn);
@@ -67,8 +58,30 @@ file2.destroy(function(err) {
   callbacks.destroy++;
 });
 
-process.addListener('exit', function() {
-  for (var k in callbacks) {
-    assert.equal(0, callbacks[k], k+' count off by '+callbacks[k]);
+var file3 = fs.createReadStream(fn);
+file3.length = 0;
+file3.setEncoding('utf8');
+file3.addListener('data', function(data) {
+  assert.equal("string", typeof(data));
+  file3.length += data.length;
+
+  for (var i = 0; i < data.length; i++) {
+    // http://www.fileformat.info/info/unicode/char/2026/index.htm
+    assert.equal("\u2026", data[i]);
   }
+});
+
+file3.addListener('close', function () {
+  callbacks.close++;
+});
+
+process.addListener('exit', function() {
+  assert.equal(1, callbacks.open);
+  assert.equal(1, callbacks.end);
+  assert.equal(1, callbacks.destroy);
+
+  assert.equal(2, callbacks.close);
+
+  assert.equal(30000, file.length);
+  assert.equal(10000, file3.length);
 });
