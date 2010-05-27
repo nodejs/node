@@ -1,4 +1,5 @@
-PORT = 8000;
+require('../common');
+
 sys = require('sys');
 http = require('http');
 assert = require('assert');

@@ -11,17 +11,17 @@ server = http.createServer(function (req, res) {
     server.close();
   });
 });
-server.listen(8000);
+server.listen(PORT);
 
 
 server.addListener('listening', function () {
-  sys.puts('Server running at http://127.0.0.1:8000/');
+  sys.puts('Server running at http://127.0.0.1:'+PORT+'/');
 
   errorTimer =setTimeout(function () {
     throw new Error('Timeout was not sucessful');
   }, 2000);
 
-  http.cat('http://localhost:8000/', 'utf8', function (err, content) {
+  http.cat('http://localhost:'+PORT+'/', 'utf8', function (err, content) {
     clearTimeout(errorTimer);
     sys.puts('HTTP REQUEST COMPLETE (this is good)');
   });
