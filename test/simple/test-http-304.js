@@ -7,7 +7,7 @@ var sys = require('sys'),
 s = http.createServer(function (request, response) {
   response.writeHead(304);
   response.end();
-})
+});
 s.listen(PORT);
 sys.puts('Server running at http://127.0.0.1:'+PORT+'/')
 
