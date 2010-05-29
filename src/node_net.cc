@@ -1,4 +1,4 @@
-#include <node_net2.h>
+#include <node_net.h>
 #include <v8.h>
 
 #include <node.h>
@@ -799,7 +799,7 @@ static Handle<Value> CreateErrnoException(const Arguments& args) {
 }
 
 
-void InitNet2(Handle<Object> target) {
+void InitNet(Handle<Object> target) {
   HandleScope scope;
 
   NODE_SET_METHOD(target, "write", Write);

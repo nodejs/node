@@ -19,7 +19,7 @@
 
 #include <node_buffer.h>
 #include <node_io_watcher.h>
-#include <node_net2.h>
+#include <node_net.h>
 #include <node_events.h>
 #include <node_cares.h>
 #include <node_file.h>
@@ -1783,7 +1783,7 @@ static Handle<Value> Binding(const Arguments& args) {
       exports = binding_cache->Get(module)->ToObject();
     } else {
       exports = Object::New();
-      InitNet2(exports);
+      InitNet(exports);
       binding_cache->Set(module, exports);
     }
 
