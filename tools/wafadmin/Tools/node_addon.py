@@ -34,6 +34,10 @@ def detect(conf):
   conf.env['CPPFLAGS_NODE'] = '-D_GNU_SOURCE'
   conf.env['CPPFLAGS_NODE'] = '-DEV_MULTIPLICITY=0'
 
+  # with symbols
+  conf.env.append_value('CCFLAGS', ['-g'])
+  conf.env.append_value('CXXFLAGS', ['-g'])
+
   found = os.path.exists(join(prefix, "bin/node"))
   conf.check_message('node prefix', '', found, prefix)
 
