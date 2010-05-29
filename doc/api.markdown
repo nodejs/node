@@ -837,6 +837,14 @@ Example of inspecting all properties of the `sys` object:
     sys.puts(sys.inspect(sys, true, null));
 
 
+### sys.pump(readableStream, writeableStream, [callback])
+
+Experimental
+
+Read the data from `readableStream` and send it to the `writableStream`.
+When `writeableStream.write(data)` returns `false` `readableStream` will be
+paused until the `drain` event occurs on the `writableStream`. `callback` is
+called when `writableStream` is closed.
 
 
 ## Timers
