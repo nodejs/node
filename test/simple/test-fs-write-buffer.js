@@ -19,7 +19,7 @@ fs.open(filename, 'w', 0644, function (err, fd) {
     assert.equal(expected.length, written);
     fs.closeSync(fd);
 
-    var found = fs.readFileSync(filename);
+    var found = fs.readFileSync(filename, 'utf8');
     assert.deepEqual(expected.toString(), found);
     fs.unlinkSync(filename);
   });

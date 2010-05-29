@@ -25,8 +25,8 @@ try {fs.unlinkSync(dstPath);}catch(e){}
 fs.link(srcPath, dstPath, function(err){
   if (err) throw err;
   puts('hard link done');
-  var srcContent = fs.readFileSync(srcPath);
-  var dstContent = fs.readFileSync(dstPath);
+  var srcContent = fs.readFileSync(srcPath, 'utf8');
+  var dstContent = fs.readFileSync(dstPath, 'utf8');
   assert.equal(srcContent, dstContent);
   completed++;
 });

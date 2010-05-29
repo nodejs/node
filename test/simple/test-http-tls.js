@@ -22,9 +22,9 @@ var request_number = 0;
 var requests_sent = 0;
 var server_response = "";
 var client_got_eof = false;
-var caPem = fs.readFileSync(fixturesDir+"/test_ca.pem");
-var certPem = fs.readFileSync(fixturesDir+"/test_cert.pem");
-var keyPem = fs.readFileSync(fixturesDir+"/test_key.pem");
+var caPem = fs.readFileSync(fixturesDir+"/test_ca.pem", 'ascii');
+var certPem = fs.readFileSync(fixturesDir+"/test_cert.pem", 'ascii');
+var keyPem = fs.readFileSync(fixturesDir+"/test_key.pem", 'ascii');
 
 var credentials = crypto.createCredentials({key:keyPem, cert:certPem, ca:caPem});
 

@@ -12,9 +12,9 @@ try {
   process.exit();
 } 
 
-var caPem = fs.readFileSync(fixturesDir+"/test_ca.pem");
-var certPem = fs.readFileSync(fixturesDir+"/test_cert.pem");
-var keyPem = fs.readFileSync(fixturesDir+"/test_key.pem");
+var caPem = fs.readFileSync(fixturesDir+"/test_ca.pem", 'ascii');
+var certPem = fs.readFileSync(fixturesDir+"/test_cert.pem", 'ascii');
+var keyPem = fs.readFileSync(fixturesDir+"/test_key.pem", 'ascii');
 
 var credentials = crypto.createCredentials({key:keyPem, cert:certPem, ca:caPem});
 

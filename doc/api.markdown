@@ -1443,9 +1443,14 @@ contents of the file.
 
 If no encoding is specified, then the raw buffer is returned.
 
-### fs.readFileSync(filename, encoding='utf8')
+
+### fs.readFileSync(filename [, encoding])
 
 Synchronous version of `fs.readFile`. Returns the contents of the `filename`.
+
+If `encoding` is specified then this function returns a string. Otherwise it
+returns a buffer.
+
 
 ### fs.writeFile(filename, data, encoding='utf8', callback)
 
