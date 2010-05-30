@@ -1,4 +1,24 @@
-2010.05.21, Version 0.1.96
+2010.05.29, Version 0.1.97
+
+* HTTP throttling: outgoing messages emit 'drain' and write() returns false
+  when send buffer is full.
+
+* API: readFileSync without encoding argument now returns a Buffer
+
+* Improve Buffer C++ API; addons now compile with debugging symbols.
+
+* Improvements to  path.extname() and REPL; add fs.chown().
+
+* fs.ReadStream now emits buffers, fs.readFileSync returns buffers.
+
+* Bugfix: parsing HTTP responses to HEAD requests.
+
+* Port to OpenBSD.
+
+* Upgrade V8 to 2.2.12, libeio, http-parser.
+
+
+2010.05.21, Version 0.1.96, 9514a4d5476225e8c8310ce5acae2857033bcaaa
 
 * Thrown errors in http and socket call back get bubbled up.
 
