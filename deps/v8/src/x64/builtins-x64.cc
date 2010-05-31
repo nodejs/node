@@ -308,7 +308,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //     (tail-call) to the code in register edx without checking arguments.
   __ movq(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   __ movsxlq(rbx,
-         FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
+             FieldOperand(rdx,
+                          SharedFunctionInfo::kFormalParameterCountOffset));
   __ movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
   __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
   __ cmpq(rax, rbx);
@@ -525,15 +526,15 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ lea(scratch1, Operand(result, JSArray::kSize));
   __ movq(FieldOperand(result, JSArray::kElementsOffset), scratch1);
 
-  // Initialize the FixedArray and fill it with holes. FixedArray length is not
+  // Initialize the FixedArray and fill it with holes. FixedArray length is
   // stored as a smi.
   // result: JSObject
   // scratch1: elements array
   // scratch2: start of next object
-  __ Move(FieldOperand(scratch1, JSObject::kMapOffset),
+  __ Move(FieldOperand(scratch1, HeapObject::kMapOffset),
           Factory::fixed_array_map());
-  __ movq(FieldOperand(scratch1, Array::kLengthOffset),
-          Immediate(initial_capacity));
+  __ Move(FieldOperand(scratch1, FixedArray::kLengthOffset),
+          Smi::FromInt(initial_capacity));
 
   // Fill the FixedArray with the hole value. Inline the code if short.
   // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
@@ -587,7 +588,6 @@ static void AllocateJSArray(MacroAssembler* masm,
                        JSFunction::kPrototypeOrInitialMapOffset));
 
   // Check whether an empty sized array is requested.
-  __ SmiToInteger64(array_size, array_size);
   __ testq(array_size, array_size);
   __ j(not_zero, &not_empty);
 
@@ -605,10 +605,11 @@ static void AllocateJSArray(MacroAssembler* masm,
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested elements.
   __ bind(&not_empty);
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  SmiIndex index =
+      masm->SmiToIndex(kScratchRegister, array_size, kPointerSizeLog2);
   __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
-                        times_pointer_size,
-                        array_size,
+                        index.scale,
+                        index.reg,
                         result,
                         elements_array_end,
                         scratch,
@@ -620,43 +621,41 @@ static void AllocateJSArray(MacroAssembler* masm,
   // result: JSObject
   // elements_array: initial map
   // elements_array_end: start of next object
-  // array_size: size of array
+  // array_size: size of array (smi)
   __ bind(&allocated);
   __ movq(FieldOperand(result, JSObject::kMapOffset), elements_array);
   __ Move(elements_array, Factory::empty_fixed_array());
   __ movq(FieldOperand(result, JSArray::kPropertiesOffset), elements_array);
   // Field JSArray::kElementsOffset is initialized later.
-  __ Integer32ToSmi(scratch, array_size);
-  __ movq(FieldOperand(result, JSArray::kLengthOffset), scratch);
+  __ movq(FieldOperand(result, JSArray::kLengthOffset), array_size);
 
   // Calculate the location of the elements array and set elements array member
   // of the JSArray.
   // result: JSObject
   // elements_array_end: start of next object
-  // array_size: size of array
+  // array_size: size of array (smi)
   __ lea(elements_array, Operand(result, JSArray::kSize));
   __ movq(FieldOperand(result, JSArray::kElementsOffset), elements_array);
 
-  // Initialize the fixed array. FixedArray length is not stored as a smi.
+  // Initialize the fixed array. FixedArray length is stored as a smi.
   // result: JSObject
   // elements_array: elements array
   // elements_array_end: start of next object
-  // array_size: size of array
-  ASSERT(kSmiTag == 0);
+  // array_size: size of array (smi)
   __ Move(FieldOperand(elements_array, JSObject::kMapOffset),
           Factory::fixed_array_map());
   Label not_empty_2, fill_array;
-  __ testq(array_size, array_size);
+  __ SmiTest(array_size);
   __ j(not_zero, &not_empty_2);
   // Length of the FixedArray is the number of pre-allocated elements even
   // though the actual JSArray has length 0.
-  __ movq(FieldOperand(elements_array, Array::kLengthOffset),
-          Immediate(kPreallocatedArrayElements));
+  __ Move(FieldOperand(elements_array, FixedArray::kLengthOffset),
+          Smi::FromInt(kPreallocatedArrayElements));
   __ jmp(&fill_array);
   __ bind(&not_empty_2);
   // For non-empty JSArrays the length of the FixedArray and the JSArray is the
   // same.
-  __ movq(FieldOperand(elements_array, Array::kLengthOffset), array_size);
+  __ movq(FieldOperand(elements_array, FixedArray::kLengthOffset), array_size);
 
   // Fill the allocated FixedArray with the hole value if requested.
   // result: JSObject
@@ -1039,8 +1038,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // rdx: number of elements
     // rax: start of next object
     __ LoadRoot(rcx, Heap::kFixedArrayMapRootIndex);
-    __ movq(Operand(rdi, JSObject::kMapOffset), rcx);  // setup the map
-    __ movl(Operand(rdi, FixedArray::kLengthOffset), rdx);  // and length
+    __ movq(Operand(rdi, HeapObject::kMapOffset), rcx);  // setup the map
+    __ Integer32ToSmi(rdx, rdx);
+    __ movq(Operand(rdi, FixedArray::kLengthOffset), rdx);  // and length
 
     // Initialize the fields to undefined.
     // rbx: JSObject

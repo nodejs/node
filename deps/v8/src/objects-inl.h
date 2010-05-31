@@ -759,7 +759,8 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
     ASSERT(mode == SKIP_WRITE_BARRIER); \
     ASSERT(Heap::InNewSpace(object) || \
            !Heap::InNewSpace(READ_FIELD(object, offset)) || \
-           Page::IsRSetSet(object->address(), offset)); \
+           Page::FromAddress(object->address())->           \
+               IsRegionDirty(object->address() + offset));  \
   }
 
 #define READ_DOUBLE_FIELD(p, offset) \
@@ -1045,6 +1046,10 @@ Address MapWord::ToEncodedAddress() {
 void HeapObject::VerifyObjectField(int offset) {
   VerifyPointer(READ_FIELD(this, offset));
 }
+
+void HeapObject::VerifySmiField(int offset) {
+  ASSERT(READ_FIELD(this, offset)->IsSmi());
+}
 #endif
 
 
@@ -1064,7 +1069,7 @@ MapWord HeapObject::map_word() {
 
 
 void HeapObject::set_map_word(MapWord map_word) {
-  // WRITE_FIELD does not update the remembered set, but there is no need
+  // WRITE_FIELD does not invoke write barrier, but there is no need
   // here.
   WRITE_FIELD(this, kMapOffset, reinterpret_cast<Object*>(map_word.value_));
 }
@@ -1162,16 +1167,16 @@ int HeapNumber::get_sign() {
 ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
 
 
-Array* JSObject::elements() {
+HeapObject* JSObject::elements() {
   Object* array = READ_FIELD(this, kElementsOffset);
   // In the assert below Dictionary is covered under FixedArray.
   ASSERT(array->IsFixedArray() || array->IsPixelArray() ||
          array->IsExternalArray());
-  return reinterpret_cast<Array*>(array);
+  return reinterpret_cast<HeapObject*>(array);
 }
 
 
-void JSObject::set_elements(Array* value, WriteBarrierMode mode) {
+void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
   // In the assert below Dictionary is covered under FixedArray.
   ASSERT(value->IsFixedArray() || value->IsPixelArray() ||
          value->IsExternalArray());
@@ -1342,15 +1347,15 @@ bool JSObject::HasFastProperties() {
 }
 
 
-bool Array::IndexFromObject(Object* object, uint32_t* index) {
-  if (object->IsSmi()) {
-    int value = Smi::cast(object)->value();
+bool Object::ToArrayIndex(uint32_t* index) {
+  if (IsSmi()) {
+    int value = Smi::cast(this)->value();
     if (value < 0) return false;
     *index = value;
     return true;
   }
-  if (object->IsHeapNumber()) {
-    double value = HeapNumber::cast(object)->value();
+  if (IsHeapNumber()) {
+    double value = HeapNumber::cast(this)->value();
     uint32_t uint_value = static_cast<uint32_t>(value);
     if (value == static_cast<double>(uint_value)) {
       *index = uint_value;
@@ -1665,7 +1670,11 @@ HashTable<Shape, Key>* HashTable<Shape, Key>::cast(Object* obj) {
 }
 
 
-INT_ACCESSORS(Array, length, kLengthOffset)
+SMI_ACCESSORS(FixedArray, length, kLengthOffset)
+SMI_ACCESSORS(ByteArray, length, kLengthOffset)
+
+INT_ACCESSORS(PixelArray, length, kLengthOffset)
+INT_ACCESSORS(ExternalArray, length, kLengthOffset)
 
 
 SMI_ACCESSORS(String, length, kLengthOffset)
@@ -1678,6 +1687,9 @@ uint32_t String::hash_field() {
 
 void String::set_hash_field(uint32_t value) {
   WRITE_UINT32_FIELD(this, kHashFieldOffset, value);
+#if V8_HOST_ARCH_64_BIT
+  WRITE_UINT32_FIELD(this, kHashFieldOffset + kIntSize, 0);
+#endif
 }
 
 
@@ -2456,22 +2468,65 @@ BOOL_ACCESSORS(SharedFunctionInfo,
                try_full_codegen,
                kTryFullCodegen)
 
-INT_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
-INT_ACCESSORS(SharedFunctionInfo, formal_parameter_count,
+#if V8_HOST_ARCH_32_BIT
+SMI_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
+SMI_ACCESSORS(SharedFunctionInfo, formal_parameter_count,
               kFormalParameterCountOffset)
-INT_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
+SMI_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
               kExpectedNofPropertiesOffset)
-INT_ACCESSORS(SharedFunctionInfo, num_literals, kNumLiteralsOffset)
-INT_ACCESSORS(SharedFunctionInfo, start_position_and_type,
+SMI_ACCESSORS(SharedFunctionInfo, num_literals, kNumLiteralsOffset)
+SMI_ACCESSORS(SharedFunctionInfo, start_position_and_type,
               kStartPositionAndTypeOffset)
-INT_ACCESSORS(SharedFunctionInfo, end_position, kEndPositionOffset)
-INT_ACCESSORS(SharedFunctionInfo, function_token_position,
+SMI_ACCESSORS(SharedFunctionInfo, end_position, kEndPositionOffset)
+SMI_ACCESSORS(SharedFunctionInfo, function_token_position,
               kFunctionTokenPositionOffset)
-INT_ACCESSORS(SharedFunctionInfo, compiler_hints,
+SMI_ACCESSORS(SharedFunctionInfo, compiler_hints,
               kCompilerHintsOffset)
-INT_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
+SMI_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
               kThisPropertyAssignmentsCountOffset)
+#else
 
+#define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
+  int holder::name() {                                            \
+    int value = READ_INT_FIELD(this, offset);                     \
+    ASSERT(kHeapObjectTag == 1);                                  \
+    ASSERT((value & kHeapObjectTag) == 0);                        \
+    return value >> 1;                                            \
+  }                                                               \
+  void holder::set_##name(int value) {                            \
+    ASSERT(kHeapObjectTag == 1);                                  \
+    ASSERT((value & 0xC0000000) == 0xC0000000 ||                  \
+           (value & 0xC0000000) == 0x000000000);                  \
+    WRITE_INT_FIELD(this,                                         \
+                    offset,                                       \
+                    (value << 1) & ~kHeapObjectTag);              \
+  }
+
+#define PSEUDO_SMI_ACCESSORS_HI(holder, name, offset) \
+  INT_ACCESSORS(holder, name, offset)
+
+
+
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, length, kLengthOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, formal_parameter_count,
+              kFormalParameterCountOffset)
+
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, expected_nof_properties,
+              kExpectedNofPropertiesOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, num_literals, kNumLiteralsOffset)
+
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, start_position_and_type,
+              kStartPositionAndTypeOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, end_position, kEndPositionOffset)
+
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, function_token_position,
+              kFunctionTokenPositionOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, compiler_hints,
+              kCompilerHintsOffset)
+
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, this_property_assignments_count,
+              kThisPropertyAssignmentsCountOffset)
+#endif
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
@@ -2785,7 +2840,7 @@ void JSRegExp::SetDataAt(int index, Object* value) {
 
 
 JSObject::ElementsKind JSObject::GetElementsKind() {
-  Array* array = elements();
+  HeapObject* array = elements();
   if (array->IsFixedArray()) {
     // FAST_ELEMENTS or DICTIONARY_ELEMENTS are both stored in a FixedArray.
     if (array->map() == Heap::fixed_array_map()) {
@@ -2908,15 +2963,20 @@ NumberDictionary* JSObject::element_dictionary() {
 }
 
 
+bool String::IsHashFieldComputed(uint32_t field) {
+  return (field & kHashNotComputedMask) == 0;
+}
+
+
 bool String::HasHashCode() {
-  return (hash_field() & kHashComputedMask) != 0;
+  return IsHashFieldComputed(hash_field());
 }
 
 
 uint32_t String::Hash() {
   // Fast case: has hash code already been computed?
   uint32_t field = hash_field();
-  if (field & kHashComputedMask) return field >> kHashShift;
+  if (IsHashFieldComputed(field)) return field >> kHashShift;
   // Slow case: compute hash code and set it.
   return ComputeAndSetHash();
 }
@@ -2989,7 +3049,7 @@ uint32_t StringHasher::GetHash() {
 
 bool String::AsArrayIndex(uint32_t* index) {
   uint32_t field = hash_field();
-  if ((field & kHashComputedMask) && !(field & kIsArrayIndexMask)) return false;
+  if (IsHashFieldComputed(field) && !(field & kIsArrayIndexMask)) return false;
   return SlowAsArrayIndex(index);
 }
 
@@ -3113,7 +3173,7 @@ void Map::ClearCodeCache() {
 
 void JSArray::EnsureSize(int required_size) {
   ASSERT(HasFastElements());
-  Array* elts = elements();
+  FixedArray* elts = FixedArray::cast(elements());
   const int kArraySizeThatFitsComfortablyInNewSpace = 128;
   if (elts->length() < required_size) {
     // Doubling in size would be overkill, but leave some slack to avoid

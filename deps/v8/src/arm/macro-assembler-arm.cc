@@ -183,15 +183,18 @@ void MacroAssembler::Drop(int count, Condition cond) {
 }
 
 
-void MacroAssembler::Swap(Register reg1, Register reg2, Register scratch) {
+void MacroAssembler::Swap(Register reg1,
+                          Register reg2,
+                          Register scratch,
+                          Condition cond) {
   if (scratch.is(no_reg)) {
-    eor(reg1, reg1, Operand(reg2));
-    eor(reg2, reg2, Operand(reg1));
-    eor(reg1, reg1, Operand(reg2));
+    eor(reg1, reg1, Operand(reg2), LeaveCC, cond);
+    eor(reg2, reg2, Operand(reg1), LeaveCC, cond);
+    eor(reg1, reg1, Operand(reg2), LeaveCC, cond);
   } else {
-    mov(scratch, reg1);
-    mov(reg1, reg2);
-    mov(reg2, scratch);
+    mov(scratch, reg1, LeaveCC, cond);
+    mov(reg1, reg2, LeaveCC, cond);
+    mov(reg2, scratch, LeaveCC, cond);
   }
 }
 
@@ -252,63 +255,21 @@ void MacroAssembler::RecordWriteHelper(Register object,
     bind(&not_in_new_space);
   }
 
-  // This is how much we shift the remembered set bit offset to get the
-  // offset of the word in the remembered set.  We divide by kBitsPerInt (32,
-  // shift right 5) and then multiply by kIntSize (4, shift left 2).
-  const int kRSetWordShift = 3;
+  mov(ip, Operand(Page::kPageAlignmentMask));  // Load mask only once.
 
-  Label fast;
+  // Calculate region number.
+  add(offset, object, Operand(offset));  // Add offset into the object.
+  and_(offset, offset, Operand(ip));  // Offset into page of the object.
+  mov(offset, Operand(offset, LSR, Page::kRegionSizeLog2));
 
-  // Compute the bit offset in the remembered set.
-  // object: heap object pointer (with tag)
-  // offset: offset to store location from the object
-  mov(ip, Operand(Page::kPageAlignmentMask));  // load mask only once
-  and_(scratch, object, Operand(ip));  // offset into page of the object
-  add(offset, scratch, Operand(offset));  // add offset into the object
-  mov(offset, Operand(offset, LSR, kObjectAlignmentBits));
-
-  // Compute the page address from the heap object pointer.
-  // object: heap object pointer (with tag)
-  // offset: bit offset of store position in the remembered set
+  // Calculate page address.
   bic(object, object, Operand(ip));
 
-  // If the bit offset lies beyond the normal remembered set range, it is in
-  // the extra remembered set area of a large object.
-  // object: page start
-  // offset: bit offset of store position in the remembered set
-  cmp(offset, Operand(Page::kPageSize / kPointerSize));
-  b(lt, &fast);
-
-  // Adjust the bit offset to be relative to the start of the extra
-  // remembered set and the start address to be the address of the extra
-  // remembered set.
-  sub(offset, offset, Operand(Page::kPageSize / kPointerSize));
-  // Load the array length into 'scratch' and multiply by four to get the
-  // size in bytes of the elements.
-  ldr(scratch, MemOperand(object, Page::kObjectStartOffset
-                                  + FixedArray::kLengthOffset));
-  mov(scratch, Operand(scratch, LSL, kObjectAlignmentBits));
-  // Add the page header (including remembered set), array header, and array
-  // body size to the page address.
-  add(object, object, Operand(Page::kObjectStartOffset
-                              + FixedArray::kHeaderSize));
-  add(object, object, Operand(scratch));
-
-  bind(&fast);
-  // Get address of the rset word.
-  // object: start of the remembered set (page start for the fast case)
-  // offset: bit offset of store position in the remembered set
-  bic(scratch, offset, Operand(kBitsPerInt - 1));  // clear the bit offset
-  add(object, object, Operand(scratch, LSR, kRSetWordShift));
-  // Get bit offset in the rset word.
-  // object: address of remembered set word
-  // offset: bit offset of store position
-  and_(offset, offset, Operand(kBitsPerInt - 1));
-
-  ldr(scratch, MemOperand(object));
+  // Mark region dirty.
+  ldr(scratch, MemOperand(object, Page::kDirtyFlagOffset));
   mov(ip, Operand(1));
   orr(scratch, scratch, Operand(ip, LSL, offset));
-  str(scratch, MemOperand(object));
+  str(scratch, MemOperand(object, Page::kDirtyFlagOffset));
 }
 
 
@@ -336,7 +297,7 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
   Label done;
 
   // First, test that the object is not in the new space.  We cannot set
-  // remembered set bits in the new space.
+  // region marks for new space pages.
   InNewSpace(object, scratch, eq, &done);
 
   // Record the actual write.
@@ -664,6 +625,7 @@ void MacroAssembler::InvokeFunction(Register fun,
   ldr(expected_reg,
       FieldMemOperand(code_reg,
                       SharedFunctionInfo::kFormalParameterCountOffset));
+  mov(expected_reg, Operand(expected_reg, ASR, kSmiTagSize));
   ldr(code_reg,
       MemOperand(code_reg, SharedFunctionInfo::kCodeOffset - kHeapObjectTag));
   add(code_reg, code_reg, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -1328,7 +1290,7 @@ void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {
   if (CpuFeatures::IsSupported(ARMv7)) {
-    ubfx(dst, src, Operand(kSmiTagSize), Operand(num_least_bits - 1));
+    ubfx(dst, src, kSmiTagSize, num_least_bits);
   } else {
     mov(dst, Operand(src, ASR, kSmiTagSize));
     and_(dst, dst, Operand((1 << num_least_bits) - 1));

@@ -110,8 +110,9 @@ namespace internal {
   F(ClassOf, 1, 1)                                                           \
   F(ValueOf, 1, 1)                                                           \
   F(SetValueOf, 2, 1)                                                        \
-  F(FastCharCodeAt, 2, 1)                                                    \
-  F(CharFromCode, 1, 1)                                                      \
+  F(StringCharCodeAt, 2, 1)                                                  \
+  F(StringCharFromCode, 1, 1)                                                \
+  F(StringCharAt, 2, 1)                                                      \
   F(ObjectEquals, 2, 1)                                                      \
   F(Log, 3, 1)                                                               \
   F(RandomHeapNumber, 0, 1)                                                  \
@@ -179,6 +180,111 @@ class CodeGeneratorScope BASE_EMBEDDED {
 };
 
 
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+
+// State of used registers in a virtual frame.
+class FrameRegisterState {
+ public:
+  // Captures the current state of the given frame.
+  explicit FrameRegisterState(VirtualFrame* frame);
+
+  // Saves the state in the stack.
+  void Save(MacroAssembler* masm) const;
+
+  // Restores the state from the stack.
+  void Restore(MacroAssembler* masm) const;
+
+ private:
+  // Constants indicating special actions.  They should not be multiples
+  // of kPointerSize so they will not collide with valid offsets from
+  // the frame pointer.
+  static const int kIgnore = -1;
+  static const int kPush = 1;
+
+  // This flag is ored with a valid offset from the frame pointer, so
+  // it should fit in the low zero bits of a valid offset.
+  static const int kSyncedFlag = 2;
+
+  int registers_[RegisterAllocator::kNumRegisters];
+};
+
+#elif V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+
+
+class FrameRegisterState {
+ public:
+  inline FrameRegisterState(VirtualFrame frame) : frame_(frame) { }
+
+  inline const VirtualFrame* frame() const { return &frame_; }
+
+ private:
+  VirtualFrame frame_;
+};
+
+#else
+
+#error Unsupported target architecture.
+
+#endif
+
+
+// Helper interface to prepare to/restore after making runtime calls.
+class RuntimeCallHelper {
+ public:
+  virtual ~RuntimeCallHelper() {}
+
+  virtual void BeforeCall(MacroAssembler* masm) const = 0;
+
+  virtual void AfterCall(MacroAssembler* masm) const = 0;
+
+ protected:
+  RuntimeCallHelper() {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(RuntimeCallHelper);
+};
+
+
+// RuntimeCallHelper implementation that saves/restores state of a
+// virtual frame.
+class VirtualFrameRuntimeCallHelper : public RuntimeCallHelper {
+ public:
+  // Does not take ownership of |frame_state|.
+  explicit VirtualFrameRuntimeCallHelper(const FrameRegisterState* frame_state)
+      : frame_state_(frame_state) {}
+
+  virtual void BeforeCall(MacroAssembler* masm) const;
+
+  virtual void AfterCall(MacroAssembler* masm) const;
+
+ private:
+  const FrameRegisterState* frame_state_;
+};
+
+
+// RuntimeCallHelper implementation used in IC stubs: enters/leaves a
+// newly created internal frame before/after the runtime call.
+class ICRuntimeCallHelper : public RuntimeCallHelper {
+ public:
+  ICRuntimeCallHelper() {}
+
+  virtual void BeforeCall(MacroAssembler* masm) const;
+
+  virtual void AfterCall(MacroAssembler* masm) const;
+};
+
+
+// Trivial RuntimeCallHelper implementation.
+class NopRuntimeCallHelper : public RuntimeCallHelper {
+ public:
+  NopRuntimeCallHelper() {}
+
+  virtual void BeforeCall(MacroAssembler* masm) const {}
+
+  virtual void AfterCall(MacroAssembler* masm) const {}
+};
+
+
 // Deferred code objects are small pieces of code that are compiled
 // out of line. They are used to defer the compilation of uncommon
 // paths thereby avoiding expensive jumps around uncommon code parts.
@@ -209,6 +315,8 @@ class DeferredCode: public ZoneObject {
   inline void Branch(Condition cc);
   void BindExit() { masm_->bind(&exit_label_); }
 
+  const FrameRegisterState* frame_state() const { return &frame_state_; }
+
   void SaveRegisters();
   void RestoreRegisters();
 
@@ -216,28 +324,13 @@ class DeferredCode: public ZoneObject {
   MacroAssembler* masm_;
 
  private:
-  // Constants indicating special actions.  They should not be multiples
-  // of kPointerSize so they will not collide with valid offsets from
-  // the frame pointer.
-  static const int kIgnore = -1;
-  static const int kPush = 1;
-
-  // This flag is ored with a valid offset from the frame pointer, so
-  // it should fit in the low zero bits of a valid offset.
-  static const int kSyncedFlag = 2;
-
   int statement_position_;
   int position_;
 
   Label entry_label_;
   Label exit_label_;
 
-  // C++ doesn't allow zero length arrays, so we make the array length 1 even
-  // if we don't need it.
-  static const int kRegistersArrayLength =
-      (RegisterAllocator::kNumRegisters == 0) ?
-          1 : RegisterAllocator::kNumRegisters;
-  int registers_[kRegistersArrayLength];
+  FrameRegisterState frame_state_;
 
 #ifdef DEBUG
   const char* comment_;
@@ -608,6 +701,163 @@ class ToBooleanStub: public CodeStub {
  private:
   Major MajorKey() { return ToBoolean; }
   int MinorKey() { return 0; }
+};
+
+
+enum StringIndexFlags {
+  // Accepts smis or heap numbers.
+  STRING_INDEX_IS_NUMBER,
+
+  // Accepts smis or heap numbers that are valid array indices
+  // (ECMA-262 15.4). Invalid indices are reported as being out of
+  // range.
+  STRING_INDEX_IS_ARRAY_INDEX
+};
+
+
+// Generates code implementing String.prototype.charCodeAt.
+//
+// Only supports the case when the receiver is a string and the index
+// is a number (smi or heap number) that is a valid index into the
+// string. Additional index constraints are specified by the
+// flags. Otherwise, bails out to the provided labels.
+//
+// Register usage: |object| may be changed to another string in a way
+// that doesn't affect charCodeAt/charAt semantics, |index| is
+// preserved, |scratch| and |result| are clobbered.
+class StringCharCodeAtGenerator {
+ public:
+  StringCharCodeAtGenerator(Register object,
+                            Register index,
+                            Register scratch,
+                            Register result,
+                            Label* receiver_not_string,
+                            Label* index_not_number,
+                            Label* index_out_of_range,
+                            StringIndexFlags index_flags)
+      : object_(object),
+        index_(index),
+        scratch_(scratch),
+        result_(result),
+        receiver_not_string_(receiver_not_string),
+        index_not_number_(index_not_number),
+        index_out_of_range_(index_out_of_range),
+        index_flags_(index_flags) {
+    ASSERT(!scratch_.is(object_));
+    ASSERT(!scratch_.is(index_));
+    ASSERT(!scratch_.is(result_));
+    ASSERT(!result_.is(object_));
+    ASSERT(!result_.is(index_));
+  }
+
+  // Generates the fast case code. On the fallthrough path |result|
+  // register contains the result.
+  void GenerateFast(MacroAssembler* masm);
+
+  // Generates the slow case code. Must not be naturally
+  // reachable. Expected to be put after a ret instruction (e.g., in
+  // deferred code). Always jumps back to the fast case.
+  void GenerateSlow(MacroAssembler* masm,
+                    const RuntimeCallHelper& call_helper);
+
+ private:
+  Register object_;
+  Register index_;
+  Register scratch_;
+  Register result_;
+
+  Label* receiver_not_string_;
+  Label* index_not_number_;
+  Label* index_out_of_range_;
+
+  StringIndexFlags index_flags_;
+
+  Label call_runtime_;
+  Label index_not_smi_;
+  Label got_smi_index_;
+  Label exit_;
+
+  DISALLOW_COPY_AND_ASSIGN(StringCharCodeAtGenerator);
+};
+
+
+// Generates code for creating a one-char string from a char code.
+class StringCharFromCodeGenerator {
+ public:
+  StringCharFromCodeGenerator(Register code,
+                              Register result)
+      : code_(code),
+        result_(result) {
+    ASSERT(!code_.is(result_));
+  }
+
+  // Generates the fast case code. On the fallthrough path |result|
+  // register contains the result.
+  void GenerateFast(MacroAssembler* masm);
+
+  // Generates the slow case code. Must not be naturally
+  // reachable. Expected to be put after a ret instruction (e.g., in
+  // deferred code). Always jumps back to the fast case.
+  void GenerateSlow(MacroAssembler* masm,
+                    const RuntimeCallHelper& call_helper);
+
+ private:
+  Register code_;
+  Register result_;
+
+  Label slow_case_;
+  Label exit_;
+
+  DISALLOW_COPY_AND_ASSIGN(StringCharFromCodeGenerator);
+};
+
+
+// Generates code implementing String.prototype.charAt.
+//
+// Only supports the case when the receiver is a string and the index
+// is a number (smi or heap number) that is a valid index into the
+// string. Additional index constraints are specified by the
+// flags. Otherwise, bails out to the provided labels.
+//
+// Register usage: |object| may be changed to another string in a way
+// that doesn't affect charCodeAt/charAt semantics, |index| is
+// preserved, |scratch1|, |scratch2|, and |result| are clobbered.
+class StringCharAtGenerator {
+ public:
+  StringCharAtGenerator(Register object,
+                        Register index,
+                        Register scratch1,
+                        Register scratch2,
+                        Register result,
+                        Label* receiver_not_string,
+                        Label* index_not_number,
+                        Label* index_out_of_range,
+                        StringIndexFlags index_flags)
+      : char_code_at_generator_(object,
+                                index,
+                                scratch1,
+                                scratch2,
+                                receiver_not_string,
+                                index_not_number,
+                                index_out_of_range,
+                                index_flags),
+        char_from_code_generator_(scratch2, result) {}
+
+  // Generates the fast case code. On the fallthrough path |result|
+  // register contains the result.
+  void GenerateFast(MacroAssembler* masm);
+
+  // Generates the slow case code. Must not be naturally
+  // reachable. Expected to be put after a ret instruction (e.g., in
+  // deferred code). Always jumps back to the fast case.
+  void GenerateSlow(MacroAssembler* masm,
+                    const RuntimeCallHelper& call_helper);
+
+ private:
+  StringCharCodeAtGenerator char_code_at_generator_;
+  StringCharFromCodeGenerator char_from_code_generator_;
+
+  DISALLOW_COPY_AND_ASSIGN(StringCharAtGenerator);
 };
 
 

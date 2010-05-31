@@ -163,11 +163,11 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   //
   // key      - holds the smi key on entry and is unchanged if a branch is
   //            performed to the miss label.
+  //            Holds the result on exit if the load succeeded.
   //
   // Scratch registers:
   //
   // t0 - holds the untagged key on entry and holds the hash once computed.
-  //      Holds the result on exit if the load succeeded.
   //
   // t1 - used to hold the capacity mask of the dictionary
   //
@@ -235,7 +235,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   // Get the value at the masked, scaled index and return.
   const int kValueOffset =
       NumberDictionary::kElementsStartOffset + kPointerSize;
-  __ ldr(t0, FieldMemOperand(t2, kValueOffset));
+  __ ldr(key, FieldMemOperand(t2, kValueOffset));
 }
 
 
@@ -579,7 +579,13 @@ static inline bool IsInlinedICSite(Address address,
   }
   Address address_after_nop = address_after_call + Assembler::kInstrSize;
   Instr instr_after_nop = Assembler::instr_at(address_after_nop);
-  ASSERT(Assembler::IsBranch(instr_after_nop));
+  // There may be some reg-reg move and frame merging code to skip over before
+  // the branch back from the DeferredReferenceGetKeyedValue code to the inlined
+  // code.
+  while (!Assembler::IsBranch(instr_after_nop)) {
+    address_after_nop += Assembler::kInstrSize;
+    instr_after_nop = Assembler::instr_at(address_after_nop);
+  }
 
   // Find the end of the inlined code for handling the load.
   int b_offset =
@@ -743,9 +749,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   __ BranchOnNotSmi(key, &slow);
-  // Untag key into r2..
-  __ mov(r2, Operand(key, ASR, kSmiTagSize));
-
   // Get the elements array of the object.
   __ ldr(r4, FieldMemOperand(receiver, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
@@ -754,12 +757,14 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(r3, ip);
   __ b(ne, &check_pixel_array);
   // Check that the key (index) is within bounds.
-  __ ldr(r3, FieldMemOperand(r4, Array::kLengthOffset));
-  __ cmp(r2, r3);
+  __ ldr(r3, FieldMemOperand(r4, FixedArray::kLengthOffset));
+  __ cmp(key, Operand(r3));
   __ b(hs, &slow);
   // Fast case: Do the load.
   __ add(r3, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ ldr(r2, MemOperand(r3, r2, LSL, kPointerSizeLog2));
+  // The key is a smi.
+  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  __ ldr(r2, MemOperand(r3, key, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
   __ cmp(r2, ip);
   // In case the loaded value is the_hole we have to consult GetProperty
@@ -770,7 +775,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Check whether the elements is a pixel array.
   // r0: key
-  // r2: untagged index
   // r3: elements map
   // r4: elements
   __ bind(&check_pixel_array);
@@ -778,6 +782,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(r3, ip);
   __ b(ne, &check_number_dictionary);
   __ ldr(ip, FieldMemOperand(r4, PixelArray::kLengthOffset));
+  __ mov(r2, Operand(key, ASR, kSmiTagSize));
   __ cmp(r2, ip);
   __ b(hs, &slow);
   __ ldr(ip, FieldMemOperand(r4, PixelArray::kExternalPointerOffset));
@@ -788,14 +793,13 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&check_number_dictionary);
   // Check whether the elements is a number dictionary.
   // r0: key
-  // r2: untagged index
   // r3: elements map
   // r4: elements
   __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
   __ cmp(r3, ip);
   __ b(ne, &slow);
+  __ mov(r2, Operand(r0, ASR, kSmiTagSize));
   GenerateNumberDictionaryLoad(masm, &slow, r4, r0, r2, r3, r5);
-  __ mov(r0, r2);
   __ Ret();
 
   // Slow case, key and receiver still in r0 and r1.
@@ -808,70 +812,39 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
-  //  -- r0     : key
+  //  -- r0     : key (index)
   //  -- r1     : receiver
   // -----------------------------------
   Label miss;
-  Label index_not_smi;
   Label index_out_of_range;
-  Label slow_char_code;
-  Label got_char_code;
 
-  Register object = r1;
+  Register receiver = r1;
   Register index = r0;
-  Register code = r2;
-  Register scratch = r3;
+  Register scratch1 = r2;
+  Register scratch2 = r3;
+  Register result = r0;
 
-  StringHelper::GenerateFastCharCodeAt(masm,
-                                       object,
-                                       index,
-                                       scratch,
-                                       code,
-                                       &miss,  // When not a string.
-                                       &index_not_smi,
-                                       &index_out_of_range,
-                                       &slow_char_code);
+  StringCharAtGenerator char_at_generator(receiver,
+                                          index,
+                                          scratch1,
+                                          scratch2,
+                                          result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &index_out_of_range,
+                                          STRING_INDEX_IS_ARRAY_INDEX);
+  char_at_generator.GenerateFast(masm);
+  __ Ret();
 
-  // If we didn't bail out, code register contains smi tagged char
-  // code.
-  __ bind(&got_char_code);
-  StringHelper::GenerateCharFromCode(masm, code, scratch, r0, JUMP_FUNCTION);
-#ifdef DEBUG
-  __ Abort("Unexpected fall-through from char from code tail call");
-#endif
+  ICRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm, call_helper);
 
-  // Check if key is a heap number.
-  __ bind(&index_not_smi);
-  __ CheckMap(index, scratch, Factory::heap_number_map(), &miss, true);
-
-  // Push receiver and key on the stack (now that we know they are a
-  // string and a number), and call runtime.
-  __ bind(&slow_char_code);
-  __ EnterInternalFrame();
-  __ Push(object, index);
-  __ CallRuntime(Runtime::kStringCharCodeAt, 2);
-  ASSERT(!code.is(r0));
-  __ mov(code, r0);
-  __ LeaveInternalFrame();
-
-  // Check if the runtime call returned NaN char code. If yes, return
-  // undefined. Otherwise, we can continue.
-  if (FLAG_debug_code) {
-    __ BranchOnSmi(code, &got_char_code);
-    __ ldr(scratch, FieldMemOperand(code, HeapObject::kMapOffset));
-    __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-    __ cmp(scratch, ip);
-    __ Assert(eq, "StringCharCodeAt must return smi or heap number");
-  }
-  __ LoadRoot(scratch, Heap::kNanValueRootIndex);
-  __ cmp(code, scratch);
-  __ b(ne, &got_char_code);
   __ bind(&index_out_of_range);
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
   __ Ret();
 
   __ bind(&miss);
-  GenerateGeneric(masm);
+  GenerateMiss(masm);
 }
 
 
@@ -1283,11 +1256,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
   __ cmp(r4, ip);
   __ b(ne, &check_pixel_array);
-  // Untag the key (for checking against untagged length in the fixed array).
-  __ mov(r4, Operand(key, ASR, kSmiTagSize));
-  // Compute address to store into and check array bounds.
+  // Check array bounds. Both the key and the length of FixedArray are smis.
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  __ cmp(r4, Operand(ip));
+  __ cmp(key, Operand(ip));
   __ b(lo, &fast);
 
   // Slow case, handle jump to runtime.
@@ -1333,9 +1304,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Condition code from comparing key and array length is still available.
   __ b(ne, &slow);  // Only support writing to writing to array[array.length].
   // Check for room in the elements backing store.
-  __ mov(r4, Operand(key, ASR, kSmiTagSize));  // Untag key.
+  // Both the key and the length of FixedArray are smis.
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  __ cmp(r4, Operand(ip));
+  __ cmp(key, Operand(ip));
   __ b(hs, &slow);
   // Calculate key + 1 as smi.
   ASSERT_EQ(0, kSmiTag);

@@ -226,8 +226,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // edx: number of elements
     // ecx: start of next object
     __ mov(eax, Factory::fixed_array_map());
-    __ mov(Operand(edi, JSObject::kMapOffset), eax);  // setup the map
-    __ mov(Operand(edi, Array::kLengthOffset), edx);  // and length
+    __ mov(Operand(edi, FixedArray::kMapOffset), eax);  // setup the map
+    __ SmiTag(edx);
+    __ mov(Operand(edi, FixedArray::kLengthOffset), edx);  // and length
 
     // Initialize the fields to undefined.
     // ebx: JSObject
@@ -548,6 +549,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(ebx,
          FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ SmiUntag(ebx);
   __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
   __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
   __ cmp(eax, Operand(ebx));
@@ -752,15 +754,15 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ lea(scratch1, Operand(result, JSArray::kSize));
   __ mov(FieldOperand(result, JSArray::kElementsOffset), scratch1);
 
-  // Initialize the FixedArray and fill it with holes. FixedArray length is not
+  // Initialize the FixedArray and fill it with holes. FixedArray length is
   // stored as a smi.
   // result: JSObject
   // scratch1: elements array
   // scratch2: start of next object
-  __ mov(FieldOperand(scratch1, JSObject::kMapOffset),
+  __ mov(FieldOperand(scratch1, FixedArray::kMapOffset),
          Factory::fixed_array_map());
-  __ mov(FieldOperand(scratch1, Array::kLengthOffset),
-         Immediate(initial_capacity));
+  __ mov(FieldOperand(scratch1, FixedArray::kLengthOffset),
+         Immediate(Smi::FromInt(initial_capacity)));
 
   // Fill the FixedArray with the hole value. Inline the code if short.
   // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
@@ -847,23 +849,22 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ lea(elements_array, Operand(result, JSArray::kSize));
   __ mov(FieldOperand(result, JSArray::kElementsOffset), elements_array);
 
-  // Initialize the fixed array. FixedArray length is not stored as a smi.
+  // Initialize the fixed array. FixedArray length is stored as a smi.
   // result: JSObject
   // elements_array: elements array
   // elements_array_end: start of next object
   // array_size: size of array (smi)
-  ASSERT(kSmiTag == 0);
-  __ SmiUntag(array_size);  // Convert from smi to value.
-  __ mov(FieldOperand(elements_array, JSObject::kMapOffset),
+  __ mov(FieldOperand(elements_array, FixedArray::kMapOffset),
          Factory::fixed_array_map());
   // For non-empty JSArrays the length of the FixedArray and the JSArray is the
   // same.
-  __ mov(FieldOperand(elements_array, Array::kLengthOffset), array_size);
+  __ mov(FieldOperand(elements_array, FixedArray::kLengthOffset), array_size);
 
   // Fill the allocated FixedArray with the hole value if requested.
   // result: JSObject
   // elements_array: elements array
   if (fill_with_hole) {
+    __ SmiUntag(array_size);
     __ lea(edi, Operand(elements_array,
                         FixedArray::kHeaderSize - kHeapObjectTag));
     __ mov(eax, Factory::the_hole_value());

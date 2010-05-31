@@ -59,8 +59,8 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
-  // Set the remebered set bit for an address which points into an
-  // object. RecordWriteHelper only works if the object is not in new
+  // For page containing |object| mark region covering |addr| dirty.
+  // RecordWriteHelper only works if the object is not in new
   // space.
   void RecordWriteHelper(Register object,
                          Register addr,
@@ -73,7 +73,7 @@ class MacroAssembler: public Assembler {
                   Condition cc,  // equal for new space, not_equal otherwise.
                   Label* branch);
 
-  // Set the remembered set bit for [object+offset].
+  // For page containing |object| mark region covering [object+offset] dirty.
   // object is the object being stored into, value is the object being stored.
   // If offset is zero, then the scratch register contains the array index into
   // the elements array represented as a Smi.

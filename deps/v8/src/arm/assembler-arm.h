@@ -671,8 +671,6 @@ class Assembler : public Malloced {
   void blx(Label* L)  { blx(branch_offset(L, false)); }  // v5 and above
 
   // Data-processing instructions
-  void ubfx(Register dst, Register src1, const Operand& src2,
-            const Operand& src3, Condition cond = al);
 
   void and_(Register dst, Register src1, const Operand& src2,
             SBit s = LeaveCC, Condition cond = al);
@@ -758,6 +756,19 @@ class Assembler : public Malloced {
   // Miscellaneous arithmetic instructions
 
   void clz(Register dst, Register src, Condition cond = al);  // v5 and above
+
+  // Bitfield manipulation instructions. v7 and above.
+
+  void ubfx(Register dst, Register src, int lsb, int width,
+            Condition cond = al);
+
+  void sbfx(Register dst, Register src, int lsb, int width,
+            Condition cond = al);
+
+  void bfc(Register dst, int lsb, int width, Condition cond = al);
+
+  void bfi(Register dst, Register src, int lsb, int width,
+           Condition cond = al);
 
   // Status register access instructions
 

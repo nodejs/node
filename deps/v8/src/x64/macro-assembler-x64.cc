@@ -90,58 +90,21 @@ void MacroAssembler::RecordWriteHelper(Register object,
     bind(&not_in_new_space);
   }
 
-  Label fast;
-
   // Compute the page start address from the heap object pointer, and reuse
   // the 'object' register for it.
-  ASSERT(is_int32(~Page::kPageAlignmentMask));
-  and_(object,
-       Immediate(static_cast<int32_t>(~Page::kPageAlignmentMask)));
-  Register page_start = object;
+  and_(object, Immediate(~Page::kPageAlignmentMask));
 
-  // Compute the bit addr in the remembered set/index of the pointer in the
-  // page. Reuse 'addr' as pointer_offset.
-  subq(addr, page_start);
-  shr(addr, Immediate(kPointerSizeLog2));
-  Register pointer_offset = addr;
+  // Compute number of region covering addr. See Page::GetRegionNumberForAddress
+  // method for more details.
+  and_(addr, Immediate(Page::kPageAlignmentMask));
+  shrl(addr, Immediate(Page::kRegionSizeLog2));
 
-  // If the bit offset lies beyond the normal remembered set range, it is in
-  // the extra remembered set area of a large object.
-  cmpq(pointer_offset, Immediate(Page::kPageSize / kPointerSize));
-  j(below, &fast);
-
-  // We have a large object containing pointers. It must be a FixedArray.
-
-  // Adjust 'page_start' so that addressing using 'pointer_offset' hits the
-  // extra remembered set after the large object.
-
-  // Load the array length into 'scratch'.
-  movl(scratch,
-       Operand(page_start,
-               Page::kObjectStartOffset + FixedArray::kLengthOffset));
-  Register array_length = scratch;
-
-  // Extra remembered set starts right after the large object (a FixedArray), at
-  //   page_start + kObjectStartOffset + objectSize
-  // where objectSize is FixedArray::kHeaderSize + kPointerSize * array_length.
-  // Add the delta between the end of the normal RSet and the start of the
-  // extra RSet to 'page_start', so that addressing the bit using
-  // 'pointer_offset' hits the extra RSet words.
-  lea(page_start,
-      Operand(page_start, array_length, times_pointer_size,
-              Page::kObjectStartOffset + FixedArray::kHeaderSize
-                  - Page::kRSetEndOffset));
-
-  // NOTE: For now, we use the bit-test-and-set (bts) x86 instruction
-  // to limit code size. We should probably evaluate this decision by
-  // measuring the performance of an equivalent implementation using
-  // "simpler" instructions
-  bind(&fast);
-  bts(Operand(page_start, Page::kRSetOffset), pointer_offset);
+  // Set dirty mark for region.
+  bts(Operand(object, Page::kDirtyFlagOffset), addr);
 }
 
 
-// Set the remembered set bit for [object+offset].
+// For page containing |object| mark region covering [object+offset] dirty.
 // object is the object being stored into, value is the object being stored.
 // If offset is zero, then the smi_index register contains the array index into
 // the elements array represented as a smi. Otherwise it can be used as a
@@ -156,9 +119,8 @@ void MacroAssembler::RecordWrite(Register object,
   // registers are rsi.
   ASSERT(!object.is(rsi) && !value.is(rsi) && !smi_index.is(rsi));
 
-  // First, check if a remembered set write is even needed. The tests below
-  // catch stores of Smis and stores into young gen (which does not have space
-  // for the remembered set bits).
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis and stores into young gen.
   Label done;
   JumpIfSmi(value, &done);
 
@@ -191,8 +153,8 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
     bind(&okay);
   }
 
-  // Test that the object address is not in the new space.  We cannot
-  // set remembered set bits in the new space.
+  // Test that the object address is not in the new space. We cannot
+  // update page dirty marks for new space pages.
   InNewSpace(object, scratch, equal, &done);
 
   // The offset is relative to a tagged or untagged HeapObject pointer,
@@ -201,48 +163,19 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
   ASSERT(IsAligned(offset, kPointerSize) ||
          IsAligned(offset + kHeapObjectTag, kPointerSize));
 
-  // We use optimized write barrier code if the word being written to is not in
-  // a large object page, or is in the first "page" of a large object page.
-  // We make sure that an offset is inside the right limits whether it is
-  // tagged or untagged.
-  if ((offset > 0) && (offset < Page::kMaxHeapObjectSize - kHeapObjectTag)) {
-    // Compute the bit offset in the remembered set, leave it in 'scratch'.
-    lea(scratch, Operand(object, offset));
-    ASSERT(is_int32(Page::kPageAlignmentMask));
-    and_(scratch, Immediate(static_cast<int32_t>(Page::kPageAlignmentMask)));
-    shr(scratch, Immediate(kPointerSizeLog2));
-
-    // Compute the page address from the heap object pointer, leave it in
-    // 'object' (immediate value is sign extended).
-    and_(object, Immediate(~Page::kPageAlignmentMask));
-
-    // NOTE: For now, we use the bit-test-and-set (bts) x86 instruction
-    // to limit code size. We should probably evaluate this decision by
-    // measuring the performance of an equivalent implementation using
-    // "simpler" instructions
-    bts(Operand(object, Page::kRSetOffset), scratch);
+  Register dst = smi_index;
+  if (offset != 0) {
+    lea(dst, Operand(object, offset));
   } else {
-    Register dst = smi_index;
-    if (offset != 0) {
-      lea(dst, Operand(object, offset));
-    } else {
-      // array access: calculate the destination address in the same manner as
-      // KeyedStoreIC::GenerateGeneric.
-      SmiIndex index = SmiToIndex(smi_index, smi_index, kPointerSizeLog2);
-      lea(dst, FieldOperand(object,
-                            index.reg,
-                            index.scale,
-                            FixedArray::kHeaderSize));
-    }
-    // If we are already generating a shared stub, not inlining the
-    // record write code isn't going to save us any memory.
-    if (generating_stub()) {
-      RecordWriteHelper(object, dst, scratch);
-    } else {
-      RecordWriteStub stub(object, dst, scratch);
-      CallStub(&stub);
-    }
+    // array access: calculate the destination address in the same manner as
+    // KeyedStoreIC::GenerateGeneric.
+    SmiIndex index = SmiToIndex(smi_index, smi_index, kPointerSizeLog2);
+    lea(dst, FieldOperand(object,
+                          index.reg,
+                          index.scale,
+                          FixedArray::kHeaderSize));
   }
+  RecordWriteHelper(object, dst, scratch);
 
   bind(&done);
 
@@ -573,6 +506,11 @@ void MacroAssembler::SmiToInteger32(Register dst, Register src) {
 }
 
 
+void MacroAssembler::SmiToInteger32(Register dst, const Operand& src) {
+  movl(dst, Operand(src, kSmiShift / kBitsPerByte));
+}
+
+
 void MacroAssembler::SmiToInteger64(Register dst, Register src) {
   ASSERT_EQ(0, kSmiTag);
   if (!dst.is(src)) {
@@ -614,7 +552,7 @@ void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
 
 
 void MacroAssembler::SmiCompare(const Operand& dst, Smi* src) {
-  cmpl(Operand(dst, kIntSize), Immediate(src->value()));
+  cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
 }
 
 
@@ -634,6 +572,18 @@ void MacroAssembler::PositiveSmiTimesPowerOfTwoToInteger64(Register dst,
     sar(dst, Immediate(kSmiShift - power));
   } else if (power > kSmiShift) {
     shl(dst, Immediate(power - kSmiShift));
+  }
+}
+
+
+void MacroAssembler::PositiveSmiDivPowerOfTwoToInteger32(Register dst,
+                                                         Register src,
+                                                         int power) {
+  ASSERT((0 <= power) && (power < 32));
+  if (dst.is(src)) {
+    shr(dst, Immediate(power + kSmiShift));
+  } else {
+    UNIMPLEMENTED();  // Not used.
   }
 }
 
@@ -916,7 +866,7 @@ void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
 
 void MacroAssembler::SmiAddConstant(const Operand& dst, Smi* constant) {
   if (constant->value() != 0) {
-    addl(Operand(dst, kIntSize), Immediate(constant->value()));
+    addl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(constant->value()));
   }
 }
 
@@ -2594,7 +2544,7 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
   Integer32ToSmi(scratch1, length);
   movq(FieldOperand(result, String::kLengthOffset), scratch1);
-  movl(FieldOperand(result, String::kHashFieldOffset),
+  movq(FieldOperand(result, String::kHashFieldOffset),
        Immediate(String::kEmptyHashField));
 }
 
@@ -2632,7 +2582,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
   movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
   Integer32ToSmi(scratch1, length);
   movq(FieldOperand(result, String::kLengthOffset), scratch1);
-  movl(FieldOperand(result, String::kHashFieldOffset),
+  movq(FieldOperand(result, String::kHashFieldOffset),
        Immediate(String::kEmptyHashField));
 }
 
@@ -2691,19 +2641,26 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   }
 }
 
+
 int MacroAssembler::ArgumentStackSlotsForCFunctionCall(int num_arguments) {
-  // On Windows stack slots are reserved by the caller for all arguments
-  // including the ones passed in registers. On Linux 6 arguments are passed in
-  // registers and the caller does not reserve stack slots for them.
+  // On Windows 64 stack slots are reserved by the caller for all arguments
+  // including the ones passed in registers, and space is always allocated for
+  // the four register arguments even if the function takes fewer than four
+  // arguments.
+  // On AMD64 ABI (Linux/Mac) the first six arguments are passed in registers
+  // and the caller does not reserve stack slots for them.
   ASSERT(num_arguments >= 0);
 #ifdef _WIN64
-  static const int kArgumentsWithoutStackSlot = 0;
+  static const int kMinimumStackSlots = 4;
+  if (num_arguments < kMinimumStackSlots) return kMinimumStackSlots;
+  return num_arguments;
 #else
-  static const int kArgumentsWithoutStackSlot = 6;
+  static const int kRegisterPassedArguments = 6;
+  if (num_arguments < kRegisterPassedArguments) return 0;
+  return num_arguments - kRegisterPassedArguments;
 #endif
-  return num_arguments > kArgumentsWithoutStackSlot ?
-      num_arguments - kArgumentsWithoutStackSlot : 0;
 }
+
 
 void MacroAssembler::PrepareCallCFunction(int num_arguments) {
   int frame_alignment = OS::ActivationFrameAlignment();

@@ -60,7 +60,7 @@ VirtualFrame::VirtualFrame(VirtualFrame* original)
       register_allocation_map_(original->register_allocation_map_) { }
 
 
-bool VirtualFrame::Equals(VirtualFrame* other) {
+bool VirtualFrame::Equals(const VirtualFrame* other) {
   ASSERT(element_count() == other->element_count());
   if (top_of_stack_state_ != other->top_of_stack_state_) return false;
   if (register_allocation_map_ != other->register_allocation_map_) return false;
@@ -99,7 +99,9 @@ VirtualFrame::RegisterAllocationScope::~RegisterAllocationScope() {
 }
 
 
-CodeGenerator* VirtualFrame::cgen() { return CodeGeneratorScope::Current(); }
+CodeGenerator* VirtualFrame::cgen() const {
+  return CodeGeneratorScope::Current();
+}
 
 
 MacroAssembler* VirtualFrame::masm() { return cgen()->masm(); }
@@ -112,15 +114,17 @@ void VirtualFrame::CallStub(CodeStub* stub, int arg_count) {
 }
 
 
-int VirtualFrame::parameter_count() {
+int VirtualFrame::parameter_count() const {
   return cgen()->scope()->num_parameters();
 }
 
 
-int VirtualFrame::local_count() { return cgen()->scope()->num_stack_slots(); }
+int VirtualFrame::local_count() const {
+  return cgen()->scope()->num_stack_slots();
+}
 
 
-int VirtualFrame::frame_pointer() { return parameter_count() + 3; }
+int VirtualFrame::frame_pointer() const { return parameter_count() + 3; }
 
 
 int VirtualFrame::context_index() { return frame_pointer() - 1; }
@@ -129,7 +133,7 @@ int VirtualFrame::context_index() { return frame_pointer() - 1; }
 int VirtualFrame::function_index() { return frame_pointer() - 2; }
 
 
-int VirtualFrame::local0_index() { return frame_pointer() + 2; }
+int VirtualFrame::local0_index() const { return frame_pointer() + 2; }
 
 
 int VirtualFrame::fp_relative(int index) {
@@ -139,12 +143,12 @@ int VirtualFrame::fp_relative(int index) {
 }
 
 
-int VirtualFrame::expression_base_index() {
+int VirtualFrame::expression_base_index() const {
   return local0_index() + local_count();
 }
 
 
-int VirtualFrame::height() {
+int VirtualFrame::height() const {
   return element_count() - expression_base_index();
 }
 

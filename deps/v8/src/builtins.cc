@@ -305,7 +305,7 @@ static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
   // In large object space the object's start must coincide with chunk
   // and thus the trick is just not applicable.
   // In old space we do not use this trick to avoid dealing with
-  // remembered sets.
+  // region dirty marks.
   ASSERT(Heap::new_space()->Contains(elms));
 
   STATIC_ASSERT(FixedArray::kMapOffset == 0);
@@ -322,7 +322,7 @@ static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
   Heap::CreateFillerObjectAt(elms->address(), to_trim * kPointerSize);
 
   former_start[to_trim] = Heap::fixed_array_map();
-  former_start[to_trim + 1] = reinterpret_cast<Object*>(len - to_trim);
+  former_start[to_trim + 1] = Smi::FromInt(len - to_trim);
 
   ASSERT_EQ(elms->address() + to_trim * kPointerSize,
             (elms + to_trim * kPointerSize)->address());
@@ -500,7 +500,7 @@ BUILTIN(ArrayShift) {
 
   if (Heap::new_space()->Contains(elms)) {
     // As elms still in the same space they used to be (new space),
-    // there is no need to update remembered set.
+    // there is no need to update region dirty mark.
     array->set_elements(LeftTrimFixedArray(elms, 1), SKIP_WRITE_BARRIER);
   } else {
     // Shift the elements.

@@ -6245,10 +6245,23 @@ THREADED_TEST(InterceptorLoadICWithCallbackOnHolder) {
   templ->SetAccessor(v8_str("y"), Return239);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
+
+  // Check the case when receiver and interceptor's holder
+  // are the same objects.
   v8::Handle<Value> value = CompileRun(
       "var result = 0;"
       "for (var i = 0; i < 7; i++) {"
       "  result = o.y;"
+      "}");
+  CHECK_EQ(239, value->Int32Value());
+
+  // Check the case when interceptor's holder is in proto chain
+  // of receiver.
+  value = CompileRun(
+      "r = { __proto__: o };"
+      "var result = 0;"
+      "for (var i = 0; i < 7; i++) {"
+      "  result = r.y;"
       "}");
   CHECK_EQ(239, value->Int32Value());
 }
@@ -6265,11 +6278,23 @@ THREADED_TEST(InterceptorLoadICWithCallbackOnProto) {
   context->Global()->Set(v8_str("o"), templ_o->NewInstance());
   context->Global()->Set(v8_str("p"), templ_p->NewInstance());
 
+  // Check the case when receiver and interceptor's holder
+  // are the same objects.
   v8::Handle<Value> value = CompileRun(
       "o.__proto__ = p;"
       "var result = 0;"
       "for (var i = 0; i < 7; i++) {"
       "  result = o.x + o.y;"
+      "}");
+  CHECK_EQ(239 + 42, value->Int32Value());
+
+  // Check the case when interceptor's holder is in proto chain
+  // of receiver.
+  value = CompileRun(
+      "r = { __proto__: o };"
+      "var result = 0;"
+      "for (var i = 0; i < 7; i++) {"
+      "  result = r.x + r.y;"
       "}");
   CHECK_EQ(239 + 42, value->Int32Value());
 }
@@ -7200,6 +7225,18 @@ THREADED_TEST(NullIndexedInterceptor) {
   v8::Handle<Value> value = CompileRun("obj[42]");
   CHECK(value->IsInt32());
   CHECK_EQ(42, value->Int32Value());
+}
+
+
+THREADED_TEST(NamedPropertyHandlerGetterAttributes) {
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
+  templ->InstanceTemplate()->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("obj"),
+                     templ->GetFunction()->NewInstance());
+  ExpectTrue("obj.x === 42");
+  ExpectTrue("!obj.propertyIsEnumerable('x')");
 }
 
 

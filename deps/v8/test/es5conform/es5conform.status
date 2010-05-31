@@ -200,11 +200,6 @@ chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-34: FAIL_OK
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-35: FAIL_OK
 
-# getOwnPropertyDescriptor not implemented on array indices
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-b-1: FAIL_OK
-
-
-
 
 # We fail this because Object.keys returns numbers for element indices
 # rather than strings.
@@ -259,9 +254,6 @@ chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-5-1: FAIL_OK
 
 # Same as 15.4.4.16-7-7
 chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-8-7: FAIL_OK
-
-# Uses a array index number as a property
-chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-8-c-iii-1: FAIL_OK
 
 
 chapter15/15.5: UNIMPLEMENTED

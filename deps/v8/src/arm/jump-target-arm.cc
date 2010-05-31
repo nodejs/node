@@ -69,18 +69,15 @@ void JumpTarget::DoBranch(Condition cc, Hint ignored) {
   if (entry_frame_set_) {
     // Backward branch.  We have an expected frame to merge to on the
     // backward edge.
-    if (cc == al) {
-      cgen()->frame()->MergeTo(&entry_frame_);
-    } else {
-      // We can't do conditional merges yet so you have to ensure that all
-      // conditional branches to the JumpTarget have the same virtual frame.
-      ASSERT(cgen()->frame()->Equals(&entry_frame_));
-    }
+    cgen()->frame()->MergeTo(&entry_frame_, cc);
   } else {
     // Clone the current frame to use as the expected one at the target.
     set_entry_frame(cgen()->frame());
   }
   __ b(cc, &entry_label_);
+  if (cc == al) {
+    cgen()->DeleteFrame();
+  }
 }
 
 

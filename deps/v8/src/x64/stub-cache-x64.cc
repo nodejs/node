@@ -375,206 +375,6 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 }
 
 
-template <class Compiler>
-static void CompileLoadInterceptor(Compiler* compiler,
-                                   StubCompiler* stub_compiler,
-                                   MacroAssembler* masm,
-                                   JSObject* object,
-                                   JSObject* holder,
-                                   String* name,
-                                   LookupResult* lookup,
-                                   Register receiver,
-                                   Register scratch1,
-                                   Register scratch2,
-                                   Label* miss) {
-  ASSERT(holder->HasNamedInterceptor());
-  ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, miss);
-
-  // Check that the maps haven't changed.
-  Register reg =
-      stub_compiler->CheckPrototypes(object, receiver, holder,
-                                     scratch1, scratch2, name, miss);
-
-  if (lookup->IsProperty() && lookup->IsCacheable()) {
-    compiler->CompileCacheable(masm,
-                               stub_compiler,
-                               receiver,
-                               reg,
-                               scratch1,
-                               scratch2,
-                               holder,
-                               lookup,
-                               name,
-                               miss);
-  } else {
-    compiler->CompileRegular(masm,
-                             receiver,
-                             reg,
-                             scratch2,
-                             holder,
-                             miss);
-  }
-}
-
-
-class LoadInterceptorCompiler BASE_EMBEDDED {
- public:
-  explicit LoadInterceptorCompiler(Register name) : name_(name) {}
-
-  void CompileCacheable(MacroAssembler* masm,
-                        StubCompiler* stub_compiler,
-                        Register receiver,
-                        Register holder,
-                        Register scratch1,
-                        Register scratch2,
-                        JSObject* interceptor_holder,
-                        LookupResult* lookup,
-                        String* name,
-                        Label* miss_label) {
-    AccessorInfo* callback = NULL;
-    bool optimize = false;
-    // So far the most popular follow ups for interceptor loads are FIELD
-    // and CALLBACKS, so inline only them, other cases may be added
-    // later.
-    if (lookup->type() == FIELD) {
-      optimize = true;
-    } else if (lookup->type() == CALLBACKS) {
-      Object* callback_object = lookup->GetCallbackObject();
-      if (callback_object->IsAccessorInfo()) {
-        callback = AccessorInfo::cast(callback_object);
-        optimize = callback->getter() != NULL;
-      }
-    }
-
-    if (!optimize) {
-      CompileRegular(masm, receiver, holder, scratch2, interceptor_holder,
-                     miss_label);
-      return;
-    }
-
-    // Note: starting a frame here makes GC aware of pointers pushed below.
-    __ EnterInternalFrame();
-
-    if (lookup->type() == CALLBACKS) {
-      __ push(receiver);
-    }
-    __ push(holder);
-    __ push(name_);
-
-    // Invoke an interceptor.  Note: map checks from receiver to
-    // interceptor's holder has been compiled before (see a caller
-    // of this method.)
-    CompileCallLoadPropertyWithInterceptor(masm,
-                                           receiver,
-                                           holder,
-                                           name_,
-                                           interceptor_holder);
-
-    // Check if interceptor provided a value for property.  If it's
-    // the case, return immediately.
-    Label interceptor_failed;
-    __ CompareRoot(rax, Heap::kNoInterceptorResultSentinelRootIndex);
-    __ j(equal, &interceptor_failed);
-    __ LeaveInternalFrame();
-    __ ret(0);
-
-    __ bind(&interceptor_failed);
-    __ pop(name_);
-    __ pop(holder);
-    if (lookup->type() == CALLBACKS) {
-      __ pop(receiver);
-    }
-
-    __ LeaveInternalFrame();
-
-    if (lookup->type() == FIELD) {
-      // We found FIELD property in prototype chain of interceptor's holder.
-      // Check that the maps from interceptor's holder to field's holder
-      // haven't changed...
-      holder = stub_compiler->CheckPrototypes(interceptor_holder,
-                                              holder,
-                                              lookup->holder(),
-                                              scratch1,
-                                              scratch2,
-                                              name,
-                                              miss_label);
-      // ... and retrieve a field from field's holder.
-      stub_compiler->GenerateFastPropertyLoad(masm,
-                                              rax,
-                                              holder,
-                                              lookup->holder(),
-                                              lookup->GetFieldIndex());
-      __ ret(0);
-    } else {
-      // We found CALLBACKS property in prototype chain of interceptor's
-      // holder.
-      ASSERT(lookup->type() == CALLBACKS);
-      ASSERT(lookup->GetCallbackObject()->IsAccessorInfo());
-      ASSERT(callback != NULL);
-      ASSERT(callback->getter() != NULL);
-
-      // Prepare for tail call.  Push receiver to stack after return address.
-      Label cleanup;
-      __ pop(scratch2);  // return address
-      __ push(receiver);
-      __ push(scratch2);
-
-      // Check that the maps from interceptor's holder to callback's holder
-      // haven't changed.
-      holder = stub_compiler->CheckPrototypes(interceptor_holder, holder,
-                                              lookup->holder(), scratch1,
-                                              scratch2,
-                                              name,
-                                              &cleanup);
-
-      // Continue tail call preparation: push remaining parameters after
-      // return address.
-      __ pop(scratch2);  // return address
-      __ push(holder);
-      __ Move(holder, Handle<AccessorInfo>(callback));
-      __ push(holder);
-      __ push(FieldOperand(holder, AccessorInfo::kDataOffset));
-      __ push(name_);
-      __ push(scratch2);  // restore return address
-
-      // Tail call to runtime.
-      ExternalReference ref =
-          ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-      __ TailCallExternalReference(ref, 5, 1);
-
-      // Clean up code: we pushed receiver after return address and
-      // need to remove it from there.
-      __ bind(&cleanup);
-      __ pop(scratch1);  // return address
-      __ pop(scratch2);  // receiver
-      __ push(scratch1);
-    }
-  }
-
-
-  void CompileRegular(MacroAssembler* masm,
-                      Register receiver,
-                      Register holder,
-                      Register scratch,
-                      JSObject* interceptor_holder,
-                      Label* miss_label) {
-    __ pop(scratch);  // save old return address
-    PushInterceptorArguments(masm, receiver, holder, name_, interceptor_holder);
-    __ push(scratch);  // restore old return address
-
-    ExternalReference ref = ExternalReference(
-        IC_Utility(IC::kLoadPropertyWithInterceptorForLoad));
-    __ TailCallExternalReference(ref, 5, 1);
-  }
-
- private:
-  Register name_;
-};
-
-
 // Reserves space for the extra arguments to FastHandleApiCall in the
 // caller's frame.
 //
@@ -761,9 +561,9 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     Label miss_cleanup;
     Label* miss = can_do_fast_api_call ? &miss_cleanup : miss_label;
     Register holder =
-        stub_compiler_->CheckPrototypes(object, receiver, interceptor_holder,
-                                        scratch1, scratch2, name,
-                                        depth1, miss);
+        stub_compiler_->CheckPrototypes(object, receiver,
+                                        interceptor_holder, scratch1,
+                                        scratch2, name, depth1, miss);
 
     // Invoke an interceptor and if it provides a value,
     // branch to |regular_invoke|.
@@ -776,10 +576,17 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
     // Check that the maps from interceptor's holder to constant function's
     // holder haven't changed and thus we can use cached constant function.
-    stub_compiler_->CheckPrototypes(interceptor_holder, receiver,
-                                    lookup->holder(),
-                                    scratch1, scratch2, name,
-                                    depth2, miss);
+    if (interceptor_holder != lookup->holder()) {
+      stub_compiler_->CheckPrototypes(interceptor_holder, receiver,
+                                      lookup->holder(), scratch1,
+                                      scratch2, name, depth2, miss);
+    } else {
+      // CheckPrototypes has a side effect of fetching a 'holder'
+      // for API (object which is instanceof for the signature).  It's
+      // safe to omit it here, as if present, it should be fetched
+      // by the previous CheckPrototypes.
+      ASSERT(depth2 == kInvalidProtoDepth);
+    }
 
     // Invoke function.
     if (can_do_fast_api_call) {
@@ -1148,7 +955,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
     __ j(not_equal, &miss);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label call_builtin, exit, with_rset_update, attempt_to_grow_elements;
+      Label call_builtin, exit, with_write_barrier, attempt_to_grow_elements;
 
       // Get the array's length into rax and calculate new length.
       __ movq(rax, FieldOperand(rdx, JSArray::kLengthOffset));
@@ -1156,8 +963,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ SmiAddConstant(rax, rax, Smi::FromInt(argc));
 
       // Get the element's length into rcx.
-      __ movl(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
-      __ Integer32ToSmi(rcx, rcx);
+      __ movq(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
 
       // Check if we could survive without allocation.
       __ SmiCompare(rax, rcx);
@@ -1176,12 +982,12 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ movq(Operand(rdx, 0), rcx);
 
       // Check if value is a smi.
-      __ JumpIfNotSmi(rcx, &with_rset_update);
+      __ JumpIfNotSmi(rcx, &with_write_barrier);
 
       __ bind(&exit);
       __ ret((argc + 1) * kPointerSize);
 
-      __ bind(&with_rset_update);
+      __ bind(&with_write_barrier);
 
       __ InNewSpace(rbx, rcx, equal, &exit);
 
@@ -1229,11 +1035,11 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
       // Increment element's and array's sizes.
-      __ addl(FieldOperand(rbx, FixedArray::kLengthOffset),
-              Immediate(kAllocationDelta));
+      __ SmiAddConstant(FieldOperand(rbx, FixedArray::kLengthOffset),
+                        Smi::FromInt(kAllocationDelta));
       __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rax);
 
-      // Elements are in new space, so no remembered set updates are necessary.
+      // Elements are in new space, so write barrier is not required.
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&call_builtin);
@@ -1338,6 +1144,25 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   return GetCode(function);
 }
 
+
+Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
+                                                  JSObject* holder,
+                                                  JSFunction* function,
+                                                  String* name,
+                                                  CheckType check) {
+  // TODO(722): implement this.
+  return Heap::undefined_value();
+}
+
+
+Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
+                                                      JSObject* holder,
+                                                      JSFunction* function,
+                                                      String* name,
+                                                      CheckType check) {
+  // TODO(722): implement this.
+  return Heap::undefined_value();
+}
 
 
 
@@ -2117,9 +1942,8 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 }
 
 
-
 void StubCompiler::GenerateLoadInterceptor(JSObject* object,
-                                           JSObject* holder,
+                                           JSObject* interceptor_holder,
                                            LookupResult* lookup,
                                            Register receiver,
                                            Register name_reg,
@@ -2127,18 +1951,128 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
                                            Register scratch2,
                                            String* name,
                                            Label* miss) {
-  LoadInterceptorCompiler compiler(name_reg);
-  CompileLoadInterceptor(&compiler,
-                         this,
-                         masm(),
-                         object,
-                         holder,
-                         name,
-                         lookup,
-                         receiver,
-                         scratch1,
-                         scratch2,
-                         miss);
+  ASSERT(interceptor_holder->HasNamedInterceptor());
+  ASSERT(!interceptor_holder->GetNamedInterceptor()->getter()->IsUndefined());
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(receiver, miss);
+
+  // So far the most popular follow ups for interceptor loads are FIELD
+  // and CALLBACKS, so inline only them, other cases may be added
+  // later.
+  bool compile_followup_inline = false;
+  if (lookup->IsProperty() && lookup->IsCacheable()) {
+    if (lookup->type() == FIELD) {
+      compile_followup_inline = true;
+    } else if (lookup->type() == CALLBACKS &&
+        lookup->GetCallbackObject()->IsAccessorInfo() &&
+        AccessorInfo::cast(lookup->GetCallbackObject())->getter() != NULL) {
+      compile_followup_inline = true;
+    }
+  }
+
+  if (compile_followup_inline) {
+    // Compile the interceptor call, followed by inline code to load the
+    // property from further up the prototype chain if the call fails.
+    // Check that the maps haven't changed.
+    Register holder_reg = CheckPrototypes(object, receiver, interceptor_holder,
+                                          scratch1, scratch2, name, miss);
+    ASSERT(holder_reg.is(receiver) || holder_reg.is(scratch1));
+
+    // Save necessary data before invoking an interceptor.
+    // Requires a frame to make GC aware of pushed pointers.
+    __ EnterInternalFrame();
+
+    if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+      // CALLBACKS case needs a receiver to be passed into C++ callback.
+      __ push(receiver);
+    }
+    __ push(holder_reg);
+    __ push(name_reg);
+
+    // Invoke an interceptor.  Note: map checks from receiver to
+    // interceptor's holder has been compiled before (see a caller
+    // of this method.)
+    CompileCallLoadPropertyWithInterceptor(masm(),
+                                           receiver,
+                                           holder_reg,
+                                           name_reg,
+                                           interceptor_holder);
+
+    // Check if interceptor provided a value for property.  If it's
+    // the case, return immediately.
+    Label interceptor_failed;
+    __ CompareRoot(rax, Heap::kNoInterceptorResultSentinelRootIndex);
+    __ j(equal, &interceptor_failed);
+    __ LeaveInternalFrame();
+    __ ret(0);
+
+    __ bind(&interceptor_failed);
+    __ pop(name_reg);
+    __ pop(holder_reg);
+    if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+      __ pop(receiver);
+    }
+
+    __ LeaveInternalFrame();
+
+    // Check that the maps from interceptor's holder to lookup's holder
+    // haven't changed.  And load lookup's holder into |holder| register.
+    if (interceptor_holder != lookup->holder()) {
+      holder_reg = CheckPrototypes(interceptor_holder,
+                                   holder_reg,
+                                   lookup->holder(),
+                                   scratch1,
+                                   scratch2,
+                                   name,
+                                   miss);
+    }
+
+    if (lookup->type() == FIELD) {
+      // We found FIELD property in prototype chain of interceptor's holder.
+      // Retrieve a field from field's holder.
+      GenerateFastPropertyLoad(masm(), rax, holder_reg,
+                               lookup->holder(), lookup->GetFieldIndex());
+      __ ret(0);
+    } else {
+      // We found CALLBACKS property in prototype chain of interceptor's
+      // holder.
+      ASSERT(lookup->type() == CALLBACKS);
+      ASSERT(lookup->GetCallbackObject()->IsAccessorInfo());
+      AccessorInfo* callback = AccessorInfo::cast(lookup->GetCallbackObject());
+      ASSERT(callback != NULL);
+      ASSERT(callback->getter() != NULL);
+
+      // Tail call to runtime.
+      // Important invariant in CALLBACKS case: the code above must be
+      // structured to never clobber |receiver| register.
+      __ pop(scratch2);  // return address
+      __ push(receiver);
+      __ push(holder_reg);
+      __ Move(holder_reg, Handle<AccessorInfo>(callback));
+      __ push(holder_reg);
+      __ push(FieldOperand(holder_reg, AccessorInfo::kDataOffset));
+      __ push(name_reg);
+      __ push(scratch2);  // restore return address
+
+      ExternalReference ref =
+          ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
+      __ TailCallExternalReference(ref, 5, 1);
+    }
+  } else {  // !compile_followup_inline
+    // Call the runtime system to load the interceptor.
+    // Check that the maps haven't changed.
+    Register holder_reg = CheckPrototypes(object, receiver, interceptor_holder,
+                                          scratch1, scratch2, name, miss);
+    __ pop(scratch2);  // save old return address
+    PushInterceptorArguments(masm(), receiver, holder_reg,
+                             name_reg, interceptor_holder);
+    __ push(scratch2);  // restore old return address
+
+    ExternalReference ref = ExternalReference(
+        IC_Utility(IC::kLoadPropertyWithInterceptorForLoad));
+    __ TailCallExternalReference(ref, 5, 1);
+  }
 }
 
 

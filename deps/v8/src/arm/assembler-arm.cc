@@ -903,20 +903,6 @@ void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
 
 // Data-processing instructions.
 
-// UBFX <Rd>,<Rn>,#<lsb>,#<width - 1>
-// Instruction details available in ARM DDI 0406A, A8-464.
-// cond(31-28) | 01111(27-23)| 1(22) | 1(21) | widthm1(20-16) |
-//  Rd(15-12) | lsb(11-7) | 101(6-4) | Rn(3-0)
-void Assembler::ubfx(Register dst, Register src1, const Operand& src2,
-                     const Operand& src3, Condition cond) {
-  ASSERT(!src2.rm_.is_valid() && !src3.rm_.is_valid());
-  ASSERT(static_cast<uint32_t>(src2.imm32_) <= 0x1f);
-  ASSERT(static_cast<uint32_t>(src3.imm32_) <= 0x1f);
-  emit(cond | 0x3F*B21 | src3.imm32_*B16 |
-       dst.code()*B12 | src2.imm32_*B7 | 0x5*B4 | src1.code());
-}
-
-
 void Assembler::and_(Register dst, Register src1, const Operand& src2,
                      SBit s, Condition cond) {
   addrmod1(cond | 0*B21 | s, src1, dst, src2);
@@ -1103,6 +1089,82 @@ void Assembler::clz(Register dst, Register src, Condition cond) {
   ASSERT(!dst.is(pc) && !src.is(pc));
   emit(cond | B24 | B22 | B21 | 15*B16 | dst.code()*B12 |
        15*B8 | B4 | src.code());
+}
+
+
+// Bitfield manipulation instructions.
+
+// Unsigned bit field extract.
+// Extracts #width adjacent bits from position #lsb in a register, and
+// writes them to the low bits of a destination register.
+//   ubfx dst, src, #lsb, #width
+void Assembler::ubfx(Register dst,
+                     Register src,
+                     int lsb,
+                     int width,
+                     Condition cond) {
+  // v7 and above.
+  ASSERT(CpuFeatures::IsSupported(ARMv7));
+  ASSERT(!dst.is(pc) && !src.is(pc));
+  ASSERT((lsb >= 0) && (lsb <= 31));
+  ASSERT((width >= 1) && (width <= (32 - lsb)));
+  emit(cond | 0xf*B23 | B22 | B21 | (width - 1)*B16 | dst.code()*B12 |
+       lsb*B7 | B6 | B4 | src.code());
+}
+
+
+// Signed bit field extract.
+// Extracts #width adjacent bits from position #lsb in a register, and
+// writes them to the low bits of a destination register. The extracted
+// value is sign extended to fill the destination register.
+//   sbfx dst, src, #lsb, #width
+void Assembler::sbfx(Register dst,
+                     Register src,
+                     int lsb,
+                     int width,
+                     Condition cond) {
+  // v7 and above.
+  ASSERT(CpuFeatures::IsSupported(ARMv7));
+  ASSERT(!dst.is(pc) && !src.is(pc));
+  ASSERT((lsb >= 0) && (lsb <= 31));
+  ASSERT((width >= 1) && (width <= (32 - lsb)));
+  emit(cond | 0xf*B23 | B21 | (width - 1)*B16 | dst.code()*B12 |
+       lsb*B7 | B6 | B4 | src.code());
+}
+
+
+// Bit field clear.
+// Sets #width adjacent bits at position #lsb in the destination register
+// to zero, preserving the value of the other bits.
+//   bfc dst, #lsb, #width
+void Assembler::bfc(Register dst, int lsb, int width, Condition cond) {
+  // v7 and above.
+  ASSERT(CpuFeatures::IsSupported(ARMv7));
+  ASSERT(!dst.is(pc));
+  ASSERT((lsb >= 0) && (lsb <= 31));
+  ASSERT((width >= 1) && (width <= (32 - lsb)));
+  int msb = lsb + width - 1;
+  emit(cond | 0x1f*B22 | msb*B16 | dst.code()*B12 | lsb*B7 | B4 | 0xf);
+}
+
+
+// Bit field insert.
+// Inserts #width adjacent bits from the low bits of the source register
+// into position #lsb of the destination register.
+//   bfi dst, src, #lsb, #width
+void Assembler::bfi(Register dst,
+                    Register src,
+                    int lsb,
+                    int width,
+                    Condition cond) {
+  // v7 and above.
+  ASSERT(CpuFeatures::IsSupported(ARMv7));
+  ASSERT(!dst.is(pc) && !src.is(pc));
+  ASSERT((lsb >= 0) && (lsb <= 31));
+  ASSERT((width >= 1) && (width <= (32 - lsb)));
+  int msb = lsb + width - 1;
+  emit(cond | 0x1f*B22 | msb*B16 | dst.code()*B12 | lsb*B7 | B4 |
+       src.code());
 }
 
 

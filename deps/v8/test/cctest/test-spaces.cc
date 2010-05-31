@@ -32,40 +32,32 @@
 
 using namespace v8::internal;
 
-static void VerifyRSet(Address page_start) {
-#ifdef DEBUG
-  Page::set_rset_state(Page::IN_USE);
-#endif
-
+static void VerifyRegionMarking(Address page_start) {
   Page* p = Page::FromAddress(page_start);
 
-  p->ClearRSet();
+  p->SetRegionMarks(Page::kAllRegionsCleanMarks);
 
   for (Address addr = p->ObjectAreaStart();
        addr < p->ObjectAreaEnd();
        addr += kPointerSize) {
-    CHECK(!Page::IsRSetSet(addr, 0));
+    CHECK(!Page::FromAddress(addr)->IsRegionDirty(addr));
   }
 
   for (Address addr = p->ObjectAreaStart();
        addr < p->ObjectAreaEnd();
        addr += kPointerSize) {
-    Page::SetRSet(addr, 0);
+    Page::FromAddress(addr)->MarkRegionDirty(addr);
   }
 
   for (Address addr = p->ObjectAreaStart();
        addr < p->ObjectAreaEnd();
        addr += kPointerSize) {
-    CHECK(Page::IsRSetSet(addr, 0));
+    CHECK(Page::FromAddress(addr)->IsRegionDirty(addr));
   }
 }
 
 
 TEST(Page) {
-#ifdef DEBUG
-  Page::set_rset_state(Page::NOT_IN_USE);
-#endif
-
   byte* mem = NewArray<byte>(2*Page::kPageSize);
   CHECK(mem != NULL);
 
@@ -90,8 +82,8 @@ TEST(Page) {
   CHECK(p->OffsetToAddress(Page::kObjectStartOffset) == p->ObjectAreaStart());
   CHECK(p->OffsetToAddress(Page::kPageSize) == p->ObjectAreaEnd());
 
-  // test remember set
-  VerifyRSet(page_start);
+  // test region marking
+  VerifyRegionMarking(page_start);
 
   DeleteArray(mem);
 }

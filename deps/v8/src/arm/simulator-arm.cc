@@ -2031,7 +2031,6 @@ void Simulator::DecodeType2(Instr* instr) {
 
 
 void Simulator::DecodeType3(Instr* instr) {
-  ASSERT(instr->Bits(6, 4) == 0x5 || instr->Bit(4) == 0);
   int rd = instr->RdField();
   int rn = instr->RnField();
   int32_t rn_val = get_register(rn);
@@ -2058,17 +2057,47 @@ void Simulator::DecodeType3(Instr* instr) {
       break;
     }
     case 3: {
-      // UBFX.
       if (instr->HasW() && (instr->Bits(6, 4) == 0x5)) {
         uint32_t widthminus1 = static_cast<uint32_t>(instr->Bits(20, 16));
-        uint32_t lsbit = static_cast<uint32_t>(instr->ShiftAmountField());
+        uint32_t lsbit = static_cast<uint32_t>(instr->Bits(11, 7));
         uint32_t msbit = widthminus1 + lsbit;
         if (msbit <= 31) {
-          uint32_t rm_val =
-              static_cast<uint32_t>(get_register(instr->RmField()));
-          uint32_t extr_val = rm_val << (31 - msbit);
-          extr_val = extr_val >> (31 - widthminus1);
-          set_register(instr->RdField(), extr_val);
+          if (instr->Bit(22)) {
+            // ubfx - unsigned bitfield extract.
+            uint32_t rm_val =
+                static_cast<uint32_t>(get_register(instr->RmField()));
+            uint32_t extr_val = rm_val << (31 - msbit);
+            extr_val = extr_val >> (31 - widthminus1);
+            set_register(instr->RdField(), extr_val);
+          } else {
+            // sbfx - signed bitfield extract.
+            int32_t rm_val = get_register(instr->RmField());
+            int32_t extr_val = rm_val << (31 - msbit);
+            extr_val = extr_val >> (31 - widthminus1);
+            set_register(instr->RdField(), extr_val);
+          }
+        } else {
+          UNREACHABLE();
+        }
+        return;
+      } else if (!instr->HasW() && (instr->Bits(6, 4) == 0x1)) {
+        uint32_t lsbit = static_cast<uint32_t>(instr->Bits(11, 7));
+        uint32_t msbit = static_cast<uint32_t>(instr->Bits(20, 16));
+        if (msbit >= lsbit) {
+          // bfc or bfi - bitfield clear/insert.
+          uint32_t rd_val =
+              static_cast<uint32_t>(get_register(instr->RdField()));
+          uint32_t bitcount = msbit - lsbit + 1;
+          uint32_t mask = (1 << bitcount) - 1;
+          rd_val &= ~(mask << lsbit);
+          if (instr->RmField() != 15) {
+            // bfi - bitfield insert.
+            uint32_t rm_val =
+                static_cast<uint32_t>(get_register(instr->RmField()));
+            rm_val &= mask;
+            rd_val |= rm_val << lsbit;
+          }
+          set_register(instr->RdField(), rd_val);
         } else {
           UNREACHABLE();
         }

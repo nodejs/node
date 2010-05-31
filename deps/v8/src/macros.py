@@ -159,3 +159,13 @@ macro LAST_INPUT(array) = ((array)[2]);
 macro CAPTURE(index) = (3 + (index));
 const CAPTURE0 = 3;
 const CAPTURE1 = 4;
+
+# PropertyDescriptor return value indices - must match 
+# PropertyDescriptorIndices in runtime.cc.
+const IS_ACCESSOR_INDEX = 0;
+const VALUE_INDEX = 1;
+const GETTER_INDEX = 2;
+const SETTER_INDEX = 3;
+const WRITABLE_INDEX = 4;
+const ENUMERABLE_INDEX = 5;
+const CONFIGURABLE_INDEX = 6;

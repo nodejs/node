@@ -289,3 +289,49 @@ TEST(Type1) {
 
   VERIFY_RUN();
 }
+
+
+TEST(Type3) {
+  SETUP();
+
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    COMPARE(ubfx(r0, r1, 5, 10),
+            "e7e902d1       ubfx r0, r1, #5, #10");
+    COMPARE(ubfx(r1, r0, 5, 10),
+            "e7e912d0       ubfx r1, r0, #5, #10");
+    COMPARE(ubfx(r0, r1, 31, 1),
+            "e7e00fd1       ubfx r0, r1, #31, #1");
+    COMPARE(ubfx(r1, r0, 31, 1),
+            "e7e01fd0       ubfx r1, r0, #31, #1");
+
+    COMPARE(sbfx(r0, r1, 5, 10),
+            "e7a902d1       sbfx r0, r1, #5, #10");
+    COMPARE(sbfx(r1, r0, 5, 10),
+            "e7a912d0       sbfx r1, r0, #5, #10");
+    COMPARE(sbfx(r0, r1, 31, 1),
+            "e7a00fd1       sbfx r0, r1, #31, #1");
+    COMPARE(sbfx(r1, r0, 31, 1),
+            "e7a01fd0       sbfx r1, r0, #31, #1");
+
+    COMPARE(bfc(r0, 5, 10),
+            "e7ce029f       bfc r0, #5, #10");
+    COMPARE(bfc(r1, 5, 10),
+            "e7ce129f       bfc r1, #5, #10");
+    COMPARE(bfc(r0, 31, 1),
+            "e7df0f9f       bfc r0, #31, #1");
+    COMPARE(bfc(r1, 31, 1),
+            "e7df1f9f       bfc r1, #31, #1");
+
+    COMPARE(bfi(r0, r1, 5, 10),
+            "e7ce0291       bfi r0, r1, #5, #10");
+    COMPARE(bfi(r1, r0, 5, 10),
+            "e7ce1290       bfi r1, r0, #5, #10");
+    COMPARE(bfi(r0, r1, 31, 1),
+            "e7df0f91       bfi r0, r1, #31, #1");
+    COMPARE(bfi(r1, r0, 31, 1),
+            "e7df1f90       bfi r1, r0, #31, #1");
+  }
+
+  VERIFY_RUN();
+}
+

@@ -25,15 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function get(){return x}
-function set(x){this.x=x};
+// This file only tests very simple descriptors that always have
+// configurable, enumerable, and writable set to true.
+// A range of more elaborate tests are performed in 
+// object-define-property.js
 
-var obj = {x:1};
+function get() { return x; }
+function set(x) { this.x = x; }
+
+var obj = {x: 1};
 obj.__defineGetter__("accessor", get);
 obj.__defineSetter__("accessor", set);
+var a = new Array();
+a[1] = 42;
+obj[1] = 42;
 
-
-var descIsData = Object.getOwnPropertyDescriptor(obj,'x');
+var descIsData = Object.getOwnPropertyDescriptor(obj, 'x');
 assertTrue(descIsData.enumerable);
 assertTrue(descIsData.writable);
 assertTrue(descIsData.configurable);
@@ -49,3 +56,50 @@ assertTrue(descIsNotData == undefined);
 
 var descIsNotAccessor = Object.getOwnPropertyDescriptor(obj, 'not-accessor');
 assertTrue(descIsNotAccessor == undefined);
+
+var descArray = Object.getOwnPropertyDescriptor(a, '1');
+assertTrue(descArray.enumerable);
+assertTrue(descArray.configurable);
+assertTrue(descArray.writable);
+assertEquals(descArray.value, 42);
+
+var descObjectElement = Object.getOwnPropertyDescriptor(obj, '1');
+assertTrue(descObjectElement.enumerable);
+assertTrue(descObjectElement.configurable);
+assertTrue(descObjectElement.writable);
+assertEquals(descObjectElement.value, 42);
+
+// String objects.
+var a = new String('foobar');
+for (var i = 0; i < a.length; i++) {
+  var descStringObject = Object.getOwnPropertyDescriptor(a, i);
+  assertFalse(descStringObject.enumerable);
+  assertFalse(descStringObject.configurable);
+  assertFalse(descStringObject.writable);
+  assertEquals(descStringObject.value, a.substring(i, i+1));
+}
+
+// Support for additional attributes on string objects.
+a.x = 42;
+a[10] = 'foo';
+var descStringProperty = Object.getOwnPropertyDescriptor(a, 'x');
+assertTrue(descStringProperty.enumerable);
+assertTrue(descStringProperty.configurable);
+assertTrue(descStringProperty.writable);
+assertEquals(descStringProperty.value, 42);
+
+var descStringElement = Object.getOwnPropertyDescriptor(a, '10');
+assertTrue(descStringElement.enumerable);
+assertTrue(descStringElement.configurable);
+assertTrue(descStringElement.writable);
+assertEquals(descStringElement.value, 'foo');
+
+// Test that elements in the prototype chain is not returned.
+var proto = {};
+proto[10] = 42;
+
+var objWithProto = new Array();
+objWithProto.prototype = proto;
+objWithProto[0] = 'bar';
+var descWithProto = Object.getOwnPropertyDescriptor(objWithProto, '10');
+assertEquals(undefined, descWithProto);

@@ -568,9 +568,11 @@ class KeyedStoreStubCompiler: public StubCompiler {
 // a builtin function on its instance prototype (the one the generator
 // is set for), and a name of a generator itself (used to build ids
 // and generator function names).
-#define CUSTOM_CALL_IC_GENERATORS(V) \
-  V(array, push, ArrayPush) \
-  V(array, pop, ArrayPop)
+#define CUSTOM_CALL_IC_GENERATORS(V)      \
+  V(array, push, ArrayPush)               \
+  V(array, pop, ArrayPop)                 \
+  V(string, charCodeAt, StringCharCodeAt) \
+  V(string, charAt, StringCharAt)
 
 
 class CallStubCompiler: public StubCompiler {

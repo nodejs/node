@@ -60,49 +60,17 @@ void MacroAssembler::RecordWriteHelper(Register object,
     bind(&not_in_new_space);
   }
 
-  Label fast;
-
   // Compute the page start address from the heap object pointer, and reuse
   // the 'object' register for it.
   and_(object, ~Page::kPageAlignmentMask);
-  Register page_start = object;
 
-  // Compute the bit addr in the remembered set/index of the pointer in the
-  // page. Reuse 'addr' as pointer_offset.
-  sub(addr, Operand(page_start));
-  shr(addr, kObjectAlignmentBits);
-  Register pointer_offset = addr;
+  // Compute number of region covering addr. See Page::GetRegionNumberForAddress
+  // method for more details.
+  and_(addr, Page::kPageAlignmentMask);
+  shr(addr, Page::kRegionSizeLog2);
 
-  // If the bit offset lies beyond the normal remembered set range, it is in
-  // the extra remembered set area of a large object.
-  cmp(pointer_offset, Page::kPageSize / kPointerSize);
-  j(less, &fast);
-
-  // Adjust 'page_start' so that addressing using 'pointer_offset' hits the
-  // extra remembered set after the large object.
-
-  // Find the length of the large object (FixedArray).
-  mov(scratch, Operand(page_start, Page::kObjectStartOffset
-                                         + FixedArray::kLengthOffset));
-  Register array_length = scratch;
-
-  // Extra remembered set starts right after the large object (a FixedArray), at
-  //   page_start + kObjectStartOffset + objectSize
-  // where objectSize is FixedArray::kHeaderSize + kPointerSize * array_length.
-  // Add the delta between the end of the normal RSet and the start of the
-  // extra RSet to 'page_start', so that addressing the bit using
-  // 'pointer_offset' hits the extra RSet words.
-  lea(page_start,
-      Operand(page_start, array_length, times_pointer_size,
-              Page::kObjectStartOffset + FixedArray::kHeaderSize
-                  - Page::kRSetEndOffset));
-
-  // NOTE: For now, we use the bit-test-and-set (bts) x86 instruction
-  // to limit code size. We should probably evaluate this decision by
-  // measuring the performance of an equivalent implementation using
-  // "simpler" instructions
-  bind(&fast);
-  bts(Operand(page_start, Page::kRSetOffset), pointer_offset);
+  // Set dirty mark for region.
+  bts(Operand(object, Page::kDirtyFlagOffset), addr);
 }
 
 
@@ -130,7 +98,7 @@ void MacroAssembler::InNewSpace(Register object,
 }
 
 
-// Set the remembered set bit for [object+offset].
+// For page containing |object| mark region covering [object+offset] dirty.
 // object is the object being stored into, value is the object being stored.
 // If offset is zero, then the scratch register contains the array index into
 // the elements array represented as a Smi.
@@ -142,9 +110,8 @@ void MacroAssembler::RecordWrite(Register object, int offset,
   // registers are esi.
   ASSERT(!object.is(esi) && !value.is(esi) && !scratch.is(esi));
 
-  // First, check if a remembered set write is even needed. The tests below
-  // catch stores of Smis and stores into young gen (which does not have space
-  // for the remembered set bits).
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis and stores into young gen.
   Label done;
 
   // Skip barrier if writing a smi.
@@ -160,47 +127,19 @@ void MacroAssembler::RecordWrite(Register object, int offset,
   ASSERT(IsAligned(offset, kPointerSize) ||
          IsAligned(offset + kHeapObjectTag, kPointerSize));
 
-  // We use optimized write barrier code if the word being written to is not in
-  // a large object chunk or is in the first page of a large object chunk.
-  // We make sure that an offset is inside the right limits whether it is
-  // tagged or untagged.
-  if ((offset > 0) && (offset < Page::kMaxHeapObjectSize - kHeapObjectTag)) {
-    // Compute the bit offset in the remembered set, leave it in 'value'.
-    lea(value, Operand(object, offset));
-    and_(value, Page::kPageAlignmentMask);
-    shr(value, kPointerSizeLog2);
-
-    // Compute the page address from the heap object pointer, leave it in
-    // 'object'.
-    and_(object, ~Page::kPageAlignmentMask);
-
-    // NOTE: For now, we use the bit-test-and-set (bts) x86 instruction
-    // to limit code size. We should probably evaluate this decision by
-    // measuring the performance of an equivalent implementation using
-    // "simpler" instructions
-    bts(Operand(object, Page::kRSetOffset), value);
+  Register dst = scratch;
+  if (offset != 0) {
+    lea(dst, Operand(object, offset));
   } else {
-    Register dst = scratch;
-    if (offset != 0) {
-      lea(dst, Operand(object, offset));
-    } else {
-      // array access: calculate the destination address in the same manner as
-      // KeyedStoreIC::GenerateGeneric.  Multiply a smi by 2 to get an offset
-      // into an array of words.
-      ASSERT_EQ(1, kSmiTagSize);
-      ASSERT_EQ(0, kSmiTag);
-      lea(dst, Operand(object, dst, times_half_pointer_size,
-                       FixedArray::kHeaderSize - kHeapObjectTag));
-    }
-    // If we are already generating a shared stub, not inlining the
-    // record write code isn't going to save us any memory.
-    if (generating_stub()) {
-      RecordWriteHelper(object, dst, value);
-    } else {
-      RecordWriteStub stub(object, dst, value);
-      CallStub(&stub);
-    }
+    // Array access: calculate the destination address in the same manner as
+    // KeyedStoreIC::GenerateGeneric.  Multiply a smi by 2 to get an offset
+    // into an array of words.
+    ASSERT_EQ(1, kSmiTagSize);
+    ASSERT_EQ(0, kSmiTag);
+    lea(dst, Operand(object, dst, times_half_pointer_size,
+                     FixedArray::kHeaderSize - kHeapObjectTag));
   }
+  RecordWriteHelper(object, dst, value);
 
   bind(&done);
 
@@ -1384,6 +1323,7 @@ void MacroAssembler::InvokeFunction(Register fun,
   mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
   mov(ebx, FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
+  SmiUntag(ebx);
   mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
   lea(edx, FieldOperand(edx, Code::kHeaderSize));
 

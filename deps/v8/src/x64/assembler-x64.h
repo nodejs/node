@@ -307,7 +307,7 @@ class Operand BASE_EMBEDDED {
 
  private:
   byte rex_;
-  byte buf_[10];
+  byte buf_[6];
   // The number of bytes in buf_.
   unsigned int len_;
 

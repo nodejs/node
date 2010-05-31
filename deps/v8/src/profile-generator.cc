@@ -572,7 +572,8 @@ int CpuProfilesCollection::TokenToIndex(int security_token_id) {
 List<CpuProfile*>* CpuProfilesCollection::GetProfilesList(
     int security_token_id) {
   const int index = TokenToIndex(security_token_id);
-  profiles_by_token_.AddBlock(NULL, profiles_by_token_.length() - index + 1);
+  const int lists_to_add = index - profiles_by_token_.length() + 1;
+  if (lists_to_add > 0) profiles_by_token_.AddBlock(NULL, lists_to_add);
   List<CpuProfile*>* unabridged_list =
       profiles_by_token_[TokenToIndex(CodeEntry::kNoSecurityToken)];
   const int current_count = unabridged_list->length();
@@ -580,7 +581,8 @@ List<CpuProfile*>* CpuProfilesCollection::GetProfilesList(
     profiles_by_token_[index] = new List<CpuProfile*>(current_count);
   }
   List<CpuProfile*>* list = profiles_by_token_[index];
-  list->AddBlock(NULL, current_count - list->length());
+  const int profiles_to_add = current_count - list->length();
+  if (profiles_to_add > 0) list->AddBlock(NULL, profiles_to_add);
   return list;
 }
 

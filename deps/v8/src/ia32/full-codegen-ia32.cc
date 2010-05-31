@@ -1009,7 +1009,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(eax);  // Map.
   __ push(edx);  // Enumeration cache.
   __ mov(eax, FieldOperand(edx, FixedArray::kLengthOffset));
-  __ SmiTag(eax);
   __ push(eax);  // Enumeration cache length (as smi).
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
   __ jmp(&loop);
@@ -1019,7 +1018,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(Immediate(Smi::FromInt(0)));  // Map (0) - force slow check.
   __ push(eax);
   __ mov(eax, FieldOperand(eax, FixedArray::kLengthOffset));
-  __ SmiTag(eax);
   __ push(eax);  // Fixed array length (as smi).
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
 
@@ -1904,76 +1902,6 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 }
 
 
-void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
-  Handle<String> name = expr->name();
-  if (strcmp("_IsSmi", *name->ToCString()) == 0) {
-    EmitIsSmi(expr->arguments());
-  } else if (strcmp("_IsNonNegativeSmi", *name->ToCString()) == 0) {
-    EmitIsNonNegativeSmi(expr->arguments());
-  } else if (strcmp("_IsObject", *name->ToCString()) == 0) {
-    EmitIsObject(expr->arguments());
-  } else if (strcmp("_IsUndetectableObject", *name->ToCString()) == 0) {
-    EmitIsUndetectableObject(expr->arguments());
-  } else if (strcmp("_IsFunction", *name->ToCString()) == 0) {
-    EmitIsFunction(expr->arguments());
-  } else if (strcmp("_IsArray", *name->ToCString()) == 0) {
-    EmitIsArray(expr->arguments());
-  } else if (strcmp("_IsRegExp", *name->ToCString()) == 0) {
-    EmitIsRegExp(expr->arguments());
-  } else if (strcmp("_IsConstructCall", *name->ToCString()) == 0) {
-    EmitIsConstructCall(expr->arguments());
-  } else if (strcmp("_ObjectEquals", *name->ToCString()) == 0) {
-    EmitObjectEquals(expr->arguments());
-  } else if (strcmp("_Arguments", *name->ToCString()) == 0) {
-    EmitArguments(expr->arguments());
-  } else if (strcmp("_ArgumentsLength", *name->ToCString()) == 0) {
-    EmitArgumentsLength(expr->arguments());
-  } else if (strcmp("_ClassOf", *name->ToCString()) == 0) {
-    EmitClassOf(expr->arguments());
-  } else if (strcmp("_Log", *name->ToCString()) == 0) {
-    EmitLog(expr->arguments());
-  } else if (strcmp("_RandomHeapNumber", *name->ToCString()) == 0) {
-    EmitRandomHeapNumber(expr->arguments());
-  } else if (strcmp("_SubString", *name->ToCString()) == 0) {
-    EmitSubString(expr->arguments());
-  } else if (strcmp("_RegExpExec", *name->ToCString()) == 0) {
-    EmitRegExpExec(expr->arguments());
-  } else if (strcmp("_ValueOf", *name->ToCString()) == 0) {
-    EmitValueOf(expr->arguments());
-  } else if (strcmp("_SetValueOf", *name->ToCString()) == 0) {
-    EmitSetValueOf(expr->arguments());
-  } else if (strcmp("_NumberToString", *name->ToCString()) == 0) {
-    EmitNumberToString(expr->arguments());
-  } else if (strcmp("_CharFromCode", *name->ToCString()) == 0) {
-    EmitCharFromCode(expr->arguments());
-  } else if (strcmp("_FastCharCodeAt", *name->ToCString()) == 0) {
-    EmitFastCharCodeAt(expr->arguments());
-  } else if (strcmp("_StringAdd", *name->ToCString()) == 0) {
-    EmitStringAdd(expr->arguments());
-  } else if (strcmp("_StringCompare", *name->ToCString()) == 0) {
-    EmitStringCompare(expr->arguments());
-  } else if (strcmp("_MathPow", *name->ToCString()) == 0) {
-    EmitMathPow(expr->arguments());
-  } else if (strcmp("_MathSin", *name->ToCString()) == 0) {
-    EmitMathSin(expr->arguments());
-  } else if (strcmp("_MathCos", *name->ToCString()) == 0) {
-    EmitMathCos(expr->arguments());
-  } else if (strcmp("_MathSqrt", *name->ToCString()) == 0) {
-    EmitMathSqrt(expr->arguments());
-  } else if (strcmp("_CallFunction", *name->ToCString()) == 0) {
-    EmitCallFunction(expr->arguments());
-  } else if (strcmp("_RegExpConstructResult", *name->ToCString()) == 0) {
-    EmitRegExpConstructResult(expr->arguments());
-  } else if (strcmp("_SwapElements", *name->ToCString()) == 0) {
-    EmitSwapElements(expr->arguments());
-  } else if (strcmp("_GetFromCache", *name->ToCString()) == 0) {
-    EmitGetFromCache(expr->arguments());
-  } else {
-    UNREACHABLE();
-  }
-}
-
-
 void FullCodeGenerator::EmitIsSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
@@ -2432,49 +2360,119 @@ void FullCodeGenerator::EmitNumberToString(ZoneList<Expression*>* args) {
 }
 
 
-void FullCodeGenerator::EmitCharFromCode(ZoneList<Expression*>* args) {
+void FullCodeGenerator::EmitStringCharFromCode(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
   VisitForValue(args->at(0), kAccumulator);
 
-  Label slow_case, done;
-  // Fast case of Heap::LookupSingleCharacterStringFromCode.
-  ASSERT(kSmiTag == 0);
-  ASSERT(kSmiShiftSize == 0);
-  ASSERT(IsPowerOf2(String::kMaxAsciiCharCode + 1));
-  __ test(eax,
-          Immediate(kSmiTagMask |
-                    ((~String::kMaxAsciiCharCode) << kSmiTagSize)));
-  __ j(not_zero, &slow_case);
-  __ Set(ebx, Immediate(Factory::single_character_string_cache()));
-  ASSERT(kSmiTag == 0);
-  ASSERT(kSmiTagSize == 1);
-  ASSERT(kSmiShiftSize == 0);
-  // At this point code register contains smi tagged ascii char code.
-  __ mov(ebx, FieldOperand(ebx,
-                           eax, times_half_pointer_size,
-                           FixedArray::kHeaderSize));
-  __ cmp(ebx, Factory::undefined_value());
-  __ j(equal, &slow_case);
-  __ mov(eax, ebx);
+  Label done;
+  StringCharFromCodeGenerator generator(eax, ebx);
+  generator.GenerateFast(masm_);
   __ jmp(&done);
 
-  __ bind(&slow_case);
-  __ push(eax);
-  __ CallRuntime(Runtime::kCharFromCode, 1);
+  NopRuntimeCallHelper call_helper;
+  generator.GenerateSlow(masm_, call_helper);
 
   __ bind(&done);
-  Apply(context_, eax);
+  Apply(context_, ebx);
 }
 
 
-void FullCodeGenerator::EmitFastCharCodeAt(ZoneList<Expression*>* args) {
-  // TODO(fsc): Port the complete implementation from the classic back-end.
+void FullCodeGenerator::EmitStringCharCodeAt(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+
+  VisitForValue(args->at(0), kStack);
+  VisitForValue(args->at(1), kAccumulator);
+
+  Register object = ebx;
+  Register index = eax;
+  Register scratch = ecx;
+  Register result = edx;
+
+  __ pop(object);
+
+  Label need_conversion;
+  Label index_out_of_range;
+  Label done;
+  StringCharCodeAtGenerator generator(object,
+                                      index,
+                                      scratch,
+                                      result,
+                                      &need_conversion,
+                                      &need_conversion,
+                                      &index_out_of_range,
+                                      STRING_INDEX_IS_NUMBER);
+  generator.GenerateFast(masm_);
+  __ jmp(&done);
+
+  __ bind(&index_out_of_range);
+  // When the index is out of range, the spec requires us to return
+  // NaN.
+  __ Set(result, Immediate(Factory::nan_value()));
+  __ jmp(&done);
+
+  __ bind(&need_conversion);
   // Move the undefined value into the result register, which will
-  // trigger the slow case.
-  __ Set(eax, Immediate(Factory::undefined_value()));
-  Apply(context_, eax);
+  // trigger conversion.
+  __ Set(result, Immediate(Factory::undefined_value()));
+  __ jmp(&done);
+
+  NopRuntimeCallHelper call_helper;
+  generator.GenerateSlow(masm_, call_helper);
+
+  __ bind(&done);
+  Apply(context_, result);
 }
+
+
+void FullCodeGenerator::EmitStringCharAt(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+
+  VisitForValue(args->at(0), kStack);
+  VisitForValue(args->at(1), kAccumulator);
+
+  Register object = ebx;
+  Register index = eax;
+  Register scratch1 = ecx;
+  Register scratch2 = edx;
+  Register result = eax;
+
+  __ pop(object);
+
+  Label need_conversion;
+  Label index_out_of_range;
+  Label done;
+  StringCharAtGenerator generator(object,
+                                  index,
+                                  scratch1,
+                                  scratch2,
+                                  result,
+                                  &need_conversion,
+                                  &need_conversion,
+                                  &index_out_of_range,
+                                  STRING_INDEX_IS_NUMBER);
+  generator.GenerateFast(masm_);
+  __ jmp(&done);
+
+  __ bind(&index_out_of_range);
+  // When the index is out of range, the spec requires us to return
+  // the empty string.
+  __ Set(result, Immediate(Factory::empty_string()));
+  __ jmp(&done);
+
+  __ bind(&need_conversion);
+  // Move smi zero into the result register, which will trigger
+  // conversion.
+  __ Set(result, Immediate(Smi::FromInt(0)));
+  __ jmp(&done);
+
+  NopRuntimeCallHelper call_helper;
+  generator.GenerateSlow(masm_, call_helper);
+
+  __ bind(&done);
+  Apply(context_, result);
+}
+
 
 void FullCodeGenerator::EmitStringAdd(ZoneList<Expression*>* args) {
   ASSERT_EQ(2, args->length());

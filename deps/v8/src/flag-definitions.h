@@ -333,7 +333,6 @@ DEFINE_bool(code_stats, false, "report code statistics after GC")
 DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
 DEFINE_bool(print_handles, false, "report handles after GC")
 DEFINE_bool(print_global_handles, false, "report global handles after GC")
-DEFINE_bool(print_rset, false, "print remembered sets before GC")
 
 // ic.cc
 DEFINE_bool(trace_ic, false, "trace inline cache state transitions")

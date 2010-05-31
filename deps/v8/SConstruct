@@ -204,10 +204,16 @@ LIBRARY_FLAGS = {
       'LINKFLAGS':    ['-m32']
     },
     'arch:arm': {
-      'CPPDEFINES':   ['V8_TARGET_ARCH_ARM']
+      'CPPDEFINES':   ['V8_TARGET_ARCH_ARM'],
+      'unalignedaccesses:on' : {
+        'CPPDEFINES' : ['CAN_USE_UNALIGNED_ACCESSES=1']
+      },
+      'unalignedaccesses:off' : {
+        'CPPDEFINES' : ['CAN_USE_UNALIGNED_ACCESSES=0']
+      }
     },
     'simulator:arm': {
-      'CCFLAGS':      ['-m32', '-DCAN_USE_UNALIGNED_ACCESSES=1'],
+      'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
     },
     'arch:mips': {
@@ -733,6 +739,11 @@ SIMPLE_OPTIONS = {
     'default': 'none',
     'help': 'build with simulator'
   },
+  'unalignedaccesses': {
+    'values': ['default', 'on', 'off'],
+    'default': 'default',
+    'help': 'set whether the ARM target supports unaligned accesses'
+  },
   'disassembler': {
     'values': ['on', 'off'],
     'default': 'off',
@@ -851,6 +862,10 @@ def VerifyOptions(env):
     Abort("Shared Object soname not applicable for static library.")
   if env['os'] != 'win32' and env['pgo'] != 'off':
     Abort("Profile guided optimization only supported on Windows.")
+  if not (env['arch'] == 'arm' or env['simulator'] == 'arm') and ('unalignedaccesses' in ARGUMENTS):
+    print env['arch']
+    print env['simulator']
+    Abort("Option unalignedaccesses only supported for the ARM architecture.")
   for (name, option) in SIMPLE_OPTIONS.iteritems():
     if (not option.get('default')) and (name not in ARGUMENTS):
       message = ("A value for option %s must be specified (%s)." %

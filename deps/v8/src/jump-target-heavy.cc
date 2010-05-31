@@ -332,22 +332,10 @@ void JumpTarget::ComputeEntryFrame() {
 }
 
 
-DeferredCode::DeferredCode()
-    : masm_(CodeGeneratorScope::Current()->masm()),
-      statement_position_(masm_->current_statement_position()),
-      position_(masm_->current_position()) {
-  ASSERT(statement_position_ != RelocInfo::kNoPosition);
-  ASSERT(position_ != RelocInfo::kNoPosition);
-
-  CodeGeneratorScope::Current()->AddDeferred(this);
-#ifdef DEBUG
-  comment_ = "";
-#endif
-
+FrameRegisterState::FrameRegisterState(VirtualFrame* frame) {
   // Copy the register locations from the code generator's frame.
   // These are the registers that will be spilled on entry to the
   // deferred code and restored on exit.
-  VirtualFrame* frame = CodeGeneratorScope::Current()->frame();
   int sp_offset = frame->fp_relative(frame->stack_pointer_);
   for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
     int loc = frame->register_location(i);
@@ -421,6 +409,21 @@ void BreakTarget::Branch(Condition cc, Hint hint) {
   } else {
     DoBranch(cc, hint);
   }
+}
+
+
+DeferredCode::DeferredCode()
+    : masm_(CodeGeneratorScope::Current()->masm()),
+      statement_position_(masm_->current_statement_position()),
+      position_(masm_->current_position()),
+      frame_state_(CodeGeneratorScope::Current()->frame()) {
+  ASSERT(statement_position_ != RelocInfo::kNoPosition);
+  ASSERT(position_ != RelocInfo::kNoPosition);
+
+  CodeGeneratorScope::Current()->AddDeferred(this);
+#ifdef DEBUG
+  comment_ = "";
+#endif
 }
 
 } }  // namespace v8::internal

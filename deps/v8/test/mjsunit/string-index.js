@@ -207,6 +207,28 @@ for (var i = 0; i < 100; ++i) {
   assertEquals(expected, actual);
 }
 
+// Test negative zero case.
+var keys = [0, -0.0];
+var str = 'ab', arr = ['a', 'a'];
+for (var i = 0; i < 100; ++i) {
+  var index = Math.floor(i / 50);
+  var key = keys[index];
+  var expected = arr[index];
+  var actual = str[key];
+  assertEquals(expected, actual);
+}
+
+// Test "not-an-array-index" case.
+var keys = [0, 0.5];
+var str = 'ab', arr = ['a', undefined];
+for (var i = 0; i < 100; ++i) {
+  var index = Math.floor(i / 50);
+  var key = keys[index];
+  var expected = arr[index];
+  var actual = str[key];
+  assertEquals(expected, actual);
+}
+
 // Test out of range case.
 var keys = [0, -1];
 var str = 'ab', arr = ['a', undefined];

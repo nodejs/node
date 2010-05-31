@@ -388,8 +388,9 @@ class FullCodeGenerator: public AstVisitor {
   void EmitValueOf(ZoneList<Expression*>* arguments);
   void EmitSetValueOf(ZoneList<Expression*>* arguments);
   void EmitNumberToString(ZoneList<Expression*>* arguments);
-  void EmitCharFromCode(ZoneList<Expression*>* arguments);
-  void EmitFastCharCodeAt(ZoneList<Expression*>* arguments);
+  void EmitStringCharFromCode(ZoneList<Expression*>* arguments);
+  void EmitStringCharCodeAt(ZoneList<Expression*>* arguments);
+  void EmitStringCharAt(ZoneList<Expression*>* arguments);
   void EmitStringCompare(ZoneList<Expression*>* arguments);
   void EmitStringAdd(ZoneList<Expression*>* arguments);
   void EmitLog(ZoneList<Expression*>* arguments);

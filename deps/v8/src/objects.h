@@ -54,29 +54,28 @@
 //           - JSGlobalObject
 //           - JSBuiltinsObject
 //         - JSGlobalProxy
-//         - JSValue
-//       - Array
-//         - ByteArray
-//         - PixelArray
-//         - ExternalArray
-//           - ExternalByteArray
-//           - ExternalUnsignedByteArray
-//           - ExternalShortArray
-//           - ExternalUnsignedShortArray
-//           - ExternalIntArray
-//           - ExternalUnsignedIntArray
-//           - ExternalFloatArray
-//         - FixedArray
-//           - DescriptorArray
-//           - HashTable
-//             - Dictionary
-//             - SymbolTable
-//             - CompilationCacheTable
-//             - CodeCacheHashTable
-//             - MapCache
-//           - Context
-//           - GlobalContext
-//           - JSFunctionResultCache
+//        - JSValue
+//       - ByteArray
+//       - PixelArray
+//       - ExternalArray
+//         - ExternalByteArray
+//         - ExternalUnsignedByteArray
+//         - ExternalShortArray
+//         - ExternalUnsignedShortArray
+//         - ExternalIntArray
+//         - ExternalUnsignedIntArray
+//         - ExternalFloatArray
+//       - FixedArray
+//         - DescriptorArray
+//         - HashTable
+//           - Dictionary
+//           - SymbolTable
+//           - CompilationCacheTable
+//           - CodeCacheHashTable
+//           - MapCache
+//         - Context
+//         - GlobalContext
+//         - JSFunctionResultCache
 //       - String
 //         - SeqString
 //           - SeqAsciiString
@@ -411,6 +410,7 @@ enum StringRepresentationTag {
   kConsStringTag = 0x1,
   kExternalStringTag = 0x3
 };
+const uint32_t kIsConsStringMask = 0x1;
 
 
 // A ConsString with an empty string as the right side is a candidate
@@ -675,6 +675,10 @@ class Object BASE_EMBEDDED {
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype();
+
+  // Tries to convert an object to an array index.  Returns true and sets
+  // the output parameter if it succeeds.
+  inline bool ToArrayIndex(uint32_t* index);
 
   // Returns true if this is a JSValue containing a string and the index is
   // < the length of the string.  Used to implement [] on strings.
@@ -1026,7 +1030,7 @@ class HeapObject: public Object {
 
   // Returns the field at offset in obj, as a read/write Object* reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
-  // Does not update remembered sets, so should only be assigned to
+  // Does not invoke write barrier, so should only be assigned to
   // during marking GC.
   static inline Object** RawField(HeapObject* obj, int offset);
 
@@ -1046,6 +1050,7 @@ class HeapObject: public Object {
   void HeapObjectPrint();
   void HeapObjectVerify();
   inline void VerifyObjectField(int offset);
+  inline void VerifySmiField(int offset);
 
   void PrintHeader(const char* id);
 
@@ -1150,7 +1155,7 @@ class JSObject: public HeapObject {
   };
 
   // [properties]: Backing storage for properties.
-  // properties is a FixedArray in the fast case, and a Dictionary in the
+  // properties is a FixedArray in the fast case and a Dictionary in the
   // slow case.
   DECL_ACCESSORS(properties, FixedArray)  // Get and set fast properties.
   inline void initialize_properties();
@@ -1158,9 +1163,9 @@ class JSObject: public HeapObject {
   inline StringDictionary* property_dictionary();  // Gets slow properties.
 
   // [elements]: The elements (properties with names that are integers).
-  // elements is a FixedArray in the fast case, and a Dictionary in the slow
-  // case or a PixelArray in a special case.
-  DECL_ACCESSORS(elements, Array)  // Get and set fast elements.
+  // elements is a FixedArray in the fast case, a Dictionary in the slow
+  // case, and a PixelArray or ExternalArray in special cases.
+  DECL_ACCESSORS(elements, HeapObject)
   inline void initialize_elements();
   inline ElementsKind GetElementsKind();
   inline bool HasFastElements();
@@ -1594,36 +1599,12 @@ class JSObject: public HeapObject {
 };
 
 
-// Abstract super class arrays. It provides length behavior.
-class Array: public HeapObject {
+// FixedArray describes fixed-sized arrays with element type Object*.
+class FixedArray: public HeapObject {
  public:
   // [length]: length of the array.
   inline int length();
   inline void set_length(int value);
-
-  // Convert an object to an array index.
-  // Returns true if the conversion succeeded.
-  static inline bool IndexFromObject(Object* object, uint32_t* index);
-
-  // Layout descriptor.
-  static const int kLengthOffset = HeapObject::kHeaderSize;
-
- protected:
-  // No code should use the Array class directly, only its subclasses.
-  // Use the kHeaderSize of the appropriate subclass, which may be aligned.
-  static const int kHeaderSize = kLengthOffset + kIntSize;
-  static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Array);
-};
-
-
-// FixedArray describes fixed sized arrays where element
-// type is Object*.
-
-class FixedArray: public Array {
- public:
 
   // Setter and getter for elements.
   inline Object* get(int index);
@@ -1665,7 +1646,10 @@ class FixedArray: public Array {
   // Casting.
   static inline FixedArray* cast(Object* obj);
 
-  static const int kHeaderSize = Array::kAlignedSize;
+  // Layout description.
+  // Length is smi tagged when it is stored.
+  static const int kLengthOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = kLengthOffset + kPointerSize;
 
   // Maximal allowed size, in bytes, of a single FixedArray.
   // Prevents overflowing size computations, as well as extreme memory
@@ -2364,8 +2348,12 @@ class JSFunctionResultCache: public FixedArray {
 // ByteArray represents fixed sized byte arrays.  Used by the outside world,
 // such as PCRE, and also by the memory allocator and garbage collector to
 // fill in free blocks in the heap.
-class ByteArray: public Array {
+class ByteArray: public HeapObject {
  public:
+  // [length]: length of the array.
+  inline int length();
+  inline void set_length(int value);
+
   // Setter and getter.
   inline byte get(int index);
   inline void set(int index, byte value);
@@ -2374,7 +2362,7 @@ class ByteArray: public Array {
   inline int get_int(int index);
 
   static int SizeFor(int length) {
-    return OBJECT_SIZE_ALIGN(kHeaderSize + length);
+    return OBJECT_POINTER_ALIGN(kHeaderSize + length);
   }
   // We use byte arrays for free blocks in the heap.  Given a desired size in
   // bytes that is a multiple of the word size and big enough to hold a byte
@@ -2402,9 +2390,12 @@ class ByteArray: public Array {
   void ByteArrayVerify();
 #endif
 
-  // ByteArray headers are not quadword aligned.
-  static const int kHeaderSize = Array::kHeaderSize;
-  static const int kAlignedSize = Array::kAlignedSize;
+  // Layout description.
+  // Length is smi tagged when it is stored.
+  static const int kLengthOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = kLengthOffset + kPointerSize;
+
+  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
   // Maximal memory consumption for a single ByteArray.
   static const int kMaxSize = 512 * MB;
@@ -2423,8 +2414,12 @@ class ByteArray: public Array {
 //                      multipage/the-canvas-element.html#canvaspixelarray
 // In particular, write access clamps the value written to 0 or 255 if the
 // value written is outside this range.
-class PixelArray: public Array {
+class PixelArray: public HeapObject {
  public:
+  // [length]: length of the array.
+  inline int length();
+  inline void set_length(int value);
+
   // [external_pointer]: The pointer to the external memory area backing this
   // pixel array.
   DECL_ACCESSORS(external_pointer, uint8_t)  // Pointer to the data store.
@@ -2449,9 +2444,11 @@ class PixelArray: public Array {
   static const int kMaxLength = 0x3fffffff;
 
   // PixelArray headers are not quadword aligned.
-  static const int kExternalPointerOffset = Array::kAlignedSize;
+  static const int kLengthOffset = HeapObject::kHeaderSize;
+  static const int kExternalPointerOffset =
+      POINTER_SIZE_ALIGN(kLengthOffset + kIntSize);
   static const int kHeaderSize = kExternalPointerOffset + kPointerSize;
-  static const int kAlignedSize = OBJECT_SIZE_ALIGN(kHeaderSize);
+  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PixelArray);
@@ -2469,8 +2466,12 @@ class PixelArray: public Array {
 // Out-of-range values passed to the setter are converted via a C
 // cast, not clamping. Out-of-range indices cause exceptions to be
 // raised rather than being silently ignored.
-class ExternalArray: public Array {
+class ExternalArray: public HeapObject {
  public:
+  // [length]: length of the array.
+  inline int length();
+  inline void set_length(int value);
+
   // [external_pointer]: The pointer to the external memory area backing this
   // external array.
   DECL_ACCESSORS(external_pointer, void)  // Pointer to the data store.
@@ -2482,9 +2483,11 @@ class ExternalArray: public Array {
   static const int kMaxLength = 0x3fffffff;
 
   // ExternalArray headers are not quadword aligned.
-  static const int kExternalPointerOffset = Array::kAlignedSize;
+  static const int kLengthOffset = HeapObject::kHeaderSize;
+  static const int kExternalPointerOffset =
+      POINTER_SIZE_ALIGN(kLengthOffset + kIntSize);
   static const int kHeaderSize = kExternalPointerOffset + kPointerSize;
-  static const int kAlignedSize = OBJECT_SIZE_ALIGN(kHeaderSize);
+  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalArray);
@@ -3038,7 +3041,13 @@ class Map: public HeapObject {
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
   static const int kPadStart = kCodeCacheOffset + kPointerSize;
-  static const int kSize = MAP_SIZE_ALIGN(kPadStart);
+  static const int kSize = MAP_POINTER_ALIGN(kPadStart);
+
+  // Layout of pointer fields. Heap iteration code relies on them
+  // being continiously allocated.
+  static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
+  static const int kPointerFieldsEndOffset =
+      Map::kCodeCacheOffset + kPointerSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
@@ -3350,23 +3359,64 @@ class SharedFunctionInfo: public HeapObject {
   static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
   static const int kThisPropertyAssignmentsOffset =
       kInferredNameOffset + kPointerSize;
-  // Integer fields.
+#if V8_HOST_ARCH_32_BIT
+  // Smi fields.
   static const int kLengthOffset =
       kThisPropertyAssignmentsOffset + kPointerSize;
-  static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
+  static const int kFormalParameterCountOffset = kLengthOffset + kPointerSize;
+  static const int kExpectedNofPropertiesOffset =
+      kFormalParameterCountOffset + kPointerSize;
+  static const int kNumLiteralsOffset =
+      kExpectedNofPropertiesOffset + kPointerSize;
+  static const int kStartPositionAndTypeOffset =
+      kNumLiteralsOffset + kPointerSize;
+  static const int kEndPositionOffset =
+      kStartPositionAndTypeOffset + kPointerSize;
+  static const int kFunctionTokenPositionOffset =
+      kEndPositionOffset + kPointerSize;
+  static const int kCompilerHintsOffset =
+      kFunctionTokenPositionOffset + kPointerSize;
+  static const int kThisPropertyAssignmentsCountOffset =
+      kCompilerHintsOffset + kPointerSize;
+  // Total size.
+  static const int kSize = kThisPropertyAssignmentsCountOffset + kPointerSize;
+#else
+  // The only reason to use smi fields instead of int fields
+  // is to allow interation without maps decoding during
+  // garbage collections.
+  // To avoid wasting space on 64-bit architectures we use
+  // the following trick: we group integer fields into pairs
+  // First integer in each pair is shifted left by 1.
+  // By doing this we guarantee that LSB of each kPointerSize aligned
+  // word is not set and thus this word cannot be treated as pointer
+  // to HeapObject during old space traversal.
+  static const int kLengthOffset =
+      kThisPropertyAssignmentsOffset + kPointerSize;
+  static const int kFormalParameterCountOffset =
+      kLengthOffset + kIntSize;
+
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kIntSize;
-  static const int kNumLiteralsOffset = kExpectedNofPropertiesOffset + kIntSize;
-  static const int kStartPositionAndTypeOffset =
+  static const int kNumLiteralsOffset =
+      kExpectedNofPropertiesOffset + kIntSize;
+
+  static const int kEndPositionOffset =
       kNumLiteralsOffset + kIntSize;
-  static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
-  static const int kFunctionTokenPositionOffset = kEndPositionOffset + kIntSize;
+  static const int kStartPositionAndTypeOffset =
+      kEndPositionOffset + kIntSize;
+
+  static const int kFunctionTokenPositionOffset =
+      kStartPositionAndTypeOffset + kIntSize;
   static const int kCompilerHintsOffset =
       kFunctionTokenPositionOffset + kIntSize;
+
   static const int kThisPropertyAssignmentsCountOffset =
       kCompilerHintsOffset + kIntSize;
+
   // Total size.
   static const int kSize = kThisPropertyAssignmentsCountOffset + kIntSize;
+
+#endif
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
  private:
@@ -4122,8 +4172,7 @@ class String: public HeapObject {
   // Layout description.
   static const int kLengthOffset = HeapObject::kHeaderSize;
   static const int kHashFieldOffset = kLengthOffset + kPointerSize;
-  static const int kSize = kHashFieldOffset + kIntSize;
-  // Notice: kSize is not pointer-size aligned if pointers are 64-bit.
+  static const int kSize = kHashFieldOffset + kPointerSize;
 
   // Maximum number of characters to consider when trying to convert a string
   // value into an array index.
@@ -4142,7 +4191,7 @@ class String: public HeapObject {
   // whether a hash code has been computed.  If the hash code has been
   // computed the 2nd bit tells whether the string can be used as an
   // array index.
-  static const int kHashComputedMask = 1;
+  static const int kHashNotComputedMask = 1;
   static const int kIsArrayIndexMask = 1 << 1;
   static const int kNofLengthBitFields = 2;
 
@@ -4160,9 +4209,14 @@ class String: public HeapObject {
   static const int kArrayIndexHashMask = (1 << kArrayIndexHashLengthShift) - 1;
   static const int kArrayIndexValueBits =
       kArrayIndexHashLengthShift - kHashShift;
+  static const int kArrayIndexValueMask =
+      ((1 << kArrayIndexValueBits) - 1) << kHashShift;
 
   // Value of empty hash field indicating that the hash is not computed.
-  static const int kEmptyHashField = 0;
+  static const int kEmptyHashField = kHashNotComputedMask;
+
+  // Value of hash field containing computed hash equal to zero.
+  static const int kZeroHash = 0;
 
   // Maximal string length.
   static const int kMaxLength = (1 << (32 - 2)) - 1;
@@ -4230,6 +4284,8 @@ class String: public HeapObject {
   // mutates the ConsString and might return a failure.
   Object* SlowTryFlatten(PretenureFlag pretenure);
 
+  static inline bool IsHashFieldComputed(uint32_t field);
+
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.
   bool SlowEquals(String* other);
@@ -4279,7 +4335,7 @@ class SeqAsciiString: public SeqString {
 
   // Computes the size for an AsciiString instance of a given length.
   static int SizeFor(int length) {
-    return OBJECT_SIZE_ALIGN(kHeaderSize + length * kCharSize);
+    return OBJECT_POINTER_ALIGN(kHeaderSize + length * kCharSize);
   }
 
   // Layout description.
@@ -4331,7 +4387,7 @@ class SeqTwoByteString: public SeqString {
 
   // Computes the size for a TwoByteString instance of a given length.
   static int SizeFor(int length) {
-    return OBJECT_SIZE_ALIGN(kHeaderSize + length * kShortSize);
+    return OBJECT_POINTER_ALIGN(kHeaderSize + length * kShortSize);
   }
 
   // Layout description.

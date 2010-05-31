@@ -571,6 +571,78 @@ void FullCodeGenerator::SetSourcePosition(int pos) {
 }
 
 
+void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
+  Handle<String> name = expr->name();
+  if (strcmp("_IsSmi", *name->ToCString()) == 0) {
+    EmitIsSmi(expr->arguments());
+  } else if (strcmp("_IsNonNegativeSmi", *name->ToCString()) == 0) {
+    EmitIsNonNegativeSmi(expr->arguments());
+  } else if (strcmp("_IsObject", *name->ToCString()) == 0) {
+    EmitIsObject(expr->arguments());
+  } else if (strcmp("_IsUndetectableObject", *name->ToCString()) == 0) {
+    EmitIsUndetectableObject(expr->arguments());
+  } else if (strcmp("_IsFunction", *name->ToCString()) == 0) {
+    EmitIsFunction(expr->arguments());
+  } else if (strcmp("_IsArray", *name->ToCString()) == 0) {
+    EmitIsArray(expr->arguments());
+  } else if (strcmp("_IsRegExp", *name->ToCString()) == 0) {
+    EmitIsRegExp(expr->arguments());
+  } else if (strcmp("_IsConstructCall", *name->ToCString()) == 0) {
+    EmitIsConstructCall(expr->arguments());
+  } else if (strcmp("_ObjectEquals", *name->ToCString()) == 0) {
+    EmitObjectEquals(expr->arguments());
+  } else if (strcmp("_Arguments", *name->ToCString()) == 0) {
+    EmitArguments(expr->arguments());
+  } else if (strcmp("_ArgumentsLength", *name->ToCString()) == 0) {
+    EmitArgumentsLength(expr->arguments());
+  } else if (strcmp("_ClassOf", *name->ToCString()) == 0) {
+    EmitClassOf(expr->arguments());
+  } else if (strcmp("_Log", *name->ToCString()) == 0) {
+    EmitLog(expr->arguments());
+  } else if (strcmp("_RandomHeapNumber", *name->ToCString()) == 0) {
+    EmitRandomHeapNumber(expr->arguments());
+  } else if (strcmp("_SubString", *name->ToCString()) == 0) {
+    EmitSubString(expr->arguments());
+  } else if (strcmp("_RegExpExec", *name->ToCString()) == 0) {
+    EmitRegExpExec(expr->arguments());
+  } else if (strcmp("_ValueOf", *name->ToCString()) == 0) {
+    EmitValueOf(expr->arguments());
+  } else if (strcmp("_SetValueOf", *name->ToCString()) == 0) {
+    EmitSetValueOf(expr->arguments());
+  } else if (strcmp("_NumberToString", *name->ToCString()) == 0) {
+    EmitNumberToString(expr->arguments());
+  } else if (strcmp("_StringCharFromCode", *name->ToCString()) == 0) {
+    EmitStringCharFromCode(expr->arguments());
+  } else if (strcmp("_StringCharCodeAt", *name->ToCString()) == 0) {
+    EmitStringCharCodeAt(expr->arguments());
+  } else if (strcmp("_StringCharAt", *name->ToCString()) == 0) {
+    EmitStringCharAt(expr->arguments());
+  } else if (strcmp("_StringAdd", *name->ToCString()) == 0) {
+    EmitStringAdd(expr->arguments());
+  } else if (strcmp("_StringCompare", *name->ToCString()) == 0) {
+    EmitStringCompare(expr->arguments());
+  } else if (strcmp("_MathPow", *name->ToCString()) == 0) {
+    EmitMathPow(expr->arguments());
+  } else if (strcmp("_MathSin", *name->ToCString()) == 0) {
+    EmitMathSin(expr->arguments());
+  } else if (strcmp("_MathCos", *name->ToCString()) == 0) {
+    EmitMathCos(expr->arguments());
+  } else if (strcmp("_MathSqrt", *name->ToCString()) == 0) {
+    EmitMathSqrt(expr->arguments());
+  } else if (strcmp("_CallFunction", *name->ToCString()) == 0) {
+    EmitCallFunction(expr->arguments());
+  } else if (strcmp("_RegExpConstructResult", *name->ToCString()) == 0) {
+    EmitRegExpConstructResult(expr->arguments());
+  } else if (strcmp("_SwapElements", *name->ToCString()) == 0) {
+    EmitSwapElements(expr->arguments());
+  } else if (strcmp("_GetFromCache", *name->ToCString()) == 0) {
+    EmitGetFromCache(expr->arguments());
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
 void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
   Label eval_right, done;
 

@@ -62,26 +62,21 @@ function StringValueOf() {
 
 // ECMA-262, section 15.5.4.4
 function StringCharAt(pos) {
-  var char_code = %_FastCharCodeAt(this, pos);
-  if (!%_IsSmi(char_code)) {
-    var subject = TO_STRING_INLINE(this);
-    var index = TO_INTEGER(pos);
-    if (index >= subject.length || index < 0) return "";
-    char_code = %StringCharCodeAt(subject, index);
+  var result = %_StringCharAt(this, pos);
+  if (%_IsSmi(result)) {
+    result = %_StringCharAt(TO_STRING_INLINE(this), TO_INTEGER(pos));
   }
-  return %_CharFromCode(char_code);
+  return result;
 }
 
 
 // ECMA-262 section 15.5.4.5
 function StringCharCodeAt(pos) {
-  var fast_answer = %_FastCharCodeAt(this, pos);
-  if (%_IsSmi(fast_answer)) {
-    return fast_answer;
+  var result = %_StringCharCodeAt(this, pos);
+  if (!%_IsSmi(result)) {
+    result = %_StringCharCodeAt(TO_STRING_INLINE(this), TO_INTEGER(pos));
   }
-  var subject = TO_STRING_INLINE(this);
-  var index = TO_INTEGER(pos);
-  return %StringCharCodeAt(subject, index);
+  return result;
 }
 
 
@@ -214,11 +209,7 @@ function StringMatch(regexp) {
 function SubString(string, start, end) {
   // Use the one character string cache.
   if (start + 1 == end) {
-    var char_code = %_FastCharCodeAt(string, start);
-    if (!%_IsSmi(char_code)) {
-      char_code = %StringCharCodeAt(string, start);
-    }
-    return %_CharFromCode(char_code);
+    return %_StringCharAt(string, start);
   }
   return %_SubString(string, start, end);
 }
@@ -322,10 +313,7 @@ function ExpandReplacement(string, subject, matchInfo, builder) {
     var expansion = '$';
     var position = next + 1;
     if (position < length) {
-      var peek = %_FastCharCodeAt(string, position);
-      if (!%_IsSmi(peek)) {
-        peek = %StringCharCodeAt(string, position);
-      }
+      var peek = %_StringCharCodeAt(string, position);
       if (peek == 36) {         // $$
         ++position;
         builder.add('$');
@@ -343,10 +331,7 @@ function ExpandReplacement(string, subject, matchInfo, builder) {
         ++position;
         var n = peek - 48;
         if (position < length) {
-          peek = %_FastCharCodeAt(string, position);
-          if (!%_IsSmi(peek)) {
-            peek = %StringCharCodeAt(string, position);
-          }
+          peek = %_StringCharCodeAt(string, position);
           // $nn, 01 <= nn <= 99
           if (n != 0 && peek == 48 || peek >= 49 && peek <= 57) {
             var nn = n * 10 + (peek - 48);
@@ -824,7 +809,7 @@ function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
   if (n == 1) {
     if (!%_IsSmi(code)) code = ToNumber(code);
-    return %_CharFromCode(code & 0xffff);
+    return %_StringCharFromCode(code & 0xffff);
   }
 
   // NOTE: This is not super-efficient, but it is necessary because we

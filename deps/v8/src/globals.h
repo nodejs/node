@@ -303,7 +303,6 @@ class HeapObject;
 class IC;
 class InterceptorInfo;
 class IterationStatement;
-class Array;
 class JSArray;
 class JSFunction;
 class JSObject;
@@ -544,16 +543,16 @@ enum StateTag {
 #define HAS_FAILURE_TAG(value) \
   ((reinterpret_cast<intptr_t>(value) & kFailureTagMask) == kFailureTag)
 
-// OBJECT_SIZE_ALIGN returns the value aligned HeapObject size
-#define OBJECT_SIZE_ALIGN(value)                                \
+// OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
+#define OBJECT_POINTER_ALIGN(value)                             \
   (((value) + kObjectAlignmentMask) & ~kObjectAlignmentMask)
 
 // POINTER_SIZE_ALIGN returns the value aligned as a pointer.
 #define POINTER_SIZE_ALIGN(value)                               \
   (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
 
-// MAP_SIZE_ALIGN returns the value aligned as a map pointer.
-#define MAP_SIZE_ALIGN(value)                               \
+// MAP_POINTER_ALIGN returns the value aligned as a map pointer.
+#define MAP_POINTER_ALIGN(value)                                \
   (((value) + kMapAlignmentMask) & ~kMapAlignmentMask)
 
 // The expression OFFSET_OF(type, field) computes the byte-offset

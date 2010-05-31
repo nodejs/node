@@ -492,23 +492,23 @@ PropertyDescriptor.prototype.hasSetter = function() {
 function GetOwnProperty(obj, p) {
   var desc = new PropertyDescriptor();
 
-  // An array with:
-  //  obj is a data property [false, value, Writeable, Enumerable, Configurable]
-  //  obj is an accessor [true, Get, Set, Enumerable, Configurable]
+  // GetOwnProperty returns an array indexed by the constants
+  // defined in macros.py.
+  // If p is not a property on obj undefined is returned.
   var props = %GetOwnProperty(ToObject(obj), ToString(p));
 
   if (IS_UNDEFINED(props)) return void 0;
 
   // This is an accessor
-  if (props[0]) {
-    desc.setGet(props[1]);
-    desc.setSet(props[2]);
+  if (props[IS_ACCESSOR_INDEX]) {
+    desc.setGet(props[GETTER_INDEX]);
+    desc.setSet(props[SETTER_INDEX]);
   } else {
-    desc.setValue(props[1]);
-    desc.setWritable(props[2]);
+    desc.setValue(props[VALUE_INDEX]);
+    desc.setWritable(props[WRITABLE_INDEX]);
   }
-  desc.setEnumerable(props[3]);
-  desc.setConfigurable(props[4]);
+  desc.setEnumerable(props[ENUMERABLE_INDEX]);
+  desc.setConfigurable(props[CONFIGURABLE_INDEX]);
 
   return desc;
 }

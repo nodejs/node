@@ -615,7 +615,7 @@ class VirtualFrame: public ZoneObject {
   inline bool Equals(VirtualFrame* other);
 
   // Classes that need raw access to the elements_ array.
-  friend class DeferredCode;
+  friend class FrameRegisterState;
   friend class JumpTarget;
 };
 

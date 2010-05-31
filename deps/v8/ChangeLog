@@ -1,3 +1,15 @@
+2010-05-31: Version 2.2.13
+
+        Implement Object.getOwnPropertyDescriptor for element indices and
+        strings (issue 599).
+
+        Fix bug for windows 64 bit C calls from generated code.
+
+        Add new scons flag unalignedaccesses for arm builds.
+
+        Performance improvements on all platforms.
+
+
 2010-05-26: Version 2.2.12
 
         Allowed accessors to be defined on objects rather than just object

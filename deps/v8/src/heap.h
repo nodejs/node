@@ -206,6 +206,10 @@ class HeapStats;
 
 typedef String* (*ExternalStringTableUpdaterCallback)(Object** pointer);
 
+typedef bool (*DirtyRegionCallback)(Address start,
+                                    Address end,
+                                    ObjectSlotCallback copy_object_func);
+
 
 // The all static Heap captures the interface to the global object heap.
 // All JavaScript contexts by this process share the same object heap.
@@ -740,17 +744,54 @@ class Heap : public AllStatic {
   // Iterates over all the other roots in the heap.
   static void IterateWeakRoots(ObjectVisitor* v, VisitMode mode);
 
-  // Iterates remembered set of an old space.
-  static void IterateRSet(PagedSpace* space, ObjectSlotCallback callback);
+  enum ExpectedPageWatermarkState {
+    WATERMARK_SHOULD_BE_VALID,
+    WATERMARK_CAN_BE_INVALID
+  };
 
-  // Iterates a range of remembered set addresses starting with rset_start
-  // corresponding to the range of allocated pointers
-  // [object_start, object_end).
-  // Returns the number of bits that were set.
-  static int IterateRSetRange(Address object_start,
-                              Address object_end,
-                              Address rset_start,
-                              ObjectSlotCallback copy_object_func);
+  // For each dirty region on a page in use from an old space call
+  // visit_dirty_region callback.
+  // If either visit_dirty_region or callback can cause an allocation
+  // in old space and changes in allocation watermark then
+  // can_preallocate_during_iteration should be set to true.
+  // All pages will be marked as having invalid watermark upon
+  // iteration completion.
+  static void IterateDirtyRegions(
+      PagedSpace* space,
+      DirtyRegionCallback visit_dirty_region,
+      ObjectSlotCallback callback,
+      ExpectedPageWatermarkState expected_page_watermark_state);
+
+  // Interpret marks as a bitvector of dirty marks for regions of size
+  // Page::kRegionSize aligned by Page::kRegionAlignmentMask and covering
+  // memory interval from start to top. For each dirty region call a
+  // visit_dirty_region callback. Return updated bitvector of dirty marks.
+  static uint32_t IterateDirtyRegions(uint32_t marks,
+                                      Address start,
+                                      Address end,
+                                      DirtyRegionCallback visit_dirty_region,
+                                      ObjectSlotCallback callback);
+
+  // Iterate pointers to new space found in memory interval from start to end.
+  // Update dirty marks for page containing start address.
+  static void IterateAndMarkPointersToNewSpace(Address start,
+                                               Address end,
+                                               ObjectSlotCallback callback);
+
+  // Iterate pointers to new space found in memory interval from start to end.
+  // Return true if pointers to new space was found.
+  static bool IteratePointersInDirtyRegion(Address start,
+                                           Address end,
+                                           ObjectSlotCallback callback);
+
+
+  // Iterate pointers to new space found in memory interval from start to end.
+  // This interval is considered to belong to the map space.
+  // Return true if pointers to new space was found.
+  static bool IteratePointersInDirtyMapsRegion(Address start,
+                                               Address end,
+                                               ObjectSlotCallback callback);
+
 
   // Returns whether the object resides in new space.
   static inline bool InNewSpace(Object* object);
@@ -852,17 +893,6 @@ class Heap : public AllStatic {
   static void ScavengePointer(HeapObject** p);
   static inline void ScavengeObject(HeapObject** p, HeapObject* object);
 
-  // Clear a range of remembered set addresses corresponding to the object
-  // area address 'start' with size 'size_in_bytes', eg, when adding blocks
-  // to the free list.
-  static void ClearRSetRange(Address start, int size_in_bytes);
-
-  // Rebuild remembered set in old and map spaces.
-  static void RebuildRSets();
-
-  // Update an old object's remembered set
-  static int UpdateRSet(HeapObject* obj);
-
   // Commits from space if it is uncommitted.
   static void EnsureFromSpaceIsCommitted();
 
@@ -955,11 +985,19 @@ class Heap : public AllStatic {
 
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
-  static inline void CopyBlock(Object** dst, Object** src, int byte_size);
+  static inline void CopyBlock(Address dst, Address src, int byte_size);
+
+  static inline void CopyBlockToOldSpaceAndUpdateRegionMarks(Address dst,
+                                                             Address src,
+                                                             int byte_size);
 
   // Optimized version of memmove for blocks with pointer size aligned sizes and
   // pointer size aligned addresses.
-  static inline void MoveBlock(Object** dst, Object** src, int byte_size);
+  static inline void MoveBlock(Address dst, Address src, int byte_size);
+
+  static inline void MoveBlockToOldSpaceAndUpdateRegionMarks(Address dst,
+                                                             Address src,
+                                                             int byte_size);
 
   // Check new space expansion criteria and expand semispaces if it was hit.
   static void CheckNewSpaceExpansionCriteria();
@@ -1207,12 +1245,6 @@ class Heap : public AllStatic {
   static void ReportStatisticsAfterGC();
 #endif
 
-  // Rebuild remembered set in an old space.
-  static void RebuildRSets(PagedSpace* space);
-
-  // Rebuild remembered set in the large object space.
-  static void RebuildRSets(LargeObjectSpace* space);
-
   // Slow part of scavenge object.
   static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
 
@@ -1301,11 +1333,11 @@ class LinearAllocationScope {
 
 
 #ifdef DEBUG
-// Visitor class to verify interior pointers that do not have remembered set
-// bits.  All heap object pointers have to point into the heap to a location
-// that has a map pointer at its first word.  Caveat: Heap::Contains is an
-// approximation because it can return true for objects in a heap space but
-// above the allocation pointer.
+// Visitor class to verify interior pointers in spaces that do not contain
+// or care about intergenerational references. All heap object pointers have to
+// point into the heap to a location that has a map pointer at its first word.
+// Caveat: Heap::Contains is an approximation because it can return true for
+// objects in a heap space but above the allocation pointer.
 class VerifyPointersVisitor: public ObjectVisitor {
  public:
   void VisitPointers(Object** start, Object** end) {
@@ -1320,10 +1352,11 @@ class VerifyPointersVisitor: public ObjectVisitor {
 };
 
 
-// Visitor class to verify interior pointers that have remembered set bits.
-// As VerifyPointersVisitor but also checks that remembered set bits are
-// always set for pointers into new space.
-class VerifyPointersAndRSetVisitor: public ObjectVisitor {
+// Visitor class to verify interior pointers in spaces that use region marks
+// to keep track of intergenerational references.
+// As VerifyPointersVisitor but also checks that dirty marks are set
+// for regions covering intergenerational references.
+class VerifyPointersAndDirtyRegionsVisitor: public ObjectVisitor {
  public:
   void VisitPointers(Object** start, Object** end) {
     for (Object** current = start; current < end; current++) {
@@ -1332,7 +1365,9 @@ class VerifyPointersAndRSetVisitor: public ObjectVisitor {
         ASSERT(Heap::Contains(object));
         ASSERT(object->map()->IsMap());
         if (Heap::InNewSpace(object)) {
-          ASSERT(Page::IsRSetSet(reinterpret_cast<Address>(current), 0));
+          ASSERT(Heap::InToSpace(object));
+          Address addr = reinterpret_cast<Address>(current);
+          ASSERT(Page::FromAddress(addr)->IsRegionDirty(addr));
         }
       }
     }

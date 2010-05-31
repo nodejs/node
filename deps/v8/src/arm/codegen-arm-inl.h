@@ -36,30 +36,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
-void CodeGenerator::LoadConditionAndSpill(Expression* expression,
-                                          JumpTarget* true_target,
-                                          JumpTarget* false_target,
-                                          bool force_control) {
-  LoadCondition(expression, true_target, false_target, force_control);
-}
-
-
-void CodeGenerator::LoadAndSpill(Expression* expression) {
-  ASSERT(VirtualFrame::SpilledScope::is_spilled());
-  Load(expression);
-}
-
-
-void CodeGenerator::VisitAndSpill(Statement* statement) {
-  Visit(statement);
-}
-
-
-void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
-  VisitStatements(statements);
-}
-
-
 // Platform-specific inline functions.
 
 void DeferredCode::Jump() { __ jmp(&entry_label_); }

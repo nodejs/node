@@ -66,96 +66,180 @@ Address Page::AllocationTop() {
 }
 
 
-void Page::ClearRSet() {
-  // This method can be called in all rset states.
-  memset(RSetStart(), 0, kRSetEndOffset - kRSetStartOffset);
-}
-
-
-// Given a 32-bit address, separate its bits into:
-// | page address | words (6) | bit offset (5) | pointer alignment (2) |
-// The address of the rset word containing the bit for this word is computed as:
-//    page_address + words * 4
-// For a 64-bit address, if it is:
-// | page address | words(5) | bit offset(5) | pointer alignment (3) |
-// The address of the rset word containing the bit for this word is computed as:
-//    page_address + words * 4 + kRSetOffset.
-// The rset is accessed as 32-bit words, and bit offsets in a 32-bit word,
-// even on the X64 architecture.
-
-Address Page::ComputeRSetBitPosition(Address address, int offset,
-                                     uint32_t* bitmask) {
-  ASSERT(Page::is_rset_in_use());
-
-  Page* page = Page::FromAddress(address);
-  uint32_t bit_offset = ArithmeticShiftRight(page->Offset(address) + offset,
-                                             kPointerSizeLog2);
-  *bitmask = 1 << (bit_offset % kBitsPerInt);
-
-  Address rset_address =
-      page->address() + kRSetOffset + (bit_offset / kBitsPerInt) * kIntSize;
-  // The remembered set address is either in the normal remembered set range
-  // of a page or else we have a large object page.
-  ASSERT((page->RSetStart() <= rset_address && rset_address < page->RSetEnd())
-         || page->IsLargeObjectPage());
-
-  if (rset_address >= page->RSetEnd()) {
-    // We have a large object page, and the remembered set address is actually
-    // past the end of the object.
-
-    // The first part of the remembered set is still located at the start of
-    // the page, but anything after kRSetEndOffset must be relocated to after
-    // the large object, i.e. after
-    //   (page->ObjectAreaStart() + object size)
-    // We do that by adding the difference between the normal RSet's end and
-    // the object's end.
-    ASSERT(HeapObject::FromAddress(address)->IsFixedArray());
-    int fixedarray_length =
-        FixedArray::SizeFor(Memory::int_at(page->ObjectAreaStart()
-                                           + Array::kLengthOffset));
-    rset_address += kObjectStartOffset - kRSetEndOffset + fixedarray_length;
+Address Page::AllocationWatermark() {
+  PagedSpace* owner = MemoryAllocator::PageOwner(this);
+  if (this == owner->AllocationTopPage()) {
+    return owner->top();
   }
-  return rset_address;
+  return address() + AllocationWatermarkOffset();
 }
 
 
-void Page::SetRSet(Address address, int offset) {
-  uint32_t bitmask = 0;
-  Address rset_address = ComputeRSetBitPosition(address, offset, &bitmask);
-  Memory::uint32_at(rset_address) |= bitmask;
-
-  ASSERT(IsRSetSet(address, offset));
+uint32_t Page::AllocationWatermarkOffset() {
+  return static_cast<uint32_t>((flags_ & kAllocationWatermarkOffsetMask) >>
+                               kAllocationWatermarkOffsetShift);
 }
 
 
-// Clears the corresponding remembered set bit for a given address.
-void Page::UnsetRSet(Address address, int offset) {
-  uint32_t bitmask = 0;
-  Address rset_address = ComputeRSetBitPosition(address, offset, &bitmask);
-  Memory::uint32_at(rset_address) &= ~bitmask;
+void Page::SetAllocationWatermark(Address allocation_watermark) {
+  if ((Heap::gc_state() == Heap::SCAVENGE) && IsWatermarkValid()) {
+    // When iterating intergenerational references during scavenge
+    // we might decide to promote an encountered young object.
+    // We will allocate a space for such an object and put it
+    // into the promotion queue to process it later.
+    // If space for object was allocated somewhere beyond allocation
+    // watermark this might cause garbage pointers to appear under allocation
+    // watermark. To avoid visiting them during dirty regions iteration
+    // which might be still in progress we store a valid allocation watermark
+    // value and mark this page as having an invalid watermark.
+    SetCachedAllocationWatermark(AllocationWatermark());
+    InvalidateWatermark(true);
+  }
 
-  ASSERT(!IsRSetSet(address, offset));
+  flags_ = (flags_ & kFlagsMask) |
+           Offset(allocation_watermark) << kAllocationWatermarkOffsetShift;
+  ASSERT(AllocationWatermarkOffset()
+         == static_cast<uint32_t>(Offset(allocation_watermark)));
 }
 
 
-bool Page::IsRSetSet(Address address, int offset) {
+void Page::SetCachedAllocationWatermark(Address allocation_watermark) {
+  mc_first_forwarded = allocation_watermark;
+}
+
+
+Address Page::CachedAllocationWatermark() {
+  return mc_first_forwarded;
+}
+
+
+uint32_t Page::GetRegionMarks() {
+  return dirty_regions_;
+}
+
+
+void Page::SetRegionMarks(uint32_t marks) {
+  dirty_regions_ = marks;
+}
+
+
+int Page::GetRegionNumberForAddress(Address addr) {
+  // Each page is divided into 256 byte regions. Each region has a corresponding
+  // dirty mark bit in the page header. Region can contain intergenerational
+  // references iff its dirty mark is set.
+  // A normal 8K page contains exactly 32 regions so all region marks fit
+  // into 32-bit integer field. To calculate a region number we just divide
+  // offset inside page by region size.
+  // A large page can contain more then 32 regions. But we want to avoid
+  // additional write barrier code for distinguishing between large and normal
+  // pages so we just ignore the fact that addr points into a large page and
+  // calculate region number as if addr pointed into a normal 8K page. This way
+  // we get a region number modulo 32 so for large pages several regions might
+  // be mapped to a single dirty mark.
+  ASSERT_PAGE_ALIGNED(this->address());
+  STATIC_ASSERT((kPageAlignmentMask >> kRegionSizeLog2) < kBitsPerInt);
+
+  // We are using masking with kPageAlignmentMask instead of Page::Offset()
+  // to get an offset to the beginning of 8K page containing addr not to the
+  // beginning of actual page which can be bigger then 8K.
+  intptr_t offset_inside_normal_page = OffsetFrom(addr) & kPageAlignmentMask;
+  return static_cast<int>(offset_inside_normal_page >> kRegionSizeLog2);
+}
+
+
+uint32_t Page::GetRegionMaskForAddress(Address addr) {
+  return 1 << GetRegionNumberForAddress(addr);
+}
+
+
+void Page::MarkRegionDirty(Address address) {
+  SetRegionMarks(GetRegionMarks() | GetRegionMaskForAddress(address));
+}
+
+
+bool Page::IsRegionDirty(Address address) {
+  return GetRegionMarks() & GetRegionMaskForAddress(address);
+}
+
+
+void Page::ClearRegionMarks(Address start, Address end, bool reaches_limit) {
+  int rstart = GetRegionNumberForAddress(start);
+  int rend = GetRegionNumberForAddress(end);
+
+  if (reaches_limit) {
+    end += 1;
+  }
+
+  if ((rend - rstart) == 0) {
+    return;
+  }
+
   uint32_t bitmask = 0;
-  Address rset_address = ComputeRSetBitPosition(address, offset, &bitmask);
-  return (Memory::uint32_at(rset_address) & bitmask) != 0;
+
+  if ((OffsetFrom(start) & kRegionAlignmentMask) == 0
+      || (start == ObjectAreaStart())) {
+    // First region is fully covered
+    bitmask = 1 << rstart;
+  }
+
+  while (++rstart < rend) {
+    bitmask |= 1 << rstart;
+  }
+
+  if (bitmask) {
+    SetRegionMarks(GetRegionMarks() & ~bitmask);
+  }
+}
+
+
+void Page::FlipMeaningOfInvalidatedWatermarkFlag() {
+  watermark_invalidated_mark_ ^= WATERMARK_INVALIDATED;
+}
+
+
+bool Page::IsWatermarkValid() {
+  return (flags_ & WATERMARK_INVALIDATED) != watermark_invalidated_mark_;
+}
+
+
+void Page::InvalidateWatermark(bool value) {
+  if (value) {
+    flags_ = (flags_ & ~WATERMARK_INVALIDATED) | watermark_invalidated_mark_;
+  } else {
+    flags_ = (flags_ & ~WATERMARK_INVALIDATED) |
+             (watermark_invalidated_mark_ ^ WATERMARK_INVALIDATED);
+  }
+
+  ASSERT(IsWatermarkValid() == !value);
 }
 
 
 bool Page::GetPageFlag(PageFlag flag) {
-  return (flags & flag) != 0;
+  return (flags_ & flag) != 0;
 }
 
 
 void Page::SetPageFlag(PageFlag flag, bool value) {
   if (value) {
-    flags |= flag;
+    flags_ |= flag;
   } else {
-    flags &= ~flag;
+    flags_ &= ~flag;
   }
+}
+
+
+void Page::ClearPageFlags() {
+  flags_ = 0;
+}
+
+
+void Page::ClearGCFields() {
+  InvalidateWatermark(true);
+  SetAllocationWatermark(ObjectAreaStart());
+  if (Heap::gc_state() == Heap::SCAVENGE) {
+    SetCachedAllocationWatermark(ObjectAreaStart());
+  }
+  SetRegionMarks(kAllRegionsCleanMarks);
 }
 
 
@@ -342,14 +426,6 @@ HeapObject* LargeObjectChunk::GetObject() {
 
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
-
-int LargeObjectSpace::ExtraRSetBytesFor(int object_size) {
-  int extra_rset_bits =
-      RoundUp((object_size - Page::kObjectAreaSize) / kPointerSize,
-              kBitsPerInt);
-  return extra_rset_bits / kBitsPerByte;
-}
-
 
 Object* NewSpace::AllocateRawInternal(int size_in_bytes,
                                       AllocationInfo* alloc_info) {

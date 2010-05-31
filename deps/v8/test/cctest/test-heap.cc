@@ -177,7 +177,7 @@ TEST(HeapObjects) {
 TEST(Tagging) {
   InitializeVM();
   int request = 24;
-  CHECK_EQ(request, static_cast<int>(OBJECT_SIZE_ALIGN(request)));
+  CHECK_EQ(request, static_cast<int>(OBJECT_POINTER_ALIGN(request)));
   CHECK(Smi::FromInt(42)->IsSmi());
   CHECK(Failure::RetryAfterGC(request, NEW_SPACE)->IsFailure());
   CHECK_EQ(request, Failure::RetryAfterGC(request, NEW_SPACE)->requested());
@@ -666,14 +666,14 @@ TEST(JSArray) {
   array->SetElementsLength(*length);
 
   uint32_t int_length = 0;
-  CHECK(Array::IndexFromObject(*length, &int_length));
+  CHECK(length->ToArrayIndex(&int_length));
   CHECK_EQ(*length, array->length());
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
   array->SetElement(int_length, *name);
   uint32_t new_int_length = 0;
-  CHECK(Array::IndexFromObject(array->length(), &new_int_length));
+  CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
   CHECK_EQ(array->GetElement(int_length), *name);
   CHECK_EQ(array->GetElement(0), *name);
@@ -830,7 +830,7 @@ TEST(LargeObjectSpaceContains) {
   }
   CHECK(bytes_to_page > FixedArray::kHeaderSize);
 
-  int* flags_ptr = &Page::FromAddress(next_page)->flags;
+  intptr_t* flags_ptr = &Page::FromAddress(next_page)->flags_;
   Address flags_addr = reinterpret_cast<Address>(flags_ptr);
 
   int bytes_to_allocate =
@@ -888,7 +888,7 @@ TEST(Regression39128) {
 
   // The plan: create JSObject which references objects in new space.
   // Then clone this object (forcing it to go into old space) and check
-  // that only bits pertaining to the object are updated in remembered set.
+  // that region dirty marks are updated correctly.
 
   // Step 1: prepare a map for the object.  We add 1 inobject property to it.
   Handle<JSFunction> object_ctor(Top::global_context()->object_function());
@@ -931,7 +931,7 @@ TEST(Regression39128) {
   CHECK(!object->IsFailure());
   CHECK(new_space->Contains(object));
   JSObject* jsobject = JSObject::cast(object);
-  CHECK_EQ(0, jsobject->elements()->length());
+  CHECK_EQ(0, FixedArray::cast(jsobject->elements())->length());
   CHECK_EQ(0, jsobject->properties()->length());
   // Create a reference to object in new space in jsobject.
   jsobject->FastPropertyAtPut(-1, array);
@@ -951,17 +951,9 @@ TEST(Regression39128) {
   }
   CHECK(Heap::old_pointer_space()->Contains(clone->address()));
 
-  // Step 5: verify validity of remembered set.
+  // Step 5: verify validity of region dirty marks.
   Address clone_addr = clone->address();
   Page* page = Page::FromAddress(clone_addr);
-  // Check that remembered set tracks a reference from inobject property 1.
-  CHECK(page->IsRSetSet(clone_addr, object_size - kPointerSize));
-  // Probe several addresses after the object.
-  for (int i = 0; i < 7; i++) {
-    int offset = object_size + i * kPointerSize;
-    if (clone_addr + offset >= page->ObjectAreaEnd()) {
-      break;
-    }
-    CHECK(!page->IsRSetSet(clone_addr, offset));
-  }
+  // Check that region covering inobject property 1 is marked dirty.
+  CHECK(page->IsRegionDirty(clone_addr + (object_size - kPointerSize)));
 }

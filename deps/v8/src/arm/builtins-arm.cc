@@ -138,7 +138,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // Clear the heap tag on the elements array.
   __ and_(scratch1, scratch1, Operand(~kHeapObjectTagMask));
 
-  // Initialize the FixedArray and fill it with holes. FixedArray length is not
+  // Initialize the FixedArray and fill it with holes. FixedArray length is
   // stored as a smi.
   // result: JSObject
   // scratch1: elements array (untagged)
@@ -146,7 +146,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ LoadRoot(scratch3, Heap::kFixedArrayMapRootIndex);
   ASSERT_EQ(0 * kPointerSize, FixedArray::kMapOffset);
   __ str(scratch3, MemOperand(scratch1, kPointerSize, PostIndex));
-  __ mov(scratch3,  Operand(initial_capacity));
+  __ mov(scratch3,  Operand(Smi::FromInt(initial_capacity)));
   ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
   __ str(scratch3, MemOperand(scratch1, kPointerSize, PostIndex));
 
@@ -243,23 +243,23 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ and_(elements_array_storage,
           elements_array_storage,
           Operand(~kHeapObjectTagMask));
-  // Initialize the fixed array and fill it with holes. FixedArray length is not
+  // Initialize the fixed array and fill it with holes. FixedArray length is
   // stored as a smi.
   // result: JSObject
   // elements_array_storage: elements array (untagged)
   // array_size: size of array (smi)
-  ASSERT(kSmiTag == 0);
   __ LoadRoot(scratch1, Heap::kFixedArrayMapRootIndex);
   ASSERT_EQ(0 * kPointerSize, FixedArray::kMapOffset);
   __ str(scratch1, MemOperand(elements_array_storage, kPointerSize, PostIndex));
-  // Convert array_size from smi to value.
-  __ mov(array_size,
-         Operand(array_size, ASR, kSmiTagSize));
+  ASSERT(kSmiTag == 0);
   __ tst(array_size, array_size);
   // Length of the FixedArray is the number of pre-allocated elements if
   // the actual JSArray has length 0 and the size of the JSArray for non-empty
-  // JSArrays. The length of a FixedArray is not stored as a smi.
-  __ mov(array_size, Operand(JSArray::kPreallocatedArrayElements), LeaveCC, eq);
+  // JSArrays. The length of a FixedArray is stored as a smi.
+  __ mov(array_size,
+         Operand(Smi::FromInt(JSArray::kPreallocatedArrayElements)),
+         LeaveCC,
+         eq);
   ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
   __ str(array_size,
          MemOperand(elements_array_storage, kPointerSize, PostIndex));
@@ -267,10 +267,11 @@ static void AllocateJSArray(MacroAssembler* masm,
   // Calculate elements array and elements array end.
   // result: JSObject
   // elements_array_storage: elements array element storage
-  // array_size: size of elements array
+  // array_size: smi-tagged size of elements array
+  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
   __ add(elements_array_end,
          elements_array_storage,
-         Operand(array_size, LSL, kPointerSizeLog2));
+         Operand(array_size, LSL, kPointerSizeLog2 - kSmiTagSize));
 
   // Fill the allocated FixedArray with the hole value if requested.
   // result: JSObject
@@ -543,7 +544,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Load the initial map and verify that it is in fact a map.
     // r1: constructor function
-    // r7: undefined
+    // r7: undefined value
     __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
     __ tst(r2, Operand(kSmiTagMask));
     __ b(eq, &rt_call);
@@ -555,14 +556,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // instance type would be JS_FUNCTION_TYPE.
     // r1: constructor function
     // r2: initial map
-    // r7: undefined
+    // r7: undefined value
     __ CompareInstanceType(r2, r3, JS_FUNCTION_TYPE);
     __ b(eq, &rt_call);
 
     // Now allocate the JSObject on the heap.
     // r1: constructor function
     // r2: initial map
-    // r7: undefined
+    // r7: undefined value
     __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceSizeOffset));
     __ AllocateInNewSpace(r3, r4, r5, r6, &rt_call, SIZE_IN_WORDS);
 
@@ -572,7 +573,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r2: initial map
     // r3: object size
     // r4: JSObject (not tagged)
-    // r7: undefined
+    // r7: undefined value
     __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
     __ mov(r5, r4);
     ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
@@ -588,7 +589,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r3: object size (in words)
     // r4: JSObject (not tagged)
     // r5: First in-object property of JSObject (not tagged)
-    // r7: undefined
+    // r7: undefined value
     __ add(r6, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
     ASSERT_EQ(3 * kPointerSize, JSObject::kHeaderSize);
     { Label loop, entry;
@@ -611,7 +612,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r1: constructor function
     // r4: JSObject
     // r5: start of next object (not tagged)
-    // r7: undefined
+    // r7: undefined value
     __ ldrb(r3, FieldMemOperand(r2, Map::kUnusedPropertyFieldsOffset));
     // The field instance sizes contains both pre-allocated property fields and
     // in-object properties.
@@ -633,7 +634,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r3: number of elements in properties array
     // r4: JSObject
     // r5: start of next object
-    // r7: undefined
+    // r7: undefined value
     __ add(r0, r3, Operand(FixedArray::kHeaderSize / kPointerSize));
     __ AllocateInNewSpace(
         r0,
@@ -648,13 +649,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r3: number of elements in properties array
     // r4: JSObject
     // r5: FixedArray (not tagged)
-    // r7: undefined
+    // r7: undefined value
     __ LoadRoot(r6, Heap::kFixedArrayMapRootIndex);
     __ mov(r2, r5);
     ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
     __ str(r6, MemOperand(r2, kPointerSize, PostIndex));
-    ASSERT_EQ(1 * kPointerSize, Array::kLengthOffset);
-    __ str(r3, MemOperand(r2, kPointerSize, PostIndex));
+    ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
+    __ mov(r0, Operand(r3, LSL, kSmiTagSize));
+    __ str(r0, MemOperand(r2, kPointerSize, PostIndex));
 
     // Initialize the fields to undefined.
     // r1: constructor function
@@ -1047,6 +1049,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ ldr(r3, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r2,
          FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ mov(r2, Operand(r2, ASR, kSmiTagSize));
   __ ldr(r3, FieldMemOperand(r3, SharedFunctionInfo::kCodeOffset));
   __ add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ cmp(r2, r0);  // Check formal and actual parameter counts.
