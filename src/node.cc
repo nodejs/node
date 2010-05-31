@@ -976,6 +976,9 @@ const char* ToCString(const v8::String::Utf8Value& value) {
 static void ReportException(TryCatch &try_catch, bool show_line) {
   Handle<Message> message = try_catch.Message();
 
+  node::Stdio::DisableRawMode(STDIN_FILENO);
+  fprintf(stderr, "\n\n");
+
   if (show_line && !message.IsEmpty()) {
     // Print (filename):(line number): (message).
     String::Utf8Value filename(message->GetScriptResourceName());
@@ -1223,8 +1226,6 @@ static Handle<Value> SetUid(const Arguments& args) {
 
 v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
   HandleScope scope;
-  fflush(stderr);
-  Stdio::Flush();
   exit(args[0]->IntegerValue());
   return Undefined();
 }
@@ -1855,6 +1856,7 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("posix"),        String::New(native_posix));
       exports->Set(String::New("querystring"),  String::New(native_querystring));
       exports->Set(String::New("repl"),         String::New(native_repl));
+      exports->Set(String::New("readline"),     String::New(native_readline));
       exports->Set(String::New("sys"),          String::New(native_sys));
       exports->Set(String::New("tcp"),          String::New(native_tcp));
       exports->Set(String::New("uri"),          String::New(native_uri));
@@ -2078,6 +2080,14 @@ static void ParseArgs(int *argc, char **argv) {
   option_end_index = i;
 }
 
+
+static void AtExit() {
+  node::Stdio::Flush();
+  node::Stdio::DisableRawMode(STDIN_FILENO);
+  fprintf(stderr, "\n");
+}
+
+
 }  // namespace node
 
 
@@ -2179,11 +2189,11 @@ int main(int argc, char *argv[]) {
   Persistent<Context> context = Context::New();
   Context::Scope context_scope(context);
 
+  atexit(node::AtExit);
+
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
   node::Load(argc, argv);
-
-  node::Stdio::Flush();
 
 #ifndef NDEBUG
   // Clean up.
