@@ -64,7 +64,7 @@ Handle<Value> ChildProcess::New(const Arguments& args) {
 Handle<Value> ChildProcess::Spawn(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() != 3 ||
+  if (args.Length() < 3 ||
       !args[0]->IsString() ||
       !args[1]->IsArray() ||
       !args[2]->IsArray()) {
@@ -101,9 +101,21 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
     env[i] = strdup(*pair);
   }
 
+  int custom_fds[3] = { -1, -1, -1 };
+  if (args[3]->IsArray()) {
+    // Set the custom file descriptor values (if any) for the child process
+    Local<Array> custom_fds_handle = Local<Array>::Cast(args[3]);
+    int custom_fds_len = custom_fds_handle->Length();
+    for (int i = 0; i < custom_fds_len; i++) {
+      if (custom_fds_handle->Get(i)->IsUndefined()) continue;
+      Local<Integer> fd = custom_fds_handle->Get(i)->ToInteger();
+      custom_fds[i] = fd->Value();
+    }
+  }
+
   int fds[3];
 
-  int r = child->Spawn(argv[0], argv, env, fds);
+  int r = child->Spawn(argv[0], argv, env, fds, custom_fds);
 
   for (i = 0; i < argv_length; i++) free(argv[i]);
   delete [] argv;
@@ -181,7 +193,8 @@ void ChildProcess::Stop() {
 int ChildProcess::Spawn(const char *file,
                         char *const args[],
                         char **env,
-                        int stdio_fds[3]) {
+                        int stdio_fds[3],
+                        int custom_fds[3]) {
   HandleScope scope;
   assert(pid_ == -1);
   assert(!ev_is_active(&child_watcher_));
@@ -189,9 +202,9 @@ int ChildProcess::Spawn(const char *file,
   int stdin_pipe[2], stdout_pipe[2], stderr_pipe[2];
 
   /* An implementation of popen(), basically */
-  if (pipe(stdin_pipe) < 0 ||
-      pipe(stdout_pipe) < 0 ||
-      pipe(stderr_pipe) < 0) {
+  if (custom_fds[0] == -1 && pipe(stdin_pipe) < 0 ||
+      custom_fds[1] == -1 && pipe(stdout_pipe) < 0 ||
+      custom_fds[2] == -1 && pipe(stderr_pipe) < 0) {
     perror("pipe()");
     return -1;
   }
@@ -206,14 +219,29 @@ int ChildProcess::Spawn(const char *file,
       return -4;
 
     case 0:  // Child.
-      close(stdin_pipe[1]);  // close write end
-      dup2(stdin_pipe[0],  STDIN_FILENO);
+      if (custom_fds[0] == -1) {
+        close(stdin_pipe[1]);  // close write end
+        dup2(stdin_pipe[0],  STDIN_FILENO);
+      }
+      else {
+        dup2(custom_fds[0], STDIN_FILENO);
+      }
 
-      close(stdout_pipe[0]);  // close read end
-      dup2(stdout_pipe[1], STDOUT_FILENO);
+      if (custom_fds[1] == -1) {
+        close(stdout_pipe[0]);  // close read end
+        dup2(stdout_pipe[1], STDOUT_FILENO);
+      }
+      else {
+        dup2(custom_fds[1], STDOUT_FILENO);
+      }
 
-      close(stderr_pipe[0]);  // close read end
-      dup2(stderr_pipe[1], STDERR_FILENO);
+      if (custom_fds[2] == -1) {
+        close(stderr_pipe[0]);  // close read end
+        dup2(stderr_pipe[1], STDERR_FILENO);
+      }
+      else {
+        dup2(custom_fds[2], STDERR_FILENO);
+      }
 
       environ = env;
 
@@ -232,17 +260,32 @@ int ChildProcess::Spawn(const char *file,
   Ref();
   handle_->Set(pid_symbol, Integer::New(pid_));
 
-  close(stdin_pipe[0]);
-  stdio_fds[0] = stdin_pipe[1];
-  SetNonBlocking(stdin_pipe[1]);
+  if (custom_fds[0] == -1) {
+    close(stdin_pipe[0]);
+    stdio_fds[0] = stdin_pipe[1];
+    SetNonBlocking(stdin_pipe[1]);
+  }
+  else {
+    stdio_fds[0] = custom_fds[0];
+  }
 
-  close(stdout_pipe[1]);
-  stdio_fds[1] = stdout_pipe[0];
-  SetNonBlocking(stdout_pipe[0]);
+  if (custom_fds[1] == -1) {
+    close(stdout_pipe[1]);
+    stdio_fds[1] = stdout_pipe[0];
+    SetNonBlocking(stdout_pipe[0]);
+  }
+  else {
+    stdio_fds[1] = custom_fds[1];
+  }
 
-  close(stderr_pipe[1]);
-  stdio_fds[2] = stderr_pipe[0];
-  SetNonBlocking(stderr_pipe[0]);
+  if (custom_fds[2] == -1) {
+    close(stderr_pipe[1]);
+    stdio_fds[2] = stderr_pipe[0];
+    SetNonBlocking(stderr_pipe[0]);
+  }
+  else {
+    stdio_fds[2] = custom_fds[2];
+  }
 
   return 0;
 }
