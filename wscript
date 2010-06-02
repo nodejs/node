@@ -37,7 +37,12 @@ def set_options(opt):
                 , help='Build with -lefence for debugging [Default: False]'
                 , dest='efence'
                 )
-
+  opt.add_option( '--system'
+                , action='store_true'
+                , default=False
+                , help='Build using system libraries and headers (like a debian build) [Default: False]'
+                , dest='system'
+                )
   opt.add_option( '--without-ssl'
                 , action='store_true'
                 , default=False
@@ -45,88 +50,14 @@ def set_options(opt):
                 , dest='without_ssl'
                 )
 
-
-  opt.add_option('--shared-v8'
-                , action='store_true'
-                , default=False
-                , help='Link to a shared V8 DLL instead of static linking'
-                , dest='shared_v8'
-                )
-
-  opt.add_option( '--shared-v8-includes'
-                , action='store'
-                , default=False
-                , help='Directory containing V8 header files'
-                , dest='shared_v8_includes'
-                )
-
-  opt.add_option( '--shared-v8-libpath'
-                , action='store'
-                , default=False
-                , help='A directory to search for the shared V8 DLL'
-                , dest='shared_v8_libpath'
-                )
-
-
-  opt.add_option('--shared-cares'
-                , action='store_true'
-                , default=False
-                , help='Link to a shared C-Ares DLL instead of static linking'
-                , dest='shared_cares'
-                )
-
-  opt.add_option( '--shared-cares-includes'
-                , action='store'
-                , default=False
-                , help='Directory containing C-Ares header files'
-                , dest='shared_cares_includes'
-                )
-
-  opt.add_option( '--shared-cares-libpath'
-                , action='store'
-                , default=False
-                , help='A directory to search for the shared C-Ares DLL'
-                , dest='shared_cares_libpath'
-                )
-
-
-  opt.add_option('--shared-libev'
-                , action='store_true'
-                , default=False
-                , help='Link to a shared libev DLL instead of static linking'
-                , dest='shared_libev'
-                )
-
-  opt.add_option( '--shared-libev-includes'
-                , action='store'
-                , default=False
-                , help='Directory containing libev header files'
-                , dest='shared_libev_includes'
-                )
-
-  opt.add_option( '--shared-libev-libpath'
-                , action='store'
-                , default=False
-                , help='A directory to search for the shared libev DLL'
-                , dest='shared_libev_libpath'
-                )
-
-
-
-
 def configure(conf):
   conf.check_tool('compiler_cxx')
   if not conf.env.CXX: conf.fatal('c++ compiler not found')
   conf.check_tool('compiler_cc')
   if not conf.env.CC: conf.fatal('c compiler not found')
 
-  o = Options.options
-
-  conf.env["USE_DEBUG"] = o.debug
-
-  conf.env["USE_SHARED_V8"] = o.shared_v8 or o.shared_v8_includes or o.shared_v8_libpath
-  conf.env["USE_SHARED_CARES"] = o.shared_cares or o.shared_cares_includes or o.shared_cares_libpath
-  conf.env["USE_SHARED_LIBEV"] = o.shared_libev or o.shared_libev_includes or o.shared_libev_libpath
+  conf.env["USE_DEBUG"] = Options.options.debug
+  conf.env["USE_SYSTEM"] = Options.options.system
 
   conf.check(lib='dl', uselib_store='DL')
   if not sys.platform.startswith("sunos"):
@@ -175,61 +106,17 @@ def configure(conf):
     if not conf.check(lib='nsl', uselib_store="NSL"):
       conf.fatal("Cannot find nsl library")
 
-
-
   conf.sub_config('deps/libeio')
-
-
-
-  if conf.env['USE_SHARED_V8']:
-    v8_includes = [];
-    if o.shared_v8_includes: v8_includes.append(o.shared_v8_includes);
-
-    v8_libpath = [];
-    if o.shared_v8_libpath: v8_libpath.append(o.shared_v8_libpath);
-
-    if not conf.check_cxx(lib='v8', header_name='v8.h',
-                          uselib_store='V8',
-                          includes=v8_includes,
-                          libpath=v8_libpath):
-      conf.fatal("Cannot find v8")
-
-    if o.debug:
-      if not conf.check_cxx(lib='v8_g', header_name='v8.h',
-                            uselib_store='V8_G',
-                            includes=v8_includes,
-                            libpath=v8_libpath):
-        conf.fatal("Cannot find v8_g")
-
-  if conf.env['USE_SHARED_CARES']:
-    cares_includes = [];
-    if o.shared_cares_includes: cares_includes.append(o.shared_cares_includes);
-    cares_libpath = [];
-    if o.shared_cares_libpath: cares_libpath.append(o.shared_cares_libpath);
-    if not conf.check_cxx(lib='cares',
-                          header_name='ares.h',
-                          uselib_store='CARES',
-                          includes=cares_includes,
-                          libpath=cares_libpath):
-      conf.fatal("Cannot find c-ares")
-  else:
-    conf.sub_config('deps/c-ares')
-
-
-  if conf.env['USE_SHARED_LIBEV']:
-    libev_includes = [];
-    if o.shared_libev_includes: libev_includes.append(o.shared_libev_includes);
-    libev_libpath = [];
-    if o.shared_libev_libpath: libev_libpath.append(o.shared_libev_libpath);
-    if not conf.check_cxx(lib='ev', header_name='ev.h',
-                          uselib_store='EV',
-                          includes=libev_includes,
-                          libpath=libev_libpath):
-      conf.fatal("Cannot find libev")
-  else:
+  if not Options.options.system:
     conf.sub_config('deps/libev')
-
-
+    conf.sub_config('deps/c-ares')
+  else:
+    if not conf.check(lib='v8', uselib_store='V8'):
+      conf.fatal("Cannot find V8")
+    if not conf.check(lib='ev', uselib_store='EV'):
+      conf.fatal("Cannot find libev")
+    if not conf.check(lib='cares', uselib_store='CARES'):
+      conf.fatal("Cannot find c-ares")
 
   conf.define("HAVE_CONFIG_H", 1)
 
@@ -324,8 +211,8 @@ def v8_cmd(bld, variant):
 
 def build_v8(bld):
   v8 = bld.new_task_gen(
-    source        = 'deps/v8/SConstruct '
-                  + bld.path.ant_glob('v8/include/*')
+    source        = 'deps/v8/SConstruct ' 
+                  + bld.path.ant_glob('v8/include/*') 
                   + bld.path.ant_glob('v8/src/*'),
     target        = bld.env["staticlib_PATTERN"] % "v8",
     rule          = v8_cmd(bld, "default"),
@@ -350,15 +237,16 @@ def build_v8(bld):
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
 def build(bld):
+  Options.options.jobs=jobs
   print "DEST_OS: " + bld.env['DEST_OS']
   print "DEST_CPU: " + bld.env['DEST_CPU']
   print "Parallel Jobs: " + str(Options.options.jobs)
 
-  bld.add_subdirs('deps/libeio')
-
-  if not bld.env['USE_SHARED_V8']: build_v8(bld)
-  if not bld.env['USE_SHARED_LIBEV']: bld.add_subdirs('deps/libev')
-  if not bld.env['USE_SHARED_CARES']: bld.add_subdirs('deps/c-ares')
+  if not bld.env["USE_SYSTEM"]:
+    bld.add_subdirs('deps/libeio deps/libev deps/c-ares')
+    build_v8(bld)
+  else:
+    bld.add_subdirs('deps/libeio')
 
 
   ### http_parser
@@ -426,11 +314,6 @@ def build(bld):
   node = bld.new_task_gen("cxx", "program")
   node.name         = "node"
   node.target       = "node"
-  node.uselib = 'RT EV OPENSSL CARES EXECINFO DL KVM SOCKET NSL'
-  node.add_objects = 'eio http_parser'
-  node.install_path = '${PREFIX}/lib'
-  node.install_path = '${PREFIX}/bin'
-  node.chmod = 0755
   node.source = """
     src/node.cc
     src/node_buffer.cc
@@ -448,23 +331,38 @@ def build(bld):
     src/node_timer.cc
     src/node_script.cc
   """
-  if bld.env["USE_OPENSSL"]: node.source += "src/node_crypto.cc"
+  if bld.env["USE_OPENSSL"]:
+    node.source += "src/node_crypto.cc"
 
-  node.includes = """
-    src/
-    deps/libeio
-    deps/http_parser
-  """
+  if not bld.env["USE_SYSTEM"]:
+    node.includes = """
+      src/ 
+      deps/v8/include
+      deps/libev
+      deps/c-ares
+      deps/libeio
+      deps/http_parser
+    """
 
-  if not bld.env["USE_SHARED_V8"]: node.includes += ' deps/v8/include '
+    node.includes += ' deps/c-ares/' + bld.env['DEST_OS'] + '-' + bld.env['DEST_CPU']
 
-  if not bld.env["USE_SHARED_LIBEV"]: 
-    node.add_objects += ' ev '
-    node.includes += ' deps/libev '
 
-  if not bld.env["USE_SHARED_CARES"]:
-    node.add_objects += ' cares '
-    node.includes += '  deps/c-ares deps/c-ares/' + bld.env['DEST_OS'] + '-' + bld.env['DEST_CPU']
+    node.add_objects = 'cares ev eio http_parser'
+    node.uselib_local = ''
+    node.uselib = 'RT OPENSSL V8 EXECINFO DL KVM SOCKET NSL'
+  else:
+    node.includes = """
+      src/
+      deps/libeio
+      deps/http_parser
+    """
+    node.add_objects = 'eio http_parser'
+    node.uselib_local = 'eio'
+    node.uselib = 'RT EV OPENSSL CARES V8 EXECINFO DL KVM SOCKET NSL'
+
+  node.install_path = '${PREFIX}/lib'
+  node.install_path = '${PREFIX}/bin'
+  node.chmod = 0755
 
   def subflags(program):
     if os.path.exists(join(cwd, ".git")):
@@ -490,10 +388,8 @@ def build(bld):
 
   if bld.env["USE_DEBUG"]:
     node_g = node.clone("debug")
-    node.uselib += ' V8'
     node_g.target = "node_g"
-    node_g.uselib += ' V8_G'
-
+    
     node_version_g = node_version.clone("debug")
     node_version_g.dict = subflags(node_g)
     node_version_g.install_path = None
@@ -507,12 +403,14 @@ def build(bld):
     src/node_events.h
   """)
 
-  # Only install the man page if it exists.
+  # Only install the man page if it exists. 
   # Do 'make doc install' to build and install it.
   if os.path.exists('doc/node.1'):
     bld.install_files('${PREFIX}/share/man/man1/', 'doc/node.1')
 
   bld.install_files('${PREFIX}/bin/', 'bin/*', chmod=0755)
+
+  # Why am I using two lines? Because WAF SUCKS.
   bld.install_files('${PREFIX}/lib/node/wafadmin', 'tools/wafadmin/*.py')
   bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
 
