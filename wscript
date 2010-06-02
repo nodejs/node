@@ -16,6 +16,7 @@ srcdir = '.'
 blddir = 'build'
 
 
+
 jobs=1
 if os.environ.has_key('JOBS'):
   jobs = int(os.environ['JOBS'])
@@ -237,7 +238,16 @@ def build_v8(bld):
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
 def build(bld):
+  ## This snippet is to show full commands as WAF executes
+  import Build
+  old = Build.BuildContext.exec_command
+  def exec_command(self, cmd, **kw):
+    if isinstance(cmd, list): print(" ".join(cmd))
+    return old(self, cmd, **kw)
+  Build.BuildContext.exec_command = exec_command
+
   Options.options.jobs=jobs
+
   print "DEST_OS: " + bld.env['DEST_OS']
   print "DEST_CPU: " + bld.env['DEST_CPU']
   print "Parallel Jobs: " + str(Options.options.jobs)
@@ -403,14 +413,12 @@ def build(bld):
     src/node_events.h
   """)
 
-  # Only install the man page if it exists. 
+  # Only install the man page if it exists.
   # Do 'make doc install' to build and install it.
   if os.path.exists('doc/node.1'):
     bld.install_files('${PREFIX}/share/man/man1/', 'doc/node.1')
 
   bld.install_files('${PREFIX}/bin/', 'bin/*', chmod=0755)
-
-  # Why am I using two lines? Because WAF SUCKS.
   bld.install_files('${PREFIX}/lib/node/wafadmin', 'tools/wafadmin/*.py')
   bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
 

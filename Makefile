@@ -1,11 +1,7 @@
 WAF=python tools/waf-light
 
 all:
-	echo $(WAF)
 	@$(WAF) build
-
-all-debug:
-	@$(WAF) -v build
 
 all-progress:
 	@$(WAF) -p build
