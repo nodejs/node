@@ -1428,7 +1428,7 @@ error:
 
 static void CheckStatus(EV_P_ ev_timer *watcher, int revents) {
   assert(watcher == &gc_timer);
-  assert(revents == EV_TIMER);
+  assert(revents == EV_TIMEOUT);
 
 #if HAVE_GETMEM
   // check memory
