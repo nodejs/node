@@ -1496,7 +1496,7 @@ Objects returned from `fs.stat()` and `fs.lstat()` are of this type.
  - `stats.isDirectory()`
  - `stats.isBlockDevice()`
  - `stats.isCharacterDevice()`
- - `stats.isSymbolicLink()`
+ - `stats.isSymbolicLink()` (only valid with  `fs.lstat()`)
  - `stats.isFIFO()`
  - `stats.isSocket()`
 
