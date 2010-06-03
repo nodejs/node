@@ -554,8 +554,6 @@ static Handle<Value> RecvMsg(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  int received_fd;
-
   struct iovec iov[1];
   iov[0].iov_base = (char*)buffer->data() + off;
   iov[0].iov_len = len;
@@ -583,14 +581,35 @@ static Handle<Value> RecvMsg(const Arguments& args) {
   // that the wrapper can pick up. Since we're single threaded, this is not
   // a problem - just make sure to copy out that variable before the next
   // call to recvmsg().
+  //
+  // XXX: Some implementations can send multiple file descriptors in a
+  //      single message. We should be using CMSG_NXTHDR() to walk the
+  //      chain to get at them all. This would require changing the 
+  //      API to hand these back up the caller, is a pain.
 
-  struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
-  if (cmsg && cmsg->cmsg_type == SCM_RIGHTS) {
-    received_fd = *(int *) CMSG_DATA(cmsg);
-    recv_msg_template->GetFunction()->Set(fd_symbol, Integer::New(received_fd));
-  } else {
-    recv_msg_template->GetFunction()->Set(fd_symbol, Null());
+  int received_fd = -1;
+  for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+       msg.msg_controllen > 0 && cmsg != NULL;
+       cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+    if (cmsg->cmsg_type == SCM_RIGHTS) {
+      if (received_fd != -1) {
+        fprintf(stderr, "ignoring extra FD received: %d\n", received_fd);
+      }
+
+      received_fd = *(int *) CMSG_DATA(cmsg);
+    } else {
+      fprintf(stderr, "ignoring non-SCM_RIGHTS ancillary data: %d\n",
+        cmsg->cmsg_type
+      );
+    }
   }
+
+  recv_msg_template->GetFunction()->Set(
+    fd_symbol,
+    (received_fd != -1) ?
+      Integer::New(received_fd) :
+      Null()
+  );
 
   return scope.Close(Integer::New(bytes_read));
 }
@@ -640,49 +659,115 @@ static Handle<Value> Write(const Arguments& args) {
 }
 
 
-// var bytesWritten = t.sendFD(self.fd)
-//  returns null on EAGAIN or EINTR, raises an exception on all other errors
-static Handle<Value> SendFD(const Arguments& args) {
+// var bytes = sendmsg(fd, buf, off, len, fd, flags);
+//
+// Write a buffer with optional offset and length to the given file
+// descriptor. Note that we refuse to send 0 bytes.
+//
+// The 'fd' parameter is a numerical file descriptor, or the undefined value
+// to send none.
+//
+// The 'flags' parameter is a number representing a bitmask of MSG_* values.
+// This is passed directly to sendmsg().
+//
+// Returns null on EAGAIN or EINTR, raises an exception on all other errors
+static Handle<Value> SendMsg(const Arguments& args) {
   HandleScope scope;
+
+  struct iovec iov;
 
   if (args.Length() < 2) {
     return ThrowException(Exception::TypeError(
           String::New("Takes 2 parameters")));
   }
 
+  // The first argument should be a file descriptor
   FD_ARG(args[0])
 
-  // TODO: make sure fd is a unix domain socket?
-
-  if (!args[1]->IsInt32()) {
+  // Grab the actul data to be written, stuffing it into iov
+  if (!Buffer::HasInstance(args[1])) {
     return ThrowException(Exception::TypeError(
-          String::New("FD to send is not an integer")));
+      String::New("Expected either a string or a buffer")));
   }
 
-  int fd_to_send = args[1]->Int32Value();
+  Buffer *buf = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
+
+  size_t offset = 0;
+  if (args.Length() >= 3 && !args[2]->IsUndefined()) {
+    if (!args[2]->IsUint32()) {
+      return ThrowException(Exception::TypeError(
+        String::New("Expected unsigned integer for offset")));
+    }
+
+    offset = args[2]->Uint32Value();
+    if (offset >= buf->length()) {
+      return ThrowException(Exception::Error(
+        String::New("Offset into buffer too large")));
+    }
+  }
+
+  size_t length = buf->length() - offset;
+  if (args.Length() >= 4 && !args[3]->IsUndefined()) {
+    if (!args[3]->IsUint32()) {
+      return ThrowException(Exception::TypeError(
+        String::New("Expected unsigned integer for length")));
+    }
+
+    length = args[3]->Uint32Value();
+    if (offset + length > buf->length()) {
+      return ThrowException(Exception::Error(
+        String::New("offset + length beyond buffer length")));
+    }
+  }
+
+  iov.iov_base = buf->data() + offset;
+  iov.iov_len = length;
+
+  int fd_to_send = -1;
+  if (args.Length() >= 5 && !args[4]->IsUndefined()) {
+    if (!args[4]->IsUint32()) {
+      return ThrowException(Exception::TypeError(
+        String::New("Expected unsigned integer for a file descriptor")));
+    }
+
+    fd_to_send = args[4]->Uint32Value();
+  }
+
+  int flags = 0;
+  if (args.Length() >= 6 && !args[5]->IsUndefined()) {
+    if (!args[5]->IsUint32()) {
+      return ThrowException(Exception::TypeError(
+        String::New("Expected unsigned integer for a flags argument")));
+    }
+
+    flags = args[5]->Uint32Value();
+  }
 
   struct msghdr msg;
-  struct iovec iov[1];
-  char control_msg[CMSG_SPACE(sizeof(fd_to_send))];
-  struct cmsghdr *cmsg;
-  static char dummy = 'd'; // Need to send at least a byte of data in the message
+  char scratch[64];
 
-  iov[0].iov_base = &dummy;
-  iov[0].iov_len = 1;
-  msg.msg_iov = iov;
+  msg.msg_iov = &iov;
   msg.msg_iovlen = 1;
   msg.msg_name = NULL;
   msg.msg_namelen = 0;
   msg.msg_flags = 0;
-  msg.msg_control = (void *) control_msg;
-  msg.msg_controllen = CMSG_LEN(sizeof(fd_to_send));
-  cmsg = CMSG_FIRSTHDR(&msg);
-  cmsg->cmsg_level = SOL_SOCKET;
-  cmsg->cmsg_type = SCM_RIGHTS;
-  cmsg->cmsg_len = msg.msg_controllen;
-  *(int*) CMSG_DATA(cmsg) = fd_to_send;
+  msg.msg_control = NULL;
+  msg.msg_controllen = 0;
 
-  ssize_t written = sendmsg(fd, &msg, 0);
+  if (fd_to_send >= 0) {
+    struct cmsghdr *cmsg;
+
+    msg.msg_control = (void *) scratch;
+    msg.msg_controllen = CMSG_LEN(sizeof(fd_to_send));
+
+    cmsg = CMSG_FIRSTHDR(&msg);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    cmsg->cmsg_len = msg.msg_controllen;
+    *(int*) CMSG_DATA(cmsg) = fd_to_send;
+  }
+
+  ssize_t written = sendmsg(fd, &msg, flags);
 
   if (written < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();
@@ -805,7 +890,7 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "write", Write);
   NODE_SET_METHOD(target, "read", Read);
 
-  NODE_SET_METHOD(target, "sendFD", SendFD);
+  NODE_SET_METHOD(target, "sendMsg", SendMsg);
 
   recv_msg_template =
       Persistent<FunctionTemplate>::New(FunctionTemplate::New(RecvMsg));
