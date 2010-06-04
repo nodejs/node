@@ -49,8 +49,8 @@ http.createServer(function (req, res) {
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.end('Hello World\n');
   }, 2000);
-}).listen(8000);
-sys.puts('Server running at http://127.0.0.1:8000/');</pre>
+}).listen(8124);
+sys.puts('Server running at http://127.0.0.1:8124/');</pre>
 </pre>
 
       <p>
@@ -60,10 +60,10 @@ sys.puts('Server running at http://127.0.0.1:8000/');</pre>
       </p>
       <pre class="sh_none">
 % node example.js
-Server running at http://127.0.0.1:8000/</pre>
+Server running at http://127.0.0.1:8124/</pre>
 
       <p>
-        Here is an example of a simple TCP server which listens on port 7000
+        Here is an example of a simple TCP server which listens on port 8124
         and echos whatever you send it:
       </p>
 
@@ -82,7 +82,7 @@ var server = tcp.createServer(function (socket) {
     socket.end();
   });
 });
-server.listen(7000, "localhost");</pre>
+server.listen(8124);</pre>
 
       <p>
         See the <a href="api.html">API documentation</a> for more

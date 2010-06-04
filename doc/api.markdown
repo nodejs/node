@@ -12,15 +12,15 @@ World':
     http.createServer(function (request, response) {
       response.writeHead(200, {'Content-Type': 'text/plain'});
       response.end('Hello World\n');
-    }).listen(8000);
+    }).listen(8124);
 
-    sys.puts('Server running at http://127.0.0.1:8000/');
+    sys.puts('Server running at http://127.0.0.1:8124/');
 
 To run the server, put the code into a file called `example.js` and execute
 it with the node program
 
     > node example.js
-    Server running at http://127.0.0.1:8000/
+    Server running at http://127.0.0.1:8124/
 
 All of the examples in the documentation can be run similarly.
 
@@ -2052,7 +2052,7 @@ A reference to the `http.Client` that this response belongs to.
 This class is used to create a TCP or UNIX server.
 
 Here is an example of a echo server which listens for connections
-on port 7000:
+on port 8124:
 
     var net = require('net');
     var server = net.createServer(function (stream) {
@@ -2068,7 +2068,7 @@ on port 7000:
         stream.end();
       });
     });
-    server.listen(7000, 'localhost');
+    server.listen(8124, 'localhost');
 
 To listen on the socket `'/tmp/echo.sock'`, the last line would just be
 changed to
