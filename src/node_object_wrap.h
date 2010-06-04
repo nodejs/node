@@ -13,9 +13,12 @@ class ObjectWrap {
   }
 
   virtual ~ObjectWrap ( ) {
-    handle_->SetInternalField(0, v8::Undefined());
-    handle_.Dispose();
-    handle_.Clear();
+    if (!handle_.IsEmpty()) {
+      assert(handle_.IsNearDeath());
+      handle_->SetInternalField(0, v8::Undefined());
+      handle_.Dispose();
+      handle_.Clear();
+    }
   }
 
   template <class T>
