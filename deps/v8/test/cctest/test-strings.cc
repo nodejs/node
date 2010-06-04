@@ -433,3 +433,51 @@ TEST(ExternalShortStringAdd) {
   CHECK_EQ(0,
            v8::Script::Compile(v8::String::New(source))->Run()->Int32Value());
 }
+
+
+TEST(CachedHashOverflow) {
+  // We incorrectly allowed strings to be tagged as array indices even if their
+  // values didn't fit in the hash field.
+  // See http://code.google.com/p/v8/issues/detail?id=728
+  ZoneScope zone(DELETE_ON_EXIT);
+
+  InitializeVM();
+  v8::HandleScope handle_scope;
+  // Lines must be executed sequentially. Combining them into one script
+  // makes the bug go away.
+  const char* lines[] = {
+      "var x = [];",
+      "x[4] = 42;",
+      "var s = \"1073741828\";",
+      "x[s];",
+      "x[s] = 37;",
+      "x[4];",
+      "x[s];",
+      NULL
+  };
+
+  Handle<Smi> fortytwo(Smi::FromInt(42));
+  Handle<Smi> thirtyseven(Smi::FromInt(37));
+  Handle<Object> results[] = {
+      Factory::undefined_value(),
+      fortytwo,
+      Factory::undefined_value(),
+      Factory::undefined_value(),
+      thirtyseven,
+      fortytwo,
+      thirtyseven  // Bug yielded 42 here.
+  };
+
+  const char* line;
+  for (int i = 0; (line = lines[i]); i++) {
+    printf("%s\n", line);
+    v8::Local<v8::Value> result =
+        v8::Script::Compile(v8::String::New(line))->Run();
+    ASSERT_EQ(results[i]->IsUndefined(), result->IsUndefined());
+    ASSERT_EQ(results[i]->IsNumber(), result->IsNumber());
+    if (result->IsNumber()) {
+      ASSERT_EQ(Smi::cast(results[i]->ToSmi())->value(),
+                result->ToInt32()->Value());
+    }
+  }
+}

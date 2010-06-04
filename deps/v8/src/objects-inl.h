@@ -2986,7 +2986,8 @@ StringHasher::StringHasher(int length)
   : length_(length),
     raw_running_hash_(0),
     array_index_(0),
-    is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
+    is_array_index_(0 < length_ &&
+                    length_ <= String::kMaxCachedArrayIndexLength),
     is_first_char_(true),
     is_valid_(true) { }
 
