@@ -1900,7 +1900,7 @@ static void Load(int argc, char *argv[]) {
   int i, j;
   Local<Array> arguments = Array::New(argc - option_end_index + 1);
   arguments->Set(Integer::New(0), String::New(argv[0]));
-  for (j = 1, i = option_end_index + 1; i < argc; j++, i++) {
+  for (j = 1, i = option_end_index; i < argc; j++, i++) {
     Local<String> arg = String::New(argv[i]);
     arguments->Set(Integer::New(j), arg);
   }
@@ -2050,13 +2050,14 @@ static void PrintHelp() {
 
 // Parse node command line arguments.
 static void ParseArgs(int *argc, char **argv) {
+  int i;
+
   // TODO use parse opts
-  for (int i = 1; i < *argc; i++) {
+  for (i = 1; i < *argc; i++) {
     const char *arg = argv[i];
     if (strstr(arg, "--debug") == arg) {
       ParseDebugOpt(arg);
       argv[i] = const_cast<char*>("");
-      option_end_index = i;
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
@@ -2069,12 +2070,12 @@ static void ParseArgs(int *argc, char **argv) {
       exit(0);
     } else if (strcmp(arg, "--v8-options") == 0) {
       argv[i] = const_cast<char*>("--help");
-      option_end_index = i+1;
     } else if (argv[i][0] != '-') {
-      option_end_index = i-1;
       break;
     }
   }
+
+  option_end_index = i;
 }
 
 }  // namespace node
