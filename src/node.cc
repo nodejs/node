@@ -2098,14 +2098,6 @@ int main(int argc, char *argv[]) {
   // in the command line))
   V8::SetFlagsFromCommandLine(&node::option_end_index, argv, false);
 
-  // Error out if we don't have a script argument.
-  if (argc < 2) {
-    fprintf(stderr, "No script was specified.\n");
-    node::PrintHelp();
-    return 1;
-  }
-
-
   // Ignore SIGPIPE
   struct sigaction sa;
   bzero(&sa, sizeof(sa));

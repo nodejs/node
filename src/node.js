@@ -192,9 +192,26 @@ process.exit = function (code) {
   process.reallyExit(code);
 };
 
+var cwd = process.cwd();
+var path = module.requireNative('path');
 
-module.runMain();
+// Make process.argv[0] and process.argv[1] into full paths.
+if (process.argv[0].indexOf('/') > 0) {
+  process.argv[0] = path.join(cwd, process.argv[0]);
+}
 
+if (process.argv[1]) {
+  if (process.argv[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.argv[1])) {
+    process.argv[1] = path.join(cwd, process.argv[1]);
+  }
+
+  module.runMain();
+} else {
+  // No arguments, run the repl
+  var repl = module.requireNative('repl');
+  process.stdout.write("Type '.help' for options.\n");
+  repl.start();
+}
 
 // All our arguments are loaded. We've evaluated all of the scripts. We
 // might even have created TCP servers. Now we enter the main eventloop. If

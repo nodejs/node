@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-puts = require("sys").puts;
+var puts = require("sys").puts;
 
 puts("Type '.help' for options.");
+puts("(The REPL can also be started by typing 'node' without arguments)");
 
 require('repl').start();
 
