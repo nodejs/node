@@ -2084,7 +2084,6 @@ static void ParseArgs(int *argc, char **argv) {
 static void AtExit() {
   node::Stdio::Flush();
   node::Stdio::DisableRawMode(STDIN_FILENO);
-  fprintf(stderr, "\n");
 }
 
 
