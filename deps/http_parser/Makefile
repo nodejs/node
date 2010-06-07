@@ -8,10 +8,10 @@ test: test_g
 test_g: http_parser_g.o test_g.o
 	gcc $(OPT_DEBUG) http_parser_g.o test_g.o -o $@
 
-test_g.o: test.c Makefile
+test_g.o: test.c http_parser.h Makefile
 	gcc $(OPT_DEBUG) -c test.c -o $@
 
-test.o: test.c Makefile
+test.o: test.c http_parser.h Makefile
 	gcc $(OPT_FAST) -c test.c -o $@
 
 http_parser_g.o: http_parser.c http_parser.h Makefile
@@ -23,7 +23,7 @@ test-valgrind: test_g
 http_parser.o: http_parser.c http_parser.h Makefile
 	gcc $(OPT_FAST) -c http_parser.c
 
-test_fast: http_parser.o test.c
+test_fast: http_parser.o test.c http_parser.h
 	gcc $(OPT_FAST) http_parser.o test.c -o $@
 
 test-run-timed: test_fast

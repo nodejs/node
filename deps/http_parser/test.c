@@ -495,6 +495,30 @@ const struct message requests[] =
   ,.body= ""
   }
 
+#define CONNECT_REQUEST 17
+, {.name = "connect request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "CONNECT home.netscape.com:443 HTTP/1.0\r\n"
+         "User-agent: Mozilla/1.1N\r\n"
+         "Proxy-authorization: basic aGVsbG86d29ybGQ=\r\n"
+         "\r\n"
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 0
+  ,.method= HTTP_CONNECT
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= ""
+  ,.request_url= "home.netscape.com:443"
+  ,.num_headers= 2
+  ,.upgrade=0
+  ,.headers= { { "User-agent", "Mozilla/1.1N" }
+             , { "Proxy-authorization", "basic aGVsbG86d29ybGQ=" }
+             }
+  ,.body= ""
+  }
+
 , {.name= NULL } /* sentinel */
 };
 
@@ -717,6 +741,43 @@ const struct message responses[] =
     , {"Content-Type", "text/xml" }
     , {"Content-Length", "0" }
     , {"DCLK_imp", "v7;x;114750856;0-0;0;17820020;0/0;21603567/21621457/1;;~okv=;dcmt=text/xml;;~cs=o" }
+    }
+  ,.body= ""
+  }
+
+#define BONJOUR_MADAME_FR 8
+/* The client should not merge two headers fields when the first one doesn't
+ * have a value.
+ */
+, {.name= "bonjourmadame.fr"
+  ,.type= HTTP_RESPONSE
+  ,.raw= "HTTP/1.0 301 Moved Permanently\r\n"
+         "Date: Thu, 03 Jun 2010 09:56:32 GMT\r\n"
+         "Server: Apache/2.2.3 (Red Hat)\r\n"
+         "Cache-Control: public\r\n"
+         "Pragma: \r\n"
+         "Location: http://www.bonjourmadame.fr/\r\n"
+         "Vary: Accept-Encoding\r\n"
+         "Content-Length: 0\r\n"
+         "Content-Type: text/html; charset=UTF-8\r\n"
+         "Connection: keep-alive\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 0
+  ,.status_code= 301
+  ,.num_headers= 9
+  ,.headers=
+    { { "Date", "Thu, 03 Jun 2010 09:56:32 GMT" }
+    , { "Server", "Apache/2.2.3 (Red Hat)" }
+    , { "Cache-Control", "public" }
+    , { "Pragma", "" }
+    , { "Location", "http://www.bonjourmadame.fr/" }
+    , { "Vary",  "Accept-Encoding" }
+    , { "Content-Length", "0" }
+    , { "Content-Type", "text/html; charset=UTF-8" }
+    , { "Connection", "keep-alive" }
     }
   ,.body= ""
   }
@@ -1207,82 +1268,84 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
 
   int total_len = strlen(total);
 
-  int total_ops = (total_len - 1) * (total_len - 2) / 2;
+  int total_ops = 2 * (total_len - 1) * (total_len - 2) / 2;
   int ops = 0 ;
 
   size_t buf1_len, buf2_len, buf3_len;
 
-  int i,j;
-  for (j = 2; j < total_len; j ++ ) {
-    for (i = 1; i < j; i ++ ) {
+  int i,j,type_both;
+  for (type_both = 0; type_both < 2; type_both ++ ) {
+    for (j = 2; j < total_len; j ++ ) {
+      for (i = 1; i < j; i ++ ) {
 
-      if (ops % 1000 == 0)  {
-        printf("\b\b\b\b%3.0f%%", 100 * (float)ops /(float)total_ops);
-        fflush(stdout);
+        if (ops % 1000 == 0)  {
+          printf("\b\b\b\b%3.0f%%", 100 * (float)ops /(float)total_ops);
+          fflush(stdout);
+        }
+        ops += 1;
+
+        parser_init(type_both ? HTTP_BOTH : r1->type);
+
+        buf1_len = i;
+        strncpy(buf1, total, buf1_len);
+        buf1[buf1_len] = 0;
+
+        buf2_len = j - i;
+        strncpy(buf2, total+i, buf2_len);
+        buf2[buf2_len] = 0;
+
+        buf3_len = total_len - j;
+        strncpy(buf3, total+j, buf3_len);
+        buf3[buf3_len] = 0;
+
+        read = parse(buf1, buf1_len);
+        if (read != buf1_len) {
+          print_error(buf1, read);
+          goto error;
+        }
+
+        read = parse(buf2, buf2_len);
+        if (read != buf2_len) {
+          print_error(buf2, read);
+          goto error;
+        }
+
+        read = parse(buf3, buf3_len);
+        if (read != buf3_len) {
+          print_error(buf3, read);
+          goto error;
+        }
+
+        parse(NULL, 0);
+
+        if (3 != num_messages) {
+          fprintf(stderr, "\n\nParser didn't see 3 messages only %d\n", num_messages);
+          goto error;
+        }
+
+        if (!message_eq(0, r1)) {
+          fprintf(stderr, "\n\nError matching messages[0] in test_scan.\n");
+          goto error;
+        }
+
+        if (!message_eq(1, r2)) {
+          fprintf(stderr, "\n\nError matching messages[1] in test_scan.\n");
+          goto error;
+        }
+
+        if (!message_eq(2, r3)) {
+          fprintf(stderr, "\n\nError matching messages[2] in test_scan.\n");
+          goto error;
+        }
+
+        parser_free();
       }
-      ops += 1;
-
-      parser_init(r1->type);
-
-      buf1_len = i;
-      strncpy(buf1, total, buf1_len);
-      buf1[buf1_len] = 0;
-
-      buf2_len = j - i;
-      strncpy(buf2, total+i, buf2_len);
-      buf2[buf2_len] = 0;
-
-      buf3_len = total_len - j;
-      strncpy(buf3, total+j, buf3_len);
-      buf3[buf3_len] = 0;
-
-      read = parse(buf1, buf1_len);
-      if (read != buf1_len) {
-        print_error(buf1, read);
-        goto error;
-      }
-
-      read = parse(buf2, buf2_len);
-      if (read != buf2_len) {
-        print_error(buf2, read);
-        goto error;
-      }
-
-      read = parse(buf3, buf3_len);
-      if (read != buf3_len) {
-        print_error(buf3, read);
-        goto error;
-      }
-
-      parse(NULL, 0);
-
-      if (3 != num_messages) {
-        fprintf(stderr, "\n\nParser didn't see 3 messages only %d\n", num_messages);
-        goto error;
-      }
-
-      if (!message_eq(0, r1)) {
-        fprintf(stderr, "\n\nError matching messages[0] in test_scan.\n");
-        goto error;
-      }
-
-      if (!message_eq(1, r2)) {
-        fprintf(stderr, "\n\nError matching messages[1] in test_scan.\n");
-        goto error;
-      }
-
-      if (!message_eq(2, r3)) {
-        fprintf(stderr, "\n\nError matching messages[2] in test_scan.\n");
-        goto error;
-      }
-
-      parser_free();
     }
   }
   puts("\b\b\b\b100%");
   return;
 
-error:
+ error:
   fprintf(stderr, "i=%d  j=%d\n", i, j);
   fprintf(stderr, "buf1 (%u) %s\n\n", (unsigned int)buf1_len, buf1);
   fprintf(stderr, "buf2 (%u) %s\n\n", (unsigned int)buf2_len , buf2);
@@ -1395,10 +1458,16 @@ main (void)
 
 
 
-  printf("response scan 1/1      ");
+  printf("response scan 1/2      ");
   test_scan( &responses[TRAILING_SPACE_ON_CHUNKED_BODY]
            , &responses[NO_HEADERS_NO_BODY_404]
            , &responses[NO_REASON_PHRASE]
+           );
+
+  printf("response scan 1/2      ");
+  test_scan( &responses[BONJOUR_MADAME_FR]
+           , &responses[UNDERSTORE_HEADER_KEY]
+           , &responses[NO_CARRIAGE_RET]
            );
 
   puts("responses okay");

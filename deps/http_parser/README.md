@@ -1,30 +1,32 @@
 HTTP Parser
 ===========
 
-This is a parser for HTTP messages written in C. It parses both requests
-and responses. The parser is designed to be used in performance HTTP
-applications. It does not make any allocations, it does not buffer data, and
-it can be interrupted at anytime. Depending on your architecture, it only
-requires between 100 and 200 bytes of data per message stream (in a web
-server that is per connection).
+This is a parser for HTTP messages written in C. It parses both requests and
+responses. The parser is designed to be used in performance HTTP
+applications. It does not make any syscalls nor allocations, it does not
+buffer data, it can be interrupted at anytime. Depending on your
+architecture, it only requires between 100 and 200 bytes of data per message
+stream (in a web server that is per connection).
 
 Features:
 
   * No dependencies
-  * Parses both requests and responses.
-  * Handles persistent streams.
+  * Handles persistent streams (keep-alive).
   * Decodes chunked encoding.
-  * Extracts the following data from a message
-    * header fields and values
-    * content-length
-    * request method
-    * response status code
-    * transfer-encoding
-    * http version
-    * request path, query string, fragment
-    * message body
-  * Defends against buffer overflow attacks.
   * Upgrade support
+  * Defends against buffer overflow attacks.
+
+The parser extracts the following information from HTTP messages:
+
+  * Header fields and values
+  * Content-Length
+  * Request method
+  * Response status code
+  * Transfer-Encoding
+  * HTTP version
+  * Request path, query string, fragment
+  * Message body
+
 
 Usage
 -----
@@ -55,10 +57,9 @@ When data is received on the socket execute the parser and check for errors.
     }
 
     /* Start up / continue the parser.
-     * Note we pass the recved==0 to http_parse_requests to signal
-     * that EOF has been recieved.
+     * Note we pass recved==0 to signal that EOF has been recieved.
      */
-    nparsed = http_parser_execute(parser, settings, buf, recved);
+    nparsed = http_parser_execute(parser, &settings, buf, recved);
 
     if (parser->upgrade) {
       /* handle new protocol */
@@ -83,10 +84,6 @@ The parser decodes the transfer-encoding for both requests and responses
 transparently. That is, a chunked encoding is decoded before being sent to
 the on_body callback.
 
-It does not decode the content-encoding (gzip). Not all HTTP applications
-need to inspect the body. Decoding gzip is non-neglagable amount of
-processing (and requires making allocations). HTTP proxies using this
-parser, for example, would not want such a feature.
 
 The Special Problem of Upgrade
 ------------------------------
@@ -109,11 +106,11 @@ information the Web Socket protocol.)
 
 To support this, the parser will treat this as a normal HTTP message without a
 body. Issuing both on_headers_complete and on_message_complete callbacks. However
-http_parser_execute() may finish without parsing the entire supplied buffer.
+http_parser_execute() will stop parsing at the end of the headers and return.
 
-The user needs to check if parser->upgrade has been set to 1 after
-http_parser_execute() returns to determine if a premature exit was due to an
-upgrade or an error.
+The user is expected to check if `parser->upgrade` has been set to 1 after
+`http_parser_execute()` returns. Non-HTTP data begins at the buffer supplied
+offset by the return value of `http_parser_execute()`.
 
 
 Callbacks
@@ -165,6 +162,7 @@ and apply following logic:
     | value                  | on_h_value | Value continues. Reallocate value buffer   |
     |                        |            | and append callback data to it             |
      ------------------------ ------------ --------------------------------------------
+
 
 See examples of reading in headers:
 

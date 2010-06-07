@@ -102,7 +102,7 @@ static struct http_parser_settings settings;
 
 
 static inline Persistent<String>
-method_to_str(enum http_method m) {
+method_to_str(unsigned short m) {
   switch (m) {
     case HTTP_DELETE:     return delete_sym;
     case HTTP_GET:        return get_sym;
