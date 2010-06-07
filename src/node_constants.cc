@@ -23,6 +23,7 @@ void DefineConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_WRONLY);
   NODE_DEFINE_CONSTANT(target, O_RDWR);
 
+  NODE_DEFINE_CONSTANT(target, S_IFMT);
   NODE_DEFINE_CONSTANT(target, S_IFREG);
   NODE_DEFINE_CONSTANT(target, S_IFDIR);
   NODE_DEFINE_CONSTANT(target, S_IFCHR);
