@@ -2760,21 +2760,18 @@ The escape function used by `querystring.stringify`, provided so that it could b
 
 The unescape function used by `querystring.parse`, provided so that it could be overridden if necessary.
 
+
 ## REPL
 
-A Read-Eval-Print-Loop is available both as a standalone program and easily
+A Read-Eval-Print-Loop (REPL) is available both as a standalone program and easily
 includable in other programs.  REPL provides a way to interactively run
 JavaScript and see the results.  It can be used for debugging, testing, or
 just trying things out.
 
-The standalone REPL is called `node-repl` and is installed at
-`$PREFIX/bin/node-repl`.
+By executing `node` without any arguments from the command-line you will be
+dropped into the REPL. It has simplistic emacs line-editting.
 
-    mjr:~$ /usr/local/bin/node-repl
-    Welcome to the Node.js REPL.
-    Enter ECMAScript at the prompt.
-    Tip 1: Use 'rlwrap node-repl' for a better interface
-    Tip 2: Type Control-D to exit.
+    mjr:~$ node
     Type '.help' for options.
     node> a = [ 1, 2, 3];
     [ 1, 2, 3 ]
@@ -2784,6 +2781,13 @@ The standalone REPL is called `node-repl` and is installed at
     1
     2
     3
+
+For advanced line-editors, start node with the environmental variable `NODE_NO_READLINE=1`.
+This will start the REPL in canonical terminal settings which will allow you to use with `rlwrap`.
+
+For example, you could add this to your bashrc file:
+
+    alias node="env NODE_NO_READLINE=1 rlwrap node"
 
 
 ### repl.start(prompt, stream)
@@ -2822,28 +2826,6 @@ TCP sockets.
 
 By starting a REPL from a Unix socket-based server instead of stdin, you can 
 connect to a long-running node process without restarting it.
-
-
-### readline support
-
-Interactive command history for REPL is available from external programs like `rlwrap`
-or `socat`.  These programs are available from many Unix package managers.
-
-To start the standalone REPL with `rlwrap`:
-
-    rlwrap node-repl
-    
-It might be convenient to use this alias in your shell configuration:
-
-    alias repl='rlwrap node-repl'
-
-Using `socat` to connect to a Unix socket:
-
-    socat READLINE UNIX-CONNECT:/tmp/node-repl-sock
-
-Using `socat` to connect to a TCP socket on localhost:
-
-    socat READLINE TCP-CONNECT:localhost:5001
 
 
 ### REPL Features
