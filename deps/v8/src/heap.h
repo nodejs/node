@@ -690,11 +690,6 @@ class Heap : public AllStatic {
   static bool GarbageCollectionGreedyCheck();
 #endif
 
-  static void SetExternalStringDiposeCallback(
-      ExternalStringDiposeCallback callback) {
-    external_string_dispose_callback_ = callback;
-  }
-
   static void AddGCPrologueCallback(
       GCEpilogueCallback callback, GCType gc_type_filter);
   static void RemoveGCPrologueCallback(GCEpilogueCallback callback);
@@ -1143,9 +1138,6 @@ class Heap : public AllStatic {
   // any string when looked up in properties.
   static String* hidden_symbol_;
 
-  static ExternalStringDiposeCallback
-       external_string_dispose_callback_;
-
   // GC callback function, called before and after mark-compact GC.
   // Allocations in the callback function are disallowed.
   struct GCPrologueCallbackPair {
@@ -1273,6 +1265,10 @@ class Heap : public AllStatic {
   static Object* InitializeNumberStringCache();
   // Flush the number to string cache.
   static void FlushNumberStringCache();
+
+  // Flush code from functions we do not expect to use again. The code will
+  // be replaced with a lazy compilable version.
+  static void FlushCode();
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;

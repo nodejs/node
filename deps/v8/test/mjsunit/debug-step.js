@@ -55,8 +55,9 @@ Debug.setListener(listener);
 
 // Test debug event for break point.
 function f() {
-  for (i = 0; i < 1000; i++) {  //  Line 1.
-    x = 1;                      //  Line 2.
+  var i;                        // Line 1.
+  for (i = 0; i < 1000; i++) {  // Line 2.
+    x = 1;                      // Line 3.
   }
 };
 
@@ -74,7 +75,7 @@ assertEquals(499, result);
 // multiple steps have been requested.
 state = 0;
 result = -1;
-bp2 = Debug.setBreakPoint(f, 2);
+bp2 = Debug.setBreakPoint(f, 3);
 f();
 assertEquals(0, result);
 

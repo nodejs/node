@@ -210,6 +210,10 @@ void RelocInfo::apply(intptr_t delta) {
     // Special handling of js_return when a break point is set (call
     // instruction has been inserted).
     Memory::int32_at(pc_ + 1) -= static_cast<int32_t>(delta);  // relocate entry
+  } else if (rmode_ == DEBUG_BREAK_SLOT && IsPatchedDebugBreakSlotSequence()) {
+    // Special handling of debug break slot when a break point is set (call
+    // instruction has been inserted).
+    Memory::int32_at(pc_ + 1) -= static_cast<int32_t>(delta);  // relocate entry
   }
 }
 
@@ -298,6 +302,11 @@ bool RelocInfo::IsPatchedReturnSequence() {
 }
 
 
+bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
+  return !Assembler::IsNop(pc());
+}
+
+
 Address RelocInfo::call_address() {
   ASSERT(IsPatchedReturnSequence());
   return Memory::Address_at(
@@ -341,8 +350,10 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (Debug::has_break_points() &&
-             RelocInfo::IsJSReturn(mode) &&
-             IsPatchedReturnSequence()) {
+             ((RelocInfo::IsJSReturn(mode) &&
+              IsPatchedReturnSequence()) ||
+             (RelocInfo::IsDebugBreakSlot(mode) &&
+              IsPatchedDebugBreakSlotSequence()))) {
     visitor->VisitDebugTarget(this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {

@@ -52,16 +52,21 @@ Condition NegateCondition(Condition cc) {
 void RelocInfo::apply(intptr_t delta) {
   if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
-    *p -= delta;  // relocate entry
+    *p -= delta;  // Relocate entry.
   } else if (rmode_ == JS_RETURN && IsPatchedReturnSequence()) {
     // Special handling of js_return when a break point is set (call
     // instruction has been inserted).
     int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
-    *p -= delta;  // relocate entry
+    *p -= delta;  // Relocate entry.
+  } else if (rmode_ == DEBUG_BREAK_SLOT && IsPatchedDebugBreakSlotSequence()) {
+    // Special handling of a debug break slot when a break point is set (call
+    // instruction has been inserted).
+    int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
+    *p -= delta;  // Relocate entry.
   } else if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
-    *p += delta;  // relocate entry
+    *p += delta;  // Relocate entry.
   }
 }
 
@@ -154,6 +159,11 @@ bool RelocInfo::IsPatchedReturnSequence() {
 }
 
 
+bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
+  return !Assembler::IsNop(pc());
+}
+
+
 void RelocInfo::Visit(ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
@@ -164,8 +174,10 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (Debug::has_break_points() &&
-             RelocInfo::IsJSReturn(mode) &&
-             IsPatchedReturnSequence()) {
+             ((RelocInfo::IsJSReturn(mode) &&
+              IsPatchedReturnSequence()) ||
+             (RelocInfo::IsDebugBreakSlot(mode) &&
+              IsPatchedDebugBreakSlotSequence()))) {
     visitor->VisitDebugTarget(this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {

@@ -2468,6 +2468,10 @@ BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,
                try_full_codegen,
                kTryFullCodegen)
+BOOL_ACCESSORS(SharedFunctionInfo,
+               compiler_hints,
+               allows_lazy_compilation,
+               kAllowLazyCompilation)
 
 #if V8_HOST_ARCH_32_BIT
 SMI_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)

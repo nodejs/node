@@ -455,6 +455,11 @@ class Assembler : public Malloced {
   // return address.  TODO: Use return sequence length instead.
   // Should equal Debug::kX64JSReturnSequenceLength - kCallTargetAddressOffset;
   static const int kPatchReturnSequenceAddressOffset = 13 - 4;
+  // Distance between start of patched debug break slot and where the
+  // 32-bit displacement of a near call would be, relative to the pushed
+  // return address.  TODO: Use return sequence length instead.
+  // Should equal Debug::kX64JSReturnSequenceLength - kCallTargetAddressOffset;
+  static const int kPatchDebugBreakSlotAddressOffset = 13 - 4;
   // TODO(X64): Rename this, removing the "Real", after changing the above.
   static const int kRealPatchReturnSequenceAddressOffset = 2;
 
@@ -462,6 +467,10 @@ class Assembler : public Malloced {
   // enough to hold a call instruction when the debugger patches it.
   static const int kCallInstructionLength = 13;
   static const int kJSReturnSequenceLength = 13;
+
+  // The debug break slot must be able to contain a call instruction.
+  static const int kDebugBreakSlotLength = kCallInstructionLength;
+
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -1135,13 +1144,16 @@ class Assembler : public Malloced {
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();
 
+  // Mark address of a debug break slot.
+  void RecordDebugBreakSlot();
+
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --debug_code to enable.
   void RecordComment(const char* msg);
 
   void RecordPosition(int pos);
   void RecordStatementPosition(int pos);
-  void WriteRecordedPositions();
+  bool WriteRecordedPositions();
 
   int pc_offset() const  { return static_cast<int>(pc_ - buffer_); }
   int current_statement_position() const { return current_statement_position_; }
@@ -1158,6 +1170,8 @@ class Assembler : public Malloced {
   inline int available_space() const {
     return static_cast<int>(reloc_info_writer.pos() - pc_);
   }
+
+  static bool IsNop(Address addr) { return *addr == 0x90; }
 
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;

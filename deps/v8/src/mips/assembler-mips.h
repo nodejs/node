@@ -355,6 +355,9 @@ class Assembler : public Malloced {
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset = kInstrSize;
 
+  // Distance between start of patched debug break slot and the emitted address
+  // to jump to.
+  static const int kPatchDebugBreakSlotAddressOffset = kInstrSize;
 
   // ---------------------------------------------------------------------------
   // Code generation.
@@ -518,7 +521,7 @@ class Assembler : public Malloced {
 
   void RecordPosition(int pos);
   void RecordStatementPosition(int pos);
-  void WriteRecordedPositions();
+  bool WriteRecordedPositions();
 
   int32_t pc_offset() const { return pc_ - buffer_; }
   int32_t current_position() const { return current_position_; }

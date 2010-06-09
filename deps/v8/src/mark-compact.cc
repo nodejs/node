@@ -273,8 +273,10 @@ class MarkingVisitor : public ObjectVisitor {
   }
 
   void VisitDebugTarget(RelocInfo* rinfo) {
-    ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) &&
-           rinfo->IsPatchedReturnSequence());
+    ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
+            rinfo->IsPatchedReturnSequence()) ||
+           (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
+            rinfo->IsPatchedDebugBreakSlotSequence()));
     HeapObject* code = Code::GetCodeFromTargetAddress(rinfo->call_address());
     MarkCompactCollector::MarkObject(code);
   }
@@ -1106,8 +1108,10 @@ class PointersToNewGenUpdatingVisitor: public ObjectVisitor {
   }
 
   void VisitDebugTarget(RelocInfo* rinfo) {
-    ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) &&
-           rinfo->IsPatchedReturnSequence());
+    ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
+            rinfo->IsPatchedReturnSequence()) ||
+           (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
+            rinfo->IsPatchedDebugBreakSlotSequence()));
     Object* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
     VisitPointer(&target);
     rinfo->set_call_address(Code::cast(target)->instruction_start());
@@ -1856,8 +1860,10 @@ class UpdatingVisitor: public ObjectVisitor {
   }
 
   void VisitDebugTarget(RelocInfo* rinfo) {
-    ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) &&
-           rinfo->IsPatchedReturnSequence());
+    ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
+            rinfo->IsPatchedReturnSequence()) ||
+           (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
+            rinfo->IsPatchedDebugBreakSlotSequence()));
     Object* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
     VisitPointer(&target);
     rinfo->set_call_address(

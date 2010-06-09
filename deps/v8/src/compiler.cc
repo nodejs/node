@@ -601,6 +601,7 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
       lit->has_only_simple_this_property_assignments(),
       *lit->this_property_assignments());
   function_info->set_try_full_codegen(lit->try_full_codegen());
+  function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
 }
 
 

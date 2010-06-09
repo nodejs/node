@@ -118,11 +118,9 @@ void Heap::FinalizeExternalString(String* string) {
           ExternalString::kResourceOffset -
           kHeapObjectTag);
 
-  // Dispose of the C++ object.
-  if (external_string_dispose_callback_ != NULL) {
-    external_string_dispose_callback_(*resource_addr);
-  } else {
-    delete *resource_addr;
+  // Dispose of the C++ object if it has not already been disposed.
+  if (*resource_addr != NULL) {
+    (*resource_addr)->Dispose();
   }
 
   // Clear the resource pointer in the string.

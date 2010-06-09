@@ -229,6 +229,10 @@ void ExternalReferenceTable::PopulateTable() {
       DEBUG_ADDRESS,
       Debug::k_after_break_target_address << kDebugIdShift,
       "Debug::after_break_target_address()");
+  Add(Debug_Address(Debug::k_debug_break_slot_address).address(),
+      DEBUG_ADDRESS,
+      Debug::k_debug_break_slot_address << kDebugIdShift,
+      "Debug::debug_break_slot_address()");
   Add(Debug_Address(Debug::k_debug_break_return_address).address(),
       DEBUG_ADDRESS,
       Debug::k_debug_break_return_address << kDebugIdShift,

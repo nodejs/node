@@ -79,6 +79,9 @@ class CompilationCache {
   // Clear the cache - also used to initialize the cache at startup.
   static void Clear();
 
+
+  static bool HasFunction(SharedFunctionInfo* function_info);
+
   // GC support.
   static void Iterate(ObjectVisitor* v);
 

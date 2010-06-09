@@ -612,30 +612,33 @@ THREADED_TEST(ScavengeExternalAsciiString) {
 }
 
 
-static int dispose_count = 0;
-static void DisposeExternalStringCount(
-    String::ExternalStringResourceBase* resource) {
-  dispose_count++;
-}
+class TestAsciiResourceWithDisposeControl: public TestAsciiResource {
+ public:
+  static int dispose_calls;
+
+  TestAsciiResourceWithDisposeControl(const char* data, bool dispose)
+      : TestAsciiResource(data),
+        dispose_(dispose) { }
+
+  void Dispose() {
+    ++dispose_calls;
+    if (dispose_) delete this;
+  }
+ private:
+  bool dispose_;
+};
 
 
-static void DisposeExternalStringDeleteAndCount(
-    String::ExternalStringResourceBase* resource) {
-  delete resource;
-  dispose_count++;
-}
+int TestAsciiResourceWithDisposeControl::dispose_calls = 0;
 
 
-TEST(ExternalStringWithResourceDisposeCallback) {
+TEST(ExternalStringWithDisposeHandling) {
   const char* c_source = "1 + 2 * 3";
 
-  // Set an external string collected callback which does not delete the object.
-  v8::V8::SetExternalStringDiposeCallback(DisposeExternalStringCount);
-
   // Use a stack allocated external string resource allocated object.
-  dispose_count = 0;
   TestAsciiResource::dispose_count = 0;
-  TestAsciiResource res_stack(i::StrDup(c_source));
+  TestAsciiResourceWithDisposeControl::dispose_calls = 0;
+  TestAsciiResourceWithDisposeControl res_stack(i::StrDup(c_source), false);
   {
     v8::HandleScope scope;
     LocalContext env;
@@ -649,16 +652,14 @@ TEST(ExternalStringWithResourceDisposeCallback) {
   }
   v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage(false);
-  CHECK_EQ(1, dispose_count);
+  CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(0, TestAsciiResource::dispose_count);
 
-  // Set an external string collected callback which does delete the object.
-  v8::V8::SetExternalStringDiposeCallback(DisposeExternalStringDeleteAndCount);
-
   // Use a heap allocated external string resource allocated object.
-  dispose_count = 0;
   TestAsciiResource::dispose_count = 0;
-  TestAsciiResource* res_heap = new TestAsciiResource(i::StrDup(c_source));
+  TestAsciiResourceWithDisposeControl::dispose_calls = 0;
+  TestAsciiResource* res_heap =
+      new TestAsciiResourceWithDisposeControl(i::StrDup(c_source), true);
   {
     v8::HandleScope scope;
     LocalContext env;
@@ -672,7 +673,7 @@ TEST(ExternalStringWithResourceDisposeCallback) {
   }
   v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage(false);
-  CHECK_EQ(1, dispose_count);
+  CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
 
@@ -8494,6 +8495,30 @@ TEST(PreCompileDeserializationError) {
   CHECK_EQ(0, sd->Length());
 
   delete sd;
+}
+
+
+// Verifies that the Handle<String> and const char* versions of the API produce
+// the same results (at least for one trivial case).
+TEST(PreCompileAPIVariationsAreSame) {
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+
+  const char* cstring = "function foo(a) { return a+1; }";
+  v8::ScriptData* sd_from_cstring =
+      v8::ScriptData::PreCompile(cstring, i::StrLength(cstring));
+
+  TestAsciiResource* resource = new TestAsciiResource(cstring);
+  v8::ScriptData* sd_from_istring = v8::ScriptData::PreCompile(
+      v8::String::NewExternal(resource));
+
+  CHECK_EQ(sd_from_cstring->Length(), sd_from_istring->Length());
+  CHECK_EQ(0, memcmp(sd_from_cstring->Data(),
+                     sd_from_istring->Data(),
+                     sd_from_cstring->Length()));
+
+  delete sd_from_cstring;
+  delete sd_from_istring;
 }
 
 

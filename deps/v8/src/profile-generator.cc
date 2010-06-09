@@ -55,7 +55,7 @@ TokenEnumerator::~TokenEnumerator() {
 
 
 int TokenEnumerator::GetTokenId(Object* token) {
-  if (token == NULL) return CodeEntry::kNoSecurityToken;
+  if (token == NULL) return TokenEnumerator::kNoSecurityToken;
   for (int i = 0; i < token_locations_.length(); ++i) {
     if (*token_locations_[i] == token && !token_removed_[i]) return i;
   }
@@ -83,6 +83,37 @@ void TokenEnumerator::TokenRemoved(Object** token_location) {
       return;
     }
   }
+}
+
+
+StringsStorage::StringsStorage()
+    : names_(StringsMatch) {
+}
+
+
+StringsStorage::~StringsStorage() {
+  for (HashMap::Entry* p = names_.Start();
+       p != NULL;
+       p = names_.Next(p)) {
+    DeleteArray(reinterpret_cast<const char*>(p->value));
+  }
+}
+
+
+const char* StringsStorage::GetName(String* name) {
+  if (name->IsString()) {
+    char* c_name =
+        name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL).Detach();
+    HashMap::Entry* cache_entry = names_.Lookup(c_name, name->Hash(), true);
+    if (cache_entry->value == NULL) {
+      // New entry added.
+      cache_entry->value = c_name;
+    } else {
+      DeleteArray(c_name);
+    }
+    return reinterpret_cast<const char*>(cache_entry->value);
+  }
+  return "";
 }
 
 
@@ -171,7 +202,7 @@ ProfileTree::ProfileTree()
                   "(root)",
                   "",
                   0,
-                  CodeEntry::kNoSecurityToken),
+                  TokenEnumerator::kNoSecurityToken),
       root_(new ProfileNode(this, &root_entry_)) {
 }
 
@@ -248,11 +279,11 @@ class FilteredCloneCallback {
 
  private:
   bool IsTokenAcceptable(int token, int parent_token) {
-    if (token == CodeEntry::kNoSecurityToken
+    if (token == TokenEnumerator::kNoSecurityToken
         || token == security_token_id_) return true;
-    if (token == CodeEntry::kInheritsSecurityToken) {
-      ASSERT(parent_token != CodeEntry::kInheritsSecurityToken);
-      return parent_token == CodeEntry::kNoSecurityToken
+    if (token == TokenEnumerator::kInheritsSecurityToken) {
+      ASSERT(parent_token != TokenEnumerator::kInheritsSecurityToken);
+      return parent_token == TokenEnumerator::kNoSecurityToken
           || parent_token == security_token_id_;
     }
     return false;
@@ -373,7 +404,7 @@ void CpuProfile::SetActualSamplingRate(double actual_sampling_rate) {
 
 
 CpuProfile* CpuProfile::FilteredClone(int security_token_id) {
-  ASSERT(security_token_id != CodeEntry::kNoSecurityToken);
+  ASSERT(security_token_id != TokenEnumerator::kNoSecurityToken);
   CpuProfile* clone = new CpuProfile(title_, uid_);
   clone->top_down_.FilteredClone(&top_down_, security_token_id);
   clone->bottom_up_.FilteredClone(&bottom_up_, security_token_id);
@@ -438,8 +469,7 @@ void CodeMap::Print() {
 
 
 CpuProfilesCollection::CpuProfilesCollection()
-    : function_and_resource_names_(StringsMatch),
-      profiles_uids_(UidsMatch),
+    : profiles_uids_(UidsMatch),
       current_profiles_semaphore_(OS::CreateSemaphore(1)) {
   // Create list of unabridged profiles.
   profiles_by_token_.Add(new List<CpuProfile*>());
@@ -470,11 +500,6 @@ CpuProfilesCollection::~CpuProfilesCollection() {
   profiles_by_token_.Iterate(DeleteProfilesList);
   code_entries_.Iterate(DeleteCodeEntry);
   args_count_names_.Iterate(DeleteArgsCountName);
-  for (HashMap::Entry* p = function_and_resource_names_.Start();
-       p != NULL;
-       p = function_and_resource_names_.Next(p)) {
-    DeleteArray(reinterpret_cast<const char*>(p->value));
-  }
 }
 
 
@@ -517,7 +542,7 @@ CpuProfile* CpuProfilesCollection::StopProfiling(int security_token_id,
     profile->CalculateTotalTicks();
     profile->SetActualSamplingRate(actual_sampling_rate);
     List<CpuProfile*>* unabridged_list =
-        profiles_by_token_[TokenToIndex(CodeEntry::kNoSecurityToken)];
+        profiles_by_token_[TokenToIndex(TokenEnumerator::kNoSecurityToken)];
     unabridged_list->Add(profile);
     HashMap::Entry* entry =
         profiles_uids_.Lookup(reinterpret_cast<void*>(profile->uid()),
@@ -550,8 +575,8 @@ CpuProfile* CpuProfilesCollection::GetProfile(int security_token_id,
     return NULL;
   }
   List<CpuProfile*>* unabridged_list =
-      profiles_by_token_[TokenToIndex(CodeEntry::kNoSecurityToken)];
-  if (security_token_id == CodeEntry::kNoSecurityToken) {
+      profiles_by_token_[TokenToIndex(TokenEnumerator::kNoSecurityToken)];
+  if (security_token_id == TokenEnumerator::kNoSecurityToken) {
     return unabridged_list->at(index);
   }
   List<CpuProfile*>* list = GetProfilesList(security_token_id);
@@ -564,7 +589,7 @@ CpuProfile* CpuProfilesCollection::GetProfile(int security_token_id,
 
 
 int CpuProfilesCollection::TokenToIndex(int security_token_id) {
-  ASSERT(CodeEntry::kNoSecurityToken == -1);
+  ASSERT(TokenEnumerator::kNoSecurityToken == -1);
   return security_token_id + 1;  // kNoSecurityToken -> 0, 0 -> 1, ...
 }
 
@@ -575,7 +600,7 @@ List<CpuProfile*>* CpuProfilesCollection::GetProfilesList(
   const int lists_to_add = index - profiles_by_token_.length() + 1;
   if (lists_to_add > 0) profiles_by_token_.AddBlock(NULL, lists_to_add);
   List<CpuProfile*>* unabridged_list =
-      profiles_by_token_[TokenToIndex(CodeEntry::kNoSecurityToken)];
+      profiles_by_token_[TokenToIndex(TokenEnumerator::kNoSecurityToken)];
   const int current_count = unabridged_list->length();
   if (profiles_by_token_[index] == NULL) {
     profiles_by_token_[index] = new List<CpuProfile*>(current_count);
@@ -589,8 +614,8 @@ List<CpuProfile*>* CpuProfilesCollection::GetProfilesList(
 
 List<CpuProfile*>* CpuProfilesCollection::Profiles(int security_token_id) {
   List<CpuProfile*>* unabridged_list =
-      profiles_by_token_[TokenToIndex(CodeEntry::kNoSecurityToken)];
-  if (security_token_id == CodeEntry::kNoSecurityToken) {
+      profiles_by_token_[TokenToIndex(TokenEnumerator::kNoSecurityToken)];
+  if (security_token_id == TokenEnumerator::kNoSecurityToken) {
     return unabridged_list;
   }
   List<CpuProfile*>* list = GetProfilesList(security_token_id);
@@ -613,7 +638,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                    GetFunctionName(name),
                                    GetName(resource_name),
                                    line_number,
-                                   CodeEntry::kNoSecurityToken);
+                                   TokenEnumerator::kNoSecurityToken);
   code_entries_.Add(entry);
   return entry;
 }
@@ -626,7 +651,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                    GetFunctionName(name),
                                    "",
                                    v8::CpuProfileNode::kNoLineNumberInfo,
-                                   CodeEntry::kNoSecurityToken);
+                                   TokenEnumerator::kNoSecurityToken);
   code_entries_.Add(entry);
   return entry;
 }
@@ -640,7 +665,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                    GetName(name),
                                    "",
                                    v8::CpuProfileNode::kNoLineNumberInfo,
-                                   CodeEntry::kInheritsSecurityToken);
+                                   TokenEnumerator::kInheritsSecurityToken);
   code_entries_.Add(entry);
   return entry;
 }
@@ -653,7 +678,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                    GetName(args_count),
                                    "",
                                    v8::CpuProfileNode::kNoLineNumberInfo,
-                                   CodeEntry::kInheritsSecurityToken);
+                                   TokenEnumerator::kInheritsSecurityToken);
   code_entries_.Add(entry);
   return entry;
 }
@@ -663,27 +688,6 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(int security_token_id) {
   CodeEntry* entry = new CodeEntry(security_token_id);
   code_entries_.Add(entry);
   return entry;
-}
-
-
-const char* CpuProfilesCollection::GetName(String* name) {
-  if (name->IsString()) {
-    char* c_name =
-        name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL).Detach();
-    HashMap::Entry* cache_entry =
-        function_and_resource_names_.Lookup(c_name,
-                                            name->Hash(),
-                                            true);
-    if (cache_entry->value == NULL) {
-      // New entry added.
-      cache_entry->value = c_name;
-    } else {
-      DeleteArray(c_name);
-    }
-    return reinterpret_cast<const char*>(cache_entry->value);
-  } else {
-    return "";
-  }
 }
 
 

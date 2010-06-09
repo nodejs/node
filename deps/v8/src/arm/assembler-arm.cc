@@ -2040,6 +2040,13 @@ void Assembler::RecordJSReturn() {
 }
 
 
+void Assembler::RecordDebugBreakSlot() {
+  WriteRecordedPositions();
+  CheckBuffer();
+  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
+}
+
+
 void Assembler::RecordComment(const char* msg) {
   if (FLAG_debug_code) {
     CheckBuffer();
@@ -2062,13 +2069,16 @@ void Assembler::RecordStatementPosition(int pos) {
 }
 
 
-void Assembler::WriteRecordedPositions() {
+bool Assembler::WriteRecordedPositions() {
+  bool written = false;
+
   // Write the statement position if it is different from what was written last
   // time.
   if (current_statement_position_ != written_statement_position_) {
     CheckBuffer();
     RecordRelocInfo(RelocInfo::STATEMENT_POSITION, current_statement_position_);
     written_statement_position_ = current_statement_position_;
+    written = true;
   }
 
   // Write the position if it is different from what was written last time and
@@ -2078,7 +2088,11 @@ void Assembler::WriteRecordedPositions() {
     CheckBuffer();
     RecordRelocInfo(RelocInfo::POSITION, current_position_);
     written_position_ = current_position_;
+    written = true;
   }
+
+  // Return whether something was written.
+  return written;
 }
 
 
@@ -2135,9 +2149,10 @@ void Assembler::GrowBuffer() {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   RelocInfo rinfo(pc_, rmode, data);  // we do not try to reuse pool constants
-  if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::STATEMENT_POSITION) {
+  if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::DEBUG_BREAK_SLOT) {
     // Adjust code for new modes.
-    ASSERT(RelocInfo::IsJSReturn(rmode)
+    ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
+           || RelocInfo::IsJSReturn(rmode)
            || RelocInfo::IsComment(rmode)
            || RelocInfo::IsPosition(rmode));
     // These modes do not need an entry in the constant pool.

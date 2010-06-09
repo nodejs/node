@@ -5264,8 +5264,10 @@ void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
 
 
 void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) &&
-         rinfo->IsPatchedReturnSequence());
+  ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
+          rinfo->IsPatchedReturnSequence()) ||
+         (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
+          rinfo->IsPatchedDebugBreakSlotSequence()));
   Object* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
   Object* old_target = target;
   VisitPointer(&target);
@@ -5278,6 +5280,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                   RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
+                  RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {

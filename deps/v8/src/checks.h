@@ -285,14 +285,16 @@ template <int> class StaticAssertionHelper { };
 #define ASSERT_RESULT(expr)  CHECK(expr)
 #define ASSERT(condition)    CHECK(condition)
 #define ASSERT_EQ(v1, v2)    CHECK_EQ(v1, v2)
-#define ASSERT_NE(v1, v2)   CHECK_NE(v1, v2)
+#define ASSERT_NE(v1, v2)    CHECK_NE(v1, v2)
+#define ASSERT_GE(v1, v2)    CHECK_GE(v1, v2)
 #define STATIC_ASSERT(test)  STATIC_CHECK(test)
 #define SLOW_ASSERT(condition) if (FLAG_enable_slow_asserts) CHECK(condition)
 #else
 #define ASSERT_RESULT(expr)     (expr)
 #define ASSERT(condition)      ((void) 0)
 #define ASSERT_EQ(v1, v2)      ((void) 0)
-#define ASSERT_NE(v1, v2)     ((void) 0)
+#define ASSERT_NE(v1, v2)      ((void) 0)
+#define ASSERT_GE(v1, v2)      ((void) 0)
 #define STATIC_ASSERT(test)    ((void) 0)
 #define SLOW_ASSERT(condition) ((void) 0)
 #endif

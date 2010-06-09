@@ -468,8 +468,15 @@ class Assembler : public Malloced {
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset = 1;  // JMP imm32.
 
+  // Distance between start of patched debug break slot and the emitted address
+  // to jump to.
+  static const int kPatchDebugBreakSlotAddressOffset = 1;  // JMP imm32.
+
   static const int kCallInstructionLength = 5;
   static const int kJSReturnSequenceLength = 6;
+
+  // The debug break slot must be able to contain a call instruction.
+  static const int kDebugBreakSlotLength = kCallInstructionLength;
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -809,13 +816,16 @@ class Assembler : public Malloced {
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();
 
+  // Mark address of a debug break slot.
+  void RecordDebugBreakSlot();
+
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --debug_code to enable.
   void RecordComment(const char* msg);
 
   void RecordPosition(int pos);
   void RecordStatementPosition(int pos);
-  void WriteRecordedPositions();
+  bool WriteRecordedPositions();
 
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
@@ -832,6 +842,8 @@ class Assembler : public Malloced {
 
   // Get the number of bytes available in the buffer.
   inline int available_space() const { return reloc_info_writer.pos() - pc_; }
+
+  static bool IsNop(Address addr) { return *addr == 0x90; }
 
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;

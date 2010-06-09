@@ -69,6 +69,27 @@ bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
 }
 
 
+bool BreakLocationIterator::IsDebugBreakAtSlot() {
+  ASSERT(IsDebugBreakSlot());
+  // Check whether the debug break slot instructions have been patched.
+  return rinfo()->IsPatchedDebugBreakSlotSequence();
+}
+
+
+void BreakLocationIterator::SetDebugBreakAtSlot() {
+  ASSERT(IsDebugBreakSlot());
+  rinfo()->PatchCodeWithCall(
+      Debug::debug_break_slot()->entry(),
+      Assembler::kDebugBreakSlotLength - Assembler::kCallInstructionLength);
+}
+
+
+void BreakLocationIterator::ClearDebugBreakAtSlot() {
+  ASSERT(IsDebugBreakSlot());
+  rinfo()->PatchCode(original_rinfo()->pc(), Assembler::kDebugBreakSlotLength);
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 
@@ -208,9 +229,30 @@ void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
 }
 
 
+void Debug::GenerateSlot(MacroAssembler* masm) {
+  // Generate enough nop's to make space for a call instruction.
+  Label check_codesize;
+  __ bind(&check_codesize);
+  __ RecordDebugBreakSlot();
+  for (int i = 0; i < Assembler::kDebugBreakSlotLength; i++) {
+    __ nop();
+  }
+  ASSERT_EQ(Assembler::kDebugBreakSlotLength,
+            masm->SizeOfCodeGeneratedSince(&check_codesize));
+}
+
+
+void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
+  // In the places where a debug break slot is inserted no registers can contain
+  // object pointers.
+  Generate_DebugBreakCallHelper(masm, 0, true);
+}
+
+
 void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
   masm->ret(0);
 }
+
 
 // FrameDropper is a code replacement for a JavaScript frame with possibly
 // several frames above.

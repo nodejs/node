@@ -238,8 +238,10 @@ void FullCodeGenerator::EmitReturnSequence(int position) {
     // add instruction the add will generate two instructions.
     int return_sequence_length =
         masm_->InstructionsGeneratedSince(&check_exit_codesize);
-    CHECK(return_sequence_length == Assembler::kJSReturnSequenceLength ||
-          return_sequence_length == Assembler::kJSReturnSequenceLength + 1);
+    CHECK(return_sequence_length ==
+          Assembler::kJSReturnSequenceInstructions ||
+          return_sequence_length ==
+          Assembler::kJSReturnSequenceInstructions + 1);
 #endif
   }
 }

@@ -45,7 +45,7 @@ Debug.setListener(listener);
 count = 0;
 function f() {};
 function g() {h(count++)};
-function h(x) {var a=x;};
+function h(x) {var a=x; return a};
 
 
 // Conditional breakpoint which syntax error.
@@ -136,7 +136,7 @@ Debug.clearBreakPoint(bp);
 
 // Conditional breakpoint which checks a local variable.
 break_point_hit_count = 0;
-bp = Debug.setBreakPoint(h, 0, 0, 'a % 2 == 0');
+bp = Debug.setBreakPoint(h, 0, 23, 'a % 2 == 0');
 for (var i = 0; i < 10; i++) {
   g();
 }
@@ -146,8 +146,8 @@ Debug.clearBreakPoint(bp);
 
 // Multiple conditional breakpoint which the same condition.
 break_point_hit_count = 0;
-bp1 = Debug.setBreakPoint(h, 0, 0, 'a % 2 == 0');
-bp2 = Debug.setBreakPoint(h, 0, 0, 'a % 2 == 0');
+bp1 = Debug.setBreakPoint(h, 0, 23, 'a % 2 == 0');
+bp2 = Debug.setBreakPoint(h, 0, 23, 'a % 2 == 0');
 for (var i = 0; i < 10; i++) {
   g();
 }
@@ -159,8 +159,8 @@ Debug.clearBreakPoint(bp2);
 
 // Multiple conditional breakpoint which different conditions.
 break_point_hit_count = 0;
-bp1 = Debug.setBreakPoint(h, 0, 0, 'a % 2 == 0');
-bp2 = Debug.setBreakPoint(h, 0, 0, '(a + 1) % 2 == 0');
+bp1 = Debug.setBreakPoint(h, 0, 23, 'a % 2 == 0');
+bp2 = Debug.setBreakPoint(h, 0, 23, '(a + 1) % 2 == 0');
 for (var i = 0; i < 10; i++) {
   g();
 }

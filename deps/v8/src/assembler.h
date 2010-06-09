@@ -118,9 +118,9 @@ class RelocInfo BASE_EMBEDDED {
   enum Mode {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CONSTRUCT_CALL,  // code target that is a call to a JavaScript constructor.
-    CODE_TARGET_CONTEXT,  // code target used for contextual loads.
-    DEBUG_BREAK,
-    CODE_TARGET,         // code target which is not any of the above.
+    CODE_TARGET_CONTEXT,  // Code target used for contextual loads.
+    DEBUG_BREAK,  // Code target for the debugger statement.
+    CODE_TARGET,  // Code target which is not any of the above.
     EMBEDDED_OBJECT,
 
     // Everything after runtime_entry (inclusive) is not GC'ed.
@@ -129,6 +129,7 @@ class RelocInfo BASE_EMBEDDED {
     COMMENT,
     POSITION,  // See comment for kNoPosition above.
     STATEMENT_POSITION,  // See comment for kNoPosition above.
+    DEBUG_BREAK_SLOT,  // Additional code inserted for debug break slot.
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
@@ -173,6 +174,9 @@ class RelocInfo BASE_EMBEDDED {
   }
   static inline bool IsInternalReference(Mode mode) {
     return mode == INTERNAL_REFERENCE;
+  }
+  static inline bool IsDebugBreakSlot(Mode mode) {
+    return mode == DEBUG_BREAK_SLOT;
   }
   static inline int ModeMask(Mode mode) { return 1 << mode; }
 
@@ -242,6 +246,10 @@ class RelocInfo BASE_EMBEDDED {
   // Check whether this return sequence has been patched
   // with a call to the debugger.
   INLINE(bool IsPatchedReturnSequence());
+
+  // Check whether this debug break slot has been patched with a call to the
+  // debugger.
+  INLINE(bool IsPatchedDebugBreakSlotSequence());
 
 #ifdef ENABLE_DISASSEMBLER
   // Printing

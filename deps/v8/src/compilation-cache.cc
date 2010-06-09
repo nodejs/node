@@ -79,6 +79,8 @@ class CompilationSubCache {
   // young generation.
   void Age();
 
+  bool HasFunction(SharedFunctionInfo* function_info);
+
   // GC support.
   void Iterate(ObjectVisitor* v);
 
@@ -201,6 +203,27 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
     result = Handle<CompilationCacheTable>(table);
   }
   return result;
+}
+
+
+bool CompilationSubCache::HasFunction(SharedFunctionInfo* function_info) {
+  if (function_info->script()->IsUndefined() ||
+      Script::cast(function_info->script())->source()->IsUndefined()) {
+    return false;
+  }
+
+  String* source =
+      String::cast(Script::cast(function_info->script())->source());
+  // Check all generations.
+  for (int generation = 0; generation < generations(); generation++) {
+    if (tables_[generation]->IsUndefined()) continue;
+
+    CompilationCacheTable* table =
+        CompilationCacheTable::cast(tables_[generation]);
+    Object* object = table->Lookup(source);
+    if (object->IsSharedFunctionInfo()) return true;
+  }
+  return false;
 }
 
 
@@ -503,6 +526,11 @@ void CompilationCache::Clear() {
   for (int i = 0; i < kSubCacheCount; i++) {
     subcaches[i]->Clear();
   }
+}
+
+
+bool CompilationCache::HasFunction(SharedFunctionInfo* function_info) {
+  return script.HasFunction(function_info);
 }
 
 

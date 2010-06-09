@@ -924,14 +924,18 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         break;
 
       case 0xF6:
-        { int mod, regop, rm;
-          get_modrm(*(data+1), &mod, &regop, &rm);
-          if (mod == 3 && regop == eax) {
-            AppendToBuffer("test_b %s,%d", NameOfCPURegister(rm), *(data+2));
+        { data++;
+          int mod, regop, rm;
+          get_modrm(*data, &mod, &regop, &rm);
+          if (regop == eax) {
+            AppendToBuffer("test_b ");
+            data += PrintRightOperand(data);
+            int32_t imm = *data;
+            AppendToBuffer(",0x%x", imm);
+            data++;
           } else {
             UnimplementedInstruction();
           }
-          data += 3;
         }
         break;
 

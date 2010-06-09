@@ -59,6 +59,31 @@ class FullCodeGenSyntaxChecker: public AstVisitor {
 };
 
 
+// AST node visitor which can tell whether a given statement will be breakable
+// when the code is compiled by the full compiler in the debugger. This means
+// that there will be an IC (load/store/call) in the code generated for the
+// debugger to piggybag on.
+class BreakableStatementChecker: public AstVisitor {
+ public:
+  BreakableStatementChecker() : is_breakable_(false) {}
+
+  void Check(Statement* stmt);
+  void Check(Expression* stmt);
+
+  bool is_breakable() { return is_breakable_; }
+
+ private:
+  // AST node visit functions.
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+  bool is_breakable_;
+
+  DISALLOW_COPY_AND_ASSIGN(BreakableStatementChecker);
+};
+
+
 // -----------------------------------------------------------------------------
 // Full code generator.
 
@@ -458,6 +483,7 @@ class FullCodeGenerator: public AstVisitor {
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
+  void SetExpressionPosition(Expression* expr, int pos);
   void SetStatementPosition(int pos);
   void SetSourcePosition(int pos);
 

@@ -2800,6 +2800,13 @@ void Assembler::RecordJSReturn() {
 }
 
 
+void Assembler::RecordDebugBreakSlot() {
+  WriteRecordedPositions();
+  EnsureSpace ensure_space(this);
+  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
+}
+
+
 void Assembler::RecordComment(const char* msg) {
   if (FLAG_debug_code) {
     EnsureSpace ensure_space(this);
@@ -2822,13 +2829,16 @@ void Assembler::RecordStatementPosition(int pos) {
 }
 
 
-void Assembler::WriteRecordedPositions() {
+bool Assembler::WriteRecordedPositions() {
+  bool written = false;
+
   // Write the statement position if it is different from what was written last
   // time.
   if (current_statement_position_ != written_statement_position_) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::STATEMENT_POSITION, current_statement_position_);
     written_statement_position_ = current_statement_position_;
+    written = true;
   }
 
   // Write the position if it is different from what was written last time and
@@ -2838,7 +2848,11 @@ void Assembler::WriteRecordedPositions() {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::POSITION, current_position_);
     written_position_ = current_position_;
+    written = true;
   }
+
+  // Return whether something was written.
+  return written;
 }
 
 

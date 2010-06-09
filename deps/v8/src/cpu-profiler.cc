@@ -294,7 +294,8 @@ CpuProfile* CpuProfiler::StopProfiling(Object* security_token, String* title) {
 int CpuProfiler::GetProfilesCount() {
   ASSERT(singleton_ != NULL);
   // The count of profiles doesn't depend on a security token.
-  return singleton_->profiles_->Profiles(CodeEntry::kNoSecurityToken)->length();
+  return singleton_->profiles_->Profiles(
+      TokenEnumerator::kNoSecurityToken)->length();
 }
 
 
@@ -380,7 +381,7 @@ void CpuProfiler::CodeDeleteEvent(Address from) {
 
 
 void CpuProfiler::FunctionCreateEvent(JSFunction* function) {
-  int security_token_id = CodeEntry::kNoSecurityToken;
+  int security_token_id = TokenEnumerator::kNoSecurityToken;
   if (function->unchecked_context()->IsContext()) {
     security_token_id = singleton_->token_enumerator_->GetTokenId(
         function->context()->global_context()->security_token());
@@ -476,9 +477,10 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 CpuProfile* CpuProfiler::StopCollectingProfile(const char* title) {
   const double actual_sampling_rate = generator_->actual_sampling_rate();
   StopProcessorIfLastProfile();
-  CpuProfile* result = profiles_->StopProfiling(CodeEntry::kNoSecurityToken,
-                                                title,
-                                                actual_sampling_rate);
+  CpuProfile* result =
+      profiles_->StopProfiling(TokenEnumerator::kNoSecurityToken,
+                               title,
+                               actual_sampling_rate);
   if (result != NULL) {
     result->Print();
   }

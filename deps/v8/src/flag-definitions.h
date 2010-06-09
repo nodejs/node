@@ -277,7 +277,7 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
 
 DEFINE_bool(help, false, "Print usage message, including flags, on console")
 DEFINE_bool(dump_counters, false, "Dump counters on exit")
-DEFINE_bool(debugger, true, "Enable JavaScript debugger")
+DEFINE_bool(debugger, false, "Enable JavaScript debugger")
 DEFINE_bool(remote_debugger, false, "Connect JavaScript debugger to the "
                                     "debugger agent in another process")
 DEFINE_bool(debugger_agent, false, "Enable debugger agent")

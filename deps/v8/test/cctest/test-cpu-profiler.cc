@@ -16,6 +16,7 @@ using i::CpuProfilesCollection;
 using i::ProfileGenerator;
 using i::ProfileNode;
 using i::ProfilerEventsProcessor;
+using i::TokenEnumerator;
 
 
 TEST(StartStop) {
@@ -115,7 +116,7 @@ TEST(CodeEvents) {
   processor.CodeCreateEvent(i::Logger::STUB_TAG, 3, ToAddress(0x1600), 0x10);
   processor.CodeDeleteEvent(ToAddress(0x1600));
   processor.FunctionCreateEvent(ToAddress(0x1700), ToAddress(0x1000),
-                                CodeEntry::kNoSecurityToken);
+                                TokenEnumerator::kNoSecurityToken);
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(&processor, ToAddress(0x1000));
 
@@ -178,7 +179,7 @@ TEST(TickEvents) {
   processor.Stop();
   processor.Join();
   CpuProfile* profile =
-      profiles.StopProfiling(CodeEntry::kNoSecurityToken, "", 1);
+      profiles.StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
   CHECK_NE(NULL, profile);
 
   // Check call trees.

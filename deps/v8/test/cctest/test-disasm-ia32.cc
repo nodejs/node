@@ -244,6 +244,9 @@ TEST(DisasmIa320) {
 
   __ test(edx, Immediate(12345));
   __ test(edx, Operand(ebx, ecx, times_8, 10000));
+  __ test(Operand(esi, edi, times_1, -20000000), Immediate(300000000));
+  __ test_b(edx, Operand(ecx, ebx, times_2, 1000));
+  __ test_b(Operand(eax, -20), 0x9A);
   __ nop();
 
   __ xor_(edx, 12345);

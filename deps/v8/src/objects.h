@@ -3308,6 +3308,12 @@ class SharedFunctionInfo: public HeapObject {
   inline bool try_full_codegen();
   inline void set_try_full_codegen(bool flag);
 
+  // Indicates if this function can be lazy compiled.
+  // This is used to determine if we can safely flush code from a function
+  // when doing GC if we expect that the function will no longer be used.
+  inline bool allows_lazy_compilation();
+  inline void set_allows_lazy_compilation(bool flag);
+
   // Check whether a inlined constructor can be generated with the given
   // prototype.
   bool CanGenerateInlineConstructor(Object* prototype);
@@ -3433,6 +3439,7 @@ class SharedFunctionInfo: public HeapObject {
   // Bit positions in compiler_hints.
   static const int kHasOnlySimpleThisPropertyAssignments = 0;
   static const int kTryFullCodegen = 1;
+  static const int kAllowLazyCompilation = 2;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };

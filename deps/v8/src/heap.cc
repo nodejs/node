@@ -98,8 +98,6 @@ size_t Heap::code_range_size_ = 0;
 // set up by ConfigureHeap otherwise.
 int Heap::reserved_semispace_size_ = Heap::max_semispace_size_;
 
-ExternalStringDiposeCallback Heap::external_string_dispose_callback_ = NULL;
-
 List<Heap::GCPrologueCallbackPair> Heap::gc_prologue_callbacks_;
 List<Heap::GCEpilogueCallbackPair> Heap::gc_epilogue_callbacks_;
 
@@ -607,6 +605,9 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
   EnsureFromSpaceIsCommitted();
 
   if (collector == MARK_COMPACTOR) {
+    // Flush all potentially unused code.
+    FlushCode();
+
     // Perform mark-sweep with optional compaction.
     MarkCompact(tracer);
 
@@ -659,17 +660,18 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
 void Heap::MarkCompact(GCTracer* tracer) {
   gc_state_ = MARK_COMPACT;
-  if (MarkCompactCollector::IsCompacting()) {
-    mc_count_++;
-  } else {
-    ms_count_++;
-  }
-  tracer->set_full_gc_count(mc_count_);
   LOG(ResourceEvent("markcompact", "begin"));
 
   MarkCompactCollector::Prepare(tracer);
 
   bool is_compacting = MarkCompactCollector::IsCompacting();
+
+  if (is_compacting) {
+    mc_count_++;
+  } else {
+    ms_count_++;
+  }
+  tracer->set_full_gc_count(mc_count_ + ms_count_);
 
   MarkCompactPrologue(is_compacting);
 
@@ -2182,6 +2184,87 @@ Object* Heap::AllocateExternalArray(int length,
       external_pointer);
 
   return result;
+}
+
+
+// The StackVisitor is used to traverse all the archived threads to see if
+// there are activations on any of the stacks corresponding to the code.
+class FlushingStackVisitor : public ThreadVisitor {
+ public:
+  explicit FlushingStackVisitor(Code* code) : found_(false), code_(code) {}
+
+  void VisitThread(ThreadLocalTop* top) {
+    // If we already found the code in a previous traversed thread we return.
+    if (found_) return;
+
+    for (StackFrameIterator it(top); !it.done(); it.Advance()) {
+      if (code_->contains(it.frame()->pc())) {
+        found_ = true;
+        return;
+      }
+    }
+  }
+  bool FoundCode() {return found_;}
+
+ private:
+  bool found_;
+  Code* code_;
+};
+
+
+static void FlushCodeForFunction(SharedFunctionInfo* function_info) {
+  // The function must be compiled and have the source code available,
+  // to be able to recompile it in case we need the function again.
+  if (!(function_info->is_compiled() && function_info->HasSourceCode())) return;
+
+  // We never flush code for Api functions.
+  if (function_info->IsApiFunction()) return;
+
+  // Only flush code for functions.
+  if (!function_info->code()->kind() == Code::FUNCTION) return;
+
+  // Function must be lazy compilable.
+  if (!function_info->allows_lazy_compilation()) return;
+
+  // If this is a full script wrapped in a function we do no flush the code.
+  if (function_info->is_toplevel()) return;
+
+  // If this function is in the compilation cache we do not flush the code.
+  if (CompilationCache::HasFunction(function_info)) return;
+
+  // Make sure we are not referencing the code from the stack.
+  for (StackFrameIterator it; !it.done(); it.Advance()) {
+    if (function_info->code()->contains(it.frame()->pc())) return;
+  }
+  // Iterate the archived stacks in all threads to check if
+  // the code is referenced.
+  FlushingStackVisitor threadvisitor(function_info->code());
+  ThreadManager::IterateArchivedThreads(&threadvisitor);
+  if (threadvisitor.FoundCode()) return;
+
+  HandleScope scope;
+  // Compute the lazy compilable version of the code.
+  function_info->set_code(*ComputeLazyCompile(function_info->length()));
+}
+
+
+void Heap::FlushCode() {
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Do not flush code if the debugger is loaded or there are breakpoints.
+  if (Debug::IsLoaded() || Debug::has_break_points()) return;
+#endif
+  HeapObjectIterator it(old_pointer_space());
+  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
+    if (obj->IsJSFunction()) {
+      JSFunction* jsfunction = JSFunction::cast(obj);
+
+      // The function must have a valid context and not be a builtin.
+      if (jsfunction->unchecked_context()->IsContext() &&
+          !jsfunction->IsBuiltin()) {
+        FlushCodeForFunction(jsfunction->shared());
+      }
+    }
+  }
 }
 
 

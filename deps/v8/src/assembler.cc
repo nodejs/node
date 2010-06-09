@@ -449,6 +449,11 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "external reference";
     case RelocInfo::INTERNAL_REFERENCE:
       return "internal reference";
+    case RelocInfo::DEBUG_BREAK_SLOT:
+#ifndef ENABLE_DEBUGGER_SUPPORT
+      UNREACHABLE();
+#endif
+      return "debug break slot";
     case RelocInfo::NUMBER_OF_MODES:
       UNREACHABLE();
       return "number_of_modes";
@@ -513,6 +518,7 @@ void RelocInfo::Verify() {
     case STATEMENT_POSITION:
     case EXTERNAL_REFERENCE:
     case INTERNAL_REFERENCE:
+    case DEBUG_BREAK_SLOT:
     case NONE:
       break;
     case NUMBER_OF_MODES:

@@ -316,7 +316,9 @@ class CodeGenerator: public AstVisitor {
   static bool ShouldGenerateLog(Expression* type);
 #endif
 
-  static void RecordPositions(MacroAssembler* masm, int pos);
+  static bool RecordPositions(MacroAssembler* masm,
+                              int pos,
+                              bool right_here = false);
 
   // Accessors
   MacroAssembler* masm() { return masm_; }

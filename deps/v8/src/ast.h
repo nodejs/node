@@ -1469,10 +1469,14 @@ class Conditional: public Expression {
  public:
   Conditional(Expression* condition,
               Expression* then_expression,
-              Expression* else_expression)
+              Expression* else_expression,
+              int then_expression_position,
+              int else_expression_position)
       : condition_(condition),
         then_expression_(then_expression),
-        else_expression_(else_expression) { }
+        else_expression_(else_expression),
+        then_expression_position_(then_expression_position),
+        else_expression_position_(else_expression_position) { }
 
   virtual void Accept(AstVisitor* v);
 
@@ -1482,10 +1486,15 @@ class Conditional: public Expression {
   Expression* then_expression() const { return then_expression_; }
   Expression* else_expression() const { return else_expression_; }
 
+  int then_expression_position() { return then_expression_position_; }
+  int else_expression_position() { return else_expression_position_; }
+
  private:
   Expression* condition_;
   Expression* then_expression_;
   Expression* else_expression_;
+  int then_expression_position_;
+  int else_expression_position_;
 };
 
 

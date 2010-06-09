@@ -957,3 +957,42 @@ TEST(Regression39128) {
   // Check that region covering inobject property 1 is marked dirty.
   CHECK(page->IsRegionDirty(clone_addr + (object_size - kPointerSize)));
 }
+
+TEST(TestCodeFlushing) {
+  i::FLAG_allow_natives_syntax = true;
+  InitializeVM();
+  v8::HandleScope scope;
+  const char* source = "function foo() {"
+                       "  var x = 42;"
+                       "  var y = 42;"
+                       "  var z = x + y;"
+                       "};"
+                       "foo()";
+  Handle<String> foo_name = Factory::LookupAsciiSymbol("foo");
+
+  // This compile will add the code to the compilation cache.
+  CompileRun(source);
+
+  // Check function is compiled.
+  Object* func_value = Top::context()->global()->GetProperty(*foo_name);
+  CHECK(func_value->IsJSFunction());
+  Handle<JSFunction> function(JSFunction::cast(func_value));
+  CHECK(function->shared()->is_compiled());
+
+  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(true);
+
+  // foo should still be in the compilation cache and therefore not
+  // have been removed.
+  CHECK(function->shared()->is_compiled());
+  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(true);
+
+  // foo should no longer be in the compilation cache
+  CHECK(!function->shared()->is_compiled());
+  // Call foo to get it recompiled.
+  CompileRun("foo()");
+  CHECK(function->shared()->is_compiled());
+}

@@ -576,6 +576,9 @@ Handle<String> Shell::ReadFile(const char* name) {
 void Shell::RunShell() {
   LineEditor* editor = LineEditor::Get();
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), editor->name());
+  if (i::FLAG_debugger) {
+    printf("JavaScript debugger enabled\n");
+  }
   editor->Open();
   while (true) {
     Locker locker;
