@@ -1,4 +1,19 @@
-2010.05.29, Version 0.1.97
+2010.06.11, Version 0.1.98
+
+* Port to Windows/Cygwin (Raffaele Sena)
+
+* File descriptor passing on unix sockets. (Peter Griess)
+
+* Simple, builtin readline library. REPL is now entered by
+  executing "node" without arguments.
+
+* Add a parameter to spawn() that sets the child's stdio file
+  descriptors.
+
+* Upgrade V8 to 2.2.16, http-parser fixes, upgrade c-ares to 1.7.3.
+
+
+2010.05.29, Version 0.1.97, 0c1aa36835fa6a3557843dcbc6ed6714d353a783
 
 * HTTP throttling: outgoing messages emit 'drain' and write() returns false
   when send buffer is full.
