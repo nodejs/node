@@ -180,6 +180,13 @@ void Stdio::Flush() {
   fflush(stderr);
 }
 
+static void HandleSIGCONT (int signum) {
+  if (rawmode) {
+    rawmode = 0;
+    EnableRawMode(STDIN_FILENO);
+  }
+}
+
 
 void Stdio::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
@@ -199,6 +206,11 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "isStdinBlocking", IsStdinBlocking);
   NODE_SET_METHOD(target, "setRawMode", SetRawMode);
   NODE_SET_METHOD(target, "getColumns", GetColumns);
+
+  struct sigaction sa;
+  bzero(&sa, sizeof(sa));
+  sa.sa_handler = HandleSIGCONT;
+  sigaction(SIGCONT, &sa, NULL);
 }
 
 
