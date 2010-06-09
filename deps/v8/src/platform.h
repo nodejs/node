@@ -360,7 +360,11 @@ class ThreadHandle {
 class Thread: public ThreadHandle {
  public:
   // Opaque data type for thread-local storage keys.
+#ifndef __CYGWIN__
   enum LocalStorageKey {};
+#else
+  typedef void *LocalStorageKey;
+#endif
 
   // Create new thread.
   Thread();

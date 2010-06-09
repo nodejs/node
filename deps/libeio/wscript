@@ -1,4 +1,5 @@
 import Options
+import sys
 
 def set_options(opt):
   pass
@@ -10,7 +11,10 @@ def configure(conf):
 
   conf.check(lib='pthread', uselib_store='PTHREAD')
   conf.check_cc(lib="pthread", header_name="pthread.h", function_name="pthread_create", mandatory=True)
-  conf.check_cc(lib="pthread", header_name="pthread.h", function_name="pthread_atfork", mandatory=True)
+  if not sys.platform.startswith("cygwin"):
+    conf.check_cc(lib="pthread", header_name="pthread.h", function_name="pthread_atfork", mandatory=True)
+  else:
+    conf.check_cc(lib="pthread", header_name="unistd.h", function_name="pthread_atfork", mandatory=True)
 
   conf.check_cc(msg="Checking for futimes(2)", define_name="HAVE_FUTIMES", fragment="""
     #include <sys/types.h>

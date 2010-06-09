@@ -670,7 +670,7 @@ SIMPLE_OPTIONS = {
     'help': 'the toolchain to use (' + TOOLCHAIN_GUESS + ')'
   },
   'os': {
-    'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd', 'solaris'],
+    'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd', 'solaris', 'cygwin'],
     'default': OS_GUESS,
     'help': 'the os to build for (' + OS_GUESS + ')'
   },
