@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 
+#define USE_NEW_QUERY_CALLBACKS
+
 #include "v8.h"
 
 #include "heap.h"
@@ -63,12 +65,12 @@ class DeclarationContext {
 
   int get_count() const { return get_count_; }
   int set_count() const { return set_count_; }
-  int has_count() const { return has_count_; }
+  int query_count() const { return query_count_; }
 
  protected:
   virtual v8::Handle<Value> Get(Local<String> key);
   virtual v8::Handle<Value> Set(Local<String> key, Local<Value> value);
-  virtual v8::Handle<Boolean> Has(Local<String> key);
+  virtual v8::Handle<Integer> Query(Local<String> key);
 
   void InitializeIfNeeded();
 
@@ -85,8 +87,8 @@ class DeclarationContext {
   static v8::Handle<Value> HandleSet(Local<String> key,
                                      Local<Value> value,
                                      const AccessorInfo& info);
-  static v8::Handle<Boolean> HandleHas(Local<String> key,
-                                       const AccessorInfo& info);
+  static v8::Handle<Integer> HandleQuery(Local<String> key,
+                                         const AccessorInfo& info);
 
  private:
   bool is_initialized_;
@@ -95,14 +97,14 @@ class DeclarationContext {
 
   int get_count_;
   int set_count_;
-  int has_count_;
+  int query_count_;
 
   static DeclarationContext* GetInstance(const AccessorInfo& info);
 };
 
 
 DeclarationContext::DeclarationContext()
-    : is_initialized_(false), get_count_(0), set_count_(0), has_count_(0) {
+    : is_initialized_(false), get_count_(0), set_count_(0), query_count_(0) {
   // Do nothing.
 }
 
@@ -114,7 +116,7 @@ void DeclarationContext::InitializeIfNeeded() {
   Local<Value> data = External::New(this);
   GetHolder(function)->SetNamedPropertyHandler(&HandleGet,
                                                &HandleSet,
-                                               &HandleHas,
+                                               &HandleQuery,
                                                0, 0,
                                                data);
   context_ = Context::New(0, function->InstanceTemplate(), Local<Value>());
@@ -124,7 +126,7 @@ void DeclarationContext::InitializeIfNeeded() {
 
 
 void DeclarationContext::Check(const char* source,
-                               int get, int set, int has,
+                               int get, int set, int query,
                                Expectations expectations,
                                v8::Handle<Value> value) {
   InitializeIfNeeded();
@@ -137,7 +139,7 @@ void DeclarationContext::Check(const char* source,
   Local<Value> result = Script::Compile(String::New(source))->Run();
   CHECK_EQ(get, get_count());
   CHECK_EQ(set, set_count());
-  CHECK_EQ(has, has_count());
+  CHECK_EQ(query, query_count());
   if (expectations == EXPECT_RESULT) {
     CHECK(!catcher.HasCaught());
     if (!value.IsEmpty()) {
@@ -170,11 +172,11 @@ v8::Handle<Value> DeclarationContext::HandleSet(Local<String> key,
 }
 
 
-v8::Handle<Boolean> DeclarationContext::HandleHas(Local<String> key,
-                                                  const AccessorInfo& info) {
+v8::Handle<Integer> DeclarationContext::HandleQuery(Local<String> key,
+                                                    const AccessorInfo& info) {
   DeclarationContext* context = GetInstance(info);
-  context->has_count_++;
-  return context->Has(key);
+  context->query_count_++;
+  return context->Query(key);
 }
 
 
@@ -194,8 +196,8 @@ v8::Handle<Value> DeclarationContext::Set(Local<String> key,
 }
 
 
-v8::Handle<Boolean> DeclarationContext::Has(Local<String> key) {
-  return v8::Handle<Boolean>();
+v8::Handle<Integer> DeclarationContext::Query(Local<String> key) {
+  return v8::Handle<Integer>();
 }
 
 
@@ -249,8 +251,8 @@ TEST(Unknown) {
 
 class PresentPropertyContext: public DeclarationContext {
  protected:
-  virtual v8::Handle<Boolean> Has(Local<String> key) {
-    return True();
+  virtual v8::Handle<Integer> Query(Local<String> key) {
+    return Integer::New(v8::None);
   }
 };
 
@@ -304,8 +306,8 @@ TEST(Present) {
 
 class AbsentPropertyContext: public DeclarationContext {
  protected:
-  virtual v8::Handle<Boolean> Has(Local<String> key) {
-    return False();
+  virtual v8::Handle<Integer> Query(Local<String> key) {
+    return v8::Handle<Integer>();
   }
 };
 
@@ -316,7 +318,7 @@ TEST(Absent) {
   { AbsentPropertyContext context;
     context.Check("var x; x",
                   1,  // access
-                  2,  // declaration + initialization
+                  1,  // declaration
                   2,  // declaration + initialization
                   EXPECT_RESULT, Undefined());
   }
@@ -375,24 +377,24 @@ class AppearingPropertyContext: public DeclarationContext {
   AppearingPropertyContext() : state_(DECLARE) { }
 
  protected:
-  virtual v8::Handle<Boolean> Has(Local<String> key) {
+  virtual v8::Handle<Integer> Query(Local<String> key) {
     switch (state_) {
       case DECLARE:
         // Force declaration by returning that the
         // property is absent.
         state_ = INITIALIZE_IF_ASSIGN;
-        return False();
+        return Handle<Integer>();
       case INITIALIZE_IF_ASSIGN:
         // Return that the property is present so we only get the
         // setter called when initializing with a value.
         state_ = UNKNOWN;
-        return True();
+        return Integer::New(v8::None);
       default:
         CHECK(state_ == UNKNOWN);
         break;
     }
     // Do the lookup in the object.
-    return v8::Local<Boolean>();
+    return v8::Handle<Integer>();
   }
 
  private:
@@ -458,31 +460,31 @@ class ReappearingPropertyContext: public DeclarationContext {
   ReappearingPropertyContext() : state_(DECLARE) { }
 
  protected:
-  virtual v8::Handle<Boolean> Has(Local<String> key) {
+  virtual v8::Handle<Integer> Query(Local<String> key) {
     switch (state_) {
       case DECLARE:
         // Force the first declaration by returning that
         // the property is absent.
         state_ = DONT_DECLARE;
-        return False();
+        return Handle<Integer>();
       case DONT_DECLARE:
         // Ignore the second declaration by returning
         // that the property is already there.
         state_ = INITIALIZE;
-        return True();
+        return Integer::New(v8::None);
       case INITIALIZE:
         // Force an initialization by returning that
         // the property is absent. This will make sure
         // that the setter is called and it will not
         // lead to redeclaration conflicts (yet).
         state_ = UNKNOWN;
-        return False();
+        return Handle<Integer>();
       default:
         CHECK(state_ == UNKNOWN);
         break;
     }
     // Do the lookup in the object.
-    return v8::Local<Boolean>();
+    return Handle<Integer>();
   }
 
  private:
@@ -506,9 +508,9 @@ TEST(Reappearing) {
 
 class ExistsInPrototypeContext: public DeclarationContext {
  protected:
-  virtual v8::Handle<Boolean> Has(Local<String> key) {
+  virtual v8::Handle<Integer> Query(Local<String> key) {
     // Let it seem that the property exists in the prototype object.
-    return True();
+    return Integer::New(v8::None);
   }
 
   // Use the prototype as the holder for the interceptors.
@@ -568,9 +570,9 @@ TEST(ExistsInPrototype) {
 
 class AbsentInPrototypeContext: public DeclarationContext {
  protected:
-  virtual v8::Handle<Boolean> Has(Local<String> key) {
+  virtual v8::Handle<Integer> Query(Local<String> key) {
     // Let it seem that the property is absent in the prototype object.
-    return False();
+    return Handle<Integer>();
   }
 
   // Use the prototype as the holder for the interceptors.

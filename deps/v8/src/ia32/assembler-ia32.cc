@@ -1328,6 +1328,15 @@ void Assembler::test(const Operand& op, const Immediate& imm) {
 }
 
 
+void Assembler::test_b(const Operand& op, uint8_t imm8) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF6);
+  emit_operand(eax, op);
+  EMIT(imm8);
+}
+
+
 void Assembler::xor_(Register dst, int32_t imm32) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2221,6 +2230,40 @@ void Assembler::movdqu(XMMRegister dst, const Operand& src) {
 }
 
 
+void Assembler::movntdqa(XMMRegister dst, const Operand& src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x38);
+  EMIT(0x2A);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movntdq(const Operand& dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xE7);
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::prefetch(const Operand& src, int level) {
+  ASSERT(is_uint2(level));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x0F);
+  EMIT(0x18);
+  XMMRegister code = { level };  // Emit hint number in Reg position of RegR/M.
+  emit_sse_operand(code, src);
+}
+
+
 void Assembler::movdbl(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2299,7 +2342,6 @@ void Assembler::ptest(XMMRegister dst, XMMRegister src) {
   EMIT(0x17);
   emit_sse_operand(dst, src);
 }
-
 
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
   Register ireg = { reg.code() };

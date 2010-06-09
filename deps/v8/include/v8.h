@@ -1122,11 +1122,13 @@ class V8EXPORT String : public Primitive {
 
   /**
    * Creates a new external string using the data defined in the given
-   * resource. The resource is deleted when the external string is no
-   * longer live on V8's heap. The caller of this function should not
-   * delete or modify the resource. Neither should the underlying buffer be
-   * deallocated or modified except through the destructor of the
-   * external string resource.
+   * resource. When the external string is no longer live on V8's heap the
+   * resource will be disposed. If a disposal callback has been set using
+   * SetExternalStringDiposeCallback this callback will be called to dispose
+   * the resource. Otherwise, V8 will dispose the resource using the C++ delete
+   * operator. The caller of this function should not otherwise delete or
+   * modify the resource. Neither should the underlying buffer be deallocated
+   * or modified except through the destructor of the external string resource.
    */
   static Local<String> NewExternal(ExternalStringResource* resource);
 
@@ -1136,17 +1138,20 @@ class V8EXPORT String : public Primitive {
    * will use the external string resource. The external string resource's
    * character contents needs to be equivalent to this string.
    * Returns true if the string has been changed to be an external string.
-   * The string is not modified if the operation fails.
+   * The string is not modified if the operation fails. See NewExternal for
+   * information on the lifetime of the resource.
    */
   bool MakeExternal(ExternalStringResource* resource);
 
   /**
    * Creates a new external string using the ascii data defined in the given
-   * resource. The resource is deleted when the external string is no
-   * longer live on V8's heap. The caller of this function should not
-   * delete or modify the resource. Neither should the underlying buffer be
-   * deallocated or modified except through the destructor of the
-   * external string resource.
+   * resource. When the external string is no longer live on V8's heap the
+   * resource will be disposed. If a disposal callback has been set using
+   * SetExternalStringDiposeCallback this callback will be called to dispose
+   * the resource. Otherwise, V8 will dispose the resource using the C++ delete
+   * operator. The caller of this function should not otherwise delete or
+   * modify the resource. Neither should the underlying buffer be deallocated
+   * or modified except through the destructor of the external string resource.
    */
   static Local<String> NewExternal(ExternalAsciiStringResource* resource);
 
@@ -1156,7 +1161,8 @@ class V8EXPORT String : public Primitive {
    * will use the external string resource. The external string resource's
    * character contents needs to be equivalent to this string.
    * Returns true if the string has been changed to be an external string.
-   * The string is not modified if the operation fails.
+   * The string is not modified if the operation fails. See NewExternal for
+   * information on the lifetime of the resource.
    */
   bool MakeExternal(ExternalAsciiStringResource* resource);
 
@@ -1243,6 +1249,10 @@ class V8EXPORT String : public Primitive {
   void VerifyExternalStringResource(ExternalStringResource* val) const;
   static void CheckCast(v8::Value* obj);
 };
+
+
+typedef void (*ExternalStringDiposeCallback)
+    (String::ExternalStringResourceBase* resource);
 
 
 /**
@@ -1726,13 +1736,22 @@ typedef Handle<Value> (*NamedPropertySetter)(Local<String> property,
                                              Local<Value> value,
                                              const AccessorInfo& info);
 
-
 /**
  * Returns a non-empty handle if the interceptor intercepts the request.
- * The result is true if the property exists and false otherwise.
+ * The result is either boolean (true if property exists and false
+ * otherwise) or an integer encoding property attributes.
  */
+#ifdef USE_NEW_QUERY_CALLBACKS
+typedef Handle<Integer> (*NamedPropertyQuery)(Local<String> property,
+                                              const AccessorInfo& info);
+#else
 typedef Handle<Boolean> (*NamedPropertyQuery)(Local<String> property,
                                               const AccessorInfo& info);
+#endif
+
+typedef Handle<Value> (*NamedPropertyQueryImpl)(Local<String> property,
+                                                const AccessorInfo& info);
+
 
 
 /**
@@ -1984,7 +2003,16 @@ class V8EXPORT FunctionTemplate : public Template {
                                        NamedPropertyQuery query,
                                        NamedPropertyDeleter remover,
                                        NamedPropertyEnumerator enumerator,
-                                       Handle<Value> data);
+                                       Handle<Value> data) {
+    NamedPropertyQueryImpl casted =
+        reinterpret_cast<NamedPropertyQueryImpl>(query);
+    SetNamedInstancePropertyHandlerImpl(getter,
+                                        setter,
+                                        casted,
+                                        remover,
+                                        enumerator,
+                                        data);
+  }
   void SetIndexedInstancePropertyHandler(IndexedPropertyGetter getter,
                                          IndexedPropertySetter setter,
                                          IndexedPropertyQuery query,
@@ -1996,6 +2024,13 @@ class V8EXPORT FunctionTemplate : public Template {
 
   friend class Context;
   friend class ObjectTemplate;
+ private:
+  void SetNamedInstancePropertyHandlerImpl(NamedPropertyGetter getter,
+                                           NamedPropertySetter setter,
+                                           NamedPropertyQueryImpl query,
+                                           NamedPropertyDeleter remover,
+                                           NamedPropertyEnumerator enumerator,
+                                           Handle<Value> data);
 };
 
 
@@ -2053,7 +2088,7 @@ class V8EXPORT ObjectTemplate : public Template {
    *
    * \param getter The callback to invoke when getting a property.
    * \param setter The callback to invoke when setting a property.
-   * \param query The callback to invoke to check is an object has a property.
+   * \param query The callback to invoke to check if an object has a property.
    * \param deleter The callback to invoke when deleting a property.
    * \param enumerator The callback to invoke to enumerate all the named
    *   properties of an object.
@@ -2065,7 +2100,26 @@ class V8EXPORT ObjectTemplate : public Template {
                                NamedPropertyQuery query = 0,
                                NamedPropertyDeleter deleter = 0,
                                NamedPropertyEnumerator enumerator = 0,
-                               Handle<Value> data = Handle<Value>());
+                               Handle<Value> data = Handle<Value>()) {
+    NamedPropertyQueryImpl casted =
+        reinterpret_cast<NamedPropertyQueryImpl>(query);
+    SetNamedPropertyHandlerImpl(getter,
+                                setter,
+                                casted,
+                                deleter,
+                                enumerator,
+                                data);
+  }
+
+ private:
+  void SetNamedPropertyHandlerImpl(NamedPropertyGetter getter,
+                                   NamedPropertySetter setter,
+                                   NamedPropertyQueryImpl query,
+                                   NamedPropertyDeleter deleter,
+                                   NamedPropertyEnumerator enumerator,
+                                   Handle<Value> data);
+
+ public:
 
   /**
    * Sets an indexed property handler on the object template.
@@ -2335,15 +2389,6 @@ typedef void (*GCEpilogueCallback)(GCType type, GCCallbackFlags flags);
 typedef void (*GCCallback)();
 
 
-// --- C o n t e x t  G e n e r a t o r ---
-
-/**
- * Applications must provide a callback function which is called to generate
- * a context if a context was not deserialized from the snapshot.
- */
-typedef Persistent<Context> (*ContextGenerator)();
-
-
 /**
  * Profiler modules.
  *
@@ -2425,6 +2470,15 @@ class V8EXPORT V8 {
    * Remove all message listeners from the specified callback function.
    */
   static void RemoveMessageListeners(MessageCallback that);
+
+  /**
+   * Set a callback to be called when an external string is no longer live on
+   * V8's heap. The resource will no longer be needed by V8 and the embedder
+   * can dispose of if. If this callback is not set V8 will free the resource
+   * using the C++ delete operator.
+   */
+  static void SetExternalStringDiposeCallback(
+      ExternalStringDiposeCallback that);
 
   /**
    * Sets V8 flags from a string.
@@ -3177,7 +3231,7 @@ class Internals {
   static const int kProxyProxyOffset = sizeof(void*);
   static const int kJSObjectHeaderSize = 3 * sizeof(void*);
   static const int kFullStringRepresentationMask = 0x07;
-  static const int kExternalTwoByteRepresentationTag = 0x03;
+  static const int kExternalTwoByteRepresentationTag = 0x02;
 
   // These constants are compiler dependent so their values must be
   // defined within the implementation.

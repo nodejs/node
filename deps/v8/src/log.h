@@ -106,6 +106,18 @@ class CompressionHelper;
   V(CALL_MISS_TAG,                  "CallMiss",               "cm")       \
   V(CALL_NORMAL_TAG,                "CallNormal",             "cn")       \
   V(CALL_PRE_MONOMORPHIC_TAG,       "CallPreMonomorphic",     "cpm")      \
+  V(KEYED_CALL_DEBUG_BREAK_TAG,     "KeyedCallDebugBreak",    "kcdb")     \
+  V(KEYED_CALL_DEBUG_PREPARE_STEP_IN_TAG,                                 \
+    "KeyedCallDebugPrepareStepIn",                                        \
+    "kcdbsi")                                                             \
+  V(KEYED_CALL_IC_TAG,              "KeyedCallIC",            "kcic")     \
+  V(KEYED_CALL_INITIALIZE_TAG,      "KeyedCallInitialize",    "kci")      \
+  V(KEYED_CALL_MEGAMORPHIC_TAG,     "KeyedCallMegamorphic",   "kcmm")     \
+  V(KEYED_CALL_MISS_TAG,            "KeyedCallMiss",          "kcm")      \
+  V(KEYED_CALL_NORMAL_TAG,          "KeyedCallNormal",        "kcn")      \
+  V(KEYED_CALL_PRE_MONOMORPHIC_TAG,                                       \
+    "KeyedCallPreMonomorphic",                                            \
+    "kcpm")                                                               \
   V(CALLBACK_TAG,                   "Callback",               "cb")       \
   V(EVAL_TAG,                       "Eval",                   "e")        \
   V(FUNCTION_TAG,                   "Function",               "f")        \

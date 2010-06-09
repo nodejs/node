@@ -7,12 +7,14 @@
 #include "v8.h"
 #include "profile-generator-inl.h"
 #include "cctest.h"
+#include "../include/v8-profiler.h"
 
 namespace i = v8::internal;
 
 using i::CodeEntry;
 using i::CodeMap;
 using i::CpuProfile;
+using i::CpuProfiler;
 using i::CpuProfilesCollection;
 using i::ProfileNode;
 using i::ProfileTree;
@@ -666,6 +668,111 @@ TEST(SampleRateCalculator) {
   calc3.UpdateMeasurements(time);
   // (1.0 + 0.5 + 0.5) / 3
   CHECK_EQ(kSamplingIntervalMs * 0.66666, calc3.ticks_per_ms());
+}
+
+
+// --- P r o f i l e r   E x t e n s i o n ---
+
+class ProfilerExtension : public v8::Extension {
+ public:
+  ProfilerExtension() : v8::Extension("v8/profiler", kSource) { }
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+      v8::Handle<v8::String> name);
+  static v8::Handle<v8::Value> StartProfiling(const v8::Arguments& args);
+  static v8::Handle<v8::Value> StopProfiling(const v8::Arguments& args);
+ private:
+  static const char* kSource;
+};
+
+
+const char* ProfilerExtension::kSource =
+    "native function startProfiling();"
+    "native function stopProfiling();";
+
+v8::Handle<v8::FunctionTemplate> ProfilerExtension::GetNativeFunction(
+    v8::Handle<v8::String> name) {
+  if (name->Equals(v8::String::New("startProfiling"))) {
+    return v8::FunctionTemplate::New(ProfilerExtension::StartProfiling);
+  } else if (name->Equals(v8::String::New("stopProfiling"))) {
+    return v8::FunctionTemplate::New(ProfilerExtension::StopProfiling);
+  } else {
+    CHECK(false);
+    return v8::Handle<v8::FunctionTemplate>();
+  }
+}
+
+
+v8::Handle<v8::Value> ProfilerExtension::StartProfiling(
+    const v8::Arguments& args) {
+  if (args.Length() > 0)
+    v8::CpuProfiler::StartProfiling(args[0].As<v8::String>());
+  else
+    v8::CpuProfiler::StartProfiling(v8::String::New(""));
+  return v8::Undefined();
+}
+
+
+v8::Handle<v8::Value> ProfilerExtension::StopProfiling(
+    const v8::Arguments& args) {
+  if (args.Length() > 0)
+    v8::CpuProfiler::StopProfiling(args[0].As<v8::String>());
+  else
+    v8::CpuProfiler::StopProfiling(v8::String::New(""));
+  return v8::Undefined();
+}
+
+
+static ProfilerExtension kProfilerExtension;
+v8::DeclareExtension kProfilerExtensionDeclaration(&kProfilerExtension);
+static v8::Persistent<v8::Context> env;
+
+static const ProfileNode* PickChild(const ProfileNode* parent,
+                                    const char* name) {
+  for (int i = 0; i < parent->children()->length(); ++i) {
+    const ProfileNode* child = parent->children()->at(i);
+    if (strcmp(child->entry()->name(), name) == 0) return child;
+  }
+  return NULL;
+}
+
+
+TEST(RecordStackTraceAtStartProfiling) {
+  if (env.IsEmpty()) {
+    v8::HandleScope scope;
+    const char* extensions[] = { "v8/profiler" };
+    v8::ExtensionConfiguration config(1, extensions);
+    env = v8::Context::New(&config);
+  }
+  v8::HandleScope scope;
+  env->Enter();
+
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+  CompileRun(
+      "function c() { startProfiling(); }\n"
+      "function b() { c(); }\n"
+      "function a() { b(); }\n"
+      "a();\n"
+      "stopProfiling();");
+  CHECK_EQ(1, CpuProfiler::GetProfilesCount());
+  CpuProfile* profile =
+      CpuProfiler::GetProfile(NULL, 0);
+  const ProfileTree* topDown = profile->top_down();
+  const ProfileNode* current = topDown->root();
+  // The tree should look like this:
+  //  (root)
+  //   (anonymous function)
+  //     a
+  //       b
+  //         c
+  current = PickChild(current, "(anonymous function)");
+  CHECK_NE(NULL, const_cast<ProfileNode*>(current));
+  current = PickChild(current, "a");
+  CHECK_NE(NULL, const_cast<ProfileNode*>(current));
+  current = PickChild(current, "b");
+  CHECK_NE(NULL, const_cast<ProfileNode*>(current));
+  current = PickChild(current, "c");
+  CHECK_NE(NULL, const_cast<ProfileNode*>(current));
+  CHECK_EQ(0, current->children()->length());
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

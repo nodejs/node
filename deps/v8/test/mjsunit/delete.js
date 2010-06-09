@@ -44,16 +44,11 @@ assertEquals(42, x);
 assertTrue(delete x);
 assertTrue(typeof x === 'undefined', "x is gone");
 
-/**** 
- * This test relies on DontDelete attributes. This is not 
- * working yet.
-
 var y = 87; // should have DontDelete attribute
 assertEquals(87, y);
 assertFalse(delete y, "don't delete");
 assertFalse(typeof y === 'undefined');
 assertEquals(87, y);
-*/
 
 var o = { x: 42, y: 87 };
 assertTrue(has(o, 'x'));
@@ -161,3 +156,25 @@ assertFalse(has(a, 1), "delete 1");
 assertFalse(has(a, Math.pow(2,30)-1), "delete 2^30-1");
 assertFalse(has(a, Math.pow(2,31)-1), "delete 2^31-1");
 assertEquals(Math.pow(2,31), a.length);
+
+// Check that a LoadIC for a dictionary field works, even
+// when the dictionary probe misses.
+function load_deleted_property_using_IC() {
+  var x = new Object();
+  x.a = 3;
+  x.b = 4;
+  x.c = 5;
+
+  delete x.c;
+  assertEquals(3, load_a(x));
+  assertEquals(3, load_a(x));
+  delete x.a;
+  assertTrue(typeof load_a(x) === 'undefined', "x.a is gone");
+  assertTrue(typeof load_a(x) === 'undefined', "x.a is gone");
+}
+
+function load_a(x) {
+  return x.a;
+}
+
+load_deleted_property_using_IC();

@@ -62,13 +62,14 @@ static void PrintLn(v8::Local<v8::Value> value) {
 }
 
 
-static Handle<Code> ComputeCallDebugBreak(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallDebugBreak(argc), Code);
+static Handle<Code> ComputeCallDebugBreak(int argc, Code::Kind kind) {
+  CALL_HEAP_FUNCTION(StubCache::ComputeCallDebugBreak(argc, kind), Code);
 }
 
 
-static Handle<Code> ComputeCallDebugPrepareStepIn(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallDebugPrepareStepIn(argc), Code);
+static Handle<Code> ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind) {
+  CALL_HEAP_FUNCTION(
+      StubCache::ComputeCallDebugPrepareStepIn(argc, kind), Code);
 }
 
 
@@ -360,13 +361,14 @@ void BreakLocationIterator::PrepareStepIn() {
   // construct call or CallFunction stub call.
   Address target = rinfo()->target_address();
   Handle<Code> code(Code::GetCodeFromTargetAddress(target));
-  if (code->is_call_stub()) {
+  if (code->is_call_stub() || code->is_keyed_call_stub()) {
     // Step in through IC call is handled by the runtime system. Therefore make
     // sure that the any current IC is cleared and the runtime system is
     // called. If the executing code has a debug break at the location change
     // the call in the original code as it is the code there that will be
     // executed in place of the debug break call.
-    Handle<Code> stub = ComputeCallDebugPrepareStepIn(code->arguments_count());
+    Handle<Code> stub = ComputeCallDebugPrepareStepIn(code->arguments_count(),
+                                                      code->kind());
     if (IsDebugBreak()) {
       original_rinfo()->set_target_address(stub->entry());
     } else {
@@ -1187,7 +1189,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
     Address target = it.rinfo()->target_address();
     Code* code = Code::GetCodeFromTargetAddress(target);
-    if (code->is_call_stub()) {
+    if (code->is_call_stub() || code->is_keyed_call_stub()) {
       is_call_target = true;
     }
     if (code->is_inline_cache_stub()) {
@@ -1373,7 +1375,8 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   if (code->is_inline_cache_stub()) {
     switch (code->kind()) {
       case Code::CALL_IC:
-        return ComputeCallDebugBreak(code->arguments_count());
+      case Code::KEYED_CALL_IC:
+        return ComputeCallDebugBreak(code->arguments_count(), code->kind());
 
       case Code::LOAD_IC:
         return Handle<Code>(Builtins::builtin(Builtins::LoadIC_DebugBreak));

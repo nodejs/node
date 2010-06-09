@@ -1295,6 +1295,10 @@ void Logger::LogCodeObject(Object* object) {
         description = "A call IC from the snapshot";
         tag = Logger::CALL_IC_TAG;
         break;
+      case Code::KEYED_CALL_IC:
+        description = "A keyed call IC from the snapshot";
+        tag = Logger::KEYED_CALL_IC_TAG;
+        break;
     }
     PROFILE(CodeCreateEvent(tag, code_object, description));
   }

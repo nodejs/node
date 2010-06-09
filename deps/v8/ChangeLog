@@ -1,3 +1,22 @@
+2010-06-07: Version 2.2.15
+
+        Add an API to control the disposal of external string resources.
+
+        Add missing initialization of a couple of variables which makes
+        some compilers complaint when compiling with -Werror.
+
+        Improve performance on all platforms.
+
+
+2010-06-02: Version 2.2.14
+
+        Fixed a crash in code generated for String.charCodeAt.
+
+        Fixed a compilation issue with some GCC versions (issue 727).
+
+        Performance optimizations on x64 and ARM platforms.
+
+
 2010-05-31: Version 2.2.13
 
         Implement Object.getOwnPropertyDescriptor for element indices and

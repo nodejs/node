@@ -473,11 +473,11 @@ TEST(CachedHashOverflow) {
     printf("%s\n", line);
     v8::Local<v8::Value> result =
         v8::Script::Compile(v8::String::New(line))->Run();
-    ASSERT_EQ(results[i]->IsUndefined(), result->IsUndefined());
-    ASSERT_EQ(results[i]->IsNumber(), result->IsNumber());
+    CHECK_EQ(results[i]->IsUndefined(), result->IsUndefined());
+    CHECK_EQ(results[i]->IsNumber(), result->IsNumber());
     if (result->IsNumber()) {
-      ASSERT_EQ(Smi::cast(results[i]->ToSmi())->value(),
-                result->ToInt32()->Value());
+      CHECK_EQ(Smi::cast(results[i]->ToSmi())->value(),
+               result->ToInt32()->Value());
     }
   }
 }

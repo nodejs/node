@@ -25,43 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_UNBOUND_QUEUE_
-#define V8_UNBOUND_QUEUE_
+var obj = { 0: "obj0" };
 
-namespace v8 {
-namespace internal {
+// Array index k is to big to fit into the string hash field.
+var k = 16777217;
+var h = "" + k;
 
+obj[k] = "obj" + k;
 
-// Lock-free unbound queue for small records.  Intended for
-// transferring small records between a Single producer and a Single
-// consumer. Doesn't have restrictions on the number of queued
-// elements, so producer never blocks.  Implemented after Herb
-// Sutter's article:
-// http://www.ddj.com/high-performance-computing/210604448
-template<typename Record>
-class UnboundQueue BASE_EMBEDDED {
- public:
-  inline UnboundQueue();
-  inline ~UnboundQueue();
+// Force computation of hash for the string representation of array index.
+for (var i = 0; i < 10; i++) { ({})[h]; }
 
-  INLINE(void Dequeue(Record* rec));
-  INLINE(void Enqueue(const Record& rec));
-  INLINE(bool IsEmpty()) { return divider_ == last_; }
-  INLINE(Record* Peek());
+function get(idx) { return obj[idx]; }
 
- private:
-  INLINE(void DeleteFirst());
-
-  struct Node;
-
-  Node* first_;
-  AtomicWord divider_;  // Node*
-  AtomicWord last_;     // Node*
-
-  DISALLOW_COPY_AND_ASSIGN(UnboundQueue);
-};
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_UNBOUND_QUEUE_
+assertEquals(get(0), "obj0");
+assertEquals(get(h), "obj" + h);

@@ -260,6 +260,7 @@ class CpuProfilesCollection {
   CpuProfile* GetProfile(int security_token_id, unsigned uid);
   inline bool is_last_profile();
 
+  const char* GetName(String* name);
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
                           String* name, String* resource_name, int line_number);
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag, const char* name);
@@ -274,7 +275,6 @@ class CpuProfilesCollection {
  private:
   INLINE(const char* GetFunctionName(String* name));
   INLINE(const char* GetFunctionName(const char* name));
-  const char* GetName(String* name);
   const char* GetName(int args_count);
   List<CpuProfile*>* GetProfilesList(int security_token_id);
   int TokenToIndex(int security_token_id);

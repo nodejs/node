@@ -817,6 +817,7 @@ int DisassemblerIA32::RegisterFPUInstruction(int escape_opcode,
 // Returns NULL if the instruction is not handled here.
 static const char* F0Mnem(byte f0byte) {
   switch (f0byte) {
+    case 0x18: return "prefetch";
     case 0xA2: return "cpuid";
     case 0x31: return "rdtsc";
     case 0xBE: return "movsx_b";
@@ -942,7 +943,13 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
       case 0x0F:
         { byte f0byte = *(data+1);
           const char* f0mnem = F0Mnem(f0byte);
-          if (f0byte == 0xA2 || f0byte == 0x31) {
+          if (f0byte == 0x18) {
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            const char* suffix[] = {"nta", "1", "2", "3"};
+            AppendToBuffer("%s%s ", f0mnem, suffix[regop & 0x03]);
+            data += PrintRightOperand(data);
+          } else if (f0byte == 0xA2 || f0byte == 0x31) {
             AppendToBuffer("%s", f0mnem);
             data += 2;
           } else if ((f0byte & 0xF0) == 0x80) {
@@ -1070,6 +1077,13 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                              NameOfXMMRegister(regop),
                              NameOfXMMRegister(rm));
               data++;
+            } else if (*data == 0x2A) {
+              // movntdqa
+              data++;
+              int mod, regop, rm;
+              get_modrm(*data, &mod, &regop, &rm);
+              AppendToBuffer("movntdqa %s,", NameOfXMMRegister(regop));
+              data += PrintRightOperand(data);
             } else {
               UnimplementedInstruction();
             }
@@ -1117,6 +1131,13 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             data += PrintRightOperand(data);
           } else if (*data == 0x7F) {
             AppendToBuffer("movdqa ");
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            data += PrintRightOperand(data);
+            AppendToBuffer(",%s", NameOfXMMRegister(regop));
+          } else if (*data == 0xE7) {
+            AppendToBuffer("movntdq ");
             data++;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);

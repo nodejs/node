@@ -25,43 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_UNBOUND_QUEUE_
-#define V8_UNBOUND_QUEUE_
+// idx is a valid array index but is too big to be cached in hash field.
+var idx = 10000000;
 
-namespace v8 {
-namespace internal {
+// Create a JSObject with NumberDictionary as a backing store for elements.
+var obj = { };
+for (var i = 0; i < 100000; i += 100) { obj[i] = "obj" + i; }
 
+// Set value using numeric index.
+obj[idx] = "obj" + idx;
 
-// Lock-free unbound queue for small records.  Intended for
-// transferring small records between a Single producer and a Single
-// consumer. Doesn't have restrictions on the number of queued
-// elements, so producer never blocks.  Implemented after Herb
-// Sutter's article:
-// http://www.ddj.com/high-performance-computing/210604448
-template<typename Record>
-class UnboundQueue BASE_EMBEDDED {
- public:
-  inline UnboundQueue();
-  inline ~UnboundQueue();
+// Make a string from index.
+var str = "" + idx;
 
-  INLINE(void Dequeue(Record* rec));
-  INLINE(void Enqueue(const Record& rec));
-  INLINE(bool IsEmpty()) { return divider_ == last_; }
-  INLINE(Record* Peek());
+// Force hash computation for the string representation of index.
+for (var i = 0; i < 10; i++) { ({})[str]; }
 
- private:
-  INLINE(void DeleteFirst());
-
-  struct Node;
-
-  Node* first_;
-  AtomicWord divider_;  // Node*
-  AtomicWord last_;     // Node*
-
-  DISALLOW_COPY_AND_ASSIGN(UnboundQueue);
-};
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_UNBOUND_QUEUE_
+// Try getting value back using string and number representations of
+// the same index.
+assertEquals(obj[str], obj[idx])

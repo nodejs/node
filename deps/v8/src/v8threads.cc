@@ -331,7 +331,7 @@ void ThreadManager::Iterate(ObjectVisitor* v) {
 }
 
 
-void ThreadManager::IterateThreads(ThreadVisitor* v) {
+void ThreadManager::IterateArchivedThreads(ThreadVisitor* v) {
   for (ThreadState* state = ThreadState::FirstInUse();
        state != NULL;
        state = state->Next()) {

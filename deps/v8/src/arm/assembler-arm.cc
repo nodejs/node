@@ -1213,31 +1213,32 @@ void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
   // Both instructions can be eliminated if ry = rx.
   // If ry != rx, a register copy from ry to rx is inserted
   // after eliminating the push and the pop instructions.
-  Instr push_instr = instr_at(pc_ - 2 * kInstrSize);
-  Instr pop_instr = instr_at(pc_ - 1 * kInstrSize);
+  if (can_peephole_optimize(2)) {
+    Instr push_instr = instr_at(pc_ - 2 * kInstrSize);
+    Instr pop_instr = instr_at(pc_ - 1 * kInstrSize);
 
-  if (can_peephole_optimize(2) &&
-      IsPush(push_instr) &&
-      IsPop(pop_instr)) {
-    if ((pop_instr & kRdMask) != (push_instr & kRdMask)) {
-      // For consecutive push and pop on different registers,
-      // we delete both the push & pop and insert a register move.
-      // push ry, pop rx --> mov rx, ry
-      Register reg_pushed, reg_popped;
-      reg_pushed = GetRd(push_instr);
-      reg_popped = GetRd(pop_instr);
-      pc_ -= 2 * kInstrSize;
-      // Insert a mov instruction, which is better than a pair of push & pop
-      mov(reg_popped, reg_pushed);
-      if (FLAG_print_peephole_optimization) {
-        PrintF("%x push/pop (diff reg) replaced by a reg move\n", pc_offset());
-      }
-    } else {
-      // For consecutive push and pop on the same register,
-      // both the push and the pop can be deleted.
-      pc_ -= 2 * kInstrSize;
-      if (FLAG_print_peephole_optimization) {
-        PrintF("%x push/pop (same reg) eliminated\n", pc_offset());
+    if (IsPush(push_instr) && IsPop(pop_instr)) {
+      if ((pop_instr & kRdMask) != (push_instr & kRdMask)) {
+        // For consecutive push and pop on different registers,
+        // we delete both the push & pop and insert a register move.
+        // push ry, pop rx --> mov rx, ry
+        Register reg_pushed, reg_popped;
+        reg_pushed = GetRd(push_instr);
+        reg_popped = GetRd(pop_instr);
+        pc_ -= 2 * kInstrSize;
+        // Insert a mov instruction, which is better than a pair of push & pop
+        mov(reg_popped, reg_pushed);
+        if (FLAG_print_peephole_optimization) {
+          PrintF("%x push/pop (diff reg) replaced by a reg move\n",
+                 pc_offset());
+        }
+      } else {
+        // For consecutive push and pop on the same register,
+        // both the push and the pop can be deleted.
+        pc_ -= 2 * kInstrSize;
+        if (FLAG_print_peephole_optimization) {
+          PrintF("%x push/pop (same reg) eliminated\n", pc_offset());
+        }
       }
     }
   }

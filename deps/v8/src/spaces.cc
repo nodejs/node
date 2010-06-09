@@ -1457,6 +1457,7 @@ static void ReportCodeKindStatistics() {
       CASE(STORE_IC);
       CASE(KEYED_STORE_IC);
       CASE(CALL_IC);
+      CASE(KEYED_CALL_IC);
       CASE(BINARY_OP_IC);
     }
   }

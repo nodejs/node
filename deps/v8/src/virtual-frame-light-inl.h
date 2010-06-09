@@ -42,7 +42,8 @@ namespace internal {
 VirtualFrame::VirtualFrame(InvalidVirtualFrameInitializer* dummy)
     : element_count_(0),
       top_of_stack_state_(NO_TOS_REGISTERS),
-      register_allocation_map_(0) { }
+      register_allocation_map_(0),
+      tos_known_smi_map_(0) { }
 
 
 // On entry to a function, the virtual frame already contains the receiver,
@@ -50,20 +51,23 @@ VirtualFrame::VirtualFrame(InvalidVirtualFrameInitializer* dummy)
 VirtualFrame::VirtualFrame()
     : element_count_(parameter_count() + 2),
       top_of_stack_state_(NO_TOS_REGISTERS),
-      register_allocation_map_(0) { }
+      register_allocation_map_(0),
+      tos_known_smi_map_(0) { }
 
 
 // When cloned, a frame is a deep copy of the original.
 VirtualFrame::VirtualFrame(VirtualFrame* original)
     : element_count_(original->element_count()),
       top_of_stack_state_(original->top_of_stack_state_),
-      register_allocation_map_(original->register_allocation_map_) { }
+      register_allocation_map_(original->register_allocation_map_),
+      tos_known_smi_map_(0) { }
 
 
 bool VirtualFrame::Equals(const VirtualFrame* other) {
   ASSERT(element_count() == other->element_count());
   if (top_of_stack_state_ != other->top_of_stack_state_) return false;
   if (register_allocation_map_ != other->register_allocation_map_) return false;
+  if (tos_known_smi_map_ != other->tos_known_smi_map_) return false;
 
   return true;
 }

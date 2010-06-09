@@ -1726,6 +1726,29 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
 }
 
 
+void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
+                                            Expression* key,
+                                            RelocInfo::Mode mode) {
+  // Code common for calls using the IC.
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    VisitForValue(args->at(i), kStack);
+  }
+  VisitForValue(key, kAccumulator);
+  __ mov(ecx, eax);
+  // Record source position of the IC call.
+  SetSourcePosition(expr->position());
+  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+  Handle<Code> ic = CodeGenerator::ComputeKeyedCallInitialize(
+      arg_count, in_loop);
+  __ call(ic, mode);
+  // Restore context register.
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  Apply(context_, eax);
+}
+
+
 void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Code common for calls using the call stub.
   ZoneList<Expression*>* args = expr->arguments();
@@ -1815,37 +1838,31 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       VisitForValue(prop->obj(), kStack);
       EmitCallWithIC(expr, key->handle(), RelocInfo::CODE_TARGET);
     } else {
-      // Call to a keyed property, use keyed load IC followed by function
-      // call.
+      // Call to a keyed property.
+      // For a synthetic property use keyed load IC followed by function call,
+      // for a regular property use keyed CallIC.
       VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kAccumulator);
-      // Record source code position for IC call.
-      SetSourcePosition(prop->position());
       if (prop->is_synthetic()) {
+        VisitForValue(prop->key(), kAccumulator);
+        // Record source code position for IC call.
+        SetSourcePosition(prop->position());
         __ pop(edx);  // We do not need to keep the receiver.
-      } else {
-        __ mov(edx, Operand(esp, 0));  // Keep receiver, to call function on.
-      }
 
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-      __ call(ic, RelocInfo::CODE_TARGET);
-      // By emitting a nop we make sure that we do not have a "test eax,..."
-      // instruction after the call it is treated specially by the LoadIC code.
-      __ nop();
-      if (prop->is_synthetic()) {
+        Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+        __ call(ic, RelocInfo::CODE_TARGET);
+        // By emitting a nop we make sure that we do not have a "test eax,..."
+        // instruction after the call as it is treated specially
+        // by the LoadIC code.
+        __ nop();
         // Push result (function).
         __ push(eax);
         // Push Global receiver.
         __ mov(ecx, CodeGenerator::GlobalObject());
         __ push(FieldOperand(ecx, GlobalObject::kGlobalReceiverOffset));
+        EmitCallWithStub(expr);
       } else {
-        // Pop receiver.
-        __ pop(ebx);
-        // Push result (function).
-        __ push(eax);
-        __ push(ebx);
+        EmitKeyedCallWithIC(expr, prop->key(), RelocInfo::CODE_TARGET);
       }
-      EmitCallWithStub(expr);
     }
   } else {
     // Call to some other expression.  If the expression is an anonymous

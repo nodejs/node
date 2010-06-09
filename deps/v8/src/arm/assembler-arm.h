@@ -690,6 +690,10 @@ class Assembler : public Malloced {
 
   void add(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
+  void add(Register dst, Register src1, Register src2,
+           SBit s = LeaveCC, Condition cond = al) {
+    add(dst, src1, Operand(src2), s, cond);
+  }
 
   void adc(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);

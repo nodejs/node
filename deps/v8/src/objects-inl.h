@@ -2196,7 +2196,8 @@ Code::Flags Code::flags() {
 void Code::set_flags(Code::Flags flags) {
   STATIC_ASSERT(Code::NUMBER_OF_KINDS <= (kFlagsKindMask >> kFlagsKindShift)+1);
   // Make sure that all call stubs have an arguments count.
-  ASSERT(ExtractKindFromFlags(flags) != CALL_IC ||
+  ASSERT((ExtractKindFromFlags(flags) != CALL_IC &&
+          ExtractKindFromFlags(flags) != KEYED_CALL_IC) ||
          ExtractArgumentsCountFromFlags(flags) >= 0);
   WRITE_INT_FIELD(this, kFlagsOffset, flags);
 }
@@ -2232,7 +2233,7 @@ PropertyType Code::type() {
 
 
 int Code::arguments_count() {
-  ASSERT(is_call_stub() || kind() == STUB);
+  ASSERT(is_call_stub() || is_keyed_call_stub() || kind() == STUB);
   return ExtractArgumentsCountFromFlags(flags());
 }
 
@@ -2986,8 +2987,7 @@ StringHasher::StringHasher(int length)
   : length_(length),
     raw_running_hash_(0),
     array_index_(0),
-    is_array_index_(0 < length_ &&
-                    length_ <= String::kMaxCachedArrayIndexLength),
+    is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
     is_first_char_(true),
     is_valid_(true) { }
 
@@ -3050,7 +3050,9 @@ uint32_t StringHasher::GetHash() {
 
 bool String::AsArrayIndex(uint32_t* index) {
   uint32_t field = hash_field();
-  if (IsHashFieldComputed(field) && !(field & kIsArrayIndexMask)) return false;
+  if (IsHashFieldComputed(field) && (field & kIsNotArrayIndexMask)) {
+    return false;
+  }
   return SlowAsArrayIndex(index);
 }
 

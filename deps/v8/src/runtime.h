@@ -162,7 +162,6 @@ namespace internal {
   \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \
-  F(StringCharAt, 2, 1) \
   F(StringIndexOf, 3, 1) \
   F(StringLastIndexOf, 3, 1) \
   F(StringLocaleCompare, 2, 1) \
@@ -223,6 +222,7 @@ namespace internal {
   /* Eval */ \
   F(GlobalReceiver, 1, 1) \
   F(ResolvePossiblyDirectEval, 3, 2) \
+  F(ResolvePossiblyDirectEvalNoLookup, 3, 2) \
   \
   F(SetProperty, -1 /* 3 or 4 */, 1) \
   F(DefineOrRedefineDataProperty, 4, 1) \

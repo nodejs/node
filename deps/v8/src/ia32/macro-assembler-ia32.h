@@ -188,6 +188,18 @@ class MacroAssembler: public Assembler {
                                Register map,
                                Register instance_type);
 
+  // Check if a heap object's type is in the JSObject range, not including
+  // JSFunction.  The object's map will be loaded in the map register.
+  // Any or all of the three registers may be the same.
+  // The contents of the scratch register will always be overwritten.
+  void IsObjectJSObjectType(Register heap_object,
+                            Register map,
+                            Register scratch,
+                            Label* fail);
+
+  // The contents of the scratch register will be overwritten.
+  void IsInstanceJSObjectType(Register map, Register scratch, Label* fail);
+
   // FCmp is similar to integer cmp, but requires unsigned
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();

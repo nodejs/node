@@ -690,6 +690,11 @@ class Heap : public AllStatic {
   static bool GarbageCollectionGreedyCheck();
 #endif
 
+  static void SetExternalStringDiposeCallback(
+      ExternalStringDiposeCallback callback) {
+    external_string_dispose_callback_ = callback;
+  }
+
   static void AddGCPrologueCallback(
       GCEpilogueCallback callback, GCType gc_type_filter);
   static void RemoveGCPrologueCallback(GCEpilogueCallback callback);
@@ -1137,6 +1142,9 @@ class Heap : public AllStatic {
   // The special hidden symbol which is an empty string, but does not match
   // any string when looked up in properties.
   static String* hidden_symbol_;
+
+  static ExternalStringDiposeCallback
+       external_string_dispose_callback_;
 
   // GC callback function, called before and after mark-compact GC.
   // Allocations in the callback function are disallowed.

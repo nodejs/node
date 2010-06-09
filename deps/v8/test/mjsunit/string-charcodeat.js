@@ -153,6 +153,10 @@ TestStringType(Slice16End, true);
 TestStringType(Flat16, true);
 TestStringType(NotAString16, true);
 
+for (var i = 0; i != 10; i++) {
+  assertEquals(101, Cons16().charCodeAt(1.1));
+  assertEquals('e', Cons16().charAt(1.1));
+}
 
 function StupidThing() {
   // Doesn't return a string from toString!

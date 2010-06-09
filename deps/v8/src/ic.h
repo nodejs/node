@@ -44,6 +44,7 @@ enum DictionaryCheck { CHECK_DICTIONARY, DICTIONARY_CHECK_DONE };
   ICU(LoadIC_Miss)                                    \
   ICU(KeyedLoadIC_Miss)                               \
   ICU(CallIC_Miss)                                    \
+  ICU(KeyedCallIC_Miss)                               \
   ICU(StoreIC_Miss)                                   \
   ICU(StoreIC_ArrayLength)                            \
   ICU(SharedStoreIC_ExtendStorage)                    \
@@ -147,7 +148,7 @@ class IC {
 
   static Failure* TypeError(const char* type,
                             Handle<Object> object,
-                            Handle<String> name);
+                            Handle<Object> key);
   static Failure* ReferenceError(const char* type, Handle<String> name);
 
   // Access the target code for the given IC address.
@@ -184,22 +185,16 @@ class IC_Utility {
 };
 
 
-class CallIC: public IC {
- public:
-  CallIC() : IC(EXTRA_CALL_FRAME) { ASSERT(target()->is_call_stub()); }
+class CallICBase: public IC {
+ protected:
+  explicit CallICBase(Code::Kind kind) : IC(EXTRA_CALL_FRAME), kind_(kind) {}
 
+ public:
   Object* LoadFunction(State state, Handle<Object> object, Handle<String> name);
 
+ protected:
+  Code::Kind kind_;
 
-  // Code generator routines.
-  static void GenerateInitialize(MacroAssembler* masm, int argc) {
-    GenerateMiss(masm, argc);
-  }
-  static void GenerateMiss(MacroAssembler* masm, int argc);
-  static void GenerateMegamorphic(MacroAssembler* masm, int argc);
-  static void GenerateNormal(MacroAssembler* masm, int argc);
-
- private:
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
@@ -216,6 +211,38 @@ class CallIC: public IC {
 
   static void Clear(Address address, Code* target);
   friend class IC;
+};
+
+
+class CallIC: public CallICBase {
+ public:
+  CallIC() : CallICBase(Code::CALL_IC) { ASSERT(target()->is_call_stub()); }
+
+  // Code generator routines.
+  static void GenerateInitialize(MacroAssembler* masm, int argc) {
+    GenerateMiss(masm, argc);
+  }
+  static void GenerateMiss(MacroAssembler* masm, int argc);
+  static void GenerateMegamorphic(MacroAssembler* masm, int argc);
+  static void GenerateNormal(MacroAssembler* masm, int argc);
+};
+
+
+class KeyedCallIC: public CallICBase {
+ public:
+  KeyedCallIC() : CallICBase(Code::KEYED_CALL_IC) {
+    ASSERT(target()->is_keyed_call_stub());
+  }
+
+  Object* LoadFunction(State state, Handle<Object> object, Handle<Object> key);
+
+  // Code generator routines.
+  static void GenerateInitialize(MacroAssembler* masm, int argc) {
+    GenerateMiss(masm, argc);
+  }
+  static void GenerateMiss(MacroAssembler* masm, int argc);
+  static void GenerateMegamorphic(MacroAssembler* masm, int argc);
+  static void GenerateNormal(MacroAssembler* masm, int argc);
 };
 
 

@@ -50,7 +50,7 @@ global_eval = eval;
 assertEquals(void 0, eval(eval("var eval = function f(x) { return 'hest';}")))
 eval = global_eval;
 
-//Test eval with different number of parameters.
+// Test eval with different number of parameters.
 global_eval = eval;
 eval = function(x, y) { return x + y; };
 assertEquals(4, eval(2, 2));

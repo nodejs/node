@@ -2624,9 +2624,8 @@ void CodeGenerator::Comparison(AstNode* node,
       ASSERT(temp.is_valid());
       __ mov(temp.reg(),
              FieldOperand(operand.reg(), HeapObject::kMapOffset));
-      __ movzx_b(temp.reg(),
-                 FieldOperand(temp.reg(), Map::kBitFieldOffset));
-      __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
+      __ test_b(FieldOperand(temp.reg(), Map::kBitFieldOffset),
+                1 << Map::kIsUndetectable);
       temp.Unuse();
       operand.Unuse();
       dest->Split(not_zero);
@@ -2720,11 +2719,9 @@ void CodeGenerator::Comparison(AstNode* node,
       // left_side is a sequential ASCII string.
       left_side = Result(left_reg);
       right_side = Result(right_val);
-      Result temp2 = allocator_->Allocate();
-      ASSERT(temp2.is_valid());
       // Test string equality and comparison.
+      Label comparison_done;
       if (cc == equal) {
-        Label comparison_done;
         __ cmp(FieldOperand(left_side.reg(), String::kLengthOffset),
                Immediate(Smi::FromInt(1)));
         __ j(not_equal, &comparison_done);
@@ -2732,34 +2729,25 @@ void CodeGenerator::Comparison(AstNode* node,
             static_cast<uint8_t>(String::cast(*right_val)->Get(0));
         __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
                 char_value);
-        __ bind(&comparison_done);
       } else {
-        __ mov(temp2.reg(),
-               FieldOperand(left_side.reg(), String::kLengthOffset));
-        __ SmiUntag(temp2.reg());
-        __ sub(Operand(temp2.reg()), Immediate(1));
-        Label comparison;
-        // If the length is 0 then the subtraction gave -1 which compares less
-        // than any character.
-        __ j(negative, &comparison);
-        // Otherwise load the first character.
-        __ movzx_b(temp2.reg(),
-                   FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize));
-        __ bind(&comparison);
+        __ cmp(FieldOperand(left_side.reg(), String::kLengthOffset),
+               Immediate(Smi::FromInt(1)));
+        // If the length is 0 then the jump is taken and the flags
+        // correctly represent being less than the one-character string.
+        __ j(below, &comparison_done);
         // Compare the first character of the string with the
         // constant 1-character string.
         uint8_t char_value =
             static_cast<uint8_t>(String::cast(*right_val)->Get(0));
-        __ cmp(Operand(temp2.reg()), Immediate(char_value));
-        Label characters_were_different;
-        __ j(not_equal, &characters_were_different);
+        __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
+                char_value);
+        __ j(not_equal, &comparison_done);
         // If the first character is the same then the long string sorts after
         // the short one.
         __ cmp(FieldOperand(left_side.reg(), String::kLengthOffset),
                Immediate(Smi::FromInt(1)));
-        __ bind(&characters_were_different);
       }
-      temp2.Unuse();
+      __ bind(&comparison_done);
       left_side.Unuse();
       right_side.Unuse();
       dest->Split(cc);
@@ -4148,9 +4136,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // eax: value to be iterated over
   __ test(eax, Immediate(kSmiTagMask));
   primitive.Branch(zero);
-  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+  __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
   jsobject.Branch(above_equal);
 
   primitive.Bind();
@@ -5762,26 +5748,66 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Allocate a frame slot for the receiver.
     frame_->Push(Factory::undefined_value());
+
+    // Load the arguments.
     int arg_count = args->length();
     for (int i = 0; i < arg_count; i++) {
       Load(args->at(i));
       frame_->SpillTop();
     }
 
-    // Prepare the stack for the call to ResolvePossiblyDirectEval.
+    // Result to hold the result of the function resolution and the
+    // final result of the eval call.
+    Result result;
+
+    // If we know that eval can only be shadowed by eval-introduced
+    // variables we attempt to load the global eval function directly
+    // in generated code. If we succeed, there is no need to perform a
+    // context lookup in the runtime system.
+    JumpTarget done;
+    if (var->slot() != NULL && var->mode() == Variable::DYNAMIC_GLOBAL) {
+      ASSERT(var->slot()->type() == Slot::LOOKUP);
+      JumpTarget slow;
+      // Prepare the stack for the call to
+      // ResolvePossiblyDirectEvalNoLookup by pushing the loaded
+      // function, the first argument to the eval call and the
+      // receiver.
+      Result fun = LoadFromGlobalSlotCheckExtensions(var->slot(),
+                                                     NOT_INSIDE_TYPEOF,
+                                                     &slow);
+      frame_->Push(&fun);
+      if (arg_count > 0) {
+        frame_->PushElementAt(arg_count);
+      } else {
+        frame_->Push(Factory::undefined_value());
+      }
+      frame_->PushParameterAt(-1);
+
+      // Resolve the call.
+      result =
+          frame_->CallRuntime(Runtime::kResolvePossiblyDirectEvalNoLookup, 3);
+
+      done.Jump(&result);
+      slow.Bind();
+    }
+
+    // Prepare the stack for the call to ResolvePossiblyDirectEval by
+    // pushing the loaded function, the first argument to the eval
+    // call and the receiver.
     frame_->PushElementAt(arg_count + 1);
     if (arg_count > 0) {
       frame_->PushElementAt(arg_count);
     } else {
       frame_->Push(Factory::undefined_value());
     }
-
-    // Push the receiver.
     frame_->PushParameterAt(-1);
 
     // Resolve the call.
-    Result result =
-        frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+    result = frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+
+    // If we generated fast-case code bind the jump-target where fast
+    // and slow case merge.
+    if (done.is_linked()) done.Bind(&result);
 
     // The runtime call returns a pair of values in eax (function) and
     // edx (receiver). Touch up the stack with the right values.
@@ -5949,18 +5975,31 @@ void CodeGenerator::VisitCall(Call* node) {
         ref.GetValue();
         // Use global object as receiver.
         LoadGlobalReceiver();
+        // Call the function.
+        CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
       } else {
+        // Push the receiver onto the frame.
         Load(property->obj());
-        frame()->Dup();
-        Load(property->key());
-        Result function = EmitKeyedLoad();
-        Result receiver = frame_->Pop();
-        frame_->Push(&function);
-        frame_->Push(&receiver);
-      }
 
-      // Call the function.
-      CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
+        // Load the arguments.
+        int arg_count = args->length();
+        for (int i = 0; i < arg_count; i++) {
+          Load(args->at(i));
+          frame_->SpillTop();
+        }
+
+        // Load the name of the function.
+        Load(property->key());
+
+        // Call the IC initialization code.
+        CodeForSourcePosition(node->position());
+        Result result =
+            frame_->CallKeyedCallIC(RelocInfo::CODE_TARGET,
+                                    arg_count,
+                                    loop_nesting());
+        frame_->RestoreContextRegister();
+        frame_->Push(&result);
+      }
     }
 
   } else {
@@ -6317,14 +6356,15 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   ASSERT(map.is_valid());
   __ mov(map.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
   // Undetectable objects behave like undefined when tested with typeof.
-  __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kBitFieldOffset));
-  __ test(map.reg(), Immediate(1 << Map::kIsUndetectable));
+  __ test_b(FieldOperand(map.reg(), Map::kBitFieldOffset),
+            1 << Map::kIsUndetectable);
   destination()->false_target()->Branch(not_zero);
-  __ mov(map.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  // Do a range test for JSObject type.  We can't use
+  // MacroAssembler::IsInstanceJSObjectType, because we are using a
+  // ControlDestination, so we copy its implementation here.
   __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kInstanceTypeOffset));
-  __ cmp(map.reg(), FIRST_JS_OBJECT_TYPE);
-  destination()->false_target()->Branch(below);
-  __ cmp(map.reg(), LAST_JS_OBJECT_TYPE);
+  __ sub(Operand(map.reg()), Immediate(FIRST_JS_OBJECT_TYPE));
+  __ cmp(map.reg(), LAST_JS_OBJECT_TYPE - FIRST_JS_OBJECT_TYPE);
   obj.Unuse();
   map.Unuse();
   destination()->Split(below_equal);
@@ -6360,9 +6400,8 @@ void CodeGenerator::GenerateIsUndetectableObject(ZoneList<Expression*>* args) {
   ASSERT(temp.is_valid());
   __ mov(temp.reg(),
          FieldOperand(obj.reg(), HeapObject::kMapOffset));
-  __ movzx_b(temp.reg(),
-             FieldOperand(temp.reg(), Map::kBitFieldOffset));
-  __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
+  __ test_b(FieldOperand(temp.reg(), Map::kBitFieldOffset),
+            1 << Map::kIsUndetectable);
   obj.Unuse();
   temp.Unuse();
   destination()->Split(not_zero);
@@ -6436,20 +6475,16 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  { Result tmp = allocator()->Allocate();
-    __ mov(obj.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
-    __ movzx_b(tmp.reg(), FieldOperand(obj.reg(), Map::kInstanceTypeOffset));
-    __ cmp(tmp.reg(), FIRST_JS_OBJECT_TYPE);
-    null.Branch(below);
+  __ CmpObjectType(obj.reg(), FIRST_JS_OBJECT_TYPE, obj.reg());
+  null.Branch(below);
 
-    // As long as JS_FUNCTION_TYPE is the last instance type and it is
-    // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
-    // LAST_JS_OBJECT_TYPE.
-    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-    ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-    __ cmp(tmp.reg(), JS_FUNCTION_TYPE);
-    function.Branch(equal);
-  }
+  // As long as JS_FUNCTION_TYPE is the last instance type and it is
+  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+  // LAST_JS_OBJECT_TYPE.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+  __ CmpInstanceType(obj.reg(), JS_FUNCTION_TYPE);
+  function.Branch(equal);
 
   // Check if the constructor in the map is a function.
   { Result tmp = allocator()->Allocate();
@@ -7030,8 +7065,8 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   // has no indexed interceptor.
   __ CmpObjectType(object.reg(), FIRST_JS_OBJECT_TYPE, tmp1.reg());
   deferred->Branch(below);
-  __ movzx_b(tmp1.reg(), FieldOperand(tmp1.reg(), Map::kBitFieldOffset));
-  __ test(tmp1.reg(), Immediate(KeyedLoadIC::kSlowCaseBitFieldMask));
+  __ test_b(FieldOperand(tmp1.reg(), Map::kBitFieldOffset),
+            KeyedLoadIC::kSlowCaseBitFieldMask);
   deferred->Branch(not_zero);
 
   // Check the object's elements are in fast case.
@@ -8285,10 +8320,10 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       Result temp = allocator()->Allocate();
       ASSERT(temp.is_valid());
       __ mov(temp.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kBitFieldOffset));
-      __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
+      __ test_b(FieldOperand(temp.reg(), Map::kBitFieldOffset),
+                1 << Map::kIsUndetectable);
       destination()->false_target()->Branch(not_zero);
-      __ CmpObjectType(answer.reg(), FIRST_NONSTRING_TYPE, temp.reg());
+      __ CmpInstanceType(temp.reg(), FIRST_NONSTRING_TYPE);
       temp.Unuse();
       answer.Unuse();
       destination()->Split(below);
@@ -8310,9 +8345,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       // It can be an undetectable object.
       frame_->Spill(answer.reg());
       __ mov(answer.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ movzx_b(answer.reg(),
-                 FieldOperand(answer.reg(), Map::kBitFieldOffset));
-      __ test(answer.reg(), Immediate(1 << Map::kIsUndetectable));
+      __ test_b(FieldOperand(answer.reg(), Map::kBitFieldOffset),
+                1 << Map::kIsUndetectable);
       answer.Unuse();
       destination()->Split(not_zero);
 
@@ -8339,14 +8373,15 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       destination()->false_target()->Branch(equal);
 
       // It can be an undetectable object.
-      __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kBitFieldOffset));
-      __ test(map.reg(), Immediate(1 << Map::kIsUndetectable));
+      __ test_b(FieldOperand(map.reg(), Map::kBitFieldOffset),
+                1 << Map::kIsUndetectable);
       destination()->false_target()->Branch(not_zero);
-      __ mov(map.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      // Do a range test for JSObject type.  We can't use
+      // MacroAssembler::IsInstanceJSObjectType, because we are using a
+      // ControlDestination, so we copy its implementation here.
       __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kInstanceTypeOffset));
-      __ cmp(map.reg(), FIRST_JS_OBJECT_TYPE);
-      destination()->false_target()->Branch(below);
-      __ cmp(map.reg(), LAST_JS_OBJECT_TYPE);
+      __ sub(Operand(map.reg()), Immediate(FIRST_JS_OBJECT_TYPE));
+      __ cmp(map.reg(), LAST_JS_OBJECT_TYPE - FIRST_JS_OBJECT_TYPE);
       answer.Unuse();
       map.Unuse();
       destination()->Split(below_equal);
@@ -8766,6 +8801,9 @@ Result CodeGenerator::EmitKeyedLoad() {
     key.ToRegister();
     receiver.ToRegister();
 
+    // If key and receiver are shared registers on the frame, their values will
+    // be automatically saved and restored when going to deferred code.
+    // The result is in elements, which is guaranteed non-shared.
     DeferredReferenceGetKeyedValue* deferred =
         new DeferredReferenceGetKeyedValue(elements.reg(),
                                            receiver.reg(),
@@ -9270,20 +9308,19 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ movzx_b(ecx, FieldOperand(edx, Map::kInstanceTypeOffset));
 
   // Undetectable => false.
-  __ movzx_b(ebx, FieldOperand(edx, Map::kBitFieldOffset));
-  __ and_(ebx, 1 << Map::kIsUndetectable);
+  __ test_b(FieldOperand(edx, Map::kBitFieldOffset),
+            1 << Map::kIsUndetectable);
   __ j(not_zero, &false_result);
 
   // JavaScript object => true.
-  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+  __ CmpInstanceType(edx, FIRST_JS_OBJECT_TYPE);
   __ j(above_equal, &true_result);
 
   // String value => false iff empty.
-  __ cmp(ecx, FIRST_NONSTRING_TYPE);
+  __ CmpInstanceType(edx, FIRST_NONSTRING_TYPE);
   __ j(above_equal, &not_string);
-  __ mov(edx, FieldOperand(eax, String::kLengthOffset));
   ASSERT(kSmiTag == 0);
-  __ test(edx, Operand(edx));
+  __ cmp(FieldOperand(eax, String::kLengthOffset), Immediate(0));
   __ j(zero, &false_result);
   __ jmp(&true_result);
 
@@ -11739,13 +11776,10 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // There is no test for undetectability in strict equality.
 
       // Get the type of the first operand.
-      __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-
       // If the first object is a JS object, we have done pointer comparison.
-      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
       Label first_non_object;
-      __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
       __ j(below, &first_non_object);
 
       // Return non-zero (eax is not zero)
@@ -11756,17 +11790,14 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
       __ bind(&first_non_object);
       // Check for oddballs: true, false, null, undefined.
-      __ cmp(ecx, ODDBALL_TYPE);
+      __ CmpInstanceType(ecx, ODDBALL_TYPE);
       __ j(equal, &return_not_equal);
 
-      __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-
-      __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+      __ CmpObjectType(edx, FIRST_JS_OBJECT_TYPE, ecx);
       __ j(above_equal, &return_not_equal);
 
       // Check for oddballs: true, false, null, undefined.
-      __ cmp(ecx, ODDBALL_TYPE);
+      __ CmpInstanceType(ecx, ODDBALL_TYPE);
       __ j(equal, &return_not_equal);
 
       // Fall through to the general case.
@@ -12408,12 +12439,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ j(zero, &slow, not_taken);
 
   // Check that the left hand is a JS object.
-  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));  // eax - object map
-  __ movzx_b(ecx, FieldOperand(eax, Map::kInstanceTypeOffset));  // ecx - type
-  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-  __ j(below, &slow, not_taken);
-  __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-  __ j(above, &slow, not_taken);
+  __ IsObjectJSObjectType(eax, eax, edx, &slow);
 
   // Get the prototype of the function.
   __ mov(edx, Operand(esp, 1 * kPointerSize));  // 1 ~ return address
@@ -12438,12 +12464,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Check that the function prototype is a JS object.
   __ test(ebx, Immediate(kSmiTagMask));
   __ j(zero, &slow, not_taken);
-  __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-  __ j(below, &slow, not_taken);
-  __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-  __ j(above, &slow, not_taken);
+  __ IsObjectJSObjectType(ebx, ecx, ecx, &slow);
 
   // Register mapping:
   //   eax is object map.
@@ -12638,7 +12659,6 @@ void StringCharCodeAtGenerator::GenerateSlow(
   call_helper.BeforeCall(masm);
   __ push(object_);
   __ push(index_);
-  __ push(result_);
   __ push(index_);  // Consumed by runtime conversion function.
   if (index_flags_ == STRING_INDEX_IS_NUMBER) {
     __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero, 1);
@@ -12652,9 +12672,11 @@ void StringCharCodeAtGenerator::GenerateSlow(
     // have a chance to overwrite it.
     __ mov(scratch_, eax);
   }
-  __ pop(result_);
   __ pop(index_);
   __ pop(object_);
+  // Reload the instance type.
+  __ mov(result_, FieldOperand(object_, HeapObject::kMapOffset));
+  __ movzx_b(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
   call_helper.AfterCall(masm);
   // If index is still not a smi, it must be out of range.
   ASSERT(kSmiTag == 0);
@@ -12877,14 +12899,12 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // ebx: length of resulting flat string as a smi
   // edx: second string
   Label non_ascii_string_add_flat_result;
-  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
   ASSERT(kStringEncodingMask == kAsciiStringTag);
-  __ test(ecx, Immediate(kAsciiStringTag));
+  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
   __ j(zero, &non_ascii_string_add_flat_result);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ test(ecx, Immediate(kAsciiStringTag));
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
   __ j(zero, &string_add_runtime);
 
   __ bind(&make_flat_ascii_string);
@@ -12925,8 +12945,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // edx: second string
   __ bind(&non_ascii_string_add_flat_result);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ and_(ecx, kAsciiStringTag);
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
   __ j(not_zero, &string_add_runtime);
   // Both strings are two byte strings. As they are short they are both
   // flat.
@@ -13488,6 +13507,211 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // tagged as a small integer.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+}
+
+#undef __
+
+#define __ masm.
+
+MemCopyFunction CreateMemCopyFunction() {
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  HandleScope handles;
+  MacroAssembler masm(buffer, static_cast<int>(actual_size));
+
+  // Generated code is put into a fixed, unmovable, buffer, and not into
+  // the V8 heap. We can't, and don't, refer to any relocatable addresses
+  // (e.g. the JavaScript nan-object).
+
+  // 32-bit C declaration function calls pass arguments on stack.
+
+  // Stack layout:
+  // esp[12]: Third argument, size.
+  // esp[8]: Second argument, source pointer.
+  // esp[4]: First argument, destination pointer.
+  // esp[0]: return address
+
+  const int kDestinationOffset = 1 * kPointerSize;
+  const int kSourceOffset = 2 * kPointerSize;
+  const int kSizeOffset = 3 * kPointerSize;
+
+  int stack_offset = 0;  // Update if we change the stack height.
+
+  if (FLAG_debug_code) {
+    __ cmp(Operand(esp, kSizeOffset + stack_offset),
+           Immediate(kMinComplexMemCopy));
+    Label ok;
+    __ j(greater_equal, &ok);
+    __ int3();
+    __ bind(&ok);
+  }
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope enable(SSE2);
+    __ push(edi);
+    __ push(esi);
+    stack_offset += 2 * kPointerSize;
+    Register dst = edi;
+    Register src = esi;
+    Register count = ecx;
+    __ mov(dst, Operand(esp, stack_offset + kDestinationOffset));
+    __ mov(src, Operand(esp, stack_offset + kSourceOffset));
+    __ mov(count, Operand(esp, stack_offset + kSizeOffset));
+
+
+    __ movdqu(xmm0, Operand(src, 0));
+    __ movdqu(Operand(dst, 0), xmm0);
+    __ mov(edx, dst);
+    __ and_(edx, 0xF);
+    __ neg(edx);
+    __ add(Operand(edx), Immediate(16));
+    __ add(dst, Operand(edx));
+    __ add(src, Operand(edx));
+    __ sub(Operand(count), edx);
+
+    // edi is now aligned. Check if esi is also aligned.
+    Label unaligned_source;
+    __ test(Operand(src), Immediate(0x0F));
+    __ j(not_zero, &unaligned_source);
+    {
+      __ IncrementCounter(&Counters::memcopy_aligned, 1);
+      // Copy loop for aligned source and destination.
+      __ mov(edx, count);
+      Register loop_count = ecx;
+      Register count = edx;
+      __ shr(loop_count, 5);
+      {
+        // Main copy loop.
+        Label loop;
+        __ bind(&loop);
+        __ prefetch(Operand(src, 0x20), 1);
+        __ movdqa(xmm0, Operand(src, 0x00));
+        __ movdqa(xmm1, Operand(src, 0x10));
+        __ add(Operand(src), Immediate(0x20));
+
+        __ movdqa(Operand(dst, 0x00), xmm0);
+        __ movdqa(Operand(dst, 0x10), xmm1);
+        __ add(Operand(dst), Immediate(0x20));
+
+        __ dec(loop_count);
+        __ j(not_zero, &loop);
+      }
+
+      // At most 31 bytes to copy.
+      Label move_less_16;
+      __ test(Operand(count), Immediate(0x10));
+      __ j(zero, &move_less_16);
+      __ movdqa(xmm0, Operand(src, 0));
+      __ add(Operand(src), Immediate(0x10));
+      __ movdqa(Operand(dst, 0), xmm0);
+      __ add(Operand(dst), Immediate(0x10));
+      __ bind(&move_less_16);
+
+      // At most 15 bytes to copy. Copy 16 bytes at end of string.
+      __ and_(count, 0xF);
+      __ movdqu(xmm0, Operand(src, count, times_1, -0x10));
+      __ movdqu(Operand(dst, count, times_1, -0x10), xmm0);
+
+      __ pop(esi);
+      __ pop(edi);
+      __ ret(0);
+    }
+    __ Align(16);
+    {
+      // Copy loop for unaligned source and aligned destination.
+      // If source is not aligned, we can't read it as efficiently.
+      __ bind(&unaligned_source);
+      __ IncrementCounter(&Counters::memcopy_unaligned, 1);
+      __ mov(edx, ecx);
+      Register loop_count = ecx;
+      Register count = edx;
+      __ shr(loop_count, 5);
+      {
+        // Main copy loop
+        Label loop;
+        __ bind(&loop);
+        __ prefetch(Operand(src, 0x20), 1);
+        __ movdqu(xmm0, Operand(src, 0x00));
+        __ movdqu(xmm1, Operand(src, 0x10));
+        __ add(Operand(src), Immediate(0x20));
+
+        __ movdqa(Operand(dst, 0x00), xmm0);
+        __ movdqa(Operand(dst, 0x10), xmm1);
+        __ add(Operand(dst), Immediate(0x20));
+
+        __ dec(loop_count);
+        __ j(not_zero, &loop);
+      }
+
+      // At most 31 bytes to copy.
+      Label move_less_16;
+      __ test(Operand(count), Immediate(0x10));
+      __ j(zero, &move_less_16);
+      __ movdqu(xmm0, Operand(src, 0));
+      __ add(Operand(src), Immediate(0x10));
+      __ movdqa(Operand(dst, 0), xmm0);
+      __ add(Operand(dst), Immediate(0x10));
+      __ bind(&move_less_16);
+
+      // At most 15 bytes to copy. Copy 16 bytes at end of string.
+      __ and_(count, 0x0F);
+      __ movdqu(xmm0, Operand(src, count, times_1, -0x10));
+      __ movdqu(Operand(dst, count, times_1, -0x10), xmm0);
+
+      __ pop(esi);
+      __ pop(edi);
+      __ ret(0);
+    }
+
+  } else {
+    __ IncrementCounter(&Counters::memcopy_noxmm, 1);
+    // SSE2 not supported. Unlikely to happen in practice.
+    __ push(edi);
+    __ push(esi);
+    stack_offset += 2 * kPointerSize;
+    __ cld();
+    Register dst = edi;
+    Register src = esi;
+    Register count = ecx;
+    __ mov(dst, Operand(esp, stack_offset + kDestinationOffset));
+    __ mov(src, Operand(esp, stack_offset + kSourceOffset));
+    __ mov(count, Operand(esp, stack_offset + kSizeOffset));
+
+    // Copy the first word.
+    __ mov(eax, Operand(src, 0));
+    __ mov(Operand(dst, 0), eax);
+
+    // Increment src,dstso that dst is aligned.
+    __ mov(edx, dst);
+    __ and_(edx, 0x03);
+    __ neg(edx);
+    __ add(Operand(edx), Immediate(4));  // edx = 4 - (dst & 3)
+    __ add(dst, Operand(edx));
+    __ add(src, Operand(edx));
+    __ sub(Operand(count), edx);
+    // edi is now aligned, ecx holds number of remaning bytes to copy.
+
+    __ mov(edx, count);
+    count = edx;
+    __ shr(ecx, 2);  // Make word count instead of byte count.
+    __ rep_movs();
+
+    // At most 3 bytes left to copy. Copy 4 bytes at end of string.
+    __ and_(count, 3);
+    __ mov(eax, Operand(src, count, times_1, -4));
+    __ mov(Operand(dst, count, times_1, -4), eax);
+
+    __ pop(esi);
+    __ pop(edi);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  // Call the function from C++.
+  return FUNCTION_CAST<MemCopyFunction>(buffer);
 }
 
 #undef __

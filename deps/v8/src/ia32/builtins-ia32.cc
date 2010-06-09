@@ -331,10 +331,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
   // If the type of the result (stored in its map) is less than
   // FIRST_JS_OBJECT_TYPE, it is not an object in the ECMA sense.
-  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-  __ j(greater_equal, &exit, not_taken);
+  __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
+  __ j(above_equal, &exit, not_taken);
 
   // Throw away the result of the constructor invocation and use the
   // on-stack receiver as the result.
@@ -469,11 +467,11 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ cmp(ebx, Factory::undefined_value());
     __ j(equal, &use_global_receiver);
 
+    // We don't use IsObjectJSObjectType here because we jump on success.
     __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
     __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-    __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-    __ j(below, &convert_to_object);
-    __ cmp(ecx, LAST_JS_OBJECT_TYPE);
+    __ sub(Operand(ecx), Immediate(FIRST_JS_OBJECT_TYPE));
+    __ cmp(ecx, LAST_JS_OBJECT_TYPE - FIRST_JS_OBJECT_TYPE);
     __ j(below_equal, &shift_arguments);
 
     __ bind(&convert_to_object);
@@ -617,12 +615,12 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   // If given receiver is already a JavaScript object then there's no
   // reason for converting it.
+  // We don't use IsObjectJSObjectType here because we jump on success.
   __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-  __ j(less, &call_to_object);
-  __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-  __ j(less_equal, &push_receiver);
+  __ sub(Operand(ecx), Immediate(FIRST_JS_OBJECT_TYPE));
+  __ cmp(ecx, LAST_JS_OBJECT_TYPE - FIRST_JS_OBJECT_TYPE);
+  __ j(below_equal, &push_receiver);
 
   // Convert the receiver to an object.
   __ bind(&call_to_object);

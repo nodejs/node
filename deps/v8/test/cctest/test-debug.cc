@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 
+#define USE_NEW_QUERY_CALLBACKS
+
 #include "v8.h"
 
 #include "api.h"
@@ -395,8 +397,9 @@ Handle<FixedArray> GetDebuggedFunctions() {
 
 
 static Handle<Code> ComputeCallDebugBreak(int argc) {
-  CALL_HEAP_FUNCTION(v8::internal::StubCache::ComputeCallDebugBreak(argc),
-                     Code);
+  CALL_HEAP_FUNCTION(
+      v8::internal::StubCache::ComputeCallDebugBreak(argc, Code::CALL_IC),
+      Code);
 }
 
 

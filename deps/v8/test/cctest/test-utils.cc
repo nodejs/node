@@ -79,3 +79,55 @@ TEST(SNPrintF) {
     buffer.Dispose();
   }
 }
+
+
+void TestMemCopy(Vector<byte> src,
+                 Vector<byte> dst,
+                 int source_alignment,
+                 int destination_alignment,
+                 int length_alignment) {
+  memset(dst.start(), 0xFF, dst.length());
+  byte* to = dst.start() + 32 + destination_alignment;
+  byte* from = src.start() + source_alignment;
+  int length = kMinComplexMemCopy + length_alignment;
+  MemCopy(to, from, static_cast<size_t>(length));
+  printf("[%d,%d,%d]\n",
+         source_alignment, destination_alignment, length_alignment);
+  for (int i = 0; i < length; i++) {
+    CHECK_EQ(from[i], to[i]);
+  }
+  CHECK_EQ(0xFF, to[-1]);
+  CHECK_EQ(0xFF, to[length]);
+}
+
+
+
+TEST(MemCopy) {
+  const int N = kMinComplexMemCopy + 128;
+  Vector<byte> buffer1 = Vector<byte>::New(N);
+  Vector<byte> buffer2 = Vector<byte>::New(N);
+
+  for (int i = 0; i < N; i++) {
+    buffer1[i] = static_cast<byte>(i & 0x7F);
+  }
+
+  // Same alignment.
+  for (int i = 0; i < 32; i++) {
+    TestMemCopy(buffer1, buffer2, i, i, i * 2);
+  }
+
+  // Different alignment.
+  for (int i = 0; i < 32; i++) {
+    for (int j = 1; j < 32; j++) {
+      TestMemCopy(buffer1, buffer2, i, (i + j) & 0x1F , 0);
+    }
+  }
+
+  // Different lengths
+  for (int i = 0; i < 32; i++) {
+    TestMemCopy(buffer1, buffer2, 3, 7, i);
+  }
+
+  buffer2.Dispose();
+  buffer1.Dispose();
+}

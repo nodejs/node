@@ -246,7 +246,7 @@ static int DecodeIt(FILE* f,
           if (code->ic_in_loop() == IN_LOOP) {
             out.AddFormatted(", in_loop");
           }
-          if (kind == Code::CALL_IC) {
+          if (kind == Code::CALL_IC || kind == Code::KEYED_CALL_IC) {
             out.AddFormatted(", argc = %d", code->arguments_count());
           }
         } else if (kind == Code::STUB) {

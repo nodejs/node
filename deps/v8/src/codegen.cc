@@ -254,9 +254,27 @@ Handle<Code> CodeGenerator::ComputeCallInitialize(
     // that it needs so we need to ensure it is generated already.
     ComputeCallInitialize(argc, NOT_IN_LOOP);
   }
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitialize(argc, in_loop), Code);
+  CALL_HEAP_FUNCTION(
+      StubCache::ComputeCallInitialize(argc, in_loop, Code::CALL_IC),
+      Code);
 }
 
+
+Handle<Code> CodeGenerator::ComputeKeyedCallInitialize(
+    int argc,
+    InLoopFlag in_loop) {
+  if (in_loop == IN_LOOP) {
+    // Force the creation of the corresponding stub outside loops,
+    // because it may be used when clearing the ICs later - it is
+    // possible for a series of IC transitions to lose the in-loop
+    // information, and the IC clearing code can't generate a stub
+    // that it needs so we need to ensure it is generated already.
+    ComputeKeyedCallInitialize(argc, NOT_IN_LOOP);
+  }
+  CALL_HEAP_FUNCTION(
+      StubCache::ComputeCallInitialize(argc, in_loop, Code::KEYED_CALL_IC),
+      Code);
+}
 
 void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
   int length = declarations->length();

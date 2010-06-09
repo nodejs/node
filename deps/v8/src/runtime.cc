@@ -1638,22 +1638,6 @@ static Object* Runtime_SetCode(Arguments args) {
 }
 
 
-static Object* CharCodeAt(String* subject, Object* index) {
-  uint32_t i = 0;
-  if (!index->ToArrayIndex(&i)) return Heap::nan_value();
-  // Flatten the string.  If someone wants to get a char at an index
-  // in a cons string, it is likely that more indices will be
-  // accessed.
-  Object* flat = subject->TryFlatten();
-  if (flat->IsFailure()) return flat;
-  subject = String::cast(flat);
-  if (i >= static_cast<uint32_t>(subject->length())) {
-    return Heap::nan_value();
-  }
-  return Smi::FromInt(subject->Get(i));
-}
-
-
 static Object* CharFromCode(Object* char_code) {
   uint32_t code;
   if (char_code->ToArrayIndex(&code)) {
@@ -1671,21 +1655,31 @@ static Object* Runtime_StringCharCodeAt(Arguments args) {
 
   CONVERT_CHECKED(String, subject, args[0]);
   Object* index = args[1];
-  return CharCodeAt(subject, index);
-}
+  RUNTIME_ASSERT(index->IsNumber());
 
-
-static Object* Runtime_StringCharAt(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-
-  CONVERT_CHECKED(String, subject, args[0]);
-  Object* index = args[1];
-  Object* code = CharCodeAt(subject, index);
-  if (code == Heap::nan_value()) {
-    return Heap::undefined_value();
+  uint32_t i = 0;
+  if (index->IsSmi()) {
+    int value = Smi::cast(index)->value();
+    if (value < 0) return Heap::nan_value();
+    i = value;
+  } else {
+    ASSERT(index->IsHeapNumber());
+    double value = HeapNumber::cast(index)->value();
+    i = static_cast<uint32_t>(DoubleToInteger(value));
   }
-  return CharFromCode(code);
+
+  // Flatten the string.  If someone wants to get a char at an index
+  // in a cons string, it is likely that more indices will be
+  // accessed.
+  Object* flat = subject->TryFlatten();
+  if (flat->IsFailure()) return flat;
+  subject = String::cast(flat);
+
+  if (i >= static_cast<uint32_t>(subject->length())) {
+    return Heap::nan_value();
+  }
+
+  return Smi::FromInt(subject->Get(i));
 }
 
 
@@ -5344,6 +5338,9 @@ static Object* Runtime_NumberToInteger(Arguments args) {
 }
 
 
+
+
+
 static Object* Runtime_NumberToIntegerMapMinusZero(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -7248,6 +7245,24 @@ static Object* Runtime_CompileString(Arguments args) {
 }
 
 
+static ObjectPair CompileGlobalEval(Handle<String> source,
+                                    Handle<Object> receiver) {
+  // Deal with a normal eval call with a string argument. Compile it
+  // and return the compiled function bound in the local context.
+  Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
+      source,
+      Handle<Context>(Top::context()),
+      Top::context()->IsGlobalContext(),
+      Compiler::DONT_VALIDATE_JSON);
+  if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
+  Handle<JSFunction> compiled = Factory::NewFunctionFromSharedFunctionInfo(
+      shared,
+      Handle<Context>(Top::context()),
+      NOT_TENURED);
+  return MakePair(*compiled, *receiver);
+}
+
+
 static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
   ASSERT(args.length() == 3);
   if (!args[0]->IsJSFunction()) {
@@ -7313,20 +7328,27 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
     return MakePair(*callee, Top::context()->global()->global_receiver());
   }
 
-  // Deal with a normal eval call with a string argument. Compile it
-  // and return the compiled function bound in the local context.
-  Handle<String> source = args.at<String>(1);
-  Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
-      source,
-      Handle<Context>(Top::context()),
-      Top::context()->IsGlobalContext(),
-      Compiler::DONT_VALIDATE_JSON);
-  if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
-  callee = Factory::NewFunctionFromSharedFunctionInfo(
-      shared,
-      Handle<Context>(Top::context()),
-      NOT_TENURED);
-  return MakePair(*callee, args[2]);
+  return CompileGlobalEval(args.at<String>(1), args.at<Object>(2));
+}
+
+
+static ObjectPair Runtime_ResolvePossiblyDirectEvalNoLookup(Arguments args) {
+  ASSERT(args.length() == 3);
+  if (!args[0]->IsJSFunction()) {
+    return MakePair(Top::ThrowIllegalOperation(), NULL);
+  }
+
+  HandleScope scope;
+  Handle<JSFunction> callee = args.at<JSFunction>(0);
+
+  // 'eval' is bound in the global context, but it may have been overwritten.
+  // Compare it to the builtin 'GlobalEval' function to make sure.
+  if (*callee != Top::global_context()->global_eval_fun() ||
+      !args[1]->IsString()) {
+    return MakePair(*callee, Top::context()->global()->global_receiver());
+  }
+
+  return CompileGlobalEval(args.at<String>(1), args.at<Object>(2));
 }
 
 

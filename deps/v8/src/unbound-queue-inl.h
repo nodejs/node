@@ -82,6 +82,14 @@ void UnboundQueue<Record>::Enqueue(const Record& rec) {
   while (first_ != reinterpret_cast<Node*>(divider_)) DeleteFirst();
 }
 
+
+template<typename Record>
+Record* UnboundQueue<Record>::Peek() {
+  ASSERT(divider_ != last_);
+  Node* next = reinterpret_cast<Node*>(divider_)->next;
+  return &next->value;
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_UNBOUND_QUEUE_INL_H_

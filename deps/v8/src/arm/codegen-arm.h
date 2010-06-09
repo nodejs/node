@@ -43,6 +43,7 @@ class RegisterFile;
 
 enum InitState { CONST_INIT, NOT_CONST_INIT };
 enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
+enum GenerateInlineSmi { DONT_GENERATE_INLINE_SMI, GENERATE_INLINE_SMI };
 
 
 // -------------------------------------------------------------------------
@@ -129,24 +130,55 @@ class CodeGenState BASE_EMBEDDED {
   // leaves the code generator with a NULL state.
   explicit CodeGenState(CodeGenerator* owner);
 
-  // Create a code generator state based on a code generator's current
-  // state.  The new state has its own pair of branch labels.
-  CodeGenState(CodeGenerator* owner,
-               JumpTarget* true_target,
-               JumpTarget* false_target);
-
   // Destroy a code generator state and restore the owning code generator's
   // previous state.
-  ~CodeGenState();
+  virtual ~CodeGenState();
 
-  JumpTarget* true_target() const { return true_target_; }
-  JumpTarget* false_target() const { return false_target_; }
+  virtual JumpTarget* true_target() const { return NULL; }
+  virtual JumpTarget* false_target() const { return NULL; }
+
+ protected:
+  inline CodeGenerator* owner() { return owner_; }
+  inline CodeGenState* previous() const { return previous_; }
 
  private:
   CodeGenerator* owner_;
+  CodeGenState* previous_;
+};
+
+
+class ConditionCodeGenState : public CodeGenState {
+ public:
+  // Create a code generator state based on a code generator's current
+  // state.  The new state has its own pair of branch labels.
+  ConditionCodeGenState(CodeGenerator* owner,
+                        JumpTarget* true_target,
+                        JumpTarget* false_target);
+
+  virtual JumpTarget* true_target() const { return true_target_; }
+  virtual JumpTarget* false_target() const { return false_target_; }
+
+ private:
   JumpTarget* true_target_;
   JumpTarget* false_target_;
-  CodeGenState* previous_;
+};
+
+
+class TypeInfoCodeGenState : public CodeGenState {
+ public:
+  TypeInfoCodeGenState(CodeGenerator* owner,
+                       Slot* slot_number,
+                       TypeInfo info);
+  ~TypeInfoCodeGenState();
+
+  virtual JumpTarget* true_target() const { return previous()->true_target(); }
+  virtual JumpTarget* false_target() const {
+    return previous()->false_target();
+  }
+
+ private:
+  Slot* slot_;
+  TypeInfo old_type_info_;
 };
 
 
@@ -216,6 +248,23 @@ class CodeGenerator: public AstVisitor {
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
 
+  TypeInfo type_info(Slot* slot) {
+    int index = NumberOfSlot(slot);
+    if (index == kInvalidSlotNumber) return TypeInfo::Unknown();
+    return (*type_info_)[index];
+  }
+
+  TypeInfo set_type_info(Slot* slot, TypeInfo info) {
+    int index = NumberOfSlot(slot);
+    ASSERT(index >= kInvalidSlotNumber);
+    if (index != kInvalidSlotNumber) {
+      TypeInfo previous_value = (*type_info_)[index];
+      (*type_info_)[index] = info;
+      return previous_value;
+    }
+    return TypeInfo::Unknown();
+  }
+
   void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
 
   static const int kUnknownIntValue = -1;
@@ -225,7 +274,7 @@ class CodeGenerator: public AstVisitor {
   static int InlineRuntimeCallArgumentsCount(Handle<String> name);
 
   // Constants related to patching of inlined load/store.
-  static const int kInlinedKeyedLoadInstructionsAfterPatch = 19;
+  static const int kInlinedKeyedLoadInstructionsAfterPatch = 17;
   static const int kInlinedKeyedStoreInstructionsAfterPatch = 5;
 
  private:
@@ -238,6 +287,10 @@ class CodeGenerator: public AstVisitor {
 
   // Generating deferred code.
   void ProcessDeferred();
+
+  static const int kInvalidSlotNumber = -1;
+
+  int NumberOfSlot(Slot* slot);
 
   // State
   bool has_cc() const  { return cc_reg_ != al; }
@@ -351,10 +404,8 @@ class CodeGenerator: public AstVisitor {
 
   void GenericBinaryOperation(Token::Value op,
                               OverwriteMode overwrite_mode,
+                              GenerateInlineSmi inline_smi,
                               int known_rhs = kUnknownIntValue);
-  void VirtualFrameBinaryOperation(Token::Value op,
-                                   OverwriteMode overwrite_mode,
-                                   int known_rhs = kUnknownIntValue);
   void Comparison(Condition cc,
                   Expression* left,
                   Expression* right,
@@ -397,6 +448,8 @@ class CodeGenerator: public AstVisitor {
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
   static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
+
+  static Handle<Code> ComputeKeyedCallInitialize(int argc, InLoopFlag in_loop);
 
   // Declare global variables and functions in the given array of
   // name/value pairs.
@@ -510,6 +563,8 @@ class CodeGenerator: public AstVisitor {
   Condition cc_reg_;
   CodeGenState* state_;
   int loop_nesting_;
+
+  Vector<TypeInfo>* type_info_;
 
   // Jump targets
   BreakTarget function_return_;

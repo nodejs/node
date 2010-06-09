@@ -296,6 +296,25 @@ Condition MacroAssembler::IsObjectStringType(Register heap_object,
 }
 
 
+void MacroAssembler::IsObjectJSObjectType(Register heap_object,
+                                          Register map,
+                                          Register scratch,
+                                          Label* fail) {
+  mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  IsInstanceJSObjectType(map, scratch, fail);
+}
+
+
+void MacroAssembler::IsInstanceJSObjectType(Register map,
+                                            Register scratch,
+                                            Label* fail) {
+  movzx_b(scratch, FieldOperand(map, Map::kInstanceTypeOffset));
+  sub(Operand(scratch), Immediate(FIRST_JS_OBJECT_TYPE));
+  cmp(scratch, LAST_JS_OBJECT_TYPE - FIRST_JS_OBJECT_TYPE);
+  j(above, fail);
+}
+
+
 void MacroAssembler::FCmp() {
   if (CpuFeatures::IsSupported(CMOV)) {
     fucomip();

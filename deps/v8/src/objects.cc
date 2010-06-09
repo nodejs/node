@@ -2013,19 +2013,25 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
   CustomArguments args(interceptor->data(), receiver, this);
   v8::AccessorInfo info(args.end());
   if (!interceptor->query()->IsUndefined()) {
-    v8::NamedPropertyQuery query =
-        v8::ToCData<v8::NamedPropertyQuery>(interceptor->query());
+    v8::NamedPropertyQueryImpl query =
+        v8::ToCData<v8::NamedPropertyQueryImpl>(interceptor->query());
     LOG(ApiNamedPropertyAccess("interceptor-named-has", *holder_handle, name));
-    v8::Handle<v8::Boolean> result;
+    v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
       VMState state(EXTERNAL);
       result = query(v8::Utils::ToLocal(name_handle), info);
     }
     if (!result.IsEmpty()) {
-      // Convert the boolean result to a property attribute
-      // specification.
-      return result->IsTrue() ? NONE : ABSENT;
+      // Temporary complicated logic, would be removed soon.
+      if (result->IsBoolean()) {
+        // Convert the boolean result to a property attribute
+        // specification.
+        return result->IsTrue() ? NONE : ABSENT;
+      } else {
+        ASSERT(result->IsInt32());
+        return static_cast<PropertyAttributes>(result->Int32Value());
+      }
     }
   } else if (!interceptor->getter()->IsUndefined()) {
     v8::NamedPropertyGetter getter =
@@ -2700,7 +2706,7 @@ Object* JSObject::DefineGetterSetter(String* name,
     return Heap::undefined_value();
   }
 
-  uint32_t index;
+  uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
   if (is_element && IsJSArray()) return Heap::undefined_value();
 
@@ -2958,7 +2964,7 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
 
   // Make the lookup and include prototypes.
   int accessor_index = is_getter ? kGetterIndex : kSetterIndex;
-  uint32_t index;
+  uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     for (Object* obj = this;
          obj != Heap::null_value();
@@ -4844,7 +4850,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
   if (length() <= kMaxCachedArrayIndexLength) {
     Hash();  // force computation of hash code
     uint32_t field = hash_field();
-    if ((field & kIsArrayIndexMask) == 0) return false;
+    if ((field & kIsNotArrayIndexMask) != 0) return false;
     // Isolate the array index form the full hash field.
     *index = (kArrayIndexHashMask & field) >> kHashShift;
     return true;
@@ -4863,10 +4869,14 @@ static inline uint32_t HashField(uint32_t hash,
     // For array indexes mix the length into the hash as an array index could
     // be zero.
     ASSERT(length > 0);
+    ASSERT(length <= String::kMaxArrayIndexSize);
     ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
            (1 << String::kArrayIndexValueBits));
-    result |= String::kIsArrayIndexMask;
+    ASSERT(String::kMaxArrayIndexSize < (1 << String::kArrayIndexValueBits));
+    result &= ~String::kIsNotArrayIndexMask;
     result |= length << String::kArrayIndexHashLengthShift;
+  } else {
+    result |= String::kIsNotArrayIndexMask;
   }
   return result;
 }
@@ -5396,6 +5406,7 @@ const char* Code::Kind2String(Kind kind) {
     case STORE_IC: return "STORE_IC";
     case KEYED_STORE_IC: return "KEYED_STORE_IC";
     case CALL_IC: return "CALL_IC";
+    case KEYED_CALL_IC: return "KEYED_CALL_IC";
     case BINARY_OP_IC: return "BINARY_OP_IC";
   }
   UNREACHABLE();

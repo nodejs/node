@@ -47,7 +47,7 @@ namespace internal {
 
 class TypeInfo {
  public:
-  TypeInfo() { }
+  TypeInfo() : type_(kUnknownType) { }
 
   static inline TypeInfo Unknown();
   // We know it's a primitive type.

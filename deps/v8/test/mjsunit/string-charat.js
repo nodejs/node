@@ -27,52 +27,58 @@
 
 var s = "test";
 
+function getTwoByteString() { return "\u1234t"; }
+function getCons() { return "testtesttesttest" + getTwoByteString() }
+
 var slowIndex1 = { valueOf: function() { return 1; } };
 var slowIndex2 = { toString: function() { return "2"; } };
 var slowIndexOutOfRange = { valueOf: function() { return -1; } };
 
-function basicTest() {
-  assertEquals("t", s.charAt());
-  assertEquals("t", s.charAt("string"));
-  assertEquals("t", s.charAt(null));
-  assertEquals("t", s.charAt(void 0));
-  assertEquals("t", s.charAt(false));
-  assertEquals("e", s.charAt(true));
-  assertEquals("", s.charAt(-1));
-  assertEquals("", s.charAt(4));
-  assertEquals("", s.charAt(slowIndexOutOfRange));
-  assertEquals("", s.charAt(1/0));
-  assertEquals("", s.charAt(-1/0));
-  assertEquals("t", s.charAt(0));
-  assertEquals("t", s.charAt(-0.0));
-  assertEquals("t", s.charAt(0.4));
-  assertEquals("e", s.charAt(slowIndex1));
-  assertEquals("s", s.charAt(slowIndex2));
-  assertEquals("t", s.charAt(3));
-  assertEquals("t", s.charAt(3.4));
-  assertEquals("t", s.charAt(NaN));
+function basicTest(s, len) {
+  assertEquals("t", s().charAt());
+  assertEquals("t", s().charAt("string"));
+  assertEquals("t", s().charAt(null));
+  assertEquals("t", s().charAt(void 0));
+  assertEquals("t", s().charAt(false));
+  assertEquals("e", s().charAt(true));
+  assertEquals("", s().charAt(-1));
+  assertEquals("", s().charAt(len));
+  assertEquals("", s().charAt(slowIndexOutOfRange));
+  assertEquals("", s().charAt(1/0));
+  assertEquals("", s().charAt(-1/0));
+  assertEquals("t", s().charAt(0));
+  assertEquals("t", s().charAt(-0.0));
+  assertEquals("t", s().charAt(-0.1));
+  assertEquals("t", s().charAt(0.4));
+  assertEquals("e", s().charAt(slowIndex1));
+  assertEquals("s", s().charAt(slowIndex2));
+  assertEquals("t", s().charAt(3));
+  assertEquals("t", s().charAt(3.4));
+  assertEquals("t", s().charAt(NaN));
 
-  assertEquals(116, s.charCodeAt());
-  assertEquals(116, s.charCodeAt("string"));
-  assertEquals(116, s.charCodeAt(null));
-  assertEquals(116, s.charCodeAt(void 0));
-  assertEquals(116, s.charCodeAt(false));
-  assertEquals(101, s.charCodeAt(true));
-  assertEquals(116, s.charCodeAt(0));
-  assertEquals(116, s.charCodeAt(-0.0));
-  assertEquals(116, s.charCodeAt(0.4));
-  assertEquals(101, s.charCodeAt(slowIndex1));
-  assertEquals(115, s.charCodeAt(slowIndex2));
-  assertEquals(116, s.charCodeAt(3));
-  assertEquals(116, s.charCodeAt(3.4));
-  assertEquals(116, s.charCodeAt(NaN));
-  assertTrue(isNaN(s.charCodeAt(-1)));
-  assertTrue(isNaN(s.charCodeAt(4)));
-  assertTrue(isNaN(s.charCodeAt(slowIndexOutOfRange)));
-  assertTrue(isNaN(s.charCodeAt(1/0)));
-  assertTrue(isNaN(s.charCodeAt(-1/0)));
+  assertEquals(116, s().charCodeAt());
+  assertEquals(116, s().charCodeAt("string"));
+  assertEquals(116, s().charCodeAt(null));
+  assertEquals(116, s().charCodeAt(void 0));
+  assertEquals(116, s().charCodeAt(false));
+  assertEquals(101, s().charCodeAt(true));
+  assertEquals(116, s().charCodeAt(0));
+  assertEquals(116, s().charCodeAt(-0.0));
+  assertEquals(116, s().charCodeAt(-0.1));
+  assertEquals(116, s().charCodeAt(0.4));
+  assertEquals(101, s().charCodeAt(slowIndex1));
+  assertEquals(115, s().charCodeAt(slowIndex2));
+  assertEquals(116, s().charCodeAt(3));
+  assertEquals(116, s().charCodeAt(3.4));
+  assertEquals(116, s().charCodeAt(NaN));
+  assertTrue(isNaN(s().charCodeAt(-1)));
+  assertTrue(isNaN(s().charCodeAt(len)));
+  assertTrue(isNaN(s().charCodeAt(slowIndexOutOfRange)));
+  assertTrue(isNaN(s().charCodeAt(1/0)));
+  assertTrue(isNaN(s().charCodeAt(-1/0)));
 }
-basicTest();
+basicTest(function() { return s; }, s.length);
+basicTest(getCons, getCons().length);
 
 // Make sure enough of the one-char string cache is filled.
 var alpha = ['@'];
@@ -122,7 +128,8 @@ stealTest();
 
 // Test custom string IC-s.
 for (var i = 0; i < 20; i++) {
-  basicTest();
+  basicTest(function() { return s; }, s.length);
+  basicTest(getCons, getCons().length);
   stealTest();
 }
 

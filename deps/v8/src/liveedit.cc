@@ -794,7 +794,7 @@ class FrameUncookingThreadVisitor : public ThreadVisitor {
 
 static void IterateAllThreads(ThreadVisitor* visitor) {
   Top::IterateThread(visitor);
-  ThreadManager::IterateThreads(visitor);
+  ThreadManager::IterateArchivedThreads(visitor);
 }
 
 // Finds all references to original and replaces them with substitution.
@@ -1386,7 +1386,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   // First check inactive threads. Fail if some functions are blocked there.
   InactiveThreadActivationsChecker inactive_threads_checker(shared_info_array,
                                                             result);
-  ThreadManager::IterateThreads(&inactive_threads_checker);
+  ThreadManager::IterateArchivedThreads(&inactive_threads_checker);
   if (inactive_threads_checker.HasBlockedFunctions()) {
     return result;
   }

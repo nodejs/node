@@ -31,6 +31,7 @@
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+#include "frames-inl.h"
 #include "log-inl.h"
 
 #include "../include/v8-profiler.h"
@@ -49,7 +50,8 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
       ticks_buffer_(sizeof(TickSampleEventRecord),
                     kTickSamplesBufferChunkSize,
                     kTickSamplesBufferChunksCount),
-      enqueue_order_(0) { }
+      enqueue_order_(0) {
+}
 
 
 void ProfilerEventsProcessor::CallbackCreateEvent(Logger::LogEventsAndTags tag,
@@ -181,6 +183,24 @@ void ProfilerEventsProcessor::RegExpCodeCreateEvent(
 }
 
 
+void ProfilerEventsProcessor::AddCurrentStack() {
+  TickSampleEventRecord record;
+  TickSample* sample = &record.sample;
+  sample->state = VMState::current_state();
+  sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
+  sample->frames_count = 0;
+  for (StackTraceFrameIterator it;
+       !it.done() && sample->frames_count < TickSample::kMaxFramesCount;
+       it.Advance()) {
+    JavaScriptFrame* frame = it.frame();
+    sample->stack[sample->frames_count++] =
+        reinterpret_cast<Address>(frame->function());
+  }
+  record.order = enqueue_order_;
+  ticks_from_vm_buffer_.Enqueue(record);
+}
+
+
 bool ProfilerEventsProcessor::ProcessCodeEvent(unsigned* dequeue_order) {
   if (!events_buffer_.IsEmpty()) {
     CodeEventsContainer record;
@@ -205,9 +225,16 @@ bool ProfilerEventsProcessor::ProcessCodeEvent(unsigned* dequeue_order) {
 
 bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
   while (true) {
+    if (!ticks_from_vm_buffer_.IsEmpty()
+        && ticks_from_vm_buffer_.Peek()->order == dequeue_order) {
+      TickSampleEventRecord record;
+      ticks_from_vm_buffer_.Dequeue(&record);
+      generator_->RecordTickSample(record.sample);
+    }
+
     const TickSampleEventRecord* rec =
         TickSampleEventRecord::cast(ticks_buffer_.StartDequeue());
-    if (rec == NULL) return false;
+    if (rec == NULL) return !ticks_from_vm_buffer_.IsEmpty();
     if (rec->order == dequeue_order) {
       generator_->RecordTickSample(rec->sample);
       ticks_buffer_.FinishDequeue();
@@ -416,13 +443,12 @@ void CpuProfiler::StartCollectingProfile(const char* title) {
   if (profiles_->StartProfiling(title, next_profile_uid_++)) {
     StartProcessorIfNotStarted();
   }
+  processor_->AddCurrentStack();
 }
 
 
 void CpuProfiler::StartCollectingProfile(String* title) {
-  if (profiles_->StartProfiling(title, next_profile_uid_++)) {
-    StartProcessorIfNotStarted();
-  }
+  StartCollectingProfile(profiles_->GetName(title));
 }
 
 
@@ -434,10 +460,6 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     generator_ = new ProfileGenerator(profiles_);
     processor_ = new ProfilerEventsProcessor(generator_);
     processor_->Start();
-    // Enable stack sampling.
-    // It is important to have it started prior to logging, see issue 683:
-    // http://code.google.com/p/v8/issues/detail?id=683
-    reinterpret_cast<Sampler*>(Logger::ticker_)->Start();
     // Enumerate stuff we already have in the heap.
     if (Heap::HasBeenSetup()) {
       Logger::LogCodeObjects();
@@ -445,6 +467,8 @@ void CpuProfiler::StartProcessorIfNotStarted() {
       Logger::LogFunctionObjects();
       Logger::LogAccessorCallbacks();
     }
+    // Enable stack sampling.
+    reinterpret_cast<Sampler*>(Logger::ticker_)->Start();
   }
 }
 

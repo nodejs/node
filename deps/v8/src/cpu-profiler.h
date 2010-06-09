@@ -105,6 +105,11 @@ class CodeAliasEventRecord : public CodeEventRecord {
 
 class TickSampleEventRecord BASE_EMBEDDED {
  public:
+  TickSampleEventRecord()
+      : filler(1) {
+    ASSERT(filler != SamplingCircularQueue::kClear);
+  }
+
   // The first machine word of a TickSampleEventRecord must not ever
   // become equal to SamplingCircularQueue::kClear.  As both order and
   // TickSample's first field are not reliable in this sense (order
@@ -119,9 +124,6 @@ class TickSampleEventRecord BASE_EMBEDDED {
   }
 
   INLINE(static TickSampleEventRecord* init(void* value));
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TickSampleEventRecord);
 };
 
 
@@ -159,6 +161,8 @@ class ProfilerEventsProcessor : public Thread {
   void RegExpCodeCreateEvent(Logger::LogEventsAndTags tag,
                              const char* prefix, String* name,
                              Address start, unsigned size);
+  // Puts current stack into tick sample events buffer.
+  void AddCurrentStack();
 
   // Tick sample events are filled directly in the buffer of the circular
   // queue (because the structure is of fixed width, but usually not all
@@ -184,6 +188,7 @@ class ProfilerEventsProcessor : public Thread {
   bool running_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
   SamplingCircularQueue ticks_buffer_;
+  UnboundQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
   unsigned enqueue_order_;
 };
 

@@ -637,6 +637,7 @@ class Assembler : public Malloced {
   void test(Register reg, const Operand& op);
   void test_b(Register reg, const Operand& op);
   void test(const Operand& op, const Immediate& imm);
+  void test_b(const Operand& op, uint8_t imm8);
 
   void xor_(Register dst, int32_t imm32);
   void xor_(Register dst, const Operand& src);
@@ -789,6 +790,15 @@ class Assembler : public Malloced {
 
   void pxor(XMMRegister dst, XMMRegister src);
   void ptest(XMMRegister dst, XMMRegister src);
+
+  // Parallel XMM operations.
+  void movntdqa(XMMRegister src, const Operand& dst);
+  void movntdq(const Operand& dst, XMMRegister src);
+  // Prefetch src position into cache level.
+  // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
+  // non-temporal
+  void prefetch(const Operand& src, int level);
+  // TODO(lrn): Need SFENCE for movnt?
 
   // Debugging
   void Print();

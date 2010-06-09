@@ -48,6 +48,12 @@ MemOperand VirtualFrame::Receiver() {
   return ParameterAt(-1);
 }
 
+
+void VirtualFrame::Forget(int count) {
+  SpillAll();
+  LowerHeight(count);
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_VIRTUAL_FRAME_ARM_INL_H_

@@ -594,6 +594,8 @@ class CodeGenerator: public AstVisitor {
 
   static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
 
+  static Handle<Code> ComputeKeyedCallInitialize(int argc, InLoopFlag in_loop);
+
   // Declare global variables and functions in the given array of
   // name/value pairs.
   void DeclareGlobals(Handle<FixedArray> pairs);

@@ -123,6 +123,7 @@ namespace internal {
   /* How is the generic keyed-load stub used? */                      \
   SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                  \
   SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)            \
+  SC(keyed_load_generic_lookup_cache, V8.KeyedLoadGenericLookupCache) \
   SC(keyed_load_generic_slow, V8.KeyedLoadGenericSlow)                \
   SC(keyed_load_external_array_slow, V8.KeyedLoadExternalArraySlow)   \
   /* Count how much the monomorphic keyed-load stubs are hit. */      \
@@ -156,6 +157,9 @@ namespace internal {
   SC(array_function_runtime, V8.ArrayFunctionRuntime)                 \
   SC(array_function_native, V8.ArrayFunctionNative)                   \
   SC(for_in, V8.ForIn)                                                \
+  SC(memcopy_aligned, V8.MemCopyAligned)                              \
+  SC(memcopy_unaligned, V8.MemCopyUnaligned)                          \
+  SC(memcopy_noxmm, V8.MemCopyNoXMM)                                  \
   SC(enum_cache_hits, V8.EnumCacheHits)                               \
   SC(enum_cache_misses, V8.EnumCacheMisses)                           \
   SC(reloc_info_count, V8.RelocInfoCount)                             \

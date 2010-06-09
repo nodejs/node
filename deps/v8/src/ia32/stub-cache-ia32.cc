@@ -172,6 +172,17 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 }
 
 
+void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
+    MacroAssembler* masm, int index, Register prototype) {
+  // Get the global function with the given index.
+  JSFunction* function = JSFunction::cast(Top::global_context()->get(index));
+  // Load its initial map. The global functions all have initial maps.
+  __ Set(prototype, Immediate(Handle<Map>(function->initial_map())));
+  // Load the prototype from the initial map.
+  __ mov(prototype, FieldOperand(prototype, Map::kPrototypeOffset));
+}
+
+
 void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
                                            Register receiver,
                                            Register scratch,
@@ -1029,6 +1040,20 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 }
 
 
+void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
+  if (kind_ == Code::KEYED_CALL_IC) {
+    __ cmp(Operand(ecx), Immediate(Handle<String>(name)));
+    __ j(not_equal, miss, not_taken);
+  }
+}
+
+
+void CallStubCompiler::GenerateMissBranch() {
+  Handle<Code> ic = ComputeCallMiss(arguments().immediate(), kind_);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
+}
+
+
 Object* CallStubCompiler::CompileCallField(JSObject* object,
                                            JSObject* holder,
                                            int index,
@@ -1041,6 +1066,8 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -1073,8 +1100,7 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(FIELD, name);
@@ -1101,6 +1127,8 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   }
 
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -1219,8 +1247,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   }
 
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1247,6 +1274,8 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   }
 
   Label miss, return_undefined, call_builtin;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -1301,8 +1330,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
                                1);
 
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1326,16 +1354,17 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
 
   Label miss;
   Label index_out_of_range;
+  GenerateNameCheck(name, &miss);
 
   // Check that the maps starting from the prototype haven't changed.
-  GenerateLoadGlobalFunctionPrototype(masm(),
-                                      Context::STRING_FUNCTION_INDEX,
-                                      eax);
+  GenerateDirectLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            eax);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, name, &miss);
 
   Register receiver = ebx;
-  Register index = ecx;
+  Register index = edi;
   Register scratch = edx;
   Register result = eax;
   __ mov(receiver, Operand(esp, (argc + 1) * kPointerSize));
@@ -1364,11 +1393,8 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&miss);
-  // Restore function name in ecx.
-  __ Set(ecx, Immediate(Handle<String>(name)));
 
-  Handle<Code> ic = ComputeCallMiss(argc);
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1393,15 +1419,17 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   Label miss;
   Label index_out_of_range;
 
+  GenerateNameCheck(name, &miss);
+
   // Check that the maps starting from the prototype haven't changed.
-  GenerateLoadGlobalFunctionPrototype(masm(),
-                                      Context::STRING_FUNCTION_INDEX,
-                                      eax);
+  GenerateDirectLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            eax);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, name, &miss);
 
   Register receiver = eax;
-  Register index = ecx;
+  Register index = edi;
   Register scratch1 = ebx;
   Register scratch2 = edx;
   Register result = eax;
@@ -1433,10 +1461,8 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
 
   __ bind(&miss);
   // Restore function name in ecx.
-  __ Set(ecx, Immediate(Handle<String>(name)));
 
-  Handle<Code> ic = ComputeCallMiss(argc);
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1468,6 +1494,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   }
 
   Label miss_in_smi_check;
+
+  GenerateNameCheck(name, &miss_in_smi_check);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -1520,14 +1548,11 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ jmp(&miss);
       } else {
         // Check that the object is a string or a symbol.
-        __ mov(eax, FieldOperand(edx, HeapObject::kMapOffset));
-        __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
-        __ cmp(eax, FIRST_NONSTRING_TYPE);
+        __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, eax);
         __ j(above_equal, &miss, not_taken);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::STRING_FUNCTION_INDEX,
-                                            eax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::STRING_FUNCTION_INDEX, eax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, name, &miss);
       }
@@ -1546,9 +1571,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ j(not_equal, &miss, not_taken);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::NUMBER_FUNCTION_INDEX,
-                                            eax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::NUMBER_FUNCTION_INDEX, eax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, name, &miss);
       }
@@ -1568,9 +1592,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ j(not_equal, &miss, not_taken);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
-        GenerateLoadGlobalFunctionPrototype(masm(),
-                                            Context::BOOLEAN_FUNCTION_INDEX,
-                                            eax);
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::BOOLEAN_FUNCTION_INDEX, eax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, name, &miss);
       }
@@ -1593,8 +1616,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
     FreeSpaceForFastApiCall(masm(), eax);
   }
   __ bind(&miss_in_smi_check);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(function);
@@ -1612,6 +1634,8 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the number of arguments.
   const int argc = arguments().immediate();
@@ -1655,8 +1679,7 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   // Handle load cache miss.
   __ bind(&miss);
-  Handle<Code> ic = ComputeCallMiss(argc);
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(INTERCEPTOR, name);
@@ -1676,6 +1699,8 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the number of arguments.
   const int argc = arguments().immediate();
@@ -1739,8 +1764,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // Handle call cache miss.
   __ bind(&miss);
   __ IncrementCounter(&Counters::call_global_inline_miss, 1);
-  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(NORMAL, name);
