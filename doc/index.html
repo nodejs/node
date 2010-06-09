@@ -33,12 +33,12 @@
 
       <p id="introduction">
         Evented I/O for
-        <a href="http://code.google.com/p/v8/">V8 javascript</a>.
+        <a href="http://code.google.com/p/v8/">V8 JavaScript</a>.
       </p>
 
       <p>
-        An example of a web server written with Node which responds with
-        "Hello World" after waiting two seconds:
+        An example of a web server written in Node which responds with
+        "Hello World" for every request.
       </p>
 
       <pre>
@@ -49,14 +49,14 @@ http.createServer(function (req, res) {
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.end('Hello World\n');
   }, 2000);
-}).listen(8124);
-sys.puts('Server running at http://127.0.0.1:8124/');</pre>
+}).listen(8124, "127.0.0.1");
+sys.puts('Server running at http://127.0.0.1:8124/');
 </pre>
 
       <p>
         To run the server, put the code into a file
         <code>example.js</code> and execute it with the <code>node</code>
-        program
+        program:
       </p>
       <pre class="sh_none">
 % node example.js
@@ -64,25 +64,24 @@ Server running at http://127.0.0.1:8124/</pre>
 
       <p>
         Here is an example of a simple TCP server which listens on port 8124
-        and echos whatever you send it:
+        and echoes whatever you send it:
       </p>
 
       <pre>
-var tcp = require('tcp');
-var server = tcp.createServer(function (socket) {
+var net = require('net');
+net.createServer(function (socket) {
   socket.setEncoding("utf8");
   socket.addListener("connect", function () {
-    socket.write("hello\r\n");
+    socket.write("Echo server\r\n");
   });
   socket.addListener("data", function (data) {
     socket.write(data);
   });
   socket.addListener("end", function () {
-    socket.write("goodbye\r\n");
     socket.end();
   });
-});
-server.listen(8124);</pre>
+}).listen(8124, "127.0.0.1");
+</pre>
 
       <p>
         See the <a href="api.html">API documentation</a> for more
@@ -109,7 +108,7 @@ server.listen(8124);</pre>
         tested on <b>Linux</b>, <b>Macintosh</b>, and <b>Solaris</b>. The
         build system requires Python 2.4 or better.  V8, on which Node is
         built, supports only IA-32 and ARM processors. V8 is included in the
-        Node distribution. To use TLS, OpenSSL are required.
+        Node distribution. To use TLS, OpenSSL is required.
         There are no other dependencies.
       </p>
 
@@ -143,12 +142,11 @@ make install</pre>
 
       <p>
         This is in contrast to today's more common concurrency model where
-        OS threads are employed. Thread-based networking
-        <a href="http://www.sics.se/~joe/apachevsyaws.html">is</a>
-        <a href="http://www.kegel.com/c10k.html">relatively</a>
-        <a href="http://bulk.fefe.de/scalable-networking.pdf">inefficient</a>
-        <!-- TODO needs links -->
-        and very difficult to use.
+        OS threads are employed. Thread-based networking is relatively 
+        inefficient and very difficult to use.  See:
+        <a href="http://www.sics.se/~joe/apachevsyaws.html">this,</a>
+        <a href="http://www.kegel.com/c10k.html">this,</a> and 
+        <a href="http://bulk.fefe.de/scalable-networking.pdf">this.</a>
 
         Node will show much better memory efficiency under high-loads
         <!-- TODO benchmark -->
