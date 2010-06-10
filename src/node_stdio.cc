@@ -207,8 +207,7 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "setRawMode", SetRawMode);
   NODE_SET_METHOD(target, "getColumns", GetColumns);
 
-  struct sigaction sa;
-  bzero(&sa, sizeof(sa));
+  struct sigaction sa = {0};
   sa.sa_handler = HandleSIGCONT;
   sigaction(SIGCONT, &sa, NULL);
 }
