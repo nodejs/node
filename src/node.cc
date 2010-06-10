@@ -1861,7 +1861,6 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("readline"),     String::New(native_readline));
       exports->Set(String::New("sys"),          String::New(native_sys));
       exports->Set(String::New("tcp"),          String::New(native_tcp));
-      exports->Set(String::New("uri"),          String::New(native_uri));
       exports->Set(String::New("url"),          String::New(native_url));
       exports->Set(String::New("utils"),        String::New(native_utils));
       exports->Set(String::New("path"),         String::New(native_path));
