@@ -1913,7 +1913,7 @@ Returns true or false depending on the validity of the server's certificate in t
 
 ### client.getPeerCertificate()
 
-Returns a JSON structure detailing the server's certificate, containing a dictionary with keys for the certificate 'subject', 'issuer', 'valid_from' and 'valid_to'
+Returns a JSON structure detailing the server's certificate, containing a dictionary with keys for the certificate 'subject', 'issuer', 'valid\_from' and 'valid\_to'
 
 
 ## http.ClientRequest
@@ -2241,7 +2241,7 @@ Returns true or false depending on the validity of the peers's certificate in th
 
 ### stream.getPeerCertificate()
 
-Returns a JSON structure detailing the peer's certificate, containing a dictionary with keys for the certificate 'subject', 'issuer', 'valid_from' and 'valid_to'
+Returns a JSON structure detailing the peer's certificate, containing a dictionary with keys for the certificate 'subject', 'issuer', 'valid\_from' and 'valid\_to'
 
 
 ### stream.write(data, encoding='ascii')
