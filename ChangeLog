@@ -8,7 +8,7 @@
   executing "node" without arguments.
 
 * Add a parameter to spawn() that sets the child's stdio file
-  descriptors.
+  descriptors. (Orlando Vazquez)
 
 * Upgrade V8 to 2.2.16, http-parser fixes, upgrade c-ares to 1.7.3.
 
