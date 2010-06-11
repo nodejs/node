@@ -1,6 +1,5 @@
 #include "ares_setup.h"
 
-/* $Id$ */
 
 /* only do the following on windows
  */

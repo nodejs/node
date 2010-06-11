@@ -1,7 +1,6 @@
 #ifndef HEADER_CARES_LIBRARY_INIT_H
 #define HEADER_CARES_LIBRARY_INIT_H
 
-/* $Id$ */
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  * Copyright (C) 2004-2009 by Daniel Stenberg

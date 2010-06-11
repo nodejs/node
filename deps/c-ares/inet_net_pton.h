@@ -1,7 +1,6 @@
 #ifndef __ARES_INET_NET_PTON_H
 #define __ARES_INET_NET_PTON_H
 
-/* $Id$ */
 
 /* Copyright (C) 2005 by Daniel Stenberg
  *

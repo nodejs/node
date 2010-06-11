@@ -1,7 +1,6 @@
 #ifndef __ARES_PRIVATE_H
 #define __ARES_PRIVATE_H
 
-/* $Id$ */
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  * Copyright (C) 2004-2010 by Daniel Stenberg

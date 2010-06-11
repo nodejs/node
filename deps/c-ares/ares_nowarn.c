@@ -1,4 +1,3 @@
-/* $Id$ */
 
 /* Copyright (C) 2010 by Daniel Stenberg
  *

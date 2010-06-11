@@ -1,4 +1,3 @@
-/* $Id$ */
 
 #ifndef ARES_NAMESER_H
 #define ARES_NAMESER_H

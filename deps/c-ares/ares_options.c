@@ -1,4 +1,3 @@
-/* $Id$ */
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  * Copyright (C) 2008-2010 by Daniel Stenberg

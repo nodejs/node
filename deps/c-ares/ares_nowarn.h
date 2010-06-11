@@ -1,7 +1,6 @@
 #ifndef HEADER_CARES_NOWARN_H
 #define HEADER_CARES_NOWARN_H
 
-/* $Id$ */
 
 /* Copyright (C) 2010 by Daniel Stenberg
  *

@@ -44,7 +44,7 @@ The following notes apply to c-ares version 1.7.0 and later.
 * If you intend to distribute an already compiled c-ares library you _MUST_
   also distribute along with it the generated ares_build.h which has been
   used to compile it. Otherwise the library will be of no use for the users of
-  the library that you have built. It is _your_ responsability to provide this
+  the library that you have built. It is _your_ responsibility to provide this
   file. No one at the c-ares project can know how you have built the library.
 
 * File ares_build.h includes platform and configuration dependent info,

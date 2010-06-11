@@ -1,4 +1,3 @@
-/* $Id$ */
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  *
@@ -191,8 +190,8 @@ static int file_lookup(struct ares_addr *addr, struct hostent **host)
     char tmp[MAX_PATH];
     HKEY hkeyHosts;
 
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ, &hkeyHosts)
-        == ERROR_SUCCESS)
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ,
+                     &hkeyHosts) == ERROR_SUCCESS)
     {
       DWORD dwLength = MAX_PATH;
       RegQueryValueEx(hkeyHosts, DATABASEPATH, NULL, NULL, (LPBYTE)tmp,
@@ -241,12 +240,14 @@ static int file_lookup(struct ares_addr *addr, struct hostent **host)
         }
       if (addr->family == AF_INET)
         {
-          if (memcmp((*host)->h_addr, &addr->addrV4, sizeof(addr->addrV4)) == 0)
+          if (memcmp((*host)->h_addr, &addr->addrV4,
+                     sizeof(addr->addrV4)) == 0)
             break;
         }
       else if (addr->family == AF_INET6)
         {
-          if (memcmp((*host)->h_addr, &addr->addrV6, sizeof(addr->addrV6)) == 0)
+          if (memcmp((*host)->h_addr, &addr->addrV6,
+                     sizeof(addr->addrV6)) == 0)
             break;
         }
       ares_free_hostent(*host);

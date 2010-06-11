@@ -1,6 +1,29 @@
   Changelog for the c-ares project
 
+Version 1.7.3 (June 11, 2010)
+
+Fixed:
+
+ o builds on Android
+ o now includes all files necessary to build it (1.7.2 lacked a file)
+
+Version 1.7.2 (June 10, 2010)
+
+Changed:
+
+ o Added ares_parse_mx_reply()
+
+Fixed:
+
+ o ares_init: Last, not first instance of domain or search should win
+ o improve alternative definition of bool
+ o fix VS2010 compiler warnings
+
+
 Version 1.7.1 (Mar 23, 2010)
+
+* May 31, 2010 (Jakub Hrozek)
+- Use the last instance of domain/search, not the first one
 
 * March 23, 2010 (Daniel Stenberg)
 - We switched from CVS to git. See http://github.com/bagder/c-ares
@@ -27,7 +50,7 @@ Version 1.7.1 (Mar 23, 2010)
   functions do not support IPv6 name servers. This implies that if the user
   is capable of defining or providing an IPv6 name server, and the app is
   using ares_init_options() or ares_save_options() at some point to handle
-  the name servers, the app will likely loose IPv6 name servers.
+  the name servers, the app will likely lose IPv6 name servers.
 
 * January 28, 2010 (Daniel Stenberg)
 - Tommie Gannert pointed out a silly bug in ares_process_fd() since it didn't

@@ -1,4 +1,3 @@
-/* $Id$ */
 
 /* Copyright 2005 by Dominick Meglio
  *
@@ -81,7 +80,8 @@ struct nameinfo_query {
         (sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"))
 #endif
 
-static void nameinfo_callback(void *arg, int status, int timeouts, struct hostent *host);
+static void nameinfo_callback(void *arg, int status, int timeouts,
+                              struct hostent *host);
 static char *lookup_service(unsigned short port, int flags,
                             char *buf, size_t buflen);
 #ifdef HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID
@@ -202,7 +202,8 @@ void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
     }
 }
 
-static void nameinfo_callback(void *arg, int status, int timeouts, struct hostent *host)
+static void nameinfo_callback(void *arg, int status, int timeouts,
+                              struct hostent *host)
 {
   struct nameinfo_query *niquery = (struct nameinfo_query *) arg;
   char srvbuf[33];
@@ -221,8 +222,8 @@ static void nameinfo_callback(void *arg, int status, int timeouts, struct hosten
             service = lookup_service(niquery->addr.addr6.sin6_port,
                                      niquery->flags, srvbuf, sizeof(srvbuf));
         }
-      /* NOFQDN means we have to strip off the domain name portion.
-         We do this by determining our own domain name, then searching the string
+      /* NOFQDN means we have to strip off the domain name portion.  We do
+         this by determining our own domain name, then searching the string
          for this domain name and removing it.
        */
 #ifdef HAVE_GETHOSTNAME
@@ -239,7 +240,8 @@ static void nameinfo_callback(void *arg, int status, int timeouts, struct hosten
              }
         }
 #endif
-      niquery->callback(niquery->arg, ARES_SUCCESS, niquery->timeouts, (char *)(host->h_name),
+      niquery->callback(niquery->arg, ARES_SUCCESS, niquery->timeouts,
+                        (char *)(host->h_name),
                         service);
       return;
     }
@@ -248,12 +250,15 @@ static void nameinfo_callback(void *arg, int status, int timeouts, struct hosten
     {
       char ipbuf[IPBUFSIZ];
       if (niquery->family == AF_INET)
-        ares_inet_ntop(AF_INET, &niquery->addr.addr4.sin_addr, ipbuf, IPBUFSIZ);
+        ares_inet_ntop(AF_INET, &niquery->addr.addr4.sin_addr, ipbuf,
+                       IPBUFSIZ);
       else
         {
-          ares_inet_ntop(AF_INET6, &niquery->addr.addr6.sin6_addr, ipbuf, IPBUFSIZ);
+          ares_inet_ntop(AF_INET6, &niquery->addr.addr6.sin6_addr, ipbuf,
+                         IPBUFSIZ);
 #ifdef HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID
-          append_scopeid(&niquery->addr.addr6, niquery->flags, ipbuf, sizeof(ipbuf));
+          append_scopeid(&niquery->addr.addr6, niquery->flags, ipbuf,
+                         sizeof(ipbuf));
 #endif
         }
       /* They want a service too */
@@ -266,7 +271,8 @@ static void nameinfo_callback(void *arg, int status, int timeouts, struct hosten
             service = lookup_service(niquery->addr.addr6.sin6_port,
                                      niquery->flags, srvbuf, sizeof(srvbuf));
         }
-      niquery->callback(niquery->arg, ARES_SUCCESS, niquery->timeouts, ipbuf, service);
+      niquery->callback(niquery->arg, ARES_SUCCESS, niquery->timeouts, ipbuf,
+                        service);
       return;
     }
   niquery->callback(niquery->arg, status, niquery->timeouts, NULL, NULL);
@@ -301,10 +307,12 @@ static char *lookup_service(unsigned short port, int flags,
           sep = &se;
           memset(tmpbuf, 0, sizeof(tmpbuf));
 #if GETSERVBYPORT_R_ARGS == 6
-          if (getservbyport_r(port, proto, &se, (void *)tmpbuf, sizeof(tmpbuf), &sep) != 0)
+          if (getservbyport_r(port, proto, &se, (void *)tmpbuf,
+                              sizeof(tmpbuf), &sep) != 0)
             sep = NULL;
 #elif GETSERVBYPORT_R_ARGS == 5
-          sep = getservbyport_r(port, proto, &se, (void *)tmpbuf, sizeof(tmpbuf));
+          sep = getservbyport_r(port, proto, &se, (void *)tmpbuf,
+                                sizeof(tmpbuf));
 #elif GETSERVBYPORT_R_ARGS == 4
           if (getservbyport_r(port, proto, &se, (void *)tmpbuf) != 0)
             sep = NULL;
@@ -350,7 +358,8 @@ static void append_scopeid(struct sockaddr_in6 *addr6, unsigned int flags,
   char fmt_lu[] = "%lu";
   char tmpbuf[IF_NAMESIZE + 2];
   size_t bufl;
-  char *fmt = (sizeof(addr6->sin6_scope_id) > sizeof(unsigned int))?fmt_lu:fmt_u;
+  char *fmt = (sizeof(addr6->sin6_scope_id) > sizeof(unsigned int))?
+    fmt_lu:fmt_u;
 
   tmpbuf[0] = '%';
 

@@ -1,4 +1,3 @@
-/* $Id$ */
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  * Copyright (C) 2007-2010 by Daniel Stenberg
@@ -69,6 +68,10 @@
 #include "inet_net_pton.h"
 #include "ares_library_init.h"
 #include "ares_private.h"
+
+#ifdef ANDROID
+#include <sys/system_properties.h>
+#endif
 
 #ifdef WATT32
 #undef WIN32  /* Redefined in MingW/MSVC headers */
@@ -825,6 +828,12 @@ DhcpNameServer
       servers[i].addr.addrV4.s_addr = htonl(def_nameservers[i]);
   status = ARES_EOF;
 
+#elif defined(ANDROID)
+  char value[PROP_VALUE_MAX]="";
+  __system_property_get("net.dns1", value);
+  status = config_nameserver(&servers, &nservers, value);
+  if (status == ARES_SUCCESS)
+    status = ARES_EOF;
 #else
   {
     char *p;
@@ -840,11 +849,11 @@ DhcpNameServer
     if (fp) {
       while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
       {
-        if ((p = try_config(line, "domain")) && channel->ndomains == -1)
+        if ((p = try_config(line, "domain")))
           status = config_domain(channel, p);
         else if ((p = try_config(line, "lookup")) && !channel->lookups)
           status = config_lookup(channel, p, "bind", "file");
-        else if ((p = try_config(line, "search")) && channel->ndomains == -1)
+        else if ((p = try_config(line, "search")))
           status = set_search(channel, p);
         else if ((p = try_config(line, "nameserver")) && channel->nservers == -1)
           status = config_nameserver(&servers, &nservers, p);

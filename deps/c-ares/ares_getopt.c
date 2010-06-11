@@ -3,7 +3,6 @@
  * on 2007-04-11.  Lifted from version 5.2 of the 'Open Mash' project with
  * the modified BSD license, BSD license without the advertising clause.
  *
- * $Id$
  */
 
 /*

@@ -1,18 +1,12 @@
-This is what's new and changed in the c-ares 1.7.1 release:
-
-Changed:
-
- o added IPv6 name servers support
+c-ares version 1.7.3
 
 Fixed:
 
- o closing of sockets on Windows systems
- o MSVC deprecated compiler options warnings
- o ares_process_fd() didn't check broken connections
+ o builds on Android
+ o now includes all files necessary to build it (1.7.2 lacked a file)
 
 Thanks go to these friendly people for their efforts and contributions:
 
- Ingmar Runge, Laszlo Tamas Szabo, Yang Tse, Tommie Gannert, Gregor Jasny,
- Phil Blundell, Cedric Bail, Jakub Hrozek
+ Yang Tse, Bogdan Vatra
 
 Have fun!

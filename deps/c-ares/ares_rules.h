@@ -1,7 +1,6 @@
 #ifndef __CARES_RULES_H
 #define __CARES_RULES_H
 
-/* $Id$ */
 
 /* Copyright (C) 2009 by Daniel Stenberg et al
  *

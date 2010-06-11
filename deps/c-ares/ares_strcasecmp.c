@@ -1,5 +1,4 @@
 
-/* $Id$ */
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  *

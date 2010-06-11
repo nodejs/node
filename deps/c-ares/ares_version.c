@@ -1,4 +1,3 @@
-/* $Id$ */
 
 #include "ares_setup.h"
 #include "ares.h"

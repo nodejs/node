@@ -1,4 +1,3 @@
-/* $Id$ */
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  *
@@ -151,8 +150,8 @@ static void next_lookup(struct host_query *hquery, int status_code)
           }
           else {
             hquery->sent_family = AF_INET;
-            ares_search(hquery->channel, hquery->name, C_IN, T_A, host_callback,
-                        hquery);
+            ares_search(hquery->channel, hquery->name, C_IN, T_A,
+                        host_callback, hquery);
           }
           return;
 
@@ -195,9 +194,10 @@ static void host_callback(void *arg, int status, int timeouts,
         {
           status = ares_parse_aaaa_reply(abuf, alen, &host, NULL, NULL);
           if (status == ARES_ENODATA || status == ARES_EBADRESP) {
-            /* The query returned something but either there were no AAAA records (e.g. just CNAME) 
-               or the response was malformed.  Try looking up A instead.  
-               We should possibly limit this attempt-next logic to AF_UNSPEC lookups only. */
+            /* The query returned something but either there were no AAAA
+               records (e.g. just CNAME) or the response was malformed.  Try
+               looking up A instead.  We should possibly limit this
+               attempt-next logic to AF_UNSPEC lookups only. */
             hquery->sent_family = AF_INET;
             ares_search(hquery->channel, hquery->name, C_IN, T_A,
                         host_callback, hquery);
@@ -208,10 +208,12 @@ static void host_callback(void *arg, int status, int timeouts,
         }
       end_hquery(hquery, status, host);
     }
-  else if ((status == ARES_ENODATA || status == ARES_EBADRESP || status == ARES_ETIMEOUT) && hquery->sent_family == AF_INET6)
+  else if ((status == ARES_ENODATA || status == ARES_EBADRESP ||
+            status == ARES_ETIMEOUT) && hquery->sent_family == AF_INET6)
     {
-      /* The AAAA query yielded no useful result.  Now look up an A instead.  
-         We should possibly limit this attempt-next logic to AF_UNSPEC lookups only. */
+      /* The AAAA query yielded no useful result.  Now look up an A instead.
+         We should possibly limit this attempt-next logic to AF_UNSPEC lookups
+         only. */
       hquery->sent_family = AF_INET;
       ares_search(hquery->channel, hquery->name, C_IN, T_A, host_callback,
                   hquery);
@@ -235,8 +237,8 @@ static void end_hquery(struct host_query *hquery, int status,
 /* If the name looks like an IP address, fake up a host entry, end the
  * query immediately, and return true.  Otherwise return false.
  */
-static int fake_hostent(const char *name, int family, ares_host_callback callback,
-                        void *arg)
+static int fake_hostent(const char *name, int family,
+                        ares_host_callback callback, void *arg)
 {
   struct hostent hostent;
   char *aliases[1] = { NULL };
@@ -346,8 +348,8 @@ static int file_lookup(const char *name, int family, struct hostent **host)
     char tmp[MAX_PATH];
     HKEY hkeyHosts;
 
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ, &hkeyHosts)
-        == ERROR_SUCCESS)
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ,
+                     &hkeyHosts) == ERROR_SUCCESS)
     {
       DWORD dwLength = MAX_PATH;
       RegQueryValueEx(hkeyHosts, DATABASEPATH, NULL, NULL, (LPBYTE)tmp,
@@ -408,8 +410,8 @@ static int file_lookup(const char *name, int family, struct hostent **host)
   return status;
 }
 
-static void sort_addresses(struct hostent *host, const struct apattern *sortlist,
-                           int nsort)
+static void sort_addresses(struct hostent *host,
+                           const struct apattern *sortlist, int nsort)
 {
   struct in_addr a1, a2;
   int i1, i2, ind1, ind2;
@@ -464,8 +466,8 @@ static int get_address_index(const struct in_addr *addr,
   return i;
 }
 
-static void sort6_addresses(struct hostent *host, const struct apattern *sortlist,
-                           int nsort)
+static void sort6_addresses(struct hostent *host,
+                            const struct apattern *sortlist, int nsort)
 {
   struct ares_in6_addr a1, a2;
   int i1, i2, ind1, ind2;
