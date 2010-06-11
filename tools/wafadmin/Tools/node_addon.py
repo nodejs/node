@@ -41,6 +41,9 @@ def detect(conf):
   found = os.path.exists(join(prefix, "bin/node"))
   conf.check_message('node prefix', '', found, prefix)
 
+  ## On Cygwin we need to link to the generated symbol definitions
+  if Options.platform.startswith('cygwin'): conf.env['LIB_NODE'] = 'node'
+
   ## On Mac OSX we need to use mac bundles
   if Options.platform == 'darwin': conf.check_tool('osx')
 

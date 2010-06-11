@@ -486,6 +486,12 @@ def build(bld):
     node.add_objects += ' cares '
     node.includes += '  deps/c-ares deps/c-ares/' + bld.env['DEST_OS'] + '-' + bld.env['DEST_CPU']
 
+  if sys.platform.startswith('cygwin'):
+    bld.env.append_value('LINKFLAGS', '-Wl,--export-all-symbols')
+    bld.env.append_value('LINKFLAGS', '-Wl,--out-implib,default/libnode.dll.a')
+    bld.env.append_value('LINKFLAGS', '-Wl,--output-def,default/libnode.def')
+    bld.install_files('${PREFIX}/lib', "build/default/libnode.*")
+
   def subflags(program):
     if os.path.exists(join(cwd, ".git")):
       actual_version=cmd_output("git describe").strip()
