@@ -3,7 +3,7 @@ maintained libraries.  The externally maintained libraries used by Node
 are:
 
   - v8, located under deps/v8, which is copyrighted by the Google, Inc.
-    v8 has an MIT license. 
+    v8 has a BSD license.
 
   - libev, located under deps/libev, and libeio, located at deps/libeio. 
     This code is copyrighted by Marc Alexander Lehmann. Both are dually
@@ -19,7 +19,15 @@ are:
     the Massachusetts Institute of Technology; authored by Greg Hudson,
     Daniel Stenberg and others. Released under an MIT license.
 
-Other external libraries are my own and all use the same license as Node.
+  - Node, optionally, dynmaically links to OpenSSL, cryptographic software
+    written by Eric Young (eay@cryptsoft.com) to provide SSL/TLS encryption.
+    OpenSSL is copyrighted by The OpenSSL Project.  OpenSSL has a simple
+    Apache-style license. OpenSSL is not included in the Node distribution.
+    See http://openssl.org/ for more information.
+
+  - HTTP Parser, located at deps/http_parser, is a small C library
+    copyrighted by Ryan Lienhart Dahl and has a MIT license.
+
 
 Node's license follows:
 
