@@ -45,10 +45,8 @@
 var sys = require('sys'),
    http = require('http');
 http.createServer(function (req, res) {
-  setTimeout(function () {
-    res.writeHead(200, {'Content-Type': 'text/plain'});
-    res.end('Hello World\n');
-  }, 2000);
+  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.end('Hello World\n');
 }).listen(8124, "127.0.0.1");
 sys.puts('Server running at http://127.0.0.1:8124/');
 </pre>
@@ -129,15 +127,13 @@ make install</pre>
 
       <p>
         Node's goal is to provide an easy way to build scalable network
-        programs. In the above example, the two second delay does not
-        prevent the server from handling new requests. Node tells the
+        programs. In the "hello world" web server example above, many
+        client connections can be handled concurrently.  Node tells the
         operating system (through <code>epoll</code>, <code>kqueue</code>,
         <code class="sh_none">/dev/poll</code>, or <code>select</code>)
-        that it should be notified when the 2 seconds are up or if a new
-        connection is made&mdash;then it goes to sleep. If someone new
-        connects, then it executes the callback, if the timeout expires,
-        it executes the inner callback. Each connection is only a small
-        heap allocation.
+        that it should be notified when a new connection is made, and 
+        then it goes to sleep. If someone new connects, then it executes
+        the callback.  Each connection is only a small heap allocation.
       </p>
 
       <p>
@@ -196,12 +192,16 @@ make install</pre>
         passing.  In future versions, Node will be able to fork new
         processes (using the <a
         href="http://www.whatwg.org/specs/web-workers/current-work/"> Web
-        Workers API </a>), but this is something that fits well into the
-        current design.
+        Workers API </a>) which fits well into the current design.
       </p>
 
       <p>
-        See also: <a href="http://s3.amazonaws.com/four.livejournal/20091117/jsconf.pdf">slides</a> from jsconf.
+        See also:
+        <ul>
+          <li><a href="http://s3.amazonaws.com/four.livejournal/20091117/jsconf.pdf">slides</a> from JSConf 2009</li>
+          <li><a href="http://nodejs.org/jsconf2010.pdf">slides</a> from JSConf 2010</li>
+          <li><a href="http://www.yuiblog.com/blog/2010/05/20/video-dahl/">video</a> from a talk at Yahoo in May 2010</li>
+        </ul>
       </p>
 
 
