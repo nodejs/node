@@ -199,6 +199,8 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   }
 
   target->Set(String::NewSymbol("stdoutFD"), Integer::New(STDOUT_FILENO));
+  target->Set(String::NewSymbol("stderrFD"), Integer::New(STDERR_FILENO));
+  target->Set(String::NewSymbol("stdinFD"), Integer::New(STDIN_FILENO));
 
   NODE_SET_METHOD(target, "writeError", WriteError);
   NODE_SET_METHOD(target, "openStdin", OpenStdin);
