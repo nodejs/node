@@ -1992,7 +1992,6 @@ class Hash : public ObjectWrap {
 
     t->InstanceTemplate()->SetInternalFieldCount(1);
 
-    NODE_SET_PROTOTYPE_METHOD(t, "init", HashInit);
     NODE_SET_PROTOTYPE_METHOD(t, "update", HashUpdate);
     NODE_SET_PROTOTYPE_METHOD(t, "digest", HashDigest);
 
@@ -2010,7 +2009,6 @@ class Hash : public ObjectWrap {
     EVP_DigestInit_ex(&mdctx, md, NULL);
     initialised = true;
     return true;
-    
   }
 
   int HashUpdate(char* data, int len) {
@@ -2033,29 +2031,19 @@ class Hash : public ObjectWrap {
 
  protected:
 
-  static Handle<Value>
-  New (const Arguments& args)
-  {
-    HandleScope scope;
-
-    Hash *hash = new Hash();
-    hash->Wrap(args.This());
-    return args.This();
-  }
-
-  static Handle<Value>
-  HashInit(const Arguments& args) {
-    Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
-
+  static Handle<Value> New (const Arguments& args) {
     HandleScope scope;
 
     if (args.Length() == 0 || !args[0]->IsString()) {
       return ThrowException(String::New("Must give hashtype string as argument"));
     }
 
+    Hash *hash = new Hash();
+    hash->Wrap(args.This());
+
     String::Utf8Value hashType(args[0]->ToString());
 
-    bool r = hash->HashInit(*hashType);
+    hash->HashInit(*hashType);
 
     return args.This();
   }

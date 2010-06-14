@@ -31,7 +31,7 @@ var a3 = crypto.createHash("sha512").update("Test123").digest(); // binary
 
 // Test multiple updates to same hash
 var h1 = crypto.createHash("sha1").update("Test123").digest("hex");
-var h2 = (new crypto.Hash).init("sha1").update("Test").update("123").digest("hex");
+var h2 = crypto.createHash("sha1").update("Test").update("123").digest("hex");
 assert.equal(h1, h2, "multipled updates");
 
 
