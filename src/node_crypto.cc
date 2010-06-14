@@ -2048,11 +2048,10 @@ class Hash : public ObjectWrap {
     return args.This();
   }
 
-  static Handle<Value>
-  HashUpdate(const Arguments& args) {
-    Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
-
+  static Handle<Value> HashUpdate(const Arguments& args) {
     HandleScope scope;
+
+    Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
 
     enum encoding enc = ParseEncoding(args[1]);
     ssize_t len = DecodeBytes(args[0], enc);
@@ -2067,6 +2066,8 @@ class Hash : public ObjectWrap {
     assert(written == len);
 
     int r = hash->HashUpdate(buf, len);
+
+    delete[] buf;
 
     return args.This();
   }
