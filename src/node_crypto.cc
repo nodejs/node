@@ -636,7 +636,7 @@ static void HexEncode(unsigned char *md_value,
                       char** md_hexdigest,
                       int* md_hex_len) {
   *md_hex_len = (2*(md_len));
-  *md_hexdigest = (char *) malloc(*md_hex_len + 1);
+  *md_hexdigest = new char[*md_hex_len + 1];
   for (int i = 0; i < md_len; i++) {
     sprintf((char *)(*md_hexdigest + (i*2)), "%02x",  md_value[i]);
   }
@@ -650,7 +650,7 @@ static void HexDecode(unsigned char *input,
                       char** buf64,
                       int* buf64_len) {
   *buf64_len = (length/2);
-  *buf64 = (char*) malloc(length/2 + 1);
+  *buf64 = new char[length/2 + 1];
   char *b = *buf64;
   for(int i = 0; i < length-1; i+=2) {
     b[i/2]  = (hex2i(input[i])<<4) | (hex2i(input[i+1]));
@@ -671,7 +671,7 @@ void base64(unsigned char *input, int length, char** buf64, int* buf64_len) {
   BIO_get_mem_ptr(b64, &bptr);
 
   *buf64_len = bptr->length;
-  *buf64 = (char *)malloc(*buf64_len+1);
+  *buf64 = new char[*buf64_len+1];
   memcpy(*buf64, bptr->data, bptr->length);
   char* b = *buf64;
   b[bptr->length] = 0;
@@ -685,7 +685,7 @@ void *unbase64(unsigned char *input,
                char** buffer,
                int* buffer_len) {
   BIO *b64, *bmem;
-  *buffer = (char *)malloc(length);
+  *buffer = new char[length];
   memset(*buffer, 0, length);
 
   b64 = BIO_new(BIO_f_base64());
@@ -875,7 +875,7 @@ class Cipher : public ObjectWrap {
   int CipherUpdate(char* data, int len, unsigned char** out, int* out_len) {
     if (!initialised_) return 0;
     *out_len=len+EVP_CIPHER_CTX_block_size(&ctx);
-    *out=(unsigned char*)malloc(*out_len);
+    *out= new unsigned char[*out_len];
 
     EVP_CipherUpdate(&ctx, *out, out_len, (unsigned char*)data, len);
     return 1;
@@ -883,7 +883,7 @@ class Cipher : public ObjectWrap {
 
   int CipherFinal(unsigned char** out, int *out_len) {
     if (!initialised_) return 0;
-    *out = (unsigned char*) malloc(EVP_CIPHER_CTX_block_size(&ctx));
+    *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx)];
     EVP_CipherFinal(&ctx,*out,out_len);
     EVP_CIPHER_CTX_cleanup(&ctx);
     initialised_ = false;
@@ -927,6 +927,8 @@ class Cipher : public ObjectWrap {
 
     bool r = cipher->CipherInit(*cipherType, key_buf, key_buf_len);
 
+    delete [] key_buf;
+
     return args.This();
   }
 
@@ -967,6 +969,9 @@ class Cipher : public ObjectWrap {
     	
     bool r = cipher->CipherInitIv(*cipherType, key_buf,key_len,iv_buf,iv_len);
 
+    delete [] key_buf;
+    delete [] iv_buf;
+
     return args.This();
   }
 
@@ -992,6 +997,8 @@ class Cipher : public ObjectWrap {
     int out_len=0;
     int r = cipher->CipherUpdate(buf, len,&out,&out_len);
 
+    delete [] buf;
+
     Local<Value> outString;
     if (out_len==0) outString=String::New("");
     else {
@@ -1006,17 +1013,19 @@ class Cipher : public ObjectWrap {
 	        // Hex encoding
 	        HexEncode(out, out_len, &out_hexdigest, &out_hex_len);
 	        outString = Encode(out_hexdigest, out_hex_len, BINARY);
-	        free(out_hexdigest);
+	        delete [] out_hexdigest;
 	      } else if (strcasecmp(*encoding, "base64") == 0) {
 		// Base64 encoding
 		// Check to see if we need to add in previous base64 overhang
 		if (cipher->incomplete_base64!=NULL){
-		  unsigned char* complete_base64 = (unsigned char *)malloc(out_len+cipher->incomplete_base64_len+1);
+		  unsigned char* complete_base64 = new unsigned char[out_len+cipher->incomplete_base64_len+1];
 		  memcpy(complete_base64, cipher->incomplete_base64, cipher->incomplete_base64_len);
 		  memcpy(&complete_base64[cipher->incomplete_base64_len], out, out_len);
-		  free(out);
-		  free(cipher->incomplete_base64);
+		  delete [] out;
+
+      delete [] cipher->incomplete_base64;
 		  cipher->incomplete_base64=NULL;
+
 		  out=complete_base64;
 		  out_len += cipher->incomplete_base64_len;
 		}
@@ -1024,7 +1033,7 @@ class Cipher : public ObjectWrap {
 		// Check to see if we need to trim base64 stream
 		if (out_len%3!=0){
 		  cipher->incomplete_base64_len = out_len%3;
-		  cipher->incomplete_base64 = (char *)malloc(cipher->incomplete_base64_len+1);
+		  cipher->incomplete_base64 = new char[cipher->incomplete_base64_len+1];
 		  memcpy(cipher->incomplete_base64, &out[out_len-cipher->incomplete_base64_len], cipher->incomplete_base64_len);
 		  out_len -= cipher->incomplete_base64_len;
 		  out[out_len]=0;
@@ -1032,7 +1041,7 @@ class Cipher : public ObjectWrap {
 
 	        base64(out, out_len, &out_hexdigest, &out_hex_len);
 	        outString = Encode(out_hexdigest, out_hex_len, BINARY);
-	        free(out_hexdigest);
+	        delete [] out_hexdigest;
 	      } else if (strcasecmp(*encoding, "binary") == 0) {
 	        outString = Encode(out, out_len, BINARY);
 	      } else {
@@ -1041,7 +1050,7 @@ class Cipher : public ObjectWrap {
 	      }
 	    }
     }
-    if (out) free(out);
+    if (out) delete [] out;
     return scope.Close(outString);
   }
 
@@ -1071,11 +1080,11 @@ class Cipher : public ObjectWrap {
         // Hex encoding
         HexEncode(out_value, out_len, &out_hexdigest, &out_hex_len);
         outString = Encode(out_hexdigest, out_hex_len, BINARY);
-        free(out_hexdigest);
+        delete [] out_hexdigest;
       } else if (strcasecmp(*encoding, "base64") == 0) {
         base64(out_value, out_len, &out_hexdigest, &out_hex_len);
         outString = Encode(out_hexdigest, out_hex_len, BINARY);
-        free(out_hexdigest);
+        delete [] out_hexdigest;
       } else if (strcasecmp(*encoding, "binary") == 0) {
         outString = Encode(out_value, out_len, BINARY);
       } else {
@@ -1083,7 +1092,7 @@ class Cipher : public ObjectWrap {
                         "can be binary, hex or base64\n");
       }
     }
-    free(out_value);
+    delete [] out_value;
     return scope.Close(outString);
   }
 
@@ -1194,7 +1203,7 @@ class Decipher : public ObjectWrap {
   int DecipherUpdate(char* data, int len, unsigned char** out, int* out_len) {
     if (!initialised_) return 0;
     *out_len=len+EVP_CIPHER_CTX_block_size(&ctx);
-    *out=(unsigned char*)malloc(*out_len);
+    *out= new unsigned char[*out_len];
 
     EVP_CipherUpdate(&ctx, *out, out_len, (unsigned char*)data, len);
     return 1;
@@ -1202,7 +1211,7 @@ class Decipher : public ObjectWrap {
 
   int DecipherFinal(unsigned char** out, int *out_len, bool tolerate_padding) {
     if (!initialised_) return 0;
-    *out = (unsigned char*) malloc(EVP_CIPHER_CTX_block_size(&ctx));
+    *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx)];
     if (tolerate_padding) {
       local_EVP_DecryptFinal_ex(&ctx,*out,out_len);
     } else {
@@ -1251,6 +1260,8 @@ class Decipher : public ObjectWrap {
     	
     bool r = cipher->DecipherInit(*cipherType, key_buf,key_len);
 
+    delete [] key_buf;
+
     return args.This();
   }
 
@@ -1292,6 +1303,9 @@ class Decipher : public ObjectWrap {
     	
     bool r = cipher->DecipherInitIv(*cipherType, key_buf,key_len,iv_buf,iv_len);
 
+    delete [] key_buf;
+    delete [] iv_buf;
+
     return args.This();
   }
 
@@ -1314,10 +1328,10 @@ class Decipher : public ObjectWrap {
         // Hex encoding
         // Do we have a previous hex carry over?
         if (cipher->incomplete_hex_flag) {
-          char* complete_hex = (char*)malloc(len+2);
+          char* complete_hex = new char[len+2];
           memcpy(complete_hex, &cipher->incomplete_hex, 1);
           memcpy(complete_hex+1, buf, len);
-          free(buf);
+          delete [] buf;
           buf = complete_hex;
           len += 1;
         }
@@ -1330,13 +1344,14 @@ class Decipher : public ObjectWrap {
         }
         HexDecode((unsigned char*)buf, len, (char **)&ciphertext, &ciphertext_len);
 
-        free(buf);
+
+        delete [] buf;
         buf = ciphertext;
         len = ciphertext_len;
 
       } else if (strcasecmp(*encoding, "base64") == 0) {
         unbase64((unsigned char*)buf, len, (char **)&ciphertext, &ciphertext_len);
-        free(buf);
+        delete [] buf;
         buf = ciphertext;
         len = ciphertext_len;
 
@@ -1351,7 +1366,7 @@ class Decipher : public ObjectWrap {
 
     unsigned char *out=0;
     int out_len=0;
-    int r = cipher->DecipherUpdate(buf, len,&out,&out_len);
+    int r = cipher->DecipherUpdate(buf, len, &out, &out_len);
 
     Local<Value> outString;
     if (out_len==0) {
@@ -1363,12 +1378,14 @@ class Decipher : public ObjectWrap {
       if (enc == UTF8) {
         // See if we have any overhang from last utf8 partial ending
         if (cipher->incomplete_utf8!=NULL) {
-          char* complete_out = (char *)malloc(cipher->incomplete_utf8_len + out_len);
+          char* complete_out = new char[cipher->incomplete_utf8_len + out_len];
           memcpy(complete_out, cipher->incomplete_utf8, cipher->incomplete_utf8_len);
           memcpy((char *)complete_out+cipher->incomplete_utf8_len, out, out_len);
-          free(out);
-          free(cipher->incomplete_utf8);
-          cipher->incomplete_utf8=NULL;
+          delete [] out;
+
+          delete [] cipher->incomplete_utf8;
+          cipher->incomplete_utf8 = NULL;
+
           out = (unsigned char*)complete_out;
           out_len += cipher->incomplete_utf8_len;
         }
@@ -1376,7 +1393,7 @@ class Decipher : public ObjectWrap {
         int utf8_len = LengthWithoutIncompleteUtf8((char *)out, out_len);
         if (utf8_len<out_len) { // We have an incomplete ut8 ending
           cipher->incomplete_utf8_len = out_len-utf8_len;
-          cipher->incomplete_utf8 = (unsigned char *)malloc(cipher->incomplete_utf8_len+1);
+          cipher->incomplete_utf8 = new unsigned char[cipher->incomplete_utf8_len+1];
           memcpy(cipher->incomplete_utf8, &out[utf8_len], cipher->incomplete_utf8_len);
         }
         outString = Encode(out, utf8_len, enc);
@@ -1385,8 +1402,9 @@ class Decipher : public ObjectWrap {
       }
     }
 
-    if (out) free(out);
-    free(buf);
+    if (out) delete [] out;
+
+    delete [] buf;
     return scope.Close(outString);
 
   }
@@ -1416,13 +1434,15 @@ class Decipher : public ObjectWrap {
       if (enc == UTF8) {
         // See if we have any overhang from last utf8 partial ending
         if (cipher->incomplete_utf8!=NULL) {
-          char* complete_out = (char *)malloc(cipher->incomplete_utf8_len + out_len);
+          char* complete_out = new char[cipher->incomplete_utf8_len + out_len];
           memcpy(complete_out, cipher->incomplete_utf8, cipher->incomplete_utf8_len);
           memcpy((char *)complete_out+cipher->incomplete_utf8_len, out_value, out_len);
-          free(cipher->incomplete_utf8);
+
+          delete [] cipher->incomplete_utf8;
           cipher->incomplete_utf8=NULL;
+
           outString = Encode(complete_out, cipher->incomplete_utf8_len+out_len, enc);
-          free(complete_out);
+          delete [] complete_out;
         } else {
           outString = Encode(out_value, out_len, enc);
         }
@@ -1430,7 +1450,7 @@ class Decipher : public ObjectWrap {
         outString = Encode(out_value, out_len, enc);
       }
     }
-    free(out_value);
+    delete [] out_value;
     return scope.Close(outString);
   }
 
@@ -1459,13 +1479,15 @@ class Decipher : public ObjectWrap {
       if (enc == UTF8) {
         // See if we have any overhang from last utf8 partial ending
         if (cipher->incomplete_utf8!=NULL) {
-          char* complete_out = (char *)malloc(cipher->incomplete_utf8_len + out_len);
+          char* complete_out = new char[cipher->incomplete_utf8_len + out_len];
           memcpy(complete_out, cipher->incomplete_utf8, cipher->incomplete_utf8_len);
           memcpy((char *)complete_out+cipher->incomplete_utf8_len, out_value, out_len);
-          free(cipher->incomplete_utf8);
-          cipher->incomplete_utf8=NULL;
+
+          delete [] cipher->incomplete_utf8;
+          cipher->incomplete_utf8 = NULL;
+
           outString = Encode(complete_out, cipher->incomplete_utf8_len+out_len, enc);
-          free(complete_out);
+          delete [] complete_out;
         } else {
           outString = Encode(out_value, out_len, enc);
         }
@@ -1473,7 +1495,7 @@ class Decipher : public ObjectWrap {
         outString = Encode(out_value, out_len, enc);
       }
     }
-    free(out_value);
+    delete [] out_value;
     return scope.Close(outString);
   }
 
@@ -1534,7 +1556,7 @@ class Hmac : public ObjectWrap {
 
   int HmacDigest(unsigned char** md_value, unsigned int *md_len) {
     if (!initialised_) return 0;
-    *md_value = (unsigned char*) malloc(EVP_MAX_MD_SIZE);
+    *md_value = new unsigned char[EVP_MAX_MD_SIZE];
     HMAC_Final(&ctx, *md_value, md_len);
     HMAC_CTX_cleanup(&ctx);
     initialised_ = false;
@@ -1576,6 +1598,8 @@ class Hmac : public ObjectWrap {
 
     bool r = hmac->HmacInit(*hashType, buf, len);
 
+    delete [] buf;
+
     return args.This();
   }
 
@@ -1597,6 +1621,8 @@ class Hmac : public ObjectWrap {
     assert(written == len);
 
     int r = hmac->HmacUpdate(buf, len);
+
+    delete [] buf;
 
     return args.This();
   }
@@ -1627,11 +1653,11 @@ class Hmac : public ObjectWrap {
         // Hex encoding
         HexEncode(md_value, md_len, &md_hexdigest, &md_hex_len);
         outString = Encode(md_hexdigest, md_hex_len, BINARY);
-        free(md_hexdigest);
+        delete [] md_hexdigest;
       } else if (strcasecmp(*encoding, "base64") == 0) {
         base64(md_value, md_len, &md_hexdigest, &md_hex_len);
         outString = Encode(md_hexdigest, md_hex_len, BINARY);
-        free(md_hexdigest);
+        delete [] md_hexdigest;
       } else if (strcasecmp(*encoding, "binary") == 0) {
         outString = Encode(md_value, md_len, BINARY);
       } else {
@@ -1639,7 +1665,7 @@ class Hmac : public ObjectWrap {
                         "can be binary, hex or base64\n");
       }
     }
-    free(md_value);
+    delete [] md_value;
     return scope.Close(outString);
   }
 
@@ -1692,7 +1718,7 @@ class Hash : public ObjectWrap {
 
   int HashDigest(unsigned char** md_value, unsigned int *md_len) {
     if (!initialised_) return 0;
-    *md_value = (unsigned char*) malloc(EVP_MAX_MD_SIZE);
+    *md_value = new unsigned char[EVP_MAX_MD_SIZE];
     EVP_DigestFinal_ex(&mdctx, *md_value, md_len);
     EVP_MD_CTX_cleanup(&mdctx);
     initialised_ = false;
@@ -1769,11 +1795,11 @@ class Hash : public ObjectWrap {
         // Hex encoding
         HexEncode(md_value, md_len, &md_hexdigest, &md_hex_len);
         outString = Encode(md_hexdigest, md_hex_len, BINARY);
-        free(md_hexdigest);
+        delete [] md_hexdigest;
       } else if (strcasecmp(*encoding, "base64") == 0) {
         base64(md_value, md_len, &md_hexdigest, &md_hex_len);
         outString = Encode(md_hexdigest, md_hex_len, BINARY);
-        free(md_hexdigest);
+        delete [] md_hexdigest;
       } else if (strcasecmp(*encoding, "binary") == 0) {
         outString = Encode(md_value, md_len, BINARY);
       } else {
@@ -1781,7 +1807,7 @@ class Hash : public ObjectWrap {
                         "can be binary, hex or base64\n");
       }
     }
-    free(md_value);
+    delete [] md_value;
     return scope.Close(outString);
 
   }
@@ -1904,6 +1930,8 @@ class Sign : public ObjectWrap {
 
     int r = sign->SignUpdate(buf, len);
 
+    delete [] buf;
+
     return args.This();
   }
 
@@ -1934,6 +1962,8 @@ class Sign : public ObjectWrap {
 
     int r = sign->SignFinal(&md_value, &md_len, buf, len);
 
+    delete [] buf;
+
     if (md_len == 0 || r == 0) {
       return scope.Close(String::New(""));
     }
@@ -1947,11 +1977,11 @@ class Sign : public ObjectWrap {
         // Hex encoding
         HexEncode(md_value, md_len, &md_hexdigest, &md_hex_len);
         outString = Encode(md_hexdigest, md_hex_len, BINARY);
-        free(md_hexdigest);
+        delete [] md_hexdigest;
       } else if (strcasecmp(*encoding, "base64") == 0) {
         base64(md_value, md_len, &md_hexdigest, &md_hex_len);
         outString = Encode(md_hexdigest, md_hex_len, BINARY);
-        free(md_hexdigest);
+        delete [] md_hexdigest;
       } else if (strcasecmp(*encoding, "binary") == 0) {
         outString = Encode(md_value, md_len, BINARY);
       } else {
@@ -2092,6 +2122,8 @@ class Verify : public ObjectWrap {
 
     int r = verify->VerifyUpdate(buf, len);
 
+    delete [] buf;
+
     return args.This();
   }
 
@@ -2137,12 +2169,12 @@ class Verify : public ObjectWrap {
         // Hex encoding
         HexDecode(hbuf, hlen, (char **)&dbuf, &dlen);
         r = verify->VerifyFinal(kbuf, klen, dbuf, dlen);
-        free(dbuf);
+        delete [] dbuf;
       } else if (strcasecmp(*encoding, "base64") == 0) {
         // Base64 encoding
         unbase64(hbuf, hlen, (char **)&dbuf, &dlen);
         r = verify->VerifyFinal(kbuf, klen, dbuf, dlen);
-        free(dbuf);
+        delete [] dbuf;
       } else if (strcasecmp(*encoding, "binary") == 0) {
         r = verify->VerifyFinal(kbuf, klen, hbuf, hlen);
       } else {
@@ -2150,6 +2182,9 @@ class Verify : public ObjectWrap {
                         "can be binary, hex or base64\n");
       }
     }
+
+    delete [] kbuf;
+    delete [] hbuf;
 
     return scope.Close(Integer::New(r));
   }
