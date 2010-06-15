@@ -42,7 +42,7 @@ function tcp_test() {
     repl.start(prompt_tcp, socket);
   });
 
-  server_tcp.addListener('listening', function () {
+  server_tcp.listen(PORT, function () {
     var read_buffer = "";
 
     client_tcp = net.createConnection(PORT);
@@ -88,7 +88,6 @@ function tcp_test() {
     });
   });
 
-  server_tcp.listen(PORT);
 }
 
 function unix_test() {

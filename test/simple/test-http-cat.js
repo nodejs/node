@@ -10,12 +10,11 @@ var server = http.createServer(function (req, res) {
   ]);
   res.end(body);
 });
-server.listen(PORT);
 
 var got_good_server_content = false;
 var bad_server_got_error = false;
 
-server.addListener('listening', function () {
+server.listen(PORT, function () {
   http.cat("http://localhost:"+PORT+"/", "utf8", function (err, content) {
     if (err) {
       throw err;

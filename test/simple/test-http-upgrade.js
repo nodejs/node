@@ -143,12 +143,11 @@ function test_standard_http(){
 
 
 var server = createTestServer();
-server.addListener("listening", function(){
+
+server.listen(PORT, function(){
   // All tests get chained after this:
   test_upgrade_with_listener(server);
 });
-
-server.listen(PORT);
 
 
 /*-----------------------------------------------

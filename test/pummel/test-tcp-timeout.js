@@ -29,8 +29,9 @@ var echo_server = net.createServer(function (socket) {
   });
 });
 
-echo_server.listen(PORT);
-puts("server listening at " + PORT);
+echo_server.listen(PORT, function () {
+  puts("server listening at " + PORT);
+});
 
 var client = net.createConnection(PORT);
 client.setEncoding("UTF8");

@@ -15,7 +15,6 @@ server = http.createServer(function (req, res) {
   });
   res.end(body);
 });
-server.listen(PORT);
 
 runs = 0;
 
@@ -46,7 +45,7 @@ function runAb(opts, callback) {
   });
 }
 
-server.addListener('listening', function () {
+server.listen(PORT, function () {
   runAb("-c 1 -n 10", function () {
     puts("-c 1 -n 10 okay");
 

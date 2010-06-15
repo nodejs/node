@@ -11,8 +11,6 @@ var backend = http.createServer(function (req, res) {
   res.write("hello world\n");
   res.end();
 });
-debug("listen backend")
-backend.listen(BACKEND_PORT);
 
 var proxy_client = http.createClient(BACKEND_PORT);
 var proxy = http.createServer(function (req, res) {
@@ -30,8 +28,6 @@ var proxy = http.createServer(function (req, res) {
   });
   proxy_req.end();
 });
-debug("listen proxy")
-proxy.listen(PROXY_PORT);
 
 var body = "";
 
@@ -57,8 +53,11 @@ function startReq () {
   req.end();
 }
 
-proxy.addListener('listening', startReq);
-backend.addListener('listening', startReq);
+debug("listen proxy")
+proxy.listen(PROXY_PORT, startReq);
+
+debug("listen backend")
+backend.listen(BACKEND_PORT, startReq);
 
 process.addListener("exit", function () {
   assert.equal(body, "hello world\n");

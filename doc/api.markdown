@@ -1665,25 +1665,24 @@ sent to the server on that socket.
 If a client connection emits an 'error' event - it will forwarded here.
 
 
-### server.listen(port, hostname)
+### server.listen(port, hostname=null, callback=null)
 
 Begin accepting connections on the specified port and hostname.  If the
 hostname is omitted, the server will accept connections directed to any
-address.
+IPv4 address (`INADDR_ANY`).
 
 To listen to a unix socket, supply a filename instead of port and hostname.
 
-**If you give a port number as a string, the system will interpret it as a filename in the current directory and create a unix socket.**
-
-This function is asynchronous. `listening` will be emitted when the server
-is ready to accept connections.
+This function is asynchronous. The last parameter `callback` will be called
+when the server has been bound to the port.
 
 
-### server.listen(path)
+### server.listen(path, callback=null)
 
 Start a UNIX socket server listening for connections on the given `path`.
-This function is asynchronous. `listening` will be emitted when the server
-is ready to accept connections.
+
+This function is asynchronous. The last parameter `callback` will be called
+when the server has been bound.
 
 
 ### server.setSecure(credentials)
@@ -2077,13 +2076,6 @@ changed to
 
 This is an EventEmitter with the following events:
 
-### Event: 'listening'
-
-`function () {}`
-
-After `listen()` is called, this event will notify that the server is ready
-to accept connections.
-
 ### Event: 'connection'
 
 `function (stream) {}`
@@ -2104,15 +2096,23 @@ Creates a new TCP server. The `connection_listener` argument is
 automatically set as a listener for the `'connection'` event.
 
 
-### server.listen(port, host=null)
+### server.listen(port, host=null, callback=null)
 
-Tells the server to listen for TCP connections to `port` and `host`.
+Begin accepting connections on the specified `port` and `host`.  If the
+`host` is omitted, the server will accept connections directed to any
+IPv4 address (`INADDR_ANY`).
 
-`host` is optional. If `host` is not specified the server will accept client
-connections on any network address.
+This function is asynchronous. The last parameter `callback` will be called
+when the server has been bound.
 
-This function is asynchronous. The server will emit `'listening'` when it is
-safe to connect to it.
+
+### server.listen(path, callback=null)
+
+Start a UNIX socket server listening for connections on the given `path`.
+
+This function is asynchronous. The last parameter `callback` will be called
+when the server has been bound.
+
 
 
 ### server.close()

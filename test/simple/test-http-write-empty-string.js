@@ -16,7 +16,6 @@ server = http.createServer(function (request, response) {
 
   this.close();
 })
-server.listen(PORT);
 
 var response="";
 
@@ -25,7 +24,7 @@ process.addListener('exit', function () {
 });
 
 
-server.addListener('listening', function () {
+server.listen(PORT, function () {
   var client = http.createClient(PORT);
   var req = client.request("/");
   req.end();

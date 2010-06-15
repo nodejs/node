@@ -21,7 +21,6 @@ var server = net.createServer(function (c) {
     c.end();
   });
 });
-server.listen(PORT);
 
 function runClient (callback) {
   var client = net.createConnection(PORT);
@@ -67,7 +66,7 @@ function runClient (callback) {
   });
 }
 
-server.addListener('listening', function () {
+server.listen(PORT, function () {
   var finished_clients = 0;
   for (var i = 0; i < concurrency; i++) {
     runClient(function () {

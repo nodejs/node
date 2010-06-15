@@ -45,7 +45,8 @@ function pingPongTest (port, host) {
     });
   });
 
-  server.addListener("listening", function () {
+
+  server.listen(port, host, function () {
     puts("server listening on " + port + " " + host);
 
     var client = net.createConnection(port, host);
@@ -92,8 +93,6 @@ function pingPongTest (port, host) {
       throw e;
     });
   });
-
-  server.listen(port, host);
 }
 
 /* All are run at once, so run on different ports */

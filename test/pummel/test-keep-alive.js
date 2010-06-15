@@ -12,7 +12,6 @@ server = http.createServer(function (req, res) {
   res.write(body);
   res.end();
 });
-server.listen(PORT);
 
 var keepAliveReqSec = 0;
 var normalReqSec = 0;
@@ -42,7 +41,7 @@ function runAb(opts, callback) {
   });
 }
 
-server.addListener('listening', function () {
+server.listen(PORT, function () {
   runAb("-k -c 100 -t 2", function (reqSec, keepAliveRequests) {
     keepAliveReqSec = reqSec;
     assert.equal(true, keepAliveRequests > 0);

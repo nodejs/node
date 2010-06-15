@@ -13,11 +13,10 @@ server = http.createServer(function (req, res) {
   res.end();
   server.close();
 });
-server.listen(PORT);
 
 var gotEnd = false;
 
-server.addListener('listening', function () {
+server.listen(PORT, function () {
   var client = http.createClient(PORT);
   var request = client.request("HEAD", "/");
   request.addListener('response', function (response) {

@@ -11,10 +11,8 @@ server = http.createServer(function (req, res) {
     server.close();
   });
 });
-server.listen(PORT);
 
-
-server.addListener('listening', function () {
+server.listen(PORT, function () {
   sys.puts('Server running at http://127.0.0.1:'+PORT+'/');
 
   errorTimer =setTimeout(function () {

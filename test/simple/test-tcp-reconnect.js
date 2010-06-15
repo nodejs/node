@@ -21,9 +21,7 @@ var server = net.createServer(function (socket) {
   });
 });
 
-server.listen(PORT);
-
-server.addListener('listening', function () {
+server.listen(PORT, function () {
   puts('listening');
   var client = net.createConnection(PORT);
 

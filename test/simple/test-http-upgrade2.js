@@ -25,10 +25,7 @@ process.addListener('uncaughtException', function (e) {
 });
 
 
-server.listen(PORT);
-
-
-server.addListener('listening', function () {
+server.listen(PORT, function () {
   var c = net.createConnection(PORT);
 
   c.addListener('connect', function () {
