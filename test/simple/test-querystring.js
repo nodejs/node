@@ -29,7 +29,9 @@ var qsTestCases = [
   ["foo[bar][bla]=baz&foo[bar][bla]=blo", "foo%5Bbar%5D%5Bbla%5D%5B%5D=baz&foo%5Bbar%5D%5Bbla%5D%5B%5D=blo", {"foo":{"bar":{"bla":["baz","blo"]}}}],
   ["foo[bar][][bla]=baz&foo[bar][][bla]=blo", "foo%5Bbar%5D%5B%5D%5Bbla%5D=baz&foo%5Bbar%5D%5B%5D%5Bbla%5D=blo", {"foo":{"bar":[{"bla":"baz"},{"bla":"blo"}]}}],
   ["foo[bar][bla][]=baz&foo[bar][bla][]=blo", "foo%5Bbar%5D%5Bbla%5D%5B%5D=baz&foo%5Bbar%5D%5Bbla%5D%5B%5D=blo", {"foo":{"bar":{"bla":["baz","blo"]}}}],
-  [" foo = bar ", "foo=bar", {"foo":"bar"}]
+  [" foo = bar ", "%20foo%20=%20bar%20", {" foo ":" bar "}],
+  ["foo=%zx", "foo=%25zx", {"foo":"%zx"}],
+  ["foo=%EF%BF%BD", "foo=%EF%BF%BD", {"foo" : "\ufffd" }]
 ];
 
 // [ wonkyQS, canonicalQS, obj ]

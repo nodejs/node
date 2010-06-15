@@ -315,6 +315,86 @@ class Parser : public ObjectWrap {
 };
 
 
+static Handle<Value> UrlDecode (const Arguments& args) {
+  HandleScope scope;
+
+  if (!args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(
+          String::New("First arg must be a string")));
+  }
+
+  bool decode_spaces = args[1]->IsTrue();
+
+  String::Utf8Value in_v(args[0]->ToString());
+  size_t l = in_v.length();
+  char* out = strdup(*in_v);
+
+  enum { CHAR, HEX0, HEX1 } state = CHAR;
+
+  int n, m, hexchar; 
+  size_t in_index = 0, out_index = 0;
+  char c;
+  for (; in_index <= l; in_index++) {
+    c = out[in_index];
+    switch (state) {
+      case CHAR:
+        switch (c) {
+          case '%':
+            n = 0;
+            m = 0;
+            state = HEX0;
+            break;
+          case '+':
+            if (decode_spaces) c = ' ';
+            // pass thru
+          default:
+            out[out_index++] = c;
+            break;
+        }
+        break;
+
+      case HEX0:
+        state = HEX1;
+        hexchar = c;
+        if ('0' <= c && c <= '9') {
+          n = c - '0';
+        } else if ('a' <= c && c <= 'f') {
+          n = c - 'a' + 10;
+        } else if ('A' <= c && c <= 'F') {
+          n = c - 'A' + 10;
+        } else {
+          out[out_index++] = '%';
+          out[out_index++] = c;
+          state = CHAR;
+          break;
+        }
+        break;
+
+      case HEX1:
+        state = CHAR;
+        if ('0' <= c && c <= '9') {
+          m = c - '0';
+        } else if ('a' <= c && c <= 'f') {
+          m = c - 'a' + 10;
+        } else if ('A' <= c && c <= 'F') {
+          m = c - 'A' + 10;
+        } else {
+          out[out_index++] = '%';
+          out[out_index++] = hexchar;
+          out[out_index++] = c;
+          break;
+        }
+        out[out_index++] = 16*n + m;
+        break;
+    }
+  }
+
+  Local<String> out_v = String::New(out, out_index-1);
+  free(out);
+  return scope.Close(out_v);
+}
+
+
 void InitHttpParser(Handle<Object> target) {
   HandleScope scope;
 
@@ -327,6 +407,7 @@ void InitHttpParser(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "reinitialize", Parser::Reinitialize);
 
   target->Set(String::NewSymbol("HTTPParser"), t->GetFunction());
+  NODE_SET_METHOD(target, "urlDecode", UrlDecode);
 
   on_message_begin_sym    = NODE_PSYMBOL("onMessageBegin");
   on_path_sym             = NODE_PSYMBOL("onPath");
