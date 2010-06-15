@@ -31,6 +31,7 @@
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "hashmap.h"
+#include "../include/v8-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -53,6 +54,8 @@ class TokenEnumerator {
   List<bool> token_removed_;
 
   friend class TokenEnumeratorTester;
+
+  DISALLOW_COPY_AND_ASSIGN(TokenEnumerator);
 };
 
 
@@ -357,6 +360,8 @@ class SampleRateCalculator {
   unsigned measurements_count_;
   unsigned wall_time_query_countdown_;
   double last_wall_time_;
+
+  DISALLOW_COPY_AND_ASSIGN(SampleRateCalculator);
 };
 
 
@@ -414,6 +419,310 @@ class ProfileGenerator {
   SampleRateCalculator sample_rate_calc_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
+};
+
+
+class HeapSnapshot;
+class HeapEntry;
+
+
+class HeapGraphEdge {
+ public:
+  enum Type {
+    CONTEXT_VARIABLE,
+    ELEMENT,
+    PROPERTY
+  };
+
+  HeapGraphEdge(Type type, const char* name, HeapEntry* from, HeapEntry* to);
+  HeapGraphEdge(int index, HeapEntry* from, HeapEntry* to);
+
+  Type type() const { return type_; }
+  int index() const {
+    ASSERT(type_ == ELEMENT);
+    return index_;
+  }
+  const char* name() const {
+    ASSERT(type_ == CONTEXT_VARIABLE || type_ == PROPERTY);
+    return name_;
+  }
+  HeapEntry* from() const { return from_; }
+  HeapEntry* to() const { return to_; }
+
+ private:
+  Type type_;
+  union {
+    int index_;
+    const char* name_;
+  };
+  HeapEntry* from_;
+  HeapEntry* to_;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapGraphEdge);
+};
+
+
+class HeapGraphPath;
+class CachedHeapGraphPath;
+
+class HeapEntry {
+ public:
+  enum Type {
+    INTERNAL,
+    ARRAY,
+    STRING,
+    JS_OBJECT,
+    CODE,
+    CLOSURE
+  };
+
+  explicit HeapEntry(HeapSnapshot* snapshot)
+      : snapshot_(snapshot),
+        visited_(false),
+        type_(INTERNAL),
+        name_(""),
+        next_auto_index_(0),
+        self_size_(0),
+        security_token_id_(TokenEnumerator::kNoSecurityToken),
+        children_(1),
+        retainers_(0),
+        retaining_paths_(0),
+        total_size_(kUnknownSize),
+        non_shared_total_size_(kUnknownSize),
+        painted_(kUnpainted) { }
+  HeapEntry(HeapSnapshot* snapshot,
+            Type type,
+            const char* name,
+            int self_size,
+            int security_token_id)
+      : snapshot_(snapshot),
+        visited_(false),
+        type_(type),
+        name_(name),
+        next_auto_index_(1),
+        self_size_(self_size),
+        security_token_id_(security_token_id),
+        children_(4),
+        retainers_(4),
+        retaining_paths_(4),
+        total_size_(kUnknownSize),
+        non_shared_total_size_(kUnknownSize),
+        painted_(kUnpainted) { }
+  ~HeapEntry();
+
+  bool visited() const { return visited_; }
+  Type type() const { return type_; }
+  const char* name() const { return name_; }
+  int self_size() const { return self_size_; }
+  int security_token_id() const { return security_token_id_; }
+  bool painted_reachable() { return painted_ == kPaintReachable; }
+  bool not_painted_reachable_from_others() {
+    return painted_ != kPaintReachableFromOthers;
+  }
+  const List<HeapGraphEdge*>* children() const { return &children_; }
+  const List<HeapGraphEdge*>* retainers() const { return &retainers_; }
+  const List<HeapGraphPath*>* GetRetainingPaths();
+
+  void ClearPaint() { painted_ = kUnpainted; }
+  void CutEdges();
+  void MarkAsVisited() { visited_ = true; }
+  void PaintReachable() {
+    ASSERT(painted_ == kUnpainted);
+    painted_ = kPaintReachable;
+  }
+  void PaintReachableFromOthers() { painted_ = kPaintReachableFromOthers; }
+  void SetClosureReference(const char* name, HeapEntry* entry);
+  void SetElementReference(int index, HeapEntry* entry);
+  void SetPropertyReference(const char* name, HeapEntry* entry);
+  void SetAutoIndexReference(HeapEntry* entry);
+
+  int TotalSize();
+  int NonSharedTotalSize();
+
+  void Print(int max_depth, int indent);
+
+ private:
+  int CalculateTotalSize();
+  int CalculateNonSharedTotalSize();
+  void FindRetainingPaths(HeapEntry* node, CachedHeapGraphPath* prev_path);
+  void RemoveChild(HeapGraphEdge* edge);
+  void RemoveRetainer(HeapGraphEdge* edge);
+
+  const char* TypeAsString();
+
+  HeapSnapshot* snapshot_;
+  bool visited_;
+  Type type_;
+  const char* name_;
+  int next_auto_index_;
+  int self_size_;
+  int security_token_id_;
+  List<HeapGraphEdge*> children_;
+  List<HeapGraphEdge*> retainers_;
+  List<HeapGraphPath*> retaining_paths_;
+  int total_size_;
+  int non_shared_total_size_;
+  int painted_;
+
+  static const int kUnknownSize = -1;
+  static const int kUnpainted = 0;
+  static const int kPaintReachable = 1;
+  static const int kPaintReachableFromOthers = 2;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapEntry);
+};
+
+
+class HeapGraphPath {
+ public:
+  HeapGraphPath()
+      : path_(8) { }
+  explicit HeapGraphPath(const List<HeapGraphEdge*>& path);
+
+  void Add(HeapGraphEdge* edge) { path_.Add(edge); }
+  void Set(int index, HeapGraphEdge* edge) { path_[index] = edge; }
+  const List<HeapGraphEdge*>* path() const { return &path_; }
+
+  void Print();
+
+ private:
+  List<HeapGraphEdge*> path_;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapGraphPath);
+};
+
+
+class HeapEntriesMap {
+ public:
+  HeapEntriesMap();
+  ~HeapEntriesMap();
+
+  void Alias(HeapObject* object, HeapEntry* entry);
+  void Apply(void (HeapEntry::*Func)(void));
+  template<class Visitor>
+  void Apply(Visitor* visitor);
+  HeapEntry* Map(HeapObject* object);
+  void Pair(HeapObject* object, HeapEntry* entry);
+
+ private:
+  INLINE(uint32_t Hash(HeapObject* object)) {
+    return static_cast<uint32_t>(reinterpret_cast<intptr_t>(object));
+  }
+  INLINE(static bool HeapObjectsMatch(void* key1, void* key2)) {
+    return key1 == key2;
+  }
+  INLINE(bool IsAlias(void* ptr)) {
+    return reinterpret_cast<intptr_t>(ptr) & kAliasTag;
+  }
+
+  static const intptr_t kAliasTag = 1;
+
+  HashMap entries_;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapEntriesMap);
+};
+
+
+class HeapSnapshotsCollection;
+
+// HeapSnapshot represents a single heap snapshot. It is stored in
+// HeapSnapshotsCollection, which is also a factory for
+// HeapSnapshots. All HeapSnapshots share strings copied from JS heap
+// to be able to return them even if they were collected.
+// HeapSnapshotGenerator fills in a HeapSnapshot.
+class HeapSnapshot {
+ public:
+  HeapSnapshot(HeapSnapshotsCollection* collection,
+               const char* title,
+               unsigned uid);
+  void ClearPaint();
+  void CutObjectsFromForeignSecurityContexts();
+  HeapEntry* GetEntry(Object* object);
+  void SetClosureReference(
+      HeapEntry* parent, String* reference_name, Object* child);
+  void SetElementReference(HeapEntry* parent, int index, Object* child);
+  void SetPropertyReference(
+      HeapEntry* parent, String* reference_name, Object* child);
+
+  INLINE(const char* title() const) { return title_; }
+  INLINE(unsigned uid() const) { return uid_; }
+  const HeapEntry* const_root() const { return &root_; }
+  HeapEntry* root() { return &root_; }
+  template<class Visitor>
+  void IterateEntries(Visitor* visitor) { entries_.Apply(visitor); }
+
+  void Print(int max_depth);
+
+ private:
+  HeapEntry* AddEntry(HeapObject* object, HeapEntry::Type type) {
+    return AddEntry(object, type, "");
+  }
+  HeapEntry* AddEntry(
+      HeapObject* object, HeapEntry::Type type, const char* name);
+  void AddEntryAlias(HeapObject* object, HeapEntry* entry) {
+    entries_.Alias(object, entry);
+  }
+  HeapEntry* FindEntry(HeapObject* object) {
+    return entries_.Map(object);
+  }
+  int GetGlobalSecurityToken();
+  int GetObjectSecurityToken(HeapObject* obj);
+  static int GetObjectSize(HeapObject* obj);
+  static int CalculateNetworkSize(JSObject* obj);
+
+  HeapSnapshotsCollection* collection_;
+  const char* title_;
+  unsigned uid_;
+  HeapEntry root_;
+  // HeapObject* -> HeapEntry*
+  HeapEntriesMap entries_;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapSnapshot);
+};
+
+
+class HeapSnapshotsCollection {
+ public:
+  HeapSnapshotsCollection();
+  ~HeapSnapshotsCollection();
+
+  HeapSnapshot* NewSnapshot(const char* name, unsigned uid);
+  List<HeapSnapshot*>* snapshots() { return &snapshots_; }
+  HeapSnapshot* GetSnapshot(unsigned uid);
+
+  const char* GetName(String* name) { return names_.GetName(name); }
+
+  TokenEnumerator* token_enumerator() { return token_enumerator_; }
+
+ private:
+  INLINE(static bool HeapSnapshotsMatch(void* key1, void* key2)) {
+    return key1 == key2;
+  }
+
+  List<HeapSnapshot*> snapshots_;
+  // uid -> HeapSnapshot*
+  HashMap snapshots_uids_;
+  StringsStorage names_;
+  TokenEnumerator* token_enumerator_;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotsCollection);
+};
+
+
+class HeapSnapshotGenerator {
+ public:
+  explicit HeapSnapshotGenerator(HeapSnapshot* snapshot);
+  void GenerateSnapshot();
+
+ private:
+  void ExtractReferences(HeapObject* obj);
+  void ExtractClosureReferences(JSObject* js_obj, HeapEntry* entry);
+  void ExtractPropertyReferences(JSObject* js_obj, HeapEntry* entry);
+  void ExtractElementReferences(JSObject* js_obj, HeapEntry* entry);
+
+  HeapSnapshot* snapshot_;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotGenerator);
 };
 
 } }  // namespace v8::internal

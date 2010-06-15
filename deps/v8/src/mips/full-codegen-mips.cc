@@ -45,7 +45,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info, Mode mode) {
 }
 
 
-void FullCodeGenerator::EmitReturnSequence(int position) {
+void FullCodeGenerator::EmitReturnSequence() {
   UNIMPLEMENTED_MIPS();
 }
 

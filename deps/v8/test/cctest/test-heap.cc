@@ -960,6 +960,8 @@ TEST(Regression39128) {
 
 TEST(TestCodeFlushing) {
   i::FLAG_allow_natives_syntax = true;
+  // If we do not flush code this test is invalid.
+  if (!FLAG_flush_code) return;
   InitializeVM();
   v8::HandleScope scope;
   const char* source = "function foo() {"

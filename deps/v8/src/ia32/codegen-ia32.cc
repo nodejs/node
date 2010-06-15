@@ -1446,10 +1446,40 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 }
 
 
-static void CheckTwoForSminess(MacroAssembler* masm,
-                               Register left, Register right, Register scratch,
-                               TypeInfo left_info, TypeInfo right_info,
-                               DeferredInlineBinaryOperation* deferred);
+void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
+                                                  Register right,
+                                                  Register scratch,
+                                                  TypeInfo left_info,
+                                                  TypeInfo right_info,
+                                                  DeferredCode* deferred) {
+  if (left.is(right)) {
+    if (!left_info.IsSmi()) {
+      __ test(left, Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(left);
+    }
+  } else if (!left_info.IsSmi()) {
+    if (!right_info.IsSmi()) {
+      __ mov(scratch, left);
+      __ or_(scratch, Operand(right));
+      __ test(scratch, Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    } else {
+      __ test(left, Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+      if (FLAG_debug_code) __ AbortIfNotSmi(right);
+    }
+  } else {
+    if (FLAG_debug_code) __ AbortIfNotSmi(left);
+    if (!right_info.IsSmi()) {
+      __ test(right, Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(right);
+    }
+  }
+}
 
 
 // Implements a binary operation using a deferred code object and some
@@ -1539,19 +1569,11 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           left_type_info,
                                           right_type_info,
                                           overwrite_mode);
-    if (left->reg().is(right->reg())) {
-      __ test(left->reg(), Immediate(kSmiTagMask));
-    } else {
-      // Use the quotient register as a scratch for the tag check.
-      if (!left_is_in_eax) __ mov(eax, left->reg());
-      left_is_in_eax = false;  // About to destroy the value in eax.
-      __ or_(eax, Operand(right->reg()));
-      ASSERT(kSmiTag == 0);  // Adjust test if not the case.
-      __ test(eax, Immediate(kSmiTagMask));
+    JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(), edx,
+                                  left_type_info, right_type_info, deferred);
+    if (!left_is_in_eax) {
+      __ mov(eax, left->reg());
     }
-    deferred->Branch(not_zero);
-
-    if (!left_is_in_eax) __ mov(eax, left->reg());
     // Sign extend eax into edx:eax.
     __ cdq();
     // Check for 0 divisor.
@@ -1674,8 +1696,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
       __ cmp(answer.reg(), 0xc0000000);
       deferred->Branch(negative);
     } else {
-      CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
-                         left_type_info, right_type_info, deferred);
+      JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(), answer.reg(),
+                                    left_type_info, right_type_info, deferred);
 
       // Untag both operands.
       __ mov(answer.reg(), left->reg());
@@ -1751,8 +1773,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                         left_type_info,
                                         right_type_info,
                                         overwrite_mode);
-  CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
-                     left_type_info, right_type_info, deferred);
+  JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(), answer.reg(),
+                                left_type_info, right_type_info, deferred);
 
   __ mov(answer.reg(), left->reg());
   switch (op) {
@@ -8976,40 +8998,6 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
 #define __ ACCESS_MASM(masm)
 
 
-static void CheckTwoForSminess(MacroAssembler* masm,
-                               Register left, Register right, Register scratch,
-                               TypeInfo left_info, TypeInfo right_info,
-                               DeferredInlineBinaryOperation* deferred) {
-  if (left.is(right)) {
-    if (!left_info.IsSmi()) {
-      __ test(left, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
-    } else {
-      if (FLAG_debug_code) __ AbortIfNotSmi(left);
-    }
-  } else if (!left_info.IsSmi()) {
-    if (!right_info.IsSmi()) {
-      __ mov(scratch, left);
-      __ or_(scratch, Operand(right));
-      __ test(scratch, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
-    } else {
-      __ test(left, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
-      if (FLAG_debug_code) __ AbortIfNotSmi(right);
-    }
-  } else {
-    if (FLAG_debug_code) __ AbortIfNotSmi(left);
-    if (!right_info.IsSmi()) {
-      __ test(right, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
-    } else {
-      if (FLAG_debug_code) __ AbortIfNotSmi(right);
-    }
-  }
-}
-
-
 Handle<String> Reference::GetName() {
   ASSERT(type_ == NAMED);
   Property* property = expression_->AsProperty();
@@ -10302,13 +10290,14 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, ebx);
   __ xor_(ecx, Operand(edx));
   __ mov(eax, ecx);
-  __ sar(eax, 16);
+  __ shr(eax, 16);
   __ xor_(ecx, Operand(eax));
   __ mov(eax, ecx);
-  __ sar(eax, 8);
+  __ shr(eax, 8);
   __ xor_(ecx, Operand(eax));
   ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
   __ and_(Operand(ecx), Immediate(TranscendentalCache::kCacheSize - 1));
+
   // ST[0] == double value.
   // ebx = low 32 bits of double value.
   // edx = high 32 bits of double value.

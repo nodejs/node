@@ -5087,18 +5087,28 @@ void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
-  // Load the argument on the stack and jump to the runtime.
   Load(args->at(0));
-  frame_->CallRuntime(Runtime::kMath_sin, 1);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    TranscendentalCacheStub stub(TranscendentalCache::SIN);
+    frame_->SpillAllButCopyTOSToR0();
+    frame_->CallStub(&stub, 1);
+  } else {
+    frame_->CallRuntime(Runtime::kMath_sin, 1);
+  }
   frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
-  // Load the argument on the stack and jump to the runtime.
   Load(args->at(0));
-  frame_->CallRuntime(Runtime::kMath_cos, 1);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    TranscendentalCacheStub stub(TranscendentalCache::COS);
+    frame_->SpillAllButCopyTOSToR0();
+    frame_->CallStub(&stub, 1);
+  } else {
+    frame_->CallRuntime(Runtime::kMath_cos, 1);
+  }
   frame_->EmitPush(r0);
 }
 
@@ -7090,7 +7100,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
       CpuFeatures::Scope scope(VFP3);
       __ CheckMap(object,
                   scratch1,
-                  Factory::heap_number_map(),
+                  Heap::kHeapNumberMapRootIndex,
                   not_found,
                   true);
 
@@ -8233,6 +8243,110 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
 Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
   GenericBinaryOpStub stub(key, type_info);
   return stub.GetCode();
+}
+
+
+void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
+  // Argument is a number and is on stack and in r0.
+  Label runtime_call;
+  Label input_not_smi;
+  Label loaded;
+
+  if (CpuFeatures::IsSupported(VFP3)) {
+    // Load argument and check if it is a smi.
+    __ BranchOnNotSmi(r0, &input_not_smi);
+
+    CpuFeatures::Scope scope(VFP3);
+    // Input is a smi. Convert to double and load the low and high words
+    // of the double into r2, r3.
+    __ IntegerToDoubleConversionWithVFP3(r0, r3, r2);
+    __ b(&loaded);
+
+    __ bind(&input_not_smi);
+    // Check if input is a HeapNumber.
+    __ CheckMap(r0,
+                r1,
+                Heap::kHeapNumberMapRootIndex,
+                &runtime_call,
+                true);
+    // Input is a HeapNumber. Load it to a double register and store the
+    // low and high words into r2, r3.
+    __ Ldrd(r2, r3, FieldMemOperand(r0, HeapNumber::kValueOffset));
+
+    __ bind(&loaded);
+    // r2 = low 32 bits of double value
+    // r3 = high 32 bits of double value
+    // Compute hash:
+    //   h = (low ^ high); h ^= h >> 16; h ^= h >> 8; h = h & (cacheSize - 1);
+    __ eor(r1, r2, Operand(r3));
+    __ eor(r1, r1, Operand(r1, LSR, 16));
+    __ eor(r1, r1, Operand(r1, LSR, 8));
+    ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
+    if (CpuFeatures::IsSupported(ARMv7)) {
+      const int kTranscendentalCacheSizeBits = 9;
+      ASSERT_EQ(1 << kTranscendentalCacheSizeBits,
+                TranscendentalCache::kCacheSize);
+      __ ubfx(r1, r1, 0, kTranscendentalCacheSizeBits);
+    } else {
+      __ and_(r1, r1, Operand(TranscendentalCache::kCacheSize - 1));
+    }
+
+    // r2 = low 32 bits of double value.
+    // r3 = high 32 bits of double value.
+    // r1 = TranscendentalCache::hash(double value).
+    __ mov(r0,
+           Operand(ExternalReference::transcendental_cache_array_address()));
+    // r0 points to cache array.
+    __ ldr(r0, MemOperand(r0, type_ * sizeof(TranscendentalCache::caches_[0])));
+    // r0 points to the cache for the type type_.
+    // If NULL, the cache hasn't been initialized yet, so go through runtime.
+    __ cmp(r0, Operand(0));
+    __ b(eq, &runtime_call);
+
+#ifdef DEBUG
+    // Check that the layout of cache elements match expectations.
+    { TranscendentalCache::Element test_elem[2];
+      char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
+      char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
+      char* elem_in0 = reinterpret_cast<char*>(&(test_elem[0].in[0]));
+      char* elem_in1 = reinterpret_cast<char*>(&(test_elem[0].in[1]));
+      char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
+      CHECK_EQ(12, elem2_start - elem_start);  // Two uint_32's and a pointer.
+      CHECK_EQ(0, elem_in0 - elem_start);
+      CHECK_EQ(kIntSize, elem_in1 - elem_start);
+      CHECK_EQ(2 * kIntSize, elem_out - elem_start);
+    }
+#endif
+
+    // Find the address of the r1'st entry in the cache, i.e., &r0[r1*12].
+    __ add(r1, r1, Operand(r1, LSL, 1));
+    __ add(r0, r0, Operand(r1, LSL, 2));
+    // Check if cache matches: Double value is stored in uint32_t[2] array.
+    __ ldm(ia, r0, r4.bit()| r5.bit() | r6.bit());
+    __ cmp(r2, r4);
+    __ b(ne, &runtime_call);
+    __ cmp(r3, r5);
+    __ b(ne, &runtime_call);
+    // Cache hit. Load result, pop argument and return.
+    __ mov(r0, Operand(r6));
+    __ pop();
+    __ Ret();
+  }
+
+  __ bind(&runtime_call);
+  __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
+}
+
+
+Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
+  switch (type_) {
+    // Add more cases when necessary.
+    case TranscendentalCache::SIN: return Runtime::kMath_sin;
+    case TranscendentalCache::COS: return Runtime::kMath_cos;
+    default:
+      UNIMPLEMENTED();
+      return Runtime::kAbort;
+  }
 }
 
 
@@ -9550,8 +9664,11 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // Index is not a smi.
   __ bind(&index_not_smi_);
   // If index is a heap number, try converting it to an integer.
-  __ CheckMap(index_, scratch_,
-              Factory::heap_number_map(), index_not_number_, true);
+  __ CheckMap(index_,
+              scratch_,
+              Heap::kHeapNumberMapRootIndex,
+              index_not_number_,
+              true);
   call_helper.BeforeCall(masm);
   __ Push(object_, index_);
   __ push(index_);  // Consumed by runtime conversion function.

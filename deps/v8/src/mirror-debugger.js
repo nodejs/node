@@ -1240,8 +1240,9 @@ const kFrameDetailsArgumentCountIndex = 3;
 const kFrameDetailsLocalCountIndex = 4;
 const kFrameDetailsSourcePositionIndex = 5;
 const kFrameDetailsConstructCallIndex = 6;
-const kFrameDetailsDebuggerFrameIndex = 7;
-const kFrameDetailsFirstDynamicIndex = 8;
+const kFrameDetailsAtReturnIndex = 7;
+const kFrameDetailsDebuggerFrameIndex = 8;
+const kFrameDetailsFirstDynamicIndex = 9;
 
 const kFrameDetailsNameIndex = 0;
 const kFrameDetailsValueIndex = 1;
@@ -1258,8 +1259,11 @@ const kFrameDetailsNameValueSize = 2;
  *     4: Local count
  *     5: Source position
  *     6: Construct call
+ *     7: Is at return
+ *     8: Debugger frame
  *     Arguments name, value
  *     Locals name, value
+ *     Return value if any
  * @param {number} break_id Current break id
  * @param {number} index Frame number
  * @constructor
@@ -1291,6 +1295,12 @@ FrameDetails.prototype.func = function() {
 FrameDetails.prototype.isConstructCall = function() {
   %CheckExecutionState(this.break_id_);
   return this.details_[kFrameDetailsConstructCallIndex];
+}
+
+
+FrameDetails.prototype.isAtReturn = function() {
+  %CheckExecutionState(this.break_id_);
+  return this.details_[kFrameDetailsAtReturnIndex];
 }
 
 
@@ -1341,7 +1351,8 @@ FrameDetails.prototype.sourcePosition = function() {
 FrameDetails.prototype.localName = function(index) {
   %CheckExecutionState(this.break_id_);
   if (index >= 0 && index < this.localCount()) {
-    var locals_offset = kFrameDetailsFirstDynamicIndex + this.argumentCount() * kFrameDetailsNameValueSize
+    var locals_offset = kFrameDetailsFirstDynamicIndex +
+                        this.argumentCount() * kFrameDetailsNameValueSize
     return this.details_[locals_offset +
                          index * kFrameDetailsNameValueSize +
                          kFrameDetailsNameIndex]
@@ -1352,10 +1363,22 @@ FrameDetails.prototype.localName = function(index) {
 FrameDetails.prototype.localValue = function(index) {
   %CheckExecutionState(this.break_id_);
   if (index >= 0 && index < this.localCount()) {
-    var locals_offset = kFrameDetailsFirstDynamicIndex + this.argumentCount() * kFrameDetailsNameValueSize
+    var locals_offset = kFrameDetailsFirstDynamicIndex +
+                        this.argumentCount() * kFrameDetailsNameValueSize
     return this.details_[locals_offset +
                          index * kFrameDetailsNameValueSize +
                          kFrameDetailsValueIndex]
+  }
+}
+
+
+FrameDetails.prototype.returnValue = function() {
+  %CheckExecutionState(this.break_id_);
+  var return_value_offset =
+      kFrameDetailsFirstDynamicIndex +
+      (this.argumentCount() + this.localCount()) * kFrameDetailsNameValueSize;
+  if (this.details_[kFrameDetailsAtReturnIndex]) {
+    return this.details_[return_value_offset];
   }
 }
 
@@ -1412,6 +1435,11 @@ FrameMirror.prototype.isConstructCall = function() {
 };
 
 
+FrameMirror.prototype.isAtReturn = function() {
+  return this.details_.isAtReturn();
+};
+
+
 FrameMirror.prototype.isDebuggerFrame = function() {
   return this.details_.isDebuggerFrame();
 };
@@ -1444,6 +1472,11 @@ FrameMirror.prototype.localName = function(index) {
 
 FrameMirror.prototype.localValue = function(index) {
   return MakeMirror(this.details_.localValue(index));
+};
+
+
+FrameMirror.prototype.returnValue = function() {
+  return MakeMirror(this.details_.returnValue());
 };
 
 
@@ -1574,6 +1607,11 @@ FrameMirror.prototype.invocationText = function() {
     result += ')';
   }
 
+  if (this.isAtReturn()) {
+    result += ' returning ';
+    result += this.returnValue().toText();
+  }
+  
   return result;
 }
 
@@ -2267,6 +2305,10 @@ JSONProtocolSerializer.prototype.serializeFrame_ = function(mirror, content) {
     content.script = this.serializeReference(func.script());
   }
   content.constructCall = mirror.isConstructCall();
+  content.atReturn = mirror.isAtReturn();
+  if (mirror.isAtReturn()) {
+    content.returnValue = this.serializeReference(mirror.returnValue());
+  }
   content.debuggerFrame = mirror.isDebuggerFrame();
   var x = new Array(mirror.argumentCount());
   for (var i = 0; i < mirror.argumentCount(); i++) {

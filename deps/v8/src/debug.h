@@ -270,6 +270,9 @@ class Debug {
   // Check whether a global object is the debug global object.
   static bool IsDebugGlobal(GlobalObject* global);
 
+  // Check whether this frame is just about to return.
+  static bool IsBreakAtReturn(JavaScriptFrame* frame);
+
   // Fast check to see if any break points are active.
   inline static bool has_break_points() { return has_break_points_; }
 

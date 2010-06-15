@@ -152,6 +152,33 @@ uint32_t Page::GetRegionMaskForAddress(Address addr) {
 }
 
 
+uint32_t Page::GetRegionMaskForSpan(Address start, int length_in_bytes) {
+  uint32_t result = 0;
+  if (length_in_bytes >= kPageSize) {
+    result = kAllRegionsDirtyMarks;
+  } else if (length_in_bytes > 0) {
+    int start_region = GetRegionNumberForAddress(start);
+    int end_region =
+        GetRegionNumberForAddress(start + length_in_bytes - kPointerSize);
+    uint32_t start_mask = (~0) << start_region;
+    uint32_t end_mask = ~((~1) << end_region);
+    result = start_mask & end_mask;
+    // if end_region < start_region, the mask is ored.
+    if (result == 0) result = start_mask | end_mask;
+  }
+#ifdef DEBUG
+  if (FLAG_enable_slow_asserts) {
+    uint32_t expected = 0;
+    for (Address a = start; a < start + length_in_bytes; a += kPointerSize) {
+      expected |= GetRegionMaskForAddress(a);
+    }
+    ASSERT(expected == result);
+  }
+#endif
+  return result;
+}
+
+
 void Page::MarkRegionDirty(Address address) {
   SetRegionMarks(GetRegionMarks() | GetRegionMaskForAddress(address));
 }

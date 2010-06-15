@@ -605,8 +605,10 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
   EnsureFromSpaceIsCommitted();
 
   if (collector == MARK_COMPACTOR) {
-    // Flush all potentially unused code.
-    FlushCode();
+    if (FLAG_flush_code) {
+      // Flush all potentially unused code.
+      FlushCode();
+    }
 
     // Perform mark-sweep with optional compaction.
     MarkCompact(tracer);

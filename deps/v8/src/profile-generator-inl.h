@@ -130,6 +130,17 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
   }
 }
 
+
+template<class Visitor>
+void HeapEntriesMap::Apply(Visitor* visitor) {
+  for (HashMap::Entry* p = entries_.Start();
+       p != NULL;
+       p = entries_.Next(p)) {
+    if (!IsAlias(p->value))
+      visitor->Apply(reinterpret_cast<HeapEntry*>(p->value));
+  }
+}
+
 } }  // namespace v8::internal
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

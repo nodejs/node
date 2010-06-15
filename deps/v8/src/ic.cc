@@ -58,7 +58,7 @@ static char TransitionMarkFromState(IC::State state) {
 }
 
 void IC::TraceIC(const char* type,
-                 Handle<String> name,
+                 Handle<Object> name,
                  State old_state,
                  Code* new_target,
                  const char* extra_info) {
@@ -610,15 +610,19 @@ Object* KeyedCallIC::LoadFunction(State state,
 
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
     ReceiverToObject(object);
-  } else {
-    if (FLAG_use_ic && state != MEGAMORPHIC && !object->IsAccessCheckNeeded()) {
-      int argc = target()->arguments_count();
-      InLoopFlag in_loop = target()->ic_in_loop();
-      Object* code = StubCache::ComputeCallMegamorphic(
-          argc, in_loop, Code::KEYED_CALL_IC);
-      if (!code->IsFailure()) {
-        set_target(Code::cast(code));
-      }
+  }
+
+  if (FLAG_use_ic && state != MEGAMORPHIC && !object->IsAccessCheckNeeded()) {
+    int argc = target()->arguments_count();
+    InLoopFlag in_loop = target()->ic_in_loop();
+    Object* code = StubCache::ComputeCallMegamorphic(
+        argc, in_loop, Code::KEYED_CALL_IC);
+    if (!code->IsFailure()) {
+      set_target(Code::cast(code));
+#ifdef DEBUG
+      TraceIC(
+          "KeyedCallIC", key, state, target(), in_loop ? " (in-loop)" : "");
+#endif
     }
   }
   Object* result = Runtime::GetObjectProperty(object, key);

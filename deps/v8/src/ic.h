@@ -140,7 +140,7 @@ class IC {
 
 #ifdef DEBUG
   static void TraceIC(const char* type,
-                      Handle<String> name,
+                      Handle<Object> name,
                       State old_state,
                       Code* new_target,
                       const char* extra_info = "");

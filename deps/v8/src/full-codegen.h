@@ -389,7 +389,7 @@ class FullCodeGenerator: public AstVisitor {
                        FunctionLiteral* function);
 
   // Platform-specific return sequence
-  void EmitReturnSequence(int position);
+  void EmitReturnSequence();
 
   // Platform-specific code sequences for calls
   void EmitCallWithStub(Call* expr);

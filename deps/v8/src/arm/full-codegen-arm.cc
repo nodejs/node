@@ -196,11 +196,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info, Mode mode) {
     // body.
     __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
   }
-  EmitReturnSequence(function()->end_position());
+  EmitReturnSequence();
 }
 
 
-void FullCodeGenerator::EmitReturnSequence(int position) {
+void FullCodeGenerator::EmitReturnSequence() {
   Comment cmnt(masm_, "[ Return sequence");
   if (return_label_.is_bound()) {
     __ b(&return_label_);
@@ -224,7 +224,7 @@ void FullCodeGenerator::EmitReturnSequence(int position) {
       // Here we use masm_-> instead of the __ macro to avoid the code coverage
       // tool from instrumenting as we rely on the code size here.
       int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
-      CodeGenerator::RecordPositions(masm_, position);
+      CodeGenerator::RecordPositions(masm_, function()->end_position());
       __ RecordJSReturn();
       masm_->mov(sp, fp);
       masm_->ldm(ia_w, sp, fp.bit() | lr.bit());

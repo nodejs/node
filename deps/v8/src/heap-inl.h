@@ -196,12 +196,9 @@ void Heap::RecordWrite(Address address, int offset) {
 void Heap::RecordWrites(Address address, int start, int len) {
   if (new_space_.Contains(address)) return;
   ASSERT(!new_space_.FromSpaceContains(address));
-  for (int offset = start;
-       offset < start + len * kPointerSize;
-       offset += kPointerSize) {
-    SLOW_ASSERT(Contains(address + offset));
-    Page::FromAddress(address)->MarkRegionDirty(address + offset);
-  }
+  Page* page = Page::FromAddress(address);
+  page->SetRegionMarks(page->GetRegionMarks() |
+      page->GetRegionMaskForSpan(address + start, len * kPointerSize));
 }
 
 

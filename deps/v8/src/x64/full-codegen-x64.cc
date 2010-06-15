@@ -187,12 +187,12 @@ void FullCodeGenerator::Generate(CompilationInfo* info, Mode mode) {
   { Comment cmnt(masm_, "[ return <undefined>;");
     // Emit a 'return undefined' in case control fell off the end of the body.
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
-    EmitReturnSequence(function()->end_position());
+    EmitReturnSequence();
   }
 }
 
 
-void FullCodeGenerator::EmitReturnSequence(int position) {
+void FullCodeGenerator::EmitReturnSequence() {
   Comment cmnt(masm_, "[ Return sequence");
   if (return_label_.is_bound()) {
     __ jmp(&return_label_);
@@ -207,7 +207,7 @@ void FullCodeGenerator::EmitReturnSequence(int position) {
     Label check_exit_codesize;
     masm_->bind(&check_exit_codesize);
 #endif
-    CodeGenerator::RecordPositions(masm_, position);
+    CodeGenerator::RecordPositions(masm_, function()->end_position());
     __ RecordJSReturn();
     // Do not use the leave instruction here because it is too short to
     // patch with the code required by the debugger.

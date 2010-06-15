@@ -1077,7 +1077,7 @@ void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   }
   __ Drop(stack_depth);
 
-  EmitReturnSequence(stmt->statement_pos());
+  EmitReturnSequence();
 }
 
 

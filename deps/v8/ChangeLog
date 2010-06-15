@@ -1,6 +1,13 @@
-2010-06-07: Version 2.2.16
+2010-06-14: Version 2.2.17
 
-        Remove the SetExternalStringDiposeCallback API. Changed the 
+        Improved debugger support for stepping out of functions.
+
+        Incremental performance improvements.
+
+
+2010-06-09: Version 2.2.16
+
+        Removed the SetExternalStringDiposeCallback API. Changed the 
         disposal of external string resources to call a virtual Dispose
         method on the resource.
 

@@ -220,6 +220,7 @@ class Page {
   inline void SetRegionMarks(uint32_t dirty);
 
   inline uint32_t GetRegionMaskForAddress(Address addr);
+  inline uint32_t GetRegionMaskForSpan(Address start, int length_in_bytes);
   inline int GetRegionNumberForAddress(Address addr);
 
   inline void MarkRegionDirty(Address addr);

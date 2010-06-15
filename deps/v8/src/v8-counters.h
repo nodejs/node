@@ -126,6 +126,14 @@ namespace internal {
   SC(keyed_load_generic_lookup_cache, V8.KeyedLoadGenericLookupCache) \
   SC(keyed_load_generic_slow, V8.KeyedLoadGenericSlow)                \
   SC(keyed_load_external_array_slow, V8.KeyedLoadExternalArraySlow)   \
+  /* How is the generic keyed-call stub used? */                      \
+  SC(keyed_call_generic_smi_fast, V8.KeyedCallGenericSmiFast)         \
+  SC(keyed_call_generic_smi_dict, V8.KeyedCallGenericSmiDict)         \
+  SC(keyed_call_generic_lookup_cache, V8.KeyedCallGenericLookupCache) \
+  SC(keyed_call_generic_lookup_dict, V8.KeyedCallGenericLookupDict)   \
+  SC(keyed_call_generic_value_type, V8.KeyedCallGenericValueType)     \
+  SC(keyed_call_generic_slow, V8.KeyedCallGenericSlow)                \
+  SC(keyed_call_generic_slow_load, V8.KeyedCallGenericSlowLoad)       \
   /* Count how much the monomorphic keyed-load stubs are hit. */      \
   SC(keyed_load_function_prototype, V8.KeyedLoadFunctionPrototype)    \
   SC(keyed_load_string_length, V8.KeyedLoadStringLength)              \
