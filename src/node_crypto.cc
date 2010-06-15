@@ -762,48 +762,49 @@ int local_EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx,
 
   *outl=0;
   b=ctx->cipher->block_size;
-  if (ctx->flags & EVP_CIPH_NO_PADDING)
-    {
-      if(ctx->buf_len)
-	{
-	  EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_DATA_NOT_MULTIPLE_OF_BLOCK_LENGTH);
-	  return 0;
-	}
-      *outl = 0;
-      return 1;
+
+  if (ctx->flags & EVP_CIPH_NO_PADDING) {
+    if(ctx->buf_len) {
+      EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_DATA_NOT_MULTIPLE_OF_BLOCK_LENGTH);
+      return 0;
     }
-  if (b > 1)
-    {
-      if (ctx->buf_len || !ctx->final_used)
-	{
-	  EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_WRONG_FINAL_BLOCK_LENGTH);
-	  return(0);
-	}
-      OPENSSL_assert(b <= sizeof ctx->final);
-      n=ctx->final[b-1];
-      if (n > b)
-	{
-	  EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_BAD_DECRYPT);
-	  return(0);
-	}
-      for (i=0; i<n; i++)
-	{
-	  if (ctx->final[--b] != n)
-	    {
-	      EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_BAD_DECRYPT);
-	      return(0);
-	    }
-	}
-      n=ctx->cipher->block_size-n;
-      for (i=0; i<n; i++)
-	out[i]=ctx->final[i];
-      *outl=n;
+    *outl = 0;
+    return 1;
+  }
+
+  if (b > 1) {
+    if (ctx->buf_len || !ctx->final_used) {
+      EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_WRONG_FINAL_BLOCK_LENGTH);
+      return(0);
     }
-  else
+
+    OPENSSL_assert(b <= sizeof ctx->final);
+    n=ctx->final[b-1];
+
+    if (n > b) {
+      EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_BAD_DECRYPT);
+      return(0);
+    }
+
+    for (i=0; i<n; i++) {
+      if (ctx->final[--b] != n) {
+        EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_BAD_DECRYPT);
+        return(0);
+      }
+    }
+
+    n=ctx->cipher->block_size-n;
+
+    for (i=0; i<n; i++) {
+      out[i]=ctx->final[i];
+    }
+    *outl=n;
+  } else {
     *outl=0;
+  }
+
   return(1);
 }
-
 
 
 class Cipher : public ObjectWrap {
@@ -1000,8 +1001,9 @@ class Cipher : public ObjectWrap {
     delete [] buf;
 
     Local<Value> outString;
-    if (out_len==0) outString=String::New("");
-    else {
+    if (out_len==0) { 
+      outString=String::New("");
+    } else {
     	if (args.Length() <= 2 || !args[2]->IsString()) {
 	      // Binary
 	      outString = Encode(out, out_len, BINARY);
@@ -1015,29 +1017,31 @@ class Cipher : public ObjectWrap {
 	        outString = Encode(out_hexdigest, out_hex_len, BINARY);
 	        delete [] out_hexdigest;
 	      } else if (strcasecmp(*encoding, "base64") == 0) {
-		// Base64 encoding
-		// Check to see if we need to add in previous base64 overhang
-		if (cipher->incomplete_base64!=NULL){
-		  unsigned char* complete_base64 = new unsigned char[out_len+cipher->incomplete_base64_len+1];
-		  memcpy(complete_base64, cipher->incomplete_base64, cipher->incomplete_base64_len);
-		  memcpy(&complete_base64[cipher->incomplete_base64_len], out, out_len);
-		  delete [] out;
+          // Base64 encoding
+          // Check to see if we need to add in previous base64 overhang
+          if (cipher->incomplete_base64!=NULL){
+            unsigned char* complete_base64 = new unsigned char[out_len+cipher->incomplete_base64_len+1];
+            memcpy(complete_base64, cipher->incomplete_base64, cipher->incomplete_base64_len);
+            memcpy(&complete_base64[cipher->incomplete_base64_len], out, out_len);
+            delete [] out;
 
-      delete [] cipher->incomplete_base64;
-		  cipher->incomplete_base64=NULL;
+            delete [] cipher->incomplete_base64;
+            cipher->incomplete_base64=NULL;
 
-		  out=complete_base64;
-		  out_len += cipher->incomplete_base64_len;
-		}
+            out=complete_base64;
+            out_len += cipher->incomplete_base64_len;
+          }
 
-		// Check to see if we need to trim base64 stream
-		if (out_len%3!=0){
-		  cipher->incomplete_base64_len = out_len%3;
-		  cipher->incomplete_base64 = new char[cipher->incomplete_base64_len+1];
-		  memcpy(cipher->incomplete_base64, &out[out_len-cipher->incomplete_base64_len], cipher->incomplete_base64_len);
-		  out_len -= cipher->incomplete_base64_len;
-		  out[out_len]=0;
-		}
+          // Check to see if we need to trim base64 stream
+          if (out_len%3!=0){
+            cipher->incomplete_base64_len = out_len%3;
+            cipher->incomplete_base64 = new char[cipher->incomplete_base64_len+1];
+            memcpy(cipher->incomplete_base64,
+                   &out[out_len-cipher->incomplete_base64_len],
+                   cipher->incomplete_base64_len);
+            out_len -= cipher->incomplete_base64_len;
+            out[out_len]=0;
+          }
 
 	        base64(out, out_len, &out_hexdigest, &out_hex_len);
 	        outString = Encode(out_hexdigest, out_hex_len, BINARY);
@@ -1045,12 +1049,14 @@ class Cipher : public ObjectWrap {
 	      } else if (strcasecmp(*encoding, "binary") == 0) {
 	        outString = Encode(out, out_len, BINARY);
 	      } else {
-		fprintf(stderr, "node-crypto : Cipher .update encoding "
-			"can be binary, hex or base64\n");
+          fprintf(stderr, "node-crypto : Cipher .update encoding "
+                          "can be binary, hex or base64\n");
 	      }
 	    }
     }
+
     if (out) delete [] out;
+
     return scope.Close(outString);
   }
 
