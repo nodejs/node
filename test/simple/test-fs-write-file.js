@@ -26,9 +26,30 @@ fs.writeFile(filename, s, function (e) {
   });
 });
 
+// test that writeFile accepts buffers
+filename2 = join(fixturesDir, 'test2.txt');
+buf = new Buffer(s, 'utf8');
+error('writing to ' + filename2);
+
+fs.writeFile(filename2, s, function (e) {
+  if (e) throw e;
+
+  ncallbacks++;
+  error('file2 written');
+
+  fs.readFile(filename2, function (e, buffer) {
+    if (e) throw e;
+    error('file2 read');
+    ncallbacks++;
+    assert.equal(buf.length, buffer.length);
+  });
+});
+
 
 process.addListener('exit', function () {
   error('done');
+  assert.equal(4, ncallbacks);
 
-  assert.equal(2, ncallbacks);
+  fs.unlinkSync(filename);
+  fs.unlinkSync(filename2);
 });
