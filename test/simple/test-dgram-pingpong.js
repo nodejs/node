@@ -4,7 +4,9 @@ var dgram = require("dgram");
 
 var tests_run = 0;
 
+
 function pingPongTest (port, host) {
+  var callbacks = 0;
   var N = 500;
   var count = 0;
   var sent_final_ping = false;
@@ -17,7 +19,9 @@ function pingPongTest (port, host) {
     if (/PING/.exec(msg)) {
       var buf = new Buffer(4);
       buf.write('PONG');
-      server.send(rinfo.port, rinfo.address, buf, 0, buf.length);
+      server.send(rinfo.port, rinfo.address, buf, 0, buf.length, function (err, sent) {
+        callbacks++;
+      });
     }
 
   });
@@ -58,6 +62,7 @@ function pingPongTest (port, host) {
       assert.equal(N, count);
       tests_run += 1;
       server.close();
+      assert.equal(N-1, callbacks);
     });
 
     client.addListener("error", function (e) {
