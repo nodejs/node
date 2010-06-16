@@ -1,36 +1,30 @@
 require('../common');
-var Utf8Decoder = require('utf8decoder').Utf8Decoder,
-    Buffer = require('buffer').Buffer,
-    decoder = new Utf8Decoder(),
-    buffer,
-    onStringCalled = 0;
 
-decoder.onString = function(str) {
-  onStringCalled++;
-  assert.deepEqual(str, buffer.toString());
-};
+Buffer = require('buffer').Buffer;
+StringDecoder = require('string_decoder').StringDecoder;
+decoder = new StringDecoder('utf8');
+
+
 
 buffer = new Buffer('$');
-decoder.write(buffer);
-assert.equal(onStringCalled, 1);
+assert.deepEqual('$', decoder.write(buffer));
 
 buffer = new Buffer('¢');
-decoder.write(buffer.slice(0, 1));
-decoder.write(buffer.slice(1, 2));
-assert.equal(onStringCalled, 2);
+assert.deepEqual('', decoder.write(buffer.slice(0, 1)));
+assert.deepEqual('¢', decoder.write(buffer.slice(1, 2)));
 
 buffer = new Buffer('€');
-decoder.write(buffer.slice(0, 1));
-decoder.write(buffer.slice(1, 2));
-decoder.write(buffer.slice(2, 3));
-assert.equal(onStringCalled, 3);
+assert.deepEqual('', decoder.write(buffer.slice(0, 1)));
+assert.deepEqual('', decoder.write(buffer.slice(1, 2)));
+assert.deepEqual('€', decoder.write(buffer.slice(2, 3)));
 
 buffer = new Buffer([0xF0, 0xA4, 0xAD, 0xA2]);
-decoder.write(buffer.slice(0, 1));
-decoder.write(buffer.slice(1, 2));
-decoder.write(buffer.slice(2, 3));
-decoder.write(buffer.slice(3, 4));
-assert.equal(onStringCalled, 4);
+s = '';
+s += decoder.write(buffer.slice(0, 1));
+s += decoder.write(buffer.slice(1, 2));
+s += decoder.write(buffer.slice(2, 3));
+s += decoder.write(buffer.slice(3, 4));
+assert.ok(s.length > 0);
 
 // A mixed ascii and non-ascii string
 // Test stolen from deps/v8/test/cctest/test-strings.cc
@@ -51,18 +45,16 @@ charLengths = [0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 5];
 print('scanning ');
 for (var j = 2; j < buffer.length; j++) {
   for (var i = 1; i < j; i++) {
-    var decoder = new Utf8Decoder();
-    var sum = "";
-    decoder.onString = function (s) { sum += s; };
+    var decoder = new StringDecoder('utf8');
 
-    decoder.write(buffer.slice(0, i));
+    var sum = decoder.write(buffer.slice(0, i));
 
     // just check that we've received the right amount
     // after the first write
     assert.equal(charLengths[i], sum.length);
 
-    decoder.write(buffer.slice(i, j));
-    decoder.write(buffer.slice(j, buffer.length));
+    sum += decoder.write(buffer.slice(i, j));
+    sum += decoder.write(buffer.slice(j, buffer.length));
     assert.equal(expected, sum);
     print(".");
   }

@@ -1866,7 +1866,7 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("utils"),        String::New(native_utils));
       exports->Set(String::New("path"),         String::New(native_path));
       exports->Set(String::New("module"),       String::New(native_module));
-      exports->Set(String::New("utf8decoder"),  String::New(native_utf8decoder));
+      exports->Set(String::New("string_decoder"), String::New(native_string_decoder));
       binding_cache->Set(module, exports);
     }
 

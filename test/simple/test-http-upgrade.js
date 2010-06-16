@@ -50,12 +50,6 @@ function testServer(){
 sys.inherits(testServer, http.Server);
 
 
-function testClient(){
-  var conn = net.createConnection(PORT);
-  conn.setEncoding("utf8");
-  return conn;
-}
-
 function writeReq(socket, data, encoding){
   requests_sent++;
   socket.write(data);
@@ -66,7 +60,8 @@ function writeReq(socket, data, encoding){
   connection: Upgrade with listener
 -----------------------------------------------*/
 function test_upgrade_with_listener(_server){
-  var conn = new testClient();
+  var conn = net.createConnection(PORT);
+  conn.setEncoding("utf8");
   var state = 0;
 
   conn.addListener("connect", function () {
@@ -79,10 +74,12 @@ function test_upgrade_with_listener(_server){
             );
   });
 
-  conn.addListener("data", function(data){
+  conn.addListener("data", function (data) {
     state++;
 
-    if(state == 1){
+    assert.equal('string', typeof data);
+
+    if(state == 1) {
       assert.equal("HTTP/1.1 101", data.substr(0, 12));
       assert.equal("WjN}|M(6", request_upgradeHead.toString("utf8"));
       conn.write("test", "utf8");
@@ -106,7 +103,8 @@ function test_upgrade_with_listener(_server){
 var test_upgrade_no_listener_ended = false;
 
 function test_upgrade_no_listener(){
-  var conn = new testClient();
+  var conn = net.createConnection(PORT);
+  conn.setEncoding("utf8");
 
   conn.addListener("connect", function () {
     writeReq(conn, "GET / HTTP/1.1\r\nUpgrade: WebSocket\r\nConnection: Upgrade\r\n\r\n");
@@ -126,12 +124,15 @@ function test_upgrade_no_listener(){
   connection: normal
 -----------------------------------------------*/
 function test_standard_http(){
-  var conn = new testClient();
+  var conn = net.createConnection(PORT);
+  conn.setEncoding("utf8");
+
   conn.addListener("connect", function () {
     writeReq(conn, "GET / HTTP/1.1\r\n\r\n");
   });
 
   conn.addListener("data", function(data){
+    assert.equal("string", typeof data);
     assert.equal("HTTP/1.1 200", data.substr(0, 12));
     conn.end();
   });
@@ -144,7 +145,7 @@ function test_standard_http(){
 
 var server = createTestServer();
 
-server.listen(PORT, function(){
+server.listen(PORT, function () {
   // All tests get chained after this:
   test_upgrade_with_listener(server);
 });
