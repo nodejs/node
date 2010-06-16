@@ -273,7 +273,8 @@ Handle<Value> SecureStream::New(const Arguments& args) {
 
   if (args.Length() <1 ||
       !args[0]->IsObject()) {
-    return ThrowException(Exception::Error(String::New("First argument must be a crypto module Credentials")));
+    return ThrowException(Exception::Error(String::New(
+      "First argument must be a crypto module Credentials")));
   }
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args[0]->ToObject());
   int isServer = 0;
@@ -910,7 +911,8 @@ class Cipher : public ObjectWrap {
     cipher->incomplete_base64=NULL;
 
     if (args.Length() <= 1 || !args[0]->IsString() || !args[1]->IsString()) {
-      return ThrowException(String::New("Must give cipher-type, key"));
+      return ThrowException(Exception::Error(String::New(
+        "Must give cipher-type, key")));
     }
 
     ssize_t key_buf_len = DecodeBytes(args[1], BINARY);
@@ -942,7 +944,8 @@ class Cipher : public ObjectWrap {
     cipher->incomplete_base64=NULL;
 
     if (args.Length() <= 2 || !args[0]->IsString() || !args[1]->IsString() || !args[2]->IsString()) {
-      return ThrowException(String::New("Must give cipher-type, key, and iv as argument"));
+      return ThrowException(Exception::Error(String::New(
+        "Must give cipher-type, key, and iv as argument")));
     }
     ssize_t key_len = DecodeBytes(args[1], BINARY);
 
@@ -1248,7 +1251,8 @@ class Decipher : public ObjectWrap {
     cipher->incomplete_hex_flag=false;
 
     if (args.Length() <= 1 || !args[0]->IsString() || !args[1]->IsString()) {
-      return ThrowException(String::New("Must give cipher-type, key as argument"));
+      return ThrowException(Exception::Error(String::New(
+        "Must give cipher-type, key as argument")));
     }
 
     ssize_t key_len = DecodeBytes(args[1], BINARY);
@@ -1280,7 +1284,8 @@ class Decipher : public ObjectWrap {
     cipher->incomplete_hex_flag=false;
 
     if (args.Length() <= 2 || !args[0]->IsString() || !args[1]->IsString() || !args[2]->IsString()) {
-      return ThrowException(String::New("Must give cipher-type, key, and iv as argument"));
+      return ThrowException(Exception::Error(String::New(
+        "Must give cipher-type, key, and iv as argument")));
     }
 
     ssize_t key_len = DecodeBytes(args[1], BINARY);
@@ -1586,7 +1591,8 @@ class Hmac : public ObjectWrap {
     HandleScope scope;
 
     if (args.Length() == 0 || !args[0]->IsString()) {
-      return ThrowException(String::New("Must give hashtype string as argument"));
+      return ThrowException(Exception::Error(String::New(
+        "Must give hashtype string as argument")));
     }
 
     ssize_t len = DecodeBytes(args[1], BINARY);
@@ -1738,7 +1744,8 @@ class Hash : public ObjectWrap {
     HandleScope scope;
 
     if (args.Length() == 0 || !args[0]->IsString()) {
-      return ThrowException(String::New("Must give hashtype string as argument"));
+      return ThrowException(Exception::Error(String::New(
+        "Must give hashtype string as argument")));
     }
 
     Hash *hash = new Hash();
@@ -1907,7 +1914,8 @@ class Sign : public ObjectWrap {
     Sign *sign = ObjectWrap::Unwrap<Sign>(args.This());
 
     if (args.Length() == 0 || !args[0]->IsString()) {
-      return ThrowException(String::New("Must give signtype string as argument"));
+      return ThrowException(Exception::Error(String::New(
+        "Must give signtype string as argument")));
     }
 
     String::Utf8Value signType(args[0]->ToString());
@@ -2098,7 +2106,8 @@ class Verify : public ObjectWrap {
     HandleScope scope;
 
     if (args.Length() == 0 || !args[0]->IsString()) {
-      return ThrowException(String::New("Must give verifytype string as argument"));
+      return ThrowException(Exception::Error(String::New(
+        "Must give verifytype string as argument")));
     }
 
     String::Utf8Value verifyType(args[0]->ToString());
