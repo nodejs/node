@@ -7,6 +7,8 @@
 #include <http_parser.h>
 
 #include <strings.h>  /* strcasecmp() */
+#include <string.h>  /* strdup() */
+#include <stdlib.h>  /* free() */
 
 // This is a binding to http_parser (http://github.com/ry/http-parser)
 // The goal is to decouple sockets from parsing for more javascript-level
