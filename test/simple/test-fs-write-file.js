@@ -31,7 +31,7 @@ filename2 = join(fixturesDir, 'test2.txt');
 buf = new Buffer(s, 'utf8');
 error('writing to ' + filename2);
 
-fs.writeFile(filename2, s, function (e) {
+fs.writeFile(filename2, buf, function (e) {
   if (e) throw e;
 
   ncallbacks++;
