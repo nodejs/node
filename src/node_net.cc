@@ -968,6 +968,21 @@ static Handle<Value> SetNoDelay(const Arguments& args) {
   return Undefined();
 }
 
+static Handle<Value> SetBroadcast(const Arguments& args) {
+  int flags, r;
+  HandleScope scope;
+
+  FD_ARG(args[0])
+
+  flags = args[1]->IsFalse() ? 0 : 1;
+  r = setsockopt(fd, SOL_SOCKET, SO_BROADCAST, (void *)&flags, sizeof(flags));
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "setsockopt"));
+  }
+  return Undefined();
+}
+
 
 static Handle<Value> SetKeepAlive(const Arguments& args) {
   int r;
@@ -1065,6 +1080,7 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "socketError", SocketError);
   NODE_SET_METHOD(target, "toRead", ToRead);
   NODE_SET_METHOD(target, "setNoDelay", SetNoDelay);
+  NODE_SET_METHOD(target, "setBroadcast", SetBroadcast);
   NODE_SET_METHOD(target, "setKeepAlive", SetKeepAlive);
   NODE_SET_METHOD(target, "getsockname", GetSockName);
   NODE_SET_METHOD(target, "getpeername", GetPeerName);
