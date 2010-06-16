@@ -2013,25 +2013,18 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
   CustomArguments args(interceptor->data(), receiver, this);
   v8::AccessorInfo info(args.end());
   if (!interceptor->query()->IsUndefined()) {
-    v8::NamedPropertyQueryImpl query =
-        v8::ToCData<v8::NamedPropertyQueryImpl>(interceptor->query());
+    v8::NamedPropertyQuery query =
+        v8::ToCData<v8::NamedPropertyQuery>(interceptor->query());
     LOG(ApiNamedPropertyAccess("interceptor-named-has", *holder_handle, name));
-    v8::Handle<v8::Value> result;
+    v8::Handle<v8::Integer> result;
     {
       // Leaving JavaScript.
       VMState state(EXTERNAL);
       result = query(v8::Utils::ToLocal(name_handle), info);
     }
     if (!result.IsEmpty()) {
-      // Temporary complicated logic, would be removed soon.
-      if (result->IsBoolean()) {
-        // Convert the boolean result to a property attribute
-        // specification.
-        return result->IsTrue() ? NONE : ABSENT;
-      } else {
-        ASSERT(result->IsInt32());
-        return static_cast<PropertyAttributes>(result->Int32Value());
-      }
+      ASSERT(result->IsInt32());
+      return static_cast<PropertyAttributes>(result->Int32Value());
     }
   } else if (!interceptor->getter()->IsUndefined()) {
     v8::NamedPropertyGetter getter =

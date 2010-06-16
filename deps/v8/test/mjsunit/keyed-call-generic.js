@@ -94,3 +94,20 @@ testMany(fixed_array, first3num, first3num);
 testMany(dict_array, first3num, first3num);
 testMany(fast_prop, first3str, first3num);
 testMany(normal_prop, first3str, first3num);
+
+
+function testException(receiver, keys, exceptions) {
+  for (var i = 0; i != 10; i++) {
+    for (var k = 0; k != keys.length; k++) {
+      var thrown = false;
+      try {
+        var result = receiver[keys[k]]();
+      } catch (e) {
+        thrown = true;
+      }
+      assertEquals(exceptions[k], thrown);
+    }
+  }
+}
+
+testException([zero, one, /* hole */ ], [0, 1, 2], [false, false, true]);

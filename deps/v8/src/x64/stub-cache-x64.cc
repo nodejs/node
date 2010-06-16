@@ -706,6 +706,15 @@ static Object* GenerateCheckPropertyCell(MacroAssembler* masm,
 
 #define __ ACCESS_MASM((masm()))
 
+
+void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
+  if (kind_ == Code::KEYED_CALL_IC) {
+    __ Cmp(rcx, Handle<String>(name));
+    __ j(not_equal, miss);
+  }
+}
+
+
 void CallStubCompiler::GenerateMissBranch() {
   Handle<Code> ic = ComputeCallMiss(arguments().immediate(), kind_);
   __ Jump(ic, RelocInfo::CODE_TARGET);
@@ -739,6 +748,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   }
 
   Label miss_in_smi_check;
+
+  GenerateNameCheck(name, &miss_in_smi_check);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -881,6 +892,8 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
   // -----------------------------------
   Label miss;
 
+  GenerateNameCheck(name, &miss);
+
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
@@ -937,6 +950,8 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   }
 
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -1092,6 +1107,8 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
 
   Label miss, return_undefined, call_builtin;
 
+  GenerateNameCheck(name, &miss);
+
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
@@ -1190,6 +1207,8 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
   // -----------------------------------
   Label miss;
 
+  GenerateNameCheck(name, &miss);
+
   // Get the number of arguments.
   const int argc = arguments().immediate();
 
@@ -1253,6 +1272,8 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // rsp[argc * 8]       : argument 1
   // rsp[(argc + 1) * 8] : argument 0 = receiver
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the number of arguments.
   const int argc = arguments().immediate();

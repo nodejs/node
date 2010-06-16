@@ -25,9 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// When this bug is corrected move to object-define-property and add
-// additional tests for configurable in the same manner as existing tests
-// there.
+// Tests that Object.defineProperty works correctly on array indices. 
+// Please see http://code.google.com/p/v8/issues/detail?id=619 for details.
 
 var obj = {};
 obj[1] = 42;

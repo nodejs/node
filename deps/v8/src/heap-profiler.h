@@ -28,23 +28,46 @@
 #ifndef V8_HEAP_PROFILER_H_
 #define V8_HEAP_PROFILER_H_
 
-#include "zone.h"
+#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+class HeapSnapshot;
+class HeapSnapshotsCollection;
+
 // The HeapProfiler writes data to the log files, which can be postprocessed
 // to generate .hp files for use by the GHC/Valgrind tool hp2ps.
 class HeapProfiler {
  public:
+  static void Setup();
+  static void TearDown();
+  static HeapSnapshot* TakeSnapshot(const char* name);
+  static HeapSnapshot* TakeSnapshot(String* name);
+  static int GetSnapshotsCount();
+  static HeapSnapshot* GetSnapshot(int index);
+  static HeapSnapshot* FindSnapshot(unsigned uid);
+
+  // Obsolete interface.
   // Write a single heap sample to the log file.
   static void WriteSample();
 
  private:
+  HeapProfiler();
+  ~HeapProfiler();
+  HeapSnapshot* TakeSnapshotImpl(const char* name);
+  HeapSnapshot* TakeSnapshotImpl(String* name);
+
+  // Obsolete interface.
   // Update the array info with stats from obj.
   static void CollectStats(HeapObject* obj, HistogramInfo* info);
+
+  HeapSnapshotsCollection* snapshots_;
+  unsigned next_snapshot_uid_;
+
+  static HeapProfiler* singleton_;
 };
 
 

@@ -315,6 +315,12 @@ class CodeGenerator: public AstVisitor {
   // Main code generation function
   void Generate(CompilationInfo* info);
 
+  // Generate the return sequence code.  Should be called no more than
+  // once per compiled function, immediately after binding the return
+  // target (which can not be done more than once).  The return value should
+  // be in r0.
+  void GenerateReturnSequence();
+
   // Returns the arguments allocation mode.
   ArgumentsAllocationMode ArgumentsMode();
 

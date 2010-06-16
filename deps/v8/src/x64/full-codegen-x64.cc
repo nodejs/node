@@ -1729,6 +1729,30 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
 }
 
 
+void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
+                                            Expression* key,
+                                            RelocInfo::Mode mode) {
+  // Code common for calls using the IC.
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    VisitForValue(args->at(i), kStack);
+  }
+  VisitForValue(key, kAccumulator);
+  __ movq(rcx, rax);
+  // Record source position for debugger.
+  SetSourcePosition(expr->position());
+  // Call the IC initialization code.
+  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+  Handle<Code> ic = CodeGenerator::ComputeKeyedCallInitialize(arg_count,
+                                                              in_loop);
+  __ Call(ic, mode);
+  // Restore context register.
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  Apply(context_, rax);
+}
+
+
 void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Code common for calls using the call stub.
   ZoneList<Expression*>* args = expr->arguments();
@@ -1820,30 +1844,32 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       VisitForValue(prop->obj(), kStack);
       EmitCallWithIC(expr, key->handle(), RelocInfo::CODE_TARGET);
     } else {
-      // Call to a keyed property, use keyed load IC followed by function
-      // call.
+      // Call to a keyed property.
+      // For a synthetic property use keyed load IC followed by function call,
+      // for a regular property use KeyedCallIC.
       VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kAccumulator);
-      __ movq(rdx, Operand(rsp, 0));
-      // Record source code position for IC call.
-      SetSourcePosition(prop->position());
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-      __ call(ic, RelocInfo::CODE_TARGET);
-      // By emitting a nop we make sure that we do not have a "test rax,..."
-      // instruction after the call it is treated specially by the LoadIC code.
-      __ nop();
-      // Pop receiver.
-      __ pop(rbx);
-      // Push result (function).
-      __ push(rax);
-      // Push receiver object on stack.
       if (prop->is_synthetic()) {
+        VisitForValue(prop->key(), kAccumulator);
+        __ movq(rdx, Operand(rsp, 0));
+        // Record source code position for IC call.
+        SetSourcePosition(prop->position());
+        Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+        __ call(ic, RelocInfo::CODE_TARGET);
+        // By emitting a nop we make sure that we do not have a "test rax,..."
+        // instruction after the call as it is treated specially
+        // by the LoadIC code.
+        __ nop();
+        // Pop receiver.
+        __ pop(rbx);
+        // Push result (function).
+        __ push(rax);
+        // Push receiver object on stack.
         __ movq(rcx, CodeGenerator::GlobalObject());
         __ push(FieldOperand(rcx, GlobalObject::kGlobalReceiverOffset));
+        EmitCallWithStub(expr);
       } else {
-        __ push(rbx);
+        EmitKeyedCallWithIC(expr, prop->key(), RelocInfo::CODE_TARGET);
       }
-      EmitCallWithStub(expr);
     }
   } else {
     // Call to some other expression.  If the expression is an anonymous

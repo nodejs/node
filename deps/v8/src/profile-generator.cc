@@ -1114,7 +1114,7 @@ void HeapEntry::Print(int max_depth, int indent) {
 const char* HeapEntry::TypeAsString() {
   switch (type_) {
     case INTERNAL: return "/internal/";
-    case JS_OBJECT: return "/object/";
+    case OBJECT: return "/object/";
     case CLOSURE: return "/closure/";
     case STRING: return "/string/";
     case CODE: return "/code/";
@@ -1262,7 +1262,7 @@ HeapEntry* HeapSnapshot::GetEntry(Object* obj) {
     return AddEntry(object, HeapEntry::CLOSURE, collection_->GetName(name));
   } else if (object->IsJSObject()) {
     return AddEntry(object,
-                    HeapEntry::JS_OBJECT,
+                    HeapEntry::OBJECT,
                     collection_->GetName(
                         JSObject::cast(object)->constructor_name()));
   } else if (object->IsJSGlobalPropertyCell()) {
@@ -1276,10 +1276,19 @@ HeapEntry* HeapSnapshot::GetEntry(Object* obj) {
     return AddEntry(object,
                     HeapEntry::STRING,
                     collection_->GetName(String::cast(object)));
-  } else if (object->IsCode()
-             || object->IsSharedFunctionInfo()
-             || object->IsScript()) {
+  } else if (object->IsCode()) {
     return AddEntry(object, HeapEntry::CODE);
+  } else if (object->IsSharedFunctionInfo()) {
+    SharedFunctionInfo* shared = SharedFunctionInfo::cast(object);
+    String* name = String::cast(shared->name())->length() > 0 ?
+        String::cast(shared->name()) : shared->inferred_name();
+    return AddEntry(object, HeapEntry::CODE, collection_->GetName(name));
+  } else if (object->IsScript()) {
+    Script* script = Script::cast(object);
+    return AddEntry(object,
+                    HeapEntry::CODE,
+                    script->name()->IsString() ?
+                    collection_->GetName(String::cast(script->name())) : "");
   } else if (object->IsFixedArray()) {
     return AddEntry(object, HeapEntry::ARRAY);
   }

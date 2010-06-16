@@ -306,22 +306,22 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
 // Falls through for regular JS object.
 static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
                                            Register receiver,
-                                           Register r0,
+                                           Register map,
                                            Label* slow) {
   // Register use:
   //   receiver - holds the receiver and is unchanged.
   // Scratch registers:
-  //   r0 - used to hold the map of the receiver.
+  //   map - used to hold the map of the receiver.
 
   // Check that the object isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
   __ j(zero, slow, not_taken);
 
   // Get the map of the receiver.
-  __ mov(r0, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ mov(map, FieldOperand(receiver, HeapObject::kMapOffset));
 
   // Check bit field.
-  __ test_b(FieldOperand(r0, Map::kBitFieldOffset),
+  __ test_b(FieldOperand(map, Map::kBitFieldOffset),
             KeyedLoadIC::kSlowCaseBitFieldMask);
   __ j(not_zero, slow, not_taken);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
@@ -330,7 +330,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   // into string objects works as intended.
   ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
 
-  __ CmpInstanceType(r0, JS_OBJECT_TYPE);
+  __ CmpInstanceType(map, JS_OBJECT_TYPE);
   __ j(below, slow, not_taken);
 }
 
@@ -371,7 +371,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
 
 
 // Checks whether a key is an array index string or a symbol string.
-// Falls through if a key is a symbol.
+// Falls through if the key is a symbol.
 static void GenerateKeyStringCheck(MacroAssembler* masm,
                                    Register key,
                                    Register map,
@@ -399,11 +399,9 @@ static void GenerateKeyStringCheck(MacroAssembler* masm,
 
 
 // Picks out an array index from the hash field.
-// The generated code never falls through.
 static void GenerateIndexFromHash(MacroAssembler* masm,
                                   Register key,
-                                  Register hash,
-                                  Label* index_smi) {
+                                  Register hash) {
   // Register use:
   //   key - holds the overwritten key on exit.
   //   hash - holds the key's hash. Clobbered.
@@ -415,8 +413,6 @@ static void GenerateIndexFromHash(MacroAssembler* masm,
          (1 << String::kArrayIndexValueBits));
   // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
   // the low kHashShift bits.
-  // key: string key
-  // ebx: hash field.
   ASSERT(String::kHashShift >= kSmiTagSize);
   __ and_(hash, String::kArrayIndexValueMask);
   __ shr(hash, String::kHashShift - kSmiTagSize);
@@ -424,8 +420,6 @@ static void GenerateIndexFromHash(MacroAssembler* masm,
   // runtime later. However as the new key is the numeric value of a string key
   // there is no difference in using either key.
   __ mov(key, hash);
-  // Now jump to the place where smi keys are handled.
-  __ jmp(index_smi);
 }
 
 
@@ -574,7 +568,9 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ret(0);
 
   __ bind(&index_string);
-  GenerateIndexFromHash(masm, eax, ebx, &index_smi);
+  GenerateIndexFromHash(masm, eax, ebx);
+  // Now jump to the place where smi keys are handled.
+  __ jmp(&index_smi);
 }
 
 
@@ -1125,13 +1121,12 @@ Object* CallIC_Miss(Arguments args);
 // The generated code falls through if both probes miss.
 static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
                                           int argc,
-                                          Code::Kind kind,
-                                          Label* miss) {
+                                          Code::Kind kind) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
   //  -- edx                 : receiver
   // -----------------------------------
-  Label number, non_number, non_string, boolean, probe;
+  Label number, non_number, non_string, boolean, probe, miss;
 
   // Probe the stub cache.
   Code::Flags flags =
@@ -1166,7 +1161,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   __ cmp(edx, Factory::true_value());
   __ j(equal, &boolean, not_taken);
   __ cmp(edx, Factory::false_value());
-  __ j(not_equal, miss, taken);
+  __ j(not_equal, &miss, taken);
   __ bind(&boolean);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::BOOLEAN_FUNCTION_INDEX, edx);
@@ -1174,6 +1169,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // Probe the stub cache for the value object.
   __ bind(&probe);
   StubCache::GenerateProbe(masm, flags, edx, ecx, ebx, no_reg);
+  __ bind(&miss);
 }
 
 
@@ -1214,8 +1210,8 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   __ InvokeFunction(edi, actual, JUMP_FUNCTION);
 }
 
-// The generated code never falls through.
-static void GenerateCallNormal(MacroAssembler* masm, int argc, Label* miss) {
+// The generated code falls through if the call should be handled by runtime.
+static void GenerateCallNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
   //  -- esp[0]              : return address
@@ -1223,20 +1219,20 @@ static void GenerateCallNormal(MacroAssembler* masm, int argc, Label* miss) {
   //  -- ...
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
-  Label global_object, non_global_object;
+  Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
 
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, miss, not_taken);
+  __ j(zero, &miss, not_taken);
 
   // Check that the receiver is a valid JS object.
   __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
   __ movzx_b(eax, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ cmp(eax, FIRST_JS_OBJECT_TYPE);
-  __ j(below, miss, not_taken);
+  __ j(below, &miss, not_taken);
 
   // If this assert fails, we have to check upper bound too.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
@@ -1252,8 +1248,8 @@ static void GenerateCallNormal(MacroAssembler* masm, int argc, Label* miss) {
   // Check that the global object does not require access checks.
   __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
             1 << Map::kIsAccessCheckNeeded);
-  __ j(not_equal, miss, not_taken);
-  GenerateNormalHelper(masm, argc, true, miss);
+  __ j(not_equal, &miss, not_taken);
+  GenerateNormalHelper(masm, argc, true, &miss);
 
   // Accessing non-global object: Check for access to global proxy.
   Label global_proxy, invoke;
@@ -1264,14 +1260,16 @@ static void GenerateCallNormal(MacroAssembler* masm, int argc, Label* miss) {
   // require access checks.
   __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
             1 << Map::kIsAccessCheckNeeded);
-  __ j(not_equal, miss, not_taken);
+  __ j(not_equal, &miss, not_taken);
   __ bind(&invoke);
-  GenerateNormalHelper(masm, argc, false, miss);
+  GenerateNormalHelper(masm, argc, false, &miss);
 
   // Global object proxy access: Check access rights.
   __ bind(&global_proxy);
-  __ CheckAccessGlobalProxy(edx, eax, miss);
+  __ CheckAccessGlobalProxy(edx, eax, &miss);
   __ jmp(&invoke);
+
+  __ bind(&miss);
 }
 
 
@@ -1337,24 +1335,36 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  Label miss;
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
-  GenerateMonomorphicCacheProbe(masm, argc, Code::CALL_IC, &miss);
-  __ bind(&miss);
+  GenerateMonomorphicCacheProbe(masm, argc, Code::CALL_IC);
   GenerateMiss(masm, argc);
 }
 
 
 void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
-  Label miss;
-  GenerateCallNormal(masm, argc, &miss);
-  __ bind(&miss);
+  // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
+  GenerateCallNormal(masm, argc);
   GenerateMiss(masm, argc);
 }
 
 
 void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
   GenerateCallMiss(masm, argc, IC::kCallIC_Miss);
 }
 
@@ -1385,13 +1395,8 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   GenerateKeyedLoadReceiverCheck(masm, edx, eax, &slow_call);
 
-  GenerateFastArrayLoad(masm,
-                        edx,
-                        ecx,
-                        eax,
-                        edi,
-                        &check_number_dictionary,
-                        &slow_load);
+  GenerateFastArrayLoad(
+      masm, edx, ecx, eax, edi, &check_number_dictionary, &slow_load);
   __ IncrementCounter(&Counters::keyed_call_generic_smi_fast, 1);
 
   __ bind(&do_call);
@@ -1417,14 +1422,8 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ SmiUntag(ebx);
   // ebx: untagged index
   // Receiver in edx will be clobbered, need to reload it on miss.
-  GenerateNumberDictionaryLoad(masm,
-                               &slow_reload_receiver,
-                               eax,
-                               ecx,
-                               ebx,
-                               edx,
-                               edi,
-                               edi);
+  GenerateNumberDictionaryLoad(
+      masm, &slow_reload_receiver, eax, ecx, ebx, edx, edi, edi);
   __ IncrementCounter(&Counters::keyed_call_generic_smi_dict, 1);
   __ jmp(&do_call);
 
@@ -1459,21 +1458,14 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
          Immediate(Factory::hash_table_map()));
   __ j(not_equal, &lookup_monomorphic_cache, not_taken);
 
-  GenerateDictionaryLoad(masm,
-                         &slow_load,
-                         edx,
-                         ecx,
-                         ebx,
-                         eax,
-                         edi,
-                         edi,
-                         DICTIONARY_CHECK_DONE);
+  GenerateDictionaryLoad(
+      masm, &slow_load, edx, ecx, ebx, eax, edi, edi, DICTIONARY_CHECK_DONE);
   __ IncrementCounter(&Counters::keyed_call_generic_lookup_dict, 1);
   __ jmp(&do_call);
 
   __ bind(&lookup_monomorphic_cache);
   __ IncrementCounter(&Counters::keyed_call_generic_lookup_cache, 1);
-  GenerateMonomorphicCacheProbe(masm, argc, Code::KEYED_CALL_IC, &slow_call);
+  GenerateMonomorphicCacheProbe(masm, argc, Code::KEYED_CALL_IC);
   // Fall through on miss.
 
   __ bind(&slow_call);
@@ -1487,19 +1479,35 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   GenerateMiss(masm, argc);
 
   __ bind(&index_string);
-  GenerateIndexFromHash(masm, ecx, ebx, &index_smi);
+  GenerateIndexFromHash(masm, ecx, ebx);
+  // Now jump to the place where smi keys are handled.
+  __ jmp(&index_smi);
 }
 
 
 void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
-  Label miss;
-  GenerateCallNormal(masm, argc, &miss);
-  __ bind(&miss);
+  // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
+  GenerateCallNormal(masm, argc);
   GenerateMiss(masm, argc);
 }
 
 
 void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
   GenerateCallMiss(masm, argc, IC::kKeyedCallIC_Miss);
 }
 

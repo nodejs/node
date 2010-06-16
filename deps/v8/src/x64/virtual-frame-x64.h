@@ -369,6 +369,8 @@ class VirtualFrame : public ZoneObject {
   // The argument count does not include the receiver.
   Result CallCallIC(RelocInfo::Mode mode, int arg_count, int loop_nesting);
 
+  Result CallKeyedCallIC(RelocInfo::Mode mode, int arg_count, int loop_nesting);
+
   // Allocate and call JS function as constructor.  Arguments,
   // receiver (global object), and function are found on top of the
   // frame.  Function is not dropped.  The argument count does not

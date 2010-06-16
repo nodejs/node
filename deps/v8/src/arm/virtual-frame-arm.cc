@@ -367,6 +367,7 @@ void VirtualFrame::CallCodeObject(Handle<Code> code,
                                   int dropped_args) {
   switch (code->kind()) {
     case Code::CALL_IC:
+    case Code::KEYED_CALL_IC:
     case Code::FUNCTION:
       break;
     case Code::KEYED_LOAD_IC:

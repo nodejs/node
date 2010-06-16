@@ -47,6 +47,41 @@ static inline bool IsPowerOf2(T x) {
 }
 
 
+// X must be a power of 2.  Returns the number of trailing zeros.
+template <typename T>
+static inline int WhichPowerOf2(T x) {
+  ASSERT(IsPowerOf2(x));
+  ASSERT(x != 0);
+  if (x < 0) return 31;
+  int bits = 0;
+#ifdef DEBUG
+  int original_x = x;
+#endif
+  if (x >= 0x10000) {
+    bits += 16;
+    x >>= 16;
+  }
+  if (x >= 0x100) {
+    bits += 8;
+    x >>= 8;
+  }
+  if (x >= 0x10) {
+    bits += 4;
+    x >>= 4;
+  }
+  switch (x) {
+    default: UNREACHABLE();
+    case 8: bits++;  // Fall through.
+    case 4: bits++;  // Fall through.
+    case 2: bits++;  // Fall through.
+    case 1: break;
+  }
+  ASSERT_EQ(1 << bits, original_x);
+  return bits;
+  return 0;
+}
+
+
 // The C++ standard leaves the semantics of '>>' undefined for
 // negative signed operands. Most implementations do the right thing,
 // though.

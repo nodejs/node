@@ -136,7 +136,8 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ str(scratch1, FieldMemOperand(result, JSArray::kElementsOffset));
 
   // Clear the heap tag on the elements array.
-  __ and_(scratch1, scratch1, Operand(~kHeapObjectTagMask));
+  ASSERT(kSmiTag == 0);
+  __ sub(scratch1, scratch1, Operand(kHeapObjectTag));
 
   // Initialize the FixedArray and fill it with holes. FixedArray length is
   // stored as a smi.
@@ -240,9 +241,10 @@ static void AllocateJSArray(MacroAssembler* masm,
          FieldMemOperand(result, JSArray::kElementsOffset));
 
   // Clear the heap tag on the elements array.
-  __ and_(elements_array_storage,
-          elements_array_storage,
-          Operand(~kHeapObjectTagMask));
+  ASSERT(kSmiTag == 0);
+  __ sub(elements_array_storage,
+         elements_array_storage,
+         Operand(kHeapObjectTag));
   // Initialize the fixed array and fill it with holes. FixedArray length is
   // stored as a smi.
   // result: JSObject
@@ -617,12 +619,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // The field instance sizes contains both pre-allocated property fields and
     // in-object properties.
     __ ldr(r0, FieldMemOperand(r2, Map::kInstanceSizesOffset));
-    __ and_(r6,
-            r0,
-            Operand(0x000000FF << Map::kPreAllocatedPropertyFieldsByte * 8));
-    __ add(r3, r3, Operand(r6, LSR, Map::kPreAllocatedPropertyFieldsByte * 8));
-    __ and_(r6, r0, Operand(0x000000FF << Map::kInObjectPropertiesByte * 8));
-    __ sub(r3, r3, Operand(r6, LSR, Map::kInObjectPropertiesByte * 8), SetCC);
+    __ Ubfx(r6, r0, Map::kPreAllocatedPropertyFieldsByte * 8, 8);
+    __ add(r3, r3, Operand(r6));
+    __ Ubfx(r6, r0, Map::kInObjectPropertiesByte * 8, 8);
+    __ sub(r3, r3, Operand(r6), SetCC);
 
     // Done if no extra properties are to be allocated.
     __ b(eq, &allocated);

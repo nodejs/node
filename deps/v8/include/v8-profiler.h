@@ -184,6 +184,145 @@ class V8EXPORT CpuProfiler {
 };
 
 
+class HeapGraphNode;
+
+
+/**
+ * HeapSnapshotEdge represents a directed connection between heap
+ * graph nodes: from retaners to retained nodes.
+ */
+class V8EXPORT HeapGraphEdge {
+ public:
+  enum Type {
+    CONTEXT_VARIABLE = 0,  // A variable from a function context.
+    ELEMENT = 1,           // An element of an array.
+    PROPERTY = 2           // A named object property.
+  };
+
+  /** Returns edge type (see HeapGraphEdge::Type). */
+  Type GetType() const;
+
+  /**
+   * Returns edge name. This can be a variable name, an element index, or
+   * a property name.
+   */
+  Handle<Value> GetName() const;
+
+  /** Returns origin node. */
+  const HeapGraphNode* GetFromNode() const;
+
+  /** Returns destination node. */
+  const HeapGraphNode* GetToNode() const;
+};
+
+
+class V8EXPORT HeapGraphPath {
+ public:
+  /** Returns the number of edges in the path. */
+  int GetEdgesCount() const;
+
+  /** Returns an edge from the path. */
+  const HeapGraphEdge* GetEdge(int index) const;
+
+  /** Returns origin node. */
+  const HeapGraphNode* GetFromNode() const;
+
+  /** Returns destination node. */
+  const HeapGraphNode* GetToNode() const;
+};
+
+
+/**
+ * HeapGraphNode represents a node in a heap graph.
+ */
+class V8EXPORT HeapGraphNode {
+ public:
+  enum Type {
+    INTERNAL = 0,   // Internal node, a virtual one, for housekeeping.
+    ARRAY = 1,      // An array of elements.
+    STRING = 2,     // A string.
+    OBJECT = 3,     // A JS object (except for arrays and strings).
+    CODE = 4,       // Compiled code.
+    CLOSURE = 5     // Function closure.
+  };
+
+  /** Returns node type (see HeapGraphNode::Type). */
+  Type GetType() const;
+
+  /**
+   * Returns node name. Depending on node's type this can be the name
+   * of the constructor (for objects), the name of the function (for
+   * closures), string value, or an empty string (for compiled code).
+   */
+  Handle<String> GetName() const;
+
+  /** Returns node's own size, in bytes. */
+  int GetSelfSize() const;
+
+  /** Returns node's network (self + reachable nodes) size, in bytes. */
+  int GetTotalSize() const;
+
+  /**
+   * Returns node's private size, in bytes. That is, the size of memory
+   * that will be reclaimed having this node collected.
+   */
+  int GetPrivateSize() const;
+
+  /** Returns child nodes count of the node. */
+  int GetChildrenCount() const;
+
+  /** Retrieves a child by index. */
+  const HeapGraphEdge* GetChild(int index) const;
+
+  /** Returns retainer nodes count of the node. */
+  int GetRetainersCount() const;
+
+  /** Returns a retainer by index. */
+  const HeapGraphEdge* GetRetainer(int index) const;
+
+  /** Returns the number of simple retaining paths from the root to the node. */
+  int GetRetainingPathsCount() const;
+
+  /** Returns a retaining path by index. */
+  const HeapGraphPath* GetRetainingPath(int index) const;
+};
+
+
+/**
+ * HeapSnapshots record the state of the JS heap at some moment.
+ */
+class V8EXPORT HeapSnapshot {
+ public:
+  /** Returns heap snapshot UID (assigned by the profiler.) */
+  unsigned GetUid() const;
+
+  /** Returns heap snapshot title. */
+  Handle<String> GetTitle() const;
+
+  /** Returns the root node of the heap graph. */
+  const HeapGraphNode* GetHead() const;
+};
+
+
+/**
+ * Interface for controlling heap profiling.
+ */
+class V8EXPORT HeapProfiler {
+ public:
+  /** Returns the number of snapshots taken. */
+  static int GetSnapshotsCount();
+
+  /** Returns a snapshot by index. */
+  static const HeapSnapshot* GetSnapshot(int index);
+
+  /** Returns a profile by uid. */
+  static const HeapSnapshot* FindSnapshot(unsigned uid);
+
+  /** Takes a heap snapshot and returns it. Title may be an empty string. */
+  static const HeapSnapshot* TakeSnapshot(Handle<String> title);
+};
+
+
 }  // namespace v8
 
 

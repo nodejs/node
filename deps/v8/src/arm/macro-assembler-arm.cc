@@ -216,6 +216,60 @@ void MacroAssembler::Move(Register dst, Register src) {
 }
 
 
+void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
+                         Condition cond) {
+  if (!CpuFeatures::IsSupported(ARMv7) || src2.is_single_instruction()) {
+    and_(dst, src1, src2, LeaveCC, cond);
+    return;
+  }
+  int32_t immediate = src2.immediate();
+  if (immediate == 0) {
+    mov(dst, Operand(0), LeaveCC, cond);
+    return;
+  }
+  if (IsPowerOf2(immediate + 1) && ((immediate & 1) != 0)) {
+    ubfx(dst, src1, 0, WhichPowerOf2(immediate + 1), cond);
+    return;
+  }
+  and_(dst, src1, src2, LeaveCC, cond);
+}
+
+
+void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width,
+                          Condition cond) {
+  ASSERT(lsb < 32);
+  if (!CpuFeatures::IsSupported(ARMv7)) {
+    int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
+    and_(dst, src1, Operand(mask), LeaveCC, cond);
+    if (lsb != 0) {
+      mov(dst, Operand(dst, LSR, lsb), LeaveCC, cond);
+    }
+  } else {
+    ubfx(dst, src1, lsb, width, cond);
+  }
+}
+
+
+void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width,
+                          Condition cond) {
+  ASSERT(lsb < 32);
+  if (!CpuFeatures::IsSupported(ARMv7)) {
+    int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
+    and_(dst, src1, Operand(mask), LeaveCC, cond);
+    int shift_up = 32 - lsb - width;
+    int shift_down = lsb + shift_up;
+    if (shift_up != 0) {
+      mov(dst, Operand(dst, LSL, shift_up), LeaveCC, cond);
+    }
+    if (shift_down != 0) {
+      mov(dst, Operand(dst, ASR, shift_down), LeaveCC, cond);
+    }
+  } else {
+    sbfx(dst, src1, lsb, width, cond);
+  }
+}
+
+
 void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
   // Empty the const pool.
   CheckConstPool(true, true);

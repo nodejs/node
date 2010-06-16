@@ -279,6 +279,20 @@ const Instr kBlxRegMask =
     15 * B24 | 15 * B20 | 15 * B16 | 15 * B12 | 15 * B8 | 15 * B4;
 const Instr kBlxRegPattern =
     B24 | B21 | 15 * B16 | 15 * B12 | 15 * B8 | 3 * B4;
+const Instr kMovMvnMask = 0x6d * B21 | 0xf * B16;
+const Instr kMovMvnPattern = 0xd * B21;
+const Instr kMovMvnFlip = B22;
+const Instr kCmpCmnMask = 0xdd * B20 | 0xf * B12;
+const Instr kCmpCmnPattern = 0x15 * B20;
+const Instr kCmpCmnFlip = B21;
+const Instr kALUMask = 0x6f * B21;
+const Instr kAddPattern = 0x4 * B21;
+const Instr kSubPattern = 0x2 * B21;
+const Instr kBicPattern = 0xe * B21;
+const Instr kAndPattern = 0x0 * B21;
+const Instr kAddSubFlip = 0x6 * B21;
+const Instr kAndBicFlip = 0xe * B21;
+
 // A mask for the Rd register for push, pop, ldr, str instructions.
 const Instr kRdMask = 0x0000f000;
 static const int kRdShift = 12;
@@ -627,6 +641,9 @@ void Assembler::next(Label* L) {
 
 
 // Low-level code emission routines depending on the addressing mode.
+// If this returns true then you have to use the rotate_imm and immed_8
+// that it returns, because it may have already changed the instruction
+// to match them!
 static bool fits_shifter(uint32_t imm32,
                          uint32_t* rotate_imm,
                          uint32_t* immed_8,
@@ -640,11 +657,34 @@ static bool fits_shifter(uint32_t imm32,
       return true;
     }
   }
-  // If the opcode is mov or mvn and if ~imm32 fits, change the opcode.
-  if (instr != NULL && (*instr & 0xd*B21) == 0xd*B21) {
-    if (fits_shifter(~imm32, rotate_imm, immed_8, NULL)) {
-      *instr ^= 0x2*B21;
-      return true;
+  // If the opcode is one with a complementary version and the complementary
+  // immediate fits, change the opcode.
+  if (instr != NULL) {
+    if ((*instr & kMovMvnMask) == kMovMvnPattern) {
+      if (fits_shifter(~imm32, rotate_imm, immed_8, NULL)) {
+        *instr ^= kMovMvnFlip;
+        return true;
+      }
+    } else if ((*instr & kCmpCmnMask) == kCmpCmnPattern) {
+      if (fits_shifter(-imm32, rotate_imm, immed_8, NULL)) {
+        *instr ^= kCmpCmnFlip;
+        return true;
+      }
+    } else {
+      Instr alu_insn = (*instr & kALUMask);
+      if (alu_insn == kAddPattern ||
+          alu_insn == kSubPattern) {
+        if (fits_shifter(-imm32, rotate_imm, immed_8, NULL)) {
+          *instr ^= kAddSubFlip;
+          return true;
+        }
+      } else if (alu_insn == kAndPattern ||
+                 alu_insn == kBicPattern) {
+        if (fits_shifter(~imm32, rotate_imm, immed_8, NULL)) {
+          *instr ^= kAndBicFlip;
+          return true;
+        }
+      }
     }
   }
   return false;
@@ -667,6 +707,14 @@ static bool MustUseIp(RelocInfo::Mode rmode) {
     return false;
   }
   return true;
+}
+
+
+bool Operand::is_single_instruction() const {
+  if (rm_.is_valid()) return true;
+  if (MustUseIp(rmode_)) return false;
+  uint32_t dummy1, dummy2;
+  return fits_shifter(imm32_, &dummy1, &dummy2, NULL);
 }
 
 

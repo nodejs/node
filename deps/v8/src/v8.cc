@@ -32,6 +32,7 @@
 #include "serialize.h"
 #include "simulator.h"
 #include "stub-cache.h"
+#include "heap-profiler.h"
 #include "oprofile-agent.h"
 #include "log.h"
 
@@ -61,6 +62,7 @@ bool V8::Initialize(Deserializer* des) {
   Logger::Setup();
 
   CpuProfiler::Setup();
+  HeapProfiler::Setup();
 
   // Setup the platform OS support.
   OS::Setup();
@@ -148,6 +150,8 @@ void V8::TearDown() {
   Bootstrapper::TearDown();
 
   Top::TearDown();
+
+  HeapProfiler::TearDown();
 
   CpuProfiler::TearDown();
 

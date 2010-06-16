@@ -212,10 +212,9 @@ class VirtualFrame : public ZoneObject {
   void Enter();
   void Exit();
 
-  // Prepare for returning from the frame by spilling locals and
-  // dropping all non-locals elements in the virtual frame.  This
+  // Prepare for returning from the frame by elements in the virtual frame. This
   // avoids generating unnecessary merge code when jumping to the
-  // shared return site.  Emits code for spills.
+  // shared return site. No spill code emitted. Value to return should be in r0.
   inline void PrepareForReturn();
 
   // Number of local variables after when we use a loop for allocating.

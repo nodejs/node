@@ -714,3 +714,156 @@ try {
 } catch (e) {
   assertTrue(/Cannot redefine property/.test(e));
 }
+
+
+var obj6 = {};
+obj6[1] = 'foo';
+obj6[2] = 'bar';
+obj6[3] = '42';
+obj6[4] = '43';
+obj6[5] = '44';
+
+var descElement = { value: 'foobar' };
+var descElementNonConfigurable = { value: 'barfoo', configurable: false };
+var descElementNonWritable = { value: 'foofoo', writable: false };
+var descElementNonEnumerable = { value: 'barbar', enumerable: false };
+var descElementAllFalse = { value: 'foofalse', 
+                            configurable: false,
+                            writable: false,
+                            enumerable: false };
+
+
+// Redefine existing property.
+Object.defineProperty(obj6, '1', descElement);
+desc = Object.getOwnPropertyDescriptor(obj6, '1');
+assertEquals(desc.value, 'foobar');
+assertTrue(desc.writable);
+assertTrue(desc.enumerable);
+assertTrue(desc.configurable);
+
+// Redefine existing property with configurable: false.
+Object.defineProperty(obj6, '2', descElementNonConfigurable);
+desc = Object.getOwnPropertyDescriptor(obj6, '2');
+assertEquals(desc.value, 'barfoo');
+assertTrue(desc.writable);
+assertTrue(desc.enumerable);
+assertFalse(desc.configurable);
+
+// Ensure that we can't overwrite the non configurable element.
+try {
+  Object.defineProperty(obj6, '2', descElement);
+  assertUnreachable();
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
+}
+
+Object.defineProperty(obj6, '3', descElementNonWritable);
+desc = Object.getOwnPropertyDescriptor(obj6, '3');
+assertEquals(desc.value, 'foofoo');
+assertFalse(desc.writable);
+assertTrue(desc.enumerable);
+assertTrue(desc.configurable);
+
+// Redefine existing property with configurable: false.
+Object.defineProperty(obj6, '4', descElementNonEnumerable);
+desc = Object.getOwnPropertyDescriptor(obj6, '4');
+assertEquals(desc.value, 'barbar');
+assertTrue(desc.writable);
+assertFalse(desc.enumerable);
+assertTrue(desc.configurable);
+
+// Redefine existing property with configurable: false.
+Object.defineProperty(obj6, '5', descElementAllFalse);
+desc = Object.getOwnPropertyDescriptor(obj6, '5');
+assertEquals(desc.value, 'foofalse');
+assertFalse(desc.writable);
+assertFalse(desc.enumerable);
+assertFalse(desc.configurable);
+
+// Define non existing property - all attributes should default to false.
+Object.defineProperty(obj6, '15', descElement);
+desc = Object.getOwnPropertyDescriptor(obj6, '15');
+assertEquals(desc.value, 'foobar');
+assertFalse(desc.writable);
+assertFalse(desc.enumerable);
+assertFalse(desc.configurable);
+
+// Make sure that we can't redefine using direct access.
+obj6[15] ='overwrite';
+assertEquals(obj6[15],'foobar'); 
+
+
+// Repeat the above tests on an array.
+var arr = new Array();
+arr[1] = 'foo';
+arr[2] = 'bar';
+arr[3] = '42';
+arr[4] = '43';
+arr[5] = '44';
+
+var descElement = { value: 'foobar' };
+var descElementNonConfigurable = { value: 'barfoo', configurable: false };
+var descElementNonWritable = { value: 'foofoo', writable: false };
+var descElementNonEnumerable = { value: 'barbar', enumerable: false };
+var descElementAllFalse = { value: 'foofalse', 
+                            configurable: false,
+                            writable: false,
+                            enumerable: false };
+
+
+// Redefine existing property.
+Object.defineProperty(arr, '1', descElement);
+desc = Object.getOwnPropertyDescriptor(arr, '1');
+assertEquals(desc.value, 'foobar');
+assertTrue(desc.writable);
+assertTrue(desc.enumerable);
+assertTrue(desc.configurable);
+
+// Redefine existing property with configurable: false.
+Object.defineProperty(arr, '2', descElementNonConfigurable);
+desc = Object.getOwnPropertyDescriptor(arr, '2');
+assertEquals(desc.value, 'barfoo');
+assertTrue(desc.writable);
+assertTrue(desc.enumerable);
+assertFalse(desc.configurable);
+
+// Ensure that we can't overwrite the non configurable element.
+try {
+  Object.defineProperty(arr, '2', descElement);
+  assertUnreachable();
+} catch (e) {
+  assertTrue(/Cannot redefine property/.test(e));
+}
+
+Object.defineProperty(arr, '3', descElementNonWritable);
+desc = Object.getOwnPropertyDescriptor(arr, '3');
+assertEquals(desc.value, 'foofoo');
+assertFalse(desc.writable);
+assertTrue(desc.enumerable);
+assertTrue(desc.configurable);
+
+// Redefine existing property with configurable: false.
+Object.defineProperty(arr, '4', descElementNonEnumerable);
+desc = Object.getOwnPropertyDescriptor(arr, '4');
+assertEquals(desc.value, 'barbar');
+assertTrue(desc.writable);
+assertFalse(desc.enumerable);
+assertTrue(desc.configurable);
+
+// Redefine existing property with configurable: false.
+Object.defineProperty(arr, '5', descElementAllFalse);
+desc = Object.getOwnPropertyDescriptor(arr, '5');
+assertEquals(desc.value, 'foofalse');
+assertFalse(desc.writable);
+assertFalse(desc.enumerable);
+assertFalse(desc.configurable);
+
+// Define non existing property - all attributes should default to false.
+Object.defineProperty(arr, '15', descElement);
+desc = Object.getOwnPropertyDescriptor(arr, '15');
+assertEquals(desc.value, 'foobar');
+assertFalse(desc.writable);
+assertFalse(desc.enumerable);
+assertFalse(desc.configurable);
+
+

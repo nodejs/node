@@ -1123,7 +1123,7 @@ class HeapNumber: public HeapObject {
   static const uint32_t kExponentMask = 0x7ff00000u;
   static const uint32_t kMantissaMask = 0xfffffu;
   static const int kMantissaBits = 52;
-  static const int KExponentBits = 11;
+  static const int kExponentBits = 11;
   static const int kExponentBias = 1023;
   static const int kExponentShift = 20;
   static const int kMantissaBitsInTopWord = 20;
@@ -2151,6 +2151,11 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Set the value for entry.
   void ValueAtPut(int entry, Object* value) {
+    // Check that this value can actually be written.
+    PropertyDetails details = DetailsAt(entry);
+    // If a value has not been initilized we allow writing to it even if
+    // it is read only (a declared const that has not been initialized).
+    if (details.IsReadOnly() && !ValueAt(entry)->IsTheHole()) return;
     this->set(HashTable<Shape, Key>::EntryToIndex(entry)+1, value);
   }
 
@@ -2832,14 +2837,14 @@ class Code: public HeapObject {
   // Flags layout.
   static const int kFlagsICStateShift        = 0;
   static const int kFlagsICInLoopShift       = 3;
-  static const int kFlagsKindShift           = 4;
-  static const int kFlagsTypeShift           = 8;
+  static const int kFlagsTypeShift           = 4;
+  static const int kFlagsKindShift           = 7;
   static const int kFlagsArgumentsCountShift = 11;
 
   static const int kFlagsICStateMask        = 0x00000007;  // 00000000111
   static const int kFlagsICInLoopMask       = 0x00000008;  // 00000001000
-  static const int kFlagsKindMask           = 0x000000F0;  // 00011110000
-  static const int kFlagsTypeMask           = 0x00000700;  // 11100000000
+  static const int kFlagsTypeMask           = 0x00000070;  // 00001110000
+  static const int kFlagsKindMask           = 0x00000780;  // 11110000000
   static const int kFlagsArgumentsCountMask = 0xFFFFF800;
 
   static const int kFlagsNotUsedInLookup =

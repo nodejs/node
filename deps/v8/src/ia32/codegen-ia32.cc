@@ -3278,6 +3278,9 @@ void CodeGenerator::VisitAndSpill(Statement* statement) {
 
 
 void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(in_spilled_code());
   set_in_spilled_code(false);
   VisitStatements(statements);
@@ -3285,14 +3288,20 @@ void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
     frame_->SpillAll();
   }
   set_in_spilled_code(true);
+
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(!in_spilled_code());
   for (int i = 0; has_valid_frame() && i < statements->length(); i++) {
     Visit(statements->at(i));
   }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
@@ -6909,8 +6918,7 @@ void DeferredSearchCache::Generate() {
   __ bind(&cache_miss);
   __ push(cache_);  // store a reference to cache
   __ push(key_);  // store a key
-  Handle<Object> receiver(Top::global_context()->global());
-  __ push(Immediate(receiver));
+  __ push(Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ push(key_);
   // On ia32 function must be in edi.
   __ mov(edi, FieldOperand(cache_, JSFunctionResultCache::kFactoryOffset));
@@ -10285,15 +10293,15 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   // ST[0] == double value
   // ebx = low 32 bits of double value
   // edx = high 32 bits of double value
-  // Compute hash:
+  // Compute hash (the shifts are arithmetic):
   //   h = (low ^ high); h ^= h >> 16; h ^= h >> 8; h = h & (cacheSize - 1);
   __ mov(ecx, ebx);
   __ xor_(ecx, Operand(edx));
   __ mov(eax, ecx);
-  __ shr(eax, 16);
+  __ sar(eax, 16);
   __ xor_(ecx, Operand(eax));
   __ mov(eax, ecx);
-  __ shr(eax, 8);
+  __ sar(eax, 8);
   __ xor_(ecx, Operand(eax));
   ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
   __ and_(Operand(ecx), Immediate(TranscendentalCache::kCacheSize - 1));
@@ -11305,58 +11313,58 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // ecx: RegExp data (FixedArray)
   // Check the representation and encoding of the subject string.
-  Label seq_string, seq_two_byte_string, check_code;
-  const int kStringRepresentationEncodingMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  Label seq_ascii_string, seq_two_byte_string, check_code;
   __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ and_(ebx, kStringRepresentationEncodingMask);
-  // First check for sequential string.
-  ASSERT_EQ(0, kStringTag);
-  ASSERT_EQ(0, kSeqStringTag);
+  // First check for flat two byte string.
+  __ and_(ebx,
+          kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask);
+  ASSERT_EQ(0, kStringTag | kSeqStringTag | kTwoByteStringTag);
+  __ j(zero, &seq_two_byte_string);
+  // Any other flat string must be a flat ascii string.
   __ test(Operand(ebx),
           Immediate(kIsNotStringMask | kStringRepresentationMask));
-  __ j(zero, &seq_string);
+  __ j(zero, &seq_ascii_string);
 
   // Check for flat cons string.
   // A flat cons string is a cons string where the second part is the empty
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  __ and_(ebx, kStringRepresentationMask);
-  __ cmp(ebx, kConsStringTag);
-  __ j(not_equal, &runtime);
+  ASSERT(kExternalStringTag !=0);
+  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
+  __ test(Operand(ebx),
+          Immediate(kIsNotStringMask | kExternalStringTag));
+  __ j(not_zero, &runtime);
+  // String is a cons string.
   __ mov(edx, FieldOperand(eax, ConsString::kSecondOffset));
   __ cmp(Operand(edx), Factory::empty_string());
   __ j(not_equal, &runtime);
   __ mov(eax, FieldOperand(eax, ConsString::kFirstOffset));
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  ASSERT_EQ(0, kSeqStringTag);
-  __ test(ebx, Immediate(kStringRepresentationMask));
+  // String is a cons string with empty second part.
+  // eax: first part of cons string.
+  // ebx: map of first part of cons string.
+  // Is first part a flat two byte string?
+  __ test_b(FieldOperand(ebx, Map::kInstanceTypeOffset),
+            kStringRepresentationMask | kStringEncodingMask);
+  ASSERT_EQ(0, kSeqStringTag | kTwoByteStringTag);
+  __ j(zero, &seq_two_byte_string);
+  // Any other flat string must be ascii.
+  __ test_b(FieldOperand(ebx, Map::kInstanceTypeOffset),
+            kStringRepresentationMask);
   __ j(not_zero, &runtime);
-  __ and_(ebx, kStringRepresentationEncodingMask);
 
-  __ bind(&seq_string);
-  // eax: subject string (sequential either ascii to two byte)
-  // ebx: suject string type & kStringRepresentationEncodingMask
+  __ bind(&seq_ascii_string);
+  // eax: subject string (flat ascii)
   // ecx: RegExp data (FixedArray)
-  // Check that the irregexp code has been generated for an ascii string. If
-  // it has, the field contains a code object otherwise it contains the hole.
-  const int kSeqTwoByteString = kStringTag | kSeqStringTag | kTwoByteStringTag;
-  __ cmp(ebx, kSeqTwoByteString);
-  __ j(equal, &seq_two_byte_string);
-  if (FLAG_debug_code) {
-    __ cmp(ebx, kStringTag | kSeqStringTag | kAsciiStringTag);
-    __ Check(equal, "Expected sequential ascii string");
-  }
   __ mov(edx, FieldOperand(ecx, JSRegExp::kDataAsciiCodeOffset));
   __ Set(edi, Immediate(1));  // Type is ascii.
   __ jmp(&check_code);
 
   __ bind(&seq_two_byte_string);
-  // eax: subject string
+  // eax: subject string (flat two byte)
   // ecx: RegExp data (FixedArray)
   __ mov(edx, FieldOperand(ecx, JSRegExp::kDataUC16CodeOffset));
   __ Set(edi, Immediate(0));  // Type is two byte.
@@ -12897,7 +12905,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(zero, &string_add_runtime);
 
   __ bind(&make_flat_ascii_string);
-  // Both strings are ascii strings. As they are short they are both flat.
+  // Both strings are ascii strings.  As they are short they are both flat.
   // ebx: length of resulting flat string as a smi
   __ SmiUntag(ebx);
   __ AllocateAsciiString(eax, ebx, ecx, edx, edi, &string_add_runtime);

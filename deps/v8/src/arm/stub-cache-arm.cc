@@ -1019,6 +1019,14 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 }
 
 
+void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
+  if (kind_ == Code::KEYED_CALL_IC) {
+    __ cmp(r2, Operand(Handle<String>(name)));
+    __ b(ne, miss);
+  }
+}
+
+
 void CallStubCompiler::GenerateMissBranch() {
   Handle<Code> ic = ComputeCallMiss(arguments().immediate(), kind_);
   __ Jump(ic, RelocInfo::CODE_TARGET);
@@ -1034,6 +1042,8 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
   //  -- lr    : return address
   // -----------------------------------
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   const int argc = arguments().immediate();
 
@@ -1077,6 +1087,8 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
   ASSERT(check == RECEIVER_MAP_CHECK);
 
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the receiver from the stack
   const int argc = arguments().immediate();
@@ -1126,6 +1138,8 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   ASSERT(check == RECEIVER_MAP_CHECK);
 
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the receiver from the stack
   const int argc = arguments().immediate();
@@ -1197,6 +1211,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   }
 
   Label miss_in_smi_check;
+
+  GenerateNameCheck(name, &miss_in_smi_check);
 
   // Get the receiver from the stack
   const int argc = arguments().immediate();
@@ -1337,6 +1353,8 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   Label miss;
 
+  GenerateNameCheck(name, &miss);
+
   // Get the number of arguments.
   const int argc = arguments().immediate();
 
@@ -1383,6 +1401,8 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   //  -- lr    : return address
   // -----------------------------------
   Label miss;
+
+  GenerateNameCheck(name, &miss);
 
   // Get the number of arguments.
   const int argc = arguments().immediate();

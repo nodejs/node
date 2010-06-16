@@ -248,6 +248,45 @@ TEST(Type0) {
   COMPARE(mvn(r5, Operand(r4), SetCC, cc),
           "31f05004       mvnccs r5, r4");
 
+  // Instructions autotransformed by the assembler.
+  // mov -> mvn.
+  COMPARE(mov(r3, Operand(-1), LeaveCC, al),
+          "e3e03000       mvn r3, #0");
+  COMPARE(mov(r4, Operand(-2), SetCC, al),
+          "e3f04001       mvns r4, #1");
+  COMPARE(mov(r5, Operand(0x0ffffff0), SetCC, ne),
+          "13f052ff       mvnnes r5, #-268435441");
+  COMPARE(mov(r6, Operand(-1), LeaveCC, ne),
+          "13e06000       mvnne r6, #0");
+
+  // mvn -> mov.
+  COMPARE(mvn(r3, Operand(-1), LeaveCC, al),
+          "e3a03000       mov r3, #0");
+  COMPARE(mvn(r4, Operand(-2), SetCC, al),
+          "e3b04001       movs r4, #1");
+  COMPARE(mvn(r5, Operand(0x0ffffff0), SetCC, ne),
+          "13b052ff       movnes r5, #-268435441");
+  COMPARE(mvn(r6, Operand(-1), LeaveCC, ne),
+          "13a06000       movne r6, #0");
+
+  // and <-> bic.
+  COMPARE(and_(r3, r5, Operand(0xfc03ffff)),
+          "e3c537ff       bic r3, r5, #66846720");
+  COMPARE(bic(r3, r5, Operand(0xfc03ffff)),
+          "e20537ff       and r3, r5, #66846720");
+
+  // sub <-> add.
+  COMPARE(add(r3, r5, Operand(-1024)),
+          "e2453b01       sub r3, r5, #1024");
+  COMPARE(sub(r3, r5, Operand(-1024)),
+          "e2853b01       add r3, r5, #1024");
+
+  // cmp <-> cmn.
+  COMPARE(cmp(r3, Operand(-1024)),
+          "e3730b01       cmn r3, #1024");
+  COMPARE(cmn(r3, Operand(-1024)),
+          "e3530b01       cmp r3, #1024");
+
   // Miscellaneous instructions encoded as type 0.
   COMPARE(blx(ip),
           "e12fff3c       blx ip");

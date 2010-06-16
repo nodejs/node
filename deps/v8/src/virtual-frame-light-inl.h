@@ -74,7 +74,9 @@ bool VirtualFrame::Equals(const VirtualFrame* other) {
 
 
 void VirtualFrame::PrepareForReturn() {
-  SpillAll();
+  // Don't bother flushing tos registers as returning does not require more
+  // access to the expression stack.
+  top_of_stack_state_ = NO_TOS_REGISTERS;
 }
 
 

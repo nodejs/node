@@ -167,16 +167,22 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
                                          Label* miss,
                                          Register elements,
                                          Register key,
+                                         Register result,
                                          Register t0,
                                          Register t1,
                                          Register t2) {
   // Register use:
   //
-  // elements - holds the slow-case elements of the receiver and is unchanged.
+  // elements - holds the slow-case elements of the receiver on entry.
+  //            Unchanged unless 'result' is the same register.
   //
-  // key      - holds the smi key on entry and is unchanged if a branch is
-  //            performed to the miss label.
-  //            Holds the result on exit if the load succeeded.
+  // key      - holds the smi key on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // result   - holds the result on exit if the load succeeded.
+  //            Allowed to be the same as 'key' or 'result'.
+  //            Unchanged on bailout so 'key' or 'result' can be used
+  //            in further computation.
   //
   // Scratch registers:
   //
@@ -248,7 +254,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   // Get the value at the masked, scaled index and return.
   const int kValueOffset =
       NumberDictionary::kElementsStartOffset + kPointerSize;
-  __ ldr(key, FieldMemOperand(t2, kValueOffset));
+  __ ldr(result, FieldMemOperand(t2, kValueOffset));
 }
 
 
@@ -298,22 +304,159 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
 }
 
 
+// Checks the receiver for special cases (value type, slow case bits).
+// Falls through for regular JS object.
+static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
+                                           Register receiver,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Label* slow) {
+  // Check that the object isn't a smi.
+  __ BranchOnSmi(receiver, slow);
+  // Get the map of the receiver.
+  __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  // Check bit field.
+  __ ldrb(scratch2, FieldMemOperand(scratch1, Map::kBitFieldOffset));
+  __ tst(scratch2, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
+  __ b(ne, slow);
+  // Check that the object is some kind of JS object EXCEPT JS Value type.
+  // In the case that the object is a value-wrapper object,
+  // we enter the runtime system to make sure that indexing into string
+  // objects work as intended.
+  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
+  __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
+  __ cmp(scratch1, Operand(JS_OBJECT_TYPE));
+  __ b(lt, slow);
+}
+
+
+// Loads an indexed element from a fast case array.
+static void GenerateFastArrayLoad(MacroAssembler* masm,
+                                  Register receiver,
+                                  Register key,
+                                  Register elements,
+                                  Register scratch1,
+                                  Register scratch2,
+                                  Register result,
+                                  Label* not_fast_array,
+                                  Label* out_of_range) {
+  // Register use:
+  //
+  // receiver - holds the receiver on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // key      - holds the smi key on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // elements - holds the elements of the receiver on exit.
+  //
+  // result   - holds the result on exit if the load succeeded.
+  //            Allowed to be the the same as 'receiver' or 'key'.
+  //            Unchanged on bailout so 'receiver' and 'key' can be safely
+  //            used by further computation.
+  //
+  // Scratch registers:
+  //
+  // scratch1 - used to hold elements map and elements length.
+  //            Holds the elements map if not_fast_array branch is taken.
+  //
+  // scratch2 - used to hold the loaded value.
+
+  __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  // Check that the object is in fast mode (not dictionary).
+  __ ldr(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+  __ cmp(scratch1, ip);
+  __ b(ne, not_fast_array);
+  // Check that the key (index) is within bounds.
+  __ ldr(scratch1, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  __ cmp(key, Operand(scratch1));
+  __ b(hs, out_of_range);
+  // Fast case: Do the load.
+  __ add(scratch1, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  // The key is a smi.
+  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  __ ldr(scratch2,
+         MemOperand(scratch1, key, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ cmp(scratch2, ip);
+  // In case the loaded value is the_hole we have to consult GetProperty
+  // to ensure the prototype chain is searched.
+  __ b(eq, out_of_range);
+  __ mov(result, scratch2);
+}
+
+
+// Checks whether a key is an array index string or a symbol string.
+// Falls through if a key is a symbol.
+static void GenerateKeyStringCheck(MacroAssembler* masm,
+                                   Register key,
+                                   Register map,
+                                   Register hash,
+                                   Label* index_string,
+                                   Label* not_symbol) {
+  // The key is not a smi.
+  // Is it a string?
+  __ CompareObjectType(key, map, hash, FIRST_NONSTRING_TYPE);
+  __ b(ge, not_symbol);
+
+  // Is the string an array index, with cached numeric value?
+  __ ldr(hash, FieldMemOperand(key, String::kHashFieldOffset));
+  __ tst(hash, Operand(String::kContainsCachedArrayIndexMask));
+  __ b(eq, index_string);
+
+  // Is the string a symbol?
+  // map: key map
+  __ ldrb(hash, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  ASSERT(kSymbolTag != 0);
+  __ tst(hash, Operand(kIsSymbolMask));
+  __ b(eq, not_symbol);
+}
+
+
+// Picks out an array index from the hash field.
+static void GenerateIndexFromHash(MacroAssembler* masm,
+                                  Register key,
+                                  Register hash) {
+  // Register use:
+  //   key - holds the overwritten key on exit.
+  //   hash - holds the key's hash. Clobbered.
+
+  // If the hash field contains an array index pick it out. The assert checks
+  // that the constants for the maximum number of digits for an array index
+  // cached in the hash field and the number of bits reserved for it does not
+  // conflict.
+  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
+         (1 << String::kArrayIndexValueBits));
+  // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
+  // the low kHashShift bits.
+  ASSERT(String::kHashShift >= kSmiTagSize);
+  // Here we actually clobber the key which will be used if calling into
+  // runtime later. However as the new key is the numeric value of a string key
+  // there is no difference in using either key.
+  ASSERT(String::kHashShift >= kSmiTagSize);
+  __ Ubfx(hash, hash, String::kHashShift, String::kArrayIndexValueBits);
+  __ mov(key, Operand(hash, LSL, kSmiTagSize));
+}
+
+
 // Defined in ic.cc.
 Object* CallIC_Miss(Arguments args);
 
-void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
+// The generated code does not accept smi keys.
+// The generated code falls through if both probes miss.
+static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
+                                          int argc,
+                                          Code::Kind kind) {
   // ----------- S t a t e -------------
+  //  -- r1    : receiver
   //  -- r2    : name
-  //  -- lr    : return address
   // -----------------------------------
   Label number, non_number, non_string, boolean, probe, miss;
 
-  // Get the receiver of the function from the stack into r1.
-  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
-
   // Probe the stub cache.
   Code::Flags flags =
-      Code::ComputeFlags(Code::CALL_IC, NOT_IN_LOOP, MONOMORPHIC, NORMAL, argc);
+      Code::ComputeFlags(kind, NOT_IN_LOOP, MONOMORPHIC, NORMAL, argc);
   StubCache::GenerateProbe(masm, flags, r1, r2, r3, no_reg);
 
   // If the stub cache probing failed, the receiver might be a value.
@@ -355,9 +498,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ bind(&probe);
   StubCache::GenerateProbe(masm, flags, r1, r2, r3, no_reg);
 
-  // Cache miss: Jump to runtime.
   __ bind(&miss);
-  GenerateMiss(masm, argc);
 }
 
 
@@ -390,7 +531,7 @@ static void GenerateNormalHelper(MacroAssembler* masm,
 }
 
 
-void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
+static void GenerateCallNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -443,13 +584,11 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ CheckAccessGlobalProxy(r1, r0, &miss);
   __ b(&invoke);
 
-  // Cache miss: Jump to runtime.
   __ bind(&miss);
-  GenerateMiss(masm, argc);
 }
 
 
-void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -465,7 +604,7 @@ void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
 
   // Call the entry.
   __ mov(r0, Operand(2));
-  __ mov(r1, Operand(ExternalReference(IC_Utility(kCallIC_Miss))));
+  __ mov(r1, Operand(ExternalReference(IC_Utility(id))));
 
   CEntryStub stub(1);
   __ CallStub(&stub);
@@ -496,18 +635,165 @@ void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
 }
 
 
+void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  GenerateCallMiss(masm, argc, IC::kCallIC_Miss);
+}
+
+
+void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  // Get the receiver of the function from the stack into r1.
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+  GenerateMonomorphicCacheProbe(masm, argc, Code::CALL_IC);
+  GenerateMiss(masm, argc);
+}
+
+
+void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  GenerateCallNormal(masm, argc);
+  GenerateMiss(masm, argc);
+}
+
+
 void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
-  UNREACHABLE();
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  GenerateCallMiss(masm, argc, IC::kKeyedCallIC_Miss);
 }
 
 
 void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
-  UNREACHABLE();
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  // Get the receiver of the function from the stack into r1.
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+
+  Label do_call, slow_call, slow_load, slow_reload_receiver;
+  Label check_number_dictionary, check_string, lookup_monomorphic_cache;
+  Label index_smi, index_string;
+
+  // Check that the key is a smi.
+  __ BranchOnNotSmi(r2, &check_string);
+  __ bind(&index_smi);
+  // Now the key is known to be a smi. This place is also jumped to from below
+  // where a numeric string is converted to a smi.
+
+  GenerateKeyedLoadReceiverCheck(masm, r1, r0, r3, &slow_call);
+
+  GenerateFastArrayLoad(
+      masm, r1, r2, r4, r3, r0, r1, &check_number_dictionary, &slow_load);
+  __ IncrementCounter(&Counters::keyed_call_generic_smi_fast, 1, r0, r3);
+
+  __ bind(&do_call);
+  // receiver in r1 is not used after this point.
+  // r2: key
+  // r1: function
+
+  // Check that the value in r1 is a JSFunction.
+  __ BranchOnSmi(r1, &slow_call);
+  __ CompareObjectType(r1, r0, r0, JS_FUNCTION_TYPE);
+  __ b(ne, &slow_call);
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+
+  __ bind(&check_number_dictionary);
+  // r2: key
+  // r3: elements map
+  // r4: elements
+  // Check whether the elements is a number dictionary.
+  __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
+  __ cmp(r3, ip);
+  __ b(ne, &slow_load);
+  __ mov(r0, Operand(r2, ASR, kSmiTagSize));
+  // r0: untagged index
+  GenerateNumberDictionaryLoad(masm, &slow_load, r4, r2, r1, r0, r3, r5);
+  __ IncrementCounter(&Counters::keyed_call_generic_smi_dict, 1, r0, r3);
+  __ jmp(&do_call);
+
+  __ bind(&slow_load);
+  // This branch is taken when calling KeyedCallIC_Miss is neither required
+  // nor beneficial.
+  __ IncrementCounter(&Counters::keyed_call_generic_slow_load, 1, r0, r3);
+  __ EnterInternalFrame();
+  __ push(r2);  // save the key
+  __ Push(r1, r2);  // pass the receiver and the key
+  __ CallRuntime(Runtime::kKeyedGetProperty, 2);
+  __ pop(r2);  // restore the key
+  __ LeaveInternalFrame();
+  __ mov(r1, r0);
+  __ jmp(&do_call);
+
+  __ bind(&check_string);
+  GenerateKeyStringCheck(masm, r2, r0, r3, &index_string, &slow_call);
+
+  // The key is known to be a symbol.
+  // If the receiver is a regular JS object with slow properties then do
+  // a quick inline probe of the receiver's dictionary.
+  // Otherwise do the monomorphic cache probe.
+  GenerateKeyedLoadReceiverCheck(masm, r1, r0, r3, &lookup_monomorphic_cache);
+
+  __ ldr(r3, FieldMemOperand(r1, JSObject::kPropertiesOffset));
+  __ ldr(r3, FieldMemOperand(r3, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
+  __ cmp(r3, ip);
+  __ b(ne, &lookup_monomorphic_cache);
+
+  GenerateDictionaryLoad(
+      masm, &slow_load, r1, r2, r1, r0, r3, r4, DICTIONARY_CHECK_DONE);
+  __ IncrementCounter(&Counters::keyed_call_generic_lookup_dict, 1, r0, r3);
+  __ jmp(&do_call);
+
+  __ bind(&lookup_monomorphic_cache);
+  __ IncrementCounter(&Counters::keyed_call_generic_lookup_cache, 1, r0, r3);
+  GenerateMonomorphicCacheProbe(masm, argc, Code::KEYED_CALL_IC);
+  // Fall through on miss.
+
+  __ bind(&slow_call);
+  // This branch is taken if:
+  // - the receiver requires boxing or access check,
+  // - the key is neither smi nor symbol,
+  // - the value loaded is not a function,
+  // - there is hope that the runtime will create a monomorphic call stub
+  //   that will get fetched next time.
+  __ IncrementCounter(&Counters::keyed_call_generic_slow, 1, r0, r3);
+  GenerateMiss(masm, argc);
+
+  __ bind(&index_string);
+  GenerateIndexFromHash(masm, r2, r3);
+  // Now jump to the place where smi keys are handled.
+  __ jmp(&index_smi);
 }
 
 
 void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
-  UNREACHABLE();
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  GenerateCallNormal(masm, argc);
+  GenerateMiss(masm, argc);
 }
 
 
@@ -759,49 +1045,16 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Register key = r0;
   Register receiver = r1;
 
-  // Check that the object isn't a smi.
-  __ BranchOnSmi(receiver, &slow);
-  // Get the map of the receiver.
-  __ ldr(r2, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  // Check bit field.
-  __ ldrb(r3, FieldMemOperand(r2, Map::kBitFieldOffset));
-  __ tst(r3, Operand(kSlowCaseBitFieldMask));
-  __ b(ne, &slow);
-  // Check that the object is some kind of JS object EXCEPT JS Value type.
-  // In the case that the object is a value-wrapper object,
-  // we enter the runtime system to make sure that indexing into string
-  // objects work as intended.
-  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
-  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  __ cmp(r2, Operand(JS_OBJECT_TYPE));
-  __ b(lt, &slow);
+  GenerateKeyedLoadReceiverCheck(masm, receiver, r2, r3, &slow);
 
   // Check that the key is a smi.
   __ BranchOnNotSmi(key, &check_string);
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from below
   // where a numeric string is converted to a smi.
-  __ ldr(r4, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  // Check that the object is in fast mode (not dictionary).
-  __ ldr(r3, FieldMemOperand(r4, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-  __ cmp(r3, ip);
-  __ b(ne, &check_pixel_array);
-  // Check that the key (index) is within bounds.
-  __ ldr(r3, FieldMemOperand(r4, FixedArray::kLengthOffset));
-  __ cmp(key, Operand(r3));
-  __ b(hs, &slow);
-  // Fast case: Do the load.
-  __ add(r3, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  // The key is a smi.
-  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ ldr(r2, MemOperand(r3, key, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-  __ cmp(r2, ip);
-  // In case the loaded value is the_hole we have to consult GetProperty
-  // to ensure the prototype chain is searched.
-  __ b(eq, &slow);
-  __ mov(r0, r2);
+
+  GenerateFastArrayLoad(
+      masm, receiver, key, r4, r3, r2, r0, &check_pixel_array, &slow);
   __ IncrementCounter(&Counters::keyed_load_generic_smi, 1, r2, r3);
   __ Ret();
 
@@ -831,7 +1084,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(r3, ip);
   __ b(ne, &slow);
   __ mov(r2, Operand(r0, ASR, kSmiTagSize));
-  GenerateNumberDictionaryLoad(masm, &slow, r4, r0, r2, r3, r5);
+  GenerateNumberDictionaryLoad(masm, &slow, r4, r0, r0, r2, r3, r5);
   __ Ret();
 
   // Slow case, key and receiver still in r0 and r1.
@@ -840,24 +1093,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateRuntimeGetProperty(masm);
 
   __ bind(&check_string);
-  // The key is not a smi.
-  // Is it a string?
-  // r0: key
-  // r1: receiver
-  __ CompareObjectType(r0, r2, r3, FIRST_NONSTRING_TYPE);
-  __ b(ge, &slow);
-
-  // Is the string an array index, with cached numeric value?
-  __ ldr(r3, FieldMemOperand(r0, String::kHashFieldOffset));
-  __ tst(r3, Operand(String::kContainsCachedArrayIndexMask));
-  __ b(eq, &index_string);
-
-  // Is the string a symbol?
-  // r2: key map
-  __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  ASSERT(kSymbolTag != 0);
-  __ tst(r3, Operand(kIsSymbolMask));
-  __ b(eq, &slow);
+  GenerateKeyStringCheck(masm, key, r2, r3, &index_string, &slow);
 
   // If the receiver is a fast-case object, check the keyed lookup
   // cache. Otherwise probe the dictionary.
@@ -873,7 +1109,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(r3, Operand(r2, ASR, KeyedLookupCache::kMapHashShift));
   __ ldr(r4, FieldMemOperand(r0, String::kHashFieldOffset));
   __ eor(r3, r3, Operand(r4, ASR, String::kHashShift));
-  __ and_(r3, r3, Operand(KeyedLookupCache::kCapacityMask));
+  __ And(r3, r3, Operand(KeyedLookupCache::kCapacityMask));
 
   // Load the key (consisting of map and symbol) from the cache and
   // check for match.
@@ -918,25 +1154,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1, r2, r3);
   __ Ret();
 
-  __ b(&slow);
-  // If the hash field contains an array index pick it out. The assert checks
-  // that the constants for the maximum number of digits for an array index
-  // cached in the hash field and the number of bits reserved for it does not
-  // conflict.
-  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
-         (1 << String::kArrayIndexValueBits));
   __ bind(&index_string);
-  // r0: key (string)
-  // r1: receiver
-  // r3: hash field
-  // We want the smi-tagged index in r0.  kArrayIndexValueMask has zeros in
-  // the low kHashShift bits.
-  ASSERT(String::kHashShift >= kSmiTagSize);
-  __ and_(r3, r3, Operand(String::kArrayIndexValueMask));
-  // Here we actually clobber the key (r0) which will be used if calling into
-  // runtime later. However as the new key is the numeric value of a string key
-  // there is no difference in using either key.
-  __ mov(r0, Operand(r3, ASR, String::kHashShift - kSmiTagSize));
+  GenerateIndexFromHash(masm, key, r3);
   // Now jump to the place where smi keys are handled.
   __ jmp(&index_smi);
 }
@@ -1665,32 +1884,29 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
 
-    // vldr requires offset to be a multiple of 4 so we can not
-    // include -kHeapObjectTag into it.
-    __ sub(r5, r0, Operand(kHeapObjectTag));
-    __ vldr(d0, r5, HeapNumber::kValueOffset);
 
     if (array_type == kExternalFloatArray) {
+      // vldr requires offset to be a multiple of 4 so we can not
+      // include -kHeapObjectTag into it.
+      __ sub(r5, r0, Operand(kHeapObjectTag));
+      __ vldr(d0, r5, HeapNumber::kValueOffset);
       __ vcvt_f32_f64(s0, d0);
       __ vmov(r5, s0);
       __ str(r5, MemOperand(r3, r4, LSL, 2));
     } else {
-      Label done;
-
       // Need to perform float-to-int conversion.
-      // Test for NaN.
-      __ vcmp(d0, d0);
-      // Move vector status bits to normal status bits.
-      __ vmrs(v8::internal::pc);
-      __ mov(r5, Operand(0), LeaveCC, vs);  // NaN converts to 0.
-      __ b(vs, &done);
+      // Test for NaN or infinity (both give zero).
+      __ ldr(r6, FieldMemOperand(r5, HeapNumber::kExponentOffset));
 
-      // Test whether exponent equal to 0x7FF (infinity or NaN).
-      __ vmov(r6, r7, d0);
-      __ mov(r5, Operand(0x7FF00000));
-      __ and_(r6, r6, Operand(r5));
-      __ teq(r6, Operand(r5));
-      __ mov(r6, Operand(0), LeaveCC, eq);
+      // Hoisted load.  vldr requires offset to be a multiple of 4 so we can not
+      // include -kHeapObjectTag into it.
+      __ sub(r5, r0, Operand(kHeapObjectTag));
+      __ vldr(d0, r5, HeapNumber::kValueOffset);
+
+      __ Sbfx(r6, r6, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
+      // NaNs and Infinities have all-one exponents so they sign extend to -1.
+      __ cmp(r6, Operand(-1));
+      __ mov(r5, Operand(Smi::FromInt(0)), LeaveCC, eq);
 
       // Not infinity or NaN simply convert to int.
       if (IsElementTypeSigned(array_type)) {
@@ -1698,10 +1914,8 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       } else {
         __ vcvt_u32_f64(s0, d0, ne);
       }
-
       __ vmov(r5, s0, ne);
 
-      __ bind(&done);
       switch (array_type) {
         case kExternalByteArray:
         case kExternalUnsignedByteArray:

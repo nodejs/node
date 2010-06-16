@@ -418,6 +418,15 @@ class Operand BASE_EMBEDDED {
   // Return true if this is a register operand.
   INLINE(bool is_reg() const);
 
+  // Return true of this operand fits in one instruction so that no
+  // 2-instruction solution with a load into the ip register is necessary.
+  bool is_single_instruction() const;
+
+  inline int32_t immediate() const {
+    ASSERT(!rm_.is_valid());
+    return imm32_;
+  }
+
   Register rm() const { return rm_; }
 
  private:
@@ -532,6 +541,21 @@ extern const Instr kLdrPCPattern;
 extern const Instr kBlxRegMask;
 extern const Instr kBlxRegPattern;
 
+extern const Instr kMovMvnMask;
+extern const Instr kMovMvnPattern;
+extern const Instr kMovMvnFlip;
+
+extern const Instr kCmpCmnMask;
+extern const Instr kCmpCmnPattern;
+extern const Instr kCmpCmnFlip;
+
+extern const Instr kALUMask;
+extern const Instr kAddPattern;
+extern const Instr kSubPattern;
+extern const Instr kAndPattern;
+extern const Instr kBicPattern;
+extern const Instr kAddSubFlip;
+extern const Instr kAndBicFlip;
 
 class Assembler : public Malloced {
  public:

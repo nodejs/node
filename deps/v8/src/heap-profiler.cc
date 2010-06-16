@@ -30,8 +30,8 @@
 #include "heap-profiler.h"
 #include "frames-inl.h"
 #include "global-handles.h"
+#include "profile-generator.h"
 #include "string-stream.h"
-#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -312,6 +312,75 @@ void RetainerTreeAggregator::Call(const JSObjectsCluster& cluster,
 }
 
 }  // namespace
+
+
+HeapProfiler* HeapProfiler::singleton_ = NULL;
+
+HeapProfiler::HeapProfiler()
+    : snapshots_(new HeapSnapshotsCollection()),
+      next_snapshot_uid_(1) {
+}
+
+
+HeapProfiler::~HeapProfiler() {
+  delete snapshots_;
+}
+
+
+void HeapProfiler::Setup() {
+  if (singleton_ == NULL) {
+    singleton_ = new HeapProfiler();
+  }
+}
+
+
+void HeapProfiler::TearDown() {
+  delete singleton_;
+  singleton_ = NULL;
+}
+
+
+HeapSnapshot* HeapProfiler::TakeSnapshot(const char* name) {
+  ASSERT(singleton_ != NULL);
+  return singleton_->TakeSnapshotImpl(name);
+}
+
+
+HeapSnapshot* HeapProfiler::TakeSnapshot(String* name) {
+  ASSERT(singleton_ != NULL);
+  return singleton_->TakeSnapshotImpl(name);
+}
+
+
+HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name) {
+  HeapSnapshot* result = snapshots_->NewSnapshot(name, next_snapshot_uid_++);
+  HeapSnapshotGenerator generator(result);
+  generator.GenerateSnapshot();
+  return result;
+}
+
+
+HeapSnapshot* HeapProfiler::TakeSnapshotImpl(String* name) {
+  return TakeSnapshotImpl(snapshots_->GetName(name));
+}
+
+
+int HeapProfiler::GetSnapshotsCount() {
+  ASSERT(singleton_ != NULL);
+  return singleton_->snapshots_->snapshots()->length();
+}
+
+
+HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
+  ASSERT(singleton_ != NULL);
+  return singleton_->snapshots_->snapshots()->at(index);
+}
+
+
+HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
+  ASSERT(singleton_ != NULL);
+  return singleton_->snapshots_->GetSnapshot(uid);
+}
 
 
 const JSObjectsClusterTreeConfig::Key JSObjectsClusterTreeConfig::kNoKey;

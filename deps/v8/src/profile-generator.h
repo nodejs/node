@@ -429,9 +429,9 @@ class HeapEntry;
 class HeapGraphEdge {
  public:
   enum Type {
-    CONTEXT_VARIABLE,
-    ELEMENT,
-    PROPERTY
+    CONTEXT_VARIABLE = v8::HeapGraphEdge::CONTEXT_VARIABLE,
+    ELEMENT = v8::HeapGraphEdge::ELEMENT,
+    PROPERTY = v8::HeapGraphEdge::PROPERTY
   };
 
   HeapGraphEdge(Type type, const char* name, HeapEntry* from, HeapEntry* to);
@@ -468,12 +468,12 @@ class CachedHeapGraphPath;
 class HeapEntry {
  public:
   enum Type {
-    INTERNAL,
-    ARRAY,
-    STRING,
-    JS_OBJECT,
-    CODE,
-    CLOSURE
+    INTERNAL = v8::HeapGraphNode::INTERNAL,
+    ARRAY = v8::HeapGraphNode::ARRAY,
+    STRING = v8::HeapGraphNode::STRING,
+    OBJECT = v8::HeapGraphNode::OBJECT,
+    CODE = v8::HeapGraphNode::CODE,
+    CLOSURE = v8::HeapGraphNode::CLOSURE
   };
 
   explicit HeapEntry(HeapSnapshot* snapshot)

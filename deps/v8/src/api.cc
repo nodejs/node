@@ -34,6 +34,7 @@
 #include "debug.h"
 #include "execution.h"
 #include "global-handles.h"
+#include "heap-profiler.h"
 #include "messages.h"
 #include "platform.h"
 #include "profile-generator-inl.h"
@@ -853,10 +854,10 @@ void FunctionTemplate::SetHiddenPrototype(bool value) {
 }
 
 
-void FunctionTemplate::SetNamedInstancePropertyHandlerImpl(
+void FunctionTemplate::SetNamedInstancePropertyHandler(
       NamedPropertyGetter getter,
       NamedPropertySetter setter,
-      NamedPropertyQueryImpl query,
+      NamedPropertyQuery query,
       NamedPropertyDeleter remover,
       NamedPropertyEnumerator enumerator,
       Handle<Value> data) {
@@ -987,13 +988,12 @@ void ObjectTemplate::SetAccessor(v8::Handle<String> name,
 }
 
 
-void ObjectTemplate::SetNamedPropertyHandlerImpl(NamedPropertyGetter getter,
-                                                 NamedPropertySetter setter,
-                                                 NamedPropertyQueryImpl query,
-                                                 NamedPropertyDeleter remover,
-                                                 NamedPropertyEnumerator
-                                                    enumerator,
-                                                 Handle<Value> data) {
+void ObjectTemplate::SetNamedPropertyHandler(NamedPropertyGetter getter,
+                                             NamedPropertySetter setter,
+                                             NamedPropertyQuery query,
+                                             NamedPropertyDeleter remover,
+                                             NamedPropertyEnumerator enumerator,
+                                             Handle<Value> data) {
   if (IsDeadCheck("v8::ObjectTemplate::SetNamedPropertyHandler()")) return;
   ENTER_V8;
   HandleScope scope;
@@ -1001,12 +1001,12 @@ void ObjectTemplate::SetNamedPropertyHandlerImpl(NamedPropertyGetter getter,
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
-  Utils::ToLocal(cons)->SetNamedInstancePropertyHandlerImpl(getter,
-                                                            setter,
-                                                            query,
-                                                            remover,
-                                                            enumerator,
-                                                            data);
+  Utils::ToLocal(cons)->SetNamedInstancePropertyHandler(getter,
+                                                        setter,
+                                                        query,
+                                                        remover,
+                                                        enumerator,
+                                                        data);
 }
 
 
@@ -2613,6 +2613,35 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
 }
 
 
+bool v8::Object::HasIndexedPropertiesInPixelData() {
+  ON_BAILOUT("v8::HasIndexedPropertiesInPixelData()", return false);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  return self->HasPixelElements();
+}
+
+
+uint8_t* v8::Object::GetIndexedPropertiesPixelData() {
+  ON_BAILOUT("v8::GetIndexedPropertiesPixelData()", return NULL);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (self->HasPixelElements()) {
+    return i::PixelArray::cast(self->elements())->external_pointer();
+  } else {
+    return NULL;
+  }
+}
+
+
+int v8::Object::GetIndexedPropertiesPixelDataLength() {
+  ON_BAILOUT("v8::GetIndexedPropertiesPixelDataLength()", return -1);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (self->HasPixelElements()) {
+    return i::PixelArray::cast(self->elements())->length();
+  } else {
+    return -1;
+  }
+}
+
+
 void v8::Object::SetIndexedPropertiesToExternalArrayData(
     void* data,
     ExternalArrayType array_type,
@@ -2634,6 +2663,60 @@ void v8::Object::SetIndexedPropertiesToExternalArrayData(
   i::Handle<i::ExternalArray> array =
       i::Factory::NewExternalArray(length, array_type, data);
   self->set_elements(*array);
+}
+
+
+bool v8::Object::HasIndexedPropertiesInExternalArrayData() {
+  ON_BAILOUT("v8::HasIndexedPropertiesInExternalArrayData()", return false);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  return self->HasExternalArrayElements();
+}
+
+
+void* v8::Object::GetIndexedPropertiesExternalArrayData() {
+  ON_BAILOUT("v8::GetIndexedPropertiesExternalArrayData()", return NULL);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (self->HasExternalArrayElements()) {
+    return i::ExternalArray::cast(self->elements())->external_pointer();
+  } else {
+    return NULL;
+  }
+}
+
+
+ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
+  ON_BAILOUT("v8::GetIndexedPropertiesExternalArrayDataType()",
+             return static_cast<ExternalArrayType>(-1));
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  switch (self->elements()->map()->instance_type()) {
+    case i::EXTERNAL_BYTE_ARRAY_TYPE:
+      return kExternalByteArray;
+    case i::EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+      return kExternalUnsignedByteArray;
+    case i::EXTERNAL_SHORT_ARRAY_TYPE:
+      return kExternalShortArray;
+    case i::EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+      return kExternalUnsignedShortArray;
+    case i::EXTERNAL_INT_ARRAY_TYPE:
+      return kExternalIntArray;
+    case i::EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+      return kExternalUnsignedIntArray;
+    case i::EXTERNAL_FLOAT_ARRAY_TYPE:
+      return kExternalFloatArray;
+    default:
+      return static_cast<ExternalArrayType>(-1);
+  }
+}
+
+
+int v8::Object::GetIndexedPropertiesExternalArrayDataLength() {
+  ON_BAILOUT("v8::GetIndexedPropertiesExternalArrayDataLength()", return 0);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (self->HasExternalArrayElements()) {
+    return i::ExternalArray::cast(self->elements())->length();
+  } else {
+    return -1;
+  }
 }
 
 
@@ -4361,6 +4444,196 @@ const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title,
       i::CpuProfiler::StopProfiling(
           security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
           *Utils::OpenHandle(*title)));
+}
+
+
+HeapGraphEdge::Type HeapGraphEdge::GetType() const {
+  IsDeadCheck("v8::HeapGraphEdge::GetType");
+  return static_cast<HeapGraphEdge::Type>(
+      reinterpret_cast<const i::HeapGraphEdge*>(this)->type());
+}
+
+
+Handle<Value> HeapGraphEdge::GetName() const {
+  IsDeadCheck("v8::HeapGraphEdge::GetName");
+  const i::HeapGraphEdge* edge =
+      reinterpret_cast<const i::HeapGraphEdge*>(this);
+  switch (edge->type()) {
+    case i::HeapGraphEdge::CONTEXT_VARIABLE:
+    case i::HeapGraphEdge::PROPERTY:
+      return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+          edge->name())));
+    case i::HeapGraphEdge::ELEMENT:
+      return Handle<Number>(ToApi<Number>(i::Factory::NewNumberFromInt(
+          edge->index())));
+    default: UNREACHABLE();
+  }
+  return ImplementationUtilities::Undefined();
+}
+
+
+const HeapGraphNode* HeapGraphEdge::GetFromNode() const {
+  IsDeadCheck("v8::HeapGraphEdge::GetFromNode");
+  const i::HeapEntry* from =
+      reinterpret_cast<const i::HeapGraphEdge*>(this)->from();
+  return reinterpret_cast<const HeapGraphNode*>(from);
+}
+
+
+const HeapGraphNode* HeapGraphEdge::GetToNode() const {
+  IsDeadCheck("v8::HeapGraphEdge::GetToNode");
+  const i::HeapEntry* to =
+      reinterpret_cast<const i::HeapGraphEdge*>(this)->to();
+  return reinterpret_cast<const HeapGraphNode*>(to);
+}
+
+
+int HeapGraphPath::GetEdgesCount() const {
+  return reinterpret_cast<const i::HeapGraphPath*>(this)->path()->length();
+}
+
+
+const HeapGraphEdge* HeapGraphPath::GetEdge(int index) const {
+  return reinterpret_cast<const HeapGraphEdge*>(
+      reinterpret_cast<const i::HeapGraphPath*>(this)->path()->at(index));
+}
+
+
+const HeapGraphNode* HeapGraphPath::GetFromNode() const {
+  return GetEdgesCount() > 0 ? GetEdge(0)->GetFromNode() : NULL;
+}
+
+
+const HeapGraphNode* HeapGraphPath::GetToNode() const {
+  const int count = GetEdgesCount();
+  return count > 0 ? GetEdge(count - 1)->GetToNode() : NULL;
+}
+
+
+HeapGraphNode::Type HeapGraphNode::GetType() const {
+  IsDeadCheck("v8::HeapGraphNode::GetType");
+  return static_cast<HeapGraphNode::Type>(
+      reinterpret_cast<const i::HeapEntry*>(this)->type());
+}
+
+
+Handle<String> HeapGraphNode::GetName() const {
+  IsDeadCheck("v8::HeapGraphNode::GetName");
+  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+      reinterpret_cast<const i::HeapEntry*>(this)->name())));
+}
+
+
+int HeapGraphNode::GetSelfSize() const {
+  IsDeadCheck("v8::HeapGraphNode::GetSelfSize");
+  return reinterpret_cast<const i::HeapEntry*>(this)->self_size();
+}
+
+
+int HeapGraphNode::GetTotalSize() const {
+  IsDeadCheck("v8::HeapSnapshot::GetHead");
+  return const_cast<i::HeapEntry*>(
+      reinterpret_cast<const i::HeapEntry*>(this))->TotalSize();
+}
+
+
+int HeapGraphNode::GetPrivateSize() const {
+  IsDeadCheck("v8::HeapSnapshot::GetPrivateSize");
+  return const_cast<i::HeapEntry*>(
+      reinterpret_cast<const i::HeapEntry*>(this))->NonSharedTotalSize();
+}
+
+
+int HeapGraphNode::GetChildrenCount() const {
+  IsDeadCheck("v8::HeapSnapshot::GetChildrenCount");
+  return reinterpret_cast<const i::HeapEntry*>(this)->children()->length();
+}
+
+
+const HeapGraphEdge* HeapGraphNode::GetChild(int index) const {
+  IsDeadCheck("v8::HeapSnapshot::GetChild");
+  return reinterpret_cast<const HeapGraphEdge*>(
+      reinterpret_cast<const i::HeapEntry*>(this)->children()->at(index));
+}
+
+
+int HeapGraphNode::GetRetainersCount() const {
+  IsDeadCheck("v8::HeapSnapshot::GetRetainersCount");
+  return reinterpret_cast<const i::HeapEntry*>(this)->retainers()->length();
+}
+
+
+const HeapGraphEdge* HeapGraphNode::GetRetainer(int index) const {
+  IsDeadCheck("v8::HeapSnapshot::GetRetainer");
+  return reinterpret_cast<const HeapGraphEdge*>(
+      reinterpret_cast<const i::HeapEntry*>(this)->retainers()->at(index));
+}
+
+
+int HeapGraphNode::GetRetainingPathsCount() const {
+  IsDeadCheck("v8::HeapSnapshot::GetRetainingPathsCount");
+  return const_cast<i::HeapEntry*>(
+      reinterpret_cast<const i::HeapEntry*>(
+          this))->GetRetainingPaths()->length();
+}
+
+
+const HeapGraphPath* HeapGraphNode::GetRetainingPath(int index) const {
+  IsDeadCheck("v8::HeapSnapshot::GetRetainingPath");
+  return reinterpret_cast<const HeapGraphPath*>(
+      const_cast<i::HeapEntry*>(
+          reinterpret_cast<const i::HeapEntry*>(
+              this))->GetRetainingPaths()->at(index));
+}
+
+
+unsigned HeapSnapshot::GetUid() const {
+  IsDeadCheck("v8::HeapSnapshot::GetUid");
+  return reinterpret_cast<const i::HeapSnapshot*>(this)->uid();
+}
+
+
+Handle<String> HeapSnapshot::GetTitle() const {
+  IsDeadCheck("v8::HeapSnapshot::GetTitle");
+  const i::HeapSnapshot* snapshot =
+      reinterpret_cast<const i::HeapSnapshot*>(this);
+  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+      snapshot->title())));
+}
+
+
+const HeapGraphNode* HeapSnapshot::GetHead() const {
+  IsDeadCheck("v8::HeapSnapshot::GetHead");
+  const i::HeapSnapshot* snapshot =
+      reinterpret_cast<const i::HeapSnapshot*>(this);
+  return reinterpret_cast<const HeapGraphNode*>(snapshot->const_root());
+}
+
+
+int HeapProfiler::GetSnapshotsCount() {
+  IsDeadCheck("v8::HeapProfiler::GetSnapshotsCount");
+  return i::HeapProfiler::GetSnapshotsCount();
+}
+
+
+const HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
+  IsDeadCheck("v8::HeapProfiler::GetSnapshot");
+  return reinterpret_cast<const HeapSnapshot*>(
+      i::HeapProfiler::GetSnapshot(index));
+}
+
+
+const HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
+  IsDeadCheck("v8::HeapProfiler::FindSnapshot");
+  return reinterpret_cast<const HeapSnapshot*>(
+      i::HeapProfiler::FindSnapshot(uid));
+}
+
+
+const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title) {
+  IsDeadCheck("v8::HeapProfiler::TakeSnapshot");
+  return reinterpret_cast<const HeapSnapshot*>(
+      i::HeapProfiler::TakeSnapshot(*Utils::OpenHandle(*title)));
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

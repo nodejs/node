@@ -626,9 +626,9 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
       PropertyDetails details = dictionary->DetailsAt(entry);
       elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
       elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
-      elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsDontDelete()));
+      elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
       elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!details.IsDontEnum()));
-      elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
+      elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!details.IsDontDelete()));
       return *desc;
     } else {
       // Elements that are stored as array elements always has:
@@ -3849,10 +3849,28 @@ static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   int unchecked = flag->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
 
+  PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
+
+  // Check if this is an element.
+  uint32_t index;
+  bool is_element = name->AsArrayIndex(&index);
+
+  // Special case for elements if any of the flags are true.
+  // If elements are in fast case we always implicitly assume that:
+  // DONT_DELETE: false, DONT_ENUM: false, READ_ONLY: false.
+  if (((unchecked & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0) &&
+      is_element) {
+    // Normalize the elements to enable attributes on the property.
+    js_object->NormalizeElements();
+    NumberDictionary* dictionary = js_object->element_dictionary();
+    // Make sure that we never go back to fast case.
+    dictionary->set_requires_slow_elements();
+    PropertyDetails details = PropertyDetails(attr, NORMAL);
+    dictionary->Set(index, *obj_value, details);
+  }
+
   LookupResult result;
   js_object->LocalLookupRealNamedProperty(*name, &result);
-
-  PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
   // Take special care when attributes are different and there is already
   // a property. For simplicity we normalize the property which enables us
@@ -3869,6 +3887,7 @@ static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
                                                           *obj_value,
                                                           attr);
   }
+
   return Runtime::SetObjectProperty(js_object, name, obj_value, attr);
 }
 

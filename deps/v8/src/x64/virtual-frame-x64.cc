@@ -1164,6 +1164,25 @@ Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
 }
 
 
+Result VirtualFrame::CallKeyedCallIC(RelocInfo::Mode mode,
+                                     int arg_count,
+                                     int loop_nesting) {
+  // Function name, arguments, and receiver are found on top of the frame
+  // and dropped by the call.  The IC expects the name in rcx and the rest
+  // on the stack, and drops them all.
+  InLoopFlag in_loop = loop_nesting > 0 ? IN_LOOP : NOT_IN_LOOP;
+  Handle<Code> ic =
+      cgen()->ComputeKeyedCallInitialize(arg_count, in_loop);
+  Result name = Pop();
+  // Spill args, receiver, and function.  The call will drop args and
+  // receiver.
+  PrepareForCall(arg_count + 1, arg_count + 1);
+  name.ToRegister(rcx);
+  name.Unuse();
+  return RawCallCodeObject(ic, mode);
+}
+
+
 Result VirtualFrame::CallConstructor(int arg_count) {
   // Arguments, receiver, and function are on top of the frame.  The
   // IC expects arg count in rax, function in rdi, and the arguments

@@ -6,9 +6,11 @@
 
 #include "v8.h"
 #include "heap-profiler.h"
+#include "snapshot.h"
 #include "string-stream.h"
 #include "cctest.h"
 #include "zone-inl.h"
+#include "../include/v8-profiler.h"
 
 namespace i = v8::internal;
 using i::ClustersCoarser;
@@ -388,6 +390,179 @@ TEST(RetainerProfile) {
   CHECK(strstr(retainers_of_a, "C;2") != NULL);
   CHECK_EQ("(global property);2", printer.GetRetainers("B"));
   CHECK_EQ("(global property);1", printer.GetRetainers("C"));
+}
+
+
+namespace {
+
+class NamedEntriesDetector {
+ public:
+  NamedEntriesDetector()
+      : has_A1(false), has_B1(false), has_C1(false),
+        has_A2(false), has_B2(false), has_C2(false) {
+  }
+
+  void Apply(i::HeapEntry* entry) {
+    const char* node_name = entry->name();
+    if (strcmp("A1", node_name) == 0
+        && entry->GetRetainingPaths()->length() > 0) has_A1 = true;
+    if (strcmp("B1", node_name) == 0
+        && entry->GetRetainingPaths()->length() > 0) has_B1 = true;
+    if (strcmp("C1", node_name) == 0
+        && entry->GetRetainingPaths()->length() > 0) has_C1 = true;
+    if (strcmp("A2", node_name) == 0
+        && entry->GetRetainingPaths()->length() > 0) has_A2 = true;
+    if (strcmp("B2", node_name) == 0
+        && entry->GetRetainingPaths()->length() > 0) has_B2 = true;
+    if (strcmp("C2", node_name) == 0
+        && entry->GetRetainingPaths()->length() > 0) has_C2 = true;
+  }
+
+  bool has_A1;
+  bool has_B1;
+  bool has_C1;
+  bool has_A2;
+  bool has_B2;
+  bool has_C2;
+};
+
+}  // namespace
+
+TEST(HeapSnapshot) {
+  v8::HandleScope scope;
+
+  v8::Handle<v8::String> token1 = v8::String::New("token1");
+  v8::Handle<v8::Context> env1 = v8::Context::New();
+  env1->SetSecurityToken(token1);
+  env1->Enter();
+
+  CompileAndRunScript(
+      "function A1() {}\n"
+      "function B1(x) { this.x = x; }\n"
+      "function C1(x) { this.x1 = x; this.x2 = x; }\n"
+      "var a1 = new A1();\n"
+      "var b1_1 = new B1(a1), b1_2 = new B1(a1);\n"
+      "var c1 = new C1(a1);");
+
+  v8::Handle<v8::String> token2 = v8::String::New("token2");
+  v8::Handle<v8::Context> env2 = v8::Context::New();
+  env2->SetSecurityToken(token2);
+  env2->Enter();
+
+  CompileAndRunScript(
+      "function A2() {}\n"
+      "function B2(x) { return function() { return typeof x; }; }\n"
+      "function C2(x) { this.x1 = x; this.x2 = x; this[1] = x; }\n"
+      "var a2 = new A2();\n"
+      "var b2_1 = new B2(a2), b2_2 = new B2(a2);\n"
+      "var c2 = new C2(a2);");
+  const v8::HeapSnapshot* snapshot_env2 =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("env2"));
+  const v8::HeapGraphNode* global_env2;
+  if (i::Snapshot::IsEnabled()) {
+    // In case if snapshots are enabled, there will present a
+    // vanilla deserealized global object, without properties
+    // added by the test code.
+    CHECK_EQ(2, snapshot_env2->GetHead()->GetChildrenCount());
+    // Choose the global object of a bigger size.
+    const v8::HeapGraphNode* node0 =
+        snapshot_env2->GetHead()->GetChild(0)->GetToNode();
+    const v8::HeapGraphNode* node1 =
+        snapshot_env2->GetHead()->GetChild(1)->GetToNode();
+    global_env2 = node0->GetTotalSize() > node1->GetTotalSize() ?
+        node0 : node1;
+  } else {
+    CHECK_EQ(1, snapshot_env2->GetHead()->GetChildrenCount());
+    global_env2 = snapshot_env2->GetHead()->GetChild(0)->GetToNode();
+  }
+
+  // Verify, that JS global object of env2 doesn't have '..1'
+  // properties, but has '..2' properties.
+  bool has_a1 = false, has_b1_1 = false, has_b1_2 = false, has_c1 = false;
+  bool has_a2 = false, has_b2_1 = false, has_b2_2 = false, has_c2 = false;
+  // This will be needed further.
+  const v8::HeapGraphNode* a2_node = NULL;
+  for (int i = 0, count = global_env2->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = global_env2->GetChild(i);
+    v8::String::AsciiValue prop_name(prop->GetName());
+    if (strcmp("a1", *prop_name) == 0) has_a1 = true;
+    if (strcmp("b1_1", *prop_name) == 0) has_b1_1 = true;
+    if (strcmp("b1_2", *prop_name) == 0) has_b1_2 = true;
+    if (strcmp("c1", *prop_name) == 0) has_c1 = true;
+    if (strcmp("a2", *prop_name) == 0) {
+      has_a2 = true;
+      a2_node = prop->GetToNode();
+    }
+    if (strcmp("b2_1", *prop_name) == 0) has_b2_1 = true;
+    if (strcmp("b2_2", *prop_name) == 0) has_b2_2 = true;
+    if (strcmp("c2", *prop_name) == 0) has_c2 = true;
+  }
+  CHECK(!has_a1);
+  CHECK(!has_b1_1);
+  CHECK(!has_b1_2);
+  CHECK(!has_c1);
+  CHECK(has_a2);
+  CHECK(has_b2_1);
+  CHECK(has_b2_2);
+  CHECK(has_c2);
+
+  // Verify that anything related to '[ABC]1' is not reachable.
+  NamedEntriesDetector det;
+  i::HeapSnapshot* i_snapshot_env2 =
+      const_cast<i::HeapSnapshot*>(
+          reinterpret_cast<const i::HeapSnapshot*>(snapshot_env2));
+  i_snapshot_env2->IterateEntries(&det);
+  CHECK(!det.has_A1);
+  CHECK(!det.has_B1);
+  CHECK(!det.has_C1);
+  CHECK(det.has_A2);
+  CHECK(det.has_B2);
+  CHECK(det.has_C2);
+
+  // Verify 'a2' object retainers. They are:
+  //  - (global object).a2
+  //  - c2.x1, c2.x2, c2[1]
+  //  - b2_1 and b2_2 closures: via 'x' variable
+  CHECK_EQ(6, a2_node->GetRetainingPathsCount());
+  bool has_global_obj_a2_ref = false;
+  bool has_c2_x1_ref = false, has_c2_x2_ref = false, has_c2_1_ref = false;
+  bool has_b2_1_x_ref = false, has_b2_2_x_ref = false;
+  for (int i = 0; i < a2_node->GetRetainingPathsCount(); ++i) {
+    const v8::HeapGraphPath* path = a2_node->GetRetainingPath(i);
+    const int edges_count = path->GetEdgesCount();
+    CHECK_GT(edges_count, 0);
+    const v8::HeapGraphEdge* last_edge = path->GetEdge(edges_count - 1);
+    v8::String::AsciiValue last_edge_name(last_edge->GetName());
+    if (strcmp("a2", *last_edge_name) == 0
+        && last_edge->GetType() == v8::HeapGraphEdge::PROPERTY) {
+      has_global_obj_a2_ref = true;
+      continue;
+    }
+    CHECK_GT(edges_count, 1);
+    const v8::HeapGraphEdge* prev_edge = path->GetEdge(edges_count - 2);
+    v8::String::AsciiValue prev_edge_name(prev_edge->GetName());
+    if (strcmp("x1", *last_edge_name) == 0
+        && last_edge->GetType() == v8::HeapGraphEdge::PROPERTY
+        && strcmp("c2", *prev_edge_name) == 0) has_c2_x1_ref = true;
+    if (strcmp("x2", *last_edge_name) == 0
+        && last_edge->GetType() == v8::HeapGraphEdge::PROPERTY
+        && strcmp("c2", *prev_edge_name) == 0) has_c2_x2_ref = true;
+    if (strcmp("1", *last_edge_name) == 0
+        && last_edge->GetType() == v8::HeapGraphEdge::ELEMENT
+        && strcmp("c2", *prev_edge_name) == 0) has_c2_1_ref = true;
+    if (strcmp("x", *last_edge_name) == 0
+        && last_edge->GetType() == v8::HeapGraphEdge::CONTEXT_VARIABLE
+        && strcmp("b2_1", *prev_edge_name) == 0) has_b2_1_x_ref = true;
+    if (strcmp("x", *last_edge_name) == 0
+        && last_edge->GetType() == v8::HeapGraphEdge::CONTEXT_VARIABLE
+        && strcmp("b2_2", *prev_edge_name) == 0) has_b2_2_x_ref = true;
+  }
+  CHECK(has_global_obj_a2_ref);
+  CHECK(has_c2_x1_ref);
+  CHECK(has_c2_x2_ref);
+  CHECK(has_c2_1_ref);
+  CHECK(has_b2_1_x_ref);
+  CHECK(has_b2_2_x_ref);
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
