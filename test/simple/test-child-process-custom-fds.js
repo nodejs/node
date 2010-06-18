@@ -87,6 +87,7 @@ function test3(next) {
   echo.addListener('exit', function(code) {
     if (code) throw "Return code was " + code;
     filter.stdin.end();
+    fs.unlinkSync(helloPath);
   });
 }
 
