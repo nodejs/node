@@ -17,6 +17,8 @@
 #include <pwd.h> /* getpwnam() */
 #include <grp.h> /* getgrnam() */
 
+#include "platform.h"
+
 #include <node_buffer.h>
 #include <node_io_watcher.h>
 #include <node_net.h>
@@ -1232,218 +1234,20 @@ v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
   return Undefined();
 }
 
-#ifdef __sun
-#define HAVE_GETMEM 1
-#include <unistd.h> /* getpagesize() */
-
-#if (!defined(_LP64)) && (_FILE_OFFSET_BITS - 0 == 64)
-#define PROCFS_FILE_OFFSET_BITS_HACK 1
-#undef _FILE_OFFSET_BITS
-#else
-#define PROCFS_FILE_OFFSET_BITS_HACK 0
-#endif
-
-#include <procfs.h>
-
-#if (PROCFS_FILE_OFFSET_BITS_HACK - 0 == 1)
-#define _FILE_OFFSET_BITS 64
-#endif
-
-int getmem(size_t *rss, size_t *vsize) {
-  pid_t pid = getpid();
-
-  size_t page_size = getpagesize();
-  char pidpath[1024];
-  sprintf(pidpath, "/proc/%d/psinfo", pid);
-
-  psinfo_t psinfo;
-  FILE *f = fopen(pidpath, "r");
-  if (!f) return -1;
-
-  if (fread(&psinfo, sizeof(psinfo_t), 1, f) != 1) {
-    fclose (f);
-    return -1;
-  }
-
-  /* XXX correct? */
-
-  *vsize = (size_t) psinfo.pr_size * page_size;
-  *rss = (size_t) psinfo.pr_rssize * 1024;
-
-  fclose (f);
-
-  return 0;
-}
-#endif
-
-
-#ifdef __FreeBSD__
-#define HAVE_GETMEM 1
-#include <kvm.h>
-#include <sys/param.h>
-#include <sys/sysctl.h>
-#include <sys/user.h>
-#include <paths.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-int getmem(size_t *rss, size_t *vsize) {
-  kvm_t *kd = NULL;
-  struct kinfo_proc *kinfo = NULL;
-  pid_t pid;
-  int nprocs;
-  size_t page_size = getpagesize();
-
-  pid = getpid();
-
-  kd = kvm_open(NULL, _PATH_DEVNULL, NULL, O_RDONLY, "kvm_open");
-  if (kd == NULL) goto error;
-
-  kinfo = kvm_getprocs(kd, KERN_PROC_PID, pid, &nprocs);
-  if (kinfo == NULL) goto error;
-
-  *rss = kinfo->ki_rssize * page_size;
-  *vsize = kinfo->ki_size;
-
-  kvm_close(kd);
-
-  return 0;
-
-error:
-  if (kd) kvm_close(kd);
-  return -1;
-}
-#endif  // __FreeBSD__
-
-
-#ifdef __APPLE__
-#define HAVE_GETMEM 1
-/* Researched by Tim Becker and Michael Knight
- * http://blog.kuriositaet.de/?p=257
- */
-
-#include <mach/task.h>
-#include <mach/mach_init.h>
-
-int getmem(size_t *rss, size_t *vsize) {
-  struct task_basic_info t_info;
-  mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
-
-  int r = task_info(mach_task_self(),
-                    TASK_BASIC_INFO,
-                    (task_info_t)&t_info,
-                    &t_info_count);
-
-  if (r != KERN_SUCCESS) return -1;
-
-  *rss = t_info.resident_size;
-  *vsize  = t_info.virtual_size;
-
-  return 0;
-}
-#endif  // __APPLE__
-
-#ifdef __linux__
-# define HAVE_GETMEM 1
-# include <sys/param.h> /* for MAXPATHLEN */
-
-int getmem(size_t *rss, size_t *vsize) {
-  FILE *f = fopen("/proc/self/stat", "r");
-  if (!f) return -1;
-
-  int itmp;
-  char ctmp;
-  char buffer[MAXPATHLEN];
-  size_t page_size = getpagesize();
-
-  /* PID */
-  if (fscanf(f, "%d ", &itmp) == 0) goto error;
-  /* Exec file */
-  if (fscanf (f, "%s ", &buffer[0]) == 0) goto error;
-  /* State */
-  if (fscanf (f, "%c ", &ctmp) == 0) goto error;
-  /* Parent process */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-  /* Process group */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-  /* Session id */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-  /* TTY */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-  /* TTY owner process group */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-  /* Flags */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  /* Minor faults (no memory page) */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  /* Minor faults, children */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  /* Major faults (memory page faults) */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  /* Major faults, children */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  /* utime */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-  /* stime */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-  /* utime, children */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-  /* stime, children */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-  /* jiffies remaining in current time slice */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-  /* 'nice' value */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-  /* jiffies until next timeout */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  /* jiffies until next SIGALRM */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  /* start time (jiffies since system boot) */
-  if (fscanf (f, "%d ", &itmp) == 0) goto error;
-
-  /* Virtual memory size */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  *vsize = (size_t) itmp;
-
-  /* Resident set size */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  *rss = (size_t) itmp * page_size;
-
-  /* rlim */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  /* Start of text */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  /* End of text */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-  /* Start of stack */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error;
-
-  fclose (f);
-
-  return 0;
-
-error:
-  fclose (f);
-  return -1;
-}
-#endif  // __linux__
-
 
 static void CheckStatus(EV_P_ ev_timer *watcher, int revents) {
   assert(watcher == &gc_timer);
   assert(revents == EV_TIMEOUT);
 
-#if HAVE_GETMEM
   // check memory
   size_t rss, vsize;
-  if (!ev_is_active(&gc_idle) && getmem(&rss, &vsize) == 0) {
+  if (!ev_is_active(&gc_idle) && OS::GetMemory(&rss, &vsize) == 0) {
     if (rss > 1024*1024*128) {
       // larger than 128 megs, just start the idle watcher
       ev_idle_start(EV_A_ &gc_idle);
       return;
     }
   }
-#endif // HAVE_GETMEM
 
   double d = ev_now(EV_DEFAULT_UC) - TICK_TIME(3);
 
@@ -1460,12 +1264,9 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
   HandleScope scope;
   assert(args.Length() == 0);
 
-#ifndef HAVE_GETMEM
-  return ThrowException(Exception::Error(String::New("Not support on your platform. (Talk to Ryan.)")));
-#else
   size_t rss, vsize;
 
-  int r = getmem(&rss, &vsize);
+  int r = OS::GetMemory(&rss, &vsize);
 
   if (r != 0) {
     return ThrowException(Exception::Error(String::New(strerror(errno))));
@@ -1492,7 +1293,6 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
             Integer::NewFromUnsigned(v8_heap_stats.used_heap_size()));
 
   return scope.Close(info);
-#endif
 }
 
 

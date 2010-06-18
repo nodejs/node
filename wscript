@@ -16,7 +16,6 @@ srcdir = '.'
 blddir = 'build'
 
 
-
 jobs=1
 if os.environ.has_key('JOBS'):
   jobs = int(os.environ['JOBS'])
@@ -278,7 +277,7 @@ def configure(conf):
     conf.env.append_value('CXXFLAGS', '-DHAVE_FDATASYNC=0')
 
   # platform
-  platform_def = '-DPLATFORM=' + sys.platform
+  platform_def = '-DPLATFORM=' + conf.env['DEST_OS']
   conf.env.append_value('CCFLAGS', platform_def)
   conf.env.append_value('CXXFLAGS', platform_def)
 
@@ -468,7 +467,15 @@ def build(bld):
     src/node_timer.cc
     src/node_script.cc
   """
-  if bld.env["USE_OPENSSL"]: node.source += "src/node_crypto.cc"
+
+  platform_file = "src/platform_%s.cc" % bld.env['DEST_OS']
+  if os.path.exists(join(cwd, platform_file)):
+    node.source += platform_file
+  else:
+    node.source += "src/platform_none.cc "
+
+
+  if bld.env["USE_OPENSSL"]: node.source += " src/node_crypto.cc "
 
   node.includes = """
     src/
