@@ -1,7 +1,8 @@
 #include "node.h"
 #include "platform.h"
 
-# include <sys/param.h> /* for MAXPATHLEN */
+#include <sys/param.h> // for MAXPATHLEN
+#include <unistd.h> // getpagesize
 
 
 namespace node {
