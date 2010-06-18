@@ -1506,6 +1506,24 @@ static Handle<Value> Binding(const Arguments& args) {
 }
 
 
+static Handle<Value> ProcessTitleGetter(Local<String> property,
+                                        const AccessorInfo& info) {
+  HandleScope scope;
+  int len;
+  const char *s = OS::GetProcessTitle(&len);
+  return scope.Close(s ? String::New(s, len) : String::Empty());
+}
+
+
+static void ProcessTitleSetter(Local<String> property,
+                               Local<Value> value,
+                               const AccessorInfo& info) {
+  HandleScope scope;
+  String::Utf8Value title(value->ToString());
+  OS::SetProcessTitle(*title);
+}
+
+
 static void Load(int argc, char *argv[]) {
   HandleScope scope;
 
@@ -1513,6 +1531,12 @@ static void Load(int argc, char *argv[]) {
   node::EventEmitter::Initialize(process_template);
 
   process = Persistent<Object>::New(process_template->GetFunction()->NewInstance());
+
+
+  process->SetAccessor(String::New("title"),
+                       ProcessTitleGetter,
+                       ProcessTitleSetter);
+
 
   // Add a reference to the global object
   Local<Object> global = v8::Context::GetCurrent()->Global();
@@ -1733,6 +1757,9 @@ static void AtExit() {
 
 
 int main(int argc, char *argv[]) {
+  // Hack aroung with the argv pointer. Used for process.title = "blah".
+  argv = node::OS::SetupArgs(argc, argv);
+
   // Parse a few arguments which are specific to Node.
   node::ParseArgs(&argc, argv);
   // Parse the rest of the args (up to the 'option_end_index' (where '--' was

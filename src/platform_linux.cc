@@ -9,6 +9,23 @@ namespace node {
 
 static char buf[MAXPATHLEN + 1];
 
+
+char** OS::SetupArgs(int argc, char *argv[]) {
+  return argv;
+}
+
+
+void OS::SetProcessTitle(char *title) {
+  ;
+}
+
+
+const char* OS::GetProcessTitle(int *len) {
+  *len = 0;
+  return NULL;
+}
+
+
 int OS::GetMemory(size_t *rss, size_t *vsize) {
   FILE *f = fopen("/proc/self/stat", "r");
   if (!f) return -1;

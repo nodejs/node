@@ -8,6 +8,22 @@
 
 namespace node {
 
+
+char** OS::SetupArgs(int argc, char *argv[]) {
+  return argv;
+}
+
+
+void OS::SetProcessTitle(char *title) {
+  ;
+}
+
+
+const char* OS::GetProcessTitle(int *len) {
+  *len = 0;
+  return NULL;
+}
+
 // Researched by Tim Becker and Michael Knight
 // http://blog.kuriositaet.de/?p=257
 int OS::GetMemory(size_t *rss, size_t *vsize) {

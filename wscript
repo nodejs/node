@@ -187,11 +187,7 @@ def configure(conf):
     if not conf.check(lib='nsl', uselib_store="NSL"):
       conf.fatal("Cannot find nsl library")
 
-
-
   conf.sub_config('deps/libeio')
-
-
 
   if conf.env['USE_SHARED_V8']:
     v8_includes = [];

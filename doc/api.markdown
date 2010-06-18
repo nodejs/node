@@ -750,6 +750,10 @@ The PID of the process.
 
     console.log('This process is pid ' + process.pid);
 
+### process.title
+
+Getter/setter to set what is displayed in 'ps'.
+
 
 ### process.platform
 

@@ -13,6 +13,22 @@
 namespace node {
 
 
+char** OS::SetupArgs(int argc, char *argv[]) {
+  return argv;
+}
+
+
+void OS::SetProcessTitle(char *title) {
+  ;
+}
+
+
+const char* OS::GetProcessTitle(int *len) {
+  *len = 0;
+  return NULL;
+}
+
+
 int OS::GetMemory(size_t *rss, size_t *vsize) {
   kvm_t *kd = NULL;
   struct kinfo_proc *kinfo = NULL;
