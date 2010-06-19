@@ -13,7 +13,7 @@ uninstall:
 	@$(WAF) uninstall
 
 test: all
-	python tools/test.py --mode=release simple
+	python tools/test.py --mode=release simple message
 
 test-all: all
 	python tools/test.py --mode=debug,release
@@ -23,6 +23,9 @@ test-release: all
 
 test-debug: all
 	python tools/test.py --mode=debug
+
+test-message: all
+	python tools/test.py message
 
 test-simple: all
 	python tools/test.py simple
