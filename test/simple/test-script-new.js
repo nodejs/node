@@ -15,6 +15,22 @@ assert.throws(function() {
   script.runInNewContext();
 });
 
+
+
+debug('undefined reference');
+var error;
+script = new Script('foo.bar = 5;');
+try {
+  script.runInNewContext();
+} catch (e) {
+  error = e;
+}
+assert.ok(error);
+assert.ok(error.message.indexOf('not defined') >= 0);
+
+debug('error.message: ' + error.message);
+
+
 hello = 5;
 script = new Script('hello = 2');
 script.runInNewContext();

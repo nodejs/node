@@ -166,7 +166,7 @@ Handle<Value> node::Script::EvalMachine(const Arguments& args) {
       }
     }
     if (result.IsEmpty()) {
-      result = ThrowException(try_catch.Exception());
+      return try_catch.ReThrow();
     } else if (cFlag == newContext) {
       // success! copy changes back onto the sandbox object.
       keys = context->Global()->GetPropertyNames();

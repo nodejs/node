@@ -63,7 +63,7 @@ class MessageTestCase(test.TestCase):
       pattern = '^%s$' % pattern
       patterns.append(pattern)
     # Compare actual output with the expected
-    raw_lines = output.stdout.split('\n')
+    raw_lines = (output.stdout + output.stderr).split('\n')
     outlines = [ s for s in raw_lines if not self.IgnoreLine(s) ]
     if len(outlines) != len(patterns):
       return True
