@@ -20,6 +20,7 @@ var body1 = "";
 var body2 = "";
 
 var req1 = client.request("/1")
+req1.end();
 req1.addListener('response', function (res1) {
   res1.setBodyEncoding("utf8");
 
@@ -29,15 +30,14 @@ req1.addListener('response', function (res1) {
 
   res1.addListener('end', function () {
     var req2 = client.request("/2");
+    req2.end();
     req2.addListener('response', function (res2) {
       res2.setBodyEncoding("utf8");
       res2.addListener('data', function (chunk) { body2 += chunk; });
       res2.addListener('end', function () { server.close(); });
     });
-    req2.end();
   });
 });
-req1.end();
 
 process.addListener("exit", function () {
   assert.equal(body1_s, body1);

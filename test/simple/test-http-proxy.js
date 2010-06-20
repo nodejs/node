@@ -16,6 +16,7 @@ var proxy_client = http.createClient(BACKEND_PORT);
 var proxy = http.createServer(function (req, res) {
   debug("proxy req headers: " + JSON.stringify(req.headers));
   var proxy_req = proxy_client.request(url.parse(req.url).pathname);
+  proxy_req.end();
   proxy_req.addListener('response', function(proxy_res) {
     res.writeHead(proxy_res.statusCode, proxy_res.headers);
     proxy_res.addListener("data", function(chunk) {
@@ -26,7 +27,6 @@ var proxy = http.createServer(function (req, res) {
       debug("proxy res");
     });
   });
-  proxy_req.end();
 });
 
 var body = "";

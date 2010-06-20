@@ -26,7 +26,6 @@ server.listen(PORT);
 
 var client = http.createClient(PORT);
 var req = client.request('POST', '/');
-
 req.write('1\n');
 req.write('2\n');
 req.write('3\n');

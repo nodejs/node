@@ -28,6 +28,7 @@ function check_reqs() {
 
 function add_client(num) {
   var req = http.createClient(PORT).request('GET', '/busy/' + num);
+  req.end();
 
   req.addListener('response', function(res) {
     var response_body = "";
@@ -41,7 +42,6 @@ function add_client(num) {
       check_reqs();
     });
   });
-  req.end();
 
   return req;
 }

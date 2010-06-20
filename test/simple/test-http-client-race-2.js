@@ -38,6 +38,7 @@ var body3 = "";
 // Client #1 is assigned Parser #1
 //
 var req1 = client.request("/1")
+req1.end();
 req1.addListener('response', function (res1) {
   res1.setBodyEncoding("utf8");
 
@@ -63,6 +64,7 @@ req1.addListener('response', function (res1) {
       // internal state of the parser was no longer valid for use by Client #1.
       //
       var req2 = client.request("/2");
+      req2.end();
       req2.addListener('response', function (res2) {
         res2.setBodyEncoding("utf8");
         res2.addListener('data', function (chunk) { body2 += chunk; });
@@ -73,19 +75,17 @@ req1.addListener('response', function (res1) {
           // request using client2.
           //
           var req3 = client2.request("/3");
+          req3.end();
           req3.addListener('response', function (res3) {
             res3.setBodyEncoding("utf8");
             res3.addListener('data', function (chunk) { body3 += chunk });
             res3.addListener('end', function() { server.close(); });
           });
-          req3.end();
         });
       });
-      req2.end();
     }, 500);
   });
 });
-req1.end();
 
 process.addListener("exit", function () {
   assert.equal(body1_s, body1);

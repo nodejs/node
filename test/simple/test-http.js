@@ -53,6 +53,7 @@ req.addListener('response', function (res) {
 
 setTimeout(function () {
   req = client.request("POST", "/world");
+  req.end();
   req.addListener('response',function (res) {
     assert.equal(200, res.statusCode);
     responses_recvd += 1;
@@ -60,7 +61,6 @@ setTimeout(function () {
     res.addListener('data', function (chunk) { body1 += chunk; });
     debug("Got /world response");
   });
-  req.end();
 }, 1);
 
 process.addListener("exit", function () {

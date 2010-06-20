@@ -25,10 +25,10 @@ client.addListener("end", function() {
 });
 
 var request = client.request("GET", "/", {"host": "localhost"});
+request.end();
 request.addListener('response', function(response) {
   sys.puts("STATUS: " + response.statusCode);
 });
-request.end();
 
 setTimeout(function () {
   server.close();
