@@ -1,3 +1,3 @@
 require('../common');
 
-error('hello world');
+puts('hello world');

@@ -49,9 +49,9 @@ class MessageTestCase(test.TestCase):
   def IsFailureOutput(self, output):
     f = file(self.expected)
     # Skip initial '#' comment and spaces
-    for line in f:
-      if (not line.startswith('#')) and (not line.strip()):
-        break
+    #for line in f:
+    #  if (not line.startswith('#')) and (not line.strip()):
+    #    break
     # Convert output lines to regexps that we can match
     env = { 'basename': basename(self.file) }
     patterns = [ ]
