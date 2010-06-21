@@ -1,4 +1,21 @@
-2010.06.11, Version 0.1.98
+2010.06.21, Version 0.1.99
+
+* Datagram sockets (Paul Querna)
+
+* fs.writeFile could not handle utf8 (Felix Geisendörfer)
+  and now accepts Buffers (Aaron Heckmann)
+
+* Fix crypto memory leaks.
+
+* A replacement for decodeURIComponent that doesn't throw.
+  (Isaac Schlueter)
+
+* Only concatenate some incoming HTTP headers. (Peter Griess)
+
+* Upgrade V8 to 2.2.18
+
+
+2010.06.11, Version 0.1.98, 10d8adb08933d1d4cea60192c2a31c56d896733d
 
 * Port to Windows/Cygwin (Raffaele Sena)
 
