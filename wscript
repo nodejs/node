@@ -358,6 +358,7 @@ def build_v8(bld):
 
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
+
 def build(bld):
   ## This snippet is to show full commands as WAF executes
   import Build
@@ -501,7 +502,10 @@ def build(bld):
 
   def subflags(program):
     if os.path.exists(join(cwd, ".git")):
-      actual_version=cmd_output("git describe").strip()
+      try:
+        actual_version=cmd_output("git describe").strip()
+      except:
+        actual_version=VERSION+'+'
     else:
       actual_version=VERSION
 
