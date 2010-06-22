@@ -576,6 +576,11 @@ This will generate:
     4: four
 
 
+### process.execPath
+
+This is the absolute pathname of the executable that started the process.
+
+
 ### process.chdir(directory)
 
 Changes the current working directory of the process or throws an exception if that fails.
