@@ -12,5 +12,9 @@ int OS::GetMemory(size_t *rss, size_t *vsize) {
   return 0;
 }
 
+int OS::GetExecutablePath(char *buffer, size_t* size) {
+  *size = 0;
+  return 0;
+}
 
 }  // namespace node

@@ -6,6 +6,7 @@ namespace node {
 class OS {
  public:
   static int GetMemory(size_t *rss, size_t *vsize);
+  static int GetExecutablePath(char* buffer, size_t* size);
 };
 
 

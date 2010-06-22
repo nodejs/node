@@ -1732,6 +1732,16 @@ static void Load(int argc, char *argv[]) {
 
   process->Set(String::NewSymbol("pid"), Integer::New(getpid()));
 
+  size_t size = 2*PATH_MAX;
+  char execPath[size];
+  if (OS::GetExecutablePath(execPath, &size) != 0) {
+    // as a last ditch effort, fallback on argv[0] ?
+    process->Set(String::NewSymbol("execPath"), String::New(argv[0]));
+  } else {
+    process->Set(String::NewSymbol("execPath"), String::New(execPath));
+  }
+
+
   // define various internal methods
   NODE_SET_METHOD(process, "loop", Loop);
   NODE_SET_METHOD(process, "unloop", Unloop);

@@ -3,6 +3,7 @@
 
 #include <mach/task.h>
 #include <mach/mach_init.h>
+#include <mach-o/dyld.h> /* _NSGetExecutablePath */
 
 namespace node {
 
@@ -25,5 +26,17 @@ int OS::GetMemory(size_t *rss, size_t *vsize) {
   return 0;
 }
 
+
+int OS::GetExecutablePath(char* buffer, size_t* size) {
+  uint32_t usize = *size;
+  int result = _NSGetExecutablePath(buffer, &usize);
+  if (result) return result;
+  char *path = realpath(buffer, NULL);
+  if (path == NULL) return -1;
+  strncpy(buffer, path, *size);
+  free(path);
+  *size = strlen(buffer);
+  return 0;
+}
 
 }  // namespace node
