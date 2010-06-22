@@ -312,6 +312,13 @@ Emitted when the underlying file descriptor has be closed. Not all streams
 will emit this.  (For example, an incoming HTTP request will not emit
 `'close'`.)
 
+### Event: 'fd'
+
+`function (fd) { }`
+
+Emitted when a file descriptor is received on the stream. Only UNIX streams
+support this functionality; all others will simply never emit this event.
+
 ### stream.setEncoding(encoding)
 Makes the data event emit a string instead of a `Buffer`. `encoding` can be
 `'utf8'`, `'ascii'`, or `'binary'`.
@@ -353,7 +360,7 @@ Emitted on error with the exception `exception`.
 
 Emitted when the underlying file descriptor has been closed.
 
-### stream.write(string, encoding)
+### stream.write(string, encoding, [fd])
 
 Writes `string` with the given `encoding` to the stream.  Returns `true` if
 the string has been flushed to the kernel buffer.  Returns `false` to
@@ -361,6 +368,11 @@ indicate that the kernel buffer is full, and the data will be sent out in
 the future. The `'drain'` event will indicate when the kernel buffer is
 empty again. The `encoding` defaults to `'utf8'`.
 
+If the optional `fd` parameter is specified, it is interpreted as an integral
+file descriptor to be sent over the stream. This is only supported for UNIX
+streams, and is silently ignored otherwise. When writing a file descriptor in
+this manner, closing the descriptor before the stream drains risks sending an
+invalid (closed) FD.
 
 ### stream.write(buffer)
 
@@ -1844,6 +1856,16 @@ Example of connecting to `google.com`:
     });
 
 
+### Event: 'upgrade'
+
+`function (request, socket, head)`
+
+Emitted each time a server responds to a request with an upgrade. If this event
+isn't being listened for, clients receiving an upgrade header will have their
+connections closed.
+
+See the description of the `upgrade` event for `http.Server` for further details.
+
 ### http.createClient(port, host, secure, credentials)
 
 Constructs a new HTTP client. `port` and
@@ -2081,6 +2103,12 @@ This function is asynchronous. The last parameter `callback` will be called
 when the server has been bound.
 
 
+### server.listenFD(fd)
+
+Start a server listening for connections on the given file descriptor.
+
+This file descriptor must have already had the `bind(2)` and `listen(2)` system
+calls invoked on it.
 
 ### server.close()
 
