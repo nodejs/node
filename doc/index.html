@@ -253,6 +253,20 @@ git format-patch HEAD^
 </pre>
 
       <p>
+        Be sure the your patch includes your full name and your valid email
+        address. Git can be configured to do this like so:
+<pre class="sh_none">
+git config --global user.email "ry@tinyclouds.org"
+git config --global user.name "Ryan Dahl"
+</pre>
+      </p>
+
+      <p>
+        Before your code your code can be accepted you have to sign the
+        <a href="http://nodejs.org/cla.html">contributor license agreement</a>.
+      </p>
+
+      <p>
         The best way for your patch to get noticed is to submit it to the
        <a href="http://groups.google.com/group/nodejs">mailing list</a> in form
        of a <a href="http://gist.github.com/">gists</a> or file attachement.
@@ -260,7 +274,7 @@ git format-patch HEAD^
 
       <p>
         You should ask the mailing list if a new feature is wanted before
-        working on a patch. 
+        working on a patch.
       </p>
 
     </div>
