@@ -1653,7 +1653,6 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("fs"),           String::New(native_fs));
       exports->Set(String::New("http"),         String::New(native_http));
       exports->Set(String::New("crypto"),       String::New(native_crypto));
-      exports->Set(String::New("ini"),          String::New(native_ini));
       exports->Set(String::New("net"),          String::New(native_net));
       exports->Set(String::New("posix"),        String::New(native_posix));
       exports->Set(String::New("querystring"),  String::New(native_querystring));
