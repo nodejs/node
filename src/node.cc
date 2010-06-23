@@ -1071,7 +1071,7 @@ static Handle<Value> Loop(const Arguments& args) {
   assert(args.Length() == 0);
 
   // TODO Probably don't need to start this each time.
-  // Avoids failing on test/mjsunit/test-eio-race3.js though
+  // Avoids failing on test/simple/test-eio-race3.js though
   ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
 
   ev_loop(EV_DEFAULT_UC_ 0);
@@ -1654,7 +1654,6 @@ static Handle<Value> Binding(const Arguments& args) {
       exports->Set(String::New("http"),         String::New(native_http));
       exports->Set(String::New("crypto"),       String::New(native_crypto));
       exports->Set(String::New("ini"),          String::New(native_ini));
-      exports->Set(String::New("mjsunit"),      String::New(native_mjsunit));
       exports->Set(String::New("net"),          String::New(native_net));
       exports->Set(String::New("posix"),        String::New(native_posix));
       exports->Set(String::New("querystring"),  String::New(native_querystring));
@@ -1953,7 +1952,7 @@ int main(int argc, char *argv[]) {
 
     eio_init(node::EIOWantPoll, node::EIODonePoll);
     // Don't handle more than 10 reqs on each eio_poll(). This is to avoid
-    // race conditions. See test/mjsunit/test-eio-race.js
+    // race conditions. See test/simple/test-eio-race.js
     eio_set_max_poll_reqs(10);
   }
 
