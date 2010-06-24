@@ -145,7 +145,7 @@ static int After(eio_req *req) {
 
   TryCatch try_catch;
 
-  (*callback)->Call(Context::GetCurrent()->Global(), argc, argv);
+  (*callback)->Call(v8::Context::GetCurrent()->Global(), argc, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);

@@ -7,6 +7,52 @@
 using namespace v8;
 using namespace node;
 
+Persistent<FunctionTemplate> node::Context::constructor_template;
+
+void
+node::Context::Initialize (Handle<Object> target)
+{
+  HandleScope scope;
+
+  Local<FunctionTemplate> t = FunctionTemplate::New(node::Context::New);
+  constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  constructor_template->SetClassName(String::NewSymbol("Context"));
+
+  target->Set(String::NewSymbol("Context"), constructor_template->GetFunction());
+}
+
+Handle<Value>
+node::Context::New (const Arguments& args)
+{
+  HandleScope scope;
+
+  node::Context *t = new node::Context();
+  t->Wrap(args.This());
+
+  return args.This();
+}
+
+node::Context::~Context() {
+  _context.Dispose();
+}
+
+Local<Object>
+node::Context::NewInstance()
+{
+  Local<Object> context = constructor_template->GetFunction()->NewInstance();
+  node::Context *nContext = ObjectWrap::Unwrap<node::Context>(context);
+  nContext->_context = v8::Context::New();
+  return context;
+}
+
+v8::Persistent<v8::Context>
+node::Context::GetV8Context()
+{
+	return _context;
+}
+
+
 Persistent<FunctionTemplate> node::Script::constructor_template;
 
 void
@@ -19,8 +65,12 @@ node::Script::Initialize (Handle<Object> target)
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   constructor_template->SetClassName(String::NewSymbol("Script"));
 
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "createContext", node::Script::CreateContext);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "runInContext", node::Script::RunInContext);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "runInThisContext", node::Script::RunInThisContext);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "runInNewContext", node::Script::RunInNewContext);
+  NODE_SET_METHOD(constructor_template, "createContext", node::Script::CreateContext);
+  NODE_SET_METHOD(constructor_template, "runInContext", node::Script::CompileRunInContext);
   NODE_SET_METHOD(constructor_template, "runInThisContext", node::Script::CompileRunInThisContext);
   NODE_SET_METHOD(constructor_template, "runInNewContext", node::Script::CompileRunInNewContext);
 
@@ -45,6 +95,37 @@ node::Script::~Script() {
 
 
 Handle<Value>
+node::Script::CreateContext (const Arguments& args)
+{
+  HandleScope scope;
+
+  Local<v8::Object> context = node::Context::NewInstance();
+
+  if (args.Length() > 0) {
+
+    Local<Object> sandbox = args[0]->ToObject();
+    Local<Array> keys = sandbox->GetPropertyNames();
+
+    for (int i = 0; i < keys->Length(); i++) {
+      Handle<String> key = keys->Get(Integer::New(i))->ToString();
+      Handle<Value> value = sandbox->Get(key);
+      context->Set(key, value);
+    }
+  }
+
+
+  return scope.Close(context);
+}
+
+Handle<Value>
+node::Script::RunInContext (const Arguments& args)
+{
+  return
+    node::Script::EvalMachine<unwrapExternal, userContext, returnResult>(args);
+}
+
+
+Handle<Value>
 node::Script::RunInThisContext (const Arguments& args)
 {
   return
@@ -56,6 +137,14 @@ Handle<Value>
 node::Script::RunInNewContext(const Arguments& args) {
   return
     node::Script::EvalMachine<unwrapExternal, newContext, returnResult>(args);
+}
+
+
+Handle<Value>
+node::Script::CompileRunInContext (const Arguments& args)
+{
+  return
+    node::Script::EvalMachine<compileCode, userContext, returnResult>(args);
 }
 
 
@@ -91,29 +180,50 @@ Handle<Value> node::Script::EvalMachine(const Arguments& args) {
     ));
   }
 
+  const int sbIndex = iFlag == compileCode ? 1 : 0;
+  if (cFlag == userContext && args.Length() < (sbIndex + 1)) {
+    return ThrowException(Exception::TypeError(
+      String::New("needs a 'context' argument.")
+    ));
+  }
+
+
   Local<String> code;
   if (iFlag == compileCode) { code = args[0]->ToString(); }
 
   Local<Object> sandbox;
-  const int sbIndex = iFlag == compileCode ? 1 : 0;
   if (cFlag == newContext) {
     sandbox = args.Length() > sbIndex ? args[sbIndex]->ToObject() : Object::New();
+  }
+  else if (cFlag == userContext) {
+    sandbox = args[sbIndex]->ToObject();
   }
   const int fnIndex = sbIndex + (cFlag == newContext ? 1 : 0);
   Local<String> filename = args.Length() > fnIndex ? args[fnIndex]->ToString()
                                              : String::New("evalmachine.<anonymous>");
 
-  Persistent<Context> context;
+  Persistent<v8::Context> context;
   Local<Array> keys;
   unsigned int i;
   if (cFlag == newContext) {
     // Create the new context
-    context = Context::New();
+    context = v8::Context::New();
 
-    // Enter and compile script
+  } else if (cFlag == userContext) {
+    // Use the passed in context
+    Local<Object> contextArg = args[sbIndex]->ToObject();
+    node::Context *nContext = ObjectWrap::Unwrap<node::Context>(sandbox);
+    context = nContext->GetV8Context();
+  }
+
+  // New and user context share code. DRY it up.
+  if (cFlag == userContext || cFlag == newContext) {
+
+    // Enter the context
     context->Enter();
 
-    // Copy objects from global context, to our brand new context
+    // Copy everything from the passed in sandbox (either the persistent
+    // context for runInContext(), or the sandbox arg to runInNewContext()).
     keys = sandbox->GetPropertyNames();
 
     for (i = 0; i < keys->Length(); i++) {
@@ -167,7 +277,7 @@ Handle<Value> node::Script::EvalMachine(const Arguments& args) {
     }
     if (result.IsEmpty()) {
       return try_catch.ReThrow();
-    } else if (cFlag == newContext) {
+    } else if (cFlag == userContext || cFlag == newContext) {
       // success! copy changes back onto the sandbox object.
       keys = context->Global()->GetPropertyNames();
       for (i = 0; i < keys->Length(); i++) {
@@ -183,6 +293,9 @@ Handle<Value> node::Script::EvalMachine(const Arguments& args) {
     context->DetachGlobal();
     context->Exit();
     context.Dispose();
+  } else if (cFlag == userContext) {
+    // Exit the passed in context.
+    context->Exit();
   }
 
   return result == args.This() ? result : scope.Close(result);

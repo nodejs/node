@@ -1631,6 +1631,7 @@ static Handle<Value> Binding(const Arguments& args) {
       exports = binding_cache->Get(module)->ToObject();
     } else {
       exports = Object::New();
+      node::Context::Initialize(exports);
       node::Script::Initialize(exports);
       binding_cache->Set(module, exports);
     }
@@ -1685,7 +1686,7 @@ static void Load(int argc, char *argv[]) {
   process = Persistent<Object>::New(process_template->GetFunction()->NewInstance());
 
   // Add a reference to the global object
-  Local<Object> global = Context::GetCurrent()->Global();
+  Local<Object> global = v8::Context::GetCurrent()->Global();
   process->Set(String::NewSymbol("global"), global);
 
   // process.version
@@ -1987,8 +1988,8 @@ int main(int argc, char *argv[]) {
   }
 
   // Create the one and only Context.
-  Persistent<Context> context = Context::New();
-  Context::Scope context_scope(context);
+  Persistent<v8::Context> context = v8::Context::New();
+  v8::Context::Scope context_scope(context);
 
   atexit(node::AtExit);
 

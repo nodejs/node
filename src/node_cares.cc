@@ -223,7 +223,7 @@ static void ResolveError(Persistent<Function> &cb, int status) {
 
   TryCatch try_catch;
 
-  cb->Call(Context::GetCurrent()->Global(), 1, &e);
+  cb->Call(v8::Context::GetCurrent()->Global(), 1, &e);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -251,7 +251,7 @@ static void HostByNameCb(void *data,
 
   Local<Value> argv[2] = { Local<Value>::New(Null()), addresses};
 
-  (*cb)->Call(Context::GetCurrent()->Global(), 2, argv);
+  (*cb)->Call(v8::Context::GetCurrent()->Global(), 2, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -281,7 +281,7 @@ static void HostByAddrCb(void *data,
 
   Local<Value> argv[2] = { Local<Value>::New(Null()), names };
 
-  (*cb)->Call(Context::GetCurrent()->Global(), 2, argv);
+  (*cb)->Call(v8::Context::GetCurrent()->Global(), 2, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -294,7 +294,7 @@ static void HostByAddrCb(void *data,
 static void cb_call(Persistent<Function> &cb, int argc, Local<Value> *argv) {
   TryCatch try_catch;
 
-  cb->Call(Context::GetCurrent()->Global(), argc, argv);
+  cb->Call(v8::Context::GetCurrent()->Global(), argc, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);

@@ -99,7 +99,7 @@ function unix_test() {
       socket.end();
     });
 
-    repl.start(prompt_unix, socket).scope.message = message;
+    repl.start(prompt_unix, socket).context.message = message;
   });
 
   server_unix.addListener('listening', function () {

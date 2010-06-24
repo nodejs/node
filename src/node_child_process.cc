@@ -156,7 +156,7 @@ Handle<Value> ChildProcess::Kill(const Arguments& args) {
       sig = args[0]->Int32Value();
     } else if (args[0]->IsString()) {
       Local<String> signame = args[0]->ToString();
-      Local<Object> process = Context::GetCurrent()->Global();
+      Local<Object> process = v8::Context::GetCurrent()->Global();
       Local<Object> node_obj = process->Get(String::NewSymbol("process"))->ToObject();
 
       Local<Value> sig_v = node_obj->Get(signame);
