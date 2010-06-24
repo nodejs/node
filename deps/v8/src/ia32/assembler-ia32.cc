@@ -378,6 +378,11 @@ void Assembler::Align(int m) {
 }
 
 
+void Assembler::CodeTargetAlign() {
+  Align(16);  // Preferred alignment of jump targets on ia32.
+}
+
+
 void Assembler::cpuid() {
   ASSERT(CpuFeatures::IsEnabled(CPUID));
   EnsureSpace ensure_space(this);
@@ -2150,17 +2155,6 @@ void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
   EMIT(0xF2);
   EMIT(0x0F);
   EMIT(0x51);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::comisd(XMMRegister dst, XMMRegister src) {
-  ASSERT(CpuFeatures::IsEnabled(SSE2));
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x2F);
   emit_sse_operand(dst, src);
 }
 

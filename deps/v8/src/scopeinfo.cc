@@ -408,6 +408,18 @@ int ScopeInfo<Allocator>::NumberOfContextSlots(Code* code) {
 
 
 template<class Allocator>
+bool ScopeInfo<Allocator>::HasHeapAllocatedLocals(Code* code) {
+  if (code->sinfo_size() > 0) {
+    Object** p = ContextEntriesAddr(code);
+    int n;  // number of context slots;
+    ReadInt(p, &n);
+    return n > 0;
+  }
+  return false;
+}
+
+
+template<class Allocator>
 int ScopeInfo<Allocator>::StackSlotIndex(Code* code, String* name) {
   ASSERT(name->IsSymbol());
   if (code->sinfo_size() > 0) {

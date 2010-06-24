@@ -38,12 +38,16 @@ namespace internal {
 class HeapSnapshot;
 class HeapSnapshotsCollection;
 
+#endif
+
 // The HeapProfiler writes data to the log files, which can be postprocessed
 // to generate .hp files for use by the GHC/Valgrind tool hp2ps.
 class HeapProfiler {
  public:
   static void Setup();
   static void TearDown();
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
   static HeapSnapshot* TakeSnapshot(const char* name);
   static HeapSnapshot* TakeSnapshot(String* name);
   static int GetSnapshotsCount();
@@ -68,8 +72,11 @@ class HeapProfiler {
   unsigned next_snapshot_uid_;
 
   static HeapProfiler* singleton_;
+#endif  // ENABLE_LOGGING_AND_PROFILING
 };
 
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
 
 // JSObjectsCluster describes a group of JS objects that are
 // considered equivalent in terms of a particular profile.

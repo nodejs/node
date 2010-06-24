@@ -43,10 +43,6 @@
 namespace v8 {
 namespace internal {
 
-Condition NegateCondition(Condition cc) {
-  return static_cast<Condition>(cc ^ 1);
-}
-
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {

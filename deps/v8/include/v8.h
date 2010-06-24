@@ -3211,11 +3211,9 @@ class Internals {
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
-  // These constants are compiler dependent so their values must be
-  // defined within the implementation.
-  V8EXPORT static int kJSObjectType;
-  V8EXPORT static int kFirstNonstringType;
-  V8EXPORT static int kProxyType;
+  static const int kJSObjectType = 0x9f;
+  static const int kFirstNonstringType = 0x80;
+  static const int kProxyType = 0x85;
 
   static inline bool HasHeapObjectTag(internal::Object* value) {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==

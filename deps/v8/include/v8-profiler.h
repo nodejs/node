@@ -196,7 +196,9 @@ class V8EXPORT HeapGraphEdge {
   enum Type {
     CONTEXT_VARIABLE = 0,  // A variable from a function context.
     ELEMENT = 1,           // An element of an array.
-    PROPERTY = 2           // A named object property.
+    PROPERTY = 2,          // A named object property.
+    INTERNAL = 3           // A link that can't be accessed from JS,
+                           // thus, its name isn't a real property name.
   };
 
   /** Returns edge type (see HeapGraphEdge::Type). */

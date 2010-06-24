@@ -123,6 +123,8 @@ DEFINE_bool(enable_armv7, true,
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
 DEFINE_bool(expose_gc, false, "expose gc extension")
+DEFINE_bool(expose_externalize_string, false,
+            "expose externalize string extension")
 DEFINE_int(stack_trace_limit, 10, "number of stack frames to capture")
 DEFINE_bool(disable_native_files, false, "disable builtin natives files")
 
@@ -191,7 +193,7 @@ DEFINE_bool(trace_gc_verbose, false,
             "print more details following each garbage collection")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
-DEFINE_bool(flush_code, false,
+DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again before full gc")
 
 // v8.cc

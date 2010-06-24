@@ -269,6 +269,33 @@ TEST(Type0) {
   COMPARE(mvn(r6, Operand(-1), LeaveCC, ne),
           "13a06000       movne r6, #0");
 
+  // mov -> movw.
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    COMPARE(mov(r5, Operand(0x01234), LeaveCC, ne),
+            "13015234       movwne r5, #4660");
+    // We only disassemble one instruction so the eor instruction is not here.
+    COMPARE(eor(r5, r4, Operand(0x1234), LeaveCC, ne),
+            "1301c234       movwne ip, #4660");
+    // Movw can't do setcc so we don't get that here.  Mov immediate with setcc
+    // is pretty strange anyway.
+    COMPARE(mov(r5, Operand(0x01234), SetCC, ne),
+            "159fc000       ldrne ip, [pc, #+0]");
+    // We only disassemble one instruction so the eor instruction is not here.
+    // The eor does the setcc so we get a movw here.
+    COMPARE(eor(r5, r4, Operand(0x1234), SetCC, ne),
+            "1301c234       movwne ip, #4660");
+
+    COMPARE(movt(r5, 0x4321, ne),
+            "13445321       movtne r5, #17185");
+    COMPARE(movw(r5, 0xabcd, eq),
+            "030a5bcd       movweq r5, #43981");
+  }
+
+  // Eor doesn't have an eor-negative variant, but we can do an mvn followed by
+  // an eor to get the same effect.
+  COMPARE(eor(r5, r4, Operand(0xffffff34), SetCC, ne),
+          "13e0c0cb       mvnne ip, #203");
+
   // and <-> bic.
   COMPARE(and_(r3, r5, Operand(0xfc03ffff)),
           "e3c537ff       bic r3, r5, #66846720");

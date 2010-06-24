@@ -428,6 +428,40 @@ class NamedEntriesDetector {
 
 }  // namespace
 
+
+static const v8::HeapGraphNode* GetGlobalObject(
+    const v8::HeapSnapshot* snapshot) {
+  CHECK_EQ(1, snapshot->GetHead()->GetChildrenCount());
+  return snapshot->GetHead()->GetChild(0)->GetToNode();
+}
+
+
+static const v8::HeapGraphNode* GetProperty(const v8::HeapGraphNode* node,
+                                            v8::HeapGraphEdge::Type type,
+                                            const char* name) {
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = node->GetChild(i);
+    v8::String::AsciiValue prop_name(prop->GetName());
+    if (prop->GetType() == type && strcmp(name, *prop_name) == 0)
+      return prop->GetToNode();
+  }
+  return NULL;
+}
+
+
+static bool HasString(const v8::HeapGraphNode* node, const char* contents) {
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = node->GetChild(i);
+    const v8::HeapGraphNode* node = prop->GetToNode();
+    if (node->GetType() == v8::HeapGraphNode::STRING) {
+      v8::String::AsciiValue node_name(node->GetName());
+      if (strcmp(contents, *node_name) == 0) return true;
+    }
+  }
+  return false;
+}
+
+
 TEST(HeapSnapshot) {
   v8::HandleScope scope;
 
@@ -458,53 +492,20 @@ TEST(HeapSnapshot) {
       "var c2 = new C2(a2);");
   const v8::HeapSnapshot* snapshot_env2 =
       v8::HeapProfiler::TakeSnapshot(v8::String::New("env2"));
-  const v8::HeapGraphNode* global_env2;
-  if (i::Snapshot::IsEnabled()) {
-    // In case if snapshots are enabled, there will present a
-    // vanilla deserealized global object, without properties
-    // added by the test code.
-    CHECK_EQ(2, snapshot_env2->GetHead()->GetChildrenCount());
-    // Choose the global object of a bigger size.
-    const v8::HeapGraphNode* node0 =
-        snapshot_env2->GetHead()->GetChild(0)->GetToNode();
-    const v8::HeapGraphNode* node1 =
-        snapshot_env2->GetHead()->GetChild(1)->GetToNode();
-    global_env2 = node0->GetTotalSize() > node1->GetTotalSize() ?
-        node0 : node1;
-  } else {
-    CHECK_EQ(1, snapshot_env2->GetHead()->GetChildrenCount());
-    global_env2 = snapshot_env2->GetHead()->GetChild(0)->GetToNode();
-  }
+  const v8::HeapGraphNode* global_env2 = GetGlobalObject(snapshot_env2);
 
   // Verify, that JS global object of env2 doesn't have '..1'
   // properties, but has '..2' properties.
-  bool has_a1 = false, has_b1_1 = false, has_b1_2 = false, has_c1 = false;
-  bool has_a2 = false, has_b2_1 = false, has_b2_2 = false, has_c2 = false;
-  // This will be needed further.
-  const v8::HeapGraphNode* a2_node = NULL;
-  for (int i = 0, count = global_env2->GetChildrenCount(); i < count; ++i) {
-    const v8::HeapGraphEdge* prop = global_env2->GetChild(i);
-    v8::String::AsciiValue prop_name(prop->GetName());
-    if (strcmp("a1", *prop_name) == 0) has_a1 = true;
-    if (strcmp("b1_1", *prop_name) == 0) has_b1_1 = true;
-    if (strcmp("b1_2", *prop_name) == 0) has_b1_2 = true;
-    if (strcmp("c1", *prop_name) == 0) has_c1 = true;
-    if (strcmp("a2", *prop_name) == 0) {
-      has_a2 = true;
-      a2_node = prop->GetToNode();
-    }
-    if (strcmp("b2_1", *prop_name) == 0) has_b2_1 = true;
-    if (strcmp("b2_2", *prop_name) == 0) has_b2_2 = true;
-    if (strcmp("c2", *prop_name) == 0) has_c2 = true;
-  }
-  CHECK(!has_a1);
-  CHECK(!has_b1_1);
-  CHECK(!has_b1_2);
-  CHECK(!has_c1);
-  CHECK(has_a2);
-  CHECK(has_b2_1);
-  CHECK(has_b2_2);
-  CHECK(has_c2);
+  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "a1"));
+  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "b1_1"));
+  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "b1_2"));
+  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "c1"));
+  const v8::HeapGraphNode* a2_node =
+      GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "a2");
+  CHECK_NE(NULL, a2_node);
+  CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "b2_1"));
+  CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "b2_2"));
+  CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "c2"));
 
   // Verify that anything related to '[ABC]1' is not reachable.
   NamedEntriesDetector det;
@@ -563,6 +564,64 @@ TEST(HeapSnapshot) {
   CHECK(has_c2_1_ref);
   CHECK(has_b2_1_x_ref);
   CHECK(has_b2_2_x_ref);
+}
+
+
+TEST(HeapSnapshotCodeObjects) {
+  v8::HandleScope scope;
+  v8::Handle<v8::Context> env = v8::Context::New();
+  env->Enter();
+
+  CompileAndRunScript(
+      "function lazy(x) { return x - 1; }\n"
+      "function compiled(x) { return x + 1; }\n"
+      "compiled(1)");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("code"));
+
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* compiled =
+      GetProperty(global, v8::HeapGraphEdge::PROPERTY, "compiled");
+  CHECK_NE(NULL, compiled);
+  CHECK_EQ(v8::HeapGraphNode::CLOSURE, compiled->GetType());
+  const v8::HeapGraphNode* lazy =
+      GetProperty(global, v8::HeapGraphEdge::PROPERTY, "lazy");
+  CHECK_NE(NULL, lazy);
+  CHECK_EQ(v8::HeapGraphNode::CLOSURE, lazy->GetType());
+
+  // Find references to code.
+  const v8::HeapGraphNode* compiled_code =
+      GetProperty(compiled, v8::HeapGraphEdge::INTERNAL, "code");
+  CHECK_NE(NULL, compiled_code);
+  const v8::HeapGraphNode* lazy_code =
+      GetProperty(lazy, v8::HeapGraphEdge::INTERNAL, "code");
+  CHECK_NE(NULL, lazy_code);
+
+  // Verify that non-compiled code doesn't contain references to "x"
+  // literal, while compiled code does.
+  bool compiled_references_x = false, lazy_references_x = false;
+  for (int i = 0, count = compiled_code->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = compiled_code->GetChild(i);
+    const v8::HeapGraphNode* node = prop->GetToNode();
+    if (node->GetType() == v8::HeapGraphNode::CODE) {
+      if (HasString(node, "x")) {
+        compiled_references_x = true;
+        break;
+      }
+    }
+  }
+  for (int i = 0, count = lazy_code->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = lazy_code->GetChild(i);
+    const v8::HeapGraphNode* node = prop->GetToNode();
+    if (node->GetType() == v8::HeapGraphNode::CODE) {
+      if (HasString(node, "x")) {
+        lazy_references_x = true;
+        break;
+      }
+    }
+  }
+  CHECK(compiled_references_x);
+  CHECK(!lazy_references_x);
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

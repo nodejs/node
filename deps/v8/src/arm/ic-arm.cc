@@ -1339,7 +1339,8 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
     __ bind(&box_int);
     // Allocate a HeapNumber for the result and perform int-to-double
     // conversion. Use r0 for result as key is not needed any more.
-    __ AllocateHeapNumber(r0, r3, r4, &slow);
+    __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+    __ AllocateHeapNumber(r0, r3, r4, r6, &slow);
 
     if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
@@ -1370,7 +1371,8 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
       // Allocate a HeapNumber for the result and perform int-to-double
       // conversion. Don't use r0 and r1 as AllocateHeapNumber clobbers all
       // registers - also when jumping due to exhausted young space.
-      __ AllocateHeapNumber(r2, r3, r4, &slow);
+      __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
 
       __ vcvt_f64_u32(d0, s0);
       __ sub(r1, r2, Operand(kHeapObjectTag));
@@ -1407,7 +1409,8 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
       // Wrap it into a HeapNumber. Don't use r0 and r1 as AllocateHeapNumber
       // clobbers all registers - also when jumping due to exhausted young
       // space.
-      __ AllocateHeapNumber(r4, r5, r6, &slow);
+      __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(r4, r5, r7, r6, &slow);
 
       __ str(hiword, FieldMemOperand(r4, HeapNumber::kExponentOffset));
       __ str(loword, FieldMemOperand(r4, HeapNumber::kMantissaOffset));
@@ -1423,7 +1426,8 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
-      __ AllocateHeapNumber(r2, r3, r4, &slow);
+      __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
       __ vcvt_f64_f32(d0, s0);
       __ sub(r1, r2, Operand(kHeapObjectTag));
       __ vstr(d0, r1, HeapNumber::kValueOffset);
@@ -1434,7 +1438,8 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
-      __ AllocateHeapNumber(r3, r4, r5, &slow);
+      __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(r3, r4, r5, r6, &slow);
       // VFP is not available, do manual single to double conversion.
 
       // r2: floating point value (binary32)
@@ -1692,7 +1697,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ Ret(eq);
   // Update write barrier for the elements array address.
   __ sub(r4, r5, Operand(elements));
-  __ RecordWrite(elements, r4, r5);
+  __ RecordWrite(elements, Operand(r4), r5, r6);
 
   __ Ret();
 }

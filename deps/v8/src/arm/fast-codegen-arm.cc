@@ -102,8 +102,7 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   }
 
   if (needs_write_barrier) {
-    __ mov(scratch1(), Operand(offset));
-    __ RecordWrite(scratch0(), scratch1(), scratch2());
+    __ RecordWrite(scratch0(), Operand(offset), scratch1(), scratch2());
   }
 
   if (destination().is(accumulator1())) {

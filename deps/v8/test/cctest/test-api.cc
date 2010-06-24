@@ -10175,7 +10175,13 @@ v8::Handle<Value> AnalyzeStackInNativeCode(const v8::Arguments& args) {
                     stackTrace->GetFrame(0));
     checkStackFrame(origin, "baz", 8, 3, false, true,
                     stackTrace->GetFrame(1));
-    checkStackFrame(NULL, "", 1, 1, true, false,
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    bool is_eval = true;
+#else  // ENABLE_DEBUGGER_SUPPORT
+    bool is_eval = false;
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
+    checkStackFrame(NULL, "", 1, 1, is_eval, false,
                     stackTrace->GetFrame(2));
     // The last frame is an anonymous function that has the initial call to foo.
     checkStackFrame(origin, "", 10, 1, false, false,

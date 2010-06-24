@@ -100,6 +100,7 @@ class MacroAssembler: public Assembler {
             Condition cond = al);
   void Sbfx(Register dst, Register src, int lsb, int width,
             Condition cond = al);
+  void Bfc(Register dst, int lsb, int width, Condition cond = al);
 
   void Call(Label* target);
   void Move(Register dst, Handle<Object> value);
@@ -127,13 +128,19 @@ class MacroAssembler: public Assembler {
 
   // For the page containing |object| mark the region covering [object+offset]
   // dirty. The object address must be in the first 8K of an allocated page.
-  void RecordWriteHelper(Register object, Register offset, Register scratch);
+  void RecordWriteHelper(Register object,
+                         Operand offset,
+                         Register scratch0,
+                         Register scratch1);
 
   // For the page containing |object| mark the region covering [object+offset]
   // dirty. The object address must be in the first 8K of an allocated page.
-  // The 'scratch' register is used in the implementation and all 3 registers
+  // The 'scratch' registers are used in the implementation and all 3 registers
   // are clobbered by the operation, as well as the ip register.
-  void RecordWrite(Register object, Register offset, Register scratch);
+  void RecordWrite(Register object,
+                   Operand offset,
+                   Register scratch0,
+                   Register scratch1);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {
@@ -372,6 +379,7 @@ class MacroAssembler: public Assembler {
   void AllocateHeapNumber(Register result,
                           Register scratch1,
                           Register scratch2,
+                          Register heap_number_map,
                           Label* gc_required);
 
   // ---------------------------------------------------------------------------
@@ -551,6 +559,7 @@ class MacroAssembler: public Assembler {
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
   void Assert(Condition cc, const char* msg);
+  void AssertRegisterIsRoot(Register reg, Heap::RootListIndex index);
 
   // Like Assert(), but always enabled.
   void Check(Condition cc, const char* msg);

@@ -1028,8 +1028,8 @@ Handle<DebugInfo> Debug::GetDebugInfo(Handle<SharedFunctionInfo> shared) {
 
 
 void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
-                          int source_position,
-                          Handle<Object> break_point_object) {
+                          Handle<Object> break_point_object,
+                          int* source_position) {
   HandleScope scope;
 
   if (!EnsureDebugInfo(shared)) {
@@ -1043,8 +1043,10 @@ void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
 
   // Find the break point and change it.
   BreakLocationIterator it(debug_info, SOURCE_BREAK_LOCATIONS);
-  it.FindBreakLocationFromPosition(source_position);
+  it.FindBreakLocationFromPosition(*source_position);
   it.SetBreakPoint(break_point_object);
+
+  *source_position = it.position();
 
   // At least one active break point now.
   ASSERT(debug_info->GetBreakPointCount() > 0);

@@ -268,8 +268,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
             // Load the offset into r3.
             int slot_offset =
                 FixedArray::kHeaderSize + slot->index() * kPointerSize;
-            __ mov(r3, Operand(slot_offset));
-            __ RecordWrite(r2, r3, r1);
+            __ RecordWrite(r2, Operand(slot_offset), r3, r1);
           }
         }
       }
@@ -3109,9 +3108,8 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       exit.Branch(eq);
       // scratch is loaded with context when calling SlotOperand above.
       int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-      __ mov(r3, Operand(offset));
       // r1 could be identical with tos, but that doesn't matter.
-      __ RecordWrite(scratch, r3, r1);
+      __ RecordWrite(scratch, Operand(offset), r3, r1);
     }
     // If we definitely did not jump over the assignment, we do not need
     // to bind the exit label.  Doing so can defeat peephole
@@ -3464,8 +3462,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     __ str(r0, FieldMemOperand(r1, offset));
 
     // Update the write barrier for the array address.
-    __ mov(r3, Operand(offset));
-    __ RecordWrite(r1, r3, r2);
+    __ RecordWrite(r1, Operand(offset), r3, r2);
   }
   ASSERT_EQ(original_height + 1, frame_->height());
 }
@@ -4279,8 +4276,7 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   // Store the value.
   __ str(r0, FieldMemOperand(r1, JSValue::kValueOffset));
   // Update the write barrier.
-  __ mov(r2, Operand(JSValue::kValueOffset - kHeapObjectTag));
-  __ RecordWrite(r1, r2, r3);
+  __ RecordWrite(r1, Operand(JSValue::kValueOffset - kHeapObjectTag), r2, r3);
   // Leave.
   leave.Bind();
   frame_->EmitPush(r0);
@@ -4710,7 +4706,8 @@ void CodeGenerator::GenerateRandomHeapNumber(
   Label slow_allocate_heapnumber;
   Label heapnumber_allocated;
 
-  __ AllocateHeapNumber(r4, r1, r2, &slow_allocate_heapnumber);
+  __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+  __ AllocateHeapNumber(r4, r1, r2, r6, &slow_allocate_heapnumber);
   __ jmp(&heapnumber_allocated);
 
   __ bind(&slow_allocate_heapnumber);
@@ -7207,7 +7204,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 
 
 void RecordWriteStub::Generate(MacroAssembler* masm) {
-  __ RecordWriteHelper(object_, offset_, scratch_);
+  __ RecordWriteHelper(object_, Operand(offset_), offset_, scratch_);
   __ Ret();
 }
 
@@ -7367,12 +7364,16 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
   bool use_fp_registers = CpuFeatures::IsSupported(VFP3) && Token::MOD != op_;
 
   ASSERT((lhs.is(r0) && rhs.is(r1)) || (lhs.is(r1) && rhs.is(r0)));
+  Register heap_number_map = r6;
 
   if (ShouldGenerateSmiCode()) {
+    __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+
     // Smi-smi case (overflow).
     // Since both are Smis there is no heap number to overwrite, so allocate.
-    // The new heap number is in r5.  r6 and r7 are scratch.
-    __ AllocateHeapNumber(r5, r6, r7, lhs.is(r0) ? &slow_reverse : &slow);
+    // The new heap number is in r5.  r3 and r7 are scratch.
+    __ AllocateHeapNumber(
+        r5, r3, r7, heap_number_map, lhs.is(r0) ? &slow_reverse : &slow);
 
     // If we have floating point hardware, inline ADD, SUB, MUL, and DIV,
     // using registers d7 and d6 for the double values.
@@ -7385,14 +7386,14 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       __ vmov(s13, r7);
       __ vcvt_f64_s32(d6, s13);
     } else {
-      // Write Smi from rhs to r3 and r2 in double format.  r6 is scratch.
+      // Write Smi from rhs to r3 and r2 in double format.  r3 is scratch.
       __ mov(r7, Operand(rhs));
-      ConvertToDoubleStub stub1(r3, r2, r7, r6);
+      ConvertToDoubleStub stub1(r3, r2, r7, r9);
       __ push(lr);
       __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
-      // Write Smi from lhs to r1 and r0 in double format.  r6 is scratch.
+      // Write Smi from lhs to r1 and r0 in double format.  r9 is scratch.
       __ mov(r7, Operand(lhs));
-      ConvertToDoubleStub stub2(r1, r0, r7, r6);
+      ConvertToDoubleStub stub2(r1, r0, r7, r9);
       __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
       __ pop(lr);
     }
@@ -7401,6 +7402,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
 
   // We branch here if at least one of r0 and r1 is not a Smi.
   __ bind(not_smi);
+  __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
 
   // After this point we have the left hand side in r1 and the right hand side
   // in r0.
@@ -7423,18 +7425,22 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
         default:
           break;
       }
+      // Restore heap number map register.
+      __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
     }
 
     if (mode_ == NO_OVERWRITE) {
       // In the case where there is no chance of an overwritable float we may as
       // well do the allocation immediately while r0 and r1 are untouched.
-      __ AllocateHeapNumber(r5, r6, r7, &slow);
+      __ AllocateHeapNumber(r5, r3, r7, heap_number_map, &slow);
     }
 
     // Move r0 to a double in r2-r3.
     __ tst(r0, Operand(kSmiTagMask));
     __ b(eq, &r0_is_smi);  // It's a Smi so don't check it's a heap number.
-    __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
+    __ ldr(r4, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+    __ cmp(r4, heap_number_map);
     __ b(ne, &slow);
     if (mode_ == OVERWRITE_RIGHT) {
       __ mov(r5, Operand(r0));  // Overwrite this heap number.
@@ -7452,7 +7458,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     __ bind(&r0_is_smi);
     if (mode_ == OVERWRITE_RIGHT) {
       // We can't overwrite a Smi so get address of new heap number into r5.
-    __ AllocateHeapNumber(r5, r6, r7, &slow);
+    __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
     }
 
     if (use_fp_registers) {
@@ -7464,7 +7470,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     } else {
       // Write Smi from r0 to r3 and r2 in double format.
       __ mov(r7, Operand(r0));
-      ConvertToDoubleStub stub3(r3, r2, r7, r6);
+      ConvertToDoubleStub stub3(r3, r2, r7, r4);
       __ push(lr);
       __ Call(stub3.GetCode(), RelocInfo::CODE_TARGET);
       __ pop(lr);
@@ -7477,6 +7483,8 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       __ tst(r1, Operand(kSmiTagMask));
       __ b(ne, &r1_is_not_smi);
       GenerateTypeTransition(masm);
+      // Restore heap number map register.
+      __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
       __ jmp(&r1_is_smi);
     }
 
@@ -7486,7 +7494,9 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     __ tst(r1, Operand(kSmiTagMask));
     __ b(eq, &r1_is_smi);  // It's a Smi so don't check it's a heap number.
     __ bind(&r1_is_not_smi);
-    __ CompareObjectType(r1, r4, r4, HEAP_NUMBER_TYPE);
+    __ ldr(r4, FieldMemOperand(r1, HeapNumber::kMapOffset));
+    __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+    __ cmp(r4, heap_number_map);
     __ b(ne, &slow);
     if (mode_ == OVERWRITE_LEFT) {
       __ mov(r5, Operand(r1));  // Overwrite this heap number.
@@ -7504,7 +7514,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     __ bind(&r1_is_smi);
     if (mode_ == OVERWRITE_LEFT) {
       // We can't overwrite a Smi so get address of new heap number into r5.
-    __ AllocateHeapNumber(r5, r6, r7, &slow);
+    __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
     }
 
     if (use_fp_registers) {
@@ -7516,7 +7526,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     } else {
       // Write Smi from r1 to r1 and r0 in double format.
       __ mov(r7, Operand(r1));
-      ConvertToDoubleStub stub4(r1, r0, r7, r6);
+      ConvertToDoubleStub stub4(r1, r0, r7, r9);
       __ push(lr);
       __ Call(stub4.GetCode(), RelocInfo::CODE_TARGET);
       __ pop(lr);
@@ -7577,12 +7587,13 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     }
   }
 
-
   if (lhs.is(r0)) {
     __ b(&slow);
     __ bind(&slow_reverse);
     __ Swap(r0, r1, ip);
   }
+
+  heap_number_map = no_reg;  // Don't use this any more from here on.
 
   // We jump to here if something goes wrong (one param is not a number of any
   // sort or new-space allocation fails).
@@ -7749,9 +7760,13 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
   Label rhs_is_smi, lhs_is_smi;
   Label done_checking_rhs, done_checking_lhs;
 
+  Register heap_number_map = r6;
+  __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+
   __ tst(lhs, Operand(kSmiTagMask));
   __ b(eq, &lhs_is_smi);  // It's a Smi so don't check it's a heap number.
-  __ CompareObjectType(lhs, r4, r4, HEAP_NUMBER_TYPE);
+  __ ldr(r4, FieldMemOperand(lhs, HeapNumber::kMapOffset));
+  __ cmp(r4, heap_number_map);
   __ b(ne, &slow);
   GetInt32(masm, lhs, r3, r5, r4, &slow);
   __ jmp(&done_checking_lhs);
@@ -7761,7 +7776,8 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
 
   __ tst(rhs, Operand(kSmiTagMask));
   __ b(eq, &rhs_is_smi);  // It's a Smi so don't check it's a heap number.
-  __ CompareObjectType(rhs, r4, r4, HEAP_NUMBER_TYPE);
+  __ ldr(r4, FieldMemOperand(rhs, HeapNumber::kMapOffset));
+  __ cmp(r4, heap_number_map);
   __ b(ne, &slow);
   GetInt32(masm, rhs, r2, r5, r4, &slow);
   __ jmp(&done_checking_rhs);
@@ -7821,8 +7837,8 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
       break;
     }
     case NO_OVERWRITE: {
-      // Get a new heap number in r5.  r6 and r7 are scratch.
-      __ AllocateHeapNumber(r5, r6, r7, &slow);
+      // Get a new heap number in r5.  r4 and r7 are scratch.
+      __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
     }
     default: break;
   }
@@ -7841,8 +7857,8 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
 
   if (mode_ != NO_OVERWRITE) {
     __ bind(&have_to_allocate);
-    // Get a new heap number in r5.  r6 and r7 are scratch.
-    __ AllocateHeapNumber(r5, r6, r7, &slow);
+    // Get a new heap number in r5.  r4 and r7 are scratch.
+    __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
     __ jmp(&got_a_heap_number);
   }
 
@@ -7968,10 +7984,11 @@ const char* GenericBinaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, len),
-               "GenericBinaryOpStub_%s_%s%s",
+               "GenericBinaryOpStub_%s_%s%s_%s",
                op_name,
                overwrite_name,
-               specialized_on_rhs_ ? "_ConstantRhs" : 0);
+               specialized_on_rhs_ ? "_ConstantRhs" : "",
+               BinaryOpIC::GetName(runtime_operands_type_));
   return name_;
 }
 
@@ -8164,6 +8181,28 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         }
         __ Ret();
         __ bind(&smi_is_unsuitable);
+      } else if (op_ == Token::MOD &&
+                 runtime_operands_type_ != BinaryOpIC::HEAP_NUMBERS &&
+                 runtime_operands_type_ != BinaryOpIC::STRINGS) {
+        // Do generate a bit of smi code for modulus even though the default for
+        // modulus is not to do it, but as the ARM processor has no coprocessor
+        // support for modulus checking for smis makes sense.
+        Label slow;
+        ASSERT(!ShouldGenerateSmiCode());
+        ASSERT(kSmiTag == 0);  // Adjust code below.
+        // Check for two positive smis.
+        __ orr(smi_test_reg, lhs, Operand(rhs));
+        __ tst(smi_test_reg, Operand(0x80000000u | kSmiTagMask));
+        __ b(ne, &slow);
+        // Check that rhs is a power of two and not zero.
+        __ sub(scratch, rhs, Operand(1), SetCC);
+        __ b(mi, &slow);
+        __ tst(rhs, scratch);
+        __ b(ne, &slow);
+        // Calculate power of two modulus.
+        __ and_(result, lhs, Operand(scratch));
+        __ Ret();
+        __ bind(&slow);
       }
       HandleBinaryOpSlowCases(
           masm,
@@ -8391,6 +8430,9 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
   Label slow, done;
 
+  Register heap_number_map = r6;
+  __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+
   if (op_ == Token::SUB) {
     // Check whether the value is a smi.
     Label try_float;
@@ -8411,7 +8453,9 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ b(&done);
 
     __ bind(&try_float);
-    __ CompareObjectType(r0, r1, r1, HEAP_NUMBER_TYPE);
+    __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+    __ cmp(r1, heap_number_map);
     __ b(ne, &slow);
     // r0 is a heap number.  Get a new heap number in r1.
     if (overwrite_) {
@@ -8419,7 +8463,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ eor(r2, r2, Operand(HeapNumber::kSignMask));  // Flip sign.
       __ str(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
     } else {
-      __ AllocateHeapNumber(r1, r2, r3, &slow);
+      __ AllocateHeapNumber(r1, r2, r3, r6, &slow);
       __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
       __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
       __ str(r3, FieldMemOperand(r1, HeapNumber::kMantissaOffset));
@@ -8429,7 +8473,9 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     }
   } else if (op_ == Token::BIT_NOT) {
     // Check if the operand is a heap number.
-    __ CompareObjectType(r0, r1, r1, HEAP_NUMBER_TYPE);
+    __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+    __ cmp(r1, heap_number_map);
     __ b(ne, &slow);
 
     // Convert the heap number is r0 to an untagged integer in r1.
@@ -8449,7 +8495,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       // Allocate a fresh heap number, but don't overwrite r0 until
       // we're sure we can do it without going through the slow case
       // that needs the value in r0.
-      __ AllocateHeapNumber(r2, r3, r4, &slow);
+      __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
       __ mov(r0, Operand(r2));
     }
 
@@ -9431,17 +9477,15 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                              RegExpImpl::kLastCaptureCountOffset));
   // Store last subject and last input.
   __ mov(r3, last_match_info_elements);  // Moved up to reduce latency.
-  __ mov(r2, Operand(RegExpImpl::kLastSubjectOffset));  // Ditto.
   __ str(subject,
          FieldMemOperand(last_match_info_elements,
                          RegExpImpl::kLastSubjectOffset));
-  __ RecordWrite(r3, r2, r7);
+  __ RecordWrite(r3, Operand(RegExpImpl::kLastSubjectOffset), r2, r7);
   __ str(subject,
          FieldMemOperand(last_match_info_elements,
                          RegExpImpl::kLastInputOffset));
   __ mov(r3, last_match_info_elements);
-  __ mov(r2, Operand(RegExpImpl::kLastInputOffset));
-  __ RecordWrite(r3, r2, r7);
+  __ RecordWrite(r3, Operand(RegExpImpl::kLastInputOffset), r2, r7);
 
   // Get the static offsets vector filled by the native regexp code.
   ExternalReference address_of_static_offsets_vector =
@@ -10543,13 +10587,14 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ ldrb(r4, FieldMemOperand(r4, Map::kInstanceTypeOffset));
     __ ldrb(r5, FieldMemOperand(r5, Map::kInstanceTypeOffset));
   }
-  Label non_ascii, allocated;
+  Label non_ascii, allocated, ascii_data;
   ASSERT_EQ(0, kTwoByteStringTag);
   __ tst(r4, Operand(kStringEncodingMask));
   __ tst(r5, Operand(kStringEncodingMask), ne);
   __ b(eq, &non_ascii);
 
   // Allocate an ASCII cons string.
+  __ bind(&ascii_data);
   __ AllocateAsciiConsString(r7, r6, r4, r5, &string_add_runtime);
   __ bind(&allocated);
   // Fill the fields of the cons string.
@@ -10561,6 +10606,19 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ Ret();
 
   __ bind(&non_ascii);
+  // At least one of the strings is two-byte. Check whether it happens
+  // to contain only ascii characters.
+  // r4: first instance type.
+  // r5: second instance type.
+  __ tst(r4, Operand(kAsciiDataHintMask));
+  __ tst(r5, Operand(kAsciiDataHintMask), ne);
+  __ b(ne, &ascii_data);
+  __ eor(r4, r4, Operand(r5));
+  ASSERT(kAsciiStringTag != 0 && kAsciiDataHintTag != 0);
+  __ and_(r4, r4, Operand(kAsciiStringTag | kAsciiDataHintTag));
+  __ cmp(r4, Operand(kAsciiStringTag | kAsciiDataHintTag));
+  __ b(eq, &ascii_data);
+
   // Allocate a two byte cons string.
   __ AllocateTwoByteConsString(r7, r6, r4, r5, &string_add_runtime);
   __ jmp(&allocated);

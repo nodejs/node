@@ -1462,6 +1462,7 @@ bool Genesis::InstallExtensions(Handle<Context> global_context,
   }
 
   if (FLAG_expose_gc) InstallExtension("v8/gc");
+  if (FLAG_expose_externalize_string) InstallExtension("v8/externalize");
 
   if (extensions == NULL) return true;
   // Install required extensions

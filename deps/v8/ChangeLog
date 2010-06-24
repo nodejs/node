@@ -1,3 +1,19 @@
+2010-06-23: Version 2.2.19
+
+        Fix bug that causes the build to break when profillingsupport=off
+        (issue 738).
+
+        Added expose-externalize-string flag for testing extensions.
+
+        Resolve linker issues with using V8 as a DLL causing a number of
+        problems with unresolved symbols.
+
+        Fix build failure for cctests when ENABLE_DEBUGGER_SUPPORT is not
+        defined.
+
+        Performance improvements on all platforms.
+
+
 2010-06-16: Version 2.2.18
 
         Added API functions to retrieve information on indexed properties

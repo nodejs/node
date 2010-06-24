@@ -1105,6 +1105,7 @@ Object* StubCompiler::CompileCallDebugBreak(Code::Flags flags) {
     Code* code = Code::cast(result);
     USE(code);
     Code::Kind kind = Code::ExtractKindFromFlags(flags);
+    USE(kind);
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_DEBUG_BREAK_TAG),
                             code, code->arguments_count()));
   }

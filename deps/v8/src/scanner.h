@@ -154,7 +154,12 @@ class KeywordMatcher {
 //  *: Actually "future reserved keywords". These are the only ones we
 //     recognized, the remaining are allowed as identifiers.
  public:
-  KeywordMatcher() : state_(INITIAL), token_(Token::IDENTIFIER) {}
+  KeywordMatcher()
+      : state_(INITIAL),
+        token_(Token::IDENTIFIER),
+        keyword_(NULL),
+        counter_(0),
+        keyword_token_(Token::ILLEGAL) {}
 
   Token::Value token() { return token_; }
 
@@ -206,17 +211,6 @@ class KeywordMatcher {
   // State map for first keyword character range.
   static FirstState first_states_[kFirstCharRangeLength];
 
-  // Current state.
-  State state_;
-  // Token for currently added characters.
-  Token::Value token_;
-
-  // Matching a specific keyword string (there is only one possible valid
-  // keyword with the current prefix).
-  const char* keyword_;
-  int counter_;
-  Token::Value keyword_token_;
-
   // If input equals keyword's character at position, continue matching keyword
   // from that position.
   inline bool MatchKeywordStart(uc32 input,
@@ -246,15 +240,26 @@ class KeywordMatcher {
                            char match,
                            State new_state,
                            Token::Value keyword_token) {
-    if (input == match) {  // Matched "do".
-      state_ = new_state;
-      token_ = keyword_token;
-      return true;
+    if (input != match) {
+      return false;
     }
-    return false;
+    state_ = new_state;
+    token_ = keyword_token;
+    return true;
   }
 
   void Step(uc32 input);
+
+  // Current state.
+  State state_;
+  // Token for currently added characters.
+  Token::Value token_;
+
+  // Matching a specific keyword string (there is only one possible valid
+  // keyword with the current prefix).
+  const char* keyword_;
+  int counter_;
+  Token::Value keyword_token_;
 };
 
 
@@ -362,37 +367,6 @@ class Scanner {
   static const int kNoEndPosition = 1;
 
  private:
-  void Init(Handle<String> source,
-            unibrow::CharacterStream* stream,
-            int start_position, int end_position,
-            ParserLanguage language);
-
-
-  // Different UTF16 buffers used to pull characters from. Based on input one of
-  // these will be initialized as the actual data source.
-  CharacterStreamUTF16Buffer char_stream_buffer_;
-  ExternalStringUTF16Buffer<ExternalTwoByteString, uint16_t>
-      two_byte_string_buffer_;
-  ExternalStringUTF16Buffer<ExternalAsciiString, char> ascii_string_buffer_;
-
-  // Source. Will point to one of the buffers declared above.
-  UTF16Buffer* source_;
-
-  // Used to convert the source string into a character stream when a stream
-  // is not passed to the scanner.
-  SafeStringInputBuffer safe_string_input_buffer_;
-
-  // Buffer to hold literal values (identifiers, strings, numbers)
-  // using 0-terminated UTF-8 encoding.
-  UTF8Buffer literal_buffer_1_;
-  UTF8Buffer literal_buffer_2_;
-
-  bool stack_overflow_;
-  static StaticResource<Utf8Decoder> utf8_decoder_;
-
-  // One Unicode character look-ahead; c0_ < 0 at the end of the input.
-  uc32 c0_;
-
   // The current and look-ahead token.
   struct TokenDesc {
     Token::Value token;
@@ -400,11 +374,10 @@ class Scanner {
     UTF8Buffer* literal_buffer;
   };
 
-  TokenDesc current_;  // desc for current token (as returned by Next())
-  TokenDesc next_;     // desc for next token (one token look-ahead)
-  bool has_line_terminator_before_next_;
-  bool is_pre_parsing_;
-  bool is_parsing_json_;
+  void Init(Handle<String> source,
+            unibrow::CharacterStream* stream,
+            int start_position, int end_position,
+            ParserLanguage language);
 
   // Literal buffer support
   void StartLiteral();
@@ -426,6 +399,7 @@ class Scanner {
       return SkipJavaScriptWhiteSpace();
     }
   }
+
   bool SkipJavaScriptWhiteSpace();
   bool SkipJsonWhiteSpace();
   Token::Value SkipSingleLineComment();
@@ -460,11 +434,13 @@ class Scanner {
   // the integer part is zero), and may include an exponent part (e.g., "e-10").
   // Hexadecimal and octal numbers are not allowed.
   Token::Value ScanJsonNumber();
+
   // A JSON string (production JSONString) is subset of valid JavaScript string
   // literals. The string must only be double-quoted (not single-quoted), and
   // the only allowed backslash-escapes are ", /, \, b, f, n, r, t and
   // four-digit hex escapes (uXXXX). Any other use of backslashes is invalid.
   Token::Value ScanJsonString();
+
   // Used to recognizes one of the literals "true", "false", or "null". These
   // are the only valid JSON identifiers (productions JSONBooleanLiteral,
   // JSONNullLiteral).
@@ -489,6 +465,37 @@ class Scanner {
   // Decodes a unicode escape-sequence which is part of an identifier.
   // If the escape sequence cannot be decoded the result is kBadRune.
   uc32 ScanIdentifierUnicodeEscape();
+
+  TokenDesc current_;  // desc for current token (as returned by Next())
+  TokenDesc next_;     // desc for next token (one token look-ahead)
+  bool has_line_terminator_before_next_;
+  bool is_pre_parsing_;
+  bool is_parsing_json_;
+
+  // Different UTF16 buffers used to pull characters from. Based on input one of
+  // these will be initialized as the actual data source.
+  CharacterStreamUTF16Buffer char_stream_buffer_;
+  ExternalStringUTF16Buffer<ExternalTwoByteString, uint16_t>
+      two_byte_string_buffer_;
+  ExternalStringUTF16Buffer<ExternalAsciiString, char> ascii_string_buffer_;
+
+  // Source. Will point to one of the buffers declared above.
+  UTF16Buffer* source_;
+
+  // Used to convert the source string into a character stream when a stream
+  // is not passed to the scanner.
+  SafeStringInputBuffer safe_string_input_buffer_;
+
+  // Buffer to hold literal values (identifiers, strings, numbers)
+  // using 0-terminated UTF-8 encoding.
+  UTF8Buffer literal_buffer_1_;
+  UTF8Buffer literal_buffer_2_;
+
+  bool stack_overflow_;
+  static StaticResource<Utf8Decoder> utf8_decoder_;
+
+  // One Unicode character look-ahead; c0_ < 0 at the end of the input.
+  uc32 c0_;
 };
 
 } }  // namespace v8::internal

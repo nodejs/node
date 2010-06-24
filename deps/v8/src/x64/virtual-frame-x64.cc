@@ -961,16 +961,18 @@ void VirtualFrame::SyncRange(int begin, int end) {
   // Sync elements below the range if they have not been materialized
   // on the stack.
   int start = Min(begin, stack_pointer_ + 1);
+  int end_or_stack_pointer = Min(stack_pointer_, end);
+  // Emit normal push instructions for elements above stack pointer
+  // and use mov instructions if we are below stack pointer.
+  int i = start;
 
-  // If positive we have to adjust the stack pointer.
-  int delta = end - stack_pointer_;
-  if (delta > 0) {
-    stack_pointer_ = end;
-    __ subq(rsp, Immediate(delta * kPointerSize));
-  }
-
-  for (int i = start; i <= end; i++) {
+  while (i <= end_or_stack_pointer) {
     if (!elements_[i].is_synced()) SyncElementBelowStackPointer(i);
+    i++;
+  }
+  while (i <= end) {
+    SyncElementByPushing(i);
+    i++;
   }
 }
 

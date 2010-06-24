@@ -230,8 +230,8 @@ class Debug {
 
   static Object* Break(Arguments args);
   static void SetBreakPoint(Handle<SharedFunctionInfo> shared,
-                            int source_position,
-                            Handle<Object> break_point_object);
+                            Handle<Object> break_point_object,
+                            int* source_position);
   static void ClearBreakPoint(Handle<Object> break_point_object);
   static void ClearAllBreakPoints();
   static void FloodWithOneShot(Handle<SharedFunctionInfo> shared);

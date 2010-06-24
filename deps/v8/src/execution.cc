@@ -679,7 +679,7 @@ Object* Execution::HandleStackGuardInterrupt() {
 
 // --- G C   E x t e n s i o n ---
 
-const char* GCExtension::kSource = "native function gc();";
+const char* const GCExtension::kSource = "native function gc();";
 
 
 v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
@@ -695,7 +695,115 @@ v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
 }
 
 
-static GCExtension kGCExtension;
-v8::DeclareExtension kGCExtensionDeclaration(&kGCExtension);
+static GCExtension gc_extension;
+static v8::DeclareExtension gc_extension_declaration(&gc_extension);
+
+
+// --- E x t e r n a l i z e S t r i n g   E x t e n s i o n ---
+
+
+template <typename Char, typename Base>
+class SimpleStringResource : public Base {
+ public:
+  // Takes ownership of |data|.
+  SimpleStringResource(Char* data, size_t length)
+      : data_(data),
+        length_(length) {}
+
+  virtual ~SimpleStringResource() { delete data_; }
+
+  virtual const Char* data() const { return data_; }
+
+  virtual size_t length() const { return length_; }
+
+ private:
+  Char* const data_;
+  const size_t length_;
+};
+
+
+typedef SimpleStringResource<char, v8::String::ExternalAsciiStringResource>
+    SimpleAsciiStringResource;
+typedef SimpleStringResource<uc16, v8::String::ExternalStringResource>
+    SimpleTwoByteStringResource;
+
+
+const char* const ExternalizeStringExtension::kSource =
+    "native function externalizeString();"
+    "native function isAsciiString();";
+
+
+v8::Handle<v8::FunctionTemplate> ExternalizeStringExtension::GetNativeFunction(
+    v8::Handle<v8::String> str) {
+  if (strcmp(*v8::String::AsciiValue(str), "externalizeString") == 0) {
+    return v8::FunctionTemplate::New(ExternalizeStringExtension::Externalize);
+  } else {
+    ASSERT(strcmp(*v8::String::AsciiValue(str), "isAsciiString") == 0);
+    return v8::FunctionTemplate::New(ExternalizeStringExtension::IsAscii);
+  }
+}
+
+
+v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
+    const v8::Arguments& args) {
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    return v8::ThrowException(v8::String::New(
+        "First parameter to externalizeString() must be a string."));
+  }
+  bool force_two_byte = false;
+  if (args.Length() >= 2) {
+    if (args[1]->IsBoolean()) {
+      force_two_byte = args[1]->BooleanValue();
+    } else {
+      return v8::ThrowException(v8::String::New(
+          "Second parameter to externalizeString() must be a boolean."));
+    }
+  }
+  bool result = false;
+  Handle<String> string = Utils::OpenHandle(*args[0].As<v8::String>());
+  if (string->IsExternalString()) {
+    return v8::ThrowException(v8::String::New(
+        "externalizeString() can't externalize twice."));
+  }
+  if (string->IsAsciiRepresentation() && !force_two_byte) {
+    char* data = new char[string->length()];
+    String::WriteToFlat(*string, data, 0, string->length());
+    SimpleAsciiStringResource* resource = new SimpleAsciiStringResource(
+        data, string->length());
+    result = string->MakeExternal(resource);
+    if (result && !string->IsSymbol()) {
+      i::ExternalStringTable::AddString(*string);
+    }
+  } else {
+    uc16* data = new uc16[string->length()];
+    String::WriteToFlat(*string, data, 0, string->length());
+    SimpleTwoByteStringResource* resource = new SimpleTwoByteStringResource(
+        data, string->length());
+    result = string->MakeExternal(resource);
+    if (result && !string->IsSymbol()) {
+      i::ExternalStringTable::AddString(*string);
+    }
+  }
+  if (!result) {
+    return v8::ThrowException(v8::String::New("externalizeString() failed."));
+  }
+  return v8::Undefined();
+}
+
+
+v8::Handle<v8::Value> ExternalizeStringExtension::IsAscii(
+    const v8::Arguments& args) {
+  if (args.Length() != 1 || !args[0]->IsString()) {
+    return v8::ThrowException(v8::String::New(
+        "isAsciiString() requires a single string argument."));
+  }
+  return Utils::OpenHandle(*args[0].As<v8::String>())->IsAsciiRepresentation() ?
+      v8::True() : v8::False();
+}
+
+
+static ExternalizeStringExtension externalize_extension;
+static v8::DeclareExtension externalize_extension_declaration(
+    &externalize_extension);
 
 } }  // namespace v8::internal

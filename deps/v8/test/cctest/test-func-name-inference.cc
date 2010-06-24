@@ -81,6 +81,7 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
   int func_pos = Runtime::StringMatch(script_src, func_pos_str, 0);
   CHECK_NE(0, func_pos);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Obtain SharedFunctionInfo for the function.
   Object* shared_func_info_ptr =
       Runtime::FindSharedFunctionInfoInScript(i_script, func_pos);
@@ -92,6 +93,7 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
   SmartPointer<char> inferred_name =
       shared_func_info->inferred_name()->ToCString();
   CHECK_EQ(ref_inferred_name, *inferred_name);
+#endif  // ENABLE_DEBUGGER_SUPPORT
 }
 
 

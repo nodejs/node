@@ -985,30 +985,30 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       Label call_builtin, exit, with_write_barrier, attempt_to_grow_elements;
 
       // Get the array's length into rax and calculate new length.
-      __ movq(rax, FieldOperand(rdx, JSArray::kLengthOffset));
+      __ SmiToInteger32(rax, FieldOperand(rdx, JSArray::kLengthOffset));
       STATIC_ASSERT(FixedArray::kMaxLength < Smi::kMaxValue);
-      __ SmiAddConstant(rax, rax, Smi::FromInt(argc));
+      __ addl(rax, Immediate(argc));
 
       // Get the element's length into rcx.
-      __ movq(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
+      __ SmiToInteger32(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
 
       // Check if we could survive without allocation.
-      __ SmiCompare(rax, rcx);
+      __ cmpl(rax, rcx);
       __ j(greater, &attempt_to_grow_elements);
 
       // Save new length.
-      __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rax);
+      __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
 
       // Push the element.
       __ movq(rcx, Operand(rsp, argc * kPointerSize));
-      SmiIndex index =
-          masm()->SmiToIndex(kScratchRegister, rax, times_pointer_size);
       __ lea(rdx, FieldOperand(rbx,
-                               index.reg, index.scale,
+                               rax, times_pointer_size,
                                FixedArray::kHeaderSize - argc * kPointerSize));
       __ movq(Operand(rdx, 0), rcx);
 
       // Check if value is a smi.
+      __ Integer32ToSmi(rax, rax);  // Return new length as smi.
+
       __ JumpIfNotSmi(rcx, &with_write_barrier);
 
       __ bind(&exit);
@@ -1020,6 +1020,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       RecordWriteStub stub(rbx, rdx, rcx);
       __ CallStub(&stub);
+
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&attempt_to_grow_elements);
@@ -1034,9 +1035,8 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ movq(rcx, Operand(rcx, 0));
 
       // Check if it's the end of elements.
-      index = masm()->SmiToIndex(kScratchRegister, rax, times_pointer_size);
       __ lea(rdx, FieldOperand(rbx,
-                               index.reg, index.scale,
+                               rax, times_pointer_size,
                                FixedArray::kHeaderSize - argc * kPointerSize));
       __ cmpq(rdx, rcx);
       __ j(not_equal, &call_builtin);
@@ -1064,8 +1064,9 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       // Increment element's and array's sizes.
       __ SmiAddConstant(FieldOperand(rbx, FixedArray::kLengthOffset),
                         Smi::FromInt(kAllocationDelta));
+      // Make new length a smi before returning it.
+      __ Integer32ToSmi(rax, rax);
       __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rax);
-
       // Elements are in new space, so write barrier is not required.
       __ ret((argc + 1) * kPointerSize);
 
@@ -1128,28 +1129,26 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ j(not_equal, &miss);
 
   // Get the array's length into rcx and calculate new length.
-  __ movq(rcx, FieldOperand(rdx, JSArray::kLengthOffset));
-  __ SmiSubConstant(rcx, rcx, Smi::FromInt(1));
-  __ SmiTest(rcx);
+  __ SmiToInteger32(rcx, FieldOperand(rdx, JSArray::kLengthOffset));
+  __ subl(rcx, Immediate(1));
   __ j(negative, &return_undefined);
 
   // Get the last element.
   __ Move(r9, Factory::the_hole_value());
-  SmiIndex index =
-      masm()->SmiToIndex(r8, rcx, times_pointer_size);
   __ movq(rax, FieldOperand(rbx,
-                            index.reg, index.scale,
+                            rcx, times_pointer_size,
                             FixedArray::kHeaderSize));
   // Check if element is already the hole.
   __ cmpq(rax, r9);
+  // If so, call slow-case to also check prototypes for value.
   __ j(equal, &call_builtin);
 
   // Set the array's length.
-  __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rcx);
+  __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rcx);
 
-  // Fill with the hole and return original value..
+  // Fill with the hole and return original value.
   __ movq(FieldOperand(rbx,
-                       index.reg, index.scale,
+                       rcx, times_pointer_size,
                        FixedArray::kHeaderSize),
           r9);
   __ ret((argc + 1) * kPointerSize);

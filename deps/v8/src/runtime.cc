@@ -4946,16 +4946,6 @@ static Object* ConvertCaseHelper(String* s,
 }
 
 
-static inline SeqAsciiString* TryGetSeqAsciiString(String* s) {
-  if (!s->IsFlat() || !s->IsAsciiRepresentation()) return NULL;
-  if (s->IsConsString()) {
-    ASSERT(ConsString::cast(s)->second()->length() == 0);
-    return SeqAsciiString::cast(ConsString::cast(s)->first());
-  }
-  return SeqAsciiString::cast(s);
-}
-
-
 namespace {
 
 struct ToLowerTraits {
@@ -5002,7 +4992,7 @@ static Object* ConvertCase(
     unibrow::Mapping<typename ConvertTraits::UnibrowConverter, 128>* mapping) {
   NoHandleAllocation ha;
   CONVERT_CHECKED(String, s, args[0]);
-  s->TryFlatten();
+  s = s->TryFlattenGetString();
 
   const int length = s->length();
   // Assume that the string is not empty; we need this assumption later
@@ -5014,13 +5004,12 @@ static Object* ConvertCase(
   // character is also ascii.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  SeqAsciiString* seq_ascii = TryGetSeqAsciiString(s);
-  if (seq_ascii != NULL) {
+  if (s->IsSeqAsciiString()) {
     Object* o = Heap::AllocateRawAsciiString(length);
     if (o->IsFailure()) return o;
     SeqAsciiString* result = SeqAsciiString::cast(o);
     bool has_changed_character = ConvertTraits::ConvertAscii(
-        result->GetChars(), seq_ascii->GetChars(), length);
+        result->GetChars(), SeqAsciiString::cast(s)->GetChars(), length);
     return has_changed_character ? result : s;
   }
 
@@ -5564,7 +5553,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = special->IsAsciiRepresentation();
+  bool ascii = special->HasOnlyAsciiChars();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
@@ -5605,7 +5594,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
       String* element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
-      if (ascii && !element->IsAsciiRepresentation()) {
+      if (ascii && !element->HasOnlyAsciiChars()) {
         ascii = false;
       }
     } else {
@@ -9061,7 +9050,7 @@ static Object* Runtime_SetFunctionBreakPoint(Arguments args) {
   Handle<Object> break_point_object_arg = args.at<Object>(2);
 
   // Set break point.
-  Debug::SetBreakPoint(shared, source_position, break_point_object_arg);
+  Debug::SetBreakPoint(shared, break_point_object_arg, &source_position);
 
   return Heap::undefined_value();
 }
@@ -9081,8 +9070,6 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
   // The current candidate for the source position:
   int target_start_position = RelocInfo::kNoPosition;
   Handle<SharedFunctionInfo> target;
-  // The current candidate for the last function in script:
-  Handle<SharedFunctionInfo> last;
   while (!done) {
     HeapIterator iterator;
     for (HeapObject* obj = iterator.next();
@@ -9123,25 +9110,12 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
               }
             }
           }
-
-          // Keep track of the last function in the script.
-          if (last.is_null() ||
-              shared->end_position() > last->start_position()) {
-            last = shared;
-          }
         }
       }
     }
 
-    // Make sure some candidate is selected.
     if (target.is_null()) {
-      if (!last.is_null()) {
-        // Position after the last function - use last.
-        target = last;
-      } else {
-        // Unable to find function - possibly script without any function.
-        return Heap::undefined_value();
-      }
+      return Heap::undefined_value();
     }
 
     // If the candidate found is compiled we are done. NOTE: when lazy
@@ -9159,8 +9133,9 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
 }
 
 
-// Change the state of a break point in a script. NOTE: Regarding performance
-// see the NOTE for GetScriptFromScriptData.
+// Changes the state of a break point in a script and returns source position
+// where break point was set. NOTE: Regarding performance see the NOTE for
+// GetScriptFromScriptData.
 // args[0]: script to set break point in
 // args[1]: number: break source position (within the script source)
 // args[2]: number: break point object
@@ -9188,7 +9163,9 @@ static Object* Runtime_SetScriptBreakPoint(Arguments args) {
     } else {
       position = source_position - shared->start_position();
     }
-    Debug::SetBreakPoint(shared, position, break_point_object_arg);
+    Debug::SetBreakPoint(shared, break_point_object_arg, &position);
+    position += shared->start_position();
+    return Smi::FromInt(position);
   }
   return  Heap::undefined_value();
 }

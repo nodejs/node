@@ -282,6 +282,11 @@ const Instr kBlxRegPattern =
 const Instr kMovMvnMask = 0x6d * B21 | 0xf * B16;
 const Instr kMovMvnPattern = 0xd * B21;
 const Instr kMovMvnFlip = B22;
+const Instr kMovLeaveCCMask = 0xdff * B16;
+const Instr kMovLeaveCCPattern = 0x1a0 * B16;
+const Instr kMovwMask = 0xff * B20;
+const Instr kMovwPattern = 0x30 * B20;
+const Instr kMovwLeaveCCFlip = 0x5 * B21;
 const Instr kCmpCmnMask = 0xdd * B20 | 0xf * B12;
 const Instr kCmpCmnPattern = 0x15 * B20;
 const Instr kCmpCmnFlip = B21;
@@ -386,6 +391,12 @@ void Assembler::Align(int m) {
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
+}
+
+
+void Assembler::CodeTargetAlign() {
+  // Preferred alignment of jump targets on some ARM chips.
+  Align(8);
 }
 
 
@@ -640,6 +651,12 @@ void Assembler::next(Label* L) {
 }
 
 
+static Instr EncodeMovwImmediate(uint32_t immediate) {
+  ASSERT(immediate < 0x10000);
+  return ((immediate & 0xf000) << 4) | (immediate & 0xfff);
+}
+
+
 // Low-level code emission routines depending on the addressing mode.
 // If this returns true then you have to use the rotate_imm and immed_8
 // that it returns, because it may have already changed the instruction
@@ -664,6 +681,15 @@ static bool fits_shifter(uint32_t imm32,
       if (fits_shifter(~imm32, rotate_imm, immed_8, NULL)) {
         *instr ^= kMovMvnFlip;
         return true;
+      } else if ((*instr & kMovLeaveCCMask) == kMovLeaveCCPattern) {
+        if (CpuFeatures::IsSupported(ARMv7)) {
+          if (imm32 < 0x10000) {
+            *instr ^= kMovwLeaveCCFlip;
+            *instr |= EncodeMovwImmediate(imm32);
+            *rotate_imm = *immed_8 = 0;  // Not used for movw.
+            return true;
+          }
+        }
       }
     } else if ((*instr & kCmpCmnMask) == kCmpCmnPattern) {
       if (fits_shifter(-imm32, rotate_imm, immed_8, NULL)) {
@@ -695,7 +721,7 @@ static bool fits_shifter(uint32_t imm32,
 // if they can be encoded in the ARM's 12 bits of immediate-offset instruction
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
-static bool MustUseIp(RelocInfo::Mode rmode) {
+static bool MustUseConstantPool(RelocInfo::Mode rmode) {
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG
     if (!Serializer::enabled()) {
@@ -712,7 +738,7 @@ static bool MustUseIp(RelocInfo::Mode rmode) {
 
 bool Operand::is_single_instruction() const {
   if (rm_.is_valid()) return true;
-  if (MustUseIp(rmode_)) return false;
+  if (MustUseConstantPool(rmode_)) return false;
   uint32_t dummy1, dummy2;
   return fits_shifter(imm32_, &dummy1, &dummy2, NULL);
 }
@@ -728,19 +754,34 @@ void Assembler::addrmod1(Instr instr,
     // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if (MustUseIp(x.rmode_) ||
+    if (MustUseConstantPool(x.rmode_) ||
         !fits_shifter(x.imm32_, &rotate_imm, &immed_8, &instr)) {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
       // However, if the original instruction is a 'mov rd, x' (not setting the
       // condition code), then replace it with a 'ldr rd, [pc]'.
-      RecordRelocInfo(x.rmode_, x.imm32_);
       CHECK(!rn.is(ip));  // rn should never be ip, or will be trashed
       Condition cond = static_cast<Condition>(instr & CondMask);
       if ((instr & ~CondMask) == 13*B21) {  // mov, S not set
-        ldr(rd, MemOperand(pc, 0), cond);
+        if (MustUseConstantPool(x.rmode_) ||
+            !CpuFeatures::IsSupported(ARMv7)) {
+          RecordRelocInfo(x.rmode_, x.imm32_);
+          ldr(rd, MemOperand(pc, 0), cond);
+        } else {
+          // Will probably use movw, will certainly not use constant pool.
+          mov(rd, Operand(x.imm32_ & 0xffff), LeaveCC, cond);
+          movt(rd, static_cast<uint32_t>(x.imm32_) >> 16, cond);
+        }
       } else {
-        ldr(ip, MemOperand(pc, 0), cond);
+        // If this is not a mov or mvn instruction we may still be able to avoid
+        // a constant pool entry by using mvn or movw.
+        if (!MustUseConstantPool(x.rmode_) &&
+            (instr & kMovMvnMask) != kMovMvnPattern) {
+          mov(ip, x, LeaveCC, cond);
+        } else {
+          RecordRelocInfo(x.rmode_, x.imm32_);
+          ldr(ip, MemOperand(pc, 0), cond);
+        }
         addrmod1(instr, rn, rd, Operand(ip));
       }
       return;
@@ -1051,6 +1092,17 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
 }
 
 
+void Assembler::movw(Register reg, uint32_t immediate, Condition cond) {
+  ASSERT(immediate < 0x10000);
+  mov(reg, Operand(immediate), LeaveCC, cond);
+}
+
+
+void Assembler::movt(Register reg, uint32_t immediate, Condition cond) {
+  emit(cond | 0x34*B20 | reg.code()*B12 | EncodeMovwImmediate(immediate));
+}
+
+
 void Assembler::bic(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
   addrmod1(cond | 14*B21 | s, src1, dst, src2);
@@ -1231,7 +1283,7 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
     // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if (MustUseIp(src.rmode_) ||
+    if (MustUseConstantPool(src.rmode_) ||
         !fits_shifter(src.imm32_, &rotate_imm, &immed_8, NULL)) {
       // Immediate operand cannot be encoded, load it first to register ip.
       RecordRelocInfo(src.rmode_, src.imm32_);

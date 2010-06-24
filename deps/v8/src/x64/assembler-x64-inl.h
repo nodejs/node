@@ -35,14 +35,9 @@
 namespace v8 {
 namespace internal {
 
-inline Condition NegateCondition(Condition cc) {
-  return static_cast<Condition>(cc ^ 1);
-}
-
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
-
 
 
 void Assembler::emitl(uint32_t x) {

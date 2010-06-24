@@ -734,6 +734,28 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       if (PatchInlinedLoad(address(), map, offset)) {
         set_target(megamorphic_stub());
         return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
+#ifdef DEBUG
+        if (FLAG_trace_ic) {
+          PrintF("[LoadIC : inline patch %s]\n", *name->ToCString());
+        }
+      } else {
+        if (FLAG_trace_ic) {
+          PrintF("[LoadIC : no inline patch %s (patching failed)]\n",
+                 *name->ToCString());
+        }
+      }
+    } else {
+      if (FLAG_trace_ic) {
+        PrintF("[LoadIC : no inline patch %s (not inobject)]\n",
+               *name->ToCString());
+      }
+    }
+  } else {
+    if (FLAG_use_ic && state == PREMONOMORPHIC) {
+      if (FLAG_trace_ic) {
+        PrintF("[LoadIC : no inline patch %s (not inlinable)]\n",
+               *name->ToCString());
+#endif
       }
     }
   }

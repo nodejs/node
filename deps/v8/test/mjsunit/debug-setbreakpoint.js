@@ -116,7 +116,7 @@ function listener(event, exec_state, event_data, data) {
     mirror = debug.MakeMirror(o.a);
     testArguments(dcp, '{"type":"handle","target":' + mirror.handle() + '}', true, false);
 
-    testArguments(dcp, '{"type":"script","target":"sourceUrlScript","line":1}', true, true);
+    testArguments(dcp, '{"type":"script","target":"sourceUrlScript","line":0}', true, true);
 
     // Indicate that all was processed.
     listenerComplete = true;
@@ -134,6 +134,7 @@ function f() {
 };
 
 function g() {
+  // Comment.
   f();
 };
 
@@ -184,3 +185,8 @@ Debug.setListener(breakListener);
 sourceUrlFunc();
 
 assertTrue(breakListenerCalled, "Break listener not called on breakpoint set by sourceURL");
+
+// Set a break point on a line with the comment, and check that actual position
+// is the next line after the comment.
+var number = Debug.setScriptBreakPointById(g_script_id, g_line + 1);
+assertEquals(g_line + 2, Debug.findBreakPoint(number).actual_location.line);

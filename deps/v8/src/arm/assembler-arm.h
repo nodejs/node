@@ -279,7 +279,10 @@ enum Condition {
 
 
 // Returns the equivalent of !cc.
-INLINE(Condition NegateCondition(Condition cc));
+inline Condition NegateCondition(Condition cc) {
+  ASSERT(cc != al);
+  return static_cast<Condition>(cc ^ ne);
+}
 
 
 // Corresponds to transposing the operands of a comparison.
@@ -545,6 +548,12 @@ extern const Instr kMovMvnMask;
 extern const Instr kMovMvnPattern;
 extern const Instr kMovMvnFlip;
 
+extern const Instr kMovLeaveCCMask;
+extern const Instr kMovLeaveCCPattern;
+extern const Instr kMovwMask;
+extern const Instr kMovwPattern;
+extern const Instr kMovwLeaveCCFlip;
+
 extern const Instr kCmpCmnMask;
 extern const Instr kCmpCmnPattern;
 extern const Instr kCmpCmnFlip;
@@ -694,6 +703,8 @@ class Assembler : public Malloced {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).
   void Align(int m);
+  // Aligns code to something that's optimal for a jump target for the platform.
+  void CodeTargetAlign();
 
   // Branch instructions
   void b(int branch_offset, Condition cond = al);
@@ -771,6 +782,13 @@ class Assembler : public Malloced {
   void mov(Register dst, Register src, SBit s = LeaveCC, Condition cond = al) {
     mov(dst, Operand(src), s, cond);
   }
+
+  // ARMv7 instructions for loading a 32 bit immediate in two instructions.
+  // This may actually emit a different mov instruction, but on an ARMv7 it
+  // is guaranteed to only emit one instruction.
+  void movw(Register reg, uint32_t immediate, Condition cond = al);
+  // The constant for movt should be in the range 0-0xffff.
+  void movt(Register reg, uint32_t immediate, Condition cond = al);
 
   void bic(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);

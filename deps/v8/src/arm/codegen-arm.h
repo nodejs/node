@@ -669,7 +669,9 @@ class GenericBinaryOpStub : public CodeStub {
   }
 
   void Generate(MacroAssembler* masm);
-  void HandleNonSmiBitwiseOp(MacroAssembler* masm, Register lhs, Register rhs);
+  void HandleNonSmiBitwiseOp(MacroAssembler* masm,
+                             Register lhs,
+                             Register rhs);
   void HandleBinaryOpSlowCases(MacroAssembler* masm,
                                Label* not_smi,
                                Register lhs,

@@ -284,6 +284,9 @@ class Instr {
     // with immediate
   inline int RotateField() const { return Bits(11, 8); }
   inline int Immed8Field() const { return Bits(7, 0); }
+  inline int Immed4Field() const { return Bits(19, 16); }
+  inline int ImmedMovwMovtField() const {
+      return Immed4Field() << 12 | Offset12Field(); }
 
   // Fields used in Load/Store instructions
   inline int PUField() const { return Bits(24, 23); }

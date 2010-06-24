@@ -35,6 +35,7 @@
 #include "macro-assembler-x64.h"
 #include "serialize.h"
 #include "debug.h"
+#include "heap.h"
 
 namespace v8 {
 namespace internal {
@@ -96,8 +97,8 @@ void MacroAssembler::RecordWriteHelper(Register object,
 
   // Compute number of region covering addr. See Page::GetRegionNumberForAddress
   // method for more details.
-  and_(addr, Immediate(Page::kPageAlignmentMask));
   shrl(addr, Immediate(Page::kRegionSizeLog2));
+  andl(addr, Immediate(Page::kPageAlignmentMask >> Page::kRegionSizeLog2));
 
   // Set dirty mark for region.
   bts(Operand(object, Page::kDirtyFlagOffset), addr);
@@ -106,25 +107,25 @@ void MacroAssembler::RecordWriteHelper(Register object,
 
 // For page containing |object| mark region covering [object+offset] dirty.
 // object is the object being stored into, value is the object being stored.
-// If offset is zero, then the smi_index register contains the array index into
-// the elements array represented as a smi. Otherwise it can be used as a
-// scratch register.
+// If offset is zero, then the index register contains the array index into
+// the elements array represented a zero extended int32. Otherwise it can be
+// used as a scratch register.
 // All registers are clobbered by the operation.
 void MacroAssembler::RecordWrite(Register object,
                                  int offset,
                                  Register value,
-                                 Register smi_index) {
+                                 Register index) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are rsi.
-  ASSERT(!object.is(rsi) && !value.is(rsi) && !smi_index.is(rsi));
+  ASSERT(!object.is(rsi) && !value.is(rsi) && !index.is(rsi));
 
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
   Label done;
   JumpIfSmi(value, &done);
 
-  RecordWriteNonSmi(object, offset, value, smi_index);
+  RecordWriteNonSmi(object, offset, value, index);
   bind(&done);
 
   // Clobber all input registers when running with the debug-code flag
@@ -135,7 +136,7 @@ void MacroAssembler::RecordWrite(Register object,
   if (FLAG_debug_code) {
     movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
-    movq(smi_index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
 }
 
@@ -143,7 +144,7 @@ void MacroAssembler::RecordWrite(Register object,
 void MacroAssembler::RecordWriteNonSmi(Register object,
                                        int offset,
                                        Register scratch,
-                                       Register smi_index) {
+                                       Register index) {
   Label done;
 
   if (FLAG_debug_code) {
@@ -151,6 +152,16 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
     JumpIfNotSmi(object, &okay);
     Abort("MacroAssembler::RecordWriteNonSmi cannot deal with smis");
     bind(&okay);
+
+    if (offset == 0) {
+      // index must be int32.
+      Register tmp = index.is(rax) ? rbx : rax;
+      push(tmp);
+      movl(tmp, index);
+      cmpq(tmp, index);
+      Check(equal, "Index register for RecordWrite must be untagged int32.");
+      pop(tmp);
+    }
   }
 
   // Test that the object address is not in the new space. We cannot
@@ -163,16 +174,15 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
   ASSERT(IsAligned(offset, kPointerSize) ||
          IsAligned(offset + kHeapObjectTag, kPointerSize));
 
-  Register dst = smi_index;
+  Register dst = index;
   if (offset != 0) {
     lea(dst, Operand(object, offset));
   } else {
     // array access: calculate the destination address in the same manner as
     // KeyedStoreIC::GenerateGeneric.
-    SmiIndex index = SmiToIndex(smi_index, smi_index, kPointerSizeLog2);
     lea(dst, FieldOperand(object,
-                          index.reg,
-                          index.scale,
+                          index,
+                          times_pointer_size,
                           FixedArray::kHeaderSize));
   }
   RecordWriteHelper(object, dst, scratch);
@@ -184,7 +194,7 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
   if (FLAG_debug_code) {
     movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(scratch, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
-    movq(smi_index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
 }
 
@@ -446,13 +456,8 @@ void MacroAssembler::Set(Register dst, int64_t x) {
 
 
 void MacroAssembler::Set(const Operand& dst, int64_t x) {
-  if (x == 0) {
-    xor_(kScratchRegister, kScratchRegister);
-    movq(dst, kScratchRegister);
-  } else if (is_int32(x)) {
+  if (is_int32(x)) {
     movq(dst, Immediate(static_cast<int32_t>(x)));
-  } else if (is_uint32(x)) {
-    movl(dst, Immediate(static_cast<uint32_t>(x)));
   } else {
     movq(kScratchRegister, x, RelocInfo::NONE);
     movq(dst, kScratchRegister);
@@ -482,6 +487,23 @@ void MacroAssembler::Integer32ToSmi(Register dst,
     movl(dst, src);
   }
   shl(dst, Immediate(kSmiShift));
+}
+
+
+void MacroAssembler::Integer32ToSmiField(const Operand& dst, Register src) {
+  if (FLAG_debug_code) {
+    testb(dst, Immediate(0x01));
+    Label ok;
+    j(zero, &ok);
+    if (allow_stub_calls()) {
+      Abort("Integer32ToSmiField writing to non-smi location");
+    } else {
+      int3();
+    }
+    bind(&ok);
+  }
+  ASSERT(kSmiShift % kBitsPerByte == 0);
+  movl(Operand(dst, kSmiShift / kBitsPerByte), src);
 }
 
 
@@ -520,6 +542,11 @@ void MacroAssembler::SmiToInteger64(Register dst, Register src) {
 }
 
 
+void MacroAssembler::SmiToInteger64(Register dst, const Operand& src) {
+  movsxlq(dst, Operand(src, kSmiShift / kBitsPerByte));
+}
+
+
 void MacroAssembler::SmiTest(Register src) {
   testq(src, src);
 }
@@ -553,6 +580,11 @@ void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
 
 void MacroAssembler::SmiCompare(const Operand& dst, Smi* src) {
   cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
+}
+
+
+void MacroAssembler::SmiCompareInteger32(const Operand& dst, Register src) {
+  cmpl(Operand(dst, kSmiShift / kBitsPerByte), src);
 }
 
 
@@ -696,15 +728,12 @@ void MacroAssembler::SmiAdd(Register dst,
       movq(dst, src1);
       addq(dst, src2);
     }
-    Assert(no_overflow, "Smi addition onverflow");
+    Assert(no_overflow, "Smi addition overflow");
   } else if (dst.is(src1)) {
-    addq(dst, src2);
-    Label smi_result;
-    j(no_overflow, &smi_result);
-    // Restore src1.
-    subq(src1, src2);
-    jmp(on_not_smi_result);
-    bind(&smi_result);
+    movq(kScratchRegister, src1);
+    addq(kScratchRegister, src2);
+    j(overflow, on_not_smi_result);
+    movq(dst, kScratchRegister);
   } else {
     movq(dst, src1);
     addq(dst, src2);
@@ -727,15 +756,11 @@ void MacroAssembler::SmiSub(Register dst,
       movq(dst, src1);
       subq(dst, src2);
     }
-    Assert(no_overflow, "Smi substraction onverflow");
+    Assert(no_overflow, "Smi subtraction overflow");
   } else if (dst.is(src1)) {
+    cmpq(dst, src2);
+    j(overflow, on_not_smi_result);
     subq(dst, src2);
-    Label smi_result;
-    j(no_overflow, &smi_result);
-    // Restore src1.
-    addq(src1, src2);
-    jmp(on_not_smi_result);
-    bind(&smi_result);
   } else {
     movq(dst, src1);
     subq(dst, src2);
@@ -757,15 +782,12 @@ void MacroAssembler::SmiSub(Register dst,
       movq(dst, src1);
       subq(dst, src2);
     }
-    Assert(no_overflow, "Smi substraction onverflow");
+    Assert(no_overflow, "Smi subtraction overflow");
   } else if (dst.is(src1)) {
-    subq(dst, src2);
-    Label smi_result;
-    j(no_overflow, &smi_result);
-    // Restore src1.
-    addq(src1, src2);
-    jmp(on_not_smi_result);
-    bind(&smi_result);
+    movq(kScratchRegister, src1);
+    subq(kScratchRegister, src2);
+    j(overflow, on_not_smi_result);
+    movq(src1, kScratchRegister);
   } else {
     movq(dst, src1);
     subq(dst, src2);
@@ -883,12 +905,9 @@ void MacroAssembler::SmiAddConstant(Register dst,
     ASSERT(!dst.is(kScratchRegister));
 
     Move(kScratchRegister, constant);
-    addq(dst, kScratchRegister);
-    Label result_ok;
-    j(no_overflow, &result_ok);
-    subq(dst, kScratchRegister);
-    jmp(on_not_smi_result);
-    bind(&result_ok);
+    addq(kScratchRegister, dst);
+    j(overflow, on_not_smi_result);
+    movq(dst, kScratchRegister);
   } else {
     Move(dst, constant);
     addq(dst, src);
@@ -910,10 +929,12 @@ void MacroAssembler::SmiSubConstant(Register dst, Register src, Smi* constant) {
   } else {
     // Subtract by adding the negative, to do it in two operations.
     if (constant->value() == Smi::kMinValue) {
-      Move(kScratchRegister, constant);
-      movq(dst, src);
-      subq(dst, kScratchRegister);
+      Move(dst, constant);
+      // Adding and subtracting the min-value gives the same result, it only
+      // differs on the overflow bit, which we don't check here.
+      addq(dst, src);
     } else {
+      // Subtract by adding the negation.
       Move(dst, Smi::FromInt(-constant->value()));
       addq(dst, src);
     }
@@ -931,21 +952,32 @@ void MacroAssembler::SmiSubConstant(Register dst,
     }
   } else if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
-
-    Move(kScratchRegister, constant);
-    subq(dst, kScratchRegister);
-    Label sub_success;
-    j(no_overflow, &sub_success);
-    addq(src, kScratchRegister);
-    jmp(on_not_smi_result);
-    bind(&sub_success);
+    if (constant->value() == Smi::kMinValue) {
+      // Subtracting min-value from any non-negative value will overflow.
+      // We test the non-negativeness before doing the subtraction.
+      testq(src, src);
+      j(not_sign, on_not_smi_result);
+      Move(kScratchRegister, constant);
+      subq(dst, kScratchRegister);
+    } else {
+      // Subtract by adding the negation.
+      Move(kScratchRegister, Smi::FromInt(-constant->value()));
+      addq(kScratchRegister, dst);
+      j(overflow, on_not_smi_result);
+      movq(dst, kScratchRegister);
+    }
   } else {
     if (constant->value() == Smi::kMinValue) {
-      Move(kScratchRegister, constant);
-      movq(dst, src);
-      subq(dst, kScratchRegister);
-      j(overflow, on_not_smi_result);
+      // Subtracting min-value from any non-negative value will overflow.
+      // We test the non-negativeness before doing the subtraction.
+      testq(src, src);
+      j(not_sign, on_not_smi_result);
+      Move(dst, constant);
+      // Adding and subtracting the min-value gives the same result, it only
+      // differs on the overflow bit, which we don't check here.
+      addq(dst, src);
     } else {
+      // Subtract by adding the negation.
       Move(dst, Smi::FromInt(-(constant->value())));
       addq(dst, src);
       j(overflow, on_not_smi_result);
@@ -1693,6 +1725,17 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
   Condition is_smi = CheckSmi(object);
   Assert(is_smi, "Operand not a smi");
 }
+
+
+void MacroAssembler::AbortIfNotRootValue(Register src,
+                                         Heap::RootListIndex root_value_index,
+                                         const char* message) {
+  ASSERT(!src.is(kScratchRegister));
+  LoadRoot(kScratchRegister, root_value_index);
+  cmpq(src, kScratchRegister);
+  Check(equal, message);
+}
+
 
 
 Condition MacroAssembler::IsObjectStringType(Register heap_object,

@@ -98,9 +98,11 @@ static int make_code(TypeCode type, int id) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 static int register_code(int reg) {
   return Debug::k_register_address << kDebugIdShift | reg;
 }
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 TEST(ExternalReferenceEncoder) {
@@ -113,8 +115,10 @@ TEST(ExternalReferenceEncoder) {
            Encode(encoder, Runtime::kAbort));
   CHECK_EQ(make_code(IC_UTILITY, IC::kLoadCallbackProperty),
            Encode(encoder, IC_Utility(IC::kLoadCallbackProperty)));
+#ifdef ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(make_code(DEBUG_ADDRESS, register_code(3)),
            Encode(encoder, Debug_Address(Debug::k_register_address, 3)));
+#endif  // ENABLE_DEBUGGER_SUPPORT
   ExternalReference keyed_load_function_prototype =
       ExternalReference(&Counters::keyed_load_function_prototype);
   CHECK_EQ(make_code(STATS_COUNTER, Counters::k_keyed_load_function_prototype),
@@ -131,8 +135,10 @@ TEST(ExternalReferenceEncoder) {
       ExternalReference::address_of_real_stack_limit();
   CHECK_EQ(make_code(UNCLASSIFIED, 5),
            encoder.Encode(real_stack_limit_address.address()));
+#ifdef ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(make_code(UNCLASSIFIED, 15),
            encoder.Encode(ExternalReference::debug_break().address()));
+#endif  // ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(make_code(UNCLASSIFIED, 10),
            encoder.Encode(ExternalReference::new_space_start().address()));
   CHECK_EQ(make_code(UNCLASSIFIED, 3),
@@ -150,8 +156,10 @@ TEST(ExternalReferenceDecoder) {
            decoder.Decode(make_code(RUNTIME_FUNCTION, Runtime::kAbort)));
   CHECK_EQ(AddressOf(IC_Utility(IC::kLoadCallbackProperty)),
            decoder.Decode(make_code(IC_UTILITY, IC::kLoadCallbackProperty)));
+#ifdef ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(AddressOf(Debug_Address(Debug::k_register_address, 3)),
            decoder.Decode(make_code(DEBUG_ADDRESS, register_code(3))));
+#endif  // ENABLE_DEBUGGER_SUPPORT
   ExternalReference keyed_load_function =
       ExternalReference(&Counters::keyed_load_function_prototype);
   CHECK_EQ(keyed_load_function.address(),
@@ -164,8 +172,10 @@ TEST(ExternalReferenceDecoder) {
            decoder.Decode(make_code(UNCLASSIFIED, 4)));
   CHECK_EQ(ExternalReference::address_of_real_stack_limit().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 5)));
+#ifdef ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(ExternalReference::debug_break().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 15)));
+#endif  // ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(ExternalReference::new_space_start().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 10)));
 }

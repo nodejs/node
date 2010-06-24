@@ -1747,9 +1747,11 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
     if ((mask & char_mask) == char_mask) need_mask = false;
     mask &= char_mask;
   } else {
-    // For 2-character preloads in ASCII mode we also use a 16 bit load with
-    // zero extend.
+    // For 2-character preloads in ASCII mode or 1-character preloads in
+    // TWO_BYTE mode we also use a 16 bit load with zero extend.
     if (details->characters() == 2 && compiler->ascii()) {
+      if ((mask & 0x7f7f) == 0x7f7f) need_mask = false;
+    } else if (details->characters() == 1 && !compiler->ascii()) {
       if ((mask & 0xffff) == 0xffff) need_mask = false;
     } else {
       if (mask == 0xffffffff) need_mask = false;

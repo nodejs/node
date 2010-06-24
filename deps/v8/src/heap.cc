@@ -1929,6 +1929,18 @@ Object* Heap::AllocateConsString(String* first, String* second) {
     return Failure::OutOfMemoryException();
   }
 
+  bool is_ascii_data_in_two_byte_string = false;
+  if (!is_ascii) {
+    // At least one of the strings uses two-byte representation so we
+    // can't use the fast case code for short ascii strings below, but
+    // we can try to save memory if all chars actually fit in ascii.
+    is_ascii_data_in_two_byte_string =
+        first->HasOnlyAsciiChars() && second->HasOnlyAsciiChars();
+    if (is_ascii_data_in_two_byte_string) {
+      Counters::string_add_runtime_ext_to_ascii.Increment();
+    }
+  }
+
   // If the resulting string is small make a flat string.
   if (length < String::kMinNonFlatLength) {
     ASSERT(first->IsFlat());
@@ -1955,22 +1967,13 @@ Object* Heap::AllocateConsString(String* first, String* second) {
       for (int i = 0; i < second_length; i++) *dest++ = src[i];
       return result;
     } else {
-      // For short external two-byte strings we check whether they can
-      // be represented using ascii.
-      if (!first_is_ascii) {
-        first_is_ascii = first->IsExternalTwoByteStringWithAsciiChars();
-      }
-      if (first_is_ascii && !second_is_ascii) {
-        second_is_ascii = second->IsExternalTwoByteStringWithAsciiChars();
-      }
-      if (first_is_ascii && second_is_ascii) {
+      if (is_ascii_data_in_two_byte_string) {
         Object* result = AllocateRawAsciiString(length);
         if (result->IsFailure()) return result;
         // Copy the characters into the new object.
         char* dest = SeqAsciiString::cast(result)->GetChars();
         String::WriteToFlat(first, dest, 0, first_length);
         String::WriteToFlat(second, dest + first_length, 0, second_length);
-        Counters::string_add_runtime_ext_to_ascii.Increment();
         return result;
       }
 
@@ -1984,7 +1987,8 @@ Object* Heap::AllocateConsString(String* first, String* second) {
     }
   }
 
-  Map* map = is_ascii ? cons_ascii_string_map() : cons_string_map();
+  Map* map = (is_ascii || is_ascii_data_in_two_byte_string) ?
+      cons_ascii_string_map() : cons_string_map();
 
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
@@ -2070,7 +2074,23 @@ Object* Heap::AllocateExternalStringFromTwoByte(
     return Failure::OutOfMemoryException();
   }
 
-  Map* map = Heap::external_string_map();
+  // For small strings we check whether the resource contains only
+  // ascii characters.  If yes, we use a different string map.
+  bool is_ascii = true;
+  if (length >= static_cast<size_t>(String::kMinNonFlatLength)) {
+    is_ascii = false;
+  } else {
+    const uc16* data = resource->data();
+    for (size_t i = 0; i < length; i++) {
+      if (data[i] > String::kMaxAsciiCharCode) {
+        is_ascii = false;
+        break;
+      }
+    }
+  }
+
+  Map* map = is_ascii ?
+      Heap::external_string_with_ascii_data_map() : Heap::external_string_map();
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
 
@@ -2243,6 +2263,12 @@ static void FlushCodeForFunction(SharedFunctionInfo* function_info) {
   FlushingStackVisitor threadvisitor(function_info->code());
   ThreadManager::IterateArchivedThreads(&threadvisitor);
   if (threadvisitor.FoundCode()) return;
+
+  // Check that there are heap allocated locals in the scopeinfo. If
+  // there is, we are potentially using eval and need the scopeinfo
+  // for variable resolution.
+  if (ScopeInfo<>::HasHeapAllocatedLocals(function_info->code()))
+    return;
 
   HandleScope scope;
   // Compute the lazy compilable version of the code.
@@ -2853,6 +2879,9 @@ Map* Heap::SymbolMapForString(String* string) {
   if (map == cons_ascii_string_map()) return cons_ascii_symbol_map();
   if (map == external_string_map()) return external_symbol_map();
   if (map == external_ascii_string_map()) return external_ascii_symbol_map();
+  if (map == external_string_with_ascii_data_map()) {
+    return external_symbol_with_ascii_data_map();
+  }
 
   // No match found.
   return NULL;

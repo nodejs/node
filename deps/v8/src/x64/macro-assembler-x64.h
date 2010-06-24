@@ -203,6 +203,9 @@ class MacroAssembler: public Assembler {
   // NOTICE: Destroys the dst register even if unsuccessful!
   void Integer32ToSmi(Register dst, Register src, Label* on_overflow);
 
+  // Stores an integer32 value into a memory field that already holds a smi.
+  void Integer32ToSmiField(const Operand& dst, Register src);
+
   // Adds constant to src and tags the result as a smi.
   // Result must be a valid smi.
   void Integer64PlusConstantToSmi(Register dst, Register src, int constant);
@@ -214,6 +217,7 @@ class MacroAssembler: public Assembler {
 
   // Convert smi to 64-bit integer (sign extended if necessary).
   void SmiToInteger64(Register dst, Register src);
+  void SmiToInteger64(Register dst, const Operand& src);
 
   // Multiply a positive smi's integer value by a power of two.
   // Provides result as 64-bit integer value.
@@ -234,6 +238,8 @@ class MacroAssembler: public Assembler {
   void SmiCompare(Register dst, const Operand& src);
   void SmiCompare(const Operand& dst, Register src);
   void SmiCompare(const Operand& dst, Smi* src);
+  // Compare the int32 in src register to the value of the smi stored at dst.
+  void SmiCompareInteger32(const Operand& dst, Register src);
   // Sets sign and zero flags depending on value of smi in register.
   void SmiTest(Register src);
 
@@ -549,6 +555,11 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is not a smi. Used in debug code.
   void AbortIfNotSmi(Register object);
+
+  // Abort execution if argument is not the root value with the given index.
+  void AbortIfNotRootValue(Register src,
+                           Heap::RootListIndex root_value_index,
+                           const char* message);
 
   // ---------------------------------------------------------------------------
   // Exception handling

@@ -112,6 +112,9 @@ class ScopeInfo BASE_EMBEDDED {
   // Return the number of context slots for code.
   static int NumberOfContextSlots(Code* code);
 
+  // Return if this has context slots besides MIN_CONTEXT_SLOTS;
+  static bool HasHeapAllocatedLocals(Code* code);
+
   // Lookup support for scope info embedded in Code objects. Returns
   // the stack slot index for a given slot name if the slot is
   // present; otherwise returns a value < 0. The name must be a symbol

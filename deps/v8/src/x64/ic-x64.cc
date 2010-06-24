@@ -893,19 +893,20 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- rdx     : receiver
   //  -- rsp[0]  : return address
   // -----------------------------------
-  Label slow, fast, array, extra, check_pixel_array;
+  Label slow, slow_with_tagged_index, fast, array, extra, check_pixel_array;
 
   // Check that the object isn't a smi.
-  __ JumpIfSmi(rdx, &slow);
+  __ JumpIfSmi(rdx, &slow_with_tagged_index);
   // Get the map from the receiver.
   __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
   // to do this because this generic stub does not perform map checks.
   __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
            Immediate(1 << Map::kIsAccessCheckNeeded));
-  __ j(not_zero, &slow);
+  __ j(not_zero, &slow_with_tagged_index);
   // Check that the key is a smi.
-  __ JumpIfNotSmi(rcx, &slow);
+  __ JumpIfNotSmi(rcx, &slow_with_tagged_index);
+  __ SmiToInteger32(rcx, rcx);
 
   __ CmpInstanceType(rbx, JS_ARRAY_TYPE);
   __ j(equal, &array);
@@ -916,27 +917,30 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Object case: Check key against length in the elements array.
   // rax: value
   // rdx: JSObject
-  // rcx: index (as a smi)
+  // rcx: index
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
                  Heap::kFixedArrayMapRootIndex);
   __ j(not_equal, &check_pixel_array);
-  __ SmiCompare(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
+  __ SmiCompareInteger32(FieldOperand(rbx, FixedArray::kLengthOffset), rcx);
   // rax: value
   // rbx: FixedArray
-  // rcx: index (as a smi)
-  __ j(below, &fast);
+  // rcx: index
+  __ j(above, &fast);
 
   // Slow case: call runtime.
   __ bind(&slow);
+  __ Integer32ToSmi(rcx, rcx);
+  __ bind(&slow_with_tagged_index);
   GenerateRuntimeSetProperty(masm);
+  // Never returns to here.
 
   // Check whether the elements is a pixel array.
   // rax: value
   // rdx: receiver
   // rbx: receiver's elements array
-  // rcx: index (as a smi), zero-extended.
+  // rcx: index, zero-extended.
   __ bind(&check_pixel_array);
   __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
                  Heap::kPixelArrayMapRootIndex);
@@ -944,21 +948,20 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Check that the value is a smi. If a conversion is needed call into the
   // runtime to convert and clamp.
   __ JumpIfNotSmi(rax, &slow);
-  __ SmiToInteger32(rdi, rcx);
-  __ cmpl(rdi, FieldOperand(rbx, PixelArray::kLengthOffset));
+  __ cmpl(rcx, FieldOperand(rbx, PixelArray::kLengthOffset));
   __ j(above_equal, &slow);
   // No more bailouts to slow case on this path, so key not needed.
-  __ SmiToInteger32(rcx, rax);
+  __ SmiToInteger32(rdi, rax);
   {  // Clamp the value to [0..255].
     Label done;
-    __ testl(rcx, Immediate(0xFFFFFF00));
+    __ testl(rdi, Immediate(0xFFFFFF00));
     __ j(zero, &done);
-    __ setcc(negative, rcx);  // 1 if negative, 0 if positive.
-    __ decb(rcx);  // 0 if negative, 255 if positive.
+    __ setcc(negative, rdi);  // 1 if negative, 0 if positive.
+    __ decb(rdi);  // 0 if negative, 255 if positive.
     __ bind(&done);
   }
   __ movq(rbx, FieldOperand(rbx, PixelArray::kExternalPointerOffset));
-  __ movb(Operand(rbx, rdi, times_1, 0), rcx);
+  __ movb(Operand(rbx, rcx, times_1, 0), rdi);
   __ ret(0);
 
   // Extra capacity case: Check if there is extra capacity to
@@ -968,14 +971,14 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rax: value
   // rdx: receiver (a JSArray)
   // rbx: receiver's elements array (a FixedArray)
-  // rcx: index (as a smi)
+  // rcx: index
   // flags: smicompare (rdx.length(), rbx)
   __ j(not_equal, &slow);  // do not leave holes in the array
-  __ SmiCompare(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
-  __ j(above_equal, &slow);
+  __ SmiCompareInteger32(FieldOperand(rbx, FixedArray::kLengthOffset), rcx);
+  __ j(below_equal, &slow);
   // Increment index to get new length.
-  __ SmiAddConstant(rdi, rcx, Smi::FromInt(1));
-  __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rdi);
+  __ leal(rdi, Operand(rcx, 1));
+  __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rdi);
   __ jmp(&fast);
 
   // Array case: Get the length and the elements array from the JS
@@ -984,7 +987,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&array);
   // rax: value
   // rdx: receiver (a JSArray)
-  // rcx: index (as a smi)
+  // rcx: index
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
   __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
                  Heap::kFixedArrayMapRootIndex);
@@ -992,26 +995,22 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
-  __ SmiCompare(FieldOperand(rdx, JSArray::kLengthOffset), rcx);
+  __ SmiCompareInteger32(FieldOperand(rdx, JSArray::kLengthOffset), rcx);
   __ j(below_equal, &extra);
 
   // Fast case: Do the store.
   __ bind(&fast);
   // rax: value
   // rbx: receiver's elements array (a FixedArray)
-  // rcx: index (as a smi)
+  // rcx: index
   Label non_smi_value;
-  __ JumpIfNotSmi(rax, &non_smi_value);
-  SmiIndex index = masm->SmiToIndex(rcx, rcx, kPointerSizeLog2);
-  __ movq(FieldOperand(rbx, index.reg, index.scale, FixedArray::kHeaderSize),
+  __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
           rax);
+  __ JumpIfNotSmi(rax, &non_smi_value);
   __ ret(0);
   __ bind(&non_smi_value);
   // Slow case that needs to retain rcx for use by RecordWrite.
   // Update write barrier for the elements array address.
-  SmiIndex index2 = masm->SmiToIndex(kScratchRegister, rcx, kPointerSizeLog2);
-  __ movq(FieldOperand(rbx, index2.reg, index2.scale, FixedArray::kHeaderSize),
-          rax);
   __ movq(rdx, rax);
   __ RecordWriteNonSmi(rbx, 0, rdx, rcx);
   __ ret(0);

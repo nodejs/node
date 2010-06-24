@@ -45,11 +45,6 @@
 namespace v8 {
 namespace internal {
 
-Condition NegateCondition(Condition cc) {
-  ASSERT(cc != al);
-  return static_cast<Condition>(cc ^ ne);
-}
-
 
 void RelocInfo::apply(intptr_t delta) {
   if (RelocInfo::IsInternalReference(rmode_)) {

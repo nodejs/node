@@ -34,9 +34,6 @@ bugs: FAIL
 # too long to run in debug mode on ARM.
 fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 
-# Issue 494: new snapshot code breaks mjsunit/apply on mac debug snapshot.
-apply: PASS, FAIL if ($system == macos && $mode == debug)
-
 big-object-literal: PASS, SKIP if ($arch == arm)
 
 # Issue 488: this test sometimes times out.

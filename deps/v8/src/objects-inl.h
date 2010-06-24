@@ -237,31 +237,20 @@ bool StringShape::IsSymbol() {
 
 bool String::IsAsciiRepresentation() {
   uint32_t type = map()->instance_type();
-  if ((type & kStringRepresentationMask) == kConsStringTag &&
-      ConsString::cast(this)->second()->length() == 0) {
-    return ConsString::cast(this)->first()->IsAsciiRepresentation();
-  }
   return (type & kStringEncodingMask) == kAsciiStringTag;
 }
 
 
 bool String::IsTwoByteRepresentation() {
   uint32_t type = map()->instance_type();
-  if ((type & kStringRepresentationMask) == kConsStringTag &&
-             ConsString::cast(this)->second()->length() == 0) {
-    return ConsString::cast(this)->first()->IsTwoByteRepresentation();
-  }
   return (type & kStringEncodingMask) == kTwoByteStringTag;
 }
 
 
-bool String::IsExternalTwoByteStringWithAsciiChars() {
-  if (!IsExternalTwoByteString()) return false;
-  const uc16* data = ExternalTwoByteString::cast(this)->resource()->data();
-  for (int i = 0, len = length(); i < len; i++) {
-    if (data[i] > kMaxAsciiCharCode) return false;
-  }
-  return true;
+bool String::HasOnlyAsciiChars() {
+  uint32_t type = map()->instance_type();
+  return (type & kStringEncodingMask) == kAsciiStringTag ||
+         (type & kAsciiDataHintMask) == kAsciiDataHintTag;
 }
 
 

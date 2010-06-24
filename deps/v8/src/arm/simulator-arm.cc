@@ -1859,7 +1859,9 @@ void Simulator::DecodeType01(Instr* instr) {
           SetNZFlags(alu_out);
           SetCFlag(shifter_carry_out);
         } else {
-          UNIMPLEMENTED();
+          // Format(instr, "movw'cond 'rd, 'imm").
+          alu_out = instr->ImmedMovwMovtField();
+          set_register(rd, alu_out);
         }
         break;
       }
@@ -1888,7 +1890,10 @@ void Simulator::DecodeType01(Instr* instr) {
           SetCFlag(!BorrowFrom(rn_val, shifter_operand));
           SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, false));
         } else {
-          UNIMPLEMENTED();
+          // Format(instr, "movt'cond 'rd, 'imm").
+          alu_out = (get_register(rd) & 0xffff) |
+              (instr->ImmedMovwMovtField() << 16);
+          set_register(rd, alu_out);
         }
         break;
       }

@@ -816,8 +816,13 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   __ push(other);
   __ push(receiver);  // receiver
   __ push(reg);  // holder
-  __ mov(other, Immediate(callback_handle));
-  __ push(FieldOperand(other, AccessorInfo::kDataOffset));  // data
+  // Push data from AccessorInfo.
+  if (Heap::InNewSpace(callback_handle->data())) {
+    __ mov(other, Immediate(callback_handle));
+    __ push(FieldOperand(other, AccessorInfo::kDataOffset));
+  } else {
+    __ push(Immediate(Handle<Object>(callback_handle->data())));
+  }
   __ push(name_reg);  // name
   // Save a pointer to where we pushed the arguments pointer.
   // This will be passed as the const AccessorInfo& to the C++ callback.

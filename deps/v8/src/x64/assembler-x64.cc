@@ -382,6 +382,11 @@ void Assembler::Align(int m) {
 }
 
 
+void Assembler::CodeTargetAlign() {
+  Align(16);  // Preferred alignment of jump targets on x64.
+}
+
+
 void Assembler::bind_to(Label* L, int pos) {
   ASSERT(!L->is_bound());  // Label may only be bound once.
   last_pc_ = NULL;
@@ -1145,6 +1150,15 @@ void Assembler::incl(const Operand& dst) {
   emit_optional_rex_32(dst);
   emit(0xFF);
   emit_operand(0, dst);
+}
+
+
+void Assembler::incl(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xFF);
+  emit_modrm(0, dst);
 }
 
 
@@ -2734,17 +2748,6 @@ void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0x51);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::comisd(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0f);
-  emit(0x2f);
   emit_sse_operand(dst, src);
 }
 

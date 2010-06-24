@@ -295,7 +295,6 @@ ScriptBreakPoint.prototype.update_positions = function(line, column) {
 }
 
 
-
 ScriptBreakPoint.prototype.hit_count = function() {
   return this.hit_count_;
 };
@@ -389,7 +388,10 @@ ScriptBreakPoint.prototype.set = function (script) {
   // Create a break point object and set the break point.
   break_point = MakeBreakPoint(pos, this.line(), this.column(), this);
   break_point.setIgnoreCount(this.ignoreCount());
-  %SetScriptBreakPoint(script, pos, break_point);
+  pos = %SetScriptBreakPoint(script, pos, break_point);
+  if (!IS_UNDEFINED(pos)) {
+    this.actual_location = script.locationFromPosition(pos);
+  }
 
   return break_point;
 };

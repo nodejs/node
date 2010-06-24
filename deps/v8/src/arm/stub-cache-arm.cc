@@ -336,9 +336,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ b(eq, &exit);
 
     // Update the write barrier for the array address.
-    // Pass the value being stored in the now unused name_reg.
-    __ mov(name_reg, Operand(offset));
-    __ RecordWrite(receiver_reg, name_reg, scratch);
+    // Pass the now unused name_reg as a scratch register.
+    __ RecordWrite(receiver_reg, Operand(offset), name_reg, scratch);
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
@@ -352,8 +351,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
     // Update the write barrier for the array address.
     // Ok to clobber receiver_reg and name_reg, since we return.
-    __ mov(name_reg, Operand(offset));
-    __ RecordWrite(scratch, name_reg, receiver_reg);
+    __ RecordWrite(scratch, Operand(offset), name_reg, receiver_reg);
   }
 
   // Return the value (register r0).
