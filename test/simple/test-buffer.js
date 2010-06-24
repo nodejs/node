@@ -6,7 +6,7 @@ var Buffer = require('buffer').Buffer;
 var b = new Buffer(1024);
 
 console.log("b.length == " + b.length);
-assert.equal(1024, b.length);
+assert.strictEqual(1024, b.length);
 
 for (var i = 0; i < 1024; i++) {
   assert.ok(b[i] >= 0);
@@ -19,12 +19,96 @@ for (var i = 0; i < 1024; i++) {
 
 var c = new Buffer(512);
 
-var copied = b.copy(c, 0, 0, 512);
-assert.equal(512, copied);
+// copy 512 bytes, from 0 to 511.
+var copied = b.copy(c, 0, 0, 511);
+console.log("copied " + copied + " bytes from b into c");
+assert.strictEqual(512, copied);
 for (var i = 0; i < c.length; i++) {
   print('.');
   assert.equal(i % 256, c[i]);
 }
+console.log("");
+
+// try to copy 513 bytes, and hope we don't overrun c, which is only 512 long
+var copied = b.copy(c, 0, 0, 512);
+console.log("copied " + copied + " bytes from b into c");
+assert.strictEqual(512, copied);
+for (var i = 0; i < c.length; i++) {
+  assert.equal(i % 256, c[i]);
+}
+
+// copy all of c back into b, without specifying sourceEnd
+var copied = c.copy(b, 0, 0);
+console.log("copied " + copied + " bytes from c back into b");
+assert.strictEqual(512, copied);
+for (var i = 0; i < b.length; i++) {
+  assert.equal(i % 256, b[i]);
+}
+
+// copy 768 bytes from b into b
+var copied = b.copy(b, 0, 256, 1023);
+console.log("copied " + copied + " bytes from b into c");
+assert.strictEqual(768, copied);
+for (var i = 0; i < c.length; i++) {
+  assert.equal(i % 256, c[i]);
+}
+
+var caught_error = null;
+
+// try to copy from before the beginning of b
+caught_error = null;
+try {
+    var copied = b.copy(c, 0, 100, 10);
+} catch (err) {
+    caught_error = err;
+}
+assert.strictEqual('sourceEnd < sourceStart', caught_error.message);
+
+// try to copy to before the beginning of c
+caught_error = null;
+try {
+    var copied = b.copy(c, -1, 0, 10);
+} catch (err) {
+    caught_error = err;
+}
+assert.strictEqual('targetStart out of bounds', caught_error.message);
+
+// try to copy to after the end of c
+caught_error = null;
+try {
+    var copied = b.copy(c, 512, 0, 10);
+} catch (err) {
+    caught_error = err;
+}
+assert.strictEqual('targetStart out of bounds', caught_error.message);
+
+// try to copy starting before the beginning of b
+caught_error = null;
+try {
+    var copied = b.copy(c, 0, -1, 1);
+} catch (err) {
+    caught_error = err;
+}
+assert.strictEqual('sourceStart out of bounds', caught_error.message);
+
+// try to copy starting after the end of b
+caught_error = null;
+try {
+    var copied = b.copy(c, 0, 1024, 1024);
+} catch (err) {
+    caught_error = err;
+}
+assert.strictEqual('sourceStart out of bounds', caught_error.message);
+
+// a too-low sourceEnd will get caught by earlier checks
+
+// try to copy ending after the end of b
+try {
+    var copied = b.copy(c, 0, 1023, 1024);
+} catch (err) { 
+    caught_error = err;
+}
+assert.strictEqual('sourceEnd out of bounds', caught_error.message);
 
 
 var asciiString = "hello world";

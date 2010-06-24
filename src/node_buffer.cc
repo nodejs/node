@@ -298,34 +298,41 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
   ssize_t target_start = args[1]->Int32Value();
   ssize_t source_start = args[2]->Int32Value();
   ssize_t source_end = args[3]->IsInt32() ? args[3]->Int32Value()
-                                          : source->length();
+                                          : (source->length() - 1);
 
   if (source_end < source_start) {
     return ThrowException(Exception::Error(String::New(
             "sourceEnd < sourceStart")));
   }
 
-  if (target_start < 0 || target_start > target->length()) {
+  if (target_start < 0 || target_start >= target->length()) {
     return ThrowException(Exception::Error(String::New(
             "targetStart out of bounds")));
   }
 
-  if (source_start < 0 || source_start > source->length()) {
+  if (source_start < 0 || source_start >= source->length()) {
     return ThrowException(Exception::Error(String::New(
             "sourceStart out of bounds")));
   }
 
-  if (source_end < 0 || source_end > source->length()) {
+  if (source_end < 0 || source_end >= source->length()) {
     return ThrowException(Exception::Error(String::New(
             "sourceEnd out of bounds")));
   }
 
-  ssize_t to_copy = MIN(source_end - source_start,
-                        target->length() - target_start);
+  ssize_t to_copy = MIN( (source_end - source_start + 1),
+                         (target->length() - target_start) );
 
-  memcpy((void*)(target->data() + target_start),
-         (const void*)(source->data() + source_start),
-         to_copy);
+  if (source->handle_->StrictEquals(target->handle_)) {
+    // need to use slightly slower memmove is the ranges might overlap
+    memmove((void*)(target->data() + target_start),
+      (const void*)(source->data() + source_start),
+      to_copy);
+  } else {
+    memcpy((void*)(target->data() + target_start),
+      (const void*)(source->data() + source_start),
+      to_copy);
+  }
 
   return scope.Close(Integer::New(to_copy));
 }

@@ -177,7 +177,7 @@ into `buf2`, starting at the 8th byte in `buf2`.
     buf1.copy(buf2, 8, 16, 20);
     console.log(buf2.toString('ascii', 0, 25));
 
-    // !!!!!!!!qrst!!!!!!!!!!!!!
+    // !!!!!!!!qrstu!!!!!!!!!!!!
     
 
 ### buffer.slice(start, end)
