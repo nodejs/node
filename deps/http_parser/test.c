@@ -519,6 +519,25 @@ const struct message requests[] =
   ,.body= ""
   }
 
+#define REPORT_REQ 18
+, {.name= "report request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "REPORT /test HTTP/1.1\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_REPORT
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/test"
+  ,.request_url= "/test"
+  ,.num_headers= 0
+  ,.headers= {}
+  ,.body= ""
+  }
+
 , {.name= NULL } /* sentinel */
 };
 
@@ -932,6 +951,19 @@ static http_parser_settings settings_count_body =
   ,.on_message_complete = message_complete_cb
   };
 
+static http_parser_settings settings_null =
+  {.on_message_begin = 0
+  ,.on_header_field = 0
+  ,.on_header_value = 0
+  ,.on_path = 0
+  ,.on_url = 0
+  ,.on_fragment = 0
+  ,.on_query_string = 0
+  ,.on_body = 0
+  ,.on_headers_complete = 0
+  ,.on_message_complete = 0
+  };
+
 void
 parser_init (enum http_parser_type type)
 {
@@ -1168,23 +1200,80 @@ test_message_count_body (const struct message *message)
 }
 
 void
-test_error (const char *buf)
+test_simple (const char *buf, int should_pass)
 {
   parser_init(HTTP_REQUEST);
 
   size_t parsed;
-
+  int pass;
   parsed = parse(buf, strlen(buf));
-  if (parsed != strlen(buf)) goto out;
+  pass = (parsed == strlen(buf));
   parsed = parse(NULL, 0);
-  if (parsed != 0) goto out;
+  pass &= (parsed == 0);
 
-  fprintf(stderr, "\n*** Error expected but none found ***\n\n%s", buf);
+  parser_free();
+
+  if (pass != should_pass) {
+    fprintf(stderr, "\n*** test_simple expected %s ***\n\n%s", should_pass ? "success" : "error", buf);
+    exit(1);
+  }
+}
+
+void
+test_header_overflow_error (int req)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ? "GET / HTTP/1.1\r\n" : "HTTP/1.0 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+
+  buf = "header-key: header-value\r\n";
+  int i;
+  for (i = 0; i < 10000; i++) {
+    if (http_parser_execute(&parser, &settings_null, buf, strlen(buf)) != strlen(buf)) {
+      //fprintf(stderr, "error found on iter %d\n", i);
+      return;
+    }
+  }
+
+  fprintf(stderr, "\n*** Error expected but none in header overflow test ***\n");
   exit(1);
+}
+
+void
+test_no_overflow_long_body (int req, size_t length)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  size_t i;
+  char buf1[3000];
+  size_t buf1len = sprintf(buf1, "%s\r\nConnection: Keep-Alive\r\nContent-Length: %zu\r\n\r\n",
+      req ? "POST / HTTP/1.0" : "HTTP/1.0 200 OK", length);
+  parsed = http_parser_execute(&parser, &settings_null, buf1, buf1len);
+  if (parsed != buf1len)
+    goto err;
+
+  for (i = 0; i < length; i++) {
+    char foo = 'a';
+    parsed = http_parser_execute(&parser, &settings_null, &foo, 1);
+    if (parsed != 1)
+      goto err;
+  }
+
+  parsed = http_parser_execute(&parser, &settings_null, buf1, buf1len);
+  if (parsed != buf1len) goto err;
   return;
 
-out:
-  parser_free();
+ err:
+  fprintf(stderr,
+          "\n*** error in test_no_overflow_long_body %s of length %zu ***\n",
+          req ? "REQUEST" : "RESPONSE",
+          length);
+  exit(1);
 }
 
 void
@@ -1410,6 +1499,16 @@ main (void)
   for (request_count = 0; requests[request_count].name; request_count++);
   for (response_count = 0; responses[response_count].name; response_count++);
 
+  //// OVERFLOW CONDITIONS
+
+  test_header_overflow_error(HTTP_REQUEST);
+  test_no_overflow_long_body(HTTP_REQUEST, 1000);
+  test_no_overflow_long_body(HTTP_REQUEST, 100000);
+
+  test_header_overflow_error(HTTP_RESPONSE);
+  test_no_overflow_long_body(HTTP_RESPONSE, 1000);
+  test_no_overflow_long_body(HTTP_RESPONSE, 100000);
+
   //// RESPONSES
 
   for (i = 0; i < response_count; i++) {
@@ -1476,8 +1575,36 @@ main (void)
   /// REQUESTS
 
 
-  test_error("hello world");
-  test_error("GET / HTP/1.1\r\n\r\n");
+  test_simple("hello world", 0);
+  test_simple("GET / HTP/1.1\r\n\r\n", 0);
+
+  test_simple("ASDF / HTTP/1.1\r\n\r\n", 0);
+  test_simple("PROPPATCHA / HTTP/1.1\r\n\r\n", 0);
+  test_simple("GETA / HTTP/1.1\r\n\r\n", 0);
+
+  static const char *all_methods[] = {
+    "DELETE",
+    "GET",
+    "HEAD",
+    "POST",
+    "PUT",
+    "CONNECT",
+    "OPTIONS",
+    "TRACE",
+    "COPY",
+    "LOCK",
+    "MKCOL",
+    "MOVE",
+    "PROPFIND",
+    "PROPPATCH",
+    "UNLOCK",
+    0 };
+  const char **this_method;
+  for (this_method = all_methods; *this_method; this_method++) {
+    char buf[200];
+    sprintf(buf, "%s / HTTP/1.1\r\n\r\n", *this_method);
+    test_simple(buf, 1);
+  }
 
   const char *dumbfuck2 =
     "GET / HTTP/1.1\r\n"
@@ -1514,7 +1641,7 @@ main (void)
     "\tRA==\r\n"
     "\t-----END CERTIFICATE-----\r\n"
     "\r\n";
-  test_error(dumbfuck2);
+  test_simple(dumbfuck2, 0);
 
 #if 0
   // NOTE(Wed Nov 18 11:57:27 CET 2009) this seems okay. we just read body
@@ -1526,7 +1653,7 @@ main (void)
                                            "Accept: */*\r\n"
                                            "\r\n"
                                            "HELLO";
-  test_error(bad_get_no_headers_no_body);
+  test_simple(bad_get_no_headers_no_body, 0);
 #endif
   /* TODO sending junk and large headers gets rejected */
 

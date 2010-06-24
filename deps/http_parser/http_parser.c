@@ -77,7 +77,30 @@ do {                                                                 \
 #define CLOSE "close"
 
 
-static const unsigned char lowcase[] =
+static const char *method_strings[] =
+  { "DELETE"
+  , "GET"
+  , "HEAD"
+  , "POST"
+  , "PUT"
+  , "CONNECT"
+  , "OPTIONS"
+  , "TRACE"
+  , "COPY"
+  , "LOCK"
+  , "MKCOL"
+  , "MOVE"
+  , "PROPFIND"
+  , "PROPPATCH"
+  , "UNLOCK"
+  , "REPORT"
+  , "MKACTIVITY"
+  , "CHECKOUT"
+  , "MERGE"
+  };
+
+
+static const char lowcase[256] =
   "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
   "\0\0\0\0\0\0\0\0\0\0\0\0\0-\0\0" "0123456789\0\0\0\0\0\0"
   "\0abcdefghijklmnopqrstuvwxyz\0\0\0\0_"
@@ -248,35 +271,6 @@ enum flags
 #endif
 
 
-#define ngx_str3_cmp(m, c0, c1, c2)                                           \
-    m[0] == c0 && m[1] == c1 && m[2] == c2
-
-#define ngx_str3Ocmp(m, c0, c1, c2, c3)                                       \
-    m[0] == c0 && m[2] == c2 && m[3] == c3
-
-#define ngx_str4cmp(m, c0, c1, c2, c3)                                        \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3
-
-#define ngx_str5cmp(m, c0, c1, c2, c3, c4)                                    \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3 && m[4] == c4
-
-#define ngx_str6cmp(m, c0, c1, c2, c3, c4, c5)                                \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3                      \
-        && m[4] == c4 && m[5] == c5
-
-#define ngx_str7_cmp(m, c0, c1, c2, c3, c4, c5, c6, c7)                       \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3                      \
-        && m[4] == c4 && m[5] == c5 && m[6] == c6
-
-#define ngx_str8cmp(m, c0, c1, c2, c3, c4, c5, c6, c7)                        \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3                      \
-        && m[4] == c4 && m[5] == c5 && m[6] == c6 && m[7] == c7
-
-#define ngx_str9cmp(m, c0, c1, c2, c3, c4, c5, c6, c7, c8)                    \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3                      \
-        && m[4] == c4 && m[5] == c5 && m[6] == c6 && m[7] == c7 && m[8] == c8
-
-
 size_t http_parser_execute (http_parser *parser,
                             const http_parser_settings *settings,
                             const char *data,
@@ -327,9 +321,10 @@ size_t http_parser_execute (http_parser *parser,
   for (p=data, pe=data+len; p != pe; p++) {
     ch = *p;
 
-    if (++nread > HTTP_MAX_HEADER_SIZE && PARSING_HEADER(state)) {
+    if (PARSING_HEADER(state)) {
+      ++nread;
       /* Buffer overflow attack */
-      goto error;
+      if (nread > HTTP_MAX_HEADER_SIZE) goto error;
     }
 
     switch (state) {
@@ -353,10 +348,7 @@ size_t http_parser_execute (http_parser *parser,
           state = s_res_or_resp_H;
         else {
           parser->type = HTTP_REQUEST;
-          if (ch < 'A' || 'Z' < ch) goto error;
-          parser->buffer[0] = ch;
-          index = 0;
-          state = s_req_method;
+          goto start_req_method_assign;
         }
         break;
       }
@@ -366,12 +358,10 @@ size_t http_parser_execute (http_parser *parser,
           parser->type = HTTP_RESPONSE;
           state = s_res_HT;
         } else {
-          if (ch < 'A' || 'Z' < ch) goto error;
+          if (ch != 'E') goto error;
           parser->type = HTTP_REQUEST;
-          parser->method = (enum http_method) 0;
-          parser->buffer[0] = 'H';
-          parser->buffer[1] = ch;
-          index = 1;
+          parser->method = HTTP_HEAD;
+          index = 2;
           state = s_req_method;
         }
         break;
@@ -534,128 +524,64 @@ size_t http_parser_execute (http_parser *parser,
 
         if (ch < 'A' || 'Z' < ch) goto error;
 
+      start_req_method_assign:
         parser->method = (enum http_method) 0;
-        index = 0;
-        parser->buffer[0] = ch;
+        index = 1;
+        switch (ch) {
+          case 'C': parser->method = HTTP_CONNECT; /* or COPY, CHECKOUT */ break;
+          case 'D': parser->method = HTTP_DELETE; break;
+          case 'G': parser->method = HTTP_GET; break;
+          case 'H': parser->method = HTTP_HEAD; break;
+          case 'L': parser->method = HTTP_LOCK; break;
+          case 'M': parser->method = HTTP_MKCOL; /* or MOVE, MKACTIVITY, MERGE */ break;
+          case 'O': parser->method = HTTP_OPTIONS; break;
+          case 'P': parser->method = HTTP_POST; /* or PROPFIND or PROPPATCH or PUT */ break;
+          case 'R': parser->method = HTTP_REPORT; break;
+          case 'T': parser->method = HTTP_TRACE; break;
+          case 'U': parser->method = HTTP_UNLOCK; break;
+          default: goto error;
+        }
         state = s_req_method;
         break;
       }
 
       case s_req_method:
-        if (ch == ' ') {
-          assert(index+1 < HTTP_PARSER_MAX_METHOD_LEN);
-          parser->buffer[index+1] = '\0';
+      {
+        if (ch == '\0')
+          goto error;
 
-          switch (index+1) {
-            case 3:
-              if (ngx_str3_cmp(parser->buffer, 'G', 'E', 'T')) {
-                parser->method = HTTP_GET;
-                break;
-              }
-
-              if (ngx_str3_cmp(parser->buffer, 'P', 'U', 'T')) {
-                parser->method = HTTP_PUT;
-                break;
-              }
-
-              break;
-
-            case 4:
-              if (ngx_str4cmp(parser->buffer, 'P', 'O', 'S', 'T')) {
-                parser->method = HTTP_POST;
-                break;
-              }
-
-              if (ngx_str4cmp(parser->buffer, 'H', 'E', 'A', 'D')) {
-                parser->method = HTTP_HEAD;
-                break;
-              }
-
-              if (ngx_str4cmp(parser->buffer, 'C', 'O', 'P', 'Y')) {
-                parser->method = HTTP_COPY;
-                break;
-              }
-
-              if (ngx_str4cmp(parser->buffer, 'M', 'O', 'V', 'E')) {
-                parser->method = HTTP_MOVE;
-                break;
-              }
-
-              break;
-
-            case 5:
-              if (ngx_str5cmp(parser->buffer, 'M', 'K', 'C', 'O', 'L')) {
-                parser->method = HTTP_MKCOL;
-                break;
-              }
-
-              if (ngx_str5cmp(parser->buffer, 'T', 'R', 'A', 'C', 'E')) {
-                parser->method = HTTP_TRACE;
-                break;
-              }
-
-              break;
-
-            case 6:
-              if (ngx_str6cmp(parser->buffer, 'D', 'E', 'L', 'E', 'T', 'E')) {
-                parser->method = HTTP_DELETE;
-                break;
-              }
-
-              if (ngx_str6cmp(parser->buffer, 'U', 'N', 'L', 'O', 'C', 'K')) {
-                parser->method = HTTP_UNLOCK;
-                break;
-              }
-
-              break;
-
-            case 7:
-              if (ngx_str7_cmp(parser->buffer,
-                    'O', 'P', 'T', 'I', 'O', 'N', 'S', '\0')) {
-                parser->method = HTTP_OPTIONS;
-                break;
-              }
-
-              if (ngx_str7_cmp(parser->buffer,
-                    'C', 'O', 'N', 'N', 'E', 'C', 'T', '\0')) {
-                parser->method = HTTP_CONNECT;
-                break;
-              }
-
-              break;
-
-            case 8:
-              if (ngx_str8cmp(parser->buffer,
-                    'P', 'R', 'O', 'P', 'F', 'I', 'N', 'D')) {
-                parser->method = HTTP_PROPFIND;
-                break;
-              }
-
-              break;
-
-            case 9:
-              if (ngx_str9cmp(parser->buffer,
-                    'P', 'R', 'O', 'P', 'P', 'A', 'T', 'C', 'H')) {
-                parser->method = HTTP_PROPPATCH;
-                break;
-              }
-
-              break;
-          }
+        const char *matcher = method_strings[parser->method];
+        if (ch == ' ' && matcher[index] == '\0') {
           state = s_req_spaces_before_url;
-          break;
-        }
-
-        if (ch < 'A' || 'Z' < ch) goto error;
-
-        if (++index >= HTTP_PARSER_MAX_METHOD_LEN - 1) {
+        } else if (ch == matcher[index]) {
+          ; // nada
+        } else if (parser->method == HTTP_CONNECT) {
+          if (index == 1 && ch == 'H') {
+            parser->method = HTTP_CHECKOUT;
+          } else if (index == 2  && ch == 'P') {
+            parser->method = HTTP_COPY;
+          }
+        } else if (parser->method == HTTP_MKCOL) {
+          if (index == 1 && ch == 'O') {
+            parser->method = HTTP_MOVE;
+          } else if (index == 1 && ch == 'E') {
+            parser->method = HTTP_MERGE;
+          } else if (index == 2 && ch == 'A') {
+            parser->method = HTTP_MKACTIVITY;
+          }
+        } else if (index == 1 && parser->method == HTTP_POST && ch == 'R') {
+          parser->method = HTTP_PROPFIND; /* or HTTP_PROPPATCH */
+        } else if (index == 1 && parser->method == HTTP_POST && ch == 'U') {
+          parser->method = HTTP_PUT;
+        } else if (index == 4 && parser->method == HTTP_PROPFIND && ch == 'P') {
+          parser->method = HTTP_PROPPATCH;
+        } else {
           goto error;
         }
 
-        parser->buffer[index] = ch;
-
+        ++index;
         break;
-
+      }
       case s_req_spaces_before_url:
       {
         if (ch == ' ') break;
@@ -1069,7 +995,7 @@ size_t http_parser_execute (http_parser *parser,
 
       case s_header_field:
       {
-        c = lowcase[(int)ch];
+        c = lowcase[(unsigned char)ch];
 
         if (c) {
           switch (header_state) {
@@ -1205,7 +1131,7 @@ size_t http_parser_execute (http_parser *parser,
         state = s_header_value;
         index = 0;
 
-        c = lowcase[(int)ch];
+        c = lowcase[(unsigned char)ch];
 
         if (!c) {
           if (ch == CR) {
@@ -1266,7 +1192,7 @@ size_t http_parser_execute (http_parser *parser,
 
       case s_header_value:
       {
-        c = lowcase[(int)ch];
+        c = lowcase[(unsigned char)ch];
 
         if (!c) {
           if (ch == CR) {
@@ -1378,7 +1304,6 @@ size_t http_parser_execute (http_parser *parser,
           break;
         }
 
-        parser->body_read = 0;
         nread = 0;
 
         if (parser->flags & F_UPGRADE) parser->upgrade = 1;
@@ -1439,12 +1364,12 @@ size_t http_parser_execute (http_parser *parser,
       }
 
       case s_body_identity:
-        to_read = MIN(pe - p, (ssize_t)(parser->content_length - parser->body_read));
+        to_read = MIN(pe - p, (ssize_t)parser->content_length);
         if (to_read > 0) {
           if (settings->on_body) settings->on_body(parser, p, to_read);
           p += to_read - 1;
-          parser->body_read += to_read;
-          if (parser->body_read == parser->content_length) {
+          parser->content_length -= to_read;
+          if (parser->content_length == 0) {
             CALLBACK2(message_complete);
             state = NEW_MESSAGE();
           }
@@ -1457,7 +1382,6 @@ size_t http_parser_execute (http_parser *parser,
         if (to_read > 0) {
           if (settings->on_body) settings->on_body(parser, p, to_read);
           p += to_read - 1;
-          parser->body_read += to_read;
         }
         break;
 
@@ -1598,6 +1522,12 @@ http_should_keep_alive (http_parser *parser)
 }
 
 
+const char * http_method_str (enum http_method m)
+{
+  return method_strings[m];
+}
+
+
 void
 http_parser_init (http_parser *parser, enum http_parser_type t)
 {
@@ -1606,4 +1536,3 @@ http_parser_init (http_parser *parser, enum http_parser_type t)
   parser->nread = 0;
   parser->upgrade = 0;
 }
-
