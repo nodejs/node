@@ -3,8 +3,6 @@ Buffer = require("buffer").Buffer;
 
 port = parseInt(process.env.PORT || 8000);
 
-var console.log = require("sys").console.log;
-
 var old = (process.argv[2] == 'old');
 
 console.log('pid ' + process.pid);
