@@ -57,10 +57,11 @@ Binary (`'binary'`).
 
 * `'ascii'` - for 7 bit ASCII data only.  This encoding method is very fast, and will
 strip the high bit if set.
-    
-* `'binary'` - for 8 bit binary data such as images.
 
 * `'utf8'` - Unicode characters.  Many web pages and other document formats use UTF-8.
+
+* `'binary'` - A legacy encoding. Used to store raw binary data in a string
+by only using the first 8 bits of every character. Don't use this.
 
 
 ### new Buffer(size)
