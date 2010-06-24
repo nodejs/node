@@ -24,7 +24,7 @@ c.addListener("connect", function () {
 });
 
 c.addListener("data", function (chunk) {
-  puts(chunk);
+  console.log(chunk);
   server_response += chunk;
 });
 

@@ -12,8 +12,8 @@ server.listen(PORT);
 http.cat("http://127.0.0.1:"+PORT+"/", "utf8", function (err, data) {
   if (err) throw err;
   assert.equal('string', typeof data);
-  puts('here is the response:');
+  console.log('here is the response:');
   assert.equal(UTF8_STRING, data);
-  puts(data);
+  console.log(data);
   server.close();
 })

@@ -12,8 +12,8 @@ nodePath = path.join(__dirname,
                      isDebug ? 'node_g' : 'node');
 nodePath = path.normalize(nodePath);
 
-puts('nodePath: ' + nodePath);
-puts('process.execPath: ' + process.execPath);
+console.log('nodePath: ' + nodePath);
+console.log('process.execPath: ' + process.execPath);
 
 
 assert.equal(nodePath, process.execPath);

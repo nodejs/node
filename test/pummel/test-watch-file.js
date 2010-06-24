@@ -6,12 +6,12 @@ var path = require("path");
 var f = path.join(fixturesDir, "x.txt");
 var f2 = path.join(fixturesDir, "x2.txt");
 
-puts("watching for changes of " + f);
+console.log("watching for changes of " + f);
 
 var changes = 0;
 function watchFile () {
   fs.watchFile(f, function (curr, prev) {
-    puts(f + " change");
+    console.log(f + " change");
     changes++;
     assert.ok(curr.mtime != prev.mtime);
     fs.unwatchFile(f);

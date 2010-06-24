@@ -10,7 +10,7 @@ server = http.createServer(function (req, res) {
   res.writeHeader(200 , { 'Content-Length': body.length.toString()
                         , 'Content-Type': 'text/plain'
                         });
-  sys.puts('method: ' + req.method);
+  console.log('method: ' + req.method);
   if (req.method != 'HEAD') res.write(body);
   res.end();
 });
@@ -22,7 +22,7 @@ server.addListener('listening', function() {
   var client = http.createClient(PORT);
   var request = client.request("HEAD", "/");
   request.addListener('response', function (response) {
-    sys.puts('got response');
+    console.log('got response');
     response.addListener("data", function () {
       process.exit(2);
     });

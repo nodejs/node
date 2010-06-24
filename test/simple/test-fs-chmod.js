@@ -10,7 +10,7 @@ fs.chmod(file, 0777, function (err) {
   if (err) {
     got_error = true;
   } else {
-    puts(fs.statSync(file).mode);
+    console.log(fs.statSync(file).mode);
     assert.equal(0777, fs.statSync(file).mode & 0777);
     
     fs.chmodSync(file, 0644);

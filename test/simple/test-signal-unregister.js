@@ -13,14 +13,14 @@ child.addListener('exit', function () {
 });
 
 setTimeout(function () {
-  sys.puts("Sending SIGINT");
+  console.log("Sending SIGINT");
   child.kill("SIGINT");
   setTimeout(function () {
-    sys.puts("Chance has been given to die");
+    console.log("Chance has been given to die");
     done = true;
     if (!childKilled) {
       // Cleanup
-      sys.puts("Child did not die on SIGINT, sending SIGTERM");
+      console.log("Child did not die on SIGINT, sending SIGTERM");
       child.kill("SIGTERM");
     }
   }, 200);

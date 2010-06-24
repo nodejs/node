@@ -6,13 +6,13 @@ var done = [];
 
 function get_printer(timeout) {
   return function () {
-    sys.puts("Running from setTimeout " + timeout);
+    console.log("Running from setTimeout " + timeout);
     done.push(timeout);
   };
 }
 
 process.nextTick(function () {
-  sys.puts("Running from nextTick");
+  console.log("Running from nextTick");
   done.push('nextTick');
 })
 
@@ -20,7 +20,7 @@ for (i = 0; i < N; i += 1) {
   setTimeout(get_printer(i), i);
 }
 
-sys.puts("Running from main.");
+console.log("Running from main.");
 
 
 process.addListener('exit', function () {

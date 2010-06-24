@@ -27,7 +27,7 @@ server.addListener('listening', function () {
        requests_ok++;
      }
      if (requests_complete == request_count) {
-       puts("\nrequests ok: " + requests_ok);
+       console.log("\nrequests ok: " + requests_ok);
        server.close();
      }
    });

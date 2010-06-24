@@ -5,7 +5,7 @@ http = require('http');
 assert = require('assert');
 
 server = http.createServer(function (request, response) {
-  sys.puts('responding to ' + request.url);
+  console.log('responding to ' + request.url);
 
   response.writeHead(200, {'Content-Type': 'text/plain'});
   response.write('1\n');

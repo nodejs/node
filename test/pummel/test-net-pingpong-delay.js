@@ -14,7 +14,7 @@ function pingPongTest (port, host, on_complete) {
     socket.setEncoding("utf8");
 
     socket.addListener("data", function (data) {
-      puts(data);
+      console.log(data);
       assert.equal("PING", data);
       assert.equal("open", socket.readyState);
       assert.equal(true, count <= N);
@@ -30,13 +30,13 @@ function pingPongTest (port, host, on_complete) {
     });
 
     socket.addListener("end", function () {
-      puts("server-side socket EOF");
+      console.log("server-side socket EOF");
       assert.equal("writeOnly", socket.readyState);
       socket.end();
     });
 
     socket.addListener("close", function (had_error) {
-      puts("server-side socket.end");
+      console.log("server-side socket.end");
       assert.equal(false, had_error);
       assert.equal("closed", socket.readyState);
       socket.server.close();
@@ -54,7 +54,7 @@ function pingPongTest (port, host, on_complete) {
   });
 
   client.addListener("data", function (data) {
-    puts(data);
+    console.log(data);
     assert.equal("PONG", data);
     assert.equal("open", client.readyState);
 
@@ -63,7 +63,7 @@ function pingPongTest (port, host, on_complete) {
       if (count++ < N) {
         client.write("PING");
       } else {
-        puts("closing client");
+        console.log("closing client");
         client.end();
         client_ended = true;
       }
@@ -76,7 +76,7 @@ function pingPongTest (port, host, on_complete) {
   });
 
   client.addListener("close", function () {
-    puts("client.end");
+    console.log("client.end");
     assert.equal(N+1, count);
     assert.ok(client_ended);
     if (on_complete) on_complete();

@@ -59,5 +59,5 @@ for (var j = 2; j < buffer.length; j++) {
     print(".");
   }
 }
-puts(" crayon!");
+console.log(" crayon!");
 

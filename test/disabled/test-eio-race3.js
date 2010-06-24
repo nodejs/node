@@ -3,16 +3,16 @@
 require("../common");
 
 
-puts('first stat ...');
+console.log('first stat ...');
 
 fs.stat(__filename)
   .addCallback( function(stats) {
-    puts('second stat ...');
+    console.log('second stat ...');
     fs.stat(__filename)
       .timeout(1000)
       .wait();
 
-    puts('test passed');
+    console.log('test passed');
   })
   .addErrback(function() {
     throw new Exception();

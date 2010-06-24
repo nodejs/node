@@ -8,13 +8,13 @@ setTimeout(function () {
   // require() calls..
   N = 30;
   for (var i=0; i < N; i++) {
-    puts("start " + i);
+    console.log("start " + i);
     fs.readFile(testTxt, function(err, data) {
       if (err) {
-        puts("error! " + e);
+        console.log("error! " + e);
         process.exit(1);
       } else {
-        puts("finish");
+        console.log("finish");
       }
     });
   }

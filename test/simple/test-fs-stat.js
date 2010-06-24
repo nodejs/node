@@ -56,7 +56,7 @@ fs.open(".", "r", undefined, function(err, fd) {
   fs.close(fd);
 });
 
-puts("stating: " + __filename);
+console.log("stating: " + __filename);
 fs.stat(__filename, function (err, s) {
   if (err) {
     got_error = true;
@@ -64,25 +64,25 @@ fs.stat(__filename, function (err, s) {
     p(s);
     success_count++;
 
-    puts("isDirectory: " + JSON.stringify( s.isDirectory() ) );
+    console.log("isDirectory: " + JSON.stringify( s.isDirectory() ) );
     assert.equal(false, s.isDirectory());
 
-    puts("isFile: " + JSON.stringify( s.isFile() ) );
+    console.log("isFile: " + JSON.stringify( s.isFile() ) );
     assert.equal(true, s.isFile());
 
-    puts("isSocket: " + JSON.stringify( s.isSocket() ) );
+    console.log("isSocket: " + JSON.stringify( s.isSocket() ) );
     assert.equal(false, s.isSocket());
 
-    puts("isBlockDevice: " + JSON.stringify( s.isBlockDevice() ) );
+    console.log("isBlockDevice: " + JSON.stringify( s.isBlockDevice() ) );
     assert.equal(false, s.isBlockDevice());
 
-    puts("isCharacterDevice: " + JSON.stringify( s.isCharacterDevice() ) );
+    console.log("isCharacterDevice: " + JSON.stringify( s.isCharacterDevice() ) );
     assert.equal(false, s.isCharacterDevice());
 
-    puts("isFIFO: " + JSON.stringify( s.isFIFO() ) );
+    console.log("isFIFO: " + JSON.stringify( s.isFIFO() ) );
     assert.equal(false, s.isFIFO());
 
-    puts("isSymbolicLink: " + JSON.stringify( s.isSymbolicLink() ) );
+    console.log("isSymbolicLink: " + JSON.stringify( s.isSymbolicLink() ) );
     assert.equal(false, s.isSymbolicLink());
 
     assert.ok(s.mtime instanceof Date);

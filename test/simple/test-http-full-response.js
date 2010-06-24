@@ -22,7 +22,7 @@ function runAb(opts, callback) {
   var command = "ab " + opts + " http://127.0.0.1:" + PORT + "/";
   exec(command, function (err, stdout, stderr) {
     if (err) {
-      puts("ab not installed? skipping test.\n" + stderr);
+      console.log("ab not installed? skipping test.\n" + stderr);
       process.exit();
       return;
     }
@@ -47,13 +47,13 @@ function runAb(opts, callback) {
 
 server.listen(PORT, function () {
   runAb("-c 1 -n 10", function () {
-    puts("-c 1 -n 10 okay");
+    console.log("-c 1 -n 10 okay");
 
     runAb("-c 1 -n 100", function () {
-      puts("-c 1 -n 100 okay");
+      console.log("-c 1 -n 100 okay");
 
       runAb("-c 1 -n 1000", function () {
-        puts("-c 1 -n 1000 okay");
+        console.log("-c 1 -n 1000 okay");
         server.close();
       });
     });

@@ -1,8 +1,8 @@
 var sys = require('sys');
 
-//sys.puts('puts before');
+//console.log('puts before');
 
 Object.prototype.xadsadsdasasdxx = function () {
 };
 
-sys.puts('puts after');
+console.log('puts after');

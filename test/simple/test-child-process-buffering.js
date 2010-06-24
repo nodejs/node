@@ -10,12 +10,12 @@ function pwd (callback) {
 
   child.stdout.setEncoding('utf8');
   child.stdout.addListener("data", function (s) {
-    puts("stdout: " + JSON.stringify(s));
+    console.log("stdout: " + JSON.stringify(s));
     output += s;
   });
 
   child.addListener("exit", function (c) {
-    puts("exit: " + c);
+    console.log("exit: " + c);
     assert.equal(0, c);
     callback(output);
     pwd_called = true;

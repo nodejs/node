@@ -30,21 +30,21 @@ client.addListener("data", function (d) {
 
 setTimeout(function () {
   chars_recved = recv.length;
-  puts("pause at: " + chars_recved);
+  console.log("pause at: " + chars_recved);
   assert.equal(true, chars_recved > 1);
   client.pause();
   setTimeout(function () {
-    puts("resume at: " + chars_recved);
+    console.log("resume at: " + chars_recved);
     assert.equal(chars_recved, recv.length);
     client.resume();
 
     setTimeout(function () {
       chars_recved = recv.length;
-      puts("pause at: " + chars_recved);
+      console.log("pause at: " + chars_recved);
       client.pause();
 
       setTimeout(function () {
-        puts("resume at: " + chars_recved);
+        console.log("resume at: " + chars_recved);
         assert.equal(chars_recved, recv.length);
         client.resume();
 

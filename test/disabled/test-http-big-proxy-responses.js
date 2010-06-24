@@ -30,7 +30,7 @@ var proxy = http.createServer(function (req, res) {
 
 
   c.addListener('error', function (e) {
-    puts('proxy client error. sent ' + sent);
+    console.log('proxy client error. sent ' + sent);
     throw e;
   });
 
@@ -86,7 +86,7 @@ function call_chargen(list) {
     req.end();
 
   } else {
-    sys.puts("End of list. closing servers");
+    console.log("End of list. closing servers");
     proxy.close();
     chargen.close();
     done = true;

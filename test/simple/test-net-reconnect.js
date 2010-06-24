@@ -16,30 +16,30 @@ var server = net.createServer(function (socket) {
   });
 
   socket.addListener("close", function (had_error) {
-    //puts("server had_error: " + JSON.stringify(had_error));
+    //console.log("server had_error: " + JSON.stringify(had_error));
     assert.equal(false, had_error);
   });
 });
 
 server.listen(PORT, function () {
-  puts('listening');
+  console.log('listening');
   var client = net.createConnection(PORT);
 
   client.setEncoding("UTF8");
 
   client.addListener("connect", function () {
-    puts("client connected.");
+    console.log("client connected.");
   });
 
   client.addListener("data", function (chunk) {
     client_recv_count += 1;
-    puts("client_recv_count " + client_recv_count);
+    console.log("client_recv_count " + client_recv_count);
     assert.equal("hello\r\n", chunk);
     client.end();
   });
 
   client.addListener("close", function (had_error) {
-    puts("disconnect");
+    console.log("disconnect");
     assert.equal(false, had_error);
     if (disconnect_count++ < N)
       client.connect(PORT); // reconnect

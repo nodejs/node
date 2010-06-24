@@ -9,7 +9,7 @@ try {
   have_openssl=true;
 } catch (e) {
   have_openssl=false;
-  puts("Not compiled with OPENSSL support.");
+  console.log("Not compiled with OPENSSL support.");
   process.exit();
 } 
 

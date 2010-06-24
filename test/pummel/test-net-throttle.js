@@ -2,13 +2,13 @@ require("../common");
 net = require("net");
 N = 160*1024; // 30kb
 
-puts("build big string");
+console.log("build big string");
 var body = "";
 for (var i = 0; i < N; i++) {
   body += "C";
 }
 
-puts("start server on port " + PORT);
+console.log("start server on port " + PORT);
 
 server = net.createServer(function (connection) {
   connection.addListener("connect", function () {
@@ -28,17 +28,17 @@ client = net.createConnection(PORT);
 client.setEncoding("ascii");
 client.addListener("data", function (d) {
   chars_recved += d.length;
-  puts("got " + chars_recved);
+  console.log("got " + chars_recved);
   if (!paused) {
     client.pause();
     npauses += 1;
     paused = true;
-    puts("pause");
+    console.log("pause");
     x = chars_recved;
     setTimeout(function () {
       assert.equal(chars_recved, x);
       client.resume();
-      puts("resume");
+      console.log("resume");
       paused = false;
     }, 100);
   }

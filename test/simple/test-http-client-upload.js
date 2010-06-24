@@ -10,13 +10,13 @@ var server = http.createServer(function(req, res) {
   req.setBodyEncoding("utf8");
 
   req.addListener('data', function (chunk) {
-    puts("server got: " + JSON.stringify(chunk));
+    console.log("server got: " + JSON.stringify(chunk));
     sent_body += chunk;
   });
 
   req.addListener('end', function () {
     server_req_complete = true;
-    puts("request complete from server");
+    console.log("request complete from server");
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.write('hello\n');
     res.end();
@@ -36,7 +36,7 @@ error("client finished sending request");
 req.addListener('response', function(res) {
   res.setEncoding("utf8");
   res.addListener('data', function(chunk) {
-    puts(chunk);
+    console.log(chunk);
   });
   res.addListener('end', function() {
     client_res_complete = true;

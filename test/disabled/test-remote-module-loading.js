@@ -27,7 +27,7 @@ var cmd = 'NODE_PATH='+libDir+' '+nodeBinary+' http://localhost:'+PORT+'/moduleB
 
 sys.exec(cmd, function (err, stdout, stderr) {
   if (err) throw err;
-  puts('success!');
+  console.log('success!');
   modulesLoaded++;
   server.close();
 });

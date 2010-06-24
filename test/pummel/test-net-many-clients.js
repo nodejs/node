@@ -44,7 +44,7 @@ function runClient (callback) {
   });
 
   client.addListener("error", function (e) {
-    puts("\n\nERROOOOOr");
+    console.log("\n\nERROOOOOr");
     throw e;
   });
 
@@ -54,7 +54,7 @@ function runClient (callback) {
     assert.equal(bytes, client.recved.length);
 
     if (client.fd) {
-      puts(client.fd);
+      console.log(client.fd);
     }
     assert.ok(!client.fd);
 
@@ -77,5 +77,5 @@ server.listen(PORT, function () {
 
 process.addListener("exit", function () {
   assert.equal(connections_per_client * concurrency, total_connections);
-  puts("\nokay!");
+  console.log("\nokay!");
 });

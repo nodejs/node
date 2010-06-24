@@ -187,6 +187,13 @@ process.openStdin = function () {
 };
 
 
+global.console = {};
+
+global.console.log = function (x) {
+  process.stdout.write(x + '\n');
+};
+
+
 process.exit = function (code) {
   process.emit("exit");
   process.reallyExit(code);
@@ -209,7 +216,7 @@ if (process.argv[1]) {
 } else {
   // No arguments, run the repl
   var repl = module.requireNative('repl');
-  process.stdout.write("Type '.help' for options.\n");
+  console.log("Type '.help' for options.");
   repl.start();
 }
 

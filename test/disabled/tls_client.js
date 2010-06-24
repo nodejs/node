@@ -15,14 +15,14 @@ var credentials = crypto.createCredentials({ca:caPem});
 
 client.setEncoding("UTF8");
 client.addListener("connect", function () {
-  sys.puts("client connected.");
+  console.log("client connected.");
   client.setSecure(credentials);
 });
 
 client.addListener("secure", function () {
-  sys.puts("client secure : "+JSON.stringify(client.getCipher()));
-  sys.puts(JSON.stringify(client.getPeerCertificate()));
-  sys.puts("verifyPeer : "+client.verifyPeer());
+  console.log("client secure : "+JSON.stringify(client.getCipher()));
+  console.log(JSON.stringify(client.getPeerCertificate()));
+  console.log("verifyPeer : "+client.verifyPeer());
   client.write("GET / HTTP/1.0\r\n\r\n");
 });
 
@@ -31,6 +31,6 @@ client.addListener("data", function (chunk) {
 });
 
 client.addListener("end", function () {
-  sys.puts("client disconnected.");
+  console.log("client disconnected.");
 });
 

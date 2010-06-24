@@ -1,11 +1,11 @@
 require("../common.js");
 http = require("/http.js");
 
-puts("hello world");
+console.log("hello world");
 
 var body = "exports.A = function() { return 'A';}";
 var server = http.createServer(function (req, res) {
-    puts("req?");
+    console.log("req?");
   res.sendHeader(200, {
     "Content-Length": body.length,
     "Content-Type": "text/plain"

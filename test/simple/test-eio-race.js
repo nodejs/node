@@ -4,19 +4,19 @@ var count = 100;
 var fs = require('fs');
 
 function tryToKillEventLoop() {
-  puts('trying to kill event loop ...');
+  console.log('trying to kill event loop ...');
 
   fs.stat(__filename, function (err) {
     if (err) {
       throw new Exception('first fs.stat failed')
     } else {
-      puts('first fs.stat succeeded ...');
+      console.log('first fs.stat succeeded ...');
       fs.stat(__filename, function (err) {
         if (err) {
           throw new Exception('second fs.stat failed')
         } else {
-          puts('second fs.stat succeeded ...');
-          puts('could not kill event loop, retrying...');
+          console.log('second fs.stat succeeded ...');
+          console.log('could not kill event loop, retrying...');
 
           setTimeout(function () {
             if (--count) {
@@ -41,7 +41,7 @@ fs.open('/dev/zero', "r", 0666, function (err, fd) {
       if (err) throw err;
       if (chunk) {
         pos += bytesRead;
-        //puts(pos);
+        //console.log(pos);
         readChunk();
       } else {
         fs.closeSync(fd);

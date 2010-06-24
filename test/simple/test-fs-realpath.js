@@ -241,7 +241,7 @@ var numtests = tests.length;
 function runNextTest(err) {
   if (err) throw err;
   var test = tests.shift()
-  if (!test) puts(numtests+' subtests completed OK for fs.realpath');
+  if (!test) console.log(numtests+' subtests completed OK for fs.realpath');
   else test(runNextTest);
 }
 runNextTest();

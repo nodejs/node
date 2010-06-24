@@ -22,7 +22,7 @@ function errExec (script, callback) {
     // Count the tests
     exits++;
 
-    puts('.');
+    console.log('.');
   });
 }
 

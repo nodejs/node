@@ -57,17 +57,17 @@ c.addListener("close", function () {
 });
 
 process.addListener("exit", function () {
-  puts("recv: " + JSON.stringify(recv));
+  console.log("recv: " + JSON.stringify(recv));
 
   assert.equal(2*256, recv.length);
 
   var a = recv.split("");
 
   var first = a.slice(0,256).reverse().join("");
-  puts("first: " + JSON.stringify(first));
+  console.log("first: " + JSON.stringify(first));
 
   var second = a.slice(256,2*256).join("");
-  puts("second: " + JSON.stringify(second));
+  console.log("second: " + JSON.stringify(second));
 
   assert.equal(first, second);
 });

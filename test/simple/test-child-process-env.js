@@ -8,7 +8,7 @@ response = "";
 child.stdout.setEncoding('utf8');
 
 child.stdout.addListener("data", function (chunk) {
-  puts("stdout: " + chunk);
+  console.log("stdout: " + chunk);
   response += chunk;
 });
 

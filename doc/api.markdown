@@ -6,15 +6,14 @@ node(1) -- evented I/O for V8 JavaScript
 An example of a web server written with Node which responds with 'Hello
 World':
 
-    var sys = require('sys'),
-      http = require('http');
+    var http = require('http');
 
     http.createServer(function (request, response) {
       response.writeHead(200, {'Content-Type': 'text/plain'});
       response.end('Hello World\n');
     }).listen(8124);
 
-    sys.puts('Server running at http://127.0.0.1:8124/');
+    console.log('Server running at http://127.0.0.1:8124/');
 
 To run the server, put the code into a file called `example.js` and execute
 it with the node program
@@ -85,13 +84,12 @@ of `'utf8'` encoding, the method will not write partial characters.
 
 Example: write a utf8 string into a buffer, then print it
 
-    var sys = require('sys'),
-      Buffer = require('buffer').Buffer,
+    var Buffer = require('buffer').Buffer,
       buf = new Buffer(256),
       len;
 
     len = buf.write('\u00bd + \u00bc = \u00be', 'utf8', 0);
-    sys.puts(len + " bytes: " + buf.toString('utf8', 0, len));
+    console.log(len + " bytes: " + buf.toString('utf8', 0, len));
 
     // 12 bytes: ½ + ¼ = ¾
     
@@ -111,8 +109,7 @@ so the legal range is between `0x00` and `0xFF` hex or `0` and `255`.
 
 Example: copy an ASCII string into a buffer, one byte at a time:
 
-    var sys = require('sys'),
-      Buffer = require('buffer').Buffer,
+    var Buffer = require('buffer').Buffer,
       str = "node.js",
       buf = new Buffer(str.length),
       i;
@@ -121,7 +118,7 @@ Example: copy an ASCII string into a buffer, one byte at a time:
       buf[i] = str.charCodeAt(i);
     }
 
-    sys.puts(buf);
+    console.log(buf);
 
     // node.js
 
@@ -134,11 +131,10 @@ string.
 
 Example:
 
-    var sys = require('sys'),
-      Buffer = require('buffer').Buffer,
+    var Buffer = require('buffer').Buffer,
       str = '\u00bd + \u00bc = \u00be';
 
-    sys.puts(str + ": " + str.length + " characters, " + 
+    console.log(str + ": " + str.length + " characters, " +
       Buffer.byteLength(str, 'utf8') + " bytes");
 
     // ½ + ¼ = ¾: 9 characters, 12 bytes
@@ -150,13 +146,12 @@ The size of the buffer in bytes.  Note that this is not necessarily the size
 of the contents. `length` refers to the amount of memory allocated for the 
 buffer object.  It does not change when the contents of the buffer are changed.
 
-    var sys = require('sys'),
-      Buffer = require('buffer').Buffer,
+    var Buffer = require('buffer').Buffer,
       buf = new Buffer(1234);
 
-    sys.puts(buf.length);
+    console.log(buf.length);
     buf.write("some string", "ascii", 0);
-    sys.puts(buf.length);
+    console.log(buf.length);
 
     // 1234
     // 1234
@@ -168,8 +163,7 @@ Does a memcpy() between buffers.
 Example: build two Buffers, then copy `buf1` from byte 16 through byte 20
 into `buf2`, starting at the 8th byte in `buf2`.
 
-    var sys = require('sys'),
-      Buffer = require('buffer').Buffer,
+    var Buffer = require('buffer').Buffer,
       buf1 = new Buffer(26),
       buf2 = new Buffer(26),
       i;
@@ -180,7 +174,7 @@ into `buf2`, starting at the 8th byte in `buf2`.
     }
 
     buf1.copy(buf2, 8, 16, 20);
-    sys.puts(buf2.toString('ascii', 0, 25));
+    console.log(buf2.toString('ascii', 0, 25));
 
     // !!!!!!!!qrst!!!!!!!!!!!!!
     
@@ -196,8 +190,7 @@ indexes.
 Example: build a Buffer with the ASCII alphabet, take a slice, then modify one byte
 from the original Buffer.
 
-    var sys = require('sys'),
-      Buffer = require('buffer').Buffer,
+    var Buffer = require('buffer').Buffer,
       buf1 = new Buffer(26), buf2,
       i;
   
@@ -206,9 +199,9 @@ from the original Buffer.
     }
 
     buf2 = buf1.slice(0, 3);
-    sys.puts(buf2.toString('ascii', 0, buf2.length));
+    console.log(buf2.toString('ascii', 0, buf2.length));
     buf1[0] = 33;
-    sys.puts(buf2.toString('ascii', 0, buf2.length));
+    console.log(buf2.toString('ascii', 0, buf2.length));
 
     // abc
     // !bc
@@ -254,7 +247,7 @@ terminate execution and display the exception's stack trace.
 Adds a listener to the end of the listeners array for the specified event.
 
     server.addListener('stream', function (stream) {
-      sys.puts('someone connected!');
+      console.log('someone connected!');
     });
 
 
@@ -415,10 +408,8 @@ An array of search paths for `require()`.  This array can be modified to add cus
 
 Example: add a new path to the beginning of the search list
 
-    var sys = require('sys');
-
     require.paths.unshift('/usr/local/node');
-    sys.puts(require.paths);
+    console.log(require.paths);
     // /usr/local/node,/Users/mjr/.node_libraries
 
 
@@ -433,9 +424,8 @@ The dirname of the script being executed.
 
 Example: running `node example.js` from `/Users/mjr`
 
-    var sys = require('sys');
-    sys.puts(__filename);
-    sys.puts(__dirname);
+    console.log(__filename);
+    console.log(__dirname);
     // /Users/mjr/example.js
     // /Users/mjr
 
@@ -464,13 +454,11 @@ timers may not be scheduled.
 
 Example of listening for `exit`:
 
-    var sys = require('sys');
-
     process.addListener('exit', function () {
       process.nextTick(function () {
-       sys.puts('This will not run');
+       console.log('This will not run');
       });
-      sys.puts('About to exit.');
+      console.log('About to exit.');
     });
 
 ### Event: 'uncaughtException'
@@ -483,19 +471,17 @@ a stack trace and exit) will not occur.
 
 Example of listening for `uncaughtException`:
 
-    var sys = require('sys');
-
     process.addListener('uncaughtException', function (err) {
-      sys.puts('Caught exception: ' + err);
+      console.log('Caught exception: ' + err);
     });
 
     setTimeout(function () {
-      sys.puts('This will still run.');
+      console.log('This will still run.');
     }, 500);
 
     // Intentionally cause an exception, but don't catch it.
     nonexistentFunc();
-    sys.puts('This will not run.');
+    console.log('This will not run.');
 
 Note that `uncaughtException` is a very crude mechanism for exception
 handling.  Using try / catch in your program will give you more control over
@@ -512,11 +498,10 @@ standard POSIX signal names such as SIGINT, SIGUSR1, etc.
 
 Example of listening for `SIGINT`:
 
-    var sys = require('sys'),
-        stdin = process.openStdin();
+    var stdin = process.openStdin();
 
     process.addListener('SIGINT', function () {
-      sys.puts('Got SIGINT.  Press Control-D to exit.');
+      console.log('Got SIGINT.  Press Control-D to exit.');
     });
 
 An easy way to send the `SIGINT` signal is with `Control-C` in most terminal
@@ -527,9 +512,9 @@ programs.
 
 A writable stream to `stdout`.
 
-Example: the definition of `sys.puts`
+Example: the definition of `console.log`
 
-    exports.puts = function (d) {
+    console.log = function (d) {
       process.stdout.write(d + '\n');
     };
 
@@ -560,10 +545,8 @@ An array containing the command line arguments.  The first element will be
 next elements will be any additional command line arguments.
 
     // print process.argv
-    var sys = require('sys');
-
     process.argv.forEach(function (val, index, array) {
-      sys.puts(index + ': ' + val);
+      console.log(index + ': ' + val);
     });
 
 This will generate:
@@ -585,15 +568,13 @@ This is the absolute pathname of the executable that started the process.
 
 Changes the current working directory of the process or throws an exception if that fails.
 
-    var sys = require('sys');
-
-    sys.puts('Starting directory: ' + process.cwd());
+    console.log('Starting directory: ' + process.cwd());
     try {
       process.chdir('/tmp');
-      sys.puts('New directory: ' + process.cwd());
+      console.log('New directory: ' + process.cwd());
     }
     catch (err) {
-      sys.puts('chdir: ' + err);
+      console.log('chdir: ' + err);
     }
 
 
@@ -605,14 +586,13 @@ will be used as a filename if a stack trace is generated by the compiled code.
 
 Example of using `process.compile` and `eval` to run the same code:
 
-    var sys = require('sys'),
-        localVar = 123,
+    var localVar = 123,
         compiled, evaled;
 
     compiled = process.compile('localVar = 1;', 'myfile.js');
-    sys.puts('localVar: ' + localVar + ', compiled: ' + compiled);
+    console.log('localVar: ' + localVar + ', compiled: ' + compiled);
     evaled = eval('localVar = 1;');
-    sys.puts('localVar: ' + localVar + ', evaled: ' + evaled);
+    console.log('localVar: ' + localVar + ', evaled: ' + evaled);
 
     // localVar: 123, compiled: 1
     // localVar: 1, evaled: 1
@@ -629,7 +609,7 @@ See also: `Script`
 
 Returns the current working directory of the process.
 
-    require('sys').puts('Current directory: ' + process.cwd());
+    console.log('Current directory: ' + process.cwd());
 
 
 ### process.env
@@ -653,15 +633,13 @@ The shell that executed node should see the exit code as 1.
 
 Gets/sets the group identity of the process. (See setgid(2).)  This is the numerical group id, not the group name.
 
-    var sys = require('sys');
-
-    sys.puts('Current gid: ' + process.getgid());
+    console.log('Current gid: ' + process.getgid());
     try {
       process.setgid(501);
-      sys.puts('New gid: ' + process.getgid());
+      console.log('New gid: ' + process.getgid());
     }
     catch (err) {
-      sys.puts('Failed to set gid: ' + err);
+      console.log('Failed to set gid: ' + err);
     }
 
 
@@ -669,15 +647,13 @@ Gets/sets the group identity of the process. (See setgid(2).)  This is the numer
 
 Gets/sets the user identity of the process. (See setuid(2).)  This is the numerical userid, not the username.
 
-    var sys = require('sys');
-
-    sys.puts('Current uid: ' + process.getuid());
+    console.log('Current uid: ' + process.getuid());
     try {
       process.setuid(501);
-      sys.puts('New uid: ' + process.getuid());
+      console.log('New uid: ' + process.getuid());
     }
     catch (err) {
-      sys.puts('Failed to set uid: ' + err);
+      console.log('Failed to set uid: ' + err);
     }
 
 
@@ -685,13 +661,13 @@ Gets/sets the user identity of the process. (See setuid(2).)  This is the numeri
 
 A compiled-in property that exposes `NODE_VERSION`.
 
-    require('sys').puts('Version: ' + process.version);
+    console.log('Version: ' + process.version);
 
 ### process.installPrefix
 
 A compiled-in property that exposes `NODE_PREFIX`.
 
-    require('sys').puts('Prefix: ' + process.installPrefix);
+    console.log('Prefix: ' + process.installPrefix);
 
 
 ### process.kill(pid, signal)
@@ -707,14 +683,12 @@ may do something other than kill the target process.
 
 Example of sending a signal to yourself:
 
-    var sys = require('sys');
-
     process.addListener('SIGHUP', function () {
-      sys.puts('Got SIGHUP signal.');
+      console.log('Got SIGHUP signal.');
     });
 
     setTimeout(function () {
-      sys.puts('Exiting.');
+      console.log('Exiting.');
       process.exit(0);
     }, 100);
 
@@ -725,14 +699,14 @@ Example of sending a signal to yourself:
 
 The PID of the process.
 
-    require('sys').puts('This process is pid ' + process.pid);
+    console.log('This process is pid ' + process.pid);
 
 
 ### process.platform
 
 What platform you're running on. `'linux2'`, `'darwin'`, etc.
 
-    require('sys').puts('This platform is ' + process.platform);
+    console.log('This platform is ' + process.platform);
 
 
 ### process.memoryUsage()
@@ -741,7 +715,7 @@ Returns an object describing the memory usage of the Node process.
 
     var sys = require('sys');
 
-    sys.puts(sys.inspect(process.memoryUsage()));
+    console.log(sys.inspect(process.memoryUsage()));
 
 This will generate:
 
@@ -760,10 +734,8 @@ On the next loop around the event loop call this callback.
 This is *not* a simple alias to `setTimeout(fn, 0)`, it's much more
 efficient.
 
-    var sys = require('sys');
-
     process.nextTick(function () {
-      sys.puts('nextTick callback');
+      console.log('nextTick callback');
     });
 
 
@@ -773,12 +745,11 @@ Sets or read the process's file mode creation mask. Child processes inherit
 the mask from the parent process. Returns the old mask if `mask` argument is
 given, otherwise returns the current mask.
 
-    var sys = require('sys'),
-        oldmask, newmask = 0644;
+    var oldmask, newmask = 0644;
 
     oldmask = process.umask(newmask);
-    sys.puts('Changed umask from: ' + oldmask.toString(8) +
-             ' to ' + newmask.toString(8));
+    console.log('Changed umask from: ' + oldmask.toString(8) +
+                ' to ' + newmask.toString(8));
 
 
 
@@ -788,16 +759,9 @@ These functions are in the module `'sys'`. Use `require('sys')` to access
 them.
 
 
-### sys.puts(string)
-
-Outputs `string` and a trailing newline to `stdout`.
-
-    require('sys').puts('String with a newline');
-
-
 ### sys.print(string)
 
-Like `puts()` but without the trailing newline.
+Like `console.log()` but without the trailing newline.
 
     require('sys').print('String with no newline');
 
@@ -834,7 +798,7 @@ Example of inspecting all properties of the `sys` object:
 
     var sys = require('sys');
 
-    sys.puts(sys.inspect(sys, true, null));
+    console.log(sys.inspect(sys, true, null));
 
 
 ### sys.pump(readableStream, writeableStream, [callback])
@@ -920,19 +884,18 @@ Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit cod
     });
 
     ls.addListener('exit', function (code) {
-      sys.puts('child process exited with code ' + code);
+      console.log('child process exited with code ' + code);
     });
 
 
 Example of checking for failed exec:
 
-    var sys   = require('sys'),
-        spawn = require('child_process').spawn,
+    var spawn = require('child_process').spawn,
         child = spawn('bad_command');
 
     child.stderr.addListener('data', function (data) {
       if (/^execvp\(\)/.test(data.asciiSlice(0,data.length))) {
-        sys.puts('Failed to start child process.');
+        console.log('Failed to start child process.');
       }
     });
 
@@ -945,12 +908,11 @@ See also: `child_process.exec()`
 Send a signal to the child process. If no argument is given, the process will
 be sent `'SIGTERM'`. See `signal(7)` for a list of available signals.
 
-    var sys   = require('sys'),
-        spawn = require('child_process').spawn,
+    var spawn = require('child_process').spawn,
         grep  = spawn('grep', ['ssh']);
 
     grep.addListener('exit', function (code, signal) {
-      sys.puts('child process terminated due to receipt of signal '+signal);
+      console.log('child process terminated due to receipt of signal '+signal);
     });
 
     // send SIGHUP to process
@@ -968,11 +930,10 @@ The PID of the child process.
 
 Example:
 
-    var sys   = require('sys'),
-        spawn = require('child_process').spawn,
+    var spawn = require('child_process').spawn,
         grep  = spawn('grep', ['ssh']);
 
-    sys.puts('Spawned child pid: ' + grep.pid);
+    console.log('Spawned child pid: ' + grep.pid);
     grep.stdin.end();
 
 
@@ -999,7 +960,7 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
 
     ps.addListener('exit', function (code) {
       if (code !== 0) {
-        sys.puts('ps process exited with code ' + code);
+        console.log('ps process exited with code ' + code);
       }
       grep.stdin.end();
     });
@@ -1014,7 +975,7 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
 
     grep.addListener('exit', function (code) {
       if (code !== 0) {
-        sys.puts('grep process exited with code ' + code);
+        console.log('grep process exited with code ' + code);
       }
     });
 
@@ -1025,12 +986,11 @@ Closes the child process's `stdin` stream.  This often causes the child process 
 
 Example:
 
-    var sys   = require('sys'),
-        spawn = require('child_process').spawn,
+    var spawn = require('child_process').spawn,
         grep  = spawn('grep', ['ssh']);
 
     grep.addListener('exit', function (code) {
-      sys.puts('child process exited with code ' + code);
+      console.log('child process exited with code ' + code);
     });
 
     grep.stdin.end();
@@ -1050,7 +1010,7 @@ output, and return it all in a callback.
         sys.print('stdout: ' + stdout);
         sys.print('stderr: ' + stderr);
         if (error !== null) {
-          sys.puts('exec error: ' + error);
+          console.log('exec error: ' + error);
         }
       });
 
@@ -1091,17 +1051,16 @@ runs it and returns the result. Running code does not have access to local scope
 
 Example of using `Script.runInThisContext` and `eval` to run the same code:
 
-    var sys = require('sys'),
-        localVar = 123,
+    var localVar = 123,
         usingscript, evaled,
         Script = process.binding('evals').Script;
 
     usingscript = Script.runInThisContext('localVar = 1;',
       'myfile.js');
-    sys.puts('localVar: ' + localVar + ', usingscript: ' +
+    console.log('localVar: ' + localVar + ', usingscript: ' +
       usingscript);
     evaled = eval('localVar = 1;');
-    sys.puts('localVar: ' + localVar + ', evaled: ' +
+    console.log('localVar: ' + localVar + ', evaled: ' +
       evaled);
 
     // localVar: 123, usingscript: 1
@@ -1133,7 +1092,7 @@ These globals are contained in the sandbox.
 
     Script.runInNewContext(
       'count += 1; name = "kitty"', sandbox, 'myfile.js');
-    sys.puts(sys.inspect(sandbox));
+    console.log(sys.inspect(sandbox));
 
     // { animal: 'cat', count: 3, name: 'kitty' }
 
@@ -1166,8 +1125,7 @@ Running code does not have access to local scope, but does have access to the `g
 
 Example of using `script.runInThisContext` to compile code once and run it multiple times:
 
-    var sys = require('sys'),
-        Script = process.binding('evals').Script,
+    var Script = process.binding('evals').Script,
         scriptObj, i;
     
     globalVar = 0;
@@ -1178,7 +1136,7 @@ Example of using `script.runInThisContext` to compile code once and run it multi
       scriptObj.runInThisContext();
     }
 
-    sys.puts(globalVar);
+    console.log(globalVar);
 
     // 1000
 
@@ -1207,7 +1165,7 @@ These globals are contained in the sandbox.
       scriptObj.runInNewContext(sandbox);
     }
 
-    sys.puts(sys.inspect(sandbox));
+    console.log(sys.inspect(sandbox));
 
     // { animal: 'cat', count: 12, name: 'kitty' }
 
@@ -1229,32 +1187,30 @@ completed successfully, then the first argument will be `null` or `undefined`.
 
 Here is an example of the asynchronous version:
 
-    var fs = require('fs'),
-        sys = require('sys');
+    var fs = require('fs');
 
     fs.unlink('/tmp/hello', function (err) {
       if (err) throw err;
-      sys.puts('successfully deleted /tmp/hello');
+      console.log('successfully deleted /tmp/hello');
     });
 
 Here is the synchronous version:
 
-    var fs = require('fs'),
-        sys = require('sys');
+    var fs = require('fs');
 
     fs.unlinkSync('/tmp/hello')
-    sys.puts('successfully deleted /tmp/hello');
+    console.log('successfully deleted /tmp/hello');
 
 With the asynchronous methods there is no guaranteed ordering. So the
 following is prone to error:
 
     fs.rename('/tmp/hello', '/tmp/world', function (err) {
       if (err) throw err;
-      sys.puts('renamed complete');
+      console.log('renamed complete');
     });
     fs.stat('/tmp/world', function (err, stats) {
       if (err) throw err;
-      sys.puts('stats: ' + JSON.stringify(stats));
+      console.log('stats: ' + JSON.stringify(stats));
     });
 
 It could be that `fs.stat` is executed before `fs.rename`.
@@ -1264,7 +1220,7 @@ The correct way to do this is to chain the callbacks.
       if (err) throw err;
       fs.stat('/tmp/world', function (err, stats) {
         if (err) throw err;
-        sys.puts('stats: ' + JSON.stringify(stats));
+        console.log('stats: ' + JSON.stringify(stats));
       });
     });
 
@@ -1448,7 +1404,7 @@ Asynchronously reads the entire contents of a file. Example:
 
     fs.readFile('/etc/passwd', function (err, data) {
       if (err) throw err;
-      sys.puts(data);
+      console.log(data);
     });
 
 The callback is passed two arguments `(err, data)`, where `data` is the
@@ -1471,7 +1427,7 @@ Asynchronously writes data to a file. Example:
 
     fs.writeFile('message.txt', 'Hello Node', function (err) {
       if (err) throw err;
-      sys.puts('It\'s saved!');
+      console.log('It\'s saved!');
     });
 
 ### fs.writeFileSync(filename, data, encoding='utf8')
@@ -1491,8 +1447,8 @@ The `listener` gets two arguments the current stat object and the previous
 stat object:
 
     fs.watchFile(f, function (curr, prev) {
-      sys.puts('the current mtime is: ' + curr.mtime);
-      sys.puts('the previous mtime was: ' + prev.mtime);
+      console.log('the current mtime is: ' + curr.mtime);
+      console.log('the previous mtime was: ' + prev.mtime);
     });
 
 These stat objects are instances of `fs.Stat`. 
@@ -1874,18 +1830,17 @@ stream. _Currently the implementation does not pipeline requests._
 
 Example of connecting to `google.com`:
 
-    var sys = require('sys'),
-       http = require('http');
+    var http = require('http');
     var google = http.createClient(80, 'www.google.com');
     var request = google.request('GET', '/',
       {'host': 'www.google.com'});
     request.end();
     request.addListener('response', function (response) {
-      sys.puts('STATUS: ' + response.statusCode);
-      sys.puts('HEADERS: ' + JSON.stringify(response.headers));
+      console.log('STATUS: ' + response.statusCode);
+      console.log('HEADERS: ' + JSON.stringify(response.headers));
       response.setEncoding('utf8');
       response.addListener('data', function (chunk) {
-        sys.puts('BODY: ' + chunk);
+        console.log('BODY: ' + chunk);
       });
     });
 
@@ -1950,7 +1905,7 @@ event, the entire body will be caught.
     // Good
     request.addListener('response', function (response) {
       response.addListener('data', function (chunk) {
-        sys.puts('BODY: ' + chunk);
+        console.log('BODY: ' + chunk);
       });
     });
 
@@ -1958,7 +1913,7 @@ event, the entire body will be caught.
     request.addListener('response', function (response) {
       setTimeout(function () {
         response.addListener('data', function (chunk) {
-          sys.puts('BODY: ' + chunk);
+          console.log('BODY: ' + chunk);
         });
       }, 10);
     });
@@ -2433,22 +2388,21 @@ Use `require('dns')` to access this module.
 Here is an example which resolves `'www.google.com'` then reverse
 resolves the IP addresses which are returned.
 
-    var dns = require('dns'),
-        sys = require('sys');
+    var dns = require('dns');
 
     dns.resolve4('www.google.com', function (err, addresses) {
       if (err) throw err;
 
-      sys.puts('addresses: ' + JSON.stringify(addresses));
+      console.log('addresses: ' + JSON.stringify(addresses));
 
       for (var i = 0; i < addresses.length; i++) {
         var a = addresses[i];
         dns.reverse(a, function (err, domains) {
           if (err) {
-            sys.puts('reverse for ' + a + ' failed: ' + 
+            console.log('reverse for ' + a + ' failed: ' +
               err.message);
           } else {
-            sys.puts('reverse for ' + a + ': ' + 
+            console.log('reverse for ' + a + ': ' +
               JSON.stringify(domains));
           }
         });
@@ -2789,7 +2743,7 @@ dropped into the REPL. It has simplistic emacs line-editting.
     node> a = [ 1, 2, 3];
     [ 1, 2, 3 ]
     node> a.forEach(function (v) {
-    ...   sys.puts(v);
+    ...   console.log(v);
     ...   });
     1
     2
@@ -2814,8 +2768,7 @@ will share the same global object but will have unique I/O.
 
 Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
 
-    var sys = require("sys"),
-        net = require("net"),
+    var net = require("net"),
         repl = require("repl");
 
     connections = 0;
@@ -2892,10 +2845,9 @@ one-to-one correspondence.  As an example, `foo.js` loads the module
 
 The contents of `foo.js`:
 
-    var circle = require('./circle'),
-        sys = require('sys');
-    sys.puts( 'The area of a circle of radius 4 is '
-      + circle.area(4));
+    var circle = require('./circle');
+    console.log( 'The area of a circle of radius 4 is '
+               + circle.area(4));
 
 The contents of `circle.js`:
 

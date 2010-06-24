@@ -11,17 +11,17 @@ var count = 0;
 
 child.stderr.setEncoding('utf8');
 child.stderr.addListener("data", function (data) {
-  puts("parent stderr: " + data);
+  console.log("parent stderr: " + data);
   assert.ok(false);
 });
 
 child.stderr.setEncoding('utf8');
 child.stdout.addListener("data", function (data) {
   count += data.length;
-  puts(count);
+  console.log(count);
 });
 
 child.addListener("exit", function (data) {
   assert.equal(n, count);
-  puts("okay");
+  console.log("okay");
 });

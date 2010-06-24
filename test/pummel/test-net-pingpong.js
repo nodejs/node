@@ -14,7 +14,7 @@ function pingPongTest (port, host, on_complete) {
     if (host === "127.0.0.1" || host === "localhost" || !host) {
       assert.equal(socket.remoteAddress, "127.0.0.1");
     } else {
-      puts('host = ' + host + ', remoteAddress = ' + socket.remoteAddress);
+      console.log('host = ' + host + ', remoteAddress = ' + socket.remoteAddress);
       assert.equal(socket.remoteAddress, "::1");
     }
 
@@ -23,7 +23,7 @@ function pingPongTest (port, host, on_complete) {
     socket.timeout = 0;
 
     socket.addListener("data", function (data) {
-      puts("server got: " + JSON.stringify(data));
+      console.log("server got: " + JSON.stringify(data));
       assert.equal("open", socket.readyState);
       assert.equal(true, count <= N);
       if (/PING/.exec(data)) {
@@ -54,7 +54,7 @@ function pingPongTest (port, host, on_complete) {
   });
 
   client.addListener("data", function (data) {
-    puts('client got: ' + data);
+    console.log('client got: ' + data);
 
     assert.equal("PONG", data);
     count += 1;

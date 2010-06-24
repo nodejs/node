@@ -27,7 +27,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
       assert.equal(verified, 1);
       assert.equal(peerDN, "C=UK,ST=Acknack Ltd,L=Rhys Jones,O=node.js,"
                            + "OU=Test TLS Certificate,CN=localhost");
-      puts("server got: " + JSON.stringify(data));
+      console.log("server got: " + JSON.stringify(data));
       assert.equal("open", socket.readyState);
       assert.equal(true, count <= N);
       if (/PING/.exec(data)) {
@@ -69,7 +69,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
     assert.equal("PONG", data);
     count += 1;
 
-    puts("client got PONG");
+    console.log("client got PONG");
 
     if (sent_final_ping) {
       assert.equal("readOnly", client.readyState);
@@ -117,6 +117,6 @@ if (have_tls) {
     assert.equal(2, tests_run);
   });
 } else {
-  puts("Not compiled with TLS support -- skipping test");
+  console.log("Not compiled with TLS support -- skipping test");
   process.exit(0);
 }

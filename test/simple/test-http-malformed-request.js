@@ -10,7 +10,7 @@ nrequests_completed = 0;
 nrequests_expected = 1;
 
 var s = http.createServer(function (req, res) {
-  puts("req: " + JSON.stringify(url.parse(req.url)));
+  console.log("req: " + JSON.stringify(url.parse(req.url)));
 
   res.writeHead(200, {"Content-Type": "text/plain"});
   res.write("Hello World");

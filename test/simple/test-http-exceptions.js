@@ -21,7 +21,7 @@ function check_reqs() {
     }
   });
   if (done_reqs === 4) {
-    sys.puts("Got all requests, which is bad.");
+    console.log("Got all requests, which is bad.");
     clearTimeout(timer);
   }
 }
@@ -60,7 +60,7 @@ server.listen(PORT, function () {
 });
 
 function exception_handler(err) {
-  sys.puts("Caught an exception: " + err);
+  console.log("Caught an exception: " + err);
   if (err.name === "AssertionError") {
     throw(err);
   }

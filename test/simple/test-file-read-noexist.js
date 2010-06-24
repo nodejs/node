@@ -15,6 +15,6 @@ fs.readFile(filename, "raw", function (err, content) {
 });
 
 process.addListener("exit", function () {
-  puts("done");
+  console.log("done");
   assert.equal(true, got_error);
 });

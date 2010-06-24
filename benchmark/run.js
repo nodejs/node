@@ -22,9 +22,9 @@ function runNext (i) {
   sys.print(benchmarks[i] + ": ");
   exec(benchmarks[i], function (elapsed, code) {
     if (code != 0) {
-      sys.puts("ERROR  ");
+      console.log("ERROR  ");
     }
-    sys.puts(elapsed);
+    console.log(elapsed);
     runNext(i+1);
   });
 };

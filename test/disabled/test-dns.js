@@ -126,7 +126,7 @@ function cmpResults(expected, result, ttl, cname) {
     if (expected.length == 1 && expected[0] == '3(NXDOMAIN)' && result.length == 0) {
       // it's ok, dig returns NXDOMAIN, while dns module returns nothing
     } else {
-      puts('---WARNING---\nexpected ' + expected + '\nresult ' + result + '\n-------------');
+      console.log('---WARNING---\nexpected ' + expected + '\nresult ' + result + '\n-------------');
     }
     return;
   }
@@ -136,6 +136,6 @@ function cmpResults(expected, result, ttl, cname) {
   ll = expected.length;
   while (ll--) {
     assert.equal(result[ll], expected[ll]);
-    puts("Result " + result[ll] + " was equal to expected " + expected[ll]);
+    console.log("Result " + result[ll] + " was equal to expected " + expected[ll]);
   }
 }

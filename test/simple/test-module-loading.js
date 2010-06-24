@@ -113,5 +113,5 @@ process.addListener("exit", function () {
 
   assert.equal(true, errorThrownAsync);
 
-  puts("exit");
+  console.log("exit");
 });

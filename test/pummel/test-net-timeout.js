@@ -9,7 +9,7 @@ var echo_server = net.createServer(function (socket) {
   socket.setTimeout(timeout);
 
   socket.addListener("timeout", function () {
-    puts("server timeout");
+    console.log("server timeout");
     timeouttime = new Date;
     p(timeouttime);
     socket.destroy();
@@ -20,7 +20,7 @@ var echo_server = net.createServer(function (socket) {
   })
 
   socket.addListener("data", function (d) {
-    puts(d);
+    console.log(d);
     socket.write(d);
   });
 
@@ -30,14 +30,14 @@ var echo_server = net.createServer(function (socket) {
 });
 
 echo_server.listen(PORT, function () {
-  puts("server listening at " + PORT);
+  console.log("server listening at " + PORT);
 });
 
 var client = net.createConnection(PORT);
 client.setEncoding("UTF8");
 client.setTimeout(0); // disable the timeout for client
 client.addListener("connect", function () {
-  puts("client connected.");
+  console.log("client connected.");
   client.write("hello\r\n");
 });
 
@@ -45,12 +45,12 @@ client.addListener("data", function (chunk) {
   assert.equal("hello\r\n", chunk);
   if (exchanges++ < 5) {
     setTimeout(function () {
-      puts("client write 'hello'");
+      console.log("client write 'hello'");
       client.write("hello\r\n");
     }, 500);
 
     if (exchanges == 5) {
-      puts("wait for timeout - should come in " + timeout + " ms");
+      console.log("wait for timeout - should come in " + timeout + " ms");
       starttime = new Date;
       p(starttime);
     }
@@ -62,12 +62,12 @@ client.addListener("timeout", function () {
 });
 
 client.addListener("end", function () {
-  puts("client end");
+  console.log("client end");
   client.end();
 });
 
 client.addListener("close", function () {
-  puts("client disconnect");
+  console.log("client disconnect");
   echo_server.close();
 });
 
@@ -76,7 +76,7 @@ process.addListener("exit", function () {
   assert.ok(timeouttime != null);
 
   diff = timeouttime - starttime;
-  puts("diff = " + diff);
+  console.log("diff = " + diff);
 
   assert.ok(timeout < diff);
 

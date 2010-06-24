@@ -5,7 +5,7 @@ var Buffer = require('buffer').Buffer;
 
 var b = new Buffer(1024);
 
-puts("b.length == " + b.length);
+console.log("b.length == " + b.length);
 assert.equal(1024, b.length);
 
 for (var i = 0; i < 1024; i++) {
@@ -90,7 +90,7 @@ assert.deepEqual([0xDEADBEEF], b.unpack('N', 4));
 var testValue = '\u00F6\u65E5\u672C\u8A9E'; // ö日本語
 var buffer = new Buffer(32);
 var size = buffer.utf8Write(testValue, 0);
-puts('bytes written to buffer: ' + size);
+console.log('bytes written to buffer: ' + size);
 var slice = buffer.toString('utf8', 0, size);
 assert.equal(slice, testValue);
 

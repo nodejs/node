@@ -25,11 +25,11 @@ function test (size, useBuffer, cb) {
   childProccess.exec(cmd, function(err) {
     if (err) throw err;
 
-    puts('done!');
+    console.log('done!');
 
     var stat = fs.statSync(tmpFile);
 
-    puts(tmpFile + ' has ' + stat.size + ' bytes');
+    console.log(tmpFile + ' has ' + stat.size + ' bytes');
 
     assert.equal(size, stat.size);
     fs.unlinkSync(tmpFile);
@@ -40,9 +40,9 @@ function test (size, useBuffer, cb) {
 
 finished = false;
 test(1024*1024, false, function () {
-  puts("Done printing with string");
+  console.log("Done printing with string");
   test(1024*1024, true, function () {
-    puts("Done printing with buffer");
+    console.log("Done printing with buffer");
     finished = true;
   });
 });

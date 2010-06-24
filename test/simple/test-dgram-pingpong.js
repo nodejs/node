@@ -12,9 +12,9 @@ function pingPongTest (port, host) {
   var sent_final_ping = false;
 
   var server = dgram.createSocket(function (msg, rinfo) {
-    puts("connection: " + rinfo.address + ":"+ rinfo.port);
+    console.log("connection: " + rinfo.address + ":"+ rinfo.port);
 
-    puts("server got: " + msg);
+    console.log("server got: " + msg);
 
     if (/PING/.exec(msg)) {
       var buf = new Buffer(4);
@@ -33,7 +33,7 @@ function pingPongTest (port, host) {
   server.bind(port, host);
 
   server.addListener("listening", function () {
-    puts("server listening on " + port + " " + host);
+    console.log("server listening on " + port + " " + host);
 
     var buf = new Buffer(4);
     buf.write('PING');
@@ -41,7 +41,7 @@ function pingPongTest (port, host) {
     var client = dgram.createSocket();
 
     client.addListener("message", function (msg, rinfo) {
-      puts("client got: " + msg);
+      console.log("client got: " + msg);
       assert.equal("PONG", msg.toString('ascii'));
 
       count += 1;
@@ -58,7 +58,7 @@ function pingPongTest (port, host) {
     });
 
     client.addListener("close", function () {
-      puts('client.close');
+      console.log('client.close');
       assert.equal(N, count);
       tests_run += 1;
       server.close();
@@ -84,5 +84,5 @@ pingPongTest(20997, "::1");
 
 process.addListener("exit", function () {
   assert.equal(4, tests_run);
-  puts('done');
+  console.log('done');
 });

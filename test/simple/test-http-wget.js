@@ -39,19 +39,19 @@ c.addListener("connect", function () {
 });
 
 c.addListener("data", function (chunk) {
-  puts(chunk);
+  console.log(chunk);
   server_response += chunk;
 });
 
 c.addListener("end", function () {
   client_got_eof = true;
-  puts('got end');
+  console.log('got end');
   c.end();
 });
 
 c.addListener("close", function () {
   connection_was_closed = true;
-  puts('got close');
+  console.log('got close');
   server.close();
 });
 

@@ -9,7 +9,7 @@ var linkPath = path.join(fixturesDir, "nested-index", 'one', 'symlink1.js');
 try {fs.unlinkSync(linkPath);}catch(e){}
 fs.symlink(linkData, linkPath, function(err){
   if (err) throw err;
-  puts('symlink done');
+  console.log('symlink done');
   // todo: fs.lstat?
   fs.readlink(linkPath, function(err, destination) {
     if (err) throw err;
@@ -24,7 +24,7 @@ var dstPath = path.join(fixturesDir, "nested-index", 'one', 'link1.js');
 try {fs.unlinkSync(dstPath);}catch(e){}
 fs.link(srcPath, dstPath, function(err){
   if (err) throw err;
-  puts('hard link done');
+  console.log('hard link done');
   var srcContent = fs.readFileSync(srcPath, 'utf8');
   var dstContent = fs.readFileSync(dstPath, 'utf8');
   assert.equal(srcContent, dstContent);

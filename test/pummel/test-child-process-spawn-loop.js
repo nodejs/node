@@ -16,7 +16,7 @@ function doSpawn (i) {
   });
 
   child.stderr.addListener("data", function (chunk) {
-    puts('stderr: ' + chunk);
+    console.log('stderr: ' + chunk);
   });
 
   child.addListener("exit", function () {

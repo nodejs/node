@@ -3,7 +3,7 @@ require("../common");
 try {
   var crypto = require('crypto');
 } catch (e) {
-  puts("Not compiled with OPENSSL support.");
+  console.log("Not compiled with OPENSSL support.");
   process.exit();
 } 
 
