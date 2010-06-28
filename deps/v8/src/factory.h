@@ -180,6 +180,10 @@ class Factory : public AllStatic {
 
   static Handle<Map> CopyMapDropTransitions(Handle<Map> map);
 
+  static Handle<Map> GetFastElementsMap(Handle<Map> map);
+
+  static Handle<Map> GetSlowElementsMap(Handle<Map> map);
+
   static Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
   // Numbers (eg, literals) are pretenured by the parser.

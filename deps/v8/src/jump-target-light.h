@@ -120,6 +120,9 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // Has an entry frame been found?
   bool entry_frame_set_;
 
+  // Can we branch backwards to this label?
+  Directionality direction_;
+
   // The frame used on entry to the block and expected at backward
   // jumps to the block.  Set the first time something branches to this
   // jump target.
@@ -150,6 +153,7 @@ class BreakTarget : public JumpTarget {
  public:
   // Construct a break target.
   inline BreakTarget();
+  inline BreakTarget(JumpTarget::Directionality direction);
 
   virtual ~BreakTarget() {}
 

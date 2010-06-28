@@ -587,7 +587,7 @@ static inline void MemCopy(void* dest, const void* src, size_t size) {
 // Limit below which the extra overhead of the MemCopy function is likely
 // to outweigh the benefits of faster copying.
 // TODO(lrn): Try to find a more precise value.
-static const int kMinComplexMemCopy = 256;
+static const int kMinComplexMemCopy = 64;
 
 #else  // V8_TARGET_ARCH_IA32
 

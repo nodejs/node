@@ -7449,7 +7449,7 @@ class ArrayConcatVisitor {
   uint32_t index_limit_;
   // Index after last seen index. Always less than or equal to index_limit_.
   uint32_t index_offset_;
-  bool fast_elements_;
+  const bool fast_elements_;
 };
 
 
@@ -7766,13 +7766,14 @@ static Object* Runtime_ArrayConcat(Arguments args) {
     // The backing storage array must have non-existing elements to
     // preserve holes across concat operations.
     storage = Factory::NewFixedArrayWithHoles(result_length);
-
+    result->set_map(*Factory::GetFastElementsMap(Handle<Map>(result->map())));
   } else {
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
                   Factory::NewNumberDictionary(at_least_space_for));
+    result->set_map(*Factory::GetSlowElementsMap(Handle<Map>(result->map())));
   }
 
   Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
@@ -7822,9 +7823,19 @@ static Object* Runtime_MoveArrayContents(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, from, args[0]);
   CONVERT_CHECKED(JSArray, to, args[1]);
-  to->SetContent(FixedArray::cast(from->elements()));
+  HeapObject* new_elements = from->elements();
+  Object* new_map;
+  if (new_elements->map() == Heap::fixed_array_map()) {
+    new_map = to->map()->GetFastElementsMap();
+  } else {
+    new_map = to->map()->GetSlowElementsMap();
+  }
+  if (new_map->IsFailure()) return new_map;
+  to->set_map(Map::cast(new_map));
+  to->set_elements(new_elements);
   to->set_length(from->length());
-  from->SetContent(Heap::empty_fixed_array());
+  Object* obj = from->ResetElements();
+  if (obj->IsFailure()) return obj;
   from->set_length(Smi::FromInt(0));
   return to;
 }

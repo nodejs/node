@@ -685,3 +685,8 @@ assertEquals(24, LeftShiftThreeBy(3));
 assertEquals(24, LeftShiftThreeBy(35));
 assertEquals(24, LeftShiftThreeBy(67));
 assertEquals(24, LeftShiftThreeBy(-29));
+
+// Regression test for a bug in the ARM code generator.  For some register
+// allocations we got the Smi overflow case wrong.
+function f(x, y) { return y +  ( 1 << (x & 31)); }
+assertEquals(-2147483647, f(31, 1));

@@ -33,10 +33,6 @@
 namespace v8 {
 namespace internal {
 
-// Flag indicating whether an IC stub needs to check that a backing
-// store is in dictionary case.
-enum DictionaryCheck { CHECK_DICTIONARY, DICTIONARY_CHECK_DONE };
-
 
 // IC_UTIL_LIST defines all utility functions called from generated
 // inline caching code. The argument for the macro, ICU, is the function name.

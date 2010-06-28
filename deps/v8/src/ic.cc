@@ -992,12 +992,14 @@ Object* KeyedLoadIC::Load(State state,
       }
     }
     set_target(stub);
-    // For JSObjects that are not value wrappers and that do not have
-    // indexed interceptors, we initialize the inlined fast case (if
-    // present) by patching the inlined map check.
+    // For JSObjects with fast elements that are not value wrappers
+    // and that do not have indexed interceptors, we initialize the
+    // inlined fast case (if present) by patching the inlined map
+    // check.
     if (object->IsJSObject() &&
         !object->IsJSValue() &&
-        !JSObject::cast(*object)->HasIndexedInterceptor()) {
+        !JSObject::cast(*object)->HasIndexedInterceptor() &&
+        JSObject::cast(*object)->HasFastElements()) {
       Map* map = JSObject::cast(*object)->map();
       PatchInlinedLoad(address(), map);
     }

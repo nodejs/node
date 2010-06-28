@@ -84,3 +84,38 @@ var result = '';
 for (var p in { get a() {}, set a(x) {}, b : 1}) { result += p; }
 assertEquals('ab', result, "abgetset");
 
+
+// Test that for-in in the global scope works with a keyed property as "each".
+// Test outside a loop and in a loop for multiple iterations.
+a = [1,2,3,4];
+x = {foo:5, bar:6, zip:7, glep:9, 10:11};
+delete x.bar;
+y = {}
+
+for (a[2] in x) {
+  y[a[2]] = x[a[2]];
+}
+
+assertEquals(5, y.foo, "y.foo");
+assertEquals("undefined", typeof y.bar, "y.bar");
+assertEquals(7, y.zip, "y.zip");
+assertEquals(9, y.glep, "y.glep");
+assertEquals(11, y[10], "y[10]");
+assertEquals("undefined", typeof y[2], "y[2]");
+assertEquals("undefined", typeof y[0], "y[0]");
+
+for (i=0 ; i < 3; ++i) {
+  y = {}
+
+  for (a[2] in x) {
+    y[a[2]] = x[a[2]];
+  }
+
+  assertEquals(5, y.foo, "y.foo");
+  assertEquals("undefined", typeof y.bar, "y.bar");
+  assertEquals(7, y.zip, "y.zip");
+  assertEquals(9, y.glep, "y.glep");
+  assertEquals(11, y[10], "y[10]");
+  assertEquals("undefined", typeof y[2], "y[2]");
+  assertEquals("undefined", typeof y[0], "y[0]");
+}

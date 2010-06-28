@@ -1191,6 +1191,7 @@ class JSObject: public HeapObject {
   // case, and a PixelArray or ExternalArray in special cases.
   DECL_ACCESSORS(elements, HeapObject)
   inline void initialize_elements();
+  inline Object* ResetElements();
   inline ElementsKind GetElementsKind();
   inline bool HasFastElements();
   inline bool HasDictionaryElements();
@@ -1367,7 +1368,7 @@ class JSObject: public HeapObject {
   // The undefined object if index is out of bounds.
   Object* GetElementWithReceiver(JSObject* receiver, uint32_t index);
 
-  void SetFastElements(FixedArray* elements);
+  Object* SetFastElementsCapacityAndLength(int capacity, int length);
   Object* SetSlowElements(Object* length);
 
   // Lookup interceptors are used for handling properties controlled by host
@@ -2987,6 +2988,19 @@ class Map: public HeapObject {
     return ((1 << kIsExtensible) & bit_field2()) != 0;
   }
 
+  // Tells whether the instance has fast elements.
+  void set_has_fast_elements(bool value) {
+    if (value) {
+      set_bit_field2(bit_field2() | (1 << kHasFastElements));
+    } else {
+      set_bit_field2(bit_field2() & ~(1 << kHasFastElements));
+    }
+  }
+
+  bool has_fast_elements() {
+    return ((1 << kHasFastElements) & bit_field2()) != 0;
+  }
+
   // Tells whether the instance needs security checks when accessing its
   // properties.
   inline void set_is_access_check_needed(bool access_check_needed);
@@ -3009,6 +3023,16 @@ class Map: public HeapObject {
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   Object* CopyDropTransitions();
+
+  // Returns this map if it has the fast elements bit set, otherwise
+  // returns a copy of the map, with all transitions dropped from the
+  // descriptors and the fast elements bit set.
+  inline Object* GetFastElementsMap();
+
+  // Returns this map if it has the fast elements bit cleared,
+  // otherwise returns a copy of the map, with all transitions dropped
+  // from the descriptors and the fast elements bit cleared.
+  inline Object* GetSlowElementsMap();
 
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);
@@ -3111,6 +3135,7 @@ class Map: public HeapObject {
   // Bit positions for bit field 2
   static const int kIsExtensible = 0;
   static const int kFunctionWithPrototype = 1;
+  static const int kHasFastElements = 2;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;

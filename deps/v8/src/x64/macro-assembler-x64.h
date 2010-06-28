@@ -546,7 +546,8 @@ class MacroAssembler: public Assembler {
                                Register map,
                                Register instance_type);
 
-  // FCmp is similar to integer cmp, but requires unsigned
+  // FCmp compares and pops the two values on top of the FPU stack.
+  // The flag results are similar to integer cmp, but requires unsigned
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
 

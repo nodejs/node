@@ -309,10 +309,10 @@ void Profiler::Disengage() {
 
 void Profiler::Run() {
   TickSample sample;
-  bool overflow = Logger::profiler_->Remove(&sample);
+  bool overflow = Remove(&sample);
   while (running_) {
     LOG(TickEvent(&sample, overflow));
-    overflow = Logger::profiler_->Remove(&sample);
+    overflow = Remove(&sample);
   }
 }
 
@@ -1150,7 +1150,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
 
 int Logger::GetActiveProfilerModules() {
   int result = PROFILER_MODULE_NONE;
-  if (!profiler_->paused()) {
+  if (profiler_ != NULL && !profiler_->paused()) {
     result |= PROFILER_MODULE_CPU;
   }
   if (FLAG_log_gc) {
@@ -1162,7 +1162,7 @@ int Logger::GetActiveProfilerModules() {
 
 void Logger::PauseProfiler(int flags, int tag) {
   if (!Log::IsEnabled()) return;
-  if (flags & PROFILER_MODULE_CPU) {
+  if (profiler_ != NULL && (flags & PROFILER_MODULE_CPU)) {
     // It is OK to have negative nesting.
     if (--cpu_profiler_nesting_ == 0) {
       profiler_->pause();
@@ -1193,7 +1193,7 @@ void Logger::ResumeProfiler(int flags, int tag) {
   if (tag != 0) {
     UncheckedIntEvent("open-tag", tag);
   }
-  if (flags & PROFILER_MODULE_CPU) {
+  if (profiler_ != NULL && (flags & PROFILER_MODULE_CPU)) {
     if (cpu_profiler_nesting_++ == 0) {
       ++logging_nesting_;
       if (FLAG_prof_lazy) {

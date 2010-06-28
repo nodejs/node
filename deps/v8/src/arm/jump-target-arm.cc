@@ -61,8 +61,16 @@ void JumpTarget::DoJump() {
   } else {
     // Clone the current frame to use as the expected one at the target.
     set_entry_frame(cgen()->frame());
+    // Zap the fall-through frame since the jump was unconditional.
     RegisterFile empty;
     cgen()->SetFrame(NULL, &empty);
+  }
+  if (entry_label_.is_bound()) {
+    // You can't jump backwards to an already bound label unless you admitted
+    // up front that this was a bidirectional jump target.  Bidirectional jump
+    // targets will zap their type info when bound in case some later virtual
+    // frame with less precise type info branches to them.
+    ASSERT(direction_ != FORWARD_ONLY);
   }
   __ jmp(&entry_label_);
 }
@@ -82,6 +90,13 @@ void JumpTarget::DoBranch(Condition cc, Hint ignored) {
   } else {
     // Clone the current frame to use as the expected one at the target.
     set_entry_frame(cgen()->frame());
+  }
+  if (entry_label_.is_bound()) {
+    // You can't branch backwards to an already bound label unless you admitted
+    // up front that this was a bidirectional jump target.  Bidirectional jump
+    // targets will zap their type info when bound in case some later virtual
+    // frame with less precise type info branches to them.
+    ASSERT(direction_ != FORWARD_ONLY);
   }
   __ b(cc, &entry_label_);
   if (cc == al) {
@@ -121,6 +136,7 @@ void JumpTarget::DoBind() {
   ASSERT(!cgen()->has_valid_frame() || cgen()->HasValidEntryRegisters());
 
   if (cgen()->has_valid_frame()) {
+    if (direction_ != FORWARD_ONLY) cgen()->frame()->ForgetTypeInfo();
     // If there is a current frame we can use it on the fall through.
     if (!entry_frame_set_) {
       entry_frame_ = *cgen()->frame();

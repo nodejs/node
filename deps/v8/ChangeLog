@@ -1,3 +1,15 @@
+2010-06-28: Version 2.2.20
+        Fix bug with for-in on x64 platform (issue 748).
+
+        Fix crash bug on x64 platform (issue 756).
+        
+        Fix bug in Object.getOwnPropertyNames. (chromium issue 41243).
+
+        Fix a bug on ARM  that caused the result of 1 << x to be 
+        miscalculated for some inputs.
+
+        Performance improvements on all platforms.
+
 2010-06-23: Version 2.2.19
 
         Fix bug that causes the build to break when profillingsupport=off

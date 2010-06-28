@@ -196,6 +196,8 @@ class BreakTarget : public JumpTarget {
  public:
   // Construct a break target.
   BreakTarget() {}
+  explicit BreakTarget(JumpTarget::Directionality direction)
+    : JumpTarget(direction) { }
 
   virtual ~BreakTarget() {}
 

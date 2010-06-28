@@ -45,72 +45,96 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 
+static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
+                                            Register type,
+                                            Label* global_object) {
+  // Register usage:
+  //   type: holds the receiver instance type on entry.
+  __ cmp(type, JS_GLOBAL_OBJECT_TYPE);
+  __ j(equal, global_object, not_taken);
+  __ cmp(type, JS_BUILTINS_OBJECT_TYPE);
+  __ j(equal, global_object, not_taken);
+  __ cmp(type, JS_GLOBAL_PROXY_TYPE);
+  __ j(equal, global_object, not_taken);
+}
+
+
+// Generated code falls through if the receiver is a regular non-global
+// JS object with slow properties and no interceptors.
+static void GenerateDictionaryLoadReceiverCheck(MacroAssembler* masm,
+                                                Register receiver,
+                                                Register r0,
+                                                Register r1,
+                                                Label* miss) {
+  // Register usage:
+  //   receiver: holds the receiver on entry and is unchanged.
+  //   r0: used to hold receiver instance type.
+  //       Holds the property dictionary on fall through.
+  //   r1: used to hold receivers map.
+
+  // Check that the receiver isn't a smi.
+  __ test(receiver, Immediate(kSmiTagMask));
+  __ j(zero, miss, not_taken);
+
+  // Check that the receiver is a valid JS object.
+  __ mov(r1, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ movzx_b(r0, FieldOperand(r1, Map::kInstanceTypeOffset));
+  __ cmp(r0, FIRST_JS_OBJECT_TYPE);
+  __ j(below, miss, not_taken);
+
+  // If this assert fails, we have to check upper bound too.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+
+  GenerateGlobalInstanceTypeCheck(masm, r0, miss);
+
+  // Check for non-global object that requires access check.
+  __ test_b(FieldOperand(r1, Map::kBitFieldOffset),
+            (1 << Map::kIsAccessCheckNeeded) |
+            (1 << Map::kHasNamedInterceptor));
+  __ j(not_zero, miss, not_taken);
+
+  __ mov(r0, FieldOperand(receiver, JSObject::kPropertiesOffset));
+  __ CheckMap(r0, Factory::hash_table_map(), miss, true);
+}
+
+
 // Helper function used to load a property from a dictionary backing storage.
 // This function may return false negatives, so miss_label
 // must always call a backup property load that is complete.
-// This function is safe to call if the receiver has fast properties,
-// or if name is not a symbol, and will jump to the miss_label in that case.
+// This function is safe to call if name is not a symbol, and will jump to
+// the miss_label in that case.
+// The generated code assumes that the receiver has slow properties,
+// is not a global object and does not have interceptors.
 static void GenerateDictionaryLoad(MacroAssembler* masm,
                                    Label* miss_label,
-                                   Register receiver,
+                                   Register elements,
                                    Register name,
                                    Register r0,
                                    Register r1,
-                                   Register r2,
-                                   Register result,
-                                   DictionaryCheck check_dictionary) {
+                                   Register result) {
   // Register use:
   //
-  // name - holds the name of the property and is unchanged.
-  // receiver - holds the receiver and is unchanged.
+  // elements - holds the property dictionary on entry and is unchanged.
+  //
+  // name - holds the name of the property on entry and is unchanged.
+  //
   // Scratch registers:
-  // r0   - used to hold the property dictionary.
   //
-  // r1   - used for the index into the property dictionary
+  // r0   - used for the index into the property dictionary
   //
-  // r2   - used to hold the capacity of the property dictionary.
+  // r1   - used to hold the capacity of the property dictionary.
   //
   // result - holds the result on exit.
 
   Label done;
 
-  // Check for the absence of an interceptor.
-  // Load the map into r0.
-  __ mov(r0, FieldOperand(receiver, JSObject::kMapOffset));
-
-  // Bail out if the receiver has a named interceptor.
-  __ test(FieldOperand(r0, Map::kBitFieldOffset),
-          Immediate(1 << Map::kHasNamedInterceptor));
-  __ j(not_zero, miss_label, not_taken);
-
-  // Bail out if we have a JS global proxy object.
-  __ movzx_b(r0, FieldOperand(r0, Map::kInstanceTypeOffset));
-  __ cmp(r0, JS_GLOBAL_PROXY_TYPE);
-  __ j(equal, miss_label, not_taken);
-
-  // Possible work-around for http://crbug.com/16276.
-  __ cmp(r0, JS_GLOBAL_OBJECT_TYPE);
-  __ j(equal, miss_label, not_taken);
-  __ cmp(r0, JS_BUILTINS_OBJECT_TYPE);
-  __ j(equal, miss_label, not_taken);
-
-  // Load properties array.
-  __ mov(r0, FieldOperand(receiver, JSObject::kPropertiesOffset));
-
-  // Check that the properties array is a dictionary.
-  if (check_dictionary == CHECK_DICTIONARY) {
-    __ cmp(FieldOperand(r0, HeapObject::kMapOffset),
-           Immediate(Factory::hash_table_map()));
-    __ j(not_equal, miss_label);
-  }
-
   // Compute the capacity mask.
   const int kCapacityOffset =
       StringDictionary::kHeaderSize +
       StringDictionary::kCapacityIndex * kPointerSize;
-  __ mov(r2, FieldOperand(r0, kCapacityOffset));
-  __ shr(r2, kSmiTagSize);  // convert smi to int
-  __ dec(r2);
+  __ mov(r1, FieldOperand(elements, kCapacityOffset));
+  __ shr(r1, kSmiTagSize);  // convert smi to int
+  __ dec(r1);
 
   // Generate an unrolled loop that performs a few probes before
   // giving up. Measurements done on Gmail indicate that 2 probes
@@ -121,20 +145,20 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
       StringDictionary::kElementsStartIndex * kPointerSize;
   for (int i = 0; i < kProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
-    __ mov(r1, FieldOperand(name, String::kHashFieldOffset));
-    __ shr(r1, String::kHashShift);
+    __ mov(r0, FieldOperand(name, String::kHashFieldOffset));
+    __ shr(r0, String::kHashShift);
     if (i > 0) {
-      __ add(Operand(r1), Immediate(StringDictionary::GetProbeOffset(i)));
+      __ add(Operand(r0), Immediate(StringDictionary::GetProbeOffset(i)));
     }
-    __ and_(r1, Operand(r2));
+    __ and_(r0, Operand(r1));
 
     // Scale the index by multiplying by the entry size.
     ASSERT(StringDictionary::kEntrySize == 3);
-    __ lea(r1, Operand(r1, r1, times_2, 0));  // r1 = r1 * 3
+    __ lea(r0, Operand(r0, r0, times_2, 0));  // r0 = r0 * 3
 
     // Check if the key is identical to the name.
-    __ cmp(name,
-           Operand(r0, r1, times_4, kElementsStartOffset - kHeapObjectTag));
+    __ cmp(name, Operand(elements, r0, times_4,
+                         kElementsStartOffset - kHeapObjectTag));
     if (i != kProbes - 1) {
       __ j(equal, &done, taken);
     } else {
@@ -145,13 +169,13 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   // Check that the value is a normal property.
   __ bind(&done);
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
-  __ test(Operand(r0, r1, times_4, kDetailsOffset - kHeapObjectTag),
+  __ test(Operand(elements, r0, times_4, kDetailsOffset - kHeapObjectTag),
           Immediate(PropertyDetails::TypeField::mask() << kSmiTagSize));
   __ j(not_zero, miss_label, not_taken);
 
   // Get the value at the masked, scaled index.
   const int kValueOffset = kElementsStartOffset + kPointerSize;
-  __ mov(result, Operand(r0, r1, times_4, kValueOffset - kHeapObjectTag));
+  __ mov(result, Operand(elements, r0, times_4, kValueOffset - kHeapObjectTag));
 }
 
 
@@ -307,6 +331,7 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
 static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
                                            Register receiver,
                                            Register map,
+                                           int interceptor_bit,
                                            Label* slow) {
   // Register use:
   //   receiver - holds the receiver and is unchanged.
@@ -322,7 +347,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
 
   // Check bit field.
   __ test_b(FieldOperand(map, Map::kBitFieldOffset),
-            KeyedLoadIC::kSlowCaseBitFieldMask);
+            (1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit));
   __ j(not_zero, slow, not_taken);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
@@ -432,14 +457,15 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Label slow, check_string, index_smi, index_string;
   Label check_pixel_array, probe_dictionary, check_number_dictionary;
 
-  GenerateKeyedLoadReceiverCheck(masm, edx, ecx, &slow);
-
   // Check that the key is a smi.
   __ test(eax, Immediate(kSmiTagMask));
   __ j(not_zero, &check_string, not_taken);
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from
   // where a numeric string is converted to a smi.
+
+  GenerateKeyedLoadReceiverCheck(
+      masm, edx, ecx, Map::kHasIndexedInterceptor, &slow);
 
   GenerateFastArrayLoad(masm,
                         edx,
@@ -503,6 +529,9 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&check_string);
   GenerateKeyStringCheck(masm, eax, ecx, ebx, &index_string, &slow);
 
+  GenerateKeyedLoadReceiverCheck(
+      masm, edx, ecx, Map::kHasNamedInterceptor, &slow);
+
   // If the receiver is a fast-case object, check the keyed lookup
   // cache. Otherwise probe the dictionary.
   __ mov(ebx, FieldOperand(edx, JSObject::kPropertiesOffset));
@@ -555,15 +584,12 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Do a quick inline probe of the receiver's dictionary, if it
   // exists.
   __ bind(&probe_dictionary);
-  GenerateDictionaryLoad(masm,
-                         &slow,
-                         edx,
-                         eax,
-                         ebx,
-                         ecx,
-                         edi,
-                         eax,
-                         DICTIONARY_CHECK_DONE);
+
+  __ mov(ecx, FieldOperand(edx, JSObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  GenerateGlobalInstanceTypeCheck(masm, ecx, &slow);
+
+  GenerateDictionaryLoad(masm, &slow, ebx, eax, ecx, edi, eax);
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
   __ ret(0);
 
@@ -1173,23 +1199,17 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
 }
 
 
-static void GenerateNormalHelper(MacroAssembler* masm,
-                                 int argc,
-                                 bool is_global_object,
-                                 Label* miss) {
+static void GenerateFunctionTailCall(MacroAssembler* masm,
+                                     int argc,
+                                     Label* miss) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
-  //  -- edx                 : receiver
+  //  -- edi                 : function
   //  -- esp[0]              : return address
   //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
   //  -- ...
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
-
-  // Search dictionary - put result in register edi.
-  __ mov(edi, edx);
-  GenerateDictionaryLoad(
-      masm, miss, edx, ecx, eax, edi, ebx, edi, CHECK_DICTIONARY);
 
   // Check that the result is not a smi.
   __ test(edi, Immediate(kSmiTagMask));
@@ -1198,12 +1218,6 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   // Check that the value is a JavaScript function, fetching its map into eax.
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
   __ j(not_equal, miss, not_taken);
-
-  // Patch the receiver on stack with the global proxy if necessary.
-  if (is_global_object) {
-    __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
-    __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
-  }
 
   // Invoke the function.
   ParameterCount actual(argc);
@@ -1219,55 +1233,17 @@ static void GenerateCallNormal(MacroAssembler* masm, int argc) {
   //  -- ...
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
-  Label miss, global_object, non_global_object;
+  Label miss;
 
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
 
-  // Check that the receiver isn't a smi.
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  GenerateDictionaryLoadReceiverCheck(masm, edx, eax, ebx, &miss);
 
-  // Check that the receiver is a valid JS object.
-  __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(eax, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ cmp(eax, FIRST_JS_OBJECT_TYPE);
-  __ j(below, &miss, not_taken);
-
-  // If this assert fails, we have to check upper bound too.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-
-  // Check for access to global object.
-  __ cmp(eax, JS_GLOBAL_OBJECT_TYPE);
-  __ j(equal, &global_object);
-  __ cmp(eax, JS_BUILTINS_OBJECT_TYPE);
-  __ j(not_equal, &non_global_object);
-
-  // Accessing global object: Load and invoke.
-  __ bind(&global_object);
-  // Check that the global object does not require access checks.
-  __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
-            1 << Map::kIsAccessCheckNeeded);
-  __ j(not_equal, &miss, not_taken);
-  GenerateNormalHelper(masm, argc, true, &miss);
-
-  // Accessing non-global object: Check for access to global proxy.
-  Label global_proxy, invoke;
-  __ bind(&non_global_object);
-  __ cmp(eax, JS_GLOBAL_PROXY_TYPE);
-  __ j(equal, &global_proxy, not_taken);
-  // Check that the non-global, non-global-proxy object does not
-  // require access checks.
-  __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
-            1 << Map::kIsAccessCheckNeeded);
-  __ j(not_equal, &miss, not_taken);
-  __ bind(&invoke);
-  GenerateNormalHelper(masm, argc, false, &miss);
-
-  // Global object proxy access: Check access rights.
-  __ bind(&global_proxy);
-  __ CheckAccessGlobalProxy(edx, eax, &miss);
-  __ jmp(&invoke);
+  // eax: elements
+  // Search the dictionary placing the result in edi.
+  GenerateDictionaryLoad(masm, &miss, eax, ecx, edi, ebx, edi);
+  GenerateFunctionTailCall(masm, argc, &miss);
 
   __ bind(&miss);
 }
@@ -1281,6 +1257,12 @@ static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
   //  -- ...
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
+
+  if (id == IC::kCallIC_Miss) {
+    __ IncrementCounter(&Counters::call_miss, 1);
+  } else {
+    __ IncrementCounter(&Counters::keyed_call_miss, 1);
+  }
 
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
@@ -1303,25 +1285,28 @@ static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
   __ LeaveInternalFrame();
 
   // Check if the receiver is a global object of some sort.
-  Label invoke, global;
-  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));  // receiver
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &invoke, not_taken);
-  __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ cmp(ebx, JS_GLOBAL_OBJECT_TYPE);
-  __ j(equal, &global);
-  __ cmp(ebx, JS_BUILTINS_OBJECT_TYPE);
-  __ j(not_equal, &invoke);
+  // This can happen only for regular CallIC but not KeyedCallIC.
+  if (id == IC::kCallIC_Miss) {
+    Label invoke, global;
+    __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));  // receiver
+    __ test(edx, Immediate(kSmiTagMask));
+    __ j(zero, &invoke, not_taken);
+    __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
+    __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+    __ cmp(ebx, JS_GLOBAL_OBJECT_TYPE);
+    __ j(equal, &global);
+    __ cmp(ebx, JS_BUILTINS_OBJECT_TYPE);
+    __ j(not_equal, &invoke);
 
-  // Patch the receiver on the stack.
-  __ bind(&global);
-  __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
-  __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
+    // Patch the receiver on the stack.
+    __ bind(&global);
+    __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
+    __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
+    __ bind(&invoke);
+  }
 
   // Invoke the function.
   ParameterCount actual(argc);
-  __ bind(&invoke);
   __ InvokeFunction(edi, actual, JUMP_FUNCTION);
 }
 
@@ -1393,7 +1378,8 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // Now the key is known to be a smi. This place is also jumped to from
   // where a numeric string is converted to a smi.
 
-  GenerateKeyedLoadReceiverCheck(masm, edx, eax, &slow_call);
+  GenerateKeyedLoadReceiverCheck(
+      masm, edx, eax, Map::kHasIndexedInterceptor, &slow_call);
 
   GenerateFastArrayLoad(
       masm, edx, ecx, eax, edi, &check_number_dictionary, &slow_load);
@@ -1403,15 +1389,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // receiver in edx is not used after this point.
   // ecx: key
   // edi: function
-
-  // Check that the value in edi is a JavaScript function.
-  __ test(edi, Immediate(kSmiTagMask));
-  __ j(zero, &slow_call, not_taken);
-  __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
-  __ j(not_equal, &slow_call, not_taken);
-  // Invoke the function.
-  ParameterCount actual(argc);
-  __ InvokeFunction(edi, actual, JUMP_FUNCTION);
+  GenerateFunctionTailCall(masm, argc, &slow_call);
 
   __ bind(&check_number_dictionary);
   // eax: elements
@@ -1451,15 +1429,13 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // If the receiver is a regular JS object with slow properties then do
   // a quick inline probe of the receiver's dictionary.
   // Otherwise do the monomorphic cache probe.
-  GenerateKeyedLoadReceiverCheck(masm, edx, eax, &lookup_monomorphic_cache);
+  GenerateKeyedLoadReceiverCheck(
+      masm, edx, eax, Map::kHasNamedInterceptor, &lookup_monomorphic_cache);
 
   __ mov(ebx, FieldOperand(edx, JSObject::kPropertiesOffset));
-  __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
-         Immediate(Factory::hash_table_map()));
-  __ j(not_equal, &lookup_monomorphic_cache, not_taken);
+  __ CheckMap(ebx, Factory::hash_table_map(), &lookup_monomorphic_cache, true);
 
-  GenerateDictionaryLoad(
-      masm, &slow_load, edx, ecx, ebx, eax, edi, edi, DICTIONARY_CHECK_DONE);
+  GenerateDictionaryLoad(masm, &slow_load, ebx, ecx, eax, edi, edi);
   __ IncrementCounter(&Counters::keyed_call_generic_lookup_dict, 1);
   __ jmp(&do_call);
 
@@ -1539,48 +1515,14 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   //  -- ecx    : name
   //  -- esp[0] : return address
   // -----------------------------------
-  Label miss, probe, global;
+  Label miss;
 
-  // Check that the receiver isn't a smi.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  GenerateDictionaryLoadReceiverCheck(masm, eax, edx, ebx, &miss);
 
-  // Check that the receiver is a valid JS object.
-  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(edx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ cmp(edx, FIRST_JS_OBJECT_TYPE);
-  __ j(less, &miss, not_taken);
-
-  // If this assert fails, we have to check upper bound too.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-
-  // Check for access to global object (unlikely).
-  __ cmp(edx, JS_GLOBAL_PROXY_TYPE);
-  __ j(equal, &global, not_taken);
-
-  // Check for non-global object that requires access check.
-  __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
-            1 << Map::kIsAccessCheckNeeded);
-  __ j(not_zero, &miss, not_taken);
-
+  // edx: elements
   // Search the dictionary placing the result in eax.
-  __ bind(&probe);
-  GenerateDictionaryLoad(masm,
-                         &miss,
-                         eax,
-                         ecx,
-                         edx,
-                         edi,
-                         ebx,
-                         edi,
-                         CHECK_DICTIONARY);
-  __ mov(eax, edi);
+  GenerateDictionaryLoad(masm, &miss, edx, ecx, edi, ebx, eax);
   __ ret(0);
-
-  // Global object access: Check access rights.
-  __ bind(&global);
-  __ CheckAccessGlobalProxy(eax, edx, &miss);
-  __ jmp(&probe);
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
@@ -1594,6 +1536,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   //  -- ecx    : name
   //  -- esp[0] : return address
   // -----------------------------------
+
+  __ IncrementCounter(&Counters::load_miss, 1);
 
   __ pop(ebx);
   __ push(eax);  // receiver
@@ -1710,6 +1654,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
+
+  __ IncrementCounter(&Counters::keyed_load_miss, 1);
 
   __ pop(ebx);
   __ push(edx);  // receiver

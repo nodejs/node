@@ -1028,9 +1028,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         if (opcode == 0x57) {
           mnemonic = "xorpd";
         } else if (opcode == 0x2E) {
-          mnemonic = "comisd";
-        } else if (opcode == 0x2F) {
           mnemonic = "ucomisd";
+        } else if (opcode == 0x2F) {
+          mnemonic = "comisd";
         } else {
           UnimplementedInstruction();
         }
@@ -1057,7 +1057,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       // CVTSI2SD: integer to XMM double conversion.
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
-      AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
+      AppendToBuffer("%sd %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightOperand(current);
     } else if ((opcode & 0xF8) == 0x58 || opcode == 0x51) {
       // XMM arithmetic. Mnemonic was retrieved at the start of this function.
@@ -1070,7 +1070,25 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     }
   } else if (group_1_prefix_ == 0xF3) {
     // Instructions with prefix 0xF3.
-    if (opcode == 0x2C) {
+    if (opcode == 0x11 || opcode == 0x10) {
+      // MOVSS: Move scalar double-precision fp to/from/between XMM registers.
+      AppendToBuffer("movss ");
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      if (opcode == 0x11) {
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
+      } else {
+        AppendToBuffer("%s,", NameOfXMMRegister(regop));
+        current += PrintRightOperand(current);
+      }
+    } else if (opcode == 0x2A) {
+      // CVTSI2SS: integer to XMM single conversion.
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("%ss %s,", mnemonic, NameOfXMMRegister(regop));
+      current += PrintRightOperand(current);
+    } else if (opcode == 0x2C) {
       // CVTTSS2SI: Convert scalar single-precision FP to dword integer.
       // Assert that mod is not 3, so source is memory, not an XMM register.
       ASSERT_NE(0xC0, *current & 0xC0);
@@ -1146,8 +1164,8 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
   switch (opcode) {
     case 0x1F:
       return "nop";
-    case 0x2A:  // F2 prefix.
-      return "cvtsi2sd";
+    case 0x2A:  // F2/F3 prefix.
+      return "cvtsi2s";
     case 0x31:
       return "rdtsc";
     case 0x51:  // F2 prefix.

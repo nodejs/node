@@ -230,7 +230,10 @@ function RegExpExec(string) {
   var matchIndices = %_RegExpExec(this, s, i, lastMatchInfo);
 
   if (matchIndices == null) {
-    if (this.global) this.lastIndex = 0;
+    if (this.global) {
+      this.lastIndex = 0;
+      if (lastIndex != 0) return matchIndices;
+    }
     cache.lastIndex = lastIndex;
     cache.regExp = this;
     cache.subject = s;

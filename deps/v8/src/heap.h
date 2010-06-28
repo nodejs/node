@@ -1005,6 +1005,7 @@ class Heap : public AllStatic {
   static void CheckNewSpaceExpansionCriteria();
 
   static inline void IncrementYoungSurvivorsCounter(int survived) {
+    young_survivors_after_last_gc_ = survived;
     survived_since_last_expansion_ += survived;
   }
 
@@ -1271,6 +1272,55 @@ class Heap : public AllStatic {
   // Flush code from functions we do not expect to use again. The code will
   // be replaced with a lazy compilable version.
   static void FlushCode();
+
+  static void UpdateSurvivalRateTrend(int start_new_space_size);
+
+  enum SurvivalRateTrend { INCREASING, STABLE, DECREASING, FLUCTUATING };
+
+  static const int kYoungSurvivalRateThreshold = 90;
+  static const int kYoungSurvivalRateAllowedDeviation = 15;
+
+  static int young_survivors_after_last_gc_;
+  static int high_survival_rate_period_length_;
+  static double survival_rate_;
+  static SurvivalRateTrend previous_survival_rate_trend_;
+  static SurvivalRateTrend survival_rate_trend_;
+
+  static void set_survival_rate_trend(SurvivalRateTrend survival_rate_trend) {
+    ASSERT(survival_rate_trend != FLUCTUATING);
+    previous_survival_rate_trend_ = survival_rate_trend_;
+    survival_rate_trend_ = survival_rate_trend;
+  }
+
+  static SurvivalRateTrend survival_rate_trend() {
+    if (survival_rate_trend_ == STABLE) {
+      return STABLE;
+    } else if (previous_survival_rate_trend_ == STABLE) {
+      return survival_rate_trend_;
+    } else if (survival_rate_trend_ != previous_survival_rate_trend_) {
+      return FLUCTUATING;
+    } else {
+      return survival_rate_trend_;
+    }
+  }
+
+  static bool IsStableOrIncreasingSurvivalTrend() {
+    switch (survival_rate_trend()) {
+      case STABLE:
+      case INCREASING:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  static bool IsIncreasingSurvivalTrend() {
+    return survival_rate_trend() == INCREASING;
+  }
+
+  static bool IsHighSurvivalRate() {
+    return high_survival_rate_period_length_ > 0;
+  }
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;

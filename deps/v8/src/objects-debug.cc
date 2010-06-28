@@ -539,6 +539,9 @@ void JSObject::JSObjectVerify() {
              (map()->inobject_properties() + properties()->length() -
               map()->NextFreePropertyIndex()));
   }
+  ASSERT(map()->has_fast_elements() ==
+         (elements()->map() == Heap::fixed_array_map()));
+  ASSERT(map()->has_fast_elements() == HasFastElements());
 }
 
 

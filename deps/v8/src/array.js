@@ -954,7 +954,7 @@ function ArrayMap(f, receiver) {
 
 function ArrayIndexOf(element, index) {
   var length = this.length;
-  if (index == null) {
+  if (IS_UNDEFINED(index)) {
     index = 0;
   } else {
     index = TO_INTEGER(index);
@@ -981,7 +981,7 @@ function ArrayIndexOf(element, index) {
 
 function ArrayLastIndexOf(element, index) {
   var length = this.length;
-  if (index == null) {
+  if (%_ArgumentsLength() < 2) {
     index = length - 1;
   } else {
     index = TO_INTEGER(index);

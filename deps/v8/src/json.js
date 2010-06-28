@@ -207,7 +207,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
     } else if (IS_STRING_WRAPPER(value)) {
       value = $String(value);
     } else if (IS_BOOLEAN_WRAPPER(value)) {
-      value = $Boolean(value);
+      value =  %_ValueOf(value);
     }
   }
   switch (typeof value) {

@@ -2175,7 +2175,7 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
   // LAST_JS_OBJECT_TYPE.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
   ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-  __ cmp(ebx, JS_FUNCTION_TYPE);
+  __ CmpInstanceType(eax, JS_FUNCTION_TYPE);
   __ j(equal, &function);
 
   // Check if the constructor in the map is a function.

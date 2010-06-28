@@ -5035,6 +5035,31 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
 }
 
 
+static v8::Handle<v8::Array> NamedPropertyEnumerator(const AccessorInfo& info) {
+  v8::Handle<v8::Array> result = v8::Array::New(1);
+  result->Set(0, v8_str("x"));
+  return result;
+}
+
+
+THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
+  v8::HandleScope handle_scope;
+  v8::Handle<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New();
+
+  obj_template->Set(v8_str("x"), v8::Integer::New(42));
+  obj_template->SetNamedPropertyHandler(NULL, NULL, NULL, NULL,
+                                        NamedPropertyEnumerator);
+
+  LocalContext context;
+  v8::Handle<v8::Object> global = context->Global();
+  global->Set(v8_str("object"), obj_template->NewInstance());
+
+  v8::Handle<Value> value =
+      CompileRun("Object.getOwnPropertyNames(object).join(',')");
+  CHECK_EQ(v8_str("x"), value);
+}
+
+
 static v8::Handle<Value> ConstTenGetter(Local<String> name,
                                         const AccessorInfo& info) {
   return v8_num(10);

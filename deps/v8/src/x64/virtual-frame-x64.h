@@ -200,7 +200,7 @@ class VirtualFrame : public ZoneObject {
   inline void PrepareForReturn();
 
   // Number of local variables after when we use a loop for allocating.
-  static const int kLocalVarBound = 7;
+  static const int kLocalVarBound = 14;
 
   // Allocate and initialize the frame-allocated locals.
   void AllocateStackSlots();

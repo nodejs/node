@@ -46,23 +46,23 @@ namespace internal {
 
 // Test whether a 64-bit value is in a specific range.
 static inline bool is_uint32(int64_t x) {
-  static const int64_t kUInt32Mask = V8_INT64_C(0xffffffff);
-  return x == (x & kUInt32Mask);
+  static const uint64_t kMaxUInt32 = V8_UINT64_C(0xffffffff);
+  return static_cast<uint64_t>(x) <= kMaxUInt32;
 }
 
 static inline bool is_int32(int64_t x) {
-  static const int64_t kMinIntValue = V8_INT64_C(-0x80000000);
-  return is_uint32(x - kMinIntValue);
+  static const int64_t kMinInt32 = -V8_INT64_C(0x80000000);
+  return is_uint32(x - kMinInt32);
 }
 
 static inline bool uint_is_int32(uint64_t x) {
-  static const uint64_t kMaxIntValue = V8_UINT64_C(0x80000000);
-  return x < kMaxIntValue;
+  static const uint64_t kMaxInt32 = V8_UINT64_C(0x7fffffff);
+  return x <= kMaxInt32;
 }
 
 static inline bool is_uint32(uint64_t x) {
-  static const uint64_t kMaxUIntValue = V8_UINT64_C(0x100000000);
-  return x < kMaxUIntValue;
+  static const uint64_t kMaxUInt32 = V8_UINT64_C(0xffffffff);
+  return x <= kMaxUInt32;
 }
 
 // CPU Registers.
@@ -1110,6 +1110,9 @@ class Assembler : public Malloced {
   void movsd(XMMRegister dst, XMMRegister src);
   void movsd(XMMRegister dst, const Operand& src);
 
+  void movss(XMMRegister dst, const Operand& src);
+  void movss(const Operand& dst, XMMRegister src);
+
   void cvttss2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, const Operand& src);
   void cvttsd2siq(Register dst, XMMRegister src);
@@ -1119,7 +1122,14 @@ class Assembler : public Malloced {
   void cvtqsi2sd(XMMRegister dst, const Operand& src);
   void cvtqsi2sd(XMMRegister dst, Register src);
 
+  void cvtlsi2ss(XMMRegister dst, Register src);
+
   void cvtss2sd(XMMRegister dst, XMMRegister src);
+  void cvtss2sd(XMMRegister dst, const Operand& src);
+  void cvtsd2ss(XMMRegister dst, XMMRegister src);
+
+  void cvtsd2si(Register dst, XMMRegister src);
+  void cvtsd2siq(Register dst, XMMRegister src);
 
   void addsd(XMMRegister dst, XMMRegister src);
   void subsd(XMMRegister dst, XMMRegister src);
@@ -1130,6 +1140,7 @@ class Assembler : public Malloced {
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void ucomisd(XMMRegister dst, XMMRegister src);
+  void ucomisd(XMMRegister dst, const Operand& src);
 
   // The first argument is the reg field, the second argument is the r/m field.
   void emit_sse_operand(XMMRegister dst, XMMRegister src);

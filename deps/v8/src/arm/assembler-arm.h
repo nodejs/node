@@ -1110,6 +1110,7 @@ class Assembler : public Malloced {
   void EndBlockConstPool() {
     const_pool_blocked_nesting_--;
   }
+  bool is_const_pool_blocked() const { return const_pool_blocked_nesting_ > 0; }
 
  private:
   // Code buffer:

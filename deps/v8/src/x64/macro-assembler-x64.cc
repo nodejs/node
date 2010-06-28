@@ -652,8 +652,8 @@ Condition MacroAssembler::CheckBothPositiveSmi(Register first,
   if (first.is(second)) {
     return CheckPositiveSmi(first);
   }
-  movl(kScratchRegister, first);
-  orl(kScratchRegister, second);
+  movq(kScratchRegister, first);
+  or_(kScratchRegister, second);
   rol(kScratchRegister, Immediate(1));
   testl(kScratchRegister, Immediate(0x03));
   return zero;
@@ -1678,8 +1678,7 @@ void MacroAssembler::Ret() {
 
 void MacroAssembler::FCmp() {
   fucomip();
-  ffree(0);
-  fincstp();
+  fstp(0);
 }
 
 

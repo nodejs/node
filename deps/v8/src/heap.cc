@@ -126,6 +126,12 @@ int Heap::always_allocate_scope_depth_ = 0;
 int Heap::linear_allocation_scope_depth_ = 0;
 int Heap::contexts_disposed_ = 0;
 
+int Heap::young_survivors_after_last_gc_ = 0;
+int Heap::high_survival_rate_period_length_ = 0;
+double Heap::survival_rate_ = 0;
+Heap::SurvivalRateTrend Heap::previous_survival_rate_trend_ = Heap::STABLE;
+Heap::SurvivalRateTrend Heap::survival_rate_trend_ = Heap::STABLE;
+
 #ifdef DEBUG
 bool Heap::allocation_allowed_ = true;
 
@@ -582,6 +588,29 @@ static void VerifyPageWatermarkValidity(PagedSpace* space,
 }
 #endif
 
+void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
+  double survival_rate =
+      (static_cast<double>(young_survivors_after_last_gc_) * 100) /
+      start_new_space_size;
+
+  if (survival_rate > kYoungSurvivalRateThreshold) {
+    high_survival_rate_period_length_++;
+  } else {
+    high_survival_rate_period_length_ = 0;
+  }
+
+  double survival_rate_diff = survival_rate_ - survival_rate;
+
+  if (survival_rate_diff > kYoungSurvivalRateAllowedDeviation) {
+    set_survival_rate_trend(DECREASING);
+  } else if (survival_rate_diff < -kYoungSurvivalRateAllowedDeviation) {
+    set_survival_rate_trend(INCREASING);
+  } else {
+    set_survival_rate_trend(STABLE);
+  }
+
+  survival_rate_ = survival_rate;
+}
 
 void Heap::PerformGarbageCollection(AllocationSpace space,
                                     GarbageCollector collector,
@@ -604,6 +633,8 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
   EnsureFromSpaceIsCommitted();
 
+  int start_new_space_size = Heap::new_space()->Size();
+
   if (collector == MARK_COMPACTOR) {
     if (FLAG_flush_code) {
       // Flush all potentially unused code.
@@ -613,16 +644,36 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     // Perform mark-sweep with optional compaction.
     MarkCompact(tracer);
 
+    bool high_survival_rate_during_scavenges = IsHighSurvivalRate() &&
+        IsStableOrIncreasingSurvivalTrend();
+
+    UpdateSurvivalRateTrend(start_new_space_size);
+
     int old_gen_size = PromotedSpaceSize();
     old_gen_promotion_limit_ =
         old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
     old_gen_allocation_limit_ =
         old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
+
+    if (high_survival_rate_during_scavenges &&
+        IsStableOrIncreasingSurvivalTrend()) {
+      // Stable high survival rates of young objects both during partial and
+      // full collection indicate that mutator is either building or modifying
+      // a structure with a long lifetime.
+      // In this case we aggressively raise old generation memory limits to
+      // postpone subsequent mark-sweep collection and thus trade memory
+      // space for the mutation speed.
+      old_gen_promotion_limit_ *= 2;
+      old_gen_allocation_limit_ *= 2;
+    }
+
     old_gen_exhausted_ = false;
   } else {
     tracer_ = tracer;
     Scavenge();
     tracer_ = NULL;
+
+    UpdateSurvivalRateTrend(start_new_space_size);
   }
 
   Counters::objs_since_last_young.Set(0);
@@ -1217,7 +1268,7 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_code_cache(empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
-  map->set_bit_field2(1 << Map::kIsExtensible);
+  map->set_bit_field2((1 << Map::kIsExtensible) | (1 << Map::kHasFastElements));
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
   if (Map::kPadStart < Map::kSize) {
@@ -2545,6 +2596,7 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
   map->set_inobject_properties(in_object_properties);
   map->set_unused_property_fields(in_object_properties);
   map->set_prototype(prototype);
+  ASSERT(map->has_fast_elements());
 
   // If the function has only simple this property assignments add
   // field descriptors for these to the initial map as the object
@@ -2598,8 +2650,8 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   // properly initialized.
   ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
 
-  // Both types of globla objects should be allocated using
-  // AllocateGloblaObject to be properly initialized.
+  // Both types of global objects should be allocated using
+  // AllocateGlobalObject to be properly initialized.
   ASSERT(map->instance_type() != JS_GLOBAL_OBJECT_TYPE);
   ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
@@ -2623,6 +2675,7 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   InitializeJSObjectFromMap(JSObject::cast(obj),
                             FixedArray::cast(properties),
                             map);
+  ASSERT(JSObject::cast(obj)->HasFastElements());
   return obj;
 }
 

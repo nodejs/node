@@ -2641,7 +2641,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
   // Generate code to set the elements in the array that are not
   // literals.
-  for (int i = 0; i < node->values()->length(); i++) {
+  for (int i = 0; i < length; i++) {
     Expression* value = node->values()->at(i);
 
     // If value is a literal the property value is already set in the
@@ -3855,8 +3855,17 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     default:
       UNREACHABLE();
   }
-  Load(left);
-  Load(right);
+
+  if (left->IsTrivial()) {
+    Load(right);
+    Result right_result = frame_->Pop();
+    frame_->Push(left);
+    frame_->Push(&right_result);
+  } else {
+    Load(left);
+    Load(right);
+  }
+
   Comparison(node, cc, strict, destination());
 }
 
@@ -5336,9 +5345,8 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
     dest->false_target()->Branch(equal);
     Condition is_smi = masm_->CheckSmi(value.reg());
     dest->true_target()->Branch(is_smi);
-    __ fldz();
-    __ fld_d(FieldOperand(value.reg(), HeapNumber::kValueOffset));
-    __ FCmp();
+    __ xorpd(xmm0, xmm0);
+    __ ucomisd(xmm0, FieldOperand(value.reg(), HeapNumber::kValueOffset));
     value.Unuse();
     dest->Split(not_zero);
   } else {
@@ -6511,7 +6519,7 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 void DeferredInlineBinaryOperation::Generate() {
   Label done;
   if ((op_ == Token::ADD)
-      || (op_ ==Token::SUB)
+      || (op_ == Token::SUB)
       || (op_ == Token::MUL)
       || (op_ == Token::DIV)) {
     Label call_runtime;
@@ -7530,9 +7538,11 @@ Result CodeGenerator::EmitKeyedLoad() {
     // is not a dictionary.
     __ movq(elements.reg(),
             FieldOperand(receiver.reg(), JSObject::kElementsOffset));
-    __ Cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
-           Factory::fixed_array_map());
-    deferred->Branch(not_equal);
+    if (FLAG_debug_code) {
+      __ Cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
+             Factory::fixed_array_map());
+      __ Assert(equal, "JSObject with fast elements map has slow elements");
+    }
 
     // Check that key is within bounds.
     __ SmiCompare(key.reg(),
@@ -8000,14 +8010,12 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ jmp(&true_result);
 
   __ bind(&not_string);
-  // HeapNumber => false iff +0, -0, or NaN.
-  // These three cases set C3 when compared to zero in the FPU.
   __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &true_result);
-  __ fldz();  // Load zero onto fp stack
-  // Load heap-number double value onto fp stack
-  __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  __ FCmp();
+  // HeapNumber => false iff +0, -0, or NaN.
+  // These three cases set the zero flag when compared to zero using ucomisd.
+  __ xorpd(xmm0, xmm0);
+  __ ucomisd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
   __ j(zero, &false_result);
   // Fall through to |true_result|.
 
@@ -8951,48 +8959,31 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
     // so we do the second best thing - test it ourselves.
     // Note: if cc_ != equal, never_nan_nan_ is not used.
+    __ Set(rax, EQUAL);
     if (never_nan_nan_ && (cc_ == equal)) {
-      __ Set(rax, EQUAL);
       __ ret(0);
     } else {
-      Label return_equal;
       Label heap_number;
       // If it's not a heap number, then return equal.
       __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
              Factory::heap_number_map());
       __ j(equal, &heap_number);
-      __ bind(&return_equal);
-      __ Set(rax, EQUAL);
       __ ret(0);
 
       __ bind(&heap_number);
-      // It is a heap number, so return non-equal if it's NaN and equal if
-      // it's not NaN.
-      // The representation of NaN values has all exponent bits (52..62) set,
-      // and not all mantissa bits (0..51) clear.
-      // We only allow QNaNs, which have bit 51 set (which also rules out
-      // the value being Infinity).
+      // It is a heap number, so return  equal if it's not NaN.
+      // For NaN, return 1 for every condition except greater and
+      // greater-equal.  Return -1 for them, so the comparison yields
+      // false for all conditions except not-equal.
 
-      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
-      // all bits in the mask are set. We only need to check the word
-      // that contains the exponent and high bit of the mantissa.
-      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
-      __ movl(rdx, FieldOperand(rdx, HeapNumber::kExponentOffset));
-      __ xorl(rax, rax);
-      __ addl(rdx, rdx);  // Shift value and mask so mask applies to top bits.
-      __ cmpl(rdx, Immediate(kQuietNaNHighBitsMask << 1));
-      if (cc_ == equal) {
-        __ setcc(above_equal, rax);
-        __ ret(0);
-      } else {
-        Label nan;
-        __ j(above_equal, &nan);
-        __ Set(rax, EQUAL);
-        __ ret(0);
-        __ bind(&nan);
-        __ Set(rax, NegativeComparisonResult(cc_));
-        __ ret(0);
+      __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
+      __ ucomisd(xmm0, xmm0);
+      __ setcc(parity_even, rax);
+      // rax is 0 for equal non-NaN heapnumbers, 1 for NaNs.
+      if (cc_ == greater_equal || cc_ == greater) {
+        __ neg(rax);
       }
+      __ ret(0);
     }
 
     __ bind(&not_identical);
@@ -10040,20 +10031,15 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
 // Input: rdx, rax are the left and right objects of a bit op.
 // Output: rax, rcx are left and right integers for a bit op.
 void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
-  if (FLAG_debug_code) {
-    // Both arguments can not be smis. That case is handled by smi-only code.
-    Label ok;
-    __ JumpIfNotBothSmi(rax, rdx, &ok);
-    __ Abort("Both arguments smi but not handled by smi-code.");
-    __ bind(&ok);
-  }
   // Check float operands.
   Label done;
+  Label rax_is_smi;
   Label rax_is_object;
   Label rdx_is_object;
 
   __ JumpIfNotSmi(rdx, &rdx_is_object);
   __ SmiToInteger32(rdx, rdx);
+  __ JumpIfSmi(rax, &rax_is_smi);
 
   __ bind(&rax_is_object);
   IntegerConvert(masm, rcx, rax);  // Uses rdi, rcx and rbx.
@@ -10062,6 +10048,7 @@ void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
   __ bind(&rdx_is_object);
   IntegerConvert(masm, rdx, rdx);  // Uses rdi, rcx and rbx.
   __ JumpIfNotSmi(rax, &rax_is_object);
+  __ bind(&rax_is_smi);
   __ SmiToInteger32(rcx, rax);
 
   __ bind(&done);
@@ -10446,7 +10433,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         Label not_floats;
         // rax: y
         // rdx: x
-        ASSERT(!static_operands_type_.IsSmi());
         if (static_operands_type_.IsNumber()) {
           if (FLAG_debug_code) {
             // Assert at runtime that inputs are only numbers.
@@ -11583,7 +11569,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotBothPositiveSmi(rcx, rdx, &runtime);
 
   __ SmiSub(rcx, rcx, rdx, NULL);  // Overflow doesn't happen.
-  __ j(negative, &runtime);
+  __ cmpq(FieldOperand(rax, String::kLengthOffset), rcx);
+  Label return_rax;
+  __ j(equal, &return_rax);
   // Special handling of sub-strings of length 1 and 2. One character strings
   // are handled in the runtime system (looked up in the single character
   // cache). Two character strings are looked for in the symbol cache.
@@ -11686,6 +11674,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // rsi: character of sub string start
   StringHelper::GenerateCopyCharactersREP(masm, rdi, rsi, rcx, false);
   __ movq(rsi, rdx);  // Restore esi.
+
+  __ bind(&return_rax);
   __ IncrementCounter(&Counters::sub_string_native, 1);
   __ ret(kArgumentsSize);
 

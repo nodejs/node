@@ -1548,6 +1548,8 @@ void MacroAssembler::Check(Condition cc, const char* msg) {
 
 
 void MacroAssembler::Abort(const char* msg) {
+  Label abort_start;
+  bind(&abort_start);
   // We want to pass the msg string like a smi to avoid GC
   // problems, however msg is not guaranteed to be aligned
   // properly. Instead, we pass an aligned pointer that is
@@ -1571,6 +1573,17 @@ void MacroAssembler::Abort(const char* msg) {
   push(r0);
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
+  if (is_const_pool_blocked()) {
+    // If the calling code cares about the exact number of
+    // instructions generated, we insert padding here to keep the size
+    // of the Abort macro constant.
+    static const int kExpectedAbortInstructions = 10;
+    int abort_instructions = InstructionsGeneratedSince(&abort_start);
+    ASSERT(abort_instructions <= kExpectedAbortInstructions);
+    while (abort_instructions++ < kExpectedAbortInstructions) {
+      nop();
+    }
+  }
 }
 
 

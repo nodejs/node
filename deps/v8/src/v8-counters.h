@@ -153,6 +153,10 @@ namespace internal {
   SC(keyed_store_inline_miss, V8.KeyedStoreInlineMiss)                \
   SC(named_store_global_inline, V8.NamedStoreGlobalInline)            \
   SC(named_store_global_inline_miss, V8.NamedStoreGlobalInlineMiss)   \
+  SC(call_miss, V8.CallMiss)                                          \
+  SC(keyed_call_miss, V8.KeyedCallMiss)                               \
+  SC(load_miss, V8.LoadMiss)                                          \
+  SC(keyed_load_miss, V8.KeyedLoadMiss)                               \
   SC(call_const, V8.CallConst)                                        \
   SC(call_const_fast_api, V8.CallConstFastApi)                        \
   SC(call_const_interceptor, V8.CallConstInterceptor)                 \

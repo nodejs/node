@@ -653,7 +653,7 @@ TEST(SampleRateCalculator) {
   time += SampleRateCalculator::kWallTimeQueryIntervalMs * 0.75;
   calc2.UpdateMeasurements(time);
   // (1.0 + 2.0 + 2.0) / 3
-  CHECK_EQ(kSamplingIntervalMs * 1.66666, calc2.ticks_per_ms());
+  CHECK_EQ(kSamplingIntervalMs * 5.0, floor(calc2.ticks_per_ms() * 3.0 + 0.5));
 
   SampleRateCalculator calc3;
   time = 0.0;
@@ -667,7 +667,7 @@ TEST(SampleRateCalculator) {
   time += SampleRateCalculator::kWallTimeQueryIntervalMs * 1.5;
   calc3.UpdateMeasurements(time);
   // (1.0 + 0.5 + 0.5) / 3
-  CHECK_EQ(kSamplingIntervalMs * 0.66666, calc3.ticks_per_ms());
+  CHECK_EQ(kSamplingIntervalMs * 2.0, floor(calc3.ticks_per_ms() * 3.0 + 0.5));
 }
 
 

@@ -274,8 +274,19 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
   return copy;
 }
 
+
 Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
   CALL_HEAP_FUNCTION(src->CopyDropTransitions(), Map);
+}
+
+
+Handle<Map> Factory::GetFastElementsMap(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(src->GetFastElementsMap(), Map);
+}
+
+
+Handle<Map> Factory::GetSlowElementsMap(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(src->GetSlowElementsMap(), Map);
 }
 
 

@@ -1518,12 +1518,13 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
     case KEYED_PROPERTY: {
       __ push(rax);  // Preserve value.
       VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kStack);
-      __ movq(rax, Operand(rsp, 2 * kPointerSize));
+      VisitForValue(prop->key(), kAccumulator);
+      __ movq(rcx, rax);
+      __ pop(rdx);
+      __ pop(rax);
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       __ call(ic, RelocInfo::CODE_TARGET);
       __ nop();  // Signal no inlined code.
-      __ Drop(3);  // Receiver, key, and extra copy of value.
       break;
     }
   }
