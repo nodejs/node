@@ -1919,7 +1919,7 @@ int main(int argc, char *argv[]) {
 #ifdef __sun
   // TODO(Ryan) I'm experiencing abnormally high load using Solaris's
   // EVBACKEND_PORT. Temporarally forcing select() until I debug.
-  ev_default_loop(EVBACKEND_SELECT);
+  ev_default_loop(EVBACKEND_POLL);
 #else
   ev_default_loop(EVFLAG_AUTO);
 #endif
