@@ -161,7 +161,7 @@ buffer object.  It does not change when the contents of the buffer are changed.
 
 Does a memcpy() between buffers.
 
-Example: build two Buffers, then copy `buf1` from byte 16 through byte 20
+Example: build two Buffers, then copy `buf1` from byte 16 through byte 19
 into `buf2`, starting at the 8th byte in `buf2`.
 
     var Buffer = require('buffer').Buffer,
@@ -177,7 +177,7 @@ into `buf2`, starting at the 8th byte in `buf2`.
     buf1.copy(buf2, 8, 16, 20);
     console.log(buf2.toString('ascii', 0, 25));
 
-    // !!!!!!!!qrstu!!!!!!!!!!!!
+    // !!!!!!!!qrst!!!!!!!!!!!!!
     
 
 ### buffer.slice(start, end)

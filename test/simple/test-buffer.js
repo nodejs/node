@@ -19,8 +19,8 @@ for (var i = 0; i < 1024; i++) {
 
 var c = new Buffer(512);
 
-// copy 512 bytes, from 0 to 511.
-var copied = b.copy(c, 0, 0, 511);
+// copy 512 bytes, from 0 to 512.
+var copied = b.copy(c, 0, 0, 512);
 console.log("copied " + copied + " bytes from b into c");
 assert.strictEqual(512, copied);
 for (var i = 0; i < c.length; i++) {
@@ -30,7 +30,7 @@ for (var i = 0; i < c.length; i++) {
 console.log("");
 
 // try to copy 513 bytes, and hope we don't overrun c, which is only 512 long
-var copied = b.copy(c, 0, 0, 512);
+var copied = b.copy(c, 0, 0, 513);
 console.log("copied " + copied + " bytes from b into c");
 assert.strictEqual(512, copied);
 for (var i = 0; i < c.length; i++) {
@@ -46,7 +46,7 @@ for (var i = 0; i < b.length; i++) {
 }
 
 // copy 768 bytes from b into b
-var copied = b.copy(b, 0, 256, 1023);
+var copied = b.copy(b, 0, 256, 1024);
 console.log("copied " + copied + " bytes from b into c");
 assert.strictEqual(768, copied);
 for (var i = 0; i < c.length; i++) {
@@ -104,8 +104,8 @@ assert.strictEqual('sourceStart out of bounds', caught_error.message);
 
 // try to copy ending after the end of b
 try {
-    var copied = b.copy(c, 0, 1023, 1024);
-} catch (err) { 
+    var copied = b.copy(c, 0, 1023, 1025);
+} catch (err) {
     caught_error = err;
 }
 assert.strictEqual('sourceEnd out of bounds', caught_error.message);
