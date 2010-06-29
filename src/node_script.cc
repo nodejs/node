@@ -2,16 +2,15 @@
 #include <node_script.h>
 #include <assert.h>
 
-#include <v8-debug.h>
 
 using namespace v8;
 using namespace node;
 
+
 Persistent<FunctionTemplate> node::Context::constructor_template;
 
-void
-node::Context::Initialize (Handle<Object> target)
-{
+
+void node::Context::Initialize (Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(node::Context::New);
@@ -22,9 +21,8 @@ node::Context::Initialize (Handle<Object> target)
   target->Set(String::NewSymbol("Context"), constructor_template->GetFunction());
 }
 
-Handle<Value>
-node::Context::New (const Arguments& args)
-{
+
+Handle<Value> node::Context::New (const Arguments& args) {
   HandleScope scope;
 
   node::Context *t = new node::Context();
@@ -33,31 +31,32 @@ node::Context::New (const Arguments& args)
   return args.This();
 }
 
-node::Context::~Context() {
-  _context.Dispose();
+
+node::Context::Context() : ObjectWrap() {
+  context_ = v8::Context::New();
 }
 
-Local<Object>
-node::Context::NewInstance()
-{
+
+node::Context::~Context() {
+  context_.Dispose();
+}
+
+
+Local<Object> node::Context::NewInstance() {
   Local<Object> context = constructor_template->GetFunction()->NewInstance();
-  node::Context *nContext = ObjectWrap::Unwrap<node::Context>(context);
-  nContext->_context = v8::Context::New();
   return context;
 }
 
-v8::Persistent<v8::Context>
-node::Context::GetV8Context()
-{
-	return _context;
+
+v8::Persistent<v8::Context> node::Context::GetV8Context() {
+	return context_;
 }
 
 
 Persistent<FunctionTemplate> node::Script::constructor_template;
 
-void
-node::Script::Initialize (Handle<Object> target)
-{
+
+void node::Script::Initialize (Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(node::Script::New);
@@ -77,9 +76,8 @@ node::Script::Initialize (Handle<Object> target)
   target->Set(String::NewSymbol("Script"), constructor_template->GetFunction());
 }
 
-Handle<Value>
-node::Script::New (const Arguments& args)
-{
+
+Handle<Value> node::Script::New (const Arguments& args) {
   HandleScope scope;
 
   node::Script *t = new node::Script();
@@ -89,14 +87,13 @@ node::Script::New (const Arguments& args)
     node::Script::EvalMachine<compileCode, thisContext, wrapExternal>(args);
 }
 
+
 node::Script::~Script() {
-  _script.Dispose();
+  script_.Dispose();
 }
 
 
-Handle<Value>
-node::Script::CreateContext (const Arguments& args)
-{
+Handle<Value> node::Script::CreateContext (const Arguments& args) {
   HandleScope scope;
 
   Local<v8::Object> context = node::Context::NewInstance();
@@ -117,92 +114,79 @@ node::Script::CreateContext (const Arguments& args)
   return scope.Close(context);
 }
 
-Handle<Value>
-node::Script::RunInContext (const Arguments& args)
-{
+
+Handle<Value> node::Script::RunInContext (const Arguments& args) {
   return
     node::Script::EvalMachine<unwrapExternal, userContext, returnResult>(args);
 }
 
 
-Handle<Value>
-node::Script::RunInThisContext (const Arguments& args)
-{
+Handle<Value> node::Script::RunInThisContext (const Arguments& args) {
   return
     node::Script::EvalMachine<unwrapExternal, thisContext, returnResult>(args);
 }
 
 
-Handle<Value>
-node::Script::RunInNewContext(const Arguments& args) {
+Handle<Value> node::Script::RunInNewContext(const Arguments& args) {
   return
     node::Script::EvalMachine<unwrapExternal, newContext, returnResult>(args);
 }
 
 
-Handle<Value>
-node::Script::CompileRunInContext (const Arguments& args)
-{
+Handle<Value> node::Script::CompileRunInContext (const Arguments& args) {
   return
     node::Script::EvalMachine<compileCode, userContext, returnResult>(args);
 }
 
 
-Handle<Value>
-node::Script::CompileRunInThisContext (const Arguments& args)
-{
+Handle<Value> node::Script::CompileRunInThisContext (const Arguments& args) {
   return
     node::Script::EvalMachine<compileCode, thisContext, returnResult>(args);
 }
 
 
-Handle<Value>
-node::Script::CompileRunInNewContext(const Arguments& args) {
+Handle<Value> node::Script::CompileRunInNewContext(const Arguments& args) {
   return
     node::Script::EvalMachine<compileCode, newContext, returnResult>(args);
 }
 
 
-// Extracts a C str from a V8 Utf8Value.
-const char* ToCString(const v8::String::Utf8Value& value) {
-  return *value ? *value : "<str conversion failed>";
-}
-
 template <node::Script::EvalInputFlags iFlag,
-  node::Script::EvalContextFlags cFlag,
-  node::Script::EvalOutputFlags oFlag>
-Handle<Value> node::Script::EvalMachine(const Arguments& args) {
+          node::Script::EvalContextFlags cFlag,
+          node::Script::EvalOutputFlags oFlag>
+    Handle<Value> node::Script::EvalMachine(const Arguments& args) {
+
   HandleScope scope;
 
   if (iFlag == compileCode && args.Length() < 1) {
     return ThrowException(Exception::TypeError(
-      String::New("needs at least 'code' argument.")
-    ));
+          String::New("needs at least 'code' argument.")));
   }
 
   const int sbIndex = iFlag == compileCode ? 1 : 0;
   if (cFlag == userContext && args.Length() < (sbIndex + 1)) {
     return ThrowException(Exception::TypeError(
-      String::New("needs a 'context' argument.")
-    ));
+          String::New("needs a 'context' argument.")));
   }
 
 
   Local<String> code;
-  if (iFlag == compileCode) { code = args[0]->ToString(); }
+  if (iFlag == compileCode) code = args[0]->ToString();
 
   Local<Object> sandbox;
   if (cFlag == newContext) {
     sandbox = args.Length() > sbIndex ? args[sbIndex]->ToObject() : Object::New();
-  }
-  else if (cFlag == userContext) {
+  } else if (cFlag == userContext) {
     sandbox = args[sbIndex]->ToObject();
   }
+
   const int fnIndex = sbIndex + (cFlag == newContext ? 1 : 0);
-  Local<String> filename = args.Length() > fnIndex ? args[fnIndex]->ToString()
-                                             : String::New("evalmachine.<anonymous>");
+  Local<String> filename = args.Length() > fnIndex 
+                           ? args[fnIndex]->ToString()
+                           : String::New("evalmachine.<anonymous>");
 
   Persistent<v8::Context> context;
+
   Local<Array> keys;
   unsigned int i;
   if (cFlag == newContext) {
@@ -218,7 +202,6 @@ Handle<Value> node::Script::EvalMachine(const Arguments& args) {
 
   // New and user context share code. DRY it up.
   if (cFlag == userContext || cFlag == newContext) {
-
     // Enter the context
     context->Enter();
 
@@ -240,51 +223,48 @@ Handle<Value> node::Script::EvalMachine(const Arguments& args) {
   Handle<v8::Script> script;
 
   if (iFlag == compileCode) {
-    // well, here node::Script::New would suffice in all cases, but maybe Compile has a little better performance where possible
-    script = oFlag == returnResult ? v8::Script::Compile(code, filename) : v8::Script::New(code, filename);
+    // well, here node::Script::New would suffice in all cases, but maybe
+    // Compile has a little better performance where possible
+    script = oFlag == returnResult ? v8::Script::Compile(code, filename)
+                                   : v8::Script::New(code, filename);
     if (script.IsEmpty()) {
       // Hack because I can't get a proper stacktrace on SyntaxError
-      result = ThrowException(try_catch.Exception());
+      return try_catch.ReThrow();
     }
   } else {
     node::Script *nScript = ObjectWrap::Unwrap<node::Script>(args.Holder());
     if (!nScript) {
-      Local<Value> exception =
-        Exception::Error(String::New("Must be called as a method of Script."));
-      result = ThrowException(exception);
-    } else if (nScript->_script.IsEmpty()) {
-      Local<Value> exception =
-        Exception::Error(String::New("'this' must be a result of previous new Script(code) call."));
-      result = ThrowException(exception);
-    } else {
-      script = nScript->_script;
+      return ThrowException(Exception::Error(
+            String::New("Must be called as a method of Script.")));
+    } else if (nScript->script_.IsEmpty()) {
+      return ThrowException(Exception::Error(
+            String::New("'this' must be a result of previous new Script(code) call.")));
     }
+
+    script = nScript->script_;
   }
 
-  if (result.IsEmpty()) {
-    if (oFlag == returnResult) {
-      result = script->Run();
-    } else {
-      node::Script *nScript = ObjectWrap::Unwrap<node::Script>(args.Holder());
-      if (!nScript) {
-        Local<Value> exception =
-          Exception::Error(String::New("Must be called as a method of Script."));
-        result = ThrowException(exception);
-      } else {
-        nScript->_script = Persistent<v8::Script>::New(script);
-        result = args.This();
-      }
-    }
-    if (result.IsEmpty()) {
-      return try_catch.ReThrow();
-    } else if (cFlag == userContext || cFlag == newContext) {
-      // success! copy changes back onto the sandbox object.
-      keys = context->Global()->GetPropertyNames();
-      for (i = 0; i < keys->Length(); i++) {
-        Handle<String> key = keys->Get(Integer::New(i))->ToString();
-        Handle<Value> value = context->Global()->Get(key);
-        sandbox->Set(key, value);
-      }
+
+  if (oFlag == returnResult) {
+    result = script->Run();
+    if (result.IsEmpty()) return try_catch.ReThrow();
+  } else {
+    node::Script *nScript = ObjectWrap::Unwrap<node::Script>(args.Holder());
+    if (!nScript) {
+      return ThrowException(Exception::Error(
+            String::New("Must be called as a method of Script.")));
+    } 
+    nScript->script_ = Persistent<v8::Script>::New(script);
+    result = args.This();
+  }
+
+  if (cFlag == userContext || cFlag == newContext) {
+    // success! copy changes back onto the sandbox object.
+    keys = context->Global()->GetPropertyNames();
+    for (i = 0; i < keys->Length(); i++) {
+      Handle<String> key = keys->Get(Integer::New(i))->ToString();
+      Handle<Value> value = context->Global()->Get(key);
+      sandbox->Set(key, value);
     }
   }
 

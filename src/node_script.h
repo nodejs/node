@@ -20,11 +20,12 @@ class Context : ObjectWrap {
 
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
-  Context () : ObjectWrap () {}
+  Context ();
   ~Context();
 
-  v8::Persistent<v8::Context> _context;
+  v8::Persistent<v8::Context> context_;
 };
+
 
 class Script : ObjectWrap {
  public:
@@ -52,8 +53,9 @@ class Script : ObjectWrap {
   static v8::Handle<v8::Value> CompileRunInThisContext (const v8::Arguments& args);
   static v8::Handle<v8::Value> CompileRunInNewContext (const v8::Arguments& args);
 
-  v8::Persistent<v8::Script> _script;
+  v8::Persistent<v8::Script> script_;
 };
+
 
 } // namespace node
 #endif //  node_script_h
