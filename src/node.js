@@ -194,6 +194,7 @@ process.openStdin = function () {
 function format (f) {
   var i = 1;
   var args = arguments;
+  if (!(f instanceof String)) return f;
   return f.replace(/%([sdf])/g, function (x) {
     switch (x) {
       case '%s': return args[i++];
