@@ -29,10 +29,12 @@ process.assert = function (x, msg) {
   if (!x) throw new Error(msg || "assertion error");
 };
 
+var writeError = process.binding('stdio').writeError;
+
 var evalcxMsg;
 process.evalcx = function () {
   if (!evalcxMsg) {
-    process.binding('stdio').writeError(evalcxMsg =
+    writeError(evalcxMsg =
       "process.evalcx is deprecated. Use Script.runInNewContext instead.\n");
   }
   return process.binding('evals').Script
@@ -187,11 +189,35 @@ process.openStdin = function () {
 };
 
 
+// console object
+
+function format (f) {
+  var i = 1;
+  var args = arguments;
+  return f.replace(/%([sdf])/g, function (x) {
+    switch (x) {
+      case '%s': return args[i++];
+      case '%d': return args[i++].toString();
+      case '%f': return JSON.stringify(args[i++]);
+      default:
+        return x;
+    }
+  });
+}
+
 global.console = {};
 
-global.console.log = function (x) {
-  process.stdout.write(x + '\n');
+global.console.log = function () {
+  process.stdout.write(format.apply(this, arguments) + '\n');
 };
+
+global.console.info = global.console.log;
+
+global.console.warn = function () {
+  writeError(format.apply(this, arguments) + '\n');
+};
+
+global.console.error = global.console.warn;
 
 
 process.exit = function (code) {
