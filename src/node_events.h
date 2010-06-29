@@ -17,8 +17,6 @@ class EventEmitter : public ObjectWrap {
             v8::Handle<v8::Value> argv[]);
 
  protected:
-  static v8::Handle<v8::Value> Emit(const v8::Arguments& args);
-
   EventEmitter() : ObjectWrap () { }
 };
 
