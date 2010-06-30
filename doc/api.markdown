@@ -2692,7 +2692,7 @@ Example:
 
     querystring.stringify({foo: 'bar', foo: 'baz', foo: 'boz'})
     // returns
-    'foo[]=bar&foo[]=baz&foo[]=boz'
+    'foo=boz'
 
     querystring.stringify({foo: {bar: 'baz'}})
     // returns
