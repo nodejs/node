@@ -52,6 +52,10 @@ static Persistent<String> move_sym;
 static Persistent<String> propfind_sym;
 static Persistent<String> proppatch_sym;
 static Persistent<String> unlock_sym;
+static Persistent<String> report_sym;
+static Persistent<String> mkactivity_sym;
+static Persistent<String> checkout_sym;
+static Persistent<String> merge_sym;
 static Persistent<String> unknown_method_sym;
 
 static Persistent<String> method_sym;
@@ -121,6 +125,10 @@ method_to_str(unsigned short m) {
     case HTTP_PROPFIND:   return propfind_sym;
     case HTTP_PROPPATCH:  return proppatch_sym;
     case HTTP_UNLOCK:     return unlock_sym;
+    case HTTP_REPORT:     return report_sym;
+    case HTTP_MKACTIVITY: return mkactivity_sym;
+    case HTTP_CHECKOUT:   return checkout_sym;
+    case HTTP_MERGE:      return merge_sym;
     default:              return unknown_method_sym;
   }
 }
@@ -437,6 +445,10 @@ void InitHttpParser(Handle<Object> target) {
   propfind_sym = NODE_PSYMBOL("PROPFIND");
   proppatch_sym = NODE_PSYMBOL("PROPPATCH");
   unlock_sym = NODE_PSYMBOL("UNLOCK");
+  report_sym = NODE_PSYMBOL("REPORT");
+  mkactivity_sym = NODE_PSYMBOL("MKACTIVITY");
+  checkout_sym = NODE_PSYMBOL("CHECKOUT");
+  merge_sym = NODE_PSYMBOL("MERGE");
   unknown_method_sym = NODE_PSYMBOL("UNKNOWN_METHOD");
 
   method_sym = NODE_PSYMBOL("method");
