@@ -323,9 +323,16 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
   ssize_t to_copy = MIN(source_end - source_start,
                         target->length() - target_start);
 
-  memcpy((void*)(target->data() + target_start),
-         (const void*)(source->data() + source_start),
-         to_copy);
+  if (target->blob_ == source->blob_) {
+    // need to use slightly slower memmove is the ranges might overlap
+    memmove((void*)(target->data() + target_start),
+            (const void*)(source->data() + source_start),
+            to_copy);
+  } else {
+    memcpy((void*)(target->data() + target_start),
+           (const void*)(source->data() + source_start),
+           to_copy);
+  }
 
   return scope.Close(Integer::New(to_copy));
 }
