@@ -181,7 +181,7 @@ template <node::Script::EvalInputFlags iFlag,
   }
 
   const int fnIndex = sbIndex + (cFlag == newContext ? 1 : 0);
-  Local<String> filename = args.Length() > fnIndex 
+  Local<String> filename = args.Length() > fnIndex
                            ? args[fnIndex]->ToString()
                            : String::New("evalmachine.<anonymous>");
 
@@ -253,7 +253,7 @@ template <node::Script::EvalInputFlags iFlag,
     if (!nScript) {
       return ThrowException(Exception::Error(
             String::New("Must be called as a method of Script.")));
-    } 
+    }
     nScript->script_ = Persistent<v8::Script>::New(script);
     result = args.This();
   }

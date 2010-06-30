@@ -1166,7 +1166,7 @@ static Handle<Value> SetGid(const Arguments& args) {
   }
 
   int gid;
- 
+
   if (args[0]->IsNumber()) {
     gid = args[0]->Int32Value();
   } else if (args[0]->IsString()) {

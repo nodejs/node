@@ -31,7 +31,7 @@ var parseHeaders = function(data) {
     return o;
 };
 
-// Create a TCP server 
+// Create a TCP server
 var srv = net.createServer(function(c) {
     var data = '';
     c.addListener('data', function(d) {

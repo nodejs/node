@@ -21,7 +21,7 @@ var hosts = ['example.com',
              'google.com', // MX, multiple A records
              '_xmpp-client._tcp.google.com', // SRV
              'oakalynhall.co.uk' // Multiple PTR replies
-            ]; 
+            ];
 
 var records = ['A', 'AAAA', 'MX', 'TXT', 'SRV'];
 
@@ -58,12 +58,12 @@ function checkDnsRecord(host, record) {
             while (ll--) {
               var ip = result[ll];
               var reverseCmd = "host " + ip +
-                               "| cut -d \" \" -f 5-" + 
+                               "| cut -d \" \" -f 5-" +
                                "| sed -e 's/\\.$//'";
 
               child_process.exec(reverseCmd, checkReverse(ip));
             }
-          }); 
+          });
         break;
       case "MX":
         dns.resolve(myHost, myRecord, function (error, result, ttl, cname) {

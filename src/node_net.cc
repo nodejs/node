@@ -214,7 +214,7 @@ static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
     memset(&in6, 0, sizeof in6);
 
     int port = first->Int32Value();
-    in.sin_port = in6.sin6_port = htons(port);  
+    in.sin_port = in6.sin6_port = htons(port);
     in.sin_family = AF_INET;
     in6.sin6_family = AF_INET6;
 
@@ -241,7 +241,7 @@ static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
 }
 
 
-// Bind with UNIX 
+// Bind with UNIX
 //   t.bind(fd, "/tmp/socket")
 // Bind with TCP
 //   t.bind(fd, 80, "192.168.11.2")
@@ -486,7 +486,7 @@ static Handle<Value> SocketError(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "getsockopt"));
   }
 
-  return scope.Close(Integer::New(error)); 
+  return scope.Close(Integer::New(error));
 }
 
 
@@ -572,7 +572,7 @@ static Handle<Value> RecvFrom(const Arguments& args) {
   struct sockaddr_storage address_storage;
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
-  ssize_t bytes_read = recvfrom(fd, (char*)buffer->data() + off, len, flags, 
+  ssize_t bytes_read = recvfrom(fd, (char*)buffer->data() + off, len, flags,
                                 (struct sockaddr*) &address_storage, &addrlen);
 
   if (bytes_read < 0) {
@@ -653,7 +653,7 @@ static Handle<Value> RecvMsg(const Arguments& args) {
   //
   // XXX: Some implementations can send multiple file descriptors in a
   //      single message. We should be using CMSG_NXTHDR() to walk the
-  //      chain to get at them all. This would require changing the 
+  //      chain to get at them all. This would require changing the
   //      API to hand these back up the caller, is a pain.
 
   int received_fd = -1;
@@ -696,7 +696,7 @@ static Handle<Value> Write(const Arguments& args) {
 
   FD_ARG(args[0])
 
-  if (!Buffer::HasInstance(args[1])) { 
+  if (!Buffer::HasInstance(args[1])) {
     return ThrowException(Exception::TypeError(
           String::New("Second argument should be a buffer")));
   }
@@ -1177,7 +1177,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
 
 static Handle<Value> IsIP(const Arguments& args) {
   HandleScope scope;
-  
+
   if (!args[0]->IsString()) {
     return scope.Close(Integer::New(4));
   }
@@ -1206,7 +1206,7 @@ static Handle<Value> CreateErrnoException(const Arguments& args) {
   int errorno = args[0]->Int32Value();
   String::Utf8Value syscall(args[1]->ToString());
 
-  Local<Value> exception = ErrnoException(errorno, *syscall); 
+  Local<Value> exception = ErrnoException(errorno, *syscall);
 
   return scope.Close(exception);
 }

@@ -21,7 +21,7 @@ class SignalWatcher : ObjectWrap {
     ev_signal_init(&watcher_, SignalWatcher::Callback, sig);
     watcher_.data = this;
   }
-  
+
   ~SignalWatcher() {
     ev_signal_stop(EV_DEFAULT_UC_ &watcher_);
   }
@@ -32,10 +32,10 @@ class SignalWatcher : ObjectWrap {
 
  private:
   static void Callback(EV_P_ ev_signal *watcher, int revents);
-  
+
   void Start();
   void Stop();
-  
+
   ev_signal watcher_;
 };
 

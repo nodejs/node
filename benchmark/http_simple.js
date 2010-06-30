@@ -28,7 +28,7 @@ http.createServer(function (req, res) {
   if (command == "bytes") {
     var n = parseInt(arg, 10)
     if (n <= 0)
-      throw "bytes called with n <= 0" 
+      throw "bytes called with n <= 0"
     if (stored[n] === undefined) {
       console.log("create stored[n]");
       stored[n] = "";
@@ -64,7 +64,7 @@ http.createServer(function (req, res) {
 
   var content_length = body.length.toString();
 
-  res.writeHead( status 
+  res.writeHead( status
                 , { "Content-Type": "text/plain"
                   , "Content-Length": content_length
                   }

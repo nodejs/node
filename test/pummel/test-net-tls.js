@@ -102,7 +102,7 @@ try {
   have_tls=true;
 } catch (e) {
   have_tls=false;
-} 
+}
 
 if (have_tls) {
   var caPem = fs.readFileSync(fixturesDir+"/test_ca.pem");

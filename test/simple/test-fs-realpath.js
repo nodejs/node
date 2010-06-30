@@ -9,7 +9,7 @@ function asynctest(testBlock, args, callback, assertBlock) {
     var ignoreError = false;
     if (assertBlock) {
       try {
-        ignoreError = assertBlock.apply(assertBlock, 
+        ignoreError = assertBlock.apply(assertBlock,
           Array.prototype.slice.call(arguments));
       }
       catch (e) {
@@ -106,7 +106,7 @@ function test_deep_relative_dir_symlink(callback) {
   unlink.push(entry);
 
   assert.equal(fs.realpathSync(entry), expected);
-  
+
   asynctest(fs.realpath, [entry], callback, function(err, result){
     assert.equal(result, expected,
       'got '+inspect(result)+' expected '+inspect(expected));
@@ -168,9 +168,9 @@ function test_deep_symlink_mix(callback) {
     /tmp/node-test-realpath-f1 -> ../tmp/node-test-realpath-d1/foo
     /tmp/node-test-realpath-d1 -> ../node-test-realpath-d2
     /tmp/node-test-realpath-d2/foo -> ../node-test-realpath-f2
-    /tmp/node-test-realpath-f2 
+    /tmp/node-test-realpath-f2
       -> /node/test/fixtures/nested-index/one/realpath-c
-    /node/test/fixtures/nested-index/one/realpath-c 
+    /node/test/fixtures/nested-index/one/realpath-c
       -> /node/test/fixtures/nested-index/two/realpath-c
     /node/test/fixtures/nested-index/two/realpath-c -> ../../cycles/root.js
     /node/test/fixtures/cycles/root.js (hard)

@@ -1004,7 +1004,7 @@ class Cipher : public ObjectWrap {
     delete [] buf;
 
     Local<Value> outString;
-    if (out_len==0) { 
+    if (out_len==0) {
       outString=String::New("");
     } else {
     	if (args.Length() <= 2 || !args[2]->IsString()) {

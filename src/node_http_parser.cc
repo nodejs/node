@@ -21,7 +21,7 @@
 // No copying is performed when slicing the buffer, only small reference
 // allocations.
 
- 
+
 namespace node {
 
 using namespace v8;
@@ -194,7 +194,7 @@ class Parser : public ObjectWrap {
 
     String::Utf8Value type(args[0]->ToString());
 
-    Parser *parser; 
+    Parser *parser;
 
     if (0 == strcasecmp(*type, "request")) {
       parser = new Parser(HTTP_REQUEST);
@@ -257,7 +257,7 @@ class Parser : public ObjectWrap {
     if (parser->got_exception_) return Local<Value>();
 
     Local<Integer> nparsed_obj = Integer::New(nparsed);
-    // If there was a parse error in one of the callbacks 
+    // If there was a parse error in one of the callbacks
     // TODO What if there is an error on EOF?
     if (!parser->parser_.upgrade && nparsed != len) {
       Local<Value> e = Exception::Error(String::NewSymbol("Parse Error"));
@@ -333,7 +333,7 @@ static Handle<Value> UrlDecode (const Arguments& args) {
 
   enum { CHAR, HEX0, HEX1 } state = CHAR;
 
-  int n, m, hexchar; 
+  int n, m, hexchar;
   size_t in_index = 0, out_index = 0;
   char c;
   for (; in_index <= l; in_index++) {

@@ -27,10 +27,10 @@ server.listen(PORT, function () {
   });
 
   http.cat("http://localhost:12312/", "utf8", function (err, content) {
-    if (err) { 
+    if (err) {
       console.log("got error (this should happen)");
       bad_server_got_error = true;
-    } 
+    }
   });
 });
 

@@ -16,7 +16,7 @@ try {
   have_openssl=false;
   console.log("Not compiled with OPENSSL support.");
   process.exit();
-} 
+}
 
 var request_number = 0;
 var requests_sent = 0;

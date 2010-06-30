@@ -1,4 +1,4 @@
-var exec = require('child_process').exec, 
+var exec = require('child_process').exec,
     puts = require('sys').puts;
 
 [0, 1].forEach(function(i) {

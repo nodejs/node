@@ -12,7 +12,7 @@ for (var i = 0; i < N; i++) {
     } else {
       throw new Error("this shouldn't be called");
     }
-  }); 
+  });
 }
 
 process.addListener("exit", function () {

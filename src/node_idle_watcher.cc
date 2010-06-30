@@ -38,7 +38,7 @@ Handle<Value> IdleWatcher::SetPriority(const Arguments& args) {
   HandleScope scope;
 
   int priority = args[0]->Int32Value();
-  
+
   ev_set_priority(&idle->watcher_, priority);
 
   return Undefined();
@@ -71,7 +71,7 @@ void IdleWatcher::Callback(EV_P_ ev_idle *w, int revents) {
 }
 
 
-// 
+//
 //  var idle = new process.IdleWatcher();
 //  idle.callback = function () { /* ... */  };
 //  idle.start();

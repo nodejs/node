@@ -43,7 +43,7 @@ assert.equal(2, e.listeners("foo").length)
 e.removeAllListeners("foo")
 assert.equal(0, e.listeners("foo").length)
 
-// Verify that removing callbacks while in emit allows emits to propagate to 
+// Verify that removing callbacks while in emit allows emits to propagate to
 // all listeners
 callbacks_called = [ ];
 

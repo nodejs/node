@@ -61,7 +61,7 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
 }
 
 
-// 
+//
 //  var io = new process.IOWatcher();
 //  process.callback = function (readable, writable) { ... };
 //  io.set(fd, true, false);

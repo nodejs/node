@@ -10,7 +10,7 @@ server = http.createServer(function (req, res) {
 
 server.addListener('upgrade', function (req, socket, upgradeHead) {
   error('got upgrade event');
-  // test that throwing an error from upgrade gets 
+  // test that throwing an error from upgrade gets
   // is uncaught
   throw new Error('upgrade error');
 });

@@ -5,7 +5,7 @@ try {
 } catch (e) {
   console.log("Not compiled with OPENSSL support.");
   process.exit();
-} 
+}
 
 var fs = require('fs');
 var sys = require('sys');
@@ -68,7 +68,7 @@ var encryption_key = '0123456789abcd0123456789';
 var iv = '12345678';
 
 var cipher = crypto.createCipheriv("des-ede3-cbc", encryption_key, iv);
-var ciph = cipher.update(plaintext, 'utf8', 'hex'); 
+var ciph = cipher.update(plaintext, 'utf8', 'hex');
 ciph += cipher.final('hex');
 
 var decipher = crypto.createDecipheriv("des-ede3-cbc",encryption_key,iv);

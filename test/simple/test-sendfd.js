@@ -59,7 +59,7 @@ var logChild = function(d) {
 };
 
 // Create a pipe
-// 
+//
 // We establish a listener on the read end of the pipe so that we can
 // validate any data sent back by the child. We send the write end of the
 // pipe to the child and close it off in our process.

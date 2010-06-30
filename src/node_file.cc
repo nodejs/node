@@ -432,7 +432,7 @@ static Handle<Value> MKDir(const Arguments& args) {
 static Handle<Value> SendFile(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 4 || 
+  if (args.Length() < 4 ||
       !args[0]->IsInt32() ||
       !args[1]->IsInt32() ||
       !args[3]->IsNumber()) {
@@ -704,7 +704,7 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "readlink", ReadLink);
   NODE_SET_METHOD(target, "unlink", Unlink);
   NODE_SET_METHOD(target, "write", Write);
-  
+
   NODE_SET_METHOD(target, "chmod", Chmod);
   NODE_SET_METHOD(target, "chown", Chown);
 

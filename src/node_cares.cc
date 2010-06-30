@@ -24,7 +24,7 @@ using namespace v8;
 
 static Handle<Value> IsIP(const Arguments& args) {
   HandleScope scope;
-  
+
   if (!args[0]->IsString()) {
     return scope.Close(Integer::New(4));
   }

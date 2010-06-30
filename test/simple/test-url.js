@@ -169,10 +169,10 @@ for (var u in parseTests) {
       a = JSON.stringify(actual[i]);
     assert.equal(e, a, "parse(" + u + ")."+i+" == "+e+"\nactual: "+a);
   }
-  
+
   var expected = u,
     actual = url.format(parseTests[u]);
-  
+
   assert.equal(expected, actual, "format("+u+") == "+u+"\nactual:"+actual);
 }
 
@@ -250,13 +250,13 @@ for (var u in formatTests) {
 });
 
 
-// 
+//
 // Tests below taken from Chiron
 // http://code.google.com/p/chironjs/source/browse/trunk/src/test/http/url.js
-// 
+//
 // Copyright (c) 2002-2008 Kris Kowal <http://cixar.com/~kris.kowal>
 // used with permission under MIT License
-// 
+//
 // Changes marked with @isaacs
 
 var bases = [
@@ -392,7 +392,7 @@ var bases = [
   ['./'      , bases[3], 'fred:///s//a/b/'],
   ['../'     , bases[3], 'fred:///s//a/'],
   ['../g'    , bases[3], 'fred:///s//a/g'],
-  
+
   ['../../'  , bases[3], 'fred:///s//'],
   ['../../g' , bases[3], 'fred:///s//g'],
   ['../../../g', bases[3], 'fred:///s/g'],
@@ -512,5 +512,5 @@ var bases = [
   assert.equal(e, a,
     "resolve("+[relativeTest[1], relativeTest[0]]+") == "+e+
     "\n  actual="+a);
-});  
+});
 

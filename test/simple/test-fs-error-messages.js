@@ -158,6 +158,6 @@ try {
 }
 
 process.addListener('exit', function () {
-  assert.equal(expected, errors.length, 
+  assert.equal(expected, errors.length,
     'Test fs sync exceptions raised, got ' + errors.length + ' expected ' + expected);
 });

@@ -509,8 +509,8 @@ Handle<Value> Buffer::ByteLength(const Arguments &args) {
   enum encoding e = ParseEncoding(args[1], UTF8);
 
   Local<Integer> length =
-    Integer::New(e == UTF8 ? s->Utf8Length() : s->Length()); 
-  
+    Integer::New(e == UTF8 ? s->Utf8Length() : s->Length());
+
   return scope.Close(length);
 }
 

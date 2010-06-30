@@ -9,7 +9,7 @@ for (var i = 255; i >= 0; i--) {
        + " "
        + JSON.stringify(S)
        + " "
-       + JSON.stringify(String.fromCharCode(i)) 
+       + JSON.stringify(String.fromCharCode(i))
        + " "
        + S.charCodeAt(0)
        );

@@ -12,7 +12,7 @@ fs.chmod(file, 0777, function (err) {
   } else {
     console.log(fs.statSync(file).mode);
     assert.equal(0777, fs.statSync(file).mode & 0777);
-    
+
     fs.chmodSync(file, 0644);
     assert.equal(0644, fs.statSync(file).mode & 0777);
     success_count++;
