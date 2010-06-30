@@ -14,6 +14,8 @@
 #include <fcntl.h>
 #include <arpa/inet.h> /* inet_pton */
 
+#include <netdb.h>
+
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
@@ -1015,6 +1017,163 @@ static Handle<Value> SetKeepAlive(const Arguments& args) {
   return Undefined();
 }
 
+//
+// G E T A D D R I N F O
+//
+
+
+struct resolve_request {
+  Persistent<Function> cb;
+  struct addrinfo *address_list;
+  int ai_family; // AF_INET or AF_INET6
+  char hostname[1];
+};
+
+#ifndef EAI_NODATA // EAI_NODATA is deprecated, FreeBSD already thrown it away in favor of EAI_NONAME
+#define EAI_NODATA EAI_NONAME
+#endif
+
+static int AfterResolve(eio_req *req) {
+  ev_unref(EV_DEFAULT_UC);
+
+  struct resolve_request * rreq = (struct resolve_request *)(req->data);
+
+  HandleScope scope;
+  Local<Value> argv[2];
+
+  if (req->result != 0) {
+    argv[1] = Array::New();
+    if (req->result == EAI_NODATA) {
+      argv[0] = Local<Value>::New(Null());
+    } else {
+      argv[0] = ErrnoException(req->result,
+                               "getaddrinfo",
+                               gai_strerror(req->result));
+    }
+  } else {
+    struct addrinfo *address;
+    int n = 0;
+
+    for (address = rreq->address_list; address; address = address->ai_next) { n++; }
+
+    Local<Array> results = Array::New(n);
+
+    char ip[INET6_ADDRSTRLEN];
+    const char *addr;
+
+    n = 0;
+    address = rreq->address_list;
+    while (address) {
+      assert(address->ai_socktype == SOCK_STREAM);
+      assert(address->ai_family == AF_INET || address->ai_family == AF_INET6);
+      addr = ( address->ai_family == AF_INET
+             ? (char *) &((struct sockaddr_in *) address->ai_addr)->sin_addr
+             : (char *) &((struct sockaddr_in6 *) address->ai_addr)->sin6_addr
+             );
+      const char *c = inet_ntop(address->ai_family, addr, ip, INET6_ADDRSTRLEN);
+      Local<String> s = String::New(c);
+      results->Set(Integer::New(n), s);
+
+      n++;
+      address = address->ai_next;
+    }
+
+    argv[0] = Local<Value>::New(Null());
+    argv[1] = results;
+  }
+
+  TryCatch try_catch;
+
+  rreq->cb->Call(Context::GetCurrent()->Global(), 2, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+
+  if (rreq->address_list) freeaddrinfo(rreq->address_list);
+  rreq->cb.Dispose(); // Dispose of the persistent handle
+  free(rreq);
+
+  return 0;
+}
+
+
+static int Resolve(eio_req *req) {
+  // Note: this function is executed in the thread pool! CAREFUL
+  struct resolve_request * rreq = (struct resolve_request *) req->data;
+
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_family = rreq->ai_family;
+  hints.ai_socktype = SOCK_STREAM;
+
+  req->result = getaddrinfo((char*)rreq->hostname,
+                            NULL,
+                            &hints,
+                            &(rreq->address_list));
+  return 0;
+}
+
+
+static Handle<Value> GetAddrInfo(const Arguments& args) {
+  HandleScope scope;
+
+  String::Utf8Value hostname(args[0]->ToString());
+
+  int type = args[1]->Int32Value();
+  int fam = AF_INET;
+  switch (type) {
+    case 4:
+      fam = AF_INET;
+      break;
+    case 6:
+      fam = AF_INET6;
+      break;
+    default:
+      return ThrowException(Exception::TypeError(
+            String::New("Second argument must be an integer 4 or 6")));
+  }
+
+  if (!args[2]->IsFunction()) {
+    return ThrowException(Exception::TypeError(
+          String::New("Thrid argument must be a callback")));
+  }
+
+  Local<Function> cb = Local<Function>::Cast(args[2]);
+
+  struct resolve_request *rreq = (struct resolve_request *)
+    calloc(1, sizeof(struct resolve_request) + hostname.length());
+
+  if (!rreq) {
+    V8::LowMemoryNotification();
+    return ThrowException(Exception::Error(
+          String::New("Could not allocate enough memory")));
+  }
+
+  strcpy(rreq->hostname, *hostname);
+  rreq->cb = Persistent<Function>::New(cb);
+  rreq->ai_family = fam;
+
+  // For the moment I will do DNS lookups in the eio thread pool. This is
+  // sub-optimal and cannot handle massive numbers of requests.
+  //
+  // (One particularly annoying problem is that the pthread stack size needs
+  // to be increased dramatically to handle getaddrinfo() see X_STACKSIZE in
+  // wscript ).
+  //
+  // In the future I will move to a system using c-ares:
+  // http://lists.schmorp.de/pipermail/libev/2009q1/000632.html
+  eio_custom(Resolve, EIO_PRI_DEFAULT, AfterResolve, rreq);
+
+  // There will not be any active watchers from this object on the event
+  // loop while getaddrinfo() runs. If the only thing happening in the
+  // script was this hostname resolution, then the event loop would drop
+  // out. Thus we need to add ev_ref() until AfterResolve().
+  ev_ref(EV_DEFAULT_UC);
+
+  return Undefined();
+}
+
 
 static Handle<Value> IsIP(const Arguments& args) {
   HandleScope scope;
@@ -1084,6 +1243,7 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "setKeepAlive", SetKeepAlive);
   NODE_SET_METHOD(target, "getsockname", GetSockName);
   NODE_SET_METHOD(target, "getpeername", GetPeerName);
+  NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
   NODE_SET_METHOD(target, "isIP", IsIP);
   NODE_SET_METHOD(target, "errnoException", CreateErrnoException);
 
