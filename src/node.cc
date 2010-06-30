@@ -1805,9 +1805,8 @@ static void Load(int argc, char *argv[]) {
 
   f->Call(global, 1, args);
 
-  if (try_catch.HasCaught())  {
-    ReportException(try_catch, true);
-    exit(11);
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
   }
 }
 
