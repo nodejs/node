@@ -239,7 +239,7 @@ if (process.argv[1]) {
     process.argv[1] = path.join(cwd, process.argv[1]);
   }
 
-  module.runMain(process.argv[1]);
+  module.runMain();
 } else {
   // No arguments, run the repl
   var repl = module.requireNative('repl');

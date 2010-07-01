@@ -33,14 +33,14 @@ errExec('throws_error.js', function (err, stdout, stderr) {
 });
 
 
-// Trying to JSON.parse(undefined) in nextTick
-errExec('throws_error3.js', function (err, stdout, stderr) {
+// Trying to JSON.parse(undefined)
+errExec('throws_error2.js', function (err, stdout, stderr) {
   assert.ok(/JSON/.test(stderr));
 });
 
 
-// Trying to JSON.parse(undefined)
-errExec('throws_error2.js', function (err, stdout, stderr) {
+// Trying to JSON.parse(undefined) in nextTick
+errExec('throws_error3.js', function (err, stdout, stderr) {
   assert.ok(/JSON/.test(stderr));
 });
 
