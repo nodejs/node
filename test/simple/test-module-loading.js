@@ -48,6 +48,13 @@ var root = require("../fixtures/cycles/root"),
 assert.equal(root.foo, foo);
 assert.equal(root.sayHello(), root.hello);
 
+debug("test name clashes");
+// this one exists and should import the local module
+var my_path = require("./path");
+assert.equal(true, my_path.path_func instanceof Function);
+// this one does not exist and should throw
+assert.throws(function() { require("./utils")});
+
 var errorThrown = false;
 try {
   require("../fixtures/throws_error");
