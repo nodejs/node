@@ -1,19 +1,6 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #include <node_events.h>
-
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <arpa/inet.h> /* inet_ntop */
-#include <netinet/in.h> /* sockaddr_in, sockaddr_in6 */
-
 #include <node.h>
-#include <ev.h>
-#include <v8.h>
 
 namespace node {
 
