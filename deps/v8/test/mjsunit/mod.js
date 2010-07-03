@@ -25,25 +25,29 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests the special cases specified by ES 15.8.2.17
-
-function test(expected_sqrt, value) {
-  assertEquals(expected_sqrt, Math.sqrt(value));
-  if (isFinite(value)) { 
-    assertEquals(expected_sqrt, Math.pow(value, 0.5));
+function foo() {
+  for (var i = 1; i < 100; i++) {
+    var answer = 1;
+    for (var j = 1; j < 100; j++) {
+      if (answer == i) answer = 0;
+      // Positive case.
+      print(j + " % " + i + " = " + answer);
+      m = j % i;
+      assertEquals(answer, m, j + " % " + i);
+      m = j % (-i);
+      assertEquals(answer, m, j + " % -" + i);
+      // Negative case.
+      m = (-j) % i;
+      assertEquals(-answer, m, j + " % " + i);
+      // Check for negative zero.
+      if (answer == 0) assertEquals(-Infinity, 1/m);
+      m = (-j) % (-i);
+      assertEquals(-answer, m, j + " % -" + i);
+      // Check for negative zero.
+      if (answer == 0) assertEquals(-Infinity, 1/m);
+      answer++;
+    }
   }
 }
 
-// Simple sanity check
-test(2, 4);
-test(0.1, 0.01);
-
-// Spec tests
-test(NaN, NaN);
-test(NaN, -1);
-test(+0, +0);
-test(-0, -0);
-test(Infinity, Infinity);
-// -Infinity is smaller than 0 so it should return NaN
-test(NaN, -Infinity);
-
+foo();

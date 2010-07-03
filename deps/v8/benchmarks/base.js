@@ -198,15 +198,33 @@ BenchmarkSuite.prototype.NotifyError = function(error) {
 
 // Runs a single benchmark for at least a second and computes the
 // average time it takes to run a single iteration.
-BenchmarkSuite.prototype.RunSingleBenchmark = function(benchmark) {
-  var elapsed = 0;
-  var start = new Date();
-  for (var n = 0; elapsed < 1000; n++) {
-    benchmark.run();
-    elapsed = new Date() - start;
+BenchmarkSuite.prototype.RunSingleBenchmark = function(benchmark, data) {
+  function Measure(data) {
+    var elapsed = 0;
+    var start = new Date();
+    for (var n = 0; elapsed < 1000; n++) {
+      benchmark.run();
+      elapsed = new Date() - start;
+    }
+    if (data != null) {
+      data.runs += n;
+      data.elapsed += elapsed;
+    }
   }
-  var usec = (elapsed * 1000) / n;
-  this.NotifyStep(new BenchmarkResult(benchmark, usec));
+
+  if (data == null) {
+    // Measure the benchmark once for warm up and throw the result
+    // away. Return a fresh data object.
+    Measure(null);
+    return { runs: 0, elapsed: 0 };
+  } else {
+    Measure(data);
+    // If we've run too few iterations, we continue for another second.
+    if (data.runs < 32) return data;
+    var usec = (data.elapsed * 1000) / data.runs;
+    this.NotifyStep(new BenchmarkResult(benchmark, usec));
+    return null;
+  }
 }
 
 
@@ -220,6 +238,7 @@ BenchmarkSuite.prototype.RunStep = function(runner) {
   var length = this.benchmarks.length;
   var index = 0;
   var suite = this;
+  var data;
 
   // Run the setup, the actual benchmark, and the tear down in three
   // separate steps to allow the framework to yield between any of the
@@ -241,12 +260,13 @@ BenchmarkSuite.prototype.RunStep = function(runner) {
 
   function RunNextBenchmark() {
     try {
-      suite.RunSingleBenchmark(suite.benchmarks[index]);
+      data = suite.RunSingleBenchmark(suite.benchmarks[index], data);
     } catch (e) {
       suite.NotifyError(e);
       return null;
     }
-    return RunNextTearDown;
+    // If data is null, we're done with this benchmark.
+    return (data == null) ? RunNextTearDown : RunNextBenchmark();
   }
 
   function RunNextTearDown() {

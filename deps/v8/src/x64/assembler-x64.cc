@@ -1563,7 +1563,7 @@ void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
 void Assembler::movsxbq(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_32(dst, src);
+  emit_rex_64(dst, src);
   emit(0x0F);
   emit(0xBE);
   emit_operand(dst, src);
@@ -1601,7 +1601,7 @@ void Assembler::movsxlq(Register dst, const Operand& src) {
 void Assembler::movzxbq(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(dst, src);
+  emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xB6);
   emit_operand(dst, src);
@@ -1621,7 +1621,7 @@ void Assembler::movzxbl(Register dst, const Operand& src) {
 void Assembler::movzxwq(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(dst, src);
+  emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xB7);
   emit_operand(dst, src);

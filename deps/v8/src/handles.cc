@@ -197,7 +197,17 @@ void TransformToFastProperties(Handle<JSObject> object,
 
 void FlattenString(Handle<String> string) {
   CALL_HEAP_FUNCTION_VOID(string->TryFlatten());
+}
+
+
+Handle<String> FlattenGetString(Handle<String> string) {
+  Handle<String> result;
+  CALL_AND_RETRY(string->TryFlatten(),
+                 { result = Handle<String>(String::cast(__object__));
+                   break; },
+                 return Handle<String>());
   ASSERT(string->IsFlat());
+  return result;
 }
 
 

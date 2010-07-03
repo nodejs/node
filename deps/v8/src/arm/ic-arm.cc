@@ -1722,7 +1722,7 @@ static void ConvertIntToFloat(MacroAssembler* masm,
     // Count leading zeros.
     // Gets the wrong answer for 0, but we already checked for that case above.
     Register zeros = scratch2;
-    __ CountLeadingZeros(ival, scratch1, zeros);
+    __ CountLeadingZeros(zeros, ival, scratch1);
 
     // Compute exponent and or it into the exponent register.
     __ rsb(scratch1,

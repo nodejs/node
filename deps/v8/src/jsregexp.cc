@@ -356,7 +356,16 @@ int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
   if (!subject->IsFlat()) {
     FlattenString(subject);
   }
-  bool is_ascii = subject->IsAsciiRepresentation();
+  // Check the asciiness of the underlying storage.
+  bool is_ascii;
+  {
+    AssertNoAllocation no_gc;
+    String* sequential_string = *subject;
+    if (subject->IsConsString()) {
+      sequential_string =  ConsString::cast(*subject)->first();
+    }
+    is_ascii = sequential_string->IsAsciiRepresentation();
+  }
   if (!EnsureCompiledIrregexp(regexp, is_ascii)) {
     return -1;
   }
@@ -380,6 +389,11 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
   ASSERT(index >= 0);
   ASSERT(index <= subject->length());
   ASSERT(subject->IsFlat());
+
+  // A flat ASCII string might have a two-byte first part.
+  if (subject->IsConsString()) {
+    subject = Handle<String>(ConsString::cast(*subject)->first());
+  }
 
 #ifndef V8_INTERPRETED_REGEXP
   ASSERT(output.length() >=
@@ -407,7 +421,7 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
     // If result is RETRY, the string has changed representation, and we
     // must restart from scratch.
     // In this case, it means we must make sure we are prepared to handle
-    // the, potentially, differen subject (the string can switch between
+    // the, potentially, different subject (the string can switch between
     // being internal and external, and even between being ASCII and UC16,
     // but the characters are always the same).
     IrregexpPrepare(regexp, subject);

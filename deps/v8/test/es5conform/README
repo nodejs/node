@@ -4,7 +4,7 @@ tests from
 
   https://es5conform.svn.codeplex.com/svn
 
-in revision 62998 as 'data' in this directory.  Using later version
+in revision 71525 as 'data' in this directory.  Using later version
 may be possible but the tests are only known to pass (and indeed run)
 with that revision.
 

@@ -67,6 +67,17 @@ enum AllocationFlags {
 };
 
 
+// Flags used for the ObjectToDoubleVFPRegister function.
+enum ObjectToDoubleFlags {
+  // No special flags.
+  NO_OBJECT_TO_DOUBLE_FLAGS = 0,
+  // Object is known to be a non smi.
+  OBJECT_NOT_SMI = 1 << 0,
+  // Don't load NaNs or infinities, branch to the non number case instead.
+  AVOID_NANS_AND_INFINITIES = 1 << 1
+};
+
+
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
  public:
@@ -381,6 +392,13 @@ class MacroAssembler: public Assembler {
                           Register scratch2,
                           Register heap_number_map,
                           Label* gc_required);
+  void AllocateHeapNumberWithValue(Register result,
+                                   DwVfpRegister value,
+                                   Register scratch1,
+                                   Register scratch2,
+                                   Register heap_number_map,
+                                   Label* gc_required);
+
 
   // ---------------------------------------------------------------------------
   // Support functions.
@@ -469,12 +487,35 @@ class MacroAssembler: public Assembler {
                                          Register outHighReg,
                                          Register outLowReg);
 
+  // Load the value of a number object into a VFP double register. If the object
+  // is not a number a jump to the label not_number is performed and the VFP
+  // double register is unchanged.
+  void ObjectToDoubleVFPRegister(
+      Register object,
+      DwVfpRegister value,
+      Register scratch1,
+      Register scratch2,
+      Register heap_number_map,
+      SwVfpRegister scratch3,
+      Label* not_number,
+      ObjectToDoubleFlags flags = NO_OBJECT_TO_DOUBLE_FLAGS);
+
+  // Load the value of a smi object into a VFP double register. The register
+  // scratch1 can be the same register as smi in which case smi will hold the
+  // untagged value afterwards.
+  void SmiToDoubleVFPRegister(Register smi,
+                              DwVfpRegister value,
+                              Register scratch1,
+                              SwVfpRegister scratch2);
+
   // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
   // instruction.  On pre-ARM5 hardware this routine gives the wrong answer
-  // for 0 (31 instead of 32).
-  void CountLeadingZeros(Register source,
-                         Register scratch,
-                         Register zeros);
+  // for 0 (31 instead of 32).  Source and scratch can be the same in which case
+  // the source is clobbered.  Source and zeros can also be the same in which
+  // case scratch should be a different register.
+  void CountLeadingZeros(Register zeros,
+                         Register source,
+                         Register scratch);
 
   // ---------------------------------------------------------------------------
   // Runtime calls

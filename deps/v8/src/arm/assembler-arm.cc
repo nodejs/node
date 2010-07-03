@@ -2112,6 +2112,18 @@ void Assembler::vmrs(Register dst, Condition cond) {
 }
 
 
+
+void Assembler::vsqrt(const DwVfpRegister dst,
+                      const DwVfpRegister src,
+                      const Condition cond) {
+  // cond(31-28) | 11101 (27-23)| D=?(22) | 11 (21-20) | 0001 (19-16) |
+  // Vd(15-12) | 101(11-9) | sz(8)=1 | 11 (7-6) | M(5)=? | 0(4) | Vm(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  emit(cond | 0xE*B24 | B23 | 0x3*B20 | B16 |
+       dst.code()*B12 | 0x5*B9 | B8 | 3*B6 | src.code());
+}
+
+
 // Pseudo instructions.
 void Assembler::nop(int type) {
   // This is mov rx, rx.

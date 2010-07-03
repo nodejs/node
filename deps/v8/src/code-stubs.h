@@ -46,6 +46,7 @@ namespace internal {
   V(RecordWrite)                         \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
+  V(IntegerMod)                          \
   V(StackCheck)                          \
   V(FastNewClosure)                      \
   V(FastNewContext)                      \

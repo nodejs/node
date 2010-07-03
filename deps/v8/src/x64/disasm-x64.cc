@@ -468,20 +468,20 @@ int DisassemblerX64::PrintRightOperandHelper(
         if (index == 4 && (base & 7) == 4 && scale == 0 /*times_1*/) {
           // index == rsp means no index. Only use sib byte with no index for
           // rsp and r12 base.
-          AppendToBuffer("[%s]", (this->*register_name)(base));
+          AppendToBuffer("[%s]", NameOfCPURegister(base));
           return 2;
         } else if (base == 5) {
           // base == rbp means no base register (when mod == 0).
           int32_t disp = *reinterpret_cast<int32_t*>(modrmp + 2);
           AppendToBuffer("[%s*%d+0x%x]",
-                         (this->*register_name)(index),
+                         NameOfCPURegister(index),
                          1 << scale, disp);
           return 6;
         } else if (index != 4 && base != 5) {
           // [base+index*scale]
           AppendToBuffer("[%s+%s*%d]",
-                         (this->*register_name)(base),
-                         (this->*register_name)(index),
+                         NameOfCPURegister(base),
+                         NameOfCPURegister(index),
                          1 << scale);
           return 2;
         } else {
@@ -489,7 +489,7 @@ int DisassemblerX64::PrintRightOperandHelper(
           return 1;
         }
       } else {
-        AppendToBuffer("[%s]", (this->*register_name)(rm));
+        AppendToBuffer("[%s]", NameOfCPURegister(rm));
         return 1;
       }
       break;
@@ -503,21 +503,21 @@ int DisassemblerX64::PrintRightOperandHelper(
                               : *reinterpret_cast<char*>(modrmp + 2);
         if (index == 4 && (base & 7) == 4 && scale == 0 /*times_1*/) {
           if (-disp > 0) {
-            AppendToBuffer("[%s-0x%x]", (this->*register_name)(base), -disp);
+            AppendToBuffer("[%s-0x%x]", NameOfCPURegister(base), -disp);
           } else {
-            AppendToBuffer("[%s+0x%x]", (this->*register_name)(base), disp);
+            AppendToBuffer("[%s+0x%x]", NameOfCPURegister(base), disp);
           }
         } else {
           if (-disp > 0) {
             AppendToBuffer("[%s+%s*%d-0x%x]",
-                           (this->*register_name)(base),
-                           (this->*register_name)(index),
+                           NameOfCPURegister(base),
+                           NameOfCPURegister(index),
                            1 << scale,
                            -disp);
           } else {
             AppendToBuffer("[%s+%s*%d+0x%x]",
-                           (this->*register_name)(base),
-                           (this->*register_name)(index),
+                           NameOfCPURegister(base),
+                           NameOfCPURegister(index),
                            1 << scale,
                            disp);
           }
@@ -528,9 +528,9 @@ int DisassemblerX64::PrintRightOperandHelper(
         int disp = (mod == 2) ? *reinterpret_cast<int32_t*>(modrmp + 1)
                               : *reinterpret_cast<char*>(modrmp + 1);
         if (-disp > 0) {
-        AppendToBuffer("[%s-0x%x]", (this->*register_name)(rm), -disp);
+        AppendToBuffer("[%s-0x%x]", NameOfCPURegister(rm), -disp);
         } else {
-        AppendToBuffer("[%s+0x%x]", (this->*register_name)(rm), disp);
+        AppendToBuffer("[%s+0x%x]", NameOfCPURegister(rm), disp);
         }
         return (mod == 2) ? 5 : 2;
       }

@@ -4279,22 +4279,147 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 }
 
 
-// Generates the Math.pow method - currently just calls runtime.
+// Generates the Math.pow method.
 void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   Load(args->at(0));
   Load(args->at(1));
-  frame_->CallRuntime(Runtime::kMath_pow, 2);
-  frame_->EmitPush(r0);
+
+  if (!CpuFeatures::IsSupported(VFP3)) {
+    frame_->CallRuntime(Runtime::kMath_pow, 2);
+    frame_->EmitPush(r0);
+  } else {
+    CpuFeatures::Scope scope(VFP3);
+    JumpTarget runtime, done;
+    Label not_minus_half, allocate_return;
+
+    Register scratch1 = VirtualFrame::scratch0();
+    Register scratch2 = VirtualFrame::scratch1();
+
+    // Get base and exponent to registers.
+    Register exponent = frame_->PopToRegister();
+    Register base = frame_->PopToRegister(exponent);
+
+    // Set the frame for the runtime jump target. The code below jumps to the
+    // jump target label so the frame needs to be established before that.
+    ASSERT(runtime.entry_frame() == NULL);
+    runtime.set_entry_frame(frame_);
+
+    __ BranchOnSmi(exponent, runtime.entry_label());
+
+    // Special handling of raising to the power of -0.5 and 0.5. First check
+    // that the value is a heap number and that the lower bits (which for both
+    // values are zero).
+    Register heap_number_map = r6;
+    __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+    __ ldr(scratch1, FieldMemOperand(exponent, HeapObject::kMapOffset));
+    __ ldr(scratch2, FieldMemOperand(exponent, HeapNumber::kMantissaOffset));
+    __ cmp(scratch1, heap_number_map);
+    runtime.Branch(ne);
+    __ tst(scratch2, scratch2);
+    runtime.Branch(ne);
+
+    // Load the e
+    __ ldr(scratch1, FieldMemOperand(exponent, HeapNumber::kExponentOffset));
+
+    // Compare exponent with -0.5.
+    __ cmp(scratch1, Operand(0xbfe00000));
+    __ b(ne, &not_minus_half);
+
+    // Get the double value from the base into vfp register d0.
+    __ ObjectToDoubleVFPRegister(base, d0,
+                                 scratch1, scratch2, heap_number_map, s0,
+                                 runtime.entry_label(),
+                                 AVOID_NANS_AND_INFINITIES);
+
+    // Load 1.0 into d2.
+    __ mov(scratch2, Operand(0x3ff00000));
+    __ mov(scratch1, Operand(0));
+    __ vmov(d2, scratch1, scratch2);
+
+    // Calculate the reciprocal of the square root. 1/sqrt(x) = sqrt(1/x).
+    __ vdiv(d0, d2, d0);
+    __ vsqrt(d0, d0);
+
+    __ b(&allocate_return);
+
+    __ bind(&not_minus_half);
+    // Compare exponent with 0.5.
+    __ cmp(scratch1, Operand(0x3fe00000));
+    runtime.Branch(ne);
+
+      // Get the double value from the base into vfp register d0.
+    __ ObjectToDoubleVFPRegister(base, d0,
+                                 scratch1, scratch2, heap_number_map, s0,
+                                 runtime.entry_label(),
+                                 AVOID_NANS_AND_INFINITIES);
+    __ vsqrt(d0, d0);
+
+    __ bind(&allocate_return);
+    __ AllocateHeapNumberWithValue(
+        base, d0, scratch1, scratch2, heap_number_map, runtime.entry_label());
+    done.Jump();
+
+    runtime.Bind();
+
+    // Push back the arguments again for the runtime call.
+    frame_->EmitPush(base);
+    frame_->EmitPush(exponent);
+    frame_->CallRuntime(Runtime::kMath_pow, 2);
+    __ Move(base, r0);
+
+    done.Bind();
+    frame_->EmitPush(base);
+  }
 }
 
 
-// Generates the Math.sqrt method - currently just calls runtime.
+// Generates the Math.sqrt method.
 void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
-  frame_->CallRuntime(Runtime::kMath_sqrt, 1);
-  frame_->EmitPush(r0);
+
+  if (!CpuFeatures::IsSupported(VFP3)) {
+    frame_->CallRuntime(Runtime::kMath_sqrt, 1);
+    frame_->EmitPush(r0);
+  } else {
+    CpuFeatures::Scope scope(VFP3);
+    JumpTarget runtime, done;
+
+    Register scratch1 = VirtualFrame::scratch0();
+    Register scratch2 = VirtualFrame::scratch1();
+
+    // Get the value from the frame.
+    Register tos = frame_->PopToRegister();
+
+    // Set the frame for the runtime jump target. The code below jumps to the
+    // jump target label so the frame needs to be established before that.
+    ASSERT(runtime.entry_frame() == NULL);
+    runtime.set_entry_frame(frame_);
+
+    Register heap_number_map = r6;
+    __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+
+    // Get the double value from the heap number into vfp register d0.
+    __ ObjectToDoubleVFPRegister(tos, d0,
+                                 scratch1, scratch2, heap_number_map, s0,
+                                 runtime.entry_label());
+
+    // Calculate the square root of d0 and place result in a heap number object.
+    __ vsqrt(d0, d0);
+    __ AllocateHeapNumberWithValue(
+        tos, d0, scratch1, scratch2, heap_number_map, runtime.entry_label());
+    done.Jump();
+
+    runtime.Bind();
+    // Push back the argument again for the runtime call.
+    frame_->EmitPush(tos);
+    frame_->CallRuntime(Runtime::kMath_sqrt, 1);
+    __ Move(tos, r0);
+
+    done.Bind();
+    frame_->EmitPush(tos);
+  }
 }
 
 
@@ -6257,7 +6382,6 @@ bool CodeGenerator::HasValidEntryRegisters() { return true; }
 #undef __
 #define __ ACCESS_MASM(masm)
 
-
 Handle<String> Reference::GetName() {
   ASSERT(type_ == NAMED);
   Property* property = expression_->AsProperty();
@@ -6621,7 +6745,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   __ bind(&not_special);
   // Count leading zeros.  Uses mantissa for a scratch register on pre-ARM5.
   // Gets the wrong answer for 0, but we already checked for that case above.
-  __ CountLeadingZeros(source_, mantissa, zeros_);
+  __ CountLeadingZeros(zeros_, source_, mantissa);
   // Compute exponent and or it into the exponent register.
   // We use mantissa as a scratch register here.  Use a fudge factor to
   // divide the constant 31 + HeapNumber::kExponentBias, 0x41d, into two parts
@@ -7350,7 +7474,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
 
     // If we have floating point hardware, inline ADD, SUB, MUL, and DIV,
     // using registers d7 and d6 for the double values.
-    if (use_fp_registers) {
+    if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       __ mov(r7, Operand(rhs, ASR, kSmiTagSize));
       __ vmov(s15, r7);
@@ -7358,8 +7482,12 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       __ mov(r7, Operand(lhs, ASR, kSmiTagSize));
       __ vmov(s13, r7);
       __ vcvt_f64_s32(d6, s13);
+      if (!use_fp_registers) {
+        __ vmov(r2, r3, d7);
+        __ vmov(r0, r1, d6);
+      }
     } else {
-      // Write Smi from rhs to r3 and r2 in double format.  r3 is scratch.
+      // Write Smi from rhs to r3 and r2 in double format.  r9 is scratch.
       __ mov(r7, Operand(rhs));
       ConvertToDoubleStub stub1(r3, r2, r7, r9);
       __ push(lr);
@@ -7434,12 +7562,15 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
     }
 
-    if (use_fp_registers) {
+    if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       // Convert smi in r0 to double in d7.
       __ mov(r7, Operand(r0, ASR, kSmiTagSize));
       __ vmov(s15, r7);
       __ vcvt_f64_s32(d7, s15);
+      if (!use_fp_registers) {
+        __ vmov(r2, r3, d7);
+      }
     } else {
       // Write Smi from r0 to r3 and r2 in double format.
       __ mov(r7, Operand(r0));
@@ -7490,12 +7621,15 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
     }
 
-    if (use_fp_registers) {
+    if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       // Convert smi in r1 to double in d6.
       __ mov(r7, Operand(r1, ASR, kSmiTagSize));
       __ vmov(s13, r7);
       __ vcvt_f64_s32(d6, s13);
+      if (!use_fp_registers) {
+        __ vmov(r0, r1, d6);
+      }
     } else {
       // Write Smi from r1 to r1 and r0 in double format.
       __ mov(r7, Operand(r1));
@@ -7942,6 +8076,173 @@ static void MultiplyByKnownInt2(
 }
 
 
+// This uses versions of the sum-of-digits-to-see-if-a-number-is-divisible-by-3
+// trick.  See http://en.wikipedia.org/wiki/Divisibility_rule
+// Takes the sum of the digits base (mask + 1) repeatedly until we have a
+// number from 0 to mask.  On exit the 'eq' condition flags are set if the
+// answer is exactly the mask.
+void IntegerModStub::DigitSum(MacroAssembler* masm,
+                              Register lhs,
+                              int mask,
+                              int shift,
+                              Label* entry) {
+  ASSERT(mask > 0);
+  ASSERT(mask <= 0xff);  // This ensures we don't need ip to use it.
+  Label loop;
+  __ bind(&loop);
+  __ and_(ip, lhs, Operand(mask));
+  __ add(lhs, ip, Operand(lhs, LSR, shift));
+  __ bind(entry);
+  __ cmp(lhs, Operand(mask));
+  __ b(gt, &loop);
+}
+
+
+void IntegerModStub::DigitSum(MacroAssembler* masm,
+                              Register lhs,
+                              Register scratch,
+                              int mask,
+                              int shift1,
+                              int shift2,
+                              Label* entry) {
+  ASSERT(mask > 0);
+  ASSERT(mask <= 0xff);  // This ensures we don't need ip to use it.
+  Label loop;
+  __ bind(&loop);
+  __ bic(scratch, lhs, Operand(mask));
+  __ and_(ip, lhs, Operand(mask));
+  __ add(lhs, ip, Operand(lhs, LSR, shift1));
+  __ add(lhs, lhs, Operand(scratch, LSR, shift2));
+  __ bind(entry);
+  __ cmp(lhs, Operand(mask));
+  __ b(gt, &loop);
+}
+
+
+// Splits the number into two halves (bottom half has shift bits).  The top
+// half is subtracted from the bottom half.  If the result is negative then
+// rhs is added.
+void IntegerModStub::ModGetInRangeBySubtraction(MacroAssembler* masm,
+                                                Register lhs,
+                                                int shift,
+                                                int rhs) {
+  int mask = (1 << shift) - 1;
+  __ and_(ip, lhs, Operand(mask));
+  __ sub(lhs, ip, Operand(lhs, LSR, shift), SetCC);
+  __ add(lhs, lhs, Operand(rhs), LeaveCC, mi);
+}
+
+
+void IntegerModStub::ModReduce(MacroAssembler* masm,
+                               Register lhs,
+                               int max,
+                               int denominator) {
+  int limit = denominator;
+  while (limit * 2 <= max) limit *= 2;
+  while (limit >= denominator) {
+    __ cmp(lhs, Operand(limit));
+    __ sub(lhs, lhs, Operand(limit), LeaveCC, ge);
+    limit >>= 1;
+  }
+}
+
+
+void IntegerModStub::ModAnswer(MacroAssembler* masm,
+                               Register result,
+                               Register shift_distance,
+                               Register mask_bits,
+                               Register sum_of_digits) {
+  __ add(result, mask_bits, Operand(sum_of_digits, LSL, shift_distance));
+  __ Ret();
+}
+
+
+// See comment for class.
+void IntegerModStub::Generate(MacroAssembler* masm) {
+  __ mov(lhs_, Operand(lhs_, LSR, shift_distance_));
+  __ bic(odd_number_, odd_number_, Operand(1));
+  __ mov(odd_number_, Operand(odd_number_, LSL, 1));
+  // We now have (odd_number_ - 1) * 2 in the register.
+  // Build a switch out of branches instead of data because it avoids
+  // having to teach the assembler about intra-code-object pointers
+  // that are not in relative branch instructions.
+  Label mod3, mod5, mod7, mod9, mod11, mod13, mod15, mod17, mod19;
+  Label mod21, mod23, mod25;
+  { Assembler::BlockConstPoolScope block_const_pool(masm);
+    __ add(pc, pc, Operand(odd_number_));
+    // When you read pc it is always 8 ahead, but when you write it you always
+    // write the actual value.  So we put in two nops to take up the slack.
+    __ nop();
+    __ nop();
+    __ b(&mod3);
+    __ b(&mod5);
+    __ b(&mod7);
+    __ b(&mod9);
+    __ b(&mod11);
+    __ b(&mod13);
+    __ b(&mod15);
+    __ b(&mod17);
+    __ b(&mod19);
+    __ b(&mod21);
+    __ b(&mod23);
+    __ b(&mod25);
+  }
+
+  // For each denominator we find a multiple that is almost only ones
+  // when expressed in binary.  Then we do the sum-of-digits trick for
+  // that number.  If the multiple is not 1 then we have to do a little
+  // more work afterwards to get the answer into the 0-denominator-1
+  // range.
+  DigitSum(masm, lhs_, 3, 2, &mod3);  // 3 = b11.
+  __ sub(lhs_, lhs_, Operand(3), LeaveCC, eq);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+
+  DigitSum(masm, lhs_, 0xf, 4, &mod5);  // 5 * 3 = b1111.
+  ModGetInRangeBySubtraction(masm, lhs_, 2, 5);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+
+  DigitSum(masm, lhs_, 7, 3, &mod7);  // 7 = b111.
+  __ sub(lhs_, lhs_, Operand(7), LeaveCC, eq);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+
+  DigitSum(masm, lhs_, 0x3f, 6, &mod9);  // 7 * 9 = b111111.
+  ModGetInRangeBySubtraction(masm, lhs_, 3, 9);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+
+  DigitSum(masm, lhs_, r5, 0x3f, 6, 3, &mod11);  // 5 * 11 = b110111.
+  ModReduce(masm, lhs_, 0x3f, 11);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+
+  DigitSum(masm, lhs_, r5, 0xff, 8, 5, &mod13);  // 19 * 13 = b11110111.
+  ModReduce(masm, lhs_, 0xff, 13);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+
+  DigitSum(masm, lhs_, 0xf, 4, &mod15);  // 15 = b1111.
+  __ sub(lhs_, lhs_, Operand(15), LeaveCC, eq);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+
+  DigitSum(masm, lhs_, 0xff, 8, &mod17);  // 15 * 17 = b11111111.
+  ModGetInRangeBySubtraction(masm, lhs_, 4, 17);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+
+  DigitSum(masm, lhs_, r5, 0xff, 8, 5, &mod19);  // 13 * 19 = b11110111.
+  ModReduce(masm, lhs_, 0xff, 19);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+
+  DigitSum(masm, lhs_, 0x3f, 6, &mod21);  // 3 * 21 = b111111.
+  ModReduce(masm, lhs_, 0x3f, 21);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+
+  DigitSum(masm, lhs_, r5, 0xff, 8, 7, &mod23);  // 11 * 23 = b11111101.
+  ModReduce(masm, lhs_, 0xff, 23);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+
+  DigitSum(masm, lhs_, r5, 0x7f, 7, 6, &mod25);  // 5 * 25 = b1111101.
+  ModReduce(masm, lhs_, 0x7f, 25);
+  ModAnswer(masm, result_, shift_distance_, mask_bits_, lhs_);
+}
+
+
 const char* GenericBinaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int len = 100;
@@ -8069,7 +8370,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::MOD: {
       Label not_smi;
       if (ShouldGenerateSmiCode() && specialized_on_rhs_) {
-        Label smi_is_unsuitable;
+        Label lhs_is_unsuitable;
         __ BranchOnNotSmi(lhs, &not_smi);
         if (IsPowerOf2(constant_rhs_)) {
           if (op_ == Token::MOD) {
@@ -8090,14 +8391,14 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
             __ eor(rhs, rhs, Operand(0x80000000u), SetCC);
             // Next two instructions are conditional on the answer being -0.
             __ mov(rhs, Operand(Smi::FromInt(constant_rhs_)), LeaveCC, eq);
-            __ b(eq, &smi_is_unsuitable);
+            __ b(eq, &lhs_is_unsuitable);
             // We need to subtract the dividend.  Eg. -3 % 4 == -3.
             __ sub(result, rhs, Operand(Smi::FromInt(constant_rhs_)));
           } else {
             ASSERT(op_ == Token::DIV);
             __ tst(lhs,
                    Operand(0x80000000u | ((constant_rhs_ << kSmiTagSize) - 1)));
-            __ b(ne, &smi_is_unsuitable);  // Go slow on negative or remainder.
+            __ b(ne, &lhs_is_unsuitable);  // Go slow on negative or remainder.
             int shift = 0;
             int d = constant_rhs_;
             while ((d & 1) == 0) {
@@ -8110,7 +8411,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         } else {
           // Not a power of 2.
           __ tst(lhs, Operand(0x80000000u));
-          __ b(ne, &smi_is_unsuitable);
+          __ b(ne, &lhs_is_unsuitable);
           // Find a fixed point reciprocal of the divisor so we can divide by
           // multiplying.
           double divisor = 1.0 / constant_rhs_;
@@ -8145,7 +8446,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           // (lhs / rhs) where / indicates integer division.
           if (op_ == Token::DIV) {
             __ cmp(lhs, Operand(scratch, LSL, required_scratch_shift));
-            __ b(ne, &smi_is_unsuitable);  // There was a remainder.
+            __ b(ne, &lhs_is_unsuitable);  // There was a remainder.
             __ mov(result, Operand(scratch2, LSL, kSmiTagSize));
           } else {
             ASSERT(op_ == Token::MOD);
@@ -8153,14 +8454,21 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           }
         }
         __ Ret();
-        __ bind(&smi_is_unsuitable);
+        __ bind(&lhs_is_unsuitable);
       } else if (op_ == Token::MOD &&
                  runtime_operands_type_ != BinaryOpIC::HEAP_NUMBERS &&
                  runtime_operands_type_ != BinaryOpIC::STRINGS) {
         // Do generate a bit of smi code for modulus even though the default for
         // modulus is not to do it, but as the ARM processor has no coprocessor
-        // support for modulus checking for smis makes sense.
+        // support for modulus checking for smis makes sense.  We can handle
+        // 1 to 25 times any power of 2.  This covers over half the numbers from
+        // 1 to 100 including all of the first 25.  (Actually the constants < 10
+        // are handled above by reciprocal multiplication.  We only get here for
+        // those cases if the right hand side is not a constant or for cases
+        // like 192 which is 3*2^6 and ends up in the 3 case in the integer mod
+        // stub.)
         Label slow;
+        Label not_power_of_2;
         ASSERT(!ShouldGenerateSmiCode());
         ASSERT(kSmiTag == 0);  // Adjust code below.
         // Check for two positive smis.
@@ -8168,13 +8476,42 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ tst(smi_test_reg, Operand(0x80000000u | kSmiTagMask));
         __ b(ne, &slow);
         // Check that rhs is a power of two and not zero.
+        Register mask_bits = r3;
         __ sub(scratch, rhs, Operand(1), SetCC);
         __ b(mi, &slow);
-        __ tst(rhs, scratch);
-        __ b(ne, &slow);
+        __ and_(mask_bits, rhs, Operand(scratch), SetCC);
+        __ b(ne, &not_power_of_2);
         // Calculate power of two modulus.
         __ and_(result, lhs, Operand(scratch));
         __ Ret();
+
+        __ bind(&not_power_of_2);
+        __ eor(scratch, scratch, Operand(mask_bits));
+        // At least two bits are set in the modulus.  The high one(s) are in
+        // mask_bits and the low one is scratch + 1.
+        __ and_(mask_bits, scratch, Operand(lhs));
+        Register shift_distance = scratch;
+        scratch = no_reg;
+
+        // The rhs consists of a power of 2 multiplied by some odd number.
+        // The power-of-2 part we handle by putting the corresponding bits
+        // from the lhs in the mask_bits register, and the power in the
+        // shift_distance register.  Shift distance is never 0 due to Smi
+        // tagging.
+        __ CountLeadingZeros(r4, shift_distance, shift_distance);
+        __ rsb(shift_distance, r4, Operand(32));
+
+        // Now we need to find out what the odd number is. The last bit is
+        // always 1.
+        Register odd_number = r4;
+        __ mov(odd_number, Operand(rhs, LSR, shift_distance));
+        __ cmp(odd_number, Operand(25));
+        __ b(gt, &slow);
+
+        IntegerModStub stub(
+            result, shift_distance, odd_number, mask_bits, lhs, r5);
+        __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);  // Tail call.
+
         __ bind(&slow);
       }
       HandleBinaryOpSlowCases(

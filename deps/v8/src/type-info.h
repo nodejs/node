@@ -79,7 +79,7 @@ class TypeInfo {
 
   // Decode compact representation.  Very sensitive to enum values below!
   static TypeInfo ExpandedRepresentation(int three_bit_representation) {
-    Type t = static_cast<Type>(three_bit_representation >= 6 ?
+    Type t = static_cast<Type>(three_bit_representation > 4 ?
                                three_bit_representation + 2 :
                                three_bit_representation);
     t = (t == kUnknownType) ? t : static_cast<Type>(t | kPrimitiveType);

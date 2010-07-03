@@ -2782,13 +2782,17 @@ int Runtime::StringMatch(Handle<String> sub,
   // algorithm is unnecessary overhead.
   if (pattern_length == 1) {
     AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
-    if (sub->IsAsciiRepresentation()) {
+    String* seq_sub = *sub;
+    if (seq_sub->IsConsString()) {
+      seq_sub = ConsString::cast(seq_sub)->first();
+    }
+    if (seq_sub->IsAsciiRepresentation()) {
       uc16 pchar = pat->Get(0);
       if (pchar > String::kMaxAsciiCharCode) {
         return -1;
       }
       Vector<const char> ascii_vector =
-        sub->ToAsciiVector().SubVector(start_index, subject_length);
+          seq_sub->ToAsciiVector().SubVector(start_index, subject_length);
       const void* pos = memchr(ascii_vector.start(),
                                static_cast<const char>(pchar),
                                static_cast<size_t>(ascii_vector.length()));
@@ -2798,7 +2802,9 @@ int Runtime::StringMatch(Handle<String> sub,
       return static_cast<int>(reinterpret_cast<const char*>(pos)
           - ascii_vector.start() + start_index);
     }
-    return SingleCharIndexOf(sub->ToUC16Vector(), pat->Get(0), start_index);
+    return SingleCharIndexOf(seq_sub->ToUC16Vector(),
+                             pat->Get(0),
+                             start_index);
   }
 
   if (!pat->IsFlat()) {
@@ -2806,19 +2812,29 @@ int Runtime::StringMatch(Handle<String> sub,
   }
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
+  // Extract flattened substrings of cons strings before determining asciiness.
+  String* seq_sub = *sub;
+  if (seq_sub->IsConsString()) {
+    seq_sub = ConsString::cast(seq_sub)->first();
+  }
+  String* seq_pat = *pat;
+  if (seq_pat->IsConsString()) {
+    seq_pat = ConsString::cast(seq_pat)->first();
+  }
+
   // dispatch on type of strings
-  if (pat->IsAsciiRepresentation()) {
-    Vector<const char> pat_vector = pat->ToAsciiVector();
-    if (sub->IsAsciiRepresentation()) {
-      return StringSearch(sub->ToAsciiVector(), pat_vector, start_index);
+  if (seq_pat->IsAsciiRepresentation()) {
+    Vector<const char> pat_vector = seq_pat->ToAsciiVector();
+    if (seq_sub->IsAsciiRepresentation()) {
+      return StringSearch(seq_sub->ToAsciiVector(), pat_vector, start_index);
     }
-    return StringSearch(sub->ToUC16Vector(), pat_vector, start_index);
+    return StringSearch(seq_sub->ToUC16Vector(), pat_vector, start_index);
   }
-  Vector<const uc16> pat_vector = pat->ToUC16Vector();
-  if (sub->IsAsciiRepresentation()) {
-    return StringSearch(sub->ToAsciiVector(), pat_vector, start_index);
+  Vector<const uc16> pat_vector = seq_pat->ToUC16Vector();
+  if (seq_sub->IsAsciiRepresentation()) {
+    return StringSearch(seq_sub->ToAsciiVector(), pat_vector, start_index);
   }
-  return StringSearch(sub->ToUC16Vector(), pat_vector, start_index);
+  return StringSearch(seq_sub->ToUC16Vector(), pat_vector, start_index);
 }
 
 
@@ -9063,7 +9079,7 @@ static Object* Runtime_SetFunctionBreakPoint(Arguments args) {
   // Set break point.
   Debug::SetBreakPoint(shared, break_point_object_arg, &source_position);
 
-  return Heap::undefined_value();
+  return Smi::FromInt(source_position);
 }
 
 

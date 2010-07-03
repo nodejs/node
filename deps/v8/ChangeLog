@@ -1,3 +1,18 @@
+2010-06-30: Version 2.2.21
+
+        Fix bug in externalizing some ASCII strings (Chromium issue 47824).
+
+        Update JSON.stringify to floor the space parameter (issue 753).
+
+        Update the Mozilla test expectations to the newest version.
+
+        Update the ES5 Conformance Test expectations to the latest version.
+
+        Update the V8 benchmark suite.
+
+        Provide actual breakpoints locations in response to setBreakpoint
+        and listBreakpoints requests.
+
 2010-06-28: Version 2.2.20
         Fix bug with for-in on x64 platform (issue 748).
 

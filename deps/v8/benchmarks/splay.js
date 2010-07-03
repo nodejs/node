@@ -33,7 +33,7 @@
 // also has to deal with a lot of changes to the large tree object
 // graph.
 
-var Splay = new BenchmarkSuite('Splay', 126125, [
+var Splay = new BenchmarkSuite('Splay', 21915, [
   new Benchmark("Splay", SplayRun, SplaySetup, SplayTearDown)
 ]);
 
@@ -231,8 +231,23 @@ SplayTree.prototype.find = function(key) {
 
 
 /**
+ * @return {SplayTree.Node} Node having the maximum key value.
+ */
+SplayTree.prototype.findMax = function(opt_startNode) {
+  if (this.isEmpty()) {
+    return null;
+  }
+  var current = opt_startNode || this.root_;
+  while (current.right) {
+    current = current.right;
+  }
+  return current;
+};
+
+
+/**
  * @return {SplayTree.Node} Node having the maximum key value that
- *     is less or equal to the specified key value.
+ *     is less than the specified key value.
  */
 SplayTree.prototype.findGreatestLessThan = function(key) {
   if (this.isEmpty()) {
@@ -243,7 +258,7 @@ SplayTree.prototype.findGreatestLessThan = function(key) {
   this.splay_(key);
   // Now the result is either the root node or the greatest node in
   // the left subtree.
-  if (this.root_.key <= key) {
+  if (this.root_.key < key) {
     return this.root_;
   } else if (this.root_.left) {
     return this.findMax(this.root_.left);

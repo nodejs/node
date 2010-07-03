@@ -40,6 +40,14 @@ assertEquals(2, Math.max(v,w));
 assertEquals("hestfisk", x, "max");
 
 x = "";
+assertEquals(1, Math.max(v,v));
+assertEquals("hesthest", x, "max_identical");
+
+x = "";
+assertEquals(2, Math.min(w,w));
+assertEquals("fiskfisk", x, "max");
+
+x = "";
 assertEquals(Math.atan2(1, 2), Math.atan2(v, w));
 // JSC says fiskhest.
 assertEquals("hestfisk", x, "atan2");
@@ -122,8 +130,86 @@ x = "";
 new Date().setUTCFullYear(year, month, date, hours, minutes, seconds, ms);
 assertEquals("123", x, "Date.setUTCFullYear");
 
+x = "";
 var a = { valueOf: function() { x += "hest"; return 97; } };
 var b = { valueOf: function() { x += "fisk"; return 98; } };
 assertEquals("ab", String.fromCharCode(a, b), "String.fromCharCode");
+assertEquals("hestfisk", x, "String.fromCharCode valueOf order");
+
+
+
+// Test whether valueOf is called when comparing identical objects
+x = "";
+assertTrue(a < b, "Compare objects a < b");
+assertEquals("hestfisk", x, "Compare objects a < b valueOf order");
+
+x = "";
+assertFalse(a < a, "Compare objects a < a");
+// assertEquals("hesthest", x, "Compare objects a < a valueOf order");
+
+x = "";
+assertTrue(a == a, "Compare objects a == a");
+assertEquals("", x, "Compare objects a == a valueOf not called");
+
+x = "";
+assertFalse(b > b, "Compare objects b > b");
+assertEquals("fiskfisk", x, "Compare objects b > b valueOf order");
+
+x = "";
+assertTrue(b >= b, "Compare objects b >= b");
+assertEquals("fiskfisk", x, "Compare objects b >= b valueOf order");
+
+x = "";
+assertFalse(a > b, "Compare objects a > b");
+assertEquals("fiskhest", x, "Compare objects a > b valueOf order");
+
+x = "";
+assertFalse(a > void(0), "Compare objects a > undefined");
+assertEquals("hest", x, "Compare objects a > undefined valueOf order");
+
+x = "";
+assertFalse(void(0) > b, "Compare objects undefined > b");
+assertEquals("fisk", x, "Compare objects undefined > b valueOf order");
+
+
+function identical_object_comparison() {
+  x = "";
+  assertTrue(a < b, "Compare objects a < b");
+  assertEquals("hestfisk", x, "Compare objects a < b valueOf order");
+
+  x = "";
+  assertFalse(a < a, "Compare objects a < a");
+  //  assertEquals("hesthest", x, "Compare objects a < a valueOf order");
+
+  x = "";
+  assertTrue(a == a, "Compare objects a == a");
+  assertEquals("", x, "Compare objects a == a valueOf not called");
+
+  x = "";
+  assertFalse(b > b, "Compare objects b > b");
+  assertEquals("fiskfisk", x, "Compare objects b > b valueOf order");
+
+  x = "";
+  assertTrue(b >= b, "Compare objects b >= b");
+  assertEquals("fiskfisk", x, "Compare objects b >= b valueOf order");
+
+  x = "";
+  assertFalse(a > b, "Compare objects a > b");
+  assertEquals("fiskhest", x, "Compare objects a > b valueOf order");
+
+  x = "";
+  assertFalse(a > void(0), "Compare objects a > undefined");
+  assertEquals("hest", x, "Compare objects a > undefined valueOf order");
+
+  x = "";
+  assertFalse(void(0) > b, "Compare objects undefined > b");
+  assertEquals("fisk", x, "Compare objects undefined > b valueOf order");
+}
+
+// Call inside loop to test optimization and possible caching.
+for (i = 0; i < 3; ++i) {
+  identical_object_comparison();
+}
+
 
 print("ok");

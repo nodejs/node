@@ -236,6 +236,7 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
   this.active_ = true;
   this.condition_ = null;
   this.ignoreCount_ = 0;
+  this.break_points_ = [];
 }
 
 
@@ -289,6 +290,15 @@ ScriptBreakPoint.prototype.column = function() {
 };
 
 
+ScriptBreakPoint.prototype.actual_locations = function() {
+  var locations = [];
+  for (var i = 0; i < this.break_points_.length; i++) {
+    locations.push(this.break_points_[i].actual_location);
+  }
+  return locations;
+}
+
+
 ScriptBreakPoint.prototype.update_positions = function(line, column) {
   this.line_ = line;
   this.column_ = column;
@@ -334,10 +344,8 @@ ScriptBreakPoint.prototype.setIgnoreCount = function(ignoreCount) {
   this.ignoreCount_ = ignoreCount;
 
   // Set ignore count on all break points created from this script break point.
-  for (var i = 0; i < break_points.length; i++) {
-    if (break_points[i].script_break_point() === this) {
-      break_points[i].setIgnoreCount(ignoreCount);
-    }
+  for (var i = 0; i < this.break_points_.length; i++) {
+    this.break_points_[i].setIgnoreCount(ignoreCount);
   }
 };
 
@@ -379,20 +387,23 @@ ScriptBreakPoint.prototype.set = function (script) {
   }
 
   // Convert the line and column into an absolute position within the script.
-  var pos = Debug.findScriptSourcePosition(script, this.line(), column);
+  var position = Debug.findScriptSourcePosition(script, this.line(), column);
 
   // If the position is not found in the script (the script might be shorter
   // than it used to be) just ignore it.
-  if (pos === null) return;
+  if (position === null) return;
 
   // Create a break point object and set the break point.
-  break_point = MakeBreakPoint(pos, this.line(), this.column(), this);
+  break_point = MakeBreakPoint(position, this.line(), this.column(), this);
   break_point.setIgnoreCount(this.ignoreCount());
-  pos = %SetScriptBreakPoint(script, pos, break_point);
-  if (!IS_UNDEFINED(pos)) {
-    this.actual_location = script.locationFromPosition(pos);
+  var actual_position = %SetScriptBreakPoint(script, position, break_point);
+  if (IS_UNDEFINED(actual_position)) {
+    actual_position = position;
   }
-
+  var actual_location = script.locationFromPosition(actual_position, true);
+  break_point.actual_location = { line: actual_location.line,
+                                  column: actual_location.column };
+  this.break_points_.push(break_point);
   return break_point;
 };
 
@@ -409,6 +420,7 @@ ScriptBreakPoint.prototype.clear = function () {
     }
   }
   break_points = remaining_break_points;
+  this.break_points_ = [];
 };
 
 
@@ -554,6 +566,19 @@ Debug.findBreakPoint = function(break_point_number, remove) {
   }
 };
 
+Debug.findBreakPointActualLocations = function(break_point_number) {
+  for (var i = 0; i < script_break_points.length; i++) {
+    if (script_break_points[i].number() == break_point_number) {
+      return script_break_points[i].actual_locations();
+    }
+  }
+  for (var i = 0; i < break_points.length; i++) {
+    if (break_points[i].number() == break_point_number) {
+      return [break_points[i].actual_location];
+    }
+  }
+  return [];
+}
 
 Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
   if (!IS_FUNCTION(func)) throw new Error('Parameters have wrong types.');
@@ -585,7 +610,12 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
   } else {
     // Set a break point directly on the function.
     var break_point = MakeBreakPoint(source_position, opt_line, opt_column);
-    %SetFunctionBreakPoint(func, source_position, break_point);
+    var actual_position =
+        %SetFunctionBreakPoint(func, source_position, break_point);
+    actual_position += this.sourcePosition(func);
+    var actual_location = script.locationFromPosition(actual_position, true);
+    break_point.actual_location = { line: actual_location.line,
+                                    column: actual_location.column };
     break_point.setCondition(opt_condition);
     return break_point.number();
   }
@@ -1482,8 +1512,10 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
     }
     response.body.line = break_point.line();
     response.body.column = break_point.column();
+    response.body.actual_locations = break_point.actual_locations();
   } else {
     response.body.type = 'function';
+    response.body.actual_locations = [break_point.actual_location];
   }
 };
 
@@ -1598,7 +1630,8 @@ DebugCommandProcessor.prototype.listBreakpointsRequest_ = function(request, resp
       hit_count: break_point.hit_count(),
       active: break_point.active(),
       condition: break_point.condition(),
-      ignoreCount: break_point.ignoreCount()
+      ignoreCount: break_point.ignoreCount(),
+      actual_locations: break_point.actual_locations()
     }
     
     if (break_point.type() == Debug.ScriptBreakPointType.ScriptId) {

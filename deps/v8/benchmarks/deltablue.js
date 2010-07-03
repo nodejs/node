@@ -23,13 +23,13 @@
 // more like a JavaScript program.
 
 
-var DeltaBlue = new BenchmarkSuite('DeltaBlue', 71104, [
+var DeltaBlue = new BenchmarkSuite('DeltaBlue', 30282, [
   new Benchmark('DeltaBlue', deltaBlue)
 ]);
 
 
 /**
- * A JavaScript implementation of the DeltaBlue constrain-solving
+ * A JavaScript implementation of the DeltaBlue constraint-solving
  * algorithm, as described in:
  *
  * "The DeltaBlue Algorithm: An Incremental Constraint Hierarchy Solver"
@@ -349,13 +349,13 @@ function BinaryConstraint(var1, var2, strength) {
 BinaryConstraint.inheritsFrom(Constraint);
 
 /**
- * Decides if this constratint can be satisfied and which way it
+ * Decides if this constraint can be satisfied and which way it
  * should flow based on the relative strength of the variables related,
  * and record that decision.
  */
 BinaryConstraint.prototype.chooseMethod = function (mark) {
   if (this.v1.mark == mark) {
-    this.direction = (this.v1.mark != mark && Strength.stronger(this.strength, this.v2.walkStrength))
+    this.direction = (this.v2.mark != mark && Strength.stronger(this.strength, this.v2.walkStrength))
       ? Direction.FORWARD
       : Direction.NONE;
   }

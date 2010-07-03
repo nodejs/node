@@ -678,7 +678,7 @@ Object* String::SlowTryFlatten(PretenureFlag pretenure) {
 
 
 bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
-  // Externalizing twice leaks the external resouce, so it's
+  // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
   ASSERT(!this->IsExternalString());
 #ifdef DEBUG

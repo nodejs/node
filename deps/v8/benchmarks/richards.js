@@ -35,7 +35,7 @@
 // Martin Richards.
 
 
-var Richards = new BenchmarkSuite('Richards', 34886, [
+var Richards = new BenchmarkSuite('Richards', 20687, [
   new Benchmark("Richards", runRichards)
 ]);
 

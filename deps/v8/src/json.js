@@ -241,7 +241,7 @@ function JSONStringify(value, replacer, space) {
   }
   var gap;
   if (IS_NUMBER(space)) {
-    space = $Math.min(space, 10);
+    space = $Math.min(ToInteger(space), 10);
     gap = "";
     for (var i = 0; i < space; i++) {
       gap += " ";

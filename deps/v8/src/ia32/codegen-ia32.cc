@@ -11686,16 +11686,18 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
       __ ret(0);
     } else {
-      Label return_equal;
       Label heap_number;
-      // If it's not a heap number, then return equal.
       __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
              Immediate(Factory::heap_number_map()));
-      __ j(equal, &heap_number);
-      __ bind(&return_equal);
-      __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
-      __ ret(0);
-
+      if (cc_ == equal) {
+        __ j(equal, &heap_number);
+        // Identical objects are equal for operators ==, !=, and ===.
+        __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
+        __ ret(0);
+      } else {
+        // Identical objects must call ToPrimitive for <, <=, >, and >=.
+        __ j(not_equal, &not_identical);
+      }
       __ bind(&heap_number);
       // It is a heap number, so return non-equal if it's NaN and equal if
       // it's not NaN.

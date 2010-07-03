@@ -25,25 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests the special cases specified by ES 15.8.2.17
 
-function test(expected_sqrt, value) {
-  assertEquals(expected_sqrt, Math.sqrt(value));
-  if (isFinite(value)) { 
-    assertEquals(expected_sqrt, Math.pow(value, 0.5));
-  }
+#include "cctest.h"
+#include "type-info.h"
+
+namespace v8 {
+namespace internal {
+
+TEST(ThreeBitRepresentation) {
+  // Numeric types and unknown should fit into the short
+  // representation.
+  CHECK(TypeInfo::ExpandedRepresentation(
+      TypeInfo::Unknown().ThreeBitRepresentation()).IsUnknown());
+  CHECK(TypeInfo::ExpandedRepresentation(
+      TypeInfo::Number().ThreeBitRepresentation()).IsNumber());
+  CHECK(TypeInfo::ExpandedRepresentation(
+      TypeInfo::Integer32().ThreeBitRepresentation()).IsInteger32());
+  CHECK(TypeInfo::ExpandedRepresentation(
+      TypeInfo::Smi().ThreeBitRepresentation()).IsSmi());
+  CHECK(TypeInfo::ExpandedRepresentation(
+      TypeInfo::Double().ThreeBitRepresentation()).IsDouble());
+
+  // Other types should map to unknown.
+  CHECK(TypeInfo::ExpandedRepresentation(
+      TypeInfo::Primitive().ThreeBitRepresentation()).IsUnknown());
+  CHECK(TypeInfo::ExpandedRepresentation(
+      TypeInfo::String().ThreeBitRepresentation()).IsUnknown());
 }
 
-// Simple sanity check
-test(2, 4);
-test(0.1, 0.01);
-
-// Spec tests
-test(NaN, NaN);
-test(NaN, -1);
-test(+0, +0);
-test(-0, -0);
-test(Infinity, Infinity);
-// -Infinity is smaller than 0 so it should return NaN
-test(NaN, -Infinity);
-
+} }  // namespace v8::internal

@@ -29,91 +29,107 @@ prefix es5conform
 def UNIMPLEMENTED = PASS || FAIL
 def FAIL_OK = FAIL, OKAY
 
-chapter07: UNIMPLEMENTED
-chapter08: UNIMPLEMENTED
-chapter10: UNIMPLEMENTED
-chapter11: UNIMPLEMENTED
-chapter12: UNIMPLEMENTED
-chapter13: UNIMPLEMENTED
-chapter14: UNIMPLEMENTED
-chapter15/15.1: UNIMPLEMENTED
-chapter15/15.2/15.2.3/15.2.3.1: UNIMPLEMENTED
+# Non UTF8 characters in test files.
+chapter10/10.4/10.4.2/10.4.2-3-c-2-s: FAIL_OK
+chapter10/10.4/10.4.2/10.4.2-3-c-1-s: FAIL_OK
+chapter10/10.4/10.4.2/10.4.2-2-c-1: FAIL_OK
+
+# We do not implement the error chekcs specified in the production rules
+# of 11.1.5 (Object initializer).
+# We are compatible with Safari and Firefox.
+chapter11/11.1/11.1.5: UNIMPLEMENTED
+
+# Delete returns true in eval even when it should return false.
+# Please see http://code.google.com/p/v8/issues/detail?id=759
+chapter11/11.4/11.4.1//11.4.1-4.a-5: FAIL
+chapter11/11.4/11.4.1//11.4.1-4.a-7: FAIL
+
+
+# We do not have a global object called 'global' as required by tests.
+chapter15/15.1: FAIL_OK
+
+# NOT IMPLEMENTED: seal
 chapter15/15.2/15.2.3/15.2.3.8: UNIMPLEMENTED
+# NOT IMPLEMENTED: freeze
 chapter15/15.2/15.2.3/15.2.3.9: UNIMPLEMENTED
+# NOT IMPLEMENTED: preventExtensions
 chapter15/15.2/15.2.3/15.2.3.10: UNIMPLEMENTED
+# NOT IMPLEMENTED: isSealed
 chapter15/15.2/15.2.3/15.2.3.11: UNIMPLEMENTED
+# NOT IMPLEMENTED: isFrozen
 chapter15/15.2/15.2.3/15.2.3.12: UNIMPLEMENTED
+# NOT IMPLEMENTED: isExtensible
 chapter15/15.2/15.2.3/15.2.3.13: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: seal
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-20: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-20: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: freeze
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-21: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-21: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: preventExtensions
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-22: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-22: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: isSealed
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-23: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-23: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: isFrozen
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-24: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-24: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: isExtensible
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-25: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-25: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: bind
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-38: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-38: UNIMPLEMENTED
 
-# NaN is writable
+# NaN is writable. We are compatible with JSC.
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-178: FAIL_OK
-# Infinity is writable
+# Infinity is writable. We are compatible with JSC.
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-179: FAIL_OK
-# undefined is writable
+# undefined is writable. We are compatible with JSC.
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-180: FAIL_OK
 
-# Our Function object has a "arguments" property which is used as a non
-# property in in the test
+# Our Function object has an "arguments" property which is used as a
+# non-property in the test.
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-183: FAIL_OK
 
-# Our Function object has a "caller" property which is used as a non
-# property in in the test
+# Our Function object has a "caller" property which is used as a
+# non-property in in the test.
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-184: FAIL_OK
 
-# Our function object has a name property which is used as a non
-# property in the test
+# Our function object has a name property which is used as a
+# non-property in the test.
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-188: FAIL_OK
 
 # NOT IMPLEMENTED: RegExp.prototype.source
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-212: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-212: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: RegExp.prototype.global
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-213: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-213: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: RegExp.prototype.ignoreCase
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-214: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-214: UNIMPLEMENTED
 
 # NOT IMPLEMENTED: RegExp.prototype.multiline
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-215: FAIL_OK
+chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-215: UNIMPLEMENTED
 
 # All of the tests below marked SUBSETFAIL (in 15.2.3.4) fail because 
 # the tests assumes that objects can not have more properties
 # than those described in the spec - but according to spec they can 
 # have additional properties.
 # All compareArray calls in these tests could be exchanged with a 
-# isSubsetOfArray call (I will upload a path to the es5conform site)
+# isSubsetOfArray call (I will upload a path to the es5conform site).
 
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-1: FAIL_OK
 
-# SUBSETFAIL + we do not implement all methods on Object
+# SUBSETFAIL + we do not implement all methods on Object.
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-2: FAIL_OK
 
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-3: FAIL_OK
 
-# SUBSETFAIL + we do not implement Function.prototype.bind
+# SUBSETFAIL + we do not implement Function.prototype.bind.
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-4: FAIL_OK
 
 # SUBSETFAIL
@@ -134,29 +150,29 @@ chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-9: FAIL_OK
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-11: FAIL_OK
 
-# We do not implement all methods on RegExp
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-13: FAIL_OK
+# We do not implement all methods on RegExp.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-13: FAIL
 
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-14: FAIL_OK
 
-# EvalError.prototype does not have message property
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-15: FAIL_OK
+# EvalError.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-15: FAIL
 
-# Rangeerror.prototype does not have message property
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-16: FAIL_OK
+# Rangeerror.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-16: FAIL
 
-# ReferenceError.prototype does not have message property
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-17: FAIL_OK
+# ReferenceError.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-17: FAIL
 
-# SyntaxError.prototype does not have message property
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-18: FAIL_OK
+# SyntaxError.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-18: FAIL
 
-# TypeError.prototype does not have message property
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-19: FAIL_OK
+# TypeError.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-19: FAIL
 
-# URIError.prototype does not have message property
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-20: FAIL_OK
+# URIError.prototype does not have message property.
+chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-20: FAIL
 
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-22: FAIL_OK
@@ -200,68 +216,65 @@ chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-34: FAIL_OK
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-35: FAIL_OK
 
+# NOT IMPLEMENTED: bind on Function.prototype.
+chapter15/15.3/15.3.4/15.3.4.5/15.3.4.5-0-1: UNIMPLEMENTED
 
-# We fail this because Object.keys returns numbers for element indices
-# rather than strings.
-#chapter15/15.2/15.2.3/15.2.3.14/15.2.3.14-3-3: FAIL_OK
+# Bad test - the spec does not say anything about throwing errors
+# on calling Array.prototype.indexOf with undefined as argument.
+chapter15/15.4/15.4.4/15.4.4.14/15.4.4.14-1-1: FAIL_OK
 
-chapter15/15.3: UNIMPLEMENTED
+# Bad test - the spec does not say anything about throwing errors
+# on calling Array.prototype.indexOf with null as argument.
+chapter15/15.4/15.4.4/15.4.4.14/15.4.4.14-1-2: FAIL_OK
 
-chapter15/15.4/15.4.4/15.4.4.14: UNIMPLEMENTED
-chapter15/15.4/15.4.4/15.4.4.15: UNIMPLEMENTED
-chapter15/15.4/15.4.4/15.4.4.20: UNIMPLEMENTED
-chapter15/15.4/15.4.4/15.4.4.21: UNIMPLEMENTED
-chapter15/15.4/15.4.4/15.4.4.22: UNIMPLEMENTED
-
-# Wrong test - because this is not given as argument to arr.every
-# this._15_4_4_16_5_1 evaluates to undefined
-chapter15/15.4/15.4.4/15.4.4.16/15.4.4.16-5-1: FAIL_OK
-
-# In test case the element is not appended - it is added in the middle of 
-# the array
-chapter15/15.4/15.4.4/15.4.4.16/15.4.4.16-7-1: FAIL_OK
-
-# We fail because the test assumes that if the reference to array is deleted it
-# is not longer traversed
-chapter15/15.4/15.4.4/15.4.4.16/15.4.4.16-7-7: FAIL_OK
-
-# if (val>1) in test should be if (val>2)
-chapter15/15.4/15.4.4/15.4.4.16/15.4.4.16-8-10: FAIL_OK
-
-# Wrong assumption - according to spec some returns a Boolean, not a number
-chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-4-9: FAIL_OK
-
-# Same as 15.4.4.16-5-1
-chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-5-1: FAIL_OK
-
-# Same as 15.4.4.16-7-1
-chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-7-1: FAIL_OK
-
-# Same as 15.4.4.16-7-7
-chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-7-7: FAIL_OK
-
-# Same as 15.4.4.16-10-8
+# Bad test - the test at the end should be "i === true".
 chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-8-10: FAIL_OK
 
-# Same as 15.4.4.16-5-1
-chapter15/15.4/15.4.4/15.4.4.18/15.4.4.18-5-1: FAIL_OK
+# Bad test - according to spec some returns a Boolean, not a number.
+chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-4-9: FAIL_OK
 
-# Same as 15.4.4.16-7-7
-chapter15/15.4/15.4.4/15.4.4.18/15.4.4.18-7-6: FAIL_OK
+# Bad test - uses unitialized variable a in precondition check.
+chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-9-3: FAIL_OK
 
-# Same as 15.4.4.16-5-1
-chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-5-1: FAIL_OK
+# We do not implement Array mapping functions correctly if array
+# entries are added for nonexistent entries smaller than length by
+# the callback function. We are compatible with JSC.
+# See http://code.google.com/p/v8/issues/detail?id=755
+chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-1: FAIL_OK
 
-# Same as 15.4.4.16-7-7
-chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-8-7: FAIL_OK
+# Bad tests, path in test file is wrong. This will crash the test
+# script so we mark it SKIP.
+chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-c-ii-4: SKIP
+chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-c-ii-4-s: SKIP
 
+# Bad test - deleting the property on o in callbackfn will
+# have no effect on the actual array on which reduceRight is called.
+chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-7: FAIL_OK
 
-chapter15/15.5: UNIMPLEMENTED
-chapter15/15.6: UNIMPLEMENTED
-chapter15/15.7: UNIMPLEMENTED
-chapter15/15.9: UNIMPLEMENTED
-chapter15/15.10: UNIMPLEMENTED
-chapter15/15.12: UNIMPLEMENTED
+# We do not implement trim correctly on null and undefined.
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-1-1: FAIL
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-1-2: FAIL
+
+# We do not correctly recognize \uFEFF as whitespace
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-10: FAIL
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-18: FAIL
+chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-34: FAIL
+
+# RegExp.prototype is not of type RegExp - we are bug compatible with JSC.
+chapter15/15.10/15.10.6/15.10.6: FAIL_OK
+
+# We do not have the properties of a RegExp instance on RegExp.prototype.
+# The spec says we should - but we are currently bug compatible with JSC.
+chapter15/15.10/15.10.7/15.10.7.1/15.10.7.1-1: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.1/15.10.7.1-2: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.2/15.10.7.2-1: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.2/15.10.7.2-2: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.3/15.10.7.3-1: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.3/15.10.7.3-2: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.4/15.10.7.4-1: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.4/15.10.7.4-2: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-1: FAIL_OK
+chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-2: FAIL_OK
 
 [ $arch == mips ]
 

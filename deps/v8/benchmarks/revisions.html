@@ -22,10 +22,15 @@ the benchmark suite.
 
 <div class="subtitle"><h3>Version 6 (<a href="http://v8.googlecode.com/svn/data/benchmarks/v6/run.html">link</a>)</h3></div>
 
-<p>Removed dead code from the RayTrace benchmark and changed the Splay
-benchmark to avoid converting the same numeric key to a string over
-and over again.
-</p>
+<p>Removed dead code from the RayTrace benchmark and fixed a couple of
+typos in the DeltaBlue implementation. Changed the Splay benchmark to
+avoid converting the same numeric key to a string over and over again
+and to avoid inserting and removing the same element repeatedly thus
+increasing pressure on the memory subsystem.</p>
+
+<p>Furthermore, the benchmark runner was changed to run the benchmarks
+for at least a few times to stabilize the reported numbers on slower
+machines.</p>
 
 <div class="subtitle"><h3>Version 5 (<a href="http://v8.googlecode.com/svn/data/benchmarks/v5/run.html">link</a>)</h3></div>
 

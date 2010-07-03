@@ -26,13 +26,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # This file is up to date with respect to Mozilla's CVS repository as of
-# 2008-09-02.  If new tests are added to Mozilla's CVS it may need to be
+# 2010-06-29. If new tests are added to Mozilla's CVS it may need to be
 # updated.
 
 # To get the mozilla tests:
 # cd /path/to/checkout/test/mozilla
 # rm -rf data
-# cvs -d :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot co -D 2008-09-02 mozilla/js/tests
+# cvs -d :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot co -D 2010-06-29 mozilla/js/tests
 # mv mozilla/js/tests data
 # rm -rf mozilla
 
@@ -52,6 +52,10 @@ def FAIL_OK = FAIL, OKAY
 # time to do so.
 js1_5/Regress/regress-271716-n: SKIP
 
+
+# This test uses a unitialized variable. A Bug has been filed:
+# https://bugzilla.mozilla.org/show_bug.cgi?id=575575
+js1_5/Array/regress-465980-02: SKIP
 
 # These tests are simply wrong (i.e., they do not test what they intend
 # to test).
@@ -226,6 +230,10 @@ ecma_3/Function/regress-313570: FAIL_OK
 
 # toPrecision argument restricted to range 1..21 in JSC/V8
 js1_5/Regress/regress-452346: FAIL_OK
+ecma_3/Number/15.7.4.7-1: FAIL_OK
+
+# toExponential argument restricted to range 0..20 in JSC/V8
+ecma_3/Number/15.7.4.6-1: FAIL_OK
 
 # Array.prototype.slice with zero arguments return undefined in JSC/V8, 
 # empty array in Spider/TraceMonkey.
@@ -234,8 +242,9 @@ js1_5/Array/regress-451483: FAIL_OK
 
 #:=== RegExp:=== 
 # To be compatible with JSC we silently ignore flags that do not make
-# sense.  This test expects us to throw exceptions.  
+# sense.  These tests expects us to throw exceptions.  
 ecma_3/RegExp/regress-57631: FAIL_OK
+ecma_3/RegExp/15.10.4.1-6: FAIL_OK
 
 # PCRE doesn't allow subpattern nesting deeper than 200, this tests
 # depth 500.  JSC detects the case, and return null from the match,
@@ -315,6 +324,11 @@ js1_5/Regress/regress-234389: FAIL_OK
 js1_5/Regress/regress-320119: FAIL_OK
 
 
+# We do not recognize a multiline comment as newline character.
+# We are compatible with JSC.
+ecma_3/LexicalConventions/7.4-01: FAIL_OK
+
+
 # No support for toSource().
 js1_5/Regress/regress-248444: FAIL_OK
 js1_5/Regress/regress-313967-01: FAIL_OK
@@ -347,6 +361,7 @@ ecma/GlobalObject/15.1.2.7: FAIL_OK
 # print strings for errors. Non-ECMA behavior.
 js1_2/function/tostring-2: FAIL_OK
 js1_2/Objects/toString-001: FAIL_OK
+js1_5/LexicalConventions/regress-469940: FAIL_OK
 js1_5/Exceptions/regress-332472: FAIL_OK
 js1_5/Regress/regress-173067: FAIL_OK
 js1_5/Regress/regress-355556: FAIL_OK
@@ -386,11 +401,7 @@ js1_5/decompilation/regress-461110: FAIL_OK
 # Tests that use uneval.  Non-ECMA.
 js1_5/GC/regress-418128: FAIL_OK
 js1_5/extensions/regress-465276: FAIL_OK
-
-
-# Tests that use __count__.  Non-ECMA.
-js1_5/extensions/regress-434837-01: FAIL_OK
-
+js1_5/Error/regress-465377: FAIL_OK
 
 # Tests that use the watch method.  Non-ECMA.
 js1_5/extensions/regress-435345-01: FAIL_OK
@@ -432,6 +443,7 @@ js1_5/Object/regress-362872-01: FAIL_OK
 js1_5/Object/regress-362872-02: FAIL_OK
 js1_5/Regress/regress-361467: FAIL_OK
 js1_5/Regress/regress-385393-06: FAIL_OK
+js1_5/Regress/regress-506567: FAIL_OK
 
 
 # Use special Mozilla getter/setter syntax
@@ -484,6 +496,11 @@ js1_2/Array/array_split_1: FAIL_OK
 # The concat() method is defined in Array.prototype; not Array.
 js1_5/Array/regress-313153: FAIL_OK
 
+# The join() method is defined on Array.prototype; not Array.
+js1_5/Array/regress-474529: FAIL_OK
+
+# The lastIndexOf() method is defined on Array.prototype, not Array.
+ecma_3/Array/15.5.4.8-01: FAIL_OK
 
 # Properties fileName, and lineNumber of Error instances are
 # not supported. Mozilla specific extension.
@@ -552,6 +569,10 @@ js1_5/Regress/regress-352604: FAIL_OK
 js1_5/Regress/regress-417893: FAIL_OK
 
 
+# Unsupported use of "[]" as function parameter. We match JSC. 
+js1_5/Regress/regress-416737-01: FAIL_OK
+js1_5/Regress/regress-416737-02: FAIL_OK
+
 
 ##################### FAILING TESTS #####################
 
@@ -595,6 +616,11 @@ ecma_3/String/15.5.4.11: FAIL
 # Bug 1202597: New js1_5/Expressions/regress-394673 is failing.
 # Marked as: Will not fix. V8 throws an acceptable RangeError.
 js1_5/Expressions/regress-394673: FAIL
+
+
+# Bug 762: http://code.google.com/p/v8/issues/detail?id=762
+# We do not correctly handle assignments within "with"
+/ecma_3/Statements/12.10-01: FAIL
 
 ##################### MOZILLA EXTENSION TESTS #####################
 
@@ -674,6 +700,9 @@ js1_5/extensions/regress-365869: FAIL_OK
 js1_5/extensions/regress-367630: FAIL_OK
 js1_5/extensions/regress-367923: FAIL_OK
 js1_5/extensions/regress-368859: FAIL_OK
+js1_5/extensions/regress-369696-01: FAIL_OK
+js1_5/extensions/regress-369696-02: FAIL_OK
+js1_5/extensions/regress-369696-03: FAIL_OK
 js1_5/extensions/regress-374589: FAIL_OK
 js1_5/extensions/regress-375801: FAIL_OK
 js1_5/extensions/regress-376052: FAIL_OK
@@ -693,6 +722,11 @@ js1_5/extensions/regress-420612: FAIL_OK
 js1_5/extensions/regress-420869-01: FAIL_OK
 js1_5/extensions/regress-424257: FAIL_OK
 js1_5/extensions/regress-424683-01: FAIL_OK
+js1_5/extensions/regress-429739: FAIL_OK
+js1_5/extensions/regress-454142: FAIL_OK
+js1_5/extensions/regress-465145: FAIL_OK
+js1_5/extensions/regress-469625: FAIL_OK
+js1_5/extensions/regress-472787: FAIL_OK
 js1_5/extensions/regress-44009: FAIL_OK
 js1_5/extensions/regress-50447-1: FAIL_OK
 js1_5/extensions/regress-50447: FAIL_OK
@@ -771,7 +805,7 @@ js1_5/decompilation/regress-375882: PASS || FAIL
 js1_5/decompilation/regress-376564: PASS || FAIL
 js1_5/decompilation/regress-383721: PASS || FAIL
 js1_5/decompilation/regress-406555: PASS || FAIL
-
+js1_5/decompilation/regress-460870: PASS || FAIL
 
 # These tests take an unreasonable amount of time so we skip them
 # in fast mode.

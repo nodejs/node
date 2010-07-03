@@ -63,6 +63,7 @@ function testArguments(dcp, arguments, success, is_script) {
   } else {
     assertFalse(response.success, request + ' -> ' + json_response);
   }
+  return response;
 }
 
 function listener(event, exec_state, event_data, data) {
@@ -75,7 +76,7 @@ function listener(event, exec_state, event_data, data) {
     var request = '{' + base_request + '}'
     var response = safeEval(dcp.processDebugJSONRequest(request));
     assertFalse(response.success);
-    
+
     var mirror;
 
     testArguments(dcp, '{}', false);
@@ -117,6 +118,12 @@ function listener(event, exec_state, event_data, data) {
     testArguments(dcp, '{"type":"handle","target":' + mirror.handle() + '}', true, false);
 
     testArguments(dcp, '{"type":"script","target":"sourceUrlScript","line":0}', true, true);
+
+    // Set a break point on a line with the comment, and check that actual position
+    // is the next line after the comment.
+    request = '{"type":"scriptId","target":' + g_script_id + ',"line":' + (g_line + 1) + '}';
+    response = testArguments(dcp, request, true, false);
+    assertEquals(g_line + 2, response.body.actual_locations[0].line);
 
     // Indicate that all was processed.
     listenerComplete = true;
@@ -185,8 +192,3 @@ Debug.setListener(breakListener);
 sourceUrlFunc();
 
 assertTrue(breakListenerCalled, "Break listener not called on breakpoint set by sourceURL");
-
-// Set a break point on a line with the comment, and check that actual position
-// is the next line after the comment.
-var number = Debug.setScriptBreakPointById(g_script_id, g_line + 1);
-assertEquals(g_line + 2, Debug.findBreakPoint(number).actual_location.line);

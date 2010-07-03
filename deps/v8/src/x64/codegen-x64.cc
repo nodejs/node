@@ -856,7 +856,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(equal, &adapted);
 
       // No arguments adaptor frame. Copy fixed number of arguments.
-      __ movq(rax, Immediate(scope()->num_parameters()));
+      __ Set(rax, scope()->num_parameters());
       for (int i = 0; i < scope()->num_parameters(); i++) {
         __ push(frame_->ParameterAt(i));
       }
@@ -5342,13 +5342,18 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
     }
     // Smi => false iff zero.
     __ SmiCompare(value.reg(), Smi::FromInt(0));
-    dest->false_target()->Branch(equal);
-    Condition is_smi = masm_->CheckSmi(value.reg());
-    dest->true_target()->Branch(is_smi);
-    __ xorpd(xmm0, xmm0);
-    __ ucomisd(xmm0, FieldOperand(value.reg(), HeapNumber::kValueOffset));
-    value.Unuse();
-    dest->Split(not_zero);
+    if (value.is_smi()) {
+      value.Unuse();
+      dest->Split(not_zero);
+    } else {
+      dest->false_target()->Branch(equal);
+      Condition is_smi = masm_->CheckSmi(value.reg());
+      dest->true_target()->Branch(is_smi);
+      __ xorpd(xmm0, xmm0);
+      __ ucomisd(xmm0, FieldOperand(value.reg(), HeapNumber::kValueOffset));
+      value.Unuse();
+      dest->Split(not_zero);
+    }
   } else {
     // Fast case checks.
     // 'false' => false.
@@ -8959,23 +8964,32 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
     // so we do the second best thing - test it ourselves.
     // Note: if cc_ != equal, never_nan_nan_ is not used.
-    __ Set(rax, EQUAL);
+    // We cannot set rax to EQUAL until just before return because
+    // rax must be unchanged on jump to not_identical.
+
     if (never_nan_nan_ && (cc_ == equal)) {
+      __ Set(rax, EQUAL);
       __ ret(0);
     } else {
       Label heap_number;
-      // If it's not a heap number, then return equal.
+      // If it's not a heap number, then return equal for (in)equality operator.
       __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
              Factory::heap_number_map());
-      __ j(equal, &heap_number);
-      __ ret(0);
+      if (cc_ == equal) {
+        __ j(equal, &heap_number);
+        __ Set(rax, EQUAL);
+        __ ret(0);
+      } else {
+        // Identical objects must still be converted to primitive for < and >.
+        __ j(not_equal, &not_identical);
+      }
 
       __ bind(&heap_number);
       // It is a heap number, so return  equal if it's not NaN.
       // For NaN, return 1 for every condition except greater and
       // greater-equal.  Return -1 for them, so the comparison yields
       // false for all conditions except not-equal.
-
+      __ Set(rax, EQUAL);
       __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
       __ ucomisd(xmm0, xmm0);
       __ setcc(parity_even, rax);
@@ -9058,16 +9072,16 @@ void CompareStub::Generate(MacroAssembler* masm) {
     Label non_number_comparison;
     Label unordered;
     FloatingPointHelper::LoadSSE2UnknownOperands(masm, &non_number_comparison);
+    __ xorl(rax, rax);
+    __ xorl(rcx, rcx);
     __ ucomisd(xmm0, xmm1);
 
     // Don't base result on EFLAGS when a NaN is involved.
     __ j(parity_even, &unordered);
     // Return a result of -1, 0, or 1, based on EFLAGS.
-    __ movq(rax, Immediate(0));  // equal
-    __ movq(rcx, Immediate(1));
-    __ cmovq(above, rax, rcx);
-    __ movq(rcx, Immediate(-1));
-    __ cmovq(below, rax, rcx);
+    __ setcc(above, rax);
+    __ setcc(below, rcx);
+    __ subq(rax, rcx);
     __ ret(2 * kPointerSize);  // rax, rdx were pushed
 
     // If one of the numbers was NaN, then the result is always false.

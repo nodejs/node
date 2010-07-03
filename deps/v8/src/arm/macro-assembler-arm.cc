@@ -1369,6 +1369,56 @@ void MacroAssembler::IntegerToDoubleConversionWithVFP3(Register inReg,
 }
 
 
+void MacroAssembler::ObjectToDoubleVFPRegister(Register object,
+                                               DwVfpRegister result,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Register heap_number_map,
+                                               SwVfpRegister scratch3,
+                                               Label* not_number,
+                                               ObjectToDoubleFlags flags) {
+  Label done;
+  if ((flags & OBJECT_NOT_SMI) == 0) {
+    Label not_smi;
+    BranchOnNotSmi(object, &not_smi);
+    // Remove smi tag and convert to double.
+    mov(scratch1, Operand(object, ASR, kSmiTagSize));
+    vmov(scratch3, scratch1);
+    vcvt_f64_s32(result, scratch3);
+    b(&done);
+    bind(&not_smi);
+  }
+  // Check for heap number and load double value from it.
+  ldr(scratch1, FieldMemOperand(object, HeapObject::kMapOffset));
+  sub(scratch2, object, Operand(kHeapObjectTag));
+  cmp(scratch1, heap_number_map);
+  b(ne, not_number);
+  if ((flags & AVOID_NANS_AND_INFINITIES) != 0) {
+    // If exponent is all ones the number is either a NaN or +/-Infinity.
+    ldr(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
+    Sbfx(scratch1,
+         scratch1,
+         HeapNumber::kExponentShift,
+         HeapNumber::kExponentBits);
+    // All-one value sign extend to -1.
+    cmp(scratch1, Operand(-1));
+    b(eq, not_number);
+  }
+  vldr(result, scratch2, HeapNumber::kValueOffset);
+  bind(&done);
+}
+
+
+void MacroAssembler::SmiToDoubleVFPRegister(Register smi,
+                                            DwVfpRegister value,
+                                            Register scratch1,
+                                            SwVfpRegister scratch2) {
+  mov(scratch1, Operand(smi, ASR, kSmiTagSize));
+  vmov(scratch2, scratch1);
+  vcvt_f64_s32(value, scratch2);
+}
+
+
 void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {
@@ -1686,14 +1736,31 @@ void MacroAssembler::AllocateHeapNumber(Register result,
 }
 
 
-void MacroAssembler::CountLeadingZeros(Register source,
-                                       Register scratch,
-                                       Register zeros) {
+void MacroAssembler::AllocateHeapNumberWithValue(Register result,
+                                                 DwVfpRegister value,
+                                                 Register scratch1,
+                                                 Register scratch2,
+                                                 Register heap_number_map,
+                                                 Label* gc_required) {
+  AllocateHeapNumber(result, scratch1, scratch2, heap_number_map, gc_required);
+  sub(scratch1, result, Operand(kHeapObjectTag));
+  vstr(value, scratch1, HeapNumber::kValueOffset);
+}
+
+
+void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
+                                       Register source,  // Input.
+                                       Register scratch) {
+  ASSERT(!zeros.is(source) || !source.is(zeros));
+  ASSERT(!zeros.is(scratch));
+  ASSERT(!scratch.is(ip));
+  ASSERT(!source.is(ip));
+  ASSERT(!zeros.is(ip));
 #ifdef CAN_USE_ARMV5_INSTRUCTIONS
   clz(zeros, source);  // This instruction is only supported after ARM5.
 #else
   mov(zeros, Operand(0));
-  mov(scratch, source);
+  Move(scratch, source);
   // Top 16.
   tst(scratch, Operand(0xffff0000));
   add(zeros, zeros, Operand(16), LeaveCC, eq);

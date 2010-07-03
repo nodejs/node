@@ -296,14 +296,14 @@ function RegExpTest(string) {
     return cache.answer;
   }
 
-  // Remove irrelevant preceeding '.*' in a test regexp. The expression  
-  // checks whether this.source starts with '.*' and that the third 
+  // Remove irrelevant preceeding '.*' in a test regexp. The expression
+  // checks whether this.source starts with '.*' and that the third
   // char is not a '?'
   if (%_StringCharCodeAt(this.source,0) == 46 && // '.'
-      %_StringCharCodeAt(this.source,1) == 42 && // '*' 
-      %_StringCharCodeAt(this.source,2) != 63) { // '?' 
+      %_StringCharCodeAt(this.source,1) == 42 && // '*'
+      %_StringCharCodeAt(this.source,2) != 63) { // '?'
     if (!%_ObjectEquals(regexp_key, this)) {
-      regexp_key = this; 
+      regexp_key = this;
       regexp_val = new $RegExp(this.source.substring(2, this.source.length),
                                (this.global ? 'g' : '')
                                + (this.ignoreCase ? 'i' : '')
@@ -311,7 +311,7 @@ function RegExpTest(string) {
     }
     if (!regexp_val.test(s)) return false;
   }
-  
+
   var length = s.length;
   var i = this.global ? TO_INTEGER(lastIndex) : 0;
 

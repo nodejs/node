@@ -193,7 +193,13 @@ void NormalizeProperties(Handle<JSObject> object,
 void NormalizeElements(Handle<JSObject> object);
 void TransformToFastProperties(Handle<JSObject> object,
                                int unused_property_fields);
+
+// Flattens a string.
 void FlattenString(Handle<String> str);
+
+// Flattens a string and returns the underlying external or sequential
+// string.
+Handle<String> FlattenGetString(Handle<String> str);
 
 Handle<Object> SetProperty(Handle<JSObject> object,
                            Handle<String> key,

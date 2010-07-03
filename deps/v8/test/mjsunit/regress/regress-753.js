@@ -25,25 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests the special cases specified by ES 15.8.2.17
+// Test that JSON.stringify correctly truncates floating point numbers.
+// This test is based on chapter15/15.12/15.12.3/15.12.3-6-a-2.js in the
+// ES5 conformance tests.
 
-function test(expected_sqrt, value) {
-  assertEquals(expected_sqrt, Math.sqrt(value));
-  if (isFinite(value)) { 
-    assertEquals(expected_sqrt, Math.pow(value, 0.5));
-  }
-}
+// See: http://code.google.com/p/v8/issues/detail?id=753
 
-// Simple sanity check
-test(2, 4);
-test(0.1, 0.01);
-
-// Spec tests
-test(NaN, NaN);
-test(NaN, -1);
-test(+0, +0);
-test(-0, -0);
-test(Infinity, Infinity);
-// -Infinity is smaller than 0 so it should return NaN
-test(NaN, -Infinity);
+var obj = {a1: {b1: [1,2,3,4], b2: {c1: 1, c2: 2}},a2: 'a2'};
+assertEquals(JSON.stringify(obj,null, 5.99999), JSON.stringify(obj,null, 5));
 

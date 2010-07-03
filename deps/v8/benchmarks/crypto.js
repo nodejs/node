@@ -31,7 +31,7 @@
 
 
 // The code has been adapted for use as a benchmark by Google.
-var Crypto = new BenchmarkSuite('Crypto', 203037, [
+var Crypto = new BenchmarkSuite('Crypto', 110465, [
   new Benchmark("Encrypt", encrypt),
   new Benchmark("Decrypt", decrypt)
 ]);

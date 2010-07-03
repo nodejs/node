@@ -1221,7 +1221,7 @@ Result VirtualFrame::CallConstructor(int arg_count) {
   // call trampolines per different arguments counts encountered.
   Result num_args = cgen()->allocator()->Allocate(rax);
   ASSERT(num_args.is_valid());
-  __ movq(num_args.reg(), Immediate(arg_count));
+  __ Set(num_args.reg(), arg_count);
 
   function.Unuse();
   num_args.Unuse();

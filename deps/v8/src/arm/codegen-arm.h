@@ -881,6 +881,102 @@ class StringCompareStub: public CodeStub {
 };
 
 
+// This stub can do a fast mod operation without using fp.
+// It is tail called from the GenericBinaryOpStub and it always
+// returns an answer.  It never causes GC so it doesn't need a real frame.
+//
+// The inputs are always positive Smis.  This is never called
+// where the denominator is a power of 2.  We handle that separately.
+//
+// If we consider the denominator as an odd number multiplied by a power of 2,
+// then:
+// * The exponent (power of 2) is in the shift_distance register.
+// * The odd number is in the odd_number register.  It is always in the range
+//   of 3 to 25.
+// * The bits from the numerator that are to be copied to the answer (there are
+//   shift_distance of them) are in the mask_bits register.
+// * The other bits of the numerator have been shifted down and are in the lhs
+//   register.
+class IntegerModStub : public CodeStub {
+ public:
+  IntegerModStub(Register result,
+                 Register shift_distance,
+                 Register odd_number,
+                 Register mask_bits,
+                 Register lhs,
+                 Register scratch)
+      : result_(result),
+        shift_distance_(shift_distance),
+        odd_number_(odd_number),
+        mask_bits_(mask_bits),
+        lhs_(lhs),
+        scratch_(scratch) {
+    // We don't code these in the minor key, so they should always be the same.
+    // We don't really want to fix that since this stub is rather large and we
+    // don't want many copies of it.
+    ASSERT(shift_distance_.is(r9));
+    ASSERT(odd_number_.is(r4));
+    ASSERT(mask_bits_.is(r3));
+    ASSERT(scratch_.is(r5));
+  }
+
+ private:
+  Register result_;
+  Register shift_distance_;
+  Register odd_number_;
+  Register mask_bits_;
+  Register lhs_;
+  Register scratch_;
+
+  // Minor key encoding in 16 bits.
+  class ResultRegisterBits: public BitField<int, 0, 4> {};
+  class LhsRegisterBits: public BitField<int, 4, 4> {};
+
+  Major MajorKey() { return IntegerMod; }
+  int MinorKey() {
+    // Encode the parameters in a unique 16 bit value.
+    return ResultRegisterBits::encode(result_.code())
+           | LhsRegisterBits::encode(lhs_.code());
+  }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "IntegerModStub"; }
+
+  // Utility functions.
+  void DigitSum(MacroAssembler* masm,
+                Register lhs,
+                int mask,
+                int shift,
+                Label* entry);
+  void DigitSum(MacroAssembler* masm,
+                Register lhs,
+                Register scratch,
+                int mask,
+                int shift1,
+                int shift2,
+                Label* entry);
+  void ModGetInRangeBySubtraction(MacroAssembler* masm,
+                                  Register lhs,
+                                  int shift,
+                                  int rhs);
+  void ModReduce(MacroAssembler* masm,
+                 Register lhs,
+                 int max,
+                 int denominator);
+  void ModAnswer(MacroAssembler* masm,
+                 Register result,
+                 Register shift_distance,
+                 Register mask_bits,
+                 Register sum_of_digits);
+
+
+#ifdef DEBUG
+  void Print() { PrintF("IntegerModStub\n"); }
+#endif
+};
+
+
 // This stub can convert a signed int32 to a heap number (double).  It does
 // not work for int32s that are in Smi range!  No GC occurs during this stub
 // so you don't have to set up the frame.

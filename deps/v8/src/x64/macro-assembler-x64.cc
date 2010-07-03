@@ -351,7 +351,7 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
-  movq(rax, Immediate(num_arguments));
+  Set(rax, num_arguments);
   movq(rbx, ExternalReference(f));
   CEntryStub ces(f->result_size);
   CallStub(&ces);
@@ -360,7 +360,7 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 
 void MacroAssembler::CallExternalReference(const ExternalReference& ext,
                                            int num_arguments) {
-  movq(rax, Immediate(num_arguments));
+  Set(rax, num_arguments);
   movq(rbx, ext);
 
   CEntryStub stub(1);
@@ -382,7 +382,7 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
-  movq(rax, Immediate(num_arguments));
+  Set(rax, num_arguments);
   JumpToExternalReference(ext, result_size);
 }
 
@@ -640,9 +640,9 @@ Condition MacroAssembler::CheckBothSmi(Register first, Register second) {
   if (first.is(second)) {
     return CheckSmi(first);
   }
-  movl(kScratchRegister, first);
-  orl(kScratchRegister, second);
-  testb(kScratchRegister, Immediate(kSmiTagMask));
+  ASSERT(kSmiTag == 0 && kHeapObjectTag == 1 && kHeapObjectTagMask == 3);
+  leal(kScratchRegister, Operand(first, second, times_1, 0));
+  testb(kScratchRegister, Immediate(0x03));
   return zero;
 }
 
@@ -1937,7 +1937,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     if (expected.immediate() == actual.immediate()) {
       definitely_matches = true;
     } else {
-      movq(rax, Immediate(actual.immediate()));
+      Set(rax, actual.immediate());
       if (expected.immediate() ==
               SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
         // Don't worry about adapting arguments for built-ins that
@@ -1946,7 +1946,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         // arguments.
         definitely_matches = true;
       } else {
-        movq(rbx, Immediate(expected.immediate()));
+        Set(rbx, expected.immediate());
       }
     }
   } else {
@@ -1957,7 +1957,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       cmpq(expected.reg(), Immediate(actual.immediate()));
       j(equal, &invoke);
       ASSERT(expected.reg().is(rbx));
-      movq(rax, Immediate(actual.immediate()));
+      Set(rax, actual.immediate());
     } else if (!expected.reg().is(actual.reg())) {
       // Both expected and actual are in (different) registers. This
       // is the case when we invoke functions using call and apply.
