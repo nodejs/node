@@ -11,7 +11,7 @@ e.addListener("newListener", function (event, listener) {
   events_new_listener_emited.push(event);
 });
 
-e.addListener("hello", function (a, b) {
+e.on("hello", function (a, b) {
   console.log("hello");
   times_hello_emited += 1
   assert.equal("a", a);
