@@ -1,4 +1,23 @@
-2010.06.21, Version 0.1.99
+2010.07.03, Version 0.1.100
+
+* process.execPath (Marshall Culpepper)
+
+* sys.pump (Mikeal Rogers)
+
+* Remove ini and mjsunit libraries.
+
+* Introduce console.log() and friends.
+
+* Switch order of arguments for Buffer.write (Blake Mizerany)
+
+* On overlapping buffers use memmove (Matt Ranney)
+
+* Resolve .local domains with getaddrinfo()
+
+* Upgrade http-parser, V8 to 2.2.21
+
+
+2010.06.21, Version 0.1.99, a620b7298f68f68a855306437a3b60b650d61d78 
 
 * Datagram sockets (Paul Querna)
 
