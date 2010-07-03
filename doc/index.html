@@ -68,13 +68,11 @@ Server running at http://127.0.0.1:8124/</pre>
 var net = require('net');
 net.createServer(function (socket) {
   socket.setEncoding("utf8");
-  socket.addListener("connect", function () {
-    socket.write("Echo server\r\n");
-  });
-  socket.addListener("data", function (data) {
+  socket.write("Echo server\r\n");
+  socket.on("data", function (data) {
     socket.write(data);
   });
-  socket.addListener("end", function () {
+  socket.on("end", function () {
     socket.end();
   });
 }).listen(8124, "127.0.0.1");

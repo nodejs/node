@@ -241,11 +241,11 @@ If an error was encountered, then this event is emitted. This event is
 special - when there are no listeners to receive the error Node will
 terminate execution and display the exception's stack trace.
 
-### emitter.addListener(event, listener)
+### emitter.on(event, listener)
 
 Adds a listener to the end of the listeners array for the specified event.
 
-    server.addListener('stream', function (stream) {
+    server.on('stream', function (stream) {
       console.log('someone connected!');
     });
 
@@ -465,7 +465,7 @@ timers may not be scheduled.
 
 Example of listening for `exit`:
 
-    process.addListener('exit', function () {
+    process.on('exit', function () {
       process.nextTick(function () {
        console.log('This will not run');
       });
@@ -482,7 +482,7 @@ a stack trace and exit) will not occur.
 
 Example of listening for `uncaughtException`:
 
-    process.addListener('uncaughtException', function (err) {
+    process.on('uncaughtException', function (err) {
       console.log('Caught exception: ' + err);
     });
 
@@ -511,7 +511,7 @@ Example of listening for `SIGINT`:
 
     var stdin = process.openStdin();
 
-    process.addListener('SIGINT', function () {
+    process.on('SIGINT', function () {
       console.log('Got SIGINT.  Press Control-D to exit.');
     });
 
@@ -540,11 +540,11 @@ Example of opening standard input and listening for both events:
 
     stdin.setEncoding('utf8');
 
-    stdin.addListener('data', function (chunk) {
+    stdin.on('data', function (chunk) {
       process.stdout.write('data: ' + chunk);
     });
 
-    stdin.addListener('end', function () {
+    stdin.on('end', function () {
       process.stdout.write('end');
     });
 
@@ -694,7 +694,7 @@ may do something other than kill the target process.
 
 Example of sending a signal to yourself:
 
-    process.addListener('SIGHUP', function () {
+    process.on('SIGHUP', function () {
       console.log('Got SIGHUP signal.');
     });
 
@@ -886,15 +886,15 @@ Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit cod
         spawn = require('child_process').spawn,
         ls    = spawn('ls', ['-lh', '/usr']);
 
-    ls.stdout.addListener('data', function (data) {
+    ls.stdout.on('data', function (data) {
       sys.print('stdout: ' + data);
     });
 
-    ls.stderr.addListener('data', function (data) {
+    ls.stderr.on('data', function (data) {
       sys.print('stderr: ' + data);
     });
 
-    ls.addListener('exit', function (code) {
+    ls.on('exit', function (code) {
       console.log('child process exited with code ' + code);
     });
 
@@ -904,7 +904,7 @@ Example of checking for failed exec:
     var spawn = require('child_process').spawn,
         child = spawn('bad_command');
 
-    child.stderr.addListener('data', function (data) {
+    child.stderr.on('data', function (data) {
       if (/^execvp\(\)/.test(data.asciiSlice(0,data.length))) {
         console.log('Failed to start child process.');
       }
@@ -922,7 +922,7 @@ be sent `'SIGTERM'`. See `signal(7)` for a list of available signals.
     var spawn = require('child_process').spawn,
         grep  = spawn('grep', ['ssh']);
 
-    grep.addListener('exit', function (code, signal) {
+    grep.on('exit', function (code, signal) {
       console.log('child process terminated due to receipt of signal '+signal);
     });
 
@@ -961,30 +961,30 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
         ps    = spawn('ps', ['ax']),
         grep  = spawn('grep', ['ssh']);
 
-    ps.stdout.addListener('data', function (data) {
+    ps.stdout.on('data', function (data) {
       grep.stdin.write(data);
     });
 
-    ps.stderr.addListener('data', function (data) {
+    ps.stderr.on('data', function (data) {
       sys.print('ps stderr: ' + data);
     });
 
-    ps.addListener('exit', function (code) {
+    ps.on('exit', function (code) {
       if (code !== 0) {
         console.log('ps process exited with code ' + code);
       }
       grep.stdin.end();
     });
 
-    grep.stdout.addListener('data', function (data) {
+    grep.stdout.on('data', function (data) {
       sys.print(data);
     });
 
-    grep.stderr.addListener('data', function (data) {
+    grep.stderr.on('data', function (data) {
       sys.print('grep stderr: ' + data);
     });
 
-    grep.addListener('exit', function (code) {
+    grep.on('exit', function (code) {
       if (code !== 0) {
         console.log('grep process exited with code ' + code);
       }
@@ -1000,7 +1000,7 @@ Example:
     var spawn = require('child_process').spawn,
         grep  = spawn('grep', ['ssh']);
 
-    grep.addListener('exit', function (code) {
+    grep.on('exit', function (code) {
       console.log('child process exited with code ' + code);
     });
 
@@ -1846,11 +1846,11 @@ Example of connecting to `google.com`:
     var request = google.request('GET', '/',
       {'host': 'www.google.com'});
     request.end();
-    request.addListener('response', function (response) {
+    request.on('response', function (response) {
       console.log('STATUS: ' + response.statusCode);
       console.log('HEADERS: ' + JSON.stringify(response.headers));
       response.setEncoding('utf8');
-      response.addListener('data', function (chunk) {
+      response.on('data', function (chunk) {
         console.log('BODY: ' + chunk);
       });
     });
@@ -1924,16 +1924,16 @@ event, the entire body will be caught.
 
 
     // Good
-    request.addListener('response', function (response) {
-      response.addListener('data', function (chunk) {
+    request.on('response', function (response) {
+      response.on('data', function (chunk) {
         console.log('BODY: ' + chunk);
       });
     });
 
     // Bad - misses all or part of the body
-    request.addListener('response', function (response) {
+    request.on('response', function (response) {
       setTimeout(function () {
-        response.addListener('data', function (chunk) {
+        response.on('data', function (chunk) {
           console.log('BODY: ' + chunk);
         });
       }, 10);
@@ -2045,13 +2045,13 @@ on port 8124:
     var net = require('net');
     var server = net.createServer(function (stream) {
       stream.setEncoding('utf8');
-      stream.addListener('connect', function () {
+      stream.on('connect', function () {
         stream.write('hello\r\n');
       });
-      stream.addListener('data', function (data) {
+      stream.on('data', function (data) {
         stream.write(data);
       });
-      stream.addListener('end', function () {
+      stream.on('end', function () {
         stream.write('goodbye\r\n');
         stream.end();
       });
