@@ -5,10 +5,10 @@ before
 script.runInNewContext();
        ^
 ReferenceError: foo is not defined
-    at evalmachine.<anonymous>:1:1
-    at Object.<anonymous> (*test/message/undefined_reference_in_new_context.js:9:8)
-    at Module._compile (module:*:23)
-    at Module._loadScriptSync (module:*:8)
-    at Module.loadSync (module:*:*)
-    at Object.runMain (module:*:*)
-    at node.js:*:*
+    at evalmachine.<anonymous>:*
+    at Object.<anonymous> (*test/message/undefined_reference_in_new_context.js:*)
+    at Module._compile (module:*)
+    at Module._loadScriptSync (module:*)
+    at Module.loadSync (module:*)
+    at Object.runMain (module:*)
+    at node.js:*242:10
