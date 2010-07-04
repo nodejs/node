@@ -72,7 +72,7 @@ Allocates a new buffer of `size` octets.
 
 Allocates a new buffer using an `array` of octets.
 
-### new Buffer(str, encoding = 'utf8')
+### new Buffer(str, encoding='utf8')
 
 Allocates a new buffer containing the given `str`.
 
@@ -640,9 +640,16 @@ To exit with a 'failure' code:
 The shell that executed node should see the exit code as 1.
 
 
-### process.getgid(), process.setgid(id)
+### process.getgid()
 
-Gets/sets the group identity of the process. (See setgid(2).)  This is the numerical group id, not the group name.
+Gets the group identity of the process. (See getgid(2).)  This is the numerical group id, not the group name.
+
+    console.log('Current gid: ' + process.getgid());
+
+
+### process.setgid(id)
+
+Sets the group identity of the process. (See setgid(2).)  This is the numerical group id, not the group name.
 
     console.log('Current gid: ' + process.getgid());
     try {
@@ -654,9 +661,16 @@ Gets/sets the group identity of the process. (See setgid(2).)  This is the numer
     }
 
 
-### process.getuid(), process.setuid(id)
+### process.getuid()
 
-Gets/sets the user identity of the process. (See setuid(2).)  This is the numerical userid, not the username.
+Gets the user identity of the process. (See getuid(2).)  This is the numerical userid, not the username.
+
+    console.log('Current uid: ' + process.getuid());
+
+
+### process.setuid(id)
+
+Sets the user identity of the process. (See setuid(2).)  This is the numerical userid, not the username.
 
     console.log('Current uid: ' + process.getuid());
     try {
@@ -824,7 +838,7 @@ called when `writableStream` is closed.
 
 ## Timers
 
-### setTimeout(callback, delay, [arg, ...])
+### setTimeout(callback, delay, [arg], [...])
 
 To schedule execution of `callback` after `delay` milliseconds. Returns a
 `timeoutId` for possible use with `clearTimeout()`.
@@ -833,7 +847,7 @@ To schedule execution of `callback` after `delay` milliseconds. Returns a
 
 Prevents a timeout from triggering.
 
-### setInterval(callback, delay, [arg, ...])
+### setInterval(callback, delay, [arg], [...])
 
 To schedule the repeated execution of `callback` every `delay` milliseconds.
 Returns a `intervalId` for possible use with `clearInterval()`.
@@ -1007,7 +1021,7 @@ Example:
     grep.stdin.end();
 
 
-### child_process.exec(command, [options, ] callback)
+### child_process.exec(command, [options], callback)
 
 High-level way to execute a command as a child process, buffer the
 output, and return it all in a callback.
@@ -1265,7 +1279,7 @@ Synchronous chmod(2).
   
 ### fs.stat(path, callback), fs.lstat(path, callback), fs.fstat(fd, callback)
 
-Asynchronous stat(2), lstat(2) or fstat(2). The callback gets two arguments `(err, stats)` where `stats` is a `fs.Stats` object. It looks like this:
+Asynchronous stat(2). The callback gets two arguments `(err, stats)` where `stats` is a `fs.Stats` object. It looks like this:
 
     { dev: 2049
     , ino: 305352
@@ -1284,9 +1298,25 @@ Asynchronous stat(2), lstat(2) or fstat(2). The callback gets two arguments `(er
 
 See the `fs.Stats` section below for more information.
 
-### fs.statSync(path), fs.lstatSync(path), fs.fstatSync(fd)
+### fs.lstat(path, callback)
 
-Synchronous stat(2), lstat(2) or fstat(2). Returns an instance of `fs.Stats`.
+Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where `stats` is a `fs.Stats` object.
+
+### fs.fstat(fd, callback)
+
+Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where `stats` is a `fs.Stats` object.
+
+### fs.statSync(path)
+
+Synchronous stat(2). Returns an instance of `fs.Stats`.
+
+### fs.lstatSync(path)
+
+Synchronous lstat(2). Returns an instance of `fs.Stats`.
+
+### fs.fstatSync(fd)
+
+Synchronous fstat(2). Returns an instance of `fs.Stats`.
 
 ### fs.link(srcpath, dstpath, callback)
 
@@ -1409,7 +1439,7 @@ The callback is given the two arguments, `(err, bytesRead)`.
 
 Synchronous version of `fs.read`. Returns the number of `bytesRead`.
 
-### fs.readFile(filename, [encoding,] callback)
+### fs.readFile(filename, [encoding], callback)
 
 Asynchronously reads the entire contents of a file. Example:
 
@@ -1424,7 +1454,7 @@ contents of the file.
 If no encoding is specified, then the raw buffer is returned.
 
 
-### fs.readFileSync(filename [, encoding])
+### fs.readFileSync(filename, [encoding])
 
 Synchronous version of `fs.readFile`. Returns the contents of the `filename`.
 
@@ -1445,7 +1475,7 @@ Asynchronously writes data to a file. Example:
 
 The synchronous version of `fs.writeFile`.
 
-### fs.watchFile(filename, [options,] listener)
+### fs.watchFile(filename, [options], listener)
 
 Watch for changes on `filename`. The callback `listener` will be called each
 time the file changes.
@@ -1786,7 +1816,7 @@ This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the `'request'` event. It is a writable stream.
 
 
-### response.writeHead(statusCode[, reasonPhrase] , headers)
+### response.writeHead(statusCode, [reasonPhrase], headers)
 
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like `404`. The last argument, `headers`, are the response headers.
