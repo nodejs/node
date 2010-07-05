@@ -355,6 +355,7 @@ do { \
   int port; \
   struct sockaddr_in *a4; \
   struct sockaddr_in6 *a6; \
+  struct sockaddr_un *au; \
   switch ((address_storage).ss_family) { \
     case AF_INET6: \
       a6 = (struct sockaddr_in6*)&(address_storage); \
@@ -369,6 +370,13 @@ do { \
       port = ntohs(a4->sin_port); \
       (info)->Set(address_symbol, String::New(ip)); \
       (info)->Set(port_symbol, Integer::New(port)); \
+      break; \
+    case AF_UNIX: \
+      au = (struct sockaddr_un*)&(address_storage); \
+      char un_path[105]; \
+      strncpy(un_path, au->sun_path, au->sun_len-2); \
+      un_path[au->sun_len-2] = 0; \
+      (info)->Set(address_symbol, String::New(un_path)); \
       break; \
   } \
 } while (0)
@@ -971,22 +979,6 @@ static Handle<Value> SetNoDelay(const Arguments& args) {
   return Undefined();
 }
 
-static Handle<Value> SetBroadcast(const Arguments& args) {
-  int flags, r;
-  HandleScope scope;
-
-  FD_ARG(args[0])
-
-  flags = args[1]->IsFalse() ? 0 : 1;
-  r = setsockopt(fd, SOL_SOCKET, SO_BROADCAST, (void *)&flags, sizeof(flags));
-
-  if (r < 0) {
-    return ThrowException(ErrnoException(errno, "setsockopt"));
-  }
-  return Undefined();
-}
-
-
 static Handle<Value> SetKeepAlive(const Arguments& args) {
   int r;
   HandleScope scope;
@@ -1017,6 +1009,53 @@ static Handle<Value> SetKeepAlive(const Arguments& args) {
   }
   return Undefined();
 }
+
+static Handle<Value> SetBroadcast(const Arguments& args) {
+  int flags, r;
+  HandleScope scope;
+
+  FD_ARG(args[0])
+
+  flags = args[1]->IsFalse() ? 0 : 1;
+  r = setsockopt(fd, SOL_SOCKET, SO_BROADCAST, (void *)&flags, sizeof(flags));
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "setsockopt"));
+  } else {
+    return scope.Close(Integer::New(flags));
+  }
+}
+
+static Handle<Value> SetTTL(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() != 2) {
+    return ThrowException(Exception::TypeError(
+      String::New("Takes exactly two arguments: fd, new TTL")));
+  }
+
+  FD_ARG(args[0]);
+
+  if (! args[1]->IsInt32()) {
+    return ThrowException(Exception::TypeError(
+      String::New("Argument must be a number")));
+  }
+  
+  int newttl = args[1]->Int32Value();
+  if (newttl < 1 || newttl > 255) {
+    return ThrowException(Exception::TypeError(
+      String::New("new TTL must be between 1 and 255")));
+  }
+
+  int r = setsockopt(fd, IPPROTO_IP, IP_TTL, (void *)&newttl, sizeof(newttl));
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "setsockopt"));
+  } else {
+    return scope.Close(Integer::New(newttl));
+  }
+}
+
 
 //
 // G E T A D D R I N F O
@@ -1241,6 +1280,7 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "toRead", ToRead);
   NODE_SET_METHOD(target, "setNoDelay", SetNoDelay);
   NODE_SET_METHOD(target, "setBroadcast", SetBroadcast);
+  NODE_SET_METHOD(target, "setTTL", SetTTL);
   NODE_SET_METHOD(target, "setKeepAlive", SetKeepAlive);
   NODE_SET_METHOD(target, "getsockname", GetSockName);
   NODE_SET_METHOD(target, "getpeername", GetPeerName);
