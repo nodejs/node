@@ -408,6 +408,11 @@ TEST(Vfp) {
 
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
+    COMPARE(vmov(d0, d1),
+            "eeb00b41       vmov.f64 d0, d1");
+    COMPARE(vmov(d3, d3, eq),
+            "0eb03b43       vmov.f64eq d3, d3");
+
     COMPARE(vadd(d0, d1, d2),
             "ee310b02       vadd.f64 d0, d1, d2");
     COMPARE(vadd(d3, d4, d5, mi),

@@ -542,7 +542,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
 
       Address pc = this->pc();
       if (code != NULL && code->kind() == Code::FUNCTION &&
-          pc >= code->instruction_start() && pc < code->relocation_start()) {
+          pc >= code->instruction_start() && pc < code->instruction_end()) {
         int source_pos = code->SourcePosition(pc);
         int line = GetScriptLineNumberSafe(script, source_pos) + 1;
         accumulator->Add(":%d", line);

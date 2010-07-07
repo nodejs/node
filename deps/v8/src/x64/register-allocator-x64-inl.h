@@ -38,7 +38,8 @@ namespace internal {
 
 bool RegisterAllocator::IsReserved(Register reg) {
   return reg.is(rsp) || reg.is(rbp) || reg.is(rsi) ||
-      reg.is(kScratchRegister) || reg.is(kRootRegister);
+      reg.is(kScratchRegister) || reg.is(kRootRegister) ||
+      reg.is(kSmiConstantRegister);
 }
 
 
@@ -58,11 +59,11 @@ int RegisterAllocator::ToNumber(Register reg) {
     5,   // r8
     6,   // r9
     -1,  // r10  Scratch register.
-    9,   // r11
-    10,  // r12
+    8,   // r11
+    9,   // r12
     -1,  // r13  Roots array.  This is callee saved.
     7,   // r14
-    8    // r15
+    -1   // r15  Smi constant register.
   };
   return kNumbers[reg.code()];
 }
@@ -71,7 +72,7 @@ int RegisterAllocator::ToNumber(Register reg) {
 Register RegisterAllocator::ToRegister(int num) {
   ASSERT(num >= 0 && num < kNumRegisters);
   const Register kRegisters[] =
-      { rax, rbx, rcx, rdx, rdi, r8, r9, r14, r15, r11, r12 };
+      { rax, rbx, rcx, rdx, rdi, r8, r9, r14, r11, r12 };
   return kRegisters[num];
 }
 

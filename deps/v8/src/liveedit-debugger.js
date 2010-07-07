@@ -51,7 +51,8 @@ Debug.LiveEdit = new function() {
   // Applies the change to the script.
   // The change is in form of list of chunks encoded in a single array as
   // a series of triplets (pos1_start, pos1_end, pos2_end)
-  function ApplyPatchMultiChunk(script, diff_array, new_source, change_log) {
+  function ApplyPatchMultiChunk(script, diff_array, new_source, preview_only,
+      change_log) {
 
     var old_source = script.source;
 
@@ -96,7 +97,7 @@ Debug.LiveEdit = new function() {
       }
 
       // Recursively collects all newly compiled functions that are going into
-      // business and should be have link to the actual script updated.
+      // business and should have link to the actual script updated.
       function CollectNew(node_list) {
         for (var i = 0; i < node_list.length; i++) {
           link_to_original_script_list.push(node_list[i]);
@@ -121,6 +122,20 @@ Debug.LiveEdit = new function() {
       }
     }
 
+    var preview_description = {
+        change_tree: DescribeChangeTree(root_old_node),
+        textual_diff: {
+          old_len: old_source.length,
+          new_len: new_source.length,
+          chunks: diff_array
+        },
+        updated: false
+    };
+    
+    if (preview_only) {
+      return preview_description;
+    }
+    
     HarvestTodo(root_old_node);
     
     // Collect shared infos for functions whose code need to be patched.
@@ -132,13 +147,15 @@ Debug.LiveEdit = new function() {
       }
     }
 
-    // Check that function being patched is not currently on stack.
-    CheckStackActivations(replaced_function_infos, change_log);
-  
-  
     // We haven't changed anything before this line yet.
     // Committing all changes.
     
+    // Check that function being patched is not currently on stack or drop them.
+    var dropped_functions_number =
+        CheckStackActivations(replaced_function_infos, change_log);
+    
+    preview_description.stack_modified = dropped_functions_number != 0; 
+  
     // Start with breakpoints. Convert their line/column positions and 
     // temporary remove.
     var break_points_restorer = TemporaryRemoveBreakPoints(script, change_log);
@@ -166,6 +183,8 @@ Debug.LiveEdit = new function() {
         LinkToOldScript(link_to_old_script_list[i], old_script,
             link_to_old_script_report);
       }
+      
+      preview_description.created_script_name = old_script_name;
     }
     
     // Link to an actual script all the functions that we are going to use.
@@ -189,6 +208,9 @@ Debug.LiveEdit = new function() {
     }
     
     break_points_restorer(pos_translator, old_script);
+    
+    preview_description.updated = true;
+    return preview_description;
   }
   // Function is public.
   this.ApplyPatchMultiChunk = ApplyPatchMultiChunk;
@@ -494,6 +516,16 @@ Debug.LiveEdit = new function() {
     this.new_end_pos = void 0;
     this.corresponding_node = void 0;
     this.unmatched_new_nodes = void 0;
+    
+    // 'Textual' correspondence/matching is weaker than 'pure'
+    // correspondence/matching. We need 'textual' level for visual presentation
+    // in UI, we use 'pure' level for actual code manipulation.
+    // Sometimes only function body is changed (functions in old and new script
+    // textually correspond), but we cannot patch the code, so we see them
+    // as an old function deleted and new function created.  
+    this.textual_corresponding_node = void 0;
+    this.textually_unmatched_new_nodes = void 0;
+    
     this.live_shared_info_wrapper = void 0;
   }
   
@@ -640,6 +672,7 @@ Debug.LiveEdit = new function() {
       var new_children = new_node.children;
       
       var unmatched_new_nodes_list = [];
+      var textually_unmatched_new_nodes_list = [];
 
       var old_index = 0;
       var new_index = 0;
@@ -650,12 +683,15 @@ Debug.LiveEdit = new function() {
           if (new_children[new_index].info.start_position <
               old_children[old_index].new_start_pos) {
             unmatched_new_nodes_list.push(new_children[new_index]);
+            textually_unmatched_new_nodes_list.push(new_children[new_index]);
             new_index++;
           } else if (new_children[new_index].info.start_position ==
               old_children[old_index].new_start_pos) {
             if (new_children[new_index].info.end_position ==
                 old_children[old_index].new_end_pos) {
               old_children[old_index].corresponding_node =
+                  new_children[new_index];
+              old_children[old_index].textual_corresponding_node =
                   new_children[new_index];
               if (old_children[old_index].status != FunctionStatus.UNCHANGED) {
                 ProcessChildren(old_children[old_index],
@@ -673,6 +709,7 @@ Debug.LiveEdit = new function() {
                   "No corresponding function in new script found";
               old_node.status = FunctionStatus.CHANGED;
               unmatched_new_nodes_list.push(new_children[new_index]);
+              textually_unmatched_new_nodes_list.push(new_children[new_index]);
             }
             new_index++;
             old_index++;
@@ -694,21 +731,28 @@ Debug.LiveEdit = new function() {
       
       while (new_index < new_children.length) {
         unmatched_new_nodes_list.push(new_children[new_index]);
+        textually_unmatched_new_nodes_list.push(new_children[new_index]);
         new_index++;
       }
       
       if (old_node.status == FunctionStatus.CHANGED) {
-        if (!CompareFunctionExpectations(old_node.info, new_node.info)) {
+        var why_wrong_expectations =
+            WhyFunctionExpectationsDiffer(old_node.info, new_node.info);
+        if (why_wrong_expectations) {
           old_node.status = FunctionStatus.DAMAGED;
-          old_node.status_explanation = "Changed code expectations";
+          old_node.status_explanation = why_wrong_expectations;
         }
       }
       old_node.unmatched_new_nodes = unmatched_new_nodes_list;
+      old_node.textually_unmatched_new_nodes =
+          textually_unmatched_new_nodes_list;
     }
 
     ProcessChildren(old_code_tree, new_code_tree);
     
     old_code_tree.corresponding_node = new_code_tree;
+    old_code_tree.textual_corresponding_node = new_code_tree;
+
     Assert(old_code_tree.status != FunctionStatus.DAMAGED,
         "Script became damaged");
   }
@@ -792,27 +836,37 @@ Debug.LiveEdit = new function() {
   }
   
   // Compares a function interface old and new version, whether it
-  // changed or not.
-  function CompareFunctionExpectations(function_info1, function_info2) {
+  // changed or not. Returns explanation if they differ.
+  function WhyFunctionExpectationsDiffer(function_info1, function_info2) {
     // Check that function has the same number of parameters (there may exist
     // an adapter, that won't survive function parameter number change).
     if (function_info1.param_num != function_info2.param_num) {
-      return false;
+      return "Changed parameter number: " + function_info1.param_num + 
+          " and " + function_info2.param_num;
     }
     var scope_info1 = function_info1.scope_info;
     var scope_info2 = function_info2.scope_info;
-  
-    if (!scope_info1) {
-      return !scope_info2;
+
+    var scope_info1_text; 
+    var scope_info2_text; 
+    
+    if (scope_info1) {
+      scope_info1_text = scope_info1.toString(); 
+    } else {
+      scope_info1_text = "";
     }
-  
-    if (scope_info1.length != scope_info2.length) {
-      return false;
+    if (scope_info2) {
+      scope_info2_text = scope_info2.toString(); 
+    } else {
+      scope_info2_text = "";
     }
-  
-    // Check that outer scope structure is not changed. Otherwise the function
-    // will not properly work with existing scopes.
-    return scope_info1.toString() == scope_info2.toString();
+    
+    if (scope_info1_text != scope_info2_text) {
+      return "Incompatible variable maps: [" + scope_info1_text +
+          "] and [" + scope_info2_text + "]";  
+    }
+    // No differences. Return undefined.
+    return;
   }
   
   // Minifier forward declaration.
@@ -856,6 +910,8 @@ Debug.LiveEdit = new function() {
       change_log.push( { functions_on_stack: problems } );
       throw new Failure("Blocked by functions on stack");
     }
+    
+    return dropped.length;
   }
   
   // A copy of the FunctionPatchabilityStatus enum from liveedit.h
@@ -897,14 +953,11 @@ Debug.LiveEdit = new function() {
   this.GetPcFromSourcePos = GetPcFromSourcePos;
 
   // LiveEdit main entry point: changes a script text to a new string.
-  function SetScriptSource(script, new_source, change_log) {
+  function SetScriptSource(script, new_source, preview_only, change_log) {
     var old_source = script.source;
     var diff = CompareStringsLinewise(old_source, new_source);
-    if (diff.length == 0) {
-      change_log.push( { empty_diff: true } );
-      return;
-    }
-    ApplyPatchMultiChunk(script, diff, new_source, change_log);
+    return ApplyPatchMultiChunk(script, diff, new_source, preview_only,
+        change_log);
   }
   // Function is public.
   this.SetScriptSource = SetScriptSource;
@@ -931,7 +984,67 @@ Debug.LiveEdit = new function() {
     
     return ApplyPatchMultiChunk(script,
         [ change_pos, change_pos + change_len, change_pos + new_str.length],
-        new_source, change_log);
+        new_source, false, change_log);
+  }
+  
+  // Creates JSON description for a change tree.
+  function DescribeChangeTree(old_code_tree) {
+    
+    function ProcessOldNode(node) {
+      var child_infos = [];
+      for (var i = 0; i < node.children.length; i++) {
+        var child = node.children[i];
+        if (child.status != FunctionStatus.UNCHANGED) {
+          child_infos.push(ProcessOldNode(child));
+        }
+      }
+      var new_child_infos = [];
+      if (node.textually_unmatched_new_nodes) {
+        for (var i = 0; i < node.textually_unmatched_new_nodes.length; i++) {
+          var child = node.textually_unmatched_new_nodes[i];
+          new_child_infos.push(ProcessNewNode(child));
+        }
+      }
+      var res = {
+        name: node.info.function_name,
+        positions: DescribePositions(node),
+        status: node.status,
+        children: child_infos,
+        new_children: new_child_infos  
+      };
+      if (node.status_explanation) {
+        res.status_explanation = node.status_explanation;
+      }
+      if (node.textual_corresponding_node) {
+        res.new_positions = DescribePositions(node.textual_corresponding_node);
+      }
+      return res;
+    }
+    
+    function ProcessNewNode(node) {
+      var child_infos = [];
+      // Do not list ancestors.
+      if (false) {
+        for (var i = 0; i < node.children.length; i++) {
+          child_infos.push(ProcessNewNode(node.children[i]));
+        }
+      }
+      var res = {
+        name: node.info.function_name,
+        positions: DescribePositions(node),
+        children: child_infos,
+      };
+      return res;
+    }
+    
+    function DescribePositions(node) {
+      return {
+        start_position: node.info.start_position,
+        end_position: node.info.end_position
+      };
+    }
+    
+    return ProcessOldNode(old_code_tree);
   }
 
   

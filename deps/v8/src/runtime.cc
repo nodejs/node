@@ -678,6 +678,12 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
 }
 
 
+static Object* Runtime_PreventExtensions(Arguments args) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSObject, obj, args[0]);
+  return obj->PreventExtensions();
+}
+
 static Object* Runtime_IsExtensible(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSObject, obj, args[0]);
@@ -2279,6 +2285,134 @@ static Object* StringReplaceRegExpWithString(String* subject,
 }
 
 
+template <typename ResultSeqString>
+static Object* StringReplaceRegExpWithEmptyString(String* subject,
+                                                  JSRegExp* regexp,
+                                                  JSArray* last_match_info) {
+  ASSERT(subject->IsFlat());
+
+  HandleScope handles;
+
+  Handle<String> subject_handle(subject);
+  Handle<JSRegExp> regexp_handle(regexp);
+  Handle<JSArray> last_match_info_handle(last_match_info);
+  Handle<Object> match = RegExpImpl::Exec(regexp_handle,
+                                          subject_handle,
+                                          0,
+                                          last_match_info_handle);
+  if (match.is_null()) return Failure::Exception();
+  if (match->IsNull()) return *subject_handle;
+
+  ASSERT(last_match_info_handle->HasFastElements());
+
+  HandleScope loop_scope;
+  int start, end;
+  {
+    AssertNoAllocation match_info_array_is_not_in_a_handle;
+    FixedArray* match_info_array =
+        FixedArray::cast(last_match_info_handle->elements());
+
+    start = RegExpImpl::GetCapture(match_info_array, 0);
+    end = RegExpImpl::GetCapture(match_info_array, 1);
+  }
+
+  int length = subject->length();
+  int new_length = length - (end - start);
+  if (new_length == 0) {
+    return Heap::empty_string();
+  }
+  Handle<ResultSeqString> answer;
+  if (ResultSeqString::kHasAsciiEncoding) {
+    answer =
+        Handle<ResultSeqString>::cast(Factory::NewRawAsciiString(new_length));
+  } else {
+    answer =
+        Handle<ResultSeqString>::cast(Factory::NewRawTwoByteString(new_length));
+  }
+
+  // If the regexp isn't global, only match once.
+  if (!regexp_handle->GetFlags().is_global()) {
+    if (start > 0) {
+      String::WriteToFlat(*subject_handle,
+                          answer->GetChars(),
+                          0,
+                          start);
+    }
+    if (end < length) {
+      String::WriteToFlat(*subject_handle,
+                          answer->GetChars() + start,
+                          end,
+                          length);
+    }
+    return *answer;
+  }
+
+  int prev = 0;  // Index of end of last match.
+  int next = 0;  // Start of next search (prev unless last match was empty).
+  int position = 0;
+
+  do {
+    if (prev < start) {
+      // Add substring subject[prev;start] to answer string.
+      String::WriteToFlat(*subject_handle,
+                          answer->GetChars() + position,
+                          prev,
+                          start);
+      position += start - prev;
+    }
+    prev = end;
+    next = end;
+    // Continue from where the match ended, unless it was an empty match.
+    if (start == end) {
+      next++;
+      if (next > length) break;
+    }
+    match = RegExpImpl::Exec(regexp_handle,
+                             subject_handle,
+                             next,
+                             last_match_info_handle);
+    if (match.is_null()) return Failure::Exception();
+    if (match->IsNull()) break;
+
+    ASSERT(last_match_info_handle->HasFastElements());
+    HandleScope loop_scope;
+    {
+      AssertNoAllocation match_info_array_is_not_in_a_handle;
+      FixedArray* match_info_array =
+          FixedArray::cast(last_match_info_handle->elements());
+      start = RegExpImpl::GetCapture(match_info_array, 0);
+      end = RegExpImpl::GetCapture(match_info_array, 1);
+    }
+  } while (true);
+
+  if (prev < length) {
+    // Add substring subject[prev;length] to answer string.
+    String::WriteToFlat(*subject_handle,
+                        answer->GetChars() + position,
+                        prev,
+                        length);
+    position += length - prev;
+  }
+
+  if (position == 0) {
+    return Heap::empty_string();
+  }
+
+  // Shorten string and fill
+  int string_size = ResultSeqString::SizeFor(position);
+  int allocated_string_size = ResultSeqString::SizeFor(new_length);
+  int delta = allocated_string_size - string_size;
+
+  answer->set_length(position);
+  if (delta == 0) return *answer;
+
+  Address end_of_string = answer->address() + string_size;
+  Heap::CreateFillerObjectAt(end_of_string, delta);
+
+  return *answer;
+}
+
+
 static Object* Runtime_StringReplaceRegExpWithString(Arguments args) {
   ASSERT(args.length() == 4);
 
@@ -2304,6 +2438,16 @@ static Object* Runtime_StringReplaceRegExpWithString(Arguments args) {
   CONVERT_CHECKED(JSArray, last_match_info, args[3]);
 
   ASSERT(last_match_info->HasFastElements());
+
+  if (replacement->length() == 0) {
+    if (subject->HasOnlyAsciiChars()) {
+      return StringReplaceRegExpWithEmptyString<SeqAsciiString>(
+          subject, regexp, last_match_info);
+    } else {
+      return StringReplaceRegExpWithEmptyString<SeqTwoByteString>(
+          subject, regexp, last_match_info);
+    }
+  }
 
   return StringReplaceRegExpWithString(subject,
                                        regexp,
@@ -5362,9 +5506,6 @@ static Object* Runtime_NumberToInteger(Arguments args) {
 }
 
 
-
-
-
 static Object* Runtime_NumberToIntegerMapMinusZero(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -5434,7 +5575,7 @@ static Object* Runtime_NumberAdd(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::AllocateHeapNumber(x + y);
+  return Heap::NumberFromDouble(x + y);
 }
 
 
@@ -5444,7 +5585,7 @@ static Object* Runtime_NumberSub(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::AllocateHeapNumber(x - y);
+  return Heap::NumberFromDouble(x - y);
 }
 
 
@@ -5454,7 +5595,7 @@ static Object* Runtime_NumberMul(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::AllocateHeapNumber(x * y);
+  return Heap::NumberFromDouble(x * y);
 }
 
 
@@ -5463,7 +5604,7 @@ static Object* Runtime_NumberUnaryMinus(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(-x);
+  return Heap::NumberFromDouble(-x);
 }
 
 
@@ -6065,7 +6206,7 @@ static Object* Runtime_Math_pow(Arguments args) {
   // custom powi() function than the generic pow().
   if (args[1]->IsSmi()) {
     int y = Smi::cast(args[1])->value();
-    return Heap::AllocateHeapNumber(powi(x, y));
+    return Heap::NumberFromDouble(powi(x, y));
   }
 
   CONVERT_DOUBLE_CHECKED(y, args[1]);

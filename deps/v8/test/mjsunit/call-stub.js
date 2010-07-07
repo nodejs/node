@@ -25,45 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
+function Hash() {
+  for (var i = 0; i < 100; i++) {
+    this['a' + i] = i;
+  }
 
-Debug = debug.Debug
+  delete this.a50;  // Ensure it's a normal object.
+}
 
-eval("var something1 = 25; \n"
-     + "var something2 = 2010; \n"
-     + "function ChooseAnimal() {\n"
-     + "  return 'Cat';\n"
-     + "} \n"
-     + "function ChooseFurniture() {\n"
-     + "  return 'Table';\n"
-     + "} \n"
-     + "function ChooseNumber() { return 17; } \n"
-     + "ChooseAnimal.Factory = function Factory() {\n"
-     + "  return function FactoryImpl(name) {\n"
-     + "    return 'Help ' + name;\n"
-     + "  }\n"
-     + "}\n");
+Hash.prototype.m = function() {
+  return 1;
+};
 
-assertEquals("Cat", ChooseAnimal());
-assertEquals(25, something1);
+var h = new Hash();
 
-var script = Debug.findScript(ChooseAnimal);
-
-var new_source = script.source.replace("Cat", "Cap' + 'yb' + 'ara");
-var new_source = new_source.replace("25", "26");
-var new_source = new_source.replace("Help", "Hello");
-var new_source = new_source.replace("17", "18");
-print("new source: " + new_source);
-
-var change_log = new Array();
-var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
-print("Result: " + JSON.stringify(result) + "\n");
-print("Change log: " + JSON.stringify(change_log) + "\n");
-
-assertEquals("Capybara", ChooseAnimal());
-// Global variable do not get changed (without restarting script).
-assertEquals(25, something1);
-// Function is oneliner, so currently it is treated as damaged and not patched.
-assertEquals(17, ChooseNumber());
-assertEquals("Hello Peter", ChooseAnimal.Factory()("Peter"));
+for (var i = 1; i < 100; i++) {
+  if (i == 50) {
+    h.m = function() {
+      return 2;
+    };
+  } else if (i == 70) {
+    delete h.m;
+  }
+  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.m());
+}

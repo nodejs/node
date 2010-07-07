@@ -77,7 +77,7 @@ class StubCache : public AllStatic {
                                         JSObject* receiver,
                                         JSObject* holder);
 
-  static Object* ComputeLoadNormal(String* name, JSObject* receiver);
+  static Object* ComputeLoadNormal();
 
 
   static Object* ComputeLoadGlobal(String* name,
@@ -120,6 +120,8 @@ class StubCache : public AllStatic {
                                    JSObject* receiver,
                                    int field_index,
                                    Map* transition = NULL);
+
+  static Object* ComputeStoreNormal();
 
   static Object* ComputeStoreGlobal(String* name,
                                     GlobalObject* receiver,
@@ -407,8 +409,21 @@ class StubCompiler BASE_EMBEDDED {
 
   static void GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind);
 
-  // Check the integrity of the prototype chain to make sure that the
-  // current IC is still valid.
+  // Generates code that verifies that the property holder has not changed
+  // (checking maps of objects in the prototype chain for fast and global
+  // objects or doing negative lookup for slow objects, ensures that the
+  // property cells for global objects are still empty) and checks that the map
+  // of the holder has not changed. If necessary the function also generates
+  // code for security check in case of global object holders. Helps to make
+  // sure that the current IC is still valid.
+  //
+  // The scratch and holder registers are always clobbered, but the object
+  // register is only clobbered if it the same as the holder register. The
+  // function returns a register containing the holder - either object_reg or
+  // holder_reg.
+  // The function can optionally (when save_at_depth !=
+  // kInvalidProtoDepth) save the object at the given depth by moving
+  // it to [esp + kPointerSize].
 
   Register CheckPrototypes(JSObject* object,
                            Register object_reg,
@@ -416,9 +431,10 @@ class StubCompiler BASE_EMBEDDED {
                            Register holder_reg,
                            Register scratch,
                            String* name,
-                           Label* miss) {
+                           Label* miss,
+                           Register extra = no_reg) {
     return CheckPrototypes(object, object_reg, holder, holder_reg, scratch,
-                           name, kInvalidProtoDepth, miss);
+                           name, kInvalidProtoDepth, miss, extra);
   }
 
   Register CheckPrototypes(JSObject* object,
@@ -428,7 +444,8 @@ class StubCompiler BASE_EMBEDDED {
                            Register scratch,
                            String* name,
                            int save_at_depth,
-                           Label* miss);
+                           Label* miss,
+                           Register extra = no_reg);
 
  protected:
   Object* GetCodeWithFlags(Code::Flags flags, const char* name);
@@ -611,8 +628,10 @@ class CallStubCompiler: public StubCompiler {
     kNumCallGenerators
   };
 
-  CallStubCompiler(int argc, InLoopFlag in_loop, Code::Kind kind)
-      : arguments_(argc), in_loop_(in_loop), kind_(kind) { }
+  CallStubCompiler(int argc,
+                   InLoopFlag in_loop,
+                   Code::Kind kind,
+                   InlineCacheHolderFlag cache_holder);
 
   Object* CompileCallField(JSObject* object,
                            JSObject* holder,
@@ -653,6 +672,7 @@ class CallStubCompiler: public StubCompiler {
   const ParameterCount arguments_;
   const InLoopFlag in_loop_;
   const Code::Kind kind_;
+  const InlineCacheHolderFlag cache_holder_;
 
   const ParameterCount& arguments() { return arguments_; }
 

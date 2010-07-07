@@ -96,6 +96,12 @@ Handle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
 }
 
 
+Handle<String> Factory::NewRawAsciiString(int length,
+                                          PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(Heap::AllocateRawAsciiString(length, pretenure), String);
+}
+
+
 Handle<String> Factory::NewRawTwoByteString(int length,
                                             PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(Heap::AllocateRawTwoByteString(length, pretenure), String);

@@ -1802,6 +1802,16 @@ void Assembler::vstr(const DwVfpRegister src,
 
 
 void Assembler::vmov(const DwVfpRegister dst,
+                     const DwVfpRegister src,
+                     const Condition cond) {
+  // Dd = Dm
+  // Instruction details available in ARM DDI 0406B, A8-642.
+  emit(cond | 0xE*B24 | 0xB*B20 |
+       dst.code()*B12 | 0x5*B9 | B8 | B6 | src.code());
+}
+
+
+void Assembler::vmov(const DwVfpRegister dst,
                      const Register src1,
                      const Register src2,
                      const Condition cond) {

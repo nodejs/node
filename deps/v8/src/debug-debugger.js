@@ -2070,6 +2070,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
     return response.failed('Missing arguments');
   }
   var script_id = request.arguments.script_id;
+  var preview_only = !!request.arguments.preview_only;
   
   var scripts = %DebugGetLoadedScripts();
 
@@ -2092,18 +2093,9 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
 
   var new_source = request.arguments.new_source;
   
-  try {
-    Debug.LiveEdit.SetScriptSource(the_script, new_source, change_log);
-  } catch (e) {
-    if (e instanceof Debug.LiveEdit.Failure) {
-      // Let's treat it as a "success" so that body with change_log will be
-      // sent back. "change_log" will have "failure" field set.
-      change_log.push( { failure: true, message: e.toString() } ); 
-    } else {
-      throw e;
-    }
-  }
-  response.body = {change_log: change_log};
+  var result_description = Debug.LiveEdit.SetScriptSource(the_script,
+      new_source, preview_only, change_log);
+  response.body = {change_log: change_log, result: result_description};
 };
 
 

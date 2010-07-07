@@ -134,16 +134,6 @@ class ApiFunction {
 };
 
 
-v8::Arguments::Arguments(v8::Local<v8::Value> data,
-                         v8::Local<v8::Object> holder,
-                         v8::Local<v8::Function> callee,
-                         bool is_construct_call,
-                         void** values, int length)
-    : data_(data), holder_(holder), callee_(callee),
-      is_construct_call_(is_construct_call),
-      values_(values), length_(length) { }
-
-
 enum ExtensionTraversalState {
   UNVISITED, VISITED, INSTALLED
 };

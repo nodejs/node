@@ -47,8 +47,11 @@ enum AllocationFlags {
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
-static const Register kScratchRegister = { 10 };  // r10.
-static const Register kRootRegister = { 13 };     // r13
+static const Register kScratchRegister = { 10 };      // r10.
+static const Register kSmiConstantRegister = { 15 };  // r15 (callee save).
+static const Register kRootRegister = { 13 };         // r13 (callee save).
+// Value of smi in kSmiConstantRegister.
+static const int kSmiConstantRegisterValue = 1;
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
@@ -93,15 +96,26 @@ class MacroAssembler: public Assembler {
                   Condition cc,
                   Label* branch);
 
-  // For page containing |object| mark region covering [object+offset] dirty.
-  // object is the object being stored into, value is the object being stored.
-  // If offset is zero, then the scratch register contains the array index into
-  // the elements array represented as a Smi.
-  // All registers are clobbered by the operation.
+  // For page containing |object| mark region covering [object+offset]
+  // dirty. |object| is the object being stored into, |value| is the
+  // object being stored. If |offset| is zero, then the |scratch|
+  // register contains the array index into the elements array
+  // represented as a Smi. All registers are clobbered by the
+  // operation. RecordWrite filters out smis so it does not update the
+  // write barrier if the value is a smi.
   void RecordWrite(Register object,
                    int offset,
                    Register value,
                    Register scratch);
+
+  // For page containing |object| mark region covering [address]
+  // dirty. |object| is the object being stored into, |value| is the
+  // object being stored. All registers are clobbered by the
+  // operation.  RecordWrite filters out smis so it does not update
+  // the write barrier if the value is a smi.
+  void RecordWrite(Register object,
+                   Register address,
+                   Register value);
 
   // For page containing |object| mark region covering [object+offset] dirty.
   // The value is known to not be a smi.
@@ -190,6 +204,12 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // Smi tagging, untagging and operations on tagged smis.
+
+  void InitializeSmiConstantRegister() {
+    movq(kSmiConstantRegister,
+         reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
+         RelocInfo::NONE);
+  }
 
   // Conversions between tagged smi values and non-tagged integer values.
 
@@ -458,11 +478,12 @@ class MacroAssembler: public Assembler {
 
   // Basic Smi operations.
   void Move(Register dst, Smi* source) {
-    Set(dst, reinterpret_cast<int64_t>(source));
+    LoadSmiConstant(dst, source);
   }
 
   void Move(const Operand& dst, Smi* source) {
-    Set(dst, reinterpret_cast<int64_t>(source));
+    Register constant = GetSmiConstant(source);
+    movq(dst, constant);
   }
 
   void Push(Smi* smi);
@@ -809,6 +830,14 @@ class MacroAssembler: public Assembler {
  private:
   bool generating_stub_;
   bool allow_stub_calls_;
+
+  // Returns a register holding the smi value. The register MUST NOT be
+  // modified. It may be the "smi 1 constant" register.
+  Register GetSmiConstant(Smi* value);
+
+  // Moves the smi value to the destination register.
+  void LoadSmiConstant(Register dst, Smi* value);
+
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
 

@@ -44,6 +44,7 @@ class RegisterFile;
 enum InitState { CONST_INIT, NOT_CONST_INIT };
 enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 enum GenerateInlineSmi { DONT_GENERATE_INLINE_SMI, GENERATE_INLINE_SMI };
+enum WriteBarrierCharacter { UNLIKELY_SMI, LIKELY_SMI, NEVER_NEWSPACE };
 
 
 // -------------------------------------------------------------------------
@@ -100,7 +101,7 @@ class Reference BASE_EMBEDDED {
   // on the expression stack.  The  value is stored in the location specified
   // by the reference, and is left on top of the stack, after the reference
   // is popped from beneath it (unloaded).
-  void SetValue(InitState init_state);
+  void SetValue(InitState init_state, WriteBarrierCharacter wb);
 
   // This is in preparation for something that uses the reference on the stack.
   // If we need this reference afterwards get then dup it now.  Otherwise mark
@@ -384,7 +385,7 @@ class CodeGenerator: public AstVisitor {
 
   // Store a keyed property. Key and receiver are on the stack and the value is
   // in r0. Result is returned in r0.
-  void EmitKeyedStore(StaticType* key_type);
+  void EmitKeyedStore(StaticType* key_type, WriteBarrierCharacter wb_info);
 
   void LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                          TypeofState typeof_state,

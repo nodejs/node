@@ -1263,6 +1263,11 @@ static void Generate_StoreIC_Miss(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_Normal(MacroAssembler* masm) {
+  StoreIC::GenerateNormal(masm);
+}
+
+
 static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
   StoreIC::GenerateMegamorphic(masm);
 }

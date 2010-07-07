@@ -154,6 +154,15 @@ function testToLocaleTimeString() {
 
 testToLocaleTimeString();
 
+// Test that -0 is treated correctly in MakeDay.
+var d = new Date();
+assertDoesNotThrow("d.setDate(-0)");
+assertDoesNotThrow("new Date(-0, -0, -0, -0, -0, -0. -0)");
+assertDoesNotThrow("new Date(0x40000000, 0x40000000, 0x40000000," +
+                   "0x40000000, 0x40000000, 0x40000000, 0x40000000)")
+assertDoesNotThrow("new Date(-0x40000001, -0x40000001, -0x40000001," +
+                   "-0x40000001, -0x40000001, -0x40000001, -0x40000001)")
+
 
 // Modified test from WebKit
 // LayoutTests/fast/js/script-tests/date-utc-timeclip.js:

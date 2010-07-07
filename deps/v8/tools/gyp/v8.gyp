@@ -75,7 +75,14 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'Optimizations': '0',
-            'RuntimeLibrary': '1',
+            
+            'conditions': [
+              ['OS=="win" and component=="shared_library"', {
+                'RuntimeLibrary': '3',  # /MDd
+              }, {
+                'RuntimeLibrary': '1',  # /MTd
+              }],
+            ],
           },
           'VCLinkerTool': {
             'LinkIncremental': '2',
@@ -129,13 +136,20 @@
             },
             'msvs_settings': {
               'VCCLCompilerTool': {
-                'RuntimeLibrary': '0',
                 'Optimizations': '2',
                 'InlineFunctionExpansion': '2',
                 'EnableIntrinsicFunctions': 'true',
                 'FavorSizeOrSpeed': '0',
                 'OmitFramePointers': 'true',
                 'StringPooling': 'true',
+                
+                'conditions': [
+                  ['OS=="win" and component=="shared_library"', {
+                    'RuntimeLibrary': '2',  #/MD
+                  }, {
+                    'RuntimeLibrary': '0',  #/MT
+                  }],
+                ],
               },
               'VCLinkerTool': {
                 'LinkIncremental': '1',
@@ -152,13 +166,24 @@
   'targets': [
     {
       'target_name': 'v8',
-      'type': 'none',
       'conditions': [
         ['v8_use_snapshot=="true"', {
           'dependencies': ['v8_snapshot'],
         },
         {
           'dependencies': ['v8_nosnapshot'],
+        }],
+        ['OS=="win" and component=="shared_library"', {
+          'type': '<(component)',
+          'sources': [
+            '../../src/v8dll-main.cc',
+          ],
+          'defines': [
+            'BUILDING_V8_SHARED'
+          ],
+        },
+        {
+          'type': 'none',
         }],
       ],
       'direct_dependent_settings': {
@@ -170,6 +195,13 @@
     {
       'target_name': 'v8_snapshot',
       'type': '<(library)',
+      'conditions': [
+        ['OS=="win" and component=="shared_library"', {
+          'defines': [
+            'BUILDING_V8_SHARED',
+          ],
+        }],
+      ],
       'dependencies': [
         'mksnapshot#host',
         'js2c#host',
@@ -216,7 +248,12 @@
         ['v8_target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
           'cflags': ['-m32'],
           'ldflags': ['-m32'],
-        }]
+        }],
+        ['OS=="win" and component=="shared_library"', {
+          'defines': [
+            'BUILDING_V8_SHARED',
+          ],
+        }],
       ]
     },
     {
@@ -614,6 +651,11 @@
             'libraries': [ '-lwinmm.lib' ],
           },
         }],
+        ['OS=="win" and component=="shared_library"', {
+          'defines': [
+            'BUILDING_V8_SHARED'
+          ],
+        }],
       ],
     },
     {
@@ -692,9 +734,14 @@
         '../../samples/shell.cc',
       ],
       'conditions': [
-        [ 'OS=="win"', {
+        ['OS=="win"', {
           # This could be gotten by not setting chromium_code, if that's OK.
           'defines': ['_CRT_SECURE_NO_WARNINGS'],
+        }],
+        ['OS=="win" and component=="shared_library"', {
+          'defines': [
+            'USING_V8_SHARED',
+          ],
         }],
       ],
     },

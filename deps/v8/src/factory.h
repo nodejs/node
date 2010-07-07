@@ -95,12 +95,16 @@ class Factory : public AllStatic {
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
 
-  static Handle<String> NewStringFromTwoByte(Vector<const uc16> str,
+  static Handle<String> NewStringFromTwoByte(
+      Vector<const uc16> str,
       PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocates and partially initializes a TwoByte String. The characters of
-  // the string are uninitialized. Currently used in regexp code only, where
-  // they are pretenured.
+  // Allocates and partially initializes an ASCII or TwoByte String. The
+  // characters of the string are uninitialized. Currently used in regexp code
+  // only, where they are pretenured.
+  static Handle<String> NewRawAsciiString(
+      int length,
+      PretenureFlag pretenure = NOT_TENURED);
   static Handle<String> NewRawTwoByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);

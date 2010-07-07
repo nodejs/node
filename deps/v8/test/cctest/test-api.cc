@@ -3335,6 +3335,42 @@ THREADED_TEST(UndetectableObject) {
 }
 
 
+
+THREADED_TEST(ExtensibleOnUndetectable) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> desc =
+      v8::FunctionTemplate::New(0, v8::Handle<Value>());
+  desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+
+  Local<v8::Object> obj = desc->GetFunction()->NewInstance();
+  env->Global()->Set(v8_str("undetectable"), obj);
+
+  Local<String> source = v8_str("undetectable.x = 42;"
+                                "undetectable.x");
+
+  Local<Script> script = Script::Compile(source);
+
+  CHECK_EQ(v8::Integer::New(42), script->Run());
+
+  ExpectBoolean("Object.isExtensible(undetectable)", true);
+
+  source = v8_str("Object.preventExtensions(undetectable);");
+  script = Script::Compile(source);
+  script->Run();
+  ExpectBoolean("Object.isExtensible(undetectable)", false);
+
+  source = v8_str("undetectable.y = 2000;");
+  script = Script::Compile(source);
+  v8::TryCatch try_catch;
+  Local<Value> result = script->Run();
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+}
+
+
+
 THREADED_TEST(UndetectableString) {
   v8::HandleScope scope;
   LocalContext env;
@@ -8516,6 +8552,54 @@ TEST(PreCompileDeserializationError) {
   v8::ScriptData* sd = v8::ScriptData::New(data, invalid_size);
 
   CHECK_EQ(0, sd->Length());
+
+  delete sd;
+}
+
+
+// Attempts to deserialize bad data.
+TEST(PreCompileInvalidPreparseDataError) {
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+  LocalContext context;
+
+  const char* script = "function foo(){ return 5;}\n"
+      "function bar(){ return 6 + 7;}  foo();";
+  v8::ScriptData* sd =
+      v8::ScriptData::PreCompile(script, i::StrLength(script));
+  CHECK(!sd->HasError());
+  // ScriptDataImpl private implementation details
+  const int kUnsignedSize = sizeof(unsigned);
+  const int kHeaderSize = 4;
+  const int kFunctionEntrySize = 4;
+  const int kFunctionEntryStartOffset = 0;
+  const int kFunctionEntryEndOffset = 1;
+  unsigned* sd_data =
+      reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
+  CHECK_EQ(sd->Length(),
+           (kHeaderSize + 2 * kFunctionEntrySize) * kUnsignedSize);
+
+  // Overwrite function bar's end position with 0.
+  sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryEndOffset] = 0;
+  v8::TryCatch try_catch;
+
+  Local<String> source = String::New(script);
+  Local<Script> compiled_script = Script::New(source, NULL, sd);
+  CHECK(try_catch.HasCaught());
+  String::AsciiValue exception_value(try_catch.Message()->Get());
+  CHECK_EQ("Uncaught SyntaxError: Invalid preparser data for function bar",
+           *exception_value);
+
+  try_catch.Reset();
+  // Overwrite function bar's start position with 200.  The function entry
+  // will not be found when searching for it by position.
+  sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
+      200;
+  compiled_script = Script::New(source, NULL, sd);
+  CHECK(try_catch.HasCaught());
+  String::AsciiValue second_exception_value(try_catch.Message()->Get());
+  CHECK_EQ("Uncaught SyntaxError: Invalid preparser data for function bar",
+           *second_exception_value);
 
   delete sd;
 }

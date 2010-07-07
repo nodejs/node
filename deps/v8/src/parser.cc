@@ -134,6 +134,7 @@ class Parser {
 
   // Report syntax error
   void ReportUnexpectedToken(Token::Value token);
+  void ReportInvalidPreparseData(Handle<String> name, bool* ok);
 
   Handle<Script> script_;
   Scanner scanner_;
@@ -3263,6 +3264,15 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
 }
 
 
+void Parser::ReportInvalidPreparseData(Handle<String> name, bool* ok) {
+  SmartPointer<char> name_string = name->ToCString(DISALLOW_NULLS);
+  const char* element[1] = { *name_string };
+  ReportMessage("invalid_preparser_data",
+                Vector<const char*>(element, 1));
+  *ok = false;
+}
+
+
 Expression* Parser::ParsePrimaryExpression(bool* ok) {
   // PrimaryExpression ::
   //   'this'
@@ -3810,7 +3820,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     Handle<FixedArray> this_property_assignments;
     if (is_lazily_compiled && pre_data() != NULL) {
       FunctionEntry entry = pre_data()->GetFunctionEnd(start_pos);
+      if (!entry.is_valid()) {
+        ReportInvalidPreparseData(name, CHECK_OK);
+      }
       int end_pos = entry.end_pos();
+      if (end_pos <= start_pos) {
+        // End position greater than end of stream is safe, and hard to check.
+        ReportInvalidPreparseData(name, CHECK_OK);
+      }
       Counters::total_preparse_skipped.Increment(end_pos - start_pos);
       scanner_.SeekForward(end_pos);
       materialized_literal_count = entry.literal_count();

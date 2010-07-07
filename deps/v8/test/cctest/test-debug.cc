@@ -2075,6 +2075,39 @@ TEST(ScriptBreakPointLineTopLevel) {
 }
 
 
+// Test that it is possible to add and remove break points in a top level
+// function which has no references but has not been collected yet.
+TEST(ScriptBreakPointTopLevelCrash) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
+                                   v8::Undefined());
+
+  v8::Local<v8::String> script_source = v8::String::New(
+    "function f() {\n"
+    "  return 0;\n"
+    "}\n"
+    "f()");
+
+  int sbp1 = SetScriptBreakPointByNameFromJS("test.html", 3, -1);
+  {
+    v8::HandleScope scope;
+    break_point_hit_count = 0;
+    v8::Script::Compile(script_source, v8::String::New("test.html"))->Run();
+    CHECK_EQ(1, break_point_hit_count);
+  }
+
+  int sbp2 = SetScriptBreakPointByNameFromJS("test.html", 3, -1);
+  ClearBreakPointFromJS(sbp1);
+  ClearBreakPointFromJS(sbp2);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
 // Test that it is possible to remove the last break point for a function
 // inside the break handling of that break point.
 TEST(RemoveBreakPointInBreak) {
@@ -2129,7 +2162,7 @@ TEST(DebuggerStatement) {
 }
 
 
-// Test setting a breakpoint on the  debugger statement.
+// Test setting a breakpoint on the debugger statement.
 TEST(DebuggerStatementBreakpoint) {
     break_point_hit_count = 0;
     v8::HandleScope scope;

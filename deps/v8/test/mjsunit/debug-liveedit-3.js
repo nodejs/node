@@ -57,7 +57,8 @@ var new_source = script.source.replace(function_z_text, "function Intermediate()
 print("new source: " + new_source);
 
 var change_log = new Array();
-Debug.LiveEdit.SetScriptSource(script, new_source, change_log);
+var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
+print("Result: " + JSON.stringify(result) + "\n");
 print("Change log: " + JSON.stringify(change_log) + "\n");
 
 assertEquals(8, z6());

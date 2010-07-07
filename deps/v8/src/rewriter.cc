@@ -87,11 +87,13 @@ void AstOptimizer::VisitBlock(Block* node) {
 
 
 void AstOptimizer::VisitExpressionStatement(ExpressionStatement* node) {
+  node->expression()->set_no_negative_zero(true);
   Visit(node->expression());
 }
 
 
 void AstOptimizer::VisitIfStatement(IfStatement* node) {
+  node->condition()->set_no_negative_zero(true);
   Visit(node->condition());
   Visit(node->then_statement());
   if (node->HasElseStatement()) {
@@ -101,6 +103,7 @@ void AstOptimizer::VisitIfStatement(IfStatement* node) {
 
 
 void AstOptimizer::VisitDoWhileStatement(DoWhileStatement* node) {
+  node->cond()->set_no_negative_zero(true);
   Visit(node->cond());
   Visit(node->body());
 }
@@ -108,6 +111,7 @@ void AstOptimizer::VisitDoWhileStatement(DoWhileStatement* node) {
 
 void AstOptimizer::VisitWhileStatement(WhileStatement* node) {
   has_function_literal_ = false;
+  node->cond()->set_no_negative_zero(true);
   Visit(node->cond());
   node->may_have_function_literal_ = has_function_literal_;
   Visit(node->body());
@@ -120,6 +124,7 @@ void AstOptimizer::VisitForStatement(ForStatement* node) {
   }
   if (node->cond() != NULL) {
     has_function_literal_ = false;
+    node->cond()->set_no_negative_zero(true);
     Visit(node->cond());
     node->may_have_function_literal_ = has_function_literal_;
   }
@@ -151,6 +156,7 @@ void AstOptimizer::VisitTryFinallyStatement(TryFinallyStatement* node) {
 
 
 void AstOptimizer::VisitSwitchStatement(SwitchStatement* node) {
+  node->tag()->set_no_negative_zero(true);
   Visit(node->tag());
   for (int i = 0; i < node->cases()->length(); i++) {
     CaseClause* clause = node->cases()->at(i);
@@ -444,6 +450,7 @@ void AstOptimizer::VisitUnaryOperation(UnaryOperation* node) {
   if (FLAG_safe_int32_compiler) {
     switch (node->op()) {
       case Token::BIT_NOT:
+        node->expression()->set_no_negative_zero(true);
         node->expression()->set_to_int32(true);
         // Fall through.
       case Token::ADD:
@@ -476,10 +483,49 @@ void AstOptimizer::VisitCountOperation(CountOperation* node) {
 }
 
 
+static bool CouldBeNegativeZero(AstNode* node) {
+  Literal* literal = node->AsLiteral();
+  if (literal != NULL) {
+    Handle<Object> handle = literal->handle();
+    if (handle->IsString() || handle->IsSmi()) {
+      return false;
+    } else if (handle->IsHeapNumber()) {
+      double double_value = HeapNumber::cast(*handle)->value();
+      if (double_value != 0) {
+        return false;
+      }
+    }
+  }
+  BinaryOperation* binary = node->AsBinaryOperation();
+  if (binary != NULL && Token::IsBitOp(binary->op())) {
+    return false;
+  }
+  return true;
+}
+
+
+static bool CouldBePositiveZero(AstNode* node) {
+  Literal* literal = node->AsLiteral();
+  if (literal != NULL) {
+    Handle<Object> handle = literal->handle();
+    if (handle->IsSmi()) {
+      if (Smi::cast(*handle) != Smi::FromInt(0)) {
+        return false;
+      }
+    } else if (handle->IsHeapNumber()) {
+      // Heap number literal can't be +0, because that's a Smi.
+      return false;
+    }
+  }
+  return true;
+}
+
+
 void AstOptimizer::VisitBinaryOperation(BinaryOperation* node) {
   // Depending on the operation we can propagate this node's type down the
   // AST nodes.
-  switch (node->op()) {
+  Token::Value op = node->op();
+  switch (op) {
     case Token::COMMA:
     case Token::OR:
       node->left()->set_no_negative_zero(true);
@@ -503,23 +549,54 @@ void AstOptimizer::VisitBinaryOperation(BinaryOperation* node) {
       node->left()->set_no_negative_zero(true);
       node->right()->set_no_negative_zero(true);
       break;
+    case Token::MUL: {
+      VariableProxy* lvar_proxy = node->left()->AsVariableProxy();
+      VariableProxy* rvar_proxy = node->right()->AsVariableProxy();
+      if (lvar_proxy != NULL && rvar_proxy != NULL) {
+        Variable* lvar = lvar_proxy->AsVariable();
+        Variable* rvar = rvar_proxy->AsVariable();
+        if (lvar != NULL && rvar != NULL) {
+          if (lvar->mode() == Variable::VAR && rvar->mode() == Variable::VAR) {
+            Slot* lslot = lvar->slot();
+            Slot* rslot = rvar->slot();
+            if (lslot->type() == rslot->type() &&
+                (lslot->type() == Slot::PARAMETER ||
+                 lslot->type() == Slot::LOCAL) &&
+                lslot->index() == rslot->index()) {
+              // A number squared doesn't give negative zero.
+              node->set_no_negative_zero(true);
+            }
+          }
+        }
+      }
+    }
     case Token::ADD:
     case Token::SUB:
-    case Token::MUL:
     case Token::DIV:
-    case Token::MOD:
+    case Token::MOD: {
       if (node->type()->IsLikelySmi()) {
         node->left()->type()->SetAsLikelySmiIfUnknown();
         node->right()->type()->SetAsLikelySmiIfUnknown();
       }
-      node->left()->set_no_negative_zero(node->no_negative_zero());
-      node->right()->set_no_negative_zero(node->no_negative_zero());
+      if (op == Token::ADD && (!CouldBeNegativeZero(node->left()) ||
+                               !CouldBeNegativeZero(node->right()))) {
+        node->left()->set_no_negative_zero(true);
+        node->right()->set_no_negative_zero(true);
+      } else if (op == Token::SUB && (!CouldBeNegativeZero(node->left()) ||
+                                      !CouldBePositiveZero(node->right()))) {
+        node->left()->set_no_negative_zero(true);
+        node->right()->set_no_negative_zero(true);
+      } else {
+        node->left()->set_no_negative_zero(node->no_negative_zero());
+        node->right()->set_no_negative_zero(node->no_negative_zero());
+      }
       if (node->op() == Token::DIV) {
         node->right()->set_no_negative_zero(false);
       } else if (node->op() == Token::MOD) {
         node->right()->set_no_negative_zero(true);
       }
       break;
+    }
     default:
       UNREACHABLE();
       break;
@@ -530,7 +607,7 @@ void AstOptimizer::VisitBinaryOperation(BinaryOperation* node) {
 
   // After visiting the operand nodes we have to check if this node's type
   // can be updated. If it does, then we can push that information down
-  // towards the leafs again if the new information is an upgrade over the
+  // towards the leaves again if the new information is an upgrade over the
   // previous type of the operand nodes.
   if (node->type()->IsUnknown()) {
     if (node->left()->type()->IsLikelySmi() ||
@@ -590,7 +667,7 @@ void AstOptimizer::VisitBinaryOperation(BinaryOperation* node) {
 
 void AstOptimizer::VisitCompareOperation(CompareOperation* node) {
   if (node->type()->IsKnown()) {
-    // Propagate useful information down towards the leafs.
+    // Propagate useful information down towards the leaves.
     node->left()->type()->SetAsLikelySmiIfUnknown();
     node->right()->type()->SetAsLikelySmiIfUnknown();
   }
@@ -604,7 +681,7 @@ void AstOptimizer::VisitCompareOperation(CompareOperation* node) {
 
   // After visiting the operand nodes we have to check if this node's type
   // can be updated. If it does, then we can push that information down
-  // towards the leafs again if the new information is an upgrade over the
+  // towards the leaves again if the new information is an upgrade over the
   // previous type of the operand nodes.
   if (node->type()->IsUnknown()) {
     if (node->left()->type()->IsLikelySmi() ||

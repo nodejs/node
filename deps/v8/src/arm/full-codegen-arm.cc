@@ -2736,9 +2736,11 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::SUB: {
       Comment cmt(masm_, "[ UnaryOperation (SUB)");
-      bool overwrite =
+      bool can_overwrite =
           (expr->expression()->AsBinaryOperation() != NULL &&
            expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      UnaryOverwriteMode overwrite =
+          can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
       GenericUnaryOpStub stub(Token::SUB, overwrite);
       // GenericUnaryOpStub expects the argument to be in the
       // accumulator register r0.
@@ -2750,9 +2752,11 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::BIT_NOT: {
       Comment cmt(masm_, "[ UnaryOperation (BIT_NOT)");
-      bool overwrite =
+      bool can_overwrite =
           (expr->expression()->AsBinaryOperation() != NULL &&
            expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      UnaryOverwriteMode overwrite =
+          can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
       GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
       // GenericUnaryOpStub expects the argument to be in the
       // accumulator register r0.

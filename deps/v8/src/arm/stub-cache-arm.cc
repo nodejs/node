@@ -741,7 +741,8 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
                                        Register scratch,
                                        String* name,
                                        int save_at_depth,
-                                       Label* miss) {
+                                       Label* miss,
+                                       Register extra) {
   // Check that the maps haven't changed.
   Register result =
       masm()->CheckMaps(object, object_reg, holder, holder_reg, scratch,

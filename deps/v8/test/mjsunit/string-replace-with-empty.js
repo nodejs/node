@@ -25,45 +25,33 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
+// Flags: --expose-externalize-string
 
-Debug = debug.Debug
+assertEquals("0123", "aa0bb1cc2dd3".replace(/[a-z]/g, ""));
+assertEquals("0123", "\u1234a0bb1cc2dd3".replace(/[\u1234a-z]/g, ""));
 
-eval("var something1 = 25; \n"
-     + "var something2 = 2010; \n"
-     + "function ChooseAnimal() {\n"
-     + "  return 'Cat';\n"
-     + "} \n"
-     + "function ChooseFurniture() {\n"
-     + "  return 'Table';\n"
-     + "} \n"
-     + "function ChooseNumber() { return 17; } \n"
-     + "ChooseAnimal.Factory = function Factory() {\n"
-     + "  return function FactoryImpl(name) {\n"
-     + "    return 'Help ' + name;\n"
-     + "  }\n"
-     + "}\n");
+var expected = "0123";
+var cons = "a0b1c2d3";
+for (var i = 0; i < 5; i++) {
+  expected += expected;
+  cons += cons;
+}
+assertEquals(expected, cons.replace(/[a-z]/g, ""));
+cons = "\u12340b1c2d3";
+for (var i = 0; i < 5; i++) {
+  cons += cons;
+}
+assertEquals(expected, cons.replace(/[\u1234a-z]/g, ""));
 
-assertEquals("Cat", ChooseAnimal());
-assertEquals(25, something1);
-
-var script = Debug.findScript(ChooseAnimal);
-
-var new_source = script.source.replace("Cat", "Cap' + 'yb' + 'ara");
-var new_source = new_source.replace("25", "26");
-var new_source = new_source.replace("Help", "Hello");
-var new_source = new_source.replace("17", "18");
-print("new source: " + new_source);
-
-var change_log = new Array();
-var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
-print("Result: " + JSON.stringify(result) + "\n");
-print("Change log: " + JSON.stringify(change_log) + "\n");
-
-assertEquals("Capybara", ChooseAnimal());
-// Global variable do not get changed (without restarting script).
-assertEquals(25, something1);
-// Function is oneliner, so currently it is treated as damaged and not patched.
-assertEquals(17, ChooseNumber());
-assertEquals("Hello Peter", ChooseAnimal.Factory()("Peter"));
+cons = "a0b1c2d3";
+for (var i = 0; i < 5; i++) {
+  cons += cons;
+}
+externalizeString(cons, true/* force two-byte */);
+assertEquals(expected, cons.replace(/[a-z]/g, ""));
+cons = "\u12340b1c2d3";
+for (var i = 0; i < 5; i++) {
+  cons += cons;
+}
+externalizeString(cons);
+assertEquals(expected, cons.replace(/[\u1234a-z]/g, ""));

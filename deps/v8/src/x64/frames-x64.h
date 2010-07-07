@@ -56,7 +56,11 @@ class StackHandlerConstants : public AllStatic {
 
 class EntryFrameConstants : public AllStatic {
  public:
+#ifdef _WIN64
   static const int kCallerFPOffset      = -10 * kPointerSize;
+#else
+  static const int kCallerFPOffset      = -8 * kPointerSize;
+#endif
   static const int kArgvOffset          = 6 * kPointerSize;
 };
 

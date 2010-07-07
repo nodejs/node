@@ -2276,7 +2276,14 @@ void Simulator::DecodeTypeVFP(Instr* instr) {
   if (instr->Bit(4) == 0) {
     if (instr->Opc1Field() == 0x7) {
       // Other data processing instructions
-      if ((instr->Opc2Field() == 0x7) && (instr->Opc3Field() == 0x3)) {
+      if ((instr->Opc2Field() == 0x0) && (instr->Opc3Field() == 0x1)) {
+        // vmov register to register.
+        if (instr->SzField() == 0x1) {
+          set_d_register_from_double(vd, get_double_from_d_register(vm));
+        } else {
+          UNREACHABLE();  // Not used by V8.
+        }
+      } else if ((instr->Opc2Field() == 0x7) && (instr->Opc3Field() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
       } else if ((instr->Opc2Field() == 0x8) && (instr->Opc3Field() & 0x1)) {
         DecodeVCVTBetweenFloatingPointAndInteger(instr);

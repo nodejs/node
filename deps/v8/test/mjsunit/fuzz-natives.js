@@ -63,7 +63,7 @@ function testArgumentCount(name, argc) {
     try {
       func = makeFunction(name, i);
     } catch (e) {
-      if (e != "SyntaxError: illegal access") throw e;
+      if (e != "SyntaxError: Illegal access") throw e;
     }
     if (func === null && i == argc) {
       throw "unexpected exception";

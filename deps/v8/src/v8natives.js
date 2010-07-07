@@ -745,6 +745,27 @@ function ObjectDefineProperties(obj, properties) {
 }
 
 
+// ES5 section 15.2.3.10
+function ObjectPreventExtension(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["preventExtension"]);
+  }
+  %PreventExtensions(obj);
+  return obj;
+}
+
+
+// ES5 section 15.2.3.13
+function ObjectIsExtensible(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["preventExtension"]);
+  }
+  return %IsExtensible(obj);
+}
+
+
 %SetCode($Object, function(x) {
   if (%_IsConstructCall()) {
     if (x == null) return this;
@@ -780,7 +801,9 @@ function SetupObject() {
     "defineProperties", ObjectDefineProperties,
     "getPrototypeOf", ObjectGetPrototypeOf,
     "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
-    "getOwnPropertyNames", ObjectGetOwnPropertyNames
+    "getOwnPropertyNames", ObjectGetOwnPropertyNames,
+    "isExtensible", ObjectIsExtensible,
+    "preventExtensions", ObjectPreventExtension
   ));
 }
 

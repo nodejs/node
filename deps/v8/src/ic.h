@@ -117,9 +117,14 @@ class IC {
     return ComputeMode() == RelocInfo::CODE_TARGET_CONTEXT;
   }
 
-  // Returns the map to use for caching stubs for a given object.
-  // This method should not be called with undefined or null.
-  static inline Map* GetCodeCacheMapForObject(Object* object);
+  // Determines which map must be used for keeping the code stub.
+  // These methods should not be called with undefined or null.
+  static inline InlineCacheHolderFlag GetCodeCacheForObject(Object* object,
+                                                            JSObject* holder);
+  static inline InlineCacheHolderFlag GetCodeCacheForObject(JSObject* object,
+                                                            JSObject* holder);
+  static inline Map* GetCodeCacheMap(Object* object,
+                                     InlineCacheHolderFlag holder);
 
  protected:
   Address fp() const { return fp_; }
@@ -384,6 +389,7 @@ class StoreIC: public IC {
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateArrayLength(MacroAssembler* masm);
+  static void GenerateNormal(MacroAssembler* masm);
 
  private:
   // Update the inline cache and the global stub cache based on the

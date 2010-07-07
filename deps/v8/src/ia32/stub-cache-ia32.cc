@@ -101,6 +101,110 @@ static void ProbeTable(MacroAssembler* masm,
 }
 
 
+// Helper function used to check that the dictionary doesn't contain
+// the property. This function may return false negatives, so miss_label
+// must always call a backup property check that is complete.
+// This function is safe to call if the receiver has fast properties.
+// Name must be a symbol and receiver must be a heap object.
+static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
+                                             Label* miss_label,
+                                             Register receiver,
+                                             String* name,
+                                             Register r0,
+                                             Register extra) {
+  ASSERT(name->IsSymbol());
+  __ IncrementCounter(&Counters::negative_lookups, 1);
+  __ IncrementCounter(&Counters::negative_lookups_miss, 1);
+
+  Label done;
+  __ mov(r0, FieldOperand(receiver, HeapObject::kMapOffset));
+
+  const int kInterceptorOrAccessCheckNeededMask =
+      (1 << Map::kHasNamedInterceptor) | (1 << Map::kIsAccessCheckNeeded);
+  // Bail out if the receiver has a named interceptor or requires access checks.
+  __ test(FieldOperand(r0, Map::kBitFieldOffset),
+          Immediate(kInterceptorOrAccessCheckNeededMask));
+  __ j(not_zero, miss_label, not_taken);
+
+  __ CmpInstanceType(r0, FIRST_JS_OBJECT_TYPE);
+  __ j(below, miss_label, not_taken);
+
+  // Load properties array.
+  Register properties = r0;
+  __ mov(properties, FieldOperand(receiver, JSObject::kPropertiesOffset));
+
+  // Check that the properties array is a dictionary.
+  __ cmp(FieldOperand(properties, HeapObject::kMapOffset),
+         Immediate(Factory::hash_table_map()));
+  __ j(not_equal, miss_label);
+
+  // Compute the capacity mask.
+  const int kCapacityOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kCapacityIndex * kPointerSize;
+
+  // Generate an unrolled loop that performs a few probes before
+  // giving up.
+  static const int kProbes = 4;
+  const int kElementsStartOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
+
+  // If names of slots in range from 1 to kProbes - 1 for the hash value are
+  // not equal to the name and kProbes-th slot is not used (its name is the
+  // undefined value), it guarantees the hash table doesn't contain the
+  // property. It's true even if some slots represent deleted properties
+  // (their names are the null value).
+  for (int i = 0; i < kProbes; i++) {
+    // r0 points to properties hash.
+    // Compute the masked index: (hash + i + i * i) & mask.
+    if (extra.is(no_reg)) {
+      __ push(receiver);
+    }
+    Register index = extra.is(no_reg) ? receiver : extra;
+    // Capacity is smi 2^n.
+    __ mov(index, FieldOperand(properties, kCapacityOffset));
+    __ dec(index);
+    __ and_(Operand(index),
+            Immediate(Smi::FromInt(name->Hash() +
+                                   StringDictionary::GetProbeOffset(i))));
+
+    // Scale the index by multiplying by the entry size.
+    ASSERT(StringDictionary::kEntrySize == 3);
+    __ lea(index, Operand(index, index, times_2, 0));  // index *= 3.
+
+    Register entity_name = extra.is(no_reg) ? properties : extra;
+    // Having undefined at this place means the name is not contained.
+    ASSERT_EQ(kSmiTagSize, 1);
+    __ mov(entity_name, Operand(properties, index, times_half_pointer_size,
+                                kElementsStartOffset - kHeapObjectTag));
+    __ cmp(entity_name, Factory::undefined_value());
+    if (extra.is(no_reg)) {
+      // 'receiver' shares a register with 'entity_name'.
+      __ pop(receiver);
+    }
+    if (i != kProbes - 1) {
+      __ j(equal, &done, taken);
+
+      // Stop if found the property.
+      __ cmp(entity_name, Handle<String>(name));
+      __ j(equal, miss_label, not_taken);
+
+      if (extra.is(no_reg)) {
+        // Restore the properties if their register was occupied by the name.
+        __ mov(properties, FieldOperand(receiver, JSObject::kPropertiesOffset));
+      }
+    } else {
+      // Give up probing if still not found the undefined value.
+      __ j(not_equal, miss_label, not_taken);
+    }
+  }
+
+  __ bind(&done);
+  __ DecrementCounter(&Counters::negative_lookups_miss, 1);
+}
+
+
 void StubCache::GenerateProbe(MacroAssembler* masm,
                               Code::Flags flags,
                               Register receiver,
@@ -723,6 +827,33 @@ static Object* GenerateCheckPropertyCell(MacroAssembler* masm,
 }
 
 
+// Calls GenerateCheckPropertyCell for each global object in the prototype chain
+// from object to (but not including) holder.
+static Object* GenerateCheckPropertyCells(MacroAssembler* masm,
+                                          JSObject* object,
+                                          JSObject* holder,
+                                          String* name,
+                                          Register scratch,
+                                          Label* miss) {
+  JSObject* current = object;
+  while (current != holder) {
+    if (current->IsGlobalObject()) {
+      Object* cell = GenerateCheckPropertyCell(masm,
+                                               GlobalObject::cast(current),
+                                               name,
+                                               scratch,
+                                               miss);
+      if (cell->IsFailure()) {
+        return cell;
+      }
+    }
+    ASSERT(current->IsJSObject());
+    current = JSObject::cast(current->GetPrototype());
+  }
+  return NULL;
+}
+
+
 #undef __
 #define __ ACCESS_MASM(masm())
 
@@ -733,33 +864,129 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
                                        Register holder_reg,
                                        Register scratch,
                                        String* name,
-                                       int push_at_depth,
-                                       Label* miss) {
-  // Check that the maps haven't changed.
-  Register result =
-      masm()->CheckMaps(object, object_reg, holder, holder_reg, scratch,
-                        push_at_depth, miss);
+                                       int save_at_depth,
+                                       Label* miss,
+                                       Register extra) {
+  // Make sure there's no overlap between holder and object registers.
+  ASSERT(!scratch.is(object_reg) && !scratch.is(holder_reg));
+  ASSERT(!extra.is(object_reg) && !extra.is(holder_reg) && !extra.is(scratch));
+  // Keep track of the current object in register reg.
+  Register reg = object_reg;
+  JSObject* current = object;
+  int depth = 0;
+
+  if (save_at_depth == depth) {
+    __ mov(Operand(esp, kPointerSize), reg);
+  }
+
+  // Traverse the prototype chain and check the maps in the prototype chain for
+  // fast and global objects or do negative lookup for normal objects.
+  while (current != holder) {
+    depth++;
+
+    // Only global objects and objects that do not require access
+    // checks are allowed in stubs.
+    ASSERT(current->IsJSGlobalProxy() || !current->IsAccessCheckNeeded());
+
+    ASSERT(current->GetPrototype()->IsJSObject());
+    JSObject* prototype = JSObject::cast(current->GetPrototype());
+    if (!current->HasFastProperties() &&
+        !current->IsJSGlobalObject() &&
+        !current->IsJSGlobalProxy()) {
+      if (!name->IsSymbol()) {
+        Object* lookup_result = Heap::LookupSymbol(name);
+        if (lookup_result->IsFailure()) {
+          set_failure(Failure::cast(lookup_result));
+          return reg;
+        } else {
+          name = String::cast(lookup_result);
+        }
+      }
+      ASSERT(current->property_dictionary()->FindEntry(name) ==
+             StringDictionary::kNotFound);
+
+      GenerateDictionaryNegativeLookup(masm(),
+                                       miss,
+                                       reg,
+                                       name,
+                                       scratch,
+                                       extra);
+      __ mov(scratch, FieldOperand(reg, HeapObject::kMapOffset));
+      reg = holder_reg;  // from now the object is in holder_reg
+      __ mov(reg, FieldOperand(scratch, Map::kPrototypeOffset));
+    } else if (Heap::InNewSpace(prototype)) {
+      // Get the map of the current object.
+      __ mov(scratch, FieldOperand(reg, HeapObject::kMapOffset));
+      __ cmp(Operand(scratch), Immediate(Handle<Map>(current->map())));
+      // Branch on the result of the map check.
+      __ j(not_equal, miss, not_taken);
+      // Check access rights to the global object.  This has to happen
+      // after the map check so that we know that the object is
+      // actually a global object.
+      if (current->IsJSGlobalProxy()) {
+        __ CheckAccessGlobalProxy(reg, scratch, miss);
+
+        // Restore scratch register to be the map of the object.
+        // We load the prototype from the map in the scratch register.
+        __ mov(scratch, FieldOperand(reg, HeapObject::kMapOffset));
+      }
+      // The prototype is in new space; we cannot store a reference
+      // to it in the code. Load it from the map.
+      reg = holder_reg;  // from now the object is in holder_reg
+      __ mov(reg, FieldOperand(scratch, Map::kPrototypeOffset));
+    } else {
+      // Check the map of the current object.
+      __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
+             Immediate(Handle<Map>(current->map())));
+      // Branch on the result of the map check.
+      __ j(not_equal, miss, not_taken);
+      // Check access rights to the global object.  This has to happen
+      // after the map check so that we know that the object is
+      // actually a global object.
+      if (current->IsJSGlobalProxy()) {
+        __ CheckAccessGlobalProxy(reg, scratch, miss);
+      }
+      // The prototype is in old space; load it directly.
+      reg = holder_reg;  // from now the object is in holder_reg
+      __ mov(reg, Handle<JSObject>(prototype));
+    }
+
+    if (save_at_depth == depth) {
+      __ mov(Operand(esp, kPointerSize), reg);
+    }
+
+    // Go to the next object in the prototype chain.
+    current = prototype;
+  }
+  ASSERT(current == holder);
+
+  // Log the check depth.
+  LOG(IntEvent("check-maps-depth", depth + 1));
+
+  // Check the holder map.
+  __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
+         Immediate(Handle<Map>(holder->map())));
+  __ j(not_equal, miss, not_taken);
+
+  // Perform security check for access to the global object.
+  ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
+  if (holder->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(reg, scratch, miss);
+  };
 
   // If we've skipped any global objects, it's not enough to verify
   // that their maps haven't changed.  We also need to check that the
   // property cell for the property is still empty.
-  while (object != holder) {
-    if (object->IsGlobalObject()) {
-      Object* cell = GenerateCheckPropertyCell(masm(),
-                                               GlobalObject::cast(object),
-                                               name,
-                                               scratch,
-                                               miss);
-      if (cell->IsFailure()) {
-        set_failure(Failure::cast(cell));
-        return result;
-      }
-    }
-    object = JSObject::cast(object->GetPrototype());
-  }
+  Object* result = GenerateCheckPropertyCells(masm(),
+                                              object,
+                                              holder,
+                                              name,
+                                              scratch,
+                                              miss);
+  if (result->IsFailure()) set_failure(Failure::cast(result));
 
   // Return the register containing the holder.
-  return result;
+  return reg;
 }
 
 
@@ -1083,7 +1310,8 @@ Object* CallStubCompiler::CompileCallField(JSObject* object,
   __ j(zero, &miss, not_taken);
 
   // Do the right check and compute the holder register.
-  Register reg = CheckPrototypes(object, edx, holder, ebx, eax, name, &miss);
+  Register reg = CheckPrototypes(object, edx, holder, ebx, eax,
+                                 name, &miss, edi);
 
   GenerateFastPropertyLoad(masm(), edi, reg, holder, index);
 
@@ -1145,7 +1373,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
 
   CheckPrototypes(JSObject::cast(object), edx,
                   holder, ebx,
-                  eax, name, &miss);
+                  eax, name, &miss, edi);
 
   if (argc == 0) {
     // Noop, return the length.
@@ -1291,7 +1519,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ j(zero, &miss);
   CheckPrototypes(JSObject::cast(object), edx,
                   holder, ebx,
-                  eax, name, &miss);
+                  eax, name, &miss, edi);
 
   // Get the elements array of the object.
   __ mov(ebx, FieldOperand(edx, JSArray::kElementsOffset));
@@ -1366,7 +1594,7 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
                                             Context::STRING_FUNCTION_INDEX,
                                             eax);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
-                  ebx, edx, name, &miss);
+                  ebx, edx, name, &miss, edi);
 
   Register receiver = ebx;
   Register index = edi;
@@ -1431,7 +1659,7 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
                                             Context::STRING_FUNCTION_INDEX,
                                             eax);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
-                  ebx, edx, name, &miss);
+                  ebx, edx, name, &miss, edi);
 
   Register receiver = eax;
   Register index = edi;
@@ -1536,7 +1764,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
       // Check that the maps haven't changed.
       CheckPrototypes(JSObject::cast(object), edx, holder,
-                      ebx, eax, name, depth, &miss);
+                      ebx, eax, name, depth, &miss, edi);
 
       // Patch the receiver on the stack with the global proxy if
       // necessary.
@@ -1559,7 +1787,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         GenerateDirectLoadGlobalFunctionPrototype(
             masm(), Context::STRING_FUNCTION_INDEX, eax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
-                        ebx, edx, name, &miss);
+                        ebx, edx, name, &miss, edi);
       }
       break;
 
@@ -1579,7 +1807,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         GenerateDirectLoadGlobalFunctionPrototype(
             masm(), Context::NUMBER_FUNCTION_INDEX, eax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
-                        ebx, edx, name, &miss);
+                        ebx, edx, name, &miss, edi);
       }
       break;
     }
@@ -1600,7 +1828,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         GenerateDirectLoadGlobalFunctionPrototype(
             masm(), Context::BOOLEAN_FUNCTION_INDEX, eax);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
-                        ebx, edx, name, &miss);
+                        ebx, edx, name, &miss, edi);
       }
       break;
     }
@@ -1722,7 +1950,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   }
 
   // Check that the maps haven't changed.
-  CheckPrototypes(object, edx, holder, ebx, eax, name, &miss);
+  CheckPrototypes(object, edx, holder, ebx, eax, name, &miss, edi);
 
   // Get the value from the cell.
   __ mov(edi, Immediate(Handle<JSGlobalPropertyCell>(cell)));
@@ -1993,6 +2221,8 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, &miss, not_taken);
 
+  ASSERT(last->IsGlobalObject() || last->HasFastProperties());
+
   // Check the maps of the full prototype chain. Also check that
   // global property cells up to (but not including) the last object
   // in the prototype chain are empty.
@@ -2140,7 +2370,7 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   }
 
   // Check that the maps haven't changed.
-  CheckPrototypes(object, eax, holder, ebx, edx, name, &miss);
+  CheckPrototypes(object, eax, holder, ebx, edx, name, &miss, edi);
 
   // Get the value from the cell.
   __ mov(ebx, Immediate(Handle<JSGlobalPropertyCell>(cell)));

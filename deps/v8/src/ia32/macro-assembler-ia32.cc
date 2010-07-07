@@ -98,11 +98,6 @@ void MacroAssembler::InNewSpace(Register object,
 }
 
 
-// For page containing |object| mark region covering [object+offset] dirty.
-// object is the object being stored into, value is the object being stored.
-// If offset is zero, then the scratch register contains the array index into
-// the elements array represented as a Smi.
-// All registers are clobbered by the operation.
 void MacroAssembler::RecordWrite(Register object, int offset,
                                  Register value, Register scratch) {
   // The compiled code assumes that record write doesn't change the
@@ -149,6 +144,39 @@ void MacroAssembler::RecordWrite(Register object, int offset,
     mov(object, Immediate(BitCast<int32_t>(kZapValue)));
     mov(value, Immediate(BitCast<int32_t>(kZapValue)));
     mov(scratch, Immediate(BitCast<int32_t>(kZapValue)));
+  }
+}
+
+
+void MacroAssembler::RecordWrite(Register object,
+                                 Register address,
+                                 Register value) {
+  // The compiled code assumes that record write doesn't change the
+  // context register, so we check that none of the clobbered
+  // registers are esi.
+  ASSERT(!object.is(esi) && !value.is(esi) && !address.is(esi));
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis and stores into young gen.
+  Label done;
+
+  // Skip barrier if writing a smi.
+  ASSERT_EQ(0, kSmiTag);
+  test(value, Immediate(kSmiTagMask));
+  j(zero, &done);
+
+  InNewSpace(object, value, equal, &done);
+
+  RecordWriteHelper(object, address, value);
+
+  bind(&done);
+
+  // Clobber all input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (FLAG_debug_code) {
+    mov(object, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(address, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
   }
 }
 
@@ -511,97 +539,6 @@ void MacroAssembler::PopTryHandler() {
   ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
   pop(Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
   add(Operand(esp), Immediate(StackHandlerConstants::kSize - kPointerSize));
-}
-
-
-Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
-                                   JSObject* holder, Register holder_reg,
-                                   Register scratch,
-                                   int save_at_depth,
-                                   Label* miss) {
-  // Make sure there's no overlap between scratch and the other
-  // registers.
-  ASSERT(!scratch.is(object_reg) && !scratch.is(holder_reg));
-
-  // Keep track of the current object in register reg.
-  Register reg = object_reg;
-  int depth = 0;
-
-  if (save_at_depth == depth) {
-    mov(Operand(esp, kPointerSize), object_reg);
-  }
-
-  // Check the maps in the prototype chain.
-  // Traverse the prototype chain from the object and do map checks.
-  while (object != holder) {
-    depth++;
-
-    // Only global objects and objects that do not require access
-    // checks are allowed in stubs.
-    ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
-
-    JSObject* prototype = JSObject::cast(object->GetPrototype());
-    if (Heap::InNewSpace(prototype)) {
-      // Get the map of the current object.
-      mov(scratch, FieldOperand(reg, HeapObject::kMapOffset));
-      cmp(Operand(scratch), Immediate(Handle<Map>(object->map())));
-      // Branch on the result of the map check.
-      j(not_equal, miss, not_taken);
-      // Check access rights to the global object.  This has to happen
-      // after the map check so that we know that the object is
-      // actually a global object.
-      if (object->IsJSGlobalProxy()) {
-        CheckAccessGlobalProxy(reg, scratch, miss);
-
-        // Restore scratch register to be the map of the object.
-        // We load the prototype from the map in the scratch register.
-        mov(scratch, FieldOperand(reg, HeapObject::kMapOffset));
-      }
-      // The prototype is in new space; we cannot store a reference
-      // to it in the code. Load it from the map.
-      reg = holder_reg;  // from now the object is in holder_reg
-      mov(reg, FieldOperand(scratch, Map::kPrototypeOffset));
-    } else {
-      // Check the map of the current object.
-      cmp(FieldOperand(reg, HeapObject::kMapOffset),
-          Immediate(Handle<Map>(object->map())));
-      // Branch on the result of the map check.
-      j(not_equal, miss, not_taken);
-      // Check access rights to the global object.  This has to happen
-      // after the map check so that we know that the object is
-      // actually a global object.
-      if (object->IsJSGlobalProxy()) {
-        CheckAccessGlobalProxy(reg, scratch, miss);
-      }
-      // The prototype is in old space; load it directly.
-      reg = holder_reg;  // from now the object is in holder_reg
-      mov(reg, Handle<JSObject>(prototype));
-    }
-
-    if (save_at_depth == depth) {
-      mov(Operand(esp, kPointerSize), reg);
-    }
-
-    // Go to the next object in the prototype chain.
-    object = prototype;
-  }
-
-  // Check the holder map.
-  cmp(FieldOperand(reg, HeapObject::kMapOffset),
-      Immediate(Handle<Map>(holder->map())));
-  j(not_equal, miss, not_taken);
-
-  // Log the check depth.
-  LOG(IntEvent("check-maps-depth", depth + 1));
-
-  // Perform security check for access to the global object and return
-  // the holder register.
-  ASSERT(object == holder);
-  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
-  if (object->IsJSGlobalProxy()) {
-    CheckAccessGlobalProxy(reg, scratch, miss);
-  }
-  return reg;
 }
 
 

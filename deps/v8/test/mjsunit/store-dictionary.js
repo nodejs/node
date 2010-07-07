@@ -25,45 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
+// Test dictionary store ICs.
 
-Debug = debug.Debug
+// Function that stores property 'x' on an object.
+function store(obj) { obj.x = 42; }
 
-eval("var something1 = 25; \n"
-     + "var something2 = 2010; \n"
-     + "function ChooseAnimal() {\n"
-     + "  return 'Cat';\n"
-     + "} \n"
-     + "function ChooseFurniture() {\n"
-     + "  return 'Table';\n"
-     + "} \n"
-     + "function ChooseNumber() { return 17; } \n"
-     + "ChooseAnimal.Factory = function Factory() {\n"
-     + "  return function FactoryImpl(name) {\n"
-     + "    return 'Help ' + name;\n"
-     + "  }\n"
-     + "}\n");
+// Create object and force it to dictionary mode by deleting property.
+var o = { x: 32, y: 33 };
+delete o.y;
 
-assertEquals("Cat", ChooseAnimal());
-assertEquals(25, something1);
+// Make the store ic in the 'store' function go into dictionary store
+// case.
+for (var i = 0; i < 3; i++) {
+  store(o);
+}
+assertEquals(42, o.x);
 
-var script = Debug.findScript(ChooseAnimal);
+// Test that READ_ONLY property attribute is respected. Make 'x'
+// READ_ONLY.
+Object.defineProperty(o, 'x', { value: 32, writable: false });
 
-var new_source = script.source.replace("Cat", "Cap' + 'yb' + 'ara");
-var new_source = new_source.replace("25", "26");
-var new_source = new_source.replace("Help", "Hello");
-var new_source = new_source.replace("17", "18");
-print("new source: " + new_source);
+// Attempt to store using the store ic in the 'store' function.
+store(o);
 
-var change_log = new Array();
-var result = Debug.LiveEdit.SetScriptSource(script, new_source, false, change_log);
-print("Result: " + JSON.stringify(result) + "\n");
-print("Change log: " + JSON.stringify(change_log) + "\n");
+// Check that the store did not change the value.
+assertEquals(32, o.x);
 
-assertEquals("Capybara", ChooseAnimal());
-// Global variable do not get changed (without restarting script).
-assertEquals(25, something1);
-// Function is oneliner, so currently it is treated as damaged and not patched.
-assertEquals(17, ChooseNumber());
-assertEquals("Hello Peter", ChooseAnimal.Factory()("Peter"));
+// Check that bail-out code works.
+// Smi.
+store(1);
+// Fast case object.
+o = new Object();
+store(o);
+assertEquals(42, o.x);
+// Slow case object without x property.
+delete o.x;
+store(o);
+assertEquals(42, o.x);
+

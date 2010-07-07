@@ -393,6 +393,9 @@ class CodeGenerator: public AstVisitor {
   // target (which can not be done more than once).
   void GenerateReturnSequence(Result* return_value);
 
+  // Generate code for a fast smi loop.
+  void GenerateFastSmiLoop(ForStatement* node);
+
   // Returns the arguments allocation mode.
   ArgumentsAllocationMode ArgumentsMode();
 

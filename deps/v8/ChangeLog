@@ -1,3 +1,28 @@
+2010-07-07: Version 2.2.23
+
+        API change: Convert Unicode code points outside the basic multilingual
+        plane to the replacement character.  Previous behavior was to silently
+        truncate the value to 16 bits.
+
+        Fixed crash: handle all flat string types in regexp replace.
+
+        Prevent invalid pre-parsing data passed in through the API from
+        crashing V8.
+
+        Performance improvements on all platforms.
+
+2010-07-05: Version 2.2.22
+
+        Added ES5 Object.isExtensible and Object.preventExtensions.
+
+        Enabled building V8 as a DLL.
+
+        Fixed a bug in date code where -0 was not interpreted as 0
+        (issue 736).
+
+        Performance improvements on all platforms.
+
+
 2010-06-30: Version 2.2.21
 
         Fix bug in externalizing some ASCII strings (Chromium issue 47824).
@@ -13,17 +38,20 @@
         Provide actual breakpoints locations in response to setBreakpoint
         and listBreakpoints requests.
 
+
 2010-06-28: Version 2.2.20
+
         Fix bug with for-in on x64 platform (issue 748).
 
         Fix crash bug on x64 platform (issue 756).
-        
+
         Fix bug in Object.getOwnPropertyNames. (chromium issue 41243).
 
-        Fix a bug on ARM  that caused the result of 1 << x to be 
+        Fix a bug on ARM that caused the result of 1 << x to be
         miscalculated for some inputs.
 
         Performance improvements on all platforms.
+
 
 2010-06-23: Version 2.2.19
 
@@ -64,11 +92,11 @@
 
 2010-06-09: Version 2.2.16
 
-        Removed the SetExternalStringDiposeCallback API. Changed the 
+        Removed the SetExternalStringDiposeCallback API. Changed the
         disposal of external string resources to call a virtual Dispose
         method on the resource.
 
-        Added support for more precise break points when debugging and 
+        Added support for more precise break points when debugging and
         stepping.
 
         Memory usage improvements on all platforms.

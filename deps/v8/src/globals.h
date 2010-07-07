@@ -463,6 +463,12 @@ enum CallFunctionFlags {
 };
 
 
+enum InlineCacheHolderFlag {
+  OWN_MAP,  // For fast properties objects.
+  PROTOTYPE_MAP  // For slow properties objects (except GlobalObjects).
+};
+
+
 // Type of properties.
 // Order of properties is significant.
 // Must fit in the BitField PropertyDetails::TypeField.

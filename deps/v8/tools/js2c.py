@@ -104,19 +104,22 @@ def Validate(lines, file):
 
 
 def ExpandConstants(lines, constants):
-  for key, value in constants.items():
-    lines = lines.replace(key, str(value))
+  for key, value in constants:
+    lines = key.sub(str(value), lines)
   return lines
 
 
 def ExpandMacros(lines, macros):
-  for name, macro in macros.items():
-    start = lines.find(name + '(', 0)
-    while start != -1:
+  # We allow macros to depend on the previously declared macros, but
+  # we don't allow self-dependecies or recursion.
+  for name_pattern, macro in reversed(macros):
+    pattern_match = name_pattern.search(lines, 0)
+    while pattern_match is not None:
       # Scan over the arguments
-      assert lines[start + len(name)] == '('
       height = 1
-      end = start + len(name) + 1
+      start = pattern_match.start()
+      end = pattern_match.end()
+      assert lines[end - 1] == '('
       last_match = end
       arg_index = 0
       mapping = { }
@@ -139,7 +142,7 @@ def ExpandMacros(lines, macros):
       result = macro.expand(mapping)
       # Replace the occurrence of the macro with the expansion
       lines = lines[:start] + result + lines[end:]
-      start = lines.find(name + '(', end)
+      pattern_match = name_pattern.search(lines, start + len(result))
   return lines
 
 class TextMacro:
@@ -166,9 +169,10 @@ CONST_PATTERN = re.compile(r'^const\s+([a-zA-Z0-9_]+)\s*=\s*([^;]*);$')
 MACRO_PATTERN = re.compile(r'^macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
 PYTHON_MACRO_PATTERN = re.compile(r'^python\s+macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
 
+
 def ReadMacros(lines):
-  constants = { }
-  macros = { }
+  constants = []
+  macros = []
   for line in lines:
     hash = line.find('#')
     if hash != -1: line = line[:hash]
@@ -178,14 +182,14 @@ def ReadMacros(lines):
     if const_match:
       name = const_match.group(1)
       value = const_match.group(2).strip()
-      constants[name] = value
+      constants.append((re.compile("\\b%s\\b" % name), value))
     else:
       macro_match = MACRO_PATTERN.match(line)
       if macro_match:
         name = macro_match.group(1)
         args = map(string.strip, macro_match.group(2).split(','))
         body = macro_match.group(3).strip()
-        macros[name] = TextMacro(args, body)
+        macros.append((re.compile("\\b%s\\(" % name), TextMacro(args, body)))
       else:
         python_match = PYTHON_MACRO_PATTERN.match(line)
         if python_match:
@@ -193,7 +197,7 @@ def ReadMacros(lines):
           args = map(string.strip, python_match.group(2).split(','))
           body = python_match.group(3).strip()
           fun = eval("lambda " + ",".join(args) + ': ' + body)
-          macros[name] = PythonMacro(args, fun)
+          macros.append((re.compile("\\b%s\\(" % name), PythonMacro(args, fun)))
         else:
           raise ("Illegal line: " + line)
   return (constants, macros)

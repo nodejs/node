@@ -2351,8 +2351,13 @@ Object* Heap::CreateCode(const CodeDesc& desc,
                          ZoneScopeInfo* sinfo,
                          Code::Flags flags,
                          Handle<Object> self_reference) {
+  // Allocate ByteArray before the Code object, so that we do not risk
+  // leaving uninitialized Code object (and breaking the heap).
+  Object* reloc_info = AllocateByteArray(desc.reloc_size, TENURED);
+  if (reloc_info->IsFailure()) return reloc_info;
+
   // Compute size
-  int body_size = RoundUp(desc.instr_size + desc.reloc_size, kObjectAlignment);
+  int body_size = RoundUp(desc.instr_size, kObjectAlignment);
   int sinfo_size = 0;
   if (sinfo != NULL) sinfo_size = sinfo->Serialize(NULL);
   int obj_size = Code::SizeFor(body_size, sinfo_size);
@@ -2371,7 +2376,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   Code* code = Code::cast(result);
   ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
   code->set_instruction_size(desc.instr_size);
-  code->set_relocation_size(desc.reloc_size);
+  code->set_relocation_info(ByteArray::cast(reloc_info));
   code->set_sinfo_size(sinfo_size);
   code->set_flags(flags);
   // Allow self references to created code object by patching the handle to
@@ -2419,8 +2424,12 @@ Object* Heap::CopyCode(Code* code) {
 
 
 Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
-  int new_body_size = RoundUp(code->instruction_size() + reloc_info.length(),
-                              kObjectAlignment);
+  // Allocate ByteArray before the Code object, so that we do not risk
+  // leaving uninitialized Code object (and breaking the heap).
+  Object* reloc_info_array = AllocateByteArray(reloc_info.length(), TENURED);
+  if (reloc_info_array->IsFailure()) return reloc_info_array;
+
+  int new_body_size = RoundUp(code->instruction_size(), kObjectAlignment);
 
   int sinfo_size = code->sinfo_size();
 
@@ -2429,7 +2438,7 @@ Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   Address old_addr = code->address();
 
   size_t relocation_offset =
-      static_cast<size_t>(code->relocation_start() - old_addr);
+      static_cast<size_t>(code->instruction_end() - old_addr);
 
   Object* result;
   if (new_obj_size > MaxObjectSizeInPagedSpace()) {
@@ -2446,14 +2455,11 @@ Object* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   // Copy header and instructions.
   memcpy(new_addr, old_addr, relocation_offset);
 
-  // Copy patched rinfo.
-  memcpy(new_addr + relocation_offset,
-         reloc_info.start(),
-             reloc_info.length());
-
   Code* new_code = Code::cast(result);
-  new_code->set_relocation_size(reloc_info.length());
+  new_code->set_relocation_info(ByteArray::cast(reloc_info_array));
 
+  // Copy patched rinfo.
+  memcpy(new_code->relocation_start(), reloc_info.start(), reloc_info.length());
   // Copy sinfo.
   memcpy(new_code->sinfo_start(), code->sinfo_start(), code->sinfo_size());
 
@@ -2866,6 +2872,8 @@ Object* Heap::AllocateStringFromAscii(Vector<const char> string,
 
 Object* Heap::AllocateStringFromUtf8(Vector<const char> string,
                                      PretenureFlag pretenure) {
+  // V8 only supports characters in the Basic Multilingual Plane.
+  const uc32 kMaxSupportedChar = 0xFFFF;
   // Count the number of characters in the UTF-8 string and check if
   // it is an ASCII string.
   Access<Scanner::Utf8Decoder> decoder(Scanner::utf8_decoder());
@@ -2890,6 +2898,7 @@ Object* Heap::AllocateStringFromUtf8(Vector<const char> string,
   decoder->Reset(string.start(), string.length());
   for (int i = 0; i < chars; i++) {
     uc32 r = decoder->GetNext();
+    if (r > kMaxSupportedChar) { r = unibrow::Utf8::kBadChar; }
     string_result->Set(i, r);
   }
   return result;

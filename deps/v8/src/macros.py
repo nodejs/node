@@ -120,6 +120,7 @@ macro IS_SPEC_OBJECT_OR_NULL(arg) = (%_IsObject(arg) || %_IsFunction(arg));
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
 macro TO_INTEGER(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : ToInteger(arg));
+macro TO_INTEGER_MAP_MINUS_ZERO(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToIntegerMapMinusZero(ToNumber(arg)));
 macro TO_INT32(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : (arg >> 0));
 macro TO_UINT32(arg) = (arg >>> 0);
 macro TO_STRING_INLINE(arg) = (IS_STRING(%IS_VAR(arg)) ? arg : NonStringToString(arg));
@@ -145,11 +146,15 @@ macro DATE_VALUE(arg) = (%_ClassOf(arg) === 'Date' ? %_ValueOf(arg) : ThrowDateT
 macro DAY(time) = ($floor(time / 86400000));
 macro MONTH_FROM_TIME(time) = (MonthFromTime(time));
 macro DATE_FROM_TIME(time) = (DateFromTime(time));
+macro NAN_OR_DATE_FROM_TIME(time) = (NUMBER_IS_NAN(time) ? time : DATE_FROM_TIME(time));
 macro YEAR_FROM_TIME(time) = (YearFromTime(time));
 macro HOUR_FROM_TIME(time) = (Modulo($floor(time / 3600000), 24));
 macro MIN_FROM_TIME(time) = (Modulo($floor(time / 60000), 60));
+macro NAN_OR_MIN_FROM_TIME(time) = (NUMBER_IS_NAN(time) ? time : MIN_FROM_TIME(time));
 macro SEC_FROM_TIME(time) = (Modulo($floor(time / 1000), 60));
+macro NAN_OR_SEC_FROM_TIME(time) = (NUMBER_IS_NAN(time) ? time : SEC_FROM_TIME(time));
 macro MS_FROM_TIME(time) = (Modulo(time, 1000));
+macro NAN_OR_MS_FROM_TIME(time) = (NUMBER_IS_NAN(time) ? time : MS_FROM_TIME(time));
 
 # Last input and last subject of regexp matches.
 macro LAST_SUBJECT(array) = ((array)[1]);

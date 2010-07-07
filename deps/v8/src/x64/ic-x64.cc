@@ -61,11 +61,11 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
 
 // Generated code falls through if the receiver is a regular non-global
 // JS object with slow properties and no interceptors.
-static void GenerateDictionaryLoadReceiverCheck(MacroAssembler* masm,
-                                                Register receiver,
-                                                Register r0,
-                                                Register r1,
-                                                Label* miss) {
+static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
+                                                  Register receiver,
+                                                  Register r0,
+                                                  Register r1,
+                                                  Label* miss) {
   // Register usage:
   //   receiver: holds the receiver on entry and is unchanged.
   //   r0: used to hold receiver instance type.
@@ -98,34 +98,17 @@ static void GenerateDictionaryLoadReceiverCheck(MacroAssembler* masm,
 }
 
 
-// Helper function used to load a property from a dictionary backing storage.
-// This function may return false negatives, so miss_label
-// must always call a backup property load that is complete.
-// This function is safe to call if name is not a symbol, and will jump to
-// the miss_label in that case.
-// The generated code assumes that the receiver has slow properties,
-// is not a global object and does not have interceptors.
-static void GenerateDictionaryLoad(MacroAssembler* masm,
-                                   Label* miss_label,
-                                   Register elements,
-                                   Register name,
-                                   Register r0,
-                                   Register r1,
-                                   Register result) {
-  // Register use:
-  //
-  // elements - holds the property dictionary on entry and is unchanged.
-  //
-  // name - holds the name of the property on entry and is unchanged.
-  //
-  // r0   - used to hold the capacity of the property dictionary.
-  //
-  // r1   - used to hold the index into the property dictionary.
-  //
-  // result - holds the result on exit if the load succeeded.
-
-  Label done;
-
+// Probe the string dictionary in the |elements| register. Jump to the
+// |done| label if a property with the given name is found leaving the
+// index into the dictionary in |r1|. Jump to the |miss| label
+// otherwise.
+static void GenerateStringDictionaryProbes(MacroAssembler* masm,
+                                           Label* miss,
+                                           Label* done,
+                                           Register elements,
+                                           Register name,
+                                           Register r0,
+                                           Register r1) {
   // Compute the capacity mask.
   const int kCapacityOffset =
       StringDictionary::kHeaderSize +
@@ -157,14 +140,58 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
     __ cmpq(name, Operand(elements, r1, times_pointer_size,
                           kElementsStartOffset - kHeapObjectTag));
     if (i != kProbes - 1) {
-      __ j(equal, &done);
+      __ j(equal, done);
     } else {
-      __ j(not_equal, miss_label);
+      __ j(not_equal, miss);
     }
   }
+}
 
-  // Check that the value is a normal property.
+
+// Helper function used to load a property from a dictionary backing storage.
+// This function may return false negatives, so miss_label
+// must always call a backup property load that is complete.
+// This function is safe to call if name is not a symbol, and will jump to
+// the miss_label in that case.
+// The generated code assumes that the receiver has slow properties,
+// is not a global object and does not have interceptors.
+static void GenerateDictionaryLoad(MacroAssembler* masm,
+                                   Label* miss_label,
+                                   Register elements,
+                                   Register name,
+                                   Register r0,
+                                   Register r1,
+                                   Register result) {
+  // Register use:
+  //
+  // elements - holds the property dictionary on entry and is unchanged.
+  //
+  // name - holds the name of the property on entry and is unchanged.
+  //
+  // r0   - used to hold the capacity of the property dictionary.
+  //
+  // r1   - used to hold the index into the property dictionary.
+  //
+  // result - holds the result on exit if the load succeeded.
+
+  Label done;
+
+  // Probe the dictionary.
+  GenerateStringDictionaryProbes(masm,
+                                 miss_label,
+                                 &done,
+                                 elements,
+                                 name,
+                                 r0,
+                                 r1);
+
+  // If probing finds an entry in the dictionary, r0 contains the
+  // index into the dictionary. Check that the value is a normal
+  // property.
   __ bind(&done);
+  const int kElementsStartOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   __ Test(Operand(elements, r1, times_pointer_size,
                   kDetailsOffset - kHeapObjectTag),
@@ -176,6 +203,75 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   __ movq(result,
           Operand(elements, r1, times_pointer_size,
                   kValueOffset - kHeapObjectTag));
+}
+
+
+// Helper function used to store a property to a dictionary backing
+// storage. This function may fail to store a property even though it
+// is in the dictionary, so code at miss_label must always call a
+// backup property store that is complete. This function is safe to
+// call if name is not a symbol, and will jump to the miss_label in
+// that case. The generated code assumes that the receiver has slow
+// properties, is not a global object and does not have interceptors.
+static void GenerateDictionaryStore(MacroAssembler* masm,
+                                    Label* miss_label,
+                                    Register elements,
+                                    Register name,
+                                    Register value,
+                                    Register scratch0,
+                                    Register scratch1) {
+  // Register use:
+  //
+  // elements - holds the property dictionary on entry and is clobbered.
+  //
+  // name - holds the name of the property on entry and is unchanged.
+  //
+  // value - holds the value to store and is unchanged.
+  //
+  // scratch0 - used for index into the property dictionary and is clobbered.
+  //
+  // scratch1 - used to hold the capacity of the property dictionary and is
+  //            clobbered.
+  Label done;
+
+  // Probe the dictionary.
+  GenerateStringDictionaryProbes(masm,
+                                 miss_label,
+                                 &done,
+                                 elements,
+                                 name,
+                                 scratch0,
+                                 scratch1);
+
+  // If probing finds an entry in the dictionary, scratch0 contains the
+  // index into the dictionary. Check that the value is a normal
+  // property that is not read only.
+  __ bind(&done);
+  const int kElementsStartOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
+  const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
+  const int kTypeAndReadOnlyMask
+      = (PropertyDetails::TypeField::mask() |
+         PropertyDetails::AttributesField::encode(READ_ONLY)) << kSmiTagSize;
+  __ Test(Operand(elements,
+                  scratch1,
+                  times_pointer_size,
+                  kDetailsOffset - kHeapObjectTag),
+          Smi::FromInt(kTypeAndReadOnlyMask));
+  __ j(not_zero, miss_label);
+
+  // Store the value at the masked, scaled index.
+  const int kValueOffset = kElementsStartOffset + kPointerSize;
+  __ lea(scratch1, Operand(elements,
+                           scratch1,
+                           times_pointer_size,
+                           kValueOffset - kHeapObjectTag));
+  __ movq(Operand(scratch1, 0), value);
+
+  // Update write barrier. Make sure not to clobber the value.
+  __ movq(scratch0, value);
+  __ RecordWrite(elements, scratch1, scratch0);
 }
 
 
@@ -1332,7 +1428,7 @@ static void GenerateCallNormal(MacroAssembler* masm, int argc) {
   // Get the receiver of the function from the stack.
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
-  GenerateDictionaryLoadReceiverCheck(masm, rdx, rax, rbx, &miss);
+  GenerateStringDictionaryReceiverCheck(masm, rdx, rax, rbx, &miss);
 
   // rax: elements
   // Search the dictionary placing the result in rdi.
@@ -1616,7 +1712,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // -----------------------------------
   Label miss;
 
-  GenerateDictionaryLoadReceiverCheck(masm, rax, rdx, rbx, &miss);
+  GenerateStringDictionaryReceiverCheck(masm, rax, rdx, rbx, &miss);
 
   //  rdx: elements
   // Search the dictionary placing the result in rax.
@@ -1756,6 +1852,28 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
 
   __ bind(&miss);
 
+  GenerateMiss(masm);
+}
+
+
+void StoreIC::GenerateNormal(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : name
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
+  // -----------------------------------
+
+  Label miss, restore_miss;
+
+  GenerateStringDictionaryReceiverCheck(masm, rdx, rbx, rdi, &miss);
+
+  GenerateDictionaryStore(masm, &miss, rbx, rcx, rax, r8, r9);
+  __ IncrementCounter(&Counters::store_normal_hit, 1);
+  __ ret(0);
+
+  __ bind(&miss);
+  __ IncrementCounter(&Counters::store_normal_miss, 1);
   GenerateMiss(masm);
 }
 

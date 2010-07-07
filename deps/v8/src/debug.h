@@ -400,7 +400,22 @@ class Debug {
   // Called from stub-cache.cc.
   static void GenerateCallICDebugBreak(MacroAssembler* masm);
 
-  static void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id);
+  // Describes how exactly a frame has been dropped from stack.
+  enum FrameDropMode {
+    // No frame has been dropped.
+    FRAMES_UNTOUCHED,
+    // The top JS frame had been calling IC stub. IC stub mustn't be called now.
+    FRAME_DROPPED_IN_IC_CALL,
+    // The top JS frame had been calling debug break slot stub. Patch the
+    // address this stub jumps to in the end.
+    FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
+    // The top JS frame had been calling some C++ function. The return address
+    // gets patched automatically.
+    FRAME_DROPPED_IN_DIRECT_CALL
+  };
+
+  static void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
+                                    FrameDropMode mode);
 
   static void SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
                                      Handle<Code> code);
@@ -471,8 +486,9 @@ class Debug {
     // Storage location for jump when exiting debug break calls.
     Address after_break_target_;
 
-    // Indicates that LiveEdit has patched the stack.
-    bool frames_are_dropped_;
+    // Stores the way how LiveEdit has patched the stack. It is used when
+    // debugger returns control back to user script.
+    FrameDropMode frame_drop_mode_;
 
     // Top debugger entry.
     EnterDebugger* debugger_entry_;

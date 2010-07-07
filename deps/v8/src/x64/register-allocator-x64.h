@@ -33,7 +33,7 @@ namespace internal {
 
 class RegisterAllocatorConstants : public AllStatic {
  public:
-  static const int kNumRegisters = 11;
+  static const int kNumRegisters = 10;
   static const int kInvalidRegister = -1;
 };
 
