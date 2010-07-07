@@ -2963,7 +2963,7 @@ To get started we create a file `hello.cc`:
 
     using namespace v8;
 
-    extern 'C' void
+    extern "C" void
     init (Handle<Object> target) 
     {
       HandleScope scope;
