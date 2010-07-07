@@ -220,6 +220,17 @@ global.console.warn = function () {
 
 global.console.error = global.console.warn;
 
+global.console.dir = function(object){
+  var sys = module.requireNative('sys');
+  process.stdout.write(sys.inspect(object) + '\n');
+}
+
+global.console.assert = function(expression){
+  if(!expression){
+    var arr = Array.prototype.slice.call(arguments, 1);
+    process.assert(false, format.apply(this, arr));
+  }
+}
 
 process.exit = function (code) {
   process.emit("exit");
