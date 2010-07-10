@@ -8,7 +8,7 @@ from Configure import conf, conftest
 @feature('node_addon')
 @before('apply_bundle')
 def init_node_addon(self):
-	self.default_install_path = '${PREFIX_NODE}/lib/node/libraries'
+	self.default_install_path = self.env['NODE_PATH']
 	self.uselib = self.to_list(getattr(self, 'uselib', ''))
 	if not 'NODE' in self.uselib: self.uselib.append('NODE')
 	self.env['MACBUNDLE'] = True
@@ -22,23 +22,28 @@ def node_addon_shlib_ext(self):
 
 def detect(conf):
   join = os.path.join
-  abspath = os.path.abspath
-  wafadmin = abspath(join(os.path.dirname(__file__), '..'))
-  libnode = abspath(join(wafadmin, '..'))
-  lib = abspath(join(libnode, '..'))
-  prefix = abspath(join(lib, '..'))
 
-  conf.env['PREFIX_NODE'] = prefix
+  conf.env['PREFIX_NODE'] = get_prefix()
+  prefix = conf.env['PREFIX_NODE']
+  lib = join(prefix, 'lib')
+
   conf.env['LIBPATH_NODE'] = lib
-  conf.env['CPPPATH_NODE'] = join(prefix, 'include/node')
+  conf.env['CPPPATH_NODE'] = join(prefix, 'include', 'node')
   conf.env['CPPFLAGS_NODE'] = '-D_GNU_SOURCE'
   conf.env['CPPFLAGS_NODE'] = '-DEV_MULTIPLICITY=0'
 
   # with symbols
   conf.env.append_value('CCFLAGS', ['-g'])
   conf.env.append_value('CXXFLAGS', ['-g'])
+  # install path
+  conf.env['NODE_PATH'] = get_node_path()
+  # this changes the install path of cxx task_gen
+  conf.env['LIBDIR'] = conf.env['NODE_PATH']
 
-  found = os.path.exists(join(prefix, "bin/node"))
+  found = os.path.exists(conf.env['NODE_PATH'])
+  conf.check_message('node path', '', found, conf.env['NODE_PATH'])
+
+  found = os.path.exists(join(prefix, 'bin', 'node'))
   conf.check_message('node prefix', '', found, prefix)
 
   ## On Cygwin we need to link to the generated symbol definitions
@@ -47,3 +52,22 @@ def detect(conf):
   ## On Mac OSX we need to use mac bundles
   if Options.platform == 'darwin': conf.check_tool('osx')
 
+def get_node_path():
+    join = os.path.join
+    nodePath = None
+    if not os.environ.has_key('NODE_PATH'):
+        if not os.environ.has_key('HOME'):
+            nodePath = join(get_prefix(), 'lib', 'nodejs')
+        else:
+            nodePath = join(os.environ['HOME'], '.node_libraries')
+    else:
+        nodePath = os.environ['NODE_PATH']
+    return nodePath
+
+def get_prefix():
+    prefix = None
+    if not os.environ.has_key('PREFIX_NODE'):
+        prefix = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+    else:
+        prefix = os.environ['PREFIX_NODE']
+    return prefix
