@@ -28,6 +28,11 @@ are:
   - HTTP Parser, located at deps/http_parser, is a small C library
     copyrighted by Ryan Lienhart Dahl and has a MIT license.
 
+  - RonnJS, located at tools/ronnjs, is a library that generates man pages
+    and HTML from markdown. RonnJS is released under an MIT-style license
+    and has copyrights from Jérémy Lal, Ryan Tomayko, Dominic Baggott, Ash
+    Berlin, and Joey Mazzarelli.
+
 
 Node's license follows:
 
