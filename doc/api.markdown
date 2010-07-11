@@ -2326,6 +2326,98 @@ initialDelay will leave the value unchanged from the default
 (or previous) setting.
 
 
+
+## dgram
+
+This class is used to create datagram sockets, for sending and receiving UDP
+and UNIX daemon sockets.
+
+An server listening for UDP packets on port 8125:
+
+    var dgram = require('dgram');
+    var server = dgram.createSocket(function (msg, rinfo) {
+      console.log("connection from " + rinfo.address + ":"+ rinfo.port);
+      console.log("server got: " + msg);
+    });
+    server.bind(8125, 'localhost');
+
+To listen on the socket `'/tmp/echo.sock'`, change the last line:
+
+    server.bind('/tmp/echo.sock');
+
+A client which sends UDP packets to port 8125:
+
+    var dgram = require("dgram");
+
+    var Buffer = require('buffer').Buffer;
+    var buf = new Buffer('hello');
+
+    var client = dgram.createSocket();
+    client.send(8125, 'localhost', buf, 0, buf.length);
+
+Note the use of a `Buffer` rather than a string object.
+
+
+### Event: 'listening'
+
+`function () {}`
+
+Emitted when a server has finished its bind and is ready to receive data.
+
+### Event: 'message'
+
+`function (msg, rinfo) {}`
+
+Emitted when a socket receives data.  msg is a `Buffer`, not a string.  rinfo.port and rinfo.address contains the sender's port and IP.
+
+### Event: 'error'
+
+`function (exception) { }`
+
+An error on the socket will emit this event.
+
+### Event: 'close'
+
+`function () {}`
+
+Emitted when the socket closes.
+
+
+### dgram.createSocket(messageListener)
+
+Creates a new dgram socket. The `messageListener` argument is
+automatically set as a listener for the `'message'` event.
+
+
+### socket.bind(port, host=null)
+
+Begin accepting connections on the specified `port` and `host`.  If the
+`host` is omitted, the server will accept connections directed to any
+IPv4 address (`INADDR_ANY`).
+
+
+### socket.bind(path)
+
+Start a UNIX socket server listening for connections on the given `path`.
+
+
+### socket.send(port, addr, buffer, offset, length)
+
+Send a packet over the socket to a port and host or IP.  `port` and `addr` define the destination, `buffer` should be a `Buffer` object, and offset and length give the start bytes and total bytes to send in this packet.
+
+
+### socket.send(path, _, buffer, offset, length)
+
+Send a packet over the socket to a UNIX daemon socket.  `path` defines the destination, and the second argument is unused.  `buffer` should be a `Buffer` object, and offset and length give the start bytes and total bytes to send in this packet.
+
+
+### socket.close()
+
+Close the socket. This function is asynchronous, the server is finally closed
+when the server emits a `'close'` event.
+
+
+
 ## Crypto
 
 Use `require('crypto')` to access this module.
