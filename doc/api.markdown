@@ -2176,7 +2176,7 @@ Emitted when a stream connection successfully establishes a HTTPS handshake with
 
 Emitted when data is received.  The argument `data` will be a `Buffer` or
 `String`.  Encoding of data is set by `stream.setEncoding()`.
-(See the section on Readable Streams for more infromation.)
+(See the section on Readable Streams for more information.)
 
 ### Event: 'end'
 
