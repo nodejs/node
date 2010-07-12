@@ -19,6 +19,8 @@
 #define PATH_MAX 4096
 #endif
 
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+
 namespace node {
 
 using namespace v8;
@@ -28,6 +30,10 @@ using namespace v8;
   ThrowException(Exception::TypeError(String::New("Bad argument")))
 static Persistent<String> encoding_symbol;
 static Persistent<String> errno_symbol;
+
+// Buffer for readlink()  and other misc callers; keep this scoped at
+// file-level rather than method-level to avoid excess stack usage.
+static char getbuf[PATH_MAX + 1];
 
 static int After(eio_req *req) {
   HandleScope scope;
@@ -289,10 +295,10 @@ static Handle<Value> ReadLink(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(readlink, args[1], *path)
   } else {
-    char buf[PATH_MAX];
-    ssize_t bz = readlink(*path, buf, PATH_MAX);
+    ssize_t bz = readlink(*path, getbuf, ARRAY_SIZE(getbuf) - 1);
     if (bz == -1) return ThrowException(ErrnoException(errno, NULL, "", *path));
-    return scope.Close(String::New(buf, bz));
+    getbuf[ARRAY_SIZE(getbuf) - 1] = '\0';
+    return scope.Close(String::New(getbuf, bz));
   }
 }
 
@@ -433,16 +439,17 @@ static Handle<Value> SendFile(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 4 ||
-      !args[0]->IsInt32() ||
-      !args[1]->IsInt32() ||
-      !args[3]->IsNumber()) {
+      !args[0]->IsUint32() ||
+      !args[1]->IsUint32() ||
+      !args[2]->IsUint32() ||
+      !args[3]->IsUint32()) {
     return THROW_BAD_ARGS;
   }
 
-  int out_fd = args[0]->Int32Value();
-  int in_fd = args[1]->Int32Value();
-  off_t in_offset = args[2]->IsNumber() ? args[2]->IntegerValue() : -1;
-  size_t length = args[3]->IntegerValue();
+  int out_fd = args[0]->Uint32Value();
+  int in_fd = args[1]->Uint32Value();
+  off_t in_offset = args[2]->Uint32Value();
+  size_t length = args[3]->Uint32Value();
 
   if (args[4]->IsFunction()) {
     ASYNC_CALL(sendfile, args[4], out_fd, in_fd, in_offset, length)
