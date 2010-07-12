@@ -57,7 +57,7 @@ def get_node_path():
     nodePath = None
     if not os.environ.has_key('NODE_PATH'):
         if not os.environ.has_key('HOME'):
-            nodePath = join(get_prefix(), 'lib', 'nodejs')
+            nodePath = join(get_prefix(), 'lib', 'node')
         else:
             nodePath = join(os.environ['HOME'], '.node_libraries')
     else:
