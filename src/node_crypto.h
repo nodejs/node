@@ -34,6 +34,8 @@ class SecureContext : ObjectWrap {
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
 
   SecureContext() : ObjectWrap() {
+    pCtx = NULL;
+    caStore = NULL;
   }
 
   ~SecureContext() {
@@ -63,6 +65,8 @@ class SecureStream : ObjectWrap {
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
 
   SecureStream() : ObjectWrap() {
+    pbioRead = pbioWrite = NULL;
+    pSSL = NULL;
   }
 
   ~SecureStream() {
@@ -72,8 +76,8 @@ class SecureStream : ObjectWrap {
   BIO *pbioRead;
   BIO *pbioWrite;
   SSL *pSSL;
-  bool server;
-  bool shouldVerify;
+  bool server; /* coverity[member_decl] */
+  bool shouldVerify; /* coverity[member_decl] */
 };
 
 void InitCrypto(v8::Handle<v8::Object> target);

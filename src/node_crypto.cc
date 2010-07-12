@@ -576,7 +576,6 @@ Handle<Value> SecureStream::VerifyPeer(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
-  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args[0]->ToObject());
 
   if (ss->pSSL == NULL) return False();
   if (!ss->shouldVerify) return False();
@@ -639,7 +638,7 @@ static void HexEncode(unsigned char *md_value,
   *md_hex_len = (2*(md_len));
   *md_hexdigest = new char[*md_hex_len + 1];
   for (int i = 0; i < md_len; i++) {
-    sprintf((char *)(*md_hexdigest + (i*2)), "%02x",  md_value[i]);
+    snprintf((char *)(*md_hexdigest + (i*2)), 3, "%02x",  md_value[i]);
   }
 }
 
@@ -662,12 +661,14 @@ static void HexDecode(unsigned char *input,
 void base64(unsigned char *input, int length, char** buf64, int* buf64_len) {
   BIO *bmem, *b64;
   BUF_MEM *bptr;
+  int len;
 
   b64 = BIO_new(BIO_f_base64());
   bmem = BIO_new(BIO_s_mem());
   b64 = BIO_push(b64, bmem);
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-  BIO_write(b64, input, length);
+  len = BIO_write(b64, input, length);
+  assert(len == length);
   BIO_flush(b64);
   BIO_get_mem_ptr(b64, &bptr);
 
@@ -681,7 +682,7 @@ void base64(unsigned char *input, int length, char** buf64, int* buf64_len) {
 }
 
 
-void *unbase64(unsigned char *input,
+void unbase64(unsigned char *input,
                int length,
                char** buffer,
                int* buffer_len) {
@@ -779,7 +780,11 @@ int local_EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx,
       return(0);
     }
 
-    OPENSSL_assert(b <= sizeof ctx->final);
+    if (b > (sizeof(ctx->final) / sizeof(ctx->final[0]))) {
+      EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_BAD_DECRYPT);
+      return(0);
+    }
+
     n=ctx->final[b-1];
 
     if (n > b) {
@@ -1116,11 +1121,11 @@ class Cipher : public ObjectWrap {
 
  private:
 
-  EVP_CIPHER_CTX ctx;
-  const EVP_CIPHER *cipher;
+  EVP_CIPHER_CTX ctx; /* coverity[member_decl] */
+  const EVP_CIPHER *cipher; /* coverity[member_decl] */
   bool initialised_;
-  char* incomplete_base64;
-  int incomplete_base64_len;
+  char* incomplete_base64; /* coverity[member_decl] */
+  int incomplete_base64_len; /* coverity[member_decl] */
 
 };
 
@@ -1218,6 +1223,7 @@ class Decipher : public ObjectWrap {
     return 1;
   }
 
+  // coverity[alloc_arg]
   int DecipherFinal(unsigned char** out, int *out_len, bool tolerate_padding) {
     if (!initialised_) return 0;
     *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx)];
@@ -1326,6 +1332,11 @@ class Decipher : public ObjectWrap {
     Decipher *cipher = ObjectWrap::Unwrap<Decipher>(args.This());
 
     ssize_t len = DecodeBytes(args[0], BINARY);
+    if (len < 0) {
+        return ThrowException(Exception::Error(String::New(
+            "node`DecodeBytes() failed")));
+    }
+
     char* buf = new char[len];
     ssize_t written = DecodeWrite(buf, len, args[0], BINARY);
     char* ciphertext;
@@ -1479,6 +1490,7 @@ class Decipher : public ObjectWrap {
     int r = cipher->DecipherFinal(&out_value, &out_len, true);
 
     if (out_len == 0 || r == 0) {
+      delete [] out_value;
       return scope.Close(String::New(""));
     }
 
@@ -1689,8 +1701,8 @@ class Hmac : public ObjectWrap {
 
  private:
 
-  HMAC_CTX ctx;
-  const EVP_MD *md;
+  HMAC_CTX ctx; /* coverity[member_decl] */
+  const EVP_MD *md; /* coverity[member_decl] */
   bool initialised_;
 };
 
@@ -1833,8 +1845,8 @@ class Hash : public ObjectWrap {
 
  private:
 
-  EVP_MD_CTX mdctx;
-  const EVP_MD *md;
+  EVP_MD_CTX mdctx; /* coverity[member_decl] */
+  const EVP_MD *md; /* coverity[member_decl] */
   bool initialised_;
 };
 
@@ -1966,6 +1978,7 @@ class Sign : public ObjectWrap {
     ssize_t len = DecodeBytes(args[0], BINARY);
 
     if (len < 0) {
+      delete [] md_value;
       Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
       return ThrowException(exception);
     }
@@ -1979,6 +1992,7 @@ class Sign : public ObjectWrap {
     delete [] buf;
 
     if (md_len == 0 || r == 0) {
+      delete [] md_value;
       return scope.Close(String::New(""));
     }
 
@@ -2004,8 +2018,9 @@ class Sign : public ObjectWrap {
                         "can be binary, hex or base64\n");
       }
     }
-    return scope.Close(outString);
 
+    delete [] md_value;
+    return scope.Close(outString);
   }
 
   Sign () : ObjectWrap () {
@@ -2016,8 +2031,8 @@ class Sign : public ObjectWrap {
 
  private:
 
-  EVP_MD_CTX mdctx;
-  const EVP_MD *md;
+  EVP_MD_CTX mdctx; /* coverity[member_decl] */
+  const EVP_MD *md; /* coverity[member_decl] */
   bool initialised_;
 };
 
@@ -2212,8 +2227,8 @@ class Verify : public ObjectWrap {
 
  private:
 
-  EVP_MD_CTX mdctx;
-  const EVP_MD *md;
+  EVP_MD_CTX mdctx; /* coverity[member_decl] */
+  const EVP_MD *md; /* coverity[member_decl] */
   bool initialised_;
 
 };
