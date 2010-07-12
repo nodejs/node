@@ -2178,6 +2178,7 @@ class Verify : public ObjectWrap {
     ssize_t hlen = DecodeBytes(args[1], BINARY);
 
     if (hlen < 0) {
+      delete [] kbuf;
       Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
       return ThrowException(exception);
     }
