@@ -35,6 +35,8 @@
 #include <sys/uio.h>
 #endif
 
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+
 
 namespace node {
 
@@ -60,8 +62,6 @@ static Persistent<FunctionTemplate> recv_msg_template;
     return ThrowException(Exception::TypeError(          \
           String::New("Bad file descriptor argument"))); \
   }
-
-
 
 static inline bool SetCloseOnExec(int fd) {
   return (fcntl(fd, F_SETFD, FD_CLOEXEC) != -1);
@@ -197,13 +197,13 @@ static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
     // UNIX
     String::Utf8Value path(first->ToString());
 
-    if (path.length() > sizeof un.sun_path) {
+    if (path.length() >= ARRAY_SIZE(un.sun_path)) {
       return Exception::Error(String::New("Socket path too long"));
     }
 
-    memset(&un, 0, sizeof un);
     un.sun_family = AF_UNIX;
-    strcpy(un.sun_path, *path);
+    strncpy(un.sun_path, *path, ARRAY_SIZE(un.sun_path) - 1);
+    un.sun_path[ARRAY_SIZE(un.sun_path) - 1] = '\0';
 
     addr = (struct sockaddr*)&un;
     addrlen = path.length() + sizeof(un.sun_family) + 1;
@@ -628,6 +628,7 @@ static Handle<Value> RecvMsg(const Arguments& args) {
   iov[0].iov_len = len;
 
   struct msghdr msg;
+  msg.msg_flags = 0;
   msg.msg_iov = iov;
   msg.msg_iovlen = 1;
   msg.msg_name = NULL;
