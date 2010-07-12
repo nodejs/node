@@ -45,6 +45,8 @@
 
 #include <v8-debug.h>
 
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+
 using namespace v8;
 
 extern char **environ;
@@ -94,9 +96,9 @@ static ev_async eio_want_poll_notifier;
 static ev_async eio_done_poll_notifier;
 static ev_idle  eio_poller;
 
-// Buffer for getpwnam_r(), getgrpam_r(); keep this scoped at file-level rather
-// than method-level to avoid excess stack usage.
-static char getbuf[1024];
+// Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
+// scoped at file-level rather than method-level to avoid excess stack usage.
+static char getbuf[PATH_MAX + 1];
 
 // We need to notify V8 when we're idle so that it can run the garbage
 // collector. The interface to this is V8::IdleNotification(). It returns
@@ -1114,12 +1116,13 @@ static Handle<Value> Cwd(const Arguments& args) {
   HandleScope scope;
   assert(args.Length() == 0);
 
-  char output[PATH_MAX];
-  char *r = getcwd(output, PATH_MAX);
+  char *r = getcwd(getbuf, ARRAY_SIZE(getbuf) - 1);
   if (r == NULL) {
     return ThrowException(Exception::Error(String::New(strerror(errno))));
   }
-  Local<String> cwd = String::New(output);
+
+  getbuf[ARRAY_SIZE(getbuf) - 1] = '\0';
+  Local<String> cwd = String::New(r);
 
   return scope.Close(cwd);
 }
@@ -1174,7 +1177,7 @@ static Handle<Value> SetGid(const Arguments& args) {
     struct group grp, *grpp = NULL;
     int err;
 
-    if ((err = getgrnam_r(*grpnam, &grp, getbuf, sizeof(getbuf), &grpp)) ||
+    if ((err = getgrnam_r(*grpnam, &grp, getbuf, ARRAY_SIZE(getbuf), &grpp)) ||
         grpp == NULL) {
       return ThrowException(ErrnoException(errno, "getgrnam_r"));
     }
@@ -1209,7 +1212,7 @@ static Handle<Value> SetUid(const Arguments& args) {
     struct passwd pwd, *pwdp = NULL;
     int err;
 
-    if ((err = getpwnam_r(*pwnam, &pwd, getbuf, sizeof(getbuf), &pwdp)) ||
+    if ((err = getpwnam_r(*pwnam, &pwd, getbuf, ARRAY_SIZE(getbuf), &pwdp)) ||
         pwdp == NULL) {
       return ThrowException(ErrnoException(errno, "getpwnam_r"));
     }
@@ -1358,6 +1361,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   void *init_handle = dlsym(handle, "init");
   // Error out if not found.
   if (init_handle == NULL) {
+    dlclose(handle);
     Local<Value> exception =
       Exception::Error(String::New("No 'init' symbol found in module."));
     return ThrowException(exception);
@@ -1367,6 +1371,8 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   // Execute the C++ module
   init(target);
 
+  // Tell coverity that 'handle' should not be freed when we return.
+  // coverity[leaked_storage]
   return Undefined();
 }
 

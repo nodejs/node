@@ -1142,7 +1142,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   Local<Function> cb = Local<Function>::Cast(args[2]);
 
   struct resolve_request *rreq = (struct resolve_request *)
-    calloc(1, sizeof(struct resolve_request) + hostname.length());
+    calloc(1, sizeof(struct resolve_request) + hostname.length() + 1);
 
   if (!rreq) {
     V8::LowMemoryNotification();
@@ -1150,7 +1150,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
           String::New("Could not allocate enough memory")));
   }
 
-  strcpy(rreq->hostname, *hostname);
+  strncpy(rreq->hostname, *hostname, hostname.length() + 1);
   rreq->cb = Persistent<Function>::New(cb);
   rreq->ai_family = fam;
 
