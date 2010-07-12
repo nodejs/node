@@ -1780,6 +1780,7 @@ static void Load(int argc, char *argv[]) {
   // Not in use at the moment.
   //IdleWatcher::Initialize(process);            // idle_watcher.cc
   Timer::Initialize(process);                  // timer.cc
+  // coverity[stack_use_callee]
   DefineConstants(process);                    // constants.cc
 
   // Compile, execute the src/node.js file. (Which was included as static C
