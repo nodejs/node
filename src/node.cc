@@ -1357,19 +1357,55 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
     return ThrowException(exception);
   }
 
+  String::Utf8Value symbol(args[0]->ToString());
+  char *symstr = NULL;
+  {
+    char *sym = *symbol;
+    char *p = strrchr(sym, '/');
+    if (p != NULL) {
+      sym = p+1;
+    }
+
+    p = strrchr(sym, '.');
+    if (p != NULL) {
+      *p = NULL;
+    }
+
+    size_t slen = strlen(sym);
+    symstr = static_cast<char*>(calloc(1, slen + sizeof("_module") + 1));
+    memcpy(symstr, sym, slen);
+    memcpy(symstr+slen, "_module", sizeof("_module") + 1);
+  }
+
   // Get the init() function from the dynamically shared object.
-  void *init_handle = dlsym(handle, "init");
+  node_module_struct *mod = static_cast<node_module_struct *>(dlsym(handle, symstr));
+  free(symstr);
   // Error out if not found.
-  if (init_handle == NULL) {
-    dlclose(handle);
+  if (mod == NULL) {
+    /* Start Compatibility hack: Remove once everyone is using NODE_MODULE macro */
+    node_module_struct compat_mod;
+    mod = &compat_mod;
+    mod->version = NODE_MODULE_VERSION;
+
+    void *init_handle = dlsym(handle, "init");
+    if (init_handle == NULL) {
+      dlclose(handle);
+      Local<Value> exception =
+        Exception::Error(String::New("No module symbol found in module."));
+      return ThrowException(exception);
+    }
+    mod->register_func = (extInit)(init_handle);
+    /* End Compatibility hack */
+  }
+
+  if (mod->version != NODE_MODULE_VERSION) {
     Local<Value> exception =
-      Exception::Error(String::New("No 'init' symbol found in module."));
+      Exception::Error(String::New("Module version mismatch, refusing to load."));
     return ThrowException(exception);
   }
-  extInit init = (extInit)(init_handle); // Cast
 
   // Execute the C++ module
-  init(target);
+  mod->register_func(target);
 
   // Tell coverity that 'handle' should not be freed when we return.
   // coverity[leaked_storage]
