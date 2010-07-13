@@ -1,5 +1,7 @@
 require("../common");
 
+assert = require('assert');
+
 var WINDOW = 200; // why is does this need to be so big?
 
 var interval_count = 0;

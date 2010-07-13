@@ -1721,6 +1721,8 @@ static void PrintHelp() {
          "                     prefixed to the module search path,\n"
          "                     require.paths.\n"
          "NODE_DEBUG           Print additional debugging output.\n"
+         "NODE_MODULE_CONTEXTS Set to 1 to load modules in their own\n"
+         "                     global contexts.\n"
          "\n"
          "Documentation can be found at http://nodejs.org/api.html"
          " or with 'man node'\n");
