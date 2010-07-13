@@ -82,5 +82,35 @@ v8::Local<v8::Value> ErrnoException(int errorno,
                                     const char *path = NULL);
 
 const char *signo_string(int errorno);
+
+
+struct node_module_struct {
+  int version;
+  void *dso_handle;
+  const char *name;
+  void (*register_func) (v8::Handle<v8::Object> target);
+};
+
+/**
+ * When this version number is changed, node.js will refuse
+ * to load older modules.  This should be done whenever
+ * an API is broken in the C++ side, including in v8 or
+ * other dependencies
+ */
+#define NODE_MODULE_VERSION (1)
+
+#define NODE_STANDARD_MODULE_STUFF \
+          NODE_MODULE_VERSION,     \
+          NULL,                    \
+          __FILE__
+
+#define NODE_MODULE(modname, regfunc)   \
+  node::node_module_struct modname ## _module =    \
+  {                                     \
+      NODE_STANDARD_MODULE_STUFF,       \
+      regfunc                           \
+  };
+
+
 }  // namespace node
 #endif  // SRC_NODE_H_
