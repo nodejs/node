@@ -7,7 +7,6 @@ from os.path import join, dirname, abspath
 from logging import fatal
 
 cwd = os.getcwd()
-VERSION="0.1.100"
 APPNAME="node.js"
 
 import js2c
@@ -507,38 +506,29 @@ def build(bld):
     bld.install_files('${PREFIX}/lib', "build/default/libnode.*")
 
   def subflags(program):
-    if os.path.exists(join(cwd, ".git")):
-      try:
-        actual_version=cmd_output("git describe").strip()
-      except:
-        actual_version=VERSION+'+'
-    else:
-      actual_version=VERSION
-
     x = { 'CCFLAGS'   : " ".join(program.env["CCFLAGS"])
         , 'CPPFLAGS'  : " ".join(program.env["CPPFLAGS"])
         , 'LIBFLAGS'  : " ".join(program.env["LIBFLAGS"])
-        , 'VERSION'   : actual_version
         , 'PREFIX'    : program.env["PREFIX"]
         }
     return x
 
   # process file.pc.in -> file.pc
 
-  node_version = bld.new_task_gen('subst', before="cxx")
-  node_version.source = 'src/node_version.h.in'
-  node_version.target = 'src/node_version.h'
-  node_version.dict = subflags(node)
-  node_version.install_path = '${PREFIX}/include/node'
+  node_conf = bld.new_task_gen('subst', before="cxx")
+  node_conf.source = 'src/node_config.h.in'
+  node_conf.target = 'src/node_config.h'
+  node_conf.dict = subflags(node)
+  node_conf.install_path = '${PREFIX}/include/node'
 
   if bld.env["USE_DEBUG"]:
     node_g = node.clone("debug")
     node_g.target = "node_g"
     node_g.uselib += ' V8_G'
 
-    node_version_g = node_version.clone("debug")
-    node_version_g.dict = subflags(node_g)
-    node_version_g.install_path = None
+    node_conf_g = node_conf.clone("debug")
+    node_conf_g.dict = subflags(node_g)
+    node_conf_g.install_path = None
 
   # After creating the debug clone, append the V8 dep
   node.uselib += ' V8'

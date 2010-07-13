@@ -1,0 +1,7 @@
+#ifndef NODE_CONFIG_H
+#define NODE_CONFIG_H
+
+#define NODE_CFLAGS "@CCFLAGS@ @CPPFLAGS@ -I@PREFIX@/include/node"
+#define NODE_PREFIX "@PREFIX@"
+
+#endif /* NODE_CONFIG_H */
