@@ -199,7 +199,7 @@ function format (f) {
     switch (x) {
       case '%s': return args[i++];
       case '%d': return args[i++].toString();
-      case '%f': return JSON.stringify(args[i++]);
+      case '%j': return JSON.stringify(args[i++]);
       default:
         return x;
     }
