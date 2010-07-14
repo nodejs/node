@@ -1252,11 +1252,12 @@ expose.renderJsonML = function( jsonml, options ) {
   options = options || {};
   // include the root element in the rendered output?
   options.root = options.root || false;
+  options.xhtml = options.xhtml || false;
 
   var content = [];
 
   if ( options.root ) {
-    content.push( render_tree( jsonml ) );
+    content.push( render_tree( jsonml, options.xhtml ) );
   }
   else {
     jsonml.shift(); // get rid of the tag
@@ -1265,14 +1266,14 @@ expose.renderJsonML = function( jsonml, options ) {
     }
 
     while ( jsonml.length ) {
-      content.push( render_tree( jsonml.shift() ) );
+      content.push( render_tree( jsonml.shift(), options.xhtml ) );
     }
   }
 
-  return content.join( "\n" ).replace( /\n+$/, "" );
+  return content.join( "\n\n" );
 }
 
-function render_tree( jsonml ) {
+function render_tree( jsonml, xhtml ) {
   // basic case
   if ( typeof jsonml === "string" ) {
     return jsonml.replace( /&/g, "&amp;" )
@@ -1289,24 +1290,25 @@ function render_tree( jsonml ) {
   }
 
   while ( jsonml.length ) {
-    content.push( arguments.callee( jsonml.shift() ) );
+    content.push( arguments.callee( jsonml.shift(), xhtml ) );
   }
 
   var tag_attrs = "";
   for ( var a in attributes ) {
     tag_attrs += " " + a + '="' + attributes[ a ] + '"';
   }
-
-  var newlinetab = "\n  ",
-      newline = "\n";
-
-  if ( ~["em", "strong", "img", "br", "a"].indexOf( tag ) ) {
-    newlinetab = "";
-    newline = "";
-  }
-
+  
+  // if xhtml, self-close empty tags
   // be careful about adding whitespace here for inline elements
-  return "<"+ tag + tag_attrs + ">" + newlinetab + content.join( "" ).replace( /\n$/, "" ).replace( /\n/g, "\n  " ) + newline + "</" + tag + ">" + newline;
+  var markup = "<"+ tag + tag_attrs;
+  var contentstr = content.join( "" );
+  if ( xhtml && contentstr.length == 0 ) {
+    markup +=  " />";
+  }
+  else {
+    markup += ">" + contentstr + "</" + tag + ">";
+  }
+  return markup;
 }
 
 function convert_tree_to_html( tree, references ) {

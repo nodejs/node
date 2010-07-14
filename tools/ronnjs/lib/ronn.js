@@ -267,11 +267,11 @@ exports.Ronn = function(text, version, manual, date) {
 
 	function toHTML(node) {
 		// problème ici : les & sont remplacés par des &amp;
-		return md.renderJsonML(node, {root:true});
+		return md.renderJsonML(node, {root:true, xhtml:true});
 	}
 
 	function toHTMLfragment(node) {
-		return md.renderJsonML(node);
+		return md.renderJsonML(node, {xhtml:true});
 	}
 
 	function comment(out, str) {
