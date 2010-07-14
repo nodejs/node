@@ -1,5 +1,6 @@
 
 NODE_EXT_LIST_START
+NODE_EXT_LIST_ITEM(node_buffer)
 NODE_EXT_LIST_ITEM(node_cares)
 NODE_EXT_LIST_ITEM(node_child_process)
 #ifdef HAVE_OPENSSL

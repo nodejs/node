@@ -1597,10 +1597,6 @@ static Handle<Value> Binding(const Arguments& args) {
     StatWatcher::Initialize(exports);
     File::Initialize(exports);
     binding_cache->Set(module, exports);
-  } else if (!strcmp(*module_v, "buffer")) {
-    exports = Object::New();
-    Buffer::Initialize(exports);
-    binding_cache->Set(module, exports);
   } else if (!strcmp(*module_v, "evals")) {
     exports = Object::New();
     node::Context::Initialize(exports);
