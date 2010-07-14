@@ -1588,117 +1588,75 @@ static Handle<Value> Binding(const Arguments& args) {
     binding_cache->Set(module, exports);
   }
   else if (!strcmp(*module_v, "stdio")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
-      Stdio::Initialize(exports);
-      binding_cache->Set(module, exports);
-    }
+    exports = Object::New();
+    Stdio::Initialize(exports);
+    binding_cache->Set(module, exports);
 
   } else if (!strcmp(*module_v, "cares")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
-      Cares::Initialize(exports);
-      binding_cache->Set(module, exports);
-    }
+    exports = Object::New();
+    Cares::Initialize(exports);
+    binding_cache->Set(module, exports);
 
   } else if (!strcmp(*module_v, "fs")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
+    exports = Object::New();
 
-      // Initialize the stats object
-      Local<FunctionTemplate> stat_templ = FunctionTemplate::New();
-      stats_constructor_template = Persistent<FunctionTemplate>::New(stat_templ);
-      exports->Set(String::NewSymbol("Stats"),
-                   stats_constructor_template->GetFunction());
-      StatWatcher::Initialize(exports);
-      File::Initialize(exports);
-      binding_cache->Set(module, exports);
-    }
-
+    // Initialize the stats object
+    Local<FunctionTemplate> stat_templ = FunctionTemplate::New();
+    stats_constructor_template = Persistent<FunctionTemplate>::New(stat_templ);
+    exports->Set(String::NewSymbol("Stats"),
+                 stats_constructor_template->GetFunction());
+    StatWatcher::Initialize(exports);
+    File::Initialize(exports);
+    binding_cache->Set(module, exports);
   } else if (!strcmp(*module_v, "signal_watcher")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
-      SignalWatcher::Initialize(exports);
-      binding_cache->Set(module, exports);
-    }
-
+    exports = Object::New();
+    SignalWatcher::Initialize(exports);
+    binding_cache->Set(module, exports);
   } else if (!strcmp(*module_v, "http_parser")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
-      InitHttpParser(exports);
-      binding_cache->Set(module, exports);
-    }
-
+    exports = Object::New();
+    InitHttpParser(exports);
+    binding_cache->Set(module, exports);
   } else if (!strcmp(*module_v, "child_process")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
-      ChildProcess::Initialize(exports);
-      binding_cache->Set(module, exports);
-    }
-
+    exports = Object::New();
+    ChildProcess::Initialize(exports);
+    binding_cache->Set(module, exports);
   } else if (!strcmp(*module_v, "buffer")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
-      Buffer::Initialize(exports);
-      binding_cache->Set(module, exports);
-    }
+    exports = Object::New();
+    Buffer::Initialize(exports);
+    binding_cache->Set(module, exports);
   } else if (!strcmp(*module_v, "evals")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
-      node::Context::Initialize(exports);
-      node::Script::Initialize(exports);
-      binding_cache->Set(module, exports);
-    }
-
+    exports = Object::New();
+    node::Context::Initialize(exports);
+    node::Script::Initialize(exports);
+    binding_cache->Set(module, exports);
   } else if (!strcmp(*module_v, "natives")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
-      // Explicitly define native sources.
-      // TODO DRY/automate this?
-      exports->Set(String::New("assert"),       String::New(native_assert));
-      exports->Set(String::New("buffer"),       String::New(native_buffer));
-      exports->Set(String::New("child_process"),String::New(native_child_process));
-      exports->Set(String::New("dgram"),        String::New(native_dgram));
-      exports->Set(String::New("dns"),          String::New(native_dns));
-      exports->Set(String::New("events"),       String::New(native_events));
-      exports->Set(String::New("file"),         String::New(native_file));
-      exports->Set(String::New("freelist"),     String::New(native_freelist));
-      exports->Set(String::New("fs"),           String::New(native_fs));
-      exports->Set(String::New("http"),         String::New(native_http));
-      exports->Set(String::New("crypto"),       String::New(native_crypto));
-      exports->Set(String::New("net"),          String::New(native_net));
-      exports->Set(String::New("posix"),        String::New(native_posix));
-      exports->Set(String::New("querystring"),  String::New(native_querystring));
-      exports->Set(String::New("repl"),         String::New(native_repl));
-      exports->Set(String::New("readline"),     String::New(native_readline));
-      exports->Set(String::New("sys"),          String::New(native_sys));
-      exports->Set(String::New("tcp"),          String::New(native_tcp));
-      exports->Set(String::New("url"),          String::New(native_url));
-      exports->Set(String::New("utils"),        String::New(native_utils));
-      exports->Set(String::New("path"),         String::New(native_path));
-      exports->Set(String::New("module"),       String::New(native_module));
-      exports->Set(String::New("string_decoder"), String::New(native_string_decoder));
-      binding_cache->Set(module, exports);
-    }
-
+    exports = Object::New();
+    // Explicitly define native sources.
+    // TODO DRY/automate this?
+    exports->Set(String::New("assert"),       String::New(native_assert));
+    exports->Set(String::New("buffer"),       String::New(native_buffer));
+    exports->Set(String::New("child_process"),String::New(native_child_process));
+    exports->Set(String::New("dgram"),        String::New(native_dgram));
+    exports->Set(String::New("dns"),          String::New(native_dns));
+    exports->Set(String::New("events"),       String::New(native_events));
+    exports->Set(String::New("file"),         String::New(native_file));
+    exports->Set(String::New("freelist"),     String::New(native_freelist));
+    exports->Set(String::New("fs"),           String::New(native_fs));
+    exports->Set(String::New("http"),         String::New(native_http));
+    exports->Set(String::New("crypto"),       String::New(native_crypto));
+    exports->Set(String::New("net"),          String::New(native_net));
+    exports->Set(String::New("posix"),        String::New(native_posix));
+    exports->Set(String::New("querystring"),  String::New(native_querystring));
+    exports->Set(String::New("repl"),         String::New(native_repl));
+    exports->Set(String::New("readline"),     String::New(native_readline));
+    exports->Set(String::New("sys"),          String::New(native_sys));
+    exports->Set(String::New("tcp"),          String::New(native_tcp));
+    exports->Set(String::New("url"),          String::New(native_url));
+    exports->Set(String::New("utils"),        String::New(native_utils));
+    exports->Set(String::New("path"),         String::New(native_path));
+    exports->Set(String::New("module"),       String::New(native_module));
+    exports->Set(String::New("string_decoder"), String::New(native_string_decoder));
+    binding_cache->Set(module, exports);
   } else {
     return ThrowException(Exception::Error(String::New("No such module")));
   }
