@@ -352,7 +352,7 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   size_t offset = args[1]->Int32Value();
 
-  if (offset >= buffer->length_) {
+  if (s->Utf8Length() > 0 && offset >= buffer->length_) {
     return ThrowException(Exception::TypeError(String::New(
             "Offset is out of bounds")));
   }
@@ -390,7 +390,7 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
 
   size_t offset = args[1]->Int32Value();
 
-  if (offset >= buffer->length_) {
+  if (s->Length() > 0 && offset >= buffer->length_) {
     return ThrowException(Exception::TypeError(String::New(
             "Offset is out of bounds")));
   }
@@ -418,7 +418,7 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
 
   size_t offset = args[1]->Int32Value();
 
-  if (offset >= buffer->length_) {
+  if (s->Length() > 0 && offset >= buffer->length_) {
     return ThrowException(Exception::TypeError(String::New(
             "Offset is out of bounds")));
   }
