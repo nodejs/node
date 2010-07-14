@@ -216,3 +216,5 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
 
 
 }  // namespace node
+
+NODE_MODULE(node_stdio, node::Stdio::Initialize);
