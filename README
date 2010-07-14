@@ -10,9 +10,9 @@ To run the tests:
   
   make test
 
-To build the documentation and install it, you will need ronn:
+To build the documentation:
 
-  make doc install
+  make doc
  
 To read the documentation:
 
