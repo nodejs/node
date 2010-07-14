@@ -1,5 +1,6 @@
 
 NODE_EXT_LIST_START
+NODE_EXT_LIST_ITEM(node_cares)
 #ifdef HAVE_OPENSSL
 NODE_EXT_LIST_ITEM(node_crypto)
 #endif

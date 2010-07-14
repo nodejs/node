@@ -761,3 +761,5 @@ void Channel::SockStateCb(void *data, int sock, int read, int write) {
 
 
 }  // namespace node
+
+NODE_MODULE(node_cares, node::Cares::Initialize);

@@ -1586,11 +1586,6 @@ static Handle<Value> Binding(const Arguments& args) {
     exports = Object::New();
     modp->register_func(exports);
     binding_cache->Set(module, exports);
-  } else if (!strcmp(*module_v, "cares")) {
-    exports = Object::New();
-    Cares::Initialize(exports);
-    binding_cache->Set(module, exports);
-
   } else if (!strcmp(*module_v, "fs")) {
     exports = Object::New();
 
