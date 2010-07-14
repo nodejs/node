@@ -59,20 +59,6 @@ static Persistent<String> errno_symbol;
 static Persistent<String> syscall_symbol;
 static Persistent<String> errpath_symbol;
 
-static Persistent<String> dev_symbol;
-static Persistent<String> ino_symbol;
-static Persistent<String> mode_symbol;
-static Persistent<String> nlink_symbol;
-static Persistent<String> uid_symbol;
-static Persistent<String> gid_symbol;
-static Persistent<String> rdev_symbol;
-static Persistent<String> size_symbol;
-static Persistent<String> blksize_symbol;
-static Persistent<String> blocks_symbol;
-static Persistent<String> atime_symbol;
-static Persistent<String> mtime_symbol;
-static Persistent<String> ctime_symbol;
-
 static Persistent<String> rss_symbol;
 static Persistent<String> vsize_symbol;
 static Persistent<String> heap_total_symbol;
@@ -907,73 +893,6 @@ ssize_t DecodeWrite(char *buf,
   return buflen;
 }
 
-static Persistent<FunctionTemplate> stats_constructor_template;
-
-Local<Object> BuildStatsObject(struct stat * s) {
-  HandleScope scope;
-
-  if (dev_symbol.IsEmpty()) {
-    dev_symbol = NODE_PSYMBOL("dev");
-    ino_symbol = NODE_PSYMBOL("ino");
-    mode_symbol = NODE_PSYMBOL("mode");
-    nlink_symbol = NODE_PSYMBOL("nlink");
-    uid_symbol = NODE_PSYMBOL("uid");
-    gid_symbol = NODE_PSYMBOL("gid");
-    rdev_symbol = NODE_PSYMBOL("rdev");
-    size_symbol = NODE_PSYMBOL("size");
-    blksize_symbol = NODE_PSYMBOL("blksize");
-    blocks_symbol = NODE_PSYMBOL("blocks");
-    atime_symbol = NODE_PSYMBOL("atime");
-    mtime_symbol = NODE_PSYMBOL("mtime");
-    ctime_symbol = NODE_PSYMBOL("ctime");
-  }
-
-  Local<Object> stats =
-    stats_constructor_template->GetFunction()->NewInstance();
-
-  /* ID of device containing file */
-  stats->Set(dev_symbol, Integer::New(s->st_dev));
-
-  /* inode number */
-  stats->Set(ino_symbol, Integer::New(s->st_ino));
-
-  /* protection */
-  stats->Set(mode_symbol, Integer::New(s->st_mode));
-
-  /* number of hard links */
-  stats->Set(nlink_symbol, Integer::New(s->st_nlink));
-
-  /* user ID of owner */
-  stats->Set(uid_symbol, Integer::New(s->st_uid));
-
-  /* group ID of owner */
-  stats->Set(gid_symbol, Integer::New(s->st_gid));
-
-  /* device ID (if special file) */
-  stats->Set(rdev_symbol, Integer::New(s->st_rdev));
-
-  /* total size, in bytes */
-  stats->Set(size_symbol, Number::New(s->st_size));
-
-  /* blocksize for filesystem I/O */
-  stats->Set(blksize_symbol, Integer::New(s->st_blksize));
-
-  /* number of blocks allocated */
-  stats->Set(blocks_symbol, Integer::New(s->st_blocks));
-
-  /* time of last access */
-  stats->Set(atime_symbol, NODE_UNIXTIME_V8(s->st_atime));
-
-  /* time of last modification */
-  stats->Set(mtime_symbol, NODE_UNIXTIME_V8(s->st_mtime));
-
-  /* time of last status change */
-  stats->Set(ctime_symbol, NODE_UNIXTIME_V8(s->st_ctime));
-
-  return scope.Close(stats);
-}
-
-
 // Extracts a C str from a V8 Utf8Value.
 const char* ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<str conversion failed>";
@@ -1585,17 +1504,6 @@ static Handle<Value> Binding(const Arguments& args) {
   else if ((modp = get_builtin_module(*module_v)) != NULL) {
     exports = Object::New();
     modp->register_func(exports);
-    binding_cache->Set(module, exports);
-  } else if (!strcmp(*module_v, "fs")) {
-    exports = Object::New();
-
-    // Initialize the stats object
-    Local<FunctionTemplate> stat_templ = FunctionTemplate::New();
-    stats_constructor_template = Persistent<FunctionTemplate>::New(stat_templ);
-    exports->Set(String::NewSymbol("Stats"),
-                 stats_constructor_template->GetFunction());
-    StatWatcher::Initialize(exports);
-    File::Initialize(exports);
     binding_cache->Set(module, exports);
   } else if (!strcmp(*module_v, "evals")) {
     exports = Object::New();
