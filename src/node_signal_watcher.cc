@@ -96,3 +96,5 @@ void SignalWatcher::Stop () {
 }
 
 }  // namespace node
+
+NODE_MODULE(node_signal_watcher, node::SignalWatcher::Initialize);

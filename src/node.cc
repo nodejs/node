@@ -1597,10 +1597,6 @@ static Handle<Value> Binding(const Arguments& args) {
     StatWatcher::Initialize(exports);
     File::Initialize(exports);
     binding_cache->Set(module, exports);
-  } else if (!strcmp(*module_v, "signal_watcher")) {
-    exports = Object::New();
-    SignalWatcher::Initialize(exports);
-    binding_cache->Set(module, exports);
   } else if (!strcmp(*module_v, "http_parser")) {
     exports = Object::New();
     InitHttpParser(exports);
