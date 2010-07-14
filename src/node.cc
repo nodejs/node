@@ -1505,11 +1505,6 @@ static Handle<Value> Binding(const Arguments& args) {
     exports = Object::New();
     modp->register_func(exports);
     binding_cache->Set(module, exports);
-  } else if (!strcmp(*module_v, "evals")) {
-    exports = Object::New();
-    node::Context::Initialize(exports);
-    node::Script::Initialize(exports);
-    binding_cache->Set(module, exports);
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New();
     // Explicitly define native sources.

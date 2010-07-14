@@ -57,5 +57,7 @@ class Script : ObjectWrap {
 };
 
 
+void InitEvals(v8::Handle<v8::Object> target);
+
 } // namespace node
 #endif //  node_script_h

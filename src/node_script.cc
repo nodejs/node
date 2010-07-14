@@ -280,3 +280,12 @@ template <node::Script::EvalInputFlags iFlag,
 
   return result == args.This() ? result : scope.Close(result);
 }
+
+void node::InitEvals(Handle<Object> target) {
+  HandleScope scope;
+
+  node::Context::Initialize(target);
+  node::Script::Initialize(target);
+}
+
+NODE_MODULE(node_evals, node::InitEvals);
