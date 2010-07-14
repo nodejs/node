@@ -473,3 +473,4 @@ void InitHttpParser(Handle<Object> target) {
 
 }  // namespace node
 
+NODE_MODULE(node_http_parser, node::InitHttpParser);
