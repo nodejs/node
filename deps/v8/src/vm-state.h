@@ -44,15 +44,17 @@ class VMState BASE_EMBEDDED {
 
   // Used for debug asserts.
   static bool is_outermost_external() {
-    return current_state_ == NULL;
+    return current_state_ == 0;
   }
 
   static StateTag current_state() {
-    return current_state_ ? current_state_->state() : EXTERNAL;
+    VMState* state = reinterpret_cast<VMState*>(current_state_);
+    return state ? state->state() : EXTERNAL;
   }
 
   static Address external_callback() {
-    return current_state_ ? current_state_->external_callback_ : NULL;
+    VMState* state = reinterpret_cast<VMState*>(current_state_);
+    return state ? state->external_callback_ : NULL;
   }
 
  private:
@@ -62,7 +64,7 @@ class VMState BASE_EMBEDDED {
   Address external_callback_;
 
   // A stack of VM states.
-  static VMState* current_state_;
+  static AtomicWord current_state_;
 #else
  public:
   explicit VMState(StateTag state) {}

@@ -96,7 +96,8 @@ class MessageHandler {
   static Handle<Object> MakeMessageObject(const char* type,
                                           MessageLocation* loc,
                                           Vector< Handle<Object> > args,
-                                          Handle<String> stack_trace);
+                                          Handle<String> stack_trace,
+                                          Handle<JSArray> stack_frames);
 
   // Report a formatted message (needs JS allocation).
   static void ReportMessage(MessageLocation* loc, Handle<Object> message);

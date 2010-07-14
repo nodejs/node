@@ -2281,7 +2281,7 @@ void Simulator::DecodeTypeVFP(Instr* instr) {
         if (instr->SzField() == 0x1) {
           set_d_register_from_double(vd, get_double_from_d_register(vm));
         } else {
-          UNREACHABLE();  // Not used by V8.
+          set_s_register_from_float(vd, get_float_from_s_register(vm));
         }
       } else if ((instr->Opc2Field() == 0x7) && (instr->Opc3Field() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
@@ -2298,6 +2298,13 @@ void Simulator::DecodeTypeVFP(Instr* instr) {
         double dm_value = get_double_from_d_register(vm);
         double dd_value = sqrt(dm_value);
         set_d_register_from_double(vd, dd_value);
+      } else if (instr->Opc3Field() == 0x0) {
+        // vmov immediate.
+        if (instr->SzField() == 0x1) {
+          set_d_register_from_double(vd, instr->DoubleImmedVmov());
+        } else {
+          UNREACHABLE();  // Not used by v8.
+        }
       } else {
         UNREACHABLE();  // Not used by V8.
       }

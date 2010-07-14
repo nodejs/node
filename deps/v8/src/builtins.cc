@@ -1475,7 +1475,7 @@ void Builtins::Setup(bool create_heap_objects) {
         // During startup it's OK to always allocate and defer GC to later.
         // This simplifies things because we don't need to retry.
         AlwaysAllocateScope __scope__;
-        code = Heap::CreateCode(desc, NULL, flags, masm.CodeObject());
+        code = Heap::CreateCode(desc, flags, masm.CodeObject());
         if (code->IsFailure()) {
           v8::internal::V8::FatalProcessOutOfMemory("CreateCode");
         }

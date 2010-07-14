@@ -37,6 +37,26 @@ namespace arm {
 
 namespace v8i = v8::internal;
 
+double Instr::DoubleImmedVmov() const {
+  // Reconstruct a double from the immediate encoded in the vmov instruction.
+  //
+  //   instruction: [xxxxxxxx,xxxxabcd,xxxxxxxx,xxxxefgh]
+  //   double: [aBbbbbbb,bbcdefgh,00000000,00000000,
+  //            00000000,00000000,00000000,00000000]
+  //
+  // where B = ~b. Only the high 16 bits are affected.
+  uint64_t high16;
+  high16  = (Bits(17, 16) << 4) | Bits(3, 0);   // xxxxxxxx,xxcdefgh.
+  high16 |= (0xff * Bit(18)) << 6;              // xxbbbbbb,bbxxxxxx.
+  high16 |= (Bit(18) ^ 1) << 14;                // xBxxxxxx,xxxxxxxx.
+  high16 |= Bit(19) << 15;                      // axxxxxxx,xxxxxxxx.
+
+  uint64_t imm = high16 << 48;
+  double d;
+  memcpy(&d, &imm, 8);
+  return d;
+}
+
 
 // These register names are defined in a way to match the native disassembler
 // formatting. See for example the command "objdump -d <binary file>".

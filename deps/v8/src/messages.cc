@@ -66,7 +66,8 @@ Handle<Object> MessageHandler::MakeMessageObject(
     const char* type,
     MessageLocation* loc,
     Vector< Handle<Object> > args,
-    Handle<String> stack_trace) {
+    Handle<String> stack_trace,
+    Handle<JSArray> stack_frames) {
   // Build error message object
   v8::HandleScope scope;  // Instantiate a closeable HandleScope for EscapeFrom.
   Handle<Object> type_str = Factory::LookupAsciiSymbol(type);
@@ -90,13 +91,17 @@ Handle<Object> MessageHandler::MakeMessageObject(
   Handle<Object> stack_trace_val = stack_trace.is_null()
     ? Factory::undefined_value()
     : Handle<Object>::cast(stack_trace);
-  const int argc = 6;
+  Handle<Object> stack_frames_val =  stack_frames.is_null()
+    ? Factory::undefined_value()
+    : Handle<Object>::cast(stack_frames);
+  const int argc = 7;
   Object** argv[argc] = { type_str.location(),
                           array.location(),
                           start_handle.location(),
                           end_handle.location(),
                           script.location(),
-                          stack_trace_val.location() };
+                          stack_trace_val.location(),
+                          stack_frames_val.location() };
 
   // Setup a catch handler to catch exceptions in creating the message. This
   // handler is non-verbose to avoid calling MakeMessage recursively in case of

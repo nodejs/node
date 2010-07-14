@@ -1,3 +1,18 @@
+2010-07-14: Version 2.2.24
+
+        Added API for capturing stack traces for uncaught exceptions.
+
+        Fixed crash bug when preparsing from a non-external V8 string
+        (issue 775).
+
+        Fixed JSON.parse bug causing input not to be converted to string
+        (issue 764).
+
+        Added ES5 Object.freeze and Object.isFrozen.
+
+        Performance improvements on all platforms.
+
+
 2010-07-07: Version 2.2.23
 
         API change: Convert Unicode code points outside the basic multilingual
@@ -10,6 +25,7 @@
         crashing V8.
 
         Performance improvements on all platforms.
+
 
 2010-07-05: Version 2.2.22
 

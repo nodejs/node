@@ -333,6 +333,9 @@ class Instr {
   inline bool HasH()    const { return HField() == 1; }
   inline bool HasLink() const { return LinkField() == 1; }
 
+  // Decoding the double immediate in the vmov instruction.
+  double DoubleImmedVmov() const;
+
   // Instructions are read of out a code stream. The only way to get a
   // reference to an instruction is to convert a pointer. There is no way
   // to allocate or create instances of class Instr.

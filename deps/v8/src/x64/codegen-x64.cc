@@ -139,149 +139,6 @@ CodeGenState::~CodeGenState() {
 }
 
 
-// -------------------------------------------------------------------------
-// Deferred code objects
-//
-// These subclasses of DeferredCode add pieces of code to the end of generated
-// code.  They are branched to from the generated code, and
-// keep some slower code out of the main body of the generated code.
-// Many of them call a code stub or a runtime function.
-
-class DeferredInlineSmiAdd: public DeferredCode {
- public:
-  DeferredInlineSmiAdd(Register dst,
-                       Smi* value,
-                       OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiAdd");
-  }
-
-  virtual void Generate();
-
- private:
-  Register dst_;
-  Smi* value_;
-  OverwriteMode overwrite_mode_;
-};
-
-
-// The result of value + src is in dst.  It either overflowed or was not
-// smi tagged.  Undo the speculative addition and call the appropriate
-// specialized stub for add.  The result is left in dst.
-class DeferredInlineSmiAddReversed: public DeferredCode {
- public:
-  DeferredInlineSmiAddReversed(Register dst,
-                               Smi* value,
-                               OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiAddReversed");
-  }
-
-  virtual void Generate();
-
- private:
-  Register dst_;
-  Smi* value_;
-  OverwriteMode overwrite_mode_;
-};
-
-
-class DeferredInlineSmiSub: public DeferredCode {
- public:
-  DeferredInlineSmiSub(Register dst,
-                       Smi* value,
-                       OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiSub");
-  }
-
-  virtual void Generate();
-
- private:
-  Register dst_;
-  Smi* value_;
-  OverwriteMode overwrite_mode_;
-};
-
-
-// Call the appropriate binary operation stub to compute src op value
-// and leave the result in dst.
-class DeferredInlineSmiOperation: public DeferredCode {
- public:
-  DeferredInlineSmiOperation(Token::Value op,
-                             Register dst,
-                             Register src,
-                             Smi* value,
-                             OverwriteMode overwrite_mode)
-      : op_(op),
-        dst_(dst),
-        src_(src),
-        value_(value),
-        overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiOperation");
-  }
-
-  virtual void Generate();
-
- private:
-  Token::Value op_;
-  Register dst_;
-  Register src_;
-  Smi* value_;
-  OverwriteMode overwrite_mode_;
-};
-
-
-// Call the appropriate binary operation stub to compute value op src
-// and leave the result in dst.
-class DeferredInlineSmiOperationReversed: public DeferredCode {
- public:
-  DeferredInlineSmiOperationReversed(Token::Value op,
-                                     Register dst,
-                                     Smi* value,
-                                     Register src,
-                                     OverwriteMode overwrite_mode)
-      : op_(op),
-        dst_(dst),
-        value_(value),
-        src_(src),
-        overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiOperationReversed");
-  }
-
-  virtual void Generate();
-
- private:
-  Token::Value op_;
-  Register dst_;
-  Smi* value_;
-  Register src_;
-  OverwriteMode overwrite_mode_;
-};
-
-
-class FloatingPointHelper : public AllStatic {
- public:
-  // Load the operands from rdx and rax into xmm0 and xmm1, as doubles.
-  // If the operands are not both numbers, jump to not_numbers.
-  // Leaves rdx and rax unchanged.  SmiOperands assumes both are smis.
-  // NumberOperands assumes both are smis or heap numbers.
-  static void LoadSSE2SmiOperands(MacroAssembler* masm);
-  static void LoadSSE2NumberOperands(MacroAssembler* masm);
-  static void LoadSSE2UnknownOperands(MacroAssembler* masm,
-                                      Label* not_numbers);
-
-  // Takes the operands in rdx and rax and loads them as integers in rax
-  // and rcx.
-  static void LoadAsIntegers(MacroAssembler* masm,
-                             Label* operand_conversion_failure,
-                             Register heap_number_map);
-  // As above, but we know the operands to be numbers. In that case,
-  // conversion can't fail.
-  static void LoadNumbersAsIntegers(MacroAssembler* masm);
-};
-
-
 // -----------------------------------------------------------------------------
 // CodeGenerator implementation.
 
@@ -295,21 +152,6 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm)
       loop_nesting_(0),
       function_return_is_shadowed_(false),
       in_spilled_code_(false) {
-}
-
-
-void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
-  // Call the runtime to declare the globals.  The inevitable call
-  // will sync frame elements to memory anyway, so we do it eagerly to
-  // allow us to push the arguments directly into place.
-  frame_->SyncRange(0, frame_->element_count() - 1);
-
-  __ movq(kScratchRegister, pairs, RelocInfo::EMBEDDED_OBJECT);
-  frame_->EmitPush(rsi);  // The context is the first argument.
-  frame_->EmitPush(kScratchRegister);
-  frame_->EmitPush(Smi::FromInt(is_eval() ? 1 : 0));
-  Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
-  // Return value is ignored.
 }
 
 
@@ -543,209 +385,2077 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   allocator_ = NULL;
 }
 
-void CodeGenerator::GenerateReturnSequence(Result* return_value) {
-  // The return value is a live (but not currently reference counted)
-  // reference to rax.  This is safe because the current frame does not
-  // contain a reference to rax (it is prepared for the return by spilling
-  // all registers).
-  if (FLAG_trace) {
-    frame_->Push(return_value);
-    *return_value = frame_->CallRuntime(Runtime::kTraceExit, 1);
-  }
-  return_value->ToRegister(rax);
 
-  // Add a label for checking the size of the code used for returning.
-#ifdef DEBUG
-  Label check_exit_codesize;
-  masm_->bind(&check_exit_codesize);
-#endif
+Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
+  // Currently, this assertion will fail if we try to assign to
+  // a constant variable that is constant because it is read-only
+  // (such as the variable referring to a named function expression).
+  // We need to implement assignments to read-only variables.
+  // Ideally, we should do this during AST generation (by converting
+  // such assignments into expression statements); however, in general
+  // we may not be able to make the decision until past AST generation,
+  // that is when the entire program is known.
+  ASSERT(slot != NULL);
+  int index = slot->index();
+  switch (slot->type()) {
+    case Slot::PARAMETER:
+      return frame_->ParameterAt(index);
 
-  // Leave the frame and return popping the arguments and the
-  // receiver.
-  frame_->Exit();
-  masm_->ret((scope()->num_parameters() + 1) * kPointerSize);
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Add padding that will be overwritten by a debugger breakpoint.
-  // frame_->Exit() generates "movq rsp, rbp; pop rbp; ret k"
-  // with length 7 (3 + 1 + 3).
-  const int kPadding = Assembler::kJSReturnSequenceLength - 7;
-  for (int i = 0; i < kPadding; ++i) {
-    masm_->int3();
+    case Slot::LOCAL:
+      return frame_->LocalAt(index);
+
+    case Slot::CONTEXT: {
+      // Follow the context chain if necessary.
+      ASSERT(!tmp.is(rsi));  // do not overwrite context register
+      Register context = rsi;
+      int chain_length = scope()->ContextChainLength(slot->var()->scope());
+      for (int i = 0; i < chain_length; i++) {
+        // Load the closure.
+        // (All contexts, even 'with' contexts, have a closure,
+        // and it is the same for all contexts inside a function.
+        // There is no need to go to the function context first.)
+        __ movq(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
+        // Load the function context (which is the incoming, outer context).
+        __ movq(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
+        context = tmp;
+      }
+      // We may have a 'with' context now. Get the function context.
+      // (In fact this mov may never be the needed, since the scope analysis
+      // may not permit a direct context access in this case and thus we are
+      // always at a function context. However it is safe to dereference be-
+      // cause the function context of a function context is itself. Before
+      // deleting this mov we should try to create a counter-example first,
+      // though...)
+      __ movq(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
+      return ContextOperand(tmp, index);
+    }
+
+    default:
+      UNREACHABLE();
+      return Operand(rsp, 0);
   }
-  // Check that the size of the code used for returning matches what is
-  // expected by the debugger.
-  ASSERT_EQ(Assembler::kJSReturnSequenceLength,
-            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
-#endif
-  DeleteFrame();
 }
 
 
-#ifdef DEBUG
-bool CodeGenerator::HasValidEntryRegisters() {
-  return (allocator()->count(rax) == (frame()->is_used(rax) ? 1 : 0))
-      && (allocator()->count(rbx) == (frame()->is_used(rbx) ? 1 : 0))
-      && (allocator()->count(rcx) == (frame()->is_used(rcx) ? 1 : 0))
-      && (allocator()->count(rdx) == (frame()->is_used(rdx) ? 1 : 0))
-      && (allocator()->count(rdi) == (frame()->is_used(rdi) ? 1 : 0))
-      && (allocator()->count(r8) == (frame()->is_used(r8) ? 1 : 0))
-      && (allocator()->count(r9) == (frame()->is_used(r9) ? 1 : 0))
-      && (allocator()->count(r11) == (frame()->is_used(r11) ? 1 : 0))
-      && (allocator()->count(r14) == (frame()->is_used(r14) ? 1 : 0))
-      && (allocator()->count(r12) == (frame()->is_used(r12) ? 1 : 0));
+Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
+                                                         Result tmp,
+                                                         JumpTarget* slow) {
+  ASSERT(slot->type() == Slot::CONTEXT);
+  ASSERT(tmp.is_register());
+  Register context = rsi;
+
+  for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
+                Immediate(0));
+        slow->Branch(not_equal, not_taken);
+      }
+      __ movq(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
+      __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+      context = tmp.reg();
+    }
+  }
+  // Check that last extension is NULL.
+  __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
+  slow->Branch(not_equal, not_taken);
+  __ movq(tmp.reg(), ContextOperand(context, Context::FCONTEXT_INDEX));
+  return ContextOperand(tmp.reg(), slot->index());
 }
+
+
+// Emit code to load the value of an expression to the top of the
+// frame. If the expression is boolean-valued it may be compiled (or
+// partially compiled) into control flow to the control destination.
+// If force_control is true, control flow is forced.
+void CodeGenerator::LoadCondition(Expression* x,
+                                  ControlDestination* dest,
+                                  bool force_control) {
+  ASSERT(!in_spilled_code());
+  int original_height = frame_->height();
+
+  { CodeGenState new_state(this, dest);
+    Visit(x);
+
+    // If we hit a stack overflow, we may not have actually visited
+    // the expression.  In that case, we ensure that we have a
+    // valid-looking frame state because we will continue to generate
+    // code as we unwind the C++ stack.
+    //
+    // It's possible to have both a stack overflow and a valid frame
+    // state (eg, a subexpression overflowed, visiting it returned
+    // with a dummied frame state, and visiting this expression
+    // returned with a normal-looking state).
+    if (HasStackOverflow() &&
+        !dest->is_used() &&
+        frame_->height() == original_height) {
+      dest->Goto(true);
+    }
+  }
+
+  if (force_control && !dest->is_used()) {
+    // Convert the TOS value into flow to the control destination.
+    // TODO(X64): Make control flow to control destinations work.
+    ToBoolean(dest);
+  }
+
+  ASSERT(!(force_control && !dest->is_used()));
+  ASSERT(dest->is_used() || frame_->height() == original_height + 1);
+}
+
+
+void CodeGenerator::LoadAndSpill(Expression* expression) {
+  // TODO(x64): No architecture specific code. Move to shared location.
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  Load(expression);
+  frame_->SpillAll();
+  set_in_spilled_code(true);
+}
+
+
+void CodeGenerator::Load(Expression* expr) {
+#ifdef DEBUG
+  int original_height = frame_->height();
 #endif
+  ASSERT(!in_spilled_code());
+  JumpTarget true_target;
+  JumpTarget false_target;
+  ControlDestination dest(&true_target, &false_target, true);
+  LoadCondition(expr, &dest, false);
+
+  if (dest.false_was_fall_through()) {
+    // The false target was just bound.
+    JumpTarget loaded;
+    frame_->Push(Factory::false_value());
+    // There may be dangling jumps to the true target.
+    if (true_target.is_linked()) {
+      loaded.Jump();
+      true_target.Bind();
+      frame_->Push(Factory::true_value());
+      loaded.Bind();
+    }
+
+  } else if (dest.is_used()) {
+    // There is true, and possibly false, control flow (with true as
+    // the fall through).
+    JumpTarget loaded;
+    frame_->Push(Factory::true_value());
+    if (false_target.is_linked()) {
+      loaded.Jump();
+      false_target.Bind();
+      frame_->Push(Factory::false_value());
+      loaded.Bind();
+    }
+
+  } else {
+    // We have a valid value on top of the frame, but we still may
+    // have dangling jumps to the true and false targets from nested
+    // subexpressions (eg, the left subexpressions of the
+    // short-circuited boolean operators).
+    ASSERT(has_valid_frame());
+    if (true_target.is_linked() || false_target.is_linked()) {
+      JumpTarget loaded;
+      loaded.Jump();  // Don't lose the current TOS.
+      if (true_target.is_linked()) {
+        true_target.Bind();
+        frame_->Push(Factory::true_value());
+        if (false_target.is_linked()) {
+          loaded.Jump();
+        }
+      }
+      if (false_target.is_linked()) {
+        false_target.Bind();
+        frame_->Push(Factory::false_value());
+      }
+      loaded.Bind();
+    }
+  }
+
+  ASSERT(has_valid_frame());
+  ASSERT(frame_->height() == original_height + 1);
+}
 
 
-class DeferredReferenceGetKeyedValue: public DeferredCode {
+void CodeGenerator::LoadGlobal() {
+  if (in_spilled_code()) {
+    frame_->EmitPush(GlobalObject());
+  } else {
+    Result temp = allocator_->Allocate();
+    __ movq(temp.reg(), GlobalObject());
+    frame_->Push(&temp);
+  }
+}
+
+
+void CodeGenerator::LoadGlobalReceiver() {
+  Result temp = allocator_->Allocate();
+  Register reg = temp.reg();
+  __ movq(reg, GlobalObject());
+  __ movq(reg, FieldOperand(reg, GlobalObject::kGlobalReceiverOffset));
+  frame_->Push(&temp);
+}
+
+
+void CodeGenerator::LoadTypeofExpression(Expression* expr) {
+  // Special handling of identifiers as subexpressions of typeof.
+  Variable* variable = expr->AsVariableProxy()->AsVariable();
+  if (variable != NULL && !variable->is_this() && variable->is_global()) {
+    // For a global variable we build the property reference
+    // <global>.<variable> and perform a (regular non-contextual) property
+    // load to make sure we do not get reference errors.
+    Slot global(variable, Slot::CONTEXT, Context::GLOBAL_INDEX);
+    Literal key(variable->name());
+    Property property(&global, &key, RelocInfo::kNoPosition);
+    Reference ref(this, &property);
+    ref.GetValue();
+  } else if (variable != NULL && variable->slot() != NULL) {
+    // For a variable that rewrites to a slot, we signal it is the immediate
+    // subexpression of a typeof.
+    LoadFromSlotCheckForArguments(variable->slot(), INSIDE_TYPEOF);
+  } else {
+    // Anything else can be handled normally.
+    Load(expr);
+  }
+}
+
+
+ArgumentsAllocationMode CodeGenerator::ArgumentsMode() {
+  if (scope()->arguments() == NULL) return NO_ARGUMENTS_ALLOCATION;
+  ASSERT(scope()->arguments_shadow() != NULL);
+  // We don't want to do lazy arguments allocation for functions that
+  // have heap-allocated contexts, because it interfers with the
+  // uninitialized const tracking in the context objects.
+  return (scope()->num_heap_slots() > 0)
+      ? EAGER_ARGUMENTS_ALLOCATION
+      : LAZY_ARGUMENTS_ALLOCATION;
+}
+
+
+Result CodeGenerator::StoreArgumentsObject(bool initial) {
+  ArgumentsAllocationMode mode = ArgumentsMode();
+  ASSERT(mode != NO_ARGUMENTS_ALLOCATION);
+
+  Comment cmnt(masm_, "[ store arguments object");
+  if (mode == LAZY_ARGUMENTS_ALLOCATION && initial) {
+    // When using lazy arguments allocation, we store the hole value
+    // as a sentinel indicating that the arguments object hasn't been
+    // allocated yet.
+    frame_->Push(Factory::the_hole_value());
+  } else {
+    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    frame_->PushFunction();
+    frame_->PushReceiverSlotAddress();
+    frame_->Push(Smi::FromInt(scope()->num_parameters()));
+    Result result = frame_->CallStub(&stub, 3);
+    frame_->Push(&result);
+  }
+
+
+  Variable* arguments = scope()->arguments()->var();
+  Variable* shadow = scope()->arguments_shadow()->var();
+  ASSERT(arguments != NULL && arguments->slot() != NULL);
+  ASSERT(shadow != NULL && shadow->slot() != NULL);
+  JumpTarget done;
+  bool skip_arguments = false;
+  if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
+    // We have to skip storing into the arguments slot if it has
+    // already been written to. This can happen if the a function
+    // has a local variable named 'arguments'.
+    LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+    Result probe = frame_->Pop();
+    if (probe.is_constant()) {
+      // We have to skip updating the arguments object if it has been
+      // assigned a proper value.
+      skip_arguments = !probe.handle()->IsTheHole();
+    } else {
+      __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
+      probe.Unuse();
+      done.Branch(not_equal);
+    }
+  }
+  if (!skip_arguments) {
+    StoreToSlot(arguments->slot(), NOT_CONST_INIT);
+    if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
+  }
+  StoreToSlot(shadow->slot(), NOT_CONST_INIT);
+  return frame_->Pop();
+}
+
+//------------------------------------------------------------------------------
+// CodeGenerator implementation of variables, lookups, and stores.
+
+//------------------------------------------------------------------------------
+// CodeGenerator implementation of variables, lookups, and stores.
+
+Reference::Reference(CodeGenerator* cgen,
+                     Expression* expression,
+                     bool  persist_after_get)
+    : cgen_(cgen),
+      expression_(expression),
+      type_(ILLEGAL),
+      persist_after_get_(persist_after_get) {
+  cgen->LoadReference(this);
+}
+
+
+Reference::~Reference() {
+  ASSERT(is_unloaded() || is_illegal());
+}
+
+
+void CodeGenerator::LoadReference(Reference* ref) {
+  // References are loaded from both spilled and unspilled code.  Set the
+  // state to unspilled to allow that (and explicitly spill after
+  // construction at the construction sites).
+  bool was_in_spilled_code = in_spilled_code_;
+  in_spilled_code_ = false;
+
+  Comment cmnt(masm_, "[ LoadReference");
+  Expression* e = ref->expression();
+  Property* property = e->AsProperty();
+  Variable* var = e->AsVariableProxy()->AsVariable();
+
+  if (property != NULL) {
+    // The expression is either a property or a variable proxy that rewrites
+    // to a property.
+    Load(property->obj());
+    if (property->key()->IsPropertyName()) {
+      ref->set_type(Reference::NAMED);
+    } else {
+      Load(property->key());
+      ref->set_type(Reference::KEYED);
+    }
+  } else if (var != NULL) {
+    // The expression is a variable proxy that does not rewrite to a
+    // property.  Global variables are treated as named property references.
+    if (var->is_global()) {
+      // If rax is free, the register allocator prefers it.  Thus the code
+      // generator will load the global object into rax, which is where
+      // LoadIC wants it.  Most uses of Reference call LoadIC directly
+      // after the reference is created.
+      frame_->Spill(rax);
+      LoadGlobal();
+      ref->set_type(Reference::NAMED);
+    } else {
+      ASSERT(var->slot() != NULL);
+      ref->set_type(Reference::SLOT);
+    }
+  } else {
+    // Anything else is a runtime error.
+    Load(e);
+    frame_->CallRuntime(Runtime::kThrowReferenceError, 1);
+  }
+
+  in_spilled_code_ = was_in_spilled_code;
+}
+
+
+void CodeGenerator::UnloadReference(Reference* ref) {
+  // Pop a reference from the stack while preserving TOS.
+  Comment cmnt(masm_, "[ UnloadReference");
+  frame_->Nip(ref->size());
+  ref->set_unloaded();
+}
+
+
+// ECMA-262, section 9.2, page 30: ToBoolean(). Pop the top of stack and
+// convert it to a boolean in the condition code register or jump to
+// 'false_target'/'true_target' as appropriate.
+void CodeGenerator::ToBoolean(ControlDestination* dest) {
+  Comment cmnt(masm_, "[ ToBoolean");
+
+  // The value to convert should be popped from the frame.
+  Result value = frame_->Pop();
+  value.ToRegister();
+
+  if (value.is_number()) {
+    // Fast case if TypeInfo indicates only numbers.
+    if (FLAG_debug_code) {
+      __ AbortIfNotNumber(value.reg());
+    }
+    // Smi => false iff zero.
+    __ SmiCompare(value.reg(), Smi::FromInt(0));
+    if (value.is_smi()) {
+      value.Unuse();
+      dest->Split(not_zero);
+    } else {
+      dest->false_target()->Branch(equal);
+      Condition is_smi = masm_->CheckSmi(value.reg());
+      dest->true_target()->Branch(is_smi);
+      __ xorpd(xmm0, xmm0);
+      __ ucomisd(xmm0, FieldOperand(value.reg(), HeapNumber::kValueOffset));
+      value.Unuse();
+      dest->Split(not_zero);
+    }
+  } else {
+    // Fast case checks.
+    // 'false' => false.
+    __ CompareRoot(value.reg(), Heap::kFalseValueRootIndex);
+    dest->false_target()->Branch(equal);
+
+    // 'true' => true.
+    __ CompareRoot(value.reg(), Heap::kTrueValueRootIndex);
+    dest->true_target()->Branch(equal);
+
+    // 'undefined' => false.
+    __ CompareRoot(value.reg(), Heap::kUndefinedValueRootIndex);
+    dest->false_target()->Branch(equal);
+
+    // Smi => false iff zero.
+    __ SmiCompare(value.reg(), Smi::FromInt(0));
+    dest->false_target()->Branch(equal);
+    Condition is_smi = masm_->CheckSmi(value.reg());
+    dest->true_target()->Branch(is_smi);
+
+    // Call the stub for all other cases.
+    frame_->Push(&value);  // Undo the Pop() from above.
+    ToBooleanStub stub;
+    Result temp = frame_->CallStub(&stub, 1);
+    // Convert the result to a condition code.
+    __ testq(temp.reg(), temp.reg());
+    temp.Unuse();
+    dest->Split(not_equal);
+  }
+}
+
+
+class FloatingPointHelper : public AllStatic {
  public:
-  explicit DeferredReferenceGetKeyedValue(Register dst,
-                                          Register receiver,
-                                          Register key)
-      : dst_(dst), receiver_(receiver), key_(key) {
-    set_comment("[ DeferredReferenceGetKeyedValue");
+  // Load the operands from rdx and rax into xmm0 and xmm1, as doubles.
+  // If the operands are not both numbers, jump to not_numbers.
+  // Leaves rdx and rax unchanged.  SmiOperands assumes both are smis.
+  // NumberOperands assumes both are smis or heap numbers.
+  static void LoadSSE2SmiOperands(MacroAssembler* masm);
+  static void LoadSSE2NumberOperands(MacroAssembler* masm);
+  static void LoadSSE2UnknownOperands(MacroAssembler* masm,
+                                      Label* not_numbers);
+
+  // Takes the operands in rdx and rax and loads them as integers in rax
+  // and rcx.
+  static void LoadAsIntegers(MacroAssembler* masm,
+                             Label* operand_conversion_failure,
+                             Register heap_number_map);
+  // As above, but we know the operands to be numbers. In that case,
+  // conversion can't fail.
+  static void LoadNumbersAsIntegers(MacroAssembler* masm);
+};
+
+
+const char* GenericBinaryOpStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int len = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(len);
+  if (name_ == NULL) return "OOM";
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name;
+  switch (mode_) {
+    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
+    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
+    default: overwrite_name = "UnknownOverwrite"; break;
+  }
+
+  OS::SNPrintF(Vector<char>(name_, len),
+               "GenericBinaryOpStub_%s_%s%s_%s%s_%s_%s",
+               op_name,
+               overwrite_name,
+               (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
+               args_in_registers_ ? "RegArgs" : "StackArgs",
+               args_reversed_ ? "_R" : "",
+               static_operands_type_.ToString(),
+               BinaryOpIC::GetName(runtime_operands_type_));
+  return name_;
+}
+
+
+// Call the specialized stub for a binary operation.
+class DeferredInlineBinaryOperation: public DeferredCode {
+ public:
+  DeferredInlineBinaryOperation(Token::Value op,
+                                Register dst,
+                                Register left,
+                                Register right,
+                                OverwriteMode mode)
+      : op_(op), dst_(dst), left_(left), right_(right), mode_(mode) {
+    set_comment("[ DeferredInlineBinaryOperation");
   }
 
   virtual void Generate();
 
-  Label* patch_site() { return &patch_site_; }
-
  private:
-  Label patch_site_;
+  Token::Value op_;
   Register dst_;
-  Register receiver_;
-  Register key_;
+  Register left_;
+  Register right_;
+  OverwriteMode mode_;
 };
 
 
-void DeferredReferenceGetKeyedValue::Generate() {
-  if (receiver_.is(rdx)) {
-    if (!key_.is(rax)) {
-      __ movq(rax, key_);
-    }  // else do nothing.
-  } else if (receiver_.is(rax)) {
-    if (key_.is(rdx)) {
-      __ xchg(rax, rdx);
-    } else if (key_.is(rax)) {
-      __ movq(rdx, receiver_);
-    } else {
-      __ movq(rdx, receiver_);
-      __ movq(rax, key_);
+void DeferredInlineBinaryOperation::Generate() {
+  Label done;
+  if ((op_ == Token::ADD)
+      || (op_ == Token::SUB)
+      || (op_ == Token::MUL)
+      || (op_ == Token::DIV)) {
+    Label call_runtime;
+    Label left_smi, right_smi, load_right, do_op;
+    __ JumpIfSmi(left_, &left_smi);
+    __ CompareRoot(FieldOperand(left_, HeapObject::kMapOffset),
+                   Heap::kHeapNumberMapRootIndex);
+    __ j(not_equal, &call_runtime);
+    __ movsd(xmm0, FieldOperand(left_, HeapNumber::kValueOffset));
+    if (mode_ == OVERWRITE_LEFT) {
+      __ movq(dst_, left_);
     }
-  } else if (key_.is(rax)) {
-    __ movq(rdx, receiver_);
-  } else {
-    __ movq(rax, key_);
-    __ movq(rdx, receiver_);
-  }
-  // Calculate the delta from the IC call instruction to the map check
-  // movq instruction in the inlined version.  This delta is stored in
-  // a test(rax, delta) instruction after the call so that we can find
-  // it in the IC initialization code and patch the movq instruction.
-  // This means that we cannot allow test instructions after calls to
-  // KeyedLoadIC stubs in other places.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  __ Call(ic, RelocInfo::CODE_TARGET);
-  // The delta from the start of the map-compare instruction to the
-  // test instruction.  We use masm_-> directly here instead of the __
-  // macro because the macro sometimes uses macro expansion to turn
-  // into something that can't return a value.  This is encountered
-  // when doing generated code coverage tests.
-  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
-  // Here we use masm_-> instead of the __ macro because this is the
-  // instruction that gets patched and coverage code gets in the way.
-  // TODO(X64): Consider whether it's worth switching the test to a
-  // 7-byte NOP with non-zero immediate (0f 1f 80 xxxxxxxx) which won't
-  // be generated normally.
-  masm_->testl(rax, Immediate(-delta_to_patch_site));
-  __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
+    __ jmp(&load_right);
 
+    __ bind(&left_smi);
+    __ SmiToInteger32(left_, left_);
+    __ cvtlsi2sd(xmm0, left_);
+    __ Integer32ToSmi(left_, left_);
+    if (mode_ == OVERWRITE_LEFT) {
+      Label alloc_failure;
+      __ AllocateHeapNumber(dst_, no_reg, &call_runtime);
+    }
+
+    __ bind(&load_right);
+    __ JumpIfSmi(right_, &right_smi);
+    __ CompareRoot(FieldOperand(right_, HeapObject::kMapOffset),
+                   Heap::kHeapNumberMapRootIndex);
+    __ j(not_equal, &call_runtime);
+    __ movsd(xmm1, FieldOperand(right_, HeapNumber::kValueOffset));
+    if (mode_ == OVERWRITE_RIGHT) {
+      __ movq(dst_, right_);
+    } else if (mode_ == NO_OVERWRITE) {
+      Label alloc_failure;
+      __ AllocateHeapNumber(dst_, no_reg, &call_runtime);
+    }
+    __ jmp(&do_op);
+
+    __ bind(&right_smi);
+    __ SmiToInteger32(right_, right_);
+    __ cvtlsi2sd(xmm1, right_);
+    __ Integer32ToSmi(right_, right_);
+    if (mode_ == OVERWRITE_RIGHT || mode_ == NO_OVERWRITE) {
+      Label alloc_failure;
+      __ AllocateHeapNumber(dst_, no_reg, &call_runtime);
+    }
+
+    __ bind(&do_op);
+    switch (op_) {
+      case Token::ADD: __ addsd(xmm0, xmm1); break;
+      case Token::SUB: __ subsd(xmm0, xmm1); break;
+      case Token::MUL: __ mulsd(xmm0, xmm1); break;
+      case Token::DIV: __ divsd(xmm0, xmm1); break;
+      default: UNREACHABLE();
+    }
+    __ movsd(FieldOperand(dst_, HeapNumber::kValueOffset), xmm0);
+    __ jmp(&done);
+
+    __ bind(&call_runtime);
+  }
+  GenericBinaryOpStub stub(op_, mode_, NO_SMI_CODE_IN_STUB);
+  stub.GenerateCall(masm_, left_, right_);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+  __ bind(&done);
+}
+
+
+static TypeInfo CalculateTypeInfo(TypeInfo operands_type,
+                                  Token::Value op,
+                                  const Result& right,
+                                  const Result& left) {
+  // Set TypeInfo of result according to the operation performed.
+  // We rely on the fact that smis have a 32 bit payload on x64.
+  STATIC_ASSERT(kSmiValueSize == 32);
+  switch (op) {
+    case Token::COMMA:
+      return right.type_info();
+    case Token::OR:
+    case Token::AND:
+      // Result type can be either of the two input types.
+      return operands_type;
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+      // Result is always a smi.
+      return TypeInfo::Smi();
+    case Token::SAR:
+    case Token::SHL:
+      // Result is always a smi.
+      return TypeInfo::Smi();
+    case Token::SHR:
+      // Result of x >>> y is always a smi if masked y >= 1, otherwise a number.
+      return (right.is_constant() && right.handle()->IsSmi()
+                     && (Smi::cast(*right.handle())->value() & 0x1F) >= 1)
+          ? TypeInfo::Smi()
+          : TypeInfo::Number();
+    case Token::ADD:
+      if (operands_type.IsNumber()) {
+        return TypeInfo::Number();
+      } else if (left.type_info().IsString() || right.type_info().IsString()) {
+        return TypeInfo::String();
+      } else {
+        return TypeInfo::Unknown();
+      }
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
+      // Result is always a number.
+      return TypeInfo::Number();
+    default:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+  return TypeInfo::Unknown();
+}
+
+
+void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
+                                           OverwriteMode overwrite_mode) {
+  Comment cmnt(masm_, "[ BinaryOperation");
+  Token::Value op = expr->op();
+  Comment cmnt_token(masm_, Token::String(op));
+
+  if (op == Token::COMMA) {
+    // Simply discard left value.
+    frame_->Nip(1);
+    return;
+  }
+
+  Result right = frame_->Pop();
+  Result left = frame_->Pop();
+
+  if (op == Token::ADD) {
+    const bool left_is_string = left.type_info().IsString();
+    const bool right_is_string = right.type_info().IsString();
+    // Make sure constant strings have string type info.
+    ASSERT(!(left.is_constant() && left.handle()->IsString()) ||
+           left_is_string);
+    ASSERT(!(right.is_constant() && right.handle()->IsString()) ||
+           right_is_string);
+    if (left_is_string || right_is_string) {
+      frame_->Push(&left);
+      frame_->Push(&right);
+      Result answer;
+      if (left_is_string) {
+        if (right_is_string) {
+          StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+          answer = frame_->CallStub(&stub, 2);
+        } else {
+          answer =
+            frame_->InvokeBuiltin(Builtins::STRING_ADD_LEFT, CALL_FUNCTION, 2);
+        }
+      } else if (right_is_string) {
+        answer =
+          frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
+      }
+      answer.set_type_info(TypeInfo::String());
+      frame_->Push(&answer);
+      return;
+    }
+    // Neither operand is known to be a string.
+  }
+
+  bool left_is_smi_constant = left.is_constant() && left.handle()->IsSmi();
+  bool left_is_non_smi_constant = left.is_constant() && !left.handle()->IsSmi();
+  bool right_is_smi_constant = right.is_constant() && right.handle()->IsSmi();
+  bool right_is_non_smi_constant =
+      right.is_constant() && !right.handle()->IsSmi();
+
+  if (left_is_smi_constant && right_is_smi_constant) {
+    // Compute the constant result at compile time, and leave it on the frame.
+    int left_int = Smi::cast(*left.handle())->value();
+    int right_int = Smi::cast(*right.handle())->value();
+    if (FoldConstantSmis(op, left_int, right_int)) return;
+  }
+
+  // Get number type of left and right sub-expressions.
+  TypeInfo operands_type =
+      TypeInfo::Combine(left.type_info(), right.type_info());
+
+  TypeInfo result_type = CalculateTypeInfo(operands_type, op, right, left);
+
+  Result answer;
+  if (left_is_non_smi_constant || right_is_non_smi_constant) {
+    // Go straight to the slow case, with no smi code.
+    GenericBinaryOpStub stub(op,
+                             overwrite_mode,
+                             NO_SMI_CODE_IN_STUB,
+                             operands_type);
+    answer = stub.GenerateCall(masm_, frame_, &left, &right);
+  } else if (right_is_smi_constant) {
+    answer = ConstantSmiBinaryOperation(expr, &left, right.handle(),
+                                        false, overwrite_mode);
+  } else if (left_is_smi_constant) {
+    answer = ConstantSmiBinaryOperation(expr, &right, left.handle(),
+                                        true, overwrite_mode);
+  } else {
+    // Set the flags based on the operation, type and loop nesting level.
+    // Bit operations always assume they likely operate on Smis. Still only
+    // generate the inline Smi check code if this operation is part of a loop.
+    // For all other operations only inline the Smi check code for likely smis
+    // if the operation is part of a loop.
+    if (loop_nesting() > 0 &&
+        (Token::IsBitOp(op) ||
+         operands_type.IsInteger32() ||
+         expr->type()->IsLikelySmi())) {
+      answer = LikelySmiBinaryOperation(expr, &left, &right, overwrite_mode);
+    } else {
+      GenericBinaryOpStub stub(op,
+                               overwrite_mode,
+                               NO_GENERIC_BINARY_FLAGS,
+                               operands_type);
+      answer = stub.GenerateCall(masm_, frame_, &left, &right);
+    }
+  }
+
+  answer.set_type_info(result_type);
+  frame_->Push(&answer);
+}
+
+
+bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
+  Object* answer_object = Heap::undefined_value();
+  switch (op) {
+    case Token::ADD:
+      // Use intptr_t to detect overflow of 32-bit int.
+      if (Smi::IsValid(static_cast<intptr_t>(left) + right)) {
+        answer_object = Smi::FromInt(left + right);
+      }
+      break;
+    case Token::SUB:
+      // Use intptr_t to detect overflow of 32-bit int.
+      if (Smi::IsValid(static_cast<intptr_t>(left) - right)) {
+        answer_object = Smi::FromInt(left - right);
+      }
+      break;
+    case Token::MUL: {
+        double answer = static_cast<double>(left) * right;
+        if (answer >= Smi::kMinValue && answer <= Smi::kMaxValue) {
+          // If the product is zero and the non-zero factor is negative,
+          // the spec requires us to return floating point negative zero.
+          if (answer != 0 || (left + right) >= 0) {
+            answer_object = Smi::FromInt(static_cast<int>(answer));
+          }
+        }
+      }
+      break;
+    case Token::DIV:
+    case Token::MOD:
+      break;
+    case Token::BIT_OR:
+      answer_object = Smi::FromInt(left | right);
+      break;
+    case Token::BIT_AND:
+      answer_object = Smi::FromInt(left & right);
+      break;
+    case Token::BIT_XOR:
+      answer_object = Smi::FromInt(left ^ right);
+      break;
+
+    case Token::SHL: {
+        int shift_amount = right & 0x1F;
+        if (Smi::IsValid(left << shift_amount)) {
+          answer_object = Smi::FromInt(left << shift_amount);
+        }
+        break;
+      }
+    case Token::SHR: {
+        int shift_amount = right & 0x1F;
+        unsigned int unsigned_left = left;
+        unsigned_left >>= shift_amount;
+        if (unsigned_left <= static_cast<unsigned int>(Smi::kMaxValue)) {
+          answer_object = Smi::FromInt(unsigned_left);
+        }
+        break;
+      }
+    case Token::SAR: {
+        int shift_amount = right & 0x1F;
+        unsigned int unsigned_left = left;
+        if (left < 0) {
+          // Perform arithmetic shift of a negative number by
+          // complementing number, logical shifting, complementing again.
+          unsigned_left = ~unsigned_left;
+          unsigned_left >>= shift_amount;
+          unsigned_left = ~unsigned_left;
+        } else {
+          unsigned_left >>= shift_amount;
+        }
+        ASSERT(Smi::IsValid(static_cast<int32_t>(unsigned_left)));
+        answer_object = Smi::FromInt(static_cast<int32_t>(unsigned_left));
+        break;
+      }
+    default:
+      UNREACHABLE();
+      break;
+  }
+  if (answer_object == Heap::undefined_value()) {
+    return false;
+  }
+  frame_->Push(Handle<Object>(answer_object));
+  return true;
+}
+
+
+void CodeGenerator::JumpIfNotSmiUsingTypeInfo(Register reg,
+                                              TypeInfo type,
+                                              DeferredCode* deferred) {
+  if (!type.IsSmi()) {
+        __ JumpIfNotSmi(reg, deferred->entry_label());
+  }
+  if (FLAG_debug_code) {
+    __ AbortIfNotSmi(reg);
+  }
+}
+
+
+void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
+                                                  Register right,
+                                                  TypeInfo left_info,
+                                                  TypeInfo right_info,
+                                                  DeferredCode* deferred) {
+  if (!left_info.IsSmi() && !right_info.IsSmi()) {
+    __ JumpIfNotBothSmi(left, right, deferred->entry_label());
+  } else if (!left_info.IsSmi()) {
+    __ JumpIfNotSmi(left, deferred->entry_label());
+  } else if (!right_info.IsSmi()) {
+    __ JumpIfNotSmi(right, deferred->entry_label());
+  }
+  if (FLAG_debug_code) {
+    __ AbortIfNotSmi(left);
+    __ AbortIfNotSmi(right);
+  }
+}
+
+
+// Implements a binary operation using a deferred code object and some
+// inline code to operate on smis quickly.
+Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
+                                               Result* left,
+                                               Result* right,
+                                               OverwriteMode overwrite_mode) {
+  // Copy the type info because left and right may be overwritten.
+  TypeInfo left_type_info = left->type_info();
+  TypeInfo right_type_info = right->type_info();
+  Token::Value op = expr->op();
+  Result answer;
+  // Special handling of div and mod because they use fixed registers.
+  if (op == Token::DIV || op == Token::MOD) {
+    // We need rax as the quotient register, rdx as the remainder
+    // register, neither left nor right in rax or rdx, and left copied
+    // to rax.
+    Result quotient;
+    Result remainder;
+    bool left_is_in_rax = false;
+    // Step 1: get rax for quotient.
+    if ((left->is_register() && left->reg().is(rax)) ||
+        (right->is_register() && right->reg().is(rax))) {
+      // One or both is in rax.  Use a fresh non-rdx register for
+      // them.
+      Result fresh = allocator_->Allocate();
+      ASSERT(fresh.is_valid());
+      if (fresh.reg().is(rdx)) {
+        remainder = fresh;
+        fresh = allocator_->Allocate();
+        ASSERT(fresh.is_valid());
+      }
+      if (left->is_register() && left->reg().is(rax)) {
+        quotient = *left;
+        *left = fresh;
+        left_is_in_rax = true;
+      }
+      if (right->is_register() && right->reg().is(rax)) {
+        quotient = *right;
+        *right = fresh;
+      }
+      __ movq(fresh.reg(), rax);
+    } else {
+      // Neither left nor right is in rax.
+      quotient = allocator_->Allocate(rax);
+    }
+    ASSERT(quotient.is_register() && quotient.reg().is(rax));
+    ASSERT(!(left->is_register() && left->reg().is(rax)));
+    ASSERT(!(right->is_register() && right->reg().is(rax)));
+
+    // Step 2: get rdx for remainder if necessary.
+    if (!remainder.is_valid()) {
+      if ((left->is_register() && left->reg().is(rdx)) ||
+          (right->is_register() && right->reg().is(rdx))) {
+        Result fresh = allocator_->Allocate();
+        ASSERT(fresh.is_valid());
+        if (left->is_register() && left->reg().is(rdx)) {
+          remainder = *left;
+          *left = fresh;
+        }
+        if (right->is_register() && right->reg().is(rdx)) {
+          remainder = *right;
+          *right = fresh;
+        }
+        __ movq(fresh.reg(), rdx);
+      } else {
+        // Neither left nor right is in rdx.
+        remainder = allocator_->Allocate(rdx);
+      }
+    }
+    ASSERT(remainder.is_register() && remainder.reg().is(rdx));
+    ASSERT(!(left->is_register() && left->reg().is(rdx)));
+    ASSERT(!(right->is_register() && right->reg().is(rdx)));
+
+    left->ToRegister();
+    right->ToRegister();
+    frame_->Spill(rax);
+    frame_->Spill(rdx);
+
+    // Check that left and right are smi tagged.
+    DeferredInlineBinaryOperation* deferred =
+        new DeferredInlineBinaryOperation(op,
+                                          (op == Token::DIV) ? rax : rdx,
+                                          left->reg(),
+                                          right->reg(),
+                                          overwrite_mode);
+    JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(),
+                                  left_type_info, right_type_info, deferred);
+
+    if (op == Token::DIV) {
+      __ SmiDiv(rax, left->reg(), right->reg(), deferred->entry_label());
+      deferred->BindExit();
+      left->Unuse();
+      right->Unuse();
+      answer = quotient;
+    } else {
+      ASSERT(op == Token::MOD);
+      __ SmiMod(rdx, left->reg(), right->reg(), deferred->entry_label());
+      deferred->BindExit();
+      left->Unuse();
+      right->Unuse();
+      answer = remainder;
+    }
+    ASSERT(answer.is_valid());
+    return answer;
+  }
+
+  // Special handling of shift operations because they use fixed
+  // registers.
+  if (op == Token::SHL || op == Token::SHR || op == Token::SAR) {
+    // Move left out of rcx if necessary.
+    if (left->is_register() && left->reg().is(rcx)) {
+      *left = allocator_->Allocate();
+      ASSERT(left->is_valid());
+      __ movq(left->reg(), rcx);
+    }
+    right->ToRegister(rcx);
+    left->ToRegister();
+    ASSERT(left->is_register() && !left->reg().is(rcx));
+    ASSERT(right->is_register() && right->reg().is(rcx));
+
+    // We will modify right, it must be spilled.
+    frame_->Spill(rcx);
+
+    // Use a fresh answer register to avoid spilling the left operand.
+    answer = allocator_->Allocate();
+    ASSERT(answer.is_valid());
+    // Check that both operands are smis using the answer register as a
+    // temporary.
+    DeferredInlineBinaryOperation* deferred =
+        new DeferredInlineBinaryOperation(op,
+                                          answer.reg(),
+                                          left->reg(),
+                                          rcx,
+                                          overwrite_mode);
+
+    Label do_op;
+    if (right_type_info.IsSmi()) {
+      if (FLAG_debug_code) {
+        __ AbortIfNotSmi(right->reg());
+      }
+      __ movq(answer.reg(), left->reg());
+      // If left is not known to be a smi, check if it is.
+      // If left is not known to be a number, and it isn't a smi, check if
+      // it is a HeapNumber.
+      if (!left_type_info.IsSmi()) {
+        __ JumpIfSmi(answer.reg(), &do_op);
+        if (!left_type_info.IsNumber()) {
+          // Branch if not a heapnumber.
+          __ Cmp(FieldOperand(answer.reg(), HeapObject::kMapOffset),
+                 Factory::heap_number_map());
+          deferred->Branch(not_equal);
+        }
+        // Load integer value into answer register using truncation.
+        __ cvttsd2si(answer.reg(),
+                     FieldOperand(answer.reg(), HeapNumber::kValueOffset));
+        // Branch if we might have overflowed.
+        // (False negative for Smi::kMinValue)
+        __ cmpq(answer.reg(), Immediate(0x80000000));
+        deferred->Branch(equal);
+        // TODO(lrn): Inline shifts on int32 here instead of first smi-tagging.
+        __ Integer32ToSmi(answer.reg(), answer.reg());
+      } else {
+        // Fast case - both are actually smis.
+        if (FLAG_debug_code) {
+          __ AbortIfNotSmi(left->reg());
+        }
+      }
+    } else {
+      JumpIfNotBothSmiUsingTypeInfo(left->reg(), rcx,
+                                    left_type_info, right_type_info, deferred);
+    }
+    __ bind(&do_op);
+
+    // Perform the operation.
+    switch (op) {
+      case Token::SAR:
+        __ SmiShiftArithmeticRight(answer.reg(), left->reg(), rcx);
+        break;
+      case Token::SHR: {
+        __ SmiShiftLogicalRight(answer.reg(),
+                              left->reg(),
+                              rcx,
+                              deferred->entry_label());
+        break;
+      }
+      case Token::SHL: {
+        __ SmiShiftLeft(answer.reg(),
+                        left->reg(),
+                        rcx);
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+    deferred->BindExit();
+    left->Unuse();
+    right->Unuse();
+    ASSERT(answer.is_valid());
+    return answer;
+  }
+
+  // Handle the other binary operations.
+  left->ToRegister();
+  right->ToRegister();
+  // A newly allocated register answer is used to hold the answer.  The
+  // registers containing left and right are not modified so they don't
+  // need to be spilled in the fast case.
+  answer = allocator_->Allocate();
+  ASSERT(answer.is_valid());
+
+  // Perform the smi tag check.
+  DeferredInlineBinaryOperation* deferred =
+      new DeferredInlineBinaryOperation(op,
+                                        answer.reg(),
+                                        left->reg(),
+                                        right->reg(),
+                                        overwrite_mode);
+  JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(),
+                                left_type_info, right_type_info, deferred);
+
+  switch (op) {
+    case Token::ADD:
+      __ SmiAdd(answer.reg(),
+                left->reg(),
+                right->reg(),
+                deferred->entry_label());
+      break;
+
+    case Token::SUB:
+      __ SmiSub(answer.reg(),
+                left->reg(),
+                right->reg(),
+                deferred->entry_label());
+      break;
+
+    case Token::MUL: {
+      __ SmiMul(answer.reg(),
+                left->reg(),
+                right->reg(),
+                deferred->entry_label());
+      break;
+    }
+
+    case Token::BIT_OR:
+      __ SmiOr(answer.reg(), left->reg(), right->reg());
+      break;
+
+    case Token::BIT_AND:
+      __ SmiAnd(answer.reg(), left->reg(), right->reg());
+      break;
+
+    case Token::BIT_XOR:
+      __ SmiXor(answer.reg(), left->reg(), right->reg());
+      break;
+
+    default:
+      UNREACHABLE();
+      break;
+  }
+  deferred->BindExit();
+  left->Unuse();
+  right->Unuse();
+  ASSERT(answer.is_valid());
+  return answer;
+}
+
+
+// Call the appropriate binary operation stub to compute src op value
+// and leave the result in dst.
+class DeferredInlineSmiOperation: public DeferredCode {
+ public:
+  DeferredInlineSmiOperation(Token::Value op,
+                             Register dst,
+                             Register src,
+                             Smi* value,
+                             OverwriteMode overwrite_mode)
+      : op_(op),
+        dst_(dst),
+        src_(src),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiOperation");
+  }
+
+  virtual void Generate();
+
+ private:
+  Token::Value op_;
+  Register dst_;
+  Register src_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+void DeferredInlineSmiOperation::Generate() {
+  // For mod we don't generate all the Smi code inline.
+  GenericBinaryOpStub stub(
+      op_,
+      overwrite_mode_,
+      (op_ == Token::MOD) ? NO_GENERIC_BINARY_FLAGS : NO_SMI_CODE_IN_STUB);
+  stub.GenerateCall(masm_, src_, value_);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
 
-class DeferredReferenceSetKeyedValue: public DeferredCode {
+// Call the appropriate binary operation stub to compute value op src
+// and leave the result in dst.
+class DeferredInlineSmiOperationReversed: public DeferredCode {
  public:
-  DeferredReferenceSetKeyedValue(Register value,
-                                 Register key,
-                                 Register receiver)
-      : value_(value), key_(key), receiver_(receiver) {
-    set_comment("[ DeferredReferenceSetKeyedValue");
+  DeferredInlineSmiOperationReversed(Token::Value op,
+                                     Register dst,
+                                     Smi* value,
+                                     Register src,
+                                     OverwriteMode overwrite_mode)
+      : op_(op),
+        dst_(dst),
+        value_(value),
+        src_(src),
+        overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiOperationReversed");
   }
 
   virtual void Generate();
 
-  Label* patch_site() { return &patch_site_; }
-
  private:
-  Register value_;
-  Register key_;
-  Register receiver_;
-  Label patch_site_;
+  Token::Value op_;
+  Register dst_;
+  Smi* value_;
+  Register src_;
+  OverwriteMode overwrite_mode_;
 };
 
 
-void DeferredReferenceSetKeyedValue::Generate() {
-  __ IncrementCounter(&Counters::keyed_store_inline_miss, 1);
-  // Move value, receiver, and key to registers rax, rdx, and rcx, as
-  // the IC stub expects.
-  // Move value to rax, using xchg if the receiver or key is in rax.
-  if (!value_.is(rax)) {
-    if (!receiver_.is(rax) && !key_.is(rax)) {
-      __ movq(rax, value_);
-    } else {
-      __ xchg(rax, value_);
-      // Update receiver_ and key_ if they are affected by the swap.
-      if (receiver_.is(rax)) {
-        receiver_ = value_;
-      } else if (receiver_.is(value_)) {
-        receiver_ = rax;
-      }
-      if (key_.is(rax)) {
-        key_ = value_;
-      } else if (key_.is(value_)) {
-        key_ = rax;
-      }
-    }
-  }
-  // Value is now in rax. Its original location is remembered in value_,
-  // and the value is restored to value_ before returning.
-  // The variables receiver_ and key_ are not preserved.
-  // Move receiver and key to rdx and rcx, swapping if necessary.
-  if (receiver_.is(rdx)) {
-    if (!key_.is(rcx)) {
-      __ movq(rcx, key_);
-    }  // Else everything is already in the right place.
-  } else if (receiver_.is(rcx)) {
-    if (key_.is(rdx)) {
-      __ xchg(rcx, rdx);
-    } else if (key_.is(rcx)) {
-      __ movq(rdx, receiver_);
-    } else {
-      __ movq(rdx, receiver_);
-      __ movq(rcx, key_);
-    }
-  } else if (key_.is(rcx)) {
-    __ movq(rdx, receiver_);
-  } else {
-    __ movq(rcx, key_);
-    __ movq(rdx, receiver_);
+void DeferredInlineSmiOperationReversed::Generate() {
+  GenericBinaryOpStub stub(
+      op_,
+      overwrite_mode_,
+      NO_SMI_CODE_IN_STUB);
+  stub.GenerateCall(masm_, value_, src_);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+}
+class DeferredInlineSmiAdd: public DeferredCode {
+ public:
+  DeferredInlineSmiAdd(Register dst,
+                       Smi* value,
+                       OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiAdd");
   }
 
-  // Call the IC stub.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-  __ Call(ic, RelocInfo::CODE_TARGET);
-  // The delta from the start of the map-compare instructions (initial movq)
-  // to the test instruction.  We use masm_-> directly here instead of the
-  // __ macro because the macro sometimes uses macro expansion to turn
-  // into something that can't return a value.  This is encountered
-  // when doing generated code coverage tests.
-  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
-  // Here we use masm_-> instead of the __ macro because this is the
-  // instruction that gets patched and coverage code gets in the way.
-  masm_->testl(rax, Immediate(-delta_to_patch_site));
-  // Restore value (returned from store IC).
-  if (!value_.is(rax)) __ movq(value_, rax);
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+void DeferredInlineSmiAdd::Generate() {
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, dst_, value_);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+}
+
+
+// The result of value + src is in dst.  It either overflowed or was not
+// smi tagged.  Undo the speculative addition and call the appropriate
+// specialized stub for add.  The result is left in dst.
+class DeferredInlineSmiAddReversed: public DeferredCode {
+ public:
+  DeferredInlineSmiAddReversed(Register dst,
+                               Smi* value,
+                               OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiAddReversed");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+void DeferredInlineSmiAddReversed::Generate() {
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, value_, dst_);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+}
+
+
+class DeferredInlineSmiSub: public DeferredCode {
+ public:
+  DeferredInlineSmiSub(Register dst,
+                       Smi* value,
+                       OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiSub");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+
+void DeferredInlineSmiSub::Generate() {
+  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, dst_, value_);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+}
+
+
+Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
+                                                 Result* operand,
+                                                 Handle<Object> value,
+                                                 bool reversed,
+                                                 OverwriteMode overwrite_mode) {
+  // Generate inline code for a binary operation when one of the
+  // operands is a constant smi.  Consumes the argument "operand".
+  if (IsUnsafeSmi(value)) {
+    Result unsafe_operand(value);
+    if (reversed) {
+      return LikelySmiBinaryOperation(expr, &unsafe_operand, operand,
+                               overwrite_mode);
+    } else {
+      return LikelySmiBinaryOperation(expr, operand, &unsafe_operand,
+                               overwrite_mode);
+    }
+  }
+
+  // Get the literal value.
+  Smi* smi_value = Smi::cast(*value);
+  int int_value = smi_value->value();
+
+  Token::Value op = expr->op();
+  Result answer;
+  switch (op) {
+    case Token::ADD: {
+      operand->ToRegister();
+      frame_->Spill(operand->reg());
+      DeferredCode* deferred = NULL;
+      if (reversed) {
+        deferred = new DeferredInlineSmiAddReversed(operand->reg(),
+                                                    smi_value,
+                                                    overwrite_mode);
+      } else {
+        deferred = new DeferredInlineSmiAdd(operand->reg(),
+                                            smi_value,
+                                            overwrite_mode);
+      }
+      JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                deferred);
+      __ SmiAddConstant(operand->reg(),
+                        operand->reg(),
+                        smi_value,
+                        deferred->entry_label());
+      deferred->BindExit();
+      answer = *operand;
+      break;
+    }
+
+    case Token::SUB: {
+      if (reversed) {
+        Result constant_operand(value);
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
+                                          overwrite_mode);
+      } else {
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredCode* deferred = new DeferredInlineSmiSub(operand->reg(),
+                                                          smi_value,
+                                                          overwrite_mode);
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
+        // A smi currently fits in a 32-bit Immediate.
+        __ SmiSubConstant(operand->reg(),
+                          operand->reg(),
+                          smi_value,
+                          deferred->entry_label());
+        deferred->BindExit();
+        answer = *operand;
+      }
+      break;
+    }
+
+    case Token::SAR:
+      if (reversed) {
+        Result constant_operand(value);
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
+                                          overwrite_mode);
+      } else {
+        // Only the least significant 5 bits of the shift value are used.
+        // In the slow case, this masking is done inside the runtime call.
+        int shift_value = int_value & 0x1f;
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredInlineSmiOperation* deferred =
+            new DeferredInlineSmiOperation(op,
+                                           operand->reg(),
+                                           operand->reg(),
+                                           smi_value,
+                                           overwrite_mode);
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
+        __ SmiShiftArithmeticRightConstant(operand->reg(),
+                                           operand->reg(),
+                                           shift_value);
+        deferred->BindExit();
+        answer = *operand;
+      }
+      break;
+
+    case Token::SHR:
+      if (reversed) {
+        Result constant_operand(value);
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
+                                          overwrite_mode);
+      } else {
+        // Only the least significant 5 bits of the shift value are used.
+        // In the slow case, this masking is done inside the runtime call.
+        int shift_value = int_value & 0x1f;
+        operand->ToRegister();
+        answer = allocator()->Allocate();
+        ASSERT(answer.is_valid());
+        DeferredInlineSmiOperation* deferred =
+            new DeferredInlineSmiOperation(op,
+                                           answer.reg(),
+                                           operand->reg(),
+                                           smi_value,
+                                           overwrite_mode);
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
+        __ SmiShiftLogicalRightConstant(answer.reg(),
+                                        operand->reg(),
+                                        shift_value,
+                                        deferred->entry_label());
+        deferred->BindExit();
+        operand->Unuse();
+      }
+      break;
+
+    case Token::SHL:
+      if (reversed) {
+        operand->ToRegister();
+
+        // We need rcx to be available to hold operand, and to be spilled.
+        // SmiShiftLeft implicitly modifies rcx.
+        if (operand->reg().is(rcx)) {
+          frame_->Spill(operand->reg());
+          answer = allocator()->Allocate();
+        } else {
+          Result rcx_reg = allocator()->Allocate(rcx);
+          // answer must not be rcx.
+          answer = allocator()->Allocate();
+          // rcx_reg goes out of scope.
+        }
+
+        DeferredInlineSmiOperationReversed* deferred =
+            new DeferredInlineSmiOperationReversed(op,
+                                                   answer.reg(),
+                                                   smi_value,
+                                                   operand->reg(),
+                                                   overwrite_mode);
+        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                  deferred);
+
+        __ Move(answer.reg(), smi_value);
+        __ SmiShiftLeft(answer.reg(), answer.reg(), operand->reg());
+        operand->Unuse();
+
+        deferred->BindExit();
+      } else {
+        // Only the least significant 5 bits of the shift value are used.
+        // In the slow case, this masking is done inside the runtime call.
+        int shift_value = int_value & 0x1f;
+        operand->ToRegister();
+        if (shift_value == 0) {
+          // Spill operand so it can be overwritten in the slow case.
+          frame_->Spill(operand->reg());
+          DeferredInlineSmiOperation* deferred =
+              new DeferredInlineSmiOperation(op,
+                                             operand->reg(),
+                                             operand->reg(),
+                                             smi_value,
+                                             overwrite_mode);
+          JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                    deferred);
+          deferred->BindExit();
+          answer = *operand;
+        } else {
+          // Use a fresh temporary for nonzero shift values.
+          answer = allocator()->Allocate();
+          ASSERT(answer.is_valid());
+          DeferredInlineSmiOperation* deferred =
+              new DeferredInlineSmiOperation(op,
+                                             answer.reg(),
+                                             operand->reg(),
+                                             smi_value,
+                                             overwrite_mode);
+          JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                    deferred);
+          __ SmiShiftLeftConstant(answer.reg(),
+                                  operand->reg(),
+                                  shift_value);
+          deferred->BindExit();
+          operand->Unuse();
+        }
+      }
+      break;
+
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND: {
+      operand->ToRegister();
+      frame_->Spill(operand->reg());
+      if (reversed) {
+        // Bit operations with a constant smi are commutative.
+        // We can swap left and right operands with no problem.
+        // Swap left and right overwrite modes.  0->0, 1->2, 2->1.
+        overwrite_mode = static_cast<OverwriteMode>((2 * overwrite_mode) % 3);
+      }
+      DeferredCode* deferred =  new DeferredInlineSmiOperation(op,
+                                                               operand->reg(),
+                                                               operand->reg(),
+                                                               smi_value,
+                                                               overwrite_mode);
+      JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
+                                deferred);
+      if (op == Token::BIT_AND) {
+        __ SmiAndConstant(operand->reg(), operand->reg(), smi_value);
+      } else if (op == Token::BIT_XOR) {
+        if (int_value != 0) {
+          __ SmiXorConstant(operand->reg(), operand->reg(), smi_value);
+        }
+      } else {
+        ASSERT(op == Token::BIT_OR);
+        if (int_value != 0) {
+          __ SmiOrConstant(operand->reg(), operand->reg(), smi_value);
+        }
+      }
+      deferred->BindExit();
+      answer = *operand;
+      break;
+    }
+
+    // Generate inline code for mod of powers of 2 and negative powers of 2.
+    case Token::MOD:
+      if (!reversed &&
+          int_value != 0 &&
+          (IsPowerOf2(int_value) || IsPowerOf2(-int_value))) {
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredCode* deferred =
+            new DeferredInlineSmiOperation(op,
+                                           operand->reg(),
+                                           operand->reg(),
+                                           smi_value,
+                                           overwrite_mode);
+        // Check for negative or non-Smi left hand side.
+        __ JumpIfNotPositiveSmi(operand->reg(), deferred->entry_label());
+        if (int_value < 0) int_value = -int_value;
+        if (int_value == 1) {
+          __ Move(operand->reg(), Smi::FromInt(0));
+        } else {
+          __ SmiAndConstant(operand->reg(),
+                            operand->reg(),
+                            Smi::FromInt(int_value - 1));
+        }
+        deferred->BindExit();
+        answer = *operand;
+        break;  // This break only applies if we generated code for MOD.
+      }
+      // Fall through if we did not find a power of 2 on the right hand side!
+      // The next case must be the default.
+
+    default: {
+      Result constant_operand(value);
+      if (reversed) {
+        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
+                                          overwrite_mode);
+      } else {
+        answer = LikelySmiBinaryOperation(expr, operand, &constant_operand,
+                                          overwrite_mode);
+      }
+      break;
+    }
+  }
+  ASSERT(answer.is_valid());
+  return answer;
+}
+
+static bool CouldBeNaN(const Result& result) {
+  if (result.type_info().IsSmi()) return false;
+  if (result.type_info().IsInteger32()) return false;
+  if (!result.is_constant()) return true;
+  if (!result.handle()->IsHeapNumber()) return false;
+  return isnan(HeapNumber::cast(*result.handle())->value());
+}
+
+
+// Convert from signed to unsigned comparison to match the way EFLAGS are set
+// by FPU and XMM compare instructions.
+static Condition DoubleCondition(Condition cc) {
+  switch (cc) {
+    case less:          return below;
+    case equal:         return equal;
+    case less_equal:    return below_equal;
+    case greater:       return above;
+    case greater_equal: return above_equal;
+    default:            UNREACHABLE();
+  }
+  UNREACHABLE();
+  return equal;
+}
+
+
+void CodeGenerator::Comparison(AstNode* node,
+                               Condition cc,
+                               bool strict,
+                               ControlDestination* dest) {
+  // Strict only makes sense for equality comparisons.
+  ASSERT(!strict || cc == equal);
+
+  Result left_side;
+  Result right_side;
+  // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
+  if (cc == greater || cc == less_equal) {
+    cc = ReverseCondition(cc);
+    left_side = frame_->Pop();
+    right_side = frame_->Pop();
+  } else {
+    right_side = frame_->Pop();
+    left_side = frame_->Pop();
+  }
+  ASSERT(cc == less || cc == equal || cc == greater_equal);
+
+  // If either side is a constant smi, optimize the comparison.
+  bool left_side_constant_smi = false;
+  bool left_side_constant_null = false;
+  bool left_side_constant_1_char_string = false;
+  if (left_side.is_constant()) {
+    left_side_constant_smi = left_side.handle()->IsSmi();
+    left_side_constant_null = left_side.handle()->IsNull();
+    left_side_constant_1_char_string =
+        (left_side.handle()->IsString() &&
+         String::cast(*left_side.handle())->length() == 1 &&
+         String::cast(*left_side.handle())->IsAsciiRepresentation());
+  }
+  bool right_side_constant_smi = false;
+  bool right_side_constant_null = false;
+  bool right_side_constant_1_char_string = false;
+  if (right_side.is_constant()) {
+    right_side_constant_smi = right_side.handle()->IsSmi();
+    right_side_constant_null = right_side.handle()->IsNull();
+    right_side_constant_1_char_string =
+        (right_side.handle()->IsString() &&
+         String::cast(*right_side.handle())->length() == 1 &&
+         String::cast(*right_side.handle())->IsAsciiRepresentation());
+  }
+
+  if (left_side_constant_smi || right_side_constant_smi) {
+    if (left_side_constant_smi && right_side_constant_smi) {
+      // Trivial case, comparing two constants.
+      int left_value = Smi::cast(*left_side.handle())->value();
+      int right_value = Smi::cast(*right_side.handle())->value();
+      switch (cc) {
+        case less:
+          dest->Goto(left_value < right_value);
+          break;
+        case equal:
+          dest->Goto(left_value == right_value);
+          break;
+        case greater_equal:
+          dest->Goto(left_value >= right_value);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      // Only one side is a constant Smi.
+      // If left side is a constant Smi, reverse the operands.
+      // Since one side is a constant Smi, conversion order does not matter.
+      if (left_side_constant_smi) {
+        Result temp = left_side;
+        left_side = right_side;
+        right_side = temp;
+        cc = ReverseCondition(cc);
+        // This may re-introduce greater or less_equal as the value of cc.
+        // CompareStub and the inline code both support all values of cc.
+      }
+      // Implement comparison against a constant Smi, inlining the case
+      // where both sides are Smis.
+      left_side.ToRegister();
+      Register left_reg = left_side.reg();
+      Handle<Object> right_val = right_side.handle();
+
+      // Here we split control flow to the stub call and inlined cases
+      // before finally splitting it to the control destination.  We use
+      // a jump target and branching to duplicate the virtual frame at
+      // the first split.  We manually handle the off-frame references
+      // by reconstituting them on the non-fall-through path.
+      JumpTarget is_smi;
+
+      if (left_side.is_smi()) {
+        if (FLAG_debug_code) {
+          __ AbortIfNotSmi(left_side.reg());
+        }
+      } else {
+        Condition left_is_smi = masm_->CheckSmi(left_side.reg());
+        is_smi.Branch(left_is_smi);
+
+        bool is_loop_condition = (node->AsExpression() != NULL) &&
+            node->AsExpression()->is_loop_condition();
+        if (!is_loop_condition && right_val->IsSmi()) {
+          // Right side is a constant smi and left side has been checked
+          // not to be a smi.
+          JumpTarget not_number;
+          __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
+                 Factory::heap_number_map());
+          not_number.Branch(not_equal, &left_side);
+          __ movsd(xmm1,
+              FieldOperand(left_reg, HeapNumber::kValueOffset));
+          int value = Smi::cast(*right_val)->value();
+          if (value == 0) {
+            __ xorpd(xmm0, xmm0);
+          } else {
+            Result temp = allocator()->Allocate();
+            __ movl(temp.reg(), Immediate(value));
+            __ cvtlsi2sd(xmm0, temp.reg());
+            temp.Unuse();
+          }
+          __ ucomisd(xmm1, xmm0);
+          // Jump to builtin for NaN.
+          not_number.Branch(parity_even, &left_side);
+          left_side.Unuse();
+          dest->true_target()->Branch(DoubleCondition(cc));
+          dest->false_target()->Jump();
+          not_number.Bind(&left_side);
+        }
+
+        // Setup and call the compare stub.
+        CompareStub stub(cc, strict, kCantBothBeNaN);
+        Result result = frame_->CallStub(&stub, &left_side, &right_side);
+        result.ToRegister();
+        __ testq(result.reg(), result.reg());
+        result.Unuse();
+        dest->true_target()->Branch(cc);
+        dest->false_target()->Jump();
+
+        is_smi.Bind();
+      }
+
+      left_side = Result(left_reg);
+      right_side = Result(right_val);
+      // Test smi equality and comparison by signed int comparison.
+      // Both sides are smis, so we can use an Immediate.
+      __ SmiCompare(left_side.reg(), Smi::cast(*right_side.handle()));
+      left_side.Unuse();
+      right_side.Unuse();
+      dest->Split(cc);
+    }
+  } else if (cc == equal &&
+             (left_side_constant_null || right_side_constant_null)) {
+    // To make null checks efficient, we check if either the left side or
+    // the right side is the constant 'null'.
+    // If so, we optimize the code by inlining a null check instead of
+    // calling the (very) general runtime routine for checking equality.
+    Result operand = left_side_constant_null ? right_side : left_side;
+    right_side.Unuse();
+    left_side.Unuse();
+    operand.ToRegister();
+    __ CompareRoot(operand.reg(), Heap::kNullValueRootIndex);
+    if (strict) {
+      operand.Unuse();
+      dest->Split(equal);
+    } else {
+      // The 'null' value is only equal to 'undefined' if using non-strict
+      // comparisons.
+      dest->true_target()->Branch(equal);
+      __ CompareRoot(operand.reg(), Heap::kUndefinedValueRootIndex);
+      dest->true_target()->Branch(equal);
+      Condition is_smi = masm_->CheckSmi(operand.reg());
+      dest->false_target()->Branch(is_smi);
+
+      // It can be an undetectable object.
+      // Use a scratch register in preference to spilling operand.reg().
+      Result temp = allocator()->Allocate();
+      ASSERT(temp.is_valid());
+      __ movq(temp.reg(),
+              FieldOperand(operand.reg(), HeapObject::kMapOffset));
+      __ testb(FieldOperand(temp.reg(), Map::kBitFieldOffset),
+               Immediate(1 << Map::kIsUndetectable));
+      temp.Unuse();
+      operand.Unuse();
+      dest->Split(not_zero);
+    }
+  } else if (left_side_constant_1_char_string ||
+             right_side_constant_1_char_string) {
+    if (left_side_constant_1_char_string && right_side_constant_1_char_string) {
+      // Trivial case, comparing two constants.
+      int left_value = String::cast(*left_side.handle())->Get(0);
+      int right_value = String::cast(*right_side.handle())->Get(0);
+      switch (cc) {
+        case less:
+          dest->Goto(left_value < right_value);
+          break;
+        case equal:
+          dest->Goto(left_value == right_value);
+          break;
+        case greater_equal:
+          dest->Goto(left_value >= right_value);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      // Only one side is a constant 1 character string.
+      // If left side is a constant 1-character string, reverse the operands.
+      // Since one side is a constant string, conversion order does not matter.
+      if (left_side_constant_1_char_string) {
+        Result temp = left_side;
+        left_side = right_side;
+        right_side = temp;
+        cc = ReverseCondition(cc);
+        // This may reintroduce greater or less_equal as the value of cc.
+        // CompareStub and the inline code both support all values of cc.
+      }
+      // Implement comparison against a constant string, inlining the case
+      // where both sides are strings.
+      left_side.ToRegister();
+
+      // Here we split control flow to the stub call and inlined cases
+      // before finally splitting it to the control destination.  We use
+      // a jump target and branching to duplicate the virtual frame at
+      // the first split.  We manually handle the off-frame references
+      // by reconstituting them on the non-fall-through path.
+      JumpTarget is_not_string, is_string;
+      Register left_reg = left_side.reg();
+      Handle<Object> right_val = right_side.handle();
+      ASSERT(StringShape(String::cast(*right_val)).IsSymbol());
+      Condition is_smi = masm()->CheckSmi(left_reg);
+      is_not_string.Branch(is_smi, &left_side);
+      Result temp = allocator_->Allocate();
+      ASSERT(temp.is_valid());
+      __ movq(temp.reg(),
+              FieldOperand(left_reg, HeapObject::kMapOffset));
+      __ movzxbl(temp.reg(),
+                 FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
+      // If we are testing for equality then make use of the symbol shortcut.
+      // Check if the left hand side has the same type as the right hand
+      // side (which is always a symbol).
+      if (cc == equal) {
+        Label not_a_symbol;
+        ASSERT(kSymbolTag != 0);
+        // Ensure that no non-strings have the symbol bit set.
+        ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+        __ testb(temp.reg(), Immediate(kIsSymbolMask));  // Test the symbol bit.
+        __ j(zero, &not_a_symbol);
+        // They are symbols, so do identity compare.
+        __ Cmp(left_reg, right_side.handle());
+        dest->true_target()->Branch(equal);
+        dest->false_target()->Branch(not_equal);
+        __ bind(&not_a_symbol);
+      }
+      // Call the compare stub if the left side is not a flat ascii string.
+      __ andb(temp.reg(),
+              Immediate(kIsNotStringMask |
+                        kStringRepresentationMask |
+                        kStringEncodingMask));
+      __ cmpb(temp.reg(),
+              Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
+      temp.Unuse();
+      is_string.Branch(equal, &left_side);
+
+      // Setup and call the compare stub.
+      is_not_string.Bind(&left_side);
+      CompareStub stub(cc, strict, kCantBothBeNaN);
+      Result result = frame_->CallStub(&stub, &left_side, &right_side);
+      result.ToRegister();
+      __ testq(result.reg(), result.reg());
+      result.Unuse();
+      dest->true_target()->Branch(cc);
+      dest->false_target()->Jump();
+
+      is_string.Bind(&left_side);
+      // left_side is a sequential ASCII string.
+      ASSERT(left_side.reg().is(left_reg));
+      right_side = Result(right_val);
+      Result temp2 = allocator_->Allocate();
+      ASSERT(temp2.is_valid());
+      // Test string equality and comparison.
+      if (cc == equal) {
+        Label comparison_done;
+        __ SmiCompare(FieldOperand(left_side.reg(), String::kLengthOffset),
+                Smi::FromInt(1));
+        __ j(not_equal, &comparison_done);
+        uint8_t char_value =
+            static_cast<uint8_t>(String::cast(*right_val)->Get(0));
+        __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
+                Immediate(char_value));
+        __ bind(&comparison_done);
+      } else {
+        __ movq(temp2.reg(),
+                FieldOperand(left_side.reg(), String::kLengthOffset));
+        __ SmiSubConstant(temp2.reg(), temp2.reg(), Smi::FromInt(1));
+        Label comparison;
+        // If the length is 0 then the subtraction gave -1 which compares less
+        // than any character.
+        __ j(negative, &comparison);
+        // Otherwise load the first character.
+        __ movzxbl(temp2.reg(),
+                   FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize));
+        __ bind(&comparison);
+        // Compare the first character of the string with the
+        // constant 1-character string.
+        uint8_t char_value =
+            static_cast<uint8_t>(String::cast(*right_side.handle())->Get(0));
+        __ cmpb(temp2.reg(), Immediate(char_value));
+        Label characters_were_different;
+        __ j(not_equal, &characters_were_different);
+        // If the first character is the same then the long string sorts after
+        // the short one.
+        __ SmiCompare(FieldOperand(left_side.reg(), String::kLengthOffset),
+                      Smi::FromInt(1));
+        __ bind(&characters_were_different);
+      }
+      temp2.Unuse();
+      left_side.Unuse();
+      right_side.Unuse();
+      dest->Split(cc);
+    }
+  } else {
+    // Neither side is a constant Smi, constant 1-char string, or constant null.
+    // If either side is a non-smi constant, skip the smi check.
+    bool known_non_smi =
+        (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
+        (right_side.is_constant() && !right_side.handle()->IsSmi()) ||
+        left_side.type_info().IsDouble() ||
+        right_side.type_info().IsDouble();
+
+    NaNInformation nan_info =
+        (CouldBeNaN(left_side) && CouldBeNaN(right_side)) ?
+        kBothCouldBeNaN :
+        kCantBothBeNaN;
+
+    // Inline number comparison handling any combination of smi's and heap
+    // numbers if:
+    //   code is in a loop
+    //   the compare operation is different from equal
+    //   compare is not a for-loop comparison
+    // The reason for excluding equal is that it will most likely be done
+    // with smi's (not heap numbers) and the code to comparing smi's is inlined
+    // separately. The same reason applies for for-loop comparison which will
+    // also most likely be smi comparisons.
+    bool is_loop_condition = (node->AsExpression() != NULL)
+        && node->AsExpression()->is_loop_condition();
+    bool inline_number_compare =
+        loop_nesting() > 0 && cc != equal && !is_loop_condition;
+
+    left_side.ToRegister();
+    right_side.ToRegister();
+
+    if (known_non_smi) {
+      // Inlined equality check:
+      // If at least one of the objects is not NaN, then if the objects
+      // are identical, they are equal.
+      if (nan_info == kCantBothBeNaN && cc == equal) {
+        __ cmpq(left_side.reg(), right_side.reg());
+        dest->true_target()->Branch(equal);
+      }
+
+      // Inlined number comparison:
+      if (inline_number_compare) {
+        GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
+      }
+
+      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
+      Result answer = frame_->CallStub(&stub, &left_side, &right_side);
+      __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flag.
+      answer.Unuse();
+      dest->Split(cc);
+    } else {
+      // Here we split control flow to the stub call and inlined cases
+      // before finally splitting it to the control destination.  We use
+      // a jump target and branching to duplicate the virtual frame at
+      // the first split.  We manually handle the off-frame references
+      // by reconstituting them on the non-fall-through path.
+      JumpTarget is_smi;
+      Register left_reg = left_side.reg();
+      Register right_reg = right_side.reg();
+
+      Condition both_smi = masm_->CheckBothSmi(left_reg, right_reg);
+      is_smi.Branch(both_smi);
+
+      // Inline the equality check if both operands can't be a NaN. If both
+      // objects are the same they are equal.
+      if (nan_info == kCantBothBeNaN && cc == equal) {
+        __ cmpq(left_side.reg(), right_side.reg());
+        dest->true_target()->Branch(equal);
+      }
+
+      // Inlined number comparison:
+      if (inline_number_compare) {
+        GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
+      }
+
+      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
+      Result answer = frame_->CallStub(&stub, &left_side, &right_side);
+      __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flags.
+      answer.Unuse();
+      dest->true_target()->Branch(cc);
+      dest->false_target()->Jump();
+
+      is_smi.Bind();
+      left_side = Result(left_reg);
+      right_side = Result(right_reg);
+      __ SmiCompare(left_side.reg(), right_side.reg());
+      right_side.Unuse();
+      left_side.Unuse();
+      dest->Split(cc);
+    }
+  }
+}
+
+
+// Load a comparison operand into into a XMM register. Jump to not_numbers jump
+// target passing the left and right result if the operand is not a number.
+static void LoadComparisonOperand(MacroAssembler* masm_,
+                                  Result* operand,
+                                  XMMRegister xmm_reg,
+                                  Result* left_side,
+                                  Result* right_side,
+                                  JumpTarget* not_numbers) {
+  Label done;
+  if (operand->type_info().IsDouble()) {
+    // Operand is known to be a heap number, just load it.
+    __ movsd(xmm_reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
+  } else if (operand->type_info().IsSmi()) {
+    // Operand is known to be a smi. Convert it to double and keep the original
+    // smi.
+    __ SmiToInteger32(kScratchRegister, operand->reg());
+    __ cvtlsi2sd(xmm_reg, kScratchRegister);
+  } else {
+    // Operand type not known, check for smi or heap number.
+    Label smi;
+    __ JumpIfSmi(operand->reg(), &smi);
+    if (!operand->type_info().IsNumber()) {
+      __ LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
+      __ cmpq(FieldOperand(operand->reg(), HeapObject::kMapOffset),
+              kScratchRegister);
+      not_numbers->Branch(not_equal, left_side, right_side, taken);
+    }
+    __ movsd(xmm_reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
+    __ jmp(&done);
+
+    __ bind(&smi);
+    // Comvert smi to float and keep the original smi.
+    __ SmiToInteger32(kScratchRegister, operand->reg());
+    __ cvtlsi2sd(xmm_reg, kScratchRegister);
+    __ jmp(&done);
+  }
+  __ bind(&done);
+}
+
+
+void CodeGenerator::GenerateInlineNumberComparison(Result* left_side,
+                                                   Result* right_side,
+                                                   Condition cc,
+                                                   ControlDestination* dest) {
+  ASSERT(left_side->is_register());
+  ASSERT(right_side->is_register());
+
+  JumpTarget not_numbers;
+  // Load left and right operand into registers xmm0 and xmm1 and compare.
+  LoadComparisonOperand(masm_, left_side, xmm0, left_side, right_side,
+                        &not_numbers);
+  LoadComparisonOperand(masm_, right_side, xmm1, left_side, right_side,
+                        &not_numbers);
+  __ ucomisd(xmm0, xmm1);
+  // Bail out if a NaN is involved.
+  not_numbers.Branch(parity_even, left_side, right_side);
+
+  // Split to destination targets based on comparison.
+  left_side->Unuse();
+  right_side->Unuse();
+  dest->true_target()->Branch(DoubleCondition(cc));
+  dest->false_target()->Jump();
+
+  not_numbers.Bind(left_side, right_side);
+}
+
+
+// Call the function just below TOS on the stack with the given
+// arguments. The receiver is the TOS.
+void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
+                                      CallFunctionFlags flags,
+                                      int position) {
+  // Push the arguments ("left-to-right") on the stack.
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Load(args->at(i));
+    frame_->SpillTop();
+  }
+
+  // Record the position for debugging purposes.
+  CodeForSourcePosition(position);
+
+  // Use the shared code stub to call the function.
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop, flags);
+  Result answer = frame_->CallStub(&call_function, arg_count + 1);
+  // Restore context and replace function on the stack with the
+  // result of the stub invocation.
+  frame_->RestoreContextRegister();
+  frame_->SetElementAt(0, &answer);
 }
 
 
@@ -1010,6 +2720,21 @@ void CodeGenerator::VisitBlock(Block* node) {
 }
 
 
+void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
+  // Call the runtime to declare the globals.  The inevitable call
+  // will sync frame elements to memory anyway, so we do it eagerly to
+  // allow us to push the arguments directly into place.
+  frame_->SyncRange(0, frame_->element_count() - 1);
+
+  __ movq(kScratchRegister, pairs, RelocInfo::EMBEDDED_OBJECT);
+  frame_->EmitPush(rsi);  // The context is the first argument.
+  frame_->EmitPush(kScratchRegister);
+  frame_->EmitPush(Smi::FromInt(is_eval() ? 1 : 0));
+  Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
+  // Return value is ignored.
+}
+
+
 void CodeGenerator::VisitDeclaration(Declaration* node) {
   Comment cmnt(masm_, "[ Declaration");
   Variable* var = node->proxy()->var();
@@ -1227,6 +2952,44 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
       GenerateReturnSequence(&return_value);
     }
   }
+}
+
+
+void CodeGenerator::GenerateReturnSequence(Result* return_value) {
+  // The return value is a live (but not currently reference counted)
+  // reference to rax.  This is safe because the current frame does not
+  // contain a reference to rax (it is prepared for the return by spilling
+  // all registers).
+  if (FLAG_trace) {
+    frame_->Push(return_value);
+    *return_value = frame_->CallRuntime(Runtime::kTraceExit, 1);
+  }
+  return_value->ToRegister(rax);
+
+  // Add a label for checking the size of the code used for returning.
+#ifdef DEBUG
+  Label check_exit_codesize;
+  masm_->bind(&check_exit_codesize);
+#endif
+
+  // Leave the frame and return popping the arguments and the
+  // receiver.
+  frame_->Exit();
+  masm_->ret((scope()->num_parameters() + 1) * kPointerSize);
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Add padding that will be overwritten by a debugger breakpoint.
+  // frame_->Exit() generates "movq rsp, rbp; pop rbp; ret k"
+  // with length 7 (3 + 1 + 3).
+  const int kPadding = Assembler::kJSReturnSequenceLength - 7;
+  for (int i = 0; i < kPadding; ++i) {
+    masm_->int3();
+  }
+  // Check that the size of the code used for returning matches what is
+  // expected by the debugger.
+  ASSERT_EQ(Assembler::kJSReturnSequenceLength,
+            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+#endif
+  DeleteFrame();
 }
 
 
@@ -2531,6 +4294,349 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 }
 
 
+void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
+  if (slot->type() == Slot::LOOKUP) {
+    ASSERT(slot->var()->is_dynamic());
+
+    JumpTarget slow;
+    JumpTarget done;
+    Result value;
+
+    // Generate fast case for loading from slots that correspond to
+    // local/global variables or arguments unless they are shadowed by
+    // eval-introduced bindings.
+    EmitDynamicLoadFromSlotFastCase(slot,
+                                    typeof_state,
+                                    &value,
+                                    &slow,
+                                    &done);
+
+    slow.Bind();
+    // A runtime call is inevitable.  We eagerly sync frame elements
+    // to memory so that we can push the arguments directly into place
+    // on top of the frame.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(rsi);
+    __ movq(kScratchRegister, slot->var()->name(), RelocInfo::EMBEDDED_OBJECT);
+    frame_->EmitPush(kScratchRegister);
+    if (typeof_state == INSIDE_TYPEOF) {
+       value =
+         frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+    } else {
+       value = frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
+    }
+
+    done.Bind(&value);
+    frame_->Push(&value);
+
+  } else if (slot->var()->mode() == Variable::CONST) {
+    // Const slots may contain 'the hole' value (the constant hasn't been
+    // initialized yet) which needs to be converted into the 'undefined'
+    // value.
+    //
+    // We currently spill the virtual frame because constants use the
+    // potentially unsafe direct-frame access of SlotOperand.
+    VirtualFrame::SpilledScope spilled_scope;
+    Comment cmnt(masm_, "[ Load const");
+    JumpTarget exit;
+    __ movq(rcx, SlotOperand(slot, rcx));
+    __ CompareRoot(rcx, Heap::kTheHoleValueRootIndex);
+    exit.Branch(not_equal);
+    __ LoadRoot(rcx, Heap::kUndefinedValueRootIndex);
+    exit.Bind();
+    frame_->EmitPush(rcx);
+
+  } else if (slot->type() == Slot::PARAMETER) {
+    frame_->PushParameterAt(slot->index());
+
+  } else if (slot->type() == Slot::LOCAL) {
+    frame_->PushLocalAt(slot->index());
+
+  } else {
+    // The other remaining slot types (LOOKUP and GLOBAL) cannot reach
+    // here.
+    //
+    // The use of SlotOperand below is safe for an unspilled frame
+    // because it will always be a context slot.
+    ASSERT(slot->type() == Slot::CONTEXT);
+    Result temp = allocator_->Allocate();
+    ASSERT(temp.is_valid());
+    __ movq(temp.reg(), SlotOperand(slot, temp.reg()));
+    frame_->Push(&temp);
+  }
+}
+
+
+void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
+                                                  TypeofState state) {
+  LoadFromSlot(slot, state);
+
+  // Bail out quickly if we're not using lazy arguments allocation.
+  if (ArgumentsMode() != LAZY_ARGUMENTS_ALLOCATION) return;
+
+  // ... or if the slot isn't a non-parameter arguments slot.
+  if (slot->type() == Slot::PARAMETER || !slot->is_arguments()) return;
+
+  // Pop the loaded value from the stack.
+  Result value = frame_->Pop();
+
+  // If the loaded value is a constant, we know if the arguments
+  // object has been lazily loaded yet.
+  if (value.is_constant()) {
+    if (value.handle()->IsTheHole()) {
+      Result arguments = StoreArgumentsObject(false);
+      frame_->Push(&arguments);
+    } else {
+      frame_->Push(&value);
+    }
+    return;
+  }
+
+  // The loaded value is in a register. If it is the sentinel that
+  // indicates that we haven't loaded the arguments object yet, we
+  // need to do it now.
+  JumpTarget exit;
+  __ CompareRoot(value.reg(), Heap::kTheHoleValueRootIndex);
+  frame_->Push(&value);
+  exit.Branch(not_equal);
+  Result arguments = StoreArgumentsObject(false);
+  frame_->SetElementAt(0, &arguments);
+  exit.Bind();
+}
+
+
+Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
+    Slot* slot,
+    TypeofState typeof_state,
+    JumpTarget* slow) {
+  // Check that no extension objects have been created by calls to
+  // eval from the current scope to the global scope.
+  Register context = rsi;
+  Result tmp = allocator_->Allocate();
+  ASSERT(tmp.is_valid());  // All non-reserved registers were available.
+
+  Scope* s = scope();
+  while (s != NULL) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
+               Immediate(0));
+        slow->Branch(not_equal, not_taken);
+      }
+      // Load next context in chain.
+      __ movq(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
+      __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+      context = tmp.reg();
+    }
+    // If no outer scope calls eval, we do not need to check more
+    // context extensions.  If we have reached an eval scope, we check
+    // all extensions from this point.
+    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
+    s = s->outer_scope();
+  }
+
+  if (s->is_eval_scope()) {
+    // Loop up the context chain.  There is no frame effect so it is
+    // safe to use raw labels here.
+    Label next, fast;
+    if (!context.is(tmp.reg())) {
+      __ movq(tmp.reg(), context);
+    }
+    // Load map for comparison into register, outside loop.
+    __ LoadRoot(kScratchRegister, Heap::kGlobalContextMapRootIndex);
+    __ bind(&next);
+    // Terminate at global context.
+    __ cmpq(kScratchRegister, FieldOperand(tmp.reg(), HeapObject::kMapOffset));
+    __ j(equal, &fast);
+    // Check that extension is NULL.
+    __ cmpq(ContextOperand(tmp.reg(), Context::EXTENSION_INDEX), Immediate(0));
+    slow->Branch(not_equal);
+    // Load next context in chain.
+    __ movq(tmp.reg(), ContextOperand(tmp.reg(), Context::CLOSURE_INDEX));
+    __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+    __ jmp(&next);
+    __ bind(&fast);
+  }
+  tmp.Unuse();
+
+  // All extension objects were empty and it is safe to use a global
+  // load IC call.
+  LoadGlobal();
+  frame_->Push(slot->var()->name());
+  RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
+                         ? RelocInfo::CODE_TARGET
+                         : RelocInfo::CODE_TARGET_CONTEXT;
+  Result answer = frame_->CallLoadIC(mode);
+  // A test rax instruction following the call signals that the inobject
+  // property case was inlined.  Ensure that there is not a test rax
+  // instruction here.
+  masm_->nop();
+  return answer;
+}
+
+
+void CodeGenerator::EmitDynamicLoadFromSlotFastCase(Slot* slot,
+                                                    TypeofState typeof_state,
+                                                    Result* result,
+                                                    JumpTarget* slow,
+                                                    JumpTarget* done) {
+  // Generate fast-case code for variables that might be shadowed by
+  // eval-introduced variables.  Eval is used a lot without
+  // introducing variables.  In those cases, we do not want to
+  // perform a runtime call for all variables in the scope
+  // containing the eval.
+  if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+    *result = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, slow);
+    done->Jump(result);
+
+  } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+    Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
+    Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
+    if (potential_slot != NULL) {
+      // Generate fast case for locals that rewrite to slots.
+      // Allocate a fresh register to use as a temp in
+      // ContextSlotOperandCheckExtensions and to hold the result
+      // value.
+      *result = allocator_->Allocate();
+      ASSERT(result->is_valid());
+      __ movq(result->reg(),
+              ContextSlotOperandCheckExtensions(potential_slot,
+                                                *result,
+                                                slow));
+      if (potential_slot->var()->mode() == Variable::CONST) {
+        __ CompareRoot(result->reg(), Heap::kTheHoleValueRootIndex);
+        done->Branch(not_equal, result);
+        __ LoadRoot(result->reg(), Heap::kUndefinedValueRootIndex);
+      }
+      done->Jump(result);
+    } else if (rewrite != NULL) {
+      // Generate fast case for argument loads.
+      Property* property = rewrite->AsProperty();
+      if (property != NULL) {
+        VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+        Literal* key_literal = property->key()->AsLiteral();
+        if (obj_proxy != NULL &&
+            key_literal != NULL &&
+            obj_proxy->IsArguments() &&
+            key_literal->handle()->IsSmi()) {
+          // Load arguments object if there are no eval-introduced
+          // variables. Then load the argument from the arguments
+          // object using keyed load.
+          Result arguments = allocator()->Allocate();
+          ASSERT(arguments.is_valid());
+          __ movq(arguments.reg(),
+                  ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
+                                                    arguments,
+                                                    slow));
+          frame_->Push(&arguments);
+          frame_->Push(key_literal->handle());
+          *result = EmitKeyedLoad();
+          done->Jump(result);
+        }
+      }
+    }
+  }
+}
+
+
+void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
+  if (slot->type() == Slot::LOOKUP) {
+    ASSERT(slot->var()->is_dynamic());
+
+    // For now, just do a runtime call.  Since the call is inevitable,
+    // we eagerly sync the virtual frame so we can directly push the
+    // arguments into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+
+    frame_->EmitPush(rsi);
+    frame_->EmitPush(slot->var()->name());
+
+    Result value;
+    if (init_state == CONST_INIT) {
+      // Same as the case for a normal store, but ignores attribute
+      // (e.g. READ_ONLY) of context slot so that we can initialize const
+      // properties (introduced via eval("const foo = (some expr);")). Also,
+      // uses the current function context instead of the top context.
+      //
+      // Note that we must declare the foo upon entry of eval(), via a
+      // context slot declaration, but we cannot initialize it at the same
+      // time, because the const declaration may be at the end of the eval
+      // code (sigh...) and the const variable may have been used before
+      // (where its value is 'undefined'). Thus, we can only do the
+      // initialization when we actually encounter the expression and when
+      // the expression operands are defined and valid, and thus we need the
+      // split into 2 operations: declaration of the context slot followed
+      // by initialization.
+      value = frame_->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+    } else {
+      value = frame_->CallRuntime(Runtime::kStoreContextSlot, 3);
+    }
+    // Storing a variable must keep the (new) value on the expression
+    // stack. This is necessary for compiling chained assignment
+    // expressions.
+    frame_->Push(&value);
+  } else {
+    ASSERT(!slot->var()->is_dynamic());
+
+    JumpTarget exit;
+    if (init_state == CONST_INIT) {
+      ASSERT(slot->var()->mode() == Variable::CONST);
+      // Only the first const initialization must be executed (the slot
+      // still contains 'the hole' value). When the assignment is executed,
+      // the code is identical to a normal store (see below).
+      //
+      // We spill the frame in the code below because the direct-frame
+      // access of SlotOperand is potentially unsafe with an unspilled
+      // frame.
+      VirtualFrame::SpilledScope spilled_scope;
+      Comment cmnt(masm_, "[ Init const");
+      __ movq(rcx, SlotOperand(slot, rcx));
+      __ CompareRoot(rcx, Heap::kTheHoleValueRootIndex);
+      exit.Branch(not_equal);
+    }
+
+    // We must execute the store.  Storing a variable must keep the (new)
+    // value on the stack. This is necessary for compiling assignment
+    // expressions.
+    //
+    // Note: We will reach here even with slot->var()->mode() ==
+    // Variable::CONST because of const declarations which will initialize
+    // consts to 'the hole' value and by doing so, end up calling this code.
+    if (slot->type() == Slot::PARAMETER) {
+      frame_->StoreToParameterAt(slot->index());
+    } else if (slot->type() == Slot::LOCAL) {
+      frame_->StoreToLocalAt(slot->index());
+    } else {
+      // The other slot types (LOOKUP and GLOBAL) cannot reach here.
+      //
+      // The use of SlotOperand below is safe for an unspilled frame
+      // because the slot is a context slot.
+      ASSERT(slot->type() == Slot::CONTEXT);
+      frame_->Dup();
+      Result value = frame_->Pop();
+      value.ToRegister();
+      Result start = allocator_->Allocate();
+      ASSERT(start.is_valid());
+      __ movq(SlotOperand(slot, start.reg()), value.reg());
+      // RecordWrite may destroy the value registers.
+      //
+      // TODO(204): Avoid actually spilling when the value is not
+      // needed (probably the common case).
+      frame_->Spill(value.reg());
+      int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+      Result temp = allocator_->Allocate();
+      ASSERT(temp.is_valid());
+      __ RecordWrite(start.reg(), offset, value.reg(), temp.reg());
+      // The results start, value, and temp are unused by going out of
+      // scope.
+    }
+
+    exit.Bind();
+  }
+}
+
+
 void CodeGenerator::VisitSlot(Slot* node) {
   Comment cmnt(masm_, "[ Slot");
   LoadFromSlotCheckForArguments(node, NOT_INSIDE_TYPEOF);
@@ -2554,6 +4660,17 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 void CodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
   frame_->Push(node->handle());
+}
+
+
+void CodeGenerator::LoadUnsafeSmi(Register target, Handle<Object> value) {
+  UNIMPLEMENTED();
+  // TODO(X64): Implement security policy for loads of smis.
+}
+
+
+bool CodeGenerator::IsUnsafeSmi(Handle<Object> value) {
+  return false;
 }
 
 
@@ -3245,6 +5362,1337 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 }
 
 
+void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  Condition is_smi = masm_->CheckSmi(value.reg());
+  value.Unuse();
+  destination()->Split(is_smi);
+}
+
+
+void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
+  // Conditionally generate a log call.
+  // Args:
+  //   0 (literal string): The type of logging (corresponds to the flags).
+  //     This is used to determine whether or not to generate the log call.
+  //   1 (string): Format string.  Access the string at argument index 2
+  //     with '%2s' (see Logger::LogRuntime for all the formats).
+  //   2 (array): Arguments to the format string.
+  ASSERT_EQ(args->length(), 3);
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (ShouldGenerateLog(args->at(0))) {
+    Load(args->at(1));
+    Load(args->at(2));
+    frame_->CallRuntime(Runtime::kLog, 2);
+  }
+#endif
+  // Finally, we're expected to leave a value on the top of the stack.
+  frame_->Push(Factory::undefined_value());
+}
+
+
+void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  Condition positive_smi = masm_->CheckPositiveSmi(value.reg());
+  value.Unuse();
+  destination()->Split(positive_smi);
+}
+
+
+class DeferredStringCharCodeAt : public DeferredCode {
+ public:
+  DeferredStringCharCodeAt(Register object,
+                           Register index,
+                           Register scratch,
+                           Register result)
+      : result_(result),
+        char_code_at_generator_(object,
+                                index,
+                                scratch,
+                                result,
+                                &need_conversion_,
+                                &need_conversion_,
+                                &index_out_of_range_,
+                                STRING_INDEX_IS_NUMBER) {}
+
+  StringCharCodeAtGenerator* fast_case_generator() {
+    return &char_code_at_generator_;
+  }
+
+  virtual void Generate() {
+    VirtualFrameRuntimeCallHelper call_helper(frame_state());
+    char_code_at_generator_.GenerateSlow(masm(), call_helper);
+
+    __ bind(&need_conversion_);
+    // Move the undefined value into the result register, which will
+    // trigger conversion.
+    __ LoadRoot(result_, Heap::kUndefinedValueRootIndex);
+    __ jmp(exit_label());
+
+    __ bind(&index_out_of_range_);
+    // When the index is out of range, the spec requires us to return
+    // NaN.
+    __ LoadRoot(result_, Heap::kNanValueRootIndex);
+    __ jmp(exit_label());
+  }
+
+ private:
+  Register result_;
+
+  Label need_conversion_;
+  Label index_out_of_range_;
+
+  StringCharCodeAtGenerator char_code_at_generator_;
+};
+
+
+// This generates code that performs a String.prototype.charCodeAt() call
+// or returns a smi in order to trigger conversion.
+void CodeGenerator::GenerateStringCharCodeAt(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateStringCharCodeAt");
+  ASSERT(args->length() == 2);
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Result index = frame_->Pop();
+  Result object = frame_->Pop();
+  object.ToRegister();
+  index.ToRegister();
+  // We might mutate the object register.
+  frame_->Spill(object.reg());
+
+  // We need two extra registers.
+  Result result = allocator()->Allocate();
+  ASSERT(result.is_valid());
+  Result scratch = allocator()->Allocate();
+  ASSERT(scratch.is_valid());
+
+  DeferredStringCharCodeAt* deferred =
+      new DeferredStringCharCodeAt(object.reg(),
+                                   index.reg(),
+                                   scratch.reg(),
+                                   result.reg());
+  deferred->fast_case_generator()->GenerateFast(masm_);
+  deferred->BindExit();
+  frame_->Push(&result);
+}
+
+
+class DeferredStringCharFromCode : public DeferredCode {
+ public:
+  DeferredStringCharFromCode(Register code,
+                             Register result)
+      : char_from_code_generator_(code, result) {}
+
+  StringCharFromCodeGenerator* fast_case_generator() {
+    return &char_from_code_generator_;
+  }
+
+  virtual void Generate() {
+    VirtualFrameRuntimeCallHelper call_helper(frame_state());
+    char_from_code_generator_.GenerateSlow(masm(), call_helper);
+  }
+
+ private:
+  StringCharFromCodeGenerator char_from_code_generator_;
+};
+
+
+// Generates code for creating a one-char string from a char code.
+void CodeGenerator::GenerateStringCharFromCode(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateStringCharFromCode");
+  ASSERT(args->length() == 1);
+
+  Load(args->at(0));
+
+  Result code = frame_->Pop();
+  code.ToRegister();
+  ASSERT(code.is_valid());
+
+  Result result = allocator()->Allocate();
+  ASSERT(result.is_valid());
+
+  DeferredStringCharFromCode* deferred = new DeferredStringCharFromCode(
+      code.reg(), result.reg());
+  deferred->fast_case_generator()->GenerateFast(masm_);
+  deferred->BindExit();
+  frame_->Push(&result);
+}
+
+
+class DeferredStringCharAt : public DeferredCode {
+ public:
+  DeferredStringCharAt(Register object,
+                       Register index,
+                       Register scratch1,
+                       Register scratch2,
+                       Register result)
+      : result_(result),
+        char_at_generator_(object,
+                           index,
+                           scratch1,
+                           scratch2,
+                           result,
+                           &need_conversion_,
+                           &need_conversion_,
+                           &index_out_of_range_,
+                           STRING_INDEX_IS_NUMBER) {}
+
+  StringCharAtGenerator* fast_case_generator() {
+    return &char_at_generator_;
+  }
+
+  virtual void Generate() {
+    VirtualFrameRuntimeCallHelper call_helper(frame_state());
+    char_at_generator_.GenerateSlow(masm(), call_helper);
+
+    __ bind(&need_conversion_);
+    // Move smi zero into the result register, which will trigger
+    // conversion.
+    __ Move(result_, Smi::FromInt(0));
+    __ jmp(exit_label());
+
+    __ bind(&index_out_of_range_);
+    // When the index is out of range, the spec requires us to return
+    // the empty string.
+    __ LoadRoot(result_, Heap::kEmptyStringRootIndex);
+    __ jmp(exit_label());
+  }
+
+ private:
+  Register result_;
+
+  Label need_conversion_;
+  Label index_out_of_range_;
+
+  StringCharAtGenerator char_at_generator_;
+};
+
+
+// This generates code that performs a String.prototype.charAt() call
+// or returns a smi in order to trigger conversion.
+void CodeGenerator::GenerateStringCharAt(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateStringCharAt");
+  ASSERT(args->length() == 2);
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Result index = frame_->Pop();
+  Result object = frame_->Pop();
+  object.ToRegister();
+  index.ToRegister();
+  // We might mutate the object register.
+  frame_->Spill(object.reg());
+
+  // We need three extra registers.
+  Result result = allocator()->Allocate();
+  ASSERT(result.is_valid());
+  Result scratch1 = allocator()->Allocate();
+  ASSERT(scratch1.is_valid());
+  Result scratch2 = allocator()->Allocate();
+  ASSERT(scratch2.is_valid());
+
+  DeferredStringCharAt* deferred =
+      new DeferredStringCharAt(object.reg(),
+                               index.reg(),
+                               scratch1.reg(),
+                               scratch2.reg(),
+                               result.reg());
+  deferred->fast_case_generator()->GenerateFast(masm_);
+  deferred->BindExit();
+  frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  Condition is_smi = masm_->CheckSmi(value.reg());
+  destination()->false_target()->Branch(is_smi);
+  // It is a heap object - get map.
+  // Check if the object is a JS array or not.
+  __ CmpObjectType(value.reg(), JS_ARRAY_TYPE, kScratchRegister);
+  value.Unuse();
+  destination()->Split(equal);
+}
+
+
+void CodeGenerator::GenerateIsRegExp(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  Condition is_smi = masm_->CheckSmi(value.reg());
+  destination()->false_target()->Branch(is_smi);
+  // It is a heap object - get map.
+  // Check if the object is a regexp.
+  __ CmpObjectType(value.reg(), JS_REGEXP_TYPE, kScratchRegister);
+  value.Unuse();
+  destination()->Split(equal);
+}
+
+
+void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp')
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  Condition is_smi = masm_->CheckSmi(obj.reg());
+  destination()->false_target()->Branch(is_smi);
+
+  __ Move(kScratchRegister, Factory::null_value());
+  __ cmpq(obj.reg(), kScratchRegister);
+  destination()->true_target()->Branch(equal);
+
+  __ movq(kScratchRegister, FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  // Undetectable objects behave like undefined when tested with typeof.
+  __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
+          Immediate(1 << Map::kIsUndetectable));
+  destination()->false_target()->Branch(not_zero);
+  __ movzxbq(kScratchRegister,
+             FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
+  __ cmpq(kScratchRegister, Immediate(FIRST_JS_OBJECT_TYPE));
+  destination()->false_target()->Branch(below);
+  __ cmpq(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
+  obj.Unuse();
+  destination()->Split(below_equal);
+}
+
+
+void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (%_ClassOf(arg) === 'Function')
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  Condition is_smi = masm_->CheckSmi(obj.reg());
+  destination()->false_target()->Branch(is_smi);
+  __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, kScratchRegister);
+  obj.Unuse();
+  destination()->Split(equal);
+}
+
+
+void CodeGenerator::GenerateIsUndetectableObject(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  Condition is_smi = masm_->CheckSmi(obj.reg());
+  destination()->false_target()->Branch(is_smi);
+  __ movq(kScratchRegister, FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  __ movzxbl(kScratchRegister,
+             FieldOperand(kScratchRegister, Map::kBitFieldOffset));
+  __ testl(kScratchRegister, Immediate(1 << Map::kIsUndetectable));
+  obj.Unuse();
+  destination()->Split(not_zero);
+}
+
+
+void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+
+  // Get the frame pointer for the calling frame.
+  Result fp = allocator()->Allocate();
+  __ movq(fp.reg(), Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  Label check_frame_marker;
+  __ SmiCompare(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
+                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(not_equal, &check_frame_marker);
+  __ movq(fp.reg(), Operand(fp.reg(), StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ SmiCompare(Operand(fp.reg(), StandardFrameConstants::kMarkerOffset),
+                Smi::FromInt(StackFrame::CONSTRUCT));
+  fp.Unuse();
+  destination()->Split(equal);
+}
+
+
+void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+
+  Result fp = allocator_->Allocate();
+  Result result = allocator_->Allocate();
+  ASSERT(fp.is_valid() && result.is_valid());
+
+  Label exit;
+
+  // Get the number of formal parameters.
+  __ Move(result.reg(), Smi::FromInt(scope()->num_parameters()));
+
+  // Check if the calling frame is an arguments adaptor frame.
+  __ movq(fp.reg(), Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ SmiCompare(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
+                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(not_equal, &exit);
+
+  // Arguments adaptor case: Read the arguments length from the
+  // adaptor frame.
+  __ movq(result.reg(),
+          Operand(fp.reg(), ArgumentsAdaptorFrameConstants::kLengthOffset));
+
+  __ bind(&exit);
+  result.set_type_info(TypeInfo::Smi());
+  if (FLAG_debug_code) {
+    __ AbortIfNotSmi(result.reg());
+  }
+  frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  JumpTarget leave, null, function, non_function_constructor;
+  Load(args->at(0));  // Load the object.
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  frame_->Spill(obj.reg());
+
+  // If the object is a smi, we return null.
+  Condition is_smi = masm_->CheckSmi(obj.reg());
+  null.Branch(is_smi);
+
+  // Check that the object is a JS object but take special care of JS
+  // functions to make sure they have 'Function' as their class.
+
+  __ CmpObjectType(obj.reg(), FIRST_JS_OBJECT_TYPE, obj.reg());
+  null.Branch(below);
+
+  // As long as JS_FUNCTION_TYPE is the last instance type and it is
+  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+  // LAST_JS_OBJECT_TYPE.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+  __ CmpInstanceType(obj.reg(), JS_FUNCTION_TYPE);
+  function.Branch(equal);
+
+  // Check if the constructor in the map is a function.
+  __ movq(obj.reg(), FieldOperand(obj.reg(), Map::kConstructorOffset));
+  __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, kScratchRegister);
+  non_function_constructor.Branch(not_equal);
+
+  // The obj register now contains the constructor function. Grab the
+  // instance class name from there.
+  __ movq(obj.reg(),
+          FieldOperand(obj.reg(), JSFunction::kSharedFunctionInfoOffset));
+  __ movq(obj.reg(),
+          FieldOperand(obj.reg(),
+                       SharedFunctionInfo::kInstanceClassNameOffset));
+  frame_->Push(&obj);
+  leave.Jump();
+
+  // Functions have class 'Function'.
+  function.Bind();
+  frame_->Push(Factory::function_class_symbol());
+  leave.Jump();
+
+  // Objects with a non-function constructor have class 'Object'.
+  non_function_constructor.Bind();
+  frame_->Push(Factory::Object_symbol());
+  leave.Jump();
+
+  // Non-JS objects have class null.
+  null.Bind();
+  frame_->Push(Factory::null_value());
+
+  // All done.
+  leave.Bind();
+}
+
+
+void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  JumpTarget leave;
+  Load(args->at(0));  // Load the object.
+  frame_->Dup();
+  Result object = frame_->Pop();
+  object.ToRegister();
+  ASSERT(object.is_valid());
+  // if (object->IsSmi()) return object.
+  Condition is_smi = masm_->CheckSmi(object.reg());
+  leave.Branch(is_smi);
+  // It is a heap object - get map.
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+  // if (!object->IsJSValue()) return object.
+  __ CmpObjectType(object.reg(), JS_VALUE_TYPE, temp.reg());
+  leave.Branch(not_equal);
+  __ movq(temp.reg(), FieldOperand(object.reg(), JSValue::kValueOffset));
+  object.Unuse();
+  frame_->SetElementAt(0, &temp);
+  leave.Bind();
+}
+
+
+void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+  JumpTarget leave;
+  Load(args->at(0));  // Load the object.
+  Load(args->at(1));  // Load the value.
+  Result value = frame_->Pop();
+  Result object = frame_->Pop();
+  value.ToRegister();
+  object.ToRegister();
+
+  // if (object->IsSmi()) return value.
+  Condition is_smi = masm_->CheckSmi(object.reg());
+  leave.Branch(is_smi, &value);
+
+  // It is a heap object - get its map.
+  Result scratch = allocator_->Allocate();
+  ASSERT(scratch.is_valid());
+  // if (!object->IsJSValue()) return value.
+  __ CmpObjectType(object.reg(), JS_VALUE_TYPE, scratch.reg());
+  leave.Branch(not_equal, &value);
+
+  // Store the value.
+  __ movq(FieldOperand(object.reg(), JSValue::kValueOffset), value.reg());
+  // Update the write barrier.  Save the value as it will be
+  // overwritten by the write barrier code and is needed afterward.
+  Result duplicate_value = allocator_->Allocate();
+  ASSERT(duplicate_value.is_valid());
+  __ movq(duplicate_value.reg(), value.reg());
+  // The object register is also overwritten by the write barrier and
+  // possibly aliased in the frame.
+  frame_->Spill(object.reg());
+  __ RecordWrite(object.reg(), JSValue::kValueOffset, duplicate_value.reg(),
+                 scratch.reg());
+  object.Unuse();
+  scratch.Unuse();
+  duplicate_value.Unuse();
+
+  // Leave.
+  leave.Bind(&value);
+  frame_->Push(&value);
+}
+
+
+void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+
+  // ArgumentsAccessStub expects the key in rdx and the formal
+  // parameter count in rax.
+  Load(args->at(0));
+  Result key = frame_->Pop();
+  // Explicitly create a constant result.
+  Result count(Handle<Smi>(Smi::FromInt(scope()->num_parameters())));
+  // Call the shared stub to get to arguments[key].
+  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
+  Result result = frame_->CallStub(&stub, &key, &count);
+  frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+
+  // Load the two objects into registers and perform the comparison.
+  Load(args->at(0));
+  Load(args->at(1));
+  Result right = frame_->Pop();
+  Result left = frame_->Pop();
+  right.ToRegister();
+  left.ToRegister();
+  __ cmpq(right.reg(), left.reg());
+  right.Unuse();
+  left.Unuse();
+  destination()->Split(equal);
+}
+
+
+void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+  // RBP value is aligned, so it should be tagged as a smi (without necesarily
+  // being padded as a smi, so it should not be treated as a smi.).
+  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  Result rbp_as_smi = allocator_->Allocate();
+  ASSERT(rbp_as_smi.is_valid());
+  __ movq(rbp_as_smi.reg(), rbp);
+  frame_->Push(&rbp_as_smi);
+}
+
+
+void CodeGenerator::GenerateRandomHeapNumber(
+    ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+  frame_->SpillAll();
+
+  Label slow_allocate_heapnumber;
+  Label heapnumber_allocated;
+  __ AllocateHeapNumber(rbx, rcx, &slow_allocate_heapnumber);
+  __ jmp(&heapnumber_allocated);
+
+  __ bind(&slow_allocate_heapnumber);
+  // Allocate a heap number.
+  __ CallRuntime(Runtime::kNumberAlloc, 0);
+  __ movq(rbx, rax);
+
+  __ bind(&heapnumber_allocated);
+
+  // Return a random uint32 number in rax.
+  // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
+  __ PrepareCallCFunction(0);
+  __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+
+  // Convert 32 random bits in rax to 0.(32 random bits) in a double
+  // by computing:
+  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+  __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
+  __ movd(xmm1, rcx);
+  __ movd(xmm0, rax);
+  __ cvtss2sd(xmm1, xmm1);
+  __ xorpd(xmm0, xmm1);
+  __ subsd(xmm0, xmm1);
+  __ movsd(FieldOperand(rbx, HeapNumber::kValueOffset), xmm0);
+
+  __ movq(rax, rbx);
+  Result result = allocator_->Allocate(rax);
+  frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+
+  StringAddStub stub(NO_STRING_ADD_FLAGS);
+  Result answer = frame_->CallStub(&stub, 2);
+  frame_->Push(&answer);
+}
+
+
+void CodeGenerator::GenerateSubString(ZoneList<Expression*>* args) {
+  ASSERT_EQ(3, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+
+  SubStringStub stub;
+  Result answer = frame_->CallStub(&stub, 3);
+  frame_->Push(&answer);
+}
+
+
+void CodeGenerator::GenerateStringCompare(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+
+  StringCompareStub stub;
+  Result answer = frame_->CallStub(&stub, 2);
+  frame_->Push(&answer);
+}
+
+
+void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 4);
+
+  // Load the arguments on the stack and call the runtime system.
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+  Load(args->at(3));
+  RegExpExecStub stub;
+  Result result = frame_->CallStub(&stub, 4);
+  frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
+  // No stub. This code only occurs a few times in regexp.js.
+  const int kMaxInlineLength = 100;
+  ASSERT_EQ(3, args->length());
+  Load(args->at(0));  // Size of array, smi.
+  Load(args->at(1));  // "index" property value.
+  Load(args->at(2));  // "input" property value.
+  {
+    VirtualFrame::SpilledScope spilled_scope;
+
+    Label slowcase;
+    Label done;
+    __ movq(r8, Operand(rsp, kPointerSize * 2));
+    __ JumpIfNotSmi(r8, &slowcase);
+    __ SmiToInteger32(rbx, r8);
+    __ cmpl(rbx, Immediate(kMaxInlineLength));
+    __ j(above, &slowcase);
+    // Smi-tagging is equivalent to multiplying by 2.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize == 1);
+    // Allocate RegExpResult followed by FixedArray with size in ebx.
+    // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
+    // Elements:  [Map][Length][..elements..]
+    __ AllocateInNewSpace(JSRegExpResult::kSize + FixedArray::kHeaderSize,
+                          times_pointer_size,
+                          rbx,  // In: Number of elements.
+                          rax,  // Out: Start of allocation (tagged).
+                          rcx,  // Out: End of allocation.
+                          rdx,  // Scratch register
+                          &slowcase,
+                          TAG_OBJECT);
+    // rax: Start of allocated area, object-tagged.
+    // rbx: Number of array elements as int32.
+    // r8: Number of array elements as smi.
+
+    // Set JSArray map to global.regexp_result_map().
+    __ movq(rdx, ContextOperand(rsi, Context::GLOBAL_INDEX));
+    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalContextOffset));
+    __ movq(rdx, ContextOperand(rdx, Context::REGEXP_RESULT_MAP_INDEX));
+    __ movq(FieldOperand(rax, HeapObject::kMapOffset), rdx);
+
+    // Set empty properties FixedArray.
+    __ Move(FieldOperand(rax, JSObject::kPropertiesOffset),
+            Factory::empty_fixed_array());
+
+    // Set elements to point to FixedArray allocated right after the JSArray.
+    __ lea(rcx, Operand(rax, JSRegExpResult::kSize));
+    __ movq(FieldOperand(rax, JSObject::kElementsOffset), rcx);
+
+    // Set input, index and length fields from arguments.
+    __ pop(FieldOperand(rax, JSRegExpResult::kInputOffset));
+    __ pop(FieldOperand(rax, JSRegExpResult::kIndexOffset));
+    __ lea(rsp, Operand(rsp, kPointerSize));
+    __ movq(FieldOperand(rax, JSArray::kLengthOffset), r8);
+
+    // Fill out the elements FixedArray.
+    // rax: JSArray.
+    // rcx: FixedArray.
+    // rbx: Number of elements in array as int32.
+
+    // Set map.
+    __ Move(FieldOperand(rcx, HeapObject::kMapOffset),
+            Factory::fixed_array_map());
+    // Set length.
+    __ Integer32ToSmi(rdx, rbx);
+    __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rdx);
+    // Fill contents of fixed-array with the-hole.
+    __ Move(rdx, Factory::the_hole_value());
+    __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
+    // Fill fixed array elements with hole.
+    // rax: JSArray.
+    // rbx: Number of elements in array that remains to be filled, as int32.
+    // rcx: Start of elements in FixedArray.
+    // rdx: the hole.
+    Label loop;
+    __ testl(rbx, rbx);
+    __ bind(&loop);
+    __ j(less_equal, &done);  // Jump if ecx is negative or zero.
+    __ subl(rbx, Immediate(1));
+    __ movq(Operand(rcx, rbx, times_pointer_size, 0), rdx);
+    __ jmp(&loop);
+
+    __ bind(&slowcase);
+    __ CallRuntime(Runtime::kRegExpConstructResult, 3);
+
+    __ bind(&done);
+  }
+  frame_->Forget(3);
+  frame_->Push(rax);
+}
+
+
+class DeferredSearchCache: public DeferredCode {
+ public:
+  DeferredSearchCache(Register dst,
+                      Register cache,
+                      Register key,
+                      Register scratch)
+      : dst_(dst), cache_(cache), key_(key), scratch_(scratch) {
+    set_comment("[ DeferredSearchCache");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;    // on invocation index of finger (as int32), on exit
+                    // holds value being looked up.
+  Register cache_;  // instance of JSFunctionResultCache.
+  Register key_;    // key being looked up.
+  Register scratch_;
+};
+
+
+// Return a position of the element at |index| + |additional_offset|
+// in FixedArray pointer to which is held in |array|.  |index| is int32.
+static Operand ArrayElement(Register array,
+                            Register index,
+                            int additional_offset = 0) {
+  int offset = FixedArray::kHeaderSize + additional_offset * kPointerSize;
+  return FieldOperand(array, index, times_pointer_size, offset);
+}
+
+
+void DeferredSearchCache::Generate() {
+  Label first_loop, search_further, second_loop, cache_miss;
+
+  Immediate kEntriesIndexImm = Immediate(JSFunctionResultCache::kEntriesIndex);
+  Immediate kEntrySizeImm = Immediate(JSFunctionResultCache::kEntrySize);
+
+  // Check the cache from finger to start of the cache.
+  __ bind(&first_loop);
+  __ subl(dst_, kEntrySizeImm);
+  __ cmpl(dst_, kEntriesIndexImm);
+  __ j(less, &search_further);
+
+  __ cmpq(ArrayElement(cache_, dst_), key_);
+  __ j(not_equal, &first_loop);
+
+  __ Integer32ToSmiField(
+      FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
+  __ movq(dst_, ArrayElement(cache_, dst_, 1));
+  __ jmp(exit_label());
+
+  __ bind(&search_further);
+
+  // Check the cache from end of cache up to finger.
+  __ SmiToInteger32(dst_,
+                    FieldOperand(cache_,
+                                 JSFunctionResultCache::kCacheSizeOffset));
+  __ SmiToInteger32(scratch_,
+                    FieldOperand(cache_, JSFunctionResultCache::kFingerOffset));
+
+  __ bind(&second_loop);
+  __ subl(dst_, kEntrySizeImm);
+  __ cmpl(dst_, scratch_);
+  __ j(less_equal, &cache_miss);
+
+  __ cmpq(ArrayElement(cache_, dst_), key_);
+  __ j(not_equal, &second_loop);
+
+  __ Integer32ToSmiField(
+      FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
+  __ movq(dst_, ArrayElement(cache_, dst_, 1));
+  __ jmp(exit_label());
+
+  __ bind(&cache_miss);
+  __ push(cache_);  // store a reference to cache
+  __ push(key_);  // store a key
+  __ push(Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ push(key_);
+  // On x64 function must be in rdi.
+  __ movq(rdi, FieldOperand(cache_, JSFunctionResultCache::kFactoryOffset));
+  ParameterCount expected(1);
+  __ InvokeFunction(rdi, expected, CALL_FUNCTION);
+
+  // Find a place to put new cached value into.
+  Label add_new_entry, update_cache;
+  __ movq(rcx, Operand(rsp, kPointerSize));  // restore the cache
+  // Possible optimization: cache size is constant for the given cache
+  // so technically we could use a constant here.  However, if we have
+  // cache miss this optimization would hardly matter much.
+
+  // Check if we could add new entry to cache.
+  __ SmiToInteger32(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
+  __ SmiToInteger32(r9,
+                    FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset));
+  __ cmpl(rbx, r9);
+  __ j(greater, &add_new_entry);
+
+  // Check if we could evict entry after finger.
+  __ SmiToInteger32(rdx,
+                    FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
+  __ addl(rdx, kEntrySizeImm);
+  Label forward;
+  __ cmpl(rbx, rdx);
+  __ j(greater, &forward);
+  // Need to wrap over the cache.
+  __ movl(rdx, kEntriesIndexImm);
+  __ bind(&forward);
+  __ movl(r9, rdx);
+  __ jmp(&update_cache);
+
+  __ bind(&add_new_entry);
+  // r9 holds cache size as int32.
+  __ leal(rbx, Operand(r9, JSFunctionResultCache::kEntrySize));
+  __ Integer32ToSmiField(
+      FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset), rbx);
+
+  // Update the cache itself.
+  // r9 holds the index as int32.
+  __ bind(&update_cache);
+  __ pop(rbx);  // restore the key
+  __ Integer32ToSmiField(
+      FieldOperand(rcx, JSFunctionResultCache::kFingerOffset), r9);
+  // Store key.
+  __ movq(ArrayElement(rcx, r9), rbx);
+  __ RecordWrite(rcx, 0, rbx, r9);
+
+  // Store value.
+  __ pop(rcx);  // restore the cache.
+  __ SmiToInteger32(rdx,
+                    FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
+  __ incl(rdx);
+  // Backup rax, because the RecordWrite macro clobbers its arguments.
+  __ movq(rbx, rax);
+  __ movq(ArrayElement(rcx, rdx), rax);
+  __ RecordWrite(rcx, 0, rbx, rdx);
+
+  if (!dst_.is(rax)) {
+    __ movq(dst_, rax);
+  }
+}
+
+
+void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  ASSERT_NE(NULL, args->at(0)->AsLiteral());
+  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
+
+  Handle<FixedArray> jsfunction_result_caches(
+      Top::global_context()->jsfunction_result_caches());
+  if (jsfunction_result_caches->length() <= cache_id) {
+    __ Abort("Attempt to use undefined cache.");
+    frame_->Push(Factory::undefined_value());
+    return;
+  }
+
+  Load(args->at(1));
+  Result key = frame_->Pop();
+  key.ToRegister();
+
+  Result cache = allocator()->Allocate();
+  ASSERT(cache.is_valid());
+  __ movq(cache.reg(), ContextOperand(rsi, Context::GLOBAL_INDEX));
+  __ movq(cache.reg(),
+          FieldOperand(cache.reg(), GlobalObject::kGlobalContextOffset));
+  __ movq(cache.reg(),
+          ContextOperand(cache.reg(), Context::JSFUNCTION_RESULT_CACHES_INDEX));
+  __ movq(cache.reg(),
+          FieldOperand(cache.reg(), FixedArray::OffsetOfElementAt(cache_id)));
+
+  Result tmp = allocator()->Allocate();
+  ASSERT(tmp.is_valid());
+
+  Result scratch = allocator()->Allocate();
+  ASSERT(scratch.is_valid());
+
+  DeferredSearchCache* deferred = new DeferredSearchCache(tmp.reg(),
+                                                          cache.reg(),
+                                                          key.reg(),
+                                                          scratch.reg());
+
+  const int kFingerOffset =
+      FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
+  // tmp.reg() now holds finger offset as a smi.
+  __ SmiToInteger32(tmp.reg(), FieldOperand(cache.reg(), kFingerOffset));
+  __ cmpq(key.reg(), FieldOperand(cache.reg(),
+                                  tmp.reg(), times_pointer_size,
+                                  FixedArray::kHeaderSize));
+  deferred->Branch(not_equal);
+  __ movq(tmp.reg(), FieldOperand(cache.reg(),
+                                  tmp.reg(), times_pointer_size,
+                                  FixedArray::kHeaderSize + kPointerSize));
+
+  deferred->BindExit();
+  frame_->Push(&tmp);
+}
+
+
+void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+
+  // Load the argument on the stack and jump to the runtime.
+  Load(args->at(0));
+
+  NumberToStringStub stub;
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
+class DeferredSwapElements: public DeferredCode {
+ public:
+  DeferredSwapElements(Register object, Register index1, Register index2)
+      : object_(object), index1_(index1), index2_(index2) {
+    set_comment("[ DeferredSwapElements");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register object_, index1_, index2_;
+};
+
+
+void DeferredSwapElements::Generate() {
+  __ push(object_);
+  __ push(index1_);
+  __ push(index2_);
+  __ CallRuntime(Runtime::kSwapElements, 3);
+}
+
+
+void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
+  Comment cmnt(masm_, "[ GenerateSwapElements");
+
+  ASSERT_EQ(3, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+
+  Result index2 = frame_->Pop();
+  index2.ToRegister();
+
+  Result index1 = frame_->Pop();
+  index1.ToRegister();
+
+  Result object = frame_->Pop();
+  object.ToRegister();
+
+  Result tmp1 = allocator()->Allocate();
+  tmp1.ToRegister();
+  Result tmp2 = allocator()->Allocate();
+  tmp2.ToRegister();
+
+  frame_->Spill(object.reg());
+  frame_->Spill(index1.reg());
+  frame_->Spill(index2.reg());
+
+  DeferredSwapElements* deferred = new DeferredSwapElements(object.reg(),
+                                                            index1.reg(),
+                                                            index2.reg());
+
+  // Fetch the map and check if array is in fast case.
+  // Check that object doesn't require security checks and
+  // has no indexed interceptor.
+  __ CmpObjectType(object.reg(), FIRST_JS_OBJECT_TYPE, tmp1.reg());
+  deferred->Branch(below);
+  __ testb(FieldOperand(tmp1.reg(), Map::kBitFieldOffset),
+           Immediate(KeyedLoadIC::kSlowCaseBitFieldMask));
+  deferred->Branch(not_zero);
+
+  // Check the object's elements are in fast case.
+  __ movq(tmp1.reg(), FieldOperand(object.reg(), JSObject::kElementsOffset));
+  __ CompareRoot(FieldOperand(tmp1.reg(), HeapObject::kMapOffset),
+                 Heap::kFixedArrayMapRootIndex);
+  deferred->Branch(not_equal);
+
+  // Check that both indices are smis.
+  Condition both_smi = __ CheckBothSmi(index1.reg(), index2.reg());
+  deferred->Branch(NegateCondition(both_smi));
+
+  // Bring addresses into index1 and index2.
+  __ SmiToInteger32(index1.reg(), index1.reg());
+  __ lea(index1.reg(), FieldOperand(tmp1.reg(),
+                                    index1.reg(),
+                                    times_pointer_size,
+                                    FixedArray::kHeaderSize));
+  __ SmiToInteger32(index2.reg(), index2.reg());
+  __ lea(index2.reg(), FieldOperand(tmp1.reg(),
+                                    index2.reg(),
+                                    times_pointer_size,
+                                    FixedArray::kHeaderSize));
+
+  // Swap elements.
+  __ movq(object.reg(), Operand(index1.reg(), 0));
+  __ movq(tmp2.reg(), Operand(index2.reg(), 0));
+  __ movq(Operand(index2.reg(), 0), object.reg());
+  __ movq(Operand(index1.reg(), 0), tmp2.reg());
+
+  Label done;
+  __ InNewSpace(tmp1.reg(), tmp2.reg(), equal, &done);
+  // Possible optimization: do a check that both values are Smis
+  // (or them and test against Smi mask.)
+
+  __ movq(tmp2.reg(), tmp1.reg());
+  RecordWriteStub recordWrite1(tmp2.reg(), index1.reg(), object.reg());
+  __ CallStub(&recordWrite1);
+
+  RecordWriteStub recordWrite2(tmp1.reg(), index2.reg(), object.reg());
+  __ CallStub(&recordWrite2);
+
+  __ bind(&done);
+
+  deferred->BindExit();
+  frame_->Push(Factory::undefined_value());
+}
+
+
+void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
+  Comment cmnt(masm_, "[ GenerateCallFunction");
+
+  ASSERT(args->length() >= 2);
+
+  int n_args = args->length() - 2;  // for receiver and function.
+  Load(args->at(0));  // receiver
+  for (int i = 0; i < n_args; i++) {
+    Load(args->at(i + 1));
+  }
+  Load(args->at(n_args + 1));  // function
+  Result result = frame_->CallJSFunction(n_args);
+  frame_->Push(&result);
+}
+
+
+// Generates the Math.pow method. Only handles special cases and
+// branches to the runtime system for everything else. Please note
+// that this function assumes that the callsite has executed ToNumber
+// on both arguments.
+void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+  Load(args->at(0));
+  Load(args->at(1));
+
+  Label allocate_return;
+  // Load the two operands while leaving the values on the frame.
+  frame()->Dup();
+  Result exponent = frame()->Pop();
+  exponent.ToRegister();
+  frame()->Spill(exponent.reg());
+  frame()->PushElementAt(1);
+  Result base = frame()->Pop();
+  base.ToRegister();
+  frame()->Spill(base.reg());
+
+  Result answer = allocator()->Allocate();
+  ASSERT(answer.is_valid());
+  ASSERT(!exponent.reg().is(base.reg()));
+  JumpTarget call_runtime;
+
+  // Save 1 in xmm3 - we need this several times later on.
+  __ movl(answer.reg(), Immediate(1));
+  __ cvtlsi2sd(xmm3, answer.reg());
+
+  Label exponent_nonsmi;
+  Label base_nonsmi;
+  // If the exponent is a heap number go to that specific case.
+  __ JumpIfNotSmi(exponent.reg(), &exponent_nonsmi);
+  __ JumpIfNotSmi(base.reg(), &base_nonsmi);
+
+  // Optimized version when y is an integer.
+  Label powi;
+  __ SmiToInteger32(base.reg(), base.reg());
+  __ cvtlsi2sd(xmm0, base.reg());
+  __ jmp(&powi);
+  // exponent is smi and base is a heapnumber.
+  __ bind(&base_nonsmi);
+  __ CompareRoot(FieldOperand(base.reg(), HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  call_runtime.Branch(not_equal);
+
+  __ movsd(xmm0, FieldOperand(base.reg(), HeapNumber::kValueOffset));
+
+  // Optimized version of pow if y is an integer.
+  __ bind(&powi);
+  __ SmiToInteger32(exponent.reg(), exponent.reg());
+
+  // Save exponent in base as we need to check if exponent is negative later.
+  // We know that base and exponent are in different registers.
+  __ movl(base.reg(), exponent.reg());
+
+  // Get absolute value of exponent.
+  Label no_neg;
+  __ cmpl(exponent.reg(), Immediate(0));
+  __ j(greater_equal, &no_neg);
+  __ negl(exponent.reg());
+  __ bind(&no_neg);
+
+  // Load xmm1 with 1.
+  __ movsd(xmm1, xmm3);
+  Label while_true;
+  Label no_multiply;
+
+  __ bind(&while_true);
+  __ shrl(exponent.reg(), Immediate(1));
+  __ j(not_carry, &no_multiply);
+  __ mulsd(xmm1, xmm0);
+  __ bind(&no_multiply);
+  __ testl(exponent.reg(), exponent.reg());
+  __ mulsd(xmm0, xmm0);
+  __ j(not_zero, &while_true);
+
+  // x has the original value of y - if y is negative return 1/result.
+  __ testl(base.reg(), base.reg());
+  __ j(positive, &allocate_return);
+  // Special case if xmm1 has reached infinity.
+  __ movl(answer.reg(), Immediate(0x7FB00000));
+  __ movd(xmm0, answer.reg());
+  __ cvtss2sd(xmm0, xmm0);
+  __ ucomisd(xmm0, xmm1);
+  call_runtime.Branch(equal);
+  __ divsd(xmm3, xmm1);
+  __ movsd(xmm1, xmm3);
+  __ jmp(&allocate_return);
+
+  // exponent (or both) is a heapnumber - no matter what we should now work
+  // on doubles.
+  __ bind(&exponent_nonsmi);
+  __ CompareRoot(FieldOperand(exponent.reg(), HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  call_runtime.Branch(not_equal);
+  __ movsd(xmm1, FieldOperand(exponent.reg(), HeapNumber::kValueOffset));
+  // Test if exponent is nan.
+  __ ucomisd(xmm1, xmm1);
+  call_runtime.Branch(parity_even);
+
+  Label base_not_smi;
+  Label handle_special_cases;
+  __ JumpIfNotSmi(base.reg(), &base_not_smi);
+  __ SmiToInteger32(base.reg(), base.reg());
+  __ cvtlsi2sd(xmm0, base.reg());
+  __ jmp(&handle_special_cases);
+  __ bind(&base_not_smi);
+  __ CompareRoot(FieldOperand(base.reg(), HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  call_runtime.Branch(not_equal);
+  __ movl(answer.reg(), FieldOperand(base.reg(), HeapNumber::kExponentOffset));
+  __ andl(answer.reg(), Immediate(HeapNumber::kExponentMask));
+  __ cmpl(answer.reg(), Immediate(HeapNumber::kExponentMask));
+  // base is NaN or +/-Infinity
+  call_runtime.Branch(greater_equal);
+  __ movsd(xmm0, FieldOperand(base.reg(), HeapNumber::kValueOffset));
+
+  // base is in xmm0 and exponent is in xmm1.
+  __ bind(&handle_special_cases);
+  Label not_minus_half;
+  // Test for -0.5.
+  // Load xmm2 with -0.5.
+  __ movl(answer.reg(), Immediate(0xBF000000));
+  __ movd(xmm2, answer.reg());
+  __ cvtss2sd(xmm2, xmm2);
+  // xmm2 now has -0.5.
+  __ ucomisd(xmm2, xmm1);
+  __ j(not_equal, &not_minus_half);
+
+  // Calculates reciprocal of square root.
+  // Note that 1/sqrt(x) = sqrt(1/x))
+  __ divsd(xmm3, xmm0);
+  __ movsd(xmm1, xmm3);
+  __ sqrtsd(xmm1, xmm1);
+  __ jmp(&allocate_return);
+
+  // Test for 0.5.
+  __ bind(&not_minus_half);
+  // Load xmm2 with 0.5.
+  // Since xmm3 is 1 and xmm2 is -0.5 this is simply xmm2 + xmm3.
+  __ addsd(xmm2, xmm3);
+  // xmm2 now has 0.5.
+  __ ucomisd(xmm2, xmm1);
+  call_runtime.Branch(not_equal);
+
+  // Calculates square root.
+  __ movsd(xmm1, xmm0);
+  __ sqrtsd(xmm1, xmm1);
+
+  JumpTarget done;
+  Label failure, success;
+  __ bind(&allocate_return);
+  // Make a copy of the frame to enable us to handle allocation
+  // failure after the JumpTarget jump.
+  VirtualFrame* clone = new VirtualFrame(frame());
+  __ AllocateHeapNumber(answer.reg(), exponent.reg(), &failure);
+  __ movsd(FieldOperand(answer.reg(), HeapNumber::kValueOffset), xmm1);
+  // Remove the two original values from the frame - we only need those
+  // in the case where we branch to runtime.
+  frame()->Drop(2);
+  exponent.Unuse();
+  base.Unuse();
+  done.Jump(&answer);
+  // Use the copy of the original frame as our current frame.
+  RegisterFile empty_regs;
+  SetFrame(clone, &empty_regs);
+  // If we experience an allocation failure we branch to runtime.
+  __ bind(&failure);
+  call_runtime.Bind();
+  answer = frame()->CallRuntime(Runtime::kMath_pow_cfunction, 2);
+
+  done.Bind(&answer);
+  frame()->Push(&answer);
+}
+
+
+void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  Load(args->at(0));
+  TranscendentalCacheStub stub(TranscendentalCache::SIN);
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  Load(args->at(0));
+  TranscendentalCacheStub stub(TranscendentalCache::COS);
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
+// Generates the Math.sqrt method. Please note - this function assumes that
+// the callsite has executed ToNumber on the argument.
+void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+
+  // Leave original value on the frame if we need to call runtime.
+  frame()->Dup();
+  Result result = frame()->Pop();
+  result.ToRegister();
+  frame()->Spill(result.reg());
+  Label runtime;
+  Label non_smi;
+  Label load_done;
+  JumpTarget end;
+
+  __ JumpIfNotSmi(result.reg(), &non_smi);
+  __ SmiToInteger32(result.reg(), result.reg());
+  __ cvtlsi2sd(xmm0, result.reg());
+  __ jmp(&load_done);
+  __ bind(&non_smi);
+  __ CompareRoot(FieldOperand(result.reg(), HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &runtime);
+  __ movsd(xmm0, FieldOperand(result.reg(), HeapNumber::kValueOffset));
+
+  __ bind(&load_done);
+  __ sqrtsd(xmm0, xmm0);
+  // A copy of the virtual frame to allow us to go to runtime after the
+  // JumpTarget jump.
+  Result scratch = allocator()->Allocate();
+  VirtualFrame* clone = new VirtualFrame(frame());
+  __ AllocateHeapNumber(result.reg(), scratch.reg(), &runtime);
+
+  __ movsd(FieldOperand(result.reg(), HeapNumber::kValueOffset), xmm0);
+  frame()->Drop(1);
+  scratch.Unuse();
+  end.Jump(&result);
+  // We only branch to runtime if we have an allocation error.
+  // Use the copy of the original frame as our current frame.
+  RegisterFile empty_regs;
+  SetFrame(clone, &empty_regs);
+  __ bind(&runtime);
+  result = frame()->CallRuntime(Runtime::kMath_sqrt, 1);
+
+  end.Bind(&result);
+  frame()->Push(&result);
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) {
     return;
@@ -3815,6 +7263,10 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 }
 
 
+void CodeGenerator::VisitThisFunction(ThisFunction* node) {
+  frame_->PushFunction();
+}
+
 
 void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   Comment cmnt(masm_, "[ CompareOperation");
@@ -3979,2880 +7431,21 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 }
 
 
-void CodeGenerator::VisitThisFunction(ThisFunction* node) {
-  frame_->PushFunction();
-}
-
-
-void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-
-  // ArgumentsAccessStub expects the key in rdx and the formal
-  // parameter count in rax.
-  Load(args->at(0));
-  Result key = frame_->Pop();
-  // Explicitly create a constant result.
-  Result count(Handle<Smi>(Smi::FromInt(scope()->num_parameters())));
-  // Call the shared stub to get to arguments[key].
-  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
-  Result result = frame_->CallStub(&stub, &key, &count);
-  frame_->Push(&result);
-}
-
-
-void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  Result value = frame_->Pop();
-  value.ToRegister();
-  ASSERT(value.is_valid());
-  Condition is_smi = masm_->CheckSmi(value.reg());
-  destination()->false_target()->Branch(is_smi);
-  // It is a heap object - get map.
-  // Check if the object is a JS array or not.
-  __ CmpObjectType(value.reg(), JS_ARRAY_TYPE, kScratchRegister);
-  value.Unuse();
-  destination()->Split(equal);
-}
-
-
-void CodeGenerator::GenerateIsRegExp(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  Result value = frame_->Pop();
-  value.ToRegister();
-  ASSERT(value.is_valid());
-  Condition is_smi = masm_->CheckSmi(value.reg());
-  destination()->false_target()->Branch(is_smi);
-  // It is a heap object - get map.
-  // Check if the object is a regexp.
-  __ CmpObjectType(value.reg(), JS_REGEXP_TYPE, kScratchRegister);
-  value.Unuse();
-  destination()->Split(equal);
-}
-
-
-void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
-  // This generates a fast version of:
-  // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp')
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  Result obj = frame_->Pop();
-  obj.ToRegister();
-  Condition is_smi = masm_->CheckSmi(obj.reg());
-  destination()->false_target()->Branch(is_smi);
-
-  __ Move(kScratchRegister, Factory::null_value());
-  __ cmpq(obj.reg(), kScratchRegister);
-  destination()->true_target()->Branch(equal);
-
-  __ movq(kScratchRegister, FieldOperand(obj.reg(), HeapObject::kMapOffset));
-  // Undetectable objects behave like undefined when tested with typeof.
-  __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
-          Immediate(1 << Map::kIsUndetectable));
-  destination()->false_target()->Branch(not_zero);
-  __ movzxbq(kScratchRegister,
-             FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
-  __ cmpq(kScratchRegister, Immediate(FIRST_JS_OBJECT_TYPE));
-  destination()->false_target()->Branch(below);
-  __ cmpq(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
-  obj.Unuse();
-  destination()->Split(below_equal);
-}
-
-
-void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
-  // This generates a fast version of:
-  // (%_ClassOf(arg) === 'Function')
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  Result obj = frame_->Pop();
-  obj.ToRegister();
-  Condition is_smi = masm_->CheckSmi(obj.reg());
-  destination()->false_target()->Branch(is_smi);
-  __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, kScratchRegister);
-  obj.Unuse();
-  destination()->Split(equal);
-}
-
-
-void CodeGenerator::GenerateIsUndetectableObject(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  Result obj = frame_->Pop();
-  obj.ToRegister();
-  Condition is_smi = masm_->CheckSmi(obj.reg());
-  destination()->false_target()->Branch(is_smi);
-  __ movq(kScratchRegister, FieldOperand(obj.reg(), HeapObject::kMapOffset));
-  __ movzxbl(kScratchRegister,
-             FieldOperand(kScratchRegister, Map::kBitFieldOffset));
-  __ testl(kScratchRegister, Immediate(1 << Map::kIsUndetectable));
-  obj.Unuse();
-  destination()->Split(not_zero);
-}
-
-
-void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 0);
-
-  // Get the frame pointer for the calling frame.
-  Result fp = allocator()->Allocate();
-  __ movq(fp.reg(), Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-
-  // Skip the arguments adaptor frame if it exists.
-  Label check_frame_marker;
-  __ SmiCompare(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(not_equal, &check_frame_marker);
-  __ movq(fp.reg(), Operand(fp.reg(), StandardFrameConstants::kCallerFPOffset));
-
-  // Check the marker in the calling frame.
-  __ bind(&check_frame_marker);
-  __ SmiCompare(Operand(fp.reg(), StandardFrameConstants::kMarkerOffset),
-                Smi::FromInt(StackFrame::CONSTRUCT));
-  fp.Unuse();
-  destination()->Split(equal);
-}
-
-
-void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 0);
-
-  Result fp = allocator_->Allocate();
-  Result result = allocator_->Allocate();
-  ASSERT(fp.is_valid() && result.is_valid());
-
-  Label exit;
-
-  // Get the number of formal parameters.
-  __ Move(result.reg(), Smi::FromInt(scope()->num_parameters()));
-
-  // Check if the calling frame is an arguments adaptor frame.
-  __ movq(fp.reg(), Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ SmiCompare(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(not_equal, &exit);
-
-  // Arguments adaptor case: Read the arguments length from the
-  // adaptor frame.
-  __ movq(result.reg(),
-          Operand(fp.reg(), ArgumentsAdaptorFrameConstants::kLengthOffset));
-
-  __ bind(&exit);
-  result.set_type_info(TypeInfo::Smi());
-  if (FLAG_debug_code) {
-    __ AbortIfNotSmi(result.reg());
-  }
-  frame_->Push(&result);
-}
-
-
-class DeferredStringCharCodeAt : public DeferredCode {
- public:
-  DeferredStringCharCodeAt(Register object,
-                           Register index,
-                           Register scratch,
-                           Register result)
-      : result_(result),
-        char_code_at_generator_(object,
-                                index,
-                                scratch,
-                                result,
-                                &need_conversion_,
-                                &need_conversion_,
-                                &index_out_of_range_,
-                                STRING_INDEX_IS_NUMBER) {}
-
-  StringCharCodeAtGenerator* fast_case_generator() {
-    return &char_code_at_generator_;
-  }
-
-  virtual void Generate() {
-    VirtualFrameRuntimeCallHelper call_helper(frame_state());
-    char_code_at_generator_.GenerateSlow(masm(), call_helper);
-
-    __ bind(&need_conversion_);
-    // Move the undefined value into the result register, which will
-    // trigger conversion.
-    __ LoadRoot(result_, Heap::kUndefinedValueRootIndex);
-    __ jmp(exit_label());
-
-    __ bind(&index_out_of_range_);
-    // When the index is out of range, the spec requires us to return
-    // NaN.
-    __ LoadRoot(result_, Heap::kNanValueRootIndex);
-    __ jmp(exit_label());
-  }
-
- private:
-  Register result_;
-
-  Label need_conversion_;
-  Label index_out_of_range_;
-
-  StringCharCodeAtGenerator char_code_at_generator_;
-};
-
-
-// This generates code that performs a String.prototype.charCodeAt() call
-// or returns a smi in order to trigger conversion.
-void CodeGenerator::GenerateStringCharCodeAt(ZoneList<Expression*>* args) {
-  Comment(masm_, "[ GenerateStringCharCodeAt");
-  ASSERT(args->length() == 2);
-
-  Load(args->at(0));
-  Load(args->at(1));
-  Result index = frame_->Pop();
-  Result object = frame_->Pop();
-  object.ToRegister();
-  index.ToRegister();
-  // We might mutate the object register.
-  frame_->Spill(object.reg());
-
-  // We need two extra registers.
-  Result result = allocator()->Allocate();
-  ASSERT(result.is_valid());
-  Result scratch = allocator()->Allocate();
-  ASSERT(scratch.is_valid());
-
-  DeferredStringCharCodeAt* deferred =
-      new DeferredStringCharCodeAt(object.reg(),
-                                   index.reg(),
-                                   scratch.reg(),
-                                   result.reg());
-  deferred->fast_case_generator()->GenerateFast(masm_);
-  deferred->BindExit();
-  frame_->Push(&result);
-}
-
-
-class DeferredStringCharFromCode : public DeferredCode {
- public:
-  DeferredStringCharFromCode(Register code,
-                             Register result)
-      : char_from_code_generator_(code, result) {}
-
-  StringCharFromCodeGenerator* fast_case_generator() {
-    return &char_from_code_generator_;
-  }
-
-  virtual void Generate() {
-    VirtualFrameRuntimeCallHelper call_helper(frame_state());
-    char_from_code_generator_.GenerateSlow(masm(), call_helper);
-  }
-
- private:
-  StringCharFromCodeGenerator char_from_code_generator_;
-};
-
-
-// Generates code for creating a one-char string from a char code.
-void CodeGenerator::GenerateStringCharFromCode(ZoneList<Expression*>* args) {
-  Comment(masm_, "[ GenerateStringCharFromCode");
-  ASSERT(args->length() == 1);
-
-  Load(args->at(0));
-
-  Result code = frame_->Pop();
-  code.ToRegister();
-  ASSERT(code.is_valid());
-
-  Result result = allocator()->Allocate();
-  ASSERT(result.is_valid());
-
-  DeferredStringCharFromCode* deferred = new DeferredStringCharFromCode(
-      code.reg(), result.reg());
-  deferred->fast_case_generator()->GenerateFast(masm_);
-  deferred->BindExit();
-  frame_->Push(&result);
-}
-
-
-class DeferredStringCharAt : public DeferredCode {
- public:
-  DeferredStringCharAt(Register object,
-                       Register index,
-                       Register scratch1,
-                       Register scratch2,
-                       Register result)
-      : result_(result),
-        char_at_generator_(object,
-                           index,
-                           scratch1,
-                           scratch2,
-                           result,
-                           &need_conversion_,
-                           &need_conversion_,
-                           &index_out_of_range_,
-                           STRING_INDEX_IS_NUMBER) {}
-
-  StringCharAtGenerator* fast_case_generator() {
-    return &char_at_generator_;
-  }
-
-  virtual void Generate() {
-    VirtualFrameRuntimeCallHelper call_helper(frame_state());
-    char_at_generator_.GenerateSlow(masm(), call_helper);
-
-    __ bind(&need_conversion_);
-    // Move smi zero into the result register, which will trigger
-    // conversion.
-    __ Move(result_, Smi::FromInt(0));
-    __ jmp(exit_label());
-
-    __ bind(&index_out_of_range_);
-    // When the index is out of range, the spec requires us to return
-    // the empty string.
-    __ LoadRoot(result_, Heap::kEmptyStringRootIndex);
-    __ jmp(exit_label());
-  }
-
- private:
-  Register result_;
-
-  Label need_conversion_;
-  Label index_out_of_range_;
-
-  StringCharAtGenerator char_at_generator_;
-};
-
-
-// This generates code that performs a String.prototype.charAt() call
-// or returns a smi in order to trigger conversion.
-void CodeGenerator::GenerateStringCharAt(ZoneList<Expression*>* args) {
-  Comment(masm_, "[ GenerateStringCharAt");
-  ASSERT(args->length() == 2);
-
-  Load(args->at(0));
-  Load(args->at(1));
-  Result index = frame_->Pop();
-  Result object = frame_->Pop();
-  object.ToRegister();
-  index.ToRegister();
-  // We might mutate the object register.
-  frame_->Spill(object.reg());
-
-  // We need three extra registers.
-  Result result = allocator()->Allocate();
-  ASSERT(result.is_valid());
-  Result scratch1 = allocator()->Allocate();
-  ASSERT(scratch1.is_valid());
-  Result scratch2 = allocator()->Allocate();
-  ASSERT(scratch2.is_valid());
-
-  DeferredStringCharAt* deferred =
-      new DeferredStringCharAt(object.reg(),
-                               index.reg(),
-                               scratch1.reg(),
-                               scratch2.reg(),
-                               result.reg());
-  deferred->fast_case_generator()->GenerateFast(masm_);
-  deferred->BindExit();
-  frame_->Push(&result);
-}
-
-
-void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  Result value = frame_->Pop();
-  value.ToRegister();
-  ASSERT(value.is_valid());
-  Condition positive_smi = masm_->CheckPositiveSmi(value.reg());
-  value.Unuse();
-  destination()->Split(positive_smi);
-}
-
-
-// Generates the Math.pow method. Only handles special cases and
-// branches to the runtime system for everything else. Please note
-// that this function assumes that the callsite has executed ToNumber
-// on both arguments.
-void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 2);
-  Load(args->at(0));
-  Load(args->at(1));
-
-  Label allocate_return;
-  // Load the two operands while leaving the values on the frame.
-  frame()->Dup();
-  Result exponent = frame()->Pop();
-  exponent.ToRegister();
-  frame()->Spill(exponent.reg());
-  frame()->PushElementAt(1);
-  Result base = frame()->Pop();
-  base.ToRegister();
-  frame()->Spill(base.reg());
-
-  Result answer = allocator()->Allocate();
-  ASSERT(answer.is_valid());
-  ASSERT(!exponent.reg().is(base.reg()));
-  JumpTarget call_runtime;
-
-  // Save 1 in xmm3 - we need this several times later on.
-  __ movl(answer.reg(), Immediate(1));
-  __ cvtlsi2sd(xmm3, answer.reg());
-
-  Label exponent_nonsmi;
-  Label base_nonsmi;
-  // If the exponent is a heap number go to that specific case.
-  __ JumpIfNotSmi(exponent.reg(), &exponent_nonsmi);
-  __ JumpIfNotSmi(base.reg(), &base_nonsmi);
-
-  // Optimized version when y is an integer.
-  Label powi;
-  __ SmiToInteger32(base.reg(), base.reg());
-  __ cvtlsi2sd(xmm0, base.reg());
-  __ jmp(&powi);
-  // exponent is smi and base is a heapnumber.
-  __ bind(&base_nonsmi);
-  __ CompareRoot(FieldOperand(base.reg(), HeapObject::kMapOffset),
-                 Heap::kHeapNumberMapRootIndex);
-  call_runtime.Branch(not_equal);
-
-  __ movsd(xmm0, FieldOperand(base.reg(), HeapNumber::kValueOffset));
-
-  // Optimized version of pow if y is an integer.
-  __ bind(&powi);
-  __ SmiToInteger32(exponent.reg(), exponent.reg());
-
-  // Save exponent in base as we need to check if exponent is negative later.
-  // We know that base and exponent are in different registers.
-  __ movl(base.reg(), exponent.reg());
-
-  // Get absolute value of exponent.
-  Label no_neg;
-  __ cmpl(exponent.reg(), Immediate(0));
-  __ j(greater_equal, &no_neg);
-  __ negl(exponent.reg());
-  __ bind(&no_neg);
-
-  // Load xmm1 with 1.
-  __ movsd(xmm1, xmm3);
-  Label while_true;
-  Label no_multiply;
-
-  __ bind(&while_true);
-  __ shrl(exponent.reg(), Immediate(1));
-  __ j(not_carry, &no_multiply);
-  __ mulsd(xmm1, xmm0);
-  __ bind(&no_multiply);
-  __ testl(exponent.reg(), exponent.reg());
-  __ mulsd(xmm0, xmm0);
-  __ j(not_zero, &while_true);
-
-  // x has the original value of y - if y is negative return 1/result.
-  __ testl(base.reg(), base.reg());
-  __ j(positive, &allocate_return);
-  // Special case if xmm1 has reached infinity.
-  __ movl(answer.reg(), Immediate(0x7FB00000));
-  __ movd(xmm0, answer.reg());
-  __ cvtss2sd(xmm0, xmm0);
-  __ ucomisd(xmm0, xmm1);
-  call_runtime.Branch(equal);
-  __ divsd(xmm3, xmm1);
-  __ movsd(xmm1, xmm3);
-  __ jmp(&allocate_return);
-
-  // exponent (or both) is a heapnumber - no matter what we should now work
-  // on doubles.
-  __ bind(&exponent_nonsmi);
-  __ CompareRoot(FieldOperand(exponent.reg(), HeapObject::kMapOffset),
-                 Heap::kHeapNumberMapRootIndex);
-  call_runtime.Branch(not_equal);
-  __ movsd(xmm1, FieldOperand(exponent.reg(), HeapNumber::kValueOffset));
-  // Test if exponent is nan.
-  __ ucomisd(xmm1, xmm1);
-  call_runtime.Branch(parity_even);
-
-  Label base_not_smi;
-  Label handle_special_cases;
-  __ JumpIfNotSmi(base.reg(), &base_not_smi);
-  __ SmiToInteger32(base.reg(), base.reg());
-  __ cvtlsi2sd(xmm0, base.reg());
-  __ jmp(&handle_special_cases);
-  __ bind(&base_not_smi);
-  __ CompareRoot(FieldOperand(base.reg(), HeapObject::kMapOffset),
-                 Heap::kHeapNumberMapRootIndex);
-  call_runtime.Branch(not_equal);
-  __ movl(answer.reg(), FieldOperand(base.reg(), HeapNumber::kExponentOffset));
-  __ andl(answer.reg(), Immediate(HeapNumber::kExponentMask));
-  __ cmpl(answer.reg(), Immediate(HeapNumber::kExponentMask));
-  // base is NaN or +/-Infinity
-  call_runtime.Branch(greater_equal);
-  __ movsd(xmm0, FieldOperand(base.reg(), HeapNumber::kValueOffset));
-
-  // base is in xmm0 and exponent is in xmm1.
-  __ bind(&handle_special_cases);
-  Label not_minus_half;
-  // Test for -0.5.
-  // Load xmm2 with -0.5.
-  __ movl(answer.reg(), Immediate(0xBF000000));
-  __ movd(xmm2, answer.reg());
-  __ cvtss2sd(xmm2, xmm2);
-  // xmm2 now has -0.5.
-  __ ucomisd(xmm2, xmm1);
-  __ j(not_equal, &not_minus_half);
-
-  // Calculates reciprocal of square root.
-  // Note that 1/sqrt(x) = sqrt(1/x))
-  __ divsd(xmm3, xmm0);
-  __ movsd(xmm1, xmm3);
-  __ sqrtsd(xmm1, xmm1);
-  __ jmp(&allocate_return);
-
-  // Test for 0.5.
-  __ bind(&not_minus_half);
-  // Load xmm2 with 0.5.
-  // Since xmm3 is 1 and xmm2 is -0.5 this is simply xmm2 + xmm3.
-  __ addsd(xmm2, xmm3);
-  // xmm2 now has 0.5.
-  __ ucomisd(xmm2, xmm1);
-  call_runtime.Branch(not_equal);
-
-  // Calculates square root.
-  __ movsd(xmm1, xmm0);
-  __ sqrtsd(xmm1, xmm1);
-
-  JumpTarget done;
-  Label failure, success;
-  __ bind(&allocate_return);
-  // Make a copy of the frame to enable us to handle allocation
-  // failure after the JumpTarget jump.
-  VirtualFrame* clone = new VirtualFrame(frame());
-  __ AllocateHeapNumber(answer.reg(), exponent.reg(), &failure);
-  __ movsd(FieldOperand(answer.reg(), HeapNumber::kValueOffset), xmm1);
-  // Remove the two original values from the frame - we only need those
-  // in the case where we branch to runtime.
-  frame()->Drop(2);
-  exponent.Unuse();
-  base.Unuse();
-  done.Jump(&answer);
-  // Use the copy of the original frame as our current frame.
-  RegisterFile empty_regs;
-  SetFrame(clone, &empty_regs);
-  // If we experience an allocation failure we branch to runtime.
-  __ bind(&failure);
-  call_runtime.Bind();
-  answer = frame()->CallRuntime(Runtime::kMath_pow_cfunction, 2);
-
-  done.Bind(&answer);
-  frame()->Push(&answer);
-}
-
-
-// Generates the Math.sqrt method. Please note - this function assumes that
-// the callsite has executed ToNumber on the argument.
-void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-
-  // Leave original value on the frame if we need to call runtime.
-  frame()->Dup();
-  Result result = frame()->Pop();
-  result.ToRegister();
-  frame()->Spill(result.reg());
-  Label runtime;
-  Label non_smi;
-  Label load_done;
-  JumpTarget end;
-
-  __ JumpIfNotSmi(result.reg(), &non_smi);
-  __ SmiToInteger32(result.reg(), result.reg());
-  __ cvtlsi2sd(xmm0, result.reg());
-  __ jmp(&load_done);
-  __ bind(&non_smi);
-  __ CompareRoot(FieldOperand(result.reg(), HeapObject::kMapOffset),
-                 Heap::kHeapNumberMapRootIndex);
-  __ j(not_equal, &runtime);
-  __ movsd(xmm0, FieldOperand(result.reg(), HeapNumber::kValueOffset));
-
-  __ bind(&load_done);
-  __ sqrtsd(xmm0, xmm0);
-  // A copy of the virtual frame to allow us to go to runtime after the
-  // JumpTarget jump.
-  Result scratch = allocator()->Allocate();
-  VirtualFrame* clone = new VirtualFrame(frame());
-  __ AllocateHeapNumber(result.reg(), scratch.reg(), &runtime);
-
-  __ movsd(FieldOperand(result.reg(), HeapNumber::kValueOffset), xmm0);
-  frame()->Drop(1);
-  scratch.Unuse();
-  end.Jump(&result);
-  // We only branch to runtime if we have an allocation error.
-  // Use the copy of the original frame as our current frame.
-  RegisterFile empty_regs;
-  SetFrame(clone, &empty_regs);
-  __ bind(&runtime);
-  result = frame()->CallRuntime(Runtime::kMath_sqrt, 1);
-
-  end.Bind(&result);
-  frame()->Push(&result);
-}
-
-
-void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  Result value = frame_->Pop();
-  value.ToRegister();
-  ASSERT(value.is_valid());
-  Condition is_smi = masm_->CheckSmi(value.reg());
-  value.Unuse();
-  destination()->Split(is_smi);
-}
-
-
-void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
-  // Conditionally generate a log call.
-  // Args:
-  //   0 (literal string): The type of logging (corresponds to the flags).
-  //     This is used to determine whether or not to generate the log call.
-  //   1 (string): Format string.  Access the string at argument index 2
-  //     with '%2s' (see Logger::LogRuntime for all the formats).
-  //   2 (array): Arguments to the format string.
-  ASSERT_EQ(args->length(), 3);
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (ShouldGenerateLog(args->at(0))) {
-    Load(args->at(1));
-    Load(args->at(2));
-    frame_->CallRuntime(Runtime::kLog, 2);
-  }
-#endif
-  // Finally, we're expected to leave a value on the top of the stack.
-  frame_->Push(Factory::undefined_value());
-}
-
-
-void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 2);
-
-  // Load the two objects into registers and perform the comparison.
-  Load(args->at(0));
-  Load(args->at(1));
-  Result right = frame_->Pop();
-  Result left = frame_->Pop();
-  right.ToRegister();
-  left.ToRegister();
-  __ cmpq(right.reg(), left.reg());
-  right.Unuse();
-  left.Unuse();
-  destination()->Split(equal);
-}
-
-
-void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 0);
-  // RBP value is aligned, so it should be tagged as a smi (without necesarily
-  // being padded as a smi, so it should not be treated as a smi.).
-  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  Result rbp_as_smi = allocator_->Allocate();
-  ASSERT(rbp_as_smi.is_valid());
-  __ movq(rbp_as_smi.reg(), rbp);
-  frame_->Push(&rbp_as_smi);
-}
-
-
-void CodeGenerator::GenerateRandomHeapNumber(
-    ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 0);
-  frame_->SpillAll();
-
-  Label slow_allocate_heapnumber;
-  Label heapnumber_allocated;
-  __ AllocateHeapNumber(rbx, rcx, &slow_allocate_heapnumber);
-  __ jmp(&heapnumber_allocated);
-
-  __ bind(&slow_allocate_heapnumber);
-  // To allocate a heap number, and ensure that it is not a smi, we
-  // call the runtime function FUnaryMinus on 0, returning the double
-  // -0.0.  A new, distinct heap number is returned each time.
-  __ Push(Smi::FromInt(0));
-  __ CallRuntime(Runtime::kNumberUnaryMinus, 1);
-  __ movq(rbx, rax);
-
-  __ bind(&heapnumber_allocated);
-
-  // Return a random uint32 number in rax.
-  // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
-  __ PrepareCallCFunction(0);
-  __ CallCFunction(ExternalReference::random_uint32_function(), 0);
-
-  // Convert 32 random bits in rax to 0.(32 random bits) in a double
-  // by computing:
-  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
-  __ movd(xmm1, rcx);
-  __ movd(xmm0, rax);
-  __ cvtss2sd(xmm1, xmm1);
-  __ xorpd(xmm0, xmm1);
-  __ subsd(xmm0, xmm1);
-  __ movsd(FieldOperand(rbx, HeapNumber::kValueOffset), xmm0);
-
-  __ movq(rax, rbx);
-  Result result = allocator_->Allocate(rax);
-  frame_->Push(&result);
-}
-
-
-void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
-  ASSERT_EQ(args->length(), 4);
-
-  // Load the arguments on the stack and call the runtime system.
-  Load(args->at(0));
-  Load(args->at(1));
-  Load(args->at(2));
-  Load(args->at(3));
-  RegExpExecStub stub;
-  Result result = frame_->CallStub(&stub, 4);
-  frame_->Push(&result);
-}
-
-
-void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
-  // No stub. This code only occurs a few times in regexp.js.
-  const int kMaxInlineLength = 100;
-  ASSERT_EQ(3, args->length());
-  Load(args->at(0));  // Size of array, smi.
-  Load(args->at(1));  // "index" property value.
-  Load(args->at(2));  // "input" property value.
-  {
-    VirtualFrame::SpilledScope spilled_scope;
-
-    Label slowcase;
-    Label done;
-    __ movq(r8, Operand(rsp, kPointerSize * 2));
-    __ JumpIfNotSmi(r8, &slowcase);
-    __ SmiToInteger32(rbx, r8);
-    __ cmpl(rbx, Immediate(kMaxInlineLength));
-    __ j(above, &slowcase);
-    // Smi-tagging is equivalent to multiplying by 2.
-    STATIC_ASSERT(kSmiTag == 0);
-    STATIC_ASSERT(kSmiTagSize == 1);
-    // Allocate RegExpResult followed by FixedArray with size in ebx.
-    // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
-    // Elements:  [Map][Length][..elements..]
-    __ AllocateInNewSpace(JSRegExpResult::kSize + FixedArray::kHeaderSize,
-                          times_pointer_size,
-                          rbx,  // In: Number of elements.
-                          rax,  // Out: Start of allocation (tagged).
-                          rcx,  // Out: End of allocation.
-                          rdx,  // Scratch register
-                          &slowcase,
-                          TAG_OBJECT);
-    // rax: Start of allocated area, object-tagged.
-    // rbx: Number of array elements as int32.
-    // r8: Number of array elements as smi.
-
-    // Set JSArray map to global.regexp_result_map().
-    __ movq(rdx, ContextOperand(rsi, Context::GLOBAL_INDEX));
-    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalContextOffset));
-    __ movq(rdx, ContextOperand(rdx, Context::REGEXP_RESULT_MAP_INDEX));
-    __ movq(FieldOperand(rax, HeapObject::kMapOffset), rdx);
-
-    // Set empty properties FixedArray.
-    __ Move(FieldOperand(rax, JSObject::kPropertiesOffset),
-            Factory::empty_fixed_array());
-
-    // Set elements to point to FixedArray allocated right after the JSArray.
-    __ lea(rcx, Operand(rax, JSRegExpResult::kSize));
-    __ movq(FieldOperand(rax, JSObject::kElementsOffset), rcx);
-
-    // Set input, index and length fields from arguments.
-    __ pop(FieldOperand(rax, JSRegExpResult::kInputOffset));
-    __ pop(FieldOperand(rax, JSRegExpResult::kIndexOffset));
-    __ lea(rsp, Operand(rsp, kPointerSize));
-    __ movq(FieldOperand(rax, JSArray::kLengthOffset), r8);
-
-    // Fill out the elements FixedArray.
-    // rax: JSArray.
-    // rcx: FixedArray.
-    // rbx: Number of elements in array as int32.
-
-    // Set map.
-    __ Move(FieldOperand(rcx, HeapObject::kMapOffset),
-            Factory::fixed_array_map());
-    // Set length.
-    __ Integer32ToSmi(rdx, rbx);
-    __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rdx);
-    // Fill contents of fixed-array with the-hole.
-    __ Move(rdx, Factory::the_hole_value());
-    __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
-    // Fill fixed array elements with hole.
-    // rax: JSArray.
-    // rbx: Number of elements in array that remains to be filled, as int32.
-    // rcx: Start of elements in FixedArray.
-    // rdx: the hole.
-    Label loop;
-    __ testl(rbx, rbx);
-    __ bind(&loop);
-    __ j(less_equal, &done);  // Jump if ecx is negative or zero.
-    __ subl(rbx, Immediate(1));
-    __ movq(Operand(rcx, rbx, times_pointer_size, 0), rdx);
-    __ jmp(&loop);
-
-    __ bind(&slowcase);
-    __ CallRuntime(Runtime::kRegExpConstructResult, 3);
-
-    __ bind(&done);
-  }
-  frame_->Forget(3);
-  frame_->Push(rax);
-}
-
-
-class DeferredSearchCache: public DeferredCode {
- public:
-  DeferredSearchCache(Register dst,
-                      Register cache,
-                      Register key,
-                      Register scratch)
-      : dst_(dst), cache_(cache), key_(key), scratch_(scratch) {
-    set_comment("[ DeferredSearchCache");
-  }
-
-  virtual void Generate();
-
- private:
-  Register dst_;    // on invocation index of finger (as int32), on exit
-                    // holds value being looked up.
-  Register cache_;  // instance of JSFunctionResultCache.
-  Register key_;    // key being looked up.
-  Register scratch_;
-};
-
-
-// Return a position of the element at |index| + |additional_offset|
-// in FixedArray pointer to which is held in |array|.  |index| is int32.
-static Operand ArrayElement(Register array,
-                            Register index,
-                            int additional_offset = 0) {
-  int offset = FixedArray::kHeaderSize + additional_offset * kPointerSize;
-  return FieldOperand(array, index, times_pointer_size, offset);
-}
-
-
-void DeferredSearchCache::Generate() {
-  Label first_loop, search_further, second_loop, cache_miss;
-
-  Immediate kEntriesIndexImm = Immediate(JSFunctionResultCache::kEntriesIndex);
-  Immediate kEntrySizeImm = Immediate(JSFunctionResultCache::kEntrySize);
-
-  // Check the cache from finger to start of the cache.
-  __ bind(&first_loop);
-  __ subl(dst_, kEntrySizeImm);
-  __ cmpl(dst_, kEntriesIndexImm);
-  __ j(less, &search_further);
-
-  __ cmpq(ArrayElement(cache_, dst_), key_);
-  __ j(not_equal, &first_loop);
-
-  __ Integer32ToSmiField(
-      FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
-  __ movq(dst_, ArrayElement(cache_, dst_, 1));
-  __ jmp(exit_label());
-
-  __ bind(&search_further);
-
-  // Check the cache from end of cache up to finger.
-  __ SmiToInteger32(dst_,
-                    FieldOperand(cache_,
-                                 JSFunctionResultCache::kCacheSizeOffset));
-  __ SmiToInteger32(scratch_,
-                    FieldOperand(cache_, JSFunctionResultCache::kFingerOffset));
-
-  __ bind(&second_loop);
-  __ subl(dst_, kEntrySizeImm);
-  __ cmpl(dst_, scratch_);
-  __ j(less_equal, &cache_miss);
-
-  __ cmpq(ArrayElement(cache_, dst_), key_);
-  __ j(not_equal, &second_loop);
-
-  __ Integer32ToSmiField(
-      FieldOperand(cache_, JSFunctionResultCache::kFingerOffset), dst_);
-  __ movq(dst_, ArrayElement(cache_, dst_, 1));
-  __ jmp(exit_label());
-
-  __ bind(&cache_miss);
-  __ push(cache_);  // store a reference to cache
-  __ push(key_);  // store a key
-  __ push(Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ push(key_);
-  // On x64 function must be in rdi.
-  __ movq(rdi, FieldOperand(cache_, JSFunctionResultCache::kFactoryOffset));
-  ParameterCount expected(1);
-  __ InvokeFunction(rdi, expected, CALL_FUNCTION);
-
-  // Find a place to put new cached value into.
-  Label add_new_entry, update_cache;
-  __ movq(rcx, Operand(rsp, kPointerSize));  // restore the cache
-  // Possible optimization: cache size is constant for the given cache
-  // so technically we could use a constant here.  However, if we have
-  // cache miss this optimization would hardly matter much.
-
-  // Check if we could add new entry to cache.
-  __ SmiToInteger32(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
-  __ SmiToInteger32(r9,
-                    FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset));
-  __ cmpl(rbx, r9);
-  __ j(greater, &add_new_entry);
-
-  // Check if we could evict entry after finger.
-  __ SmiToInteger32(rdx,
-                    FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
-  __ addl(rdx, kEntrySizeImm);
-  Label forward;
-  __ cmpl(rbx, rdx);
-  __ j(greater, &forward);
-  // Need to wrap over the cache.
-  __ movl(rdx, kEntriesIndexImm);
-  __ bind(&forward);
-  __ movl(r9, rdx);
-  __ jmp(&update_cache);
-
-  __ bind(&add_new_entry);
-  // r9 holds cache size as int32.
-  __ leal(rbx, Operand(r9, JSFunctionResultCache::kEntrySize));
-  __ Integer32ToSmiField(
-      FieldOperand(rcx, JSFunctionResultCache::kCacheSizeOffset), rbx);
-
-  // Update the cache itself.
-  // r9 holds the index as int32.
-  __ bind(&update_cache);
-  __ pop(rbx);  // restore the key
-  __ Integer32ToSmiField(
-      FieldOperand(rcx, JSFunctionResultCache::kFingerOffset), r9);
-  // Store key.
-  __ movq(ArrayElement(rcx, r9), rbx);
-  __ RecordWrite(rcx, 0, rbx, r9);
-
-  // Store value.
-  __ pop(rcx);  // restore the cache.
-  __ SmiToInteger32(rdx,
-                    FieldOperand(rcx, JSFunctionResultCache::kFingerOffset));
-  __ incl(rdx);
-  // Backup rax, because the RecordWrite macro clobbers its arguments.
-  __ movq(rbx, rax);
-  __ movq(ArrayElement(rcx, rdx), rax);
-  __ RecordWrite(rcx, 0, rbx, rdx);
-
-  if (!dst_.is(rax)) {
-    __ movq(dst_, rax);
-  }
-}
-
-
-void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
-  ASSERT_EQ(2, args->length());
-
-  ASSERT_NE(NULL, args->at(0)->AsLiteral());
-  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
-
-  Handle<FixedArray> jsfunction_result_caches(
-      Top::global_context()->jsfunction_result_caches());
-  if (jsfunction_result_caches->length() <= cache_id) {
-    __ Abort("Attempt to use undefined cache.");
-    frame_->Push(Factory::undefined_value());
-    return;
-  }
-
-  Load(args->at(1));
-  Result key = frame_->Pop();
-  key.ToRegister();
-
-  Result cache = allocator()->Allocate();
-  ASSERT(cache.is_valid());
-  __ movq(cache.reg(), ContextOperand(rsi, Context::GLOBAL_INDEX));
-  __ movq(cache.reg(),
-          FieldOperand(cache.reg(), GlobalObject::kGlobalContextOffset));
-  __ movq(cache.reg(),
-          ContextOperand(cache.reg(), Context::JSFUNCTION_RESULT_CACHES_INDEX));
-  __ movq(cache.reg(),
-          FieldOperand(cache.reg(), FixedArray::OffsetOfElementAt(cache_id)));
-
-  Result tmp = allocator()->Allocate();
-  ASSERT(tmp.is_valid());
-
-  Result scratch = allocator()->Allocate();
-  ASSERT(scratch.is_valid());
-
-  DeferredSearchCache* deferred = new DeferredSearchCache(tmp.reg(),
-                                                          cache.reg(),
-                                                          key.reg(),
-                                                          scratch.reg());
-
-  const int kFingerOffset =
-      FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
-  // tmp.reg() now holds finger offset as a smi.
-  __ SmiToInteger32(tmp.reg(), FieldOperand(cache.reg(), kFingerOffset));
-  __ cmpq(key.reg(), FieldOperand(cache.reg(),
-                                  tmp.reg(), times_pointer_size,
-                                  FixedArray::kHeaderSize));
-  deferred->Branch(not_equal);
-  __ movq(tmp.reg(), FieldOperand(cache.reg(),
-                                  tmp.reg(), times_pointer_size,
-                                  FixedArray::kHeaderSize + kPointerSize));
-
-  deferred->BindExit();
-  frame_->Push(&tmp);
-}
-
-
-void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
-  ASSERT_EQ(args->length(), 1);
-
-  // Load the argument on the stack and jump to the runtime.
-  Load(args->at(0));
-
-  NumberToStringStub stub;
-  Result result = frame_->CallStub(&stub, 1);
-  frame_->Push(&result);
-}
-
-
-class DeferredSwapElements: public DeferredCode {
- public:
-  DeferredSwapElements(Register object, Register index1, Register index2)
-      : object_(object), index1_(index1), index2_(index2) {
-    set_comment("[ DeferredSwapElements");
-  }
-
-  virtual void Generate();
-
- private:
-  Register object_, index1_, index2_;
-};
-
-
-void DeferredSwapElements::Generate() {
-  __ push(object_);
-  __ push(index1_);
-  __ push(index2_);
-  __ CallRuntime(Runtime::kSwapElements, 3);
-}
-
-
-void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
-  Comment cmnt(masm_, "[ GenerateSwapElements");
-
-  ASSERT_EQ(3, args->length());
-
-  Load(args->at(0));
-  Load(args->at(1));
-  Load(args->at(2));
-
-  Result index2 = frame_->Pop();
-  index2.ToRegister();
-
-  Result index1 = frame_->Pop();
-  index1.ToRegister();
-
-  Result object = frame_->Pop();
-  object.ToRegister();
-
-  Result tmp1 = allocator()->Allocate();
-  tmp1.ToRegister();
-  Result tmp2 = allocator()->Allocate();
-  tmp2.ToRegister();
-
-  frame_->Spill(object.reg());
-  frame_->Spill(index1.reg());
-  frame_->Spill(index2.reg());
-
-  DeferredSwapElements* deferred = new DeferredSwapElements(object.reg(),
-                                                            index1.reg(),
-                                                            index2.reg());
-
-  // Fetch the map and check if array is in fast case.
-  // Check that object doesn't require security checks and
-  // has no indexed interceptor.
-  __ CmpObjectType(object.reg(), FIRST_JS_OBJECT_TYPE, tmp1.reg());
-  deferred->Branch(below);
-  __ testb(FieldOperand(tmp1.reg(), Map::kBitFieldOffset),
-           Immediate(KeyedLoadIC::kSlowCaseBitFieldMask));
-  deferred->Branch(not_zero);
-
-  // Check the object's elements are in fast case.
-  __ movq(tmp1.reg(), FieldOperand(object.reg(), JSObject::kElementsOffset));
-  __ CompareRoot(FieldOperand(tmp1.reg(), HeapObject::kMapOffset),
-                 Heap::kFixedArrayMapRootIndex);
-  deferred->Branch(not_equal);
-
-  // Check that both indices are smis.
-  Condition both_smi = __ CheckBothSmi(index1.reg(), index2.reg());
-  deferred->Branch(NegateCondition(both_smi));
-
-  // Bring addresses into index1 and index2.
-  __ SmiToInteger32(index1.reg(), index1.reg());
-  __ lea(index1.reg(), FieldOperand(tmp1.reg(),
-                                    index1.reg(),
-                                    times_pointer_size,
-                                    FixedArray::kHeaderSize));
-  __ SmiToInteger32(index2.reg(), index2.reg());
-  __ lea(index2.reg(), FieldOperand(tmp1.reg(),
-                                    index2.reg(),
-                                    times_pointer_size,
-                                    FixedArray::kHeaderSize));
-
-  // Swap elements.
-  __ movq(object.reg(), Operand(index1.reg(), 0));
-  __ movq(tmp2.reg(), Operand(index2.reg(), 0));
-  __ movq(Operand(index2.reg(), 0), object.reg());
-  __ movq(Operand(index1.reg(), 0), tmp2.reg());
-
-  Label done;
-  __ InNewSpace(tmp1.reg(), tmp2.reg(), equal, &done);
-  // Possible optimization: do a check that both values are Smis
-  // (or them and test against Smi mask.)
-
-  __ movq(tmp2.reg(), tmp1.reg());
-  RecordWriteStub recordWrite1(tmp2.reg(), index1.reg(), object.reg());
-  __ CallStub(&recordWrite1);
-
-  RecordWriteStub recordWrite2(tmp1.reg(), index2.reg(), object.reg());
-  __ CallStub(&recordWrite2);
-
-  __ bind(&done);
-
-  deferred->BindExit();
-  frame_->Push(Factory::undefined_value());
-}
-
-
-void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
-  Comment cmnt(masm_, "[ GenerateCallFunction");
-
-  ASSERT(args->length() >= 2);
-
-  int n_args = args->length() - 2;  // for receiver and function.
-  Load(args->at(0));  // receiver
-  for (int i = 0; i < n_args; i++) {
-    Load(args->at(i + 1));
-  }
-  Load(args->at(n_args + 1));  // function
-  Result result = frame_->CallJSFunction(n_args);
-  frame_->Push(&result);
-}
-
-
-void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
-  ASSERT_EQ(args->length(), 1);
-  Load(args->at(0));
-  TranscendentalCacheStub stub(TranscendentalCache::SIN);
-  Result result = frame_->CallStub(&stub, 1);
-  frame_->Push(&result);
-}
-
-
-void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
-  ASSERT_EQ(args->length(), 1);
-  Load(args->at(0));
-  TranscendentalCacheStub stub(TranscendentalCache::COS);
-  Result result = frame_->CallStub(&stub, 1);
-  frame_->Push(&result);
-}
-
-
-void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
-  ASSERT_EQ(2, args->length());
-
-  Load(args->at(0));
-  Load(args->at(1));
-
-  StringAddStub stub(NO_STRING_ADD_FLAGS);
-  Result answer = frame_->CallStub(&stub, 2);
-  frame_->Push(&answer);
-}
-
-
-void CodeGenerator::GenerateSubString(ZoneList<Expression*>* args) {
-  ASSERT_EQ(3, args->length());
-
-  Load(args->at(0));
-  Load(args->at(1));
-  Load(args->at(2));
-
-  SubStringStub stub;
-  Result answer = frame_->CallStub(&stub, 3);
-  frame_->Push(&answer);
-}
-
-
-void CodeGenerator::GenerateStringCompare(ZoneList<Expression*>* args) {
-  ASSERT_EQ(2, args->length());
-
-  Load(args->at(0));
-  Load(args->at(1));
-
-  StringCompareStub stub;
-  Result answer = frame_->CallStub(&stub, 2);
-  frame_->Push(&answer);
-}
-
-
-void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  JumpTarget leave, null, function, non_function_constructor;
-  Load(args->at(0));  // Load the object.
-  Result obj = frame_->Pop();
-  obj.ToRegister();
-  frame_->Spill(obj.reg());
-
-  // If the object is a smi, we return null.
-  Condition is_smi = masm_->CheckSmi(obj.reg());
-  null.Branch(is_smi);
-
-  // Check that the object is a JS object but take special care of JS
-  // functions to make sure they have 'Function' as their class.
-
-  __ CmpObjectType(obj.reg(), FIRST_JS_OBJECT_TYPE, obj.reg());
-  null.Branch(below);
-
-  // As long as JS_FUNCTION_TYPE is the last instance type and it is
-  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
-  // LAST_JS_OBJECT_TYPE.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-  __ CmpInstanceType(obj.reg(), JS_FUNCTION_TYPE);
-  function.Branch(equal);
-
-  // Check if the constructor in the map is a function.
-  __ movq(obj.reg(), FieldOperand(obj.reg(), Map::kConstructorOffset));
-  __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, kScratchRegister);
-  non_function_constructor.Branch(not_equal);
-
-  // The obj register now contains the constructor function. Grab the
-  // instance class name from there.
-  __ movq(obj.reg(),
-          FieldOperand(obj.reg(), JSFunction::kSharedFunctionInfoOffset));
-  __ movq(obj.reg(),
-          FieldOperand(obj.reg(),
-                       SharedFunctionInfo::kInstanceClassNameOffset));
-  frame_->Push(&obj);
-  leave.Jump();
-
-  // Functions have class 'Function'.
-  function.Bind();
-  frame_->Push(Factory::function_class_symbol());
-  leave.Jump();
-
-  // Objects with a non-function constructor have class 'Object'.
-  non_function_constructor.Bind();
-  frame_->Push(Factory::Object_symbol());
-  leave.Jump();
-
-  // Non-JS objects have class null.
-  null.Bind();
-  frame_->Push(Factory::null_value());
-
-  // All done.
-  leave.Bind();
-}
-
-
-void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 2);
-  JumpTarget leave;
-  Load(args->at(0));  // Load the object.
-  Load(args->at(1));  // Load the value.
-  Result value = frame_->Pop();
-  Result object = frame_->Pop();
-  value.ToRegister();
-  object.ToRegister();
-
-  // if (object->IsSmi()) return value.
-  Condition is_smi = masm_->CheckSmi(object.reg());
-  leave.Branch(is_smi, &value);
-
-  // It is a heap object - get its map.
-  Result scratch = allocator_->Allocate();
-  ASSERT(scratch.is_valid());
-  // if (!object->IsJSValue()) return value.
-  __ CmpObjectType(object.reg(), JS_VALUE_TYPE, scratch.reg());
-  leave.Branch(not_equal, &value);
-
-  // Store the value.
-  __ movq(FieldOperand(object.reg(), JSValue::kValueOffset), value.reg());
-  // Update the write barrier.  Save the value as it will be
-  // overwritten by the write barrier code and is needed afterward.
-  Result duplicate_value = allocator_->Allocate();
-  ASSERT(duplicate_value.is_valid());
-  __ movq(duplicate_value.reg(), value.reg());
-  // The object register is also overwritten by the write barrier and
-  // possibly aliased in the frame.
-  frame_->Spill(object.reg());
-  __ RecordWrite(object.reg(), JSValue::kValueOffset, duplicate_value.reg(),
-                 scratch.reg());
-  object.Unuse();
-  scratch.Unuse();
-  duplicate_value.Unuse();
-
-  // Leave.
-  leave.Bind(&value);
-  frame_->Push(&value);
-}
-
-
-void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  JumpTarget leave;
-  Load(args->at(0));  // Load the object.
-  frame_->Dup();
-  Result object = frame_->Pop();
-  object.ToRegister();
-  ASSERT(object.is_valid());
-  // if (object->IsSmi()) return object.
-  Condition is_smi = masm_->CheckSmi(object.reg());
-  leave.Branch(is_smi);
-  // It is a heap object - get map.
-  Result temp = allocator()->Allocate();
-  ASSERT(temp.is_valid());
-  // if (!object->IsJSValue()) return object.
-  __ CmpObjectType(object.reg(), JS_VALUE_TYPE, temp.reg());
-  leave.Branch(not_equal);
-  __ movq(temp.reg(), FieldOperand(object.reg(), JSValue::kValueOffset));
-  object.Unuse();
-  frame_->SetElementAt(0, &temp);
-  leave.Bind();
-}
-
-
-// -----------------------------------------------------------------------------
-// CodeGenerator implementation of Expressions
-
-void CodeGenerator::LoadAndSpill(Expression* expression) {
-  // TODO(x64): No architecture specific code. Move to shared location.
-  ASSERT(in_spilled_code());
-  set_in_spilled_code(false);
-  Load(expression);
-  frame_->SpillAll();
-  set_in_spilled_code(true);
-}
-
-
-void CodeGenerator::Load(Expression* expr) {
 #ifdef DEBUG
-  int original_height = frame_->height();
+bool CodeGenerator::HasValidEntryRegisters() {
+  return (allocator()->count(rax) == (frame()->is_used(rax) ? 1 : 0))
+      && (allocator()->count(rbx) == (frame()->is_used(rbx) ? 1 : 0))
+      && (allocator()->count(rcx) == (frame()->is_used(rcx) ? 1 : 0))
+      && (allocator()->count(rdx) == (frame()->is_used(rdx) ? 1 : 0))
+      && (allocator()->count(rdi) == (frame()->is_used(rdi) ? 1 : 0))
+      && (allocator()->count(r8) == (frame()->is_used(r8) ? 1 : 0))
+      && (allocator()->count(r9) == (frame()->is_used(r9) ? 1 : 0))
+      && (allocator()->count(r11) == (frame()->is_used(r11) ? 1 : 0))
+      && (allocator()->count(r14) == (frame()->is_used(r14) ? 1 : 0))
+      && (allocator()->count(r12) == (frame()->is_used(r12) ? 1 : 0));
+}
 #endif
-  ASSERT(!in_spilled_code());
-  JumpTarget true_target;
-  JumpTarget false_target;
-  ControlDestination dest(&true_target, &false_target, true);
-  LoadCondition(expr, &dest, false);
 
-  if (dest.false_was_fall_through()) {
-    // The false target was just bound.
-    JumpTarget loaded;
-    frame_->Push(Factory::false_value());
-    // There may be dangling jumps to the true target.
-    if (true_target.is_linked()) {
-      loaded.Jump();
-      true_target.Bind();
-      frame_->Push(Factory::true_value());
-      loaded.Bind();
-    }
-
-  } else if (dest.is_used()) {
-    // There is true, and possibly false, control flow (with true as
-    // the fall through).
-    JumpTarget loaded;
-    frame_->Push(Factory::true_value());
-    if (false_target.is_linked()) {
-      loaded.Jump();
-      false_target.Bind();
-      frame_->Push(Factory::false_value());
-      loaded.Bind();
-    }
-
-  } else {
-    // We have a valid value on top of the frame, but we still may
-    // have dangling jumps to the true and false targets from nested
-    // subexpressions (eg, the left subexpressions of the
-    // short-circuited boolean operators).
-    ASSERT(has_valid_frame());
-    if (true_target.is_linked() || false_target.is_linked()) {
-      JumpTarget loaded;
-      loaded.Jump();  // Don't lose the current TOS.
-      if (true_target.is_linked()) {
-        true_target.Bind();
-        frame_->Push(Factory::true_value());
-        if (false_target.is_linked()) {
-          loaded.Jump();
-        }
-      }
-      if (false_target.is_linked()) {
-        false_target.Bind();
-        frame_->Push(Factory::false_value());
-      }
-      loaded.Bind();
-    }
-  }
-
-  ASSERT(has_valid_frame());
-  ASSERT(frame_->height() == original_height + 1);
-}
-
-
-// Emit code to load the value of an expression to the top of the
-// frame. If the expression is boolean-valued it may be compiled (or
-// partially compiled) into control flow to the control destination.
-// If force_control is true, control flow is forced.
-void CodeGenerator::LoadCondition(Expression* x,
-                                  ControlDestination* dest,
-                                  bool force_control) {
-  ASSERT(!in_spilled_code());
-  int original_height = frame_->height();
-
-  { CodeGenState new_state(this, dest);
-    Visit(x);
-
-    // If we hit a stack overflow, we may not have actually visited
-    // the expression.  In that case, we ensure that we have a
-    // valid-looking frame state because we will continue to generate
-    // code as we unwind the C++ stack.
-    //
-    // It's possible to have both a stack overflow and a valid frame
-    // state (eg, a subexpression overflowed, visiting it returned
-    // with a dummied frame state, and visiting this expression
-    // returned with a normal-looking state).
-    if (HasStackOverflow() &&
-        !dest->is_used() &&
-        frame_->height() == original_height) {
-      dest->Goto(true);
-    }
-  }
-
-  if (force_control && !dest->is_used()) {
-    // Convert the TOS value into flow to the control destination.
-    // TODO(X64): Make control flow to control destinations work.
-    ToBoolean(dest);
-  }
-
-  ASSERT(!(force_control && !dest->is_used()));
-  ASSERT(dest->is_used() || frame_->height() == original_height + 1);
-}
-
-
-// ECMA-262, section 9.2, page 30: ToBoolean(). Pop the top of stack and
-// convert it to a boolean in the condition code register or jump to
-// 'false_target'/'true_target' as appropriate.
-void CodeGenerator::ToBoolean(ControlDestination* dest) {
-  Comment cmnt(masm_, "[ ToBoolean");
-
-  // The value to convert should be popped from the frame.
-  Result value = frame_->Pop();
-  value.ToRegister();
-
-  if (value.is_number()) {
-    // Fast case if TypeInfo indicates only numbers.
-    if (FLAG_debug_code) {
-      __ AbortIfNotNumber(value.reg());
-    }
-    // Smi => false iff zero.
-    __ SmiCompare(value.reg(), Smi::FromInt(0));
-    if (value.is_smi()) {
-      value.Unuse();
-      dest->Split(not_zero);
-    } else {
-      dest->false_target()->Branch(equal);
-      Condition is_smi = masm_->CheckSmi(value.reg());
-      dest->true_target()->Branch(is_smi);
-      __ xorpd(xmm0, xmm0);
-      __ ucomisd(xmm0, FieldOperand(value.reg(), HeapNumber::kValueOffset));
-      value.Unuse();
-      dest->Split(not_zero);
-    }
-  } else {
-    // Fast case checks.
-    // 'false' => false.
-    __ CompareRoot(value.reg(), Heap::kFalseValueRootIndex);
-    dest->false_target()->Branch(equal);
-
-    // 'true' => true.
-    __ CompareRoot(value.reg(), Heap::kTrueValueRootIndex);
-    dest->true_target()->Branch(equal);
-
-    // 'undefined' => false.
-    __ CompareRoot(value.reg(), Heap::kUndefinedValueRootIndex);
-    dest->false_target()->Branch(equal);
-
-    // Smi => false iff zero.
-    __ SmiCompare(value.reg(), Smi::FromInt(0));
-    dest->false_target()->Branch(equal);
-    Condition is_smi = masm_->CheckSmi(value.reg());
-    dest->true_target()->Branch(is_smi);
-
-    // Call the stub for all other cases.
-    frame_->Push(&value);  // Undo the Pop() from above.
-    ToBooleanStub stub;
-    Result temp = frame_->CallStub(&stub, 1);
-    // Convert the result to a condition code.
-    __ testq(temp.reg(), temp.reg());
-    temp.Unuse();
-    dest->Split(not_equal);
-  }
-}
-
-
-void CodeGenerator::LoadUnsafeSmi(Register target, Handle<Object> value) {
-  UNIMPLEMENTED();
-  // TODO(X64): Implement security policy for loads of smis.
-}
-
-
-bool CodeGenerator::IsUnsafeSmi(Handle<Object> value) {
-  return false;
-}
-
-//------------------------------------------------------------------------------
-// CodeGenerator implementation of variables, lookups, and stores.
-
-Reference::Reference(CodeGenerator* cgen,
-                     Expression* expression,
-                     bool  persist_after_get)
-    : cgen_(cgen),
-      expression_(expression),
-      type_(ILLEGAL),
-      persist_after_get_(persist_after_get) {
-  cgen->LoadReference(this);
-}
-
-
-Reference::~Reference() {
-  ASSERT(is_unloaded() || is_illegal());
-}
-
-
-void CodeGenerator::LoadReference(Reference* ref) {
-  // References are loaded from both spilled and unspilled code.  Set the
-  // state to unspilled to allow that (and explicitly spill after
-  // construction at the construction sites).
-  bool was_in_spilled_code = in_spilled_code_;
-  in_spilled_code_ = false;
-
-  Comment cmnt(masm_, "[ LoadReference");
-  Expression* e = ref->expression();
-  Property* property = e->AsProperty();
-  Variable* var = e->AsVariableProxy()->AsVariable();
-
-  if (property != NULL) {
-    // The expression is either a property or a variable proxy that rewrites
-    // to a property.
-    Load(property->obj());
-    if (property->key()->IsPropertyName()) {
-      ref->set_type(Reference::NAMED);
-    } else {
-      Load(property->key());
-      ref->set_type(Reference::KEYED);
-    }
-  } else if (var != NULL) {
-    // The expression is a variable proxy that does not rewrite to a
-    // property.  Global variables are treated as named property references.
-    if (var->is_global()) {
-      // If rax is free, the register allocator prefers it.  Thus the code
-      // generator will load the global object into rax, which is where
-      // LoadIC wants it.  Most uses of Reference call LoadIC directly
-      // after the reference is created.
-      frame_->Spill(rax);
-      LoadGlobal();
-      ref->set_type(Reference::NAMED);
-    } else {
-      ASSERT(var->slot() != NULL);
-      ref->set_type(Reference::SLOT);
-    }
-  } else {
-    // Anything else is a runtime error.
-    Load(e);
-    frame_->CallRuntime(Runtime::kThrowReferenceError, 1);
-  }
-
-  in_spilled_code_ = was_in_spilled_code;
-}
-
-
-void CodeGenerator::UnloadReference(Reference* ref) {
-  // Pop a reference from the stack while preserving TOS.
-  Comment cmnt(masm_, "[ UnloadReference");
-  frame_->Nip(ref->size());
-  ref->set_unloaded();
-}
-
-
-Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
-  // Currently, this assertion will fail if we try to assign to
-  // a constant variable that is constant because it is read-only
-  // (such as the variable referring to a named function expression).
-  // We need to implement assignments to read-only variables.
-  // Ideally, we should do this during AST generation (by converting
-  // such assignments into expression statements); however, in general
-  // we may not be able to make the decision until past AST generation,
-  // that is when the entire program is known.
-  ASSERT(slot != NULL);
-  int index = slot->index();
-  switch (slot->type()) {
-    case Slot::PARAMETER:
-      return frame_->ParameterAt(index);
-
-    case Slot::LOCAL:
-      return frame_->LocalAt(index);
-
-    case Slot::CONTEXT: {
-      // Follow the context chain if necessary.
-      ASSERT(!tmp.is(rsi));  // do not overwrite context register
-      Register context = rsi;
-      int chain_length = scope()->ContextChainLength(slot->var()->scope());
-      for (int i = 0; i < chain_length; i++) {
-        // Load the closure.
-        // (All contexts, even 'with' contexts, have a closure,
-        // and it is the same for all contexts inside a function.
-        // There is no need to go to the function context first.)
-        __ movq(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
-        // Load the function context (which is the incoming, outer context).
-        __ movq(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
-        context = tmp;
-      }
-      // We may have a 'with' context now. Get the function context.
-      // (In fact this mov may never be the needed, since the scope analysis
-      // may not permit a direct context access in this case and thus we are
-      // always at a function context. However it is safe to dereference be-
-      // cause the function context of a function context is itself. Before
-      // deleting this mov we should try to create a counter-example first,
-      // though...)
-      __ movq(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
-      return ContextOperand(tmp, index);
-    }
-
-    default:
-      UNREACHABLE();
-      return Operand(rsp, 0);
-  }
-}
-
-
-Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
-                                                         Result tmp,
-                                                         JumpTarget* slow) {
-  ASSERT(slot->type() == Slot::CONTEXT);
-  ASSERT(tmp.is_register());
-  Register context = rsi;
-
-  for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
-    if (s->num_heap_slots() > 0) {
-      if (s->calls_eval()) {
-        // Check that extension is NULL.
-        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
-                Immediate(0));
-        slow->Branch(not_equal, not_taken);
-      }
-      __ movq(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
-      __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
-      context = tmp.reg();
-    }
-  }
-  // Check that last extension is NULL.
-  __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
-  slow->Branch(not_equal, not_taken);
-  __ movq(tmp.reg(), ContextOperand(context, Context::FCONTEXT_INDEX));
-  return ContextOperand(tmp.reg(), slot->index());
-}
-
-
-void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
-  if (slot->type() == Slot::LOOKUP) {
-    ASSERT(slot->var()->is_dynamic());
-
-    JumpTarget slow;
-    JumpTarget done;
-    Result value;
-
-    // Generate fast case for loading from slots that correspond to
-    // local/global variables or arguments unless they are shadowed by
-    // eval-introduced bindings.
-    EmitDynamicLoadFromSlotFastCase(slot,
-                                    typeof_state,
-                                    &value,
-                                    &slow,
-                                    &done);
-
-    slow.Bind();
-    // A runtime call is inevitable.  We eagerly sync frame elements
-    // to memory so that we can push the arguments directly into place
-    // on top of the frame.
-    frame_->SyncRange(0, frame_->element_count() - 1);
-    frame_->EmitPush(rsi);
-    __ movq(kScratchRegister, slot->var()->name(), RelocInfo::EMBEDDED_OBJECT);
-    frame_->EmitPush(kScratchRegister);
-    if (typeof_state == INSIDE_TYPEOF) {
-       value =
-         frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
-    } else {
-       value = frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
-    }
-
-    done.Bind(&value);
-    frame_->Push(&value);
-
-  } else if (slot->var()->mode() == Variable::CONST) {
-    // Const slots may contain 'the hole' value (the constant hasn't been
-    // initialized yet) which needs to be converted into the 'undefined'
-    // value.
-    //
-    // We currently spill the virtual frame because constants use the
-    // potentially unsafe direct-frame access of SlotOperand.
-    VirtualFrame::SpilledScope spilled_scope;
-    Comment cmnt(masm_, "[ Load const");
-    JumpTarget exit;
-    __ movq(rcx, SlotOperand(slot, rcx));
-    __ CompareRoot(rcx, Heap::kTheHoleValueRootIndex);
-    exit.Branch(not_equal);
-    __ LoadRoot(rcx, Heap::kUndefinedValueRootIndex);
-    exit.Bind();
-    frame_->EmitPush(rcx);
-
-  } else if (slot->type() == Slot::PARAMETER) {
-    frame_->PushParameterAt(slot->index());
-
-  } else if (slot->type() == Slot::LOCAL) {
-    frame_->PushLocalAt(slot->index());
-
-  } else {
-    // The other remaining slot types (LOOKUP and GLOBAL) cannot reach
-    // here.
-    //
-    // The use of SlotOperand below is safe for an unspilled frame
-    // because it will always be a context slot.
-    ASSERT(slot->type() == Slot::CONTEXT);
-    Result temp = allocator_->Allocate();
-    ASSERT(temp.is_valid());
-    __ movq(temp.reg(), SlotOperand(slot, temp.reg()));
-    frame_->Push(&temp);
-  }
-}
-
-
-void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
-                                                  TypeofState state) {
-  LoadFromSlot(slot, state);
-
-  // Bail out quickly if we're not using lazy arguments allocation.
-  if (ArgumentsMode() != LAZY_ARGUMENTS_ALLOCATION) return;
-
-  // ... or if the slot isn't a non-parameter arguments slot.
-  if (slot->type() == Slot::PARAMETER || !slot->is_arguments()) return;
-
-  // Pop the loaded value from the stack.
-  Result value = frame_->Pop();
-
-  // If the loaded value is a constant, we know if the arguments
-  // object has been lazily loaded yet.
-  if (value.is_constant()) {
-    if (value.handle()->IsTheHole()) {
-      Result arguments = StoreArgumentsObject(false);
-      frame_->Push(&arguments);
-    } else {
-      frame_->Push(&value);
-    }
-    return;
-  }
-
-  // The loaded value is in a register. If it is the sentinel that
-  // indicates that we haven't loaded the arguments object yet, we
-  // need to do it now.
-  JumpTarget exit;
-  __ CompareRoot(value.reg(), Heap::kTheHoleValueRootIndex);
-  frame_->Push(&value);
-  exit.Branch(not_equal);
-  Result arguments = StoreArgumentsObject(false);
-  frame_->SetElementAt(0, &arguments);
-  exit.Bind();
-}
-
-
-void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
-  if (slot->type() == Slot::LOOKUP) {
-    ASSERT(slot->var()->is_dynamic());
-
-    // For now, just do a runtime call.  Since the call is inevitable,
-    // we eagerly sync the virtual frame so we can directly push the
-    // arguments into place.
-    frame_->SyncRange(0, frame_->element_count() - 1);
-
-    frame_->EmitPush(rsi);
-    frame_->EmitPush(slot->var()->name());
-
-    Result value;
-    if (init_state == CONST_INIT) {
-      // Same as the case for a normal store, but ignores attribute
-      // (e.g. READ_ONLY) of context slot so that we can initialize const
-      // properties (introduced via eval("const foo = (some expr);")). Also,
-      // uses the current function context instead of the top context.
-      //
-      // Note that we must declare the foo upon entry of eval(), via a
-      // context slot declaration, but we cannot initialize it at the same
-      // time, because the const declaration may be at the end of the eval
-      // code (sigh...) and the const variable may have been used before
-      // (where its value is 'undefined'). Thus, we can only do the
-      // initialization when we actually encounter the expression and when
-      // the expression operands are defined and valid, and thus we need the
-      // split into 2 operations: declaration of the context slot followed
-      // by initialization.
-      value = frame_->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
-    } else {
-      value = frame_->CallRuntime(Runtime::kStoreContextSlot, 3);
-    }
-    // Storing a variable must keep the (new) value on the expression
-    // stack. This is necessary for compiling chained assignment
-    // expressions.
-    frame_->Push(&value);
-  } else {
-    ASSERT(!slot->var()->is_dynamic());
-
-    JumpTarget exit;
-    if (init_state == CONST_INIT) {
-      ASSERT(slot->var()->mode() == Variable::CONST);
-      // Only the first const initialization must be executed (the slot
-      // still contains 'the hole' value). When the assignment is executed,
-      // the code is identical to a normal store (see below).
-      //
-      // We spill the frame in the code below because the direct-frame
-      // access of SlotOperand is potentially unsafe with an unspilled
-      // frame.
-      VirtualFrame::SpilledScope spilled_scope;
-      Comment cmnt(masm_, "[ Init const");
-      __ movq(rcx, SlotOperand(slot, rcx));
-      __ CompareRoot(rcx, Heap::kTheHoleValueRootIndex);
-      exit.Branch(not_equal);
-    }
-
-    // We must execute the store.  Storing a variable must keep the (new)
-    // value on the stack. This is necessary for compiling assignment
-    // expressions.
-    //
-    // Note: We will reach here even with slot->var()->mode() ==
-    // Variable::CONST because of const declarations which will initialize
-    // consts to 'the hole' value and by doing so, end up calling this code.
-    if (slot->type() == Slot::PARAMETER) {
-      frame_->StoreToParameterAt(slot->index());
-    } else if (slot->type() == Slot::LOCAL) {
-      frame_->StoreToLocalAt(slot->index());
-    } else {
-      // The other slot types (LOOKUP and GLOBAL) cannot reach here.
-      //
-      // The use of SlotOperand below is safe for an unspilled frame
-      // because the slot is a context slot.
-      ASSERT(slot->type() == Slot::CONTEXT);
-      frame_->Dup();
-      Result value = frame_->Pop();
-      value.ToRegister();
-      Result start = allocator_->Allocate();
-      ASSERT(start.is_valid());
-      __ movq(SlotOperand(slot, start.reg()), value.reg());
-      // RecordWrite may destroy the value registers.
-      //
-      // TODO(204): Avoid actually spilling when the value is not
-      // needed (probably the common case).
-      frame_->Spill(value.reg());
-      int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-      Result temp = allocator_->Allocate();
-      ASSERT(temp.is_valid());
-      __ RecordWrite(start.reg(), offset, value.reg(), temp.reg());
-      // The results start, value, and temp are unused by going out of
-      // scope.
-    }
-
-    exit.Bind();
-  }
-}
-
-
-Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
-    Slot* slot,
-    TypeofState typeof_state,
-    JumpTarget* slow) {
-  // Check that no extension objects have been created by calls to
-  // eval from the current scope to the global scope.
-  Register context = rsi;
-  Result tmp = allocator_->Allocate();
-  ASSERT(tmp.is_valid());  // All non-reserved registers were available.
-
-  Scope* s = scope();
-  while (s != NULL) {
-    if (s->num_heap_slots() > 0) {
-      if (s->calls_eval()) {
-        // Check that extension is NULL.
-        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
-               Immediate(0));
-        slow->Branch(not_equal, not_taken);
-      }
-      // Load next context in chain.
-      __ movq(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
-      __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
-      context = tmp.reg();
-    }
-    // If no outer scope calls eval, we do not need to check more
-    // context extensions.  If we have reached an eval scope, we check
-    // all extensions from this point.
-    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
-    s = s->outer_scope();
-  }
-
-  if (s->is_eval_scope()) {
-    // Loop up the context chain.  There is no frame effect so it is
-    // safe to use raw labels here.
-    Label next, fast;
-    if (!context.is(tmp.reg())) {
-      __ movq(tmp.reg(), context);
-    }
-    // Load map for comparison into register, outside loop.
-    __ LoadRoot(kScratchRegister, Heap::kGlobalContextMapRootIndex);
-    __ bind(&next);
-    // Terminate at global context.
-    __ cmpq(kScratchRegister, FieldOperand(tmp.reg(), HeapObject::kMapOffset));
-    __ j(equal, &fast);
-    // Check that extension is NULL.
-    __ cmpq(ContextOperand(tmp.reg(), Context::EXTENSION_INDEX), Immediate(0));
-    slow->Branch(not_equal);
-    // Load next context in chain.
-    __ movq(tmp.reg(), ContextOperand(tmp.reg(), Context::CLOSURE_INDEX));
-    __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
-    __ jmp(&next);
-    __ bind(&fast);
-  }
-  tmp.Unuse();
-
-  // All extension objects were empty and it is safe to use a global
-  // load IC call.
-  LoadGlobal();
-  frame_->Push(slot->var()->name());
-  RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
-                         ? RelocInfo::CODE_TARGET
-                         : RelocInfo::CODE_TARGET_CONTEXT;
-  Result answer = frame_->CallLoadIC(mode);
-  // A test rax instruction following the call signals that the inobject
-  // property case was inlined.  Ensure that there is not a test rax
-  // instruction here.
-  masm_->nop();
-  return answer;
-}
-
-
-void CodeGenerator::EmitDynamicLoadFromSlotFastCase(Slot* slot,
-                                                    TypeofState typeof_state,
-                                                    Result* result,
-                                                    JumpTarget* slow,
-                                                    JumpTarget* done) {
-  // Generate fast-case code for variables that might be shadowed by
-  // eval-introduced variables.  Eval is used a lot without
-  // introducing variables.  In those cases, we do not want to
-  // perform a runtime call for all variables in the scope
-  // containing the eval.
-  if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
-    *result = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, slow);
-    done->Jump(result);
-
-  } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
-    Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
-    Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
-    if (potential_slot != NULL) {
-      // Generate fast case for locals that rewrite to slots.
-      // Allocate a fresh register to use as a temp in
-      // ContextSlotOperandCheckExtensions and to hold the result
-      // value.
-      *result = allocator_->Allocate();
-      ASSERT(result->is_valid());
-      __ movq(result->reg(),
-              ContextSlotOperandCheckExtensions(potential_slot,
-                                                *result,
-                                                slow));
-      if (potential_slot->var()->mode() == Variable::CONST) {
-        __ CompareRoot(result->reg(), Heap::kTheHoleValueRootIndex);
-        done->Branch(not_equal, result);
-        __ LoadRoot(result->reg(), Heap::kUndefinedValueRootIndex);
-      }
-      done->Jump(result);
-    } else if (rewrite != NULL) {
-      // Generate fast case for argument loads.
-      Property* property = rewrite->AsProperty();
-      if (property != NULL) {
-        VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
-        Literal* key_literal = property->key()->AsLiteral();
-        if (obj_proxy != NULL &&
-            key_literal != NULL &&
-            obj_proxy->IsArguments() &&
-            key_literal->handle()->IsSmi()) {
-          // Load arguments object if there are no eval-introduced
-          // variables. Then load the argument from the arguments
-          // object using keyed load.
-          Result arguments = allocator()->Allocate();
-          ASSERT(arguments.is_valid());
-          __ movq(arguments.reg(),
-                  ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
-                                                    arguments,
-                                                    slow));
-          frame_->Push(&arguments);
-          frame_->Push(key_literal->handle());
-          *result = EmitKeyedLoad();
-          done->Jump(result);
-        }
-      }
-    }
-  }
-}
-
-
-void CodeGenerator::LoadGlobal() {
-  if (in_spilled_code()) {
-    frame_->EmitPush(GlobalObject());
-  } else {
-    Result temp = allocator_->Allocate();
-    __ movq(temp.reg(), GlobalObject());
-    frame_->Push(&temp);
-  }
-}
-
-
-void CodeGenerator::LoadGlobalReceiver() {
-  Result temp = allocator_->Allocate();
-  Register reg = temp.reg();
-  __ movq(reg, GlobalObject());
-  __ movq(reg, FieldOperand(reg, GlobalObject::kGlobalReceiverOffset));
-  frame_->Push(&temp);
-}
-
-
-ArgumentsAllocationMode CodeGenerator::ArgumentsMode() {
-  if (scope()->arguments() == NULL) return NO_ARGUMENTS_ALLOCATION;
-  ASSERT(scope()->arguments_shadow() != NULL);
-  // We don't want to do lazy arguments allocation for functions that
-  // have heap-allocated contexts, because it interfers with the
-  // uninitialized const tracking in the context objects.
-  return (scope()->num_heap_slots() > 0)
-      ? EAGER_ARGUMENTS_ALLOCATION
-      : LAZY_ARGUMENTS_ALLOCATION;
-}
-
-
-Result CodeGenerator::StoreArgumentsObject(bool initial) {
-  ArgumentsAllocationMode mode = ArgumentsMode();
-  ASSERT(mode != NO_ARGUMENTS_ALLOCATION);
-
-  Comment cmnt(masm_, "[ store arguments object");
-  if (mode == LAZY_ARGUMENTS_ALLOCATION && initial) {
-    // When using lazy arguments allocation, we store the hole value
-    // as a sentinel indicating that the arguments object hasn't been
-    // allocated yet.
-    frame_->Push(Factory::the_hole_value());
-  } else {
-    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
-    frame_->PushFunction();
-    frame_->PushReceiverSlotAddress();
-    frame_->Push(Smi::FromInt(scope()->num_parameters()));
-    Result result = frame_->CallStub(&stub, 3);
-    frame_->Push(&result);
-  }
-
-
-  Variable* arguments = scope()->arguments()->var();
-  Variable* shadow = scope()->arguments_shadow()->var();
-  ASSERT(arguments != NULL && arguments->slot() != NULL);
-  ASSERT(shadow != NULL && shadow->slot() != NULL);
-  JumpTarget done;
-  bool skip_arguments = false;
-  if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
-    // We have to skip storing into the arguments slot if it has
-    // already been written to. This can happen if the a function
-    // has a local variable named 'arguments'.
-    LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
-    Result probe = frame_->Pop();
-    if (probe.is_constant()) {
-      // We have to skip updating the arguments object if it has been
-      // assigned a proper value.
-      skip_arguments = !probe.handle()->IsTheHole();
-    } else {
-      __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
-      probe.Unuse();
-      done.Branch(not_equal);
-    }
-  }
-  if (!skip_arguments) {
-    StoreToSlot(arguments->slot(), NOT_CONST_INIT);
-    if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
-  }
-  StoreToSlot(shadow->slot(), NOT_CONST_INIT);
-  return frame_->Pop();
-}
-
-
-void CodeGenerator::LoadTypeofExpression(Expression* expr) {
-  // Special handling of identifiers as subexpressions of typeof.
-  Variable* variable = expr->AsVariableProxy()->AsVariable();
-  if (variable != NULL && !variable->is_this() && variable->is_global()) {
-    // For a global variable we build the property reference
-    // <global>.<variable> and perform a (regular non-contextual) property
-    // load to make sure we do not get reference errors.
-    Slot global(variable, Slot::CONTEXT, Context::GLOBAL_INDEX);
-    Literal key(variable->name());
-    Property property(&global, &key, RelocInfo::kNoPosition);
-    Reference ref(this, &property);
-    ref.GetValue();
-  } else if (variable != NULL && variable->slot() != NULL) {
-    // For a variable that rewrites to a slot, we signal it is the immediate
-    // subexpression of a typeof.
-    LoadFromSlotCheckForArguments(variable->slot(), INSIDE_TYPEOF);
-  } else {
-    // Anything else can be handled normally.
-    Load(expr);
-  }
-}
-
-
-static bool CouldBeNaN(const Result& result) {
-  if (result.type_info().IsSmi()) return false;
-  if (result.type_info().IsInteger32()) return false;
-  if (!result.is_constant()) return true;
-  if (!result.handle()->IsHeapNumber()) return false;
-  return isnan(HeapNumber::cast(*result.handle())->value());
-}
-
-
-// Convert from signed to unsigned comparison to match the way EFLAGS are set
-// by FPU and XMM compare instructions.
-static Condition DoubleCondition(Condition cc) {
-  switch (cc) {
-    case less:          return below;
-    case equal:         return equal;
-    case less_equal:    return below_equal;
-    case greater:       return above;
-    case greater_equal: return above_equal;
-    default:            UNREACHABLE();
-  }
-  UNREACHABLE();
-  return equal;
-}
-
-
-void CodeGenerator::Comparison(AstNode* node,
-                               Condition cc,
-                               bool strict,
-                               ControlDestination* dest) {
-  // Strict only makes sense for equality comparisons.
-  ASSERT(!strict || cc == equal);
-
-  Result left_side;
-  Result right_side;
-  // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
-  if (cc == greater || cc == less_equal) {
-    cc = ReverseCondition(cc);
-    left_side = frame_->Pop();
-    right_side = frame_->Pop();
-  } else {
-    right_side = frame_->Pop();
-    left_side = frame_->Pop();
-  }
-  ASSERT(cc == less || cc == equal || cc == greater_equal);
-
-  // If either side is a constant smi, optimize the comparison.
-  bool left_side_constant_smi = false;
-  bool left_side_constant_null = false;
-  bool left_side_constant_1_char_string = false;
-  if (left_side.is_constant()) {
-    left_side_constant_smi = left_side.handle()->IsSmi();
-    left_side_constant_null = left_side.handle()->IsNull();
-    left_side_constant_1_char_string =
-        (left_side.handle()->IsString() &&
-         String::cast(*left_side.handle())->length() == 1 &&
-         String::cast(*left_side.handle())->IsAsciiRepresentation());
-  }
-  bool right_side_constant_smi = false;
-  bool right_side_constant_null = false;
-  bool right_side_constant_1_char_string = false;
-  if (right_side.is_constant()) {
-    right_side_constant_smi = right_side.handle()->IsSmi();
-    right_side_constant_null = right_side.handle()->IsNull();
-    right_side_constant_1_char_string =
-        (right_side.handle()->IsString() &&
-         String::cast(*right_side.handle())->length() == 1 &&
-         String::cast(*right_side.handle())->IsAsciiRepresentation());
-  }
-
-  if (left_side_constant_smi || right_side_constant_smi) {
-    if (left_side_constant_smi && right_side_constant_smi) {
-      // Trivial case, comparing two constants.
-      int left_value = Smi::cast(*left_side.handle())->value();
-      int right_value = Smi::cast(*right_side.handle())->value();
-      switch (cc) {
-        case less:
-          dest->Goto(left_value < right_value);
-          break;
-        case equal:
-          dest->Goto(left_value == right_value);
-          break;
-        case greater_equal:
-          dest->Goto(left_value >= right_value);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    } else {
-      // Only one side is a constant Smi.
-      // If left side is a constant Smi, reverse the operands.
-      // Since one side is a constant Smi, conversion order does not matter.
-      if (left_side_constant_smi) {
-        Result temp = left_side;
-        left_side = right_side;
-        right_side = temp;
-        cc = ReverseCondition(cc);
-        // This may re-introduce greater or less_equal as the value of cc.
-        // CompareStub and the inline code both support all values of cc.
-      }
-      // Implement comparison against a constant Smi, inlining the case
-      // where both sides are Smis.
-      left_side.ToRegister();
-      Register left_reg = left_side.reg();
-      Handle<Object> right_val = right_side.handle();
-
-      // Here we split control flow to the stub call and inlined cases
-      // before finally splitting it to the control destination.  We use
-      // a jump target and branching to duplicate the virtual frame at
-      // the first split.  We manually handle the off-frame references
-      // by reconstituting them on the non-fall-through path.
-      JumpTarget is_smi;
-
-      if (left_side.is_smi()) {
-        if (FLAG_debug_code) {
-          __ AbortIfNotSmi(left_side.reg());
-        }
-      } else {
-        Condition left_is_smi = masm_->CheckSmi(left_side.reg());
-        is_smi.Branch(left_is_smi);
-
-        bool is_loop_condition = (node->AsExpression() != NULL) &&
-            node->AsExpression()->is_loop_condition();
-        if (!is_loop_condition && right_val->IsSmi()) {
-          // Right side is a constant smi and left side has been checked
-          // not to be a smi.
-          JumpTarget not_number;
-          __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
-                 Factory::heap_number_map());
-          not_number.Branch(not_equal, &left_side);
-          __ movsd(xmm1,
-              FieldOperand(left_reg, HeapNumber::kValueOffset));
-          int value = Smi::cast(*right_val)->value();
-          if (value == 0) {
-            __ xorpd(xmm0, xmm0);
-          } else {
-            Result temp = allocator()->Allocate();
-            __ movl(temp.reg(), Immediate(value));
-            __ cvtlsi2sd(xmm0, temp.reg());
-            temp.Unuse();
-          }
-          __ ucomisd(xmm1, xmm0);
-          // Jump to builtin for NaN.
-          not_number.Branch(parity_even, &left_side);
-          left_side.Unuse();
-          dest->true_target()->Branch(DoubleCondition(cc));
-          dest->false_target()->Jump();
-          not_number.Bind(&left_side);
-        }
-
-        // Setup and call the compare stub.
-        CompareStub stub(cc, strict, kCantBothBeNaN);
-        Result result = frame_->CallStub(&stub, &left_side, &right_side);
-        result.ToRegister();
-        __ testq(result.reg(), result.reg());
-        result.Unuse();
-        dest->true_target()->Branch(cc);
-        dest->false_target()->Jump();
-
-        is_smi.Bind();
-      }
-
-      left_side = Result(left_reg);
-      right_side = Result(right_val);
-      // Test smi equality and comparison by signed int comparison.
-      // Both sides are smis, so we can use an Immediate.
-      __ SmiCompare(left_side.reg(), Smi::cast(*right_side.handle()));
-      left_side.Unuse();
-      right_side.Unuse();
-      dest->Split(cc);
-    }
-  } else if (cc == equal &&
-             (left_side_constant_null || right_side_constant_null)) {
-    // To make null checks efficient, we check if either the left side or
-    // the right side is the constant 'null'.
-    // If so, we optimize the code by inlining a null check instead of
-    // calling the (very) general runtime routine for checking equality.
-    Result operand = left_side_constant_null ? right_side : left_side;
-    right_side.Unuse();
-    left_side.Unuse();
-    operand.ToRegister();
-    __ CompareRoot(operand.reg(), Heap::kNullValueRootIndex);
-    if (strict) {
-      operand.Unuse();
-      dest->Split(equal);
-    } else {
-      // The 'null' value is only equal to 'undefined' if using non-strict
-      // comparisons.
-      dest->true_target()->Branch(equal);
-      __ CompareRoot(operand.reg(), Heap::kUndefinedValueRootIndex);
-      dest->true_target()->Branch(equal);
-      Condition is_smi = masm_->CheckSmi(operand.reg());
-      dest->false_target()->Branch(is_smi);
-
-      // It can be an undetectable object.
-      // Use a scratch register in preference to spilling operand.reg().
-      Result temp = allocator()->Allocate();
-      ASSERT(temp.is_valid());
-      __ movq(temp.reg(),
-              FieldOperand(operand.reg(), HeapObject::kMapOffset));
-      __ testb(FieldOperand(temp.reg(), Map::kBitFieldOffset),
-               Immediate(1 << Map::kIsUndetectable));
-      temp.Unuse();
-      operand.Unuse();
-      dest->Split(not_zero);
-    }
-  } else if (left_side_constant_1_char_string ||
-             right_side_constant_1_char_string) {
-    if (left_side_constant_1_char_string && right_side_constant_1_char_string) {
-      // Trivial case, comparing two constants.
-      int left_value = String::cast(*left_side.handle())->Get(0);
-      int right_value = String::cast(*right_side.handle())->Get(0);
-      switch (cc) {
-        case less:
-          dest->Goto(left_value < right_value);
-          break;
-        case equal:
-          dest->Goto(left_value == right_value);
-          break;
-        case greater_equal:
-          dest->Goto(left_value >= right_value);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    } else {
-      // Only one side is a constant 1 character string.
-      // If left side is a constant 1-character string, reverse the operands.
-      // Since one side is a constant string, conversion order does not matter.
-      if (left_side_constant_1_char_string) {
-        Result temp = left_side;
-        left_side = right_side;
-        right_side = temp;
-        cc = ReverseCondition(cc);
-        // This may reintroduce greater or less_equal as the value of cc.
-        // CompareStub and the inline code both support all values of cc.
-      }
-      // Implement comparison against a constant string, inlining the case
-      // where both sides are strings.
-      left_side.ToRegister();
-
-      // Here we split control flow to the stub call and inlined cases
-      // before finally splitting it to the control destination.  We use
-      // a jump target and branching to duplicate the virtual frame at
-      // the first split.  We manually handle the off-frame references
-      // by reconstituting them on the non-fall-through path.
-      JumpTarget is_not_string, is_string;
-      Register left_reg = left_side.reg();
-      Handle<Object> right_val = right_side.handle();
-      ASSERT(StringShape(String::cast(*right_val)).IsSymbol());
-      Condition is_smi = masm()->CheckSmi(left_reg);
-      is_not_string.Branch(is_smi, &left_side);
-      Result temp = allocator_->Allocate();
-      ASSERT(temp.is_valid());
-      __ movq(temp.reg(),
-              FieldOperand(left_reg, HeapObject::kMapOffset));
-      __ movzxbl(temp.reg(),
-                 FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
-      // If we are testing for equality then make use of the symbol shortcut.
-      // Check if the left hand side has the same type as the right hand
-      // side (which is always a symbol).
-      if (cc == equal) {
-        Label not_a_symbol;
-        ASSERT(kSymbolTag != 0);
-        // Ensure that no non-strings have the symbol bit set.
-        ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
-        __ testb(temp.reg(), Immediate(kIsSymbolMask));  // Test the symbol bit.
-        __ j(zero, &not_a_symbol);
-        // They are symbols, so do identity compare.
-        __ Cmp(left_reg, right_side.handle());
-        dest->true_target()->Branch(equal);
-        dest->false_target()->Branch(not_equal);
-        __ bind(&not_a_symbol);
-      }
-      // Call the compare stub if the left side is not a flat ascii string.
-      __ andb(temp.reg(),
-              Immediate(kIsNotStringMask |
-                        kStringRepresentationMask |
-                        kStringEncodingMask));
-      __ cmpb(temp.reg(),
-              Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
-      temp.Unuse();
-      is_string.Branch(equal, &left_side);
-
-      // Setup and call the compare stub.
-      is_not_string.Bind(&left_side);
-      CompareStub stub(cc, strict, kCantBothBeNaN);
-      Result result = frame_->CallStub(&stub, &left_side, &right_side);
-      result.ToRegister();
-      __ testq(result.reg(), result.reg());
-      result.Unuse();
-      dest->true_target()->Branch(cc);
-      dest->false_target()->Jump();
-
-      is_string.Bind(&left_side);
-      // left_side is a sequential ASCII string.
-      ASSERT(left_side.reg().is(left_reg));
-      right_side = Result(right_val);
-      Result temp2 = allocator_->Allocate();
-      ASSERT(temp2.is_valid());
-      // Test string equality and comparison.
-      if (cc == equal) {
-        Label comparison_done;
-        __ SmiCompare(FieldOperand(left_side.reg(), String::kLengthOffset),
-                Smi::FromInt(1));
-        __ j(not_equal, &comparison_done);
-        uint8_t char_value =
-            static_cast<uint8_t>(String::cast(*right_val)->Get(0));
-        __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
-                Immediate(char_value));
-        __ bind(&comparison_done);
-      } else {
-        __ movq(temp2.reg(),
-                FieldOperand(left_side.reg(), String::kLengthOffset));
-        __ SmiSubConstant(temp2.reg(), temp2.reg(), Smi::FromInt(1));
-        Label comparison;
-        // If the length is 0 then the subtraction gave -1 which compares less
-        // than any character.
-        __ j(negative, &comparison);
-        // Otherwise load the first character.
-        __ movzxbl(temp2.reg(),
-                   FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize));
-        __ bind(&comparison);
-        // Compare the first character of the string with the
-        // constant 1-character string.
-        uint8_t char_value =
-            static_cast<uint8_t>(String::cast(*right_side.handle())->Get(0));
-        __ cmpb(temp2.reg(), Immediate(char_value));
-        Label characters_were_different;
-        __ j(not_equal, &characters_were_different);
-        // If the first character is the same then the long string sorts after
-        // the short one.
-        __ SmiCompare(FieldOperand(left_side.reg(), String::kLengthOffset),
-                      Smi::FromInt(1));
-        __ bind(&characters_were_different);
-      }
-      temp2.Unuse();
-      left_side.Unuse();
-      right_side.Unuse();
-      dest->Split(cc);
-    }
-  } else {
-    // Neither side is a constant Smi, constant 1-char string, or constant null.
-    // If either side is a non-smi constant, skip the smi check.
-    bool known_non_smi =
-        (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
-        (right_side.is_constant() && !right_side.handle()->IsSmi()) ||
-        left_side.type_info().IsDouble() ||
-        right_side.type_info().IsDouble();
-
-    NaNInformation nan_info =
-        (CouldBeNaN(left_side) && CouldBeNaN(right_side)) ?
-        kBothCouldBeNaN :
-        kCantBothBeNaN;
-
-    // Inline number comparison handling any combination of smi's and heap
-    // numbers if:
-    //   code is in a loop
-    //   the compare operation is different from equal
-    //   compare is not a for-loop comparison
-    // The reason for excluding equal is that it will most likely be done
-    // with smi's (not heap numbers) and the code to comparing smi's is inlined
-    // separately. The same reason applies for for-loop comparison which will
-    // also most likely be smi comparisons.
-    bool is_loop_condition = (node->AsExpression() != NULL)
-        && node->AsExpression()->is_loop_condition();
-    bool inline_number_compare =
-        loop_nesting() > 0 && cc != equal && !is_loop_condition;
-
-    left_side.ToRegister();
-    right_side.ToRegister();
-
-    if (known_non_smi) {
-      // Inlined equality check:
-      // If at least one of the objects is not NaN, then if the objects
-      // are identical, they are equal.
-      if (nan_info == kCantBothBeNaN && cc == equal) {
-        __ cmpq(left_side.reg(), right_side.reg());
-        dest->true_target()->Branch(equal);
-      }
-
-      // Inlined number comparison:
-      if (inline_number_compare) {
-        GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
-      }
-
-      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
-      Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flag.
-      answer.Unuse();
-      dest->Split(cc);
-    } else {
-      // Here we split control flow to the stub call and inlined cases
-      // before finally splitting it to the control destination.  We use
-      // a jump target and branching to duplicate the virtual frame at
-      // the first split.  We manually handle the off-frame references
-      // by reconstituting them on the non-fall-through path.
-      JumpTarget is_smi;
-      Register left_reg = left_side.reg();
-      Register right_reg = right_side.reg();
-
-      Condition both_smi = masm_->CheckBothSmi(left_reg, right_reg);
-      is_smi.Branch(both_smi);
-
-      // Inline the equality check if both operands can't be a NaN. If both
-      // objects are the same they are equal.
-      if (nan_info == kCantBothBeNaN && cc == equal) {
-        __ cmpq(left_side.reg(), right_side.reg());
-        dest->true_target()->Branch(equal);
-      }
-
-      // Inlined number comparison:
-      if (inline_number_compare) {
-        GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
-      }
-
-      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
-      Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flags.
-      answer.Unuse();
-      dest->true_target()->Branch(cc);
-      dest->false_target()->Jump();
-
-      is_smi.Bind();
-      left_side = Result(left_reg);
-      right_side = Result(right_reg);
-      __ SmiCompare(left_side.reg(), right_side.reg());
-      right_side.Unuse();
-      left_side.Unuse();
-      dest->Split(cc);
-    }
-  }
-}
-
-
-// Load a comparison operand into into a XMM register. Jump to not_numbers jump
-// target passing the left and right result if the operand is not a number.
-static void LoadComparisonOperand(MacroAssembler* masm_,
-                                  Result* operand,
-                                  XMMRegister xmm_reg,
-                                  Result* left_side,
-                                  Result* right_side,
-                                  JumpTarget* not_numbers) {
-  Label done;
-  if (operand->type_info().IsDouble()) {
-    // Operand is known to be a heap number, just load it.
-    __ movsd(xmm_reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
-  } else if (operand->type_info().IsSmi()) {
-    // Operand is known to be a smi. Convert it to double and keep the original
-    // smi.
-    __ SmiToInteger32(kScratchRegister, operand->reg());
-    __ cvtlsi2sd(xmm_reg, kScratchRegister);
-  } else {
-    // Operand type not known, check for smi or heap number.
-    Label smi;
-    __ JumpIfSmi(operand->reg(), &smi);
-    if (!operand->type_info().IsNumber()) {
-      __ LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
-      __ cmpq(FieldOperand(operand->reg(), HeapObject::kMapOffset),
-              kScratchRegister);
-      not_numbers->Branch(not_equal, left_side, right_side, taken);
-    }
-    __ movsd(xmm_reg, FieldOperand(operand->reg(), HeapNumber::kValueOffset));
-    __ jmp(&done);
-
-    __ bind(&smi);
-    // Comvert smi to float and keep the original smi.
-    __ SmiToInteger32(kScratchRegister, operand->reg());
-    __ cvtlsi2sd(xmm_reg, kScratchRegister);
-    __ jmp(&done);
-  }
-  __ bind(&done);
-}
-
-
-void CodeGenerator::GenerateInlineNumberComparison(Result* left_side,
-                                                   Result* right_side,
-                                                   Condition cc,
-                                                   ControlDestination* dest) {
-  ASSERT(left_side->is_register());
-  ASSERT(right_side->is_register());
-
-  JumpTarget not_numbers;
-  // Load left and right operand into registers xmm0 and xmm1 and compare.
-  LoadComparisonOperand(masm_, left_side, xmm0, left_side, right_side,
-                        &not_numbers);
-  LoadComparisonOperand(masm_, right_side, xmm1, left_side, right_side,
-                        &not_numbers);
-  __ ucomisd(xmm0, xmm1);
-  // Bail out if a NaN is involved.
-  not_numbers.Branch(parity_even, left_side, right_side);
-
-  // Split to destination targets based on comparison.
-  left_side->Unuse();
-  right_side->Unuse();
-  dest->true_target()->Branch(DoubleCondition(cc));
-  dest->false_target()->Jump();
-
-  not_numbers.Bind(left_side, right_side);
-}
-
-
-class DeferredInlineBinaryOperation: public DeferredCode {
- public:
-  DeferredInlineBinaryOperation(Token::Value op,
-                                Register dst,
-                                Register left,
-                                Register right,
-                                OverwriteMode mode)
-      : op_(op), dst_(dst), left_(left), right_(right), mode_(mode) {
-    set_comment("[ DeferredInlineBinaryOperation");
-  }
-
-  virtual void Generate();
-
- private:
-  Token::Value op_;
-  Register dst_;
-  Register left_;
-  Register right_;
-  OverwriteMode mode_;
-};
-
-
-void DeferredInlineBinaryOperation::Generate() {
-  Label done;
-  if ((op_ == Token::ADD)
-      || (op_ == Token::SUB)
-      || (op_ == Token::MUL)
-      || (op_ == Token::DIV)) {
-    Label call_runtime;
-    Label left_smi, right_smi, load_right, do_op;
-    __ JumpIfSmi(left_, &left_smi);
-    __ CompareRoot(FieldOperand(left_, HeapObject::kMapOffset),
-                   Heap::kHeapNumberMapRootIndex);
-    __ j(not_equal, &call_runtime);
-    __ movsd(xmm0, FieldOperand(left_, HeapNumber::kValueOffset));
-    if (mode_ == OVERWRITE_LEFT) {
-      __ movq(dst_, left_);
-    }
-    __ jmp(&load_right);
-
-    __ bind(&left_smi);
-    __ SmiToInteger32(left_, left_);
-    __ cvtlsi2sd(xmm0, left_);
-    __ Integer32ToSmi(left_, left_);
-    if (mode_ == OVERWRITE_LEFT) {
-      Label alloc_failure;
-      __ AllocateHeapNumber(dst_, no_reg, &call_runtime);
-    }
-
-    __ bind(&load_right);
-    __ JumpIfSmi(right_, &right_smi);
-    __ CompareRoot(FieldOperand(right_, HeapObject::kMapOffset),
-                   Heap::kHeapNumberMapRootIndex);
-    __ j(not_equal, &call_runtime);
-    __ movsd(xmm1, FieldOperand(right_, HeapNumber::kValueOffset));
-    if (mode_ == OVERWRITE_RIGHT) {
-      __ movq(dst_, right_);
-    } else if (mode_ == NO_OVERWRITE) {
-      Label alloc_failure;
-      __ AllocateHeapNumber(dst_, no_reg, &call_runtime);
-    }
-    __ jmp(&do_op);
-
-    __ bind(&right_smi);
-    __ SmiToInteger32(right_, right_);
-    __ cvtlsi2sd(xmm1, right_);
-    __ Integer32ToSmi(right_, right_);
-    if (mode_ == OVERWRITE_RIGHT || mode_ == NO_OVERWRITE) {
-      Label alloc_failure;
-      __ AllocateHeapNumber(dst_, no_reg, &call_runtime);
-    }
-
-    __ bind(&do_op);
-    switch (op_) {
-      case Token::ADD: __ addsd(xmm0, xmm1); break;
-      case Token::SUB: __ subsd(xmm0, xmm1); break;
-      case Token::MUL: __ mulsd(xmm0, xmm1); break;
-      case Token::DIV: __ divsd(xmm0, xmm1); break;
-      default: UNREACHABLE();
-    }
-    __ movsd(FieldOperand(dst_, HeapNumber::kValueOffset), xmm0);
-    __ jmp(&done);
-
-    __ bind(&call_runtime);
-  }
-  GenericBinaryOpStub stub(op_, mode_, NO_SMI_CODE_IN_STUB);
-  stub.GenerateCall(masm_, left_, right_);
-  if (!dst_.is(rax)) __ movq(dst_, rax);
-  __ bind(&done);
-}
-
-
-static TypeInfo CalculateTypeInfo(TypeInfo operands_type,
-                                  Token::Value op,
-                                  const Result& right,
-                                  const Result& left) {
-  // Set TypeInfo of result according to the operation performed.
-  // We rely on the fact that smis have a 32 bit payload on x64.
-  STATIC_ASSERT(kSmiValueSize == 32);
-  switch (op) {
-    case Token::COMMA:
-      return right.type_info();
-    case Token::OR:
-    case Token::AND:
-      // Result type can be either of the two input types.
-      return operands_type;
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND:
-      // Result is always a smi.
-      return TypeInfo::Smi();
-    case Token::SAR:
-    case Token::SHL:
-      // Result is always a smi.
-      return TypeInfo::Smi();
-    case Token::SHR:
-      // Result of x >>> y is always a smi if masked y >= 1, otherwise a number.
-      return (right.is_constant() && right.handle()->IsSmi()
-                     && (Smi::cast(*right.handle())->value() & 0x1F) >= 1)
-          ? TypeInfo::Smi()
-          : TypeInfo::Number();
-    case Token::ADD:
-      if (operands_type.IsNumber()) {
-        return TypeInfo::Number();
-      } else if (left.type_info().IsString() || right.type_info().IsString()) {
-        return TypeInfo::String();
-      } else {
-        return TypeInfo::Unknown();
-      }
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV:
-    case Token::MOD:
-      // Result is always a number.
-      return TypeInfo::Number();
-    default:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
-  return TypeInfo::Unknown();
-}
-
-
-void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
-                                           OverwriteMode overwrite_mode) {
-  Comment cmnt(masm_, "[ BinaryOperation");
-  Token::Value op = expr->op();
-  Comment cmnt_token(masm_, Token::String(op));
-
-  if (op == Token::COMMA) {
-    // Simply discard left value.
-    frame_->Nip(1);
-    return;
-  }
-
-  Result right = frame_->Pop();
-  Result left = frame_->Pop();
-
-  if (op == Token::ADD) {
-    const bool left_is_string = left.type_info().IsString();
-    const bool right_is_string = right.type_info().IsString();
-    // Make sure constant strings have string type info.
-    ASSERT(!(left.is_constant() && left.handle()->IsString()) ||
-           left_is_string);
-    ASSERT(!(right.is_constant() && right.handle()->IsString()) ||
-           right_is_string);
-    if (left_is_string || right_is_string) {
-      frame_->Push(&left);
-      frame_->Push(&right);
-      Result answer;
-      if (left_is_string) {
-        if (right_is_string) {
-          StringAddStub stub(NO_STRING_CHECK_IN_STUB);
-          answer = frame_->CallStub(&stub, 2);
-        } else {
-          answer =
-            frame_->InvokeBuiltin(Builtins::STRING_ADD_LEFT, CALL_FUNCTION, 2);
-        }
-      } else if (right_is_string) {
-        answer =
-          frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
-      }
-      answer.set_type_info(TypeInfo::String());
-      frame_->Push(&answer);
-      return;
-    }
-    // Neither operand is known to be a string.
-  }
-
-  bool left_is_smi_constant = left.is_constant() && left.handle()->IsSmi();
-  bool left_is_non_smi_constant = left.is_constant() && !left.handle()->IsSmi();
-  bool right_is_smi_constant = right.is_constant() && right.handle()->IsSmi();
-  bool right_is_non_smi_constant =
-      right.is_constant() && !right.handle()->IsSmi();
-
-  if (left_is_smi_constant && right_is_smi_constant) {
-    // Compute the constant result at compile time, and leave it on the frame.
-    int left_int = Smi::cast(*left.handle())->value();
-    int right_int = Smi::cast(*right.handle())->value();
-    if (FoldConstantSmis(op, left_int, right_int)) return;
-  }
-
-  // Get number type of left and right sub-expressions.
-  TypeInfo operands_type =
-      TypeInfo::Combine(left.type_info(), right.type_info());
-
-  TypeInfo result_type = CalculateTypeInfo(operands_type, op, right, left);
-
-  Result answer;
-  if (left_is_non_smi_constant || right_is_non_smi_constant) {
-    // Go straight to the slow case, with no smi code.
-    GenericBinaryOpStub stub(op,
-                             overwrite_mode,
-                             NO_SMI_CODE_IN_STUB,
-                             operands_type);
-    answer = stub.GenerateCall(masm_, frame_, &left, &right);
-  } else if (right_is_smi_constant) {
-    answer = ConstantSmiBinaryOperation(expr, &left, right.handle(),
-                                        false, overwrite_mode);
-  } else if (left_is_smi_constant) {
-    answer = ConstantSmiBinaryOperation(expr, &right, left.handle(),
-                                        true, overwrite_mode);
-  } else {
-    // Set the flags based on the operation, type and loop nesting level.
-    // Bit operations always assume they likely operate on Smis. Still only
-    // generate the inline Smi check code if this operation is part of a loop.
-    // For all other operations only inline the Smi check code for likely smis
-    // if the operation is part of a loop.
-    if (loop_nesting() > 0 &&
-        (Token::IsBitOp(op) ||
-         operands_type.IsInteger32() ||
-         expr->type()->IsLikelySmi())) {
-      answer = LikelySmiBinaryOperation(expr, &left, &right, overwrite_mode);
-    } else {
-      GenericBinaryOpStub stub(op,
-                               overwrite_mode,
-                               NO_GENERIC_BINARY_FLAGS,
-                               operands_type);
-      answer = stub.GenerateCall(masm_, frame_, &left, &right);
-    }
-  }
-
-  answer.set_type_info(result_type);
-  frame_->Push(&answer);
-}
 
 
 // Emit a LoadIC call to get the value from receiver and leave it in
@@ -6901,623 +7494,155 @@ void DeferredReferenceGetNamedValue::Generate() {
 }
 
 
-void DeferredInlineSmiAdd::Generate() {
-  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
-  igostub.GenerateCall(masm_, dst_, value_);
-  if (!dst_.is(rax)) __ movq(dst_, rax);
-}
+class DeferredReferenceGetKeyedValue: public DeferredCode {
+ public:
+  explicit DeferredReferenceGetKeyedValue(Register dst,
+                                          Register receiver,
+                                          Register key)
+      : dst_(dst), receiver_(receiver), key_(key) {
+    set_comment("[ DeferredReferenceGetKeyedValue");
+  }
+
+  virtual void Generate();
+
+  Label* patch_site() { return &patch_site_; }
+
+ private:
+  Label patch_site_;
+  Register dst_;
+  Register receiver_;
+  Register key_;
+};
 
 
-void DeferredInlineSmiAddReversed::Generate() {
-  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
-  igostub.GenerateCall(masm_, value_, dst_);
-  if (!dst_.is(rax)) __ movq(dst_, rax);
-}
-
-
-void DeferredInlineSmiSub::Generate() {
-  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, NO_SMI_CODE_IN_STUB);
-  igostub.GenerateCall(masm_, dst_, value_);
-  if (!dst_.is(rax)) __ movq(dst_, rax);
-}
-
-
-void DeferredInlineSmiOperation::Generate() {
-  // For mod we don't generate all the Smi code inline.
-  GenericBinaryOpStub stub(
-      op_,
-      overwrite_mode_,
-      (op_ == Token::MOD) ? NO_GENERIC_BINARY_FLAGS : NO_SMI_CODE_IN_STUB);
-  stub.GenerateCall(masm_, src_, value_);
-  if (!dst_.is(rax)) __ movq(dst_, rax);
-}
-
-
-void DeferredInlineSmiOperationReversed::Generate() {
-  GenericBinaryOpStub stub(
-      op_,
-      overwrite_mode_,
-      NO_SMI_CODE_IN_STUB);
-  stub.GenerateCall(masm_, value_, src_);
-  if (!dst_.is(rax)) __ movq(dst_, rax);
-}
-
-
-Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
-                                                 Result* operand,
-                                                 Handle<Object> value,
-                                                 bool reversed,
-                                                 OverwriteMode overwrite_mode) {
-  // Generate inline code for a binary operation when one of the
-  // operands is a constant smi.  Consumes the argument "operand".
-  if (IsUnsafeSmi(value)) {
-    Result unsafe_operand(value);
-    if (reversed) {
-      return LikelySmiBinaryOperation(expr, &unsafe_operand, operand,
-                               overwrite_mode);
+void DeferredReferenceGetKeyedValue::Generate() {
+  if (receiver_.is(rdx)) {
+    if (!key_.is(rax)) {
+      __ movq(rax, key_);
+    }  // else do nothing.
+  } else if (receiver_.is(rax)) {
+    if (key_.is(rdx)) {
+      __ xchg(rax, rdx);
+    } else if (key_.is(rax)) {
+      __ movq(rdx, receiver_);
     } else {
-      return LikelySmiBinaryOperation(expr, operand, &unsafe_operand,
-                               overwrite_mode);
+      __ movq(rdx, receiver_);
+      __ movq(rax, key_);
     }
+  } else if (key_.is(rax)) {
+    __ movq(rdx, receiver_);
+  } else {
+    __ movq(rax, key_);
+    __ movq(rdx, receiver_);
   }
+  // Calculate the delta from the IC call instruction to the map check
+  // movq instruction in the inlined version.  This delta is stored in
+  // a test(rax, delta) instruction after the call so that we can find
+  // it in the IC initialization code and patch the movq instruction.
+  // This means that we cannot allow test instructions after calls to
+  // KeyedLoadIC stubs in other places.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  // The delta from the start of the map-compare instruction to the
+  // test instruction.  We use masm_-> directly here instead of the __
+  // macro because the macro sometimes uses macro expansion to turn
+  // into something that can't return a value.  This is encountered
+  // when doing generated code coverage tests.
+  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
+  // Here we use masm_-> instead of the __ macro because this is the
+  // instruction that gets patched and coverage code gets in the way.
+  // TODO(X64): Consider whether it's worth switching the test to a
+  // 7-byte NOP with non-zero immediate (0f 1f 80 xxxxxxxx) which won't
+  // be generated normally.
+  masm_->testl(rax, Immediate(-delta_to_patch_site));
+  __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
 
-  // Get the literal value.
-  Smi* smi_value = Smi::cast(*value);
-  int int_value = smi_value->value();
-
-  Token::Value op = expr->op();
-  Result answer;
-  switch (op) {
-    case Token::ADD: {
-      operand->ToRegister();
-      frame_->Spill(operand->reg());
-      DeferredCode* deferred = NULL;
-      if (reversed) {
-        deferred = new DeferredInlineSmiAddReversed(operand->reg(),
-                                                    smi_value,
-                                                    overwrite_mode);
-      } else {
-        deferred = new DeferredInlineSmiAdd(operand->reg(),
-                                            smi_value,
-                                            overwrite_mode);
-      }
-      JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
-                                deferred);
-      __ SmiAddConstant(operand->reg(),
-                        operand->reg(),
-                        smi_value,
-                        deferred->entry_label());
-      deferred->BindExit();
-      answer = *operand;
-      break;
-    }
-
-    case Token::SUB: {
-      if (reversed) {
-        Result constant_operand(value);
-        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
-                                          overwrite_mode);
-      } else {
-        operand->ToRegister();
-        frame_->Spill(operand->reg());
-        DeferredCode* deferred = new DeferredInlineSmiSub(operand->reg(),
-                                                          smi_value,
-                                                          overwrite_mode);
-        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
-                                  deferred);
-        // A smi currently fits in a 32-bit Immediate.
-        __ SmiSubConstant(operand->reg(),
-                          operand->reg(),
-                          smi_value,
-                          deferred->entry_label());
-        deferred->BindExit();
-        answer = *operand;
-      }
-      break;
-    }
-
-    case Token::SAR:
-      if (reversed) {
-        Result constant_operand(value);
-        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
-                                          overwrite_mode);
-      } else {
-        // Only the least significant 5 bits of the shift value are used.
-        // In the slow case, this masking is done inside the runtime call.
-        int shift_value = int_value & 0x1f;
-        operand->ToRegister();
-        frame_->Spill(operand->reg());
-        DeferredInlineSmiOperation* deferred =
-            new DeferredInlineSmiOperation(op,
-                                           operand->reg(),
-                                           operand->reg(),
-                                           smi_value,
-                                           overwrite_mode);
-        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
-                                  deferred);
-        __ SmiShiftArithmeticRightConstant(operand->reg(),
-                                           operand->reg(),
-                                           shift_value);
-        deferred->BindExit();
-        answer = *operand;
-      }
-      break;
-
-    case Token::SHR:
-      if (reversed) {
-        Result constant_operand(value);
-        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
-                                          overwrite_mode);
-      } else {
-        // Only the least significant 5 bits of the shift value are used.
-        // In the slow case, this masking is done inside the runtime call.
-        int shift_value = int_value & 0x1f;
-        operand->ToRegister();
-        answer = allocator()->Allocate();
-        ASSERT(answer.is_valid());
-        DeferredInlineSmiOperation* deferred =
-            new DeferredInlineSmiOperation(op,
-                                           answer.reg(),
-                                           operand->reg(),
-                                           smi_value,
-                                           overwrite_mode);
-        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
-                                  deferred);
-        __ SmiShiftLogicalRightConstant(answer.reg(),
-                                        operand->reg(),
-                                        shift_value,
-                                        deferred->entry_label());
-        deferred->BindExit();
-        operand->Unuse();
-      }
-      break;
-
-    case Token::SHL:
-      if (reversed) {
-        operand->ToRegister();
-
-        // We need rcx to be available to hold operand, and to be spilled.
-        // SmiShiftLeft implicitly modifies rcx.
-        if (operand->reg().is(rcx)) {
-          frame_->Spill(operand->reg());
-          answer = allocator()->Allocate();
-        } else {
-          Result rcx_reg = allocator()->Allocate(rcx);
-          // answer must not be rcx.
-          answer = allocator()->Allocate();
-          // rcx_reg goes out of scope.
-        }
-
-        DeferredInlineSmiOperationReversed* deferred =
-            new DeferredInlineSmiOperationReversed(op,
-                                                   answer.reg(),
-                                                   smi_value,
-                                                   operand->reg(),
-                                                   overwrite_mode);
-        JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
-                                  deferred);
-
-        __ Move(answer.reg(), smi_value);
-        __ SmiShiftLeft(answer.reg(), answer.reg(), operand->reg());
-        operand->Unuse();
-
-        deferred->BindExit();
-      } else {
-        // Only the least significant 5 bits of the shift value are used.
-        // In the slow case, this masking is done inside the runtime call.
-        int shift_value = int_value & 0x1f;
-        operand->ToRegister();
-        if (shift_value == 0) {
-          // Spill operand so it can be overwritten in the slow case.
-          frame_->Spill(operand->reg());
-          DeferredInlineSmiOperation* deferred =
-              new DeferredInlineSmiOperation(op,
-                                             operand->reg(),
-                                             operand->reg(),
-                                             smi_value,
-                                             overwrite_mode);
-          JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
-                                    deferred);
-          deferred->BindExit();
-          answer = *operand;
-        } else {
-          // Use a fresh temporary for nonzero shift values.
-          answer = allocator()->Allocate();
-          ASSERT(answer.is_valid());
-          DeferredInlineSmiOperation* deferred =
-              new DeferredInlineSmiOperation(op,
-                                             answer.reg(),
-                                             operand->reg(),
-                                             smi_value,
-                                             overwrite_mode);
-          JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
-                                    deferred);
-          __ SmiShiftLeftConstant(answer.reg(),
-                                  operand->reg(),
-                                  shift_value);
-          deferred->BindExit();
-          operand->Unuse();
-        }
-      }
-      break;
-
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND: {
-      operand->ToRegister();
-      frame_->Spill(operand->reg());
-      if (reversed) {
-        // Bit operations with a constant smi are commutative.
-        // We can swap left and right operands with no problem.
-        // Swap left and right overwrite modes.  0->0, 1->2, 2->1.
-        overwrite_mode = static_cast<OverwriteMode>((2 * overwrite_mode) % 3);
-      }
-      DeferredCode* deferred =  new DeferredInlineSmiOperation(op,
-                                                               operand->reg(),
-                                                               operand->reg(),
-                                                               smi_value,
-                                                               overwrite_mode);
-      JumpIfNotSmiUsingTypeInfo(operand->reg(), operand->type_info(),
-                                deferred);
-      if (op == Token::BIT_AND) {
-        __ SmiAndConstant(operand->reg(), operand->reg(), smi_value);
-      } else if (op == Token::BIT_XOR) {
-        if (int_value != 0) {
-          __ SmiXorConstant(operand->reg(), operand->reg(), smi_value);
-        }
-      } else {
-        ASSERT(op == Token::BIT_OR);
-        if (int_value != 0) {
-          __ SmiOrConstant(operand->reg(), operand->reg(), smi_value);
-        }
-      }
-      deferred->BindExit();
-      answer = *operand;
-      break;
-    }
-
-    // Generate inline code for mod of powers of 2 and negative powers of 2.
-    case Token::MOD:
-      if (!reversed &&
-          int_value != 0 &&
-          (IsPowerOf2(int_value) || IsPowerOf2(-int_value))) {
-        operand->ToRegister();
-        frame_->Spill(operand->reg());
-        DeferredCode* deferred =
-            new DeferredInlineSmiOperation(op,
-                                           operand->reg(),
-                                           operand->reg(),
-                                           smi_value,
-                                           overwrite_mode);
-        // Check for negative or non-Smi left hand side.
-        __ JumpIfNotPositiveSmi(operand->reg(), deferred->entry_label());
-        if (int_value < 0) int_value = -int_value;
-        if (int_value == 1) {
-          __ Move(operand->reg(), Smi::FromInt(0));
-        } else {
-          __ SmiAndConstant(operand->reg(),
-                            operand->reg(),
-                            Smi::FromInt(int_value - 1));
-        }
-        deferred->BindExit();
-        answer = *operand;
-        break;  // This break only applies if we generated code for MOD.
-      }
-      // Fall through if we did not find a power of 2 on the right hand side!
-      // The next case must be the default.
-
-    default: {
-      Result constant_operand(value);
-      if (reversed) {
-        answer = LikelySmiBinaryOperation(expr, &constant_operand, operand,
-                                          overwrite_mode);
-      } else {
-        answer = LikelySmiBinaryOperation(expr, operand, &constant_operand,
-                                          overwrite_mode);
-      }
-      break;
-    }
-  }
-  ASSERT(answer.is_valid());
-  return answer;
+  if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
 
-void CodeGenerator::JumpIfNotSmiUsingTypeInfo(Register reg,
-                                              TypeInfo type,
-                                              DeferredCode* deferred) {
-  if (!type.IsSmi()) {
-        __ JumpIfNotSmi(reg, deferred->entry_label());
+class DeferredReferenceSetKeyedValue: public DeferredCode {
+ public:
+  DeferredReferenceSetKeyedValue(Register value,
+                                 Register key,
+                                 Register receiver)
+      : value_(value), key_(key), receiver_(receiver) {
+    set_comment("[ DeferredReferenceSetKeyedValue");
   }
-  if (FLAG_debug_code) {
-    __ AbortIfNotSmi(reg);
-  }
-}
+
+  virtual void Generate();
+
+  Label* patch_site() { return &patch_site_; }
+
+ private:
+  Register value_;
+  Register key_;
+  Register receiver_;
+  Label patch_site_;
+};
 
 
-void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
-                                                  Register right,
-                                                  TypeInfo left_info,
-                                                  TypeInfo right_info,
-                                                  DeferredCode* deferred) {
-  if (!left_info.IsSmi() && !right_info.IsSmi()) {
-    __ JumpIfNotBothSmi(left, right, deferred->entry_label());
-  } else if (!left_info.IsSmi()) {
-    __ JumpIfNotSmi(left, deferred->entry_label());
-  } else if (!right_info.IsSmi()) {
-    __ JumpIfNotSmi(right, deferred->entry_label());
-  }
-  if (FLAG_debug_code) {
-    __ AbortIfNotSmi(left);
-    __ AbortIfNotSmi(right);
-  }
-}
-
-
-// Implements a binary operation using a deferred code object and some
-// inline code to operate on smis quickly.
-Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
-                                               Result* left,
-                                               Result* right,
-                                               OverwriteMode overwrite_mode) {
-  // Copy the type info because left and right may be overwritten.
-  TypeInfo left_type_info = left->type_info();
-  TypeInfo right_type_info = right->type_info();
-  Token::Value op = expr->op();
-  Result answer;
-  // Special handling of div and mod because they use fixed registers.
-  if (op == Token::DIV || op == Token::MOD) {
-    // We need rax as the quotient register, rdx as the remainder
-    // register, neither left nor right in rax or rdx, and left copied
-    // to rax.
-    Result quotient;
-    Result remainder;
-    bool left_is_in_rax = false;
-    // Step 1: get rax for quotient.
-    if ((left->is_register() && left->reg().is(rax)) ||
-        (right->is_register() && right->reg().is(rax))) {
-      // One or both is in rax.  Use a fresh non-rdx register for
-      // them.
-      Result fresh = allocator_->Allocate();
-      ASSERT(fresh.is_valid());
-      if (fresh.reg().is(rdx)) {
-        remainder = fresh;
-        fresh = allocator_->Allocate();
-        ASSERT(fresh.is_valid());
-      }
-      if (left->is_register() && left->reg().is(rax)) {
-        quotient = *left;
-        *left = fresh;
-        left_is_in_rax = true;
-      }
-      if (right->is_register() && right->reg().is(rax)) {
-        quotient = *right;
-        *right = fresh;
-      }
-      __ movq(fresh.reg(), rax);
+void DeferredReferenceSetKeyedValue::Generate() {
+  __ IncrementCounter(&Counters::keyed_store_inline_miss, 1);
+  // Move value, receiver, and key to registers rax, rdx, and rcx, as
+  // the IC stub expects.
+  // Move value to rax, using xchg if the receiver or key is in rax.
+  if (!value_.is(rax)) {
+    if (!receiver_.is(rax) && !key_.is(rax)) {
+      __ movq(rax, value_);
     } else {
-      // Neither left nor right is in rax.
-      quotient = allocator_->Allocate(rax);
-    }
-    ASSERT(quotient.is_register() && quotient.reg().is(rax));
-    ASSERT(!(left->is_register() && left->reg().is(rax)));
-    ASSERT(!(right->is_register() && right->reg().is(rax)));
-
-    // Step 2: get rdx for remainder if necessary.
-    if (!remainder.is_valid()) {
-      if ((left->is_register() && left->reg().is(rdx)) ||
-          (right->is_register() && right->reg().is(rdx))) {
-        Result fresh = allocator_->Allocate();
-        ASSERT(fresh.is_valid());
-        if (left->is_register() && left->reg().is(rdx)) {
-          remainder = *left;
-          *left = fresh;
-        }
-        if (right->is_register() && right->reg().is(rdx)) {
-          remainder = *right;
-          *right = fresh;
-        }
-        __ movq(fresh.reg(), rdx);
-      } else {
-        // Neither left nor right is in rdx.
-        remainder = allocator_->Allocate(rdx);
+      __ xchg(rax, value_);
+      // Update receiver_ and key_ if they are affected by the swap.
+      if (receiver_.is(rax)) {
+        receiver_ = value_;
+      } else if (receiver_.is(value_)) {
+        receiver_ = rax;
+      }
+      if (key_.is(rax)) {
+        key_ = value_;
+      } else if (key_.is(value_)) {
+        key_ = rax;
       }
     }
-    ASSERT(remainder.is_register() && remainder.reg().is(rdx));
-    ASSERT(!(left->is_register() && left->reg().is(rdx)));
-    ASSERT(!(right->is_register() && right->reg().is(rdx)));
-
-    left->ToRegister();
-    right->ToRegister();
-    frame_->Spill(rax);
-    frame_->Spill(rdx);
-
-    // Check that left and right are smi tagged.
-    DeferredInlineBinaryOperation* deferred =
-        new DeferredInlineBinaryOperation(op,
-                                          (op == Token::DIV) ? rax : rdx,
-                                          left->reg(),
-                                          right->reg(),
-                                          overwrite_mode);
-    JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(),
-                                  left_type_info, right_type_info, deferred);
-
-    if (op == Token::DIV) {
-      __ SmiDiv(rax, left->reg(), right->reg(), deferred->entry_label());
-      deferred->BindExit();
-      left->Unuse();
-      right->Unuse();
-      answer = quotient;
+  }
+  // Value is now in rax. Its original location is remembered in value_,
+  // and the value is restored to value_ before returning.
+  // The variables receiver_ and key_ are not preserved.
+  // Move receiver and key to rdx and rcx, swapping if necessary.
+  if (receiver_.is(rdx)) {
+    if (!key_.is(rcx)) {
+      __ movq(rcx, key_);
+    }  // Else everything is already in the right place.
+  } else if (receiver_.is(rcx)) {
+    if (key_.is(rdx)) {
+      __ xchg(rcx, rdx);
+    } else if (key_.is(rcx)) {
+      __ movq(rdx, receiver_);
     } else {
-      ASSERT(op == Token::MOD);
-      __ SmiMod(rdx, left->reg(), right->reg(), deferred->entry_label());
-      deferred->BindExit();
-      left->Unuse();
-      right->Unuse();
-      answer = remainder;
+      __ movq(rdx, receiver_);
+      __ movq(rcx, key_);
     }
-    ASSERT(answer.is_valid());
-    return answer;
+  } else if (key_.is(rcx)) {
+    __ movq(rdx, receiver_);
+  } else {
+    __ movq(rcx, key_);
+    __ movq(rdx, receiver_);
   }
 
-  // Special handling of shift operations because they use fixed
-  // registers.
-  if (op == Token::SHL || op == Token::SHR || op == Token::SAR) {
-    // Move left out of rcx if necessary.
-    if (left->is_register() && left->reg().is(rcx)) {
-      *left = allocator_->Allocate();
-      ASSERT(left->is_valid());
-      __ movq(left->reg(), rcx);
-    }
-    right->ToRegister(rcx);
-    left->ToRegister();
-    ASSERT(left->is_register() && !left->reg().is(rcx));
-    ASSERT(right->is_register() && right->reg().is(rcx));
-
-    // We will modify right, it must be spilled.
-    frame_->Spill(rcx);
-
-    // Use a fresh answer register to avoid spilling the left operand.
-    answer = allocator_->Allocate();
-    ASSERT(answer.is_valid());
-    // Check that both operands are smis using the answer register as a
-    // temporary.
-    DeferredInlineBinaryOperation* deferred =
-        new DeferredInlineBinaryOperation(op,
-                                          answer.reg(),
-                                          left->reg(),
-                                          rcx,
-                                          overwrite_mode);
-
-    Label do_op;
-    if (right_type_info.IsSmi()) {
-      if (FLAG_debug_code) {
-        __ AbortIfNotSmi(right->reg());
-      }
-      __ movq(answer.reg(), left->reg());
-      // If left is not known to be a smi, check if it is.
-      // If left is not known to be a number, and it isn't a smi, check if
-      // it is a HeapNumber.
-      if (!left_type_info.IsSmi()) {
-        __ JumpIfSmi(answer.reg(), &do_op);
-        if (!left_type_info.IsNumber()) {
-          // Branch if not a heapnumber.
-          __ Cmp(FieldOperand(answer.reg(), HeapObject::kMapOffset),
-                 Factory::heap_number_map());
-          deferred->Branch(not_equal);
-        }
-        // Load integer value into answer register using truncation.
-        __ cvttsd2si(answer.reg(),
-                     FieldOperand(answer.reg(), HeapNumber::kValueOffset));
-        // Branch if we might have overflowed.
-        // (False negative for Smi::kMinValue)
-        __ cmpq(answer.reg(), Immediate(0x80000000));
-        deferred->Branch(equal);
-        // TODO(lrn): Inline shifts on int32 here instead of first smi-tagging.
-        __ Integer32ToSmi(answer.reg(), answer.reg());
-      } else {
-        // Fast case - both are actually smis.
-        if (FLAG_debug_code) {
-          __ AbortIfNotSmi(left->reg());
-        }
-      }
-    } else {
-      JumpIfNotBothSmiUsingTypeInfo(left->reg(), rcx,
-                                    left_type_info, right_type_info, deferred);
-    }
-    __ bind(&do_op);
-
-    // Perform the operation.
-    switch (op) {
-      case Token::SAR:
-        __ SmiShiftArithmeticRight(answer.reg(), left->reg(), rcx);
-        break;
-      case Token::SHR: {
-        __ SmiShiftLogicalRight(answer.reg(),
-                              left->reg(),
-                              rcx,
-                              deferred->entry_label());
-        break;
-      }
-      case Token::SHL: {
-        __ SmiShiftLeft(answer.reg(),
-                        left->reg(),
-                        rcx);
-        break;
-      }
-      default:
-        UNREACHABLE();
-    }
-    deferred->BindExit();
-    left->Unuse();
-    right->Unuse();
-    ASSERT(answer.is_valid());
-    return answer;
-  }
-
-  // Handle the other binary operations.
-  left->ToRegister();
-  right->ToRegister();
-  // A newly allocated register answer is used to hold the answer.  The
-  // registers containing left and right are not modified so they don't
-  // need to be spilled in the fast case.
-  answer = allocator_->Allocate();
-  ASSERT(answer.is_valid());
-
-  // Perform the smi tag check.
-  DeferredInlineBinaryOperation* deferred =
-      new DeferredInlineBinaryOperation(op,
-                                        answer.reg(),
-                                        left->reg(),
-                                        right->reg(),
-                                        overwrite_mode);
-  JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(),
-                                left_type_info, right_type_info, deferred);
-
-  switch (op) {
-    case Token::ADD:
-      __ SmiAdd(answer.reg(),
-                left->reg(),
-                right->reg(),
-                deferred->entry_label());
-      break;
-
-    case Token::SUB:
-      __ SmiSub(answer.reg(),
-                left->reg(),
-                right->reg(),
-                deferred->entry_label());
-      break;
-
-    case Token::MUL: {
-      __ SmiMul(answer.reg(),
-                left->reg(),
-                right->reg(),
-                deferred->entry_label());
-      break;
-    }
-
-    case Token::BIT_OR:
-      __ SmiOr(answer.reg(), left->reg(), right->reg());
-      break;
-
-    case Token::BIT_AND:
-      __ SmiAnd(answer.reg(), left->reg(), right->reg());
-      break;
-
-    case Token::BIT_XOR:
-      __ SmiXor(answer.reg(), left->reg(), right->reg());
-      break;
-
-    default:
-      UNREACHABLE();
-      break;
-  }
-  deferred->BindExit();
-  left->Unuse();
-  right->Unuse();
-  ASSERT(answer.is_valid());
-  return answer;
+  // Call the IC stub.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  // The delta from the start of the map-compare instructions (initial movq)
+  // to the test instruction.  We use masm_-> directly here instead of the
+  // __ macro because the macro sometimes uses macro expansion to turn
+  // into something that can't return a value.  This is encountered
+  // when doing generated code coverage tests.
+  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
+  // Here we use masm_-> instead of the __ macro because this is the
+  // instruction that gets patched and coverage code gets in the way.
+  masm_->testl(rax, Immediate(-delta_to_patch_site));
+  // Restore value (returned from store IC).
+  if (!value_.is(rax)) __ movq(value_, rax);
 }
 
 
@@ -8140,2129 +8265,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ bind(&false_result);
   __ xor_(rax, rax);
   __ ret(1 * kPointerSize);
-}
-
-
-bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
-  Object* answer_object = Heap::undefined_value();
-  switch (op) {
-    case Token::ADD:
-      // Use intptr_t to detect overflow of 32-bit int.
-      if (Smi::IsValid(static_cast<intptr_t>(left) + right)) {
-        answer_object = Smi::FromInt(left + right);
-      }
-      break;
-    case Token::SUB:
-      // Use intptr_t to detect overflow of 32-bit int.
-      if (Smi::IsValid(static_cast<intptr_t>(left) - right)) {
-        answer_object = Smi::FromInt(left - right);
-      }
-      break;
-    case Token::MUL: {
-        double answer = static_cast<double>(left) * right;
-        if (answer >= Smi::kMinValue && answer <= Smi::kMaxValue) {
-          // If the product is zero and the non-zero factor is negative,
-          // the spec requires us to return floating point negative zero.
-          if (answer != 0 || (left + right) >= 0) {
-            answer_object = Smi::FromInt(static_cast<int>(answer));
-          }
-        }
-      }
-      break;
-    case Token::DIV:
-    case Token::MOD:
-      break;
-    case Token::BIT_OR:
-      answer_object = Smi::FromInt(left | right);
-      break;
-    case Token::BIT_AND:
-      answer_object = Smi::FromInt(left & right);
-      break;
-    case Token::BIT_XOR:
-      answer_object = Smi::FromInt(left ^ right);
-      break;
-
-    case Token::SHL: {
-        int shift_amount = right & 0x1F;
-        if (Smi::IsValid(left << shift_amount)) {
-          answer_object = Smi::FromInt(left << shift_amount);
-        }
-        break;
-      }
-    case Token::SHR: {
-        int shift_amount = right & 0x1F;
-        unsigned int unsigned_left = left;
-        unsigned_left >>= shift_amount;
-        if (unsigned_left <= static_cast<unsigned int>(Smi::kMaxValue)) {
-          answer_object = Smi::FromInt(unsigned_left);
-        }
-        break;
-      }
-    case Token::SAR: {
-        int shift_amount = right & 0x1F;
-        unsigned int unsigned_left = left;
-        if (left < 0) {
-          // Perform arithmetic shift of a negative number by
-          // complementing number, logical shifting, complementing again.
-          unsigned_left = ~unsigned_left;
-          unsigned_left >>= shift_amount;
-          unsigned_left = ~unsigned_left;
-        } else {
-          unsigned_left >>= shift_amount;
-        }
-        ASSERT(Smi::IsValid(static_cast<int32_t>(unsigned_left)));
-        answer_object = Smi::FromInt(static_cast<int32_t>(unsigned_left));
-        break;
-      }
-    default:
-      UNREACHABLE();
-      break;
-  }
-  if (answer_object == Heap::undefined_value()) {
-    return false;
-  }
-  frame_->Push(Handle<Object>(answer_object));
-  return true;
-}
-
-
-// End of CodeGenerator implementation.
-
-void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
-  // Input on stack:
-  // rsp[8]: argument (should be number).
-  // rsp[0]: return address.
-  Label runtime_call;
-  Label runtime_call_clear_stack;
-  Label input_not_smi;
-  Label loaded;
-  // Test that rax is a number.
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ JumpIfNotSmi(rax, &input_not_smi);
-  // Input is a smi. Untag and load it onto the FPU stack.
-  // Then load the bits of the double into rbx.
-  __ SmiToInteger32(rax, rax);
-  __ subq(rsp, Immediate(kPointerSize));
-  __ cvtlsi2sd(xmm1, rax);
-  __ movsd(Operand(rsp, 0), xmm1);
-  __ movq(rbx, xmm1);
-  __ movq(rdx, xmm1);
-  __ fld_d(Operand(rsp, 0));
-  __ addq(rsp, Immediate(kPointerSize));
-  __ jmp(&loaded);
-
-  __ bind(&input_not_smi);
-  // Check if input is a HeapNumber.
-  __ Move(rbx, Factory::heap_number_map());
-  __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-  __ j(not_equal, &runtime_call);
-  // Input is a HeapNumber. Push it on the FPU stack and load its
-  // bits into rbx.
-  __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ movq(rdx, rbx);
-  __ bind(&loaded);
-  // ST[0] == double value
-  // rbx = bits of double value.
-  // rdx = also bits of double value.
-  // Compute hash (h is 32 bits, bits are 64 and the shifts are arithmetic):
-  //   h = h0 = bits ^ (bits >> 32);
-  //   h ^= h >> 16;
-  //   h ^= h >> 8;
-  //   h = h & (cacheSize - 1);
-  // or h = (h0 ^ (h0 >> 8) ^ (h0 >> 16) ^ (h0 >> 24)) & (cacheSize - 1)
-  __ sar(rdx, Immediate(32));
-  __ xorl(rdx, rbx);
-  __ movl(rcx, rdx);
-  __ movl(rax, rdx);
-  __ movl(rdi, rdx);
-  __ sarl(rdx, Immediate(8));
-  __ sarl(rcx, Immediate(16));
-  __ sarl(rax, Immediate(24));
-  __ xorl(rcx, rdx);
-  __ xorl(rax, rdi);
-  __ xorl(rcx, rax);
-  ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
-  __ andl(rcx, Immediate(TranscendentalCache::kCacheSize - 1));
-
-  // ST[0] == double value.
-  // rbx = bits of double value.
-  // rcx = TranscendentalCache::hash(double value).
-  __ movq(rax, ExternalReference::transcendental_cache_array_address());
-  // rax points to cache array.
-  __ movq(rax, Operand(rax, type_ * sizeof(TranscendentalCache::caches_[0])));
-  // rax points to the cache for the type type_.
-  // If NULL, the cache hasn't been initialized yet, so go through runtime.
-  __ testq(rax, rax);
-  __ j(zero, &runtime_call_clear_stack);
-#ifdef DEBUG
-  // Check that the layout of cache elements match expectations.
-  {  // NOLINT - doesn't like a single brace on a line.
-    TranscendentalCache::Element test_elem[2];
-    char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
-    char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
-    char* elem_in0  = reinterpret_cast<char*>(&(test_elem[0].in[0]));
-    char* elem_in1  = reinterpret_cast<char*>(&(test_elem[0].in[1]));
-    char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
-    // Two uint_32's and a pointer per element.
-    CHECK_EQ(16, static_cast<int>(elem2_start - elem_start));
-    CHECK_EQ(0, static_cast<int>(elem_in0 - elem_start));
-    CHECK_EQ(kIntSize, static_cast<int>(elem_in1 - elem_start));
-    CHECK_EQ(2 * kIntSize, static_cast<int>(elem_out - elem_start));
-  }
-#endif
-  // Find the address of the rcx'th entry in the cache, i.e., &rax[rcx*16].
-  __ addl(rcx, rcx);
-  __ lea(rcx, Operand(rax, rcx, times_8, 0));
-  // Check if cache matches: Double value is stored in uint32_t[2] array.
-  Label cache_miss;
-  __ cmpq(rbx, Operand(rcx, 0));
-  __ j(not_equal, &cache_miss);
-  // Cache hit!
-  __ movq(rax, Operand(rcx, 2 * kIntSize));
-  __ fstp(0);  // Clear FPU stack.
-  __ ret(kPointerSize);
-
-  __ bind(&cache_miss);
-  // Update cache with new value.
-  Label nan_result;
-  GenerateOperation(masm, &nan_result);
-  __ AllocateHeapNumber(rax, rdi, &runtime_call_clear_stack);
-  __ movq(Operand(rcx, 0), rbx);
-  __ movq(Operand(rcx, 2 * kIntSize), rax);
-  __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  __ ret(kPointerSize);
-
-  __ bind(&runtime_call_clear_stack);
-  __ fstp(0);
-  __ bind(&runtime_call);
-  __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
-
-  __ bind(&nan_result);
-  __ fstp(0);  // Remove argument from FPU stack.
-  __ LoadRoot(rax, Heap::kNanValueRootIndex);
-  __ movq(Operand(rcx, 0), rbx);
-  __ movq(Operand(rcx, 2 * kIntSize), rax);
-  __ ret(kPointerSize);
-}
-
-
-Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
-  switch (type_) {
-    // Add more cases when necessary.
-    case TranscendentalCache::SIN: return Runtime::kMath_sin;
-    case TranscendentalCache::COS: return Runtime::kMath_cos;
-    default:
-      UNIMPLEMENTED();
-      return Runtime::kAbort;
-  }
-}
-
-
-void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm,
-                                                Label* on_nan_result) {
-  // Registers:
-  // rbx: Bits of input double. Must be preserved.
-  // rcx: Pointer to cache entry. Must be preserved.
-  // st(0): Input double
-  Label done;
-  ASSERT(type_ == TranscendentalCache::SIN ||
-         type_ == TranscendentalCache::COS);
-  // More transcendental types can be added later.
-
-  // Both fsin and fcos require arguments in the range +/-2^63 and
-  // return NaN for infinities and NaN. They can share all code except
-  // the actual fsin/fcos operation.
-  Label in_range;
-  // If argument is outside the range -2^63..2^63, fsin/cos doesn't
-  // work. We must reduce it to the appropriate range.
-  __ movq(rdi, rbx);
-  // Move exponent and sign bits to low bits.
-  __ shr(rdi, Immediate(HeapNumber::kMantissaBits));
-  // Remove sign bit.
-  __ andl(rdi, Immediate((1 << HeapNumber::kExponentBits) - 1));
-  int supported_exponent_limit = (63 + HeapNumber::kExponentBias);
-  __ cmpl(rdi, Immediate(supported_exponent_limit));
-  __ j(below, &in_range);
-  // Check for infinity and NaN. Both return NaN for sin.
-  __ cmpl(rdi, Immediate(0x7ff));
-  __ j(equal, on_nan_result);
-
-  // Use fpmod to restrict argument to the range +/-2*PI.
-  __ fldpi();
-  __ fadd(0);
-  __ fld(1);
-  // FPU Stack: input, 2*pi, input.
-  {
-    Label no_exceptions;
-    __ fwait();
-    __ fnstsw_ax();
-    // Clear if Illegal Operand or Zero Division exceptions are set.
-    __ testl(rax, Immediate(5));  // #IO and #ZD flags of FPU status word.
-    __ j(zero, &no_exceptions);
-    __ fnclex();
-    __ bind(&no_exceptions);
-  }
-
-  // Compute st(0) % st(1)
-  {
-    Label partial_remainder_loop;
-    __ bind(&partial_remainder_loop);
-    __ fprem1();
-    __ fwait();
-    __ fnstsw_ax();
-    __ testl(rax, Immediate(0x400));  // Check C2 bit of FPU status word.
-    // If C2 is set, computation only has partial result. Loop to
-    // continue computation.
-    __ j(not_zero, &partial_remainder_loop);
-  }
-  // FPU Stack: input, 2*pi, input % 2*pi
-  __ fstp(2);
-  // FPU Stack: input % 2*pi, 2*pi,
-  __ fstp(0);
-  // FPU Stack: input % 2*pi
-  __ bind(&in_range);
-  switch (type_) {
-    case TranscendentalCache::SIN:
-      __ fsin();
-      break;
-    case TranscendentalCache::COS:
-      __ fcos();
-      break;
-    default:
-      UNREACHABLE();
-  }
-  __ bind(&done);
-}
-
-
-// Get the integer part of a heap number.
-// Overwrites the contents of rdi, rbx and rcx. Result cannot be rdi or rbx.
-void IntegerConvert(MacroAssembler* masm,
-                    Register result,
-                    Register source) {
-  // Result may be rcx. If result and source are the same register, source will
-  // be overwritten.
-  ASSERT(!result.is(rdi) && !result.is(rbx));
-  // TODO(lrn): When type info reaches here, if value is a 32-bit integer, use
-  // cvttsd2si (32-bit version) directly.
-  Register double_exponent = rbx;
-  Register double_value = rdi;
-  Label done, exponent_63_plus;
-  // Get double and extract exponent.
-  __ movq(double_value, FieldOperand(source, HeapNumber::kValueOffset));
-  // Clear result preemptively, in case we need to return zero.
-  __ xorl(result, result);
-  __ movq(xmm0, double_value);  // Save copy in xmm0 in case we need it there.
-  // Double to remove sign bit, shift exponent down to least significant bits.
-  // and subtract bias to get the unshifted, unbiased exponent.
-  __ lea(double_exponent, Operand(double_value, double_value, times_1, 0));
-  __ shr(double_exponent, Immediate(64 - HeapNumber::kExponentBits));
-  __ subl(double_exponent, Immediate(HeapNumber::kExponentBias));
-  // Check whether the exponent is too big for a 63 bit unsigned integer.
-  __ cmpl(double_exponent, Immediate(63));
-  __ j(above_equal, &exponent_63_plus);
-  // Handle exponent range 0..62.
-  __ cvttsd2siq(result, xmm0);
-  __ jmp(&done);
-
-  __ bind(&exponent_63_plus);
-  // Exponent negative or 63+.
-  __ cmpl(double_exponent, Immediate(83));
-  // If exponent negative or above 83, number contains no significant bits in
-  // the range 0..2^31, so result is zero, and rcx already holds zero.
-  __ j(above, &done);
-
-  // Exponent in rage 63..83.
-  // Mantissa * 2^exponent contains bits in the range 2^0..2^31, namely
-  // the least significant exponent-52 bits.
-
-  // Negate low bits of mantissa if value is negative.
-  __ addq(double_value, double_value);  // Move sign bit to carry.
-  __ sbbl(result, result);  // And convert carry to -1 in result register.
-  // if scratch2 is negative, do (scratch2-1)^-1, otherwise (scratch2-0)^0.
-  __ addl(double_value, result);
-  // Do xor in opposite directions depending on where we want the result
-  // (depending on whether result is rcx or not).
-
-  if (result.is(rcx)) {
-    __ xorl(double_value, result);
-    // Left shift mantissa by (exponent - mantissabits - 1) to save the
-    // bits that have positional values below 2^32 (the extra -1 comes from the
-    // doubling done above to move the sign bit into the carry flag).
-    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
-    __ shll_cl(double_value);
-    __ movl(result, double_value);
-  } else {
-    // As the then-branch, but move double-value to result before shifting.
-    __ xorl(result, double_value);
-    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
-    __ shll_cl(result);
-  }
-
-  __ bind(&done);
-}
-
-
-void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
-  Label slow, done;
-
-  if (op_ == Token::SUB) {
-    // Check whether the value is a smi.
-    Label try_float;
-    __ JumpIfNotSmi(rax, &try_float);
-
-    if (negative_zero_ == kIgnoreNegativeZero) {
-      __ SmiCompare(rax, Smi::FromInt(0));
-      __ j(equal, &done);
-    }
-
-    // Enter runtime system if the value of the smi is zero
-    // to make sure that we switch between 0 and -0.
-    // Also enter it if the value of the smi is Smi::kMinValue.
-    __ SmiNeg(rax, rax, &done);
-
-    // Either zero or Smi::kMinValue, neither of which become a smi when
-    // negated.
-    if (negative_zero_ == kStrictNegativeZero) {
-      __ SmiCompare(rax, Smi::FromInt(0));
-      __ j(not_equal, &slow);
-      __ Move(rax, Factory::minus_zero_value());
-      __ jmp(&done);
-    } else  {
-      __ jmp(&slow);
-    }
-
-    // Try floating point case.
-    __ bind(&try_float);
-    __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
-    __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
-    __ j(not_equal, &slow);
-    // Operand is a float, negate its value by flipping sign bit.
-    __ movq(rdx, FieldOperand(rax, HeapNumber::kValueOffset));
-    __ movq(kScratchRegister, Immediate(0x01));
-    __ shl(kScratchRegister, Immediate(63));
-    __ xor_(rdx, kScratchRegister);  // Flip sign.
-    // rdx is value to store.
-    if (overwrite_ == UNARY_OVERWRITE) {
-      __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rdx);
-    } else {
-      __ AllocateHeapNumber(rcx, rbx, &slow);
-      // rcx: allocated 'empty' number
-      __ movq(FieldOperand(rcx, HeapNumber::kValueOffset), rdx);
-      __ movq(rax, rcx);
-    }
-  } else if (op_ == Token::BIT_NOT) {
-    // Check if the operand is a heap number.
-    __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
-    __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
-    __ j(not_equal, &slow);
-
-    // Convert the heap number in rax to an untagged integer in rcx.
-    IntegerConvert(masm, rax, rax);
-
-    // Do the bitwise operation and smi tag the result.
-    __ notl(rax);
-    __ Integer32ToSmi(rax, rax);
-  }
-
-  // Return from the stub.
-  __ bind(&done);
-  __ StubReturn(1);
-
-  // Handle the slow case by jumping to the JavaScript builtin.
-  __ bind(&slow);
-  __ pop(rcx);  // pop return address
-  __ push(rax);
-  __ push(rcx);  // push return address
-  switch (op_) {
-    case Token::SUB:
-      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
-      break;
-    case Token::BIT_NOT:
-      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_FUNCTION);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-void RegExpExecStub::Generate(MacroAssembler* masm) {
-  // Just jump directly to runtime if native RegExp is not selected at compile
-  // time or if regexp entry in generated code is turned off runtime switch or
-  // at compilation.
-#ifdef V8_INTERPRETED_REGEXP
-  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-#else  // V8_INTERPRETED_REGEXP
-  if (!FLAG_regexp_entry_native) {
-    __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-    return;
-  }
-
-  // Stack frame on entry.
-  //  esp[0]: return address
-  //  esp[8]: last_match_info (expected JSArray)
-  //  esp[16]: previous index
-  //  esp[24]: subject string
-  //  esp[32]: JSRegExp object
-
-  static const int kLastMatchInfoOffset = 1 * kPointerSize;
-  static const int kPreviousIndexOffset = 2 * kPointerSize;
-  static const int kSubjectOffset = 3 * kPointerSize;
-  static const int kJSRegExpOffset = 4 * kPointerSize;
-
-  Label runtime;
-
-  // Ensure that a RegExp stack is allocated.
-  ExternalReference address_of_regexp_stack_memory_address =
-      ExternalReference::address_of_regexp_stack_memory_address();
-  ExternalReference address_of_regexp_stack_memory_size =
-      ExternalReference::address_of_regexp_stack_memory_size();
-  __ movq(kScratchRegister, address_of_regexp_stack_memory_size);
-  __ movq(kScratchRegister, Operand(kScratchRegister, 0));
-  __ testq(kScratchRegister, kScratchRegister);
-  __ j(zero, &runtime);
-
-
-  // Check that the first argument is a JSRegExp object.
-  __ movq(rax, Operand(rsp, kJSRegExpOffset));
-  __ JumpIfSmi(rax, &runtime);
-  __ CmpObjectType(rax, JS_REGEXP_TYPE, kScratchRegister);
-  __ j(not_equal, &runtime);
-  // Check that the RegExp has been compiled (data contains a fixed array).
-  __ movq(rcx, FieldOperand(rax, JSRegExp::kDataOffset));
-  if (FLAG_debug_code) {
-    Condition is_smi = masm->CheckSmi(rcx);
-    __ Check(NegateCondition(is_smi),
-        "Unexpected type for RegExp data, FixedArray expected");
-    __ CmpObjectType(rcx, FIXED_ARRAY_TYPE, kScratchRegister);
-    __ Check(equal, "Unexpected type for RegExp data, FixedArray expected");
-  }
-
-  // rcx: RegExp data (FixedArray)
-  // Check the type of the RegExp. Only continue if type is JSRegExp::IRREGEXP.
-  __ SmiToInteger32(rbx, FieldOperand(rcx, JSRegExp::kDataTagOffset));
-  __ cmpl(rbx, Immediate(JSRegExp::IRREGEXP));
-  __ j(not_equal, &runtime);
-
-  // rcx: RegExp data (FixedArray)
-  // Check that the number of captures fit in the static offsets vector buffer.
-  __ SmiToInteger32(rdx,
-                    FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
-  // Calculate number of capture registers (number_of_captures + 1) * 2.
-  __ leal(rdx, Operand(rdx, rdx, times_1, 2));
-  // Check that the static offsets vector buffer is large enough.
-  __ cmpl(rdx, Immediate(OffsetsVector::kStaticOffsetsVectorSize));
-  __ j(above, &runtime);
-
-  // rcx: RegExp data (FixedArray)
-  // rdx: Number of capture registers
-  // Check that the second argument is a string.
-  __ movq(rax, Operand(rsp, kSubjectOffset));
-  __ JumpIfSmi(rax, &runtime);
-  Condition is_string = masm->IsObjectStringType(rax, rbx, rbx);
-  __ j(NegateCondition(is_string), &runtime);
-
-  // rax: Subject string.
-  // rcx: RegExp data (FixedArray).
-  // rdx: Number of capture registers.
-  // Check that the third argument is a positive smi less than the string
-  // length. A negative value will be greater (unsigned comparison).
-  __ movq(rbx, Operand(rsp, kPreviousIndexOffset));
-  __ JumpIfNotSmi(rbx, &runtime);
-  __ SmiCompare(rbx, FieldOperand(rax, String::kLengthOffset));
-  __ j(above_equal, &runtime);
-
-  // rcx: RegExp data (FixedArray)
-  // rdx: Number of capture registers
-  // Check that the fourth object is a JSArray object.
-  __ movq(rax, Operand(rsp, kLastMatchInfoOffset));
-  __ JumpIfSmi(rax, &runtime);
-  __ CmpObjectType(rax, JS_ARRAY_TYPE, kScratchRegister);
-  __ j(not_equal, &runtime);
-  // Check that the JSArray is in fast case.
-  __ movq(rbx, FieldOperand(rax, JSArray::kElementsOffset));
-  __ movq(rax, FieldOperand(rbx, HeapObject::kMapOffset));
-  __ Cmp(rax, Factory::fixed_array_map());
-  __ j(not_equal, &runtime);
-  // Check that the last match info has space for the capture registers and the
-  // additional information. Ensure no overflow in add.
-  ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
-  __ SmiToInteger32(rax, FieldOperand(rbx, FixedArray::kLengthOffset));
-  __ addl(rdx, Immediate(RegExpImpl::kLastMatchOverhead));
-  __ cmpl(rdx, rax);
-  __ j(greater, &runtime);
-
-  // rcx: RegExp data (FixedArray)
-  // Check the representation and encoding of the subject string.
-  Label seq_ascii_string, seq_two_byte_string, check_code;
-  __ movq(rax, Operand(rsp, kSubjectOffset));
-  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-  __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
-  // First check for flat two byte string.
-  __ andb(rbx, Immediate(
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask));
-  ASSERT_EQ(0, kStringTag | kSeqStringTag | kTwoByteStringTag);
-  __ j(zero, &seq_two_byte_string);
-  // Any other flat string must be a flat ascii string.
-  __ testb(rbx, Immediate(kIsNotStringMask | kStringRepresentationMask));
-  __ j(zero, &seq_ascii_string);
-
-  // Check for flat cons string.
-  // A flat cons string is a cons string where the second part is the empty
-  // string. In that case the subject string is just the first part of the cons
-  // string. Also in this case the first part of the cons string is known to be
-  // a sequential string or an external string.
-  ASSERT(kExternalStringTag !=0);
-  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
-  __ testb(rbx, Immediate(kIsNotStringMask | kExternalStringTag));
-  __ j(not_zero, &runtime);
-  // String is a cons string.
-  __ movq(rdx, FieldOperand(rax, ConsString::kSecondOffset));
-  __ Cmp(rdx, Factory::empty_string());
-  __ j(not_equal, &runtime);
-  __ movq(rax, FieldOperand(rax, ConsString::kFirstOffset));
-  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-  // String is a cons string with empty second part.
-  // eax: first part of cons string.
-  // ebx: map of first part of cons string.
-  // Is first part a flat two byte string?
-  __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
-           Immediate(kStringRepresentationMask | kStringEncodingMask));
-  ASSERT_EQ(0, kSeqStringTag | kTwoByteStringTag);
-  __ j(zero, &seq_two_byte_string);
-  // Any other flat string must be ascii.
-  __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
-           Immediate(kStringRepresentationMask));
-  __ j(not_zero, &runtime);
-
-  __ bind(&seq_ascii_string);
-  // rax: subject string (sequential ascii)
-  // rcx: RegExp data (FixedArray)
-  __ movq(r11, FieldOperand(rcx, JSRegExp::kDataAsciiCodeOffset));
-  __ Set(rdi, 1);  // Type is ascii.
-  __ jmp(&check_code);
-
-  __ bind(&seq_two_byte_string);
-  // rax: subject string (flat two-byte)
-  // rcx: RegExp data (FixedArray)
-  __ movq(r11, FieldOperand(rcx, JSRegExp::kDataUC16CodeOffset));
-  __ Set(rdi, 0);  // Type is two byte.
-
-  __ bind(&check_code);
-  // Check that the irregexp code has been generated for the actual string
-  // encoding. If it has, the field contains a code object otherwise it contains
-  // the hole.
-  __ CmpObjectType(r11, CODE_TYPE, kScratchRegister);
-  __ j(not_equal, &runtime);
-
-  // rax: subject string
-  // rdi: encoding of subject string (1 if ascii, 0 if two_byte);
-  // r11: code
-  // Load used arguments before starting to push arguments for call to native
-  // RegExp code to avoid handling changing stack height.
-  __ SmiToInteger64(rbx, Operand(rsp, kPreviousIndexOffset));
-
-  // rax: subject string
-  // rbx: previous index
-  // rdi: encoding of subject string (1 if ascii 0 if two_byte);
-  // r11: code
-  // All checks done. Now push arguments for native regexp code.
-  __ IncrementCounter(&Counters::regexp_entry_native, 1);
-
-  // rsi is caller save on Windows and used to pass parameter on Linux.
-  __ push(rsi);
-
-  static const int kRegExpExecuteArguments = 7;
-  __ PrepareCallCFunction(kRegExpExecuteArguments);
-  int argument_slots_on_stack =
-      masm->ArgumentStackSlotsForCFunctionCall(kRegExpExecuteArguments);
-
-  // Argument 7: Indicate that this is a direct call from JavaScript.
-  __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
-          Immediate(1));
-
-  // Argument 6: Start (high end) of backtracking stack memory area.
-  __ movq(kScratchRegister, address_of_regexp_stack_memory_address);
-  __ movq(r9, Operand(kScratchRegister, 0));
-  __ movq(kScratchRegister, address_of_regexp_stack_memory_size);
-  __ addq(r9, Operand(kScratchRegister, 0));
-  // Argument 6 passed in r9 on Linux and on the stack on Windows.
-#ifdef _WIN64
-  __ movq(Operand(rsp, (argument_slots_on_stack - 2) * kPointerSize), r9);
-#endif
-
-  // Argument 5: static offsets vector buffer.
-  __ movq(r8, ExternalReference::address_of_static_offsets_vector());
-  // Argument 5 passed in r8 on Linux and on the stack on Windows.
-#ifdef _WIN64
-  __ movq(Operand(rsp, (argument_slots_on_stack - 3) * kPointerSize), r8);
-#endif
-
-  // First four arguments are passed in registers on both Linux and Windows.
-#ifdef _WIN64
-  Register arg4 = r9;
-  Register arg3 = r8;
-  Register arg2 = rdx;
-  Register arg1 = rcx;
-#else
-  Register arg4 = rcx;
-  Register arg3 = rdx;
-  Register arg2 = rsi;
-  Register arg1 = rdi;
-#endif
-
-  // Keep track on aliasing between argX defined above and the registers used.
-  // rax: subject string
-  // rbx: previous index
-  // rdi: encoding of subject string (1 if ascii 0 if two_byte);
-  // r11: code
-
-  // Argument 4: End of string data
-  // Argument 3: Start of string data
-  Label setup_two_byte, setup_rest;
-  __ testb(rdi, rdi);
-  __ j(zero, &setup_two_byte);
-  __ SmiToInteger32(rdi, FieldOperand(rax, String::kLengthOffset));
-  __ lea(arg4, FieldOperand(rax, rdi, times_1, SeqAsciiString::kHeaderSize));
-  __ lea(arg3, FieldOperand(rax, rbx, times_1, SeqAsciiString::kHeaderSize));
-  __ jmp(&setup_rest);
-  __ bind(&setup_two_byte);
-  __ SmiToInteger32(rdi, FieldOperand(rax, String::kLengthOffset));
-  __ lea(arg4, FieldOperand(rax, rdi, times_2, SeqTwoByteString::kHeaderSize));
-  __ lea(arg3, FieldOperand(rax, rbx, times_2, SeqTwoByteString::kHeaderSize));
-
-  __ bind(&setup_rest);
-  // Argument 2: Previous index.
-  __ movq(arg2, rbx);
-
-  // Argument 1: Subject string.
-  __ movq(arg1, rax);
-
-  // Locate the code entry and call it.
-  __ addq(r11, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ CallCFunction(r11, kRegExpExecuteArguments);
-
-  // rsi is caller save, as it is used to pass parameter.
-  __ pop(rsi);
-
-  // Check the result.
-  Label success;
-  __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::SUCCESS));
-  __ j(equal, &success);
-  Label failure;
-  __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::FAILURE));
-  __ j(equal, &failure);
-  __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::EXCEPTION));
-  // If not exception it can only be retry. Handle that in the runtime system.
-  __ j(not_equal, &runtime);
-  // Result must now be exception. If there is no pending exception already a
-  // stack overflow (on the backtrack stack) was detected in RegExp code but
-  // haven't created the exception yet. Handle that in the runtime system.
-  // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  ExternalReference pending_exception_address(Top::k_pending_exception_address);
-  __ movq(kScratchRegister, pending_exception_address);
-  __ Cmp(kScratchRegister, Factory::the_hole_value());
-  __ j(equal, &runtime);
-  __ bind(&failure);
-  // For failure and exception return null.
-  __ Move(rax, Factory::null_value());
-  __ ret(4 * kPointerSize);
-
-  // Load RegExp data.
-  __ bind(&success);
-  __ movq(rax, Operand(rsp, kJSRegExpOffset));
-  __ movq(rcx, FieldOperand(rax, JSRegExp::kDataOffset));
-  __ SmiToInteger32(rax,
-                    FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
-  // Calculate number of capture registers (number_of_captures + 1) * 2.
-  __ leal(rdx, Operand(rax, rax, times_1, 2));
-
-  // rdx: Number of capture registers
-  // Load last_match_info which is still known to be a fast case JSArray.
-  __ movq(rax, Operand(rsp, kLastMatchInfoOffset));
-  __ movq(rbx, FieldOperand(rax, JSArray::kElementsOffset));
-
-  // rbx: last_match_info backing store (FixedArray)
-  // rdx: number of capture registers
-  // Store the capture count.
-  __ Integer32ToSmi(kScratchRegister, rdx);
-  __ movq(FieldOperand(rbx, RegExpImpl::kLastCaptureCountOffset),
-          kScratchRegister);
-  // Store last subject and last input.
-  __ movq(rax, Operand(rsp, kSubjectOffset));
-  __ movq(FieldOperand(rbx, RegExpImpl::kLastSubjectOffset), rax);
-  __ movq(rcx, rbx);
-  __ RecordWrite(rcx, RegExpImpl::kLastSubjectOffset, rax, rdi);
-  __ movq(rax, Operand(rsp, kSubjectOffset));
-  __ movq(FieldOperand(rbx, RegExpImpl::kLastInputOffset), rax);
-  __ movq(rcx, rbx);
-  __ RecordWrite(rcx, RegExpImpl::kLastInputOffset, rax, rdi);
-
-  // Get the static offsets vector filled by the native regexp code.
-  __ movq(rcx, ExternalReference::address_of_static_offsets_vector());
-
-  // rbx: last_match_info backing store (FixedArray)
-  // rcx: offsets vector
-  // rdx: number of capture registers
-  Label next_capture, done;
-  // Capture register counter starts from number of capture registers and
-  // counts down until wraping after zero.
-  __ bind(&next_capture);
-  __ subq(rdx, Immediate(1));
-  __ j(negative, &done);
-  // Read the value from the static offsets vector buffer and make it a smi.
-  __ movl(rdi, Operand(rcx, rdx, times_int_size, 0));
-  __ Integer32ToSmi(rdi, rdi, &runtime);
-  // Store the smi value in the last match info.
-  __ movq(FieldOperand(rbx,
-                       rdx,
-                       times_pointer_size,
-                       RegExpImpl::kFirstCaptureOffset),
-          rdi);
-  __ jmp(&next_capture);
-  __ bind(&done);
-
-  // Return last match info.
-  __ movq(rax, Operand(rsp, kLastMatchInfoOffset));
-  __ ret(4 * kPointerSize);
-
-  // Do the runtime call to execute the regexp.
-  __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-#endif  // V8_INTERPRETED_REGEXP
-}
-
-
-void NumberToStringStub::GenerateConvertHashCodeToIndex(MacroAssembler* masm,
-                                                        Register hash,
-                                                        Register mask) {
-  __ and_(hash, mask);
-  // Each entry in string cache consists of two pointer sized fields,
-  // but times_twice_pointer_size (multiplication by 16) scale factor
-  // is not supported by addrmode on x64 platform.
-  // So we have to premultiply entry index before lookup.
-  __ shl(hash, Immediate(kPointerSizeLog2 + 1));
-}
-
-
-void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
-                                                         Register object,
-                                                         Register result,
-                                                         Register scratch1,
-                                                         Register scratch2,
-                                                         bool object_is_smi,
-                                                         Label* not_found) {
-  // Use of registers. Register result is used as a temporary.
-  Register number_string_cache = result;
-  Register mask = scratch1;
-  Register scratch = scratch2;
-
-  // Load the number string cache.
-  __ LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
-
-  // Make the hash mask from the length of the number string cache. It
-  // contains two elements (number and string) for each cache entry.
-  __ SmiToInteger32(
-      mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
-  __ shrl(mask, Immediate(1));
-  __ subq(mask, Immediate(1));  // Make mask.
-
-  // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value, and the hash for
-  // doubles is the xor of the upper and lower words. See
-  // Heap::GetNumberStringCache.
-  Label is_smi;
-  Label load_result_from_cache;
-  if (!object_is_smi) {
-    __ JumpIfSmi(object, &is_smi);
-    __ CheckMap(object, Factory::heap_number_map(), not_found, true);
-
-    ASSERT_EQ(8, kDoubleSize);
-    __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
-    __ xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset));
-    GenerateConvertHashCodeToIndex(masm, scratch, mask);
-
-    Register index = scratch;
-    Register probe = mask;
-    __ movq(probe,
-            FieldOperand(number_string_cache,
-                         index,
-                         times_1,
-                         FixedArray::kHeaderSize));
-    __ JumpIfSmi(probe, not_found);
-    ASSERT(CpuFeatures::IsSupported(SSE2));
-    CpuFeatures::Scope fscope(SSE2);
-    __ movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
-    __ movsd(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
-    __ ucomisd(xmm0, xmm1);
-    __ j(parity_even, not_found);  // Bail out if NaN is involved.
-    __ j(not_equal, not_found);  // The cache did not contain this value.
-    __ jmp(&load_result_from_cache);
-  }
-
-  __ bind(&is_smi);
-  __ SmiToInteger32(scratch, object);
-  GenerateConvertHashCodeToIndex(masm, scratch, mask);
-
-  Register index = scratch;
-  // Check if the entry is the smi we are looking for.
-  __ cmpq(object,
-          FieldOperand(number_string_cache,
-                       index,
-                       times_1,
-                       FixedArray::kHeaderSize));
-  __ j(not_equal, not_found);
-
-  // Get the result from the cache.
-  __ bind(&load_result_from_cache);
-  __ movq(result,
-          FieldOperand(number_string_cache,
-                       index,
-                       times_1,
-                       FixedArray::kHeaderSize + kPointerSize));
-  __ IncrementCounter(&Counters::number_to_string_native, 1);
-}
-
-
-void NumberToStringStub::Generate(MacroAssembler* masm) {
-  Label runtime;
-
-  __ movq(rbx, Operand(rsp, kPointerSize));
-
-  // Generate code to lookup number in the number string cache.
-  GenerateLookupNumberStringCache(masm, rbx, rax, r8, r9, false, &runtime);
-  __ ret(1 * kPointerSize);
-
-  __ bind(&runtime);
-  // Handle number to string in the runtime system if not found in the cache.
-  __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
-}
-
-
-void RecordWriteStub::Generate(MacroAssembler* masm) {
-  masm->RecordWriteHelper(object_, addr_, scratch_);
-  masm->ret(0);
-}
-
-
-static int NegativeComparisonResult(Condition cc) {
-  ASSERT(cc != equal);
-  ASSERT((cc == less) || (cc == less_equal)
-      || (cc == greater) || (cc == greater_equal));
-  return (cc == greater || cc == greater_equal) ? LESS : GREATER;
-}
-
-
-void CompareStub::Generate(MacroAssembler* masm) {
-  Label check_unequal_objects, done;
-  // The compare stub returns a positive, negative, or zero 64-bit integer
-  // value in rax, corresponding to result of comparing the two inputs.
-  // NOTICE! This code is only reached after a smi-fast-case check, so
-  // it is certain that at least one operand isn't a smi.
-
-  // Two identical objects are equal unless they are both NaN or undefined.
-  {
-    Label not_identical;
-    __ cmpq(rax, rdx);
-    __ j(not_equal, &not_identical);
-
-    if (cc_ != equal) {
-      // Check for undefined.  undefined OP undefined is false even though
-      // undefined == undefined.
-      Label check_for_nan;
-      __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
-      __ j(not_equal, &check_for_nan);
-      __ Set(rax, NegativeComparisonResult(cc_));
-      __ ret(0);
-      __ bind(&check_for_nan);
-    }
-
-    // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
-    // so we do the second best thing - test it ourselves.
-    // Note: if cc_ != equal, never_nan_nan_ is not used.
-    // We cannot set rax to EQUAL until just before return because
-    // rax must be unchanged on jump to not_identical.
-
-    if (never_nan_nan_ && (cc_ == equal)) {
-      __ Set(rax, EQUAL);
-      __ ret(0);
-    } else {
-      Label heap_number;
-      // If it's not a heap number, then return equal for (in)equality operator.
-      __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
-             Factory::heap_number_map());
-      __ j(equal, &heap_number);
-      if (cc_ != equal) {
-        // Call runtime on identical JSObjects.  Otherwise return equal.
-        __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
-        __ j(above_equal, &not_identical);
-      }
-      __ Set(rax, EQUAL);
-      __ ret(0);
-
-      __ bind(&heap_number);
-      // It is a heap number, so return  equal if it's not NaN.
-      // For NaN, return 1 for every condition except greater and
-      // greater-equal.  Return -1 for them, so the comparison yields
-      // false for all conditions except not-equal.
-      __ Set(rax, EQUAL);
-      __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
-      __ ucomisd(xmm0, xmm0);
-      __ setcc(parity_even, rax);
-      // rax is 0 for equal non-NaN heapnumbers, 1 for NaNs.
-      if (cc_ == greater_equal || cc_ == greater) {
-        __ neg(rax);
-      }
-      __ ret(0);
-    }
-
-    __ bind(&not_identical);
-  }
-
-  if (cc_ == equal) {  // Both strict and non-strict.
-    Label slow;  // Fallthrough label.
-
-    // If we're doing a strict equality comparison, we don't have to do
-    // type conversion, so we generate code to do fast comparison for objects
-    // and oddballs. Non-smi numbers and strings still go through the usual
-    // slow-case code.
-    if (strict_) {
-      // If either is a Smi (we know that not both are), then they can only
-      // be equal if the other is a HeapNumber. If so, use the slow case.
-      {
-        Label not_smis;
-        __ SelectNonSmi(rbx, rax, rdx, &not_smis);
-
-        // Check if the non-smi operand is a heap number.
-        __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
-               Factory::heap_number_map());
-        // If heap number, handle it in the slow case.
-        __ j(equal, &slow);
-        // Return non-equal.  ebx (the lower half of rbx) is not zero.
-        __ movq(rax, rbx);
-        __ ret(0);
-
-        __ bind(&not_smis);
-      }
-
-      // If either operand is a JSObject or an oddball value, then they are not
-      // equal since their pointers are different
-      // There is no test for undetectability in strict equality.
-
-      // If the first object is a JS object, we have done pointer comparison.
-      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-      Label first_non_object;
-      __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
-      __ j(below, &first_non_object);
-      // Return non-zero (eax (not rax) is not zero)
-      Label return_not_equal;
-      ASSERT(kHeapObjectTag != 0);
-      __ bind(&return_not_equal);
-      __ ret(0);
-
-      __ bind(&first_non_object);
-      // Check for oddballs: true, false, null, undefined.
-      __ CmpInstanceType(rcx, ODDBALL_TYPE);
-      __ j(equal, &return_not_equal);
-
-      __ CmpObjectType(rdx, FIRST_JS_OBJECT_TYPE, rcx);
-      __ j(above_equal, &return_not_equal);
-
-      // Check for oddballs: true, false, null, undefined.
-      __ CmpInstanceType(rcx, ODDBALL_TYPE);
-      __ j(equal, &return_not_equal);
-
-      // Fall through to the general case.
-    }
-    __ bind(&slow);
-  }
-
-  // Push arguments below the return address to prepare jump to builtin.
-  __ pop(rcx);
-  __ push(rax);
-  __ push(rdx);
-  __ push(rcx);
-
-  // Generate the number comparison code.
-  if (include_number_compare_) {
-    Label non_number_comparison;
-    Label unordered;
-    FloatingPointHelper::LoadSSE2UnknownOperands(masm, &non_number_comparison);
-    __ xorl(rax, rax);
-    __ xorl(rcx, rcx);
-    __ ucomisd(xmm0, xmm1);
-
-    // Don't base result on EFLAGS when a NaN is involved.
-    __ j(parity_even, &unordered);
-    // Return a result of -1, 0, or 1, based on EFLAGS.
-    __ setcc(above, rax);
-    __ setcc(below, rcx);
-    __ subq(rax, rcx);
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
-
-    // If one of the numbers was NaN, then the result is always false.
-    // The cc is never not-equal.
-    __ bind(&unordered);
-    ASSERT(cc_ != not_equal);
-    if (cc_ == less || cc_ == less_equal) {
-      __ Set(rax, 1);
-    } else {
-      __ Set(rax, -1);
-    }
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
-
-    // The number comparison code did not provide a valid result.
-    __ bind(&non_number_comparison);
-  }
-
-  // Fast negative check for symbol-to-symbol equality.
-  Label check_for_strings;
-  if (cc_ == equal) {
-    BranchIfNonSymbol(masm, &check_for_strings, rax, kScratchRegister);
-    BranchIfNonSymbol(masm, &check_for_strings, rdx, kScratchRegister);
-
-    // We've already checked for object identity, so if both operands
-    // are symbols they aren't equal. Register eax (not rax) already holds a
-    // non-zero value, which indicates not equal, so just return.
-    __ ret(2 * kPointerSize);
-  }
-
-  __ bind(&check_for_strings);
-
-  __ JumpIfNotBothSequentialAsciiStrings(
-      rdx, rax, rcx, rbx, &check_unequal_objects);
-
-  // Inline comparison of ascii strings.
-  StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
-                                                     rdx,
-                                                     rax,
-                                                     rcx,
-                                                     rbx,
-                                                     rdi,
-                                                     r8);
-
-#ifdef DEBUG
-  __ Abort("Unexpected fall-through from string comparison");
-#endif
-
-  __ bind(&check_unequal_objects);
-  if (cc_ == equal && !strict_) {
-    // Not strict equality.  Objects are unequal if
-    // they are both JSObjects and not undetectable,
-    // and their pointers are different.
-    Label not_both_objects, return_unequal;
-    // At most one is a smi, so we can test for smi by adding the two.
-    // A smi plus a heap object has the low bit set, a heap object plus
-    // a heap object has the low bit clear.
-    ASSERT_EQ(0, kSmiTag);
-    //ASSERT_EQ(V8_UINT64_C(1), kSmiTagMask);
-    __ lea(rcx, Operand(rax, rdx, times_1, 0));
-    __ testb(rcx, Immediate(kSmiTagMask));
-    __ j(not_zero, &not_both_objects);
-    __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rbx);
-    __ j(below, &not_both_objects);
-    __ CmpObjectType(rdx, FIRST_JS_OBJECT_TYPE, rcx);
-    __ j(below, &not_both_objects);
-    __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
-             Immediate(1 << Map::kIsUndetectable));
-    __ j(zero, &return_unequal);
-    __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
-             Immediate(1 << Map::kIsUndetectable));
-    __ j(zero, &return_unequal);
-    // The objects are both undetectable, so they both compare as the value
-    // undefined, and are equal.
-    __ Set(rax, EQUAL);
-    __ bind(&return_unequal);
-    // Return non-equal by returning the non-zero object pointer in eax,
-    // or return equal if we fell through to here.
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
-    __ bind(&not_both_objects);
-  }
-
-  // must swap argument order
-  __ pop(rcx);
-  __ pop(rdx);
-  __ pop(rax);
-  __ push(rdx);
-  __ push(rax);
-
-  // Figure out which native to call and setup the arguments.
-  Builtins::JavaScript builtin;
-  if (cc_ == equal) {
-    builtin = strict_ ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
-  } else {
-    builtin = Builtins::COMPARE;
-    __ Push(Smi::FromInt(NegativeComparisonResult(cc_)));
-  }
-
-  // Restore return address on the stack.
-  __ push(rcx);
-
-  // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
-  // tagged as a small integer.
-  __ InvokeBuiltin(builtin, JUMP_FUNCTION);
-}
-
-
-void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
-                                    Label* label,
-                                    Register object,
-                                    Register scratch) {
-  __ JumpIfSmi(object, label);
-  __ movq(scratch, FieldOperand(object, HeapObject::kMapOffset));
-  __ movzxbq(scratch,
-             FieldOperand(scratch, Map::kInstanceTypeOffset));
-  // Ensure that no non-strings have the symbol bit set.
-  ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
-  ASSERT(kSymbolTag != 0);
-  __ testb(scratch, Immediate(kIsSymbolMask));
-  __ j(zero, label);
-}
-
-
-// Call the function just below TOS on the stack with the given
-// arguments. The receiver is the TOS.
-void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
-                                      CallFunctionFlags flags,
-                                      int position) {
-  // Push the arguments ("left-to-right") on the stack.
-  int arg_count = args->length();
-  for (int i = 0; i < arg_count; i++) {
-    Load(args->at(i));
-    frame_->SpillTop();
-  }
-
-  // Record the position for debugging purposes.
-  CodeForSourcePosition(position);
-
-  // Use the shared code stub to call the function.
-  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-  CallFunctionStub call_function(arg_count, in_loop, flags);
-  Result answer = frame_->CallStub(&call_function, arg_count + 1);
-  // Restore context and replace function on the stack with the
-  // result of the stub invocation.
-  frame_->RestoreContextRegister();
-  frame_->SetElementAt(0, &answer);
-}
-
-
-void InstanceofStub::Generate(MacroAssembler* masm) {
-  // Implements "value instanceof function" operator.
-  // Expected input state:
-  //   rsp[0] : return address
-  //   rsp[1] : function pointer
-  //   rsp[2] : value
-  // Returns a bitwise zero to indicate that the value
-  // is and instance of the function and anything else to
-  // indicate that the value is not an instance.
-
-  // Get the object - go slow case if it's a smi.
-  Label slow;
-  __ movq(rax, Operand(rsp, 2 * kPointerSize));
-  __ JumpIfSmi(rax, &slow);
-
-  // Check that the left hand is a JS object. Leave its map in rax.
-  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rax);
-  __ j(below, &slow);
-  __ CmpInstanceType(rax, LAST_JS_OBJECT_TYPE);
-  __ j(above, &slow);
-
-  // Get the prototype of the function.
-  __ movq(rdx, Operand(rsp, 1 * kPointerSize));
-  // rdx is function, rax is map.
-
-  // Look up the function and the map in the instanceof cache.
-  Label miss;
-  __ CompareRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
-  __ j(not_equal, &miss);
-  __ CompareRoot(rax, Heap::kInstanceofCacheMapRootIndex);
-  __ j(not_equal, &miss);
-  __ LoadRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
-  __ ret(2 * kPointerSize);
-
-  __ bind(&miss);
-  __ TryGetFunctionPrototype(rdx, rbx, &slow);
-
-  // Check that the function prototype is a JS object.
-  __ JumpIfSmi(rbx, &slow);
-  __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, kScratchRegister);
-  __ j(below, &slow);
-  __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
-  __ j(above, &slow);
-
-  // Register mapping:
-  //   rax is object map.
-  //   rdx is function.
-  //   rbx is function prototype.
-  __ StoreRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
-  __ StoreRoot(rax, Heap::kInstanceofCacheMapRootIndex);
-
-  __ movq(rcx, FieldOperand(rax, Map::kPrototypeOffset));
-
-  // Loop through the prototype chain looking for the function prototype.
-  Label loop, is_instance, is_not_instance;
-  __ LoadRoot(kScratchRegister, Heap::kNullValueRootIndex);
-  __ bind(&loop);
-  __ cmpq(rcx, rbx);
-  __ j(equal, &is_instance);
-  __ cmpq(rcx, kScratchRegister);
-  // The code at is_not_instance assumes that kScratchRegister contains a
-  // non-zero GCable value (the null object in this case).
-  __ j(equal, &is_not_instance);
-  __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
-  __ movq(rcx, FieldOperand(rcx, Map::kPrototypeOffset));
-  __ jmp(&loop);
-
-  __ bind(&is_instance);
-  __ xorl(rax, rax);
-  // Store bitwise zero in the cache.  This is a Smi in GC terms.
-  ASSERT_EQ(0, kSmiTag);
-  __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
-  __ ret(2 * kPointerSize);
-
-  __ bind(&is_not_instance);
-  // We have to store a non-zero value in the cache.
-  __ StoreRoot(kScratchRegister, Heap::kInstanceofCacheAnswerRootIndex);
-  __ ret(2 * kPointerSize);
-
-  // Slow-case: Go through the JavaScript implementation.
-  __ bind(&slow);
-  __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
-}
-
-
-void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
-  // rsp[0] : return address
-  // rsp[8] : number of parameters
-  // rsp[16] : receiver displacement
-  // rsp[24] : function
-
-  // The displacement is used for skipping the return address and the
-  // frame pointer on the stack. It is the offset of the last
-  // parameter (if any) relative to the frame pointer.
-  static const int kDisplacement = 2 * kPointerSize;
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor_frame, try_allocate, runtime;
-  __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ SmiCompare(Operand(rdx, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(equal, &adaptor_frame);
-
-  // Get the length from the frame.
-  __ SmiToInteger32(rcx, Operand(rsp, 1 * kPointerSize));
-  __ jmp(&try_allocate);
-
-  // Patch the arguments.length and the parameters pointer.
-  __ bind(&adaptor_frame);
-  __ SmiToInteger32(rcx,
-                    Operand(rdx,
-                            ArgumentsAdaptorFrameConstants::kLengthOffset));
-  // Space on stack must already hold a smi.
-  __ Integer32ToSmiField(Operand(rsp, 1 * kPointerSize), rcx);
-  // Do not clobber the length index for the indexing operation since
-  // it is used compute the size for allocation later.
-  __ lea(rdx, Operand(rdx, rcx, times_pointer_size, kDisplacement));
-  __ movq(Operand(rsp, 2 * kPointerSize), rdx);
-
-  // Try the new space allocation. Start out with computing the size of
-  // the arguments object and the elements array.
-  Label add_arguments_object;
-  __ bind(&try_allocate);
-  __ testl(rcx, rcx);
-  __ j(zero, &add_arguments_object);
-  __ leal(rcx, Operand(rcx, times_pointer_size, FixedArray::kHeaderSize));
-  __ bind(&add_arguments_object);
-  __ addl(rcx, Immediate(Heap::kArgumentsObjectSize));
-
-  // Do the allocation of both objects in one go.
-  __ AllocateInNewSpace(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
-
-  // Get the arguments boilerplate from the current (global) context.
-  int offset = Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX);
-  __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ movq(rdi, FieldOperand(rdi, GlobalObject::kGlobalContextOffset));
-  __ movq(rdi, Operand(rdi, offset));
-
-  // Copy the JS object part.
-  STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
-  __ movq(kScratchRegister, FieldOperand(rdi, 0 * kPointerSize));
-  __ movq(rdx, FieldOperand(rdi, 1 * kPointerSize));
-  __ movq(rbx, FieldOperand(rdi, 2 * kPointerSize));
-  __ movq(FieldOperand(rax, 0 * kPointerSize), kScratchRegister);
-  __ movq(FieldOperand(rax, 1 * kPointerSize), rdx);
-  __ movq(FieldOperand(rax, 2 * kPointerSize), rbx);
-
-  // Setup the callee in-object property.
-  ASSERT(Heap::arguments_callee_index == 0);
-  __ movq(kScratchRegister, Operand(rsp, 3 * kPointerSize));
-  __ movq(FieldOperand(rax, JSObject::kHeaderSize), kScratchRegister);
-
-  // Get the length (smi tagged) and set that as an in-object property too.
-  ASSERT(Heap::arguments_length_index == 1);
-  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
-  __ movq(FieldOperand(rax, JSObject::kHeaderSize + kPointerSize), rcx);
-
-  // If there are no actual arguments, we're done.
-  Label done;
-  __ SmiTest(rcx);
-  __ j(zero, &done);
-
-  // Get the parameters pointer from the stack and untag the length.
-  __ movq(rdx, Operand(rsp, 2 * kPointerSize));
-
-  // Setup the elements pointer in the allocated arguments object and
-  // initialize the header in the elements fixed array.
-  __ lea(rdi, Operand(rax, Heap::kArgumentsObjectSize));
-  __ movq(FieldOperand(rax, JSObject::kElementsOffset), rdi);
-  __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
-  __ movq(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);
-  __ movq(FieldOperand(rdi, FixedArray::kLengthOffset), rcx);
-  __ SmiToInteger32(rcx, rcx);  // Untag length for the loop below.
-
-  // Copy the fixed array slots.
-  Label loop;
-  __ bind(&loop);
-  __ movq(kScratchRegister, Operand(rdx, -1 * kPointerSize));  // Skip receiver.
-  __ movq(FieldOperand(rdi, FixedArray::kHeaderSize), kScratchRegister);
-  __ addq(rdi, Immediate(kPointerSize));
-  __ subq(rdx, Immediate(kPointerSize));
-  __ decl(rcx);
-  __ j(not_zero, &loop);
-
-  // Return and remove the on-stack parameters.
-  __ bind(&done);
-  __ ret(3 * kPointerSize);
-
-  // Do the runtime call to allocate the arguments object.
-  __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
-}
-
-
-void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
-  // The key is in rdx and the parameter count is in rax.
-
-  // The displacement is used for skipping the frame pointer on the
-  // stack. It is the offset of the last parameter (if any) relative
-  // to the frame pointer.
-  static const int kDisplacement = 1 * kPointerSize;
-
-  // Check that the key is a smi.
-  Label slow;
-  __ JumpIfNotSmi(rdx, &slow);
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor;
-  __ movq(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ SmiCompare(Operand(rbx, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(equal, &adaptor);
-
-  // Check index against formal parameters count limit passed in
-  // through register rax. Use unsigned comparison to get negative
-  // check for free.
-  __ cmpq(rdx, rax);
-  __ j(above_equal, &slow);
-
-  // Read the argument from the stack and return it.
-  SmiIndex index = masm->SmiToIndex(rax, rax, kPointerSizeLog2);
-  __ lea(rbx, Operand(rbp, index.reg, index.scale, 0));
-  index = masm->SmiToNegativeIndex(rdx, rdx, kPointerSizeLog2);
-  __ movq(rax, Operand(rbx, index.reg, index.scale, kDisplacement));
-  __ Ret();
-
-  // Arguments adaptor case: Check index against actual arguments
-  // limit found in the arguments adaptor frame. Use unsigned
-  // comparison to get negative check for free.
-  __ bind(&adaptor);
-  __ movq(rcx, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ cmpq(rdx, rcx);
-  __ j(above_equal, &slow);
-
-  // Read the argument from the stack and return it.
-  index = masm->SmiToIndex(rax, rcx, kPointerSizeLog2);
-  __ lea(rbx, Operand(rbx, index.reg, index.scale, 0));
-  index = masm->SmiToNegativeIndex(rdx, rdx, kPointerSizeLog2);
-  __ movq(rax, Operand(rbx, index.reg, index.scale, kDisplacement));
-  __ Ret();
-
-  // Slow-case: Handle non-smi or out-of-bounds access to arguments
-  // by calling the runtime system.
-  __ bind(&slow);
-  __ pop(rbx);  // Return address.
-  __ push(rdx);
-  __ push(rbx);
-  __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
-}
-
-
-void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  // Check that stack should contain next handler, frame pointer, state and
-  // return address in that order.
-  ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
-            StackHandlerConstants::kStateOffset);
-  ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
-            StackHandlerConstants::kPCOffset);
-
-  ExternalReference handler_address(Top::k_handler_address);
-  __ movq(kScratchRegister, handler_address);
-  __ movq(rsp, Operand(kScratchRegister, 0));
-  // get next in chain
-  __ pop(rcx);
-  __ movq(Operand(kScratchRegister, 0), rcx);
-  __ pop(rbp);  // pop frame pointer
-  __ pop(rdx);  // remove state
-
-  // Before returning we restore the context from the frame pointer if not NULL.
-  // The frame pointer is NULL in the exception handler of a JS entry frame.
-  __ xor_(rsi, rsi);  // tentatively set context pointer to NULL
-  Label skip;
-  __ cmpq(rbp, Immediate(0));
-  __ j(equal, &skip);
-  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-  __ bind(&skip);
-  __ ret(0);
-}
-
-
-void CEntryStub::GenerateCore(MacroAssembler* masm,
-                              Label* throw_normal_exception,
-                              Label* throw_termination_exception,
-                              Label* throw_out_of_memory_exception,
-                              bool do_gc,
-                              bool always_allocate_scope,
-                              int /* alignment_skew */) {
-  // rax: result parameter for PerformGC, if any.
-  // rbx: pointer to C function  (C callee-saved).
-  // rbp: frame pointer  (restored after C call).
-  // rsp: stack pointer  (restored after C call).
-  // r14: number of arguments including receiver (C callee-saved).
-  // r12: pointer to the first argument (C callee-saved).
-  //      This pointer is reused in LeaveExitFrame(), so it is stored in a
-  //      callee-saved register.
-
-  // Simple results returned in rax (both AMD64 and Win64 calling conventions).
-  // Complex results must be written to address passed as first argument.
-  // AMD64 calling convention: a struct of two pointers in rax+rdx
-
-  // Check stack alignment.
-  if (FLAG_debug_code) {
-    __ CheckStackAlignment();
-  }
-
-  if (do_gc) {
-    // Pass failure code returned from last attempt as first argument to
-    // PerformGC. No need to use PrepareCallCFunction/CallCFunction here as the
-    // stack is known to be aligned. This function takes one argument which is
-    // passed in register.
-#ifdef _WIN64
-    __ movq(rcx, rax);
-#else  // _WIN64
-    __ movq(rdi, rax);
-#endif
-    __ movq(kScratchRegister,
-            FUNCTION_ADDR(Runtime::PerformGC),
-            RelocInfo::RUNTIME_ENTRY);
-    __ call(kScratchRegister);
-  }
-
-  ExternalReference scope_depth =
-      ExternalReference::heap_always_allocate_scope_depth();
-  if (always_allocate_scope) {
-    __ movq(kScratchRegister, scope_depth);
-    __ incl(Operand(kScratchRegister, 0));
-  }
-
-  // Call C function.
-#ifdef _WIN64
-  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9
-  // Store Arguments object on stack, below the 4 WIN64 ABI parameter slots.
-  __ movq(Operand(rsp, 4 * kPointerSize), r14);  // argc.
-  __ movq(Operand(rsp, 5 * kPointerSize), r12);  // argv.
-  if (result_size_ < 2) {
-    // Pass a pointer to the Arguments object as the first argument.
-    // Return result in single register (rax).
-    __ lea(rcx, Operand(rsp, 4 * kPointerSize));
-  } else {
-    ASSERT_EQ(2, result_size_);
-    // Pass a pointer to the result location as the first argument.
-    __ lea(rcx, Operand(rsp, 6 * kPointerSize));
-    // Pass a pointer to the Arguments object as the second argument.
-    __ lea(rdx, Operand(rsp, 4 * kPointerSize));
-  }
-
-#else  // _WIN64
-  // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
-  __ movq(rdi, r14);  // argc.
-  __ movq(rsi, r12);  // argv.
-#endif
-  __ call(rbx);
-  // Result is in rax - do not destroy this register!
-
-  if (always_allocate_scope) {
-    __ movq(kScratchRegister, scope_depth);
-    __ decl(Operand(kScratchRegister, 0));
-  }
-
-  // Check for failure result.
-  Label failure_returned;
-  ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
-#ifdef _WIN64
-  // If return value is on the stack, pop it to registers.
-  if (result_size_ > 1) {
-    ASSERT_EQ(2, result_size_);
-    // Read result values stored on stack. Result is stored
-    // above the four argument mirror slots and the two
-    // Arguments object slots.
-    __ movq(rax, Operand(rsp, 6 * kPointerSize));
-    __ movq(rdx, Operand(rsp, 7 * kPointerSize));
-  }
-#endif
-  __ lea(rcx, Operand(rax, 1));
-  // Lower 2 bits of rcx are 0 iff rax has failure tag.
-  __ testl(rcx, Immediate(kFailureTagMask));
-  __ j(zero, &failure_returned);
-
-  // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(mode_, result_size_);
-  __ ret(0);
-
-  // Handling of failure.
-  __ bind(&failure_returned);
-
-  Label retry;
-  // If the returned exception is RETRY_AFTER_GC continue at retry label
-  ASSERT(Failure::RETRY_AFTER_GC == 0);
-  __ testl(rax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
-  __ j(zero, &retry);
-
-  // Special handling of out of memory exceptions.
-  __ movq(kScratchRegister, Failure::OutOfMemoryException(), RelocInfo::NONE);
-  __ cmpq(rax, kScratchRegister);
-  __ j(equal, throw_out_of_memory_exception);
-
-  // Retrieve the pending exception and clear the variable.
-  ExternalReference pending_exception_address(Top::k_pending_exception_address);
-  __ movq(kScratchRegister, pending_exception_address);
-  __ movq(rax, Operand(kScratchRegister, 0));
-  __ movq(rdx, ExternalReference::the_hole_value_location());
-  __ movq(rdx, Operand(rdx, 0));
-  __ movq(Operand(kScratchRegister, 0), rdx);
-
-  // Special handling of termination exceptions which are uncatchable
-  // by javascript code.
-  __ CompareRoot(rax, Heap::kTerminationExceptionRootIndex);
-  __ j(equal, throw_termination_exception);
-
-  // Handle normal exception.
-  __ jmp(throw_normal_exception);
-
-  // Retry.
-  __ bind(&retry);
-}
-
-
-void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
-                                          UncatchableExceptionType type) {
-  // Fetch top stack handler.
-  ExternalReference handler_address(Top::k_handler_address);
-  __ movq(kScratchRegister, handler_address);
-  __ movq(rsp, Operand(kScratchRegister, 0));
-
-  // Unwind the handlers until the ENTRY handler is found.
-  Label loop, done;
-  __ bind(&loop);
-  // Load the type of the current stack handler.
-  const int kStateOffset = StackHandlerConstants::kStateOffset;
-  __ cmpq(Operand(rsp, kStateOffset), Immediate(StackHandler::ENTRY));
-  __ j(equal, &done);
-  // Fetch the next handler in the list.
-  const int kNextOffset = StackHandlerConstants::kNextOffset;
-  __ movq(rsp, Operand(rsp, kNextOffset));
-  __ jmp(&loop);
-  __ bind(&done);
-
-  // Set the top handler address to next handler past the current ENTRY handler.
-  __ movq(kScratchRegister, handler_address);
-  __ pop(Operand(kScratchRegister, 0));
-
-  if (type == OUT_OF_MEMORY) {
-    // Set external caught exception to false.
-    ExternalReference external_caught(Top::k_external_caught_exception_address);
-    __ movq(rax, Immediate(false));
-    __ store_rax(external_caught);
-
-    // Set pending exception and rax to out of memory exception.
-    ExternalReference pending_exception(Top::k_pending_exception_address);
-    __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
-    __ store_rax(pending_exception);
-  }
-
-  // Clear the context pointer.
-  __ xor_(rsi, rsi);
-
-  // Restore registers from handler.
-  ASSERT_EQ(StackHandlerConstants::kNextOffset + kPointerSize,
-            StackHandlerConstants::kFPOffset);
-  __ pop(rbp);  // FP
-  ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
-            StackHandlerConstants::kStateOffset);
-  __ pop(rdx);  // State
-
-  ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
-            StackHandlerConstants::kPCOffset);
-  __ ret(0);
-}
-
-
-void CallFunctionStub::Generate(MacroAssembler* masm) {
-  Label slow;
-
-  // If the receiver might be a value (string, number or boolean) check for this
-  // and box it if it is.
-  if (ReceiverMightBeValue()) {
-    // Get the receiver from the stack.
-    // +1 ~ return address
-    Label receiver_is_value, receiver_is_js_object;
-    __ movq(rax, Operand(rsp, (argc_ + 1) * kPointerSize));
-
-    // Check if receiver is a smi (which is a number value).
-    __ JumpIfSmi(rax, &receiver_is_value);
-
-    // Check if the receiver is a valid JS object.
-    __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rdi);
-    __ j(above_equal, &receiver_is_js_object);
-
-    // Call the runtime to box the value.
-    __ bind(&receiver_is_value);
-    __ EnterInternalFrame();
-    __ push(rax);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-    __ LeaveInternalFrame();
-    __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rax);
-
-    __ bind(&receiver_is_js_object);
-  }
-
-  // Get the function to call from the stack.
-  // +2 ~ receiver, return address
-  __ movq(rdi, Operand(rsp, (argc_ + 2) * kPointerSize));
-
-  // Check that the function really is a JavaScript function.
-  __ JumpIfSmi(rdi, &slow);
-  // Goto slow case if we do not have a function.
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &slow);
-
-  // Fast-case: Just invoke the function.
-  ParameterCount actual(argc_);
-  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
-
-  // Slow-case: Non-function called.
-  __ bind(&slow);
-  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
-  // of the original receiver from the call site).
-  __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rdi);
-  __ Set(rax, argc_);
-  __ Set(rbx, 0);
-  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
-  Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
-  __ Jump(adaptor, RelocInfo::CODE_TARGET);
-}
-
-
-void CEntryStub::Generate(MacroAssembler* masm) {
-  // rax: number of arguments including receiver
-  // rbx: pointer to C function  (C callee-saved)
-  // rbp: frame pointer of calling JS frame (restored after C call)
-  // rsp: stack pointer  (restored after C call)
-  // rsi: current context (restored)
-
-  // NOTE: Invocations of builtins may return failure objects
-  // instead of a proper result. The builtin entry handles
-  // this by performing a garbage collection and retrying the
-  // builtin once.
-
-  // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(mode_, result_size_);
-
-  // rax: Holds the context at this point, but should not be used.
-  //      On entry to code generated by GenerateCore, it must hold
-  //      a failure result if the collect_garbage argument to GenerateCore
-  //      is true.  This failure result can be the result of code
-  //      generated by a previous call to GenerateCore.  The value
-  //      of rax is then passed to Runtime::PerformGC.
-  // rbx: pointer to builtin function  (C callee-saved).
-  // rbp: frame pointer of exit frame  (restored after C call).
-  // rsp: stack pointer (restored after C call).
-  // r14: number of arguments including receiver (C callee-saved).
-  // r12: argv pointer (C callee-saved).
-
-  Label throw_normal_exception;
-  Label throw_termination_exception;
-  Label throw_out_of_memory_exception;
-
-  // Call into the runtime system.
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               &throw_out_of_memory_exception,
-               false,
-               false);
-
-  // Do space-specific GC and retry runtime call.
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               &throw_out_of_memory_exception,
-               true,
-               false);
-
-  // Do full GC and retry runtime call one final time.
-  Failure* failure = Failure::InternalError();
-  __ movq(rax, failure, RelocInfo::NONE);
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               &throw_out_of_memory_exception,
-               true,
-               true);
-
-  __ bind(&throw_out_of_memory_exception);
-  GenerateThrowUncatchable(masm, OUT_OF_MEMORY);
-
-  __ bind(&throw_termination_exception);
-  GenerateThrowUncatchable(masm, TERMINATION);
-
-  __ bind(&throw_normal_exception);
-  GenerateThrowTOS(masm);
-}
-
-
-void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
-  UNREACHABLE();
-}
-
-
-void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
-  Label invoke, exit;
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  Label not_outermost_js, not_outermost_js_2;
-#endif
-
-  // Setup frame.
-  __ push(rbp);
-  __ movq(rbp, rsp);
-
-  // Push the stack frame type marker twice.
-  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
-  // Scratch register is neither callee-save, nor an argument register on any
-  // platform. It's free to use at this point.
-  // Cannot use smi-register for loading yet.
-  __ movq(kScratchRegister,
-          reinterpret_cast<uint64_t>(Smi::FromInt(marker)),
-          RelocInfo::NONE);
-  __ push(kScratchRegister);  // context slot
-  __ push(kScratchRegister);  // function slot
-  // Save callee-saved registers (X64/Win64 calling conventions).
-  __ push(r12);
-  __ push(r13);
-  __ push(r14);
-  __ push(r15);
-#ifdef _WIN64
-  __ push(rdi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
-  __ push(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
-#endif
-  __ push(rbx);
-  // TODO(X64): On Win64, if we ever use XMM6-XMM15, the low low 64 bits are
-  // callee save as well.
-
-  // Save copies of the top frame descriptor on the stack.
-  ExternalReference c_entry_fp(Top::k_c_entry_fp_address);
-  __ load_rax(c_entry_fp);
-  __ push(rax);
-
-  // Set up the roots and smi constant registers.
-  // Needs to be done before any further smi loads.
-  ExternalReference roots_address = ExternalReference::roots_address();
-  __ movq(kRootRegister, roots_address);
-  __ InitializeSmiConstantRegister();
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  // If this is the outermost JS call, set js_entry_sp value.
-  ExternalReference js_entry_sp(Top::k_js_entry_sp_address);
-  __ load_rax(js_entry_sp);
-  __ testq(rax, rax);
-  __ j(not_zero, &not_outermost_js);
-  __ movq(rax, rbp);
-  __ store_rax(js_entry_sp);
-  __ bind(&not_outermost_js);
-#endif
-
-  // Call a faked try-block that does the invoke.
-  __ call(&invoke);
-
-  // Caught exception: Store result (exception) in the pending
-  // exception field in the JSEnv and return a failure sentinel.
-  ExternalReference pending_exception(Top::k_pending_exception_address);
-  __ store_rax(pending_exception);
-  __ movq(rax, Failure::Exception(), RelocInfo::NONE);
-  __ jmp(&exit);
-
-  // Invoke: Link this frame into the handler chain.
-  __ bind(&invoke);
-  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
-
-  // Clear any pending exceptions.
-  __ load_rax(ExternalReference::the_hole_value_location());
-  __ store_rax(pending_exception);
-
-  // Fake a receiver (NULL).
-  __ push(Immediate(0));  // receiver
-
-  // Invoke the function by calling through JS entry trampoline
-  // builtin and pop the faked function when we return. We load the address
-  // from an external reference instead of inlining the call target address
-  // directly in the code, because the builtin stubs may not have been
-  // generated yet at the time this code is generated.
-  if (is_construct) {
-    ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline);
-    __ load_rax(construct_entry);
-  } else {
-    ExternalReference entry(Builtins::JSEntryTrampoline);
-    __ load_rax(entry);
-  }
-  __ lea(kScratchRegister, FieldOperand(rax, Code::kHeaderSize));
-  __ call(kScratchRegister);
-
-  // Unlink this frame from the handler chain.
-  __ movq(kScratchRegister, ExternalReference(Top::k_handler_address));
-  __ pop(Operand(kScratchRegister, 0));
-  // Pop next_sp.
-  __ addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  // If current EBP value is the same as js_entry_sp value, it means that
-  // the current function is the outermost.
-  __ movq(kScratchRegister, js_entry_sp);
-  __ cmpq(rbp, Operand(kScratchRegister, 0));
-  __ j(not_equal, &not_outermost_js_2);
-  __ movq(Operand(kScratchRegister, 0), Immediate(0));
-  __ bind(&not_outermost_js_2);
-#endif
-
-  // Restore the top frame descriptor from the stack.
-  __ bind(&exit);
-  __ movq(kScratchRegister, ExternalReference(Top::k_c_entry_fp_address));
-  __ pop(Operand(kScratchRegister, 0));
-
-  // Restore callee-saved registers (X64 conventions).
-  __ pop(rbx);
-#ifdef _WIN64
-  // Callee save on in Win64 ABI, arguments/volatile in AMD64 ABI.
-  __ pop(rsi);
-  __ pop(rdi);
-#endif
-  __ pop(r15);
-  __ pop(r14);
-  __ pop(r13);
-  __ pop(r12);
-  __ addq(rsp, Immediate(2 * kPointerSize));  // remove markers
-
-  // Restore frame pointer and return.
-  __ pop(rbp);
-  __ ret(0);
-}
-
-
-// -----------------------------------------------------------------------------
-// Implementation of stubs.
-
-//  Stub classes have public member named masm, not masm_.
-
-void StackCheckStub::Generate(MacroAssembler* masm) {
-  // Because builtins always remove the receiver from the stack, we
-  // have to fake one to avoid underflowing the stack. The receiver
-  // must be inserted below the return address on the stack so we
-  // temporarily store that in a register.
-  __ pop(rax);
-  __ Push(Smi::FromInt(0));
-  __ push(rax);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kStackGuard, 1, 1);
-}
-
-
-void FloatingPointHelper::LoadSSE2SmiOperands(MacroAssembler* masm) {
-  __ SmiToInteger32(kScratchRegister, rdx);
-  __ cvtlsi2sd(xmm0, kScratchRegister);
-  __ SmiToInteger32(kScratchRegister, rax);
-  __ cvtlsi2sd(xmm1, kScratchRegister);
-}
-
-
-void FloatingPointHelper::LoadSSE2NumberOperands(MacroAssembler* masm) {
-  Label load_smi_rdx, load_nonsmi_rax, load_smi_rax, done;
-  // Load operand in rdx into xmm0.
-  __ JumpIfSmi(rdx, &load_smi_rdx);
-  __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
-  // Load operand in rax into xmm1.
-  __ JumpIfSmi(rax, &load_smi_rax);
-  __ bind(&load_nonsmi_rax);
-  __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ jmp(&done);
-
-  __ bind(&load_smi_rdx);
-  __ SmiToInteger32(kScratchRegister, rdx);
-  __ cvtlsi2sd(xmm0, kScratchRegister);
-  __ JumpIfNotSmi(rax, &load_nonsmi_rax);
-
-  __ bind(&load_smi_rax);
-  __ SmiToInteger32(kScratchRegister, rax);
-  __ cvtlsi2sd(xmm1, kScratchRegister);
-
-  __ bind(&done);
-}
-
-
-void FloatingPointHelper::LoadSSE2UnknownOperands(MacroAssembler* masm,
-                                                  Label* not_numbers) {
-  Label load_smi_rdx, load_nonsmi_rax, load_smi_rax, load_float_rax, done;
-  // Load operand in rdx into xmm0, or branch to not_numbers.
-  __ LoadRoot(rcx, Heap::kHeapNumberMapRootIndex);
-  __ JumpIfSmi(rdx, &load_smi_rdx);
-  __ cmpq(FieldOperand(rdx, HeapObject::kMapOffset), rcx);
-  __ j(not_equal, not_numbers);  // Argument in rdx is not a number.
-  __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
-  // Load operand in rax into xmm1, or branch to not_numbers.
-  __ JumpIfSmi(rax, &load_smi_rax);
-
-  __ bind(&load_nonsmi_rax);
-  __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), rcx);
-  __ j(not_equal, not_numbers);
-  __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ jmp(&done);
-
-  __ bind(&load_smi_rdx);
-  __ SmiToInteger32(kScratchRegister, rdx);
-  __ cvtlsi2sd(xmm0, kScratchRegister);
-  __ JumpIfNotSmi(rax, &load_nonsmi_rax);
-
-  __ bind(&load_smi_rax);
-  __ SmiToInteger32(kScratchRegister, rax);
-  __ cvtlsi2sd(xmm1, kScratchRegister);
-  __ bind(&done);
-}
-
-
-// Input: rdx, rax are the left and right objects of a bit op.
-// Output: rax, rcx are left and right integers for a bit op.
-void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
-                                         Label* conversion_failure,
-                                         Register heap_number_map) {
-  // Check float operands.
-  Label arg1_is_object, check_undefined_arg1;
-  Label arg2_is_object, check_undefined_arg2;
-  Label load_arg2, done;
-
-  __ JumpIfNotSmi(rdx, &arg1_is_object);
-  __ SmiToInteger32(rdx, rdx);
-  __ jmp(&load_arg2);
-
-  // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
-  __ bind(&check_undefined_arg1);
-  __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
-  __ j(not_equal, conversion_failure);
-  __ movl(rdx, Immediate(0));
-  __ jmp(&load_arg2);
-
-  __ bind(&arg1_is_object);
-  __ cmpq(FieldOperand(rdx, HeapObject::kMapOffset), heap_number_map);
-  __ j(not_equal, &check_undefined_arg1);
-  // Get the untagged integer version of the edx heap number in rcx.
-  IntegerConvert(masm, rdx, rdx);
-
-  // Here rdx has the untagged integer, rax has a Smi or a heap number.
-  __ bind(&load_arg2);
-  // Test if arg2 is a Smi.
-  __ JumpIfNotSmi(rax, &arg2_is_object);
-  __ SmiToInteger32(rax, rax);
-  __ movl(rcx, rax);
-  __ jmp(&done);
-
-  // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
-  __ bind(&check_undefined_arg2);
-  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
-  __ j(not_equal, conversion_failure);
-  __ movl(rcx, Immediate(0));
-  __ jmp(&done);
-
-  __ bind(&arg2_is_object);
-  __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), heap_number_map);
-  __ j(not_equal, &check_undefined_arg2);
-  // Get the untagged integer version of the eax heap number in ecx.
-  IntegerConvert(masm, rcx, rax);
-  __ bind(&done);
-  __ movl(rax, rdx);
-}
-
-
-// Input: rdx, rax are the left and right objects of a bit op.
-// Output: rax, rcx are left and right integers for a bit op.
-void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
-  // Check float operands.
-  Label done;
-  Label rax_is_smi;
-  Label rax_is_object;
-  Label rdx_is_object;
-
-  __ JumpIfNotSmi(rdx, &rdx_is_object);
-  __ SmiToInteger32(rdx, rdx);
-  __ JumpIfSmi(rax, &rax_is_smi);
-
-  __ bind(&rax_is_object);
-  IntegerConvert(masm, rcx, rax);  // Uses rdi, rcx and rbx.
-  __ jmp(&done);
-
-  __ bind(&rdx_is_object);
-  IntegerConvert(masm, rdx, rdx);  // Uses rdi, rcx and rbx.
-  __ JumpIfNotSmi(rax, &rax_is_object);
-  __ bind(&rax_is_smi);
-  __ SmiToInteger32(rcx, rax);
-
-  __ bind(&done);
-  __ movl(rax, rdx);
-}
-
-
-const char* GenericBinaryOpStub::GetName() {
-  if (name_ != NULL) return name_;
-  const int len = 100;
-  name_ = Bootstrapper::AllocateAutoDeletedArray(len);
-  if (name_ == NULL) return "OOM";
-  const char* op_name = Token::Name(op_);
-  const char* overwrite_name;
-  switch (mode_) {
-    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
-    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
-    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
-    default: overwrite_name = "UnknownOverwrite"; break;
-  }
-
-  OS::SNPrintF(Vector<char>(name_, len),
-               "GenericBinaryOpStub_%s_%s%s_%s%s_%s_%s",
-               op_name,
-               overwrite_name,
-               (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
-               args_in_registers_ ? "RegArgs" : "StackArgs",
-               args_reversed_ ? "_R" : "",
-               static_operands_type_.ToString(),
-               BinaryOpIC::GetName(runtime_operands_type_));
-  return name_;
 }
 
 
@@ -10959,6 +8961,1980 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
 Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
   GenericBinaryOpStub stub(key, type_info);
   return stub.GetCode();
+}
+
+
+void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
+  // Input on stack:
+  // rsp[8]: argument (should be number).
+  // rsp[0]: return address.
+  Label runtime_call;
+  Label runtime_call_clear_stack;
+  Label input_not_smi;
+  Label loaded;
+  // Test that rax is a number.
+  __ movq(rax, Operand(rsp, kPointerSize));
+  __ JumpIfNotSmi(rax, &input_not_smi);
+  // Input is a smi. Untag and load it onto the FPU stack.
+  // Then load the bits of the double into rbx.
+  __ SmiToInteger32(rax, rax);
+  __ subq(rsp, Immediate(kPointerSize));
+  __ cvtlsi2sd(xmm1, rax);
+  __ movsd(Operand(rsp, 0), xmm1);
+  __ movq(rbx, xmm1);
+  __ movq(rdx, xmm1);
+  __ fld_d(Operand(rsp, 0));
+  __ addq(rsp, Immediate(kPointerSize));
+  __ jmp(&loaded);
+
+  __ bind(&input_not_smi);
+  // Check if input is a HeapNumber.
+  __ Move(rbx, Factory::heap_number_map());
+  __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ j(not_equal, &runtime_call);
+  // Input is a HeapNumber. Push it on the FPU stack and load its
+  // bits into rbx.
+  __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
+  __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
+  __ movq(rdx, rbx);
+  __ bind(&loaded);
+  // ST[0] == double value
+  // rbx = bits of double value.
+  // rdx = also bits of double value.
+  // Compute hash (h is 32 bits, bits are 64 and the shifts are arithmetic):
+  //   h = h0 = bits ^ (bits >> 32);
+  //   h ^= h >> 16;
+  //   h ^= h >> 8;
+  //   h = h & (cacheSize - 1);
+  // or h = (h0 ^ (h0 >> 8) ^ (h0 >> 16) ^ (h0 >> 24)) & (cacheSize - 1)
+  __ sar(rdx, Immediate(32));
+  __ xorl(rdx, rbx);
+  __ movl(rcx, rdx);
+  __ movl(rax, rdx);
+  __ movl(rdi, rdx);
+  __ sarl(rdx, Immediate(8));
+  __ sarl(rcx, Immediate(16));
+  __ sarl(rax, Immediate(24));
+  __ xorl(rcx, rdx);
+  __ xorl(rax, rdi);
+  __ xorl(rcx, rax);
+  ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
+  __ andl(rcx, Immediate(TranscendentalCache::kCacheSize - 1));
+
+  // ST[0] == double value.
+  // rbx = bits of double value.
+  // rcx = TranscendentalCache::hash(double value).
+  __ movq(rax, ExternalReference::transcendental_cache_array_address());
+  // rax points to cache array.
+  __ movq(rax, Operand(rax, type_ * sizeof(TranscendentalCache::caches_[0])));
+  // rax points to the cache for the type type_.
+  // If NULL, the cache hasn't been initialized yet, so go through runtime.
+  __ testq(rax, rax);
+  __ j(zero, &runtime_call_clear_stack);
+#ifdef DEBUG
+  // Check that the layout of cache elements match expectations.
+  {  // NOLINT - doesn't like a single brace on a line.
+    TranscendentalCache::Element test_elem[2];
+    char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
+    char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
+    char* elem_in0  = reinterpret_cast<char*>(&(test_elem[0].in[0]));
+    char* elem_in1  = reinterpret_cast<char*>(&(test_elem[0].in[1]));
+    char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
+    // Two uint_32's and a pointer per element.
+    CHECK_EQ(16, static_cast<int>(elem2_start - elem_start));
+    CHECK_EQ(0, static_cast<int>(elem_in0 - elem_start));
+    CHECK_EQ(kIntSize, static_cast<int>(elem_in1 - elem_start));
+    CHECK_EQ(2 * kIntSize, static_cast<int>(elem_out - elem_start));
+  }
+#endif
+  // Find the address of the rcx'th entry in the cache, i.e., &rax[rcx*16].
+  __ addl(rcx, rcx);
+  __ lea(rcx, Operand(rax, rcx, times_8, 0));
+  // Check if cache matches: Double value is stored in uint32_t[2] array.
+  Label cache_miss;
+  __ cmpq(rbx, Operand(rcx, 0));
+  __ j(not_equal, &cache_miss);
+  // Cache hit!
+  __ movq(rax, Operand(rcx, 2 * kIntSize));
+  __ fstp(0);  // Clear FPU stack.
+  __ ret(kPointerSize);
+
+  __ bind(&cache_miss);
+  // Update cache with new value.
+  Label nan_result;
+  GenerateOperation(masm, &nan_result);
+  __ AllocateHeapNumber(rax, rdi, &runtime_call_clear_stack);
+  __ movq(Operand(rcx, 0), rbx);
+  __ movq(Operand(rcx, 2 * kIntSize), rax);
+  __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
+  __ ret(kPointerSize);
+
+  __ bind(&runtime_call_clear_stack);
+  __ fstp(0);
+  __ bind(&runtime_call);
+  __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
+
+  __ bind(&nan_result);
+  __ fstp(0);  // Remove argument from FPU stack.
+  __ LoadRoot(rax, Heap::kNanValueRootIndex);
+  __ movq(Operand(rcx, 0), rbx);
+  __ movq(Operand(rcx, 2 * kIntSize), rax);
+  __ ret(kPointerSize);
+}
+
+
+Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
+  switch (type_) {
+    // Add more cases when necessary.
+    case TranscendentalCache::SIN: return Runtime::kMath_sin;
+    case TranscendentalCache::COS: return Runtime::kMath_cos;
+    default:
+      UNIMPLEMENTED();
+      return Runtime::kAbort;
+  }
+}
+
+
+void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm,
+                                                Label* on_nan_result) {
+  // Registers:
+  // rbx: Bits of input double. Must be preserved.
+  // rcx: Pointer to cache entry. Must be preserved.
+  // st(0): Input double
+  Label done;
+  ASSERT(type_ == TranscendentalCache::SIN ||
+         type_ == TranscendentalCache::COS);
+  // More transcendental types can be added later.
+
+  // Both fsin and fcos require arguments in the range +/-2^63 and
+  // return NaN for infinities and NaN. They can share all code except
+  // the actual fsin/fcos operation.
+  Label in_range;
+  // If argument is outside the range -2^63..2^63, fsin/cos doesn't
+  // work. We must reduce it to the appropriate range.
+  __ movq(rdi, rbx);
+  // Move exponent and sign bits to low bits.
+  __ shr(rdi, Immediate(HeapNumber::kMantissaBits));
+  // Remove sign bit.
+  __ andl(rdi, Immediate((1 << HeapNumber::kExponentBits) - 1));
+  int supported_exponent_limit = (63 + HeapNumber::kExponentBias);
+  __ cmpl(rdi, Immediate(supported_exponent_limit));
+  __ j(below, &in_range);
+  // Check for infinity and NaN. Both return NaN for sin.
+  __ cmpl(rdi, Immediate(0x7ff));
+  __ j(equal, on_nan_result);
+
+  // Use fpmod to restrict argument to the range +/-2*PI.
+  __ fldpi();
+  __ fadd(0);
+  __ fld(1);
+  // FPU Stack: input, 2*pi, input.
+  {
+    Label no_exceptions;
+    __ fwait();
+    __ fnstsw_ax();
+    // Clear if Illegal Operand or Zero Division exceptions are set.
+    __ testl(rax, Immediate(5));  // #IO and #ZD flags of FPU status word.
+    __ j(zero, &no_exceptions);
+    __ fnclex();
+    __ bind(&no_exceptions);
+  }
+
+  // Compute st(0) % st(1)
+  {
+    Label partial_remainder_loop;
+    __ bind(&partial_remainder_loop);
+    __ fprem1();
+    __ fwait();
+    __ fnstsw_ax();
+    __ testl(rax, Immediate(0x400));  // Check C2 bit of FPU status word.
+    // If C2 is set, computation only has partial result. Loop to
+    // continue computation.
+    __ j(not_zero, &partial_remainder_loop);
+  }
+  // FPU Stack: input, 2*pi, input % 2*pi
+  __ fstp(2);
+  // FPU Stack: input % 2*pi, 2*pi,
+  __ fstp(0);
+  // FPU Stack: input % 2*pi
+  __ bind(&in_range);
+  switch (type_) {
+    case TranscendentalCache::SIN:
+      __ fsin();
+      break;
+    case TranscendentalCache::COS:
+      __ fcos();
+      break;
+    default:
+      UNREACHABLE();
+  }
+  __ bind(&done);
+}
+
+
+// Get the integer part of a heap number.
+// Overwrites the contents of rdi, rbx and rcx. Result cannot be rdi or rbx.
+void IntegerConvert(MacroAssembler* masm,
+                    Register result,
+                    Register source) {
+  // Result may be rcx. If result and source are the same register, source will
+  // be overwritten.
+  ASSERT(!result.is(rdi) && !result.is(rbx));
+  // TODO(lrn): When type info reaches here, if value is a 32-bit integer, use
+  // cvttsd2si (32-bit version) directly.
+  Register double_exponent = rbx;
+  Register double_value = rdi;
+  Label done, exponent_63_plus;
+  // Get double and extract exponent.
+  __ movq(double_value, FieldOperand(source, HeapNumber::kValueOffset));
+  // Clear result preemptively, in case we need to return zero.
+  __ xorl(result, result);
+  __ movq(xmm0, double_value);  // Save copy in xmm0 in case we need it there.
+  // Double to remove sign bit, shift exponent down to least significant bits.
+  // and subtract bias to get the unshifted, unbiased exponent.
+  __ lea(double_exponent, Operand(double_value, double_value, times_1, 0));
+  __ shr(double_exponent, Immediate(64 - HeapNumber::kExponentBits));
+  __ subl(double_exponent, Immediate(HeapNumber::kExponentBias));
+  // Check whether the exponent is too big for a 63 bit unsigned integer.
+  __ cmpl(double_exponent, Immediate(63));
+  __ j(above_equal, &exponent_63_plus);
+  // Handle exponent range 0..62.
+  __ cvttsd2siq(result, xmm0);
+  __ jmp(&done);
+
+  __ bind(&exponent_63_plus);
+  // Exponent negative or 63+.
+  __ cmpl(double_exponent, Immediate(83));
+  // If exponent negative or above 83, number contains no significant bits in
+  // the range 0..2^31, so result is zero, and rcx already holds zero.
+  __ j(above, &done);
+
+  // Exponent in rage 63..83.
+  // Mantissa * 2^exponent contains bits in the range 2^0..2^31, namely
+  // the least significant exponent-52 bits.
+
+  // Negate low bits of mantissa if value is negative.
+  __ addq(double_value, double_value);  // Move sign bit to carry.
+  __ sbbl(result, result);  // And convert carry to -1 in result register.
+  // if scratch2 is negative, do (scratch2-1)^-1, otherwise (scratch2-0)^0.
+  __ addl(double_value, result);
+  // Do xor in opposite directions depending on where we want the result
+  // (depending on whether result is rcx or not).
+
+  if (result.is(rcx)) {
+    __ xorl(double_value, result);
+    // Left shift mantissa by (exponent - mantissabits - 1) to save the
+    // bits that have positional values below 2^32 (the extra -1 comes from the
+    // doubling done above to move the sign bit into the carry flag).
+    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
+    __ shll_cl(double_value);
+    __ movl(result, double_value);
+  } else {
+    // As the then-branch, but move double-value to result before shifting.
+    __ xorl(result, double_value);
+    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
+    __ shll_cl(result);
+  }
+
+  __ bind(&done);
+}
+
+
+// Input: rdx, rax are the left and right objects of a bit op.
+// Output: rax, rcx are left and right integers for a bit op.
+void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
+  // Check float operands.
+  Label done;
+  Label rax_is_smi;
+  Label rax_is_object;
+  Label rdx_is_object;
+
+  __ JumpIfNotSmi(rdx, &rdx_is_object);
+  __ SmiToInteger32(rdx, rdx);
+  __ JumpIfSmi(rax, &rax_is_smi);
+
+  __ bind(&rax_is_object);
+  IntegerConvert(masm, rcx, rax);  // Uses rdi, rcx and rbx.
+  __ jmp(&done);
+
+  __ bind(&rdx_is_object);
+  IntegerConvert(masm, rdx, rdx);  // Uses rdi, rcx and rbx.
+  __ JumpIfNotSmi(rax, &rax_is_object);
+  __ bind(&rax_is_smi);
+  __ SmiToInteger32(rcx, rax);
+
+  __ bind(&done);
+  __ movl(rax, rdx);
+}
+
+
+// Input: rdx, rax are the left and right objects of a bit op.
+// Output: rax, rcx are left and right integers for a bit op.
+void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
+                                         Label* conversion_failure,
+                                         Register heap_number_map) {
+  // Check float operands.
+  Label arg1_is_object, check_undefined_arg1;
+  Label arg2_is_object, check_undefined_arg2;
+  Label load_arg2, done;
+
+  __ JumpIfNotSmi(rdx, &arg1_is_object);
+  __ SmiToInteger32(rdx, rdx);
+  __ jmp(&load_arg2);
+
+  // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
+  __ bind(&check_undefined_arg1);
+  __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
+  __ j(not_equal, conversion_failure);
+  __ movl(rdx, Immediate(0));
+  __ jmp(&load_arg2);
+
+  __ bind(&arg1_is_object);
+  __ cmpq(FieldOperand(rdx, HeapObject::kMapOffset), heap_number_map);
+  __ j(not_equal, &check_undefined_arg1);
+  // Get the untagged integer version of the edx heap number in rcx.
+  IntegerConvert(masm, rdx, rdx);
+
+  // Here rdx has the untagged integer, rax has a Smi or a heap number.
+  __ bind(&load_arg2);
+  // Test if arg2 is a Smi.
+  __ JumpIfNotSmi(rax, &arg2_is_object);
+  __ SmiToInteger32(rax, rax);
+  __ movl(rcx, rax);
+  __ jmp(&done);
+
+  // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
+  __ bind(&check_undefined_arg2);
+  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+  __ j(not_equal, conversion_failure);
+  __ movl(rcx, Immediate(0));
+  __ jmp(&done);
+
+  __ bind(&arg2_is_object);
+  __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), heap_number_map);
+  __ j(not_equal, &check_undefined_arg2);
+  // Get the untagged integer version of the eax heap number in ecx.
+  IntegerConvert(masm, rcx, rax);
+  __ bind(&done);
+  __ movl(rax, rdx);
+}
+
+
+void FloatingPointHelper::LoadSSE2SmiOperands(MacroAssembler* masm) {
+  __ SmiToInteger32(kScratchRegister, rdx);
+  __ cvtlsi2sd(xmm0, kScratchRegister);
+  __ SmiToInteger32(kScratchRegister, rax);
+  __ cvtlsi2sd(xmm1, kScratchRegister);
+}
+
+
+void FloatingPointHelper::LoadSSE2NumberOperands(MacroAssembler* masm) {
+  Label load_smi_rdx, load_nonsmi_rax, load_smi_rax, done;
+  // Load operand in rdx into xmm0.
+  __ JumpIfSmi(rdx, &load_smi_rdx);
+  __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
+  // Load operand in rax into xmm1.
+  __ JumpIfSmi(rax, &load_smi_rax);
+  __ bind(&load_nonsmi_rax);
+  __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
+  __ jmp(&done);
+
+  __ bind(&load_smi_rdx);
+  __ SmiToInteger32(kScratchRegister, rdx);
+  __ cvtlsi2sd(xmm0, kScratchRegister);
+  __ JumpIfNotSmi(rax, &load_nonsmi_rax);
+
+  __ bind(&load_smi_rax);
+  __ SmiToInteger32(kScratchRegister, rax);
+  __ cvtlsi2sd(xmm1, kScratchRegister);
+
+  __ bind(&done);
+}
+
+
+void FloatingPointHelper::LoadSSE2UnknownOperands(MacroAssembler* masm,
+                                                  Label* not_numbers) {
+  Label load_smi_rdx, load_nonsmi_rax, load_smi_rax, load_float_rax, done;
+  // Load operand in rdx into xmm0, or branch to not_numbers.
+  __ LoadRoot(rcx, Heap::kHeapNumberMapRootIndex);
+  __ JumpIfSmi(rdx, &load_smi_rdx);
+  __ cmpq(FieldOperand(rdx, HeapObject::kMapOffset), rcx);
+  __ j(not_equal, not_numbers);  // Argument in rdx is not a number.
+  __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
+  // Load operand in rax into xmm1, or branch to not_numbers.
+  __ JumpIfSmi(rax, &load_smi_rax);
+
+  __ bind(&load_nonsmi_rax);
+  __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), rcx);
+  __ j(not_equal, not_numbers);
+  __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
+  __ jmp(&done);
+
+  __ bind(&load_smi_rdx);
+  __ SmiToInteger32(kScratchRegister, rdx);
+  __ cvtlsi2sd(xmm0, kScratchRegister);
+  __ JumpIfNotSmi(rax, &load_nonsmi_rax);
+
+  __ bind(&load_smi_rax);
+  __ SmiToInteger32(kScratchRegister, rax);
+  __ cvtlsi2sd(xmm1, kScratchRegister);
+  __ bind(&done);
+}
+
+
+void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
+  Label slow, done;
+
+  if (op_ == Token::SUB) {
+    // Check whether the value is a smi.
+    Label try_float;
+    __ JumpIfNotSmi(rax, &try_float);
+
+    if (negative_zero_ == kIgnoreNegativeZero) {
+      __ SmiCompare(rax, Smi::FromInt(0));
+      __ j(equal, &done);
+    }
+
+    // Enter runtime system if the value of the smi is zero
+    // to make sure that we switch between 0 and -0.
+    // Also enter it if the value of the smi is Smi::kMinValue.
+    __ SmiNeg(rax, rax, &done);
+
+    // Either zero or Smi::kMinValue, neither of which become a smi when
+    // negated.
+    if (negative_zero_ == kStrictNegativeZero) {
+      __ SmiCompare(rax, Smi::FromInt(0));
+      __ j(not_equal, &slow);
+      __ Move(rax, Factory::minus_zero_value());
+      __ jmp(&done);
+    } else  {
+      __ jmp(&slow);
+    }
+
+    // Try floating point case.
+    __ bind(&try_float);
+    __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
+    __ j(not_equal, &slow);
+    // Operand is a float, negate its value by flipping sign bit.
+    __ movq(rdx, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ movq(kScratchRegister, Immediate(0x01));
+    __ shl(kScratchRegister, Immediate(63));
+    __ xor_(rdx, kScratchRegister);  // Flip sign.
+    // rdx is value to store.
+    if (overwrite_ == UNARY_OVERWRITE) {
+      __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rdx);
+    } else {
+      __ AllocateHeapNumber(rcx, rbx, &slow);
+      // rcx: allocated 'empty' number
+      __ movq(FieldOperand(rcx, HeapNumber::kValueOffset), rdx);
+      __ movq(rax, rcx);
+    }
+  } else if (op_ == Token::BIT_NOT) {
+    // Check if the operand is a heap number.
+    __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
+    __ j(not_equal, &slow);
+
+    // Convert the heap number in rax to an untagged integer in rcx.
+    IntegerConvert(masm, rax, rax);
+
+    // Do the bitwise operation and smi tag the result.
+    __ notl(rax);
+    __ Integer32ToSmi(rax, rax);
+  }
+
+  // Return from the stub.
+  __ bind(&done);
+  __ StubReturn(1);
+
+  // Handle the slow case by jumping to the JavaScript builtin.
+  __ bind(&slow);
+  __ pop(rcx);  // pop return address
+  __ push(rax);
+  __ push(rcx);  // push return address
+  switch (op_) {
+    case Token::SUB:
+      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
+      break;
+    case Token::BIT_NOT:
+      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_FUNCTION);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
+  // The key is in rdx and the parameter count is in rax.
+
+  // The displacement is used for skipping the frame pointer on the
+  // stack. It is the offset of the last parameter (if any) relative
+  // to the frame pointer.
+  static const int kDisplacement = 1 * kPointerSize;
+
+  // Check that the key is a smi.
+  Label slow;
+  __ JumpIfNotSmi(rdx, &slow);
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor;
+  __ movq(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ SmiCompare(Operand(rbx, StandardFrameConstants::kContextOffset),
+                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(equal, &adaptor);
+
+  // Check index against formal parameters count limit passed in
+  // through register rax. Use unsigned comparison to get negative
+  // check for free.
+  __ cmpq(rdx, rax);
+  __ j(above_equal, &slow);
+
+  // Read the argument from the stack and return it.
+  SmiIndex index = masm->SmiToIndex(rax, rax, kPointerSizeLog2);
+  __ lea(rbx, Operand(rbp, index.reg, index.scale, 0));
+  index = masm->SmiToNegativeIndex(rdx, rdx, kPointerSizeLog2);
+  __ movq(rax, Operand(rbx, index.reg, index.scale, kDisplacement));
+  __ Ret();
+
+  // Arguments adaptor case: Check index against actual arguments
+  // limit found in the arguments adaptor frame. Use unsigned
+  // comparison to get negative check for free.
+  __ bind(&adaptor);
+  __ movq(rcx, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ cmpq(rdx, rcx);
+  __ j(above_equal, &slow);
+
+  // Read the argument from the stack and return it.
+  index = masm->SmiToIndex(rax, rcx, kPointerSizeLog2);
+  __ lea(rbx, Operand(rbx, index.reg, index.scale, 0));
+  index = masm->SmiToNegativeIndex(rdx, rdx, kPointerSizeLog2);
+  __ movq(rax, Operand(rbx, index.reg, index.scale, kDisplacement));
+  __ Ret();
+
+  // Slow-case: Handle non-smi or out-of-bounds access to arguments
+  // by calling the runtime system.
+  __ bind(&slow);
+  __ pop(rbx);  // Return address.
+  __ push(rdx);
+  __ push(rbx);
+  __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
+}
+
+
+void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+  // rsp[0] : return address
+  // rsp[8] : number of parameters
+  // rsp[16] : receiver displacement
+  // rsp[24] : function
+
+  // The displacement is used for skipping the return address and the
+  // frame pointer on the stack. It is the offset of the last
+  // parameter (if any) relative to the frame pointer.
+  static const int kDisplacement = 2 * kPointerSize;
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor_frame, try_allocate, runtime;
+  __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ SmiCompare(Operand(rdx, StandardFrameConstants::kContextOffset),
+                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(equal, &adaptor_frame);
+
+  // Get the length from the frame.
+  __ SmiToInteger32(rcx, Operand(rsp, 1 * kPointerSize));
+  __ jmp(&try_allocate);
+
+  // Patch the arguments.length and the parameters pointer.
+  __ bind(&adaptor_frame);
+  __ SmiToInteger32(rcx,
+                    Operand(rdx,
+                            ArgumentsAdaptorFrameConstants::kLengthOffset));
+  // Space on stack must already hold a smi.
+  __ Integer32ToSmiField(Operand(rsp, 1 * kPointerSize), rcx);
+  // Do not clobber the length index for the indexing operation since
+  // it is used compute the size for allocation later.
+  __ lea(rdx, Operand(rdx, rcx, times_pointer_size, kDisplacement));
+  __ movq(Operand(rsp, 2 * kPointerSize), rdx);
+
+  // Try the new space allocation. Start out with computing the size of
+  // the arguments object and the elements array.
+  Label add_arguments_object;
+  __ bind(&try_allocate);
+  __ testl(rcx, rcx);
+  __ j(zero, &add_arguments_object);
+  __ leal(rcx, Operand(rcx, times_pointer_size, FixedArray::kHeaderSize));
+  __ bind(&add_arguments_object);
+  __ addl(rcx, Immediate(Heap::kArgumentsObjectSize));
+
+  // Do the allocation of both objects in one go.
+  __ AllocateInNewSpace(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
+
+  // Get the arguments boilerplate from the current (global) context.
+  int offset = Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX);
+  __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ movq(rdi, FieldOperand(rdi, GlobalObject::kGlobalContextOffset));
+  __ movq(rdi, Operand(rdi, offset));
+
+  // Copy the JS object part.
+  STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
+  __ movq(kScratchRegister, FieldOperand(rdi, 0 * kPointerSize));
+  __ movq(rdx, FieldOperand(rdi, 1 * kPointerSize));
+  __ movq(rbx, FieldOperand(rdi, 2 * kPointerSize));
+  __ movq(FieldOperand(rax, 0 * kPointerSize), kScratchRegister);
+  __ movq(FieldOperand(rax, 1 * kPointerSize), rdx);
+  __ movq(FieldOperand(rax, 2 * kPointerSize), rbx);
+
+  // Setup the callee in-object property.
+  ASSERT(Heap::arguments_callee_index == 0);
+  __ movq(kScratchRegister, Operand(rsp, 3 * kPointerSize));
+  __ movq(FieldOperand(rax, JSObject::kHeaderSize), kScratchRegister);
+
+  // Get the length (smi tagged) and set that as an in-object property too.
+  ASSERT(Heap::arguments_length_index == 1);
+  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
+  __ movq(FieldOperand(rax, JSObject::kHeaderSize + kPointerSize), rcx);
+
+  // If there are no actual arguments, we're done.
+  Label done;
+  __ SmiTest(rcx);
+  __ j(zero, &done);
+
+  // Get the parameters pointer from the stack and untag the length.
+  __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+
+  // Setup the elements pointer in the allocated arguments object and
+  // initialize the header in the elements fixed array.
+  __ lea(rdi, Operand(rax, Heap::kArgumentsObjectSize));
+  __ movq(FieldOperand(rax, JSObject::kElementsOffset), rdi);
+  __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
+  __ movq(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);
+  __ movq(FieldOperand(rdi, FixedArray::kLengthOffset), rcx);
+  __ SmiToInteger32(rcx, rcx);  // Untag length for the loop below.
+
+  // Copy the fixed array slots.
+  Label loop;
+  __ bind(&loop);
+  __ movq(kScratchRegister, Operand(rdx, -1 * kPointerSize));  // Skip receiver.
+  __ movq(FieldOperand(rdi, FixedArray::kHeaderSize), kScratchRegister);
+  __ addq(rdi, Immediate(kPointerSize));
+  __ subq(rdx, Immediate(kPointerSize));
+  __ decl(rcx);
+  __ j(not_zero, &loop);
+
+  // Return and remove the on-stack parameters.
+  __ bind(&done);
+  __ ret(3 * kPointerSize);
+
+  // Do the runtime call to allocate the arguments object.
+  __ bind(&runtime);
+  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
+}
+
+
+void RegExpExecStub::Generate(MacroAssembler* masm) {
+  // Just jump directly to runtime if native RegExp is not selected at compile
+  // time or if regexp entry in generated code is turned off runtime switch or
+  // at compilation.
+#ifdef V8_INTERPRETED_REGEXP
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
+#else  // V8_INTERPRETED_REGEXP
+  if (!FLAG_regexp_entry_native) {
+    __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
+    return;
+  }
+
+  // Stack frame on entry.
+  //  esp[0]: return address
+  //  esp[8]: last_match_info (expected JSArray)
+  //  esp[16]: previous index
+  //  esp[24]: subject string
+  //  esp[32]: JSRegExp object
+
+  static const int kLastMatchInfoOffset = 1 * kPointerSize;
+  static const int kPreviousIndexOffset = 2 * kPointerSize;
+  static const int kSubjectOffset = 3 * kPointerSize;
+  static const int kJSRegExpOffset = 4 * kPointerSize;
+
+  Label runtime;
+
+  // Ensure that a RegExp stack is allocated.
+  ExternalReference address_of_regexp_stack_memory_address =
+      ExternalReference::address_of_regexp_stack_memory_address();
+  ExternalReference address_of_regexp_stack_memory_size =
+      ExternalReference::address_of_regexp_stack_memory_size();
+  __ movq(kScratchRegister, address_of_regexp_stack_memory_size);
+  __ movq(kScratchRegister, Operand(kScratchRegister, 0));
+  __ testq(kScratchRegister, kScratchRegister);
+  __ j(zero, &runtime);
+
+
+  // Check that the first argument is a JSRegExp object.
+  __ movq(rax, Operand(rsp, kJSRegExpOffset));
+  __ JumpIfSmi(rax, &runtime);
+  __ CmpObjectType(rax, JS_REGEXP_TYPE, kScratchRegister);
+  __ j(not_equal, &runtime);
+  // Check that the RegExp has been compiled (data contains a fixed array).
+  __ movq(rcx, FieldOperand(rax, JSRegExp::kDataOffset));
+  if (FLAG_debug_code) {
+    Condition is_smi = masm->CheckSmi(rcx);
+    __ Check(NegateCondition(is_smi),
+        "Unexpected type for RegExp data, FixedArray expected");
+    __ CmpObjectType(rcx, FIXED_ARRAY_TYPE, kScratchRegister);
+    __ Check(equal, "Unexpected type for RegExp data, FixedArray expected");
+  }
+
+  // rcx: RegExp data (FixedArray)
+  // Check the type of the RegExp. Only continue if type is JSRegExp::IRREGEXP.
+  __ SmiToInteger32(rbx, FieldOperand(rcx, JSRegExp::kDataTagOffset));
+  __ cmpl(rbx, Immediate(JSRegExp::IRREGEXP));
+  __ j(not_equal, &runtime);
+
+  // rcx: RegExp data (FixedArray)
+  // Check that the number of captures fit in the static offsets vector buffer.
+  __ SmiToInteger32(rdx,
+                    FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
+  // Calculate number of capture registers (number_of_captures + 1) * 2.
+  __ leal(rdx, Operand(rdx, rdx, times_1, 2));
+  // Check that the static offsets vector buffer is large enough.
+  __ cmpl(rdx, Immediate(OffsetsVector::kStaticOffsetsVectorSize));
+  __ j(above, &runtime);
+
+  // rcx: RegExp data (FixedArray)
+  // rdx: Number of capture registers
+  // Check that the second argument is a string.
+  __ movq(rax, Operand(rsp, kSubjectOffset));
+  __ JumpIfSmi(rax, &runtime);
+  Condition is_string = masm->IsObjectStringType(rax, rbx, rbx);
+  __ j(NegateCondition(is_string), &runtime);
+
+  // rax: Subject string.
+  // rcx: RegExp data (FixedArray).
+  // rdx: Number of capture registers.
+  // Check that the third argument is a positive smi less than the string
+  // length. A negative value will be greater (unsigned comparison).
+  __ movq(rbx, Operand(rsp, kPreviousIndexOffset));
+  __ JumpIfNotSmi(rbx, &runtime);
+  __ SmiCompare(rbx, FieldOperand(rax, String::kLengthOffset));
+  __ j(above_equal, &runtime);
+
+  // rcx: RegExp data (FixedArray)
+  // rdx: Number of capture registers
+  // Check that the fourth object is a JSArray object.
+  __ movq(rax, Operand(rsp, kLastMatchInfoOffset));
+  __ JumpIfSmi(rax, &runtime);
+  __ CmpObjectType(rax, JS_ARRAY_TYPE, kScratchRegister);
+  __ j(not_equal, &runtime);
+  // Check that the JSArray is in fast case.
+  __ movq(rbx, FieldOperand(rax, JSArray::kElementsOffset));
+  __ movq(rax, FieldOperand(rbx, HeapObject::kMapOffset));
+  __ Cmp(rax, Factory::fixed_array_map());
+  __ j(not_equal, &runtime);
+  // Check that the last match info has space for the capture registers and the
+  // additional information. Ensure no overflow in add.
+  ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
+  __ SmiToInteger32(rax, FieldOperand(rbx, FixedArray::kLengthOffset));
+  __ addl(rdx, Immediate(RegExpImpl::kLastMatchOverhead));
+  __ cmpl(rdx, rax);
+  __ j(greater, &runtime);
+
+  // rcx: RegExp data (FixedArray)
+  // Check the representation and encoding of the subject string.
+  Label seq_ascii_string, seq_two_byte_string, check_code;
+  __ movq(rax, Operand(rsp, kSubjectOffset));
+  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
+  // First check for flat two byte string.
+  __ andb(rbx, Immediate(
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask));
+  ASSERT_EQ(0, kStringTag | kSeqStringTag | kTwoByteStringTag);
+  __ j(zero, &seq_two_byte_string);
+  // Any other flat string must be a flat ascii string.
+  __ testb(rbx, Immediate(kIsNotStringMask | kStringRepresentationMask));
+  __ j(zero, &seq_ascii_string);
+
+  // Check for flat cons string.
+  // A flat cons string is a cons string where the second part is the empty
+  // string. In that case the subject string is just the first part of the cons
+  // string. Also in this case the first part of the cons string is known to be
+  // a sequential string or an external string.
+  ASSERT(kExternalStringTag !=0);
+  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
+  __ testb(rbx, Immediate(kIsNotStringMask | kExternalStringTag));
+  __ j(not_zero, &runtime);
+  // String is a cons string.
+  __ movq(rdx, FieldOperand(rax, ConsString::kSecondOffset));
+  __ Cmp(rdx, Factory::empty_string());
+  __ j(not_equal, &runtime);
+  __ movq(rax, FieldOperand(rax, ConsString::kFirstOffset));
+  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  // String is a cons string with empty second part.
+  // eax: first part of cons string.
+  // ebx: map of first part of cons string.
+  // Is first part a flat two byte string?
+  __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
+           Immediate(kStringRepresentationMask | kStringEncodingMask));
+  ASSERT_EQ(0, kSeqStringTag | kTwoByteStringTag);
+  __ j(zero, &seq_two_byte_string);
+  // Any other flat string must be ascii.
+  __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
+           Immediate(kStringRepresentationMask));
+  __ j(not_zero, &runtime);
+
+  __ bind(&seq_ascii_string);
+  // rax: subject string (sequential ascii)
+  // rcx: RegExp data (FixedArray)
+  __ movq(r11, FieldOperand(rcx, JSRegExp::kDataAsciiCodeOffset));
+  __ Set(rdi, 1);  // Type is ascii.
+  __ jmp(&check_code);
+
+  __ bind(&seq_two_byte_string);
+  // rax: subject string (flat two-byte)
+  // rcx: RegExp data (FixedArray)
+  __ movq(r11, FieldOperand(rcx, JSRegExp::kDataUC16CodeOffset));
+  __ Set(rdi, 0);  // Type is two byte.
+
+  __ bind(&check_code);
+  // Check that the irregexp code has been generated for the actual string
+  // encoding. If it has, the field contains a code object otherwise it contains
+  // the hole.
+  __ CmpObjectType(r11, CODE_TYPE, kScratchRegister);
+  __ j(not_equal, &runtime);
+
+  // rax: subject string
+  // rdi: encoding of subject string (1 if ascii, 0 if two_byte);
+  // r11: code
+  // Load used arguments before starting to push arguments for call to native
+  // RegExp code to avoid handling changing stack height.
+  __ SmiToInteger64(rbx, Operand(rsp, kPreviousIndexOffset));
+
+  // rax: subject string
+  // rbx: previous index
+  // rdi: encoding of subject string (1 if ascii 0 if two_byte);
+  // r11: code
+  // All checks done. Now push arguments for native regexp code.
+  __ IncrementCounter(&Counters::regexp_entry_native, 1);
+
+  // rsi is caller save on Windows and used to pass parameter on Linux.
+  __ push(rsi);
+
+  static const int kRegExpExecuteArguments = 7;
+  __ PrepareCallCFunction(kRegExpExecuteArguments);
+  int argument_slots_on_stack =
+      masm->ArgumentStackSlotsForCFunctionCall(kRegExpExecuteArguments);
+
+  // Argument 7: Indicate that this is a direct call from JavaScript.
+  __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
+          Immediate(1));
+
+  // Argument 6: Start (high end) of backtracking stack memory area.
+  __ movq(kScratchRegister, address_of_regexp_stack_memory_address);
+  __ movq(r9, Operand(kScratchRegister, 0));
+  __ movq(kScratchRegister, address_of_regexp_stack_memory_size);
+  __ addq(r9, Operand(kScratchRegister, 0));
+  // Argument 6 passed in r9 on Linux and on the stack on Windows.
+#ifdef _WIN64
+  __ movq(Operand(rsp, (argument_slots_on_stack - 2) * kPointerSize), r9);
+#endif
+
+  // Argument 5: static offsets vector buffer.
+  __ movq(r8, ExternalReference::address_of_static_offsets_vector());
+  // Argument 5 passed in r8 on Linux and on the stack on Windows.
+#ifdef _WIN64
+  __ movq(Operand(rsp, (argument_slots_on_stack - 3) * kPointerSize), r8);
+#endif
+
+  // First four arguments are passed in registers on both Linux and Windows.
+#ifdef _WIN64
+  Register arg4 = r9;
+  Register arg3 = r8;
+  Register arg2 = rdx;
+  Register arg1 = rcx;
+#else
+  Register arg4 = rcx;
+  Register arg3 = rdx;
+  Register arg2 = rsi;
+  Register arg1 = rdi;
+#endif
+
+  // Keep track on aliasing between argX defined above and the registers used.
+  // rax: subject string
+  // rbx: previous index
+  // rdi: encoding of subject string (1 if ascii 0 if two_byte);
+  // r11: code
+
+  // Argument 4: End of string data
+  // Argument 3: Start of string data
+  Label setup_two_byte, setup_rest;
+  __ testb(rdi, rdi);
+  __ j(zero, &setup_two_byte);
+  __ SmiToInteger32(rdi, FieldOperand(rax, String::kLengthOffset));
+  __ lea(arg4, FieldOperand(rax, rdi, times_1, SeqAsciiString::kHeaderSize));
+  __ lea(arg3, FieldOperand(rax, rbx, times_1, SeqAsciiString::kHeaderSize));
+  __ jmp(&setup_rest);
+  __ bind(&setup_two_byte);
+  __ SmiToInteger32(rdi, FieldOperand(rax, String::kLengthOffset));
+  __ lea(arg4, FieldOperand(rax, rdi, times_2, SeqTwoByteString::kHeaderSize));
+  __ lea(arg3, FieldOperand(rax, rbx, times_2, SeqTwoByteString::kHeaderSize));
+
+  __ bind(&setup_rest);
+  // Argument 2: Previous index.
+  __ movq(arg2, rbx);
+
+  // Argument 1: Subject string.
+  __ movq(arg1, rax);
+
+  // Locate the code entry and call it.
+  __ addq(r11, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ CallCFunction(r11, kRegExpExecuteArguments);
+
+  // rsi is caller save, as it is used to pass parameter.
+  __ pop(rsi);
+
+  // Check the result.
+  Label success;
+  __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::SUCCESS));
+  __ j(equal, &success);
+  Label failure;
+  __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::FAILURE));
+  __ j(equal, &failure);
+  __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::EXCEPTION));
+  // If not exception it can only be retry. Handle that in the runtime system.
+  __ j(not_equal, &runtime);
+  // Result must now be exception. If there is no pending exception already a
+  // stack overflow (on the backtrack stack) was detected in RegExp code but
+  // haven't created the exception yet. Handle that in the runtime system.
+  // TODO(592): Rerunning the RegExp to get the stack overflow exception.
+  ExternalReference pending_exception_address(Top::k_pending_exception_address);
+  __ movq(kScratchRegister, pending_exception_address);
+  __ Cmp(kScratchRegister, Factory::the_hole_value());
+  __ j(equal, &runtime);
+  __ bind(&failure);
+  // For failure and exception return null.
+  __ Move(rax, Factory::null_value());
+  __ ret(4 * kPointerSize);
+
+  // Load RegExp data.
+  __ bind(&success);
+  __ movq(rax, Operand(rsp, kJSRegExpOffset));
+  __ movq(rcx, FieldOperand(rax, JSRegExp::kDataOffset));
+  __ SmiToInteger32(rax,
+                    FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
+  // Calculate number of capture registers (number_of_captures + 1) * 2.
+  __ leal(rdx, Operand(rax, rax, times_1, 2));
+
+  // rdx: Number of capture registers
+  // Load last_match_info which is still known to be a fast case JSArray.
+  __ movq(rax, Operand(rsp, kLastMatchInfoOffset));
+  __ movq(rbx, FieldOperand(rax, JSArray::kElementsOffset));
+
+  // rbx: last_match_info backing store (FixedArray)
+  // rdx: number of capture registers
+  // Store the capture count.
+  __ Integer32ToSmi(kScratchRegister, rdx);
+  __ movq(FieldOperand(rbx, RegExpImpl::kLastCaptureCountOffset),
+          kScratchRegister);
+  // Store last subject and last input.
+  __ movq(rax, Operand(rsp, kSubjectOffset));
+  __ movq(FieldOperand(rbx, RegExpImpl::kLastSubjectOffset), rax);
+  __ movq(rcx, rbx);
+  __ RecordWrite(rcx, RegExpImpl::kLastSubjectOffset, rax, rdi);
+  __ movq(rax, Operand(rsp, kSubjectOffset));
+  __ movq(FieldOperand(rbx, RegExpImpl::kLastInputOffset), rax);
+  __ movq(rcx, rbx);
+  __ RecordWrite(rcx, RegExpImpl::kLastInputOffset, rax, rdi);
+
+  // Get the static offsets vector filled by the native regexp code.
+  __ movq(rcx, ExternalReference::address_of_static_offsets_vector());
+
+  // rbx: last_match_info backing store (FixedArray)
+  // rcx: offsets vector
+  // rdx: number of capture registers
+  Label next_capture, done;
+  // Capture register counter starts from number of capture registers and
+  // counts down until wraping after zero.
+  __ bind(&next_capture);
+  __ subq(rdx, Immediate(1));
+  __ j(negative, &done);
+  // Read the value from the static offsets vector buffer and make it a smi.
+  __ movl(rdi, Operand(rcx, rdx, times_int_size, 0));
+  __ Integer32ToSmi(rdi, rdi, &runtime);
+  // Store the smi value in the last match info.
+  __ movq(FieldOperand(rbx,
+                       rdx,
+                       times_pointer_size,
+                       RegExpImpl::kFirstCaptureOffset),
+          rdi);
+  __ jmp(&next_capture);
+  __ bind(&done);
+
+  // Return last match info.
+  __ movq(rax, Operand(rsp, kLastMatchInfoOffset));
+  __ ret(4 * kPointerSize);
+
+  // Do the runtime call to execute the regexp.
+  __ bind(&runtime);
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
+#endif  // V8_INTERPRETED_REGEXP
+}
+
+
+void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
+                                                         Register object,
+                                                         Register result,
+                                                         Register scratch1,
+                                                         Register scratch2,
+                                                         bool object_is_smi,
+                                                         Label* not_found) {
+  // Use of registers. Register result is used as a temporary.
+  Register number_string_cache = result;
+  Register mask = scratch1;
+  Register scratch = scratch2;
+
+  // Load the number string cache.
+  __ LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  __ SmiToInteger32(
+      mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
+  __ shrl(mask, Immediate(1));
+  __ subq(mask, Immediate(1));  // Make mask.
+
+  // Calculate the entry in the number string cache. The hash value in the
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label is_smi;
+  Label load_result_from_cache;
+  if (!object_is_smi) {
+    __ JumpIfSmi(object, &is_smi);
+    __ CheckMap(object, Factory::heap_number_map(), not_found, true);
+
+    ASSERT_EQ(8, kDoubleSize);
+    __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
+    __ xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset));
+    GenerateConvertHashCodeToIndex(masm, scratch, mask);
+
+    Register index = scratch;
+    Register probe = mask;
+    __ movq(probe,
+            FieldOperand(number_string_cache,
+                         index,
+                         times_1,
+                         FixedArray::kHeaderSize));
+    __ JumpIfSmi(probe, not_found);
+    ASSERT(CpuFeatures::IsSupported(SSE2));
+    CpuFeatures::Scope fscope(SSE2);
+    __ movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
+    __ movsd(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
+    __ ucomisd(xmm0, xmm1);
+    __ j(parity_even, not_found);  // Bail out if NaN is involved.
+    __ j(not_equal, not_found);  // The cache did not contain this value.
+    __ jmp(&load_result_from_cache);
+  }
+
+  __ bind(&is_smi);
+  __ SmiToInteger32(scratch, object);
+  GenerateConvertHashCodeToIndex(masm, scratch, mask);
+
+  Register index = scratch;
+  // Check if the entry is the smi we are looking for.
+  __ cmpq(object,
+          FieldOperand(number_string_cache,
+                       index,
+                       times_1,
+                       FixedArray::kHeaderSize));
+  __ j(not_equal, not_found);
+
+  // Get the result from the cache.
+  __ bind(&load_result_from_cache);
+  __ movq(result,
+          FieldOperand(number_string_cache,
+                       index,
+                       times_1,
+                       FixedArray::kHeaderSize + kPointerSize));
+  __ IncrementCounter(&Counters::number_to_string_native, 1);
+}
+
+
+void NumberToStringStub::GenerateConvertHashCodeToIndex(MacroAssembler* masm,
+                                                        Register hash,
+                                                        Register mask) {
+  __ and_(hash, mask);
+  // Each entry in string cache consists of two pointer sized fields,
+  // but times_twice_pointer_size (multiplication by 16) scale factor
+  // is not supported by addrmode on x64 platform.
+  // So we have to premultiply entry index before lookup.
+  __ shl(hash, Immediate(kPointerSizeLog2 + 1));
+}
+
+
+void NumberToStringStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  __ movq(rbx, Operand(rsp, kPointerSize));
+
+  // Generate code to lookup number in the number string cache.
+  GenerateLookupNumberStringCache(masm, rbx, rax, r8, r9, false, &runtime);
+  __ ret(1 * kPointerSize);
+
+  __ bind(&runtime);
+  // Handle number to string in the runtime system if not found in the cache.
+  __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
+}
+
+
+static int NegativeComparisonResult(Condition cc) {
+  ASSERT(cc != equal);
+  ASSERT((cc == less) || (cc == less_equal)
+      || (cc == greater) || (cc == greater_equal));
+  return (cc == greater || cc == greater_equal) ? LESS : GREATER;
+}
+
+
+void CompareStub::Generate(MacroAssembler* masm) {
+  Label check_unequal_objects, done;
+  // The compare stub returns a positive, negative, or zero 64-bit integer
+  // value in rax, corresponding to result of comparing the two inputs.
+  // NOTICE! This code is only reached after a smi-fast-case check, so
+  // it is certain that at least one operand isn't a smi.
+
+  // Two identical objects are equal unless they are both NaN or undefined.
+  {
+    Label not_identical;
+    __ cmpq(rax, rdx);
+    __ j(not_equal, &not_identical);
+
+    if (cc_ != equal) {
+      // Check for undefined.  undefined OP undefined is false even though
+      // undefined == undefined.
+      Label check_for_nan;
+      __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
+      __ j(not_equal, &check_for_nan);
+      __ Set(rax, NegativeComparisonResult(cc_));
+      __ ret(0);
+      __ bind(&check_for_nan);
+    }
+
+    // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
+    // so we do the second best thing - test it ourselves.
+    // Note: if cc_ != equal, never_nan_nan_ is not used.
+    // We cannot set rax to EQUAL until just before return because
+    // rax must be unchanged on jump to not_identical.
+
+    if (never_nan_nan_ && (cc_ == equal)) {
+      __ Set(rax, EQUAL);
+      __ ret(0);
+    } else {
+      Label heap_number;
+      // If it's not a heap number, then return equal for (in)equality operator.
+      __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
+             Factory::heap_number_map());
+      __ j(equal, &heap_number);
+      if (cc_ != equal) {
+        // Call runtime on identical JSObjects.  Otherwise return equal.
+        __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
+        __ j(above_equal, &not_identical);
+      }
+      __ Set(rax, EQUAL);
+      __ ret(0);
+
+      __ bind(&heap_number);
+      // It is a heap number, so return  equal if it's not NaN.
+      // For NaN, return 1 for every condition except greater and
+      // greater-equal.  Return -1 for them, so the comparison yields
+      // false for all conditions except not-equal.
+      __ Set(rax, EQUAL);
+      __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
+      __ ucomisd(xmm0, xmm0);
+      __ setcc(parity_even, rax);
+      // rax is 0 for equal non-NaN heapnumbers, 1 for NaNs.
+      if (cc_ == greater_equal || cc_ == greater) {
+        __ neg(rax);
+      }
+      __ ret(0);
+    }
+
+    __ bind(&not_identical);
+  }
+
+  if (cc_ == equal) {  // Both strict and non-strict.
+    Label slow;  // Fallthrough label.
+
+    // If we're doing a strict equality comparison, we don't have to do
+    // type conversion, so we generate code to do fast comparison for objects
+    // and oddballs. Non-smi numbers and strings still go through the usual
+    // slow-case code.
+    if (strict_) {
+      // If either is a Smi (we know that not both are), then they can only
+      // be equal if the other is a HeapNumber. If so, use the slow case.
+      {
+        Label not_smis;
+        __ SelectNonSmi(rbx, rax, rdx, &not_smis);
+
+        // Check if the non-smi operand is a heap number.
+        __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
+               Factory::heap_number_map());
+        // If heap number, handle it in the slow case.
+        __ j(equal, &slow);
+        // Return non-equal.  ebx (the lower half of rbx) is not zero.
+        __ movq(rax, rbx);
+        __ ret(0);
+
+        __ bind(&not_smis);
+      }
+
+      // If either operand is a JSObject or an oddball value, then they are not
+      // equal since their pointers are different
+      // There is no test for undetectability in strict equality.
+
+      // If the first object is a JS object, we have done pointer comparison.
+      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      Label first_non_object;
+      __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
+      __ j(below, &first_non_object);
+      // Return non-zero (eax (not rax) is not zero)
+      Label return_not_equal;
+      ASSERT(kHeapObjectTag != 0);
+      __ bind(&return_not_equal);
+      __ ret(0);
+
+      __ bind(&first_non_object);
+      // Check for oddballs: true, false, null, undefined.
+      __ CmpInstanceType(rcx, ODDBALL_TYPE);
+      __ j(equal, &return_not_equal);
+
+      __ CmpObjectType(rdx, FIRST_JS_OBJECT_TYPE, rcx);
+      __ j(above_equal, &return_not_equal);
+
+      // Check for oddballs: true, false, null, undefined.
+      __ CmpInstanceType(rcx, ODDBALL_TYPE);
+      __ j(equal, &return_not_equal);
+
+      // Fall through to the general case.
+    }
+    __ bind(&slow);
+  }
+
+  // Push arguments below the return address to prepare jump to builtin.
+  __ pop(rcx);
+  __ push(rax);
+  __ push(rdx);
+  __ push(rcx);
+
+  // Generate the number comparison code.
+  if (include_number_compare_) {
+    Label non_number_comparison;
+    Label unordered;
+    FloatingPointHelper::LoadSSE2UnknownOperands(masm, &non_number_comparison);
+    __ xorl(rax, rax);
+    __ xorl(rcx, rcx);
+    __ ucomisd(xmm0, xmm1);
+
+    // Don't base result on EFLAGS when a NaN is involved.
+    __ j(parity_even, &unordered);
+    // Return a result of -1, 0, or 1, based on EFLAGS.
+    __ setcc(above, rax);
+    __ setcc(below, rcx);
+    __ subq(rax, rcx);
+    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+
+    // If one of the numbers was NaN, then the result is always false.
+    // The cc is never not-equal.
+    __ bind(&unordered);
+    ASSERT(cc_ != not_equal);
+    if (cc_ == less || cc_ == less_equal) {
+      __ Set(rax, 1);
+    } else {
+      __ Set(rax, -1);
+    }
+    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+
+    // The number comparison code did not provide a valid result.
+    __ bind(&non_number_comparison);
+  }
+
+  // Fast negative check for symbol-to-symbol equality.
+  Label check_for_strings;
+  if (cc_ == equal) {
+    BranchIfNonSymbol(masm, &check_for_strings, rax, kScratchRegister);
+    BranchIfNonSymbol(masm, &check_for_strings, rdx, kScratchRegister);
+
+    // We've already checked for object identity, so if both operands
+    // are symbols they aren't equal. Register eax (not rax) already holds a
+    // non-zero value, which indicates not equal, so just return.
+    __ ret(2 * kPointerSize);
+  }
+
+  __ bind(&check_for_strings);
+
+  __ JumpIfNotBothSequentialAsciiStrings(
+      rdx, rax, rcx, rbx, &check_unequal_objects);
+
+  // Inline comparison of ascii strings.
+  StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
+                                                     rdx,
+                                                     rax,
+                                                     rcx,
+                                                     rbx,
+                                                     rdi,
+                                                     r8);
+
+#ifdef DEBUG
+  __ Abort("Unexpected fall-through from string comparison");
+#endif
+
+  __ bind(&check_unequal_objects);
+  if (cc_ == equal && !strict_) {
+    // Not strict equality.  Objects are unequal if
+    // they are both JSObjects and not undetectable,
+    // and their pointers are different.
+    Label not_both_objects, return_unequal;
+    // At most one is a smi, so we can test for smi by adding the two.
+    // A smi plus a heap object has the low bit set, a heap object plus
+    // a heap object has the low bit clear.
+    ASSERT_EQ(0, kSmiTag);
+    ASSERT_EQ(static_cast<int64_t>(1), kSmiTagMask);
+    __ lea(rcx, Operand(rax, rdx, times_1, 0));
+    __ testb(rcx, Immediate(kSmiTagMask));
+    __ j(not_zero, &not_both_objects);
+    __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rbx);
+    __ j(below, &not_both_objects);
+    __ CmpObjectType(rdx, FIRST_JS_OBJECT_TYPE, rcx);
+    __ j(below, &not_both_objects);
+    __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
+             Immediate(1 << Map::kIsUndetectable));
+    __ j(zero, &return_unequal);
+    __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
+             Immediate(1 << Map::kIsUndetectable));
+    __ j(zero, &return_unequal);
+    // The objects are both undetectable, so they both compare as the value
+    // undefined, and are equal.
+    __ Set(rax, EQUAL);
+    __ bind(&return_unequal);
+    // Return non-equal by returning the non-zero object pointer in eax,
+    // or return equal if we fell through to here.
+    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ bind(&not_both_objects);
+  }
+
+  // must swap argument order
+  __ pop(rcx);
+  __ pop(rdx);
+  __ pop(rax);
+  __ push(rdx);
+  __ push(rax);
+
+  // Figure out which native to call and setup the arguments.
+  Builtins::JavaScript builtin;
+  if (cc_ == equal) {
+    builtin = strict_ ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
+  } else {
+    builtin = Builtins::COMPARE;
+    __ Push(Smi::FromInt(NegativeComparisonResult(cc_)));
+  }
+
+  // Restore return address on the stack.
+  __ push(rcx);
+
+  // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
+  // tagged as a small integer.
+  __ InvokeBuiltin(builtin, JUMP_FUNCTION);
+}
+
+
+void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
+                                    Label* label,
+                                    Register object,
+                                    Register scratch) {
+  __ JumpIfSmi(object, label);
+  __ movq(scratch, FieldOperand(object, HeapObject::kMapOffset));
+  __ movzxbq(scratch,
+             FieldOperand(scratch, Map::kInstanceTypeOffset));
+  // Ensure that no non-strings have the symbol bit set.
+  ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+  ASSERT(kSymbolTag != 0);
+  __ testb(scratch, Immediate(kIsSymbolMask));
+  __ j(zero, label);
+}
+
+
+void StackCheckStub::Generate(MacroAssembler* masm) {
+  // Because builtins always remove the receiver from the stack, we
+  // have to fake one to avoid underflowing the stack. The receiver
+  // must be inserted below the return address on the stack so we
+  // temporarily store that in a register.
+  __ pop(rax);
+  __ Push(Smi::FromInt(0));
+  __ push(rax);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(Runtime::kStackGuard, 1, 1);
+}
+
+
+void CallFunctionStub::Generate(MacroAssembler* masm) {
+  Label slow;
+
+  // If the receiver might be a value (string, number or boolean) check for this
+  // and box it if it is.
+  if (ReceiverMightBeValue()) {
+    // Get the receiver from the stack.
+    // +1 ~ return address
+    Label receiver_is_value, receiver_is_js_object;
+    __ movq(rax, Operand(rsp, (argc_ + 1) * kPointerSize));
+
+    // Check if receiver is a smi (which is a number value).
+    __ JumpIfSmi(rax, &receiver_is_value);
+
+    // Check if the receiver is a valid JS object.
+    __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rdi);
+    __ j(above_equal, &receiver_is_js_object);
+
+    // Call the runtime to box the value.
+    __ bind(&receiver_is_value);
+    __ EnterInternalFrame();
+    __ push(rax);
+    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    __ LeaveInternalFrame();
+    __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rax);
+
+    __ bind(&receiver_is_js_object);
+  }
+
+  // Get the function to call from the stack.
+  // +2 ~ receiver, return address
+  __ movq(rdi, Operand(rsp, (argc_ + 2) * kPointerSize));
+
+  // Check that the function really is a JavaScript function.
+  __ JumpIfSmi(rdi, &slow);
+  // Goto slow case if we do not have a function.
+  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+  __ j(not_equal, &slow);
+
+  // Fast-case: Just invoke the function.
+  ParameterCount actual(argc_);
+  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
+
+  // Slow-case: Non-function called.
+  __ bind(&slow);
+  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+  // of the original receiver from the call site).
+  __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rdi);
+  __ Set(rax, argc_);
+  __ Set(rbx, 0);
+  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
+  Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
+  __ Jump(adaptor, RelocInfo::CODE_TARGET);
+}
+
+
+void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
+  // Check that stack should contain next handler, frame pointer, state and
+  // return address in that order.
+  ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
+            StackHandlerConstants::kStateOffset);
+  ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
+            StackHandlerConstants::kPCOffset);
+
+  ExternalReference handler_address(Top::k_handler_address);
+  __ movq(kScratchRegister, handler_address);
+  __ movq(rsp, Operand(kScratchRegister, 0));
+  // get next in chain
+  __ pop(rcx);
+  __ movq(Operand(kScratchRegister, 0), rcx);
+  __ pop(rbp);  // pop frame pointer
+  __ pop(rdx);  // remove state
+
+  // Before returning we restore the context from the frame pointer if not NULL.
+  // The frame pointer is NULL in the exception handler of a JS entry frame.
+  __ xor_(rsi, rsi);  // tentatively set context pointer to NULL
+  Label skip;
+  __ cmpq(rbp, Immediate(0));
+  __ j(equal, &skip);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ bind(&skip);
+  __ ret(0);
+}
+
+
+void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
+  UNREACHABLE();
+}
+
+
+void CEntryStub::GenerateCore(MacroAssembler* masm,
+                              Label* throw_normal_exception,
+                              Label* throw_termination_exception,
+                              Label* throw_out_of_memory_exception,
+                              bool do_gc,
+                              bool always_allocate_scope,
+                              int /* alignment_skew */) {
+  // rax: result parameter for PerformGC, if any.
+  // rbx: pointer to C function  (C callee-saved).
+  // rbp: frame pointer  (restored after C call).
+  // rsp: stack pointer  (restored after C call).
+  // r14: number of arguments including receiver (C callee-saved).
+  // r12: pointer to the first argument (C callee-saved).
+  //      This pointer is reused in LeaveExitFrame(), so it is stored in a
+  //      callee-saved register.
+
+  // Simple results returned in rax (both AMD64 and Win64 calling conventions).
+  // Complex results must be written to address passed as first argument.
+  // AMD64 calling convention: a struct of two pointers in rax+rdx
+
+  // Check stack alignment.
+  if (FLAG_debug_code) {
+    __ CheckStackAlignment();
+  }
+
+  if (do_gc) {
+    // Pass failure code returned from last attempt as first argument to
+    // PerformGC. No need to use PrepareCallCFunction/CallCFunction here as the
+    // stack is known to be aligned. This function takes one argument which is
+    // passed in register.
+#ifdef _WIN64
+    __ movq(rcx, rax);
+#else  // _WIN64
+    __ movq(rdi, rax);
+#endif
+    __ movq(kScratchRegister,
+            FUNCTION_ADDR(Runtime::PerformGC),
+            RelocInfo::RUNTIME_ENTRY);
+    __ call(kScratchRegister);
+  }
+
+  ExternalReference scope_depth =
+      ExternalReference::heap_always_allocate_scope_depth();
+  if (always_allocate_scope) {
+    __ movq(kScratchRegister, scope_depth);
+    __ incl(Operand(kScratchRegister, 0));
+  }
+
+  // Call C function.
+#ifdef _WIN64
+  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9
+  // Store Arguments object on stack, below the 4 WIN64 ABI parameter slots.
+  __ movq(Operand(rsp, 4 * kPointerSize), r14);  // argc.
+  __ movq(Operand(rsp, 5 * kPointerSize), r12);  // argv.
+  if (result_size_ < 2) {
+    // Pass a pointer to the Arguments object as the first argument.
+    // Return result in single register (rax).
+    __ lea(rcx, Operand(rsp, 4 * kPointerSize));
+  } else {
+    ASSERT_EQ(2, result_size_);
+    // Pass a pointer to the result location as the first argument.
+    __ lea(rcx, Operand(rsp, 6 * kPointerSize));
+    // Pass a pointer to the Arguments object as the second argument.
+    __ lea(rdx, Operand(rsp, 4 * kPointerSize));
+  }
+
+#else  // _WIN64
+  // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
+  __ movq(rdi, r14);  // argc.
+  __ movq(rsi, r12);  // argv.
+#endif
+  __ call(rbx);
+  // Result is in rax - do not destroy this register!
+
+  if (always_allocate_scope) {
+    __ movq(kScratchRegister, scope_depth);
+    __ decl(Operand(kScratchRegister, 0));
+  }
+
+  // Check for failure result.
+  Label failure_returned;
+  ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
+#ifdef _WIN64
+  // If return value is on the stack, pop it to registers.
+  if (result_size_ > 1) {
+    ASSERT_EQ(2, result_size_);
+    // Read result values stored on stack. Result is stored
+    // above the four argument mirror slots and the two
+    // Arguments object slots.
+    __ movq(rax, Operand(rsp, 6 * kPointerSize));
+    __ movq(rdx, Operand(rsp, 7 * kPointerSize));
+  }
+#endif
+  __ lea(rcx, Operand(rax, 1));
+  // Lower 2 bits of rcx are 0 iff rax has failure tag.
+  __ testl(rcx, Immediate(kFailureTagMask));
+  __ j(zero, &failure_returned);
+
+  // Exit the JavaScript to C++ exit frame.
+  __ LeaveExitFrame(mode_, result_size_);
+  __ ret(0);
+
+  // Handling of failure.
+  __ bind(&failure_returned);
+
+  Label retry;
+  // If the returned exception is RETRY_AFTER_GC continue at retry label
+  ASSERT(Failure::RETRY_AFTER_GC == 0);
+  __ testl(rax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
+  __ j(zero, &retry);
+
+  // Special handling of out of memory exceptions.
+  __ movq(kScratchRegister, Failure::OutOfMemoryException(), RelocInfo::NONE);
+  __ cmpq(rax, kScratchRegister);
+  __ j(equal, throw_out_of_memory_exception);
+
+  // Retrieve the pending exception and clear the variable.
+  ExternalReference pending_exception_address(Top::k_pending_exception_address);
+  __ movq(kScratchRegister, pending_exception_address);
+  __ movq(rax, Operand(kScratchRegister, 0));
+  __ movq(rdx, ExternalReference::the_hole_value_location());
+  __ movq(rdx, Operand(rdx, 0));
+  __ movq(Operand(kScratchRegister, 0), rdx);
+
+  // Special handling of termination exceptions which are uncatchable
+  // by javascript code.
+  __ CompareRoot(rax, Heap::kTerminationExceptionRootIndex);
+  __ j(equal, throw_termination_exception);
+
+  // Handle normal exception.
+  __ jmp(throw_normal_exception);
+
+  // Retry.
+  __ bind(&retry);
+}
+
+
+void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
+                                          UncatchableExceptionType type) {
+  // Fetch top stack handler.
+  ExternalReference handler_address(Top::k_handler_address);
+  __ movq(kScratchRegister, handler_address);
+  __ movq(rsp, Operand(kScratchRegister, 0));
+
+  // Unwind the handlers until the ENTRY handler is found.
+  Label loop, done;
+  __ bind(&loop);
+  // Load the type of the current stack handler.
+  const int kStateOffset = StackHandlerConstants::kStateOffset;
+  __ cmpq(Operand(rsp, kStateOffset), Immediate(StackHandler::ENTRY));
+  __ j(equal, &done);
+  // Fetch the next handler in the list.
+  const int kNextOffset = StackHandlerConstants::kNextOffset;
+  __ movq(rsp, Operand(rsp, kNextOffset));
+  __ jmp(&loop);
+  __ bind(&done);
+
+  // Set the top handler address to next handler past the current ENTRY handler.
+  __ movq(kScratchRegister, handler_address);
+  __ pop(Operand(kScratchRegister, 0));
+
+  if (type == OUT_OF_MEMORY) {
+    // Set external caught exception to false.
+    ExternalReference external_caught(Top::k_external_caught_exception_address);
+    __ movq(rax, Immediate(false));
+    __ store_rax(external_caught);
+
+    // Set pending exception and rax to out of memory exception.
+    ExternalReference pending_exception(Top::k_pending_exception_address);
+    __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
+    __ store_rax(pending_exception);
+  }
+
+  // Clear the context pointer.
+  __ xor_(rsi, rsi);
+
+  // Restore registers from handler.
+  ASSERT_EQ(StackHandlerConstants::kNextOffset + kPointerSize,
+            StackHandlerConstants::kFPOffset);
+  __ pop(rbp);  // FP
+  ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
+            StackHandlerConstants::kStateOffset);
+  __ pop(rdx);  // State
+
+  ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
+            StackHandlerConstants::kPCOffset);
+  __ ret(0);
+}
+
+
+void CEntryStub::Generate(MacroAssembler* masm) {
+  // rax: number of arguments including receiver
+  // rbx: pointer to C function  (C callee-saved)
+  // rbp: frame pointer of calling JS frame (restored after C call)
+  // rsp: stack pointer  (restored after C call)
+  // rsi: current context (restored)
+
+  // NOTE: Invocations of builtins may return failure objects
+  // instead of a proper result. The builtin entry handles
+  // this by performing a garbage collection and retrying the
+  // builtin once.
+
+  // Enter the exit frame that transitions from JavaScript to C++.
+  __ EnterExitFrame(mode_, result_size_);
+
+  // rax: Holds the context at this point, but should not be used.
+  //      On entry to code generated by GenerateCore, it must hold
+  //      a failure result if the collect_garbage argument to GenerateCore
+  //      is true.  This failure result can be the result of code
+  //      generated by a previous call to GenerateCore.  The value
+  //      of rax is then passed to Runtime::PerformGC.
+  // rbx: pointer to builtin function  (C callee-saved).
+  // rbp: frame pointer of exit frame  (restored after C call).
+  // rsp: stack pointer (restored after C call).
+  // r14: number of arguments including receiver (C callee-saved).
+  // r12: argv pointer (C callee-saved).
+
+  Label throw_normal_exception;
+  Label throw_termination_exception;
+  Label throw_out_of_memory_exception;
+
+  // Call into the runtime system.
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_termination_exception,
+               &throw_out_of_memory_exception,
+               false,
+               false);
+
+  // Do space-specific GC and retry runtime call.
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_termination_exception,
+               &throw_out_of_memory_exception,
+               true,
+               false);
+
+  // Do full GC and retry runtime call one final time.
+  Failure* failure = Failure::InternalError();
+  __ movq(rax, failure, RelocInfo::NONE);
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_termination_exception,
+               &throw_out_of_memory_exception,
+               true,
+               true);
+
+  __ bind(&throw_out_of_memory_exception);
+  GenerateThrowUncatchable(masm, OUT_OF_MEMORY);
+
+  __ bind(&throw_termination_exception);
+  GenerateThrowUncatchable(masm, TERMINATION);
+
+  __ bind(&throw_normal_exception);
+  GenerateThrowTOS(masm);
+}
+
+
+void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
+  Label invoke, exit;
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  Label not_outermost_js, not_outermost_js_2;
+#endif
+
+  // Setup frame.
+  __ push(rbp);
+  __ movq(rbp, rsp);
+
+  // Push the stack frame type marker twice.
+  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
+  // Scratch register is neither callee-save, nor an argument register on any
+  // platform. It's free to use at this point.
+  // Cannot use smi-register for loading yet.
+  __ movq(kScratchRegister,
+          reinterpret_cast<uint64_t>(Smi::FromInt(marker)),
+          RelocInfo::NONE);
+  __ push(kScratchRegister);  // context slot
+  __ push(kScratchRegister);  // function slot
+  // Save callee-saved registers (X64/Win64 calling conventions).
+  __ push(r12);
+  __ push(r13);
+  __ push(r14);
+  __ push(r15);
+#ifdef _WIN64
+  __ push(rdi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+  __ push(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+#endif
+  __ push(rbx);
+  // TODO(X64): On Win64, if we ever use XMM6-XMM15, the low low 64 bits are
+  // callee save as well.
+
+  // Save copies of the top frame descriptor on the stack.
+  ExternalReference c_entry_fp(Top::k_c_entry_fp_address);
+  __ load_rax(c_entry_fp);
+  __ push(rax);
+
+  // Set up the roots and smi constant registers.
+  // Needs to be done before any further smi loads.
+  ExternalReference roots_address = ExternalReference::roots_address();
+  __ movq(kRootRegister, roots_address);
+  __ InitializeSmiConstantRegister();
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // If this is the outermost JS call, set js_entry_sp value.
+  ExternalReference js_entry_sp(Top::k_js_entry_sp_address);
+  __ load_rax(js_entry_sp);
+  __ testq(rax, rax);
+  __ j(not_zero, &not_outermost_js);
+  __ movq(rax, rbp);
+  __ store_rax(js_entry_sp);
+  __ bind(&not_outermost_js);
+#endif
+
+  // Call a faked try-block that does the invoke.
+  __ call(&invoke);
+
+  // Caught exception: Store result (exception) in the pending
+  // exception field in the JSEnv and return a failure sentinel.
+  ExternalReference pending_exception(Top::k_pending_exception_address);
+  __ store_rax(pending_exception);
+  __ movq(rax, Failure::Exception(), RelocInfo::NONE);
+  __ jmp(&exit);
+
+  // Invoke: Link this frame into the handler chain.
+  __ bind(&invoke);
+  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
+
+  // Clear any pending exceptions.
+  __ load_rax(ExternalReference::the_hole_value_location());
+  __ store_rax(pending_exception);
+
+  // Fake a receiver (NULL).
+  __ push(Immediate(0));  // receiver
+
+  // Invoke the function by calling through JS entry trampoline
+  // builtin and pop the faked function when we return. We load the address
+  // from an external reference instead of inlining the call target address
+  // directly in the code, because the builtin stubs may not have been
+  // generated yet at the time this code is generated.
+  if (is_construct) {
+    ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline);
+    __ load_rax(construct_entry);
+  } else {
+    ExternalReference entry(Builtins::JSEntryTrampoline);
+    __ load_rax(entry);
+  }
+  __ lea(kScratchRegister, FieldOperand(rax, Code::kHeaderSize));
+  __ call(kScratchRegister);
+
+  // Unlink this frame from the handler chain.
+  __ movq(kScratchRegister, ExternalReference(Top::k_handler_address));
+  __ pop(Operand(kScratchRegister, 0));
+  // Pop next_sp.
+  __ addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // If current EBP value is the same as js_entry_sp value, it means that
+  // the current function is the outermost.
+  __ movq(kScratchRegister, js_entry_sp);
+  __ cmpq(rbp, Operand(kScratchRegister, 0));
+  __ j(not_equal, &not_outermost_js_2);
+  __ movq(Operand(kScratchRegister, 0), Immediate(0));
+  __ bind(&not_outermost_js_2);
+#endif
+
+  // Restore the top frame descriptor from the stack.
+  __ bind(&exit);
+  __ movq(kScratchRegister, ExternalReference(Top::k_c_entry_fp_address));
+  __ pop(Operand(kScratchRegister, 0));
+
+  // Restore callee-saved registers (X64 conventions).
+  __ pop(rbx);
+#ifdef _WIN64
+  // Callee save on in Win64 ABI, arguments/volatile in AMD64 ABI.
+  __ pop(rsi);
+  __ pop(rdi);
+#endif
+  __ pop(r15);
+  __ pop(r14);
+  __ pop(r13);
+  __ pop(r12);
+  __ addq(rsp, Immediate(2 * kPointerSize));  // remove markers
+
+  // Restore frame pointer and return.
+  __ pop(rbp);
+  __ ret(0);
+}
+
+
+void InstanceofStub::Generate(MacroAssembler* masm) {
+  // Implements "value instanceof function" operator.
+  // Expected input state:
+  //   rsp[0] : return address
+  //   rsp[1] : function pointer
+  //   rsp[2] : value
+  // Returns a bitwise zero to indicate that the value
+  // is and instance of the function and anything else to
+  // indicate that the value is not an instance.
+
+  // Get the object - go slow case if it's a smi.
+  Label slow;
+  __ movq(rax, Operand(rsp, 2 * kPointerSize));
+  __ JumpIfSmi(rax, &slow);
+
+  // Check that the left hand is a JS object. Leave its map in rax.
+  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rax);
+  __ j(below, &slow);
+  __ CmpInstanceType(rax, LAST_JS_OBJECT_TYPE);
+  __ j(above, &slow);
+
+  // Get the prototype of the function.
+  __ movq(rdx, Operand(rsp, 1 * kPointerSize));
+  // rdx is function, rax is map.
+
+  // Look up the function and the map in the instanceof cache.
+  Label miss;
+  __ CompareRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
+  __ j(not_equal, &miss);
+  __ CompareRoot(rax, Heap::kInstanceofCacheMapRootIndex);
+  __ j(not_equal, &miss);
+  __ LoadRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&miss);
+  __ TryGetFunctionPrototype(rdx, rbx, &slow);
+
+  // Check that the function prototype is a JS object.
+  __ JumpIfSmi(rbx, &slow);
+  __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, kScratchRegister);
+  __ j(below, &slow);
+  __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
+  __ j(above, &slow);
+
+  // Register mapping:
+  //   rax is object map.
+  //   rdx is function.
+  //   rbx is function prototype.
+  __ StoreRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
+  __ StoreRoot(rax, Heap::kInstanceofCacheMapRootIndex);
+
+  __ movq(rcx, FieldOperand(rax, Map::kPrototypeOffset));
+
+  // Loop through the prototype chain looking for the function prototype.
+  Label loop, is_instance, is_not_instance;
+  __ LoadRoot(kScratchRegister, Heap::kNullValueRootIndex);
+  __ bind(&loop);
+  __ cmpq(rcx, rbx);
+  __ j(equal, &is_instance);
+  __ cmpq(rcx, kScratchRegister);
+  // The code at is_not_instance assumes that kScratchRegister contains a
+  // non-zero GCable value (the null object in this case).
+  __ j(equal, &is_not_instance);
+  __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ movq(rcx, FieldOperand(rcx, Map::kPrototypeOffset));
+  __ jmp(&loop);
+
+  __ bind(&is_instance);
+  __ xorl(rax, rax);
+  // Store bitwise zero in the cache.  This is a Smi in GC terms.
+  ASSERT_EQ(0, kSmiTag);
+  __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&is_not_instance);
+  // We have to store a non-zero value in the cache.
+  __ StoreRoot(kScratchRegister, Heap::kInstanceofCacheAnswerRootIndex);
+  __ ret(2 * kPointerSize);
+
+  // Slow-case: Go through the JavaScript implementation.
+  __ bind(&slow);
+  __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
 }
 
 
@@ -12066,6 +12042,11 @@ ModuloFunction CreateModuloFunction() {
 
 
 #undef __
+
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  masm->RecordWriteHelper(object_, addr_, scratch_);
+  masm->ret(0);
+}
 
 } }  // namespace v8::internal
 

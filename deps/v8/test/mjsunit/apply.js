@@ -94,7 +94,7 @@ function f() {
   }
   return doo;
 }
-  
+
 assertEquals("42foofishhorse", f.apply(this, arr), "apply to this");
 
 function s() {
@@ -112,28 +112,13 @@ function al() {
   return arguments.length + arguments[arguments.length - 1];
 }
 
-var stack_corner_case_failure = false;
-
 for (var j = 1; j < 0x40000000; j <<= 1) {
   try {
     var a = new Array(j);
     a[j - 1] = 42;
     assertEquals(42 + j, al.apply(345, a));
   } catch (e) {
-    if (e.toString().indexOf("Maximum call stack size exceeded") != -1) {
-      // For some combinations of build settings, it may be the case that the
-      // stack here is just tall enough to contain the array whose size is
-      // specified by j but is not tall enough to contain the activation
-      // record for the apply call. Allow one such corner case through,
-      // checking that the length check will do the right thing for an array
-      // the next size up.
-      assertEquals(false, stack_corner_case_failure);
-      stack_corner_case_failure = true;
-      continue;
-    }
-    assertTrue(e.toString().indexOf("Function.prototype.apply") != -1,
-              "exception does not contain Function.prototype.apply: " +
-                  e.toString());
+    assertTrue(e.toString().indexOf("Maximum call stack size exceeded") != -1);
     for (; j < 0x40000000; j <<= 1) {
       var caught = false;
       try {
@@ -143,9 +128,7 @@ for (var j = 1; j < 0x40000000; j <<= 1) {
         assertUnreachable("Apply of array with length " + a.length +
                           " should have thrown");
       } catch (e) {
-        assertTrue(e.toString().indexOf("Function.prototype.apply") != -1,
-                   "exception does not contain Function.prototype.apply [" +
-                   "length = " + j + "]: " + e.toString());
+        assertTrue(e.toString().indexOf("Maximum call stack size exceeded") != -1);
         caught = true;
       }
       assertTrue(caught, "exception not caught");

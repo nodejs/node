@@ -148,7 +148,7 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
 }
 
 
-// Encoding format in the Code object:
+// Encoding format in a FixedArray object:
 //
 // - function name
 //
@@ -244,22 +244,45 @@ static Object** ReadList(Object** p,
 
 
 template<class Allocator>
-ScopeInfo<Allocator>::ScopeInfo(Code* code)
+Handle<Object> ScopeInfo<Allocator>::CreateHeapObject(Scope* scope) {
+  ScopeInfo<ZoneListAllocationPolicy> sinfo(scope);
+  return sinfo.Serialize();
+}
+
+
+template<class Allocator>
+Object* ScopeInfo<Allocator>::EmptyHeapObject() {
+  return Heap::empty_fixed_array();
+}
+
+
+inline bool IsNotEmpty(Object* data) {
+  return FixedArray::cast(data)->length() != 0;
+}
+
+
+inline Object** GetDataStart(Object* data) {
+  return FixedArray::cast(data)->data_start();
+}
+
+
+template<class Allocator>
+ScopeInfo<Allocator>::ScopeInfo(Object* data)
   : function_name_(Factory::empty_symbol()),
     parameters_(4),
     stack_slots_(8),
     context_slots_(8),
     context_modes_(8) {
-  if (code == NULL || code->sinfo_size() == 0) return;
-
-  Object** p0 = &Memory::Object_at(code->sinfo_start());
-  Object** p = p0;
-  p = ReadSymbol(p, &function_name_);
-  p = ReadBool(p, &calls_eval_);
-  p = ReadList<Allocator>(p, &context_slots_, &context_modes_);
-  p = ReadList<Allocator>(p, &parameters_);
-  p = ReadList<Allocator>(p, &stack_slots_);
-  ASSERT((p - p0) * kPointerSize == code->sinfo_size());
+  if (IsNotEmpty(data)) {
+    Object** p0 = GetDataStart(data);
+    Object** p = p0;
+    p = ReadSymbol(p, &function_name_);
+    p = ReadBool(p, &calls_eval_);
+    p = ReadList<Allocator>(p, &context_slots_, &context_modes_);
+    p = ReadList<Allocator>(p, &parameters_);
+    p = ReadList<Allocator>(p, &stack_slots_);
+    ASSERT((p - p0) == FixedArray::cast(data)->length());
+  }
 }
 
 
@@ -313,57 +336,49 @@ static Object** WriteList(Object** p,
 
 
 template<class Allocator>
-int ScopeInfo<Allocator>::Serialize(Code* code) {
+Handle<Object> ScopeInfo<Allocator>::Serialize() {
   // function name, calls eval, length & sentinel for 3 tables:
   const int extra_slots = 1 + 1 + 2 * 3;
-  int size = (extra_slots +
-              context_slots_.length() * 2 +
-              parameters_.length() +
-              stack_slots_.length()) * kPointerSize;
+  int length = extra_slots +
+               context_slots_.length() * 2 +
+               parameters_.length() +
+               stack_slots_.length();
 
-  if (code != NULL) {
-    CHECK(code->sinfo_size() == size);
-    Object** p0 = &Memory::Object_at(code->sinfo_start());
-    Object** p = p0;
-    p = WriteSymbol(p, function_name_);
-    p = WriteBool(p, calls_eval_);
-    p = WriteList(p, &context_slots_, &context_modes_);
-    p = WriteList(p, &parameters_);
-    p = WriteList(p, &stack_slots_);
-    ASSERT((p - p0) * kPointerSize == size);
-  }
+  Handle<Object> data(Factory::NewFixedArray(length, TENURED));
+  AssertNoAllocation nogc;
 
-  return size;
+  Object** p0 = GetDataStart(*data);
+  Object** p = p0;
+  p = WriteSymbol(p, function_name_);
+  p = WriteBool(p, calls_eval_);
+  p = WriteList(p, &context_slots_, &context_modes_);
+  p = WriteList(p, &parameters_);
+  p = WriteList(p, &stack_slots_);
+  ASSERT((p - p0) == length);
+
+  return data;
 }
 
 
-template<class Allocator>
-void ScopeInfo<Allocator>::IterateScopeInfo(Code* code, ObjectVisitor* v) {
-  Object** start = &Memory::Object_at(code->sinfo_start());
-  Object** end = &Memory::Object_at(code->sinfo_start() + code->sinfo_size());
-  v->VisitPointers(start, end);
-}
-
-
-static Object** ContextEntriesAddr(Code* code) {
-  ASSERT(code->sinfo_size() > 0);
+static Object** ContextEntriesAddr(Object* data) {
+  ASSERT(IsNotEmpty(data));
   // +2 for function name and calls eval:
-  return &Memory::Object_at(code->sinfo_start()) + 2;
+  return GetDataStart(data) + 2;
 }
 
 
-static Object** ParameterEntriesAddr(Code* code) {
-  ASSERT(code->sinfo_size() > 0);
-  Object** p = ContextEntriesAddr(code);
+static Object** ParameterEntriesAddr(Object* data) {
+  ASSERT(IsNotEmpty(data));
+  Object** p = ContextEntriesAddr(data);
   int n;  // number of context slots;
   p = ReadInt(p, &n);
   return p + n*2 + 1;  // *2 for pairs, +1 for sentinel
 }
 
 
-static Object** StackSlotEntriesAddr(Code* code) {
-  ASSERT(code->sinfo_size() > 0);
-  Object** p = ParameterEntriesAddr(code);
+static Object** StackSlotEntriesAddr(Object* data) {
+  ASSERT(IsNotEmpty(data));
+  Object** p = ParameterEntriesAddr(data);
   int n;  // number of parameter slots;
   p = ReadInt(p, &n);
   return p + n + 1;  // +1 for sentinel
@@ -371,10 +386,10 @@ static Object** StackSlotEntriesAddr(Code* code) {
 
 
 template<class Allocator>
-bool ScopeInfo<Allocator>::CallsEval(Code* code) {
-  if (code->sinfo_size() > 0) {
+bool ScopeInfo<Allocator>::CallsEval(Object* data) {
+  if (IsNotEmpty(data)) {
     // +1 for function name:
-    Object** p = &Memory::Object_at(code->sinfo_start()) + 1;
+    Object** p = GetDataStart(data) + 1;
     bool calls_eval;
     p = ReadBool(p, &calls_eval);
     return calls_eval;
@@ -384,9 +399,9 @@ bool ScopeInfo<Allocator>::CallsEval(Code* code) {
 
 
 template<class Allocator>
-int ScopeInfo<Allocator>::NumberOfStackSlots(Code* code) {
-  if (code->sinfo_size() > 0) {
-    Object** p = StackSlotEntriesAddr(code);
+int ScopeInfo<Allocator>::NumberOfStackSlots(Object* data) {
+  if (IsNotEmpty(data)) {
+    Object** p = StackSlotEntriesAddr(data);
     int n;  // number of stack slots;
     ReadInt(p, &n);
     return n;
@@ -396,9 +411,9 @@ int ScopeInfo<Allocator>::NumberOfStackSlots(Code* code) {
 
 
 template<class Allocator>
-int ScopeInfo<Allocator>::NumberOfContextSlots(Code* code) {
-  if (code->sinfo_size() > 0) {
-    Object** p = ContextEntriesAddr(code);
+int ScopeInfo<Allocator>::NumberOfContextSlots(Object* data) {
+  if (IsNotEmpty(data)) {
+    Object** p = ContextEntriesAddr(data);
     int n;  // number of context slots;
     ReadInt(p, &n);
     return n + Context::MIN_CONTEXT_SLOTS;
@@ -408,9 +423,9 @@ int ScopeInfo<Allocator>::NumberOfContextSlots(Code* code) {
 
 
 template<class Allocator>
-bool ScopeInfo<Allocator>::HasHeapAllocatedLocals(Code* code) {
-  if (code->sinfo_size() > 0) {
-    Object** p = ContextEntriesAddr(code);
+bool ScopeInfo<Allocator>::HasHeapAllocatedLocals(Object* data) {
+  if (IsNotEmpty(data)) {
+    Object** p = ContextEntriesAddr(data);
     int n;  // number of context slots;
     ReadInt(p, &n);
     return n > 0;
@@ -420,14 +435,14 @@ bool ScopeInfo<Allocator>::HasHeapAllocatedLocals(Code* code) {
 
 
 template<class Allocator>
-int ScopeInfo<Allocator>::StackSlotIndex(Code* code, String* name) {
+int ScopeInfo<Allocator>::StackSlotIndex(Object* data, String* name) {
   ASSERT(name->IsSymbol());
-  if (code->sinfo_size() > 0) {
+  if (IsNotEmpty(data)) {
     // Loop below depends on the NULL sentinel after the stack slot names.
-    ASSERT(NumberOfStackSlots(code) > 0 ||
-           *(StackSlotEntriesAddr(code) + 1) == NULL);
+    ASSERT(NumberOfStackSlots(data) > 0 ||
+           *(StackSlotEntriesAddr(data) + 1) == NULL);
     // slots start after length entry
-    Object** p0 = StackSlotEntriesAddr(code) + 1;
+    Object** p0 = StackSlotEntriesAddr(data) + 1;
     Object** p = p0;
     while (*p != NULL) {
       if (*p == name) return static_cast<int>(p - p0);
@@ -439,19 +454,19 @@ int ScopeInfo<Allocator>::StackSlotIndex(Code* code, String* name) {
 
 
 template<class Allocator>
-int ScopeInfo<Allocator>::ContextSlotIndex(Code* code,
+int ScopeInfo<Allocator>::ContextSlotIndex(Object* data,
                                            String* name,
                                            Variable::Mode* mode) {
   ASSERT(name->IsSymbol());
-  int result = ContextSlotCache::Lookup(code, name, mode);
+  int result = ContextSlotCache::Lookup(data, name, mode);
   if (result != ContextSlotCache::kNotFound) return result;
-  if (code->sinfo_size() > 0) {
+  if (IsNotEmpty(data)) {
     // Loop below depends on the NULL sentinel after the context slot names.
-    ASSERT(NumberOfContextSlots(code) >= Context::MIN_CONTEXT_SLOTS ||
-           *(ContextEntriesAddr(code) + 1) == NULL);
+    ASSERT(NumberOfContextSlots(data) >= Context::MIN_CONTEXT_SLOTS ||
+           *(ContextEntriesAddr(data) + 1) == NULL);
 
     // slots start after length entry
-    Object** p0 = ContextEntriesAddr(code) + 1;
+    Object** p0 = ContextEntriesAddr(data) + 1;
     Object** p = p0;
     // contexts may have no variable slots (in the presence of eval()).
     while (*p != NULL) {
@@ -462,21 +477,21 @@ int ScopeInfo<Allocator>::ContextSlotIndex(Code* code,
         Variable::Mode mode_value = static_cast<Variable::Mode>(v);
         if (mode != NULL) *mode = mode_value;
         result = static_cast<int>((p - p0) >> 1) + Context::MIN_CONTEXT_SLOTS;
-        ContextSlotCache::Update(code, name, mode_value, result);
+        ContextSlotCache::Update(data, name, mode_value, result);
         return result;
       }
       p += 2;
     }
   }
-  ContextSlotCache::Update(code, name, Variable::INTERNAL, -1);
+  ContextSlotCache::Update(data, name, Variable::INTERNAL, -1);
   return -1;
 }
 
 
 template<class Allocator>
-int ScopeInfo<Allocator>::ParameterIndex(Code* code, String* name) {
+int ScopeInfo<Allocator>::ParameterIndex(Object* data, String* name) {
   ASSERT(name->IsSymbol());
-  if (code->sinfo_size() > 0) {
+  if (IsNotEmpty(data)) {
     // We must read parameters from the end since for
     // multiply declared parameters the value of the
     // last declaration of that parameter is used
@@ -487,7 +502,7 @@ int ScopeInfo<Allocator>::ParameterIndex(Code* code, String* name) {
     // once, with corresponding index. This requires a new
     // implementation of the ScopeInfo code. See also other
     // comments in this file regarding this.
-    Object** p = ParameterEntriesAddr(code);
+    Object** p = ParameterEntriesAddr(data);
     int n;  // number of parameters
     Object** p0 = ReadInt(p, &n);
     p = p0 + n;
@@ -501,12 +516,12 @@ int ScopeInfo<Allocator>::ParameterIndex(Code* code, String* name) {
 
 
 template<class Allocator>
-int ScopeInfo<Allocator>::FunctionContextSlotIndex(Code* code, String* name) {
+int ScopeInfo<Allocator>::FunctionContextSlotIndex(Object* data, String* name) {
   ASSERT(name->IsSymbol());
-  if (code->sinfo_size() > 0) {
-    Object** p = &Memory::Object_at(code->sinfo_start());
+  if (IsNotEmpty(data)) {
+    Object** p = GetDataStart(data);
     if (*p == name) {
-      p = ContextEntriesAddr(code);
+      p = ContextEntriesAddr(data);
       int n;  // number of context slots
       ReadInt(p, &n);
       ASSERT(n != 0);
@@ -544,20 +559,20 @@ int ScopeInfo<Allocator>::NumberOfLocals() const {
 }
 
 
-int ContextSlotCache::Hash(Code* code, String* name) {
+int ContextSlotCache::Hash(Object* data, String* name) {
   // Uses only lower 32 bits if pointers are larger.
   uintptr_t addr_hash =
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(code)) >> 2;
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(data)) >> 2;
   return static_cast<int>((addr_hash ^ name->Hash()) % kLength);
 }
 
 
-int ContextSlotCache::Lookup(Code* code,
+int ContextSlotCache::Lookup(Object* data,
                              String* name,
                              Variable::Mode* mode) {
-  int index = Hash(code, name);
+  int index = Hash(data, name);
   Key& key = keys_[index];
-  if ((key.code == code) && key.name->Equals(name)) {
+  if ((key.data == data) && key.name->Equals(name)) {
     Value result(values_[index]);
     if (mode != NULL) *mode = result.mode();
     return result.index() + kNotFound;
@@ -566,28 +581,28 @@ int ContextSlotCache::Lookup(Code* code,
 }
 
 
-void ContextSlotCache::Update(Code* code,
+void ContextSlotCache::Update(Object* data,
                               String* name,
                               Variable::Mode mode,
                               int slot_index) {
   String* symbol;
   ASSERT(slot_index > kNotFound);
   if (Heap::LookupSymbolIfExists(name, &symbol)) {
-    int index = Hash(code, symbol);
+    int index = Hash(data, symbol);
     Key& key = keys_[index];
-    key.code = code;
+    key.data = data;
     key.name = symbol;
     // Please note value only takes a uint as index.
     values_[index] = Value(mode, slot_index - kNotFound).raw();
 #ifdef DEBUG
-    ValidateEntry(code, name, mode, slot_index);
+    ValidateEntry(data, name, mode, slot_index);
 #endif
   }
 }
 
 
 void ContextSlotCache::Clear() {
-  for (int index = 0; index < kLength; index++) keys_[index].code = NULL;
+  for (int index = 0; index < kLength; index++) keys_[index].data = NULL;
 }
 
 
@@ -599,15 +614,15 @@ uint32_t ContextSlotCache::values_[ContextSlotCache::kLength];
 
 #ifdef DEBUG
 
-void ContextSlotCache::ValidateEntry(Code* code,
+void ContextSlotCache::ValidateEntry(Object* data,
                                      String* name,
                                      Variable::Mode mode,
                                      int slot_index) {
   String* symbol;
   if (Heap::LookupSymbolIfExists(name, &symbol)) {
-    int index = Hash(code, name);
+    int index = Hash(data, name);
     Key& key = keys_[index];
-    ASSERT(key.code == code);
+    ASSERT(key.data == data);
     ASSERT(key.name->Equals(name));
     Value result(values_[index]);
     ASSERT(result.mode() == mode);

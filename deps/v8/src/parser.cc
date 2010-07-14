@@ -1968,8 +1968,8 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
-  Handle<SharedFunctionInfo> shared =
-      Factory::NewSharedFunctionInfo(name, literals, code);
+  Handle<SharedFunctionInfo> shared = Factory::NewSharedFunctionInfo(
+      name, literals, code, Handle<Object>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the shared function info.

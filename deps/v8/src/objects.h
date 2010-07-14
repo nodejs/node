@@ -2744,10 +2744,6 @@ class Code: public HeapObject {
 
   inline int relocation_size();
 
-  // [sinfo_size]: Size of scope information.
-  inline int sinfo_size();
-  inline void set_sinfo_size(int value);
-
   // [flags]: Various code flags.
   inline Flags flags();
   inline void set_flags(Flags flags);
@@ -2816,9 +2812,6 @@ class Code: public HeapObject {
   // Returns true if pc is inside this object's instructions.
   inline bool contains(byte* pc);
 
-  // Returns the address of the scope information.
-  inline byte* sinfo_start();
-
   // Relocate the code by delta bytes. Called to signal that this code
   // object has been moved by delta bytes.
   void Relocate(intptr_t delta);
@@ -2826,12 +2819,10 @@ class Code: public HeapObject {
   // Migrate code described by desc.
   void CopyFrom(const CodeDesc& desc);
 
-  // Returns the object size for a given body and sinfo size (Used for
-  // allocation).
-  static int SizeFor(int body_size, int sinfo_size) {
+  // Returns the object size for a given body (used for allocation).
+  static int SizeFor(int body_size) {
     ASSERT_SIZE_TAG_ALIGNED(body_size);
-    ASSERT_SIZE_TAG_ALIGNED(sinfo_size);
-    return RoundUp(kHeaderSize + body_size + sinfo_size, kCodeAlignment);
+    return RoundUp(kHeaderSize + body_size, kCodeAlignment);
   }
 
   // Calculate the size of the code object to report for log events. This takes
@@ -2851,7 +2842,7 @@ class Code: public HeapObject {
   static inline Code* cast(Object* obj);
 
   // Dispatched behavior.
-  int CodeSize() { return SizeFor(body_size(), sinfo_size()); }
+  int CodeSize() { return SizeFor(body_size()); }
   void CodeIterateBody(ObjectVisitor* v);
 #ifdef DEBUG
   void CodePrint();
@@ -2865,8 +2856,7 @@ class Code: public HeapObject {
   // Layout description.
   static const int kInstructionSizeOffset = HeapObject::kHeaderSize;
   static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
-  static const int kSInfoSizeOffset = kRelocationInfoOffset + kPointerSize;
-  static const int kFlagsOffset = kSInfoSizeOffset + kIntSize;
+  static const int kFlagsOffset = kRelocationInfoOffset + kPointerSize;
   static const int kKindSpecificFlagsOffset  = kFlagsOffset + kIntSize;
   // Add padding to align the instruction start following right after
   // the Code object header.
@@ -2899,6 +2889,7 @@ class Code: public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
 };
 
+typedef void (*Scavenger)(Map* map, HeapObject** slot, HeapObject* object);
 
 // All heap objects have a Map that describes their structure.
 //  A Map contains information about:
@@ -3100,6 +3091,13 @@ class Map: public HeapObject {
   void MapVerify();
 #endif
 
+  inline Scavenger scavenger();
+  inline void set_scavenger(Scavenger callback);
+
+  inline void Scavenge(HeapObject** slot, HeapObject* obj) {
+    scavenger()(this, slot, obj);
+  }
+
   static const int kMaxPreAllocatedPropertyFields = 255;
 
   // Layout description.
@@ -3110,7 +3108,8 @@ class Map: public HeapObject {
   static const int kInstanceDescriptorsOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
-  static const int kPadStart = kCodeCacheOffset + kPointerSize;
+  static const int kScavengerCallbackOffset = kCodeCacheOffset + kPointerSize;
+  static const int kPadStart = kScavengerCallbackOffset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
@@ -3273,6 +3272,9 @@ class SharedFunctionInfo: public HeapObject {
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
 
+  // [scope_info]: Scope info.
+  DECL_ACCESSORS(scope_info, Object)
+
   // [construct stub]: Code stub for constructing instances of this function.
   DECL_ACCESSORS(construct_stub, Code)
 
@@ -3426,7 +3428,8 @@ class SharedFunctionInfo: public HeapObject {
   // Pointer fields.
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kCodeOffset = kNameOffset + kPointerSize;
-  static const int kConstructStubOffset = kCodeOffset + kPointerSize;
+  static const int kScopeInfoOffset = kCodeOffset + kPointerSize;
+  static const int kConstructStubOffset = kScopeInfoOffset + kPointerSize;
   static const int kInstanceClassNameOffset =
       kConstructStubOffset + kPointerSize;
   static const int kFunctionDataOffset =

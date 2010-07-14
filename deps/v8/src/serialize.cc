@@ -673,6 +673,14 @@ void Deserializer::ReadObject(int space_number,
     LOG(SnapshotPositionEvent(address, source_->position()));
   }
   ReadChunk(current, limit, space_number, address);
+
+  if (space == Heap::map_space()) {
+    ASSERT(size == Map::kSize);
+    HeapObject* obj = HeapObject::FromAddress(address);
+    Map* map = reinterpret_cast<Map*>(obj);
+    map->set_scavenger(Heap::GetScavenger(map->instance_type(),
+                                          map->instance_size()));
+  }
 }
 
 

@@ -549,7 +549,7 @@ Object* Accessors::FunctionGetArguments(Object* object, void*) {
     if (frame->function() != *function) continue;
 
     // If there is an arguments variable in the stack, we return that.
-    int index = ScopeInfo<>::StackSlotIndex(frame->code(),
+    int index = ScopeInfo<>::StackSlotIndex(function->shared()->scope_info(),
                                             Heap::arguments_symbol());
     if (index >= 0) {
       Handle<Object> arguments = Handle<Object>(frame->GetExpression(index));

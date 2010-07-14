@@ -598,12 +598,13 @@ TEST(HeapSnapshotCodeObjects) {
   CHECK_NE(NULL, lazy_code);
 
   // Verify that non-compiled code doesn't contain references to "x"
-  // literal, while compiled code does.
+  // literal, while compiled code does. The scope info is stored in FixedArray
+  // objects attached to the SharedFunctionInfo.
   bool compiled_references_x = false, lazy_references_x = false;
   for (int i = 0, count = compiled_code->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = compiled_code->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::CODE) {
+    if (node->GetType() == v8::HeapGraphNode::ARRAY) {
       if (HasString(node, "x")) {
         compiled_references_x = true;
         break;
@@ -613,7 +614,7 @@ TEST(HeapSnapshotCodeObjects) {
   for (int i = 0, count = lazy_code->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = lazy_code->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::CODE) {
+    if (node->GetType() == v8::HeapGraphNode::ARRAY) {
       if (HasString(node, "x")) {
         lazy_references_x = true;
         break;

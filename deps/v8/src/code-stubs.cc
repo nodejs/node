@@ -102,8 +102,7 @@ Handle<Code> CodeStub::GetCode() {
         static_cast<Code::Kind>(GetCodeKind()),
         InLoop(),
         GetICState());
-    Handle<Code> new_object =
-        Factory::NewCode(desc, NULL, flags, masm.CodeObject());
+    Handle<Code> new_object = Factory::NewCode(desc, flags, masm.CodeObject());
     RecordCodeGeneration(*new_object, &masm);
 
     if (has_custom_cache()) {
@@ -140,8 +139,7 @@ Object* CodeStub::TryGetCode() {
         static_cast<Code::Kind>(GetCodeKind()),
         InLoop(),
         GetICState());
-    Object* new_object =
-        Heap::CreateCode(desc, NULL, flags, masm.CodeObject());
+    Object* new_object = Heap::CreateCode(desc, flags, masm.CodeObject());
     if (new_object->IsFailure()) return new_object;
     code = Code::cast(new_object);
     RecordCodeGeneration(code, &masm);

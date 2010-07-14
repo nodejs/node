@@ -181,7 +181,6 @@ function FormatMessage(message) {
       // RangeError
       invalid_array_length:         "Invalid array length",
       stack_overflow:               "Maximum call stack size exceeded",
-      apply_overflow:               "Function.prototype.apply cannot support %0 arguments",
       // SyntaxError
       unable_to_parse:              "Parse error",
       duplicate_regexp_flag:        "Duplicate RegExp flag %0",
@@ -601,18 +600,22 @@ function GetPositionInLine(message) {
 }
 
 
-function ErrorMessage(type, args, startPos, endPos, script, stackTrace) {
+function ErrorMessage(type, args, startPos, endPos, script, stackTrace,
+                      stackFrames) {
   this.startPos = startPos;
   this.endPos = endPos;
   this.type = type;
   this.args = args;
   this.script = script;
   this.stackTrace = stackTrace;
+  this.stackFrames = stackFrames;
 }
 
 
-function MakeMessage(type, args, startPos, endPos, script, stackTrace) {
-  return new ErrorMessage(type, args, startPos, endPos, script, stackTrace);
+function MakeMessage(type, args, startPos, endPos, script, stackTrace,
+                     stackFrames) {
+  return new ErrorMessage(type, args, startPos, endPos, script, stackTrace,
+                          stackFrames);
 }
 
 

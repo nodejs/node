@@ -37,7 +37,7 @@ namespace internal {
 // Scope information represents information about a functions's
 // scopes (currently only one, because we don't do any inlining)
 // and the allocation of the scope's variables. Scope information
-// is stored in a compressed form with Code objects and is used
+// is stored in a compressed form in FixedArray objects and is used
 // at runtime (stack dumps, deoptimization, etc.).
 //
 // Historical note: In other VMs built by this team, ScopeInfo was
@@ -54,23 +54,16 @@ class ScopeInfo BASE_EMBEDDED {
   // Create a ScopeInfo instance from a scope.
   explicit ScopeInfo(Scope* scope);
 
-  // Create a ScopeInfo instance from a Code object.
-  explicit ScopeInfo(Code* code);
+  // Create a ScopeInfo instance from an Object holding the serialized data.
+  explicit ScopeInfo(Object* data);
 
-  // Write the ScopeInfo data into a Code object, and returns the
-  // amount of space that was needed. If no Code object is provided
-  // (NULL handle), Serialize() only returns the amount of space needed.
-  //
-  // This operations requires that the Code object has the correct amount
-  // of space for the ScopeInfo data; otherwise the operation fails (fatal
-  // error). Any existing scope info in the Code object is simply overwritten.
-  int Serialize(Code* code);
+  // Creates a heap object holding the serialized scope info.
+  Handle<Object> Serialize();
 
-  // Garbage collection support for scope info embedded in Code objects.
-  // This code is in ScopeInfo because only here we should have to know
-  // about the encoding.
-  static void IterateScopeInfo(Code* code, ObjectVisitor* v);
+  static Handle<Object> CreateHeapObject(Scope* scope);
 
+  // Serializes empty scope info.
+  static Object* EmptyHeapObject();
 
   // --------------------------------------------------------------------------
   // Lookup
@@ -100,44 +93,44 @@ class ScopeInfo BASE_EMBEDDED {
   // object.
   //
   // ScopeInfo is the only class which should have to know about the
-  // encoding of it's information in a Code object, which is why these
+  // encoding of it's information in a FixedArray object, which is why these
   // functions are in this class.
 
   // Does this scope call eval.
-  static bool CallsEval(Code* code);
+  static bool CallsEval(Object* data);
 
   // Return the number of stack slots for code.
-  static int NumberOfStackSlots(Code* code);
+  static int NumberOfStackSlots(Object* data);
 
   // Return the number of context slots for code.
-  static int NumberOfContextSlots(Code* code);
+  static int NumberOfContextSlots(Object* data);
 
   // Return if this has context slots besides MIN_CONTEXT_SLOTS;
-  static bool HasHeapAllocatedLocals(Code* code);
+  static bool HasHeapAllocatedLocals(Object* data);
 
-  // Lookup support for scope info embedded in Code objects. Returns
+  // Lookup support for serialized scope info. Returns the
   // the stack slot index for a given slot name if the slot is
   // present; otherwise returns a value < 0. The name must be a symbol
   // (canonicalized).
-  static int StackSlotIndex(Code* code, String* name);
+  static int StackSlotIndex(Object* data, String* name);
 
-  // Lookup support for scope info embedded in Code objects. Returns the
+  // Lookup support for serialized scope info. Returns the
   // context slot index for a given slot name if the slot is present; otherwise
   // returns a value < 0. The name must be a symbol (canonicalized).
   // If the slot is present and mode != NULL, sets *mode to the corresponding
   // mode for that variable.
-  static int ContextSlotIndex(Code* code, String* name, Variable::Mode* mode);
+  static int ContextSlotIndex(Object* data, String* name, Variable::Mode* mode);
 
-  // Lookup support for scope info embedded in Code objects. Returns the
+  // Lookup support for serialized scope info. Returns the
   // parameter index for a given parameter name if the parameter is present;
   // otherwise returns a value < 0. The name must be a symbol (canonicalized).
-  static int ParameterIndex(Code* code, String* name);
+  static int ParameterIndex(Object* data, String* name);
 
-  // Lookup support for scope info embedded in Code objects. Returns the
+  // Lookup support for serialized scope info. Returns the
   // function context slot index if the function name is present (named
   // function expressions, only), otherwise returns a value < 0. The name
   // must be a symbol (canonicalized).
-  static int FunctionContextSlotIndex(Code* code, String* name);
+  static int FunctionContextSlotIndex(Object* data, String* name);
 
   // --------------------------------------------------------------------------
   // Debugging support
@@ -155,32 +148,21 @@ class ScopeInfo BASE_EMBEDDED {
   List<Variable::Mode, Allocator > context_modes_;
 };
 
-class ZoneScopeInfo: public ScopeInfo<ZoneListAllocationPolicy> {
- public:
-  // Create a ZoneScopeInfo instance from a scope.
-  explicit ZoneScopeInfo(Scope* scope)
-      : ScopeInfo<ZoneListAllocationPolicy>(scope) {}
 
-  // Create a ZoneScopeInfo instance from a Code object.
-  explicit ZoneScopeInfo(Code* code)
-      :  ScopeInfo<ZoneListAllocationPolicy>(code) {}
-};
-
-
-// Cache for mapping (code, property name) into context slot index.
+// Cache for mapping (data, property name) into context slot index.
 // The cache contains both positive and negative results.
 // Slot index equals -1 means the property is absent.
 // Cleared at startup and prior to mark sweep collection.
 class ContextSlotCache {
  public:
-  // Lookup context slot index for (code, name).
+  // Lookup context slot index for (data, name).
   // If absent, kNotFound is returned.
-  static int Lookup(Code* code,
+  static int Lookup(Object* data,
                     String* name,
                     Variable::Mode* mode);
 
   // Update an element in the cache.
-  static void Update(Code* code,
+  static void Update(Object* data,
                      String* name,
                      Variable::Mode mode,
                      int slot_index);
@@ -190,10 +172,10 @@ class ContextSlotCache {
 
   static const int kNotFound = -2;
  private:
-  inline static int Hash(Code* code, String* name);
+  inline static int Hash(Object* data, String* name);
 
 #ifdef DEBUG
-  static void ValidateEntry(Code* code,
+  static void ValidateEntry(Object* data,
                             String* name,
                             Variable::Mode mode,
                             int slot_index);
@@ -201,7 +183,7 @@ class ContextSlotCache {
 
   static const int kLength = 256;
   struct Key {
-    Code* code;
+    Object* data;
     String* name;
   };
 

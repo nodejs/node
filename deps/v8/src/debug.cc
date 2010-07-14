@@ -759,7 +759,7 @@ bool Debug::CompileDebuggerScript(int index) {
   if (caught_exception) {
     Handle<Object> message = MessageHandler::MakeMessageObject(
         "error_loading_debugger", NULL, Vector<Handle<Object> >::empty(),
-        Handle<String>());
+        Handle<String>(), Handle<JSArray>());
     MessageHandler::ReportMessage(NULL, message);
     return false;
   }

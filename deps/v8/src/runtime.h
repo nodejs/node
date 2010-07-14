@@ -115,6 +115,7 @@ namespace internal {
   F(NumberDiv, 2, 1) \
   F(NumberMod, 2, 1) \
   F(NumberUnaryMinus, 1, 1) \
+  F(NumberAlloc, 0, 1) \
   \
   F(StringAdd, 2, 1) \
   F(StringBuilderConcat, 3, 1) \

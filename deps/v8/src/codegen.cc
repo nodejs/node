@@ -162,9 +162,7 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
   // Allocate and install the code.
   CodeDesc desc;
   masm->GetCode(&desc);
-  ZoneScopeInfo sinfo(info->scope());
-  Handle<Code> code =
-      Factory::NewCode(desc, &sinfo, flags, masm->CodeObject());
+  Handle<Code> code = Factory::NewCode(desc, flags, masm->CodeObject());
 
 #ifdef ENABLE_DISASSEMBLER
   bool print_code = Bootstrapper::IsActive()

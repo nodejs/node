@@ -1801,11 +1801,119 @@ void Assembler::vstr(const DwVfpRegister src,
 }
 
 
+static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
+  uint64_t i;
+  memcpy(&i, &d, 8);
+
+  *lo = i & 0xffffffff;
+  *hi = i >> 32;
+}
+
+// Only works for little endian floating point formats.
+// We don't support VFP on the mixed endian floating point platform.
+static bool FitsVMOVDoubleImmediate(double d, uint32_t *encoding) {
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+
+  // VMOV can accept an immediate of the form:
+  //
+  //  +/- m * 2^(-n) where 16 <= m <= 31 and 0 <= n <= 7
+  //
+  // The immediate is encoded using an 8-bit quantity, comprised of two
+  // 4-bit fields. For an 8-bit immediate of the form:
+  //
+  //  [abcdefgh]
+  //
+  // where a is the MSB and h is the LSB, an immediate 64-bit double can be
+  // created of the form:
+  //
+  //  [aBbbbbbb,bbcdefgh,00000000,00000000,
+  //      00000000,00000000,00000000,00000000]
+  //
+  // where B = ~b.
+  //
+
+  uint32_t lo, hi;
+  DoubleAsTwoUInt32(d, &lo, &hi);
+
+  // The most obvious constraint is the long block of zeroes.
+  if ((lo != 0) || ((hi & 0xffff) != 0)) {
+    return false;
+  }
+
+  // Bits 62:55 must be all clear or all set.
+  if (((hi & 0x3fc00000) != 0) && ((hi & 0x3fc00000) != 0x3fc00000)) {
+    return false;
+  }
+
+  // Bit 63 must be NOT bit 62.
+  if (((hi ^ (hi << 1)) & (0x40000000)) == 0) {
+    return false;
+  }
+
+  // Create the encoded immediate in the form:
+  //  [00000000,0000abcd,00000000,0000efgh]
+  *encoding  = (hi >> 16) & 0xf;      // Low nybble.
+  *encoding |= (hi >> 4) & 0x70000;   // Low three bits of the high nybble.
+  *encoding |= (hi >> 12) & 0x80000;  // Top bit of the high nybble.
+
+  return true;
+}
+
+
+void Assembler::vmov(const DwVfpRegister dst,
+                     double imm,
+                     const Condition cond) {
+  // Dd = immediate
+  // Instruction details available in ARM DDI 0406B, A8-640.
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+
+  uint32_t enc;
+  if (FitsVMOVDoubleImmediate(imm, &enc)) {
+    // The double can be encoded in the instruction.
+    emit(cond | 0xE*B24 | 0xB*B20 | dst.code()*B12 | 0xB*B8 | enc);
+  } else {
+    // Synthesise the double from ARM immediates. This could be implemented
+    // using vldr from a constant pool.
+    uint32_t lo, hi;
+    DoubleAsTwoUInt32(imm, &lo, &hi);
+
+    if (lo == hi) {
+      // If the lo and hi parts of the double are equal, the literal is easier
+      // to create. This is the case with 0.0.
+      mov(ip, Operand(lo));
+      vmov(dst, ip, ip);
+    } else {
+      // Move the low part of the double into the lower of the corresponsing S
+      // registers of D register dst.
+      mov(ip, Operand(lo));
+      vmov(dst.low(), ip, cond);
+
+      // Move the high part of the double into the higher of the corresponsing S
+      // registers of D register dst.
+      mov(ip, Operand(hi));
+      vmov(dst.high(), ip, cond);
+    }
+  }
+}
+
+
+void Assembler::vmov(const SwVfpRegister dst,
+                     const SwVfpRegister src,
+                     const Condition cond) {
+  // Sd = Sm
+  // Instruction details available in ARM DDI 0406B, A8-642.
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  emit(cond | 0xE*B24 | 0xB*B20 |
+       dst.code()*B12 | 0x5*B9 | B6 | src.code());
+}
+
+
 void Assembler::vmov(const DwVfpRegister dst,
                      const DwVfpRegister src,
                      const Condition cond) {
   // Dd = Dm
   // Instruction details available in ARM DDI 0406B, A8-642.
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
   emit(cond | 0xE*B24 | 0xB*B20 |
        dst.code()*B12 | 0x5*B9 | B8 | B6 | src.code());
 }

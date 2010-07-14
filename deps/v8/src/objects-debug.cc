@@ -789,6 +789,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   CHECK(IsSharedFunctionInfo());
   VerifyObjectField(kNameOffset);
   VerifyObjectField(kCodeOffset);
+  VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kInstanceClassNameOffset);
   VerifyObjectField(kFunctionDataOffset);
   VerifyObjectField(kScriptOffset);

@@ -130,6 +130,20 @@ struct DwVfpRegister {
   // Supporting d0 to d15, can be later extended to d31.
   bool is_valid() const  { return 0 <= code_ && code_ < 16; }
   bool is(DwVfpRegister reg) const  { return code_ == reg.code_; }
+  SwVfpRegister low() const  {
+    SwVfpRegister reg;
+    reg.code_ = code_ * 2;
+
+    ASSERT(reg.is_valid());
+    return reg;
+  }
+  SwVfpRegister high() const  {
+    SwVfpRegister reg;
+    reg.code_ = (code_ * 2) + 1;
+
+    ASSERT(reg.is_valid());
+    return reg;
+  }
   int code() const  {
     ASSERT(is_valid());
     return code_;
@@ -931,6 +945,12 @@ class Assembler : public Malloced {
             int offset,  // Offset must be a multiple of 4.
             const Condition cond = al);
 
+  void vmov(const DwVfpRegister dst,
+            double imm,
+            const Condition cond = al);
+  void vmov(const SwVfpRegister dst,
+            const SwVfpRegister src,
+            const Condition cond = al);
   void vmov(const DwVfpRegister dst,
             const DwVfpRegister src,
             const Condition cond = al);

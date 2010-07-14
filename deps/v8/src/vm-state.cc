@@ -33,7 +33,7 @@ namespace v8 {
 namespace internal {
 
 #ifdef ENABLE_VMSTATE_TRACKING
-VMState* VMState::current_state_ = NULL;
+AtomicWord VMState::current_state_ = 0;
 #endif
 
 } }  // namespace v8::internal

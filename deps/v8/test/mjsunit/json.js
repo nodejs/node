@@ -85,7 +85,7 @@ n4.toISOString = function () {
 };
 assertEquals(null, n4.toJSON());
 
-assertEquals(Object.prototype, JSON.__proto__);
+assertTrue(Object.prototype === JSON.__proto__);
 assertEquals("[object JSON]", Object.prototype.toString.call(JSON));
 
 // DontEnum
@@ -313,3 +313,7 @@ TestInvalid('1); throw "foo"; (1');
 var x = 0;
 eval("(1); x++; (1)");
 TestInvalid('1); x++; (1');
+
+// Test string conversion of argument.
+var o = { toString: function() { return "42"; } };
+assertEquals(42, JSON.parse(o));

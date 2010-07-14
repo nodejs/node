@@ -4343,9 +4343,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ bind(&powi);
 
     // Load 1.0 into d0.
-    __ mov(scratch2, Operand(0x3ff00000));
-    __ mov(scratch1, Operand(0));
-    __ vmov(d0, scratch1, scratch2);
+    __ vmov(d0, 1.0);
 
     // Get the absolute untagged value of the exponent and use that for the
     // calculation.
@@ -4405,9 +4403,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
                                  AVOID_NANS_AND_INFINITIES);
 
     // Load 1.0 into d2.
-    __ mov(scratch2, Operand(0x3ff00000));
-    __ mov(scratch1, Operand(0));
-    __ vmov(d2, scratch1, scratch2);
+    __ vmov(d2, 1.0);
 
     // Calculate the reciprocal of the square root. 1/sqrt(x) = sqrt(1/x).
     __ vdiv(d0, d2, d0);
@@ -4874,12 +4870,8 @@ void CodeGenerator::GenerateRandomHeapNumber(
   __ jmp(&heapnumber_allocated);
 
   __ bind(&slow_allocate_heapnumber);
-  // To allocate a heap number, and ensure that it is not a smi, we
-  // call the runtime function FUnaryMinus on 0, returning the double
-  // -0.0. A new, distinct heap number is returned each time.
-  __ mov(r0, Operand(Smi::FromInt(0)));
-  __ push(r0);
-  __ CallRuntime(Runtime::kNumberUnaryMinus, 1);
+  // Allocate a heap number.
+  __ CallRuntime(Runtime::kNumberAlloc, 0);
   __ mov(r4, Operand(r0));
 
   __ bind(&heapnumber_allocated);

@@ -525,17 +525,12 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
   // Bail out if we didn't find a result.
   if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
-#ifndef V8_TARGET_ARCH_IA32
-  // Normal objects only implemented for IA32 by now.
-  if (HasNormalObjectsInPrototypeChain(lookup, *object)) return;
-#else
   if (lookup->holder() != *object &&
       HasNormalObjectsInPrototypeChain(lookup, object->GetPrototype())) {
     // Suppress optimization for prototype chains with slow properties objects
     // in the middle.
     return;
   }
-#endif
 
   // Compute the number of arguments.
   int argc = target()->arguments_count();

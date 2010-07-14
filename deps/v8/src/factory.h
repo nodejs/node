@@ -34,9 +34,6 @@
 namespace v8 {
 namespace internal {
 
-// Forward declarations.
-class ZoneScopeInfo;
-
 // Interface for handle based allocation.
 
 class Factory : public AllStatic {
@@ -241,7 +238,6 @@ class Factory : public AllStatic {
       PretenureFlag pretenure = TENURED);
 
   static Handle<Code> NewCode(const CodeDesc& desc,
-                              ZoneScopeInfo* sinfo,
                               Code::Flags flags,
                               Handle<Object> self_reference);
 
@@ -352,7 +348,10 @@ class Factory : public AllStatic {
   }
 
   static Handle<SharedFunctionInfo> NewSharedFunctionInfo(
-      Handle<String> name, int number_of_literals, Handle<Code> code);
+      Handle<String> name,
+      int number_of_literals,
+      Handle<Code> code,
+      Handle<Object> scope_info);
   static Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
   static Handle<NumberDictionary> DictionaryAtNumberPut(

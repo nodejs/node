@@ -2190,6 +2190,8 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
     int new_instance_size = map()->instance_size() - instance_size_delta;
     new_map->set_inobject_properties(0);
     new_map->set_instance_size(new_instance_size);
+    new_map->set_scavenger(Heap::GetScavenger(new_map->instance_type(),
+                                              new_map->instance_size()));
     Heap::CreateFillerObjectAt(this->address() + new_instance_size,
                                instance_size_delta);
   }
@@ -5033,7 +5035,7 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
 
 void Map::MapIterateBody(ObjectVisitor* v) {
   // Assumes all Object* members are contiguously allocated!
-  IteratePointers(v, kPrototypeOffset, kCodeCacheOffset + kPointerSize);
+  IteratePointers(v, kPointerFieldsBeginOffset, kPointerFieldsEndOffset);
 }
 
 
@@ -5325,8 +5327,6 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   for (; !it.done(); it.next()) {
     it.rinfo()->Visit(v);
   }
-
-  ScopeInfo<>::IterateScopeInfo(this, v);
 }
 
 

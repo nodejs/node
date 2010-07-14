@@ -44,6 +44,11 @@ Mutex* Top::break_access_ = OS::CreateMutex();
 
 NoAllocationStringAllocator* preallocated_message_space = NULL;
 
+bool capture_stack_trace_for_uncaught_exceptions = false;
+int stack_trace_for_uncaught_exceptions_frame_limit = 0;
+StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options =
+    StackTrace::kOverview;
+
 Address top_addresses[] = {
 #define C(name) reinterpret_cast<Address>(Top::name()),
     TOP_ADDRESS_LIST(C)
@@ -365,9 +370,8 @@ Handle<String> Top::StackTraceString() {
 }
 
 
-Local<StackTrace> Top::CaptureCurrentStackTrace(
+Handle<JSArray> Top::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
-  v8::HandleScope scope;
   // Ensure no negative values.
   int limit = Max(frame_limit, 0);
   Handle<JSArray> stack_trace = Factory::NewJSArray(frame_limit);
@@ -443,7 +447,7 @@ Local<StackTrace> Top::CaptureCurrentStackTrace(
   }
 
   stack_trace->set_length(Smi::FromInt(frames_seen));
-  return scope.Close(Utils::StackTraceToLocal(stack_trace));
+  return stack_trace;
 }
 
 
@@ -681,10 +685,7 @@ Failure* Top::StackOverflow() {
   // TODO(1240995): To avoid having to call JavaScript code to compute
   // the message for stack overflow exceptions which is very likely to
   // double fault with another stack overflow exception, we use a
-  // precomputed message. This is somewhat problematic in that it
-  // doesn't use ReportUncaughtException to determine the location
-  // from where the exception occurred. It should probably be
-  // reworked.
+  // precomputed message.
   DoThrow(*exception, NULL, kStackOverflowMessage);
   return Failure::Exception();
 }
@@ -778,25 +779,6 @@ void Top::ComputeLocation(MessageLocation* target) {
 }
 
 
-void Top::ReportUncaughtException(Handle<Object> exception,
-                                  MessageLocation* location,
-                                  Handle<String> stack_trace) {
-  Handle<Object> message;
-  if (!Bootstrapper::IsActive()) {
-    // It's not safe to try to make message objects while the bootstrapper
-    // is active since the infrastructure may not have been properly
-    // initialized.
-    message =
-      MessageHandler::MakeMessageObject("uncaught_exception",
-                                        location,
-                                        HandleVector<Object>(&exception, 1),
-                                        stack_trace);
-  }
-  // Report the uncaught exception.
-  MessageHandler::ReportMessage(location, message);
-}
-
-
 bool Top::ShouldReturnException(bool* is_caught_externally,
                                 bool catchable_by_javascript) {
   // Find the top-most try-catch handler.
@@ -869,8 +851,15 @@ void Top::DoThrow(Object* exception,
       // may not have been properly initialized.
       Handle<String> stack_trace;
       if (FLAG_trace_exception) stack_trace = StackTraceString();
+      Handle<JSArray> stack_trace_object;
+      if (report_exception && capture_stack_trace_for_uncaught_exceptions) {
+          stack_trace_object = Top::CaptureCurrentStackTrace(
+              stack_trace_for_uncaught_exceptions_frame_limit,
+              stack_trace_for_uncaught_exceptions_options);
+      }
       message_obj = MessageHandler::MakeMessageObject("uncaught_exception",
-          location, HandleVector<Object>(&exception_handle, 1), stack_trace);
+          location, HandleVector<Object>(&exception_handle, 1), stack_trace,
+          stack_trace_object);
     }
   }
 
@@ -994,6 +983,16 @@ bool Top::OptionalRescheduleException(bool is_bottom_call) {
   thread_local_.scheduled_exception_ = pending_exception();
   clear_pending_exception();
   return true;
+}
+
+
+void Top::SetCaptureStackTraceForUncaughtExceptions(
+      bool capture,
+      int frame_limit,
+      StackTrace::StackTraceOptions options) {
+  capture_stack_trace_for_uncaught_exceptions = capture;
+  stack_trace_for_uncaught_exceptions_frame_limit = frame_limit;
+  stack_trace_for_uncaught_exceptions_options = options;
 }
 
 

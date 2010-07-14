@@ -1555,13 +1555,12 @@ void HeapSnapshotGenerator::ExtractClosureReferences(JSObject* js_obj,
     JSFunction* func = JSFunction::cast(js_obj);
     Context* context = func->context();
     ZoneScope zscope(DELETE_ON_EXIT);
-    ScopeInfo<ZoneListAllocationPolicy> scope_info(
-        context->closure()->shared()->code());
-    int locals_number = scope_info.NumberOfLocals();
+    Object* scope_info = context->closure()->shared()->scope_info();
+    ScopeInfo<ZoneListAllocationPolicy> zone_scope_info(scope_info);
+    int locals_number = zone_scope_info.NumberOfLocals();
     for (int i = 0; i < locals_number; ++i) {
-      String* local_name = *scope_info.LocalName(i);
-      int idx = ScopeInfo<>::ContextSlotIndex(
-          context->closure()->shared()->code(), local_name, NULL);
+      String* local_name = *zone_scope_info.LocalName(i);
+      int idx = ScopeInfo<>::ContextSlotIndex(scope_info, local_name, NULL);
       if (idx >= 0 && idx < context->length()) {
         snapshot_->SetClosureReference(entry, local_name, context->get(idx));
       }

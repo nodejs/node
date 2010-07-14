@@ -227,6 +227,11 @@ class Top {
         (try_catch_handler() == thread_local_.catcher_);
   }
 
+  static void SetCaptureStackTraceForUncaughtExceptions(
+      bool capture,
+      int frame_limit,
+      StackTrace::StackTraceOptions options);
+
   // Tells whether the current context has experienced an out of memory
   // exception.
   static bool is_out_of_memory();
@@ -266,7 +271,7 @@ class Top {
   static void PrintStack(StringStream* accumulator);
   static void PrintStack();
   static Handle<String> StackTraceString();
-  static Local<StackTrace> CaptureCurrentStackTrace(
+  static Handle<JSArray> CaptureCurrentStackTrace(
       int frame_limit,
       StackTrace::StackTraceOptions options);
 
@@ -302,9 +307,6 @@ class Top {
                       const char* message);
   static bool ShouldReturnException(bool* is_caught_externally,
                                     bool catchable_by_javascript);
-  static void ReportUncaughtException(Handle<Object> exception,
-                                      MessageLocation* location,
-                                      Handle<String> stack_trace);
 
   // Attempts to compute the current source location, storing the
   // result in the target out parameter.

@@ -1186,7 +1186,7 @@ Object* StubCompiler::GetCodeWithFlags(Code::Flags flags, const char* name) {
   // Create code object in the heap.
   CodeDesc desc;
   masm_.GetCode(&desc);
-  Object* result = Heap::CreateCode(desc, NULL, flags, masm_.CodeObject());
+  Object* result = Heap::CreateCode(desc, flags, masm_.CodeObject());
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code_stubs && !result->IsFailure()) {
     Code::cast(result)->Disassemble(name);

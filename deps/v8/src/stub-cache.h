@@ -429,23 +429,23 @@ class StubCompiler BASE_EMBEDDED {
                            Register object_reg,
                            JSObject* holder,
                            Register holder_reg,
-                           Register scratch,
+                           Register scratch1,
+                           Register scratch2,
                            String* name,
-                           Label* miss,
-                           Register extra = no_reg) {
-    return CheckPrototypes(object, object_reg, holder, holder_reg, scratch,
-                           name, kInvalidProtoDepth, miss, extra);
+                           Label* miss) {
+    return CheckPrototypes(object, object_reg, holder, holder_reg, scratch1,
+                           scratch2, name, kInvalidProtoDepth, miss);
   }
 
   Register CheckPrototypes(JSObject* object,
                            Register object_reg,
                            JSObject* holder,
                            Register holder_reg,
-                           Register scratch,
+                           Register scratch1,
+                           Register scratch2,
                            String* name,
                            int save_at_depth,
-                           Label* miss,
-                           Register extra = no_reg);
+                           Label* miss);
 
  protected:
   Object* GetCodeWithFlags(Code::Flags flags, const char* name);
@@ -459,6 +459,7 @@ class StubCompiler BASE_EMBEDDED {
                          Register receiver,
                          Register scratch1,
                          Register scratch2,
+                         Register scratch3,
                          int index,
                          String* name,
                          Label* miss);
@@ -469,6 +470,7 @@ class StubCompiler BASE_EMBEDDED {
                             Register name_reg,
                             Register scratch1,
                             Register scratch2,
+                            Register scratch3,
                             AccessorInfo* callback,
                             String* name,
                             Label* miss,
@@ -479,6 +481,7 @@ class StubCompiler BASE_EMBEDDED {
                             Register receiver,
                             Register scratch1,
                             Register scratch2,
+                            Register scratch3,
                             Object* value,
                             String* name,
                             Label* miss);
@@ -490,6 +493,7 @@ class StubCompiler BASE_EMBEDDED {
                                Register name_reg,
                                Register scratch1,
                                Register scratch2,
+                               Register scratch3,
                                String* name,
                                Label* miss);
 

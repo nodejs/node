@@ -70,7 +70,6 @@ TEST(AssemblerIa320) {
   CodeDesc desc;
   assm.GetCode(&desc);
   Object* code = Heap::CreateCode(desc,
-                                  NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(Heap::undefined_value()));
   CHECK(code->IsCode());
@@ -108,7 +107,6 @@ TEST(AssemblerIa321) {
   CodeDesc desc;
   assm.GetCode(&desc);
   Object* code = Heap::CreateCode(desc,
-                                  NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(Heap::undefined_value()));
   CHECK(code->IsCode());
@@ -150,7 +148,6 @@ TEST(AssemblerIa322) {
   CodeDesc desc;
   assm.GetCode(&desc);
   Object* code = Heap::CreateCode(desc,
-                                  NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(Heap::undefined_value()));
   CHECK(code->IsCode());
@@ -185,7 +182,6 @@ TEST(AssemblerIa323) {
   assm.GetCode(&desc);
   Code* code =
       Code::cast(Heap::CreateCode(desc,
-                                  NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(Heap::undefined_value())));
   // don't print the code - our disassembler can't handle cvttss2si
@@ -220,7 +216,6 @@ TEST(AssemblerIa324) {
   assm.GetCode(&desc);
   Code* code =
       Code::cast(Heap::CreateCode(desc,
-                                  NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(Heap::undefined_value())));
   // don't print the code - our disassembler can't handle cvttsd2si
@@ -250,7 +245,6 @@ TEST(AssemblerIa325) {
   assm.GetCode(&desc);
   Code* code =
       Code::cast(Heap::CreateCode(desc,
-                                  NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(Heap::undefined_value())));
   F0 f = FUNCTION_CAST<F0>(code->entry());
@@ -288,7 +282,6 @@ TEST(AssemblerIa326) {
   assm.GetCode(&desc);
   Code* code =
       Code::cast(Heap::CreateCode(desc,
-                                  NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(Heap::undefined_value())));
 #ifdef DEBUG
@@ -329,7 +322,6 @@ TEST(AssemblerIa328) {
   assm.GetCode(&desc);
   Code* code =
       Code::cast(Heap::CreateCode(desc,
-                                  NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(Heap::undefined_value())));
   CHECK(code->IsCode());
@@ -385,7 +377,6 @@ TEST(AssemblerIa329) {
   assm.GetCode(&desc);
   Code* code =
       Code::cast(Heap::CreateCode(desc,
-                                  NULL,
                                   Code::ComputeFlags(Code::STUB),
                                   Handle<Object>(Heap::undefined_value())));
   CHECK(code->IsCode());

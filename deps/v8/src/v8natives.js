@@ -723,7 +723,7 @@ function ObjectDefineProperty(obj, p, attributes) {
 
 // ES5 section 15.2.3.7.
 function ObjectDefineProperties(obj, properties) {
- if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
      !IS_UNDETECTABLE(obj))
     throw MakeTypeError("obj_ctor_property_non_object", ["defineProperties"]);
   var props = ToObject(properties);
@@ -745,6 +745,24 @@ function ObjectDefineProperties(obj, properties) {
 }
 
 
+// ES5 section 15.2.3.9.
+function ObjectFreeze(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["freeze"]);
+  }
+  var names = ObjectGetOwnPropertyNames(obj);
+  for (var key in names) {
+    var name = names[key];
+    var desc = GetOwnProperty(obj, name);
+    if (IsDataDescriptor(desc)) desc.setWritable(false);
+    if (desc.isConfigurable()) desc.setConfigurable(false);
+    DefineOwnProperty(obj, name, desc, true);
+  }  
+  ObjectPreventExtension(obj);
+}
+
+
 // ES5 section 15.2.3.10
 function ObjectPreventExtension(obj) {
   if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
@@ -753,6 +771,26 @@ function ObjectPreventExtension(obj) {
   }
   %PreventExtensions(obj);
   return obj;
+}
+
+
+// ES5 section 15.2.3.12
+function ObjectIsFrozen(obj) {
+  if ((!IS_SPEC_OBJECT_OR_NULL(obj) || IS_NULL_OR_UNDEFINED(obj)) &&
+      !IS_UNDETECTABLE(obj)) {
+    throw MakeTypeError("obj_ctor_property_non_object", ["isFrozen"]);
+  }
+  var names = ObjectGetOwnPropertyNames(obj);
+  for (var key in names) {
+    var name = names[key];
+    var desc = GetOwnProperty(obj, name);
+    if (IsDataDescriptor(desc) && desc.writable) return false;
+    if (desc.configurable) return false;
+  }
+  if (!ObjectIsExtensible(obj)) {
+    return true;
+  }
+  return false;
 }
 
 
@@ -799,10 +837,12 @@ function SetupObject() {
     "create", ObjectCreate,
     "defineProperty", ObjectDefineProperty,
     "defineProperties", ObjectDefineProperties,
+    "freeze", ObjectFreeze,
     "getPrototypeOf", ObjectGetPrototypeOf,
     "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
     "getOwnPropertyNames", ObjectGetOwnPropertyNames,
     "isExtensible", ObjectIsExtensible,
+    "isFrozen", ObjectIsFrozen,
     "preventExtensions", ObjectPreventExtension
   ));
 }

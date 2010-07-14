@@ -425,8 +425,10 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
   // Since the descriptor array has been marked already, it is fine
   // that one of these fields contains a pointer to it.
   MarkingVisitor visitor;  // Has no state or contents.
-  visitor.VisitPointers(HeapObject::RawField(map, Map::kPrototypeOffset),
-                        HeapObject::RawField(map, Map::kSize));
+  visitor.VisitPointers(HeapObject::RawField(map,
+                                             Map::kPointerFieldsBeginOffset),
+                        HeapObject::RawField(map,
+                                             Map::kPointerFieldsEndOffset));
 }
 
 

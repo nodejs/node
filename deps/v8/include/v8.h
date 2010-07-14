@@ -694,6 +694,13 @@ class V8EXPORT Message {
   Handle<Value> GetScriptData() const;
 
   /**
+   * Exception stack trace. By default stack traces are not captured for
+   * uncaught exceptions. SetCaptureStackTraceForUncaughtExceptions allows
+   * to change this option.
+   */
+  Handle<StackTrace> GetStackTrace() const;
+
+  /**
    * Returns the number, 1-based, of the line where the error occurred.
    */
   int GetLineNumber() const;
@@ -2457,6 +2464,15 @@ class V8EXPORT V8 {
    * Remove all message listeners from the specified callback function.
    */
   static void RemoveMessageListeners(MessageCallback that);
+
+  /**
+   * Tells V8 to capture current stack trace when uncaught exception occurs
+   * and report it to the message listeners. The option is off by default.
+   */
+  static void SetCaptureStackTraceForUncaughtExceptions(
+      bool capture,
+      int frame_limit = 10,
+      StackTrace::StackTraceOptions options = StackTrace::kOverview);
 
   /**
    * Sets V8 flags from a string.

@@ -345,7 +345,6 @@ class ObjectGroup;
 class TickSample;
 class VirtualMemory;
 class Mutex;
-class ZoneScopeInfo;
 
 typedef bool (*WeakSlotCallback)(Object** pointer);
 

@@ -431,7 +431,7 @@ function APPLY_PREPARE(args) {
   // big enough, but sanity check the value to avoid overflow when
   // multiplying with pointer size.
   if (length > 0x800000) {
-    throw %MakeRangeError('apply_overflow', [length]);
+    throw %MakeRangeError('stack_overflow', []);
   }
 
   if (!IS_FUNCTION(this)) {
@@ -450,7 +450,7 @@ function APPLY_PREPARE(args) {
 
 
 function APPLY_OVERFLOW(length) {
-  throw %MakeRangeError('apply_overflow', [length]);
+  throw %MakeRangeError('stack_overflow', []);
 }
 
 
