@@ -332,3 +332,5 @@ int ChildProcess::Kill(int sig) {
 }
 
 }  // namespace node
+
+NODE_MODULE(node_child_process, node::ChildProcess::Initialize);
