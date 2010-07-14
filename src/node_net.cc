@@ -1266,3 +1266,5 @@ void InitNet(Handle<Object> target) {
 }
 
 }  // namespace node
+
+NODE_MODULE(node_net, node::InitNet);

@@ -1571,6 +1571,7 @@ static Handle<Value> Binding(const Arguments& args) {
 
   Local<String> module = args[0]->ToString();
   String::Utf8Value module_v(module);
+  node_module_struct* modp;
 
   if (binding_cache.IsEmpty()) {
     binding_cache = Persistent<Object>::New(Object::New());
@@ -1578,9 +1579,15 @@ static Handle<Value> Binding(const Arguments& args) {
 
   Local<Object> exports;
 
-  // TODO DRY THIS UP!
-
-  if (!strcmp(*module_v, "stdio")) {
+  if (binding_cache->Has(module)) {
+    exports = binding_cache->Get(module)->ToObject();
+  }
+  else if ((modp = get_builtin_module(*module_v)) != NULL) {
+    exports = Object::New();
+    modp->register_func(exports);
+    binding_cache->Set(module, exports);
+  }
+  else if (!strcmp(*module_v, "stdio")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();
     } else {
@@ -1623,15 +1630,6 @@ static Handle<Value> Binding(const Arguments& args) {
       binding_cache->Set(module, exports);
     }
 
-  } else if (!strcmp(*module_v, "net")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
-      InitNet(exports);
-      binding_cache->Set(module, exports);
-    }
-
   } else if (!strcmp(*module_v, "http_parser")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();
@@ -1658,16 +1656,6 @@ static Handle<Value> Binding(const Arguments& args) {
       Buffer::Initialize(exports);
       binding_cache->Set(module, exports);
     }
-  #ifdef HAVE_OPENSSL
-  } else if (!strcmp(*module_v, "crypto")) {
-    if (binding_cache->Has(module)) {
-      exports = binding_cache->Get(module)->ToObject();
-    } else {
-      exports = Object::New();
-      InitCrypto(exports);
-      binding_cache->Set(module, exports);
-    }
-  #endif
   } else if (!strcmp(*module_v, "evals")) {
     if (binding_cache->Has(module)) {
       exports = binding_cache->Get(module)->ToObject();

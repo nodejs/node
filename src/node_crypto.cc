@@ -2264,7 +2264,7 @@ void InitCrypto(Handle<Object> target) {
   version_symbol    = NODE_PSYMBOL("version");
 }
 
-
-
 }  // namespace node
+
+NODE_MODULE(node_crypto, node::InitCrypto);
 

@@ -10,6 +10,11 @@
 
 #include <node_object_wrap.h>
 
+#ifndef NODE_STRINGIFY
+#define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
+#define NODE_STRINGIFY_HELPER(n) #n
+#endif
+
 namespace node {
 
 #define NODE_PSYMBOL(s) Persistent<String>::New(String::NewSymbol(s))
@@ -83,13 +88,15 @@ v8::Local<v8::Value> ErrnoException(int errorno,
 
 const char *signo_string(int errorno);
 
-
 struct node_module_struct {
   int version;
   void *dso_handle;
-  const char *name;
+  const char *filename;
   void (*register_func) (v8::Handle<v8::Object> target);
+  const char *modname;
 };
+
+node_module_struct* get_builtin_module(const char *name);
 
 /**
  * When this version number is changed, node.js will refuse
@@ -108,8 +115,12 @@ struct node_module_struct {
   node::node_module_struct modname ## _module =    \
   {                                     \
       NODE_STANDARD_MODULE_STUFF,       \
-      regfunc                           \
+      regfunc,                          \
+      NODE_STRINGIFY(modname)           \
   };
+
+#define NODE_MODULE_DECL(modname) \
+  extern node::node_module_struct modname ## _module;
 
 
 }  // namespace node
