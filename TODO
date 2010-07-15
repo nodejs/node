@@ -1,0 +1,2 @@
+- tmp directory test/tmp for all files created during tests.
+- fix tests for NODE_MODULE_CONTEXTS=1
