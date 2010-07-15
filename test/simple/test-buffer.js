@@ -94,7 +94,7 @@ assert.strictEqual('sourceStart out of bounds', caught_error.message);
 // try to copy starting after the end of b
 caught_error = null;
 try {
-    var copied = b.copy(c, 0, 1024, 1024);
+    var copied = b.copy(c, 0, 1024, 1025);
 } catch (err) {
     caught_error = err;
 }
@@ -110,6 +110,25 @@ try {
 }
 assert.strictEqual('sourceEnd out of bounds', caught_error.message);
 
+// try to create 0-length buffers
+new Buffer('');
+new Buffer('', 'ascii');
+new Buffer('', 'binary');
+new Buffer(0);
+
+// try to write a 0-length string beyond the end of b
+b.write('', 1024);
+b.write('', 2048);
+
+// try to copy 0 bytes worth of data into an empty buffer
+b.copy(new Buffer(0), 0, 0, 0);
+
+// try to copy 0 bytes past the end of the target buffer
+b.copy(new Buffer(0), 1, 1, 1);
+b.copy(new Buffer(1), 1, 1, 1);
+
+// try to copy 0 bytes from past the end of the source buffer
+b.copy(new Buffer(1), 0, 2048, 2048);
 
 var asciiString = "hello world";
 var offset = 100;

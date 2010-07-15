@@ -305,6 +305,11 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
             "sourceEnd < sourceStart")));
   }
 
+  // Copy 0 bytes; we're done
+  if (source_end == source_start) {
+    return scope.Close(Integer::New(0));
+  }
+
   if (target_start < 0 || target_start >= target->length()) {
     return ThrowException(Exception::Error(String::New(
             "targetStart out of bounds")));
