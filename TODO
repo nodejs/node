@@ -1,2 +1,8 @@
 - tmp directory test/tmp for all files created during tests.
 - fix tests for NODE_MODULE_CONTEXTS=1
+- readline
+  - fix for two column glyphs. use Markus Kuhn's wcwidth.c
+  - fix for commands that extend beyond term width
+  - tab completion interface
+- SSL should be factored out of net.js into standalone stream object
+- base64 write and toString for buffers
