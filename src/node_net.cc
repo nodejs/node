@@ -348,6 +348,9 @@ static Handle<Value> Connect(const Arguments& args) {
   return Undefined();
 }
 
+#if defined(__APPLE__)
+    #define SUN_LEN(ptr) (ptr->sun_len-2)
+#endif
 
 #define ADDRESS_TO_JS(info, address_storage) \
 do { \
@@ -374,10 +377,14 @@ do { \
     case AF_UNIX: \
       au = (struct sockaddr_un*)&(address_storage); \
       char un_path[105]; \
-      strncpy(un_path, au->sun_path, au->sun_len-2); \
-      un_path[au->sun_len-2] = 0; \
+      size_t len; \
+      len = SUN_LEN(au); \
+      strncpy(un_path, au->sun_path, len); \
+      un_path[len] = 0; \
       (info)->Set(address_symbol, String::New(un_path)); \
       break; \
+    default: \
+      (info)->Set(address_symbol, String::New("")); \
   } \
 } while (0)
 
