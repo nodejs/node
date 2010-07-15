@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 tcp = require("tcp");
 fs=require("fs");
 
@@ -105,13 +106,13 @@ try {
 }
 
 if (have_tls) {
-  var caPem = fs.readFileSync(fixturesDir+"/test_ca.pem");
-  var certPem = fs.readFileSync(fixturesDir+"/test_cert.pem");
-  var keyPem = fs.readFileSync(fixturesDir+"/test_key.pem");
+  var caPem = fs.readFileSync(common.fixturesDir+"/test_ca.pem");
+  var certPem = fs.readFileSync(common.fixturesDir+"/test_cert.pem");
+  var keyPem = fs.readFileSync(common.fixturesDir+"/test_key.pem");
 
   /* All are run at once, so run on different ports */
-  tlsTest(PORT, "localhost", caPem, keyPem, certPem);
-  tlsTest(PORT+1, null, caPem, keyPem, certPem);
+  tlsTest(common.PORT, "localhost", caPem, keyPem, certPem);
+  tlsTest(common.PORT+1, null, caPem, keyPem, certPem);
 
   process.addListener("exit", function () {
     assert.equal(2, tests_run);

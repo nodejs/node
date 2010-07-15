@@ -1,4 +1,5 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
 var assert = require("assert");
 var http = require("http");
@@ -14,12 +15,12 @@ server = http.createServer(function (req, res) {
   if (req.method != 'HEAD') res.write(body);
   res.end();
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
 var gotEnd = false;
 
 server.addListener('listening', function() {
-  var client = http.createClient(PORT);
+  var client = http.createClient(common.PORT);
   var request = client.request("HEAD", "/");
   request.addListener('response', function (response) {
     console.log('got response');

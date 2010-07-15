@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 http = require("http");
 
@@ -10,14 +11,14 @@ var server = http.createServer(function(req, res) {
  res.write(body);
  res.end();
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
 var requests_ok = 0;
 var requests_complete = 0;
 
 server.addListener('listening', function () {
  for (var i = 0; i < request_count; i++) {
-   http.cat('http://localhost:'+PORT+'/', 'utf8', function (err, content) {
+   http.cat('http://localhost:'+common.PORT+'/', 'utf8', function (err, content) {
      requests_complete++;
      if (err) {
        print("-");

@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 var fs = require('fs');
 var N = 100;
 var j = 0;

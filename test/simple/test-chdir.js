@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 assert.equal(true, process.cwd() !== __dirname);
 

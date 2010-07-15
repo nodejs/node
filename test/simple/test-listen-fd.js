@@ -1,14 +1,12 @@
 // Verify that net.Server.listenFD() can be used to accept connections on an
 // already-bound, already-listening socket.
 
-require('../common');
+common = require("../common");
+assert = common.assert
 http = require('http');
 netBinding = process.binding('net');
 
-// Select a random port for testing
-var PORT = 5000 + Math.floor(Math.random() * 1000);
-
-// Create an server and set it listening on a socket bound to PORT
+// Create an server and set it listening on a socket bound to common.PORT
 var gotRequest = false;
 var srv = http.createServer(function(req, resp) {
   gotRequest = true;
@@ -20,12 +18,12 @@ var srv = http.createServer(function(req, resp) {
 });
 
 var fd = netBinding.socket('tcp4');
-netBinding.bind(fd, PORT, '127.0.0.1');
+netBinding.bind(fd, common.PORT, '127.0.0.1');
 netBinding.listen(fd, 128);
 srv.listenFD(fd);
 
 // Make an HTTP request to the server above
-var hc = http.createClient(PORT, '127.0.0.1');
+var hc = http.createClient(common.PORT, '127.0.0.1');
 hc.request('/').end();
 
 // Verify that we're exiting after having received an HTTP  request

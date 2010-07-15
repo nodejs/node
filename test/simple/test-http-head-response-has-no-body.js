@@ -1,4 +1,5 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
 var http = require('http');
 
@@ -10,17 +11,17 @@ var server = http.createServer(function(req, res) {
   res.writeHead(200); // broken: defaults to TE chunked
   res.end();
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
 responseComplete = false;
 
-var req = http.createClient(PORT).request('HEAD', '/')
-error('req');
+var req = http.createClient(common.PORT).request('HEAD', '/')
+common.error('req');
 req.end();
 req.addListener('response', function (res) {
-  error('response');
+  common.error('response');
   res.addListener('end', function() {
-    error('response end');
+    common.error('response end');
     server.close();
     responseComplete = true;
   });

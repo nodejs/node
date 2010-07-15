@@ -1,10 +1,11 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 spawn = require('child_process').spawn,
 path = require('path');
 
 exits = 0;
 
-exitScript = path.join(fixturesDir, 'exit.js')
+exitScript = path.join(common.fixturesDir, 'exit.js')
 exitChild = spawn(process.argv[0], [exitScript, 23]);
 exitChild.addListener('exit', function(code, signal) {
   assert.strictEqual(code, 23);
@@ -15,7 +16,7 @@ exitChild.addListener('exit', function(code, signal) {
 
 
 
-errorScript = path.join(fixturesDir, 'child_process_should_emit_error.js')
+errorScript = path.join(common.fixturesDir, 'child_process_should_emit_error.js')
 errorChild = spawn(process.argv[0], [errorScript]);
 errorChild.addListener('exit', function(code, signal) {
   assert.ok(code !== 0);

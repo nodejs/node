@@ -1,9 +1,10 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
 var
   path = require('path'),
   fs = require('fs'),
-  fn = path.join(fixturesDir, "write.txt"),
+  fn = path.join(common.fixturesDir, "write.txt"),
   file = fs.createWriteStream(fn),
 
   EXPECTED = '012345678910',

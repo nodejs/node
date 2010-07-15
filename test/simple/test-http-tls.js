@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require("net");
 http = require("http");
 url = require("url");
@@ -22,9 +23,9 @@ var request_number = 0;
 var requests_sent = 0;
 var server_response = "";
 var client_got_eof = false;
-var caPem = fs.readFileSync(fixturesDir+"/test_ca.pem", 'ascii');
-var certPem = fs.readFileSync(fixturesDir+"/test_cert.pem", 'ascii');
-var keyPem = fs.readFileSync(fixturesDir+"/test_key.pem", 'ascii');
+var caPem = fs.readFileSync(common.fixturesDir+"/test_ca.pem", 'ascii');
+var certPem = fs.readFileSync(common.fixturesDir+"/test_cert.pem", 'ascii');
+var keyPem = fs.readFileSync(common.fixturesDir+"/test_key.pem", 'ascii');
 
 var credentials = crypto.createCredentials({key:keyPem, cert:certPem, ca:caPem});
 
@@ -71,9 +72,9 @@ var https_server = http.createServer(function (req, res) {
 
 });
 https_server.setSecure(credentials);
-https_server.listen(PORT);
+https_server.listen(common.PORT);
 
-var c = net.createConnection(PORT);
+var c = net.createConnection(common.PORT);
 
 c.setEncoding("utf8");
 

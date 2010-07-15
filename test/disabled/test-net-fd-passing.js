@@ -8,7 +8,7 @@ function fdPassingTest(path, port) {
   var message = "beep toot";
   var expectedData = ["[greeting] " + greeting, "[echo] " + message];
 
-  var receiverArgs = [fixturesDir + "/net-fd-passing-receiver.js", path, greeting];
+  var receiverArgs = [common.fixturesDir + "/net-fd-passing-receiver.js", path, greeting];
   var receiver = process.createChildProcess(process.ARGV[0], receiverArgs);
 
   var initializeSender = function() {

@@ -1,32 +1,33 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 var path = require('path');
 var fs = require('fs');
 var successes = 0;
 
-var file = path.join(fixturesDir, "a.js");
+var file = path.join(common.fixturesDir, "a.js");
 
-error("open " + file);
+common.error("open " + file);
 
 fs.open(file, "a", 0777, function (err, fd) {
-  error("fd " + fd);
+  common.error("fd " + fd);
   if (err) throw err;
 
   fs.fdatasyncSync(fd);
-  error("fdatasync SYNC: ok");
+  common.error("fdatasync SYNC: ok");
   successes++;
 
   fs.fsyncSync(fd);
-  error("fsync SYNC: ok");
+  common.error("fsync SYNC: ok");
   successes++;
 
   fs.fdatasync(fd, function (err) {
     if (err) throw err;
-    error("fdatasync ASYNC: ok");
+    common.error("fdatasync ASYNC: ok");
     successes++;
     fs.fsync(fd, function(err) {
       if (err) throw err;
-      error("fsync ASYNC: ok");
+      common.error("fsync ASYNC: ok");
       successes++;
     });
   });

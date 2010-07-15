@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 http = require("http");
 
 var body = "exports.A = function() { return 'A';}";
@@ -14,8 +15,8 @@ var server = http.createServer(function (req, res) {
 var got_good_server_content = false;
 var bad_server_got_error = false;
 
-server.listen(PORT, function () {
-  http.cat("http://localhost:"+PORT+"/", "utf8", function (err, content) {
+server.listen(common.PORT, function () {
+  http.cat("http://localhost:"+common.PORT+"/", "utf8", function (err, content) {
     if (err) {
       throw err;
     } else {

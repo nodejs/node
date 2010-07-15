@@ -1,8 +1,9 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 var path = require('path'),
     Buffer = require('buffer').Buffer,
     fs = require('fs'),
-    filepath = path.join(fixturesDir, 'x.txt'),
+    filepath = path.join(common.fixturesDir, 'x.txt'),
     fd = fs.openSync(filepath, 'r'),
     expected = 'xyz\n',
     bufferAsync = new Buffer(expected.length),

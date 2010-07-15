@@ -1,6 +1,7 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 var path = require('path');
-var testTxt = path.join(fixturesDir, "x.txt");
+var testTxt = path.join(common.fixturesDir, "x.txt");
 var fs = require('fs');
 
 setTimeout(function () {

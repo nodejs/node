@@ -1,9 +1,10 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 var path = require('path');
 var fs = require('fs');
 
 var got_error = false,
-    readdirDir = path.join(fixturesDir, "readdir")
+    readdirDir = path.join(common.fixturesDir, "readdir")
 
 var files = ['are'
             , 'dir'

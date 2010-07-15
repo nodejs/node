@@ -1,6 +1,7 @@
 /* XXX Can this test be modified to not call the now-removed wait()? */
 
-require("../common");
+common = require("../common");
+assert = common.assert
 
 
 console.log('first stat ...');

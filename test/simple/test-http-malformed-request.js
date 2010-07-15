@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require("net");
 http = require("http");
 url = require("url");
@@ -18,9 +19,9 @@ var s = http.createServer(function (req, res) {
 
   if (++nrequests_completed == nrequests_expected) s.close();
 });
-s.listen(PORT);
+s.listen(common.PORT);
 
-var c = net.createConnection(PORT);
+var c = net.createConnection(common.PORT);
 c.addListener("connect", function () {
   c.write("GET /hello?foo=%99bar HTTP/1.1\r\n\r\n");
   c.end();

@@ -1,4 +1,5 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 var sys = require("sys"),
 fs = require("fs"),
 http = require("http"),
@@ -63,7 +64,7 @@ function call_chargen(list) {
   if (list.length > 0) {
     var len = list.shift();
 
-    sys.debug("calling chargen for " + len + " chunks.");
+    sys.common.debug("calling chargen for " + len + " chunks.");
 
     var recved = 0;
 
@@ -78,7 +79,7 @@ function call_chargen(list) {
 
       res.addListener('end', function() {
         assert.ok(recved <= (len*chunk.length));
-        sys.debug("end for " + len + " chunks.");
+        sys.common.debug("end for " + len + " chunks.");
         call_chargen(list);
       });
 

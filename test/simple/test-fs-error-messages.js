@@ -1,9 +1,10 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
 var path = require('path'),
     fs = require('fs'),
-    fn = path.join(fixturesDir, 'non-existent'),
-    existingFile = path.join(fixturesDir, 'exit.js');
+    fn = path.join(common.fixturesDir, 'non-existent'),
+    existingFile = path.join(common.fixturesDir, 'exit.js');
 
 // ASYNC_CALL
 

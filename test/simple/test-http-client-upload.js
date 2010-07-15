@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 http = require("http");
 
 var sent_body = "";
@@ -22,16 +23,16 @@ var server = http.createServer(function(req, res) {
     res.end();
   });
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
-var client = http.createClient(PORT);
+var client = http.createClient(common.PORT);
 var req = client.request('POST', '/');
 req.write('1\n');
 req.write('2\n');
 req.write('3\n');
 req.end();
 
-error("client finished sending request");
+common.error("client finished sending request");
 
 req.addListener('response', function(res) {
   res.setEncoding("utf8");

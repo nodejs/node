@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 var sys = require("sys"),
   net = require("net"),
@@ -9,7 +10,7 @@ var sys = require("sys"),
   prompt_tcp = "node via TCP socket> ",
   server_tcp, server_unix, client_tcp, client_unix, timer;
 
-error('repl test');
+common.error('repl test');
 
 // function for REPL to run
 invoke_me = function (arg) {
@@ -20,7 +21,7 @@ function send_expect(list) {
   if (list.length > 0) {
     var cur = list.shift();
 
-    error("sending " + JSON.stringify(cur.send));
+    common.error("sending " + JSON.stringify(cur.send));
 
     cur.client.expect = cur.expect;
     cur.client.list = list;
@@ -42,10 +43,10 @@ function tcp_test() {
     repl.start(prompt_tcp, socket);
   });
 
-  server_tcp.listen(PORT, function () {
+  server_tcp.listen(common.PORT, function () {
     var read_buffer = "";
 
-    client_tcp = net.createConnection(PORT);
+    client_tcp = net.createConnection(common.PORT);
 
     client_tcp.addListener('connect', function () {
       assert.equal(true, client_tcp.readable);
@@ -60,7 +61,7 @@ function tcp_test() {
 
     client_tcp.addListener('data', function (data) {
       read_buffer += data.asciiSlice(0, data.length);
-      error("TCP data: " + JSON.stringify(read_buffer) + ", expecting " + JSON.stringify(client_tcp.expect));
+      common.error("TCP data: " + JSON.stringify(read_buffer) + ", expecting " + JSON.stringify(client_tcp.expect));
       if (read_buffer.indexOf(prompt_tcp) !== -1) {
         assert.strictEqual(client_tcp.expect, read_buffer);
         read_buffer = "";
@@ -68,14 +69,14 @@ function tcp_test() {
           send_expect(client_tcp.list);
         }
         else {
-          error("End of TCP test.");
+          common.error("End of TCP test.");
           client_tcp.end();
           client_unix.end();
           clearTimeout(timer);
         }
       }
       else {
-        error("didn't see prompt yet, buffering");
+        common.error("didn't see prompt yet, buffering");
       }
     });
 
@@ -121,20 +122,20 @@ function unix_test() {
 
     client_unix.addListener('data', function (data) {
       read_buffer += data.asciiSlice(0, data.length);
-      error("Unix data: " + JSON.stringify(read_buffer) + ", expecting " + JSON.stringify(client_unix.expect));
+      common.error("Unix data: " + JSON.stringify(read_buffer) + ", expecting " + JSON.stringify(client_unix.expect));
       if (read_buffer.indexOf(prompt_unix) !== -1) {
         assert.strictEqual(client_unix.expect, read_buffer);
-        error("match");
+        common.error("match");
         read_buffer = "";
         if (client_unix.list && client_unix.list.length > 0) {
           send_expect(client_unix.list);
         } else {
-          error("End of Unix test, running TCP test.");
+          common.error("End of Unix test, running TCP test.");
           tcp_test();
         }
       }
       else {
-        error("didn't see prompt yet, bufering.");
+        common.error("didn't see prompt yet, bufering.");
       }
     });
 

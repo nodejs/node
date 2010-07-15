@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 var fs = require('fs');
 var sys = require('sys');
 var net = require('net');
@@ -13,9 +14,9 @@ try {
   process.exit();
 }
 
-var caPem = fs.readFileSync(fixturesDir+"/test_ca.pem", 'ascii');
-var certPem = fs.readFileSync(fixturesDir+"/test_cert.pem", 'ascii');
-var keyPem = fs.readFileSync(fixturesDir+"/test_key.pem", 'ascii');
+var caPem = fs.readFileSync(common.fixturesDir+"/test_ca.pem", 'ascii');
+var certPem = fs.readFileSync(common.fixturesDir+"/test_cert.pem", 'ascii');
+var keyPem = fs.readFileSync(common.fixturesDir+"/test_key.pem", 'ascii');
 
 var credentials = crypto.createCredentials({key:keyPem, cert:certPem, ca:caPem});
 
@@ -55,9 +56,9 @@ var secureServer = net.createServer(function (connection) {
     self.close();
   });
 });
-secureServer.listen(PORT);
+secureServer.listen(common.PORT);
 
-var secureClient = net.createConnection(PORT);
+var secureClient = net.createConnection(common.PORT);
 
 secureClient.setEncoding("UTF8");
 secureClient.addListener("connect", function () {

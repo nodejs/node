@@ -1,4 +1,5 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
 // TODO Improved this test. test_ca.pem is too small. A proper test would
 // great a large utf8 (with multibyte chars) file and stream it in,
@@ -7,7 +8,7 @@ require('../common');
 Buffer = require('buffer').Buffer;
 path = require('path');
 fs = require('fs');
-fn = path.join(fixturesDir, 'elipses.txt');
+fn = path.join(common.fixturesDir, 'elipses.txt');
 
 callbacks = { open: 0, end: 0, close: 0, destroy: 0 };
 

@@ -1,10 +1,11 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 var spawn = require('child_process').spawn;
 
 var path = require('path');
 
-var sub = path.join(fixturesDir, 'echo.js');
+var sub = path.join(common.fixturesDir, 'echo.js');
 
 var gotHelloWorld = false;
 var gotEcho = false;

@@ -1,6 +1,7 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
-error('before');
+common.error('before');
 
 var Script = process.binding('evals').Script;
 
@@ -8,4 +9,4 @@ var Script = process.binding('evals').Script;
 script = new Script('foo.bar = 5;');
 script.runInNewContext();
 
-error('after');
+common.error('after');

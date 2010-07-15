@@ -1,4 +1,5 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 var sys = require('sys'), i;
 
 var N = 30;

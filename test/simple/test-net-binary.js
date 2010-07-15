@@ -1,11 +1,12 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 tcp = require("tcp");
 
 binaryString = "";
 for (var i = 255; i >= 0; i--) {
   var s = "'\\" + i.toString(8) + "'";
   S = eval(s);
-  error( s
+  common.error( s
        + " "
        + JSON.stringify(S)
        + " "
@@ -21,24 +22,24 @@ for (var i = 255; i >= 0; i--) {
 var echoServer = tcp.createServer(function (connection) {
   connection.setEncoding("binary");
   connection.addListener("data", function (chunk) {
-    error("recved: " + JSON.stringify(chunk));
+    common.error("recved: " + JSON.stringify(chunk));
     connection.write(chunk, "binary");
   });
   connection.addListener("end", function () {
     connection.end();
   });
 });
-echoServer.listen(PORT);
+echoServer.listen(common.PORT);
 
 var recv = "";
 var j = 0;
 
-var c = tcp.createConnection(PORT);
+var c = tcp.createConnection(common.PORT);
 
 c.setEncoding("binary");
 c.addListener("data", function (chunk) {
   if (j < 256) {
-    error("write " + j);
+    common.error("write " + j);
     c.write(String.fromCharCode(j), "binary");
     j++;
   } else {

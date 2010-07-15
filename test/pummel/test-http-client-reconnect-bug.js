@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 var tcp = require("tcp"),
     sys = require("sys"),
@@ -10,9 +11,9 @@ var eofCount = 0;
 var server = tcp.createServer(function(socket) {
   socket.end();
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
-var client = http.createClient(PORT);
+var client = http.createClient(common.PORT);
 
 client.addListener("error", function() {
   console.log("ERROR!");

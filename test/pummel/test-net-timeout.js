@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require("net");
 exchanges = 0;
 starttime = null;
@@ -29,11 +30,11 @@ var echo_server = net.createServer(function (socket) {
   });
 });
 
-echo_server.listen(PORT, function () {
-  console.log("server listening at " + PORT);
+echo_server.listen(common.PORT, function () {
+  console.log("server listening at " + common.PORT);
 });
 
-var client = net.createConnection(PORT);
+var client = net.createConnection(common.PORT);
 client.setEncoding("UTF8");
 client.setTimeout(0); // disable the timeout for client
 client.addListener("connect", function () {

@@ -13,12 +13,12 @@ var server = http.createServer(function (req, res) {
   res.sendBody(body);
   res.finish();
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
 var errors = 0;
 var successes = 0;
 
-var promise = process.cat("http://localhost:"+PORT, "utf8");
+var promise = process.cat("http://localhost:"+common.PORT, "utf8");
 
 promise.addCallback(function (content) {
   assert.equal(body, content);

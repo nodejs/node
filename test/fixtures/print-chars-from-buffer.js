@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 Buffer = require("buffer").Buffer;
 
 var n = parseInt(process.argv[2]);

@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 var http = require("http"),
   sys = require("sys"),
   server,
@@ -27,7 +28,7 @@ function check_reqs() {
 }
 
 function add_client(num) {
-  var req = http.createClient(PORT).request('GET', '/busy/' + num);
+  var req = http.createClient(common.PORT).request('GET', '/busy/' + num);
   req.end();
 
   req.addListener('response', function(res) {
@@ -46,7 +47,7 @@ function add_client(num) {
   return req;
 }
 
-server.listen(PORT, function () {
+server.listen(common.PORT, function () {
   for (req_num = 0; req_num < 4 ; req_num += 1) {
     client_requests.push(add_client(req_num));
   }

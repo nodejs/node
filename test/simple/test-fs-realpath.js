@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 var fs = require('fs');
 var path = require('path');
 var async_completed = 0, async_expected = 0, unlink = [];
@@ -30,8 +31,8 @@ function bashRealpath(path, callback) {
 // sub-tests:
 
 function test_simple_relative_symlink(callback) {
-  var entry = fixturesDir+'/cycles/symlink',
-      expected = fixturesDir+'/cycles/root.js';
+  var entry = common.fixturesDir+'/cycles/symlink',
+      expected = common.fixturesDir+'/cycles/root.js';
   [
     [entry, 'root.js'],
   ].forEach(function(t) {
@@ -41,15 +42,15 @@ function test_simple_relative_symlink(callback) {
   });
   var result = fs.realpathSync(entry);
   assert.equal(result, expected,
-      'got '+inspect(result)+' expected '+inspect(expected));
+      'got '+common.inspect(result)+' expected '+common.inspect(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result){
     assert.equal(result, expected,
-      'got '+inspect(result)+' expected '+inspect(expected));
+      'got '+common.inspect(result)+' expected '+common.inspect(expected));
   });
 }
 
 function test_simple_absolute_symlink(callback) {
-  bashRealpath(fixturesDir, function(err, fixturesAbsDir) {
+  bashRealpath(common.fixturesDir, function(err, fixturesAbsDir) {
     if (err) return callback(err);
     var entry = fixturesAbsDir+'/cycles/symlink',
         expected = fixturesAbsDir+'/nested-index/one/index.js';
@@ -62,23 +63,23 @@ function test_simple_absolute_symlink(callback) {
     });
     var result = fs.realpathSync(entry);
     assert.equal(result, expected,
-        'got '+inspect(result)+' expected '+inspect(expected));
+        'got '+common.inspect(result)+' expected '+common.inspect(expected));
     asynctest(fs.realpath, [entry], callback, function(err, result){
       assert.equal(result, expected,
-        'got '+inspect(result)+' expected '+inspect(expected));
+        'got '+common.inspect(result)+' expected '+common.inspect(expected));
     });
   });
 }
 
 function test_deep_relative_file_symlink(callback) {
-  var expected = path.join(fixturesDir, 'cycles', 'root.js');
+  var expected = path.join(common.fixturesDir, 'cycles', 'root.js');
   var linkData1 = "../../cycles/root.js";
-  var linkPath1 = path.join(fixturesDir, "nested-index", 'one', 'symlink1.js');
+  var linkPath1 = path.join(common.fixturesDir, "nested-index", 'one', 'symlink1.js');
   try {fs.unlinkSync(linkPath1);}catch(e){}
   fs.symlinkSync(linkData1, linkPath1);
 
   var linkData2 = "../one/symlink1.js";
-  var entry = path.join(fixturesDir, "nested-index", 'two', 'symlink1-b.js');
+  var entry = path.join(common.fixturesDir, "nested-index", 'two', 'symlink1-b.js');
   try {fs.unlinkSync(entry);}catch(e){}
   fs.symlinkSync(linkData2, entry);
   unlink.push(linkPath1);
@@ -87,19 +88,19 @@ function test_deep_relative_file_symlink(callback) {
   assert.equal(fs.realpathSync(entry), expected);
   asynctest(fs.realpath, [entry], callback, function(err, result){
     assert.equal(result, expected,
-      'got '+inspect(result)+' expected '+inspect(expected));
+      'got '+common.inspect(result)+' expected '+common.inspect(expected));
   });
 }
 
 function test_deep_relative_dir_symlink(callback) {
-  var expected = path.join(fixturesDir, 'cycles', 'folder');
+  var expected = path.join(common.fixturesDir, 'cycles', 'folder');
   var linkData1b = "../../cycles/folder";
-  var linkPath1b = path.join(fixturesDir, "nested-index", 'one', 'symlink1-dir');
+  var linkPath1b = path.join(common.fixturesDir, "nested-index", 'one', 'symlink1-dir');
   try {fs.unlinkSync(linkPath1b);}catch(e){}
   fs.symlinkSync(linkData1b, linkPath1b);
 
   var linkData2b = "../one/symlink1-dir";
-  var entry = path.join(fixturesDir, "nested-index", 'two', 'symlink12-dir');
+  var entry = path.join(common.fixturesDir, "nested-index", 'two', 'symlink12-dir');
   try {fs.unlinkSync(entry);}catch(e){}
   fs.symlinkSync(linkData2b, entry);
   unlink.push(linkPath1b);
@@ -109,16 +110,16 @@ function test_deep_relative_dir_symlink(callback) {
 
   asynctest(fs.realpath, [entry], callback, function(err, result){
     assert.equal(result, expected,
-      'got '+inspect(result)+' expected '+inspect(expected));
+      'got '+common.inspect(result)+' expected '+common.inspect(expected));
   });
 }
 
 function test_cyclic_link_protection(callback) {
-  var entry = fixturesDir+'/cycles/realpath-3a';
+  var entry = common.fixturesDir+'/cycles/realpath-3a';
   [
     [entry, '../cycles/realpath-3b'],
-    [fixturesDir+'/cycles/realpath-3b', '../cycles/realpath-3c'],
-    [fixturesDir+'/cycles/realpath-3c', '../cycles/realpath-3a'],
+    [common.fixturesDir+'/cycles/realpath-3b', '../cycles/realpath-3c'],
+    [common.fixturesDir+'/cycles/realpath-3c', '../cycles/realpath-3a'],
   ].forEach(function(t) {
     try {fs.unlinkSync(t[0]);}catch(e){}
     fs.symlinkSync(t[1], t[0]);
@@ -132,14 +133,14 @@ function test_cyclic_link_protection(callback) {
 }
 
 function test_relative_input_cwd(callback) {
-  var p = fixturesDir.lastIndexOf('/');
-  var entrydir = fixturesDir.substr(0, p);
-  var entry = fixturesDir.substr(p+1)+'/cycles/realpath-3a';
-  var expected = fixturesDir+'/cycles/root.js';
+  var p = common.fixturesDir.lastIndexOf('/');
+  var entrydir = common.fixturesDir.substr(0, p);
+  var entry = common.fixturesDir.substr(p+1)+'/cycles/realpath-3a';
+  var expected = common.fixturesDir+'/cycles/root.js';
   [
     [entry, '../cycles/realpath-3b'],
-    [fixturesDir+'/cycles/realpath-3b', '../cycles/realpath-3c'],
-    [fixturesDir+'/cycles/realpath-3c', 'root.js'],
+    [common.fixturesDir+'/cycles/realpath-3b', '../cycles/realpath-3c'],
+    [common.fixturesDir+'/cycles/realpath-3c', 'root.js'],
   ].forEach(function(t) {
     var fn = t[0];
     if (fn.charAt(0) !== '/') fn = entrydir + '/' + fn;
@@ -153,16 +154,16 @@ function test_relative_input_cwd(callback) {
   asynctest(fs.realpath, [entry], callback, function(err, result){
     process.chdir(origcwd);
     assert.equal(result, expected,
-      'got '+inspect(result)+' expected '+inspect(expected));
+      'got '+common.inspect(result)+' expected '+common.inspect(expected));
     return true;
   });
 }
 
 function test_deep_symlink_mix(callback) {
-  // todo: check to see that fixturesDir is not rooted in the
+  // todo: check to see that common.fixturesDir is not rooted in the
   //       same directory as our test symlink.
   // obtain our current realpath using bash (so we can test ourselves)
-  bashRealpath(fixturesDir, function(err, fixturesAbsDir) {
+  bashRealpath(common.fixturesDir, function(err, fixturesAbsDir) {
     if (err) return callback(err);
     /*
     /tmp/node-test-realpath-f1 -> ../tmp/node-test-realpath-d1/foo
@@ -188,7 +189,7 @@ function test_deep_symlink_mix(callback) {
         [fixturesAbsDir+'/nested-index/one/realpath-c', fixturesAbsDir+'/nested-index/two/realpath-c'],
         [fixturesAbsDir+'/nested-index/two/realpath-c', '../../cycles/root.js'],
       ].forEach(function(t) {
-        //debug('setting up '+t[0]+' -> '+t[1]);
+        //common.debug('setting up '+t[0]+' -> '+t[1]);
         try {fs.unlinkSync(t[0]);}catch(e){}
         fs.symlinkSync(t[1], t[0]);
         unlink.push(t[0]);
@@ -200,14 +201,14 @@ function test_deep_symlink_mix(callback) {
     assert.equal(fs.realpathSync(entry), expected);
     asynctest(fs.realpath, [entry], callback, function(err, result){
       assert.equal(result, expected,
-        'got '+inspect(result)+' expected '+inspect(expected));
+        'got '+common.inspect(result)+' expected '+common.inspect(expected));
       return true;
     });
   });
 }
 
 function test_non_symlinks(callback) {
-  bashRealpath(fixturesDir, function(err, fixturesAbsDir) {
+  bashRealpath(common.fixturesDir, function(err, fixturesAbsDir) {
     if (err) return callback(err);
     var p = fixturesAbsDir.lastIndexOf('/');
     var entrydir = fixturesAbsDir.substr(0, p);
@@ -219,7 +220,7 @@ function test_non_symlinks(callback) {
     asynctest(fs.realpath, [entry], callback, function(err, result){
       process.chdir(origcwd);
       assert.equal(result, expected,
-        'got '+inspect(result)+' expected '+inspect(expected));
+        'got '+common.inspect(result)+' expected '+common.inspect(expected));
       return true;
     });
   });

@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require("net");
 http = require("http");
 url = require("url");
@@ -21,21 +22,21 @@ http.createServer(function (req, res) {
   }
 
   if (req.id == 1) {
-    error("req 1");
+    common.error("req 1");
     assert.equal("POST", req.method);
     assert.equal("/quit", url.parse(req.url).pathname);
   }
 
   if (req.id == 2) {
-    error("req 2");
+    common.error("req 2");
     assert.equal("foo", req.headers['x-x']);
   }
 
   if (req.id == 3) {
-    error("req 3");
+    common.error("req 3");
     assert.equal("bar", req.headers['x-x']);
     this.close();
-    error("server closed");
+    common.error("server closed");
   }
 
   setTimeout(function () {
@@ -44,9 +45,9 @@ http.createServer(function (req, res) {
     res.end();
   }, 1);
 
-}).listen(PORT);
+}).listen(common.PORT);
 
-var c = net.createConnection(PORT);
+var c = net.createConnection(common.PORT);
 
 c.setEncoding("utf8");
 

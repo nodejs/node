@@ -1,8 +1,9 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 var path = require('path');
 var Buffer = require('buffer').Buffer;
 var fs = require('fs');
-var fn = path.join(fixturesDir, "write.txt");
+var fn = path.join(common.fixturesDir, "write.txt");
 var expected = "ümlaut.";
 var found;
 

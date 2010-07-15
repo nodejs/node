@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require("net");
 
 
@@ -25,7 +26,7 @@ function pingPongTest (port, host, on_complete) {
     });
 
     socket.addListener("timeout", function () {
-      debug("server-side timeout!!");
+      common.debug("server-side timeout!!");
       assert.equal(false, true);
     });
 
@@ -71,7 +72,7 @@ function pingPongTest (port, host, on_complete) {
   });
 
   client.addListener("timeout", function () {
-    debug("client-side timeout!!");
+    common.debug("client-side timeout!!");
     assert.equal(false, true);
   });
 
@@ -84,7 +85,7 @@ function pingPongTest (port, host, on_complete) {
   });
 }
 
-pingPongTest(PORT);
+pingPongTest(common.PORT);
 
 process.addListener("exit", function () {
   assert.equal(1, tests_run);

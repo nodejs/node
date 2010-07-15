@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require("net");
 
 var tests_run = 0;
@@ -84,12 +85,12 @@ function pingPongTest (port, host, on_complete) {
 }
 
 /* All are run at once, so run on different ports */
-pingPongTest(PORT, "localhost");
-pingPongTest(PORT+1, null);
+pingPongTest(common.PORT, "localhost");
+pingPongTest(common.PORT+1, null);
 
 // This IPv6 isn't working on Solaris
 var solaris = /sunos/i.test(process.platform);
-if (!solaris) pingPongTest(PORT+2, "::1");
+if (!solaris) pingPongTest(common.PORT+2, "::1");
 
 process.addListener("exit", function () {
   assert.equal(solaris ? 2 : 3, tests_run);

@@ -1,12 +1,13 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
 var sys=require('sys');
 var net=require('net');
 var fs=require('fs');
 var crypto=require('crypto');
 
-var keyPem = fs.readFileSync(fixturesDir + "/cert.pem");
-var certPem = fs.readFileSync(fixturesDir + "/cert.pem");
+var keyPem = fs.readFileSync(common.fixturesDir + "/cert.pem");
+var certPem = fs.readFileSync(common.fixturesDir + "/cert.pem");
 
 var credentials = crypto.createCredentials({key:keyPem, cert:certPem});
 var i = 0;

@@ -1,21 +1,21 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
-var sys = require('sys'),
-  http = require('http'),
-  childProcess = require('child_process');
+http = require('http');
+childProcess = require('child_process');
 
 s = http.createServer(function (request, response) {
   response.writeHead(304);
   response.end();
 });
 
-s.listen(PORT, function () {
-  childProcess.exec('curl -i http://127.0.0.1:'+PORT+'/', function (err, stdout, stderr) {
+s.listen(common.PORT, function () {
+  childProcess.exec('curl -i http://127.0.0.1:'+common.PORT+'/', function (err, stdout, stderr) {
     if (err) throw err;
     s.close();
-    error('curled response correctly');
-    error(sys.inspect(stdout));
+    common.error('curled response correctly');
+    common.error(common.inspect(stdout));
   });
 });
 
-console.log('Server running at http://127.0.0.1:'+PORT+'/')
+console.log('Server running at http://127.0.0.1:'+common.PORT+'/')

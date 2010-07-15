@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 var MESSAGE = 'catch me if you can';
 var caughtException = false;

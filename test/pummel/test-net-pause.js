@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require("net");
 N = 200;
 
@@ -15,13 +16,13 @@ server = net.createServer(function (connection) {
   }
   write(0);
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
 
 recv = "";
 chars_recved = 0;
 
-client = net.createConnection(PORT);
+client = net.createConnection(common.PORT);
 client.setEncoding("ascii");
 client.addListener("data", function (d) {
     print(d);
@@ -63,5 +64,5 @@ client.addListener("end", function () {
 
 process.addListener("exit", function () {
   assert.equal(N, recv.length);
-  debug("Exit");
+  common.debug("Exit");
 });

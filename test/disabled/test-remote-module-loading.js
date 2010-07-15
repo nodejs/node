@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 var http = require('http');
 var sys = require('sys');
@@ -14,16 +15,16 @@ var server = http.createServer(function(req, res) {
   res.write(body);
   res.end();
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
 assert.throws(function () {
-  var httpModule = require('http://localhost:'+PORT+'/moduleA.js');
+  var httpModule = require('http://localhost:'+common.PORT+'/moduleA.js');
   assert.equal('/moduleA.js', httpModule.httpPath());
   modulesLoaded++;
 });
 
 var nodeBinary = process.ARGV[0];
-var cmd = 'NODE_PATH='+libDir+' '+nodeBinary+' http://localhost:'+PORT+'/moduleB.js';
+var cmd = 'NODE_PATH='+libDir+' '+nodeBinary+' http://localhost:'+common.PORT+'/moduleB.js';
 
 sys.exec(cmd, function (err, stdout, stderr) {
   if (err) throw err;

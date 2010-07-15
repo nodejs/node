@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 // This test requires the program "ab"
 http = require("http");
 exec = require("child_process").exec;
@@ -19,7 +20,7 @@ server = http.createServer(function (req, res) {
 runs = 0;
 
 function runAb(opts, callback) {
-  var command = "ab " + opts + " http://127.0.0.1:" + PORT + "/";
+  var command = "ab " + opts + " http://127.0.0.1:" + common.PORT + "/";
   exec(command, function (err, stdout, stderr) {
     if (err) {
       console.log("ab not installed? skipping test.\n" + stderr);
@@ -45,7 +46,7 @@ function runAb(opts, callback) {
   });
 }
 
-server.listen(PORT, function () {
+server.listen(common.PORT, function () {
   runAb("-c 1 -n 10", function () {
     console.log("-c 1 -n 10 okay");
 

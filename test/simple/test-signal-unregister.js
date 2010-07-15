@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 var childKilled = false, done = false,
     spawn = require('child_process').spawn,
@@ -7,7 +8,7 @@ var childKilled = false, done = false,
 
 var join = require('path').join;
 
-child = spawn(process.argv[0], [join(fixturesDir, 'should_exit.js')]);
+child = spawn(process.argv[0], [join(common.fixturesDir, 'should_exit.js')]);
 child.addListener('exit', function () {
   if (!done) childKilled = true;
 });

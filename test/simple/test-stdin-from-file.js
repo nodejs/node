@@ -1,11 +1,12 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
 join = require('path').join;
 childProccess = require('child_process');
 fs = require('fs');
 
-stdoutScript = join(fixturesDir, 'echo.js');
-tmpFile = join(fixturesDir, 'stdin.txt');
+stdoutScript = join(common.fixturesDir, 'echo.js');
+tmpFile = join(common.fixturesDir, 'stdin.txt');
 
 cmd = process.argv[0] + ' ' + stdoutScript + ' < ' + tmpFile;
 

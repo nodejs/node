@@ -1,8 +1,9 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 tcp = require("tcp");
 sys = require("sys");
-var x = path.join(fixturesDir, "x.txt");
+var x = path.join(common.fixturesDir, "x.txt");
 var expected = "xyz";
 
 var server = tcp.createServer(function (socket) {
@@ -14,9 +15,9 @@ var server = tcp.createServer(function (socket) {
     assert.equal(expected, found);
   });
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
-var client = tcp.createConnection(PORT);
+var client = tcp.createConnection(common.PORT);
 client.addListener("connect", function () {
   fs.open(x, 'r').addCallback(function (fd) {
     fs.sendfile(client.fd, fd, 0, expected.length).addCallback(function (size) {

@@ -1,11 +1,12 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 var path = require('path');
 var fs = require('fs');
 var completed = 0;
 
 // test creating and reading symbolic link
 var linkData = "../../cycles/root.js";
-var linkPath = path.join(fixturesDir, "nested-index", 'one', 'symlink1.js');
+var linkPath = path.join(common.fixturesDir, "nested-index", 'one', 'symlink1.js');
 try {fs.unlinkSync(linkPath);}catch(e){}
 fs.symlink(linkData, linkPath, function(err){
   if (err) throw err;
@@ -19,8 +20,8 @@ fs.symlink(linkData, linkPath, function(err){
 });
 
 // test creating and reading hard link
-var srcPath = path.join(fixturesDir, "cycles", 'root.js');
-var dstPath = path.join(fixturesDir, "nested-index", 'one', 'link1.js');
+var srcPath = path.join(common.fixturesDir, "cycles", 'root.js');
+var dstPath = path.join(common.fixturesDir, "nested-index", 'one', 'link1.js');
 try {fs.unlinkSync(dstPath);}catch(e){}
 fs.link(srcPath, dstPath, function(err){
   if (err) throw err;

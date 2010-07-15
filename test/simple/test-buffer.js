@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 assert = require("assert");
 
 var Buffer = require('buffer').Buffer;

@@ -1,4 +1,5 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
 http = require('http');
 net = require('net');
@@ -6,7 +7,7 @@ net = require('net');
 gotReq = false;
 
 server = http.createServer(function (req, res) {
-  error('got req');
+  common.error('got req');
   gotReq = true;
   assert.equal('GET', req.method);
   assert.equal('/blah', req.url);
@@ -18,11 +19,11 @@ server = http.createServer(function (req, res) {
 });
 
 
-server.listen(PORT, function () {
-  var c = net.createConnection(PORT);
+server.listen(common.PORT, function () {
+  var c = net.createConnection(common.PORT);
 
   c.addListener('connect', function () {
-    error('client wrote message');
+    common.error('client wrote message');
     c.write( "GET /blah HTTP/1.1\r\n"
            + "Host: mapdevel.trolologames.ru:443\r\n"
            + "Cookie:\r\n"
@@ -36,7 +37,7 @@ server.listen(PORT, function () {
   });
 
   c.addListener('close', function () {
-    error('client close');
+    common.error('client close');
     server.close();
   });
 });

@@ -1,10 +1,11 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 var path = require('path');
 var fs = require('fs');
 var got_error = false;
 var success_count = 0;
 
-var file = path.join(fixturesDir, "a.js");
+var file = path.join(common.fixturesDir, "a.js");
 
 fs.chmod(file, 0777, function (err) {
   if (err) {

@@ -1,8 +1,9 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 var path = require('path'),
     Buffer = require('buffer').Buffer,
     fs = require('fs'),
-    filename = path.join(fixturesDir, 'write.txt'),
+    filename = path.join(common.fixturesDir, 'write.txt'),
     expected = new Buffer('hello'),
     openCalled = 0,
     writeCalled = 0;

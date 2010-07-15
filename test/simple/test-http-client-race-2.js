@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 http = require("http");
 url = require("url");
 
@@ -26,9 +27,9 @@ var server = http.createServer(function (req, res) {
                       });
   res.end(body);
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
-var client = http.createClient(PORT);
+var client = http.createClient(common.PORT);
 
 var body1 = "";
 var body2 = "";
@@ -57,7 +58,7 @@ req1.addListener('response', function (res1) {
       // parser that previously belonged to Client #1. But we're not finished
       // with Client #1 yet!
       //
-      var client2 = http.createClient(PORT);
+      var client2 = http.createClient(common.PORT);
 
       //
       // At this point, the bug would manifest itself and crash because the

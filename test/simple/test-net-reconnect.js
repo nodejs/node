@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require('net');
 var N = 50;
 
@@ -21,9 +22,9 @@ var server = net.createServer(function (socket) {
   });
 });
 
-server.listen(PORT, function () {
+server.listen(common.PORT, function () {
   console.log('listening');
-  var client = net.createConnection(PORT);
+  var client = net.createConnection(common.PORT);
 
   client.setEncoding("UTF8");
 
@@ -42,7 +43,7 @@ server.listen(PORT, function () {
     console.log("disconnect");
     assert.equal(false, had_error);
     if (disconnect_count++ < N)
-      client.connect(PORT); // reconnect
+      client.connect(common.PORT); // reconnect
     else
       server.close();
   });

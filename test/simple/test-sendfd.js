@@ -25,7 +25,8 @@
 //     seen in a response yet. This is intended to ensure that all blobs
 //     sent out have been relayed back to us.
 
-require('../common');
+common = require("../common");
+assert = common.assert
 
 var buffer = require('buffer');
 var child_process = require('child_process');
@@ -53,7 +54,7 @@ var logChild = function(d) {
 
   d.split('\n').forEach(function(l) {
     if (l.length > 0) {
-      sys.debug('CHILD: ' + l);
+      sys.common.debug('CHILD: ' + l);
     }
   });
 };
@@ -108,7 +109,7 @@ srv.listen(SOCK_PATH);
 
 // Spawn a child running test/fixtures/recvfd.js
 var cp = child_process.spawn(process.argv[0],
-                             [path.join(fixturesDir, 'recvfd.js'), SOCK_PATH]);
+                             [path.join(common.fixturesDir, 'recvfd.js'), SOCK_PATH]);
 
 cp.stdout.addListener('data', logChild);
 cp.stderr.addListener('data', logChild);

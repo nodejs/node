@@ -1,4 +1,5 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
 Buffer = require('buffer').Buffer;
 StringDecoder = require('string_decoder').StringDecoder;

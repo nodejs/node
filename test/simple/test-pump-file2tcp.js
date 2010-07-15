@@ -1,26 +1,27 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require("net");
 fs = require("fs");
 sys = require("sys");
 path = require("path");
-fn = path.join(fixturesDir, 'elipses.txt');
+fn = path.join(common.fixturesDir, 'elipses.txt');
 
 expected = fs.readFileSync(fn, 'utf8');
 
 server = net.createServer(function (stream) {
-  error('pump!');
+  common.error('pump!');
   sys.pump(fs.createReadStream(fn), stream, function () {
-    error('server stream close');
-    error('server close');
+    common.error('server stream close');
+    common.error('server close');
     server.close();
   });
 });
 
-server.listen(PORT, function () {
-  conn = net.createConnection(PORT);
+server.listen(common.PORT, function () {
+  conn = net.createConnection(common.PORT);
   conn.setEncoding('utf8');
   conn.addListener("data", function (chunk) {
-    error('recv data! nchars = ' + chunk.length);
+    common.error('recv data! nchars = ' + chunk.length);
     buffer += chunk;
   });
 
@@ -28,7 +29,7 @@ server.listen(PORT, function () {
     conn.end();
   });
   conn.addListener("close", function () {
-    error('client connection close');
+    common.error('client connection close');
   });
 });
 

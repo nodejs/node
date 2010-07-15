@@ -1,11 +1,12 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 exec = require('child_process').exec,
 path = require('path');
 
 exits = 0;
 
 function errExec (script, callback) {
-  var cmd = process.argv[0] + ' ' + path.join(fixturesDir, script);
+  var cmd = process.argv[0] + ' ' + path.join(common.fixturesDir, script);
   return exec(cmd, function (err, stdout, stderr) {
     // There was some error
     assert.ok(err);

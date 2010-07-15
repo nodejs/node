@@ -1,10 +1,11 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 
 exec = require('child_process').exec;
 join = require('path').join;
 
 nodePath = process.argv[0];
-script = join(fixturesDir, 'print-10-lines.js');
+script = join(common.fixturesDir, 'print-10-lines.js');
 
 cmd = nodePath + ' ' + script + ' | head -2';
 

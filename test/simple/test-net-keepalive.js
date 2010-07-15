@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require('net');
 
 var serverConnection;
@@ -12,9 +13,9 @@ var echoServer = net.createServer(function (connection) {
     connection.end();
   });
 });
-echoServer.listen(PORT);
+echoServer.listen(common.PORT);
 
-var clientConnection = net.createConnection(PORT);
+var clientConnection = net.createConnection(common.PORT);
 clientConnection.setTimeout(0);
 
 setTimeout( function() {

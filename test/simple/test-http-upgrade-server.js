@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 var sys = require("sys");
 var net = require("net");
@@ -60,7 +61,7 @@ function writeReq(socket, data, encoding){
   connection: Upgrade with listener
 -----------------------------------------------*/
 function test_upgrade_with_listener(_server){
-  var conn = net.createConnection(PORT);
+  var conn = net.createConnection(common.PORT);
   conn.setEncoding("utf8");
   var state = 0;
 
@@ -103,7 +104,7 @@ function test_upgrade_with_listener(_server){
 var test_upgrade_no_listener_ended = false;
 
 function test_upgrade_no_listener(){
-  var conn = net.createConnection(PORT);
+  var conn = net.createConnection(common.PORT);
   conn.setEncoding("utf8");
 
   conn.addListener("connect", function () {
@@ -124,7 +125,7 @@ function test_upgrade_no_listener(){
   connection: normal
 -----------------------------------------------*/
 function test_standard_http(){
-  var conn = net.createConnection(PORT);
+  var conn = net.createConnection(common.PORT);
   conn.setEncoding("utf8");
 
   conn.addListener("connect", function () {
@@ -145,7 +146,7 @@ function test_standard_http(){
 
 var server = createTestServer();
 
-server.listen(PORT, function () {
+server.listen(common.PORT, function () {
   // All tests get chained after this:
   test_upgrade_with_listener(server);
 });

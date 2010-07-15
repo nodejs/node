@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 assert.equal(14, process._byteLength("Il était tué"));
 assert.equal(14, process._byteLength("Il était tué", "utf8"));

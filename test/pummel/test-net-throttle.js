@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require("net");
 N = 160*1024; // 30kb
 
@@ -8,7 +9,7 @@ for (var i = 0; i < N; i++) {
   body += "C";
 }
 
-console.log("start server on port " + PORT);
+console.log("start server on port " + common.PORT);
 
 server = net.createServer(function (connection) {
   connection.addListener("connect", function () {
@@ -16,7 +17,7 @@ server = net.createServer(function (connection) {
     connection.end();
   });
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
 
 chars_recved = 0;
@@ -24,7 +25,7 @@ npauses = 0;
 
 
 var paused = false;
-client = net.createConnection(PORT);
+client = net.createConnection(common.PORT);
 client.setEncoding("ascii");
 client.addListener("data", function (d) {
   chars_recved += d.length;

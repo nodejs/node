@@ -1,10 +1,11 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 path = require('path');
 childProccess = require('child_process');
 fs = require('fs');
-scriptString = path.join(fixturesDir, 'print-chars.js');
-scriptBuffer = path.join(fixturesDir, 'print-chars-from-buffer.js');
-tmpFile = path.join(fixturesDir, 'stdout.txt');
+scriptString = path.join(common.fixturesDir, 'print-chars.js');
+scriptBuffer = path.join(common.fixturesDir, 'print-chars-from-buffer.js');
+tmpFile = path.join(common.fixturesDir, 'stdout.txt');
 
 function test (size, useBuffer, cb) {
   var cmd = process.argv[0]

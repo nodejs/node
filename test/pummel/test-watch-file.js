@@ -1,10 +1,11 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 var fs = require("fs");
 var path = require("path");
 
-var f = path.join(fixturesDir, "x.txt");
-var f2 = path.join(fixturesDir, "x2.txt");
+var f = path.join(common.fixturesDir, "x.txt");
+var f2 = path.join(common.fixturesDir, "x2.txt");
 
 console.log("watching for changes of " + f);
 

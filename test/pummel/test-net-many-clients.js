@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 net = require("net");
 // settings
 var bytes = 1024*40;
@@ -23,7 +24,7 @@ var server = net.createServer(function (c) {
 });
 
 function runClient (callback) {
-  var client = net.createConnection(PORT);
+  var client = net.createConnection(common.PORT);
 
   client.connections = 0;
 
@@ -59,14 +60,14 @@ function runClient (callback) {
     assert.ok(!client.fd);
 
     if (this.connections < connections_per_client) {
-      this.connect(PORT);
+      this.connect(common.PORT);
     } else {
       callback();
     }
   });
 }
 
-server.listen(PORT, function () {
+server.listen(common.PORT, function () {
   var finished_clients = 0;
   for (var i = 0; i < concurrency; i++) {
     runClient(function () {

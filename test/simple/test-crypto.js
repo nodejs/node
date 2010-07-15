@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 try {
   var crypto = require('crypto');
@@ -11,9 +12,9 @@ var fs = require('fs');
 var sys = require('sys');
 
 // Test Certificates
-var caPem = fs.readFileSync(fixturesDir+"/test_ca.pem", 'ascii');
-var certPem = fs.readFileSync(fixturesDir+"/test_cert.pem", 'ascii');
-var keyPem = fs.readFileSync(fixturesDir+"/test_key.pem", 'ascii');
+var caPem = fs.readFileSync(common.fixturesDir+"/test_ca.pem", 'ascii');
+var certPem = fs.readFileSync(common.fixturesDir+"/test_cert.pem", 'ascii');
+var keyPem = fs.readFileSync(common.fixturesDir+"/test_key.pem", 'ascii');
 
 var credentials = crypto.createCredentials({key:keyPem, cert:certPem, ca:caPem});
 

@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 http = require("http");
 url = require("url");
 
@@ -12,9 +13,9 @@ var server = http.createServer(function (req, res) {
                       });
   res.end(body);
 });
-server.listen(PORT);
+server.listen(common.PORT);
 
-var client = http.createClient(PORT);
+var client = http.createClient(common.PORT);
 
 var body1 = "";
 var body2 = "";

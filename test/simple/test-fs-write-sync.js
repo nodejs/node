@@ -1,8 +1,9 @@
-require('../common');
+common = require("../common");
+assert = common.assert
 path = require('path'),
 Buffer = require('buffer').Buffer
 fs = require('fs')
-fn = path.join(fixturesDir, 'write.txt');
+fn = path.join(common.fixturesDir, 'write.txt');
 
 
 foo = 'foo'

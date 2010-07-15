@@ -1,4 +1,5 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 
 var assert = require('assert');
 var spawn  = require('child_process').spawn;
@@ -7,7 +8,7 @@ var fs     = require('fs');
 var sys    = require('sys');
 
 function fixtPath(p) {
-  return path.join(fixturesDir, p);
+  return path.join(common.fixturesDir, p);
 }
 
 var expected = "hello world";

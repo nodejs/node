@@ -1,9 +1,10 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 http = require("http");
 url = require("url");
 
 function p (x) {
-  error(inspect(x));
+  common.error(common.inspect(x));
 }
 
 var responses_sent = 0;
@@ -38,9 +39,9 @@ http.createServer(function (req, res) {
   });
 
   //assert.equal("127.0.0.1", res.connection.remoteAddress);
-}).listen(PORT);
+}).listen(common.PORT);
 
-var client = http.createClient(PORT);
+var client = http.createClient(common.PORT);
 var req = client.request("/hello", {"Accept": "*/*", "Foo": "bar"});
 req.end();
 req.addListener('response', function (res) {
@@ -48,7 +49,7 @@ req.addListener('response', function (res) {
   responses_recvd += 1;
   res.setEncoding("utf8");
   res.addListener('data', function (chunk) { body0 += chunk; });
-  debug("Got /hello response");
+  common.debug("Got /hello response");
 });
 
 setTimeout(function () {
@@ -59,15 +60,15 @@ setTimeout(function () {
     responses_recvd += 1;
     res.setBodyEncoding("utf8");
     res.addListener('data', function (chunk) { body1 += chunk; });
-    debug("Got /world response");
+    common.debug("Got /world response");
   });
 }, 1);
 
 process.addListener("exit", function () {
-  debug("responses_recvd: " + responses_recvd);
+  common.debug("responses_recvd: " + responses_recvd);
   assert.equal(2, responses_recvd);
 
-  debug("responses_sent: " + responses_sent);
+  common.debug("responses_sent: " + responses_sent);
   assert.equal(2, responses_sent);
 
   assert.equal("The path was /hello", body0);

@@ -1,7 +1,8 @@
-require("../common");
+common = require("../common");
+assert = common.assert
 var path = require('path');
 
-debug("load test-module-loading.js");
+common.debug("load test-module-loading.js");
 
 var a = require("../fixtures/a");
 var c = require("../fixtures/b/c");
@@ -37,18 +38,18 @@ assert.equal("D", d4.D());
 
 assert.ok((new a.SomeClass) instanceof c.SomeClass);
 
-debug("test index.js modules ids and relative loading")
+common.debug("test index.js modules ids and relative loading")
 var one = require("../fixtures/nested-index/one"),
   two = require("../fixtures/nested-index/two");
 assert.notEqual(one.hello, two.hello);
 
-debug("test cycles containing a .. path");
+common.debug("test cycles containing a .. path");
 var root = require("../fixtures/cycles/root"),
   foo = require("../fixtures/cycles/folder/foo");
 assert.equal(root.foo, foo);
 assert.equal(root.sayHello(), root.hello);
 
-debug("test name clashes");
+common.debug("test name clashes");
 // this one exists and should import the local module
 var my_path = require("./path");
 assert.equal(true, my_path.path_func instanceof Function);
@@ -80,7 +81,7 @@ require.async('../fixtures/a1', function (err, a) {
   asyncRun = true;
 });
 
-debug('load custom file types with registerExtension');
+common.debug('load custom file types with registerExtension');
 require.registerExtension('.test', function(content) {
   assert.equal("this is custom source\n", content);
 
@@ -89,7 +90,7 @@ require.registerExtension('.test', function(content) {
 
 assert.equal(require('../fixtures/registerExt').test, "passed");
 
-debug('load custom file types that return non-strings');
+common.debug('load custom file types that return non-strings');
 require.registerExtension('.test', function(content) {
   return {
     custom: 'passed'

@@ -1,7 +1,7 @@
 before
 
 
-*test/message/undefined_reference_in_new_context.js:9
+*test/message/undefined_reference_in_new_context.js:10
 script.runInNewContext();
        ^
 ReferenceError: foo is not defined
@@ -11,4 +11,4 @@ ReferenceError: foo is not defined
     at Module._loadScriptSync (module:*)
     at Module.loadSync (module:*)
     at Object.runMain (module:*)
-    at node.js:*242:10
+    at node.js:*
