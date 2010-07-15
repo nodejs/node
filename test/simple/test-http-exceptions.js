@@ -1,71 +1,27 @@
 common = require("../common");
-assert = common.assert
-var http = require("http"),
-  sys = require("sys"),
-  server,
-  server_response = "Thank you, come again.",
-  client_requests = [],
-  cur, timer, req_num, exception_count = 0;
+assert = common.assert;
+http = require("http");
 
 server = http.createServer(function (req, res) {
   intentionally_not_defined();
   res.writeHead(200, {"Content-Type": "text/plain"});
-  res.write(server_response);
+  res.write("Thank you, come again.");
   res.end();
 });
 
-function check_reqs() {
-  var done_reqs = 0;
-  client_requests.forEach(function (v) {
-    if (v.done) {
-      done_reqs += 1;
-    }
-  });
-  if (done_reqs === 4) {
-    console.log("Got all requests, which is bad.");
-    clearTimeout(timer);
-  }
-}
-
-function add_client(num) {
-  var req = http.createClient(common.PORT).request('GET', '/busy/' + num);
-  req.end();
-
-  req.addListener('response', function(res) {
-    var response_body = "";
-    res.setEncoding("utf8");
-    res.addListener('data', function(chunk) {
-      response_body += chunk;
-    });
-    res.addListener('end', function() {
-      assert.strictEqual(response_body, server_response);
-      req.done = true;
-      check_reqs();
-    });
-  });
-
-  return req;
-}
-
 server.listen(common.PORT, function () {
-  for (req_num = 0; req_num < 4 ; req_num += 1) {
-    client_requests.push(add_client(req_num));
+  var req;
+  for (var i = 0; i < 4 ; i += 1) {
+    req = http.createClient(common.PORT).request('GET', '/busy/' + i);
+    req.end();
   }
-
-  timer = setTimeout(function () {
-    process.removeListener("uncaughtException", exception_handler);
-    server.close();
-    assert.strictEqual(4, exception_count);
-    process.exit(0);
-  }, 300);
 });
 
-function exception_handler(err) {
-  console.log("Caught an exception: " + err);
-  if (err.name === "AssertionError") {
-    throw(err);
-  }
-  exception_count += 1;
-}
+exception_count = 0;
 
-process.addListener("uncaughtException", exception_handler);
+process.addListener("uncaughtException", function (err) {
+  console.log("Caught an exception: " + err);
+  if (err.name === "AssertionError") throw err;
+  if (++exception_count == 4) process.exit(0);
+});
+
