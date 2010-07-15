@@ -98,6 +98,10 @@ require.registerExtension('.test', function(content) {
 });
 
 assert.equal(require('../fixtures/registerExt2').custom, 'passed');
+debug("load modules by absolute id, then change require.paths, and load another module with the same absolute id.");
+// this will throw if it fails.
+var foo = require("../fixtures/require-path/p1/foo");
+process.assert(foo.bar.expect === foo.bar.actual);
 
 process.addListener("exit", function () {
   assert.equal(true, a.A instanceof Function);

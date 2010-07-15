@@ -1,0 +1,2 @@
+
+exports.INBAR = __filename;
