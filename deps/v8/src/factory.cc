@@ -684,7 +684,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name,
     int number_of_literals,
     Handle<Code> code,
-    Handle<Object> scope_info) {
+    Handle<SerializedScopeInfo> scope_info) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name);
   shared->set_code(*code);
   shared->set_scope_info(*scope_info);

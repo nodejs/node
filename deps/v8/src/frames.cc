@@ -532,11 +532,11 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(function, receiver, &code);
 
-  Handle<Object> scope_info(ScopeInfo<>::EmptyHeapObject());
+  Handle<SerializedScopeInfo> scope_info(SerializedScopeInfo::Empty());
 
   if (function->IsJSFunction()) {
     Handle<SharedFunctionInfo> shared(JSFunction::cast(function)->shared());
-    scope_info = Handle<Object>(shared->scope_info());
+    scope_info = Handle<SerializedScopeInfo>(shared->scope_info());
     Object* script_obj = shared->script();
     if (script_obj->IsScript()) {
       Handle<Script> script(Script::cast(script_obj));

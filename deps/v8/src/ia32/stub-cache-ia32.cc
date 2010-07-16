@@ -184,6 +184,12 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
       // Stop if found the property.
       __ cmp(entity_name, Handle<String>(name));
       __ j(equal, miss_label, not_taken);
+
+      // Check if the entry name is not a symbol.
+      __ mov(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
+      __ test_b(FieldOperand(entity_name, Map::kInstanceTypeOffset),
+                kIsSymbolMask);
+      __ j(zero, miss_label, not_taken);
     } else {
       // Give up probing if still not found the undefined value.
       __ j(not_equal, miss_label, not_taken);

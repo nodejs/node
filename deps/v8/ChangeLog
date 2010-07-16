@@ -1,3 +1,11 @@
+2010-07-15: Version 2.3.0
+
+        Added ES5 Object.seal and Object.isSealed.
+
+        Added debugger API for scheduling debugger commands from a
+        separate thread.
+
+
 2010-07-14: Version 2.2.24
 
         Added API for capturing stack traces for uncaught exceptions.

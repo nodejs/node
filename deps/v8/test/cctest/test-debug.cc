@@ -6650,4 +6650,69 @@ TEST(DebugEventContext) {
   CheckDebuggerUnloaded();
 }
 
+
+static void* expected_break_data;
+static bool was_debug_break_called;
+static bool was_debug_event_called;
+static void DebugEventBreakDataChecker(const v8::Debug::EventDetails& details) {
+  if (details.GetEvent() == v8::BreakForCommand) {
+    CHECK_EQ(expected_break_data, details.GetClientData());
+    was_debug_event_called = true;
+  } else if (details.GetEvent() == v8::Break) {
+    was_debug_break_called = true;
+  }
+}
+
+// Check that event details contain context where debug event occured.
+TEST(DebugEventBreakData) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  v8::Debug::SetDebugEventListener2(DebugEventBreakDataChecker);
+
+  TestClientData::constructor_call_counter = 0;
+  TestClientData::destructor_call_counter = 0;
+
+  expected_break_data = NULL;
+  was_debug_event_called = false;
+  was_debug_break_called = false;
+  v8::Debug::DebugBreakForCommand();
+  v8::Script::Compile(v8::String::New("(function(x){return x;})(1);"))->Run();
+  CHECK(was_debug_event_called);
+  CHECK(!was_debug_break_called);
+
+  TestClientData* data1 = new TestClientData();
+  expected_break_data = data1;
+  was_debug_event_called = false;
+  was_debug_break_called = false;
+  v8::Debug::DebugBreakForCommand(data1);
+  v8::Script::Compile(v8::String::New("(function(x){return x+1;})(1);"))->Run();
+  CHECK(was_debug_event_called);
+  CHECK(!was_debug_break_called);
+
+  expected_break_data = NULL;
+  was_debug_event_called = false;
+  was_debug_break_called = false;
+  v8::Debug::DebugBreak();
+  v8::Script::Compile(v8::String::New("(function(x){return x+2;})(1);"))->Run();
+  CHECK(!was_debug_event_called);
+  CHECK(was_debug_break_called);
+
+  TestClientData* data2 = new TestClientData();
+  expected_break_data = data2;
+  was_debug_event_called = false;
+  was_debug_break_called = false;
+  v8::Debug::DebugBreak();
+  v8::Debug::DebugBreakForCommand(data2);
+  v8::Script::Compile(v8::String::New("(function(x){return x+3;})(1);"))->Run();
+  CHECK(was_debug_event_called);
+  CHECK(was_debug_break_called);
+
+  CHECK_EQ(2, TestClientData::constructor_call_counter);
+  CHECK_EQ(TestClientData::constructor_call_counter,
+           TestClientData::destructor_call_counter);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
 #endif  // ENABLE_DEBUGGER_SUPPORT

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests the Object.freeze and Object.isFrozen methods - ES 15.2.3.9 and
+// Tests the Object.seal and Object.isSealed methods - ES 15.2.3.9 and
 // ES 15.2.3.12
 
 
@@ -33,19 +33,19 @@
 var non_objects = new Array(undefined, null, 1, -1, 0, 42.43);
 for (var key in non_objects) {
   try {
-    Object.freeze(non_objects[key]);
+    Object.seal(non_objects[key]);
     assertUnreachable();
   } catch(e) {
-    assertTrue(/Object.freeze called on non-object/.test(e));
+    assertTrue(/Object.seal called on non-object/.test(e));
   }
 }
 
 for (var key in non_objects) {
   try {
-    Object.isFrozen(non_objects[key]);
+    Object.isSealed(non_objects[key]);
     assertUnreachable();
   } catch(e) {
-    assertTrue(/Object.isFrozen called on non-object/.test(e));
+    assertTrue(/Object.isSealed called on non-object/.test(e));
   }
 }
 
@@ -62,14 +62,19 @@ assertTrue(desc.configurable);
 assertEquals('foobar', desc.value);
 
 assertTrue(Object.isExtensible(obj));
-assertFalse(Object.isFrozen(obj));
+assertFalse(Object.isSealed(obj));
 
-Object.freeze(obj);
+Object.seal(obj);
 
 // Make sure we are no longer extensible.
 assertFalse(Object.isExtensible(obj));
-assertTrue(Object.isFrozen(obj));
+assertTrue(Object.isSealed(obj));
 
+// We should not be frozen, since we are still able to
+// update values.
+assertFalse(Object.isFrozen(obj));
+
+// We should not allow new properties to be added.
 try {
    obj.foo = 42;
    assertUnreachable();
@@ -78,21 +83,19 @@ try {
 }
 
 desc = Object.getOwnPropertyDescriptor(obj, 'x');
-assertFalse(desc.writable);
+assertTrue(desc.writable);
 assertFalse(desc.configurable);
 assertEquals(42, desc.value);
 
 desc = Object.getOwnPropertyDescriptor(obj, 'z');
-assertFalse(desc.writable);
+assertTrue(desc.writable);
 assertFalse(desc.configurable);
 assertEquals("foobar", desc.value);
 
-// Make sure that even if we try overwrite a value that is not writable, it is
-// not changed. 
-obj.x = "tete";
-assertEquals(42, obj.x);
-obj.x = { get: function() {return 43}, set: function() {} };
-assertEquals(42, obj.x);
+// Since writable is not affected by seal we should still be able to
+// update the values.
+obj.x = "43";
+assertEquals(43, obj.x);
 
 // Test on accessors.
 var obj2 = {};
@@ -107,10 +110,14 @@ assertEquals(set, desc.set);
 assertEquals(get, desc.get);
 
 assertTrue(Object.isExtensible(obj2));
-assertFalse(Object.isFrozen(obj2));
-Object.freeze(obj2);
+assertFalse(Object.isSealed(obj2));
+Object.seal(obj2);
+
+// Since this is an accessor property the object is now effectively both
+// sealed and frozen (accessors has no writable attribute).
 assertTrue(Object.isFrozen(obj2));
 assertFalse(Object.isExtensible(obj2));
+assertTrue(Object.isSealed(obj2));
 
 desc = Object.getOwnPropertyDescriptor(obj2, 'x');
 assertFalse(desc.configurable);
@@ -126,7 +133,7 @@ try {
 }
 
 
-// Test freeze on arrays.
+// Test seal on arrays.
 var arr = new Array(42,43);
 
 desc = Object.getOwnPropertyDescriptor(arr, '0');
@@ -140,54 +147,49 @@ assertTrue(desc.writable);
 assertEquals(43, desc.value);
 
 assertTrue(Object.isExtensible(arr));
-assertFalse(Object.isFrozen(arr));
-Object.freeze(arr);
-assertTrue(Object.isFrozen(arr));
+assertFalse(Object.isSealed(arr));
+Object.seal(arr);
+assertTrue(Object.isSealed(arr));
 assertFalse(Object.isExtensible(arr));
+// Since the values in the array is still writable this object 
+// is not frozen.
+assertFalse(Object.isFrozen(arr));
 
 desc = Object.getOwnPropertyDescriptor(arr, '0');
 assertFalse(desc.configurable);
-assertFalse(desc.writable);
+assertTrue(desc.writable);
 assertEquals(42, desc.value);
 
 desc = Object.getOwnPropertyDescriptor(arr, '1');
 assertFalse(desc.configurable);
-assertFalse(desc.writable);
+assertTrue(desc.writable);
 assertEquals(43, desc.value);
 
 arr[0] = 'foo';
 
-assertEquals(arr[0], 42);
+// We should be able to overwrite the existing value.
+assertEquals('foo', arr[0]);
 
 
-// Test that isFrozen return the correct value even if configurable has been set
-// to false on all properties manually and the extensible flag has also been set
-// to false manually.
+// Test that isSealed returns the correct value even if configurable
+// has been set to false on all properties manually and the extensible
+// flag has also been set to false manually.
 var obj3 = { x: 42, y: 'foo' };
 
 assertFalse(Object.isFrozen(obj3));
 
-Object.defineProperty(obj3, 'x', {configurable: false, writable: false});
+Object.defineProperty(obj3, 'x', {configurable: false, writable: true});
 Object.defineProperty(obj3, 'y', {configurable: false, writable: false});
 Object.preventExtensions(obj3);
 
-assertTrue(Object.isFrozen(obj3));
+assertTrue(Object.isSealed(obj3));
 
 
-// Make sure that an object that has only non-configurable, but one
-// writable property, is not classified as frozen.
+// Make sure that an object that has a configurable property
+// is not classified as sealed.
 var obj4 = {};
-Object.defineProperty(obj4, 'x', {configurable: false, writable: true});
+Object.defineProperty(obj4, 'x', {configurable: true, writable: false});
 Object.defineProperty(obj4, 'y', {configurable: false, writable: false});
 Object.preventExtensions(obj4);
 
-assertFalse(Object.isFrozen(obj4));
-
-// Make sure that an object that has only non-writable, but one
-// configurable property, is not classified as frozen.
-var obj5 = {};
-Object.defineProperty(obj5, 'x', {configurable: true, writable: false});
-Object.defineProperty(obj5, 'y', {configurable: false, writable: false});
-Object.preventExtensions(obj5);
-
-assertFalse(Object.isFrozen(obj5));
+assertFalse(Object.isSealed(obj4));

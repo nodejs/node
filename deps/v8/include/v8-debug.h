@@ -76,7 +76,8 @@ enum DebugEvent {
   NewFunction = 3,
   BeforeCompile = 4,
   AfterCompile  = 5,
-  ScriptCollected = 6
+  ScriptCollected = 6,
+  BreakForCommand = 7
 };
 
 
@@ -172,6 +173,13 @@ class EXPORT Debug {
      */
     virtual Handle<Value> GetCallbackData() const = 0;
 
+    /**
+     * Client data passed to DebugBreakForCommand function. The
+     * debugger takes ownership of the data and will delete it even if
+     * there is no message handler.
+     */
+    virtual ClientData* GetClientData() const = 0;
+
     virtual ~EventDetails() {}
   };
 
@@ -247,6 +255,12 @@ class EXPORT Debug {
 
   // Break execution of JavaScript.
   static void DebugBreak();
+
+  // Break execution of JavaScript (this method can be invoked from a
+  // non-VM thread) for further client command execution on a VM
+  // thread. Client data is then passed in EventDetails to
+  // EventCallback at the moment when the VM actually stops.
+  static void DebugBreakForCommand(ClientData* data = NULL);
 
   // Message based interface. The message protocol is JSON. NOTE the message
   // handler thread is not supported any more parameter must be false.

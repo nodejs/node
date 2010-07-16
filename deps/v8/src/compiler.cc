@@ -160,7 +160,7 @@ Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info) {
   Handle<Code> code = MakeCode(context, info);
   if (!info->shared_info().is_null()) {
     info->shared_info()->set_scope_info(
-        *ScopeInfo<>::CreateHeapObject(info->scope()));
+        *SerializedScopeInfo::Create(info->scope()));
   }
   return code;
 }
@@ -262,7 +262,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
           lit->name(),
           lit->materialized_literal_count(),
           code,
-          ScopeInfo<>::CreateHeapObject(info.scope()));
+          SerializedScopeInfo::Create(info.scope()));
 
   ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
   Compiler::SetFunctionInfo(result, lit, true, script);
@@ -450,7 +450,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
   // Update the shared function info with the compiled code and the scope info.
   shared->set_code(*code);
-  shared->set_scope_info(*ScopeInfo<>::CreateHeapObject(info->scope()));
+  shared->set_scope_info(*SerializedScopeInfo::Create(info->scope()));
 
   // Set the expected number of properties for instances.
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
@@ -485,7 +485,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   bool allow_lazy = literal->AllowsLazyCompilation() &&
       !LiveEditFunctionTracker::IsActive();
 
-  Handle<Object> scope_info(ScopeInfo<>::EmptyHeapObject());
+  Handle<SerializedScopeInfo> scope_info(SerializedScopeInfo::Empty());
 
   // Generate code
   Handle<Code> code;
@@ -568,7 +568,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                               literal->start_position(),
                               script,
                               code);
-    scope_info = ScopeInfo<>::CreateHeapObject(info.scope());
+    scope_info = SerializedScopeInfo::Create(info.scope());
   }
 
   // Create a shared function info object.

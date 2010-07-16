@@ -47,17 +47,6 @@ chapter11/11.4/11.4.1//11.4.1-4.a-7: FAIL
 # We do not have a global object called 'global' as required by tests.
 chapter15/15.1: FAIL_OK
 
-# NOT IMPLEMENTED: seal
-chapter15/15.2/15.2.3/15.2.3.8: UNIMPLEMENTED
-# NOT IMPLEMENTED: isSealed
-chapter15/15.2/15.2.3/15.2.3.11: UNIMPLEMENTED
-
-# NOT IMPLEMENTED: seal
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-20: UNIMPLEMENTED
-
-# NOT IMPLEMENTED: isSealed
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-23: UNIMPLEMENTED
-
 # NOT IMPLEMENTED: bind
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-38: UNIMPLEMENTED
 

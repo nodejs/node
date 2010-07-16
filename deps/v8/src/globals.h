@@ -326,6 +326,7 @@ class RegExpCompiler;
 class RegExpVisitor;
 class Scope;
 template<class Allocator = FreeStoreAllocationPolicy> class ScopeInfo;
+class SerializedScopeInfo;
 class Script;
 class Slot;
 class Smi;

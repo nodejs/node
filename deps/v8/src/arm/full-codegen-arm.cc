@@ -822,8 +822,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // the smi vs. smi case to be handled before it is called.
     Label slow_case;
     __ ldr(r1, MemOperand(sp, 0));  // Switch value.
-    __ mov(r2, r1);
-    __ orr(r2, r2, r0);
+    __ orr(r2, r1, r0);
     __ tst(r2, Operand(kSmiTagMask));
     __ b(ne, &slow_case);
     __ cmp(r1, r0);
@@ -832,9 +831,9 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     __ b(clause->body_target()->entry_label());
 
     __ bind(&slow_case);
-    CompareStub stub(eq, true);
+    CompareStub stub(eq, true, kBothCouldBeNaN, true, r1, r0);
     __ CallStub(&stub);
-    __ tst(r0, r0);
+    __ cmp(r0, Operand(0));
     __ b(ne, &next_test);
     __ Drop(1);  // Switch value is no longer needed.
     __ b(clause->body_target()->entry_label());
@@ -3088,7 +3087,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       __ jmp(if_false);
 
       __ bind(&slow_case);
-      CompareStub stub(cc, strict);
+      CompareStub stub(cc, strict, kBothCouldBeNaN, true, r1, r0);
       __ CallStub(&stub);
       __ cmp(r0, Operand(0));
       __ b(cc, if_true);

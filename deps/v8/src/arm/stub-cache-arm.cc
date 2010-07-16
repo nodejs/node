@@ -176,6 +176,13 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
       __ cmp(entity_name, Operand(Handle<String>(name)));
       __ b(eq, miss_label);
 
+      // Check if the entry name is not a symbol.
+      __ ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
+      __ ldrb(entity_name,
+              FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
+      __ tst(entity_name, Operand(kIsSymbolMask));
+      __ b(eq, miss_label);
+
       // Restore the properties.
       __ ldr(properties,
              FieldMemOperand(receiver, JSObject::kPropertiesOffset));

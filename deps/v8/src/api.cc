@@ -4213,6 +4213,12 @@ void Debug::DebugBreak() {
 }
 
 
+void Debug::DebugBreakForCommand(ClientData* data) {
+  if (!i::V8::IsRunning()) return;
+  i::Debugger::EnqueueDebugCommand(data);
+}
+
+
 static v8::Debug::MessageHandler message_handler = NULL;
 
 static void MessageHandlerWrapper(const v8::Debug::Message& message) {

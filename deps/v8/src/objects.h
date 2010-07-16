@@ -3273,7 +3273,7 @@ class SharedFunctionInfo: public HeapObject {
   DECL_ACCESSORS(code, Code)
 
   // [scope_info]: Scope info.
-  DECL_ACCESSORS(scope_info, Object)
+  DECL_ACCESSORS(scope_info, SerializedScopeInfo)
 
   // [construct stub]: Code stub for constructing instances of this function.
   DECL_ACCESSORS(construct_stub, Code)

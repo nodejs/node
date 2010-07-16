@@ -351,7 +351,7 @@ class Factory : public AllStatic {
       Handle<String> name,
       int number_of_literals,
       Handle<Code> code,
-      Handle<Object> scope_info);
+      Handle<SerializedScopeInfo> scope_info);
   static Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
   static Handle<NumberDictionary> DictionaryAtNumberPut(

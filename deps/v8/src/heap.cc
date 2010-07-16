@@ -2055,7 +2055,7 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_name(name);
   Code* illegal = Builtins::builtin(Builtins::Illegal);
   share->set_code(illegal);
-  share->set_scope_info(ScopeInfo<>::EmptyHeapObject());
+  share->set_scope_info(SerializedScopeInfo::Empty());
   Code* construct_stub = Builtins::builtin(Builtins::JSConstructStubGeneric);
   share->set_construct_stub(construct_stub);
   share->set_expected_nof_properties(0);
@@ -2480,16 +2480,9 @@ static void FlushCodeForFunction(SharedFunctionInfo* function_info) {
   ThreadManager::IterateArchivedThreads(&threadvisitor);
   if (threadvisitor.FoundCode()) return;
 
-  // Check that there are heap allocated locals in the scopeinfo. If
-  // there is, we are potentially using eval and need the scopeinfo
-  // for variable resolution.
-  if (ScopeInfo<>::HasHeapAllocatedLocals(function_info->scope_info()))
-    return;
-
+  // Compute the lazy compilable version of the code.
   HandleScope scope;
-  // Compute the lazy compilable version of the code, clear the scope info.
   function_info->set_code(*ComputeLazyCompile(function_info->length()));
-  function_info->set_scope_info(ScopeInfo<>::EmptyHeapObject());
 }
 
 

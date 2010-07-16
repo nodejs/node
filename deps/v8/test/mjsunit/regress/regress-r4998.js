@@ -25,42 +25,70 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function Hash() {
-  for (var i = 0; i < 100; i++) {
-    this['a' + i] = i;
-  }
+// Test for a broken fast-smi-loop that does not save the incremented value
+// of the loop index.  If this test fails, it loops forever, and times out.
 
-  delete this.a50;  // Ensure it's a normal object.
+// Flags: --nofull-compiler
+
+// Calling foo() spills the virtual frame.
+function foo() {
+  return;
 }
 
-Hash.prototype.m = function() {
-  return 1;
-};
+function bar() {
+  var x1 = 3;
+  var x2 = 3;
+  var x3 = 3;
+  var x4 = 3;
+  var x5 = 3;
+  var x6 = 3;
+  var x7 = 3;
+  var x8 = 3;
+  var x9 = 3;
+  var x10 = 3;
+  var x11 = 3;
+  var x12 = 3;
+  var x13 = 3;
 
-var h = new Hash();
+  foo();
 
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h.m = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h.m;
+  x1 = 257;
+  x2 = 258;
+  x3 = 259;
+  x4 = 260;
+  x5 = 261;
+  x6 = 262;
+  x7 = 263;
+  x8 = 264;
+  x9 = 265;
+  x10 = 266;
+  x11 = 267;
+  x12 = 268;
+  x13 = 269;
+
+  // The loop variable x7 is initialized to 3,
+  // and then MakeMergeable is called on the virtual frame.
+  // MakeMergeable has forced the loop variable x7 to be spilled,
+  // so it is marked as synced
+  // The back edge then merges its virtual frame, which incorrectly
+  // claims that x7 is synced, and does not save the modified
+  // value.
+  for (x7 = 3; x7 < 10; ++x7) {
+    foo();
   }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.m());
 }
 
+bar();
 
-var nonsymbol = 'wwwww '.split(' ')[0];
-Hash.prototype.wwwww = Hash.prototype.m;
-
-for (var i = 1; i < 100; i++) {
-  if (i == 50) {
-    h[nonsymbol] = function() {
-      return 2;
-    };
-  } else if (i == 70) {
-    delete h[nonsymbol];
+function aliasing() {
+  var x = 3;
+  var j;
+  for (j = 7; j < 11; ++j) {
+    x = j;
   }
-  assertEquals(i < 50 || i >= 70 ? 1 : 2, h.wwwww());
+
+  assertEquals(10, x);
+  assertEquals(11, j);
 }
+
+aliasing();
