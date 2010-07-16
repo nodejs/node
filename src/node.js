@@ -195,7 +195,7 @@ function format (f) {
   var i = 1;
   var args = arguments;
   if (!(f instanceof String)) f = String(f);
-  return f.replace(/%([sdf])/g, function (x) {
+  return f.replace(/%([sdj])/g, function (x) {
     switch (x) {
       case '%s': return args[i++];
       case '%d': return args[i++].toString();
