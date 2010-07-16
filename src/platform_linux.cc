@@ -47,11 +47,26 @@ int OS::GetMemory(size_t *rss, size_t *vsize) {
   int itmp;
   char ctmp;
   size_t page_size = getpagesize();
+  char *cbuf;
+  bool foundExeEnd;
 
   /* PID */
   if (fscanf(f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
   /* Exec file */
-  if (fscanf (f, "%s ", buf) == 0) goto error; /* coverity[secure_coding] */
+  cbuf = buf;
+  foundExeEnd = false;
+  if (fscanf (f, "%c", cbuf++) == 0) goto error; // (
+  while (1) {
+    if (fscanf(f, "%c", cbuf) == 0) goto error;
+    if (*cbuf == ')') {
+      foundExeEnd = true;
+    } else if (foundExeEnd && *cbuf == ' ') {
+      *cbuf = 0;
+      break;
+    }
+
+    cbuf++;
+  }
   /* State */
   if (fscanf (f, "%c ", &ctmp) == 0) goto error; /* coverity[secure_coding] */
   /* Parent process */
