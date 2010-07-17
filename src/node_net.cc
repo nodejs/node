@@ -348,8 +348,12 @@ static Handle<Value> Connect(const Arguments& args) {
   return Undefined();
 }
 
-#if defined(__APPLE__)
-    #define SUN_LEN(ptr) (ptr->sun_len-2)
+#if !defined(SUN_LEN)
+# if defined(__APPLE__)
+#  define SUN_LEN(ptr) ((ptr)->sun_len-2)
+# else
+#  define SUN_LEN(ptr) strlen((ptr)->sun_path)
+#endif
 #endif
 
 #define ADDRESS_TO_JS(info, address_storage) \
