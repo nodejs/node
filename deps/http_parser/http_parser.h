@@ -27,6 +27,10 @@ extern "C" {
 
 #include <sys/types.h>
 
+#ifdef _WIN32
+typedef unsigned int size_t;
+typedef int ssize_t;
+#endif
 
 /* Compile with -DHTTP_PARSER_STRICT=0 to make less checks, but run
  * faster

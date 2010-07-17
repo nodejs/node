@@ -22,7 +22,16 @@
  * IN THE SOFTWARE.
  */
 #include <http_parser.h>
+#ifdef _WIN32
+typedef __int8 int8_t;
+typedef unsigned __int8 uint8_t;
+typedef __int16 int16_t;
+typedef unsigned __int16 uint16_t;
+typedef __int16 int32_t;
+typedef unsigned __int32 uint32_t;
+#else
 #include <stdint.h>
+#endif
 #include <assert.h>
 #include <stddef.h>
 
@@ -148,7 +157,7 @@ static const uint32_t  usual[] = {
 enum state
   { s_dead = 1 /* important that this is > 0 */
 
-  , s_start_res_or_resp
+  , s_start_req_or_res
   , s_res_or_resp_H
   , s_start_res
   , s_res_H
@@ -315,6 +324,7 @@ size_t http_parser_execute (http_parser *parser,
   if (state == s_req_path || state == s_req_schema || state == s_req_schema_slash
       || state == s_req_schema_slash_slash || state == s_req_port
       || state == s_req_query_string_start || state == s_req_query_string
+      || state == s_req_host
       || state == s_req_fragment_start || state == s_req_fragment)
     url_mark = data;
 
@@ -335,7 +345,7 @@ size_t http_parser_execute (http_parser *parser,
          */
         goto error;
 
-      case s_start_res_or_resp:
+      case s_start_req_or_res:
       {
         if (ch == CR || ch == LF)
           break;
@@ -1306,7 +1316,7 @@ size_t http_parser_execute (http_parser *parser,
 
         nread = 0;
 
-        if (parser->flags & F_UPGRADE) parser->upgrade = 1;
+        if (parser->flags & F_UPGRADE || parser->method == HTTP_CONNECT) parser->upgrade = 1;
 
         /* Here we call the headers_complete callback. This is somewhat
          * different than other callbacks because if the user returns 1, we
@@ -1329,7 +1339,7 @@ size_t http_parser_execute (http_parser *parser,
         }
 
         // Exit, the rest of the connect is in a different protocol.
-        if (parser->flags & F_UPGRADE) {
+        if (parser->flags & F_UPGRADE || parser->method == HTTP_CONNECT) {
           CALLBACK2(message_complete);
           return (p - data);
         }
@@ -1532,7 +1542,8 @@ void
 http_parser_init (http_parser *parser, enum http_parser_type t)
 {
   parser->type = t;
-  parser->state = (t == HTTP_REQUEST ? s_start_req : (t == HTTP_RESPONSE ? s_start_res : s_start_res_or_resp));
+  parser->state = (t == HTTP_REQUEST ? s_start_req : (t == HTTP_RESPONSE ? s_start_res : s_start_req_or_res));
   parser->nread = 0;
   parser->upgrade = 0;
+  parser->flags = 0;
 }

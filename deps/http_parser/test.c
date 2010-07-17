@@ -512,7 +512,7 @@ const struct message requests[] =
   ,.request_path= ""
   ,.request_url= "home.netscape.com:443"
   ,.num_headers= 2
-  ,.upgrade=0
+  ,.upgrade=1
   ,.headers= { { "User-agent", "Mozilla/1.1N" }
              , { "Proxy-authorization", "basic aGVsbG86d29ybGQ=" }
              }
@@ -1129,38 +1129,57 @@ print_error (const char *raw, size_t error_location)
 void
 test_message (const struct message *message)
 {
-  parser_init(message->type);
+  size_t raw_len = strlen(message->raw);
+  size_t msg1len;
+  for (msg1len = 0; msg1len < raw_len; msg1len++) {
+    parser_init(message->type);
 
-  size_t read;
+    size_t read;
+    const char *msg1 = message->raw;
+    const char *msg2 = msg1 + msg1len;
+    size_t msg2len = raw_len - msg1len;
 
-  read = parse(message->raw, strlen(message->raw));
+    if (msg1len) {
+      read = parse(msg1, msg1len);
 
-  if (message->upgrade && parser->upgrade) goto test;
+      if (message->upgrade && parser->upgrade) goto test;
 
-  if (read != strlen(message->raw)) {
-    print_error(message->raw, read);
-    exit(1);
+      if (read != msg1len) {
+        print_error(msg1, read);
+        exit(1);
+      }
+    }
+
+
+    read = parse(msg2, msg2len);
+
+    if (message->upgrade && parser->upgrade) goto test;
+
+    if (read != msg2len) {
+      print_error(msg2, read);
+      exit(1);
+    }
+
+    read = parse(NULL, 0);
+
+    if (message->upgrade && parser->upgrade) goto test;
+
+    if (read != 0) {
+      print_error(message->raw, read);
+      exit(1);
+    }
+
+  test:
+
+    if (num_messages != 1) {
+      printf("\n*** num_messages != 1 after testing '%s' ***\n\n", message->name);
+      exit(1);
+    }
+
+    if(!message_eq(0, message)) exit(1);
+
+    parser_free();
   }
-
-  read = parse(NULL, 0);
-
-  if (message->upgrade && parser->upgrade) goto test;
-
-  if (read != 0) {
-    print_error(message->raw, read);
-    exit(1);
-  }
-
-test:
-
-  if (num_messages != 1) {
-    printf("\n*** num_messages != 1 after testing '%s' ***\n\n", message->name);
-    exit(1);
-  }
-
-  if(!message_eq(0, message)) exit(1);
-
-  parser_free();
 }
 
 void
@@ -1388,24 +1407,35 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
         buf3[buf3_len] = 0;
 
         read = parse(buf1, buf1_len);
+
+        if (r3->upgrade && parser->upgrade) goto test;
+
         if (read != buf1_len) {
           print_error(buf1, read);
           goto error;
         }
 
         read = parse(buf2, buf2_len);
+
+        if (r3->upgrade && parser->upgrade) goto test;
+
         if (read != buf2_len) {
           print_error(buf2, read);
           goto error;
         }
 
         read = parse(buf3, buf3_len);
+
+        if (r3->upgrade && parser->upgrade) goto test;
+
         if (read != buf3_len) {
           print_error(buf3, read);
           goto error;
         }
 
         parse(NULL, 0);
+
+test:
 
         if (3 != num_messages) {
           fprintf(stderr, "\n\nParser didn't see 3 messages only %d\n", num_messages);
@@ -1448,23 +1478,17 @@ char *
 create_large_chunked_message (int body_size_in_kb, const char* headers)
 {
   int i;
-  size_t needed, wrote = 0;
+  size_t wrote = 0;
   size_t headers_len = strlen(headers);
-  size_t bufsize = headers_len + 10;
+  size_t bufsize = headers_len + (5+1024+2)*body_size_in_kb + 6;
   char * buf = malloc(bufsize);
 
-  strncpy(buf, headers, headers_len);
+  memcpy(buf, headers, headers_len);
   wrote += headers_len;
 
   for (i = 0; i < body_size_in_kb; i++) {
     // write 1kb chunk into the body.
-    needed = 5 + 1024 + 2; // "400\r\nCCCC...CCCC\r\n"
-    if (bufsize - wrote < needed) {
-      buf = realloc(buf, bufsize + needed);
-      bufsize += needed;
-    }
-
-    strcpy(buf + wrote, "400\r\n");
+    memcpy(buf + wrote, "400\r\n", 5);
     wrote += 5;
     memset(buf + wrote, 'C', 1024);
     wrote += 1024;
@@ -1472,15 +1496,9 @@ create_large_chunked_message (int body_size_in_kb, const char* headers)
     wrote += 2;
   }
 
-  needed = 5; // "0\r\n\r\n"
-  if (bufsize - wrote < needed) {
-    buf = realloc(buf, bufsize + needed);
-    bufsize += needed;
-  }
-  strcpy(buf + wrote, "0\r\n\r\n");
-  wrote += 5;
-
-  assert(buf[wrote] == 0);
+  memcpy(buf + wrote, "0\r\n\r\n", 6);
+  wrote += 6;
+  assert(wrote == bufsize);
 
   return buf;
 }
@@ -1588,7 +1606,7 @@ main (void)
     "HEAD",
     "POST",
     "PUT",
-    "CONNECT",
+    //"CONNECT", //CONNECT can't be tested like other methods, it's a tunnel
     "OPTIONS",
     "TRACE",
     "COPY",
@@ -1675,22 +1693,28 @@ main (void)
     }
   }
 
-  printf("request scan 1/3      ");
+  printf("request scan 1/4      ");
   test_scan( &requests[GET_NO_HEADERS_NO_BODY]
            , &requests[GET_ONE_HEADER_NO_BODY]
            , &requests[GET_NO_HEADERS_NO_BODY]
            );
 
-  printf("request scan 2/3      ");
+  printf("request scan 2/4      ");
   test_scan( &requests[POST_CHUNKED_ALL_YOUR_BASE]
            , &requests[POST_IDENTITY_BODY_WORLD]
            , &requests[GET_FUNKY_CONTENT_LENGTH]
            );
 
-  printf("request scan 3/3      ");
+  printf("request scan 3/4      ");
   test_scan( &requests[TWO_CHUNKS_MULT_ZERO_END]
            , &requests[CHUNKED_W_TRAILING_HEADERS]
            , &requests[CHUNKED_W_BULLSHIT_AFTER_LENGTH]
+           );
+
+  printf("request scan 4/4      ");
+  test_scan( &requests[QUERY_URL_WITH_QUESTION_MARK_GET]
+           , &requests[PREFIX_NEWLINE_GET ]
+           , &requests[CONNECT_REQUEST]
            );
 
   puts("requests okay");
