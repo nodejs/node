@@ -203,12 +203,12 @@ static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
       return Exception::Error(String::New("Socket path too long"));
     }
 
+    memset(&un, 0, sizeof un);
     un.sun_family = AF_UNIX;
-    strncpy(un.sun_path, *path, ARRAY_SIZE(un.sun_path) - 1);
-    un.sun_path[ARRAY_SIZE(un.sun_path) - 1] = '\0';
+    memcpy(un.sun_path, *path, path.length());
 
     addr = (struct sockaddr*)&un;
-    addrlen = path.length() + sizeof(un.sun_family) + 1;
+    addrlen = sizeof(un) - sizeof(un.sun_path) + path.length() + 1;
 
   } else {
     // TCP or UDP
@@ -350,13 +350,6 @@ static Handle<Value> Connect(const Arguments& args) {
   return Undefined();
 }
 
-// Mac's SUN_LEN is broken
-#if defined(__APPLE__)
-# define SUN_LEN(ptr) ((ptr)->sun_len-2)
-#elif !defined(SUN_LEN)
-# define SUN_LEN(ptr) strlen((ptr)->sun_path)
-#endif
-
 #define ADDRESS_TO_JS(info, address_storage) \
 do { \
   char ip[INET6_ADDRSTRLEN]; \
@@ -381,15 +374,10 @@ do { \
       break; \
     case AF_UNIX: \
       au = (struct sockaddr_un*)&(address_storage); \
-      char un_path[105]; \
-      size_t len; \
-      len = SUN_LEN(au); \
-      strncpy(un_path, au->sun_path, len); \
-      un_path[len] = 0; \
-      (info)->Set(address_symbol, String::New(un_path)); \
+      (info)->Set(address_symbol, String::New(au->sun_path)); \
       break; \
     default: \
-      (info)->Set(address_symbol, String::New("")); \
+      (info)->Set(address_symbol, String::Empty()); \
   } \
 } while (0)
 
