@@ -1,4 +1,25 @@
-2010.07.03, Version 0.1.100
+2010.07.16, Version 0.1.101
+
+* Added env to child_process.exec (Сергей Крыжановский)
+
+* Allow modules to optionally be loaded in separate contexts
+  with env var NODE_MODULE_CONTEXTS=1.
+
+* setTTL and setBroadcast for dgram (Matt Ranney)
+
+* Use execPath for default NODE_PATH, not installPrefix
+  (Isaac Schlueter)
+
+* Support of console.dir + console.assert (Jerome Etienne)
+
+* on() as alias to addListener()
+
+* Use javascript port of Ronn to build docs (Jérémy Lal)
+
+* Upgrade V8 to 2.3.0
+
+
+2010.07.03, Version 0.1.100, a6b8586e947f9c3ced180fe68c233d0c252add8b
 
 * process.execPath (Marshall Culpepper)
 
