@@ -2964,7 +2964,7 @@ If you wish to disable the array mungeing (e.g. when generating parameters for a
 can set the `munge` argument to `false`.
 Example:
 
-    querystring.stringify({foo: 'bar', foo: 'baz', foo: 'boz'}, '&', '=', false)
+    querystring.stringify({foo: ['bar', 'baz', 'boz']}, '&', '=', false)
     // returns
     'foo=bar&foo=baz&foo=boz'
 
