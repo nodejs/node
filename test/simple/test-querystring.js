@@ -67,17 +67,24 @@ var qsWeirdObjects = [
   [ {d:Date}, "d=", {"d":""} ],
   [ {f:new Boolean(false), t:new Boolean(true)}, "f=0&t=1", {"f":0, "t":1} ],
   [ {f:false, t:true}, "f=0&t=1", {"f":0, "t":1} ],
+  [ {n:null}, "n=", {"n":""} ],
+  [ {nan:NaN}, "nan=", {"nan":""} ],
+  [ {inf:Infinity}, "inf=", {"inf":""} ]
 ];
 }
+
+var Script = process.binding('evals').Script;
+var foreignObject = Script.runInContext('({"foo": ["bar", "baz"]})', Script.createContext());
 
 var qsNoMungeTestCases = [
   ["", {}],
   ["foo=bar&foo=baz", {"foo": ["bar", "baz"]}],
+  ["foo=bar&foo=baz", foreignObject],
   ["blah=burp", {"blah": "burp"}],
   ["gragh=1&gragh=3&goo=2", {"gragh": ["1", "3"], "goo": "2"}],
   ["frappucino=muffin&goat%5B%5D=scone&pond=moose",
    {"frappucino": "muffin", "goat[]": "scone", "pond": "moose"}],
-  ["obj%5Btrololol%5D=yes&obj%5Blololo%5D=no", {"obj": {"trololol": "yes", "lololo": "no"}}],
+  ["obj%5Btrololol%5D=yes&obj%5Blololo%5D=no", {"obj": {"trololol": "yes", "lololo": "no"}}]
 ];
 
 // test that the canonical qs is parsed properly.
