@@ -1,5 +1,5 @@
 common = require("../common");
-assert = common.assert
+assert = common.assert;
 
 // test using assert
 
@@ -107,15 +107,18 @@ qsNoMungeTestCases.forEach(function (testCase) {
 });
 
 // test the nested qs-in-qs case
-var f = qs.parse("a=b&q=x%3Dy%26y%3Dz");
-f.q = qs.parse(f.q);
-assert.deepEqual(f, { a : "b", q : { x : "y", y : "z" } });
+(function(){
+	var f = qs.parse("a=b&q=x%3Dy%26y%3Dz");
+	f.q = qs.parse(f.q);
+	assert.deepEqual(f, { a : "b", q : { x : "y", y : "z" } });
+})();
 
 // nested in colon
-var f = qs.parse("a:b;q:x%3Ay%3By%3Az", ";", ":");
-f.q = qs.parse(f.q, ";", ":");
-assert.deepEqual(f, { a : "b", q : { x : "y", y : "z" } });
-
+(function(){
+	var f = qs.parse("a:b;q:x%3Ay%3By%3Az", ";", ":");
+	f.q = qs.parse(f.q, ";", ":");
+	assert.deepEqual(f, { a : "b", q : { x : "y", y : "z" } });
+})();
 
 // now test stringifying
 assert.throws(function () {
