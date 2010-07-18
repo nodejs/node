@@ -74,6 +74,8 @@ static inline bool SetNonBlock(int fd) {
 
 
 static inline bool SetSockFlags(int fd) {
+  int flags = 1;
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags));
   return SetNonBlock(fd) && SetCloseOnExec(fd);
 }
 
