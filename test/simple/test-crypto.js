@@ -10,6 +10,7 @@ try {
 
 var fs = require('fs');
 var sys = require('sys');
+var path = require('path');
 
 // Test Certificates
 var caPem = fs.readFileSync(common.fixturesDir+"/test_ca.pem", 'ascii');
@@ -39,6 +40,16 @@ var h1 = crypto.createHash("sha1").update("Test123").digest("hex");
 var h2 = crypto.createHash("sha1").update("Test").update("123").digest("hex");
 assert.equal(h1, h2, "multipled updates");
 
+// Test hashing for binary files
+fn = path.join(common.fixturesDir, 'sample.png');
+var sha1Hash = crypto.createHash('sha1');
+var fileStream = fs.createReadStream(fn);
+fileStream.addListener('data', function(data){
+  sha1Hash.update(data);
+});
+fileStream.addListener('close', function(){
+  assert.equal(sha1Hash.digest('hex'), '22723e553129a336ad96e10f6aecdf0f45e4149e', 'Test SHA1 of sample.png');
+});
 
 // Test signing and verifying
 var s1 = crypto.createSign("RSA-SHA1").update("Test123").sign(keyPem, "base64");
