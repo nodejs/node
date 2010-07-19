@@ -1783,13 +1783,17 @@ class Hash : public ObjectWrap {
       return ThrowException(exception);
     }
 
-    char* buf = new char[len];
-    ssize_t written = DecodeWrite(buf, len, args[0], enc);
-    assert(written == len);
 
-    int r = hash->HashUpdate(buf, len);
-
-    delete[] buf;
+    if (Buffer::HasInstance(args[0])) {
+      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+      int r = hash->HashUpdate(buffer->data(), buffer->length());
+    } else {
+      char* buf = new char[len];
+      ssize_t written = DecodeWrite(buf, len, args[0], enc);
+      assert(written == len);
+      int r = hash->HashUpdate(buf, len);
+      delete[] buf;
+    }
 
     return args.This();
   }
