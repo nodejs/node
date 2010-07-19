@@ -678,7 +678,7 @@ Gets the group identity of the process. (See getgid(2).)  This is the numerical 
 
 ### process.setgid(id)
 
-Sets the group identity of the process. (See setgid(2).)  This is the numerical group id, not the group name.
+Sets the group identity of the process. (See setgid(2).)  This accepts either a numerical ID or a groupname string.  If a groupname is specified, this method blocks while resolving it to a numerical ID.
 
     console.log('Current gid: ' + process.getgid());
     try {
@@ -699,7 +699,7 @@ Gets the user identity of the process. (See getuid(2).)  This is the numerical u
 
 ### process.setuid(id)
 
-Sets the user identity of the process. (See setuid(2).)  This is the numerical userid, not the username.
+Sets the user identity of the process. (See setuid(2).)  This accepts either a numerical ID or a username string.  If a username is specified, this method blocks while resolving it to a numerical ID.
 
     console.log('Current uid: ' + process.getuid());
     try {
