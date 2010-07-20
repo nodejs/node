@@ -131,6 +131,12 @@ b.copy(new Buffer(1), 1, 1, 1);
 // try to copy 0 bytes from past the end of the source buffer
 b.copy(new Buffer(1), 0, 2048, 2048);
 
+// try to toString() a 0-length slice of a buffer, both within and without the
+// valid buffer range
+assert.equal(new Buffer('abc').toString('ascii', 0, 0), '');
+assert.equal(new Buffer('abc').toString('ascii', -100, -100), '');
+assert.equal(new Buffer('abc').toString('ascii', 100, 100), '');
+
 var asciiString = "hello world";
 var offset = 100;
 for (var j = 0; j < 500; j++) {
