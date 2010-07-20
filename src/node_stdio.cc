@@ -91,6 +91,18 @@ static Handle<Value> GetColumns (const Arguments& args) {
   return scope.Close(Integer::NewFromUnsigned(ws.ws_col));
 }
 
+// process.binding('stdio').getRows();
+static Handle<Value> GetRows (const Arguments& args) {
+  HandleScope scope;
+
+  struct winsize ws;
+
+  if (ioctl(1, TIOCGWINSZ, &ws) == -1) {
+    return scope.Close(Integer::New(132));
+  }
+
+  return scope.Close(Integer::NewFromUnsigned(ws.ws_row));
+}
 
 /* STDERR IS ALWAY SYNC ALWAYS UTF8 */
 static Handle<Value>
@@ -208,6 +220,7 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "isStdinBlocking", IsStdinBlocking);
   NODE_SET_METHOD(target, "setRawMode", SetRawMode);
   NODE_SET_METHOD(target, "getColumns", GetColumns);
+  NODE_SET_METHOD(target, "getRows", GetRows);
 
   struct sigaction sa = {0};
   sa.sa_handler = HandleSIGCONT;
