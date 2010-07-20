@@ -1048,6 +1048,7 @@ There is a second optional argument to specify several options. The default opti
     , timeout: 0
     , maxBuffer: 200*1024
     , killSignal: 'SIGKILL'
+    , env: null
     }
 
 If `timeout` is greater than 0, then it will kill the child process

@@ -5,7 +5,7 @@ success_count = 0;
 error_count = 0;
 response = "";
 
-child = exec('/usr/bin/env', [], function (err, stdout, stderr) {
+child = exec('/usr/bin/env', { env: {'HELLO' : 'WORLD'}}, function (err, stdout, stderr) {
   if (err) {
     error_count++;
     console.log('error!: ' + err.code);
@@ -16,7 +16,7 @@ child = exec('/usr/bin/env', [], function (err, stdout, stderr) {
     success_count++;
     assert.equal(true, stdout != "");
   }
-}, {'HELLO' : 'WORLD'});
+});
 
 child.stdout.setEncoding('utf8');
 
