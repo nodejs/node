@@ -1583,6 +1583,14 @@ Returns a new ReadStream object (See `Readable Stream`).
     , 'bufferSize': 4 * 1024
     }
 
+`options` can include `start` and `end` values to read a range of bytes from
+the file instead of the entire file.  Both `start` and `end` are inclusive and
+start at 0.  When used, both the limits must be specified always.
+
+An example to read the last 10 bytes of a file which is 100 bytes long:
+
+    fs.createReadStream('sample.txt', {start: 90, end: 99});
+
 
 ## fs.WriteStream
 
