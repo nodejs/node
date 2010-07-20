@@ -103,6 +103,9 @@ debug("load modules by absolute id, then change require.paths, and load another 
 var foo = require("../fixtures/require-path/p1/foo");
 process.assert(foo.bar.expect === foo.bar.actual);
 
+assert.equal(require('../fixtures/foo').foo, 'ok',
+  'require module with no extension');
+
 process.addListener("exit", function () {
   assert.equal(true, a.A instanceof Function);
   assert.equal("A done", a.A());
