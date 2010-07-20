@@ -21,8 +21,8 @@
 
 
 #define NODE_VERSION_AT_LEAST(major, minor, patch) \
-                              ((   (major) < NODE_MAJOR_VERSION \
-                                || ((major) == NODE_MAJOR_VERSION && (minor) < NODE_MINOR_VERSION) \
-                                || ((major) == NODE_MAJOR_VERSION && (minor) == NODE_MINOR_VERSION && (patch) <= NODE_PATCH_VERSION))
+  (( (major) < NODE_MAJOR_VERSION) \
+  || ((major) == NODE_MAJOR_VERSION && (minor) < NODE_MINOR_VERSION) \
+  || ((major) == NODE_MAJOR_VERSION && (minor) == NODE_MINOR_VERSION && (patch) <= NODE_PATCH_VERSION))
 
 #endif /* NODE_VERSION_H */
