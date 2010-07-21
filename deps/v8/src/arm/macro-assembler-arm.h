@@ -112,6 +112,8 @@ class MacroAssembler: public Assembler {
   void Sbfx(Register dst, Register src, int lsb, int width,
             Condition cond = al);
   void Bfc(Register dst, int lsb, int width, Condition cond = al);
+  void Usat(Register dst, int satpos, const Operand& src,
+            Condition cond = al);
 
   void Call(Label* target);
   void Move(Register dst, Handle<Object> value);

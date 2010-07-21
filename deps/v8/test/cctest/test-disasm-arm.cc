@@ -396,6 +396,15 @@ TEST(Type3) {
             "e7df0f91       bfi r0, r1, #31, #1");
     COMPARE(bfi(r1, r0, 31, 1),
             "e7df1f90       bfi r1, r0, #31, #1");
+
+    COMPARE(usat(r0, 1, Operand(r1)),
+            "e6e10011       usat r0, #1, r1");
+    COMPARE(usat(r2, 7, Operand(lr)),
+            "e6e7201e       usat r2, #7, lr");
+    COMPARE(usat(r3, 31, Operand(r4, LSL, 31)),
+            "e6ff3f94       usat r3, #31, r4, lsl #31");
+    COMPARE(usat(r8, 0, Operand(r5, ASR, 17)),
+            "e6e088d5       usat r8, #0, r5, asr #17");
   }
 
   VERIFY_RUN();

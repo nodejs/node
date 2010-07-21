@@ -139,7 +139,7 @@ CodeGenState::~CodeGenState() {
 }
 
 
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // CodeGenerator implementation.
 
 CodeGenerator::CodeGenerator(MacroAssembler* masm)
@@ -154,6 +154,12 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm)
       in_spilled_code_(false) {
 }
 
+
+// Calling conventions:
+// rbp: caller's frame pointer
+// rsp: stack pointer
+// rdi: called JS function
+// rsi: callee's context
 
 void CodeGenerator::Generate(CompilationInfo* info) {
   // Record the position for debugging purposes.
@@ -171,7 +177,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 
   // Adjust for function-level loop nesting.
   ASSERT_EQ(0, loop_nesting_);
-  loop_nesting_ += info->loop_nesting();
+  loop_nesting_ = info->loop_nesting();
 
   JumpTarget::set_compiling_deferred_code(false);
 
@@ -469,14 +475,14 @@ Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
 // frame. If the expression is boolean-valued it may be compiled (or
 // partially compiled) into control flow to the control destination.
 // If force_control is true, control flow is forced.
-void CodeGenerator::LoadCondition(Expression* x,
+void CodeGenerator::LoadCondition(Expression* expr,
                                   ControlDestination* dest,
                                   bool force_control) {
   ASSERT(!in_spilled_code());
   int original_height = frame_->height();
 
   { CodeGenState new_state(this, dest);
-    Visit(x);
+    Visit(expr);
 
     // If we hit a stack overflow, we may not have actually visited
     // the expression.  In that case, we ensure that we have a
@@ -496,7 +502,6 @@ void CodeGenerator::LoadCondition(Expression* x,
 
   if (force_control && !dest->is_used()) {
     // Convert the TOS value into flow to the control destination.
-    // TODO(X64): Make control flow to control destinations work.
     ToBoolean(dest);
   }
 
@@ -506,7 +511,6 @@ void CodeGenerator::LoadCondition(Expression* x,
 
 
 void CodeGenerator::LoadAndSpill(Expression* expression) {
-  // TODO(x64): No architecture specific code. Move to shared location.
   ASSERT(in_spilled_code());
   set_in_spilled_code(false);
   Load(expression);
@@ -652,7 +656,6 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     frame_->Push(&result);
   }
 
-
   Variable* arguments = scope()->arguments()->var();
   Variable* shadow = scope()->arguments_shadow()->var();
   ASSERT(arguments != NULL && arguments->slot() != NULL);
@@ -663,11 +666,11 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     // We have to skip storing into the arguments slot if it has
     // already been written to. This can happen if the a function
     // has a local variable named 'arguments'.
-    LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+    LoadFromSlot(arguments->slot(), NOT_INSIDE_TYPEOF);
     Result probe = frame_->Pop();
     if (probe.is_constant()) {
-      // We have to skip updating the arguments object if it has been
-      // assigned a proper value.
+      // We have to skip updating the arguments object if it has
+      // been assigned a proper value.
       skip_arguments = !probe.handle()->IsTheHole();
     } else {
       __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
@@ -682,9 +685,6 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
   StoreToSlot(shadow->slot(), NOT_CONST_INIT);
   return frame_->Pop();
 }
-
-//------------------------------------------------------------------------------
-// CodeGenerator implementation of variables, lookups, and stores.
 
 //------------------------------------------------------------------------------
 // CodeGenerator implementation of variables, lookups, and stores.
@@ -845,8 +845,8 @@ class FloatingPointHelper : public AllStatic {
 
 const char* GenericBinaryOpStub::GetName() {
   if (name_ != NULL) return name_;
-  const int len = 100;
-  name_ = Bootstrapper::AllocateAutoDeletedArray(len);
+  const int kMaxNameLength = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
   if (name_ == NULL) return "OOM";
   const char* op_name = Token::Name(op_);
   const char* overwrite_name;
@@ -857,7 +857,7 @@ const char* GenericBinaryOpStub::GetName() {
     default: overwrite_name = "UnknownOverwrite"; break;
   }
 
-  OS::SNPrintF(Vector<char>(name_, len),
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
                "GenericBinaryOpStub_%s_%s%s_%s%s_%s_%s",
                op_name,
                overwrite_name,
@@ -1138,7 +1138,7 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
         if (answer >= Smi::kMinValue && answer <= Smi::kMaxValue) {
           // If the product is zero and the non-zero factor is negative,
           // the spec requires us to return floating point negative zero.
-          if (answer != 0 || (left + right) >= 0) {
+          if (answer != 0 || (left >= 0 && right >= 0)) {
             answer_object = Smi::FromInt(static_cast<int>(answer));
           }
         }
@@ -1645,7 +1645,6 @@ class DeferredInlineSmiSub: public DeferredCode {
 };
 
 
-
 void DeferredInlineSmiSub::Generate() {
   GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, NO_SMI_CODE_IN_STUB);
   igostub.GenerateCall(masm_, dst_, value_);
@@ -1710,6 +1709,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
       } else {
         operand->ToRegister();
         frame_->Spill(operand->reg());
+        answer = *operand;
         DeferredCode* deferred = new DeferredInlineSmiSub(operand->reg(),
                                                           smi_value,
                                                           overwrite_mode);
@@ -1721,7 +1721,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                           smi_value,
                           deferred->entry_label());
         deferred->BindExit();
-        answer = *operand;
+        operand->Unuse();
       }
       break;
     }
@@ -1932,6 +1932,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
   return answer;
 }
 
+
 static bool CouldBeNaN(const Result& result) {
   if (result.type_info().IsSmi()) return false;
   if (result.type_info().IsInteger32()) return false;
@@ -2002,106 +2003,11 @@ void CodeGenerator::Comparison(AstNode* node,
   }
 
   if (left_side_constant_smi || right_side_constant_smi) {
-    if (left_side_constant_smi && right_side_constant_smi) {
-      // Trivial case, comparing two constants.
-      int left_value = Smi::cast(*left_side.handle())->value();
-      int right_value = Smi::cast(*right_side.handle())->value();
-      switch (cc) {
-        case less:
-          dest->Goto(left_value < right_value);
-          break;
-        case equal:
-          dest->Goto(left_value == right_value);
-          break;
-        case greater_equal:
-          dest->Goto(left_value >= right_value);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    } else {
-      // Only one side is a constant Smi.
-      // If left side is a constant Smi, reverse the operands.
-      // Since one side is a constant Smi, conversion order does not matter.
-      if (left_side_constant_smi) {
-        Result temp = left_side;
-        left_side = right_side;
-        right_side = temp;
-        cc = ReverseCondition(cc);
-        // This may re-introduce greater or less_equal as the value of cc.
-        // CompareStub and the inline code both support all values of cc.
-      }
-      // Implement comparison against a constant Smi, inlining the case
-      // where both sides are Smis.
-      left_side.ToRegister();
-      Register left_reg = left_side.reg();
-      Handle<Object> right_val = right_side.handle();
-
-      // Here we split control flow to the stub call and inlined cases
-      // before finally splitting it to the control destination.  We use
-      // a jump target and branching to duplicate the virtual frame at
-      // the first split.  We manually handle the off-frame references
-      // by reconstituting them on the non-fall-through path.
-      JumpTarget is_smi;
-
-      if (left_side.is_smi()) {
-        if (FLAG_debug_code) {
-          __ AbortIfNotSmi(left_side.reg());
-        }
-      } else {
-        Condition left_is_smi = masm_->CheckSmi(left_side.reg());
-        is_smi.Branch(left_is_smi);
-
-        bool is_loop_condition = (node->AsExpression() != NULL) &&
-            node->AsExpression()->is_loop_condition();
-        if (!is_loop_condition && right_val->IsSmi()) {
-          // Right side is a constant smi and left side has been checked
-          // not to be a smi.
-          JumpTarget not_number;
-          __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
-                 Factory::heap_number_map());
-          not_number.Branch(not_equal, &left_side);
-          __ movsd(xmm1,
-              FieldOperand(left_reg, HeapNumber::kValueOffset));
-          int value = Smi::cast(*right_val)->value();
-          if (value == 0) {
-            __ xorpd(xmm0, xmm0);
-          } else {
-            Result temp = allocator()->Allocate();
-            __ movl(temp.reg(), Immediate(value));
-            __ cvtlsi2sd(xmm0, temp.reg());
-            temp.Unuse();
-          }
-          __ ucomisd(xmm1, xmm0);
-          // Jump to builtin for NaN.
-          not_number.Branch(parity_even, &left_side);
-          left_side.Unuse();
-          dest->true_target()->Branch(DoubleCondition(cc));
-          dest->false_target()->Jump();
-          not_number.Bind(&left_side);
-        }
-
-        // Setup and call the compare stub.
-        CompareStub stub(cc, strict, kCantBothBeNaN);
-        Result result = frame_->CallStub(&stub, &left_side, &right_side);
-        result.ToRegister();
-        __ testq(result.reg(), result.reg());
-        result.Unuse();
-        dest->true_target()->Branch(cc);
-        dest->false_target()->Jump();
-
-        is_smi.Bind();
-      }
-
-      left_side = Result(left_reg);
-      right_side = Result(right_val);
-      // Test smi equality and comparison by signed int comparison.
-      // Both sides are smis, so we can use an Immediate.
-      __ SmiCompare(left_side.reg(), Smi::cast(*right_side.handle()));
-      left_side.Unuse();
-      right_side.Unuse();
-      dest->Split(cc);
-    }
+    bool is_loop_condition = (node->AsExpression() != NULL) &&
+        node->AsExpression()->is_loop_condition();
+    ConstantSmiComparison(cc, strict, dest, &left_side, &right_side,
+                          left_side_constant_smi, right_side_constant_smi,
+                          is_loop_condition);
   } else if (cc == equal &&
              (left_side_constant_null || right_side_constant_null)) {
     // To make null checks efficient, we check if either the left side or
@@ -2274,7 +2180,8 @@ void CodeGenerator::Comparison(AstNode* node,
     }
   } else {
     // Neither side is a constant Smi, constant 1-char string, or constant null.
-    // If either side is a non-smi constant, skip the smi check.
+    // If either side is a non-smi constant, or known to be a heap number,
+    // skip the smi check.
     bool known_non_smi =
         (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
         (right_side.is_constant() && !right_side.handle()->IsSmi()) ||
@@ -2300,6 +2207,7 @@ void CodeGenerator::Comparison(AstNode* node,
     bool inline_number_compare =
         loop_nesting() > 0 && cc != equal && !is_loop_condition;
 
+    // Left and right needed in registers for the following code.
     left_side.ToRegister();
     right_side.ToRegister();
 
@@ -2317,6 +2225,8 @@ void CodeGenerator::Comparison(AstNode* node,
         GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
       }
 
+      // End of in-line compare, call out to the compare stub. Don't include
+      // number comparison in the stub if it was inlined.
       CompareStub stub(cc, strict, nan_info, !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flag.
@@ -2347,6 +2257,8 @@ void CodeGenerator::Comparison(AstNode* node,
         GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
       }
 
+      // End of in-line compare, call out to the compare stub. Don't include
+      // number comparison in the stub if it was inlined.
       CompareStub stub(cc, strict, nan_info, !inline_number_compare);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flags.
@@ -2361,6 +2273,128 @@ void CodeGenerator::Comparison(AstNode* node,
       right_side.Unuse();
       left_side.Unuse();
       dest->Split(cc);
+    }
+  }
+}
+
+
+void CodeGenerator::ConstantSmiComparison(Condition cc,
+                                          bool strict,
+                                          ControlDestination* dest,
+                                          Result* left_side,
+                                          Result* right_side,
+                                          bool left_side_constant_smi,
+                                          bool right_side_constant_smi,
+                                          bool is_loop_condition) {
+  if (left_side_constant_smi && right_side_constant_smi) {
+    // Trivial case, comparing two constants.
+    int left_value = Smi::cast(*left_side->handle())->value();
+    int right_value = Smi::cast(*right_side->handle())->value();
+    switch (cc) {
+      case less:
+        dest->Goto(left_value < right_value);
+        break;
+      case equal:
+        dest->Goto(left_value == right_value);
+        break;
+      case greater_equal:
+        dest->Goto(left_value >= right_value);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    // Only one side is a constant Smi.
+    // If left side is a constant Smi, reverse the operands.
+    // Since one side is a constant Smi, conversion order does not matter.
+    if (left_side_constant_smi) {
+      Result* temp = left_side;
+      left_side = right_side;
+      right_side = temp;
+      cc = ReverseCondition(cc);
+      // This may re-introduce greater or less_equal as the value of cc.
+      // CompareStub and the inline code both support all values of cc.
+    }
+    // Implement comparison against a constant Smi, inlining the case
+    // where both sides are Smis.
+    left_side->ToRegister();
+    Register left_reg = left_side->reg();
+    Smi* constant_smi = Smi::cast(*right_side->handle());
+
+    if (left_side->is_smi()) {
+      if (FLAG_debug_code) {
+        __ AbortIfNotSmi(left_reg);
+      }
+      // Test smi equality and comparison by signed int comparison.
+      // Both sides are smis, so we can use an Immediate.
+      __ SmiCompare(left_reg, constant_smi);
+      left_side->Unuse();
+      right_side->Unuse();
+      dest->Split(cc);
+    } else {
+      // Only the case where the left side could possibly be a non-smi is left.
+      JumpTarget is_smi;
+      if (cc == equal) {
+        // We can do the equality comparison before the smi check.
+        __ SmiCompare(left_reg, constant_smi);
+        dest->true_target()->Branch(equal);
+        Condition left_is_smi = masm_->CheckSmi(left_reg);
+        dest->false_target()->Branch(left_is_smi);
+      } else {
+        // Do the smi check, then the comparison.
+        Condition left_is_smi = masm_->CheckSmi(left_reg);
+        is_smi.Branch(left_is_smi, left_side, right_side);
+      }
+
+      // Jump or fall through to here if we are comparing a non-smi to a
+      // constant smi.  If the non-smi is a heap number and this is not
+      // a loop condition, inline the floating point code.
+      if (!is_loop_condition) {
+        // Right side is a constant smi and left side has been checked
+        // not to be a smi.
+        JumpTarget not_number;
+        __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
+               Factory::heap_number_map());
+        not_number.Branch(not_equal, left_side);
+        __ movsd(xmm1,
+                 FieldOperand(left_reg, HeapNumber::kValueOffset));
+        int value = constant_smi->value();
+        if (value == 0) {
+          __ xorpd(xmm0, xmm0);
+        } else {
+          Result temp = allocator()->Allocate();
+          __ movl(temp.reg(), Immediate(value));
+          __ cvtlsi2sd(xmm0, temp.reg());
+          temp.Unuse();
+        }
+        __ ucomisd(xmm1, xmm0);
+        // Jump to builtin for NaN.
+        not_number.Branch(parity_even, left_side);
+        left_side->Unuse();
+        dest->true_target()->Branch(DoubleCondition(cc));
+        dest->false_target()->Jump();
+        not_number.Bind(left_side);
+      }
+
+      // Setup and call the compare stub.
+      CompareStub stub(cc, strict, kCantBothBeNaN);
+      Result result = frame_->CallStub(&stub, left_side, right_side);
+      result.ToRegister();
+      __ testq(result.reg(), result.reg());
+      result.Unuse();
+      if (cc == equal) {
+        dest->Split(cc);
+      } else {
+        dest->true_target()->Branch(cc);
+        dest->false_target()->Jump();
+
+        // It is important for performance for this case to be at the end.
+        is_smi.Bind(left_side, right_side);
+        __ SmiCompare(left_reg, constant_smi);
+        left_side->Unuse();
+        right_side->Unuse();
+        dest->Split(cc);
+      }
     }
   }
 }
@@ -2677,7 +2711,6 @@ void CodeGenerator::CheckStack() {
 
 
 void CodeGenerator::VisitAndSpill(Statement* statement) {
-  // TODO(X64): No architecture specific code. Move to shared location.
   ASSERT(in_spilled_code());
   set_in_spilled_code(false);
   Visit(statement);
@@ -2689,6 +2722,9 @@ void CodeGenerator::VisitAndSpill(Statement* statement) {
 
 
 void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(in_spilled_code());
   set_in_spilled_code(false);
   VisitStatements(statements);
@@ -2696,14 +2732,20 @@ void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
     frame_->SpillAll();
   }
   set_in_spilled_code(true);
+
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(!in_spilled_code());
   for (int i = 0; has_valid_frame() && i < statements->length(); i++) {
     Visit(statements->at(i));
   }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
@@ -2939,6 +2981,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   CodeForStatementPosition(node);
   Load(node->expression());
   Result return_value = frame_->Pop();
+  masm()->WriteRecordedPositions();
   if (function_return_is_shadowed_) {
     function_return_.Jump(&return_value);
   } else {
@@ -2976,6 +3019,8 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // receiver.
   frame_->Exit();
   masm_->ret((scope()->num_parameters() + 1) * kPointerSize);
+  DeleteFrame();
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Add padding that will be overwritten by a debugger breakpoint.
   // frame_->Exit() generates "movq rsp, rbp; pop rbp; ret k"
@@ -2989,7 +3034,6 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   ASSERT_EQ(Assembler::kJSReturnSequenceLength,
             masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
-  DeleteFrame();
 }
 
 
@@ -3028,8 +3072,6 @@ void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
 
 
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
-  // TODO(X64): This code is completely generic and should be moved somewhere
-  // where it can be shared between architectures.
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ SwitchStatement");
   CodeForStatementPosition(node);
@@ -3321,8 +3363,8 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
           LoadCondition(node->cond(), &dest, true);
         }
       } else {
-        // If we have chosen not to recompile the test at the
-        // bottom, jump back to the one at the top.
+        // If we have chosen not to recompile the test at the bottom,
+        // jump back to the one at the top.
         if (has_valid_frame()) {
           node->continue_target()->Jump();
         }
@@ -3883,6 +3925,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   node->continue_target()->Unuse();
   node->break_target()->Unuse();
 }
+
 
 void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   ASSERT(!in_spilled_code());
@@ -4922,103 +4965,292 @@ void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
 }
 
 
-void CodeGenerator::VisitAssignment(Assignment* node) {
-  Comment cmnt(masm_, "[ Assignment");
+void CodeGenerator::EmitSlotAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Comment cmnt(masm(), "[ Variable Assignment");
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  ASSERT(var != NULL);
+  Slot* slot = var->slot();
+  ASSERT(slot != NULL);
 
-  { Reference target(this, node->target(), node->is_compound());
-    if (target.is_illegal()) {
-      // Fool the virtual frame into thinking that we left the assignment's
-      // value on the frame.
-      frame_->Push(Smi::FromInt(0));
-      return;
-    }
-    Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
+    LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
+    Load(node->value());
 
-    if (node->starts_initialization_block()) {
-      ASSERT(target.type() == Reference::NAMED ||
-             target.type() == Reference::KEYED);
-      // Change to slow case in the beginning of an initialization
-      // block to avoid the quadratic behavior of repeatedly adding
-      // fast properties.
+    // Perform the binary operation.
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    // Construct the implicit binary operation.
+    BinaryOperation expr(node, node->binary_op(), node->target(),
+                         node->value());
+    GenericBinaryOperation(&expr,
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+  } else {
+    // For non-compound assignment just load the right-hand side.
+    Load(node->value());
+  }
 
-      // The receiver is the argument to the runtime call.  It is the
-      // first value pushed when the reference was loaded to the
-      // frame.
-      frame_->PushElementAt(target.size() - 1);
-      Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
-    }
-    if (node->ends_initialization_block()) {
-      // Add an extra copy of the receiver to the frame, so that it can be
-      // converted back to fast case after the assignment.
-      ASSERT(target.type() == Reference::NAMED ||
-             target.type() == Reference::KEYED);
-      if (target.type() == Reference::NAMED) {
-        frame_->Dup();
-        // Dup target receiver on stack.
-      } else {
-        ASSERT(target.type() == Reference::KEYED);
-        Result temp = frame_->Pop();
-        frame_->Dup();
-        frame_->Push(&temp);
-      }
-    }
-    if (node->op() == Token::ASSIGN ||
-        node->op() == Token::INIT_VAR ||
-        node->op() == Token::INIT_CONST) {
-      Load(node->value());
+  // Perform the assignment.
+  if (var->mode() != Variable::CONST || node->op() == Token::INIT_CONST) {
+    CodeForSourcePosition(node->position());
+    StoreToSlot(slot,
+                node->op() == Token::INIT_CONST ? CONST_INIT : NOT_CONST_INIT);
+  }
+  ASSERT(frame()->height() == original_height + 1);
+}
 
-    } else {  // Assignment is a compound assignment.
-      Literal* literal = node->value()->AsLiteral();
-      bool overwrite_value =
-          (node->value()->AsBinaryOperation() != NULL &&
-           node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-      Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
-      // There are two cases where the target is not read in the right hand
-      // side, that are easy to test for: the right hand side is a literal,
-      // or the right hand side is a different variable.  TakeValue invalidates
-      // the target, with an implicit promise that it will be written to again
-      // before it is read.
-      if (literal != NULL || (right_var != NULL && right_var != var)) {
-        target.TakeValue();
-      } else {
-        target.GetValue();
-      }
-      Load(node->value());
-      BinaryOperation expr(node, node->binary_op(), node->target(),
-                           node->value());
-      GenericBinaryOperation(&expr,
-                             overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
-    }
 
-    if (var != NULL &&
-        var->mode() == Variable::CONST &&
-        node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
-      // Assignment ignored - leave the value on the stack.
-      UnloadReference(&target);
+void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Comment cmnt(masm(), "[ Named Property Assignment");
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  Property* prop = node->target()->AsProperty();
+  ASSERT(var == NULL || (prop == NULL && var->is_global()));
+
+  // Initialize name and evaluate the receiver sub-expression if necessary. If
+  // the receiver is trivial it is not placed on the stack at this point, but
+  // loaded whenever actually needed.
+  Handle<String> name;
+  bool is_trivial_receiver = false;
+  if (var != NULL) {
+    name = var->name();
+  } else {
+    Literal* lit = prop->key()->AsLiteral();
+    ASSERT_NOT_NULL(lit);
+    name = Handle<String>::cast(lit->handle());
+    // Do not materialize the receiver on the frame if it is trivial.
+    is_trivial_receiver = prop->obj()->IsTrivial();
+    if (!is_trivial_receiver) Load(prop->obj());
+  }
+
+  // Change to slow case in the beginning of an initialization block to
+  // avoid the quadratic behavior of repeatedly adding fast properties.
+  if (node->starts_initialization_block()) {
+    // Initialization block consists of assignments of the form expr.x = ..., so
+    // this will never be an assignment to a variable, so there must be a
+    // receiver object.
+    ASSERT_EQ(NULL, var);
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
     } else {
-      CodeForSourcePosition(node->position());
-      if (node->op() == Token::INIT_CONST) {
-        // Dynamic constant initializations must use the function context
-        // and initialize the actual constant declared. Dynamic variable
-        // initializations are simply assignments and use SetValue.
-        target.SetValue(CONST_INIT);
-      } else {
-        target.SetValue(NOT_CONST_INIT);
+      frame()->Dup();
+    }
+    Result ignored = frame()->CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
+  // Change to fast case at the end of an initialization block. To prepare for
+  // that add an extra copy of the receiver to the frame, so that it can be
+  // converted back to fast case after the assignment.
+  if (node->ends_initialization_block() && !is_trivial_receiver) {
+    frame()->Dup();
+  }
+
+  // Stack layout:
+  // [tos]   : receiver (only materialized if non-trivial)
+  // [tos+1] : receiver if at the end of an initialization block
+
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else if (var != NULL) {
+      // The LoadIC stub expects the object in rax.
+      // Freeing rax causes the code generator to load the global into it.
+      frame_->Spill(rax);
+      LoadGlobal();
+    } else {
+      frame()->Dup();
+    }
+    Result value = EmitNamedLoad(name, var != NULL);
+    frame()->Push(&value);
+    Load(node->value());
+
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    // Construct the implicit binary operation.
+    BinaryOperation expr(node, node->binary_op(), node->target(),
+                         node->value());
+    GenericBinaryOperation(&expr,
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+  } else {
+    // For non-compound assignment just load the right-hand side.
+    Load(node->value());
+  }
+
+  // Stack layout:
+  // [tos]   : value
+  // [tos+1] : receiver (only materialized if non-trivial)
+  // [tos+2] : receiver if at the end of an initialization block
+
+  // Perform the assignment.  It is safe to ignore constants here.
+  ASSERT(var == NULL || var->mode() != Variable::CONST);
+  ASSERT_NE(Token::INIT_CONST, node->op());
+  if (is_trivial_receiver) {
+    Result value = frame()->Pop();
+    frame()->Push(prop->obj());
+    frame()->Push(&value);
+  }
+  CodeForSourcePosition(node->position());
+  bool is_contextual = (var != NULL);
+  Result answer = EmitNamedStore(name, is_contextual);
+  frame()->Push(&answer);
+
+  // Stack layout:
+  // [tos]   : result
+  // [tos+1] : receiver if at the end of an initialization block
+
+  if (node->ends_initialization_block()) {
+    ASSERT_EQ(NULL, var);
+    // The argument to the runtime call is the receiver.
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else {
+      // A copy of the receiver is below the value of the assignment.  Swap
+      // the receiver and the value of the assignment expression.
+      Result result = frame()->Pop();
+      Result receiver = frame()->Pop();
+      frame()->Push(&result);
+      frame()->Push(&receiver);
+    }
+    Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+  }
+
+  // Stack layout:
+  // [tos]   : result
+
+  ASSERT_EQ(frame()->height(), original_height + 1);
+}
+
+
+void CodeGenerator::VisitAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  Property* prop = node->target()->AsProperty();
+
+  if (var != NULL && !var->is_global()) {
+    EmitSlotAssignment(node);
+
+  } else if ((prop != NULL && prop->key()->IsPropertyName()) ||
+             (var != NULL && var->is_global())) {
+    // Properties whose keys are property names and global variables are
+    // treated as named property references.  We do not need to consider
+    // global 'this' because it is not a valid left-hand side.
+    EmitNamedPropertyAssignment(node);
+
+  } else {
+    Comment cmnt(masm_, "[ Assignment");
+
+    { Reference target(this, node->target(), node->is_compound());
+      if (target.is_illegal()) {
+        // Fool the virtual frame into thinking that we left the assignment's
+        // value on the frame.
+        frame_->Push(Smi::FromInt(0));
+        return;
+      }
+
+      if (node->starts_initialization_block()) {
+        ASSERT(target.type() == Reference::NAMED ||
+               target.type() == Reference::KEYED);
+        // Change to slow case in the beginning of an initialization
+        // block to avoid the quadratic behavior of repeatedly adding
+        // fast properties.
+
+        // The receiver is the argument to the runtime call.  It is the
+        // first value pushed when the reference was loaded to the
+        // frame.
+        frame_->PushElementAt(target.size() - 1);
+        Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
       }
       if (node->ends_initialization_block()) {
-        ASSERT(target.type() == Reference::UNLOADED);
-        // End of initialization block. Revert to fast case.  The
-        // argument to the runtime call is the extra copy of the receiver,
-        // which is below the value of the assignment.
-        // Swap the receiver and the value of the assignment expression.
-        Result lhs = frame_->Pop();
-        Result receiver = frame_->Pop();
-        frame_->Push(&lhs);
-        frame_->Push(&receiver);
-        Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+        // Add an extra copy of the receiver to the frame, so that it can be
+        // converted back to fast case after the assignment.
+        ASSERT(target.type() == Reference::NAMED ||
+               target.type() == Reference::KEYED);
+        if (target.type() == Reference::NAMED) {
+          frame_->Dup();
+          // Dup target receiver on stack.
+        } else {
+          ASSERT(target.type() == Reference::KEYED);
+          Result temp = frame_->Pop();
+          frame_->Dup();
+          frame_->Push(&temp);
+        }
+      }
+      if (node->op() == Token::ASSIGN ||
+          node->op() == Token::INIT_VAR ||
+          node->op() == Token::INIT_CONST) {
+        Load(node->value());
+
+      } else {  // Assignment is a compound assignment.
+        Literal* literal = node->value()->AsLiteral();
+        bool overwrite_value =
+            (node->value()->AsBinaryOperation() != NULL &&
+             node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+        Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
+        // There are two cases where the target is not read in the right hand
+        // side, that are easy to test for: the right hand side is a literal,
+        // or the right hand side is a different variable.  TakeValue
+        // invalidates the target, with an implicit promise that it will be
+        // written to again
+        // before it is read.
+        if (literal != NULL || (right_var != NULL && right_var != var)) {
+          target.TakeValue();
+        } else {
+          target.GetValue();
+        }
+        Load(node->value());
+        BinaryOperation expr(node, node->binary_op(), node->target(),
+                             node->value());
+        GenericBinaryOperation(
+            &expr, overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+      }
+      if (var != NULL &&
+          var->mode() == Variable::CONST &&
+          node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
+        // Assignment ignored - leave the value on the stack.
+        UnloadReference(&target);
+      } else {
+        CodeForSourcePosition(node->position());
+        if (node->op() == Token::INIT_CONST) {
+          // Dynamic constant initializations must use the function context
+          // and initialize the actual constant declared. Dynamic variable
+          // initializations are simply assignments and use SetValue.
+          target.SetValue(CONST_INIT);
+        } else {
+          target.SetValue(NOT_CONST_INIT);
+        }
+        if (node->ends_initialization_block()) {
+          ASSERT(target.type() == Reference::UNLOADED);
+          // End of initialization block. Revert to fast case.  The
+          // argument to the runtime call is the extra copy of the receiver,
+          // which is below the value of the assignment.
+          // Swap the receiver and the value of the assignment expression.
+          Result lhs = frame_->Pop();
+          Result receiver = frame_->Pop();
+          frame_->Push(&lhs);
+          frame_->Push(&receiver);
+          Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+        }
       }
     }
   }
+  // Stack layout:
+  // [tos]   : result
+
+  ASSERT(frame()->height() == original_height + 1);
 }
 
 
@@ -5677,6 +5909,25 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   __ cmpq(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
   obj.Unuse();
   destination()->Split(below_equal);
+}
+
+
+void CodeGenerator::GenerateIsSpecObject(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp' ||
+  // typeof(arg) == function).
+  // It includes undetectable objects (as opposed to IsObject).
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  Condition is_smi = masm_->CheckSmi(value.reg());
+  destination()->false_target()->Branch(is_smi);
+  // Check that this is an object.
+  __ CmpObjectType(value.reg(), FIRST_JS_OBJECT_TYPE, kScratchRegister);
+  value.Unuse();
+  destination()->Split(above_equal);
 }
 
 
@@ -7726,6 +7977,22 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     deferred->BindExit();
   }
   ASSERT(frame()->height() == original_height - 1);
+  return result;
+}
+
+
+Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
+#ifdef DEBUG
+  int expected_height = frame()->height() - (is_contextual ? 1 : 2);
+#endif
+
+  Result result = frame()->CallStoreIC(name, is_contextual);
+  // A test rax instruction following the call signals that the inobject
+  // property case was inlined.  Ensure that there is not a test rax
+  // instruction here.
+  __ nop();
+
+  ASSERT_EQ(expected_height, frame()->height());
   return result;
 }
 
@@ -10226,12 +10493,6 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&slow);
   }
 
-  // Push arguments below the return address to prepare jump to builtin.
-  __ pop(rcx);
-  __ push(rax);
-  __ push(rdx);
-  __ push(rcx);
-
   // Generate the number comparison code.
   if (include_number_compare_) {
     Label non_number_comparison;
@@ -10247,7 +10508,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ setcc(above, rax);
     __ setcc(below, rcx);
     __ subq(rax, rcx);
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ ret(0);
 
     // If one of the numbers was NaN, then the result is always false.
     // The cc is never not-equal.
@@ -10258,7 +10519,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     } else {
       __ Set(rax, -1);
     }
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ ret(0);
 
     // The number comparison code did not provide a valid result.
     __ bind(&non_number_comparison);
@@ -10273,7 +10534,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // We've already checked for object identity, so if both operands
     // are symbols they aren't equal. Register eax (not rax) already holds a
     // non-zero value, which indicates not equal, so just return.
-    __ ret(2 * kPointerSize);
+    __ ret(0);
   }
 
   __ bind(&check_for_strings);
@@ -10324,14 +10585,12 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&return_unequal);
     // Return non-equal by returning the non-zero object pointer in eax,
     // or return equal if we fell through to here.
-    __ ret(2 * kPointerSize);  // rax, rdx were pushed
+    __ ret(0);
     __ bind(&not_both_objects);
   }
 
-  // must swap argument order
+  // Push arguments below the return address to prepare jump to builtin.
   __ pop(rcx);
-  __ pop(rdx);
-  __ pop(rax);
   __ push(rdx);
   __ push(rax);
 
@@ -11483,7 +11742,7 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
 
   // Make count the number of bytes to copy.
   if (!ascii) {
-    ASSERT_EQ(2, sizeof(uc16));  // NOLINT
+    ASSERT_EQ(2, static_cast<int>(sizeof(uc16)));  // NOLINT
     __ addl(count, count);
   }
 
@@ -11908,7 +12167,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
 
   // Result is EQUAL.
   __ Move(rax, Smi::FromInt(EQUAL));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 
   Label result_greater;
   __ bind(&result_not_equal);
@@ -11917,12 +12176,12 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
 
   // Result is LESS.
   __ Move(rax, Smi::FromInt(LESS));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 
   // Result is GREATER.
   __ bind(&result_greater);
   __ Move(rax, Smi::FromInt(GREATER));
-  __ ret(2 * kPointerSize);
+  __ ret(0);
 }
 
 
@@ -11952,6 +12211,10 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
   // Inline comparison of ascii strings.
   __ IncrementCounter(&Counters::string_compare_native, 1);
+  // Drop arguments from the stack
+  __ pop(rcx);
+  __ addq(rsp, Immediate(2 * kPointerSize));
+  __ push(rcx);
   GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi, r8);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)

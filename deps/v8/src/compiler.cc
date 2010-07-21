@@ -449,8 +449,12 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
                             code);
 
   // Update the shared function info with the compiled code and the scope info.
-  shared->set_code(*code);
+  // Please note, that the order of the sharedfunction initialization is
+  // important since set_scope_info might trigger a GC, causing the ASSERT
+  // below to be invalid if the code was flushed. By settting the code
+  // object last we avoid this.
   shared->set_scope_info(*SerializedScopeInfo::Create(info->scope()));
+  shared->set_code(*code);
 
   // Set the expected number of properties for instances.
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());

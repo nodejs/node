@@ -38,7 +38,15 @@ namespace internal {
 class HeapSnapshot;
 class HeapSnapshotsCollection;
 
-#endif
+#define HEAP_PROFILE(Call)                             \
+  do {                                                 \
+    if (v8::internal::HeapProfiler::is_profiling()) {  \
+      v8::internal::HeapProfiler::Call;                \
+    }                                                  \
+  } while (false)
+#else
+#define HEAP_PROFILE(Call) ((void) 0)
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 // The HeapProfiler writes data to the log files, which can be postprocessed
 // to generate .hp files for use by the GHC/Valgrind tool hp2ps.
@@ -53,6 +61,12 @@ class HeapProfiler {
   static int GetSnapshotsCount();
   static HeapSnapshot* GetSnapshot(int index);
   static HeapSnapshot* FindSnapshot(unsigned uid);
+
+  static void ObjectMoveEvent(Address from, Address to);
+
+  static INLINE(bool is_profiling()) {
+    return singleton_ != NULL && singleton_->snapshots_->is_tracking_objects();
+  }
 
   // Obsolete interface.
   // Write a single heap sample to the log file.

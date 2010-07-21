@@ -1722,6 +1722,7 @@ class GCTracer BASE_EMBEDDED {
       MC_MARK,
       MC_SWEEP,
       MC_COMPACT,
+      MC_FLUSH_CODE,
       kNumberOfScopes
     };
 

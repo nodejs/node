@@ -1192,6 +1192,30 @@ void Assembler::clz(Register dst, Register src, Condition cond) {
 }
 
 
+// Saturating instructions.
+
+// Unsigned saturate.
+void Assembler::usat(Register dst,
+                     int satpos,
+                     const Operand& src,
+                     Condition cond) {
+  // v6 and above.
+  ASSERT(CpuFeatures::IsSupported(ARMv7));
+  ASSERT(!dst.is(pc) && !src.rm_.is(pc));
+  ASSERT((satpos >= 0) && (satpos <= 31));
+  ASSERT((src.shift_op_ == ASR) || (src.shift_op_ == LSL));
+  ASSERT(src.rs_.is(no_reg));
+
+  int sh = 0;
+  if (src.shift_op_ == ASR) {
+      sh = 1;
+  }
+
+  emit(cond | 0x6*B24 | 0xe*B20 | satpos*B16 | dst.code()*B12 |
+       src.shift_imm_*B7 | sh*B6 | 0x1*B4 | src.rm_.code());
+}
+
+
 // Bitfield manipulation instructions.
 
 // Unsigned bit field extract.

@@ -277,6 +277,13 @@ void CallICBase::Clear(Address address, Code* target) {
 }
 
 
+void KeyedLoadIC::ClearInlinedVersion(Address address) {
+  // Insert null as the map to check for to make sure the map check fails
+  // sending control flow to the IC instead of the inlined version.
+  PatchInlinedLoad(address, Heap::null_value());
+}
+
+
 void KeyedLoadIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   // Make sure to also clear the map used in inline fast cases.  If we
@@ -287,6 +294,14 @@ void KeyedLoadIC::Clear(Address address, Code* target) {
 }
 
 
+void LoadIC::ClearInlinedVersion(Address address) {
+  // Reset the map check of the inlined inobject property load (if
+  // present) to guarantee failure by holding an invalid map (the null
+  // value).  The offset can be patched to anything.
+  PatchInlinedLoad(address, Heap::null_value(), 0);
+}
+
+
 void LoadIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   ClearInlinedVersion(address);
@@ -294,9 +309,33 @@ void LoadIC::Clear(Address address, Code* target) {
 }
 
 
+void StoreIC::ClearInlinedVersion(Address address) {
+  // Reset the map check of the inlined inobject property store (if
+  // present) to guarantee failure by holding an invalid map (the null
+  // value).  The offset can be patched to anything.
+  PatchInlinedStore(address, Heap::null_value(), 0);
+}
+
+
 void StoreIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
+  ClearInlinedVersion(address);
   SetTargetAtAddress(address, initialize_stub());
+}
+
+
+void KeyedStoreIC::ClearInlinedVersion(Address address) {
+  // Insert null as the elements map to check for.  This will make
+  // sure that the elements fast-case map check fails so that control
+  // flows to the IC instead of the inlined version.
+  PatchInlinedStore(address, Heap::null_value());
+}
+
+
+void KeyedStoreIC::RestoreInlinedVersion(Address address) {
+  // Restore the fast-case elements map check so that the inlined
+  // version can be used again.
+  PatchInlinedStore(address, Heap::fixed_array_map());
 }
 
 
@@ -777,11 +816,13 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       int offset = map->instance_size() + (index * kPointerSize);
       if (PatchInlinedLoad(address(), map, offset)) {
         set_target(megamorphic_stub());
-        return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
 #ifdef DEBUG
         if (FLAG_trace_ic) {
           PrintF("[LoadIC : inline patch %s]\n", *name->ToCString());
         }
+#endif
+        return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
+#ifdef DEBUG
       } else {
         if (FLAG_trace_ic) {
           PrintF("[LoadIC : no inline patch %s (patching failed)]\n",
@@ -1205,7 +1246,57 @@ Object* StoreIC::Store(State state,
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup;
+
     if (LookupForWrite(*receiver, *name, &lookup)) {
+      bool can_be_inlined =
+          state == UNINITIALIZED &&
+          lookup.IsProperty() &&
+          lookup.holder() == *receiver &&
+          lookup.type() == FIELD &&
+          !receiver->IsAccessCheckNeeded();
+
+      if (can_be_inlined) {
+        Map* map = lookup.holder()->map();
+        // Property's index in the properties array.  If negative we have
+        // an inobject property.
+        int index = lookup.GetFieldIndex() - map->inobject_properties();
+        if (index < 0) {
+          // Index is an offset from the end of the object.
+          int offset = map->instance_size() + (index * kPointerSize);
+          if (PatchInlinedStore(address(), map, offset)) {
+            set_target(megamorphic_stub());
+#ifdef DEBUG
+            if (FLAG_trace_ic) {
+              PrintF("[StoreIC : inline patch %s]\n", *name->ToCString());
+            }
+#endif
+            return receiver->SetProperty(*name, *value, NONE);
+#ifdef DEBUG
+
+          } else {
+            if (FLAG_trace_ic) {
+              PrintF("[StoreIC : no inline patch %s (patching failed)]\n",
+                     *name->ToCString());
+            }
+          }
+        } else {
+          if (FLAG_trace_ic) {
+            PrintF("[StoreIC : no inline patch %s (not inobject)]\n",
+                   *name->ToCString());
+          }
+        }
+      } else {
+        if (state == PREMONOMORPHIC) {
+          if (FLAG_trace_ic) {
+            PrintF("[StoreIC : no inline patch %s (not inlinable)]\n",
+                   *name->ToCString());
+#endif
+          }
+        }
+      }
+
+      // If no inlined store ic was patched, generate a stub for this
+      // store.
       UpdateCaches(&lookup, state, receiver, name, value);
     }
   }

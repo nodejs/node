@@ -181,6 +181,11 @@
           'defines': [
             'BUILDING_V8_SHARED'
           ],
+          'direct_dependent_settings': {
+            'defines': [
+              'USING_V8_SHARED',
+            ],
+          },
         },
         {
           'type': 'none',
@@ -737,11 +742,6 @@
         ['OS=="win"', {
           # This could be gotten by not setting chromium_code, if that's OK.
           'defines': ['_CRT_SECURE_NO_WARNINGS'],
-        }],
-        ['OS=="win" and component=="shared_library"', {
-          'defines': [
-            'USING_V8_SHARED',
-          ],
         }],
       ],
     },

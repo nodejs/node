@@ -360,6 +360,7 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       5,
       "StackGuard::address_of_real_jslimit()");
+#ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::address_of_regexp_stack_limit().address(),
       UNCLASSIFIED,
       6,
@@ -376,6 +377,7 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       9,
       "OffsetsVector::static_offsets_vector");
+#endif  // V8_INTERPRETED_REGEXP
   Add(ExternalReference::new_space_start().address(),
       UNCLASSIFIED,
       10,

@@ -106,6 +106,7 @@ class Decoder {
   void PrintCondition(Instr* instr);
   void PrintShiftRm(Instr* instr);
   void PrintShiftImm(Instr* instr);
+  void PrintShiftSat(Instr* instr);
   void PrintPU(Instr* instr);
   void PrintSoftwareInterrupt(SoftwareInterruptCodes swi);
 
@@ -245,6 +246,18 @@ void Decoder::PrintShiftImm(Instr* instr) {
   int imm = (immed8 >> rotate) | (immed8 << (32 - rotate));
   out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
                                        "#%d", imm);
+}
+
+
+// Print the optional shift and immediate used by saturating instructions.
+void Decoder::PrintShiftSat(Instr* instr) {
+  int shift = instr->Bits(11, 7);
+  if (shift > 0) {
+    out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                         ", %s #%d",
+                                         shift_names[instr->Bit(6) * 2],
+                                         instr->Bits(11, 7));
+  }
 }
 
 
@@ -440,6 +453,20 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
       }
       return 1;
     }
+    case 'i': {  // 'i: immediate value from adjacent bits.
+      // Expects tokens in the form imm%02d@%02d, ie. imm05@07, imm10@16
+      int width = (format[3] - '0') * 10 + (format[4] - '0');
+      int lsb   = (format[6] - '0') * 10 + (format[7] - '0');
+
+      ASSERT((width >= 1) && (width <= 32));
+      ASSERT((lsb >= 0) && (lsb <= 31));
+      ASSERT((width + lsb) <= 32);
+
+      out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                           "#%d",
+                                           instr->Bits(width + lsb - 1, lsb));
+      return 8;
+    }
     case 'l': {  // 'l: branch and link
       if (instr->HasLink()) {
         Print("l");
@@ -507,7 +534,7 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
       return FormatRegister(instr, format);
     }
     case 's': {
-      if (format[1] == 'h') {  // 'shift_op or 'shift_rm
+      if (format[1] == 'h') {  // 'shift_op or 'shift_rm or 'shift_sat.
         if (format[6] == 'o') {  // 'shift_op
           ASSERT(STRING_STARTS_WITH(format, "shift_op"));
           if (instr->TypeField() == 0) {
@@ -517,6 +544,10 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
             PrintShiftImm(instr);
           }
           return 8;
+        } else if (format[6] == 's') {  // 'shift_sat.
+          ASSERT(STRING_STARTS_WITH(format, "shift_sat"));
+          PrintShiftSat(instr);
+          return 9;
         } else {  // 'shift_rm
           ASSERT(STRING_STARTS_WITH(format, "shift_rm"));
           PrintShiftRm(instr);
@@ -897,8 +928,16 @@ void Decoder::DecodeType3(Instr* instr) {
       break;
     }
     case 1: {
-      ASSERT(!instr->HasW());
-      Format(instr, "'memop'cond'b 'rd, ['rn], +'shift_rm");
+      if (instr->HasW()) {
+        ASSERT(instr->Bits(5, 4) == 0x1);
+        if (instr->Bit(22) == 0x1) {
+          Format(instr, "usat 'rd, 'imm05@16, 'rm'shift_sat");
+        } else {
+          UNREACHABLE();  // SSAT.
+        }
+      } else {
+        Format(instr, "'memop'cond'b 'rd, ['rn], +'shift_rm");
+      }
       break;
     }
     case 2: {

@@ -39,7 +39,7 @@
 #endif
 
 //
-// All object types in the V8 JavaScript are described in this file.
+// Most object types in the V8 JavaScript are described in this file.
 //
 // Inheritance hierarchy:
 //   - Object
@@ -74,8 +74,8 @@
 //           - CodeCacheHashTable
 //           - MapCache
 //         - Context
-//         - GlobalContext
 //         - JSFunctionResultCache
+//         - SerializedScopeInfo
 //       - String
 //         - SeqString
 //           - SeqAsciiString
@@ -2012,7 +2012,7 @@ class HashTable: public FixedArray {
   static const int kMaxCapacity =
       (FixedArray::kMaxLength - kElementsStartOffset) / kEntrySize;
 
-  // Find entry for key otherwise return -1.
+  // Find entry for key otherwise return kNotFound.
   int FindEntry(Key key);
 
  protected:
@@ -2294,6 +2294,10 @@ class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
   // For transforming properties of a JSObject.
   Object* TransformPropertiesToFastFor(JSObject* obj,
                                        int unused_property_fields);
+
+  // Find entry for key otherwise return kNotFound. Optimzed version of
+  // HashTable::FindEntry.
+  int FindEntry(String* key);
 };
 
 
@@ -2721,7 +2725,7 @@ class Code: public HeapObject {
   };
 
   enum {
-    NUMBER_OF_KINDS = KEYED_STORE_IC + 1
+    NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };
 
 #ifdef ENABLE_DISASSEMBLER

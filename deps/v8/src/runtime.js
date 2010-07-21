@@ -80,7 +80,7 @@ function EQUALS(y) {
     } else {
       // x is not a number, boolean, null or undefined.
       if (y == null) return 1;  // not equal
-      if (IS_SPEC_OBJECT_OR_NULL(y)) {
+      if (IS_SPEC_OBJECT(y)) {
         return %_ObjectEquals(x, y) ? 0 : 1;
       }
 
@@ -345,7 +345,7 @@ function DELETE(key) {
 
 // ECMA-262, section 11.8.7, page 54.
 function IN(x) {
-  if (x == null || !IS_SPEC_OBJECT_OR_NULL(x)) {
+  if (!IS_SPEC_OBJECT(x)) {
     throw %MakeTypeError('invalid_in_operator_use', [this, x]);
   }
   return %_IsNonNegativeSmi(this) ? %HasElement(x, this) : %HasProperty(x, %ToString(this));
@@ -363,13 +363,13 @@ function INSTANCE_OF(F) {
   }
 
   // If V is not an object, return false.
-  if (IS_NULL(V) || !IS_SPEC_OBJECT_OR_NULL(V)) {
+  if (!IS_SPEC_OBJECT(V)) {
     return 1;
   }
 
   // Get the prototype of F; if it is not an object, throw an error.
   var O = F.prototype;
-  if (IS_NULL(O) || !IS_SPEC_OBJECT_OR_NULL(O)) {
+  if (!IS_SPEC_OBJECT(O)) {
     throw %MakeTypeError('instanceof_nonobject_proto', [O]);
   }
 
@@ -483,8 +483,7 @@ function ToPrimitive(x, hint) {
   // Fast case check.
   if (IS_STRING(x)) return x;
   // Normal behavior.
-  if (!IS_SPEC_OBJECT_OR_NULL(x)) return x;
-  if (x == null) return x;  // check for null, undefined
+  if (!IS_SPEC_OBJECT(x)) return x;
   if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
   return (hint == NUMBER_HINT) ? %DefaultNumber(x) : %DefaultString(x);
 }
@@ -583,13 +582,10 @@ function SameValue(x, y) {
 // Returns if the given x is a primitive value - not an object or a
 // function.
 function IsPrimitive(x) {
-  if (!IS_SPEC_OBJECT_OR_NULL(x)) {
-    return true;
-  } else {
-    // Even though the type of null is "object", null is still
-    // considered a primitive value.
-    return IS_NULL(x);
-  }
+  // Even though the type of null is "object", null is still
+  // considered a primitive value. IS_SPEC_OBJECT handles this correctly
+  // (i.e., it will return false if x is null).
+  return !IS_SPEC_OBJECT(x);
 }
 
 

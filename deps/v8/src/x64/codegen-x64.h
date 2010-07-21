@@ -454,8 +454,16 @@ class CodeGenerator: public AstVisitor {
   // value in place.
   void StoreToSlot(Slot* slot, InitState init_state);
 
+  // Support for compiling assignment expressions.
+  void EmitSlotAssignment(Assignment* node);
+  void EmitNamedPropertyAssignment(Assignment* node);
+
   // Receiver is passed on the frame and not consumed.
   Result EmitNamedLoad(Handle<String> name, bool is_contextual);
+
+  // If the store is contextual, value is passed on the frame and consumed.
+  // Otherwise, receiver and value are passed on the frame and consumed.
+  Result EmitNamedStore(Handle<String> name, bool is_contextual);
 
   // Load a property of an object, returning it in a Result.
   // The object and the property name are passed on the stack, and
@@ -521,6 +529,17 @@ class CodeGenerator: public AstVisitor {
                   Condition cc,
                   bool strict,
                   ControlDestination* destination);
+
+  // If at least one of the sides is a constant smi, generate optimized code.
+  void ConstantSmiComparison(Condition cc,
+                             bool strict,
+                             ControlDestination* destination,
+                             Result* left_side,
+                             Result* right_side,
+                             bool left_side_constant_smi,
+                             bool right_side_constant_smi,
+                             bool is_loop_condition);
+
   void GenerateInlineNumberComparison(Result* left_side,
                                       Result* right_side,
                                       Condition cc,
@@ -578,6 +597,7 @@ class CodeGenerator: public AstVisitor {
   void GenerateIsArray(ZoneList<Expression*>* args);
   void GenerateIsRegExp(ZoneList<Expression*>* args);
   void GenerateIsObject(ZoneList<Expression*>* args);
+  void GenerateIsSpecObject(ZoneList<Expression*>* args);
   void GenerateIsFunction(ZoneList<Expression*>* args);
   void GenerateIsUndetectableObject(ZoneList<Expression*>* args);
 

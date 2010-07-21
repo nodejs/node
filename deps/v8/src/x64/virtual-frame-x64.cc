@@ -1168,6 +1168,26 @@ Result VirtualFrame::CallCommonStoreIC(Handle<Code> ic,
 }
 
 
+Result VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
+  // Value and (if not contextual) receiver are on top of the frame.
+  // The IC expects name in rcx, value in rax, and receiver in rdx.
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Result value = Pop();
+  if (is_contextual) {
+    PrepareForCall(0, 0);
+    value.ToRegister(rax);
+    __ movq(rdx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    value.Unuse();
+  } else {
+    Result receiver = Pop();
+    PrepareForCall(0, 0);
+    MoveResultsToRegisters(&value, &receiver, rax, rdx);
+  }
+  __ Move(rcx, name);
+  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
+}
+
+
 Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
                                 int arg_count,
                                 int loop_nesting) {

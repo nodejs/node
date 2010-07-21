@@ -445,6 +445,8 @@ class Operand BASE_EMBEDDED {
   }
 
   Register rm() const { return rm_; }
+  Register rs() const { return rs_; }
+  ShiftOp shift_op() const { return shift_op_; }
 
  private:
   Register rm_;
@@ -833,6 +835,25 @@ class Assembler : public Malloced {
   // Miscellaneous arithmetic instructions
 
   void clz(Register dst, Register src, Condition cond = al);  // v5 and above
+
+  // Saturating instructions. v6 and above.
+
+  // Unsigned saturate.
+  //
+  // Saturate an optionally shifted signed value to an unsigned range.
+  //
+  //   usat dst, #satpos, src
+  //   usat dst, #satpos, src, lsl #sh
+  //   usat dst, #satpos, src, asr #sh
+  //
+  // Register dst will contain:
+  //
+  //   0,                 if s < 0
+  //   (1 << satpos) - 1, if s > ((1 << satpos) - 1)
+  //   s,                 otherwise
+  //
+  // where s is the contents of src after shifting (if used.)
+  void usat(Register dst, int satpos, const Operand& src, Condition cond = al);
 
   // Bitfield manipulation instructions. v7 and above.
 

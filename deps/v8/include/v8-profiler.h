@@ -258,6 +258,12 @@ class V8EXPORT HeapGraphNode {
    */
   Handle<String> GetName() const;
 
+  /**
+   * Returns node id. For the same heap object, the id remains the same
+   * across all snapshots.
+   */
+  uint64_t GetId() const;
+
   /** Returns node's own size, in bytes. */
   int GetSelfSize() const;
 
@@ -290,6 +296,16 @@ class V8EXPORT HeapGraphNode {
 };
 
 
+class V8EXPORT HeapSnapshotsDiff {
+ public:
+  /** Returns the root node for added nodes. */
+  const HeapGraphNode* GetAdditionsRoot() const;
+
+  /** Returns the root node for deleted nodes. */
+  const HeapGraphNode* GetDeletionsRoot() const;
+};
+
+
 /**
  * HeapSnapshots record the state of the JS heap at some moment.
  */
@@ -302,7 +318,10 @@ class V8EXPORT HeapSnapshot {
   Handle<String> GetTitle() const;
 
   /** Returns the root node of the heap graph. */
-  const HeapGraphNode* GetHead() const;
+  const HeapGraphNode* GetRoot() const;
+
+  /** Returns a diff between this snapshot and another one. */
+  const HeapSnapshotsDiff* CompareWith(const HeapSnapshot* snapshot) const;
 };
 
 

@@ -56,8 +56,7 @@ class ConstructorHeapProfileTestHelper : public i::ConstructorHeapProfile {
 
 TEST(ConstructorProfile) {
   v8::HandleScope scope;
-  v8::Handle<v8::Context> env = v8::Context::New();
-  env->Enter();
+  LocalContext env;
 
   CompileAndRunScript(
       "function F() {}  // A constructor\n"
@@ -144,8 +143,7 @@ static inline void CheckNonEqualsHelper(const char* file, int line,
 
 TEST(ClustersCoarserSimple) {
   v8::HandleScope scope;
-  v8::Handle<v8::Context> env = v8::Context::New();
-  env->Enter();
+  LocalContext env;
 
   i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
 
@@ -183,8 +181,7 @@ TEST(ClustersCoarserSimple) {
 
 TEST(ClustersCoarserMultipleConstructors) {
   v8::HandleScope scope;
-  v8::Handle<v8::Context> env = v8::Context::New();
-  env->Enter();
+  LocalContext env;
 
   i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
 
@@ -214,8 +211,7 @@ TEST(ClustersCoarserMultipleConstructors) {
 
 TEST(ClustersCoarserPathsTraversal) {
   v8::HandleScope scope;
-  v8::Handle<v8::Context> env = v8::Context::New();
-  env->Enter();
+  LocalContext env;
 
   i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
 
@@ -267,8 +263,7 @@ TEST(ClustersCoarserPathsTraversal) {
 
 TEST(ClustersCoarserSelf) {
   v8::HandleScope scope;
-  v8::Handle<v8::Context> env = v8::Context::New();
-  env->Enter();
+  LocalContext env;
 
   i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
 
@@ -362,8 +357,7 @@ class RetainerProfilePrinter : public RetainerHeapProfile::Printer {
 
 TEST(RetainerProfile) {
   v8::HandleScope scope;
-  v8::Handle<v8::Context> env = v8::Context::New();
-  env->Enter();
+  LocalContext env;
 
   CompileAndRunScript(
       "function A() {}\n"
@@ -431,8 +425,8 @@ class NamedEntriesDetector {
 
 static const v8::HeapGraphNode* GetGlobalObject(
     const v8::HeapSnapshot* snapshot) {
-  CHECK_EQ(1, snapshot->GetHead()->GetChildrenCount());
-  return snapshot->GetHead()->GetChild(0)->GetToNode();
+  CHECK_EQ(1, snapshot->GetRoot()->GetChildrenCount());
+  return snapshot->GetRoot()->GetChild(0)->GetToNode();
 }
 
 
@@ -446,6 +440,19 @@ static const v8::HeapGraphNode* GetProperty(const v8::HeapGraphNode* node,
       return prop->GetToNode();
   }
   return NULL;
+}
+
+
+static bool IsNodeRetainedAs(const v8::HeapGraphNode* node,
+                             v8::HeapGraphEdge::Type type,
+                             const char* name) {
+  for (int i = 0, count = node->GetRetainersCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = node->GetRetainer(i);
+    v8::String::AsciiValue prop_name(prop->GetName());
+    if (prop->GetType() == type && strcmp(name, *prop_name) == 0)
+      return true;
+  }
+  return false;
 }
 
 
@@ -464,11 +471,9 @@ static bool HasString(const v8::HeapGraphNode* node, const char* contents) {
 
 TEST(HeapSnapshot) {
   v8::HandleScope scope;
-
   v8::Handle<v8::String> token1 = v8::String::New("token1");
-  v8::Handle<v8::Context> env1 = v8::Context::New();
+  LocalContext env1;
   env1->SetSecurityToken(token1);
-  env1->Enter();
 
   CompileAndRunScript(
       "function A1() {}\n"
@@ -479,9 +484,8 @@ TEST(HeapSnapshot) {
       "var c1 = new C1(a1);");
 
   v8::Handle<v8::String> token2 = v8::String::New("token2");
-  v8::Handle<v8::Context> env2 = v8::Context::New();
+  LocalContext env2;
   env2->SetSecurityToken(token2);
-  env2->Enter();
 
   CompileAndRunScript(
       "function A2() {}\n"
@@ -569,8 +573,7 @@ TEST(HeapSnapshot) {
 
 TEST(HeapSnapshotCodeObjects) {
   v8::HandleScope scope;
-  v8::Handle<v8::Context> env = v8::Context::New();
-  env->Enter();
+  LocalContext env;
 
   CompileAndRunScript(
       "function lazy(x) { return x - 1; }\n"
@@ -623,6 +626,134 @@ TEST(HeapSnapshotCodeObjects) {
   }
   CHECK(compiled_references_x);
   CHECK(!lazy_references_x);
+}
+
+
+// Trying to introduce a check helper for uint64_t causes many
+// overloading ambiguities, so it seems easier just to cast
+// them to a signed type.
+#define CHECK_EQ_UINT64_T(a, b) \
+  CHECK_EQ(static_cast<int64_t>(a), static_cast<int64_t>(b))
+#define CHECK_NE_UINT64_T(a, b) do              \
+  {                                             \
+    bool ne = a != b;                           \
+    CHECK(ne);                                  \
+  } while (false)
+
+TEST(HeapEntryIdsAndGC) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileAndRunScript(
+      "function A() {}\n"
+      "function B(x) { this.x = x; }\n"
+      "var a = new A();\n"
+      "var b = new B(a);");
+  const v8::HeapSnapshot* snapshot1 =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("s1"));
+
+  i::Heap::CollectAllGarbage(true);  // Enforce compaction.
+
+  const v8::HeapSnapshot* snapshot2 =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("s2"));
+
+  const v8::HeapGraphNode* global1 = GetGlobalObject(snapshot1);
+  const v8::HeapGraphNode* global2 = GetGlobalObject(snapshot2);
+  CHECK_NE_UINT64_T(0, global1->GetId());
+  CHECK_EQ_UINT64_T(global1->GetId(), global2->GetId());
+  const v8::HeapGraphNode* A1 =
+      GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "A");
+  const v8::HeapGraphNode* A2 =
+      GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "A");
+  CHECK_NE_UINT64_T(0, A1->GetId());
+  CHECK_EQ_UINT64_T(A1->GetId(), A2->GetId());
+  const v8::HeapGraphNode* B1 =
+      GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "B");
+  const v8::HeapGraphNode* B2 =
+      GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "B");
+  CHECK_NE_UINT64_T(0, B1->GetId());
+  CHECK_EQ_UINT64_T(B1->GetId(), B2->GetId());
+  const v8::HeapGraphNode* a1 =
+      GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "a");
+  const v8::HeapGraphNode* a2 =
+      GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "a");
+  CHECK_NE_UINT64_T(0, a1->GetId());
+  CHECK_EQ_UINT64_T(a1->GetId(), a2->GetId());
+  const v8::HeapGraphNode* b1 =
+      GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "b");
+  const v8::HeapGraphNode* b2 =
+      GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "b");
+  CHECK_NE_UINT64_T(0, b1->GetId());
+  CHECK_EQ_UINT64_T(b1->GetId(), b2->GetId());
+}
+
+
+TEST(HeapSnapshotsDiff) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileAndRunScript(
+      "function A() {}\n"
+      "function B(x) { this.x = x; }\n"
+      "var a = new A();\n"
+      "var b = new B(a);");
+  const v8::HeapSnapshot* snapshot1 =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("s1"));
+
+  CompileAndRunScript(
+      "delete a;\n"
+      "b.x = null;\n"
+      "var a = new A();\n"
+      "var b2 = new B(a);");
+  const v8::HeapSnapshot* snapshot2 =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("s2"));
+
+  const v8::HeapSnapshotsDiff* diff = snapshot1->CompareWith(snapshot2);
+
+  // Verify additions: ensure that addition of A and B was detected.
+  const v8::HeapGraphNode* additions_root = diff->GetAdditionsRoot();
+  bool found_A = false, found_B = false;
+  uint64_t s1_A_id = 0;
+  for (int i = 0, count = additions_root->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = additions_root->GetChild(i);
+    const v8::HeapGraphNode* node = prop->GetToNode();
+    if (node->GetType() == v8::HeapGraphNode::OBJECT) {
+      v8::String::AsciiValue node_name(node->GetName());
+      if (strcmp(*node_name, "A") == 0) {
+        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::PROPERTY, "a"));
+        CHECK(!found_A);
+        found_A = true;
+        s1_A_id = node->GetId();
+      } else if (strcmp(*node_name, "B") == 0) {
+        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::PROPERTY, "b2"));
+        CHECK(!found_B);
+        found_B = true;
+      }
+    }
+  }
+  CHECK(found_A);
+  CHECK(found_B);
+
+  // Verify deletions: ensure that deletion of A was detected.
+  const v8::HeapGraphNode* deletions_root = diff->GetDeletionsRoot();
+  bool found_A_del = false;
+  uint64_t s2_A_id = 0;
+  for (int i = 0, count = deletions_root->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = deletions_root->GetChild(i);
+    const v8::HeapGraphNode* node = prop->GetToNode();
+    if (node->GetType() == v8::HeapGraphNode::OBJECT) {
+      v8::String::AsciiValue node_name(node->GetName());
+      if (strcmp(*node_name, "A") == 0) {
+        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::PROPERTY, "a"));
+        CHECK(!found_A_del);
+        found_A_del = true;
+        s2_A_id = node->GetId();
+      }
+    }
+  }
+  CHECK(found_A_del);
+  CHECK_NE_UINT64_T(0, s1_A_id);
+  CHECK(s1_A_id != s2_A_id);
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

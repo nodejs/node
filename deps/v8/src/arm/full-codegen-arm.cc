@@ -1908,6 +1908,25 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
 }
 
 
+void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+
+  VisitForValue(args->at(0), kAccumulator);
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+
+  __ BranchOnSmi(r0, if_false);
+  __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE);
+  __ b(ge, if_true);
+  __ b(if_false);
+
+  Apply(context_, if_true, if_false);
+}
+
+
 void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 

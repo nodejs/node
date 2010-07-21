@@ -958,14 +958,6 @@ static inline bool IsInlinedICSite(Address address,
 }
 
 
-void LoadIC::ClearInlinedVersion(Address address) {
-  // Reset the map check of the inlined in-object property load (if present) to
-  // guarantee failure by holding an invalid map (the null value). The offset
-  // can be patched to anything.
-  PatchInlinedLoad(address, Heap::null_value(), 0);
-}
-
-
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
   // Find the end of the inlined code for handling the load if this is an
   // inlined IC call site.
@@ -996,10 +988,9 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 }
 
 
-void KeyedLoadIC::ClearInlinedVersion(Address address) {
-  // Reset the map check of the inlined keyed load (if present) to
-  // guarantee failure by holding an invalid map (the null value).
-  PatchInlinedLoad(address, Heap::null_value());
+bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
+  // TODO(787): Implement inline stores on arm.
+  return false;
 }
 
 
@@ -1015,21 +1006,6 @@ bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
   Assembler::set_target_address_at(ldr_map_instr_address,
                                    reinterpret_cast<Address>(map));
   return true;
-}
-
-
-void KeyedStoreIC::ClearInlinedVersion(Address address) {
-  // Insert null as the elements map to check for.  This will make
-  // sure that the elements fast-case map check fails so that control
-  // flows to the IC instead of the inlined version.
-  PatchInlinedStore(address, Heap::null_value());
-}
-
-
-void KeyedStoreIC::RestoreInlinedVersion(Address address) {
-  // Restore the fast-case elements map check so that the inlined
-  // version can be used again.
-  PatchInlinedStore(address, Heap::fixed_array_map());
 }
 
 
@@ -1698,14 +1674,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(r4, Operand(ip));
   __ b(hs, &slow);
   __ mov(r5, Operand(value, ASR, kSmiTagSize));  // Untag the value.
-  {  // Clamp the value to [0..255].
-    Label done;
-    __ tst(r5, Operand(0xFFFFFF00));
-    __ b(eq, &done);
-    __ mov(r5, Operand(0), LeaveCC, mi);  // 0 if negative.
-    __ mov(r5, Operand(255), LeaveCC, pl);  // 255 if positive.
-    __ bind(&done);
-  }
+  __ Usat(r5, 8, Operand(r5));  // Clamp the value to [0..255].
+
   // Get the pointer to the external array. This clobbers elements.
   __ ldr(elements,
          FieldMemOperand(elements, PixelArray::kExternalPointerOffset));

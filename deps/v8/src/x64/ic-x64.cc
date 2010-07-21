@@ -418,28 +418,6 @@ bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
 }
 
 
-void KeyedLoadIC::ClearInlinedVersion(Address address) {
-  // Insert null as the map to check for to make sure the map check fails
-  // sending control flow to the IC instead of the inlined version.
-  PatchInlinedLoad(address, Heap::null_value());
-}
-
-
-void KeyedStoreIC::ClearInlinedVersion(Address address) {
-  // Insert null as the elements map to check for.  This will make
-  // sure that the elements fast-case map check fails so that control
-  // flows to the IC instead of the inlined version.
-  PatchInlinedStore(address, Heap::null_value());
-}
-
-
-void KeyedStoreIC::RestoreInlinedVersion(Address address) {
-  // Restore the fast-case elements map check so that the inlined
-  // version can be used again.
-  PatchInlinedStore(address, Heap::fixed_array_map());
-}
-
-
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : key
@@ -1630,14 +1608,6 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 const int LoadIC::kOffsetToLoadInstruction = 20;
 
 
-void LoadIC::ClearInlinedVersion(Address address) {
-  // Reset the map check of the inlined inobject property load (if
-  // present) to guarantee failure by holding an invalid map (the null
-  // value).  The offset can be patched to anything.
-  PatchInlinedLoad(address, Heap::null_value(), kMaxInt);
-}
-
-
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
@@ -1764,6 +1734,12 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
       test_instruction_address + delta + kOffsetToLoadInstruction + 3;
   *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
   return true;
+}
+
+
+bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
+  // TODO(787): Implement inline stores on x64.
+  return false;
 }
 
 

@@ -8015,9 +8015,10 @@ TEST(DontLeakGlobalObjects) {
 v8::Persistent<v8::Object> some_object;
 v8::Persistent<v8::Object> bad_handle;
 
-void NewPersistentHandleCallback(v8::Persistent<v8::Value>, void*) {
+void NewPersistentHandleCallback(v8::Persistent<v8::Value> handle, void*) {
   v8::HandleScope scope;
   bad_handle = v8::Persistent<v8::Object>::New(some_object);
+  handle.Dispose();
 }
 
 
@@ -8046,6 +8047,7 @@ v8::Persistent<v8::Object> to_be_disposed;
 void DisposeAndForceGcCallback(v8::Persistent<v8::Value> handle, void*) {
   to_be_disposed.Dispose();
   i::Heap::CollectAllGarbage(false);
+  handle.Dispose();
 }
 
 
@@ -8070,6 +8072,7 @@ void DisposingCallback(v8::Persistent<v8::Value> handle, void*) {
 void HandleCreatingCallback(v8::Persistent<v8::Value> handle, void*) {
   v8::HandleScope scope;
   v8::Persistent<v8::Object>::New(v8::Object::New());
+  handle.Dispose();
 }
 
 

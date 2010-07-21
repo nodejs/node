@@ -342,7 +342,9 @@ void MemoryAllocator::TearDown() {
 void* MemoryAllocator::AllocateRawMemory(const size_t requested,
                                          size_t* allocated,
                                          Executability executable) {
-  if (size_ + static_cast<int>(requested) > capacity_) return NULL;
+  if (size_ + static_cast<size_t>(requested) > static_cast<size_t>(capacity_)) {
+    return NULL;
+  }
   void* mem;
   if (executable == EXECUTABLE  && CodeRange::exists()) {
     mem = CodeRange::AllocateRawMemory(requested, allocated);

@@ -1034,7 +1034,7 @@ Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
 
 Result VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
   // Value and (if not contextual) receiver are on top of the frame.
-  //  The IC expects name in ecx, value in eax, and receiver in edx.
+  // The IC expects name in ecx, value in eax, and receiver in edx.
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
   Result value = Pop();
   if (is_contextual) {

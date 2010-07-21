@@ -907,6 +907,11 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsSpecObject(ZoneList<Expression*>* args) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
 void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
   UNIMPLEMENTED_MIPS();
 }

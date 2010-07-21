@@ -475,6 +475,7 @@ class CodeGenerator: public AstVisitor {
   void GenerateIsArray(ZoneList<Expression*>* args);
   void GenerateIsRegExp(ZoneList<Expression*>* args);
   void GenerateIsObject(ZoneList<Expression*>* args);
+  void GenerateIsSpecObject(ZoneList<Expression*>* args);
   void GenerateIsFunction(ZoneList<Expression*>* args);
   void GenerateIsUndetectableObject(ZoneList<Expression*>* args);
 

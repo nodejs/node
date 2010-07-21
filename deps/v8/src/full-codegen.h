@@ -402,6 +402,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitIsSmi(ZoneList<Expression*>* arguments);
   void EmitIsNonNegativeSmi(ZoneList<Expression*>* arguments);
   void EmitIsObject(ZoneList<Expression*>* arguments);
+  void EmitIsSpecObject(ZoneList<Expression*>* arguments);
   void EmitIsUndetectableObject(ZoneList<Expression*>* arguments);
   void EmitIsFunction(ZoneList<Expression*>* arguments);
   void EmitIsArray(ZoneList<Expression*>* arguments);

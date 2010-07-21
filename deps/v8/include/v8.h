@@ -137,6 +137,9 @@ class Top;
 /**
  * A weak reference callback function.
  *
+ * This callback should either explicitly invoke Dispose on |object| if
+ * V8 wrapper is not needed anymore, or 'revive' it by invocation of MakeWeak.
+ *
  * \param object the weak global object to be reclaimed by the garbage collector
  * \param parameter the value passed in when making the weak global object
  */
@@ -146,9 +149,9 @@ typedef void (*WeakReferenceCallback)(Persistent<Value> object,
 
 // --- H a n d l e s ---
 
-#define TYPE_CHECK(T, S)                              \
-  while (false) {                                     \
-    *(static_cast<T**>(0)) = static_cast<S*>(0);      \
+#define TYPE_CHECK(T, S)                                       \
+  while (false) {                                              \
+    *(static_cast<T* volatile*>(0)) = static_cast<S*>(0);      \
   }
 
 /**

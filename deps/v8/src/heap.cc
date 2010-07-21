@@ -638,6 +638,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
   if (collector == MARK_COMPACTOR) {
     if (FLAG_flush_code) {
       // Flush all potentially unused code.
+      GCTracer::Scope gc_scope(tracer, GCTracer::Scope::MC_FLUSH_CODE);
       FlushCode();
     }
 
@@ -1107,6 +1108,7 @@ inline static HeapObject* MigrateObject(HeapObject* source,
   // Update NewSpace stats if necessary.
   RecordCopiedObject(target);
 #endif
+  HEAP_PROFILE(ObjectMoveEvent(source->address(), target->address()));
 
   return target;
 }
@@ -4840,6 +4842,7 @@ GCTracer::~GCTracer() {
     PrintF("mark=%d ", static_cast<int>(scopes_[Scope::MC_MARK]));
     PrintF("sweep=%d ", static_cast<int>(scopes_[Scope::MC_SWEEP]));
     PrintF("compact=%d ", static_cast<int>(scopes_[Scope::MC_COMPACT]));
+    PrintF("flushcode=%d ", static_cast<int>(scopes_[Scope::MC_FLUSH_CODE]));
 
     PrintF("total_size_before=%d ", start_size_);
     PrintF("total_size_after=%d ", Heap::SizeOfObjects());

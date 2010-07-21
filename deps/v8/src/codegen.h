@@ -120,6 +120,7 @@ namespace internal {
   F(IsObject, 1, 1)                                                          \
   F(IsFunction, 1, 1)                                                        \
   F(IsUndetectableObject, 1, 1)                                              \
+  F(IsSpecObject, 1, 1)                                            \
   F(StringAdd, 2, 1)                                                         \
   F(SubString, 3, 1)                                                         \
   F(StringCompare, 2, 1)                                                     \
@@ -179,7 +180,6 @@ class CodeGeneratorScope BASE_EMBEDDED {
   static CodeGenerator* top_;
   CodeGenerator* previous_;
 };
-
 
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 

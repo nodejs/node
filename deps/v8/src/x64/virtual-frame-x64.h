@@ -341,7 +341,7 @@ class VirtualFrame : public ZoneObject {
   // and by the order of the three arguments on the frame.
   Result CallCommonStoreIC(Handle<Code> ic,
                            Result* value,
-                           Result *key,
+                           Result* key,
                            Result* receiver);
 
   // Call store IC.  Name, value, and receiver are found on top
@@ -353,6 +353,10 @@ class VirtualFrame : public ZoneObject {
     Result receiver = Pop();
     return CallCommonStoreIC(ic, &value, &name, &receiver);
   }
+
+  // Call store IC.  If the load is contextual, value is found on top of the
+  // frame.  If not, value and receiver are on the frame.  Both are dropped.
+  Result CallStoreIC(Handle<String> name, bool is_contextual);
 
   // Call keyed store IC.  Value, key, and receiver are found on top
   // of the frame.  All are dropped.

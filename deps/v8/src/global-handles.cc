@@ -151,13 +151,14 @@ class GlobalHandles::Node : public Malloced {
   bool PostGarbageCollectionProcessing() {
     if (state_ != Node::PENDING) return false;
     LOG(HandleEvent("GlobalHandle::Processing", handle().location()));
+    WeakReferenceCallback func = callback();
+    if (func == NULL) {
+      Destroy();
+      return false;
+    }
     void* par = parameter();
     state_ = NEAR_DEATH;
     set_parameter(NULL);
-    // The callback function is resolved as late as possible to preserve old
-    // behavior.
-    WeakReferenceCallback func = callback();
-    if (func == NULL) return false;
 
     v8::Persistent<v8::Object> object = ToApi<v8::Object>(handle());
     {
@@ -178,6 +179,9 @@ class GlobalHandles::Node : public Malloced {
       VMState state(EXTERNAL);
       func(object, par);
     }
+    // Absense of explicit cleanup or revival of weak handle
+    // in most of the cases would lead to memory leak.
+    ASSERT(state_ != NEAR_DEATH);
     return true;
   }
 

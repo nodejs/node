@@ -664,8 +664,12 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
     // therefore it does not make sense to cache the property names
     // for arguments objects.  Arguments objects will always have
     // elements.
+    // Wrapped strings have elements, but don't have an elements
+    // array or dictionary.  So the fast inline test for whether to
+    // use the cache says yes, so we should not create a cache.
     bool cache_enum_keys =
         ((current->map()->constructor() != *arguments_function) &&
+         !current->IsJSValue() &&
          !current->IsAccessCheckNeeded() &&
          !current->HasNamedInterceptor() &&
          !current->HasIndexedInterceptor());

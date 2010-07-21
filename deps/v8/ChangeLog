@@ -1,3 +1,21 @@
+2010-07-21: Version 2.3.2
+
+        Fixed compiler warnings when building with LLVM.
+
+        Fixed a bug with for-in applied to strings (issue 785).
+
+        Performance improvements on all platforms.
+
+2010-07-19: Version 2.3.1
+
+        Fixed compilation and linking with V8_INTERPRETED_REGEXP flag.
+
+        Fixed bug related to code flushing while compiling a lazy
+        compilable function (issue http://crbug.com/49099).
+
+        Performance improvements on all platforms.
+
+
 2010-07-15: Version 2.3.0
 
         Added ES5 Object.seal and Object.isSealed.

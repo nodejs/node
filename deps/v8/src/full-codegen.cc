@@ -857,6 +857,8 @@ void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
     EmitIsNonNegativeSmi(expr->arguments());
   } else if (strcmp("_IsObject", *name->ToCString()) == 0) {
     EmitIsObject(expr->arguments());
+  } else if (strcmp("_IsSpecObject", *name->ToCString()) == 0) {
+    EmitIsSpecObject(expr->arguments());
   } else if (strcmp("_IsUndetectableObject", *name->ToCString()) == 0) {
     EmitIsUndetectableObject(expr->arguments());
   } else if (strcmp("_IsFunction", *name->ToCString()) == 0) {

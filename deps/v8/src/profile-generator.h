@@ -74,7 +74,7 @@ class StringsStorage {
                   reinterpret_cast<char*>(key2)) == 0;
   }
 
-  // String::Hash -> const char*
+  // Mapping of strings by String::Hash to const char* strings.
   HashMap names_;
 
   DISALLOW_COPY_AND_ASSIGN(StringsStorage);
@@ -156,7 +156,7 @@ class ProfileNode {
   CodeEntry* entry_;
   unsigned total_ticks_;
   unsigned self_ticks_;
-  // CodeEntry* -> ProfileNode*
+  // Mapping from CodeEntry* to ProfileNode*
   HashMap children_;
   List<ProfileNode*> children_list_;
 
@@ -312,11 +312,12 @@ class CpuProfilesCollection {
   }
 
   StringsStorage function_and_resource_names_;
-  // args_count -> char*
+  // Mapping from args_count (int) to char* strings.
   List<char*> args_count_names_;
   List<CodeEntry*> code_entries_;
   List<List<CpuProfile*>* > profiles_by_token_;
-  // uid -> index
+  // Mapping from profiles' uids to indexes in the second nested list
+  // of profiles_by_token_.
   HashMap profiles_uids_;
 
   // Accessed by VM thread and profile generator thread.
@@ -482,6 +483,7 @@ class HeapEntry {
         visited_(false),
         type_(INTERNAL),
         name_(""),
+        id_(0),
         next_auto_index_(0),
         self_size_(0),
         security_token_id_(TokenEnumerator::kNoSecurityToken),
@@ -494,12 +496,14 @@ class HeapEntry {
   HeapEntry(HeapSnapshot* snapshot,
             Type type,
             const char* name,
+            uint64_t id,
             int self_size,
             int security_token_id)
       : snapshot_(snapshot),
         visited_(false),
         type_(type),
         name_(name),
+        id_(id),
         next_auto_index_(1),
         self_size_(self_size),
         security_token_id_(security_token_id),
@@ -514,6 +518,7 @@ class HeapEntry {
   bool visited() const { return visited_; }
   Type type() const { return type_; }
   const char* name() const { return name_; }
+  uint64_t id() const { return id_; }
   int self_size() const { return self_size_; }
   int security_token_id() const { return security_token_id_; }
   bool painted_reachable() { return painted_ == kPaintReachable; }
@@ -524,9 +529,13 @@ class HeapEntry {
   const List<HeapGraphEdge*>* retainers() const { return &retainers_; }
   const List<HeapGraphPath*>* GetRetainingPaths();
 
+  template<class Visitor>
+  void ApplyAndPaintAllReachable(Visitor* visitor);
+
   void ClearPaint() { painted_ = kUnpainted; }
   void CutEdges();
   void MarkAsVisited() { visited_ = true; }
+  void PaintAllReachable();
   void PaintReachable() {
     ASSERT(painted_ == kUnpainted);
     painted_ = kPaintReachable;
@@ -537,6 +546,7 @@ class HeapEntry {
   void SetInternalReference(const char* name, HeapEntry* entry);
   void SetPropertyReference(const char* name, HeapEntry* entry);
   void SetAutoIndexReference(HeapEntry* entry);
+  void SetUnidirAutoIndexReference(HeapEntry* entry);
 
   int TotalSize();
   int NonSharedTotalSize();
@@ -557,6 +567,7 @@ class HeapEntry {
   bool visited_;
   Type type_;
   const char* name_;
+  uint64_t id_;
   int next_auto_index_;
   int self_size_;
   int security_token_id_;
@@ -607,6 +618,8 @@ class HeapEntriesMap {
   HeapEntry* Map(HeapObject* object);
   void Pair(HeapObject* object, HeapEntry* entry);
 
+  uint32_t capacity() { return entries_.capacity(); }
+
  private:
   INLINE(uint32_t Hash(HeapObject* object)) {
     return static_cast<uint32_t>(reinterpret_cast<intptr_t>(object));
@@ -627,6 +640,7 @@ class HeapEntriesMap {
 
 
 class HeapSnapshotsCollection;
+class HeapSnapshotsDiff;
 
 // HeapSnapshot represents a single heap snapshot. It is stored in
 // HeapSnapshotsCollection, which is also a factory for
@@ -638,6 +652,7 @@ class HeapSnapshot {
   HeapSnapshot(HeapSnapshotsCollection* collection,
                const char* title,
                unsigned uid);
+  ~HeapSnapshot();
   void ClearPaint();
   void CutObjectsFromForeignSecurityContexts();
   HeapEntry* GetEntry(Object* object);
@@ -655,6 +670,8 @@ class HeapSnapshot {
   HeapEntry* root() { return &root_; }
   template<class Visitor>
   void IterateEntries(Visitor* visitor) { entries_.Apply(visitor); }
+  List<HeapEntry*>* GetSortedEntriesList();
+  HeapSnapshotsDiff* CompareWith(HeapSnapshot* snapshot);
 
   void Print(int max_depth);
 
@@ -679,10 +696,96 @@ class HeapSnapshot {
   const char* title_;
   unsigned uid_;
   HeapEntry root_;
-  // HeapObject* -> HeapEntry*
+  // Mapping from HeapObject* pointers to HeapEntry* pointers.
   HeapEntriesMap entries_;
+  // Entries sorted by id.
+  List<HeapEntry*>* sorted_entries_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshot);
+};
+
+
+class HeapObjectsMap {
+ public:
+  HeapObjectsMap();
+  ~HeapObjectsMap();
+
+  void SnapshotGenerationFinished();
+  uint64_t FindObject(Address addr);
+  void MoveObject(Address from, Address to);
+
+ private:
+  struct EntryInfo {
+    explicit EntryInfo(uint64_t id) : id(id), accessed(true) { }
+    EntryInfo(uint64_t id, bool accessed) : id(id), accessed(accessed) { }
+    uint64_t id;
+    bool accessed;
+  };
+
+  void AddEntry(Address addr, uint64_t id);
+  uint64_t FindEntry(Address addr);
+  void RemoveDeadEntries();
+
+  static bool AddressesMatch(void* key1, void* key2) {
+    return key1 == key2;
+  }
+
+  static uint32_t AddressHash(Address addr) {
+    return static_cast<int32_t>(reinterpret_cast<intptr_t>(addr));
+  }
+
+  bool initial_fill_mode_;
+  uint64_t next_id_;
+  HashMap entries_map_;
+  List<EntryInfo>* entries_;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
+};
+
+
+class HeapSnapshotsDiff {
+ public:
+  HeapSnapshotsDiff(HeapSnapshot* snapshot1, HeapSnapshot* snapshot2)
+      : snapshot1_(snapshot1),
+        snapshot2_(snapshot2),
+        additions_root_(new HeapEntry(snapshot2)),
+        deletions_root_(new HeapEntry(snapshot1)) { }
+
+  ~HeapSnapshotsDiff() {
+    delete deletions_root_;
+    delete additions_root_;
+  }
+
+  void AddAddedEntry(HeapEntry* entry) {
+    additions_root_->SetUnidirAutoIndexReference(entry);
+  }
+
+  void AddDeletedEntry(HeapEntry* entry) {
+    deletions_root_->SetUnidirAutoIndexReference(entry);
+  }
+
+  const HeapEntry* additions_root() const { return additions_root_; }
+  const HeapEntry* deletions_root() const { return deletions_root_; }
+
+ private:
+  HeapSnapshot* snapshot1_;
+  HeapSnapshot* snapshot2_;
+  HeapEntry* additions_root_;
+  HeapEntry* deletions_root_;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotsDiff);
+};
+
+
+class HeapSnapshotsComparator {
+ public:
+  HeapSnapshotsComparator() { }
+  ~HeapSnapshotsComparator();
+  HeapSnapshotsDiff* Compare(HeapSnapshot* snapshot1, HeapSnapshot* snapshot2);
+ private:
+  List<HeapSnapshotsDiff*> diffs_;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotsComparator);
 };
 
 
@@ -691,7 +794,10 @@ class HeapSnapshotsCollection {
   HeapSnapshotsCollection();
   ~HeapSnapshotsCollection();
 
+  bool is_tracking_objects() { return is_tracking_objects_; }
+
   HeapSnapshot* NewSnapshot(const char* name, unsigned uid);
+  void SnapshotGenerationFinished() { ids_.SnapshotGenerationFinished(); }
   List<HeapSnapshot*>* snapshots() { return &snapshots_; }
   HeapSnapshot* GetSnapshot(unsigned uid);
 
@@ -699,16 +805,26 @@ class HeapSnapshotsCollection {
 
   TokenEnumerator* token_enumerator() { return token_enumerator_; }
 
+  uint64_t GetObjectId(Address addr) { return ids_.FindObject(addr); }
+  void ObjectMoveEvent(Address from, Address to) { ids_.MoveObject(from, to); }
+
+  HeapSnapshotsDiff* CompareSnapshots(HeapSnapshot* snapshot1,
+                                      HeapSnapshot* snapshot2);
+
  private:
   INLINE(static bool HeapSnapshotsMatch(void* key1, void* key2)) {
     return key1 == key2;
   }
 
+  bool is_tracking_objects_;  // Whether tracking object moves is needed.
   List<HeapSnapshot*> snapshots_;
-  // uid -> HeapSnapshot*
+  // Mapping from snapshots' uids to HeapSnapshot* pointers.
   HashMap snapshots_uids_;
   StringsStorage names_;
   TokenEnumerator* token_enumerator_;
+  // Mapping from HeapObject addresses to objects' uids.
+  HeapObjectsMap ids_;
+  HeapSnapshotsComparator comparator_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshotsCollection);
 };

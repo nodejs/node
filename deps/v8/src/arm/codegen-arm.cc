@@ -4760,6 +4760,24 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsSpecObject(ZoneList<Expression*>* args) {
+  // This generates a fast version of:
+  // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp' ||
+  // typeof(arg) == function).
+  // It includes undetectable objects (as opposed to IsObject).
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Register value = frame_->PopToRegister();
+  __ tst(value, Operand(kSmiTagMask));
+  false_target()->Branch(eq);
+  // Check that this is an object.
+  __ ldr(value, FieldMemOperand(value, HeapObject::kMapOffset));
+  __ ldrb(value, FieldMemOperand(value, Map::kInstanceTypeOffset));
+  __ cmp(value, Operand(FIRST_JS_OBJECT_TYPE));
+  cc_reg_ = ge;
+}
+
+
 void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
   // This generates a fast version of:
   // (%_ClassOf(arg) === 'Function')

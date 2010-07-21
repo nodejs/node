@@ -355,6 +355,7 @@ class CodeGenerator: public AstVisitor {
   void GenerateRandomHeapNumber(ZoneList<Expression*>* args);
 
   void GenerateIsObject(ZoneList<Expression*>* args);
+  void GenerateIsSpecObject(ZoneList<Expression*>* args);
   void GenerateIsFunction(ZoneList<Expression*>* args);
   void GenerateIsUndetectableObject(ZoneList<Expression*>* args);
   void GenerateStringAdd(ZoneList<Expression*>* args);

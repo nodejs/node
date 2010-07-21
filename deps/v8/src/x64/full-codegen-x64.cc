@@ -1991,6 +1991,25 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
 }
 
 
+void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+
+  VisitForValue(args->at(0), kAccumulator);
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+
+  __ JumpIfSmi(rax, if_false);
+  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rbx);
+  __ j(above_equal, if_true);
+  __ jmp(if_false);
+
+  Apply(context_, if_true, if_false);
+}
+
+
 void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 

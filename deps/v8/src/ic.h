@@ -391,6 +391,13 @@ class StoreIC: public IC {
   static void GenerateArrayLength(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
 
+  // Clear the use of an inlined version.
+  static void ClearInlinedVersion(Address address);
+
+  // The offset from the inlined patch site to the start of the
+  // inlined store instruction.
+  static const int kOffsetToStoreInstruction;
+
  private:
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -408,6 +415,11 @@ class StoreIC: public IC {
   }
 
   static void Clear(Address address, Code* target);
+
+  // Support for patching the index and the map that is checked in an
+  // inlined version of the named store.
+  static bool PatchInlinedStore(Address address, Object* map, int index);
+
   friend class IC;
 };
 

@@ -62,3 +62,60 @@ for (var j = 0; j < 10; ++j) {
 assertEquals(10, i);
 assertEquals(10, j);
 
+
+function Accumulate(x) {
+  var accumulator = "";
+  for (var i in x) {
+    accumulator += i;
+  }
+  return accumulator;
+}
+
+for (var i = 0; i < 3; ++i) {
+  var elements = Accumulate("abcd");
+  // We do not assume that for-in enumerates elements in order.
+  assertTrue(-1 != elements.indexOf("0"));
+  assertTrue(-1 != elements.indexOf("1"));
+  assertTrue(-1 != elements.indexOf("2"));
+  assertTrue(-1 != elements.indexOf("3"));
+  assertEquals(4, elements.length);
+}
+
+function for_in_string_prototype() {
+
+  var x = new String("abc");
+  x.foo = 19;
+  function B() {
+    this.bar = 5;
+    this[7] = 4;
+  }
+  B.prototype = x;
+
+  var y = new B();
+  y.gub = 13;
+
+  var elements = Accumulate(y);
+  var elements1 = Accumulate(y);
+  // If for-in returns elements in a different order on multiple calls, this
+  // assert will fail.  If that happens, consider if that behavior is OK.
+  assertEquals(elements, elements1, "For-in elements not the same both times.");
+  // We do not assume that for-in enumerates elements in order.
+  assertTrue(-1 != elements.indexOf("0"));
+  assertTrue(-1 != elements.indexOf("1"));
+  assertTrue(-1 != elements.indexOf("2"));
+  assertTrue(-1 != elements.indexOf("7"));
+  assertTrue(-1 != elements.indexOf("foo"));
+  assertTrue(-1 != elements.indexOf("bar"));
+  assertTrue(-1 != elements.indexOf("gub"));
+  assertEquals(13, elements.length);
+
+  elements = Accumulate(x);
+  assertTrue(-1 != elements.indexOf("0"));
+  assertTrue(-1 != elements.indexOf("1"));
+  assertTrue(-1 != elements.indexOf("2"));
+  assertTrue(-1 != elements.indexOf("foo"));
+  assertEquals(6, elements.length);
+}
+
+for_in_string_prototype();
+for_in_string_prototype();

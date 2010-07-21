@@ -47,8 +47,12 @@ def flatten(l):
 
 def split_nvp(s):
   t = {}
-  for m in re.finditer(r"(\w+)=(-?\d+)", s):
-    t[m.group(1)] = int(m.group(2))
+  for (name, value) in re.findall(r"(\w+)=([-\w]+)", s):
+    try:
+      t[name] = int(value)
+    except ValueError:
+      t[name] = value
+
   return t
 
 def parse_gc_trace(input):
@@ -211,6 +215,9 @@ def plot_all(plots, trace, prefix):
 def reclaimed_bytes(row):
   return row['total_size_before'] - row['total_size_after']
 
+def other_scope(r):
+  return r['pause'] - r['mark'] - r['sweep'] - r['compact'] - r['flushcode']
+
 plots = [
   [
     Set('style fill solid 0.5 noborder'),
@@ -219,9 +226,8 @@ plots = [
     Plot(Item('Marking', 'mark', lc = 'purple'),
          Item('Sweep', 'sweep', lc = 'blue'),
          Item('Compaction', 'compact', lc = 'red'),
-         Item('Other',
-              lambda r: r['pause'] - r['mark'] - r['sweep'] - r['compact'],
-              lc = 'grey'))
+         Item('Flush Code', 'flushcode', lc = 'yellow'),
+         Item('Other', other_scope, lc = 'grey'))
   ],
   [
     Set('style histogram rowstacked'),
@@ -256,19 +262,48 @@ plots = [
   ],
 ]
 
+def calc_total(trace, field):
+  return reduce(lambda t,r: t + r[field], trace, 0)
+
+def calc_max(trace, field):
+  return reduce(lambda t,r: max(t, r[field]), trace, 0)
+
 def process_trace(filename):
   trace = parse_gc_trace(filename)
-  total_gc = reduce(lambda t,r: t + r['pause'], trace, 0)
-  max_gc = reduce(lambda t,r: max(t, r['pause']), trace, 0)
+  total_gc = calc_total(trace, 'pause')
+  max_gc = calc_max(trace, 'pause')
   avg_gc = total_gc / len(trace)
+
+  total_sweep = calc_total(trace, 'sweep')
+  max_sweep = calc_max(trace, 'sweep')
+
+  total_mark = calc_total(trace, 'mark')
+  max_mark = calc_max(trace, 'mark')
+
+  scavenges = filter(lambda r: r['gc'] == 's', trace)
+  total_scavenge = calc_total(scavenges, 'pause')
+  max_scavenge = calc_max(scavenges, 'pause')
+  avg_scavenge = total_scavenge / len(scavenges)
 
   charts = plot_all(plots, trace, filename)
 
   with open(filename + '.html', 'w') as out:
     out.write('<html><body>')
+    out.write('<table><tr><td>')
     out.write('Total in GC: <b>%d</b><br/>' % total_gc)
     out.write('Max in GC: <b>%d</b><br/>' % max_gc)
     out.write('Avg in GC: <b>%d</b><br/>' % avg_gc)
+    out.write('</td><td>')
+    out.write('Total in Scavenge: <b>%d</b><br/>' % total_scavenge)
+    out.write('Max in Scavenge: <b>%d</b><br/>' % max_scavenge)
+    out.write('Avg in Scavenge: <b>%d</b><br/>' % avg_scavenge)
+    out.write('</td><td>')
+    out.write('Total in Sweep: <b>%d</b><br/>' % total_sweep)
+    out.write('Max in Sweep: <b>%d</b><br/>' % max_sweep)
+    out.write('</td><td>')
+    out.write('Total in Mark: <b>%d</b><br/>' % total_mark)
+    out.write('Max in Mark: <b>%d</b><br/>' % max_mark)
+    out.write('</td></tr></table>')
     for chart in charts:
       out.write('<img src="%s">' % chart)
       out.write('</body></html>')

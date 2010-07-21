@@ -74,6 +74,7 @@ void TokenEnumerator::TokenRemovedCallback(v8::Persistent<v8::Value> handle,
                                            void* parameter) {
   reinterpret_cast<TokenEnumerator*>(parameter)->TokenRemoved(
       Utils::OpenHandle(*handle).location());
+  handle.Dispose();
 }
 
 
@@ -181,8 +182,6 @@ void ProfileNode::Print(int indent) {
 }
 
 
-namespace {
-
 class DeleteNodesCallback {
  public:
   void BeforeTraversingChild(ProfileNode*, ProfileNode*) { }
@@ -193,8 +192,6 @@ class DeleteNodesCallback {
 
   void AfterChildTraversed(ProfileNode*, ProfileNode*) { }
 };
-
-}  // namespace
 
 
 ProfileTree::ProfileTree()
@@ -239,8 +236,6 @@ void ProfileTree::AddPathFromStart(const Vector<CodeEntry*>& path) {
   node->IncrementSelfTicks();
 }
 
-
-namespace {
 
 struct NodesPair {
   NodesPair(ProfileNode* src, ProfileNode* dst)
@@ -294,8 +289,6 @@ class FilteredCloneCallback {
   int security_token_id_;
 };
 
-}  // namespace
-
 void ProfileTree::FilteredClone(ProfileTree* src, int security_token_id) {
   ms_to_ticks_scale_ = src->ms_to_ticks_scale_;
   FilteredCloneCallback cb(root_, security_token_id);
@@ -308,8 +301,6 @@ void ProfileTree::SetTickRatePerMs(double ticks_per_ms) {
   ms_to_ticks_scale_ = ticks_per_ms > 0 ? 1.0 / ticks_per_ms : 1.0;
 }
 
-
-namespace {
 
 class Position {
  public:
@@ -327,8 +318,6 @@ class Position {
  private:
   int child_idx_;
 };
-
-}  // namespace
 
 
 // Non-recursive implementation of a depth-first post-order tree traversal.
@@ -355,8 +344,6 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
 }
 
 
-namespace {
-
 class CalculateTotalTicksCallback {
  public:
   void BeforeTraversingChild(ProfileNode*, ProfileNode*) { }
@@ -369,8 +356,6 @@ class CalculateTotalTicksCallback {
     parent->IncreaseTotalTicks(child->total_ticks());
   }
 };
-
-}  // namespace
 
 
 void ProfileTree::CalculateTotalTicks() {
@@ -877,6 +862,11 @@ void HeapEntry::SetAutoIndexReference(HeapEntry* entry) {
 }
 
 
+void HeapEntry::SetUnidirAutoIndexReference(HeapEntry* entry) {
+  children_.Add(new HeapGraphEdge(next_auto_index_++, this, entry));
+}
+
+
 int HeapEntry::TotalSize() {
   return total_size_ != kUnknownSize ? total_size_ : CalculateTotalSize();
 }
@@ -888,12 +878,12 @@ int HeapEntry::NonSharedTotalSize() {
 }
 
 
-int HeapEntry::CalculateTotalSize() {
-  snapshot_->ClearPaint();
+template<class Visitor>
+void HeapEntry::ApplyAndPaintAllReachable(Visitor* visitor) {
   List<HeapEntry*> list(10);
   list.Add(this);
-  total_size_ = self_size_;
   this->PaintReachable();
+  visitor->Apply(this);
   while (!list.is_empty()) {
     HeapEntry* entry = list.RemoveLast();
     const int children_count = entry->children_.length();
@@ -902,15 +892,48 @@ int HeapEntry::CalculateTotalSize() {
       if (!child->painted_reachable()) {
         list.Add(child);
         child->PaintReachable();
-        total_size_ += child->self_size_;
+        visitor->Apply(child);
       }
     }
   }
-  return total_size_;
 }
 
 
-namespace {
+class NullClass {
+ public:
+  void Apply(HeapEntry* entry) { }
+};
+
+void HeapEntry::PaintAllReachable() {
+  NullClass null;
+  ApplyAndPaintAllReachable(&null);
+}
+
+
+class TotalSizeCalculator {
+ public:
+  TotalSizeCalculator()
+      : total_size_(0) {
+  }
+
+  int total_size() const { return total_size_; }
+
+  void Apply(HeapEntry* entry) {
+    total_size_ += entry->self_size();
+  }
+
+ private:
+  int total_size_;
+};
+
+int HeapEntry::CalculateTotalSize() {
+  snapshot_->ClearPaint();
+  TotalSizeCalculator calc;
+  ApplyAndPaintAllReachable(&calc);
+  total_size_ = calc.total_size();
+  return total_size_;
+}
+
 
 class NonSharedSizeCalculator {
  public:
@@ -930,41 +953,26 @@ class NonSharedSizeCalculator {
   int non_shared_total_size_;
 };
 
-}  // namespace
-
 int HeapEntry::CalculateNonSharedTotalSize() {
   // To calculate non-shared total size, first we paint all reachable
   // nodes in one color, then we paint all nodes reachable from other
   // nodes with a different color. Then we consider only nodes painted
-  // with the first color for caclulating the total size.
+  // with the first color for calculating the total size.
   snapshot_->ClearPaint();
+  PaintAllReachable();
+
   List<HeapEntry*> list(10);
-  list.Add(this);
-  this->PaintReachable();
+  if (this != snapshot_->root()) {
+    list.Add(snapshot_->root());
+    snapshot_->root()->PaintReachableFromOthers();
+  }
   while (!list.is_empty()) {
     HeapEntry* entry = list.RemoveLast();
     const int children_count = entry->children_.length();
     for (int i = 0; i < children_count; ++i) {
       HeapEntry* child = entry->children_[i]->to();
-      if (!child->painted_reachable()) {
-        list.Add(child);
-        child->PaintReachable();
-      }
-    }
-  }
-
-  List<HeapEntry*> list2(10);
-  if (this != snapshot_->root()) {
-    list2.Add(snapshot_->root());
-    snapshot_->root()->PaintReachableFromOthers();
-  }
-  while (!list2.is_empty()) {
-    HeapEntry* entry = list2.RemoveLast();
-    const int children_count = entry->children_.length();
-    for (int i = 0; i < children_count; ++i) {
-      HeapEntry* child = entry->children_[i]->to();
       if (child != this && child->not_painted_reachable_from_others()) {
-        list2.Add(child);
+        list.Add(child);
         child->PaintReachableFromOthers();
       }
     }
@@ -972,7 +980,8 @@ int HeapEntry::CalculateNonSharedTotalSize() {
 
   NonSharedSizeCalculator calculator;
   snapshot_->IterateEntries(&calculator);
-  return calculator.non_shared_total_size();
+  non_shared_total_size_ = calculator.non_shared_total_size();
+  return non_shared_total_size_;
 }
 
 
@@ -1078,7 +1087,8 @@ void HeapEntry::CutEdges() {
 
 
 void HeapEntry::Print(int max_depth, int indent) {
-  OS::Print("%6d %6d %6d ", self_size_, TotalSize(), NonSharedTotalSize());
+  OS::Print("%6d %6d %6d [%ld] ",
+            self_size_, TotalSize(), NonSharedTotalSize(), id_);
   if (type_ != STRING) {
     OS::Print("%s %.40s\n", TypeAsString(), name_);
   } else {
@@ -1244,7 +1254,13 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
     : collection_(collection),
       title_(title),
       uid_(uid),
-      root_(this) {
+      root_(this),
+      sorted_entries_(NULL) {
+}
+
+
+HeapSnapshot::~HeapSnapshot() {
+  delete sorted_entries_;
 }
 
 
@@ -1355,6 +1371,7 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
   HeapEntry* entry = new HeapEntry(this,
                                    type,
                                    name,
+                                   collection_->GetObjectId(object->address()),
                                    GetObjectSize(object),
                                    GetObjectSecurityToken(object));
   entries_.Pair(object, entry);
@@ -1381,8 +1398,6 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
 }
 
 
-namespace {
-
 class EdgesCutter {
  public:
   explicit EdgesCutter(int global_security_token)
@@ -1399,8 +1414,6 @@ class EdgesCutter {
  private:
   const int global_security_token_;
 };
-
-}  // namespace
 
 void HeapSnapshot::CutObjectsFromForeignSecurityContexts() {
   EdgesCutter cutter(GetGlobalSecurityToken());
@@ -1454,13 +1467,129 @@ int HeapSnapshot::CalculateNetworkSize(JSObject* obj) {
 }
 
 
+class EntriesCollector {
+ public:
+  explicit EntriesCollector(List<HeapEntry*>* list) : list_(list) { }
+  void Apply(HeapEntry* entry) {
+    list_->Add(entry);
+  }
+ private:
+  List<HeapEntry*>* list_;
+};
+
+template<class T>
+static int SortByIds(const T* entry1_ptr,
+                     const T* entry2_ptr) {
+  if ((*entry1_ptr)->id() == (*entry2_ptr)->id()) return 0;
+  return (*entry1_ptr)->id() < (*entry2_ptr)->id() ? -1 : 1;
+}
+
+List<HeapEntry*>* HeapSnapshot::GetSortedEntriesList() {
+  if (sorted_entries_ != NULL) return sorted_entries_;
+  sorted_entries_ = new List<HeapEntry*>(entries_.capacity());
+  EntriesCollector collector(sorted_entries_);
+  entries_.Apply(&collector);
+  sorted_entries_->Sort(SortByIds);
+  return sorted_entries_;
+}
+
+
+HeapSnapshotsDiff* HeapSnapshot::CompareWith(HeapSnapshot* snapshot) {
+  return collection_->CompareSnapshots(this, snapshot);
+}
+
+
 void HeapSnapshot::Print(int max_depth) {
   root_.Print(max_depth, 0);
 }
 
 
+HeapObjectsMap::HeapObjectsMap()
+    : initial_fill_mode_(true),
+      next_id_(1),
+      entries_map_(AddressesMatch),
+      entries_(new List<EntryInfo>()) { }
+
+
+HeapObjectsMap::~HeapObjectsMap() {
+  delete entries_;
+}
+
+
+void HeapObjectsMap::SnapshotGenerationFinished() {
+    initial_fill_mode_ = false;
+    RemoveDeadEntries();
+}
+
+
+uint64_t HeapObjectsMap::FindObject(Address addr) {
+  if (!initial_fill_mode_) {
+    uint64_t existing = FindEntry(addr);
+    if (existing != 0) return existing;
+  }
+  uint64_t id = next_id_++;
+  AddEntry(addr, id);
+  return id;
+}
+
+
+void HeapObjectsMap::MoveObject(Address from, Address to) {
+  if (from == to) return;
+  HashMap::Entry* entry = entries_map_.Lookup(from, AddressHash(from), false);
+  if (entry != NULL) {
+    void* value = entry->value;
+    entries_map_.Remove(from, AddressHash(from));
+    entry = entries_map_.Lookup(to, AddressHash(to), true);
+    // We can have an entry at the new location, it is OK, as GC can overwrite
+    // dead objects with alive objects being moved.
+    entry->value = value;
+  }
+}
+
+
+void HeapObjectsMap::AddEntry(Address addr, uint64_t id) {
+  HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), true);
+  ASSERT(entry->value == NULL);
+  entry->value = reinterpret_cast<void*>(entries_->length());
+  entries_->Add(EntryInfo(id));
+}
+
+
+uint64_t HeapObjectsMap::FindEntry(Address addr) {
+  HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), false);
+  if (entry != NULL) {
+    int entry_index =
+        static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
+    EntryInfo& entry_info = entries_->at(entry_index);
+    entry_info.accessed = true;
+    return entry_info.id;
+  } else {
+    return 0;
+  }
+}
+
+
+void HeapObjectsMap::RemoveDeadEntries() {
+  List<EntryInfo>* new_entries = new List<EntryInfo>();
+  for (HashMap::Entry* entry = entries_map_.Start();
+       entry != NULL;
+       entry = entries_map_.Next(entry)) {
+    int entry_index =
+        static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
+    EntryInfo& entry_info = entries_->at(entry_index);
+    if (entry_info.accessed) {
+      entry->value = reinterpret_cast<void*>(new_entries->length());
+      new_entries->Add(EntryInfo(entry_info.id, false));
+    }
+  }
+  delete entries_;
+  entries_ = new_entries;
+}
+
+
 HeapSnapshotsCollection::HeapSnapshotsCollection()
-    : snapshots_uids_(HeapSnapshotsMatch),
+    : is_tracking_objects_(false),
+      snapshots_uids_(HeapSnapshotsMatch),
       token_enumerator_(new TokenEnumerator()) {
 }
 
@@ -1478,6 +1607,7 @@ HeapSnapshotsCollection::~HeapSnapshotsCollection() {
 
 HeapSnapshot* HeapSnapshotsCollection::NewSnapshot(const char* name,
                                                    unsigned uid) {
+  is_tracking_objects_ = true;  // Start watching for heap objects moves.
   HeapSnapshot* snapshot = new HeapSnapshot(this, name, uid);
   snapshots_.Add(snapshot);
   HashMap::Entry* entry =
@@ -1495,6 +1625,13 @@ HeapSnapshot* HeapSnapshotsCollection::GetSnapshot(unsigned uid) {
                                                  static_cast<uint32_t>(uid),
                                                  false);
   return entry != NULL ? reinterpret_cast<HeapSnapshot*>(entry->value) : NULL;
+}
+
+
+HeapSnapshotsDiff* HeapSnapshotsCollection::CompareSnapshots(
+    HeapSnapshot* snapshot1,
+    HeapSnapshot* snapshot2) {
+  return comparator_.Compare(snapshot1, snapshot2);
 }
 
 
@@ -1628,6 +1765,64 @@ void HeapSnapshotGenerator::ExtractElementReferences(JSObject* js_obj,
       }
     }
   }
+}
+
+
+static void DeleteHeapSnapshotsDiff(HeapSnapshotsDiff** diff_ptr) {
+  delete *diff_ptr;
+}
+
+HeapSnapshotsComparator::~HeapSnapshotsComparator() {
+  diffs_.Iterate(DeleteHeapSnapshotsDiff);
+}
+
+
+HeapSnapshotsDiff* HeapSnapshotsComparator::Compare(HeapSnapshot* snapshot1,
+                                                    HeapSnapshot* snapshot2) {
+  HeapSnapshotsDiff* diff = new HeapSnapshotsDiff(snapshot1, snapshot2);
+  diffs_.Add(diff);
+  List<HeapEntry*>* entries1 = snapshot1->GetSortedEntriesList();
+  List<HeapEntry*>* entries2 = snapshot2->GetSortedEntriesList();
+  int i = 0, j = 0;
+  List<HeapEntry*> added_entries, deleted_entries;
+  while (i < entries1->length() && j < entries2->length()) {
+    uint64_t id1 = entries1->at(i)->id();
+    uint64_t id2 = entries2->at(j)->id();
+    if (id1 == id2) {
+      i++;
+      j++;
+    } else if (id1 < id2) {
+      HeapEntry* entry = entries1->at(i++);
+      deleted_entries.Add(entry);
+    } else {
+      HeapEntry* entry = entries2->at(j++);
+      added_entries.Add(entry);
+    }
+  }
+  while (i < entries1->length()) {
+    HeapEntry* entry = entries1->at(i++);
+    deleted_entries.Add(entry);
+  }
+  while (j < entries2->length()) {
+    HeapEntry* entry = entries2->at(j++);
+    added_entries.Add(entry);
+  }
+
+  snapshot1->ClearPaint();
+  snapshot1->root()->PaintAllReachable();
+  for (int i = 0; i < deleted_entries.length(); ++i) {
+    HeapEntry* entry = deleted_entries[i];
+    if (entry->painted_reachable())
+      diff->AddDeletedEntry(entry);
+  }
+  snapshot2->ClearPaint();
+  snapshot2->root()->PaintAllReachable();
+  for (int i = 0; i < added_entries.length(); ++i) {
+    HeapEntry* entry = added_entries[i];
+    if (entry->painted_reachable())
+      diff->AddAddedEntry(entry);
+  }
+  return diff;
 }
 
 } }  // namespace v8::internal

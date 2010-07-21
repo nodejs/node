@@ -294,6 +294,9 @@ class Simulator {
   void TrashCallerSaveRegisters();
 
   // Architecture state.
+  // Saturating instructions require a Q flag to indicate saturation.
+  // There is currently no way to read the CPSR directly, and thus read the Q
+  // flag, so this is left unimplemented.
   int32_t registers_[16];
   bool n_flag_;
   bool z_flag_;

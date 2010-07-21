@@ -4561,6 +4561,12 @@ Handle<String> HeapGraphNode::GetName() const {
 }
 
 
+uint64_t HeapGraphNode::GetId() const {
+  IsDeadCheck("v8::HeapGraphNode::GetId");
+  return reinterpret_cast<const i::HeapEntry*>(this)->id();
+}
+
+
 int HeapGraphNode::GetSelfSize() const {
   IsDeadCheck("v8::HeapGraphNode::GetSelfSize");
   return reinterpret_cast<const i::HeapEntry*>(this)->self_size();
@@ -4624,6 +4630,22 @@ const HeapGraphPath* HeapGraphNode::GetRetainingPath(int index) const {
 }
 
 
+const HeapGraphNode* HeapSnapshotsDiff::GetAdditionsRoot() const {
+  IsDeadCheck("v8::HeapSnapshotsDiff::GetAdditionsRoot");
+  const i::HeapSnapshotsDiff* diff =
+      reinterpret_cast<const i::HeapSnapshotsDiff*>(this);
+  return reinterpret_cast<const HeapGraphNode*>(diff->additions_root());
+}
+
+
+const HeapGraphNode* HeapSnapshotsDiff::GetDeletionsRoot() const {
+  IsDeadCheck("v8::HeapSnapshotsDiff::GetDeletionsRoot");
+  const i::HeapSnapshotsDiff* diff =
+      reinterpret_cast<const i::HeapSnapshotsDiff*>(this);
+  return reinterpret_cast<const HeapGraphNode*>(diff->deletions_root());
+}
+
+
 unsigned HeapSnapshot::GetUid() const {
   IsDeadCheck("v8::HeapSnapshot::GetUid");
   return reinterpret_cast<const i::HeapSnapshot*>(this)->uid();
@@ -4639,11 +4661,23 @@ Handle<String> HeapSnapshot::GetTitle() const {
 }
 
 
-const HeapGraphNode* HeapSnapshot::GetHead() const {
+const HeapGraphNode* HeapSnapshot::GetRoot() const {
   IsDeadCheck("v8::HeapSnapshot::GetHead");
   const i::HeapSnapshot* snapshot =
       reinterpret_cast<const i::HeapSnapshot*>(this);
   return reinterpret_cast<const HeapGraphNode*>(snapshot->const_root());
+}
+
+
+const HeapSnapshotsDiff* HeapSnapshot::CompareWith(
+    const HeapSnapshot* snapshot) const {
+  IsDeadCheck("v8::HeapSnapshot::CompareWith");
+  i::HeapSnapshot* snapshot1 = const_cast<i::HeapSnapshot*>(
+      reinterpret_cast<const i::HeapSnapshot*>(this));
+  i::HeapSnapshot* snapshot2 = const_cast<i::HeapSnapshot*>(
+      reinterpret_cast<const i::HeapSnapshot*>(snapshot));
+  return reinterpret_cast<const HeapSnapshotsDiff*>(
+      snapshot1->CompareWith(snapshot2));
 }
 
 
