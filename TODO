@@ -9,3 +9,6 @@
 - node_crypto, support for Buffer in update function of Cipher, Decipher,
   Hmac, Sign, Verify. See 9a26946aaa99a3f27905d5ba91220784e864e5d0 for an
   example of how to do it.
+
+- debug and production modes
+- EventSource branch merged
