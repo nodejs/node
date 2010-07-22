@@ -190,15 +190,14 @@ process.openStdin = function () {
 
 
 // console object
-
+var formatRegExp = /%[sdj]/g;
 function format (f) {
   var i = 1;
   var args = arguments;
-  if (!(f instanceof String)) f = String(f);
-  return f.replace(/%([sdj])/g, function (x) {
+  return String(f).replace(formatRegExp, function (x) {
     switch (x) {
       case '%s': return args[i++];
-      case '%d': return args[i++].toString();
+      case '%d': return +args[i++];
       case '%j': return JSON.stringify(args[i++]);
       default:
         return x;
