@@ -137,6 +137,18 @@ assert.equal(new Buffer('abc').toString('ascii', 0, 0), '');
 assert.equal(new Buffer('abc').toString('ascii', -100, -100), '');
 assert.equal(new Buffer('abc').toString('ascii', 100, 100), '');
 
+// try toString() with a object as a encoding
+assert.equal(new Buffer('abc').toString({toString: function () {return 'ascii';}}), 'abc');
+
+// testing for smart defaults and ability to pass string values as offset
+var writeTest = new Buffer('abcdes');
+writeTest.write('n', 'ascii');
+writeTest.write('o', 'ascii', '1');
+writeTest.write('d', '2', 'ascii');
+writeTest.write('e', 3, 'ascii');
+writeTest.write('j', 'ascii', 4);
+assert.equal(writeTest.toString(), 'nodejs');
+
 var asciiString = "hello world";
 var offset = 100;
 for (var j = 0; j < 500; j++) {
