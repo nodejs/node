@@ -2143,7 +2143,7 @@ Emitted when the server closes.
 
 ### net.createServer(connectionListener)
 
-Creates a new TCP server. The `connection_listener` argument is
+Creates a new TCP server. The `connectionListener` argument is
 automatically set as a listener for the `'connection'` event.
 
 
