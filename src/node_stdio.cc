@@ -163,9 +163,7 @@ static bool IsBlocking(int fd) {
     perror("fstat");
     return true;
   }
-  if (s.st_mode & S_IFSOCK == S_IFSOCK) return false;
-  if (s.st_mode & S_IFIFO == S_IFIFO) return false;
-  return true;
+  return !S_ISSOCK(s.st_mode) && !S_ISFIFO(s.st_mode);
 }
 
 
