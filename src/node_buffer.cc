@@ -272,6 +272,82 @@ Handle<Value> Buffer::Utf8Slice(const Arguments &args) {
   return scope.Close(string);
 }
 
+static char* base64_table = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                            "abcdefghijklmnopqrstuvwxyz"
+                            "0123456789+/";
+
+
+Handle<Value> Buffer::Base64Slice(const Arguments &args) {
+  HandleScope scope;
+  Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
+  SLICE_ARGS(args[0], args[1])
+
+  int n = end - start;
+  int out_len = (n + 2 - ((n + 2) % 3)) / 3 * 4;
+  char *out = new char[out_len];
+
+  char bitbuf[3];
+  int i = start; // data() index
+  int j = 0; // out index
+  char c;
+  bool b1_oob, b2_oob;
+
+  while (i < end) {
+    bitbuf[0] = parent->data()[i++];
+
+    if (i < end) {
+      bitbuf[1] = parent->data()[i];
+      b1_oob = false;
+    }  else {
+      bitbuf[1] = 0;
+      b1_oob = true;
+    }
+    i++;
+
+    if (i < end) {
+      bitbuf[2] = parent->data()[i];
+      b2_oob = false;
+    }  else {
+      bitbuf[2] = 0;
+      b2_oob = true;
+    }
+    i++;
+
+
+    c = bitbuf[0] >> 2;
+    assert(c < 64);
+    out[j++] = base64_table[c];
+    assert(j < out_len);
+
+    c = ((bitbuf[0] & 0x03) << 4) | (bitbuf[1] >> 4);
+    assert(c < 64);
+    out[j++] = base64_table[c];
+    assert(j < out_len);
+
+    if (b1_oob) {
+      out[j++] = '=';
+    } else {
+      c = ((bitbuf[1] & 0x0F) << 2) | (bitbuf[2] >> 6);
+      assert(c < 64);
+      out[j++] = base64_table[c];
+    }
+    assert(j < out_len);
+
+    if (b2_oob) {
+      out[j++] = '=';
+    } else {
+      c = bitbuf[2] & 0x3F;
+      assert(c < 64);
+      out[j++]  = base64_table[c];
+    }
+    assert(j <= out_len);
+  }
+
+  Local<String> string = String::New(out, out_len);
+  delete [] out;
+  return scope.Close(string);
+}
+
 
 Handle<Value> Buffer::Slice(const Arguments &args) {
   HandleScope scope;
@@ -534,6 +610,7 @@ void Buffer::Initialize(Handle<Object> target) {
   // copy free
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "binarySlice", Buffer::BinarySlice);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiSlice", Buffer::AsciiSlice);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "base64Slice", Buffer::Base64Slice);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "slice", Buffer::Slice);
   // TODO NODE_SET_PROTOTYPE_METHOD(t, "utf16Slice", Utf16Slice);
   // copy
