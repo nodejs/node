@@ -275,6 +275,16 @@ Handle<Value> Buffer::Utf8Slice(const Arguments &args) {
 static char* base64_table = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                             "abcdefghijklmnopqrstuvwxyz"
                             "0123456789+/";
+static int unbase64_table[] =
+  {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+  ,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+  ,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63
+  ,52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1
+  ,-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14
+  ,15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1
+  ,-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40
+  ,41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1
+  };
 
 
 Handle<Value> Buffer::Base64Slice(const Arguments &args) {
@@ -485,6 +495,91 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
 }
 
 
+// var bytesWritten = buffer.base64Write(string, offset);
+Handle<Value> Buffer::Base64Write(const Arguments &args) {
+  HandleScope scope;
+
+  assert(unbase64_table['/'] == 63);
+  assert(unbase64_table['+'] == 62);
+  assert(unbase64_table['T'] == 19);
+  assert(unbase64_table['Z'] == 25);
+  assert(unbase64_table['t'] == 45);
+  assert(unbase64_table['z'] == 51);
+
+  Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
+
+  if (!args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Argument must be a string")));
+  }
+
+  String::AsciiValue s(args[0]->ToString());
+  size_t offset = args[1]->Int32Value();
+
+  if (offset >= buffer->length_) {
+    return ThrowException(Exception::TypeError(String::New(
+            "Offset is out of bounds")));
+  }
+
+  char *input = *s;
+  int input_len = s.length();
+
+  char *start = buffer->data() + offset;
+  char *p = start;
+  const char *pe = buffer->data() + buffer->length_;
+
+  int i = 0;
+  char a,b,c,d;
+
+  bool b_oob, c_oob;
+
+  while (i < input_len && p < pe) {
+    if (input[i] == '=' || i >= input_len) break;
+    a = unbase64_table[input[i]];
+    i++;
+
+    if (input[i] == '=' || i >= input_len) {
+      b = 0;
+      b_oob = true;
+    } else {
+      b = unbase64_table[input[i]];
+      b_oob = false;
+    }
+    i++;
+
+    if (b_oob || input[i] == '=' || i >= input_len) {
+      c = 0;
+      c_oob = true;
+    } else {
+      c = unbase64_table[input[i]];
+      c_oob = false;
+    }
+    i++;
+
+    if (c_oob || input[i] == '=' || i >= input_len) {
+      d = 0;
+    } else {
+      d = unbase64_table[input[i]];
+    }
+    i++;
+
+
+    *p = (a << 2) | ((b & 0x30) >> 4);
+    if (++p >= pe) break;
+
+    if (b_oob) break;
+    *p = ((b & 0x0F) << 4) | ((c & 0x3c) >> 2);
+    if (++p >= pe) break;
+
+    if (c_oob) break;
+    *p = ((c & 0x03) << 6) | (d & 0x3f);
+    if (++p >= pe) break;
+  }
+
+  return scope.Close(Integer::New(p - start));
+}
+
+
 Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
   HandleScope scope;
 
@@ -619,6 +714,7 @@ void Buffer::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "utf8Write", Buffer::Utf8Write);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiWrite", Buffer::AsciiWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "binaryWrite", Buffer::BinaryWrite);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "base64Write", Buffer::Base64Write);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "unpack", Buffer::Unpack);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "copy", Buffer::Copy);
 

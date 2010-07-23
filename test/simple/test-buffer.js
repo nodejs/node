@@ -241,5 +241,10 @@ expected = "TWFuIGlzIGRpc3Rpbmd1aXNoZWQsIG5vdCBvbmx5IGJ5IGhpcyByZWFzb24sIGJ1dCBi
 assert.equal(expected, (new Buffer(quote)).toString('base64'));
 
 
+b = new Buffer(1024);
+bytesWritten = b.write(expected, 0, 'base64');
+assert.equal(quote, b.toString('ascii', 0, quote.length));
+assert.equal(quote.length+1, bytesWritten); // writes a \0 too
+
 
 
