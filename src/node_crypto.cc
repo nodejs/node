@@ -998,15 +998,18 @@ class Cipher : public ObjectWrap {
       return ThrowException(exception);
     }
 
-    char* buf = new char[len];
-    ssize_t written = DecodeWrite(buf, len, args[0], enc);
-    assert(written == len);
-
     unsigned char *out=0;
     int out_len=0;
-    int r = cipher->CipherUpdate(buf, len,&out,&out_len);
-
-    delete [] buf;
+    if (Buffer::HasInstance(args[0])) {
+      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+      int r = cipher->CipherUpdate(buffer->data(), buffer->length(), &out, &out_len);
+    } else {
+      char* buf = new char[len];
+      ssize_t written = DecodeWrite(buf, len, args[0], enc);
+      assert(written == len);
+      int r = cipher->CipherUpdate(buf, len,&out,&out_len);
+      delete [] buf;
+    }
 
     Local<Value> outString;
     if (out_len==0) {
@@ -1337,8 +1340,20 @@ class Decipher : public ObjectWrap {
             "node`DecodeBytes() failed")));
     }
 
-    char* buf = new char[len];
-    ssize_t written = DecodeWrite(buf, len, args[0], BINARY);
+    char* buf;
+    // if alloc_buf then buf must be deleted later
+    bool alloc_buf = false;
+    if (Buffer::HasInstance(args[0])) {
+      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+      buf = buffer->data();
+      len = buffer->length();
+    } else {
+      alloc_buf = true;
+      buf = new char[len];
+      ssize_t written = DecodeWrite(buf, len, args[0], BINARY);
+      assert(written == len);
+    }
+
     char* ciphertext;
     int ciphertext_len;
 
@@ -1353,7 +1368,10 @@ class Decipher : public ObjectWrap {
           char* complete_hex = new char[len+2];
           memcpy(complete_hex, &cipher->incomplete_hex, 1);
           memcpy(complete_hex+1, buf, len);
-          delete [] buf;
+          if (alloc_buf) {
+            delete [] buf;
+            alloc_buf = false;
+          }
           buf = complete_hex;
           len += 1;
         }
@@ -1366,14 +1384,19 @@ class Decipher : public ObjectWrap {
         }
         HexDecode((unsigned char*)buf, len, (char **)&ciphertext, &ciphertext_len);
 
-
-        delete [] buf;
+        if (alloc_buf) {
+          delete [] buf;
+          alloc_buf = false;
+        }
         buf = ciphertext;
         len = ciphertext_len;
 
       } else if (strcasecmp(*encoding, "base64") == 0) {
         unbase64((unsigned char*)buf, len, (char **)&ciphertext, &ciphertext_len);
-        delete [] buf;
+        if (alloc_buf) {
+          delete [] buf;
+          alloc_buf = false;
+        }
         buf = ciphertext;
         len = ciphertext_len;
 
@@ -1426,7 +1449,7 @@ class Decipher : public ObjectWrap {
 
     if (out) delete [] out;
 
-    delete [] buf;
+    if (alloc_buf) delete [] buf;
     return scope.Close(outString);
 
   }
@@ -1639,14 +1662,17 @@ class Hmac : public ObjectWrap {
       Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
       return ThrowException(exception);
     }
-
-    char* buf = new char[len];
-    ssize_t written = DecodeWrite(buf, len, args[0], enc);
-    assert(written == len);
-
-    int r = hmac->HmacUpdate(buf, len);
-
-    delete [] buf;
+	
+    if( Buffer::HasInstance(args[0])) {
+      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+      int r = hmac->HmacUpdate(buffer->data(), buffer->length());
+    } else {
+      char* buf = new char[len];
+      ssize_t written = DecodeWrite(buf, len, args[0], enc);
+      assert(written == len);
+      int r = hmac->HmacUpdate(buf, len);
+      delete [] buf;
+    }
 
     return args.This();
   }
@@ -1954,13 +1980,16 @@ class Sign : public ObjectWrap {
       return ThrowException(exception);
     }
 
-    char* buf = new char[len];
-    ssize_t written = DecodeWrite(buf, len, args[0], enc);
-    assert(written == len);
-
-    int r = sign->SignUpdate(buf, len);
-
-    delete [] buf;
+    if (Buffer::HasInstance(args[0])) {
+      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+      int r = sign->SignUpdate(buffer->data(), buffer->length());
+    } else {
+      char* buf = new char[len];
+      ssize_t written = DecodeWrite(buf, len, args[0], enc);
+      assert(written == len);
+      int r = sign->SignUpdate(buf, len);
+      delete [] buf;
+    }
 
     return args.This();
   }
@@ -2150,13 +2179,16 @@ class Verify : public ObjectWrap {
       return ThrowException(exception);
     }
 
-    char* buf = new char[len];
-    ssize_t written = DecodeWrite(buf, len, args[0], enc);
-    assert(written == len);
-
-    int r = verify->VerifyUpdate(buf, len);
-
-    delete [] buf;
+    if(Buffer::HasInstance(args[0])) {
+      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+      int r = verify->VerifyUpdate(buffer->data(), buffer->length());
+    } else {
+      char* buf = new char[len];
+      ssize_t written = DecodeWrite(buf, len, args[0], enc);
+      assert(written == len);
+      int r = verify->VerifyUpdate(buf, len);
+      delete [] buf;
+    }
 
     return args.This();
   }

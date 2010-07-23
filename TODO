@@ -6,9 +6,6 @@
   - tab completion interface
 - SSL should be factored out of net.js into standalone stream object
 - base64 write and toString for buffers
-- node_crypto, support for Buffer in update function of Cipher, Decipher,
-  Hmac, Sign, Verify. See 9a26946aaa99a3f27905d5ba91220784e864e5d0 for an
-  example of how to do it.
 
 - debug and production modes
 - EventSource branch merged
