@@ -1201,6 +1201,50 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 }
 
 
+void CodeGenerator::JumpIfBothSmiUsingTypeInfo(Result* left,
+                                               Result* right,
+                                               JumpTarget* both_smi) {
+  TypeInfo left_info = left->type_info();
+  TypeInfo right_info = right->type_info();
+  if (left_info.IsDouble() || left_info.IsString() ||
+      right_info.IsDouble() || right_info.IsString()) {
+    // We know that left and right are not both smi.  Don't do any tests.
+    return;
+  }
+
+  if (left->reg().is(right->reg())) {
+    if (!left_info.IsSmi()) {
+      Condition is_smi = masm()->CheckSmi(left->reg());
+      both_smi->Branch(is_smi);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(left->reg());
+      left->Unuse();
+      right->Unuse();
+      both_smi->Jump();
+    }
+  } else if (!left_info.IsSmi()) {
+    if (!right_info.IsSmi()) {
+      Condition is_smi = masm()->CheckBothSmi(left->reg(), right->reg());
+      both_smi->Branch(is_smi);
+    } else {
+      Condition is_smi = masm()->CheckSmi(left->reg());
+      both_smi->Branch(is_smi);
+    }
+  } else {
+    if (FLAG_debug_code) __ AbortIfNotSmi(left->reg());
+    if (!right_info.IsSmi()) {
+      Condition is_smi = masm()->CheckSmi(right->reg());
+      both_smi->Branch(is_smi);
+    } else {
+      if (FLAG_debug_code) __ AbortIfNotSmi(right->reg());
+      left->Unuse();
+      right->Unuse();
+      both_smi->Jump();
+    }
+  }
+}
+
+
 void CodeGenerator::JumpIfNotSmiUsingTypeInfo(Register reg,
                                               TypeInfo type,
                                               DeferredCode* deferred) {
@@ -2100,9 +2144,9 @@ void CodeGenerator::Comparison(AstNode* node,
       // side (which is always a symbol).
       if (cc == equal) {
         Label not_a_symbol;
-        ASSERT(kSymbolTag != 0);
+        STATIC_ASSERT(kSymbolTag != 0);
         // Ensure that no non-strings have the symbol bit set.
-        ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+        STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsSymbolMask);
         __ testb(temp.reg(), Immediate(kIsSymbolMask));  // Test the symbol bit.
         __ j(zero, &not_a_symbol);
         // They are symbols, so do identity compare.
@@ -2242,37 +2286,45 @@ void CodeGenerator::Comparison(AstNode* node,
       Register left_reg = left_side.reg();
       Register right_reg = right_side.reg();
 
-      Condition both_smi = masm_->CheckBothSmi(left_reg, right_reg);
-      is_smi.Branch(both_smi);
+      // In-line check for comparing two smis.
+      JumpIfBothSmiUsingTypeInfo(&left_side, &right_side, &is_smi);
 
-      // Inline the equality check if both operands can't be a NaN. If both
-      // objects are the same they are equal.
-      if (nan_info == kCantBothBeNaN && cc == equal) {
-        __ cmpq(left_side.reg(), right_side.reg());
-        dest->true_target()->Branch(equal);
+      if (has_valid_frame()) {
+        // Inline the equality check if both operands can't be a NaN. If both
+        // objects are the same they are equal.
+        if (nan_info == kCantBothBeNaN && cc == equal) {
+          __ cmpq(left_side.reg(), right_side.reg());
+          dest->true_target()->Branch(equal);
+        }
+
+        // Inlined number comparison:
+        if (inline_number_compare) {
+          GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
+        }
+
+        // End of in-line compare, call out to the compare stub. Don't include
+        // number comparison in the stub if it was inlined.
+        CompareStub stub(cc, strict, nan_info, !inline_number_compare);
+        Result answer = frame_->CallStub(&stub, &left_side, &right_side);
+        __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flags.
+        answer.Unuse();
+        if (is_smi.is_linked()) {
+          dest->true_target()->Branch(cc);
+          dest->false_target()->Jump();
+        } else {
+          dest->Split(cc);
+        }
       }
 
-      // Inlined number comparison:
-      if (inline_number_compare) {
-        GenerateInlineNumberComparison(&left_side, &right_side, cc, dest);
+      if (is_smi.is_linked()) {
+        is_smi.Bind();
+        left_side = Result(left_reg);
+        right_side = Result(right_reg);
+        __ SmiCompare(left_side.reg(), right_side.reg());
+        right_side.Unuse();
+        left_side.Unuse();
+        dest->Split(cc);
       }
-
-      // End of in-line compare, call out to the compare stub. Don't include
-      // number comparison in the stub if it was inlined.
-      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
-      Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flags.
-      answer.Unuse();
-      dest->true_target()->Branch(cc);
-      dest->false_target()->Jump();
-
-      is_smi.Bind();
-      left_side = Result(left_reg);
-      right_side = Result(right_reg);
-      __ SmiCompare(left_side.reg(), right_side.reg());
-      right_side.Unuse();
-      left_side.Unuse();
-      dest->Split(cc);
     }
   }
 }
@@ -2567,8 +2619,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       // JS_FUNCTION_TYPE is the last instance type and it is right
       // after LAST_JS_OBJECT_TYPE, we do not have to check the upper
       // bound.
-      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-      ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+      STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      STATIC_ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
       __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
       __ j(below, &build_args);
 
@@ -4011,7 +4063,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
     // The next handler address is on top of the frame.  Unlink from
     // the handler list and drop the rest of this handler from the
     // frame.
-    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
     __ movq(kScratchRegister, handler_address);
     frame_->EmitPop(Operand(kScratchRegister, 0));
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
@@ -4044,7 +4096,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
       __ movq(rsp, Operand(kScratchRegister, 0));
       frame_->Forget(frame_->height() - handler_height);
 
-      ASSERT(StackHandlerConstants::kNextOffset == 0);
+      STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
       __ movq(kScratchRegister, handler_address);
       frame_->EmitPop(Operand(kScratchRegister, 0));
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
@@ -4131,7 +4183,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
   // chain and set the state on the frame to FALLING.
   if (has_valid_frame()) {
     // The next handler address is on top of the frame.
-    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
     __ movq(kScratchRegister, handler_address);
     frame_->EmitPop(Operand(kScratchRegister, 0));
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
@@ -4172,7 +4224,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
       frame_->Forget(frame_->height() - handler_height);
 
       // Unlink this handler and drop it from the frame.
-      ASSERT(StackHandlerConstants::kNextOffset == 0);
+      STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
       __ movq(kScratchRegister, handler_address);
       frame_->EmitPop(Operand(kScratchRegister, 0));
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
@@ -4840,8 +4892,13 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           // Duplicate the object as the IC receiver.
           frame_->Dup();
           Load(property->value());
-          frame_->Push(key);
-          Result ignored = frame_->CallStoreIC();
+          Result ignored =
+              frame_->CallStoreIC(Handle<String>::cast(key), false);
+          // A test rax instruction following the store IC call would
+          // indicate the presence of an inlined version of the
+          // store. Add a nop to indicate that there is no such
+          // inlined version.
+          __ nop();
           break;
         }
         // Fall through
@@ -5133,6 +5190,98 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
 }
 
 
+void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Comment cmnt(masm_, "[ Keyed Property Assignment");
+  Property* prop = node->target()->AsProperty();
+  ASSERT_NOT_NULL(prop);
+
+  // Evaluate the receiver subexpression.
+  Load(prop->obj());
+
+  // Change to slow case in the beginning of an initialization block to
+  // avoid the quadratic behavior of repeatedly adding fast properties.
+  if (node->starts_initialization_block()) {
+    frame_->Dup();
+    Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
+  // Change to fast case at the end of an initialization block. To prepare for
+  // that add an extra copy of the receiver to the frame, so that it can be
+  // converted back to fast case after the assignment.
+  if (node->ends_initialization_block()) {
+    frame_->Dup();
+  }
+
+  // Evaluate the key subexpression.
+  Load(prop->key());
+
+  // Stack layout:
+  // [tos]   : key
+  // [tos+1] : receiver
+  // [tos+2] : receiver if at the end of an initialization block
+
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    // For a compound assignment the right-hand side is a binary operation
+    // between the current property value and the actual right-hand side.
+    // Duplicate receiver and key for loading the current property value.
+    frame()->PushElementAt(1);
+    frame()->PushElementAt(1);
+    Result value = EmitKeyedLoad();
+    frame()->Push(&value);
+    Load(node->value());
+
+    // Perform the binary operation.
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    BinaryOperation expr(node, node->binary_op(), node->target(),
+                         node->value());
+    GenericBinaryOperation(&expr,
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+  } else {
+    // For non-compound assignment just load the right-hand side.
+    Load(node->value());
+  }
+
+  // Stack layout:
+  // [tos]   : value
+  // [tos+1] : key
+  // [tos+2] : receiver
+  // [tos+3] : receiver if at the end of an initialization block
+
+  // Perform the assignment.  It is safe to ignore constants here.
+  ASSERT(node->op() != Token::INIT_CONST);
+  CodeForSourcePosition(node->position());
+  Result answer = EmitKeyedStore(prop->key()->type());
+  frame()->Push(&answer);
+
+  // Stack layout:
+  // [tos]   : result
+  // [tos+1] : receiver if at the end of an initialization block
+
+  // Change to fast case at the end of an initialization block.
+  if (node->ends_initialization_block()) {
+    // The argument to the runtime call is the extra copy of the receiver,
+    // which is below the value of the assignment.  Swap the receiver and
+    // the value of the assignment expression.
+    Result result = frame()->Pop();
+    Result receiver = frame()->Pop();
+    frame()->Push(&result);
+    frame()->Push(&receiver);
+    Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+  }
+
+  // Stack layout:
+  // [tos]   : result
+
+  ASSERT(frame()->height() == original_height + 1);
+}
+
+
 void CodeGenerator::VisitAssignment(Assignment* node) {
 #ifdef DEBUG
   int original_height = frame()->height();
@@ -5150,105 +5299,19 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     // global 'this' because it is not a valid left-hand side.
     EmitNamedPropertyAssignment(node);
 
+  } else if (prop != NULL) {
+    // Other properties (including rewritten parameters for a function that
+    // uses arguments) are keyed property assignments.
+    EmitKeyedPropertyAssignment(node);
+
   } else {
-    Comment cmnt(masm_, "[ Assignment");
-
-    { Reference target(this, node->target(), node->is_compound());
-      if (target.is_illegal()) {
-        // Fool the virtual frame into thinking that we left the assignment's
-        // value on the frame.
-        frame_->Push(Smi::FromInt(0));
-        return;
-      }
-
-      if (node->starts_initialization_block()) {
-        ASSERT(target.type() == Reference::NAMED ||
-               target.type() == Reference::KEYED);
-        // Change to slow case in the beginning of an initialization
-        // block to avoid the quadratic behavior of repeatedly adding
-        // fast properties.
-
-        // The receiver is the argument to the runtime call.  It is the
-        // first value pushed when the reference was loaded to the
-        // frame.
-        frame_->PushElementAt(target.size() - 1);
-        Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
-      }
-      if (node->ends_initialization_block()) {
-        // Add an extra copy of the receiver to the frame, so that it can be
-        // converted back to fast case after the assignment.
-        ASSERT(target.type() == Reference::NAMED ||
-               target.type() == Reference::KEYED);
-        if (target.type() == Reference::NAMED) {
-          frame_->Dup();
-          // Dup target receiver on stack.
-        } else {
-          ASSERT(target.type() == Reference::KEYED);
-          Result temp = frame_->Pop();
-          frame_->Dup();
-          frame_->Push(&temp);
-        }
-      }
-      if (node->op() == Token::ASSIGN ||
-          node->op() == Token::INIT_VAR ||
-          node->op() == Token::INIT_CONST) {
-        Load(node->value());
-
-      } else {  // Assignment is a compound assignment.
-        Literal* literal = node->value()->AsLiteral();
-        bool overwrite_value =
-            (node->value()->AsBinaryOperation() != NULL &&
-             node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-        Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
-        // There are two cases where the target is not read in the right hand
-        // side, that are easy to test for: the right hand side is a literal,
-        // or the right hand side is a different variable.  TakeValue
-        // invalidates the target, with an implicit promise that it will be
-        // written to again
-        // before it is read.
-        if (literal != NULL || (right_var != NULL && right_var != var)) {
-          target.TakeValue();
-        } else {
-          target.GetValue();
-        }
-        Load(node->value());
-        BinaryOperation expr(node, node->binary_op(), node->target(),
-                             node->value());
-        GenericBinaryOperation(
-            &expr, overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
-      }
-      if (var != NULL &&
-          var->mode() == Variable::CONST &&
-          node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
-        // Assignment ignored - leave the value on the stack.
-        UnloadReference(&target);
-      } else {
-        CodeForSourcePosition(node->position());
-        if (node->op() == Token::INIT_CONST) {
-          // Dynamic constant initializations must use the function context
-          // and initialize the actual constant declared. Dynamic variable
-          // initializations are simply assignments and use SetValue.
-          target.SetValue(CONST_INIT);
-        } else {
-          target.SetValue(NOT_CONST_INIT);
-        }
-        if (node->ends_initialization_block()) {
-          ASSERT(target.type() == Reference::UNLOADED);
-          // End of initialization block. Revert to fast case.  The
-          // argument to the runtime call is the extra copy of the receiver,
-          // which is below the value of the assignment.
-          // Swap the receiver and the value of the assignment expression.
-          Result lhs = frame_->Pop();
-          Result receiver = frame_->Pop();
-          frame_->Push(&lhs);
-          frame_->Push(&receiver);
-          Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
-        }
-      }
-    }
+    // Invalid left-hand side.
+    Load(node->target());
+    Result result = frame()->CallRuntime(Runtime::kThrowReferenceError, 1);
+    // The runtime call doesn't actually return but the code generator will
+    // still generate code and expects a certain frame height.
+    frame()->Push(&result);
   }
-  // Stack layout:
-  // [tos]   : result
 
   ASSERT(frame()->height() == original_height + 1);
 }
@@ -6181,7 +6244,7 @@ void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   // RBP value is aligned, so it should be tagged as a smi (without necesarily
   // being padded as a smi, so it should not be treated as a smi.).
-  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   Result rbp_as_smi = allocator_->Allocate();
   ASSERT(rbp_as_smi.is_valid());
   __ movq(rbp_as_smi.reg(), rbp);
@@ -7986,11 +8049,105 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
   int expected_height = frame()->height() - (is_contextual ? 1 : 2);
 #endif
 
-  Result result = frame()->CallStoreIC(name, is_contextual);
-  // A test rax instruction following the call signals that the inobject
-  // property case was inlined.  Ensure that there is not a test rax
-  // instruction here.
-  __ nop();
+  Result result;
+  if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
+      result = frame()->CallStoreIC(name, is_contextual);
+      // A test rax instruction following the call signals that the inobject
+      // property case was inlined.  Ensure that there is not a test rax
+      // instruction here.
+      __ nop();
+  } else {
+    // Inline the in-object property case.
+    JumpTarget slow, done;
+    Label patch_site;
+
+    // Get the value and receiver from the stack.
+    Result value = frame()->Pop();
+    value.ToRegister();
+    Result receiver = frame()->Pop();
+    receiver.ToRegister();
+
+    // Allocate result register.
+    result = allocator()->Allocate();
+    ASSERT(result.is_valid() && receiver.is_valid() && value.is_valid());
+
+    // Check that the receiver is a heap object.
+    Condition is_smi = __ CheckSmi(receiver.reg());
+    slow.Branch(is_smi, &value, &receiver);
+
+    // This is the map check instruction that will be patched.
+    // Initially use an invalid map to force a failure. The exact
+    // instruction sequence is important because we use the
+    // kOffsetToStoreInstruction constant for patching. We avoid using
+    // the __ macro for the following two instructions because it
+    // might introduce extra instructions.
+    __ bind(&patch_site);
+    masm()->Move(kScratchRegister, Factory::null_value());
+    masm()->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+                 kScratchRegister);
+    // This branch is always a forwards branch so it's always a fixed size
+    // which allows the assert below to succeed and patching to work.
+    slow.Branch(not_equal, &value, &receiver);
+
+    // The delta from the patch label to the store offset must be
+    // statically known.
+    ASSERT(masm()->SizeOfCodeGeneratedSince(&patch_site) ==
+           StoreIC::kOffsetToStoreInstruction);
+
+    // The initial (invalid) offset has to be large enough to force a 32-bit
+    // instruction encoding to allow patching with an arbitrary offset.  Use
+    // kMaxInt (minus kHeapObjectTag).
+    int offset = kMaxInt;
+    __ movq(FieldOperand(receiver.reg(), offset), value.reg());
+    __ movq(result.reg(), value.reg());
+
+    // Allocate scratch register for write barrier.
+    Result scratch = allocator()->Allocate();
+    ASSERT(scratch.is_valid());
+
+    // The write barrier clobbers all input registers, so spill the
+    // receiver and the value.
+    frame_->Spill(receiver.reg());
+    frame_->Spill(value.reg());
+
+    // If the receiver and the value share a register allocate a new
+    // register for the receiver.
+    if (receiver.reg().is(value.reg())) {
+      receiver = allocator()->Allocate();
+      ASSERT(receiver.is_valid());
+      __ movq(receiver.reg(), value.reg());
+    }
+
+    // Update the write barrier. To save instructions in the inlined
+    // version we do not filter smis.
+    Label skip_write_barrier;
+    __ InNewSpace(receiver.reg(), value.reg(), equal, &skip_write_barrier);
+    int delta_to_record_write = masm_->SizeOfCodeGeneratedSince(&patch_site);
+    __ lea(scratch.reg(), Operand(receiver.reg(), offset));
+    __ RecordWriteHelper(receiver.reg(), scratch.reg(), value.reg());
+    if (FLAG_debug_code) {
+      __ movq(receiver.reg(), BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+      __ movq(value.reg(), BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+      __ movq(scratch.reg(), BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    }
+    __ bind(&skip_write_barrier);
+    value.Unuse();
+    scratch.Unuse();
+    receiver.Unuse();
+    done.Jump(&result);
+
+    slow.Bind(&value, &receiver);
+    frame()->Push(&receiver);
+    frame()->Push(&value);
+    result = frame()->CallStoreIC(name, is_contextual);
+    // Encode the offset to the map check instruction and the offset
+    // to the write barrier store address computation in a test rax
+    // instruction.
+    int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(&patch_site);
+    __ testl(rax,
+             Immediate((delta_to_record_write << 16) | delta_to_patch_site));
+    done.Bind(&result);
+  }
 
   ASSERT_EQ(expected_height, frame()->height());
   return result;
@@ -8093,6 +8250,112 @@ Result CodeGenerator::EmitKeyedLoad() {
     __ nop();
   }
   ASSERT(frame()->height() == original_height - 2);
+  return result;
+}
+
+
+Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Result result;
+  // Generate inlined version of the keyed store if the code is in a loop
+  // and the key is likely to be a smi.
+  if (loop_nesting() > 0 && key_type->IsLikelySmi()) {
+    Comment cmnt(masm(), "[ Inlined store to keyed Property");
+
+    // Get the receiver, key and value into registers.
+    result = frame()->Pop();
+    Result key = frame()->Pop();
+    Result receiver = frame()->Pop();
+
+    Result tmp = allocator_->Allocate();
+    ASSERT(tmp.is_valid());
+    Result tmp2 = allocator_->Allocate();
+    ASSERT(tmp2.is_valid());
+
+    // Determine whether the value is a constant before putting it in a
+    // register.
+    bool value_is_constant = result.is_constant();
+
+    // Make sure that value, key and receiver are in registers.
+    result.ToRegister();
+    key.ToRegister();
+    receiver.ToRegister();
+
+    DeferredReferenceSetKeyedValue* deferred =
+        new DeferredReferenceSetKeyedValue(result.reg(),
+                                           key.reg(),
+                                           receiver.reg());
+
+    // Check that the receiver is not a smi.
+    __ JumpIfSmi(receiver.reg(), deferred->entry_label());
+
+    // Check that the key is a smi.
+    if (!key.is_smi()) {
+      __ JumpIfNotSmi(key.reg(), deferred->entry_label());
+    } else if (FLAG_debug_code) {
+      __ AbortIfNotSmi(key.reg());
+    }
+
+    // Check that the receiver is a JSArray.
+    __ CmpObjectType(receiver.reg(), JS_ARRAY_TYPE, kScratchRegister);
+    deferred->Branch(not_equal);
+
+    // Check that the key is within bounds.  Both the key and the length of
+    // the JSArray are smis. Use unsigned comparison to handle negative keys.
+    __ SmiCompare(FieldOperand(receiver.reg(), JSArray::kLengthOffset),
+                  key.reg());
+    deferred->Branch(below_equal);
+
+    // Get the elements array from the receiver and check that it is not a
+    // dictionary.
+    __ movq(tmp.reg(),
+            FieldOperand(receiver.reg(), JSArray::kElementsOffset));
+
+    // Check whether it is possible to omit the write barrier. If the elements
+    // array is in new space or the value written is a smi we can safely update
+    // the elements array without write barrier.
+    Label in_new_space;
+    __ InNewSpace(tmp.reg(), tmp2.reg(), equal, &in_new_space);
+    if (!value_is_constant) {
+      __ JumpIfNotSmi(result.reg(), deferred->entry_label());
+    }
+
+    __ bind(&in_new_space);
+    // Bind the deferred code patch site to be able to locate the fixed
+    // array map comparison.  When debugging, we patch this comparison to
+    // always fail so that we will hit the IC call in the deferred code
+    // which will allow the debugger to break for fast case stores.
+    __ bind(deferred->patch_site());
+    // Avoid using __ to ensure the distance from patch_site
+    // to the map address is always the same.
+    masm()->movq(kScratchRegister, Factory::fixed_array_map(),
+               RelocInfo::EMBEDDED_OBJECT);
+    __ cmpq(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
+            kScratchRegister);
+    deferred->Branch(not_equal);
+
+    // Store the value.
+    SmiIndex index =
+        masm()->SmiToIndex(kScratchRegister, key.reg(), kPointerSizeLog2);
+    __ movq(FieldOperand(tmp.reg(),
+                         index.reg,
+                         index.scale,
+                         FixedArray::kHeaderSize),
+            result.reg());
+    __ IncrementCounter(&Counters::keyed_store_inline, 1);
+
+    deferred->BindExit();
+  } else {
+    result = frame()->CallKeyedStoreIC();
+    // Make sure that we do not have a test instruction after the
+    // call.  A test instruction after the call is used to
+    // indicate that we have generated an inline version of the
+    // keyed store.
+    __ nop();
+  }
+  ASSERT(frame()->height() == original_height - 3);
   return result;
 }
 
@@ -8222,14 +8485,13 @@ void Reference::SetValue(InitState init_state) {
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       cgen_->StoreToSlot(slot, init_state);
-      cgen_->UnloadReference(this);
+      set_unloaded();
       break;
     }
 
     case NAMED: {
       Comment cmnt(masm, "[ Store to named Property");
-      cgen_->frame()->Push(GetName());
-      Result answer = cgen_->frame()->CallStoreIC();
+      Result answer = cgen_->EmitNamedStore(GetName(), false);
       cgen_->frame()->Push(&answer);
       set_unloaded();
       break;
@@ -8237,117 +8499,17 @@ void Reference::SetValue(InitState init_state) {
 
     case KEYED: {
       Comment cmnt(masm, "[ Store to keyed Property");
-
-      // Generate inlined version of the keyed store if the code is in
-      // a loop and the key is likely to be a smi.
       Property* property = expression()->AsProperty();
       ASSERT(property != NULL);
-      StaticType* key_smi_analysis = property->key()->type();
 
-      if (cgen_->loop_nesting() > 0 && key_smi_analysis->IsLikelySmi()) {
-        Comment cmnt(masm, "[ Inlined store to keyed Property");
-
-        // Get the receiver, key and value into registers.
-        Result value = cgen_->frame()->Pop();
-        Result key = cgen_->frame()->Pop();
-        Result receiver = cgen_->frame()->Pop();
-
-        Result tmp = cgen_->allocator_->Allocate();
-        ASSERT(tmp.is_valid());
-        Result tmp2 = cgen_->allocator_->Allocate();
-        ASSERT(tmp2.is_valid());
-
-        // Determine whether the value is a constant before putting it
-        // in a register.
-        bool value_is_constant = value.is_constant();
-
-        // Make sure that value, key and receiver are in registers.
-        value.ToRegister();
-        key.ToRegister();
-        receiver.ToRegister();
-
-        DeferredReferenceSetKeyedValue* deferred =
-            new DeferredReferenceSetKeyedValue(value.reg(),
-                                               key.reg(),
-                                               receiver.reg());
-
-        // Check that the receiver is not a smi.
-        __ JumpIfSmi(receiver.reg(), deferred->entry_label());
-
-        // Check that the key is a smi.
-        if (!key.is_smi()) {
-          __ JumpIfNotSmi(key.reg(), deferred->entry_label());
-        } else if (FLAG_debug_code) {
-          __ AbortIfNotSmi(key.reg());
-        }
-
-        // Check that the receiver is a JSArray.
-        __ CmpObjectType(receiver.reg(), JS_ARRAY_TYPE, kScratchRegister);
-        deferred->Branch(not_equal);
-
-        // Check that the key is within bounds.  Both the key and the
-        // length of the JSArray are smis. Use unsigned comparison to handle
-        // negative keys.
-        __ SmiCompare(FieldOperand(receiver.reg(), JSArray::kLengthOffset),
-                      key.reg());
-        deferred->Branch(below_equal);
-
-        // Get the elements array from the receiver and check that it
-        // is a flat array (not a dictionary).
-        __ movq(tmp.reg(),
-                FieldOperand(receiver.reg(), JSObject::kElementsOffset));
-
-        // Check whether it is possible to omit the write barrier. If the
-        // elements array is in new space or the value written is a smi we can
-        // safely update the elements array without write barrier.
-        Label in_new_space;
-        __ InNewSpace(tmp.reg(), tmp2.reg(), equal, &in_new_space);
-        if (!value_is_constant) {
-          __ JumpIfNotSmi(value.reg(), deferred->entry_label());
-        }
-
-        __ bind(&in_new_space);
-        // Bind the deferred code patch site to be able to locate the
-        // fixed array map comparison.  When debugging, we patch this
-        // comparison to always fail so that we will hit the IC call
-        // in the deferred code which will allow the debugger to
-        // break for fast case stores.
-        __ bind(deferred->patch_site());
-        // Avoid using __ to ensure the distance from patch_site
-        // to the map address is always the same.
-        masm->movq(kScratchRegister, Factory::fixed_array_map(),
-                   RelocInfo::EMBEDDED_OBJECT);
-        __ cmpq(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
-                kScratchRegister);
-        deferred->Branch(not_equal);
-
-        // Store the value.
-        SmiIndex index =
-            masm->SmiToIndex(kScratchRegister, key.reg(), kPointerSizeLog2);
-        __ movq(FieldOperand(tmp.reg(),
-                             index.reg,
-                             index.scale,
-                             FixedArray::kHeaderSize),
-                value.reg());
-        __ IncrementCounter(&Counters::keyed_store_inline, 1);
-
-        deferred->BindExit();
-
-        cgen_->frame()->Push(&value);
-      } else {
-        Result answer = cgen_->frame()->CallKeyedStoreIC();
-        // Make sure that we do not have a test instruction after the
-        // call.  A test instruction after the call is used to
-        // indicate that we have generated an inline version of the
-        // keyed store.
-        masm->nop();
-        cgen_->frame()->Push(&answer);
-      }
+      Result answer = cgen_->EmitKeyedStore(property->key()->type());
+      cgen_->frame()->Push(&answer);
       set_unloaded();
       break;
     }
 
-    default:
+    case UNLOADED:
+    case ILLEGAL:
       UNREACHABLE();
   }
 }
@@ -9587,7 +9749,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ bind(&arg2_is_object);
   __ cmpq(FieldOperand(rax, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, &check_undefined_arg2);
-  // Get the untagged integer version of the eax heap number in ecx.
+  // Get the untagged integer version of the rax heap number in rcx.
   IntegerConvert(masm, rcx, rax);
   __ bind(&done);
   __ movl(rax, rdx);
@@ -10006,7 +10168,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &runtime);
   // Check that the last match info has space for the capture registers and the
   // additional information. Ensure no overflow in add.
-  ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
+  STATIC_ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
   __ SmiToInteger32(rax, FieldOperand(rbx, FixedArray::kLengthOffset));
   __ addl(rdx, Immediate(RegExpImpl::kLastMatchOverhead));
   __ cmpl(rdx, rax);
@@ -10021,7 +10183,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // First check for flat two byte string.
   __ andb(rbx, Immediate(
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask));
-  ASSERT_EQ(0, kStringTag | kSeqStringTag | kTwoByteStringTag);
+  STATIC_ASSERT((kStringTag | kSeqStringTag | kTwoByteStringTag) == 0);
   __ j(zero, &seq_two_byte_string);
   // Any other flat string must be a flat ascii string.
   __ testb(rbx, Immediate(kIsNotStringMask | kStringRepresentationMask));
@@ -10032,8 +10194,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  ASSERT(kExternalStringTag !=0);
-  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
+  STATIC_ASSERT(kExternalStringTag !=0);
+  STATIC_ASSERT((kConsStringTag & kExternalStringTag) == 0);
   __ testb(rbx, Immediate(kIsNotStringMask | kExternalStringTag));
   __ j(not_zero, &runtime);
   // String is a cons string.
@@ -10043,12 +10205,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movq(rax, FieldOperand(rax, ConsString::kFirstOffset));
   __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
   // String is a cons string with empty second part.
-  // eax: first part of cons string.
-  // ebx: map of first part of cons string.
+  // rax: first part of cons string.
+  // rbx: map of first part of cons string.
   // Is first part a flat two byte string?
   __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
            Immediate(kStringRepresentationMask | kStringEncodingMask));
-  ASSERT_EQ(0, kSeqStringTag | kTwoByteStringTag);
+  STATIC_ASSERT((kSeqStringTag | kTwoByteStringTag) == 0);
   __ j(zero, &seq_two_byte_string);
   // Any other flat string must be ascii.
   __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
@@ -10285,7 +10447,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
     __ JumpIfSmi(object, &is_smi);
     __ CheckMap(object, Factory::heap_number_map(), not_found, true);
 
-    ASSERT_EQ(8, kDoubleSize);
+    STATIC_ASSERT(8 == kDoubleSize);
     __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
     __ xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset));
     GenerateConvertHashCodeToIndex(masm, scratch, mask);
@@ -10466,13 +10628,13 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // There is no test for undetectability in strict equality.
 
       // If the first object is a JS object, we have done pointer comparison.
-      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
       Label first_non_object;
       __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
       __ j(below, &first_non_object);
       // Return non-zero (eax (not rax) is not zero)
       Label return_not_equal;
-      ASSERT(kHeapObjectTag != 0);
+      STATIC_ASSERT(kHeapObjectTag != 0);
       __ bind(&return_not_equal);
       __ ret(0);
 
@@ -10564,8 +10726,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // At most one is a smi, so we can test for smi by adding the two.
     // A smi plus a heap object has the low bit set, a heap object plus
     // a heap object has the low bit clear.
-    ASSERT_EQ(0, kSmiTag);
-    ASSERT_EQ(static_cast<int64_t>(1), kSmiTagMask);
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagMask == 1);
     __ lea(rcx, Operand(rax, rdx, times_1, 0));
     __ testb(rcx, Immediate(kSmiTagMask));
     __ j(not_zero, &not_both_objects);
@@ -10621,8 +10783,8 @@ void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
   __ movzxbq(scratch,
              FieldOperand(scratch, Map::kInstanceTypeOffset));
   // Ensure that no non-strings have the symbol bit set.
-  ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
-  ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsSymbolMask);
+  STATIC_ASSERT(kSymbolTag != 0);
   __ testb(scratch, Immediate(kIsSymbolMask));
   __ j(zero, label);
 }
@@ -10701,9 +10863,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Check that stack should contain next handler, frame pointer, state and
   // return address in that order.
-  ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset + kPointerSize ==
             StackHandlerConstants::kStateOffset);
-  ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset + kPointerSize ==
             StackHandlerConstants::kPCOffset);
 
   ExternalReference handler_address(Top::k_handler_address);
@@ -10813,7 +10975,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Check for failure result.
   Label failure_returned;
-  ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
+  STATIC_ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
 #ifdef _WIN64
   // If return value is on the stack, pop it to registers.
   if (result_size_ > 1) {
@@ -10839,7 +11001,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   Label retry;
   // If the returned exception is RETRY_AFTER_GC continue at retry label
-  ASSERT(Failure::RETRY_AFTER_GC == 0);
+  STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
   __ testl(rax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
   __ j(zero, &retry);
 
@@ -10909,14 +11071,14 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
   __ xor_(rsi, rsi);
 
   // Restore registers from handler.
-  ASSERT_EQ(StackHandlerConstants::kNextOffset + kPointerSize,
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset + kPointerSize ==
             StackHandlerConstants::kFPOffset);
   __ pop(rbp);  // FP
-  ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset + kPointerSize ==
             StackHandlerConstants::kStateOffset);
   __ pop(rdx);  // State
 
-  ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset + kPointerSize ==
             StackHandlerConstants::kPCOffset);
   __ ret(0);
 }
@@ -11191,7 +11353,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ bind(&is_instance);
   __ xorl(rax, rax);
   // Store bitwise zero in the cache.  This is a Smi in GC terms.
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
   __ ret(2 * kPointerSize);
 
@@ -11296,7 +11458,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ j(above_equal, index_out_of_range_);
 
   // We need special handling for non-flat strings.
-  ASSERT(kSeqStringTag == 0);
+  STATIC_ASSERT(kSeqStringTag == 0);
   __ testb(result_, Immediate(kStringRepresentationMask));
   __ j(zero, &flat_string);
 
@@ -11317,13 +11479,13 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ movq(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
   // If the first cons component is also non-flat, then go to runtime.
-  ASSERT(kSeqStringTag == 0);
+  STATIC_ASSERT(kSeqStringTag == 0);
   __ testb(result_, Immediate(kStringRepresentationMask));
   __ j(not_zero, &call_runtime_);
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
-  ASSERT(kAsciiStringTag != 0);
+  STATIC_ASSERT(kAsciiStringTag != 0);
   __ testb(result_, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string);
 
@@ -11517,7 +11679,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movzxbl(r9, FieldOperand(r9, Map::kInstanceTypeOffset));
 
   // Look at the length of the result of adding the two strings.
-  ASSERT(String::kMaxLength <= Smi::kMaxValue / 2);
+  STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue / 2);
   __ SmiAdd(rbx, rbx, rcx, NULL);
   // Use the runtime system when adding two one character strings, as it
   // contains optimizations for this specific case using the symbol table.
@@ -11549,7 +11711,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ SmiCompare(rbx, Smi::FromInt(String::kMinNonFlatLength));
   __ j(below, &string_add_flat_result);
   // Handle exceptionally long strings in the runtime system.
-  ASSERT((String::kMaxLength & 0x80000000) == 0);
+  STATIC_ASSERT((String::kMaxLength & 0x80000000) == 0);
   __ SmiCompare(rbx, Smi::FromInt(String::kMaxLength));
   __ j(above, &string_add_runtime);
 
@@ -11563,7 +11725,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   Label non_ascii, allocated, ascii_data;
   __ movl(rcx, r8);
   __ and_(rcx, r9);
-  ASSERT(kStringEncodingMask == kAsciiStringTag);
+  STATIC_ASSERT(kStringEncodingMask == kAsciiStringTag);
   __ testl(rcx, Immediate(kAsciiStringTag));
   __ j(zero, &non_ascii);
   __ bind(&ascii_data);
@@ -11588,7 +11750,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ testb(rcx, Immediate(kAsciiDataHintMask));
   __ j(not_zero, &ascii_data);
   __ xor_(r8, r9);
-  ASSERT(kAsciiStringTag != 0 && kAsciiDataHintTag != 0);
+  STATIC_ASSERT(kAsciiStringTag != 0 && kAsciiDataHintTag != 0);
   __ andb(r8, Immediate(kAsciiStringTag | kAsciiDataHintTag));
   __ cmpb(r8, Immediate(kAsciiStringTag | kAsciiDataHintTag));
   __ j(equal, &ascii_data);
@@ -11620,7 +11782,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // r8: instance type of first string
   // r9: instance type of second string
   Label non_ascii_string_add_flat_result;
-  ASSERT(kStringEncodingMask == kAsciiStringTag);
+  STATIC_ASSERT(kStringEncodingMask == kAsciiStringTag);
   __ testl(r8, Immediate(kAsciiStringTag));
   __ j(zero, &non_ascii_string_add_flat_result);
   __ testl(r9, Immediate(kAsciiStringTag));
@@ -11742,7 +11904,7 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
 
   // Make count the number of bytes to copy.
   if (!ascii) {
-    ASSERT_EQ(2, static_cast<int>(sizeof(uc16)));  // NOLINT
+    STATIC_ASSERT(2 == sizeof(uc16));
     __ addl(count, count);
   }
 
@@ -11849,7 +12011,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
     // Load the entry from the symble table.
     Register candidate = scratch;  // Scratch register contains candidate.
-    ASSERT_EQ(1, SymbolTable::kEntrySize);
+    STATIC_ASSERT(SymbolTable::kEntrySize == 1);
     __ movq(candidate,
             FieldOperand(symbol_table,
                          scratch,
@@ -11964,7 +12126,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Make sure first argument is a string.
   __ movq(rax, Operand(rsp, kStringOffset));
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   __ testl(rax, Immediate(kSmiTagMask));
   __ j(zero, &runtime);
   Condition is_string = masm->IsObjectStringType(rax, rbx, rbx);
@@ -12104,7 +12266,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                                         Register scratch4) {
   // Ensure that you can always subtract a string length from a non-negative
   // number (e.g. another length).
-  ASSERT(String::kMaxLength < 0x7fffffff);
+  STATIC_ASSERT(String::kMaxLength < 0x7fffffff);
 
   // Find minimum length and length difference.
   __ movq(scratch1, FieldOperand(left, String::kLengthOffset));

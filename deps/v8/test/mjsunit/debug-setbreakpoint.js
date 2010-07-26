@@ -192,3 +192,26 @@ Debug.setListener(breakListener);
 sourceUrlFunc();
 
 assertTrue(breakListenerCalled, "Break listener not called on breakpoint set by sourceURL");
+
+
+// Breakpoint in a script with no statements test case. If breakpoint is set
+// to the script body, its actual position is taken from the nearest statement
+// below or like in this case is reset to the very end of the script.
+// Unless some precautions made, this position becomes out-of-range and
+// we get an exception.
+
+// Gets a script of 'i1' function and sets the breakpoint at line #4 which
+// should be empty.
+function SetBreakpointInI1Script() {
+  var i_script = Debug.findScript(i1);
+  assertTrue(!!i_script, "invalid script for i1");
+  Debug.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
+                            i_script.id, 4);
+}
+
+// Creates the eval script and tries to set the breakpoint.
+// The tricky part is that the script function must be strongly reachable at the
+// moment. Since there's no way of simply getting the pointer to the function,
+// we run this code while the script function is being activated on stack.
+eval('SetBreakpointInI1Script()\nfunction i1(){}\n\n\n\nfunction i2(){}\n');
+

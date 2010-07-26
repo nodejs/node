@@ -989,8 +989,49 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 
 
 bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
-  // TODO(787): Implement inline stores on arm.
-  return false;
+  // Find the end of the inlined code for the store if there is an
+  // inlined version of the store.
+  Address inline_end_address;
+  if (!IsInlinedICSite(address, &inline_end_address)) return false;
+
+  // Compute the address of the map load instruction.
+  Address ldr_map_instr_address =
+      inline_end_address -
+      (CodeGenerator::GetInlinedNamedStoreInstructionsAfterPatch() *
+       Assembler::kInstrSize);
+
+  // Update the offsets if initializing the inlined store. No reason
+  // to update the offsets when clearing the inlined version because
+  // it will bail out in the map check.
+  if (map != Heap::null_value()) {
+    // Patch the offset in the actual store instruction.
+    Address str_property_instr_address =
+        ldr_map_instr_address + 3 * Assembler::kInstrSize;
+    Instr str_property_instr = Assembler::instr_at(str_property_instr_address);
+    ASSERT(Assembler::IsStrRegisterImmediate(str_property_instr));
+    str_property_instr = Assembler::SetStrRegisterImmediateOffset(
+        str_property_instr, offset - kHeapObjectTag);
+    Assembler::instr_at_put(str_property_instr_address, str_property_instr);
+
+    // Patch the offset in the add instruction that is part of the
+    // write barrier.
+    Address add_offset_instr_address =
+        str_property_instr_address + Assembler::kInstrSize;
+    Instr add_offset_instr = Assembler::instr_at(add_offset_instr_address);
+    ASSERT(Assembler::IsAddRegisterImmediate(add_offset_instr));
+    add_offset_instr = Assembler::SetAddRegisterImmediateOffset(
+        add_offset_instr, offset - kHeapObjectTag);
+    Assembler::instr_at_put(add_offset_instr_address, add_offset_instr);
+
+    // Indicate that code has changed.
+    CPU::FlushICache(str_property_instr_address, 2 * Assembler::kInstrSize);
+  }
+
+  // Patch the map check.
+  Assembler::set_target_address_at(ldr_map_instr_address,
+                                   reinterpret_cast<Address>(map));
+
+  return true;
 }
 
 

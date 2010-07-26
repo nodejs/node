@@ -1,3 +1,17 @@
+2010-07-26: Version 2.3.3
+
+        Fixed error when building the d8 shell in a fresh checkout.
+
+        Implemented Function.prototype.bind (ES5 15.3.4.5).
+
+        Fixed an error in inlined stores on ia32.
+
+        Fixed an error when setting a breakpoint at the end of a function
+        that does not end with a newline character.
+
+        Performance improvements on all platforms.
+
+
 2010-07-21: Version 2.3.2
 
         Fixed compiler warnings when building with LLVM.
@@ -5,6 +19,7 @@
         Fixed a bug with for-in applied to strings (issue 785).
 
         Performance improvements on all platforms.
+
 
 2010-07-19: Version 2.3.1
 

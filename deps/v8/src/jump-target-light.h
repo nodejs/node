@@ -101,8 +101,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
 
   // Emit a conditional branch to the target.  There must be a current
   // frame at the branch.  The current frame will fall through to the
-  // code after the branch.  The arg is a result that is live both at
-  // the target and the fall-through.
+  // code after the branch.
   virtual void Branch(Condition cc, Hint hint = no_hint);
 
   // Bind a jump target.  If there is no current frame at the binding

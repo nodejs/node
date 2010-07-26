@@ -457,6 +457,7 @@ class CodeGenerator: public AstVisitor {
   // Support for compiling assignment expressions.
   void EmitSlotAssignment(Assignment* node);
   void EmitNamedPropertyAssignment(Assignment* node);
+  void EmitKeyedPropertyAssignment(Assignment* node);
 
   // Receiver is passed on the frame and not consumed.
   Result EmitNamedLoad(Handle<String> name, bool is_contextual);
@@ -469,6 +470,9 @@ class CodeGenerator: public AstVisitor {
   // The object and the property name are passed on the stack, and
   // not changed.
   Result EmitKeyedLoad();
+
+  // Receiver, key, and value are passed on the frame and consumed.
+  Result EmitKeyedStore(StaticType* key_type);
 
   // Special code for typeof expressions: Unfortunately, we must
   // be careful when loading the expression in 'typeof'
@@ -487,6 +491,13 @@ class CodeGenerator: public AstVisitor {
 
   void GenericBinaryOperation(BinaryOperation* expr,
                               OverwriteMode overwrite_mode);
+
+  // Emits code sequence that jumps to a JumpTarget if the inputs
+  // are both smis.  Cannot be in MacroAssembler because it takes
+  // advantage of TypeInfo to skip unneeded checks.
+  void JumpIfBothSmiUsingTypeInfo(Result* left,
+                                  Result* right,
+                                  JumpTarget* both_smi);
 
   // Emits code sequence that jumps to deferred code if the input
   // is not a smi.  Cannot be in MacroAssembler because it takes

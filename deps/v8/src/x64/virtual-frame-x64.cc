@@ -997,30 +997,8 @@ void VirtualFrame::SyncRange(int begin, int end) {
 }
 
 
-Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
-                                   InvokeFlag flag,
-                                   int arg_count) {
-  PrepareForCall(arg_count, arg_count);
-  ASSERT(cgen()->HasValidEntryRegisters());
-  __ InvokeBuiltin(id, flag);
-  Result result = cgen()->allocator()->Allocate(rax);
-  ASSERT(result.is_valid());
-  return result;
-}
-
-
 //------------------------------------------------------------------------------
 // Virtual frame stub and IC calling functions.
-
-Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
-                                       RelocInfo::Mode rmode) {
-  ASSERT(cgen()->HasValidEntryRegisters());
-  __ Call(code, rmode);
-  Result result = cgen()->allocator()->Allocate(rax);
-  ASSERT(result.is_valid());
-  return result;
-}
-
 
 Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
   PrepareForCall(arg_count, arg_count);
@@ -1051,6 +1029,28 @@ void VirtualFrame::DebugBreak() {
   ASSERT(result.is_valid());
 }
 #endif
+
+
+Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
+                                   InvokeFlag flag,
+                                   int arg_count) {
+  PrepareForCall(arg_count, arg_count);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ InvokeBuiltin(id, flag);
+  Result result = cgen()->allocator()->Allocate(rax);
+  ASSERT(result.is_valid());
+  return result;
+}
+
+
+Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
+                                       RelocInfo::Mode rmode) {
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ Call(code, rmode);
+  Result result = cgen()->allocator()->Allocate(rax);
+  ASSERT(result.is_valid());
+  return result;
+}
 
 
 // This function assumes that the only results that could be in a_reg or b_reg
@@ -1107,64 +1107,14 @@ Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
 
 
 Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
-  // Key and receiver are on top of the frame.  The IC expects them on
-  // the stack.  It does not drop them.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  Result name = Pop();
+  // Key and receiver are on top of the frame. Put them in rax and rdx.
+  Result key = Pop();
   Result receiver = Pop();
   PrepareForCall(0, 0);
-  MoveResultsToRegisters(&name, &receiver, rax, rdx);
+  MoveResultsToRegisters(&key, &receiver, rax, rdx);
+
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   return RawCallCodeObject(ic, mode);
-}
-
-
-Result VirtualFrame::CallCommonStoreIC(Handle<Code> ic,
-                                       Result* value,
-                                       Result* key,
-                                       Result* receiver) {
-  // The IC expects value in rax, key in rcx, and receiver in rdx.
-  PrepareForCall(0, 0);
-  // If one of the three registers is free, or a value is already
-  // in the correct register, move the remaining two values using
-  // MoveResultsToRegisters().
-  if (!cgen()->allocator()->is_used(rax) ||
-      (value->is_register() && value->reg().is(rax))) {
-    if (!cgen()->allocator()->is_used(rax)) {
-      value->ToRegister(rax);
-    }
-    MoveResultsToRegisters(key, receiver, rcx, rdx);
-    value->Unuse();
-  } else if (!cgen()->allocator()->is_used(rcx) ||
-             (key->is_register() && key->reg().is(rcx))) {
-    if (!cgen()->allocator()->is_used(rcx)) {
-      key->ToRegister(rcx);
-    }
-    MoveResultsToRegisters(value, receiver, rax, rdx);
-    key->Unuse();
-  } else if (!cgen()->allocator()->is_used(rdx) ||
-             (receiver->is_register() && receiver->reg().is(rdx))) {
-    if (!cgen()->allocator()->is_used(rdx)) {
-      receiver->ToRegister(rdx);
-    }
-    MoveResultsToRegisters(key, value, rcx, rax);
-    receiver->Unuse();
-  } else {
-    // Otherwise, no register is free, and no value is in the correct place.
-    // We have one of the two circular permutations of eax, ecx, edx.
-    ASSERT(value->is_register());
-    if (value->reg().is(rcx)) {
-      __ xchg(rax, rdx);
-      __ xchg(rax, rcx);
-    } else {
-      __ xchg(rax, rcx);
-      __ xchg(rax, rdx);
-    }
-    value->Unuse();
-    key->Unuse();
-    receiver->Unuse();
-  }
-
-  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 
 
@@ -1184,6 +1134,55 @@ Result VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
     MoveResultsToRegisters(&value, &receiver, rax, rdx);
   }
   __ Move(rcx, name);
+  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
+}
+
+
+Result VirtualFrame::CallKeyedStoreIC() {
+  // Value, key, and receiver are on the top of the frame.  The IC
+  // expects value in rax, key in rcx, and receiver in rdx.
+  Result value = Pop();
+  Result key = Pop();
+  Result receiver = Pop();
+  PrepareForCall(0, 0);
+  if (!cgen()->allocator()->is_used(rax) ||
+      (value.is_register() && value.reg().is(rax))) {
+    if (!cgen()->allocator()->is_used(rax)) {
+      value.ToRegister(rax);
+    }
+    MoveResultsToRegisters(&key, &receiver, rcx, rdx);
+    value.Unuse();
+  } else if (!cgen()->allocator()->is_used(rcx) ||
+             (key.is_register() && key.reg().is(rcx))) {
+    if (!cgen()->allocator()->is_used(rcx)) {
+      key.ToRegister(rcx);
+    }
+    MoveResultsToRegisters(&value, &receiver, rax, rdx);
+    key.Unuse();
+  } else if (!cgen()->allocator()->is_used(rdx) ||
+             (receiver.is_register() && receiver.reg().is(rdx))) {
+    if (!cgen()->allocator()->is_used(rdx)) {
+      receiver.ToRegister(rdx);
+    }
+    MoveResultsToRegisters(&key, &value, rcx, rax);
+    receiver.Unuse();
+  } else {
+    // All three registers are used, and no value is in the correct place.
+    // We have one of the two circular permutations of rax, rcx, rdx.
+    ASSERT(value.is_register());
+    if (value.reg().is(rcx)) {
+      __ xchg(rax, rdx);
+      __ xchg(rax, rcx);
+    } else {
+      __ xchg(rax, rcx);
+      __ xchg(rax, rdx);
+    }
+    value.Unuse();
+    key.Unuse();
+    receiver.Unuse();
+  }
+
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 

@@ -212,23 +212,42 @@ static Handle<Map> ComputeObjectLiteralMap(
     Handle<Context> context,
     Handle<FixedArray> constant_properties,
     bool* is_result_from_cache) {
-  int number_of_properties = constant_properties->length() / 2;
+  int properties_length = constant_properties->length();
+  int number_of_properties = properties_length / 2;
   if (FLAG_canonicalize_object_literal_maps) {
-    // First find prefix of consecutive symbol keys.
+    // Check that there are only symbols and array indices among keys.
     int number_of_symbol_keys = 0;
-    while ((number_of_symbol_keys < number_of_properties) &&
-           (constant_properties->get(number_of_symbol_keys*2)->IsSymbol())) {
-      number_of_symbol_keys++;
+    for (int p = 0; p != properties_length; p += 2) {
+      Object* key = constant_properties->get(p);
+      uint32_t element_index = 0;
+      if (key->IsSymbol()) {
+        number_of_symbol_keys++;
+      } else if (key->ToArrayIndex(&element_index)) {
+        // An index key does not require space in the property backing store.
+        number_of_properties--;
+      } else {
+        // Bail out as a non-symbol non-index key makes caching impossible.
+        // ASSERT to make sure that the if condition after the loop is false.
+        ASSERT(number_of_symbol_keys != number_of_properties);
+        break;
+      }
     }
-    // Based on the number of prefix symbols key we decide whether
-    // to use the map cache in the global context.
+    // If we only have symbols and array indices among keys then we can
+    // use the map cache in the global context.
     const int kMaxKeys = 10;
     if ((number_of_symbol_keys == number_of_properties) &&
         (number_of_symbol_keys < kMaxKeys)) {
       // Create the fixed array with the key.
       Handle<FixedArray> keys = Factory::NewFixedArray(number_of_symbol_keys);
-      for (int i = 0; i < number_of_symbol_keys; i++) {
-        keys->set(i, constant_properties->get(i*2));
+      if (number_of_symbol_keys > 0) {
+        int index = 0;
+        for (int p = 0; p < properties_length; p += 2) {
+          Object* key = constant_properties->get(p);
+          if (key->IsSymbol()) {
+            keys->set(index++, key);
+          }
+        }
+        ASSERT(index == number_of_symbol_keys);
       }
       *is_result_from_cache = true;
       return Factory::ObjectLiteralMapFromCache(context, keys);
@@ -6732,6 +6751,26 @@ static Object* Runtime_NewClosure(Arguments args) {
   return *result;
 }
 
+static Object* Runtime_NewObjectFromBound(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_ARG_CHECKED(JSArray, params, 1);
+
+  FixedArray* fixed = FixedArray::cast(params->elements());
+
+  bool exception = false;
+  Object*** param_data = NewArray<Object**>(fixed->length());
+  for (int i = 0; i < fixed->length();  i++) {
+    Handle<Object> val = Handle<Object>(fixed->get(i));
+    param_data[i] = val.location();
+  }
+
+  Handle<Object> result = Execution::New(
+      function, fixed->length(), param_data, &exception);
+  return *result;
+}
+
 
 static Code* ComputeConstructStub(Handle<JSFunction> function) {
   Handle<Object> prototype = Factory::null_value();
@@ -9342,6 +9381,13 @@ static Object* Runtime_SetScriptBreakPoint(Arguments args) {
     }
     Debug::SetBreakPoint(shared, break_point_object_arg, &position);
     position += shared->start_position();
+
+    // The result position may become beyond script source end.
+    // This is expected when the function is toplevel. This may become
+    // a problem later when actual position gets converted into line/column.
+    if (shared->is_toplevel() && position == shared->end_position()) {
+      position = shared->end_position() - 1;
+    }
     return Smi::FromInt(position);
   }
   return  Heap::undefined_value();

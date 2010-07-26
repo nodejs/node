@@ -1120,6 +1120,10 @@ class Assembler : public Malloced {
   static bool IsLdrRegisterImmediate(Instr instr);
   static int GetLdrRegisterImmediateOffset(Instr instr);
   static Instr SetLdrRegisterImmediateOffset(Instr instr, int offset);
+  static bool IsStrRegisterImmediate(Instr instr);
+  static Instr SetStrRegisterImmediateOffset(Instr instr, int offset);
+  static bool IsAddRegisterImmediate(Instr instr);
+  static Instr SetAddRegisterImmediateOffset(Instr instr, int offset);
   static Register GetRd(Instr instr);
   static bool IsPush(Instr instr);
   static bool IsPop(Instr instr);

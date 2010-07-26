@@ -258,6 +258,7 @@ namespace internal {
   /* Statements */ \
   F(NewClosure, 2, 1) \
   F(NewObject, 1, 1) \
+  F(NewObjectFromBound, 2, 1) \
   F(Throw, 1, 1) \
   F(ReThrow, 1, 1) \
   F(ThrowReferenceError, 1, 1) \

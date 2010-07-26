@@ -445,6 +445,37 @@ Instr Assembler::SetLdrRegisterImmediateOffset(Instr instr, int offset) {
 }
 
 
+bool Assembler::IsStrRegisterImmediate(Instr instr) {
+  return (instr & (B27 | B26 | B25 | B22 | B20)) == B26;
+}
+
+
+Instr Assembler::SetStrRegisterImmediateOffset(Instr instr, int offset) {
+  ASSERT(IsStrRegisterImmediate(instr));
+  bool positive = offset >= 0;
+  if (!positive) offset = -offset;
+  ASSERT(is_uint12(offset));
+  // Set bit indicating whether the offset should be added.
+  instr = (instr & ~B23) | (positive ? B23 : 0);
+  // Set the actual offset.
+  return (instr & ~Off12Mask) | offset;
+}
+
+
+bool Assembler::IsAddRegisterImmediate(Instr instr) {
+  return (instr & (B27 | B26 | B25 | B24 | B23 | B22 | B21)) == (B25 | B23);
+}
+
+
+Instr Assembler::SetAddRegisterImmediateOffset(Instr instr, int offset) {
+  ASSERT(IsAddRegisterImmediate(instr));
+  ASSERT(offset >= 0);
+  ASSERT(is_uint12(offset));
+  // Set the offset.
+  return (instr & ~Off12Mask) | offset;
+}
+
+
 Register Assembler::GetRd(Instr instr) {
   Register reg;
   reg.code_ = ((instr & kRdMask) >> kRdShift);
@@ -796,9 +827,10 @@ void Assembler::addrmod1(Instr instr,
     instr |= x.rs_.code()*B8 | x.shift_op_ | B4 | x.rm_.code();
   }
   emit(instr | rn.code()*B16 | rd.code()*B12);
-  if (rn.is(pc) || x.rm_.is(pc))
+  if (rn.is(pc) || x.rm_.is(pc)) {
     // Block constant pool emission for one instruction after reading pc.
     BlockConstPoolBefore(pc_offset() + kInstrSize);
+  }
 }
 
 

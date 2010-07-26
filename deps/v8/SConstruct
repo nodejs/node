@@ -43,7 +43,7 @@ if ANDROID_TOP is None:
   ANDROID_TOP=""
 
 # ARM_TARGET_LIB is the path to the dynamic library to use on the target
-# machine if cross-compiling to an arm machine. You will also need to set 
+# machine if cross-compiling to an arm machine. You will also need to set
 # the additional cross-compiling environment variables to the cross compiler.
 ARM_TARGET_LIB = os.environ.get('ARM_TARGET_LIB')
 if ARM_TARGET_LIB:
@@ -627,6 +627,9 @@ D8_FLAGS = {
     },
     'os:win32': {
       'LIBS': ['winmm', 'ws2_32'],
+    },
+    'arch:arm': {
+      'LINKFLAGS':   ARM_LINK_FLAGS
     },
   },
   'msvc': {

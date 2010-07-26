@@ -2966,7 +2966,8 @@ Object* JSObject::DefineAccessor(AccessorInfo* info) {
         break;
     }
 
-    SetElementCallback(index, info, info->property_attributes());
+    Object* ok = SetElementCallback(index, info, info->property_attributes());
+    if (ok->IsFailure()) return ok;
   } else {
     // Lookup the name.
     LookupResult result;
@@ -2976,7 +2977,8 @@ Object* JSObject::DefineAccessor(AccessorInfo* info) {
     if (result.IsProperty() && (result.IsReadOnly() || result.IsDontDelete())) {
       return Heap::undefined_value();
     }
-    SetPropertyCallback(name, info, info->property_attributes());
+    Object* ok = SetPropertyCallback(name, info, info->property_attributes());
+    if (ok->IsFailure()) return ok;
   }
 
   return this;

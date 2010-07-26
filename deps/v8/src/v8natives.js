@@ -539,21 +539,21 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     throw MakeTypeError("define_disallowed", ["defineProperty"]);
 
   if (!IS_UNDEFINED(current) && !current.isConfigurable()) {
-      // Step 5 and 6
-     if ((!desc.hasEnumerable() || 
-          SameValue(desc.isEnumerable() && current.isEnumerable())) &&
-         (!desc.hasConfigurable() || 
-          SameValue(desc.isConfigurable(), current.isConfigurable())) &&
-         (!desc.hasWritable() || 
-          SameValue(desc.isWritable(), current.isWritable())) &&
-         (!desc.hasValue() ||
-          SameValue(desc.getValue(), current.getValue())) &&
-         (!desc.hasGetter() ||
-          SameValue(desc.getGet(), current.getGet())) &&
-         (!desc.hasSetter() ||
-          SameValue(desc.getSet(), current.getSet()))) {
-       return true;
-     }
+    // Step 5 and 6
+    if ((!desc.hasEnumerable() || 
+         SameValue(desc.isEnumerable() && current.isEnumerable())) &&
+        (!desc.hasConfigurable() || 
+         SameValue(desc.isConfigurable(), current.isConfigurable())) &&
+        (!desc.hasWritable() || 
+         SameValue(desc.isWritable(), current.isWritable())) &&
+        (!desc.hasValue() ||
+         SameValue(desc.getValue(), current.getValue())) &&
+        (!desc.hasGetter() ||
+         SameValue(desc.getGet(), current.getGet())) &&
+        (!desc.hasSetter() ||
+         SameValue(desc.getSet(), current.getSet()))) {
+      return true;
+    }
 
     // Step 7
     if (desc.isConfigurable() ||  desc.isEnumerable() != current.isEnumerable())
@@ -1099,6 +1099,57 @@ function FunctionToString() {
 }
 
 
+// ES5 15.3.4.5
+function FunctionBind(this_arg) { // Length is 1.
+  if (!IS_FUNCTION(this)) {
+      throw new $TypeError('Bind must be called on a function');
+  }
+  // this_arg is not an argument that should be bound.
+  var argc_bound = %_ArgumentsLength() - 1;
+  if (argc_bound > 0) {
+    var bound_args = new $Array(argc_bound);
+    for(var i = 0; i < argc_bound; i++) {
+      bound_args[i] = %_Arguments(i+1);
+    }  
+  }
+  global.print(argc_bound);
+  var fn = this;
+  var result = function() {
+    // Combine the args we got from the bind call with the args
+    // given as argument to the invocation. 
+    var argc = %_ArgumentsLength();
+    var args = new $Array(argc + argc_bound);
+    // Add bound arguments.
+    for (var i = 0; i < argc_bound; i++) {
+      args[i] = bound_args[i];
+    }
+    // Add arguments from call.
+    for (var i = 0; i < argc; i++) {
+      args[argc_bound + i] = %_Arguments(i); 
+    }
+    // If this is a construct call we use a special runtime method
+    // to generate the actual object using the bound function.
+    if (%_IsConstructCall()) {
+      return %NewObjectFromBound(fn, args);
+    }
+    return fn.apply(this_arg, args);
+  };
+
+  // We already have caller and arguments properties on functions,
+  // which are non-configurable. It therefore makes no sence to
+  // try to redefine these as defined by the spec. The spec says
+  // that bind should make these throw a TypeError if get or set
+  // is called and make them non-enumerable and non-configurable.
+  // To be consistent with our normal functions we leave this as it is. 
+
+  // Set the correct length.
+  var length = (this.length - argc_bound) > 0 ? this.length - argc_bound : 0;
+  %FunctionSetLength(result, length);
+
+  return result;
+}
+
+
 function NewFunction(arg1) {  // length == 1
   var n = %_ArgumentsLength();
   var p = '';
@@ -1130,6 +1181,7 @@ function NewFunction(arg1) {  // length == 1
 
 function SetupFunction() {
   InstallFunctions($Function.prototype, DONT_ENUM, $Array(
+    "bind", FunctionBind,
     "toString", FunctionToString
   ));
 }

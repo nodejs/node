@@ -519,6 +519,15 @@ class CodeGenerator: public AstVisitor {
   void GenericBinaryOperation(BinaryOperation* expr,
                               OverwriteMode overwrite_mode);
 
+  // Emits code sequence that jumps to a JumpTarget if the inputs
+  // are both smis.  Cannot be in MacroAssembler because it takes
+  // advantage of TypeInfo to skip unneeded checks.
+  // Allocates a temporary register, possibly spilling from the frame,
+  // if it needs to check both left and right.
+  void JumpIfBothSmiUsingTypeInfo(Result* left,
+                                  Result* right,
+                                  JumpTarget* both_smi);
+
   // Emits code sequence that jumps to deferred code if the inputs
   // are not both smis.  Cannot be in MacroAssembler because it takes
   // advantage of TypeInfo to skip unneeded checks.

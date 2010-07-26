@@ -895,8 +895,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ lea(rbx, FieldOperand(rbx, Code::kHeaderSize));
   __ jmp(rbx);
 
-  // edi: called object
-  // eax: number of arguments
+  // rdi: called object
+  // rax: number of arguments
   __ bind(&non_function_call);
   // CALL_NON_FUNCTION expects the non-function constructor as receiver
   // (instead of the original receiver from the call site).  The receiver is

@@ -379,7 +379,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
 }
 
 
-// One byte opcode for test eax,0xXXXXXXXX.
+// One byte opcode for test rax,0xXXXXXXXX.
 static const byte kTestEaxByte = 0xA9;
 
 
@@ -1520,8 +1520,8 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   GenerateFunctionTailCall(masm, argc, &slow_call);
 
   __ bind(&check_number_dictionary);
-  // eax: elements
-  // ecx: smi key
+  // rax: elements
+  // rcx: smi key
   // Check whether the elements is a number dictionary.
   __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
                  Heap::kHashTableMapRootIndex);
@@ -1603,8 +1603,8 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 }
 
 
-// The offset from the inlined patch site to the start of the
-// inlined load instruction.
+// The offset from the inlined patch site to the start of the inlined
+// load instruction.
 const int LoadIC::kOffsetToLoadInstruction = 20;
 
 
@@ -1713,7 +1713,7 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
   // The address of the instruction following the call.
   Address test_instruction_address =
       address + Assembler::kCallTargetAddressOffset;
-  // If the instruction following the call is not a test eax, nothing
+  // If the instruction following the call is not a test rax, nothing
   // was inlined.
   if (*test_instruction_address != kTestEaxByte) return false;
 
@@ -1737,9 +1737,54 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 }
 
 
+// The offset from the inlined patch site to the start of the inlined
+// store instruction.
+const int StoreIC::kOffsetToStoreInstruction = 20;
+
+
 bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
-  // TODO(787): Implement inline stores on x64.
-  return false;
+  // The address of the instruction following the call.
+  Address test_instruction_address =
+      address + Assembler::kCallTargetAddressOffset;
+
+  // If the instruction following the call is not a test rax, nothing
+  // was inlined.
+  if (*test_instruction_address != kTestEaxByte) return false;
+
+  // Extract the encoded deltas from the test rax instruction.
+  Address encoded_offsets_address = test_instruction_address + 1;
+  int encoded_offsets = *reinterpret_cast<int*>(encoded_offsets_address);
+  int delta_to_map_check = -(encoded_offsets & 0xFFFF);
+  int delta_to_record_write = encoded_offsets >> 16;
+
+  // Patch the map to check. The map address is the last 8 bytes of
+  // the 10-byte immediate move instruction.
+  Address map_check_address = test_instruction_address + delta_to_map_check;
+  Address map_address = map_check_address + 2;
+  *(reinterpret_cast<Object**>(map_address)) = map;
+
+  // Patch the offset in the store instruction. The offset is in the
+  // last 4 bytes of a 7 byte register-to-memory move instruction.
+  Address offset_address =
+      map_check_address + StoreIC::kOffsetToStoreInstruction + 3;
+  // The offset should have initial value (kMaxInt - 1), cleared value
+  // (-1) or we should be clearing the inlined version.
+  ASSERT(*reinterpret_cast<int*>(offset_address) == kMaxInt - 1 ||
+         *reinterpret_cast<int*>(offset_address) == -1 ||
+         (offset == 0 && map == Heap::null_value()));
+  *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
+
+  // Patch the offset in the write-barrier code. The offset is the
+  // last 4 bytes of a 7 byte lea instruction.
+  offset_address = map_check_address + delta_to_record_write + 3;
+  // The offset should have initial value (kMaxInt), cleared value
+  // (-1) or we should be clearing the inlined version.
+  ASSERT(*reinterpret_cast<int*>(offset_address) == kMaxInt ||
+         *reinterpret_cast<int*>(offset_address) == -1 ||
+         (offset == 0 && map == Heap::null_value()));
+  *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
+
+  return true;
 }
 
 

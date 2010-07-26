@@ -275,8 +275,8 @@ def JS2C(source, target, env):
   debugger_ids = []
   modules = []
   # Locate the macros file name.
-  consts = {}
-  macros = {}
+  consts = []
+  macros = []
   for s in source:
     if 'macros.py' == (os.path.split(str(s))[1]):
       (consts, macros) = ReadMacros(ReadLines(str(s)))
