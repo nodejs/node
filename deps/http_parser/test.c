@@ -801,6 +801,38 @@ const struct message responses[] =
   ,.body= ""
   }
 
+#define SPACE_IN_FIELD_RES 9
+/* Should handle spaces in header fields */
+, {.name= "field space"
+  ,.type= HTTP_RESPONSE
+  ,.raw= "HTTP/1.1 200 OK\r\n"
+         "Server: Microsoft-IIS/6.0\r\n"
+         "X-Powered-By: ASP.NET\r\n"
+         "en-US Content-Type: text/xml\r\n" /* this is the problem */
+         "Content-Type: text/xml\r\n"
+         "Content-Length: 16\r\n"
+         "Date: Fri, 23 Jul 2010 18:45:38 GMT\r\n"
+         "Connection: keep-alive\r\n"
+         "\r\n"
+         "<xml>hello</xml>" /* fake body */
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.status_code= 200
+  ,.num_headers= 7
+  ,.headers=
+    { { "Server",  "Microsoft-IIS/6.0" }
+    , { "X-Powered-By", "ASP.NET" }
+    , { "en-US Content-Type", "text/xml" }
+    , { "Content-Type", "text/xml" }
+    , { "Content-Length", "16" }
+    , { "Date", "Fri, 23 Jul 2010 18:45:38 GMT" }
+    , { "Connection", "keep-alive" }
+    }
+  ,.body= "<xml>hello</xml>"
+  }
+
 , {.name= NULL } /* sentinel */
 };
 
@@ -1581,7 +1613,7 @@ main (void)
            , &responses[NO_REASON_PHRASE]
            );
 
-  printf("response scan 1/2      ");
+  printf("response scan 2/2      ");
   test_scan( &responses[BONJOUR_MADAME_FR]
            , &responses[UNDERSTORE_HEADER_KEY]
            , &responses[NO_CARRIAGE_RET]

@@ -26,6 +26,7 @@ extern "C" {
 
 
 #include <sys/types.h>
+#include <stdint.h>
 
 #ifdef _WIN32
 typedef unsigned int size_t;
@@ -106,8 +107,8 @@ struct http_parser {
 
   char flags;
 
-  size_t nread;
-  ssize_t content_length;
+  uint64_t nread;
+  int64_t content_length;
 
   /** READ-ONLY **/
   unsigned short http_major;

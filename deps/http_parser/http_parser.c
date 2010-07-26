@@ -111,7 +111,7 @@ static const char *method_strings[] =
 
 static const char lowcase[256] =
   "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-  "\0\0\0\0\0\0\0\0\0\0\0\0\0-\0\0" "0123456789\0\0\0\0\0\0"
+  " \0\0\0\0\0\0\0\0\0\0\0\0-\0\0" "0123456789\0\0\0\0\0\0"
   "\0abcdefghijklmnopqrstuvwxyz\0\0\0\0_"
   "\0abcdefghijklmnopqrstuvwxyz\0\0\0\0\0"
   "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
@@ -287,12 +287,12 @@ size_t http_parser_execute (http_parser *parser,
 {
   char c, ch;
   const char *p = data, *pe;
-  ssize_t to_read;
+  int64_t to_read;
 
   enum state state = (enum state) parser->state;
   enum header_states header_state = (enum header_states) parser->header_state;
-  size_t index = parser->index;
-  size_t nread = parser->nread;
+  uint64_t index = parser->index;
+  uint64_t nread = parser->nread;
 
   if (len == 0) {
     if (state == s_body_identity_eof) {
@@ -1316,7 +1316,9 @@ size_t http_parser_execute (http_parser *parser,
 
         nread = 0;
 
-        if (parser->flags & F_UPGRADE || parser->method == HTTP_CONNECT) parser->upgrade = 1;
+        if (parser->flags & F_UPGRADE || parser->method == HTTP_CONNECT) {
+          parser->upgrade = 1;
+        }
 
         /* Here we call the headers_complete callback. This is somewhat
          * different than other callbacks because if the user returns 1, we
@@ -1339,7 +1341,7 @@ size_t http_parser_execute (http_parser *parser,
         }
 
         // Exit, the rest of the connect is in a different protocol.
-        if (parser->flags & F_UPGRADE || parser->method == HTTP_CONNECT) {
+        if (parser->upgrade) {
           CALLBACK2(message_complete);
           return (p - data);
         }
@@ -1374,7 +1376,7 @@ size_t http_parser_execute (http_parser *parser,
       }
 
       case s_body_identity:
-        to_read = MIN(pe - p, (ssize_t)parser->content_length);
+        to_read = MIN(pe - p, (int64_t)parser->content_length);
         if (to_read > 0) {
           if (settings->on_body) settings->on_body(parser, p, to_read);
           p += to_read - 1;
@@ -1459,7 +1461,7 @@ size_t http_parser_execute (http_parser *parser,
       {
         assert(parser->flags & F_CHUNKED);
 
-        to_read = MIN(pe - p, (ssize_t)(parser->content_length));
+        to_read = MIN(pe - p, (int64_t)(parser->content_length));
 
         if (to_read > 0) {
           if (settings->on_body) settings->on_body(parser, p, to_read);
