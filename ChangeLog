@@ -1,4 +1,25 @@
-2010.07.16, Version 0.1.101
+2010.07.25, Version 0.1.102
+
+* base64 encoding for Buffers.
+
+* Buffer support for Cipher, Decipher, Hmac, Sign and Verify
+  (Andrew Naylor)
+
+* Support for reading byte ranges from files using fs.createReadStream.
+  (Chandra Sekar)
+
+* Fix Buffer.toString() on 0-length slices. (Peter Griess)
+
+* Cache modules based on filename rather than ID (Isaac Schlueter)
+
+* querystring improvments (Jan Kassens, Micheil Smith)
+
+* Support DEL in the REPL. (Jérémy Lal)
+
+* Upgrade http-parser, upgrade V8 to 2.3.2
+
+
+2010.07.16, Version 0.1.101, 0174ceb6b24caa0bdfc523934c56af9600fa9b58
 
 * Added env to child_process.exec (Сергей Крыжановский)
 
