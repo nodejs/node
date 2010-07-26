@@ -2490,8 +2490,7 @@ resolves the IP addresses which are returned.
 
       console.log('addresses: ' + JSON.stringify(addresses));
 
-      for (var i = 0; i < addresses.length; i++) {
-        var a = addresses[i];
+      addresses.forEach(function (a) {
         dns.reverse(a, function (err, domains) {
           if (err) {
             console.log('reverse for ' + a + ' failed: ' +
@@ -2501,7 +2500,7 @@ resolves the IP addresses which are returned.
               JSON.stringify(domains));
           }
         });
-      }
+      });
     });
 
 ### dns.resolve(domain, rrtype='A', callback)
