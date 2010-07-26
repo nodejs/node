@@ -60,6 +60,8 @@ strip the high bit if set.
 
 * `'utf8'` - Unicode characters.  Many web pages and other document formats use UTF-8.
 
+* `'base64'` - Base64 string encoding.
+
 * `'binary'` - A legacy encoding. Used to store raw binary data in a string
 by only using the first 8 bits of every character. Don't use this.
 
