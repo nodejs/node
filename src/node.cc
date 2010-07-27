@@ -902,7 +902,7 @@ static void ReportException(TryCatch &try_catch, bool show_line) {
   Handle<Message> message = try_catch.Message();
 
   node::Stdio::DisableRawMode(STDIN_FILENO);
-  fprintf(stderr, "\n\n");
+  fprintf(stderr, "\n");
 
   if (show_line && !message.IsEmpty()) {
     // Print (filename):(line number): (message).
