@@ -3083,16 +3083,16 @@ The special variable `_` (underscore) contains the result of the last expression
     4
 
 The REPL provides access to any variables in the global scope. You can expose a variable 
-to the REPL explicitly by assigning it to the `scope` object associated with each
+to the REPL explicitly by assigning it to the `context` object associated with each
 `REPLServer`.  For example:
 
     // repl_test.js
     var repl = require("repl"),
         msg = "message";
 
-    repl.start().scope.m = msg;
+    repl.start().context.m = msg;
 
-Things in the `scope` object appear as local within the REPL:
+Things in the `context` object appear as local within the REPL:
 
     mjr:~$ node repl_test.js 
     node> m
@@ -3103,7 +3103,7 @@ There are a few special REPL commands:
   - `.break` - While inputting a multi-line expression, sometimes you get lost or just don't care 
   about completing it.  `.break` will start over.
   
-  - `.clear` - Resets the `scope` object to an empty object and clears any multi-line expression.
+  - `.clear` - Resets the `context` object to an empty object and clears any multi-line expression.
   
   - `.exit` - Close the I/O stream, which will cause the REPL to exit.
 
