@@ -7,6 +7,10 @@
 - SSL should be factored out of net.js into standalone stream object
 - base64 write and toString for buffers
 - add completion callbacks to all stream write() methods
-
+- Erradicate all traces of 'binary' encoding. Only used, now, in OpenSSL
+  binding.
+- Documentation needs a major refactor; should generate more than one HTML
+  page/man page from the single api.markdown file. Deep sections should be
+  allowed.
 - debug and production modes
 - EventSource branch merged
