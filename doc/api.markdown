@@ -53,8 +53,7 @@ the V8 heap. A `Buffer` cannot be resized.
 The `Buffer` object is global.
 
 Converting between Buffers and JavaScript string objects requires an explicit encoding
-method.  Node supports 3 string encodings: UTF-8 (`'utf8'`), ASCII (`'ascii'`), and
-Binary (`'binary'`).
+method.  Here are the different string encodings;
 
 * `'ascii'` - for 7 bit ASCII data only.  This encoding method is very fast, and will
 strip the high bit if set.
@@ -63,8 +62,10 @@ strip the high bit if set.
 
 * `'base64'` - Base64 string encoding.
 
-* `'binary'` - A legacy encoding. Used to store raw binary data in a string
-by only using the first 8 bits of every character. Don't use this.
+* `'binary'` - A way of encoding raw binary data into strings by using only
+the first 8 bits of each character. This encoding method is depreciated and
+should be avoided in favor of `Buffer` objects where possible. This encoding
+will be removed in future versions of Node.
 
 
 ### new Buffer(size)
@@ -333,7 +334,7 @@ occured, the stream came to an `'end'`, or `destroy()` was called.
 
 ### stream.setEncoding(encoding)
 Makes the data event emit a string instead of a `Buffer`. `encoding` can be
-`'utf8'`, `'ascii'`, or `'binary'`.
+`'utf8'`, `'ascii'`, or `'base64'`.
 
 ### stream.pause()
 
@@ -1572,7 +1573,7 @@ Returns a new ReadStream object (See `Readable Stream`).
 `options` is an object with the following defaults:
 
     { 'flags': 'r'
-    , 'encoding': 'binary'
+    , 'encoding': null
     , 'mode': 0666
     , 'bufferSize': 4 * 1024
     }
@@ -1597,7 +1598,7 @@ Returns a new WriteStream object (See `Writable Stream`).
 `options` is an object with the following defaults:
 
     { 'flags': 'w'
-    , 'encoding': 'binary'
+    , 'encoding': null
     , 'mode': 0666
     }
 
@@ -1805,10 +1806,10 @@ Also `request.httpVersionMajor` is the first integer and
 `request.httpVersionMinor` is the second.
 
 
-### request.setEncoding(encoding='binary')
+### request.setEncoding(encoding=null)
 
 Set the encoding for the request body. Either `'utf8'` or `'binary'`. Defaults
-to `'binary'`.
+to `null`, which means that the `'data'` event will emit a `Buffer` object..
 
 
 ### request.pause()
@@ -2073,9 +2074,10 @@ Also `response.httpVersionMajor` is the first integer and
 
 The response headers object.
 
-### response.setEncoding(encoding='utf8')
+### response.setEncoding(encoding=null)
 
-Set the encoding for the response body. Either `'utf8'` or `'binary'`.
+Set the encoding for the response body. Either `'utf8'`, `'ascii'`, or `'base64'`.
+Defaults to `null`, which means that the `'data'` event will emit a `Buffer` object..
 
 ### response.pause()
 
@@ -2276,9 +2278,9 @@ This member is only present in server-side connections.
 
 Either `'closed'`, `'open'`, `'opening'`, `'readOnly'`, or `'writeOnly'`.
 
-### stream.setEncoding(encoding='utf8')
+### stream.setEncoding(encoding=null)
 
-Sets the encoding (either `'ascii'`, `'utf8'`, or `'binary'`) for data that is
+Sets the encoding (either `'ascii'`, `'utf8'`, or `'base64'`) for data that is
 received.
 
 ### stream.setSecure([credentials])
