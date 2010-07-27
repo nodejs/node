@@ -49,7 +49,8 @@ consuming octet streams.
 Raw data is stored in instances of the `Buffer` class. A `Buffer` is similar
 to an array of integers but corresponds to a raw memory allocation outside
 the V8 heap. A `Buffer` cannot be resized.
-Access the class with `require('buffer').Buffer`.
+
+The `Buffer` object is global.
 
 Converting between Buffers and JavaScript string objects requires an explicit encoding
 method.  Node supports 3 string encodings: UTF-8 (`'utf8'`), ASCII (`'ascii'`), and
@@ -87,7 +88,6 @@ of `'utf8'` encoding, the method will not write partial characters.
 
 Example: write a utf8 string into a buffer, then print it
 
-    Buffer = require('buffer').Buffer;
     buf = new Buffer(256);
     len = buf.write('\u00bd + \u00bc = \u00be', 0);
     console.log(len + " bytes: " + buf.toString('utf8', 0, len));
@@ -110,12 +110,10 @@ so the legal range is between `0x00` and `0xFF` hex or `0` and `255`.
 
 Example: copy an ASCII string into a buffer, one byte at a time:
 
-    var Buffer = require('buffer').Buffer,
-      str = "node.js",
-      buf = new Buffer(str.length),
-      i;
+    str = "node.js";
+    buf = new Buffer(str.length);
 
-    for (i = 0; i < str.length ; i += 1) {
+    for (var i = 0; i < str.length ; i++) {
       buf[i] = str.charCodeAt(i);
     }
 
@@ -132,8 +130,7 @@ string.
 
 Example:
 
-    var Buffer = require('buffer').Buffer,
-      str = '\u00bd + \u00bc = \u00be';
+    str = '\u00bd + \u00bc = \u00be';
 
     console.log(str + ": " + str.length + " characters, " +
       Buffer.byteLength(str, 'utf8') + " bytes");
@@ -147,8 +144,7 @@ The size of the buffer in bytes.  Note that this is not necessarily the size
 of the contents. `length` refers to the amount of memory allocated for the 
 buffer object.  It does not change when the contents of the buffer are changed.
 
-    var Buffer = require('buffer').Buffer,
-      buf = new Buffer(1234);
+    buf = new Buffer(1234);
 
     console.log(buf.length);
     buf.write("some string", "ascii", 0);
@@ -164,12 +160,10 @@ Does a memcpy() between buffers.
 Example: build two Buffers, then copy `buf1` from byte 16 through byte 19
 into `buf2`, starting at the 8th byte in `buf2`.
 
-    var Buffer = require('buffer').Buffer,
-      buf1 = new Buffer(26),
-      buf2 = new Buffer(26),
-      i;
+    buf1 = new Buffer(26);
+    buf2 = new Buffer(26);
   
-    for (i = 0 ; i < 26 ; i += 1) {
+    for (var i = 0 ; i < 26 ; i++) {
       buf1[i] = i + 97; // 97 is ASCII a
       buf2[i] = 33; // ASCII !
     }
@@ -191,15 +185,13 @@ indexes.
 Example: build a Buffer with the ASCII alphabet, take a slice, then modify one byte
 from the original Buffer.
 
-    var Buffer = require('buffer').Buffer,
-      buf1 = new Buffer(26), buf2,
-      i;
-  
-    for (i = 0 ; i < 26 ; i += 1) {
+    var buf1 = new Buffer(26);
+
+    for (var i = 0 ; i < 26 ; i++) {
       buf1[i] = i + 97; // 97 is ASCII a
     }
 
-    buf2 = buf1.slice(0, 3);
+    var buf2 = buf1.slice(0, 3);
     console.log(buf2.toString('ascii', 0, buf2.length));
     buf1[0] = 33;
     console.log(buf2.toString('ascii', 0, buf2.length));
@@ -2612,13 +2604,10 @@ on this socket.
 
 Example of sending a message to syslogd on OSX via Unix domain socket `/var/run/syslog`:
 
-    var dgram = require('dgram'),
-      Buffer = require('buffer').Buffer,
-      client, message;
-
-    message = new Buffer("A message to log.");
-    client = dgram.createSocket("unix_dgram");
-    client.send(message, 0, message.length, "/var/run/syslog", 
+    var dgram = require('dgram');
+    var message = new Buffer("A message to log.");
+    var client = dgram.createSocket("unix_dgram");
+    client.send(message, 0, message.length, "/var/run/syslog",
       function (err, bytes) {
         if (err) {
           throw err;
@@ -2637,14 +2626,12 @@ is to use the callback.
 
 Example of sending a UDP packet to a random port on `localhost`;
 
-    var dgram = require('dgram'),
-      Buffer = require('buffer').Buffer,
-      client, message;
-
-    message = new Buffer("Some bytes");
-    client = dgram.createSocket("udp4");
-    client.send(message, 0, message.length, 41234, "localhost"); 
+    var dgram = require('dgram');
+    var message = new Buffer("Some bytes");
+    var client = dgram.createSocket("udp4");
+    client.send(message, 0, message.length, 41234, "localhost");
     client.close();
+
 
 ### dgram.bind(path)
 
@@ -2654,38 +2641,41 @@ but no datagrams will be received without a `bind()`.
 
 Example of a Unix domain datagram server that echoes back all messages it receives:
 
-    var Buffer = require("buffer").Buffer,
-        dgram = require("dgram"), server
-        server_path = "/tmp/dgram_server_sock";
+    var dgram = require("dgram");
+    var serverPath = "/tmp/dgram_server_sock";
+    var server = dgram.createSocket("unix_dgram");
 
-    server = dgram.createSocket("unix_dgram");
     server.on("message", function (msg, rinfo) {
       console.log("got: " + msg + " from " + rinfo.address);
       server.send(msg, 0, msg.length, rinfo.address);
     });
+
     server.on("listening", function () {
       console.log("server listening " + server.address().address);
     })
-    server.bind(server_path);
+
+    server.bind(serverPath);
 
 Example of a Unix domain datagram client that talks to this server:
 
-    var Buffer = require("buffer").Buffer,
-        dgram = require("dgram"),
-        server_path = "/tmp/dgram_server_sock",
-        client_path = "/tmp/dgram_client_sock", client, message;
+    var dgram = require("dgram");
+    var serverPath = "/tmp/dgram_server_sock";
+    var clientPath = "/tmp/dgram_client_sock";
 
-    message = new Buffer("A message at " + (new Date()));
+    var message = new Buffer("A message at " + (new Date()));
 
-    client = dgram.createSocket("unix_dgram");
+    var client = dgram.createSocket("unix_dgram");
+
     client.on("message", function (msg, rinfo) {
       console.log("got: " + msg + " from " + rinfo.address);
     });
+
     client.on("listening", function () {
       console.log("client listening " + client.address().address);
-      client.send(message, 0, message.length, server_path);
+      client.send(message, 0, message.length, serverPath);
     });
-    client.bind(client_path);
+
+    client.bind(clientPath);
 
 ### dgram.bind(port, [address])
 
@@ -2694,20 +2684,22 @@ For UDP sockets, listen for datagrams on a named `port` and optional `address`. 
 
 Example of a UDP server listening on port 41234:
 
-    var Buffer = require("buffer").Buffer,
-        dgram = require("dgram"), server,
-        message_to_send = new Buffer("A message to send");
+    var dgram = require("dgram");
 
-    server = dgram.createSocket("udp4");
+    var server = dgram.createSocket("udp4");
+    var messageToSend = new Buffer("A message to send");
+
     server.on("message", function (msg, rinfo) {
       console.log("server got: " + msg + " from " +
         rinfo.address + ":" + rinfo.port);
     });
+
     server.on("listening", function () {
       var address = server.address();
-      console.log("server listening " + 
-        address.address + ":" + address.port);
+      console.log("server listening " +
+          address.address + ":" + address.port);
     });
+
     server.bind(41234);
     // server listening 0.0.0.0:41234
 
