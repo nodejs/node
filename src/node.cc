@@ -783,6 +783,8 @@ enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
     return UTF8;
   } else if (strcasecmp(*encoding, "ascii") == 0) {
     return ASCII;
+  } else if (strcasecmp(*encoding, "base64") == 0) {
+    return BASE64;
   } else if (strcasecmp(*encoding, "binary") == 0) {
     return BINARY;
   } else if (strcasecmp(*encoding, "raw") == 0) {

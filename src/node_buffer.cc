@@ -149,6 +149,29 @@ Handle<Value> Buffer::New(const Arguments &args) {
     Local<String> s = args[0]->ToString();
     enum encoding e = ParseEncoding(args[1], UTF8);
     int length = e == UTF8 ? s->Utf8Length() : s->Length();
+
+    // input gets base64-decoded, adjust buffer size
+    if (e == BASE64 && length > 0) {
+      const int remainder = length % 4;
+
+      length = (length / 4) * 3;
+      if (remainder) {
+        if (length == 0 && remainder == 1) {
+          // special case: 1-byte input cannot be decoded, return empty buffer
+          length = 0;
+        } else {
+          // non-padded input, add 1 or 2 extra bytes
+          length += 1 + (remainder == 3);
+        }
+      } else {
+        // check for trailing padding (1 or 2 bytes)
+        const String::AsciiValue data(s);
+        const char *const end = *data + data.length();
+        if (end[-1] == '=') length--;
+        if (end[-2] == '=') length--;
+      }
+    }
+
     buffer = new Buffer(length);
   } else if (Buffer::HasInstance(args[0]) && args.Length() > 2) {
     // var slice = new Buffer(buffer, 123, 130);
@@ -515,6 +538,11 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
 
   String::AsciiValue s(args[0]->ToString());
   size_t offset = args[1]->Int32Value();
+
+  // handle zero-length buffers graciously
+  if (offset == 0 && buffer->length_ == 0) {
+    return scope.Close(Integer::New(0));
+  }
 
   if (offset >= buffer->length_) {
     return ThrowException(Exception::TypeError(String::New(
