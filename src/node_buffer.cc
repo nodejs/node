@@ -557,51 +557,57 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
   const char *pe = buffer->data() + buffer->length_;
 
   int i = 0;
-  char a,b,c,d;
+  char a,b,c,d, last;
 
   bool b_oob, c_oob;
 
   while (i < input_len && p < pe) {
-    if (input[i] == '=' || i >= input_len) break;
-    a = unbase64_table[input[i]];
+    last = input[i];
+    if (last == '=' || i >= input_len) break;
+    a = unbase64_table[last];
     i++;
 
-    if (input[i] == '=' || i >= input_len) {
+    last = input[i];
+    if (last == '=' || i >= input_len) {
       b = 0;
       b_oob = true;
     } else {
-      b = unbase64_table[input[i]];
+      b = unbase64_table[last];
       b_oob = false;
     }
     i++;
 
-    if (b_oob || input[i] == '=' || i >= input_len) {
+    last = input[i];
+    if (b_oob || last == '=' || i >= input_len) {
       c = 0;
       c_oob = true;
     } else {
-      c = unbase64_table[input[i]];
+      c = unbase64_table[last];
       c_oob = false;
     }
     i++;
 
-    if (c_oob || input[i] == '=' || i >= input_len) {
+    last = input[i];
+    if (c_oob || last == '=' || i >= input_len) {
       d = 0;
     } else {
-      d = unbase64_table[input[i]];
+      d = unbase64_table[last];
     }
     i++;
 
-
     *p = (a << 2) | ((b & 0x30) >> 4);
-    if (++p >= pe) break;
+    if (last == '=' && *p == '\0') break;
+    if (++p == pe) break;
 
     if (b_oob) break;
     *p = ((b & 0x0F) << 4) | ((c & 0x3c) >> 2);
-    if (++p >= pe) break;
+    if (last == '=' && *p == '\0') break;
+    if (++p == pe) break;
 
     if (c_oob) break;
     *p = ((c & 0x03) << 6) | (d & 0x3f);
-    if (++p >= pe) break;
+    if (last == '=' && *p == '\0') break;
+    if (++p == pe) break;
   }
 
   return scope.Close(Integer::New(p - start));

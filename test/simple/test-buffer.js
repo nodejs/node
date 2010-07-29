@@ -256,7 +256,7 @@ assert.equal(expected, (new Buffer(quote)).toString('base64'));
 b = new Buffer(1024);
 bytesWritten = b.write(expected, 0, 'base64');
 assert.equal(quote, b.toString('ascii', 0, quote.length));
-assert.equal(quote.length+1, bytesWritten); // writes a \0 too
+assert.equal(quote.length, bytesWritten);
 
 assert.equal(new Buffer('', 'base64').toString(), '');
 assert.equal(new Buffer('K', 'base64').toString(), '');
