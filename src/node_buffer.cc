@@ -86,6 +86,30 @@ static inline void blob_unref(Blob *blob) {
   }
 }
 
+static inline size_t base64_decoded_size(const char *src, size_t size) {
+  const char *const end = src + size;
+  const int remainder = size % 4;
+
+  size = (size / 4) * 3;
+  if (remainder) {
+    if (size == 0 && remainder == 1) {
+      // special case: 1-byte input cannot be decoded
+      size = 0;
+    } else {
+      // non-padded input, add 1 or 2 extra bytes
+      size += 1 + (remainder == 3);
+    }
+  }
+
+  // check for trailing padding (1 or 2 bytes)
+  if (size > 0) {
+    if (end[-1] == '=') size--;
+    if (end[-2] == '=') size--;
+  }
+
+  return size;
+}
+
 #if 0
 // When someone calls buffer.asciiSlice, data is not copied. Instead V8
 // references in the underlying Blob with this ExternalAsciiStringResource.
@@ -151,25 +175,9 @@ Handle<Value> Buffer::New(const Arguments &args) {
     int length = e == UTF8 ? s->Utf8Length() : s->Length();
 
     // input gets base64-decoded, adjust buffer size
-    if (e == BASE64 && length > 0) {
-      const int remainder = length % 4;
-
-      length = (length / 4) * 3;
-      if (remainder) {
-        if (length == 0 && remainder == 1) {
-          // special case: 1-byte input cannot be decoded, return empty buffer
-          length = 0;
-        } else {
-          // non-padded input, add 1 or 2 extra bytes
-          length += 1 + (remainder == 3);
-        }
-      } else {
-        // check for trailing padding (1 or 2 bytes)
-        const String::AsciiValue data(s);
-        const char *const end = *data + data.length();
-        if (end[-1] == '=') length--;
-        if (end[-2] == '=') length--;
-      }
+    if (e == BASE64) {
+      const String::AsciiValue data(s);
+      length = base64_decoded_size(*data, data.length());
     }
 
     buffer = new Buffer(length);
@@ -517,7 +525,6 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
   return scope.Close(Integer::New(written));
 }
 
-
 // var bytesWritten = buffer.base64Write(string, offset);
 Handle<Value> Buffer::Base64Write(const Arguments &args) {
   HandleScope scope;
@@ -549,68 +556,27 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  char *input = *s;
-  int input_len = s.length();
-
-  char *start = buffer->data() + offset;
-  char *p = start;
-  const char *pe = buffer->data() + buffer->length_;
-
-  int i = 0;
-  char a,b,c,d, last;
-
-  bool b_oob, c_oob;
-
-  while (i < input_len && p < pe) {
-    last = input[i];
-    if (last == '=' || i >= input_len) break;
-    a = unbase64_table[last];
-    i++;
-
-    last = input[i];
-    if (last == '=' || i >= input_len) {
-      b = 0;
-      b_oob = true;
-    } else {
-      b = unbase64_table[last];
-      b_oob = false;
-    }
-    i++;
-
-    last = input[i];
-    if (b_oob || last == '=' || i >= input_len) {
-      c = 0;
-      c_oob = true;
-    } else {
-      c = unbase64_table[last];
-      c_oob = false;
-    }
-    i++;
-
-    last = input[i];
-    if (c_oob || last == '=' || i >= input_len) {
-      d = 0;
-    } else {
-      d = unbase64_table[last];
-    }
-    i++;
-
-    *p = (a << 2) | ((b & 0x30) >> 4);
-    if (last == '=' && *p == '\0') break;
-    if (++p == pe) break;
-
-    if (b_oob) break;
-    *p = ((b & 0x0F) << 4) | ((c & 0x3c) >> 2);
-    if (last == '=' && *p == '\0') break;
-    if (++p == pe) break;
-
-    if (c_oob) break;
-    *p = ((c & 0x03) << 6) | (d & 0x3f);
-    if (last == '=' && *p == '\0') break;
-    if (++p == pe) break;
+  const size_t size = base64_decoded_size(*s, s.length());
+  if (size > buffer->length_ - offset) {
+    // throw exception, don't silently truncate
+    return ThrowException(Exception::TypeError(String::New(
+            "Buffer too small")));
   }
 
-  return scope.Close(Integer::New(p - start));
+  char a, b, c, d;
+  char *dst = buffer->data();
+  const char *src = *s;
+  const char *const srcEnd = src + s.length();
+
+  while (src < srcEnd) {
+    const int remaining = srcEnd - src;
+    if (remaining == 0 || *src == '=') break; a = unbase64_table[*src++];
+    if (remaining == 1 || *src == '=') break; b = unbase64_table[*src++]; *dst++ = (a << 2) | ((b & 0x30) >> 4);
+    if (remaining == 2 || *src == '=') break; c = unbase64_table[*src++]; *dst++ = ((b & 0x0F) << 4) | ((c & 0x3C) >> 2);
+    if (remaining == 3 || *src == '=') break; d = unbase64_table[*src++]; *dst++ = ((c & 0x03) << 6) | (d & 0x3F);
+  }
+
+  return scope.Close(Integer::New(size));
 }
 
 

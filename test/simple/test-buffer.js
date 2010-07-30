@@ -298,3 +298,11 @@ assert.equal(new Buffer('KioqKioqKioqKioqKioqKg', 'base64').toString(), '*******
 assert.equal(new Buffer('KioqKioqKioqKioqKioqKio', 'base64').toString(), '*****************');
 assert.equal(new Buffer('KioqKioqKioqKioqKioqKioqKg', 'base64').toString(), '*******************');
 assert.equal(new Buffer('KioqKioqKioqKioqKioqKioqKio', 'base64').toString(), '********************');
+
+// handle padding graciously, multiple-of-4 or not
+assert.equal(new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw==', 'base64').length, 32);
+assert.equal(new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw=',  'base64').length, 32);
+assert.equal(new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw',   'base64').length, 32);
+assert.equal(new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg==',  'base64').length, 31);
+assert.equal(new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=',   'base64').length, 31);
+assert.equal(new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg',    'base64').length, 31);
