@@ -1112,7 +1112,6 @@ function FunctionBind(this_arg) { // Length is 1.
       bound_args[i] = %_Arguments(i+1);
     }  
   }
-  global.print(argc_bound);
   var fn = this;
   var result = function() {
     // Combine the args we got from the bind call with the args
