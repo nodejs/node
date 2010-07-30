@@ -570,10 +570,20 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
 
   while (src < srcEnd) {
     const int remaining = srcEnd - src;
-    if (remaining == 0 || *src == '=') break; a = unbase64_table[*src++];
-    if (remaining == 1 || *src == '=') break; b = unbase64_table[*src++]; *dst++ = (a << 2) | ((b & 0x30) >> 4);
-    if (remaining == 2 || *src == '=') break; c = unbase64_table[*src++]; *dst++ = ((b & 0x0F) << 4) | ((c & 0x3C) >> 2);
-    if (remaining == 3 || *src == '=') break; d = unbase64_table[*src++]; *dst++ = ((c & 0x03) << 6) | (d & 0x3F);
+    if (remaining == 0 || *src == '=') break;
+    a = unbase64_table[*src++];
+
+    if (remaining == 1 || *src == '=') break;
+    b = unbase64_table[*src++];
+    *dst++ = (a << 2) | ((b & 0x30) >> 4);
+
+    if (remaining == 2 || *src == '=') break;
+    c = unbase64_table[*src++];
+    *dst++ = ((b & 0x0F) << 4) | ((c & 0x3C) >> 2);
+
+    if (remaining == 3 || *src == '=') break;
+    d = unbase64_table[*src++];
+    *dst++ = ((c & 0x03) << 6) | (d & 0x3F);
   }
 
   return scope.Close(Integer::New(size));
