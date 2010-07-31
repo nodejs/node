@@ -1019,7 +1019,7 @@ parser_free ()
   parser = NULL;
 }
 
-inline size_t parse (const char *buf, size_t len)
+size_t parse (const char *buf, size_t len)
 {
   size_t nparsed;
   currently_parsing_eof = (len == 0);
@@ -1027,7 +1027,7 @@ inline size_t parse (const char *buf, size_t len)
   return nparsed;
 }
 
-inline size_t parse_count_body (const char *buf, size_t len)
+size_t parse_count_body (const char *buf, size_t len)
 {
   size_t nparsed;
   currently_parsing_eof = (len == 0);
