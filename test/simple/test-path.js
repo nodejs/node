@@ -38,9 +38,11 @@ assert.equal(path.extname("file.ext.ext"), ".ext");
 assert.equal(path.extname("file."), ".");
 
 assert.equal(path.join(".", "fixtures/b", "..", "/b/c.js"), "fixtures/b/c.js");
+assert.equal(path.join("/foo", "../../../bar"), "/bar");
 
 assert.equal(path.normalize("./fixtures///b/../b/c.js"), "fixtures/b/c.js");
 assert.equal(path.normalize("./fixtures///b/../b/c.js",true), "fixtures///b/c.js");
+assert.equal(path.normalize("/foo/../../../bar"), "/bar");
 
 assert.deepEqual(path.normalizeArray(["fixtures","b","","..","b","c.js"]), ["fixtures","b","c.js"]);
 assert.deepEqual(path.normalizeArray(["fixtures","","b","..","b","c.js"], true), ["fixtures","","b","c.js"]);
