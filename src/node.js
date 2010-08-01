@@ -77,7 +77,7 @@ process.compile("(function (exports) {"
   };
 
   // Wrap addListener for the special signal types
-  process.addListener = function (type, listener) {
+  process.on = process.addListener = function (type, listener) {
     var ret = addListener.apply(this, arguments);
     if (isSignal(type)) {
       if (!signalWatchers.hasOwnProperty(type)) {
