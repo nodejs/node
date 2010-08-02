@@ -1631,6 +1631,9 @@ static void Load(int argc, char *argv[]) {
   // who do not like how 'src/node.js' setups the module system but do like
   // Node's I/O bindings may want to replace 'f' with their own function.
 
+  process->Set(String::NewSymbol("_debugWaitConnect"),
+               node::debug_wait_connect ? True() : False());
+
   Local<Value> args[1] = { Local<Value>::New(process) };
 
   f->Call(global, 1, args);
@@ -1741,16 +1744,15 @@ int main(int argc, char *argv[]) {
   int v8argc = node::option_end_index;
   char **v8argv = argv;
 
-  if (node::debug_wait_connect) {
-    // v8argv is a copy of argv up to the script file argument +2 if --debug-brk
-    // to expose the v8 debugger js object so that module.js can set
-    // a breakpoint on the first line of the startup script
-    v8argc += 2;
-    v8argv = new char*[v8argc];
-    memcpy(v8argv, argv, sizeof(argv) * node::option_end_index);
-    v8argv[node::option_end_index] = const_cast<char*>("--expose_debug_as");
-    v8argv[node::option_end_index + 1] = const_cast<char*>("v8debug");
-  }
+  // v8argv is a copy of argv up to the script file argument +2
+  // to expose the v8 debugger js object so that module.js can set
+  // a breakpoint on the first line of the startup script
+  v8argc += 2;
+  v8argv = new char*[v8argc];
+  memcpy(v8argv, argv, sizeof(argv) * node::option_end_index);
+  v8argv[node::option_end_index] = const_cast<char*>("--expose_debug_as");
+  v8argv[node::option_end_index + 1] = const_cast<char*>("v8debug");
+
   V8::SetFlagsFromCommandLine(&v8argc, v8argv, false);
 
   // Ignore SIGPIPE
