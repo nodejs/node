@@ -1911,6 +1911,16 @@ Example of connecting to `google.com`:
       });
     });
 
+There are a few special headers that should be noted.
+
+* The 'Host' header is not added by Node, and is usually required by
+  website.
+
+* Sending a 'Connection: keep-alive' will notify Node that the connection to
+  the server should be persisted until the next request.
+
+* Sending a 'Content-length' header will disable the default chunked encoding.
+
 
 ### Event: 'upgrade'
 
