@@ -211,6 +211,7 @@ class Utf8InputBuffer : public InputBuffer<Utf8, Buffer<const char*>, s> {
   }
 };
 
+
 struct Uppercase {
   static bool Is(uchar c);
 };

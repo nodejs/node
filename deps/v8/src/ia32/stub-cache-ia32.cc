@@ -1033,24 +1033,23 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
 
   // Check that the maps haven't changed.
   Register reg =
-      CheckPrototypes(object, receiver, holder,
-                      scratch1, scratch2, scratch3, name, miss);
+      CheckPrototypes(object, receiver, holder, scratch1,
+                      scratch2, scratch3, name, miss);
 
   Handle<AccessorInfo> callback_handle(callback);
 
-  Register other = reg.is(scratch1) ? scratch2 : scratch1;
   __ EnterInternalFrame();
-  __ PushHandleScope(other);
-  // Push the stack address where the list of arguments ends
-  __ mov(other, esp);
-  __ sub(Operand(other), Immediate(2 * kPointerSize));
-  __ push(other);
+  __ PushHandleScope(scratch2);
+  // Push the stack address where the list of arguments ends.
+  __ mov(scratch2, esp);
+  __ sub(Operand(scratch2), Immediate(2 * kPointerSize));
+  __ push(scratch2);
   __ push(receiver);  // receiver
   __ push(reg);  // holder
   // Push data from AccessorInfo.
   if (Heap::InNewSpace(callback_handle->data())) {
-    __ mov(other, Immediate(callback_handle));
-    __ push(FieldOperand(other, AccessorInfo::kDataOffset));
+    __ mov(scratch2, Immediate(callback_handle));
+    __ push(FieldOperand(scratch2, AccessorInfo::kDataOffset));
   } else {
     __ push(Immediate(Handle<Object>(callback_handle->data())));
   }
@@ -1077,7 +1076,7 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   }
 
   // We need to avoid using eax since that now holds the result.
-  Register tmp = other.is(eax) ? reg : other;
+  Register tmp = scratch2.is(eax) ? reg : scratch2;
   // Emitting PopHandleScope may try to allocate.  Do not allow the
   // assembler to perform a garbage collection but instead return a
   // failure object.

@@ -245,6 +245,10 @@
 		9FBE03E510BD412600F8BFBA /* fast-codegen-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03E410BD412600F8BFBA /* fast-codegen-arm.cc */; };
 		9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 		9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
+		C2BD4BD7120165460046BF9F /* dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD5120165460046BF9F /* dtoa.cc */; };
+		C2BD4BDB120165A70046BF9F /* fixed-dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */; };
+		C2BD4BE4120166180046BF9F /* fixed-dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */; };
+		C2BD4BE51201661F0046BF9F /* dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD5120165460046BF9F /* dtoa.cc */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -308,7 +312,6 @@
 
 /* Begin PBXFileReference section */
 		22A76C900FF259E600FDC694 /* log-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "log-inl.h"; sourceTree = "<group>"; };
-		58242A1E0FA1F14D00BD6F59 /* json-delay.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "json-delay.js"; sourceTree = "<group>"; };
 		58950D4E0F55514900F3E8BA /* jump-target-light.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target-light.cc"; sourceTree = "<group>"; };
 		58950D4F0F55514900F3E8BA /* jump-target-heavy.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target-heavy.cc"; sourceTree = "<group>"; };
 		58950D500F55514900F3E8BA /* jump-target.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target.cc"; sourceTree = "<group>"; };
@@ -528,12 +531,8 @@
 		897FF1A30E719B8F00D62E90 /* zone.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = zone.h; sourceTree = "<group>"; };
 		897FF1A60E719BC100D62E90 /* apinatives.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = apinatives.js; sourceTree = "<group>"; };
 		897FF1A70E719BC100D62E90 /* array.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = array.js; sourceTree = "<group>"; };
-		897FF1A80E719BC100D62E90 /* date-delay.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "date-delay.js"; sourceTree = "<group>"; };
-		897FF1A90E719BC100D62E90 /* debug-delay.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "debug-delay.js"; sourceTree = "<group>"; };
 		897FF1AA0E719BC100D62E90 /* math.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = math.js; sourceTree = "<group>"; };
 		897FF1AB0E719BC100D62E90 /* messages.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = messages.js; sourceTree = "<group>"; };
-		897FF1AC0E719BC100D62E90 /* mirror-delay.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "mirror-delay.js"; sourceTree = "<group>"; };
-		897FF1AD0E719BC100D62E90 /* regexp-delay.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "regexp-delay.js"; sourceTree = "<group>"; };
 		897FF1AE0E719BC100D62E90 /* runtime.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = runtime.js; sourceTree = "<group>"; };
 		897FF1AF0E719BC100D62E90 /* string.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = string.js; sourceTree = "<group>"; };
 		897FF1B00E719BC100D62E90 /* uri.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = uri.js; sourceTree = "<group>"; };
@@ -629,6 +628,10 @@
 		9FC86ABC0F5FEDAC00F22668 /* oprofile-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "oprofile-agent.h"; sourceTree = "<group>"; };
 		9FF7A28211A642EA0051B8F2 /* unbound-queue-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "unbound-queue-inl.h"; sourceTree = "<group>"; };
 		9FF7A28311A642EA0051B8F2 /* unbound-queue.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "unbound-queue.h"; sourceTree = "<group>"; };
+		C2BD4BD5120165460046BF9F /* dtoa.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = dtoa.cc; sourceTree = "<group>"; };
+		C2BD4BD6120165460046BF9F /* dtoa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dtoa.h; sourceTree = "<group>"; };
+		C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "fixed-dtoa.cc"; sourceTree = "<group>"; };
+		C2BD4BDA120165A70046BF9F /* fixed-dtoa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "fixed-dtoa.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -734,6 +737,8 @@
 				897FF1020E719B8F00D62E90 /* assembler-ia32.h */,
 				897FF1030E719B8F00D62E90 /* assembler.cc */,
 				897FF1040E719B8F00D62E90 /* assembler.h */,
+				C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */,
+				C2BD4BDA120165A70046BF9F /* fixed-dtoa.h */,
 				897FF1050E719B8F00D62E90 /* ast.cc */,
 				897FF1060E719B8F00D62E90 /* ast.h */,
 				897FF1070E719B8F00D62E90 /* bootstrapper.cc */,
@@ -801,6 +806,8 @@
 				9FA38B9E1175B2D200C4CD55 /* diy-fp.cc */,
 				9FA38B9F1175B2D200C4CD55 /* diy-fp.h */,
 				9FA38BA01175B2D200C4CD55 /* double.h */,
+				C2BD4BD5120165460046BF9F /* dtoa.cc */,
+				C2BD4BD6120165460046BF9F /* dtoa.h */,
 				897FF12F0E719B8F00D62E90 /* dtoa-config.c */,
 				897FF1300E719B8F00D62E90 /* execution.cc */,
 				897FF1310E719B8F00D62E90 /* execution.h */,
@@ -1017,13 +1024,8 @@
 			children = (
 				897FF1A60E719BC100D62E90 /* apinatives.js */,
 				897FF1A70E719BC100D62E90 /* array.js */,
-				897FF1A80E719BC100D62E90 /* date-delay.js */,
-				897FF1A90E719BC100D62E90 /* debug-delay.js */,
-				58242A1E0FA1F14D00BD6F59 /* json-delay.js */,
 				897FF1AA0E719BC100D62E90 /* math.js */,
 				897FF1AB0E719BC100D62E90 /* messages.js */,
-				897FF1AC0E719BC100D62E90 /* mirror-delay.js */,
-				897FF1AD0E719BC100D62E90 /* regexp-delay.js */,
 				897FF1AE0E719BC100D62E90 /* runtime.js */,
 				897FF1AF0E719BC100D62E90 /* string.js */,
 				897FF1B00E719BC100D62E90 /* uri.js */,
@@ -1284,6 +1286,7 @@
 				89A88DF90E71A6430043BA31 /* compiler.cc in Sources */,
 				89A88DFA0E71A6440043BA31 /* contexts.cc in Sources */,
 				89A88DFB0E71A6440043BA31 /* conversions.cc in Sources */,
+				C2BD4BDB120165A70046BF9F /* fixed-dtoa.cc in Sources */,
 				89A88DFC0E71A6460043BA31 /* counters.cc in Sources */,
 				89A88DFD0E71A6470043BA31 /* cpu-ia32.cc in Sources */,
 				9F2B37271152CEA0007CDAF4 /* cpu-profiler.cc in Sources */,
@@ -1291,6 +1294,7 @@
 				89A88DFE0E71A6480043BA31 /* dateparser.cc in Sources */,
 				8956B6CF0F5D86730033B5A2 /* debug-agent.cc in Sources */,
 				898BD20E0EF6CC930068B00A /* debug-ia32.cc in Sources */,
+				C2BD4BD7120165460046BF9F /* dtoa.cc in Sources */,
 				89A88DFF0E71A6530043BA31 /* debug.cc in Sources */,
 				89A88E000E71A6540043BA31 /* disasm-ia32.cc in Sources */,
 				89A88E010E71A6550043BA31 /* disassembler.cc in Sources */,
@@ -1409,6 +1413,8 @@
 				89F23C4F0E78D5B2006B2466 /* counters.cc in Sources */,
 				89F23C9A0E78D5EC006B2466 /* cpu-arm.cc in Sources */,
 				9F2B37261152CEA0007CDAF4 /* cpu-profiler.cc in Sources */,
+				C2BD4BE4120166180046BF9F /* fixed-dtoa.cc in Sources */,
+				C2BD4BE51201661F0046BF9F /* dtoa.cc in Sources */,
 				9FA38BB31175B2D200C4CD55 /* data-flow.cc in Sources */,
 				89F23C510E78D5B2006B2466 /* dateparser.cc in Sources */,
 				894599A30F5D8729008DA8FB /* debug-agent.cc in Sources */,

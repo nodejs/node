@@ -226,6 +226,12 @@ class GlobalHandles::Pool BASE_EMBEDDED {
       limit_ = current_->nodes + kNodesPerChunk;
     }
 
+    ~Pool() {
+      if (current_ != NULL) {
+        Release();
+      }
+    }
+
     Node* Allocate() {
       if (next_ < limit_) {
         return next_++;

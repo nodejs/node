@@ -12275,7 +12275,7 @@ static const bool kPassHandlesDirectly = false;
 
 
 void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
-  Label get_result;
+  Label empty_handle;
   Label prologue;
   Label promote_scheduled_exception;
   __ EnterApiExitFrame(ExitFrame::MODE_NORMAL, kStackSpace, kArgc);
@@ -12318,20 +12318,20 @@ void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
     // Dereference this to get to the location.
     __ mov(eax, Operand(eax, 0));
   }
-  // Check if the result handle holds 0
+  // Check if the result handle holds 0.
   __ test(eax, Operand(eax));
-  __ j(not_zero, &get_result, taken);
-  // It was zero; the result is undefined.
-  __ mov(eax, Factory::undefined_value());
-  __ jmp(&prologue);
+  __ j(zero, &empty_handle, not_taken);
   // It was non-zero.  Dereference to get the result value.
-  __ bind(&get_result);
   __ mov(eax, Operand(eax, 0));
   __ bind(&prologue);
   __ LeaveExitFrame(ExitFrame::MODE_NORMAL);
   __ ret(0);
   __ bind(&promote_scheduled_exception);
   __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  __ bind(&empty_handle);
+  // It was zero; the result is undefined.
+  __ mov(eax, Factory::undefined_value());
+  __ jmp(&prologue);
 }
 
 

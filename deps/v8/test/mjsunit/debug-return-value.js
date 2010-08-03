@@ -101,7 +101,7 @@ function listener(event, exec_state, event_data, data) {
         exec_state.prepareStep(Debug.StepAction.StepIn, 1);
       } else {
         // Position at the end of the function.
-        assertEquals(debugger_source_position + 51,
+        assertEquals(debugger_source_position + 50,
         exec_state.frame(0).sourcePosition());
         
         // Just about to return from the function.

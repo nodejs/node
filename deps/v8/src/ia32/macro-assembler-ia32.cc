@@ -1052,16 +1052,6 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 }
 
 
-void MacroAssembler::CallExternalReference(ExternalReference ref,
-                                           int num_arguments) {
-  mov(eax, Immediate(num_arguments));
-  mov(ebx, Immediate(ref));
-
-  CEntryStub stub(1);
-  CallStub(&stub);
-}
-
-
 Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
                                        int num_arguments) {
   if (f->nargs >= 0 && f->nargs != num_arguments) {
@@ -1079,6 +1069,16 @@ Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
   mov(ebx, Immediate(ExternalReference(f)));
   CEntryStub ces(1);
   return TryCallStub(&ces);
+}
+
+
+void MacroAssembler::CallExternalReference(ExternalReference ref,
+                                           int num_arguments) {
+  mov(eax, Immediate(num_arguments));
+  mov(ebx, Immediate(ref));
+
+  CEntryStub stub(1);
+  CallStub(&stub);
 }
 
 
@@ -1106,8 +1106,7 @@ void MacroAssembler::PushHandleScope(Register scratch) {
   ExternalReference extensions_address =
       ExternalReference::handle_scope_extensions_address();
   mov(scratch, Operand::StaticVariable(extensions_address));
-  ASSERT_EQ(0, kSmiTag);
-  shl(scratch, kSmiTagSize);
+  SmiTag(scratch);
   push(scratch);
   mov(Operand::StaticVariable(extensions_address), Immediate(0));
   // Push next and limit pointers which will be wordsize aligned and
@@ -1131,16 +1130,14 @@ Object* MacroAssembler::PopHandleScopeHelper(Register saved,
   mov(scratch, Operand::StaticVariable(extensions_address));
   cmp(Operand(scratch), Immediate(0));
   j(equal, &write_back);
-  // Calling a runtime function messes with registers so we save and
-  // restore any one we're asked not to change
-  if (saved.is_valid()) push(saved);
+  push(saved);
   if (gc_allowed) {
     CallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
   } else {
     result = TryCallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
     if (result->IsFailure()) return result;
   }
-  if (saved.is_valid()) pop(saved);
+  pop(saved);
 
   bind(&write_back);
   ExternalReference limit_address =
@@ -1150,7 +1147,7 @@ Object* MacroAssembler::PopHandleScopeHelper(Register saved,
         ExternalReference::handle_scope_next_address();
   pop(Operand::StaticVariable(next_address));
   pop(scratch);
-  shr(scratch, kSmiTagSize);
+  SmiUntag(scratch);
   mov(Operand::StaticVariable(extensions_address), scratch);
 
   return result;

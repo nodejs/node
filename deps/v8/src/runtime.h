@@ -322,6 +322,7 @@ namespace internal {
   F(GetCFrames, 1, 1) \
   F(GetThreadCount, 1, 1) \
   F(GetThreadDetails, 2, 1) \
+  F(SetDisableBreak, 1, 1) \
   F(GetBreakLocations, 1, 1) \
   F(SetFunctionBreakPoint, 3, 1) \
   F(SetScriptBreakPoint, 3, 1) \

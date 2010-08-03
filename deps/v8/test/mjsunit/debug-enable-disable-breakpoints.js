@@ -88,3 +88,18 @@ assertEquals(5, break_point_hit_count);
 Debug.disableBreakPoint(bp1);
 f();
 assertEquals(6, break_point_hit_count);
+
+// Deactivate all breakpoints.
+Debug.debuggerFlags().breakPointsActive.setValue(false);
+f();
+assertEquals(6, break_point_hit_count);
+
+// Enable the first breakpoint.
+Debug.enableBreakPoint(bp1);
+f();
+assertEquals(6, break_point_hit_count);
+
+// Activate all breakpoints.
+Debug.debuggerFlags().breakPointsActive.setValue(true);
+f();
+assertEquals(7, break_point_hit_count);

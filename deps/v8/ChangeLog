@@ -1,3 +1,28 @@
+2010-08-02: Version 2.3.4
+
+        Fixed problems in implementation of ES5 function.prototype.bind.
+
+        Fixed error when using apply with arguments object on ARM (issue 784).
+
+        Added setting of global flags to debugger protocol.
+
+        Fixed an error affecting cached results of sin and cos (issue 792).
+
+        Removed memory leak from a boundary case where V8 is not initialized.
+
+        Fixed issue where debugger could set breakpoints outside the body
+        of a function.
+
+        Fixed issue in debugger when using both live edit and step in features.
+
+        Added Number-letter (Nl) category to Unicode tables.  These characters
+        can now be used in identifiers.
+
+        Fixed an assert failure on X64 (issue 806).
+
+        Performance improvements on all platforms.
+
+
 2010-07-26: Version 2.3.3
 
         Fixed error when building the d8 shell in a fresh checkout.

@@ -1188,7 +1188,8 @@ static bool FixTryCatchHandler(StackFrame* top_frame,
 static const char* DropFrames(Vector<StackFrame*> frames,
                               int top_frame_index,
                               int bottom_js_frame_index,
-                              Debug::FrameDropMode* mode) {
+                              Debug::FrameDropMode* mode,
+                              Object*** restarter_frame_function_pointer) {
   if (Debug::kFrameDropperFrameSize < 0) {
     return "Stack manipulations are not supported in this architecture.";
   }
@@ -1238,7 +1239,10 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   top_frame->set_pc(code->entry());
   pre_top_frame->SetCallerFp(bottom_js_frame->fp());
 
-  Debug::SetUpFrameDropperFrame(bottom_js_frame, code);
+  *restarter_frame_function_pointer =
+      Debug::SetUpFrameDropperFrame(bottom_js_frame, code);
+
+  ASSERT((**restarter_frame_function_pointer)->IsJSFunction());
 
   for (Address a = unused_stack_top;
       a < unused_stack_bottom;
@@ -1328,8 +1332,10 @@ static const char* DropActivationsInActiveThread(
   }
 
   Debug::FrameDropMode drop_mode = Debug::FRAMES_UNTOUCHED;
+  Object** restarter_frame_function_pointer = NULL;
   const char* error_message = DropFrames(frames, top_frame_index,
-                                         bottom_js_frame_index, &drop_mode);
+                                         bottom_js_frame_index, &drop_mode,
+                                         &restarter_frame_function_pointer);
 
   if (error_message != NULL) {
     return error_message;
@@ -1343,7 +1349,8 @@ static const char* DropActivationsInActiveThread(
       break;
     }
   }
-  Debug::FramesHaveBeenDropped(new_id, drop_mode);
+  Debug::FramesHaveBeenDropped(new_id, drop_mode,
+                               restarter_frame_function_pointer);
 
   // Replace "blocked on active" with "replaced on active" status.
   for (int i = 0; i < array_len; i++) {

@@ -433,7 +433,7 @@ void CodeGenerator::CodeForFunctionPosition(FunctionLiteral* fun) {
 
 
 void CodeGenerator::CodeForReturnPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) RecordPositions(masm(), fun->end_position(), false);
+  if (FLAG_debug_info) RecordPositions(masm(), fun->end_position() - 1, false);
 }
 
 

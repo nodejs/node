@@ -316,7 +316,6 @@ class CharacterRange {
   // Negate the contents of a character range in canonical form.
   static void Negate(ZoneList<CharacterRange>* src,
                      ZoneList<CharacterRange>* dst);
-  static const int kRangeCanonicalizeMax = 0x346;
   static const int kStartMarker = (1 << 24);
   static const int kPayloadMask = (1 << 24) - 1;
 

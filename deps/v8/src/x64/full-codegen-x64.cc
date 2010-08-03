@@ -207,7 +207,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     Label check_exit_codesize;
     masm_->bind(&check_exit_codesize);
 #endif
-    CodeGenerator::RecordPositions(masm_, function()->end_position());
+    CodeGenerator::RecordPositions(masm_, function()->end_position() - 1);
     __ RecordJSReturn();
     // Do not use the leave instruction here because it is too short to
     // patch with the code required by the debugger.

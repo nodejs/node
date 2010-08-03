@@ -770,7 +770,7 @@ void FullCodeGenerator::SetFunctionPosition(FunctionLiteral* fun) {
 
 void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
   if (FLAG_debug_info) {
-    CodeGenerator::RecordPositions(masm_, fun->end_position());
+    CodeGenerator::RecordPositions(masm_, fun->end_position() - 1);
   }
 }
 

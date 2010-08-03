@@ -1496,12 +1496,8 @@ void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
 
 
 void Assembler::movq(Register dst, ExternalReference ref) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  emit_rex_64(dst);
-  emit(0xB8 | dst.low_bits());
-  emitq(reinterpret_cast<uintptr_t>(ref.address()),
-        RelocInfo::EXTERNAL_REFERENCE);
+  int64_t value = reinterpret_cast<int64_t>(ref.address());
+  movq(dst, value, RelocInfo::EXTERNAL_REFERENCE);
 }
 
 
@@ -2529,10 +2525,10 @@ void Assembler::movd(Register dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x66);
-  emit_optional_rex_32(dst, src);
+  emit_optional_rex_32(src, dst);
   emit(0x0F);
   emit(0x7E);
-  emit_sse_operand(dst, src);
+  emit_sse_operand(src, dst);
 }
 
 
@@ -2551,10 +2547,10 @@ void Assembler::movq(Register dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x66);
-  emit_rex_64(dst, src);
+  emit_rex_64(src, dst);
   emit(0x0F);
   emit(0x7E);
-  emit_sse_operand(dst, src);
+  emit_sse_operand(src, dst);
 }
 
 

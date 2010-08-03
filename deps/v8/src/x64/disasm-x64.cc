@@ -1019,10 +1019,10 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
                        NameOfXMMRegister(regop));
         current += PrintRightOperand(current);
       } else if (opcode == 0x7E) {
-        AppendToBuffer("mov%c %s,",
-                       rex_w() ? 'q' : 'd',
-                       NameOfCPURegister(regop));
-        current += PrintRightXMMOperand(current);
+        AppendToBuffer("mov%c ",
+                       rex_w() ? 'q' : 'd');
+        current += PrintRightOperand(current);
+        AppendToBuffer(", %s", NameOfXMMRegister(regop));
       } else {
         const char* mnemonic = "?";
         if (opcode == 0x57) {

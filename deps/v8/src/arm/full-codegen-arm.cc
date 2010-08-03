@@ -224,7 +224,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       // Here we use masm_-> instead of the __ macro to avoid the code coverage
       // tool from instrumenting as we rely on the code size here.
       int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
-      CodeGenerator::RecordPositions(masm_, function()->end_position());
+      CodeGenerator::RecordPositions(masm_, function()->end_position() - 1);
       __ RecordJSReturn();
       masm_->mov(sp, fp);
       masm_->ldm(ia_w, sp, fp.bit() | lr.bit());

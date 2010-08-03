@@ -170,7 +170,7 @@ void BreakLocationIterator::Next() {
       // Set the positions to the end of the function.
       if (debug_info_->shared()->HasSourceCode()) {
         position_ = debug_info_->shared()->end_position() -
-                    debug_info_->shared()->start_position();
+                    debug_info_->shared()->start_position() - 1;
       } else {
         position_ = 0;
       }
@@ -1224,36 +1224,42 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   it.FindBreakLocationFromAddress(frame->pc());
 
   // Compute whether or not the target is a call target.
-  bool is_call_target = false;
   bool is_load_or_store = false;
   bool is_inline_cache_stub = false;
+  bool is_at_restarted_function = false;
   Handle<Code> call_function_stub;
-  if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
-    Address target = it.rinfo()->target_address();
-    Code* code = Code::GetCodeFromTargetAddress(target);
-    if (code->is_call_stub() || code->is_keyed_call_stub()) {
-      is_call_target = true;
-    }
-    if (code->is_inline_cache_stub()) {
-      is_inline_cache_stub = true;
-      is_load_or_store = !is_call_target;
-    }
 
-    // Check if target code is CallFunction stub.
-    Code* maybe_call_function_stub = code;
-    // If there is a breakpoint at this line look at the original code to
-    // check if it is a CallFunction stub.
-    if (it.IsDebugBreak()) {
-      Address original_target = it.original_rinfo()->target_address();
-      maybe_call_function_stub =
-          Code::GetCodeFromTargetAddress(original_target);
+  if (thread_local_.restarter_frame_function_pointer_ == NULL) {
+    if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
+      bool is_call_target = false;
+      Address target = it.rinfo()->target_address();
+      Code* code = Code::GetCodeFromTargetAddress(target);
+      if (code->is_call_stub() || code->is_keyed_call_stub()) {
+        is_call_target = true;
+      }
+      if (code->is_inline_cache_stub()) {
+        is_inline_cache_stub = true;
+        is_load_or_store = !is_call_target;
+      }
+
+      // Check if target code is CallFunction stub.
+      Code* maybe_call_function_stub = code;
+      // If there is a breakpoint at this line look at the original code to
+      // check if it is a CallFunction stub.
+      if (it.IsDebugBreak()) {
+        Address original_target = it.original_rinfo()->target_address();
+        maybe_call_function_stub =
+            Code::GetCodeFromTargetAddress(original_target);
+      }
+      if (maybe_call_function_stub->kind() == Code::STUB &&
+          maybe_call_function_stub->major_key() == CodeStub::CallFunction) {
+        // Save reference to the code as we may need it to find out arguments
+        // count for 'step in' later.
+        call_function_stub = Handle<Code>(maybe_call_function_stub);
+      }
     }
-    if (maybe_call_function_stub->kind() == Code::STUB &&
-        maybe_call_function_stub->major_key() == CodeStub::CallFunction) {
-      // Save reference to the code as we may need it to find out arguments
-      // count for 'step in' later.
-      call_function_stub = Handle<Code>(maybe_call_function_stub);
-    }
+  } else {
+    is_at_restarted_function = true;
   }
 
   // If this is the last break code target step out is the only possibility.
@@ -1282,7 +1288,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
       ActivateStepOut(frames_it.frame());
     }
   } else if (!(is_inline_cache_stub || RelocInfo::IsConstructCall(it.rmode()) ||
-               !call_function_stub.is_null())
+               !call_function_stub.is_null() || is_at_restarted_function)
              || step_action == StepNext || step_action == StepMin) {
     // Step next or step min.
 
@@ -1294,9 +1300,18 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
         debug_info->code()->SourceStatementPosition(frame->pc());
     thread_local_.last_fp_ = frame->fp();
   } else {
-    // If it's CallFunction stub ensure target function is compiled and flood
-    // it with one shot breakpoints.
-    if (!call_function_stub.is_null()) {
+    // If there's restarter frame on top of the stack, just get the pointer
+    // to function which is going to be restarted.
+    if (is_at_restarted_function) {
+      Handle<JSFunction> restarted_function(
+          JSFunction::cast(*thread_local_.restarter_frame_function_pointer_));
+      Handle<SharedFunctionInfo> restarted_shared(
+          restarted_function->shared());
+      FloodWithOneShot(restarted_shared);
+    } else if (!call_function_stub.is_null()) {
+      // If it's CallFunction stub ensure target function is compiled and flood
+      // it with one shot breakpoints.
+
       // Find out number of arguments from the stub minor key.
       // Reverse lookup required as the minor key cannot be retrieved
       // from the code object.
@@ -1767,9 +1782,12 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 
 
 void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
-                                  FrameDropMode mode) {
+                                  FrameDropMode mode,
+                                  Object** restarter_frame_function_pointer) {
   thread_local_.frame_drop_mode_ = mode;
   thread_local_.break_frame_id_ = new_break_frame_id;
+  thread_local_.restarter_frame_function_pointer_ =
+      restarter_frame_function_pointer;
 }
 
 

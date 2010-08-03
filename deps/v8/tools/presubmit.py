@@ -27,8 +27,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+try:
+  import hashlib
+  md5er = hashlib.md5
+except ImportError, e:
+  import md5
+  md5er = md5.new
 
-import md5
+
 import optparse
 import os
 from os.path import abspath, join, dirname, basename, exists
@@ -126,7 +132,7 @@ class FileContentsCache(object):
     for file in files:
       try:
         handle = open(file, "r")
-        file_sum = md5.new(handle.read()).digest()
+        file_sum = md5er(handle.read()).digest()
         if not file in self.sums or self.sums[file] != file_sum:
           changed_or_new.append(file)
           self.sums[file] = file_sum

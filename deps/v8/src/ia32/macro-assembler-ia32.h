@@ -393,11 +393,11 @@ class MacroAssembler: public Assembler {
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId id, int num_arguments);
 
-  // Convenience function: call an external reference.
-  void CallExternalReference(ExternalReference ref, int num_arguments);
-
   // Convenience function: Same as above, but takes the fid instead.
   Object* TryCallRuntime(Runtime::FunctionId id, int num_arguments);
+
+  // Convenience function: call an external reference.
+  void CallExternalReference(ExternalReference ref, int num_arguments);
 
   // Tail call of a runtime routine (jump).
   // Like JumpToExternalReference, but also takes care of passing the number
@@ -431,7 +431,7 @@ class MacroAssembler: public Assembler {
   void PushHandleScope(Register scratch);
 
   // Pops a handle scope using the specified scratch register and
-  // ensuring that saved register, it is not no_reg, is left unchanged.
+  // ensuring that saved register is left unchanged.
   void PopHandleScope(Register saved, Register scratch);
 
   // As PopHandleScope, but does not perform a GC.  Instead, returns a

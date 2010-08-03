@@ -43,12 +43,12 @@ bp1 = Debug.setBreakPoint(f, 0, 8);
 assertEquals("() {a=1;[B0]b=2}", Debug.showBreakPoints(f));
 bp2 = Debug.setBreakPoint(f, 0, 4);
 assertEquals("() {[B0]a=1;[B1]b=2}", Debug.showBreakPoints(f));
-bp3 = Debug.setBreakPoint(f, 0, 12);
-assertEquals("() {[B0]a=1;[B1]b=2}[B2]", Debug.showBreakPoints(f));
+bp3 = Debug.setBreakPoint(f, 0, 11);
+assertEquals("() {[B0]a=1;[B1]b=2[B2]}", Debug.showBreakPoints(f));
 Debug.clearBreakPoint(bp1);
-assertEquals("() {[B0]a=1;b=2}[B1]", Debug.showBreakPoints(f));
+assertEquals("() {[B0]a=1;b=2[B1]}", Debug.showBreakPoints(f));
 Debug.clearBreakPoint(bp2);
-assertEquals("() {a=1;b=2}[B0]", Debug.showBreakPoints(f));
+assertEquals("() {a=1;b=2[B0]}", Debug.showBreakPoints(f));
 Debug.clearBreakPoint(bp3);
 assertEquals("() {a=1;b=2}", Debug.showBreakPoints(f));
 
@@ -96,21 +96,21 @@ bp3 = Debug.setBreakPoint(g, 3, 0);
 // }[B2]
 assertTrue(Debug.showBreakPoints(g).indexOf("[B0]a=1;") > 0);
 assertTrue(Debug.showBreakPoints(g).indexOf("[B1]b=2;") > 0);
-assertTrue(Debug.showBreakPoints(g).indexOf("}[B2]") > 0);
+assertTrue(Debug.showBreakPoints(g).indexOf("[B2]}") > 0);
 Debug.clearBreakPoint(bp1);
 // function g() {
 //   [B0]a=1;
 //   b=2;
 // }[B1]
 assertTrue(Debug.showBreakPoints(g).indexOf("[B0]a=1;") > 0);
-assertTrue(Debug.showBreakPoints(g).indexOf("}[B1]") > 0);
+assertTrue(Debug.showBreakPoints(g).indexOf("[B1]}") > 0);
 assertTrue(Debug.showBreakPoints(g).indexOf("[B2]") < 0);
 Debug.clearBreakPoint(bp2);
 // function g() {
 //   a=1;
 //   b=2;
 // }[B0]
-assertTrue(Debug.showBreakPoints(g).indexOf("}[B0]") > 0);
+assertTrue(Debug.showBreakPoints(g).indexOf("[B0]}") > 0);
 assertTrue(Debug.showBreakPoints(g).indexOf("[B1]") < 0);
 Debug.clearBreakPoint(bp3);
 // function g() {

@@ -296,9 +296,10 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
 #undef __
 
 
-void Debug::SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
-                                   Handle<Code> code) {
+Object** Debug::SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
+                                       Handle<Code> code) {
   UNREACHABLE();
+  return NULL;
 }
 const int Debug::kFrameDropperFrameSize = -1;
 

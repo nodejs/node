@@ -1628,6 +1628,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // The function and its two arguments have been dropped.
   frame_->Drop();  // Drop the receiver as well.
   frame_->EmitPush(r0);
+  frame_->SpillAll();  // A spilled frame is also jumping to label done.
   // Stack now has 1 element:
   //   sp[0]: result
   __ bind(&done);

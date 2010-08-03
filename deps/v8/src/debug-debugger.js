@@ -79,6 +79,16 @@ var next_response_seq = 0;
 var next_break_point_number = 1;
 var break_points = [];
 var script_break_points = [];
+var debugger_flags = {
+  breakPointsActive: {
+    value: true,
+    getValue: function() { return this.value; },
+    setValue: function(value) {
+      this.value = !!value;
+      %SetDisableBreak(!this.value);
+    }
+  }
+};
 
 
 // Create a new break point object and add it to the list of break points.
@@ -246,7 +256,7 @@ ScriptBreakPoint.prototype.cloneForOtherScript = function (other_script) {
       other_script.id, this.line_, this.column_, this.groupId_);
   copy.number_ = next_break_point_number++;
   script_break_points.push(copy);
-  
+
   copy.hit_count_ = this.hit_count_;
   copy.active_ = this.active_;
   copy.condition_ = this.condition_;
@@ -813,7 +823,13 @@ Debug.showBreakPoints = function(f, full) {
 Debug.scripts = function() {
   // Collect all scripts in the heap.
   return %DebugGetLoadedScripts();
-}
+};
+
+
+Debug.debuggerFlags = function() {
+  return debugger_flags;
+};
+
 
 function MakeExecutionState(break_id) {
   return new ExecutionState(break_id);
@@ -1325,9 +1341,11 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
       } else if (request.command == 'version') {
         this.versionRequest_(request, response);
       } else if (request.command == 'profile') {
-          this.profileRequest_(request, response);
+        this.profileRequest_(request, response);
       } else if (request.command == 'changelive') {
-          this.changeLiveRequest_(request, response);
+        this.changeLiveRequest_(request, response);
+      } else if (request.command == 'flags') {
+        this.debuggerFlagsRequest_(request, response);
       } else {
         throw new Error('Unknown command "' + request.command + '" in request');
       }
@@ -1617,6 +1635,7 @@ DebugCommandProcessor.prototype.clearBreakPointRequest_ = function(request, resp
   response.body = { breakpoint: break_point }
 }
 
+
 DebugCommandProcessor.prototype.listBreakpointsRequest_ = function(request, response) {
   var array = [];
   for (var i = 0; i < script_break_points.length; i++) {
@@ -1633,7 +1652,7 @@ DebugCommandProcessor.prototype.listBreakpointsRequest_ = function(request, resp
       ignoreCount: break_point.ignoreCount(),
       actual_locations: break_point.actual_locations()
     }
-    
+
     if (break_point.type() == Debug.ScriptBreakPointType.ScriptId) {
       description.type = 'scriptId';
       description.script_id = break_point.script_id();
@@ -1643,7 +1662,7 @@ DebugCommandProcessor.prototype.listBreakpointsRequest_ = function(request, resp
     }
     array.push(description);
   }
-  
+
   response.body = { breakpoints: array }
 }
 
@@ -2086,7 +2105,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
   }
 
   var change_log = new Array();
-  
+
   if (!IS_STRING(request.arguments.new_source)) {
     throw "new_source argument expected";
   }
@@ -2096,7 +2115,44 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(request, response)
   var result_description = Debug.LiveEdit.SetScriptSource(the_script,
       new_source, preview_only, change_log);
   response.body = {change_log: change_log, result: result_description};
+  
+  if (!preview_only && !this.running_ && result_description.stack_modified) {
+    response.body.stepin_recommended = true;
+  }
 };
+
+
+DebugCommandProcessor.prototype.debuggerFlagsRequest_ = function(request,
+                                                                 response) {
+  // Check for legal request.
+  if (!request.arguments) {
+    response.failed('Missing arguments');
+    return;
+  }
+
+  // Pull out arguments.
+  var flags = request.arguments.flags;
+
+  response.body = { flags: [] };
+  if (!IS_UNDEFINED(flags)) {
+    for (var i = 0; i < flags.length; i++) {
+      var name = flags[i].name;
+      var debugger_flag = debugger_flags[name];
+      if (!debugger_flag) {
+        continue;
+      }
+      if ('value' in flags[i]) {
+        debugger_flag.setValue(flags[i].value);
+      }
+      response.body.flags.push({ name: name, value: debugger_flag.getValue() });
+    }
+  } else {
+    for (var name in debugger_flags) {
+      var value = debugger_flags[name].getValue();
+      response.body.flags.push({ name: name, value: value });
+    }
+  }
+}
 
 
 // Check whether the previously processed command caused the VM to become

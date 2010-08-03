@@ -1175,11 +1175,11 @@ TEST(BreakPointReturn) {
   foo->Call(env->Global(), 0, NULL);
   CHECK_EQ(1, break_point_hit_count);
   CHECK_EQ(0, last_source_line);
-  CHECK_EQ(16, last_source_column);
+  CHECK_EQ(15, last_source_column);
   foo->Call(env->Global(), 0, NULL);
   CHECK_EQ(2, break_point_hit_count);
   CHECK_EQ(0, last_source_line);
-  CHECK_EQ(16, last_source_column);
+  CHECK_EQ(15, last_source_column);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
