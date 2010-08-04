@@ -236,6 +236,7 @@ size_t OS::AllocateAlignment() {
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool is_executable) {
+  // TODO(805): Port randomization of allocated executable memory to Linux.
   const size_t msize = RoundUp(requested, sysconf(_SC_PAGESIZE));
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
   void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

@@ -838,12 +838,38 @@ size_t OS::AllocateAlignment() {
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool is_executable) {
+  // The address range used to randomize RWX allocations in OS::Allocate
+  // Try not to map pages into the default range that windows loads DLLs
+  // Note: This does not guarantee RWX regions will be within the
+  // range kAllocationRandomAddressMin to kAllocationRandomAddressMax
+#ifdef V8_HOST_ARCH_64_BIT
+  static const intptr_t kAllocationRandomAddressMin = 0x0000000080000000;
+  static const intptr_t kAllocationRandomAddressMax = 0x000004FFFFFFFFFF;
+#else
+  static const intptr_t kAllocationRandomAddressMin = 0x04000000;
+  static const intptr_t kAllocationRandomAddressMax = 0x4FFFFFFF;
+#endif
+
   // VirtualAlloc rounds allocated size to page size automatically.
   size_t msize = RoundUp(requested, static_cast<int>(GetPageSize()));
+  intptr_t address = NULL;
 
   // Windows XP SP2 allows Data Excution Prevention (DEP).
   int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  LPVOID mbase = VirtualAlloc(NULL, msize, MEM_COMMIT | MEM_RESERVE, prot);
+
+  // For exectutable pages try and randomize the allocation address
+  if (prot == PAGE_EXECUTE_READWRITE && msize >= Page::kPageSize) {
+      address = (V8::Random() << kPageSizeBits) | kAllocationRandomAddressMin;
+      address &= kAllocationRandomAddressMax;
+  }
+
+  LPVOID mbase = VirtualAlloc(reinterpret_cast<void *>(address),
+                              msize,
+                              MEM_COMMIT | MEM_RESERVE,
+                              prot);
+  if (mbase == NULL && address != NULL)
+    mbase = VirtualAlloc(NULL, msize, MEM_COMMIT | MEM_RESERVE, prot);
+
   if (mbase == NULL) {
     LOG(StringEvent("OS::Allocate", "VirtualAlloc failed"));
     return NULL;

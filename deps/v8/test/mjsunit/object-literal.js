@@ -103,3 +103,110 @@ a = makeRegexpInObject();
 b = makeRegexpInObject();
 assertTrue(a.a.b === b.a.b);
 assertFalse(a.a.c === b.a.c);
+
+
+// Test keywords valid as property names in initializers and dot-access.
+var keywords = [
+  "break",
+  "case",
+  "catch",
+  "const",
+  "continue",
+  "debugger",
+  "default",
+  "delete",
+  "do",
+  "else",
+  "false",
+  "finally",
+  "for",
+  "function",
+  "if",
+  "in",
+  "instanceof",
+  "native",
+  "new",
+  "null",
+  "return",
+  "switch",
+  "this",
+  "throw",
+  "true",
+  "try",
+  "typeof",
+  "var",
+  "void",
+  "while",
+  "with",
+];
+
+function testKeywordProperty(keyword) {
+  try {
+    // Sanity check that what we get is a keyword.
+    eval("var " + keyword + " = 42;");
+    assertUnreachable("Not a keyword: " + keyword);
+  } catch (e) { }
+  
+  // Simple property, read and write.
+  var x = eval("({" + keyword + ": 42})");
+  assertEquals(42, x[keyword]);
+  assertEquals(42, eval("x." + keyword));
+  eval("x." + keyword + " = 37");
+  assertEquals(37, x[keyword]);
+  assertEquals(37, eval("x." + keyword));
+  
+  // Getter/setter property, read and write.
+  var y = eval("({value : 42, get " + keyword + "(){return this.value}," +
+               " set " + keyword + "(v) { this.value = v; }})");
+  assertEquals(42, y[keyword]);
+  assertEquals(42, eval("y." + keyword));
+  eval("y." + keyword + " = 37");
+  assertEquals(37, y[keyword]);
+  assertEquals(37, eval("y." + keyword));
+  
+  // Quoted keyword works is read back by unquoted as well.
+  var z = eval("({\"" + keyword + "\": 42})");
+  assertEquals(42, z[keyword]);
+  assertEquals(42, eval("z." + keyword));
+  
+  // Function property, called.
+  var was_called;
+  function test_call() { this.was_called = true; was_called = true; }
+  var w = eval("({" + keyword + ": test_call, was_called: false})");
+  eval("w." + keyword + "();");
+  assertTrue(was_called);
+  assertTrue(w.was_called);
+
+  // Function property, constructed.
+  function construct() { this.constructed = true; }
+  var v = eval("({" + keyword + ": construct})");
+  var vo = eval("new v." + keyword + "()");
+  assertTrue(vo instanceof construct);
+  assertTrue(vo.constructed);
+}
+
+for (var i = 0; i < keywords.length; i++) {
+  testKeywordProperty(keywords[i]);
+}
+
+// Test getter and setter properties with string/number literal names.
+
+var obj = {get 42() { return 42; },
+           get 3.14() { return "PI"; },
+           get "PI"() { return 3.14; },
+           readback: 0,
+           set 37(v) { this.readback = v; },
+           set 1.44(v) { this.readback = v; },
+           set "Poo"(v) { this.readback = v; }}
+
+assertEquals(42, obj[42]);
+assertEquals("PI", obj[3.14]);
+assertEquals(3.14, obj["PI"]);
+obj[37] = "t1";
+assertEquals("t1", obj.readback);
+obj[1.44] = "t2";
+assertEquals("t2", obj.readback);
+obj["Poo"] = "t3";
+assertEquals("t3", obj.readback);
+
+

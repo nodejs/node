@@ -1,3 +1,12 @@
+2010-08-04: Version 2.3.5
+
+        Added support for ES5 property names. Object initialisers and
+        dot-notation property access now allows keywords. Also allowed
+        non-identifiers after "get" or "set" in an object initialiser.
+
+        Randomize the addresses of allocated executable memory on Windows.
+
+
 2010-08-02: Version 2.3.4
 
         Fixed problems in implementation of ES5 function.prototype.bind.

@@ -158,11 +158,6 @@ S15.5.4.11_D1.1_T1: PASS || FAIL_OK
 S15.5.4.11_D1.1_T3: PASS || FAIL_OK
 S12.6.4_D1: PASS || FAIL_OK
 
-# We deliberately don't throw type errors when iterating through the
-# undefined object
-S9.9_A1: FAIL_OK
-S9.9_A2: FAIL_OK
-
 # We allow function declarations within statements
 S12.5_A9_T1: FAIL_OK
 S12.5_A9_T2: FAIL_OK
@@ -183,6 +178,21 @@ S15.3.4.2_A1_T1: FAIL_OK
 # We follow the other major JS engines by keeping this default.
 S8.5_A2.2: PASS, FAIL if $system == linux, FAIL if $system == macos
 S8.5_A2.1: PASS, FAIL if $system == linux, FAIL if $system == macos
+
+##################### ES3 TESTS #########################
+# These tests check for ES3 semantics, and differ from ES5.
+# When we follow ES5 semantics, it's ok to fail the test.
+
+# Allow keywords as names of properties in object initialisers and 
+# in dot-notation property access. 
+S11.1.5_A4.1: FAIL_OK
+S11.1.5_A4.2: FAIL_OK
+
+# Don't throw type errors when iterating through the undefined object.
+S9.9_A1: FAIL_OK
+S9.9_A2: FAIL_OK
+
+
 
 ##################### SKIPPED TESTS #####################
 

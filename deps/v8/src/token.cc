@@ -53,4 +53,12 @@ int8_t Token::precedence_[NUM_TOKENS] = {
 #undef T
 
 
+#define KT(a, b, c) 'T',
+#define KK(a, b, c) 'K',
+const char Token::token_type[] = {
+  TOKEN_LIST(KT, KK, IGNORE_TOKEN)
+};
+#undef KT
+#undef KK
+
 } }  // namespace v8::internal

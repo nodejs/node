@@ -305,14 +305,13 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
       }
       Handle<Object> result;
       uint32_t element_index = 0;
-      if (key->IsSymbol()) {
-        // If key is a symbol it is not an array element.
-        Handle<String> name(String::cast(*key));
-        ASSERT(!name->AsArrayIndex(&element_index));
-        result = SetProperty(boilerplate, name, value, NONE);
-      } else if (key->ToArrayIndex(&element_index)) {
+      if (key->ToArrayIndex(&element_index)) {
         // Array index (uint32).
         result = SetElement(boilerplate, element_index, value);
+      } else if (key->IsSymbol()) {
+        // The key is not an array index.
+        Handle<String> name(String::cast(*key));
+        result = SetProperty(boilerplate, name, value, NONE);
       } else {
         // Non-uint32 number.
         ASSERT(key->IsNumber());
