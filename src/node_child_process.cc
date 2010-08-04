@@ -36,7 +36,7 @@ static inline int SetNonBlocking(int fd) {
 
 static inline int SetBlocking(int fd) {
   int flags = fcntl(fd, F_GETFL, 0);
-  int r = fcntl(fd, F_SETFL, flags ^ O_NONBLOCK);
+  int r = fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
   if (r != 0) perror("SetBlocking()");
   return r;
 }
