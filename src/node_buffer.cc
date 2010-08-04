@@ -327,7 +327,7 @@ Handle<Value> Buffer::Base64Slice(const Arguments &args) {
   int out_len = (n + 2 - ((n + 2) % 3)) / 3 * 4;
   char *out = new char[out_len];
 
-  char bitbuf[3];
+  uint8_t bitbuf[3];
   int i = start; // data() index
   int j = 0; // out index
   char c;

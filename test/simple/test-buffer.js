@@ -306,3 +306,11 @@ assert.equal(new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw',   'base64
 assert.equal(new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg==',  'base64').length, 31);
 assert.equal(new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=',   'base64').length, 31);
 assert.equal(new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg',    'base64').length, 31);
+
+// This string encodes single '.' character in UTF-16
+dot = new Buffer('//4uAA==', 'base64');
+assert.equal(dot[0], 0xff);
+assert.equal(dot[1], 0xfe);
+assert.equal(dot[2], 0x2e);
+assert.equal(dot[3], 0x00);
+assert.equal(dot.toString('base64'), '//4uAA==');
