@@ -1,4 +1,28 @@
-2010.07.25, Version 0.1.102
+2010.08.04, Version 0.1.103
+
+* Implement keep-alive for http.Client (Mikeal Rogers)
+
+* base64 fixes. (Ben Noordhuis)
+
+* Fix --debug-brk (Danny Coates)
+
+* Don't let path.normalize get above the root. (Isaac Schlueter)
+
+* Allow signals to be used with process.on in addition to
+  process.addListener. (Brian White)
+
+* Globalize the Buffer object
+
+* Use kqueue on recent macintosh builds
+
+* Fix addrlen for unix_dgram sockets (Benjamin Kramer)
+
+* Fix stats.isDirectory() and friends (Benjamin Kramer)
+
+* Upgrade http-parser, V8 to 2.3.5
+
+
+2010.07.25, Version 0.1.102, 2a4568c85f33869c75ff43ccd30f0ec188b43eab
 
 * base64 encoding for Buffers.
 
