@@ -106,6 +106,23 @@ process.assert(foo.bar.expect === foo.bar.actual);
 assert.equal(require('../fixtures/foo').foo, 'ok',
   'require module with no extension');
 
+// Should not attempt to load a directory
+try {
+  require("../fixtures/empty");
+} catch(err) {
+  assert.equal(err.message, "Cannot find module '../fixtures/empty'");
+}
+
+var asyncRequireDir = false;
+require.async("../fixtures/empty", function (err, a) {
+  assert.ok(err);
+
+  if (err) {
+    asyncRequireDir = true;
+    assert.equal(err.message, "Cannot find module '../fixtures/empty'");
+  }
+});
+
 process.addListener("exit", function () {
   assert.equal(true, a.A instanceof Function);
   assert.equal("A done", a.A());
@@ -127,6 +144,8 @@ process.addListener("exit", function () {
   assert.equal(true, asyncRun);
 
   assert.equal(true, errorThrownAsync);
+
+  assert.equal(true, asyncRequireDir);
 
   console.log("exit");
 });
