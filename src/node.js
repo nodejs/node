@@ -233,9 +233,6 @@ global.console.assert = function(expression){
 
 global.Buffer = module.requireNative('buffer').Buffer;
 
-process.debug = global.v8debug.Debug;
-global.v8debug = undefined;
-
 process.exit = function (code) {
   process.emit("exit");
   process.reallyExit(code);
