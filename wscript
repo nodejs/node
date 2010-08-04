@@ -164,7 +164,7 @@ def configure(conf):
     if conf.check_cfg(package='openssl',
                       args='--cflags --libs',
                       uselib_store='OPENSSL'):
-      conf.env["USE_OPENSSL"] = True
+      Options.options.use_openssl = conf.env["USE_OPENSSL"] = True
       conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
     else:
       libssl = conf.check_cc(lib='ssl',
@@ -176,7 +176,7 @@ def configure(conf):
                                 header_name='openssl/crypto.h',
                                 uselib_store='OPENSSL')
       if libcrypto and libssl:
-        conf.env["USE_OPENSSL"] = True
+        conf.env["USE_OPENSSL"] = Options.options.use_openssl = True
         conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
 
   conf.check(lib='rt', uselib_store='RT')
@@ -556,7 +556,11 @@ def shutdown():
   Options.options.debug
   # HACK to get binding.node out of build directory.
   # better way to do this?
-  if not Options.commands['clean']:
+  if Options.commands['configure']:
+    if not Options.options.use_openssl:
+      print "WARNING WARNING WARNING"
+      print "OpenSSL not found. Will compile Node without crypto support!"
+  elif not Options.commands['clean']:
     if os.path.exists('build/default/node') and not os.path.exists('node'):
       os.symlink('build/default/node', 'node')
     if os.path.exists('build/debug/node_g') and not os.path.exists('node_g'):
