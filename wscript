@@ -540,6 +540,7 @@ def build(bld):
     src/node_object_wrap.h
     src/node_buffer.h
     src/node_events.h
+    src/node_version.h
   """)
 
   # Only install the man page if it exists.
