@@ -19,3 +19,7 @@ script = new Script('foo = 3;');
 result = script.runInContext(context);
 assert.equal(3, context.foo);
 assert.equal('lala', context.thing);
+
+
+// Issue GH-227:
+Script.runInNewContext('', null, 'some.js');

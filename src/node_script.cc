@@ -175,7 +175,7 @@ template <node::Script::EvalInputFlags iFlag,
 
   Local<Object> sandbox;
   if (cFlag == newContext) {
-    sandbox = args.Length() > sbIndex ? args[sbIndex]->ToObject() : Object::New();
+    sandbox = args[sbIndex]->IsObject() ? args[sbIndex]->ToObject() : Object::New();
   } else if (cFlag == userContext) {
     sandbox = args[sbIndex]->ToObject();
   }
