@@ -235,7 +235,17 @@ global.console.error = global.console.warn;
 global.console.dir = function(object){
   var sys = module.requireNative('sys');
   process.stdout.write(sys.inspect(object) + '\n');
-}
+};
+
+var times = {};
+global.console.time = function(label){
+  times[label] = Date.now();
+};
+
+global.console.timeEnd = function(label){
+  var duration = Date.now() - times[label];
+  global.console.log('%s: %dms', label, duration);
+};
 
 global.console.assert = function(expression){
   if(!expression){
