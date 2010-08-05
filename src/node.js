@@ -247,6 +247,16 @@ global.console.timeEnd = function(label){
   global.console.log('%s: %dms', label, duration);
 };
 
+global.console.trace = function(label){
+  // TODO probably can to do this better with V8's debug object once that is
+  // exposed.
+  var err = new Error;
+  err.name = 'Trace';
+  err.message = label || '';
+  Error.captureStackTrace(err, arguments.callee);
+  console.error(err.stack);
+};
+
 global.console.assert = function(expression){
   if(!expression){
     var arr = Array.prototype.slice.call(arguments, 1);
