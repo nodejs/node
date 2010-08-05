@@ -203,7 +203,7 @@ function format (f) {
 
   var i = 1;
   var args = arguments;
-  return String(f).replace(formatRegExp, function (x) {
+  var str = String(f).replace(formatRegExp, function (x) {
     switch (x) {
       case '%s': return args[i++];
       case '%d': return +args[i++];
@@ -212,6 +212,10 @@ function format (f) {
         return x;
     }
   });
+  for (var len = args.length; i < len; ++i) {
+    str += ' ' + args[i];
+  }
+  return str;
 }
 
 global.console = {};
