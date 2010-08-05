@@ -192,6 +192,15 @@ process.openStdin = function () {
 // console object
 var formatRegExp = /%[sdj]/g;
 function format (f) {
+  if (typeof f !== 'string') {
+    var objects = [], sys = module.requireNative('sys');
+    for (var i = 0; i < arguments.length; i++) {
+      objects.push(sys.inspect(arguments[i]));
+    }
+    return objects.join(' ');
+  }
+
+
   var i = 1;
   var args = arguments;
   return String(f).replace(formatRegExp, function (x) {
