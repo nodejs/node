@@ -1054,6 +1054,7 @@ There is a second optional argument to specify several options. The default opti
     , timeout: 0
     , maxBuffer: 200*1024
     , killSignal: 'SIGKILL'
+    , cwd: null
     , env: null
     }
 
