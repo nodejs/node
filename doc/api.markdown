@@ -938,11 +938,22 @@ Example:
     grep.stdin.end();
 
 
-### child_process.spawn(command, args=[], env=process.env)
+### child_process.spawn(command, args=[], [options])
 
-Launches a new process with the given `command`, command line arguments, and
-environment variables.  If omitted, `args` defaults to an empty Array, and `env`
-defaults to `process.env`.
+Launches a new process with the given `command`, with  command line arguments in `args`.
+If omitted, `args` defaults to an empty Array.
+
+The third argument is used to specify additional options, which defaults to:
+
+    { cwd: undefined
+    , env: process.env,
+    , customFds: [-1, -1, -1]
+    }
+
+`cwd` allows you to specify the working directory from which the process is spawned.
+Use `env` to specify environment variables that will be visible to the new process.
+With `customFds` it is possible to hook up the new process' [stdin, stout, stderr] to
+existing streams; `-1` means that a new stream should be created.
 
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit code:
 

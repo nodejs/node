@@ -75,7 +75,8 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
   if (args.Length() < 3 ||
       !args[0]->IsString() ||
       !args[1]->IsArray() ||
-      !args[2]->IsArray()) {
+      !args[2]->IsString() ||
+      !args[3]->IsArray()) {
     return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
 
@@ -99,8 +100,12 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
     argv[i+1] = strdup(*arg);
   }
 
-  // Copy third argument, args[2], into a c-string array called env.
-  Local<Array> env_handle = Local<Array>::Cast(args[2]);
+  // Copy third argument, args[2], into a c-string called cwd.
+  String::Utf8Value arg(args[2]->ToString());
+  char *cwd = strdup(*arg);
+
+  // Copy fourth argument, args[3], into a c-string array called env.
+  Local<Array> env_handle = Local<Array>::Cast(args[3]);
   int envc = env_handle->Length();
   char **env = new char*[envc+1]; // heap allocated to detect errors
   env[envc] = NULL;
@@ -110,9 +115,9 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
   }
 
   int custom_fds[3] = { -1, -1, -1 };
-  if (args[3]->IsArray()) {
+  if (args[4]->IsArray()) {
     // Set the custom file descriptor values (if any) for the child process
-    Local<Array> custom_fds_handle = Local<Array>::Cast(args[3]);
+    Local<Array> custom_fds_handle = Local<Array>::Cast(args[4]);
     int custom_fds_len = custom_fds_handle->Length();
     for (int i = 0; i < custom_fds_len; i++) {
       if (custom_fds_handle->Get(i)->IsUndefined()) continue;
@@ -123,7 +128,7 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
 
   int fds[3];
 
-  int r = child->Spawn(argv[0], argv, env, fds, custom_fds);
+  int r = child->Spawn(argv[0], argv, cwd, env, fds, custom_fds);
 
   for (i = 0; i < argv_length; i++) free(argv[i]);
   delete [] argv;
@@ -200,6 +205,7 @@ void ChildProcess::Stop() {
 //
 int ChildProcess::Spawn(const char *file,
                         char *const args[],
+                        const char *cwd,
                         char **env,
                         int stdio_fds[3],
                         int custom_fds[3]) {
@@ -249,6 +255,11 @@ int ChildProcess::Spawn(const char *file,
       } else {
         SetBlocking(custom_fds[2]);
         dup2(custom_fds[2], STDERR_FILENO);
+      }
+
+      if (strlen(cwd) && chdir(cwd)) {
+        perror("chdir()");
+        _exit(127);
       }
 
       environ = env;

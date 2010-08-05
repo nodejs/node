@@ -2,7 +2,7 @@ common = require("../common");
 assert = common.assert
 
 var spawn = require('child_process').spawn;
-child = spawn('/usr/bin/env', [], {'HELLO' : 'WORLD'});
+child = spawn('/usr/bin/env', [], {env: {'HELLO' : 'WORLD'}});
 
 response = "";
 

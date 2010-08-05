@@ -21,7 +21,7 @@ function test1(next) {
   console.log("Test 1...");
   fs.open(helloPath, 'w', 400, function (err, fd) {
     if (err) throw err;
-    var child = spawn('/bin/echo', [expected], undefined, [-1, fd] );
+    var child = spawn('/bin/echo', [expected], {customFds: [-1, fd]});
 
     assert.notEqual(child.stdin, null);
     assert.equal(child.stdout, null);
@@ -50,7 +50,7 @@ function test2(next) {
   fs.open(helloPath, 'r', undefined, function (err, fd) {
     var child = spawn(process.argv[0]
                      , [fixtPath('stdio-filter.js'), 'o', 'a']
-                     , undefined, [fd, -1, -1]);
+                     , {customFds: [fd, -1, -1]});
 
     assert.equal(child.stdin, null);
     var actualData = '';
@@ -74,7 +74,7 @@ function test3(next) {
   console.log("Test 3...");
   var filter = spawn(process.argv[0]
                    , [fixtPath('stdio-filter.js'), 'o', 'a']);
-  var echo = spawn('/bin/echo', [expected], undefined, [-1, filter.fds[0]]);
+  var echo = spawn('/bin/echo', [expected], {customFds: [-1, filter.fds[0]]});
   var actualData = '';
   filter.stdout.addListener('data', function(data) {
     console.log("  Got data --> " + data);
