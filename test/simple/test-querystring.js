@@ -165,3 +165,6 @@ var f = qs.stringify({
   }, ";", ":")
 }, ";", ":");
 assert.equal(f, "a:b;q:x%3Ay%3By%3Az");
+
+
+assert.deepEqual({}, qs.parse());
