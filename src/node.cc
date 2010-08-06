@@ -926,7 +926,7 @@ static void ReportException(TryCatch &try_catch, bool show_line) {
     //
     // When reporting errors on the first line of a script, this wrapper
     // function is leaked to the user. This HACK is to remove it. The length
-    // of the wrapper is 62. That wrapper is defined in lib/module.js
+    // of the wrapper is 62. That wrapper is defined in src/node.js
     //
     // If that wrapper is ever changed, then this number also has to be
     // updated. Or - someone could clean this up so that the two peices
@@ -1496,7 +1496,6 @@ static Handle<Value> Binding(const Arguments& args) {
     exports->Set(String::New("url"),          String::New(native_url));
     exports->Set(String::New("utils"),        String::New(native_utils));
     exports->Set(String::New("path"),         String::New(native_path));
-    exports->Set(String::New("module"),       String::New(native_module));
     exports->Set(String::New("string_decoder"), String::New(native_string_decoder));
     binding_cache->Set(module, exports);
   } else {
@@ -1743,7 +1742,7 @@ int main(int argc, char *argv[]) {
 
   if (node::debug_wait_connect) {
     // v8argv is a copy of argv up to the script file argument +2 if --debug-brk
-    // to expose the v8 debugger js object so that module.js can set
+    // to expose the v8 debugger js object so that node.js can set
     // a breakpoint on the first line of the startup script
     v8argc += 2;
     v8argv = new char*[v8argc];
