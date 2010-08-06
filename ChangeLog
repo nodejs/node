@@ -228,7 +228,7 @@
 
   * Fix child process exit codes (Felix Geisendörfer)
 
-  * Allow callers to disable PHP/Rails style parameter mungeing in
+  * Allow callers to disable PHP/Rails style parameter munging in
     querystring.stringify (Thomas Lee)
 
   * Upgrade V8 to 2.2.6

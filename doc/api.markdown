@@ -2976,7 +2976,7 @@ Example:
     // returns
     'foo:bar;baz:bob'
 
-By default, this function will perform PHP/Rails-style parameter mungeing for arrays and objects used as
+By default, this function will perform PHP/Rails-style parameter munging for arrays and objects used as
 values within `obj`.
 Example:
 
@@ -2988,7 +2988,7 @@ Example:
     // returns
     'foo%5Bbar%5D=baz'
 
-If you wish to disable the array mungeing (e.g. when generating parameters for a Java servlet), you
+If you wish to disable the array munging (e.g. when generating parameters for a Java servlet), you
 can set the `munge` argument to `false`.
 Example:
 
