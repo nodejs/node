@@ -218,7 +218,7 @@ is emitted. These functions are called _listeners_.
 All EventEmitters emit the event `'newListener'` when new listeners are
 added.
 
-When an EventEmitter experiences an error, the typical action is to emit an
+When an `EventEmitter` experiences an error, the typical action is to emit an
 `'error'` event.  Error events are special--if there is no handler for them
 they will print a stack trace and exit the program.
 
@@ -896,7 +896,7 @@ To create a child process use `require('child_process').spawn()`.
 Child processes always have three streams associated with them. `child.stdin`,
 `child.stdout`, and `child.stderr`.
 
-`ChildProcess` is an EventEmitter.
+`ChildProcess` is an `EventEmitter`.
 
 ### Event:  'exit'
 
@@ -1644,7 +1644,7 @@ HTTPS is supported if OpenSSL is available on the underlying platform.
 
 ## http.Server
 
-This is an EventEmitter with the following events:
+This is an `EventEmitter` with the following events:
 
 ### Event: 'request'
 
@@ -1696,13 +1696,9 @@ sent to the server on that socket.
 
 If a client connection emits an 'error' event - it will forwarded here.
 
-### http.createServer(requestListener, [options])
+### http.createServer(requestListener)
 
 Returns a new web server object.
-
-The `options` argument is optional. The
-`options` argument accepts the same values as the
-options argument for `net.Server`.
 
 The `requestListener` is a function which is automatically
 added to the `'request'` event.
@@ -1743,7 +1739,7 @@ Stops the server from accepting new connections.
 This object is created internally by a HTTP server--not by
 the user--and passed as the first argument to a `'request'` listener.
 
-This is an EventEmitter with the following events:
+This is an `EventEmitter` with the following events:
 
 ### Event: 'data'
 
@@ -2143,7 +2139,7 @@ changed to
 
     server.listen('/tmp/echo.sock');
 
-This is an EventEmitter with the following events:
+This is an `EventEmitter` with the following events:
 
 ### Event: 'connection'
 
@@ -2204,7 +2200,7 @@ instance implement a duplex stream interface.  They can be created by the
 user and used as a client (with `connect()`) or they can be created by Node
 and passed to the user through the `'connection'` event of a server.
 
-`net.Stream` instances are an EventEmitters with the following events:
+`net.Stream` instances are EventEmitters with the following events:
 
 ### Event: 'connect'
 
