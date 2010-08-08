@@ -5,7 +5,6 @@
   - fix for commands that extend beyond term width
   - tab completion interface
 - SSL should be factored out of net.js into standalone stream object
-- base64 write and toString for buffers
 - add completion callbacks to all stream write() methods
 - Erradicate all traces of 'binary' encoding. Only used, now, in OpenSSL
   binding.
