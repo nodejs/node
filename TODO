@@ -13,3 +13,6 @@
   allowed.
 - debug and production modes
 - EventSource branch merged
+- TCP servers should have an optional number of maximum connections. When
+  the maximum is reached it stops accepting new connections.
+- compile under clang
