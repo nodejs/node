@@ -34,10 +34,13 @@ static inline int SetNonBlocking(int fd) {
 }
 
 
-static inline int SetBlocking(int fd) {
+static inline int ResetFlags(int fd) {
   int flags = fcntl(fd, F_GETFL, 0);
+  // blocking
   int r = fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
-  if (r != 0) perror("SetBlocking()");
+  flags = fcntl(fd, F_GETFD, 0);
+  // unset the CLOEXEC
+  fcntl(fd, F_SETFD, flags & ~FD_CLOEXEC);
   return r;
 }
 
@@ -237,7 +240,7 @@ int ChildProcess::Spawn(const char *file,
         close(stdin_pipe[1]);  // close write end
         dup2(stdin_pipe[0],  STDIN_FILENO);
       } else {
-        SetBlocking(custom_fds[0]);
+        ResetFlags(custom_fds[0]);
         dup2(custom_fds[0], STDIN_FILENO);
       }
 
@@ -245,7 +248,7 @@ int ChildProcess::Spawn(const char *file,
         close(stdout_pipe[0]);  // close read end
         dup2(stdout_pipe[1], STDOUT_FILENO);
       } else {
-        SetBlocking(custom_fds[1]);
+        ResetFlags(custom_fds[1]);
         dup2(custom_fds[1], STDOUT_FILENO);
       }
 
@@ -253,7 +256,7 @@ int ChildProcess::Spawn(const char *file,
         close(stderr_pipe[0]);  // close read end
         dup2(stderr_pipe[1], STDERR_FILENO);
       } else {
-        SetBlocking(custom_fds[2]);
+        ResetFlags(custom_fds[2]);
         dup2(custom_fds[2], STDERR_FILENO);
       }
 
