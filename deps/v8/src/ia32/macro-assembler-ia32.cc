@@ -672,20 +672,33 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, result_end, scratch, flags);
 
+  Register top_reg = result_end.is_valid() ? result_end : result;
+
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
       ExternalReference::new_space_allocation_limit_address();
-  lea(result_end, Operand(result, object_size));
-  cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
+
+  if (top_reg.is(result)) {
+    add(Operand(top_reg), Immediate(object_size));
+  } else {
+    lea(top_reg, Operand(result, object_size));
+  }
+  cmp(top_reg, Operand::StaticVariable(new_space_allocation_limit));
   j(above, gc_required, not_taken);
 
-  // Tag result if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    lea(result, Operand(result, kHeapObjectTag));
-  }
-
   // Update allocation top.
-  UpdateAllocationTopHelper(result_end, scratch);
+  UpdateAllocationTopHelper(top_reg, scratch);
+
+  // Tag result if requested.
+  if (top_reg.is(result)) {
+    if ((flags & TAG_OBJECT) != 0) {
+      sub(Operand(result), Immediate(object_size - kHeapObjectTag));
+    } else {
+      sub(Operand(result), Immediate(object_size));
+    }
+  } else if ((flags & TAG_OBJECT) != 0) {
+    add(Operand(result), Immediate(kHeapObjectTag));
+  }
 }
 
 

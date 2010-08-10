@@ -177,7 +177,7 @@ function StringMatch(regexp) {
     var saveAnswer = false;
 
     if (%_ObjectEquals(cache.type, 'match') &&
-        %_ObjectEquals(cache.regExp, regexp) &&
+        %_IsRegExpEquivalent(cache.regExp, regexp) &&
         %_ObjectEquals(cache.subject, subject)) {
       if (cache.answerSaved) {
         return CloneDenseArray(cache.answer);
@@ -274,8 +274,8 @@ function StringReplace(search, replace) {
 // Helper function for regular expressions in String.prototype.replace.
 function StringReplaceRegExp(subject, regexp, replace) {
   var cache = regExpCache;
-  if (%_ObjectEquals(cache.regExp, regexp) &&
-      %_ObjectEquals(cache.type, 'replace') &&
+  if (%_ObjectEquals(cache.type, 'replace') &&
+      %_IsRegExpEquivalent(cache.regExp, regexp) &&
       %_ObjectEquals(cache.replaceString, replace) &&
       %_ObjectEquals(cache.subject, subject)) {
     return cache.answer;
@@ -609,8 +609,9 @@ function StringSplit(separator, limit) {
   var saveAnswer = false;
 
   if (%_ObjectEquals(cache.type, 'split') &&
-      %_ObjectEquals(cache.regExp, separator) &&
-      %_ObjectEquals(cache.subject, subject)) {
+      %_IsRegExpEquivalent(cache.regExp, separator) &&
+      %_ObjectEquals(cache.subject, subject) &&
+      %_ObjectEquals(cache.lastIndex, limit)) {
     if (cache.answerSaved) {
       return CloneDenseArray(cache.answer);
     } else {
@@ -621,6 +622,8 @@ function StringSplit(separator, limit) {
   cache.type = 'split';
   cache.regExp = separator;
   cache.subject = subject;
+  // Reuse lastIndex field for split limit when type is "split".
+  cache.lastIndex = limit;
 
   %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
 

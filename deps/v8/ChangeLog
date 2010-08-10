@@ -1,3 +1,13 @@
+2010-08-09: Version 2.3.6
+
+	RegExp literals create a new object every time they are evaluated
+	(issue 704).
+
+	Object.seal and Object.freeze return the modified object (issue 809).
+
+	Fix building using GCC 4.4.4.
+
+
 2010-08-04: Version 2.3.5
 
         Added support for ES5 property names. Object initialisers and

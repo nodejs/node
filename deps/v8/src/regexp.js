@@ -126,7 +126,7 @@ function RegExpCache() {
   this.regExp = 0;
   this.subject = 0;
   this.replaceString = 0;
-  this.lastIndex = 0;
+  this.lastIndex = 0;  // Also used for splitLimit when type is "split"
   this.answer = 0;
   // answerSaved marks whether the contents of answer is valid for a cache
   // hit in RegExpExec, StringMatch and StringSplit.
@@ -194,7 +194,7 @@ function RegExpExec(string) {
 
   if (%_ObjectEquals(cache.type, 'exec') &&
       %_ObjectEquals(cache.lastIndex, this.lastIndex) &&
-      %_ObjectEquals(cache.regExp, this) &&
+      %_IsRegExpEquivalent(cache.regExp, this) &&
       %_ObjectEquals(cache.subject, string)) {
     if (cache.answerSaved) {
       return CloneRegExpResult(cache.answer);
@@ -290,7 +290,7 @@ function RegExpTest(string) {
   var lastIndex = this.lastIndex;
   var cache = regExpCache;
   if (%_ObjectEquals(cache.type, 'test') &&
-      %_ObjectEquals(cache.regExp, this) &&
+      %_IsRegExpEquivalent(cache.regExp, this) &&
       %_ObjectEquals(cache.subject, string) &&
       %_ObjectEquals(cache.lastIndex, lastIndex)) {
     return cache.answer;

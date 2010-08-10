@@ -882,13 +882,21 @@ Condition MacroAssembler::CheckBothPositiveSmi(Register first,
 }
 
 
-Condition MacroAssembler::CheckEitherSmi(Register first, Register second) {
+Condition MacroAssembler::CheckEitherSmi(Register first,
+                                         Register second,
+                                         Register scratch) {
   if (first.is(second)) {
     return CheckSmi(first);
   }
-  movl(kScratchRegister, first);
-  andl(kScratchRegister, second);
-  testb(kScratchRegister, Immediate(kSmiTagMask));
+  if (scratch.is(second)) {
+    andl(scratch, first);
+  } else {
+    if (!scratch.is(first)) {
+      movl(scratch, first);
+    }
+    andl(scratch, second);
+  }
+  testb(scratch, Immediate(kSmiTagMask));
   return zero;
 }
 

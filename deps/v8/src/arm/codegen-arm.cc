@@ -3280,13 +3280,13 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
       FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
   __ ldr(literal, FieldMemOperand(tmp, literal_offset));
 
-  JumpTarget done;
+  JumpTarget materialized;
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ cmp(literal, ip);
   // This branch locks the virtual frame at the done label to match the
   // one we have here, where the literal register is not on the stack and
   // nothing is spilled.
-  done.Branch(ne);
+  materialized.Branch(ne);
 
   // If the entry is undefined we call the runtime system to compute
   // the literal.
@@ -3301,11 +3301,23 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   frame_->CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
   __ Move(literal, r0);
 
-  // This call to bind will get us back to the virtual frame we had before
-  // where things are not spilled and the literal register is not on the stack.
-  done.Bind();
-  // Push the literal.
+  materialized.Bind();
+
   frame_->EmitPush(literal);
+  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+  frame_->EmitPush(Operand(Smi::FromInt(size)));
+  frame_->CallRuntime(Runtime::kAllocateInNewSpace, 1);
+  // TODO(lrn): Use AllocateInNewSpace macro with fallback to runtime.
+  // r0 is newly allocated space.
+
+  // Reuse literal variable with (possibly) a new register, still holding
+  // the materialized boilerplate.
+  literal = frame_->PopToRegister(r0);
+
+  __ CopyFields(r0, literal, tmp.bit(), size / kPointerSize);
+
+  // Push the clone.
+  frame_->EmitPush(r0);
   ASSERT_EQ(original_height + 1, frame_->height());
 }
 
@@ -5324,6 +5336,44 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsRegExpEquivalent(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+
+  // Load the two objects into registers and perform the comparison.
+  Load(args->at(0));
+  Load(args->at(1));
+  Register right = frame_->PopToRegister();
+  Register left = frame_->PopToRegister(right);
+  Register tmp = frame_->scratch0();
+  Register tmp2 = frame_->scratch1();
+
+  // Jumps to done must have the eq flag set if the test is successful
+  // and clear if the test has failed.
+  Label done;
+
+  // Fail if either is a non-HeapObject.
+  __ cmp(left, Operand(right));
+  __ b(eq, &done);
+  __ and_(tmp, left, Operand(right));
+  __ eor(tmp, tmp, Operand(kSmiTagMask));
+  __ tst(tmp, Operand(kSmiTagMask));
+  __ b(ne, &done);
+  __ ldr(tmp, FieldMemOperand(left, HeapObject::kMapOffset));
+  __ ldrb(tmp2, FieldMemOperand(tmp, Map::kInstanceTypeOffset));
+  __ cmp(tmp2, Operand(JS_REGEXP_TYPE));
+  __ b(ne, &done);
+  __ ldr(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
+  __ cmp(tmp, Operand(tmp2));
+  __ b(ne, &done);
+  __ ldr(tmp, FieldMemOperand(left, JSRegExp::kDataOffset));
+  __ ldr(tmp2, FieldMemOperand(right, JSRegExp::kDataOffset));
+  __ cmp(tmp, tmp2);
+  __ bind(&done);
+  cc_reg_ = eq;
+}
+
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
@@ -6908,10 +6958,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ str(r2, FieldMemOperand(r0, JSArray::kElementsOffset));
 
     // Copy the elements array.
-    for (int i = 0; i < elements_size; i += kPointerSize) {
-      __ ldr(r1, FieldMemOperand(r3, i));
-      __ str(r1, FieldMemOperand(r2, i));
-    }
+    __ CopyFields(r2, r3, r1.bit(), elements_size / kPointerSize);
   }
 
   // Return and remove the on-stack parameters.
@@ -9780,10 +9827,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ ldr(r4, MemOperand(r4, offset));
 
   // Copy the JS object part.
-  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
-    __ ldr(r3, FieldMemOperand(r4, i));
-    __ str(r3, FieldMemOperand(r0, i));
-  }
+  __ CopyFields(r0, r4, r3.bit(), JSObject::kHeaderSize / kPointerSize);
 
   // Setup the callee in-object property.
   STATIC_ASSERT(Heap::arguments_callee_index == 0);

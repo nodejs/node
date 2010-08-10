@@ -822,13 +822,6 @@ void StubCache::Clear() {
 // StubCompiler implementation.
 
 
-// Support function for computing call IC miss stubs.
-Handle<Code> ComputeCallMiss(int argc, Code::Kind kind) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallMiss(argc, kind), Code);
-}
-
-
-
 Object* LoadCallbackProperty(Arguments args) {
   ASSERT(args[0]->IsJSObject());
   ASSERT(args[1]->IsJSObject());

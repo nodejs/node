@@ -1244,7 +1244,9 @@ TEST(GCDuringBreakPointProcessing) {
 
 // Call the function three times with different garbage collections in between
 // and make sure that the break point survives.
-static void CallAndGC(v8::Local<v8::Object> recv, v8::Local<v8::Function> f) {
+static void CallAndGC(v8::Local<v8::Object> recv,
+                      v8::Local<v8::Function> f,
+                      bool force_compaction) {
   break_point_hit_count = 0;
 
   for (int i = 0; i < 3; i++) {
@@ -1258,15 +1260,14 @@ static void CallAndGC(v8::Local<v8::Object> recv, v8::Local<v8::Function> f) {
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    Heap::CollectAllGarbage(false);
+    Heap::CollectAllGarbage(force_compaction);
     f->Call(recv, 0, NULL);
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }
 }
 
 
-// Test that a break point can be set at a return store location.
-TEST(BreakPointSurviveGC) {
+static void TestBreakPointSurviveGC(bool force_compaction) {
   break_point_hit_count = 0;
   v8::HandleScope scope;
   DebugLocalContext env;
@@ -1276,27 +1277,62 @@ TEST(BreakPointSurviveGC) {
   v8::Local<v8::Function> foo;
 
   // Test IC store break point with garbage collection.
-  foo = CompileFunction(&env, "function foo(){bar=0;}", "foo");
-  SetBreakPoint(foo, 0);
-  CallAndGC(env->Global(), foo);
+  {
+    v8::Local<v8::Function> bar =
+        CompileFunction(&env, "function foo(){}", "foo");
+    foo = CompileFunction(&env, "function foo(){bar=0;}", "foo");
+    SetBreakPoint(foo, 0);
+  }
+  CallAndGC(env->Global(), foo, force_compaction);
 
   // Test IC load break point with garbage collection.
-  foo = CompileFunction(&env, "bar=1;function foo(){var x=bar;}", "foo");
-  SetBreakPoint(foo, 0);
-  CallAndGC(env->Global(), foo);
+  {
+    v8::Local<v8::Function> bar =
+        CompileFunction(&env, "function foo(){}", "foo");
+    foo = CompileFunction(&env, "bar=1;function foo(){var x=bar;}", "foo");
+    SetBreakPoint(foo, 0);
+  }
+  CallAndGC(env->Global(), foo, force_compaction);
 
   // Test IC call break point with garbage collection.
-  foo = CompileFunction(&env, "function bar(){};function foo(){bar();}", "foo");
-  SetBreakPoint(foo, 0);
-  CallAndGC(env->Global(), foo);
+  {
+    v8::Local<v8::Function> bar =
+        CompileFunction(&env, "function foo(){}", "foo");
+    foo = CompileFunction(&env,
+                          "function bar(){};function foo(){bar();}",
+                          "foo");
+    SetBreakPoint(foo, 0);
+  }
+  CallAndGC(env->Global(), foo, force_compaction);
 
   // Test return break point with garbage collection.
-  foo = CompileFunction(&env, "function foo(){}", "foo");
-  SetBreakPoint(foo, 0);
-  CallAndGC(env->Global(), foo);
+  {
+    v8::Local<v8::Function> bar =
+        CompileFunction(&env, "function foo(){}", "foo");
+    foo = CompileFunction(&env, "function foo(){}", "foo");
+    SetBreakPoint(foo, 0);
+  }
+  CallAndGC(env->Global(), foo, force_compaction);
+
+  // Test non IC break point with garbage collection.
+  {
+    v8::Local<v8::Function> bar =
+        CompileFunction(&env, "function foo(){}", "foo");
+    foo = CompileFunction(&env, "function foo(){var bar=0;}", "foo");
+    SetBreakPoint(foo, 0);
+  }
+  CallAndGC(env->Global(), foo, force_compaction);
+
 
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
+}
+
+
+// Test that a break point can be set at a return store location.
+TEST(BreakPointSurviveGC) {
+  TestBreakPointSurviveGC(false);
+  TestBreakPointSurviveGC(true);
 }
 
 

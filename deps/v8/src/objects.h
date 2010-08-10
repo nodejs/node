@@ -3888,6 +3888,7 @@ class JSRegExp: public JSObject {
   static const int kIgnoreCaseFieldIndex = 2;
   static const int kMultilineFieldIndex = 3;
   static const int kLastIndexFieldIndex = 4;
+  static const int kInObjectFieldCount = 5;
 };
 
 

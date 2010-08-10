@@ -95,13 +95,13 @@ function makeRegexpInArray() { return [ [ /a*/, {} ] ]; }
 
 a = makeRegexpInArray();
 var b = makeRegexpInArray();
-assertTrue(a[0][0] === b[0][0]);
+assertFalse(a[0][0] === b[0][0]);
 assertFalse(a[0][1] === b[0][1]);
 
 function makeRegexpInObject() { return { a: { b: /b*/, c: {} } }; }
 a = makeRegexpInObject();
 b = makeRegexpInObject();
-assertTrue(a.a.b === b.a.b);
+assertFalse(a.a.b === b.a.b);
 assertFalse(a.a.c === b.a.c);
 
 

@@ -501,7 +501,7 @@ class VirtualFrame : public ZoneObject {
   }
 
   inline void RaiseHeight(int count, unsigned known_smi_map = 0) {
-    ASSERT(known_smi_map < (1u << count));
+    ASSERT(count >= 32 || known_smi_map < (1u << count));
     element_count_ += count;
     if (count >= kTOSKnownSmiMapSize) {
       tos_known_smi_map_ = known_smi_map;

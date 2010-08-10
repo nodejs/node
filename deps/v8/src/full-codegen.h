@@ -432,6 +432,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitRegExpConstructResult(ZoneList<Expression*>* arguments);
   void EmitSwapElements(ZoneList<Expression*>* arguments);
   void EmitGetFromCache(ZoneList<Expression*>* arguments);
+  void EmitIsRegExpEquivalent(ZoneList<Expression*>* arguments);
 
   // Platform-specific code for loading variables.
   void EmitVariableLoad(Variable* expr, Expression::Context context);

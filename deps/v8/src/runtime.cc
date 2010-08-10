@@ -7587,6 +7587,26 @@ static Object* Runtime_SetNewFunctionAttributes(Arguments args) {
 }
 
 
+static Object* Runtime_AllocateInNewSpace(Arguments args) {
+  // Allocate a block of memory in NewSpace (filled with a filler).
+  // Use as fallback for allocation in generated code when NewSpace
+  // is full.
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Smi, size_smi, 0);
+  int size = size_smi->value();
+  RUNTIME_ASSERT(IsAligned(size, kPointerSize));
+  RUNTIME_ASSERT(size > 0);
+  static const int kMinFreeNewSpaceAfterGC =
+      Heap::InitialSemiSpaceSize() * 3/4;
+  RUNTIME_ASSERT(size <= kMinFreeNewSpaceAfterGC);
+  Object* allocation = Heap::new_space()->AllocateRaw(size);
+  if (!allocation->IsFailure()) {
+    Heap::CreateFillerObjectAt(HeapObject::cast(allocation)->address(), size);
+  }
+  return allocation;
+}
+
+
 // Push an array unto an array of arrays if it is not already in the
 // array.  Returns true if the element was pushed on the stack and
 // false otherwise.

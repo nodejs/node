@@ -138,7 +138,6 @@ CodeGenState::~CodeGenState() {
   owner_->set_state(previous_);
 }
 
-
 // -------------------------------------------------------------------------
 // CodeGenerator implementation.
 
@@ -5309,6 +5308,30 @@ void DeferredRegExpLiteral::Generate() {
 }
 
 
+class DeferredAllocateInNewSpace: public DeferredCode {
+ public:
+  DeferredAllocateInNewSpace(int size, Register target)
+    : size_(size), target_(target) {
+    ASSERT(size >= kPointerSize && size <= Heap::MaxObjectSizeInNewSpace());
+    set_comment("[ DeferredAllocateInNewSpace");
+  }
+  void Generate();
+
+ private:
+  int size_;
+  Register target_;
+};
+
+
+void DeferredAllocateInNewSpace::Generate() {
+  __ push(Immediate(Smi::FromInt(size_)));
+  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+  if (!target_.is(eax)) {
+    __ mov(target_, eax);
+  }
+}
+
+
 void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   ASSERT(!in_safe_int32_mode());
   Comment cmnt(masm_, "[ RegExp Literal");
@@ -5339,10 +5362,33 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   __ cmp(boilerplate.reg(), Factory::undefined_value());
   deferred->Branch(equal);
   deferred->BindExit();
-  literals.Unuse();
 
-  // Push the boilerplate object.
+  // Register of boilerplate contains RegExp object.
+
+  Result tmp = allocator()->Allocate();
+  ASSERT(tmp.is_valid());
+
+  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+
+  DeferredAllocateInNewSpace* allocate_fallback =
+      new DeferredAllocateInNewSpace(size, literals.reg());
   frame_->Push(&boilerplate);
+  frame_->SpillTop();
+  __ AllocateInNewSpace(size,
+                        literals.reg(),
+                        tmp.reg(),
+                        no_reg,
+                        allocate_fallback->entry_label(),
+                        TAG_OBJECT);
+  allocate_fallback->BindExit();
+  boilerplate = frame_->Pop();
+  // Copy from boilerplate to clone and return clone.
+
+  for (int i = 0; i < size; i += kPointerSize) {
+    __ mov(tmp.reg(), FieldOperand(boilerplate.reg(), i));
+    __ mov(FieldOperand(literals.reg(), i), tmp.reg());
+  }
+  frame_->Push(&literals);
 }
 
 
@@ -7522,6 +7568,39 @@ void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
     end.Bind(&result);
     frame()->Push(&result);
   }
+}
+
+
+void CodeGenerator::GenerateIsRegExpEquivalent(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+  Load(args->at(0));
+  Load(args->at(1));
+  Result right_res = frame_->Pop();
+  Result left_res = frame_->Pop();
+  right_res.ToRegister();
+  left_res.ToRegister();
+  Result tmp_res = allocator()->Allocate();
+  ASSERT(tmp_res.is_valid());
+  Register right = right_res.reg();
+  Register left = left_res.reg();
+  Register tmp = tmp_res.reg();
+  right_res.Unuse();
+  left_res.Unuse();
+  tmp_res.Unuse();
+  __ cmp(left, Operand(right));
+  destination()->true_target()->Branch(equal);
+  // Fail if either is a non-HeapObject.
+  __ mov(tmp, left);
+  __ and_(Operand(tmp), right);
+  __ test(Operand(tmp), Immediate(kSmiTagMask));
+  destination()->false_target()->Branch(equal);
+  __ CmpObjectType(left, JS_REGEXP_TYPE, tmp);
+  destination()->false_target()->Branch(not_equal);
+  __ cmp(tmp, FieldOperand(right, HeapObject::kMapOffset));
+  destination()->false_target()->Branch(not_equal);
+  __ mov(tmp, FieldOperand(left, JSRegExp::kDataOffset));
+  __ cmp(tmp, FieldOperand(right, JSRegExp::kDataOffset));
+  destination()->Split(equal);
 }
 
 

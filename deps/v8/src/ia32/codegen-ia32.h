@@ -635,7 +635,7 @@ class CodeGenerator: public AstVisitor {
   // Instantiate the function based on the shared function info.
   Result InstantiateFunction(Handle<SharedFunctionInfo> function_info);
 
-  // Support for type checks.
+  // Support for types.
   void GenerateIsSmi(ZoneList<Expression*>* args);
   void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   void GenerateIsArray(ZoneList<Expression*>* args);
@@ -709,6 +709,9 @@ class CodeGenerator: public AstVisitor {
   void GenerateMathSin(ZoneList<Expression*>* args);
   void GenerateMathCos(ZoneList<Expression*>* args);
   void GenerateMathSqrt(ZoneList<Expression*>* args);
+
+  // Check whether two RegExps are equivalent
+  void GenerateIsRegExpEquivalent(ZoneList<Expression*>* args);
 
   // Simple condition analysis.
   enum ConditionAnalysis {

@@ -193,3 +193,7 @@ Object.defineProperty(obj4, 'y', {configurable: false, writable: false});
 Object.preventExtensions(obj4);
 
 assertFalse(Object.isSealed(obj4));
+
+// Make sure that Object.seal returns the sealed object.
+var obj4 = {}
+assertTrue(obj4 === Object.seal(obj4))

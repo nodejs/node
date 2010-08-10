@@ -545,7 +545,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label slow, check_string, index_smi, index_string;
+  Label slow, check_string, index_smi, index_string, property_array_property;
   Label check_pixel_array, probe_dictionary, check_number_dictionary;
 
   // Check that the key is a smi.
@@ -652,7 +652,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(eax, Operand::StaticArray(edi, times_1, cache_keys));
   __ j(not_equal, &slow);
 
-  // Get field offset and check that it is an in-object property.
+  // Get field offset.
   // edx     : receiver
   // ebx     : receiver's map
   // eax     : key
@@ -663,12 +663,20 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
          Operand::StaticArray(ecx, times_pointer_size, cache_field_offsets));
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInObjectPropertiesOffset));
   __ sub(edi, Operand(ecx));
-  __ j(above_equal, &slow);
+  __ j(above_equal, &property_array_property);
 
   // Load in-object property.
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceSizeOffset));
   __ add(ecx, Operand(edi));
   __ mov(eax, FieldOperand(edx, ecx, times_pointer_size, 0));
+  __ IncrementCounter(&Counters::keyed_load_generic_lookup_cache, 1);
+  __ ret(0);
+
+  // Load property array property.
+  __ bind(&property_array_property);
+  __ mov(eax, FieldOperand(edx, JSObject::kPropertiesOffset));
+  __ mov(eax, FieldOperand(eax, edi, times_pointer_size,
+                           FixedArray::kHeaderSize));
   __ IncrementCounter(&Counters::keyed_load_generic_lookup_cache, 1);
   __ ret(0);
 

@@ -1104,13 +1104,13 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  Label done;
+  Label materialized;
   // Registers will be used as follows:
   // r4 = JS function, literals array
   // r3 = literal index
   // r2 = RegExp pattern
   // r1 = RegExp flags
-  // r0 = temp + return value (RegExp literal)
+  // r0 = temp + materialized value (RegExp literal)
   __ ldr(r0, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
   __ ldr(r4,  FieldMemOperand(r0, JSFunction::kLiteralsOffset));
   int literal_offset =
@@ -1118,13 +1118,24 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ ldr(r0, FieldMemOperand(r4, literal_offset));
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ cmp(r0, ip);
-  __ b(ne, &done);
+  __ b(ne, &materialized);
   __ mov(r3, Operand(Smi::FromInt(expr->literal_index())));
   __ mov(r2, Operand(expr->pattern()));
   __ mov(r1, Operand(expr->flags()));
   __ Push(r4, r3, r2, r1);
   __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  __ bind(&done);
+  __ bind(&materialized);
+  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+  __ push(r0);
+  __ mov(r0, Operand(Smi::FromInt(size)));
+  __ push(r0);
+  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+  // After this, registers are used as follows:
+  // r0: Newly allocated regexp.
+  // r1: Materialized regexp
+  // r2: temp.
+  __ pop(r1);
+  __ CopyFields(r0, r1, r2.bit(), size / kPointerSize);
   Apply(context_, r0);
 }
 
@@ -2562,6 +2573,47 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
   __ CallRuntime(Runtime::kGetFromCache, 2);
 
   __ bind(&done);
+  Apply(context_, r0);
+}
+
+
+void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Register right = r0;
+  Register left = r1;
+  Register tmp = r2;
+  Register tmp2 = r3;
+
+  VisitForValue(args->at(0), kStack);
+  VisitForValue(args->at(1), kAccumulator);
+  __ pop(left);
+
+  Label done, fail, ok;
+  __ cmp(left, Operand(right));
+  __ b(eq, &ok);
+  // Fail if either is a non-HeapObject.
+  __ and_(tmp, left, Operand(right));
+  __ tst(tmp, Operand(kSmiTagMask));
+  __ b(eq, &fail);
+  __ ldr(tmp, FieldMemOperand(left, HeapObject::kMapOffset));
+  __ ldrb(tmp2, FieldMemOperand(tmp, Map::kInstanceTypeOffset));
+  __ cmp(tmp2, Operand(JS_REGEXP_TYPE));
+  __ b(ne, &fail);
+  __ ldr(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
+  __ cmp(tmp, Operand(tmp2));
+  __ b(ne, &fail);
+  __ ldr(tmp, FieldMemOperand(left, JSRegExp::kDataOffset));
+  __ ldr(tmp2, FieldMemOperand(right, JSRegExp::kDataOffset));
+  __ cmp(tmp, tmp2);
+  __ b(eq, &ok);
+  __ bind(&fail);
+  __ LoadRoot(r0, Heap::kFalseValueRootIndex);
+  __ jmp(&done);
+  __ bind(&ok);
+  __ LoadRoot(r0, Heap::kTrueValueRootIndex);
+  __ bind(&done);
+
   Apply(context_, r0);
 }
 

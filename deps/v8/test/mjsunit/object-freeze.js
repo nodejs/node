@@ -191,3 +191,7 @@ Object.defineProperty(obj5, 'y', {configurable: false, writable: false});
 Object.preventExtensions(obj5);
 
 assertFalse(Object.isFrozen(obj5));
+
+// Make sure that Object.freeze returns the frozen object.
+var obj6 = {}
+assertTrue(obj6 === Object.freeze(obj6))

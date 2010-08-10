@@ -1199,26 +1199,54 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  Label done;
+  Label materialized;
   // Registers will be used as follows:
   // rdi = JS function.
-  // rbx = literals array.
-  // rax = regexp literal.
+  // rcx = literals array.
+  // rbx = regexp literal.
+  // rax = regexp literal clone.
   __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-  __ movq(rbx, FieldOperand(rdi, JSFunction::kLiteralsOffset));
+  __ movq(rcx, FieldOperand(rdi, JSFunction::kLiteralsOffset));
   int literal_offset =
     FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
-  __ movq(rax, FieldOperand(rbx, literal_offset));
-  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
-  __ j(not_equal, &done);
+  __ movq(rbx, FieldOperand(rcx, literal_offset));
+  __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
+  __ j(not_equal, &materialized);
+
   // Create regexp literal using runtime function
   // Result will be in rax.
-  __ push(rbx);
+  __ push(rcx);
   __ Push(Smi::FromInt(expr->literal_index()));
   __ Push(expr->pattern());
   __ Push(expr->flags());
   __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  __ bind(&done);
+  __ movq(rbx, rax);
+
+  __ bind(&materialized);
+  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+  Label allocated, runtime_allocate;
+  __ AllocateInNewSpace(size, rax, rcx, rdx, &runtime_allocate, TAG_OBJECT);
+  __ jmp(&allocated);
+
+  __ bind(&runtime_allocate);
+  __ push(rbx);
+  __ Push(Smi::FromInt(size));
+  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+  __ pop(rbx);
+
+  __ bind(&allocated);
+  // Copy the content into the newly allocated memory.
+  // (Unroll copy loop once for better throughput).
+  for (int i = 0; i < size - kPointerSize; i += 2 * kPointerSize) {
+    __ movq(rdx, FieldOperand(rbx, i));
+    __ movq(rcx, FieldOperand(rbx, i + kPointerSize));
+    __ movq(FieldOperand(rax, i), rdx);
+    __ movq(FieldOperand(rax, i + kPointerSize), rcx);
+  }
+  if ((size % (2 * kPointerSize)) != 0) {
+    __ movq(rdx, FieldOperand(rbx, size - kPointerSize));
+    __ movq(FieldOperand(rax, size - kPointerSize), rdx);
+  }
   Apply(context_, rax);
 }
 
@@ -2640,6 +2668,44 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
   __ CallRuntime(Runtime::kGetFromCache, 2);
 
   __ bind(&done);
+  Apply(context_, rax);
+}
+
+
+void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Register right = rax;
+  Register left = rbx;
+  Register tmp = rcx;
+
+  VisitForValue(args->at(0), kStack);
+  VisitForValue(args->at(1), kAccumulator);
+  __ pop(left);
+
+  Label done, fail, ok;
+  __ cmpq(left, right);
+  __ j(equal, &ok);
+  // Fail if either is a non-HeapObject.
+  Condition either_smi = masm()->CheckEitherSmi(left, right, tmp);
+  __ j(either_smi, &fail);
+  __ j(zero, &fail);
+  __ movq(tmp, FieldOperand(left, HeapObject::kMapOffset));
+  __ cmpb(FieldOperand(tmp, Map::kInstanceTypeOffset),
+          Immediate(JS_REGEXP_TYPE));
+  __ j(not_equal, &fail);
+  __ cmpq(tmp, FieldOperand(right, HeapObject::kMapOffset));
+  __ j(not_equal, &fail);
+  __ movq(tmp, FieldOperand(left, JSRegExp::kDataOffset));
+  __ cmpq(tmp, FieldOperand(right, JSRegExp::kDataOffset));
+  __ j(equal, &ok);
+  __ bind(&fail);
+  __ Move(rax, Factory::false_value());
+  __ jmp(&done);
+  __ bind(&ok);
+  __ Move(rax, Factory::true_value());
+  __ bind(&done);
+
   Apply(context_, rax);
 }
 

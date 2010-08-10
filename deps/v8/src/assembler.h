@@ -232,8 +232,8 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Address call_address());
   INLINE(void set_call_address(Address target));
   INLINE(Object* call_object());
-  INLINE(Object** call_object_address());
   INLINE(void set_call_object(Object* target));
+  INLINE(Object** call_object_address());
 
   inline void Visit(ObjectVisitor* v);
 

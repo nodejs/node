@@ -599,7 +599,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
-  Label slow, check_string, index_smi, index_string;
+  Label slow, check_string, index_smi, index_string, property_array_property;
   Label check_pixel_array, probe_dictionary, check_number_dictionary;
 
   // Check that the key is a smi.
@@ -692,20 +692,27 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmpq(rax, Operand(kScratchRegister, rdi, times_1, kPointerSize));
   __ j(not_equal, &slow);
 
-  // Get field offset which is a 32-bit integer and check that it is
-  // an in-object property.
+  // Get field offset, which is a 32-bit integer.
   ExternalReference cache_field_offsets
       = ExternalReference::keyed_lookup_cache_field_offsets();
   __ movq(kScratchRegister, cache_field_offsets);
   __ movl(rdi, Operand(kScratchRegister, rcx, times_4, 0));
   __ movzxbq(rcx, FieldOperand(rbx, Map::kInObjectPropertiesOffset));
   __ subq(rdi, rcx);
-  __ j(above_equal, &slow);
+  __ j(above_equal, &property_array_property);
 
   // Load in-object property.
   __ movzxbq(rcx, FieldOperand(rbx, Map::kInstanceSizeOffset));
   __ addq(rcx, rdi);
   __ movq(rax, FieldOperand(rdx, rcx, times_pointer_size, 0));
+  __ IncrementCounter(&Counters::keyed_load_generic_lookup_cache, 1);
+  __ ret(0);
+
+  // Load property array property.
+  __ bind(&property_array_property);
+  __ movq(rax, FieldOperand(rdx, JSObject::kPropertiesOffset));
+  __ movq(rax, FieldOperand(rax, rdi, times_pointer_size,
+                            FixedArray::kHeaderSize));
   __ IncrementCounter(&Counters::keyed_load_generic_lookup_cache, 1);
   __ ret(0);
 

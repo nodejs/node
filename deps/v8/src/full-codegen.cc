@@ -917,6 +917,8 @@ void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
     EmitSwapElements(expr->arguments());
   } else if (strcmp("_GetFromCache", *name->ToCString()) == 0) {
     EmitGetFromCache(expr->arguments());
+  } else if (strcmp("_IsRegExpEquivalent", *name->ToCString()) == 0) {
+    EmitIsRegExpEquivalent(expr->arguments());
   } else {
     UNREACHABLE();
   }

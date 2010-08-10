@@ -4738,7 +4738,7 @@ bool String::SlowEquals(String* other) {
   }
 
   if (lhs->IsFlat()) {
-    if (IsAsciiRepresentation()) {
+    if (lhs->IsAsciiRepresentation()) {
       Vector<const char> vec1 = lhs->ToAsciiVector();
       if (rhs->IsFlat()) {
         if (rhs->IsAsciiRepresentation()) {

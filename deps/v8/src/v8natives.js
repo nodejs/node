@@ -749,7 +749,7 @@ function ObjectSeal(obj) {
     if (desc.isConfigurable()) desc.setConfigurable(false);
     DefineOwnProperty(obj, name, desc, true);
   }  
-  ObjectPreventExtension(obj);
+  return ObjectPreventExtension(obj);
 }
 
 
@@ -766,7 +766,7 @@ function ObjectFreeze(obj) {
     if (desc.isConfigurable()) desc.setConfigurable(false);
     DefineOwnProperty(obj, name, desc, true);
   }  
-  ObjectPreventExtension(obj);
+  return ObjectPreventExtension(obj);
 }
 
 

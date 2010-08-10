@@ -80,6 +80,7 @@ namespace internal {
   F(NewArgumentsFast, 3, 1) \
   F(LazyCompile, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
+  F(AllocateInNewSpace, 1, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
