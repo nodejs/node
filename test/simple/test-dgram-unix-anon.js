@@ -54,4 +54,4 @@ server.on("close", function () {
 
 timer = setTimeout(function () {
     throw new Error("Timeout");
-}, 200);
+}, 500);

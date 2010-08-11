@@ -1,7 +1,8 @@
-common = require("../common");
-assert = common.assert
-net = require("net");
-N = 200;
+var common = require("../common");
+var assert = common.assert;
+var net = require("net");
+var N = 200;
+var recv = "", chars_recved = 0;
 
 server = net.createServer(function (connection) {
   function write (j) {
@@ -16,38 +17,35 @@ server = net.createServer(function (connection) {
   }
   write(0);
 });
-server.listen(common.PORT);
+server.on('listening', function(){
+  client = net.createConnection(common.PORT);
+  client.setEncoding("ascii");
+  client.addListener("data", function (d) {
+      print(d);
+      recv += d;
+  });
 
-
-recv = "";
-chars_recved = 0;
-
-client = net.createConnection(common.PORT);
-client.setEncoding("ascii");
-client.addListener("data", function (d) {
-    print(d);
-    recv += d;
-});
-
-setTimeout(function () {
-  chars_recved = recv.length;
-  console.log("pause at: " + chars_recved);
-  assert.equal(true, chars_recved > 1);
-  client.pause();
   setTimeout(function () {
-    console.log("resume at: " + chars_recved);
-    assert.equal(chars_recved, recv.length);
-    client.resume();
-
+    chars_recved = recv.length;
+    console.log("pause at: " + chars_recved);
+    assert.equal(true, chars_recved > 1);
+    client.pause();
     setTimeout(function () {
-      chars_recved = recv.length;
-      console.log("pause at: " + chars_recved);
-      client.pause();
+      console.log("resume at: " + chars_recved);
+      assert.equal(chars_recved, recv.length);
+      client.resume();
 
       setTimeout(function () {
-        console.log("resume at: " + chars_recved);
-        assert.equal(chars_recved, recv.length);
-        client.resume();
+        chars_recved = recv.length;
+        console.log("pause at: " + chars_recved);
+        client.pause();
+
+        setTimeout(function () {
+          console.log("resume at: " + chars_recved);
+          assert.equal(chars_recved, recv.length);
+          client.resume();
+
+        }, 500);
 
       }, 500);
 
@@ -55,12 +53,12 @@ setTimeout(function () {
 
   }, 500);
 
-}, 500);
-
-client.addListener("end", function () {
-  server.close();
-  client.end();
+  client.addListener("end", function () {
+    server.close();
+    client.end();
+  });
 });
+server.listen(common.PORT);
 
 process.addListener("exit", function () {
   assert.equal(N, recv.length);
