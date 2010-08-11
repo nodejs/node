@@ -27,33 +27,35 @@ var server = http.createServer(function (req, res) {
   res.write("hello ");
   res.write("world\n");
   res.end();
-})
+});
 server.listen(common.PORT);
 
-var c = net.createConnection(common.PORT);
+server.addListener("listening", function() {
+  var c = net.createConnection(common.PORT);
 
-c.setEncoding("utf8");
+  c.setEncoding("utf8");
 
-c.addListener("connect", function () {
-  c.write("GET / HTTP/1.0\r\n" +
-          "Connection: Keep-Alive\r\n\r\n");
-});
+  c.addListener("connect", function () {
+    c.write("GET / HTTP/1.0\r\n" +
+            "Connection: Keep-Alive\r\n\r\n");
+  });
 
-c.addListener("data", function (chunk) {
-  console.log(chunk);
-  server_response += chunk;
-});
+  c.addListener("data", function (chunk) {
+    console.log(chunk);
+    server_response += chunk;
+  });
 
-c.addListener("end", function () {
-  client_got_eof = true;
-  console.log('got end');
-  c.end();
-});
+  c.addListener("end", function () {
+    client_got_eof = true;
+    console.log('got end');
+    c.end();
+  });
 
-c.addListener("close", function () {
-  connection_was_closed = true;
-  console.log('got close');
-  server.close();
+  c.addListener("close", function () {
+    connection_was_closed = true;
+    console.log('got close');
+    server.close();
+  });
 });
 
 process.addListener("exit", function () {

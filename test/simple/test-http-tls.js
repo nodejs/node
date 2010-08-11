@@ -37,11 +37,11 @@ var https_server = http.createServer(function (req, res) {
   var peerDN = JSON.stringify(req.connection.getPeerCertificate());
   assert.equal(verified, true);
   assert.equal(peerDN, '{"subject":"/C=UK/ST=Acknack Ltd/L=Rhys Jones'
-		 + '/O=node.js/OU=Test TLS Certificate/CN=localhost",'
-		 + '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js'
-		 + '/OU=Test TLS Certificate/CN=localhost","valid_from":'
-		 + '"Nov 11 09:52:22 2009 GMT","valid_to":'
-		 + '"Nov  6 09:52:22 2029 GMT"}');
+     + '/O=node.js/OU=Test TLS Certificate/CN=localhost",'
+     + '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js'
+     + '/OU=Test TLS Certificate/CN=localhost","valid_from":'
+     + '"Nov 11 09:52:22 2009 GMT","valid_to":'
+     + '"Nov  6 09:52:22 2029 GMT"}');
 
   if (req.id == 0) {
     assert.equal("GET", req.method);
@@ -74,52 +74,54 @@ var https_server = http.createServer(function (req, res) {
 https_server.setSecure(credentials);
 https_server.listen(common.PORT);
 
-var c = net.createConnection(common.PORT);
+https_server.addListener("listening", function() {
+  var c = net.createConnection(common.PORT);
 
-c.setEncoding("utf8");
+  c.setEncoding("utf8");
 
-c.addListener("connect", function () {
-  c.setSecure(credentials);
-});
+  c.addListener("connect", function () {
+    c.setSecure(credentials);
+  });
 
-c.addListener("secure", function () {
-    var verified = c.verifyPeer();
-    var peerDN = JSON.stringify(c.getPeerCertificate());
-    assert.equal(verified, true);
-    assert.equal(peerDN, '{"subject":"/C=UK/ST=Acknack Ltd/L=Rhys Jones'
-		 + '/O=node.js/OU=Test TLS Certificate/CN=localhost",'
-		 + '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js'
-		 + '/OU=Test TLS Certificate/CN=localhost","valid_from":'
-		 + '"Nov 11 09:52:22 2009 GMT","valid_to":'
-		 + '"Nov  6 09:52:22 2029 GMT"}');
-  c.write( "GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n\r\n" );
-  requests_sent += 1;
-});
-
-c.addListener("data", function (chunk) {
-  server_response += chunk;
-
-  if (requests_sent == 1) {
-    c.write("POST /quit HTTP/1.1\r\n\r\n");
+  c.addListener("secure", function () {
+      var verified = c.verifyPeer();
+      var peerDN = JSON.stringify(c.getPeerCertificate());
+      assert.equal(verified, true);
+      assert.equal(peerDN, '{"subject":"/C=UK/ST=Acknack Ltd/L=Rhys Jones'
+        + '/O=node.js/OU=Test TLS Certificate/CN=localhost",'
+        + '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js'
+        + '/OU=Test TLS Certificate/CN=localhost","valid_from":'
+        + '"Nov 11 09:52:22 2009 GMT","valid_to":'
+        + '"Nov  6 09:52:22 2029 GMT"}');
+    c.write( "GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n\r\n" );
     requests_sent += 1;
-  }
+  });
 
-  if (requests_sent == 2) {
-    c.write("GET / HTTP/1.1\r\nX-X: foo\r\n\r\n"
-           +"GET / HTTP/1.1\r\nX-X: bar\r\n\r\n");
-    c.end();
-    assert.equal(c.readyState, "readOnly");
-    requests_sent += 2;
-  }
+  c.addListener("data", function (chunk) {
+    server_response += chunk;
 
-});
+    if (requests_sent == 1) {
+      c.write("POST /quit HTTP/1.1\r\n\r\n");
+      requests_sent += 1;
+    }
 
-c.addListener("end", function () {
-  client_got_eof = true;
-});
+    if (requests_sent == 2) {
+      c.write("GET / HTTP/1.1\r\nX-X: foo\r\n\r\n"
+             +"GET / HTTP/1.1\r\nX-X: bar\r\n\r\n");
+      c.end();
+      assert.equal(c.readyState, "readOnly");
+      requests_sent += 2;
+    }
 
-c.addListener("close", function () {
-  assert.equal(c.readyState, "closed");
+  });
+
+  c.addListener("end", function () {
+    client_got_eof = true;
+  });
+
+  c.addListener("close", function () {
+    assert.equal(c.readyState, "closed");
+  });
 });
 
 process.addListener("exit", function () {

@@ -23,68 +23,70 @@ var server = http.createServer(function (req, res) {
   };
 
   res.writeHead(200, { "Content-Type": "text/plain"
-                      , "Content-Length": body.length
-                      });
+                     , "Content-Length": body.length
+                     });
   res.end(body);
 });
 server.listen(common.PORT);
-
-var client = http.createClient(common.PORT);
 
 var body1 = "";
 var body2 = "";
 var body3 = "";
 
-//
-// Client #1 is assigned Parser #1
-//
-var req1 = client.request("/1")
-req1.end();
-req1.addListener('response', function (res1) {
-  res1.setBodyEncoding("utf8");
+server.addListener("listening", function() {
+  var client = http.createClient(common.PORT);
 
-  res1.addListener('data', function (chunk) {
-    body1 += chunk;
-  });
+  //
+  // Client #1 is assigned Parser #1
+  //
+  var req1 = client.request("/1")
+  req1.end();
+  req1.addListener('response', function (res1) {
+    res1.setEncoding("utf8");
 
-  res1.addListener('end', function () {
-    //
-    // Delay execution a little to allow the "close" event to be processed
-    // (required to trigger this bug!)
-    //
-    setTimeout(function () {
-      //
-      // The bug would introduce itself here: Client #2 would be allocated the
-      // parser that previously belonged to Client #1. But we're not finished
-      // with Client #1 yet!
-      //
-      var client2 = http.createClient(common.PORT);
+    res1.addListener('data', function (chunk) {
+      body1 += chunk;
+    });
 
+    res1.addListener('end', function () {
       //
-      // At this point, the bug would manifest itself and crash because the
-      // internal state of the parser was no longer valid for use by Client #1.
+      // Delay execution a little to allow the "close" event to be processed
+      // (required to trigger this bug!)
       //
-      var req2 = client.request("/2");
-      req2.end();
-      req2.addListener('response', function (res2) {
-        res2.setBodyEncoding("utf8");
-        res2.addListener('data', function (chunk) { body2 += chunk; });
-        res2.addListener('end', function () {
+      setTimeout(function () {
+        //
+        // The bug would introduce itself here: Client #2 would be allocated the
+        // parser that previously belonged to Client #1. But we're not finished
+        // with Client #1 yet!
+        //
+        var client2 = http.createClient(common.PORT);
 
-          //
-          // Just to be really sure we've covered all our bases, execute a
-          // request using client2.
-          //
-          var req3 = client2.request("/3");
-          req3.end();
-          req3.addListener('response', function (res3) {
-            res3.setBodyEncoding("utf8");
-            res3.addListener('data', function (chunk) { body3 += chunk });
-            res3.addListener('end', function() { server.close(); });
+        //
+        // At this point, the bug would manifest itself and crash because the
+        // internal state of the parser was no longer valid for use by Client #1.
+        //
+        var req2 = client.request("/2");
+        req2.end();
+        req2.addListener('response', function (res2) {
+          res2.setEncoding("utf8");
+          res2.addListener('data', function (chunk) { body2 += chunk; });
+          res2.addListener('end', function () {
+
+            //
+            // Just to be really sure we've covered all our bases, execute a
+            // request using client2.
+            //
+            var req3 = client2.request("/3");
+            req3.end();
+            req3.addListener('response', function (res3) {
+              res3.setEncoding("utf8");
+              res3.addListener('data', function (chunk) { body3 += chunk });
+              res3.addListener('end', function() { server.close(); });
+            });
           });
         });
-      });
-    }, 500);
+      }, 500);
+    });
   });
 });
 

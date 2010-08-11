@@ -10,7 +10,7 @@ var requests_sent = 0;
 var server_response = "";
 var client_got_eof = false;
 
-http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
   res.id = request_number;
   req.id = request_number++;
 
@@ -45,41 +45,44 @@ http.createServer(function (req, res) {
     res.end();
   }, 1);
 
-}).listen(common.PORT);
-
-var c = net.createConnection(common.PORT);
-
-c.setEncoding("utf8");
-
-c.addListener("connect", function () {
-  c.write( "GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n\r\n" );
-  requests_sent += 1;
 });
+server.listen(common.PORT);
 
-c.addListener("data", function (chunk) {
-  server_response += chunk;
+server.addListener("listening", function() {
+  var c = net.createConnection(common.PORT);
 
-  if (requests_sent == 1) {
-    c.write("POST /quit HTTP/1.1\r\n\r\n");
+  c.setEncoding("utf8");
+
+  c.addListener("connect", function () {
+    c.write( "GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n\r\n" );
     requests_sent += 1;
-  }
+  });
 
-  if (requests_sent == 2) {
-    c.write("GET / HTTP/1.1\r\nX-X: foo\r\n\r\n"
-           +"GET / HTTP/1.1\r\nX-X: bar\r\n\r\n");
-    c.end();
-    assert.equal(c.readyState, "readOnly");
-    requests_sent += 2;
-  }
+  c.addListener("data", function (chunk) {
+    server_response += chunk;
 
-});
+    if (requests_sent == 1) {
+      c.write("POST /quit HTTP/1.1\r\n\r\n");
+      requests_sent += 1;
+    }
 
-c.addListener("end", function () {
-  client_got_eof = true;
-});
+    if (requests_sent == 2) {
+      c.write("GET / HTTP/1.1\r\nX-X: foo\r\n\r\n"
+             +"GET / HTTP/1.1\r\nX-X: bar\r\n\r\n");
+      c.end();
+      assert.equal(c.readyState, "readOnly");
+      requests_sent += 2;
+    }
 
-c.addListener("close", function () {
-  assert.equal(c.readyState, "closed");
+  });
+
+  c.addListener("end", function () {
+    client_got_eof = true;
+  });
+
+  c.addListener("close", function () {
+    assert.equal(c.readyState, "closed");
+  });
 });
 
 process.addListener("exit", function () {

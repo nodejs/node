@@ -32,29 +32,31 @@ var echoServer = tcp.createServer(function (connection) {
 echoServer.listen(common.PORT);
 
 var recv = "";
-var j = 0;
 
-var c = tcp.createConnection(common.PORT);
+echoServer.addListener("listening", function() {
+  var j = 0;
+  var c = tcp.createConnection(common.PORT);
 
-c.setEncoding("binary");
-c.addListener("data", function (chunk) {
-  if (j < 256) {
-    common.error("write " + j);
-    c.write(String.fromCharCode(j), "binary");
-    j++;
-  } else {
-    c.end();
-  }
-  recv += chunk;
-});
+  c.setEncoding("binary");
+  c.addListener("data", function (chunk) {
+    if (j < 256) {
+      common.error("write " + j);
+      c.write(String.fromCharCode(j), "binary");
+      j++;
+    } else {
+      c.end();
+    }
+    recv += chunk;
+  });
 
-c.addListener("connect", function () {
-  c.write(binaryString, "binary");
-});
+  c.addListener("connect", function () {
+    c.write(binaryString, "binary");
+  });
 
-c.addListener("close", function () {
-  p(recv);
-  echoServer.close();
+  c.addListener("close", function () {
+    p(recv);
+    echoServer.close();
+  });
 });
 
 process.addListener("exit", function () {

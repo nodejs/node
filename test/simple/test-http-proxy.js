@@ -43,7 +43,7 @@ function startReq () {
   req.addListener('response', function (res) {
     common.debug("got res");
     assert.equal(200, res.statusCode);
-    res.setBodyEncoding("utf8");
+    res.setEncoding("utf8");
     res.addListener('data', function (chunk) { body += chunk; });
     res.addListener('end', function () {
       proxy.close();

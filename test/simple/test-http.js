@@ -12,7 +12,7 @@ var responses_recvd = 0;
 var body0 = "";
 var body1 = "";
 
-http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
   if (responses_sent == 0) {
     assert.equal("GET", req.method);
     assert.equal("/hello", url.parse(req.url).pathname);
@@ -39,30 +39,33 @@ http.createServer(function (req, res) {
   });
 
   //assert.equal("127.0.0.1", res.connection.remoteAddress);
-}).listen(common.PORT);
-
-var client = http.createClient(common.PORT);
-var req = client.request("/hello", {"Accept": "*/*", "Foo": "bar"});
-req.end();
-req.addListener('response', function (res) {
-  assert.equal(200, res.statusCode);
-  responses_recvd += 1;
-  res.setEncoding("utf8");
-  res.addListener('data', function (chunk) { body0 += chunk; });
-  common.debug("Got /hello response");
 });
+server.listen(common.PORT);
 
-setTimeout(function () {
-  req = client.request("POST", "/world");
+server.addListener("listening", function() {
+  var client = http.createClient(common.PORT);
+  var req = client.request("/hello", {"Accept": "*/*", "Foo": "bar"});
   req.end();
-  req.addListener('response',function (res) {
+  req.addListener('response', function (res) {
     assert.equal(200, res.statusCode);
     responses_recvd += 1;
-    res.setBodyEncoding("utf8");
-    res.addListener('data', function (chunk) { body1 += chunk; });
-    common.debug("Got /world response");
+    res.setEncoding("utf8");
+    res.addListener('data', function (chunk) { body0 += chunk; });
+    common.debug("Got /hello response");
   });
-}, 1);
+
+  setTimeout(function () {
+    req = client.request("POST", "/world");
+    req.end();
+    req.addListener('response',function (res) {
+      assert.equal(200, res.statusCode);
+      responses_recvd += 1;
+      res.setEncoding("utf8");
+      res.addListener('data', function (chunk) { body1 += chunk; });
+      common.debug("Got /world response");
+    });
+  }, 1);
+});
 
 process.addListener("exit", function () {
   common.debug("responses_recvd: " + responses_recvd);

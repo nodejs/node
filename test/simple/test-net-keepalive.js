@@ -15,15 +15,16 @@ var echoServer = net.createServer(function (connection) {
 });
 echoServer.listen(common.PORT);
 
-var clientConnection = net.createConnection(common.PORT);
-clientConnection.setTimeout(0);
+echoServer.addListener("listening", function() {
+  var clientConnection = net.createConnection(common.PORT);
+  clientConnection.setTimeout(0);
 
-setTimeout( function() {
-  // make sure both connections are still open
-  assert.equal(serverConnection.readyState,"open");
-  assert.equal(clientConnection.readyState,"open");
-  serverConnection.end();
-  clientConnection.end();
-  echoServer.close();
-}, 1200);
-
+  setTimeout( function() {
+    // make sure both connections are still open
+    assert.equal(serverConnection.readyState,"open");
+    assert.equal(clientConnection.readyState,"open");
+    serverConnection.end();
+    clientConnection.end();
+    echoServer.close();
+  }, 1200);
+});

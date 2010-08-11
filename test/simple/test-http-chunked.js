@@ -10,11 +10,13 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(common.PORT);
 
-http.cat("http://127.0.0.1:"+common.PORT+"/", "utf8", function (err, data) {
-  if (err) throw err;
-  assert.equal('string', typeof data);
-  console.log('here is the response:');
-  assert.equal(UTF8_STRING, data);
-  console.log(data);
-  server.close();
-})
+server.addListener("listening", function() {
+  http.cat("http://127.0.0.1:"+common.PORT+"/", "utf8", function (err, data) {
+    if (err) throw err;
+    assert.equal('string', typeof data);
+    console.log('here is the response:');
+    assert.equal(UTF8_STRING, data);
+    console.log(data);
+    server.close();
+  });
+});

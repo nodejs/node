@@ -37,11 +37,11 @@ var secureServer = net.createServer(function (connection) {
     var peerDN = JSON.stringify(connection.getPeerCertificate());
     assert.equal(verified, true);
     assert.equal(peerDN, '{"subject":"/C=UK/ST=Acknack Ltd/L=Rhys Jones'
-		 + '/O=node.js/OU=Test TLS Certificate/CN=localhost",'
-		 + '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js'
-		 + '/OU=Test TLS Certificate/CN=localhost","valid_from":'
-		 + '"Nov 11 09:52:22 2009 GMT","valid_to":'
-		 + '"Nov  6 09:52:22 2029 GMT"}');
+         + '/O=node.js/OU=Test TLS Certificate/CN=localhost",'
+         + '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js'
+         + '/OU=Test TLS Certificate/CN=localhost","valid_from":'
+         + '"Nov 11 09:52:22 2009 GMT","valid_to":'
+         + '"Nov  6 09:52:22 2029 GMT"}');
 
   });
 
@@ -58,40 +58,40 @@ var secureServer = net.createServer(function (connection) {
 });
 secureServer.listen(common.PORT);
 
-var secureClient = net.createConnection(common.PORT);
+secureServer.addListener("listening", function() {
+  var secureClient = net.createConnection(common.PORT);
 
-secureClient.setEncoding("UTF8");
-secureClient.addListener("connect", function () {
-  secureClient.setSecure(credentials);
-});
+  secureClient.setEncoding("UTF8");
+  secureClient.addListener("connect", function () {
+    secureClient.setSecure(credentials);
+  });
 
-secureClient.addListener("secure", function () {
-  gotSecureClient = true;
-  var verified = secureClient.verifyPeer();
-  var peerDN = JSON.stringify(secureClient.getPeerCertificate());
-  assert.equal(verified, true);
-  assert.equal(peerDN, '{"subject":"/C=UK/ST=Acknack Ltd/L=Rhys Jones'
-		 + '/O=node.js/OU=Test TLS Certificate/CN=localhost",'
-		 + '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js'
-		 + '/OU=Test TLS Certificate/CN=localhost","valid_from":'
-		 + '"Nov 11 09:52:22 2009 GMT","valid_to":'
-		 + '"Nov  6 09:52:22 2029 GMT"}');
+  secureClient.addListener("secure", function () {
+    gotSecureClient = true;
+    var verified = secureClient.verifyPeer();
+    var peerDN = JSON.stringify(secureClient.getPeerCertificate());
+    assert.equal(verified, true);
+    assert.equal(peerDN, '{"subject":"/C=UK/ST=Acknack Ltd/L=Rhys Jones'
+      + '/O=node.js/OU=Test TLS Certificate/CN=localhost",'
+      + '"issuer":"/C=UK/ST=Acknack Ltd/L=Rhys Jones/O=node.js'
+      + '/OU=Test TLS Certificate/CN=localhost","valid_from":'
+      + '"Nov 11 09:52:22 2009 GMT","valid_to":'
+      + '"Nov  6 09:52:22 2029 GMT"}');
 
-  secureClient.write(testData);
-  secureClient.end();
-});
+    secureClient.write(testData);
+    secureClient.end();
+  });
 
-secureClient.addListener("data", function (chunk) {
-  clientData += chunk;
-});
+  secureClient.addListener("data", function (chunk) {
+    clientData += chunk;
+  });
 
-secureClient.addListener("end", function () {
-  assert.equal(clientData, testData);
+  secureClient.addListener("end", function () {
+    assert.equal(clientData, testData);
+  });
 });
 
 process.addListener("exit", function () {
   assert.ok(gotSecureServer, "Did not get secure event for server");
   assert.ok(gotSecureClient, "Did not get secure event for clientr");
 });
-
-
