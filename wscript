@@ -252,6 +252,9 @@ def configure(conf):
     conf.env.append_value ('CCFLAGS', threadflags)
     conf.env.append_value ('CXXFLAGS', threadflags)
     conf.env.append_value ('LINKFLAGS', threadflags)
+  if sys.platform.startswith("darwin"):
+    # used by platform_darwin_*.cc
+    conf.env.append_value('LINKFLAGS', ['-framework','Carbon'])
 
   conf.env.append_value("CCFLAGS", "-DX_STACKSIZE=%d" % (1024*64))
 

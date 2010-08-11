@@ -33,6 +33,9 @@ are:
     and has copyrights from Jérémy Lal, Ryan Tomayko, Dominic Baggott, Ash
     Berlin, and Joey Mazzarelli.
 
+  - src/platform_darwin_proctitle.cc, has code taken from the Chromium
+    project copyright Google Inc. and released with the BSD license.
+
 
 Node's license follows:
 
