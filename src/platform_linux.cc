@@ -4,23 +4,37 @@
 #include <sys/param.h> // for MAXPATHLEN
 #include <unistd.h> // getpagesize
 
+/* SetProcessTitle */
+#include <sys/prctl.h>
+#include <linux/prctl.h>
+#include <stdlib.h> // free
+#include <string.h> // strdup
+
 
 namespace node {
 
 static char buf[MAXPATHLEN + 1];
+static char *process_title;
 
 
 char** OS::SetupArgs(int argc, char *argv[]) {
+  process_title = strdup(argv[0]);
   return argv;
 }
 
 
 void OS::SetProcessTitle(char *title) {
-  ;
+  if (process_title) free(process_title);
+  process_title = strdup(title);
+  prctl(PR_SET_NAME, process_title);
 }
 
 
 const char* OS::GetProcessTitle(int *len) {
+  if (process_title) {
+    *len = strlen(process_title);
+    return process_title;
+  }
   *len = 0;
   return NULL;
 }
