@@ -183,8 +183,8 @@ S8.5_A2.1: PASS, FAIL if $system == linux, FAIL if $system == macos
 # These tests check for ES3 semantics, and differ from ES5.
 # When we follow ES5 semantics, it's ok to fail the test.
 
-# Allow keywords as names of properties in object initialisers and 
-# in dot-notation property access. 
+# Allow keywords as names of properties in object initialisers and
+# in dot-notation property access.
 S11.1.5_A4.1: FAIL_OK
 S11.1.5_A4.2: FAIL_OK
 

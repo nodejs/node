@@ -97,13 +97,6 @@ void CodeMap::DeleteCode(Address addr) {
 }
 
 
-bool CpuProfilesCollection::is_last_profile() {
-  // Called from VM thread, and only it can mutate the list,
-  // so no locking is needed here.
-  return current_profiles_.length() == 1;
-}
-
-
 const char* CpuProfilesCollection::GetFunctionName(String* name) {
   return GetFunctionName(GetName(name));
 }
@@ -127,17 +120,6 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
     case EXTERNAL:
       return program_entry_;
     default: return NULL;
-  }
-}
-
-
-template<class Visitor>
-void HeapEntriesMap::Apply(Visitor* visitor) {
-  for (HashMap::Entry* p = entries_.Start();
-       p != NULL;
-       p = entries_.Next(p)) {
-    if (!IsAlias(p->value))
-      visitor->Apply(reinterpret_cast<HeapEntry*>(p->value));
   }
 }
 

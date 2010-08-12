@@ -548,7 +548,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ mov(ebx,
          FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
   __ SmiUntag(ebx);
-  __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
+  __ mov(edx, FieldOperand(edi, JSFunction::kCodeOffset));
   __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
   __ cmp(eax, Operand(ebx));
   __ j(not_equal, Handle<Code>(builtin(ArgumentsAdaptorTrampoline)));

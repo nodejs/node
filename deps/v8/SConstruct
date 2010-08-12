@@ -58,7 +58,7 @@ else:
 # on linux we need these compiler flags to avoid crashes in the v8 test suite
 # and avoid dtoa.c strict aliasing issues
 if os.environ.get('GCC_VERSION') == '44':
-    GCC_EXTRA_CCFLAGS = ['-fno-tree-vrp', '-fno-strict-aliasing']
+    GCC_EXTRA_CCFLAGS = ['-fno-tree-vrp']
     GCC_DTOA_EXTRA_CCFLAGS = []
 else:
     GCC_EXTRA_CCFLAGS = []
@@ -80,7 +80,6 @@ ANDROID_FLAGS = ['-march=armv7-a',
                  '-frerun-cse-after-loop',
                  '-frename-registers',
                  '-fomit-frame-pointer',
-                 '-fno-strict-aliasing',
                  '-finline-limit=64',
                  '-DCAN_USE_VFP_INSTRUCTIONS=1',
                  '-DCAN_USE_ARMV7_INSTRUCTIONS=1',

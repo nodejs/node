@@ -3608,7 +3608,9 @@ class JSFunction: public JSObject {
   static Context* GlobalContextFromLiterals(FixedArray* literals);
 
   // Layout descriptors.
-  static const int kPrototypeOrInitialMapOffset = JSObject::kHeaderSize;
+  static const int kCodeOffset = JSObject::kHeaderSize;
+  static const int kPrototypeOrInitialMapOffset =
+      kCodeOffset + kPointerSize;
   static const int kSharedFunctionInfoOffset =
       kPrototypeOrInitialMapOffset + kPointerSize;
   static const int kContextOffset = kSharedFunctionInfoOffset + kPointerSize;

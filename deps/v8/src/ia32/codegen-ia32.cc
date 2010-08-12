@@ -1038,7 +1038,11 @@ const char* GenericBinaryOpStub::GetName() {
 }
 
 
-// Call the specialized stub for a binary operation.
+// Perform or call the specialized stub for a binary operation.  Requires the
+// three registers left, right and dst to be distinct and spilled.  This
+// deferred operation has up to three entry points:  The main one calls the
+// runtime system.  The second is for when the result is a non-Smi.  The
+// third is for when at least one of the inputs is non-Smi and we have SSE2.
 class DeferredInlineBinaryOperation: public DeferredCode {
  public:
   DeferredInlineBinaryOperation(Token::Value op,
@@ -1051,11 +1055,23 @@ class DeferredInlineBinaryOperation: public DeferredCode {
       : op_(op), dst_(dst), left_(left), right_(right),
         left_info_(left_info), right_info_(right_info), mode_(mode) {
     set_comment("[ DeferredInlineBinaryOperation");
+    ASSERT(!left.is(right));
   }
 
   virtual void Generate();
 
+  // This stub makes explicit calls to SaveRegisters(), RestoreRegisters() and
+  // Exit().
+  virtual bool AutoSaveAndRestore() { return false; }
+
+  void JumpToAnswerOutOfRange(Condition cond);
+  void JumpToConstantRhs(Condition cond, Smi* smi_value);
+  Label* NonSmiInputLabel();
+
  private:
+  void GenerateAnswerOutOfRange();
+  void GenerateNonSmiInput();
+
   Token::Value op_;
   Register dst_;
   Register left_;
@@ -1063,15 +1079,42 @@ class DeferredInlineBinaryOperation: public DeferredCode {
   TypeInfo left_info_;
   TypeInfo right_info_;
   OverwriteMode mode_;
+  Label answer_out_of_range_;
+  Label non_smi_input_;
+  Label constant_rhs_;
+  Smi* smi_value_;
 };
 
 
+Label* DeferredInlineBinaryOperation::NonSmiInputLabel() {
+  if (Token::IsBitOp(op_) && CpuFeatures::IsSupported(SSE2)) {
+    return &non_smi_input_;
+  } else {
+    return entry_label();
+  }
+}
+
+
+void DeferredInlineBinaryOperation::JumpToAnswerOutOfRange(Condition cond) {
+  __ j(cond, &answer_out_of_range_);
+}
+
+
+void DeferredInlineBinaryOperation::JumpToConstantRhs(Condition cond,
+                                                      Smi* smi_value) {
+  smi_value_ = smi_value;
+  __ j(cond, &constant_rhs_);
+}
+
+
 void DeferredInlineBinaryOperation::Generate() {
-  Label done;
-  if (CpuFeatures::IsSupported(SSE2) && ((op_ == Token::ADD) ||
-      (op_ ==Token::SUB) ||
-      (op_ == Token::MUL) ||
-      (op_ == Token::DIV))) {
+  // Registers are not saved implicitly for this stub, so we should not
+  // tread on the registers that were not passed to us.
+  if (CpuFeatures::IsSupported(SSE2) &&
+      ((op_ == Token::ADD) ||
+       (op_ == Token::SUB) ||
+       (op_ == Token::MUL) ||
+       (op_ == Token::DIV))) {
     CpuFeatures::Scope use_sse2(SSE2);
     Label call_runtime, after_alloc_failure;
     Label left_smi, right_smi, load_right, do_op;
@@ -1131,7 +1174,6 @@ void DeferredInlineBinaryOperation::Generate() {
     __ cvtsi2sd(xmm1, Operand(right_));
     __ SmiTag(right_);
     if (mode_ == OVERWRITE_RIGHT || mode_ == NO_OVERWRITE) {
-      Label alloc_failure;
       __ push(left_);
       __ AllocateHeapNumber(dst_, left_, no_reg, &after_alloc_failure);
       __ pop(left_);
@@ -1146,19 +1188,200 @@ void DeferredInlineBinaryOperation::Generate() {
       default: UNREACHABLE();
     }
     __ movdbl(FieldOperand(dst_, HeapNumber::kValueOffset), xmm0);
-    __ jmp(&done);
+    Exit();
+
 
     __ bind(&after_alloc_failure);
     __ pop(left_);
     __ bind(&call_runtime);
   }
+  // Register spilling is not done implicitly for this stub.
+  // We can't postpone it any more now though.
+  SaveRegisters();
+
   GenericBinaryOpStub stub(op_,
                            mode_,
                            NO_SMI_CODE_IN_STUB,
                            TypeInfo::Combine(left_info_, right_info_));
   stub.GenerateCall(masm_, left_, right_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
-  __ bind(&done);
+  RestoreRegisters();
+  Exit();
+
+  if (non_smi_input_.is_linked() || constant_rhs_.is_linked()) {
+    GenerateNonSmiInput();
+  }
+  if (answer_out_of_range_.is_linked()) {
+    GenerateAnswerOutOfRange();
+  }
+}
+
+
+void DeferredInlineBinaryOperation::GenerateNonSmiInput() {
+  // We know at least one of the inputs was not a Smi.
+  // This is a third entry point into the deferred code.
+  // We may not overwrite left_ because we want to be able
+  // to call the handling code for non-smi answer and it
+  // might want to overwrite the heap number in left_.
+  ASSERT(!right_.is(dst_));
+  ASSERT(!left_.is(dst_));
+  ASSERT(!left_.is(right_));
+  // This entry point is used for bit ops where the right hand side
+  // is a constant Smi and the left hand side is a heap object.  It
+  // is also used for bit ops where both sides are unknown, but where
+  // at least one of them is a heap object.
+  bool rhs_is_constant = constant_rhs_.is_linked();
+  // We can't generate code for both cases.
+  ASSERT(!non_smi_input_.is_linked() || !constant_rhs_.is_linked());
+
+  if (FLAG_debug_code) {
+    __ int3();  // We don't fall through into this code.
+  }
+
+  __ bind(&non_smi_input_);
+
+  if (rhs_is_constant) {
+    __ bind(&constant_rhs_);
+    // In this case the input is a heap object and it is in the dst_ register.
+    // The left_ and right_ registers have not been initialized yet.
+    __ mov(right_, Immediate(smi_value_));
+    __ mov(left_, Operand(dst_));
+    if (!CpuFeatures::IsSupported(SSE2)) {
+      __ jmp(entry_label());
+      return;
+    } else {
+      CpuFeatures::Scope use_sse2(SSE2);
+      __ JumpIfNotNumber(dst_, left_info_, entry_label());
+      __ ConvertToInt32(dst_, left_, dst_, left_info_, entry_label());
+      __ SmiUntag(right_);
+    }
+  } else {
+    // We know we have SSE2 here because otherwise the label is not linked (see
+    // NonSmiInputLabel).
+    CpuFeatures::Scope use_sse2(SSE2);
+    // Handle the non-constant right hand side situation:
+    if (left_info_.IsSmi()) {
+      // Right is a heap object.
+      __ JumpIfNotNumber(right_, right_info_, entry_label());
+      __ ConvertToInt32(right_, right_, dst_, left_info_, entry_label());
+      __ mov(dst_, Operand(left_));
+      __ SmiUntag(dst_);
+    } else if (right_info_.IsSmi()) {
+      // Left is a heap object.
+      __ JumpIfNotNumber(left_, left_info_, entry_label());
+      __ ConvertToInt32(dst_, left_, dst_, left_info_, entry_label());
+      __ SmiUntag(right_);
+    } else {
+      // Here we don't know if it's one or both that is a heap object.
+      Label only_right_is_heap_object, got_both;
+      __ mov(dst_, Operand(left_));
+      __ SmiUntag(dst_, &only_right_is_heap_object);
+      // Left was a heap object.
+      __ JumpIfNotNumber(left_, left_info_, entry_label());
+      __ ConvertToInt32(dst_, left_, dst_, left_info_, entry_label());
+      __ SmiUntag(right_, &got_both);
+      // Both were heap objects.
+      __ rcl(right_, 1);  // Put tag back.
+      __ JumpIfNotNumber(right_, right_info_, entry_label());
+      __ ConvertToInt32(right_, right_, no_reg, left_info_, entry_label());
+      __ jmp(&got_both);
+      __ bind(&only_right_is_heap_object);
+      __ JumpIfNotNumber(right_, right_info_, entry_label());
+      __ ConvertToInt32(right_, right_, no_reg, left_info_, entry_label());
+      __ bind(&got_both);
+    }
+  }
+  ASSERT(op_ == Token::BIT_AND ||
+         op_ == Token::BIT_OR ||
+         op_ == Token::BIT_XOR ||
+         right_.is(ecx));
+  switch (op_) {
+    case Token::BIT_AND: __ and_(dst_, Operand(right_));  break;
+    case Token::BIT_OR:   __ or_(dst_, Operand(right_));  break;
+    case Token::BIT_XOR: __ xor_(dst_, Operand(right_));  break;
+    case Token::SHR:     __ shr_cl(dst_);  break;
+    case Token::SAR:     __ sar_cl(dst_);  break;
+    case Token::SHL:     __ shl_cl(dst_);  break;
+    default: UNREACHABLE();
+  }
+  if (op_ == Token::SHR) {
+    // Check that the *unsigned* result fits in a smi.  Neither of
+    // the two high-order bits can be set:
+    //  * 0x80000000: high bit would be lost when smi tagging.
+    //  * 0x40000000: this number would convert to negative when smi
+    //    tagging.
+    __ test(dst_, Immediate(0xc0000000));
+    __ j(not_zero, &answer_out_of_range_);
+  } else {
+    // Check that the *signed* result fits in a smi.
+    __ cmp(dst_, 0xc0000000);
+    __ j(negative, &answer_out_of_range_);
+  }
+  __ SmiTag(dst_);
+  Exit();
+}
+
+
+void DeferredInlineBinaryOperation::GenerateAnswerOutOfRange() {
+  Label after_alloc_failure2;
+  Label allocation_ok;
+  __ bind(&after_alloc_failure2);
+  // We have to allocate a number, causing a GC, while keeping hold of
+  // the answer in dst_.  The answer is not a Smi.  We can't just call the
+  // runtime shift function here because we already threw away the inputs.
+  __ xor_(left_, Operand(left_));
+  __ shl(dst_, 1);  // Put top bit in carry flag and Smi tag the low bits.
+  __ rcr(left_, 1);  // Rotate with carry.
+  __ push(dst_);   // Smi tagged low 31 bits.
+  __ push(left_);  // 0 or 0x80000000, which is Smi tagged in both cases.
+  __ CallRuntime(Runtime::kNumberAlloc, 0);
+  if (!left_.is(eax)) {
+    __ mov(left_, eax);
+  }
+  __ pop(right_);   // High bit.
+  __ pop(dst_);     // Low 31 bits.
+  __ shr(dst_, 1);  // Put 0 in top bit.
+  __ or_(dst_, Operand(right_));
+  __ jmp(&allocation_ok);
+
+  // This is the second entry point to the deferred code.  It is used only by
+  // the bit operations.
+  // The dst_ register has the answer.  It is not Smi tagged.  If mode_ is
+  // OVERWRITE_LEFT then left_ must contain either an overwritable heap number
+  // or a Smi.
+  // Put a heap number pointer in left_.
+  __ bind(&answer_out_of_range_);
+  SaveRegisters();
+  if (mode_ == OVERWRITE_LEFT) {
+    __ test(left_, Immediate(kSmiTagMask));
+    __ j(not_zero, &allocation_ok);
+  }
+  // This trashes right_.
+  __ AllocateHeapNumber(left_, right_, no_reg, &after_alloc_failure2);
+  __ bind(&allocation_ok);
+  if (CpuFeatures::IsSupported(SSE2) && op_ != Token::SHR) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    ASSERT(Token::IsBitOp(op_));
+    // Signed conversion.
+    __ cvtsi2sd(xmm0, Operand(dst_));
+    __ movdbl(FieldOperand(left_, HeapNumber::kValueOffset), xmm0);
+  } else {
+    if (op_ == Token::SHR) {
+      __ push(Immediate(0));  // High word of unsigned value.
+      __ push(dst_);
+      __ fild_d(Operand(esp, 0));
+      __ Drop(2);
+    } else {
+      ASSERT(Token::IsBitOp(op_));
+      __ push(dst_);
+      __ fild_s(Operand(esp, 0));  // Signed conversion.
+      __ pop(dst_);
+    }
+    __ fstp_d(FieldOperand(left_, HeapNumber::kValueOffset));
+  }
+  __ mov(dst_, left_);
+  RestoreRegisters();
+  Exit();
 }
 
 
@@ -1499,10 +1722,25 @@ void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
                                                   TypeInfo left_info,
                                                   TypeInfo right_info,
                                                   DeferredCode* deferred) {
+  JumpIfNotBothSmiUsingTypeInfo(left,
+                                right,
+                                scratch,
+                                left_info,
+                                right_info,
+                                deferred->entry_label());
+}
+
+
+void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
+                                                  Register right,
+                                                  Register scratch,
+                                                  TypeInfo left_info,
+                                                  TypeInfo right_info,
+                                                  Label* on_not_smi) {
   if (left.is(right)) {
     if (!left_info.IsSmi()) {
       __ test(left, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      __ j(not_zero, on_not_smi);
     } else {
       if (FLAG_debug_code) __ AbortIfNotSmi(left);
     }
@@ -1511,17 +1749,17 @@ void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
       __ mov(scratch, left);
       __ or_(scratch, Operand(right));
       __ test(scratch, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      __ j(not_zero, on_not_smi);
     } else {
       __ test(left, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      __ j(not_zero, on_not_smi);
       if (FLAG_debug_code) __ AbortIfNotSmi(right);
     }
   } else {
     if (FLAG_debug_code) __ AbortIfNotSmi(left);
     if (!right_info.IsSmi()) {
       __ test(right, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      __ j(not_zero, on_not_smi);
     } else {
       if (FLAG_debug_code) __ AbortIfNotSmi(right);
     }
@@ -1606,13 +1844,16 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
     right->ToRegister();
     frame_->Spill(eax);
     frame_->Spill(edx);
+    // DeferredInlineBinaryOperation requires all the registers that it is
+    // told about to be spilled and distinct.
+    Result distinct_right = frame_->MakeDistinctAndSpilled(left, right);
 
     // Check that left and right are smi tagged.
     DeferredInlineBinaryOperation* deferred =
         new DeferredInlineBinaryOperation(op,
                                           (op == Token::DIV) ? eax : edx,
                                           left->reg(),
-                                          right->reg(),
+                                          distinct_right.reg(),
                                           left_type_info,
                                           right_type_info,
                                           overwrite_mode);
@@ -1695,15 +1936,23 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
     left->ToRegister();
     ASSERT(left->is_register() && !left->reg().is(ecx));
     ASSERT(right->is_register() && right->reg().is(ecx));
+    if (left_type_info.IsSmi()) {
+      if (FLAG_debug_code) __ AbortIfNotSmi(left->reg());
+    }
+    if (right_type_info.IsSmi()) {
+      if (FLAG_debug_code) __ AbortIfNotSmi(right->reg());
+    }
 
     // We will modify right, it must be spilled.
     frame_->Spill(ecx);
+    // DeferredInlineBinaryOperation requires all the registers that it is told
+    // about to be spilled and distinct.  We know that right is ecx and left is
+    // not ecx.
+    frame_->Spill(left->reg());
 
     // Use a fresh answer register to avoid spilling the left operand.
     answer = allocator_->Allocate();
     ASSERT(answer.is_valid());
-    // Check that both operands are smis using the answer register as a
-    // temporary.
     DeferredInlineBinaryOperation* deferred =
         new DeferredInlineBinaryOperation(op,
                                           answer.reg(),
@@ -1712,55 +1961,28 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           left_type_info,
                                           right_type_info,
                                           overwrite_mode);
+    JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(), answer.reg(),
+                                  left_type_info, right_type_info,
+                                  deferred->NonSmiInputLabel());
 
-    Label do_op, left_nonsmi;
-    // If right is a smi we make a fast case if left is either a smi
-    // or a heapnumber.
-    if (CpuFeatures::IsSupported(SSE2) && right_type_info.IsSmi()) {
-      CpuFeatures::Scope use_sse2(SSE2);
-      __ mov(answer.reg(), left->reg());
-      // Fast case - both are actually smis.
-      if (!left_type_info.IsSmi()) {
-        __ test(answer.reg(), Immediate(kSmiTagMask));
-        __ j(not_zero, &left_nonsmi);
-      } else {
-        if (FLAG_debug_code) __ AbortIfNotSmi(left->reg());
-      }
-      if (FLAG_debug_code) __ AbortIfNotSmi(right->reg());
-      __ SmiUntag(answer.reg());
-      __ jmp(&do_op);
+    // Untag both operands.
+    __ mov(answer.reg(), left->reg());
+    __ SmiUntag(answer.reg());
+    __ SmiUntag(right->reg());  // Right is ecx.
 
-      __ bind(&left_nonsmi);
-      // Branch if not a heapnumber.
-      __ cmp(FieldOperand(answer.reg(), HeapObject::kMapOffset),
-             Factory::heap_number_map());
-      deferred->Branch(not_equal);
-
-      // Load integer value into answer register using truncation.
-      __ cvttsd2si(answer.reg(),
-                   FieldOperand(answer.reg(), HeapNumber::kValueOffset));
-      // Branch if we do not fit in a smi.
-      __ cmp(answer.reg(), 0xc0000000);
-      deferred->Branch(negative);
-    } else {
-      JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(), answer.reg(),
-                                    left_type_info, right_type_info, deferred);
-
-      // Untag both operands.
-      __ mov(answer.reg(), left->reg());
-      __ SmiUntag(answer.reg());
-    }
-
-    __ bind(&do_op);
-    __ SmiUntag(ecx);
     // Perform the operation.
+    ASSERT(right->reg().is(ecx));
     switch (op) {
-      case Token::SAR:
+      case Token::SAR: {
         __ sar_cl(answer.reg());
-        // No checks of result necessary
+        if (!left_type_info.IsSmi()) {
+          // Check that the *signed* result fits in a smi.
+          __ cmp(answer.reg(), 0xc0000000);
+          deferred->JumpToAnswerOutOfRange(negative);
+        }
         break;
+      }
       case Token::SHR: {
-        Label result_ok;
         __ shr_cl(answer.reg());
         // Check that the *unsigned* result fits in a smi.  Neither of
         // the two high-order bits can be set:
@@ -1773,21 +1995,14 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
         // case.  The low bit of the left argument may be lost, but only
         // in a case where it is dropped anyway.
         __ test(answer.reg(), Immediate(0xc0000000));
-        __ j(zero, &result_ok);
-        __ SmiTag(ecx);
-        deferred->Jump();
-        __ bind(&result_ok);
+        deferred->JumpToAnswerOutOfRange(not_zero);
         break;
       }
       case Token::SHL: {
-        Label result_ok;
         __ shl_cl(answer.reg());
         // Check that the *signed* result fits in a smi.
         __ cmp(answer.reg(), 0xc0000000);
-        __ j(positive, &result_ok);
-        __ SmiTag(ecx);
-        deferred->Jump();
-        __ bind(&result_ok);
+        deferred->JumpToAnswerOutOfRange(negative);
         break;
       }
       default:
@@ -1805,6 +2020,9 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
   // Handle the other binary operations.
   left->ToRegister();
   right->ToRegister();
+  // DeferredInlineBinaryOperation requires all the registers that it is told
+  // about to be spilled.
+  Result distinct_right = frame_->MakeDistinctAndSpilled(left, right);
   // A newly allocated register answer is used to hold the answer.  The
   // registers containing left and right are not modified so they don't
   // need to be spilled in the fast case.
@@ -1816,12 +2034,16 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
       new DeferredInlineBinaryOperation(op,
                                         answer.reg(),
                                         left->reg(),
-                                        right->reg(),
+                                        distinct_right.reg(),
                                         left_type_info,
                                         right_type_info,
                                         overwrite_mode);
-  JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(), answer.reg(),
-                                left_type_info, right_type_info, deferred);
+  Label non_smi_bit_op;
+  if (op != Token::BIT_OR) {
+    JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(), answer.reg(),
+                                  left_type_info, right_type_info,
+                                  deferred->NonSmiInputLabel());
+  }
 
   __ mov(answer.reg(), left->reg());
   switch (op) {
@@ -1864,6 +2086,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
 
     case Token::BIT_OR:
       __ or_(answer.reg(), Operand(right->reg()));
+      __ test(answer.reg(), Immediate(kSmiTagMask));
+      __ j(not_zero, deferred->NonSmiInputLabel());
       break;
 
     case Token::BIT_AND:
@@ -1878,6 +2102,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
       UNREACHABLE();
       break;
   }
+
   deferred->BindExit();
   left->Unuse();
   right->Unuse();
@@ -2363,27 +2588,25 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
     case Token::BIT_XOR:
     case Token::BIT_AND: {
       operand->ToRegister();
+      // DeferredInlineBinaryOperation requires all the registers that it is
+      // told about to be spilled.
       frame_->Spill(operand->reg());
-      DeferredCode* deferred = NULL;
-      if (reversed) {
-        deferred =
-            new DeferredInlineSmiOperationReversed(op,
-                                                   operand->reg(),
-                                                   smi_value,
-                                                   operand->reg(),
-                                                   operand->type_info(),
-                                                   overwrite_mode);
-      } else {
-        deferred =  new DeferredInlineSmiOperation(op,
-                                                   operand->reg(),
-                                                   operand->reg(),
-                                                   operand->type_info(),
-                                                   smi_value,
-                                                   overwrite_mode);
-      }
+      DeferredInlineBinaryOperation* deferred = NULL;
       if (!operand->type_info().IsSmi()) {
+        Result left = allocator()->Allocate();
+        ASSERT(left.is_valid());
+        Result right = allocator()->Allocate();
+        ASSERT(right.is_valid());
+        deferred = new DeferredInlineBinaryOperation(
+            op,
+            operand->reg(),
+            left.reg(),
+            right.reg(),
+            operand->type_info(),
+            TypeInfo::Smi(),
+            overwrite_mode == NO_OVERWRITE ? NO_OVERWRITE : OVERWRITE_LEFT);
         __ test(operand->reg(), Immediate(kSmiTagMask));
-        deferred->Branch(not_zero);
+        deferred->JumpToConstantRhs(not_zero, smi_value);
       } else if (FLAG_debug_code) {
         __ AbortIfNotSmi(operand->reg());
       }
@@ -2399,7 +2622,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
           __ or_(Operand(operand->reg()), Immediate(value));
         }
       }
-      deferred->BindExit();
+      if (deferred != NULL) deferred->BindExit();
       answer = *operand;
       break;
     }
@@ -3212,10 +3435,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(zero, &build_args);
       __ CmpObjectType(eax, JS_FUNCTION_TYPE, ecx);
       __ j(not_equal, &build_args);
-      __ mov(ecx, FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset));
       Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
-      __ cmp(FieldOperand(ecx, SharedFunctionInfo::kCodeOffset),
-             Immediate(apply_code));
+      __ cmp(FieldOperand(eax, JSFunction::kCodeOffset), Immediate(apply_code));
       __ j(not_equal, &build_args);
 
       // Check that applicand is a function.
@@ -9466,6 +9687,11 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ mov(FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset), edx);
   __ mov(FieldOperand(eax, JSFunction::kContextOffset), esi);
   __ mov(FieldOperand(eax, JSFunction::kLiteralsOffset), ebx);
+
+  // Initialize the code pointer in the function to be the one
+  // found in the shared function info object.
+  __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
+  __ mov(FieldOperand(eax, JSFunction::kCodeOffset), edx);
 
   // Return and remove the on-stack parameter.
   __ ret(1 * kPointerSize);

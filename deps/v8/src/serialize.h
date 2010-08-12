@@ -248,7 +248,7 @@ class SerializerDeserializer: public ObjectVisitor {
   }
 
   static int partial_snapshot_cache_length_;
-  static const int kPartialSnapshotCacheCapacity = 1300;
+  static const int kPartialSnapshotCacheCapacity = 1400;
   static Object* partial_snapshot_cache_[];
 };
 

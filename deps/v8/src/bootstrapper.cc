@@ -56,7 +56,7 @@ class SourceCodeCache BASE_EMBEDDED {
   }
 
   void Iterate(ObjectVisitor* v) {
-    v->VisitPointer(BitCast<Object**, FixedArray**>(&cache_));
+    v->VisitPointer(BitCast<Object**>(&cache_));
   }
 
 
@@ -470,6 +470,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   Handle<Code> code =
       Handle<Code>(Builtins::builtin(Builtins::EmptyFunction));
   empty_function->set_code(*code);
+  empty_function->shared()->set_code(*code);
   Handle<String> source = Factory::NewStringFromAscii(CStrVector("() {}"));
   Handle<Script> script = Factory::NewScript(source);
   script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
@@ -1545,6 +1546,8 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     Handle<SharedFunctionInfo> shared
         = Handle<SharedFunctionInfo>(function->shared());
     if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
+    // Set the code object on the function object.
+    function->set_code(function->shared()->code());
     builtins->set_javascript_builtin_code(id, shared->code());
   }
   return true;

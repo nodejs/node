@@ -1,11 +1,33 @@
+2010-08-11: Version 2.3.7
+
+        Reduced size of heap snapshots produced by heap profiler (issue 783).
+
+        Introduced v8::Value::IsRegExp method.
+
+        Fixed CPU profiler crash in start / stop sequence when non-existent
+        name is passed (issue http://crbug.com/51594).
+
+        Introduced new indexed property query callbacks API (issue 816). This
+        API is guarded by USE_NEW_QUERY_CALLBACK define and is disabled
+        by default.
+
+        Removed support for object literal get/set with number/string
+        property name.
+
+        Fixed handling of JSObject::elements in CalculateNetworkSize
+        (issue 822).
+
+        Allow compiling with strict aliasing enabled on GCC 4.4 (issue 463).
+
+
 2010-08-09: Version 2.3.6
 
-	RegExp literals create a new object every time they are evaluated
-	(issue 704).
+        RegExp literals create a new object every time they are evaluated
+        (issue 704).
 
-	Object.seal and Object.freeze return the modified object (issue 809).
+        Object.seal and Object.freeze return the modified object (issue 809).
 
-	Fix building using GCC 4.4.4.
+        Fix building using GCC 4.4.4.
 
 
 2010-08-04: Version 2.3.5

@@ -12,6 +12,7 @@ namespace i = v8::internal;
 
 using i::CodeEntry;
 using i::CpuProfile;
+using i::CpuProfiler;
 using i::CpuProfilesCollection;
 using i::ProfileGenerator;
 using i::ProfileNode;
@@ -223,6 +224,20 @@ TEST(TickEvents) {
       bottom_up_ddd_children->last()->children();
   CHECK_EQ(1, bottom_up_ddd_stub_children->length());
   CHECK_EQ("bbb", bottom_up_ddd_stub_children->last()->entry()->name());
+}
+
+
+// http://crbug/51594
+// This test must not crash.
+TEST(CrashIfStoppingLastNonExistentProfile) {
+  InitializeVM();
+  TestSetup test_setup;
+  CpuProfiler::Setup();
+  CpuProfiler::StartProfiling("1");
+  CpuProfiler::StopProfiling("2");
+  CpuProfiler::StartProfiling("1");
+  CpuProfiler::StopProfiling("");
+  CpuProfiler::TearDown();
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

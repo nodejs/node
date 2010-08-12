@@ -625,6 +625,7 @@ class Assembler : public Malloced {
   void or_(const Operand& dst, const Immediate& x);
 
   void rcl(Register dst, uint8_t imm8);
+  void rcr(Register dst, uint8_t imm8);
 
   void sar(Register dst, uint8_t imm8);
   void sar_cl(Register dst);

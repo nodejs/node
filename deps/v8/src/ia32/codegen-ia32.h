@@ -530,13 +530,22 @@ class CodeGenerator: public AstVisitor {
 
   // Emits code sequence that jumps to deferred code if the inputs
   // are not both smis.  Cannot be in MacroAssembler because it takes
-  // advantage of TypeInfo to skip unneeded checks.
+  // a deferred code object.
   void JumpIfNotBothSmiUsingTypeInfo(Register left,
                                      Register right,
                                      Register scratch,
                                      TypeInfo left_info,
                                      TypeInfo right_info,
                                      DeferredCode* deferred);
+
+  // Emits code sequence that jumps to the label if the inputs
+  // are not both smis.
+  void JumpIfNotBothSmiUsingTypeInfo(Register left,
+                                     Register right,
+                                     Register scratch,
+                                     TypeInfo left_info,
+                                     TypeInfo right_info,
+                                     Label* on_non_smi);
 
   // If possible, combine two constant smi values using op to produce
   // a smi result, and push it on the virtual frame, all at compile time.

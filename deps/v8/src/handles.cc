@@ -771,20 +771,30 @@ bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
 bool CompileLazy(Handle<JSFunction> function,
                  Handle<Object> receiver,
                  ClearExceptionFlag flag) {
-  CompilationInfo info(function, 0, receiver);
-  bool result = CompileLazyHelper(&info, flag);
-  PROFILE(FunctionCreateEvent(*function));
-  return result;
+  if (function->shared()->is_compiled()) {
+    function->set_code(function->shared()->code());
+    return true;
+  } else {
+    CompilationInfo info(function, 0, receiver);
+    bool result = CompileLazyHelper(&info, flag);
+    PROFILE(FunctionCreateEvent(*function));
+    return result;
+  }
 }
 
 
 bool CompileLazyInLoop(Handle<JSFunction> function,
                        Handle<Object> receiver,
                        ClearExceptionFlag flag) {
-  CompilationInfo info(function, 1, receiver);
-  bool result = CompileLazyHelper(&info, flag);
-  PROFILE(FunctionCreateEvent(*function));
-  return result;
+  if (function->shared()->is_compiled()) {
+    function->set_code(function->shared()->code());
+    return true;
+  } else {
+    CompilationInfo info(function, 1, receiver);
+    bool result = CompileLazyHelper(&info, flag);
+    PROFILE(FunctionCreateEvent(*function));
+    return result;
+  }
 }
 
 

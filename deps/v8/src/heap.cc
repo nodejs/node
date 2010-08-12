@@ -2452,39 +2452,62 @@ class FlushingStackVisitor : public ThreadVisitor {
 };
 
 
-static void FlushCodeForFunction(SharedFunctionInfo* function_info) {
-  // The function must be compiled and have the source code available,
-  // to be able to recompile it in case we need the function again.
-  if (!(function_info->is_compiled() && function_info->HasSourceCode())) return;
-
-  // We never flush code for Api functions.
-  if (function_info->IsApiFunction()) return;
-
-  // Only flush code for functions.
-  if (!function_info->code()->kind() == Code::FUNCTION) return;
-
-  // Function must be lazy compilable.
-  if (!function_info->allows_lazy_compilation()) return;
-
-  // If this is a full script wrapped in a function we do no flush the code.
-  if (function_info->is_toplevel()) return;
-
-  // If this function is in the compilation cache we do not flush the code.
-  if (CompilationCache::HasFunction(function_info)) return;
-
+static bool CodeIsActive(Code* code) {
   // Make sure we are not referencing the code from the stack.
   for (StackFrameIterator it; !it.done(); it.Advance()) {
-    if (function_info->code()->contains(it.frame()->pc())) return;
+    if (code->contains(it.frame()->pc())) return true;
   }
   // Iterate the archived stacks in all threads to check if
   // the code is referenced.
-  FlushingStackVisitor threadvisitor(function_info->code());
+  FlushingStackVisitor threadvisitor(code);
   ThreadManager::IterateArchivedThreads(&threadvisitor);
-  if (threadvisitor.FoundCode()) return;
+  if (threadvisitor.FoundCode()) return true;
+  return false;
+}
+
+
+static void FlushCodeForFunction(JSFunction* function) {
+  SharedFunctionInfo* shared_info = function->shared();
+
+  // Special handling if the function and shared info objects
+  // have different code objects.
+  if (function->code() != shared_info->code()) {
+    // If the shared function has been flushed but the function has not,
+    // we flush the function if possible.
+    if (!shared_info->is_compiled() && function->is_compiled() &&
+        !CodeIsActive(function->code())) {
+      function->set_code(shared_info->code());
+    }
+    return;
+  }
+
+  // The function must be compiled and have the source code available,
+  // to be able to recompile it in case we need the function again.
+  if (!(shared_info->is_compiled() && shared_info->HasSourceCode())) return;
+
+  // We never flush code for Api functions.
+  if (shared_info->IsApiFunction()) return;
+
+  // Only flush code for functions.
+  if (!shared_info->code()->kind() == Code::FUNCTION) return;
+
+  // Function must be lazy compilable.
+  if (!shared_info->allows_lazy_compilation()) return;
+
+  // If this is a full script wrapped in a function we do no flush the code.
+  if (shared_info->is_toplevel()) return;
+
+  // If this function is in the compilation cache we do not flush the code.
+  if (CompilationCache::HasFunction(shared_info)) return;
+
+  // Check stack and archived threads for the code.
+  if (CodeIsActive(shared_info->code())) return;
 
   // Compute the lazy compilable version of the code.
   HandleScope scope;
-  function_info->set_code(*ComputeLazyCompile(function_info->length()));
+  Code* code = *ComputeLazyCompile(shared_info->length());
+  shared_info->set_code(code);
+  function->set_code(code);
 }
 
 
@@ -2496,12 +2519,12 @@ void Heap::FlushCode() {
   HeapObjectIterator it(old_pointer_space());
   for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
     if (obj->IsJSFunction()) {
-      JSFunction* jsfunction = JSFunction::cast(obj);
+      JSFunction* function = JSFunction::cast(obj);
 
       // The function must have a valid context and not be a builtin.
-      if (jsfunction->unchecked_context()->IsContext() &&
-          !jsfunction->IsBuiltin()) {
-        FlushCodeForFunction(jsfunction->shared());
+      if (function->unchecked_context()->IsContext() &&
+          !function->IsBuiltin()) {
+        FlushCodeForFunction(function);
       }
     }
   }
@@ -2651,6 +2674,7 @@ Object* Heap::InitializeFunction(JSFunction* function,
   function->initialize_properties();
   function->initialize_elements();
   function->set_shared(shared);
+  function->set_code(shared->code());
   function->set_prototype_or_initial_map(prototype);
   function->set_context(undefined_value());
   function->set_literals(empty_fixed_array());
@@ -4000,7 +4024,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize("strong_root_list");
 
-  v->VisitPointer(BitCast<Object**, String**>(&hidden_symbol_));
+  v->VisitPointer(BitCast<Object**>(&hidden_symbol_));
   v->Synchronize("symbol");
 
   Bootstrapper::Iterate(v);

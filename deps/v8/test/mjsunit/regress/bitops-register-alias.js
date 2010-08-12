@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// See: http://code.google.com/p/v8/issues/detail?id=246
-
-assertTrue(/(?:text)/.test("text"));
-assertEquals(["text"], /(?:text)/.exec("text"));
+// Test that the code generator can cope with left and right being in
+// the same register for bitops.
+function f() { for (var i = 10; i < 100; i++) { return i | i; } }
+assertEquals(10, f());

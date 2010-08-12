@@ -108,8 +108,6 @@
             'conditions': [
               [ 'gcc_version==44', {
                 'cflags': [
-                  # Avoid gcc 4.4 strict aliasing issues in dtoa.c
-                  '-fno-strict-aliasing',
                   # Avoid crashes with gcc 4.4 in the v8 test suite.
                   '-fno-tree-vrp',
                 ],

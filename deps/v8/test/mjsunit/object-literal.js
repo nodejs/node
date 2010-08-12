@@ -146,7 +146,7 @@ function testKeywordProperty(keyword) {
     eval("var " + keyword + " = 42;");
     assertUnreachable("Not a keyword: " + keyword);
   } catch (e) { }
-  
+
   // Simple property, read and write.
   var x = eval("({" + keyword + ": 42})");
   assertEquals(42, x[keyword]);
@@ -154,7 +154,7 @@ function testKeywordProperty(keyword) {
   eval("x." + keyword + " = 37");
   assertEquals(37, x[keyword]);
   assertEquals(37, eval("x." + keyword));
-  
+
   // Getter/setter property, read and write.
   var y = eval("({value : 42, get " + keyword + "(){return this.value}," +
                " set " + keyword + "(v) { this.value = v; }})");
@@ -163,12 +163,12 @@ function testKeywordProperty(keyword) {
   eval("y." + keyword + " = 37");
   assertEquals(37, y[keyword]);
   assertEquals(37, eval("y." + keyword));
-  
+
   // Quoted keyword works is read back by unquoted as well.
   var z = eval("({\"" + keyword + "\": 42})");
   assertEquals(42, z[keyword]);
   assertEquals(42, eval("z." + keyword));
-  
+
   // Function property, called.
   var was_called;
   function test_call() { this.was_called = true; was_called = true; }
@@ -188,25 +188,3 @@ function testKeywordProperty(keyword) {
 for (var i = 0; i < keywords.length; i++) {
   testKeywordProperty(keywords[i]);
 }
-
-// Test getter and setter properties with string/number literal names.
-
-var obj = {get 42() { return 42; },
-           get 3.14() { return "PI"; },
-           get "PI"() { return 3.14; },
-           readback: 0,
-           set 37(v) { this.readback = v; },
-           set 1.44(v) { this.readback = v; },
-           set "Poo"(v) { this.readback = v; }}
-
-assertEquals(42, obj[42]);
-assertEquals("PI", obj[3.14]);
-assertEquals(3.14, obj["PI"]);
-obj[37] = "t1";
-assertEquals("t1", obj.readback);
-obj[1.44] = "t2";
-assertEquals("t2", obj.readback);
-obj["Poo"] = "t3";
-assertEquals("t3", obj.readback);
-
-

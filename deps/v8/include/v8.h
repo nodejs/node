@@ -919,6 +919,11 @@ class Value : public Data {
    */
   V8EXPORT bool IsDate() const;
 
+  /**
+   * Returns true if this value is a RegExp.
+   */
+  V8EXPORT bool IsRegExp() const;
+
   V8EXPORT Local<Boolean> ToBoolean() const;
   V8EXPORT Local<Number> ToNumber() const;
   V8EXPORT Local<String> ToString() const;
@@ -1819,10 +1824,19 @@ typedef Handle<Value> (*IndexedPropertySetter)(uint32_t index,
 
 /**
  * Returns a non-empty handle if the interceptor intercepts the request.
- * The result is true if the property exists and false otherwise.
+ * The result is true if either a boolean (true if property exists and false
+ * otherwise) or an integer encoding property attributes.
  */
+#ifdef USE_NEW_QUERY_CALLBACKS
+typedef Handle<Integer> (*IndexedPropertyQuery)(uint32_t index,
+                                                const AccessorInfo& info);
+#else
 typedef Handle<Boolean> (*IndexedPropertyQuery)(uint32_t index,
                                                 const AccessorInfo& info);
+#endif
+
+typedef Handle<Value> (*IndexedPropertyQueryImpl)(uint32_t index,
+                                                  const AccessorInfo& info);
 
 /**
  * Returns a non-empty handle if the deleter intercepts the request.
@@ -2040,7 +2054,23 @@ class V8EXPORT FunctionTemplate : public Template {
                                          IndexedPropertyQuery query,
                                          IndexedPropertyDeleter remover,
                                          IndexedPropertyEnumerator enumerator,
-                                         Handle<Value> data);
+                                         Handle<Value> data) {
+    IndexedPropertyQueryImpl casted =
+        reinterpret_cast<IndexedPropertyQueryImpl>(query);
+    SetIndexedInstancePropertyHandlerImpl(getter,
+                                          setter,
+                                          casted,
+                                          remover,
+                                          enumerator,
+                                          data);
+  }
+  void SetIndexedInstancePropertyHandlerImpl(
+      IndexedPropertyGetter getter,
+      IndexedPropertySetter setter,
+      IndexedPropertyQueryImpl query,
+      IndexedPropertyDeleter remover,
+      IndexedPropertyEnumerator enumerator,
+      Handle<Value> data);
   void SetInstanceCallAsFunctionHandler(InvocationCallback callback,
                                         Handle<Value> data);
 
@@ -2139,7 +2169,25 @@ class V8EXPORT ObjectTemplate : public Template {
                                  IndexedPropertyQuery query = 0,
                                  IndexedPropertyDeleter deleter = 0,
                                  IndexedPropertyEnumerator enumerator = 0,
-                                 Handle<Value> data = Handle<Value>());
+                                 Handle<Value> data = Handle<Value>()) {
+    IndexedPropertyQueryImpl casted =
+        reinterpret_cast<IndexedPropertyQueryImpl>(query);
+    SetIndexedPropertyHandlerImpl(getter,
+                                  setter,
+                                  casted,
+                                  deleter,
+                                  enumerator,
+                                  data);
+  }
+ private:
+  void SetIndexedPropertyHandlerImpl(IndexedPropertyGetter getter,
+                                     IndexedPropertySetter setter,
+                                     IndexedPropertyQueryImpl query,
+                                     IndexedPropertyDeleter deleter,
+                                     IndexedPropertyEnumerator enumerator,
+                                     Handle<Value> data);
+ public:
+
   /**
    * Sets the callback to be used when calling instances created from
    * this template as a function.  If no callback is set, instances

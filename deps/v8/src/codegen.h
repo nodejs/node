@@ -319,6 +319,15 @@ class DeferredCode: public ZoneObject {
 
   void SaveRegisters();
   void RestoreRegisters();
+  void Exit();
+
+  // If this returns true then all registers will be saved for the duration
+  // of the Generate() call.  Otherwise the registers are not saved and the
+  // Generate() call must bracket runtime any runtime calls with calls to
+  // SaveRegisters() and RestoreRegisters().  In this case the Generate
+  // method must also call Exit() in order to return to the non-deferred
+  // code.
+  virtual bool AutoSaveAndRestore() { return true; }
 
  protected:
   MacroAssembler* masm_;

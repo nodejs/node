@@ -377,6 +377,12 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
 }
 
 
+void MacroAssembler::AbortIfSmi(Register object) {
+  test(object, Immediate(kSmiTagMask));
+  Assert(not_equal, "Operand a smi");
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, Operand(esp));
@@ -1292,7 +1298,7 @@ void MacroAssembler::InvokeFunction(Register fun,
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
   mov(ebx, FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
   SmiUntag(ebx);
-  mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
+  mov(edx, FieldOperand(edi, JSFunction::kCodeOffset));
   lea(edx, FieldOperand(edx, Code::kHeaderSize));
 
   ParameterCount expected(ebx);
@@ -1344,8 +1350,7 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
     // Make sure the code objects in the builtins object and in the
     // builtin function are the same.
     push(target);
-    mov(target, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-    mov(target, FieldOperand(target, SharedFunctionInfo::kCodeOffset));
+    mov(target, FieldOperand(edi, JSFunction::kCodeOffset));
     cmp(target, Operand(esp, 0));
     Assert(equal, "Builtin code object changed");
     pop(target);
@@ -1507,6 +1512,61 @@ void MacroAssembler::Abort(const char* msg) {
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
   int3();
+}
+
+
+void MacroAssembler::JumpIfNotNumber(Register reg,
+                                     TypeInfo info,
+                                     Label* on_not_number) {
+  if (FLAG_debug_code) AbortIfSmi(reg);
+  if (!info.IsNumber()) {
+    cmp(FieldOperand(reg, HeapObject::kMapOffset),
+        Factory::heap_number_map());
+    j(not_equal, on_not_number);
+  }
+}
+
+
+void MacroAssembler::ConvertToInt32(Register dst,
+                                    Register source,
+                                    Register scratch,
+                                    TypeInfo info,
+                                    Label* on_not_int32) {
+  if (FLAG_debug_code) {
+    AbortIfSmi(source);
+    AbortIfNotNumber(source);
+  }
+  if (info.IsInteger32()) {
+    cvttsd2si(dst, FieldOperand(source, HeapNumber::kValueOffset));
+  } else {
+    Label done;
+    bool push_pop = (scratch.is(no_reg) && dst.is(source));
+    ASSERT(!scratch.is(source));
+    if (push_pop) {
+      push(dst);
+      scratch = dst;
+    }
+    if (scratch.is(no_reg)) scratch = dst;
+    cvttsd2si(scratch, FieldOperand(source, HeapNumber::kValueOffset));
+    cmp(scratch, 0x80000000u);
+    if (push_pop || dst.is(source)) {
+      j(not_equal, &done);
+      if (push_pop) {
+        pop(dst);
+        jmp(on_not_int32);
+      }
+    } else {
+      j(equal, on_not_int32);
+    }
+
+    bind(&done);
+    if (push_pop) {
+      add(Operand(esp), Immediate(kPointerSize));  // Pop.
+    }
+    if (!scratch.is(dst)) {
+      mov(dst, scratch);
+    }
+  }
 }
 
 
