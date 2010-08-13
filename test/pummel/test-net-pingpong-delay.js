@@ -43,45 +43,46 @@ function pingPongTest (port, host, on_complete) {
       socket.server.close();
     });
   });
-  server.listen(port, host);
 
-  var client = net.createConnection(port, host);
+  server.listen(port, host, function () {
+    var client = net.createConnection(port, host);
 
-  client.setEncoding("utf8");
+    client.setEncoding("utf8");
 
-  client.addListener("connect", function () {
-    assert.equal("open", client.readyState);
-    client.write("PING");
-  });
-
-  client.addListener("data", function (data) {
-    console.log(data);
-    assert.equal("PONG", data);
-    assert.equal("open", client.readyState);
-
-    setTimeout(function () {
+    client.addListener("connect", function () {
       assert.equal("open", client.readyState);
-      if (count++ < N) {
-        client.write("PING");
-      } else {
-        console.log("closing client");
-        client.end();
-        client_ended = true;
-      }
-    }, DELAY);
-  });
+      client.write("PING");
+    });
 
-  client.addListener("timeout", function () {
-    common.debug("client-side timeout!!");
-    assert.equal(false, true);
-  });
+    client.addListener("data", function (data) {
+      console.log(data);
+      assert.equal("PONG", data);
+      assert.equal("open", client.readyState);
 
-  client.addListener("close", function () {
-    console.log("client.end");
-    assert.equal(N+1, count);
-    assert.ok(client_ended);
-    if (on_complete) on_complete();
-    tests_run += 1;
+      setTimeout(function () {
+        assert.equal("open", client.readyState);
+        if (count++ < N) {
+          client.write("PING");
+        } else {
+          console.log("closing client");
+          client.end();
+          client_ended = true;
+        }
+      }, DELAY);
+    });
+
+    client.addListener("timeout", function () {
+      common.debug("client-side timeout!!");
+      assert.equal(false, true);
+    });
+
+    client.addListener("close", function () {
+      console.log("client.end");
+      assert.equal(N+1, count);
+      assert.ok(client_ended);
+      if (on_complete) on_complete();
+      tests_run += 1;
+    });
   });
 }
 

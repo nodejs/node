@@ -22,8 +22,10 @@ function runAb(opts, callback) {
   var command = "ab " + opts + " http://127.0.0.1:" + common.PORT + "/";
   exec(command, function (err, stdout, stderr) {
     if (err) {
-      console.log("ab not installed? skipping test.\n" + stderr);
-      process.exit();
+      if (stderr.indexOf("ab") >= 0) {
+        console.log("ab not installed? skipping test.\n" + stderr);
+        process.reallyExit(0);
+      }
       return;
     }
     if (err) throw err;

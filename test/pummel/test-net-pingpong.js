@@ -43,44 +43,45 @@ function pingPongTest (port, host, on_complete) {
       socket.server.close();
     });
   });
-  server.listen(port, host);
 
-  var client = net.createConnection(port, host);
+  server.listen(port, host, function () {
+    var client = net.createConnection(port, host);
 
-  client.setEncoding("utf8");
+    client.setEncoding("utf8");
 
-  client.addListener("connect", function () {
-    assert.equal("open", client.readyState);
-    client.write("PING");
-  });
-
-  client.addListener("data", function (data) {
-    console.log('client got: ' + data);
-
-    assert.equal("PONG", data);
-    count += 1;
-
-    if (sent_final_ping) {
-      assert.equal("readOnly", client.readyState);
-      return;
-    } else {
+    client.addListener("connect", function () {
       assert.equal("open", client.readyState);
-    }
-
-    if (count < N) {
       client.write("PING");
-    } else {
-      sent_final_ping = true;
-      client.write("PING");
-      client.end();
-    }
-  });
+    });
 
-  client.addListener("close", function () {
-    assert.equal(N+1, count);
-    assert.equal(true, sent_final_ping);
-    if (on_complete) on_complete();
-    tests_run += 1;
+    client.addListener("data", function (data) {
+      console.log('client got: ' + data);
+
+      assert.equal("PONG", data);
+      count += 1;
+
+      if (sent_final_ping) {
+        assert.equal("readOnly", client.readyState);
+        return;
+      } else {
+        assert.equal("open", client.readyState);
+      }
+
+      if (count < N) {
+        client.write("PING");
+      } else {
+        sent_final_ping = true;
+        client.write("PING");
+        client.end();
+      }
+    });
+
+    client.addListener("close", function () {
+      assert.equal(N+1, count);
+      assert.equal(true, sent_final_ping);
+      if (on_complete) on_complete();
+      tests_run += 1;
+    });
   });
 }
 
