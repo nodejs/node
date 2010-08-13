@@ -138,7 +138,6 @@ try {
   require(loadOrder + 'file3');
 } catch (e) {
   // Not a real .node module, but we know we require'd the right thing.
-  assert.ok(e.message.match(/^dlopen/));
   assert.ok(e.message.match(/file3\.node/));
 }
 assert.equal(require(loadOrder + 'file4').file4, 'file4.reg',        msg);
@@ -147,7 +146,6 @@ assert.equal(require(loadOrder + 'file6').file6, 'file6/index.js',   msg);
 try {
   require(loadOrder + 'file7');
 } catch (e) {
-  assert.ok(e.message.match(/^dlopen/));
   assert.ok(e.message.match(/file7\/index\.node/));
 }
 assert.equal(require(loadOrder + 'file8').file8, 'file8/index.reg',  msg);
