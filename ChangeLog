@@ -1,4 +1,18 @@
-2010.08.04, Version 0.1.103
+2010.08.13, Version 0.1.104
+
+* Various bug fixes (console, querystring, require)
+
+* Set cwd for child processes (Bert Belder)
+
+* Tab completion for readline (Trent Mick)
+
+* process.title getter/setter for OSX, Linux, Cygwin.
+	(Rasmus Andersson, Bert Belder)
+
+* Upgrade V8 to 2.3.6
+
+
+2010.08.04, Version 0.1.103, 0b925d075d359d03426f0b32bb58a5e05825b4ea
 
 * Implement keep-alive for http.Client (Mikeal Rogers)
 
