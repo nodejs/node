@@ -2694,14 +2694,12 @@ bool JSFunction::IsBuiltin() {
 
 
 Code* JSFunction::code() {
-  return Code::cast(READ_FIELD(this, kCodeOffset));
+  return shared()->code();
 }
 
 
 void JSFunction::set_code(Code* value) {
-  // Skip the write barrier because code is never in new space.
-  ASSERT(!Heap::InNewSpace(value));
-  WRITE_FIELD(this, kCodeOffset, value);
+  shared()->set_code(value);
 }
 
 
@@ -2773,7 +2771,7 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code()->kind() != Code::STUB;
+  return shared()->is_compiled();
 }
 
 

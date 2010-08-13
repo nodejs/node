@@ -486,10 +486,6 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         bool force_initial_map) {
   // Allocate the function
   Handle<JSFunction> function = NewFunction(name, the_hole_value());
-
-  // Setup the code pointer in both the shared function info and in
-  // the function itself.
-  function->shared()->set_code(*code);
   function->set_code(*code);
 
   if (force_initial_map ||
@@ -515,12 +511,9 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
                                                      Handle<JSObject> prototype,
                                                      Handle<Code> code,
                                                      bool force_initial_map) {
-  // Allocate the function.
+  // Allocate the function
   Handle<JSFunction> function = NewFunction(name, prototype);
 
-  // Setup the code pointer in both the shared function info and in
-  // the function itself.
-  function->shared()->set_code(*code);
   function->set_code(*code);
 
   if (force_initial_map ||
@@ -542,7 +535,6 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
                                                         Handle<Code> code) {
   Handle<JSFunction> function = NewFunctionWithoutPrototype(name);
-  function->shared()->set_code(*code);
   function->set_code(*code);
   ASSERT(!function->has_initial_map());
   ASSERT(!function->has_prototype());

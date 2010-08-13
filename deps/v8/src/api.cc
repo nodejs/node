@@ -886,10 +886,10 @@ void FunctionTemplate::SetNamedInstancePropertyHandler(
 }
 
 
-void FunctionTemplate::SetIndexedInstancePropertyHandlerImpl(
+void FunctionTemplate::SetIndexedInstancePropertyHandler(
       IndexedPropertyGetter getter,
       IndexedPropertySetter setter,
-      IndexedPropertyQueryImpl query,
+      IndexedPropertyQuery query,
       IndexedPropertyDeleter remover,
       IndexedPropertyEnumerator enumerator,
       Handle<Value> data) {
@@ -1054,10 +1054,10 @@ void ObjectTemplate::SetAccessCheckCallbacks(
 }
 
 
-void ObjectTemplate::SetIndexedPropertyHandlerImpl(
+void ObjectTemplate::SetIndexedPropertyHandler(
       IndexedPropertyGetter getter,
       IndexedPropertySetter setter,
-      IndexedPropertyQueryImpl query,
+      IndexedPropertyQuery query,
       IndexedPropertyDeleter remover,
       IndexedPropertyEnumerator enumerator,
       Handle<Value> data) {
@@ -1068,12 +1068,12 @@ void ObjectTemplate::SetIndexedPropertyHandlerImpl(
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
-  Utils::ToLocal(cons)->SetIndexedInstancePropertyHandlerImpl(getter,
-                                                              setter,
-                                                              query,
-                                                              remover,
-                                                              enumerator,
-                                                              data);
+  Utils::ToLocal(cons)->SetIndexedInstancePropertyHandler(getter,
+                                                          setter,
+                                                          query,
+                                                          remover,
+                                                          enumerator,
+                                                          data);
 }
 
 
@@ -1789,13 +1789,6 @@ bool Value::IsDate() const {
   if (IsDeadCheck("v8::Value::IsDate()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->HasSpecificClassOf(i::Heap::Date_symbol());
-}
-
-
-bool Value::IsRegExp() const {
-  if (IsDeadCheck("v8::Value::IsRegExp()")) return false;
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return obj->IsJSRegExp();
 }
 
 
@@ -4498,27 +4491,24 @@ const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title,
 }
 
 
-static i::HeapGraphEdge* ToInternal(const HeapGraphEdge* edge) {
-  return const_cast<i::HeapGraphEdge*>(
-      reinterpret_cast<const i::HeapGraphEdge*>(edge));
-}
-
 HeapGraphEdge::Type HeapGraphEdge::GetType() const {
   IsDeadCheck("v8::HeapGraphEdge::GetType");
-  return static_cast<HeapGraphEdge::Type>(ToInternal(this)->type());
+  return static_cast<HeapGraphEdge::Type>(
+      reinterpret_cast<const i::HeapGraphEdge*>(this)->type());
 }
 
 
 Handle<Value> HeapGraphEdge::GetName() const {
   IsDeadCheck("v8::HeapGraphEdge::GetName");
-  i::HeapGraphEdge* edge = ToInternal(this);
+  const i::HeapGraphEdge* edge =
+      reinterpret_cast<const i::HeapGraphEdge*>(this);
   switch (edge->type()) {
-    case i::HeapGraphEdge::kContextVariable:
-    case i::HeapGraphEdge::kInternal:
-    case i::HeapGraphEdge::kProperty:
+    case i::HeapGraphEdge::CONTEXT_VARIABLE:
+    case i::HeapGraphEdge::INTERNAL:
+    case i::HeapGraphEdge::PROPERTY:
       return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
           edge->name())));
-    case i::HeapGraphEdge::kElement:
+    case i::HeapGraphEdge::ELEMENT:
       return Handle<Number>(ToApi<Number>(i::Factory::NewNumberFromInt(
           edge->index())));
     default: UNREACHABLE();
@@ -4529,32 +4519,28 @@ Handle<Value> HeapGraphEdge::GetName() const {
 
 const HeapGraphNode* HeapGraphEdge::GetFromNode() const {
   IsDeadCheck("v8::HeapGraphEdge::GetFromNode");
-  const i::HeapEntry* from = ToInternal(this)->From();
+  const i::HeapEntry* from =
+      reinterpret_cast<const i::HeapGraphEdge*>(this)->from();
   return reinterpret_cast<const HeapGraphNode*>(from);
 }
 
 
 const HeapGraphNode* HeapGraphEdge::GetToNode() const {
   IsDeadCheck("v8::HeapGraphEdge::GetToNode");
-  const i::HeapEntry* to = ToInternal(this)->to();
+  const i::HeapEntry* to =
+      reinterpret_cast<const i::HeapGraphEdge*>(this)->to();
   return reinterpret_cast<const HeapGraphNode*>(to);
 }
 
 
-static i::HeapGraphPath* ToInternal(const HeapGraphPath* path) {
-  return const_cast<i::HeapGraphPath*>(
-      reinterpret_cast<const i::HeapGraphPath*>(path));
-}
-
-
 int HeapGraphPath::GetEdgesCount() const {
-  return ToInternal(this)->path()->length();
+  return reinterpret_cast<const i::HeapGraphPath*>(this)->path()->length();
 }
 
 
 const HeapGraphEdge* HeapGraphPath::GetEdge(int index) const {
   return reinterpret_cast<const HeapGraphEdge*>(
-      ToInternal(this)->path()->at(index));
+      reinterpret_cast<const i::HeapGraphPath*>(this)->path()->at(index));
 }
 
 
@@ -4569,136 +4555,137 @@ const HeapGraphNode* HeapGraphPath::GetToNode() const {
 }
 
 
-static i::HeapEntry* ToInternal(const HeapGraphNode* entry) {
-  return const_cast<i::HeapEntry*>(
-      reinterpret_cast<const i::HeapEntry*>(entry));
-}
-
-
 HeapGraphNode::Type HeapGraphNode::GetType() const {
   IsDeadCheck("v8::HeapGraphNode::GetType");
-  return static_cast<HeapGraphNode::Type>(ToInternal(this)->type());
+  return static_cast<HeapGraphNode::Type>(
+      reinterpret_cast<const i::HeapEntry*>(this)->type());
 }
 
 
 Handle<String> HeapGraphNode::GetName() const {
   IsDeadCheck("v8::HeapGraphNode::GetName");
   return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
-      ToInternal(this)->name())));
+      reinterpret_cast<const i::HeapEntry*>(this)->name())));
 }
 
 
 uint64_t HeapGraphNode::GetId() const {
   IsDeadCheck("v8::HeapGraphNode::GetId");
-  return ToInternal(this)->id();
+  return reinterpret_cast<const i::HeapEntry*>(this)->id();
 }
 
 
 int HeapGraphNode::GetSelfSize() const {
   IsDeadCheck("v8::HeapGraphNode::GetSelfSize");
-  return ToInternal(this)->self_size();
+  return reinterpret_cast<const i::HeapEntry*>(this)->self_size();
 }
 
 
-int HeapGraphNode::GetReachableSize() const {
-  IsDeadCheck("v8::HeapSnapshot::GetReachableSize");
-  return ToInternal(this)->ReachableSize();
+int HeapGraphNode::GetTotalSize() const {
+  IsDeadCheck("v8::HeapSnapshot::GetHead");
+  return const_cast<i::HeapEntry*>(
+      reinterpret_cast<const i::HeapEntry*>(this))->TotalSize();
 }
 
 
-int HeapGraphNode::GetRetainedSize() const {
-  IsDeadCheck("v8::HeapSnapshot::GetRetainedSize");
-  return ToInternal(this)->RetainedSize();
+int HeapGraphNode::GetPrivateSize() const {
+  IsDeadCheck("v8::HeapSnapshot::GetPrivateSize");
+  return const_cast<i::HeapEntry*>(
+      reinterpret_cast<const i::HeapEntry*>(this))->NonSharedTotalSize();
 }
 
 
 int HeapGraphNode::GetChildrenCount() const {
   IsDeadCheck("v8::HeapSnapshot::GetChildrenCount");
-  return ToInternal(this)->children().length();
+  return reinterpret_cast<const i::HeapEntry*>(this)->children()->length();
 }
 
 
 const HeapGraphEdge* HeapGraphNode::GetChild(int index) const {
   IsDeadCheck("v8::HeapSnapshot::GetChild");
   return reinterpret_cast<const HeapGraphEdge*>(
-      &ToInternal(this)->children()[index]);
+      reinterpret_cast<const i::HeapEntry*>(this)->children()->at(index));
 }
 
 
 int HeapGraphNode::GetRetainersCount() const {
   IsDeadCheck("v8::HeapSnapshot::GetRetainersCount");
-  return ToInternal(this)->retainers().length();
+  return reinterpret_cast<const i::HeapEntry*>(this)->retainers()->length();
 }
 
 
 const HeapGraphEdge* HeapGraphNode::GetRetainer(int index) const {
   IsDeadCheck("v8::HeapSnapshot::GetRetainer");
   return reinterpret_cast<const HeapGraphEdge*>(
-      ToInternal(this)->retainers()[index]);
+      reinterpret_cast<const i::HeapEntry*>(this)->retainers()->at(index));
 }
 
 
 int HeapGraphNode::GetRetainingPathsCount() const {
   IsDeadCheck("v8::HeapSnapshot::GetRetainingPathsCount");
-  return ToInternal(this)->GetRetainingPaths()->length();
+  return const_cast<i::HeapEntry*>(
+      reinterpret_cast<const i::HeapEntry*>(
+          this))->GetRetainingPaths()->length();
 }
 
 
 const HeapGraphPath* HeapGraphNode::GetRetainingPath(int index) const {
   IsDeadCheck("v8::HeapSnapshot::GetRetainingPath");
   return reinterpret_cast<const HeapGraphPath*>(
-      ToInternal(this)->GetRetainingPaths()->at(index));
+      const_cast<i::HeapEntry*>(
+          reinterpret_cast<const i::HeapEntry*>(
+              this))->GetRetainingPaths()->at(index));
 }
 
 
 const HeapGraphNode* HeapSnapshotsDiff::GetAdditionsRoot() const {
   IsDeadCheck("v8::HeapSnapshotsDiff::GetAdditionsRoot");
-  i::HeapSnapshotsDiff* diff =
-      const_cast<i::HeapSnapshotsDiff*>(
-          reinterpret_cast<const i::HeapSnapshotsDiff*>(this));
+  const i::HeapSnapshotsDiff* diff =
+      reinterpret_cast<const i::HeapSnapshotsDiff*>(this);
   return reinterpret_cast<const HeapGraphNode*>(diff->additions_root());
 }
 
 
 const HeapGraphNode* HeapSnapshotsDiff::GetDeletionsRoot() const {
   IsDeadCheck("v8::HeapSnapshotsDiff::GetDeletionsRoot");
-  i::HeapSnapshotsDiff* diff =
-      const_cast<i::HeapSnapshotsDiff*>(
-          reinterpret_cast<const i::HeapSnapshotsDiff*>(this));
+  const i::HeapSnapshotsDiff* diff =
+      reinterpret_cast<const i::HeapSnapshotsDiff*>(this);
   return reinterpret_cast<const HeapGraphNode*>(diff->deletions_root());
-}
-
-
-static i::HeapSnapshot* ToInternal(const HeapSnapshot* snapshot) {
-  return const_cast<i::HeapSnapshot*>(
-      reinterpret_cast<const i::HeapSnapshot*>(snapshot));
 }
 
 
 unsigned HeapSnapshot::GetUid() const {
   IsDeadCheck("v8::HeapSnapshot::GetUid");
-  return ToInternal(this)->uid();
+  return reinterpret_cast<const i::HeapSnapshot*>(this)->uid();
 }
 
 
 Handle<String> HeapSnapshot::GetTitle() const {
   IsDeadCheck("v8::HeapSnapshot::GetTitle");
+  const i::HeapSnapshot* snapshot =
+      reinterpret_cast<const i::HeapSnapshot*>(this);
   return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
-      ToInternal(this)->title())));
+      snapshot->title())));
 }
 
 
 const HeapGraphNode* HeapSnapshot::GetRoot() const {
   IsDeadCheck("v8::HeapSnapshot::GetHead");
-  return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->root());
+  const i::HeapSnapshot* snapshot =
+      reinterpret_cast<const i::HeapSnapshot*>(this);
+  return reinterpret_cast<const HeapGraphNode*>(snapshot->const_root());
 }
 
 
 const HeapSnapshotsDiff* HeapSnapshot::CompareWith(
     const HeapSnapshot* snapshot) const {
   IsDeadCheck("v8::HeapSnapshot::CompareWith");
+  i::HeapSnapshot* snapshot1 = const_cast<i::HeapSnapshot*>(
+      reinterpret_cast<const i::HeapSnapshot*>(this));
+  i::HeapSnapshot* snapshot2 = const_cast<i::HeapSnapshot*>(
+      reinterpret_cast<const i::HeapSnapshot*>(snapshot));
   return reinterpret_cast<const HeapSnapshotsDiff*>(
-      ToInternal(this)->CompareWith(ToInternal(snapshot)));
+      snapshot1->CompareWith(snapshot2));
 }
 
 

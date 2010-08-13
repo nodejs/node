@@ -3587,8 +3587,10 @@ ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
   // { ... , get foo() { ... }, ... , set foo(v) { ... v ... } , ... }
   // We have already read the "get" or "set" keyword.
   Token::Value next = Next();
-  // TODO(820): Allow NUMBER and STRING as well (and handle array indices).
-  if (next == Token::IDENTIFIER || Token::IsKeyword(next)) {
+  if (next == Token::IDENTIFIER ||
+      next == Token::STRING ||
+      next == Token::NUMBER ||
+      Token::IsKeyword(next)) {
     Handle<String> name =
         factory()->LookupSymbol(scanner_.literal_string(),
                                 scanner_.literal_length());
@@ -3650,7 +3652,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
             factory()->LookupSymbol(scanner_.literal_string(),
                                     scanner_.literal_length());
         uint32_t index;
-        if (!string.is_null() && string->AsArrayIndex(&index)) {
+        if (!string.is_null() &&
+            string->AsArrayIndex(&index)) {
           key = NewNumberLiteral(index);
           break;
         }

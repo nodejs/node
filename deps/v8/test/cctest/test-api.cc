@@ -27,8 +27,6 @@
 
 #include <limits.h>
 
-#define USE_NEW_QUERY_CALLBACKS
-
 #include "v8.h"
 
 #include "api.h"
@@ -1196,12 +1194,12 @@ v8::Handle<Value> CheckThisNamedPropertySetter(Local<String> property,
   return v8::Handle<Value>();
 }
 
-v8::Handle<v8::Integer> CheckThisIndexedPropertyQuery(
+v8::Handle<v8::Boolean> CheckThisIndexedPropertyQuery(
     uint32_t index,
     const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
   CHECK(info.This()->Equals(bottom));
-  return v8::Handle<v8::Integer>();
+  return v8::Handle<v8::Boolean>();
 }
 
 

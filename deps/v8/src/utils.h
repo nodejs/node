@@ -739,11 +739,7 @@ inline Dest BitCast(const Source& source) {
   return dest;
 }
 
-template <class Dest, class Source>
-inline Dest BitCast(Source* const & source) {
-    return BitCast<Dest>(reinterpret_cast<uintptr_t>(source));
-}
-
 } }  // namespace v8::internal
+
 
 #endif  // V8_UTILS_H_

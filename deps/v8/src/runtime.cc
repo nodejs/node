@@ -305,14 +305,13 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
       }
       Handle<Object> result;
       uint32_t element_index = 0;
-      if (key->IsSymbol()) {
-        // If key is a symbol it is not an array element.
-        Handle<String> name(String::cast(*key));
-        ASSERT(!name->AsArrayIndex(&element_index));
-        result = SetProperty(boilerplate, name, value, NONE);
-      } else if (key->ToArrayIndex(&element_index)) {
+      if (key->ToArrayIndex(&element_index)) {
         // Array index (uint32).
         result = SetElement(boilerplate, element_index, value);
+      } else if (key->IsSymbol()) {
+        // The key is not an array index.
+        Handle<String> name(String::cast(*key));
+        result = SetProperty(boilerplate, name, value, NONE);
       } else {
         // Non-uint32 number.
         ASSERT(key->IsNumber());
@@ -1627,8 +1626,7 @@ static Object* Runtime_SetCode(Arguments args) {
     }
     // Set the code, scope info, formal parameter count,
     // and the length of the target function.
-    target->shared()->set_code(shared->code());
-    target->set_code(shared->code());
+    target->set_code(fun->code());
     target->shared()->set_scope_info(shared->scope_info());
     target->shared()->set_length(shared->length());
     target->shared()->set_formal_parameter_count(
@@ -6871,7 +6869,7 @@ static Object* Runtime_LazyCompile(Arguments args) {
 
   Handle<JSFunction> function = args.at<JSFunction>(0);
 #ifdef DEBUG
-  if (FLAG_trace_lazy && !function->shared()->is_compiled()) {
+  if (FLAG_trace_lazy) {
     PrintF("[lazy: ");
     function->shared()->name()->Print();
     PrintF("]\n");

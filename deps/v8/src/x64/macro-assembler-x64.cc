@@ -582,7 +582,8 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
     // Make sure the code objects in the builtins object and in the
     // builtin function are the same.
     push(target);
-    movq(target, FieldOperand(rdi, JSFunction::kCodeOffset));
+    movq(target, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    movq(target, FieldOperand(target, SharedFunctionInfo::kCodeOffset));
     cmpq(target, Operand(rsp, 0));
     Assert(equal, "Builtin code object changed");
     pop(target);
@@ -2289,7 +2290,7 @@ void MacroAssembler::InvokeFunction(Register function,
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
   movsxlq(rbx,
           FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
-  movq(rdx, FieldOperand(rdi, JSFunction::kCodeOffset));
+  movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
   // Advances rdx to the end of the Code object header, to the start of
   // the executable code.
   lea(rdx, FieldOperand(rdx, Code::kHeaderSize));

@@ -1532,8 +1532,9 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   __ BranchOnSmi(r0, &build_args);
   __ CompareObjectType(r0, r1, r2, JS_FUNCTION_TYPE);
   __ b(ne, &build_args);
+  __ ldr(r0, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
   Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
-  __ ldr(r1, FieldMemOperand(r0, JSFunction::kCodeOffset));
+  __ ldr(r1, FieldMemOperand(r0, SharedFunctionInfo::kCodeOffset));
   __ cmp(r1, Operand(apply_code));
   __ b(ne, &build_args);
 
@@ -4175,21 +4176,21 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 
 
 void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
-  JumpTarget leave, null, function, non_function_constructor;
-  Register scratch = VirtualFrame::scratch0();
-
-  // Load the object into register.
+  VirtualFrame::SpilledScope spilled_scope(frame_);
   ASSERT(args->length() == 1);
+  JumpTarget leave, null, function, non_function_constructor;
+
+  // Load the object into r0.
   Load(args->at(0));
-  Register tos = frame_->PopToRegister();
+  frame_->EmitPop(r0);
 
   // If the object is a smi, we return null.
-  __ tst(tos, Operand(kSmiTagMask));
+  __ tst(r0, Operand(kSmiTagMask));
   null.Branch(eq);
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  __ CompareObjectType(tos, tos, scratch, FIRST_JS_OBJECT_TYPE);
+  __ CompareObjectType(r0, r0, r1, FIRST_JS_OBJECT_TYPE);
   null.Branch(lt);
 
   // As long as JS_FUNCTION_TYPE is the last instance type and it is
@@ -4197,38 +4198,37 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
   // LAST_JS_OBJECT_TYPE.
   STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
   STATIC_ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-  __ cmp(scratch, Operand(JS_FUNCTION_TYPE));
+  __ cmp(r1, Operand(JS_FUNCTION_TYPE));
   function.Branch(eq);
 
   // Check if the constructor in the map is a function.
-  __ ldr(tos, FieldMemOperand(tos, Map::kConstructorOffset));
-  __ CompareObjectType(tos, scratch, scratch, JS_FUNCTION_TYPE);
+  __ ldr(r0, FieldMemOperand(r0, Map::kConstructorOffset));
+  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE);
   non_function_constructor.Branch(ne);
 
-  // The tos register now contains the constructor function. Grab the
+  // The r0 register now contains the constructor function. Grab the
   // instance class name from there.
-  __ ldr(tos, FieldMemOperand(tos, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(tos,
-         FieldMemOperand(tos, SharedFunctionInfo::kInstanceClassNameOffset));
-  frame_->EmitPush(tos);
+  __ ldr(r0, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r0, FieldMemOperand(r0, SharedFunctionInfo::kInstanceClassNameOffset));
+  frame_->EmitPush(r0);
   leave.Jump();
 
   // Functions have class 'Function'.
   function.Bind();
-  __ mov(tos, Operand(Factory::function_class_symbol()));
-  frame_->EmitPush(tos);
+  __ mov(r0, Operand(Factory::function_class_symbol()));
+  frame_->EmitPush(r0);
   leave.Jump();
 
   // Objects with a non-function constructor have class 'Object'.
   non_function_constructor.Bind();
-  __ mov(tos, Operand(Factory::Object_symbol()));
-  frame_->EmitPush(tos);
+  __ mov(r0, Operand(Factory::Object_symbol()));
+  frame_->EmitPush(r0);
   leave.Jump();
 
   // Non-JS objects have class null.
   null.Bind();
-  __ LoadRoot(tos, Heap::kNullValueRootIndex);
-  frame_->EmitPush(tos);
+  __ LoadRoot(r0, Heap::kNullValueRootIndex);
+  frame_->EmitPush(r0);
 
   // All done.
   leave.Bind();
@@ -4236,51 +4236,45 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
-  Register scratch = VirtualFrame::scratch0();
-  JumpTarget leave;
-
+  VirtualFrame::SpilledScope spilled_scope(frame_);
   ASSERT(args->length() == 1);
+  JumpTarget leave;
   Load(args->at(0));
-  Register tos = frame_->PopToRegister();  // tos contains object.
+  frame_->EmitPop(r0);  // r0 contains object.
   // if (object->IsSmi()) return the object.
-  __ tst(tos, Operand(kSmiTagMask));
+  __ tst(r0, Operand(kSmiTagMask));
   leave.Branch(eq);
   // It is a heap object - get map. If (!object->IsJSValue()) return the object.
-  __ CompareObjectType(tos, scratch, scratch, JS_VALUE_TYPE);
+  __ CompareObjectType(r0, r1, r1, JS_VALUE_TYPE);
   leave.Branch(ne);
   // Load the value.
-  __ ldr(tos, FieldMemOperand(tos, JSValue::kValueOffset));
+  __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
   leave.Bind();
-  frame_->EmitPush(tos);
+  frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
-  Register scratch1 = VirtualFrame::scratch0();
-  Register scratch2 = VirtualFrame::scratch1();
-  JumpTarget leave;
-
+  VirtualFrame::SpilledScope spilled_scope(frame_);
   ASSERT(args->length() == 2);
+  JumpTarget leave;
   Load(args->at(0));    // Load the object.
   Load(args->at(1));    // Load the value.
-  Register value = frame_->PopToRegister();
-  Register object = frame_->PopToRegister(value);
+  frame_->EmitPop(r0);  // r0 contains value
+  frame_->EmitPop(r1);  // r1 contains object
   // if (object->IsSmi()) return object.
-  __ tst(object, Operand(kSmiTagMask));
+  __ tst(r1, Operand(kSmiTagMask));
   leave.Branch(eq);
   // It is a heap object - get map. If (!object->IsJSValue()) return the object.
-  __ CompareObjectType(object, scratch1, scratch1, JS_VALUE_TYPE);
+  __ CompareObjectType(r1, r2, r2, JS_VALUE_TYPE);
   leave.Branch(ne);
   // Store the value.
-  __ str(value, FieldMemOperand(object, JSValue::kValueOffset));
+  __ str(r0, FieldMemOperand(r1, JSValue::kValueOffset));
   // Update the write barrier.
-  __ RecordWrite(object,
-                 Operand(JSValue::kValueOffset - kHeapObjectTag),
-                 scratch1,
-                 scratch2);
+  __ RecordWrite(r1, Operand(JSValue::kValueOffset - kHeapObjectTag), r2, r3);
   // Leave.
   leave.Bind();
-  frame_->EmitPush(value);
+  frame_->EmitPush(r0);
 }
 
 
@@ -4564,18 +4558,22 @@ class DeferredStringCharCodeAt : public DeferredCode {
 // This generates code that performs a String.prototype.charCodeAt() call
 // or returns a smi in order to trigger conversion.
 void CodeGenerator::GenerateStringCharCodeAt(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment(masm_, "[ GenerateStringCharCodeAt");
   ASSERT(args->length() == 2);
 
   Load(args->at(0));
   Load(args->at(1));
 
-  Register index = frame_->PopToRegister();
-  Register object = frame_->PopToRegister(index);
+  Register index = r1;
+  Register object = r2;
+
+  frame_->EmitPop(r1);
+  frame_->EmitPop(r2);
 
   // We need two extra registers.
-  Register scratch = VirtualFrame::scratch0();
-  Register result = VirtualFrame::scratch1();
+  Register scratch = r3;
+  Register result = r0;
 
   DeferredStringCharCodeAt* deferred =
       new DeferredStringCharCodeAt(object,
@@ -4610,13 +4608,16 @@ class DeferredStringCharFromCode : public DeferredCode {
 
 // Generates code for creating a one-char string from a char code.
 void CodeGenerator::GenerateStringCharFromCode(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment(masm_, "[ GenerateStringCharFromCode");
   ASSERT(args->length() == 1);
 
   Load(args->at(0));
 
-  Register result = frame_->GetTOSRegister();
-  Register code = frame_->PopToRegister(result);
+  Register code = r1;
+  Register result = r0;
+
+  frame_->EmitPop(code);
 
   DeferredStringCharFromCode* deferred = new DeferredStringCharFromCode(
       code, result);
@@ -4678,20 +4679,23 @@ class DeferredStringCharAt : public DeferredCode {
 // This generates code that performs a String.prototype.charAt() call
 // or returns a smi in order to trigger conversion.
 void CodeGenerator::GenerateStringCharAt(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(frame_);
   Comment(masm_, "[ GenerateStringCharAt");
   ASSERT(args->length() == 2);
 
   Load(args->at(0));
   Load(args->at(1));
 
-  Register index = frame_->PopToRegister();
-  Register object = frame_->PopToRegister(index);
+  Register index = r1;
+  Register object = r2;
+
+  frame_->EmitPop(r1);
+  frame_->EmitPop(r2);
 
   // We need three extra registers.
-  Register scratch1 = VirtualFrame::scratch0();
-  Register scratch2 = VirtualFrame::scratch1();
-  // Use r6 without notifying the virtual frame.
-  Register result = r6;
+  Register scratch1 = r3;
+  Register scratch2 = r4;
+  Register result = r0;
 
   DeferredStringCharAt* deferred =
       new DeferredStringCharAt(object,
@@ -4870,13 +4874,13 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateArguments(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(frame_);
   ASSERT(args->length() == 1);
 
   // Satisfy contract with ArgumentsAccessStub:
   // Load the key into r1 and the formal parameters count into r0.
   Load(args->at(0));
-  frame_->PopToR1();
-  frame_->SpillAll();
+  frame_->EmitPop(r1);
   __ mov(r0, Operand(Smi::FromInt(scope()->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
@@ -5104,7 +5108,9 @@ class DeferredSearchCache: public DeferredCode {
 void DeferredSearchCache::Generate() {
   __ Push(cache_, key_);
   __ CallRuntime(Runtime::kGetFromCache, 2);
-  __ Move(dst_, r0);
+  if (!dst_.is(r0)) {
+    __ mov(dst_, r0);
+  }
 }
 
 
@@ -5124,42 +5130,33 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
 
   Load(args->at(1));
 
-  frame_->PopToR1();
-  frame_->SpillAll();
-  Register key = r1;  // Just poped to r1
-  Register result = r0;  // Free, as frame has just been spilled.
-  Register scratch1 = VirtualFrame::scratch0();
-  Register scratch2 = VirtualFrame::scratch1();
+  VirtualFrame::SpilledScope spilled_scope(frame_);
 
-  __ ldr(scratch1, ContextOperand(cp, Context::GLOBAL_INDEX));
-  __ ldr(scratch1,
-         FieldMemOperand(scratch1, GlobalObject::kGlobalContextOffset));
-  __ ldr(scratch1,
-         ContextOperand(scratch1, Context::JSFUNCTION_RESULT_CACHES_INDEX));
-  __ ldr(scratch1,
-         FieldMemOperand(scratch1, FixedArray::OffsetOfElementAt(cache_id)));
+  frame_->EmitPop(r2);
 
-  DeferredSearchCache* deferred =
-      new DeferredSearchCache(result, scratch1, key);
+  __ ldr(r1, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalContextOffset));
+  __ ldr(r1, ContextOperand(r1, Context::JSFUNCTION_RESULT_CACHES_INDEX));
+  __ ldr(r1, FieldMemOperand(r1, FixedArray::OffsetOfElementAt(cache_id)));
+
+  DeferredSearchCache* deferred = new DeferredSearchCache(r0, r1, r2);
 
   const int kFingerOffset =
       FixedArray::OffsetOfElementAt(JSFunctionResultCache::kFingerIndex);
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  __ ldr(result, FieldMemOperand(scratch1, kFingerOffset));
-  // result now holds finger offset as a smi.
-  __ add(scratch2, scratch1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  // scratch2 now points to the start of fixed array elements.
-  __ ldr(result,
-         MemOperand(
-             scratch2, result, LSL, kPointerSizeLog2 - kSmiTagSize, PreIndex));
-  // Note side effect of PreIndex: scratch2 now points to the key of the pair.
-  __ cmp(key, result);
+  __ ldr(r0, FieldMemOperand(r1, kFingerOffset));
+  // r0 now holds finger offset as a smi.
+  __ add(r3, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  // r3 now points to the start of fixed array elements.
+  __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2 - kSmiTagSize, PreIndex));
+  // Note side effect of PreIndex: r3 now points to the key of the pair.
+  __ cmp(r2, r0);
   deferred->Branch(ne);
 
-  __ ldr(result, MemOperand(scratch2, kPointerSize));
+  __ ldr(r0, MemOperand(r3, kPointerSize));
 
   deferred->BindExit();
-  frame_->EmitPush(result);
+  frame_->EmitPush(r0);
 }
 
 
@@ -6853,11 +6850,6 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ str(r3, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
   __ str(cp, FieldMemOperand(r0, JSFunction::kContextOffset));
   __ str(r1, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
-
-  // Initialize the code pointer in the function to be the one
-  // found in the shared function info object.
-  __ ldr(r3, FieldMemOperand(r3, SharedFunctionInfo::kCodeOffset));
-  __ str(r3, FieldMemOperand(r0, JSFunction::kCodeOffset));
 
   // Return result. The argument function info has been popped already.
   __ Ret();
@@ -10452,9 +10444,11 @@ void StringCharCodeAtGenerator::GenerateSlow(
     // NumberToSmi discards numbers that are not exact integers.
     __ CallRuntime(Runtime::kNumberToSmi, 1);
   }
-  // Save the conversion result before the pop instructions below
-  // have a chance to overwrite it.
-  __ Move(scratch_, r0);
+  if (!scratch_.is(r0)) {
+    // Save the conversion result before the pop instructions below
+    // have a chance to overwrite it.
+    __ mov(scratch_, r0);
+  }
   __ pop(index_);
   __ pop(object_);
   // Reload the instance type.
@@ -10473,7 +10467,9 @@ void StringCharCodeAtGenerator::GenerateSlow(
   call_helper.BeforeCall(masm);
   __ Push(object_, index_);
   __ CallRuntime(Runtime::kStringCharCodeAt, 2);
-  __ Move(result_, r0);
+  if (!result_.is(r0)) {
+    __ mov(result_, r0);
+  }
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
@@ -10514,7 +10510,9 @@ void StringCharFromCodeGenerator::GenerateSlow(
   call_helper.BeforeCall(masm);
   __ push(code_);
   __ CallRuntime(Runtime::kCharFromCode, 1);
-  __ Move(result_, r0);
+  if (!result_.is(r0)) {
+    __ mov(result_, r0);
+  }
   call_helper.AfterCall(masm);
   __ jmp(&exit_);
 
