@@ -152,7 +152,7 @@ var module = (function () {
 
   /* Sync unless callback given */
   function findModulePath (id, dirs, callback) {
-    process.assert(dirs.constructor == Array);
+    process.assert(Array.isArray(dirs));
 
     if (/^https?:\/\//.exec(id)) {
       if (callback) {
