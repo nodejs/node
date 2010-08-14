@@ -1,33 +1,40 @@
 #include "node.h"
 #include "platform.h"
 
+#include <stdlib.h>
 #include <kvm.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
+#include <string.h>
 #include <paths.h>
 #include <fcntl.h>
 #include <unistd.h>
 
 
 namespace node {
-
+static char *process_title;
 
 char** OS::SetupArgs(int argc, char *argv[]) {
+  process_title = argc ? strdup(argv[0]) : NULL;
   return argv;
 }
 
 
 void OS::SetProcessTitle(char *title) {
-  ;
+  if (process_title) free(process_title);
+  process_title = strdup(title);
+  setproctitle(title);
 }
 
-
 const char* OS::GetProcessTitle(int *len) {
+  if (process_title) {
+    *len = strlen(process_title);
+    return process_title;
+  }
   *len = 0;
   return NULL;
 }
-
 
 int OS::GetMemory(size_t *rss, size_t *vsize) {
   kvm_t *kd = NULL;
