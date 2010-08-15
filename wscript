@@ -43,6 +43,13 @@ def set_options(opt):
                 , dest='efence'
                 )
 
+  opt.add_option( '--without-snapshot'
+                , action='store_true'
+                , default=False
+                , help='Build without snapshotting V8 libraries. You might want to set this for cross-compiling. [Default: False]'
+                , dest='without_snapshot'
+                )
+
   opt.add_option( '--without-ssl'
                 , action='store_true'
                 , default=False
@@ -135,6 +142,7 @@ def configure(conf):
   o = Options.options
 
   conf.env["USE_DEBUG"] = o.debug
+  conf.env["SNAPSHOT_V8"] = not o.without_snapshot
 
   conf.env["USE_SHARED_V8"] = o.shared_v8 or o.shared_v8_includes or o.shared_v8_libpath or o.shared_v8_libname
   conf.env["USE_SHARED_CARES"] = o.shared_cares or o.shared_cares_includes or o.shared_cares_libpath
@@ -323,7 +331,12 @@ def v8_cmd(bld, variant):
   else:
     mode = "debug"
 
-  cmd_R = 'python "%s" -j %d -C "%s" -Y "%s" visibility=default mode=%s %s library=static snapshot=on'
+  if bld.env["SNAPSHOT_V8"]:
+    snapshot = "snapshot=on"
+  else:
+    snapshot = ""
+
+  cmd_R = 'python "%s" -j %d -C "%s" -Y "%s" visibility=default mode=%s %s library=static %s'
 
   cmd = cmd_R % ( scons
                 , Options.options.jobs
@@ -331,8 +344,10 @@ def v8_cmd(bld, variant):
                 , v8dir_src
                 , mode
                 , arch
+                , snapshot
                 )
-  return cmd
+  
+  return ("echo '%s' && " % cmd) + cmd
 
 
 def build_v8(bld):
