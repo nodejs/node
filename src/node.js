@@ -150,6 +150,33 @@ var module = (function () {
 
   var moduleNativeExtensions = ['js', 'node'];
 
+  // Which files to traverse while finding id? Returns generator function.
+  function traverser (id, dirs) {
+    var head = [], inDir = [], _dirs = dirs.slice();
+    return function next () {
+      var result = head.shift();
+      if (result) { return result; }
+
+      var gen = inDir.shift();
+      if (gen) { head = gen(); return next(); }
+
+      var dir = _dirs.shift();
+      if (dir !== undefined) {
+        function direct (ext) { return path.join(dir, id + '.' + ext); }
+        function index (ext) { return path.join(dir, id, 'index.' + ext); }
+        var userExts = Object.keys(extensionCache);
+        inDir = [
+          function () { return moduleNativeExtensions.map(direct); },
+          function () { return userExts.map(direct); },
+          function () { return moduleNativeExtensions.map(index); },
+          function () { return userExts.map(index); }
+        ];
+        head = [path.join(dir, id)];
+        return next();
+      }
+    };
+  }
+
   /* Sync unless callback given */
   function findModulePath (id, dirs, callback) {
     process.assert(Array.isArray(dirs));
@@ -163,74 +190,42 @@ var module = (function () {
       return;
     }
 
-    if (dirs.length == 0) {
+/*    if (dirs.length == 0) {
       if (callback) {
         callback();
       } else {
         return; // sync returns null
       }
-    }
+    } //no need for this, eventually move simpler if to traverser
+     // question: what with /absolute/id when dirs.length is 0?
+     // if "load it anyway", then this ^^^ code is wrong, but omitting it
+     // makes it right*/
 
-    var dir = dirs[0];
-    var rest = dirs.slice(1, dirs.length);
-
-    if (id.charAt(0) == '/') {
-      dir = '';
-      rest = [];
-    }
-
-    var ext, locDirect = [], locIndex = [];
-    var extensions = moduleNativeExtensions.concat(Object.keys(extensionCache));
-
-    for (var i = 0, l = extensions.length; i < l; i++) {
-      ext = extensions[i];
-      locDirect.push(path.join(dir, id + '.' + ext));
-      locIndex.push(path.join(dir, id, 'index.' + ext));
-    }
-
-    var locations = [path.join(dir, id)].concat(locDirect).concat(locIndex);
+    var nextLoc = traverser(id, id.charAt(0) === '/' ? [''] : dirs);
 
     var fs = requireNative('fs');
 
     function searchLocations () {
-      var location = locations.shift();
-
-      if (!location && rest.length > 0) {
-        return findModulePath(id, rest);
-      } else if (location) {
-        try {
-          var stats = fs.statSync(location);
-          if (stats && !stats.isDirectory()) return location;
-        } catch(e) {}
-        return searchLocations();
-      } else {
-        return false;
+      var location, stats;
+      while (location = nextLoc()) {
+        try { stats = fs.statSync(location); } catch(e) { continue; }
+        if (stats && !stats.isDirectory()) return location;
       }
+      return false;
     }
 
     function searchLocationsAsync (cb) {
-      var location = locations.shift();
+      var location = nextLoc();
 
-      if (!location && rest.length > 0) {
-        findModulePath(id, rest, cb);
-      } else if (location) {
-        fs.stat(location, function (err, stats) {
-          if (stats && !stats.isDirectory()) {
-            cb(location);
-          } else {
-            searchLocationsAsync(cb);
-          }
-        });
-      } else {
-        cb(false);
-      }
+      if (!location) { cb(false); return; }
+
+      fs.stat(location, function (err, stats) {
+        if (stats && !stats.isDirectory()) { cb(location); }
+        else { searchLocationsAsync(cb); }
+      });
     }
 
-    if (callback) {
-      return searchLocationsAsync(callback);
-    } else {
-      return searchLocations();
-    }
+    return callback ? searchLocationsAsync(callback) : searchLocations();
   }
 
 
