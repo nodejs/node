@@ -231,29 +231,23 @@ var module = (function () {
 
   // sync - no i/o performed
   function resolveModulePath(request, parent) {
-    var id, paths;
-    if (request.charAt(0) == "." && (request.charAt(1) == "/" || request.charAt(1) == ".")) {
-      // Relative request
+    var start = request.substring(0, 2);
+    if (start !== "./" && start !== "..") { return [request, modulePaths]; }
 
-      var exts = moduleNativeExtensions.concat(Object.keys(extensionCache));
-
-      var parentIdPath = path.dirname(parent.id +
-        (path.basename(parent.filename).match(new RegExp('^index\\.(' + exts.join('|') + ')$')) ? "/." : ""));
+    // Relative request
+    var exts = moduleNativeExtensions.concat(Object.keys(extensionCache)),
+      indexRE = new RegExp('^index\\.(' + exts.join('|') + ')$'),
+      // XXX dangerous code: ^^^ what if exts contained some RE control chars?
+      isIndex = path.basename(parent.filename).match(indexRE),
+      parentIdPath = isIndex ? parent.id : path.dirname(parent.id),
       id = path.join(parentIdPath, request);
-      // make sure require('./path') and require('path') get distinct ids, even
-      // when called from the toplevel js file
-      if (parentIdPath == '.' && ! id.match(new RegExp('/'))) {
-        id = './' + id;
-      }
-      debug("RELATIVE: requested:" + request + " set ID to: "+id+" from "+parent.id);
-      paths = [path.dirname(parent.filename)];
-    } else {
-      id = request;
-      // debug("ABSOLUTE: id="+id);
-      paths = modulePaths;
+    // make sure require('./path') and require('path') get distinct ids, even
+    // when called from the toplevel js file
+    if (parentIdPath === '.' && id.indexOf('/') === -1) {
+      id = './' + id;
     }
-
-    return [id, paths];
+    debug("RELATIVE: requested:" + request + " set ID to: "+id+" from "+parent.id);
+    return [id, [path.dirname(parent.filename)]];
   }
 
 
