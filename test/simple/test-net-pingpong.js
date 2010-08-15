@@ -13,6 +13,7 @@ function pingPongTest (port, host) {
   var server = net.createServer(function (socket) {
     console.log("connection: " + socket.remoteAddress);
     assert.equal(server, socket.server);
+    assert.equal(1, server.connections);
 
     socket.setNoDelay();
     socket.timeout = 0;

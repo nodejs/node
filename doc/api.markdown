@@ -2196,6 +2196,15 @@ Stops the server from accepting new connections. This function is
 asynchronous, the server is finally closed when the server emits a `'close'`
 event.
 
+### server.maxConnections
+
+Set this property to reject connections when the server's connection count gets high.
+
+### server.connections
+
+The number of concurrent connections on the server.
+
+
 
 ## net.Stream
 
