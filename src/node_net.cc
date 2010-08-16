@@ -221,7 +221,7 @@ static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
     // UNIX
     String::Utf8Value path(first->ToString());
 
-    if (path.length() >= ARRAY_SIZE(un.sun_path)) {
+    if ((size_t) path.length() >= ARRAY_SIZE(un.sun_path)) {
       return Exception::Error(String::New("Socket path too long"));
     }
 
