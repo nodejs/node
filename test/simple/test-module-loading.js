@@ -152,19 +152,19 @@ assert.equal(require(loadOrder + 'file8').file8, 'file8/index.reg',  msg);
 assert.equal(require(loadOrder + 'file9').file9, 'file9/index.reg2', msg);
 
 process.addListener("exit", function () {
-  assert.equal(true, a.A instanceof Function);
+  assert.ok(common.indirectInstanceOf(a.A, Function));
   assert.equal("A done", a.A());
 
-  assert.equal(true, a.C instanceof Function);
+  assert.ok(common.indirectInstanceOf(a.C, Function));
   assert.equal("C done", a.C());
 
-  assert.equal(true, a.D instanceof Function);
+  assert.ok(common.indirectInstanceOf(a.D, Function));
   assert.equal("D done", a.D());
 
-  assert.equal(true, d.D instanceof Function);
+  assert.ok(common.indirectInstanceOf(d.D, Function));
   assert.equal("D done", d.D());
 
-  assert.equal(true, d2.D instanceof Function);
+  assert.ok(common.indirectInstanceOf(d2.D, Function));
   assert.equal("D done", d2.D());
 
   assert.equal(true, errorThrown);

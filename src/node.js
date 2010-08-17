@@ -394,6 +394,11 @@ var module = (function () {
       content = extensionCache[ext](content);
     }
 
+    if ("string" !== typeof content) {
+      self.exports = content;
+      return;
+    }
+
     function requireAsync (url, cb) {
       loadModule(url, self, cb);
     }
@@ -410,7 +415,7 @@ var module = (function () {
     var dirname = path.dirname(filename);
 
     if (contextLoad) {
-      if (!Script) Script = Script = process.binding('evals').Script;
+      if (!Script) Script = process.binding('evals').Script;
 
       if (self.id !== ".") {
         debug('load submodule');
@@ -441,20 +446,16 @@ var module = (function () {
       }
 
     } else {
-      if ('string' === typeof content) {
-        // create wrapper function
-        var wrapper = "(function (exports, require, module, __filename, __dirname) { "
-                    + content
-                    + "\n});";
+      // create wrapper function
+      var wrapper = "(function (exports, require, module, __filename, __dirname) { "
+                  + content
+                  + "\n});";
 
-        var compiledWrapper = process.compile(wrapper, filename);
-        if (filename === process.argv[1] && global.v8debug) {
-          global.v8debug.Debug.setBreakPoint(compiledWrapper, 0, 0);
-        }
-        compiledWrapper.apply(self.exports, [self.exports, require, self, filename, dirname]);
-      } else {
-        self.exports = content;
+      var compiledWrapper = process.compile(wrapper, filename);
+      if (filename === process.argv[1] && global.v8debug) {
+        global.v8debug.Debug.setBreakPoint(compiledWrapper, 0, 0);
       }
+      compiledWrapper.apply(self.exports, [self.exports, require, self, filename, dirname]);
     }
   };
 
