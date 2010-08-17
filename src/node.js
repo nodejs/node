@@ -116,13 +116,6 @@ var module = (function () {
     return loadNative(id).exports;
   }
 
-  // Event
-
-  var eventsFn = process.compile("(function (exports) {" + natives.events + "\n})",
-                                 "events");
-  var eventsModule = createInternalModule('events', eventsFn);
-  var events = eventsModule.exports;
-
 
   // Modules
 
@@ -526,6 +519,11 @@ var module = (function () {
 
   return exports;
 })();
+
+
+// Load events module in order to access prototype elements on process like
+// process.addListener.
+var events = module.requireNative('events');
 
 
 // Signal Handlers
