@@ -1,12 +1,12 @@
 before
 
 
-*test/message/undefined_reference_in_new_context.js:10
-script.runInNewContext();
-       ^
+*.js:*
+*cript.runIn*Context(*);
+*^
 ReferenceError: foo is not defined
     at evalmachine.<anonymous>:*
-    at Object.<anonymous> (*test/message/undefined_reference_in_new_context.js:*)
+    at *test/message/undefined_reference_in_new_context.js:*
     at Module._compile (node.js:*)
     at Module._loadScriptSync (node.js:*)
     at Module.loadSync (node.js:*)
