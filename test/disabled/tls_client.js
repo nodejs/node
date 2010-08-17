@@ -28,7 +28,7 @@ client.addListener("secure", function () {
 });
 
 client.addListener("data", function (chunk) {
-  sys.common.error(chunk);
+  common.error(chunk);
 });
 
 client.addListener("end", function () {

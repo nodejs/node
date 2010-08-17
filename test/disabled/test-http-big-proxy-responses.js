@@ -64,7 +64,7 @@ function call_chargen(list) {
   if (list.length > 0) {
     var len = list.shift();
 
-    sys.common.debug("calling chargen for " + len + " chunks.");
+    common.debug("calling chargen for " + len + " chunks.");
 
     var recved = 0;
 
@@ -79,7 +79,7 @@ function call_chargen(list) {
 
       res.addListener('end', function() {
         assert.ok(recved <= (len*chunk.length));
-        sys.common.debug("end for " + len + " chunks.");
+        common.debug("end for " + len + " chunks.");
         call_chargen(list);
       });
 

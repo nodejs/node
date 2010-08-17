@@ -54,7 +54,7 @@ var logChild = function(d) {
 
   d.split('\n').forEach(function(l) {
     if (l.length > 0) {
-      sys.common.debug('CHILD: ' + l);
+      common.debug('CHILD: ' + l);
     }
   });
 };
