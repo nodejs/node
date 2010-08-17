@@ -1,4 +1,5 @@
-require('../common');
+common = require('../common');
+assert = common.assert;
 var exec = require('child_process').exec,
     sys = require('sys');
 success_count = 0;

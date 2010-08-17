@@ -1,4 +1,4 @@
-debug("load fixtures/b/d.js");
+common.debug("load fixtures/b/d.js");
 
 var string = "D";
 

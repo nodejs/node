@@ -23,7 +23,8 @@ function asynctest(testBlock, args, callback, assertBlock) {
 }
 
 function bashRealpath(path, callback) {
-  exec("cd '"+path.replace("'","\\'")+"' && pwd -P",function (err, o) {
+  common.exec("cd '"+path.replace("'","\\'")+"' && pwd -P",function 
+  (err, o) {
     callback(err, o.trim());
   });
 }

@@ -8,7 +8,7 @@ fs.stat(".", function (err, stats) {
   if (err) {
     got_error = true;
   } else {
-    p(stats);
+    common.p(stats);
     assert.ok(stats.mtime instanceof Date);
     success_count++;
   }
@@ -18,7 +18,7 @@ fs.lstat(".", function (err, stats) {
   if (err) {
     got_error = true;
   } else {
-    p(stats);
+    common.p(stats);
     assert.ok(stats.mtime instanceof Date);
     success_count++;
   }
@@ -33,7 +33,7 @@ fs.open(".", "r", undefined, function(err, fd) {
     if (err) {
       got_error = true;
     } else {
-      p(stats);
+      common.p(stats);
       assert.ok(stats.mtime instanceof Date);
       success_count++;
       fs.close(fd);
@@ -50,7 +50,7 @@ fs.open(".", "r", undefined, function(err, fd) {
     got_error = true;
   }
   if (stats) {
-    p(stats);
+    common.p(stats);
     assert.ok(stats.mtime instanceof Date);
     success_count++;
   }
@@ -62,7 +62,7 @@ fs.stat(__filename, function (err, s) {
   if (err) {
     got_error = true;
   } else {
-    p(s);
+    common.p(s);
     success_count++;
 
     console.log("isDirectory: " + JSON.stringify( s.isDirectory() ) );

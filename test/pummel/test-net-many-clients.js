@@ -17,7 +17,7 @@ for (var i = 0; i < bytes; i++) {
 var server = net.createServer(function (c) {
   c.addListener("connect", function () {
     total_connections++;
-    print("#");
+    common.print("#");
     c.write(body);
     c.end();
   });
@@ -31,7 +31,7 @@ function runClient (callback) {
   client.setEncoding("utf8");
 
   client.addListener("connect", function () {
-    print("c");
+    common.print("c");
     client.recved = "";
     client.connections += 1;
   });
@@ -50,7 +50,7 @@ function runClient (callback) {
   });
 
   client.addListener("close", function (had_error) {
-    print(".");
+    common.print(".");
     assert.equal(false, had_error);
     assert.equal(bytes, client.recved.length);
 

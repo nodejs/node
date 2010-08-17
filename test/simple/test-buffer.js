@@ -25,7 +25,7 @@ var copied = b.copy(c, 0, 0, 512);
 console.log("copied " + copied + " bytes from b into c");
 assert.strictEqual(512, copied);
 for (var i = 0; i < c.length; i++) {
-  print('.');
+  common.print('.');
   assert.equal(i % 256, c[i]);
 }
 console.log("");

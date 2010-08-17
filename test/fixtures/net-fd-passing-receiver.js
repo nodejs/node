@@ -26,7 +26,7 @@ receiver = net.createServer(function(socket) {
 
 /* To signal the test runne we're up and listening */
 receiver.addListener("listening", function() {
-  print("ready");
+  common.print("ready");
 });
 
 receiver.listen(path);

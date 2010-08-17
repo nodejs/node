@@ -21,10 +21,10 @@ server.addListener('listening', function () {
    http.cat('http://localhost:'+common.PORT+'/', 'utf8', function (err, content) {
      requests_complete++;
      if (err) {
-       print("-");
+       common.print("-");
      } else {
        assert.equal(body, content)
-       print(".");
+       common.print(".");
        requests_ok++;
      }
      if (requests_complete == request_count) {

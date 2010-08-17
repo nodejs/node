@@ -12,7 +12,7 @@ var echo_server = net.createServer(function (socket) {
   socket.addListener("timeout", function () {
     console.log("server timeout");
     timeouttime = new Date;
-    p(timeouttime);
+    common.p(timeouttime);
     socket.destroy();
   });
 
@@ -53,7 +53,7 @@ client.addListener("data", function (chunk) {
     if (exchanges == 5) {
       console.log("wait for timeout - should come in " + timeout + " ms");
       starttime = new Date;
-      p(starttime);
+      common.p(starttime);
     }
   }
 });

@@ -10,7 +10,7 @@ function makeBlock (f) {
   };
 }
 
-assert.ok(a.AssertionError instanceof Error,
+assert.ok(common.indirectInstanceOf(a.AssertionError.prototype, Error),
           "a.AssertionError instanceof Error");
 
 assert.throws(makeBlock(a.ok, false),

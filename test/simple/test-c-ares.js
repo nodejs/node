@@ -7,12 +7,12 @@ var dns = require("dns");
 // Try resolution without callback
 
 dns.getHostByName('localhost', function (error, result) {
-   p(result);
+   common.p(result);
    assert.deepEqual(['127.0.0.1'], result);
 });
 
 dns.getHostByName('127.0.0.1', function (error, result) {
-   p(result);
+   common.p(result);
    assert.deepEqual(['127.0.0.1'], result);
 });
 
@@ -33,7 +33,7 @@ dns.lookup('::1', function (error, result, addressType) {
 
 dns.lookup('ipv6.google.com', function (error, result, addressType) {
    if (error) throw error;
-   p(arguments);
+   common.p(arguments);
    //assert.equal('string', typeof result);
    assert.equal(6, addressType);
 });

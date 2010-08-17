@@ -17,7 +17,7 @@ var server = http.createServer(function (req, res) {
     assert.equal("GET", req.method);
     assert.equal("/hello", url.parse(req.url).pathname);
 
-    p(req.headers);
+    common.p(req.headers);
     assert.equal(true, "accept" in req.headers);
     assert.equal("*/*", req.headers["accept"]);
 

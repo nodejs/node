@@ -1,7 +1,7 @@
 common = require("../common");
 assert = common.assert
 
-print("hello world\r\n");
+common.print("hello world\r\n");
 
 var stdin = process.openStdin();
 

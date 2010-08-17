@@ -21,7 +21,7 @@ server.on('listening', function(){
   client = net.createConnection(common.PORT);
   client.setEncoding("ascii");
   client.addListener("data", function (d) {
-      print(d);
+      common.print(d);
       recv += d;
   });
 

@@ -15,25 +15,25 @@ var d4 = require("../fixtures/b/d");
 
 assert.equal(false, false, "testing the test program.");
 
-assert.equal(true, a.A instanceof Function);
+assert.equal(true, common.indirectInstanceOf(a.A, Function));
 assert.equal("A", a.A());
 
-assert.equal(true, a.C instanceof Function);
+assert.equal(true, common.indirectInstanceOf(a.C, Function));
 assert.equal("C", a.C());
 
-assert.equal(true, a.D instanceof Function);
+assert.equal(true, common.indirectInstanceOf(a.D, Function));
 assert.equal("D", a.D());
 
-assert.equal(true, d.D instanceof Function);
+assert.equal(true, common.indirectInstanceOf(d.D, Function));
 assert.equal("D", d.D());
 
-assert.equal(true, d2.D instanceof Function);
+assert.equal(true, common.indirectInstanceOf(d2.D, Function));
 assert.equal("D", d2.D());
 
-assert.equal(true, d3.D instanceof Function);
+assert.equal(true, common.indirectInstanceOf(d3.D, Function));
 assert.equal("D", d3.D());
 
-assert.equal(true, d4.D instanceof Function);
+assert.equal(true, common.indirectInstanceOf(d4.D, Function));
 assert.equal("D", d4.D());
 
 assert.ok((new a.SomeClass) instanceof c.SomeClass);
@@ -52,7 +52,7 @@ assert.equal(root.sayHello(), root.hello);
 common.debug("test name clashes");
 // this one exists and should import the local module
 var my_path = require("./path");
-assert.equal(true, my_path.path_func instanceof Function);
+assert.ok(common.indirectInstanceOf(my_path.path_func, Function));
 // this one does not exist and should throw
 assert.throws(function() { require("./utils")});
 
@@ -98,7 +98,7 @@ require.registerExtension('.test', function(content) {
 });
 
 assert.equal(require('../fixtures/registerExt2').custom, 'passed');
-debug("load modules by absolute id, then change require.paths, and load another module with the same absolute id.");
+common.debug("load modules by absolute id, then change require.paths, and load another module with the same absolute id.");
 // this will throw if it fails.
 var foo = require("../fixtures/require-path/p1/foo");
 process.assert(foo.bar.expect === foo.bar.actual);
