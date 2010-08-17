@@ -8,6 +8,10 @@ fn = path.join(common.fixturesDir, 'write.txt');
 
 foo = 'foo'
 var fd = fs.openSync(fn, 'w');
+
+written = fs.writeSync(fd, '');
+assert.strictEqual(0, written);
+
 fs.writeSync(fd, foo);
 
 bar = 'bár'
