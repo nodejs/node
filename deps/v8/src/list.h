@@ -117,6 +117,8 @@ class List {
 
   // Iterate through all list entries, starting at index 0.
   void Iterate(void (*callback)(T* x));
+  template<class Visitor>
+  void Iterate(Visitor* visitor);
 
   // Sort all list entries (using QuickSort)
   void Sort(int (*cmp)(const T* x, const T* y));

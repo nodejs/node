@@ -1212,38 +1212,6 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 }
 
 
-Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
-  // ----------- S t a t e -------------
-  //  -- r1: function
-  //  -- lr: return address
-  // -----------------------------------
-
-  // Enter an internal frame.
-  __ EnterInternalFrame();
-
-  // Preserve the function.
-  __ push(r1);
-
-  // Push the function on the stack as the argument to the runtime function.
-  __ push(r1);
-  __ CallRuntime(Runtime::kLazyCompile, 1);
-
-  // Calculate the entry point.
-  __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
-
-  // Restore saved function.
-  __ pop(r1);
-
-  // Tear down temporary frame.
-  __ LeaveInternalFrame();
-
-  // Do a tail-call of the compiled function.
-  __ Jump(r2);
-
-  return GetCodeWithFlags(flags, "LazyCompileStub");
-}
-
-
 void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
   if (kind_ == Code::KEYED_CALL_IC) {
     __ cmp(r2, Operand(Handle<String>(name)));

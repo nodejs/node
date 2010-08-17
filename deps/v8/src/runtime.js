@@ -175,7 +175,7 @@ function ADD(x) {
 // Left operand (this) is already a string.
 function STRING_ADD_LEFT(y) {
   if (!IS_STRING(y)) {
-    if (IS_STRING_WRAPPER(y)) {
+    if (IS_STRING_WRAPPER(y) && %_IsStringWrapperSafeForDefaultValueOf(y)) {
       y = %_ValueOf(y);
     } else {
       y = IS_NUMBER(y)
@@ -191,7 +191,7 @@ function STRING_ADD_LEFT(y) {
 function STRING_ADD_RIGHT(y) {
   var x = this;
   if (!IS_STRING(x)) {
-    if (IS_STRING_WRAPPER(x)) {
+    if (IS_STRING_WRAPPER(x) && %_IsStringWrapperSafeForDefaultValueOf(x)) {
       x = %_ValueOf(x);
     } else {
       x = IS_NUMBER(x)
@@ -387,11 +387,11 @@ function GET_KEYS() {
 
 // Filter a given key against an object by checking if the object
 // has a property with the given key; return the key as a string if
-// it has. Otherwise returns null. Used in for-in statements.
+// it has. Otherwise returns 0 (smi). Used in for-in statements.
 function FILTER_KEY(key) {
   var string = %ToString(key);
   if (%HasProperty(this, string)) return string;
-  return null;
+  return 0;
 }
 
 

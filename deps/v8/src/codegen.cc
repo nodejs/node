@@ -77,11 +77,20 @@ void CodeGenerator::ProcessDeferred() {
     // Generate the code.
     Comment cmnt(masm_, code->comment());
     masm_->bind(code->entry_label());
-    code->SaveRegisters();
+    if (code->AutoSaveAndRestore()) {
+      code->SaveRegisters();
+    }
     code->Generate();
-    code->RestoreRegisters();
-    masm_->jmp(code->exit_label());
+    if (code->AutoSaveAndRestore()) {
+      code->RestoreRegisters();
+      code->Exit();
+    }
   }
+}
+
+
+void DeferredCode::Exit() {
+  masm_->jmp(exit_label());
 }
 
 

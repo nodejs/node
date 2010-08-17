@@ -293,15 +293,11 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   masm->Abort("LiveEdit frame dropping is not supported on arm");
 }
 
+const bool Debug::kFrameDropperSupported = false;
+
 #undef __
 
 
-Object** Debug::SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
-                                       Handle<Code> code) {
-  UNREACHABLE();
-  return NULL;
-}
-const int Debug::kFrameDropperFrameSize = -1;
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 

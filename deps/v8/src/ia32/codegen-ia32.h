@@ -358,6 +358,10 @@ class CodeGenerator: public AstVisitor {
     return FieldOperand(array, index_as_smi, times_half_pointer_size, offset);
   }
 
+  static Operand ContextOperand(Register context, int index) {
+    return Operand(context, Context::SlotOffset(index));
+  }
+
  private:
   // Construction/Destruction
   explicit CodeGenerator(MacroAssembler* masm);
@@ -429,10 +433,6 @@ class CodeGenerator: public AstVisitor {
 
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
-
-  static Operand ContextOperand(Register context, int index) {
-    return Operand(context, Context::SlotOffset(index));
-  }
 
   Operand SlotOperand(Slot* slot, Register tmp);
 
@@ -530,13 +530,22 @@ class CodeGenerator: public AstVisitor {
 
   // Emits code sequence that jumps to deferred code if the inputs
   // are not both smis.  Cannot be in MacroAssembler because it takes
-  // advantage of TypeInfo to skip unneeded checks.
+  // a deferred code object.
   void JumpIfNotBothSmiUsingTypeInfo(Register left,
                                      Register right,
                                      Register scratch,
                                      TypeInfo left_info,
                                      TypeInfo right_info,
                                      DeferredCode* deferred);
+
+  // Emits code sequence that jumps to the label if the inputs
+  // are not both smis.
+  void JumpIfNotBothSmiUsingTypeInfo(Register left,
+                                     Register right,
+                                     Register scratch,
+                                     TypeInfo left_info,
+                                     TypeInfo right_info,
+                                     Label* on_non_smi);
 
   // If possible, combine two constant smi values using op to produce
   // a smi result, and push it on the virtual frame, all at compile time.
@@ -644,6 +653,8 @@ class CodeGenerator: public AstVisitor {
   void GenerateIsSpecObject(ZoneList<Expression*>* args);
   void GenerateIsFunction(ZoneList<Expression*>* args);
   void GenerateIsUndetectableObject(ZoneList<Expression*>* args);
+  void GenerateIsStringWrapperSafeForDefaultValueOf(
+      ZoneList<Expression*>* args);
 
   // Support for construct call checks.
   void GenerateIsConstructCall(ZoneList<Expression*>* args);
@@ -799,6 +810,18 @@ class TranscendentalCacheStub: public CodeStub {
   int MinorKey() { return type_; }
   Runtime::FunctionId RuntimeFunction();
   void GenerateOperation(MacroAssembler* masm);
+};
+
+
+class ToBooleanStub: public CodeStub {
+ public:
+  ToBooleanStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return ToBoolean; }
+  int MinorKey() { return 0; }
 };
 
 

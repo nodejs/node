@@ -353,9 +353,6 @@ bool CompileLazyInLoop(Handle<JSFunction> function,
                        Handle<Object> receiver,
                        ClearExceptionFlag flag);
 
-// Returns the lazy compilation stub for argc arguments.
-Handle<Code> ComputeLazyCompile(int argc);
-
 class NoHandleAllocation BASE_EMBEDDED {
  public:
 #ifndef DEBUG

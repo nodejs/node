@@ -108,6 +108,11 @@ double OS::DaylightSavingsOffset(double time) {
 }
 
 
+int OS::GetLastError() {
+  return errno;
+}
+
+
 // ----------------------------------------------------------------------------
 // POSIX stdio support.
 //
@@ -238,7 +243,7 @@ bool POSIXSocket::Bind(const int port) {
   addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
   addr.sin_port = htons(port);
   int status = bind(socket_,
-                    reinterpret_cast<struct sockaddr *>(&addr),
+                    BitCast<struct sockaddr *>(&addr),
                     sizeof(addr));
   return status == 0;
 }

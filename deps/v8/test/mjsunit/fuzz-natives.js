@@ -174,6 +174,9 @@ var knownProblems = {
   // This function performs some checks compile time (it requires its first
   // argument to be a compile time smi).
   "_GetFromCache": true,
+
+  // This function expects its first argument to be a non-smi.
+  "_IsStringWrapperSafeForDefaultValueOf" : true
 };
 
 var currentlyUncallable = {

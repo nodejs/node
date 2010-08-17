@@ -560,6 +560,7 @@ int DisassemblerIA32::D1D3C1Instruction(byte* data) {
       case kROL: mnem = "rol"; break;
       case kROR: mnem = "ror"; break;
       case kRCL: mnem = "rcl"; break;
+      case kRCR: mnem = "rcr"; break;
       case kSHL: mnem = "shl"; break;
       case KSHR: mnem = "shr"; break;
       case kSAR: mnem = "sar"; break;

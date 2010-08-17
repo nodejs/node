@@ -202,23 +202,39 @@ void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
 
 
 void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  masm->Abort("LiveEdit frame dropping is not supported on x64");
+  masm->ret(0);
 }
 
 
 void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  masm->Abort("LiveEdit frame dropping is not supported on x64");
+  ExternalReference restarter_frame_function_slot =
+      ExternalReference(Debug_Address::RestarterFrameFunctionPointer());
+  __ movq(rax, restarter_frame_function_slot);
+  __ movq(Operand(rax, 0), Immediate(0));
+
+  // We do not know our frame height, but set rsp based on rbp.
+  __ lea(rsp, Operand(rbp, -1 * kPointerSize));
+
+  __ pop(rdi);  // Function.
+  __ pop(rbp);
+
+  // Load context from the function.
+  __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+
+  // Get function code.
+  __ movq(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
+  __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
+
+  // Re-run JSFunction, rdi is function, rsi is context.
+  __ jmp(rdx);
 }
+
+const bool Debug::kFrameDropperSupported = true;
 
 #undef __
 
 
-Object** Debug::SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
-                                       Handle<Code> code) {
-  UNREACHABLE();
-  return NULL;
-}
-const int Debug::kFrameDropperFrameSize = -1;
 
 
 void BreakLocationIterator::ClearDebugBreakAtReturn() {

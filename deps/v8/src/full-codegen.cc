@@ -677,7 +677,7 @@ Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
   MacroAssembler masm(NULL, kInitialBufferSize);
 
   FullCodeGenerator cgen(&masm);
-  cgen.Generate(info, PRIMARY);
+  cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
@@ -919,6 +919,9 @@ void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
     EmitGetFromCache(expr->arguments());
   } else if (strcmp("_IsRegExpEquivalent", *name->ToCString()) == 0) {
     EmitIsRegExpEquivalent(expr->arguments());
+  } else if (strcmp("_IsStringWrapperSafeForDefaultValueOf",
+                    *name->ToCString()) == 0) {
+    EmitIsStringWrapperSafeForDefaultValueOf(expr->arguments());
   } else {
     UNREACHABLE();
   }

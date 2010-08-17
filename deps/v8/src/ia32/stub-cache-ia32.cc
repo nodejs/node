@@ -1255,30 +1255,6 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 }
 
 
-// TODO(1241006): Avoid having lazy compile stubs specialized by the
-// number of arguments. It is not needed anymore.
-Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
-  // Enter an internal frame.
-  __ EnterInternalFrame();
-
-  // Push a copy of the function onto the stack.
-  __ push(edi);
-
-  __ push(edi);  // function is also the parameter to the runtime call
-  __ CallRuntime(Runtime::kLazyCompile, 1);
-  __ pop(edi);
-
-  // Tear down temporary frame.
-  __ LeaveInternalFrame();
-
-  // Do a tail-call of the compiled function.
-  __ lea(ecx, FieldOperand(eax, Code::kHeaderSize));
-  __ jmp(Operand(ecx));
-
-  return GetCodeWithFlags(flags, "LazyCompileStub");
-}
-
-
 void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
   if (kind_ == Code::KEYED_CALL_IC) {
     __ cmp(Operand(ecx), Immediate(Handle<String>(name)));
@@ -1595,6 +1571,9 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
+  // If object is not a string, bail out to regular call.
+  if (!object->IsString()) return Heap::undefined_value();
+
   const int argc = arguments().immediate();
 
   Label miss;
@@ -1605,6 +1584,7 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
                                             eax);
+  ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, edi, name, &miss);
 
@@ -1659,6 +1639,9 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
+  // If object is not a string, bail out to regular call.
+  if (!object->IsString()) return Heap::undefined_value();
+
   const int argc = arguments().immediate();
 
   Label miss;
@@ -1670,6 +1653,7 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
                                             eax);
+  ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, edi, name, &miss);
 

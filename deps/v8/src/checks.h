@@ -280,14 +280,13 @@ template <int> class StaticAssertionHelper { };
 
 
 // The ASSERT macro is equivalent to CHECK except that it only
-// generates code in debug builds.  Ditto STATIC_ASSERT.
+// generates code in debug builds.
 #ifdef DEBUG
 #define ASSERT_RESULT(expr)  CHECK(expr)
 #define ASSERT(condition)    CHECK(condition)
 #define ASSERT_EQ(v1, v2)    CHECK_EQ(v1, v2)
 #define ASSERT_NE(v1, v2)    CHECK_NE(v1, v2)
 #define ASSERT_GE(v1, v2)    CHECK_GE(v1, v2)
-#define STATIC_ASSERT(test)  STATIC_CHECK(test)
 #define SLOW_ASSERT(condition) if (FLAG_enable_slow_asserts) CHECK(condition)
 #else
 #define ASSERT_RESULT(expr)     (expr)
@@ -295,9 +294,14 @@ template <int> class StaticAssertionHelper { };
 #define ASSERT_EQ(v1, v2)      ((void) 0)
 #define ASSERT_NE(v1, v2)      ((void) 0)
 #define ASSERT_GE(v1, v2)      ((void) 0)
-#define STATIC_ASSERT(test)    ((void) 0)
 #define SLOW_ASSERT(condition) ((void) 0)
 #endif
+// Static asserts has no impact on runtime performance, so they can be
+// safely enabled in release mode. Moreover, the ((void) 0) expression
+// obeys different syntax rules than typedef's, e.g. it can't appear
+// inside class declaration, this leads to inconsistency between debug
+// and release compilation modes behaviour.
+#define STATIC_ASSERT(test)  STATIC_CHECK(test)
 
 
 #define ASSERT_TAG_ALIGNED(address) \

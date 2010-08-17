@@ -165,6 +165,9 @@ class OS {
   // Returns the daylight savings offset for the given time.
   static double DaylightSavingsOffset(double time);
 
+  // Returns last OS error.
+  static int GetLastError();
+
   static FILE* FOpen(const char* path, const char* mode);
 
   // Log file open mode is platform-dependent due to line ends issues.

@@ -757,7 +757,7 @@ void MacroAssembler::InvokeFunction(Register fun,
                       SharedFunctionInfo::kFormalParameterCountOffset));
   mov(expected_reg, Operand(expected_reg, ASR, kSmiTagSize));
   ldr(code_reg,
-      MemOperand(code_reg, SharedFunctionInfo::kCodeOffset - kHeapObjectTag));
+      MemOperand(r1, JSFunction::kCodeOffset - kHeapObjectTag));
   add(code_reg, code_reg, Operand(Code::kHeaderSize - kHeapObjectTag));
 
   ParameterCount expected(expected_reg);
@@ -1508,8 +1508,7 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
     // Make sure the code objects in the builtins object and in the
     // builtin function are the same.
     push(r1);
-    ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-    ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCodeOffset));
+    ldr(r1, FieldMemOperand(r1, JSFunction::kCodeOffset));
     cmp(r1, target);
     Assert(eq, "Builtin code object changed");
     pop(r1);
@@ -1653,6 +1652,13 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
   tst(reg1, Operand(kSmiTagMask));
   tst(reg2, Operand(kSmiTagMask), ne);
   b(eq, on_either_smi);
+}
+
+
+void MacroAssembler::AbortIfSmi(Register object) {
+  ASSERT_EQ(0, kSmiTag);
+  tst(object, Operand(kSmiTagMask));
+  Assert(ne, "Operand is a smi");
 }
 
 

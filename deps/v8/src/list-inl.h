@@ -127,6 +127,13 @@ void List<T, P>::Iterate(void (*callback)(T* x)) {
 
 
 template<typename T, class P>
+template<class Visitor>
+void List<T, P>::Iterate(Visitor* visitor) {
+  for (int i = 0; i < length_; i++) visitor->Apply(&data_[i]);
+}
+
+
+template<typename T, class P>
 bool List<T, P>::Contains(const T& elm) {
   for (int i = 0; i < length_; i++) {
     if (data_[i] == elm)

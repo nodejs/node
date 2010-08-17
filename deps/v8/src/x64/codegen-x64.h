@@ -347,6 +347,10 @@ class CodeGenerator: public AstVisitor {
   // expected arguments. Otherwise return -1.
   static int InlineRuntimeCallArgumentsCount(Handle<String> name);
 
+  static Operand ContextOperand(Register context, int index) {
+    return Operand(context, Context::SlotOffset(index));
+  }
+
  private:
   // Construction/Destruction
   explicit CodeGenerator(MacroAssembler* masm);
@@ -405,10 +409,6 @@ class CodeGenerator: public AstVisitor {
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
   void UnloadReference(Reference* ref);
-
-  static Operand ContextOperand(Register context, int index) {
-    return Operand(context, Context::SlotOffset(index));
-  }
 
   Operand SlotOperand(Slot* slot, Register tmp);
 
@@ -611,6 +611,8 @@ class CodeGenerator: public AstVisitor {
   void GenerateIsSpecObject(ZoneList<Expression*>* args);
   void GenerateIsFunction(ZoneList<Expression*>* args);
   void GenerateIsUndetectableObject(ZoneList<Expression*>* args);
+  void GenerateIsStringWrapperSafeForDefaultValueOf(
+      ZoneList<Expression*>* args);
 
   // Support for construct call checks.
   void GenerateIsConstructCall(ZoneList<Expression*>* args);
@@ -761,6 +763,18 @@ class TranscendentalCacheStub: public CodeStub {
   int MinorKey() { return type_; }
   Runtime::FunctionId RuntimeFunction();
   void GenerateOperation(MacroAssembler* masm, Label* on_nan_result);
+};
+
+
+class ToBooleanStub: public CodeStub {
+ public:
+  ToBooleanStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return ToBoolean; }
+  int MinorKey() { return 0; }
 };
 
 

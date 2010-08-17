@@ -101,7 +101,8 @@ enum UncatchableExceptionType { OUT_OF_MEMORY, TERMINATION };
   F(IsObject, 1, 1)                                                          \
   F(IsFunction, 1, 1)                                                        \
   F(IsUndetectableObject, 1, 1)                                              \
-  F(IsSpecObject, 1, 1)                                            \
+  F(IsSpecObject, 1, 1)                                                      \
+  F(IsStringWrapperSafeForDefaultValueOf, 1, 1)                              \
   F(StringAdd, 2, 1)                                                         \
   F(SubString, 3, 1)                                                         \
   F(StringCompare, 2, 1)                                                     \
@@ -319,6 +320,15 @@ class DeferredCode: public ZoneObject {
 
   void SaveRegisters();
   void RestoreRegisters();
+  void Exit();
+
+  // If this returns true then all registers will be saved for the duration
+  // of the Generate() call.  Otherwise the registers are not saved and the
+  // Generate() call must bracket runtime any runtime calls with calls to
+  // SaveRegisters() and RestoreRegisters().  In this case the Generate
+  // method must also call Exit() in order to return to the non-deferred
+  // code.
+  virtual bool AutoSaveAndRestore() { return true; }
 
  protected:
   MacroAssembler* masm_;
@@ -718,18 +728,6 @@ class CallFunctionStub: public CodeStub {
   static int ExtractArgcFromMinorKey(int minor_key) {
     return ArgcBits::decode(minor_key);
   }
-};
-
-
-class ToBooleanStub: public CodeStub {
- public:
-  ToBooleanStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return 0; }
 };
 
 

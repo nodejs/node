@@ -2276,6 +2276,21 @@ void Assembler::vcmp(const DwVfpRegister src1,
 }
 
 
+void Assembler::vcmp(const DwVfpRegister src1,
+                     const double src2,
+                     const SBit s,
+                     const Condition cond) {
+  // vcmp(Dd, Dm) double precision floating point comparison.
+  // Instruction details available in ARM DDI 0406A, A8-570.
+  // cond(31-28) | 11101 (27-23)| D=?(22) | 11 (21-20) | 0101 (19-16) |
+  // Vd(15-12) | 101(11-9) | sz(8)=1 | E(7)=? | 1(6) | M(5)=? | 0(4) | 0000(3-0)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(src2 == 0.0);
+  emit(cond | 0xE*B24 |B23 | 0x3*B20 | B18 | B16 |
+       src1.code()*B12 | 0x5*B9 | B8 | B6);
+}
+
+
 void Assembler::vmrs(Register dst, Condition cond) {
   // Instruction details available in ARM DDI 0406A, A8-652.
   // cond(31-28) | 1110 (27-24) | 1111(23-20)| 0001 (19-16) |

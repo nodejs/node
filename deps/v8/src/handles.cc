@@ -637,8 +637,8 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
 
     // Check access rights if required.
     if (current->IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(*current, Heap::undefined_value(),
-                           v8::ACCESS_KEYS)) {
+        !Top::MayNamedAccess(*current, Heap::undefined_value(),
+                             v8::ACCESS_KEYS)) {
       Top::ReportFailedAccessCheck(*current, v8::ACCESS_KEYS);
       break;
     }
@@ -771,20 +771,30 @@ bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
 bool CompileLazy(Handle<JSFunction> function,
                  Handle<Object> receiver,
                  ClearExceptionFlag flag) {
-  CompilationInfo info(function, 0, receiver);
-  bool result = CompileLazyHelper(&info, flag);
-  PROFILE(FunctionCreateEvent(*function));
-  return result;
+  if (function->shared()->is_compiled()) {
+    function->set_code(function->shared()->code());
+    return true;
+  } else {
+    CompilationInfo info(function, 0, receiver);
+    bool result = CompileLazyHelper(&info, flag);
+    PROFILE(FunctionCreateEvent(*function));
+    return result;
+  }
 }
 
 
 bool CompileLazyInLoop(Handle<JSFunction> function,
                        Handle<Object> receiver,
                        ClearExceptionFlag flag) {
-  CompilationInfo info(function, 1, receiver);
-  bool result = CompileLazyHelper(&info, flag);
-  PROFILE(FunctionCreateEvent(*function));
-  return result;
+  if (function->shared()->is_compiled()) {
+    function->set_code(function->shared()->code());
+    return true;
+  } else {
+    CompilationInfo info(function, 1, receiver);
+    bool result = CompileLazyHelper(&info, flag);
+    PROFILE(FunctionCreateEvent(*function));
+    return result;
+  }
 }
 
 
@@ -806,11 +816,6 @@ OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
   } else {
     has_been_transformed_ = false;
   }
-}
-
-
-Handle<Code> ComputeLazyCompile(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeLazyCompile(argc), Code);
 }
 
 

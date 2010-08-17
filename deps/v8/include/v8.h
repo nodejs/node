@@ -919,6 +919,11 @@ class Value : public Data {
    */
   V8EXPORT bool IsDate() const;
 
+  /**
+   * Returns true if this value is a RegExp.
+   */
+  V8EXPORT bool IsRegExp() const;
+
   V8EXPORT Local<Boolean> ToBoolean() const;
   V8EXPORT Local<Number> ToNumber() const;
   V8EXPORT Local<String> ToString() const;
@@ -1819,9 +1824,9 @@ typedef Handle<Value> (*IndexedPropertySetter)(uint32_t index,
 
 /**
  * Returns a non-empty handle if the interceptor intercepts the request.
- * The result is true if the property exists and false otherwise.
+ * The result is an integer encoding property attributes.
  */
-typedef Handle<Boolean> (*IndexedPropertyQuery)(uint32_t index,
+typedef Handle<Integer> (*IndexedPropertyQuery)(uint32_t index,
                                                 const AccessorInfo& info);
 
 /**
@@ -2140,6 +2145,7 @@ class V8EXPORT ObjectTemplate : public Template {
                                  IndexedPropertyDeleter deleter = 0,
                                  IndexedPropertyEnumerator enumerator = 0,
                                  Handle<Value> data = Handle<Value>());
+
   /**
    * Sets the callback to be used when calling instances created from
    * this template as a function.  If no callback is set, instances

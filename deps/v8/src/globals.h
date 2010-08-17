@@ -507,6 +507,31 @@ union DoubleRepresentation {
 };
 
 
+// Union used for customized checking of the IEEE double types
+// inlined within v8 runtime, rather than going to the underlying
+// platform headers and libraries
+union IeeeDoubleLittleEndianArchType {
+  double d;
+  struct {
+    unsigned int man_low  :32;
+    unsigned int man_high :20;
+    unsigned int exp      :11;
+    unsigned int sign     :1;
+  } bits;
+};
+
+
+union IeeeDoubleBigEndianArchType {
+  double d;
+  struct {
+    unsigned int sign     :1;
+    unsigned int exp      :11;
+    unsigned int man_high :20;
+    unsigned int man_low  :32;
+  } bits;
+};
+
+
 // AccessorCallback
 struct AccessorDescriptor {
   Object* (*getter)(Object* object, void* data);

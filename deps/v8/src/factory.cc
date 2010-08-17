@@ -32,6 +32,7 @@
 #include "execution.h"
 #include "factory.h"
 #include "macro-assembler.h"
+#include "objects-visiting.h"
 
 namespace v8 {
 namespace internal {
@@ -277,8 +278,7 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
   copy->set_inobject_properties(inobject_properties);
   copy->set_unused_property_fields(inobject_properties);
   copy->set_instance_size(copy->instance_size() + instance_size_delta);
-  copy->set_scavenger(Heap::GetScavenger(copy->instance_type(),
-                                         copy->instance_size()));
+  copy->set_visitor_id(StaticVisitorBase::GetVisitorId(*copy));
   return copy;
 }
 
@@ -486,6 +486,10 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         bool force_initial_map) {
   // Allocate the function
   Handle<JSFunction> function = NewFunction(name, the_hole_value());
+
+  // Setup the code pointer in both the shared function info and in
+  // the function itself.
+  function->shared()->set_code(*code);
   function->set_code(*code);
 
   if (force_initial_map ||
@@ -511,9 +515,12 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
                                                      Handle<JSObject> prototype,
                                                      Handle<Code> code,
                                                      bool force_initial_map) {
-  // Allocate the function
+  // Allocate the function.
   Handle<JSFunction> function = NewFunction(name, prototype);
 
+  // Setup the code pointer in both the shared function info and in
+  // the function itself.
+  function->shared()->set_code(*code);
   function->set_code(*code);
 
   if (force_initial_map ||
@@ -535,6 +542,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
                                                         Handle<Code> code) {
   Handle<JSFunction> function = NewFunctionWithoutPrototype(name);
+  function->shared()->set_code(*code);
   function->set_code(*code);
   ASSERT(!function->has_initial_map());
   ASSERT(!function->has_prototype());

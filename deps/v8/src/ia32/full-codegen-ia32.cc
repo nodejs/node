@@ -54,97 +54,95 @@ namespace internal {
 //
 // The function builds a JS frame.  Please see JavaScriptFrameConstants in
 // frames-ia32.h for its layout.
-void FullCodeGenerator::Generate(CompilationInfo* info, Mode mode) {
+void FullCodeGenerator::Generate(CompilationInfo* info) {
   ASSERT(info_ == NULL);
   info_ = info;
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
-  if (mode == PRIMARY) {
-    __ push(ebp);  // Caller's frame pointer.
-    __ mov(ebp, esp);
-    __ push(esi);  // Callee's context.
-    __ push(edi);  // Callee's JS Function.
+  __ push(ebp);  // Caller's frame pointer.
+  __ mov(ebp, esp);
+  __ push(esi);  // Callee's context.
+  __ push(edi);  // Callee's JS Function.
 
-    { Comment cmnt(masm_, "[ Allocate locals");
-      int locals_count = scope()->num_stack_slots();
-      if (locals_count == 1) {
-        __ push(Immediate(Factory::undefined_value()));
-      } else if (locals_count > 1) {
-        __ mov(eax, Immediate(Factory::undefined_value()));
-        for (int i = 0; i < locals_count; i++) {
-          __ push(eax);
-        }
+  { Comment cmnt(masm_, "[ Allocate locals");
+    int locals_count = scope()->num_stack_slots();
+    if (locals_count == 1) {
+      __ push(Immediate(Factory::undefined_value()));
+    } else if (locals_count > 1) {
+      __ mov(eax, Immediate(Factory::undefined_value()));
+      for (int i = 0; i < locals_count; i++) {
+        __ push(eax);
       }
     }
+  }
 
-    bool function_in_register = true;
+  bool function_in_register = true;
 
-    // Possibly allocate a local context.
-    int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-    if (heap_slots > 0) {
-      Comment cmnt(masm_, "[ Allocate local context");
-      // Argument to NewContext is the function, which is still in edi.
-      __ push(edi);
-      if (heap_slots <= FastNewContextStub::kMaximumSlots) {
-        FastNewContextStub stub(heap_slots);
-        __ CallStub(&stub);
-      } else {
-        __ CallRuntime(Runtime::kNewContext, 1);
-      }
-      function_in_register = false;
-      // Context is returned in both eax and esi.  It replaces the context
-      // passed to us.  It's saved in the stack and kept live in esi.
-      __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
-
-      // Copy parameters into context if necessary.
-      int num_parameters = scope()->num_parameters();
-      for (int i = 0; i < num_parameters; i++) {
-        Slot* slot = scope()->parameter(i)->slot();
-        if (slot != NULL && slot->type() == Slot::CONTEXT) {
-          int parameter_offset = StandardFrameConstants::kCallerSPOffset +
-                                     (num_parameters - 1 - i) * kPointerSize;
-          // Load parameter from stack.
-          __ mov(eax, Operand(ebp, parameter_offset));
-          // Store it in the context.
-          int context_offset = Context::SlotOffset(slot->index());
-          __ mov(Operand(esi, context_offset), eax);
-          // Update the write barrier. This clobbers all involved
-          // registers, so we have use a third register to avoid
-          // clobbering esi.
-          __ mov(ecx, esi);
-          __ RecordWrite(ecx, context_offset, eax, ebx);
-        }
-      }
-    }
-
-    Variable* arguments = scope()->arguments()->AsVariable();
-    if (arguments != NULL) {
-      // Function uses arguments object.
-      Comment cmnt(masm_, "[ Allocate arguments object");
-      if (function_in_register) {
-        __ push(edi);
-      } else {
-        __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-      }
-      // Receiver is just before the parameters on the caller's stack.
-      int offset = scope()->num_parameters() * kPointerSize;
-      __ lea(edx,
-             Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
-      __ push(edx);
-      __ push(Immediate(Smi::FromInt(scope()->num_parameters())));
-      // Arguments to ArgumentsAccessStub:
-      //   function, receiver address, parameter count.
-      // The stub will rewrite receiver and parameter count if the previous
-      // stack frame was an arguments adapter frame.
-      ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+  // Possibly allocate a local context.
+  int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  if (heap_slots > 0) {
+    Comment cmnt(masm_, "[ Allocate local context");
+    // Argument to NewContext is the function, which is still in edi.
+    __ push(edi);
+    if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+      FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
-      __ mov(ecx, eax);  // Duplicate result.
-      Move(arguments->slot(), eax, ebx, edx);
-      Slot* dot_arguments_slot =
-          scope()->arguments_shadow()->AsVariable()->slot();
-      Move(dot_arguments_slot, ecx, ebx, edx);
+    } else {
+      __ CallRuntime(Runtime::kNewContext, 1);
     }
+    function_in_register = false;
+    // Context is returned in both eax and esi.  It replaces the context
+    // passed to us.  It's saved in the stack and kept live in esi.
+    __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
+
+    // Copy parameters into context if necessary.
+    int num_parameters = scope()->num_parameters();
+    for (int i = 0; i < num_parameters; i++) {
+      Slot* slot = scope()->parameter(i)->slot();
+      if (slot != NULL && slot->type() == Slot::CONTEXT) {
+        int parameter_offset = StandardFrameConstants::kCallerSPOffset +
+            (num_parameters - 1 - i) * kPointerSize;
+        // Load parameter from stack.
+        __ mov(eax, Operand(ebp, parameter_offset));
+        // Store it in the context.
+        int context_offset = Context::SlotOffset(slot->index());
+        __ mov(Operand(esi, context_offset), eax);
+        // Update the write barrier. This clobbers all involved
+        // registers, so we have use a third register to avoid
+        // clobbering esi.
+        __ mov(ecx, esi);
+        __ RecordWrite(ecx, context_offset, eax, ebx);
+      }
+    }
+  }
+
+  Variable* arguments = scope()->arguments()->AsVariable();
+  if (arguments != NULL) {
+    // Function uses arguments object.
+    Comment cmnt(masm_, "[ Allocate arguments object");
+    if (function_in_register) {
+      __ push(edi);
+    } else {
+      __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+    }
+    // Receiver is just before the parameters on the caller's stack.
+    int offset = scope()->num_parameters() * kPointerSize;
+    __ lea(edx,
+           Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
+    __ push(edx);
+    __ push(Immediate(Smi::FromInt(scope()->num_parameters())));
+    // Arguments to ArgumentsAccessStub:
+    //   function, receiver address, parameter count.
+    // The stub will rewrite receiver and parameter count if the previous
+    // stack frame was an arguments adapter frame.
+    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    __ CallStub(&stub);
+    __ mov(ecx, eax);  // Duplicate result.
+    Move(arguments->slot(), eax, ebx, edx);
+    Slot* dot_arguments_slot =
+        scope()->arguments_shadow()->AsVariable()->slot();
+    Move(dot_arguments_slot, ecx, ebx, edx);
   }
 
   { Comment cmnt(masm_, "[ Declarations");
@@ -1048,7 +1046,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(ecx);  // Enumerable.
   __ push(ebx);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
-  __ cmp(eax, Factory::null_value());
+  __ test(eax, Operand(eax));
   __ j(equal, loop_statement.continue_target());
   __ mov(ebx, Operand(eax));
 
@@ -2050,6 +2048,25 @@ void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
   __ j(not_zero, if_true);
   __ jmp(if_false);
 
+  Apply(context_, if_true, if_false);
+}
+
+
+void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
+    ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+
+  VisitForValue(args->at(0), kAccumulator);
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+
+  // Just indicate false, as %_IsStringWrapperSafeForDefaultValueOf() is only
+  // used in a few functions in runtime.js which should not normally be hit by
+  // this compiler.
+  __ jmp(if_false);
   Apply(context_, if_true, if_false);
 }
 

@@ -33,7 +33,6 @@
 #include "compiler.h"
 #include "data-flow.h"
 #include "debug.h"
-#include "fast-codegen.h"
 #include "flow-graph.h"
 #include "full-codegen.h"
 #include "liveedit.h"
@@ -120,14 +119,9 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
   //
   //  --full-compiler enables the dedicated backend for code we expect to be
   //    run once
-  //  --fast-compiler enables a speculative optimizing backend (for
-  //    non-run-once code)
   //
   // The normal choice of backend can be overridden with the flags
-  // --always-full-compiler and --always-fast-compiler, which are mutually
-  // incompatible.
-  CHECK(!FLAG_always_full_compiler || !FLAG_always_fast_compiler);
-
+  // --always-full-compiler.
   Handle<SharedFunctionInfo> shared = info->shared_info();
   bool is_run_once = (shared.is_null())
       ? info->scope()->is_global_scope()
@@ -140,13 +134,6 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
     checker.Check(function);
     if (checker.has_supported_syntax()) {
       return FullCodeGenerator::MakeCode(info);
-    }
-  } else if (FLAG_always_fast_compiler ||
-             (FLAG_fast_compiler && !is_run_once)) {
-    FastCodeGenSyntaxChecker checker;
-    checker.Check(info);
-    if (checker.has_supported_syntax()) {
-      return FastCodeGenerator::MakeCode(info);
     }
   }
 
@@ -494,7 +481,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // Generate code
   Handle<Code> code;
   if (FLAG_lazy && allow_lazy) {
-    code = ComputeLazyCompile(literal->num_parameters());
+    code = Handle<Code>(Builtins::builtin(Builtins::LazyCompile));
   } else {
     // The bodies of function literals have not yet been visited by
     // the AST optimizer/analyzer.
@@ -528,7 +515,6 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
     // the static helper function MakeCode.
     CompilationInfo info(literal, script, false);
 
-    CHECK(!FLAG_always_full_compiler || !FLAG_always_fast_compiler);
     bool is_run_once = literal->try_full_codegen();
     bool is_compiled = false;
 
@@ -540,16 +526,6 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
       checker.Check(literal);
       if (checker.has_supported_syntax()) {
         code = FullCodeGenerator::MakeCode(&info);
-        is_compiled = true;
-      }
-    } else if (FLAG_always_fast_compiler ||
-               (FLAG_fast_compiler && !is_run_once)) {
-      // Since we are not lazily compiling we do not have a receiver to
-      // specialize for.
-      FastCodeGenSyntaxChecker checker;
-      checker.Check(&info);
-      if (checker.has_supported_syntax()) {
-        code = FastCodeGenerator::MakeCode(&info);
         is_compiled = true;
       }
     }

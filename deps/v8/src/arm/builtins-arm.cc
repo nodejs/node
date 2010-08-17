@@ -911,6 +911,29 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Preserve the function.
+  __ push(r1);
+
+  // Push the function on the stack as the argument to the runtime function.
+  __ push(r1);
+  __ CallRuntime(Runtime::kLazyCompile, 1);
+  // Calculate the entry point.
+  __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  // Restore saved function.
+  __ pop(r1);
+
+  // Tear down temporary frame.
+  __ LeaveInternalFrame();
+
+  // Do a tail-call of the compiled function.
+  __ Jump(r2);
+}
+
+
 void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 1. Make sure we have at least one argument.
   // r0: actual number of arguments
@@ -1050,7 +1073,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ ldr(r2,
          FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
   __ mov(r2, Operand(r2, ASR, kSmiTagSize));
-  __ ldr(r3, FieldMemOperand(r3, SharedFunctionInfo::kCodeOffset));
+  __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeOffset));
   __ add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ cmp(r2, r0);  // Check formal and actual parameter counts.
   __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),

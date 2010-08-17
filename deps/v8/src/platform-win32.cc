@@ -651,6 +651,11 @@ double OS::DaylightSavingsOffset(double time) {
 }
 
 
+int OS::GetLastError() {
+  return ::GetLastError();
+}
+
+
 // ----------------------------------------------------------------------------
 // Win32 console output.
 //

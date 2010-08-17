@@ -789,23 +789,6 @@ Object* StubCache::ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind) {
 #endif
 
 
-Object* StubCache::ComputeLazyCompile(int argc) {
-  Code::Flags flags =
-      Code::ComputeFlags(Code::STUB, NOT_IN_LOOP, UNINITIALIZED, NORMAL, argc);
-  Object* probe = ProbeCache(flags);
-  if (!probe->IsUndefined()) return probe;
-  StubCompiler compiler;
-  Object* result = FillCache(compiler.CompileLazyCompile(flags));
-  if (result->IsCode()) {
-    Code* code = Code::cast(result);
-    USE(code);
-    PROFILE(CodeCreateEvent(Logger::LAZY_COMPILE_TAG,
-                            code, code->arguments_count()));
-  }
-  return result;
-}
-
-
 void StubCache::Clear() {
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = Heap::empty_string();

@@ -240,15 +240,14 @@
 		9FA38BCF1175B30400C4CD55 /* full-codegen-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCB1175B30400C4CD55 /* full-codegen-arm.cc */; };
 		9FA38BD01175B30400C4CD55 /* jump-target-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCC1175B30400C4CD55 /* jump-target-arm.cc */; };
 		9FA38BD11175B30400C4CD55 /* virtual-frame-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCD1175B30400C4CD55 /* virtual-frame-arm.cc */; };
-		9FBE03DF10BD409900F8BFBA /* fast-codegen.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */; };
-		9FBE03E210BD40EA00F8BFBA /* fast-codegen-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03E110BD40EA00F8BFBA /* fast-codegen-ia32.cc */; };
-		9FBE03E510BD412600F8BFBA /* fast-codegen-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FBE03E410BD412600F8BFBA /* fast-codegen-arm.cc */; };
 		9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 		9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 		C2BD4BD7120165460046BF9F /* dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD5120165460046BF9F /* dtoa.cc */; };
 		C2BD4BDB120165A70046BF9F /* fixed-dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */; };
 		C2BD4BE4120166180046BF9F /* fixed-dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */; };
 		C2BD4BE51201661F0046BF9F /* dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD5120165460046BF9F /* dtoa.cc */; };
+		C2D1E9731212F2BC00187A52 /* objects-visiting.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2D1E9711212F27B00187A52 /* objects-visiting.cc */; };
+		C2D1E9741212F2CF00187A52 /* objects-visiting.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2D1E9711212F27B00187A52 /* objects-visiting.cc */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -613,17 +612,12 @@
 		9FA38BB01175B2D200C4CD55 /* virtual-frame-heavy-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame-heavy-inl.h"; sourceTree = "<group>"; };
 		9FA38BB11175B2D200C4CD55 /* virtual-frame-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame-inl.h"; sourceTree = "<group>"; };
 		9FA38BB21175B2D200C4CD55 /* virtual-frame-light-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame-light-inl.h"; sourceTree = "<group>"; };
-		9FA38BC11175B2E500C4CD55 /* fast-codegen-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "fast-codegen-ia32.h"; path = "ia32/fast-codegen-ia32.h"; sourceTree = "<group>"; };
 		9FA38BC21175B2E500C4CD55 /* full-codegen-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "full-codegen-ia32.cc"; path = "ia32/full-codegen-ia32.cc"; sourceTree = "<group>"; };
 		9FA38BC31175B2E500C4CD55 /* jump-target-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-ia32.cc"; path = "ia32/jump-target-ia32.cc"; sourceTree = "<group>"; };
 		9FA38BC41175B2E500C4CD55 /* virtual-frame-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-ia32.cc"; path = "ia32/virtual-frame-ia32.cc"; sourceTree = "<group>"; };
 		9FA38BCB1175B30400C4CD55 /* full-codegen-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "full-codegen-arm.cc"; path = "arm/full-codegen-arm.cc"; sourceTree = "<group>"; };
 		9FA38BCC1175B30400C4CD55 /* jump-target-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-arm.cc"; path = "arm/jump-target-arm.cc"; sourceTree = "<group>"; };
 		9FA38BCD1175B30400C4CD55 /* virtual-frame-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-arm.cc"; path = "arm/virtual-frame-arm.cc"; sourceTree = "<group>"; };
-		9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "fast-codegen.cc"; sourceTree = "<group>"; };
-		9FBE03DD10BD409900F8BFBA /* fast-codegen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "fast-codegen.h"; sourceTree = "<group>"; };
-		9FBE03E110BD40EA00F8BFBA /* fast-codegen-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "fast-codegen-ia32.cc"; path = "ia32/fast-codegen-ia32.cc"; sourceTree = "<group>"; };
-		9FBE03E410BD412600F8BFBA /* fast-codegen-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "fast-codegen-arm.cc"; path = "arm/fast-codegen-arm.cc"; sourceTree = "<group>"; };
 		9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "oprofile-agent.cc"; sourceTree = "<group>"; };
 		9FC86ABC0F5FEDAC00F22668 /* oprofile-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "oprofile-agent.h"; sourceTree = "<group>"; };
 		9FF7A28211A642EA0051B8F2 /* unbound-queue-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "unbound-queue-inl.h"; sourceTree = "<group>"; };
@@ -632,6 +626,8 @@
 		C2BD4BD6120165460046BF9F /* dtoa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dtoa.h; sourceTree = "<group>"; };
 		C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "fixed-dtoa.cc"; sourceTree = "<group>"; };
 		C2BD4BDA120165A70046BF9F /* fixed-dtoa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "fixed-dtoa.h"; sourceTree = "<group>"; };
+		C2D1E9711212F27B00187A52 /* objects-visiting.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "objects-visiting.cc"; sourceTree = "<group>"; };
+		C2D1E9721212F27B00187A52 /* objects-visiting.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "objects-visiting.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -726,6 +722,8 @@
 				897FF0F80E719B8F00D62E90 /* allocation.cc */,
 				897FF0F90E719B8F00D62E90 /* allocation.h */,
 				897FF0FA0E719B8F00D62E90 /* api.cc */,
+				C2D1E9711212F27B00187A52 /* objects-visiting.cc */,
+				C2D1E9721212F27B00187A52 /* objects-visiting.h */,
 				897FF0FB0E719B8F00D62E90 /* api.h */,
 				893986D40F29020C007D5254 /* apiutils.h */,
 				897FF0FC0E719B8F00D62E90 /* arguments.h */,
@@ -813,11 +811,6 @@
 				897FF1310E719B8F00D62E90 /* execution.h */,
 				897FF1320E719B8F00D62E90 /* factory.cc */,
 				897FF1330E719B8F00D62E90 /* factory.h */,
-				9FBE03E410BD412600F8BFBA /* fast-codegen-arm.cc */,
-				9FBE03E110BD40EA00F8BFBA /* fast-codegen-ia32.cc */,
-				9FA38BC11175B2E500C4CD55 /* fast-codegen-ia32.h */,
-				9FBE03DC10BD409900F8BFBA /* fast-codegen.cc */,
-				9FBE03DD10BD409900F8BFBA /* fast-codegen.h */,
 				9FA38BA11175B2D200C4CD55 /* fast-dtoa.cc */,
 				9FA38BA21175B2D200C4CD55 /* fast-dtoa.h */,
 				89471C7F0EB23EE400B6874B /* flag-definitions.h */,
@@ -1268,6 +1261,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C2D1E9731212F2BC00187A52 /* objects-visiting.cc in Sources */,
 				89A88DEC0E71A5FF0043BA31 /* accessors.cc in Sources */,
 				89A88DED0E71A6000043BA31 /* allocation.cc in Sources */,
 				89A88DEE0E71A6010043BA31 /* api.cc in Sources */,
@@ -1302,7 +1296,6 @@
 				89A88E020E71A65A0043BA31 /* dtoa-config.c in Sources */,
 				89A88E030E71A65B0043BA31 /* execution.cc in Sources */,
 				89A88E040E71A65D0043BA31 /* factory.cc in Sources */,
-				9FBE03E210BD40EA00F8BFBA /* fast-codegen-ia32.cc in Sources */,
 				9FA38BBC1175B2D200C4CD55 /* fast-dtoa.cc in Sources */,
 				89A88E050E71A65D0043BA31 /* flags.cc in Sources */,
 				9FA38BBD1175B2D200C4CD55 /* flow-graph.cc in Sources */,
@@ -1391,6 +1384,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C2D1E9741212F2CF00187A52 /* objects-visiting.cc in Sources */,
 				89F23C3F0E78D5B2006B2466 /* accessors.cc in Sources */,
 				89F23C400E78D5B2006B2466 /* allocation.cc in Sources */,
 				89F23C410E78D5B2006B2466 /* api.cc in Sources */,
@@ -1426,8 +1420,6 @@
 				89F23C550E78D5B2006B2466 /* dtoa-config.c in Sources */,
 				89F23C560E78D5B2006B2466 /* execution.cc in Sources */,
 				89F23C570E78D5B2006B2466 /* factory.cc in Sources */,
-				9FBE03E510BD412600F8BFBA /* fast-codegen-arm.cc in Sources */,
-				9FBE03DF10BD409900F8BFBA /* fast-codegen.cc in Sources */,
 				9FA38BB51175B2D200C4CD55 /* fast-dtoa.cc in Sources */,
 				89F23C580E78D5B2006B2466 /* flags.cc in Sources */,
 				9FA38BB61175B2D200C4CD55 /* flow-graph.cc in Sources */,

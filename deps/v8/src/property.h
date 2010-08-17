@@ -115,8 +115,8 @@ class MapTransitionDescriptor: public Descriptor {
 // the same CONSTANT_FUNCTION field.
 class ConstTransitionDescriptor: public Descriptor {
  public:
-  explicit ConstTransitionDescriptor(String* key)
-      : Descriptor(key, Smi::FromInt(0), NONE, CONSTANT_TRANSITION) { }
+  explicit ConstTransitionDescriptor(String* key, Map* map)
+      : Descriptor(key, map, NONE, CONSTANT_TRANSITION) { }
 };
 
 
@@ -260,7 +260,7 @@ class LookupResult BASE_EMBEDDED {
 
   Map* GetTransitionMap() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
-    ASSERT(type() == MAP_TRANSITION);
+    ASSERT(type() == MAP_TRANSITION || type() == CONSTANT_TRANSITION);
     return Map::cast(GetValue());
   }
 

@@ -286,6 +286,10 @@ class CodeGenerator: public AstVisitor {
     return inlined_write_barrier_size_ + 4;
   }
 
+  static MemOperand ContextOperand(Register context, int index) {
+    return MemOperand(context, Context::SlotOffset(index));
+  }
+
  private:
   // Construction/Destruction
   explicit CodeGenerator(MacroAssembler* masm);
@@ -337,10 +341,6 @@ class CodeGenerator: public AstVisitor {
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
   void UnloadReference(Reference* ref);
-
-  static MemOperand ContextOperand(Register context, int index) {
-    return MemOperand(context, Context::SlotOffset(index));
-  }
 
   MemOperand SlotOperand(Slot* slot, Register tmp);
 
@@ -482,6 +482,8 @@ class CodeGenerator: public AstVisitor {
   void GenerateIsSpecObject(ZoneList<Expression*>* args);
   void GenerateIsFunction(ZoneList<Expression*>* args);
   void GenerateIsUndetectableObject(ZoneList<Expression*>* args);
+  void GenerateIsStringWrapperSafeForDefaultValueOf(
+      ZoneList<Expression*>* args);
 
   // Support for construct call checks.
   void GenerateIsConstructCall(ZoneList<Expression*>* args);
@@ -620,6 +622,19 @@ class TranscendentalCacheStub: public CodeStub {
   Major MajorKey() { return TranscendentalCache; }
   int MinorKey() { return type_; }
   Runtime::FunctionId RuntimeFunction();
+};
+
+
+class ToBooleanStub: public CodeStub {
+ public:
+  explicit ToBooleanStub(Register tos) : tos_(tos) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Register tos_;
+  Major MajorKey() { return ToBoolean; }
+  int MinorKey() { return tos_.code(); }
 };
 
 

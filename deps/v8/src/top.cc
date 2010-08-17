@@ -107,16 +107,15 @@ void Top::IterateThread(ThreadVisitor* v, char* t) {
 void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   v->VisitPointer(&(thread->pending_exception_));
   v->VisitPointer(&(thread->pending_message_obj_));
-  v->VisitPointer(
-      BitCast<Object**, Script**>(&(thread->pending_message_script_)));
-  v->VisitPointer(BitCast<Object**, Context**>(&(thread->context_)));
+  v->VisitPointer(BitCast<Object**>(&(thread->pending_message_script_)));
+  v->VisitPointer(BitCast<Object**>(&(thread->context_)));
   v->VisitPointer(&(thread->scheduled_exception_));
 
   for (v8::TryCatch* block = thread->TryCatchHandler();
        block != NULL;
        block = TRY_CATCH_FROM_ADDRESS(block->next_)) {
-    v->VisitPointer(BitCast<Object**, void**>(&(block->exception_)));
-    v->VisitPointer(BitCast<Object**, void**>(&(block->message_)));
+    v->VisitPointer(BitCast<Object**>(&(block->exception_)));
+    v->VisitPointer(BitCast<Object**>(&(block->message_)));
   }
 
   // Iterate over pointers on native execution stack.
@@ -521,7 +520,6 @@ void Top::PrintStack(StringStream* accumulator) {
 
 
 void Top::SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback) {
-  ASSERT(thread_local_.failed_access_check_callback_ == NULL);
   thread_local_.failed_access_check_callback_ = callback;
 }
 
@@ -531,8 +529,6 @@ void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
 
   ASSERT(receiver->IsAccessCheckNeeded());
   ASSERT(Top::context());
-  // The callers of this method are not expecting a GC.
-  AssertNoAllocation no_gc;
 
   // Get the data object from access check info.
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());

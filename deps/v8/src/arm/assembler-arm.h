@@ -1031,6 +1031,10 @@ class Assembler : public Malloced {
             const DwVfpRegister src2,
             const SBit s = LeaveCC,
             const Condition cond = al);
+  void vcmp(const DwVfpRegister src1,
+            const double src2,
+            const SBit s = LeaveCC,
+            const Condition cond = al);
   void vmrs(const Register dst,
             const Condition cond = al);
   void vsqrt(const DwVfpRegister dst,

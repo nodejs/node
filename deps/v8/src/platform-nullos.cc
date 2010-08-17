@@ -100,6 +100,12 @@ double OS::DaylightSavingsOffset(double time) {
 }
 
 
+int OS::GetLastError() {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
 // Returns the local time offset in milliseconds east of UTC without
 // taking daylight savings time into account.
 double OS::LocalTimeOffset() {

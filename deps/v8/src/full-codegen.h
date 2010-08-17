@@ -89,11 +89,6 @@ class BreakableStatementChecker: public AstVisitor {
 
 class FullCodeGenerator: public AstVisitor {
  public:
-  enum Mode {
-    PRIMARY,
-    SECONDARY
-  };
-
   explicit FullCodeGenerator(MacroAssembler* masm)
       : masm_(masm),
         info_(NULL),
@@ -106,7 +101,7 @@ class FullCodeGenerator: public AstVisitor {
 
   static Handle<Code> MakeCode(CompilationInfo* info);
 
-  void Generate(CompilationInfo* info, Mode mode);
+  void Generate(CompilationInfo* info);
 
  private:
   class Breakable;
@@ -408,6 +403,8 @@ class FullCodeGenerator: public AstVisitor {
   void EmitIsArray(ZoneList<Expression*>* arguments);
   void EmitIsRegExp(ZoneList<Expression*>* arguments);
   void EmitIsConstructCall(ZoneList<Expression*>* arguments);
+  void EmitIsStringWrapperSafeForDefaultValueOf(
+      ZoneList<Expression*>* arguments);
   void EmitObjectEquals(ZoneList<Expression*>* arguments);
   void EmitArguments(ZoneList<Expression*>* arguments);
   void EmitArgumentsLength(ZoneList<Expression*>* arguments);

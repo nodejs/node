@@ -194,6 +194,8 @@ TEST(DisasmIa320) {
 
   __ rcl(edx, 1);
   __ rcl(edx, 7);
+  __ rcr(edx, 1);
+  __ rcr(edx, 7);
   __ sar(edx, 1);
   __ sar(edx, 6);
   __ sar_cl(edx);

@@ -2431,11 +2431,17 @@ void Simulator::DecodeVCMP(Instr* instr) {
   }
 
   int d = GlueRegCode(!dp_operation, instr->VdField(), instr->DField());
-  int m = GlueRegCode(!dp_operation, instr->VmField(), instr->MField());
+  int m = 0;
+  if (instr->Opc2Field() == 0x4) {
+    m = GlueRegCode(!dp_operation, instr->VmField(), instr->MField());
+  }
 
   if (dp_operation) {
     double dd_value = get_double_from_d_register(d);
-    double dm_value = get_double_from_d_register(m);
+    double dm_value = 0.0;
+    if (instr->Opc2Field() == 0x4) {
+      dm_value = get_double_from_d_register(m);
+    }
 
     Compute_FPSCR_Flags(dd_value, dm_value);
   } else {

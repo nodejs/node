@@ -618,6 +618,9 @@ class MacroAssembler: public Assembler {
   // Jump if either of the registers contain a smi.
   void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
 
+  // Abort execution if argument is a smi. Used in debug code.
+  void AbortIfSmi(Register object);
+
   // ---------------------------------------------------------------------------
   // String utilities
 

@@ -202,104 +202,91 @@ void CodeGenerator::Generate(CompilationInfo* info) {
     // esi: callee's context
     allocator_->Initialize();
 
-    if (info->mode() == CompilationInfo::PRIMARY) {
-      frame_->Enter();
+    frame_->Enter();
 
-      // Allocate space for locals and initialize them.
-      frame_->AllocateStackSlots();
+    // Allocate space for locals and initialize them.
+    frame_->AllocateStackSlots();
 
-      // Allocate the local context if needed.
-      int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-      if (heap_slots > 0) {
-        Comment cmnt(masm_, "[ allocate local context");
-        // Allocate local context.
-        // Get outer context and create a new context based on it.
-        frame_->PushFunction();
-        Result context;
-        if (heap_slots <= FastNewContextStub::kMaximumSlots) {
-          FastNewContextStub stub(heap_slots);
-          context = frame_->CallStub(&stub, 1);
-        } else {
-          context = frame_->CallRuntime(Runtime::kNewContext, 1);
-        }
-
-        // Update context local.
-        frame_->SaveContextRegister();
-
-        // Verify that the runtime call result and esi agree.
-        if (FLAG_debug_code) {
-          __ cmp(context.reg(), Operand(esi));
-          __ Assert(equal, "Runtime::NewContext should end up in esi");
-        }
+    // Allocate the local context if needed.
+    int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    if (heap_slots > 0) {
+      Comment cmnt(masm_, "[ allocate local context");
+      // Allocate local context.
+      // Get outer context and create a new context based on it.
+      frame_->PushFunction();
+      Result context;
+      if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+        FastNewContextStub stub(heap_slots);
+        context = frame_->CallStub(&stub, 1);
+      } else {
+        context = frame_->CallRuntime(Runtime::kNewContext, 1);
       }
 
-      // TODO(1241774): Improve this code:
-      // 1) only needed if we have a context
-      // 2) no need to recompute context ptr every single time
-      // 3) don't copy parameter operand code from SlotOperand!
-      {
-        Comment cmnt2(masm_, "[ copy context parameters into .context");
-        // Note that iteration order is relevant here! If we have the same
-        // parameter twice (e.g., function (x, y, x)), and that parameter
-        // needs to be copied into the context, it must be the last argument
-        // passed to the parameter that needs to be copied. This is a rare
-        // case so we don't check for it, instead we rely on the copying
-        // order: such a parameter is copied repeatedly into the same
-        // context location and thus the last value is what is seen inside
-        // the function.
-        for (int i = 0; i < scope()->num_parameters(); i++) {
-          Variable* par = scope()->parameter(i);
-          Slot* slot = par->slot();
-          if (slot != NULL && slot->type() == Slot::CONTEXT) {
-            // The use of SlotOperand below is safe in unspilled code
-            // because the slot is guaranteed to be a context slot.
-            //
-            // There are no parameters in the global scope.
-            ASSERT(!scope()->is_global_scope());
-            frame_->PushParameterAt(i);
-            Result value = frame_->Pop();
-            value.ToRegister();
+      // Update context local.
+      frame_->SaveContextRegister();
 
-            // SlotOperand loads context.reg() with the context object
-            // stored to, used below in RecordWrite.
-            Result context = allocator_->Allocate();
-            ASSERT(context.is_valid());
-            __ mov(SlotOperand(slot, context.reg()), value.reg());
-            int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-            Result scratch = allocator_->Allocate();
-            ASSERT(scratch.is_valid());
-            frame_->Spill(context.reg());
-            frame_->Spill(value.reg());
-            __ RecordWrite(context.reg(), offset, value.reg(), scratch.reg());
-          }
-        }
-      }
-
-      // Store the arguments object.  This must happen after context
-      // initialization because the arguments object may be stored in
-      // the context.
-      if (ArgumentsMode() != NO_ARGUMENTS_ALLOCATION) {
-        StoreArgumentsObject(true);
-      }
-
-      // Initialize ThisFunction reference if present.
-      if (scope()->is_function_scope() && scope()->function() != NULL) {
-        frame_->Push(Factory::the_hole_value());
-        StoreToSlot(scope()->function()->slot(), NOT_CONST_INIT);
-      }
-    } else {
-      // When used as the secondary compiler for splitting, ebp, esi,
-      // and edi have been pushed on the stack.  Adjust the virtual
-      // frame to match this state.
-      frame_->Adjust(3);
-      allocator_->Unuse(edi);
-
-      // Bind all the bailout labels to the beginning of the function.
-      List<CompilationInfo::Bailout*>* bailouts = info->bailouts();
-      for (int i = 0; i < bailouts->length(); i++) {
-        __ bind(bailouts->at(i)->label());
+      // Verify that the runtime call result and esi agree.
+      if (FLAG_debug_code) {
+        __ cmp(context.reg(), Operand(esi));
+        __ Assert(equal, "Runtime::NewContext should end up in esi");
       }
     }
+
+    // TODO(1241774): Improve this code:
+    // 1) only needed if we have a context
+    // 2) no need to recompute context ptr every single time
+    // 3) don't copy parameter operand code from SlotOperand!
+    {
+      Comment cmnt2(masm_, "[ copy context parameters into .context");
+      // Note that iteration order is relevant here! If we have the same
+      // parameter twice (e.g., function (x, y, x)), and that parameter
+      // needs to be copied into the context, it must be the last argument
+      // passed to the parameter that needs to be copied. This is a rare
+      // case so we don't check for it, instead we rely on the copying
+      // order: such a parameter is copied repeatedly into the same
+      // context location and thus the last value is what is seen inside
+      // the function.
+      for (int i = 0; i < scope()->num_parameters(); i++) {
+        Variable* par = scope()->parameter(i);
+        Slot* slot = par->slot();
+        if (slot != NULL && slot->type() == Slot::CONTEXT) {
+          // The use of SlotOperand below is safe in unspilled code
+          // because the slot is guaranteed to be a context slot.
+          //
+          // There are no parameters in the global scope.
+          ASSERT(!scope()->is_global_scope());
+          frame_->PushParameterAt(i);
+          Result value = frame_->Pop();
+          value.ToRegister();
+
+          // SlotOperand loads context.reg() with the context object
+          // stored to, used below in RecordWrite.
+          Result context = allocator_->Allocate();
+          ASSERT(context.is_valid());
+          __ mov(SlotOperand(slot, context.reg()), value.reg());
+          int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+          Result scratch = allocator_->Allocate();
+          ASSERT(scratch.is_valid());
+          frame_->Spill(context.reg());
+          frame_->Spill(value.reg());
+          __ RecordWrite(context.reg(), offset, value.reg(), scratch.reg());
+        }
+      }
+    }
+
+    // Store the arguments object.  This must happen after context
+    // initialization because the arguments object may be stored in
+    // the context.
+    if (ArgumentsMode() != NO_ARGUMENTS_ALLOCATION) {
+      StoreArgumentsObject(true);
+    }
+
+    // Initialize ThisFunction reference if present.
+    if (scope()->is_function_scope() && scope()->function() != NULL) {
+      frame_->Push(Factory::the_hole_value());
+      StoreToSlot(scope()->function()->slot(), NOT_CONST_INIT);
+    }
+
 
     // Initialize the function return target after the locals are set
     // up, because it needs the expected frame height from the frame.
@@ -1038,7 +1025,11 @@ const char* GenericBinaryOpStub::GetName() {
 }
 
 
-// Call the specialized stub for a binary operation.
+// Perform or call the specialized stub for a binary operation.  Requires the
+// three registers left, right and dst to be distinct and spilled.  This
+// deferred operation has up to three entry points:  The main one calls the
+// runtime system.  The second is for when the result is a non-Smi.  The
+// third is for when at least one of the inputs is non-Smi and we have SSE2.
 class DeferredInlineBinaryOperation: public DeferredCode {
  public:
   DeferredInlineBinaryOperation(Token::Value op,
@@ -1051,11 +1042,23 @@ class DeferredInlineBinaryOperation: public DeferredCode {
       : op_(op), dst_(dst), left_(left), right_(right),
         left_info_(left_info), right_info_(right_info), mode_(mode) {
     set_comment("[ DeferredInlineBinaryOperation");
+    ASSERT(!left.is(right));
   }
 
   virtual void Generate();
 
+  // This stub makes explicit calls to SaveRegisters(), RestoreRegisters() and
+  // Exit().
+  virtual bool AutoSaveAndRestore() { return false; }
+
+  void JumpToAnswerOutOfRange(Condition cond);
+  void JumpToConstantRhs(Condition cond, Smi* smi_value);
+  Label* NonSmiInputLabel();
+
  private:
+  void GenerateAnswerOutOfRange();
+  void GenerateNonSmiInput();
+
   Token::Value op_;
   Register dst_;
   Register left_;
@@ -1063,15 +1066,42 @@ class DeferredInlineBinaryOperation: public DeferredCode {
   TypeInfo left_info_;
   TypeInfo right_info_;
   OverwriteMode mode_;
+  Label answer_out_of_range_;
+  Label non_smi_input_;
+  Label constant_rhs_;
+  Smi* smi_value_;
 };
 
 
+Label* DeferredInlineBinaryOperation::NonSmiInputLabel() {
+  if (Token::IsBitOp(op_) && CpuFeatures::IsSupported(SSE2)) {
+    return &non_smi_input_;
+  } else {
+    return entry_label();
+  }
+}
+
+
+void DeferredInlineBinaryOperation::JumpToAnswerOutOfRange(Condition cond) {
+  __ j(cond, &answer_out_of_range_);
+}
+
+
+void DeferredInlineBinaryOperation::JumpToConstantRhs(Condition cond,
+                                                      Smi* smi_value) {
+  smi_value_ = smi_value;
+  __ j(cond, &constant_rhs_);
+}
+
+
 void DeferredInlineBinaryOperation::Generate() {
-  Label done;
-  if (CpuFeatures::IsSupported(SSE2) && ((op_ == Token::ADD) ||
-      (op_ ==Token::SUB) ||
-      (op_ == Token::MUL) ||
-      (op_ == Token::DIV))) {
+  // Registers are not saved implicitly for this stub, so we should not
+  // tread on the registers that were not passed to us.
+  if (CpuFeatures::IsSupported(SSE2) &&
+      ((op_ == Token::ADD) ||
+       (op_ == Token::SUB) ||
+       (op_ == Token::MUL) ||
+       (op_ == Token::DIV))) {
     CpuFeatures::Scope use_sse2(SSE2);
     Label call_runtime, after_alloc_failure;
     Label left_smi, right_smi, load_right, do_op;
@@ -1131,7 +1161,6 @@ void DeferredInlineBinaryOperation::Generate() {
     __ cvtsi2sd(xmm1, Operand(right_));
     __ SmiTag(right_);
     if (mode_ == OVERWRITE_RIGHT || mode_ == NO_OVERWRITE) {
-      Label alloc_failure;
       __ push(left_);
       __ AllocateHeapNumber(dst_, left_, no_reg, &after_alloc_failure);
       __ pop(left_);
@@ -1146,19 +1175,200 @@ void DeferredInlineBinaryOperation::Generate() {
       default: UNREACHABLE();
     }
     __ movdbl(FieldOperand(dst_, HeapNumber::kValueOffset), xmm0);
-    __ jmp(&done);
+    Exit();
+
 
     __ bind(&after_alloc_failure);
     __ pop(left_);
     __ bind(&call_runtime);
   }
+  // Register spilling is not done implicitly for this stub.
+  // We can't postpone it any more now though.
+  SaveRegisters();
+
   GenericBinaryOpStub stub(op_,
                            mode_,
                            NO_SMI_CODE_IN_STUB,
                            TypeInfo::Combine(left_info_, right_info_));
   stub.GenerateCall(masm_, left_, right_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
-  __ bind(&done);
+  RestoreRegisters();
+  Exit();
+
+  if (non_smi_input_.is_linked() || constant_rhs_.is_linked()) {
+    GenerateNonSmiInput();
+  }
+  if (answer_out_of_range_.is_linked()) {
+    GenerateAnswerOutOfRange();
+  }
+}
+
+
+void DeferredInlineBinaryOperation::GenerateNonSmiInput() {
+  // We know at least one of the inputs was not a Smi.
+  // This is a third entry point into the deferred code.
+  // We may not overwrite left_ because we want to be able
+  // to call the handling code for non-smi answer and it
+  // might want to overwrite the heap number in left_.
+  ASSERT(!right_.is(dst_));
+  ASSERT(!left_.is(dst_));
+  ASSERT(!left_.is(right_));
+  // This entry point is used for bit ops where the right hand side
+  // is a constant Smi and the left hand side is a heap object.  It
+  // is also used for bit ops where both sides are unknown, but where
+  // at least one of them is a heap object.
+  bool rhs_is_constant = constant_rhs_.is_linked();
+  // We can't generate code for both cases.
+  ASSERT(!non_smi_input_.is_linked() || !constant_rhs_.is_linked());
+
+  if (FLAG_debug_code) {
+    __ int3();  // We don't fall through into this code.
+  }
+
+  __ bind(&non_smi_input_);
+
+  if (rhs_is_constant) {
+    __ bind(&constant_rhs_);
+    // In this case the input is a heap object and it is in the dst_ register.
+    // The left_ and right_ registers have not been initialized yet.
+    __ mov(right_, Immediate(smi_value_));
+    __ mov(left_, Operand(dst_));
+    if (!CpuFeatures::IsSupported(SSE2)) {
+      __ jmp(entry_label());
+      return;
+    } else {
+      CpuFeatures::Scope use_sse2(SSE2);
+      __ JumpIfNotNumber(dst_, left_info_, entry_label());
+      __ ConvertToInt32(dst_, left_, dst_, left_info_, entry_label());
+      __ SmiUntag(right_);
+    }
+  } else {
+    // We know we have SSE2 here because otherwise the label is not linked (see
+    // NonSmiInputLabel).
+    CpuFeatures::Scope use_sse2(SSE2);
+    // Handle the non-constant right hand side situation:
+    if (left_info_.IsSmi()) {
+      // Right is a heap object.
+      __ JumpIfNotNumber(right_, right_info_, entry_label());
+      __ ConvertToInt32(right_, right_, dst_, right_info_, entry_label());
+      __ mov(dst_, Operand(left_));
+      __ SmiUntag(dst_);
+    } else if (right_info_.IsSmi()) {
+      // Left is a heap object.
+      __ JumpIfNotNumber(left_, left_info_, entry_label());
+      __ ConvertToInt32(dst_, left_, dst_, left_info_, entry_label());
+      __ SmiUntag(right_);
+    } else {
+      // Here we don't know if it's one or both that is a heap object.
+      Label only_right_is_heap_object, got_both;
+      __ mov(dst_, Operand(left_));
+      __ SmiUntag(dst_, &only_right_is_heap_object);
+      // Left was a heap object.
+      __ JumpIfNotNumber(left_, left_info_, entry_label());
+      __ ConvertToInt32(dst_, left_, dst_, left_info_, entry_label());
+      __ SmiUntag(right_, &got_both);
+      // Both were heap objects.
+      __ rcl(right_, 1);  // Put tag back.
+      __ JumpIfNotNumber(right_, right_info_, entry_label());
+      __ ConvertToInt32(right_, right_, no_reg, right_info_, entry_label());
+      __ jmp(&got_both);
+      __ bind(&only_right_is_heap_object);
+      __ JumpIfNotNumber(right_, right_info_, entry_label());
+      __ ConvertToInt32(right_, right_, no_reg, right_info_, entry_label());
+      __ bind(&got_both);
+    }
+  }
+  ASSERT(op_ == Token::BIT_AND ||
+         op_ == Token::BIT_OR ||
+         op_ == Token::BIT_XOR ||
+         right_.is(ecx));
+  switch (op_) {
+    case Token::BIT_AND: __ and_(dst_, Operand(right_));  break;
+    case Token::BIT_OR:   __ or_(dst_, Operand(right_));  break;
+    case Token::BIT_XOR: __ xor_(dst_, Operand(right_));  break;
+    case Token::SHR:     __ shr_cl(dst_);  break;
+    case Token::SAR:     __ sar_cl(dst_);  break;
+    case Token::SHL:     __ shl_cl(dst_);  break;
+    default: UNREACHABLE();
+  }
+  if (op_ == Token::SHR) {
+    // Check that the *unsigned* result fits in a smi.  Neither of
+    // the two high-order bits can be set:
+    //  * 0x80000000: high bit would be lost when smi tagging.
+    //  * 0x40000000: this number would convert to negative when smi
+    //    tagging.
+    __ test(dst_, Immediate(0xc0000000));
+    __ j(not_zero, &answer_out_of_range_);
+  } else {
+    // Check that the *signed* result fits in a smi.
+    __ cmp(dst_, 0xc0000000);
+    __ j(negative, &answer_out_of_range_);
+  }
+  __ SmiTag(dst_);
+  Exit();
+}
+
+
+void DeferredInlineBinaryOperation::GenerateAnswerOutOfRange() {
+  Label after_alloc_failure2;
+  Label allocation_ok;
+  __ bind(&after_alloc_failure2);
+  // We have to allocate a number, causing a GC, while keeping hold of
+  // the answer in dst_.  The answer is not a Smi.  We can't just call the
+  // runtime shift function here because we already threw away the inputs.
+  __ xor_(left_, Operand(left_));
+  __ shl(dst_, 1);  // Put top bit in carry flag and Smi tag the low bits.
+  __ rcr(left_, 1);  // Rotate with carry.
+  __ push(dst_);   // Smi tagged low 31 bits.
+  __ push(left_);  // 0 or 0x80000000, which is Smi tagged in both cases.
+  __ CallRuntime(Runtime::kNumberAlloc, 0);
+  if (!left_.is(eax)) {
+    __ mov(left_, eax);
+  }
+  __ pop(right_);   // High bit.
+  __ pop(dst_);     // Low 31 bits.
+  __ shr(dst_, 1);  // Put 0 in top bit.
+  __ or_(dst_, Operand(right_));
+  __ jmp(&allocation_ok);
+
+  // This is the second entry point to the deferred code.  It is used only by
+  // the bit operations.
+  // The dst_ register has the answer.  It is not Smi tagged.  If mode_ is
+  // OVERWRITE_LEFT then left_ must contain either an overwritable heap number
+  // or a Smi.
+  // Put a heap number pointer in left_.
+  __ bind(&answer_out_of_range_);
+  SaveRegisters();
+  if (mode_ == OVERWRITE_LEFT) {
+    __ test(left_, Immediate(kSmiTagMask));
+    __ j(not_zero, &allocation_ok);
+  }
+  // This trashes right_.
+  __ AllocateHeapNumber(left_, right_, no_reg, &after_alloc_failure2);
+  __ bind(&allocation_ok);
+  if (CpuFeatures::IsSupported(SSE2) && op_ != Token::SHR) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    ASSERT(Token::IsBitOp(op_));
+    // Signed conversion.
+    __ cvtsi2sd(xmm0, Operand(dst_));
+    __ movdbl(FieldOperand(left_, HeapNumber::kValueOffset), xmm0);
+  } else {
+    if (op_ == Token::SHR) {
+      __ push(Immediate(0));  // High word of unsigned value.
+      __ push(dst_);
+      __ fild_d(Operand(esp, 0));
+      __ Drop(2);
+    } else {
+      ASSERT(Token::IsBitOp(op_));
+      __ push(dst_);
+      __ fild_s(Operand(esp, 0));  // Signed conversion.
+      __ pop(dst_);
+    }
+    __ fstp_d(FieldOperand(left_, HeapNumber::kValueOffset));
+  }
+  __ mov(dst_, left_);
+  RestoreRegisters();
+  Exit();
 }
 
 
@@ -1499,10 +1709,25 @@ void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
                                                   TypeInfo left_info,
                                                   TypeInfo right_info,
                                                   DeferredCode* deferred) {
+  JumpIfNotBothSmiUsingTypeInfo(left,
+                                right,
+                                scratch,
+                                left_info,
+                                right_info,
+                                deferred->entry_label());
+}
+
+
+void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
+                                                  Register right,
+                                                  Register scratch,
+                                                  TypeInfo left_info,
+                                                  TypeInfo right_info,
+                                                  Label* on_not_smi) {
   if (left.is(right)) {
     if (!left_info.IsSmi()) {
       __ test(left, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      __ j(not_zero, on_not_smi);
     } else {
       if (FLAG_debug_code) __ AbortIfNotSmi(left);
     }
@@ -1511,17 +1736,17 @@ void CodeGenerator::JumpIfNotBothSmiUsingTypeInfo(Register left,
       __ mov(scratch, left);
       __ or_(scratch, Operand(right));
       __ test(scratch, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      __ j(not_zero, on_not_smi);
     } else {
       __ test(left, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      __ j(not_zero, on_not_smi);
       if (FLAG_debug_code) __ AbortIfNotSmi(right);
     }
   } else {
     if (FLAG_debug_code) __ AbortIfNotSmi(left);
     if (!right_info.IsSmi()) {
       __ test(right, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      __ j(not_zero, on_not_smi);
     } else {
       if (FLAG_debug_code) __ AbortIfNotSmi(right);
     }
@@ -1606,13 +1831,16 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
     right->ToRegister();
     frame_->Spill(eax);
     frame_->Spill(edx);
+    // DeferredInlineBinaryOperation requires all the registers that it is
+    // told about to be spilled and distinct.
+    Result distinct_right = frame_->MakeDistinctAndSpilled(left, right);
 
     // Check that left and right are smi tagged.
     DeferredInlineBinaryOperation* deferred =
         new DeferredInlineBinaryOperation(op,
                                           (op == Token::DIV) ? eax : edx,
                                           left->reg(),
-                                          right->reg(),
+                                          distinct_right.reg(),
                                           left_type_info,
                                           right_type_info,
                                           overwrite_mode);
@@ -1695,15 +1923,24 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
     left->ToRegister();
     ASSERT(left->is_register() && !left->reg().is(ecx));
     ASSERT(right->is_register() && right->reg().is(ecx));
+    if (left_type_info.IsSmi()) {
+      if (FLAG_debug_code) __ AbortIfNotSmi(left->reg());
+    }
+    if (right_type_info.IsSmi()) {
+      if (FLAG_debug_code) __ AbortIfNotSmi(right->reg());
+    }
 
     // We will modify right, it must be spilled.
     frame_->Spill(ecx);
+    // DeferredInlineBinaryOperation requires all the registers that it is told
+    // about to be spilled and distinct.  We know that right is ecx and left is
+    // not ecx.
+    frame_->Spill(left->reg());
 
     // Use a fresh answer register to avoid spilling the left operand.
     answer = allocator_->Allocate();
     ASSERT(answer.is_valid());
-    // Check that both operands are smis using the answer register as a
-    // temporary.
+
     DeferredInlineBinaryOperation* deferred =
         new DeferredInlineBinaryOperation(op,
                                           answer.reg(),
@@ -1712,55 +1949,28 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
                                           left_type_info,
                                           right_type_info,
                                           overwrite_mode);
+    JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(), answer.reg(),
+                                  left_type_info, right_type_info,
+                                  deferred->NonSmiInputLabel());
 
-    Label do_op, left_nonsmi;
-    // If right is a smi we make a fast case if left is either a smi
-    // or a heapnumber.
-    if (CpuFeatures::IsSupported(SSE2) && right_type_info.IsSmi()) {
-      CpuFeatures::Scope use_sse2(SSE2);
-      __ mov(answer.reg(), left->reg());
-      // Fast case - both are actually smis.
-      if (!left_type_info.IsSmi()) {
-        __ test(answer.reg(), Immediate(kSmiTagMask));
-        __ j(not_zero, &left_nonsmi);
-      } else {
-        if (FLAG_debug_code) __ AbortIfNotSmi(left->reg());
-      }
-      if (FLAG_debug_code) __ AbortIfNotSmi(right->reg());
-      __ SmiUntag(answer.reg());
-      __ jmp(&do_op);
+    // Untag both operands.
+    __ mov(answer.reg(), left->reg());
+    __ SmiUntag(answer.reg());
+    __ SmiUntag(right->reg());  // Right is ecx.
 
-      __ bind(&left_nonsmi);
-      // Branch if not a heapnumber.
-      __ cmp(FieldOperand(answer.reg(), HeapObject::kMapOffset),
-             Factory::heap_number_map());
-      deferred->Branch(not_equal);
-
-      // Load integer value into answer register using truncation.
-      __ cvttsd2si(answer.reg(),
-                   FieldOperand(answer.reg(), HeapNumber::kValueOffset));
-      // Branch if we do not fit in a smi.
-      __ cmp(answer.reg(), 0xc0000000);
-      deferred->Branch(negative);
-    } else {
-      JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(), answer.reg(),
-                                    left_type_info, right_type_info, deferred);
-
-      // Untag both operands.
-      __ mov(answer.reg(), left->reg());
-      __ SmiUntag(answer.reg());
-    }
-
-    __ bind(&do_op);
-    __ SmiUntag(ecx);
     // Perform the operation.
+    ASSERT(right->reg().is(ecx));
     switch (op) {
-      case Token::SAR:
+      case Token::SAR: {
         __ sar_cl(answer.reg());
-        // No checks of result necessary
+        if (!left_type_info.IsSmi()) {
+          // Check that the *signed* result fits in a smi.
+          __ cmp(answer.reg(), 0xc0000000);
+          deferred->JumpToAnswerOutOfRange(negative);
+        }
         break;
+      }
       case Token::SHR: {
-        Label result_ok;
         __ shr_cl(answer.reg());
         // Check that the *unsigned* result fits in a smi.  Neither of
         // the two high-order bits can be set:
@@ -1773,21 +1983,14 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
         // case.  The low bit of the left argument may be lost, but only
         // in a case where it is dropped anyway.
         __ test(answer.reg(), Immediate(0xc0000000));
-        __ j(zero, &result_ok);
-        __ SmiTag(ecx);
-        deferred->Jump();
-        __ bind(&result_ok);
+        deferred->JumpToAnswerOutOfRange(not_zero);
         break;
       }
       case Token::SHL: {
-        Label result_ok;
         __ shl_cl(answer.reg());
         // Check that the *signed* result fits in a smi.
         __ cmp(answer.reg(), 0xc0000000);
-        __ j(positive, &result_ok);
-        __ SmiTag(ecx);
-        deferred->Jump();
-        __ bind(&result_ok);
+        deferred->JumpToAnswerOutOfRange(negative);
         break;
       }
       default:
@@ -1805,6 +2008,9 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
   // Handle the other binary operations.
   left->ToRegister();
   right->ToRegister();
+  // DeferredInlineBinaryOperation requires all the registers that it is told
+  // about to be spilled.
+  Result distinct_right = frame_->MakeDistinctAndSpilled(left, right);
   // A newly allocated register answer is used to hold the answer.  The
   // registers containing left and right are not modified so they don't
   // need to be spilled in the fast case.
@@ -1816,12 +2022,16 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
       new DeferredInlineBinaryOperation(op,
                                         answer.reg(),
                                         left->reg(),
-                                        right->reg(),
+                                        distinct_right.reg(),
                                         left_type_info,
                                         right_type_info,
                                         overwrite_mode);
-  JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(), answer.reg(),
-                                left_type_info, right_type_info, deferred);
+  Label non_smi_bit_op;
+  if (op != Token::BIT_OR) {
+    JumpIfNotBothSmiUsingTypeInfo(left->reg(), right->reg(), answer.reg(),
+                                  left_type_info, right_type_info,
+                                  deferred->NonSmiInputLabel());
+  }
 
   __ mov(answer.reg(), left->reg());
   switch (op) {
@@ -1864,6 +2074,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
 
     case Token::BIT_OR:
       __ or_(answer.reg(), Operand(right->reg()));
+      __ test(answer.reg(), Immediate(kSmiTagMask));
+      __ j(not_zero, deferred->NonSmiInputLabel());
       break;
 
     case Token::BIT_AND:
@@ -1878,6 +2090,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
       UNREACHABLE();
       break;
   }
+
   deferred->BindExit();
   left->Unuse();
   right->Unuse();
@@ -2363,27 +2576,25 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
     case Token::BIT_XOR:
     case Token::BIT_AND: {
       operand->ToRegister();
+      // DeferredInlineBinaryOperation requires all the registers that it is
+      // told about to be spilled.
       frame_->Spill(operand->reg());
-      DeferredCode* deferred = NULL;
-      if (reversed) {
-        deferred =
-            new DeferredInlineSmiOperationReversed(op,
-                                                   operand->reg(),
-                                                   smi_value,
-                                                   operand->reg(),
-                                                   operand->type_info(),
-                                                   overwrite_mode);
-      } else {
-        deferred =  new DeferredInlineSmiOperation(op,
-                                                   operand->reg(),
-                                                   operand->reg(),
-                                                   operand->type_info(),
-                                                   smi_value,
-                                                   overwrite_mode);
-      }
+      DeferredInlineBinaryOperation* deferred = NULL;
       if (!operand->type_info().IsSmi()) {
+        Result left = allocator()->Allocate();
+        ASSERT(left.is_valid());
+        Result right = allocator()->Allocate();
+        ASSERT(right.is_valid());
+        deferred = new DeferredInlineBinaryOperation(
+            op,
+            operand->reg(),
+            left.reg(),
+            right.reg(),
+            operand->type_info(),
+            TypeInfo::Smi(),
+            overwrite_mode == NO_OVERWRITE ? NO_OVERWRITE : OVERWRITE_LEFT);
         __ test(operand->reg(), Immediate(kSmiTagMask));
-        deferred->Branch(not_zero);
+        deferred->JumpToConstantRhs(not_zero, smi_value);
       } else if (FLAG_debug_code) {
         __ AbortIfNotSmi(operand->reg());
       }
@@ -2399,7 +2610,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
           __ or_(Operand(operand->reg()), Immediate(value));
         }
       }
-      deferred->BindExit();
+      if (deferred != NULL) deferred->BindExit();
       answer = *operand;
       break;
     }
@@ -3212,10 +3423,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(zero, &build_args);
       __ CmpObjectType(eax, JS_FUNCTION_TYPE, ecx);
       __ j(not_equal, &build_args);
-      __ mov(ecx, FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset));
       Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
-      __ cmp(FieldOperand(ecx, SharedFunctionInfo::kCodeOffset),
-             Immediate(apply_code));
+      __ cmp(FieldOperand(eax, JSFunction::kCodeOffset), Immediate(apply_code));
       __ j(not_equal, &build_args);
 
       // Check that applicand is a function.
@@ -4389,7 +4598,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ mov(ebx, Operand(eax));
 
   // If the property has been removed while iterating, we just skip it.
-  __ cmp(ebx, Factory::null_value());
+  __ test(ebx, Operand(ebx));
   node->continue_target()->Branch(equal);
 
   end_del_check.Bind();
@@ -4397,10 +4606,11 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // loop.  edx: i'th entry of the enum cache (or string there of)
   frame_->EmitPush(ebx);
   { Reference each(this, node->each());
-    // Loading a reference may leave the frame in an unspilled state.
-    frame_->SpillAll();
     if (!each.is_illegal()) {
       if (each.size() > 0) {
+        // Loading a reference may leave the frame in an unspilled state.
+        frame_->SpillAll();
+        // Get the value (under the reference on the stack) from memory.
         frame_->EmitPush(frame_->ElementAt(each.size()));
         each.SetValue(NOT_CONST_INIT);
         frame_->Drop(2);
@@ -6539,7 +6749,7 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
 }
 
 
-  void CodeGenerator::GenerateIsSpecObject(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateIsSpecObject(ZoneList<Expression*>* args) {
   // This generates a fast version of:
   // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp' ||
   // typeof(arg) == function).
@@ -6557,6 +6767,143 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   __ CmpObjectType(value.reg(), FIRST_JS_OBJECT_TYPE, value.reg());
   value.Unuse();
   destination()->Split(above_equal);
+}
+
+
+// Deferred code to check whether the String JavaScript object is safe for using
+// default value of. This code is called after the bit caching this information
+// in the map has been checked with the map for the object in the map_result_
+// register. On return the register map_result_ contains 1 for true and 0 for
+// false.
+class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
+ public:
+  DeferredIsStringWrapperSafeForDefaultValueOf(Register object,
+                                               Register map_result,
+                                               Register scratch1,
+                                               Register scratch2)
+      : object_(object),
+        map_result_(map_result),
+        scratch1_(scratch1),
+        scratch2_(scratch2) { }
+
+  virtual void Generate() {
+    Label false_result;
+
+    // Check that map is loaded as expected.
+    if (FLAG_debug_code) {
+      __ cmp(map_result_, FieldOperand(object_, HeapObject::kMapOffset));
+      __ Assert(equal, "Map not in expected register");
+    }
+
+    // Check for fast case object. Generate false result for slow case object.
+    __ mov(scratch1_, FieldOperand(object_, JSObject::kPropertiesOffset));
+    __ mov(scratch1_, FieldOperand(scratch1_, HeapObject::kMapOffset));
+    __ cmp(scratch1_, Factory::hash_table_map());
+    __ j(equal, &false_result);
+
+    // Look for valueOf symbol in the descriptor array, and indicate false if
+    // found. The type is not checked, so if it is a transition it is a false
+    // negative.
+    __ mov(map_result_,
+           FieldOperand(map_result_, Map::kInstanceDescriptorsOffset));
+    __ mov(scratch1_, FieldOperand(map_result_, FixedArray::kLengthOffset));
+    // map_result_: descriptor array
+    // scratch1_: length of descriptor array
+    // Calculate the end of the descriptor array.
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize == 1);
+    STATIC_ASSERT(kPointerSize == 4);
+    __ lea(scratch1_,
+           Operand(map_result_, scratch1_, times_2, FixedArray::kHeaderSize));
+    // Calculate location of the first key name.
+    __ add(Operand(map_result_),
+           Immediate(FixedArray::kHeaderSize +
+                     DescriptorArray::kFirstIndex * kPointerSize));
+    // Loop through all the keys in the descriptor array. If one of these is the
+    // symbol valueOf the result is false.
+    Label entry, loop;
+    __ jmp(&entry);
+    __ bind(&loop);
+    __ mov(scratch2_, FieldOperand(map_result_, 0));
+    __ cmp(scratch2_, Factory::value_of_symbol());
+    __ j(equal, &false_result);
+    __ add(Operand(map_result_), Immediate(kPointerSize));
+    __ bind(&entry);
+    __ cmp(map_result_, Operand(scratch1_));
+    __ j(not_equal, &loop);
+
+    // Reload map as register map_result_ was used as temporary above.
+    __ mov(map_result_, FieldOperand(object_, HeapObject::kMapOffset));
+
+    // If a valueOf property is not found on the object check that it's
+    // prototype is the un-modified String prototype. If not result is false.
+    __ mov(scratch1_, FieldOperand(map_result_, Map::kPrototypeOffset));
+    __ test(scratch1_, Immediate(kSmiTagMask));
+    __ j(zero, &false_result);
+    __ mov(scratch1_, FieldOperand(scratch1_, HeapObject::kMapOffset));
+    __ mov(scratch2_, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ mov(scratch2_,
+           FieldOperand(scratch2_, GlobalObject::kGlobalContextOffset));
+    __ cmp(scratch1_,
+           CodeGenerator::ContextOperand(
+               scratch2_, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
+    __ j(not_equal, &false_result);
+    // Set the bit in the map to indicate that it has been checked safe for
+    // default valueOf and set true result.
+    __ or_(FieldOperand(map_result_, Map::kBitField2Offset),
+           Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
+    __ Set(map_result_, Immediate(1));
+    __ jmp(exit_label());
+    __ bind(&false_result);
+    // Set false result.
+    __ Set(map_result_, Immediate(0));
+  }
+
+ private:
+  Register object_;
+  Register map_result_;
+  Register scratch1_;
+  Register scratch2_;
+};
+
+
+void CodeGenerator::GenerateIsStringWrapperSafeForDefaultValueOf(
+    ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();  // Pop the string wrapper.
+  obj.ToRegister();
+  ASSERT(obj.is_valid());
+  if (FLAG_debug_code) {
+    __ AbortIfSmi(obj.reg());
+  }
+
+  // Check whether this map has already been checked to be safe for default
+  // valueOf.
+  Result map_result = allocator()->Allocate();
+  ASSERT(map_result.is_valid());
+  __ mov(map_result.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  __ test_b(FieldOperand(map_result.reg(), Map::kBitField2Offset),
+            1 << Map::kStringWrapperSafeForDefaultValueOf);
+  destination()->true_target()->Branch(not_zero);
+
+  // We need an additional two scratch registers for the deferred code.
+  Result temp1 = allocator()->Allocate();
+  ASSERT(temp1.is_valid());
+  Result temp2 = allocator()->Allocate();
+  ASSERT(temp2.is_valid());
+
+  DeferredIsStringWrapperSafeForDefaultValueOf* deferred =
+      new DeferredIsStringWrapperSafeForDefaultValueOf(
+          obj.reg(), map_result.reg(), temp1.reg(), temp2.reg());
+  deferred->Branch(zero);
+  deferred->BindExit();
+  __ test(map_result.reg(), Operand(map_result.reg()));
+  obj.Unuse();
+  map_result.Unuse();
+  temp1.Unuse();
+  temp2.Unuse();
+  destination()->Split(not_equal);
 }
 
 
@@ -9466,6 +9813,11 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ mov(FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset), edx);
   __ mov(FieldOperand(eax, JSFunction::kContextOffset), esi);
   __ mov(FieldOperand(eax, JSFunction::kLiteralsOffset), ebx);
+
+  // Initialize the code pointer in the function to be the one
+  // found in the shared function info object.
+  __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
+  __ mov(FieldOperand(eax, JSFunction::kCodeOffset), edx);
 
   // Return and remove the on-stack parameter.
   __ ret(1 * kPointerSize);

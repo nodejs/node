@@ -400,6 +400,11 @@ class Debug {
   static void GenerateStubNoRegistersDebugBreak(MacroAssembler* masm);
   static void GenerateSlotDebugBreak(MacroAssembler* masm);
   static void GeneratePlainReturnLiveEdit(MacroAssembler* masm);
+
+  // FrameDropper is a code replacement for a JavaScript frame with possibly
+  // several frames above.
+  // There is no calling conventions here, because it never actually gets
+  // called, it only gets returned to.
   static void GenerateFrameDropperLiveEdit(MacroAssembler* masm);
 
   // Called from stub-cache.cc.
@@ -431,12 +436,13 @@ class Debug {
   // the value that is called 'restarter_frame_function_pointer'. The value
   // at this address (possibly updated by GC) may be used later when preparing
   // 'step in' operation.
-  // The implementation is architecture-specific.
-  // TODO(LiveEdit): consider reviewing it as architecture-independent.
   static Object** SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
                                          Handle<Code> code);
 
   static const int kFrameDropperFrameSize;
+
+  // Architecture-specific constant.
+  static const bool kFrameDropperSupported;
 
  private:
   static bool CompileDebuggerScript(int index);

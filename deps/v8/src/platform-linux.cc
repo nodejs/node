@@ -290,9 +290,10 @@ void OS::Abort() {
 void OS::DebugBreak() {
 // TODO(lrn): Introduce processor define for runtime system (!= V8_ARCH_x,
 //  which is the architecture of generated code).
-#if (defined(__arm__) || defined(__thumb__)) && \
-    defined(CAN_USE_ARMV5_INSTRUCTIONS)
+#if (defined(__arm__) || defined(__thumb__))
+# if defined(CAN_USE_ARMV5_INSTRUCTIONS)
   asm("bkpt 0");
+# endif
 #elif defined(__mips__)
   asm("break");
 #else

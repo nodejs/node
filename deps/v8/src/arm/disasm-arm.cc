@@ -1188,7 +1188,13 @@ void Decoder::DecodeVCMP(Instr* instr) {
   bool raise_exception_for_qnan = (instr->Bit(7) == 0x1);
 
   if (dp_operation && !raise_exception_for_qnan) {
-    Format(instr, "vcmp.f64'cond 'Dd, 'Dm");
+    if (instr->Opc2Field() == 0x4) {
+      Format(instr, "vcmp.f64'cond 'Dd, 'Dm");
+    } else if (instr->Opc2Field() == 0x5) {
+      Format(instr, "vcmp.f64'cond 'Dd, #0.0");
+    } else {
+      Unknown(instr);  // invalid
+    }
   } else {
     Unknown(instr);  // Not used by V8.
   }

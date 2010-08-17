@@ -210,8 +210,6 @@ class StubCache : public AllStatic {
   static Object* ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind);
 #endif
 
-  static Object* ComputeLazyCompile(int argc);
-
 
   // Update cache for entry hash(name, map).
   static Code* Set(String* name, Map* map, Code* code);
@@ -357,7 +355,6 @@ class StubCompiler BASE_EMBEDDED {
   Object* CompileCallDebugBreak(Code::Flags flags);
   Object* CompileCallDebugPrepareStepIn(Code::Flags flags);
 #endif
-  Object* CompileLazyCompile(Code::Flags flags);
 
   // Static functions for generating parts of stubs.
   static void GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,

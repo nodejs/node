@@ -396,20 +396,17 @@ class NamedEntriesDetector {
         has_A2(false), has_B2(false), has_C2(false) {
   }
 
-  void Apply(i::HeapEntry* entry) {
-    const char* node_name = entry->name();
-    if (strcmp("A1", node_name) == 0
-        && entry->GetRetainingPaths()->length() > 0) has_A1 = true;
-    if (strcmp("B1", node_name) == 0
-        && entry->GetRetainingPaths()->length() > 0) has_B1 = true;
-    if (strcmp("C1", node_name) == 0
-        && entry->GetRetainingPaths()->length() > 0) has_C1 = true;
-    if (strcmp("A2", node_name) == 0
-        && entry->GetRetainingPaths()->length() > 0) has_A2 = true;
-    if (strcmp("B2", node_name) == 0
-        && entry->GetRetainingPaths()->length() > 0) has_B2 = true;
-    if (strcmp("C2", node_name) == 0
-        && entry->GetRetainingPaths()->length() > 0) has_C2 = true;
+  void Apply(i::HeapEntry** entry_ptr) {
+    if (IsReachableNodeWithName(*entry_ptr, "A1")) has_A1 = true;
+    if (IsReachableNodeWithName(*entry_ptr, "B1")) has_B1 = true;
+    if (IsReachableNodeWithName(*entry_ptr, "C1")) has_C1 = true;
+    if (IsReachableNodeWithName(*entry_ptr, "A2")) has_A2 = true;
+    if (IsReachableNodeWithName(*entry_ptr, "B2")) has_B2 = true;
+    if (IsReachableNodeWithName(*entry_ptr, "C2")) has_C2 = true;
+  }
+
+  static bool IsReachableNodeWithName(i::HeapEntry* entry, const char* name) {
+    return strcmp(name, entry->name()) == 0 && entry->painted_reachable();
   }
 
   bool has_A1;
@@ -460,7 +457,7 @@ static bool HasString(const v8::HeapGraphNode* node, const char* contents) {
   for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = node->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::STRING) {
+    if (node->GetType() == v8::HeapGraphNode::kString) {
       v8::String::AsciiValue node_name(node->GetName());
       if (strcmp(contents, *node_name) == 0) return true;
     }
@@ -496,26 +493,34 @@ TEST(HeapSnapshot) {
       "var c2 = new C2(a2);");
   const v8::HeapSnapshot* snapshot_env2 =
       v8::HeapProfiler::TakeSnapshot(v8::String::New("env2"));
-  const v8::HeapGraphNode* global_env2 = GetGlobalObject(snapshot_env2);
-
-  // Verify, that JS global object of env2 doesn't have '..1'
-  // properties, but has '..2' properties.
-  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "a1"));
-  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "b1_1"));
-  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "b1_2"));
-  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "c1"));
-  const v8::HeapGraphNode* a2_node =
-      GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "a2");
-  CHECK_NE(NULL, a2_node);
-  CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "b2_1"));
-  CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "b2_2"));
-  CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::PROPERTY, "c2"));
-
-  // Verify that anything related to '[ABC]1' is not reachable.
-  NamedEntriesDetector det;
   i::HeapSnapshot* i_snapshot_env2 =
       const_cast<i::HeapSnapshot*>(
           reinterpret_cast<const i::HeapSnapshot*>(snapshot_env2));
+  const v8::HeapGraphNode* global_env2 = GetGlobalObject(snapshot_env2);
+  // Paint all nodes reachable from global object.
+  i_snapshot_env2->ClearPaint();
+  const_cast<i::HeapEntry*>(
+      reinterpret_cast<const i::HeapEntry*>(global_env2))->PaintAllReachable();
+
+  // Verify, that JS global object of env2 doesn't have '..1'
+  // properties, but has '..2' properties.
+  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "a1"));
+  CHECK_EQ(
+      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "b1_1"));
+  CHECK_EQ(
+      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "b1_2"));
+  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "c1"));
+  const v8::HeapGraphNode* a2_node =
+      GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "a2");
+  CHECK_NE(NULL, a2_node);
+  CHECK_NE(
+      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "b2_1"));
+  CHECK_NE(
+      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "b2_2"));
+  CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "c2"));
+
+  // Verify that anything related to '[ABC]1' is not reachable.
+  NamedEntriesDetector det;
   i_snapshot_env2->IterateEntries(&det);
   CHECK(!det.has_A1);
   CHECK(!det.has_B1);
@@ -539,7 +544,7 @@ TEST(HeapSnapshot) {
     const v8::HeapGraphEdge* last_edge = path->GetEdge(edges_count - 1);
     v8::String::AsciiValue last_edge_name(last_edge->GetName());
     if (strcmp("a2", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::PROPERTY) {
+        && last_edge->GetType() == v8::HeapGraphEdge::kProperty) {
       has_global_obj_a2_ref = true;
       continue;
     }
@@ -547,19 +552,19 @@ TEST(HeapSnapshot) {
     const v8::HeapGraphEdge* prev_edge = path->GetEdge(edges_count - 2);
     v8::String::AsciiValue prev_edge_name(prev_edge->GetName());
     if (strcmp("x1", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::PROPERTY
+        && last_edge->GetType() == v8::HeapGraphEdge::kProperty
         && strcmp("c2", *prev_edge_name) == 0) has_c2_x1_ref = true;
     if (strcmp("x2", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::PROPERTY
+        && last_edge->GetType() == v8::HeapGraphEdge::kProperty
         && strcmp("c2", *prev_edge_name) == 0) has_c2_x2_ref = true;
     if (strcmp("1", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::ELEMENT
+        && last_edge->GetType() == v8::HeapGraphEdge::kElement
         && strcmp("c2", *prev_edge_name) == 0) has_c2_1_ref = true;
     if (strcmp("x", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::CONTEXT_VARIABLE
+        && last_edge->GetType() == v8::HeapGraphEdge::kContextVariable
         && strcmp("b2_1", *prev_edge_name) == 0) has_b2_1_x_ref = true;
     if (strcmp("x", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::CONTEXT_VARIABLE
+        && last_edge->GetType() == v8::HeapGraphEdge::kContextVariable
         && strcmp("b2_2", *prev_edge_name) == 0) has_b2_2_x_ref = true;
   }
   CHECK(has_global_obj_a2_ref);
@@ -568,6 +573,73 @@ TEST(HeapSnapshot) {
   CHECK(has_c2_1_ref);
   CHECK(has_b2_1_x_ref);
   CHECK(has_b2_2_x_ref);
+}
+
+
+TEST(HeapSnapshotObjectSizes) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  //   -a-> X1 --a
+  // x -b-> X2 <-|
+  CompileAndRunScript(
+      "function X(a, b) { this.a = a; this.b = b; }\n"
+      "x = new X(new X(), new X());\n"
+      "x.a.a = x.b;");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("sizes"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* x =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "x");
+  CHECK_NE(NULL, x);
+  const v8::HeapGraphNode* x_prototype =
+      GetProperty(x, v8::HeapGraphEdge::kProperty, "prototype");
+  CHECK_NE(NULL, x_prototype);
+  const v8::HeapGraphNode* x1 =
+      GetProperty(x, v8::HeapGraphEdge::kProperty, "a");
+  CHECK_NE(NULL, x1);
+  const v8::HeapGraphNode* x2 =
+      GetProperty(x, v8::HeapGraphEdge::kProperty, "b");
+  CHECK_NE(NULL, x2);
+  CHECK_EQ(
+      x->GetSelfSize() * 3,
+      x->GetReachableSize() - x_prototype->GetReachableSize());
+  CHECK_EQ(
+      x->GetSelfSize() * 3 + x_prototype->GetSelfSize(), x->GetRetainedSize());
+  CHECK_EQ(
+      x1->GetSelfSize() * 2,
+      x1->GetReachableSize() - x_prototype->GetReachableSize());
+  CHECK_EQ(
+      x1->GetSelfSize(), x1->GetRetainedSize());
+  CHECK_EQ(
+      x2->GetSelfSize(),
+      x2->GetReachableSize() - x_prototype->GetReachableSize());
+  CHECK_EQ(
+      x2->GetSelfSize(), x2->GetRetainedSize());
+}
+
+
+TEST(HeapSnapshotEntryChildren) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileAndRunScript(
+      "function A() { }\n"
+      "a = new A;");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("children"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  for (int i = 0, count = global->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = global->GetChild(i);
+    CHECK_EQ(global, prop->GetFromNode());
+  }
+  const v8::HeapGraphNode* a =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "a");
+  CHECK_NE(NULL, a);
+  for (int i = 0, count = a->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = a->GetChild(i);
+    CHECK_EQ(a, prop->GetFromNode());
+  }
 }
 
 
@@ -584,20 +656,20 @@ TEST(HeapSnapshotCodeObjects) {
 
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* compiled =
-      GetProperty(global, v8::HeapGraphEdge::PROPERTY, "compiled");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "compiled");
   CHECK_NE(NULL, compiled);
-  CHECK_EQ(v8::HeapGraphNode::CLOSURE, compiled->GetType());
+  CHECK_EQ(v8::HeapGraphNode::kClosure, compiled->GetType());
   const v8::HeapGraphNode* lazy =
-      GetProperty(global, v8::HeapGraphEdge::PROPERTY, "lazy");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "lazy");
   CHECK_NE(NULL, lazy);
-  CHECK_EQ(v8::HeapGraphNode::CLOSURE, lazy->GetType());
+  CHECK_EQ(v8::HeapGraphNode::kClosure, lazy->GetType());
 
   // Find references to code.
   const v8::HeapGraphNode* compiled_code =
-      GetProperty(compiled, v8::HeapGraphEdge::INTERNAL, "code");
+      GetProperty(compiled, v8::HeapGraphEdge::kInternal, "code");
   CHECK_NE(NULL, compiled_code);
   const v8::HeapGraphNode* lazy_code =
-      GetProperty(lazy, v8::HeapGraphEdge::INTERNAL, "code");
+      GetProperty(lazy, v8::HeapGraphEdge::kInternal, "code");
   CHECK_NE(NULL, lazy_code);
 
   // Verify that non-compiled code doesn't contain references to "x"
@@ -607,7 +679,7 @@ TEST(HeapSnapshotCodeObjects) {
   for (int i = 0, count = compiled_code->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = compiled_code->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::ARRAY) {
+    if (node->GetType() == v8::HeapGraphNode::kArray) {
       if (HasString(node, "x")) {
         compiled_references_x = true;
         break;
@@ -617,7 +689,7 @@ TEST(HeapSnapshotCodeObjects) {
   for (int i = 0, count = lazy_code->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = lazy_code->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::ARRAY) {
+    if (node->GetType() == v8::HeapGraphNode::kArray) {
       if (HasString(node, "x")) {
         lazy_references_x = true;
         break;
@@ -634,11 +706,8 @@ TEST(HeapSnapshotCodeObjects) {
 // them to a signed type.
 #define CHECK_EQ_UINT64_T(a, b) \
   CHECK_EQ(static_cast<int64_t>(a), static_cast<int64_t>(b))
-#define CHECK_NE_UINT64_T(a, b) do              \
-  {                                             \
-    bool ne = a != b;                           \
-    CHECK(ne);                                  \
-  } while (false)
+#define CHECK_NE_UINT64_T(a, b) \
+  CHECK((a) != (b))  // NOLINT
 
 TEST(HeapEntryIdsAndGC) {
   v8::HandleScope scope;
@@ -662,27 +731,35 @@ TEST(HeapEntryIdsAndGC) {
   CHECK_NE_UINT64_T(0, global1->GetId());
   CHECK_EQ_UINT64_T(global1->GetId(), global2->GetId());
   const v8::HeapGraphNode* A1 =
-      GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "A");
+      GetProperty(global1, v8::HeapGraphEdge::kProperty, "A");
+  CHECK_NE(NULL, A1);
   const v8::HeapGraphNode* A2 =
-      GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "A");
+      GetProperty(global2, v8::HeapGraphEdge::kProperty, "A");
+  CHECK_NE(NULL, A2);
   CHECK_NE_UINT64_T(0, A1->GetId());
   CHECK_EQ_UINT64_T(A1->GetId(), A2->GetId());
   const v8::HeapGraphNode* B1 =
-      GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "B");
+      GetProperty(global1, v8::HeapGraphEdge::kProperty, "B");
+  CHECK_NE(NULL, B1);
   const v8::HeapGraphNode* B2 =
-      GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "B");
+      GetProperty(global2, v8::HeapGraphEdge::kProperty, "B");
+  CHECK_NE(NULL, B2);
   CHECK_NE_UINT64_T(0, B1->GetId());
   CHECK_EQ_UINT64_T(B1->GetId(), B2->GetId());
   const v8::HeapGraphNode* a1 =
-      GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "a");
+      GetProperty(global1, v8::HeapGraphEdge::kProperty, "a");
+  CHECK_NE(NULL, a1);
   const v8::HeapGraphNode* a2 =
-      GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "a");
+      GetProperty(global2, v8::HeapGraphEdge::kProperty, "a");
+  CHECK_NE(NULL, a2);
   CHECK_NE_UINT64_T(0, a1->GetId());
   CHECK_EQ_UINT64_T(a1->GetId(), a2->GetId());
   const v8::HeapGraphNode* b1 =
-      GetProperty(global1, v8::HeapGraphEdge::PROPERTY, "b");
+      GetProperty(global1, v8::HeapGraphEdge::kProperty, "b");
+  CHECK_NE(NULL, b1);
   const v8::HeapGraphNode* b2 =
-      GetProperty(global2, v8::HeapGraphEdge::PROPERTY, "b");
+      GetProperty(global2, v8::HeapGraphEdge::kProperty, "b");
+  CHECK_NE(NULL, b2);
   CHECK_NE_UINT64_T(0, b1->GetId());
   CHECK_EQ_UINT64_T(b1->GetId(), b2->GetId());
 }
@@ -717,15 +794,15 @@ TEST(HeapSnapshotsDiff) {
   for (int i = 0, count = additions_root->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = additions_root->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::OBJECT) {
+    if (node->GetType() == v8::HeapGraphNode::kObject) {
       v8::String::AsciiValue node_name(node->GetName());
       if (strcmp(*node_name, "A") == 0) {
-        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::PROPERTY, "a"));
+        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::kProperty, "a"));
         CHECK(!found_A);
         found_A = true;
         s1_A_id = node->GetId();
       } else if (strcmp(*node_name, "B") == 0) {
-        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::PROPERTY, "b2"));
+        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::kProperty, "b2"));
         CHECK(!found_B);
         found_B = true;
       }
@@ -741,10 +818,10 @@ TEST(HeapSnapshotsDiff) {
   for (int i = 0, count = deletions_root->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = deletions_root->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::OBJECT) {
+    if (node->GetType() == v8::HeapGraphNode::kObject) {
       v8::String::AsciiValue node_name(node->GetName());
       if (strcmp(*node_name, "A") == 0) {
-        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::PROPERTY, "a"));
+        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::kProperty, "a"));
         CHECK(!found_A_del);
         found_A_del = true;
         s2_A_id = node->GetId();
@@ -754,6 +831,37 @@ TEST(HeapSnapshotsDiff) {
   CHECK(found_A_del);
   CHECK_NE_UINT64_T(0, s1_A_id);
   CHECK(s1_A_id != s2_A_id);
+}
+
+
+namespace v8 {
+namespace internal {
+
+class HeapSnapshotTester {
+ public:
+  static int CalculateNetworkSize(JSObject* obj) {
+    return HeapSnapshot::CalculateNetworkSize(obj);
+  }
+};
+
+} }  // namespace v8::internal
+
+// http://code.google.com/p/v8/issues/detail?id=822
+// Trying to call CalculateNetworkSize on an object with elements set
+// to non-FixedArray may cause an assertion error in debug builds.
+TEST(Issue822) {
+  v8::HandleScope scope;
+  LocalContext context;
+  const int kElementCount = 260;
+  uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
+  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(kElementCount,
+                                                              pixel_data);
+  v8::Handle<v8::Object> obj = v8::Object::New();
+  // Set the elements to be the pixels.
+  obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
+  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
+  // This call must not cause an assertion error in debug builds.
+  i::HeapSnapshotTester::CalculateNetworkSize(*jsobj);
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

@@ -183,6 +183,30 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
 }
 
 
+template<typename StaticVisitor>
+void RelocInfo::Visit() {
+  RelocInfo::Mode mode = rmode();
+  if (mode == RelocInfo::EMBEDDED_OBJECT) {
+    StaticVisitor::VisitPointer(target_object_address());
+  } else if (RelocInfo::IsCodeTarget(mode)) {
+    StaticVisitor::VisitCodeTarget(this);
+  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
+    StaticVisitor::VisitExternalReference(target_reference_address());
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  } else if (Debug::has_break_points() &&
+             ((RelocInfo::IsJSReturn(mode) &&
+              IsPatchedReturnSequence()) ||
+             (RelocInfo::IsDebugBreakSlot(mode) &&
+              IsPatchedDebugBreakSlotSequence()))) {
+    StaticVisitor::VisitDebugTarget(this);
+#endif
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
+    StaticVisitor::VisitRuntimeEntry(this);
+  }
+}
+
+
+
 Immediate::Immediate(int x)  {
   x_ = x;
   rmode_ = RelocInfo::NONE;

@@ -476,7 +476,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 
 CpuProfile* CpuProfiler::StopCollectingProfile(const char* title) {
   const double actual_sampling_rate = generator_->actual_sampling_rate();
-  StopProcessorIfLastProfile();
+  StopProcessorIfLastProfile(title);
   CpuProfile* result =
       profiles_->StopProfiling(TokenEnumerator::kNoSecurityToken,
                                title,
@@ -491,14 +491,15 @@ CpuProfile* CpuProfiler::StopCollectingProfile(const char* title) {
 CpuProfile* CpuProfiler::StopCollectingProfile(Object* security_token,
                                                String* title) {
   const double actual_sampling_rate = generator_->actual_sampling_rate();
-  StopProcessorIfLastProfile();
+  const char* profile_title = profiles_->GetName(title);
+  StopProcessorIfLastProfile(profile_title);
   int token = token_enumerator_->GetTokenId(security_token);
-  return profiles_->StopProfiling(token, title, actual_sampling_rate);
+  return profiles_->StopProfiling(token, profile_title, actual_sampling_rate);
 }
 
 
-void CpuProfiler::StopProcessorIfLastProfile() {
-  if (profiles_->is_last_profile()) {
+void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
+  if (profiles_->IsLastProfile(title)) {
     reinterpret_cast<Sampler*>(Logger::ticker_)->Stop();
     processor_->Stop();
     processor_->Join();

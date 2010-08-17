@@ -69,6 +69,7 @@ enum BuiltinExtraArguments {
   V(JSConstructStubApi,         BUILTIN, UNINITIALIZED)                   \
   V(JSEntryTrampoline,          BUILTIN, UNINITIALIZED)                   \
   V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED)                   \
+  V(LazyCompile,                BUILTIN, UNINITIALIZED)                   \
                                                                           \
   V(LoadIC_Miss,                BUILTIN, UNINITIALIZED)                   \
   V(KeyedLoadIC_Miss,           BUILTIN, UNINITIALIZED)                   \
@@ -249,6 +250,7 @@ class Builtins : public AllStatic {
   static void Generate_JSConstructStubApi(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);
+  static void Generate_LazyCompile(MacroAssembler* masm);
   static void Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm);
 
   static void Generate_FunctionCall(MacroAssembler* masm);

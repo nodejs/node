@@ -41,37 +41,6 @@ namespace internal {
 // is constructed based on the resources available at compile-time.
 class CompilationInfo BASE_EMBEDDED {
  public:
-  // Compilation mode.  Either the compiler is used as the primary
-  // compiler and needs to setup everything or the compiler is used as
-  // the secondary compiler for split compilation and has to handle
-  // bailouts.
-  enum Mode {
-    PRIMARY,
-    SECONDARY
-  };
-
-  // A description of the compilation state at a bailout to the secondary
-  // code generator.
-  //
-  // The state is currently simple: there are no parameters or local
-  // variables to worry about ('this' can be found in the stack frame).
-  // There are at most two live values.
-  //
-  // There is a label that should be bound to the beginning of the bailout
-  // stub code.
-  class Bailout : public ZoneObject {
-   public:
-    Bailout(Register left, Register right) : left_(left), right_(right) {}
-
-    Label* label() { return &label_; }
-
-   private:
-    Register left_;
-    Register right_;
-    Label label_;
-  };
-
-
   // Lazy compilation of a JSFunction.
   CompilationInfo(Handle<JSFunction> closure,
                   int loop_nesting,
@@ -145,12 +114,6 @@ class CompilationInfo BASE_EMBEDDED {
   int loop_nesting() { return loop_nesting_; }
   bool has_receiver() { return !receiver_.is_null(); }
   Handle<Object> receiver() { return receiver_; }
-  List<Bailout*>* bailouts() { return &bailouts_; }
-
-  // Accessors for mutable fields (possibly set by analysis passes) with
-  // default values given by Initialize.
-  Mode mode() { return mode_; }
-  void set_mode(Mode mode) { mode_ = mode; }
 
   bool has_this_properties() { return has_this_properties_; }
   void set_has_this_properties(bool flag) { has_this_properties_ = flag; }
@@ -169,19 +132,8 @@ class CompilationInfo BASE_EMBEDDED {
   // Derived accessors.
   Scope* scope() { return function()->scope(); }
 
-  // Add a bailout with two live values.
-  Label* AddBailout(Register left, Register right) {
-    Bailout* bailout = new Bailout(left, right);
-    bailouts_.Add(bailout);
-    return bailout->label();
-  }
-
-  // Add a bailout with no live values.
-  Label* AddBailout() { return AddBailout(no_reg, no_reg); }
-
  private:
   void Initialize() {
-    mode_ = PRIMARY;
     has_this_properties_ = false;
     has_globals_ = false;
   }
@@ -191,7 +143,6 @@ class CompilationInfo BASE_EMBEDDED {
   Handle<Script> script_;
 
   FunctionLiteral* function_;
-  Mode mode_;
 
   bool is_eval_;
   int loop_nesting_;
@@ -200,10 +151,6 @@ class CompilationInfo BASE_EMBEDDED {
 
   bool has_this_properties_;
   bool has_globals_;
-
-  // An ordered list of bailout points encountered during fast-path
-  // compilation.
-  List<Bailout*> bailouts_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };

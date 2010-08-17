@@ -464,18 +464,6 @@
 				RelativePath="..\..\src\factory.h"
 				>
 			</File>
-                        <File
-                                RelativePath="..\..\src\ia32\fast-codegen-ia32.cc"
-                                >
-                        </File>
-                        <File
-                                RelativePath="..\..\src\ia32\fast-codegen-ia32.h"
-                                >
-                        </File>
-                        <File
-                                RelativePath="..\..\src\fast-codegen.h"
-                                >
-                        </File>
 			<File
 				RelativePath="..\..\src\fast-dtoa.cc"
 				>
@@ -752,6 +740,15 @@
 				RelativePath="..\..\src\objects-inl.h"
 				>
 			</File>
+			<File
+				RelativePath="..\..\src\objects-visiting.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\objects-visiting.h"
+				>
+			</File>
+
 			<File
 				RelativePath="..\..\src\objects.cc"
 				>

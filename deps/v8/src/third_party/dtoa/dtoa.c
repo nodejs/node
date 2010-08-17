@@ -270,25 +270,14 @@ Exactly one of IEEE_8087, IEEE_MC68k, VAX, or IBM should be defined.
 
 typedef union { double d; ULong L[2]; } U;
 
-#ifdef YES_ALIAS
-#define dval(x) x
 #ifdef IEEE_8087
-#define word0(x) ((ULong *)&x)[1]
-#define word1(x) ((ULong *)&x)[0]
+#define word0(x) (x).L[1]
+#define word1(x) (x).L[0]
 #else
-#define word0(x) ((ULong *)&x)[0]
-#define word1(x) ((ULong *)&x)[1]
+#define word0(x) (x).L[0]
+#define word1(x) (x).L[1]
 #endif
-#else
-#ifdef IEEE_8087
-#define word0(x) ((U*)&x)->L[1]
-#define word1(x) ((U*)&x)->L[0]
-#else
-#define word0(x) ((U*)&x)->L[0]
-#define word1(x) ((U*)&x)->L[1]
-#endif
-#define dval(x) ((U*)&x)->d
-#endif
+#define dval(x) (x).d
 
 /* The following definition of Storeinc is appropriate for MIPS processors.
  * An alternative that might be better on some machines is
@@ -1108,13 +1097,15 @@ diff
  static double
 ulp
 #ifdef KR_headers
-	(x) double x;
+	(dx) double dx;
 #else
-	(double x)
+	(double dx)
 #endif
 {
 	register Long L;
-	double a;
+        U x, a;
+
+        dval(x) = dx;
 
 	L = (word0(x) & Exp_mask) - (P-1)*Exp_msk1;
 #ifndef Avoid_Underflow
@@ -1157,7 +1148,7 @@ b2d
 {
 	ULong *xa, *xa0, w, y, z;
 	int k;
-	double d;
+	U d;
 #ifdef VAX
 	ULong d0, d1;
 #else
@@ -1220,9 +1211,9 @@ b2d
  static Bigint *
 d2b
 #ifdef KR_headers
-	(d, e, bits) double d; int *e, *bits;
+	(dd, e, bits) double dd; int *e, *bits;
 #else
-	(double d, int *e, int *bits)
+	(double dd, int *e, int *bits)
 #endif
 {
 	Bigint *b;
@@ -1236,6 +1227,8 @@ d2b
 	d0 = word0(d) >> 16 | word0(d) << 16;
 	d1 = word1(d) >> 16 | word1(d) << 16;
 #else
+        U d;
+        dval(d) = dd;
 #define d0 word0(d)
 #define d1 word1(d)
 #endif
@@ -1368,7 +1361,7 @@ ratio
 	(Bigint *a, Bigint *b)
 #endif
 {
-	double da, db;
+	U da, db;
 	int k, ka, kb;
 
 	dval(da) = b2d(a, &ka);
@@ -1542,7 +1535,8 @@ strtod
 	int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c, dsign,
 		 e, e1, esign, i, j, k, nd, nd0, nf, nz, nz0, sign;
 	CONST char *s, *s0, *s1;
-	double aadj, aadj1, adj, rv, rv0;
+        double aadj;
+	U aadj1, adj, rv, rv0;
 	Long L;
 	ULong y, z;
 	Bigint *bb = NULL, *bb1, *bd = NULL, *bd0, *bs = NULL, *delta = NULL;
@@ -2042,12 +2036,12 @@ strtod
 					}
 				if (rounding) {
 					if (dsign) {
-						adj = 1.;
+						dval(adj) = 1.;
 						goto apply_adj;
 						}
 					}
 				else if (!dsign) {
-					adj = -1.;
+					dval(adj) = -1.;
 					if (!word1(rv)
 					 && !(word0(rv) & Frac_mask)) {
 						y = word0(rv) & Exp_mask;
@@ -2059,7 +2053,7 @@ strtod
 						  {
 						  delta = lshift(delta,Log2P);
 						  if (cmp(delta, bs) <= 0)
-							adj = -0.5;
+							dval(adj) = -0.5;
 						  }
 						}
  apply_adj:
@@ -2072,26 +2066,26 @@ strtod
 					if ((word0(rv) & Exp_mask) <=
 							P*Exp_msk1) {
 						word0(rv) += P*Exp_msk1;
-						dval(rv) += adj*ulp(dval(rv));
+						dval(rv) += dval(adj)*ulp(dval(rv));
 						word0(rv) -= P*Exp_msk1;
 						}
 					else
 #endif /*Sudden_Underflow*/
 #endif /*Avoid_Underflow*/
-					dval(rv) += adj*ulp(dval(rv));
+					dval(rv) += dval(adj)*ulp(dval(rv));
 					}
 				break;
 				}
-			adj = ratio(delta, bs);
-			if (adj < 1.)
-				adj = 1.;
-			if (adj <= 0x7ffffffe) {
+			dval(adj) = ratio(delta, bs);
+			if (dval(adj) < 1.)
+				dval(adj) = 1.;
+			if (dval(adj) <= 0x7ffffffe) {
 				/* adj = rounding ? ceil(adj) : floor(adj); */
-				y = adj;
-				if (y != adj) {
+				y = dval(adj);
+				if (y != dval(adj)) {
 					if (!((rounding>>1) ^ dsign))
 						y++;
-					adj = y;
+					dval(adj) = y;
 					}
 				}
 #ifdef Avoid_Underflow
@@ -2101,21 +2095,21 @@ strtod
 #ifdef Sudden_Underflow
 			if ((word0(rv) & Exp_mask) <= P*Exp_msk1) {
 				word0(rv) += P*Exp_msk1;
-				adj *= ulp(dval(rv));
+				dval(adj) *= ulp(dval(rv));
 				if (dsign)
-					dval(rv) += adj;
+					dval(rv) += dval(adj);
 				else
-					dval(rv) -= adj;
+					dval(rv) -= dval(adj);
 				word0(rv) -= P*Exp_msk1;
 				goto cont;
 				}
 #endif /*Sudden_Underflow*/
 #endif /*Avoid_Underflow*/
-			adj *= ulp(dval(rv));
+			dval(adj) *= ulp(dval(rv));
 			if (dsign)
-				dval(rv) += adj;
+				dval(rv) += dval(adj);
 			else
-				dval(rv) -= adj;
+				dval(rv) -= dval(adj);
 			goto cont;
 			}
 #endif /*Honor_FLT_ROUNDS*/
@@ -2237,14 +2231,14 @@ strtod
 			}
 		if ((aadj = ratio(delta, bs)) <= 2.) {
 			if (dsign)
-				aadj = aadj1 = 1.;
+                                aadj = dval(aadj1) = 1.;
 			else if (word1(rv) || word0(rv) & Bndry_mask) {
 #ifndef Sudden_Underflow
 				if (word1(rv) == Tiny1 && !word0(rv))
 					goto undfl;
 #endif
 				aadj = 1.;
-				aadj1 = -1.;
+				dval(aadj1) = -1.;
 				}
 			else {
 				/* special case -- power of FLT_RADIX to be */
@@ -2254,24 +2248,24 @@ strtod
 					aadj = 1./FLT_RADIX;
 				else
 					aadj *= 0.5;
-				aadj1 = -aadj;
+				dval(aadj1) = -aadj;
 				}
 			}
 		else {
 			aadj *= 0.5;
-			aadj1 = dsign ? aadj : -aadj;
+			dval(aadj1) = dsign ? aadj : -aadj;
 #ifdef Check_FLT_ROUNDS
 			switch(Rounding) {
 				case 2: /* towards +infinity */
-					aadj1 -= 0.5;
+					dval(aadj1) -= 0.5;
 					break;
 				case 0: /* towards 0 */
 				case 3: /* towards -infinity */
-					aadj1 += 0.5;
+					dval(aadj1) += 0.5;
 				}
 #else
 			if (Flt_Rounds == 0)
-				aadj1 += 0.5;
+				dval(aadj1) += 0.5;
 #endif /*Check_FLT_ROUNDS*/
 			}
 		y = word0(rv) & Exp_mask;
@@ -2281,8 +2275,8 @@ strtod
 		if (y == Exp_msk1*(DBL_MAX_EXP+Bias-1)) {
 			dval(rv0) = dval(rv);
 			word0(rv) -= P*Exp_msk1;
-			adj = aadj1 * ulp(dval(rv));
-			dval(rv) += adj;
+			dval(adj) = dval(aadj1) * ulp(dval(rv));
+			dval(rv) += dval(adj);
 			if ((word0(rv) & Exp_mask) >=
 					Exp_msk1*(DBL_MAX_EXP+Bias-P)) {
 				if (word0(rv0) == Big0 && word1(rv0) == Big1)
@@ -2301,19 +2295,19 @@ strtod
 					if ((z = aadj) <= 0)
 						z = 1;
 					aadj = z;
-					aadj1 = dsign ? aadj : -aadj;
+					dval(aadj1) = dsign ? aadj : -aadj;
 					}
 				word0(aadj1) += (2*P+1)*Exp_msk1 - y;
 				}
-			adj = aadj1 * ulp(dval(rv));
-			dval(rv) += adj;
+			dval(adj) = dval(aadj1) * ulp(dval(rv));
+			dval(rv) += dval(adj);
 #else
 #ifdef Sudden_Underflow
 			if ((word0(rv) & Exp_mask) <= P*Exp_msk1) {
 				dval(rv0) = dval(rv);
 				word0(rv) += P*Exp_msk1;
-				adj = aadj1 * ulp(dval(rv));
-				dval(rv) += adj;
+				dval(adj) = dval(aadj1) * ulp(dval(rv));
+				dval(rv) += dval(adj);
 #ifdef IBM
 				if ((word0(rv) & Exp_mask) <  P*Exp_msk1)
 #else
@@ -2331,8 +2325,8 @@ strtod
 					word0(rv) -= P*Exp_msk1;
 				}
 			else {
-				adj = aadj1 * ulp(dval(rv));
-				dval(rv) += adj;
+				dval(adj) = dval(aadj1) * ulp(dval(rv));
+				dval(rv) += dval(adj);
 				}
 #else /*Sudden_Underflow*/
 			/* Compute adj so that the IEEE rounding rules will
@@ -2343,12 +2337,12 @@ strtod
 			 * example: 1.2e-307 .
 			 */
 			if (y <= (P-1)*Exp_msk1 && aadj > 1.) {
-				aadj1 = (double)(int)(aadj + 0.5);
+				dval(aadj1) = (double)(int)(aadj + 0.5);
 				if (!dsign)
-					aadj1 = -aadj1;
+					dval(aadj1) = -dval(aadj1);
 				}
-			adj = aadj1 * ulp(dval(rv));
-			dval(rv) += adj;
+			dval(adj) = dval(aadj1) * ulp(dval(rv));
+			dval(rv) += dval(adj);
 #endif /*Sudden_Underflow*/
 #endif /*Avoid_Underflow*/
 			}
@@ -2638,10 +2632,10 @@ freedtoa(char *s)
  char *
 dtoa
 #ifdef KR_headers
-	(d, mode, ndigits, decpt, sign, rve)
-	double d; int mode, ndigits, *decpt, *sign; char **rve;
+	(dd, mode, ndigits, decpt, sign, rve)
+	double dd; int mode, ndigits, *decpt, *sign; char **rve;
 #else
-	(double d, int mode, int ndigits, int *decpt, int *sign, char **rve)
+	(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve)
 #endif
 {
  /*	Arguments ndigits, decpt, sign are similar to those
@@ -2687,7 +2681,8 @@ dtoa
 	ULong x;
 #endif
 	Bigint *b, *b1, *delta, *mlo, *mhi, *S;
-	double d2, ds, eps;
+        double ds;
+	U d2, eps;
 	char *s, *s0;
 #ifdef Honor_FLT_ROUNDS
 	int rounding;
@@ -2695,6 +2690,8 @@ dtoa
 #ifdef SET_INEXACT
 	int inexact, oldinexact;
 #endif
+        U d;
+        dval(d) = dd;
 
         /* In mode 2 and 3 we bias rounding up when there are ties. */
         bias_round_up = mode == 2 || mode == 3;

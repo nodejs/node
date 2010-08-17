@@ -260,7 +260,7 @@ class CpuProfiler {
   void StartProcessorIfNotStarted();
   CpuProfile* StopCollectingProfile(const char* title);
   CpuProfile* StopCollectingProfile(Object* security_token, String* title);
-  void StopProcessorIfLastProfile();
+  void StopProcessorIfLastProfile(const char* title);
 
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;

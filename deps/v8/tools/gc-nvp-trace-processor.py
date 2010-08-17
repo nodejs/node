@@ -38,7 +38,7 @@
 
 
 from __future__ import with_statement
-import sys, types, re, subprocess
+import sys, types, re, subprocess, math
 
 def flatten(l):
   flat = []
@@ -262,48 +262,57 @@ plots = [
   ],
 ]
 
+def freduce(f, field, trace, init):
+  return reduce(lambda t,r: f(t, r[field]), trace, init)
+
 def calc_total(trace, field):
-  return reduce(lambda t,r: t + r[field], trace, 0)
+  return freduce(lambda t,v: t + v, field, trace, 0)
 
 def calc_max(trace, field):
-  return reduce(lambda t,r: max(t, r[field]), trace, 0)
+  return freduce(lambda t,r: max(t, r), field, trace, 0)
+
+def count_nonzero(trace, field):
+  return freduce(lambda t,r: t if r == 0 else t + 1, field, trace, 0)
+
 
 def process_trace(filename):
   trace = parse_gc_trace(filename)
-  total_gc = calc_total(trace, 'pause')
-  max_gc = calc_max(trace, 'pause')
-  avg_gc = total_gc / len(trace)
 
-  total_sweep = calc_total(trace, 'sweep')
-  max_sweep = calc_max(trace, 'sweep')
-
-  total_mark = calc_total(trace, 'mark')
-  max_mark = calc_max(trace, 'mark')
-
+  marksweeps = filter(lambda r: r['gc'] == 'ms', trace)
+  markcompacts = filter(lambda r: r['gc'] == 'mc', trace)
   scavenges = filter(lambda r: r['gc'] == 's', trace)
-  total_scavenge = calc_total(scavenges, 'pause')
-  max_scavenge = calc_max(scavenges, 'pause')
-  avg_scavenge = total_scavenge / len(scavenges)
 
   charts = plot_all(plots, trace, filename)
 
+  def stats(out, prefix, trace, field):
+    n = len(trace)
+    total = calc_total(trace, field)
+    max = calc_max(trace, field)
+    avg = total / n
+    if n > 1:
+      dev = math.sqrt(freduce(lambda t,r: (r - avg) ** 2, field, trace, 0) /
+                      (n - 1))
+    else:
+      dev = 0
+
+    out.write('<tr><td>%s</td><td>%d</td><td>%d</td>'
+              '<td>%d</td><td>%d [dev %f]</td></tr>' %
+              (prefix, n, total, max, avg, dev))
+
+
   with open(filename + '.html', 'w') as out:
     out.write('<html><body>')
-    out.write('<table><tr><td>')
-    out.write('Total in GC: <b>%d</b><br/>' % total_gc)
-    out.write('Max in GC: <b>%d</b><br/>' % max_gc)
-    out.write('Avg in GC: <b>%d</b><br/>' % avg_gc)
-    out.write('</td><td>')
-    out.write('Total in Scavenge: <b>%d</b><br/>' % total_scavenge)
-    out.write('Max in Scavenge: <b>%d</b><br/>' % max_scavenge)
-    out.write('Avg in Scavenge: <b>%d</b><br/>' % avg_scavenge)
-    out.write('</td><td>')
-    out.write('Total in Sweep: <b>%d</b><br/>' % total_sweep)
-    out.write('Max in Sweep: <b>%d</b><br/>' % max_sweep)
-    out.write('</td><td>')
-    out.write('Total in Mark: <b>%d</b><br/>' % total_mark)
-    out.write('Max in Mark: <b>%d</b><br/>' % max_mark)
-    out.write('</td></tr></table>')
+    out.write('<table>')
+    out.write('<tr><td>Phase</td><td>Count</td><td>Time (ms)</td><td>Max</td><td>Avg</td></tr>')
+    stats(out, 'Total in GC', trace, 'pause')
+    stats(out, 'Scavenge', scavenges, 'pause')
+    stats(out, 'MarkSweep', marksweeps, 'pause')
+    stats(out, 'MarkCompact', markcompacts, 'pause')
+    stats(out, 'Mark', filter(lambda r: r['mark'] != 0, trace), 'mark')
+    stats(out, 'Sweep', filter(lambda r: r['sweep'] != 0, trace), 'sweep')
+    stats(out, 'Flush Code', filter(lambda r: r['flushcode'] != 0, trace), 'flushcode')
+    stats(out, 'Compact', filter(lambda r: r['compact'] != 0, trace), 'compact')
+    out.write('</table>')
     for chart in charts:
       out.write('<img src="%s">' % chart)
       out.write('</body></html>')

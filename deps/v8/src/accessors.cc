@@ -488,7 +488,7 @@ Object* Accessors::FunctionGetLength(Object* object, void*) {
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
   if (!found_it) return Smi::FromInt(0);
   // Check if already compiled.
-  if (!function->is_compiled()) {
+  if (!function->shared()->is_compiled()) {
     // If the function isn't compiled yet, the length is not computed
     // correctly yet. Compile it now and return the right length.
     HandleScope scope;

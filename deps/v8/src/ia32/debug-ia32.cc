@@ -254,31 +254,19 @@ void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
 }
 
 
-// FrameDropper is a code replacement for a JavaScript frame with possibly
-// several frames above.
-// There is no calling conventions here, because it never actually gets called,
-// it only gets returned to.
-// Frame structure (conforms InternalFrame structure):
-//   -- JSFunction
-//   -- code
-//   -- SMI maker
-//   -- context
-//   -- frame base
 void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   ExternalReference restarter_frame_function_slot =
       ExternalReference(Debug_Address::RestarterFrameFunctionPointer());
   __ mov(Operand::StaticVariable(restarter_frame_function_slot), Immediate(0));
 
   // We do not know our frame height, but set esp based on ebp.
-  __ lea(esp, Operand(ebp, -4 * kPointerSize));
+  __ lea(esp, Operand(ebp, -1 * kPointerSize));
 
-  __ pop(edi);  // function
-
-  // Skip code self-reference and marker.
-  __ add(Operand(esp), Immediate(2 * kPointerSize));
-
-  __ pop(esi);  // Context.
+  __ pop(edi);  // Function.
   __ pop(ebp);
+
+  // Load context from the function.
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Get function code.
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
@@ -289,27 +277,9 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ jmp(Operand(edx));
 }
 
+const bool Debug::kFrameDropperSupported = true;
+
 #undef __
-
-
-// TODO(LiveEdit): consider making it platform-independent.
-// TODO(LiveEdit): use more named constants instead of numbers.
-Object** Debug::SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
-                                       Handle<Code> code) {
-  ASSERT(bottom_js_frame->is_java_script());
-
-  Address fp = bottom_js_frame->fp();
-  Memory::Object_at(fp - 4 * kPointerSize) =
-      Memory::Object_at(fp - 2 * kPointerSize);  // Move edi (function).
-
-  Memory::Object_at(fp - 3 * kPointerSize) = *code;
-  Memory::Object_at(fp - 2 * kPointerSize) = Smi::FromInt(StackFrame::INTERNAL);
-
-  return reinterpret_cast<Object**>(&Memory::Object_at(fp - 4 * kPointerSize));
-}
-
-const int Debug::kFrameDropperFrameSize = 5;
-
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 

@@ -582,6 +582,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a number. Used in debug code.
   void AbortIfNotNumber(Register object);
 
+  // Abort execution if argument is a smi. Used in debug code.
+  void AbortIfSmi(Register object);
+
   // Abort execution if argument is not a smi. Used in debug code.
   void AbortIfNotSmi(Register object);
 
