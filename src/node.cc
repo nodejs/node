@@ -1544,8 +1544,21 @@ static void Load(int argc, char *argv[]) {
 
   // process.version
   process->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
+
   // process.installPrefix
   process->Set(String::NewSymbol("installPrefix"), String::New(NODE_PREFIX));
+
+  Local<Object> versions = Object::New();
+  char buf[20];
+  process->Set(String::NewSymbol("versions"), versions);
+  // +1 to get rid of the leading 'v'
+  versions->Set(String::NewSymbol("node"), String::New(NODE_VERSION+1));
+  versions->Set(String::NewSymbol("v8"), String::New(V8::GetVersion()));
+  versions->Set(String::NewSymbol("ares"), String::New(ARES_VERSION_STR));
+  snprintf(buf, 20, "%d.%d", ev_version_major(), ev_version_minor());
+  versions->Set(String::NewSymbol("ev"), String::New(buf));
+
+
 
   // process.platform
 #define xstr(s) str(s)
