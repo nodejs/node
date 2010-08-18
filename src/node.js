@@ -3,6 +3,7 @@
 process.global.process = process;
 process.global.global = process.global;
 global.GLOBAL = global;
+global.root = global;
 
 /** deprecation errors ************************************************/
 
@@ -429,7 +430,7 @@ var module = (function () {
         sandbox.__filename  = filename;
         sandbox.__dirname   = dirname;
         sandbox.module      = self;
-        sandbox.root        = global;
+        sandbox.root        = root;
 
         Script.runInNewContext(content, sandbox, filename);
 
@@ -441,7 +442,6 @@ var module = (function () {
         global.__filename = filename;
         global.__dirname  = dirname;
         global.module     = self;
-        global.root       = global;
         Script.runInThisContext(content, filename);
       }
 
