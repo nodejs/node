@@ -289,7 +289,7 @@ def configure(conf):
     conf.env.append_value('CXXFLAGS', '-DHAVE_FDATASYNC=0')
 
   # platform
-  platform_def = '-DPLATFORM=' + conf.env['DEST_OS']
+  platform_def = '-DPLATFORM="' + conf.env['DEST_OS'] + '"'
   conf.env.append_value('CCFLAGS', platform_def)
   conf.env.append_value('CXXFLAGS', platform_def)
 
@@ -521,9 +521,9 @@ def build(bld):
     bld.install_files('${PREFIX}/lib', "build/default/libnode.*")
 
   def subflags(program):
-    x = { 'CCFLAGS'   : " ".join(program.env["CCFLAGS"])
-        , 'CPPFLAGS'  : " ".join(program.env["CPPFLAGS"])
-        , 'LIBFLAGS'  : " ".join(program.env["LIBFLAGS"])
+    x = { 'CCFLAGS'   : " ".join(program.env["CCFLAGS"]).replace('"', '\\"')
+        , 'CPPFLAGS'  : " ".join(program.env["CPPFLAGS"]).replace('"', '\\"')
+        , 'LIBFLAGS'  : " ".join(program.env["LIBFLAGS"]).replace('"', '\\"')
         , 'PREFIX'    : program.env["PREFIX"]
         }
     return x

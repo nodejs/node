@@ -1289,7 +1289,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
 
     p = strrchr(sym, '.');
     if (p != NULL) {
-      *p = NULL;
+      *p = '\0';
     }
 
     size_t slen = strlen(sym);
@@ -1561,9 +1561,7 @@ static void Load(int argc, char *argv[]) {
 
 
   // process.platform
-#define xstr(s) str(s)
-#define str(s) #s
-  process->Set(String::NewSymbol("platform"), String::New(xstr(PLATFORM)));
+  process->Set(String::NewSymbol("platform"), String::New(PLATFORM));
 
   // process.argv
   int i, j;
