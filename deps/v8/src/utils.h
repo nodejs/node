@@ -740,7 +740,7 @@ inline Dest BitCast(const Source& source) {
 }
 
 template <class Dest, class Source>
-inline Dest BitCast(Source* const & source) {
+inline Dest BitCast(Source* & source) {
     return BitCast<Dest>(reinterpret_cast<uintptr_t>(source));
 }
 
