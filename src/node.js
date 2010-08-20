@@ -198,17 +198,6 @@ var module = (function () {
       return;
     }
 
-/*    if (dirs.length == 0) {
-      if (callback) {
-        callback();
-      } else {
-        return; // sync returns null
-      }
-    } //no need for this, eventually move simpler if to traverser
-     // question: what with /absolute/id when dirs.length is 0?
-     // if "load it anyway", then this ^^^ code is wrong, but omitting it
-     // makes it right*/
-
     var nextLoc = traverser(id, id.charAt(0) === '/' ? [''] : dirs);
 
     var fs = requireNative('fs');
