@@ -433,6 +433,7 @@ var module = (function () {
         sandbox.__filename  = filename;
         sandbox.__dirname   = dirname;
         sandbox.module      = self;
+        sandbox.global      = sandbox;
         sandbox.root        = root;
 
         Script.runInNewContext(content, sandbox, filename);
