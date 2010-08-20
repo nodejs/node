@@ -212,6 +212,7 @@ template <node::Script::EvalInputFlags iFlag,
     for (i = 0; i < keys->Length(); i++) {
       Handle<String> key = keys->Get(Integer::New(i))->ToString();
       Handle<Value> value = sandbox->Get(key);
+      if (value == sandbox) { value = context->Global(); }
       context->Global()->Set(key, value);
     }
   }
@@ -264,6 +265,7 @@ template <node::Script::EvalInputFlags iFlag,
     for (i = 0; i < keys->Length(); i++) {
       Handle<String> key = keys->Get(Integer::New(i))->ToString();
       Handle<Value> value = context->Global()->Get(key);
+      if (value == context->Global()) { value = sandbox; }
       sandbox->Set(key, value);
     }
   }
