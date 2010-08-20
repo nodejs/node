@@ -56,7 +56,7 @@ doc/node.1: doc/api.markdown all
 	build/default/node tools/ronnjs/bin/ronn.js --roff doc/api.markdown > doc/node.1
 
 website-upload: doc
-	scp doc/* ryan@nodejs.org:~/tinyclouds/node/
+	scp doc/* ryan@nodejs.org:~/web/nodejs.org/
 
 docclean:
 	@-rm -f doc/node.1 doc/api.html doc/changelog.html
