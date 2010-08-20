@@ -47,9 +47,12 @@ process.evalcx = function () {
 var nextTickQueue = [];
 
 process._tickCallback = function () {
-  for (var l = nextTickQueue.length; l; l--) {
-    nextTickQueue.shift()();
+  var l = nextTickQueue.length;
+  if (l === 0) return;
+  for (var i = 0; i < l; i++) {
+    nextTickQueue[i]();
   }
+  nextTickQueue.splice(0, l);
 };
 
 process.nextTick = function (callback) {
