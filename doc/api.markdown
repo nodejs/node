@@ -1868,7 +1868,7 @@ Example:
 This method must only be called once on a message and it must
 be called before `response.end()` is called.
 
-### response.write(chunk, encoding='ascii')
+### response.write(chunk, encoding='utf8')
 
 This method must be called after `writeHead` was
 called. It sends a chunk of the response body. This method may
@@ -1876,7 +1876,7 @@ be called multiple times to provide successive parts of the body.
 
 `chunk` can be a string or a buffer. If `chunk` is a string,
 the second parameter specifies how to encode it into a byte stream.
-By default the `encoding` is `'ascii'`.
+By default the `encoding` is `'utf8'`.
 
 **Note**: This is the raw HTTP body and has nothing to do with
 higher-level multi-part body encodings that may be used.
@@ -2029,7 +2029,7 @@ Emitted when a response is received to this request. This event is emitted only 
 `response` argument will be an instance of `http.ClientResponse`.
 
 
-### request.write(chunk, encoding='ascii')
+### request.write(chunk, encoding='utf8')
 
 Sends a chunk of the body.  By calling this method
 many times, the user can stream a request body to a
@@ -2041,10 +2041,8 @@ The `chunk` argument should be an array of integers
 or a string.
 
 The `encoding` argument is optional and only
-applies when `chunk` is a string. The encoding
-argument should be either `'utf8'` or
-`'ascii'`. By default the body uses ASCII encoding,
-as it is faster.
+applies when `chunk` is a string.
+
 
 ### request.end([data], [encoding])
 
