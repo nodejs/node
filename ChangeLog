@@ -1,3 +1,22 @@
+2010.08.20, Version 0.2.0
+
+* process.title support for FreeBSD, Macintosh, Linux
+
+* Fix OpenSSL 100% CPU usage on error (Illarionov Oleg)
+
+* Implement net.Server.maxConnections.
+
+* Fix process.platform, add process.version.
+
+* Add --without-snapshot configure option.
+
+* Readline REPL improvements (Trent Mick)
+
+* Bug fixes.
+
+* Upgrade V8 to 2.3.8
+
+
 2010.08.13, Version 0.1.104
 
 * Various bug fixes (console, querystring, require)
