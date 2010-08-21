@@ -3284,3 +3284,46 @@ All Node addons must export a function called `init` with this signature:
 
 For the moment, that is all the documentation on addons. Please see
 <http://github.com/ry/node_postgres> for a real example.
+
+
+## Appendix - Third Party Modules
+
+There are many third party modules for Node. At the time of writing, August
+2010, the master repository of modules is the wiki page at
+
+  http://github.com/ry/node/wiki/modules
+
+This appendix is intended as a SMALL guide to new-comers to help them
+quickly find what are considered to be quality modules. It is not intended
+to be a complete list.  There may be better more complete modules found
+elsewhere.
+
+  Package System: NPM http://github.com/isaacs/npm
+
+  HTML Parsing: HTML5 http://github.com/aredridel/html5
+
+  HTTP Middleware: Connect http://github.com/senchalabs/connect
+
+  Web Framework: Express http://github.com/visionmedia/express
+
+  Web Sockets: Socket.IO http://github.com/LearnBoost/Socket.IO-node
+
+  mDNS/Zeroconf/Bonjour: mDNS http://github.com/agnat/node_mdns
+
+  RabbitMQ, AMQP: http://github.com/ry/node-amqp
+
+  MySQL: http://github.com/felixge/node-mysql
+
+  Serialization: http://github.com/pgriess/node-msgpack
+
+  Scraping: http://github.com/silentrob/Apricot 
+
+  Debugger: ndb http://github.com/smtlaissezfaire/ndb is a CLI debugger
+  Node-Inspector http://github.com/dannycoates/node-inspector is a web based
+  tool.
+
+  pcap binding: http://github.com/mranney/node_pcap
+
+  ncurses: http://github.com/mscdex/node-ncurses
+
+Patches to this list are welcome.
