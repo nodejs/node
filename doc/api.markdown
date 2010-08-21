@@ -2225,7 +2225,7 @@ See `connect()`.
 
 `function () { }`
 
-Emitted when a stream connection successfully establishes a HTTPS handshake with its peer.
+Emitted when a stream connection successfully establishes an SSL handshake with its peer.
 
 
 ### Event: 'data'
@@ -2314,9 +2314,9 @@ received.
 
 ### stream.setSecure([credentials])
 
-Enables HTTPS support for the stream, with the crypto module credentials specifying the private key and certificate of the stream, and optionally the CA certificates for use in peer authentication.
+Enables SSL support for the stream, with the crypto module credentials specifying the private key and certificate of the stream, and optionally the CA certificates for use in peer authentication.
 
-If the credentials hold one ore more CA certificates, then the stream will request for the peer to submit a client certificate as part of the HTTPS connection handshake. The validity and content of this can be accessed via verifyPeer() and getPeerCertificate().
+If the credentials hold one ore more CA certificates, then the stream will request for the peer to submit a client certificate as part of the SSL connection handshake. The validity and content of this can be accessed via verifyPeer() and getPeerCertificate().
 
 ### stream.verifyPeer()
 
