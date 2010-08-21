@@ -51,6 +51,7 @@ class Buffer : public ObjectWrap {
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
   static v8::Handle<v8::Value> New(const v8::Arguments &args);
+  static v8::Handle<v8::Value> MakeFastBuffer(const v8::Arguments &args);
   static v8::Handle<v8::Value> Slice(const v8::Arguments &args);
   static v8::Handle<v8::Value> BinarySlice(const v8::Arguments &args);
   static v8::Handle<v8::Value> AsciiSlice(const v8::Arguments &args);

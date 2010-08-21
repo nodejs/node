@@ -264,6 +264,21 @@ Buffer::~Buffer() {
 }
 
 
+Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
+  HandleScope scope;
+
+  Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+  Local<Object> fast_buffer = args[1]->ToObject();;
+  uint32_t offset = args[2]->Uint32Value();
+  uint32_t length = args[3]->Uint32Value();
+
+  fast_buffer->SetIndexedPropertiesToPixelData((uint8_t*)buffer->data() + offset,
+                                               length);
+
+  return Undefined();
+}
+
+
 char* Buffer::data() {
   return blob_->data + off_;
 }
