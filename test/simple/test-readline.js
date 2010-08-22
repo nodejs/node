@@ -5,7 +5,9 @@ var readline = require("readline");
 var key = {
   xterm: {
     home: [27, 91, 72],
-    end: [27, 91, 70]
+    end: [27, 91, 70],
+    metab: [27, 98],
+    metaf: [27, 102]
   },
   gnome: {
     home: [27, 79, 72],
@@ -17,15 +19,21 @@ var key = {
   }
 };
 
-var fakestream = {
-  fd: 1,
-  write: function(bytes) {
-  }
+var readlineFakeStream = function() {
+  var written_bytes = [];
+  var rl = readline.createInterface({
+    fd: 1,
+    write: function(b) {
+      written_bytes.push(b);
+    }}, function (text) {
+      return [[], ""];
+    });
+  rl.written_bytes = written_bytes;
+  return rl;
 };
 
-var rl = readline.createInterface(fakestream, function (text) {
-  return [[], ""];
-});
+var rl = readlineFakeStream();
+var written_bytes_length, refreshed;
 
 rl.write('foo');
 assert.equal(3, rl.cursor);
@@ -41,3 +49,35 @@ rl.write(key.gnome.home);
 assert.equal(0, rl.cursor);
 rl.write(key.gnome.end);
 assert.equal(3, rl.cursor);
+
+rl = readlineFakeStream();
+rl.write('foo bar.hop/zoo');
+rl.write(key.xterm.home);
+written_bytes_length = rl.written_bytes.length;
+rl.write(key.xterm.metaf);
+assert.equal(3, rl.cursor);
+refreshed = written_bytes_length !== rl.written_bytes.length;
+assert.equal(true,  refreshed);
+rl.write(key.xterm.metaf);
+assert.equal(7, rl.cursor);
+rl.write(key.xterm.metaf);
+assert.equal(11, rl.cursor);
+written_bytes_length = rl.written_bytes.length;
+rl.write(key.xterm.metaf);
+assert.equal(15, rl.cursor);
+refreshed = written_bytes_length !== rl.written_bytes.length;
+assert.equal(true,  refreshed);
+written_bytes_length = rl.written_bytes.length;
+rl.write(key.xterm.metab);
+assert.equal(12, rl.cursor);
+refreshed = written_bytes_length !== rl.written_bytes.length;
+assert.equal(true,  refreshed);
+rl.write(key.xterm.metab);
+assert.equal(8, rl.cursor);
+rl.write(key.xterm.metab);
+assert.equal(4, rl.cursor);
+written_bytes_length = rl.written_bytes.length;
+rl.write(key.xterm.metab);
+assert.equal(0, rl.cursor);
+refreshed = written_bytes_length !== rl.written_bytes.length;
+assert.equal(true,  refreshed);
