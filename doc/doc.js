@@ -23,6 +23,10 @@ NodeDoc.generateToc = function()
 
 		cur_level = this.tagName.substr(1, 1);
 
+		if (last_level != 0 && cur_level <= last_level) {
+			html.push("</li>")
+		}
+
 		if (cur_level > last_level) 
 		{
 			html.push('<ul><li>');
@@ -38,15 +42,11 @@ NodeDoc.generateToc = function()
 		}
 
 		html.push('<a href="#' + $this.attr('id') + '">' + $this.text().replace(/\(.*\)$/gi, '') + '</a>');
-		if (cur_level == last_level || cur_level > last_level)
-		{
-			html.push('</li>');
-		}
 
 		last_level = cur_level;
 	});
 
-	html.push('</ul>');
+	html.push('</li></ul>');
 
 	var $toc = $('#toc').append(html.join('')).find('ul li ul').each(function()
 	{
