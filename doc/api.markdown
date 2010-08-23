@@ -1607,6 +1607,12 @@ An example to read the last 10 bytes of a file which is 100 bytes long:
 
 `WriteStream` is a `Writable Stream`.
 
+### Event: 'open'
+
+`function (fd) { }`
+
+ `fd` is the file descriptor used by the WriteStream.
+
 ### fs.createWriteStream(path, [options])
 
 Returns a new WriteStream object (See `Writable Stream`).
