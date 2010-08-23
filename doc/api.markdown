@@ -3297,7 +3297,7 @@ quickly find what are considered to be quality modules. It is not intended
 to be a complete list.  There may be better more complete modules found
 elsewhere.
 
-- Module Installer: [NPM](http://github.com/isaacs/npm)
+- Module Installer: [npm](http://github.com/isaacs/npm)
 
 - HTTP Middleware: [Connect](http://github.com/senchalabs/connect)
 
@@ -3324,5 +3324,9 @@ elsewhere.
 - [pcap binding](http://github.com/mranney/node_pcap)
 
 - [ncurses](http://github.com/mscdex/node-ncurses)
+
+- Testing/TDD/BDD: [vows](http://vowsjs.org/),
+  [expresso](http://github.com/visionmedia/expresso),
+  [mjsunit.runner](http://github.com/tmpvar/mjsunit.runner)
 
 Patches to this list are welcome.
