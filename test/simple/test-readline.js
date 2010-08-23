@@ -16,6 +16,10 @@ var key = {
   rxvt: {
     home: [27, 91, 55],
     end: [27, 91, 56]
+  },
+  putty: {
+    home: [27, 91, 49, 126],
+    end: [27, 91, 52, 126]
   }
 };
 
@@ -48,6 +52,10 @@ assert.equal(3, rl.cursor);
 rl.write(key.gnome.home);
 assert.equal(0, rl.cursor);
 rl.write(key.gnome.end);
+assert.equal(3, rl.cursor);
+rl.write(key.putty.home);
+assert.equal(0, rl.cursor);
+rl.write(key.putty.end);
 assert.equal(3, rl.cursor);
 
 rl = readlineFakeStream();
