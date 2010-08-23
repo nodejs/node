@@ -860,8 +860,9 @@ Experimental
 
 Read the data from `readableStream` and send it to the `writableStream`.
 When `writeableStream.write(data)` returns `false` `readableStream` will be
-paused until the `drain` event occurs on the `writableStream`. `callback` is
-called when `writableStream` is closed.
+paused until the `drain` event occurs on the `writableStream`. `callback` gets
+an error as its only argument and is called when `writableStream` is closed or
+when an error occurs.
 
 
 ## Timers
