@@ -9,3 +9,7 @@ var
 fs.readFile(fn, function(err, data) {
   assert.ok(data);
 });
+
+fs.readFile(fn, 'utf8', function(err, data) {
+  assert.strictEqual('', data);
+});
