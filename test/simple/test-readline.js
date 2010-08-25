@@ -7,7 +7,8 @@ var key = {
     home: [27, 91, 72],
     end: [27, 91, 70],
     metab: [27, 98],
-    metaf: [27, 102]
+    metaf: [27, 102],
+    metad: [27, 100]
   },
   gnome: {
     home: [27, 79, 72],
@@ -89,3 +90,19 @@ rl.write(key.xterm.metab);
 assert.equal(0, rl.cursor);
 refreshed = written_bytes_length !== rl.written_bytes.length;
 assert.equal(true,  refreshed);
+
+rl = readlineFakeStream();
+rl.write('foo bar.hop/zoo');
+rl.write(key.xterm.home);
+rl.write(key.xterm.metad);
+assert.equal(0, rl.cursor);
+assert.equal(' bar.hop/zoo', rl.line);
+rl.write(key.xterm.metad);
+assert.equal(0, rl.cursor);
+assert.equal('.hop/zoo', rl.line);
+rl.write(key.xterm.metad);
+assert.equal(0, rl.cursor);
+assert.equal('/zoo', rl.line);
+rl.write(key.xterm.metad);
+assert.equal(0, rl.cursor);
+assert.equal('', rl.line);
