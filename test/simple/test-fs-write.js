@@ -11,7 +11,7 @@ fs.open(fn, 'w', 0644, function (err, fd) {
   if (err) throw err;
   console.log('open done');
   fs.write(fd, '', 0, 'utf8', function(err, written) {
-      assert.fail('zero length write should not go through to callback');
+    assert.equal(0, written);
   });
   fs.write(fd, expected, 0, "utf8", function (err, written) {
     console.log('write done');
