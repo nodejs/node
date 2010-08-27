@@ -156,6 +156,16 @@ Buffer* Buffer::New(size_t size) {
 Handle<Value> Buffer::New(const Arguments &args) {
   HandleScope scope;
 
+  if (!args.IsConstructCall()) {
+    Local<Value> argv[10];
+    for (int i = 0; i < MIN(args.Length(), 10); i++) {
+      argv[i] = args[i];
+    }
+    Local<Object> instance =
+      constructor_template->GetFunction()->NewInstance(args.Length(), argv);
+    return scope.Close(instance);
+  }
+
   Buffer *buffer;
   if (args[0]->IsInt32()) {
     // var buffer = new Buffer(1024);
