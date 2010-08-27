@@ -49,9 +49,17 @@ var nextTickQueue = [];
 process._tickCallback = function () {
   var l = nextTickQueue.length;
   if (l === 0) return;
-  for (var i = 0; i < l; i++) {
-    nextTickQueue[i]();
+
+  try {
+    for (var i = 0; i < l; i++) {
+        nextTickQueue[i]();
+    }
   }
+  catch(e) {
+    nextTickQueue.splice(0, i+1);
+    throw e;
+  }
+
   nextTickQueue.splice(0, l);
 };
 
