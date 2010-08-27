@@ -1,6 +1,6 @@
 common = require("../common");
 assert = common.assert
-tcp = require("tcp");
+net = require("net");
 
 binaryString = "";
 for (var i = 255; i >= 0; i--) {
@@ -19,7 +19,8 @@ for (var i = 255; i >= 0; i--) {
   binaryString += S;
 }
 
-var echoServer = tcp.createServer(function (connection) {
+// safe constructor
+var echoServer = net.Server(function (connection) {
   connection.setEncoding("binary");
   connection.addListener("data", function (chunk) {
     common.error("recved: " + JSON.stringify(chunk));
@@ -35,7 +36,7 @@ var recv = "";
 
 echoServer.addListener("listening", function() {
   var j = 0;
-  var c = tcp.createConnection(common.PORT);
+  var c = net.createConnection(common.PORT);
 
   c.setEncoding("binary");
   c.addListener("data", function (chunk) {
