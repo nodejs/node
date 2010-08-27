@@ -4,7 +4,7 @@ assert = require("assert");
 
 var Buffer = require('buffer').Buffer;
 
-var b = new Buffer(1024);
+var b = Buffer(1024); // safe constructor
 
 console.log("b.length == " + b.length);
 assert.strictEqual(1024, b.length);
