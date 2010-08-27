@@ -162,11 +162,12 @@ def configure(conf):
   if Options.options.efence:
     conf.check(lib='efence', libpath=['/usr/lib', '/usr/local/lib'], uselib_store='EFENCE')
 
-  if not conf.check(lib="execinfo", includes=['/usr/include', '/usr/local/include'], libpath=['/usr/lib', '/usr/local/lib'], uselib_store="EXECINFO"):
-    # Note on Darwin/OS X: This will fail, but will still be used as the
-    # execinfo stuff are part of the standard library.
-    if sys.platform.startswith("freebsd"):
-      conf.fatal("Install the libexecinfo port from /usr/ports/devel/libexecinfo.")
+  if sys.platform.startswith("freebsd"):
+     if not conf.check(lib="execinfo",
+                       includes=['/usr/include', '/usr/local/include'],
+                       libpath=['/usr/lib', '/usr/local/lib'],
+                       uselib_store="EXECINFO"):
+       conf.fatal("Install the libexecinfo port from /usr/ports/devel/libexecinfo.")
 
   if not Options.options.without_ssl:
     if conf.check_cfg(package='openssl',
