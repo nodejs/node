@@ -6,8 +6,7 @@ var Buffer = require("buffer").Buffer,
     dgram = require("dgram"), server, client,
     server_path = "/tmp/dgram_server_sock",
     client_path = "/tmp/dgram_client_sock",
-    message_to_send = new Buffer("A message to send"),
-    timer;
+    message_to_send = new Buffer("A message to send");
 
 server = dgram.createSocket("unix_dgram");
 server.on("message", function (msg, rinfo) {
@@ -37,20 +36,8 @@ server.on("listening", function () {
       assert.strictEqual(bytes, message_to_send.length);
     });
   });
-  client.on("close", function () {
-    if (server.fd === null) {
-      clearTimeout(timer);
-    }
-  });
+
   client.bind(client_path);
 });
-server.on("close", function () {
-  if (client.fd === null) {
-    clearTimeout(timer);
-  }
-});
-server.bind(server_path);
 
-timer = setTimeout(function () {
-    throw new Error("Timeout");
-}, 200);
+server.bind(server_path);
