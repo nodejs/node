@@ -286,8 +286,7 @@ int ChildProcess::Spawn(const char *file,
     close(stdin_pipe[0]);
     stdio_fds[0] = stdin_pipe[1];
     SetNonBlocking(stdin_pipe[1]);
-  }
-  else {
+  } else {
     stdio_fds[0] = custom_fds[0];
   }
 
@@ -295,8 +294,7 @@ int ChildProcess::Spawn(const char *file,
     close(stdout_pipe[1]);
     stdio_fds[1] = stdout_pipe[0];
     SetNonBlocking(stdout_pipe[0]);
-  }
-  else {
+  } else {
     stdio_fds[1] = custom_fds[1];
   }
 
@@ -304,8 +302,7 @@ int ChildProcess::Spawn(const char *file,
     close(stderr_pipe[1]);
     stdio_fds[2] = stderr_pipe[0];
     SetNonBlocking(stderr_pipe[0]);
-  }
-  else {
+  } else {
     stdio_fds[2] = custom_fds[2];
   }
 
