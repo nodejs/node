@@ -25,7 +25,8 @@ namespace node {
 
 #define NODE_DEFINE_CONSTANT(target, constant)                            \
   (target)->Set(v8::String::NewSymbol(#constant),                         \
-                v8::Integer::New(constant))
+                v8::Integer::New(constant),                               \
+                static_cast<v8::PropertyAttribute>(v8::ReadOnly|v8::DontDelete))
 
 #define NODE_SET_METHOD(obj, name, callback)                              \
   obj->Set(v8::String::NewSymbol(name),                                   \
