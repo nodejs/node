@@ -604,7 +604,7 @@ global.setTimeout = function (callback, after) {
 global.setInterval = function (callback, repeat) {
   var timer = new process.Timer();
   addTimerListener.apply(timer, arguments);
-  timer.start(repeat, repeat);
+  timer.start(repeat, repeat ? repeat : 1);
   return timer;
 };
 
