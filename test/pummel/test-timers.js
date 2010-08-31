@@ -74,7 +74,14 @@ setInterval(function(param1, param2){
     clearInterval(this);
 }, 1000, "param1", "param2");
 
+// setInterval(cb, 0) should be called multiple times.
+count4 = 0;
+interval4 = setInterval(function () {
+  if (++count4 > 10) clearInterval(interval4);
+}, 0);
+
 process.addListener("exit", function () {
   assert.equal(true, setTimeout_called);
   assert.equal(3, interval_count);
+  assert.equal(11, count4);
 });
