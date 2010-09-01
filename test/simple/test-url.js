@@ -7,6 +7,10 @@ var url = require("url"),
 // URLs to parse, and expected data
 // { url : parsed }
 var parseTests = {
+  "//some_path" : {
+    "href": "//some_path",
+    "pathname": "//some_path"
+  },
   "http://www.narwhaljs.org/blog/categories?id=news" : {
     "href": "http://www.narwhaljs.org/blog/categories?id=news",
     "protocol": "http:",
