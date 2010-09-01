@@ -52,11 +52,14 @@ process._tickCallback = function () {
 
   try {
     for (var i = 0; i < l; i++) {
-        nextTickQueue[i]();
+      nextTickQueue[i]();
     }
   }
   catch(e) {
     nextTickQueue.splice(0, i+1);
+    if (i+1 < l) {
+      process._needTickCallback();
+    }
     throw e;
   }
 

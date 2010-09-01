@@ -13,7 +13,8 @@ process.nextTick(function() {
 });
 
 // This nextTick function should remain in the queue when the first one
-// is removed.
+// is removed.  It should be called if the error in the first one is
+// caught (which we do in this test).
 process.nextTick(function() {
   order.push('C');
 });
@@ -22,12 +23,6 @@ process.addListener('uncaughtException', function() {
   if (!exceptionHandled) {
     exceptionHandled = true;
     order.push('B');
-    // We call process.nextTick here to make sure the nextTick queue is
-    // processed again. If everything goes according to plan then when the queue
-    // gets ran there will be two functions with this being the second.
-    process.nextTick(function() {
-      order.push('D');
-    });
   }
   else {
     // If we get here then the first process.nextTick got called twice
@@ -36,6 +31,6 @@ process.addListener('uncaughtException', function() {
 });
 
 process.addListener('exit', function() {
-  assert.deepEqual(['A','B','C','D'], order);
+  assert.deepEqual(['A','B','C'], order);
 });
 
