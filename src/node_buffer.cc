@@ -485,8 +485,10 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
             "sourceEnd out of bounds")));
   }
 
-  ssize_t to_copy = MIN(source_end - source_start,
-                        target->length() - target_start);
+  ssize_t to_copy = MIN(MIN(source_end - source_start,
+                            target->length() - target_start), 
+                            source->length() - source_start);
+  
 
   if (target->blob_ == source->blob_) {
     // need to use slightly slower memmove is the ranges might overlap

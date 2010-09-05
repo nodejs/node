@@ -19,11 +19,13 @@ for (var i = 0; i < 1024; i++) {
 }
 
 var c = new Buffer(512);
+console.log("c.length == %d", c.length);
+assert.strictEqual(512, c.length);
 
 // copy 512 bytes, from 0 to 512.
 var copied = b.copy(c, 0, 0, 512);
 console.log("copied " + copied + " bytes from b into c");
-assert.strictEqual(512, copied);
+assert.equal(512, copied);
 for (var i = 0; i < c.length; i++) {
   common.print('.');
   assert.equal(i % 256, c[i]);
