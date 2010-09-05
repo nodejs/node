@@ -626,24 +626,26 @@ static Handle<Value> Write(const Arguments& args) {
     return ThrowException(Exception::Error(
                 String::New("Second argument needs to be a buffer")));
   }
-
-  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
+  
+  Local<Object> buffer_obj = args[1]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t off = args[2]->Int32Value();
-  if (off >= buffer->length()) {
+  if (off >= buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   ssize_t len = args[3]->Int32Value();
-  if (off + len > buffer->length()) {
+  if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
 
   off_t pos = GET_OFFSET(args[4]);
 
-  char * buf = (char*)buffer->data() + off;
+  char * buf = (char*)buffer_data + off;
   Local<Value> cb = args[5];
 
   if (cb->IsFunction()) {
@@ -688,23 +690,25 @@ static Handle<Value> Read(const Arguments& args) {
                 String::New("Second argument needs to be a buffer")));
   }
 
-  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
+  Local<Object> buffer_obj = args[1]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t off = args[2]->Int32Value();
-  if (off >= buffer->length()) {
+  if (off >= buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   len = args[3]->Int32Value();
-  if (off + len > buffer->length()) {
+  if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
 
   pos = GET_OFFSET(args[4]);
 
-  buf = (char*)buffer->data() + off;
+  buf = buffer_data + off;
 
   cb = args[5];
 

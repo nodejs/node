@@ -538,21 +538,23 @@ static Handle<Value> Read(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
+  Local<Object> buffer_obj = args[1]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t off = args[2]->Int32Value();
-  if (off >= buffer->length()) {
+  if (off >= buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[3]->Int32Value();
-  if (off + len > buffer->length()) {
+  if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
 
-  ssize_t bytes_read = read(fd, (char*)buffer->data() + off, len);
+  ssize_t bytes_read = read(fd, (char*)buffer_data + off, len);
 
   if (bytes_read < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();
@@ -583,16 +585,18 @@ static Handle<Value> RecvFrom(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
+  Local<Object> buffer_obj = args[1]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t off = args[2]->Int32Value();
-  if (off >= buffer->length()) {
+  if (off >= buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[3]->Int32Value();
-  if (off + len > buffer->length()) {
+  if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
@@ -602,7 +606,7 @@ static Handle<Value> RecvFrom(const Arguments& args) {
   struct sockaddr_storage address_storage;
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
-  ssize_t bytes_read = recvfrom(fd, (char*)buffer->data() + off, len, flags,
+  ssize_t bytes_read = recvfrom(fd, (char*)buffer_data + off, len, flags,
                                 (struct sockaddr*) &address_storage, &addrlen);
 
   if (bytes_read < 0) {
@@ -639,22 +643,24 @@ static Handle<Value> RecvMsg(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
+  Local<Object> buffer_obj = args[1]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t off = args[2]->Int32Value();
-  if (off >= buffer->length()) {
+  if (off >= buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[3]->Int32Value();
-  if (off + len > buffer->length()) {
+  if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
 
   struct iovec iov[1];
-  iov[0].iov_base = (char*)buffer->data() + off;
+  iov[0].iov_base = (char*)buffer_data + off;
   iov[0].iov_len = len;
 
   struct msghdr msg;
@@ -732,21 +738,23 @@ static Handle<Value> Write(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
+  Local<Object> buffer_obj = args[1]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t off = args[2]->Int32Value();
-  if (off >= buffer->length()) {
+  if (off >= buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[3]->Int32Value();
-  if (off + len > buffer->length()) {
+  if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
 
-  ssize_t written = write(fd, (char*)buffer->data() + off, len);
+  ssize_t written = write(fd, buffer_data + off, len);
 
   if (written < 0) {
     if (errno == EAGAIN || errno == EINTR) {
@@ -790,7 +798,9 @@ static Handle<Value> SendMsg(const Arguments& args) {
       String::New("Expected either a string or a buffer")));
   }
 
-  Buffer *buf = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
+  Local<Object> buffer_obj = args[1]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t offset = 0;
   if (args.Length() >= 3 && !args[2]->IsUndefined()) {
@@ -800,13 +810,13 @@ static Handle<Value> SendMsg(const Arguments& args) {
     }
 
     offset = args[2]->Uint32Value();
-    if (offset >= buf->length()) {
+    if (offset >= buffer_length) {
       return ThrowException(Exception::Error(
         String::New("Offset into buffer too large")));
     }
   }
 
-  size_t length = buf->length() - offset;
+  size_t length = buffer_length - offset;
   if (args.Length() >= 4 && !args[3]->IsUndefined()) {
     if (!args[3]->IsUint32()) {
       return ThrowException(Exception::TypeError(
@@ -814,13 +824,13 @@ static Handle<Value> SendMsg(const Arguments& args) {
     }
 
     length = args[3]->Uint32Value();
-    if (offset + length > buf->length()) {
+    if (offset + length > buffer_length) {
       return ThrowException(Exception::Error(
         String::New("offset + length beyond buffer length")));
     }
   }
 
-  iov.iov_base = buf->data() + offset;
+  iov.iov_base = buffer_data + offset;
   iov.iov_len = length;
 
   int fd_to_send = -1;
@@ -911,7 +921,9 @@ static Handle<Value> SendTo(const Arguments& args) {
       String::New("Expected either a string or a buffer")));
   }
 
-  Buffer *buf = ObjectWrap::Unwrap<Buffer>(args[1]->ToObject());
+  Local<Object> buffer_obj = args[1]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t offset = 0;
   if (args.Length() >= 3 && !args[2]->IsUndefined()) {
@@ -921,13 +933,13 @@ static Handle<Value> SendTo(const Arguments& args) {
     }
 
     offset = args[2]->Uint32Value();
-    if (offset >= buf->length()) {
+    if (offset >= buffer_length) {
       return ThrowException(Exception::Error(
         String::New("Offset into buffer too large")));
     }
   }
 
-  size_t length = buf->length() - offset;
+  size_t length = buffer_length - offset;
   if (args.Length() >= 4 && !args[3]->IsUndefined()) {
     if (!args[3]->IsUint32()) {
       return ThrowException(Exception::TypeError(
@@ -935,7 +947,7 @@ static Handle<Value> SendTo(const Arguments& args) {
     }
 
     length = args[3]->Uint32Value();
-    if (offset + length > buf->length()) {
+    if (offset + length > buffer_length) {
       return ThrowException(Exception::Error(
         String::New("offset + length beyond buffer length")));
     }
@@ -954,7 +966,7 @@ static Handle<Value> SendTo(const Arguments& args) {
   Handle<Value> error = ParseAddressArgs(args[5], args[6], false);
   if (!error.IsEmpty()) return ThrowException(error);
 
-  ssize_t written = sendto(fd, buf->data() + offset, length, flags, addr, addrlen);
+  ssize_t written = sendto(fd, buffer_data + offset, length, flags, addr, addrlen);
 
   if (written < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();

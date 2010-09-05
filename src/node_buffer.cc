@@ -153,6 +153,40 @@ Buffer* Buffer::New(size_t size) {
 }
 
 
+char* Buffer::Data(Handle<Object> obj) {
+  if (obj->HasIndexedPropertiesInPixelData()) {
+    return (char*)obj->GetIndexedPropertiesPixelData();
+  }
+
+  HandleScope scope;
+
+  // Return true for "SlowBuffer"
+  if (constructor_template->HasInstance(obj)) {
+    return ObjectWrap::Unwrap<Buffer>(obj)->data();
+  }
+
+  // Not a buffer.
+  return NULL;
+}
+
+
+size_t Buffer::Length(Handle<Object> obj) {
+  if (obj->HasIndexedPropertiesInPixelData()) {
+    return (size_t)obj->GetIndexedPropertiesPixelDataLength();
+  }
+
+  HandleScope scope;
+
+  // Return true for "SlowBuffer"
+  if (constructor_template->HasInstance(obj)) {
+    return ObjectWrap::Unwrap<Buffer>(obj)->length();
+  }
+
+  // Not a buffer.
+  return 0;
+}
+
+
 Handle<Value> Buffer::New(const Arguments &args) {
   HandleScope scope;
 
@@ -274,7 +308,7 @@ Handle<Value> Buffer::BinarySlice(const Arguments &args) {
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
 
-  const char *data = const_cast<char*>(parent->data() + start);
+  char *data = parent->data() + start;
   //Local<String> string = String::New(data, end - start);
 
   Local<Value> b =  Encode(data, end - start, BINARY);
@@ -296,9 +330,8 @@ Handle<Value> Buffer::AsciiSlice(const Arguments &args) {
   assert(parent->blob_->refs >= 2);
 #endif
 
-  const char *data = const_cast<char*>(parent->data() + start);
-  Local<String> string = String::New(data, end - start);
-
+  char* data = parent->data() + start;
+  Local<String> string = String::New(reinterpret_cast<char*>(data), end - start);
 
   return scope.Close(string);
 }
@@ -308,8 +341,8 @@ Handle<Value> Buffer::Utf8Slice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
-  const char *data = const_cast<char*>(parent->data() + start);
-  Local<String> string = String::New(data, end - start);
+  char *data = parent->data() + start;
+  Local<String> string = String::New(reinterpret_cast<char*>(data), end - start);
   return scope.Close(string);
 }
 
@@ -489,11 +522,11 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  const char *p = buffer->data() + offset;
+  char* p = buffer->data() + offset;
 
   int char_written;
 
-  int written = s->WriteUtf8((char*)p,
+  int written = s->WriteUtf8(reinterpret_cast<char*>(p),
                              buffer->length_ - offset,
                              &char_written,
                              String::HINT_MANY_WRITES_EXPECTED);
@@ -527,11 +560,14 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  const char *p = buffer->data() + offset;
+  char *p = buffer->data() + offset;
 
   size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
 
-  int written = s->WriteAscii((char*)p, 0, towrite, String::HINT_MANY_WRITES_EXPECTED);
+  int written = s->WriteAscii(reinterpret_cast<char*>(p),
+                              0,
+                              towrite,
+                              String::HINT_MANY_WRITES_EXPECTED);
   return scope.Close(Integer::New(written));
 }
 
@@ -574,7 +610,7 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
   }
 
   char a, b, c, d;
-  char *dst = buffer->data();
+  char* dst = buffer->data();
   const char *src = *s;
   const char *const srcEnd = src + s.length();
 
@@ -725,6 +761,18 @@ Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
   return Undefined();
 }
 
+
+bool Buffer::HasInstance(v8::Handle<v8::Value> val) {
+  if (!val->IsObject()) return false;
+  v8::Local<v8::Object> obj = val->ToObject();
+
+  if (obj->HasIndexedPropertiesInPixelData()) return true;
+
+  // Return true for "SlowBuffer"
+  if (constructor_template->HasInstance(obj)) return true;
+
+  return false;
+}
 
 
 void Buffer::Initialize(Handle<Object> target) {

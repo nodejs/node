@@ -34,11 +34,10 @@ class Buffer : public ObjectWrap {
 
   static void Initialize(v8::Handle<v8::Object> target);
   static Buffer* New(size_t length); // public constructor
-  static inline bool HasInstance(v8::Handle<v8::Value> val) {
-    if (!val->IsObject()) return false;
-    v8::Local<v8::Object> obj = val->ToObject();
-    return constructor_template->HasInstance(obj);
-  }
+  static bool HasInstance(v8::Handle<v8::Value> val);
+
+  static char* Data(v8::Handle<v8::Object>);
+  static size_t Length(v8::Handle<v8::Object>);
 
   char* data();
   size_t length() const { return length_; }
