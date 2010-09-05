@@ -505,7 +505,7 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
 }
 
 
-// var charsWritten = buffer.utf8Write(string, offset);
+// var charsWritten = buffer.utf8Write(string, offset, [maxLength]);
 Handle<Value> Buffer::Utf8Write(const Arguments &args) {
   HandleScope scope;
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
@@ -517,19 +517,23 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   Local<String> s = args[0]->ToString();
 
-  size_t offset = args[1]->Int32Value();
+  size_t offset = args[1]->Uint32Value();
 
   if (s->Utf8Length() > 0 && offset >= buffer->length_) {
     return ThrowException(Exception::TypeError(String::New(
             "Offset is out of bounds")));
   }
 
+  size_t max_length = args[2].IsEmpty() ? buffer->length_ - offset
+                                        : args[2]->Uint32Value();
+  max_length = MIN(buffer->length_ - offset, max_length);
+
   char* p = buffer->data() + offset;
 
   int char_written;
 
   int written = s->WriteUtf8(reinterpret_cast<char*>(p),
-                             buffer->length_ - offset,
+                             max_length,
                              &char_written,
                              String::HINT_MANY_WRITES_EXPECTED);
 
@@ -562,18 +566,20 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  char *p = buffer->data() + offset;
+  size_t max_length = args[2].IsEmpty() ? buffer->length_ - offset
+                                        : args[2]->Uint32Value();
+  max_length = MIN(s->Length(), MIN(buffer->length_ - offset, max_length));
 
-  size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
+  char *p = buffer->data() + offset;
 
   int written = s->WriteAscii(reinterpret_cast<char*>(p),
                               0,
-                              towrite,
+                              max_length,
                               String::HINT_MANY_WRITES_EXPECTED);
   return scope.Close(Integer::New(written));
 }
 
-// var bytesWritten = buffer.base64Write(string, offset);
+// var bytesWritten = buffer.base64Write(string, offset, [maxLength]);
 Handle<Value> Buffer::Base64Write(const Arguments &args) {
   HandleScope scope;
 
@@ -666,70 +672,6 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
 }
 
 
-// buffer.unpack(format, index);
-// Starting at 'index', unpacks binary from the buffer into an array.
-// 'format' is a string
-//
-//  FORMAT  RETURNS
-//    N     uint32_t   a 32bit unsigned integer in network byte order
-//    n     uint16_t   a 16bit unsigned integer in network byte order
-//    o     uint8_t    a 8bit unsigned integer
-Handle<Value> Buffer::Unpack(const Arguments &args) {
-  HandleScope scope;
-  Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
-
-  if (!args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Argument must be a string")));
-  }
-
-  String::AsciiValue format(args[0]->ToString());
-  uint32_t index = args[1]->Uint32Value();
-
-#define OUT_OF_BOUNDS ThrowException(Exception::Error(String::New("Out of bounds")))
-
-  Local<Array> array = Array::New(format.length());
-
-  uint8_t  uint8;
-  uint16_t uint16;
-  uint32_t uint32;
-
-  for (int i = 0; i < format.length(); i++) {
-    switch ((*format)[i]) {
-      // 32bit unsigned integer in network byte order
-      case 'N':
-        if (index + 3 >= buffer->length_) return OUT_OF_BOUNDS;
-        uint32 = htonl(*(uint32_t*)(buffer->data() + index));
-        array->Set(Integer::New(i), Integer::NewFromUnsigned(uint32));
-        index += 4;
-        break;
-
-      // 16bit unsigned integer in network byte order
-      case 'n':
-        if (index + 1 >= buffer->length_) return OUT_OF_BOUNDS;
-        uint16 = htons(*(uint16_t*)(buffer->data() + index));
-        array->Set(Integer::New(i), Integer::NewFromUnsigned(uint16));
-        index += 2;
-        break;
-
-      // a single octet, unsigned.
-      case 'o':
-        if (index >= buffer->length_) return OUT_OF_BOUNDS;
-        uint8 = (uint8_t)buffer->data()[index];
-        array->Set(Integer::New(i), Integer::NewFromUnsigned(uint8));
-        index += 1;
-        break;
-
-      default:
-        return ThrowException(Exception::Error(
-              String::New("Unknown format character")));
-    }
-  }
-
-  return scope.Close(array);
-}
-
-
 // var nbytes = Buffer.byteLength("string", "utf8")
 Handle<Value> Buffer::ByteLength(const Arguments &args) {
   HandleScope scope;
@@ -741,11 +683,26 @@ Handle<Value> Buffer::ByteLength(const Arguments &args) {
 
   Local<String> s = args[0]->ToString();
   enum encoding e = ParseEncoding(args[1], UTF8);
+  String::Utf8Value v(s);
 
-  Local<Integer> length =
-    Integer::New(e == UTF8 ? s->Utf8Length() : s->Length());
+  size_t length;
+  
+  switch (e) {
+    case UTF8:
+      length = s->Utf8Length();
+      break;
 
-  return scope.Close(length);
+    case BASE64:
+      length = base64_decoded_size(*v, v.length());
+      break;
+
+    default:
+      length = s->Length();
+      break;
+  }
+  
+
+  return scope.Close(Integer::New(length));
 }
 
 
@@ -801,7 +758,6 @@ void Buffer::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiWrite", Buffer::AsciiWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "binaryWrite", Buffer::BinaryWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "base64Write", Buffer::Base64Write);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "unpack", Buffer::Unpack);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "copy", Buffer::Copy);
 
   NODE_SET_METHOD(constructor_template->GetFunction(),
