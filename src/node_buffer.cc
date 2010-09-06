@@ -110,6 +110,22 @@ static inline size_t base64_decoded_size(const char *src, size_t size) {
   return size;
 }
 
+
+static size_t ByteLength (Handle<String> string, enum encoding enc) {
+  HandleScope scope;
+
+  if (enc == UTF8) {
+    return string->Utf8Length();
+  } else if (enc == BASE64) {
+    String::Utf8Value v(string);
+    return base64_decoded_size(*v, v.length());
+  } else {
+    return string->Length();
+  }
+}
+
+
+
 #if 0
 // When someone calls buffer.asciiSlice, data is not copied. Instead V8
 // references in the underlying Blob with this ExternalAsciiStringResource.
@@ -214,17 +230,8 @@ Handle<Value> Buffer::New(const Arguments &args) {
       p[i] = a->Get(i)->Uint32Value();
     }
   } else if (args[0]->IsString()) {
-    Local<String> s = args[0]->ToString();
-    enum encoding e = ParseEncoding(args[1], UTF8);
-    int length = e == UTF8 ? s->Utf8Length() : s->Length();
+    buffer = new Buffer(node::ByteLength(args[0]->ToString(), ParseEncoding(args[1], UTF8)));
 
-    // input gets base64-decoded, adjust buffer size
-    if (e == BASE64) {
-      const String::AsciiValue data(s);
-      length = base64_decoded_size(*data, data.length());
-    }
-
-    buffer = new Buffer(length);
   } else if (Buffer::HasInstance(args[0]) && args.Length() > 2) {
     // var slice = new Buffer(buffer, 123, 130);
     // args: parent, start, end
@@ -683,26 +690,8 @@ Handle<Value> Buffer::ByteLength(const Arguments &args) {
 
   Local<String> s = args[0]->ToString();
   enum encoding e = ParseEncoding(args[1], UTF8);
-  String::Utf8Value v(s);
 
-  size_t length;
-  
-  switch (e) {
-    case UTF8:
-      length = s->Utf8Length();
-      break;
-
-    case BASE64:
-      length = base64_decoded_size(*v, v.length());
-      break;
-
-    default:
-      length = s->Length();
-      break;
-  }
-  
-
-  return scope.Close(Integer::New(length));
+  return scope.Close(Integer::New(node::ByteLength(s, e)));
 }
 
 
