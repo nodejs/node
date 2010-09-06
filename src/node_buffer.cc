@@ -331,7 +331,7 @@ Handle<Value> Buffer::AsciiSlice(const Arguments &args) {
 #endif
 
   char* data = parent->data() + start;
-  Local<String> string = String::New(reinterpret_cast<char*>(data), end - start);
+  Local<String> string = String::New(data, end - start);
 
   return scope.Close(string);
 }
@@ -342,7 +342,7 @@ Handle<Value> Buffer::Utf8Slice(const Arguments &args) {
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
   char *data = parent->data() + start;
-  Local<String> string = String::New(reinterpret_cast<char*>(data), end - start);
+  Local<String> string = String::New(data, end - start);
   return scope.Close(string);
 }
 
@@ -532,7 +532,7 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   int char_written;
 
-  int written = s->WriteUtf8(reinterpret_cast<char*>(p),
+  int written = s->WriteUtf8(p,
                              max_length,
                              &char_written,
                              String::HINT_MANY_WRITES_EXPECTED);
@@ -572,7 +572,7 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
 
   char *p = buffer->data() + offset;
 
-  int written = s->WriteAscii(reinterpret_cast<char*>(p),
+  int written = s->WriteAscii(p,
                               0,
                               max_length,
                               String::HINT_MANY_WRITES_EXPECTED);
