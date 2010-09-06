@@ -15,7 +15,7 @@ var buffer = new Buffer(1024);
 
 var request = "GET /hello HTTP/1.1\r\n\r\n";
 
-buffer.asciiWrite(request, 0, request.length);
+buffer.write(request, 0, 'ascii');
 
 var callbacks = 0;
 
@@ -39,7 +39,7 @@ parser.onURL = function (b, off, len) {
 
 parser.onPath = function (b, off, length) {
   console.log("path [" + off + ", " + length + "]");
-  var path = b.asciiSlice(off, off+length);
+  var path = b.toString('ascii', off, off+length);
   console.log("path = '" + path + "'");
   assert.equal('/hello', path);
   callbacks++;
