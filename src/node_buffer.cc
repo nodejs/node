@@ -618,7 +618,7 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
   }
 
   char a, b, c, d;
-  char* dst = buffer->data();
+  char* dst = buffer->data() + offset;
   const char *src = *s;
   const char *const srcEnd = src + s.length();
 
