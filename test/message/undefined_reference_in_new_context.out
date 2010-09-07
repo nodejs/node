@@ -1,9 +1,8 @@
 before
 
-
-*.js:*
-*cript.runIn*Context(*);
-*^
+node.js:*
+    throw e;
+    ^
 ReferenceError: foo is not defined
     at evalmachine.<anonymous>:*
     at *test/message/undefined_reference_in_new_context.js:*
@@ -11,4 +10,6 @@ ReferenceError: foo is not defined
     at Module._loadScriptSync (node.js:*)
     at Module.loadSync (node.js:*)
     at Object.runMain (node.js:*)
+    at Array.<anonymous> (node.js:*)
+    at EventEmitter._tickCallback (node.js:*)
     at node.js:*
