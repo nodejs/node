@@ -294,3 +294,19 @@ assert.equal(dot[1], 0xfe);
 assert.equal(dot[2], 0x2e);
 assert.equal(dot[3], 0x00);
 assert.equal(dot.toString('base64'), '//4uAA==');
+
+
+// Creating buffers larger than pool size.
+s = ""
+for (i = 0; i < Buffer.poolSize + 5; i++) {
+  s += "h";
+}
+b = Buffer(s);
+sb = b.toString();
+assert.equal(sb, s);
+
+
+
+
+
+
