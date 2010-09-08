@@ -125,40 +125,6 @@ static size_t ByteLength (Handle<String> string, enum encoding enc) {
 }
 
 
-
-#if 0
-// When someone calls buffer.asciiSlice, data is not copied. Instead V8
-// references in the underlying Blob with this ExternalAsciiStringResource.
-class AsciiSliceExt: public String::ExternalAsciiStringResource {
- friend class Buffer;
- public:
-  AsciiSliceExt(Buffer *parent, size_t start, size_t end) {
-    blob_ = parent->blob();
-    blob_ref(blob_);
-
-    assert(start <= end);
-    length_ = end - start;
-    assert(start + length_ <= parent->length());
-    data_ = parent->data() + start;
-  }
-
-
-  ~AsciiSliceExt() {
-    //fprintf(stderr, "free ascii slice (%d refs left)\n", blob_->refs);
-    blob_unref(blob_);
-  }
-
-
-  const char* data() const { return data_; }
-  size_t length() const { return length_; }
-
- private:
-  const char *data_;
-  size_t length_;
-  Blob *blob_;
-};
-#endif
-
 Buffer* Buffer::New(size_t size) {
   HandleScope scope;
 
