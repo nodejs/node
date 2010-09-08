@@ -303,10 +303,10 @@ for (i = 0; i < l; i++) {
   s += "h";
 }
 
-b = Buffer(s);
+b = new Buffer(s);
 
-for (i = 0; l; i++) {
-  assert.equal("h".charCodeAt(i), b[i], "index " + i + " is not 'h' it was " + b[i]);
+for (i = 0; i < l; i++) {
+  assert.equal("h".charCodeAt(0), b[i]);
 }
 
 sb = b.toString();

@@ -511,8 +511,8 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  size_t max_length = args[2].IsEmpty() ? buffer->length_ - offset
-                                        : args[2]->Uint32Value();
+  size_t max_length = args[2]->IsUndefined() ? buffer->length_ - offset
+                                             : args[2]->Uint32Value();
   max_length = MIN(buffer->length_ - offset, max_length);
 
   char* p = buffer->data() + offset;
@@ -553,8 +553,8 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  size_t max_length = args[2].IsEmpty() ? buffer->length_ - offset
-                                        : args[2]->Uint32Value();
+  size_t max_length = args[2]->IsUndefined() ? buffer->length_ - offset
+                                             : args[2]->Uint32Value();
   max_length = MIN(s->Length(), MIN(buffer->length_ - offset, max_length));
 
   char *p = buffer->data() + offset;
