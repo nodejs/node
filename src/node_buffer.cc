@@ -579,7 +579,7 @@ void Buffer::Initialize(Handle<Object> target) {
   Local<FunctionTemplate> t = FunctionTemplate::New(Buffer::New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor_template->SetClassName(String::NewSymbol("Buffer"));
+  constructor_template->SetClassName(String::NewSymbol("SlowBuffer"));
 
   // copy free
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "binarySlice", Buffer::BinarySlice);
@@ -602,7 +602,7 @@ void Buffer::Initialize(Handle<Object> target) {
                   "makeFastBuffer",
                   Buffer::MakeFastBuffer);
 
-  target->Set(String::NewSymbol("Buffer"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("SlowBuffer"), constructor_template->GetFunction());
 }
 
 
