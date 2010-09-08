@@ -17,3 +17,12 @@ var file = path.join(common.fixturesDir, "write.txt");
   stream.destroy();
 })();
 
+(function() {
+  var stream = fs.createWriteStream(file);
+  
+  stream.addListener('drain', function () {
+    assert.fail('"drain" event must not be emitted before stream.write() has been called at least once.')
+  });
+  stream.destroy();
+})();
+
