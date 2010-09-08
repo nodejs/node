@@ -96,3 +96,17 @@ file4.addListener('data', function(data) {
 file4.addListener('end', function(data) {
 	assert.equal(contentRead, 'yz');
 });
+
+try {
+  fs.createReadStream(rangeFile, {start: 10, end: 2});
+  assert.fail('Creating a ReadStream with incorrect range limits must throw.');
+} catch(e) {
+  assert.equal(e.message, 'start must be <= end');
+}
+
+try {
+  fs.createReadStream(rangeFile, {start: 2});
+  assert.fail('Creating a ReadStream with a only one range limits must throw.');
+} catch(e) {
+  assert.equal(e.message, 'Both start and end are needed for range streaming.');
+}
