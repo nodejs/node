@@ -41,7 +41,6 @@ class Buffer : public ObjectWrap {
 
   char* data();
   size_t length() const { return length_; }
-  struct Blob_* blob() const { return blob_; }
 
   int AsciiWrite(char *string, int offset, int length);
   int Utf8Write(char *string, int offset, int length);
@@ -67,9 +66,9 @@ class Buffer : public ObjectWrap {
   Buffer(size_t length);
   Buffer(Buffer *parent, size_t start, size_t end);
 
-  size_t off_; // offset inside blob_
-  size_t length_; // length inside blob_
-  struct Blob_ *blob_;
+  size_t off_;
+  size_t length_;
+  char* data_;
 };
 
 

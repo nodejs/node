@@ -43,49 +43,6 @@ static Persistent<String> write_sym;
 Persistent<FunctionTemplate> Buffer::constructor_template;
 
 
-// Each javascript Buffer object is backed by a Blob object.
-// the Blob is just a C-level chunk of bytes.
-// It has a reference count.
-struct Blob_ {
-  unsigned int refs;
-  size_t length;
-  char *data;
-};
-typedef struct Blob_ Blob;
-
-
-static inline Blob * blob_new(size_t length) {
-  Blob * blob  = (Blob*) malloc(sizeof(Blob));
-  if (!blob) return NULL;
-
-  blob->data = (char*) malloc(length);
-  if (!blob->data) {
-    free(blob);
-    return NULL;
-  }
-
-  V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Blob) + length);
-  blob->length = length;
-  blob->refs = 0;
-  return blob;
-}
-
-
-static inline void blob_ref(Blob *blob) {
-  blob->refs++;
-}
-
-
-static inline void blob_unref(Blob *blob) {
-  assert(blob->refs > 0);
-  if (--blob->refs == 0) {
-    //fprintf(stderr, "free %d bytes\n", blob->length);
-    V8::AdjustAmountOfExternalAllocatedMemory(-(sizeof(Blob) + blob->length));
-    free(blob->data);
-    free(blob);
-  }
-}
-
 static inline size_t base64_decoded_size(const char *src, size_t size) {
   const char *const end = src + size;
   const int remainder = size % 4;
@@ -188,22 +145,6 @@ Handle<Value> Buffer::New(const Arguments &args) {
     size_t length = args[0]->Uint32Value();
     buffer = new Buffer(length);
 
-  } else if (args[0]->IsArray()) {
-    Local<Array> a = Local<Array>::Cast(args[0]);
-    buffer = new Buffer(a->Length());
-    char *p = buffer->data();
-    for (int i = 0; i < a->Length(); i++) {
-      p[i] = a->Get(i)->Uint32Value();
-    }
-  } else if (args[0]->IsString()) {
-    buffer = new Buffer(node::ByteLength(args[0]->ToString(), ParseEncoding(args[1], UTF8)));
-
-  } else if (Buffer::HasInstance(args[0]) && args.Length() > 2) {
-    // var slice = new Buffer(buffer, 123, 130);
-    // args: parent, start, end
-    Buffer *parent = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
-    SLICE_ARGS(args[1], args[2])
-    buffer = new Buffer(parent, start, end);
   } else {
     return ThrowException(Exception::TypeError(String::New("Bad argument")));
   }
@@ -219,40 +160,23 @@ Handle<Value> Buffer::New(const Arguments &args) {
 
 
 Buffer::Buffer(size_t length) : ObjectWrap() {
-  blob_ = blob_new(length);
   off_ = 0;
   length_ = length;
+  data_ = new char[length_];
 
-  blob_ref(blob_);
-
-  V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer));
-}
-
-
-Buffer::Buffer(Buffer *parent, size_t start, size_t end) : ObjectWrap() {
-  blob_ = parent->blob_;
-  assert(blob_->refs > 0);
-  blob_ref(blob_);
-
-  assert(start <= end);
-  off_ = parent->off_ + start;
-  length_ = end - start;
-  assert(length_ <= parent->length_);
-
-  V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer));
+  V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer) + length_);
 }
 
 
 Buffer::~Buffer() {
-  assert(blob_->refs > 0);
   //fprintf(stderr, "free buffer (%d refs left)\n", blob_->refs);
-  blob_unref(blob_);
-  V8::AdjustAmountOfExternalAllocatedMemory(-static_cast<long int>(sizeof(Buffer)));
+  delete data_;
+  V8::AdjustAmountOfExternalAllocatedMemory(-(sizeof(Buffer) + length_));
 }
 
 
 char* Buffer::data() {
-  return blob_->data + off_;
+  return data_;
 }
 
 
@@ -274,14 +198,6 @@ Handle<Value> Buffer::AsciiSlice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
-
-#if 0
-  AsciiSliceExt *ext = new AsciiSliceExt(parent, start, end);
-  Local<String> string = String::NewExternal(ext);
-  // There should be at least two references to the blob now - the parent
-  // and the slice.
-  assert(parent->blob_->refs >= 2);
-#endif
 
   char* data = parent->data() + start;
   Local<String> string = String::New(data, end - start);
@@ -386,15 +302,6 @@ Handle<Value> Buffer::Base64Slice(const Arguments &args) {
 }
 
 
-Handle<Value> Buffer::Slice(const Arguments &args) {
-  HandleScope scope;
-  Local<Value> argv[3] = { args.This(), args[0], args[1] };
-  Local<Object> slice =
-    constructor_template->GetFunction()->NewInstance(3, argv);
-  return scope.Close(slice);
-}
-
-
 // var bytesCopied = buffer.copy(target, targetStart, sourceStart, sourceEnd);
 Handle<Value> Buffer::Copy(const Arguments &args) {
   HandleScope scope;
@@ -443,16 +350,10 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
                             source->length() - source_start);
   
 
-  if (target->blob_ == source->blob_) {
-    // need to use slightly slower memmove is the ranges might overlap
-    memmove((void*)(target->data() + target_start),
-            (const void*)(source->data() + source_start),
-            to_copy);
-  } else {
-    memcpy((void*)(target->data() + target_start),
-           (const void*)(source->data() + source_start),
-           to_copy);
-  }
+  // need to use slightly slower memmove is the ranges might overlap
+  memmove((void*)(target->data() + target_start),
+          (const void*)(source->data() + source_start),
+          to_copy);
 
   return scope.Close(Integer::New(to_copy));
 }
@@ -684,7 +585,6 @@ void Buffer::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "binarySlice", Buffer::BinarySlice);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiSlice", Buffer::AsciiSlice);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "base64Slice", Buffer::Base64Slice);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "slice", Buffer::Slice);
   // TODO NODE_SET_PROTOTYPE_METHOD(t, "utf16Slice", Utf16Slice);
   // copy
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "utf8Slice", Buffer::Utf8Slice);
