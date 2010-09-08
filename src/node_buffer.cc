@@ -248,26 +248,6 @@ Handle<Value> Buffer::New(const Arguments &args) {
                                                        buffer->length());
   args.This()->Set(length_symbol, Integer::New(buffer->length_));
 
-  if (args[0]->IsString()) {
-    if (write_sym.IsEmpty()) {
-      write_sym = Persistent<String>::New(String::NewSymbol("write"));
-    }
-
-    Local<Value> write_v = args.This()->Get(write_sym);
-    assert(write_v->IsFunction());
-    Local<Function> write = Local<Function>::Cast(write_v);
-
-    Local<Value> argv[2] = { args[0], args[1] };
-
-    TryCatch try_catch;
-
-    write->Call(args.This(), 2, argv);
-
-    if (try_catch.HasCaught()) {
-      FatalException(try_catch);
-    }
-  }
-
   return args.This();
 }
 
