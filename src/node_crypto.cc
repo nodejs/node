@@ -322,21 +322,23 @@ Handle<Value> SecureStream::ReadInject(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+  Local<Object> buffer_obj = args[0]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t off = args[1]->Int32Value();
-  if (off >= buffer->length()) {
+  if (off >= buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer->length()) {
+  if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
 
-  int bytes_written = BIO_write(ss->pbioRead, (char*)buffer->data() + off, len);
+  int bytes_written = BIO_write(ss->pbioRead, (char*)buffer_data + off, len);
 
   if (bytes_written < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();
@@ -362,16 +364,18 @@ Handle<Value> SecureStream::ReadExtract(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+  Local<Object> buffer_obj = args[0]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t off = args[1]->Int32Value();
-  if (off >= buffer->length()) {
+  if (off >= buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer->length()) {
+  if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
@@ -393,7 +397,7 @@ Handle<Value> SecureStream::ReadExtract(const Arguments& args) {
     return scope.Close(Integer::New(0));
   }
 
-  bytes_read = SSL_read(ss->pSSL, (char*)buffer->data() + off, len);
+  bytes_read = SSL_read(ss->pSSL, (char*)buffer_data + off, len);
   if (bytes_read < 0) {
     int err = SSL_get_error(ss->pSSL, bytes_read);
     if (err == SSL_ERROR_WANT_READ) {
@@ -445,21 +449,23 @@ Handle<Value> SecureStream::WriteExtract(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+  Local<Object> buffer_obj = args[0]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t off = args[1]->Int32Value();
-  if (off >= buffer->length()) {
+  if (off >= buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer->length()) {
+  if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
 
-  int bytes_read = BIO_read(ss->pbioWrite, (char*)buffer->data() + off, len);
+  int bytes_read = BIO_read(ss->pbioWrite, (char*)buffer_data + off, len);
 
   return scope.Close(Integer::New(bytes_read));
 }
@@ -480,16 +486,18 @@ Handle<Value> SecureStream::WriteInject(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  Buffer * buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+  Local<Object> buffer_obj = args[0]->ToObject();
+  char *buffer_data = Buffer::Data(buffer_obj);
+  size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t off = args[1]->Int32Value();
-  if (off >= buffer->length()) {
+  if (off >= buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Offset is out of bounds")));
   }
 
   size_t len = args[2]->Int32Value();
-  if (off + len > buffer->length()) {
+  if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
           String::New("Length is extends beyond buffer")));
   }
@@ -503,7 +511,7 @@ Handle<Value> SecureStream::WriteInject(const Arguments& args) {
     }
     return scope.Close(Integer::New(0));
   }
-  int bytes_written = SSL_write(ss->pSSL, (char*)buffer->data() + off, len);
+  int bytes_written = SSL_write(ss->pSSL, (char*)buffer_data + off, len);
 
   return scope.Close(Integer::New(bytes_written));
 }
@@ -1001,8 +1009,11 @@ class Cipher : public ObjectWrap {
     unsigned char *out=0;
     int out_len=0;
     if (Buffer::HasInstance(args[0])) {
-      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
-      int r = cipher->CipherUpdate(buffer->data(), buffer->length(), &out, &out_len);
+      Local<Object> buffer_obj = args[0]->ToObject();
+      char *buffer_data = Buffer::Data(buffer_obj);
+      size_t buffer_length = Buffer::Length(buffer_obj);
+
+      int r = cipher->CipherUpdate(buffer_data, buffer_length, &out, &out_len);
     } else {
       char* buf = new char[len];
       ssize_t written = DecodeWrite(buf, len, args[0], enc);
@@ -1344,9 +1355,12 @@ class Decipher : public ObjectWrap {
     // if alloc_buf then buf must be deleted later
     bool alloc_buf = false;
     if (Buffer::HasInstance(args[0])) {
-      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
-      buf = buffer->data();
-      len = buffer->length();
+      Local<Object> buffer_obj = args[0]->ToObject();
+      char *buffer_data = Buffer::Data(buffer_obj);
+      size_t buffer_length = Buffer::Length(buffer_obj);
+
+      buf = buffer_data;
+      len = buffer_length;
     } else {
       alloc_buf = true;
       buf = new char[len];
@@ -1664,8 +1678,11 @@ class Hmac : public ObjectWrap {
     }
 	
     if( Buffer::HasInstance(args[0])) {
-      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
-      int r = hmac->HmacUpdate(buffer->data(), buffer->length());
+      Local<Object> buffer_obj = args[0]->ToObject();
+      char *buffer_data = Buffer::Data(buffer_obj);
+      size_t buffer_length = Buffer::Length(buffer_obj);
+
+      int r = hmac->HmacUpdate(buffer_data, buffer_length);
     } else {
       char* buf = new char[len];
       ssize_t written = DecodeWrite(buf, len, args[0], enc);
@@ -1811,8 +1828,11 @@ class Hash : public ObjectWrap {
 
 
     if (Buffer::HasInstance(args[0])) {
-      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
-      int r = hash->HashUpdate(buffer->data(), buffer->length());
+      Local<Object> buffer_obj = args[0]->ToObject();
+      char *buffer_data = Buffer::Data(buffer_obj);
+      size_t buffer_length = Buffer::Length(buffer_obj);
+
+      int r = hash->HashUpdate(buffer_data, buffer_length);
     } else {
       char* buf = new char[len];
       ssize_t written = DecodeWrite(buf, len, args[0], enc);
@@ -1981,8 +2001,11 @@ class Sign : public ObjectWrap {
     }
 
     if (Buffer::HasInstance(args[0])) {
-      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
-      int r = sign->SignUpdate(buffer->data(), buffer->length());
+      Local<Object> buffer_obj = args[0]->ToObject();
+      char *buffer_data = Buffer::Data(buffer_obj);
+      size_t buffer_length = Buffer::Length(buffer_obj);
+
+      int r = sign->SignUpdate(buffer_data, buffer_length);
     } else {
       char* buf = new char[len];
       ssize_t written = DecodeWrite(buf, len, args[0], enc);
@@ -2180,8 +2203,11 @@ class Verify : public ObjectWrap {
     }
 
     if(Buffer::HasInstance(args[0])) {
-      Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
-      int r = verify->VerifyUpdate(buffer->data(), buffer->length());
+      Local<Object> buffer_obj = args[0]->ToObject();
+      char *buffer_data = Buffer::Data(buffer_obj);
+      size_t buffer_length = Buffer::Length(buffer_obj);
+
+      int r = verify->VerifyUpdate(buffer_data, buffer_length);
     } else {
       char* buf = new char[len];
       ssize_t written = DecodeWrite(buf, len, args[0], enc);

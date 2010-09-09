@@ -34,15 +34,13 @@ class Buffer : public ObjectWrap {
 
   static void Initialize(v8::Handle<v8::Object> target);
   static Buffer* New(size_t length); // public constructor
-  static inline bool HasInstance(v8::Handle<v8::Value> val) {
-    if (!val->IsObject()) return false;
-    v8::Local<v8::Object> obj = val->ToObject();
-    return constructor_template->HasInstance(obj);
-  }
+  static bool HasInstance(v8::Handle<v8::Value> val);
+
+  static char* Data(v8::Handle<v8::Object>);
+  static size_t Length(v8::Handle<v8::Object>);
 
   char* data();
   size_t length() const { return length_; }
-  struct Blob_* blob() const { return blob_; }
 
   int AsciiWrite(char *string, int offset, int length);
   int Utf8Write(char *string, int offset, int length);
@@ -68,9 +66,9 @@ class Buffer : public ObjectWrap {
   Buffer(size_t length);
   Buffer(Buffer *parent, size_t start, size_t end);
 
-  size_t off_; // offset inside blob_
-  size_t length_; // length inside blob_
-  struct Blob_ *blob_;
+  size_t off_;
+  size_t length_;
+  char* data_;
 };
 
 

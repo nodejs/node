@@ -19,11 +19,13 @@ for (var i = 0; i < 1024; i++) {
 }
 
 var c = new Buffer(512);
+console.log("c.length == %d", c.length);
+assert.strictEqual(512, c.length);
 
 // copy 512 bytes, from 0 to 512.
 var copied = b.copy(c, 0, 0, 512);
 console.log("copied " + copied + " bytes from b into c");
-assert.strictEqual(512, copied);
+assert.equal(512, copied);
 for (var i = 0; i < c.length; i++) {
   common.print('.');
   assert.equal(i % 256, c[i]);
@@ -159,7 +161,7 @@ for (var j = 0; j < 500; j++) {
   var asciiSlice = b.toString('ascii', 0, asciiString.length);
   assert.equal(asciiString, asciiSlice);
 
-  var written = b.asciiWrite(asciiString, offset);
+  var written = b.write(asciiString, offset, 'ascii');
   assert.equal(asciiString.length, written);
   var asciiSlice = b.toString('ascii', offset, offset+asciiString.length);
   assert.equal(asciiString, asciiSlice);
@@ -183,35 +185,11 @@ for (var j = 0; j < 100; j++) {
 }
 
 
-// unpack
-
-var b = new Buffer(10);
-b[0] = 0x00;
-b[1] = 0x01;
-b[2] = 0x03;
-b[3] = 0x00;
-
-assert.deepEqual([0x0001], b.unpack('n', 0));
-assert.deepEqual([0x0001, 0x0300], b.unpack('nn', 0));
-assert.deepEqual([0x0103], b.unpack('n', 1));
-assert.deepEqual([0x0300], b.unpack('n', 2));
-assert.deepEqual([0x00010300], b.unpack('N', 0));
-assert.throws(function () {
-  b.unpack('N', 8);
-});
-
-b[4] = 0xDE;
-b[5] = 0xAD;
-b[6] = 0xBE;
-b[7] = 0xEF;
-
-assert.deepEqual([0xDEADBEEF], b.unpack('N', 4));
-
 
 // Bug regression test
 var testValue = '\u00F6\u65E5\u672C\u8A9E'; // ö日本語
 var buffer = new Buffer(32);
-var size = buffer.utf8Write(testValue, 0);
+var size = buffer.write(testValue, 0, 'utf8');
 console.log('bytes written to buffer: ' + size);
 var slice = buffer.toString('utf8', 0, size);
 assert.equal(slice, testValue);
@@ -237,9 +215,11 @@ assert.equal(d[1], 42);
 assert.equal(d[2], 255);
 
 var e = new Buffer('über');
+console.error("uber: '%s'", e.toString());
 assert.deepEqual(e, new Buffer([195, 188, 98, 101, 114]));
 
 var f = new Buffer('über', 'ascii');
+console.error("f.length: %d     (should be 4)", f.length);
 assert.deepEqual(f, new Buffer([252, 98, 101, 114]));
 
 
@@ -255,8 +235,8 @@ assert.equal(expected, (new Buffer(quote)).toString('base64'));
 
 b = new Buffer(1024);
 bytesWritten = b.write(expected, 0, 'base64');
-assert.equal(quote, b.toString('ascii', 0, quote.length));
 assert.equal(quote.length, bytesWritten);
+assert.equal(quote, b.toString('ascii', 0, quote.length));
 
 assert.equal(new Buffer('', 'base64').toString(), '');
 assert.equal(new Buffer('K', 'base64').toString(), '');
@@ -314,3 +294,21 @@ assert.equal(dot[1], 0xfe);
 assert.equal(dot[2], 0x2e);
 assert.equal(dot[3], 0x00);
 assert.equal(dot.toString('base64'), '//4uAA==');
+
+
+// Creating buffers larger than pool size.
+l = Buffer.poolSize + 5;
+s = ""
+for (i = 0; i < l; i++) {
+  s += "h";
+}
+
+b = new Buffer(s);
+
+for (i = 0; i < l; i++) {
+  assert.equal("h".charCodeAt(0), b[i]);
+}
+
+sb = b.toString();
+assert.equal(sb.length, s.length);
+assert.equal(sb, s);
