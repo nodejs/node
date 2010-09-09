@@ -6,12 +6,11 @@ var async_completed = 0, async_expected = 0, unlink = [];
 
 function asynctest(testBlock, args, callback, assertBlock) {
   async_expected++;
-  testBlock.apply(testBlock, args.concat([function(err){
+  testBlock.apply(testBlock, args.concat(function(err){
     var ignoreError = false;
     if (assertBlock) {
       try {
-        ignoreError = assertBlock.apply(assertBlock,
-          Array.prototype.slice.call(arguments));
+        ignoreError = assertBlock.apply(assertBlock, arguments);
       }
       catch (e) {
         err = e;
@@ -19,7 +18,7 @@ function asynctest(testBlock, args, callback, assertBlock) {
     }
     async_completed++;
     callback(ignoreError ? null : err);
-  }]));
+  }));
 }
 
 function bashRealpath(path, callback) {
@@ -227,6 +226,18 @@ function test_non_symlinks(callback) {
   });
 }
 
+var upone = path.join(process.cwd(), "..");
+function test_escape_cwd (cb) {
+  asynctest(fs.realpath, [".."], cb, function(er, uponeActual){
+    assert.equal(upone, uponeActual,
+      "realpath('..') expected: "+upone+" actual:"+uponeActual);
+  })
+}
+var uponeActual = fs.realpathSync("..");
+assert.equal(upone, uponeActual,
+  "realpathSync('..') expected: "+upone+" actual:"+uponeActual);
+
+
 // ----------------------------------------------------------------------------
 
 var tests = [
@@ -238,6 +249,7 @@ var tests = [
   test_relative_input_cwd,
   test_deep_symlink_mix,
   test_non_symlinks,
+  test_escape_cwd
 ];
 var numtests = tests.length;
 function runNextTest(err) {
