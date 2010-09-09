@@ -27,6 +27,9 @@
 
 import test
 import os
+import shutil
+from shutil import rmtree
+from os import mkdir
 from os.path import join, dirname, exists
 import re
 
@@ -42,7 +45,19 @@ class SimpleTestCase(test.TestCase):
     self.file = file
     self.config = config
     self.mode = mode
+  
+  def tearDown(self):
+    try:
+      rmtree(join(dirname(self.config.root), 'tmp'))
+    except:
+      pass
 
+  def setUp(self):
+    try:
+      mkdir(join(dirname(self.config.root), 'tmp'))
+    except:
+      pass
+  
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
 

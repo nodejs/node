@@ -4,8 +4,7 @@ var path = require('path');
 var fs = require('fs');
 
 var dirname = path.dirname(__filename);
-var fixtures = path.join(dirname, "../fixtures");
-var d = path.join(fixtures, "dir");
+var d = path.join(common.tmpDir, "dir");
 
 var mkdir_error = false;
 var rmdir_error = false;

@@ -359,7 +359,16 @@ class TestCase(object):
     return TestOutput(self, full_command, output)
 
   def Run(self):
-    return self.RunCommand(self.GetCommand())
+    self.setUp()
+    result = self.RunCommand(self.GetCommand())
+    self.tearDown()
+    return result
+  
+  def setUp(self):
+    return
+  
+  def tearDown(self):
+    return
 
 
 class TestOutput(object):

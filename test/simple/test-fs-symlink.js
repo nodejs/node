@@ -1,13 +1,12 @@
 common = require("../common");
-assert = common.assert
+var assert = common.assert;
 var path = require('path');
 var fs = require('fs');
 var completed = 0;
 
 // test creating and reading symbolic link
-var linkData = "../../cycles/root.js";
-var linkPath = path.join(common.fixturesDir, "nested-index", 'one', 'symlink1.js');
-try {fs.unlinkSync(linkPath);}catch(e){}
+var linkData = path.join(common.fixturesDir, "/cycles/root.js");
+var linkPath = path.join(common.tmpDir, 'symlink1.js');
 fs.symlink(linkData, linkPath, function(err){
   if (err) throw err;
   console.log('symlink done');
@@ -21,8 +20,7 @@ fs.symlink(linkData, linkPath, function(err){
 
 // test creating and reading hard link
 var srcPath = path.join(common.fixturesDir, "cycles", 'root.js');
-var dstPath = path.join(common.fixturesDir, "nested-index", 'one', 'link1.js');
-try {fs.unlinkSync(dstPath);}catch(e){}
+var dstPath = path.join(common.tmpDir, 'link1.js');
 fs.link(srcPath, dstPath, function(err){
   if (err) throw err;
   console.log('hard link done');
@@ -33,8 +31,6 @@ fs.link(srcPath, dstPath, function(err){
 });
 
 process.addListener("exit", function () {
-  try {fs.unlinkSync(linkPath);}catch(e){}
-  try {fs.unlinkSync(dstPath);}catch(e){}
   assert.equal(completed, 2);
 });
 
