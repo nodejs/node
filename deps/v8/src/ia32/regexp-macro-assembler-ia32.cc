@@ -31,11 +31,9 @@
 
 #include "unicode.h"
 #include "log.h"
-#include "ast.h"
 #include "regexp-stack.h"
 #include "macro-assembler.h"
 #include "regexp-macro-assembler.h"
-#include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
 
 namespace v8 {

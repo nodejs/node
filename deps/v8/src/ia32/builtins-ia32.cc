@@ -29,6 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
+#include "code-stubs.h"
 #include "codegen-inl.h"
 
 namespace v8 {
@@ -95,10 +96,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // edi: called object
   // eax: number of arguments
   __ bind(&non_function_call);
-  // CALL_NON_FUNCTION expects the non-function constructor as receiver
-  // (instead of the original receiver from the call site).  The receiver is
-  // stack element argc+1.
-  __ mov(Operand(esp, eax, times_4, kPointerSize), edi);
   // Set expected number of arguments to zero (not changing eax).
   __ Set(ebx, Immediate(0));
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
@@ -567,9 +564,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(ebx,
          FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ mov(edx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
   __ SmiUntag(ebx);
-  __ mov(edx, FieldOperand(edi, JSFunction::kCodeOffset));
-  __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
   __ cmp(eax, Operand(ebx));
   __ j(not_equal, Handle<Code>(builtin(ArgumentsAdaptorTrampoline)));
 
@@ -697,17 +693,6 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   __ LeaveInternalFrame();
   __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
-}
-
-
-// Load the built-in Array function from the current context.
-static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
-  // Load the global context.
-  __ mov(result, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ mov(result, FieldOperand(result, GlobalObject::kGlobalContextOffset));
-  // Load the Array function from the global context.
-  __ mov(result,
-         Operand(result, Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
 }
 
 
@@ -1100,7 +1085,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   Label generic_array_code;
 
   // Get the Array function.
-  GenerateLoadArrayFunction(masm, edi);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, edi);
 
   if (FLAG_debug_code) {
     // Initial map for the builtin Array function shoud be a map.
@@ -1136,7 +1121,7 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     // The array construct code is only set for the builtin Array function which
     // does always have a map.
-    GenerateLoadArrayFunction(masm, ebx);
+    __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ebx);
     __ cmp(edi, Operand(ebx));
     __ Assert(equal, "Unexpected Array function");
     // Initial map for the builtin Array function should be a map.
@@ -1157,6 +1142,131 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   Code* code = Builtins::builtin(Builtins::JSConstructStubGeneric);
   Handle<Code> generic_construct_stub(code);
   __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
+}
+
+
+void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax                 : number of arguments
+  //  -- edi                 : constructor function
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+  __ IncrementCounter(&Counters::string_ctor_calls, 1);
+
+  if (FLAG_debug_code) {
+    __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, ecx);
+    __ cmp(edi, Operand(ecx));
+    __ Assert(equal, "Unexpected String function");
+  }
+
+  // Load the first argument into eax and get rid of the rest
+  // (including the receiver).
+  Label no_arguments;
+  __ test(eax, Operand(eax));
+  __ j(zero, &no_arguments);
+  __ mov(ebx, Operand(esp, eax, times_pointer_size, 0));
+  __ pop(ecx);
+  __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
+  __ push(ecx);
+  __ mov(eax, ebx);
+
+  // Lookup the argument in the number to string cache.
+  Label not_cached, argument_is_string;
+  NumberToStringStub::GenerateLookupNumberStringCache(
+      masm,
+      eax,  // Input.
+      ebx,  // Result.
+      ecx,  // Scratch 1.
+      edx,  // Scratch 2.
+      false,  // Input is known to be smi?
+      &not_cached);
+  __ IncrementCounter(&Counters::string_ctor_cached_number, 1);
+  __ bind(&argument_is_string);
+  // ----------- S t a t e -------------
+  //  -- ebx    : argument converted to string
+  //  -- edi    : constructor function
+  //  -- esp[0] : return address
+  // -----------------------------------
+
+  // Allocate a JSValue and put the tagged pointer into eax.
+  Label gc_required;
+  __ AllocateInNewSpace(JSValue::kSize,
+                        eax,  // Result.
+                        ecx,  // New allocation top (we ignore it).
+                        no_reg,
+                        &gc_required,
+                        TAG_OBJECT);
+
+  // Set the map.
+  __ LoadGlobalFunctionInitialMap(edi, ecx);
+  if (FLAG_debug_code) {
+    __ cmpb(FieldOperand(ecx, Map::kInstanceSizeOffset),
+            JSValue::kSize >> kPointerSizeLog2);
+    __ Assert(equal, "Unexpected string wrapper instance size");
+    __ cmpb(FieldOperand(ecx, Map::kUnusedPropertyFieldsOffset), 0);
+    __ Assert(equal, "Unexpected unused properties of string wrapper");
+  }
+  __ mov(FieldOperand(eax, HeapObject::kMapOffset), ecx);
+
+  // Set properties and elements.
+  __ Set(ecx, Immediate(Factory::empty_fixed_array()));
+  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset), ecx);
+  __ mov(FieldOperand(eax, JSObject::kElementsOffset), ecx);
+
+  // Set the value.
+  __ mov(FieldOperand(eax, JSValue::kValueOffset), ebx);
+
+  // Ensure the object is fully initialized.
+  STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
+
+  // We're done. Return.
+  __ ret(0);
+
+  // The argument was not found in the number to string cache. Check
+  // if it's a string already before calling the conversion builtin.
+  Label convert_argument;
+  __ bind(&not_cached);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &convert_argument);
+  Condition is_string = masm->IsObjectStringType(eax, ebx, ecx);
+  __ j(NegateCondition(is_string), &convert_argument);
+  __ mov(ebx, eax);
+  __ IncrementCounter(&Counters::string_ctor_string_value, 1);
+  __ jmp(&argument_is_string);
+
+  // Invoke the conversion builtin and put the result into ebx.
+  __ bind(&convert_argument);
+  __ IncrementCounter(&Counters::string_ctor_conversions, 1);
+  __ EnterInternalFrame();
+  __ push(edi);  // Preserve the function.
+  __ push(eax);
+  __ InvokeBuiltin(Builtins::TO_STRING, CALL_FUNCTION);
+  __ pop(edi);
+  __ LeaveInternalFrame();
+  __ mov(ebx, eax);
+  __ jmp(&argument_is_string);
+
+  // Load the empty string into ebx, remove the receiver from the
+  // stack, and jump back to the case where the argument is a string.
+  __ bind(&no_arguments);
+  __ Set(ebx, Immediate(Factory::empty_string()));
+  __ pop(ecx);
+  __ lea(esp, Operand(esp, kPointerSize));
+  __ push(ecx);
+  __ jmp(&argument_is_string);
+
+  // At this point the argument is already a string. Call runtime to
+  // create a string wrapper.
+  __ bind(&gc_required);
+  __ IncrementCounter(&Counters::string_ctor_gc_required, 1);
+  __ EnterInternalFrame();
+  __ push(ebx);
+  __ CallRuntime(Runtime::kNewStringWrapper, 1);
+  __ LeaveInternalFrame();
+  __ ret(0);
 }
 
 

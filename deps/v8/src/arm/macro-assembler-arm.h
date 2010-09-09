@@ -250,14 +250,14 @@ class MacroAssembler: public Assembler {
   void EnterConstructFrame() { EnterFrame(StackFrame::CONSTRUCT); }
   void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
 
-  // Enter specific kind of exit frame; either normal or debug mode.
+  // Enter exit frame.
   // Expects the number of arguments in register r0 and
   // the builtin function to call in register r1. Exits with argc in
   // r4, argv in r6, and and the builtin function to call in r5.
-  void EnterExitFrame(ExitFrame::Mode mode);
+  void EnterExitFrame();
 
   // Leave the current exit frame. Expects the return value in r0.
-  void LeaveExitFrame(ExitFrame::Mode mode);
+  void LeaveExitFrame();
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -294,12 +294,6 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Debugger Support
 
-  void SaveRegistersToMemory(RegList regs);
-  void RestoreRegistersFromMemory(RegList regs);
-  void CopyRegistersFromMemoryToStack(Register base, RegList regs);
-  void CopyRegistersFromStackToMemory(Register base,
-                                      Register scratch,
-                                      RegList regs);
   void DebugBreak();
 #endif
 
@@ -475,6 +469,12 @@ class MacroAssembler: public Assembler {
   // occurred.
   void IllegalOperation(int num_arguments);
 
+  // Picks out an array index from the hash field.
+  // Register use:
+  //   hash - holds the index's hash. Clobbered.
+  //   index - holds the overwritten index on exit.
+  void IndexFromHash(Register hash, Register index);
+
   // Get the number of least significant bits from a register
   void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
 
@@ -503,6 +503,15 @@ class MacroAssembler: public Assembler {
                               DwVfpRegister value,
                               Register scratch1,
                               SwVfpRegister scratch2);
+
+  // Convert the HeapNumber pointed to by source to a 32bits signed integer
+  // dest. If the HeapNumber does not fit into a 32bits signed integer branch
+  // to not_int32 label.
+  void ConvertToInt32(Register source,
+                      Register dest,
+                      Register scratch,
+                      Register scratch2,
+                      Label *not_int32);
 
   // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
   // instruction.  On pre-ARM5 hardware this routine gives the wrong answer
@@ -576,6 +585,9 @@ class MacroAssembler: public Assembler {
   // setup the function in r1.
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
+  // Store the function for the given builtin in the target register.
+  void GetBuiltinFunction(Register target, Builtins::JavaScript id);
+
   Handle<Object> CodeObject() { return code_object_; }
 
 
@@ -597,6 +609,7 @@ class MacroAssembler: public Assembler {
   // Use --debug_code to enable.
   void Assert(Condition cc, const char* msg);
   void AssertRegisterIsRoot(Register reg, Heap::RootListIndex index);
+  void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
   void Check(Condition cc, const char* msg);

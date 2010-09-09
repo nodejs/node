@@ -566,13 +566,6 @@ function ArraySlice(start, end) {
 function ArraySplice(start, delete_count) {
   var num_arguments = %_ArgumentsLength();
 
-  // SpiderMonkey and JSC return undefined in the case where no
-  // arguments are given instead of using the implicit undefined
-  // arguments.  This does not follow ECMA-262, but we do the same for
-  // compatibility.
-  // TraceMonkey follows ECMA-262 though.
-  if (num_arguments == 0) return;
-
   var len = TO_UINT32(this.length);
   var start_i = TO_INTEGER(start);
 
@@ -953,7 +946,8 @@ function ArrayMap(f, receiver) {
 
 
 function ArrayIndexOf(element, index) {
-  var length = this.length;
+  var length = TO_UINT32(this.length);
+  if (length == 0) return -1;
   if (IS_UNDEFINED(index)) {
     index = 0;
   } else {
@@ -963,13 +957,13 @@ function ArrayIndexOf(element, index) {
     // If index is still negative, search the entire array.
     if (index < 0) index = 0;
   }
+  // Lookup through the array.
   if (!IS_UNDEFINED(element)) {
     for (var i = index; i < length; i++) {
       if (this[i] === element) return i;
     }
     return -1;
   }
-  // Lookup through the array.
   for (var i = index; i < length; i++) {
     if (IS_UNDEFINED(this[i]) && i in this) {
       return i;
@@ -980,7 +974,8 @@ function ArrayIndexOf(element, index) {
 
 
 function ArrayLastIndexOf(element, index) {
-  var length = this.length;
+  var length = TO_UINT32(this.length);
+  if (length == 0) return -1;
   if (%_ArgumentsLength() < 2) {
     index = length - 1;
   } else {

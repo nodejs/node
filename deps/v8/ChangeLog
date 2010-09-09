@@ -1,3 +1,76 @@
+2010-09-08: Version 2.4.2
+
+        Fixed GC crash bug.
+
+        Fixed stack corruption bug.
+
+        Fixed compilation for newer C++ compilers that found Operand(0)
+        ambiguous.
+
+
+2010-09-06: Version 2.4.1
+
+        Added the ability for an embedding application to receive a callback
+        when V8 allocates (V8::AddMemoryAllocationCallback) or deallocates
+        (V8::RemoveMemoryAllocationCallback) from the OS.
+
+        Fixed several JSON bugs (including issue 855).
+
+        Fixed memory overrun crash bug triggered during V8's tick-based
+        profiling.
+
+        Performance improvements on all platforms.
+
+
+2010-09-01: Version 2.4.0
+
+        Fix bug in Object.freeze and Object.seal when Array.prototype or
+        Object.prototype is changed (issue 842).
+
+        Update Array.splice to follow Safari and Firefox when called
+        with zero arguments.
+
+        Fix a missing live register when breaking at keyed loads on ARM.
+
+        Performance improvements on all platforms.
+
+
+2010-08-25: Version 2.3.11
+
+        Fix bug in RegExp related to copy-on-write arrays.
+
+        Refactoring of tools/test.py script, including the introduction of
+        VARIANT_FLAGS that allows specification of sets of flags with which
+        all tests should be run.
+
+        Fix a bug in the handling of debug breaks in CallIC.
+
+        Performance improvements on all platforms.
+
+
+2010-08-23: Version 2.3.10
+
+        Fix bug in bitops on ARM.
+
+        Build fixes for unusual compilers.
+
+        Track high water mark for RWX memory.
+
+        Performance improvements on all platforms.
+
+
+2010-08-18: Version 2.3.9
+
+        Fix compilation for ARMv4 on OpenBSD/FreeBSD.
+
+        Removed specialized handling of GCC 4.4 (issue 830).
+
+        Fixed DST cache to take into account the suspension of DST in
+        Egypt during the 2010 Ramadan (issue http://crbug.com/51855).
+
+        Performance improvements on all platforms.
+
+
 2010-08-16: Version 2.3.8
 
         Fixed build with strict aliasing on GCC 4.4 (issue 463).

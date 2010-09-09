@@ -94,7 +94,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // args
 
   // Clear the context before we push it when entering the JS frame.
-  __ li(cp, Operand(0));
+  __ li(cp, Operand(0, RelocInfo::NONE));
 
   // Enter an internal frame.
   __ EnterInternalFrame();

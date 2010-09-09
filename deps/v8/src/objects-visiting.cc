@@ -101,13 +101,15 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_VALUE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:
-    case JS_FUNCTION_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_BUILTINS_OBJECT_TYPE:
       return GetVisitorIdForSize(kVisitJSObject,
                                  kVisitJSObjectGeneric,
                                  instance_size);
+
+    case JS_FUNCTION_TYPE:
+      return kVisitJSFunction;
 
     case HEAP_NUMBER_TYPE:
     case PIXEL_ARRAY_TYPE:

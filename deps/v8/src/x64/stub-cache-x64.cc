@@ -31,9 +31,10 @@
 #if defined(V8_TARGET_ARCH_X64)
 
 #include "ic-inl.h"
+#include "code-stubs.h"
 #include "codegen-inl.h"
 #include "stub-cache.h"
-#include "macro-assembler-x64.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -1084,16 +1085,18 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
     __ movq(rax, FieldOperand(rdx, JSArray::kLengthOffset));
     __ ret((argc + 1) * kPointerSize);
   } else {
+    Label call_builtin;
+
     // Get the elements array of the object.
     __ movq(rbx, FieldOperand(rdx, JSArray::kElementsOffset));
 
-    // Check that the elements are in fast mode (not dictionary).
+    // Check that the elements are in fast mode and writable.
     __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
            Factory::fixed_array_map());
-    __ j(not_equal, &miss);
+    __ j(not_equal, &call_builtin);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label call_builtin, exit, with_write_barrier, attempt_to_grow_elements;
+      Label exit, with_write_barrier, attempt_to_grow_elements;
 
       // Get the array's length into rax and calculate new length.
       __ SmiToInteger32(rax, FieldOperand(rdx, JSArray::kLengthOffset));
@@ -1164,7 +1167,7 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       // Push the argument...
       __ movq(Operand(rdx, 0), rcx);
       // ... and fill the rest with holes.
-      __ Move(kScratchRegister, Factory::the_hole_value());
+      __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
       for (int i = 1; i < kAllocationDelta; i++) {
         __ movq(Operand(rdx, i * kPointerSize), kScratchRegister);
       }
@@ -1175,15 +1178,16 @@ Object* CallStubCompiler::CompileArrayPushCall(Object* object,
       // Increment element's and array's sizes.
       __ SmiAddConstant(FieldOperand(rbx, FixedArray::kLengthOffset),
                         Smi::FromInt(kAllocationDelta));
+
       // Make new length a smi before returning it.
       __ Integer32ToSmi(rax, rax);
       __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rax);
+
       // Elements are in new space, so write barrier is not required.
       __ ret((argc + 1) * kPointerSize);
-
-      __ bind(&call_builtin);
     }
 
+    __ bind(&call_builtin);
     __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPush),
                                  argc + 1,
                                  1);
@@ -1204,11 +1208,11 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
                                               String* name,
                                               CheckType check) {
   // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- rcx                 : name
+  //  -- rsp[0]              : return address
+  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
+  //  -- rsp[(argc + 1) * 8] : receiver
   // -----------------------------------
   ASSERT(check == RECEIVER_MAP_CHECK);
 
@@ -1235,9 +1239,10 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   // Get the elements array of the object.
   __ movq(rbx, FieldOperand(rdx, JSArray::kElementsOffset));
 
-  // Check that the elements are in fast mode (not dictionary).
-  __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset), Factory::fixed_array_map());
-  __ j(not_equal, &miss);
+  // Check that the elements are in fast mode and writable.
+  __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
+                 Heap::kFixedArrayMapRootIndex);
+  __ j(not_equal, &call_builtin);
 
   // Get the array's length into rcx and calculate new length.
   __ SmiToInteger32(rcx, FieldOperand(rdx, JSArray::kLengthOffset));
@@ -1245,7 +1250,7 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ j(negative, &return_undefined);
 
   // Get the last element.
-  __ Move(r9, Factory::the_hole_value());
+  __ LoadRoot(r9, Heap::kTheHoleValueRootIndex);
   __ movq(rax, FieldOperand(rbx,
                             rcx, times_pointer_size,
                             FixedArray::kHeaderSize));
@@ -1265,14 +1270,14 @@ Object* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&return_undefined);
-
-  __ Move(rax, Factory::undefined_value());
+  __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&call_builtin);
   __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPop),
                                argc + 1,
                                1);
+
   __ bind(&miss);
   Object* obj = GenerateMissBranch();
   if (obj->IsFailure()) return obj;
@@ -1287,8 +1292,69 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
                                                   JSFunction* function,
                                                   String* name,
                                                   CheckType check) {
-  // TODO(722): implement this.
-  return Heap::undefined_value();
+  // ----------- S t a t e -------------
+  //  -- rcx                 : function name
+  //  -- rsp[0]              : return address
+  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- ...
+  //  -- rsp[(argc + 1) * 8] : receiver
+  // -----------------------------------
+
+  // If object is not a string, bail out to regular call.
+  if (!object->IsString()) return Heap::undefined_value();
+
+  const int argc = arguments().immediate();
+
+  Label miss;
+  Label index_out_of_range;
+
+  GenerateNameCheck(name, &miss);
+
+  // Check that the maps starting from the prototype haven't changed.
+  GenerateDirectLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            rax);
+  ASSERT(object != holder);
+  CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
+                  rbx, rdx, rdi, name, &miss);
+
+  Register receiver = rax;
+  Register index = rdi;
+  Register scratch1 = rbx;
+  Register scratch2 = rdx;
+  Register result = rax;
+  __ movq(receiver, Operand(rsp, (argc + 1) * kPointerSize));
+  if (argc > 0) {
+    __ movq(index, Operand(rsp, (argc - 0) * kPointerSize));
+  } else {
+    __ LoadRoot(index, Heap::kUndefinedValueRootIndex);
+  }
+
+  StringCharAtGenerator char_at_generator(receiver,
+                                          index,
+                                          scratch1,
+                                          scratch2,
+                                          result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &index_out_of_range,
+                                          STRING_INDEX_IS_NUMBER);
+  char_at_generator.GenerateFast(masm());
+  __ ret((argc + 1) * kPointerSize);
+
+  ICRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm(), call_helper);
+
+  __ bind(&index_out_of_range);
+  __ LoadRoot(rax, Heap::kEmptyStringRootIndex);
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&miss);
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
+
+  // Return the generated code.
+  return GetCode(function);
 }
 
 
@@ -1297,10 +1363,67 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(Object* object,
                                                       JSFunction* function,
                                                       String* name,
                                                       CheckType check) {
-  // TODO(722): implement this.
-  return Heap::undefined_value();
-}
+  // ----------- S t a t e -------------
+  //  -- rcx                 : function name
+  //  -- rsp[0]              : return address
+  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- ...
+  //  -- rsp[(argc + 1) * 8] : receiver
+  // -----------------------------------
 
+  // If object is not a string, bail out to regular call.
+  if (!object->IsString()) return Heap::undefined_value();
+
+  const int argc = arguments().immediate();
+
+  Label miss;
+  Label index_out_of_range;
+  GenerateNameCheck(name, &miss);
+
+  // Check that the maps starting from the prototype haven't changed.
+  GenerateDirectLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            rax);
+  ASSERT(object != holder);
+  CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
+                  rbx, rdx, rdi, name, &miss);
+
+  Register receiver = rbx;
+  Register index = rdi;
+  Register scratch = rdx;
+  Register result = rax;
+  __ movq(receiver, Operand(rsp, (argc + 1) * kPointerSize));
+  if (argc > 0) {
+    __ movq(index, Operand(rsp, (argc - 0) * kPointerSize));
+  } else {
+    __ LoadRoot(index, Heap::kUndefinedValueRootIndex);
+  }
+
+  StringCharCodeAtGenerator char_code_at_generator(receiver,
+                                                   index,
+                                                   scratch,
+                                                   result,
+                                                   &miss,  // When not a string.
+                                                   &miss,  // When not a number.
+                                                   &index_out_of_range,
+                                                   STRING_INDEX_IS_NUMBER);
+  char_code_at_generator.GenerateFast(masm());
+  __ ret((argc + 1) * kPointerSize);
+
+  ICRuntimeCallHelper call_helper;
+  char_code_at_generator.GenerateSlow(masm(), call_helper);
+
+  __ bind(&index_out_of_range);
+  __ LoadRoot(rax, Heap::kNanValueRootIndex);
+  __ ret((argc + 1) * kPointerSize);
+
+  __ bind(&miss);
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
+
+  // Return the generated code.
+  return GetCode(function);
+}
 
 
 Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,

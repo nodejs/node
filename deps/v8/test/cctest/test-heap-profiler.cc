@@ -372,6 +372,7 @@ TEST(RetainerProfile) {
   i::HeapIterator iterator;
   for (i::HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next())
     ret_profile.CollectStats(obj);
+  ret_profile.CoarseAndAggregate();
   RetainerProfilePrinter printer;
   ret_profile.DebugPrintStats(&printer);
   const char* retainers_of_a = printer.GetRetainers("A");
@@ -650,6 +651,8 @@ TEST(HeapSnapshotCodeObjects) {
   CompileAndRunScript(
       "function lazy(x) { return x - 1; }\n"
       "function compiled(x) { return x + 1; }\n"
+      "var inferred = function(x) { return x; }\n"
+      "var anonymous = (function() { return function() { return 0; } })();\n"
       "compiled(1)");
   const v8::HeapSnapshot* snapshot =
       v8::HeapProfiler::TakeSnapshot(v8::String::New("code"));
@@ -663,6 +666,18 @@ TEST(HeapSnapshotCodeObjects) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "lazy");
   CHECK_NE(NULL, lazy);
   CHECK_EQ(v8::HeapGraphNode::kClosure, lazy->GetType());
+  const v8::HeapGraphNode* inferred =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "inferred");
+  CHECK_NE(NULL, inferred);
+  CHECK_EQ(v8::HeapGraphNode::kClosure, inferred->GetType());
+  v8::String::AsciiValue inferred_name(inferred->GetName());
+  CHECK_EQ("inferred", *inferred_name);
+  const v8::HeapGraphNode* anonymous =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "anonymous");
+  CHECK_NE(NULL, anonymous);
+  CHECK_EQ(v8::HeapGraphNode::kClosure, anonymous->GetType());
+  v8::String::AsciiValue anonymous_name(anonymous->GetName());
+  CHECK_EQ("(anonymous function)", *anonymous_name);
 
   // Find references to code.
   const v8::HeapGraphNode* compiled_code =
@@ -862,6 +877,116 @@ TEST(Issue822) {
   i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
   // This call must not cause an assertion error in debug builds.
   i::HeapSnapshotTester::CalculateNetworkSize(*jsobj);
+}
+
+
+static const v8::HeapGraphNode* GetChild(
+    const v8::HeapGraphNode* node,
+    v8::HeapGraphNode::Type type,
+    const char* name,
+    const v8::HeapGraphNode* after = NULL) {
+  bool ignore_child = after == NULL ? false : true;
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = node->GetChild(i);
+    const v8::HeapGraphNode* child = prop->GetToNode();
+    v8::String::AsciiValue child_name(child->GetName());
+    if (!ignore_child
+        && child->GetType() == type
+        && strcmp(name, *child_name) == 0)
+      return child;
+    if (after != NULL && child == after) ignore_child = false;
+  }
+  return NULL;
+}
+
+static bool IsNodeRetainedAs(const v8::HeapGraphNode* node,
+                             int element) {
+  for (int i = 0, count = node->GetRetainersCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = node->GetRetainer(i);
+    if (prop->GetType() == v8::HeapGraphEdge::kElement
+        && element == prop->GetName()->Int32Value())
+      return true;
+  }
+  return false;
+}
+
+TEST(AggregatedHeapSnapshot) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileAndRunScript(
+      "function A() {}\n"
+      "function B(x) { this.x = x; }\n"
+      "var a = new A();\n"
+      "var b = new B(a);");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(
+          v8::String::New("agg"), v8::HeapSnapshot::kAggregated);
+  const v8::HeapGraphNode* strings = GetChild(snapshot->GetRoot(),
+                                              v8::HeapGraphNode::kInternal,
+                                              "STRING_TYPE");
+  CHECK_NE(NULL, strings);
+  CHECK_NE(0, strings->GetSelfSize());
+  CHECK_NE(0, strings->GetInstancesCount());
+  const v8::HeapGraphNode* maps = GetChild(snapshot->GetRoot(),
+                                           v8::HeapGraphNode::kInternal,
+                                           "MAP_TYPE");
+  CHECK_NE(NULL, maps);
+  CHECK_NE(0, maps->GetSelfSize());
+  CHECK_NE(0, maps->GetInstancesCount());
+
+  const v8::HeapGraphNode* a = GetChild(snapshot->GetRoot(),
+                                        v8::HeapGraphNode::kObject,
+                                        "A");
+  CHECK_NE(NULL, a);
+  CHECK_NE(0, a->GetSelfSize());
+  CHECK_EQ(1, a->GetInstancesCount());
+
+  const v8::HeapGraphNode* b = GetChild(snapshot->GetRoot(),
+                                        v8::HeapGraphNode::kObject,
+                                        "B");
+  CHECK_NE(NULL, b);
+  CHECK_NE(0, b->GetSelfSize());
+  CHECK_EQ(1, b->GetInstancesCount());
+
+  const v8::HeapGraphNode* glob_prop = GetChild(snapshot->GetRoot(),
+                                                v8::HeapGraphNode::kObject,
+                                                "(global property)",
+                                                b);
+  CHECK_NE(NULL, glob_prop);
+  CHECK_EQ(0, glob_prop->GetSelfSize());
+  CHECK_EQ(0, glob_prop->GetInstancesCount());
+  CHECK_NE(0, glob_prop->GetChildrenCount());
+
+  const v8::HeapGraphNode* a_from_glob_prop = GetChild(
+      glob_prop,
+      v8::HeapGraphNode::kObject,
+      "A");
+  CHECK_NE(NULL, a_from_glob_prop);
+  CHECK_EQ(0, a_from_glob_prop->GetSelfSize());
+  CHECK_EQ(0, a_from_glob_prop->GetInstancesCount());
+  CHECK_EQ(0, a_from_glob_prop->GetChildrenCount());  // Retains nothing.
+  CHECK(IsNodeRetainedAs(a_from_glob_prop, 1));  // (global propery) has 1 ref.
+
+  const v8::HeapGraphNode* b_with_children = GetChild(
+      snapshot->GetRoot(),
+      v8::HeapGraphNode::kObject,
+      "B",
+      b);
+  CHECK_NE(NULL, b_with_children);
+  CHECK_EQ(0, b_with_children->GetSelfSize());
+  CHECK_EQ(0, b_with_children->GetInstancesCount());
+  CHECK_NE(0, b_with_children->GetChildrenCount());
+
+  const v8::HeapGraphNode* a_from_b = GetChild(
+      b_with_children,
+      v8::HeapGraphNode::kObject,
+      "A");
+  CHECK_NE(NULL, a_from_b);
+  CHECK_EQ(0, a_from_b->GetSelfSize());
+  CHECK_EQ(0, a_from_b->GetInstancesCount());
+  CHECK_EQ(0, a_from_b->GetChildrenCount());  // Retains nothing.
+  CHECK(IsNodeRetainedAs(a_from_b, 1));  // B has 1 ref to A.
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

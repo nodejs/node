@@ -33,7 +33,6 @@
 #include "compiler.h"
 #include "data-flow.h"
 #include "debug.h"
-#include "flow-graph.h"
 #include "full-codegen.h"
 #include "liveedit.h"
 #include "oprofile-agent.h"
@@ -92,27 +91,6 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
     return Handle<Code>::null();
   }
 
-  if (function->scope()->num_parameters() > 0 ||
-      function->scope()->num_stack_slots()) {
-    AssignedVariablesAnalyzer ava(function);
-    ava.Analyze();
-    if (ava.HasStackOverflow()) {
-      return Handle<Code>::null();
-    }
-  }
-
-  if (FLAG_use_flow_graph) {
-    FlowGraphBuilder builder;
-    FlowGraph* graph = builder.Build(function);
-    USE(graph);
-
-#ifdef DEBUG
-    if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
-      graph->PrintAsText(function->name());
-    }
-#endif
-  }
-
   // Generate code and return it.  Code generator selection is governed by
   // which backends are enabled and whether the function is considered
   // run-once code or not:
@@ -126,17 +104,13 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
   bool is_run_once = (shared.is_null())
       ? info->scope()->is_global_scope()
       : (shared->is_toplevel() || shared->try_full_codegen());
-
-  if (AlwaysFullCompiler()) {
+  bool use_full = FLAG_full_compiler && !function->contains_loops();
+  if (AlwaysFullCompiler() || (use_full && is_run_once)) {
     return FullCodeGenerator::MakeCode(info);
-  } else if (FLAG_full_compiler && is_run_once) {
-    FullCodeGenSyntaxChecker checker;
-    checker.Check(function);
-    if (checker.has_supported_syntax()) {
-      return FullCodeGenerator::MakeCode(info);
-    }
   }
 
+  AssignedVariablesAnalyzer ava(function);
+  if (!ava.Analyze()) return Handle<Code>::null();
   return CodeGenerator::MakeCode(info);
 }
 
@@ -442,6 +416,9 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   // object last we avoid this.
   shared->set_scope_info(*SerializedScopeInfo::Create(info->scope()));
   shared->set_code(*code);
+  if (!info->closure().is_null()) {
+    info->closure()->set_code(*code);
+  }
 
   // Set the expected number of properties for instances.
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
@@ -454,6 +431,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
   // Check the function has compiled code.
   ASSERT(shared->is_compiled());
+  shared->set_code_age(0);
   return true;
 }
 
@@ -489,49 +467,19 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
       return Handle<SharedFunctionInfo>::null();
     }
 
-    if (literal->scope()->num_parameters() > 0 ||
-        literal->scope()->num_stack_slots()) {
-      AssignedVariablesAnalyzer ava(literal);
-      ava.Analyze();
-      if (ava.HasStackOverflow()) {
-        return Handle<SharedFunctionInfo>::null();
-      }
-    }
-
-    if (FLAG_use_flow_graph) {
-      FlowGraphBuilder builder;
-      FlowGraph* graph = builder.Build(literal);
-      USE(graph);
-
-#ifdef DEBUG
-      if (FLAG_print_graph_text && !builder.HasStackOverflow()) {
-        graph->PrintAsText(literal->name());
-      }
-#endif
-    }
-
     // Generate code and return it.  The way that the compilation mode
     // is controlled by the command-line flags is described in
     // the static helper function MakeCode.
     CompilationInfo info(literal, script, false);
 
     bool is_run_once = literal->try_full_codegen();
-    bool is_compiled = false;
-
-    if (AlwaysFullCompiler()) {
+    bool use_full = FLAG_full_compiler && !literal->contains_loops();
+    if (AlwaysFullCompiler() || (use_full && is_run_once)) {
       code = FullCodeGenerator::MakeCode(&info);
-      is_compiled = true;
-    } else if (FLAG_full_compiler && is_run_once) {
-      FullCodeGenSyntaxChecker checker;
-      checker.Check(literal);
-      if (checker.has_supported_syntax()) {
-        code = FullCodeGenerator::MakeCode(&info);
-        is_compiled = true;
-      }
-    }
-
-    if (!is_compiled) {
+    } else {
       // We fall back to the classic V8 code generator.
+      AssignedVariablesAnalyzer ava(literal);
+      if (!ava.Analyze()) return Handle<SharedFunctionInfo>::null();
       code = CodeGenerator::MakeCode(&info);
     }
 

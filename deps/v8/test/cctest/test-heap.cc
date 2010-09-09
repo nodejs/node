@@ -36,8 +36,8 @@ TEST(HeapMaps) {
   InitializeVM();
   CheckMap(Heap::meta_map(), MAP_TYPE, Map::kSize);
   CheckMap(Heap::heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
-  CheckMap(Heap::fixed_array_map(), FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
-  CheckMap(Heap::string_map(), STRING_TYPE, SeqTwoByteString::kAlignedSize);
+  CheckMap(Heap::fixed_array_map(), FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+  CheckMap(Heap::string_map(), STRING_TYPE, kVariableSizeSentinel);
 }
 
 
@@ -637,22 +637,27 @@ TEST(JSArray) {
   // Allocate the object.
   Handle<JSObject> object = Factory::NewJSObject(function);
   Handle<JSArray> array = Handle<JSArray>::cast(object);
-  array->Initialize(0);
+  Object* ok = array->Initialize(0);
+  // We just initialized the VM, no heap allocation failure yet.
+  CHECK(!ok->IsFailure());
 
   // Set array length to 0.
-  array->SetElementsLength(Smi::FromInt(0));
+  ok = array->SetElementsLength(Smi::FromInt(0));
+  CHECK(!ok->IsFailure());
   CHECK_EQ(Smi::FromInt(0), array->length());
   CHECK(array->HasFastElements());  // Must be in fast mode.
 
   // array[length] = name.
-  array->SetElement(0, *name);
+  ok = array->SetElement(0, *name);
+  CHECK(!ok->IsFailure());
   CHECK_EQ(Smi::FromInt(1), array->length());
   CHECK_EQ(array->GetElement(0), *name);
 
   // Set array length with larger than smi value.
   Handle<Object> length =
       Factory::NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
-  array->SetElementsLength(*length);
+  ok = array->SetElementsLength(*length);
+  CHECK(!ok->IsFailure());
 
   uint32_t int_length = 0;
   CHECK(length->ToArrayIndex(&int_length));
@@ -660,7 +665,8 @@ TEST(JSArray) {
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
-  array->SetElement(int_length, *name);
+  ok = array->SetElement(int_length, *name);
+  CHECK(!ok->IsFailure());
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
@@ -684,8 +690,11 @@ TEST(JSObjectCopy) {
   obj->SetProperty(*first, Smi::FromInt(1), NONE);
   obj->SetProperty(*second, Smi::FromInt(2), NONE);
 
-  obj->SetElement(0, *first);
-  obj->SetElement(1, *second);
+  Object* ok = obj->SetElement(0, *first);
+  CHECK(!ok->IsFailure());
+
+  ok = obj->SetElement(1, *second);
+  CHECK(!ok->IsFailure());
 
   // Make the clone.
   Handle<JSObject> clone = Copy(obj);
@@ -701,8 +710,10 @@ TEST(JSObjectCopy) {
   clone->SetProperty(*first, Smi::FromInt(2), NONE);
   clone->SetProperty(*second, Smi::FromInt(1), NONE);
 
-  clone->SetElement(0, *second);
-  clone->SetElement(1, *first);
+  ok = clone->SetElement(0, *second);
+  CHECK(!ok->IsFailure());
+  ok = clone->SetElement(1, *first);
+  CHECK(!ok->IsFailure());
 
   CHECK_EQ(obj->GetElement(1), clone->GetElement(0));
   CHECK_EQ(obj->GetElement(0), clone->GetElement(1));
@@ -973,9 +984,10 @@ TEST(TestCodeFlushing) {
   Heap::CollectAllGarbage(true);
   Heap::CollectAllGarbage(true);
 
-  // foo should still be in the compilation cache and therefore not
-  // have been removed.
   CHECK(function->shared()->is_compiled());
+
+  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(true);
   Heap::CollectAllGarbage(true);
   Heap::CollectAllGarbage(true);
   Heap::CollectAllGarbage(true);
@@ -983,7 +995,9 @@ TEST(TestCodeFlushing) {
 
   // foo should no longer be in the compilation cache
   CHECK(!function->shared()->is_compiled());
+  CHECK(!function->is_compiled());
   // Call foo to get it recompiled.
   CompileRun("foo()");
   CHECK(function->shared()->is_compiled());
+  CHECK(function->is_compiled());
 }

@@ -733,8 +733,15 @@ double StringToInt(String* str, int radix) {
 
 double StringToDouble(const char* str, int flags, double empty_string_val) {
   const char* end = str + StrLength(str);
-
   return InternalStringToDouble(str, end, flags, empty_string_val);
+}
+
+
+double StringToDouble(Vector<const char> str,
+                      int flags,
+                      double empty_string_val) {
+  const char* end = str.start() + str.length();
+  return InternalStringToDouble(str.start(), end, flags, empty_string_val);
 }
 
 

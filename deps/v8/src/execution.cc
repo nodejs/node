@@ -710,7 +710,7 @@ class SimpleStringResource : public Base {
       : data_(data),
         length_(length) {}
 
-  virtual ~SimpleStringResource() { delete data_; }
+  virtual ~SimpleStringResource() { delete[] data_; }
 
   virtual const Char* data() const { return data_; }
 

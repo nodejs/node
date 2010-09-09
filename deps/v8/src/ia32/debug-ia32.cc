@@ -94,22 +94,33 @@ void BreakLocationIterator::ClearDebugBreakAtSlot() {
 
 
 static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
-                                          RegList pointer_regs,
+                                          RegList object_regs,
+                                          RegList non_object_regs,
                                           bool convert_call_to_jmp) {
-  // Save the content of all general purpose registers in memory. This copy in
-  // memory is later pushed onto the JS expression stack for the fake JS frame
-  // generated and also to the C frame generated on top of that. In the JS
-  // frame ONLY the registers containing pointers will be pushed on the
-  // expression stack. This causes the GC to update these pointers so that
-  // they will have the correct value when returning from the debugger.
-  __ SaveRegistersToMemory(kJSCallerSaved);
-
   // Enter an internal frame.
   __ EnterInternalFrame();
 
-  // Store the registers containing object pointers on the expression stack to
-  // make sure that these are correctly updated during GC.
-  __ PushRegistersFromMemory(pointer_regs);
+  // Store the registers containing live values on the expression stack to
+  // make sure that these are correctly updated during GC. Non object values
+  // are stored as a smi causing it to be untouched by GC.
+  ASSERT((object_regs & ~kJSCallerSaved) == 0);
+  ASSERT((non_object_regs & ~kJSCallerSaved) == 0);
+  ASSERT((object_regs & non_object_regs) == 0);
+  for (int i = 0; i < kNumJSCallerSaved; i++) {
+    int r = JSCallerSavedCode(i);
+    Register reg = { r };
+    if ((object_regs & (1 << r)) != 0) {
+      __ push(reg);
+    }
+    if ((non_object_regs & (1 << r)) != 0) {
+      if (FLAG_debug_code) {
+        __ test(reg, Immediate(0xc0000000));
+        __ Assert(zero, "Unable to encode value as smi");
+      }
+      __ SmiTag(reg);
+      __ push(reg);
+    }
+  }
 
 #ifdef DEBUG
   __ RecordComment("// Calling from debug break to runtime - come in - over");
@@ -117,12 +128,25 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ Set(eax, Immediate(0));  // no arguments
   __ mov(ebx, Immediate(ExternalReference::debug_break()));
 
-  CEntryStub ceb(1, ExitFrame::MODE_DEBUG);
+  CEntryStub ceb(1);
   __ CallStub(&ceb);
 
   // Restore the register values containing object pointers from the expression
-  // stack in the reverse order as they where pushed.
-  __ PopRegistersToMemory(pointer_regs);
+  // stack.
+  for (int i = kNumJSCallerSaved; --i >= 0;) {
+    int r = JSCallerSavedCode(i);
+    Register reg = { r };
+    if (FLAG_debug_code) {
+      __ Set(reg, Immediate(kDebugZapValue));
+    }
+    if ((object_regs & (1 << r)) != 0) {
+      __ pop(reg);
+    }
+    if ((non_object_regs & (1 << r)) != 0) {
+      __ pop(reg);
+      __ SmiUntag(reg);
+    }
+  }
 
   // Get rid of the internal frame.
   __ LeaveInternalFrame();
@@ -130,11 +154,8 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // If this call did not replace a call but patched other code then there will
   // be an unwanted return address left on the stack. Here we get rid of that.
   if (convert_call_to_jmp) {
-    __ pop(eax);
+    __ add(Operand(esp), Immediate(kPointerSize));
   }
-
-  // Finally restore all registers.
-  __ RestoreRegistersFromMemory(kJSCallerSaved);
 
   // Now that the break point has been handled, resume normal execution by
   // jumping to the target address intended by the caller and that was
@@ -151,7 +172,7 @@ void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   //  -- eax    : receiver
   //  -- ecx    : name
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, eax.bit() | ecx.bit(), false);
+  Generate_DebugBreakCallHelper(masm, eax.bit() | ecx.bit(), 0, false);
 }
 
 
@@ -162,7 +183,8 @@ void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
   //  -- ecx    : name
   //  -- edx    : receiver
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, eax.bit() | ecx.bit() | edx.bit(), false);
+  Generate_DebugBreakCallHelper(
+      masm, eax.bit() | ecx.bit() | edx.bit(), 0, false);
 }
 
 
@@ -172,7 +194,7 @@ void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
   //  -- edx    : receiver
   //  -- eax    : key
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, eax.bit() | edx.bit(), false);
+  Generate_DebugBreakCallHelper(masm, eax.bit() | edx.bit(), 0, false);
 }
 
 
@@ -183,19 +205,17 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
   //  -- ecx    : key
   //  -- edx    : receiver
   // -----------------------------------
-  // Register eax contains an object that needs to be pushed on the
-  // expression stack of the fake JS frame.
-  Generate_DebugBreakCallHelper(masm, eax.bit() | ecx.bit() | edx.bit(), false);
+  Generate_DebugBreakCallHelper(
+      masm, eax.bit() | ecx.bit() | edx.bit(), 0, false);
 }
 
 
 void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC call call (from ic-ia32.cc)
   // ----------- S t a t e -------------
-  //  -- eax: number of arguments
+  //  -- ecx: name
   // -----------------------------------
-  // The number of arguments in eax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, 0, false);
+  Generate_DebugBreakCallHelper(masm, ecx.bit(), 0, false);
 }
 
 
@@ -204,10 +224,11 @@ void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
   // eax is the actual number of arguments not encoded as a smi see comment
   // above IC call.
   // ----------- S t a t e -------------
-  //  -- eax: number of arguments
+  //  -- eax: number of arguments (not smi)
+  //  -- edi: constructor function
   // -----------------------------------
   // The number of arguments in eax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, 0, false);
+  Generate_DebugBreakCallHelper(masm, edi.bit(), eax.bit(), false);
 }
 
 
@@ -216,7 +237,7 @@ void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax: return value
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, eax.bit(), true);
+  Generate_DebugBreakCallHelper(masm, eax.bit(), 0, true);
 }
 
 
@@ -225,7 +246,7 @@ void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  No registers used on entry.
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, 0, false);
+  Generate_DebugBreakCallHelper(masm, 0, 0, false);
 }
 
 
@@ -245,7 +266,7 @@ void Debug::GenerateSlot(MacroAssembler* masm) {
 void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
   // In the places where a debug break slot is inserted no registers can contain
   // object pointers.
-  Generate_DebugBreakCallHelper(masm, 0, true);
+  Generate_DebugBreakCallHelper(masm, 0, 0, true);
 }
 
 

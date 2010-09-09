@@ -99,13 +99,6 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Debugger Support
 
-  void SaveRegistersToMemory(RegList regs);
-  void RestoreRegistersFromMemory(RegList regs);
-  void PushRegistersFromMemory(RegList regs);
-  void PopRegistersToMemory(RegList regs);
-  void CopyRegistersFromStackToMemory(Register base,
-                                      Register scratch,
-                                      RegList regs);
   void DebugBreak();
 #endif
 
@@ -128,17 +121,24 @@ class MacroAssembler: public Assembler {
   // Expects the number of arguments in register eax and
   // sets up the number of arguments in register edi and the pointer
   // to the first argument in register esi.
-  void EnterExitFrame(ExitFrame::Mode mode);
+  void EnterExitFrame();
 
-  void EnterApiExitFrame(ExitFrame::Mode mode, int stack_space, int argc);
+  void EnterApiExitFrame(int stack_space, int argc);
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
   // argument in register esi.
-  void LeaveExitFrame(ExitFrame::Mode mode);
+  void LeaveExitFrame();
 
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
+
+  // Load the global function with the given index.
+  void LoadGlobalFunction(int index, Register function);
+
+  // Load the initial map from the global function. The registers
+  // function and map can be the same.
+  void LoadGlobalFunctionInitialMap(Register function, Register map);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -168,6 +168,9 @@ class MacroAssembler: public Assembler {
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag);
+
+  // Store the function for the given builtin in the target register.
+  void GetBuiltinFunction(Register target, Builtins::JavaScript id);
 
   // Store the code object for the given builtin in the target register.
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
@@ -264,6 +267,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is a smi. Used in debug code.
   void AbortIfSmi(Register object);
 
+  // Abort execution if argument is a string. Used in debug code.
+  void AbortIfNotString(Register object);
+
   // ---------------------------------------------------------------------------
   // Exception handling
 
@@ -350,6 +356,11 @@ class MacroAssembler: public Assembler {
                            Register scratch2,
                            Register scratch3,
                            Label* gc_required);
+  void AllocateAsciiString(Register result,
+                           int length,
+                           Register scratch1,
+                           Register scratch2,
+                           Label* gc_required);
 
   // Allocate a raw cons string object. Only the map field of the result is
   // initialized.
@@ -392,6 +403,12 @@ class MacroAssembler: public Assembler {
   // Generates code for reporting that an illegal operation has
   // occurred.
   void IllegalOperation(int num_arguments);
+
+  // Picks out an array index from the hash field.
+  // Register use:
+  //   hash - holds the index's hash. Clobbered.
+  //   index - holds the overwritten index on exit.
+  void IndexFromHash(Register hash, Register index);
 
   // ---------------------------------------------------------------------------
   // Runtime calls
@@ -508,6 +525,8 @@ class MacroAssembler: public Assembler {
   // Use --debug_code to enable.
   void Assert(Condition cc, const char* msg);
 
+  void AssertFastElements(Register elements);
+
   // Like Assert(), but always enabled.
   void Check(Condition cc, const char* msg);
 
@@ -559,8 +578,8 @@ class MacroAssembler: public Assembler {
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
 
-  void EnterExitFramePrologue(ExitFrame::Mode mode);
-  void EnterExitFrameEpilogue(ExitFrame::Mode mode, int argc);
+  void EnterExitFramePrologue();
+  void EnterExitFrameEpilogue(int argc);
 
   // Allocation support helpers.
   void LoadAllocationTopHelper(Register result,

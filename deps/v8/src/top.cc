@@ -69,7 +69,6 @@ void ThreadLocalTop::Initialize() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   js_entry_sp_ = 0;
 #endif
-  stack_is_cooked_ = false;
   try_catch_handler_address_ = NULL;
   context_ = NULL;
   int id = ThreadManager::CurrentId();
@@ -302,39 +301,6 @@ void Top::UnregisterTryCatchHandler(v8::TryCatch* that) {
   SimulatorStack::UnregisterCTryCatch();
 }
 
-
-void Top::MarkCompactPrologue(bool is_compacting) {
-  MarkCompactPrologue(is_compacting, &thread_local_);
-}
-
-
-void Top::MarkCompactPrologue(bool is_compacting, char* data) {
-  MarkCompactPrologue(is_compacting, reinterpret_cast<ThreadLocalTop*>(data));
-}
-
-
-void Top::MarkCompactPrologue(bool is_compacting, ThreadLocalTop* thread) {
-  if (is_compacting) {
-    StackFrame::CookFramesForThread(thread);
-  }
-}
-
-
-void Top::MarkCompactEpilogue(bool is_compacting, char* data) {
-  MarkCompactEpilogue(is_compacting, reinterpret_cast<ThreadLocalTop*>(data));
-}
-
-
-void Top::MarkCompactEpilogue(bool is_compacting) {
-  MarkCompactEpilogue(is_compacting, &thread_local_);
-}
-
-
-void Top::MarkCompactEpilogue(bool is_compacting, ThreadLocalTop* thread) {
-  if (is_compacting) {
-    StackFrame::UncookFramesForThread(thread);
-  }
-}
 
 
 static int stack_trace_nesting_level = 0;

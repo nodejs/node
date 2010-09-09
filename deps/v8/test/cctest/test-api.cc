@@ -37,6 +37,7 @@
 #include "top.h"
 #include "utils.h"
 #include "cctest.h"
+#include "parser.h"
 
 static const bool kLogThreading = true;
 
@@ -3602,6 +3603,29 @@ THREADED_TEST(ExceptionExtensions) {
   v8::ExtensionConfiguration extensions(1, extension_names);
   v8::Handle<Context> context = Context::New(&extensions);
   CHECK(context.IsEmpty());
+}
+
+
+static const char* kNativeCallInExtensionSource =
+    "function call_runtime_last_index_of(x) {"
+    "  return %StringLastIndexOf(x, 'bob', 10);"
+    "}";
+
+
+static const char* kNativeCallTest =
+    "call_runtime_last_index_of('bobbobboellebobboellebobbob');";
+
+// Test that a native runtime calls are supported in extensions.
+THREADED_TEST(NativeCallInExtensions) {
+  v8::HandleScope handle_scope;
+  v8::RegisterExtension(new Extension("nativecall",
+                                      kNativeCallInExtensionSource));
+  const char* extension_names[] = { "nativecall" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  Context::Scope lock(context);
+  v8::Handle<Value> result = Script::Compile(v8_str(kNativeCallTest))->Run();
+  CHECK_EQ(result, v8::Integer::New(3));
 }
 
 
@@ -8601,15 +8625,12 @@ TEST(PreCompileInvalidPreparseDataError) {
       v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK(!sd->HasError());
   // ScriptDataImpl private implementation details
-  const int kUnsignedSize = sizeof(unsigned);
-  const int kHeaderSize = 4;
-  const int kFunctionEntrySize = 4;
+  const int kHeaderSize = i::ScriptDataImpl::kHeaderSize;
+  const int kFunctionEntrySize = i::FunctionEntry::kSize;
   const int kFunctionEntryStartOffset = 0;
   const int kFunctionEntryEndOffset = 1;
   unsigned* sd_data =
       reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
-  CHECK_EQ(sd->Length(),
-           (kHeaderSize + 2 * kFunctionEntrySize) * kUnsignedSize);
 
   // Overwrite function bar's end position with 0.
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryEndOffset] = 0;
@@ -8625,6 +8646,8 @@ TEST(PreCompileInvalidPreparseDataError) {
   try_catch.Reset();
   // Overwrite function bar's start position with 200.  The function entry
   // will not be found when searching for it by position.
+  sd = v8::ScriptData::PreCompile(script, i::StrLength(script));
+  sd_data = reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
       200;
   compiled_script = Script::New(source, NULL, sd);
@@ -9203,6 +9226,7 @@ class RegExpStringModificationTest {
            morphs_ < kMaxModifications) {
       int morphs_before = morphs_;
       {
+        v8::HandleScope scope;
         // Match 15-30 "a"'s against 14 and a "b".
         const char* c_source =
             "/a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaa/"

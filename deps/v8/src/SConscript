@@ -62,7 +62,6 @@ SOURCES = {
     execution.cc
     factory.cc
     flags.cc
-    flow-graph.cc
     frame-element.cc
     frames.cc
     full-codegen.cc
@@ -121,6 +120,7 @@ SOURCES = {
     jump-target-light.cc
     virtual-frame-light.cc
     arm/builtins-arm.cc
+    arm/code-stubs-arm.cc
     arm/codegen-arm.cc
     arm/constants-arm.cc
     arm/cpu-arm.cc
@@ -159,6 +159,7 @@ SOURCES = {
     virtual-frame-heavy.cc
     ia32/assembler-ia32.cc
     ia32/builtins-ia32.cc
+    ia32/code-stubs-ia32.cc
     ia32/codegen-ia32.cc
     ia32/cpu-ia32.cc
     ia32/debug-ia32.cc
@@ -178,6 +179,7 @@ SOURCES = {
     virtual-frame-heavy.cc
     x64/assembler-x64.cc
     x64/builtins-x64.cc
+    x64/code-stubs-x64.cc
     x64/codegen-x64.cc
     x64/cpu-x64.cc
     x64/debug-x64.cc
@@ -200,7 +202,6 @@ SOURCES = {
   'os:android': ['platform-linux.cc', 'platform-posix.cc'],
   'os:macos':   ['platform-macos.cc', 'platform-posix.cc'],
   'os:solaris': ['platform-solaris.cc', 'platform-posix.cc'],
-  'os:cygwin':  ['platform-cygwin.cc', 'platform-posix.cc'],
   'os:nullos':  ['platform-nullos.cc'],
   'os:win32':   ['platform-win32.cc'],
   'mode:release': [],

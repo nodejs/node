@@ -36,6 +36,11 @@
 namespace v8 {
 namespace internal {
 
+PcToCodeCache::PcToCodeCacheEntry
+    PcToCodeCache::cache_[PcToCodeCache::kPcToCodeCacheSize];
+
+int SafeStackFrameIterator::active_count_ = 0;
+
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
 class StackHandlerIterator BASE_EMBEDDED {
@@ -88,7 +93,6 @@ StackFrameIterator::StackFrameIterator(bool use_top, Address fp, Address sp)
   if (use_top || fp != NULL) {
     Reset();
   }
-  JavaScriptFrame_.DisableHeapAccess();
 }
 
 #undef INITIALIZE_SINGLETON
@@ -201,7 +205,7 @@ bool StackTraceFrameIterator::IsValidFrame() {
 
 SafeStackFrameIterator::SafeStackFrameIterator(
     Address fp, Address sp, Address low_bound, Address high_bound) :
-    low_bound_(low_bound), high_bound_(high_bound),
+    maintainer_(), low_bound_(low_bound), high_bound_(high_bound),
     is_valid_top_(
         IsWithinBounds(low_bound, high_bound,
                        Top::c_entry_fp(Top::GetCurrentThread())) &&
@@ -302,68 +306,41 @@ void SafeStackTraceFrameIterator::Advance() {
 #endif
 
 
-// -------------------------------------------------------------------------
-
-
-void StackHandler::Cook(Code* code) {
-  ASSERT(code->contains(pc()));
-  set_pc(AddressFrom<Address>(pc() - code->instruction_start()));
-}
-
-
-void StackHandler::Uncook(Code* code) {
-  set_pc(code->instruction_start() + OffsetFrom(pc()));
-  ASSERT(code->contains(pc()));
-}
-
-
-// -------------------------------------------------------------------------
-
-
 bool StackFrame::HasHandler() const {
   StackHandlerIterator it(this, top_handler());
   return !it.done();
 }
 
-
-void StackFrame::CookFramesForThread(ThreadLocalTop* thread) {
-  ASSERT(!thread->stack_is_cooked());
-  for (StackFrameIterator it(thread); !it.done(); it.Advance()) {
-    it.frame()->Cook();
+void StackFrame::IteratePc(ObjectVisitor* v,
+                           Address* pc_address,
+                           Code* holder) {
+  Address pc = *pc_address;
+  ASSERT(holder->contains(pc));
+  unsigned pc_offset = static_cast<unsigned>(pc - holder->instruction_start());
+  Object* code = holder;
+  v->VisitPointer(&code);
+  if (code != holder) {
+    holder = reinterpret_cast<Code*>(code);
+    pc = holder->instruction_start() + pc_offset;
+    *pc_address = pc;
   }
-  thread->set_stack_is_cooked(true);
 }
 
 
-void StackFrame::UncookFramesForThread(ThreadLocalTop* thread) {
-  ASSERT(thread->stack_is_cooked());
-  for (StackFrameIterator it(thread); !it.done(); it.Advance()) {
-    it.frame()->Uncook();
+StackFrame::Type StackFrame::ComputeType(State* state) {
+  ASSERT(state->fp != NULL);
+  if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
+    return ARGUMENTS_ADAPTOR;
   }
-  thread->set_stack_is_cooked(false);
+  // The marker and function offsets overlap. If the marker isn't a
+  // smi then the frame is a JavaScript frame -- and the marker is
+  // really the function.
+  const int offset = StandardFrameConstants::kMarkerOffset;
+  Object* marker = Memory::Object_at(state->fp + offset);
+  if (!marker->IsSmi()) return JAVA_SCRIPT;
+  return static_cast<StackFrame::Type>(Smi::cast(marker)->value());
 }
 
-
-void StackFrame::Cook() {
-  Code* code = this->code();
-  ASSERT(code->IsCode());
-  for (StackHandlerIterator it(this, top_handler()); !it.done(); it.Advance()) {
-    it.handler()->Cook(code);
-  }
-  ASSERT(code->contains(pc()));
-  set_pc(AddressFrom<Address>(pc() - code->instruction_start()));
-}
-
-
-void StackFrame::Uncook() {
-  Code* code = this->code();
-  ASSERT(code->IsCode());
-  for (StackHandlerIterator it(this, top_handler()); !it.done(); it.Advance()) {
-    it.handler()->Uncook(code);
-  }
-  set_pc(code->instruction_start() + OffsetFrom(pc()));
-  ASSERT(code->contains(pc()));
-}
 
 
 StackFrame::Type StackFrame::GetCallerState(State* state) const {
@@ -372,8 +349,8 @@ StackFrame::Type StackFrame::GetCallerState(State* state) const {
 }
 
 
-Code* EntryFrame::code() const {
-  return Heap::js_entry_code();
+Code* EntryFrame::unchecked_code() const {
+  return Heap::raw_unchecked_js_entry_code();
 }
 
 
@@ -395,8 +372,8 @@ StackFrame::Type EntryFrame::GetCallerState(State* state) const {
 }
 
 
-Code* EntryConstructFrame::code() const {
-  return Heap::js_construct_entry_code();
+Code* EntryConstructFrame::unchecked_code() const {
+  return Heap::raw_unchecked_js_construct_entry_code();
 }
 
 
@@ -406,8 +383,8 @@ Object*& ExitFrame::code_slot() const {
 }
 
 
-Code* ExitFrame::code() const {
-  return Code::cast(code_slot());
+Code* ExitFrame::unchecked_code() const {
+  return reinterpret_cast<Code*>(code_slot());
 }
 
 
@@ -422,6 +399,14 @@ void ExitFrame::ComputeCallerState(State* state) const {
 
 void ExitFrame::SetCallerFp(Address caller_fp) {
   Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset) = caller_fp;
+}
+
+
+void ExitFrame::Iterate(ObjectVisitor* v) const {
+  // The arguments are traversed as part of the expression stack of
+  // the calling frame.
+  IteratePc(v, pc_address(), code());
+  v->VisitPointer(&code_slot());
 }
 
 
@@ -493,22 +478,65 @@ bool JavaScriptFrame::IsConstructor() const {
 }
 
 
-Code* JavaScriptFrame::code() const {
+Code* JavaScriptFrame::unchecked_code() const {
   JSFunction* function = JSFunction::cast(this->function());
-  return function->shared()->code();
+  return function->unchecked_code();
 }
 
 
-Code* ArgumentsAdaptorFrame::code() const {
+int JavaScriptFrame::GetProvidedParametersCount() const {
+  return ComputeParametersCount();
+}
+
+
+Address JavaScriptFrame::GetCallerStackPointer() const {
+  int arguments;
+  if (Heap::gc_state() != Heap::NOT_IN_GC ||
+      SafeStackFrameIterator::is_active()) {
+    // If the we are currently iterating the safe stack the
+    // arguments for frames are traversed as if they were
+    // expression stack elements of the calling frame. The reason for
+    // this rather strange decision is that we cannot access the
+    // function during mark-compact GCs when objects may have been marked.
+    // In fact accessing heap objects (like function->shared() below)
+    // at all during GC is problematic.
+    arguments = 0;
+  } else {
+    // Compute the number of arguments by getting the number of formal
+    // parameters of the function. We must remember to take the
+    // receiver into account (+1).
+    JSFunction* function = JSFunction::cast(this->function());
+    arguments = function->shared()->formal_parameter_count() + 1;
+  }
+  const int offset = StandardFrameConstants::kCallerSPOffset;
+  return fp() + offset + (arguments * kPointerSize);
+}
+
+
+Address ArgumentsAdaptorFrame::GetCallerStackPointer() const {
+  const int arguments = Smi::cast(GetExpression(0))->value();
+  const int offset = StandardFrameConstants::kCallerSPOffset;
+  return fp() + offset + (arguments + 1) * kPointerSize;
+}
+
+
+Address InternalFrame::GetCallerStackPointer() const {
+  // Internal frames have no arguments. The stack pointer of the
+  // caller is at a fixed offset from the frame pointer.
+  return fp() + StandardFrameConstants::kCallerSPOffset;
+}
+
+
+Code* ArgumentsAdaptorFrame::unchecked_code() const {
   return Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline);
 }
 
 
-Code* InternalFrame::code() const {
+Code* InternalFrame::unchecked_code() const {
   const int offset = InternalFrameConstants::kCodeOffset;
   Object* code = Memory::Object_at(fp() + offset);
   ASSERT(code != NULL);
-  return Code::cast(code);
+  return reinterpret_cast<Code*>(code);
 }
 
 
@@ -694,13 +722,14 @@ void EntryFrame::Iterate(ObjectVisitor* v) const {
   ASSERT(!it.done());
   StackHandler* handler = it.handler();
   ASSERT(handler->is_entry());
-  handler->Iterate(v);
-  // Make sure that there's the entry frame does not contain more than
-  // one stack handler.
+  handler->Iterate(v, code());
 #ifdef DEBUG
+  // Make sure that the entry frame does not contain more than one
+  // stack handler.
   it.Advance();
   ASSERT(it.done());
 #endif
+  IteratePc(v, pc_address(), code());
 }
 
 
@@ -717,7 +746,7 @@ void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
     v->VisitPointers(base, reinterpret_cast<Object**>(address));
     base = reinterpret_cast<Object**>(address + StackHandlerConstants::kSize);
     // Traverse the pointers in the handler itself.
-    handler->Iterate(v);
+    handler->Iterate(v, code());
   }
   v->VisitPointers(base, limit);
 }
@@ -725,6 +754,7 @@ void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
 
 void JavaScriptFrame::Iterate(ObjectVisitor* v) const {
   IterateExpressions(v);
+  IteratePc(v, pc_address(), code());
 
   // Traverse callee-saved registers, receiver, and parameters.
   const int kBaseOffset = JavaScriptFrameConstants::kSavedRegistersOffset;
@@ -739,6 +769,7 @@ void InternalFrame::Iterate(ObjectVisitor* v) const {
   // Internal frames only have object pointers on the expression stack
   // as they never have any arguments.
   IterateExpressions(v);
+  IteratePc(v, pc_address(), code());
 }
 
 
@@ -759,6 +790,56 @@ JavaScriptFrame* StackFrameLocator::FindJavaScriptFrame(int n) {
 
 // -------------------------------------------------------------------------
 
+
+Code* PcToCodeCache::GcSafeCastToCode(HeapObject* object, Address pc) {
+  Code* code = reinterpret_cast<Code*>(object);
+  ASSERT(code != NULL && code->contains(pc));
+  return code;
+}
+
+
+Code* PcToCodeCache::GcSafeFindCodeForPc(Address pc) {
+  // Check if the pc points into a large object chunk.
+  LargeObjectChunk* chunk = Heap::lo_space()->FindChunkContainingPc(pc);
+  if (chunk != NULL) return GcSafeCastToCode(chunk->GetObject(), pc);
+
+  // Iterate through the 8K page until we reach the end or find an
+  // object starting after the pc.
+  Page* page = Page::FromAddress(pc);
+  HeapObjectIterator iterator(page, Heap::GcSafeSizeOfOldObjectFunction());
+  HeapObject* previous = NULL;
+  while (true) {
+    HeapObject* next = iterator.next();
+    if (next == NULL || next->address() >= pc) {
+      return GcSafeCastToCode(previous, pc);
+    }
+    previous = next;
+  }
+}
+
+PcToCodeCache::PcToCodeCacheEntry* PcToCodeCache::GetCacheEntry(Address pc) {
+  Counters::pc_to_code.Increment();
+  ASSERT(IsPowerOf2(kPcToCodeCacheSize));
+  uint32_t hash = ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pc)));
+  uint32_t index = hash & (kPcToCodeCacheSize - 1);
+  PcToCodeCacheEntry* entry = cache(index);
+  if (entry->pc == pc) {
+    Counters::pc_to_code_cached.Increment();
+    ASSERT(entry->code == GcSafeFindCodeForPc(pc));
+  } else {
+    // Because this code may be interrupted by a profiling signal that
+    // also queries the cache, we cannot update pc before the code has
+    // been set. Otherwise, we risk trying to use a cache entry before
+    // the code has been computed.
+    entry->code = GcSafeFindCodeForPc(pc);
+    entry->pc = pc;
+  }
+  return entry;
+}
+
+
+// -------------------------------------------------------------------------
 
 int NumRegs(RegList reglist) {
   int n = 0;

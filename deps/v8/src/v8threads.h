@@ -105,8 +105,6 @@ class ThreadManager : public AllStatic {
 
   static void Iterate(ObjectVisitor* v);
   static void IterateArchivedThreads(ThreadVisitor* v);
-  static void MarkCompactPrologue(bool is_compacting);
-  static void MarkCompactEpilogue(bool is_compacting);
   static bool IsLockedByCurrentThread() { return mutex_owner_.IsSelf(); }
 
   static int CurrentId();

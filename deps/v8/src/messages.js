@@ -831,11 +831,11 @@ function FormatSourcePosition(frame) {
   }
   var line = "";
   var functionName = frame.getFunction().name;
-  var methodName = frame.getMethodName();
   var addPrefix = true;
   var isConstructor = frame.isConstructor();
   var isMethodCall = !(frame.isToplevel() || isConstructor);
   if (isMethodCall) {
+    var methodName = frame.getMethodName();
     line += frame.getTypeName() + ".";
     if (functionName) {
       line += functionName;

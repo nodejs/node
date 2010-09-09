@@ -50,35 +50,22 @@ StaticResource<Scanner::Utf8Decoder> Scanner::utf8_decoder_;
 // ----------------------------------------------------------------------------
 // UTF8Buffer
 
-UTF8Buffer::UTF8Buffer() : data_(NULL), limit_(NULL) { }
+UTF8Buffer::UTF8Buffer() : buffer_(kInitialCapacity) { }
 
 
-UTF8Buffer::~UTF8Buffer() {
-  if (data_ != NULL) DeleteArray(data_);
-}
+UTF8Buffer::~UTF8Buffer() {}
 
 
 void UTF8Buffer::AddCharSlow(uc32 c) {
-  static const int kCapacityGrowthLimit = 1 * MB;
-  if (cursor_ > limit_) {
-    int old_capacity = Capacity();
-    int old_position = pos();
-    int new_capacity =
-        Min(old_capacity * 3, old_capacity + kCapacityGrowthLimit);
-    char* new_data = NewArray<char>(new_capacity);
-    memcpy(new_data, data_, old_position);
-    DeleteArray(data_);
-    data_ = new_data;
-    cursor_ = new_data + old_position;
-    limit_ = ComputeLimit(new_data, new_capacity);
-    ASSERT(Capacity() == new_capacity && pos() == old_position);
-  }
-  if (static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
-    *cursor_++ = c;  // Common case: 7-bit ASCII.
-  } else {
-    cursor_ += unibrow::Utf8::Encode(cursor_, c);
-  }
-  ASSERT(pos() <= Capacity());
+  ASSERT(static_cast<unsigned>(c) > unibrow::Utf8::kMaxOneByteChar);
+  int length = unibrow::Utf8::Length(c);
+  Vector<char> block = buffer_.AddBlock(length, '\0');
+#ifdef DEBUG
+  int written_length = unibrow::Utf8::Encode(block.start(), c);
+  CHECK_EQ(length, written_length);
+#else
+  unibrow::Utf8::Encode(block.start(), c);
+#endif
 }
 
 
@@ -332,6 +319,26 @@ void KeywordMatcher::Step(uc32 input) {
 }
 
 
+
+// ----------------------------------------------------------------------------
+// Scanner::LiteralScope
+
+Scanner::LiteralScope::LiteralScope(Scanner* self)
+    : scanner_(self), complete_(false) {
+  self->StartLiteral();
+}
+
+
+Scanner::LiteralScope::~LiteralScope() {
+  if (!complete_) scanner_->DropLiteral();
+}
+
+
+void Scanner::LiteralScope::Complete() {
+  scanner_->TerminateLiteral();
+  complete_ = true;
+}
+
 // ----------------------------------------------------------------------------
 // Scanner
 
@@ -399,8 +406,10 @@ void Scanner::Init(Handle<String> source,
   // Set c0_ (one character ahead)
   ASSERT(kCharacterLookaheadBufferSize == 1);
   Advance();
-  // Initializer current_ to not refer to a literal buffer.
-  current_.literal_buffer = NULL;
+  // Initialize current_ to not refer to a literal.
+  current_.literal_chars = Vector<const char>();
+  // Reset literal buffer.
+  literal_buffer_.Reset();
 
   // Skip initial whitespace allowing HTML comment ends just like
   // after a newline and scan first token.
@@ -421,6 +430,7 @@ Token::Value Scanner::Next() {
     stack_overflow_ = true;
     next_.token = Token::ILLEGAL;
   } else {
+    has_line_terminator_before_next_ = false;
     Scan();
   }
   return current_.token;
@@ -428,24 +438,22 @@ Token::Value Scanner::Next() {
 
 
 void Scanner::StartLiteral() {
-  // Use the first buffer unless it's currently in use by the current_ token.
-  // In most cases we won't have two literals/identifiers in a row, so
-  // the second buffer won't be used very often and is unlikely to grow much.
-  UTF8Buffer* free_buffer =
-      (current_.literal_buffer != &literal_buffer_1_) ? &literal_buffer_1_
-                                                      : &literal_buffer_2_;
-  next_.literal_buffer = free_buffer;
-  free_buffer->Reset();
+  literal_buffer_.StartLiteral();
 }
 
 
 void Scanner::AddChar(uc32 c) {
-  next_.literal_buffer->AddChar(c);
+  literal_buffer_.AddChar(c);
 }
 
 
 void Scanner::TerminateLiteral() {
-  AddChar(0);
+  next_.literal_chars = literal_buffer_.EndLiteral();
+}
+
+
+void Scanner::DropLiteral() {
+  literal_buffer_.DropLiteral();
 }
 
 
@@ -575,7 +583,7 @@ Token::Value Scanner::ScanHtmlComment() {
 
 
 void Scanner::ScanJson() {
-  next_.literal_buffer = NULL;
+  next_.literal_chars = Vector<const char>();
   Token::Value token;
   has_line_terminator_before_next_ = false;
   do {
@@ -657,7 +665,7 @@ void Scanner::ScanJson() {
 Token::Value Scanner::ScanJsonString() {
   ASSERT_EQ('"', c0_);
   Advance();
-  StartLiteral();
+  LiteralScope literal(this);
   while (c0_ != '"' && c0_ > 0) {
     // Check for control character (0x00-0x1f) or unterminated string (<0).
     if (c0_ < 0x20) return Token::ILLEGAL;
@@ -691,7 +699,9 @@ Token::Value Scanner::ScanJsonString() {
           for (int i = 0; i < 4; i++) {
             Advance();
             int digit = HexValue(c0_);
-            if (digit < 0) return Token::ILLEGAL;
+            if (digit < 0) {
+              return Token::ILLEGAL;
+            }
             value = value * 16 + digit;
           }
           AddChar(value);
@@ -706,14 +716,14 @@ Token::Value Scanner::ScanJsonString() {
   if (c0_ != '"') {
     return Token::ILLEGAL;
   }
-  TerminateLiteral();
+  literal.Complete();
   Advance();
   return Token::STRING;
 }
 
 
 Token::Value Scanner::ScanJsonNumber() {
-  StartLiteral();
+  LiteralScope literal(this);
   if (c0_ == '-') AddCharAdvance();
   if (c0_ == '0') {
     AddCharAdvance();
@@ -733,7 +743,7 @@ Token::Value Scanner::ScanJsonNumber() {
       AddCharAdvance();
     } while (c0_ >= '0' && c0_ <= '9');
   }
-  if ((c0_ | 0x20) == 'e') {
+  if (AsciiAlphaToLower(c0_) == 'e') {
     AddCharAdvance();
     if (c0_ == '-' || c0_ == '+') AddCharAdvance();
     if (c0_ < '0' || c0_ > '9') return Token::ILLEGAL;
@@ -741,29 +751,28 @@ Token::Value Scanner::ScanJsonNumber() {
       AddCharAdvance();
     } while (c0_ >= '0' && c0_ <= '9');
   }
-  TerminateLiteral();
+  literal.Complete();
   return Token::NUMBER;
 }
 
 
 Token::Value Scanner::ScanJsonIdentifier(const char* text,
                                          Token::Value token) {
-  StartLiteral();
+  LiteralScope literal(this);
   while (*text != '\0') {
     if (c0_ != *text) return Token::ILLEGAL;
     Advance();
     text++;
   }
   if (kIsIdentifierPart.get(c0_)) return Token::ILLEGAL;
-  TerminateLiteral();
+  literal.Complete();
   return token;
 }
 
 
 void Scanner::ScanJavaScript() {
-  next_.literal_buffer = NULL;
+  next_.literal_chars = Vector<const char>();
   Token::Value token;
-  has_line_terminator_before_next_ = false;
   do {
     // Remember the position of the next token
     next_.location.beg_pos = source_pos();
@@ -1004,6 +1013,10 @@ void Scanner::ScanJavaScript() {
 void Scanner::SeekForward(int pos) {
   source_->SeekForward(pos - 1);
   Advance();
+  // This function is only called to seek to the location
+  // of the end of a function (at the "}" token). It doesn't matter
+  // whether there was a line terminator in the part we skip.
+  has_line_terminator_before_next_ = false;
   Scan();
 }
 
@@ -1098,7 +1111,7 @@ Token::Value Scanner::ScanString() {
   uc32 quote = c0_;
   Advance();  // consume quote
 
-  StartLiteral();
+  LiteralScope literal(this);
   while (c0_ != quote && c0_ >= 0 && !kIsLineTerminator.get(c0_)) {
     uc32 c = c0_;
     Advance();
@@ -1109,10 +1122,8 @@ Token::Value Scanner::ScanString() {
       AddChar(c);
     }
   }
-  if (c0_ != quote) {
-    return Token::ILLEGAL;
-  }
-  TerminateLiteral();
+  if (c0_ != quote) return Token::ILLEGAL;
+  literal.Complete();
 
   Advance();  // consume quote
   return Token::STRING;
@@ -1148,7 +1159,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
   enum { DECIMAL, HEX, OCTAL } kind = DECIMAL;
 
-  StartLiteral();
+  LiteralScope literal(this);
   if (seen_period) {
     // we have already seen a decimal point of the float
     AddChar('.');
@@ -1164,12 +1175,13 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         // hex number
         kind = HEX;
         AddCharAdvance();
-        if (!IsHexDigit(c0_))
+        if (!IsHexDigit(c0_)) {
           // we must have at least one hex digit after 'x'/'X'
           return Token::ILLEGAL;
-        while (IsHexDigit(c0_))
+        }
+        while (IsHexDigit(c0_)) {
           AddCharAdvance();
-
+        }
       } else if ('0' <= c0_ && c0_ <= '7') {
         // (possible) octal number
         kind = OCTAL;
@@ -1202,12 +1214,12 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     AddCharAdvance();
     if (c0_ == '+' || c0_ == '-')
       AddCharAdvance();
-    if (!IsDecimalDigit(c0_))
+    if (!IsDecimalDigit(c0_)) {
       // we must have at least one decimal digit after 'e'/'E'
       return Token::ILLEGAL;
+    }
     ScanDecimalDigits();
   }
-  TerminateLiteral();
 
   // The source character immediately following a numeric literal must
   // not be an identifier start or a decimal digit; see ECMA-262
@@ -1215,6 +1227,8 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   // if the value is 0).
   if (IsDecimalDigit(c0_) || kIsIdentifierStart.get(c0_))
     return Token::ILLEGAL;
+
+  literal.Complete();
 
   return Token::NUMBER;
 }
@@ -1235,7 +1249,7 @@ uc32 Scanner::ScanIdentifierUnicodeEscape() {
 Token::Value Scanner::ScanIdentifier() {
   ASSERT(kIsIdentifierStart.get(c0_));
 
-  StartLiteral();
+  LiteralScope literal(this);
   KeywordMatcher keyword_match;
 
   // Scan identifier start character.
@@ -1265,7 +1279,7 @@ Token::Value Scanner::ScanIdentifier() {
       Advance();
     }
   }
-  TerminateLiteral();
+  literal.Complete();
 
   return keyword_match.token();
 }
@@ -1295,36 +1309,32 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
   // Scan regular expression body: According to ECMA-262, 3rd, 7.8.5,
   // the scanner should pass uninterpreted bodies to the RegExp
   // constructor.
-  StartLiteral();
+  LiteralScope literal(this);
   if (seen_equal)
     AddChar('=');
 
   while (c0_ != '/' || in_character_class) {
-    if (kIsLineTerminator.get(c0_) || c0_ < 0)
-      return false;
+    if (kIsLineTerminator.get(c0_) || c0_ < 0) return false;
     if (c0_ == '\\') {  // escaped character
       AddCharAdvance();
-      if (kIsLineTerminator.get(c0_) || c0_ < 0)
-        return false;
+      if (kIsLineTerminator.get(c0_) || c0_ < 0) return false;
       AddCharAdvance();
     } else {  // unescaped character
-      if (c0_ == '[')
-        in_character_class = true;
-      if (c0_ == ']')
-        in_character_class = false;
+      if (c0_ == '[') in_character_class = true;
+      if (c0_ == ']') in_character_class = false;
       AddCharAdvance();
     }
   }
   Advance();  // consume '/'
 
-  TerminateLiteral();
+  literal.Complete();
 
   return true;
 }
 
 bool Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
-  StartLiteral();
+  LiteralScope literal(this);
   while (kIsIdentifierPart.get(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
@@ -1337,7 +1347,7 @@ bool Scanner::ScanRegExpFlags() {
     }
     AddCharAdvance();
   }
-  TerminateLiteral();
+  literal.Complete();
 
   next_.location.end_pos = source_pos() - 1;
   return true;

@@ -109,7 +109,7 @@ TEST(MIPS1) {
 
   __ bind(&C);
   __ xori(v1, a1, 0);
-  __ Branch(ne, &L, v1, Operand(0));
+  __ Branch(ne, &L, v1, Operand(0, RelocInfo::NONE));
   __ nop();
 
   __ jr(ra);

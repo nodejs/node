@@ -1809,6 +1809,7 @@ void Assembler::stc2(Coprocessor coproc,
 
 
 // Support for VFP.
+
 void Assembler::vldr(const DwVfpRegister dst,
                      const Register base,
                      int offset,
@@ -1820,6 +1821,7 @@ void Assembler::vldr(const DwVfpRegister dst,
   ASSERT(CpuFeatures::IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
+  ASSERT(offset >= 0);
   emit(cond | 0xD9*B20 | base.code()*B16 | dst.code()*B12 |
        0xB*B8 | ((offset / 4) & 255));
 }
@@ -1836,7 +1838,10 @@ void Assembler::vldr(const SwVfpRegister dst,
   ASSERT(CpuFeatures::IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
-  emit(cond | 0xD9*B20 | base.code()*B16 | dst.code()*B12 |
+  ASSERT(offset >= 0);
+  int sd, d;
+  dst.split_code(&sd, &d);
+  emit(cond | d*B22 | 0xD9*B20 | base.code()*B16 | sd*B12 |
        0xA*B8 | ((offset / 4) & 255));
 }
 
@@ -1852,8 +1857,28 @@ void Assembler::vstr(const DwVfpRegister src,
   ASSERT(CpuFeatures::IsEnabled(VFP3));
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
+  ASSERT(offset >= 0);
   emit(cond | 0xD8*B20 | base.code()*B16 | src.code()*B12 |
        0xB*B8 | ((offset / 4) & 255));
+}
+
+
+void Assembler::vstr(const SwVfpRegister src,
+                     const Register base,
+                     int offset,
+                     const Condition cond) {
+  // MEM(Rbase + offset) = SSrc.
+  // Instruction details available in ARM DDI 0406A, A8-786.
+  // cond(31-28) | 1101(27-24)| 1000(23-20) | Rbase(19-16) |
+  // Vdst(15-12) | 1010(11-8) | (offset/4)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(offset % 4 == 0);
+  ASSERT((offset / 4) < 256);
+  ASSERT(offset >= 0);
+  int sd, d;
+  src.split_code(&sd, &d);
+  emit(cond | d*B22 | 0xD8*B20 | base.code()*B16 | sd*B12 |
+       0xA*B8 | ((offset / 4) & 255));
 }
 
 
@@ -1959,8 +1984,10 @@ void Assembler::vmov(const SwVfpRegister dst,
   // Sd = Sm
   // Instruction details available in ARM DDI 0406B, A8-642.
   ASSERT(CpuFeatures::IsEnabled(VFP3));
-  emit(cond | 0xE*B24 | 0xB*B20 |
-       dst.code()*B12 | 0x5*B9 | B6 | src.code());
+  int sd, d, sm, m;
+  dst.split_code(&sd, &d);
+  src.split_code(&sm, &m);
+  emit(cond | 0xE*B24 | d*B22 | 0xB*B20 | sd*B12 | 0xA*B8 | B6 | m*B5 | sm);
 }
 
 
@@ -2014,8 +2041,9 @@ void Assembler::vmov(const SwVfpRegister dst,
   // Rt(15-12) | 1010(11-8) | N(7)=0 | 00(6-5) | 1(4) | 0000(3-0)
   ASSERT(CpuFeatures::IsEnabled(VFP3));
   ASSERT(!src.is(pc));
-  emit(cond | 0xE*B24 | (dst.code() >> 1)*B16 |
-       src.code()*B12 | 0xA*B8 | (0x1 & dst.code())*B7 | B4);
+  int sn, n;
+  dst.split_code(&sn, &n);
+  emit(cond | 0xE*B24 | sn*B16 | src.code()*B12 | 0xA*B8 | n*B7 | B4);
 }
 
 
@@ -2028,8 +2056,9 @@ void Assembler::vmov(const Register dst,
   // Rt(15-12) | 1010(11-8) | N(7)=0 | 00(6-5) | 1(4) | 0000(3-0)
   ASSERT(CpuFeatures::IsEnabled(VFP3));
   ASSERT(!dst.is(pc));
-  emit(cond | 0xE*B24 | B20 | (src.code() >> 1)*B16 |
-       dst.code()*B12 | 0xA*B8 | (0x1 & src.code())*B7 | B4);
+  int sn, n;
+  src.split_code(&sn, &n);
+  emit(cond | 0xE*B24 | B20 | sn*B16 | dst.code()*B12 | 0xA*B8 | n*B7 | B4);
 }
 
 
@@ -2079,16 +2108,21 @@ static bool IsDoubleVFPType(VFPType type) {
 }
 
 
-// Depending on split_last_bit split binary representation of reg_code into Vm:M
-// or M:Vm form (where M is single bit).
-static void SplitRegCode(bool split_last_bit,
+// Split five bit reg_code based on size of reg_type.
+//  32-bit register codes are Vm:M
+//  64-bit register codes are M:Vm
+// where Vm is four bits, and M is a single bit.
+static void SplitRegCode(VFPType reg_type,
                          int reg_code,
                          int* vm,
                          int* m) {
-  if (split_last_bit) {
+  ASSERT((reg_code >= 0) && (reg_code <= 31));
+  if (IsIntegerVFPType(reg_type) || !IsDoubleVFPType(reg_type)) {
+    // 32 bit type.
     *m  = reg_code & 0x1;
     *vm = reg_code >> 1;
   } else {
+    // 64 bit type.
     *m  = (reg_code & 0x10) >> 4;
     *vm = reg_code & 0x0F;
   }
@@ -2101,6 +2135,11 @@ static Instr EncodeVCVT(const VFPType dst_type,
                         const VFPType src_type,
                         const int src_code,
                         const Condition cond) {
+  ASSERT(src_type != dst_type);
+  int D, Vd, M, Vm;
+  SplitRegCode(src_type, src_code, &Vm, &M);
+  SplitRegCode(dst_type, dst_code, &Vd, &D);
+
   if (IsIntegerVFPType(dst_type) || IsIntegerVFPType(src_type)) {
     // Conversion between IEEE floating point and 32-bit integer.
     // Instruction details available in ARM DDI 0406B, A8.6.295.
@@ -2108,22 +2147,17 @@ static Instr EncodeVCVT(const VFPType dst_type,
     // Vd(15-12) | 101(11-9) | sz(8) | op(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
     ASSERT(!IsIntegerVFPType(dst_type) || !IsIntegerVFPType(src_type));
 
-    int sz, opc2, D, Vd, M, Vm, op;
+    int sz, opc2, op;
 
     if (IsIntegerVFPType(dst_type)) {
       opc2 = IsSignedVFPType(dst_type) ? 0x5 : 0x4;
       sz = IsDoubleVFPType(src_type) ? 0x1 : 0x0;
       op = 1;  // round towards zero
-      SplitRegCode(!IsDoubleVFPType(src_type), src_code, &Vm, &M);
-      SplitRegCode(true, dst_code, &Vd, &D);
     } else {
       ASSERT(IsIntegerVFPType(src_type));
-
       opc2 = 0x0;
       sz = IsDoubleVFPType(dst_type) ? 0x1 : 0x0;
       op = IsSignedVFPType(src_type) ? 0x1 : 0x0;
-      SplitRegCode(true, src_code, &Vm, &M);
-      SplitRegCode(!IsDoubleVFPType(dst_type), dst_code, &Vd, &D);
     }
 
     return (cond | 0xE*B24 | B23 | D*B22 | 0x3*B20 | B19 | opc2*B16 |
@@ -2133,13 +2167,7 @@ static Instr EncodeVCVT(const VFPType dst_type,
     // Instruction details available in ARM DDI 0406B, A8.6.298.
     // cond(31-28) | 11101(27-23)| D(22) | 11(21-20) | 0111(19-16) |
     // Vd(15-12) | 101(11-9) | sz(8) | 1(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
-    int sz, D, Vd, M, Vm;
-
-    ASSERT(IsDoubleVFPType(dst_type) != IsDoubleVFPType(src_type));
-    sz = IsDoubleVFPType(src_type) ? 0x1 : 0x0;
-    SplitRegCode(IsDoubleVFPType(src_type), dst_code, &Vd, &D);
-    SplitRegCode(!IsDoubleVFPType(src_type), src_code, &Vm, &M);
-
+    int sz = IsDoubleVFPType(src_type) ? 0x1 : 0x0;
     return (cond | 0xE*B24 | B23 | D*B22 | 0x3*B20 | 0x7*B16 |
             Vd*B12 | 0x5*B9 | sz*B8 | B7 | B6 | M*B5 | Vm);
   }

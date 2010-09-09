@@ -67,6 +67,8 @@ class StringsStorage {
   ~StringsStorage();
 
   const char* GetName(String* name);
+  inline const char* GetFunctionName(String* name);
+  inline const char* GetFunctionName(const char* name);
 
  private:
   INLINE(static bool StringsMatch(void* key1, void* key2)) {
@@ -297,10 +299,17 @@ class CpuProfilesCollection {
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(const Vector<CodeEntry*>& path);
 
+  // Limits the number of profiles that can be simultaneously collected.
+  static const int kMaxSimultaneousProfiles = 100;
+
  private:
-  INLINE(const char* GetFunctionName(String* name));
-  INLINE(const char* GetFunctionName(const char* name));
   const char* GetName(int args_count);
+  const char* GetFunctionName(String* name) {
+    return function_and_resource_names_.GetFunctionName(name);
+  }
+  const char* GetFunctionName(const char* name) {
+    return function_and_resource_names_.GetFunctionName(name);
+  }
   List<CpuProfile*>* GetProfilesList(int security_token_id);
   int TokenToIndex(int security_token_id);
 
@@ -498,7 +507,6 @@ class HeapEntry BASE_EMBEDDED {
   };
 
   HeapEntry() { }
-  void Init(HeapSnapshot* snapshot, int children_count, int retainers_count);
   void Init(HeapSnapshot* snapshot,
             Type type,
             const char* name,
@@ -640,12 +648,19 @@ class HeapSnapshotsDiff;
 // HeapSnapshotGenerator fills in a HeapSnapshot.
 class HeapSnapshot {
  public:
+  enum Type {
+    kFull = v8::HeapSnapshot::kFull,
+    kAggregated = v8::HeapSnapshot::kAggregated
+  };
+
   HeapSnapshot(HeapSnapshotsCollection* collection,
+               Type type,
                const char* title,
                unsigned uid);
   ~HeapSnapshot();
 
   HeapSnapshotsCollection* collection() { return collection_; }
+  Type type() { return type_; }
   const char* title() { return title_; }
   unsigned uid() { return uid_; }
   HeapEntry* root() { return entries_[root_entry_index_]; }
@@ -655,6 +670,12 @@ class HeapSnapshot {
   HeapEntry* AddEntry(
       HeapObject* object, int children_count, int retainers_count);
   bool WillAddEntry(HeapObject* object);
+  HeapEntry* AddEntry(HeapEntry::Type type,
+                      const char* name,
+                      uint64_t id,
+                      int size,
+                      int children_count,
+                      int retainers_count);
   int AddCalculatedData();
   HeapEntryCalculatedData& GetCalculatedData(int index) {
     return calculated_data_[index];
@@ -681,6 +702,7 @@ class HeapSnapshot {
   static int CalculateNetworkSize(JSObject* obj);
 
   HeapSnapshotsCollection* collection_;
+  Type type_;
   const char* title_;
   unsigned uid_;
   int root_entry_index_;
@@ -688,6 +710,9 @@ class HeapSnapshot {
   List<HeapEntry*> entries_;
   bool entries_sorted_;
   List<HeapEntryCalculatedData> calculated_data_;
+#ifdef DEBUG
+  int raw_entries_size_;
+#endif
 
   friend class HeapSnapshotTester;
 
@@ -792,12 +817,16 @@ class HeapSnapshotsCollection {
 
   bool is_tracking_objects() { return is_tracking_objects_; }
 
-  HeapSnapshot* NewSnapshot(const char* name, unsigned uid);
+  HeapSnapshot* NewSnapshot(
+      HeapSnapshot::Type type, const char* name, unsigned uid);
   void SnapshotGenerationFinished() { ids_.SnapshotGenerationFinished(); }
   List<HeapSnapshot*>* snapshots() { return &snapshots_; }
   HeapSnapshot* GetSnapshot(unsigned uid);
 
   const char* GetName(String* name) { return names_.GetName(name); }
+  const char* GetFunctionName(String* name) {
+    return names_.GetFunctionName(name);
+  }
 
   TokenEnumerator* token_enumerator() { return token_enumerator_; }
 
@@ -847,6 +876,8 @@ class HeapEntriesMap {
   int entries_count() { return entries_count_; }
   int total_children_count() { return total_children_count_; }
   int total_retainers_count() { return total_retainers_count_; }
+
+  static HeapEntry *const kHeapEntryPlaceholder;
 
  private:
   struct EntryInfo {
@@ -903,8 +934,6 @@ class HeapSnapshotGenerator {
                                    HeapEntry* child_entry) = 0;
     virtual void SetRootReference(Object* child_obj,
                                   HeapEntry* child_entry) = 0;
-
-    static HeapEntry *const kHeapEntryPlaceholder;
   };
 
   explicit HeapSnapshotGenerator(HeapSnapshot* snapshot);

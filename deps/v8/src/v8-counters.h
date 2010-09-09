@@ -67,6 +67,7 @@ namespace internal {
   SC(pcre_mallocs, V8.PcreMallocCount)                                \
   /* OS Memory allocated */                                           \
   SC(memory_allocated, V8.OsMemoryAllocated)                          \
+  SC(normalized_maps, V8.NormalizedMaps)                              \
   SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)            \
   SC(elements_to_dictionary, V8.ObjectElementsToDictionary)           \
   SC(alive_after_last_gc, V8.AliveAfterLastGC)                        \
@@ -84,6 +85,11 @@ namespace internal {
   SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
   SC(regexp_cache_hits, V8.RegExpCacheHits)                           \
   SC(regexp_cache_misses, V8.RegExpCacheMisses)                       \
+  SC(string_ctor_calls, V8.StringConstructorCalls)                    \
+  SC(string_ctor_conversions, V8.StringConstructorConversions)        \
+  SC(string_ctor_cached_number, V8.StringConstructorCachedNumber)     \
+  SC(string_ctor_string_value, V8.StringConstructorStringValue)       \
+  SC(string_ctor_gc_required, V8.StringConstructorGCRequired)         \
   /* Amount of evaled source code. */                                 \
   SC(total_eval_size, V8.TotalEvalSize)                               \
   /* Amount of loaded source code. */                                 \
@@ -92,6 +98,8 @@ namespace internal {
   SC(total_parse_size, V8.TotalParseSize)                             \
   /* Amount of source code skipped over using preparsing. */          \
   SC(total_preparse_skipped, V8.TotalPreparseSkipped)                 \
+  /* Number of symbol lookups skipped using preparsing */             \
+  SC(total_preparse_symbols_skipped, V8.TotalPreparseSymbolSkipped)   \
   /* Amount of compiled source code. */                               \
   SC(total_compile_size, V8.TotalCompileSize)                         \
   /* Amount of source code compiled with the old codegen. */          \
@@ -101,7 +109,10 @@ namespace internal {
   /* Number of contexts created from scratch. */                      \
   SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)    \
   /* Number of contexts created by partial snapshot. */               \
-  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)
+  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)      \
+  /* Number of code objects found from pc. */                         \
+  SC(pc_to_code, V8.PcToCode)                                         \
+  SC(pc_to_code_cached, V8.PcToCodeCached)
 
 
 #define STATS_COUNTER_LIST_2(SC)                                      \
@@ -120,6 +131,8 @@ namespace internal {
      V8.GCCompactorCausedByWeakHandles)                               \
   SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                   \
   SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)         \
+  SC(map_slow_to_fast_elements, V8.MapSlowToFastElements)             \
+  SC(map_fast_to_slow_elements, V8.MapFastToSlowElements)             \
   /* How is the generic keyed-load stub used? */                      \
   SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                  \
   SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)            \
@@ -155,6 +168,9 @@ namespace internal {
   SC(named_store_global_inline_miss, V8.NamedStoreGlobalInlineMiss)   \
   SC(store_normal_miss, V8.StoreNormalMiss)                           \
   SC(store_normal_hit, V8.StoreNormalHit)                             \
+  SC(cow_arrays_created_stub, V8.COWArraysCreatedStub)                \
+  SC(cow_arrays_created_runtime, V8.COWArraysCreatedRuntime)          \
+  SC(cow_arrays_converted, V8.COWArraysConverted)                     \
   SC(call_miss, V8.CallMiss)                                          \
   SC(keyed_call_miss, V8.KeyedCallMiss)                               \
   SC(load_miss, V8.LoadMiss)                                          \
@@ -189,6 +205,7 @@ namespace internal {
   SC(string_add_runtime_ext_to_ascii, V8.StringAddRuntimeExtToAscii)  \
   SC(sub_string_runtime, V8.SubStringRuntime)                         \
   SC(sub_string_native, V8.SubStringNative)                           \
+  SC(string_add_make_two_char, V8.StringAddMakeTwoChar)               \
   SC(string_compare_native, V8.StringCompareNative)                   \
   SC(string_compare_runtime, V8.StringCompareRuntime)                 \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                     \

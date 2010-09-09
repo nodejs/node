@@ -277,6 +277,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\x64\code-stubs-x64.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\x64\code-stubs-x64.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\code.h"
 				>
 			</File>

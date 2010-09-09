@@ -117,17 +117,17 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // the target and the fall-through.
   virtual void Branch(Condition cc, Hint hint = no_hint);
   virtual void Branch(Condition cc, Result* arg, Hint hint = no_hint);
-  virtual void Branch(Condition cc,
-                      Result* arg0,
-                      Result* arg1,
-                      Hint hint = no_hint);
+  void Branch(Condition cc,
+              Result* arg0,
+              Result* arg1,
+              Hint hint = no_hint);
 
   // Bind a jump target.  If there is no current frame at the binding
   // site, there must be at least one frame reaching via a forward
   // jump.
   virtual void Bind();
   virtual void Bind(Result* arg);
-  virtual void Bind(Result* arg0, Result* arg1);
+  void Bind(Result* arg0, Result* arg1);
 
   // Emit a call to a jump target.  There must be a current frame at
   // the call.  The frame at the target is the same as the current

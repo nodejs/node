@@ -25,12 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <algorithm>
+
 #include <google_breakpad/processor/minidump.h>
-#include <processor/logging.h>
 
 #define ENABLE_DEBUGGER_SUPPORT
 
@@ -128,6 +128,9 @@ void DumpHeapStats(const char *minidump_file) {
       thread_list->GetThreadByID(exception_thread_id);
   CHECK(exception_thread);
 
+  // Currently only 32-bit Windows minidumps are supported.
+  CHECK_EQ(MD_CONTEXT_X86, crash_context->GetContextCPU());
+
   const MDRawContextX86* contextX86 = crash_context->GetContextX86();
   CHECK(contextX86);
 
@@ -145,7 +148,7 @@ void DumpHeapStats(const char *minidump_file) {
     if (value >= esp && value < last) {
       u_int32_t value2 = 0;
       CHECK(memory_region->GetMemoryAtAddress(value, &value2));
-      if (value2 == 0xdecade00) {
+      if (value2 == v8::internal::HeapStats::kStartMarker) {
         heap_stats_addr = addr;
         break;
       }
@@ -158,8 +161,8 @@ void DumpHeapStats(const char *minidump_file) {
 #define READ_FIELD(offset) \
   ReadPointedValue(memory_region, heap_stats_addr, offset)
 
-  CHECK(READ_FIELD(0) == 0xdecade00);
-  CHECK(READ_FIELD(23) == 0xdecade01);
+  CHECK(READ_FIELD(0) == v8::internal::HeapStats::kStartMarker);
+  CHECK(READ_FIELD(24) == v8::internal::HeapStats::kEndMarker);
 
   const int new_space_size = READ_FIELD(1);
   const int new_space_capacity = READ_FIELD(2);
@@ -181,6 +184,7 @@ void DumpHeapStats(const char *minidump_file) {
   const int destroyed_global_handle_count = READ_FIELD(18);
   const int memory_allocator_size = READ_FIELD(19);
   const int memory_allocator_capacity = READ_FIELD(20);
+  const int os_error = READ_FIELD(23);
 #undef READ_FIELD
 
   int objects_per_type[v8::internal::LAST_TYPE + 1] = {0};
@@ -213,9 +217,9 @@ void DumpHeapStats(const char *minidump_file) {
 
   // Print heap stats.
 
-  printf("exception thread ID: %d (%x)\n",
+  printf("exception thread ID: %" PRIu32 " (%#" PRIx32 ")\n",
          exception_thread_id, exception_thread_id);
-  printf("heap stats address: %p\n", (void*)heap_stats_addr);
+  printf("heap stats address: %#" PRIx64 "\n", heap_stats_addr);
 #define PRINT_INT_STAT(stat) \
     printf("\t%-25s\t% 10d\n", #stat ":", stat);
 #define PRINT_MB_STAT(stat) \
@@ -240,6 +244,7 @@ void DumpHeapStats(const char *minidump_file) {
   PRINT_INT_STAT(destroyed_global_handle_count);
   PRINT_MB_STAT(memory_allocator_size);
   PRINT_MB_STAT(memory_allocator_capacity);
+  PRINT_INT_STAT(os_error);
 #undef PRINT_STAT
 
   printf("\n");
@@ -255,15 +260,15 @@ void DumpHeapStats(const char *minidump_file) {
     const char* name = InstanceTypeToString(type);
     if (name == NULL) {
       // Unknown instance type.  Check that there is no objects of that type.
-      CHECK(objects_per_type[type] == 0);
-      CHECK(size_per_type[type] == 0);
+      CHECK_EQ(0, objects_per_type[type]);
+      CHECK_EQ(0, size_per_type[type]);
       continue;
     }
     int size = size_per_type[type];
     running_size += size;
     printf("\t%-37s% 9d% 11.3f MB% 10.3f%%% 10.3f%%\n",
            name, objects_per_type[type], toM(size),
-           100.*size/total_size, 100.*running_size/total_size);
+           100. * size / total_size, 100. * running_size / total_size);
   }
   printf("\t%-37s% 9d% 11.3f MB% 10.3f%%% 10.3f%%\n",
          "total", 0, toM(total_size), 100., 100.);
@@ -272,8 +277,6 @@ void DumpHeapStats(const char *minidump_file) {
 }  // namespace
 
 int main(int argc, char **argv) {
-  BPLOG_INIT(&argc, &argv);
-
   if (argc != 2) {
     fprintf(stderr, "usage: %s <minidump>\n", argv[0]);
     return 1;

@@ -34,6 +34,14 @@ namespace v8 {
 namespace internal {
 
 
+// If c is in 'A'-'Z' or 'a'-'z', return its lower-case.
+// Else, return something outside of 'A'-'Z' and 'a'-'z'.
+// Note: it ignores LOCALE.
+inline int AsciiAlphaToLower(uc32 c) {
+  return c | 0x20;
+}
+
+
 inline bool IsCarriageReturn(uc32 c) {
   return c == 0x000D;
 }
@@ -59,12 +67,12 @@ inline bool IsDecimalDigit(uc32 c) {
 
 inline bool IsHexDigit(uc32 c) {
   // ECMA-262, 3rd, 7.6 (p 15)
-  return IsDecimalDigit(c) || IsInRange(c | 0x20, 'a', 'f');
+  return IsDecimalDigit(c) || IsInRange(AsciiAlphaToLower(c), 'a', 'f');
 }
 
 
 inline bool IsRegExpWord(uc16 c) {
-  return IsInRange(c | 0x20, 'a', 'z')
+  return IsInRange(AsciiAlphaToLower(c), 'a', 'z')
       || IsDecimalDigit(c)
       || (c == '_');
 }

@@ -29,6 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
+#include "code-stubs.h"
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"
@@ -216,8 +217,24 @@ void FullCodeGenerator::EmitReturnSequence() {
     // Check that the size of the code used for returning matches what is
     // expected by the debugger.
     ASSERT_EQ(Assembler::kJSReturnSequenceLength,
-            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+              masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
+  }
+}
+
+
+FullCodeGenerator::ConstantOperand FullCodeGenerator::GetConstantOperand(
+    Token::Value op, Expression* left, Expression* right) {
+  ASSERT(ShouldInlineSmiCase(op));
+  if (op == Token::DIV || op == Token::MOD || op == Token::MUL) {
+    // We never generate inlined constant smi operations for these.
+    return kNoConstants;
+  } else if (right->IsSmiLiteral()) {
+    return kRightConstant;
+  } else if (left->IsSmiLiteral() && !Token::IsShiftOp(op)) {
+    return kLeftConstant;
+  } else {
+    return kNoConstants;
   }
 }
 
@@ -246,20 +263,7 @@ void FullCodeGenerator::Apply(Expression::Context context, Register reg) {
     case Expression::kTest:
       // For simplicity we always test the accumulator register.
       if (!reg.is(result_register())) __ mov(result_register(), reg);
-      DoTest(context);
-      break;
-
-    case Expression::kValueTest:
-    case Expression::kTestValue:
-      if (!reg.is(result_register())) __ mov(result_register(), reg);
-      switch (location_) {
-        case kAccumulator:
-          break;
-        case kStack:
-          __ push(result_register());
-          break;
-      }
-      DoTest(context);
+      DoTest(true_label_, false_label_, fall_through_);
       break;
   }
 }
@@ -289,20 +293,7 @@ void FullCodeGenerator::Apply(Expression::Context context, Slot* slot) {
     case Expression::kTest:
       // For simplicity we always test the accumulator register.
       Move(result_register(), slot);
-      DoTest(context);
-      break;
-
-    case Expression::kValueTest:
-    case Expression::kTestValue:
-      Move(result_register(), slot);
-      switch (location_) {
-        case kAccumulator:
-          break;
-        case kStack:
-          __ push(result_register());
-          break;
-      }
-      DoTest(context);
+      DoTest(true_label_, false_label_, fall_through_);
       break;
   }
 }
@@ -330,20 +321,7 @@ void FullCodeGenerator::Apply(Expression::Context context, Literal* lit) {
     case Expression::kTest:
       // For simplicity we always test the accumulator register.
       __ mov(result_register(), lit->handle());
-      DoTest(context);
-      break;
-
-    case Expression::kValueTest:
-    case Expression::kTestValue:
-      __ mov(result_register(), lit->handle());
-      switch (location_) {
-        case kAccumulator:
-          break;
-        case kStack:
-          __ push(result_register());
-          break;
-      }
-      DoTest(context);
+      DoTest(true_label_, false_label_, fall_through_);
       break;
   }
 }
@@ -371,20 +349,7 @@ void FullCodeGenerator::ApplyTOS(Expression::Context context) {
     case Expression::kTest:
       // For simplicity we always test the accumulator register.
       __ pop(result_register());
-      DoTest(context);
-      break;
-
-    case Expression::kValueTest:
-    case Expression::kTestValue:
-      switch (location_) {
-        case kAccumulator:
-          __ pop(result_register());
-          break;
-        case kStack:
-          __ mov(result_register(), Operand(esp, 0));
-          break;
-      }
-      DoTest(context);
+      DoTest(true_label_, false_label_, fall_through_);
       break;
   }
 }
@@ -420,56 +385,7 @@ void FullCodeGenerator::DropAndApply(int count,
       // For simplicity we always test the accumulator register.
       __ Drop(count);
       if (!reg.is(result_register())) __ mov(result_register(), reg);
-      DoTest(context);
-      break;
-
-    case Expression::kValueTest:
-    case Expression::kTestValue:
-      switch (location_) {
-        case kAccumulator:
-          __ Drop(count);
-          if (!reg.is(result_register())) __ mov(result_register(), reg);
-          break;
-        case kStack:
-          if (count > 1) __ Drop(count - 1);
-          __ mov(result_register(), reg);
-          __ mov(Operand(esp, 0), result_register());
-          break;
-      }
-      DoTest(context);
-      break;
-  }
-}
-
-
-void FullCodeGenerator::PrepareTest(Label* materialize_true,
-                                    Label* materialize_false,
-                                    Label** if_true,
-                                    Label** if_false) {
-  switch (context_) {
-    case Expression::kUninitialized:
-      UNREACHABLE();
-      break;
-    case Expression::kEffect:
-      // In an effect context, the true and the false case branch to the
-      // same label.
-      *if_true = *if_false = materialize_true;
-      break;
-    case Expression::kValue:
-      *if_true = materialize_true;
-      *if_false = materialize_false;
-      break;
-    case Expression::kTest:
-      *if_true = true_label_;
-      *if_false = false_label_;
-      break;
-    case Expression::kValueTest:
-      *if_true = materialize_true;
-      *if_false = false_label_;
-      break;
-    case Expression::kTestValue:
-      *if_true = true_label_;
-      *if_false = materialize_false;
+      DoTest(true_label_, false_label_, fall_through_);
       break;
   }
 }
@@ -510,32 +426,6 @@ void FullCodeGenerator::Apply(Expression::Context context,
 
     case Expression::kTest:
       break;
-
-    case Expression::kValueTest:
-      __ bind(materialize_true);
-      switch (location_) {
-        case kAccumulator:
-          __ mov(result_register(), Factory::true_value());
-          break;
-        case kStack:
-          __ push(Immediate(Factory::true_value()));
-          break;
-      }
-      __ jmp(true_label_);
-      break;
-
-    case Expression::kTestValue:
-      __ bind(materialize_false);
-      switch (location_) {
-        case kAccumulator:
-          __ mov(result_register(), Factory::false_value());
-          break;
-        case kStack:
-          __ push(Immediate(Factory::false_value()));
-          break;
-      }
-      __ jmp(false_label_);
-      break;
   }
 }
 
@@ -563,78 +453,19 @@ void FullCodeGenerator::Apply(Expression::Context context, bool flag) {
       break;
     }
     case Expression::kTest:
-      __ jmp(flag ? true_label_ : false_label_);
-      break;
-    case Expression::kTestValue:
-      switch (location_) {
-        case kAccumulator:
-          // If value is false it's needed.
-          if (!flag) __ mov(result_register(), Factory::false_value());
-          break;
-        case kStack:
-          // If value is false it's needed.
-          if (!flag) __ push(Immediate(Factory::false_value()));
-          break;
+      if (flag) {
+        if (true_label_ != fall_through_) __ jmp(true_label_);
+      } else {
+        if (false_label_ != fall_through_) __ jmp(false_label_);
       }
-      __ jmp(flag ? true_label_ : false_label_);
-      break;
-    case Expression::kValueTest:
-      switch (location_) {
-        case kAccumulator:
-          // If value is true it's needed.
-          if (flag) __ mov(result_register(), Factory::true_value());
-          break;
-        case kStack:
-          // If value is true it's needed.
-          if (flag) __ push(Immediate(Factory::true_value()));
-          break;
-      }
-      __ jmp(flag ? true_label_ : false_label_);
       break;
   }
 }
 
 
-void FullCodeGenerator::DoTest(Expression::Context context) {
-  // The value to test is in the accumulator.  If the value might be needed
-  // on the stack (value/test and test/value contexts with a stack location
-  // desired), then the value is already duplicated on the stack.
-  ASSERT_NE(NULL, true_label_);
-  ASSERT_NE(NULL, false_label_);
-
-  // In value/test and test/value expression contexts with stack as the
-  // desired location, there is already an extra value on the stack.  Use a
-  // label to discard it if unneeded.
-  Label discard;
-  Label* if_true = true_label_;
-  Label* if_false = false_label_;
-  switch (context) {
-    case Expression::kUninitialized:
-    case Expression::kEffect:
-    case Expression::kValue:
-      UNREACHABLE();
-    case Expression::kTest:
-      break;
-    case Expression::kValueTest:
-      switch (location_) {
-        case kAccumulator:
-          break;
-        case kStack:
-          if_false = &discard;
-          break;
-      }
-      break;
-    case Expression::kTestValue:
-      switch (location_) {
-        case kAccumulator:
-          break;
-        case kStack:
-          if_true = &discard;
-          break;
-      }
-      break;
-  }
-
+void FullCodeGenerator::DoTest(Label* if_true,
+                               Label* if_false,
+                               Label* fall_through) {
   // Emit the inlined tests assumed by the stub.
   __ cmp(result_register(), Factory::undefined_value());
   __ j(equal, if_false);
@@ -648,83 +479,28 @@ void FullCodeGenerator::DoTest(Expression::Context context) {
   __ test(result_register(), Immediate(kSmiTagMask));
   __ j(zero, if_true);
 
-  // Save a copy of the value if it may be needed and isn't already saved.
-  switch (context) {
-    case Expression::kUninitialized:
-    case Expression::kEffect:
-    case Expression::kValue:
-      UNREACHABLE();
-    case Expression::kTest:
-      break;
-    case Expression::kValueTest:
-      switch (location_) {
-        case kAccumulator:
-          __ push(result_register());
-          break;
-        case kStack:
-          break;
-      }
-      break;
-    case Expression::kTestValue:
-      switch (location_) {
-        case kAccumulator:
-          __ push(result_register());
-          break;
-        case kStack:
-          break;
-      }
-      break;
-  }
-
   // Call the ToBoolean stub for all other cases.
   ToBooleanStub stub;
   __ push(result_register());
   __ CallStub(&stub);
   __ test(eax, Operand(eax));
 
-  // The stub returns nonzero for true.  Complete based on the context.
-  switch (context) {
-    case Expression::kUninitialized:
-    case Expression::kEffect:
-    case Expression::kValue:
-      UNREACHABLE();
+  // The stub returns nonzero for true.
+  Split(not_zero, if_true, if_false, fall_through);
+}
 
-    case Expression::kTest:
-      __ j(not_zero, true_label_);
-      __ jmp(false_label_);
-      break;
 
-    case Expression::kValueTest:
-      switch (location_) {
-        case kAccumulator:
-          __ j(zero, &discard);
-          __ pop(result_register());
-          __ jmp(true_label_);
-          break;
-        case kStack:
-          __ j(not_zero, true_label_);
-          break;
-      }
-      __ bind(&discard);
-      __ Drop(1);
-      __ jmp(false_label_);
-      break;
-
-    case Expression::kTestValue:
-      switch (location_) {
-        case kAccumulator:
-          __ j(not_zero, &discard);
-          __ pop(result_register());
-          __ jmp(false_label_);
-          break;
-        case kStack:
-          __ j(zero, false_label_);
-          break;
-      }
-      __ bind(&discard);
-      __ Drop(1);
-      __ jmp(true_label_);
-      break;
+void FullCodeGenerator::Split(Condition cc,
+                              Label* if_true,
+                              Label* if_false,
+                              Label* fall_through) {
+  if (if_false == fall_through) {
+    __ j(cc, if_true);
+  } else if (if_true == fall_through) {
+    __ j(NegateCondition(cc), if_false);
+  } else {
+    __ j(cc, if_true);
+    __ jmp(if_false);
   }
 }
 
@@ -908,20 +684,21 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // Compile the label expression.
     VisitForValue(clause->label(), kAccumulator);
 
-    // Perform the comparison as if via '==='.  The comparison stub expects
-    // the smi vs. smi case to be handled before it is called.
-    Label slow_case;
+    // Perform the comparison as if via '==='.
     __ mov(edx, Operand(esp, 0));  // Switch value.
-    __ mov(ecx, edx);
-    __ or_(ecx, Operand(eax));
-    __ test(ecx, Immediate(kSmiTagMask));
-    __ j(not_zero, &slow_case, not_taken);
-    __ cmp(edx, Operand(eax));
-    __ j(not_equal, &next_test);
-    __ Drop(1);  // Switch value is no longer needed.
-    __ jmp(clause->body_target()->entry_label());
+    if (ShouldInlineSmiCase(Token::EQ_STRICT)) {
+      Label slow_case;
+      __ mov(ecx, edx);
+      __ or_(ecx, Operand(eax));
+      __ test(ecx, Immediate(kSmiTagMask));
+      __ j(not_zero, &slow_case, not_taken);
+      __ cmp(edx, Operand(eax));
+      __ j(not_equal, &next_test);
+      __ Drop(1);  // Switch value is no longer needed.
+      __ jmp(clause->body_target()->entry_label());
+      __ bind(&slow_case);
+    }
 
-    __ bind(&slow_case);
     CompareStub stub(equal, true);
     __ CallStub(&stub);
     __ test(eax, Operand(eax));
@@ -1203,7 +980,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ mov(ecx, FieldOperand(edi, JSFunction::kLiteralsOffset));
   int literal_offset =
-    FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
+      FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
   __ mov(ebx, FieldOperand(ecx, literal_offset));
   __ cmp(ebx, Factory::undefined_value());
   __ j(not_equal, &materialized);
@@ -1326,12 +1103,18 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ push(FieldOperand(ebx, JSFunction::kLiteralsOffset));
   __ push(Immediate(Smi::FromInt(expr->literal_index())));
   __ push(Immediate(expr->constant_elements()));
-  if (expr->depth() > 1) {
+  if (expr->constant_elements()->map() == Heap::fixed_cow_array_map()) {
+    FastCloneShallowArrayStub stub(
+        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
+    __ CallStub(&stub);
+    __ IncrementCounter(&Counters::cow_arrays_created_stub, 1);
+  } else if (expr->depth() > 1) {
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
-  } else if (length > FastCloneShallowArrayStub::kMaximumLength) {
+  } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   } else {
-    FastCloneShallowArrayStub stub(length);
+    FastCloneShallowArrayStub stub(
+        FastCloneShallowArrayStub::CLONE_ELEMENTS, length);
     __ CallStub(&stub);
   }
 
@@ -1385,10 +1168,11 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
   LhsKind assign_type = VARIABLE;
-  Property* prop = expr->target()->AsProperty();
-  if (prop != NULL) {
-    assign_type =
-        (prop->key()->IsPropertyName()) ? NAMED_PROPERTY : KEYED_PROPERTY;
+  Property* property = expr->target()->AsProperty();
+  if (property != NULL) {
+    assign_type = (property->key()->IsPropertyName())
+        ? NAMED_PROPERTY
+        : KEYED_PROPERTY;
   }
 
   // Evaluate LHS expression.
@@ -1399,57 +1183,70 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     case NAMED_PROPERTY:
       if (expr->is_compound()) {
         // We need the receiver both on the stack and in the accumulator.
-        VisitForValue(prop->obj(), kAccumulator);
+        VisitForValue(property->obj(), kAccumulator);
         __ push(result_register());
       } else {
-        VisitForValue(prop->obj(), kStack);
+        VisitForValue(property->obj(), kStack);
       }
       break;
     case KEYED_PROPERTY:
       if (expr->is_compound()) {
-        VisitForValue(prop->obj(), kStack);
-        VisitForValue(prop->key(), kAccumulator);
+        VisitForValue(property->obj(), kStack);
+        VisitForValue(property->key(), kAccumulator);
         __ mov(edx, Operand(esp, 0));
         __ push(eax);
       } else {
-        VisitForValue(prop->obj(), kStack);
-        VisitForValue(prop->key(), kStack);
+        VisitForValue(property->obj(), kStack);
+        VisitForValue(property->key(), kStack);
       }
       break;
   }
 
-  // If we have a compound assignment: Get value of LHS expression and
-  // store in on top of the stack.
   if (expr->is_compound()) {
     Location saved_location = location_;
-    location_ = kStack;
+    location_ = kAccumulator;
     switch (assign_type) {
       case VARIABLE:
         EmitVariableLoad(expr->target()->AsVariableProxy()->var(),
                          Expression::kValue);
         break;
       case NAMED_PROPERTY:
-        EmitNamedPropertyLoad(prop);
-        __ push(result_register());
+        EmitNamedPropertyLoad(property);
         break;
       case KEYED_PROPERTY:
-        EmitKeyedPropertyLoad(prop);
-        __ push(result_register());
+        EmitKeyedPropertyLoad(property);
         break;
     }
-    location_ = saved_location;
-  }
 
-  // Evaluate RHS expression.
-  Expression* rhs = expr->value();
-  VisitForValue(rhs, kAccumulator);
+    Token::Value op = expr->binary_op();
+    ConstantOperand constant = ShouldInlineSmiCase(op)
+        ? GetConstantOperand(op, expr->target(), expr->value())
+        : kNoConstants;
+    ASSERT(constant == kRightConstant || constant == kNoConstants);
+    if (constant == kNoConstants) {
+      __ push(eax);  // Left operand goes on the stack.
+      VisitForValue(expr->value(), kAccumulator);
+    }
 
-  // If we have a compound assignment: Apply operator.
-  if (expr->is_compound()) {
-    Location saved_location = location_;
-    location_ = kAccumulator;
-    EmitBinaryOp(expr->binary_op(), Expression::kValue);
+    OverwriteMode mode = expr->value()->ResultOverwriteAllowed()
+        ? OVERWRITE_RIGHT
+        : NO_OVERWRITE;
+    SetSourcePosition(expr->position() + 1);
+    if (ShouldInlineSmiCase(op)) {
+      EmitInlineSmiBinaryOp(expr,
+                            op,
+                            Expression::kValue,
+                            mode,
+                            expr->target(),
+                            expr->value(),
+                            constant);
+    } else {
+      EmitBinaryOp(op, Expression::kValue, mode);
+    }
     location_ = saved_location;
+
+  } else {
+    VisitForValue(expr->value(), kAccumulator);
   }
 
   // Record source position before possible IC call.
@@ -1490,14 +1287,325 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 }
 
 
-void FullCodeGenerator::EmitBinaryOp(Token::Value op,
-                                     Expression::Context context) {
-  __ push(result_register());
-  GenericBinaryOpStub stub(op,
-                           NO_OVERWRITE,
-                           NO_GENERIC_BINARY_FLAGS,
-                           TypeInfo::Unknown());
+void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
+                                           Expression::Context context,
+                                           OverwriteMode mode,
+                                           bool left_is_constant_smi,
+                                           Smi* value) {
+  Label call_stub, done;
+  __ add(Operand(eax), Immediate(value));
+  __ j(overflow, &call_stub);
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &done);
+
+  // Undo the optimistic add operation and call the shared stub.
+  __ bind(&call_stub);
+  __ sub(Operand(eax), Immediate(value));
+  Token::Value op = Token::ADD;
+  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
+  if (left_is_constant_smi) {
+    __ push(Immediate(value));
+    __ push(eax);
+  } else {
+    __ push(eax);
+    __ push(Immediate(value));
+  }
   __ CallStub(&stub);
+  __ bind(&done);
+  Apply(context, eax);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
+                                           Expression::Context context,
+                                           OverwriteMode mode,
+                                           bool left_is_constant_smi,
+                                           Smi* value) {
+  Label call_stub, done;
+  if (left_is_constant_smi) {
+    __ mov(ecx, eax);
+    __ mov(eax, Immediate(value));
+    __ sub(Operand(eax), ecx);
+  } else {
+    __ sub(Operand(eax), Immediate(value));
+  }
+  __ j(overflow, &call_stub);
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &done);
+
+  __ bind(&call_stub);
+  if (left_is_constant_smi)  {
+    __ push(Immediate(value));
+    __ push(ecx);
+  } else {
+    // Undo the optimistic sub operation.
+    __ add(Operand(eax), Immediate(value));
+
+    __ push(eax);
+    __ push(Immediate(value));
+  }
+
+  Token::Value op = Token::SUB;
+  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
+  __ CallStub(&stub);
+  __ bind(&done);
+  Apply(context, eax);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiShiftOp(Expression* expr,
+                                               Token::Value op,
+                                               Expression::Context context,
+                                               OverwriteMode mode,
+                                               Smi* value) {
+  Label call_stub, smi_case, done;
+  int shift_value = value->value() & 0x1f;
+
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &smi_case);
+
+  __ bind(&call_stub);
+  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
+  __ push(eax);
+  __ push(Immediate(value));
+  __ CallStub(&stub);
+  __ jmp(&done);
+
+  __ bind(&smi_case);
+  switch (op) {
+    case Token::SHL:
+      if (shift_value != 0) {
+        __ mov(edx, eax);
+        if (shift_value > 1) {
+          __ shl(edx, shift_value - 1);
+        }
+        // Convert int result to smi, checking that it is in int range.
+        ASSERT(kSmiTagSize == 1);  // Adjust code if not the case.
+        __ add(edx, Operand(edx));
+        __ j(overflow, &call_stub);
+        __ mov(eax, edx);  // Put result back into eax.
+      }
+      break;
+    case Token::SAR:
+      if (shift_value != 0) {
+        __ sar(eax, shift_value);
+        __ and_(eax, ~kSmiTagMask);
+      }
+      break;
+    case Token::SHR:
+      if (shift_value < 2) {
+        __ mov(edx, eax);
+        __ SmiUntag(edx);
+        __ shr(edx, shift_value);
+        __ test(edx, Immediate(0xc0000000));
+        __ j(not_zero, &call_stub);
+        __ SmiTag(edx);
+        __ mov(eax, edx);  // Put result back into eax.
+      } else {
+        __ SmiUntag(eax);
+        __ shr(eax, shift_value);
+        __ SmiTag(eax);
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ bind(&done);
+  Apply(context, eax);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiBitOp(Expression* expr,
+                                             Token::Value op,
+                                             Expression::Context context,
+                                             OverwriteMode mode,
+                                             Smi* value) {
+  Label smi_case, done;
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &smi_case);
+
+  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
+  // The order of the arguments does not matter for bit-ops with a
+  // constant operand.
+  __ push(Immediate(value));
+  __ push(eax);
+  __ CallStub(&stub);
+  __ jmp(&done);
+
+  __ bind(&smi_case);
+  switch (op) {
+    case Token::BIT_OR:
+      __ or_(Operand(eax), Immediate(value));
+      break;
+    case Token::BIT_XOR:
+      __ xor_(Operand(eax), Immediate(value));
+      break;
+    case Token::BIT_AND:
+      __ and_(Operand(eax), Immediate(value));
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ bind(&done);
+  Apply(context, eax);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiBinaryOp(Expression* expr,
+                                                Token::Value op,
+                                                Expression::Context context,
+                                                OverwriteMode mode,
+                                                bool left_is_constant_smi,
+                                                Smi* value) {
+  switch (op) {
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+      EmitConstantSmiBitOp(expr, op, context, mode, value);
+      break;
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+      ASSERT(!left_is_constant_smi);
+      EmitConstantSmiShiftOp(expr, op, context, mode, value);
+      break;
+    case Token::ADD:
+      EmitConstantSmiAdd(expr, context, mode, left_is_constant_smi, value);
+      break;
+    case Token::SUB:
+      EmitConstantSmiSub(expr, context, mode, left_is_constant_smi, value);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
+                                              Token::Value op,
+                                              Expression::Context context,
+                                              OverwriteMode mode,
+                                              Expression* left,
+                                              Expression* right,
+                                              ConstantOperand constant) {
+  if (constant == kRightConstant) {
+    Smi* value =  Smi::cast(*right->AsLiteral()->handle());
+    EmitConstantSmiBinaryOp(expr, op, context, mode, false, value);
+    return;
+  } else if (constant == kLeftConstant) {
+    Smi* value =  Smi::cast(*left->AsLiteral()->handle());
+    EmitConstantSmiBinaryOp(expr, op, context, mode, true, value);
+    return;
+  }
+
+  // Do combined smi check of the operands. Left operand is on the
+  // stack. Right operand is in eax.
+  Label done, stub_call, smi_case;
+  __ pop(edx);
+  __ mov(ecx, eax);
+  __ or_(eax, Operand(edx));
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &smi_case);
+
+  __ bind(&stub_call);
+  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
+  if (stub.ArgsInRegistersSupported()) {
+    stub.GenerateCall(masm_, edx, ecx);
+  } else {
+    __ push(edx);
+    __ push(ecx);
+    __ CallStub(&stub);
+  }
+  __ jmp(&done);
+
+  __ bind(&smi_case);
+  __ mov(eax, edx);  // Copy left operand in case of a stub call.
+
+  switch (op) {
+    case Token::SAR:
+      __ SmiUntag(eax);
+      __ SmiUntag(ecx);
+      __ sar_cl(eax);  // No checks of result necessary
+      __ SmiTag(eax);
+      break;
+    case Token::SHL: {
+      Label result_ok;
+      __ SmiUntag(eax);
+      __ SmiUntag(ecx);
+      __ shl_cl(eax);
+      // Check that the *signed* result fits in a smi.
+      __ cmp(eax, 0xc0000000);
+      __ j(positive, &result_ok);
+      __ SmiTag(ecx);
+      __ jmp(&stub_call);
+      __ bind(&result_ok);
+      __ SmiTag(eax);
+      break;
+    }
+    case Token::SHR: {
+      Label result_ok;
+      __ SmiUntag(eax);
+      __ SmiUntag(ecx);
+      __ shr_cl(eax);
+      __ test(eax, Immediate(0xc0000000));
+      __ j(zero, &result_ok);
+      __ SmiTag(ecx);
+      __ jmp(&stub_call);
+      __ bind(&result_ok);
+      __ SmiTag(eax);
+      break;
+    }
+    case Token::ADD:
+      __ add(eax, Operand(ecx));
+      __ j(overflow, &stub_call);
+      break;
+    case Token::SUB:
+      __ sub(eax, Operand(ecx));
+      __ j(overflow, &stub_call);
+      break;
+    case Token::MUL: {
+      __ SmiUntag(eax);
+      __ imul(eax, Operand(ecx));
+      __ j(overflow, &stub_call);
+      __ test(eax, Operand(eax));
+      __ j(not_zero, &done, taken);
+      __ mov(ebx, edx);
+      __ or_(ebx, Operand(ecx));
+      __ j(negative, &stub_call);
+      break;
+    }
+    case Token::BIT_OR:
+      __ or_(eax, Operand(ecx));
+      break;
+    case Token::BIT_AND:
+      __ and_(eax, Operand(ecx));
+      break;
+    case Token::BIT_XOR:
+      __ xor_(eax, Operand(ecx));
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ bind(&done);
+  Apply(context, eax);
+}
+
+
+void FullCodeGenerator::EmitBinaryOp(Token::Value op,
+                                     Expression::Context context,
+                                     OverwriteMode mode) {
+  TypeInfo type = TypeInfo::Unknown();
+  GenericBinaryOpStub stub(op, mode, NO_GENERIC_BINARY_FLAGS, type);
+  if (stub.ArgsInRegistersSupported()) {
+    __ pop(edx);
+    stub.GenerateCall(masm_, edx, eax);
+  } else {
+    __ push(result_register());
+    __ CallStub(&stub);
+  }
   Apply(context, eax);
 }
 
@@ -1914,11 +2022,11 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   // According to ECMA-262, section 11.2.2, page 44, the function
   // expression in new calls must be evaluated before the
   // arguments.
-  // Push function on the stack.
-  VisitForValue(expr->expression(), kStack);
 
-  // Push global object (receiver).
-  __ push(CodeGenerator::GlobalObject());
+  // Push constructor on the stack.  If it's not a function it's used as
+  // receiver for CALL_NON_FUNCTION, otherwise the value on the stack is
+  // ignored.
+  VisitForValue(expr->expression(), kStack);
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = expr->arguments();
@@ -1931,16 +2039,13 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   // constructor invocation.
   SetSourcePosition(expr->position());
 
-  // Load function, arg_count into edi and eax.
+  // Load function and argument count into edi and eax.
   __ Set(eax, Immediate(arg_count));
-  // Function is in esp[arg_count + 1].
-  __ mov(edi, Operand(esp, eax, times_pointer_size, kPointerSize));
+  __ mov(edi, Operand(esp, arg_count * kPointerSize));
 
   Handle<Code> construct_builtin(Builtins::builtin(Builtins::JSConstructCall));
   __ call(construct_builtin, RelocInfo::CONSTRUCT_CALL);
-
-  // Replace function on TOS with result in eax, or pop it.
-  DropAndApply(1, context_, eax);
+  Apply(context_, eax);
 }
 
 
@@ -1952,11 +2057,12 @@ void FullCodeGenerator::EmitIsSmi(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, if_true);
-  __ jmp(if_false);
+  Split(zero, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -1970,11 +2076,12 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask | 0x80000000));
-  __ j(zero, if_true);
-  __ jmp(if_false);
+  Split(zero, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -1988,7 +2095,9 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, if_false);
@@ -2003,8 +2112,7 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
   __ j(below, if_false);
   __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-  __ j(below_equal, if_true);
-  __ jmp(if_false);
+  Split(below_equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -2018,13 +2126,14 @@ void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(equal, if_false);
   __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ebx);
-  __ j(above_equal, if_true);
-  __ jmp(if_false);
+  Split(above_equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -2038,15 +2147,16 @@ void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, if_false);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kBitFieldOffset));
   __ test(ebx, Immediate(1 << Map::kIsUndetectable));
-  __ j(not_zero, if_true);
-  __ jmp(if_false);
+  Split(not_zero, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -2061,7 +2171,9 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   // Just indicate false, as %_IsStringWrapperSafeForDefaultValueOf() is only
   // used in a few functions in runtime.js which should not normally be hit by
@@ -2079,13 +2191,14 @@ void FullCodeGenerator::EmitIsFunction(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, if_false);
   __ CmpObjectType(eax, JS_FUNCTION_TYPE, ebx);
-  __ j(equal, if_true);
-  __ jmp(if_false);
+  Split(equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -2099,13 +2212,14 @@ void FullCodeGenerator::EmitIsArray(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(equal, if_false);
   __ CmpObjectType(eax, JS_ARRAY_TYPE, ebx);
-  __ j(equal, if_true);
-  __ jmp(if_false);
+  Split(equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -2119,13 +2233,14 @@ void FullCodeGenerator::EmitIsRegExp(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(equal, if_false);
   __ CmpObjectType(eax, JS_REGEXP_TYPE, ebx);
-  __ j(equal, if_true);
-  __ jmp(if_false);
+  Split(equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -2138,7 +2253,9 @@ void FullCodeGenerator::EmitIsConstructCall(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   // Get the frame pointer for the calling frame.
   __ mov(eax, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
@@ -2154,8 +2271,7 @@ void FullCodeGenerator::EmitIsConstructCall(ZoneList<Expression*>* args) {
   __ bind(&check_frame_marker);
   __ cmp(Operand(eax, StandardFrameConstants::kMarkerOffset),
          Immediate(Smi::FromInt(StackFrame::CONSTRUCT)));
-  __ j(equal, if_true);
-  __ jmp(if_false);
+  Split(equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -2171,12 +2287,13 @@ void FullCodeGenerator::EmitObjectEquals(ZoneList<Expression*>* args) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
 
   __ pop(ebx);
   __ cmp(eax, Operand(ebx));
-  __ j(equal, if_true);
-  __ jmp(if_false);
+  Split(equal, if_true, if_false, fall_through);
 
   Apply(context_, if_true, if_false);
 }
@@ -2731,6 +2848,46 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
 }
 
 
+void FullCodeGenerator::EmitHasCachedArrayIndex(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+
+  VisitForValue(args->at(0), kAccumulator);
+
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(eax);
+  }
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
+
+  __ test(FieldOperand(eax, String::kHashFieldOffset),
+          Immediate(String::kContainsCachedArrayIndexMask));
+  Split(zero, if_true, if_false, fall_through);
+
+  Apply(context_, if_true, if_false);
+}
+
+
+void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+
+  VisitForValue(args->at(0), kAccumulator);
+
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(eax);
+  }
+
+  __ mov(eax, FieldOperand(eax, String::kHashFieldOffset));
+  __ IndexFromHash(eax, eax);
+
+  Apply(context_, eax);
+}
+
+
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   Handle<String> name = expr->name();
   if (name->length() > 0 && name->Get(0) == '_') {
@@ -2831,19 +2988,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
               break;
           }
           break;
-        case Expression::kTestValue:
-          // Value is false so it's needed.
-          switch (location_) {
-            case kAccumulator:
-              __ mov(result_register(), Factory::undefined_value());
-              break;
-            case kStack:
-              __ push(Immediate(Factory::undefined_value()));
-              break;
-          }
-          // Fall through.
         case Expression::kTest:
-        case Expression::kValueTest:
           __ jmp(false_label_);
           break;
       }
@@ -2852,45 +2997,22 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::NOT: {
       Comment cmnt(masm_, "[ UnaryOperation (NOT)");
+
       Label materialize_true, materialize_false;
       Label* if_true = NULL;
       Label* if_false = NULL;
-
+      Label* fall_through = NULL;
       // Notice that the labels are swapped.
-      PrepareTest(&materialize_true, &materialize_false, &if_false, &if_true);
-
-      VisitForControl(expr->expression(), if_true, if_false);
-
+      PrepareTest(&materialize_true, &materialize_false,
+                  &if_false, &if_true, &fall_through);
+      VisitForControl(expr->expression(), if_true, if_false, fall_through);
       Apply(context_, if_false, if_true);  // Labels swapped.
       break;
     }
 
     case Token::TYPEOF: {
       Comment cmnt(masm_, "[ UnaryOperation (TYPEOF)");
-      VariableProxy* proxy = expr->expression()->AsVariableProxy();
-      if (proxy != NULL &&
-          !proxy->var()->is_this() &&
-          proxy->var()->is_global()) {
-        Comment cmnt(masm_, "Global variable");
-        __ mov(eax, CodeGenerator::GlobalObject());
-        __ mov(ecx, Immediate(proxy->name()));
-        Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-        // Use a regular load, not a contextual load, to avoid a reference
-        // error.
-        __ call(ic, RelocInfo::CODE_TARGET);
-        __ push(eax);
-      } else if (proxy != NULL &&
-                 proxy->var()->slot() != NULL &&
-                 proxy->var()->slot()->type() == Slot::LOOKUP) {
-        __ push(esi);
-        __ push(Immediate(proxy->name()));
-        __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
-        __ push(eax);
-      } else {
-        // This expression cannot throw a reference error at the top level.
-        VisitForValue(expr->expression(), kStack);
-      }
-
+      VisitForTypeofValue(expr->expression(), kStack);
       __ CallRuntime(Runtime::kTypeof, 1);
       Apply(context_, eax);
       break;
@@ -2911,9 +3033,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::SUB: {
       Comment cmt(masm_, "[ UnaryOperation (SUB)");
-      bool can_overwrite =
-          (expr->expression()->AsBinaryOperation() != NULL &&
-           expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
       UnaryOverwriteMode overwrite =
           can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
       GenericUnaryOpStub stub(Token::SUB, overwrite);
@@ -2927,28 +3047,26 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::BIT_NOT: {
       Comment cmt(masm_, "[ UnaryOperation (BIT_NOT)");
-      bool can_overwrite =
-          (expr->expression()->AsBinaryOperation() != NULL &&
-           expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
-      UnaryOverwriteMode overwrite =
-          can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-      GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
-      // GenericUnaryOpStub expects the argument to be in the
-      // accumulator register eax.
+      // The generic unary operation stub expects the argument to be
+      // in the accumulator register eax.
       VisitForValue(expr->expression(), kAccumulator);
-      // Avoid calling the stub for Smis.
-      Label smi, done;
-      __ test(result_register(), Immediate(kSmiTagMask));
-      __ j(zero, &smi);
-      // Non-smi: call stub leaving result in accumulator register.
+      Label done;
+      if (ShouldInlineSmiCase(expr->op())) {
+        Label call_stub;
+        __ test(eax, Immediate(kSmiTagMask));
+        __ j(not_zero, &call_stub);
+        __ lea(eax, Operand(eax, kSmiTagMask));
+        __ not_(eax);
+        __ jmp(&done);
+        __ bind(&call_stub);
+      }
+      bool overwrite = expr->expression()->ResultOverwriteAllowed();
+      UnaryOverwriteMode mode =
+          overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
+      GenericUnaryOpStub stub(Token::BIT_NOT, mode);
       __ CallStub(&stub);
-      __ jmp(&done);
-      // Perform operation directly on Smis.
-      __ bind(&smi);
-      __ not_(result_register());
-      __ and_(result_register(), ~kSmiTagMask);  // Remove inverted smi-tag.
       __ bind(&done);
-      Apply(context_, result_register());
+      Apply(context_, eax);
       break;
     }
 
@@ -2960,6 +3078,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   Comment cmnt(masm_, "[ CountOperation");
+  SetSourcePosition(expr->position());
+
   // Invalid left-hand sides are rewritten to have a 'throw ReferenceError'
   // as the left-hand side.
   if (!expr->expression()->IsValidLeftHandSide()) {
@@ -3008,8 +3128,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Call ToNumber only if operand is not a smi.
   Label no_conversion;
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &no_conversion);
+  if (ShouldInlineSmiCase(expr->op())) {
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, &no_conversion);
+  }
   __ push(eax);
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
   __ bind(&no_conversion);
@@ -3024,8 +3146,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         break;
       case Expression::kValue:
       case Expression::kTest:
-      case Expression::kValueTest:
-      case Expression::kTestValue:
         // Save the result on the stack. If we have a named or keyed property
         // we store the result under the receiver that is currently on top
         // of the stack.
@@ -3046,7 +3166,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Inline smi case if we are in a loop.
   Label stub_call, done;
-  if (loop_depth() > 0) {
+  if (ShouldInlineSmiCase(expr->op())) {
     if (expr->op() == Token::INC) {
       __ add(Operand(eax), Immediate(Smi::FromInt(1)));
     } else {
@@ -3132,68 +3252,117 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 }
 
 
-void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
-  Comment cmnt(masm_, "[ BinaryOperation");
-  switch (expr->op()) {
-    case Token::COMMA:
-      VisitForEffect(expr->left());
-      Visit(expr->right());
-      break;
-
-    case Token::OR:
-    case Token::AND:
-      EmitLogicalOperation(expr);
-      break;
-
-    case Token::ADD:
-    case Token::SUB:
-    case Token::DIV:
-    case Token::MOD:
-    case Token::MUL:
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR:
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR:
-      VisitForValue(expr->left(), kStack);
-      VisitForValue(expr->right(), kAccumulator);
-      EmitBinaryOp(expr->op(), context_);
-      break;
-
-    default:
-      UNREACHABLE();
+void FullCodeGenerator::VisitForTypeofValue(Expression* expr, Location where) {
+  VariableProxy* proxy = expr->AsVariableProxy();
+  if (proxy != NULL && !proxy->var()->is_this() && proxy->var()->is_global()) {
+    Comment cmnt(masm_, "Global variable");
+    __ mov(eax, CodeGenerator::GlobalObject());
+    __ mov(ecx, Immediate(proxy->name()));
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    // Use a regular load, not a contextual load, to avoid a reference
+    // error.
+    __ call(ic, RelocInfo::CODE_TARGET);
+    if (where == kStack) __ push(eax);
+  } else if (proxy != NULL &&
+             proxy->var()->slot() != NULL &&
+             proxy->var()->slot()->type() == Slot::LOOKUP) {
+    __ push(esi);
+    __ push(Immediate(proxy->name()));
+    __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+    if (where == kStack) __ push(eax);
+  } else {
+    // This expression cannot throw a reference error at the top level.
+    VisitForValue(expr, where);
   }
 }
 
 
-void FullCodeGenerator::EmitNullCompare(bool strict,
-                                        Register obj,
-                                        Register null_const,
-                                        Label* if_true,
-                                        Label* if_false,
-                                        Register scratch) {
-  __ cmp(obj, Operand(null_const));
-  if (strict) {
-    __ j(equal, if_true);
-  } else {
-    __ j(equal, if_true);
-    __ cmp(obj, Factory::undefined_value());
-    __ j(equal, if_true);
-    __ test(obj, Immediate(kSmiTagMask));
+bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
+                                          Expression* left,
+                                          Expression* right,
+                                          Label* if_true,
+                                          Label* if_false,
+                                          Label* fall_through) {
+  if (op != Token::EQ && op != Token::EQ_STRICT) return false;
+
+  // Check for the pattern: typeof <expression> == <string literal>.
+  Literal* right_literal = right->AsLiteral();
+  if (right_literal == NULL) return false;
+  Handle<Object> right_literal_value = right_literal->handle();
+  if (!right_literal_value->IsString()) return false;
+  UnaryOperation* left_unary = left->AsUnaryOperation();
+  if (left_unary == NULL || left_unary->op() != Token::TYPEOF) return false;
+  Handle<String> check = Handle<String>::cast(right_literal_value);
+
+  VisitForTypeofValue(left_unary->expression(), kAccumulator);
+  if (check->Equals(Heap::number_symbol())) {
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, if_true);
+    __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
+           Factory::heap_number_map());
+    Split(equal, if_true, if_false, fall_through);
+  } else if (check->Equals(Heap::string_symbol())) {
+    __ test(eax, Immediate(kSmiTagMask));
     __ j(zero, if_false);
-    // It can be an undetectable object.
-    __ mov(scratch, FieldOperand(obj, HeapObject::kMapOffset));
-    __ movzx_b(scratch, FieldOperand(scratch, Map::kBitFieldOffset));
-    __ test(scratch, Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, if_true);
+    // Check for undetectable objects => false.
+    __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
+    __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
+    __ test(ecx, Immediate(1 << Map::kIsUndetectable));
+    __ j(not_zero, if_false);
+    __ CmpInstanceType(edx, FIRST_NONSTRING_TYPE);
+    Split(below, if_true, if_false, fall_through);
+  } else if (check->Equals(Heap::boolean_symbol())) {
+    __ cmp(eax, Factory::true_value());
+    __ j(equal, if_true);
+    __ cmp(eax, Factory::false_value());
+    Split(equal, if_true, if_false, fall_through);
+  } else if (check->Equals(Heap::undefined_symbol())) {
+    __ cmp(eax, Factory::undefined_value());
+    __ j(equal, if_true);
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, if_false);
+    // Check for undetectable objects => true.
+    __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
+    __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
+    __ test(ecx, Immediate(1 << Map::kIsUndetectable));
+    Split(not_zero, if_true, if_false, fall_through);
+  } else if (check->Equals(Heap::function_symbol())) {
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, if_false);
+    __ CmpObjectType(eax, JS_FUNCTION_TYPE, edx);
+    __ j(equal, if_true);
+    // Regular expressions => 'function' (they are callable).
+    __ CmpInstanceType(edx, JS_REGEXP_TYPE);
+    Split(equal, if_true, if_false, fall_through);
+  } else if (check->Equals(Heap::object_symbol())) {
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, if_false);
+    __ cmp(eax, Factory::null_value());
+    __ j(equal, if_true);
+    // Regular expressions => 'function', not 'object'.
+    __ CmpObjectType(eax, JS_REGEXP_TYPE, edx);
+    __ j(equal, if_false);
+    // Check for undetectable objects => false.
+    __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
+    __ test(ecx, Immediate(1 << Map::kIsUndetectable));
+    __ j(not_zero, if_false);
+    // Check for JS objects => true.
+    __ movzx_b(ecx, FieldOperand(edx, Map::kInstanceTypeOffset));
+    __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+    __ j(less, if_false);
+    __ cmp(ecx, LAST_JS_OBJECT_TYPE);
+    Split(less_equal, if_true, if_false, fall_through);
+  } else {
+    if (if_false != fall_through) __ jmp(if_false);
   }
-  __ jmp(if_false);
+
+  return true;
 }
 
 
 void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Comment cmnt(masm_, "[ CompareOperation");
+  SetSourcePosition(expr->position());
 
   // Always perform the comparison for its control flow.  Pack the result
   // into the expression's context after the comparison is performed.
@@ -3201,7 +3370,19 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
-  PrepareTest(&materialize_true, &materialize_false, &if_true, &if_false);
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
+
+  // First we try a fast inlined version of the compare when one of
+  // the operands is a literal.
+  Token::Value op = expr->op();
+  Expression* left = expr->left();
+  Expression* right = expr->right();
+  if (TryLiteralCompare(op, left, right, if_true, if_false, fall_through)) {
+    Apply(context_, if_true, if_false);
+    return;
+  }
 
   VisitForValue(expr->left(), kStack);
   switch (expr->op()) {
@@ -3209,8 +3390,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForValue(expr->right(), kStack);
       __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION);
       __ cmp(eax, Factory::true_value());
-      __ j(equal, if_true);
-      __ jmp(if_false);
+      Split(equal, if_true, if_false, fall_through);
       break;
 
     case Token::INSTANCEOF: {
@@ -3218,8 +3398,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       InstanceofStub stub;
       __ CallStub(&stub);
       __ test(eax, Operand(eax));
-      __ j(zero, if_true);  // The stub returns 0 for true.
-      __ jmp(if_false);
+      // The stub returns 0 for true.
+      Split(zero, if_true, if_false, fall_through);
       break;
     }
 
@@ -3227,28 +3407,14 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForValue(expr->right(), kAccumulator);
       Condition cc = no_condition;
       bool strict = false;
-      switch (expr->op()) {
+      switch (op) {
         case Token::EQ_STRICT:
           strict = true;
           // Fall through
-        case Token::EQ: {
+        case Token::EQ:
           cc = equal;
           __ pop(edx);
-          // If either operand is constant null we do a fast compare
-          // against null.
-          Literal* right_literal = expr->right()->AsLiteral();
-          Literal* left_literal = expr->left()->AsLiteral();
-          if (right_literal != NULL && right_literal->handle()->IsNull()) {
-            EmitNullCompare(strict, edx, eax, if_true, if_false, ecx);
-            Apply(context_, if_true, if_false);
-            return;
-          } else if (left_literal != NULL && left_literal->handle()->IsNull()) {
-            EmitNullCompare(strict, eax, edx, if_true, if_false, ecx);
-            Apply(context_, if_true, if_false);
-            return;
-          }
           break;
-        }
         case Token::LT:
           cc = less;
           __ pop(edx);
@@ -3275,28 +3441,54 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
           UNREACHABLE();
       }
 
-      // The comparison stub expects the smi vs. smi case to be handled
-      // before it is called.
-      Label slow_case;
-      __ mov(ecx, Operand(edx));
-      __ or_(ecx, Operand(eax));
-      __ test(ecx, Immediate(kSmiTagMask));
-      __ j(not_zero, &slow_case, not_taken);
-      __ cmp(edx, Operand(eax));
-      __ j(cc, if_true);
-      __ jmp(if_false);
+      if (ShouldInlineSmiCase(op)) {
+        Label slow_case;
+        __ mov(ecx, Operand(edx));
+        __ or_(ecx, Operand(eax));
+        __ test(ecx, Immediate(kSmiTagMask));
+        __ j(not_zero, &slow_case, not_taken);
+        __ cmp(edx, Operand(eax));
+        Split(cc, if_true, if_false, NULL);
+        __ bind(&slow_case);
+      }
 
-      __ bind(&slow_case);
       CompareStub stub(cc, strict);
       __ CallStub(&stub);
       __ test(eax, Operand(eax));
-      __ j(cc, if_true);
-      __ jmp(if_false);
+      Split(cc, if_true, if_false, fall_through);
     }
   }
 
   // Convert the result of the comparison into one expected for this
   // expression's context.
+  Apply(context_, if_true, if_false);
+}
+
+
+void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  PrepareTest(&materialize_true, &materialize_false,
+              &if_true, &if_false, &fall_through);
+
+  VisitForValue(expr->expression(), kAccumulator);
+  __ cmp(eax, Factory::null_value());
+  if (expr->is_strict()) {
+    Split(equal, if_true, if_false, fall_through);
+  } else {
+    __ j(equal, if_true);
+    __ cmp(eax, Factory::undefined_value());
+    __ j(equal, if_true);
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, if_false);
+    // It can be an undetectable object.
+    __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
+    __ movzx_b(edx, FieldOperand(edx, Map::kBitFieldOffset));
+    __ test(edx, Immediate(1 << Map::kIsUndetectable));
+    Split(not_zero, if_true, if_false, fall_through);
+  }
   Apply(context_, if_true, if_false);
 }
 

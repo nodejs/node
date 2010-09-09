@@ -46,7 +46,7 @@ static const int kTickSamplesBufferChunksCount = 16;
 
 ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
     : generator_(generator),
-      running_(false),
+      running_(true),
       ticks_buffer_(sizeof(TickSampleEventRecord),
                     kTickSamplesBufferChunkSize,
                     kTickSamplesBufferChunksCount),
@@ -235,8 +235,19 @@ bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
     const TickSampleEventRecord* rec =
         TickSampleEventRecord::cast(ticks_buffer_.StartDequeue());
     if (rec == NULL) return !ticks_from_vm_buffer_.IsEmpty();
-    if (rec->order == dequeue_order) {
-      generator_->RecordTickSample(rec->sample);
+    // Make a local copy of tick sample record to ensure that it won't
+    // be modified as we are processing it. This is possible as the
+    // sampler writes w/o any sync to the queue, so if the processor
+    // will get far behind, a record may be modified right under its
+    // feet.
+    TickSampleEventRecord record = *rec;
+    if (record.order == dequeue_order) {
+      // A paranoid check to make sure that we don't get a memory overrun
+      // in case of frames_count having a wild value.
+      if (record.sample.frames_count < 0
+          || record.sample.frames_count >= TickSample::kMaxFramesCount)
+        record.sample.frames_count = 0;
+      generator_->RecordTickSample(record.sample);
       ticks_buffer_.FinishDequeue();
     } else {
       return true;
@@ -247,7 +258,6 @@ bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
 
 void ProfilerEventsProcessor::Run() {
   unsigned dequeue_order = 0;
-  running_ = true;
 
   while (running_) {
     // Process ticks until we have any.

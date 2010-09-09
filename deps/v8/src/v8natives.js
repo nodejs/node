@@ -111,13 +111,20 @@ function GlobalParseInt(string, radix) {
     if (!(radix == 0 || (2 <= radix && radix <= 36)))
       return $NaN;
   }
-  return %StringParseInt(ToString(string), radix);
+  string = TO_STRING_INLINE(string);
+  if (%_HasCachedArrayIndex(string) &&
+      (radix == 0 || radix == 10)) {
+    return %_GetCachedArrayIndex(string);
+  }
+  return %StringParseInt(string, radix);
 }
 
 
 // ECMA-262 - 15.1.2.3
 function GlobalParseFloat(string) {
-  return %StringParseFloat(ToString(string));
+  string = TO_STRING_INLINE(string);
+  if (%_HasCachedArrayIndex(string)) return %_GetCachedArrayIndex(string);
+  return %StringParseFloat(string);
 }
 
 
@@ -743,8 +750,8 @@ function ObjectSeal(obj) {
     throw MakeTypeError("obj_ctor_property_non_object", ["seal"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
-  for (var key in names) {
-    var name = names[key];
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i];
     var desc = GetOwnProperty(obj, name);
     if (desc.isConfigurable()) desc.setConfigurable(false);
     DefineOwnProperty(obj, name, desc, true);
@@ -759,8 +766,8 @@ function ObjectFreeze(obj) {
     throw MakeTypeError("obj_ctor_property_non_object", ["freeze"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
-  for (var key in names) {
-    var name = names[key];
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i];
     var desc = GetOwnProperty(obj, name);
     if (IsDataDescriptor(desc)) desc.setWritable(false);
     if (desc.isConfigurable()) desc.setConfigurable(false);
@@ -786,8 +793,8 @@ function ObjectIsSealed(obj) {
     throw MakeTypeError("obj_ctor_property_non_object", ["isSealed"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
-  for (var key in names) {
-    var name = names[key];
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i];
     var desc = GetOwnProperty(obj, name);
     if (desc.isConfigurable()) return false;
   }
@@ -804,8 +811,8 @@ function ObjectIsFrozen(obj) {
     throw MakeTypeError("obj_ctor_property_non_object", ["isFrozen"]);
   }
   var names = ObjectGetOwnPropertyNames(obj);
-  for (var key in names) {
-    var name = names[key];
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i];
     var desc = GetOwnProperty(obj, name);
     if (IsDataDescriptor(desc) && desc.isWritable()) return false;
     if (desc.isConfigurable()) return false;
@@ -836,6 +843,7 @@ function ObjectIsExtensible(obj) {
   }
 });
 
+%SetExpectedNumberOfProperties($Object, 4);
 
 // ----------------------------------------------------------------------------
 

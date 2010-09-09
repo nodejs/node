@@ -83,4 +83,31 @@ const int kInvalidProtoDepth = -1;
 #error Unsupported target architecture.
 #endif
 
+namespace v8 {
+namespace internal {
+
+// Support for "structured" code comments.
+#ifdef DEBUG
+
+class Comment {
+ public:
+  Comment(MacroAssembler* masm, const char* msg);
+  ~Comment();
+
+ private:
+  MacroAssembler* masm_;
+  const char* msg_;
+};
+
+#else
+
+class Comment {
+ public:
+  Comment(MacroAssembler*, const char*)  {}
+};
+
+#endif  // DEBUG
+
+} }  // namespace v8::internal
+
 #endif  // V8_MACRO_ASSEMBLER_H_

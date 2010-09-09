@@ -64,9 +64,8 @@ inline bool StackHandler::includes(Address address) const {
 }
 
 
-inline void StackHandler::Iterate(ObjectVisitor* v) const {
-  // Stack handlers do not contain any pointers that need to be
-  // traversed.
+inline void StackHandler::Iterate(ObjectVisitor* v, Code* holder) const {
+  StackFrame::IteratePc(v, pc_address(), holder);
 }
 
 
@@ -81,15 +80,9 @@ inline StackHandler::State StackHandler::state() const {
 }
 
 
-inline Address StackHandler::pc() const {
+inline Address* StackHandler::pc_address() const {
   const int offset = StackHandlerConstants::kPCOffset;
-  return Memory::Address_at(address() + offset);
-}
-
-
-inline void StackHandler::set_pc(Address value) {
-  const int offset = StackHandlerConstants::kPCOffset;
-  Memory::Address_at(address() + offset) = value;
+  return reinterpret_cast<Address*>(address() + offset);
 }
 
 

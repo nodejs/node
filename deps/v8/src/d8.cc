@@ -486,7 +486,7 @@ void Shell::Initialize() {
 
   // Start the debugger agent if requested.
   if (i::FLAG_debugger_agent) {
-    v8::Debug::EnableAgent("d8 shell", i::FLAG_debugger_port);
+    v8::Debug::EnableAgent("d8 shell", i::FLAG_debugger_port, true);
   }
 
   // Start the in-process debugger if requested.

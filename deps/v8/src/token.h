@@ -248,6 +248,10 @@ class Token {
     return op == INC || op == DEC;
   }
 
+  static bool IsShiftOp(Value op) {
+    return (SHL <= op) && (op <= SHR);
+  }
+
   // Returns a string corresponding to the JS token string
   // (.e., "<" for the token LT) or NULL if the token doesn't
   // have a (unique) string (e.g. an IDENTIFIER).

@@ -258,11 +258,12 @@ static int DecodeIt(FILE* f,
             // Get the STUB key and extract major and minor key.
             uint32_t key = Smi::cast(obj)->value();
             uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
-            ASSERT(code->major_key() == CodeStub::MajorKeyFromKey(key));
+            CodeStub::Major major_key = CodeStub::GetMajorKey(code);
+            ASSERT(major_key == CodeStub::MajorKeyFromKey(key));
             out.AddFormatted(" %s, %s, ",
                              Code::Kind2String(kind),
-                             CodeStub::MajorName(code->major_key(), false));
-            switch (code->major_key()) {
+                             CodeStub::MajorName(major_key, false));
+            switch (major_key) {
               case CodeStub::CallFunction:
                 out.AddFormatted("argc = %d", minor_key);
                 break;

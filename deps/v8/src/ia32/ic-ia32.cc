@@ -452,6 +452,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
 
 
 // Loads an indexed element from a fast case array.
+// If not_fast_array is NULL, doesn't perform the elements map check.
 static void GenerateFastArrayLoad(MacroAssembler* masm,
                                   Register receiver,
                                   Register key,
@@ -468,8 +469,12 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   //            we fall through.
 
   __ mov(scratch, FieldOperand(receiver, JSObject::kElementsOffset));
-  // Check that the object is in fast mode (not dictionary).
-  __ CheckMap(scratch, Factory::fixed_array_map(), not_fast_array, true);
+  if (not_fast_array != NULL) {
+    // Check that the object is in fast mode and writable.
+    __ CheckMap(scratch, Factory::fixed_array_map(), not_fast_array, true);
+  } else {
+    __ AssertFastElements(scratch);
+  }
   // Check that the key (index) is within bounds.
   __ cmp(key, FieldOperand(scratch, FixedArray::kLengthOffset));
   __ j(above_equal, out_of_range);
@@ -514,31 +519,6 @@ static void GenerateKeyStringCheck(MacroAssembler* masm,
 }
 
 
-// Picks out an array index from the hash field.
-static void GenerateIndexFromHash(MacroAssembler* masm,
-                                  Register key,
-                                  Register hash) {
-  // Register use:
-  //   key - holds the overwritten key on exit.
-  //   hash - holds the key's hash. Clobbered.
-
-  // The assert checks that the constants for the maximum number of digits
-  // for an array index cached in the hash field and the number of bits
-  // reserved for it does not conflict.
-  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
-         (1 << String::kArrayIndexValueBits));
-  // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
-  // the low kHashShift bits.
-  ASSERT(String::kHashShift >= kSmiTagSize);
-  __ and_(hash, String::kArrayIndexValueMask);
-  __ shr(hash, String::kHashShift - kSmiTagSize);
-  // Here we actually clobber the key which will be used if calling into
-  // runtime later. However as the new key is the numeric value of a string key
-  // there is no difference in using either key.
-  __ mov(key, hash);
-}
-
-
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : key
@@ -558,12 +538,18 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateKeyedLoadReceiverCheck(
       masm, edx, ecx, Map::kHasIndexedInterceptor, &slow);
 
+  // Check the "has fast elements" bit in the receiver's map which is
+  // now in ecx.
+  __ test_b(FieldOperand(ecx, Map::kBitField2Offset),
+            1 << Map::kHasFastElements);
+  __ j(zero, &check_pixel_array, not_taken);
+
   GenerateFastArrayLoad(masm,
                         edx,
                         eax,
                         ecx,
                         eax,
-                        &check_pixel_array,
+                        NULL,
                         &slow);
   __ IncrementCounter(&Counters::keyed_load_generic_smi, 1);
   __ ret(0);
@@ -572,7 +558,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Check whether the elements is a pixel array.
   // edx: receiver
   // eax: key
-  // ecx: elements
+  __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
   __ mov(ebx, eax);
   __ SmiUntag(ebx);
   __ CheckMap(ecx, Factory::pixel_array_map(), &check_number_dictionary, true);
@@ -693,7 +679,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ret(0);
 
   __ bind(&index_string);
-  GenerateIndexFromHash(masm, eax, ebx);
+  __ IndexFromHash(ebx, eax);
   // Now jump to the place where smi keys are handled.
   __ jmp(&index_smi);
 }
@@ -967,7 +953,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // edx: JSObject
   // ecx: key (a smi)
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-  // Check that the object is in fast mode (not dictionary).
+  // Check that the object is in fast mode and writable.
   __ CheckMap(edi, Factory::fixed_array_map(), &check_pixel_array, true);
   __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
   __ j(below, &fast, taken);
@@ -1023,8 +1009,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ jmp(&fast);
 
   // Array case: Get the length and the elements array from the JS
-  // array. Check that the array is in fast mode; if it is the
-  // length is always a smi.
+  // array. Check that the array is in fast mode (and writable); if it
+  // is the length is always a smi.
   __ bind(&array);
   // eax: value
   // edx: receiver, a JSArray
@@ -1554,7 +1540,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   GenerateMiss(masm, argc);
 
   __ bind(&index_string);
-  GenerateIndexFromHash(masm, ecx, ebx);
+  __ IndexFromHash(ebx, ecx);
   // Now jump to the place where smi keys are handled.
   __ jmp(&index_smi);
 }
@@ -1872,6 +1858,8 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   __ j(not_equal, &miss, not_taken);
 
   // Check that elements are FixedArray.
+  // We rely on StoreIC_ArrayLength below to deal with all types of
+  // fast elements (including COW).
   __ mov(scratch, FieldOperand(receiver, JSArray::kElementsOffset));
   __ CmpObjectType(scratch, FIXED_ARRAY_TYPE, scratch);
   __ j(not_equal, &miss, not_taken);

@@ -194,6 +194,13 @@ enum SoftwareInterruptCodes {
 };
 
 
+// Type of VFP register. Determines register encoding.
+enum VFPRegPrecision {
+  kSinglePrecision = 0,
+  kDoublePrecision = 1
+};
+
+
 typedef int32_t instr_t;
 
 
@@ -269,6 +276,15 @@ class Instr {
   inline int VCField() const { return Bit(8); }
   inline int VAField() const { return Bits(23, 21); }
   inline int VBField() const { return Bits(6, 5); }
+  inline int VFPNRegCode(VFPRegPrecision pre) {
+    return VFPGlueRegCode(pre, 16, 7);
+  }
+  inline int VFPMRegCode(VFPRegPrecision pre) {
+    return VFPGlueRegCode(pre, 0, 5);
+  }
+  inline int VFPDRegCode(VFPRegPrecision pre) {
+    return VFPGlueRegCode(pre, 12, 22);
+  }
 
   // Fields used in Data processing instructions
   inline Opcode OpcodeField() const {
@@ -343,6 +359,17 @@ class Instr {
   static Instr* At(byte* pc) { return reinterpret_cast<Instr*>(pc); }
 
  private:
+  // Join split register codes, depending on single or double precision.
+  // four_bit is the position of the least-significant bit of the four
+  // bit specifier. one_bit is the position of the additional single bit
+  // specifier.
+  inline int VFPGlueRegCode(VFPRegPrecision pre, int four_bit, int one_bit) {
+    if (pre == kSinglePrecision) {
+      return (Bits(four_bit + 3, four_bit) << 1) | Bit(one_bit);
+    }
+    return (Bit(one_bit) << 4) | Bits(four_bit + 3, four_bit);
+  }
+
   // We need to prevent the creation of instances of class Instr.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Instr);
 };

@@ -448,6 +448,7 @@ class Serializer : public SerializerDeserializer {
     void VisitPointers(Object** start, Object** end);
     void VisitExternalReferences(Address* start, Address* end);
     void VisitCodeTarget(RelocInfo* target);
+    void VisitCodeEntry(Address entry_address);
     void VisitRuntimeEntry(RelocInfo* reloc);
     // Used for seralizing the external strings that hold the natives source.
     void VisitExternalAsciiString(
@@ -536,7 +537,8 @@ class PartialSerializer : public Serializer {
     // would cause dupes.
     ASSERT(!o->IsScript());
     return o->IsString() || o->IsSharedFunctionInfo() ||
-           o->IsHeapNumber() || o->IsCode();
+           o->IsHeapNumber() || o->IsCode() ||
+           o->map() == Heap::fixed_cow_array_map();
   }
 
  private:

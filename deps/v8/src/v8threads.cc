@@ -342,28 +342,6 @@ void ThreadManager::IterateArchivedThreads(ThreadVisitor* v) {
 }
 
 
-void ThreadManager::MarkCompactPrologue(bool is_compacting) {
-  for (ThreadState* state = ThreadState::FirstInUse();
-       state != NULL;
-       state = state->Next()) {
-    char* data = state->data();
-    data += HandleScopeImplementer::ArchiveSpacePerThread();
-    Top::MarkCompactPrologue(is_compacting, data);
-  }
-}
-
-
-void ThreadManager::MarkCompactEpilogue(bool is_compacting) {
-  for (ThreadState* state = ThreadState::FirstInUse();
-       state != NULL;
-       state = state->Next()) {
-    char* data = state->data();
-    data += HandleScopeImplementer::ArchiveSpacePerThread();
-    Top::MarkCompactEpilogue(is_compacting, data);
-  }
-}
-
-
 int ThreadManager::CurrentId() {
   return Thread::GetThreadLocalInt(thread_id_key);
 }

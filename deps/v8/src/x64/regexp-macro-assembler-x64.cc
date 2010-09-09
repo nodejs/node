@@ -32,11 +32,9 @@
 #include "serialize.h"
 #include "unicode.h"
 #include "log.h"
-#include "ast.h"
 #include "regexp-stack.h"
 #include "macro-assembler.h"
 #include "regexp-macro-assembler.h"
-#include "x64/macro-assembler-x64.h"
 #include "x64/regexp-macro-assembler-x64.h"
 
 namespace v8 {

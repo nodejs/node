@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "assembler-arm.h"
-#include "codegen.h"
+#include "code-stubs.h"
 #include "codegen-inl.h"
 #include "disasm.h"
 #include "ic-inl.h"
@@ -414,17 +414,17 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
 // Falls through for regular JS object.
 static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
                                            Register receiver,
-                                           Register scratch1,
-                                           Register scratch2,
+                                           Register map,
+                                           Register scratch,
                                            int interceptor_bit,
                                            Label* slow) {
   // Check that the object isn't a smi.
   __ BranchOnSmi(receiver, slow);
   // Get the map of the receiver.
-  __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check bit field.
-  __ ldrb(scratch2, FieldMemOperand(scratch1, Map::kBitFieldOffset));
-  __ tst(scratch2,
+  __ ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
+  __ tst(scratch,
          Operand((1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit)));
   __ b(nz, slow);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
@@ -432,13 +432,14 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   // we enter the runtime system to make sure that indexing into string
   // objects work as intended.
   ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
-  __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
-  __ cmp(scratch1, Operand(JS_OBJECT_TYPE));
+  __ ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ cmp(scratch, Operand(JS_OBJECT_TYPE));
   __ b(lt, slow);
 }
 
 
 // Loads an indexed element from a fast case array.
+// If not_fast_array is NULL, doesn't perform the elements map check.
 static void GenerateFastArrayLoad(MacroAssembler* masm,
                                   Register receiver,
                                   Register key,
@@ -471,11 +472,15 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   // scratch2 - used to hold the loaded value.
 
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  // Check that the object is in fast mode (not dictionary).
-  __ ldr(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-  __ cmp(scratch1, ip);
-  __ b(ne, not_fast_array);
+  if (not_fast_array != NULL) {
+    // Check that the object is in fast mode and writable.
+    __ ldr(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
+    __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+    __ cmp(scratch1, ip);
+    __ b(ne, not_fast_array);
+  } else {
+    __ AssertFastElements(elements);
+  }
   // Check that the key (index) is within bounds.
   __ ldr(scratch1, FieldMemOperand(elements, FixedArray::kLengthOffset));
   __ cmp(key, Operand(scratch1));
@@ -519,32 +524,6 @@ static void GenerateKeyStringCheck(MacroAssembler* masm,
   ASSERT(kSymbolTag != 0);
   __ tst(hash, Operand(kIsSymbolMask));
   __ b(eq, not_symbol);
-}
-
-
-// Picks out an array index from the hash field.
-static void GenerateIndexFromHash(MacroAssembler* masm,
-                                  Register key,
-                                  Register hash) {
-  // Register use:
-  //   key - holds the overwritten key on exit.
-  //   hash - holds the key's hash. Clobbered.
-
-  // If the hash field contains an array index pick it out. The assert checks
-  // that the constants for the maximum number of digits for an array index
-  // cached in the hash field and the number of bits reserved for it does not
-  // conflict.
-  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
-         (1 << String::kArrayIndexValueBits));
-  // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
-  // the low kHashShift bits.
-  ASSERT(String::kHashShift >= kSmiTagSize);
-  // Here we actually clobber the key which will be used if calling into
-  // runtime later. However as the new key is the numeric value of a string key
-  // there is no difference in using either key.
-  ASSERT(String::kHashShift >= kSmiTagSize);
-  __ Ubfx(hash, hash, String::kHashShift, String::kArrayIndexValueBits);
-  __ mov(key, Operand(hash, LSL, kSmiTagSize));
 }
 
 
@@ -847,7 +826,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   GenerateMiss(masm, argc);
 
   __ bind(&index_string);
-  GenerateIndexFromHash(masm, r2, r3);
+  __ IndexFromHash(r3, r2);
   // Now jump to the place where smi keys are handled.
   __ jmp(&index_smi);
 }
@@ -1120,16 +1099,23 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateKeyedLoadReceiverCheck(
       masm, receiver, r2, r3, Map::kHasIndexedInterceptor, &slow);
 
+  // Check the "has fast elements" bit in the receiver's map which is
+  // now in r2.
+  __ ldrb(r3, FieldMemOperand(r2, Map::kBitField2Offset));
+  __ tst(r3, Operand(1 << Map::kHasFastElements));
+  __ b(eq, &check_pixel_array);
+
   GenerateFastArrayLoad(
-      masm, receiver, key, r4, r3, r2, r0, &check_pixel_array, &slow);
+      masm, receiver, key, r4, r3, r2, r0, NULL, &slow);
   __ IncrementCounter(&Counters::keyed_load_generic_smi, 1, r2, r3);
   __ Ret();
 
   // Check whether the elements is a pixel array.
   // r0: key
-  // r3: elements map
-  // r4: elements
+  // r1: receiver
   __ bind(&check_pixel_array);
+  __ ldr(r4, FieldMemOperand(r1, JSObject::kElementsOffset));
+  __ ldr(r3, FieldMemOperand(r4, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
   __ cmp(r3, ip);
   __ b(ne, &check_number_dictionary);
@@ -1237,7 +1223,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ Ret();
 
   __ bind(&index_string);
-  GenerateIndexFromHash(masm, key, r3);
+  __ IndexFromHash(r3, key);
   // Now jump to the place where smi keys are handled.
   __ jmp(&index_smi);
 }
@@ -1306,7 +1292,7 @@ static void GenerateUInt2Double(MacroAssembler* masm,
     __ mov(loword, Operand(hiword, LSL, mantissa_shift_for_lo_word));
     __ orr(hiword, scratch, Operand(hiword, LSR, mantissa_shift_for_hi_word));
   } else {
-    __ mov(loword, Operand(0));
+    __ mov(loword, Operand(0, RelocInfo::NONE));
     __ orr(hiword, scratch, Operand(hiword, LSL, mantissa_shift_for_hi_word));
   }
 
@@ -1690,7 +1676,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Object case: Check key against length in the elements array.
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  // Check that the object is in fast mode (not dictionary).
+  // Check that the object is in fast mode and writable.
   __ ldr(r4, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
   __ cmp(r4, ip);
@@ -1748,8 +1734,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ b(&fast);
 
   // Array case: Get the length and the elements array from the JS
-  // array. Check that the array is in fast mode; if it is the
-  // length is always a smi.
+  // array. Check that the array is in fast mode (and writable); if it
+  // is the length is always a smi.
   __ bind(&array);
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ ldr(r4, FieldMemOperand(elements, HeapObject::kMapOffset));
@@ -1779,19 +1765,22 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-// Convert int passed in register ival to IEE 754 single precision
-// floating point value and store it into register fval.
+// Convert and store int passed in register ival to IEEE 754 single precision
+// floating point value at memory location (dst + 4 * wordoffset)
 // If VFP3 is available use it for conversion.
-static void ConvertIntToFloat(MacroAssembler* masm,
-                              Register ival,
-                              Register fval,
-                              Register scratch1,
-                              Register scratch2) {
+static void StoreIntAsFloat(MacroAssembler* masm,
+                            Register dst,
+                            Register wordoffset,
+                            Register ival,
+                            Register fval,
+                            Register scratch1,
+                            Register scratch2) {
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     __ vmov(s0, ival);
+    __ add(scratch1, dst, Operand(wordoffset, LSL, 2));
     __ vcvt_f32_s32(s0, s0);
-    __ vmov(fval, s0);
+    __ vstr(s0, scratch1, 0);
   } else {
     Label not_special, done;
     // Move sign bit from source to destination.  This works because the sign
@@ -1801,7 +1790,7 @@ static void ConvertIntToFloat(MacroAssembler* masm,
 
     __ and_(fval, ival, Operand(kBinary32SignMask), SetCC);
     // Negate value if it is negative.
-    __ rsb(ival, ival, Operand(0), LeaveCC, ne);
+    __ rsb(ival, ival, Operand(0, RelocInfo::NONE), LeaveCC, ne);
 
     // We have -1, 0 or 1, which we treat specially. Register ival contains
     // absolute value: it is either equal to 1 (special case of -1 and 1),
@@ -1841,6 +1830,7 @@ static void ConvertIntToFloat(MacroAssembler* masm,
            Operand(ival, LSR, kBitsPerInt - kBinary32MantissaBits));
 
     __ bind(&done);
+    __ str(fval, MemOperand(dst, wordoffset, LSL, 2));
   }
 }
 
@@ -1935,9 +1925,8 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       __ str(r5, MemOperand(r3, r4, LSL, 2));
       break;
     case kExternalFloatArray:
-      // Need to perform int-to-float conversion.
-      ConvertIntToFloat(masm, r5, r6, r7, r9);
-      __ str(r6, MemOperand(r3, r4, LSL, 2));
+      // Perform int-to-float conversion and store to memory.
+      StoreIntAsFloat(masm, r3, r4, r5, r6, r7, r9);
       break;
     default:
       UNREACHABLE();
@@ -1971,9 +1960,9 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       // include -kHeapObjectTag into it.
       __ sub(r5, r0, Operand(kHeapObjectTag));
       __ vldr(d0, r5, HeapNumber::kValueOffset);
+      __ add(r5, r3, Operand(r4, LSL, 2));
       __ vcvt_f32_f64(s0, d0);
-      __ vmov(r5, s0);
-      __ str(r5, MemOperand(r3, r4, LSL, 2));
+      __ vstr(s0, r5, 0);
     } else {
       // Need to perform float-to-int conversion.
       // Test for NaN or infinity (both give zero).
@@ -2086,18 +2075,18 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       // and infinities. All these should be converted to 0.
       __ mov(r7, Operand(HeapNumber::kExponentMask));
       __ and_(r9, r5, Operand(r7), SetCC);
-      __ mov(r5, Operand(0), LeaveCC, eq);
+      __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, eq);
       __ b(eq, &done);
 
       __ teq(r9, Operand(r7));
-      __ mov(r5, Operand(0), LeaveCC, eq);
+      __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, eq);
       __ b(eq, &done);
 
       // Unbias exponent.
       __ mov(r9, Operand(r9, LSR, HeapNumber::kExponentShift));
       __ sub(r9, r9, Operand(HeapNumber::kExponentBias), SetCC);
       // If exponent is negative than result is 0.
-      __ mov(r5, Operand(0), LeaveCC, mi);
+      __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, mi);
       __ b(mi, &done);
 
       // If exponent is too big than result is minimal value.
@@ -2113,14 +2102,14 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
       __ mov(r5, Operand(r5, LSR, r9), LeaveCC, pl);
       __ b(pl, &sign);
 
-      __ rsb(r9, r9, Operand(0));
+      __ rsb(r9, r9, Operand(0, RelocInfo::NONE));
       __ mov(r5, Operand(r5, LSL, r9));
       __ rsb(r9, r9, Operand(meaningfull_bits));
       __ orr(r5, r5, Operand(r6, LSR, r9));
 
       __ bind(&sign);
-      __ teq(r7, Operand(0));
-      __ rsb(r5, r5, Operand(0), LeaveCC, ne);
+      __ teq(r7, Operand(0, RelocInfo::NONE));
+      __ rsb(r5, r5, Operand(0, RelocInfo::NONE), LeaveCC, ne);
 
       __ bind(&done);
       switch (array_type) {
@@ -2217,6 +2206,8 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   __ b(ne, &miss);
 
   // Check that elements are FixedArray.
+  // We rely on StoreIC_ArrayLength below to deal with all types of
+  // fast elements (including COW).
   __ ldr(scratch, FieldMemOperand(receiver, JSArray::kElementsOffset));
   __ CompareObjectType(scratch, scratch, scratch, FIXED_ARRAY_TYPE);
   __ b(ne, &miss);

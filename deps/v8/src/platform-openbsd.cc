@@ -196,9 +196,10 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
-#if (defined(__arm__) || defined(__thumb__)) && \
-    defined(CAN_USE_ARMV5_INSTRUCTIONS)
+#if (defined(__arm__) || defined(__thumb__))
+# if defined(CAN_USE_ARMV5_INSTRUCTIONS)
   asm("bkpt 0");
+# endif
 #else
   asm("int $3");
 #endif

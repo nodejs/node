@@ -277,6 +277,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\arm\code-stubs-arm.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\arm\code-stubs-arm.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\code.h"
 				>
 			</File>

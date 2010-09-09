@@ -37,9 +37,8 @@ HARNESS_FILES = ['sth.js']
 class ES5ConformTestCase(test.TestCase):
 
   def __init__(self, filename, path, context, root, mode, framework):
-    super(ES5ConformTestCase, self).__init__(context, path)
+    super(ES5ConformTestCase, self).__init__(context, path, mode)
     self.filename = filename
-    self.mode = mode
     self.framework = framework
     self.root = root
 
@@ -55,7 +54,7 @@ class ES5ConformTestCase(test.TestCase):
     return 'FAILED!' in output.stdout
 
   def GetCommand(self):
-    result = [self.context.GetVm(self.mode)]
+    result = self.context.GetVmCommand(self, self.mode)
     result += ['-e', 'var window = this']
     result += self.framework
     result.append(self.filename)

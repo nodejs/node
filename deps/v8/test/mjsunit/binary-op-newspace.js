@@ -25,21 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-/**
- * @fileoverview Check that a mod where the stub code hits a failure
- * in heap number allocation still works.
- */
-
 // Flags: --max-new-space-size=262144
+
+
+// Check that a mod where the stub code hits a failure in heap number
+// allocation still works.
 
 function f(x) {
   return x % 3;
 }
 
-function test() {
+function testMod() {
   for (var i = 0; i < 40000; i++) {
     assertEquals(-1 / 0, 1 / f(-3));
   }
 }
 
-test();
+testMod();
+
+
+// Check that an add where the stub code hits a failure in heap number
+// allocation still works.
+
+function g(x, y) {
+  return x + y;
+}
+
+function testAdd() {
+  var lhs = 17.42;
+  var rhs = 42.17;
+  for (var i = 0; i < 40000; i++) {
+    assertEquals(59.59, g(lhs, rhs));
+  }
+}
+
+testAdd();

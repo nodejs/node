@@ -216,7 +216,7 @@ def reclaimed_bytes(row):
   return row['total_size_before'] - row['total_size_after']
 
 def other_scope(r):
-  return r['pause'] - r['mark'] - r['sweep'] - r['compact'] - r['flushcode']
+  return r['pause'] - r['mark'] - r['sweep'] - r['compact']
 
 plots = [
   [
@@ -226,7 +226,6 @@ plots = [
     Plot(Item('Marking', 'mark', lc = 'purple'),
          Item('Sweep', 'sweep', lc = 'blue'),
          Item('Compaction', 'compact', lc = 'red'),
-         Item('Flush Code', 'flushcode', lc = 'yellow'),
          Item('Other', other_scope, lc = 'grey'))
   ],
   [
@@ -288,7 +287,10 @@ def process_trace(filename):
     n = len(trace)
     total = calc_total(trace, field)
     max = calc_max(trace, field)
-    avg = total / n
+    if n > 0:
+      avg = total / n
+    else:
+      avg = 0
     if n > 1:
       dev = math.sqrt(freduce(lambda t,r: (r - avg) ** 2, field, trace, 0) /
                       (n - 1))
@@ -303,14 +305,14 @@ def process_trace(filename):
   with open(filename + '.html', 'w') as out:
     out.write('<html><body>')
     out.write('<table>')
-    out.write('<tr><td>Phase</td><td>Count</td><td>Time (ms)</td><td>Max</td><td>Avg</td></tr>')
+    out.write('<tr><td>Phase</td><td>Count</td><td>Time (ms)</td>')
+    out.write('<td>Max</td><td>Avg</td></tr>')
     stats(out, 'Total in GC', trace, 'pause')
     stats(out, 'Scavenge', scavenges, 'pause')
     stats(out, 'MarkSweep', marksweeps, 'pause')
     stats(out, 'MarkCompact', markcompacts, 'pause')
     stats(out, 'Mark', filter(lambda r: r['mark'] != 0, trace), 'mark')
     stats(out, 'Sweep', filter(lambda r: r['sweep'] != 0, trace), 'sweep')
-    stats(out, 'Flush Code', filter(lambda r: r['flushcode'] != 0, trace), 'flushcode')
     stats(out, 'Compact', filter(lambda r: r['compact'] != 0, trace), 'compact')
     out.write('</table>')
     for chart in charts:

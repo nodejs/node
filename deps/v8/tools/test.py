@@ -331,10 +331,11 @@ class CommandOutput(object):
 
 class TestCase(object):
 
-  def __init__(self, context, path):
+  def __init__(self, context, path, mode):
     self.path = path
     self.context = context
     self.duration = None
+    self.mode = mode
 
   def IsNegative(self):
     return False
@@ -355,14 +356,19 @@ class TestCase(object):
 
   def RunCommand(self, command):
     full_command = self.context.processor(command)
-    output = Execute(full_command, self.context, self.context.timeout)
+    output = Execute(full_command,
+                     self.context,
+                     self.context.GetTimeout(self.mode))
     self.Cleanup()
-    return TestOutput(self, full_command, output)
+    return TestOutput(self,
+                      full_command,
+                      output,
+                      self.context.store_unexpected_output)
 
   def BeforeRun(self):
     pass
 
-  def AfterRun(self):
+  def AfterRun(self, result):
     pass
 
   def Run(self):
@@ -370,7 +376,7 @@ class TestCase(object):
     try:
       result = self.RunCommand(self.GetCommand())
     finally:
-      self.AfterRun()
+      self.AfterRun(result)
     return result
 
   def Cleanup(self):
@@ -379,10 +385,11 @@ class TestCase(object):
 
 class TestOutput(object):
 
-  def __init__(self, test, command, output):
+  def __init__(self, test, command, output, store_unexpected_output):
     self.test = test
     self.command = command
     self.output = output
+    self.store_unexpected_output = store_unexpected_output
 
   def UnexpectedOutput(self):
     if self.HasCrashed():
@@ -394,6 +401,9 @@ class TestOutput(object):
     else:
       outcome = PASS
     return not outcome in self.test.outcomes
+
+  def HasPreciousOutput(self):
+    return self.UnexpectedOutput() and self.store_unexpected_output
 
   def HasCrashed(self):
     if utils.IsWindows():
@@ -557,6 +567,11 @@ class TestSuite(object):
     return self.name
 
 
+# Use this to run several variants of the tests, e.g.:
+# VARIANT_FLAGS = [[], ['--always_compact', '--noflush_code']]
+VARIANT_FLAGS = [[]]
+
+
 class TestRepository(TestSuite):
 
   def __init__(self, path):
@@ -583,8 +598,12 @@ class TestRepository(TestSuite):
   def GetBuildRequirements(self, path, context):
     return self.GetConfiguration(context).GetBuildRequirements()
 
-  def ListTests(self, current_path, path, context, mode):
-    return self.GetConfiguration(context).ListTests(current_path, path, mode)
+  def AddTestsToList(self, result, current_path, path, context, mode):
+    for v in VARIANT_FLAGS:
+      tests = self.GetConfiguration(context).ListTests(current_path, path, mode)
+      for t in tests: t.variant_flags = v
+      result += tests
+
 
   def GetTestStatus(self, context, sections, defs):
     self.GetConfiguration(context).GetTestStatus(sections, defs)
@@ -611,7 +630,7 @@ class LiteralTestSuite(TestSuite):
       test_name = test.GetName()
       if not name or name.match(test_name):
         full_path = current_path + [test_name]
-        result += test.ListTests(full_path, path, context, mode)
+        test.AddTestsToList(result, full_path, path, context, mode)
     return result
 
   def GetTestStatus(self, context, sections, defs):
@@ -619,12 +638,20 @@ class LiteralTestSuite(TestSuite):
       test.GetTestStatus(context, sections, defs)
 
 
-SUFFIX = {'debug': '_g', 'release': ''}
+SUFFIX = {
+    'debug'   : '_g',
+    'release' : '' }
+FLAGS = {
+    'debug'   : ['--enable-slow-asserts', '--debug-code', '--verify-heap'],
+    'release' : []}
+TIMEOUT_SCALEFACTOR = {
+    'debug'   : 4,
+    'release' : 1 }
 
 
 class Context(object):
 
-  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, suppress_dialogs):
+  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, suppress_dialogs, store_unexpected_output):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
@@ -632,12 +659,22 @@ class Context(object):
     self.timeout = timeout
     self.processor = processor
     self.suppress_dialogs = suppress_dialogs
+    self.store_unexpected_output = store_unexpected_output
 
   def GetVm(self, mode):
     name = self.vm_root + SUFFIX[mode]
     if utils.IsWindows() and not name.endswith('.exe'):
       name = name + '.exe'
     return name
+
+  def GetVmCommand(self, testcase, mode):
+    return [self.GetVm(mode)] + self.GetVmFlags(testcase, mode)
+
+  def GetVmFlags(self, testcase, mode):
+    return testcase.variant_flags + FLAGS[mode]
+
+  def GetTimeout(self, mode):
+    return self.timeout * TIMEOUT_SCALEFACTOR[mode]
 
 def RunTestCases(cases_to_run, progress, tasks):
   progress = PROGRESS_INDICATORS[progress](cases_to_run)
@@ -1121,7 +1158,13 @@ def BuildOptions():
         dest="suppress_dialogs", default=True, action="store_true")
   result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
         dest="suppress_dialogs", action="store_false")
-  result.add_option("--shell", help="Path to V8 shell", default="shell");
+  result.add_option("--shell", help="Path to V8 shell", default="shell")
+  result.add_option("--store-unexpected-output", 
+      help="Store the temporary JS files from tests that fails",
+      dest="store_unexpected_output", default=True, action="store_true")
+  result.add_option("--no-store-unexpected-output", 
+      help="Deletes the temporary JS files from tests that fails",
+      dest="store_unexpected_output", action="store_false")
   return result
 
 
@@ -1258,11 +1301,13 @@ def Main():
 
   shell = abspath(options.shell)
   buildspace = dirname(shell)
+
   context = Context(workspace, buildspace, VERBOSE,
                     shell,
                     options.timeout,
                     GetSpecialCommandProcessor(options.special_command),
-                    options.suppress_dialogs)
+                    options.suppress_dialogs,
+                    options.store_unexpected_output)
   # First build the required targets
   if not options.no_build:
     reqs = [ ]
@@ -1278,7 +1323,7 @@ def Main():
   # Just return if we are only building the targets for running the tests.
   if options.build_only:
     return 0
-  
+
   # Get status for tests
   sections = [ ]
   defs = { }

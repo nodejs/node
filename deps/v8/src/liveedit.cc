@@ -739,7 +739,7 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
     Handle<String> name_handle(String::cast(info->name()));
     info_wrapper.SetProperties(name_handle, info->start_position(),
                                info->end_position(), info);
-    array->SetElement(i, *(info_wrapper.GetJSArray()));
+    SetElement(array, i, info_wrapper.GetJSArray());
   }
 }
 
@@ -750,7 +750,7 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
 class ReferenceCollectorVisitor : public ObjectVisitor {
  public:
   explicit ReferenceCollectorVisitor(Code* original)
-      : original_(original), rvalues_(10), reloc_infos_(10) {
+    : original_(original), rvalues_(10), reloc_infos_(10), code_entries_(10) {
   }
 
   virtual void VisitPointers(Object** start, Object** end) {
@@ -761,7 +761,13 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) {
+  virtual void VisitCodeEntry(Address entry) {
+    if (Code::GetObjectFromEntryAddress(entry) == original_) {
+      code_entries_.Add(entry);
+    }
+  }
+
+  virtual void VisitCodeTarget(RelocInfo* rinfo) {
     if (RelocInfo::IsCodeTarget(rinfo->rmode()) &&
         Code::GetCodeFromTargetAddress(rinfo->target_address()) == original_) {
       reloc_infos_.Add(*rinfo);
@@ -778,8 +784,13 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
     for (int i = 0; i < rvalues_.length(); i++) {
       *(rvalues_[i]) = substitution;
     }
+    Address substitution_entry = substitution->instruction_start();
     for (int i = 0; i < reloc_infos_.length(); i++) {
-      reloc_infos_[i].set_target_address(substitution->instruction_start());
+      reloc_infos_[i].set_target_address(substitution_entry);
+    }
+    for (int i = 0; i < code_entries_.length(); i++) {
+      Address entry = code_entries_[i];
+      Memory::Address_at(entry) = substitution_entry;
     }
   }
 
@@ -787,27 +798,9 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
   Code* original_;
   ZoneList<Object**> rvalues_;
   ZoneList<RelocInfo> reloc_infos_;
+  ZoneList<Address> code_entries_;
 };
 
-
-class FrameCookingThreadVisitor : public ThreadVisitor {
- public:
-  void VisitThread(ThreadLocalTop* top) {
-    StackFrame::CookFramesForThread(top);
-  }
-};
-
-class FrameUncookingThreadVisitor : public ThreadVisitor {
- public:
-  void VisitThread(ThreadLocalTop* top) {
-    StackFrame::UncookFramesForThread(top);
-  }
-};
-
-static void IterateAllThreads(ThreadVisitor* visitor) {
-  Top::IterateThread(visitor);
-  ThreadManager::IterateArchivedThreads(visitor);
-}
 
 // Finds all references to original and replaces them with substitution.
 static void ReplaceCodeObject(Code* original, Code* substitution) {
@@ -824,13 +817,7 @@ static void ReplaceCodeObject(Code* original, Code* substitution) {
   // so temporary replace the pointers with offset numbers
   // in prologue/epilogue.
   {
-    FrameCookingThreadVisitor cooking_visitor;
-    IterateAllThreads(&cooking_visitor);
-
     Heap::IterateStrongRoots(&visitor, VISIT_ALL);
-
-    FrameUncookingThreadVisitor uncooking_visitor;
-    IterateAllThreads(&uncooking_visitor);
   }
 
   // Now iterate over all pointers of all objects, including code_target
@@ -1372,8 +1359,9 @@ static const char* DropActivationsInActiveThread(
   for (int i = 0; i < array_len; i++) {
     if (result->GetElement(i) ==
         Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
-      result->SetElement(i, Smi::FromInt(
-          LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK));
+      Handle<Object> replaced(
+          Smi::FromInt(LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK));
+      SetElement(result, i, replaced);
     }
   }
   return NULL;

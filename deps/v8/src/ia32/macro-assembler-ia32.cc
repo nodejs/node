@@ -191,81 +191,6 @@ void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-void MacroAssembler::SaveRegistersToMemory(RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Copy the content of registers to memory location.
-  for (int i = 0; i < kNumJSCallerSaved; i++) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      Register reg = { r };
-      ExternalReference reg_addr =
-          ExternalReference(Debug_Address::Register(i));
-      mov(Operand::StaticVariable(reg_addr), reg);
-    }
-  }
-}
-
-
-void MacroAssembler::RestoreRegistersFromMemory(RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Copy the content of memory location to registers.
-  for (int i = kNumJSCallerSaved; --i >= 0;) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      Register reg = { r };
-      ExternalReference reg_addr =
-          ExternalReference(Debug_Address::Register(i));
-      mov(reg, Operand::StaticVariable(reg_addr));
-    }
-  }
-}
-
-
-void MacroAssembler::PushRegistersFromMemory(RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Push the content of the memory location to the stack.
-  for (int i = 0; i < kNumJSCallerSaved; i++) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      ExternalReference reg_addr =
-          ExternalReference(Debug_Address::Register(i));
-      push(Operand::StaticVariable(reg_addr));
-    }
-  }
-}
-
-
-void MacroAssembler::PopRegistersToMemory(RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Pop the content from the stack to the memory location.
-  for (int i = kNumJSCallerSaved; --i >= 0;) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      ExternalReference reg_addr =
-          ExternalReference(Debug_Address::Register(i));
-      pop(Operand::StaticVariable(reg_addr));
-    }
-  }
-}
-
-
-void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
-                                                    Register scratch,
-                                                    RegList regs) {
-  ASSERT((regs & ~kJSCallerSaved) == 0);
-  // Copy the content of the stack to the memory location and adjust base.
-  for (int i = kNumJSCallerSaved; --i >= 0;) {
-    int r = JSCallerSavedCode(i);
-    if ((regs & (1 << r)) != 0) {
-      mov(scratch, Operand(base, 0));
-      ExternalReference reg_addr =
-          ExternalReference(Debug_Address::Register(i));
-      mov(Operand::StaticVariable(reg_addr), scratch);
-      lea(base, Operand(base, kPointerSize));
-    }
-  }
-}
-
 void MacroAssembler::DebugBreak() {
   Set(eax, Immediate(0));
   mov(ebx, Immediate(ExternalReference(Runtime::kDebugBreak)));
@@ -273,6 +198,7 @@ void MacroAssembler::DebugBreak() {
   call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
 #endif
+
 
 void MacroAssembler::Set(Register dst, const Immediate& x) {
   if (x.is_zero()) {
@@ -377,6 +303,17 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
 }
 
 
+void MacroAssembler::AbortIfNotString(Register object) {
+  test(object, Immediate(kSmiTagMask));
+  Assert(not_equal, "Operand is not a string");
+  push(object);
+  mov(object, FieldOperand(object, HeapObject::kMapOffset));
+  CmpInstanceType(object, FIRST_NONSTRING_TYPE);
+  pop(object);
+  Assert(below, "Operand is not a string");
+}
+
+
 void MacroAssembler::AbortIfSmi(Register object) {
   test(object, Immediate(kSmiTagMask));
   Assert(not_equal, "Operand is a smi");
@@ -405,7 +342,8 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   leave();
 }
 
-void MacroAssembler::EnterExitFramePrologue(ExitFrame::Mode mode) {
+
+void MacroAssembler::EnterExitFramePrologue() {
   // Setup the frame structure on the stack.
   ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
@@ -413,7 +351,7 @@ void MacroAssembler::EnterExitFramePrologue(ExitFrame::Mode mode) {
   push(ebp);
   mov(ebp, Operand(esp));
 
-  // Reserve room for entry stack pointer and push the debug marker.
+  // Reserve room for entry stack pointer and push the code object.
   ASSERT(ExitFrameConstants::kSPOffset  == -1 * kPointerSize);
   push(Immediate(0));  // Saved entry sp, patched before call.
   push(Immediate(CodeObject()));  // Accessed from ExitFrame::code_slot.
@@ -425,21 +363,8 @@ void MacroAssembler::EnterExitFramePrologue(ExitFrame::Mode mode) {
   mov(Operand::StaticVariable(context_address), esi);
 }
 
-void MacroAssembler::EnterExitFrameEpilogue(ExitFrame::Mode mode, int argc) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Save the state of all registers to the stack from the memory
-  // location. This is needed to allow nested break points.
-  if (mode == ExitFrame::MODE_DEBUG) {
-    // TODO(1243899): This should be symmetric to
-    // CopyRegistersFromStackToMemory() but it isn't! esp is assumed
-    // correct here, but computed for the other call. Very error
-    // prone! FIX THIS.  Actually there are deeper problems with
-    // register saving than this asymmetry (see the bug report
-    // associated with this issue).
-    PushRegistersFromMemory(kJSCallerSaved);
-  }
-#endif
 
+void MacroAssembler::EnterExitFrameEpilogue(int argc) {
   // Reserve space for arguments.
   sub(Operand(esp), Immediate(argc * kPointerSize));
 
@@ -455,44 +380,30 @@ void MacroAssembler::EnterExitFrameEpilogue(ExitFrame::Mode mode, int argc) {
 }
 
 
-void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
-  EnterExitFramePrologue(mode);
+void MacroAssembler::EnterExitFrame() {
+  EnterExitFramePrologue();
 
   // Setup argc and argv in callee-saved registers.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   mov(edi, Operand(eax));
   lea(esi, Operand(ebp, eax, times_4, offset));
 
-  EnterExitFrameEpilogue(mode, 2);
+  EnterExitFrameEpilogue(2);
 }
 
 
-void MacroAssembler::EnterApiExitFrame(ExitFrame::Mode mode,
-                                       int stack_space,
+void MacroAssembler::EnterApiExitFrame(int stack_space,
                                        int argc) {
-  EnterExitFramePrologue(mode);
+  EnterExitFramePrologue();
 
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   lea(esi, Operand(ebp, (stack_space * kPointerSize) + offset));
 
-  EnterExitFrameEpilogue(mode, argc);
+  EnterExitFrameEpilogue(argc);
 }
 
 
-void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Restore the memory copy of the registers by digging them out from
-  // the stack. This is needed to allow nested break points.
-  if (mode == ExitFrame::MODE_DEBUG) {
-    // It's okay to clobber register ebx below because we don't need
-    // the function pointer after this.
-    const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
-    int kOffset = ExitFrameConstants::kCodeOffset - kCallerSavedSize;
-    lea(ebx, Operand(ebp, kOffset));
-    CopyRegistersFromStackToMemory(ebx, ecx, kJSCallerSaved);
-  }
-#endif
-
+void MacroAssembler::LeaveExitFrame() {
   // Get the return address from the stack and restore the frame pointer.
   mov(ecx, Operand(ebp, 1 * kPointerSize));
   mov(ebp, Operand(ebp, 0 * kPointerSize));
@@ -871,6 +782,31 @@ void MacroAssembler::AllocateAsciiString(Register result,
 }
 
 
+void MacroAssembler::AllocateAsciiString(Register result,
+                                         int length,
+                                         Register scratch1,
+                                         Register scratch2,
+                                         Label* gc_required) {
+  ASSERT(length > 0);
+
+  // Allocate ascii string in new space.
+  AllocateInNewSpace(SeqAsciiString::SizeFor(length),
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map, length and hash field.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(Factory::ascii_string_map()));
+  mov(FieldOperand(result, String::kLengthOffset),
+      Immediate(Smi::FromInt(length)));
+  mov(FieldOperand(result, String::kHashFieldOffset),
+      Immediate(String::kEmptyHashField));
+}
+
+
 void MacroAssembler::AllocateConsString(Register result,
                                         Register scratch1,
                                         Register scratch2,
@@ -1037,6 +973,25 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
     add(Operand(esp), Immediate(num_arguments * kPointerSize));
   }
   mov(eax, Immediate(Factory::undefined_value()));
+}
+
+
+void MacroAssembler::IndexFromHash(Register hash, Register index) {
+  // The assert checks that the constants for the maximum number of digits
+  // for an array index cached in the hash field and the number of bits
+  // reserved for it does not conflict.
+  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
+         (1 << String::kArrayIndexValueBits));
+  // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
+  // the low kHashShift bits.
+  and_(hash, String::kArrayIndexValueMask);
+  STATIC_ASSERT(String::kHashShift >= kSmiTagSize && kSmiTag == 0);
+  if (String::kHashShift > kSmiTagSize) {
+    shr(hash, String::kHashShift - kSmiTagSize);
+  }
+  if (!index.is(hash)) {
+    mov(index, hash);
+  }
 }
 
 
@@ -1298,11 +1253,10 @@ void MacroAssembler::InvokeFunction(Register fun,
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
   mov(ebx, FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
   SmiUntag(ebx);
-  mov(edx, FieldOperand(edi, JSFunction::kCodeOffset));
-  lea(edx, FieldOperand(edx, Code::kHeaderSize));
 
   ParameterCount expected(ebx);
-  InvokeCode(Operand(edx), expected, actual, flag);
+  InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
+             expected, actual, flag);
 }
 
 
@@ -1313,7 +1267,6 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   // Get the function and setup the context.
   mov(edi, Immediate(Handle<JSFunction>(function)));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-
   // Invoke the cached code.
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
@@ -1329,33 +1282,26 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   // arguments match the expected number of arguments. Fake a
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
-  GetBuiltinEntry(edx, id);
-  InvokeCode(Operand(edx), expected, expected, flag);
+  GetBuiltinFunction(edi, id);
+  InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
+           expected, expected, flag);
 }
 
+void MacroAssembler::GetBuiltinFunction(Register target,
+                                        Builtins::JavaScript id) {
+  // Load the JavaScript builtin function from the builtins object.
+  mov(target, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  mov(target, FieldOperand(target, GlobalObject::kBuiltinsOffset));
+  mov(target, FieldOperand(target,
+                           JSBuiltinsObject::OffsetOfFunctionWithId(id)));
+}
 
 void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   ASSERT(!target.is(edi));
-
-  // Load the builtins object into target register.
-  mov(target, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  mov(target, FieldOperand(target, GlobalObject::kBuiltinsOffset));
-
   // Load the JavaScript builtin function from the builtins object.
-  mov(edi, FieldOperand(target, JSBuiltinsObject::OffsetOfFunctionWithId(id)));
-
-  // Load the code entry point from the builtins object.
-  mov(target, FieldOperand(target, JSBuiltinsObject::OffsetOfCodeWithId(id)));
-  if (FLAG_debug_code) {
-    // Make sure the code objects in the builtins object and in the
-    // builtin function are the same.
-    push(target);
-    mov(target, FieldOperand(edi, JSFunction::kCodeOffset));
-    cmp(target, Operand(esp, 0));
-    Assert(equal, "Builtin code object changed");
-    pop(target);
-  }
-  lea(target, FieldOperand(target, Code::kHeaderSize));
+  GetBuiltinFunction(edi, id);
+  // Load the code entry point from the function into the target register.
+  mov(target, FieldOperand(edi, JSFunction::kCodeEntryOffset));
 }
 
 
@@ -1377,6 +1323,30 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   }
 }
 
+
+void MacroAssembler::LoadGlobalFunction(int index, Register function) {
+  // Load the global or builtins object from the current context.
+  mov(function, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  // Load the global context from the global or builtins object.
+  mov(function, FieldOperand(function, GlobalObject::kGlobalContextOffset));
+  // Load the function from the global context.
+  mov(function, Operand(function, Context::SlotOffset(index)));
+}
+
+
+void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
+                                                  Register map) {
+  // Load the initial map.  The global functions all have initial maps.
+  mov(map, FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+  if (FLAG_debug_code) {
+    Label ok, fail;
+    CheckMap(map, Factory::meta_map(), &fail, false);
+    jmp(&ok);
+    bind(&fail);
+    Abort("Global functions must have initial map");
+    bind(&ok);
+  }
+}
 
 
 void MacroAssembler::Ret() {
@@ -1461,6 +1431,21 @@ void MacroAssembler::DecrementCounter(Condition cc,
 
 void MacroAssembler::Assert(Condition cc, const char* msg) {
   if (FLAG_debug_code) Check(cc, msg);
+}
+
+
+void MacroAssembler::AssertFastElements(Register elements) {
+  if (FLAG_debug_code) {
+    Label ok;
+    cmp(FieldOperand(elements, HeapObject::kMapOffset),
+        Immediate(Factory::fixed_array_map()));
+    j(equal, &ok);
+    cmp(FieldOperand(elements, HeapObject::kMapOffset),
+        Immediate(Factory::fixed_cow_array_map()));
+    j(equal, &ok);
+    Abort("JSObject with fast elements map has slow elements");
+    bind(&ok);
+  }
 }
 
 

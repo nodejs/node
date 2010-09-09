@@ -317,3 +317,32 @@ TestInvalid('1); x++; (1');
 // Test string conversion of argument.
 var o = { toString: function() { return "42"; } };
 assertEquals(42, JSON.parse(o));
+
+
+for (var i = 0; i < 65536; i++) {
+  var string = String.fromCharCode(i);
+  var encoded = JSON.stringify(string);
+  var expected = "uninitialized";
+  // Following the ES5 specification of the abstraction function Quote.
+  if (string == '"' || string == '\\') {
+    // Step 2.a
+    expected = '\\' + string;
+  } else if ("\b\t\n\r\f".indexOf(string) >= 0) {
+    // Step 2.b 
+    if (string == '\b') expected = '\\b';
+    else if (string == '\t') expected = '\\t';
+    else if (string == '\n') expected = '\\n';
+    else if (string == '\f') expected = '\\f';
+    else if (string == '\r') expected = '\\r';
+  } else if (i < 32) {
+    // Step 2.c
+    if (i < 16) {
+      expected = "\\u000" + i.toString(16);
+    } else {
+      expected = "\\u00" + i.toString(16);
+    }
+  } else {
+    expected = string;
+  }  
+  assertEquals('"' + expected + '"', encoded, "Codepoint " + i);
+} 

@@ -502,7 +502,10 @@ function ToBoolean(x) {
 // ECMA-262, section 9.3, page 31.
 function ToNumber(x) {
   if (IS_NUMBER(x)) return x;
-  if (IS_STRING(x)) return %StringToNumber(x);
+  if (IS_STRING(x)) {
+    return %_HasCachedArrayIndex(x) ? %_GetCachedArrayIndex(x)
+                                    : %StringToNumber(x);
+  }
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return $NaN;
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));

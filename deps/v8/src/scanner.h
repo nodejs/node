@@ -40,45 +40,44 @@ class UTF8Buffer {
   UTF8Buffer();
   ~UTF8Buffer();
 
-  void AddChar(uc32 c) {
-    ASSERT_NOT_NULL(data_);
-    if (cursor_ <= limit_ &&
-        static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
-      *cursor_++ = static_cast<char>(c);
+  inline void AddChar(uc32 c) {
+    if (static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
+      buffer_.Add(static_cast<char>(c));
     } else {
       AddCharSlow(c);
     }
   }
 
+  void StartLiteral() {
+    buffer_.StartSequence();
+  }
+
+  Vector<const char> EndLiteral() {
+    buffer_.Add(kEndMarker);
+    Vector<char> sequence = buffer_.EndSequence();
+    return Vector<const char>(sequence.start(), sequence.length());
+  }
+
+  void DropLiteral() {
+    buffer_.DropSequence();
+  }
+
   void Reset() {
-    if (data_ == NULL) {
-      data_ = NewArray<char>(kInitialCapacity);
-      limit_ = ComputeLimit(data_, kInitialCapacity);
-    }
-    cursor_ = data_;
+    buffer_.Reset();
   }
 
-  int pos() const {
-    ASSERT_NOT_NULL(data_);
-    return static_cast<int>(cursor_ - data_);
-  }
-
-  char* data() const { return data_; }
-
+  // The end marker added after a parsed literal.
+  // Using zero allows the usage of strlen and similar functions on
+  // identifiers and numbers (but not strings, since they may contain zero
+  // bytes).
+  // TODO(lrn): Use '\xff' as end marker, since it cannot occur inside
+  // an utf-8 string. This requires changes in all places that uses
+  // str-functions on the literals, but allows a single pointer to represent
+  // the literal, even if it contains embedded zeros.
+  static const char kEndMarker = '\x00';
  private:
   static const int kInitialCapacity = 256;
-  char* data_;
-  char* cursor_;
-  char* limit_;
-
-  int Capacity() const {
-    ASSERT_NOT_NULL(data_);
-    return static_cast<int>(limit_ - data_) + unibrow::Utf8::kMaxEncodedSize;
-  }
-
-  static char* ComputeLimit(char* data, int capacity) {
-    return (data + capacity) - unibrow::Utf8::kMaxEncodedSize;
-  }
+  SequenceCollector<char, 4> buffer_;
 
   void AddCharSlow(uc32 c);
 };
@@ -271,6 +270,17 @@ class Scanner {
  public:
   typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
+  class LiteralScope {
+   public:
+    explicit LiteralScope(Scanner* self);
+    ~LiteralScope();
+    void Complete();
+
+   private:
+    Scanner* scanner_;
+    bool complete_;
+  };
+
   // Construction
   explicit Scanner(ParserMode parse_mode);
 
@@ -314,27 +324,34 @@ class Scanner {
   // These functions only give the correct result if the literal
   // was scanned between calls to StartLiteral() and TerminateLiteral().
   const char* literal_string() const {
-    return current_.literal_buffer->data();
+    return current_.literal_chars.start();
   }
+
   int literal_length() const {
-    // Excluding terminal '\0' added by TerminateLiteral().
-    return current_.literal_buffer->pos() - 1;
+    // Excluding terminal '\x00' added by TerminateLiteral().
+    return current_.literal_chars.length() - 1;
+  }
+
+  Vector<const char> literal() const {
+    return Vector<const char>(literal_string(), literal_length());
   }
 
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
   const char* next_literal_string() const {
-    return next_.literal_buffer->data();
+    return next_.literal_chars.start();
   }
+
+
   // Returns the length of the next token (that would be returned if
   // Next() were called).
   int next_literal_length() const {
-    return next_.literal_buffer->pos() - 1;
+    // Excluding terminal '\x00' added by TerminateLiteral().
+    return next_.literal_chars.length() - 1;
   }
 
   Vector<const char> next_literal() const {
-    return Vector<const char>(next_literal_string(),
-                              next_literal_length());
+    return Vector<const char>(next_literal_string(), next_literal_length());
   }
 
   // Scans the input as a regular expression pattern, previous
@@ -371,7 +388,7 @@ class Scanner {
   struct TokenDesc {
     Token::Value token;
     Location location;
-    UTF8Buffer* literal_buffer;
+    Vector<const char> literal_chars;
   };
 
   void Init(Handle<String> source,
@@ -380,10 +397,12 @@ class Scanner {
             ParserLanguage language);
 
   // Literal buffer support
-  void StartLiteral();
-  void AddChar(uc32 ch);
-  void AddCharAdvance();
-  void TerminateLiteral();
+  inline void StartLiteral();
+  inline void AddChar(uc32 ch);
+  inline void AddCharAdvance();
+  inline void TerminateLiteral();
+  // Stops scanning of a literal, e.g., due to an encountered error.
+  inline void DropLiteral();
 
   // Low-level scanning support.
   void Advance() { c0_ = source_->Advance(); }
@@ -487,9 +506,8 @@ class Scanner {
   SafeStringInputBuffer safe_string_input_buffer_;
 
   // Buffer to hold literal values (identifiers, strings, numbers)
-  // using 0-terminated UTF-8 encoding.
-  UTF8Buffer literal_buffer_1_;
-  UTF8Buffer literal_buffer_2_;
+  // using '\x00'-terminated UTF-8 encoding. Handles allocation internally.
+  UTF8Buffer literal_buffer_;
 
   bool stack_overflow_;
   static StaticResource<Utf8Decoder> utf8_decoder_;

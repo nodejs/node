@@ -165,14 +165,14 @@ IC::State IC::StateFrom(Code* target, Object* receiver, Object* name) {
 
   if (cache_holder == OWN_MAP && !receiver->IsJSObject()) {
     // The stub was generated for JSObject but called for non-JSObject.
-    // IC::GetCodeCacheMap is not applicable.
+    // IC::GetCodeCacheHolder is not applicable.
     return MONOMORPHIC;
   } else if (cache_holder == PROTOTYPE_MAP &&
              receiver->GetPrototype()->IsNull()) {
-    // IC::GetCodeCacheMap is not applicable.
+    // IC::GetCodeCacheHolder is not applicable.
     return MONOMORPHIC;
   }
-  Map* map = IC::GetCodeCacheMap(receiver, cache_holder);
+  Map* map = IC::GetCodeCacheHolder(receiver, cache_holder)->map();
 
   // Decide whether the inline cache failed because of changes to the
   // receiver itself or changes to one of its prototypes.

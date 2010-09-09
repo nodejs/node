@@ -137,17 +137,6 @@ function RegExpCache() {
 var regExpCache = new RegExpCache();
 
 
-function CloneRegExpResult(array) {
-  if (array == null) return null;
-  var length = array.length;
-  var answer = %_RegExpConstructResult(length, array.index, array.input);
-  for (var i = 0; i < length; i++) {
-    answer[i] = array[i];
-  }
-  return answer;
-}
-
-
 function BuildResultFromMatchInfo(lastMatchInfo, s) {
   var numResults = NUMBER_OF_CAPTURES(lastMatchInfo) >> 1;
   var result = %_RegExpConstructResult(numResults, lastMatchInfo[CAPTURE0], s);
@@ -197,7 +186,7 @@ function RegExpExec(string) {
       %_IsRegExpEquivalent(cache.regExp, this) &&
       %_ObjectEquals(cache.subject, string)) {
     if (cache.answerSaved) {
-      return CloneRegExpResult(cache.answer);
+      return %_RegExpCloneResult(cache.answer);
     } else {
       saveAnswer = true;
     }
@@ -251,7 +240,7 @@ function RegExpExec(string) {
     cache.regExp = this;
     cache.subject = s;
     cache.lastIndex = lastIndex;
-    if (saveAnswer) cache.answer = CloneRegExpResult(result);
+    if (saveAnswer) cache.answer = %_RegExpCloneResult(result);
     cache.answerSaved = saveAnswer;
     cache.type = 'exec';
   }

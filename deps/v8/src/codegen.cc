@@ -339,6 +339,11 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
 }
 
 
+void CodeGenerator::VisitIncrementOperation(IncrementOperation* expr) {
+  UNREACHABLE();
+}
+
+
 // List of special runtime calls which are generated inline. For some of these
 // functions the code will be generated inline, and for others a call to a code
 // stub will be inlined.
@@ -377,21 +382,6 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
     }
   }
   return false;
-}
-
-
-bool CodeGenerator::PatchInlineRuntimeEntry(Handle<String> name,
-    const CodeGenerator::InlineRuntimeLUT& new_entry,
-    CodeGenerator::InlineRuntimeLUT* old_entry) {
-  InlineRuntimeLUT* entry = FindInlineRuntimeLUT(name);
-  if (entry == NULL) return false;
-  if (old_entry != NULL) {
-    old_entry->name = entry->name;
-    old_entry->method = entry->method;
-  }
-  entry->name = new_entry.name;
-  entry->method = new_entry.method;
-  return true;
 }
 
 
@@ -496,12 +486,11 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 
 
 int CEntryStub::MinorKey() {
-  ASSERT(result_size_ <= 2);
+  ASSERT(result_size_ == 1 || result_size_ == 2);
 #ifdef _WIN64
-  return ExitFrameModeBits::encode(mode_)
-         | IndirectResultBits::encode(result_size_ > 1);
+  return result_size_ == 1 ? 0 : 1;
 #else
-  return ExitFrameModeBits::encode(mode_);
+  return 0;
 #endif
 }
 

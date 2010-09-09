@@ -47,8 +47,9 @@ SamplingCircularQueue::SamplingCircularQueue(int record_size_in_bytes,
       producer_consumer_distance_(2 * chunk_size_),
       buffer_(NewArray<Cell>(buffer_size_ + 1)) {
   ASSERT(buffer_size_in_chunks > 2);
-  // Only need to keep the first cell of a chunk clean.
-  for (int i = 0; i < buffer_size_; i += chunk_size_) {
+  // Clean up the whole buffer to avoid encountering a random kEnd
+  // while enqueuing.
+  for (int i = 0; i < buffer_size_; ++i) {
     buffer_[i] = kClear;
   }
   buffer_[buffer_size_] = kEnd;

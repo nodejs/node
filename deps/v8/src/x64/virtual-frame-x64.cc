@@ -1230,9 +1230,9 @@ Result VirtualFrame::CallConstructor(int arg_count) {
   // and receiver on the stack.
   Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
   // Duplicate the function before preparing the frame.
-  PushElementAt(arg_count + 1);
+  PushElementAt(arg_count);
   Result function = Pop();
-  PrepareForCall(arg_count + 1, arg_count + 1);  // Spill args and receiver.
+  PrepareForCall(arg_count + 1, arg_count + 1);  // Spill function and args.
   function.ToRegister(rdi);
 
   // Constructors are called with the number of arguments in register

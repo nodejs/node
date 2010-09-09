@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "bootstrapper.h"
+#include "code-stubs.h"
 #include "global-handles.h"
 #include "log.h"
 #include "macro-assembler.h"
@@ -1266,7 +1267,8 @@ void Logger::LogCodeObject(Object* object) {
       case Code::BINARY_OP_IC:
         // fall through
       case Code::STUB:
-        description = CodeStub::MajorName(code_object->major_key(), true);
+        description =
+            CodeStub::MajorName(CodeStub::GetMajorKey(code_object), true);
         if (description == NULL)
           description = "A stub from the snapshot";
         tag = Logger::STUB_TAG;

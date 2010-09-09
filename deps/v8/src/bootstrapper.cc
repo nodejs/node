@@ -232,6 +232,7 @@ class Genesis BASE_EMBEDDED {
   bool InstallNatives();
   void InstallCustomCallGenerators();
   void InstallJSFunctionResultCaches();
+  void InitializeNormalizedMapCaches();
   // Used both for deserialized and from-scratch contexts to add the extensions
   // provided.
   static bool InstallExtensions(Handle<Context> global_context,
@@ -719,6 +720,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         InstallFunction(global, "String", JS_VALUE_TYPE, JSValue::kSize,
                         Top::initial_object_prototype(), Builtins::Illegal,
                         true);
+    string_fun->shared()->set_construct_stub(
+        Builtins::builtin(Builtins::StringConstructCode));
     global_context()->set_string_function(*string_fun);
     // Add 'length' property to strings.
     Handle<DescriptorArray> string_descriptors =
@@ -1400,6 +1403,13 @@ void Genesis::InstallJSFunctionResultCaches() {
 }
 
 
+void Genesis::InitializeNormalizedMapCaches() {
+  Handle<FixedArray> array(
+      Factory::NewFixedArray(NormalizedMapCache::kEntries, TENURED));
+  global_context()->set_normalized_map_cache(NormalizedMapCache::cast(*array));
+}
+
+
 int BootstrapperActive::nesting_ = 0;
 
 
@@ -1768,6 +1778,7 @@ Genesis::Genesis(Handle<Object> global_object,
     HookUpGlobalProxy(inner_global, global_proxy);
     InitializeGlobal(inner_global, empty_function);
     InstallJSFunctionResultCaches();
+    InitializeNormalizedMapCaches();
     if (!InstallNatives()) return;
 
     MakeFunctionInstancePrototypeWritable();

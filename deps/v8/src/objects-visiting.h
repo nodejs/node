@@ -100,10 +100,14 @@ class StaticVisitorBase : public AllStatic {
     kVisitMap,
     kVisitPropertyCell,
     kVisitSharedFunctionInfo,
+    kVisitJSFunction,
 
     kVisitorIdCount,
     kMinObjectSizeInWords = 2
   };
+
+  // Visitor ID should fit in one byte.
+  STATIC_ASSERT(kVisitorIdCount <= 256);
 
   // Determine which specialized visitor should be used for given instance type
   // and instance type.
@@ -198,13 +202,16 @@ class FlexibleBodyVisitor : public BodyVisitorBase<StaticVisitor> {
  public:
   static inline ReturnType Visit(Map* map, HeapObject* object) {
     int object_size = BodyDescriptor::SizeOf(map, object);
-    IteratePointers(object, BodyDescriptor::kStartOffset, object_size);
+    BodyVisitorBase<StaticVisitor>::IteratePointers(
+        object, BodyDescriptor::kStartOffset, object_size);
     return static_cast<ReturnType>(object_size);
   }
 
   template<int object_size>
   static inline ReturnType VisitSpecialized(Map* map, HeapObject* object) {
-    IteratePointers(object, BodyDescriptor::kStartOffset, object_size);
+    ASSERT(BodyDescriptor::SizeOf(map, object) == object_size);
+    BodyVisitorBase<StaticVisitor>::IteratePointers(
+        object, BodyDescriptor::kStartOffset, object_size);
     return static_cast<ReturnType>(object_size);
   }
 };
@@ -214,9 +221,8 @@ template<typename StaticVisitor, typename BodyDescriptor, typename ReturnType>
 class FixedBodyVisitor : public BodyVisitorBase<StaticVisitor> {
  public:
   static inline ReturnType Visit(Map* map, HeapObject* object) {
-    IteratePointers(object,
-                    BodyDescriptor::kStartOffset,
-                    BodyDescriptor::kEndOffset);
+    BodyVisitorBase<StaticVisitor>::IteratePointers(
+        object, BodyDescriptor::kStartOffset, BodyDescriptor::kEndOffset);
     return static_cast<ReturnType>(BodyDescriptor::kSize);
   }
 };
@@ -268,6 +274,10 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
 
     table_.Register(kVisitSeqTwoByteString, &VisitSeqTwoByteString);
 
+    table_.Register(kVisitJSFunction,
+                    &JSObjectVisitor::
+                        template VisitSpecialized<JSFunction::kSize>);
+
     table_.RegisterSpecializations<DataObjectVisitor,
                                    kVisitDataObject,
                                    kVisitDataObjectGeneric>();
@@ -275,8 +285,8 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
                                    kVisitJSObject,
                                    kVisitJSObjectGeneric>();
     table_.RegisterSpecializations<StructVisitor,
-        kVisitStruct,
-        kVisitStructGeneric>();
+                                   kVisitStruct,
+                                   kVisitStructGeneric>();
   }
 
   static inline int IterateBody(Map* map, HeapObject* obj) {

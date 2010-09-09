@@ -108,10 +108,10 @@ InlineCacheHolderFlag IC::GetCodeCacheForObject(JSObject* object,
 }
 
 
-Map* IC::GetCodeCacheMap(Object* object, InlineCacheHolderFlag holder) {
+JSObject* IC::GetCodeCacheHolder(Object* object, InlineCacheHolderFlag holder) {
   Object* map_owner = (holder == OWN_MAP ? object : object->GetPrototype());
   ASSERT(map_owner->IsJSObject());
-  return JSObject::cast(map_owner)->map();
+  return JSObject::cast(map_owner);
 }
 
 

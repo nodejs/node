@@ -56,8 +56,8 @@ class HeapProfiler {
   static void TearDown();
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  static HeapSnapshot* TakeSnapshot(const char* name);
-  static HeapSnapshot* TakeSnapshot(String* name);
+  static HeapSnapshot* TakeSnapshot(const char* name, int type);
+  static HeapSnapshot* TakeSnapshot(String* name, int type);
   static int GetSnapshotsCount();
   static HeapSnapshot* GetSnapshot(int index);
   static HeapSnapshot* FindSnapshot(unsigned uid);
@@ -75,12 +75,8 @@ class HeapProfiler {
  private:
   HeapProfiler();
   ~HeapProfiler();
-  HeapSnapshot* TakeSnapshotImpl(const char* name);
-  HeapSnapshot* TakeSnapshotImpl(String* name);
-
-  // Obsolete interface.
-  // Update the array info with stats from obj.
-  static void CollectStats(HeapObject* obj, HistogramInfo* info);
+  HeapSnapshot* TakeSnapshotImpl(const char* name, int type);
+  HeapSnapshot* TakeSnapshotImpl(String* name, int type);
 
   HeapSnapshotsCollection* snapshots_;
   unsigned next_snapshot_uid_;
@@ -132,7 +128,9 @@ class JSObjectsCluster BASE_EMBEDDED {
   bool is_null() const { return constructor_ == NULL; }
   bool can_be_coarsed() const { return instance_ != NULL; }
   String* constructor() const { return constructor_; }
+  Object* instance() const { return instance_; }
 
+  const char* GetSpecialCaseName() const;
   void Print(StringStream* accumulator) const;
   // Allows null clusters to be printed.
   void DebugPrint(StringStream* accumulator) const;
@@ -179,6 +177,9 @@ class ConstructorHeapProfile BASE_EMBEDDED {
   virtual ~ConstructorHeapProfile() {}
   void CollectStats(HeapObject* obj);
   void PrintStats();
+
+  template<class Callback>
+  void ForEach(Callback* callback) { js_objects_info_tree_.ForEach(callback); }
   // Used by ZoneSplayTree::ForEach. Made virtual to allow overriding in tests.
   virtual void Call(const JSObjectsCluster& cluster,
                     const NumberAndSizeInfo& number_and_size);
@@ -282,6 +283,8 @@ class ClustersCoarser BASE_EMBEDDED {
 // "retainer profile" of JS objects allocated on heap.
 // It is run during garbage collection cycle, thus it doesn't need
 // to use handles.
+class RetainerTreeAggregator;
+
 class RetainerHeapProfile BASE_EMBEDDED {
  public:
   class Printer {
@@ -292,7 +295,14 @@ class RetainerHeapProfile BASE_EMBEDDED {
   };
 
   RetainerHeapProfile();
+  ~RetainerHeapProfile();
+
+  RetainerTreeAggregator* aggregator() { return aggregator_; }
+  ClustersCoarser* coarser() { return &coarser_; }
+  JSObjectsRetainerTree* retainers_tree() { return &retainers_tree_; }
+
   void CollectStats(HeapObject* obj);
+  void CoarseAndAggregate();
   void PrintStats();
   void DebugPrintStats(Printer* printer);
   void StoreReference(const JSObjectsCluster& cluster, HeapObject* ref);
@@ -301,6 +311,44 @@ class RetainerHeapProfile BASE_EMBEDDED {
   ZoneScope zscope_;
   JSObjectsRetainerTree retainers_tree_;
   ClustersCoarser coarser_;
+  RetainerTreeAggregator* aggregator_;
+};
+
+
+class AggregatedHeapSnapshot {
+ public:
+  AggregatedHeapSnapshot();
+  ~AggregatedHeapSnapshot();
+
+  HistogramInfo* info() { return info_; }
+  ConstructorHeapProfile* js_cons_profile() { return &js_cons_profile_; }
+  RetainerHeapProfile* js_retainer_profile() { return &js_retainer_profile_; }
+
+ private:
+  HistogramInfo* info_;
+  ConstructorHeapProfile js_cons_profile_;
+  RetainerHeapProfile js_retainer_profile_;
+};
+
+
+class HeapEntriesMap;
+class HeapSnapshot;
+
+class AggregatedHeapSnapshotGenerator {
+ public:
+  explicit AggregatedHeapSnapshotGenerator(AggregatedHeapSnapshot* snapshot);
+  void GenerateSnapshot();
+  void FillHeapSnapshot(HeapSnapshot* snapshot);
+
+  static const int kAllStringsType = LAST_TYPE + 1;
+
+ private:
+  void CalculateStringsStats();
+  void CollectStats(HeapObject* obj);
+  template<class Iterator>
+  void IterateRetainers(HeapEntriesMap* entries_map);
+
+  AggregatedHeapSnapshot* agg_snapshot_;
 };
 
 

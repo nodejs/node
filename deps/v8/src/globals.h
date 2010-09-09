@@ -244,10 +244,12 @@ const Address kHandleZapValue =
     reinterpret_cast<Address>(V8_UINT64_C(0x1baddead0baddead));
 const Address kFromSpaceZapValue =
     reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdad));
+const uint64_t kDebugZapValue = 0xbadbaddbbadbaddb;
 #else
 const Address kZapValue = reinterpret_cast<Address>(0xdeadbeed);
 const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddead);
 const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
+const uint32_t kDebugZapValue = 0xbadbaddb;
 #endif
 
 
@@ -662,7 +664,7 @@ F FUNCTION_CAST(Address addr) {
 #define TRACK_MEMORY(name)
 #endif
 
-// define used for helping GCC to make better inlining. Don't bother for debug
+// Define used for helping GCC to make better inlining. Don't bother for debug
 // builds. On GCC 3.4.5 using __attribute__((always_inline)) causes compilation
 // errors in debug build.
 #if defined(__GNUC__) && !defined(DEBUG)
@@ -677,6 +679,14 @@ F FUNCTION_CAST(Address addr) {
 #define INLINE(header) inline header
 #define NO_INLINE(header) header
 #endif
+
+
+#if defined(__GNUC__) && __GNUC__ >= 4
+#define MUST_USE_RESULT __attribute__ ((warn_unused_result))
+#else
+#define MUST_USE_RESULT
+#endif
+
 
 // Feature flags bit positions. They are mostly based on the CPUID spec.
 // (We assign CPUID itself to one of the currently reserved bits --

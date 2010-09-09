@@ -1,4 +1,4 @@
-oom_dump extracts useful information from Google Chrome OOM  minidumps.
+oom_dump extracts useful information from Google Chrome OOM minidumps.
 
 To build one needs a google-breakpad checkout
 (http://code.google.com/p/google-breakpad/).
@@ -15,7 +15,7 @@ need some additional tweaking to make it discoverable, for example,
 put a soft link into /usr/lib directory).
 
 Next step is to build v8.  Note: you should build x64 version of v8,
-if you're on 64-bit platform, otherwise you would get link error when
+if you're on 64-bit platform, otherwise you would get a link error when
 building oom_dump.
 
 The last step is to build oom_dump itself.  The following command should work:
@@ -23,8 +23,9 @@ The last step is to build oom_dump itself.  The following command should work:
   cd <v8 working copy>/tools/oom_dump
   scons BREAKPAD_DIR=<path to google-breakpad working copy>
 
-(Additionally you can control v8 working copy dir, but default---../..---
-should work just fine).
+(Additionally you can control v8 working copy dir, but the default should work.)
 
 If everything goes fine, oom_dump <path to minidump> should print
-some useful information about OOM crash.
+some useful information about the OOM crash.
+
+Note: currently only 32-bit Windows minidumps are supported.

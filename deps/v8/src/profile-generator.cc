@@ -492,6 +492,10 @@ CpuProfilesCollection::~CpuProfilesCollection() {
 bool CpuProfilesCollection::StartProfiling(const char* title, unsigned uid) {
   ASSERT(uid > 0);
   current_profiles_semaphore_->Wait();
+  if (current_profiles_.length() >= kMaxSimultaneousProfiles) {
+    current_profiles_semaphore_->Signal();
+    return false;
+  }
   for (int i = 0; i < current_profiles_.length(); ++i) {
     if (strcmp(current_profiles_[i]->title(), title) == 0) {
       // Ignore attempts to start profile with the same title.
@@ -820,13 +824,6 @@ void HeapGraphEdge::Init(int child_index, int index, HeapEntry* to) {
 
 HeapEntry* HeapGraphEdge::From() {
   return reinterpret_cast<HeapEntry*>(this - child_index_) - 1;
-}
-
-
-void HeapEntry::Init(HeapSnapshot* snapshot,
-                     int children_count,
-                     int retainers_count) {
-  Init(snapshot, kInternal, "", 0, 0, children_count, retainers_count);
 }
 
 
@@ -1210,9 +1207,11 @@ template <> struct SnapshotSizeConstants<8> {
 }  // namespace
 
 HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
+                           HeapSnapshot::Type type,
                            const char* title,
                            unsigned uid)
     : collection_(collection),
+      type_(type),
       title_(title),
       uid_(uid),
       root_entry_index_(-1),
@@ -1243,6 +1242,10 @@ void HeapSnapshot::AllocateEntries(int entries_count,
   ASSERT(raw_entries_ == NULL);
   raw_entries_ = NewArray<char>(
       HeapEntry::EntriesSize(entries_count, children_count, retainers_count));
+#ifdef DEBUG
+  raw_entries_size_ =
+      HeapEntry::EntriesSize(entries_count, children_count, retainers_count);
+#endif
 }
 
 
@@ -1252,9 +1255,9 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
   if (object == kInternalRootObject) {
     ASSERT(root_entry_index_ == -1);
     root_entry_index_ = entries_.length();
-    HeapEntry* entry = GetNextEntryToInit();
-    entry->Init(this, children_count, retainers_count);
-    return entry;
+    ASSERT(retainers_count == 0);
+    return AddEntry(
+        HeapEntry::kInternal, "", 0, 0, children_count, retainers_count);
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
@@ -1262,7 +1265,7 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
         String::cast(shared->name()) : shared->inferred_name();
     return AddEntry(object,
                     HeapEntry::kClosure,
-                    collection_->GetName(name),
+                    collection_->GetFunctionName(name),
                     children_count,
                     retainers_count);
   } else if (object->IsJSObject()) {
@@ -1290,7 +1293,7 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
         String::cast(shared->name()) : shared->inferred_name();
     return AddEntry(object,
                     HeapEntry::kCode,
-                    collection_->GetName(name),
+                    collection_->GetFunctionName(name),
                     children_count,
                     retainers_count);
   } else if (object->IsScript()) {
@@ -1345,14 +1348,23 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
                                   const char* name,
                                   int children_count,
                                   int retainers_count) {
+  return AddEntry(type,
+                  name,
+                  collection_->GetObjectId(object->address()),
+                  GetObjectSize(object),
+                  children_count,
+                  retainers_count);
+}
+
+
+HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
+                                  const char* name,
+                                  uint64_t id,
+                                  int size,
+                                  int children_count,
+                                  int retainers_count) {
   HeapEntry* entry = GetNextEntryToInit();
-  entry->Init(this,
-              type,
-              name,
-              collection_->GetObjectId(object->address()),
-              GetObjectSize(object),
-              children_count,
-              retainers_count);
+  entry->Init(this, type, name, id, size, children_count, retainers_count);
   return entry;
 }
 
@@ -1365,6 +1377,8 @@ HeapEntry* HeapSnapshot::GetNextEntryToInit() {
   } else {
     entries_.Add(reinterpret_cast<HeapEntry*>(raw_entries_));
   }
+  ASSERT(reinterpret_cast<char*>(entries_.last()) <
+         (raw_entries_ + raw_entries_size_));
   return entries_.last();
 }
 
@@ -1534,10 +1548,11 @@ HeapSnapshotsCollection::~HeapSnapshotsCollection() {
 }
 
 
-HeapSnapshot* HeapSnapshotsCollection::NewSnapshot(const char* name,
+HeapSnapshot* HeapSnapshotsCollection::NewSnapshot(HeapSnapshot::Type type,
+                                                   const char* name,
                                                    unsigned uid) {
   is_tracking_objects_ = true;  // Start watching for heap objects moves.
-  HeapSnapshot* snapshot = new HeapSnapshot(this, name, uid);
+  HeapSnapshot* snapshot = new HeapSnapshot(this, type, name, uid);
   snapshots_.Add(snapshot);
   HashMap::Entry* entry =
       snapshots_uids_.Lookup(reinterpret_cast<void*>(snapshot->uid()),
@@ -1563,6 +1578,9 @@ HeapSnapshotsDiff* HeapSnapshotsCollection::CompareSnapshots(
   return comparator_.Compare(snapshot1, snapshot2);
 }
 
+
+HeapEntry *const HeapEntriesMap::kHeapEntryPlaceholder =
+    reinterpret_cast<HeapEntry*>(1);
 
 HeapEntriesMap::HeapEntriesMap()
     : entries_(HeapObjectsMatch),
@@ -1612,7 +1630,7 @@ void HeapEntriesMap::Pair(HeapObject* object, HeapEntry* entry) {
 void HeapEntriesMap::CountReference(HeapObject* from, HeapObject* to,
                                     int* prev_children_count,
                                     int* prev_retainers_count) {
-  HashMap::Entry* from_cache_entry = entries_.Lookup(from, Hash(from), true);
+  HashMap::Entry* from_cache_entry = entries_.Lookup(from, Hash(from), false);
   HashMap::Entry* to_cache_entry = entries_.Lookup(to, Hash(to), false);
   ASSERT(from_cache_entry != NULL);
   ASSERT(to_cache_entry != NULL);
@@ -1631,42 +1649,19 @@ void HeapEntriesMap::CountReference(HeapObject* from, HeapObject* to,
 }
 
 
-template<class Visitor>
-void HeapEntriesMap::UpdateEntries(Visitor* visitor) {
-  for (HashMap::Entry* p = entries_.Start();
-       p != NULL;
-       p = entries_.Next(p)) {
-    if (!IsAlias(p->value)) {
-      EntryInfo* entry_info = reinterpret_cast<EntryInfo*>(p->value);
-      entry_info->entry = visitor->GetEntry(
-          reinterpret_cast<HeapObject*>(p->key),
-          entry_info->children_count,
-          entry_info->retainers_count);
-      entry_info->children_count = 0;
-      entry_info->retainers_count = 0;
-    }
-  }
-}
-
-
 HeapSnapshotGenerator::HeapSnapshotGenerator(HeapSnapshot* snapshot)
     : snapshot_(snapshot),
       collection_(snapshot->collection()),
       filler_(NULL) {
 }
 
-
-HeapEntry *const
-HeapSnapshotGenerator::SnapshotFillerInterface::kHeapEntryPlaceholder =
-    reinterpret_cast<HeapEntry*>(1);
-
 class SnapshotCounter : public HeapSnapshotGenerator::SnapshotFillerInterface {
  public:
   explicit SnapshotCounter(HeapEntriesMap* entries)
       : entries_(entries) { }
   HeapEntry* AddEntry(HeapObject* obj) {
-    entries_->Pair(obj, kHeapEntryPlaceholder);
-    return kHeapEntryPlaceholder;
+    entries_->Pair(obj, HeapEntriesMap::kHeapEntryPlaceholder);
+    return HeapEntriesMap::kHeapEntryPlaceholder;
   }
   void SetElementReference(HeapObject* parent_obj,
                            HeapEntry*,
@@ -2057,10 +2052,12 @@ void HeapSnapshotGenerator::SetRootReference(Object* child_obj) {
 void HeapSnapshotsDiff::CreateRoots(int additions_count, int deletions_count) {
   raw_additions_root_ =
       NewArray<char>(HeapEntry::EntriesSize(1, additions_count, 0));
-  additions_root()->Init(snapshot2_, additions_count, 0);
+  additions_root()->Init(
+      snapshot2_, HeapEntry::kInternal, "", 0, 0, additions_count, 0);
   raw_deletions_root_ =
       NewArray<char>(HeapEntry::EntriesSize(1, deletions_count, 0));
-  deletions_root()->Init(snapshot1_, deletions_count, 0);
+  deletions_root()->Init(
+      snapshot1_, HeapEntry::kInternal, "", 0, 0, deletions_count, 0);
 }
 
 

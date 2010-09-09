@@ -484,3 +484,21 @@ assertRegExpTest(/[,b]\b[,b]/, ",b", true);
 assertRegExpTest(/[,b]\B[,b]/, ",b", false);
 assertRegExpTest(/[,b]\b[,b]/, "b,", true);
 assertRegExpTest(/[,b]\B[,b]/, "b,", false);
+
+// Test that caching of result doesn't share result objects.
+// More iterations increases the chance of hitting a GC.
+for (var i = 0; i < 100; i++) {
+  var re = /x(y)z/;
+  var res = re.exec("axyzb");
+  assertTrue(!!res);
+  assertEquals(2, res.length);
+  assertEquals("xyz", res[0]);
+  assertEquals("y", res[1]);
+  assertEquals(1, res.index);
+  assertEquals("axyzb", res.input);
+  assertEquals(undefined, res.foobar);
+  
+  res.foobar = "Arglebargle";
+  res[3] = "Glopglyf";
+  assertEquals("Arglebargle", res.foobar);
+}

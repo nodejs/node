@@ -42,12 +42,10 @@ class Node;
 
 class BitVector: public ZoneObject {
  public:
-  explicit BitVector(int length)
-      : length_(length),
-        data_length_(SizeFor(length)),
-        data_(Zone::NewArray<uint32_t>(data_length_)) {
-    ASSERT(length > 0);
-    Clear();
+  BitVector() : length_(0), data_length_(0), data_(NULL) { }
+
+  explicit BitVector(int length) {
+    ExpandTo(length);
   }
 
   BitVector(const BitVector& other)
@@ -57,8 +55,12 @@ class BitVector: public ZoneObject {
     CopyFrom(other);
   }
 
-  static int SizeFor(int length) {
-    return 1 + ((length - 1) / 32);
+  void ExpandTo(int length) {
+    ASSERT(length > 0);
+    length_ = length;
+    data_length_ = SizeFor(length);
+    data_ = Zone::NewArray<uint32_t>(data_length_);
+    Clear();
   }
 
   BitVector& operator=(const BitVector& rhs) {
@@ -137,6 +139,10 @@ class BitVector: public ZoneObject {
 #endif
 
  private:
+  static int SizeFor(int length) {
+    return 1 + ((length - 1) / 32);
+  }
+
   int length_;
   int data_length_;
   uint32_t* data_;
@@ -187,63 +193,13 @@ class WorkList BASE_EMBEDDED {
 };
 
 
-struct ReachingDefinitionsData BASE_EMBEDDED {
- public:
-  ReachingDefinitionsData() : rd_in_(NULL), kill_(NULL), gen_(NULL) {}
-
-  void Initialize(int definition_count) {
-    rd_in_ = new BitVector(definition_count);
-    kill_ = new BitVector(definition_count);
-    gen_ = new BitVector(definition_count);
-  }
-
-  BitVector* rd_in() { return rd_in_; }
-  BitVector* kill() { return kill_; }
-  BitVector* gen() { return gen_; }
-
- private:
-  BitVector* rd_in_;
-  BitVector* kill_;
-  BitVector* gen_;
-};
-
-
-// This class is used to number all expressions in the AST according to
-// their evaluation order (post-order left-to-right traversal).
-class AstLabeler: public AstVisitor {
- public:
-  AstLabeler() : next_number_(0) {}
-
-  void Label(CompilationInfo* info);
-
- private:
-  CompilationInfo* info() { return info_; }
-
-  void VisitDeclarations(ZoneList<Declaration*>* decls);
-  void VisitStatements(ZoneList<Statement*>* stmts);
-
-  // AST node visit functions.
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
-  AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
-  // Traversal number for labelling AST nodes.
-  int next_number_;
-
-  CompilationInfo* info_;
-
-  DISALLOW_COPY_AND_ASSIGN(AstLabeler);
-};
-
-
 // Computes the set of assigned variables and annotates variables proxies
 // that are trivial sub-expressions and for-loops where the loop variable
 // is guaranteed to be a smi.
 class AssignedVariablesAnalyzer : public AstVisitor {
  public:
-  explicit AssignedVariablesAnalyzer(FunctionLiteral* fun);
-
-  void Analyze();
+  explicit AssignedVariablesAnalyzer(FunctionLiteral* fun) : fun_(fun) { }
+  bool Analyze();
 
  private:
   Variable* FindSmiLoopVariable(ForStatement* stmt);

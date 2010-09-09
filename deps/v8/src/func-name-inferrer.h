@@ -36,11 +36,12 @@ namespace internal {
 // Inference is performed in cases when an anonymous function is assigned
 // to a variable or a property (see test-func-name-inference.cc for examples.)
 //
-// The basic idea is that during AST traversal LHSs of expressions are
-// always visited before RHSs. Thus, during visiting the LHS, a name can be
-// collected, and during visiting the RHS, a function literal can be collected.
-// Inference is performed while leaving the assignment node.
-class FuncNameInferrer BASE_EMBEDDED {
+// The basic idea is that during parsing of LHSs of certain expressions
+// (assignments, declarations, object literals) we collect name strings,
+// and during parsing of the RHS, a function literal can be collected. After
+// parsing the RHS we can infer a name for function literals that do not have
+// a name.
+class FuncNameInferrer : public ZoneObject {
  public:
   FuncNameInferrer()
       : entries_stack_(10),
@@ -61,11 +62,9 @@ class FuncNameInferrer BASE_EMBEDDED {
   }
 
   // Pushes an encountered name onto names stack when in collection state.
-  void PushName(Handle<String> name) {
-    if (IsOpen()) {
-      names_stack_.Add(name);
-    }
-  }
+  void PushLiteralName(Handle<String> name);
+
+  void PushVariableName(Handle<String> name);
 
   // Adds a function to infer name for.
   void AddFunction(FunctionLiteral* func_to_infer) {
@@ -75,11 +74,16 @@ class FuncNameInferrer BASE_EMBEDDED {
   }
 
   // Infers a function name and leaves names collection state.
-  void InferAndLeave() {
+  void Infer() {
     ASSERT(IsOpen());
     if (!funcs_to_infer_.is_empty()) {
       InferFunctionsNames();
     }
+  }
+
+  // Infers a function name and leaves names collection state.
+  void Leave() {
+    ASSERT(IsOpen());
     names_stack_.Rewind(entries_stack_.RemoveLast());
   }
 
@@ -99,34 +103,6 @@ class FuncNameInferrer BASE_EMBEDDED {
   Handle<String> dot_;
 
   DISALLOW_COPY_AND_ASSIGN(FuncNameInferrer);
-};
-
-
-// A wrapper class that automatically calls InferAndLeave when
-// leaving scope.
-class ScopedFuncNameInferrer BASE_EMBEDDED {
- public:
-  explicit ScopedFuncNameInferrer(FuncNameInferrer* inferrer)
-      : inferrer_(inferrer),
-        is_entered_(false) {}
-
-  ~ScopedFuncNameInferrer() {
-    if (is_entered_) {
-      inferrer_->InferAndLeave();
-    }
-  }
-
-  // Triggers the wrapped inferrer into name collection state.
-  void Enter() {
-    inferrer_->Enter();
-    is_entered_ = true;
-  }
-
- private:
-  FuncNameInferrer* inferrer_;
-  bool is_entered_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedFuncNameInferrer);
 };
 
 

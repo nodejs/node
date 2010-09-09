@@ -176,7 +176,11 @@ var knownProblems = {
   "_GetFromCache": true,
 
   // This function expects its first argument to be a non-smi.
-  "_IsStringWrapperSafeForDefaultValueOf" : true
+  "_IsStringWrapperSafeForDefaultValueOf" : true,
+
+  // Only applicable to strings.
+  "_HasCachedArrayIndex": true,
+  "_GetCachedArrayIndex": true
 };
 
 var currentlyUncallable = {

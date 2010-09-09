@@ -38,7 +38,7 @@ assertArrayEquals(['a','b'], arr.splice(0));
 assertArrayEquals([], arr)
 
 arr = ['a','b','c','d'];
-assertEquals(undefined, arr.splice())
+assertEquals([], arr.splice())
 assertArrayEquals(['a','b','c','d'], arr);
 assertArrayEquals(['a','b','c','d'], arr.splice(undefined))
 assertArrayEquals([], arr);

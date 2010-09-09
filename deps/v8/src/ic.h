@@ -123,8 +123,8 @@ class IC {
                                                             JSObject* holder);
   static inline InlineCacheHolderFlag GetCodeCacheForObject(JSObject* object,
                                                             JSObject* holder);
-  static inline Map* GetCodeCacheMap(Object* object,
-                                     InlineCacheHolderFlag holder);
+  static inline JSObject* GetCodeCacheHolder(Object* object,
+                                             InlineCacheHolderFlag holder);
 
  protected:
   Address fp() const { return fp_; }

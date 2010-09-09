@@ -64,8 +64,7 @@ ForStatement::ForStatement(ZoneStringList* labels)
       cond_(NULL),
       next_(NULL),
       may_have_function_literal_(true),
-      loop_variable_(NULL),
-      peel_this_loop_(false) {
+      loop_variable_(NULL) {
 }
 
 

@@ -119,7 +119,7 @@ Object* StubCache::ComputeLoadNonexistent(String* name, JSObject* receiver) {
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), cache_name));
     Object* result =
-        receiver->map()->UpdateCodeCache(cache_name, Code::cast(code));
+        receiver->UpdateMapCodeCache(cache_name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -131,15 +131,14 @@ Object* StubCache::ComputeLoadField(String* name,
                                     JSObject* holder,
                                     int field_index) {
   ASSERT(IC::GetCodeCacheForObject(receiver, holder) == OWN_MAP);
-  Map* map = receiver->map();
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, FIELD);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     LoadStubCompiler compiler;
     code = compiler.CompileLoadField(receiver, holder, field_index, name);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -152,15 +151,14 @@ Object* StubCache::ComputeLoadCallback(String* name,
                                        AccessorInfo* callback) {
   ASSERT(v8::ToCData<Address>(callback->getter()) != 0);
   ASSERT(IC::GetCodeCacheForObject(receiver, holder) == OWN_MAP);
-  Map* map = receiver->map();
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, CALLBACKS);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     LoadStubCompiler compiler;
     code = compiler.CompileLoadCallback(name, receiver, holder, callback);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -172,16 +170,15 @@ Object* StubCache::ComputeLoadConstant(String* name,
                                        JSObject* holder,
                                        Object* value) {
   ASSERT(IC::GetCodeCacheForObject(receiver, holder) == OWN_MAP);
-  Map* map = receiver->map();
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::LOAD_IC, CONSTANT_FUNCTION);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     LoadStubCompiler compiler;
     code = compiler.CompileLoadConstant(receiver, holder, value, name);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -192,15 +189,14 @@ Object* StubCache::ComputeLoadInterceptor(String* name,
                                           JSObject* receiver,
                                           JSObject* holder) {
   ASSERT(IC::GetCodeCacheForObject(receiver, holder) == OWN_MAP);
-  Map* map = receiver->map();
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, INTERCEPTOR);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     LoadStubCompiler compiler;
     code = compiler.CompileLoadInterceptor(receiver, holder, name);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -218,9 +214,8 @@ Object* StubCache::ComputeLoadGlobal(String* name,
                                      JSGlobalPropertyCell* cell,
                                      bool is_dont_delete) {
   ASSERT(IC::GetCodeCacheForObject(receiver, holder) == OWN_MAP);
-  Map* map = receiver->map();
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, NORMAL);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     LoadStubCompiler compiler;
     code = compiler.CompileLoadGlobal(receiver,
@@ -230,7 +225,7 @@ Object* StubCache::ComputeLoadGlobal(String* name,
                                       is_dont_delete);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -242,15 +237,14 @@ Object* StubCache::ComputeKeyedLoadField(String* name,
                                          JSObject* holder,
                                          int field_index) {
   ASSERT(IC::GetCodeCacheForObject(receiver, holder) == OWN_MAP);
-  Map* map = receiver->map();
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, FIELD);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadField(name, receiver, holder, field_index);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -262,16 +256,15 @@ Object* StubCache::ComputeKeyedLoadConstant(String* name,
                                             JSObject* holder,
                                             Object* value) {
   ASSERT(IC::GetCodeCacheForObject(receiver, holder) == OWN_MAP);
-  Map* map = receiver->map();
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CONSTANT_FUNCTION);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadConstant(name, receiver, holder, value);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -282,16 +275,15 @@ Object* StubCache::ComputeKeyedLoadInterceptor(String* name,
                                                JSObject* receiver,
                                                JSObject* holder) {
   ASSERT(IC::GetCodeCacheForObject(receiver, holder) == OWN_MAP);
-  Map* map = receiver->map();
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, INTERCEPTOR);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadInterceptor(receiver, holder, name);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -303,16 +295,15 @@ Object* StubCache::ComputeKeyedLoadCallback(String* name,
                                             JSObject* holder,
                                             AccessorInfo* callback) {
   ASSERT(IC::GetCodeCacheForObject(receiver, holder) == OWN_MAP);
-  Map* map = receiver->map();
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CALLBACKS);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadCallback(name, receiver, holder, callback);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -325,14 +316,13 @@ Object* StubCache::ComputeKeyedLoadArrayLength(String* name,
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CALLBACKS);
   ASSERT(receiver->IsJSObject());
-  Map* map = receiver->map();
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadArrayLength(name);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -361,14 +351,13 @@ Object* StubCache::ComputeKeyedLoadFunctionPrototype(String* name,
                                                      JSFunction* receiver) {
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CALLBACKS);
-  Map* map = receiver->map();
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     KeyedLoadStubCompiler compiler;
     code = compiler.CompileLoadFunctionPrototype(name);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -387,7 +376,7 @@ Object* StubCache::ComputeStoreField(String* name,
     code = compiler.CompileStoreField(receiver, field_index, transition, name);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
-    Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -409,7 +398,7 @@ Object* StubCache::ComputeStoreGlobal(String* name,
     code = compiler.CompileStoreGlobal(receiver, cell, name);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
-    Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -427,7 +416,7 @@ Object* StubCache::ComputeStoreCallback(String* name,
     code = compiler.CompileStoreCallback(receiver, callback, name);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
-    Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -444,7 +433,7 @@ Object* StubCache::ComputeStoreInterceptor(String* name,
     code = compiler.CompileStoreInterceptor(receiver, name);
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
-    Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -462,7 +451,7 @@ Object* StubCache::ComputeKeyedStoreField(String* name, JSObject* receiver,
     if (code->IsFailure()) return code;
     PROFILE(CodeCreateEvent(
         Logger::KEYED_STORE_IC_TAG, Code::cast(code), name));
-    Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
+    Object* result = receiver->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -481,7 +470,7 @@ Object* StubCache::ComputeCallConstant(int argc,
   // Compute the check type and the map.
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(object, holder);
-  Map* map = IC::GetCodeCacheMap(object, cache_holder);
+  JSObject* map_holder = IC::GetCodeCacheHolder(object, cache_holder);
 
   // Compute check type based on receiver/holder.
   StubCompiler::CheckType check = StubCompiler::RECEIVER_MAP_CHECK;
@@ -499,7 +488,7 @@ Object* StubCache::ComputeCallConstant(int argc,
                                     cache_holder,
                                     in_loop,
                                     argc);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = map_holder->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     // If the function hasn't been compiled yet, we cannot do it now
     // because it may cause GC. To avoid this issue, we return an
@@ -513,7 +502,7 @@ Object* StubCache::ComputeCallConstant(int argc,
     ASSERT_EQ(flags, Code::cast(code)->flags());
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = map_holder->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -530,7 +519,7 @@ Object* StubCache::ComputeCallField(int argc,
   // Compute the check type and the map.
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(object, holder);
-  Map* map = IC::GetCodeCacheMap(object, cache_holder);
+  JSObject* map_holder = IC::GetCodeCacheHolder(object, cache_holder);
 
   // TODO(1233596): We cannot do receiver map check for non-JS objects
   // because they may be represented as immediates without a
@@ -544,7 +533,7 @@ Object* StubCache::ComputeCallField(int argc,
                                                     cache_holder,
                                                     in_loop,
                                                     argc);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = map_holder->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     CallStubCompiler compiler(argc, in_loop, kind, cache_holder);
     code = compiler.CompileCallField(JSObject::cast(object),
@@ -555,7 +544,7 @@ Object* StubCache::ComputeCallField(int argc,
     ASSERT_EQ(flags, Code::cast(code)->flags());
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = map_holder->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -570,7 +559,7 @@ Object* StubCache::ComputeCallInterceptor(int argc,
   // Compute the check type and the map.
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(object, holder);
-  Map* map = IC::GetCodeCacheMap(object, cache_holder);
+  JSObject* map_holder = IC::GetCodeCacheHolder(object, cache_holder);
 
   // TODO(1233596): We cannot do receiver map check for non-JS objects
   // because they may be represented as immediates without a
@@ -585,7 +574,7 @@ Object* StubCache::ComputeCallInterceptor(int argc,
                                     cache_holder,
                                     NOT_IN_LOOP,
                                     argc);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = map_holder->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     CallStubCompiler compiler(argc, NOT_IN_LOOP, kind, cache_holder);
     code = compiler.CompileCallInterceptor(JSObject::cast(object),
@@ -595,7 +584,7 @@ Object* StubCache::ComputeCallInterceptor(int argc,
     ASSERT_EQ(flags, Code::cast(code)->flags());
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = map_holder->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;
@@ -623,14 +612,14 @@ Object* StubCache::ComputeCallGlobal(int argc,
                                      JSFunction* function) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(receiver, holder);
-  Map* map = IC::GetCodeCacheMap(receiver, cache_holder);
+  JSObject* map_holder = IC::GetCodeCacheHolder(receiver, cache_holder);
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(kind,
                                     NORMAL,
                                     cache_holder,
                                     in_loop,
                                     argc);
-  Object* code = map->FindInCodeCache(name, flags);
+  Object* code = map_holder->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     // If the function hasn't been compiled yet, we cannot do it now
     // because it may cause GC. To avoid this issue, we return an
@@ -643,7 +632,7 @@ Object* StubCache::ComputeCallGlobal(int argc,
     ASSERT_EQ(flags, Code::cast(code)->flags());
     PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
-    Object* result = map->UpdateCodeCache(name, Code::cast(code));
+    Object* result = map_holder->UpdateMapCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
   }
   return code;

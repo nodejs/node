@@ -220,21 +220,22 @@ void Page::ClearRegionMarks(Address start, Address end, bool reaches_limit) {
 
 
 void Page::FlipMeaningOfInvalidatedWatermarkFlag() {
-  watermark_invalidated_mark_ ^= WATERMARK_INVALIDATED;
+  watermark_invalidated_mark_ ^= 1 << WATERMARK_INVALIDATED;
 }
 
 
 bool Page::IsWatermarkValid() {
-  return (flags_ & WATERMARK_INVALIDATED) != watermark_invalidated_mark_;
+  return (flags_ & (1 << WATERMARK_INVALIDATED)) != watermark_invalidated_mark_;
 }
 
 
 void Page::InvalidateWatermark(bool value) {
   if (value) {
-    flags_ = (flags_ & ~WATERMARK_INVALIDATED) | watermark_invalidated_mark_;
+    flags_ = (flags_ & ~(1 << WATERMARK_INVALIDATED)) |
+             watermark_invalidated_mark_;
   } else {
-    flags_ = (flags_ & ~WATERMARK_INVALIDATED) |
-             (watermark_invalidated_mark_ ^ WATERMARK_INVALIDATED);
+    flags_ = (flags_ & ~(1 << WATERMARK_INVALIDATED)) |
+             (watermark_invalidated_mark_ ^ (1 << WATERMARK_INVALIDATED));
   }
 
   ASSERT(IsWatermarkValid() == !value);
@@ -242,15 +243,15 @@ void Page::InvalidateWatermark(bool value) {
 
 
 bool Page::GetPageFlag(PageFlag flag) {
-  return (flags_ & flag) != 0;
+  return (flags_ & static_cast<intptr_t>(1 << flag)) != 0;
 }
 
 
 void Page::SetPageFlag(PageFlag flag, bool value) {
   if (value) {
-    flags_ |= flag;
+    flags_ |= static_cast<intptr_t>(1 << flag);
   } else {
-    flags_ &= ~flag;
+    flags_ &= ~static_cast<intptr_t>(1 << flag);
   }
 }
 
@@ -289,9 +290,26 @@ void Page::SetIsLargeObjectPage(bool is_large_object_page) {
   SetPageFlag(IS_NORMAL_PAGE, !is_large_object_page);
 }
 
+bool Page::IsPageExecutable() {
+  return GetPageFlag(IS_EXECUTABLE);
+}
+
+
+void Page::SetIsPageExecutable(bool is_page_executable) {
+  SetPageFlag(IS_EXECUTABLE, is_page_executable);
+}
+
 
 // -----------------------------------------------------------------------------
 // MemoryAllocator
+
+void MemoryAllocator::ChunkInfo::init(Address a, size_t s, PagedSpace* o) {
+  address_ = a;
+  size_ = s;
+  owner_ = o;
+  executable_ = (o == NULL) ? NOT_EXECUTABLE : o->executable();
+}
+
 
 bool MemoryAllocator::IsValidChunk(int chunk_id) {
   if (!IsValidChunkId(chunk_id)) return false;

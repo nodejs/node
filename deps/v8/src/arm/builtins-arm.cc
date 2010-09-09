@@ -125,7 +125,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ LoadRoot(scratch1, Heap::kEmptyFixedArrayRootIndex);
   __ str(scratch1, FieldMemOperand(result, JSArray::kPropertiesOffset));
   // Field JSArray::kElementsOffset is initialized later.
-  __ mov(scratch3,  Operand(0));
+  __ mov(scratch3,  Operand(0, RelocInfo::NONE));
   __ str(scratch3, FieldMemOperand(result, JSArray::kLengthOffset));
 
   // Calculate the location of the elements array and set elements array member
@@ -311,7 +311,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   Label argc_one_or_more, argc_two_or_more;
 
   // Check for array construction with zero arguments or one.
-  __ cmp(r0, Operand(0));
+  __ cmp(r0, Operand(0, RelocInfo::NONE));
   __ b(ne, &argc_one_or_more);
 
   // Handle construction of an empty array.
@@ -481,6 +481,13 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
+  // TODO(849): implement custom construct stub.
+  // Generate a copy of the generic stub for now.
+  Generate_JSConstructStubGeneric(masm);
+}
+
+
 void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0     : number of arguments
@@ -505,12 +512,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // r0: number of arguments
   // r1: called object
   __ bind(&non_function_call);
-  // CALL_NON_FUNCTION expects the non-function constructor as receiver
-  // (instead of the original receiver from the call site).  The receiver is
-  // stack element argc.
-  __ str(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
   // Set expected number of arguments to zero (not changing r0).
-  __ mov(r2, Operand(0));
+  __ mov(r2, Operand(0, RelocInfo::NONE));
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
           RelocInfo::CODE_TARGET);
@@ -840,7 +843,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r5-r7, cp may be clobbered
 
   // Clear the context before we push it when entering the JS frame.
-  __ mov(cp, Operand(0));
+  __ mov(cp, Operand(0, RelocInfo::NONE));
 
   // Enter an internal frame.
   __ EnterInternalFrame();
@@ -1027,7 +1030,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ add(r2, sp, Operand(r0, LSL, kPointerSizeLog2));
   __ str(r1, MemOperand(r2, -kPointerSize));
   // Clear r1 to indicate a non-function being called.
-  __ mov(r1, Operand(0));
+  __ mov(r1, Operand(0, RelocInfo::NONE));
 
   // 4. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
@@ -1057,7 +1060,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   { Label function;
     __ tst(r1, r1);
     __ b(ne, &function);
-    __ mov(r2, Operand(0));  // expected arguments is 0 for CALL_NON_FUNCTION
+    // Expected number of arguments is 0 for CALL_NON_FUNCTION.
+    __ mov(r2, Operand(0, RelocInfo::NONE));
     __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
     __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
                          RelocInfo::CODE_TARGET);
@@ -1073,8 +1077,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ ldr(r2,
          FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
   __ mov(r2, Operand(r2, ASR, kSmiTagSize));
-  __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeOffset));
-  __ add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   __ cmp(r2, r0);  // Check formal and actual parameter counts.
   __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
           RelocInfo::CODE_TARGET, ne);
@@ -1121,7 +1124,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Push current limit and index.
   __ bind(&okay);
   __ push(r0);  // limit
-  __ mov(r1, Operand(0));  // initial index
+  __ mov(r1, Operand(0, RelocInfo::NONE));  // initial index
   __ push(r1);
 
   // Change context eagerly to get the right global object if necessary.

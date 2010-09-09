@@ -1763,8 +1763,6 @@ class V8EXPORT AccessorInfo {
 
 typedef Handle<Value> (*InvocationCallback)(const Arguments& args);
 
-typedef int (*LookupCallback)(Local<Object> self, Local<String> name);
-
 /**
  * NamedProperty[Getter|Setter] are used as interceptors on object.
  * See ObjectTemplate::SetNamedPropertyHandler.
@@ -2361,6 +2359,30 @@ typedef void* (*CreateHistogramCallback)(const char* name,
 
 typedef void (*AddHistogramSampleCallback)(void* histogram, int sample);
 
+// --- M e m o r y  A l l o c a t i o n   C a l l b a c k ---
+  enum ObjectSpace {
+    kObjectSpaceNewSpace = 1 << 0,
+    kObjectSpaceOldPointerSpace = 1 << 1,
+    kObjectSpaceOldDataSpace = 1 << 2,
+    kObjectSpaceCodeSpace = 1 << 3,
+    kObjectSpaceMapSpace = 1 << 4,
+    kObjectSpaceLoSpace = 1 << 5,
+
+    kObjectSpaceAll = kObjectSpaceNewSpace | kObjectSpaceOldPointerSpace |
+      kObjectSpaceOldDataSpace | kObjectSpaceCodeSpace | kObjectSpaceMapSpace |
+      kObjectSpaceLoSpace
+  };
+
+  enum AllocationAction {
+    kAllocationActionAllocate = 1 << 0,
+    kAllocationActionFree = 1 << 1,
+    kAllocationActionAll = kAllocationActionAllocate | kAllocationActionFree
+  };
+
+typedef void (*MemoryAllocationCallback)(ObjectSpace space,
+                                         AllocationAction action,
+                                         int size);
+
 // --- F a i l e d A c c e s s C h e c k C a l l b a c k ---
 typedef void (*FailedAccessCheckCallback)(Local<Object> target,
                                           AccessType type,
@@ -2579,6 +2601,20 @@ class V8EXPORT V8 {
    * operations will result in the allocation of objects.
    */
   static void SetGlobalGCEpilogueCallback(GCCallback);
+
+  /**
+   * Enables the host application to provide a mechanism to be notified
+   * and perform custom logging when V8 Allocates Executable Memory.
+   */
+  static void AddMemoryAllocationCallback(MemoryAllocationCallback callback,
+                                          ObjectSpace space,
+                                          AllocationAction action);
+
+  /**
+   * This function removes callback which was installed by
+   * AddMemoryAllocationCallback function.
+   */
+  static void RemoveMemoryAllocationCallback(MemoryAllocationCallback callback);
 
   /**
    * Allows the host application to group objects together. If one

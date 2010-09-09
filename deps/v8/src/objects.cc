@@ -54,7 +54,8 @@ const int kGetterIndex = 0;
 const int kSetterIndex = 1;
 
 
-static Object* CreateJSValue(JSFunction* constructor, Object* value) {
+MUST_USE_RESULT static Object* CreateJSValue(JSFunction* constructor,
+                                             Object* value) {
   Object* result = Heap::AllocateJSObject(constructor);
   if (result->IsFailure()) return result;
   JSValue::cast(result)->set_value(value);
@@ -1024,38 +1025,6 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
 }
 
 
-int HeapObject::SlowSizeFromMap(Map* map) {
-  // Avoid calling functions such as FixedArray::cast during GC, which
-  // read map pointer of this object again.
-  InstanceType instance_type = map->instance_type();
-  uint32_t type = static_cast<uint32_t>(instance_type);
-
-  if (instance_type < FIRST_NONSTRING_TYPE
-      && (StringShape(instance_type).IsSequential())) {
-    if ((type & kStringEncodingMask) == kAsciiStringTag) {
-      SeqAsciiString* seq_ascii_this = reinterpret_cast<SeqAsciiString*>(this);
-      return seq_ascii_this->SeqAsciiStringSize(instance_type);
-    } else {
-      SeqTwoByteString* self = reinterpret_cast<SeqTwoByteString*>(this);
-      return self->SeqTwoByteStringSize(instance_type);
-    }
-  }
-
-  switch (instance_type) {
-    case FIXED_ARRAY_TYPE:
-      return FixedArray::BodyDescriptor::SizeOf(map, this);
-    case BYTE_ARRAY_TYPE:
-      return reinterpret_cast<ByteArray*>(this)->ByteArraySize();
-    case CODE_TYPE:
-      return reinterpret_cast<Code*>(this)->CodeSize();
-    case MAP_TYPE:
-      return Map::kSize;
-    default:
-      return map->instance_size();
-  }
-}
-
-
 void HeapObject::Iterate(ObjectVisitor* v) {
   // Handle header
   IteratePointer(v, kMapOffset);
@@ -1098,11 +1067,14 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_VALUE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:
-    case JS_FUNCTION_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_BUILTINS_OBJECT_TYPE:
       JSObject::BodyDescriptor::IterateBody(this, object_size, v);
+      break;
+    case JS_FUNCTION_TYPE:
+      reinterpret_cast<JSFunction*>(this)
+          ->JSFunctionIterateBody(object_size, v);
       break;
     case ODDBALL_TYPE:
       Oddball::BodyDescriptor::IterateBody(this, v);
@@ -1145,11 +1117,6 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       PrintF("Unknown type: %d\n", type);
       UNREACHABLE();
   }
-}
-
-
-void HeapObject::IterateStructBody(int object_size, ObjectVisitor* v) {
-  IteratePointers(v, HeapObject::kHeaderSize, object_size);
 }
 
 
@@ -2132,6 +2099,121 @@ PropertyAttributes JSObject::GetLocalPropertyAttribute(String* name) {
 }
 
 
+bool NormalizedMapCache::IsCacheable(JSObject* object) {
+  // Caching for global objects is not worth it (there are too few of them).
+  return !object->IsGlobalObject();
+}
+
+
+Object* NormalizedMapCache::Get(JSObject* obj, PropertyNormalizationMode mode) {
+  Object* result;
+
+  Map* fast = obj->map();
+  if (!IsCacheable(obj)) {
+    result = fast->CopyNormalized(mode);
+    if (result->IsFailure()) return result;
+  } else {
+    int index = Hash(fast) % kEntries;
+    result = get(index);
+
+    if (result->IsMap() && CheckHit(Map::cast(result), fast, mode)) {
+#ifdef DEBUG
+      if (FLAG_enable_slow_asserts) {
+        // Make sure that the new slow map has exactly the same hash as the
+        // original fast map. This way we can use hash to check if a slow map
+        // is already in the hash (see Contains method).
+        ASSERT(Hash(fast) == Hash(Map::cast(result)));
+        // The cached map should match newly created normalized map bit-by-bit.
+        Object* fresh = fast->CopyNormalized(mode);
+        if (!fresh->IsFailure()) {
+          ASSERT(memcmp(Map::cast(fresh)->address(),
+                        Map::cast(result)->address(),
+                        Map::kSize) == 0);
+        }
+      }
+#endif
+      return result;
+    }
+
+    result = fast->CopyNormalized(mode);
+    if (result->IsFailure()) return result;
+    set(index, result);
+  }
+  Counters::normalized_maps.Increment();
+
+  return result;
+}
+
+
+bool NormalizedMapCache::Contains(Map* map) {
+  // If the map is present in the cache it can only be at one place:
+  // at the index calculated from the hash. We assume that a slow map has the
+  // same hash as a fast map it has been generated from.
+  int index = Hash(map) % kEntries;
+  return get(index) == map;
+}
+
+
+void NormalizedMapCache::Clear() {
+  int entries = length();
+  for (int i = 0; i != entries; i++) {
+    set_undefined(i);
+  }
+}
+
+
+int NormalizedMapCache::Hash(Map* fast) {
+  // For performance reasons we only hash the 3 most variable fields of a map:
+  // constructor, prototype and bit_field2.
+
+  // Shift away the tag.
+  int hash = (static_cast<uint32_t>(
+        reinterpret_cast<uintptr_t>(fast->constructor())) >> 2);
+
+  // XOR-ing the prototype and constructor directly yields too many zero bits
+  // when the two pointers are close (which is fairly common).
+  // To avoid this we shift the prototype 4 bits relatively to the constructor.
+  hash ^= (static_cast<uint32_t>(
+        reinterpret_cast<uintptr_t>(fast->prototype())) << 2);
+
+  return hash ^ (hash >> 16) ^ fast->bit_field2();
+}
+
+
+bool NormalizedMapCache::CheckHit(Map* slow,
+                                  Map* fast,
+                                  PropertyNormalizationMode mode) {
+#ifdef DEBUG
+  slow->NormalizedMapVerify();
+#endif
+  return
+    slow->constructor() == fast->constructor() &&
+    slow->prototype() == fast->prototype() &&
+    slow->inobject_properties() == ((mode == CLEAR_INOBJECT_PROPERTIES) ?
+                                    0 :
+                                    fast->inobject_properties()) &&
+    slow->instance_type() == fast->instance_type() &&
+    slow->bit_field() == fast->bit_field() &&
+    slow->bit_field2() == fast->bit_field2();
+}
+
+
+Object* JSObject::UpdateMapCodeCache(String* name, Code* code) {
+  if (!HasFastProperties() &&
+      NormalizedMapCache::IsCacheable(this) &&
+      Top::context()->global_context()->normalized_map_cache()->
+          Contains(map())) {
+    // Replace the map with the identical copy that can be safely modified.
+    Object* obj = map()->CopyNormalized(KEEP_INOBJECT_PROPERTIES);
+    if (obj->IsFailure()) return obj;
+    Counters::normalized_maps.Increment();
+
+    set_map(Map::cast(obj));
+  }
+  return map()->UpdateCodeCache(name, code);
+}
+
+
 Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
                                       int expected_additional_properties) {
   if (!HasFastProperties()) return this;
@@ -2196,28 +2278,22 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   int index = map()->instance_descriptors()->NextEnumerationIndex();
   dictionary->SetNextEnumerationIndex(index);
 
-  // Allocate new map.
-  obj = map()->CopyDropDescriptors();
+  obj = Top::context()->global_context()->
+      normalized_map_cache()->Get(this, mode);
   if (obj->IsFailure()) return obj;
   Map* new_map = Map::cast(obj);
 
-  // Clear inobject properties if needed by adjusting the instance size and
-  // putting in a filler object instead of the inobject properties.
-  if (mode == CLEAR_INOBJECT_PROPERTIES && map()->inobject_properties() > 0) {
-    int instance_size_delta = map()->inobject_properties() * kPointerSize;
-    int new_instance_size = map()->instance_size() - instance_size_delta;
-    new_map->set_inobject_properties(0);
-    new_map->set_instance_size(new_instance_size);
-    new_map->set_visitor_id(StaticVisitorBase::GetVisitorId(new_map));
-    Heap::CreateFillerObjectAt(this->address() + new_instance_size,
-                               instance_size_delta);
-  }
-  new_map->set_unused_property_fields(0);
-
   // We have now successfully allocated all the necessary objects.
   // Changes can now be made with the guarantee that all of them take effect.
+
+  // Resize the object in the heap if necessary.
+  int new_instance_size = new_map->instance_size();
+  int instance_size_delta = map()->instance_size() - new_instance_size;
+  ASSERT(instance_size_delta >= 0);
+  Heap::CreateFillerObjectAt(this->address() + new_instance_size,
+                             instance_size_delta);
+
   set_map(new_map);
-  map()->set_instance_descriptors(Heap::empty_descriptor_array());
 
   set_properties(dictionary);
 
@@ -2338,6 +2414,8 @@ Object* JSObject::DeleteElementPostInterceptor(uint32_t index,
   ASSERT(!HasPixelElements() && !HasExternalArrayElements());
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
+      Object* obj = EnsureWritableFastElements();
+      if (obj->IsFailure()) return obj;
       uint32_t length = IsJSArray() ?
       static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
       static_cast<uint32_t>(FixedArray::cast(elements())->length());
@@ -2418,6 +2496,8 @@ Object* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
 
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
+      Object* obj = EnsureWritableFastElements();
+      if (obj->IsFailure()) return obj;
       uint32_t length = IsJSArray() ?
       static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
       static_cast<uint32_t>(FixedArray::cast(elements())->length());
@@ -2601,7 +2681,8 @@ bool JSObject::ReferencesObject(Object* obj) {
 Object* JSObject::PreventExtensions() {
   // If there are fast elements we normalize.
   if (HasFastElements()) {
-    NormalizeElements();
+    Object* ok = NormalizeElements();
+    if (ok->IsFailure()) return ok;
   }
   // Make sure that we never go back to fast case.
   element_dictionary()->set_requires_slow_elements();
@@ -3109,6 +3190,33 @@ Object* Map::CopyDropDescriptors() {
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
   Map::cast(result)->ClearCodeCache();
+  return result;
+}
+
+
+Object* Map::CopyNormalized(PropertyNormalizationMode mode) {
+  int new_instance_size = instance_size();
+  if (mode == CLEAR_INOBJECT_PROPERTIES) {
+    new_instance_size -= inobject_properties() * kPointerSize;
+  }
+
+  Object* result = Heap::AllocateMap(instance_type(), new_instance_size);
+  if (result->IsFailure()) return result;
+
+  if (mode != CLEAR_INOBJECT_PROPERTIES) {
+    Map::cast(result)->set_inobject_properties(inobject_properties());
+  }
+
+  Map::cast(result)->set_prototype(prototype());
+  Map::cast(result)->set_constructor(constructor());
+
+  Map::cast(result)->set_bit_field(bit_field());
+  Map::cast(result)->set_bit_field2(bit_field2());
+
+#ifdef DEBUG
+  Map::cast(result)->NormalizedMapVerify();
+#endif
+
   return result;
 }
 
@@ -4880,24 +4988,21 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
 }
 
 
-static inline uint32_t HashField(uint32_t hash,
-                                 bool is_array_index,
-                                 int length = -1) {
-  uint32_t result = (hash << String::kHashShift);
-  if (is_array_index) {
-    // For array indexes mix the length into the hash as an array index could
-    // be zero.
-    ASSERT(length > 0);
-    ASSERT(length <= String::kMaxArrayIndexSize);
-    ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
-           (1 << String::kArrayIndexValueBits));
-    ASSERT(String::kMaxArrayIndexSize < (1 << String::kArrayIndexValueBits));
-    result &= ~String::kIsNotArrayIndexMask;
-    result |= length << String::kArrayIndexHashLengthShift;
-  } else {
-    result |= String::kIsNotArrayIndexMask;
-  }
-  return result;
+uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
+  // For array indexes mix the length into the hash as an array index could
+  // be zero.
+  ASSERT(length > 0);
+  ASSERT(length <= String::kMaxArrayIndexSize);
+  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
+         (1 << String::kArrayIndexValueBits));
+
+  value <<= String::kHashShift;
+  value |= length << String::kArrayIndexHashLengthShift;
+
+  ASSERT((value & String::kIsNotArrayIndexMask) == 0);
+  ASSERT((length > String::kMaxCachedArrayIndexLength) ||
+         (value & String::kContainsCachedArrayIndexMask) == 0);
+  return value;
 }
 
 
@@ -4905,14 +5010,11 @@ uint32_t StringHasher::GetHashField() {
   ASSERT(is_valid());
   if (length_ <= String::kMaxHashCalcLength) {
     if (is_array_index()) {
-      return v8::internal::HashField(array_index(), true, length_);
-    } else {
-      return v8::internal::HashField(GetHash(), false);
+      return MakeArrayIndexHash(array_index(), length_);
     }
-    uint32_t payload = v8::internal::HashField(GetHash(), false);
-    return payload;
+    return (GetHash() << String::kHashShift) | String::kIsNotArrayIndexMask;
   } else {
-    return v8::internal::HashField(length_, false);
+    return (length_ << String::kHashShift) | String::kIsNotArrayIndexMask;
   }
 }
 
@@ -5009,8 +5111,8 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
       ASSERT(target->IsHeapObject());
       if (!target->IsMarked()) {
         ASSERT(target->IsMap());
-        contents->set(i + 1, NullDescriptorDetails);
-        contents->set_null(i);
+        contents->set_unchecked(i + 1, NullDescriptorDetails);
+        contents->set_null_unchecked(i);
         ASSERT(target->prototype() == this ||
                target->prototype() == real_prototype);
         // Getter prototype() is read-only, set_prototype() has side effects.
@@ -5018,6 +5120,15 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
       }
     }
   }
+}
+
+
+void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
+  // Iterate over all fields in the body but take care in dealing with
+  // the code entry.
+  IteratePointers(v, kPropertiesOffset, kCodeEntryOffset);
+  v->VisitCodeEntry(this->address() + kCodeEntryOffset);
+  IteratePointers(v, kCodeEntryOffset + kPointerSize, object_size);
 }
 
 
@@ -5035,7 +5146,6 @@ Object* JSFunction::SetInstancePrototype(Object* value) {
   Heap::ClearInstanceofCache();
   return value;
 }
-
 
 
 Object* JSFunction::SetPrototype(Object* value) {
@@ -5095,7 +5205,7 @@ Object* Oddball::Initialize(const char* to_string, Object* to_number) {
 
 bool SharedFunctionInfo::HasSourceCode() {
   return !script()->IsUndefined() &&
-         !Script::cast(script())->source()->IsUndefined();
+         !reinterpret_cast<Script*>(script())->source()->IsUndefined();
 }
 
 
@@ -5262,6 +5372,16 @@ void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
   Object* old_target = target;
   VisitPointer(&target);
   CHECK_EQ(target, old_target);  // VisitPointer doesn't change Code* *target.
+}
+
+
+void ObjectVisitor::VisitCodeEntry(Address entry_address) {
+  Object* code = Code::GetObjectFromEntryAddress(entry_address);
+  Object* old_code = code;
+  VisitPointer(&code);
+  if (code != old_code) {
+    Memory::Address_at(entry_address) = reinterpret_cast<Code*>(code)->entry();
+  }
 }
 
 
@@ -5591,6 +5711,8 @@ Object* JSObject::SetElementsLength(Object* len) {
         int old_capacity = FixedArray::cast(elements())->length();
         if (value <= old_capacity) {
           if (IsJSArray()) {
+            Object* obj = EnsureWritableFastElements();
+            if (obj->IsFailure()) return obj;
             int old_length = FastD2I(JSArray::cast(this)->length()->Number());
             // NOTE: We may be able to optimize this by removing the
             // last part of the elements backing storage array and
@@ -6051,7 +6173,9 @@ Object* JSObject::SetElementWithCallback(Object* structure,
 Object* JSObject::SetFastElement(uint32_t index, Object* value) {
   ASSERT(HasFastElements());
 
-  FixedArray* elms = FixedArray::cast(elements());
+  Object* elms_obj = EnsureWritableFastElements();
+  if (elms_obj->IsFailure()) return elms_obj;
+  FixedArray* elms = FixedArray::cast(elms_obj);
   uint32_t elms_length = static_cast<uint32_t>(elms->length());
 
   if (!IsJSArray() && (index >= elms_length || elms->get(index)->IsTheHole())) {
@@ -6094,6 +6218,7 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
   ASSERT(HasDictionaryElements());
   return SetElement(index, value);
 }
+
 
 Object* JSObject::SetElement(uint32_t index, Object* value) {
   // Check access rights if needed.
@@ -7573,6 +7698,9 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
 
     set_map(new_map);
     set_elements(fast_elements);
+  } else {
+    Object* obj = EnsureWritableFastElements();
+    if (obj->IsFailure()) return obj;
   }
   ASSERT(HasFastElements());
 

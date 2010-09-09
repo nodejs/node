@@ -31,7 +31,9 @@
 
 #include "token.h"
 #include "scanner.h"
+#include "parser.h"
 #include "utils.h"
+#include "execution.h"
 
 #include "cctest.h"
 
@@ -127,3 +129,113 @@ TEST(KeywordMatcher) {
   CHECK_EQ(i::Token::IDENTIFIER, full_stop.token());
 }
 
+
+TEST(ScanHTMLEndComments) {
+  // Regression test. See:
+  //    http://code.google.com/p/chromium/issues/detail?id=53548
+  // Tests that --> is correctly interpreted as comment-to-end-of-line if there
+  // is only whitespace before it on the line, even after a multiline-comment
+  // comment. This was not the case if it occurred before the first real token
+  // in the input.
+  const char* tests[] = {
+      // Before first real token.
+      "--> is eol-comment\nvar y = 37;\n",
+      "\n --> is eol-comment\nvar y = 37;\n",
+      "/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      "\n/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      // After first real token.
+      "var x = 42;\n--> is eol-comment\nvar y = 37;\n",
+      "var x = 42;\n/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      NULL
+  };
+
+  // Parser/Scanner needs a stack limit.
+  int marker;
+  i::StackGuard::SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  for (int i = 0; tests[i]; i++) {
+    v8::ScriptData* data =
+        v8::ScriptData::PreCompile(tests[i], strlen(tests[i]));
+    CHECK(data != NULL && !data->HasError());
+    delete data;
+  }
+}
+
+
+class ScriptResource : public v8::String::ExternalAsciiStringResource {
+ public:
+  ScriptResource(const char* data, size_t length)
+      : data_(data), length_(length) { }
+
+  const char* data() const { return data_; }
+  size_t length() const { return length_; }
+
+ private:
+  const char* data_;
+  size_t length_;
+};
+
+
+TEST(Preparsing) {
+  v8::HandleScope handles;
+  v8::Persistent<v8::Context> context = v8::Context::New();
+  v8::Context::Scope context_scope(context);
+  int marker;
+  i::StackGuard::SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  // Source containing functions that might be lazily compiled  and all types
+  // of symbols (string, propertyName, regexp).
+  const char* source =
+      "var x = 42;"
+      "function foo(a) { return function nolazy(b) { return a + b; } }"
+      "function bar(a) { if (a) return function lazy(b) { return b; } }"
+      "var z = {'string': 'string literal', bareword: 'propertyName', "
+      "         42: 'number literal', for: 'keyword as propertyName', "
+      "         f\\u006fr: 'keyword propertyname with escape'};"
+      "var v = /RegExp Literal/;"
+      "var w = /RegExp Literal\\u0020With Escape/gin;"
+      "var y = { get getter() { return 42; }, "
+      "          set setter(v) { this.value = v; }};";
+  int source_length = strlen(source);
+  const char* error_source = "var x = y z;";
+  int error_source_length = strlen(error_source);
+
+  v8::ScriptData* preparse =
+      v8::ScriptData::PreCompile(source, source_length);
+  CHECK(!preparse->HasError());
+  bool lazy_flag = i::FLAG_lazy;
+  {
+    i::FLAG_lazy = true;
+    ScriptResource* resource = new ScriptResource(source, source_length);
+    v8::Local<v8::String> script_source = v8::String::NewExternal(resource);
+    v8::Script::Compile(script_source, NULL, preparse);
+  }
+
+  {
+    i::FLAG_lazy = false;
+
+    ScriptResource* resource = new ScriptResource(source, source_length);
+    v8::Local<v8::String> script_source = v8::String::NewExternal(resource);
+    v8::Script::New(script_source, NULL, preparse, v8::Local<v8::String>());
+  }
+  delete preparse;
+  i::FLAG_lazy = lazy_flag;
+
+  // Syntax error.
+  v8::ScriptData* error_preparse =
+      v8::ScriptData::PreCompile(error_source, error_source_length);
+  CHECK(error_preparse->HasError());
+  i::ScriptDataImpl *pre_impl =
+      reinterpret_cast<i::ScriptDataImpl*>(error_preparse);
+  i::Scanner::Location error_location =
+      pre_impl->MessageLocation();
+  // Error is at "z" in source, location 10..11.
+  CHECK_EQ(10, error_location.beg_pos);
+  CHECK_EQ(11, error_location.end_pos);
+  // Should not crash.
+  const char* message = pre_impl->BuildMessage();
+  i::Vector<const char*> args = pre_impl->BuildArgs();
+  CHECK_GT(strlen(message), 0);
+}

@@ -283,7 +283,7 @@ DEFINE_bool(remote_debugger, false, "Connect JavaScript debugger to the "
                                     "debugger agent in another process")
 DEFINE_bool(debugger_agent, false, "Enable debugger agent")
 DEFINE_int(debugger_port, 5858, "Port to use for remote debugging")
-DEFINE_string(map_counters, false, "Map counters to a file")
+DEFINE_string(map_counters, NULL, "Map counters to a file")
 DEFINE_args(js_arguments, JSArguments(),
             "Pass all remaining arguments to the script. Alias for \"--\".")
 

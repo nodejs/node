@@ -117,7 +117,10 @@ enum BuiltinExtraArguments {
   V(FunctionApply,              BUILTIN, UNINITIALIZED)                   \
                                                                           \
   V(ArrayCode,                  BUILTIN, UNINITIALIZED)                   \
-  V(ArrayConstructCode,         BUILTIN, UNINITIALIZED)
+  V(ArrayConstructCode,         BUILTIN, UNINITIALIZED)                   \
+                                                                          \
+  V(StringConstructCode,        BUILTIN, UNINITIALIZED)
+
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 // Define list of builtins used by the debugger implemented in assembly.
@@ -258,6 +261,8 @@ class Builtins : public AllStatic {
 
   static void Generate_ArrayCode(MacroAssembler* masm);
   static void Generate_ArrayConstructCode(MacroAssembler* masm);
+
+  static void Generate_StringConstructCode(MacroAssembler* masm);
 };
 
 } }  // namespace v8::internal

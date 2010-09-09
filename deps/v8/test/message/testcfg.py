@@ -35,11 +35,10 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 class MessageTestCase(test.TestCase):
 
   def __init__(self, path, file, expected, mode, context, config):
-    super(MessageTestCase, self).__init__(context, path)
+    super(MessageTestCase, self).__init__(context, path, mode)
     self.file = file
     self.expected = expected
     self.config = config
-    self.mode = mode
 
   def IgnoreLine(self, str):
     """Ignore empty lines and valgrind output."""
@@ -79,7 +78,7 @@ class MessageTestCase(test.TestCase):
     return self.path[-1]
 
   def GetCommand(self):
-    result = [self.config.context.GetVm(self.mode)]
+    result = self.config.context.GetVmCommand(self, self.mode)
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:

@@ -235,11 +235,6 @@ ecma_3/Number/15.7.4.7-1: FAIL_OK
 # toExponential argument restricted to range 0..20 in JSC/V8
 ecma_3/Number/15.7.4.6-1: FAIL_OK
 
-# Array.prototype.slice with zero arguments return undefined in JSC/V8, 
-# empty array in Spider/TraceMonkey.
-js1_5/Array/regress-451483: FAIL_OK
-
-
 #:=== RegExp:=== 
 # To be compatible with JSC we silently ignore flags that do not make
 # sense.  These tests expects us to throw exceptions.  

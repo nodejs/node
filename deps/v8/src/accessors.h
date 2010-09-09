@@ -75,8 +75,10 @@ class Accessors : public AllStatic {
   };
 
   // Accessor functions called directly from the runtime system.
-  static Object* FunctionGetPrototype(Object* object, void*);
-  static Object* FunctionSetPrototype(JSObject* object, Object* value, void*);
+  MUST_USE_RESULT static Object* FunctionGetPrototype(Object* object, void*);
+  MUST_USE_RESULT static Object* FunctionSetPrototype(JSObject* object,
+                                                      Object* value,
+                                                      void*);
  private:
   // Accessor functions only used through the descriptor.
   static Object* FunctionGetLength(Object* object, void*);

@@ -727,6 +727,10 @@ void Simulator::set_register(int reg, int32_t value) {
 // the special case of accessing the PC register.
 int32_t Simulator::get_register(int reg) const {
   ASSERT((reg >= 0) && (reg < num_registers));
+  // Stupid code added to avoid bug in GCC.
+  // See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
+  if (reg >= num_registers) return 0;
+  // End stupid code.
   return registers_[reg] + ((reg == pc) ? Instr::kPCReadOffset : 0);
 }
 
@@ -1378,7 +1382,9 @@ void Simulator::HandleRList(Instr* instr, bool load) {
     }
     case 3: {
       // Print("ib");
-      UNIMPLEMENTED();
+      start_address = rn_val + 4;
+      end_address = rn_val + (num_regs * 4);
+      rn_val = end_address;
       break;
     }
     default: {
@@ -2275,13 +2281,6 @@ void Simulator::DecodeUnconditional(Instr* instr) {
 }
 
 
-// Depending on value of last_bit flag glue register code from vm and m values
-// (where m is expected to be a single bit).
-static int GlueRegCode(bool last_bit, int vm, int m) {
-  return last_bit ? ((vm << 1) | m) : ((m << 4) | vm);
-}
-
-
 // void Simulator::DecodeTypeVFP(Instr* instr)
 // The Following ARMv7 VFPv instructions are currently supported.
 // vmov :Sn = Rt
@@ -2299,9 +2298,10 @@ void Simulator::DecodeTypeVFP(Instr* instr) {
   ASSERT((instr->TypeField() == 7) && (instr->Bit(24) == 0x0) );
   ASSERT(instr->Bits(11, 9) == 0x5);
 
-  int vm = instr->VmField();
-  int vd = instr->VdField();
-  int vn = instr->VnField();
+  // Obtain double precision register codes.
+  int vm = instr->VFPMRegCode(kDoublePrecision);
+  int vd = instr->VFPDRegCode(kDoublePrecision);
+  int vn = instr->VFPNRegCode(kDoublePrecision);
 
   if (instr->Bit(4) == 0) {
     if (instr->Opc1Field() == 0x7) {
@@ -2309,9 +2309,13 @@ void Simulator::DecodeTypeVFP(Instr* instr) {
       if ((instr->Opc2Field() == 0x0) && (instr->Opc3Field() == 0x1)) {
         // vmov register to register.
         if (instr->SzField() == 0x1) {
-          set_d_register_from_double(vd, get_double_from_d_register(vm));
+          int m = instr->VFPMRegCode(kDoublePrecision);
+          int d = instr->VFPDRegCode(kDoublePrecision);
+          set_d_register_from_double(d, get_double_from_d_register(m));
         } else {
-          set_s_register_from_float(vd, get_float_from_s_register(vm));
+          int m = instr->VFPMRegCode(kSinglePrecision);
+          int d = instr->VFPDRegCode(kSinglePrecision);
+          set_s_register_from_float(d, get_float_from_s_register(m));
         }
       } else if ((instr->Opc2Field() == 0x7) && (instr->Opc3Field() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
@@ -2404,7 +2408,7 @@ void Simulator::DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instr* instr) {
          (instr->VAField() == 0x0));
 
   int t = instr->RtField();
-  int n  = GlueRegCode(true, instr->VnField(), instr->NField());
+  int n = instr->VFPNRegCode(kSinglePrecision);
   bool to_arm_register = (instr->VLField() == 0x1);
 
   if (to_arm_register) {
@@ -2421,22 +2425,25 @@ void Simulator::DecodeVCMP(Instr* instr) {
   ASSERT((instr->Bit(4) == 0) && (instr->Opc1Field() == 0x7));
   ASSERT(((instr->Opc2Field() == 0x4) || (instr->Opc2Field() == 0x5)) &&
          (instr->Opc3Field() & 0x1));
-
   // Comparison.
-  bool dp_operation = (instr->SzField() == 1);
+
+  VFPRegPrecision precision = kSinglePrecision;
+  if (instr->SzField() == 1) {
+    precision = kDoublePrecision;
+  }
 
   if (instr->Bit(7) != 0) {
     // Raising exceptions for quiet NaNs are not supported.
     UNIMPLEMENTED();  // Not used by V8.
   }
 
-  int d = GlueRegCode(!dp_operation, instr->VdField(), instr->DField());
+  int d = instr->VFPDRegCode(precision);
   int m = 0;
   if (instr->Opc2Field() == 0x4) {
-    m = GlueRegCode(!dp_operation, instr->VmField(), instr->MField());
+    m = instr->VFPMRegCode(precision);
   }
 
-  if (dp_operation) {
+  if (precision == kDoublePrecision) {
     double dd_value = get_double_from_d_register(d);
     double dm_value = 0.0;
     if (instr->Opc2Field() == 0x4) {
@@ -2454,11 +2461,17 @@ void Simulator::DecodeVCVTBetweenDoubleAndSingle(Instr* instr) {
   ASSERT((instr->Bit(4) == 0) && (instr->Opc1Field() == 0x7));
   ASSERT((instr->Opc2Field() == 0x7) && (instr->Opc3Field() == 0x3));
 
-  bool double_to_single = (instr->SzField() == 1);
-  int dst = GlueRegCode(double_to_single, instr->VdField(), instr->DField());
-  int src = GlueRegCode(!double_to_single, instr->VmField(), instr->MField());
+  VFPRegPrecision dst_precision = kDoublePrecision;
+  VFPRegPrecision src_precision = kSinglePrecision;
+  if (instr->SzField() == 1) {
+    dst_precision = kSinglePrecision;
+    src_precision = kDoublePrecision;
+  }
 
-  if (double_to_single) {
+  int dst = instr->VFPDRegCode(dst_precision);
+  int src = instr->VFPMRegCode(src_precision);
+
+  if (dst_precision == kSinglePrecision) {
     double val = get_double_from_d_register(src);
     set_s_register_from_float(dst, static_cast<float>(val));
   } else {
@@ -2474,13 +2487,13 @@ void Simulator::DecodeVCVTBetweenFloatingPointAndInteger(Instr* instr) {
          (((instr->Opc2Field() >> 1) == 0x6) && (instr->Opc3Field() & 0x1)));
 
   // Conversion between floating-point and integer.
-  int vd = instr->VdField();
-  int d = instr->DField();
-  int vm = instr->VmField();
-  int m = instr->MField();
-
   bool to_integer = (instr->Bit(18) == 1);
-  bool dp_operation = (instr->SzField() == 1);
+
+  VFPRegPrecision src_precision = kSinglePrecision;
+  if (instr->SzField() == 1) {
+    src_precision = kDoublePrecision;
+  }
+
   if (to_integer) {
     bool unsigned_integer = (instr->Bit(16) == 0);
     if (instr->Bit(7) != 1) {
@@ -2488,10 +2501,10 @@ void Simulator::DecodeVCVTBetweenFloatingPointAndInteger(Instr* instr) {
       UNIMPLEMENTED();  // Not used by V8.
     }
 
-    int dst = GlueRegCode(true, vd, d);
-    int src = GlueRegCode(!dp_operation, vm, m);
+    int dst = instr->VFPDRegCode(kSinglePrecision);
+    int src = instr->VFPMRegCode(src_precision);
 
-    if (dp_operation) {
+    if (src_precision == kDoublePrecision) {
       double val = get_double_from_d_register(src);
 
       int sint = unsigned_integer ? static_cast<uint32_t>(val) :
@@ -2509,12 +2522,12 @@ void Simulator::DecodeVCVTBetweenFloatingPointAndInteger(Instr* instr) {
   } else {
     bool unsigned_integer = (instr->Bit(7) == 0);
 
-    int dst = GlueRegCode(!dp_operation, vd, d);
-    int src = GlueRegCode(true, vm, m);
+    int dst = instr->VFPDRegCode(src_precision);
+    int src = instr->VFPMRegCode(kSinglePrecision);
 
     int val = get_sinteger_from_s_register(src);
 
-    if (dp_operation) {
+    if (src_precision == kDoublePrecision) {
       if (unsigned_integer) {
         set_d_register_from_double(dst,
                                    static_cast<double>((uint32_t)val));
@@ -2545,9 +2558,11 @@ void Simulator::DecodeType6CoprocessorIns(Instr* instr) {
   if (instr->CoprocessorField() == 0xA) {
     switch (instr->OpcodeField()) {
       case 0x8:
-      case 0xC: {  // Load and store float to memory.
+      case 0xA:
+      case 0xC:
+      case 0xE: {  // Load and store single precision float to memory.
         int rn = instr->RnField();
-        int vd = instr->VdField();
+        int vd = instr->VFPDRegCode(kSinglePrecision);
         int offset = instr->Immed8Field();
         if (!instr->HasU()) {
           offset = -offset;

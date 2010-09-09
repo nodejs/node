@@ -92,7 +92,7 @@ class DateParser : public AllStatic {
     int ReadWord(uint32_t* prefix, int prefix_size) {
       int len;
       for (len = 0; IsAsciiAlphaOrAbove(); Next(), len++) {
-        if (len < prefix_size) prefix[len] = GetAsciiAlphaLower();
+        if (len < prefix_size) prefix[len] = AsciiAlphaToLower(ch_);
       }
       for (int i = len; i < prefix_size; i++) prefix[i] = 0;
       return len;
@@ -130,10 +130,6 @@ class DateParser : public AllStatic {
     bool HasReadNumber() const { return has_read_number_; }
 
    private:
-    // If current character is in 'A'-'Z' or 'a'-'z', return its lower-case.
-    // Else, return something outside of 'A'-'Z' and 'a'-'z'.
-    uint32_t GetAsciiAlphaLower() const { return ch_ | 32; }
-
     int index_;
     Vector<Char> buffer_;
     bool has_read_number_;

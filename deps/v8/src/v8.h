@@ -60,9 +60,6 @@
 #include "flags.h"
 
 // Objects & heap
-#include "objects.h"
-#include "spaces.h"
-#include "heap.h"
 #include "objects-inl.h"
 #include "spaces-inl.h"
 #include "heap-inl.h"

@@ -31,7 +31,6 @@ from os.path import join, dirname, exists
 import re
 import tempfile
 
-MJSUNIT_DEBUG_FLAGS = ['--enable-slow-asserts', '--debug-code', '--verify-heap']
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
@@ -40,10 +39,9 @@ SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 class MjsunitTestCase(test.TestCase):
 
   def __init__(self, path, file, mode, context, config):
-    super(MjsunitTestCase, self).__init__(context, path)
+    super(MjsunitTestCase, self).__init__(context, path, mode)
     self.file = file
     self.config = config
-    self.mode = mode
     self.self_script = False
 
   def GetLabel(self):
@@ -53,13 +51,11 @@ class MjsunitTestCase(test.TestCase):
     return self.path[-1]
 
   def GetCommand(self):
-    result = [self.config.context.GetVm(self.mode)]
+    result = self.config.context.GetVmCommand(self, self.mode)
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
       result += flags_match.group(1).strip().split()
-    if self.mode == 'debug':
-      result += MJSUNIT_DEBUG_FLAGS
     additional_files = []
     files_match = FILES_PATTERN.search(source);
     # Accept several lines of 'Files:'
@@ -94,8 +90,8 @@ class MjsunitTestCase(test.TestCase):
     self.self_script = self_script
     return self_script
 
-  def Cleanup(self):
-    if self.self_script:
+  def AfterRun(self, result):
+    if self.self_script and (not result.HasPreciousOutput()):
       test.CheckedUnlink(self.self_script)
 
 class MjsunitTestConfiguration(test.TestConfiguration):

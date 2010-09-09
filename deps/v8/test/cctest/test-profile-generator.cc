@@ -775,4 +775,21 @@ TEST(RecordStackTraceAtStartProfiling) {
   CHECK_EQ(0, current->children()->length());
 }
 
+
+TEST(Issue51919) {
+  CpuProfilesCollection collection;
+  i::EmbeddedVector<char*,
+      CpuProfilesCollection::kMaxSimultaneousProfiles> titles;
+  for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
+    i::Vector<char> title = i::Vector<char>::New(16);
+    i::OS::SNPrintF(title, "%d", i);
+    CHECK(collection.StartProfiling(title.start(), i + 1));  // UID must be > 0.
+    titles[i] = title.start();
+  }
+  CHECK(!collection.StartProfiling(
+      "maximum", CpuProfilesCollection::kMaxSimultaneousProfiles + 1));
+  for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i)
+    i::DeleteArray(titles[i]);
+}
+
 #endif  // ENABLE_LOGGING_AND_PROFILING

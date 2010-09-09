@@ -31,15 +31,12 @@ from os.path import join, dirname, exists
 import platform
 import utils
 
-CCTEST_DEBUG_FLAGS = ['--enable-slow-asserts', '--debug-code', '--verify-heap']
-
 
 class CcTestCase(test.TestCase):
 
   def __init__(self, path, executable, mode, raw_name, dependency, context):
-    super(CcTestCase, self).__init__(context, path)
+    super(CcTestCase, self).__init__(context, path, mode)
     self.executable = executable
-    self.mode = mode
     self.raw_name = raw_name
     self.dependency = dependency
 
@@ -54,8 +51,7 @@ class CcTestCase(test.TestCase):
     serialization_file += '_' + self.GetName()
     serialization_option = '--testing_serialization_file=' + serialization_file
     result = [ self.executable, name, serialization_option ]
-    if self.mode == 'debug':
-      result += CCTEST_DEBUG_FLAGS
+    result += self.context.GetVmFlags(self, self.mode)
     return result
 
   def GetCommand(self):

@@ -463,7 +463,7 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
       ASSERT((width + lsb) <= 32);
 
       out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                           "#%d",
+                                           "%d",
                                            instr->Bits(width + lsb - 1, lsb));
       return 8;
     }
@@ -931,7 +931,7 @@ void Decoder::DecodeType3(Instr* instr) {
       if (instr->HasW()) {
         ASSERT(instr->Bits(5, 4) == 0x1);
         if (instr->Bit(22) == 0x1) {
-          Format(instr, "usat 'rd, 'imm05@16, 'rm'shift_sat");
+          Format(instr, "usat 'rd, #'imm05@16, 'rm'shift_sat");
         } else {
           UNREACHABLE();  // SSAT.
         }
@@ -1269,17 +1269,19 @@ void Decoder::DecodeType6CoprocessorIns(Instr* instr) {
   if (instr->CoprocessorField() == 0xA) {
     switch (instr->OpcodeField()) {
       case 0x8:
+      case 0xA:
         if (instr->HasL()) {
-          Format(instr, "vldr'cond 'Sd, ['rn - 4*'off8]");
+          Format(instr, "vldr'cond 'Sd, ['rn - 4*'imm08@00]");
         } else {
-          Format(instr, "vstr'cond 'Sd, ['rn - 4*'off8]");
+          Format(instr, "vstr'cond 'Sd, ['rn - 4*'imm08@00]");
         }
         break;
       case 0xC:
+      case 0xE:
         if (instr->HasL()) {
-          Format(instr, "vldr'cond 'Sd, ['rn + 4*'off8]");
+          Format(instr, "vldr'cond 'Sd, ['rn + 4*'imm08@00]");
         } else {
-          Format(instr, "vstr'cond 'Sd, ['rn + 4*'off8]");
+          Format(instr, "vstr'cond 'Sd, ['rn + 4*'imm08@00]");
         }
         break;
       default:
@@ -1300,16 +1302,16 @@ void Decoder::DecodeType6CoprocessorIns(Instr* instr) {
         break;
       case 0x8:
         if (instr->HasL()) {
-          Format(instr, "vldr'cond 'Dd, ['rn - 4*'off8]");
+          Format(instr, "vldr'cond 'Dd, ['rn - 4*'imm08@00]");
         } else {
-          Format(instr, "vstr'cond 'Dd, ['rn - 4*'off8]");
+          Format(instr, "vstr'cond 'Dd, ['rn - 4*'imm08@00]");
         }
         break;
       case 0xC:
         if (instr->HasL()) {
-          Format(instr, "vldr'cond 'Dd, ['rn + 4*'off8]");
+          Format(instr, "vldr'cond 'Dd, ['rn + 4*'imm08@00]");
         } else {
-          Format(instr, "vstr'cond 'Dd, ['rn + 4*'off8]");
+          Format(instr, "vstr'cond 'Dd, ['rn + 4*'imm08@00]");
         }
         break;
       default:

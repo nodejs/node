@@ -79,10 +79,9 @@ class CompilationSubCache {
   // young generation.
   void Age();
 
-  bool HasFunction(SharedFunctionInfo* function_info);
-
   // GC support.
   void Iterate(ObjectVisitor* v);
+  void IterateFunctions(ObjectVisitor* v);
 
   // Clear this sub-cache evicting all its content.
   void Clear();
@@ -206,27 +205,6 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
 }
 
 
-bool CompilationSubCache::HasFunction(SharedFunctionInfo* function_info) {
-  if (function_info->script()->IsUndefined() ||
-      Script::cast(function_info->script())->source()->IsUndefined()) {
-    return false;
-  }
-
-  String* source =
-      String::cast(Script::cast(function_info->script())->source());
-  // Check all generations.
-  for (int generation = 0; generation < generations(); generation++) {
-    if (tables_[generation]->IsUndefined()) continue;
-
-    CompilationCacheTable* table =
-        CompilationCacheTable::cast(tables_[generation]);
-    Object* object = table->Lookup(source);
-    if (object->IsSharedFunctionInfo()) return true;
-  }
-  return false;
-}
-
-
 void CompilationSubCache::Age() {
   // Age the generations implicitly killing off the oldest.
   for (int i = generations_ - 1; i > 0; i--) {
@@ -235,6 +213,16 @@ void CompilationSubCache::Age() {
 
   // Set the first generation as unborn.
   tables_[0] = Heap::undefined_value();
+}
+
+
+void CompilationSubCache::IterateFunctions(ObjectVisitor* v) {
+  Object* undefined = Heap::raw_unchecked_undefined_value();
+  for (int i = 0; i < generations_; i++) {
+    if (tables_[i] != undefined) {
+      reinterpret_cast<CompilationCacheTable*>(tables_[i])->IterateElements(v);
+    }
+  }
 }
 
 
@@ -528,15 +516,16 @@ void CompilationCache::Clear() {
   }
 }
 
-
-bool CompilationCache::HasFunction(SharedFunctionInfo* function_info) {
-  return script.HasFunction(function_info);
-}
-
-
 void CompilationCache::Iterate(ObjectVisitor* v) {
   for (int i = 0; i < kSubCacheCount; i++) {
     subcaches[i]->Iterate(v);
+  }
+}
+
+
+void CompilationCache::IterateFunctions(ObjectVisitor* v) {
+  for (int i = 0; i < kSubCacheCount; i++) {
+    subcaches[i]->IterateFunctions(v);
   }
 }
 

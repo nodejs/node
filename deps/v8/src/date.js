@@ -137,12 +137,18 @@ var DST_offset_cache = {
   // Time interval where the cached offset is valid.
   start: 0, end: -1,
   // Size of next interval expansion.
-  increment: 0
+  increment: 0,
+  initial_increment: 19 * msPerDay
 };
 
 
 // NOTE: The implementation relies on the fact that no time zones have
-// more than one daylight savings offset change per month.
+// more than one daylight savings offset change per 19 days.
+//
+// In Egypt in 2010 they decided to suspend DST during Ramadan. This
+// led to a short interval where DST is in effect from September 10 to
+// September 30.
+//
 // If this function is called with NaN it returns NaN.
 function DaylightSavingsOffset(t) {
   // Load the cache object from the builtins object.
@@ -171,7 +177,7 @@ function DaylightSavingsOffset(t) {
         // the offset in the cache, we grow the cached time interval
         // and return the offset.
         cache.end = new_end;
-        cache.increment = msPerMonth;
+        cache.increment = cache.initial_increment;
         return end_offset;
       } else {
         var offset = %DateDaylightSavingsOffset(EquivalentTime(t));
@@ -182,7 +188,7 @@ function DaylightSavingsOffset(t) {
           // the interval to reflect this and reset the increment.
           cache.start = t;
           cache.end = new_end;
-          cache.increment = msPerMonth;
+          cache.increment = cache.initial_increment;
         } else {
           // The interval contains a DST offset change and the given time is
           // before it. Adjust the increment to avoid a linear search for
@@ -207,7 +213,7 @@ function DaylightSavingsOffset(t) {
   var offset = %DateDaylightSavingsOffset(EquivalentTime(t));
   cache.offset = offset;
   cache.start = cache.end = t;
-  cache.increment = msPerMonth;
+  cache.increment = cache.initial_increment;
   return offset;
 }
 

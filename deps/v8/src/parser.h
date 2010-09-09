@@ -68,11 +68,29 @@ class FunctionEntry BASE_EMBEDDED {
   void set_literal_count(int value) { backing_[kLiteralCountOffset] = value; }
 
   int property_count() { return backing_[kPropertyCountOffset]; }
-  void set_property_count(int value) { backing_[kPropertyCountOffset] = value; }
+  void set_property_count(int value) {
+    backing_[kPropertyCountOffset] = value;
+  }
+
+  int predata_function_skip() { return backing_[kPredataFunctionSkipOffset]; }
+  void set_predata_function_skip(int value) {
+    backing_[kPredataFunctionSkipOffset] = value;
+  }
+
+  int predata_symbol_skip() { return backing_[kPredataSymbolSkipOffset]; }
+  void set_predata_symbol_skip(int value) {
+    backing_[kPredataSymbolSkipOffset] = value;
+  }
+
+  int symbol_id_skip() { return backing_[kSymbolIdSkipOffset]; }
+  void set_symbol_id_skip(int value) {
+    backing_[kSymbolIdSkipOffset] = value;
+  }
+
 
   bool is_valid() { return backing_.length() > 0; }
 
-  static const int kSize = 4;
+  static const int kSize = 7;
 
  private:
   Vector<unsigned> backing_;
@@ -80,6 +98,9 @@ class FunctionEntry BASE_EMBEDDED {
   static const int kEndPosOffset = 1;
   static const int kLiteralCountOffset = 2;
   static const int kPropertyCountOffset = 3;
+  static const int kPredataFunctionSkipOffset = 4;
+  static const int kPredataSymbolSkipOffset = 5;
+  static const int kSymbolIdSkipOffset = 6;
 };
 
 
@@ -87,43 +108,98 @@ class ScriptDataImpl : public ScriptData {
  public:
   explicit ScriptDataImpl(Vector<unsigned> store)
       : store_(store),
-        last_entry_(0) { }
+        function_index_(kHeaderSize),
+        symbol_id_(0),
+        owns_store_(true) {
+    Initialize();
+  }
+
+  void Initialize() {
+    if (store_.length() >= kHeaderSize) {
+      // Otherwise we won't satisfy the SanityCheck.
+      symbol_index_ = kHeaderSize + store_[kFunctionsSizeOffset];
+    }
+  }
+
+  // Create an empty ScriptDataImpl that is guaranteed to not satisfy
+  // a SanityCheck.
+  ScriptDataImpl() : store_(Vector<unsigned>()), owns_store_(false) { }
+
   virtual ~ScriptDataImpl();
   virtual int Length();
   virtual const char* Data();
   virtual bool HasError();
-  FunctionEntry GetFunctionEnd(int start);
+
+  FunctionEntry GetFunctionEntry(int start);
+  int GetSymbolIdentifier(int start);
+  void SkipFunctionEntry(int start);
   bool SanityCheck();
 
   Scanner::Location MessageLocation();
   const char* BuildMessage();
   Vector<const char*> BuildArgs();
 
+  int symbol_count() {
+    return (store_.length() > kHeaderSize) ? store_[kSymbolCountOffset] : 0;
+  }
+  // The following functions should only be called if SanityCheck has
+  // returned true.
   bool has_error() { return store_[kHasErrorOffset]; }
   unsigned magic() { return store_[kMagicOffset]; }
   unsigned version() { return store_[kVersionOffset]; }
 
-  static const unsigned kMagicNumber = 0xBadDead;
-  static const unsigned kCurrentVersion = 1;
+  // Skip forward in the preparser data by the given number
+  // of unsigned ints.
+  virtual void Skip(int function_entries, int symbol_entries, int symbol_ids) {
+    ASSERT(function_entries >= 0);
+    ASSERT(function_entries
+           <= (static_cast<int>(store_[kFunctionsSizeOffset])
+               - (function_index_ - kHeaderSize)));
+    function_index_ += function_entries;
+    symbol_index_ += symbol_entries;
+    symbol_id_ += symbol_ids;
+  }
 
-  static const unsigned kMagicOffset = 0;
-  static const unsigned kVersionOffset = 1;
-  static const unsigned kHasErrorOffset = 2;
-  static const unsigned kSizeOffset = 3;
-  static const unsigned kHeaderSize = 4;
+  static const unsigned kMagicNumber = 0xBadDead;
+  static const unsigned kCurrentVersion = 2;
+
+  static const int kMagicOffset = 0;
+  static const int kVersionOffset = 1;
+  static const int kHasErrorOffset = 2;
+  static const int kFunctionsSizeOffset = 3;
+  static const int kSymbolCountOffset = 4;
+  static const int kSizeOffset = 5;
+  static const int kHeaderSize = 6;
+
+  static const int kMessageStartPos = 0;
+  static const int kMessageEndPos = 1;
+  static const int kMessageArgCountPos = 2;
+  static const int kMessageTextPos = 3;
 
  private:
+  Vector<unsigned> store_;
+  int function_index_;
+  int symbol_index_;
+  int symbol_id_;
+  bool owns_store_;
+
   unsigned Read(int position);
   unsigned* ReadAddress(int position);
-  int EntryCount();
-  FunctionEntry nth(int n);
 
-  Vector<unsigned> store_;
+  ScriptDataImpl(const char* backing_store, int length)
+      : store_(reinterpret_cast<unsigned*>(const_cast<char*>(backing_store)),
+               length / sizeof(unsigned)),
+        function_index_(kHeaderSize),
+        symbol_id_(0),
+        owns_store_(false) {
+    ASSERT_EQ(0, reinterpret_cast<intptr_t>(backing_store) % sizeof(unsigned));
+    Initialize();
+  }
 
-  // The last entry returned.  This is used to make lookup faster:
-  // the next entry to return is typically the next entry so lookup
-  // will usually be much faster if we start from the last entry.
-  int last_entry_;
+  // Read strings written by ParserRecorder::WriteString.
+  static const char* ReadString(unsigned* start, int* chars);
+
+  friend class ScriptData;
 };
 
 
@@ -174,6 +250,8 @@ class CompileTimeValue: public AllStatic {
   };
 
   static bool IsCompileTimeValue(Expression* expression);
+
+  static bool ArrayLiteralElementNeedsInitialization(Expression* value);
 
   // Get the value as a compile time value.
   static Handle<FixedArray> GetValue(Expression* expression);
