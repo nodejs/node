@@ -73,7 +73,8 @@ static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port=5858;
 
-static ev_prepare next_tick_watcher;
+static ev_check check_tick_watcher;
+static ev_prepare prepare_tick_watcher;
 static ev_idle tick_spinner;
 static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
@@ -164,6 +165,11 @@ static void Check(EV_P_ ev_check *watcher, int revents) {
 static Handle<Value> NeedTickCallback(const Arguments& args) {
   HandleScope scope;
   need_tick_cb = true;
+  // TODO: this tick_spinner shouldn't be necessary. An ev_prepare should be
+  // sufficent, the problem is only in the case of the very last "tick" -
+  // there is nothing left to do in the event loop and libev will exit. The
+  // ev_prepare callback isn't called before exiting. Thus we start this
+  // tick_spinner to keep the event loop alive long enough to handle it.
   ev_idle_start(EV_DEFAULT_UC_ &tick_spinner);
   return Undefined();
 }
@@ -175,10 +181,7 @@ static void Spin(EV_P_ ev_idle *watcher, int revents) {
 }
 
 
-static void Tick(EV_P_ ev_prepare *watcher, int revents) {
-  assert(watcher == &next_tick_watcher);
-  assert(revents == EV_PREPARE);
-
+static void Tick(void) {
   // Avoid entering a V8 scope.
   if (!need_tick_cb) return;
 
@@ -204,6 +207,20 @@ static void Tick(EV_P_ ev_prepare *watcher, int revents) {
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
   }
+}
+
+
+static void PrepareTick(EV_P_ ev_prepare *watcher, int revents) {
+  assert(watcher == &prepare_tick_watcher);
+  assert(revents == EV_PREPARE);
+  Tick();
+}
+
+
+static void CheckTick(EV_P_ ev_check *watcher, int revents) {
+  assert(watcher == &check_tick_watcher);
+  assert(revents == EV_CHECK);
+  Tick();
 }
 
 
@@ -1808,8 +1825,12 @@ int main(int argc, char *argv[]) {
   ev_default_loop(EVFLAG_AUTO);
 #endif
 
-  ev_prepare_init(&node::next_tick_watcher, node::Tick);
-  ev_prepare_start(EV_DEFAULT_UC_ &node::next_tick_watcher);
+  ev_prepare_init(&node::prepare_tick_watcher, node::PrepareTick);
+  ev_prepare_start(EV_DEFAULT_UC_ &node::prepare_tick_watcher);
+  ev_unref(EV_DEFAULT_UC);
+
+  ev_check_init(&node::check_tick_watcher, node::CheckTick);
+  ev_check_start(EV_DEFAULT_UC_ &node::check_tick_watcher);
   ev_unref(EV_DEFAULT_UC);
 
   ev_idle_init(&node::tick_spinner, node::Spin);
