@@ -3,13 +3,13 @@ assert = common.assert
 
 var order = [];
 process.nextTick(function () {
-  process.nextTick(function() {
-    order.push('nextTick');
-  });
-
   setTimeout(function() {
     order.push('setTimeout');
   }, 0);
+
+  process.nextTick(function() {
+    order.push('nextTick');
+  });
 })
 
 process.addListener('exit', function () {
