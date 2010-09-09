@@ -26,8 +26,7 @@ class ObjectWrap {
   {
     assert(!handle.IsEmpty());
     assert(handle->InternalFieldCount() > 0);
-    return static_cast<T*>(v8::Handle<v8::External>::Cast(
-        handle->GetInternalField(0))->Value());
+    return static_cast<T*>(handle->GetPointerFromInternalField(0));
   }
 
   v8::Persistent<v8::Object> handle_; // ro
@@ -38,7 +37,7 @@ class ObjectWrap {
     assert(handle_.IsEmpty());
     assert(handle->InternalFieldCount() > 0);
     handle_ = v8::Persistent<v8::Object>::New(handle);
-    handle_->SetInternalField(0, v8::External::New(this));
+    handle_->SetPointerInInternalField(0, this);
     MakeWeak();
   }
 
