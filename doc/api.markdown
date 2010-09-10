@@ -1659,6 +1659,22 @@ This is an `EventEmitter` with the following events:
 Emitted each time there is request. Note that there may be multiple requests
 per connection (in the case of keep-alive connections).
 
+### Event: 'checkContinue'
+
+`function (request, response) {}`
+
+Emitted each time a request with an http Expect: 100-continue is received.
+If this event isn't listened for, the server will automatically respond
+with a 100 Continue as appropriate.
+
+Handling this event involves calling `response.writeContinue` if the client
+should continue to send the request body, or generating an appropriate HTTP
+response (e.g., 400 Bad Request) if the client should not continue to send the
+request body.
+
+Note that when this event is emitted and handled, the `request` event will
+not be emitted.
+
 ### Event: 'upgrade'
 
 `function (request, socket, head)`
@@ -1834,6 +1850,11 @@ authentication details.
 This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the `'request'` event. It is a `Writable Stream`.
 
+### response.writeContinue()
+
+Sends a HTTP/1.1 100 Continue message to the client, indicating that
+the request body should be sent. See the the `checkContinue` event on
+`Server`.
 
 ### response.writeHead(statusCode, [reasonPhrase], [headers])
 
@@ -1936,6 +1957,11 @@ There are a few special headers that should be noted.
 
 * Sending a 'Content-length' header will disable the default chunked encoding.
 
+* Sending an 'Expect' header will immediately send the request headers. 
+  Usually, when sending 'Expect: 100-continue', you should both set a timeout
+  and listen for the `continue` event. See RFC2616 Section 8.2.3 for more
+  information.
+
 
 ### Event: 'upgrade'
 
@@ -1946,6 +1972,15 @@ isn't being listened for, clients receiving an upgrade header will have their
 connections closed.
 
 See the description of the `upgrade` event for `http.Server` for further details.
+
+### Event: 'continue'
+
+`function ()`
+
+Emitted when the server sends a '100 Continue' HTTP response, usually because
+the request contained 'Expect: 100-continue'. This is an instruction that
+the client should send the request body.
+
 
 ### http.createClient(port, host='localhost', secure=false, [credentials])
 
