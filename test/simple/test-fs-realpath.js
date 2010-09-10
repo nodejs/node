@@ -260,6 +260,15 @@ function runNextTest(err) {
 }
 runNextTest();
 
+
+assert.equal('/', fs.realpathSync('/'));
+fs.realpath('/', function (err, result) {
+  assert.equal(null, err);
+  assert.equal('/', result);
+});
+
+
+
 process.addListener("exit", function () {
   unlink.forEach(function(path){ try {fs.unlinkSync(path);}catch(e){} });
   assert.equal(async_completed, async_expected);
