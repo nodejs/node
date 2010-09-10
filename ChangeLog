@@ -1,4 +1,29 @@
-2010.08.20, Version 0.2.0
+2010.09.10, Version 0.2.1
+
+* REPL improvements (Johan Euphrosine, Brian White)
+
+* nextTick bug fixes (Benjamin Thomas, Felix Geisendörfer,
+  Trent Mick)
+
+* fs module bug fixes (Russell Haering, Marco Rogers, Tobie Langel,
+  Isaac Schlueter)
+
+* Build script change for OpenEmbedded.
+
+* Most constrctuors work without 'new' now.
+
+* Allow Strings for ports on net.Server.listen (Bradley Meck)
+
+* setInterval(cb, 0) loops infinitely
+
+* Fixes for NODE_MODULE_CONTEXTS=1 (Herbert Vojčík)
+
+* Expose fingerproint from getPeerCertificate (Paul Querna) 
+
+* API: forceClose -> destroy for WriteStreams
+
+
+2010.08.20, Version 0.2.0, 9283e134e558900ba89d9a33c18a9bdedab07cb9
 
 * process.title support for FreeBSD, Macintosh, Linux
 
