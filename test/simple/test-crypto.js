@@ -17,7 +17,12 @@ var caPem = fs.readFileSync(common.fixturesDir+"/test_ca.pem", 'ascii');
 var certPem = fs.readFileSync(common.fixturesDir+"/test_cert.pem", 'ascii');
 var keyPem = fs.readFileSync(common.fixturesDir+"/test_key.pem", 'ascii');
 
-var credentials = crypto.createCredentials({key:keyPem, cert:certPem, ca:caPem});
+try{
+  var credentials = crypto.createCredentials({key:keyPem, cert:certPem, ca:caPem});
+} catch (e) {
+  console.log("Not compiled with OPENSSL support.");
+  process.exit();
+}
 
 // Test HMAC
 //var h1 = (new crypto.Hmac).init("sha1", "Node").update("some data").update("to hmac").digest("hex");

@@ -12,7 +12,12 @@ var client = net.createConnection(443, "www.microsoft.com");
 var caPem = fs.readFileSync(common.fixturesDir+"/msca.pem");
 //var caPem = fs.readFileSync("ca.pem");
 
-var credentials = crypto.createCredentials({ca:caPem});
+try{
+  var credentials = crypto.createCredentials({ca:caPem});
+} catch (e) {
+  console.log("Not compiled with OPENSSL support.");
+  process.exit();
+}
 
 client.setEncoding("UTF8");
 client.addListener("connect", function () {
