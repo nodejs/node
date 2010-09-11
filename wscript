@@ -187,6 +187,8 @@ def configure(conf):
       if libcrypto and libssl:
         conf.env["USE_OPENSSL"] = Options.options.use_openssl = True
         conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
+  else:
+    Options.options.use_openssl = conf.env["USE_OPENSSL"] = False
 
   conf.check(lib='rt', uselib_store='RT')
 
