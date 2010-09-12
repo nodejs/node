@@ -16,3 +16,7 @@
   the maximum is reached it stops accepting new connections.
 - compile under clang
 - Use C++ style casts everywhere.
+- fs.readFile[Sync] should not call stat() and use the length. 
+  Test on Linux's /proc/sys/kernel/hostname
+- Ruby-like Process#detach (is that possible?)
+- stderr isn't flushing on exit
