@@ -1,6 +1,7 @@
 Revision history for libeio
 
 TODO: maybe add mincore support? available on at least darwin, solaris, linux, freebsd
+TODO: openbsd requites stdint.h for intptr_t - why posix?
 
 1.0
         - readdir: correctly handle malloc failures.
@@ -23,4 +24,5 @@ TODO: maybe add mincore support? available on at least darwin, solaris, linux, f
           error codes.
         - add OS-independent EIO_MT_* and EIO_MS_* flag enums.
         - add eio_statvfs/eio_fstatvfs.
+        - add eio_mlock/eio_mlockall and OS-independent MCL_* flag enums.
 

@@ -67,7 +67,8 @@ typedef int (*eio_cb)(eio_req *req);
 /* for readdir */
 
 /* eio_readdir flags */
-enum {
+enum
+{
   EIO_READDIR_DENTS         = 0x01, /* ptr2 contains eio_dirents, not just the (unsorted) names */
   EIO_READDIR_DIRS_FIRST    = 0x02, /* dirents gets sorted into a good stat() ing order to find directories first */
   EIO_READDIR_STAT_ORDER    = 0x04, /* dirents gets sorted into a good stat() ing order to quickly stat all files */
@@ -78,7 +79,8 @@ enum {
 };
 
 /* using "typical" values in the hope that the compiler will do something sensible */
-enum eio_dtype {
+enum eio_dtype
+{
   EIO_DT_UNKNOWN =  0,
   EIO_DT_FIFO    =  1,
   EIO_DT_CHR     =  2,
@@ -98,7 +100,8 @@ enum eio_dtype {
   EIO_DT_MAX     = 15  /* highest DT_VALUE ever, hopefully */
 };
 
-struct eio_dirent {
+struct eio_dirent
+{
   int nameofs; /* offset of null-terminated name string in (char *)req->ptr2 */
   unsigned short namelen; /* size of filename without trailing 0 */
   unsigned char type; /* one of EIO_DT_* */
@@ -107,7 +110,8 @@ struct eio_dirent {
 };
 
 /* eio_msync flags */
-enum {
+enum
+{
   EIO_MS_ASYNC      = 1,
   EIO_MS_INVALIDATE = 2,
   EIO_MS_SYNC       = 4
@@ -115,13 +119,15 @@ enum {
 
 /* eio_mtouch flags */
 
-enum {
+enum
+{
   EIO_MT_MODIFY     = 1
 };
 
 /* eio_sync_file_range flags */
 
-enum {
+enum
+{
   EIO_SYNC_FILE_RANGE_WAIT_BEFORE = 1,
   EIO_SYNC_FILE_RANGE_WRITE       = 2,
   EIO_SYNC_FILE_RANGE_WAIT_AFTER  = 4
@@ -131,7 +137,8 @@ typedef double eio_tstamp; /* feel free to use double in your code directly */
 
 /* the eio request structure */
 
-enum {
+enum
+{
   EIO_CUSTOM,
   EIO_OPEN, EIO_CLOSE, EIO_DUP2,
   EIO_READ, EIO_WRITE,
@@ -144,11 +151,27 @@ enum {
   EIO_CHOWN, EIO_FCHOWN,
   EIO_SYNC, EIO_FSYNC, EIO_FDATASYNC,
   EIO_MSYNC, EIO_MTOUCH, EIO_SYNC_FILE_RANGE,
+  EIO_MLOCK, EIO_MLOCKALL,
   EIO_UNLINK, EIO_RMDIR, EIO_MKDIR, EIO_RENAME,
   EIO_MKNOD, EIO_READDIR,
   EIO_LINK, EIO_SYMLINK, EIO_READLINK,
   EIO_GROUP, EIO_NOP,
   EIO_BUSY
+};
+
+/* mlockall constants */
+enum
+{
+  EIO_MCL_CURRENT = 1,
+  EIO_MCL_FUTURE  = 2,
+};
+
+/* request priorities */
+
+enum {
+  EIO_PRI_MIN     = -4,
+  EIO_PRI_MAX     =  4,
+  EIO_PRI_DEFAULT =  0
 };
 
 /* eio request structure */
@@ -160,14 +183,14 @@ struct eio_req
 
   ssize_t result;  /* result of syscall, e.g. result = read (... */
   off_t offs;      /* read, write, truncate, readahead, sync_file_range: file offset */
-  size_t size;     /* read, write, readahead, sendfile, msync, sync_file_range: length */
+  size_t size;     /* read, write, readahead, sendfile, msync, mlock, sync_file_range: length */
   void *ptr1;      /* all applicable requests: pathname, old name; readdir: optional eio_dirents */
   void *ptr2;      /* all applicable requests: new name or memory buffer; readdir: name strings */
   eio_tstamp nv1;  /* utime, futime: atime; busy: sleep time */
   eio_tstamp nv2;  /* utime, futime: mtime */
 
   int type;        /* EIO_xxx constant ETP */
-  int int1;        /* all applicable requests: file descriptor; sendfile: output fd; open, msync, readdir: flags */
+  int int1;        /* all applicable requests: file descriptor; sendfile: output fd; open, msync, mlockall, readdir: flags */
   long int2;       /* chown, fchown: uid; sendfile: input fd; open, chmod, mkdir, mknod: file mode, sync_file_range: flags */
   long int3;       /* chown, fchown: gid; mknod: dev_t */
   int errorno;     /* errno value on syscall return */
@@ -185,7 +208,7 @@ struct eio_req
   eio_req *grp, *grp_prev, *grp_next, *grp_first; /* private */
 };
 
-/* _private_ flags */
+/* _private_ request flags */
 enum {
   EIO_FLAG_CANCELLED = 0x01, /* request was cancelled */
   EIO_FLAG_PTR1_FREE = 0x02, /* need to free(ptr1) */
@@ -193,11 +216,8 @@ enum {
   EIO_FLAG_GROUPADD  = 0x08  /* some request was added to the group */
 };
 
-enum {
-  EIO_PRI_MIN     = -4,
-  EIO_PRI_MAX     =  4,
-  EIO_PRI_DEFAULT =  0,
-};
+/* undocumented/unsupported/private helper */
+/*void eio_page_align (void **addr, size_t *length);*/
 
 /* returns < 0 on error, errno set
  * need_poll, if non-zero, will be called when results are available
@@ -238,6 +258,8 @@ eio_req *eio_fsync     (int fd, int pri, eio_cb cb, void *data);
 eio_req *eio_fdatasync (int fd, int pri, eio_cb cb, void *data);
 eio_req *eio_msync     (void *addr, size_t length, int flags, int pri, eio_cb cb, void *data);
 eio_req *eio_mtouch    (void *addr, size_t length, int flags, int pri, eio_cb cb, void *data);
+eio_req *eio_mlock     (void *addr, size_t length, int pri, eio_cb cb, void *data);
+eio_req *eio_mlockall  (int flags, int pri, eio_cb cb, void *data);
 eio_req *eio_sync_file_range (int fd, off_t offset, size_t nbytes, unsigned int flags, int pri, eio_cb cb, void *data);
 eio_req *eio_close     (int fd, int pri, eio_cb cb, void *data);
 eio_req *eio_readahead (int fd, off_t offset, size_t length, int pri, eio_cb cb, void *data);
