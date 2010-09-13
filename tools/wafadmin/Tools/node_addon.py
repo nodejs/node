@@ -29,8 +29,15 @@ def detect(conf):
 
   conf.env['LIBPATH_NODE'] = lib
   conf.env['CPPPATH_NODE'] = join(prefix, 'include', 'node')
-  conf.env['CPPFLAGS_NODE'] = '-D_GNU_SOURCE'
-  conf.env['CPPFLAGS_NODE'] = '-DEV_MULTIPLICITY=0'
+
+  conf.env.append_value('CPPFLAGS_NODE', '-D_GNU_SOURCE')
+  conf.env.append_value('CPPFLAGS_NODE', '-DEV_MULTIPLICITY=0')
+
+  conf.env.append_value('CCFLAGS_NODE', '-D_LARGEFILE_SOURCE')
+  conf.env.append_value('CCFLAGS_NODE', '-D_FILE_OFFSET_BITS=64')
+
+  conf.env.append_value('CXXFLAGS_NODE', '-D_LARGEFILE_SOURCE')
+  conf.env.append_value('CXXFLAGS_NODE', '-D_FILE_OFFSET_BITS=64')
 
   # with symbols
   conf.env.append_value('CCFLAGS', ['-g'])
