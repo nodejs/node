@@ -2,6 +2,7 @@ common = require("../common");
 assert = common.assert
 var fs = require('fs');
 var path = require('path');
+var exec = require('child_process').exec;
 var async_completed = 0, async_expected = 0, unlink = [];
 
 function asynctest(testBlock, args, callback, assertBlock) {
@@ -22,7 +23,7 @@ function asynctest(testBlock, args, callback, assertBlock) {
 }
 
 function bashRealpath(path, callback) {
-  common.exec("cd '"+path.replace("'","\\'")+"' && pwd -P",function 
+  exec("cd '"+path.replace("'","\\'")+"' && pwd -P",function 
   (err, o) {
     callback(err, o.trim());
   });
