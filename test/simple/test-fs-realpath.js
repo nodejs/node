@@ -237,6 +237,57 @@ var uponeActual = fs.realpathSync("..");
 assert.equal(upone, uponeActual,
   "realpathSync('..') expected: "+upone+" actual:"+uponeActual);
 
+// absolute symlinks with children.
+// .
+// `-- a/
+//     |-- b/
+//     |   `-- c/
+//     |       `-- x.txt
+//     `-- link -> /tmp/node-test-realpath-abs-kids/a/b/
+// realpath(root+'/a/link/c/x.txt') ==> root+'/a/b/c/x.txt'
+function test_abs_with_kids (cb) {
+  bashRealpath(common.fixturesDir, function(err, fixturesAbsDir) {
+    var root = fixturesAbsDir+'/node-test-realpath-abs-kids';
+    function cleanup () {
+      ;['/a/b/c/x.txt'
+      , '/a/link'
+      ].forEach(function (file) {
+        try {fs.unlinkSync(root+file)} catch (ex) {}
+      });
+      ;['/a/b/c'
+      , '/a/b'
+      , '/a'
+      , ''
+      ].forEach(function (folder) {
+        try {fs.rmdirSync(root+folder)} catch (ex) {}
+      });
+    }
+    function setup () {
+      cleanup()
+      ;[''
+      , '/a'
+      , '/a/b'
+      , '/a/b/c'
+      ].forEach(function (folder) {
+        console.log("mkdir "+root+folder)
+        fs.mkdirSync(root+folder, 0700);
+      });
+      fs.writeFileSync(root+'/a/b/c/x.txt', 'foo');
+      fs.symlinkSync(root+'/a/b', root+'/a/link');
+    }
+    setup();
+    var linkPath = root+'/a/link/c/x.txt';
+    var expectPath = root+'/a/b/c/x.txt';
+    var actual = fs.realpathSync(linkPath);
+    // console.log({link:linkPath,expect:expectPath,actual:actual},'sync');
+    assert.equal(actual, expectPath);
+    asynctest(fs.realpath, [linkPath], cb, function (er, actual) {
+      // console.log({link:linkPath,expect:expectPath,actual:actual},'async');
+      assert.equal(actual, expectPath);
+      cleanup();
+    });
+  })
+}
 
 // ----------------------------------------------------------------------------
 
@@ -249,7 +300,8 @@ var tests = [
   test_relative_input_cwd,
   test_deep_symlink_mix,
   test_non_symlinks,
-  test_escape_cwd
+  test_escape_cwd,
+  test_abs_with_kids  
 ];
 var numtests = tests.length;
 function runNextTest(err) {
