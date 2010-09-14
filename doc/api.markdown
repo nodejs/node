@@ -175,7 +175,7 @@ into `buf2`, starting at the 8th byte in `buf2`.
     // !!!!!!!!qrst!!!!!!!!!!!!!
     
 
-### buffer.slice(start, end)
+### buffer.slice(start, end=buffer.length)
 
 Returns a new buffer which references the
 same memory as the old, but offset and cropped by the `start` and `end`
