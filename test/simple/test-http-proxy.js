@@ -6,9 +6,14 @@ url = require("url");
 var PROXY_PORT = common.PORT;
 var BACKEND_PORT = common.PORT+1;
 
+var cookies = [
+  "session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT",
+  "prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT"
+];
+
 var backend = http.createServer(function (req, res) {
   common.debug("backend request");
-  res.writeHead(200, {"content-type": "text/plain"});
+  res.writeHead(200, {"content-type": "text/plain", "set-cookie": cookies});
   res.write("hello world\n");
   res.end();
 });
@@ -43,6 +48,7 @@ function startReq () {
   req.addListener('response', function (res) {
     common.debug("got res");
     assert.equal(200, res.statusCode);
+    assert.deepEqual(cookies, res.headers["set-cookie"]);
     res.setEncoding("utf8");
     res.addListener('data', function (chunk) { body += chunk; });
     res.addListener('end', function () {
