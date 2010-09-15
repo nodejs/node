@@ -534,8 +534,8 @@ var events = module.requireNative('events');
 // Signal Handlers
 (function() {
   var signalWatchers = {};
-    addListener = process.addListener,
-    removeListener = process.removeListener;
+  var addListener = process.addListener;
+  var removeListener = process.removeListener;
 
   function isSignal (event) {
     return event.slice(0, 3) === 'SIG' && process.hasOwnProperty(event);
