@@ -66,6 +66,33 @@ process.nextTick = function (callback) {
   process._needTickCallback();
 };
 
+// Native module system
+
+var internalModuleCache = {},
+  // This contains the source code for the files in lib/
+  // Like, natives.fs is the contents of lib/fs.js
+  nativeSource = process.binding('natives');
+
+function requireNative (id) {
+  if (internalModuleCache[id]) return internalModuleCache[id].exports;
+  if (!nativeSource[id]) throw new Error('No such native module ' + id);
+
+  var m = { id: id, exports: {} };
+  internalModuleCache[id] = m;
+
+  // Compile the native module. Create wrapper function
+  var wrapper = "(function (exports, require, module) { "
+              + nativeSource[id]
+              + "\n});";
+
+  var compiledWrapper = process.compile(wrapper, m.id);
+  compiledWrapper.apply(m.exports, [m.exports, requireNative, m]);
+
+  m.loaded = true;
+
+  return m.exports;
+}
+
 
 // Module System
 var module = (function () {
@@ -76,7 +103,6 @@ var module = (function () {
   if (parseInt(process.env["NODE_MODULE_CONTEXTS"]) > 0) contextLoad = true;
   var Script;
 
-  var internalModuleCache = {};
   var extensionCache = {};
 
   function Module (id, parent) {
@@ -96,36 +122,6 @@ var module = (function () {
     this.children = [];
   };
 
-  function createInternalModule (id, constructor) {
-    var m = new Module(id);
-    constructor(m.exports);
-    m.loaded = true;
-    internalModuleCache[id] = m;
-    return m;
-  };
-
-
-  // This contains the source code for the files in lib/
-  // Like, natives.fs is the contents of lib/fs.js
-  var natives = process.binding('natives');
-
-  function loadNative (id) {
-    var m = new Module(id);
-    internalModuleCache[id] = m;
-    var e = m._compile(natives[id], id);
-    if (e) throw e;
-    m.loaded = true;
-    return m;
-  }
-
-  exports.requireNative = requireNative;
-
-  function requireNative (id) {
-    if (internalModuleCache[id]) return internalModuleCache[id].exports;
-    if (!natives[id]) throw new Error('No such native module ' + id);
-    return loadNative(id).exports;
-  }
-
 
   // Modules
 
@@ -136,10 +132,7 @@ var module = (function () {
     }
   }
 
-  var pathFn = process.compile("(function (exports) {" + natives.path + "\n})",
-                               "path");
-  var pathModule = createInternalModule('path', pathFn);
-  var path = pathModule.exports;
+  var path = requireNative("path");
 
   var modulePaths = [path.join(process.execPath, "..", "..", "lib", "node")];
 
@@ -255,10 +248,11 @@ var module = (function () {
     if (cachedNative) {
       return callback ? callback(null, cachedNative.exports) : cachedNative.exports;
     }
-    if (natives[id]) {
+
+    if (nativeSource[id]) {
       debug('load native module ' + id);
-      var nativeMod = loadNative(id);
-      return callback ? callback(null, nativeMod.exports) : nativeMod.exports;
+      var nativeMod = requireNative(id);
+      return callback ? callback(null, nativeMod) : nativeMod;
     }
 
     // look up the filename first, since that's the cache key.
@@ -523,7 +517,7 @@ var module = (function () {
 
 // Load events module in order to access prototype elements on process like
 // process.addListener.
-var events = module.requireNative('events');
+var events = requireNative('events');
 
 
 // Signal Handlers
@@ -609,8 +603,8 @@ process.__defineGetter__('stdout', function () {
   if (stdout) return stdout;
 
   var binding = process.binding('stdio'),
-      net = module.requireNative('net'),
-      fs = module.requireNative('fs'),
+      net = requireNative('net'),
+      fs = requireNative('fs'),
       fd = binding.stdoutFD;
 
   if (binding.isStdoutBlocking()) {
@@ -632,8 +626,8 @@ process.openStdin = function () {
   if (stdin) return stdin;
 
   var binding = process.binding('stdio'),
-      net = module.requireNative('net'),
-      fs = module.requireNative('fs'),
+      net = requireNative('net'),
+      fs = requireNative('fs'),
       fd = binding.openStdin();
 
   if (binding.isStdinBlocking()) {
@@ -653,7 +647,7 @@ process.openStdin = function () {
 var formatRegExp = /%[sdj]/g;
 function format (f) {
   if (typeof f !== 'string') {
-    var objects = [], sys = module.requireNative('sys');
+    var objects = [], sys = requireNative('sys');
     for (var i = 0; i < arguments.length; i++) {
       objects.push(sys.inspect(arguments[i]));
     }
@@ -693,7 +687,7 @@ global.console.warn = function () {
 global.console.error = global.console.warn;
 
 global.console.dir = function(object){
-  var sys = module.requireNative('sys');
+  var sys = requireNative('sys');
   process.stdout.write(sys.inspect(object) + '\n');
 };
 
@@ -724,7 +718,7 @@ global.console.assert = function(expression){
   }
 }
 
-global.Buffer = module.requireNative('buffer').Buffer;
+global.Buffer = requireNative('buffer').Buffer;
 
 process.exit = function (code) {
   process.emit("exit");
@@ -732,7 +726,7 @@ process.exit = function (code) {
 };
 
 var cwd = process.cwd();
-var path = module.requireNative('path');
+var path = requireNative('path');
 
 // Make process.argv[0] and process.argv[1] into full paths.
 if (process.argv[0].indexOf('/') > 0) {
@@ -751,7 +745,7 @@ if (process.argv[1]) {
   });
 } else {
   // No arguments, run the repl
-  var repl = module.requireNative('repl');
+  var repl = requireNative('repl');
   console.log("Type '.help' for options.");
   repl.start();
 }
