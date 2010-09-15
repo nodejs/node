@@ -8,11 +8,6 @@ var knownGlobals = [ setTimeout
                    , Buffer
                    , process
                    , global
-                   , __module
-                   , include
-                   , puts
-                   , print
-                   , p
                    ];
 
 for (var x in global) {
