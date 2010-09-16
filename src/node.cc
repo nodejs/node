@@ -1819,7 +1819,7 @@ int main(int argc, char *argv[]) {
   // TODO(Ryan) I'm experiencing abnormally high load using Solaris's
   // EVBACKEND_PORT. Temporarally forcing select() until I debug.
   ev_default_loop(EVBACKEND_POLL);
-#elif defined(__APPLE_CC__) && __APPLE_CC__ >= 5659
+#elif defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   ev_default_loop(EVBACKEND_KQUEUE);
 #else
   ev_default_loop(EVFLAG_AUTO);
