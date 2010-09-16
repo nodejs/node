@@ -455,13 +455,8 @@ var module = (function () {
     debug("loadModule REQUEST  " + (request) + " parent: " + parent.id);
 
     // native modules always take precedence.
-    var cachedNative = internalModuleCache[id];
-    if (cachedNative) {
-      return callback ? callback(null, cachedNative.exports) : cachedNative.exports;
-    }
-
     if (nativeSource[id]) {
-      debug('load native module ' + id);
+      //debug('load native module ' + id);
       var nativeMod = requireNative(id);
       return callback ? callback(null, nativeMod) : nativeMod;
     }
