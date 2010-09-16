@@ -12,7 +12,7 @@ server.listen(common.PORT);
 
 server.addListener("listening", function() {
   net.createConnection(common.PORT).addListener("connect", function () {
-    this.close();
+    this.destroy();
   }).addListener("close", function () {
     server.close();
   });
