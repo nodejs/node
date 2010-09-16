@@ -2228,6 +2228,25 @@ Set this property to reject connections when the server's connection count gets 
 The number of concurrent connections on the server.
 
 
+## net.isIP
+
+### net.isIP(input)
+
+Tests if input is an IP address. Returns 0 for invalid strings,
+returns 4 for IP version 4 addresses, and returns 6 for IP version 6 addresses.
+
+
+### net.isIPv4(input)
+
+Returns true if input is a version 4 IP address, otherwise returns false.
+
+
+### net.isIPv6(input)
+
+Returns true if input is a version 6 IP address, otherwise returns false.
+
+
+
 
 ## net.Stream
 
