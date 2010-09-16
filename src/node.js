@@ -85,7 +85,7 @@ function requireNative (id) {
               + nativeSource[id]
               + "\n});";
 
-  var compiledWrapper = process.compile(wrapper, m.id);
+  var compiledWrapper = process.compile(wrapper, id);
   compiledWrapper.apply(m.exports, [m.exports, requireNative, m]);
 
   m.loaded = true;
