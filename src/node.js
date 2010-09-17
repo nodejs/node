@@ -158,27 +158,33 @@ function addTimerListener (callback) {
   }
 }
 
+var Timer; // lazy load
+
 global.setTimeout = function (callback, after) {
-  var timer = new process.Timer();
+  if (!Timer) Timer = process.binding("timer").Timer;
+  var timer = new Timer();
   addTimerListener.apply(timer, arguments);
   timer.start(after, 0);
   return timer;
 };
 
 global.setInterval = function (callback, repeat) {
-  var timer = new process.Timer();
+  if (!Timer) Timer = process.binding("timer").Timer;
+  var timer = new Timer();
   addTimerListener.apply(timer, arguments);
   timer.start(repeat, repeat ? repeat : 1);
   return timer;
 };
 
 global.clearTimeout = function (timer) {
-  if (timer instanceof process.Timer) {
+  if (!Timer) Timer = process.binding("timer").Timer;
+  if (timer instanceof Timer) {
     timer.stop();
   }
 };
 
 global.clearInterval = global.clearTimeout;
+
 
 var stdout;
 process.__defineGetter__('stdout', function () {

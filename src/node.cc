@@ -1464,6 +1464,16 @@ static Handle<Value> Binding(const Arguments& args) {
     DefineConstants(exports);
     binding_cache->Set(module, exports);
 
+  } else if (!strcmp(*module_v, "io_watcher")) {
+    exports = Object::New();
+    IOWatcher::Initialize(exports);
+    binding_cache->Set(module, exports);
+
+  } else if (!strcmp(*module_v, "timer")) {
+    exports = Object::New();
+    Timer::Initialize(exports);
+    binding_cache->Set(module, exports);
+
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New();
     // Explicitly define native sources.
@@ -1619,14 +1629,6 @@ static void Load(int argc, char *argv[]) {
   // Assign the EventEmitter. It was created in main().
   process->Set(String::NewSymbol("EventEmitter"),
                EventEmitter::constructor_template->GetFunction());
-
-
-  // Initialize the C++ modules..................filename of module
-  IOWatcher::Initialize(process);              // io_watcher.cc
-  // Not in use at the moment.
-  //IdleWatcher::Initialize(process);            // idle_watcher.cc
-  Timer::Initialize(process);                  // timer.cc
-  // coverity[stack_use_callee]
 
   // Compile, execute the src/node.js file. (Which was included as static C
   // string in node_natives.h. 'natve_node' is the string containing that
