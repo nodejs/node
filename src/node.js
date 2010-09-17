@@ -746,9 +746,7 @@ if (process.argv[1]) {
   });
 } else {
   // No arguments, run the repl
-  var repl = requireNative('repl');
-  console.log("Type '.help' for options.");
-  repl.start();
+  requireNative('repl').start();
 }
 
 // All our arguments are loaded. We've evaluated all of the scripts. We
