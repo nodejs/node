@@ -98,6 +98,7 @@ function requireNative (id) {
 // process.addListener.
 var events = requireNative('events');
 
+var constants; // lazy loaded.
 
 // Signal Handlers
 (function() {
@@ -106,28 +107,29 @@ var events = requireNative('events');
   var removeListener = process.removeListener;
 
   function isSignal (event) {
-    return event.slice(0, 3) === 'SIG' && process.hasOwnProperty(event);
-  };
+    if (!constants) constants = process.binding("constants");
+    return event.slice(0, 3) === 'SIG' && constants[event];
+  }
 
   // Wrap addListener for the special signal types
   process.on = process.addListener = function (type, listener) {
     var ret = addListener.apply(this, arguments);
     if (isSignal(type)) {
       if (!signalWatchers.hasOwnProperty(type)) {
-        var b = process.binding('signal_watcher'),
-          w = new b.SignalWatcher(process[type]);
-          w.callback = function () {
-            process.emit(type);
-          }
+        if (!constants) constants = process.binding("constants");
+        var b = process.binding('signal_watcher');
+        var w = new b.SignalWatcher(constants[type]);
+        w.callback = function () { process.emit(type); };
         signalWatchers[type] = w;
         w.start();
+
       } else if (this.listeners(type).length === 1) {
         signalWatchers[event].start();
       }
     }
 
     return ret;
-  }
+  };
 
   process.removeListener = function (type, listener) {
     var ret = removeListener.apply(this, arguments);
@@ -140,7 +142,7 @@ var events = requireNative('events');
     }
 
     return ret;
-  }
+  };
 })();
 
 // Timers
@@ -302,6 +304,13 @@ global.Buffer = requireNative('buffer').Buffer;
 process.exit = function (code) {
   process.emit("exit");
   process.reallyExit(code);
+};
+
+process.kill = function (pid, sig) {
+  if (!constants) constants = process.binding("constants");
+  sig = sig || 'SIGTERM';
+  if (!constants[sig]) throw new Error("Unknown signal: " + sig);
+  process._kill(pid, constants[sig]);
 };
 
 

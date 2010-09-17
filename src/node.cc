@@ -1237,39 +1237,22 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
 }
 
 
-v8::Handle<v8::Value> Kill(const v8::Arguments& args) {
+Handle<Value> Kill(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 1 || !args[0]->IsNumber()) {
+  if (args.Length() != 2 || !args[0]->IsNumber() || !args[1]->IsNumber()) {
     return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
 
   pid_t pid = args[0]->IntegerValue();
-
-  int sig = SIGTERM;
-
-  if (args.Length() >= 2) {
-    if (args[1]->IsNumber()) {
-      sig = args[1]->Int32Value();
-    } else if (args[1]->IsString()) {
-      Local<String> signame = args[1]->ToString();
-
-      Local<Value> sig_v = process->Get(signame);
-      if (!sig_v->IsNumber()) {
-        return ThrowException(Exception::Error(String::New("Unknown signal")));
-      }
-      sig = sig_v->Int32Value();
-    }
-  }
-
+  int sig = args[1]->Int32Value();
   int r = kill(pid, sig);
 
-  if (r != 0) {
-    return ThrowException(Exception::Error(String::New(strerror(errno))));
-  }
+  if (r != 0) return ThrowException(ErrnoException(errno, "kill"));
 
   return Undefined();
 }
+
 
 typedef void (*extInit)(Handle<Object> exports);
 
@@ -1483,11 +1466,17 @@ static Handle<Value> Binding(const Arguments& args) {
 
   if (binding_cache->Has(module)) {
     exports = binding_cache->Get(module)->ToObject();
-  }
-  else if ((modp = get_builtin_module(*module_v)) != NULL) {
+
+  } else if ((modp = get_builtin_module(*module_v)) != NULL) {
     exports = Object::New();
     modp->register_func(exports);
     binding_cache->Set(module, exports);
+
+  } else if (!strcmp(*module_v, "constants")) {
+    exports = Object::New();
+    DefineConstants(exports);
+    binding_cache->Set(module, exports);
+
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New();
     // Explicitly define native sources.
@@ -1516,6 +1505,7 @@ static Handle<Value> Binding(const Arguments& args) {
     exports->Set(String::New("string_decoder"), String::New(native_string_decoder));
     binding_cache->Set(module, exports);
   } else {
+
     return ThrowException(Exception::Error(String::New("No such module")));
   }
 
@@ -1639,7 +1629,7 @@ static void Load(int argc, char *argv[]) {
 
   NODE_SET_METHOD(process, "umask", Umask);
   NODE_SET_METHOD(process, "dlopen", DLOpen);
-  NODE_SET_METHOD(process, "kill", Kill);
+  NODE_SET_METHOD(process, "_kill", Kill);
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
 
   NODE_SET_METHOD(process, "binding", Binding);
@@ -1655,7 +1645,6 @@ static void Load(int argc, char *argv[]) {
   //IdleWatcher::Initialize(process);            // idle_watcher.cc
   Timer::Initialize(process);                  // timer.cc
   // coverity[stack_use_callee]
-  DefineConstants(process);                    // constants.cc
 
   // Compile, execute the src/node.js file. (Which was included as static C
   // string in node_natives.h. 'natve_node' is the string containing that

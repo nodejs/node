@@ -20,7 +20,6 @@
   Test on Linux's /proc/sys/kernel/hostname
 - Ruby-like Process#detach (is that possible?)
 - stderr isn't flushing on exit
-- Pull constants output process.
 - ReadStream should not use an offset in calls to fs.read
   (so that it can pull in files larger than 2G)
 - fs.readFile and fs.readFileSync need to not stat and prealloc a buffer 
