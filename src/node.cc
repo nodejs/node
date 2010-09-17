@@ -994,17 +994,6 @@ Local<Value> ExecuteString(Local<String> source, Local<Value> filename) {
   return scope.Close(result);
 }
 
-static Handle<Value> ByteLength(const Arguments& args) {
-  HandleScope scope;
-
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    return ThrowException(Exception::Error(String::New("Bad argument.")));
-  }
-
-  Local<Integer> length = Integer::New(DecodeBytes(args[0], ParseEncoding(args[1], UTF8)));
-
-  return scope.Close(length);
-}
 
 static Handle<Value> Loop(const Arguments& args) {
   HandleScope scope;
@@ -1608,7 +1597,6 @@ static void Load(int argc, char *argv[]) {
   // define various internal methods
   NODE_SET_METHOD(process, "loop", Loop);
   NODE_SET_METHOD(process, "compile", Compile);
-  NODE_SET_METHOD(process, "_byteLength", ByteLength);
   NODE_SET_METHOD(process, "_needTickCallback", NeedTickCallback);
   NODE_SET_METHOD(process, "reallyExit", Exit);
   NODE_SET_METHOD(process, "chdir", Chdir);

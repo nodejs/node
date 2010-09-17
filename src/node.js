@@ -21,6 +21,7 @@ process.unwatchFile = removed("process.unwatchFile() has moved to fs.unwatchFile
 process.mixin = removed('process.mixin() has been removed.');
 process.createChildProcess = removed("childProcess API has changed. See doc/api.txt.");
 process.inherits = removed("process.inherits() has moved to sys.inherits.");
+process._byteLength = removed("process._byteLength() has moved to Buffer.byteLength");
 
 process.assert = function (x, msg) {
   if (!x) throw new Error(msg || "assertion error");
