@@ -1018,19 +1018,6 @@ static Handle<Value> Loop(const Arguments& args) {
   return Undefined();
 }
 
-static Handle<Value> Unloop(const Arguments& args) {
-  fprintf(stderr, "Deprecation: Don't use process.unloop(). It will be removed soon.\n");
-  HandleScope scope;
-  int how = EVUNLOOP_ONE;
-  if (args[0]->IsString()) {
-    String::Utf8Value how_s(args[0]->ToString());
-    if (0 == strcmp(*how_s, "all")) {
-      how = EVUNLOOP_ALL;
-    }
-  }
-  ev_unloop(EV_DEFAULT_ how);
-  return Undefined();
-}
 
 static Handle<Value> Chdir(const Arguments& args) {
   HandleScope scope;
@@ -1610,7 +1597,6 @@ static void Load(int argc, char *argv[]) {
 
   // define various internal methods
   NODE_SET_METHOD(process, "loop", Loop);
-  NODE_SET_METHOD(process, "unloop", Unloop);
   NODE_SET_METHOD(process, "compile", Compile);
   NODE_SET_METHOD(process, "_byteLength", ByteLength);
   NODE_SET_METHOD(process, "_needTickCallback", NeedTickCallback);
