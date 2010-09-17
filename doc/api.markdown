@@ -1448,19 +1448,6 @@ See pwrite(2).
 The callback will be given two arguments `(err, written)` where `written`
 specifies how many _bytes_ were written.
 
-### fs.write(fd, str, position, encoding='utf8', [callback])
-
-Write the entire string `str` using the given `encoding` to the file specified
-by `fd`.
-
-`position` refers to the offset from the beginning of the file where this data
-should be written. If `position` is `null`, the data will be written at the
-current position.
-See pwrite(2).
-
-The callback will be given two arguments `(err, written)` where `written`
-specifies how many _bytes_ were written.
-
 ### fs.writeSync(fd, buffer, offset, length, position)
 
 Synchronous version of buffer-based `fs.write()`. Returns the number of bytes written.
@@ -1483,19 +1470,6 @@ Read data from the file specified by `fd`.
 If `position` is `null`, data will be read from the current file position.
 
 The callback is given the two arguments, `(err, bytesRead)`.
-
-### fs.read(fd, length, position, encoding, [callback])
-
-Read data from the file specified by `fd`.
-
-`length` is an integer specifying the number of bytes to read.
-
-`position` is an integer specifying where to begin reading from in the file.
-If `position` is `null`, data will be read from the current file position.
-
-`encoding` is the desired encoding of the string of data read in from `fd`.
-
-The callback is given the three arguments, `(err, str, bytesRead)`.
 
 ### fs.readSync(fd, buffer, offset, length, position)
 
