@@ -7,7 +7,7 @@ var path = require('path'),
 var file = path.join(common.fixturesDir, "write.txt");
 
 (function() {
-  var stream = fs.createWriteStream(file),
+  var stream = fs.WriteStream(file),
       _fs_close = fs.close;
       
   fs.close = function(fd) {
