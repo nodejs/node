@@ -1484,6 +1484,7 @@ static Handle<Value> Binding(const Arguments& args) {
     exports->Set(String::New("assert"),       String::New(native_assert));
     exports->Set(String::New("buffer"),       String::New(native_buffer));
     exports->Set(String::New("child_process"),String::New(native_child_process));
+    exports->Set(String::New("constants"),    String::New(native_constants));
     exports->Set(String::New("dgram"),        String::New(native_dgram));
     exports->Set(String::New("dns"),          String::New(native_dns));
     exports->Set(String::New("events"),       String::New(native_events));
