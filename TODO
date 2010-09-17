@@ -25,3 +25,4 @@
 - fs.readFile and fs.readFileSync need to not stat and prealloc a buffer 
   based on size but rather read until EOF into a chain of buffers, then 
   concat them together.
+- process object should be defined in src/node.js not in c++
