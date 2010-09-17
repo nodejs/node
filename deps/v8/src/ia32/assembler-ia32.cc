@@ -860,9 +860,14 @@ void Assembler::add(const Operand& dst, const Immediate& x) {
 
 
 void Assembler::and_(Register dst, int32_t imm32) {
+  and_(dst, Immediate(imm32));
+}
+
+
+void Assembler::and_(Register dst, const Immediate& x) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_arith(4, Operand(dst), Immediate(imm32));
+  emit_arith(4, Operand(dst), x);
 }
 
 

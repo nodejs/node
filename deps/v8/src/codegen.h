@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -70,48 +70,6 @@
 //   CodeForStatementPosition
 //   CodeForDoWhileConditionPosition
 //   CodeForSourcePosition
-
-
-#define INLINE_RUNTIME_FUNCTION_LIST(F) \
-  F(IsSmi, 1, 1)                                                             \
-  F(IsNonNegativeSmi, 1, 1)                                                  \
-  F(IsArray, 1, 1)                                                           \
-  F(IsRegExp, 1, 1)                                                          \
-  F(CallFunction, -1 /* receiver + n args + function */, 1)                  \
-  F(IsConstructCall, 0, 1)                                                   \
-  F(ArgumentsLength, 0, 1)                                                   \
-  F(Arguments, 1, 1)                                                         \
-  F(ClassOf, 1, 1)                                                           \
-  F(ValueOf, 1, 1)                                                           \
-  F(SetValueOf, 2, 1)                                                        \
-  F(StringCharCodeAt, 2, 1)                                                  \
-  F(StringCharFromCode, 1, 1)                                                \
-  F(StringCharAt, 2, 1)                                                      \
-  F(ObjectEquals, 2, 1)                                                      \
-  F(Log, 3, 1)                                                               \
-  F(RandomHeapNumber, 0, 1)                                                  \
-  F(IsObject, 1, 1)                                                          \
-  F(IsFunction, 1, 1)                                                        \
-  F(IsUndetectableObject, 1, 1)                                              \
-  F(IsSpecObject, 1, 1)                                                      \
-  F(IsStringWrapperSafeForDefaultValueOf, 1, 1)                              \
-  F(StringAdd, 2, 1)                                                         \
-  F(SubString, 3, 1)                                                         \
-  F(StringCompare, 2, 1)                                                     \
-  F(RegExpExec, 4, 1)                                                        \
-  F(RegExpConstructResult, 3, 1)                                             \
-  F(RegExpCloneResult, 1, 1)                                                 \
-  F(GetFromCache, 2, 1)                                                      \
-  F(NumberToString, 1, 1)                                                    \
-  F(SwapElements, 3, 1)                                                      \
-  F(MathPow, 2, 1)                                                           \
-  F(MathSin, 1, 1)                                                           \
-  F(MathCos, 1, 1)                                                           \
-  F(MathSqrt, 1, 1)                                                          \
-  F(IsRegExpEquivalent, 2, 1)                                                \
-  F(HasCachedArrayIndex, 1, 1)                                               \
-  F(GetCachedArrayIndex, 1, 1)
-
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/codegen-ia32.h"

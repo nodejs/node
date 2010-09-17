@@ -340,27 +340,40 @@ enum NegativeZeroHandling {
 };
 
 
+enum UnaryOpFlags {
+  NO_UNARY_FLAGS = 0,
+  NO_UNARY_SMI_CODE_IN_STUB = 1 << 0
+};
+
+
 class GenericUnaryOpStub : public CodeStub {
  public:
   GenericUnaryOpStub(Token::Value op,
                      UnaryOverwriteMode overwrite,
+                     UnaryOpFlags flags,
                      NegativeZeroHandling negative_zero = kStrictNegativeZero)
-      : op_(op), overwrite_(overwrite), negative_zero_(negative_zero) { }
+      : op_(op),
+        overwrite_(overwrite),
+        include_smi_code_((flags & NO_UNARY_SMI_CODE_IN_STUB) == 0),
+        negative_zero_(negative_zero) { }
 
  private:
   Token::Value op_;
   UnaryOverwriteMode overwrite_;
+  bool include_smi_code_;
   NegativeZeroHandling negative_zero_;
 
   class OverwriteField: public BitField<UnaryOverwriteMode, 0, 1> {};
-  class NegativeZeroField: public BitField<NegativeZeroHandling, 1, 1> {};
-  class OpField: public BitField<Token::Value, 2, kMinorBits - 2> {};
+  class IncludeSmiCodeField: public BitField<bool, 1, 1> {};
+  class NegativeZeroField: public BitField<NegativeZeroHandling, 2, 1> {};
+  class OpField: public BitField<Token::Value, 3, kMinorBits - 3> {};
 
   Major MajorKey() { return GenericUnaryOp; }
   int MinorKey() {
     return OpField::encode(op_) |
-           OverwriteField::encode(overwrite_) |
-           NegativeZeroField::encode(negative_zero_);
+        OverwriteField::encode(overwrite_) |
+        IncludeSmiCodeField::encode(include_smi_code_) |
+        NegativeZeroField::encode(negative_zero_);
   }
 
   void Generate(MacroAssembler* masm);
@@ -375,20 +388,41 @@ enum NaNInformation {
 };
 
 
+// Flags that control the compare stub code generation.
+enum CompareFlags {
+  NO_COMPARE_FLAGS = 0,
+  NO_SMI_COMPARE_IN_STUB = 1 << 0,
+  NO_NUMBER_COMPARE_IN_STUB = 1 << 1,
+  CANT_BOTH_BE_NAN = 1 << 2
+};
+
+
 class CompareStub: public CodeStub {
  public:
   CompareStub(Condition cc,
               bool strict,
-              NaNInformation nan_info = kBothCouldBeNaN,
-              bool include_number_compare = true,
-              Register lhs = no_reg,
-              Register rhs = no_reg) :
+              CompareFlags flags,
+              Register lhs,
+              Register rhs) :
       cc_(cc),
       strict_(strict),
-      never_nan_nan_(nan_info == kCantBothBeNaN),
-      include_number_compare_(include_number_compare),
+      never_nan_nan_((flags & CANT_BOTH_BE_NAN) != 0),
+      include_number_compare_((flags & NO_NUMBER_COMPARE_IN_STUB) == 0),
+      include_smi_compare_((flags & NO_SMI_COMPARE_IN_STUB) == 0),
       lhs_(lhs),
       rhs_(rhs),
+      name_(NULL) { }
+
+  CompareStub(Condition cc,
+              bool strict,
+              CompareFlags flags) :
+      cc_(cc),
+      strict_(strict),
+      never_nan_nan_((flags & CANT_BOTH_BE_NAN) != 0),
+      include_number_compare_((flags & NO_NUMBER_COMPARE_IN_STUB) == 0),
+      include_smi_compare_((flags & NO_SMI_COMPARE_IN_STUB) == 0),
+      lhs_(no_reg),
+      rhs_(no_reg),
       name_(NULL) { }
 
   void Generate(MacroAssembler* masm);
@@ -406,6 +440,10 @@ class CompareStub: public CodeStub {
   // comparison code is used when the number comparison has been inlined, and
   // the stub will be called if one of the operands is not a number.
   bool include_number_compare_;
+
+  // Generate the comparison code for two smi operands in the stub.
+  bool include_smi_compare_;
+
   // Register holding the left hand side of the comparison if the stub gives
   // a choice, no_reg otherwise.
   Register lhs_;
@@ -413,12 +451,13 @@ class CompareStub: public CodeStub {
   // a choice, no_reg otherwise.
   Register rhs_;
 
-  // Encoding of the minor key CCCCCCCCCCCCRCNS.
+  // Encoding of the minor key in 16 bits.
   class StrictField: public BitField<bool, 0, 1> {};
   class NeverNanNanField: public BitField<bool, 1, 1> {};
   class IncludeNumberCompareField: public BitField<bool, 2, 1> {};
-  class RegisterField: public BitField<bool, 3, 1> {};
-  class ConditionField: public BitField<int, 4, 12> {};
+  class IncludeSmiCompareField: public  BitField<bool, 3, 1> {};
+  class RegisterField: public BitField<bool, 4, 1> {};
+  class ConditionField: public BitField<int, 5, 11> {};
 
   Major MajorKey() { return Compare; }
 
@@ -436,11 +475,13 @@ class CompareStub: public CodeStub {
   const char* GetName();
 #ifdef DEBUG
   void Print() {
-    PrintF("CompareStub (cc %d), (strict %s), "
-           "(never_nan_nan %s), (number_compare %s) ",
+    PrintF("CompareStub (minor %d) (cc %d), (strict %s), "
+           "(never_nan_nan %s), (smi_compare %s) (number_compare %s) ",
+           MinorKey(),
            static_cast<int>(cc_),
            strict_ ? "true" : "false",
            never_nan_nan_ ? "true" : "false",
+           include_smi_compare_ ? "inluded" : "not included",
            include_number_compare_ ? "included" : "not included");
 
     if (!lhs_.is(no_reg) && !rhs_.is(no_reg)) {

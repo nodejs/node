@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -389,6 +389,59 @@ namespace internal {
   RUNTIME_FUNCTION_LIST_PROFILER_SUPPORT(F)
 
 // ----------------------------------------------------------------------------
+// INLINE_FUNCTION_LIST defines all inlined functions accessed
+// with a native call of the form %_name from within JS code.
+// Entries have the form F(name, number of arguments, number of return values).
+#define INLINE_FUNCTION_LIST(F) \
+  F(IsSmi, 1, 1)                                                             \
+  F(IsNonNegativeSmi, 1, 1)                                                  \
+  F(IsArray, 1, 1)                                                           \
+  F(IsRegExp, 1, 1)                                                          \
+  F(CallFunction, -1 /* receiver + n args + function */, 1)                  \
+  F(ArgumentsLength, 0, 1)                                                   \
+  F(Arguments, 1, 1)                                                         \
+  F(ValueOf, 1, 1)                                                           \
+  F(SetValueOf, 2, 1)                                                        \
+  F(StringCharFromCode, 1, 1)                                                \
+  F(StringCharAt, 2, 1)                                                      \
+  F(ObjectEquals, 2, 1)                                                      \
+  F(RandomHeapNumber, 0, 1)                                                  \
+  F(IsObject, 1, 1)                                                          \
+  F(IsFunction, 1, 1)                                                        \
+  F(IsUndetectableObject, 1, 1)                                              \
+  F(IsSpecObject, 1, 1)                                                      \
+  F(IsStringWrapperSafeForDefaultValueOf, 1, 1)                              \
+  F(MathPow, 2, 1)                                                           \
+  F(MathSin, 1, 1)                                                           \
+  F(MathCos, 1, 1)                                                           \
+  F(MathSqrt, 1, 1)                                                          \
+  F(IsRegExpEquivalent, 2, 1)                                                \
+  F(HasCachedArrayIndex, 1, 1)                                               \
+  F(GetCachedArrayIndex, 1, 1)
+
+
+// ----------------------------------------------------------------------------
+// INLINE_AND_RUNTIME_FUNCTION_LIST defines all inlined functions accessed
+// with a native call of the form %_name from within JS code that also have
+  // a corresponding runtime function, that is called for slow cases.
+// Entries have the form F(name, number of arguments, number of return values).
+#define INLINE_RUNTIME_FUNCTION_LIST(F) \
+  F(IsConstructCall, 0, 1)                                                   \
+  F(ClassOf, 1, 1)                                                           \
+  F(StringCharCodeAt, 2, 1)                                                  \
+  F(Log, 3, 1)                                                               \
+  F(StringAdd, 2, 1)                                                         \
+  F(SubString, 3, 1)                                                         \
+  F(StringCompare, 2, 1)                                                     \
+  F(RegExpExec, 4, 1)                                                        \
+  F(RegExpConstructResult, 3, 1)                                             \
+  F(RegExpCloneResult, 1, 1)                                                 \
+  F(GetFromCache, 2, 1)                                                      \
+  F(NumberToString, 1, 1)                                                    \
+  F(SwapElements, 3, 1)
+
+
+//---------------------------------------------------------------------------
 // Runtime provides access to all C++ runtime functions.
 
 class Runtime : public AllStatic {
@@ -396,33 +449,52 @@ class Runtime : public AllStatic {
   enum FunctionId {
 #define F(name, nargs, ressize) k##name,
     RUNTIME_FUNCTION_LIST(F)
-    kNofFunctions
 #undef F
+#define F(name, nargs, ressize) kInline##name,
+    INLINE_FUNCTION_LIST(F)
+    INLINE_RUNTIME_FUNCTION_LIST(F)
+#undef F
+    kNumFunctions,
+    kFirstInlineFunction = kInlineIsSmi
   };
 
-  // Runtime function descriptor.
+  enum IntrinsicType {
+    RUNTIME,
+    INLINE
+  };
+
+  // Intrinsic function descriptor.
   struct Function {
+    FunctionId function_id;
+    IntrinsicType intrinsic_type;
     // The JS name of the function.
     const char* name;
 
-    // The C++ (native) entry point.
+    // The C++ (native) entry point.  NULL if the function is inlined.
     byte* entry;
 
-    // The number of arguments expected; nargs < 0 if variable no. of
-    // arguments.
+    // The number of arguments expected. nargs is -1 if the function takes
+    // a variable number of arguments.
     int nargs;
-    int stub_id;
-    // Size of result, if complex (larger than a single pointer),
-    // otherwise zero.
+    // Size of result.  Most functions return a single pointer, size 1.
     int result_size;
   };
 
-  // Get the runtime function with the given function id.
-  static Function* FunctionForId(FunctionId fid);
+  static const int kNotFound = -1;
 
-  // Get the runtime function with the given name.
-  static Function* FunctionForName(Vector<const char> name);
+  // Add symbols for all the intrinsic function names to a StringDictionary.
+  // Returns failure if an allocation fails.  In this case, it must be
+  // retried with a new, empty StringDictionary, not with the same one.
+  // Alternatively, heap initialization can be completely restarted.
+  static Object* InitializeIntrinsicFunctionNames(Object* dictionary);
 
+  // Get the intrinsic function with the given name, which must be a symbol.
+  static Function* FunctionForSymbol(Handle<String> name);
+
+  // Get the intrinsic function with the given FunctionId.
+  static Function* FunctionForId(FunctionId id);
+
+  // General-purpose helper functions for runtime system.
   static int StringMatch(Handle<String> sub, Handle<String> pat, int index);
 
   static bool IsUpperCaseChar(uint16_t ch);

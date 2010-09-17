@@ -243,6 +243,12 @@ class FullCodeGenerator: public AstVisitor {
     kRightConstant
   };
 
+  // Type of a member function that generates inline code for a native function.
+  typedef void (FullCodeGenerator::*InlineFunctionGenerator)
+      (ZoneList<Expression*>*);
+
+  static const InlineFunctionGenerator kInlineFunctionGenerators[];
+
   // Compute the frame pointer relative offset for a given local or
   // parameter slot.
   int SlotOffset(Slot* slot);
@@ -373,14 +379,25 @@ class FullCodeGenerator: public AstVisitor {
   void EmitKeyedCallWithIC(Call* expr, Expression* key, RelocInfo::Mode mode);
 
   // Platform-specific code for inline runtime calls.
+  InlineFunctionGenerator FindInlineFunctionGenerator(Runtime::FunctionId id);
+
   void EmitInlineRuntimeCall(CallRuntime* expr);
 
 #define EMIT_INLINE_RUNTIME_CALL(name, x, y) \
   void Emit##name(ZoneList<Expression*>* arguments);
+  INLINE_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
   INLINE_RUNTIME_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
 #undef EMIT_INLINE_RUNTIME_CALL
 
   // Platform-specific code for loading variables.
+  void EmitLoadGlobalSlotCheckExtensions(Slot* slot,
+                                         TypeofState typeof_state,
+                                         Label* slow);
+  MemOperand ContextSlotOperandCheckExtensions(Slot* slot, Label* slow);
+  void EmitDynamicLoadFromSlotFastCase(Slot* slot,
+                                       TypeofState typeof_state,
+                                       Label* slow,
+                                       Label* done);
   void EmitVariableLoad(Variable* expr, Expression::Context context);
 
   // Platform-specific support for allocating a new closure based on
@@ -499,6 +516,9 @@ class FullCodeGenerator: public AstVisitor {
   // Load a value from the current context. Indices are defined as an enum
   // in v8::internal::Context.
   void LoadContextField(Register dst, int context_index);
+
+  // Create an operand for a context field.
+  MemOperand ContextOperand(Register context, int context_index);
 
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);

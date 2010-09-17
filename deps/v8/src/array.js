@@ -957,14 +957,41 @@ function ArrayIndexOf(element, index) {
     // If index is still negative, search the entire array.
     if (index < 0) index = 0;
   }
+  var min = index;
+  var max = length;
+  if (UseSparseVariant(this, length, true)) {
+    var intervals = %GetArrayKeys(this, length);
+    if (intervals.length == 2 && intervals[0] < 0) {
+      // A single interval.
+      var intervalMin = -(intervals[0] + 1);
+      var intervalMax = intervalMin + intervals[1];
+      min = MAX(min, intervalMin);
+      max = intervalMax;  // Capped by length already.
+      // Fall through to loop below.
+    } else {
+      if (intervals.length == 0) return -1;
+      // Get all the keys in sorted order.
+      var sortedKeys = GetSortedArrayKeys(this, intervals);
+      var n = sortedKeys.length;
+      var i = 0;
+      while (i < n && sortedKeys[i] < index) i++;
+      while (i < n) {
+        var key = sortedKeys[i];
+        if (!IS_UNDEFINED(key) && this[key] === element) return key;
+        i++;
+      }
+      return -1;
+    }
+  }
   // Lookup through the array.
   if (!IS_UNDEFINED(element)) {
-    for (var i = index; i < length; i++) {
+    for (var i = min; i < max; i++) {
       if (this[i] === element) return i;
     }
     return -1;
   }
-  for (var i = index; i < length; i++) {
+  // Lookup through the array.
+  for (var i = min; i < max; i++) {
     if (IS_UNDEFINED(this[i]) && i in this) {
       return i;
     }
@@ -981,19 +1008,43 @@ function ArrayLastIndexOf(element, index) {
   } else {
     index = TO_INTEGER(index);
     // If index is negative, index from end of the array.
-    if (index < 0) index = length + index;
+    if (index < 0) index += length;
     // If index is still negative, do not search the array.
-    if (index < 0) index = -1;
+    if (index < 0) return -1;
     else if (index >= length) index = length - 1;
+  }
+  var min = 0;
+  var max = index;
+  if (UseSparseVariant(this, length, true)) {
+    var intervals = %GetArrayKeys(this, index + 1);
+    if (intervals.length == 2 && intervals[0] < 0) {
+      // A single interval.
+      var intervalMin = -(intervals[0] + 1);
+      var intervalMax = intervalMin + intervals[1];
+      min = MAX(min, intervalMin);
+      max = intervalMax;  // Capped by index already.
+      // Fall through to loop below.
+    } else {
+      if (intervals.length == 0) return -1;
+      // Get all the keys in sorted order.
+      var sortedKeys = GetSortedArrayKeys(this, intervals);
+      var i = sortedKeys.length - 1;
+      while (i >= 0) {
+        var key = sortedKeys[i];
+        if (!IS_UNDEFINED(key) && this[key] === element) return key;
+        i--;
+      }
+      return -1;
+    }
   }
   // Lookup through the array.
   if (!IS_UNDEFINED(element)) {
-    for (var i = index; i >= 0; i--) {
+    for (var i = max; i >= min; i--) {
       if (this[i] === element) return i;
     }
     return -1;
   }
-  for (var i = index; i >= 0; i--) {
+  for (var i = max; i >= min; i--) {
     if (IS_UNDEFINED(this[i]) && i in this) {
       return i;
     }

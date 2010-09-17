@@ -31,6 +31,7 @@
 #include "global-handles.h"
 #include "scopeinfo.h"
 #include "top.h"
+#include "unicode.h"
 #include "zone-inl.h"
 
 #include "profile-generator-inl.h"
@@ -2130,6 +2131,357 @@ HeapSnapshotsDiff* HeapSnapshotsComparator::Compare(HeapSnapshot* snapshot1,
       diff->AddAddedEntry(add_child_index++, added_entry_index++, entry);
   }
   return diff;
+}
+
+
+class OutputStreamWriter {
+ public:
+  explicit OutputStreamWriter(v8::OutputStream* stream)
+      : stream_(stream),
+        chunk_size_(stream->GetChunkSize()),
+        chunk_(chunk_size_),
+        chunk_pos_(0),
+        aborted_(false) {
+    ASSERT(chunk_size_ > 0);
+  }
+  bool aborted() { return aborted_; }
+  void AddCharacter(char c) {
+    ASSERT(c != '\0');
+    ASSERT(chunk_pos_ < chunk_size_);
+    chunk_[chunk_pos_++] = c;
+    MaybeWriteChunk();
+  }
+  void AddString(const char* s) {
+    AddSubstring(s, StrLength(s));
+  }
+  void AddSubstring(const char* s, int n) {
+    if (n <= 0) return;
+    ASSERT(static_cast<size_t>(n) <= strlen(s));
+    const char* s_end = s + n;
+    while (s < s_end) {
+      int s_chunk_size = Min(
+          chunk_size_ - chunk_pos_, static_cast<int>(s_end - s));
+      ASSERT(s_chunk_size > 0);
+      memcpy(chunk_.start() + chunk_pos_, s, s_chunk_size);
+      s += s_chunk_size;
+      chunk_pos_ += s_chunk_size;
+      MaybeWriteChunk();
+    }
+  }
+  void AddNumber(int n) { AddNumberImpl<int>(n, "%d"); }
+  void AddNumber(unsigned n) { AddNumberImpl<unsigned>(n, "%u"); }
+  void AddNumber(uint64_t n) { AddNumberImpl<uint64_t>(n, "%llu"); }
+  void Finalize() {
+    if (aborted_) return;
+    ASSERT(chunk_pos_ < chunk_size_);
+    if (chunk_pos_ != 0) {
+      WriteChunk();
+    }
+    stream_->EndOfStream();
+  }
+
+ private:
+  template<typename T>
+  void AddNumberImpl(T n, const char* format) {
+    ScopedVector<char> buffer(32);
+    int result = OS::SNPrintF(buffer, format, n);
+    USE(result);
+    ASSERT(result != -1);
+    AddString(buffer.start());
+  }
+  void MaybeWriteChunk() {
+    ASSERT(chunk_pos_ <= chunk_size_);
+    if (chunk_pos_ == chunk_size_) {
+      WriteChunk();
+      chunk_pos_ = 0;
+    }
+  }
+  void WriteChunk() {
+    if (aborted_) return;
+    if (stream_->WriteAsciiChunk(chunk_.start(), chunk_pos_) ==
+        v8::OutputStream::kAbort) aborted_ = true;
+  }
+
+  v8::OutputStream* stream_;
+  int chunk_size_;
+  ScopedVector<char> chunk_;
+  int chunk_pos_;
+  bool aborted_;
+};
+
+void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
+  ASSERT(writer_ == NULL);
+  writer_ = new OutputStreamWriter(stream);
+
+  // Since nodes graph is cyclic, we need the first pass to enumerate
+  // them. Strings can be serialized in one pass.
+  EnumerateNodes();
+  SerializeImpl();
+
+  delete writer_;
+  writer_ = NULL;
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeImpl() {
+  writer_->AddCharacter('{');
+  writer_->AddString("\"snapshot\":{");
+  SerializeSnapshot();
+  if (writer_->aborted()) return;
+  writer_->AddString("},\n");
+  writer_->AddString("\"nodes\":[");
+  SerializeNodes();
+  if (writer_->aborted()) return;
+  writer_->AddString("],\n");
+  writer_->AddString("\"strings\":[");
+  SerializeStrings();
+  if (writer_->aborted()) return;
+  writer_->AddCharacter(']');
+  writer_->AddCharacter('}');
+  writer_->Finalize();
+}
+
+
+class HeapSnapshotJSONSerializerEnumerator {
+ public:
+  explicit HeapSnapshotJSONSerializerEnumerator(HeapSnapshotJSONSerializer* s)
+      : s_(s) {
+  }
+  void Apply(HeapEntry** entry) {
+    s_->GetNodeId(*entry);
+  }
+ private:
+  HeapSnapshotJSONSerializer* s_;
+};
+
+void HeapSnapshotJSONSerializer::EnumerateNodes() {
+  GetNodeId(snapshot_->root());  // Make sure root gets the first id.
+  HeapSnapshotJSONSerializerEnumerator iter(this);
+  snapshot_->IterateEntries(&iter);
+}
+
+
+int HeapSnapshotJSONSerializer::GetNodeId(HeapEntry* entry) {
+  HashMap::Entry* cache_entry = nodes_.Lookup(entry, ObjectHash(entry), true);
+  if (cache_entry->value == NULL) {
+    cache_entry->value = reinterpret_cast<void*>(next_node_id_++);
+  }
+  return static_cast<int>(reinterpret_cast<intptr_t>(cache_entry->value));
+}
+
+
+int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
+  HashMap::Entry* cache_entry = strings_.Lookup(
+      const_cast<char*>(s), ObjectHash(s), true);
+  if (cache_entry->value == NULL) {
+    cache_entry->value = reinterpret_cast<void*>(next_string_id_++);
+  }
+  return static_cast<int>(reinterpret_cast<intptr_t>(cache_entry->value));
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
+  writer_->AddCharacter(',');
+  writer_->AddNumber(edge->type());
+  writer_->AddCharacter(',');
+  if (edge->type() == HeapGraphEdge::kElement) {
+    writer_->AddNumber(edge->index());
+  } else {
+    writer_->AddNumber(GetStringId(edge->name()));
+  }
+  writer_->AddCharacter(',');
+  writer_->AddNumber(GetNodeId(edge->to()));
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
+  writer_->AddCharacter('\n');
+  writer_->AddCharacter(',');
+  writer_->AddNumber(entry->type());
+  writer_->AddCharacter(',');
+  writer_->AddNumber(GetStringId(entry->name()));
+  writer_->AddCharacter(',');
+  writer_->AddNumber(entry->id());
+  writer_->AddCharacter(',');
+  writer_->AddNumber(entry->self_size());
+  Vector<HeapGraphEdge> children = entry->children();
+  writer_->AddCharacter(',');
+  writer_->AddNumber(children.length());
+  for (int i = 0; i < children.length(); ++i) {
+    SerializeEdge(&children[i]);
+    if (writer_->aborted()) return;
+  }
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeNodes() {
+  // The first (zero) item of nodes array is a JSON-ified object
+  // describing node serialization layout.
+  // We use a set of macros to improve readability.
+#define JSON_A(s) "["s"]"
+#define JSON_O(s) "{"s"}"
+#define JSON_S(s) "\\\""s"\\\""
+  writer_->AddString("\"" JSON_O(
+    JSON_S("fields") ":" JSON_A(
+        JSON_S("type")
+        "," JSON_S("name")
+        "," JSON_S("id")
+        "," JSON_S("self_size")
+        "," JSON_S("children_count")
+        "," JSON_S("children"))
+    "," JSON_S("types") ":" JSON_A(
+        JSON_A(
+            JSON_S("internal")
+            "," JSON_S("array")
+            "," JSON_S("string")
+            "," JSON_S("object")
+            "," JSON_S("code")
+            "," JSON_S("closure"))
+        "," JSON_S("string")
+        "," JSON_S("number")
+        "," JSON_S("number")
+        "," JSON_S("number")
+        "," JSON_O(
+            JSON_S("fields") ":" JSON_A(
+                JSON_S("type")
+                "," JSON_S("name_or_index")
+                "," JSON_S("to_node"))
+            "," JSON_S("types") ":" JSON_A(
+                JSON_A(
+                    JSON_S("context")
+                    "," JSON_S("element")
+                    "," JSON_S("property")
+                    "," JSON_S("internal"))
+                "," JSON_S("string_or_number")
+                "," JSON_S("node"))))) "\"");
+#undef JSON_S
+#undef JSON_O
+#undef JSON_A
+
+  const int node_fields_count = 5;  // type,name,id,self_size,children_count.
+  const int edge_fields_count = 3;  // type,name|index,to_node.
+  List<HashMap::Entry*> sorted_nodes;
+  SortHashMap(&nodes_, &sorted_nodes);
+  // Rewrite node ids, so they refer to actual array positions.
+  if (sorted_nodes.length() > 1) {
+    // Nodes start from array index 1.
+    int prev_value = 1;
+    sorted_nodes[0]->value = reinterpret_cast<void*>(prev_value);
+    for (int i = 1; i < sorted_nodes.length(); ++i) {
+      HeapEntry* prev_heap_entry =
+          reinterpret_cast<HeapEntry*>(sorted_nodes[i-1]->key);
+      prev_value += node_fields_count +
+          prev_heap_entry->children().length() * edge_fields_count;
+      sorted_nodes[i]->value = reinterpret_cast<void*>(prev_value);
+    }
+  }
+  for (int i = 0; i < sorted_nodes.length(); ++i) {
+    SerializeNode(reinterpret_cast<HeapEntry*>(sorted_nodes[i]->key));
+    if (writer_->aborted()) return;
+  }
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeSnapshot() {
+  writer_->AddString("\"title\":\"");
+  writer_->AddString(snapshot_->title());
+  writer_->AddString("\"");
+  writer_->AddString(",\"uid\":");
+  writer_->AddNumber(snapshot_->uid());
+}
+
+
+static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
+  static const char hex_chars[] = "0123456789ABCDEF";
+  w->AddString("\\u");
+  w->AddCharacter(hex_chars[(u >> 12) & 0xf]);
+  w->AddCharacter(hex_chars[(u >> 8) & 0xf]);
+  w->AddCharacter(hex_chars[(u >> 4) & 0xf]);
+  w->AddCharacter(hex_chars[u & 0xf]);
+}
+
+void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
+  writer_->AddCharacter('\n');
+  writer_->AddCharacter('\"');
+  for ( ; *s != '\0'; ++s) {
+    switch (*s) {
+      case '\b':
+        writer_->AddString("\\b");
+        continue;
+      case '\f':
+        writer_->AddString("\\f");
+        continue;
+      case '\n':
+        writer_->AddString("\\n");
+        continue;
+      case '\r':
+        writer_->AddString("\\r");
+        continue;
+      case '\t':
+        writer_->AddString("\\t");
+        continue;
+      case '\"':
+      case '\\':
+        writer_->AddCharacter('\\');
+        writer_->AddCharacter(*s);
+        continue;
+      default:
+        if (*s > 31 && *s < 128) {
+          writer_->AddCharacter(*s);
+        } else if (*s <= 31) {
+          // Special character with no dedicated literal.
+          WriteUChar(writer_, *s);
+        } else {
+          // Convert UTF-8 into \u UTF-16 literal.
+          unsigned length = 1, cursor = 0;
+          for ( ; length <= 4 && *(s + length) != '\0'; ++length) { }
+          unibrow::uchar c = unibrow::Utf8::CalculateValue(s, length, &cursor);
+          if (c != unibrow::Utf8::kBadChar) {
+            WriteUChar(writer_, c);
+            ASSERT(cursor != 0);
+            s += cursor - 1;
+          } else {
+            writer_->AddCharacter('?');
+          }
+        }
+    }
+  }
+  writer_->AddCharacter('\"');
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeStrings() {
+  List<HashMap::Entry*> sorted_strings;
+  SortHashMap(&strings_, &sorted_strings);
+  writer_->AddString("\"<dummy>\"");
+  for (int i = 0; i < sorted_strings.length(); ++i) {
+    writer_->AddCharacter(',');
+    SerializeString(
+        reinterpret_cast<const unsigned char*>(sorted_strings[i]->key));
+    if (writer_->aborted()) return;
+  }
+}
+
+
+template<typename T>
+inline static int SortUsingEntryValue(const T* x, const T* y) {
+  uintptr_t x_uint = reinterpret_cast<uintptr_t>((*x)->value);
+  uintptr_t y_uint = reinterpret_cast<uintptr_t>((*y)->value);
+  if (x_uint > y_uint) {
+    return 1;
+  } else if (x_uint == y_uint) {
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
+
+void HeapSnapshotJSONSerializer::SortHashMap(
+    HashMap* map, List<HashMap::Entry*>* sorted_entries) {
+  for (HashMap::Entry* p = map->Start(); p != NULL; p = map->Next(p))
+    sorted_entries->Add(p);
+  sorted_entries->Sort(SortUsingEntryValue);
 }
 
 } }  // namespace v8::internal

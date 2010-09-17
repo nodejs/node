@@ -35,7 +35,7 @@
 // letters in the data are encoded using ROT13 in a way that does not
 // affect how the regexps match their input.
 
-var RegRxp = new BenchmarkSuite('RegExp', 601250, [
+var RegRxp = new BenchmarkSuite('RegExp', 910985, [
   new Benchmark("RegExp", runRegExpBenchmark)
 ]);
 

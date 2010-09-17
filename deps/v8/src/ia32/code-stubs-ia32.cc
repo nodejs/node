@@ -1879,36 +1879,36 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 
 
 void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
-  Label slow, done;
+  Label slow, done, undo;
 
   if (op_ == Token::SUB) {
-    // Check whether the value is a smi.
-    Label try_float;
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(not_zero, &try_float, not_taken);
+    if (include_smi_code_) {
+      // Check whether the value is a smi.
+      Label try_float;
+      __ test(eax, Immediate(kSmiTagMask));
+      __ j(not_zero, &try_float, not_taken);
 
-    if (negative_zero_ == kStrictNegativeZero) {
-      // Go slow case if the value of the expression is zero
-      // to make sure that we switch between 0 and -0.
-      __ test(eax, Operand(eax));
-      __ j(zero, &slow, not_taken);
+      if (negative_zero_ == kStrictNegativeZero) {
+        // Go slow case if the value of the expression is zero
+        // to make sure that we switch between 0 and -0.
+        __ test(eax, Operand(eax));
+        __ j(zero, &slow, not_taken);
+      }
+
+      // The value of the expression is a smi that is not zero.  Try
+      // optimistic subtraction '0 - value'.
+      __ mov(edx, Operand(eax));
+      __ Set(eax, Immediate(0));
+      __ sub(eax, Operand(edx));
+      __ j(overflow, &undo, not_taken);
+      __ StubReturn(1);
+
+      // Try floating point case.
+      __ bind(&try_float);
+    } else if (FLAG_debug_code) {
+      __ AbortIfSmi(eax);
     }
 
-    // The value of the expression is a smi that is not zero.  Try
-    // optimistic subtraction '0 - value'.
-    Label undo;
-    __ mov(edx, Operand(eax));
-    __ Set(eax, Immediate(0));
-    __ sub(eax, Operand(edx));
-    __ j(no_overflow, &done, taken);
-
-    // Restore eax and go slow case.
-    __ bind(&undo);
-    __ mov(eax, Operand(edx));
-    __ jmp(&slow);
-
-    // Try floating point case.
-    __ bind(&try_float);
     __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
     __ cmp(edx, Factory::heap_number_map());
     __ j(not_equal, &slow);
@@ -1928,6 +1928,18 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ mov(FieldOperand(eax, HeapNumber::kMantissaOffset), ecx);
     }
   } else if (op_ == Token::BIT_NOT) {
+    if (include_smi_code_) {
+      Label non_smi;
+      __ test(eax, Immediate(kSmiTagMask));
+      __ j(not_zero, &non_smi);
+      __ not_(eax);
+      __ and_(eax, ~kSmiTagMask);  // Remove inverted smi-tag.
+      __ ret(0);
+      __ bind(&non_smi);
+    } else if (FLAG_debug_code) {
+      __ AbortIfSmi(eax);
+    }
+
     // Check if the operand is a heap number.
     __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
     __ cmp(edx, Factory::heap_number_map());
@@ -1977,6 +1989,10 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
   // Return from the stub.
   __ bind(&done);
   __ StubReturn(1);
+
+  // Restore eax and go slow case.
+  __ bind(&undo);
+  __ mov(eax, Operand(edx));
 
   // Handle the slow case by jumping to the JavaScript builtin.
   __ bind(&slow);
@@ -2612,6 +2628,27 @@ void CompareStub::Generate(MacroAssembler* masm) {
   ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
 
   Label check_unequal_objects, done;
+
+  // Compare two smis if required.
+  if (include_smi_compare_) {
+    Label non_smi, smi_done;
+    __ mov(ecx, Operand(edx));
+    __ or_(ecx, Operand(eax));
+    __ test(ecx, Immediate(kSmiTagMask));
+    __ j(not_zero, &non_smi, not_taken);
+    __ sub(edx, Operand(eax));  // Return on the result of the subtraction.
+    __ j(no_overflow, &smi_done);
+    __ neg(edx);  // Correct sign in case of overflow.
+    __ bind(&smi_done);
+    __ mov(eax, edx);
+    __ ret(0);
+    __ bind(&non_smi);
+  } else if (FLAG_debug_code) {
+    __ mov(ecx, Operand(edx));
+    __ or_(ecx, Operand(eax));
+    __ test(ecx, Immediate(kSmiTagMask));
+    __ Assert(not_zero, "Unexpected smi operands.");
+  }
 
   // NOTICE! This code is only reached after a smi-fast-case check, so
   // it is certain that at least one operand isn't a smi.
@@ -3501,7 +3538,8 @@ int CompareStub::MinorKey() {
          | RegisterField::encode(false)   // lhs_ and rhs_ are not used
          | StrictField::encode(strict_)
          | NeverNanNanField::encode(cc_ == equal ? never_nan_nan_ : false)
-         | IncludeNumberCompareField::encode(include_number_compare_);
+         | IncludeNumberCompareField::encode(include_number_compare_)
+         | IncludeSmiCompareField::encode(include_smi_compare_);
 }
 
 
@@ -3541,12 +3579,18 @@ const char* CompareStub::GetName() {
     include_number_compare_name = "_NO_NUMBER";
   }
 
+  const char* include_smi_compare_name = "";
+  if (!include_smi_compare_) {
+    include_smi_compare_name = "_NO_SMI";
+  }
+
   OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "CompareStub_%s%s%s%s",
+               "CompareStub_%s%s%s%s%s",
                cc_name,
                strict_name,
                never_nan_nan_name,
-               include_number_compare_name);
+               include_number_compare_name,
+               include_smi_compare_name);
   return name_;
 }
 

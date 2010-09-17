@@ -65,8 +65,10 @@ bool DateParser::Parse(Vector<Char> str, FixedArray* out) {
         tz.SetAbsoluteMinute(n);
       } else if (time.IsExpecting(n)) {
         time.AddFinal(n);
-        // Require end, white space or Z immediately after finalizing time.
-        if (!in.IsEnd() && !in.SkipWhiteSpace() && !in.Is('Z')) return false;
+        // Require end, white space, "Z", "+" or "-" immediately after
+        // finalizing time.
+        if (!in.IsEnd() && !in.SkipWhiteSpace() && !in.Is('Z') &&
+            !in.IsAsciiSign()) return false;
       } else {
         if (!day.Add(n)) return false;
         in.Skip('-');  // Ignore suffix '-' for year, month, or day.

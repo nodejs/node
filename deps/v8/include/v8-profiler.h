@@ -323,7 +323,10 @@ class V8EXPORT HeapSnapshot {
   enum Type {
     kFull = 0,       // Heap snapshot with all instances and references.
     kAggregated = 1  // Snapshot doesn't contain individual heap entries,
-                     //instead they are grouped by constructor name.
+                     // instead they are grouped by constructor name.
+  };
+  enum SerializationFormat {
+    kJSON = 0  // See format description near 'Serialize' method.
   };
 
   /** Returns heap snapshot type. */
@@ -343,6 +346,30 @@ class V8EXPORT HeapSnapshot {
    * of the same type can be compared.
    */
   const HeapSnapshotsDiff* CompareWith(const HeapSnapshot* snapshot) const;
+
+  /**
+   * Prepare a serialized representation of the snapshot. The result
+   * is written into the stream provided in chunks of specified size.
+   * The total length of the serialized snapshot is unknown in
+   * advance, it is can be roughly equal to JS heap size (that means,
+   * it can be really big - tens of megabytes).
+   *
+   * For the JSON format, heap contents are represented as an object
+   * with the following structure:
+   *
+   *  {
+   *    snapshot: {title: "...", uid: nnn},
+   *    nodes: [
+   *      meta-info (JSON string),
+   *      nodes themselves
+   *    ],
+   *    strings: [strings]
+   *  }
+   *
+   * Outgoing node links are stored after each node. Nodes reference strings
+   * and other nodes by their indexes in corresponding arrays.
+   */
+  void Serialize(OutputStream* stream, SerializationFormat format) const;
 };
 
 

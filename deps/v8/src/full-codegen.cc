@@ -298,6 +298,11 @@ Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
 }
 
 
+MemOperand FullCodeGenerator::ContextOperand(Register context, int index) {
+  return CodeGenerator::ContextOperand(context, index);
+}
+
+
 int FullCodeGenerator::SlotOffset(Slot* slot) {
   ASSERT(slot != NULL);
   // Offset is negative because higher indexes are at lower addresses.
@@ -319,15 +324,11 @@ int FullCodeGenerator::SlotOffset(Slot* slot) {
 
 
 bool FullCodeGenerator::ShouldInlineSmiCase(Token::Value op) {
-  // TODO(kasperl): Once the compare stub allows leaving out the
-  // inlined smi case, we should get rid of this check.
-  if (Token::IsCompareOp(op)) return true;
-  // TODO(kasperl): Once the unary bit not stub allows leaving out
-  // the inlined smi case, we should get rid of this check.
-  if (op == Token::BIT_NOT) return true;
   // Inline smi case inside loops, but not division and modulo which
   // are too complicated and take up too much space.
-  return (op != Token::DIV) && (op != Token::MOD) && (loop_depth_ > 0);
+  if (op == Token::DIV ||op == Token::MOD) return false;
+  if (FLAG_always_inline_smi_code) return true;
+  return loop_depth_ > 0;
 }
 
 
@@ -500,18 +501,36 @@ void FullCodeGenerator::SetSourcePosition(int pos) {
 }
 
 
-void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
-  Handle<String> name = expr->name();
-  SmartPointer<char> cstring = name->ToCString();
+// Lookup table for code generators for  special runtime calls which are
+// generated inline.
+#define INLINE_FUNCTION_GENERATOR_ADDRESS(Name, argc, ressize)          \
+    &FullCodeGenerator::Emit##Name,
 
-#define CHECK_EMIT_INLINE_CALL(name, x, y) \
-  if (strcmp("_"#name, *cstring) == 0) {   \
-    Emit##name(expr->arguments());         \
-    return;                                \
-  }
-  INLINE_RUNTIME_FUNCTION_LIST(CHECK_EMIT_INLINE_CALL)
-#undef CHECK_EMIT_INLINE_CALL
-  UNREACHABLE();
+const FullCodeGenerator::InlineFunctionGenerator
+  FullCodeGenerator::kInlineFunctionGenerators[] = {
+    INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
+    INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
+  };
+#undef INLINE_FUNCTION_GENERATOR_ADDRESS
+
+
+FullCodeGenerator::InlineFunctionGenerator
+  FullCodeGenerator::FindInlineFunctionGenerator(Runtime::FunctionId id) {
+    return kInlineFunctionGenerators[
+      static_cast<int>(id) - static_cast<int>(Runtime::kFirstInlineFunction)];
+}
+
+
+void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* node) {
+  ZoneList<Expression*>* args = node->arguments();
+  Handle<String> name = node->name();
+  Runtime::Function* function = node->function();
+  ASSERT(function != NULL);
+  ASSERT(function->intrinsic_type == Runtime::INLINE);
+  InlineFunctionGenerator generator =
+      FindInlineFunctionGenerator(function->function_id);
+  ASSERT(generator != NULL);
+  ((*this).*(generator))(args);
 }
 
 

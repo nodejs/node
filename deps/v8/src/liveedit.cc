@@ -617,9 +617,33 @@ class FunctionInfoListener {
     current_parent_index_ = info.GetParentIndex();
   }
 
-// TODO(LiveEdit): Move private method below.
-//     This private section was created here to avoid moving the function
-//      to keep already complex diff simpler.
+ public:
+  // Saves only function code, because for a script function we
+  // may never create a SharedFunctionInfo object.
+  void FunctionCode(Handle<Code> function_code) {
+    FunctionInfoWrapper info =
+        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
+    info.SetFunctionCode(function_code, Handle<Object>(Heap::null_value()));
+  }
+
+  // Saves full information about a function: its code, its scope info
+  // and a SharedFunctionInfo object.
+  void FunctionInfo(Handle<SharedFunctionInfo> shared, Scope* scope) {
+    if (!shared->IsSharedFunctionInfo()) {
+      return;
+    }
+    FunctionInfoWrapper info =
+        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
+    info.SetFunctionCode(Handle<Code>(shared->code()),
+        Handle<Object>(shared->scope_info()));
+    info.SetSharedFunctionInfo(shared);
+
+    Handle<Object> scope_info_list(SerializeFunctionScope(scope));
+    info.SetOuterScopeInfo(scope_info_list);
+  }
+
+  Handle<JSArray> GetResult() { return result_; }
+
  private:
   Object* SerializeFunctionScope(Scope* scope) {
     HandleScope handle_scope;
@@ -676,36 +700,6 @@ class FunctionInfoListener {
     return *scope_info_list;
   }
 
- public:
-  // Saves only function code, because for a script function we
-  // may never create a SharedFunctionInfo object.
-  void FunctionCode(Handle<Code> function_code) {
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
-    info.SetFunctionCode(function_code, Handle<Object>(Heap::null_value()));
-  }
-
-  // Saves full information about a function: its code, its scope info
-  // and a SharedFunctionInfo object.
-  void FunctionInfo(Handle<SharedFunctionInfo> shared, Scope* scope) {
-    if (!shared->IsSharedFunctionInfo()) {
-      return;
-    }
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
-    info.SetFunctionCode(Handle<Code>(shared->code()),
-        Handle<Object>(shared->scope_info()));
-    info.SetSharedFunctionInfo(shared);
-
-    Handle<Object> scope_info_list(SerializeFunctionScope(scope));
-    info.SetOuterScopeInfo(scope_info_list);
-  }
-
-  Handle<JSArray> GetResult() {
-    return result_;
-  }
-
- private:
   Handle<JSArray> result_;
   int len_;
   int current_parent_index_;

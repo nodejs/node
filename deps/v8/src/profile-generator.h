@@ -976,6 +976,54 @@ class HeapSnapshotGenerator {
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshotGenerator);
 };
 
+class OutputStreamWriter;
+
+class HeapSnapshotJSONSerializer {
+ public:
+  explicit HeapSnapshotJSONSerializer(HeapSnapshot* snapshot)
+      : snapshot_(snapshot),
+        nodes_(ObjectsMatch),
+        strings_(ObjectsMatch),
+        next_node_id_(1),
+        next_string_id_(1),
+        writer_(NULL) {
+  }
+  void Serialize(v8::OutputStream* stream);
+
+ private:
+  INLINE(static bool ObjectsMatch(void* key1, void* key2)) {
+    return key1 == key2;
+  }
+
+  INLINE(static uint32_t ObjectHash(const void* key)) {
+    return static_cast<int32_t>(reinterpret_cast<intptr_t>(key));
+  }
+
+  void EnumerateNodes();
+  int GetNodeId(HeapEntry* entry);
+  int GetStringId(const char* s);
+  void SerializeEdge(HeapGraphEdge* edge);
+  void SerializeImpl();
+  void SerializeNode(HeapEntry* entry);
+  void SerializeNodes();
+  void SerializeSnapshot();
+  void SerializeString(const unsigned char* s);
+  void SerializeStrings();
+  void SortHashMap(HashMap* map, List<HashMap::Entry*>* sorted_entries);
+
+  HeapSnapshot* snapshot_;
+  HashMap nodes_;
+  HashMap strings_;
+  int next_node_id_;
+  int next_string_id_;
+  OutputStreamWriter* writer_;
+
+  friend class HeapSnapshotJSONSerializerEnumerator;
+  friend class HeapSnapshotJSONSerializerIterator;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotJSONSerializer);
+};
+
 } }  // namespace v8::internal
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

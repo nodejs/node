@@ -577,6 +577,7 @@ class Assembler : public Malloced {
   void add(const Operand& dst, const Immediate& x);
 
   void and_(Register dst, int32_t imm32);
+  void and_(Register dst, const Immediate& x);
   void and_(Register dst, const Operand& src);
   void and_(const Operand& src, Register dst);
   void and_(const Operand& dst, const Immediate& x);

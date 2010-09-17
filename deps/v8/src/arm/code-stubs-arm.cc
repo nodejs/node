@@ -930,6 +930,24 @@ void CompareStub::Generate(MacroAssembler* masm) {
   Label slow;  // Call builtin.
   Label not_smis, both_loaded_as_doubles, lhs_not_nan;
 
+  if (include_smi_compare_) {
+    Label not_two_smis, smi_done;
+    __ orr(r2, r1, r0);
+    __ tst(r2, Operand(kSmiTagMask));
+    __ b(ne, &not_two_smis);
+    __ sub(r0, r1, r0);
+    __ b(vc, &smi_done);
+    // Correct the sign in case of overflow.
+    __ rsb(r0, r0, Operand(0, RelocInfo::NONE));
+    __ bind(&smi_done);
+    __ Ret();
+    __ bind(&not_two_smis);
+  } else if (FLAG_debug_code) {
+    __ orr(r2, r1, r0);
+    __ tst(r2, Operand(kSmiTagMask));
+    __ Assert(nz, "CompareStub: unexpected smi operands.");
+  }
+
   // NOTICE! This code is only reached after a smi-fast-case check, so
   // it is certain that at least one operand isn't a smi.
 
@@ -2288,7 +2306,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
   __ push(r0);
   __ TailCallRuntime(Runtime::kStackGuard, 1, 1);
 
-  __ StubReturn(1);
+  __ Ret();
 }
 
 
@@ -2299,32 +2317,37 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
 
   if (op_ == Token::SUB) {
-    // Check whether the value is a smi.
-    Label try_float;
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(ne, &try_float);
+    if (include_smi_code_) {
+      // Check whether the value is a smi.
+      Label try_float;
+      __ tst(r0, Operand(kSmiTagMask));
+      __ b(ne, &try_float);
 
-    // Go slow case if the value of the expression is zero
-    // to make sure that we switch between 0 and -0.
-    if (negative_zero_ == kStrictNegativeZero) {
-      // If we have to check for zero, then we can check for the max negative
-      // smi while we are at it.
-      __ bic(ip, r0, Operand(0x80000000), SetCC);
-      __ b(eq, &slow);
-      __ rsb(r0, r0, Operand(0, RelocInfo::NONE));
-      __ StubReturn(1);
-    } else {
-      // The value of the expression is a smi and 0 is OK for -0.  Try
-      // optimistic subtraction '0 - value'.
-      __ rsb(r0, r0, Operand(0, RelocInfo::NONE), SetCC);
-      __ StubReturn(1, vc);
-      // We don't have to reverse the optimistic neg since the only case
-      // where we fall through is the minimum negative Smi, which is the case
-      // where the neg leaves the register unchanged.
-      __ jmp(&slow);  // Go slow on max negative Smi.
+      // Go slow case if the value of the expression is zero
+      // to make sure that we switch between 0 and -0.
+      if (negative_zero_ == kStrictNegativeZero) {
+        // If we have to check for zero, then we can check for the max negative
+        // smi while we are at it.
+        __ bic(ip, r0, Operand(0x80000000), SetCC);
+        __ b(eq, &slow);
+        __ rsb(r0, r0, Operand(0, RelocInfo::NONE));
+        __ Ret();
+      } else {
+        // The value of the expression is a smi and 0 is OK for -0.  Try
+        // optimistic subtraction '0 - value'.
+        __ rsb(r0, r0, Operand(0, RelocInfo::NONE), SetCC);
+        __ Ret(vc);
+        // We don't have to reverse the optimistic neg since the only case
+        // where we fall through is the minimum negative Smi, which is the case
+        // where the neg leaves the register unchanged.
+        __ jmp(&slow);  // Go slow on max negative Smi.
+      }
+      __ bind(&try_float);
+    } else if (FLAG_debug_code) {
+      __ tst(r0, Operand(kSmiTagMask));
+      __ Assert(ne, "Unexpected smi operand.");
     }
 
-    __ bind(&try_float);
     __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
     __ cmp(r1, heap_number_map);
@@ -2344,6 +2367,19 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ mov(r0, Operand(r1));
     }
   } else if (op_ == Token::BIT_NOT) {
+    if (include_smi_code_) {
+      Label non_smi;
+      __ BranchOnNotSmi(r0, &non_smi);
+      __ mvn(r0, Operand(r0));
+      // Bit-clear inverted smi-tag.
+      __ bic(r0, r0, Operand(kSmiTagMask));
+      __ Ret();
+      __ bind(&non_smi);
+    } else if (FLAG_debug_code) {
+      __ tst(r0, Operand(kSmiTagMask));
+      __ Assert(ne, "Unexpected smi operand.");
+    }
+
     // Check if the operand is a heap number.
     __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
@@ -2391,7 +2427,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&done);
-  __ StubReturn(1);
+  __ Ret();
 
   // Handle the slow case by jumping to the JavaScript builtin.
   __ bind(&slow);
@@ -3499,6 +3535,11 @@ const char* CompareStub::GetName() {
     include_number_compare_name = "_NO_NUMBER";
   }
 
+  const char* include_smi_compare_name = "";
+  if (!include_smi_compare_) {
+    include_smi_compare_name = "_NO_SMI";
+  }
+
   OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
                "CompareStub_%s%s%s%s%s%s",
                cc_name,
@@ -3506,7 +3547,8 @@ const char* CompareStub::GetName() {
                rhs_name,
                strict_name,
                never_nan_nan_name,
-               include_number_compare_name);
+               include_number_compare_name,
+               include_smi_compare_name);
   return name_;
 }
 
@@ -3522,7 +3564,8 @@ int CompareStub::MinorKey() {
          | RegisterField::encode(lhs_.is(r0))
          | StrictField::encode(strict_)
          | NeverNanNanField::encode(cc_ == eq ? never_nan_nan_ : false)
-         | IncludeNumberCompareField::encode(include_number_compare_);
+         | IncludeNumberCompareField::encode(include_number_compare_)
+         | IncludeSmiCompareField::encode(include_smi_compare_);
 }
 
 
@@ -4144,16 +4187,20 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
 
   // Check bounds and smi-ness.
-  __ ldr(r7, MemOperand(sp, kToOffset));
-  __ ldr(r6, MemOperand(sp, kFromOffset));
+  Register to = r6;
+  Register from = r7;
+  __ Ldrd(to, from, MemOperand(sp, kToOffset));
+  STATIC_ASSERT(kFromOffset == kToOffset + 4);
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
   // I.e., arithmetic shift right by one un-smi-tags.
-  __ mov(r2, Operand(r7, ASR, 1), SetCC);
-  __ mov(r3, Operand(r6, ASR, 1), SetCC, cc);
-  // If either r2 or r6 had the smi tag bit set, then carry is set now.
+  __ mov(r2, Operand(to, ASR, 1), SetCC);
+  __ mov(r3, Operand(from, ASR, 1), SetCC, cc);
+  // If either to or from had the smi tag bit set, then carry is set now.
   __ b(cs, &runtime);  // Either "from" or "to" is not a smi.
   __ b(mi, &runtime);  // From is negative.
+
+  // Both to and from are smis.
 
   __ sub(r2, r2, Operand(r3), SetCC);
   __ b(mi, &runtime);  // Fail if from > to.
@@ -4165,8 +4212,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // r2: length
   // r3: from index (untaged smi)
-  // r6: from (smi)
-  // r7: to (smi)
+  // r6 (a.k.a. to): to (smi)
+  // r7 (a.k.a. from): from offset (smi)
 
   // Make sure first argument is a sequential (or flat) string.
   __ ldr(r5, MemOperand(sp, kStringOffset));
@@ -4178,10 +4225,10 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // r1: instance type
   // r2: length
-  // r3: from index (untaged smi)
+  // r3: from index (untagged smi)
   // r5: string
-  // r6: from (smi)
-  // r7: to (smi)
+  // r6 (a.k.a. to): to (smi)
+  // r7 (a.k.a. from): from offset (smi)
   Label seq_string;
   __ and_(r4, r1, Operand(kStringRepresentationMask));
   STATIC_ASSERT(kSeqStringTag < kConsStringTag);
@@ -4207,17 +4254,18 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r2: length
   // r3: from index (untaged smi)
   // r5: string
-  // r6: from (smi)
-  // r7: to (smi)
+  // r6 (a.k.a. to): to (smi)
+  // r7 (a.k.a. from): from offset (smi)
   __ ldr(r4, FieldMemOperand(r5, String::kLengthOffset));
-  __ cmp(r4, Operand(r7));
+  __ cmp(r4, Operand(to));
   __ b(lt, &runtime);  // Fail if to > length.
+  to = no_reg;
 
   // r1: instance type.
   // r2: result string length.
   // r3: from index (untaged smi)
   // r5: string.
-  // r6: from offset (smi)
+  // r7 (a.k.a. from): from offset (smi)
   // Check for flat ascii string.
   Label non_ascii_flat;
   __ tst(r1, Operand(kStringEncodingMask));
@@ -4259,12 +4307,12 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r0: result string.
   // r2: result string length.
   // r5: string.
-  // r6: from offset (smi)
+  // r7 (a.k.a. from): from offset (smi)
   // Locate first character of result.
   __ add(r1, r0, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // Locate 'from' character of string.
   __ add(r5, r5, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ add(r5, r5, Operand(r6, ASR, 1));
+  __ add(r5, r5, Operand(from, ASR, 1));
 
   // r0: result string.
   // r1: first character of result string.
@@ -4280,7 +4328,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ bind(&non_ascii_flat);
   // r2: result string length.
   // r5: string.
-  // r6: from offset (smi)
+  // r7 (a.k.a. from): from offset (smi)
   // Check for flat two byte string.
 
   // Allocate the result.
@@ -4292,18 +4340,19 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Locate first character of result.
   __ add(r1, r0, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // Locate 'from' character of string.
-    __ add(r5, r5, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  __ add(r5, r5, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // As "from" is a smi it is 2 times the value which matches the size of a two
   // byte character.
-  __ add(r5, r5, Operand(r6));
+  __ add(r5, r5, Operand(from));
+  from = no_reg;
 
   // r0: result string.
   // r1: first character of result.
   // r2: result length.
   // r5: first character of string to copy.
   STATIC_ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  StringHelper::GenerateCopyCharactersLong(masm, r1, r5, r2, r3, r4, r6, r7, r9,
-                                           DEST_ALWAYS_ALIGNED);
+  StringHelper::GenerateCopyCharactersLong(
+      masm, r1, r5, r2, r3, r4, r6, r7, r9, DEST_ALWAYS_ALIGNED);
   __ IncrementCounter(&Counters::sub_string_native, 1, r3, r4);
   __ add(sp, sp, Operand(3 * kPointerSize));
   __ Ret();
@@ -4379,8 +4428,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Stack frame on entry.
   //  sp[0]: right string
   //  sp[4]: left string
-  __ ldr(r0, MemOperand(sp, 1 * kPointerSize));  // left
-  __ ldr(r1, MemOperand(sp, 0 * kPointerSize));  // right
+  __ Ldrd(r0 , r1, MemOperand(sp));  // Load right in r0, left in r1.
 
   Label not_same;
   __ cmp(r0, r1);
@@ -4395,12 +4443,12 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ bind(&not_same);
 
   // Check that both objects are sequential ascii strings.
-  __ JumpIfNotBothSequentialAsciiStrings(r0, r1, r2, r3, &runtime);
+  __ JumpIfNotBothSequentialAsciiStrings(r1, r0, r2, r3, &runtime);
 
   // Compare flat ascii strings natively. Remove arguments from stack first.
   __ IncrementCounter(&Counters::string_compare_native, 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
-  GenerateCompareFlatAsciiStrings(masm, r0, r1, r2, r3, r4, r5);
+  GenerateCompareFlatAsciiStrings(masm, r1, r0, r2, r3, r4, r5);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.

@@ -31,7 +31,6 @@
 #include "api.h"
 #include "arguments.h"
 #include "bootstrapper.h"
-#include "codegen.h"
 #include "compiler.h"
 #include "debug.h"
 #include "execution.h"

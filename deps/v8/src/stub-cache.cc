@@ -1222,23 +1222,23 @@ CallStubCompiler::CallStubCompiler(int argc,
 Object* CallStubCompiler::CompileCustomCall(int generator_id,
                                             Object* object,
                                             JSObject* holder,
+                                            JSGlobalPropertyCell* cell,
                                             JSFunction* function,
-                                            String* fname,
-                                            CheckType check) {
-    ASSERT(generator_id >= 0 && generator_id < kNumCallGenerators);
-    switch (generator_id) {
-#define CALL_GENERATOR_CASE(ignored1, ignored2, name)          \
-      case k##name##CallGenerator:                             \
-        return CallStubCompiler::Compile##name##Call(object,   \
-                                                     holder,   \
-                                                     function, \
-                                                     fname,    \
-                                                     check);
-      CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
+                                            String* fname) {
+  ASSERT(generator_id >= 0 && generator_id < kNumCallGenerators);
+  switch (generator_id) {
+#define CALL_GENERATOR_CASE(ignored1, ignored2, ignored3, name) \
+    case k##name##CallGenerator:                                \
+      return CallStubCompiler::Compile##name##Call(object,      \
+                                                   holder,      \
+                                                   cell,        \
+                                                   function,    \
+                                                   fname);
+    CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
 #undef CALL_GENERATOR_CASE
-    }
-    UNREACHABLE();
-    return Heap::undefined_value();
+  }
+  UNREACHABLE();
+  return Heap::undefined_value();
 }
 
 

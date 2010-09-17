@@ -514,7 +514,7 @@ MemOperand FullCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
       int context_chain_length =
           scope()->ContextChainLength(slot->var()->scope());
       __ LoadContext(scratch, context_chain_length);
-      return CodeGenerator::ContextOperand(scratch, slot->index());
+      return ContextOperand(scratch, slot->index());
     }
     case Slot::LOOKUP:
       UNREACHABLE();
@@ -574,19 +574,17 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
-          __ mov(ebx,
-                 CodeGenerator::ContextOperand(esi, Context::FCONTEXT_INDEX));
+          __ mov(ebx, ContextOperand(esi, Context::FCONTEXT_INDEX));
           __ cmp(ebx, Operand(esi));
           __ Check(equal, "Unexpected declaration in current context.");
         }
         if (mode == Variable::CONST) {
-          __ mov(CodeGenerator::ContextOperand(esi, slot->index()),
+          __ mov(ContextOperand(esi, slot->index()),
                  Immediate(Factory::the_hole_value()));
           // No write barrier since the hole value is in old space.
         } else if (function != NULL) {
           VisitForValue(function, kAccumulator);
-          __ mov(CodeGenerator::ContextOperand(esi, slot->index()),
-                 result_register());
+          __ mov(ContextOperand(esi, slot->index()), result_register());
           int offset = Context::SlotOffset(slot->index());
           __ mov(ebx, esi);
           __ RecordWrite(ebx, offset, result_register(), ecx);
@@ -686,7 +684,8 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
     // Perform the comparison as if via '==='.
     __ mov(edx, Operand(esp, 0));  // Switch value.
-    if (ShouldInlineSmiCase(Token::EQ_STRICT)) {
+    bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
+    if (inline_smi_code) {
       Label slow_case;
       __ mov(ecx, edx);
       __ or_(ecx, Operand(eax));
@@ -699,7 +698,10 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
       __ bind(&slow_case);
     }
 
-    CompareStub stub(equal, true);
+    CompareFlags flags = inline_smi_code
+        ? NO_SMI_COMPARE_IN_STUB
+        : NO_COMPARE_FLAGS;
+    CompareStub stub(equal, true, flags);
     __ CallStub(&stub);
     __ test(eax, Operand(eax));
     __ j(not_equal, &next_test);
@@ -758,13 +760,57 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&done_convert);
   __ push(eax);
 
-  // TODO(kasperl): Check cache validity in generated code. This is a
-  // fast case for the JSObject::IsSimpleEnum cache validity
-  // checks. If we cannot guarantee cache validity, call the runtime
-  // system to check cache validity or get the property names in a
-  // fixed array.
+  // Check cache validity in generated code. This is a fast case for
+  // the JSObject::IsSimpleEnum cache validity checks. If we cannot
+  // guarantee cache validity, call the runtime system to check cache
+  // validity or get the property names in a fixed array.
+  Label next, call_runtime;
+  __ mov(ecx, eax);
+  __ bind(&next);
+
+  // Check that there are no elements.  Register ecx contains the
+  // current JS object we've reached through the prototype chain.
+  __ cmp(FieldOperand(ecx, JSObject::kElementsOffset),
+         Factory::empty_fixed_array());
+  __ j(not_equal, &call_runtime);
+
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in ebx for the subsequent
+  // prototype load.
+  __ mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
+  __ mov(edx, FieldOperand(ebx, Map::kInstanceDescriptorsOffset));
+  __ cmp(edx, Factory::empty_descriptor_array());
+  __ j(equal, &call_runtime);
+
+  // Check that there in an enum cache in the non-empty instance
+  // descriptors (edx).  This is the case if the next enumeration
+  // index field does not contain a smi.
+  __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumerationIndexOffset));
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &call_runtime);
+
+  // For all objects but the receiver, check that the cache is empty.
+  Label check_prototype;
+  __ cmp(ecx, Operand(eax));
+  __ j(equal, &check_prototype);
+  __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  __ cmp(edx, Factory::empty_fixed_array());
+  __ j(not_equal, &call_runtime);
+
+  // Load the prototype from the map and loop if non-null.
+  __ bind(&check_prototype);
+  __ mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
+  __ cmp(ecx, Factory::null_value());
+  __ j(not_equal, &next);
+
+  // The enum cache is valid.  Load the map of the object being
+  // iterated over and use the cache for the iteration.
+  Label use_cache;
+  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
+  __ jmp(&use_cache);
 
   // Get the set of properties to enumerate.
+  __ bind(&call_runtime);
   __ push(eax);  // Duplicate the enumerable object on the stack.
   __ CallRuntime(Runtime::kGetPropertyNamesFast, 1);
 
@@ -776,6 +822,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ j(not_equal, &fixed_array);
 
   // We got a map in register eax. Get the enumeration cache from it.
+  __ bind(&use_cache);
   __ mov(ecx, FieldOperand(eax, Map::kInstanceDescriptorsOffset));
   __ mov(ecx, FieldOperand(ecx, DescriptorArray::kEnumerationIndexOffset));
   __ mov(edx, FieldOperand(ecx, DescriptorArray::kEnumCacheBridgeCacheOffset));
@@ -885,6 +932,152 @@ void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
+void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
+    Slot* slot,
+    TypeofState typeof_state,
+    Label* slow) {
+  Register context = esi;
+  Register temp = edx;
+
+  Scope* s = scope();
+  while (s != NULL) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmp(ContextOperand(context, Context::EXTENSION_INDEX),
+               Immediate(0));
+        __ j(not_equal, slow);
+      }
+      // Load next context in chain.
+      __ mov(temp, ContextOperand(context, Context::CLOSURE_INDEX));
+      __ mov(temp, FieldOperand(temp, JSFunction::kContextOffset));
+      // Walk the rest of the chain without clobbering esi.
+      context = temp;
+    }
+    // If no outer scope calls eval, we do not need to check more
+    // context extensions.  If we have reached an eval scope, we check
+    // all extensions from this point.
+    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
+    s = s->outer_scope();
+  }
+
+  if (s != NULL && s->is_eval_scope()) {
+    // Loop up the context chain.  There is no frame effect so it is
+    // safe to use raw labels here.
+    Label next, fast;
+    if (!context.is(temp)) {
+      __ mov(temp, context);
+    }
+    __ bind(&next);
+    // Terminate at global context.
+    __ cmp(FieldOperand(temp, HeapObject::kMapOffset),
+           Immediate(Factory::global_context_map()));
+    __ j(equal, &fast);
+    // Check that extension is NULL.
+    __ cmp(ContextOperand(temp, Context::EXTENSION_INDEX), Immediate(0));
+    __ j(not_equal, slow);
+    // Load next context in chain.
+    __ mov(temp, ContextOperand(temp, Context::CLOSURE_INDEX));
+    __ mov(temp, FieldOperand(temp, JSFunction::kContextOffset));
+    __ jmp(&next);
+    __ bind(&fast);
+  }
+
+  // All extension objects were empty and it is safe to use a global
+  // load IC call.
+  __ mov(eax, CodeGenerator::GlobalObject());
+  __ mov(ecx, slot->var()->name());
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
+      ? RelocInfo::CODE_TARGET
+      : RelocInfo::CODE_TARGET_CONTEXT;
+  __ call(ic, mode);
+  __ nop();  // Signal no inlined code.
+}
+
+
+MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(
+    Slot* slot,
+    Label* slow) {
+  ASSERT(slot->type() == Slot::CONTEXT);
+  Register context = esi;
+  Register temp = ebx;
+
+  for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmp(ContextOperand(context, Context::EXTENSION_INDEX),
+               Immediate(0));
+        __ j(not_equal, slow);
+      }
+      __ mov(temp, ContextOperand(context, Context::CLOSURE_INDEX));
+      __ mov(temp, FieldOperand(temp, JSFunction::kContextOffset));
+      // Walk the rest of the chain without clobbering esi.
+      context = temp;
+    }
+  }
+  // Check that last extension is NULL.
+  __ cmp(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
+  __ j(not_equal, slow);
+  __ mov(temp, ContextOperand(context, Context::FCONTEXT_INDEX));
+  return ContextOperand(temp, slot->index());
+}
+
+
+void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
+    Slot* slot,
+    TypeofState typeof_state,
+    Label* slow,
+    Label* done) {
+  // Generate fast-case code for variables that might be shadowed by
+  // eval-introduced variables.  Eval is used a lot without
+  // introducing variables.  In those cases, we do not want to
+  // perform a runtime call for all variables in the scope
+  // containing the eval.
+  if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+    EmitLoadGlobalSlotCheckExtensions(slot, typeof_state, slow);
+    __ jmp(done);
+  } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+    Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
+    Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
+    if (potential_slot != NULL) {
+      // Generate fast case for locals that rewrite to slots.
+      __ mov(eax,
+             ContextSlotOperandCheckExtensions(potential_slot, slow));
+      if (potential_slot->var()->mode() == Variable::CONST) {
+        __ cmp(eax, Factory::the_hole_value());
+        __ j(not_equal, done);
+        __ mov(eax, Factory::undefined_value());
+      }
+      __ jmp(done);
+    } else if (rewrite != NULL) {
+      // Generate fast case for calls of an argument function.
+      Property* property = rewrite->AsProperty();
+      if (property != NULL) {
+        VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+        Literal* key_literal = property->key()->AsLiteral();
+        if (obj_proxy != NULL &&
+            key_literal != NULL &&
+            obj_proxy->IsArguments() &&
+            key_literal->handle()->IsSmi()) {
+          // Load arguments object if there are no eval-introduced
+          // variables. Then load the argument from the arguments
+          // object using keyed load.
+          __ mov(edx,
+                 ContextSlotOperandCheckExtensions(obj_proxy->var()->slot(),
+                                                   slow));
+          __ mov(eax, Immediate(key_literal->handle()));
+          Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+          __ call(ic, RelocInfo::CODE_TARGET);
+          __ jmp(done);
+        }
+      }
+    }
+  }
+}
+
+
 void FullCodeGenerator::EmitVariableLoad(Variable* var,
                                          Expression::Context context) {
   // Four cases: non-this global variables, lookup slots, all other
@@ -909,10 +1102,19 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     Apply(context, eax);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
+    Label done, slow;
+
+    // Generate code for loading from variables potentially shadowed
+    // by eval-introduced variables.
+    EmitDynamicLoadFromSlotFastCase(slot, NOT_INSIDE_TYPEOF, &slow, &done);
+
+    __ bind(&slow);
     Comment cmnt(masm_, "Lookup slot");
     __ push(esi);  // Context.
     __ push(Immediate(var->name()));
     __ CallRuntime(Runtime::kLoadContextSlot, 2);
+    __ bind(&done);
+
     Apply(context, eax);
 
   } else if (slot != NULL) {
@@ -1953,14 +2155,40 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
-    // Call to a lookup slot (dynamically introduced variable).  Call the
-    // runtime to find the function to call (returned in eax) and the object
-    // holding it (returned in edx).
+    // Call to a lookup slot (dynamically introduced variable).
+    Label slow, done;
+
+    // Generate code for loading from variables potentially shadowed
+    // by eval-introduced variables.
+    EmitDynamicLoadFromSlotFastCase(var->slot(),
+                                    NOT_INSIDE_TYPEOF,
+                                    &slow,
+                                    &done);
+
+    __ bind(&slow);
+    // Call the runtime to find the function to call (returned in eax)
+    // and the object holding it (returned in edx).
     __ push(context_register());
     __ push(Immediate(var->name()));
     __ CallRuntime(Runtime::kLoadContextSlot, 2);
     __ push(eax);  // Function.
     __ push(edx);  // Receiver.
+
+    // If fast case code has been generated, emit code to push the
+    // function and receiver and have the slow path jump around this
+    // code.
+    if (done.is_linked()) {
+      Label call;
+      __ jmp(&call);
+      __ bind(&done);
+      // Push function.
+      __ push(eax);
+      // Push global receiver.
+      __ mov(ebx, CodeGenerator::GlobalObject());
+      __ push(FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
+      __ bind(&call);
+    }
+
     EmitCallWithStub(expr);
   } else if (fun->AsProperty() != NULL) {
     // Call to an object property.
@@ -2781,12 +3009,10 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
   Register key = eax;
   Register cache = ebx;
   Register tmp = ecx;
-  __ mov(cache, CodeGenerator::ContextOperand(esi, Context::GLOBAL_INDEX));
+  __ mov(cache, ContextOperand(esi, Context::GLOBAL_INDEX));
   __ mov(cache,
          FieldOperand(cache, GlobalObject::kGlobalContextOffset));
-  __ mov(cache,
-         CodeGenerator::ContextOperand(
-             cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
+  __ mov(cache, ContextOperand(cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
   __ mov(cache,
          FieldOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
 
@@ -2917,7 +3143,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
     Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
     __ call(ic, RelocInfo::CODE_TARGET);
-      // Restore context register.
+    // Restore context register.
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   } else {
     // Call the C runtime function.
@@ -3036,7 +3262,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
       UnaryOverwriteMode overwrite =
           can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-      GenericUnaryOpStub stub(Token::SUB, overwrite);
+      GenericUnaryOpStub stub(Token::SUB, overwrite, NO_UNARY_FLAGS);
       // GenericUnaryOpStub expects the argument to be in the
       // accumulator register eax.
       VisitForValue(expr->expression(), kAccumulator);
@@ -3051,7 +3277,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       // in the accumulator register eax.
       VisitForValue(expr->expression(), kAccumulator);
       Label done;
-      if (ShouldInlineSmiCase(expr->op())) {
+      bool inline_smi_case = ShouldInlineSmiCase(expr->op());
+      if (inline_smi_case) {
         Label call_stub;
         __ test(eax, Immediate(kSmiTagMask));
         __ j(not_zero, &call_stub);
@@ -3063,7 +3290,10 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       bool overwrite = expr->expression()->ResultOverwriteAllowed();
       UnaryOverwriteMode mode =
           overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-      GenericUnaryOpStub stub(Token::BIT_NOT, mode);
+      UnaryOpFlags flags = inline_smi_case
+          ? NO_UNARY_SMI_CODE_IN_STUB
+          : NO_UNARY_FLAGS;
+      GenericUnaryOpStub stub(Token::BIT_NOT, mode, flags);
       __ CallStub(&stub);
       __ bind(&done);
       Apply(context_, eax);
@@ -3262,13 +3492,24 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr, Location where) {
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
     __ call(ic, RelocInfo::CODE_TARGET);
+    __ nop();  // Signal no inlined code.
     if (where == kStack) __ push(eax);
   } else if (proxy != NULL &&
              proxy->var()->slot() != NULL &&
              proxy->var()->slot()->type() == Slot::LOOKUP) {
+    Label done, slow;
+
+    // Generate code for loading from variables potentially shadowed
+    // by eval-introduced variables.
+    Slot* slot = proxy->var()->slot();
+    EmitDynamicLoadFromSlotFastCase(slot, INSIDE_TYPEOF, &slow, &done);
+
+    __ bind(&slow);
     __ push(esi);
     __ push(Immediate(proxy->name()));
     __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+    __ bind(&done);
+
     if (where == kStack) __ push(eax);
   } else {
     // This expression cannot throw a reference error at the top level.
@@ -3441,7 +3682,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
           UNREACHABLE();
       }
 
-      if (ShouldInlineSmiCase(op)) {
+      bool inline_smi_code = ShouldInlineSmiCase(op);
+      if (inline_smi_code) {
         Label slow_case;
         __ mov(ecx, Operand(edx));
         __ or_(ecx, Operand(eax));
@@ -3452,7 +3694,10 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         __ bind(&slow_case);
       }
 
-      CompareStub stub(cc, strict);
+      CompareFlags flags = inline_smi_code
+          ? NO_SMI_COMPARE_IN_STUB
+          : NO_COMPARE_FLAGS;
+      CompareStub stub(cc, strict, flags);
       __ CallStub(&stub);
       __ test(eax, Operand(eax));
       Split(cc, if_true, if_false, fall_through);
@@ -3512,7 +3757,7 @@ void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
 
 
 void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
-  __ mov(dst, CodeGenerator::ContextOperand(esi, context_index));
+  __ mov(dst, ContextOperand(esi, context_index));
 }
 
 

@@ -95,8 +95,9 @@ class GlobalHandles : public AllStatic {
   // Tells whether global handle is weak.
   static bool IsWeak(Object** location);
 
-  // Process pending weak handles.
-  static void PostGarbageCollectionProcessing();
+  // Process pending weak handles.  Returns true if any weak handle
+  // callback has been invoked.
+  static bool PostGarbageCollectionProcessing();
 
   // Iterates over all strong handles.
   static void IterateStrongRoots(ObjectVisitor* v);

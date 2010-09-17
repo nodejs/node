@@ -829,6 +829,7 @@ void Assembler::call(Label* L) {
 
 
 void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
+  WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   // 1110 1000 #32-bit disp.

@@ -82,15 +82,9 @@ class FunctionEntry BASE_EMBEDDED {
     backing_[kPredataSymbolSkipOffset] = value;
   }
 
-  int symbol_id_skip() { return backing_[kSymbolIdSkipOffset]; }
-  void set_symbol_id_skip(int value) {
-    backing_[kSymbolIdSkipOffset] = value;
-  }
-
-
   bool is_valid() { return backing_.length() > 0; }
 
-  static const int kSize = 7;
+  static const int kSize = 6;
 
  private:
   Vector<unsigned> backing_;
@@ -100,7 +94,6 @@ class FunctionEntry BASE_EMBEDDED {
   static const int kPropertyCountOffset = 3;
   static const int kPredataFunctionSkipOffset = 4;
   static const int kPredataSymbolSkipOffset = 5;
-  static const int kSymbolIdSkipOffset = 6;
 };
 
 
@@ -109,16 +102,8 @@ class ScriptDataImpl : public ScriptData {
   explicit ScriptDataImpl(Vector<unsigned> store)
       : store_(store),
         function_index_(kHeaderSize),
-        symbol_id_(0),
         owns_store_(true) {
     Initialize();
-  }
-
-  void Initialize() {
-    if (store_.length() >= kHeaderSize) {
-      // Otherwise we won't satisfy the SanityCheck.
-      symbol_index_ = kHeaderSize + store_[kFunctionsSizeOffset];
-    }
   }
 
   // Create an empty ScriptDataImpl that is guaranteed to not satisfy
@@ -130,8 +115,11 @@ class ScriptDataImpl : public ScriptData {
   virtual const char* Data();
   virtual bool HasError();
 
+  void Initialize();
+  void ReadNextSymbolPosition();
+
   FunctionEntry GetFunctionEntry(int start);
-  int GetSymbolIdentifier(int start);
+  int GetSymbolIdentifier();
   void SkipFunctionEntry(int start);
   bool SanityCheck();
 
@@ -149,19 +137,27 @@ class ScriptDataImpl : public ScriptData {
   unsigned version() { return store_[kVersionOffset]; }
 
   // Skip forward in the preparser data by the given number
-  // of unsigned ints.
-  virtual void Skip(int function_entries, int symbol_entries, int symbol_ids) {
+  // of unsigned ints of function entries and the given number of bytes of
+  // symbol id encoding.
+  void Skip(int function_entries, int symbol_entries) {
     ASSERT(function_entries >= 0);
     ASSERT(function_entries
            <= (static_cast<int>(store_[kFunctionsSizeOffset])
                - (function_index_ - kHeaderSize)));
-    function_index_ += function_entries;
-    symbol_index_ += symbol_entries;
-    symbol_id_ += symbol_ids;
+    ASSERT(symbol_entries >= 0);
+    ASSERT(symbol_entries <= symbol_data_end_ - symbol_data_);
+
+    unsigned max_function_skip = store_[kFunctionsSizeOffset] -
+        static_cast<unsigned>(function_index_ - kHeaderSize);
+    function_index_ +=
+        Min(static_cast<unsigned>(function_entries), max_function_skip);
+    symbol_data_ +=
+        Min(static_cast<unsigned>(symbol_entries),
+            static_cast<unsigned>(symbol_data_end_ - symbol_data_));
   }
 
   static const unsigned kMagicNumber = 0xBadDead;
-  static const unsigned kCurrentVersion = 2;
+  static const unsigned kCurrentVersion = 3;
 
   static const int kMagicOffset = 0;
   static const int kVersionOffset = 1;
@@ -171,26 +167,30 @@ class ScriptDataImpl : public ScriptData {
   static const int kSizeOffset = 5;
   static const int kHeaderSize = 6;
 
+  // If encoding a message, the following positions are fixed.
   static const int kMessageStartPos = 0;
   static const int kMessageEndPos = 1;
   static const int kMessageArgCountPos = 2;
   static const int kMessageTextPos = 3;
 
+  static const byte kNumberTerminator = 0x80u;
+
  private:
   Vector<unsigned> store_;
+  unsigned char* symbol_data_;
+  unsigned char* symbol_data_end_;
   int function_index_;
-  int symbol_index_;
-  int symbol_id_;
   bool owns_store_;
 
   unsigned Read(int position);
   unsigned* ReadAddress(int position);
+  // Reads a number from the current symbols
+  int ReadNumber(byte** source);
 
   ScriptDataImpl(const char* backing_store, int length)
       : store_(reinterpret_cast<unsigned*>(const_cast<char*>(backing_store)),
                length / sizeof(unsigned)),
         function_index_(kHeaderSize),
-        symbol_id_(0),
         owns_store_(false) {
     ASSERT_EQ(0, reinterpret_cast<intptr_t>(backing_store) % sizeof(unsigned));
     Initialize();
@@ -212,10 +212,16 @@ FunctionLiteral* MakeAST(bool compile_in_global_context,
                          ScriptDataImpl* pre_data,
                          bool is_json = false);
 
-
+// Generic preparser generating full preparse data.
 ScriptDataImpl* PreParse(Handle<String> source,
                          unibrow::CharacterStream* stream,
                          v8::Extension* extension);
+
+// Preparser that only does preprocessing that makes sense if only used
+// immediately after.
+ScriptDataImpl* PartialPreParse(Handle<String> source,
+                                unibrow::CharacterStream* stream,
+                                v8::Extension* extension);
 
 
 bool ParseRegExp(FlatStringReader* input,

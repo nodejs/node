@@ -1404,33 +1404,35 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
   Label slow, done;
 
   if (op_ == Token::SUB) {
-    // Check whether the value is a smi.
-    Label try_float;
-    __ JumpIfNotSmi(rax, &try_float);
+    if (include_smi_code_) {
+      // Check whether the value is a smi.
+      Label try_float;
+      __ JumpIfNotSmi(rax, &try_float);
+      if (negative_zero_ == kIgnoreNegativeZero) {
+        __ SmiCompare(rax, Smi::FromInt(0));
+        __ j(equal, &done);
+      }
+      __ SmiNeg(rax, rax, &done);
 
-    if (negative_zero_ == kIgnoreNegativeZero) {
-      __ SmiCompare(rax, Smi::FromInt(0));
-      __ j(equal, &done);
+      // Either zero or Smi::kMinValue, neither of which become a smi when
+      // negated. We handle negative zero here if required. We always enter
+      // the runtime system if we have Smi::kMinValue.
+      if (negative_zero_ == kStrictNegativeZero) {
+        __ SmiCompare(rax, Smi::FromInt(0));
+        __ j(not_equal, &slow);
+        __ Move(rax, Factory::minus_zero_value());
+        __ jmp(&done);
+      } else  {
+        __ SmiCompare(rax, Smi::FromInt(Smi::kMinValue));
+        __ j(equal, &slow);
+        __ jmp(&done);
+      }
+      // Try floating point case.
+      __ bind(&try_float);
+    } else if (FLAG_debug_code) {
+      __ AbortIfSmi(rax);
     }
 
-    // Enter runtime system if the value of the smi is zero
-    // to make sure that we switch between 0 and -0.
-    // Also enter it if the value of the smi is Smi::kMinValue.
-    __ SmiNeg(rax, rax, &done);
-
-    // Either zero or Smi::kMinValue, neither of which become a smi when
-    // negated.
-    if (negative_zero_ == kStrictNegativeZero) {
-      __ SmiCompare(rax, Smi::FromInt(0));
-      __ j(not_equal, &slow);
-      __ Move(rax, Factory::minus_zero_value());
-      __ jmp(&done);
-    } else  {
-      __ jmp(&slow);
-    }
-
-    // Try floating point case.
-    __ bind(&try_float);
     __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
     __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
     __ j(not_equal, &slow);
@@ -1449,6 +1451,17 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ movq(rax, rcx);
     }
   } else if (op_ == Token::BIT_NOT) {
+    if (include_smi_code_) {
+      Label try_float;
+      __ JumpIfNotSmi(rax, &try_float);
+      __ SmiNot(rax, rax);
+      __ jmp(&done);
+      // Try floating point case.
+      __ bind(&try_float);
+    } else if (FLAG_debug_code) {
+      __ AbortIfSmi(rax);
+    }
+
     // Check if the operand is a heap number.
     __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
     __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
@@ -2115,6 +2128,26 @@ void CompareStub::Generate(MacroAssembler* masm) {
   ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
 
   Label check_unequal_objects, done;
+
+  // Compare two smis if required.
+  if (include_smi_compare_) {
+    Label non_smi, smi_done;
+    __ JumpIfNotBothSmi(rax, rdx, &non_smi);
+    __ subq(rdx, rax);
+    __ j(no_overflow, &smi_done);
+    __ neg(rdx);  // Correct sign in case of overflow.
+    __ bind(&smi_done);
+    __ movq(rax, rdx);
+    __ ret(0);
+    __ bind(&non_smi);
+  } else if (FLAG_debug_code) {
+    Label ok;
+    __ JumpIfNotSmi(rdx, &ok);
+    __ JumpIfNotSmi(rax, &ok);
+    __ Abort("CompareStub: smi operands");
+    __ bind(&ok);
+  }
+
   // The compare stub returns a positive, negative, or zero 64-bit integer
   // value in rax, corresponding to result of comparing the two inputs.
   // NOTICE! This code is only reached after a smi-fast-case check, so
@@ -3001,7 +3034,8 @@ int CompareStub::MinorKey() {
          | RegisterField::encode(false)    // lhs_ and rhs_ are not used
          | StrictField::encode(strict_)
          | NeverNanNanField::encode(cc_ == equal ? never_nan_nan_ : false)
-         | IncludeNumberCompareField::encode(include_number_compare_);
+         | IncludeNumberCompareField::encode(include_number_compare_)
+         | IncludeSmiCompareField::encode(include_smi_compare_);
 }
 
 
@@ -3041,12 +3075,18 @@ const char* CompareStub::GetName() {
     include_number_compare_name = "_NO_NUMBER";
   }
 
+  const char* include_smi_compare_name = "";
+  if (!include_smi_compare_) {
+    include_smi_compare_name = "_NO_SMI";
+  }
+
   OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
                "CompareStub_%s%s%s%s",
                cc_name,
                strict_name,
                never_nan_nan_name,
-               include_number_compare_name);
+               include_number_compare_name,
+               include_smi_compare_name);
   return name_;
 }
 

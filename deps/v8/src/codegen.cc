@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -344,52 +344,39 @@ void CodeGenerator::VisitIncrementOperation(IncrementOperation* expr) {
 }
 
 
-// List of special runtime calls which are generated inline. For some of these
-// functions the code will be generated inline, and for others a call to a code
-// stub will be inlined.
+// Lookup table for code generators for special runtime calls which are
+// generated inline.
+#define INLINE_FUNCTION_GENERATOR_ADDRESS(Name, argc, ressize)          \
+    &CodeGenerator::Generate##Name,
 
-#define INLINE_RUNTIME_ENTRY(Name, argc, ressize)                             \
-    {&CodeGenerator::Generate##Name,  "_" #Name, argc},                       \
-
-CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
-  INLINE_RUNTIME_FUNCTION_LIST(INLINE_RUNTIME_ENTRY)
+const CodeGenerator::InlineFunctionGenerator
+    CodeGenerator::kInlineFunctionGenerators[] = {
+        INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
+        INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
 };
+#undef INLINE_FUNCTION_GENERATOR_ADDRESS
 
-#undef INLINE_RUNTIME_ENTRY
 
-CodeGenerator::InlineRuntimeLUT* CodeGenerator::FindInlineRuntimeLUT(
-    Handle<String> name) {
-  const int entries_count =
-      sizeof(kInlineRuntimeLUT) / sizeof(InlineRuntimeLUT);
-  for (int i = 0; i < entries_count; i++) {
-    InlineRuntimeLUT* entry = &kInlineRuntimeLUT[i];
-    if (name->IsEqualTo(CStrVector(entry->name))) {
-      return entry;
-    }
-  }
-  return NULL;
+CodeGenerator::InlineFunctionGenerator
+  CodeGenerator::FindInlineFunctionGenerator(Runtime::FunctionId id) {
+    return kInlineFunctionGenerators[
+      static_cast<int>(id) - static_cast<int>(Runtime::kFirstInlineFunction)];
 }
 
 
 bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
   ZoneList<Expression*>* args = node->arguments();
   Handle<String> name = node->name();
-  if (name->length() > 0 && name->Get(0) == '_') {
-    InlineRuntimeLUT* entry = FindInlineRuntimeLUT(name);
-    if (entry != NULL) {
-      ((*this).*(entry->method))(args);
+  Runtime::Function* function = node->function();
+  if (function != NULL && function->intrinsic_type == Runtime::INLINE) {
+    InlineFunctionGenerator generator =
+        FindInlineFunctionGenerator(function->function_id);
+    if (generator != NULL) {
+      ((*this).*(generator))(args);
       return true;
     }
   }
   return false;
-}
-
-
-int CodeGenerator::InlineRuntimeCallArgumentsCount(Handle<String> name) {
-  CodeGenerator::InlineRuntimeLUT* f =
-      CodeGenerator::FindInlineRuntimeLUT(name);
-  if (f != NULL) return f->nargs;
-  return -1;
 }
 
 

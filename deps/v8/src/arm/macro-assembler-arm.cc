@@ -1242,15 +1242,6 @@ void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
 }
 
 
-void MacroAssembler::StubReturn(int argc, Condition cond) {
-  ASSERT(argc >= 1 && generating_stub());
-  if (argc > 1) {
-    add(sp, sp, Operand((argc - 1) * kPointerSize), LeaveCC, cond);
-  }
-  Ret(cond);
-}
-
-
 void MacroAssembler::IllegalOperation(int num_arguments) {
   if (num_arguments > 0) {
     add(sp, sp, Operand(num_arguments * kPointerSize));

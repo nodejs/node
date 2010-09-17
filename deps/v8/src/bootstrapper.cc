@@ -1344,23 +1344,33 @@ bool Genesis::InstallNatives() {
 }
 
 
-static void InstallCustomCallGenerator(Handle<JSFunction> holder_function,
-                                       const char* function_name,
-                                       int id) {
-  Handle<JSObject> proto(JSObject::cast(holder_function->instance_prototype()));
+static void InstallCustomCallGenerator(
+    Handle<JSFunction> holder_function,
+    CallStubCompiler::CustomGeneratorOwner owner_flag,
+    const char* function_name,
+    int id) {
+  Handle<JSObject> owner;
+  if (owner_flag == CallStubCompiler::FUNCTION) {
+    owner = Handle<JSObject>::cast(holder_function);
+  } else {
+    ASSERT(owner_flag == CallStubCompiler::INSTANCE_PROTOTYPE);
+    owner = Handle<JSObject>(
+        JSObject::cast(holder_function->instance_prototype()));
+  }
   Handle<String> name = Factory::LookupAsciiSymbol(function_name);
-  Handle<JSFunction> function(JSFunction::cast(proto->GetProperty(*name)));
+  Handle<JSFunction> function(JSFunction::cast(owner->GetProperty(*name)));
   function->shared()->set_function_data(Smi::FromInt(id));
 }
 
 
 void Genesis::InstallCustomCallGenerators() {
   HandleScope scope;
-#define INSTALL_CALL_GENERATOR(holder_fun, fun_name, name)                \
+#define INSTALL_CALL_GENERATOR(holder_fun, owner_flag, fun_name, name)    \
   {                                                                       \
     Handle<JSFunction> holder(global_context()->holder_fun##_function()); \
     const int id = CallStubCompiler::k##name##CallGenerator;              \
-    InstallCustomCallGenerator(holder, #fun_name, id);                    \
+    InstallCustomCallGenerator(holder, CallStubCompiler::owner_flag,      \
+                               #fun_name, id);                            \
   }
   CUSTOM_CALL_IC_GENERATORS(INSTALL_CALL_GENERATOR)
 #undef INSTALL_CALL_GENERATOR

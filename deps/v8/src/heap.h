@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -114,6 +114,7 @@ namespace internal {
   V(Object, last_script_id, LastScriptId)                                      \
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
+  V(StringDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
 
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
 #define STRONG_ROOT_LIST(V)                                                    \
@@ -686,13 +687,21 @@ class Heap : public AllStatic {
   static void GarbageCollectionPrologue();
   static void GarbageCollectionEpilogue();
 
+  enum CollectionPolicy { NORMAL, AGGRESSIVE };
+
   // Performs garbage collection operation.
   // Returns whether required_space bytes are available after the collection.
-  static bool CollectGarbage(int required_space, AllocationSpace space);
+  static bool CollectGarbage(int required_space,
+                             AllocationSpace space,
+                             CollectionPolicy collectionPolicy = NORMAL);
 
   // Performs a full garbage collection. Force compaction if the
   // parameter is true.
-  static void CollectAllGarbage(bool force_compaction);
+  static void CollectAllGarbage(bool force_compaction,
+                                CollectionPolicy collectionPolicy = NORMAL);
+
+  // Last hope GC, should try to squeeze as much as possible.
+  static void CollectAllAvailableGarbage();
 
   // Notify the heap that a context has been disposed.
   static int NotifyContextDisposed() { return ++contexts_disposed_; }
@@ -1213,9 +1222,14 @@ class Heap : public AllStatic {
   static GarbageCollector SelectGarbageCollector(AllocationSpace space);
 
   // Performs garbage collection
-  static void PerformGarbageCollection(AllocationSpace space,
-                                       GarbageCollector collector,
-                                       GCTracer* tracer);
+  static void PerformGarbageCollection(GarbageCollector collector,
+                                       GCTracer* tracer,
+                                       CollectionPolicy collectionPolicy);
+
+  static const int kMinimumPromotionLimit = 2 * MB;
+  static const int kMinimumAllocationLimit = 8 * MB;
+
+  inline static void UpdateOldSpaceLimits();
 
   // Allocate an uninitialized object in map space.  The behavior is identical
   // to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that (a) it doesn't

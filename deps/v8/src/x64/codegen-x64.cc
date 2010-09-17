@@ -1940,6 +1940,19 @@ static Condition DoubleCondition(Condition cc) {
 }
 
 
+static CompareFlags ComputeCompareFlags(NaNInformation nan_info,
+                                        bool inline_number_compare) {
+  CompareFlags flags = NO_SMI_COMPARE_IN_STUB;
+  if (nan_info == kCantBothBeNaN) {
+    flags = static_cast<CompareFlags>(flags | CANT_BOTH_BE_NAN);
+  }
+  if (inline_number_compare) {
+    flags = static_cast<CompareFlags>(flags | NO_NUMBER_COMPARE_IN_STUB);
+  }
+  return flags;
+}
+
+
 void CodeGenerator::Comparison(AstNode* node,
                                Condition cc,
                                bool strict,
@@ -2070,7 +2083,9 @@ void CodeGenerator::Comparison(AstNode* node,
 
       // Setup and call the compare stub.
       is_not_string.Bind(&left_side);
-      CompareStub stub(cc, strict, kCantBothBeNaN);
+      CompareFlags flags =
+          static_cast<CompareFlags>(CANT_BOTH_BE_NAN | NO_SMI_CODE_IN_STUB);
+      CompareStub stub(cc, strict, flags);
       Result result = frame_->CallStub(&stub, &left_side, &right_side);
       result.ToRegister();
       __ testq(result.reg(), result.reg());
@@ -2174,7 +2189,8 @@ void CodeGenerator::Comparison(AstNode* node,
 
       // End of in-line compare, call out to the compare stub. Don't include
       // number comparison in the stub if it was inlined.
-      CompareStub stub(cc, strict, nan_info, !inline_number_compare);
+      CompareFlags flags = ComputeCompareFlags(nan_info, inline_number_compare);
+      CompareStub stub(cc, strict, flags);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flag.
       answer.Unuse();
@@ -2207,7 +2223,9 @@ void CodeGenerator::Comparison(AstNode* node,
 
         // End of in-line compare, call out to the compare stub. Don't include
         // number comparison in the stub if it was inlined.
-        CompareStub stub(cc, strict, nan_info, !inline_number_compare);
+        CompareFlags flags =
+            ComputeCompareFlags(nan_info, inline_number_compare);
+        CompareStub stub(cc, strict, flags);
         Result answer = frame_->CallStub(&stub, &left_side, &right_side);
         __ testq(answer.reg(), answer.reg());  // Sets both zero and sign flags.
         answer.Unuse();
@@ -2332,7 +2350,9 @@ void CodeGenerator::ConstantSmiComparison(Condition cc,
       }
 
       // Setup and call the compare stub.
-      CompareStub stub(cc, strict, kCantBothBeNaN);
+      CompareFlags flags =
+          static_cast<CompareFlags>(CANT_BOTH_BE_NAN | NO_SMI_CODE_IN_STUB);
+      CompareStub stub(cc, strict, flags);
       Result result = frame_->CallStub(&stub, left_side, right_side);
       result.ToRegister();
       __ testq(result.reg(), result.reg());
@@ -7395,6 +7415,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         GenericUnaryOpStub stub(
             Token::SUB,
             overwrite,
+            NO_UNARY_FLAGS,
             no_negative_zero ? kIgnoreNegativeZero : kStrictNegativeZero);
         Result operand = frame_->Pop();
         Result answer = frame_->CallStub(&stub, &operand);
@@ -7413,7 +7434,9 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         Condition is_smi = masm_->CheckSmi(operand.reg());
         smi_label.Branch(is_smi, &operand);
 
-        GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
+        GenericUnaryOpStub stub(Token::BIT_NOT,
+                                overwrite,
+                                NO_UNARY_SMI_CODE_IN_STUB);
         Result answer = frame_->CallStub(&stub, &operand);
         continue_label.Jump(&answer);
 

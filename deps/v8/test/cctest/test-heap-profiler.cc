@@ -989,4 +989,156 @@ TEST(AggregatedHeapSnapshot) {
   CHECK(IsNodeRetainedAs(a_from_b, 1));  // B has 1 ref to A.
 }
 
+namespace {
+
+class TestJSONStream : public v8::OutputStream {
+ public:
+  TestJSONStream() : eos_signaled_(0), abort_countdown_(-1) {}
+  explicit TestJSONStream(int abort_countdown)
+      : eos_signaled_(0), abort_countdown_(abort_countdown) {}
+  virtual ~TestJSONStream() {}
+  virtual void EndOfStream() { ++eos_signaled_; }
+  virtual WriteResult WriteAsciiChunk(char* buffer, int chars_written) {
+    if (abort_countdown_ > 0) --abort_countdown_;
+    if (abort_countdown_ == 0) return kAbort;
+    CHECK_GT(chars_written, 0);
+    i::Vector<char> chunk = buffer_.AddBlock(chars_written, '\0');
+    memcpy(chunk.start(), buffer, chars_written);
+    return kContinue;
+  }
+  void WriteTo(i::Vector<char> dest) { buffer_.WriteTo(dest); }
+  int eos_signaled() { return eos_signaled_; }
+  int size() { return buffer_.size(); }
+ private:
+  i::Collector<char> buffer_;
+  int eos_signaled_;
+  int abort_countdown_;
+};
+
+class AsciiResource: public v8::String::ExternalAsciiStringResource {
+ public:
+  explicit AsciiResource(i::Vector<char> string): data_(string.start()) {
+    length_ = string.length();
+  }
+  virtual const char* data() const { return data_; }
+  virtual size_t length() const { return length_; }
+ private:
+  const char* data_;
+  size_t length_;
+};
+
+}  // namespace
+
+TEST(HeapSnapshotJSONSerialization) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+#define STRING_LITERAL_FOR_TEST \
+  "\"String \\n\\r\\u0008\\u0081\\u0101\\u0801\\u8001\""
+  CompileAndRunScript(
+      "function A(s) { this.s = s; }\n"
+      "function B(x) { this.x = x; }\n"
+      "var a = new A(" STRING_LITERAL_FOR_TEST ");\n"
+      "var b = new B(a);");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("json"));
+  TestJSONStream stream;
+  snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
+  CHECK_GT(stream.size(), 0);
+  CHECK_EQ(1, stream.eos_signaled());
+  i::ScopedVector<char> json(stream.size());
+  stream.WriteTo(json);
+
+  // Verify that snapshot string is valid JSON.
+  AsciiResource json_res(json);
+  v8::Local<v8::String> json_string = v8::String::NewExternal(&json_res);
+  env->Global()->Set(v8::String::New("json_snapshot"), json_string);
+  v8::Local<v8::Value> snapshot_parse_result = CompileRun(
+      "var parsed = JSON.parse(json_snapshot); true;");
+  CHECK(!snapshot_parse_result.IsEmpty());
+
+  // Verify that snapshot object has required fields.
+  v8::Local<v8::Object> parsed_snapshot =
+      env->Global()->Get(v8::String::New("parsed"))->ToObject();
+  CHECK(parsed_snapshot->Has(v8::String::New("snapshot")));
+  CHECK(parsed_snapshot->Has(v8::String::New("nodes")));
+  CHECK(parsed_snapshot->Has(v8::String::New("strings")));
+
+  // Verify that nodes meta-info is valid JSON.
+  v8::Local<v8::Value> nodes_meta_parse_result = CompileRun(
+      "var parsed_meta = JSON.parse(parsed.nodes[0]); true;");
+  CHECK(!nodes_meta_parse_result.IsEmpty());
+
+  // Get node and edge "member" offsets.
+  v8::Local<v8::Value> meta_analysis_result = CompileRun(
+      "var children_count_offset ="
+      "    parsed_meta.fields.indexOf('children_count');\n"
+      "var children_offset ="
+      "    parsed_meta.fields.indexOf('children');\n"
+      "var children_meta ="
+      "    parsed_meta.types[children_offset];\n"
+      "var child_fields_count = children_meta.fields.length;\n"
+      "var child_type_offset ="
+      "    children_meta.fields.indexOf('type');\n"
+      "var child_name_offset ="
+      "    children_meta.fields.indexOf('name_or_index');\n"
+      "var child_to_node_offset ="
+      "    children_meta.fields.indexOf('to_node');\n"
+      "var property_type ="
+      "    children_meta.types[child_type_offset].indexOf('property');");
+  CHECK(!meta_analysis_result.IsEmpty());
+
+  // A helper function for processing encoded nodes.
+  CompileRun(
+      "function GetChildPosByProperty(pos, prop_name) {\n"
+      "  var nodes = parsed.nodes;\n"
+      "  var strings = parsed.strings;\n"
+      "  for (var i = 0,\n"
+      "      count = nodes[pos + children_count_offset] * child_fields_count;\n"
+      "      i < count; i += child_fields_count) {\n"
+      "    var child_pos = pos + children_offset + i;\n"
+      "    if (nodes[child_pos + child_type_offset] === property_type\n"
+      "       && strings[nodes[child_pos + child_name_offset]] === prop_name)\n"
+      "        return nodes[child_pos + child_to_node_offset];\n"
+      "  }\n"
+      "  return null;\n"
+      "}\n");
+  // Get the string index using the path: <root> -> <global>.b.x.s
+  v8::Local<v8::Value> string_obj_pos_val = CompileRun(
+      "GetChildPosByProperty(\n"
+      "  GetChildPosByProperty(\n"
+      "    GetChildPosByProperty("
+      "      parsed.nodes[1 + children_offset + child_to_node_offset],\"b\"),\n"
+      "    \"x\"),"
+      "  \"s\")");
+  CHECK(!string_obj_pos_val.IsEmpty());
+  int string_obj_pos =
+      static_cast<int>(string_obj_pos_val->ToNumber()->Value());
+  v8::Local<v8::Object> nodes_array =
+      parsed_snapshot->Get(v8::String::New("nodes"))->ToObject();
+  int string_index = static_cast<int>(
+      nodes_array->Get(string_obj_pos + 1)->ToNumber()->Value());
+  CHECK_GT(string_index, 0);
+  v8::Local<v8::Object> strings_array =
+      parsed_snapshot->Get(v8::String::New("strings"))->ToObject();
+  v8::Local<v8::String> string = strings_array->Get(string_index)->ToString();
+  v8::Local<v8::String> ref_string =
+      CompileRun(STRING_LITERAL_FOR_TEST)->ToString();
+#undef STRING_LITERAL_FOR_TEST
+  CHECK_EQ(*v8::String::Utf8Value(ref_string),
+           *v8::String::Utf8Value(string));
+}
+
+
+TEST(HeapSnapshotJSONSerializationAborting) {
+  v8::HandleScope scope;
+  LocalContext env;
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("abort"));
+  TestJSONStream stream(5);
+  snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
+  CHECK_GT(stream.size(), 0);
+  CHECK_EQ(0, stream.eos_signaled());
+}
+
 #endif  // ENABLE_LOGGING_AND_PROFILING

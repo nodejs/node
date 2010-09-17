@@ -4739,6 +4739,23 @@ const HeapSnapshotsDiff* HeapSnapshot::CompareWith(
 }
 
 
+void HeapSnapshot::Serialize(OutputStream* stream,
+                             HeapSnapshot::SerializationFormat format) const {
+  IsDeadCheck("v8::HeapSnapshot::Serialize");
+  ApiCheck(format == kJSON,
+           "v8::HeapSnapshot::Serialize",
+           "Unknown serialization format");
+  ApiCheck(stream->GetOutputEncoding() == OutputStream::kAscii,
+           "v8::HeapSnapshot::Serialize",
+           "Unsupported output encoding");
+  ApiCheck(stream->GetChunkSize() > 0,
+           "v8::HeapSnapshot::Serialize",
+           "Invalid stream chunk size");
+  i::HeapSnapshotJSONSerializer serializer(ToInternal(this));
+  serializer.Serialize(stream);
+}
+
+
 int HeapProfiler::GetSnapshotsCount() {
   IsDeadCheck("v8::HeapProfiler::GetSnapshotsCount");
   return i::HeapProfiler::GetSnapshotsCount();

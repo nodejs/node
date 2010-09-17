@@ -9,6 +9,8 @@ ARM Ltd.
 
 Alexander Botero-Lowry <alexbl@FreeBSD.org>
 Alexandre Vassalotti <avassalotti@gmail.com>
+Andreas Anyuru <andreas.anyuru@gmail.com>
+Burcu Dogan <burcujdogan@gmail.com>
 Craig Schlenter <craig.schlenter@gmail.com>
 Daniel Andersson <kodandersson@gmail.com>
 Daniel James <dnljms@gmail.com>
@@ -21,6 +23,7 @@ John Jozwiak <jjozwiak@codeaurora.org>
 Kun Zhang <zhangk@codeaurora.org>
 Matt Hanselman <mjhanselman@gmail.com>
 Martyn Capewell <martyn.capewell@arm.com>
+Michael Smith <mike@w3.org>
 Paolo Giarrusso <p.giarrusso@gmail.com>
 Patrick Gansterer <paroga@paroga.com>
 Rafal Krypa <rafal@krypa.net>
@@ -28,6 +31,4 @@ Rene Rebe <rene@exactcode.de>
 Rodolph Perfetta <rodolph.perfetta@arm.com>
 Ryan Dahl <coldredlemur@gmail.com>
 Subrato K De <subratokde@codeaurora.org>
-Burcu Dogan <burcujdogan@gmail.com>
 Vlad Burlik <vladbph@gmail.com>
-
