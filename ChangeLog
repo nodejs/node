@@ -1,4 +1,13 @@
-2010.09.10, Version 0.2.1
+2010.09.17, Version 0.2.2
+
+* REPL improvements (Trent Mick)
+
+* Fix bug in fs.realpath (Isaac Schlueter)
+
+* sys.pump catches errors (Russell Haering)
+
+
+2010.09.10, Version 0.2.1, da235fa12c208fc8243600e128db2c9b55624c5c
 
 * REPL improvements (Johan Euphrosine, Brian White)
 
