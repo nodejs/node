@@ -28,16 +28,6 @@ process.assert = function (x, msg) {
 
 var writeError = process.binding('stdio').writeError;
 
-var evalcxMsg;
-process.evalcx = function () {
-  if (!evalcxMsg) {
-    writeError(evalcxMsg =
-      "process.evalcx is deprecated. Use Script.runInNewContext instead.\n");
-  }
-  return process.binding('evals').Script
-    .runInNewContext.apply(null, arguments);
-};
-
 // nextTick()
 
 var nextTickQueue = [];
