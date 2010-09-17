@@ -1545,11 +1545,6 @@ static void Load(int argc, char *argv[]) {
                        ProcessTitleGetter,
                        ProcessTitleSetter);
 
-
-  // Add a reference to the global object
-  Local<Object> global = v8::Context::GetCurrent()->Global();
-  process->Set(String::NewSymbol("global"), global);
-
   // process.version
   process->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
 
@@ -1672,6 +1667,8 @@ static void Load(int argc, char *argv[]) {
   // who do not like how 'src/node.js' setups the module system but do like
   // Node's I/O bindings may want to replace 'f' with their own function.
 
+  // Add a reference to the global object
+  Local<Object> global = v8::Context::GetCurrent()->Global();
   Local<Value> args[1] = { Local<Value>::New(process) };
 
   f->Call(global, 1, args);

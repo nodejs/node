@@ -1,7 +1,8 @@
 (function (process) {
 
-process.global.process = process;
-process.global.global = process.global;
+global = this;
+global.process = process;
+global.global = global;
 global.GLOBAL = global;
 global.root = global;
 
