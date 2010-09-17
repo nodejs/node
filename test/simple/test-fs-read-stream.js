@@ -15,7 +15,7 @@ callbacks = { open: 0, end: 0, close: 0, destroy: 0 };
 
 paused = false;
 
-file = fs.createReadStream(fn);
+file = fs.ReadStream(fn);
 
 file.addListener('open', function(fd) {
   file.length = 0;
