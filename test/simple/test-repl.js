@@ -10,6 +10,9 @@ var sys = require("sys"),
   prompt_tcp = "node via TCP socket> ",
   server_tcp, server_unix, client_tcp, client_unix, timer;
 
+// absolute path to test/fixtures/a.js
+var moduleFilename = require("path").join(common.fixturesDir, "a.js");
+
 common.error('repl test');
 
 // function for REPL to run
@@ -55,7 +58,10 @@ function tcp_test() {
       send_expect([
           { client: client_tcp, send: "", expect: prompt_tcp },
           { client: client_tcp, send: "invoke_me(333)\n", expect: ('\'' + "invoked 333" + '\'\n' + prompt_tcp) },
-          { client: client_tcp, send: "a += 1\n", expect: ("12346" + '\n' + prompt_tcp) }
+          { client: client_tcp, send: "a += 1\n", expect: ("12346" + '\n' + prompt_tcp) },
+          { client: client_tcp,
+            send: "require('" + moduleFilename + "').number\n",
+            expect: ("42" + '\n' + prompt_tcp) }
         ]);
     });
 

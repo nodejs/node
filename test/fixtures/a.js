@@ -18,6 +18,8 @@ exports.D = function () {
   return c.D();
 };
 
+exports.number = 42;
+
 process.addListener("exit", function () {
   string = "A done";
 });
