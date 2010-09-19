@@ -1744,10 +1744,7 @@ static void AtExit() {
 }
 
 
-}  // namespace node
-
-
-int main(int argc, char *argv[]) {
+int Start(int argc, char *argv[]) {
   // Hack aroung with the argv pointer. Used for process.title = "blah".
   argv = node::OS::SetupArgs(argc, argv);
 
@@ -1879,3 +1876,6 @@ int main(int argc, char *argv[]) {
 #endif  // NDEBUG
   return 0;
 }
+
+
+}  // namespace node

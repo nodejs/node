@@ -17,6 +17,8 @@
 
 namespace node {
 
+int Start (int argc, char *argv[]);
+
 #define NODE_PSYMBOL(s) Persistent<String>::New(String::NewSymbol(s))
 
 /* Converts a unixtime to V8 Date */

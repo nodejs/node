@@ -474,6 +474,7 @@ def build(bld):
   node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
   node.source = """
+    src/node_main.cc
     src/node.cc
     src/node_buffer.cc
     src/node_extensions.cc
