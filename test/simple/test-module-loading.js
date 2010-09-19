@@ -64,22 +64,7 @@ try {
   assert.equal("blah", e.message);
 }
 
-var errorThrownAsync = false;
-require.async("../fixtures/throws_error1", function(err, a) {
-  if (err) {
-    errorThrownAsync = true;
-    assert.equal("blah", err.message);
-  }
-});
-
 assert.equal(require('path').dirname(__filename), __dirname);
-
-var asyncRun = false;
-require.async('../fixtures/a1', function (err, a) {
-  if (err) throw err;
-  assert.equal("A", a.A());
-  asyncRun = true;
-});
 
 common.debug('load custom file types with registerExtension');
 require.registerExtension('.test', function(content) {
@@ -112,16 +97,6 @@ try {
 } catch(err) {
   assert.equal(err.message, "Cannot find module '../fixtures/empty'");
 }
-
-var asyncRequireDir = false;
-require.async("../fixtures/empty", function (err, a) {
-  assert.ok(err);
-
-  if (err) {
-    asyncRequireDir = true;
-    assert.equal(err.message, "Cannot find module '../fixtures/empty'");
-  }
-});
 
 // Check load order is as expected
 common.debug('load order');
@@ -168,12 +143,6 @@ process.addListener("exit", function () {
   assert.equal("D done", d2.D());
 
   assert.equal(true, errorThrown);
-
-  assert.equal(true, asyncRun);
-
-  assert.equal(true, errorThrownAsync);
-
-  assert.equal(true, asyncRequireDir);
 
   console.log("exit");
 });

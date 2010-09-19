@@ -106,7 +106,6 @@ var module = (function () {
     internalModuleCache[id] = m;
     var e = m._compile(natives[id], id);
     if (e) throw e;
-    m.loaded = true;
     return m;
   }
 
@@ -172,44 +171,19 @@ var module = (function () {
     };
   }
 
-  /* Sync unless callback given */
-  function findModulePath (id, dirs, callback) {
+  function findModulePath (id, dirs) {
     process.assert(Array.isArray(dirs));
-
-    if (/^https?:\/\//.exec(id)) {
-      if (callback) {
-        callback(id);
-      } else {
-        throw new Error("Sync http require not allowed.");
-      }
-      return;
-    }
 
     var nextLoc = traverser(id, id.charAt(0) === '/' ? [''] : dirs);
 
     var fs = requireNative('fs');
 
-    function searchLocations () {
-      var location, stats;
-      while (location = nextLoc()) {
-        try { stats = fs.statSync(location); } catch(e) { continue; }
-        if (stats && !stats.isDirectory()) return location;
-      }
-      return false;
+    var location, stats;
+    while (location = nextLoc()) {
+      try { stats = fs.statSync(location); } catch(e) { continue; }
+      if (stats && !stats.isDirectory()) return location;
     }
-
-    function searchLocationsAsync (cb) {
-      var location = nextLoc();
-
-      if (!location) { cb(false); return; }
-
-      fs.stat(location, function (err, stats) {
-        if (stats && !stats.isDirectory()) { cb(location); }
-        else { searchLocationsAsync(cb); }
-      });
-    }
-
-    return callback ? searchLocationsAsync(callback) : searchLocations();
+    return false;
   }
 
 
@@ -235,7 +209,7 @@ var module = (function () {
   }
 
 
-  function loadModule (request, parent, callback) {
+  function loadModule (request, parent) {
     var resolvedModule = resolveModulePath(request, parent),
         id = resolvedModule[0],
         paths = resolvedModule[1];
@@ -245,45 +219,27 @@ var module = (function () {
     // native modules always take precedence.
     var cachedNative = internalModuleCache[id];
     if (cachedNative) {
-      return callback ? callback(null, cachedNative.exports) : cachedNative.exports;
+      return cachedNative.exports;
     }
     if (natives[id]) {
       debug('load native module ' + id);
-      var nativeMod = loadNative(id);
-      return callback ? callback(null, nativeMod.exports) : nativeMod.exports;
+      return loadNative(id).exports;
     }
 
     // look up the filename first, since that's the cache key.
     debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
-    if (!callback) {
-      // sync
-      var filename = findModulePath(request, paths);
-      if (!filename) {
-        throw new Error("Cannot find module '" + request + "'");
-      }
-
-      var cachedModule = parent.moduleCache[filename];
-      if (cachedModule) return cachedModule.exports;
-
-      var module = new Module(id, parent);
-      module.moduleCache[filename] = module;
-      module.loadSync(filename);
-      return module.exports;
+    var filename = findModulePath(request, paths);
+    if (!filename) {
+      throw new Error("Cannot find module '" + request + "'");
     }
-    // async
-    findModulePath(request, paths, function (filename) {
-      if (!filename) {
-        var err = new Error("Cannot find module '" + request + "'");
-        return callback(err);
-      }
 
-      var cachedModule = parent.moduleCache[filename];
-      if (cachedModule) return callback(null, cachedModule.exports);
+    var cachedModule = parent.moduleCache[filename];
+    if (cachedModule) return cachedModule.exports;
 
-      var module = new Module(id, parent);
-      module.moduleCache[filename] = module;
-      module.load(filename, callback);
-    });
+    var module = new Module(id, parent);
+    module.moduleCache[filename] = module;
+    module.load(filename);
+    return module.exports;
   };
 
 
@@ -313,63 +269,27 @@ var module = (function () {
   }
 
 
-  Module.prototype.loadSync = function (filename) {
-    debug("loadSync " + JSON.stringify(filename) + " for module " + JSON.stringify(this.id));
-
-    process.assert(!this.loaded);
-    this.filename = filename;
-
-    if (filename.match(/\.node$/)) {
-      this._loadObjectSync(filename);
-    } else {
-      this._loadScriptSync(filename);
-    }
-  };
-
-
-  Module.prototype.load = function (filename, callback) {
+  Module.prototype.load = function (filename) {
     debug("load " + JSON.stringify(filename) + " for module " + JSON.stringify(this.id));
 
     process.assert(!this.loaded);
-
     this.filename = filename;
 
     if (filename.match(/\.node$/)) {
-      this._loadObject(filename, callback);
+      this._loadObject(filename);
     } else {
-      this._loadScript(filename, callback);
+      this._loadScript(filename);
     }
   };
 
 
-  Module.prototype._loadObjectSync = function (filename) {
-    this.loaded = true;
+  Module.prototype._loadObject = function (filename) {
     process.dlopen(filename, this.exports);
   };
 
 
-  Module.prototype._loadObject = function (filename, callback) {
-    var self = this;
-    // XXX Not yet supporting loading from HTTP. would need to download the
-    // file, store it to tmp then run dlopen on it.
-    self.loaded = true;
-    process.dlopen(filename, self.exports); // FIXME synchronus
-    if (callback) callback(null, self.exports);
-  };
-
-
-  function cat (id, callback) {
-    if (id.match(/^http:\/\//)) {
-      loadModule('http', process.mainModule, function (err, http) {
-        if (err) {
-          if (callback) callback(err);
-        } else {
-          http.cat(id, callback);
-        }
-      });
-    } else {
-      requireNative('fs').readFile(id, 'utf8', callback);
-    }
+  function cat (id) {
+    requireNative('fs').readFile(id, 'utf8');
   }
 
 
@@ -390,16 +310,11 @@ var module = (function () {
       return;
     }
 
-    function requireAsync (url, cb) {
-      loadModule(url, self, cb);
-    }
-
     function require (path) {
       return loadModule(path, self);
     }
 
     require.paths = modulePaths;
-    require.async = requireAsync;
     require.main = process.mainModule;
     require.registerExtension = registerExtension;
 
@@ -451,62 +366,18 @@ var module = (function () {
   };
 
 
-  Module.prototype._loadScriptSync = function (filename) {
+  Module.prototype._loadScript = function (filename) {
     var content = requireNative('fs').readFileSync(filename, 'utf8');
     this._compile(content, filename);
     this.loaded = true;
   };
 
 
-  Module.prototype._loadScript = function (filename, callback) {
-    var self = this;
-    cat(filename, function (err, content) {
-      debug('cat done');
-      if (err) {
-        if (callback) callback(err);
-      } else {
-        try {
-          self._compile(content, filename);
-        } catch (err) {
-          if (callback) callback(err);
-          return;
-        }
-
-        self._waitChildrenLoad(function () {
-          self.loaded = true;
-          if (self.onload) self.onload();
-          if (callback) callback(null, self.exports);
-        });
-      }
-    });
-  };
-
-
-  Module.prototype._waitChildrenLoad = function (callback) {
-    var nloaded = 0;
-    var children = this.children;
-    for (var i = 0; i < children.length; i++) {
-      var child = children[i];
-      if (child.loaded) {
-        nloaded++;
-      } else {
-        child.onload = function () {
-          child.onload = null;
-          nloaded++;
-          if (children.length == nloaded && callback) callback();
-        };
-      }
-    }
-    if (children.length == nloaded && callback) callback();
-  };
-
-
-
   // bootstrap main module.
   exports.runMain = function () {
     // Load the main module--the command line argument.
     process.mainModule = new Module(".");
-    process.mainModule.loadSync(process.argv[1]);
+    process.mainModule.load(process.argv[1]);
   }
 
   return exports;
