@@ -187,6 +187,8 @@ def configure(conf):
       if libcrypto and libssl:
         conf.env["USE_OPENSSL"] = Options.options.use_openssl = True
         conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
+      else:
+        conf.fatal("Could not autodetect OpenSSL support. Make sure OpenSSL development packages are installed.")
   else:
     Options.options.use_openssl = conf.env["USE_OPENSSL"] = False
 
