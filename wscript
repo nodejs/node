@@ -18,12 +18,7 @@ blddir = 'build'
 jobs=1
 if os.environ.has_key('JOBS'):
   jobs = int(os.environ['JOBS'])
-else:
-  try:
-    import multiprocessing
-    jobs = multiprocessing.cpu_count()
-  except:
-    pass
+
 
 def set_options(opt):
   # the gcc module provides a --debug-level option
