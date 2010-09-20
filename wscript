@@ -188,7 +188,9 @@ def configure(conf):
         conf.env["USE_OPENSSL"] = Options.options.use_openssl = True
         conf.env.append_value("CXXFLAGS", "-DHAVE_OPENSSL=1")
       else:
-        conf.fatal("Could not autodetect OpenSSL support. Make sure OpenSSL development packages are installed.")
+        conf.fatal("Could not autodetect OpenSSL support. " +
+                   "Make sure OpenSSL development packages are installed. " +
+                   "Use configure --without-ssl to disable this message.")
   else:
     Options.options.use_openssl = conf.env["USE_OPENSSL"] = False
 
