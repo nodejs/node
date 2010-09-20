@@ -65,11 +65,10 @@ var module = (function () {
   // Set the environ variable NODE_MODULE_CONTEXTS=1 to make node load all
   // modules in thier own context.
   var contextLoad = false;
-  if (parseInt(process.env["NODE_MODULE_CONTEXTS"]) > 0) contextLoad = true;
+  if (+process.env["NODE_MODULE_CONTEXTS"] > 0) contextLoad = true;
   var Script;
 
   var internalModuleCache = {};
-  var extensionCache = {};
 
   function Module (id, parent) {
     this.id = id;
@@ -142,11 +141,13 @@ var module = (function () {
     modulePaths = process.env["NODE_PATH"].split(":").concat(modulePaths);
   }
 
-  var moduleNativeExtensions = ['js', 'node'];
+  var extensions = {};
+  var registerExtension = removed('require.registerExtension() removed. Use require.extensions instead');
 
   // Which files to traverse while finding id? Returns generator function.
   function traverser (id, dirs) {
-    var head = [], inDir = [], _dirs = dirs.slice();
+    var head = [], inDir = [], dirs = dirs.slice(),
+        exts = Object.keys(extensions);
     return function next () {
       var result = head.shift();
       if (result) { return result; }
@@ -154,16 +155,13 @@ var module = (function () {
       var gen = inDir.shift();
       if (gen) { head = gen(); return next(); }
 
-      var dir = _dirs.shift();
+      var dir = dirs.shift();
       if (dir !== undefined) {
-        function direct (ext) { return path.join(dir, id + '.' + ext); }
-        function index (ext) { return path.join(dir, id, 'index.' + ext); }
-        var userExts = Object.keys(extensionCache);
+        function direct (ext) { return path.join(dir, id + ext); }
+        function index (ext) { return path.join(dir, id, 'index' + ext); }
         inDir = [
-          function () { return moduleNativeExtensions.map(direct); },
-          function () { return userExts.map(direct); },
-          function () { return moduleNativeExtensions.map(index); },
-          function () { return userExts.map(index); }
+          function () { return exts.map(direct); },
+          function () { return exts.map(index); },
         ];
         head = [path.join(dir, id)];
         return next();
@@ -190,15 +188,17 @@ var module = (function () {
   // sync - no i/o performed
   function resolveModulePath(request, parent) {
     var start = request.substring(0, 2);
-    if (start !== "./" && start !== "..") { return [request, modulePaths]; }
+    if (start !== "./" && start !== "..") {
+      return [request, modulePaths];
+    }
 
-    // Relative request
-    var exts = moduleNativeExtensions.concat(Object.keys(extensionCache)),
-      indexRE = new RegExp('^index\\.(' + exts.join('|') + ')$'),
-      // XXX dangerous code: ^^^ what if exts contained some RE control chars?
-      isIndex = path.basename(parent.filename).match(indexRE),
-      parentIdPath = isIndex ? parent.id : path.dirname(parent.id),
-      id = path.join(parentIdPath, request);
+    // Is the parent an index module?
+    // We can assume the parent has a valid extension,
+    // as it already has been accepted as a module.
+    var isIndex        = /^index\.\w+?$/.test(path.basename(parent.filename)),
+        parentIdPath   = isIndex ? parent.id : path.dirname(parent.id),
+        id             = path.join(parentIdPath, request);
+
     // make sure require('./path') and require('path') get distinct ids, even
     // when called from the toplevel js file
     if (parentIdPath === '.' && id.indexOf('/') === -1) {
@@ -210,21 +210,22 @@ var module = (function () {
 
 
   function loadModule (request, parent) {
-    var resolvedModule = resolveModulePath(request, parent),
-        id = resolvedModule[0],
-        paths = resolvedModule[1];
-
     debug("loadModule REQUEST  " + (request) + " parent: " + parent.id);
 
-    // native modules always take precedence.
-    var cachedNative = internalModuleCache[id];
+    // With natives id === request
+    // We deal with these first
+    var cachedNative = internalModuleCache[request];
     if (cachedNative) {
       return cachedNative.exports;
     }
-    if (natives[id]) {
-      debug('load native module ' + id);
-      return loadNative(id).exports;
+    if (natives[request]) {
+      debug('load native module ' + request);
+      return loadNative(request).exports;
     }
+
+    var resolvedModule = resolveModulePath(request, parent),
+        id             = resolvedModule[0],
+        paths          = resolvedModule[1];
 
     // look up the filename first, since that's the cache key.
     debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
@@ -243,48 +244,15 @@ var module = (function () {
   };
 
 
-  // This function allows the user to register file extensions to custom
-  // Javascript 'compilers'.  It accepts 2 arguments, where ext is a file
-  // extension as a string. E.g. '.coffee' for coffee-script files.  compiler
-  // is the second argument, which is a function that gets called when the
-  // specified file extension is found. The compiler is passed a single
-  // argument, which is, the file contents, which need to be compiled.
-  //
-  // The function needs to return the compiled source, or an non-string
-  // variable that will get attached directly to the module exports. Example:
-  //
-  //    require.registerExtension('.coffee', function(content) {
-  //      return doCompileMagic(content);
-  //    });
-  function registerExtension(ext, compiler) {
-    if ('string' !== typeof ext && false === /\.\w+$/.test(ext)) {
-      throw new Error('require.registerExtension: First argument not a valid extension string.');
-    }
-
-    if ('function' !== typeof compiler) {
-      throw new Error('require.registerExtension: Second argument not a valid compiler function.');
-    }
-
-    extensionCache[ext.slice(1)] = compiler;
-  }
-
-
   Module.prototype.load = function (filename) {
     debug("load " + JSON.stringify(filename) + " for module " + JSON.stringify(this.id));
 
     process.assert(!this.loaded);
     this.filename = filename;
 
-    if (filename.match(/\.node$/)) {
-      this._loadObject(filename);
-    } else {
-      this._loadScript(filename);
-    }
-  };
-
-
-  Module.prototype._loadObject = function (filename) {
-    process.dlopen(filename, this.exports);
+    var extension = path.extname(filename) || '.js';
+    extensions[extension](this, filename);
+    this.loaded = true;
   };
 
 
@@ -299,23 +267,15 @@ var module = (function () {
     // remove shebang
     content = content.replace(/^\#\!.*/, '');
 
-    // Compile content if needed
-    var ext = path.extname(filename).slice(1);
-    if (extensionCache[ext]) {
-      content = extensionCache[ext](content);
-    }
-
-    if ("string" !== typeof content) {
-      self.exports = content;
-      return;
-    }
-
     function require (path) {
       return loadModule(path, self);
     }
 
     require.paths = modulePaths;
     require.main = process.mainModule;
+    // Enable support to add extra extension types
+    require.extensions = extensions;
+    // TODO: Insert depreciation warning
     require.registerExtension = registerExtension;
 
     var dirname = path.dirname(filename);
@@ -366,10 +326,16 @@ var module = (function () {
   };
 
 
-  Module.prototype._loadScript = function (filename) {
+  // Native extension for .js
+  extensions['.js'] = function (module, filename) {
     var content = requireNative('fs').readFileSync(filename, 'utf8');
-    this._compile(content, filename);
-    this.loaded = true;
+    module._compile(content, filename);
+  };
+
+
+  // Native extension for .node
+  extensions['.node'] = function (module, filename) {
+    process.dlopen(filename, module.exports);
   };
 
 
