@@ -7,7 +7,7 @@ ReferenceError: foo is not defined
     at evalmachine.<anonymous>:*
     at *test/message/undefined_reference_in_new_context.js:*
     at Module._compile (node.js:*)
-    at Module._loadScript (node.js:*)
+    at Object..js (node.js:*)
     at Module.load (node.js:*)
     at Object.runMain (node.js:*)
     at Array.<anonymous> (node.js:*)
