@@ -76,6 +76,8 @@ require.extensions['.test'] = function (module, filename) {
 };
 
 assert.equal(require('../fixtures/registerExt').test, "passed");
+// unknown extension, load as .js
+assert.equal(require('../fixtures/registerExt.hello.world').test, "passed");
 
 common.debug('load custom file types that return non-strings');
 require.extensions['.test'] = function (module, filename) {

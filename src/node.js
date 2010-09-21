@@ -251,6 +251,7 @@ var module = (function () {
     this.filename = filename;
 
     var extension = path.extname(filename) || '.js';
+    if (!extensions[extension]) extension = '.js';
     extensions[extension](this, filename);
     this.loaded = true;
   };
