@@ -788,8 +788,14 @@ class Assembler : public Malloced {
   void xorpd(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
+  void andpd(XMMRegister dst, XMMRegister src);
+
   void ucomisd(XMMRegister dst, XMMRegister src);
   void movmskpd(Register dst, XMMRegister src);
+
+  void cmpltsd(XMMRegister dst, XMMRegister src);
+
+  void movaps(XMMRegister dst, XMMRegister src);
 
   void movdqa(XMMRegister dst, const Operand& src);
   void movdqa(const Operand& dst, XMMRegister src);
@@ -805,6 +811,8 @@ class Assembler : public Malloced {
 
   void pxor(XMMRegister dst, XMMRegister src);
   void ptest(XMMRegister dst, XMMRegister src);
+
+  void psllq(XMMRegister reg, int8_t imm8);
 
   // Parallel XMM operations.
   void movntdqa(XMMRegister src, const Operand& dst);

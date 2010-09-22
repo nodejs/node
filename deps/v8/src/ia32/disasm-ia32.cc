@@ -685,7 +685,8 @@ int DisassemblerIA32::MemoryFPUInstruction(int escape_opcode,
 
     case 0xDD: switch (regop) {
         case 0: mnem = "fld_d"; break;
-        case 2: mnem = "fstp"; break;
+        case 1: mnem = "fisttp_d"; break;
+        case 2: mnem = "fst_d"; break;
         case 3: mnem = "fstp_d"; break;
         default: UnimplementedInstruction();
       }
@@ -957,6 +958,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           } else if (f0byte == 0xA2 || f0byte == 0x31) {
             AppendToBuffer("%s", f0mnem);
             data += 2;
+          } else if (f0byte == 0x28) {
+            data += 2;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("movaps %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
           } else if ((f0byte & 0xF0) == 0x80) {
             data += JumpConditional(data, branch_hint);
           } else if (f0byte == 0xBE || f0byte == 0xBF || f0byte == 0xB6 ||
@@ -1156,6 +1165,23 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                             NameOfXMMRegister(regop),
                             NameOfXMMRegister(rm));
              data++;
+          } else if (*data == 0x73) {
+             data++;
+             int mod, regop, rm;
+             get_modrm(*data, &mod, &regop, &rm);
+             int8_t imm8 = static_cast<int8_t>(data[1]);
+             AppendToBuffer("psllq %s,%d",
+                            NameOfXMMRegister(rm),
+                            static_cast<int>(imm8));
+             data += 2;
+          } else if (*data == 0x54) {
+             data++;
+             int mod, regop, rm;
+             get_modrm(*data, &mod, &regop, &rm);
+             AppendToBuffer("andpd %s,%s",
+                            NameOfXMMRegister(regop),
+                            NameOfXMMRegister(rm));
+             data++;
           } else {
             UnimplementedInstruction();
           }
@@ -1274,6 +1300,23 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                                NameOfXMMRegister(rm));
                 data++;
               }
+            } else if (b2 == 0xC2) {
+              // Intel manual 2A, Table 3-18.
+              const char* const pseudo_op[] = {
+                "cmpeqsd",
+                "cmpltsd",
+                "cmplesd",
+                "cmpunordsd",
+                "cmpneqsd",
+                "cmpnltsd",
+                "cmpnlesd",
+                "cmpordsd"
+              };
+              AppendToBuffer("%s %s,%s",
+                             pseudo_op[data[1]],
+                             NameOfXMMRegister(regop),
+                             NameOfXMMRegister(rm));
+              data += 2;
             } else {
               if (mod != 0x3) {
                 AppendToBuffer("%s %s,", mnem, NameOfXMMRegister(regop));
@@ -1367,7 +1410,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                                      " %s",
                                      tmp_buffer_.start());
   return instr_len;
-}
+}  // NOLINT (function is too long)
 
 
 //------------------------------------------------------------------------------

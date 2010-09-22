@@ -65,11 +65,12 @@ bool DoubleToAscii(double v, DtoaMode mode, int requested_digits,
 
   switch (mode) {
     case DTOA_SHORTEST:
-      return FastDtoa(v, buffer, length, point);
+      return FastDtoa(v, FAST_DTOA_SHORTEST, 0, buffer, length, point);
     case DTOA_FIXED:
       return FastFixedDtoa(v, requested_digits, buffer, length, point);
-    default:
-      break;
+    case DTOA_PRECISION:
+      return FastDtoa(v, FAST_DTOA_PRECISION, requested_digits,
+                      buffer, length, point);
   }
   return false;
 }

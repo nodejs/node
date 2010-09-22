@@ -1200,6 +1200,15 @@ void Debug::ChangeBreakOnException(ExceptionBreakType type, bool enable) {
 }
 
 
+bool Debug::IsBreakOnException(ExceptionBreakType type) {
+  if (type == BreakUncaughtException) {
+    return break_on_uncaught_exception_;
+  } else {
+    return break_on_exception_;
+  }
+}
+
+
 void Debug::PrepareStep(StepAction step_action, int step_count) {
   HandleScope scope;
   ASSERT(Debug::InDebugger());

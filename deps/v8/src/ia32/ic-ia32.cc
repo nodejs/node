@@ -692,7 +692,6 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   //  -- esp[0] : return address
   // -----------------------------------
   Label miss;
-  Label index_out_of_range;
 
   Register receiver = edx;
   Register index = eax;
@@ -707,17 +706,13 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
                                           result,
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.
-                                          &index_out_of_range,
+                                          &miss,  // When index out of range.
                                           STRING_INDEX_IS_ARRAY_INDEX);
   char_at_generator.GenerateFast(masm);
   __ ret(0);
 
   ICRuntimeCallHelper call_helper;
   char_at_generator.GenerateSlow(masm, call_helper);
-
-  __ bind(&index_out_of_range);
-  __ Set(eax, Immediate(Factory::undefined_value()));
-  __ ret(0);
 
   __ bind(&miss);
   GenerateMiss(masm);
@@ -1662,6 +1657,38 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
   Address offset_address =
       test_instruction_address + delta + kOffsetToLoadInstruction + 2;
   *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
+  return true;
+}
+
+
+// One byte opcode for mov ecx,0xXXXXXXXX.
+static const byte kMovEcxByte = 0xB9;
+
+bool LoadIC::PatchInlinedContextualLoad(Address address,
+                                        Object* map,
+                                        Object* cell) {
+  // The address of the instruction following the call.
+  Address mov_instruction_address =
+      address + Assembler::kCallTargetAddressOffset;
+  // If the instruction following the call is not a cmp eax, nothing
+  // was inlined.
+  if (*mov_instruction_address != kMovEcxByte) return false;
+
+  Address delta_address = mov_instruction_address + 1;
+  // The delta to the start of the map check instruction.
+  int delta = *reinterpret_cast<int*>(delta_address);
+
+  // The map address is the last 4 bytes of the 7-byte
+  // operand-immediate compare instruction, so we add 3 to get the
+  // offset to the last 4 bytes.
+  Address map_address = mov_instruction_address + delta + 3;
+  *(reinterpret_cast<Object**>(map_address)) = map;
+
+  // The cell is in the last 4 bytes of a five byte mov reg, imm32
+  // instruction, so we add 1 to get the offset to the last 4 bytes.
+  Address offset_address =
+      mov_instruction_address + delta + kOffsetToLoadInstruction + 1;
+  *reinterpret_cast<Object**>(offset_address) = cell;
   return true;
 }
 

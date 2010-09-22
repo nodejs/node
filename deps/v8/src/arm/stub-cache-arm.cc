@@ -266,7 +266,12 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 
 
 void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
-    MacroAssembler* masm, int index, Register prototype) {
+    MacroAssembler* masm, int index, Register prototype, Label* miss) {
+  // Check we're still in the same context.
+  __ ldr(prototype, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ Move(ip, Top::global());
+  __ cmp(prototype, ip);
+  __ b(ne, miss);
   // Get the global function with the given index.
   JSFunction* function = JSFunction::cast(Top::global_context()->get(index));
   // Load its initial map. The global functions all have initial maps.
@@ -1434,7 +1439,8 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
-                                            r0);
+                                            r0,
+                                            &miss);
   ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder,
                   r1, r3, r4, name, &miss);
@@ -1505,7 +1511,8 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
-                                            r0);
+                                            r0,
+                                            &miss);
   ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder,
                   r1, r3, r4, name, &miss);
@@ -1626,6 +1633,16 @@ Object* CallStubCompiler::CompileStringFromCharCodeCall(
 }
 
 
+Object* CallStubCompiler::CompileMathFloorCall(Object* object,
+                                               JSObject* holder,
+                                               JSGlobalPropertyCell* cell,
+                                               JSFunction* function,
+                                               String* name) {
+  // TODO(872): implement this.
+  return Heap::undefined_value();
+}
+
+
 Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSObject* holder,
                                               JSFunction* function,
@@ -1705,7 +1722,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ b(hs, &miss);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::STRING_FUNCTION_INDEX, r0);
+            masm(), Context::STRING_FUNCTION_INDEX, r0, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
                         r1, r4, name, &miss);
       }
@@ -1725,7 +1742,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::NUMBER_FUNCTION_INDEX, r0);
+            masm(), Context::NUMBER_FUNCTION_INDEX, r0, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
                         r1, r4, name, &miss);
       }
@@ -1748,7 +1765,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::BOOLEAN_FUNCTION_INDEX, r0);
+            masm(), Context::BOOLEAN_FUNCTION_INDEX, r0, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
                         r1, r4, name, &miss);
       }
@@ -2212,11 +2229,11 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   }
 
   __ mov(r0, r4);
-  __ IncrementCounter(&Counters::named_load_global_inline, 1, r1, r3);
+  __ IncrementCounter(&Counters::named_load_global_stub, 1, r1, r3);
   __ Ret();
 
   __ bind(&miss);
-  __ IncrementCounter(&Counters::named_load_global_inline_miss, 1, r1, r3);
+  __ IncrementCounter(&Counters::named_load_global_stub_miss, 1, r1, r3);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.

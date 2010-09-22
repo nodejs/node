@@ -101,10 +101,7 @@ class ScriptDataImpl : public ScriptData {
  public:
   explicit ScriptDataImpl(Vector<unsigned> store)
       : store_(store),
-        function_index_(kHeaderSize),
-        owns_store_(true) {
-    Initialize();
-  }
+        owns_store_(true) { }
 
   // Create an empty ScriptDataImpl that is guaranteed to not satisfy
   // a SanityCheck.
@@ -190,10 +187,8 @@ class ScriptDataImpl : public ScriptData {
   ScriptDataImpl(const char* backing_store, int length)
       : store_(reinterpret_cast<unsigned*>(const_cast<char*>(backing_store)),
                length / sizeof(unsigned)),
-        function_index_(kHeaderSize),
         owns_store_(false) {
     ASSERT_EQ(0, reinterpret_cast<intptr_t>(backing_store) % sizeof(unsigned));
-    Initialize();
   }
 
   // Read strings written by ParserRecorder::WriteString.

@@ -412,6 +412,24 @@ TEST(DisasmIa320) {
     }
   }
 
+  // andpd, cmpltsd, movaps, psllq.
+  {
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatures::Scope fscope(SSE2);
+      __ andpd(xmm0, xmm1);
+      __ andpd(xmm1, xmm2);
+
+      __ cmpltsd(xmm0, xmm1);
+      __ cmpltsd(xmm1, xmm2);
+
+      __ movaps(xmm0, xmm1);
+      __ movaps(xmm1, xmm2);
+
+      __ psllq(xmm0, 17);
+      __ psllq(xmm1, 42);
+    }
+  }
+
   __ ret(0);
 
   CodeDesc desc;

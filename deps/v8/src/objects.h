@@ -1892,6 +1892,11 @@ class DescriptorArray: public FixedArray {
   MUST_USE_RESULT Object* RemoveTransitions();
 
   // Sort the instance descriptors by the hash codes of their keys.
+  // Does not check for duplicates.
+  void SortUnchecked();
+
+  // Sort the instance descriptors by the hash codes of their keys.
+  // Checks the result for duplicates.
   void Sort();
 
   // Search the instance descriptors for given name.
@@ -3541,6 +3546,10 @@ class SharedFunctionInfo: public HeapObject {
   // Check whether a inlined constructor can be generated with the given
   // prototype.
   bool CanGenerateInlineConstructor(Object* prototype);
+
+  // Prevents further attempts to generate inline constructors.
+  // To be called if generation failed for any reason.
+  void ForbidInlineConstructor();
 
   // For functions which only contains this property assignments this provides
   // access to the names for the properties assigned.

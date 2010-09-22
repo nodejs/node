@@ -1553,6 +1553,17 @@ void MacroAssembler::ConvertToInt32(Register dst,
 }
 
 
+void MacroAssembler::LoadPowerOf2(XMMRegister dst,
+                                  Register scratch,
+                                  int power) {
+  ASSERT(is_uintn(power + HeapNumber::kExponentBias,
+                  HeapNumber::kExponentBits));
+  mov(scratch, Immediate(power + HeapNumber::kExponentBias));
+  movd(dst, Operand(scratch));
+  psllq(dst, HeapNumber::kMantissaBits);
+}
+
+
 void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
     Register instance_type,
     Register scratch,

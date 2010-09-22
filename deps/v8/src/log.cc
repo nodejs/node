@@ -171,7 +171,9 @@ void StackTracer::Trace(TickSample* sample) {
   SafeStackTraceFrameIterator it(sample->fp, sample->sp,
                                  sample->sp, js_entry_sp);
   while (!it.done() && i < TickSample::kMaxFramesCount) {
-    sample->stack[i++] = reinterpret_cast<Address>(it.frame()->function());
+    sample->stack[i++] =
+        reinterpret_cast<Address>(it.frame()->function_slot_object()) -
+            kHeapObjectTag;
     it.Advance();
   }
   sample->frames_count = i;

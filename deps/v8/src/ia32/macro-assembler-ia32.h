@@ -258,6 +258,8 @@ class MacroAssembler: public Assembler {
                       TypeInfo info,
                       Label* on_not_int32);
 
+  void LoadPowerOf2(XMMRegister dst, Register scratch, int power);
+
   // Abort execution if argument is not a number. Used in debug code.
   void AbortIfNotNumber(Register object);
 

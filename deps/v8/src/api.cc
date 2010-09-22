@@ -4433,7 +4433,7 @@ double CpuProfileNode::GetSelfSamplesCount() const {
 
 unsigned CpuProfileNode::GetCallUid() const {
   IsDeadCheck("v8::CpuProfileNode::GetCallUid");
-  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->call_uid();
+  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->GetCallUid();
 }
 
 

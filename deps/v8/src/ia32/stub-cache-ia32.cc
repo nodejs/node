@@ -265,7 +265,11 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 
 
 void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
-    MacroAssembler* masm, int index, Register prototype) {
+    MacroAssembler* masm, int index, Register prototype, Label* miss) {
+  // Check we're still in the same context.
+  __ cmp(Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)),
+         Top::global());
+  __ j(not_equal, miss);
   // Get the global function with the given index.
   JSFunction* function = JSFunction::cast(Top::global_context()->get(index));
   // Load its initial map. The global functions all have initial maps.
@@ -1626,7 +1630,8 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
-                                            eax);
+                                            eax,
+                                            &miss);
   ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, edi, name, &miss);
@@ -1695,7 +1700,8 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
-                                            eax);
+                                            eax,
+                                            &miss);
   ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                   ebx, edx, edi, name, &miss);
@@ -1813,6 +1819,131 @@ Object* CallStubCompiler::CompileStringFromCharCodeCall(
 }
 
 
+Object* CallStubCompiler::CompileMathFloorCall(Object* object,
+                                               JSObject* holder,
+                                               JSGlobalPropertyCell* cell,
+                                               JSFunction* function,
+                                               String* name) {
+  // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
+  if (!CpuFeatures::IsSupported(SSE2)) return Heap::undefined_value();
+  CpuFeatures::Scope use_sse2(SSE2);
+
+  const int argc = arguments().immediate();
+
+  // If the object is not a JSObject or we got an unexpected number of
+  // arguments, bail out to the regular call.
+  if (!object->IsJSObject() || argc != 1) return Heap::undefined_value();
+
+  Label miss;
+  GenerateNameCheck(name, &miss);
+
+  if (cell == NULL) {
+    __ mov(edx, Operand(esp, 2 * kPointerSize));
+
+    STATIC_ASSERT(kSmiTag == 0);
+    __ test(edx, Immediate(kSmiTagMask));
+    __ j(zero, &miss);
+
+    CheckPrototypes(JSObject::cast(object), edx, holder, ebx, eax, edi, name,
+                    &miss);
+  } else {
+    ASSERT(cell->value() == function);
+    GenerateGlobalReceiverCheck(JSObject::cast(object), holder, name, &miss);
+    GenerateLoadFunctionFromCell(cell, function, &miss);
+  }
+
+  // Load the (only) argument into eax.
+  __ mov(eax, Operand(esp, 1 * kPointerSize));
+
+  // Check if the argument is a smi.
+  Label smi;
+  STATIC_ASSERT(kSmiTag == 0);
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &smi);
+
+  // Check if the argument is a heap number and load its value into xmm0.
+  Label slow;
+  __ CheckMap(eax, Factory::heap_number_map(), &slow, true);
+  __ movdbl(xmm0, FieldOperand(eax, HeapNumber::kValueOffset));
+
+  // Check if the argument is strictly positive. Note this also
+  // discards NaN.
+  __ xorpd(xmm1, xmm1);
+  __ ucomisd(xmm0, xmm1);
+  __ j(below_equal, &slow);
+
+  // Do a truncating conversion.
+  __ cvttsd2si(eax, Operand(xmm0));
+
+  // Check if the result fits into a smi. Note this also checks for
+  // 0x80000000 which signals a failed conversion.
+  Label wont_fit_into_smi;
+  __ test(eax, Immediate(0xc0000000));
+  __ j(not_zero, &wont_fit_into_smi);
+
+  // Smi tag and return.
+  __ SmiTag(eax);
+  __ bind(&smi);
+  __ ret(2 * kPointerSize);
+
+  // Check if the argument is < 2^kMantissaBits.
+  Label already_round;
+  __ bind(&wont_fit_into_smi);
+  __ LoadPowerOf2(xmm1, ebx, HeapNumber::kMantissaBits);
+  __ ucomisd(xmm0, xmm1);
+  __ j(above_equal, &already_round);
+
+  // Save a copy of the argument.
+  __ movaps(xmm2, xmm0);
+
+  // Compute (argument + 2^kMantissaBits) - 2^kMantissaBits.
+  __ addsd(xmm0, xmm1);
+  __ subsd(xmm0, xmm1);
+
+  // Compare the argument and the tentative result to get the right mask:
+  //   if xmm2 < xmm0:
+  //     xmm2 = 1...1
+  //   else:
+  //     xmm2 = 0...0
+  __ cmpltsd(xmm2, xmm0);
+
+  // Subtract 1 if the argument was less than the tentative result.
+  __ LoadPowerOf2(xmm1, ebx, 0);
+  __ andpd(xmm1, xmm2);
+  __ subsd(xmm0, xmm1);
+
+  // Return a new heap number.
+  __ AllocateHeapNumber(eax, ebx, edx, &slow);
+  __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
+  __ ret(2 * kPointerSize);
+
+  // Return the argument (when it's an already round heap number).
+  __ bind(&already_round);
+  __ mov(eax, Operand(esp, 1 * kPointerSize));
+  __ ret(2 * kPointerSize);
+
+  // Tail call the full function. We do not have to patch the receiver
+  // because the function makes no use of it.
+  __ bind(&slow);
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+
+  __ bind(&miss);
+  // ecx: function name.
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
+
+  // Return the generated code.
+  return (cell == NULL) ? GetCode(function) : GetCode(NORMAL, name);
+}
+
+
 Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSObject* holder,
                                               JSFunction* function,
@@ -1894,7 +2025,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ j(above_equal, &miss, not_taken);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::STRING_FUNCTION_INDEX, eax);
+            masm(), Context::STRING_FUNCTION_INDEX, eax, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, edi, name, &miss);
       }
@@ -1914,7 +2045,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::NUMBER_FUNCTION_INDEX, eax);
+            masm(), Context::NUMBER_FUNCTION_INDEX, eax, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, edi, name, &miss);
       }
@@ -1935,7 +2066,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::BOOLEAN_FUNCTION_INDEX, eax);
+            masm(), Context::BOOLEAN_FUNCTION_INDEX, eax, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                         ebx, edx, edi, name, &miss);
       }
@@ -2474,12 +2605,12 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 
-  __ IncrementCounter(&Counters::named_load_global_inline, 1);
+  __ IncrementCounter(&Counters::named_load_global_stub, 1);
   __ mov(eax, ebx);
   __ ret(0);
 
   __ bind(&miss);
-  __ IncrementCounter(&Counters::named_load_global_inline_miss, 1);
+  __ IncrementCounter(&Counters::named_load_global_stub_miss, 1);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.

@@ -1001,7 +1001,7 @@ class CompleteParserRecorder: public PartialParserRecorder {
       Vector<Vector<const char> > symbol = symbol_entries_.AddBlock(1, literal);
       entry->key = &symbol[0];
     }
-    symbol_store_.Add(id - 1);
+    WriteNumber(id - 1);
   }
 
   virtual Vector<unsigned> ExtractData() {
@@ -1457,7 +1457,7 @@ Parser::Parser(Handle<Script> script,
                ParserLog* log,
                ScriptDataImpl* pre_data)
     : script_(script),
-      scanner_(is_pre_parsing),
+      scanner_(),
       top_scope_(NULL),
       with_nesting_level_(0),
       temp_scope_(NULL),
@@ -1503,6 +1503,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
   source->TryFlatten();
   scanner_.Initialize(source, JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
+  if (pre_data_ != NULL) pre_data_->Initialize();
 
   // Compute the parsing mode.
   mode_ = FLAG_lazy ? PARSE_LAZILY : PARSE_EAGERLY;
@@ -5492,7 +5493,9 @@ ScriptDataImpl* PartialPreParse(Handle<String> source,
 
 
 void ScriptDataImpl::Initialize() {
+  // Prepares state for use.
   if (store_.length() >= kHeaderSize) {
+    function_index_ = kHeaderSize;
     int symbol_data_offset = kHeaderSize + store_[kFunctionsSizeOffset];
     if (store_.length() > symbol_data_offset) {
       symbol_data_ = reinterpret_cast<byte*>(&store_[symbol_data_offset]);

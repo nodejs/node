@@ -206,21 +206,8 @@ static Handle<JSFunction> CompileFunction(const char* source) {
 }
 
 
-static Local<Value> GetGlobalProperty(const char* name) {
-  return env->Global()->Get(String::New(name));
-}
-
-
-static Handle<JSFunction> GetGlobalJSFunction(const char* name) {
-  Handle<JSFunction> result(JSFunction::cast(
-      *v8::Utils::OpenHandle(*GetGlobalProperty(name))));
-  return result;
-}
-
-
-static void CheckObjectIsJSFunction(const char* func_name,
-                                    Address addr) {
-  i::Object* obj = reinterpret_cast<i::Object*>(addr);
+static void CheckJSFunctionAtAddress(const char* func_name, Address addr) {
+  i::Object* obj = i::HeapObject::FromAddress(addr);
   CHECK(obj->IsJSFunction());
   CHECK(JSFunction::cast(obj)->shared()->name()->IsString());
   i::SmartPointer<char> found_name =
@@ -304,7 +291,6 @@ static void CreateTraceCallerFunction(const char* func_name,
 #endif
 
   SetGlobalProperty(func_name, v8::ToApi<Value>(func));
-  CHECK_EQ(*func, *GetGlobalJSFunction(func_name));
 }
 
 
@@ -332,13 +318,13 @@ TEST(CFromJSStackTrace) {
   // script [JS]
   //   JSTrace() [JS]
   //     JSFuncDoTrace() [JS] [captures EBP value and encodes it as Smi]
-  //       trace(EBP encoded as Smi) [native (extension)]
+  //       trace(EBP) [native (extension)]
   //         DoTrace(EBP) [native]
   //           StackTracer::Trace
   CHECK_GT(sample.frames_count, 1);
   // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
-  CheckObjectIsJSFunction("JSFuncDoTrace", sample.stack[0]);
-  CheckObjectIsJSFunction("JSTrace", sample.stack[1]);
+  CheckJSFunctionAtAddress("JSFuncDoTrace", sample.stack[0]);
+  CheckJSFunctionAtAddress("JSTrace", sample.stack[1]);
 }
 
 
@@ -370,19 +356,18 @@ TEST(PureJSStackTrace) {
   // script [JS]
   //   OuterJSTrace() [JS]
   //     JSTrace() [JS]
-  //       JSFuncDoTrace() [JS] [captures EBP value and encodes it as Smi]
-  //         js_trace(EBP encoded as Smi) [native (extension)]
+  //       JSFuncDoTrace() [JS]
+  //         js_trace(EBP) [native (extension)]
   //           DoTraceHideCEntryFPAddress(EBP) [native]
   //             StackTracer::Trace
   //
   // The last JS function called. It is only visible through
   // sample.function, as its return address is above captured EBP value.
-  CHECK_EQ(GetGlobalJSFunction("JSFuncDoTrace")->address(),
-           sample.function);
+  CheckJSFunctionAtAddress("JSFuncDoTrace", sample.function);
   CHECK_GT(sample.frames_count, 1);
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
-  CheckObjectIsJSFunction("JSTrace", sample.stack[0]);
-  CheckObjectIsJSFunction("OuterJSTrace", sample.stack[1]);
+  CheckJSFunctionAtAddress("JSTrace", sample.stack[0]);
+  CheckJSFunctionAtAddress("OuterJSTrace", sample.stack[1]);
 }
 
 

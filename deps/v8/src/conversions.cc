@@ -956,8 +956,9 @@ static char* CreateExponentialRepresentation(char* decimal_rep,
 
 
 char* DoubleToExponentialCString(double value, int f) {
+  const int kMaxDigitsAfterPoint = 20;
   // f might be -1 to signal that f was undefined in JavaScript.
-  ASSERT(f >= -1 && f <= 20);
+  ASSERT(f >= -1 && f <= kMaxDigitsAfterPoint);
 
   bool negative = false;
   if (value < 0) {
@@ -969,29 +970,60 @@ char* DoubleToExponentialCString(double value, int f) {
   int decimal_point;
   int sign;
   char* decimal_rep = NULL;
+  bool used_gay_dtoa = false;
+  // f corresponds to the digits after the point. There is always one digit
+  // before the point. The number of requested_digits equals hence f + 1.
+  // And we have to add one character for the null-terminator.
+  const int kV8DtoaBufferCapacity = kMaxDigitsAfterPoint + 1 + 1;
+  // Make sure that the buffer is big enough, even if we fall back to the
+  // shortest representation (which happens when f equals -1).
+  ASSERT(kBase10MaximalLength <= kMaxDigitsAfterPoint + 1);
+  char v8_dtoa_buffer[kV8DtoaBufferCapacity];
+  int decimal_rep_length;
+
   if (f == -1) {
-    decimal_rep = dtoa(value, 0, 0, &decimal_point, &sign, NULL);
-    f = StrLength(decimal_rep) - 1;
+    if (DoubleToAscii(value, DTOA_SHORTEST, 0,
+                      Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
+                      &sign, &decimal_rep_length, &decimal_point)) {
+      f = decimal_rep_length - 1;
+      decimal_rep = v8_dtoa_buffer;
+    } else {
+      decimal_rep = dtoa(value, 0, 0, &decimal_point, &sign, NULL);
+      decimal_rep_length = StrLength(decimal_rep);
+      f = decimal_rep_length - 1;
+      used_gay_dtoa = true;
+    }
   } else {
-    decimal_rep = dtoa(value, 2, f + 1, &decimal_point, &sign, NULL);
+    if (DoubleToAscii(value, DTOA_PRECISION, f + 1,
+                      Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
+                      &sign, &decimal_rep_length, &decimal_point)) {
+      decimal_rep = v8_dtoa_buffer;
+    } else {
+      decimal_rep = dtoa(value, 2, f + 1, &decimal_point, &sign, NULL);
+      decimal_rep_length = StrLength(decimal_rep);
+      used_gay_dtoa = true;
+    }
   }
-  int decimal_rep_length = StrLength(decimal_rep);
   ASSERT(decimal_rep_length > 0);
   ASSERT(decimal_rep_length <= f + 1);
-  USE(decimal_rep_length);
 
   int exponent = decimal_point - 1;
   char* result =
       CreateExponentialRepresentation(decimal_rep, exponent, negative, f+1);
 
-  freedtoa(decimal_rep);
+  if (used_gay_dtoa) {
+    freedtoa(decimal_rep);
+  }
 
   return result;
 }
 
 
 char* DoubleToPrecisionCString(double value, int p) {
-  ASSERT(p >= 1 && p <= 21);
+  const int kMinimalDigits = 1;
+  const int kMaximalDigits = 21;
+  ASSERT(p >= kMinimalDigits && p <= kMaximalDigits);
+  USE(kMinimalDigits);
 
   bool negative = false;
   if (value < 0) {
@@ -1002,8 +1034,22 @@ char* DoubleToPrecisionCString(double value, int p) {
   // Find a sufficiently precise decimal representation of n.
   int decimal_point;
   int sign;
-  char* decimal_rep = dtoa(value, 2, p, &decimal_point, &sign, NULL);
-  int decimal_rep_length = StrLength(decimal_rep);
+  char* decimal_rep = NULL;
+  bool used_gay_dtoa = false;
+  // Add one for the terminating null character.
+  const int kV8DtoaBufferCapacity = kMaximalDigits + 1;
+  char v8_dtoa_buffer[kV8DtoaBufferCapacity];
+  int decimal_rep_length;
+
+  if (DoubleToAscii(value, DTOA_PRECISION, p,
+                    Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
+                    &sign, &decimal_rep_length, &decimal_point)) {
+    decimal_rep = v8_dtoa_buffer;
+  } else {
+    decimal_rep = dtoa(value, 2, p, &decimal_point, &sign, NULL);
+    decimal_rep_length = StrLength(decimal_rep);
+    used_gay_dtoa = true;
+  }
   ASSERT(decimal_rep_length <= p);
 
   int exponent = decimal_point - 1;
@@ -1047,7 +1093,9 @@ char* DoubleToPrecisionCString(double value, int p) {
     result = builder.Finalize();
   }
 
-  freedtoa(decimal_rep);
+  if (used_gay_dtoa) {
+    freedtoa(decimal_rep);
+  }
   return result;
 }
 

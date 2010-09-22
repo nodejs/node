@@ -1989,7 +1989,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(negative, &done);
   // Read the value from the static offsets vector buffer and make it a smi.
   __ movl(rdi, Operand(rcx, rdx, times_int_size, 0));
-  __ Integer32ToSmi(rdi, rdi, &runtime);
+  __ Integer32ToSmi(rdi, rdi);
   // Store the smi value in the last match info.
   __ movq(FieldOperand(rbx,
                        rdx,
@@ -3343,7 +3343,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Look at the length of the result of adding the two strings.
   STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue / 2);
-  __ SmiAdd(rbx, rbx, rcx, NULL);
+  __ SmiAdd(rbx, rbx, rcx);
   // Use the runtime system when adding two one character strings, as it
   // contains optimizations for this specific case using the symbol table.
   __ SmiCompare(rbx, Smi::FromInt(2));
@@ -3803,7 +3803,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ movq(rdx, Operand(rsp, kFromOffset));
   __ JumpIfNotBothPositiveSmi(rcx, rdx, &runtime);
 
-  __ SmiSub(rcx, rcx, rdx, NULL);  // Overflow doesn't happen.
+  __ SmiSub(rcx, rcx, rdx);  // Overflow doesn't happen.
   __ cmpq(FieldOperand(rax, String::kLengthOffset), rcx);
   Label return_rax;
   __ j(equal, &return_rax);
@@ -3936,8 +3936,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   __ movq(scratch4, scratch1);
   __ SmiSub(scratch4,
             scratch4,
-            FieldOperand(right, String::kLengthOffset),
-            NULL);
+            FieldOperand(right, String::kLengthOffset));
   // Register scratch4 now holds left.length - right.length.
   const Register length_difference = scratch4;
   Label left_shorter;
@@ -3945,7 +3944,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // The right string isn't longer that the left one.
   // Get the right string's length by subtracting the (non-negative) difference
   // from the left string's length.
-  __ SmiSub(scratch1, scratch1, length_difference, NULL);
+  __ SmiSub(scratch1, scratch1, length_difference);
   __ bind(&left_shorter);
   // Register scratch1 now holds Min(left.length, right.length).
   const Register min_length = scratch1;

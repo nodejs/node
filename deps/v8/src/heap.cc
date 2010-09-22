@@ -2650,6 +2650,20 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
 }
 
 
+static bool HasDuplicates(DescriptorArray* descriptors) {
+  int count = descriptors->number_of_descriptors();
+  if (count > 1) {
+    String* prev_key = descriptors->GetKey(0);
+    for (int i = 1; i != count; i++) {
+      String* current_key = descriptors->GetKey(i);
+      if (prev_key == current_key) return true;
+      prev_key = current_key;
+    }
+  }
+  return false;
+}
+
+
 Object* Heap::AllocateInitialMap(JSFunction* fun) {
   ASSERT(!fun->has_initial_map());
 
@@ -2683,23 +2697,34 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
   if (fun->shared()->CanGenerateInlineConstructor(prototype)) {
     int count = fun->shared()->this_property_assignments_count();
     if (count > in_object_properties) {
-      count = in_object_properties;
+      // Inline constructor can only handle inobject properties.
+      fun->shared()->ForbidInlineConstructor();
+    } else {
+      Object* descriptors_obj = DescriptorArray::Allocate(count);
+      if (descriptors_obj->IsFailure()) return descriptors_obj;
+      DescriptorArray* descriptors = DescriptorArray::cast(descriptors_obj);
+      for (int i = 0; i < count; i++) {
+        String* name = fun->shared()->GetThisPropertyAssignmentName(i);
+        ASSERT(name->IsSymbol());
+        FieldDescriptor field(name, i, NONE);
+        field.SetEnumerationIndex(i);
+        descriptors->Set(i, &field);
+      }
+      descriptors->SetNextEnumerationIndex(count);
+      descriptors->SortUnchecked();
+
+      // The descriptors may contain duplicates because the compiler does not
+      // guarantee the uniqueness of property names (it would have required
+      // quadratic time). Once the descriptors are sorted we can check for
+      // duplicates in linear time.
+      if (HasDuplicates(descriptors)) {
+        fun->shared()->ForbidInlineConstructor();
+      } else {
+        map->set_instance_descriptors(descriptors);
+        map->set_pre_allocated_property_fields(count);
+        map->set_unused_property_fields(in_object_properties - count);
+      }
     }
-    Object* descriptors_obj = DescriptorArray::Allocate(count);
-    if (descriptors_obj->IsFailure()) return descriptors_obj;
-    DescriptorArray* descriptors = DescriptorArray::cast(descriptors_obj);
-    for (int i = 0; i < count; i++) {
-      String* name = fun->shared()->GetThisPropertyAssignmentName(i);
-      ASSERT(name->IsSymbol());
-      FieldDescriptor field(name, i, NONE);
-      field.SetEnumerationIndex(i);
-      descriptors->Set(i, &field);
-    }
-    descriptors->SetNextEnumerationIndex(count);
-    descriptors->Sort();
-    map->set_instance_descriptors(descriptors);
-    map->set_pre_allocated_property_fields(count);
-    map->set_unused_property_fields(in_object_properties - count);
   }
   return map;
 }

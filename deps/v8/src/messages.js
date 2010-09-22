@@ -684,6 +684,11 @@ CallSite.prototype.getEvalOrigin = function () {
   return FormatEvalOrigin(script);
 };
 
+CallSite.prototype.getScriptNameOrSourceURL = function () {
+  var script = %FunctionGetScript(this.fun);
+  return script ? script.nameOrSourceURL() : null;
+};
+
 CallSite.prototype.getFunction = function () {
   return this.fun;
 };
@@ -775,7 +780,11 @@ CallSite.prototype.isConstructor = function () {
 };
 
 function FormatEvalOrigin(script) {
-  var eval_origin = "";
+  var sourceURL = script.nameOrSourceURL();
+  if (sourceURL)
+    return sourceURL;
+
+  var eval_origin = "eval at ";
   if (script.eval_from_function_name) {
     eval_origin += script.eval_from_function_name;
   } else {
@@ -786,9 +795,9 @@ function FormatEvalOrigin(script) {
   if (eval_from_script) {
     if (eval_from_script.compilation_type == COMPILATION_TYPE_EVAL) {
       // eval script originated from another eval.
-      eval_origin += " (eval at " + FormatEvalOrigin(eval_from_script) + ")";
+      eval_origin += " (" + FormatEvalOrigin(eval_from_script) + ")";
     } else {
-      // eval script originated from "real" scource.
+      // eval script originated from "real" source.
       if (eval_from_script.name) {
         eval_origin += " (" + eval_from_script.name;
         var location = eval_from_script.locationFromPosition(script.eval_from_script_position, true);
@@ -807,25 +816,30 @@ function FormatEvalOrigin(script) {
 };
 
 function FormatSourcePosition(frame) {
+  var fileName;
   var fileLocation = "";
   if (frame.isNative()) {
     fileLocation = "native";
   } else if (frame.isEval()) {
-    fileLocation = "eval at " + frame.getEvalOrigin();
+    fileName = frame.getScriptNameOrSourceURL();
+    if (!fileName)
+      fileLocation = frame.getEvalOrigin();
   } else {
-    var fileName = frame.getFileName();
-    if (fileName) {
-      fileLocation += fileName;
-      var lineNumber = frame.getLineNumber();
-      if (lineNumber != null) {
-        fileLocation += ":" + lineNumber;
-        var columnNumber = frame.getColumnNumber();
-        if (columnNumber) {
-          fileLocation += ":" + columnNumber;
-        }
+    fileName = frame.getFileName();
+  }
+
+  if (fileName) {
+    fileLocation += fileName;
+    var lineNumber = frame.getLineNumber();
+    if (lineNumber != null) {
+      fileLocation += ":" + lineNumber;
+      var columnNumber = frame.getColumnNumber();
+      if (columnNumber) {
+        fileLocation += ":" + columnNumber;
       }
     }
   }
+
   if (!fileLocation) {
     fileLocation = "unknown source";
   }

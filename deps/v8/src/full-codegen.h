@@ -509,6 +509,9 @@ class FullCodeGenerator: public AstVisitor {
   static Register result_register();
   static Register context_register();
 
+  // Helper for calling an IC stub.
+  void EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode);
+
   // Set fields in the stack frame. Offsets are the frame pointer relative
   // offsets defined in, e.g., StandardFrameConstants.
   void StoreToFrameField(int frame_offset, Register value);

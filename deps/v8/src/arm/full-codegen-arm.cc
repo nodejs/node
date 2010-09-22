@@ -620,7 +620,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       __ pop(r2);  // Receiver.
 
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      __ Call(ic, RelocInfo::CODE_TARGET);
+      EmitCallIC(ic, RelocInfo::CODE_TARGET);
       // Value in r0 is ignored (declarations are statements).
     }
   }
@@ -956,7 +956,7 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
                                                    slow));
           __ mov(r0, Operand(key_literal->handle()));
           Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-          __ Call(ic, RelocInfo::CODE_TARGET);
+          EmitCallIC(ic, RelocInfo::CODE_TARGET);
           __ jmp(done);
         }
       }
@@ -1022,7 +1022,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
       ? RelocInfo::CODE_TARGET
       : RelocInfo::CODE_TARGET_CONTEXT;
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  __ Call(ic, mode);
+  EmitCallIC(ic, mode);
 }
 
 
@@ -1041,7 +1041,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     __ ldr(r0, CodeGenerator::GlobalObject());
     __ mov(r2, Operand(var->name()));
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-    __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+    EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
     Apply(context, r0);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
@@ -1100,7 +1100,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
 
     // Call keyed load IC. It has arguments key and receiver in r0 and r1.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-    __ Call(ic, RelocInfo::CODE_TARGET);
+    EmitCallIC(ic, RelocInfo::CODE_TARGET);
     Apply(context, r0);
   }
 }
@@ -1189,7 +1189,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           __ mov(r2, Operand(key->handle()));
           __ ldr(r1, MemOperand(sp));
           Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-          __ Call(ic, RelocInfo::CODE_TARGET);
+          EmitCallIC(ic, RelocInfo::CODE_TARGET);
           break;
         }
         // Fall through.
@@ -1409,7 +1409,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   __ mov(r2, Operand(key->handle()));
   // Call load IC. It has arguments receiver and property name r0 and r2.
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  __ Call(ic, RelocInfo::CODE_TARGET);
+  EmitCallIC(ic, RelocInfo::CODE_TARGET);
 }
 
 
@@ -1417,7 +1417,7 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   // Call keyed load IC. It has arguments key and receiver in r0 and r1.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  __ Call(ic, RelocInfo::CODE_TARGET);
+  EmitCallIC(ic, RelocInfo::CODE_TARGET);
 }
 
 
@@ -1475,7 +1475,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       __ pop(r0);  // Restore value.
       __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      __ Call(ic, RelocInfo::CODE_TARGET);
+      EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
     case KEYED_PROPERTY: {
@@ -1486,7 +1486,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       __ pop(r2);
       __ pop(r0);  // Restore value.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      __ Call(ic, RelocInfo::CODE_TARGET);
+      EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
   }
@@ -1509,7 +1509,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     __ mov(r2, Operand(var->name()));
     __ ldr(r1, CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-    __ Call(ic, RelocInfo::CODE_TARGET);
+    EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   } else if (var->mode() != Variable::CONST || op == Token::INIT_CONST) {
     // Perform the assignment for non-const variables and for initialization
@@ -1598,7 +1598,7 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   }
 
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-  __ Call(ic, RelocInfo::CODE_TARGET);
+  EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
@@ -1642,7 +1642,7 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   }
 
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-  __ Call(ic, RelocInfo::CODE_TARGET);
+  EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
@@ -1691,7 +1691,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Call the IC initialization code.
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
-  __ Call(ic, mode);
+  EmitCallIC(ic, mode);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   Apply(context_, r0);
@@ -1715,7 +1715,7 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic = CodeGenerator::ComputeKeyedCallInitialize(arg_count,
                                                               in_loop);
-  __ Call(ic, mode);
+  EmitCallIC(ic, mode);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   Apply(context_, r0);
@@ -1854,7 +1854,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         __ pop(r1);  // We do not need to keep the receiver.
 
         Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-        __ Call(ic, RelocInfo::CODE_TARGET);
+        EmitCallIC(ic, RelocInfo::CODE_TARGET);
         __ ldr(r1, CodeGenerator::GlobalObject());
         __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
         __ Push(r0, r1);  // Function, receiver.
@@ -2769,7 +2769,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     __ mov(r2, Operand(expr->name()));
     Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
                                                            NOT_IN_LOOP);
-    __ Call(ic, RelocInfo::CODE_TARGET);
+    EmitCallIC(ic, RelocInfo::CODE_TARGET);
     // Restore context register.
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   } else {
@@ -3065,7 +3065,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
       __ pop(r1);
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      __ Call(ic, RelocInfo::CODE_TARGET);
+      EmitCallIC(ic, RelocInfo::CODE_TARGET);
       if (expr->is_postfix()) {
         if (context_ != Expression::kEffect) {
           ApplyTOS(context_);
@@ -3079,7 +3079,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ pop(r1);  // Key.
       __ pop(r2);  // Receiver.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      __ Call(ic, RelocInfo::CODE_TARGET);
+      EmitCallIC(ic, RelocInfo::CODE_TARGET);
       if (expr->is_postfix()) {
         if (context_ != Expression::kEffect) {
           ApplyTOS(context_);
@@ -3102,7 +3102,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr, Location where) {
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
-    __ Call(ic, RelocInfo::CODE_TARGET);
+    EmitCallIC(ic, RelocInfo::CODE_TARGET);
     if (where == kStack) __ push(r0);
   } else if (proxy != NULL &&
              proxy->var()->slot() != NULL &&
@@ -3365,10 +3365,21 @@ void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
 }
 
 
-Register FullCodeGenerator::result_register() { return r0; }
+Register FullCodeGenerator::result_register() {
+  return r0;
+}
 
 
-Register FullCodeGenerator::context_register() { return cp; }
+Register FullCodeGenerator::context_register() {
+  return cp;
+}
+
+
+void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
+  ASSERT(mode == RelocInfo::CODE_TARGET ||
+         mode == RelocInfo::CODE_TARGET_CONTEXT);
+  __ Call(ic, mode);
+}
 
 
 void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {

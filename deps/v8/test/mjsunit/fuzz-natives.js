@@ -129,7 +129,6 @@ var knownProblems = {
   // which means that we have to propagate errors back.
   "SetFunctionBreakPoint": true,
   "SetScriptBreakPoint": true,
-  "ChangeBreakOnException": true,
   "PrepareStep": true,
 
   // Too slow.

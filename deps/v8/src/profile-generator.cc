@@ -121,16 +121,34 @@ const char* StringsStorage::GetName(String* name) {
 
 
 const char* CodeEntry::kEmptyNamePrefix = "";
-unsigned CodeEntry::next_call_uid_ = 1;
 
 
 void CodeEntry::CopyData(const CodeEntry& source) {
-  call_uid_ = source.call_uid_;
   tag_ = source.tag_;
   name_prefix_ = source.name_prefix_;
   name_ = source.name_;
   resource_name_ = source.resource_name_;
   line_number_ = source.line_number_;
+}
+
+
+uint32_t CodeEntry::GetCallUid() const {
+  uint32_t hash = ComputeIntegerHash(tag_);
+  hash ^= static_cast<int32_t>(reinterpret_cast<intptr_t>(name_prefix_));
+  hash ^= static_cast<int32_t>(reinterpret_cast<intptr_t>(name_));
+  hash ^= static_cast<int32_t>(reinterpret_cast<intptr_t>(resource_name_));
+  hash ^= static_cast<int32_t>(line_number_);
+  return hash;
+}
+
+
+bool CodeEntry::IsSameAs(CodeEntry* entry) const {
+  return this == entry
+      || (tag_ == entry->tag_
+          && name_prefix_ == entry->name_prefix_
+          && name_ == entry->name_
+          && resource_name_ == entry->resource_name_
+          && line_number_ == entry->line_number_);
 }
 
 

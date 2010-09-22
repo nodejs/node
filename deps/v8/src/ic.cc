@@ -299,6 +299,7 @@ void LoadIC::ClearInlinedVersion(Address address) {
   // present) to guarantee failure by holding an invalid map (the null
   // value).  The offset can be patched to anything.
   PatchInlinedLoad(address, Heap::null_value(), 0);
+  PatchInlinedContextualLoad(address, Heap::null_value(), Heap::null_value());
 }
 
 
@@ -720,6 +721,14 @@ Object* KeyedCallIC::LoadFunction(State state,
 }
 
 
+#ifdef DEBUG
+#define TRACE_IC_NAMED(msg, name) \
+  if (FLAG_trace_ic) PrintF(msg, *(name)->ToCString())
+#else
+#define TRACE_IC_NAMED(msg, name)
+#endif
+
+
 Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
@@ -797,14 +806,23 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
     LOG(SuspectReadEvent(*name, *object));
   }
 
-  bool can_be_inlined =
+  bool can_be_inlined_precheck =
       FLAG_use_ic &&
-      state == PREMONOMORPHIC &&
       lookup.IsProperty() &&
       lookup.IsCacheable() &&
       lookup.holder() == *object &&
-      lookup.type() == FIELD &&
       !object->IsAccessCheckNeeded();
+
+  bool can_be_inlined =
+      can_be_inlined_precheck &&
+      state == PREMONOMORPHIC &&
+      lookup.type() == FIELD;
+
+  bool can_be_inlined_contextual =
+      can_be_inlined_precheck &&
+      state == UNINITIALIZED &&
+      lookup.holder()->IsGlobalObject() &&
+      lookup.type() == NORMAL;
 
   if (can_be_inlined) {
     Map* map = lookup.holder()->map();
@@ -816,32 +834,29 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       int offset = map->instance_size() + (index * kPointerSize);
       if (PatchInlinedLoad(address(), map, offset)) {
         set_target(megamorphic_stub());
-#ifdef DEBUG
-        if (FLAG_trace_ic) {
-          PrintF("[LoadIC : inline patch %s]\n", *name->ToCString());
-        }
-#endif
+        TRACE_IC_NAMED("[LoadIC : inline patch %s]\n", name);
         return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
-#ifdef DEBUG
       } else {
-        if (FLAG_trace_ic) {
-          PrintF("[LoadIC : no inline patch %s (patching failed)]\n",
-                 *name->ToCString());
-        }
+        TRACE_IC_NAMED("[LoadIC : no inline patch %s (patching failed)]\n",
+                       name);
       }
     } else {
-      if (FLAG_trace_ic) {
-        PrintF("[LoadIC : no inline patch %s (not inobject)]\n",
-               *name->ToCString());
-      }
+      TRACE_IC_NAMED("[LoadIC : no inline patch %s (not inobject)]\n", name);
+    }
+  } else if (can_be_inlined_contextual) {
+    Map* map = lookup.holder()->map();
+    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(
+        lookup.holder()->property_dictionary()->ValueAt(
+            lookup.GetDictionaryEntry()));
+    if (PatchInlinedContextualLoad(address(), map, cell)) {
+      set_target(megamorphic_stub());
+      TRACE_IC_NAMED("[LoadIC : inline contextual patch %s]\n", name);
+      ASSERT(cell->value() != Heap::the_hole_value());
+      return cell->value();
     }
   } else {
     if (FLAG_use_ic && state == PREMONOMORPHIC) {
-      if (FLAG_trace_ic) {
-        PrintF("[LoadIC : no inline patch %s (not inlinable)]\n",
-               *name->ToCString());
-#endif
-      }
+      TRACE_IC_NAMED("[LoadIC : no inline patch %s (not inlinable)]\n", name);
     }
   }
 

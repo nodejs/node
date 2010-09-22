@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -85,7 +85,7 @@ void MacroAssembler::RecordWriteHelper(Register object,
                                        Register scratch) {
   if (FLAG_debug_code) {
     // Check that the object is not in new space.
-    Label not_in_new_space;
+    NearLabel not_in_new_space;
     InNewSpace(object, scratch, not_equal, &not_in_new_space);
     Abort("new-space object passed to RecordWriteHelper");
     bind(&not_in_new_space);
@@ -171,7 +171,7 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
   Label done;
 
   if (FLAG_debug_code) {
-    Label okay;
+    NearLabel okay;
     JumpIfNotSmi(object, &okay);
     Abort("MacroAssembler::RecordWriteNonSmi cannot deal with smis");
     bind(&okay);
@@ -221,42 +221,6 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
   }
 }
 
-
-void MacroAssembler::InNewSpace(Register object,
-                                Register scratch,
-                                Condition cc,
-                                Label* branch) {
-  if (Serializer::enabled()) {
-    // Can't do arithmetic on external references if it might get serialized.
-    // The mask isn't really an address.  We load it as an external reference in
-    // case the size of the new space is different between the snapshot maker
-    // and the running system.
-    if (scratch.is(object)) {
-      movq(kScratchRegister, ExternalReference::new_space_mask());
-      and_(scratch, kScratchRegister);
-    } else {
-      movq(scratch, ExternalReference::new_space_mask());
-      and_(scratch, object);
-    }
-    movq(kScratchRegister, ExternalReference::new_space_start());
-    cmpq(scratch, kScratchRegister);
-    j(cc, branch);
-  } else {
-    ASSERT(is_int32(static_cast<int64_t>(Heap::NewSpaceMask())));
-    intptr_t new_space_start =
-        reinterpret_cast<intptr_t>(Heap::NewSpaceStart());
-    movq(kScratchRegister, -new_space_start, RelocInfo::NONE);
-    if (scratch.is(object)) {
-      addq(scratch, kScratchRegister);
-    } else {
-      lea(scratch, Operand(object, kScratchRegister, times_1, 0));
-    }
-    and_(scratch, Immediate(static_cast<int32_t>(Heap::NewSpaceMask())));
-    j(cc, branch);
-  }
-}
-
-
 void MacroAssembler::Assert(Condition cc, const char* msg) {
   if (FLAG_debug_code) Check(cc, msg);
 }
@@ -264,7 +228,7 @@ void MacroAssembler::Assert(Condition cc, const char* msg) {
 
 void MacroAssembler::AssertFastElements(Register elements) {
   if (FLAG_debug_code) {
-    Label ok;
+    NearLabel ok;
     CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
                 Heap::kFixedArrayMapRootIndex);
     j(equal, &ok);
@@ -278,7 +242,7 @@ void MacroAssembler::AssertFastElements(Register elements) {
 
 
 void MacroAssembler::Check(Condition cc, const char* msg) {
-  Label L;
+  NearLabel L;
   j(cc, &L);
   Abort(msg);
   // will not return here
@@ -291,7 +255,7 @@ void MacroAssembler::CheckStackAlignment() {
   int frame_alignment_mask = frame_alignment - 1;
   if (frame_alignment > kPointerSize) {
     ASSERT(IsPowerOf2(frame_alignment));
-    Label alignment_as_expected;
+    NearLabel alignment_as_expected;
     testq(rsp, Immediate(frame_alignment_mask));
     j(zero, &alignment_as_expected);
     // Abort if stack is not aligned.
@@ -304,7 +268,7 @@ void MacroAssembler::CheckStackAlignment() {
 void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {
-  Label ok;
+  NearLabel ok;
   testl(result, result);
   j(not_zero, &ok);
   testl(op, op);
@@ -642,8 +606,6 @@ void MacroAssembler::Set(const Operand& dst, int64_t x) {
 // ----------------------------------------------------------------------------
 // Smi tagging, untagging and tag detection.
 
-static int kSmiShift = kSmiTagSize + kSmiShiftSize;
-
 Register MacroAssembler::GetSmiConstant(Smi* source) {
   int value = source->value();
   if (value == 0) {
@@ -666,7 +628,7 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
     if (allow_stub_calls()) {
       Assert(equal, "Uninitialized kSmiConstantRegister");
     } else {
-      Label ok;
+      NearLabel ok;
       j(equal, &ok);
       int3();
       bind(&ok);
@@ -716,20 +678,9 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
   }
 }
 
+
 void MacroAssembler::Integer32ToSmi(Register dst, Register src) {
   ASSERT_EQ(0, kSmiTag);
-  if (!dst.is(src)) {
-    movl(dst, src);
-  }
-  shl(dst, Immediate(kSmiShift));
-}
-
-
-void MacroAssembler::Integer32ToSmi(Register dst,
-                                    Register src,
-                                    Label* on_overflow) {
-  ASSERT_EQ(0, kSmiTag);
-  // 32-bit integer always fits in a long smi.
   if (!dst.is(src)) {
     movl(dst, src);
   }
@@ -740,7 +691,7 @@ void MacroAssembler::Integer32ToSmi(Register dst,
 void MacroAssembler::Integer32ToSmiField(const Operand& dst, Register src) {
   if (FLAG_debug_code) {
     testb(dst, Immediate(0x01));
-    Label ok;
+    NearLabel ok;
     j(zero, &ok);
     if (allow_stub_calls()) {
       Abort("Integer32ToSmiField writing to non-smi location");
@@ -949,180 +900,6 @@ Condition MacroAssembler::CheckUInteger32ValidSmiValue(Register src) {
 }
 
 
-void MacroAssembler::SmiNeg(Register dst, Register src, Label* on_smi_result) {
-  if (dst.is(src)) {
-    ASSERT(!dst.is(kScratchRegister));
-    movq(kScratchRegister, src);
-    neg(dst);  // Low 32 bits are retained as zero by negation.
-    // Test if result is zero or Smi::kMinValue.
-    cmpq(dst, kScratchRegister);
-    j(not_equal, on_smi_result);
-    movq(src, kScratchRegister);
-  } else {
-    movq(dst, src);
-    neg(dst);
-    cmpq(dst, src);
-    // If the result is zero or Smi::kMinValue, negation failed to create a smi.
-    j(not_equal, on_smi_result);
-  }
-}
-
-
-void MacroAssembler::SmiAdd(Register dst,
-                            Register src1,
-                            Register src2,
-                            Label* on_not_smi_result) {
-  ASSERT(!dst.is(src2));
-  if (on_not_smi_result == NULL) {
-    // No overflow checking. Use only when it's known that
-    // overflowing is impossible.
-    if (dst.is(src1)) {
-      addq(dst, src2);
-    } else {
-      movq(dst, src1);
-      addq(dst, src2);
-    }
-    Assert(no_overflow, "Smi addition overflow");
-  } else if (dst.is(src1)) {
-    movq(kScratchRegister, src1);
-    addq(kScratchRegister, src2);
-    j(overflow, on_not_smi_result);
-    movq(dst, kScratchRegister);
-  } else {
-    movq(dst, src1);
-    addq(dst, src2);
-    j(overflow, on_not_smi_result);
-  }
-}
-
-
-void MacroAssembler::SmiSub(Register dst,
-                            Register src1,
-                            Register src2,
-                            Label* on_not_smi_result) {
-  ASSERT(!dst.is(src2));
-  if (on_not_smi_result == NULL) {
-    // No overflow checking. Use only when it's known that
-    // overflowing is impossible (e.g., subtracting two positive smis).
-    if (dst.is(src1)) {
-      subq(dst, src2);
-    } else {
-      movq(dst, src1);
-      subq(dst, src2);
-    }
-    Assert(no_overflow, "Smi subtraction overflow");
-  } else if (dst.is(src1)) {
-    cmpq(dst, src2);
-    j(overflow, on_not_smi_result);
-    subq(dst, src2);
-  } else {
-    movq(dst, src1);
-    subq(dst, src2);
-    j(overflow, on_not_smi_result);
-  }
-}
-
-
-void MacroAssembler::SmiSub(Register dst,
-                            Register src1,
-                            const Operand& src2,
-                            Label* on_not_smi_result) {
-  if (on_not_smi_result == NULL) {
-    // No overflow checking. Use only when it's known that
-    // overflowing is impossible (e.g., subtracting two positive smis).
-    if (dst.is(src1)) {
-      subq(dst, src2);
-    } else {
-      movq(dst, src1);
-      subq(dst, src2);
-    }
-    Assert(no_overflow, "Smi subtraction overflow");
-  } else if (dst.is(src1)) {
-    movq(kScratchRegister, src2);
-    cmpq(src1, kScratchRegister);
-    j(overflow, on_not_smi_result);
-    subq(src1, kScratchRegister);
-  } else {
-    movq(dst, src1);
-    subq(dst, src2);
-    j(overflow, on_not_smi_result);
-  }
-}
-
-void MacroAssembler::SmiMul(Register dst,
-                            Register src1,
-                            Register src2,
-                            Label* on_not_smi_result) {
-  ASSERT(!dst.is(src2));
-  ASSERT(!dst.is(kScratchRegister));
-  ASSERT(!src1.is(kScratchRegister));
-  ASSERT(!src2.is(kScratchRegister));
-
-  if (dst.is(src1)) {
-    Label failure, zero_correct_result;
-    movq(kScratchRegister, src1);  // Create backup for later testing.
-    SmiToInteger64(dst, src1);
-    imul(dst, src2);
-    j(overflow, &failure);
-
-    // Check for negative zero result.  If product is zero, and one
-    // argument is negative, go to slow case.
-    Label correct_result;
-    testq(dst, dst);
-    j(not_zero, &correct_result);
-
-    movq(dst, kScratchRegister);
-    xor_(dst, src2);
-    j(positive, &zero_correct_result);  // Result was positive zero.
-
-    bind(&failure);  // Reused failure exit, restores src1.
-    movq(src1, kScratchRegister);
-    jmp(on_not_smi_result);
-
-    bind(&zero_correct_result);
-    xor_(dst, dst);
-
-    bind(&correct_result);
-  } else {
-    SmiToInteger64(dst, src1);
-    imul(dst, src2);
-    j(overflow, on_not_smi_result);
-    // Check for negative zero result.  If product is zero, and one
-    // argument is negative, go to slow case.
-    Label correct_result;
-    testq(dst, dst);
-    j(not_zero, &correct_result);
-    // One of src1 and src2 is zero, the check whether the other is
-    // negative.
-    movq(kScratchRegister, src1);
-    xor_(kScratchRegister, src2);
-    j(negative, on_not_smi_result);
-    bind(&correct_result);
-  }
-}
-
-
-void MacroAssembler::SmiTryAddConstant(Register dst,
-                                       Register src,
-                                       Smi* constant,
-                                       Label* on_not_smi_result) {
-  // Does not assume that src is a smi.
-  ASSERT_EQ(static_cast<int>(1), static_cast<int>(kSmiTagMask));
-  ASSERT_EQ(0, kSmiTag);
-  ASSERT(!dst.is(kScratchRegister));
-  ASSERT(!src.is(kScratchRegister));
-
-  JumpIfNotSmi(src, on_not_smi_result);
-  Register tmp = (dst.is(src) ? kScratchRegister : dst);
-  LoadSmiConstant(tmp, constant);
-  addq(tmp, src);
-  j(overflow, on_not_smi_result);
-  if (dst.is(src)) {
-    movq(dst, tmp);
-  }
-}
-
-
 void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
   if (constant->value() == 0) {
     if (!dst.is(src)) {
@@ -1179,29 +956,6 @@ void MacroAssembler::SmiAddConstant(const Operand& dst, Smi* constant) {
 }
 
 
-void MacroAssembler::SmiAddConstant(Register dst,
-                                    Register src,
-                                    Smi* constant,
-                                    Label* on_not_smi_result) {
-  if (constant->value() == 0) {
-    if (!dst.is(src)) {
-      movq(dst, src);
-    }
-  } else if (dst.is(src)) {
-    ASSERT(!dst.is(kScratchRegister));
-
-    LoadSmiConstant(kScratchRegister, constant);
-    addq(kScratchRegister, src);
-    j(overflow, on_not_smi_result);
-    movq(dst, kScratchRegister);
-  } else {
-    LoadSmiConstant(dst, constant);
-    addq(dst, src);
-    j(overflow, on_not_smi_result);
-  }
-}
-
-
 void MacroAssembler::SmiSubConstant(Register dst, Register src, Smi* constant) {
   if (constant->value() == 0) {
     if (!dst.is(src)) {
@@ -1226,165 +980,48 @@ void MacroAssembler::SmiSubConstant(Register dst, Register src, Smi* constant) {
 }
 
 
-void MacroAssembler::SmiSubConstant(Register dst,
-                                    Register src,
-                                    Smi* constant,
-                                    Label* on_not_smi_result) {
-  if (constant->value() == 0) {
-    if (!dst.is(src)) {
-      movq(dst, src);
-    }
-  } else if (dst.is(src)) {
-    ASSERT(!dst.is(kScratchRegister));
-    if (constant->value() == Smi::kMinValue) {
-      // Subtracting min-value from any non-negative value will overflow.
-      // We test the non-negativeness before doing the subtraction.
-      testq(src, src);
-      j(not_sign, on_not_smi_result);
-      LoadSmiConstant(kScratchRegister, constant);
-      subq(dst, kScratchRegister);
-    } else {
-      // Subtract by adding the negation.
-      LoadSmiConstant(kScratchRegister, Smi::FromInt(-constant->value()));
-      addq(kScratchRegister, dst);
-      j(overflow, on_not_smi_result);
-      movq(dst, kScratchRegister);
-    }
+void MacroAssembler::SmiAdd(Register dst,
+                            Register src1,
+                            Register src2) {
+  // No overflow checking. Use only when it's known that
+  // overflowing is impossible.
+  ASSERT(!dst.is(src2));
+  if (dst.is(src1)) {
+    addq(dst, src2);
   } else {
-    if (constant->value() == Smi::kMinValue) {
-      // Subtracting min-value from any non-negative value will overflow.
-      // We test the non-negativeness before doing the subtraction.
-      testq(src, src);
-      j(not_sign, on_not_smi_result);
-      LoadSmiConstant(dst, constant);
-      // Adding and subtracting the min-value gives the same result, it only
-      // differs on the overflow bit, which we don't check here.
-      addq(dst, src);
-    } else {
-      // Subtract by adding the negation.
-      LoadSmiConstant(dst, Smi::FromInt(-(constant->value())));
-      addq(dst, src);
-      j(overflow, on_not_smi_result);
-    }
+    movq(dst, src1);
+    addq(dst, src2);
   }
+  Assert(no_overflow, "Smi addition overflow");
 }
 
 
-void MacroAssembler::SmiDiv(Register dst,
-                            Register src1,
-                            Register src2,
-                            Label* on_not_smi_result) {
-  ASSERT(!src1.is(kScratchRegister));
-  ASSERT(!src2.is(kScratchRegister));
-  ASSERT(!dst.is(kScratchRegister));
-  ASSERT(!src2.is(rax));
-  ASSERT(!src2.is(rdx));
-  ASSERT(!src1.is(rdx));
-
-  // Check for 0 divisor (result is +/-Infinity).
-  Label positive_divisor;
-  testq(src2, src2);
-  j(zero, on_not_smi_result);
-
-  if (src1.is(rax)) {
-    movq(kScratchRegister, src1);
-  }
-  SmiToInteger32(rax, src1);
-  // We need to rule out dividing Smi::kMinValue by -1, since that would
-  // overflow in idiv and raise an exception.
-  // We combine this with negative zero test (negative zero only happens
-  // when dividing zero by a negative number).
-
-  // We overshoot a little and go to slow case if we divide min-value
-  // by any negative value, not just -1.
-  Label safe_div;
-  testl(rax, Immediate(0x7fffffff));
-  j(not_zero, &safe_div);
-  testq(src2, src2);
-  if (src1.is(rax)) {
-    j(positive, &safe_div);
-    movq(src1, kScratchRegister);
-    jmp(on_not_smi_result);
+void MacroAssembler::SmiSub(Register dst, Register src1, Register src2) {
+  // No overflow checking. Use only when it's known that
+  // overflowing is impossible (e.g., subtracting two positive smis).
+  ASSERT(!dst.is(src2));
+  if (dst.is(src1)) {
+    subq(dst, src2);
   } else {
-    j(negative, on_not_smi_result);
+    movq(dst, src1);
+    subq(dst, src2);
   }
-  bind(&safe_div);
-
-  SmiToInteger32(src2, src2);
-  // Sign extend src1 into edx:eax.
-  cdq();
-  idivl(src2);
-  Integer32ToSmi(src2, src2);
-  // Check that the remainder is zero.
-  testl(rdx, rdx);
-  if (src1.is(rax)) {
-    Label smi_result;
-    j(zero, &smi_result);
-    movq(src1, kScratchRegister);
-    jmp(on_not_smi_result);
-    bind(&smi_result);
-  } else {
-    j(not_zero, on_not_smi_result);
-  }
-  if (!dst.is(src1) && src1.is(rax)) {
-    movq(src1, kScratchRegister);
-  }
-  Integer32ToSmi(dst, rax);
+  Assert(no_overflow, "Smi subtraction overflow");
 }
 
 
-void MacroAssembler::SmiMod(Register dst,
+void MacroAssembler::SmiSub(Register dst,
                             Register src1,
-                            Register src2,
-                            Label* on_not_smi_result) {
-  ASSERT(!dst.is(kScratchRegister));
-  ASSERT(!src1.is(kScratchRegister));
-  ASSERT(!src2.is(kScratchRegister));
-  ASSERT(!src2.is(rax));
-  ASSERT(!src2.is(rdx));
-  ASSERT(!src1.is(rdx));
-  ASSERT(!src1.is(src2));
-
-  testq(src2, src2);
-  j(zero, on_not_smi_result);
-
-  if (src1.is(rax)) {
-    movq(kScratchRegister, src1);
+                            const Operand& src2) {
+  // No overflow checking. Use only when it's known that
+  // overflowing is impossible (e.g., subtracting two positive smis).
+  if (dst.is(src1)) {
+    subq(dst, src2);
+  } else {
+    movq(dst, src1);
+    subq(dst, src2);
   }
-  SmiToInteger32(rax, src1);
-  SmiToInteger32(src2, src2);
-
-  // Test for the edge case of dividing Smi::kMinValue by -1 (will overflow).
-  Label safe_div;
-  cmpl(rax, Immediate(Smi::kMinValue));
-  j(not_equal, &safe_div);
-  cmpl(src2, Immediate(-1));
-  j(not_equal, &safe_div);
-  // Retag inputs and go slow case.
-  Integer32ToSmi(src2, src2);
-  if (src1.is(rax)) {
-    movq(src1, kScratchRegister);
-  }
-  jmp(on_not_smi_result);
-  bind(&safe_div);
-
-  // Sign extend eax into edx:eax.
-  cdq();
-  idivl(src2);
-  // Restore smi tags on inputs.
-  Integer32ToSmi(src2, src2);
-  if (src1.is(rax)) {
-    movq(src1, kScratchRegister);
-  }
-  // Check for a negative zero result.  If the result is zero, and the
-  // dividend is negative, go slow to return a floating point negative zero.
-  Label smi_result;
-  testl(rdx, rdx);
-  j(not_zero, &smi_result);
-  testq(src1, src1);
-  j(negative, on_not_smi_result);
-  bind(&smi_result);
-  Integer32ToSmi(dst, rdx);
+  Assert(no_overflow, "Smi subtraction overflow");
 }
 
 
@@ -1480,25 +1117,6 @@ void MacroAssembler::SmiShiftArithmeticRightConstant(Register dst,
 }
 
 
-void MacroAssembler::SmiShiftLogicalRightConstant(Register dst,
-                                                  Register src,
-                                                  int shift_value,
-                                                  Label* on_not_smi_result) {
-  // Logic right shift interprets its result as an *unsigned* number.
-  if (dst.is(src)) {
-    UNIMPLEMENTED();  // Not used.
-  } else {
-    movq(dst, src);
-    if (shift_value == 0) {
-      testq(dst, dst);
-      j(negative, on_not_smi_result);
-    }
-    shr(dst, Immediate(shift_value + kSmiShift));
-    shl(dst, Immediate(kSmiShift));
-  }
-}
-
-
 void MacroAssembler::SmiShiftLeftConstant(Register dst,
                                           Register src,
                                           int shift_value) {
@@ -1515,7 +1133,7 @@ void MacroAssembler::SmiShiftLeft(Register dst,
                                   Register src1,
                                   Register src2) {
   ASSERT(!dst.is(rcx));
-  Label result_ok;
+  NearLabel result_ok;
   // Untag shift amount.
   if (!dst.is(src1)) {
     movq(dst, src1);
@@ -1524,42 +1142,6 @@ void MacroAssembler::SmiShiftLeft(Register dst,
   // Shift amount specified by lower 5 bits, not six as the shl opcode.
   and_(rcx, Immediate(0x1f));
   shl_cl(dst);
-}
-
-
-void MacroAssembler::SmiShiftLogicalRight(Register dst,
-                                          Register src1,
-                                          Register src2,
-                                          Label* on_not_smi_result) {
-  ASSERT(!dst.is(kScratchRegister));
-  ASSERT(!src1.is(kScratchRegister));
-  ASSERT(!src2.is(kScratchRegister));
-  ASSERT(!dst.is(rcx));
-  Label result_ok;
-  if (src1.is(rcx) || src2.is(rcx)) {
-    movq(kScratchRegister, rcx);
-  }
-  if (!dst.is(src1)) {
-    movq(dst, src1);
-  }
-  SmiToInteger32(rcx, src2);
-  orl(rcx, Immediate(kSmiShift));
-  shr_cl(dst);  // Shift is rcx modulo 0x1f + 32.
-  shl(dst, Immediate(kSmiShift));
-  testq(dst, dst);
-  if (src1.is(rcx) || src2.is(rcx)) {
-    Label positive_result;
-    j(positive, &positive_result);
-    if (src1.is(rcx)) {
-      movq(src1, kScratchRegister);
-    } else {
-      movq(src2, kScratchRegister);
-    }
-    jmp(on_not_smi_result);
-    bind(&positive_result);
-  } else {
-    j(negative, on_not_smi_result);  // src2 was zero and src1 negative.
-  }
 }
 
 
@@ -1587,44 +1169,6 @@ void MacroAssembler::SmiShiftArithmeticRight(Register dst,
   } else if (src2.is(rcx)) {
     movq(src2, kScratchRegister);
   }
-}
-
-
-void MacroAssembler::SelectNonSmi(Register dst,
-                                  Register src1,
-                                  Register src2,
-                                  Label* on_not_smis) {
-  ASSERT(!dst.is(kScratchRegister));
-  ASSERT(!src1.is(kScratchRegister));
-  ASSERT(!src2.is(kScratchRegister));
-  ASSERT(!dst.is(src1));
-  ASSERT(!dst.is(src2));
-  // Both operands must not be smis.
-#ifdef DEBUG
-  if (allow_stub_calls()) {  // Check contains a stub call.
-    Condition not_both_smis = NegateCondition(CheckBothSmi(src1, src2));
-    Check(not_both_smis, "Both registers were smis in SelectNonSmi.");
-  }
-#endif
-  ASSERT_EQ(0, kSmiTag);
-  ASSERT_EQ(0, Smi::FromInt(0));
-  movl(kScratchRegister, Immediate(kSmiTagMask));
-  and_(kScratchRegister, src1);
-  testl(kScratchRegister, src2);
-  // If non-zero then both are smis.
-  j(not_zero, on_not_smis);
-
-  // Exactly one operand is a smi.
-  ASSERT_EQ(1, static_cast<int>(kSmiTagMask));
-  // kScratchRegister still holds src1 & kSmiTag, which is either zero or one.
-  subq(kScratchRegister, Immediate(1));
-  // If src1 is a smi, then scratch register all 1s, else it is all 0s.
-  movq(dst, src1);
-  xor_(dst, src2);
-  and_(dst, kScratchRegister);
-  // If src1 is a smi, dst holds src1 ^ src2, else it is zero.
-  xor_(dst, src1);
-  // If src1 is a smi, dst is src2, else it is src1, i.e., the non-smi.
 }
 
 
@@ -1660,138 +1204,6 @@ SmiIndex MacroAssembler::SmiToNegativeIndex(Register dst,
     shl(dst, Immediate(shift - kSmiShift));
   }
   return SmiIndex(dst, times_1);
-}
-
-
-void MacroAssembler::JumpIfSmi(Register src, Label* on_smi) {
-  ASSERT_EQ(0, kSmiTag);
-  Condition smi = CheckSmi(src);
-  j(smi, on_smi);
-}
-
-
-void MacroAssembler::JumpIfNotSmi(Register src, Label* on_not_smi) {
-  Condition smi = CheckSmi(src);
-  j(NegateCondition(smi), on_not_smi);
-}
-
-
-void MacroAssembler::JumpIfNotPositiveSmi(Register src,
-                                          Label* on_not_positive_smi) {
-  Condition positive_smi = CheckPositiveSmi(src);
-  j(NegateCondition(positive_smi), on_not_positive_smi);
-}
-
-
-void MacroAssembler::JumpIfSmiEqualsConstant(Register src,
-                                             Smi* constant,
-                                             Label* on_equals) {
-  SmiCompare(src, constant);
-  j(equal, on_equals);
-}
-
-
-void MacroAssembler::JumpIfNotValidSmiValue(Register src, Label* on_invalid) {
-  Condition is_valid = CheckInteger32ValidSmiValue(src);
-  j(NegateCondition(is_valid), on_invalid);
-}
-
-
-void MacroAssembler::JumpIfUIntNotValidSmiValue(Register src,
-                                                Label* on_invalid) {
-  Condition is_valid = CheckUInteger32ValidSmiValue(src);
-  j(NegateCondition(is_valid), on_invalid);
-}
-
-
-void MacroAssembler::JumpIfNotBothSmi(Register src1, Register src2,
-                                      Label* on_not_both_smi) {
-  Condition both_smi = CheckBothSmi(src1, src2);
-  j(NegateCondition(both_smi), on_not_both_smi);
-}
-
-
-void MacroAssembler::JumpIfNotBothPositiveSmi(Register src1, Register src2,
-                                              Label* on_not_both_smi) {
-  Condition both_smi = CheckBothPositiveSmi(src1, src2);
-  j(NegateCondition(both_smi), on_not_both_smi);
-}
-
-
-
-void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first_object,
-                                                         Register second_object,
-                                                         Register scratch1,
-                                                         Register scratch2,
-                                                         Label* on_fail) {
-  // Check that both objects are not smis.
-  Condition either_smi = CheckEitherSmi(first_object, second_object);
-  j(either_smi, on_fail);
-
-  // Load instance type for both strings.
-  movq(scratch1, FieldOperand(first_object, HeapObject::kMapOffset));
-  movq(scratch2, FieldOperand(second_object, HeapObject::kMapOffset));
-  movzxbl(scratch1, FieldOperand(scratch1, Map::kInstanceTypeOffset));
-  movzxbl(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
-
-  // Check that both are flat ascii strings.
-  ASSERT(kNotStringTag != 0);
-  const int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
-
-  andl(scratch1, Immediate(kFlatAsciiStringMask));
-  andl(scratch2, Immediate(kFlatAsciiStringMask));
-  // Interleave the bits to check both scratch1 and scratch2 in one test.
-  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
-  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
-  cmpl(scratch1,
-       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 3)));
-  j(not_equal, on_fail);
-}
-
-
-void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
-    Register instance_type,
-    Register scratch,
-    Label *failure) {
-  if (!scratch.is(instance_type)) {
-    movl(scratch, instance_type);
-  }
-
-  const int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-
-  andl(scratch, Immediate(kFlatAsciiStringMask));
-  cmpl(scratch, Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
-  j(not_equal, failure);
-}
-
-
-void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
-    Register first_object_instance_type,
-    Register second_object_instance_type,
-    Register scratch1,
-    Register scratch2,
-    Label* on_fail) {
-  // Load instance type for both strings.
-  movq(scratch1, first_object_instance_type);
-  movq(scratch2, second_object_instance_type);
-
-  // Check that both are flat ascii strings.
-  ASSERT(kNotStringTag != 0);
-  const int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
-
-  andl(scratch1, Immediate(kFlatAsciiStringMask));
-  andl(scratch2, Immediate(kFlatAsciiStringMask));
-  // Interleave the bits to check both scratch1 and scratch2 in one test.
-  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
-  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
-  cmpl(scratch1,
-       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 3)));
-  j(not_equal, on_fail);
 }
 
 
@@ -1903,7 +1315,6 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 
 void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  WriteRecordedPositions();
   call(code_object, rmode);
 }
 
@@ -1994,7 +1405,7 @@ void MacroAssembler::CheckMap(Register obj,
 
 
 void MacroAssembler::AbortIfNotNumber(Register object) {
-  Label ok;
+  NearLabel ok;
   Condition is_smi = CheckSmi(object);
   j(is_smi, &ok);
   Cmp(FieldOperand(object, HeapObject::kMapOffset),
@@ -2005,14 +1416,14 @@ void MacroAssembler::AbortIfNotNumber(Register object) {
 
 
 void MacroAssembler::AbortIfSmi(Register object) {
-  Label ok;
+  NearLabel ok;
   Condition is_smi = CheckSmi(object);
   Assert(NegateCondition(is_smi), "Operand is a smi");
 }
 
 
 void MacroAssembler::AbortIfNotSmi(Register object) {
-  Label ok;
+  NearLabel ok;
   Condition is_smi = CheckSmi(object);
   Assert(is_smi, "Operand is not a smi");
 }
@@ -2052,7 +1463,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   j(not_equal, miss);
 
   // Make sure that the function has an instance prototype.
-  Label non_instance;
+  NearLabel non_instance;
   testb(FieldOperand(result, Map::kBitFieldOffset),
         Immediate(1 << Map::kHasNonInstancePrototype));
   j(not_zero, &non_instance);
@@ -2068,7 +1479,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   j(equal, miss);
 
   // If the function does not have an initial map, we're done.
-  Label done;
+  NearLabel done;
   CmpObjectType(result, MAP_TYPE, kScratchRegister);
   j(not_equal, &done);
 
@@ -2133,76 +1544,11 @@ void MacroAssembler::DebugBreak() {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
-void MacroAssembler::InvokePrologue(const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    Handle<Code> code_constant,
-                                    Register code_register,
-                                    Label* done,
-                                    InvokeFlag flag) {
-  bool definitely_matches = false;
-  Label invoke;
-  if (expected.is_immediate()) {
-    ASSERT(actual.is_immediate());
-    if (expected.immediate() == actual.immediate()) {
-      definitely_matches = true;
-    } else {
-      Set(rax, actual.immediate());
-      if (expected.immediate() ==
-              SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
-        // Don't worry about adapting arguments for built-ins that
-        // don't want that done. Skip adaption code by making it look
-        // like we have a match between expected and actual number of
-        // arguments.
-        definitely_matches = true;
-      } else {
-        Set(rbx, expected.immediate());
-      }
-    }
-  } else {
-    if (actual.is_immediate()) {
-      // Expected is in register, actual is immediate. This is the
-      // case when we invoke function values without going through the
-      // IC mechanism.
-      cmpq(expected.reg(), Immediate(actual.immediate()));
-      j(equal, &invoke);
-      ASSERT(expected.reg().is(rbx));
-      Set(rax, actual.immediate());
-    } else if (!expected.reg().is(actual.reg())) {
-      // Both expected and actual are in (different) registers. This
-      // is the case when we invoke functions using call and apply.
-      cmpq(expected.reg(), actual.reg());
-      j(equal, &invoke);
-      ASSERT(actual.reg().is(rax));
-      ASSERT(expected.reg().is(rbx));
-    }
-  }
-
-  if (!definitely_matches) {
-    Handle<Code> adaptor =
-        Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
-    if (!code_constant.is_null()) {
-      movq(rdx, code_constant, RelocInfo::EMBEDDED_OBJECT);
-      addq(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-    } else if (!code_register.is(rdx)) {
-      movq(rdx, code_register);
-    }
-
-    if (flag == CALL_FUNCTION) {
-      Call(adaptor, RelocInfo::CODE_TARGET);
-      jmp(done);
-    } else {
-      Jump(adaptor, RelocInfo::CODE_TARGET);
-    }
-    bind(&invoke);
-  }
-}
-
-
 void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag) {
-  Label done;
+  NearLabel done;
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag);
   if (flag == CALL_FUNCTION) {
     call(code);
@@ -2219,7 +1565,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag) {
-  Label done;
+  NearLabel done;
   Register dummy = rax;
   InvokePrologue(expected, actual, code, dummy, &done, flag);
   if (flag == CALL_FUNCTION) {

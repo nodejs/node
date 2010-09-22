@@ -1227,7 +1227,7 @@ Object* CallStubCompiler::CompileCustomCall(int generator_id,
                                             String* fname) {
   ASSERT(generator_id >= 0 && generator_id < kNumCallGenerators);
   switch (generator_id) {
-#define CALL_GENERATOR_CASE(ignored1, ignored2, ignored3, name) \
+#define CALL_GENERATOR_CASE(ignored1, ignored2, name)           \
     case k##name##CallGenerator:                                \
       return CallStubCompiler::Compile##name##Call(object,      \
                                                    holder,      \
