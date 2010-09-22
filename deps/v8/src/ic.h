@@ -298,10 +298,6 @@ class LoadIC: public IC {
 
   static bool PatchInlinedLoad(Address address, Object* map, int index);
 
-  static bool PatchInlinedContextualLoad(Address address,
-                                         Object* map,
-                                         Object* cell);
-
   friend class IC;
 };
 

@@ -625,7 +625,10 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       __ pop(rdx);
 
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      EmitCallIC(ic, RelocInfo::CODE_TARGET);
+      __ call(ic, RelocInfo::CODE_TARGET);
+      // Absence of a test rax instruction following the call
+      // indicates that none of the load was inlined.
+      __ nop();
     }
   }
 }
@@ -938,7 +941,8 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
   RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
       ? RelocInfo::CODE_TARGET
       : RelocInfo::CODE_TARGET_CONTEXT;
-  EmitCallIC(ic, mode);
+  __ call(ic, mode);
+  __ nop();  // Signal no inlined code.
 }
 
 
@@ -1015,7 +1019,7 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
                                                     slow));
           __ Move(rax, key_literal->handle());
           Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-          EmitCallIC(ic, RelocInfo::CODE_TARGET);
+          __ call(ic, RelocInfo::CODE_TARGET);
           __ jmp(done);
         }
       }
@@ -1039,7 +1043,11 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     __ Move(rcx, var->name());
     __ movq(rax, CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-    EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
+    __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+    // A test rax instruction following the call is used by the IC to
+    // indicate that the inobject property case was inlined.  Ensure there
+    // is no test rax instruction here.
+    __ nop();
     Apply(context, rax);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
@@ -1102,7 +1110,10 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
 
     // Do a keyed property load.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-    EmitCallIC(ic, RelocInfo::CODE_TARGET);
+    __ call(ic, RelocInfo::CODE_TARGET);
+    // Notice: We must not have a "test rax, ..." instruction after the
+    // call. It is treated specially by the LoadIC code.
+    __ nop();
     Apply(context, rax);
   }
 }
@@ -1201,7 +1212,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           __ Move(rcx, key->handle());
           __ movq(rdx, Operand(rsp, 0));
           Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-          EmitCallIC(ic, RelocInfo::CODE_TARGET);
+          __ call(ic, RelocInfo::CODE_TARGET);
+          __ nop();
           break;
         }
         // Fall through.
@@ -1413,14 +1425,16 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   Literal* key = prop->key()->AsLiteral();
   __ Move(rcx, key->handle());
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  EmitCallIC(ic, RelocInfo::CODE_TARGET);
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  __ nop();
 }
 
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  EmitCallIC(ic, RelocInfo::CODE_TARGET);
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  __ nop();
 }
 
 
@@ -1539,7 +1553,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       __ pop(rax);  // Restore value.
       __ Move(rcx, prop->key()->AsLiteral()->handle());
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      EmitCallIC(ic, RelocInfo::CODE_TARGET);
+      __ call(ic, RelocInfo::CODE_TARGET);
+      __ nop();  // Signal no inlined code.
       break;
     }
     case KEYED_PROPERTY: {
@@ -1550,7 +1565,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       __ pop(rdx);
       __ pop(rax);
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      EmitCallIC(ic, RelocInfo::CODE_TARGET);
+      __ call(ic, RelocInfo::CODE_TARGET);
+      __ nop();  // Signal no inlined code.
       break;
     }
   }
@@ -1573,7 +1589,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     __ Move(rcx, var->name());
     __ movq(rdx, CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-    EmitCallIC(ic, RelocInfo::CODE_TARGET);
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    __ nop();
 
   } else if (var->mode() != Variable::CONST || op == Token::INIT_CONST) {
     // Perform the assignment for non-const variables and for initialization
@@ -1657,7 +1674,8 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ pop(rdx);
   }
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-  EmitCallIC(ic, RelocInfo::CODE_TARGET);
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  __ nop();
 
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
@@ -1695,7 +1713,10 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-  EmitCallIC(ic, RelocInfo::CODE_TARGET);
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  // This nop signals to the IC that there is no inlined code at the call
+  // site for it to patch.
+  __ nop();
 
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
@@ -1744,7 +1765,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
                                                          in_loop);
-  EmitCallIC(ic, mode);
+  __ Call(ic, mode);
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   Apply(context_, rax);
@@ -1768,7 +1789,7 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic = CodeGenerator::ComputeKeyedCallInitialize(arg_count,
                                                               in_loop);
-  EmitCallIC(ic, mode);
+  __ Call(ic, mode);
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   Apply(context_, rax);
@@ -1903,7 +1924,11 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         // Record source code position for IC call.
         SetSourcePosition(prop->position());
         Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-        EmitCallIC(ic, RelocInfo::CODE_TARGET);
+        __ call(ic, RelocInfo::CODE_TARGET);
+        // By emitting a nop we make sure that we do not have a "test rax,..."
+        // instruction after the call as it is treated specially
+        // by the LoadIC code.
+        __ nop();
         // Pop receiver.
         __ pop(rbx);
         // Push result (function).
@@ -2816,7 +2841,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     __ Move(rcx, expr->name());
     InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
     Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
-    EmitCallIC(ic, RelocInfo::CODE_TARGET);
+    __ call(ic, RelocInfo::CODE_TARGET);
     // Restore context register.
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   } else {
@@ -3114,7 +3139,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ Move(rcx, prop->key()->AsLiteral()->handle());
       __ pop(rdx);
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      EmitCallIC(ic, RelocInfo::CODE_TARGET);
+      __ call(ic, RelocInfo::CODE_TARGET);
+      // This nop signals to the IC that there is no inlined code at the call
+      // site for it to patch.
+      __ nop();
       if (expr->is_postfix()) {
         if (context_ != Expression::kEffect) {
           ApplyTOS(context_);
@@ -3128,7 +3156,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ pop(rcx);
       __ pop(rdx);
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      EmitCallIC(ic, RelocInfo::CODE_TARGET);
+      __ call(ic, RelocInfo::CODE_TARGET);
+      // This nop signals to the IC that there is no inlined code at the call
+      // site for it to patch.
+      __ nop();
       if (expr->is_postfix()) {
         if (context_ != Expression::kEffect) {
           ApplyTOS(context_);
@@ -3151,7 +3182,8 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr, Location where) {
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
-    EmitCallIC(ic, RelocInfo::CODE_TARGET);
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    __ nop();  // Signal no inlined code.
     if (where == kStack) __ push(rax);
   } else if (proxy != NULL &&
              proxy->var()->slot() != NULL &&
@@ -3399,36 +3431,10 @@ void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
 }
 
 
-Register FullCodeGenerator::result_register() {
-  return rax;
-}
+Register FullCodeGenerator::result_register() { return rax; }
 
 
-Register FullCodeGenerator::context_register() {
-  return rsi;
-}
-
-
-void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
-  ASSERT(mode == RelocInfo::CODE_TARGET ||
-         mode == RelocInfo::CODE_TARGET_CONTEXT);
-  __ call(ic, mode);
-
-  // If we're calling a (keyed) load or store stub, we have to mark
-  // the call as containing no inlined code so we will not attempt to
-  // patch it.
-  switch (ic->kind()) {
-    case Code::LOAD_IC:
-    case Code::KEYED_LOAD_IC:
-    case Code::STORE_IC:
-    case Code::KEYED_STORE_IC:
-      __ nop();  // Signals no inlined code.
-      break;
-    default:
-      // Do nothing.
-      break;
-  }
-}
+Register FullCodeGenerator::context_register() { return rsi; }
 
 
 void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {

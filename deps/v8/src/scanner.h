@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -281,7 +281,8 @@ class Scanner {
     bool complete_;
   };
 
-  Scanner();
+  // Construction
+  explicit Scanner(ParserMode parse_mode);
 
   // Initialize the Scanner to scan source.
   void Initialize(Handle<String> source,
@@ -487,6 +488,7 @@ class Scanner {
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)
   bool has_line_terminator_before_next_;
+  bool is_pre_parsing_;
   bool is_parsing_json_;
 
   // Different UTF16 buffers used to pull characters from. Based on input one of

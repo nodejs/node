@@ -1,25 +1,12 @@
-2010-09-22: Version 2.4.5
-        Changed the RegExp benchmark to exercise the regexp engine on different
-        inputs by scrambling the input strings.
-
-        Fixed a bug in keyed loads on strings.
-
-        Fixed a bug with loading global function prototypes.
-
-        Fixed a bug with profiling RegExp calls (issue http://crbug.com/55999).
-
-        Performance improvements on all platforms.
-
-
 2010-09-15: Version 2.4.4
 
-        Fixed bug with hangs on very large sparse arrays.
+        Fix bug with hangs on very large sparse arrays.
 
-        Now tries harder to free up memory when running out of space.
+        Try harder to free up memory when running out of space.
 
-        Added heap snapshots to JSON format to API.
+        Add heap snapshots to JSON format to API.
 
-        Recalibrated benchmarks.
+        Recalibrate benchmarks.
 
 
 2010-09-13: Version 2.4.3
@@ -55,33 +42,33 @@
 
 2010-09-01: Version 2.4.0
 
-        Fixed bug in Object.freeze and Object.seal when Array.prototype or
-        Object.prototype are changed (issue 842).
+        Fix bug in Object.freeze and Object.seal when Array.prototype or
+        Object.prototype is changed (issue 842).
 
-        Updated Array.splice to follow Safari and Firefox when called
+        Update Array.splice to follow Safari and Firefox when called
         with zero arguments.
 
-        Fixed a missing live register when breaking at keyed loads on ARM.
+        Fix a missing live register when breaking at keyed loads on ARM.
 
         Performance improvements on all platforms.
 
 
 2010-08-25: Version 2.3.11
 
-        Fixed bug in RegExp related to copy-on-write arrays.
+        Fix bug in RegExp related to copy-on-write arrays.
 
-        Refactored tools/test.py script, including the introduction of
+        Refactoring of tools/test.py script, including the introduction of
         VARIANT_FLAGS that allows specification of sets of flags with which
         all tests should be run.
 
-        Fixed a bug in the handling of debug breaks in CallIC.
+        Fix a bug in the handling of debug breaks in CallIC.
 
         Performance improvements on all platforms.
 
 
 2010-08-23: Version 2.3.10
 
-        Fixed bug in bitops on ARM.
+        Fix bug in bitops on ARM.
 
         Build fixes for unusual compilers.
 
@@ -92,7 +79,7 @@
 
 2010-08-18: Version 2.3.9
 
-        Fixed compilation for ARMv4 on OpenBSD/FreeBSD.
+        Fix compilation for ARMv4 on OpenBSD/FreeBSD.
 
         Removed specialized handling of GCC 4.4 (issue 830).
 
@@ -133,7 +120,7 @@
         Fixed handling of JSObject::elements in CalculateNetworkSize
         (issue 822).
 
-        Allowed compiling with strict aliasing enabled on GCC 4.4 (issue 463).
+        Allow compiling with strict aliasing enabled on GCC 4.4 (issue 463).
 
 
 2010-08-09: Version 2.3.6
@@ -143,7 +130,7 @@
 
         Object.seal and Object.freeze return the modified object (issue 809).
 
-        Fixed building using GCC 4.4.4.
+        Fix building using GCC 4.4.4.
 
 
 2010-08-04: Version 2.3.5
@@ -152,7 +139,7 @@
         dot-notation property access now allows keywords. Also allowed
         non-identifiers after "get" or "set" in an object initialiser.
 
-        Randomized the addresses of allocated executable memory on Windows.
+        Randomize the addresses of allocated executable memory on Windows.
 
 
 2010-08-02: Version 2.3.4
@@ -264,15 +251,15 @@
 
 2010-06-30: Version 2.2.21
 
-        Fixed bug in externalizing some ASCII strings (Chromium issue 47824).
+        Fix bug in externalizing some ASCII strings (Chromium issue 47824).
 
-        Updated JSON.stringify to floor the space parameter (issue 753).
+        Update JSON.stringify to floor the space parameter (issue 753).
 
-        Updated the Mozilla test expectations to the newest version.
+        Update the Mozilla test expectations to the newest version.
 
-        Updated the ES5 Conformance Test expectations to the latest version.
+        Update the ES5 Conformance Test expectations to the latest version.
 
-        Updated the V8 benchmark suite.
+        Update the V8 benchmark suite.
 
         Provide actual breakpoints locations in response to setBreakpoint
         and listBreakpoints requests.
@@ -280,13 +267,13 @@
 
 2010-06-28: Version 2.2.20
 
-        Fixed bug with for-in on x64 platform (issue 748).
+        Fix bug with for-in on x64 platform (issue 748).
 
-        Fixed crash bug on x64 platform (issue 756).
+        Fix crash bug on x64 platform (issue 756).
 
-        Fixed bug in Object.getOwnPropertyNames. (chromium issue 41243).
+        Fix bug in Object.getOwnPropertyNames. (chromium issue 41243).
 
-        Fixed a bug on ARM that caused the result of 1 << x to be
+        Fix a bug on ARM that caused the result of 1 << x to be
         miscalculated for some inputs.
 
         Performance improvements on all platforms.
@@ -294,7 +281,7 @@
 
 2010-06-23: Version 2.2.19
 
-        Fixed bug that causes the build to break when profillingsupport=off
+        Fix bug that causes the build to break when profillingsupport=off
         (issue 738).
 
         Added expose-externalize-string flag for testing extensions.
@@ -302,7 +289,7 @@
         Resolve linker issues with using V8 as a DLL causing a number of
         problems with unresolved symbols.
 
-        Fixed build failure for cctests when ENABLE_DEBUGGER_SUPPORT is not
+        Fix build failure for cctests when ENABLE_DEBUGGER_SUPPORT is not
         defined.
 
         Performance improvements on all platforms.
@@ -313,11 +300,11 @@
         Added API functions to retrieve information on indexed properties
         managed by the embedding layer.  Fixes bug 737.
 
-        Made ES5 Object.defineProperty support array elements.  Fixes bug 619.
+        Make ES5 Object.defineProperty support array elements.  Fixes bug 619.
 
-        Added heap profiling to the API.
+        Add heap profiling to the API.
 
-        Removed old named property query from the API.
+        Remove old named property query from the API.
 
         Incremental performance improvements.
 
@@ -343,12 +330,12 @@
 
 2010-06-07: Version 2.2.15
 
-        Added an API to control the disposal of external string resources.
+        Add an API to control the disposal of external string resources.
 
-        Added missing initialization of a couple of variables which makes
+        Add missing initialization of a couple of variables which makes
         some compilers complaint when compiling with -Werror.
 
-        Improved performance on all platforms.
+        Improve performance on all platforms.
 
 
 2010-06-02: Version 2.2.14
@@ -362,12 +349,12 @@
 
 2010-05-31: Version 2.2.13
 
-        Implemented Object.getOwnPropertyDescriptor for element indices and
+        Implement Object.getOwnPropertyDescriptor for element indices and
         strings (issue 599).
 
-        Fixed bug for windows 64 bit C calls from generated code.
+        Fix bug for windows 64 bit C calls from generated code.
 
-        Added new scons flag unalignedaccesses for arm builds.
+        Add new scons flag unalignedaccesses for arm builds.
 
         Performance improvements on all platforms.
 
@@ -382,7 +369,7 @@
 
 2010-05-21: Version 2.2.11
 
-        Fixed crash bug in liveedit on 64 bit.
+        Fix crash bug in liveedit on 64 bit.
 
         Use 'full compiler' when debugging is active.  This should increase
         the density of possible break points, making single step more fine
@@ -392,11 +379,11 @@
 
         Misc. fixes to the Solaris build.
 
-        Added new flags --print-cumulative-gc-stat and --trace-gc-nvp.
+        Add new flags --print-cumulative-gc-stat and --trace-gc-nvp.
 
-        Added filtering of CPU profiles by security context.
+        Add filtering of CPU profiles by security context.
 
-        Fixed crash bug on ARM when running without VFP2 or VFP3.
+        Fix crash bug on ARM when running without VFP2 or VFP3.
 
         Incremental performance improvements in all backends.
 
@@ -408,12 +395,12 @@
 
 2010-05-10: Version 2.2.9
 
-        Allowed Object.create to be called with a function (issue 697).
+        Allow Object.create to be called with a function (issue 697).
 
         Fixed bug with Date.parse returning a non-NaN value when called on a
         non date string (issue 696).
 
-        Allowed unaligned memory accesses on ARM targets that support it (by
+        Allow unaligned memory accesses on ARM targets that support it (by
         Subrato K De of CodeAurora <subratokde@codeaurora.org>).
 
         C++ API for retrieving JavaScript stack trace information.
@@ -567,9 +554,9 @@
 
 2010-02-23: Version 2.1.2
 
-        Fixed a crash bug caused by wrong assert.
+        Fix a crash bug caused by wrong assert.
 
-        Fixed a bug with register names on 64-bit V8 (issue 615).
+        Fix a bug with register names on 64-bit V8 (issue 615).
 
         Performance improvements on all platforms.
 
@@ -605,13 +592,13 @@
         Solaris support by Erich Ocean <erich.ocean@me.com> and Ryan Dahl
         <ry@tinyclouds.org>.
 
-        Fixed a bug that Math.round() returns incorrect results for huge
+        Fix a bug that Math.round() returns incorrect results for huge
         integers.
 
-        Fixed enumeration order for objects created from some constructor
+        Fix enumeration order for objects created from some constructor
         functions (isue http://crbug.com/3867).
 
-        Fixed arithmetic on some integer constants (issue 580).
+        Fix arithmetic on some integer constants (issue 580).
 
         Numerous performance improvements including porting of previous IA-32
         optimizations to x64 and ARM architectures.
@@ -750,11 +737,11 @@
 
         X64: Convert smis to holding 32 bits of payload.
 
-        Introduced v8::Integer::NewFromUnsigned method.
+        Introduce v8::Integer::NewFromUnsigned method.
 
-        Added missing null check in Context::GetCurrent.
+        Add missing null check in Context::GetCurrent.
 
-        Added trim, trimLeft and trimRight methods to String
+        Add trim, trimLeft and trimRight methods to String
         Patch by Jan de Mooij <jandemooij@gmail.com>
 
         Implement ES5 Array.isArray
@@ -762,15 +749,14 @@
 
         Skip access checks for hidden properties.
 
-        Added String::Concat(Handle<String> left, Handle<String> right) to the
-        V8 API.
+        Add String::Concat(Handle<String> left, Handle<String> right) to the V8 API.
 
-        Fixed GYP-based builds of V8.
+        Fix GYP-based builds of V8.
 
 
 2009-10-07: Version 1.3.15
 
-        Expanded the maximum size of the code space to 512MB for 64-bit mode.
+        Expand the maximum size of the code space to 512MB for 64-bit mode.
 
         Fixed a crash bug happening when starting profiling (issue
         http://crbug.com/23768).
@@ -782,10 +768,10 @@
         located on the object or in the prototype chain skipping any
         interceptors.
 
-        Fixed the stack limits setting API to work correctly with threads. The
+        Fix the stack limits setting API to work correctly with threads. The
         stack limit now needs to be set to each thread thich is used with V8.
 
-        Removed the high-priority flag from IdleNotification()
+        Remove the high-priority flag from IdleNotification()
 
         Ensure V8 is initialized before locking and unlocking threads.
 
@@ -853,7 +839,7 @@
         Implemented missing pieces of debugger infrastructure on ARM.  The
         debugger is now fully functional on ARM.
 
-        Made 'hidden' the default visibility for gcc.
+        Make 'hidden' the default visibility for gcc.
 
 
 2009-09-09: Version 1.3.10
@@ -908,9 +894,9 @@
 
 2009-08-21: Version 1.3.6
 
-        Added support for forceful termination of JavaScript execution.
+        Add support for forceful termination of JavaScript execution.
 
-        Added low memory notification to the API. The embedding host can signal
+        Add low memory notification to the API. The embedding host can signal
         a low memory situation to V8.
 
         Changed the handling of global handles (persistent handles in the API
@@ -924,9 +910,9 @@
 
 2009-08-19: Version 1.3.5
 
-        Optimized initialization of some arrays in the builtins.
+        Optimize initialization of some arrays in the builtins.
 
-        Fixed mac-nm script to support filenames with spaces.
+        Fix mac-nm script to support filenames with spaces.
 
         Support for using the V8 profiler when V8 is embedded in a Windows DLL.
 
@@ -939,7 +925,7 @@
 
         Added API for getting object mirrors.
 
-        Made sure that SSE3 instructions are used whenever possible even when
+        Make sure that SSE3 instructions are used whenever possible even when
         running off a snapshot generated without using SSE3 instructions.
 
         Tweaked the handling of the initial size and growth policy of the heap.
@@ -961,20 +947,20 @@
 
 2009-08-12: Version 1.3.3
 
-        Fixed issue 417: incorrect %t placeholder expansion.
+        Fix issue 417: incorrect %t placeholder expansion.
 
-        Added .gitignore file similar to Chromium's one.
+        Add .gitignore file similar to Chromium's one.
 
-        Fixed SConstruct file to build with new logging code for Android.
+        Fix SConstruct file to build with new logging code for Android.
 
         API: added function to find instance of template in prototype
         chain.  Inlined Object::IsInstanceOf.
 
         Land change to notify valgrind when we modify code on x86.
 
-        Added api call to determine whether a string can be externalized.
+        Add api call to determine whether a string can be externalized.
 
-        Added a write() command to d8.
+        Add a write() command to d8.
 
 
 2009-08-05: Version 1.3.2
@@ -1257,7 +1243,7 @@
 
         Added EcmaScript 5 JSON object.
 
-        Fixed bug in preemption support on ARM.
+        Fix bug in preemption support on ARM.
 
 
 2009-04-23: Version 1.2.0

@@ -946,7 +946,7 @@ static Object* Runtime_DeclareContextSlot(Arguments args) {
   Handle<String> name(String::cast(args[1]));
   PropertyAttributes mode =
       static_cast<PropertyAttributes>(Smi::cast(args[2])->value());
-  RUNTIME_ASSERT(mode == READ_ONLY || mode == NONE);
+  ASSERT(mode == READ_ONLY || mode == NONE);
   Handle<Object> initial_value(args[3]);
 
   // Declarations are always done in the function context.
@@ -8944,36 +8944,21 @@ static Object* Runtime_ClearBreakPoint(Arguments args) {
 }
 
 
-// Change the state of break on exceptions.
-// args[0]: Enum value indicating whether to affect caught/uncaught exceptions.
-// args[1]: Boolean indicating on/off.
+// Change the state of break on exceptions
+// args[0]: boolean indicating uncaught exceptions
+// args[1]: boolean indicating on/off
 static Object* Runtime_ChangeBreakOnException(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
-  RUNTIME_ASSERT(args[0]->IsNumber());
-  CONVERT_BOOLEAN_CHECKED(enable, args[1]);
+  ASSERT(args[0]->IsNumber());
+  ASSERT(args[1]->IsBoolean());
 
-  // If the number doesn't match an enum value, the ChangeBreakOnException
-  // function will default to affecting caught exceptions.
+  // Update break point state
   ExceptionBreakType type =
       static_cast<ExceptionBreakType>(NumberToUint32(args[0]));
-  // Update break point state.
+  bool enable = args[1]->ToBoolean()->IsTrue();
   Debug::ChangeBreakOnException(type, enable);
   return Heap::undefined_value();
-}
-
-
-// Returns the state of break on exceptions
-// args[0]: boolean indicating uncaught exceptions
-static Object* Runtime_IsBreakOnException(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 1);
-  RUNTIME_ASSERT(args[0]->IsNumber());
-
-  ExceptionBreakType type =
-      static_cast<ExceptionBreakType>(NumberToUint32(args[0]));
-  bool result = Debug::IsBreakOnException(type);
-  return Smi::FromInt(result);
 }
 
 
