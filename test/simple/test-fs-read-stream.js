@@ -110,3 +110,14 @@ try {
 } catch(e) {
   assert.equal(e.message, 'Both start and end are needed for range streaming.');
 }
+
+var stream = fs.createReadStream(rangeFile, { start: 0, end: 0 });
+stream.data = '';
+
+stream.on('data', function(chunk){
+  stream.data += chunk;
+});
+
+stream.on('end', function(){
+  assert.equal('x', stream.data);
+});
