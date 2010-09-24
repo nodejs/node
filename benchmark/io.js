@@ -1,4 +1,5 @@
 var fs = require('fs');
+var sys = require('sys');
 var Buffer = require('buffer').Buffer;
 
 var path = "/tmp/wt.dat";
@@ -21,6 +22,8 @@ function once(emitter, name, cb) {
   emitter.addListener(name, incb);
 }
 
+c = 0
+
 function writetest(size, bsize) {
   var s = fs.createWriteStream(path, {'flags': 'w', 'mode': 0644});
   var remaining = size;
@@ -40,6 +43,7 @@ function writetest(size, bsize) {
 
   s.on('drain', function () {
     dowrite();
+    if (c++ % 2000 == 0) sys.print(".");
   });
 
   dowrite();

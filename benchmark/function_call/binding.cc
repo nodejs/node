@@ -4,10 +4,12 @@
 
 using namespace v8;
 
+static int c = 0;
+
 static Handle<Value> Hello(const Arguments& args) {
   HandleScope scope;
-  time_t tv = time(NULL);
-  return scope.Close(Integer::New(tv));
+  //time_t tv = time(NULL);
+  return scope.Close(Integer::New(c++));
 }
 
 extern "C" void init (Handle<Object> target) {

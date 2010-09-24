@@ -5,13 +5,15 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
-#include <time.h>
+#include <sys/time.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
  
 int tsize = 1000 * 1048576;
 const char *path = "/tmp/wt.dat";
 
+int c = 0;
 
 char* bufit(size_t l)
 {
@@ -24,7 +26,7 @@ void writetest(int size, size_t bsize)
 {
   int i;
   char *buf = bufit(bsize);
-  clock_t start, end;
+  struct timeval start, end;
   double elapsed;
   double mbps;
 
@@ -34,9 +36,10 @@ void writetest(int size, size_t bsize)
     exit(254);
   }
 
-  start = clock();
+  assert(0 ==  gettimeofday(&start, NULL));
   for (i = 0; i < size; i += bsize) {
     int rv = write(fd, buf, bsize);
+    if (c++ % 2000 == 0) fprintf(stderr, ".");
     if (rv < 0) {
       perror("write failed");
       exit(254);
@@ -48,10 +51,10 @@ void writetest(int size, size_t bsize)
   fsync(fd);
 #endif
   close(fd);
-  end = clock();
-  elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
+  assert(0 == gettimeofday(&end, NULL));
+  elapsed = (end.tv_sec - start.tv_sec) + ((double)(end.tv_usec - start.tv_usec))/100000.;
   mbps = ((tsize/elapsed)) / 1048576;
-  fprintf(stderr, "Wrote %d bytes in %03fs using %d byte buffers: %03fmB/s\n", size, elapsed, bsize, mbps);
+  fprintf(stderr, "\nWrote %d bytes in %03fs using %ld byte buffers: %03fmB/s\n", size, elapsed, bsize, mbps);
 
   free(buf);
 }
@@ -60,7 +63,7 @@ void readtest(int size, size_t bsize)
 {
   int i;
   char *buf = bufit(bsize);
-  clock_t start, end;
+  struct timeval start, end;
   double elapsed;
   double mbps;
 
@@ -70,7 +73,7 @@ void readtest(int size, size_t bsize)
     exit(254);
   }
 
-  start = clock();
+  assert(0 == gettimeofday(&start, NULL));
   for (i = 0; i < size; i += bsize) {
     int rv = read(fd, buf, bsize);
     if (rv < 0) {
@@ -79,10 +82,10 @@ void readtest(int size, size_t bsize)
     }
   }
   close(fd);
-  end = clock();
-  elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
+  assert(0 == gettimeofday(&end, NULL));
+  elapsed = (end.tv_sec - start.tv_sec) + ((double)(end.tv_usec - start.tv_usec))/100000.;
   mbps = ((tsize/elapsed)) / 1048576;
-  fprintf(stderr, "Read %d bytes in %03fs using %d byte buffers: %03fmB/s\n", size, elapsed, bsize, mbps);
+  fprintf(stderr, "Read %d bytes in %03fs using %ld byte buffers: %03fmB/s\n", size, elapsed, bsize, mbps);
 
   free(buf);
 }

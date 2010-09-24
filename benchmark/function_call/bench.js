@@ -1,12 +1,14 @@
 var binding = require('./build/default/binding');
 
+c = 0 
+
 function js() {
-  return (new Date()).getTime();
+  return c++; //(new Date()).getTime();
 }
 
 var cxx = binding.hello;
 
-var i, N = 10000000;
+var i, N = 100000000;
 
 console.log(js());
 console.log(cxx());
