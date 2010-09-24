@@ -77,6 +77,10 @@ void IdleWatcher::Callback(EV_P_ ev_idle *w, int revents) {
 //  idle.start();
 //
 Handle<Value> IdleWatcher::New(const Arguments& args) {
+  if (!args.IsConstructCall()) {
+    return FromConstructorTemplate(constructor_template, args);
+  }
+
   HandleScope scope;
 
   IdleWatcher *s = new IdleWatcher();

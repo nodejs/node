@@ -51,6 +51,10 @@ void SignalWatcher::Callback(EV_P_ ev_signal *watcher, int revents) {
 }
 
 Handle<Value> SignalWatcher::New(const Arguments& args) {
+  if (!args.IsConstructCall()) {
+    return FromConstructorTemplate(constructor_template, args);
+  }
+
   HandleScope scope;
 
   if (args.Length() != 1 || !args[0]->IsInt32()) {

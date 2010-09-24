@@ -78,6 +78,10 @@ void node::Script::Initialize (Handle<Object> target) {
 
 
 Handle<Value> node::Script::New (const Arguments& args) {
+  if (!args.IsConstructCall()) {
+    return FromConstructorTemplate(constructor_template, args);
+  }
+
   HandleScope scope;
 
   node::Script *t = new node::Script();

@@ -459,6 +459,10 @@ void Channel::Initialize(Handle<Object> target) {
 
 
 Handle<Value> Channel::New(const Arguments& args) {
+  if (!args.IsConstructCall()) {
+    return FromConstructorTemplate(constructor_template, args);
+  }
+
   HandleScope scope;
 
   struct ares_options options;

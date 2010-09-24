@@ -68,6 +68,10 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
 //  io.start();
 //
 Handle<Value> IOWatcher::New(const Arguments& args) {
+  if (!args.IsConstructCall()) {
+    return FromConstructorTemplate(constructor_template, args);
+  }
+
   HandleScope scope;
   IOWatcher *s = new IOWatcher();
   s->Wrap(args.This());

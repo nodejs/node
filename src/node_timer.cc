@@ -97,6 +97,10 @@ Timer::~Timer ()
 Handle<Value>
 Timer::New (const Arguments& args)
 {
+  if (!args.IsConstructCall()) {
+    return FromConstructorTemplate(constructor_template, args);
+  }
+
   HandleScope scope;
 
   Timer *t = new Timer();

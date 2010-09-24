@@ -46,6 +46,10 @@ void StatWatcher::Callback(EV_P_ ev_stat *watcher, int revents) {
 
 
 Handle<Value> StatWatcher::New(const Arguments& args) {
+  if (!args.IsConstructCall()) {
+    return FromConstructorTemplate(constructor_template, args);
+  }
+
   HandleScope scope;
   StatWatcher *s = new StatWatcher();
   s->Wrap(args.Holder());

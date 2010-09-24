@@ -787,6 +787,22 @@ Local<Value> ErrnoException(int errorno,
 }
 
 
+Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate>& t,
+                                      const Arguments& args) {
+  HandleScope scope;
+
+  const int argc = args.Length();
+  Local<Value> argv[argc];
+
+  for (int i = 0; i < argc; ++i) {
+    argv[i] = args[i];
+  }
+
+  Local<Object> instance = t->GetFunction()->NewInstance(argc, argv);
+  return scope.Close(instance);
+}
+
+
 enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
   HandleScope scope;
 
