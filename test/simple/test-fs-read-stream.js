@@ -60,9 +60,8 @@ file2.destroy(function(err) {
   callbacks.destroy++;
 });
 
-var file3 = fs.createReadStream(fn);
+var file3 = fs.createReadStream(fn, {encoding: 'utf8'});
 file3.length = 0;
-file3.setEncoding('utf8');
 file3.addListener('data', function(data) {
   assert.equal("string", typeof(data));
   file3.length += data.length;
