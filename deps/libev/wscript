@@ -66,9 +66,10 @@ def configure(conf):
   conf.check_cc(lib="m", header_name="math.h", function_name="ceil")
 
   conf.define("HAVE_CONFIG_H", 1)
-
-  conf.env.append_value('CCFLAGS', ['-DEV_MULTIPLICITY=0'])
-  conf.env.append_value('CXXFLAGS', ['-DEV_MULTIPLICITY=0'])
+  # Not using these.
+  conf.env.append_value('CPPFLAGS', ['-DEV_FORK_ENABLE=0',
+                                     '-DEV_EMBED_ENABLE=0',
+                                     '-DEV_MULTIPLICITY=0'])
 
 def build(bld):
   libev = bld.new_task_gen("cc")
