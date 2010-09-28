@@ -21,8 +21,8 @@ class SecureContext : ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
 
-  SSL_CTX *pCtx;
-  X509_STORE *caStore;
+  SSL_CTX *ctx_;
+  X509_STORE *ca_store_;
 
  protected:
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
@@ -34,8 +34,8 @@ class SecureContext : ObjectWrap {
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
 
   SecureContext() : ObjectWrap() {
-    pCtx = NULL;
-    caStore = NULL;
+    ctx_ = NULL;
+    ca_store_ = NULL;
   }
 
   ~SecureContext() {
@@ -65,19 +65,23 @@ class SecureStream : ObjectWrap {
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
 
   SecureStream() : ObjectWrap() {
-    pbioRead = pbioWrite = NULL;
-    pSSL = NULL;
+    bio_read_ = bio_write_ = NULL;
+    ssl_ = NULL;
   }
 
   ~SecureStream() {
+    if (ssl_ != NULL) {
+      SSL_free(ssl_);
+      ssl_ = NULL;
+    }
   }
 
  private:
-  BIO *pbioRead;
-  BIO *pbioWrite;
-  SSL *pSSL;
-  bool server; /* coverity[member_decl] */
-  bool shouldVerify; /* coverity[member_decl] */
+  BIO *bio_read_;
+  BIO *bio_write_;
+  SSL *ssl_;
+  bool is_server_; /* coverity[member_decl] */
+  bool should_verify_; /* coverity[member_decl] */
 };
 
 void InitCrypto(v8::Handle<v8::Object> target);

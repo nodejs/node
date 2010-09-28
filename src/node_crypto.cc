@@ -100,13 +100,13 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
       method = TLSv1_client_method();
   }
 
-  sc->pCtx = SSL_CTX_new(method);
+  sc->ctx_ = SSL_CTX_new(method);
   // Enable session caching?
-  SSL_CTX_set_session_cache_mode(sc->pCtx, SSL_SESS_CACHE_SERVER);
-  // SSL_CTX_set_session_cache_mode(sc->pCtx,SSL_SESS_CACHE_OFF);
+  SSL_CTX_set_session_cache_mode(sc->ctx_, SSL_SESS_CACHE_SERVER);
+  // SSL_CTX_set_session_cache_mode(sc->ctx_,SSL_SESS_CACHE_OFF);
 
-  sc->caStore = X509_STORE_new();
-  SSL_CTX_set_cert_store(sc->pCtx, sc->caStore);
+  sc->ca_store_ = X509_STORE_new();
+  SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
   return True();
 }
 
@@ -116,25 +116,29 @@ Handle<Value> SecureContext::SetKey(const Arguments& args) {
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  if (args.Length() != 1 ||
-      !args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(
-          String::New("Bad parameter")));
+  if (args.Length() != 1 || !args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
-  String::Utf8Value keyPem(args[0]->ToString());
 
-  BIO *bp = NULL;
-  EVP_PKEY* pkey;
-  bp = BIO_new(BIO_s_mem());
-  if (!BIO_write(bp, *keyPem, strlen(*keyPem)))
+  String::Utf8Value key_pem(args[0]->ToString());
+
+  BIO *bp = BIO_new(BIO_s_mem());
+
+  if (!BIO_write(bp, *key_pem, key_pem.length())) {
+    BIO_free(bp);
     return False();
+  }
 
-  pkey = PEM_read_bio_PrivateKey(bp, NULL, NULL, NULL);
-  if (pkey == NULL)
+  EVP_PKEY* pkey = PEM_read_bio_PrivateKey(bp, NULL, NULL, NULL);
+
+  if (pkey == NULL) {
+    BIO_free(bp);
     return False();
+  }
 
-  SSL_CTX_use_PrivateKey(sc->pCtx, pkey);
+  SSL_CTX_use_PrivateKey(sc->ctx_, pkey);
   BIO_free(bp);
+  // XXX Free pkey? 
 
   return True();
 }
@@ -150,19 +154,24 @@ Handle<Value> SecureContext::SetCert(const Arguments& args) {
     return ThrowException(Exception::TypeError(
           String::New("Bad parameter")));
   }
-  String::Utf8Value certPem(args[0]->ToString());
+  String::Utf8Value cert_pem(args[0]->ToString());
 
-  BIO *bp = NULL;
-  X509 *        x509;
-  bp = BIO_new(BIO_s_mem());
-  if (!BIO_write(bp, *certPem, strlen(*certPem)))
+  BIO *bp = BIO_new(BIO_s_mem());
+
+  if (!BIO_write(bp, *cert_pem, cert_pem.length())) {
+    BIO_free(bp);
     return False();
+  }
 
-  x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
-  if (x509 == NULL)
+  X509 * x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
+
+  if (x509 == NULL) {
+    BIO_free(bp);
     return False();
+  }
 
-  SSL_CTX_use_certificate(sc->pCtx, x509);
+  SSL_CTX_use_certificate(sc->ctx_, x509);
+
   BIO_free(bp);
   X509_free(x509);
 
@@ -175,24 +184,26 @@ Handle<Value> SecureContext::AddCACert(const Arguments& args) {
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  if (args.Length() != 1 ||
-      !args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(
-          String::New("Bad parameter")));
+  if (args.Length() != 1 || !args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
-  String::Utf8Value certPem(args[0]->ToString());
+  String::Utf8Value cert_pem(args[0]->ToString());
 
-  BIO *bp = NULL;
-  X509 *x509;
-  bp = BIO_new(BIO_s_mem());
-  if (!BIO_write(bp, *certPem, strlen(*certPem)))
+  BIO *bp = BIO_new(BIO_s_mem());
+
+  if (!BIO_write(bp, *cert_pem, cert_pem.length())) {
+    BIO_free(bp);
     return False();
+  }
 
-  x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
-  if (x509 == NULL)
+  X509 *x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
+
+  if (x509 == NULL) {
+    BIO_free(bp);
     return False();
+  }
 
-  X509_STORE_add_cert(sc->caStore, x509);
+  X509_STORE_add_cert(sc->ca_store_, x509);
 
   BIO_free(bp);
   X509_free(x509);
@@ -206,13 +217,12 @@ Handle<Value> SecureContext::SetCiphers(const Arguments& args) {
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  if (args.Length() != 1 ||
-      !args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(
-          String::New("Bad parameter")));
+  if (args.Length() != 1 || !args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
+
   String::Utf8Value ciphers(args[0]->ToString());
-  SSL_CTX_set_cipher_list(sc->pCtx, *ciphers);
+  SSL_CTX_set_cipher_list(sc->ctx_, *ciphers);
 
   return True();
 }
@@ -223,10 +233,11 @@ Handle<Value> SecureContext::Close(const Arguments& args) {
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  if (sc->pCtx != NULL) {
-    SSL_CTX_free(sc->pCtx);
+  if (sc->ctx_ != NULL) {
+    SSL_CTX_free(sc->ctx_);
     return True();
   }
+
   return False();
 }
 
@@ -238,30 +249,18 @@ void SecureStream::Initialize(Handle<Object> target) {
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(String::NewSymbol("SecureStream"));
 
-  NODE_SET_PROTOTYPE_METHOD(t, "encIn",
-                            SecureStream::EncIn);
-  NODE_SET_PROTOTYPE_METHOD(t, "clearOut",
-                            SecureStream::ClearOut);
-  NODE_SET_PROTOTYPE_METHOD(t, "clearIn",
-                            SecureStream::ClearIn);
-  NODE_SET_PROTOTYPE_METHOD(t, "encOut",
-                            SecureStream::EncOut);
-  NODE_SET_PROTOTYPE_METHOD(t, "clearPending",
-                            SecureStream::ClearPending);
-  NODE_SET_PROTOTYPE_METHOD(t, "encPending",
-                            SecureStream::EncPending);
-  NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate",
-                            SecureStream::GetPeerCertificate);
-  NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished",
-                            SecureStream::IsInitFinished);
-  NODE_SET_PROTOTYPE_METHOD(t, "verifyPeer",
-                            SecureStream::VerifyPeer);
-  NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher",
-                            SecureStream::GetCurrentCipher);
-  NODE_SET_PROTOTYPE_METHOD(t, "shutdown",
-                            SecureStream::Shutdown);
-  NODE_SET_PROTOTYPE_METHOD(t, "close",
-                            SecureStream::Close);
+  NODE_SET_PROTOTYPE_METHOD(t, "encIn", SecureStream::EncIn);
+  NODE_SET_PROTOTYPE_METHOD(t, "clearOut", SecureStream::ClearOut);
+  NODE_SET_PROTOTYPE_METHOD(t, "clearIn", SecureStream::ClearIn);
+  NODE_SET_PROTOTYPE_METHOD(t, "encOut", SecureStream::EncOut);
+  NODE_SET_PROTOTYPE_METHOD(t, "clearPending", SecureStream::ClearPending);
+  NODE_SET_PROTOTYPE_METHOD(t, "encPending", SecureStream::EncPending);
+  NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate", SecureStream::GetPeerCertificate);
+  NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished", SecureStream::IsInitFinished);
+  NODE_SET_PROTOTYPE_METHOD(t, "verifyPeer", SecureStream::VerifyPeer);
+  NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", SecureStream::GetCurrentCipher);
+  NODE_SET_PROTOTYPE_METHOD(t, "shutdown", SecureStream::Shutdown);
+  NODE_SET_PROTOTYPE_METHOD(t, "close", SecureStream::Close);
 
   target->Set(String::NewSymbol("SecureStream"), t->GetFunction());
 }
@@ -269,39 +268,33 @@ void SecureStream::Initialize(Handle<Object> target) {
 
 Handle<Value> SecureStream::New(const Arguments& args) {
   HandleScope scope;
+
   SecureStream *p = new SecureStream();
   p->Wrap(args.Holder());
 
-  if (args.Length() <1 ||
-      !args[0]->IsObject()) {
+  if (args.Length() < 1 || !args[0]->IsObject()) {
     return ThrowException(Exception::Error(String::New(
       "First argument must be a crypto module Credentials")));
   }
+
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args[0]->ToObject());
-  int isServer = 0;
-  int shouldVerify = 0;
-  if (args.Length() >=2 &&
-      args[1]->IsNumber()) {
-    isServer = args[1]->Int32Value();
-  }
-  if (args.Length() >=3 &&
-      args[2]->IsNumber()) {
-    shouldVerify = args[2]->Int32Value();
+
+  bool is_server = args[1]->BooleanValue();
+  bool should_verify = args[2]->BooleanValue();
+
+  p->ssl_ = SSL_new(sc->ctx_);
+  p->bio_read_ = BIO_new(BIO_s_mem());
+  p->bio_write_ = BIO_new(BIO_s_mem());
+  SSL_set_bio(p->ssl_, p->bio_read_, p->bio_write_);
+
+  if (p->should_verify_ = should_verify) {
+    SSL_set_verify(p->ssl_, SSL_VERIFY_PEER, verify_callback);
   }
 
-  p->pSSL = SSL_new(sc->pCtx);
-  p->pbioRead = BIO_new(BIO_s_mem());
-  p->pbioWrite = BIO_new(BIO_s_mem());
-  SSL_set_bio(p->pSSL, p->pbioRead, p->pbioWrite);
-  p->shouldVerify = shouldVerify>0;
-  if (p->shouldVerify) {
-    SSL_set_verify(p->pSSL, SSL_VERIFY_PEER, verify_callback);
-  }
-  p->server = isServer>0;
-  if (p->server) {
-    SSL_set_accept_state(p->pSSL);
+  if (p->is_server_ = is_server) {
+    SSL_set_accept_state(p->ssl_);
   } else {
-    SSL_set_connect_state(p->pSSL);
+    SSL_set_connect_state(p->ssl_);
   }
 
   return args.This();
@@ -339,7 +332,7 @@ Handle<Value> SecureStream::EncIn(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  int bytes_written = BIO_write(ss->pbioRead, (char*)buffer_data + off, len);
+  int bytes_written = BIO_write(ss->bio_read_, (char*)buffer_data + off, len);
 
   if (bytes_written < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();
@@ -383,24 +376,24 @@ Handle<Value> SecureStream::ClearOut(const Arguments& args) {
 
   int bytes_read;
 
-  if (!SSL_is_init_finished(ss->pSSL)) {
-    if (ss->server) {
-      bytes_read = SSL_accept(ss->pSSL);
+  if (!SSL_is_init_finished(ss->ssl_)) {
+    if (ss->is_server_) {
+      bytes_read = SSL_accept(ss->ssl_);
     } else {
-      bytes_read = SSL_connect(ss->pSSL);
+      bytes_read = SSL_connect(ss->ssl_);
     }
     if (bytes_read < 0) {
       int err;
-      if ((err = SSL_get_error(ss->pSSL, bytes_read)) == SSL_ERROR_WANT_READ) {
+      if ((err = SSL_get_error(ss->ssl_, bytes_read)) == SSL_ERROR_WANT_READ) {
         return scope.Close(Integer::New(0));
       }
     }
     return scope.Close(Integer::New(0));
   }
 
-  bytes_read = SSL_read(ss->pSSL, (char*)buffer_data + off, len);
+  bytes_read = SSL_read(ss->ssl_, (char*)buffer_data + off, len);
   if (bytes_read < 0) {
-    int err = SSL_get_error(ss->pSSL, bytes_read);
+    int err = SSL_get_error(ss->ssl_, bytes_read);
     if (err == SSL_ERROR_WANT_READ) {
       return scope.Close(Integer::New(0));
     }
@@ -421,7 +414,7 @@ Handle<Value> SecureStream::ClearPending(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
-  int bytes_pending = BIO_pending(ss->pbioRead);
+  int bytes_pending = BIO_pending(ss->bio_read_);
   return scope.Close(Integer::New(bytes_pending));
 }
 
@@ -430,7 +423,7 @@ Handle<Value> SecureStream::EncPending(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
-  int bytes_pending = BIO_pending(ss->pbioWrite);
+  int bytes_pending = BIO_pending(ss->bio_write_);
   return scope.Close(Integer::New(bytes_pending));
 }
 
@@ -466,7 +459,7 @@ Handle<Value> SecureStream::EncOut(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  int bytes_read = BIO_read(ss->pbioWrite, (char*)buffer_data + off, len);
+  int bytes_read = BIO_read(ss->bio_write_, (char*)buffer_data + off, len);
 
   return scope.Close(Integer::New(bytes_read));
 }
@@ -503,16 +496,16 @@ Handle<Value> SecureStream::ClearIn(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  if (!SSL_is_init_finished(ss->pSSL)) {
+  if (!SSL_is_init_finished(ss->ssl_)) {
     int s;
-    if (ss->server) {
-      s = SSL_accept(ss->pSSL);
+    if (ss->is_server_) {
+      s = SSL_accept(ss->ssl_);
     } else {
-      s = SSL_connect(ss->pSSL);
+      s = SSL_connect(ss->ssl_);
     }
     return scope.Close(Integer::New(0));
   }
-  int bytes_written = SSL_write(ss->pSSL, (char*)buffer_data + off, len);
+  int bytes_written = SSL_write(ss->ssl_, (char*)buffer_data + off, len);
 
   return scope.Close(Integer::New(bytes_written));
 }
@@ -523,9 +516,9 @@ Handle<Value> SecureStream::GetPeerCertificate(const Arguments& args) {
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
 
-  if (ss->pSSL == NULL) return Undefined();
+  if (ss->ssl_ == NULL) return Undefined();
   Local<Object> info = Object::New();
-  X509* peer_cert = SSL_get_peer_certificate(ss->pSSL);
+  X509* peer_cert = SSL_get_peer_certificate(ss->ssl_);
   if (peer_cert != NULL) {
     char* subject = X509_NAME_oneline(X509_get_subject_name(peer_cert), 0, 0);
     if (subject != NULL) {
@@ -582,8 +575,8 @@ Handle<Value> SecureStream::Shutdown(const Arguments& args) {
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
 
-  if (ss->pSSL == NULL) return False();
-  if (SSL_shutdown(ss->pSSL) == 1) {
+  if (ss->ssl_ == NULL) return False();
+  if (SSL_shutdown(ss->ssl_) == 1) {
     return True();
   }
   return False();
@@ -595,8 +588,8 @@ Handle<Value> SecureStream::IsInitFinished(const Arguments& args) {
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
 
-  if (ss->pSSL == NULL) return False();
-  if (SSL_is_init_finished(ss->pSSL)) {
+  if (ss->ssl_ == NULL) return False();
+  if (SSL_is_init_finished(ss->ssl_)) {
     return True();
   }
   return False();
@@ -608,13 +601,13 @@ Handle<Value> SecureStream::VerifyPeer(const Arguments& args) {
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
 
-  if (ss->pSSL == NULL) return False();
-  if (!ss->shouldVerify) return False();
-  X509* peer_cert = SSL_get_peer_certificate(ss->pSSL);
+  if (ss->ssl_ == NULL) return False();
+  if (!ss->should_verify_) return False();
+  X509* peer_cert = SSL_get_peer_certificate(ss->ssl_);
   if (peer_cert==NULL) return False();
   X509_free(peer_cert);
 
-  long x509_verify_error = SSL_get_verify_result(ss->pSSL);
+  long x509_verify_error = SSL_get_verify_result(ss->ssl_);
 
   // Can also check for:
   // X509_V_ERR_CERT_HAS_EXPIRED
@@ -638,8 +631,8 @@ Handle<Value> SecureStream::GetCurrentCipher(const Arguments& args) {
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
   OPENSSL_CONST SSL_CIPHER *c;
 
-  if ( ss->pSSL == NULL ) return Undefined();
-  c = SSL_get_current_cipher(ss->pSSL);
+  if ( ss->ssl_ == NULL ) return Undefined();
+  c = SSL_get_current_cipher(ss->ssl_);
   if ( c == NULL ) return Undefined();
   Local<Object> info = Object::New();
   const char *cipher_name = SSL_CIPHER_get_name(c);
@@ -654,9 +647,9 @@ Handle<Value> SecureStream::Close(const Arguments& args) {
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
 
-  if (ss->pSSL != NULL) {
-    SSL_free(ss->pSSL);
-    ss->pSSL = NULL;
+  if (ss->ssl_ != NULL) {
+    SSL_free(ss->ssl_);
+    ss->ssl_ = NULL;
   }
   return True();
 }
@@ -1961,14 +1954,14 @@ class Sign : public ObjectWrap {
 
   int SignFinal(unsigned char** md_value,
                 unsigned int *md_len,
-                char* keyPem,
-                int keyPemLen) {
+                char* key_pem,
+                int key_pemLen) {
     if (!initialised_) return 0;
 
     BIO *bp = NULL;
     EVP_PKEY* pkey;
     bp = BIO_new(BIO_s_mem());
-    if(!BIO_write(bp, keyPem, keyPemLen)) return 0;
+    if(!BIO_write(bp, key_pem, key_pemLen)) return 0;
 
     pkey = PEM_read_bio_PrivateKey( bp, NULL, NULL, NULL );
     if (pkey == NULL) return 0;
@@ -2152,7 +2145,7 @@ class Verify : public ObjectWrap {
   }
 
 
-  int VerifyFinal(char* keyPem, int keyPemLen, unsigned char* sig, int siglen) {
+  int VerifyFinal(char* key_pem, int key_pemLen, unsigned char* sig, int siglen) {
     if (!initialised_) return 0;
 
     BIO *bp = NULL;
@@ -2160,7 +2153,7 @@ class Verify : public ObjectWrap {
     X509 *x509;
 
     bp = BIO_new(BIO_s_mem());
-    if(!BIO_write(bp, keyPem, keyPemLen)) return 0;
+    if(!BIO_write(bp, key_pem, key_pemLen)) return 0;
 
     x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL );
     if (x509==NULL) return 0;
