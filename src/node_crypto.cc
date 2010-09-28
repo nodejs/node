@@ -238,18 +238,18 @@ void SecureStream::Initialize(Handle<Object> target) {
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(String::NewSymbol("SecureStream"));
 
-  NODE_SET_PROTOTYPE_METHOD(t, "readInject",
-                            SecureStream::ReadInject);
-  NODE_SET_PROTOTYPE_METHOD(t, "readExtract",
-                            SecureStream::ReadExtract);
-  NODE_SET_PROTOTYPE_METHOD(t, "writeInject",
-                            SecureStream::WriteInject);
-  NODE_SET_PROTOTYPE_METHOD(t, "writeExtract",
-                            SecureStream::WriteExtract);
-  NODE_SET_PROTOTYPE_METHOD(t, "readPending",
-                            SecureStream::ReadPending);
-  NODE_SET_PROTOTYPE_METHOD(t, "writeCanExtract",
-                            SecureStream::WriteCanExtract);
+  NODE_SET_PROTOTYPE_METHOD(t, "encIn",
+                            SecureStream::EncIn);
+  NODE_SET_PROTOTYPE_METHOD(t, "clearOut",
+                            SecureStream::ClearOut);
+  NODE_SET_PROTOTYPE_METHOD(t, "clearIn",
+                            SecureStream::ClearIn);
+  NODE_SET_PROTOTYPE_METHOD(t, "encOut",
+                            SecureStream::EncOut);
+  NODE_SET_PROTOTYPE_METHOD(t, "clearPending",
+                            SecureStream::ClearPending);
+  NODE_SET_PROTOTYPE_METHOD(t, "encPending",
+                            SecureStream::EncPending);
   NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate",
                             SecureStream::GetPeerCertificate);
   NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished",
@@ -308,7 +308,7 @@ Handle<Value> SecureStream::New(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::ReadInject(const Arguments& args) {
+Handle<Value> SecureStream::EncIn(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
@@ -350,7 +350,7 @@ Handle<Value> SecureStream::ReadInject(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::ReadExtract(const Arguments& args) {
+Handle<Value> SecureStream::ClearOut(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
@@ -417,7 +417,7 @@ Handle<Value> SecureStream::ReadExtract(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::ReadPending(const Arguments& args) {
+Handle<Value> SecureStream::ClearPending(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
@@ -426,7 +426,7 @@ Handle<Value> SecureStream::ReadPending(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::WriteCanExtract(const Arguments& args) {
+Handle<Value> SecureStream::EncPending(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
@@ -435,7 +435,7 @@ Handle<Value> SecureStream::WriteCanExtract(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::WriteExtract(const Arguments& args) {
+Handle<Value> SecureStream::EncOut(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
@@ -472,7 +472,7 @@ Handle<Value> SecureStream::WriteExtract(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::WriteInject(const Arguments& args) {
+Handle<Value> SecureStream::ClearIn(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());

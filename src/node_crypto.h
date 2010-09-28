@@ -51,12 +51,12 @@ class SecureStream : ObjectWrap {
 
  protected:
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> ReadInject(const v8::Arguments& args);
-  static v8::Handle<v8::Value> ReadExtract(const v8::Arguments& args);
-  static v8::Handle<v8::Value> ReadPending(const v8::Arguments& args);
-  static v8::Handle<v8::Value> WriteCanExtract(const v8::Arguments& args);
-  static v8::Handle<v8::Value> WriteExtract(const v8::Arguments& args);
-  static v8::Handle<v8::Value> WriteInject(const v8::Arguments& args);
+  static v8::Handle<v8::Value> EncIn(const v8::Arguments& args);
+  static v8::Handle<v8::Value> ClearOut(const v8::Arguments& args);
+  static v8::Handle<v8::Value> ClearPending(const v8::Arguments& args);
+  static v8::Handle<v8::Value> EncPending(const v8::Arguments& args);
+  static v8::Handle<v8::Value> EncOut(const v8::Arguments& args);
+  static v8::Handle<v8::Value> ClearIn(const v8::Arguments& args);
   static v8::Handle<v8::Value> GetPeerCertificate(const v8::Arguments& args);
   static v8::Handle<v8::Value> IsInitFinished(const v8::Arguments& args);
   static v8::Handle<v8::Value> VerifyPeer(const v8::Arguments& args);
