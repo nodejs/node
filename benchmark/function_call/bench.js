@@ -30,6 +30,14 @@ for (i = 0; i < N; i++) {
 var cxxDiff = new Date() - start;
 console.log(N +" C++ function calls: " + cxxDiff);
 
+function toMicro (diff) {
+  return (diff / N) * 1000000;
+}
+
+console.log("\nJS function call speed: %d microseconds", toMicro(jsDiff));
+console.log("C++ function call speed: %d microseconds", toMicro(cxxDiff));
+
+
 console.log("\nJS speedup " + (cxxDiff / jsDiff)); 
 
 
