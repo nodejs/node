@@ -1791,6 +1791,10 @@ you can use the `require('querystring').parse` function, or pass
 
 Read only.
 
+### request.trailers
+
+Read only; HTTP trailers (if present). Only populated after the 'end' event.
+
 ### request.httpVersion
 
 The HTTP protocol version as a string. Read only. Examples:
@@ -2092,6 +2096,10 @@ Also `response.httpVersionMajor` is the first integer and
 ### response.headers
 
 The response headers object.
+
+### response.trailers
+
+The response trailers object. Only populated after the 'end' event.
 
 ### response.setEncoding(encoding=null)
 

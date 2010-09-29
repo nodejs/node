@@ -62,14 +62,33 @@ server.addListener("listening", function() {
         outstanding_reqs--;
         clearTimeout(tid);
         assert.ok(
-            /0\r\nx-foo: bar\r\n\r\n$/.test(res_buffer), 
+            /0\r\nx-foo: bar\r\n\r\n$/.test(res_buffer),
             "No trailer in HTTP/1.1 response."
-        );        
+        );
         if (outstanding_reqs == 0) {
             server.close();
             process.exit();
         }
     }
   });
+});
 
+// now, see if the client sees the trailers.
+server.addListener('listening', function() {
+  var client = http.createClient(common.PORT);
+  var req = client.request("/hello", {});
+  req.end();
+  outstanding_reqs++;
+  req.addListener('response', function (res) {
+    res.addListener('end', function () {
+//      console.log(res.trailers);
+      assert.ok("x-foo" in res.trailers,
+        "Client doesn't see trailers.");
+      outstanding_reqs--;
+      if (outstanding_reqs == 0) {
+        server.close();
+        process.exit();
+      }
+    });
+  });
 });
