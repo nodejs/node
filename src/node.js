@@ -69,17 +69,12 @@ var module = (function () {
   var Script;
 
   var internalModuleCache = {};
+  var moduleCache = {};
 
   function Module (id, parent) {
     this.id = id;
     this.exports = {};
     this.parent = parent;
-
-    if (parent) {
-      this.moduleCache = parent.moduleCache;
-    } else {
-      this.moduleCache = {};
-    }
 
     this.filename = null;
     this.loaded = false;
@@ -234,11 +229,11 @@ var module = (function () {
       throw new Error("Cannot find module '" + request + "'");
     }
 
-    var cachedModule = parent.moduleCache[filename];
+    var cachedModule = moduleCache[filename];
     if (cachedModule) return cachedModule.exports;
 
     var module = new Module(id, parent);
-    module.moduleCache[filename] = module;
+    moduleCache[filename] = module;
     module.load(filename);
     return module.exports;
   };
