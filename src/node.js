@@ -252,11 +252,6 @@ var module = (function () {
   };
 
 
-  function cat (id) {
-    requireNative('fs').readFile(id, 'utf8');
-  }
-
-
   // Returns exception if any
   Module.prototype._compile = function (content, filename) {
     var self = this;
