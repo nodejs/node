@@ -425,6 +425,7 @@ global.setInterval = function (callback, repeat) {
 global.clearTimeout = function (timer) {
   if (!Timer) Timer = process.binding("timer").Timer;
   if (timer instanceof Timer) {
+    timer.callback = null;
     timer.stop();
   }
 };
