@@ -1,4 +1,21 @@
-2010.09.17, Version 0.2.2
+2010.10.02, Version 0.2.3
+
+* Fix require in REPL (bug introduced in v0.2.2)
+
+* Pass correct message in client HTTP upgrade event.
+  (Fedor Indutny)
+
+* Show function names in sys.inspect (Jorge Chamorro Bieling)
+
+* In HTTP, close connection on the "connection:close" header.
+  (Mikeal Rogers)
+
+* fs.ReadStream bug fixes (Tj Holowaychuk, Evan Larkin, Marco Rogers)
+
+* Fix zero length buffer bug for http res.end()
+
+
+2010.09.17, Version 0.2.2, 7bf46bc9808f4db98f1cf177d58a6ecf3a50b65d
 
 * REPL improvements (Trent Mick)
 
@@ -27,7 +44,7 @@
 
 * Fixes for NODE_MODULE_CONTEXTS=1 (Herbert Vojčík)
 
-* Expose fingerproint from getPeerCertificate (Paul Querna) 
+* Expose fingerproint from getPeerCertificate (Paul Querna)
 
 * API: forceClose -> destroy for WriteStreams
 
@@ -150,7 +167,7 @@
 * Upgrade http-parser, V8 to 2.2.21
 
 
-2010.06.21, Version 0.1.99, a620b7298f68f68a855306437a3b60b650d61d78 
+2010.06.21, Version 0.1.99, a620b7298f68f68a855306437a3b60b650d61d78
 
 * Datagram sockets (Paul Querna)
 
@@ -256,7 +273,7 @@
 
 2010.05.06, Version 0.1.94, f711d5343b29d1e72e87107315708e40951a7826
 
-* Look in /usr/local/lib/node for modules, so that there's a way 
+* Look in /usr/local/lib/node for modules, so that there's a way
   to install modules globally (Issac Schlueter)
 
 * SSL improvements (Rhys Jones, Paulo Matias)
@@ -276,7 +293,7 @@
 * Bugfix: destroy() instead of end() http connection at end of
   pipeline
 
-* Bugfix: http.Client may be prematurely released back to the 
+* Bugfix: http.Client may be prematurely released back to the
   free pool.  (Thomas Lee)
 
 * Upgrade V8 to 2.2.8
