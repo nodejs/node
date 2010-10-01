@@ -307,9 +307,9 @@ class CodeGenerator: public AstVisitor {
   int NumberOfSlot(Slot* slot);
 
   // State
-  bool has_cc() const  { return cc_reg_ != al; }
-  JumpTarget* true_target() const  { return state_->true_target(); }
-  JumpTarget* false_target() const  { return state_->false_target(); }
+  bool has_cc() const { return cc_reg_ != al; }
+  JumpTarget* true_target() const { return state_->true_target(); }
+  JumpTarget* false_target() const { return state_->false_target(); }
 
   // Track loop nesting level.
   int loop_nesting() const { return loop_nesting_; }

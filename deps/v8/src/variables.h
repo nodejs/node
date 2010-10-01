@@ -122,19 +122,20 @@ class Variable: public ZoneObject {
   static const char* Mode2String(Mode mode);
 
   // Type testing & conversion
-  Property* AsProperty();
-  Variable* AsVariable();
+  Property* AsProperty() const;
+  Slot* AsSlot() const;
+
   bool IsValidLeftHandSide() { return is_valid_LHS_; }
 
   // The source code for an eval() call may refer to a variable that is
   // in an outer scope about which we don't know anything (it may not
   // be the global scope). scope() is NULL in that case. Currently the
   // scope is only used to follow the context chain length.
-  Scope* scope() const  { return scope_; }
+  Scope* scope() const { return scope_; }
 
-  Handle<String> name() const  { return name_; }
-  Mode mode() const  { return mode_; }
-  bool is_accessed_from_inner_scope() const  {
+  Handle<String> name() const { return name_; }
+  Mode mode() const { return mode_; }
+  bool is_accessed_from_inner_scope() const {
     return is_accessed_from_inner_scope_;
   }
   bool is_used() { return is_used_; }
@@ -171,8 +172,7 @@ class Variable: public ZoneObject {
     local_if_not_shadowed_ = local;
   }
 
-  Expression* rewrite() const  { return rewrite_; }
-  Slot* slot() const;
+  Expression* rewrite() const { return rewrite_; }
 
   StaticType* type() { return &type_; }
 

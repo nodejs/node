@@ -89,7 +89,7 @@ void Failure::FailureVerify() {
 
 
 void HeapObject::PrintHeader(const char* id) {
-  PrintF("%p: [%s]\n", this, id);
+  PrintF("%p: [%s]\n", reinterpret_cast<void*>(this), id);
 }
 
 
@@ -522,9 +522,9 @@ void JSObject::PrintElements() {
 
 
 void JSObject::JSObjectPrint() {
-  PrintF("%p: [JSObject]\n", this);
-  PrintF(" - map = %p\n", map());
-  PrintF(" - prototype = %p\n", GetPrototype());
+  PrintF("%p: [JSObject]\n", reinterpret_cast<void*>(this));
+  PrintF(" - map = %p\n", reinterpret_cast<void*>(map()));
+  PrintF(" - prototype = %p\n", reinterpret_cast<void*>(GetPrototype()));
   PrintF(" {\n");
   PrintProperties();
   PrintElements();
@@ -649,8 +649,9 @@ void Map::MapVerify() {
 }
 
 
-void Map::NormalizedMapVerify() {
+void Map::SharedMapVerify() {
   MapVerify();
+  ASSERT(is_shared());
   ASSERT_EQ(Heap::empty_descriptor_array(), instance_descriptors());
   ASSERT_EQ(Heap::empty_fixed_array(), code_cache());
   ASSERT_EQ(0, pre_allocated_property_fields());
@@ -743,7 +744,7 @@ void String::StringVerify() {
 
 void JSFunction::JSFunctionPrint() {
   HeapObject::PrintHeader("Function");
-  PrintF(" - map = 0x%p\n", map());
+  PrintF(" - map = 0x%p\n", reinterpret_cast<void*>(map()));
   PrintF(" - initial_map = ");
   if (has_initial_map()) {
     initial_map()->ShortPrint();
@@ -904,7 +905,7 @@ void Code::CodePrint() {
 
 void Code::CodeVerify() {
   CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),
-                  static_cast<intptr_t>(kCodeAlignment)));
+                  kCodeAlignment));
   Address last_gc_pc = NULL;
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Verify();
@@ -1223,9 +1224,9 @@ void BreakPointInfo::BreakPointInfoVerify() {
 
 void BreakPointInfo::BreakPointInfoPrint() {
   HeapObject::PrintHeader("BreakPointInfo");
-  PrintF("\n - code_position: %d", code_position());
-  PrintF("\n - source_position: %d", source_position());
-  PrintF("\n - statement_position: %d", statement_position());
+  PrintF("\n - code_position: %d", code_position()->value());
+  PrintF("\n - source_position: %d", source_position()->value());
+  PrintF("\n - statement_position: %d", statement_position()->value());
   PrintF("\n - break_point_objects: ");
   break_point_objects()->ShortPrint();
 }
@@ -1381,7 +1382,7 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
     for (int i = 0; i < length(); i++) {
       Object* e = get(i);
       if (e->IsMap()) {
-        Map::cast(e)->NormalizedMapVerify();
+        Map::cast(e)->SharedMapVerify();
       } else {
         ASSERT(e->IsUndefined());
       }

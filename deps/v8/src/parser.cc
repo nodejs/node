@@ -115,11 +115,7 @@ class Parser {
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram(Handle<String> source,
                                 bool in_global_context);
-  FunctionLiteral* ParseLazy(Handle<String> source,
-                             Handle<String> name,
-                             int start_position,
-                             int end_position,
-                             bool is_expression);
+  FunctionLiteral* ParseLazy(Handle<SharedFunctionInfo> info);
   FunctionLiteral* ParseJson(Handle<String> source);
 
   // The minimum number of contiguous assignment that will
@@ -156,12 +152,12 @@ class Parser {
   ScriptDataImpl* pre_data_;
   FuncNameInferrer* fni_;
 
-  bool inside_with() const  { return with_nesting_level_ > 0; }
-  ParserFactory* factory() const  { return factory_; }
+  bool inside_with() const { return with_nesting_level_ > 0; }
+  ParserFactory* factory() const { return factory_; }
   ParserLog* log() const { return log_; }
   Scanner& scanner()  { return scanner_; }
-  Mode mode() const  { return mode_; }
-  ScriptDataImpl* pre_data() const  { return pre_data_; }
+  Mode mode() const { return mode_; }
+  ScriptDataImpl* pre_data() const { return pre_data_; }
 
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
@@ -877,9 +873,27 @@ class ParserLog BASE_EMBEDDED {
   virtual int function_position() { return 0; }
   virtual int symbol_position() { return 0; }
   virtual int symbol_ids() { return 0; }
+  virtual void PauseRecording() {}
+  virtual void ResumeRecording() {}
   virtual Vector<unsigned> ExtractData() {
     return Vector<unsigned>();
   };
+};
+
+
+
+class ConditionalLogPauseScope {
+ public:
+  ConditionalLogPauseScope(bool pause, ParserLog* log)
+      : log_(log), pause_(pause) {
+    if (pause) log->PauseRecording();
+  }
+  ~ConditionalLogPauseScope() {
+    if (pause_) log_->ResumeRecording();
+  }
+ private:
+  ParserLog* log_;
+  bool pause_;
 };
 
 
@@ -970,15 +984,31 @@ class PartialParserRecorder: public ParserLog {
     return data;
   }
 
+  virtual void PauseRecording() {
+    pause_count_++;
+    is_recording_ = false;
+  }
+
+  virtual void ResumeRecording() {
+    ASSERT(pause_count_ > 0);
+    if (--pause_count_ == 0) is_recording_ = !has_error();
+  }
+
  protected:
   bool has_error() {
     return static_cast<bool>(preamble_[ScriptDataImpl::kHasErrorOffset]);
+  }
+  bool is_recording() {
+    return is_recording_;
   }
 
   void WriteString(Vector<const char> str);
 
   Collector<unsigned> function_store_;
   unsigned preamble_[ScriptDataImpl::kHeaderSize];
+  bool is_recording_;
+  int pause_count_;
+
 #ifdef DEBUG
   int prev_start;
 #endif
@@ -991,6 +1021,7 @@ class CompleteParserRecorder: public PartialParserRecorder {
   CompleteParserRecorder();
 
   virtual void LogSymbol(int start, Vector<const char> literal) {
+    if (!is_recording_) return;
     int hash = vector_hash(literal);
     HashMap::Entry* entry = symbol_table_.Lookup(&literal, hash, true);
     int id = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
@@ -1001,7 +1032,7 @@ class CompleteParserRecorder: public PartialParserRecorder {
       Vector<Vector<const char> > symbol = symbol_entries_.AddBlock(1, literal);
       entry->key = &symbol[0];
     }
-    symbol_store_.Add(id - 1);
+    WriteNumber(id - 1);
   }
 
   virtual Vector<unsigned> ExtractData() {
@@ -1059,13 +1090,6 @@ class CompleteParserRecorder: public PartialParserRecorder {
   HashMap symbol_table_;
   int symbol_id_;
 };
-
-
-void ScriptDataImpl::SkipFunctionEntry(int start) {
-  ASSERT(function_index_ + FunctionEntry::kSize <= store_.length());
-  ASSERT(static_cast<int>(store_[function_index_]) == start);
-  function_index_ += FunctionEntry::kSize;
-}
 
 
 FunctionEntry ScriptDataImpl::GetFunctionEntry(int start) {
@@ -1126,7 +1150,10 @@ bool ScriptDataImpl::SanityCheck() {
 
 
 
-PartialParserRecorder::PartialParserRecorder() : function_store_(0) {
+PartialParserRecorder::PartialParserRecorder()
+    : function_store_(0),
+      is_recording_(true),
+      pause_count_(0) {
   preamble_[ScriptDataImpl::kMagicOffset] = ScriptDataImpl::kMagicNumber;
   preamble_[ScriptDataImpl::kVersionOffset] = ScriptDataImpl::kCurrentVersion;
   preamble_[ScriptDataImpl::kHasErrorOffset] = false;
@@ -1202,6 +1229,7 @@ void PartialParserRecorder::LogMessage(Scanner::Location loc,
   for (int i = 0; i < args.length(); i++) {
     WriteString(CStrVector(args[i]));
   }
+  is_recording_ = false;
 }
 
 
@@ -1248,7 +1276,7 @@ FunctionEntry PartialParserRecorder::LogFunction(int start) {
   ASSERT(start > prev_start);
   prev_start = start;
 #endif
-  if (has_error()) return FunctionEntry();
+  if (!is_recording_) return FunctionEntry();
   FunctionEntry result(function_store_.AddBlock(FunctionEntry::kSize, 0));
   result.set_start_pos(start);
   return result;
@@ -1343,6 +1371,8 @@ Scope* ParserFactory::NewScope(Scope* parent, Scope::Type type,
                                bool inside_with) {
   ASSERT(parent != NULL);
   parent->type_ = type;
+  // Initialize function is hijacked by DummyScope to increment scope depth.
+  parent->Initialize(inside_with);
   return parent;
 }
 
@@ -1415,6 +1445,7 @@ class LexicalScope BASE_EMBEDDED {
   }
 
   ~LexicalScope() {
+    parser_->top_scope_->Leave();
     parser_->top_scope_ = prev_scope_;
     parser_->with_nesting_level_ = prev_level_;
   }
@@ -1457,7 +1488,7 @@ Parser::Parser(Handle<Script> script,
                ParserLog* log,
                ScriptDataImpl* pre_data)
     : script_(script),
-      scanner_(is_pre_parsing),
+      scanner_(),
       top_scope_(NULL),
       with_nesting_level_(0),
       temp_scope_(NULL),
@@ -1480,7 +1511,8 @@ bool Parser::PreParseProgram(Handle<String> source,
   NoHandleAllocation no_handle_allocation;
   scanner_.Initialize(source, stream, JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
-  mode_ = PARSE_EAGERLY;
+  mode_ = FLAG_lazy ? PARSE_LAZILY : PARSE_EAGERLY;
+  if (allow_natives_syntax_ || extension_ != NULL) mode_ = PARSE_EAGERLY;
   DummyScope top_scope;
   LexicalScope scope(this, &top_scope);
   TemporaryScope temp_scope(this);
@@ -1503,6 +1535,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
   source->TryFlatten();
   scanner_.Initialize(source, JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
+  if (pre_data_ != NULL) pre_data_->Initialize();
 
   // Compute the parsing mode.
   mode_ = FLAG_lazy ? PARSE_LAZILY : PARSE_EAGERLY;
@@ -1550,21 +1583,20 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 }
 
 
-FunctionLiteral* Parser::ParseLazy(Handle<String> source,
-                                   Handle<String> name,
-                                   int start_position,
-                                   int end_position,
-                                   bool is_expression) {
+FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(&Counters::parse_lazy);
+  Handle<String> source(String::cast(script_->source()));
   Counters::total_parse_size.Increment(source->length());
 
+  Handle<String> name(String::cast(info->name()));
   fni_ = new FuncNameInferrer();
   fni_->PushEnclosingName(name);
 
   // Initialize parser state.
   source->TryFlatten();
-  scanner_.Initialize(source, start_position, end_position, JAVASCRIPT);
+  scanner_.Initialize(source, info->start_position(), info->end_position(),
+                      JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
 
@@ -1579,7 +1611,8 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
     LexicalScope lexical_scope(this, scope);
     TemporaryScope temp_scope(this);
 
-    FunctionLiteralType type = is_expression ? EXPRESSION : DECLARATION;
+    FunctionLiteralType type =
+        info->is_expression() ? EXPRESSION : DECLARATION;
     bool ok = true;
     result = ParseFunctionLiteral(name, RelocInfo::kNoPosition, type, &ok);
     // Make sure the results agree.
@@ -1599,6 +1632,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
   }
   return result;
 }
+
 
 FunctionLiteral* Parser::ParseJson(Handle<String> source) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
@@ -1657,7 +1691,10 @@ void Parser::ReportMessage(const char* type, Vector<const char*> args) {
 
 
 Handle<String> Parser::GetSymbol(bool* ok) {
-  log()->LogSymbol(scanner_.location().beg_pos, scanner_.literal());
+  if (is_pre_parsing_) {
+    log()->LogSymbol(scanner_.location().beg_pos, scanner_.literal());
+    return Handle<String>::null();
+  }
   int symbol_id = -1;
   if (pre_data() != NULL) {
     symbol_id = pre_data()->GetSymbolIdentifier();
@@ -1970,7 +2007,7 @@ void* Parser::ParseSourceElements(ZoneListWrapper<Statement>* processor,
   }
 
   // Propagate the collected information on this property assignments.
-  if (top_scope_->is_function_scope()) {
+  if (!is_pre_parsing_ && top_scope_->is_function_scope()) {
     bool only_simple_this_property_assignments =
         this_property_assignment_finder.only_simple_this_property_assignments()
         && top_scope_->declarations()->length() == 0;
@@ -4122,8 +4159,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
 
   int num_parameters = 0;
   // Parse function body.
-  { Scope::Type type = Scope::FUNCTION_SCOPE;
-    Scope* scope = factory()->NewScope(top_scope_, type, inside_with());
+  { Scope* scope =
+        factory()->NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
     LexicalScope lexical_scope(this, scope);
     TemporaryScope temp_scope(this);
     top_scope_->SetScopeName(name);
@@ -4154,7 +4191,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     // NOTE: We create a proxy and resolve it here so that in the
     // future we can change the AST to only refer to VariableProxies
     // instead of Variables and Proxis as is the case now.
-    if (!function_name.is_null() && function_name->length() > 0) {
+    if (!is_pre_parsing_
+        && !function_name.is_null()
+        && function_name->length() > 0) {
       Variable* fvar = top_scope_->DeclareFunctionVar(function_name);
       VariableProxy* fproxy =
           top_scope_->NewUnresolved(function_name, inside_with());
@@ -4188,22 +4227,18 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       }
       Counters::total_preparse_skipped.Increment(end_pos - function_block_pos);
       scanner_.SeekForward(end_pos);
-      pre_data()->Skip(entry.predata_function_skip(),
-                       entry.predata_symbol_skip());
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();
       only_simple_this_property_assignments = false;
       this_property_assignments = Factory::empty_fixed_array();
       Expect(Token::RBRACE, CHECK_OK);
     } else {
-      if (pre_data() != NULL) {
-        // Skip pre-data entry for non-lazily compiled function.
-        pre_data()->SkipFunctionEntry(function_block_pos);
+      FunctionEntry entry;
+      if (is_lazily_compiled) entry = log()->LogFunction(function_block_pos);
+      {
+        ConditionalLogPauseScope pause_if(is_lazily_compiled, log());
+        ParseSourceElements(&body, Token::RBRACE, CHECK_OK);
       }
-      FunctionEntry entry = log()->LogFunction(function_block_pos);
-      int predata_function_position_before = log()->function_position();
-      int predata_symbol_position_before = log()->symbol_position();
-      ParseSourceElements(&body, Token::RBRACE, CHECK_OK);
       materialized_literal_count = temp_scope.materialized_literal_count();
       expected_property_count = temp_scope.expected_property_count();
       only_simple_this_property_assignments =
@@ -4213,13 +4248,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       Expect(Token::RBRACE, CHECK_OK);
       end_pos = scanner_.location().end_pos;
       if (entry.is_valid()) {
+        ASSERT(is_lazily_compiled);
+        ASSERT(is_pre_parsing_);
         entry.set_end_pos(end_pos);
         entry.set_literal_count(materialized_literal_count);
         entry.set_property_count(expected_property_count);
-        entry.set_predata_function_skip(
-            log()->function_position() - predata_function_position_before);
-        entry.set_predata_symbol_skip(
-            log()->symbol_position() - predata_symbol_position_before);
       }
     }
 
@@ -5439,12 +5472,6 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
 // ----------------------------------------------------------------------------
 // The Parser interface.
 
-// MakeAST() is just a wrapper for the corresponding Parser calls
-// so we don't have to expose the entire Parser class in the .h file.
-
-static bool always_allow_natives_syntax = false;
-
-
 ParserMessage::~ParserMessage() {
   for (int i = 0; i < args().length(); i++)
     DeleteArray(args()[i]);
@@ -5479,9 +5506,7 @@ ScriptDataImpl* PartialPreParse(Handle<String> source,
                                 v8::Extension* extension) {
   Handle<Script> no_script;
   bool allow_natives_syntax =
-      always_allow_natives_syntax ||
-      FLAG_allow_natives_syntax ||
-      Bootstrapper::IsActive();
+      FLAG_allow_natives_syntax || Bootstrapper::IsActive();
   PartialPreParser parser(no_script, allow_natives_syntax, extension);
   if (!parser.PreParseProgram(source, stream)) return NULL;
   // Extract the accumulated data from the recorder as a single
@@ -5492,7 +5517,9 @@ ScriptDataImpl* PartialPreParse(Handle<String> source,
 
 
 void ScriptDataImpl::Initialize() {
+  // Prepares state for use.
   if (store_.length() >= kHeaderSize) {
+    function_index_ = kHeaderSize;
     int symbol_data_offset = kHeaderSize + store_[kFunctionsSizeOffset];
     if (store_.length() > symbol_data_offset) {
       symbol_data_ = reinterpret_cast<byte*>(&store_[symbol_data_offset]);
@@ -5537,9 +5564,7 @@ ScriptDataImpl* PreParse(Handle<String> source,
                          v8::Extension* extension) {
   Handle<Script> no_script;
   bool allow_natives_syntax =
-      always_allow_natives_syntax ||
-      FLAG_allow_natives_syntax ||
-      Bootstrapper::IsActive();
+      FLAG_allow_natives_syntax || Bootstrapper::IsActive();
   CompletePreParser parser(no_script, allow_natives_syntax, extension);
   if (!parser.PreParseProgram(source, stream)) return NULL;
   // Extract the accumulated data from the recorder as a single
@@ -5571,15 +5596,15 @@ bool ParseRegExp(FlatStringReader* input,
 }
 
 
+// MakeAST is just a wrapper for the corresponding Parser calls so we don't
+// have to expose the entire Parser class in the .h file.
 FunctionLiteral* MakeAST(bool compile_in_global_context,
                          Handle<Script> script,
                          v8::Extension* extension,
                          ScriptDataImpl* pre_data,
                          bool is_json) {
   bool allow_natives_syntax =
-      always_allow_natives_syntax ||
-      FLAG_allow_natives_syntax ||
-      Bootstrapper::IsActive();
+      FLAG_allow_natives_syntax || Bootstrapper::IsActive();
   AstBuildingParser parser(script, allow_natives_syntax, extension, pre_data);
   if (pre_data != NULL && pre_data->has_error()) {
     Scanner::Location loc = pre_data->MessageLocation();
@@ -5605,25 +5630,13 @@ FunctionLiteral* MakeAST(bool compile_in_global_context,
 }
 
 
-FunctionLiteral* MakeLazyAST(Handle<Script> script,
-                             Handle<String> name,
-                             int start_position,
-                             int end_position,
-                             bool is_expression) {
-  bool allow_natives_syntax_before = always_allow_natives_syntax;
-  always_allow_natives_syntax = true;
-  AstBuildingParser parser(script, true, NULL, NULL);  // always allow
-  always_allow_natives_syntax = allow_natives_syntax_before;
-  // Parse the function by pointing to the function source in the script source.
-  Handle<String> script_source(String::cast(script->source()));
-  FunctionLiteral* result =
-      parser.ParseLazy(script_source, name,
-                       start_position, end_position, is_expression);
+FunctionLiteral* MakeLazyAST(Handle<SharedFunctionInfo> info) {
+  Handle<Script> script(Script::cast(info->script()));
+  AstBuildingParser parser(script, true, NULL, NULL);
+  FunctionLiteral* result = parser.ParseLazy(info);
   return result;
 }
 
-
 #undef NEW
-
 
 } }  // namespace v8::internal

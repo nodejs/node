@@ -35,6 +35,7 @@ Import('context object_files')
 SOURCES = {
   'all': [
     'gay-fixed.cc',
+    'gay-precision.cc',
     'gay-shortest.cc',
     'test-accessors.cc',
     'test-alloc.cc',

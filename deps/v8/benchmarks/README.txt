@@ -70,7 +70,9 @@ Removed dead code from the RayTrace benchmark and fixed a couple of
 typos in the DeltaBlue implementation. Changed the Splay benchmark to
 avoid converting the same numeric key to a string over and over again
 and to avoid inserting and removing the same element repeatedly thus
-increasing pressure on the memory subsystem.
+increasing pressure on the memory subsystem. Changed the RegExp
+benchmark to exercise the regular expression engine on different
+input strings.
 
 Furthermore, the benchmark runner was changed to run the benchmarks
 for at least a few times to stabilize the reported numbers on slower

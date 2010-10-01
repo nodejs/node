@@ -41,118 +41,109 @@ namespace internal {
 // is constructed based on the resources available at compile-time.
 class CompilationInfo BASE_EMBEDDED {
  public:
-  // Lazy compilation of a JSFunction.
-  CompilationInfo(Handle<JSFunction> closure,
-                  int loop_nesting,
-                  Handle<Object> receiver)
-      : closure_(closure),
-        function_(NULL),
-        is_eval_(false),
-        loop_nesting_(loop_nesting),
-        receiver_(receiver) {
-    Initialize();
-    ASSERT(!closure_.is_null() &&
-           shared_info_.is_null() &&
-           script_.is_null());
+  virtual ~CompilationInfo() {}
+
+  // Dispatched behavior.
+  virtual Handle<SharedFunctionInfo> shared_info() const = 0;
+
+  virtual Handle<Script> script() const {
+    return Handle<Script>(Script::cast(shared_info()->script()));
   }
 
-  // Lazy compilation based on SharedFunctionInfo.
-  explicit CompilationInfo(Handle<SharedFunctionInfo> shared_info)
-      : shared_info_(shared_info),
-        function_(NULL),
-        is_eval_(false),
-        loop_nesting_(0) {
-    Initialize();
-    ASSERT(closure_.is_null() &&
-           !shared_info_.is_null() &&
-           script_.is_null());
+  virtual Handle<JSFunction> closure() const {
+    return Handle<JSFunction>::null();
   }
 
-  // Eager compilation.
-  CompilationInfo(FunctionLiteral* literal, Handle<Script> script, bool is_eval)
-      : script_(script),
-        function_(literal),
-        is_eval_(is_eval),
-        loop_nesting_(0) {
-    Initialize();
-    ASSERT(closure_.is_null() &&
-           shared_info_.is_null() &&
-           !script_.is_null());
-  }
+  virtual bool is_eval() const { return false; }
 
-  // We can only get a JSFunction if we actually have one.
-  Handle<JSFunction> closure() { return closure_; }
+  virtual int loop_nesting() const { return 0; }
 
-  // We can get a SharedFunctionInfo from a JSFunction or if we actually
-  // have one.
-  Handle<SharedFunctionInfo> shared_info() {
-    if (!closure().is_null()) {
-      return Handle<SharedFunctionInfo>(closure()->shared());
-    } else {
-      return shared_info_;
-    }
-  }
-
-  // We can always get a script.  Either we have one or we can get a shared
-  // function info.
-  Handle<Script> script() {
-    if (!script_.is_null()) {
-      return script_;
-    } else {
-      ASSERT(shared_info()->script()->IsScript());
-      return Handle<Script>(Script::cast(shared_info()->script()));
-    }
-  }
+  virtual bool has_global_object() const { return false; }
+  virtual GlobalObject* global_object() const { return NULL; }
 
   // There should always be a function literal, but it may be set after
   // construction (for lazy compilation).
   FunctionLiteral* function() { return function_; }
   void set_function(FunctionLiteral* literal) { function_ = literal; }
 
-  // Simple accessors.
-  bool is_eval() { return is_eval_; }
-  int loop_nesting() { return loop_nesting_; }
-  bool has_receiver() { return !receiver_.is_null(); }
-  Handle<Object> receiver() { return receiver_; }
-
-  bool has_this_properties() { return has_this_properties_; }
-  void set_has_this_properties(bool flag) { has_this_properties_ = flag; }
-
-  bool has_global_object() {
-    return !closure().is_null() && (closure()->context()->global() != NULL);
-  }
-
-  GlobalObject* global_object() {
-    return has_global_object() ? closure()->context()->global() : NULL;
-  }
-
-  bool has_globals() { return has_globals_; }
-  void set_has_globals(bool flag) { has_globals_ = flag; }
-
   // Derived accessors.
   Scope* scope() { return function()->scope(); }
 
+ protected:
+  CompilationInfo() : function_(NULL) {}
+
  private:
-  void Initialize() {
-    has_this_properties_ = false;
-    has_globals_ = false;
-  }
-
-  Handle<JSFunction> closure_;
-  Handle<SharedFunctionInfo> shared_info_;
-  Handle<Script> script_;
-
   FunctionLiteral* function_;
 
-  bool is_eval_;
-  int loop_nesting_;
-
-  Handle<Object> receiver_;
-
-  bool has_this_properties_;
-  bool has_globals_;
-
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
+};
+
+
+class EagerCompilationInfo: public CompilationInfo {
+ public:
+  EagerCompilationInfo(Handle<Script> script, bool is_eval)
+      : script_(script), is_eval_(is_eval) {
+    ASSERT(!script.is_null());
+  }
+
+  // Overridden functions from the base class.
+  virtual Handle<SharedFunctionInfo> shared_info() const {
+    return Handle<SharedFunctionInfo>::null();
+  }
+
+  virtual Handle<Script> script() const { return script_; }
+
+  virtual bool is_eval() const { return is_eval_; }
+
+ private:
+  Handle<Script> script_;
+  bool is_eval_;
+};
+
+
+class LazySharedCompilationInfo: public CompilationInfo {
+ public:
+  explicit LazySharedCompilationInfo(Handle<SharedFunctionInfo> shared_info)
+      : shared_info_(shared_info) {
+    ASSERT(!shared_info.is_null());
+  }
+
+  // Overridden functions from the base class.
+  virtual Handle<SharedFunctionInfo> shared_info() const {
+    return shared_info_;
+  }
+
+ private:
+  Handle<SharedFunctionInfo> shared_info_;
+};
+
+
+class LazyFunctionCompilationInfo: public CompilationInfo {
+ public:
+  LazyFunctionCompilationInfo(Handle<JSFunction> closure,
+                              int loop_nesting)
+      : closure_(closure), loop_nesting_(loop_nesting) {
+    ASSERT(!closure.is_null());
+  }
+
+  // Overridden functions from the base class.
+  virtual Handle<SharedFunctionInfo> shared_info() const {
+    return Handle<SharedFunctionInfo>(closure_->shared());
+  }
+
+  virtual int loop_nesting() const { return loop_nesting_; }
+
+  virtual bool has_global_object() const {
+    return closure_->context()->global() != NULL;
+  }
+
+  virtual GlobalObject* global_object() const {
+    return closure_->context()->global();
+  }
+
+ private:
+  Handle<JSFunction> closure_;
+  int loop_nesting_;
 };
 
 

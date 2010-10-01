@@ -240,10 +240,10 @@ class CodeGenerator: public AstVisitor {
   void ProcessDeferred();
 
   // State
-  bool has_cc() const  { return cc_reg_ != cc_always; }
+  bool has_cc() const { return cc_reg_ != cc_always; }
   TypeofState typeof_state() const { return state_->typeof_state(); }
-  JumpTarget* true_target() const  { return state_->true_target(); }
-  JumpTarget* false_target() const  { return state_->false_target(); }
+  JumpTarget* true_target() const { return state_->true_target(); }
+  JumpTarget* false_target() const { return state_->false_target(); }
 
   // We don't track loop nesting level on mips yet.
   int loop_nesting() const { return 0; }
@@ -280,7 +280,7 @@ class CodeGenerator: public AstVisitor {
   MemOperand SlotOperand(Slot* slot, Register tmp);
 
   // Expressions
-  MemOperand GlobalObject() const  {
+  MemOperand GlobalObject() const {
     return ContextOperand(cp, Context::GLOBAL_INDEX);
   }
 

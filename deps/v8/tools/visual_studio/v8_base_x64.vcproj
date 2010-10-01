@@ -708,6 +708,7 @@
 			<File
 				RelativePath="..\..\src\objects-visiting.h"
 				>
+			</File>
 			<File
 				RelativePath="..\..\src\objects.cc"
 				>
@@ -894,6 +895,14 @@
 			</File>
 			<File
 				RelativePath="..\..\src\spaces.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\string-search.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\string-search.h"
 				>
 			</File>
 			<File

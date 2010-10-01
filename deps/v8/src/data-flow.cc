@@ -42,7 +42,7 @@ void BitVector::Print() {
     if (Contains(i)) {
       if (!first) PrintF(",");
       first = false;
-      PrintF("%d");
+      PrintF("%d", i);
     }
   }
   PrintF("}");
@@ -125,7 +125,7 @@ Variable* AssignedVariablesAnalyzer::FindSmiLoopVariable(ForStatement* stmt) {
 int AssignedVariablesAnalyzer::BitIndex(Variable* var) {
   ASSERT(var != NULL);
   ASSERT(var->IsStackAllocated());
-  Slot* slot = var->slot();
+  Slot* slot = var->AsSlot();
   if (slot->type() == Slot::PARAMETER) {
     return slot->index();
   } else {

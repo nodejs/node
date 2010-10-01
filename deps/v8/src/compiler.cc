@@ -120,8 +120,9 @@ Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info) {
   Handle<Context> context = Handle<Context>::null();
   Handle<Code> code = MakeCode(context, info);
   if (!info->shared_info().is_null()) {
-    info->shared_info()->set_scope_info(
-        *SerializedScopeInfo::Create(info->scope()));
+    Handle<SerializedScopeInfo> scope_info =
+        SerializedScopeInfo::Create(info->scope());
+    info->shared_info()->set_scope_info(*scope_info);
   }
   return code;
 }
@@ -145,9 +146,10 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   bool is_json = (validate == Compiler::VALIDATE_JSON);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (is_eval || is_json) {
-    script->set_compilation_type(
-        is_json ? Smi::FromInt(Script::COMPILATION_TYPE_JSON) :
-                               Smi::FromInt(Script::COMPILATION_TYPE_EVAL));
+    Script::CompilationType compilation_type = is_json
+        ? Script::COMPILATION_TYPE_JSON
+        : Script::COMPILATION_TYPE_EVAL;
+    script->set_compilation_type(Smi::FromInt(compilation_type));
     // For eval scripts add information on the function from which eval was
     // called.
     if (is_eval) {
@@ -170,16 +172,16 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   ASSERT(is_eval || is_global);
 
   // Build AST.
+  EagerCompilationInfo info(script, is_eval);
   FunctionLiteral* lit =
       MakeAST(is_global, script, extension, pre_data, is_json);
-
-  LiveEditFunctionTracker live_edit_tracker(lit);
 
   // Check for parse errors.
   if (lit == NULL) {
     ASSERT(Top::has_pending_exception());
     return Handle<SharedFunctionInfo>::null();
   }
+  info.set_function(lit);
 
   // Measure how long it takes to do the compilation; only take the
   // rest of the function into account to avoid overlap with the
@@ -190,7 +192,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   HistogramTimerScope timer(rate);
 
   // Compile the code.
-  CompilationInfo info(lit, script, is_eval);
+  LiveEditFunctionTracker live_edit_tracker(lit);
   Handle<Code> code = MakeCode(context, &info);
 
   // Check for stack-overflow exceptions.
@@ -375,20 +377,12 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
   // Compute name, source code and script data.
   Handle<SharedFunctionInfo> shared = info->shared_info();
-  Handle<String> name(String::cast(shared->name()));
-
-  int start_position = shared->start_position();
-  int end_position = shared->end_position();
-  bool is_expression = shared->is_expression();
-  Counters::total_compile_size.Increment(end_position - start_position);
+  int compiled_size = shared->end_position() - shared->start_position();
+  Counters::total_compile_size.Increment(compiled_size);
 
   // Generate the AST for the lazily compiled function. The AST may be
   // NULL in case of parser stack overflow.
-  FunctionLiteral* lit = MakeLazyAST(info->script(),
-                                     name,
-                                     start_position,
-                                     end_position,
-                                     is_expression);
+  FunctionLiteral* lit = MakeLazyAST(shared);
 
   // Check for parse errors.
   if (lit == NULL) {
@@ -412,18 +406,20 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   }
 
   RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG,
-                            name,
+                            Handle<String>(String::cast(shared->name())),
                             Handle<String>(shared->inferred_name()),
-                            start_position,
+                            shared->start_position(),
                             info->script(),
                             code);
 
   // Update the shared function info with the compiled code and the scope info.
   // Please note, that the order of the sharedfunction initialization is
-  // important since set_scope_info might trigger a GC, causing the ASSERT
-  // below to be invalid if the code was flushed. By settting the code
+  // important since SerializedScopeInfo::Create might trigger a GC, causing
+  // the ASSERT below to be invalid if the code was flushed. By setting the code
   // object last we avoid this.
-  shared->set_scope_info(*SerializedScopeInfo::Create(info->scope()));
+  Handle<SerializedScopeInfo> scope_info =
+      SerializedScopeInfo::Create(info->scope());
+  shared->set_scope_info(*scope_info);
   shared->set_code(*code);
   if (!info->closure().is_null()) {
     info->closure()->set_code(*code);
@@ -479,7 +475,8 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
     // Generate code and return it.  The way that the compilation mode
     // is controlled by the command-line flags is described in
     // the static helper function MakeCode.
-    CompilationInfo info(literal, script, false);
+    EagerCompilationInfo info(script, false);
+    info.set_function(literal);
 
     bool is_run_once = literal->try_full_codegen();
     bool use_full = FLAG_full_compiler && !literal->contains_loops();

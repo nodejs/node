@@ -63,8 +63,8 @@ MapSpace* Heap::map_space_ = NULL;
 CellSpace* Heap::cell_space_ = NULL;
 LargeObjectSpace* Heap::lo_space_ = NULL;
 
-int Heap::old_gen_promotion_limit_ = kMinimumPromotionLimit;
-int Heap::old_gen_allocation_limit_ = kMinimumAllocationLimit;
+intptr_t Heap::old_gen_promotion_limit_ = kMinimumPromotionLimit;
+intptr_t Heap::old_gen_allocation_limit_ = kMinimumAllocationLimit;
 
 int Heap::old_gen_exhausted_ = false;
 
@@ -75,19 +75,19 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 // a multiple of Page::kPageSize.
 #if defined(ANDROID)
 int Heap::max_semispace_size_  = 2*MB;
-int Heap::max_old_generation_size_ = 192*MB;
+intptr_t Heap::max_old_generation_size_ = 192*MB;
 int Heap::initial_semispace_size_ = 128*KB;
-size_t Heap::code_range_size_ = 0;
+intptr_t Heap::code_range_size_ = 0;
 #elif defined(V8_TARGET_ARCH_X64)
 int Heap::max_semispace_size_  = 16*MB;
-int Heap::max_old_generation_size_ = 1*GB;
+intptr_t Heap::max_old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
-size_t Heap::code_range_size_ = 512*MB;
+intptr_t Heap::code_range_size_ = 512*MB;
 #else
 int Heap::max_semispace_size_  = 8*MB;
-int Heap::max_old_generation_size_ = 512*MB;
+intptr_t Heap::max_old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
-size_t Heap::code_range_size_ = 0;
+intptr_t Heap::code_range_size_ = 0;
 #endif
 
 // The snapshot semispace size will be the default semispace size if
@@ -108,7 +108,7 @@ HeapObjectCallback Heap::gc_safe_size_of_old_object_ = NULL;
 // Will be 4 * reserved_semispace_size_ to ensure that young
 // generation can be aligned to its size.
 int Heap::survived_since_last_expansion_ = 0;
-int Heap::external_allocation_limit_ = 0;
+intptr_t Heap::external_allocation_limit_ = 0;
 
 Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 
@@ -137,13 +137,13 @@ int Heap::allocation_timeout_ = 0;
 bool Heap::disallow_allocation_failure_ = false;
 #endif  // DEBUG
 
-int GCTracer::alive_after_last_gc_ = 0;
+intptr_t GCTracer::alive_after_last_gc_ = 0;
 double GCTracer::last_gc_end_timestamp_ = 0.0;
 int GCTracer::max_gc_pause_ = 0;
-int GCTracer::max_alive_after_gc_ = 0;
+intptr_t GCTracer::max_alive_after_gc_ = 0;
 int GCTracer::min_in_mutator_ = kMaxInt;
 
-int Heap::Capacity() {
+intptr_t Heap::Capacity() {
   if (!HasBeenSetup()) return 0;
 
   return new_space_.Capacity() +
@@ -155,7 +155,7 @@ int Heap::Capacity() {
 }
 
 
-int Heap::CommittedMemory() {
+intptr_t Heap::CommittedMemory() {
   if (!HasBeenSetup()) return 0;
 
   return new_space_.CommittedMemory() +
@@ -168,7 +168,7 @@ int Heap::CommittedMemory() {
 }
 
 
-int Heap::Available() {
+intptr_t Heap::Available() {
   if (!HasBeenSetup()) return 0;
 
   return new_space_.Available() +
@@ -289,33 +289,46 @@ void Heap::ReportStatisticsBeforeGC() {
 #if defined(ENABLE_LOGGING_AND_PROFILING)
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
-  PrintF("Memory allocator,   used: %8d, available: %8d\n",
+  PrintF("Memory allocator,   used: %8" V8_PTR_PREFIX "d"
+             ", available: %8" V8_PTR_PREFIX "d\n",
          MemoryAllocator::Size(),
          MemoryAllocator::Available());
-  PrintF("New space,          used: %8d, available: %8d\n",
+  PrintF("New space,          used: %8" V8_PTR_PREFIX "d"
+             ", available: %8" V8_PTR_PREFIX "d\n",
          Heap::new_space_.Size(),
          new_space_.Available());
-  PrintF("Old pointers,       used: %8d, available: %8d, waste: %8d\n",
+  PrintF("Old pointers,       used: %8" V8_PTR_PREFIX "d"
+             ", available: %8" V8_PTR_PREFIX "d"
+             ", waste: %8" V8_PTR_PREFIX "d\n",
          old_pointer_space_->Size(),
          old_pointer_space_->Available(),
          old_pointer_space_->Waste());
-  PrintF("Old data space,     used: %8d, available: %8d, waste: %8d\n",
+  PrintF("Old data space,     used: %8" V8_PTR_PREFIX "d"
+             ", available: %8" V8_PTR_PREFIX "d"
+             ", waste: %8" V8_PTR_PREFIX "d\n",
          old_data_space_->Size(),
          old_data_space_->Available(),
          old_data_space_->Waste());
-  PrintF("Code space,         used: %8d, available: %8d, waste: %8d\n",
+  PrintF("Code space,         used: %8" V8_PTR_PREFIX "d"
+             ", available: %8" V8_PTR_PREFIX "d"
+             ", waste: %8" V8_PTR_PREFIX "d\n",
          code_space_->Size(),
          code_space_->Available(),
          code_space_->Waste());
-  PrintF("Map space,          used: %8d, available: %8d, waste: %8d\n",
+  PrintF("Map space,          used: %8" V8_PTR_PREFIX "d"
+             ", available: %8" V8_PTR_PREFIX "d"
+             ", waste: %8" V8_PTR_PREFIX "d\n",
          map_space_->Size(),
          map_space_->Available(),
          map_space_->Waste());
-  PrintF("Cell space,         used: %8d, available: %8d, waste: %8d\n",
+  PrintF("Cell space,         used: %8" V8_PTR_PREFIX "d"
+             ", available: %8" V8_PTR_PREFIX "d"
+             ", waste: %8" V8_PTR_PREFIX "d\n",
          cell_space_->Size(),
          cell_space_->Available(),
          cell_space_->Waste());
-  PrintF("Large object space, used: %8d, avaialble: %8d\n",
+  PrintF("Large object space, used: %8" V8_PTR_PREFIX "d"
+             ", available: %8" V8_PTR_PREFIX "d\n",
          lo_space_->Size(),
          lo_space_->Available());
 }
@@ -364,8 +377,8 @@ void Heap::GarbageCollectionPrologue() {
 #endif
 }
 
-int Heap::SizeOfObjects() {
-  int total = 0;
+intptr_t Heap::SizeOfObjects() {
+  intptr_t total = 0;
   AllSpaces spaces;
   for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
     total += space->Size();
@@ -388,7 +401,7 @@ void Heap::GarbageCollectionEpilogue() {
   if (FLAG_code_stats) ReportCodeStatistics("After GC");
 #endif
 
-  Counters::alive_after_last_gc.Set(SizeOfObjects());
+  Counters::alive_after_last_gc.Set(static_cast<int>(SizeOfObjects()));
 
   Counters::symbol_table_capacity.Set(symbol_table()->Capacity());
   Counters::number_of_symbols.Set(symbol_table()->NumberOfElements());
@@ -690,7 +703,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   EnsureFromSpaceIsCommitted();
 
-  int start_new_space_size = Heap::new_space()->Size();
+  int start_new_space_size = Heap::new_space()->SizeAsInt();
 
   if (collector == MARK_COMPACTOR) {
     // Perform mark-sweep with optional compaction.
@@ -962,7 +975,7 @@ void Heap::Scavenge() {
   DescriptorLookupCache::Clear();
 
   // Used for updating survived_since_last_expansion_ at function end.
-  int survived_watermark = PromotedSpaceSize();
+  intptr_t survived_watermark = PromotedSpaceSize();
 
   CheckNewSpaceExpansionCriteria();
 
@@ -1032,8 +1045,8 @@ void Heap::Scavenge() {
   new_space_.set_age_mark(new_space_.top());
 
   // Update how much has survived scavenge.
-  IncrementYoungSurvivorsCounter(
-      (PromotedSpaceSize() - survived_watermark) + new_space_.Size());
+  IncrementYoungSurvivorsCounter(static_cast<int>(
+      (PromotedSpaceSize() - survived_watermark) + new_space_.Size()));
 
   LOG(ResourceEvent("scavenge", "end"));
 
@@ -1218,7 +1231,14 @@ class ScavengingVisitor : public StaticVisitorBase {
     RecordCopiedObject(target);
 #endif
     HEAP_PROFILE(ObjectMoveEvent(source->address(), target->address()));
-
+#if defined(ENABLE_LOGGING_AND_PROFILING)
+    if (Logger::is_logging() || CpuProfiler::is_profiling()) {
+      if (target->IsJSFunction()) {
+        PROFILE(FunctionMoveEvent(source->address(), target->address()));
+        PROFILE(FunctionCreateEventFromMove(JSFunction::cast(target), source));
+      }
+    }
+#endif
     return target;
   }
 
@@ -2068,6 +2088,7 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_debug_info(undefined_value());
   share->set_inferred_name(empty_string());
   share->set_compiler_hints(0);
+  share->set_initial_map(undefined_value());
   share->set_this_property_assignments_count(0);
   share->set_this_property_assignments(undefined_value());
   share->set_num_literals(0);
@@ -2436,7 +2457,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   // Compute size
   int body_size = RoundUp(desc.instr_size, kObjectAlignment);
   int obj_size = Code::SizeFor(body_size);
-  ASSERT(IsAligned(obj_size, Code::kCodeAlignment));
+  ASSERT(IsAligned(static_cast<intptr_t>(obj_size), kCodeAlignment));
   Object* result;
   if (obj_size > MaxObjectSizeInPagedSpace()) {
     result = lo_space_->AllocateRawCode(obj_size);
@@ -2650,6 +2671,20 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
 }
 
 
+static bool HasDuplicates(DescriptorArray* descriptors) {
+  int count = descriptors->number_of_descriptors();
+  if (count > 1) {
+    String* prev_key = descriptors->GetKey(0);
+    for (int i = 1; i != count; i++) {
+      String* current_key = descriptors->GetKey(i);
+      if (prev_key == current_key) return true;
+      prev_key = current_key;
+    }
+  }
+  return false;
+}
+
+
 Object* Heap::AllocateInitialMap(JSFunction* fun) {
   ASSERT(!fun->has_initial_map());
 
@@ -2683,24 +2718,38 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
   if (fun->shared()->CanGenerateInlineConstructor(prototype)) {
     int count = fun->shared()->this_property_assignments_count();
     if (count > in_object_properties) {
-      count = in_object_properties;
+      // Inline constructor can only handle inobject properties.
+      fun->shared()->ForbidInlineConstructor();
+    } else {
+      Object* descriptors_obj = DescriptorArray::Allocate(count);
+      if (descriptors_obj->IsFailure()) return descriptors_obj;
+      DescriptorArray* descriptors = DescriptorArray::cast(descriptors_obj);
+      for (int i = 0; i < count; i++) {
+        String* name = fun->shared()->GetThisPropertyAssignmentName(i);
+        ASSERT(name->IsSymbol());
+        FieldDescriptor field(name, i, NONE);
+        field.SetEnumerationIndex(i);
+        descriptors->Set(i, &field);
+      }
+      descriptors->SetNextEnumerationIndex(count);
+      descriptors->SortUnchecked();
+
+      // The descriptors may contain duplicates because the compiler does not
+      // guarantee the uniqueness of property names (it would have required
+      // quadratic time). Once the descriptors are sorted we can check for
+      // duplicates in linear time.
+      if (HasDuplicates(descriptors)) {
+        fun->shared()->ForbidInlineConstructor();
+      } else {
+        map->set_instance_descriptors(descriptors);
+        map->set_pre_allocated_property_fields(count);
+        map->set_unused_property_fields(in_object_properties - count);
+      }
     }
-    Object* descriptors_obj = DescriptorArray::Allocate(count);
-    if (descriptors_obj->IsFailure()) return descriptors_obj;
-    DescriptorArray* descriptors = DescriptorArray::cast(descriptors_obj);
-    for (int i = 0; i < count; i++) {
-      String* name = fun->shared()->GetThisPropertyAssignmentName(i);
-      ASSERT(name->IsSymbol());
-      FieldDescriptor field(name, i, NONE);
-      field.SetEnumerationIndex(i);
-      descriptors->Set(i, &field);
-    }
-    descriptors->SetNextEnumerationIndex(count);
-    descriptors->Sort();
-    map->set_instance_descriptors(descriptors);
-    map->set_pre_allocated_property_fields(count);
-    map->set_unused_property_fields(in_object_properties - count);
   }
+
+  fun->shared()->StartInobjectSlackTracking(map);
+
   return map;
 }
 
@@ -2717,7 +2766,20 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj,
   // fixed array (eg, Heap::empty_fixed_array()).  Currently, the object
   // verification code has to cope with (temporarily) invalid objects.  See
   // for example, JSArray::JSArrayVerify).
-  obj->InitializeBody(map->instance_size());
+  Object* filler;
+  // We cannot always fill with one_pointer_filler_map because objects
+  // created from API functions expect their internal fields to be initialized
+  // with undefined_value.
+  if (map->constructor()->IsJSFunction() &&
+      JSFunction::cast(map->constructor())->shared()->
+          IsInobjectSlackTrackingInProgress()) {
+    // We might want to shrink the object later.
+    ASSERT(obj->GetInternalFieldCount() == 0);
+    filler = Heap::one_pointer_filler_map();
+  } else {
+    filler = Heap::undefined_value();
+  }
+  obj->InitializeBody(map->instance_size(), filler);
 }
 
 
@@ -2900,19 +2962,13 @@ Object* Heap::CopyJSObject(JSObject* source) {
 
 Object* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
                                         JSGlobalProxy* object) {
-  // Allocate initial map if absent.
-  if (!constructor->has_initial_map()) {
-    Object* initial_map = AllocateInitialMap(constructor);
-    if (initial_map->IsFailure()) return initial_map;
-    constructor->set_initial_map(Map::cast(initial_map));
-    Map::cast(initial_map)->set_constructor(constructor);
-  }
-
+  ASSERT(constructor->has_initial_map());
   Map* map = constructor->initial_map();
 
-  // Check that the already allocated object has the same size as
+  // Check that the already allocated object has the same size and type as
   // objects allocated using the constructor.
   ASSERT(map->instance_size() == object->map()->instance_size());
+  ASSERT(map->instance_type() == object->map()->instance_type());
 
   // Allocate the backing storage for the properties.
   int prop_size = map->unused_property_fields() - map->inobject_properties();
@@ -3159,6 +3215,7 @@ Object* Heap::AllocateRawFixedArray(int length) {
   if (length < 0 || length > FixedArray::kMaxLength) {
     return Failure::OutOfMemoryException();
   }
+  ASSERT(length > 0);
   // Use the general function if we're forced to always allocate.
   if (always_allocate()) return AllocateFixedArray(length, TENURED);
   // Allocate the raw data for a fixed array.
@@ -3169,16 +3226,19 @@ Object* Heap::AllocateRawFixedArray(int length) {
 }
 
 
-Object* Heap::CopyFixedArray(FixedArray* src) {
+Object* Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   int len = src->length();
   Object* obj = AllocateRawFixedArray(len);
   if (obj->IsFailure()) return obj;
   if (Heap::InNewSpace(obj)) {
     HeapObject* dst = HeapObject::cast(obj);
-    CopyBlock(dst->address(), src->address(), FixedArray::SizeFor(len));
+    dst->set_map(map);
+    CopyBlock(dst->address() + kPointerSize,
+              src->address() + kPointerSize,
+              FixedArray::SizeFor(len) - kPointerSize);
     return obj;
   }
-  HeapObject::cast(obj)->set_map(src->map());
+  HeapObject::cast(obj)->set_map(map);
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
 
@@ -3449,8 +3509,10 @@ void Heap::ReportHeapStatistics(const char* title) {
   PrintF(">>>>>> =============== %s (%d) =============== >>>>>>\n",
          title, gc_count_);
   PrintF("mark-compact GC : %d\n", mc_count_);
-  PrintF("old_gen_promotion_limit_ %d\n", old_gen_promotion_limit_);
-  PrintF("old_gen_allocation_limit_ %d\n", old_gen_allocation_limit_);
+  PrintF("old_gen_promotion_limit_ %" V8_PTR_PREFIX "d\n",
+         old_gen_promotion_limit_);
+  PrintF("old_gen_allocation_limit_ %" V8_PTR_PREFIX "d\n",
+         old_gen_allocation_limit_);
 
   PrintF("\n");
   PrintF("Number of handles : %d\n", HandleScope::NumberOfHandles());
@@ -4022,15 +4084,16 @@ bool Heap::ConfigureHeap(int max_semispace_size, int max_old_gen_size) {
 
 
 bool Heap::ConfigureHeapDefault() {
-  return ConfigureHeap(FLAG_max_new_space_size / 2, FLAG_max_old_space_size);
+  return ConfigureHeap(
+      FLAG_max_new_space_size * (KB / 2), FLAG_max_old_space_size * MB);
 }
 
 
 void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->start_marker = HeapStats::kStartMarker;
   *stats->end_marker = HeapStats::kEndMarker;
-  *stats->new_space_size = new_space_.Size();
-  *stats->new_space_capacity = new_space_.Capacity();
+  *stats->new_space_size = new_space_.SizeAsInt();
+  *stats->new_space_capacity = static_cast<int>(new_space_.Capacity());
   *stats->old_pointer_space_size = old_pointer_space_->Size();
   *stats->old_pointer_space_capacity = old_pointer_space_->Capacity();
   *stats->old_data_space_size = old_data_space_->Size();
@@ -4064,7 +4127,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
 }
 
 
-int Heap::PromotedSpaceSize() {
+intptr_t Heap::PromotedSpaceSize() {
   return old_pointer_space_->Size()
       + old_data_space_->Size()
       + code_space_->Size()
@@ -4175,8 +4238,8 @@ bool Heap::Setup(bool create_heap_objects) {
     if (!CreateInitialObjects()) return false;
   }
 
-  LOG(IntEvent("heap-capacity", Capacity()));
-  LOG(IntEvent("heap-available", Available()));
+  LOG(IntPtrTEvent("heap-capacity", Capacity()));
+  LOG(IntPtrTEvent("heap-available", Available()));
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // This should be called only after initial objects have been created.
@@ -4210,7 +4273,8 @@ void Heap::TearDown() {
     PrintF("mark_compact_count=%d ", mc_count_);
     PrintF("max_gc_pause=%d ", GCTracer::get_max_gc_pause());
     PrintF("min_in_mutator=%d ", GCTracer::get_min_in_mutator());
-    PrintF("max_alive_after_gc=%d ", GCTracer::get_max_alive_after_gc());
+    PrintF("max_alive_after_gc=%" V8_PTR_PREFIX "d ",
+           GCTracer::get_max_alive_after_gc());
     PrintF("\n\n");
   }
 
@@ -4336,7 +4400,9 @@ class PrintHandleVisitor: public ObjectVisitor {
  public:
   void VisitPointers(Object** start, Object** end) {
     for (Object** p = start; p < end; p++)
-      PrintF("  handle %p to %p\n", p, *p);
+      PrintF("  handle %p to %p\n",
+             reinterpret_cast<void*>(p),
+             reinterpret_cast<void*>(*p));
   }
 };
 
@@ -4689,8 +4755,8 @@ void Heap::TracePathToGlobal() {
 #endif
 
 
-static int CountTotalHolesSize() {
-  int holes_size = 0;
+static intptr_t CountTotalHolesSize() {
+  intptr_t holes_size = 0;
   OldSpaces spaces;
   for (OldSpace* space = spaces.next();
        space != NULL;
@@ -4788,13 +4854,14 @@ GCTracer::~GCTracer() {
     PrintF("sweepns=%d ", static_cast<int>(scopes_[Scope::MC_SWEEP_NEWSPACE]));
     PrintF("compact=%d ", static_cast<int>(scopes_[Scope::MC_COMPACT]));
 
-    PrintF("total_size_before=%d ", start_size_);
-    PrintF("total_size_after=%d ", Heap::SizeOfObjects());
-    PrintF("holes_size_before=%d ", in_free_list_or_wasted_before_gc_);
-    PrintF("holes_size_after=%d ", CountTotalHolesSize());
+    PrintF("total_size_before=%" V8_PTR_PREFIX "d ", start_size_);
+    PrintF("total_size_after=%" V8_PTR_PREFIX "d ", Heap::SizeOfObjects());
+    PrintF("holes_size_before=%" V8_PTR_PREFIX "d ",
+           in_free_list_or_wasted_before_gc_);
+    PrintF("holes_size_after=%" V8_PTR_PREFIX "d ", CountTotalHolesSize());
 
-    PrintF("allocated=%d ", allocated_since_last_gc_);
-    PrintF("promoted=%d ", promoted_objects_size_);
+    PrintF("allocated=%" V8_PTR_PREFIX "d ", allocated_since_last_gc_);
+    PrintF("promoted=%" V8_PTR_PREFIX "d ", promoted_objects_size_);
 
     PrintF("\n");
   }

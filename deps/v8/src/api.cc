@@ -134,27 +134,27 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.new_space_size = &new_space_size;
   int new_space_capacity;
   heap_stats.new_space_capacity = &new_space_capacity;
-  int old_pointer_space_size;
+  intptr_t old_pointer_space_size;
   heap_stats.old_pointer_space_size = &old_pointer_space_size;
-  int old_pointer_space_capacity;
+  intptr_t old_pointer_space_capacity;
   heap_stats.old_pointer_space_capacity = &old_pointer_space_capacity;
-  int old_data_space_size;
+  intptr_t old_data_space_size;
   heap_stats.old_data_space_size = &old_data_space_size;
-  int old_data_space_capacity;
+  intptr_t old_data_space_capacity;
   heap_stats.old_data_space_capacity = &old_data_space_capacity;
-  int code_space_size;
+  intptr_t code_space_size;
   heap_stats.code_space_size = &code_space_size;
-  int code_space_capacity;
+  intptr_t code_space_capacity;
   heap_stats.code_space_capacity = &code_space_capacity;
-  int map_space_size;
+  intptr_t map_space_size;
   heap_stats.map_space_size = &map_space_size;
-  int map_space_capacity;
+  intptr_t map_space_capacity;
   heap_stats.map_space_capacity = &map_space_capacity;
-  int cell_space_size;
+  intptr_t cell_space_size;
   heap_stats.cell_space_size = &cell_space_size;
-  int cell_space_capacity;
+  intptr_t cell_space_capacity;
   heap_stats.cell_space_capacity = &cell_space_capacity;
-  int lo_space_size;
+  intptr_t lo_space_size;
   heap_stats.lo_space_size = &lo_space_size;
   int global_handle_count;
   heap_stats.global_handle_count = &global_handle_count;
@@ -166,9 +166,9 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.near_death_global_handle_count = &near_death_global_handle_count;
   int destroyed_global_handle_count;
   heap_stats.destroyed_global_handle_count = &destroyed_global_handle_count;
-  int memory_allocator_size;
+  intptr_t memory_allocator_size;
   heap_stats.memory_allocator_size = &memory_allocator_size;
-  int memory_allocator_capacity;
+  intptr_t memory_allocator_capacity;
   heap_stats.memory_allocator_capacity = &memory_allocator_capacity;
   int objects_per_type[LAST_TYPE + 1] = {0};
   heap_stats.objects_per_type = objects_per_type;
@@ -767,6 +767,12 @@ int TypeSwitch::match(v8::Handle<Value> value) {
 }
 
 
+#define SET_FIELD_WRAPPED(obj, setter, cdata) do {  \
+    i::Handle<i::Object> proxy = FromCData(cdata);  \
+    (obj)->setter(*proxy);                          \
+  } while (false)
+
+
 void FunctionTemplate::SetCallHandler(InvocationCallback callback,
                                       v8::Handle<Value> data) {
   if (IsDeadCheck("v8::FunctionTemplate::SetCallHandler()")) return;
@@ -776,7 +782,7 @@ void FunctionTemplate::SetCallHandler(InvocationCallback callback,
       i::Factory::NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
-  obj->set_callback(*FromCData(callback));
+  SET_FIELD_WRAPPED(obj, set_callback, callback);
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
   Utils::OpenHandle(this)->set_call_code(*obj);
@@ -792,8 +798,8 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
       v8::PropertyAttribute attributes) {
   i::Handle<i::AccessorInfo> obj = i::Factory::NewAccessorInfo();
   ASSERT(getter != NULL);
-  obj->set_getter(*FromCData(getter));
-  obj->set_setter(*FromCData(setter));
+  SET_FIELD_WRAPPED(obj, set_getter, getter);
+  SET_FIELD_WRAPPED(obj, set_setter, setter);
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
   obj->set_name(*Utils::OpenHandle(*name));
@@ -877,11 +883,13 @@ void FunctionTemplate::SetNamedInstancePropertyHandler(
       i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
   i::Handle<i::InterceptorInfo> obj =
       i::Handle<i::InterceptorInfo>::cast(struct_obj);
-  if (getter != 0) obj->set_getter(*FromCData(getter));
-  if (setter != 0) obj->set_setter(*FromCData(setter));
-  if (query != 0) obj->set_query(*FromCData(query));
-  if (remover != 0) obj->set_deleter(*FromCData(remover));
-  if (enumerator != 0) obj->set_enumerator(*FromCData(enumerator));
+
+  if (getter != 0) SET_FIELD_WRAPPED(obj, set_getter, getter);
+  if (setter != 0) SET_FIELD_WRAPPED(obj, set_setter, setter);
+  if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
+  if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
+  if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
+
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
   Utils::OpenHandle(this)->set_named_property_handler(*obj);
@@ -905,11 +913,13 @@ void FunctionTemplate::SetIndexedInstancePropertyHandler(
       i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
   i::Handle<i::InterceptorInfo> obj =
       i::Handle<i::InterceptorInfo>::cast(struct_obj);
-  if (getter != 0) obj->set_getter(*FromCData(getter));
-  if (setter != 0) obj->set_setter(*FromCData(setter));
-  if (query != 0) obj->set_query(*FromCData(query));
-  if (remover != 0) obj->set_deleter(*FromCData(remover));
-  if (enumerator != 0) obj->set_enumerator(*FromCData(enumerator));
+
+  if (getter != 0) SET_FIELD_WRAPPED(obj, set_getter, getter);
+  if (setter != 0) SET_FIELD_WRAPPED(obj, set_setter, setter);
+  if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
+  if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
+  if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
+
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
   Utils::OpenHandle(this)->set_indexed_property_handler(*obj);
@@ -928,7 +938,7 @@ void FunctionTemplate::SetInstanceCallAsFunctionHandler(
       i::Factory::NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
-  obj->set_callback(*FromCData(callback));
+  SET_FIELD_WRAPPED(obj, set_callback, callback);
   if (data.IsEmpty()) data = v8::Undefined();
   obj->set_data(*Utils::OpenHandle(*data));
   Utils::OpenHandle(this)->set_instance_call_handler(*obj);
@@ -1043,8 +1053,10 @@ void ObjectTemplate::SetAccessCheckCallbacks(
       i::Factory::NewStruct(i::ACCESS_CHECK_INFO_TYPE);
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
-  info->set_named_callback(*FromCData(named_callback));
-  info->set_indexed_callback(*FromCData(indexed_callback));
+
+  SET_FIELD_WRAPPED(info, set_named_callback, named_callback);
+  SET_FIELD_WRAPPED(info, set_indexed_callback, indexed_callback);
+
   if (data.IsEmpty()) data = v8::Undefined();
   info->set_data(*Utils::OpenHandle(*data));
 
@@ -2646,8 +2658,9 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
     return;
   }
   i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(length, data);
-  self->set_map(
-      *i::Factory::GetSlowElementsMap(i::Handle<i::Map>(self->map())));
+  i::Handle<i::Map> slow_map =
+      i::Factory::GetSlowElementsMap(i::Handle<i::Map>(self->map()));
+  self->set_map(*slow_map);
   self->set_elements(*pixels);
 }
 
@@ -2701,8 +2714,9 @@ void v8::Object::SetIndexedPropertiesToExternalArrayData(
   }
   i::Handle<i::ExternalArray> array =
       i::Factory::NewExternalArray(length, array_type, data);
-  self->set_map(
-      *i::Factory::GetSlowElementsMap(i::Handle<i::Map>(self->map())));
+  i::Handle<i::Map> slow_map =
+      i::Factory::GetSlowElementsMap(i::Handle<i::Map>(self->map()));
+  self->set_map(*slow_map);
   self->set_elements(*array);
 }
 
@@ -4251,6 +4265,11 @@ void Debug::DebugBreak() {
 }
 
 
+void Debug::CancelDebugBreak() {
+  i::StackGuard::Continue(i::DEBUGBREAK);
+}
+
+
 void Debug::DebugBreakForCommand(ClientData* data) {
   if (!i::V8::IsRunning()) return;
   i::Debugger::EnqueueDebugCommand(data);
@@ -4433,7 +4452,7 @@ double CpuProfileNode::GetSelfSamplesCount() const {
 
 unsigned CpuProfileNode::GetCallUid() const {
   IsDeadCheck("v8::CpuProfileNode::GetCallUid");
-  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->call_uid();
+  return reinterpret_cast<const i::ProfileNode*>(this)->entry()->GetCallUid();
 }
 
 

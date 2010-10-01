@@ -69,13 +69,13 @@ namespace internal {
 //
 // Core register
 struct Register {
-  bool is_valid() const  { return 0 <= code_ && code_ < 16; }
-  bool is(Register reg) const  { return code_ == reg.code_; }
-  int code() const  {
+  bool is_valid() const { return 0 <= code_ && code_ < 16; }
+  bool is(Register reg) const { return code_ == reg.code_; }
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
-  int bit() const  {
+  int bit() const {
     ASSERT(is_valid());
     return 1 << code_;
   }
@@ -110,17 +110,17 @@ const Register pc  = { 15 };
 
 // Single word VFP register.
 struct SwVfpRegister {
-  bool is_valid() const  { return 0 <= code_ && code_ < 32; }
-  bool is(SwVfpRegister reg) const  { return code_ == reg.code_; }
-  int code() const  {
+  bool is_valid() const { return 0 <= code_ && code_ < 32; }
+  bool is(SwVfpRegister reg) const { return code_ == reg.code_; }
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
-  int bit() const  {
+  int bit() const {
     ASSERT(is_valid());
     return 1 << code_;
   }
-  void split_code(int* vm, int* m) const  {
+  void split_code(int* vm, int* m) const {
     ASSERT(is_valid());
     *m = code_ & 0x1;
     *vm = code_ >> 1;
@@ -133,31 +133,31 @@ struct SwVfpRegister {
 // Double word VFP register.
 struct DwVfpRegister {
   // Supporting d0 to d15, can be later extended to d31.
-  bool is_valid() const  { return 0 <= code_ && code_ < 16; }
-  bool is(DwVfpRegister reg) const  { return code_ == reg.code_; }
-  SwVfpRegister low() const  {
+  bool is_valid() const { return 0 <= code_ && code_ < 16; }
+  bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
+  SwVfpRegister low() const {
     SwVfpRegister reg;
     reg.code_ = code_ * 2;
 
     ASSERT(reg.is_valid());
     return reg;
   }
-  SwVfpRegister high() const  {
+  SwVfpRegister high() const {
     SwVfpRegister reg;
     reg.code_ = (code_ * 2) + 1;
 
     ASSERT(reg.is_valid());
     return reg;
   }
-  int code() const  {
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
-  int bit() const  {
+  int bit() const {
     ASSERT(is_valid());
     return 1 << code_;
   }
-  void split_code(int* vm, int* m) const  {
+  void split_code(int* vm, int* m) const {
     ASSERT(is_valid());
     *m = (code_ & 0x10) >> 4;
     *vm = code_ & 0x0F;
@@ -222,13 +222,13 @@ const DwVfpRegister d15 = { 15 };
 
 // Coprocessor register
 struct CRegister {
-  bool is_valid() const  { return 0 <= code_ && code_ < 16; }
-  bool is(CRegister creg) const  { return code_ == creg.code_; }
-  int code() const  {
+  bool is_valid() const { return 0 <= code_ && code_ < 16; }
+  bool is(CRegister creg) const { return code_ == creg.code_; }
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
-  int bit() const  {
+  int bit() const {
     ASSERT(is_valid());
     return 1 << code_;
   }

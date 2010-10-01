@@ -289,7 +289,7 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
   for (int i = 0; i < length; i++) {
     Declaration* node = declarations->at(i);
     Variable* var = node->proxy()->var();
-    Slot* slot = var->slot();
+    Slot* slot = var->AsSlot();
 
     // If it was not possible to allocate the variable at compile
     // time, we need to "declare" it at runtime to make sure it
@@ -310,7 +310,7 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
   for (int j = 0, i = 0; i < length; i++) {
     Declaration* node = declarations->at(i);
     Variable* var = node->proxy()->var();
-    Slot* slot = var->slot();
+    Slot* slot = var->AsSlot();
 
     if ((slot != NULL && slot->type() == Slot::LOOKUP) || !var->is_global()) {
       // Skip - already processed.

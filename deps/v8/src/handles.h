@@ -345,13 +345,9 @@ bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
 bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
                        ClearExceptionFlag flag);
 
-bool CompileLazy(Handle<JSFunction> function,
-                 Handle<Object> receiver,
-                 ClearExceptionFlag flag);
+bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
 
-bool CompileLazyInLoop(Handle<JSFunction> function,
-                       Handle<Object> receiver,
-                       ClearExceptionFlag flag);
+bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag);
 
 class NoHandleAllocation BASE_EMBEDDED {
  public:

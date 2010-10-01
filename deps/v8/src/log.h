@@ -159,6 +159,7 @@ class Logger {
 
   // Emits an event with an int value -> (name, value).
   static void IntEvent(const char* name, int value);
+  static void IntPtrTEvent(const char* name, intptr_t value);
 
   // Emits an event with an handle value -> (name, location).
   static void HandleEvent(const char* name, Object** location);
@@ -216,6 +217,8 @@ class Logger {
   static void CodeDeleteEvent(Address from);
   // Emits a function object create event.
   static void FunctionCreateEvent(JSFunction* function);
+  static void FunctionCreateEventFromMove(JSFunction* function,
+                                          HeapObject*);
   // Emits a function move event.
   static void FunctionMoveEvent(Address from, Address to);
   // Emits a function delete event.
@@ -235,7 +238,7 @@ class Logger {
   static void HeapSampleJSProducerEvent(const char* constructor,
                                         Address* stack);
   static void HeapSampleStats(const char* space, const char* kind,
-                              int capacity, int used);
+                              intptr_t capacity, intptr_t used);
 
   static void SharedLibraryEvent(const char* library_path,
                                  uintptr_t start,
@@ -324,6 +327,7 @@ class Logger {
 
   // Logs an IntEvent regardless of whether FLAG_log is true.
   static void UncheckedIntEvent(const char* name, int value);
+  static void UncheckedIntPtrTEvent(const char* name, intptr_t value);
 
   // Stops logging and profiling in case of insufficient resources.
   static void StopLoggingAndProfiling();

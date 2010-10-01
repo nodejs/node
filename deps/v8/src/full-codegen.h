@@ -71,10 +71,7 @@ class FullCodeGenerator: public AstVisitor {
         info_(NULL),
         nesting_stack_(NULL),
         loop_depth_(0),
-        location_(kStack),
-        true_label_(NULL),
-        false_label_(NULL),
-        fall_through_(NULL) {
+        context_(NULL) {
   }
 
   static Handle<Code> MakeCode(CompilationInfo* info);
@@ -232,11 +229,6 @@ class FullCodeGenerator: public AstVisitor {
     DISALLOW_COPY_AND_ASSIGN(ForIn);
   };
 
-  enum Location {
-    kAccumulator,
-    kStack
-  };
-
   enum ConstantOperand {
     kNoConstants,
     kLeftConstant,
@@ -262,39 +254,6 @@ class FullCodeGenerator: public AstVisitor {
                                      Expression* left,
                                      Expression* right);
 
-  // Emit code to convert a pure value (in a register, slot, as a literal,
-  // or on top of the stack) into the result expected according to an
-  // expression context.
-  void Apply(Expression::Context context, Register reg);
-
-  // Slot cannot have type Slot::LOOKUP.
-  void Apply(Expression::Context context, Slot* slot);
-
-  void Apply(Expression::Context context, Literal* lit);
-  void ApplyTOS(Expression::Context context);
-
-  // Emit code to discard count elements from the top of stack, then convert
-  // a pure value into the result expected according to an expression
-  // context.
-  void DropAndApply(int count, Expression::Context context, Register reg);
-
-  // Set up branch labels for a test expression.
-  void PrepareTest(Label* materialize_true,
-                   Label* materialize_false,
-                   Label** if_true,
-                   Label** if_false,
-                   Label** fall_through);
-
-  // Emit code to convert pure control flow to a pair of labels into the
-  // result expected according to an expression context.
-  void Apply(Expression::Context context,
-             Label* materialize_true,
-             Label* materialize_false);
-
-  // Emit code to convert constant control flow (true or false) into
-  // the result expected according to an expression context.
-  void Apply(Expression::Context context, bool flag);
-
   // Helper function to convert a pure value into a test context.  The value
   // is expected on the stack or the accumulator, depending on the platform.
   // See the platform-specific implementation for details.
@@ -316,39 +275,26 @@ class FullCodeGenerator: public AstVisitor {
   MemOperand EmitSlotSearch(Slot* slot, Register scratch);
 
   void VisitForEffect(Expression* expr) {
-    Expression::Context saved_context = context_;
-    context_ = Expression::kEffect;
+    EffectContext context(this);
     Visit(expr);
-    context_ = saved_context;
   }
 
-  void VisitForValue(Expression* expr, Location where) {
-    Expression::Context saved_context = context_;
-    Location saved_location = location_;
-    context_ = Expression::kValue;
-    location_ = where;
+  void VisitForAccumulatorValue(Expression* expr) {
+    AccumulatorValueContext context(this);
     Visit(expr);
-    context_ = saved_context;
-    location_ = saved_location;
+  }
+
+  void VisitForStackValue(Expression* expr) {
+    StackValueContext context(this);
+    Visit(expr);
   }
 
   void VisitForControl(Expression* expr,
                        Label* if_true,
                        Label* if_false,
                        Label* fall_through) {
-    Expression::Context saved_context = context_;
-    Label* saved_true = true_label_;
-    Label* saved_false = false_label_;
-    Label* saved_fall_through = fall_through_;
-    context_ = Expression::kTest;
-    true_label_ = if_true;
-    false_label_ = if_false;
-    fall_through_ = fall_through;
+    TestContext context(this, if_true, if_false, fall_through);
     Visit(expr);
-    context_ = saved_context;
-    true_label_ = saved_true;
-    false_label_ = saved_false;
-    fall_through_ = saved_fall_through;
   }
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
@@ -398,7 +344,7 @@ class FullCodeGenerator: public AstVisitor {
                                        TypeofState typeof_state,
                                        Label* slow,
                                        Label* done);
-  void EmitVariableLoad(Variable* expr, Expression::Context context);
+  void EmitVariableLoad(Variable* expr);
 
   // Platform-specific support for allocating a new closure based on
   // the given function info.
@@ -417,14 +363,12 @@ class FullCodeGenerator: public AstVisitor {
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.
   void EmitBinaryOp(Token::Value op,
-                    Expression::Context context,
                     OverwriteMode mode);
 
   // Helper functions for generating inlined smi code for certain
   // binary operations.
   void EmitInlineSmiBinaryOp(Expression* expr,
                              Token::Value op,
-                             Expression::Context context,
                              OverwriteMode mode,
                              Expression* left,
                              Expression* right,
@@ -432,31 +376,26 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitConstantSmiBinaryOp(Expression* expr,
                                Token::Value op,
-                               Expression::Context context,
                                OverwriteMode mode,
                                bool left_is_constant_smi,
                                Smi* value);
 
   void EmitConstantSmiBitOp(Expression* expr,
                             Token::Value op,
-                            Expression::Context context,
                             OverwriteMode mode,
                             Smi* value);
 
   void EmitConstantSmiShiftOp(Expression* expr,
                               Token::Value op,
-                              Expression::Context context,
                               OverwriteMode mode,
                               Smi* value);
 
   void EmitConstantSmiAdd(Expression* expr,
-                          Expression::Context context,
                           OverwriteMode mode,
                           bool left_is_constant_smi,
                           Smi* value);
 
   void EmitConstantSmiSub(Expression* expr,
-                          Expression::Context context,
                           OverwriteMode mode,
                           bool left_is_constant_smi,
                           Smi* value);
@@ -468,8 +407,7 @@ class FullCodeGenerator: public AstVisitor {
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
   void EmitVariableAssignment(Variable* var,
-                              Token::Value op,
-                              Expression::Context context);
+                              Token::Value op);
 
   // Complete a named property assignment.  The receiver is expected on top
   // of the stack and the right-hand-side value in the accumulator.
@@ -501,6 +439,10 @@ class FullCodeGenerator: public AstVisitor {
 
   MacroAssembler* masm() { return masm_; }
 
+  class ExpressionContext;
+  const ExpressionContext* context() { return context_; }
+  void set_new_context(const ExpressionContext* context) { context_ = context; }
+
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
   FunctionLiteral* function() { return info_->function(); }
@@ -508,6 +450,9 @@ class FullCodeGenerator: public AstVisitor {
 
   static Register result_register();
   static Register context_register();
+
+  // Helper for calling an IC stub.
+  void EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode);
 
   // Set fields in the stack frame. Offsets are the frame pointer relative
   // offsets defined in, e.g., StandardFrameConstants.
@@ -527,13 +472,7 @@ class FullCodeGenerator: public AstVisitor {
   // Handles the shortcutted logical binary operations in VisitBinaryOperation.
   void EmitLogicalOperation(BinaryOperation* expr);
 
-  void VisitForTypeofValue(Expression* expr, Location where);
-
-  void VisitLogicalForValue(Expression* expr,
-                            Token::Value op,
-                            Location where,
-                            Label* done);
-
+  void VisitForTypeofValue(Expression* expr);
 
   MacroAssembler* masm_;
   CompilationInfo* info_;
@@ -542,11 +481,178 @@ class FullCodeGenerator: public AstVisitor {
   NestedStatement* nesting_stack_;
   int loop_depth_;
 
-  Expression::Context context_;
-  Location location_;
-  Label* true_label_;
-  Label* false_label_;
-  Label* fall_through_;
+  class ExpressionContext {
+   public:
+    explicit ExpressionContext(FullCodeGenerator* codegen)
+        : masm_(codegen->masm()), old_(codegen->context()), codegen_(codegen) {
+      codegen->set_new_context(this);
+    }
+
+    virtual ~ExpressionContext() {
+      codegen_->set_new_context(old_);
+    }
+
+    // Convert constant control flow (true or false) to the result expected for
+    // this expression context.
+    virtual void Plug(bool flag) const = 0;
+
+    // Emit code to convert a pure value (in a register, slot, as a literal,
+    // or on top of the stack) into the result expected according to this
+    // expression context.
+    virtual void Plug(Register reg) const = 0;
+    virtual void Plug(Slot* slot) const = 0;
+    virtual void Plug(Handle<Object> lit) const = 0;
+    virtual void Plug(Heap::RootListIndex index) const = 0;
+    virtual void PlugTOS() const = 0;
+
+    // Emit code to convert pure control flow to a pair of unbound labels into
+    // the result expected according to this expression context.  The
+    // implementation may decide to bind either of the labels.
+    virtual void Plug(Label* materialize_true,
+                      Label* materialize_false) const = 0;
+
+    // Emit code to discard count elements from the top of stack, then convert
+    // a pure value into the result expected according to this expression
+    // context.
+    virtual void DropAndPlug(int count, Register reg) const = 0;
+
+    // For shortcutting operations || and &&.
+    virtual void EmitLogicalLeft(BinaryOperation* expr,
+                                 Label* eval_right,
+                                 Label* done) const = 0;
+
+    // Set up branch labels for a test expression.  The three Label** parameters
+    // are output parameters.
+    virtual void PrepareTest(Label* materialize_true,
+                             Label* materialize_false,
+                             Label** if_true,
+                             Label** if_false,
+                             Label** fall_through) const = 0;
+
+    // Returns true if we are evaluating only for side effects (ie if the result
+    // will be discarded.
+    virtual bool IsEffect() const { return false; }
+
+    // Returns true if we are branching on the value rather than materializing
+    // it.
+    virtual bool IsTest() const { return false; }
+
+   protected:
+    FullCodeGenerator* codegen() const { return codegen_; }
+    MacroAssembler* masm() const { return masm_; }
+    MacroAssembler* masm_;
+
+   private:
+    const ExpressionContext* old_;
+    FullCodeGenerator* codegen_;
+  };
+
+  class AccumulatorValueContext : public ExpressionContext {
+   public:
+    explicit AccumulatorValueContext(FullCodeGenerator* codegen)
+        : ExpressionContext(codegen) { }
+
+    virtual void Plug(bool flag) const;
+    virtual void Plug(Register reg) const;
+    virtual void Plug(Label* materialize_true, Label* materialize_false) const;
+    virtual void Plug(Slot* slot) const;
+    virtual void Plug(Handle<Object> lit) const;
+    virtual void Plug(Heap::RootListIndex) const;
+    virtual void PlugTOS() const;
+    virtual void DropAndPlug(int count, Register reg) const;
+    virtual void EmitLogicalLeft(BinaryOperation* expr,
+                                 Label* eval_right,
+                                 Label* done) const;
+    virtual void PrepareTest(Label* materialize_true,
+                             Label* materialize_false,
+                             Label** if_true,
+                             Label** if_false,
+                             Label** fall_through) const;
+  };
+
+  class StackValueContext : public ExpressionContext {
+   public:
+    explicit StackValueContext(FullCodeGenerator* codegen)
+        : ExpressionContext(codegen) { }
+
+    virtual void Plug(bool flag) const;
+    virtual void Plug(Register reg) const;
+    virtual void Plug(Label* materialize_true, Label* materialize_false) const;
+    virtual void Plug(Slot* slot) const;
+    virtual void Plug(Handle<Object> lit) const;
+    virtual void Plug(Heap::RootListIndex) const;
+    virtual void PlugTOS() const;
+    virtual void DropAndPlug(int count, Register reg) const;
+    virtual void EmitLogicalLeft(BinaryOperation* expr,
+                                 Label* eval_right,
+                                 Label* done) const;
+    virtual void PrepareTest(Label* materialize_true,
+                             Label* materialize_false,
+                             Label** if_true,
+                             Label** if_false,
+                             Label** fall_through) const;
+  };
+
+  class TestContext : public ExpressionContext {
+   public:
+    explicit TestContext(FullCodeGenerator* codegen,
+                         Label* true_label,
+                         Label* false_label,
+                         Label* fall_through)
+        : ExpressionContext(codegen),
+          true_label_(true_label),
+          false_label_(false_label),
+          fall_through_(fall_through) { }
+
+    virtual void Plug(bool flag) const;
+    virtual void Plug(Register reg) const;
+    virtual void Plug(Label* materialize_true, Label* materialize_false) const;
+    virtual void Plug(Slot* slot) const;
+    virtual void Plug(Handle<Object> lit) const;
+    virtual void Plug(Heap::RootListIndex) const;
+    virtual void PlugTOS() const;
+    virtual void DropAndPlug(int count, Register reg) const;
+    virtual void EmitLogicalLeft(BinaryOperation* expr,
+                                 Label* eval_right,
+                                 Label* done) const;
+    virtual void PrepareTest(Label* materialize_true,
+                             Label* materialize_false,
+                             Label** if_true,
+                             Label** if_false,
+                             Label** fall_through) const;
+    virtual bool IsTest() const { return true; }
+
+   private:
+    Label* true_label_;
+    Label* false_label_;
+    Label* fall_through_;
+  };
+
+  class EffectContext : public ExpressionContext {
+   public:
+    explicit EffectContext(FullCodeGenerator* codegen)
+        : ExpressionContext(codegen) { }
+
+    virtual void Plug(bool flag) const;
+    virtual void Plug(Register reg) const;
+    virtual void Plug(Label* materialize_true, Label* materialize_false) const;
+    virtual void Plug(Slot* slot) const;
+    virtual void Plug(Handle<Object> lit) const;
+    virtual void Plug(Heap::RootListIndex) const;
+    virtual void PlugTOS() const;
+    virtual void DropAndPlug(int count, Register reg) const;
+    virtual void EmitLogicalLeft(BinaryOperation* expr,
+                                 Label* eval_right,
+                                 Label* done) const;
+    virtual void PrepareTest(Label* materialize_true,
+                             Label* materialize_false,
+                             Label** if_true,
+                             Label** if_false,
+                             Label** fall_through) const;
+    virtual bool IsEffect() const { return true; }
+  };
+
+  const ExpressionContext* context_;
 
   friend class NestedStatement;
 

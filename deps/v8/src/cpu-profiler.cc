@@ -32,6 +32,7 @@
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "frames-inl.h"
+#include "hashmap.h"
 #include "log-inl.h"
 
 #include "../include/v8-profiler.h"
@@ -50,7 +51,13 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
       ticks_buffer_(sizeof(TickSampleEventRecord),
                     kTickSamplesBufferChunkSize,
                     kTickSamplesBufferChunksCount),
-      enqueue_order_(0) {
+      enqueue_order_(0),
+      known_functions_(new HashMap(AddressesMatch)) {
+}
+
+
+ProfilerEventsProcessor::~ProfilerEventsProcessor() {
+  delete known_functions_;
 }
 
 
@@ -152,16 +159,32 @@ void ProfilerEventsProcessor::FunctionCreateEvent(Address alias,
   rec->entry = generator_->NewCodeEntry(security_token_id);
   rec->code_start = start;
   events_buffer_.Enqueue(evt_rec);
+
+  known_functions_->Lookup(alias, AddressHash(alias), true);
 }
 
 
 void ProfilerEventsProcessor::FunctionMoveEvent(Address from, Address to) {
   CodeMoveEvent(from, to);
+
+  if (IsKnownFunction(from)) {
+    known_functions_->Remove(from, AddressHash(from));
+    known_functions_->Lookup(to, AddressHash(to), true);
+  }
 }
 
 
 void ProfilerEventsProcessor::FunctionDeleteEvent(Address from) {
   CodeDeleteEvent(from);
+
+  known_functions_->Remove(from, AddressHash(from));
+}
+
+
+bool ProfilerEventsProcessor::IsKnownFunction(Address start) {
+  HashMap::Entry* entry =
+      known_functions_->Lookup(start, AddressHash(start), false);
+  return entry != NULL;
 }
 
 
@@ -403,6 +426,40 @@ void CpuProfiler::FunctionCreateEvent(JSFunction* function) {
 }
 
 
+void CpuProfiler::FunctionCreateEventFromMove(JSFunction* function,
+                                              HeapObject* source) {
+  // This function is called from GC iterators (during Scavenge,
+  // MC, and MS), so marking bits can be set on objects. That's
+  // why unchecked accessors are used here.
+
+  // The same function can be reported several times.
+  if (function->unchecked_code() == Builtins::builtin(Builtins::LazyCompile)
+      || singleton_->processor_->IsKnownFunction(function->address())) return;
+
+  int security_token_id = TokenEnumerator::kNoSecurityToken;
+  // In debug mode, assertions may fail for contexts,
+  // and we can live without security tokens in debug mode.
+#ifndef DEBUG
+  if (function->unchecked_context()->IsContext()) {
+    security_token_id = singleton_->token_enumerator_->GetTokenId(
+        function->context()->global_context()->security_token());
+  }
+  // Security token may not be moved yet.
+  if (security_token_id == TokenEnumerator::kNoSecurityToken) {
+    JSFunction* old_function = reinterpret_cast<JSFunction*>(source);
+    if (old_function->unchecked_context()->IsContext()) {
+      security_token_id = singleton_->token_enumerator_->GetTokenId(
+          old_function->context()->global_context()->security_token());
+    }
+  }
+#endif
+  singleton_->processor_->FunctionCreateEvent(
+      function->address(),
+      function->unchecked_code()->address(),
+      security_token_id);
+}
+
+
 void CpuProfiler::FunctionMoveEvent(Address from, Address to) {
   singleton_->processor_->FunctionMoveEvent(from, to);
 }
@@ -473,7 +530,12 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     processor_->Start();
     // Enumerate stuff we already have in the heap.
     if (Heap::HasBeenSetup()) {
-      Logger::LogCodeObjects();
+      if (!FLAG_prof_browser_mode) {
+        bool saved_log_code_flag = FLAG_log_code;
+        FLAG_log_code = true;
+        Logger::LogCodeObjects();
+        FLAG_log_code = saved_log_code_flag;
+      }
       Logger::LogCompiledFunctions();
       Logger::LogFunctionObjects();
       Logger::LogAccessorCallbacks();

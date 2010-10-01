@@ -988,6 +988,7 @@ Object* StoreInterceptorProperty(Arguments args) {
 
 Object* KeyedLoadPropertyWithInterceptor(Arguments args) {
   JSObject* receiver = JSObject::cast(args[0]);
+  ASSERT(Smi::cast(args[1])->value() >= 0);
   uint32_t index = Smi::cast(args[1])->value();
   return receiver->GetElementWithInterceptor(receiver, index);
 }
@@ -1186,25 +1187,43 @@ void StubCompiler::LookupPostInterceptor(JSObject* holder,
 
 Object* LoadStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, type);
-  return GetCodeWithFlags(flags, name);
+  Object* result = GetCodeWithFlags(flags, name);
+  if (!result->IsFailure()) {
+    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(result), name));
+  }
+  return result;
 }
 
 
 Object* KeyedLoadStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, type);
-  return GetCodeWithFlags(flags, name);
+  Object* result = GetCodeWithFlags(flags, name);
+  if (!result->IsFailure()) {
+    PROFILE(
+        CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(result), name));
+  }
+  return result;
 }
 
 
 Object* StoreStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, type);
-  return GetCodeWithFlags(flags, name);
+  Object* result = GetCodeWithFlags(flags, name);
+  if (!result->IsFailure()) {
+    PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(result), name));
+  }
+  return result;
 }
 
 
 Object* KeyedStoreStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, type);
-  return GetCodeWithFlags(flags, name);
+  Object* result = GetCodeWithFlags(flags, name);
+  if (!result->IsFailure()) {
+    PROFILE(
+        CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(result), name));
+  }
+  return result;
 }
 
 
@@ -1227,7 +1246,7 @@ Object* CallStubCompiler::CompileCustomCall(int generator_id,
                                             String* fname) {
   ASSERT(generator_id >= 0 && generator_id < kNumCallGenerators);
   switch (generator_id) {
-#define CALL_GENERATOR_CASE(ignored1, ignored2, ignored3, name) \
+#define CALL_GENERATOR_CASE(ignored1, ignored2, name)           \
     case k##name##CallGenerator:                                \
       return CallStubCompiler::Compile##name##Call(object,      \
                                                    holder,      \

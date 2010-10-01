@@ -270,9 +270,9 @@ void CodeRange::TearDown() {
 // -----------------------------------------------------------------------------
 // MemoryAllocator
 //
-int MemoryAllocator::capacity_   = 0;
-int MemoryAllocator::size_       = 0;
-int MemoryAllocator::size_executable_ = 0;
+intptr_t MemoryAllocator::capacity_   = 0;
+intptr_t MemoryAllocator::size_       = 0;
+intptr_t MemoryAllocator::size_executable_ = 0;
 
 List<MemoryAllocator::MemoryAllocationCallbackRegistration>
   MemoryAllocator::memory_allocation_callbacks_;
@@ -302,7 +302,7 @@ int MemoryAllocator::Pop() {
 }
 
 
-bool MemoryAllocator::Setup(int capacity) {
+bool MemoryAllocator::Setup(intptr_t capacity) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
 
   // Over-estimate the size of chunks_ array.  It assumes the expansion of old
@@ -314,7 +314,8 @@ bool MemoryAllocator::Setup(int capacity) {
   //
   // Reserve two chunk ids for semispaces, one for map space, one for old
   // space, and one for code space.
-  max_nof_chunks_ = (capacity_ / (kChunkSize - Page::kPageSize)) + 5;
+  max_nof_chunks_ =
+      static_cast<int>((capacity_ / (kChunkSize - Page::kPageSize))) + 5;
   if (max_nof_chunks_ > kMaxNofChunks) return false;
 
   size_ = 0;
@@ -691,7 +692,9 @@ Page* MemoryAllocator::FindLastPageInSameChunk(Page* p) {
 #ifdef DEBUG
 void MemoryAllocator::ReportStatistics() {
   float pct = static_cast<float>(capacity_ - size_) / capacity_;
-  PrintF("  capacity: %d, used: %d, available: %%%d\n\n",
+  PrintF("  capacity: %" V8_PTR_PREFIX "d"
+             ", used: %" V8_PTR_PREFIX "d"
+             ", available: %%%d\n\n",
          capacity_, size_, static_cast<int>(pct*100));
 }
 #endif
@@ -769,7 +772,7 @@ Page* MemoryAllocator::RelinkPagesInChunk(int chunk_id,
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
-PagedSpace::PagedSpace(int max_capacity,
+PagedSpace::PagedSpace(intptr_t max_capacity,
                        AllocationSpace id,
                        Executability executable)
     : Space(id, executable) {
@@ -797,8 +800,9 @@ bool PagedSpace::Setup(Address start, size_t size) {
                                                Page::kPageSize * pages_in_chunk,
                                                this, &num_pages);
   } else {
-    int requested_pages = Min(MemoryAllocator::kPagesPerChunk,
-                              max_capacity_ / Page::kObjectAreaSize);
+    int requested_pages =
+        Min(MemoryAllocator::kPagesPerChunk,
+            static_cast<int>(max_capacity_ / Page::kObjectAreaSize));
     first_page_ =
         MemoryAllocator::AllocatePages(requested_pages, &num_pages, this);
     if (!first_page_->is_valid()) return false;
@@ -984,7 +988,8 @@ bool PagedSpace::Expand(Page* last_page) {
   // Last page must be valid and its next page is invalid.
   ASSERT(last_page->is_valid() && !last_page->next_page()->is_valid());
 
-  int available_pages = (max_capacity_ - Capacity()) / Page::kObjectAreaSize;
+  int available_pages =
+      static_cast<int>((max_capacity_ - Capacity()) / Page::kObjectAreaSize);
   if (available_pages <= 0) return false;
 
   int desired_pages = Min(available_pages, MemoryAllocator::kPagesPerChunk);
@@ -1264,7 +1269,7 @@ void NewSpace::Grow() {
 
 
 void NewSpace::Shrink() {
-  int new_capacity = Max(InitialCapacity(), 2 * Size());
+  int new_capacity = Max(InitialCapacity(), 2 * SizeAsInt());
   int rounded_new_capacity =
       RoundUp(new_capacity, static_cast<int>(OS::AllocateAlignment()));
   if (rounded_new_capacity < Capacity() &&
@@ -1643,7 +1648,8 @@ void NewSpace::ReportStatistics() {
 #ifdef DEBUG
   if (FLAG_heap_stats) {
     float pct = static_cast<float>(Available()) / Capacity();
-    PrintF("  capacity: %d, available: %d, %%%d\n",
+    PrintF("  capacity: %" V8_PTR_PREFIX "d"
+               ", available: %" V8_PTR_PREFIX "d, %%%d\n",
            Capacity(), Available(), static_cast<int>(pct*100));
     PrintF("\n  Object Histogram:\n");
     for (int i = 0; i <= LAST_TYPE; i++) {
@@ -2401,8 +2407,10 @@ void PagedSpace::CollectCodeStatistics() {
 
 
 void OldSpace::ReportStatistics() {
-  int pct = Available() * 100 / Capacity();
-  PrintF("  capacity: %d, waste: %d, available: %d, %%%d\n",
+  int pct = static_cast<int>(Available() * 100 / Capacity());
+  PrintF("  capacity: %" V8_PTR_PREFIX "d"
+             ", waste: %" V8_PTR_PREFIX "d"
+             ", available: %" V8_PTR_PREFIX "d, %%%d\n",
          Capacity(), Waste(), Available(), pct);
 
   ClearHistograms();
@@ -2558,8 +2566,10 @@ void FixedSpace::DeallocateBlock(Address start,
 
 #ifdef DEBUG
 void FixedSpace::ReportStatistics() {
-  int pct = Available() * 100 / Capacity();
-  PrintF("  capacity: %d, waste: %d, available: %d, %%%d\n",
+  int pct = static_cast<int>(Available() * 100 / Capacity());
+  PrintF("  capacity: %" V8_PTR_PREFIX "d"
+             ", waste: %" V8_PTR_PREFIX "d"
+             ", available: %" V8_PTR_PREFIX "d, %%%d\n",
          Capacity(), Waste(), Available(), pct);
 
   ClearHistograms();
@@ -3011,7 +3021,7 @@ void LargeObjectSpace::Print() {
 
 
 void LargeObjectSpace::ReportStatistics() {
-  PrintF("  size: %d\n", size_);
+  PrintF("  size: %" V8_PTR_PREFIX "d\n", size_);
   int num_objects = 0;
   ClearHistograms();
   LargeObjectIterator it(this);

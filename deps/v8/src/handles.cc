@@ -142,6 +142,13 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
 
 
 void SetExpectedNofProperties(Handle<JSFunction> func, int nof) {
+  // If objects constructed from this function exist then changing
+  // 'estimated_nof_properties' is dangerous since the previois value might
+  // have been compiled into the fast construct stub. More over, the inobject
+  // slack tracking logic might have adjusted the previous value, so even
+  // passing the same value is risky.
+  if (func->shared()->live_objects_may_exist()) return;
+
   func->shared()->set_expected_nof_properties(nof);
   if (func->has_initial_map()) {
     Handle<Map> new_initial_map =
@@ -158,16 +165,25 @@ void SetPrototypeProperty(Handle<JSFunction> func, Handle<JSObject> value) {
 
 
 static int ExpectedNofPropertiesFromEstimate(int estimate) {
-  // TODO(1231235): We need dynamic feedback to estimate the number
-  // of expected properties in an object. The static hack below
-  // is barely a solution.
-  if (estimate == 0) return 4;
-  return estimate + 2;
+  // If no properties are added in the constructor, they are more likely
+  // to be added later.
+  if (estimate == 0) estimate = 2;
+
+  // We do not shrink objects that go into a snapshot (yet), so we adjust
+  // the estimate conservatively.
+  if (Serializer::enabled()) return estimate + 2;
+
+  // Inobject slack tracking will reclaim redundant inobject space later,
+  // so we can afford to adjust the estimate generously.
+  return estimate + 6;
 }
 
 
 void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
                                           int estimate) {
+  // See the comment in SetExpectedNofProperties.
+  if (shared->live_objects_may_exist()) return;
+
   shared->set_expected_nof_properties(
       ExpectedNofPropertiesFromEstimate(estimate));
 }
@@ -466,7 +482,8 @@ void InitScriptLineEnds(Handle<Script> script) {
 
   if (!script->source()->IsString()) {
     ASSERT(script->source()->IsUndefined());
-    script->set_line_ends(*(Factory::NewFixedArray(0)));
+    Handle<FixedArray> empty = Factory::NewFixedArray(0);
+    script->set_line_ends(*empty);
     ASSERT(script->line_ends()->IsFixedArray());
     return;
   }
@@ -762,20 +779,19 @@ static bool CompileLazyHelper(CompilationInfo* info,
 
 bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
                        ClearExceptionFlag flag) {
-  CompilationInfo info(shared);
+  LazySharedCompilationInfo info(shared);
   return CompileLazyHelper(&info, flag);
 }
 
 
 bool CompileLazy(Handle<JSFunction> function,
-                 Handle<Object> receiver,
                  ClearExceptionFlag flag) {
   if (function->shared()->is_compiled()) {
     function->set_code(function->shared()->code());
     function->shared()->set_code_age(0);
     return true;
   } else {
-    CompilationInfo info(function, 0, receiver);
+    LazyFunctionCompilationInfo info(function, 0);
     bool result = CompileLazyHelper(&info, flag);
     PROFILE(FunctionCreateEvent(*function));
     return result;
@@ -784,14 +800,13 @@ bool CompileLazy(Handle<JSFunction> function,
 
 
 bool CompileLazyInLoop(Handle<JSFunction> function,
-                       Handle<Object> receiver,
                        ClearExceptionFlag flag) {
   if (function->shared()->is_compiled()) {
     function->set_code(function->shared()->code());
     function->shared()->set_code_age(0);
     return true;
   } else {
-    CompilationInfo info(function, 1, receiver);
+    LazyFunctionCompilationInfo info(function, 1);
     bool result = CompileLazyHelper(&info, flag);
     PROFILE(FunctionCreateEvent(*function));
     return result;

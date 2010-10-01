@@ -418,6 +418,20 @@ void Assembler::bind(Label* L) {
 }
 
 
+void Assembler::bind(NearLabel* L) {
+  ASSERT(!L->is_bound());
+  last_pc_ = NULL;
+  while (L->unresolved_branches_ > 0) {
+    int branch_pos = L->unresolved_positions_[L->unresolved_branches_ - 1];
+    int disp = pc_offset() - branch_pos;
+    ASSERT(is_int8(disp));
+    set_byte_at(branch_pos - sizeof(int8_t), disp);
+    L->unresolved_branches_--;
+  }
+  L->bind_to(pc_offset());
+}
+
+
 void Assembler::GrowBuffer() {
   ASSERT(buffer_overflow());
   if (!own_buffer_) FATAL("external code buffer is too small");
@@ -1227,6 +1241,27 @@ void Assembler::j(Condition cc,
 }
 
 
+void Assembler::j(Condition cc, NearLabel* L, Hint hint) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(0 <= cc && cc < 16);
+  if (FLAG_emit_branch_hints && hint != no_hint) emit(hint);
+  if (L->is_bound()) {
+    const int short_size = 2;
+    int offs = L->pos() - pc_offset();
+    ASSERT(offs <= 0);
+    ASSERT(is_int8(offs - short_size));
+    // 0111 tttn #8-bit disp
+    emit(0x70 | cc);
+    emit((offs - short_size) & 0xFF);
+  } else {
+    emit(0x70 | cc);
+    emit(0x00);      // The displacement will be resolved later.
+    L->link_to(pc_offset());
+  }
+}
+
+
 void Assembler::jmp(Label* L) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1266,6 +1301,25 @@ void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
   // 1110 1001 #32-bit disp.
   emit(0xE9);
   emit_code_target(target, rmode);
+}
+
+
+void Assembler::jmp(NearLabel* L) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (L->is_bound()) {
+    const int short_size = sizeof(int8_t);
+    int offs = L->pos() - pc_offset();
+    ASSERT(offs <= 0);
+    ASSERT(is_int8(offs - short_size));
+    // 1110 1011 #8-bit disp.
+    emit(0xEB);
+    emit((offs - short_size) & 0xFF);
+  } else {
+    emit(0xEB);
+    emit(0x00);      // The displacement will be resolved later.
+    L->link_to(pc_offset());
+  }
 }
 
 

@@ -156,7 +156,7 @@ TEST(ScanHTMLEndComments) {
 
   for (int i = 0; tests[i]; i++) {
     v8::ScriptData* data =
-        v8::ScriptData::PreCompile(tests[i], strlen(tests[i]));
+        v8::ScriptData::PreCompile(tests[i], i::StrLength(tests[i]));
     CHECK(data != NULL && !data->HasError());
     delete data;
   }
@@ -198,9 +198,9 @@ TEST(Preparsing) {
       "var w = /RegExp Literal\\u0020With Escape/gin;"
       "var y = { get getter() { return 42; }, "
       "          set setter(v) { this.value = v; }};";
-  int source_length = strlen(source);
+  int source_length = i::StrLength(source);
   const char* error_source = "var x = y z;";
-  int error_source_length = strlen(error_source);
+  int error_source_length = i::StrLength(error_source);
 
   v8::ScriptData* preparse =
       v8::ScriptData::PreCompile(source, source_length);

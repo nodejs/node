@@ -913,7 +913,11 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
-                                           bool is_api_function) {
+                                           bool is_api_function,
+                                           bool count_constructions) {
+  // Should never count constructions for api objects.
+  ASSERT(!is_api_function || !count_constructions);
+
     // Enter a construct frame.
   __ EnterConstructFrame();
 
@@ -958,6 +962,26 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ CmpInstanceType(rax, JS_FUNCTION_TYPE);
     __ j(equal, &rt_call);
 
+    if (count_constructions) {
+      Label allocate;
+      // Decrease generous allocation count.
+      __ movq(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+      __ decb(FieldOperand(rcx, SharedFunctionInfo::kConstructionCountOffset));
+      __ j(not_zero, &allocate);
+
+      __ push(rax);
+      __ push(rdi);
+
+      __ push(rdi);  // constructor
+      // The call will replace the stub, so the countdown is only done once.
+      __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
+
+      __ pop(rdi);
+      __ pop(rax);
+
+      __ bind(&allocate);
+    }
+
     // Now allocate the JSObject on the heap.
     __ movzxbq(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
     __ shl(rdi, Immediate(kPointerSizeLog2));
@@ -981,7 +1005,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // rbx: JSObject
     // rdi: start of next object
     { Label loop, entry;
-      __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+      // To allow for truncation.
+      if (count_constructions) {
+        __ LoadRoot(rdx, Heap::kOnePointerFillerMapRootIndex);
+      } else {
+        __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+      }
       __ lea(rcx, Operand(rbx, JSObject::kHeaderSize));
       __ jmp(&entry);
       __ bind(&loop);
@@ -1164,13 +1193,18 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 }
 
 
+void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false, true);
+}
+
+
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false);
+  Generate_JSConstructStubHelper(masm, false, false);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true);
+  Generate_JSConstructStubHelper(masm, true, false);
 }
 
 

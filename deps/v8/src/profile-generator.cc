@@ -121,16 +121,37 @@ const char* StringsStorage::GetName(String* name) {
 
 
 const char* CodeEntry::kEmptyNamePrefix = "";
-unsigned CodeEntry::next_call_uid_ = 1;
 
 
 void CodeEntry::CopyData(const CodeEntry& source) {
-  call_uid_ = source.call_uid_;
   tag_ = source.tag_;
   name_prefix_ = source.name_prefix_;
   name_ = source.name_;
   resource_name_ = source.resource_name_;
   line_number_ = source.line_number_;
+}
+
+
+uint32_t CodeEntry::GetCallUid() const {
+  uint32_t hash = ComputeIntegerHash(tag_);
+  hash ^= ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)));
+  hash ^= ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)));
+  hash ^= ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)));
+  hash ^= ComputeIntegerHash(line_number_);
+  return hash;
+}
+
+
+bool CodeEntry::IsSameAs(CodeEntry* entry) const {
+  return this == entry
+      || (tag_ == entry->tag_
+          && name_prefix_ == entry->name_prefix_
+          && name_ == entry->name_
+          && resource_name_ == entry->resource_name_
+          && line_number_ == entry->line_number_);
 }
 
 
@@ -424,9 +445,10 @@ void CodeMap::AddAlias(Address start, CodeEntry* entry, Address code_start) {
   CodeTree::Locator locator;
   if (tree_.Find(code_start, &locator)) {
     const CodeEntryInfo& code_info = locator.value();
-    entry->CopyData(*code_info.entry);
-    tree_.Insert(start, &locator);
-    locator.set_value(CodeEntryInfo(entry, code_info.size));
+    if (tree_.Insert(start, &locator)) {
+      entry->CopyData(*code_info.entry);
+      locator.set_value(CodeEntryInfo(entry, code_info.size));
+    }
   }
 }
 

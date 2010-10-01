@@ -214,6 +214,12 @@ const intptr_t kMapAlignmentBits = kObjectAlignmentBits + 3;
 const intptr_t kMapAlignment = (1 << kMapAlignmentBits);
 const intptr_t kMapAlignmentMask = kMapAlignment - 1;
 
+// Desired alignment for generated code is 32 bytes (to improve cache line
+// utilization).
+const int kCodeAlignmentBits = 5;
+const intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
+const intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
+
 // Tag information for Failure.
 const int kFailureTag = 3;
 const int kFailureTagSize = 2;
@@ -587,6 +593,10 @@ enum StateTag {
 // MAP_POINTER_ALIGN returns the value aligned as a map pointer.
 #define MAP_POINTER_ALIGN(value)                                \
   (((value) + kMapAlignmentMask) & ~kMapAlignmentMask)
+
+// CODE_POINTER_ALIGN returns the value aligned as a generated code segment.
+#define CODE_POINTER_ALIGN(value)                               \
+  (((value) + kCodeAlignmentMask) & ~kCodeAlignmentMask)
 
 // The expression OFFSET_OF(type, field) computes the byte-offset
 // of the specified field relative to the containing type. This

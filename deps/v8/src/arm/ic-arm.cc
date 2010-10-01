@@ -967,6 +967,14 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 }
 
 
+bool LoadIC::PatchInlinedContextualLoad(Address address,
+                                        Object* map,
+                                        Object* cell) {
+  // TODO(<bug#>): implement this.
+  return false;
+}
+
+
 bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
   // Find the end of the inlined code for the store if there is an
   // inlined version of the store.
@@ -1236,7 +1244,6 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   //  -- r1     : receiver
   // -----------------------------------
   Label miss;
-  Label index_out_of_range;
 
   Register receiver = r1;
   Register index = r0;
@@ -1251,17 +1258,13 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
                                           result,
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.
-                                          &index_out_of_range,
+                                          &miss,  // When index out of range.
                                           STRING_INDEX_IS_ARRAY_INDEX);
   char_at_generator.GenerateFast(masm);
   __ Ret();
 
   ICRuntimeCallHelper call_helper;
   char_at_generator.GenerateSlow(masm, call_helper);
-
-  __ bind(&index_out_of_range);
-  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-  __ Ret();
 
   __ bind(&miss);
   GenerateMiss(masm);
@@ -1581,8 +1584,9 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // Check that the receiver isn't a smi.
   __ BranchOnSmi(r1, &slow);
 
-  // Check that the key is a smi.
-  __ BranchOnNotSmi(r0, &slow);
+  // Check that the key is an array index, that is Uint32.
+  __ tst(r0, Operand(kSmiTagMask | kSmiSignMask));
+  __ b(ne, &slow);
 
   // Get the map of the receiver.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));

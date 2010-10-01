@@ -63,13 +63,13 @@ class ScopeInfo BASE_EMBEDDED {
   // --------------------------------------------------------------------------
   // Lookup
 
-  Handle<String> function_name() const  { return function_name_; }
+  Handle<String> function_name() const { return function_name_; }
 
-  Handle<String> parameter_name(int i) const  { return parameters_[i]; }
-  int number_of_parameters() const  { return parameters_.length(); }
+  Handle<String> parameter_name(int i) const { return parameters_[i]; }
+  int number_of_parameters() const { return parameters_.length(); }
 
-  Handle<String> stack_slot_name(int i) const  { return stack_slots_[i]; }
-  int number_of_stack_slots() const  { return stack_slots_.length(); }
+  Handle<String> stack_slot_name(int i) const { return stack_slots_[i]; }
+  int number_of_stack_slots() const { return stack_slots_.length(); }
 
   Handle<String> context_slot_name(int i) const {
     return context_slots_[i - Context::MIN_CONTEXT_SLOTS];

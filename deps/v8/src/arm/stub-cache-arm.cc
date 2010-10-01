@@ -266,7 +266,12 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 
 
 void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
-    MacroAssembler* masm, int index, Register prototype) {
+    MacroAssembler* masm, int index, Register prototype, Label* miss) {
+  // Check we're still in the same context.
+  __ ldr(prototype, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ Move(ip, Top::global());
+  __ cmp(prototype, ip);
+  __ b(ne, miss);
   // Get the global function with the given index.
   JSFunction* function = JSFunction::cast(Top::global_context()->get(index));
   // Load its initial map. The global functions all have initial maps.
@@ -1434,7 +1439,8 @@ Object* CallStubCompiler::CompileStringCharCodeAtCall(
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
-                                            r0);
+                                            r0,
+                                            &miss);
   ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder,
                   r1, r3, r4, name, &miss);
@@ -1505,7 +1511,8 @@ Object* CallStubCompiler::CompileStringCharAtCall(Object* object,
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
-                                            r0);
+                                            r0,
+                                            &miss);
   ASSERT(object != holder);
   CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder,
                   r1, r3, r4, name, &miss);
@@ -1626,6 +1633,118 @@ Object* CallStubCompiler::CompileStringFromCharCodeCall(
 }
 
 
+Object* CallStubCompiler::CompileMathFloorCall(Object* object,
+                                               JSObject* holder,
+                                               JSGlobalPropertyCell* cell,
+                                               JSFunction* function,
+                                               String* name) {
+  // TODO(872): implement this.
+  return Heap::undefined_value();
+}
+
+
+Object* CallStubCompiler::CompileMathAbsCall(Object* object,
+                                             JSObject* holder,
+                                             JSGlobalPropertyCell* cell,
+                                             JSFunction* function,
+                                             String* name) {
+  // ----------- S t a t e -------------
+  //  -- r2                     : function name
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- sp[argc * 4]           : receiver
+  // -----------------------------------
+
+  const int argc = arguments().immediate();
+
+  // If the object is not a JSObject or we got an unexpected number of
+  // arguments, bail out to the regular call.
+  if (!object->IsJSObject() || argc != 1) return Heap::undefined_value();
+
+  Label miss;
+  GenerateNameCheck(name, &miss);
+
+  if (cell == NULL) {
+    __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
+
+    STATIC_ASSERT(kSmiTag == 0);
+    __ tst(r1, Operand(kSmiTagMask));
+    __ b(eq, &miss);
+
+    CheckPrototypes(JSObject::cast(object), r1, holder, r0, r3, r4, name,
+                    &miss);
+  } else {
+    ASSERT(cell->value() == function);
+    GenerateGlobalReceiverCheck(JSObject::cast(object), holder, name, &miss);
+    GenerateLoadFunctionFromCell(cell, function, &miss);
+  }
+
+  // Load the (only) argument into r0.
+  __ ldr(r0, MemOperand(sp, 0 * kPointerSize));
+
+  // Check if the argument is a smi.
+  Label not_smi;
+  STATIC_ASSERT(kSmiTag == 0);
+  __ BranchOnNotSmi(r0, &not_smi);
+
+  // Do bitwise not or do nothing depending on the sign of the
+  // argument.
+  __ eor(r1, r0, Operand(r0, ASR, kBitsPerInt - 1));
+
+  // Add 1 or do nothing depending on the sign of the argument.
+  __ sub(r0, r1, Operand(r0, ASR, kBitsPerInt - 1), SetCC);
+
+  // If the result is still negative, go to the slow case.
+  // This only happens for the most negative smi.
+  Label slow;
+  __ b(mi, &slow);
+
+  // Smi case done.
+  __ Drop(argc + 1);
+  __ Ret();
+
+  // Check if the argument is a heap number and load its exponent and
+  // sign.
+  __ bind(&not_smi);
+  __ CheckMap(r0, r1, Heap::kHeapNumberMapRootIndex, &slow, true);
+  __ ldr(r1, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+
+  // Check the sign of the argument. If the argument is positive,
+  // just return it.
+  Label negative_sign;
+  __ tst(r1, Operand(HeapNumber::kSignMask));
+  __ b(ne, &negative_sign);
+  __ Drop(argc + 1);
+  __ Ret();
+
+  // If the argument is negative, clear the sign, and return a new
+  // number.
+  __ bind(&negative_sign);
+  __ eor(r1, r1, Operand(HeapNumber::kSignMask));
+  __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
+  __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+  __ AllocateHeapNumber(r0, r4, r5, r6, &slow);
+  __ str(r1, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+  __ str(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
+  __ Drop(argc + 1);
+  __ Ret();
+
+  // Tail call the full function. We do not have to patch the receiver
+  // because the function makes no use of it.
+  __ bind(&slow);
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+
+  __ bind(&miss);
+  // r2: function name.
+  Object* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
+
+  // Return the generated code.
+  return (cell == NULL) ? GetCode(function) : GetCode(NORMAL, name);
+}
+
+
 Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSObject* holder,
                                               JSFunction* function,
@@ -1705,7 +1824,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ b(hs, &miss);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::STRING_FUNCTION_INDEX, r0);
+            masm(), Context::STRING_FUNCTION_INDEX, r0, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
                         r1, r4, name, &miss);
       }
@@ -1725,7 +1844,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::NUMBER_FUNCTION_INDEX, r0);
+            masm(), Context::NUMBER_FUNCTION_INDEX, r0, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
                         r1, r4, name, &miss);
       }
@@ -1748,7 +1867,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
-            masm(), Context::BOOLEAN_FUNCTION_INDEX, r0);
+            masm(), Context::BOOLEAN_FUNCTION_INDEX, r0, &miss);
         CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
                         r1, r4, name, &miss);
       }
@@ -2067,7 +2186,10 @@ Object* LoadStubCompiler::CompileLoadNonexistent(String* name,
                                              name,
                                              r1,
                                              &miss);
-    if (cell->IsFailure()) return cell;
+    if (cell->IsFailure()) {
+      miss.Unuse();
+      return cell;
+    }
   }
 
   // Return undefined if maps of the full prototype chain are still the
@@ -2117,7 +2239,10 @@ Object* LoadStubCompiler::CompileLoadCallback(String* name,
   Failure* failure = Failure::InternalError();
   bool success = GenerateLoadCallback(object, holder, r0, r2, r3, r1, r4,
                                       callback, name, &miss, &failure);
-  if (!success) return failure;
+  if (!success) {
+    miss.Unuse();
+    return failure;
+  }
 
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
@@ -2212,11 +2337,11 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   }
 
   __ mov(r0, r4);
-  __ IncrementCounter(&Counters::named_load_global_inline, 1, r1, r3);
+  __ IncrementCounter(&Counters::named_load_global_stub, 1, r1, r3);
   __ Ret();
 
   __ bind(&miss);
-  __ IncrementCounter(&Counters::named_load_global_inline_miss, 1, r1, r3);
+  __ IncrementCounter(&Counters::named_load_global_stub_miss, 1, r1, r3);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
@@ -2265,7 +2390,10 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   Failure* failure = Failure::InternalError();
   bool success = GenerateLoadCallback(receiver, holder, r1, r0, r2, r3, r4,
                                       callback, name, &miss, &failure);
-  if (!success) return failure;
+  if (!success) {
+    miss.Unuse();
+    return failure;
+  }
 
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);

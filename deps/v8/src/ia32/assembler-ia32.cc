@@ -993,6 +993,14 @@ void Assembler::dec_b(Register dst) {
 }
 
 
+void Assembler::dec_b(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xFE);
+  emit_operand(ecx, dst);
+}
+
+
 void Assembler::dec(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1511,32 +1519,6 @@ void Assembler::bind_to(Label* L, int pos) {
 }
 
 
-void Assembler::link_to(Label* L, Label* appendix) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = NULL;
-  if (appendix->is_linked()) {
-    if (L->is_linked()) {
-      // Append appendix to L's list.
-      Label p;
-      Label q = *L;
-      do {
-        p = q;
-        Displacement disp = disp_at(&q);
-        disp.next(&q);
-      } while (q.is_linked());
-      Displacement disp = disp_at(&p);
-      disp.link_to(appendix);
-      disp_at_put(&p, disp);
-      p.Unuse();  // to avoid assertion failure in ~Label
-    } else {
-      // L is empty, simply use appendix.
-      *L = *appendix;
-    }
-  }
-  appendix->Unuse();  // appendix should not be used anymore
-}
-
-
 void Assembler::bind(Label* L) {
   EnsureSpace ensure_space(this);
   last_pc_ = NULL;
@@ -1544,6 +1526,19 @@ void Assembler::bind(Label* L) {
   bind_to(L, pc_offset());
 }
 
+
+void Assembler::bind(NearLabel* L) {
+  ASSERT(!L->is_bound());
+  last_pc_ = NULL;
+  while (L->unresolved_branches_ > 0) {
+    int branch_pos = L->unresolved_positions_[L->unresolved_branches_ - 1];
+    int disp = pc_offset() - branch_pos;
+    ASSERT(is_int8(disp));
+    set_byte_at(branch_pos - sizeof(int8_t), disp);
+    L->unresolved_branches_--;
+  }
+  L->bind_to(pc_offset());
+}
 
 void Assembler::call(Label* L) {
   EnsureSpace ensure_space(this);
@@ -1641,6 +1636,24 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
 }
 
 
+void Assembler::jmp(NearLabel* L) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (L->is_bound()) {
+    const int short_size = 2;
+    int offs = L->pos() - pc_offset();
+    ASSERT(offs <= 0);
+    ASSERT(is_int8(offs - short_size));
+    // 1110 1011 #8-bit disp.
+    EMIT(0xEB);
+    EMIT((offs - short_size) & 0xFF);
+  } else {
+    EMIT(0xEB);
+    EMIT(0x00);      // The displacement will be resolved later.
+    L->link_to(pc_offset());
+  }
+}
+
 
 void Assembler::j(Condition cc, Label* L, Hint hint) {
   EnsureSpace ensure_space(this);
@@ -1693,6 +1706,27 @@ void Assembler::j(Condition cc, Handle<Code> code, Hint hint) {
   EMIT(0x0F);
   EMIT(0x80 | cc);
   emit(reinterpret_cast<intptr_t>(code.location()), RelocInfo::CODE_TARGET);
+}
+
+
+void Assembler::j(Condition cc, NearLabel* L, Hint hint) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(0 <= cc && cc < 16);
+  if (FLAG_emit_branch_hints && hint != no_hint) EMIT(hint);
+  if (L->is_bound()) {
+    const int short_size = 2;
+    int offs = L->pos() - pc_offset();
+    ASSERT(offs <= 0);
+    ASSERT(is_int8(offs - short_size));
+    // 0111 tttn #8-bit disp
+    EMIT(0x70 | cc);
+    EMIT((offs - short_size) & 0xFF);
+  } else {
+    EMIT(0x70 | cc);
+    EMIT(0x00);      // The displacement will be resolved later.
+    L->link_to(pc_offset());
+  }
 }
 
 
@@ -2179,6 +2213,16 @@ void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::andpd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x54);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::ucomisd(XMMRegister dst, XMMRegister src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
@@ -2201,7 +2245,29 @@ void Assembler::movmskpd(Register dst, XMMRegister src) {
 }
 
 
-void Assembler::movdqa(const Operand& dst, XMMRegister src ) {
+void Assembler::cmpltsd(XMMRegister dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0xC2);
+  emit_sse_operand(dst, src);
+  EMIT(1);  // LT == 1
+}
+
+
+void Assembler::movaps(XMMRegister dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x0F);
+  EMIT(0x28);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movdqa(const Operand& dst, XMMRegister src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2348,7 +2414,7 @@ void Assembler::pxor(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::ptest(XMMRegister dst, XMMRegister src) {
-  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  ASSERT(CpuFeatures::IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x66);
@@ -2357,6 +2423,19 @@ void Assembler::ptest(XMMRegister dst, XMMRegister src) {
   EMIT(0x17);
   emit_sse_operand(dst, src);
 }
+
+
+void Assembler::psllq(XMMRegister reg, int8_t imm8) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x73);
+  emit_sse_operand(esi, reg);  // esi == 6
+  EMIT(imm8);
+}
+
 
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
   Register ireg = { reg.code() };

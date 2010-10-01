@@ -441,6 +441,8 @@
         '../../src/spaces-inl.h',
         '../../src/spaces.cc',
         '../../src/spaces.h',
+        '../../src/string-search.cc',
+        '../../src/string-search.h',
         '../../src/string-stream.cc',
         '../../src/string-stream.h',
         '../../src/stub-cache.cc',

@@ -143,8 +143,8 @@ void StackFrameIterator::Reset() {
     state.pc_address =
         reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp_));
     type = StackFrame::ComputeType(&state);
-    if (SingletonFor(type) == NULL) return;
   }
+  if (SingletonFor(type) == NULL) return;
   frame_ = SingletonFor(type, &state);
 }
 
@@ -203,17 +203,36 @@ bool StackTraceFrameIterator::IsValidFrame() {
 // -------------------------------------------------------------------------
 
 
+bool SafeStackFrameIterator::ExitFrameValidator::IsValidFP(Address fp) {
+  if (!validator_.IsValid(fp)) return false;
+  Address sp = ExitFrame::ComputeStackPointer(fp);
+  if (!validator_.IsValid(sp)) return false;
+  StackFrame::State state;
+  ExitFrame::FillState(fp, sp, &state);
+  if (!validator_.IsValid(reinterpret_cast<Address>(state.pc_address))) {
+    return false;
+  }
+  return *state.pc_address != NULL;
+}
+
+
 SafeStackFrameIterator::SafeStackFrameIterator(
     Address fp, Address sp, Address low_bound, Address high_bound) :
-    maintainer_(), low_bound_(low_bound), high_bound_(high_bound),
-    is_valid_top_(
-        IsWithinBounds(low_bound, high_bound,
-                       Top::c_entry_fp(Top::GetCurrentThread())) &&
-        Top::handler(Top::GetCurrentThread()) != NULL),
+    maintainer_(),
+    stack_validator_(low_bound, high_bound),
+    is_valid_top_(IsValidTop(low_bound, high_bound)),
     is_valid_fp_(IsWithinBounds(low_bound, high_bound, fp)),
     is_working_iterator_(is_valid_top_ || is_valid_fp_),
     iteration_done_(!is_working_iterator_),
     iterator_(is_valid_top_, is_valid_fp_ ? fp : NULL, sp) {
+}
+
+
+bool SafeStackFrameIterator::IsValidTop(Address low_bound, Address high_bound) {
+  Address fp = Top::c_entry_fp(Top::GetCurrentThread());
+  ExitFrameValidator validator(low_bound, high_bound);
+  if (!validator.IsValidFP(fp)) return false;
+  return Top::handler(Top::GetCurrentThread()) != NULL;
 }
 
 
@@ -258,9 +277,8 @@ bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
     // sure that caller FP address is valid.
     Address caller_fp = Memory::Address_at(
         frame->fp() + EntryFrameConstants::kCallerFPOffset);
-    if (!IsValidStackAddress(caller_fp)) {
-      return false;
-    }
+    ExitFrameValidator validator(stack_validator_);
+    if (!validator.IsValidFP(caller_fp)) return false;
   } else if (frame->is_arguments_adaptor()) {
     // See ArgumentsAdaptorFrame::GetCallerStackPointer. It assumes that
     // the number of arguments is stored on stack as Smi. We need to check
@@ -412,6 +430,22 @@ void ExitFrame::Iterate(ObjectVisitor* v) const {
 
 Address ExitFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPDisplacement;
+}
+
+
+StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
+  if (fp == 0) return NONE;
+  Address sp = ComputeStackPointer(fp);
+  FillState(fp, sp, state);
+  ASSERT(*state->pc_address != NULL);
+  return EXIT;
+}
+
+
+void ExitFrame::FillState(Address fp, Address sp, State* state) {
+  state->sp = sp;
+  state->fp = fp;
+  state->pc_address = reinterpret_cast<Address*>(sp - 1 * kPointerSize);
 }
 
 

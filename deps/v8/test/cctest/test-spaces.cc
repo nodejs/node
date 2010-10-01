@@ -221,7 +221,7 @@ TEST(LargeObjectSpace) {
   CHECK(lo->Contains(ho));
 
   while (true) {
-    int available = lo->Available();
+    intptr_t available = lo->Available();
     obj = lo->AllocateRaw(lo_size);
     if (obj->IsFailure()) break;
     HeapObject::cast(obj)->set_map(faked_map);

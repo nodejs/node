@@ -67,12 +67,12 @@ class List {
   // Returns a reference to the element at index i.  This reference is
   // not safe to use after operations that can change the list's
   // backing store (eg, Add).
-  inline T& operator[](int i) const  {
+  inline T& operator[](int i) const {
     ASSERT(0 <= i);
     ASSERT(i < length_);
     return data_[i];
   }
-  inline T& at(int i) const  { return operator[](i); }
+  inline T& at(int i) const { return operator[](i); }
   inline T& last() const { return at(length_ - 1); }
   inline T& first() const { return at(0); }
 

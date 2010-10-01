@@ -465,7 +465,7 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
 void RelocInfo::Print() {
   PrintF("%p  %s", pc_, RelocModeName(rmode_));
   if (IsComment(rmode_)) {
-    PrintF("  (%s)", data_);
+    PrintF("  (%s)", reinterpret_cast<char*>(data_));
   } else if (rmode_ == EMBEDDED_OBJECT) {
     PrintF("  (");
     target_object()->ShortPrint();
@@ -479,7 +479,7 @@ void RelocInfo::Print() {
     Code* code = Code::GetCodeFromTargetAddress(target_address());
     PrintF(" (%s)  (%p)", Code::Kind2String(code->kind()), target_address());
   } else if (IsPosition(rmode_)) {
-    PrintF("  (%d)", data());
+    PrintF("  (%" V8_PTR_PREFIX "d)", data());
   }
 
   PrintF("\n");

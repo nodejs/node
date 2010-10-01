@@ -44,7 +44,10 @@ namespace internal {
 void Disassembler::Dump(FILE* f, byte* begin, byte* end) {
   for (byte* pc = begin; pc < end; pc++) {
     if (f == NULL) {
-      PrintF("%" V8PRIxPTR "  %4" V8PRIdPTR "  %02x\n", pc, pc - begin, *pc);
+      PrintF("%" V8PRIxPTR "  %4" V8PRIdPTR "  %02x\n",
+             reinterpret_cast<intptr_t>(pc),
+             pc - begin,
+             *pc);
     } else {
       fprintf(f, "%" V8PRIxPTR "  %4" V8PRIdPTR "  %02x\n",
               reinterpret_cast<uintptr_t>(pc), pc - begin, *pc);

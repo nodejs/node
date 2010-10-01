@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -281,8 +281,7 @@ class Scanner {
     bool complete_;
   };
 
-  // Construction
-  explicit Scanner(ParserMode parse_mode);
+  Scanner();
 
   // Initialize the Scanner to scan source.
   void Initialize(Handle<String> source,
@@ -298,7 +297,7 @@ class Scanner {
   Token::Value Next();
 
   // One token look-ahead (past the token returned by Next()).
-  Token::Value peek() const  { return next_.token; }
+  Token::Value peek() const { return next_.token; }
 
   // Returns true if there was a line terminator before the peek'ed token.
   bool has_line_terminator_before_next() const {
@@ -314,8 +313,8 @@ class Scanner {
 
   // Returns the location information for the current token
   // (the token returned by Next()).
-  Location location() const  { return current_.location; }
-  Location peek_location() const  { return next_.location; }
+  Location location() const { return current_.location; }
+  Location peek_location() const { return next_.location; }
 
   // Returns the literal string, if any, for the current token (the
   // token returned by Next()). The string is 0-terminated and in
@@ -488,7 +487,6 @@ class Scanner {
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)
   bool has_line_terminator_before_next_;
-  bool is_pre_parsing_;
   bool is_parsing_json_;
 
   // Different UTF16 buffers used to pull characters from. Based on input one of

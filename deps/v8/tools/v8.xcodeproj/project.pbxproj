@@ -122,6 +122,7 @@
 		89A88E1F0E71A6B40043BA31 /* snapshot-common.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1820E719B8F00D62E90 /* snapshot-common.cc */; };
 		89A88E200E71A6B60043BA31 /* snapshot-empty.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1830E719B8F00D62E90 /* snapshot-empty.cc */; };
 		89A88E210E71A6B70043BA31 /* spaces.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1860E719B8F00D62E90 /* spaces.cc */; };
+		89A88E220E71A6BC0043BA31 /* string-search.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1880E719B8F00D62E90 /* string-search.cc */; };
 		89A88E220E71A6BC0043BA31 /* string-stream.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1880E719B8F00D62E90 /* string-stream.cc */; };
 		89A88E230E71A6BE0043BA31 /* stub-cache-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18B0E719B8F00D62E90 /* stub-cache-ia32.cc */; };
 		89A88E240E71A6BF0043BA31 /* stub-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18C0E719B8F00D62E90 /* stub-cache.cc */; };
@@ -183,6 +184,7 @@
 		89F23C730E78D5B2006B2466 /* snapshot-common.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1820E719B8F00D62E90 /* snapshot-common.cc */; };
 		89F23C740E78D5B2006B2466 /* snapshot-empty.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1830E719B8F00D62E90 /* snapshot-empty.cc */; };
 		89F23C750E78D5B2006B2466 /* spaces.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1860E719B8F00D62E90 /* spaces.cc */; };
+		89F23C760E78D5B2006B2466 /* string-search.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1880E719B8F00D62E90 /* string-search.cc */; };
 		89F23C760E78D5B2006B2466 /* string-stream.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1880E719B8F00D62E90 /* string-stream.cc */; };
 		89F23C780E78D5B2006B2466 /* stub-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18C0E719B8F00D62E90 /* stub-cache.cc */; };
 		89F23C790E78D5B2006B2466 /* token.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18E0E719B8F00D62E90 /* token.cc */; };
@@ -502,6 +504,8 @@
 		897FF1850E719B8F00D62E90 /* spaces-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "spaces-inl.h"; sourceTree = "<group>"; };
 		897FF1860E719B8F00D62E90 /* spaces.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = spaces.cc; sourceTree = "<group>"; };
 		897FF1870E719B8F00D62E90 /* spaces.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = spaces.h; sourceTree = "<group>"; };
+		897FF1880E719B8F00D62E90 /* string-search.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "string-search.cc"; sourceTree = "<group>"; };
+		897FF1880E719B8F00D62E90 /* string-search.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "string-search.h"; sourceTree = "<group>"; };
 		897FF1880E719B8F00D62E90 /* string-stream.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "string-stream.cc"; sourceTree = "<group>"; };
 		897FF1890E719B8F00D62E90 /* string-stream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "string-stream.h"; sourceTree = "<group>"; };
 		897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "stub-cache-arm.cc"; path = "arm/stub-cache-arm.cc"; sourceTree = "<group>"; };
@@ -964,6 +968,8 @@
 				897FF1870E719B8F00D62E90 /* spaces.h */,
 				9FA38BAC1175B2D200C4CD55 /* splay-tree-inl.h */,
 				9FA38BAD1175B2D200C4CD55 /* splay-tree.h */,
+				897FF1880E719B8F00D62E90 /* string-search.cc */,
+				897FF1890E719B8F00D62E90 /* string-search.h */,
 				897FF1880E719B8F00D62E90 /* string-stream.cc */,
 				897FF1890E719B8F00D62E90 /* string-stream.h */,
 				897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */,
@@ -1353,6 +1359,7 @@
 				89A88E1F0E71A6B40043BA31 /* snapshot-common.cc in Sources */,
 				89A88E200E71A6B60043BA31 /* snapshot-empty.cc in Sources */,
 				89A88E210E71A6B70043BA31 /* spaces.cc in Sources */,
+				89A88E220E71A6BC0043BA31 /* string-search.cc in Sources */,
 				89A88E220E71A6BC0043BA31 /* string-stream.cc in Sources */,
 				89A88E230E71A6BE0043BA31 /* stub-cache-ia32.cc in Sources */,
 				89A88E240E71A6BF0043BA31 /* stub-cache.cc in Sources */,
@@ -1478,6 +1485,7 @@
 				89F23C730E78D5B2006B2466 /* snapshot-common.cc in Sources */,
 				89F23C740E78D5B2006B2466 /* snapshot-empty.cc in Sources */,
 				89F23C750E78D5B2006B2466 /* spaces.cc in Sources */,
+				89F23C760E78D5B2006B2466 /* string-search.cc in Sources */,
 				89F23C760E78D5B2006B2466 /* string-stream.cc in Sources */,
 				89F23CA00E78D609006B2466 /* stub-cache-arm.cc in Sources */,
 				89F23C780E78D5B2006B2466 /* stub-cache.cc in Sources */,

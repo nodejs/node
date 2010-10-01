@@ -171,7 +171,9 @@ void StackTracer::Trace(TickSample* sample) {
   SafeStackTraceFrameIterator it(sample->fp, sample->sp,
                                  sample->sp, js_entry_sp);
   while (!it.done() && i < TickSample::kMaxFramesCount) {
-    sample->stack[i++] = reinterpret_cast<Address>(it.frame()->function());
+    sample->stack[i++] =
+        reinterpret_cast<Address>(it.frame()->function_slot_object()) -
+            kHeapObjectTag;
     it.Advance();
   }
   sample->frames_count = i;
@@ -391,11 +393,28 @@ void Logger::IntEvent(const char* name, int value) {
 }
 
 
+void Logger::IntPtrTEvent(const char* name, intptr_t value) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (FLAG_log) UncheckedIntPtrTEvent(name, value);
+#endif
+}
+
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::UncheckedIntEvent(const char* name, int value) {
   if (!Log::IsEnabled()) return;
   LogMessageBuilder msg;
   msg.Append("%s,%d\n", name, value);
+  msg.WriteToLogFile();
+}
+#endif
+
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
+  if (!Log::IsEnabled()) return;
+  LogMessageBuilder msg;
+  msg.Append("%s,%" V8_PTR_PREFIX "d\n", name, value);
   msg.WriteToLogFile();
 }
 #endif
@@ -869,20 +888,33 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
 
 void Logger::FunctionCreateEvent(JSFunction* function) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
+  // This function can be called from GC iterators (during Scavenge,
+  // MC, and MS), so marking bits can be set on objects. That's
+  // why unchecked accessors are used here.
   static Address prev_code = NULL;
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("%s,", log_events_[FUNCTION_CREATION_EVENT]);
   msg.AppendAddress(function->address());
   msg.Append(',');
-  msg.AppendAddress(function->code()->address(), prev_code);
-  prev_code = function->code()->address();
+  msg.AppendAddress(function->unchecked_code()->address(), prev_code);
+  prev_code = function->unchecked_code()->address();
   if (FLAG_compress_log) {
     ASSERT(compression_helper_ != NULL);
     if (!compression_helper_->HandleMessage(&msg)) return;
   }
   msg.Append('\n');
   msg.WriteToLogFile();
+#endif
+}
+
+
+void Logger::FunctionCreateEventFromMove(JSFunction* function,
+                                         HeapObject*) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (function->unchecked_code() != Builtins::builtin(Builtins::LazyCompile)) {
+    FunctionCreateEvent(function);
+  }
 #endif
 }
 
@@ -990,11 +1022,12 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 
 
 void Logger::HeapSampleStats(const char* space, const char* kind,
-                             int capacity, int used) {
+                             intptr_t capacity, intptr_t used) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg;
-  msg.Append("heap-sample-stats,\"%s\",\"%s\",%d,%d\n",
+  msg.Append("heap-sample-stats,\"%s\",\"%s\","
+                 "%" V8_PTR_PREFIX "d,%" V8_PTR_PREFIX "d\n",
              space, kind, capacity, used);
   msg.WriteToLogFile();
 #endif

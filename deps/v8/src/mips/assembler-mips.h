@@ -73,13 +73,13 @@ namespace internal {
 
 // Core register.
 struct Register {
-  bool is_valid() const  { return 0 <= code_ && code_ < kNumRegisters; }
-  bool is(Register reg) const  { return code_ == reg.code_; }
-  int code() const  {
+  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
+  bool is(Register reg) const { return code_ == reg.code_; }
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
-  int bit() const  {
+  int bit() const {
     ASSERT(is_valid());
     return 1 << code_;
   }
@@ -129,13 +129,13 @@ Register ToRegister(int num);
 
 // Coprocessor register.
 struct FPURegister {
-  bool is_valid() const  { return 0 <= code_ && code_ < kNumFPURegister ; }
-  bool is(FPURegister creg) const  { return code_ == creg.code_; }
-  int code() const  {
+  bool is_valid() const { return 0 <= code_ && code_ < kNumFPURegister ; }
+  bool is(FPURegister creg) const { return code_ == creg.code_; }
+  int code() const {
     ASSERT(is_valid());
     return code_;
   }
-  int bit() const  {
+  int bit() const {
     ASSERT(is_valid());
     return 1 << code_;
   }
@@ -665,4 +665,3 @@ class Assembler : public Malloced {
 } }  // namespace v8::internal
 
 #endif  // V8_ARM_ASSEMBLER_MIPS_H_
-

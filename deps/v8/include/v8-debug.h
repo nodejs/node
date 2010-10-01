@@ -253,8 +253,11 @@ class EXPORT Debug {
   static bool SetDebugEventListener(v8::Handle<v8::Object> that,
                                     Handle<Value> data = Handle<Value>());
 
-  // Break execution of JavaScript.
+  // Schedule a debugger break to happen when JavaScript code is run.
   static void DebugBreak();
+
+  // Remove scheduled debugger break if it has not happened yet.
+  static void CancelDebugBreak();
 
   // Break execution of JavaScript (this method can be invoked from a
   // non-VM thread) for further client command execution on a VM

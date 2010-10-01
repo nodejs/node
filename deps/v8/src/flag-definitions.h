@@ -108,6 +108,8 @@ DEFINE_bool(enable_sse2, true,
             "enable use of SSE2 instructions if available")
 DEFINE_bool(enable_sse3, true,
             "enable use of SSE3 instructions if available")
+DEFINE_bool(enable_sse4_1, true,
+            "enable use of SSE4.1 instructions if available")
 DEFINE_bool(enable_cmov, true,
             "enable use of CMOV instruction if available")
 DEFINE_bool(enable_rdtsc, true,
@@ -179,8 +181,8 @@ DEFINE_bool(always_inline_smi_code, false,
             "always inline smi code in non-opt code")
 
 // heap.cc
-DEFINE_int(max_new_space_size, 0, "max size of the new generation")
-DEFINE_int(max_old_space_size, 0, "max size of the old generation")
+DEFINE_int(max_new_space_size, 0, "max size of the new generation (in kBytes)")
+DEFINE_int(max_old_space_size, 0, "max size of the old generation (in Mbytes)")
 DEFINE_bool(gc_global, false, "always perform global GCs")
 DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_bool(trace_gc, false,

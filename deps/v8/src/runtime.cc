@@ -638,56 +638,78 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
   Handle<FixedArray> elms = Factory::NewFixedArray(DESCRIPTOR_SIZE);
   Handle<JSArray> desc = Factory::NewJSArrayWithElements(elms);
   LookupResult result;
-  CONVERT_CHECKED(JSObject, obj, args[0]);
-  CONVERT_CHECKED(String, name, args[1]);
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_CHECKED(String, name, 1);
 
   // This could be an element.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    if (!obj->HasLocalElement(index)) {
-      return Heap::undefined_value();
-    }
+    switch (obj->HasLocalElement(index)) {
+      case JSObject::UNDEFINED_ELEMENT:
+        return Heap::undefined_value();
 
-    // Special handling of string objects according to ECMAScript 5 15.5.5.2.
-    // Note that this might be a string object with elements other than the
-    // actual string value. This is covered by the subsequent cases.
-    if (obj->IsStringObjectWithCharacterAt(index)) {
-      JSValue* js_value = JSValue::cast(obj);
-      String* str = String::cast(js_value->value());
-      elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-      elms->set(VALUE_INDEX, str->SubString(index, index+1));
-      elms->set(WRITABLE_INDEX, Heap::false_value());
-      elms->set(ENUMERABLE_INDEX,  Heap::false_value());
-      elms->set(CONFIGURABLE_INDEX, Heap::false_value());
-      return *desc;
-    }
+      case JSObject::STRING_CHARACTER_ELEMENT: {
+        // Special handling of string objects according to ECMAScript 5
+        // 15.5.5.2. Note that this might be a string object with elements
+        // other than the actual string value. This is covered by the
+        // subsequent cases.
+        Handle<JSValue> js_value = Handle<JSValue>::cast(obj);
+        Handle<String> str(String::cast(js_value->value()));
+        Handle<String> substr = SubString(str, index, index+1, NOT_TENURED);
 
-    // This can potentially be an element in the elements dictionary or
-    // a fast element.
-    if (obj->HasDictionaryElements()) {
-      NumberDictionary* dictionary = obj->element_dictionary();
-      int entry = dictionary->FindEntry(index);
-      PropertyDetails details = dictionary->DetailsAt(entry);
-      elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-      elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
-      elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
-      elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!details.IsDontEnum()));
-      elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!details.IsDontDelete()));
-      return *desc;
-    } else {
-      // Elements that are stored as array elements always has:
-      // writable: true, configurable: true, enumerable: true.
-      elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-      elms->set(VALUE_INDEX, obj->GetElement(index));
-      elms->set(WRITABLE_INDEX, Heap::true_value());
-      elms->set(ENUMERABLE_INDEX,  Heap::true_value());
-      elms->set(CONFIGURABLE_INDEX, Heap::true_value());
-      return *desc;
+        elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+        elms->set(VALUE_INDEX, *substr);
+        elms->set(WRITABLE_INDEX, Heap::false_value());
+        elms->set(ENUMERABLE_INDEX,  Heap::false_value());
+        elms->set(CONFIGURABLE_INDEX, Heap::false_value());
+        return *desc;
+      }
+
+      case JSObject::INTERCEPTED_ELEMENT:
+      case JSObject::FAST_ELEMENT: {
+        elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+        Handle<Object> element = GetElement(Handle<Object>(obj), index);
+        elms->set(VALUE_INDEX, *element);
+        elms->set(WRITABLE_INDEX, Heap::true_value());
+        elms->set(ENUMERABLE_INDEX,  Heap::true_value());
+        elms->set(CONFIGURABLE_INDEX, Heap::true_value());
+        return *desc;
+      }
+
+      case JSObject::DICTIONARY_ELEMENT: {
+        NumberDictionary* dictionary = obj->element_dictionary();
+        int entry = dictionary->FindEntry(index);
+        ASSERT(entry != NumberDictionary::kNotFound);
+        PropertyDetails details = dictionary->DetailsAt(entry);
+        switch (details.type()) {
+          case CALLBACKS: {
+            // This is an accessor property with getter and/or setter.
+            FixedArray* callbacks =
+                FixedArray::cast(dictionary->ValueAt(entry));
+            elms->set(IS_ACCESSOR_INDEX, Heap::true_value());
+            elms->set(GETTER_INDEX, callbacks->get(0));
+            elms->set(SETTER_INDEX, callbacks->get(1));
+            break;
+          }
+          case NORMAL:
+            // This is a data property.
+            elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+            elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
+            elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
+        elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!details.IsDontEnum()));
+        elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!details.IsDontDelete()));
+        return *desc;
+      }
     }
   }
 
   // Use recursive implementation to also traverse hidden prototypes
-  GetOwnPropertyImplementation(obj, name, &result);
+  GetOwnPropertyImplementation(*obj, *name, &result);
 
   if (!result.IsProperty()) {
     return Heap::undefined_value();
@@ -698,7 +720,8 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
       // Property that is internally implemented as a callback or
       // an API defined callback.
       Object* value = obj->GetPropertyWithCallback(
-          obj, structure, name, result.holder());
+          *obj, structure, *name, result.holder());
+      if (value->IsFailure()) return value;
       elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
       elms->set(VALUE_INDEX, value);
       elms->set(WRITABLE_INDEX, Heap::ToBoolean(!result.IsReadOnly()));
@@ -946,7 +969,7 @@ static Object* Runtime_DeclareContextSlot(Arguments args) {
   Handle<String> name(String::cast(args[1]));
   PropertyAttributes mode =
       static_cast<PropertyAttributes>(Smi::cast(args[2])->value());
-  ASSERT(mode == READ_ONLY || mode == NONE);
+  RUNTIME_ASSERT(mode == READ_ONLY || mode == NONE);
   Handle<Object> initial_value(args[3]);
 
   // Declarations are always done in the function context.
@@ -2601,15 +2624,15 @@ int Runtime::StringMatch(Handle<String> sub,
   if (seq_pat->IsAsciiRepresentation()) {
     Vector<const char> pat_vector = seq_pat->ToAsciiVector();
     if (seq_sub->IsAsciiRepresentation()) {
-      return StringSearch(seq_sub->ToAsciiVector(), pat_vector, start_index);
+      return SearchString(seq_sub->ToAsciiVector(), pat_vector, start_index);
     }
-    return StringSearch(seq_sub->ToUC16Vector(), pat_vector, start_index);
+    return SearchString(seq_sub->ToUC16Vector(), pat_vector, start_index);
   }
   Vector<const uc16> pat_vector = seq_pat->ToUC16Vector();
   if (seq_sub->IsAsciiRepresentation()) {
-    return StringSearch(seq_sub->ToAsciiVector(), pat_vector, start_index);
+    return SearchString(seq_sub->ToAsciiVector(), pat_vector, start_index);
   }
-  return StringSearch(seq_sub->ToUC16Vector(), pat_vector, start_index);
+  return SearchString(seq_sub->ToUC16Vector(), pat_vector, start_index);
 }
 
 
@@ -2837,7 +2860,8 @@ static Object* Runtime_StringMatch(Arguments args) {
   for (int i = 0; i < matches ; i++) {
     int from = offsets.at(i * 2);
     int to = offsets.at(i * 2 + 1);
-    elements->set(i, *Factory::NewSubString(subject, from, to));
+    Handle<String> match = Factory::NewSubString(subject, from, to);
+    elements->set(i, *match);
   }
   Handle<JSArray> result = Factory::NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(matches));
@@ -2865,67 +2889,39 @@ static void SetLastMatchInfoNoCaptures(Handle<String> subject,
 }
 
 
-template <typename schar, typename pchar>
-static bool SearchStringMultiple(Vector<schar> subject,
-                                 String* pattern,
-                                 Vector<pchar> pattern_string,
+template <typename SubjectChar, typename PatternChar>
+static bool SearchStringMultiple(Vector<const SubjectChar> subject,
+                                 Vector<const PatternChar> pattern,
+                                 String* pattern_string,
                                  FixedArrayBuilder* builder,
                                  int* match_pos) {
   int pos = *match_pos;
   int subject_length = subject.length();
-  int pattern_length = pattern_string.length();
+  int pattern_length = pattern.length();
   int max_search_start = subject_length - pattern_length;
-  bool is_ascii = (sizeof(schar) == 1);
-  StringSearchStrategy strategy =
-      InitializeStringSearch(pattern_string, is_ascii);
-  switch (strategy) {
-    case SEARCH_FAIL: break;
-    case SEARCH_SHORT:
-      while (pos <= max_search_start) {
-        if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
-          *match_pos = pos;
-          return false;
-        }
-        // Position of end of previous match.
-        int match_end = pos + pattern_length;
-        int new_pos = SimpleIndexOf(subject, pattern_string, match_end);
-        if (new_pos >= 0) {
-          // A match.
-          if (new_pos > match_end) {
-            ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                      match_end,
-                                                      new_pos);
-          }
-          pos = new_pos;
-          builder->Add(pattern);
-        } else {
-          break;
-        }
+  StringSearch<PatternChar, SubjectChar> search(pattern);
+  while (pos <= max_search_start) {
+    if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
+      *match_pos = pos;
+      return false;
+    }
+    // Position of end of previous match.
+    int match_end = pos + pattern_length;
+    int new_pos = search.Search(subject, match_end);
+    if (new_pos >= 0) {
+      // A match.
+      if (new_pos > match_end) {
+        ReplacementStringBuilder::AddSubjectSlice(builder,
+            match_end,
+            new_pos);
       }
+      pos = new_pos;
+      builder->Add(pattern_string);
+    } else {
       break;
-    case SEARCH_LONG:
-      while (pos  <= max_search_start) {
-        if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
-          *match_pos = pos;
-          return false;
-        }
-        int match_end = pos + pattern_length;
-        int new_pos = ComplexIndexOf(subject, pattern_string, match_end);
-        if (new_pos >= 0) {
-          // A match has been found.
-          if (new_pos > match_end) {
-            ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                      match_end,
-                                                      new_pos);
-          }
-          pos = new_pos;
-          builder->Add(pattern);
-        } else {
-         break;
-        }
-      }
-      break;
+    }
   }
+
   if (pos < max_search_start) {
     ReplacementStringBuilder::AddSubjectSlice(builder,
                                               pos + pattern_length,
@@ -2953,14 +2949,14 @@ static bool SearchStringMultiple(Handle<String> subject,
       Vector<const char> subject_vector = subject->ToAsciiVector();
       if (pattern->IsAsciiRepresentation()) {
         if (SearchStringMultiple(subject_vector,
-                                 *pattern,
                                  pattern->ToAsciiVector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       } else {
         if (SearchStringMultiple(subject_vector,
-                                 *pattern,
                                  pattern->ToUC16Vector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       }
@@ -2968,14 +2964,14 @@ static bool SearchStringMultiple(Handle<String> subject,
       Vector<const uc16> subject_vector = subject->ToUC16Vector();
       if (pattern->IsAsciiRepresentation()) {
         if (SearchStringMultiple(subject_vector,
-                                 *pattern,
                                  pattern->ToAsciiVector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       } else {
         if (SearchStringMultiple(subject_vector,
-                                 *pattern,
                                  pattern->ToUC16Vector(),
+                                 *pattern,
                                  builder,
                                  &match_pos)) break;
       }
@@ -3105,9 +3101,10 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
         // Arguments array to replace function is match, captures, index and
         // subject, i.e., 3 + capture count in total.
         Handle<FixedArray> elements = Factory::NewFixedArray(3 + capture_count);
-        elements->set(0, *Factory::NewSubString(subject,
-                                                match_start,
-                                                match_end));
+        Handle<String> match = Factory::NewSubString(subject,
+                                                     match_start,
+                                                     match_end);
+        elements->set(0, *match);
         for (int i = 1; i <= capture_count; i++) {
           int start = register_vector[i * 2];
           if (start >= 0) {
@@ -4756,51 +4753,23 @@ static Object* Runtime_StringTrim(Arguments args) {
 }
 
 
-// Define storage for buffers declared in header file.
-// TODO(lrn): Remove these when rewriting search code.
-int BMBuffers::bad_char_occurrence[kBMAlphabetSize];
-BMGoodSuffixBuffers BMBuffers::bmgs_buffers;
-
-
-template <typename schar, typename pchar>
-void FindStringIndices(Vector<const schar> subject,
-                       Vector<const pchar> pattern,
+template <typename SubjectChar, typename PatternChar>
+void FindStringIndices(Vector<const SubjectChar> subject,
+                       Vector<const PatternChar> pattern,
                        ZoneList<int>* indices,
                        unsigned int limit) {
   ASSERT(limit > 0);
   // Collect indices of pattern in subject, and the end-of-string index.
   // Stop after finding at most limit values.
-  StringSearchStrategy strategy =
-      InitializeStringSearch(pattern, sizeof(schar) == 1);
-  switch (strategy) {
-    case SEARCH_FAIL: return;
-    case SEARCH_SHORT: {
-      int pattern_length = pattern.length();
-      int index = 0;
-      while (limit > 0) {
-        index = SimpleIndexOf(subject, pattern, index);
-        if (index < 0) return;
-        indices->Add(index);
-        index += pattern_length;
-        limit--;
-      }
-      return;
-    }
-    case SEARCH_LONG: {
-      int pattern_length = pattern.length();
-      int index = 0;
-      while (limit > 0) {
-        index = ComplexIndexOf(subject, pattern, index);
-        if (index < 0) return;
-        indices->Add(index);
-        index += pattern_length;
-        limit--;
-      }
-      return;
-    }
-    default:
-      UNREACHABLE();
-      return;
+  StringSearch<PatternChar, SubjectChar> search(pattern);
+  int pattern_length = pattern.length();
+  int index = 0;
+  while (limit > 0) {
+    index = search.Search(subject, index);
+    if (index < 0) return;
+    indices->Add(index);
+    index += pattern_length;
+    limit--;
   }
 }
 
@@ -4953,12 +4922,14 @@ static Object* Runtime_StringToArray(Arguments args) {
                                                             length);
 
     for (int i = num_copied_from_cache; i < length; ++i) {
-      elements->set(i, *LookupSingleCharacterStringFromCode(chars[i]));
+      Handle<Object> str = LookupSingleCharacterStringFromCode(chars[i]);
+      elements->set(i, *str);
     }
   } else {
     elements = Factory::NewFixedArray(length);
     for (int i = 0; i < length; ++i) {
-      elements->set(i, *LookupSingleCharacterStringFromCode(s->Get(i)));
+      Handle<Object> str = LookupSingleCharacterStringFromCode(s->Get(i));
+      elements->set(i, *str);
     }
   }
 
@@ -6279,7 +6250,7 @@ static Object* Runtime_NewObjectFromBound(Arguments args) {
 }
 
 
-static Code* ComputeConstructStub(Handle<JSFunction> function) {
+static void TrySettingInlineConstructStub(Handle<JSFunction> function) {
   Handle<Object> prototype = Factory::null_value();
   if (function->has_instance_prototype()) {
     prototype = Handle<Object>(function->instance_prototype());
@@ -6287,13 +6258,10 @@ static Code* ComputeConstructStub(Handle<JSFunction> function) {
   if (function->shared()->CanGenerateInlineConstructor(*prototype)) {
     ConstructStubCompiler compiler;
     Object* code = compiler.CompileConstructStub(function->shared());
-    if (code->IsFailure()) {
-      return Builtins::builtin(Builtins::JSConstructStubGeneric);
+    if (!code->IsFailure()) {
+      function->shared()->set_construct_stub(Code::cast(code));
     }
-    return Code::cast(code);
   }
-
-  return function->shared()->construct_stub();
 }
 
 
@@ -6350,18 +6318,38 @@ static Object* Runtime_NewObject(Arguments args) {
   Handle<SharedFunctionInfo> shared(function->shared());
   EnsureCompiled(shared, CLEAR_EXCEPTION);
 
-  bool first_allocation = !function->has_initial_map();
+  if (!function->has_initial_map() &&
+      shared->IsInobjectSlackTrackingInProgress()) {
+    // The tracking is already in progress for another function. We can only
+    // track one initial_map at a time, so we force the completion before the
+    // function is called as a constructor for the first time.
+    shared->CompleteInobjectSlackTracking();
+    TrySettingInlineConstructStub(function);
+  }
+
+  bool first_allocation = !shared->live_objects_may_exist();
   Handle<JSObject> result = Factory::NewJSObject(function);
-  if (first_allocation) {
-    Handle<Code> stub = Handle<Code>(
-        ComputeConstructStub(Handle<JSFunction>(function)));
-    shared->set_construct_stub(*stub);
+  // Delay setting the stub if inobject slack tracking is in progress.
+  if (first_allocation && !shared->IsInobjectSlackTrackingInProgress()) {
+    TrySettingInlineConstructStub(function);
   }
 
   Counters::constructed_objects.Increment();
   Counters::constructed_objects_runtime.Increment();
 
   return *result;
+}
+
+
+static Object* Runtime_FinalizeInstanceSize(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  function->shared()->CompleteInobjectSlackTracking();
+  TrySettingInlineConstructStub(function);
+
+  return Heap::undefined_value();
 }
 
 
@@ -6386,7 +6374,7 @@ static Object* Runtime_LazyCompile(Arguments args) {
   // this means that things called through constructors are never known to
   // be in loops.  We compile them as if they are in loops here just in case.
   ASSERT(!function->is_compiled());
-  if (!CompileLazyInLoop(function, Handle<Object>::null(), KEEP_EXCEPTION)) {
+  if (!CompileLazyInLoop(function, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
 
@@ -6757,7 +6745,7 @@ static void PrintObject(Object* obj) {
   } else if (obj->IsFalse()) {
     PrintF("<false>");
   } else {
-    PrintF("%p", obj);
+    PrintF("%p", reinterpret_cast<void*>(obj));
   }
 }
 
@@ -7209,15 +7197,15 @@ static uint32_t IterateExternalArrayElements(Handle<JSObject> receiver,
             Handle<Smi> e(Smi::FromInt(static_cast<int>(val)));
             visitor->visit(j, e);
           } else {
-            Handle<Object> e(
-                Heap::AllocateHeapNumber(static_cast<ElementType>(val)));
+            Handle<Object> e =
+                Factory::NewNumber(static_cast<ElementType>(val));
             visitor->visit(j, e);
           }
         }
       }
     } else {
       for (uint32_t j = 0; j < len; j++) {
-        Handle<Object> e(Heap::AllocateHeapNumber(array->get(j)));
+        Handle<Object> e = Factory::NewNumber(array->get(j));
         visitor->visit(j, e);
       }
     }
@@ -7498,14 +7486,18 @@ static Object* Runtime_ArrayConcat(Arguments args) {
     // The backing storage array must have non-existing elements to
     // preserve holes across concat operations.
     storage = Factory::NewFixedArrayWithHoles(result_length);
-    result->set_map(*Factory::GetFastElementsMap(Handle<Map>(result->map())));
+    Handle<Map> fast_map =
+        Factory::GetFastElementsMap(Handle<Map>(result->map()));
+    result->set_map(*fast_map);
   } else {
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
                   Factory::NewNumberDictionary(at_least_space_for));
-    result->set_map(*Factory::GetSlowElementsMap(Handle<Map>(result->map())));
+    Handle<Map> slow_map =
+        Factory::GetSlowElementsMap(Handle<Map>(result->map()));
+    result->set_map(*slow_map);
   }
 
   Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
@@ -7826,7 +7818,8 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
     Handle<FixedArray> details = Factory::NewFixedArray(2);
-    details->set(0, Runtime::GetElementOrCharAt(obj, index));
+    Object* element_or_char = Runtime::GetElementOrCharAt(obj, index);
+    details->set(0, element_or_char);
     details->set(1, PropertyDetails(NONE, NORMAL).AsSmi());
     return *Factory::NewJSArrayWithElements(details);
   }
@@ -8628,7 +8621,8 @@ static Object* Runtime_GetScopeDetails(Arguments args) {
 
   // Fill in scope details.
   details->set(kScopeDetailsTypeIndex, Smi::FromInt(it.Type()));
-  details->set(kScopeDetailsObjectIndex, *it.ScopeObject());
+  Handle<JSObject> scope_object = it.ScopeObject();
+  details->set(kScopeDetailsObjectIndex, *scope_object);
 
   return *Factory::NewJSArrayWithElements(details);
 }
@@ -8673,10 +8667,10 @@ static Object* Runtime_GetCFrames(Arguments args) {
   Handle<FixedArray> frames_array = Factory::NewFixedArray(frames_count);
   for (int i = 0; i < frames_count; i++) {
     Handle<JSObject> frame_value = Factory::NewJSObject(Top::object_function());
-    frame_value->SetProperty(
-        *address_str,
-        *Factory::NewNumberFromInt(reinterpret_cast<int>(frames[i].address)),
-        NONE);
+    Handle<Object> frame_address =
+        Factory::NewNumberFromInt(reinterpret_cast<int>(frames[i].address));
+
+    frame_value->SetProperty(*address_str, *frame_address, NONE);
 
     // Get the stack walk text for this frame.
     Handle<String> frame_text;
@@ -8944,21 +8938,36 @@ static Object* Runtime_ClearBreakPoint(Arguments args) {
 }
 
 
-// Change the state of break on exceptions
-// args[0]: boolean indicating uncaught exceptions
-// args[1]: boolean indicating on/off
+// Change the state of break on exceptions.
+// args[0]: Enum value indicating whether to affect caught/uncaught exceptions.
+// args[1]: Boolean indicating on/off.
 static Object* Runtime_ChangeBreakOnException(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
-  ASSERT(args[0]->IsNumber());
-  ASSERT(args[1]->IsBoolean());
+  RUNTIME_ASSERT(args[0]->IsNumber());
+  CONVERT_BOOLEAN_CHECKED(enable, args[1]);
 
-  // Update break point state
+  // If the number doesn't match an enum value, the ChangeBreakOnException
+  // function will default to affecting caught exceptions.
   ExceptionBreakType type =
       static_cast<ExceptionBreakType>(NumberToUint32(args[0]));
-  bool enable = args[1]->ToBoolean()->IsTrue();
+  // Update break point state.
   Debug::ChangeBreakOnException(type, enable);
   return Heap::undefined_value();
+}
+
+
+// Returns the state of break on exceptions
+// args[0]: boolean indicating uncaught exceptions
+static Object* Runtime_IsBreakOnException(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  RUNTIME_ASSERT(args[0]->IsNumber());
+
+  ExceptionBreakType type =
+      static_cast<ExceptionBreakType>(NumberToUint32(args[0]));
+  bool result = Debug::IsBreakOnException(type);
+  return Smi::FromInt(result);
 }
 
 
@@ -9023,10 +9032,10 @@ static Handle<Context> CopyWithContextChain(Handle<Context> context_chain,
   // Recursively copy the with contexts.
   Handle<Context> previous(context_chain->previous());
   Handle<JSObject> extension(JSObject::cast(context_chain->extension()));
-  return Factory::NewWithContext(
-      CopyWithContextChain(function_context, previous),
-      extension,
-      context_chain->IsCatchContext());
+  Handle<Context> context = CopyWithContextChain(function_context, previous);
+  return Factory::NewWithContext(context,
+                                 extension,
+                                 context_chain->IsCatchContext());
 }
 
 

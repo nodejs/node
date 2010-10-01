@@ -332,30 +332,93 @@ bool FullCodeGenerator::ShouldInlineSmiCase(Token::Value op) {
 }
 
 
-void FullCodeGenerator::PrepareTest(Label* materialize_true,
-                                    Label* materialize_false,
-                                    Label** if_true,
-                                    Label** if_false,
-                                    Label** fall_through) {
-  switch (context_) {
-    case Expression::kUninitialized:
-      UNREACHABLE();
-      break;
-    case Expression::kEffect:
-      // In an effect context, the true and the false case branch to the
-      // same label.
-      *if_true = *if_false = *fall_through = materialize_true;
-      break;
-    case Expression::kValue:
-      *if_true = *fall_through = materialize_true;
-      *if_false = materialize_false;
-      break;
-    case Expression::kTest:
-      *if_true = true_label_;
-      *if_false = false_label_;
-      *fall_through = fall_through_;
-      break;
-  }
+void FullCodeGenerator::EffectContext::Plug(Register reg) const {
+}
+
+
+void FullCodeGenerator::AccumulatorValueContext::Plug(Register reg) const {
+  // Move value into place.
+  __ Move(result_register(), reg);
+}
+
+
+void FullCodeGenerator::StackValueContext::Plug(Register reg) const {
+  // Move value into place.
+  __ push(reg);
+}
+
+
+void FullCodeGenerator::TestContext::Plug(Register reg) const {
+  // For simplicity we always test the accumulator register.
+  __ Move(result_register(), reg);
+  codegen()->DoTest(true_label_, false_label_, fall_through_);
+}
+
+
+void FullCodeGenerator::EffectContext::PlugTOS() const {
+  __ Drop(1);
+}
+
+
+void FullCodeGenerator::AccumulatorValueContext::PlugTOS() const {
+  __ pop(result_register());
+}
+
+
+void FullCodeGenerator::StackValueContext::PlugTOS() const {
+}
+
+
+void FullCodeGenerator::TestContext::PlugTOS() const {
+  // For simplicity we always test the accumulator register.
+  __ pop(result_register());
+  codegen()->DoTest(true_label_, false_label_, fall_through_);
+}
+
+
+void FullCodeGenerator::EffectContext::PrepareTest(
+    Label* materialize_true,
+    Label* materialize_false,
+    Label** if_true,
+    Label** if_false,
+    Label** fall_through) const {
+  // In an effect context, the true and the false case branch to the
+  // same label.
+  *if_true = *if_false = *fall_through = materialize_true;
+}
+
+
+void FullCodeGenerator::AccumulatorValueContext::PrepareTest(
+    Label* materialize_true,
+    Label* materialize_false,
+    Label** if_true,
+    Label** if_false,
+    Label** fall_through) const {
+  *if_true = *fall_through = materialize_true;
+  *if_false = materialize_false;
+}
+
+
+void FullCodeGenerator::StackValueContext::PrepareTest(
+    Label* materialize_true,
+    Label* materialize_false,
+    Label** if_true,
+    Label** if_false,
+    Label** fall_through) const {
+  *if_true = *fall_through = materialize_true;
+  *if_false = materialize_false;
+}
+
+
+void FullCodeGenerator::TestContext::PrepareTest(
+    Label* materialize_true,
+    Label* materialize_false,
+    Label** if_true,
+    Label** if_false,
+    Label** fall_through) const {
+  *if_true = true_label_;
+  *if_false = false_label_;
+  *fall_through = fall_through_;
 }
 
 
@@ -366,7 +429,7 @@ void FullCodeGenerator::VisitDeclarations(
   for (int i = 0; i < length; i++) {
     Declaration* decl = declarations->at(i);
     Variable* var = decl->proxy()->var();
-    Slot* slot = var->slot();
+    Slot* slot = var->AsSlot();
 
     // If it was not possible to allocate the variable at compile
     // time, we need to "declare" it at runtime to make sure it
@@ -386,7 +449,7 @@ void FullCodeGenerator::VisitDeclarations(
     for (int j = 0, i = 0; i < length; i++) {
       Declaration* decl = declarations->at(i);
       Variable* var = decl->proxy()->var();
-      Slot* slot = var->slot();
+      Slot* slot = var->AsSlot();
 
       if ((slot == NULL || slot->type() != Slot::LOOKUP) && var->is_global()) {
         array->set(j++, *(var->name()));
@@ -576,20 +639,20 @@ void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
 
       // Load only the operands that we need to materialize.
       if (constant == kNoConstants) {
-        VisitForValue(left, kStack);
-        VisitForValue(right, kAccumulator);
+        VisitForStackValue(left);
+        VisitForAccumulatorValue(right);
       } else if (constant == kRightConstant) {
-        VisitForValue(left, kAccumulator);
+        VisitForAccumulatorValue(left);
       } else {
         ASSERT(constant == kLeftConstant);
-        VisitForValue(right, kAccumulator);
+        VisitForAccumulatorValue(right);
       }
 
       SetSourcePosition(expr->position());
       if (ShouldInlineSmiCase(op)) {
-        EmitInlineSmiBinaryOp(expr, op, context_, mode, left, right, constant);
+        EmitInlineSmiBinaryOp(expr, op, mode, left, right, constant);
       } else {
-        EmitBinaryOp(op, context_, mode);
+        EmitBinaryOp(op, mode);
       }
       break;
     }
@@ -603,39 +666,7 @@ void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
 void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
   Label eval_right, done;
 
-  // Set up the appropriate context for the left subexpression based
-  // on the operation and our own context.  Initially assume we can
-  // inherit both true and false labels from our context.
-  if (expr->op() == Token::OR) {
-    switch (context_) {
-      case Expression::kUninitialized:
-        UNREACHABLE();
-      case Expression::kEffect:
-        VisitForControl(expr->left(), &done, &eval_right, &eval_right);
-        break;
-      case Expression::kValue:
-        VisitLogicalForValue(expr->left(), expr->op(), location_, &done);
-        break;
-      case Expression::kTest:
-        VisitForControl(expr->left(), true_label_, &eval_right, &eval_right);
-        break;
-    }
-  } else {
-    ASSERT_EQ(Token::AND, expr->op());
-    switch (context_) {
-      case Expression::kUninitialized:
-        UNREACHABLE();
-      case Expression::kEffect:
-        VisitForControl(expr->left(), &eval_right, &done, &eval_right);
-        break;
-      case Expression::kValue:
-        VisitLogicalForValue(expr->left(), expr->op(), location_, &done);
-        break;
-      case Expression::kTest:
-        VisitForControl(expr->left(), &eval_right, false_label_, &eval_right);
-        break;
-    }
-  }
+  context()->EmitLogicalLeft(expr, &eval_right, &done);
 
   __ bind(&eval_right);
   Visit(expr->right());
@@ -644,40 +675,72 @@ void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
 }
 
 
-void FullCodeGenerator::VisitLogicalForValue(Expression* expr,
-                                             Token::Value op,
-                                             Location where,
-                                             Label* done) {
-  ASSERT(op == Token::AND || op == Token::OR);
-  VisitForValue(expr, kAccumulator);
-  __ push(result_register());
-
-  Label discard;
-  switch (where) {
-    case kAccumulator: {
-      Label restore;
-      if (op == Token::OR) {
-        DoTest(&restore, &discard, &restore);
-      } else {
-        DoTest(&discard, &restore, &restore);
-      }
-      __ bind(&restore);
-      __ pop(result_register());
-      __ jmp(done);
-      break;
-    }
-    case kStack: {
-      if (op == Token::OR) {
-        DoTest(done, &discard, &discard);
-      } else {
-        DoTest(&discard, done, &discard);
-      }
-      break;
-    }
+void FullCodeGenerator::EffectContext::EmitLogicalLeft(BinaryOperation* expr,
+                                                       Label* eval_right,
+                                                       Label* done) const {
+  if (expr->op() == Token::OR) {
+    codegen()->VisitForControl(expr->left(), done, eval_right, eval_right);
+  } else {
+    ASSERT(expr->op() == Token::AND);
+    codegen()->VisitForControl(expr->left(), eval_right, done, eval_right);
   }
+}
 
+
+void FullCodeGenerator::AccumulatorValueContext::EmitLogicalLeft(
+    BinaryOperation* expr,
+    Label* eval_right,
+    Label* done) const {
+  codegen()->Visit(expr->left());
+  // We want the value in the accumulator for the test, and on the stack in case
+  // we need it.
+  __ push(result_register());
+  Label discard, restore;
+  if (expr->op() == Token::OR) {
+    codegen()->DoTest(&restore, &discard, &restore);
+  } else {
+    ASSERT(expr->op() == Token::AND);
+    codegen()->DoTest(&discard, &restore, &restore);
+  }
+  __ bind(&restore);
+  __ pop(result_register());
+  __ jmp(done);
   __ bind(&discard);
   __ Drop(1);
+}
+
+
+void FullCodeGenerator::StackValueContext::EmitLogicalLeft(
+    BinaryOperation* expr,
+    Label* eval_right,
+    Label* done) const {
+  codegen()->VisitForAccumulatorValue(expr->left());
+  // We want the value in the accumulator for the test, and on the stack in case
+  // we need it.
+  __ push(result_register());
+  Label discard;
+  if (expr->op() == Token::OR) {
+    codegen()->DoTest(done, &discard, &discard);
+  } else {
+    ASSERT(expr->op() == Token::AND);
+    codegen()->DoTest(&discard, done, &discard);
+  }
+  __ bind(&discard);
+  __ Drop(1);
+}
+
+
+void FullCodeGenerator::TestContext::EmitLogicalLeft(BinaryOperation* expr,
+                                                     Label* eval_right,
+                                                     Label* done) const {
+  if (expr->op() == Token::OR) {
+    codegen()->VisitForControl(expr->left(),
+                               true_label_, eval_right, eval_right);
+  } else {
+    ASSERT(expr->op() == Token::AND);
+    codegen()->VisitForControl(expr->left(),
+                               eval_right, false_label_, eval_right);
+  }
 }
 
 
@@ -761,7 +824,7 @@ void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
   SetStatementPosition(stmt);
   Expression* expr = stmt->expression();
-  VisitForValue(expr, kAccumulator);
+  VisitForAccumulatorValue(expr);
 
   // Exit all nested statements.
   NestedStatement* current = nesting_stack_;
@@ -780,7 +843,7 @@ void FullCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
   Comment cmnt(masm_, "[ WithEnterStatement");
   SetStatementPosition(stmt);
 
-  VisitForValue(stmt->expression(), kStack);
+  VisitForStackValue(stmt->expression());
   if (stmt->is_catch_block()) {
     __ CallRuntime(Runtime::kPushCatchContext, 1);
   } else {
@@ -955,7 +1018,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
     // The catch variable is *always* a variable proxy for a local variable.
     Variable* catch_var = stmt->catch_var()->AsVariableProxy()->AsVariable();
     ASSERT_NOT_NULL(catch_var);
-    Slot* variable_slot = catch_var->slot();
+    Slot* variable_slot = catch_var->AsSlot();
     ASSERT_NOT_NULL(variable_slot);
     ASSERT_EQ(Slot::LOCAL, variable_slot->type());
     StoreToFrameField(SlotOffset(variable_slot), result_register());
@@ -1061,7 +1124,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
                         expr->then_expression_position());
   Visit(expr->then_expression());
   // If control flow falls through Visit, jump to done.
-  if (context_ == Expression::kEffect || context_ == Expression::kValue) {
+  if (!context()->IsTest()) {
     __ jmp(&done);
   }
 
@@ -1070,7 +1133,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
                         expr->else_expression_position());
   Visit(expr->else_expression());
   // If control flow falls through Visit, merge it with true case here.
-  if (context_ == Expression::kEffect || context_ == Expression::kValue) {
+  if (!context()->IsTest()) {
     __ bind(&done);
   }
 }
@@ -1084,7 +1147,7 @@ void FullCodeGenerator::VisitSlot(Slot* expr) {
 
 void FullCodeGenerator::VisitLiteral(Literal* expr) {
   Comment cmnt(masm_, "[ Literal");
-  Apply(context_, expr);
+  context()->Plug(expr->handle());
 }
 
 
@@ -1110,17 +1173,17 @@ void FullCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
   // Call runtime routine to allocate the catch extension object and
   // assign the exception value to the catch variable.
   Comment cmnt(masm_, "[ CatchExtensionObject");
-  VisitForValue(expr->key(), kStack);
-  VisitForValue(expr->value(), kStack);
+  VisitForStackValue(expr->key());
+  VisitForStackValue(expr->value());
   // Create catch extension object.
   __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
-  Apply(context_, result_register());
+  context()->Plug(result_register());
 }
 
 
 void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
-  VisitForValue(expr->exception(), kStack);
+  VisitForStackValue(expr->exception());
   __ CallRuntime(Runtime::kThrow, 1);
   // Never returns here.
 }
@@ -1150,9 +1213,9 @@ int FullCodeGenerator::TryCatch::Exit(int stack_depth) {
 
 void FullCodeGenerator::EmitRegExpCloneResult(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
-  VisitForValue(args->at(0), kStack);
+  VisitForStackValue(args->at(0));
   __ CallRuntime(Runtime::kRegExpCloneResult, 1);
-  Apply(context_, result_register());
+  context()->Plug(result_register());
 }
 
 #undef __

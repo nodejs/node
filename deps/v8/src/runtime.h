@@ -263,6 +263,7 @@ namespace internal {
   F(NewClosure, 2, 1) \
   F(NewObject, 1, 1) \
   F(NewObjectFromBound, 2, 1) \
+  F(FinalizeInstanceSize, 1, 1) \
   F(Throw, 1, 1) \
   F(ReThrow, 1, 1) \
   F(ThrowReferenceError, 1, 1) \
@@ -332,6 +333,7 @@ namespace internal {
   F(SetScriptBreakPoint, 3, 1) \
   F(ClearBreakPoint, 1, 1) \
   F(ChangeBreakOnException, 2, 1) \
+  F(IsBreakOnException, 1, 1) \
   F(PrepareStep, 3, 1) \
   F(ClearStepping, 0, 1) \
   F(DebugEvaluate, 4, 1) \

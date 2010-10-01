@@ -236,6 +236,7 @@ class Debug {
   static void FloodWithOneShot(Handle<SharedFunctionInfo> shared);
   static void FloodHandlerWithOneShot();
   static void ChangeBreakOnException(ExceptionBreakType type, bool enable);
+  static bool IsBreakOnException(ExceptionBreakType type);
   static void PrepareStep(StepAction step_action, int step_count);
   static void ClearStepping();
   static bool StepNextContinue(BreakLocationIterator* break_location_iterator,

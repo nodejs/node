@@ -201,7 +201,6 @@ void Scope::Initialize(bool inside_with) {
 }
 
 
-
 Variable* Scope::LocalLookup(Handle<String> name) {
   return variables_.Lookup(name);
 }
@@ -810,8 +809,7 @@ void Scope::AllocateParameterLocals() {
 
     // We are using 'arguments'. Tell the code generator that is needs to
     // allocate the arguments object by setting 'arguments_'.
-    arguments_ = new VariableProxy(Factory::arguments_symbol(), false, false);
-    arguments_->BindTo(arguments);
+    arguments_ = arguments;
 
     // We also need the '.arguments' shadow variable. Declare it and create
     // and bind the corresponding proxy. It's ok to declare it only now
@@ -822,13 +820,13 @@ void Scope::AllocateParameterLocals() {
     // NewTemporary() because the mode needs to be INTERNAL since this
     // variable may be allocated in the heap-allocated context (temporaries
     // are never allocated in the context).
-    Variable* arguments_shadow =
-        new Variable(this, Factory::arguments_shadow_symbol(),
-                     Variable::INTERNAL, true, Variable::ARGUMENTS);
-    arguments_shadow_ =
-        new VariableProxy(Factory::arguments_shadow_symbol(), false, false);
-    arguments_shadow_->BindTo(arguments_shadow);
-    temps_.Add(arguments_shadow);
+    arguments_shadow_ = new Variable(this,
+                                     Factory::arguments_shadow_symbol(),
+                                     Variable::INTERNAL,
+                                     true,
+                                     Variable::ARGUMENTS);
+    arguments_shadow_->set_is_used(true);
+    temps_.Add(arguments_shadow_);
 
     // Allocate the parameters by rewriting them into '.arguments[i]' accesses.
     for (int i = 0; i < params_.length(); i++) {
@@ -839,14 +837,13 @@ void Scope::AllocateParameterLocals() {
           // It is ok to set this only now, because arguments is a local
           // variable that is allocated after the parameters have been
           // allocated.
-          arguments_shadow->is_accessed_from_inner_scope_ = true;
+          arguments_shadow_->is_accessed_from_inner_scope_ = true;
         }
         var->rewrite_ =
-          new Property(arguments_shadow_,
-                       new Literal(Handle<Object>(Smi::FromInt(i))),
-                       RelocInfo::kNoPosition,
-                       Property::SYNTHETIC);
-        if (var->is_used()) arguments_shadow->set_is_used(true);
+            new Property(new VariableProxy(arguments_shadow_),
+                         new Literal(Handle<Object>(Smi::FromInt(i))),
+                         RelocInfo::kNoPosition,
+                         Property::SYNTHETIC);
       }
     }
 
@@ -862,7 +859,8 @@ void Scope::AllocateParameterLocals() {
       if (MustAllocate(var)) {
         if (MustAllocateInContext(var)) {
           ASSERT(var->rewrite_ == NULL ||
-                 (var->slot() != NULL && var->slot()->type() == Slot::CONTEXT));
+                 (var->AsSlot() != NULL &&
+                  var->AsSlot()->type() == Slot::CONTEXT));
           if (var->rewrite_ == NULL) {
             // Only set the heap allocation if the parameter has not
             // been allocated yet.
@@ -870,8 +868,8 @@ void Scope::AllocateParameterLocals() {
           }
         } else {
           ASSERT(var->rewrite_ == NULL ||
-                 (var->slot() != NULL &&
-                  var->slot()->type() == Slot::PARAMETER));
+                 (var->AsSlot() != NULL &&
+                  var->AsSlot()->type() == Slot::PARAMETER));
           // Set the parameter index always, even if the parameter
           // was seen before! (We need to access the actual parameter
           // supplied for the last occurrence of a multiply declared
@@ -888,7 +886,7 @@ void Scope::AllocateNonParameterLocal(Variable* var) {
   ASSERT(var->scope() == this);
   ASSERT(var->rewrite_ == NULL ||
          (!var->IsVariable(Factory::result_symbol())) ||
-         (var->slot() == NULL || var->slot()->type() != Slot::LOCAL));
+         (var->AsSlot() == NULL || var->AsSlot()->type() != Slot::LOCAL));
   if (var->rewrite_ == NULL && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {
       AllocateHeapSlot(var);

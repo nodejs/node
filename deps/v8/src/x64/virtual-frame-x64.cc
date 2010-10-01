@@ -259,7 +259,7 @@ void VirtualFrame::Push(Expression* expr) {
 
   VariableProxy* proxy = expr->AsVariableProxy();
   if (proxy != NULL) {
-    Slot* slot = proxy->var()->slot();
+    Slot* slot = proxy->var()->AsSlot();
     if (slot->type() == Slot::LOCAL) {
       PushLocalAt(slot->index());
       return;

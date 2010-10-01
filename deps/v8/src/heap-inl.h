@@ -36,7 +36,7 @@ namespace v8 {
 namespace internal {
 
 void Heap::UpdateOldSpaceLimits() {
-  int old_gen_size = PromotedSpaceSize();
+  intptr_t old_gen_size = PromotedSpaceSize();
   old_gen_promotion_limit_ =
       old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
   old_gen_allocation_limit_ =
@@ -56,6 +56,11 @@ Object* Heap::AllocateSymbol(Vector<const char> str,
   unibrow::Utf8InputBuffer<> buffer(str.start(),
                                     static_cast<unsigned>(str.length()));
   return AllocateInternalSymbol(&buffer, chars, hash_field);
+}
+
+
+Object* Heap::CopyFixedArray(FixedArray* src) {
+  return CopyFixedArrayWithMap(src, src->map());
 }
 
 

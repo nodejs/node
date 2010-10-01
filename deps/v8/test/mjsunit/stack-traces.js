@@ -63,6 +63,16 @@ function testNestedEval() {
   eval("function Outer() { eval('function Inner() { eval(x); }'); Inner(); }; Outer();");
 }
 
+function testEvalWithSourceURL() {
+  eval("function Doo() { FAIL; }; Doo();\n//@ sourceURL=res://name");
+}
+
+function testNestedEvalWithSourceURL() {
+  var x = "FAIL";
+  var innerEval = 'function Inner() { eval(x); }\n//@ sourceURL=res://inner-eval';
+  eval("function Outer() { eval(innerEval); Inner(); }; Outer();\n//@ sourceURL=res://outer-eval");
+}
+
 function testValue() {
   Number.prototype.causeError = function () { FAIL; };
   (1).causeError();
@@ -110,7 +120,7 @@ function testTrace(name, fun, expected, unexpected) {
   } catch (e) {
     for (var i = 0; i < expected.length; i++) {
       assertTrue(e.stack.indexOf(expected[i]) != -1,
-                 name + " doesn't contain expected[" + i + "]");
+                 name + " doesn't contain expected[" + i + "] stack = " + e.stack);
     }
     if (unexpected) {
       for (var i = 0; i < unexpected.length; i++) {
@@ -190,6 +200,11 @@ testTrace("testMethodNameInference", testMethodNameInference, ["at Foo.bar"]);
 testTrace("testImplicitConversion", testImplicitConversion, ["at Nirk.valueOf"]);
 testTrace("testEval", testEval, ["at Doo (eval at testEval"]);
 testTrace("testNestedEval", testNestedEval, ["eval at Inner (eval at Outer"]);
+testTrace("testEvalWithSourceURL", testEvalWithSourceURL,
+    [ "at Doo (res://name:1:18)" ]);
+testTrace("testNestedEvalWithSourceURL", testNestedEvalWithSourceURL,
+    [" at Inner (res://inner-eval:1:20)",
+     " at Outer (res://outer-eval:1:37)"]);
 testTrace("testValue", testValue, ["at Number.causeError"]);
 testTrace("testConstructor", testConstructor, ["new Plonk"]);
 testTrace("testRenamedMethod", testRenamedMethod, ["Wookie.a$b$c$d [as d]"]);

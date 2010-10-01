@@ -1361,6 +1361,13 @@ void MacroAssembler::Drop(int stack_elements) {
 }
 
 
+void MacroAssembler::Move(Register dst, Register src) {
+  if (!dst.is(src)) {
+    mov(dst, src);
+  }
+}
+
+
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
   mov(dst, value);
 }
@@ -1550,6 +1557,17 @@ void MacroAssembler::ConvertToInt32(Register dst,
       mov(dst, scratch);
     }
   }
+}
+
+
+void MacroAssembler::LoadPowerOf2(XMMRegister dst,
+                                  Register scratch,
+                                  int power) {
+  ASSERT(is_uintn(power + HeapNumber::kExponentBias,
+                  HeapNumber::kExponentBits));
+  mov(scratch, Immediate(power + HeapNumber::kExponentBias));
+  movd(dst, Operand(scratch));
+  psllq(dst, HeapNumber::kMantissaBits);
 }
 
 

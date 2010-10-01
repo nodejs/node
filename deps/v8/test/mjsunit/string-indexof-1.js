@@ -97,3 +97,29 @@ assertEquals(1534, long.indexOf("AJABACA", 511), "Long AJABACA, Second J");
 pattern = "JABACABADABACABA";
 assertEquals(511, long.indexOf(pattern), "Long JABACABA..., First J");
 assertEquals(1535, long.indexOf(pattern, 512), "Long JABACABA..., Second J");
+
+
+// Search for a non-ASCII string in a pure ASCII string.
+var asciiString = "arglebargleglopglyfarglebargleglopglyfarglebargleglopglyf";
+assertEquals(-1, asciiString.indexOf("\x2061"));
+
+
+// Search in string containing many non-ASCII chars.
+var allCodePoints = [];
+for (var i = 0; i < 65536; i++) allCodePoints[i] = i;
+var allCharsString = String.fromCharCode.apply(String, allCodePoints);
+// Search for string long enough to trigger complex search with ASCII pattern
+// and UC16 subject.
+assertEquals(-1, allCharsString.indexOf("notfound"));
+
+// Find substrings.
+var lengths = [1, 4, 15];  // Single char, simple and complex.
+var indices = [0x5, 0x65, 0x85, 0x105, 0x205, 0x285, 0x2005, 0x2085, 0xfff0];
+for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
+  var length = lengths[lengthIndex];
+  for (var i = 0; i < indices.length; i++) {
+    var index = indices[i];
+    var pattern = allCharsString.substring(index, index + length);
+    assertEquals(index, allCharsString.indexOf(pattern));
+  }
+}

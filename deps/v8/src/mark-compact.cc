@@ -167,8 +167,8 @@ void MarkCompactCollector::Finish() {
   // reclaiming the waste and free list blocks).
   static const int kFragmentationLimit = 15;        // Percent.
   static const int kFragmentationAllowed = 1 * MB;  // Absolute.
-  int old_gen_recoverable = 0;
-  int old_gen_used = 0;
+  intptr_t old_gen_recoverable = 0;
+  intptr_t old_gen_used = 0;
 
   OldSpaces spaces;
   for (OldSpace* space = spaces.next(); space != NULL; space = spaces.next()) {
@@ -282,10 +282,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                                          FixedArray::BodyDescriptor,
                                          void>::Visit);
 
-    table_.Register(kVisitSharedFunctionInfo,
-                    &FixedBodyVisitor<StaticMarkingVisitor,
-                                      SharedFunctionInfo::BodyDescriptor,
-                                      void>::Visit);
+    table_.Register(kVisitSharedFunctionInfo, &VisitSharedFunctionInfo);
 
     table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
     table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
@@ -534,6 +531,17 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     }
 
     return true;
+  }
+
+
+  static void VisitSharedFunctionInfo(Map* map, HeapObject* object) {
+    SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(object);
+    if (shared->IsInobjectSlackTrackingInProgress()) {
+      shared->DetachInitialMap();
+    }
+    FixedBodyVisitor<StaticMarkingVisitor,
+                     SharedFunctionInfo::BodyDescriptor,
+                     void>::Visit(map, object);
   }
 
 
@@ -1139,6 +1147,14 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
     // Only JSObject and subtypes have map transitions and back pointers.
     if (map->instance_type() < FIRST_JS_OBJECT_TYPE) continue;
     if (map->instance_type() > JS_FUNCTION_TYPE) continue;
+
+    if (map->IsMarked() && map->attached_to_shared_function_info()) {
+      // This map is used for inobject slack tracking and has been detached
+      // from SharedFunctionInfo during the mark phase.
+      // Since it survived the GC, reattach it now.
+      map->unchecked_constructor()->unchecked_shared()->AttachInitialMap(map);
+    }
+
     // Follow the chain of back pointers to find the prototype.
     Map* current = map;
     while (SafeIsMap(current)) {
@@ -1992,8 +2008,10 @@ class MapCompact {
 
 #ifdef DEBUG
       if (FLAG_gc_verbose) {
-        PrintF("update %p : %p -> %p\n", obj->address(),
-              map, new_map);
+        PrintF("update %p : %p -> %p\n",
+               obj->address(),
+               reinterpret_cast<void*>(map),
+               reinterpret_cast<void*>(new_map));
       }
 #endif
     }
@@ -2052,8 +2070,8 @@ void MarkCompactCollector::SweepSpaces() {
                             &UpdatePointerToNewGen,
                             Heap::WATERMARK_SHOULD_BE_VALID);
 
-  int live_maps_size = Heap::map_space()->Size();
-  int live_maps = live_maps_size / Map::kSize;
+  intptr_t live_maps_size = Heap::map_space()->Size();
+  int live_maps = static_cast<int>(live_maps_size / Map::kSize);
   ASSERT(live_map_objects_size_ == live_maps_size);
 
   if (Heap::map_space()->NeedsCompaction(live_maps)) {
@@ -2504,6 +2522,7 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsJSFunction()) {
     PROFILE(FunctionMoveEvent(old_addr, new_addr));
+    PROFILE(FunctionCreateEventFromMove(JSFunction::cast(copied_to), obj));
   }
   HEAP_PROFILE(ObjectMoveEvent(old_addr, new_addr));
 
@@ -2596,6 +2615,7 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsJSFunction()) {
     PROFILE(FunctionMoveEvent(old_addr, new_addr));
+    PROFILE(FunctionCreateEventFromMove(JSFunction::cast(copied_to), obj));
   }
   HEAP_PROFILE(ObjectMoveEvent(old_addr, new_addr));
 

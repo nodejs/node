@@ -83,12 +83,12 @@ class HashMap {
   void Clear();
 
   // The number of (non-empty) entries in the table.
-  uint32_t occupancy() const  { return occupancy_; }
+  uint32_t occupancy() const { return occupancy_; }
 
   // The capacity of the table. The implementation
   // makes sure that occupancy is at most 80% of
   // the table capacity.
-  uint32_t capacity() const  { return capacity_; }
+  uint32_t capacity() const { return capacity_; }
 
   // Iteration
   //
@@ -108,7 +108,7 @@ class HashMap {
   uint32_t capacity_;
   uint32_t occupancy_;
 
-  Entry* map_end() const  { return map_ + capacity_; }
+  Entry* map_end() const { return map_ + capacity_; }
   Entry* Probe(void* key, uint32_t hash);
   void Initialize(uint32_t capacity);
   void Resize();

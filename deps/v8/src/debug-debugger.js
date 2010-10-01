@@ -45,7 +45,7 @@ Debug.DebugEvent = { Break: 1,
                      ScriptCollected: 6 };
 
 // Types of exceptions that can be broken upon.
-Debug.ExceptionBreak = { All : 0,
+Debug.ExceptionBreak = { Caught : 0,
                          Uncaught: 1 };
 
 // The different types of steps.
@@ -87,7 +87,27 @@ var debugger_flags = {
       this.value = !!value;
       %SetDisableBreak(!this.value);
     }
-  }
+  },
+  breakOnCaughtException: {
+    getValue: function() { return Debug.isBreakOnException(); },
+    setValue: function(value) {
+      if (value) {
+        Debug.setBreakOnException();
+      } else {
+        Debug.clearBreakOnException();
+      }
+    }
+  },
+  breakOnUncaughtException: {
+    getValue: function() { return Debug.isBreakOnUncaughtException(); },
+    setValue: function(value) {
+      if (value) {
+        Debug.setBreakOnUncaughtException();
+      } else {
+        Debug.clearBreakOnUncaughtException();
+      }
+    }
+  },
 };
 
 
@@ -781,11 +801,15 @@ Debug.clearStepping = function() {
 }
 
 Debug.setBreakOnException = function() {
-  return %ChangeBreakOnException(Debug.ExceptionBreak.All, true);
+  return %ChangeBreakOnException(Debug.ExceptionBreak.Caught, true);
 };
 
 Debug.clearBreakOnException = function() {
-  return %ChangeBreakOnException(Debug.ExceptionBreak.All, false);
+  return %ChangeBreakOnException(Debug.ExceptionBreak.Caught, false);
+};
+
+Debug.isBreakOnException = function() {
+  return !!%IsBreakOnException(Debug.ExceptionBreak.Caught);
 };
 
 Debug.setBreakOnUncaughtException = function() {
@@ -794,6 +818,10 @@ Debug.setBreakOnUncaughtException = function() {
 
 Debug.clearBreakOnUncaughtException = function() {
   return %ChangeBreakOnException(Debug.ExceptionBreak.Uncaught, false);
+};
+
+Debug.isBreakOnUncaughtException = function() {
+  return !!%IsBreakOnException(Debug.ExceptionBreak.Uncaught);
 };
 
 Debug.showBreakPoints = function(f, full) {

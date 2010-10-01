@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -34,8 +34,8 @@
 // cannot be changed without changing the SCons build script.
 #define MAJOR_VERSION     2
 #define MINOR_VERSION     4
-#define BUILD_NUMBER      4
-#define PATCH_LEVEL       0
+#define BUILD_NUMBER      7
+#define PATCH_LEVEL       1
 #define CANDIDATE_VERSION false
 
 // Define SONAME to have the SCons build the put a specific SONAME into the

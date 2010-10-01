@@ -110,6 +110,9 @@ class CompilationCacheScript : public CompilationSubCache {
   void Put(Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
  private:
+  MUST_USE_RESULT Object* TryTablePut(
+      Handle<String> source, Handle<SharedFunctionInfo> function_info);
+
   // Note: Returns a new hash table if operation results in expansion.
   Handle<CompilationCacheTable> TablePut(
       Handle<String> source, Handle<SharedFunctionInfo> function_info);
@@ -137,6 +140,12 @@ class CompilationCacheEval: public CompilationSubCache {
            Handle<SharedFunctionInfo> function_info);
 
  private:
+  MUST_USE_RESULT Object* TryTablePut(
+      Handle<String> source,
+      Handle<Context> context,
+      Handle<SharedFunctionInfo> function_info);
+
+
   // Note: Returns a new hash table if operation results in expansion.
   Handle<CompilationCacheTable> TablePut(
       Handle<String> source,
@@ -159,6 +168,10 @@ class CompilationCacheRegExp: public CompilationSubCache {
            JSRegExp::Flags flags,
            Handle<FixedArray> data);
  private:
+  MUST_USE_RESULT Object* TryTablePut(Handle<String> source,
+                                      JSRegExp::Flags flags,
+                                      Handle<FixedArray> data);
+
   // Note: Returns a new hash table if operation results in expansion.
   Handle<CompilationCacheTable> TablePut(Handle<String> source,
                                          JSRegExp::Flags flags,
@@ -320,11 +333,18 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
 }
 
 
+Object* CompilationCacheScript::TryTablePut(
+    Handle<String> source,
+    Handle<SharedFunctionInfo> function_info) {
+  Handle<CompilationCacheTable> table = GetFirstTable();
+  return table->Put(*source, *function_info);
+}
+
+
 Handle<CompilationCacheTable> CompilationCacheScript::TablePut(
     Handle<String> source,
     Handle<SharedFunctionInfo> function_info) {
-  CALL_HEAP_FUNCTION(GetFirstTable()->Put(*source, *function_info),
-                     CompilationCacheTable);
+  CALL_HEAP_FUNCTION(TryTablePut(source, function_info), CompilationCacheTable);
 }
 
 
@@ -366,13 +386,20 @@ Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
 }
 
 
+Object* CompilationCacheEval::TryTablePut(
+    Handle<String> source,
+    Handle<Context> context,
+    Handle<SharedFunctionInfo> function_info) {
+  Handle<CompilationCacheTable> table = GetFirstTable();
+  return table->PutEval(*source, *context, *function_info);
+}
+
+
 Handle<CompilationCacheTable> CompilationCacheEval::TablePut(
     Handle<String> source,
     Handle<Context> context,
     Handle<SharedFunctionInfo> function_info) {
-  CALL_HEAP_FUNCTION(GetFirstTable()->PutEval(*source,
-                                              *context,
-                                              *function_info),
+  CALL_HEAP_FUNCTION(TryTablePut(source, context, function_info),
                      CompilationCacheTable);
 }
 
@@ -415,12 +442,20 @@ Handle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
 }
 
 
+Object* CompilationCacheRegExp::TryTablePut(
+    Handle<String> source,
+    JSRegExp::Flags flags,
+    Handle<FixedArray> data) {
+  Handle<CompilationCacheTable> table = GetFirstTable();
+  return table->PutRegExp(*source, flags, *data);
+}
+
+
 Handle<CompilationCacheTable> CompilationCacheRegExp::TablePut(
     Handle<String> source,
     JSRegExp::Flags flags,
     Handle<FixedArray> data) {
-  CALL_HEAP_FUNCTION(GetFirstTable()->PutRegExp(*source, flags, *data),
-                     CompilationCacheTable);
+  CALL_HEAP_FUNCTION(TryTablePut(source, flags, data), CompilationCacheTable);
 }
 
 

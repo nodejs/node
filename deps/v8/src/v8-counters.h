@@ -161,6 +161,8 @@ namespace internal {
   SC(named_load_inline_miss, V8.NamedLoadInlineMiss)                  \
   SC(named_load_global_inline, V8.NamedLoadGlobalInline)              \
   SC(named_load_global_inline_miss, V8.NamedLoadGlobalInlineMiss)     \
+  SC(named_load_global_stub, V8.NamedLoadGlobalStub)                  \
+  SC(named_load_global_stub_miss, V8.NamedLoadGlobalStubMiss)         \
   SC(keyed_store_field, V8.KeyedStoreField)                           \
   SC(keyed_store_inline, V8.KeyedStoreInline)                         \
   SC(keyed_store_inline_miss, V8.KeyedStoreInlineMiss)                \

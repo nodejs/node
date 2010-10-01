@@ -486,7 +486,7 @@ void GlobalHandles::PrintStats() {
   }
 
   PrintF("Global Handle Statistics:\n");
-  PrintF("  allocated memory = %dB\n", sizeof(Node) * total);
+  PrintF("  allocated memory = %" V8_PTR_PREFIX "dB\n", sizeof(Node) * total);
   PrintF("  # weak       = %d\n", weak);
   PrintF("  # pending    = %d\n", pending);
   PrintF("  # near_death = %d\n", near_death);
@@ -497,8 +497,10 @@ void GlobalHandles::PrintStats() {
 void GlobalHandles::Print() {
   PrintF("Global handles:\n");
   for (Node* current = head_; current != NULL; current = current->next()) {
-    PrintF("  handle %p to %p (weak=%d)\n", current->handle().location(),
-           *current->handle(), current->state_ == Node::WEAK);
+    PrintF("  handle %p to %p (weak=%d)\n",
+           reinterpret_cast<void*>(current->handle().location()),
+           reinterpret_cast<void*>(*current->handle()),
+           current->state_ == Node::WEAK);
   }
 }
 

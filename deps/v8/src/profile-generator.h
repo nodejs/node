@@ -100,25 +100,23 @@ class CodeEntry {
   INLINE(const char* name() const) { return name_; }
   INLINE(const char* resource_name() const) { return resource_name_; }
   INLINE(int line_number() const) { return line_number_; }
-  INLINE(unsigned call_uid() const) { return call_uid_; }
   INLINE(int security_token_id() const) { return security_token_id_; }
 
   INLINE(static bool is_js_function_tag(Logger::LogEventsAndTags tag));
 
   void CopyData(const CodeEntry& source);
+  uint32_t GetCallUid() const;
+  bool IsSameAs(CodeEntry* entry) const;
 
   static const char* kEmptyNamePrefix;
 
  private:
-  unsigned call_uid_;
   Logger::LogEventsAndTags tag_;
   const char* name_prefix_;
   const char* name_;
   const char* resource_name_;
   int line_number_;
   int security_token_id_;
-
-  static unsigned next_call_uid_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
 };
@@ -147,11 +145,12 @@ class ProfileNode {
 
  private:
   INLINE(static bool CodeEntriesMatch(void* entry1, void* entry2)) {
-    return entry1 == entry2;
+    return reinterpret_cast<CodeEntry*>(entry1)->IsSameAs(
+        reinterpret_cast<CodeEntry*>(entry2));
   }
 
   INLINE(static uint32_t CodeEntryHash(CodeEntry* entry)) {
-    return static_cast<int32_t>(reinterpret_cast<intptr_t>(entry));
+    return entry->GetCallUid();
   }
 
   ProfileTree* tree_;
@@ -746,7 +745,8 @@ class HeapObjectsMap {
   }
 
   static uint32_t AddressHash(Address addr) {
-    return static_cast<int32_t>(reinterpret_cast<intptr_t>(addr));
+    return ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr)));
   }
 
   bool initial_fill_mode_;
@@ -889,7 +889,8 @@ class HeapEntriesMap {
   };
 
   uint32_t Hash(HeapObject* object) {
-    return static_cast<uint32_t>(reinterpret_cast<intptr_t>(object));
+    return ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(object)));
   }
   static bool HeapObjectsMatch(void* key1, void* key2) { return key1 == key2; }
 
@@ -996,7 +997,8 @@ class HeapSnapshotJSONSerializer {
   }
 
   INLINE(static uint32_t ObjectHash(const void* key)) {
-    return static_cast<int32_t>(reinterpret_cast<intptr_t>(key));
+    return ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key)));
   }
 
   void EnumerateNodes();

@@ -294,7 +294,7 @@ void Debugger::Debug() {
             } else if (GetVFPSingleValue(arg1, &svalue)) {
               PrintF("%s: %f \n", arg1, svalue);
             } else if (GetVFPDoubleValue(arg1, &dvalue)) {
-              PrintF("%s: %lf \n", arg1, dvalue);
+              PrintF("%s: %f \n", arg1, dvalue);
             } else {
               PrintF("%s unrecognized\n", arg1);
             }
@@ -349,7 +349,8 @@ void Debugger::Debug() {
         end = cur + words;
 
         while (cur < end) {
-          PrintF("  0x%08x:  0x%08x %10d\n", cur, *cur, *cur);
+          PrintF("  0x%08x:  0x%08x %10d\n",
+                 reinterpret_cast<intptr_t>(cur), *cur, *cur);
           cur++;
         }
       } else if (strcmp(cmd, "disasm") == 0) {
@@ -382,7 +383,8 @@ void Debugger::Debug() {
 
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
-          PrintF("  0x%08x  %s\n", cur, buffer.start());
+          PrintF("  0x%08x  %s\n",
+                 reinterpret_cast<intptr_t>(cur), buffer.start());
           cur += Instr::kInstrSize;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -1061,7 +1063,7 @@ uintptr_t Simulator::StackLimit() const {
 // Unsupported instructions use Format to print an error and stop execution.
 void Simulator::Format(Instr* instr, const char* format) {
   PrintF("Simulator found unsupported instruction:\n 0x%08x: %s\n",
-         instr, format);
+         reinterpret_cast<intptr_t>(instr), format);
   UNIMPLEMENTED();
 }
 
@@ -2650,7 +2652,7 @@ void Simulator::InstructionDecode(Instr* instr) {
     v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer,
                            reinterpret_cast<byte*>(instr));
-    PrintF("  0x%08x  %s\n", instr, buffer.start());
+    PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
   }
   if (instr->ConditionField() == special_condition) {
     DecodeUnconditional(instr);
