@@ -603,6 +603,7 @@ global.setInterval = function (callback, repeat) {
 
 global.clearTimeout = function (timer) {
   if (timer instanceof process.Timer) {
+    timer.callback = null;
     timer.stop();
   }
 };
