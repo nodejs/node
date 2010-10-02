@@ -12,7 +12,7 @@ def build(bld):
   cares.source = "eio.c"
   cares.target = 'eio'
   cares.name = 'eio'
-  cares.includes = '. ./' + bld.env['DEST_OS'] + '-' + bld.env['DEST_CPU']
+  cares.includes = '. ./' + bld.env['DEST_OS']
   cares.install_path = None
   if bld.env["USE_DEBUG"]:
     cares.clone("debug");
