@@ -1,7 +1,7 @@
 before
 
 node.js:*
-    throw e;
+    throw e; // process.nextTick error, or 'error' event on first tick
     ^
 ReferenceError: foo is not defined
     at evalmachine.<anonymous>:*

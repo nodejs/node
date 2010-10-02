@@ -47,7 +47,7 @@ process._tickCallback = function () {
     if (i+1 < l) {
       process._needTickCallback();
     }
-    throw e;
+    throw e; // process.nextTick error, or 'error' event on first tick
   }
 
   nextTickQueue.splice(0, l);
@@ -99,7 +99,7 @@ var module = (function () {
     var m = new Module(id);
     internalModuleCache[id] = m;
     var e = m._compile(natives[id], id);
-    if (e) throw e;
+    if (e) throw e; // error compiling native module
     return m;
   }
 

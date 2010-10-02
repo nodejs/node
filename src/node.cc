@@ -986,7 +986,15 @@ static void ReportException(TryCatch &try_catch, bool show_line) {
 
   if (trace.length() > 0) {
     fprintf(stderr, "%s\n", *trace);
+  } else {
+    // this really only happens for RangeErrors, since they're the only
+    // kind that won't have all this info in the trace.
+    Local<Value> er = try_catch.Exception();
+    String::Utf8Value msg(!er->IsObject() ? er->ToString()
+                         : er->ToObject()->Get(String::New("message"))->ToString());
+    fprintf(stderr, "%s\n", *msg);
   }
+
   fflush(stderr);
 }
 
