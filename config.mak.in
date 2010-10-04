@@ -1,0 +1,26 @@
+# git Makefile configuration, included in main Makefile
+# @configure_input@
+
+CC = @CC@
+CFLAGS = @CFLAGS@
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+AR = @AR@
+TAR = @TAR@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+datarootdir = @datarootdir@
+
+mandir=@mandir@
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+export exec_prefix mandir
+export srcdir VPATH
+
+
+
+WANT_OPENSSL=@WANT_OPENSSL@
