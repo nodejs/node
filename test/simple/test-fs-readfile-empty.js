@@ -13,3 +13,6 @@ fs.readFile(fn, function(err, data) {
 fs.readFile(fn, 'utf8', function(err, data) {
   assert.strictEqual('', data);
 });
+
+assert.ok(fs.readFileSync(fn));
+assert.strictEqual('', fs.readFileSync(fn, 'utf8'));
