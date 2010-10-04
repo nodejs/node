@@ -6,14 +6,16 @@ url = require("url");
 var PROXY_PORT = common.PORT;
 var BACKEND_PORT = common.PORT+1;
 
-var cookies = [
-  "session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT",
-  "prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT"
-];
+var cookies = [ "session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT",
+                "prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT" ];
+
+var headers = {"content-type": "text/plain",
+               "set-cookie": cookies,
+               "hello": "world" };
 
 var backend = http.createServer(function (req, res) {
   common.debug("backend request");
-  res.writeHead(200, {"content-type": "text/plain", "set-cookie": cookies});
+  res.writeHead(200, headers);
   res.write("hello world\n");
   res.end();
 });
@@ -24,10 +26,19 @@ var proxy = http.createServer(function (req, res) {
   var proxy_req = proxy_client.request(url.parse(req.url).pathname);
   proxy_req.end();
   proxy_req.addListener('response', function(proxy_res) {
+
+    common.debug("proxy res headers: " + JSON.stringify(proxy_res.headers));
+
+    assert.equal('world', proxy_res.headers['hello']);
+    assert.equal('text/plain', proxy_res.headers['content-type']);
+    assert.deepEqual(cookies, proxy_res.headers['set-cookie']);
+
     res.writeHead(proxy_res.statusCode, proxy_res.headers);
+
     proxy_res.addListener("data", function(chunk) {
       res.write(chunk);
     });
+
     proxy_res.addListener("end", function() {
       res.end();
       common.debug("proxy res");
@@ -48,7 +59,11 @@ function startReq () {
   req.addListener('response', function (res) {
     common.debug("got res");
     assert.equal(200, res.statusCode);
-    assert.deepEqual(cookies, res.headers["set-cookie"]);
+
+    assert.equal('world', res.headers['hello']);
+    assert.equal('text/plain', res.headers['content-type']);
+    assert.deepEqual(cookies, res.headers['set-cookie']);
+
     res.setEncoding("utf8");
     res.addListener('data', function (chunk) { body += chunk; });
     res.addListener('end', function () {
