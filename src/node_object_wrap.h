@@ -16,6 +16,7 @@ class ObjectWrap {
   virtual ~ObjectWrap ( ) {
     if (!handle_.IsEmpty()) {
       assert(handle_.IsNearDeath());
+      handle_.ClearWeak();
       handle_->SetInternalField(0, v8::Undefined());
       handle_.Dispose();
       handle_.Clear();
@@ -82,7 +83,8 @@ class ObjectWrap {
     ObjectWrap *obj = static_cast<ObjectWrap*>(data);
     assert(value == obj->handle_);
     assert(!obj->refs_);
-    if (value.IsNearDeath()) delete obj;
+    assert(value.IsNearDeath());
+    delete obj;
   }
 };
 
