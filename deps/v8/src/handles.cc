@@ -175,7 +175,7 @@ static int ExpectedNofPropertiesFromEstimate(int estimate) {
 
   // Inobject slack tracking will reclaim redundant inobject space later,
   // so we can afford to adjust the estimate generously.
-  return estimate + 6;
+  return estimate + 8;
 }
 
 

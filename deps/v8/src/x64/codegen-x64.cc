@@ -1884,8 +1884,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(BinaryOperation* expr,
                                            operand->reg(),
                                            smi_value,
                                            overwrite_mode);
-        // Check for negative or non-Smi left hand side.
-        __ JumpIfNotPositiveSmi(operand->reg(), deferred->entry_label());
+        __ JumpUnlessNonNegativeSmi(operand->reg(), deferred->entry_label());
         if (int_value < 0) int_value = -int_value;
         if (int_value == 1) {
           __ Move(operand->reg(), Smi::FromInt(0));
@@ -5684,9 +5683,9 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   Result value = frame_->Pop();
   value.ToRegister();
   ASSERT(value.is_valid());
-  Condition positive_smi = masm_->CheckPositiveSmi(value.reg());
+  Condition non_negative_smi = masm_->CheckNonNegativeSmi(value.reg());
   value.Unuse();
-  destination()->Split(positive_smi);
+  destination()->Split(non_negative_smi);
 }
 
 
@@ -6911,7 +6910,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   deferred->Branch(not_equal);
 
   // Check that both indices are smis.
-  Condition both_smi = __ CheckBothSmi(index1.reg(), index2.reg());
+  Condition both_smi = masm()->CheckBothSmi(index1.reg(), index2.reg());
   deferred->Branch(NegateCondition(both_smi));
 
   // Bring addresses into index1 and index2.
@@ -8377,7 +8376,7 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     }
 
     // Check that the receiver is a heap object.
-    Condition is_smi = __ CheckSmi(receiver.reg());
+    Condition is_smi = masm()->CheckSmi(receiver.reg());
     slow.Branch(is_smi, &value, &receiver);
 
     // This is the map check instruction that will be patched.
@@ -8506,8 +8505,7 @@ Result CodeGenerator::EmitKeyedLoad() {
                 kScratchRegister);
     deferred->Branch(not_equal);
 
-    // Check that the key is a non-negative smi.
-    __ JumpIfNotPositiveSmi(key.reg(), deferred->entry_label());
+    __ JumpUnlessNonNegativeSmi(key.reg(), deferred->entry_label());
 
     // Get the elements array from the receiver.
     __ movq(elements.reg(),

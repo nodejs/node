@@ -64,7 +64,7 @@ static bool CheckParse(const char* input) {
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
-  return v8::internal::ParseRegExp(&reader, false, &result);
+  return v8::internal::Parser::ParseRegExp(&reader, false, &result);
 }
 
 
@@ -74,7 +74,7 @@ static SmartPointer<const char> Parse(const char* input) {
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
-  CHECK(v8::internal::ParseRegExp(&reader, false, &result));
+  CHECK(v8::internal::Parser::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   SmartPointer<const char> output = result.tree->ToString();
@@ -88,7 +88,7 @@ static bool CheckSimple(const char* input) {
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
-  CHECK(v8::internal::ParseRegExp(&reader, false, &result));
+  CHECK(v8::internal::Parser::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   return result.simple;
@@ -106,7 +106,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
-  CHECK(v8::internal::ParseRegExp(&reader, false, &result));
+  CHECK(v8::internal::Parser::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   int min_match = result.tree->min_match();
@@ -365,7 +365,7 @@ static void ExpectError(const char* input,
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
-  CHECK_EQ(false, v8::internal::ParseRegExp(&reader, false, &result));
+  CHECK_EQ(false, v8::internal::Parser::ParseRegExp(&reader, false, &result));
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
   SmartPointer<char> str = result.error->ToCString(ALLOW_NULLS);
@@ -473,7 +473,7 @@ static RegExpNode* Compile(const char* input, bool multiline, bool is_ascii) {
   V8::Initialize(NULL);
   FlatStringReader reader(CStrVector(input));
   RegExpCompileData compile_data;
-  if (!v8::internal::ParseRegExp(&reader, multiline, &compile_data))
+  if (!v8::internal::Parser::ParseRegExp(&reader, multiline, &compile_data))
     return NULL;
   Handle<String> pattern = Factory::NewStringFromUtf8(CStrVector(input));
   RegExpEngine::Compile(&compile_data, false, multiline, pattern, is_ascii);

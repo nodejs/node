@@ -952,7 +952,7 @@ void HeapEntry::PaintAllReachable() {
 
 
 void HeapEntry::Print(int max_depth, int indent) {
-  OS::Print("%6d %6d %6d [%ld] ",
+  OS::Print("%6d %6d %6d [%llu] ",
             self_size(), ReachableSize(), RetainedSize(), id_);
   if (type() != kString) {
     OS::Print("%s %.40s\n", TypeAsString(), name_);
@@ -1237,7 +1237,7 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       type_(type),
       title_(title),
       uid_(uid),
-      root_entry_index_(-1),
+      root_entry_(NULL),
       raw_entries_(NULL),
       entries_sorted_(false) {
   STATIC_ASSERT(
@@ -1276,11 +1276,11 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
                                   int children_count,
                                   int retainers_count) {
   if (object == kInternalRootObject) {
-    ASSERT(root_entry_index_ == -1);
-    root_entry_index_ = entries_.length();
+    ASSERT(root_entry_ == NULL);
     ASSERT(retainers_count == 0);
-    return AddEntry(
+    root_entry_ = AddEntry(
         HeapEntry::kInternal, "", 0, 0, children_count, retainers_count);
+    return root_entry_;
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
@@ -2095,6 +2095,11 @@ HeapSnapshotsComparator::~HeapSnapshotsComparator() {
 
 HeapSnapshotsDiff* HeapSnapshotsComparator::Compare(HeapSnapshot* snapshot1,
                                                     HeapSnapshot* snapshot2) {
+  snapshot1->ClearPaint();
+  snapshot1->root()->PaintAllReachable();
+  snapshot2->ClearPaint();
+  snapshot2->root()->PaintAllReachable();
+
   List<HeapEntry*>* entries1 = snapshot1->GetSortedEntriesList();
   List<HeapEntry*>* entries2 = snapshot2->GetSortedEntriesList();
   int i = 0, j = 0;
@@ -2103,8 +2108,14 @@ HeapSnapshotsDiff* HeapSnapshotsComparator::Compare(HeapSnapshot* snapshot1,
     uint64_t id1 = entries1->at(i)->id();
     uint64_t id2 = entries2->at(j)->id();
     if (id1 == id2) {
-      i++;
-      j++;
+      HeapEntry* entry1 = entries1->at(i++);
+      HeapEntry* entry2 = entries2->at(j++);
+      if (entry1->painted_reachable() != entry2->painted_reachable()) {
+        if (entry1->painted_reachable())
+          deleted_entries.Add(entry1);
+        else
+          added_entries.Add(entry2);
+      }
     } else if (id1 < id2) {
       HeapEntry* entry = entries1->at(i++);
       deleted_entries.Add(entry);
@@ -2122,35 +2133,17 @@ HeapSnapshotsDiff* HeapSnapshotsComparator::Compare(HeapSnapshot* snapshot1,
     added_entries.Add(entry);
   }
 
-  snapshot1->ClearPaint();
-  snapshot1->root()->PaintAllReachable();
-  snapshot2->ClearPaint();
-  snapshot2->root()->PaintAllReachable();
-  int reachable_deleted_entries = 0, reachable_added_entries = 0;
-  for (int i = 0; i < deleted_entries.length(); ++i) {
-    HeapEntry* entry = deleted_entries[i];
-    if (entry->painted_reachable()) ++reachable_deleted_entries;
-  }
-  for (int i = 0; i < added_entries.length(); ++i) {
-    HeapEntry* entry = added_entries[i];
-    if (entry->painted_reachable()) ++reachable_added_entries;
-  }
-
   HeapSnapshotsDiff* diff = new HeapSnapshotsDiff(snapshot1, snapshot2);
   diffs_.Add(diff);
-  diff->CreateRoots(reachable_added_entries, reachable_deleted_entries);
+  diff->CreateRoots(added_entries.length(), deleted_entries.length());
 
-  int del_child_index = 0, deleted_entry_index = 1;
   for (int i = 0; i < deleted_entries.length(); ++i) {
     HeapEntry* entry = deleted_entries[i];
-    if (entry->painted_reachable())
-      diff->AddDeletedEntry(del_child_index++, deleted_entry_index++, entry);
+    diff->AddDeletedEntry(i, i + 1, entry);
   }
-  int add_child_index = 0, added_entry_index = 1;
   for (int i = 0; i < added_entries.length(); ++i) {
     HeapEntry* entry = added_entries[i];
-    if (entry->painted_reachable())
-      diff->AddAddedEntry(add_child_index++, added_entry_index++, entry);
+    diff->AddAddedEntry(i, i + 1, entry);
   }
   return diff;
 }

@@ -29,13 +29,15 @@
 #include "v8.h"
 
 #include "liveedit.h"
+
 #include "compiler.h"
-#include "oprofile-agent.h"
-#include "scopes.h"
-#include "scopeinfo.h"
-#include "global-handles.h"
 #include "debug.h"
+#include "global-handles.h"
 #include "memory.h"
+#include "oprofile-agent.h"
+#include "parser.h"
+#include "scopeinfo.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -409,7 +411,8 @@ static void CompileScriptForTracker(Handle<Script> script) {
   // Build AST.
   ScriptDataImpl* pre_data = NULL;
   EagerCompilationInfo info(script, is_eval);
-  FunctionLiteral* lit = MakeAST(is_global, script, extension, pre_data);
+  FunctionLiteral* lit =
+      Parser::MakeAST(is_global, script, extension, pre_data);
 
   // Check for parse errors.
   if (lit == NULL) {

@@ -8719,6 +8719,11 @@ Object* StringDictionary::TransformPropertiesToFastFor(
   int inobject_props = obj->map()->inobject_properties();
   int number_of_allocated_fields =
       number_of_fields + unused_property_fields - inobject_props;
+  if (number_of_allocated_fields < 0) {
+    // There is enough inobject space for all fields (including unused).
+    number_of_allocated_fields = 0;
+    unused_property_fields = inobject_props - number_of_fields;
+  }
 
   // Allocate the fixed array for the fields.
   Object* fields = Heap::AllocateFixedArray(number_of_allocated_fields);

@@ -787,6 +787,7 @@ TEST(HeapSnapshotsDiff) {
   CompileAndRunScript(
       "function A() {}\n"
       "function B(x) { this.x = x; }\n"
+      "function A2(a) { for (var i = 0; i < a; ++i) this[i] = i; }\n"
       "var a = new A();\n"
       "var b = new B(a);");
   const v8::HeapSnapshot* snapshot1 =
@@ -795,7 +796,7 @@ TEST(HeapSnapshotsDiff) {
   CompileAndRunScript(
       "delete a;\n"
       "b.x = null;\n"
-      "var a = new A();\n"
+      "var a = new A2(20);\n"
       "var b2 = new B(a);");
   const v8::HeapSnapshot* snapshot2 =
       v8::HeapProfiler::TakeSnapshot(v8::String::New("s2"));
@@ -811,7 +812,7 @@ TEST(HeapSnapshotsDiff) {
     const v8::HeapGraphNode* node = prop->GetToNode();
     if (node->GetType() == v8::HeapGraphNode::kObject) {
       v8::String::AsciiValue node_name(node->GetName());
-      if (strcmp(*node_name, "A") == 0) {
+      if (strcmp(*node_name, "A2") == 0) {
         CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::kProperty, "a"));
         CHECK(!found_A);
         found_A = true;
@@ -846,6 +847,19 @@ TEST(HeapSnapshotsDiff) {
   CHECK(found_A_del);
   CHECK_NE_UINT64_T(0, s1_A_id);
   CHECK(s1_A_id != s2_A_id);
+}
+
+
+TEST(HeapSnapshotRootPreservedAfterSorting) {
+  v8::HandleScope scope;
+  LocalContext env;
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("s"));
+  const v8::HeapGraphNode* root1 = snapshot->GetRoot();
+  const_cast<i::HeapSnapshot*>(reinterpret_cast<const i::HeapSnapshot*>(
+      snapshot))->GetSortedEntriesList();
+  const v8::HeapGraphNode* root2 = snapshot->GetRoot();
+  CHECK_EQ(root1, root2);
 }
 
 

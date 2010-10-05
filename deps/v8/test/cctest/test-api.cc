@@ -8099,7 +8099,7 @@ static int GetGlobalObjectsCount() {
 }
 
 
-static int GetSurvivingGlobalObjectsCount() {
+static void CheckSurvivingGlobalObjectsCount(int expected) {
   // We need to collect all garbage twice to be sure that everything
   // has been collected.  This is because inline caches are cleared in
   // the first garbage collection but some of the maps have already
@@ -8109,9 +8109,9 @@ static int GetSurvivingGlobalObjectsCount() {
   i::Heap::CollectAllGarbage(false);
   int count = GetGlobalObjectsCount();
 #ifdef DEBUG
-  if (count > 0) i::Heap::TracePathToGlobal();
+  if (count != expected) i::Heap::TracePathToGlobal();
 #endif
-  return count;
+  CHECK_EQ(expected, count);
 }
 
 
@@ -8120,25 +8120,23 @@ TEST(DontLeakGlobalObjects) {
 
   v8::V8::Initialize();
 
-  int count = GetSurvivingGlobalObjectsCount();
-
   for (int i = 0; i < 5; i++) {
     { v8::HandleScope scope;
       LocalContext context;
     }
-    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
+    CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope;
       LocalContext context;
       v8_compile("Date")->Run();
     }
-    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
+    CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope;
       LocalContext context;
       v8_compile("/aaa/")->Run();
     }
-    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
+    CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope;
       const char* extension_list[] = { "v8/gc" };
@@ -8146,7 +8144,7 @@ TEST(DontLeakGlobalObjects) {
       LocalContext context(&extensions);
       v8_compile("gc();")->Run();
     }
-    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
+    CheckSurvivingGlobalObjectsCount(0);
   }
 }
 
@@ -11481,5 +11479,143 @@ TEST(BooleanCheckMultipleContexts) {
     LocalContext context2;
     CompileRun("Boolean.prototype.toString = function() { return \"\"; }");
     ExpectString(code, "");
+  }
+}
+
+
+TEST(DontDeleteCellLoadIC) {
+  const char* function_code =
+      "function readCell() { while (true) { return cell; } }";
+
+  {
+    // Run the code twice in the first context to initialize the load
+    // IC for a don't delete cell.
+    v8::HandleScope scope;
+    LocalContext context1;
+    CompileRun("var cell = \"first\";");
+    ExpectBoolean("delete cell", false);
+    CompileRun(function_code);
+    ExpectString("readCell()", "first");
+    ExpectString("readCell()", "first");
+  }
+
+  {
+    // Use a deletable cell in the second context.
+    v8::HandleScope scope;
+    LocalContext context2;
+    CompileRun("cell = \"second\";");
+    CompileRun(function_code);
+    ExpectString("readCell()", "second");
+    ExpectBoolean("delete cell", true);
+    ExpectString("(function() {"
+                 "  try {"
+                 "    return readCell();"
+                 "  } catch(e) {"
+                 "    return e.toString();"
+                 "  }"
+                 "})()",
+                 "ReferenceError: cell is not defined");
+    CompileRun("cell = \"new_second\";");
+    i::Heap::CollectAllGarbage(true);
+    ExpectString("readCell()", "new_second");
+    ExpectString("readCell()", "new_second");
+  }
+}
+
+
+TEST(DontDeleteCellLoadICForceDelete) {
+  const char* function_code =
+      "function readCell() { while (true) { return cell; } }";
+
+  // Run the code twice to initialize the load IC for a don't delete
+  // cell.
+  v8::HandleScope scope;
+  LocalContext context;
+  CompileRun("var cell = \"value\";");
+  ExpectBoolean("delete cell", false);
+  CompileRun(function_code);
+  ExpectString("readCell()", "value");
+  ExpectString("readCell()", "value");
+
+  // Delete the cell using the API and check the inlined code works
+  // correctly.
+  CHECK(context->Global()->ForceDelete(v8_str("cell")));
+  ExpectString("(function() {"
+               "  try {"
+               "    return readCell();"
+               "  } catch(e) {"
+               "    return e.toString();"
+               "  }"
+               "})()",
+               "ReferenceError: cell is not defined");
+}
+
+
+TEST(DontDeleteCellLoadICAPI) {
+  const char* function_code =
+      "function readCell() { while (true) { return cell; } }";
+
+  // Run the code twice to initialize the load IC for a don't delete
+  // cell created using the API.
+  v8::HandleScope scope;
+  LocalContext context;
+  context->Global()->Set(v8_str("cell"), v8_str("value"), v8::DontDelete);
+  ExpectBoolean("delete cell", false);
+  CompileRun(function_code);
+  ExpectString("readCell()", "value");
+  ExpectString("readCell()", "value");
+
+  // Delete the cell using the API and check the inlined code works
+  // correctly.
+  CHECK(context->Global()->ForceDelete(v8_str("cell")));
+  ExpectString("(function() {"
+               "  try {"
+               "    return readCell();"
+               "  } catch(e) {"
+               "    return e.toString();"
+               "  }"
+               "})()",
+               "ReferenceError: cell is not defined");
+}
+
+
+TEST(GlobalLoadICGC) {
+  const char* function_code =
+      "function readCell() { while (true) { return cell; } }";
+
+  // Check inline load code for a don't delete cell is cleared during
+  // GC.
+  {
+    v8::HandleScope scope;
+    LocalContext context;
+    CompileRun("var cell = \"value\";");
+    ExpectBoolean("delete cell", false);
+    CompileRun(function_code);
+    ExpectString("readCell()", "value");
+    ExpectString("readCell()", "value");
+  }
+  {
+    v8::HandleScope scope;
+    LocalContext context2;
+    // Hold the code object in the second context.
+    CompileRun(function_code);
+    CheckSurvivingGlobalObjectsCount(1);
+  }
+
+  // Check inline load code for a deletable cell is cleared during GC.
+  {
+    v8::HandleScope scope;
+    LocalContext context;
+    CompileRun("cell = \"value\";");
+    CompileRun(function_code);
+    ExpectString("readCell()", "value");
+    ExpectString("readCell()", "value");
+  }
+  {
+    v8::HandleScope scope;
+    LocalContext context2;
+    // Hold the code object in the second context.
+    CompileRun(function_code);
+    CheckSurvivingGlobalObjectsCount(1);
   }
 }

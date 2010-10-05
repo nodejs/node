@@ -3801,7 +3801,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   Label result_longer_than_two;
   __ movq(rcx, Operand(rsp, kToOffset));
   __ movq(rdx, Operand(rsp, kFromOffset));
-  __ JumpIfNotBothPositiveSmi(rcx, rdx, &runtime);
+  __ JumpUnlessBothNonNegativeSmi(rcx, rdx, &runtime);
 
   __ SmiSub(rcx, rcx, rdx);  // Overflow doesn't happen.
   __ cmpq(FieldOperand(rax, String::kLengthOffset), rcx);

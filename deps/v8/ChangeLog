@@ -1,3 +1,11 @@
+2010-10-04: Version 2.4.8
+
+        Fixed a bug in ResumeProfilerEx causing it to not always write out the
+        whole snapshot (issue 868).
+
+        Performance improvements on all platforms.
+
+
 2010-09-30: Version 2.4.7
 
         Changed the command-line flag --max-new-space-size to be in kB and the

@@ -265,14 +265,14 @@ class MacroAssembler: public Assembler {
   // Is the value a tagged smi.
   Condition CheckSmi(Register src);
 
-  // Is the value a positive tagged smi.
-  Condition CheckPositiveSmi(Register src);
+  // Is the value a non-negative tagged smi.
+  Condition CheckNonNegativeSmi(Register src);
 
   // Are both values tagged smis.
   Condition CheckBothSmi(Register first, Register second);
 
-  // Are both values tagged smis.
-  Condition CheckBothPositiveSmi(Register first, Register second);
+  // Are both values non-negative tagged smis.
+  Condition CheckBothNonNegativeSmi(Register first, Register second);
 
   // Are either value a tagged smi.
   Condition CheckEitherSmi(Register first,
@@ -311,9 +311,9 @@ class MacroAssembler: public Assembler {
   template <typename LabelType>
   void JumpIfNotSmi(Register src, LabelType* on_not_smi);
 
-  // Jump to label if the value is not a positive tagged smi.
+  // Jump to label if the value is not a non-negative tagged smi.
   template <typename LabelType>
-  void JumpIfNotPositiveSmi(Register src, LabelType* on_not_smi);
+  void JumpUnlessNonNegativeSmi(Register src, LabelType* on_not_smi);
 
   // Jump to label if the value, which must be a tagged smi, has value equal
   // to the constant.
@@ -328,10 +328,10 @@ class MacroAssembler: public Assembler {
                         Register src2,
                         LabelType* on_not_both_smi);
 
-  // Jump if either or both register are not positive smi values.
+  // Jump if either or both register are not non-negative smi values.
   template <typename LabelType>
-  void JumpIfNotBothPositiveSmi(Register src1, Register src2,
-                                LabelType* on_not_both_smi);
+  void JumpUnlessBothNonNegativeSmi(Register src1, Register src2,
+                                    LabelType* on_not_both_smi);
 
   // Operations on tagged smi values.
 
@@ -1463,10 +1463,10 @@ void MacroAssembler::JumpIfNotSmi(Register src, LabelType* on_not_smi) {
 
 
 template <typename LabelType>
-void MacroAssembler::JumpIfNotPositiveSmi(Register src,
-                                          LabelType* on_not_positive_smi) {
-  Condition positive_smi = CheckPositiveSmi(src);
-  j(NegateCondition(positive_smi), on_not_positive_smi);
+void MacroAssembler::JumpUnlessNonNegativeSmi(
+    Register src, LabelType* on_not_smi_or_negative) {
+  Condition non_negative_smi = CheckNonNegativeSmi(src);
+  j(NegateCondition(non_negative_smi), on_not_smi_or_negative);
 }
 
 
@@ -1505,10 +1505,10 @@ void MacroAssembler::JumpIfNotBothSmi(Register src1,
 
 
 template <typename LabelType>
-void MacroAssembler::JumpIfNotBothPositiveSmi(Register src1,
-                                              Register src2,
-                                              LabelType* on_not_both_smi) {
-  Condition both_smi = CheckBothPositiveSmi(src1, src2);
+void MacroAssembler::JumpUnlessBothNonNegativeSmi(Register src1,
+                                                  Register src2,
+                                                  LabelType* on_not_both_smi) {
+  Condition both_smi = CheckBothNonNegativeSmi(src1, src2);
   j(NegateCondition(both_smi), on_not_both_smi);
 }
 

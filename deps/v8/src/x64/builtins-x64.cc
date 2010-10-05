@@ -715,7 +715,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ cmpq(rax, Immediate(1));
   __ j(not_equal, &argc_two_or_more);
   __ movq(rdx, Operand(rsp, kPointerSize));  // Get the argument from the stack.
-  __ JumpIfNotPositiveSmi(rdx, call_generic_code);
+  __ JumpUnlessNonNegativeSmi(rdx, call_generic_code);
 
   // Handle construction of an empty array of a certain size. Bail out if size
   // is to large to actually allocate an elements array.

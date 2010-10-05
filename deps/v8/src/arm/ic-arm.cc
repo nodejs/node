@@ -969,7 +969,8 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 
 bool LoadIC::PatchInlinedContextualLoad(Address address,
                                         Object* map,
-                                        Object* cell) {
+                                        Object* cell,
+                                        bool is_dont_delete) {
   // TODO(<bug#>): implement this.
   return false;
 }

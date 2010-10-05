@@ -299,7 +299,10 @@ void LoadIC::ClearInlinedVersion(Address address) {
   // present) to guarantee failure by holding an invalid map (the null
   // value).  The offset can be patched to anything.
   PatchInlinedLoad(address, Heap::null_value(), 0);
-  PatchInlinedContextualLoad(address, Heap::null_value(), Heap::null_value());
+  PatchInlinedContextualLoad(address,
+                             Heap::null_value(),
+                             Heap::null_value(),
+                             true);
 }
 
 
@@ -848,7 +851,10 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
     JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(
         lookup.holder()->property_dictionary()->ValueAt(
             lookup.GetDictionaryEntry()));
-    if (PatchInlinedContextualLoad(address(), map, cell)) {
+    if (PatchInlinedContextualLoad(address(),
+                                   map,
+                                   cell,
+                                   lookup.IsDontDelete())) {
       set_target(megamorphic_stub());
       TRACE_IC_NAMED("[LoadIC : inline contextual patch %s]\n", name);
       ASSERT(cell->value() != Heap::the_hole_value());

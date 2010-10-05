@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_OBJECTS_ITERATION_H_
-#define V8_OBJECTS_ITERATION_H_
+#ifndef V8_OBJECTS_VISITING_H_
+#define V8_OBJECTS_VISITING_H_
 
 // This file provides base classes and auxiliary methods for defining
 // static object visitors used during GC.
@@ -389,4 +389,4 @@ void Code::CodeIterateBody() {
 
 } }  // namespace v8::internal
 
-#endif  // V8_OBJECTS_ITERATION_H_
+#endif  // V8_OBJECTS_VISITING_H_

@@ -30,12 +30,13 @@
 
 #include "ast.h"
 #include "frame-element.h"
-#include "parser.h"
 #include "register-allocator.h"
 #include "zone.h"
 
 namespace v8 {
 namespace internal {
+
+class ScriptDataImpl;
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.

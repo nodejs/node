@@ -519,40 +519,40 @@ TEST(SmiCheck) {
   __ incq(rax);
   __ movl(rcx, Immediate(0));
   __ Integer32ToSmi(rcx, rcx);
-  cond = masm->CheckPositiveSmi(rcx);  // Zero counts as positive.
+  cond = masm->CheckNonNegativeSmi(rcx);
   __ j(NegateCondition(cond), &exit);
 
   __ incq(rax);
   __ xor_(rcx, Immediate(kSmiTagMask));
-  cond = masm->CheckPositiveSmi(rcx);  // "zero" non-smi.
+  cond = masm->CheckNonNegativeSmi(rcx);  // "zero" non-smi.
   __ j(cond, &exit);
 
   __ incq(rax);
   __ movq(rcx, Immediate(-1));
   __ Integer32ToSmi(rcx, rcx);
-  cond = masm->CheckPositiveSmi(rcx);  // Negative smis are not positive.
+  cond = masm->CheckNonNegativeSmi(rcx);  // Negative smis are not positive.
   __ j(cond, &exit);
 
   __ incq(rax);
   __ movq(rcx, Immediate(Smi::kMinValue));
   __ Integer32ToSmi(rcx, rcx);
-  cond = masm->CheckPositiveSmi(rcx);  // Most negative smi is not positive.
+  cond = masm->CheckNonNegativeSmi(rcx);  // Most negative smi is not positive.
   __ j(cond, &exit);
 
   __ incq(rax);
   __ xor_(rcx, Immediate(kSmiTagMask));
-  cond = masm->CheckPositiveSmi(rcx);  // "Negative" non-smi.
+  cond = masm->CheckNonNegativeSmi(rcx);  // "Negative" non-smi.
   __ j(cond, &exit);
 
   __ incq(rax);
   __ movq(rcx, Immediate(Smi::kMaxValue));
   __ Integer32ToSmi(rcx, rcx);
-  cond = masm->CheckPositiveSmi(rcx);  // Most positive smi is positive.
+  cond = masm->CheckNonNegativeSmi(rcx);  // Most positive smi is positive.
   __ j(NegateCondition(cond), &exit);
 
   __ incq(rax);
   __ xor_(rcx, Immediate(kSmiTagMask));
-  cond = masm->CheckPositiveSmi(rcx);  // "Positive" non-smi.
+  cond = masm->CheckNonNegativeSmi(rcx);  // "Positive" non-smi.
   __ j(cond, &exit);
 
   // CheckIsMinSmi

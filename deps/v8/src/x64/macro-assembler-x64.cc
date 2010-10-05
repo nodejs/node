@@ -825,7 +825,7 @@ Condition MacroAssembler::CheckSmi(Register src) {
 }
 
 
-Condition MacroAssembler::CheckPositiveSmi(Register src) {
+Condition MacroAssembler::CheckNonNegativeSmi(Register src) {
   ASSERT_EQ(0, kSmiTag);
   // Make mask 0x8000000000000001 and test that both bits are zero.
   movq(kScratchRegister, src);
@@ -846,15 +846,15 @@ Condition MacroAssembler::CheckBothSmi(Register first, Register second) {
 }
 
 
-Condition MacroAssembler::CheckBothPositiveSmi(Register first,
-                                               Register second) {
+Condition MacroAssembler::CheckBothNonNegativeSmi(Register first,
+                                                  Register second) {
   if (first.is(second)) {
-    return CheckPositiveSmi(first);
+    return CheckNonNegativeSmi(first);
   }
   movq(kScratchRegister, first);
   or_(kScratchRegister, second);
   rol(kScratchRegister, Immediate(1));
-  testl(kScratchRegister, Immediate(0x03));
+  testl(kScratchRegister, Immediate(3));
   return zero;
 }
 

@@ -132,6 +132,7 @@ class Log : public AllStatic {
     size_t rv = fwrite(msg, 1, length, output_handle_);
     ASSERT(static_cast<size_t>(length) == rv);
     USE(rv);
+    fflush(output_handle_);
     return length;
   }
 

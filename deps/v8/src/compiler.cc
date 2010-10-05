@@ -27,18 +27,20 @@
 
 #include "v8.h"
 
+#include "compiler.h"
+
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "compilation-cache.h"
-#include "compiler.h"
 #include "data-flow.h"
 #include "debug.h"
 #include "full-codegen.h"
 #include "liveedit.h"
 #include "oprofile-agent.h"
+#include "parser.h"
 #include "rewriter.h"
-#include "scopes.h"
 #include "scopeinfo.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -174,7 +176,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(bool is_global,
   // Build AST.
   EagerCompilationInfo info(script, is_eval);
   FunctionLiteral* lit =
-      MakeAST(is_global, script, extension, pre_data, is_json);
+      Parser::MakeAST(is_global, script, extension, pre_data, is_json);
 
   // Check for parse errors.
   if (lit == NULL) {
@@ -283,7 +285,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     if (pre_data == NULL
         && FLAG_lazy
         && source_length >= FLAG_min_preparse_length) {
-      pre_data = PartialPreParse(source, NULL, extension);
+      pre_data = Parser::PartialPreParse(source, NULL, extension);
     }
 
     // Create a script object describing the script to be compiled.
@@ -382,7 +384,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
   // Generate the AST for the lazily compiled function. The AST may be
   // NULL in case of parser stack overflow.
-  FunctionLiteral* lit = MakeLazyAST(shared);
+  FunctionLiteral* lit = Parser::MakeLazyAST(shared);
 
   // Check for parse errors.
   if (lit == NULL) {

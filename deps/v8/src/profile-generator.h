@@ -662,7 +662,7 @@ class HeapSnapshot {
   Type type() { return type_; }
   const char* title() { return title_; }
   unsigned uid() { return uid_; }
-  HeapEntry* root() { return entries_[root_entry_index_]; }
+  HeapEntry* root() { return root_entry_; }
 
   void AllocateEntries(
       int entries_count, int children_count, int retainers_count);
@@ -704,7 +704,7 @@ class HeapSnapshot {
   Type type_;
   const char* title_;
   unsigned uid_;
-  int root_entry_index_;
+  HeapEntry* root_entry_;
   char* raw_entries_;
   List<HeapEntry*> entries_;
   bool entries_sorted_;

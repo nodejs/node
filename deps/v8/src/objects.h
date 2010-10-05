@@ -3537,7 +3537,7 @@ class SharedFunctionInfo: public HeapObject {
   //  Important: inobject slack tracking is not attempted during the snapshot
   //  creation.
 
-  static const int kGenerousAllocationCount = 16;
+  static const int kGenerousAllocationCount = 8;
 
   // [construction_count]: Counter for constructor calls made during
   // the tracking phase.

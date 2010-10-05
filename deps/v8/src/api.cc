@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
+
 #include "arguments.h"
 #include "bootstrapper.h"
 #include "compiler.h"
@@ -36,6 +37,7 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "messages.h"
+#include "parser.h"
 #include "platform.h"
 #include "profile-generator-inl.h"
 #include "serialize.h"
@@ -1135,13 +1137,13 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 
 ScriptData* ScriptData::PreCompile(const char* input, int length) {
   unibrow::Utf8InputBuffer<> buf(input, length);
-  return i::PreParse(i::Handle<i::String>(), &buf, NULL);
+  return i::Parser::PreParse(i::Handle<i::String>(), &buf, NULL);
 }
 
 
 ScriptData* ScriptData::PreCompile(v8::Handle<String> source) {
   i::Handle<i::String> str = Utils::OpenHandle(*source);
-  return i::PreParse(str, NULL, NULL);
+  return i::Parser::PreParse(str, NULL, NULL);
 }
 
 

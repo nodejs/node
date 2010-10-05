@@ -9149,7 +9149,8 @@ class DeferredReferenceGetNamedValue: public DeferredCode {
       : dst_(dst),
         receiver_(receiver),
         name_(name),
-        is_contextual_(is_contextual) {
+        is_contextual_(is_contextual),
+        is_dont_delete_(false) {
     set_comment(is_contextual
                 ? "[ DeferredReferenceGetNamedValue (contextual)"
                 : "[ DeferredReferenceGetNamedValue");
@@ -9159,12 +9160,18 @@ class DeferredReferenceGetNamedValue: public DeferredCode {
 
   Label* patch_site() { return &patch_site_; }
 
+  void set_is_dont_delete(bool value) {
+    ASSERT(is_contextual_);
+    is_dont_delete_ = value;
+  }
+
  private:
   Label patch_site_;
   Register dst_;
   Register receiver_;
   Handle<String> name_;
   bool is_contextual_;
+  bool is_dont_delete_;
 };
 
 
@@ -9181,8 +9188,8 @@ void DeferredReferenceGetNamedValue::Generate() {
   // The call must be followed by:
   // - a test eax instruction to indicate that the inobject property
   //   case was inlined.
-  // - a mov ecx instruction to indicate that the contextual property
-  //   load was inlined.
+  // - a mov ecx or mov edx instruction to indicate that the
+  //   contextual property load was inlined.
   //
   // Store the delta to the map check instruction here in the test
   // instruction.  Use masm_-> instead of the __ macro since the
@@ -9191,8 +9198,11 @@ void DeferredReferenceGetNamedValue::Generate() {
   // Here we use masm_-> instead of the __ macro because this is the
   // instruction that gets patched and coverage code gets in the way.
   if (is_contextual_) {
-    masm_->mov(ecx, -delta_to_patch_site);
+    masm_->mov(is_dont_delete_ ? edx : ecx, -delta_to_patch_site);
     __ IncrementCounter(&Counters::named_load_global_inline_miss, 1);
+    if (is_dont_delete_) {
+      __ IncrementCounter(&Counters::dont_delete_hint_miss, 1);
+    }
   } else {
     masm_->test(eax, Immediate(-delta_to_patch_site));
     __ IncrementCounter(&Counters::named_load_inline_miss, 1);
@@ -9436,9 +9446,34 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
       }
       __ mov(result.reg(),
              FieldOperand(result.reg(), JSGlobalPropertyCell::kValueOffset));
-      __ cmp(result.reg(), Factory::the_hole_value());
-      deferred->Branch(equal);
+      bool is_dont_delete = false;
+      if (!info_->closure().is_null()) {
+        // When doing lazy compilation we can check if the global cell
+        // already exists and use its "don't delete" status as a hint.
+        AssertNoAllocation no_gc;
+        v8::internal::GlobalObject* global_object =
+            info_->closure()->context()->global();
+        LookupResult lookup;
+        global_object->LocalLookupRealNamedProperty(*name, &lookup);
+        if (lookup.IsProperty() && lookup.type() == NORMAL) {
+          ASSERT(lookup.holder() == global_object);
+          ASSERT(global_object->property_dictionary()->ValueAt(
+              lookup.GetDictionaryEntry())->IsJSGlobalPropertyCell());
+          is_dont_delete = lookup.IsDontDelete();
+        }
+      }
+      deferred->set_is_dont_delete(is_dont_delete);
+      if (!is_dont_delete) {
+        __ cmp(result.reg(), Factory::the_hole_value());
+        deferred->Branch(equal);
+      } else if (FLAG_debug_code) {
+        __ cmp(result.reg(), Factory::the_hole_value());
+        __ Check(not_equal, "DontDelete cells can't contain the hole");
+      }
       __ IncrementCounter(&Counters::named_load_global_inline, 1);
+      if (is_dont_delete) {
+        __ IncrementCounter(&Counters::dont_delete_hint_hit, 1);
+      }
     } else {
       // The initial (invalid) offset has to be large enough to force a 32-bit
       // instruction encoding to allow patching with an arbitrary offset.  Use

@@ -895,7 +895,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 
   // Check that the key is an array index, that is Uint32.
   STATIC_ASSERT(kSmiValueSize <= 32);
-  __ JumpIfNotPositiveSmi(rax, &slow);
+  __ JumpUnlessNonNegativeSmi(rax, &slow);
 
   // Get the map of the receiver.
   __ movq(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
@@ -1729,7 +1729,8 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 
 bool LoadIC::PatchInlinedContextualLoad(Address address,
                                         Object* map,
-                                        Object* cell) {
+                                        Object* cell,
+                                        bool is_dont_delete) {
   // TODO(<bug#>): implement this.
   return false;
 }
