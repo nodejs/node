@@ -4,8 +4,9 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
-/* fdatasync(2) is available */
-#define HAVE_FDATASYNC 1
+/* fdatasync(2) is not available on 10.5 but is on 10.6 
+ * How should we deal with this? */
+/* #define HAVE_FDATASYNC 0 */
 
 /* futimes(2) is available */
 #define HAVE_FUTIMES 1
