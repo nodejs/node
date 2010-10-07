@@ -577,17 +577,21 @@ if (process.argv[0].indexOf('/') > 0) {
 }
 
 if (process.argv[1]) {
+  // Load module
   if (process.argv[1].charAt(0) != "/" && !(/^http:\/\//).exec(process.argv[1])) {
     process.argv[1] = path.join(cwd, process.argv[1]);
   }
-
   // REMOVEME: nextTick should not be necessary. This hack to get
   // test/simple/test-exception-handler2.js working.
   process.nextTick(function() {
     module.runMain();
   });
+
+} else if (process._eval) {
+    // -e, --eval
+    if (process._eval) console.log(eval(process._eval));
 } else {
-  // No arguments, run the repl
+    // REPL
   module.requireNative('repl').start();
 }
 

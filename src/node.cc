@@ -68,6 +68,8 @@ static Persistent<String> listeners_symbol;
 static Persistent<String> uncaught_exception_symbol;
 static Persistent<String> emit_symbol;
 
+
+static char *eval_string = NULL;
 static int option_end_index = 0;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
@@ -1608,6 +1610,11 @@ static void Load(int argc, char *argv[]) {
 
   process->Set(String::NewSymbol("pid"), Integer::New(getpid()));
 
+  // -e, --eval
+  if (eval_string) {
+    process->Set(String::NewSymbol("_eval"), String::New(eval_string));
+  }
+
   size_t size = 2*PATH_MAX;
   char execPath[size];
   if (OS::GetExecutablePath(execPath, &size) != 0) {
@@ -1751,6 +1758,13 @@ static void ParseArgs(int *argc, char **argv) {
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
       exit(0);
+    } else if (strcmp(arg, "--eval") == 0 || strcmp(arg, "-e") == 0) {
+      if (*argc <= i + 1) {
+        fprintf(stderr, "Error: --eval requires an argument\n");
+        exit(1);
+      }
+      argv[i] = const_cast<char*>("");
+      eval_string = argv[++i];
     } else if (strcmp(arg, "--v8-options") == 0) {
       argv[i] = const_cast<char*>("--help");
     } else if (argv[i][0] != '-') {
