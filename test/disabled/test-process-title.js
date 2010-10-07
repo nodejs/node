@@ -4,7 +4,7 @@ var spawn = require('child_process').spawn;
 
 if (process.title === '') {
   console.log('skipping test -- not implemented for the host platform');
-  return;
+  //return;
 }
 
 // disabled because of two things

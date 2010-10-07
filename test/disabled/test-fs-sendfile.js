@@ -1,5 +1,5 @@
 common = require("../common");
-assert = common.assert
+assert = common.assert;
 
 tcp = require("tcp");
 sys = require("sys");

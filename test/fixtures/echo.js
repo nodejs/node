@@ -1,5 +1,5 @@
 common = require("../common");
-assert = common.assert
+assert = common.assert;
 
 common.print("hello world\r\n");
 

@@ -1,5 +1,5 @@
 common = require("../common");
-assert = common.assert
+assert = common.assert;
 
 var dns = require("dns"),
     child_process = require("child_process"),

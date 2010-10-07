@@ -1,5 +1,5 @@
 common = require("../common");
-assert = common.assert
+assert = common.assert;
 
 var complete = false;
 var idle = new process.IdleWatcher();

@@ -1,5 +1,5 @@
 common = require("../common");
-assert = common.assert
+assert = common.assert;
 
 http = require("http");
 
@@ -23,7 +23,7 @@ server.addListener('listening', function () {
      if (err) {
        common.print("-");
      } else {
-       assert.equal(body, content)
+       assert.equal(body, content);
        common.print(".");
        requests_ok++;
      }

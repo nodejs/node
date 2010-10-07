@@ -10,8 +10,8 @@ global.root = global;
 
 function removed (reason) {
   return function () {
-    throw new Error(reason)
-  }
+    throw new Error(reason);
+  };
 }
 
 process.debug = removed("process.debug() has moved. Use require('sys') to bring it back.");
@@ -156,7 +156,7 @@ var module = (function () {
         function index (ext) { return path.join(dir, id, 'index' + ext); }
         inDir = [
           function () { return exts.map(direct); },
-          function () { return exts.map(index); },
+          function () { return exts.map(index); }
         ];
         head = [path.join(dir, id)];
         return next();
@@ -335,7 +335,7 @@ var module = (function () {
     // Load the main module--the command line argument.
     process.mainModule = new Module(".");
     process.mainModule.load(process.argv[1]);
-  }
+  };
 
   return exports;
 })();
@@ -551,7 +551,7 @@ global.console.assert = function(expression){
     var arr = Array.prototype.slice.call(arguments, 1);
     process.assert(false, format.apply(this, arr));
   }
-}
+};
 
 global.Buffer = module.requireNative('buffer').Buffer;
 

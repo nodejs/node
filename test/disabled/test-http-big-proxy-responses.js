@@ -1,5 +1,5 @@
 common = require("../common");
-assert = common.assert
+assert = common.assert;
 var sys = require("sys"),
 fs = require("fs"),
 http = require("http"),
@@ -9,7 +9,7 @@ var chunk = '01234567890123456789';
 
 // Produce a very large response.
 var chargen = http.createServer(function (req, res) {
-  var len = parseInt(req.headers['x-len']);
+  var len = parseInt(req.headers['x-len'], 10);
   assert.ok(len > 0);
   res.writeHead(200, {"transfer-encoding":"chunked"});
   for (var i=0; i<len; i++) {
@@ -22,9 +22,9 @@ chargen.listen(9000);
 
 // Proxy to the chargen server.
 var proxy = http.createServer(function (req, res) {
-  var c = http.createClient(9000, 'localhost')
+  var c = http.createClient(9000, 'localhost');
 
-  var len = parseInt(req.headers['x-len']);
+  var len = parseInt(req.headers['x-len'], 10);
   assert.ok(len > 0);
 
   var sent = 0;
