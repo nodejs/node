@@ -268,6 +268,7 @@ var module = (function () {
     require.extensions = extensions;
     // TODO: Insert depreciation warning
     require.registerExtension = registerExtension;
+    require.cache = moduleCache;
 
     var dirname = path.dirname(filename);
 

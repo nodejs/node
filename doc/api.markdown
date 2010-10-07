@@ -3243,6 +3243,10 @@ a directory.
 paths onto it, or at startup with the `NODE_PATH` environmental
 variable (which should be a list of paths, colon separated).
 
+The second time `require('foo')` is called, it is not loaded again from
+disk. It looks in the `require.cache` object to see if it has been loaded
+before.
+
 
 ## Addons
 
