@@ -287,11 +287,11 @@ Handle<Value> SecureStream::New(const Arguments& args) {
   p->bio_write_ = BIO_new(BIO_s_mem());
   SSL_set_bio(p->ssl_, p->bio_read_, p->bio_write_);
 
-  if (p->should_verify_ = should_verify) {
+  if ((p->should_verify_ = should_verify)) {
     SSL_set_verify(p->ssl_, SSL_VERIFY_PEER, verify_callback);
   }
 
-  if (p->is_server_ = is_server) {
+  if ((p->is_server_ = is_server)) {
     SSL_set_accept_state(p->ssl_);
   } else {
     SSL_set_connect_state(p->ssl_);
