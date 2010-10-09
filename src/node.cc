@@ -1746,6 +1746,7 @@ static void PrintHelp() {
          "NODE_DEBUG           Print additional debugging output.\n"
          "NODE_MODULE_CONTEXTS Set to 1 to load modules in their own\n"
          "                     global contexts.\n"
+         "NODE_DISABLE_COLORS  Set to 1 to disable colors in the REPL\n"
          "\n"
          "Documentation can be found at http://nodejs.org/api.html"
          " or with 'man node'\n");
