@@ -794,13 +794,16 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate>& t,
   HandleScope scope;
 
   const int argc = args.Length();
-  Local<Value> argv[argc];
+  Local<Value>* argv = new Local<Value>[argc];
 
   for (int i = 0; i < argc; ++i) {
     argv[i] = args[i];
   }
 
   Local<Object> instance = t->GetFunction()->NewInstance(argc, argv);
+
+  delete[] argv;
+
   return scope.Close(instance);
 }
 
