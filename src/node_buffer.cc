@@ -101,7 +101,7 @@ char* Buffer::Data(Handle<Object> obj) {
 
   // Return true for "SlowBuffer"
   if (constructor_template->HasInstance(obj)) {
-    return ObjectWrap::Unwrap<Buffer>(obj)->data();
+    return ObjectWrap::Unwrap<Buffer>(obj)->data_;
   }
 
   // Not a buffer.
@@ -118,7 +118,7 @@ size_t Buffer::Length(Handle<Object> obj) {
 
   // Return true for "SlowBuffer"
   if (constructor_template->HasInstance(obj)) {
-    return ObjectWrap::Unwrap<Buffer>(obj)->length();
+    return ObjectWrap::Unwrap<Buffer>(obj)->length_;
   }
 
   // Not a buffer.
@@ -144,9 +144,9 @@ Handle<Value> Buffer::New(const Arguments &args) {
   }
 
   buffer->Wrap(args.This());
-  args.This()->SetIndexedPropertiesToExternalArrayData(buffer->data(),
+  args.This()->SetIndexedPropertiesToExternalArrayData(buffer->data_,
                                                        kExternalUnsignedByteArray,
-                                                       buffer->length());
+                                                       buffer->length_);
   args.This()->Set(length_symbol, Integer::New(buffer->length_));
 
   return args.This();
@@ -169,17 +169,12 @@ Buffer::~Buffer() {
 }
 
 
-char* Buffer::data() {
-  return data_;
-}
-
-
 Handle<Value> Buffer::BinarySlice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
 
-  char *data = parent->data() + start;
+  char *data = parent->data_ + start;
   //Local<String> string = String::New(data, end - start);
 
   Local<Value> b =  Encode(data, end - start, BINARY);
@@ -193,7 +188,7 @@ Handle<Value> Buffer::AsciiSlice(const Arguments &args) {
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
 
-  char* data = parent->data() + start;
+  char* data = parent->data_ + start;
   Local<String> string = String::New(data, end - start);
 
   return scope.Close(string);
@@ -204,7 +199,7 @@ Handle<Value> Buffer::Utf8Slice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
-  char *data = parent->data() + start;
+  char *data = parent->data_ + start;
   Local<String> string = String::New(data, end - start);
   return scope.Close(string);
 }
@@ -240,10 +235,10 @@ Handle<Value> Buffer::Base64Slice(const Arguments &args) {
   bool b1_oob, b2_oob;
 
   while (i < end) {
-    bitbuf[0] = parent->data()[i++];
+    bitbuf[0] = parent->data_[i++];
 
     if (i < end) {
-      bitbuf[1] = parent->data()[i];
+      bitbuf[1] = parent->data_[i];
       b1_oob = false;
     }  else {
       bitbuf[1] = 0;
@@ -252,7 +247,7 @@ Handle<Value> Buffer::Base64Slice(const Arguments &args) {
     i++;
 
     if (i < end) {
-      bitbuf[2] = parent->data()[i];
+      bitbuf[2] = parent->data_[i];
       b2_oob = false;
     }  else {
       bitbuf[2] = 0;
@@ -312,7 +307,7 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
   ssize_t target_start = args[1]->Int32Value();
   ssize_t source_start = args[2]->Int32Value();
   ssize_t source_end = args[3]->IsInt32() ? args[3]->Int32Value()
-                                          : source->length();
+                                          : source->length_;
 
   if (source_end < source_start) {
     return ThrowException(Exception::Error(String::New(
@@ -324,29 +319,29 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
     return scope.Close(Integer::New(0));
   }
 
-  if (target_start < 0 || target_start >= target->length()) {
+  if (target_start < 0 || target_start >= target->length_) {
     return ThrowException(Exception::Error(String::New(
             "targetStart out of bounds")));
   }
 
-  if (source_start < 0 || source_start >= source->length()) {
+  if (source_start < 0 || source_start >= source->length_) {
     return ThrowException(Exception::Error(String::New(
             "sourceStart out of bounds")));
   }
 
-  if (source_end < 0 || source_end > source->length()) {
+  if (source_end < 0 || source_end > source->length_) {
     return ThrowException(Exception::Error(String::New(
             "sourceEnd out of bounds")));
   }
 
   ssize_t to_copy = MIN(MIN(source_end - source_start,
-                            target->length() - target_start), 
-                            source->length() - source_start);
+                            target->length_ - target_start), 
+                            source->length_ - source_start);
   
 
   // need to use slightly slower memmove is the ranges might overlap
-  memmove((void*)(target->data() + target_start),
-          (const void*)(source->data() + source_start),
+  memmove((void*)(target->data_ + target_start),
+          (const void*)(source->data_ + source_start),
           to_copy);
 
   return scope.Close(Integer::New(to_copy));
@@ -376,7 +371,7 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
                                              : args[2]->Uint32Value();
   max_length = MIN(buffer->length_ - offset, max_length);
 
-  char* p = buffer->data() + offset;
+  char* p = buffer->data_ + offset;
 
   int char_written;
 
@@ -418,7 +413,7 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
                                              : args[2]->Uint32Value();
   max_length = MIN(s->Length(), MIN(buffer->length_ - offset, max_length));
 
-  char *p = buffer->data() + offset;
+  char *p = buffer->data_ + offset;
 
   int written = s->WriteAscii(p,
                               0,
@@ -466,7 +461,7 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
   }
 
   char a, b, c, d;
-  char* dst = buffer->data() + offset;
+  char* dst = buffer->data_ + offset;
   const char *src = *s;
   const char *const srcEnd = src + s.length();
 
@@ -511,7 +506,7 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  char *p = (char*)buffer->data() + offset;
+  char *p = (char*)buffer->data_ + offset;
 
   size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
 
@@ -544,7 +539,7 @@ Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
   uint32_t offset = args[2]->Uint32Value();
   uint32_t length = args[3]->Uint32Value();
 
-  fast_buffer->SetIndexedPropertiesToPixelData((uint8_t*)buffer->data() + offset,
+  fast_buffer->SetIndexedPropertiesToPixelData((uint8_t*)buffer->data_ + offset,
                                                length);
 
   return Undefined();
