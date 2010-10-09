@@ -31,6 +31,7 @@ static Persistent<String> version_symbol;
 
 
 static int verify_callback(int ok, X509_STORE_CTX *ctx) {
+  assert(ok);
   return(1); // Ignore errors by now. VerifyPeer will catch them by using SSL_get_verify_result.
 }
 
@@ -693,7 +694,8 @@ void base64(unsigned char *input, int length, char** buf64, int* buf64_len) {
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   len = BIO_write(b64, input, length);
   assert(len == length);
-  BIO_flush(b64);
+  int r = BIO_flush(b64);
+  assert(r == 1);
   BIO_get_mem_ptr(b64, &bptr);
 
   *buf64_len = bptr->length;
@@ -804,7 +806,7 @@ int local_EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx,
       return(0);
     }
 
-    if (b > (sizeof(ctx->final) / sizeof(ctx->final[0]))) {
+    if (b > (int)(sizeof(ctx->final) / sizeof(ctx->final[0]))) {
       EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_BAD_DECRYPT);
       return(0);
     }
@@ -961,6 +963,10 @@ class Cipher : public ObjectWrap {
 
     delete [] key_buf;
 
+    if (!r) {
+      return ThrowException(Exception::Error(String::New("CipherInit error")));
+    }
+
     return args.This();
   }
 
@@ -1005,6 +1011,10 @@ class Cipher : public ObjectWrap {
     delete [] key_buf;
     delete [] iv_buf;
 
+    if (!r) {
+      return ThrowException(Exception::Error(String::New("CipherInitIv error")));
+    }
+
     return args.This();
   }
 
@@ -1023,19 +1033,25 @@ class Cipher : public ObjectWrap {
     }
 
     unsigned char *out=0;
-    int out_len=0;
+    int out_len=0, r;
     if (Buffer::HasInstance(args[0])) {
       Local<Object> buffer_obj = args[0]->ToObject();
       char *buffer_data = Buffer::Data(buffer_obj);
       size_t buffer_length = Buffer::Length(buffer_obj);
 
-      int r = cipher->CipherUpdate(buffer_data, buffer_length, &out, &out_len);
+      r = cipher->CipherUpdate(buffer_data, buffer_length, &out, &out_len);
     } else {
       char* buf = new char[len];
       ssize_t written = DecodeWrite(buf, len, args[0], enc);
       assert(written == len);
-      int r = cipher->CipherUpdate(buf, len,&out,&out_len);
+      r = cipher->CipherUpdate(buf, len,&out,&out_len);
       delete [] buf;
+    }
+
+    if (!r) {
+      delete [] out;
+      Local<Value> exception = Exception::TypeError(String::New("DecipherUpdate fail"));
+      return ThrowException(exception);
     }
 
     Local<Value> outString;
@@ -1308,6 +1324,10 @@ class Decipher : public ObjectWrap {
 
     delete [] key_buf;
 
+    if (!r) {
+      return ThrowException(Exception::Error(String::New("DecipherInit error")));
+    }
+
     return args.This();
   }
 
@@ -1352,6 +1372,10 @@ class Decipher : public ObjectWrap {
 
     delete [] key_buf;
     delete [] iv_buf;
+
+    if (!r) {
+      return ThrowException(Exception::Error(String::New("DecipherInitIv error")));
+    }
 
     return args.This();
   }
@@ -1443,6 +1467,12 @@ class Decipher : public ObjectWrap {
     int out_len=0;
     int r = cipher->DecipherUpdate(buf, len, &out, &out_len);
 
+    if (!r) {
+      delete [] out;
+      Local<Value> exception = Exception::TypeError(String::New("DecipherUpdate fail"));
+      return ThrowException(exception);
+    }
+
     Local<Value> outString;
     if (out_len==0) {
       outString=String::New("");
@@ -1491,9 +1521,7 @@ class Decipher : public ObjectWrap {
 
     unsigned char* out_value;
     int out_len;
-    char* out_hexdigest;
-    int out_hex_len;
-    Local<Value> outString ;
+    Local<Value> outString;
 
     int r = cipher->DecipherFinal(&out_value, &out_len, false);
 
@@ -1536,8 +1564,6 @@ class Decipher : public ObjectWrap {
 
     unsigned char* out_value;
     int out_len;
-    char* out_hexdigest;
-    int out_hex_len;
     Local<Value> outString ;
 
     int r = cipher->DecipherFinal(&out_value, &out_len, true);
@@ -1677,6 +1703,10 @@ class Hmac : public ObjectWrap {
 
     delete [] buf;
 
+    if (!r) {
+      return ThrowException(Exception::Error(String::New("hmac error")));
+    }
+
     return args.This();
   }
 
@@ -1692,19 +1722,26 @@ class Hmac : public ObjectWrap {
       Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
       return ThrowException(exception);
     }
+
+    int r;
 	
     if( Buffer::HasInstance(args[0])) {
       Local<Object> buffer_obj = args[0]->ToObject();
       char *buffer_data = Buffer::Data(buffer_obj);
       size_t buffer_length = Buffer::Length(buffer_obj);
 
-      int r = hmac->HmacUpdate(buffer_data, buffer_length);
+      r = hmac->HmacUpdate(buffer_data, buffer_length);
     } else {
       char* buf = new char[len];
       ssize_t written = DecodeWrite(buf, len, args[0], enc);
       assert(written == len);
-      int r = hmac->HmacUpdate(buf, len);
+      r = hmac->HmacUpdate(buf, len);
       delete [] buf;
+    }
+
+    if (!r) {
+      Local<Value> exception = Exception::TypeError(String::New("HmacUpdate fail"));
+      return ThrowException(exception);
     }
 
     return args.This();
@@ -1842,19 +1879,24 @@ class Hash : public ObjectWrap {
       return ThrowException(exception);
     }
 
+    int r;
 
     if (Buffer::HasInstance(args[0])) {
       Local<Object> buffer_obj = args[0]->ToObject();
       char *buffer_data = Buffer::Data(buffer_obj);
       size_t buffer_length = Buffer::Length(buffer_obj);
-
-      int r = hash->HashUpdate(buffer_data, buffer_length);
+      r = hash->HashUpdate(buffer_data, buffer_length);
     } else {
       char* buf = new char[len];
       ssize_t written = DecodeWrite(buf, len, args[0], enc);
       assert(written == len);
-      int r = hash->HashUpdate(buf, len);
+      r = hash->HashUpdate(buf, len);
       delete[] buf;
+    }
+
+    if (!r) {
+      Local<Value> exception = Exception::TypeError(String::New("HashUpdate fail"));
+      return ThrowException(exception);
     }
 
     return args.This();
@@ -2000,6 +2042,10 @@ class Sign : public ObjectWrap {
 
     bool r = sign->SignInit(*signType);
 
+    if (!r) {
+      return ThrowException(Exception::Error(String::New("SignInit error")));
+    }
+
     return args.This();
   }
 
@@ -2016,18 +2062,25 @@ class Sign : public ObjectWrap {
       return ThrowException(exception);
     }
 
+    int r;
+
     if (Buffer::HasInstance(args[0])) {
       Local<Object> buffer_obj = args[0]->ToObject();
       char *buffer_data = Buffer::Data(buffer_obj);
       size_t buffer_length = Buffer::Length(buffer_obj);
 
-      int r = sign->SignUpdate(buffer_data, buffer_length);
+      r = sign->SignUpdate(buffer_data, buffer_length);
     } else {
       char* buf = new char[len];
       ssize_t written = DecodeWrite(buf, len, args[0], enc);
       assert(written == len);
-      int r = sign->SignUpdate(buf, len);
+      r = sign->SignUpdate(buf, len);
       delete [] buf;
+    }
+
+    if (!r) {
+      Local<Value> exception = Exception::TypeError(String::New("SignUpdate fail"));
+      return ThrowException(exception);
     }
 
     return args.This();
@@ -2201,6 +2254,10 @@ class Verify : public ObjectWrap {
 
     bool r = verify->VerifyInit(*verifyType);
 
+    if (!r) {
+      return ThrowException(Exception::Error(String::New("VerifyInit error")));
+    }
+
     return args.This();
   }
 
@@ -2218,18 +2275,25 @@ class Verify : public ObjectWrap {
       return ThrowException(exception);
     }
 
+    int r;
+
     if(Buffer::HasInstance(args[0])) {
       Local<Object> buffer_obj = args[0]->ToObject();
       char *buffer_data = Buffer::Data(buffer_obj);
       size_t buffer_length = Buffer::Length(buffer_obj);
 
-      int r = verify->VerifyUpdate(buffer_data, buffer_length);
+      r = verify->VerifyUpdate(buffer_data, buffer_length);
     } else {
       char* buf = new char[len];
       ssize_t written = DecodeWrite(buf, len, args[0], enc);
       assert(written == len);
-      int r = verify->VerifyUpdate(buf, len);
+      r = verify->VerifyUpdate(buf, len);
       delete [] buf;
+    }
+
+    if (!r) {
+      Local<Value> exception = Exception::TypeError(String::New("VerifyUpdate fail"));
+      return ThrowException(exception);
     }
 
     return args.This();

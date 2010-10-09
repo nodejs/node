@@ -258,12 +258,12 @@ Handle<Value> Buffer::Base64Slice(const Arguments &args) {
 
     c = bitbuf[0] >> 2;
     assert(c < 64);
-    out[j++] = base64_table[c];
+    out[j++] = base64_table[(int)c];
     assert(j < out_len);
 
     c = ((bitbuf[0] & 0x03) << 4) | (bitbuf[1] >> 4);
     assert(c < 64);
-    out[j++] = base64_table[c];
+    out[j++] = base64_table[(int)c];
     assert(j < out_len);
 
     if (b1_oob) {
@@ -271,7 +271,7 @@ Handle<Value> Buffer::Base64Slice(const Arguments &args) {
     } else {
       c = ((bitbuf[1] & 0x0F) << 2) | (bitbuf[2] >> 6);
       assert(c < 64);
-      out[j++] = base64_table[c];
+      out[j++] = base64_table[(int)c];
     }
     assert(j < out_len);
 
@@ -280,7 +280,7 @@ Handle<Value> Buffer::Base64Slice(const Arguments &args) {
     } else {
       c = bitbuf[2] & 0x3F;
       assert(c < 64);
-      out[j++]  = base64_table[c];
+      out[j++]  = base64_table[(int)c];
     }
     assert(j <= out_len);
   }
@@ -426,12 +426,12 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
 Handle<Value> Buffer::Base64Write(const Arguments &args) {
   HandleScope scope;
 
-  assert(unbase64_table['/'] == 63);
-  assert(unbase64_table['+'] == 62);
-  assert(unbase64_table['T'] == 19);
-  assert(unbase64_table['Z'] == 25);
-  assert(unbase64_table['t'] == 45);
-  assert(unbase64_table['z'] == 51);
+  assert(unbase64_table[(int)'/'] == 63);
+  assert(unbase64_table[(int)'+'] == 62);
+  assert(unbase64_table[(int)'T'] == 19);
+  assert(unbase64_table[(int)'Z'] == 25);
+  assert(unbase64_table[(int)'t'] == 45);
+  assert(unbase64_table[(int)'z'] == 51);
 
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
 
@@ -468,18 +468,18 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
   while (src < srcEnd) {
     const int remaining = srcEnd - src;
     if (remaining == 0 || *src == '=') break;
-    a = unbase64_table[*src++];
+    a = unbase64_table[(int)*src++];
 
     if (remaining == 1 || *src == '=') break;
-    b = unbase64_table[*src++];
+    b = unbase64_table[(int)*src++];
     *dst++ = (a << 2) | ((b & 0x30) >> 4);
 
     if (remaining == 2 || *src == '=') break;
-    c = unbase64_table[*src++];
+    c = unbase64_table[(int)*src++];
     *dst++ = ((b & 0x0F) << 4) | ((c & 0x3C) >> 2);
 
     if (remaining == 3 || *src == '=') break;
-    d = unbase64_table[*src++];
+    d = unbase64_table[(int)*src++];
     *dst++ = ((c & 0x03) << 6) | (d & 0x3F);
   }
 

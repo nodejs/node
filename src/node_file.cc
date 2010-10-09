@@ -564,7 +564,7 @@ static Handle<Value> ReadDir(const Arguments& args) {
     char *name;
     int i = 0;
 
-    while (ent = readdir(dir)) {
+    while ((ent = readdir(dir))) {
       name = ent->d_name;
 
       if (name[0] != '.' || (name[1] && (name[1] != '.' || name[2]))) {

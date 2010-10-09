@@ -271,6 +271,7 @@ def configure(conf):
   # LFS
   conf.env.append_value('CPPFLAGS',  '-D_LARGEFILE_SOURCE')
   conf.env.append_value('CPPFLAGS',  '-D_FILE_OFFSET_BITS=64')
+  conf.env.append_value('CPPFLAGS',  '-DEV_MULTIPLICITY=0')
 
   ## needed for node_file.cc fdatasync
   ## Strangely on OSX 10.6 the g++ doesn't see fdatasync but gcc does?

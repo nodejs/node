@@ -30,6 +30,7 @@ void SignalWatcher::Callback(EV_P_ ev_signal *watcher, int revents) {
   SignalWatcher *w = static_cast<SignalWatcher*>(watcher->data);
 
   assert(watcher == &w->watcher_);
+  assert(revents == EV_SIGNAL);
 
   HandleScope scope;
 
