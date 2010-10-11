@@ -1519,6 +1519,7 @@ static Handle<Value> Binding(const Arguments& args) {
     exports->Set(String::New("utils"),        String::New(native_utils));
     exports->Set(String::New("path"),         String::New(native_path));
     exports->Set(String::New("string_decoder"), String::New(native_string_decoder));
+    exports->Set(String::New("stream"),       String::New(native_stream));
     binding_cache->Set(module, exports);
   } else {
 
