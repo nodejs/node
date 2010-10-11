@@ -62,7 +62,7 @@ var tcp = net.Server(function (s) {
     process.stdout.write(".");
     tcpLengthSeen += d.length;
     for (var j = 0; j < d.length; j++) {
-      //assert.equal(buffer[i], d[j]);
+      assert.equal(buffer[i], d[j]);
       i++;
     }
   });
