@@ -1508,13 +1508,11 @@ static Handle<Value> Binding(const Arguments& args) {
     exports->Set(String::New("dgram"),        String::New(native_dgram));
     exports->Set(String::New("dns"),          String::New(native_dns));
     exports->Set(String::New("events"),       String::New(native_events));
-    exports->Set(String::New("file"),         String::New(native_file));
     exports->Set(String::New("freelist"),     String::New(native_freelist));
     exports->Set(String::New("fs"),           String::New(native_fs));
     exports->Set(String::New("http"),         String::New(native_http));
     exports->Set(String::New("crypto"),       String::New(native_crypto));
     exports->Set(String::New("net"),          String::New(native_net));
-    exports->Set(String::New("posix"),        String::New(native_posix));
     exports->Set(String::New("querystring"),  String::New(native_querystring));
     exports->Set(String::New("repl"),         String::New(native_repl));
     exports->Set(String::New("readline"),     String::New(native_readline));
