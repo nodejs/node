@@ -92,6 +92,18 @@ Buffer* Buffer::New(size_t size) {
 }
 
 
+Buffer* Buffer::New(char* data, size_t len) {
+  HandleScope scope;
+
+  Local<Value> arg = Integer::NewFromUnsigned(len);
+  Local<Object> obj = constructor_template->GetFunction()->NewInstance(1, &arg);
+
+  Buffer *buffer =  ObjectWrap::Unwrap<Buffer>(obj);
+
+  memcpy(buffer->data_, data, len);
+}
+
+
 char* Buffer::Data(Handle<Object> obj) {
   if (obj->HasIndexedPropertiesInPixelData()) {
     return (char*)obj->GetIndexedPropertiesPixelData();

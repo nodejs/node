@@ -35,6 +35,7 @@ class Buffer : public ObjectWrap {
 
   static void Initialize(v8::Handle<v8::Object> target);
   static Buffer* New(size_t length); // public constructor
+  static Buffer* New(char *data, size_t len); // public constructor
   static bool HasInstance(v8::Handle<v8::Value> val);
 
   static char* Data(v8::Handle<v8::Object>);
