@@ -1,6 +1,6 @@
 common = require("../common");
 assert = common.assert
-tcp = require("tcp");
+net = require("net");
 fs=require("fs");
 
 var tests_run = 0;
@@ -10,7 +10,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
   var count = 0;
   var sent_final_ping = false;
 
-  var server = tcp.createServer(function (socket) {
+  var server = net.createServer(function (socket) {
     assert.equal(true, socket.remoteAddress !== null);
     assert.equal(true, socket.remoteAddress !== undefined);
     if (host === "127.0.0.1")
@@ -51,7 +51,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
   server.setSecure('X509_PEM', caPem, 0, keyPem, certPem);
   server.listen(port, host);
 
-  var client = tcp.createConnection(port, host);
+  var client = net.createConnection(port, host);
 
   client.setEncoding("utf8");
   client.setSecure('X509_PEM', caPem, 0, keyPem, caPem);
@@ -98,7 +98,7 @@ function tlsTest (port, host, caPem, keyPem, certPem) {
 
 var have_tls;
 try {
-  var dummy_server = tcp.createServer();
+  var dummy_server = net.createServer();
   dummy_server.setSecure();
   have_tls=true;
 } catch (e) {
