@@ -3,7 +3,7 @@ assert = common.assert;
 
 var assert = require("assert");
 var http = require("http");
-var sys = require("sys");
+var util = require("util");
 
 var body = "hello world";
 

@@ -1,4 +1,4 @@
-var sys = require("sys"),
+var util = require("util"),
     childProcess = require("child_process");
 
 function next (i) {
@@ -7,7 +7,7 @@ function next (i) {
   var child = childProcess.spawn("echo", ["hello"]);
 
   child.stdout.addListener("data", function (chunk) {
-    sys.print(chunk);
+    util.print(chunk);
   });
 
   child.addListener("exit", function (code) {

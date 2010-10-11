@@ -1,6 +1,6 @@
 common = require("../common");
 assert = common.assert;
-var sys=require('sys');
+var util=require('util');
 var net=require('net');
 var fs=require('fs');
 var crypto=require('crypto');

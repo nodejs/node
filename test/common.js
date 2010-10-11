@@ -8,8 +8,8 @@ exports.PORT = 12346;
 
 exports.assert = require('assert');
 
-var sys = require("sys");
-for (var i in sys) exports[i] = sys[i];
+var util = require("util");
+for (var i in util) exports[i] = util[i];
 //for (var i in exports) global[i] = exports[i];
 
 function protoCtrChain (o) {

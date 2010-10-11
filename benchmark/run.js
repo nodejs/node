@@ -1,5 +1,5 @@
 var path = require("path");
-var sys = require("sys");
+var util = require("util");
 var childProcess = require("child_process");
 var benchmarks = [ "timers.js"
                  , "process_loop.js"
@@ -19,7 +19,7 @@ function exec (script, callback) {
 
 function runNext (i) {
   if (i >= benchmarks.length) return;
-  sys.print(benchmarks[i] + ": ");
+  util.print(benchmarks[i] + ": ");
   exec(benchmarks[i], function (elapsed, code) {
     if (code != 0) {
       console.log("ERROR  ");

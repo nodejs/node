@@ -2,7 +2,7 @@ common = require("../common");
 assert = common.assert
 
 var dgram = require("dgram"),
-    sys = require('sys'),
+    util = require('util'),
     assert = require('assert'),
     Buffer = require("buffer").Buffer;
 var LOCAL_BROADCAST_HOST = '224.0.0.1';
@@ -35,7 +35,7 @@ sendSocket.sendNext = function () {
 
   sendSocket.send(buf, 0, buf.length, common.PORT, LOCAL_BROADCAST_HOST, function (err) {
     if (err) throw err;
-    console.error('sent %s to %s', sys.inspect(buf.toString()),
+    console.error('sent %s to %s', util.inspect(buf.toString()),
       LOCAL_BROADCAST_HOST+common.PORT);
     process.nextTick(sendSocket.sendNext);
   });
@@ -48,7 +48,7 @@ function mkListener() {
   var listenSocket = dgram.createSocket('udp4')
 
   listenSocket.on('message', function(buf, rinfo) {
-    console.error('received %s from %j', sys.inspect(buf.toString()), rinfo);
+    console.error('received %s from %j', util.inspect(buf.toString()), rinfo);
     receivedMessages.push(buf);
 
     if (receivedMessages.length == sendMessages.length) {

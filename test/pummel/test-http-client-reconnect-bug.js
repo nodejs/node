@@ -2,7 +2,7 @@ common = require("../common");
 assert = common.assert
 
 var net = require("net"),
-    sys = require("sys"),
+    util = require("util"),
     http = require("http");
 
 var errorCount = 0;

@@ -1,7 +1,7 @@
 common = require("../common");
 assert = common.assert
 
-sys = require('sys');
+util = require('util');
 console.log([
  '_______________________________________________50',
  '______________________________________________100',

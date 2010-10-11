@@ -3,7 +3,7 @@ assert = common.assert
 
 var childKilled = false, done = false,
     spawn = require('child_process').spawn,
-    sys = require("sys"),
+    util = require("util"),
     child;
 
 var join = require('path').join;

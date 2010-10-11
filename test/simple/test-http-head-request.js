@@ -3,7 +3,7 @@ assert = common.assert
 
 assert = require("assert");
 http = require("http");
-sys = require("sys");
+util = require("util");
 
 
 body = "hello world\n";

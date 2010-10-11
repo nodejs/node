@@ -34,7 +34,7 @@ of the authors and should not be interpreted as representing official policies,
 either expressed or implied, of Joey Mazzarelli.
 ***************************************************************************/
 
-var puts        = require('sys').puts
+var util        = require('util')
   , values      = {}
   , args        = {}
   , argv        = []
@@ -133,8 +133,8 @@ exports.parse = function (options, params, help) {
           }
         }
       } else {
-        puts('Conflicting flags: ' + prefix + name + '\n');
-        puts(helpString());
+        util.puts('Conflicting flags: ' + prefix + name + '\n');
+        util.puts(helpString());
         process.exit(1);
       }
     }
@@ -173,8 +173,8 @@ exports.parse = function (options, params, help) {
       // No match. If it starts with a dash, show an error. Otherwise
       // add it to the extra params.
       if (inp[0] == '-') {
-        puts('Unknown option: ' + inp);
-        if (opts['--help']) puts('Try --help');
+        util.puts('Unknown option: ' + inp);
+        if (opts['--help']) util.puts('Try --help');
         process.exit(1);
       } else {
         argv.push(inp);
@@ -198,8 +198,8 @@ exports.parse = function (options, params, help) {
     }
   }
   if (errors.length) {
-    for (var i=0; i<errors.length; i++) puts(errors[i]);
-    puts('\n' + helpString());
+    for (var i=0; i<errors.length; i++) util.puts(errors[i]);
+    util.puts('\n' + helpString());
     process.exit(1);
   }
 };
@@ -226,7 +226,7 @@ exports.args = function () {
  * @return string Value of arg
  */
 exports.arg = function (name) {
-  //puts(require('sys').inspect(arguments));
+  //util.puts(require('util').inspect(arguments));
   return args[name];
 };
 
@@ -234,7 +234,7 @@ exports.arg = function (name) {
  * Print the help message and exit
  */
 exports.help = function () {
-  puts(helpString());
+  util.puts(helpString());
   process.exit(0);
 };
 

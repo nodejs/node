@@ -1,6 +1,6 @@
 common = require("../common");
 assert = common.assert;
-var sys = require("sys"),
+var util = require("util"),
 fs = require("fs"),
 http = require("http"),
 url = require("url");

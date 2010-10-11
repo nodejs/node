@@ -3,10 +3,12 @@
 var opts = require(__dirname + '/../lib/ext/opts');
 var ronn = require(__dirname + '/../lib/ronn');
 
+var util = require("util");
+
 var options = [
 	{ short       : 'V'
 	, description : 'Show version and exit'
-	, callback    : function () { sys.puts('0.1'); process.exit(1); }
+	, callback    : function () { util.puts('0.1'); process.exit(1); }
 	},
 	{ short       : 'b'
 	, long        : 'build'
@@ -50,7 +52,6 @@ var arguments = [
 opts.parse(options, arguments, true);
 
 
-var sys = require('sys');
 var fs = require('fs');
 var path = require('path');
 
@@ -64,10 +65,10 @@ if (opts.get("man") && !opts.get("build")) {
 	var spawn = require('child_process').spawn;
 	var man = spawn('man', ['--warnings',  '-E UTF-8',  '-l',  '-'], {"LANG":"C"});
 	man.stdout.addListener('data', function (data) {
-		sys.puts(data);
+		util.puts(data);
 	});
 	man.stderr.addListener('data', function (data) {
-		sys.puts(data);
+		util.puts(data);
 	});
 	man.addListener('exit', function() {
 		process.exit(0);
@@ -84,7 +85,7 @@ if (opts.get("man") && !opts.get("build")) {
 		if (opts.get("html")) fHtml = ronn.html();
 		if (opts.get("fragment")) {
 			if (opts.get("html")) {
-				sys.debug("Can't use both --fragment and --html");
+				util.debug("Can't use both --fragment and --html");
 				process.exit(-1);
 			}
 			fFrag = ronn.fragment();
@@ -95,8 +96,8 @@ if (opts.get("man") && !opts.get("build")) {
 		if (fHtml) fs.writeFileSync(fBase + ".html", fHtml, 'utf8');
 		if (fFrag) fs.writeFileSync(fBase + ".fragment", fFrag, 'utf8');
 	} else {
-		if (fRoff) sys.puts(fRoff);
-		if (fHtml) sys.puts(fHtml);
-		if (fFrag) sys.puts(fFrag);
+		if (fRoff) util.puts(fRoff);
+		if (fHtml) util.puts(fHtml);
+		if (fFrag) util.puts(fFrag);
 	}
 }

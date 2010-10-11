@@ -2,7 +2,7 @@ common = require("../common");
 assert = common.assert
 net = require("net");
 fs = require("fs");
-sys = require("sys");
+util = require("util");
 path = require("path");
 fn = path.join(common.fixturesDir, 'does_not_exist.txt');
 
@@ -11,12 +11,12 @@ var conn_closed = false;
 
 server = net.createServer(function (stream) {
   common.error('pump!');
-  sys.pump(fs.createReadStream(fn), stream, function (err) {
-    common.error("sys.pump's callback fired");
+  util.pump(fs.createReadStream(fn), stream, function (err) {
+    common.error("util.pump's callback fired");
     if (err) {
       got_error = true;
     } else {
-      common.debug("sys.pump's callback fired with no error");
+      common.debug("util.pump's callback fired with no error");
       common.debug("this shouldn't happen as the file doesn't exist...");
       assert.equal(true, false);
     }

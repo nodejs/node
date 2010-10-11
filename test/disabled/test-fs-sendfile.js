@@ -2,7 +2,7 @@ common = require("../common");
 assert = common.assert;
 
 tcp = require("tcp");
-sys = require("sys");
+util = require("util");
 var x = path.join(common.fixturesDir, "x.txt");
 var expected = "xyz";
 

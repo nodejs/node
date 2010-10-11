@@ -34,7 +34,7 @@ variable with the same name as the module.
 
 Example:
 
-    var sys = require('sys');
+    var util = require('util');
     
 It is possible to extend node with other modules.  See `'Modules'`
 
@@ -271,7 +271,7 @@ manipulated, e.g. to remove listeners.
     server.on('stream', function (stream) {
       console.log('someone connected!');
     });
-	console.log(sys.inspect(server.listeners('stream'));
+	console.log(util.inspect(server.listeners('stream'));
 	// [ [Function] ]
 
 
@@ -766,9 +766,9 @@ What platform you're running on. `'linux2'`, `'darwin'`, etc.
 
 Returns an object describing the memory usage of the Node process.
 
-    var sys = require('sys');
+    var util = require('util');
 
-    console.log(sys.inspect(process.memoryUsage()));
+    console.log(util.inspect(process.memoryUsage()));
 
 This will generate:
 
@@ -806,35 +806,35 @@ given, otherwise returns the current mask.
 
 
 
-## sys
+## util
 
-These functions are in the module `'sys'`. Use `require('sys')` to access
+These functions are in the module `'util'`. Use `require('util')` to access
 them.
 
 
-### sys.print(string)
+### util.print(string)
 
 Like `console.log()` but without the trailing newline.
 
-    require('sys').print('String with no newline');
+    require('util').print('String with no newline');
 
 
-### sys.debug(string)
+### util.debug(string)
 
 A synchronous output function. Will block the process and
 output `string` immediately to `stderr`.
 
-    require('sys').debug('message on stderr');
+    require('util').debug('message on stderr');
 
 
-### sys.log(string)
+### util.log(string)
 
 Output with timestamp on `stdout`.
 
-    require('sys').log('Timestmaped message.');
+    require('util').log('Timestmaped message.');
 
 
-### sys.inspect(object, showHidden=false, depth=2)
+### util.inspect(object, showHidden=false, depth=2)
 
 Return a string representation of `object`, which is useful for debugging.
 
@@ -847,14 +847,14 @@ formatting the object. This is useful for inspecting large complicated objects.
 The default is to only recurse twice.  To make it recurse indefinitely, pass
 in `null` for `depth`.
 
-Example of inspecting all properties of the `sys` object:
+Example of inspecting all properties of the `util` object:
 
-    var sys = require('sys');
+    var util = require('util');
 
-    console.log(sys.inspect(sys, true, null));
+    console.log(util.inspect(util, true, null));
 
 
-### sys.pump(readableStream, writeableStream, [callback])
+### util.pump(readableStream, writeableStream, [callback])
 
 Experimental
 
@@ -962,16 +962,16 @@ existing streams; `-1` means that a new stream should be created.
 
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit code:
 
-    var sys   = require('sys'),
+    var util   = require('util'),
         spawn = require('child_process').spawn,
         ls    = spawn('ls', ['-lh', '/usr']);
 
     ls.stdout.on('data', function (data) {
-      sys.print('stdout: ' + data);
+      util.print('stdout: ' + data);
     });
 
     ls.stderr.on('data', function (data) {
-      sys.print('stderr: ' + data);
+      util.print('stderr: ' + data);
     });
 
     ls.on('exit', function (code) {
@@ -981,7 +981,7 @@ Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit cod
 
 Example: A very elaborate way to run 'ps ax | grep ssh'
 
-    var sys   = require('sys'),
+    var util   = require('util'),
         spawn = require('child_process').spawn,
         ps    = spawn('ps', ['ax']),
         grep  = spawn('grep', ['ssh']);
@@ -991,7 +991,7 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
     });
 
     ps.stderr.on('data', function (data) {
-      sys.print('ps stderr: ' + data);
+      util.print('ps stderr: ' + data);
     });
 
     ps.on('exit', function (code) {
@@ -1002,11 +1002,11 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
     });
 
     grep.stdout.on('data', function (data) {
-      sys.print(data);
+      util.print(data);
     });
 
     grep.stderr.on('data', function (data) {
-      sys.print('grep stderr: ' + data);
+      util.print('grep stderr: ' + data);
     });
 
     grep.on('exit', function (code) {
@@ -1035,14 +1035,14 @@ See also: `child_process.exec()`
 High-level way to execute a command as a child process, buffer the
 output, and return it all in a callback.
 
-    var sys   = require('sys'),
+    var util   = require('util'),
         exec  = require('child_process').exec,
         child;
 
     child = exec('cat *.js bad_file | wc -l', 
       function (error, stdout, stderr) {
-        sys.print('stdout: ' + stdout);
-        sys.print('stderr: ' + stderr);
+        util.print('stdout: ' + stdout);
+        util.print('stderr: ' + stderr);
         if (error !== null) {
           console.log('exec error: ' + error);
         }
@@ -1140,7 +1140,7 @@ the object `sandbox` will be used as the global object for `code`.
 Example: compile and execute code that increments a global variable and sets a new one.
 These globals are contained in the sandbox.
 
-    var sys = require('sys'),
+    var util = require('util'),
         Script = process.binding('evals').Script,
         sandbox = {
           animal: 'cat',
@@ -1149,7 +1149,7 @@ These globals are contained in the sandbox.
 
     Script.runInNewContext(
       'count += 1; name = "kitty"', sandbox, 'myfile.js');
-    console.log(sys.inspect(sandbox));
+    console.log(util.inspect(sandbox));
 
     // { animal: 'cat', count: 3, name: 'kitty' }
 
@@ -1207,7 +1207,7 @@ Running code does not have access to local scope. `sandbox` is optional.
 Example: compile code that increments a global variable and sets one, then execute this code multiple times.
 These globals are contained in the sandbox.
 
-    var sys = require('sys'),
+    var util = require('util'),
         Script = process.binding('evals').Script,
         scriptObj, i,
         sandbox = {
@@ -1222,7 +1222,7 @@ These globals are contained in the sandbox.
       scriptObj.runInNewContext(sandbox);
     }
 
-    console.log(sys.inspect(sandbox));
+    console.log(util.inspect(sandbox));
 
     // { animal: 'cat', count: 12, name: 'kitty' }
 
@@ -2963,7 +2963,7 @@ the first character, then it returns an empty string.  Examples:
 Test whether or not the given path exists.  Then, call the `callback` argument with either true or false.  Example:
 
     path.exists('/etc/passwd', function (exists) {
-      sys.debug(exists ? "it's there" : "no passwd!");
+      util.debug(exists ? "it's there" : "no passwd!");
     });
 
 
@@ -3214,7 +3214,7 @@ The module `circle.js` has exported the functions `area()` and
 `circumference()`.  To export an object, add to the special `exports`
 object.  (Alternatively, one can use `this` instead of `exports`.) Variables
 local to the module will be private. In this example the variable `PI` is
-private to `circle.js`. The function `puts()` comes from the module `'sys'`,
+private to `circle.js`. The function `puts()` comes from the module `'util'`,
 which is a built-in module. Modules which are not prefixed by `'./'` are
 built-in module--more about this later.
 

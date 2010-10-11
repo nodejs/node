@@ -2,7 +2,7 @@ common = require("../common");
 assert = common.assert
 
 var url = require("url"),
-  sys = require("sys");
+  util = require("util");
 
 // URLs to parse, and expected data
 // { url : parsed }

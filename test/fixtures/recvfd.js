@@ -2,7 +2,6 @@
 // script is doing and how it fits into the test as a whole.
 
 var net = require('net');
-var sys = require('sys');
 
 var receivedData = [];
 var receivedFDs = [];

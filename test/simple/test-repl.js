@@ -1,8 +1,7 @@
 common = require("../common");
 assert = common.assert
 
-var sys = require("sys"),
-  net = require("net"),
+var net = require("net"),
   repl = require("repl"),
   message = "Read, Eval, Print Loop",
   unix_socket_path = "/tmp/node-repl-sock",

@@ -1,6 +1,6 @@
 common = require("../common");
 assert = common.assert
-var sys = require('sys'), i;
+var i;
 
 var N = 30;
 var done = [];

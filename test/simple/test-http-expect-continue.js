@@ -1,6 +1,5 @@
 var common = require("../common");
 var assert = common.assert;
-var sys = require("sys");
 var http = require("http");
 
 var outstanding_reqs = 0;
@@ -55,7 +54,6 @@ server.addListener("listening", function() {
     res.addListener('end', function () {
       common.debug("Got full response.");
       assert.equal(body, test_res_body, "Response body doesn't match.");
-//      common.debug(sys.inspect(res.headers));
       assert.ok("abcd" in res.headers, "Response headers missing.");
       outstanding_reqs--;
       if (outstanding_reqs == 0) {

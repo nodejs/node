@@ -34,7 +34,6 @@ var fs = require('fs');
 var net = require('net');
 var netBinding = process.binding('net');
 var path = require('path');
-var sys = require('sys');
 
 var DATA = {
   'ppid' : process.pid,

@@ -483,9 +483,9 @@ process.openStdin = function () {
 var formatRegExp = /%[sdj]/g;
 function format (f) {
   if (typeof f !== 'string') {
-    var objects = [], sys = module.requireNative('sys');
+    var objects = [], util = module.requireNative('util');
     for (var i = 0; i < arguments.length; i++) {
-      objects.push(sys.inspect(arguments[i]));
+      objects.push(util.inspect(arguments[i]));
     }
     return objects.join(' ');
   }
@@ -523,8 +523,8 @@ global.console.warn = function () {
 global.console.error = global.console.warn;
 
 global.console.dir = function(object){
-  var sys = module.requireNative('sys');
-  process.stdout.write(sys.inspect(object) + '\n');
+  var util = module.requireNative('util');
+  process.stdout.write(util.inspect(object) + '\n');
 };
 
 var times = {};

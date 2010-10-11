@@ -2,7 +2,7 @@ common = require("../common");
 assert = common.assert;
 
 var http = require('http');
-var sys = require('sys');
+var util = require('util');
 var url = require("url");
 var modulesLoaded = 0;
 
@@ -26,7 +26,7 @@ assert.throws(function () {
 var nodeBinary = process.ARGV[0];
 var cmd = 'NODE_PATH='+libDir+' '+nodeBinary+' http://localhost:'+common.PORT+'/moduleB.js';
 
-sys.exec(cmd, function (err, stdout, stderr) {
+util.exec(cmd, function (err, stdout, stderr) {
   if (err) throw err;
   console.log('success!');
   modulesLoaded++;

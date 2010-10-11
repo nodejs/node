@@ -2,7 +2,7 @@ common = require("../common");
 assert = common.assert
 net = require("net");
 fs = require("fs");
-sys = require("sys");
+util = require("util");
 path = require("path");
 fn = path.join(common.fixturesDir, 'elipses.txt');
 
@@ -10,7 +10,7 @@ expected = fs.readFileSync(fn, 'utf8');
 
 server = net.createServer(function (stream) {
   common.error('pump!');
-  sys.pump(fs.createReadStream(fn), stream, function () {
+  util.pump(fs.createReadStream(fn), stream, function () {
     common.error('server stream close');
     common.error('server close');
     server.close();

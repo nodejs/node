@@ -1,4 +1,4 @@
-sys = require('sys');
+var util = require('util');
 
 var regexIn = process.argv[2];
 var replacement = process.argv[3];

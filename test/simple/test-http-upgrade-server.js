@@ -1,7 +1,7 @@
 common = require("../common");
 assert = common.assert
 
-var sys = require("sys");
+var util = require("util");
 var net = require("net");
 var http = require("http");
 
@@ -48,7 +48,7 @@ function testServer(){
   });
 };
 
-sys.inherits(testServer, http.Server);
+util.inherits(testServer, http.Server);
 
 
 function writeReq(socket, data, encoding){

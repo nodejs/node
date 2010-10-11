@@ -1,5 +1,5 @@
 var fs = require('fs');
-var sys = require('sys');
+var util = require('util');
 var Buffer = require('buffer').Buffer;
 
 var path = "/tmp/wt.dat";
@@ -43,7 +43,7 @@ function writetest(size, bsize) {
 
   s.on('drain', function () {
     dowrite();
-    if (c++ % 2000 == 0) sys.print(".");
+    if (c++ % 2000 == 0) util.print(".");
   });
 
   dowrite();

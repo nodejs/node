@@ -1520,7 +1520,7 @@ static Handle<Value> Binding(const Arguments& args) {
     exports->Set(String::New("readline"),     String::New(native_readline));
     exports->Set(String::New("sys"),          String::New(native_sys));
     exports->Set(String::New("url"),          String::New(native_url));
-    exports->Set(String::New("utils"),        String::New(native_utils));
+    exports->Set(String::New("util"),          String::New(native_util));
     exports->Set(String::New("path"),         String::New(native_path));
     exports->Set(String::New("string_decoder"), String::New(native_string_decoder));
     exports->Set(String::New("stream"),       String::New(native_stream));

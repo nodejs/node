@@ -5,7 +5,6 @@ http = require("http");
 url = require("url");
 qs = require("querystring");
 var fs = require('fs');
-var sys = require('sys');
 
 var have_openssl;
 try {

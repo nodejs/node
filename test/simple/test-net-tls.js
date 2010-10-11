@@ -1,7 +1,6 @@
 common = require("../common");
 assert = common.assert
 var fs = require('fs');
-var sys = require('sys');
 var net = require('net');
 
 var have_openssl;
