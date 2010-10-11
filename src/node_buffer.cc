@@ -101,6 +101,8 @@ Buffer* Buffer::New(char* data, size_t len) {
   Buffer *buffer =  ObjectWrap::Unwrap<Buffer>(obj);
 
   memcpy(buffer->data_, data, len);
+
+  return buffer;
 }
 
 
