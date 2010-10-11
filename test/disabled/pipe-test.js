@@ -100,11 +100,6 @@ function startClient () {
       gotThanks = true;
     });
   });
-
-  client.on('error', function (e) {
-    console.log("http client-side error: " + e.message);
-    process.exit(2);
-  });
 }
 
 process.on('exit', function () {
