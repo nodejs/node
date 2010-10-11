@@ -55,7 +55,7 @@ echoServer.addListener("listening", function() {
   });
 
   c.addListener("close", function () {
-    common.p(recv);
+    console.dir(recv);
     echoServer.close();
   });
 });

@@ -13,7 +13,7 @@ exec("ls /", function (err, stdout, stderr) {
     assert.equal(false, err.killed);
   } else {
     success_count++;
-    common.p(stdout);
+    console.dir(stdout);
   }
 });
 
@@ -30,7 +30,7 @@ exec("ls /DOES_NOT_EXIST", function (err, stdout, stderr) {
     console.log("stderr: " + JSON.stringify(stderr));
   } else {
     success_count++;
-    common.p(stdout);
+    console.dir(stdout);
     assert.equal(true, stdout != "");
   }
 });

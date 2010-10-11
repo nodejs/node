@@ -25,7 +25,7 @@ function pwd (callback) {
 
 
 pwd(function (result) {
-  common.p(result);
+  console.dir(result);
   assert.equal(true, result.length > 1);
   assert.equal("\n", result[result.length-1]);
 });

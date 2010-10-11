@@ -19,7 +19,7 @@ var files = ['are'
 
 console.log('readdirSync ' + readdirDir);
 var f = fs.readdirSync(readdirDir);
-common.p(f);
+console.dir(f);
 assert.deepEqual(files, f.sort());
 
 
@@ -29,7 +29,7 @@ fs.readdir(readdirDir, function (err, f) {
     console.log("error");
     got_error = true;
   } else {
-    common.p(f);
+    console.dir(f);
     assert.deepEqual(files, f.sort());
   }
 });
