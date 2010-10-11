@@ -2,18 +2,23 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
+var sys = require('sys');
+
+var webPort = common.PORT
+var tcpPort = webPort + 1;
 
 var listenCount = 0;
 var gotThanks = false;
-var tcpLengthSeen;
+var tcpLengthSeen = 0;
+var bufferSize = 5 * 1024 * 1024;
 
 
 /*
  * 5MB of random buffer.
  */
-var buffer = Buffer(1024 * 1024 * 5);
+var buffer = Buffer(bufferSize);
 for (var i = 0; i < buffer.length; i++) {
-  buffer[i] = parseInt(Math.random()*10000);
+  buffer[i] = parseInt(Math.random()*10000) % 256;
 }
 
 
@@ -24,67 +29,86 @@ var web = http.Server(function (req, res) {
 
   var socket = net.Stream();
   socket.connect(tcpPort);
+  
+  socket.on('connect', function () {
+    console.log('socket connected');
+    req.pipe(socket);
+  });
 
-  req.pipe(socket);
 
   req.on('end', function () {
     res.writeHead(200);
     res.write("thanks");
     res.end();
+    console.log("response with 'thanks'");
+  });
+
+  req.connection.on('error', function (e) {
+    console.log("http server-side error: " + e.message);
+    process.exit(1);
   });
 });
-var webPort = common.PORT
 web.listen(webPort, startClient);
 
 
 
-var tcp = net.Server(function (socket) {
+var tcp = net.Server(function (s) {
   tcp.close();
+
+  console.log("tcp server connection");
 
   var i = 0;
 
-  socket.on('data', function (d) {
+  s.on('data', function (d) {
+    process.stdout.write(".");
+    tcpLengthSeen += d.length;
     for (var j = 0; j < d.length; j++) {
-      assert.equal(i % 256, d[i]);
+      //assert.equal(buffer[i], d[j]);
       i++;
     }
   });
 
-  socket.on('end', function () {
-    tcpLengthSeen = i;
-    socket.end();
+  s.on('end', function () {
+    console.log("tcp socket disconnect");
+    s.end();
+  });
+
+  s.on('error', function (e) {
+    console.log("tcp server-side error: " + e.message);
+    process.exit(1);
   });
 });
-var tcpPort = webPort + 1;
 tcp.listen(tcpPort, startClient);
 
 
 function startClient () {
   listenCount++;
-  console.log("listenCount %d" , listenCount);
-  if (listenCount < 2) {
-    console.log("dont start client %d" , listenCount);
-    return;
-  }
+  if (listenCount < 2) return;
 
-  console.log("start client");
+  console.log("Making request");
 
   var client = http.createClient(common.PORT);
-  var req = client.request('GET', '/');
+  var req = client.request('GET', '/', { 'content-length': buffer.length });
   req.write(buffer);
   req.end();
 
   req.on('response', function (res) {
+    console.log('Got response');
     res.setEncoding('utf8');
-    res.on('data', function (s) {
-      assert.equal("thanks", s);
+    res.on('data', function (string) {
+      assert.equal("thanks", string);
       gotThanks = true;
     });
+  });
+
+  client.on('error', function (e) {
+    console.log("http client-side error: " + e.message);
+    process.exit(2);
   });
 }
 
 process.on('exit', function () {
   assert.ok(gotThanks);
-  assert.equal(1024*1024*5, tcpLengthSeen);
+  assert.equal(bufferSize, tcpLengthSeen);
 });
 
