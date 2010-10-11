@@ -2,7 +2,6 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
-var sys = require('sys');
 
 var webPort = common.PORT
 var tcpPort = webPort + 1;

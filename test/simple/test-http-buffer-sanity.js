@@ -1,7 +1,7 @@
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
-var sys = require('sys');
+var util = require('util');
 
 var bufferSize = 5 * 1024 * 1024;
 var measuredSize = 0;
