@@ -32,9 +32,9 @@ var web = http.Server(function (req, res) {
   
   socket.on('connect', function () {
     console.log('socket connected');
-    req.pipe(socket);
   });
 
+  req.pipe(socket);
 
   req.on('end', function () {
     res.writeHead(200);
