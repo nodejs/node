@@ -36,7 +36,7 @@
 #include <node_child_process.h>
 #include <node_constants.h>
 #include <node_stdio.h>
-#include <node_natives.h>
+#include <node_javascript.h>
 #include <node_version.h>
 #ifdef HAVE_OPENSSL
 #include <node_crypto.h>
@@ -1499,30 +1499,9 @@ static Handle<Value> Binding(const Arguments& args) {
 
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New();
-    // Explicitly define native sources.
-    // TODO DRY/automate this?
-    exports->Set(String::New("assert"),       String::New(native_assert));
-    exports->Set(String::New("buffer"),       String::New(native_buffer));
-    exports->Set(String::New("child_process"),String::New(native_child_process));
-    exports->Set(String::New("constants"),    String::New(native_constants));
-    exports->Set(String::New("dgram"),        String::New(native_dgram));
-    exports->Set(String::New("dns"),          String::New(native_dns));
-    exports->Set(String::New("events"),       String::New(native_events));
-    exports->Set(String::New("freelist"),     String::New(native_freelist));
-    exports->Set(String::New("fs"),           String::New(native_fs));
-    exports->Set(String::New("http"),         String::New(native_http));
-    exports->Set(String::New("crypto"),       String::New(native_crypto));
-    exports->Set(String::New("net"),          String::New(native_net));
-    exports->Set(String::New("querystring"),  String::New(native_querystring));
-    exports->Set(String::New("repl"),         String::New(native_repl));
-    exports->Set(String::New("readline"),     String::New(native_readline));
-    exports->Set(String::New("sys"),          String::New(native_sys));
-    exports->Set(String::New("url"),          String::New(native_url));
-    exports->Set(String::New("util"),          String::New(native_util));
-    exports->Set(String::New("path"),         String::New(native_path));
-    exports->Set(String::New("string_decoder"), String::New(native_string_decoder));
-    exports->Set(String::New("stream"),       String::New(native_stream));
+    DefineJavaScript(exports);
     binding_cache->Set(module, exports);
+
   } else {
 
     return ThrowException(Exception::Error(String::New("No such module")));
@@ -1663,7 +1642,7 @@ static void Load(int argc, char *argv[]) {
 
   TryCatch try_catch;
 
-  Local<Value> f_value = ExecuteString(String::New(native_node),
+  Local<Value> f_value = ExecuteString(String::New(MainSource()),
                                        String::New("node.js"));
   if (try_catch.HasCaught())  {
     ReportException(try_catch, true);
