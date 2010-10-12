@@ -1803,6 +1803,21 @@ static void ParseArgs(int *argc, char **argv) {
 }
 
 
+static void SignalExit(int signal) {
+  exit(1);
+}
+
+
+static int RegisterSignalHandler(int signal, void (*handler)(int)) {
+  struct sigaction sa;
+
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = handler;
+  sigfillset(&sa.sa_mask);
+  return sigaction(signal, &sa, NULL);
+}
+
+
 static void AtExit() {
   node::Stdio::Flush();
   node::Stdio::DisableRawMode(STDIN_FILENO);
@@ -1850,10 +1865,9 @@ int main(int argc, char *argv[]) {
   V8::SetFlagsFromCommandLine(&v8argc, v8argv, false);
 
   // Ignore SIGPIPE
-  struct sigaction sa;
-  bzero(&sa, sizeof(sa));
-  sa.sa_handler = SIG_IGN;
-  sigaction(SIGPIPE, &sa, NULL);
+  node::RegisterSignalHandler(SIGPIPE, SIG_IGN);
+  node::RegisterSignalHandler(SIGINT, node::SignalExit);
+  node::RegisterSignalHandler(SIGTERM, node::SignalExit);
 
 
   // Initialize the default ev loop.
