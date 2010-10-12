@@ -98,7 +98,7 @@ var module = (function () {
   function loadNative (id) {
     var m = new Module(id);
     internalModuleCache[id] = m;
-    var e = m._compile(natives[id], id);
+    var e = m._compile(natives[id], id+".js");
     if (e) throw e; // error compiling native module
     return m;
   }
