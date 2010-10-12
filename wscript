@@ -530,6 +530,7 @@ def build(bld):
         , 'CPPFLAGS'  : " ".join(program.env["CPPFLAGS"]).replace('"', '\\"')
         , 'LIBFLAGS'  : " ".join(program.env["LIBFLAGS"]).replace('"', '\\"')
         , 'PREFIX'    : program.env["PREFIX"]
+        , 'VERSION'   : '0.3.0-pre' # FIXME should not be hard-coded, see NODE_VERSION_STRING in src/node_version.h
         }
     return x
 
@@ -570,6 +571,14 @@ def build(bld):
   bld.install_files('${PREFIX}/bin/', 'bin/*', chmod=0755)
   bld.install_files('${PREFIX}/lib/node/wafadmin', 'tools/wafadmin/*.py')
   bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
+
+  # create a pkg-config(1) file
+  node_conf = bld.new_task_gen('subst', before="cxx")
+  node_conf.source = 'tools/nodejs.pc.in'
+  node_conf.target = 'tools/nodejs.pc'
+  node_conf.dict = subflags(node)
+
+  bld.install_files('${PREFIX}/lib/pkgconfig', 'tools/nodejs.pc')
 
 def shutdown():
   Options.options.debug
