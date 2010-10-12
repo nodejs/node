@@ -1768,6 +1768,21 @@ static void AtExit() {
 }
 
 
+static void SignalExit(int signal) {
+  ev_unloop(EV_DEFAULT_ EVUNLOOP_ALL);
+}
+
+
+static int RegisterSignalHandler(int signal, void (*handler)(int)) {
+  struct sigaction sa;
+
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = handler;
+  sigfillset(&sa.sa_mask);
+  return sigaction(signal, &sa, NULL);
+}
+
+
 int Start(int argc, char *argv[]) {
   // Hack aroung with the argv pointer. Used for process.title = "blah".
   argv = node::OS::SetupArgs(argc, argv);
@@ -1792,10 +1807,9 @@ int Start(int argc, char *argv[]) {
   V8::SetFlagsFromCommandLine(&v8argc, v8argv, false);
 
   // Ignore SIGPIPE
-  struct sigaction sa;
-  bzero(&sa, sizeof(sa));
-  sa.sa_handler = SIG_IGN;
-  sigaction(SIGPIPE, &sa, NULL);
+  RegisterSignalHandler(SIGPIPE, SIG_IGN);
+  RegisterSignalHandler(SIGINT, SignalExit);
+  RegisterSignalHandler(SIGTERM, SignalExit);
 
 
   // Initialize the default ev loop.
