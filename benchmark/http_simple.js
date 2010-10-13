@@ -1,24 +1,40 @@
 path = require("path");
-Buffer = require("buffer").Buffer;
+exec = require("child_process").exec;
+http = require("http");
 
 port = parseInt(process.env.PORT || 8000);
 
-var old = (process.argv[2] == 'old');
-
 console.log('pid ' + process.pid);
-
-http = require(old ? "http_old" : 'http');
-if (old) console.log('old version');
 
 fixed = ""
 for (var i = 0; i < 20*1024; i++) {
   fixed += "C";
 }
 
+var uname, rev;
+
+exec('git rev-list -1 HEAD', function (e, stdout) {
+  if (e) {
+    console.error("Problem executing: 'git rev-list -1 HEAD'");
+    throw new Error(e);
+  }
+  rev = stdout.replace(/\s/g, '');
+});
+
+exec('uname -a', function (e, stdout) {
+  if (e) {
+    console.error("Problem executing: 'uname -a'");
+    throw new Error(e);
+  }
+  uname = stdout.replace(/[\r\n]/g, '');
+});
+
+
+
 stored = {};
 storedBuffer = {};
 
-http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
   var commands = req.url.split("/");
   var command = commands[1];
   var body = "";
@@ -57,6 +73,9 @@ http.createServer(function (req, res) {
   } else if (command == "fixed") {
     body = fixed;
 
+  } else if (command == "info") {
+    body = 'rev: ' + rev + '\n' + 'uname: ' + uname + '\n';
+
   } else {
     status = 404;
     body = "not found\n";
@@ -64,17 +83,13 @@ http.createServer(function (req, res) {
 
   var content_length = body.length.toString();
 
-  res.writeHead( status
-                , { "Content-Type": "text/plain"
-                  , "Content-Length": content_length
-                  }
-                );
-  if (old) {
-    res.write(body, 'ascii');
-    res.close();
-  } else {
-    res.end(body, 'ascii');
-  }
-}).listen(port);
+  res.writeHead(status, { "Content-Type": "text/plain",
+                          "Content-Length": content_length });
+  res.end(body);
 
-console.log('Listening at http://127.0.0.1:'+port+'/');
+});
+
+server.listen(port, function () {
+  console.log('Listening at http://127.0.0.1:'+port+'/');
+});
+
