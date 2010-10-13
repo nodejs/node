@@ -324,10 +324,16 @@ def v8_cmd(bld, variant):
   # cannot see symbols in the executable which are hidden, even if the
   # executable is statically linked together...
 
-  # XXX Remove this when v8 defaults x86_64 to native builds
+  # XXX Change this when v8 defaults x86_64 to native builds
   arch = ""
-  if bld.env['DEST_CPU'] == 'x86_64':
+  if bld.env['DEST_CPU'] == 'x86':
+    arch = ""
+  elif bld.env['DEST_CPU'] == 'x86_64':
     arch = "arch=x64"
+  elif bld.env['DEST_CPU'] == 'arm':
+    arch = "arch=arm"
+  else:
+    raise Exception("supported architectures are 'x86', 'x86_64', and 'arm', but NOT '" + bld.env['DEST_CPU'] + "'.")
 
   if variant == "default":
     mode = "release"
