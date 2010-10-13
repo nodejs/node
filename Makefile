@@ -36,9 +36,6 @@ test-pummel: all
 test-internet: all
 	python tools/test.py internet
 
-benchmark: all
-	build/default/node benchmark/run.js
-
 # http://rtomayko.github.com/ronn
 # gem install ronn
 doc: doc/node.1 doc/api.html doc/index.html doc/changelog.html
@@ -85,4 +82,7 @@ dist: doc/node.1 doc/api.html
 	rm -rf $(TARNAME)
 	gzip -f -9 $(TARNAME).tar
 
-.PHONY: benchmark clean docclean dist distclean check uninstall install all test test-all website-upload
+bench:
+	 benchmark/http_simple_bench.sh
+
+.PHONY: bench clean docclean dist distclean check uninstall install all test test-all website-upload

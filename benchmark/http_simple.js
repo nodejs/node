@@ -74,7 +74,7 @@ var server = http.createServer(function (req, res) {
     body = fixed;
 
   } else if (command == "info") {
-    body = 'rev: ' + rev + '\n' + 'uname: ' + uname + '\n';
+    body = 'rev=' + rev + '\nuname="' + uname + '"\n';
 
   } else {
     status = 404;
