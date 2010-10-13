@@ -108,7 +108,7 @@ static const char *method_strings[] =
 
 /* ' ', '_', '-' and all alpha-numeric ascii characters are accepted by acceptable_header.
    The 'A'-'Z' are lower-cased.  */
-static const unsigned char acceptable_header[256] = {
+static const char acceptable_header[256] = {
 /*   0 nul    1 soh    2 stx    3 etx    4 eot    5 enq    6 ack    7 bel  */
         0,       0,       0,       0,       0,       0,       0,       0,
 /*   8 bs     9 ht    10 nl    11 vt    12 np    13 cr    14 so    15 si   */
@@ -143,7 +143,7 @@ static const unsigned char acceptable_header[256] = {
        'x',     'y',     'z',      0,       0,       0,       0,       0 };
 
 
-static const int unhex[256] =
+static const int8_t unhex[256] =
   {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
   ,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
   ,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
@@ -155,7 +155,7 @@ static const int unhex[256] =
   };
 
 
-static const int normal_url_char[256] = {
+static const uint8_t normal_url_char[256] = {
 /*   0 nul    1 soh    2 stx    3 etx    4 eot    5 enq    6 ack    7 bel  */
         0,       0,       0,       0,       0,       0,       0,       0,
 /*   8 bs     9 ht    10 nl    11 vt    12 np    13 cr    14 so    15 si   */
@@ -600,7 +600,7 @@ size_t http_parser_execute (http_parser *parser,
         if (ch == ' ' && matcher[index] == '\0') {
           state = s_req_spaces_before_url;
         } else if (ch == matcher[index]) {
-          ; // nada
+          ; /* nada */
         } else if (parser->method == HTTP_CONNECT) {
           if (index == 1 && ch == 'H') {
             parser->method = HTTP_CHECKOUT;
@@ -772,7 +772,7 @@ size_t http_parser_execute (http_parser *parser,
 
         switch (ch) {
           case '?':
-            break; // XXX ignore extra '?' ... is this right?
+            break; /* XXX ignore extra '?' ... is this right? */
           case ' ':
             CALLBACK(url);
             state = s_req_http_start;
@@ -802,7 +802,7 @@ size_t http_parser_execute (http_parser *parser,
 
         switch (ch) {
           case '?':
-            // allow extra '?' in query string
+            /* allow extra '?' in query string */
             break;
           case ' ':
             CALLBACK(url);
@@ -1264,6 +1264,7 @@ size_t http_parser_execute (http_parser *parser,
             break;
 
           case h_content_length:
+            if (ch == ' ') break;
             if (ch < '0' || ch > '9') goto error;
             parser->content_length *= 10;
             parser->content_length += ch - '0';
@@ -1376,7 +1377,7 @@ size_t http_parser_execute (http_parser *parser,
           }
         }
 
-        // Exit, the rest of the connect is in a different protocol.
+        /* Exit, the rest of the connect is in a different protocol. */
         if (parser->upgrade) {
           CALLBACK2(message_complete);
           return (p - data);
@@ -1437,7 +1438,7 @@ size_t http_parser_execute (http_parser *parser,
       {
         assert(parser->flags & F_CHUNKED);
 
-        c = unhex[(int)ch];
+        c = unhex[(unsigned char)ch];
         if (c == -1) goto error;
         parser->content_length = c;
         state = s_chunk_size;
@@ -1453,7 +1454,7 @@ size_t http_parser_execute (http_parser *parser,
           break;
         }
 
-        c = unhex[(int)ch];
+        c = unhex[(unsigned char)ch];
 
         if (c == -1) {
           if (ch == ';' || ch == ' ') {
@@ -1545,6 +1546,7 @@ size_t http_parser_execute (http_parser *parser,
   return len;
 
 error:
+  parser->state = s_dead;
   return (p - data);
 }
 
