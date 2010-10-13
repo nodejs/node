@@ -13,3 +13,4 @@ tmp/
 node
 node_g
 *.swp
+.benchmark_reports
