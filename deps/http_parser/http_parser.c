@@ -1264,6 +1264,7 @@ size_t http_parser_execute (http_parser *parser,
             break;
 
           case h_content_length:
+            if (ch == ' ') break;
             if (ch < '0' || ch > '9') goto error;
             parser->content_length *= 10;
             parser->content_length += ch - '0';
