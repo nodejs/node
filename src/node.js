@@ -170,7 +170,7 @@ var module = (function () {
   }
 
   function findModulePath (request, paths) {
-    var nextLoc = traverser(request, request.charAt(0) === '/' ? [''] : paths);
+    var nextLoc = traverser(request, paths);
 
     var fs = requireNative('fs');
 
@@ -182,15 +182,29 @@ var module = (function () {
     return false;
   }
 
+  function modulePathWalk (parent) {
+    if (parent._modulePaths) return parent._modulePaths;
+    var p = parent.filename.split("/");
+    var mp = [];
+    while (undefined !== p.pop()) {
+      mp.push(p.join("/")+"/node_modules");
+    }
+    return parent._modulePaths = mp;
+  }
 
   // sync - no i/o performed
   function resolveModuleLookupPaths (request, parent) {
 
     if (natives[request]) return [request, []];
 
+    if (request.charAt(0) === '/') {
+      return [request, ['']];
+    }
+
     var start = request.substring(0, 2);
     if (start !== "./" && start !== "..") {
-      return [request, modulePaths.concat(defaultPaths)];
+      var paths = modulePaths.concat(modulePathWalk(parent)).concat(defaultPaths);
+      return [request, paths];
     }
 
     // Is the parent an index module?

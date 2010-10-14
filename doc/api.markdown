@@ -446,13 +446,12 @@ but rather than loading the module, just return the resolved filename.
 
 ### require.paths
 
-An array of search paths for `require()`.  This array can be modified to add custom paths.
+An array of search paths for `require()`.  This array can be modified to add
+custom paths.
 
 Example: add a new path to the beginning of the search list
 
     require.paths.unshift('/usr/local/node');
-    console.log(require.paths);
-    // /usr/local/node,/Users/mjr/.node_libraries
 
 
 ### __filename
@@ -3259,6 +3258,15 @@ a directory.
 `require.paths` can be modified at runtime by simply unshifting new
 paths onto it, or at startup with the `NODE_PATH` environmental
 variable (which should be a list of paths, colon separated).
+Additionally node will search for directories called `node_modules` starting
+at the current directory (of the module calling `require`) and upwards
+towards the root of the package tree.
+This feature makes it easy to have different module versions for different
+environments. Imagine the situation where you have a devopment environment
+and a production environment each with a different version of the `foo`
+module: `projects/x/development/node_modules/foo` and
+`projects/x/production/node_modules/foo`.
+
 
 The second time `require('foo')` is called, it is not loaded again from
 disk. It looks in the `require.cache` object to see if it has been loaded
