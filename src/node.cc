@@ -1550,6 +1550,69 @@ static void ProcessTitleSetter(Local<String> property,
 }
 
 
+static Handle<Value> EnvGetter(Local<String> property,
+                               const AccessorInfo& info) {
+  String::Utf8Value key(property);
+  const char* val = getenv(*key);
+  if (val) {
+    HandleScope scope;
+    return scope.Close(String::New(val));
+  }
+  return Undefined();
+}
+
+
+static Handle<Value> EnvSetter(Local<String> property,
+                               Local<Value> value,
+                               const AccessorInfo& info) {
+  String::Utf8Value key(property);
+  String::Utf8Value val(value);
+  setenv(*key, *val, 1);
+  return value;
+}
+
+
+static Handle<Integer> EnvQuery(Local<String> property,
+                                const AccessorInfo& info) {
+  String::Utf8Value key(property);
+  if (getenv(*key)) {
+    HandleScope scope;
+    return scope.Close(Integer::New(None));
+  }
+  return Handle<Integer>();
+}
+
+
+static Handle<Boolean> EnvDeleter(Local<String> property,
+                                  const AccessorInfo& info) {
+  String::Utf8Value key(property);
+  if (getenv(*key)) {
+    unsetenv(*key);	// prototyped as `void unsetenv(const char*)` on some platforms
+    return True();
+  }
+  return False();
+}
+
+
+static Handle<Array> EnvEnumerator(const AccessorInfo& info) {
+  HandleScope scope;
+
+  int size = 0;
+  while (environ[size]) size++;
+
+  Local<Array> env = Array::New(size);
+
+  for (int i = 0; i < size; ++i) {
+    const char* var = environ[i];
+    const char* s = strchr(var, '=');
+    const int length = s ? s - var : strlen(var);
+    env->Set(i, String::New(var, length));
+  }
+
+  return scope.Close(env);
+}
+
+
 static void Load(int argc, char *argv[]) {
   HandleScope scope;
 
@@ -1602,20 +1665,11 @@ static void Load(int argc, char *argv[]) {
   process->Set(String::NewSymbol("argv"), arguments);
 
   // create process.env
-  Local<Object> env = Object::New();
-  for (i = 0; environ[i]; i++) {
-    // skip entries without a '=' character
-    for (j = 0; environ[i][j] && environ[i][j] != '='; j++) { ; }
-    // create the v8 objects
-    Local<String> field = String::New(environ[i], j);
-    Local<String> value = Local<String>();
-    if (environ[i][j] == '=') {
-      value = String::New(environ[i]+j+1);
-    }
-    // assign them
-    env->Set(field, value);
-  }
+  Local<ObjectTemplate> envTemplate = ObjectTemplate::New();
+  envTemplate->SetNamedPropertyHandler(EnvGetter, EnvSetter, EnvQuery, EnvDeleter, EnvEnumerator, Undefined());
+
   // assign process.ENV
+  Local<Object> env = envTemplate->NewInstance();
   process->Set(String::NewSymbol("ENV"), env);
   process->Set(String::NewSymbol("env"), env);
 
