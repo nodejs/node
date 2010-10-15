@@ -85,4 +85,10 @@ dist: doc/node.1 doc/api.html
 bench:
 	 benchmark/http_simple_bench.sh
 
+bench-idle:
+	./node benchmark/idle_server.js &
+	sleep 1
+	./node benchmark/idle_clients.js &
+
+
 .PHONY: bench clean docclean dist distclean check uninstall install all test test-all website-upload

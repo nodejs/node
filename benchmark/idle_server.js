@@ -1,0 +1,33 @@
+net = require('net');
+connections = 0;
+
+var errors = 0;
+
+server = net.Server(function (socket) {
+
+  socket.on('end', function () {
+    socket.end();
+  });
+
+  socket.on('error', function () {
+    errors++; 
+  });
+
+});
+
+server.listen(9000);
+
+var oldConnections, oldErrors;
+
+setInterval(function () {
+  if (oldConnections != server.connections) {
+    oldConnections = server.connections;
+    console.log("SERVER %d connections: %d", process.pid, server.connections);
+  }
+
+  if (oldErrors != errors) {
+    oldErrors = errors;
+    console.log("SERVER %d errors: %d", process.pid, errors);
+  }
+}, 1000);
+
