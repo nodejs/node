@@ -18,7 +18,8 @@ fs.stat(bigFile, function (er, s) {
 
 function makeBigFile () {
   console.error("making bigFile");
-  cp.exec("dd if=/dev/zero of="+bigFile+" bs=128m count=1", function (er) {
+  // write 128mb of zeros to bigFile
+  cp.exec("dd if=/dev/zero of="+bigFile+" bs=134217728 count=1", function (er) {
     if (er) {
       console.error("Failed to create "+bigFile);
       throw er;
