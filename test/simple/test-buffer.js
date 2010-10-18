@@ -256,6 +256,17 @@ b = new Buffer(expectedWhite, 'base64');
 assert.equal(quote.length, b.length);
 assert.equal(quote, b.toString('ascii', 0, quote.length));
 
+// check that the base64 decoder ignores illegal chars
+var expectedIllegal = expected.slice(0, 60) + " \x80" +
+                      expected.slice(60, 120) + " \xff" +
+                      expected.slice(120, 180) + " \x00" +
+                      expected.slice(180, 240) + " \x98" +
+                      expected.slice(240, 300) + "\x03" +
+                      expected.slice(300, 360) 
+b = new Buffer(expectedIllegal, 'base64');
+assert.equal(quote.length, b.length);
+assert.equal(quote, b.toString('ascii', 0, quote.length));
+
 
 assert.equal(new Buffer('', 'base64').toString(), '');
 assert.equal(new Buffer('K', 'base64').toString(), '');
