@@ -27,6 +27,10 @@
 
 import test
 import os
+import shutil
+from shutil import rmtree
+from os import mkdir
+from glob import glob
 from os.path import join, dirname, exists
 import re
 
@@ -35,14 +39,33 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 
 
-class SimpleTestCase(test.TestCase):
+class PummelTestCase(test.TestCase):
 
   def __init__(self, path, file, mode, context, config):
-    super(SimpleTestCase, self).__init__(context, path)
+    super(PummelTestCase, self).__init__(context, path, mode)
     self.file = file
     self.config = config
     self.mode = mode
+    self.tmpdir = join(dirname(self.config.root), 'tmp')
+  
+  def AfterRun(self, result):
+    # delete the whole tmp dir
+    try:
+      rmtree(self.tmpdir)
+    except:
+      pass
+    # make it again.
+    mkdir(self.tmpdir)
 
+  def BeforeRun(self):
+    # delete the whole tmp dir
+    try:
+      rmtree(self.tmpdir)
+    except:
+      pass
+    # make it again.
+    mkdir(self.tmpdir)
+  
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
 
@@ -68,10 +91,10 @@ class SimpleTestCase(test.TestCase):
     return open(self.file).read()
 
 
-class SimpleTestConfiguration(test.TestConfiguration):
+class PummelTestConfiguration(test.TestConfiguration):
 
   def __init__(self, context, root):
-    super(SimpleTestConfiguration, self).__init__(context, root)
+    super(PummelTestConfiguration, self).__init__(context, root)
 
   def Ls(self, path):
     def SelectTest(name):
@@ -79,19 +102,12 @@ class SimpleTestConfiguration(test.TestConfiguration):
     return [f[:-3] for f in os.listdir(path) if SelectTest(f)]
 
   def ListTests(self, current_path, path, mode):
-    simple = [current_path + [t] for t in self.Ls(self.root)]
-    #simple = [current_path + ['simple', t] for t in self.Ls(join(self.root, 'simple'))]
-    #pummel = [current_path + ['pummel', t] for t in self.Ls(join(self.root, 'pummel'))]
-    #internet = [current_path + ['internet', t] for t in self.Ls(join(self.root, 'internet'))]
-    #regress = [current_path + ['regress', t] for t in self.Ls(join(self.root, 'regress'))]
-    #bugs = [current_path + ['bugs', t] for t in self.Ls(join(self.root, 'bugs'))]
-    #tools = [current_path + ['tools', t] for t in self.Ls(join(self.root, 'tools'))]
-    all_tests = simple # + regress + bugs + tools
+    all_tests = [current_path + [t] for t in self.Ls(join(self.root))]
     result = []
     for test in all_tests:
       if self.Contains(path, test):
         file_path = join(self.root, reduce(join, test[1:], "") + ".js")
-        result.append(SimpleTestCase(test, file_path, mode, self.context, self))
+        result.append(PummelTestCase(test, file_path, mode, self.context, self))
     return result
 
   def GetBuildRequirements(self):
@@ -105,4 +121,4 @@ class SimpleTestConfiguration(test.TestConfiguration):
 
 
 def GetConfiguration(context, root):
-  return SimpleTestConfiguration(context, root)
+  return PummelTestConfiguration(context, root)

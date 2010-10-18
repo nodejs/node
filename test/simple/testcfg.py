@@ -30,6 +30,7 @@ import os
 import shutil
 from shutil import rmtree
 from os import mkdir
+from glob import glob
 from os.path import join, dirname, exists
 import re
 
@@ -41,22 +42,29 @@ FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 class SimpleTestCase(test.TestCase):
 
   def __init__(self, path, file, mode, context, config):
-    super(SimpleTestCase, self).__init__(context, path)
+    super(SimpleTestCase, self).__init__(context, path, mode)
     self.file = file
     self.config = config
     self.mode = mode
+    self.tmpdir = join(dirname(self.config.root), 'tmp')
   
-  def tearDown(self):
+  def AfterRun(self, result):
+    # delete the whole tmp dir
     try:
-      rmtree(join(dirname(self.config.root), 'tmp'))
+      rmtree(self.tmpdir)
     except:
       pass
+    # make it again.
+    mkdir(self.tmpdir)
 
-  def setUp(self):
+  def BeforeRun(self):
+    # delete the whole tmp dir
     try:
-      mkdir(join(dirname(self.config.root), 'tmp'))
+      rmtree(self.tmpdir)
     except:
       pass
+    # make it again.
+    mkdir(self.tmpdir)
   
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
@@ -94,14 +102,7 @@ class SimpleTestConfiguration(test.TestConfiguration):
     return [f[:-3] for f in os.listdir(path) if SelectTest(f)]
 
   def ListTests(self, current_path, path, mode):
-    simple = [current_path + [t] for t in self.Ls(self.root)]
-    #simple = [current_path + ['simple', t] for t in self.Ls(join(self.root, 'simple'))]
-    #pummel = [current_path + ['pummel', t] for t in self.Ls(join(self.root, 'pummel'))]
-    #internet = [current_path + ['internet', t] for t in self.Ls(join(self.root, 'internet'))]
-    #regress = [current_path + ['regress', t] for t in self.Ls(join(self.root, 'regress'))]
-    #bugs = [current_path + ['bugs', t] for t in self.Ls(join(self.root, 'bugs'))]
-    #tools = [current_path + ['tools', t] for t in self.Ls(join(self.root, 'tools'))]
-    all_tests = simple # + regress + bugs + tools
+    all_tests = [current_path + [t] for t in self.Ls(join(self.root))]
     result = []
     for test in all_tests:
       if self.Contains(path, test):

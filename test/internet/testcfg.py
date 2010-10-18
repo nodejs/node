@@ -35,10 +35,10 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 
 
-class SimpleTestCase(test.TestCase):
+class InternetTestCase(test.TestCase):
 
   def __init__(self, path, file, mode, context, config):
-    super(SimpleTestCase, self).__init__(context, path)
+    super(InternetTestCase, self).__init__(context, path)
     self.file = file
     self.config = config
     self.mode = mode
@@ -68,10 +68,10 @@ class SimpleTestCase(test.TestCase):
     return open(self.file).read()
 
 
-class SimpleTestConfiguration(test.TestConfiguration):
+class InternetTestConfiguration(test.TestConfiguration):
 
   def __init__(self, context, root):
-    super(SimpleTestConfiguration, self).__init__(context, root)
+    super(InternetTestConfiguration, self).__init__(context, root)
 
   def Ls(self, path):
     def SelectTest(name):
@@ -91,7 +91,7 @@ class SimpleTestConfiguration(test.TestConfiguration):
     for test in all_tests:
       if self.Contains(path, test):
         file_path = join(self.root, reduce(join, test[1:], "") + ".js")
-        result.append(SimpleTestCase(test, file_path, mode, self.context, self))
+        result.append(InternetTestCase(test, file_path, mode, self.context, self))
     return result
 
   def GetBuildRequirements(self):
@@ -105,4 +105,4 @@ class SimpleTestConfiguration(test.TestConfiguration):
 
 
 def GetConfiguration(context, root):
-  return SimpleTestConfiguration(context, root)
+  return InternetTestConfiguration(context, root)
