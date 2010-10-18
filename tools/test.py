@@ -326,15 +326,16 @@ class CommandOutput(object):
     self.timed_out = timed_out
     self.stdout = stdout
     self.stderr = stderr
+    self.failed = None
 
 
 class TestCase(object):
 
-  def __init__(self, context, path):
+  def __init__(self, context, path, mode):
     self.path = path
     self.context = context
-    self.failed = None
     self.duration = None
+    self.mode = mode
 
   def IsNegative(self):
     return False
@@ -343,9 +344,9 @@ class TestCase(object):
     return cmp(other.duration, self.duration)
 
   def DidFail(self, output):
-    if self.failed is None:
-      self.failed = self.IsFailureOutput(output)
-    return self.failed
+    if output.failed is None:
+      output.failed = self.IsFailureOutput(output)
+    return output.failed
 
   def IsFailureOutput(self, output):
     return output.exit_code != 0
@@ -355,37 +356,54 @@ class TestCase(object):
 
   def RunCommand(self, command):
     full_command = self.context.processor(command)
-    output = Execute(full_command, self.context, self.context.timeout)
-    return TestOutput(self, full_command, output)
+    output = Execute(full_command,
+                     self.context,
+                     self.context.GetTimeout(self.mode))
+    self.Cleanup()
+    return TestOutput(self,
+                      full_command,
+                      output,
+                      self.context.store_unexpected_output)
+
+  def BeforeRun(self):
+    pass
+
+  def AfterRun(self, result):
+    pass
 
   def Run(self):
-    self.setUp()
-    result = self.RunCommand(self.GetCommand())
-    self.tearDown()
+    self.BeforeRun()
+    try:
+      result = self.RunCommand(self.GetCommand())
+    finally:
+      self.AfterRun(result)
     return result
-  
-  def setUp(self):
-    return
-  
-  def tearDown(self):
+
+  def Cleanup(self):
     return
 
 
 class TestOutput(object):
 
-  def __init__(self, test, command, output):
+  def __init__(self, test, command, output, store_unexpected_output):
     self.test = test
     self.command = command
     self.output = output
+    self.store_unexpected_output = store_unexpected_output
 
   def UnexpectedOutput(self):
     if self.HasCrashed():
       outcome = CRASH
+    elif self.HasTimedOut():
+      outcome = TIMEOUT
     elif self.HasFailed():
       outcome = FAIL
     else:
       outcome = PASS
     return not outcome in self.test.outcomes
+
+  def HasPreciousOutput(self):
+    return self.UnexpectedOutput() and self.store_unexpected_output
 
   def HasCrashed(self):
     if utils.IsWindows():
@@ -399,7 +417,7 @@ class TestOutput(object):
 
   def HasTimedOut(self):
     return self.output.timed_out;
-    
+
   def HasFailed(self):
     execution_failed = self.test.DidFail(self.output)
     if self.test.IsNegative():
@@ -480,6 +498,13 @@ def PrintError(str):
   sys.stderr.write('\n')
 
 
+def CheckedUnlink(name):
+  try:
+    os.unlink(name)
+  except OSError, e:
+    PrintError("os.unlink() " + str(e))
+
+
 def Execute(args, context, timeout=None):
   (fd_out, outname) = tempfile.mkstemp()
   (fd_err, errname) = tempfile.mkstemp()
@@ -494,11 +519,6 @@ def Execute(args, context, timeout=None):
   os.close(fd_err)
   output = file(outname).read()
   errors = file(errname).read()
-  def CheckedUnlink(name):
-    try:
-      os.unlink(name)
-    except OSError, e:
-      PrintError("os.unlink() " + str(e))
   CheckedUnlink(outname)
   CheckedUnlink(errname)
   return CommandOutput(exit_code, timed_out, output, errors)
@@ -547,6 +567,11 @@ class TestSuite(object):
     return self.name
 
 
+# Use this to run several variants of the tests, e.g.:
+# VARIANT_FLAGS = [[], ['--always_compact', '--noflush_code']]
+VARIANT_FLAGS = [[]]
+
+
 class TestRepository(TestSuite):
 
   def __init__(self, path):
@@ -573,8 +598,12 @@ class TestRepository(TestSuite):
   def GetBuildRequirements(self, path, context):
     return self.GetConfiguration(context).GetBuildRequirements()
 
-  def ListTests(self, current_path, path, context, mode):
-    return self.GetConfiguration(context).ListTests(current_path, path, mode)
+  def AddTestsToList(self, result, current_path, path, context, mode):
+    for v in VARIANT_FLAGS:
+      tests = self.GetConfiguration(context).ListTests(current_path, path, mode)
+      for t in tests: t.variant_flags = v
+      result += tests
+
 
   def GetTestStatus(self, context, sections, defs):
     self.GetConfiguration(context).GetTestStatus(sections, defs)
@@ -601,7 +630,7 @@ class LiteralTestSuite(TestSuite):
       test_name = test.GetName()
       if not name or name.match(test_name):
         full_path = current_path + [test_name]
-        result += test.ListTests(full_path, path, context, mode)
+        test.AddTestsToList(result, full_path, path, context, mode)
     return result
 
   def GetTestStatus(self, context, sections, defs):
@@ -609,12 +638,20 @@ class LiteralTestSuite(TestSuite):
       test.GetTestStatus(context, sections, defs)
 
 
-SUFFIX = {'debug': '_g', 'release': ''}
+SUFFIX = {
+    'debug'   : '_g',
+    'release' : '' }
+FLAGS = {
+    'debug'   : ['--enable-slow-asserts', '--debug-code', '--verify-heap'],
+    'release' : []}
+TIMEOUT_SCALEFACTOR = {
+    'debug'   : 4,
+    'release' : 1 }
 
 
 class Context(object):
 
-  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, suppress_dialogs):
+  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, suppress_dialogs, store_unexpected_output):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
@@ -622,20 +659,28 @@ class Context(object):
     self.timeout = timeout
     self.processor = processor
     self.suppress_dialogs = suppress_dialogs
+    self.store_unexpected_output = store_unexpected_output
 
   def GetVm(self, mode):
     if mode == 'debug':
       name = 'build/debug/node_g'
     else:
       name = 'build/default/node'
+
     if utils.IsWindows() and not name.endswith('.exe'):
       name = name + '.exe'
     return name
 
-def RunTestCases(all_cases, progress, tasks):
-  def DoSkip(case):
-    return SKIP in c.outcomes or SLOW in c.outcomes
-  cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
+  def GetVmCommand(self, testcase, mode):
+    return [self.GetVm(mode)] + self.GetVmFlags(testcase, mode)
+
+  def GetVmFlags(self, testcase, mode):
+    return testcase.variant_flags + FLAGS[mode]
+
+  def GetTimeout(self, mode):
+    return self.timeout * TIMEOUT_SCALEFACTOR[mode]
+
+def RunTestCases(cases_to_run, progress, tasks):
   progress = PROGRESS_INDICATORS[progress](cases_to_run)
   return progress.Run(tasks)
 
@@ -1088,6 +1133,8 @@ def BuildOptions():
       choices=PROGRESS_INDICATORS.keys(), default="mono")
   result.add_option("--no-build", help="Don't build requirements",
       default=True, action="store_true")
+  result.add_option("--build-only", help="Only build requirements, don't run the tests",
+      default=False, action="store_true")
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
   result.add_option("-s", "--suite", help="A test suite",
@@ -1096,6 +1143,8 @@ def BuildOptions():
       default=60, type="int")
   result.add_option("--arch", help='The architecture to run tests for',
       default='none')
+  result.add_option("--snapshot", help="Run the tests with snapshot turned on",
+      default=False, action="store_true")
   result.add_option("--simulator", help="Run tests with architecture simulator",
       default='none')
   result.add_option("--special-command", default=None)
@@ -1113,7 +1162,13 @@ def BuildOptions():
         dest="suppress_dialogs", default=True, action="store_true")
   result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
         dest="suppress_dialogs", action="store_false")
-  result.add_option("--shell", help="Path to V8 shell", default="shell");
+  result.add_option("--shell", help="Path to V8 shell", default="shell")
+  result.add_option("--store-unexpected-output", 
+      help="Store the temporary JS files from tests that fails",
+      dest="store_unexpected_output", default=True, action="store_true")
+  result.add_option("--no-store-unexpected-output", 
+      help="Deletes the temporary JS files from tests that fails",
+      dest="store_unexpected_output", action="store_false")
   return result
 
 
@@ -1140,6 +1195,9 @@ def ProcessOptions(options):
     # was found, set the arch to the guess.
     if options.arch == 'none':
       options.arch = ARCH_GUESS
+    options.scons_flags.append("arch=" + options.arch)
+  if options.snapshot:
+    options.scons_flags.append("snapshot=on")
   return True
 
 
@@ -1247,11 +1305,13 @@ def Main():
 
   shell = abspath(options.shell)
   buildspace = dirname(shell)
+
   context = Context(workspace, buildspace, VERBOSE,
                     shell,
                     options.timeout,
                     GetSpecialCommandProcessor(options.special_command),
-                    options.suppress_dialogs)
+                    options.suppress_dialogs,
+                    options.store_unexpected_output)
   # First build the required targets
   if not options.no_build:
     reqs = [ ]
@@ -1263,6 +1323,10 @@ def Main():
         options.scons_flags += ['-j', str(options.j)]
       if not BuildRequirements(context, reqs, options.mode, options.scons_flags):
         return 1
+
+  # Just return if we are only building the targets for running the tests.
+  if options.build_only:
+    return 0
 
   # Get status for tests
   sections = [ ]
@@ -1317,13 +1381,16 @@ def Main():
     PrintReport(all_cases)
 
   result = None
-  if len(all_cases) == 0:
+  def DoSkip(case):
+    return SKIP in case.outcomes or SLOW in case.outcomes
+  cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
+  if len(cases_to_run) == 0:
     print "No tests to run."
     return 0
   else:
     try:
       start = time.time()
-      if RunTestCases(all_cases, options.progress, options.j):
+      if RunTestCases(cases_to_run, options.progress, options.j):
         result = 0
       else:
         result = 1
@@ -1337,7 +1404,7 @@ def Main():
     # test output.
     print
     sys.stderr.write("--- Total time: %s ---\n" % FormatTime(duration))
-    timed_tests = [ t.case for t in all_cases if not t.case.duration is None ]
+    timed_tests = [ t.case for t in cases_to_run if not t.case.duration is None ]
     timed_tests.sort(lambda a, b: a.CompareTime(b))
     index = 1
     for entry in timed_tests[:20]:
