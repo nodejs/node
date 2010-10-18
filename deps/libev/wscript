@@ -8,12 +8,13 @@ def configure(conf):
   conf.env.append_value('CCFLAGS', ['-DHAVE_CONFIG_H=1'])
 
 def build(bld):
-  cares = bld.new_task_gen("cc")
-  cares.source = "ev.c"
-  cares.target = 'ev'
-  cares.name = 'ev'
-  cares.includes = '. ./' + bld.env['DEST_OS']
-  cares.install_path = None
+  libev = bld.new_task_gen("cc")
+  libev.source = "ev.c"
+  libev.target = 'ev'
+  libev.name = 'ev'
+  libev.includes = '. ./' + bld.env['DEST_OS']
+  libev.install_path = None
   if bld.env["USE_DEBUG"]:
-    cares.clone("debug");
+    libev.clone("debug");
+  bld.install_files('${PREFIX}/include/node/', 'ev.h');
 

@@ -8,12 +8,12 @@ def configure(conf):
   conf.env.append_value('CCFLAGS', ['-DHAVE_CONFIG_H=1', '-D_GNU_SOURCE'])
 
 def build(bld):
-  cares = bld.new_task_gen("cc")
-  cares.source = "eio.c"
-  cares.target = 'eio'
-  cares.name = 'eio'
-  cares.includes = '. ./' + bld.env['DEST_OS']
-  cares.install_path = None
+  libeio = bld.new_task_gen("cc")
+  libeio.source = "eio.c"
+  libeio.target = 'eio'
+  libeio.name = 'eio'
+  libeio.includes = '. ./' + bld.env['DEST_OS']
+  libeio.install_path = None
   if bld.env["USE_DEBUG"]:
-    cares.clone("debug");
-
+    libeio.clone("debug");
+  bld.install_files('${PREFIX}/include/node/', 'eio.h');
