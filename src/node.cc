@@ -79,6 +79,7 @@ static int option_end_index = 0;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port=5858;
+static int max_stack_size = 0;
 
 static ev_check check_tick_watcher;
 static ev_prepare prepare_tick_watcher;
@@ -1703,21 +1704,22 @@ static void ParseDebugOpt(const char* arg) {
 static void PrintHelp() {
   printf("Usage: node [options] script.js [arguments] \n"
          "Options:\n"
-         "  -v, --version      print node's version\n"
-         "  --debug[=port]     enable remote debugging via given TCP port\n"
-         "                     without stopping the execution\n"
-         "  --debug-brk[=port] as above, but break in script.js and\n"
-         "                     wait for remote debugger to connect\n"
-         "  --v8-options       print v8 command line options\n"
-         "  --vars             print various compiled-in variables\n"
+         "  -v, --version        print node's version\n"
+         "  --debug[=port]       enable remote debugging via given TCP port\n"
+         "                       without stopping the execution\n"
+         "  --debug-brk[=port]   as above, but break in script.js and\n"
+         "                       wait for remote debugger to connect\n"
+         "  --v8-options         print v8 command line options\n"
+         "  --vars               print various compiled-in variables\n"
+         "  --max-stack-size=val set max v8 stack size (bytes)\n"
          "\n"
          "Enviromental variables:\n"
-         "NODE_PATH            ':'-separated list of directories\n"
-         "                     prefixed to the module search path,\n"
-         "                     require.paths.\n"
-         "NODE_DEBUG           Print additional debugging output.\n"
-         "NODE_MODULE_CONTEXTS Set to 1 to load modules in their own\n"
-         "                     global contexts.\n"
+         "NODE_PATH              ':'-separated list of directories\n"
+         "                       prefixed to the module search path,\n"
+         "                       require.paths.\n"
+         "NODE_DEBUG             Print additional debugging output.\n"
+         "NODE_MODULE_CONTEXTS   Set to 1 to load modules in their own\n"
+         "                       global contexts.\n"
          "NODE_DISABLE_COLORS  Set to 1 to disable colors in the REPL\n"
          "\n"
          "Documentation can be found at http://nodejs.org/api.html"
@@ -1741,6 +1743,11 @@ static void ParseArgs(int *argc, char **argv) {
       printf("NODE_PREFIX: %s\n", NODE_PREFIX);
       printf("NODE_CFLAGS: %s\n", NODE_CFLAGS);
       exit(0);
+    } else if (strstr(arg, "--max-stack-size=") == arg) {
+      const char *p = 0;
+      p = 1 + strchr(arg, '=');
+      max_stack_size = atoi(p);
+      argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
       exit(0);
@@ -1803,6 +1810,20 @@ int Start(int argc, char *argv[]) {
     memcpy(v8argv, argv, sizeof(argv) * node::option_end_index);
     v8argv[node::option_end_index] = const_cast<char*>("--expose_debug_as");
     v8argv[node::option_end_index + 1] = const_cast<char*>("v8debug");
+  }
+
+  // For the normal stack which moves from high to low addresses when frames
+  // are pushed, we can compute the limit as stack_size bytes below the
+  // the address of a stack variable (e.g. &stack_var) as an approximation
+  // of the start of the stack (we're assuming that we haven't pushed a lot
+  // of frames yet).
+  if (node::max_stack_size != 0) {
+    uint32_t stack_var;
+    ResourceConstraints constraints;
+
+    uint32_t *stack_limit = &stack_var - (node::max_stack_size / sizeof(uint32_t));
+    constraints.set_stack_limit(stack_limit);
+    SetResourceConstraints(&constraints); // Must be done before V8::Initialize
   }
   V8::SetFlagsFromCommandLine(&v8argc, v8argv, false);
 
