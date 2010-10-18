@@ -238,6 +238,25 @@ bytesWritten = b.write(expected, 0, 'base64');
 assert.equal(quote.length, bytesWritten);
 assert.equal(quote, b.toString('ascii', 0, quote.length));
 
+// check that the base64 decoder ignores whitespace
+var expectedWhite = expected.slice(0, 60) + " \n" +
+                    expected.slice(60, 120) + " \n" +
+                    expected.slice(120, 180) + " \n" +
+                    expected.slice(180, 240) + " \n" +
+                    expected.slice(240, 300) + "\n" +
+                    expected.slice(300, 360) + "\n";
+b = new Buffer(1024);
+bytesWritten = b.write(expectedWhite, 0, 'base64');
+assert.equal(quote.length, bytesWritten);
+assert.equal(quote, b.toString('ascii', 0, quote.length));
+
+// check that the base64 decoder on the constructor works
+// even in the presence of whitespace.
+b = new Buffer(expectedWhite, 'base64');
+assert.equal(quote.length, b.length);
+assert.equal(quote, b.toString('ascii', 0, quote.length));
+
+
 assert.equal(new Buffer('', 'base64').toString(), '');
 assert.equal(new Buffer('K', 'base64').toString(), '');
 
