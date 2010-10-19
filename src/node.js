@@ -126,15 +126,20 @@ var module = (function () {
   var pathModule = createInternalModule('path', pathFn);
   var path = pathModule.exports;
 
-  var modulePaths = [path.join(process.execPath, "..", "..", "lib", "node")];
-
-  if (process.env["HOME"]) {
-    modulePaths.unshift(path.join(process.env["HOME"], ".node_libraries"));
+  // The paths that the user has specifically asked for.  Highest priority.
+  // This is what's hung on require.paths.
+  var modulePaths = [];
+  if (process.env.NODE_PATH) {
+    modulePaths = process.env.NODE_PATH.split(":");
   }
 
-  if (process.env["NODE_PATH"]) {
-    modulePaths = process.env["NODE_PATH"].split(":").concat(modulePaths);
+  // The default global paths that are always checked.
+  // Lowest priority.
+  var defaultPaths = [];
+  if (process.env.HOME) {
+    defaultPaths.push(path.join(process.env.HOME, ".node_libraries"));
   }
+  defaultPaths.push(path.join(process.execPath, "..", "..", "lib", "node"));
 
   var extensions = {};
   var registerExtension = removed('require.registerExtension() removed. Use require.extensions instead');
@@ -185,7 +190,7 @@ var module = (function () {
 
     var start = request.substring(0, 2);
     if (start !== "./" && start !== "..") {
-      return [request, modulePaths];
+      return [request, modulePaths.concat(defaultPaths)];
     }
 
     // Is the parent an index module?
