@@ -244,6 +244,15 @@ Adds a listener to the end of the listeners array for the specified event.
       console.log('someone connected!');
     });
 
+### emitter.once(event, listener)
+
+Adds a **one time** listener for the event. The listener is
+invoked only the first time the event is fired, after which
+it is removed.
+
+    server.once('connection', function (stream) {
+      console.log('Ah, we have our first user!');
+    });
 
 ### emitter.removeListener(event, listener)
 
