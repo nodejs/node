@@ -137,6 +137,7 @@ var module = (function () {
   // Lowest priority.
   var defaultPaths = [];
   if (process.env.HOME) {
+    defaultPaths.push(path.join(process.env.HOME, ".node_modules"));
     defaultPaths.push(path.join(process.env.HOME, ".node_libraries"));
   }
   defaultPaths.push(path.join(process.execPath, "..", "..", "lib", "node"));

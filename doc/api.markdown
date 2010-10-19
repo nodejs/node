@@ -3241,15 +3241,15 @@ Without the leading `'./'`, like `require('assert')` the module is searched
 for in the `require.paths` array. `require.paths` on my system looks like
 this: 
 
-`[ '/home/ryan/.node_libraries' ]`
+`[ '/home/ryan/.node_modules' ]`
 
 That is, when `require('foo')` is called Node looks for:
 
-* 1: `/home/ryan/.node_libraries/foo`
-* 2: `/home/ryan/.node_libraries/foo.js`
-* 3: `/home/ryan/.node_libraries/foo.node`
-* 4: `/home/ryan/.node_libraries/foo/index.js`
-* 5: `/home/ryan/.node_libraries/foo/index.node`
+* 1: `/home/ryan/.node_modules/foo`
+* 2: `/home/ryan/.node_modules/foo.js`
+* 3: `/home/ryan/.node_modules/foo.node`
+* 4: `/home/ryan/.node_modules/foo/index.js`
+* 5: `/home/ryan/.node_modules/foo/index.node`
 
 interrupting once a file is found. Files ending in `'.node'` are binary Addon
 Modules; see 'Addons' below. `'index.js'` allows one to package a module as
