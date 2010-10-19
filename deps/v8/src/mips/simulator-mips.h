@@ -38,7 +38,7 @@
 
 #include "allocation.h"
 
-#if defined(__mips)
+#if defined(__mips) && !defined(USE_SIMULATOR)
 
 // When running without a simulator we call the entry directly.
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
@@ -79,7 +79,7 @@ class SimulatorStack : public v8::internal::AllStatic {
   reinterpret_cast<TryCatch*>(try_catch_address)
 
 
-#else   // #if defined(__mips)
+#else  // #if !defined(__mips) || defined(USE_SIMULATOR)
 
 // When running with the simulator transition into simulated execution at this
 // point.
@@ -305,7 +305,7 @@ class SimulatorStack : public v8::internal::AllStatic {
   }
 };
 
-#endif  // defined(__mips)
+#endif  // !defined(__mips) || defined(USE_SIMULATOR)
 
 #endif  // V8_MIPS_SIMULATOR_MIPS_H_
 

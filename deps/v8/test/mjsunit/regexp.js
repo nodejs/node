@@ -502,3 +502,90 @@ for (var i = 0; i < 100; i++) {
   res[3] = "Glopglyf";
   assertEquals("Arglebargle", res.foobar);
 }
+
+// Test that we perform the spec required conversions in the correct order.
+var log;
+var string = "the string";
+var fakeLastIndex = { 
+      valueOf: function() { 
+        log.push("li");
+        return 0;
+      } 
+    };
+var fakeString = { 
+      toString: function() {
+        log.push("ts");
+        return string;
+      }, 
+      length: 0 
+    };
+
+var re = /str/;
+log = [];
+re.lastIndex = fakeLastIndex;
+var result = re.exec(fakeString);
+assertEquals(["str"], result);
+assertEquals(["ts", "li"], log);
+
+// Again, to check if caching interferes.
+log = [];
+re.lastIndex = fakeLastIndex;
+result = re.exec(fakeString);
+assertEquals(["str"], result);
+assertEquals(["ts", "li"], log);
+
+// And one more time, just to be certain.
+log = [];
+re.lastIndex = fakeLastIndex;
+result = re.exec(fakeString);
+assertEquals(["str"], result);
+assertEquals(["ts", "li"], log);
+
+// Now with a global regexp, where lastIndex is actually used.
+re = /str/g;
+log = [];
+re.lastIndex = fakeLastIndex;
+var result = re.exec(fakeString);
+assertEquals(["str"], result);
+assertEquals(["ts", "li"], log);
+
+// Again, to check if caching interferes.
+log = [];
+re.lastIndex = fakeLastIndex;
+result = re.exec(fakeString);
+assertEquals(["str"], result);
+assertEquals(["ts", "li"], log);
+
+// And one more time, just to be certain.
+log = [];
+re.lastIndex = fakeLastIndex;
+result = re.exec(fakeString);
+assertEquals(["str"], result);
+assertEquals(["ts", "li"], log);
+
+
+// Check that properties of RegExp have the correct permissions.
+var re = /x/g;
+var desc = Object.getOwnPropertyDescriptor(re, "global");
+assertEquals(true, desc.value);
+assertEquals(false, desc.configurable);
+assertEquals(false, desc.enumerable);
+assertEquals(false, desc.writable);
+
+desc = Object.getOwnPropertyDescriptor(re, "multiline");
+assertEquals(false, desc.value);
+assertEquals(false, desc.configurable);
+assertEquals(false, desc.enumerable);
+assertEquals(false, desc.writable);
+
+desc = Object.getOwnPropertyDescriptor(re, "ignoreCase");
+assertEquals(false, desc.value);
+assertEquals(false, desc.configurable);
+assertEquals(false, desc.enumerable);
+assertEquals(false, desc.writable);
+
+desc = Object.getOwnPropertyDescriptor(re, "lastIndex");
+assertEquals(0, desc.value);
+assertEquals(false, desc.configurable);
+assertEquals(false, desc.enumerable);
+assertEquals(true, desc.writable);

@@ -1679,6 +1679,21 @@ Local<String> StackFrame::GetScriptName() const {
 }
 
 
+Local<String> StackFrame::GetScriptNameOrSourceURL() const {
+  if (IsDeadCheck("v8::StackFrame::GetScriptNameOrSourceURL()")) {
+    return Local<String>();
+  }
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> name = GetProperty(self, "scriptNameOrSourceURL");
+  if (!name->IsString()) {
+    return Local<String>();
+  }
+  return scope.Close(Local<String>::Cast(Utils::ToLocal(name)));
+}
+
+
 Local<String> StackFrame::GetFunctionName() const {
   if (IsDeadCheck("v8::StackFrame::GetFunctionName()")) return Local<String>();
   ENTER_V8;
@@ -1988,6 +2003,15 @@ void v8::Date::CheckCast(v8::Value* that) {
   ApiCheck(obj->HasSpecificClassOf(i::Heap::Date_symbol()),
            "v8::Date::Cast()",
            "Could not convert to date");
+}
+
+
+void v8::RegExp::CheckCast(v8::Value* that) {
+  if (IsDeadCheck("v8::RegExp::Cast()")) return;
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->IsJSRegExp(),
+           "v8::RegExp::Cast()",
+           "Could not convert to regular expression");
 }
 
 
@@ -3709,6 +3733,57 @@ double v8::Date::NumberValue() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
   return jsvalue->value()->Number();
+}
+
+
+static i::Handle<i::String> RegExpFlagsToString(RegExp::Flags flags) {
+  char flags_buf[3];
+  int num_flags = 0;
+  if ((flags & RegExp::kGlobal) != 0) flags_buf[num_flags++] = 'g';
+  if ((flags & RegExp::kMultiline) != 0) flags_buf[num_flags++] = 'm';
+  if ((flags & RegExp::kIgnoreCase) != 0) flags_buf[num_flags++] = 'i';
+  ASSERT(num_flags <= static_cast<int>(ARRAY_SIZE(flags_buf)));
+  return i::Factory::LookupSymbol(
+      i::Vector<const char>(flags_buf, num_flags));
+}
+
+
+Local<v8::RegExp> v8::RegExp::New(Handle<String> pattern,
+                                  Flags flags) {
+  EnsureInitialized("v8::RegExp::New()");
+  LOG_API("RegExp::New");
+  ENTER_V8;
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::JSRegExp> obj = i::Execution::NewJSRegExp(
+      Utils::OpenHandle(*pattern),
+      RegExpFlagsToString(flags),
+      &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(Local<v8::RegExp>());
+  return Utils::ToLocal(i::Handle<i::JSRegExp>::cast(obj));
+}
+
+
+Local<v8::String> v8::RegExp::GetSource() const {
+  if (IsDeadCheck("v8::RegExp::GetSource()")) return Local<v8::String>();
+  i::Handle<i::JSRegExp> obj = Utils::OpenHandle(this);
+  return Utils::ToLocal(i::Handle<i::String>(obj->Pattern()));
+}
+
+
+// Assert that the static flags cast in GetFlags is valid.
+#define REGEXP_FLAG_ASSERT_EQ(api_flag, internal_flag)        \
+  STATIC_ASSERT(static_cast<int>(v8::RegExp::api_flag) ==     \
+                static_cast<int>(i::JSRegExp::internal_flag))
+REGEXP_FLAG_ASSERT_EQ(kNone, NONE);
+REGEXP_FLAG_ASSERT_EQ(kGlobal, GLOBAL);
+REGEXP_FLAG_ASSERT_EQ(kIgnoreCase, IGNORE_CASE);
+REGEXP_FLAG_ASSERT_EQ(kMultiline, MULTILINE);
+#undef REGEXP_FLAG_ASSERT_EQ
+
+v8::RegExp::Flags v8::RegExp::GetFlags() const {
+  if (IsDeadCheck("v8::RegExp::GetFlags()")) return v8::RegExp::kNone;
+  i::Handle<i::JSRegExp> obj = Utils::OpenHandle(this);
+  return static_cast<RegExp::Flags>(obj->GetFlags().value());
 }
 
 

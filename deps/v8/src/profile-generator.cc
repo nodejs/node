@@ -94,12 +94,18 @@ StringsStorage::StringsStorage()
 }
 
 
+static void DeleteIndexName(char** name_ptr) {
+  DeleteArray(*name_ptr);
+}
+
+
 StringsStorage::~StringsStorage() {
   for (HashMap::Entry* p = names_.Start();
        p != NULL;
        p = names_.Next(p)) {
     DeleteArray(reinterpret_cast<const char*>(p->value));
   }
+  index_names_.Iterate(DeleteIndexName);
 }
 
 
@@ -117,6 +123,22 @@ const char* StringsStorage::GetName(String* name) {
     return reinterpret_cast<const char*>(cache_entry->value);
   }
   return "";
+}
+
+
+const char* StringsStorage::GetName(int index) {
+  ASSERT(index >= 0);
+  if (index_names_.length() <= index) {
+    index_names_.AddBlock(
+        NULL, index - index_names_.length() + 1);
+  }
+  if (index_names_[index] == NULL) {
+    const int kMaximumNameLength = 32;
+    char* name = NewArray<char>(kMaximumNameLength);
+    OS::SNPrintF(Vector<char>(name, kMaximumNameLength), "%d", index);
+    index_names_[index] = name;
+  }
+  return index_names_[index];
 }
 
 
@@ -485,11 +507,6 @@ CpuProfilesCollection::CpuProfilesCollection()
 }
 
 
-static void DeleteArgsCountName(char** name_ptr) {
-  DeleteArray(*name_ptr);
-}
-
-
 static void DeleteCodeEntry(CodeEntry** entry_ptr) {
   delete *entry_ptr;
 }
@@ -508,7 +525,6 @@ CpuProfilesCollection::~CpuProfilesCollection() {
   current_profiles_.Iterate(DeleteCpuProfile);
   profiles_by_token_.Iterate(DeleteProfilesList);
   code_entries_.Iterate(DeleteCodeEntry);
-  args_count_names_.Iterate(DeleteArgsCountName);
 }
 
 
@@ -703,22 +719,6 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(int security_token_id) {
   CodeEntry* entry = new CodeEntry(security_token_id);
   code_entries_.Add(entry);
   return entry;
-}
-
-
-const char* CpuProfilesCollection::GetName(int args_count) {
-  ASSERT(args_count >= 0);
-  if (args_count_names_.length() <= args_count) {
-    args_count_names_.AddBlock(
-        NULL, args_count - args_count_names_.length() + 1);
-  }
-  if (args_count_names_[args_count] == NULL) {
-    const int kMaximumNameLength = 32;
-    char* name = NewArray<char>(kMaximumNameLength);
-    OS::SNPrintF(Vector<char>(name, kMaximumNameLength), "%d", args_count);
-    args_count_names_[args_count] = name;
-  }
-  return args_count_names_[args_count];
 }
 
 
@@ -1001,6 +1001,8 @@ const char* HeapEntry::TypeAsString() {
     case kString: return "/string/";
     case kCode: return "/code/";
     case kArray: return "/array/";
+    case kRegExp: return "/regexp/";
+    case kHeapNumber: return "/number/";
     default: return "???";
   }
 }
@@ -1284,11 +1286,16 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
-    String* name = String::cast(shared->name())->length() > 0 ?
-        String::cast(shared->name()) : shared->inferred_name();
     return AddEntry(object,
                     HeapEntry::kClosure,
-                    collection_->GetFunctionName(name),
+                    collection_->GetName(String::cast(shared->name())),
+                    children_count,
+                    retainers_count);
+  } else if (object->IsJSRegExp()) {
+    JSRegExp* re = JSRegExp::cast(object);
+    return AddEntry(object,
+                    HeapEntry::kRegExp,
+                    collection_->GetName(re->Pattern()),
                     children_count,
                     retainers_count);
   } else if (object->IsJSObject()) {
@@ -1333,6 +1340,12 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
                     "",
                     children_count,
                     retainers_count);
+  } else if (object->IsHeapNumber()) {
+    return AddEntry(object,
+                    HeapEntry::kHeapNumber,
+                    "number",
+                    children_count,
+                    retainers_count);
   }
   // No interest in this object.
   return NULL;
@@ -1342,12 +1355,14 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
 bool HeapSnapshot::WillAddEntry(HeapObject* object) {
   return object == kInternalRootObject
       || object->IsJSFunction()
+      || object->IsJSRegExp()
       || object->IsJSObject()
       || object->IsString()
       || object->IsCode()
       || object->IsSharedFunctionInfo()
       || object->IsScript()
-      || object->IsFixedArray();
+      || object->IsFixedArray()
+      || object->IsHeapNumber();
 }
 
 
@@ -1904,13 +1919,21 @@ void HeapSnapshotGenerator::ExtractReferences(HeapObject* obj) {
     ExtractClosureReferences(js_obj, entry);
     ExtractPropertyReferences(js_obj, entry);
     ExtractElementReferences(js_obj, entry);
+    ExtractInternalReferences(js_obj, entry);
     SetPropertyReference(
-        obj, entry, Heap::prototype_symbol(), js_obj->map()->prototype());
+        obj, entry, Heap::Proto_symbol(), js_obj->GetPrototype());
+    if (obj->IsJSFunction()) {
+      JSFunction* js_fun = JSFunction::cast(obj);
+      if (js_fun->has_prototype()) {
+        SetPropertyReference(
+            obj, entry, Heap::prototype_symbol(), js_fun->prototype());
+      }
+    }
   } else if (obj->IsString()) {
     if (obj->IsConsString()) {
       ConsString* cs = ConsString::cast(obj);
-      SetElementReference(obj, entry, 0, cs->first());
-      SetElementReference(obj, entry, 1, cs->second());
+      SetInternalReference(obj, entry, "1", cs->first());
+      SetInternalReference(obj, entry, "2", cs->second());
     }
   } else if (obj->IsCode() || obj->IsSharedFunctionInfo() || obj->IsScript()) {
     IndexedReferencesExtractor refs_extractor(this, obj, entry);
@@ -2005,6 +2028,16 @@ void HeapSnapshotGenerator::ExtractElementReferences(JSObject* js_obj,
 }
 
 
+void HeapSnapshotGenerator::ExtractInternalReferences(JSObject* js_obj,
+                                                      HeapEntry* entry) {
+  int length = js_obj->GetInternalFieldCount();
+  for (int i = 0; i < length; ++i) {
+    Object* o = js_obj->GetInternalField(i);
+    SetInternalReference(js_obj, entry, i, o);
+  }
+}
+
+
 void HeapSnapshotGenerator::SetClosureReference(HeapObject* parent_obj,
                                                 HeapEntry* parent_entry,
                                                 String* reference_name,
@@ -2049,13 +2082,31 @@ void HeapSnapshotGenerator::SetInternalReference(HeapObject* parent_obj,
 }
 
 
+void HeapSnapshotGenerator::SetInternalReference(HeapObject* parent_obj,
+                                                 HeapEntry* parent_entry,
+                                                 int index,
+                                                 Object* child_obj) {
+  HeapEntry* child_entry = GetEntry(child_obj);
+  if (child_entry != NULL) {
+    filler_->SetNamedReference(HeapGraphEdge::kInternal,
+                               parent_obj,
+                               parent_entry,
+                               collection_->GetName(index),
+                               child_obj,
+                               child_entry);
+  }
+}
+
+
 void HeapSnapshotGenerator::SetPropertyReference(HeapObject* parent_obj,
                                                  HeapEntry* parent_entry,
                                                  String* reference_name,
                                                  Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry != NULL) {
-    filler_->SetNamedReference(HeapGraphEdge::kProperty,
+    HeapGraphEdge::Type type = reference_name->length() > 0 ?
+        HeapGraphEdge::kProperty : HeapGraphEdge::kInternal;
+    filler_->SetNamedReference(type,
                                parent_obj,
                                parent_entry,
                                collection_->GetName(reference_name),
@@ -2351,7 +2402,9 @@ void HeapSnapshotJSONSerializer::SerializeNodes() {
             "," JSON_S("string")
             "," JSON_S("object")
             "," JSON_S("code")
-            "," JSON_S("closure"))
+            "," JSON_S("closure")
+            "," JSON_S("regexp")
+            "," JSON_S("number"))
         "," JSON_S("string")
         "," JSON_S("number")
         "," JSON_S("number")

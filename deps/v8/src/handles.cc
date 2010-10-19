@@ -635,8 +635,19 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
 }
 
 
+static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
+  int len = array->length();
+  for (int i = 0; i < len; i++) {
+    Object* e = array->get(i);
+    if (!(e->IsString() || e->IsNumber())) return false;
+  }
+  return true;
+}
+
+
 Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
                                           KeyCollectionType type) {
+  USE(ContainsOnlyValidKeys);
   Handle<FixedArray> content = Factory::empty_fixed_array();
   Handle<JSObject> arguments_boilerplate =
       Handle<JSObject>(
@@ -664,6 +675,7 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
         Factory::NewFixedArray(current->NumberOfEnumElements());
     current->GetEnumElementKeys(*element_keys);
     content = UnionOfKeys(content, element_keys);
+    ASSERT(ContainsOnlyValidKeys(content));
 
     // Add the element keys from the interceptor.
     if (current->HasIndexedInterceptor()) {
@@ -671,6 +683,7 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
           GetKeysForIndexedInterceptor(object, current);
       if (!result.IsEmpty())
         content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
+      ASSERT(ContainsOnlyValidKeys(content));
     }
 
     // We can cache the computed property keys if access checks are
@@ -692,6 +705,7 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
     // Compute the property keys and cache them if possible.
     content =
         UnionOfKeys(content, GetEnumPropertyKeys(current, cache_enum_keys));
+    ASSERT(ContainsOnlyValidKeys(content));
 
     // Add the property keys from the interceptor.
     if (current->HasNamedInterceptor()) {
@@ -699,6 +713,7 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
           GetKeysForNamedInterceptor(object, current);
       if (!result.IsEmpty())
         content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
+      ASSERT(ContainsOnlyValidKeys(content));
     }
 
     // If we only want local properties we bail out after the first
@@ -779,7 +794,7 @@ static bool CompileLazyHelper(CompilationInfo* info,
 
 bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
                        ClearExceptionFlag flag) {
-  LazySharedCompilationInfo info(shared);
+  CompilationInfo info(shared);
   return CompileLazyHelper(&info, flag);
 }
 
@@ -788,11 +803,13 @@ bool CompileLazy(Handle<JSFunction> function,
                  ClearExceptionFlag flag) {
   if (function->shared()->is_compiled()) {
     function->set_code(function->shared()->code());
+    PROFILE(FunctionCreateEvent(*function));
     function->shared()->set_code_age(0);
     return true;
   } else {
-    LazyFunctionCompilationInfo info(function, 0);
+    CompilationInfo info(function);
     bool result = CompileLazyHelper(&info, flag);
+    ASSERT(!result || function->is_compiled());
     PROFILE(FunctionCreateEvent(*function));
     return result;
   }
@@ -803,11 +820,14 @@ bool CompileLazyInLoop(Handle<JSFunction> function,
                        ClearExceptionFlag flag) {
   if (function->shared()->is_compiled()) {
     function->set_code(function->shared()->code());
+    PROFILE(FunctionCreateEvent(*function));
     function->shared()->set_code_age(0);
     return true;
   } else {
-    LazyFunctionCompilationInfo info(function, 1);
+    CompilationInfo info(function);
+    info.MarkAsInLoop();
     bool result = CompileLazyHelper(&info, flag);
+    ASSERT(!result || function->is_compiled());
     PROFILE(FunctionCreateEvent(*function));
     return result;
   }

@@ -5344,43 +5344,42 @@ bool Parser::ParseRegExp(FlatStringReader* input,
 }
 
 
-FunctionLiteral* Parser::MakeAST(bool compile_in_global_context,
-                                 Handle<Script> script,
-                                 v8::Extension* extension,
-                                 ScriptDataImpl* pre_data,
-                                 bool is_json) {
-  bool allow_natives_syntax =
-      FLAG_allow_natives_syntax || Bootstrapper::IsActive();
-  AstBuildingParser parser(script, allow_natives_syntax, extension, pre_data);
-  if (pre_data != NULL && pre_data->has_error()) {
-    Scanner::Location loc = pre_data->MessageLocation();
-    const char* message = pre_data->BuildMessage();
-    Vector<const char*> args = pre_data->BuildArgs();
-    parser.ReportMessageAt(loc, message, args);
-    DeleteArray(message);
-    for (int i = 0; i < args.length(); i++) {
-      DeleteArray(args[i]);
-    }
-    DeleteArray(args.start());
-    return NULL;
-  }
-  Handle<String> source = Handle<String>(String::cast(script->source()));
-  FunctionLiteral* result;
-  if (is_json) {
-    ASSERT(compile_in_global_context);
-    result = parser.ParseJson(source);
+bool Parser::Parse(CompilationInfo* info) {
+  ASSERT(info->function() == NULL);
+  FunctionLiteral* result = NULL;
+  Handle<Script> script = info->script();
+  if (info->is_lazy()) {
+    AstBuildingParser parser(script, true, NULL, NULL);
+    result = parser.ParseLazy(info->shared_info());
   } else {
-    result = parser.ParseProgram(source, compile_in_global_context);
+    bool allow_natives_syntax =
+        FLAG_allow_natives_syntax || Bootstrapper::IsActive();
+    ScriptDataImpl* pre_data = info->pre_parse_data();
+    AstBuildingParser parser(script, allow_natives_syntax, info->extension(),
+                             pre_data);
+    if (pre_data != NULL && pre_data->has_error()) {
+      Scanner::Location loc = pre_data->MessageLocation();
+      const char* message = pre_data->BuildMessage();
+      Vector<const char*> args = pre_data->BuildArgs();
+      parser.ReportMessageAt(loc, message, args);
+      DeleteArray(message);
+      for (int i = 0; i < args.length(); i++) {
+        DeleteArray(args[i]);
+      }
+      DeleteArray(args.start());
+      ASSERT(Top::has_pending_exception());
+    } else {
+      Handle<String> source = Handle<String>(String::cast(script->source()));
+      // JSON is always global.
+      ASSERT(!info->is_json() || info->is_global());
+      result = info->is_json()
+          ? parser.ParseJson(source)
+          : parser.ParseProgram(source, info->is_global());
+    }
   }
-  return result;
-}
 
-
-FunctionLiteral* Parser::MakeLazyAST(Handle<SharedFunctionInfo> info) {
-  Handle<Script> script(Script::cast(info->script()));
-  AstBuildingParser parser(script, true, NULL, NULL);
-  FunctionLiteral* result = parser.ParseLazy(info);
-  return result;
+  info->SetFunction(result);
+  return (result != NULL);
 }
 
 #undef NEW

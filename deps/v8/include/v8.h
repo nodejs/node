@@ -758,8 +758,9 @@ class V8EXPORT StackTrace {
     kFunctionName = 1 << 3,
     kIsEval = 1 << 4,
     kIsConstructor = 1 << 5,
+    kScriptNameOrSourceURL = 1 << 6,
     kOverview = kLineNumber | kColumnOffset | kScriptName | kFunctionName,
-    kDetailed = kOverview | kIsEval | kIsConstructor
+    kDetailed = kOverview | kIsEval | kIsConstructor | kScriptNameOrSourceURL
   };
 
   /**
@@ -817,6 +818,13 @@ class V8EXPORT StackFrame {
    * function for this StackFrame.
    */
   Local<String> GetScriptName() const;
+
+  /**
+   * Returns the name of the resource that contains the script for the
+   * function for this StackFrame or sourceURL value if the script name
+   * is undefined and its source ends with //@ sourceURL=... string.
+   */
+  Local<String> GetScriptNameOrSourceURL() const;
 
   /**
    * Returns the name of the function associated with this stack frame.
@@ -1354,6 +1362,53 @@ class Date : public Value {
   V8EXPORT double NumberValue() const;
 
   static inline Date* Cast(v8::Value* obj);
+ private:
+  V8EXPORT static void CheckCast(v8::Value* obj);
+};
+
+
+/**
+ * An instance of the built-in RegExp constructor (ECMA-262, 15.10).
+ */
+class RegExp : public Value {
+ public:
+  /**
+   * Regular expression flag bits. They can be or'ed to enable a set
+   * of flags.
+   */
+  enum Flags {
+    kNone = 0,
+    kGlobal = 1,
+    kIgnoreCase = 2,
+    kMultiline = 4
+  };
+
+  /**
+   * Creates a regular expression from the given pattern string and
+   * the flags bit field. May throw a JavaScript exception as
+   * described in ECMA-262, 15.10.4.1.
+   *
+   * For example,
+   *   RegExp::New(v8::String::New("foo"),
+   *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
+   * is equivalent to evaluating "/foo/gm".
+   */
+  V8EXPORT static Local<RegExp> New(Handle<String> pattern,
+                                    Flags flags);
+
+  /**
+   * Returns the value of the source property: a string representing
+   * the regular expression.
+   */
+  V8EXPORT Local<String> GetSource() const;
+
+  /**
+   * Returns the flags bit field.
+   */
+  V8EXPORT Flags GetFlags() const;
+
+  static inline RegExp* Cast(v8::Value* obj);
+
  private:
   V8EXPORT static void CheckCast(v8::Value* obj);
 };
@@ -3614,6 +3669,14 @@ Date* Date::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Date*>(value);
+}
+
+
+RegExp* RegExp::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<RegExp*>(value);
 }
 
 

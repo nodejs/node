@@ -50,12 +50,13 @@ void BitVector::Print() {
 #endif
 
 
-bool AssignedVariablesAnalyzer::Analyze() {
-  Scope* scope = fun_->scope();
+bool AssignedVariablesAnalyzer::Analyze(CompilationInfo* info) {
+  info_ = info;
+  Scope* scope = info->scope();
   int variables = scope->num_parameters() + scope->num_stack_slots();
   if (variables == 0) return true;
   av_.ExpandTo(variables);
-  VisitStatements(fun_->body());
+  VisitStatements(info->function()->body());
   return !HasStackOverflow();
 }
 
@@ -129,7 +130,7 @@ int AssignedVariablesAnalyzer::BitIndex(Variable* var) {
   if (slot->type() == Slot::PARAMETER) {
     return slot->index();
   } else {
-    return fun_->scope()->num_parameters() + slot->index();
+    return info_->scope()->num_parameters() + slot->index();
   }
 }
 

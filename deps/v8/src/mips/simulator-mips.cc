@@ -39,7 +39,7 @@
 
 namespace v8i = v8::internal;
 
-#if !defined(__mips)
+#if !defined(__mips) || defined(USE_SIMULATOR)
 
 // Only build the simulator if not compiling for real MIPS hardware.
 namespace assembler {
@@ -1645,6 +1645,6 @@ uintptr_t Simulator::PopAddress() {
 
 } }  // namespace assembler::mips
 
-#endif  // __mips
+#endif  // !__mips || USE_SIMULATOR
 
 #endif  // V8_TARGET_ARCH_MIPS

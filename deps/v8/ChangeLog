@@ -1,3 +1,25 @@
+2010-10-18: Version 2.5.0
+
+        Fixed bug in cache handling of lastIndex on global regexps
+        (issue http://crbug.com/58740).
+
+        Added USE_SIMULATOR macro that explicitly indicates that we wish to use
+        the simulator as the execution engine (by Mark Lam <mark.lam@palm.com>
+	from Hewlett-Packard Development Company, LP).
+
+        Fixed compilation error on ARM with gcc 4.4 (issue 894).
+
+
+2010-10-13: Version 2.4.9
+
+        Fixed a bug in the handling of conditional expressions in test
+        contexts in compiler for top-level code.
+
+        Added "//@ sourceURL" information to the StackTrace API.
+
+        Exposed RegExp construction through the API.
+
+
 2010-10-04: Version 2.4.8
 
         Fixed a bug in ResumeProfilerEx causing it to not always write out the

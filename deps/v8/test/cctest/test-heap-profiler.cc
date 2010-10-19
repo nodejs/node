@@ -20,11 +20,6 @@ using i::JSObjectsClusterTree;
 using i::RetainerHeapProfile;
 
 
-static void CompileAndRunScript(const char *src) {
-  v8::Script::Compile(v8::String::New(src))->Run();
-}
-
-
 namespace {
 
 class ConstructorHeapProfileTestHelper : public i::ConstructorHeapProfile {
@@ -58,7 +53,7 @@ TEST(ConstructorProfile) {
   v8::HandleScope scope;
   LocalContext env;
 
-  CompileAndRunScript(
+  CompileRun(
       "function F() {}  // A constructor\n"
       "var f1 = new F();\n"
       "var f2 = new F();\n");
@@ -359,7 +354,7 @@ TEST(RetainerProfile) {
   v8::HandleScope scope;
   LocalContext env;
 
-  CompileAndRunScript(
+  CompileRun(
       "function A() {}\n"
       "function B(x) { this.x = x; }\n"
       "function C(x) { this.x1 = x; this.x2 = x; }\n"
@@ -473,7 +468,7 @@ TEST(HeapSnapshot) {
   LocalContext env1;
   env1->SetSecurityToken(token1);
 
-  CompileAndRunScript(
+  CompileRun(
       "function A1() {}\n"
       "function B1(x) { this.x = x; }\n"
       "function C1(x) { this.x1 = x; this.x2 = x; }\n"
@@ -485,7 +480,7 @@ TEST(HeapSnapshot) {
   LocalContext env2;
   env2->SetSecurityToken(token2);
 
-  CompileAndRunScript(
+  CompileRun(
       "function A2() {}\n"
       "function B2(x) { return function() { return typeof x; }; }\n"
       "function C2(x) { this.x1 = x; this.x2 = x; this[1] = x; }\n"
@@ -583,7 +578,7 @@ TEST(HeapSnapshotObjectSizes) {
 
   //   -a-> X1 --a
   // x -b-> X2 <-|
-  CompileAndRunScript(
+  CompileRun(
       "function X(a, b) { this.a = a; this.b = b; }\n"
       "x = new X(new X(), new X());\n"
       "x.a.a = x.b;");
@@ -594,7 +589,7 @@ TEST(HeapSnapshotObjectSizes) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "x");
   CHECK_NE(NULL, x);
   const v8::HeapGraphNode* x_prototype =
-      GetProperty(x, v8::HeapGraphEdge::kProperty, "prototype");
+      GetProperty(x, v8::HeapGraphEdge::kProperty, "__proto__");
   CHECK_NE(NULL, x_prototype);
   const v8::HeapGraphNode* x1 =
       GetProperty(x, v8::HeapGraphEdge::kProperty, "a");
@@ -606,7 +601,7 @@ TEST(HeapSnapshotObjectSizes) {
       x->GetSelfSize() * 3,
       x->GetReachableSize() - x_prototype->GetReachableSize());
   CHECK_EQ(
-      x->GetSelfSize() * 3 + x_prototype->GetSelfSize(), x->GetRetainedSize());
+      x->GetSelfSize() * 3, x->GetRetainedSize());
   CHECK_EQ(
       x1->GetSelfSize() * 2,
       x1->GetReachableSize() - x_prototype->GetReachableSize());
@@ -624,7 +619,7 @@ TEST(HeapSnapshotEntryChildren) {
   v8::HandleScope scope;
   LocalContext env;
 
-  CompileAndRunScript(
+  CompileRun(
       "function A() { }\n"
       "a = new A;");
   const v8::HeapSnapshot* snapshot =
@@ -648,10 +643,9 @@ TEST(HeapSnapshotCodeObjects) {
   v8::HandleScope scope;
   LocalContext env;
 
-  CompileAndRunScript(
+  CompileRun(
       "function lazy(x) { return x - 1; }\n"
       "function compiled(x) { return x + 1; }\n"
-      "var inferred = function(x) { return x; }\n"
       "var anonymous = (function() { return function() { return 0; } })();\n"
       "compiled(1)");
   const v8::HeapSnapshot* snapshot =
@@ -666,18 +660,12 @@ TEST(HeapSnapshotCodeObjects) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "lazy");
   CHECK_NE(NULL, lazy);
   CHECK_EQ(v8::HeapGraphNode::kClosure, lazy->GetType());
-  const v8::HeapGraphNode* inferred =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "inferred");
-  CHECK_NE(NULL, inferred);
-  CHECK_EQ(v8::HeapGraphNode::kClosure, inferred->GetType());
-  v8::String::AsciiValue inferred_name(inferred->GetName());
-  CHECK_EQ("inferred", *inferred_name);
   const v8::HeapGraphNode* anonymous =
       GetProperty(global, v8::HeapGraphEdge::kProperty, "anonymous");
   CHECK_NE(NULL, anonymous);
   CHECK_EQ(v8::HeapGraphNode::kClosure, anonymous->GetType());
   v8::String::AsciiValue anonymous_name(anonymous->GetName());
-  CHECK_EQ("(anonymous function)", *anonymous_name);
+  CHECK_EQ("", *anonymous_name);
 
   // Find references to code.
   const v8::HeapGraphNode* compiled_code =
@@ -716,6 +704,44 @@ TEST(HeapSnapshotCodeObjects) {
 }
 
 
+TEST(HeapSnapshotHeapNumbers) {
+  v8::HandleScope scope;
+  LocalContext env;
+  CompileRun(
+      "a = 1;    // a is Smi\n"
+      "b = 2.5;  // b is HeapNumber");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("numbers"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_EQ(NULL, GetProperty(global, v8::HeapGraphEdge::kProperty, "a"));
+  const v8::HeapGraphNode* b =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "b");
+  CHECK_NE(NULL, b);
+  CHECK_EQ(v8::HeapGraphNode::kHeapNumber, b->GetType());
+}
+
+
+TEST(HeapSnapshotInternalReferences) {
+  v8::HandleScope scope;
+  v8::Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetInternalFieldCount(2);
+  LocalContext env(NULL, global_template);
+  v8::Handle<v8::Object> global_proxy = env->Global();
+  v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
+  CHECK_EQ(2, global->InternalFieldCount());
+  v8::Local<v8::Object> obj = v8::Object::New();
+  global->SetInternalField(0, v8_num(17));
+  global->SetInternalField(1, obj);
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("internals"));
+  const v8::HeapGraphNode* global_node = GetGlobalObject(snapshot);
+  // The first reference will not present, because it's a Smi.
+  CHECK_EQ(NULL, GetProperty(global_node, v8::HeapGraphEdge::kInternal, "0"));
+  // The second reference is to an object.
+  CHECK_NE(NULL, GetProperty(global_node, v8::HeapGraphEdge::kInternal, "1"));
+}
+
+
 // Trying to introduce a check helper for uint64_t causes many
 // overloading ambiguities, so it seems easier just to cast
 // them to a signed type.
@@ -728,7 +754,7 @@ TEST(HeapEntryIdsAndGC) {
   v8::HandleScope scope;
   LocalContext env;
 
-  CompileAndRunScript(
+  CompileRun(
       "function A() {}\n"
       "function B(x) { this.x = x; }\n"
       "var a = new A();\n"
@@ -784,7 +810,7 @@ TEST(HeapSnapshotsDiff) {
   v8::HandleScope scope;
   LocalContext env;
 
-  CompileAndRunScript(
+  CompileRun(
       "function A() {}\n"
       "function B(x) { this.x = x; }\n"
       "function A2(a) { for (var i = 0; i < a; ++i) this[i] = i; }\n"
@@ -793,7 +819,7 @@ TEST(HeapSnapshotsDiff) {
   const v8::HeapSnapshot* snapshot1 =
       v8::HeapProfiler::TakeSnapshot(v8::String::New("s1"));
 
-  CompileAndRunScript(
+  CompileRun(
       "delete a;\n"
       "b.x = null;\n"
       "var a = new A2(20);\n"
@@ -928,7 +954,7 @@ TEST(AggregatedHeapSnapshot) {
   v8::HandleScope scope;
   LocalContext env;
 
-  CompileAndRunScript(
+  CompileRun(
       "function A() {}\n"
       "function B(x) { this.x = x; }\n"
       "var a = new A();\n"
@@ -1049,7 +1075,7 @@ TEST(HeapSnapshotJSONSerialization) {
 
 #define STRING_LITERAL_FOR_TEST \
   "\"String \\n\\r\\u0008\\u0081\\u0101\\u0801\\u8001\""
-  CompileAndRunScript(
+  CompileRun(
       "function A(s) { this.s = s; }\n"
       "function B(x) { this.x = x; }\n"
       "var a = new A(" STRING_LITERAL_FOR_TEST ");\n"

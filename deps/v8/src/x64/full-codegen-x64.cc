@@ -61,6 +61,12 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
+#ifdef DEBUG
+  if (strlen(FLAG_stop_at) > 0 &&
+      info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+    __ int3();
+  }
+#endif
   __ push(rbp);  // Caller's frame pointer.
   __ movq(rbp, rsp);
   __ push(rsi);  // Callee's context.

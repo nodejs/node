@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,21 +31,26 @@
 namespace v8 {
 namespace internal {
 
-
-// Currently, the rewriter takes function literals (only top-level)
-// and rewrites them to return the value of the last expression in
-// them.
-//
-// The rewriter adds a (hidden) variable, called .result, to the
-// activation, and tries to figure out where it needs to store into
-// this variable. If the variable is ever used, we conclude by adding
-// a return statement that returns the variable to the body of the
-// given function.
+class CompilationInfo;
 
 class Rewriter {
  public:
-  static bool Process(FunctionLiteral* function);
-  static bool Optimize(FunctionLiteral* function);
+  // Rewrite top-level code (ECMA 262 "programs") so as to conservatively
+  // include an assignment of the value of the last statement in the code to
+  // a compiler-generated temporary variable wherever needed.
+  //
+  // Assumes code has been parsed and scopes have been analyzed.  Mutates the
+  // AST, so the AST should not continue to be used in the case of failure.
+  static bool Rewrite(CompilationInfo* info);
+
+  // Perform a suite of simple non-iterative analyses of the AST.  Mark
+  // expressions that are likely smis, expressions without side effects,
+  // expressions whose value will be converted to Int32, and expressions in a
+  // context where +0 and -0 are treated the same.
+  //
+  // Assumes code has been parsed and scopes have been analyzed.  Mutates the
+  // AST, so the AST should not continue to be used in the case of failure.
+  static bool Analyze(CompilationInfo* info);
 };
 
 

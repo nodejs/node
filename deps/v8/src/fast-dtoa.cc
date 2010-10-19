@@ -609,8 +609,13 @@ static bool Grisu3(double v,
   ASSERT(boundary_plus.e() == w.e());
   DiyFp ten_mk;  // Cached power of ten: 10^-k
   int mk;        // -k
-  GetCachedPower(w.e() + DiyFp::kSignificandSize, kMinimalTargetExponent,
-                 kMaximalTargetExponent, &mk, &ten_mk);
+  int ten_mk_minimal_binary_exponent =
+     kMinimalTargetExponent - (w.e() + DiyFp::kSignificandSize);
+  int ten_mk_maximal_binary_exponent =
+     kMaximalTargetExponent - (w.e() + DiyFp::kSignificandSize);
+  GetCachedPowerForBinaryExponentRange(ten_mk_minimal_binary_exponent,
+                                       ten_mk_maximal_binary_exponent,
+                                       &ten_mk, &mk);
   ASSERT((kMinimalTargetExponent <= w.e() + ten_mk.e() +
           DiyFp::kSignificandSize) &&
          (kMaximalTargetExponent >= w.e() + ten_mk.e() +
@@ -662,8 +667,13 @@ static bool Grisu3Counted(double v,
   DiyFp w = Double(v).AsNormalizedDiyFp();
   DiyFp ten_mk;  // Cached power of ten: 10^-k
   int mk;        // -k
-  GetCachedPower(w.e() + DiyFp::kSignificandSize, kMinimalTargetExponent,
-                 kMaximalTargetExponent, &mk, &ten_mk);
+  int ten_mk_minimal_binary_exponent =
+     kMinimalTargetExponent - (w.e() + DiyFp::kSignificandSize);
+  int ten_mk_maximal_binary_exponent =
+     kMaximalTargetExponent - (w.e() + DiyFp::kSignificandSize);
+  GetCachedPowerForBinaryExponentRange(ten_mk_minimal_binary_exponent,
+                                       ten_mk_maximal_binary_exponent,
+                                       &ten_mk, &mk);
   ASSERT((kMinimalTargetExponent <= w.e() + ten_mk.e() +
           DiyFp::kSignificandSize) &&
          (kMaximalTargetExponent >= w.e() + ten_mk.e() +

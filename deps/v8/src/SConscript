@@ -42,6 +42,7 @@ SOURCES = {
     ast.cc
     bootstrapper.cc
     builtins.cc
+    cached-powers.cc
     checks.cc
     circular-queue.cc
     code-stubs.cc
@@ -102,6 +103,7 @@ SOURCES = {
     spaces.cc
     string-search.cc
     string-stream.cc
+    strtod.cc
     stub-cache.cc
     token.cc
     top.cc

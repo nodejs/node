@@ -67,6 +67,7 @@ class StringsStorage {
   ~StringsStorage();
 
   const char* GetName(String* name);
+  const char* GetName(int index);
   inline const char* GetFunctionName(String* name);
   inline const char* GetFunctionName(const char* name);
 
@@ -78,6 +79,8 @@ class StringsStorage {
 
   // Mapping of strings by String::Hash to const char* strings.
   HashMap names_;
+  // Mapping from ints to char* strings.
+  List<char*> index_names_;
 
   DISALLOW_COPY_AND_ASSIGN(StringsStorage);
 };
@@ -284,6 +287,9 @@ class CpuProfilesCollection {
   const char* GetName(String* name) {
     return function_and_resource_names_.GetName(name);
   }
+  const char* GetName(int args_count) {
+    return function_and_resource_names_.GetName(args_count);
+  }
   CpuProfile* GetProfile(int security_token_id, unsigned uid);
   bool IsLastProfile(const char* title);
 
@@ -302,7 +308,6 @@ class CpuProfilesCollection {
   static const int kMaxSimultaneousProfiles = 100;
 
  private:
-  const char* GetName(int args_count);
   const char* GetFunctionName(String* name) {
     return function_and_resource_names_.GetFunctionName(name);
   }
@@ -317,8 +322,6 @@ class CpuProfilesCollection {
   }
 
   StringsStorage function_and_resource_names_;
-  // Mapping from args_count (int) to char* strings.
-  List<char*> args_count_names_;
   List<CodeEntry*> code_entries_;
   List<List<CpuProfile*>* > profiles_by_token_;
   // Mapping from profiles' uids to indexes in the second nested list
@@ -502,7 +505,9 @@ class HeapEntry BASE_EMBEDDED {
     kString = v8::HeapGraphNode::kString,
     kObject = v8::HeapGraphNode::kObject,
     kCode = v8::HeapGraphNode::kCode,
-    kClosure = v8::HeapGraphNode::kClosure
+    kClosure = v8::HeapGraphNode::kClosure,
+    kRegExp = v8::HeapGraphNode::kRegExp,
+    kHeapNumber = v8::HeapGraphNode::kHeapNumber
   };
 
   HeapEntry() { }
@@ -824,6 +829,7 @@ class HeapSnapshotsCollection {
   HeapSnapshot* GetSnapshot(unsigned uid);
 
   const char* GetName(String* name) { return names_.GetName(name); }
+  const char* GetName(int index) { return names_.GetName(index); }
   const char* GetFunctionName(String* name) {
     return names_.GetFunctionName(name);
   }
@@ -948,6 +954,7 @@ class HeapSnapshotGenerator {
   void ExtractClosureReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractPropertyReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractElementReferences(JSObject* js_obj, HeapEntry* entry);
+  void ExtractInternalReferences(JSObject* js_obj, HeapEntry* entry);
   void SetClosureReference(HeapObject* parent_obj,
                            HeapEntry* parent,
                            String* reference_name,
@@ -959,6 +966,10 @@ class HeapSnapshotGenerator {
   void SetInternalReference(HeapObject* parent_obj,
                             HeapEntry* parent,
                             const char* reference_name,
+                            Object* child);
+  void SetInternalReference(HeapObject* parent_obj,
+                            HeapEntry* parent,
+                            int index,
                             Object* child);
   void SetPropertyReference(HeapObject* parent_obj,
                             HeapEntry* parent,

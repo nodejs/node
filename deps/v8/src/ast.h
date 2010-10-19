@@ -1436,6 +1436,11 @@ class FunctionLiteral: public Expression {
 
   bool AllowsLazyCompilation();
 
+  Handle<String> debug_name() const {
+    if (name_->length() > 0) return name_;
+    return inferred_name();
+  }
+
   Handle<String> inferred_name() const { return inferred_name_; }
   void set_inferred_name(Handle<String> inferred_name) {
     inferred_name_ = inferred_name;

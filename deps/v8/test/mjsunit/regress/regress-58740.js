@@ -25,19 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CACHED_POWERS_H_
-#define V8_CACHED_POWERS_H_
+// See: http://code.google.com/p/chromium/issues/detail?id=58740
 
-#include "diy-fp.h"
-
-namespace v8 {
-namespace internal {
-
-void GetCachedPowerForBinaryExponentRange(int min_exponent,
-                                          int max_exponent,
-                                          DiyFp* power,
-                                          int* decimal_exponent);
-
-} }  // namespace v8::internal
-
-#endif  // V8_CACHED_POWERS_H_
+var re = /.+/g;
+re.exec("");
+re.exec("anystring");
+re=/.+/g;
+re.exec("");
+assertEquals(0, re.lastIndex);

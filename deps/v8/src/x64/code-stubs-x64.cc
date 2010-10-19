@@ -1413,20 +1413,8 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
         __ j(equal, &done);
       }
       __ SmiNeg(rax, rax, &done);
+      __ jmp(&slow);  // zero, if not handled above, and Smi::kMinValue.
 
-      // Either zero or Smi::kMinValue, neither of which become a smi when
-      // negated. We handle negative zero here if required. We always enter
-      // the runtime system if we have Smi::kMinValue.
-      if (negative_zero_ == kStrictNegativeZero) {
-        __ SmiCompare(rax, Smi::FromInt(0));
-        __ j(not_equal, &slow);
-        __ Move(rax, Factory::minus_zero_value());
-        __ jmp(&done);
-      } else  {
-        __ SmiCompare(rax, Smi::FromInt(Smi::kMinValue));
-        __ j(equal, &slow);
-        __ jmp(&done);
-      }
       // Try floating point case.
       __ bind(&try_float);
     } else if (FLAG_debug_code) {

@@ -1611,7 +1611,7 @@ FrameMirror.prototype.invocationText = function() {
     result += ' returning ';
     result += this.returnValue().toText();
   }
-  
+
   return result;
 }
 

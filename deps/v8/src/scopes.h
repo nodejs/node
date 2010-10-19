@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -33,6 +33,9 @@
 
 namespace v8 {
 namespace internal {
+
+class CompilationInfo;
+
 
 // A hash map to support fast variable declaration and lookup.
 class VariableMap: public HashMap {
@@ -95,6 +98,11 @@ class Scope: public ZoneObject {
   Scope(Scope* outer_scope, Type type);
 
   virtual ~Scope() { }
+
+  // Compute top scope and allocate variables. For lazy compilation the top
+  // scope only contains the single lazily compiled function, so this
+  // doesn't re-allocate variables repeatedly.
+  static bool Analyze(CompilationInfo* info);
 
   // The scope name is only used for printing/debugging.
   void SetScopeName(Handle<String> scope_name)  { scope_name_ = scope_name; }

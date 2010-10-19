@@ -246,7 +246,7 @@ function LocalTime(time) {
 
 
 var ltcache = {
-  key: null, 
+  key: null,
   val: null
 };
 

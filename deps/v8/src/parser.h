@@ -35,6 +35,7 @@
 namespace v8 {
 namespace internal {
 
+class CompilationInfo;
 class FuncNameInferrer;
 class ParserFactory;
 class ParserLog;
@@ -183,17 +184,10 @@ class Parser {
          ParserFactory* factory, ParserLog* log, ScriptDataImpl* pre_data);
   virtual ~Parser() { }
 
-  // Takes a script and and context information, and builds a
-  // FunctionLiteral AST node. Returns NULL and deallocates any allocated
-  // AST nodes if parsing failed.
-  static FunctionLiteral* MakeAST(bool compile_in_global_context,
-                                  Handle<Script> script,
-                                  v8::Extension* extension,
-                                  ScriptDataImpl* pre_data,
-                                  bool is_json = false);
-
-  // Support for doing lazy compilation.
-  static FunctionLiteral* MakeLazyAST(Handle<SharedFunctionInfo> info);
+  // Parses the source code represented by the compilation info and sets its
+  // function literal.  Returns false (and deallocates any allocated AST
+  // nodes) if parsing failed.
+  static bool Parse(CompilationInfo* info);
 
   // Generic preparser generating full preparse data.
   static ScriptDataImpl* PreParse(Handle<String> source,

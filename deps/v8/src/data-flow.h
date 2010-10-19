@@ -198,8 +198,8 @@ class WorkList BASE_EMBEDDED {
 // is guaranteed to be a smi.
 class AssignedVariablesAnalyzer : public AstVisitor {
  public:
-  explicit AssignedVariablesAnalyzer(FunctionLiteral* fun) : fun_(fun) { }
-  bool Analyze();
+  explicit AssignedVariablesAnalyzer() : info_(NULL) { }
+  bool Analyze(CompilationInfo* info);
 
  private:
   Variable* FindSmiLoopVariable(ForStatement* stmt);
@@ -219,7 +219,7 @@ class AssignedVariablesAnalyzer : public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  FunctionLiteral* fun_;
+  CompilationInfo* info_;
 
   // Accumulator for assigned variables set.
   BitVector av_;

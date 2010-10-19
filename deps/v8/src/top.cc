@@ -344,6 +344,10 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
   Handle<String> column_key =  Factory::LookupAsciiSymbol("column");
   Handle<String> line_key =  Factory::LookupAsciiSymbol("lineNumber");
   Handle<String> script_key =  Factory::LookupAsciiSymbol("scriptName");
+  Handle<String> name_or_source_url_key =
+      Factory::LookupAsciiSymbol("nameOrSourceURL");
+  Handle<String> script_name_or_source_url_key =
+      Factory::LookupAsciiSymbol("scriptNameOrSourceURL");
   Handle<String> function_key =  Factory::LookupAsciiSymbol("functionName");
   Handle<String> eval_key =  Factory::LookupAsciiSymbol("isEval");
   Handle<String> constructor_key =  Factory::LookupAsciiSymbol("isConstructor");
@@ -355,13 +359,13 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
     Handle<JSObject> stackFrame = Factory::NewJSObject(object_function());
 
     JavaScriptFrame* frame = it.frame();
-    JSFunction* fun(JSFunction::cast(frame->function()));
-    Script* script = Script::cast(fun->shared()->script());
+    Handle<JSFunction> fun(JSFunction::cast(frame->function()));
+    Handle<Script> script(Script::cast(fun->shared()->script()));
 
     if (options & StackTrace::kLineNumber) {
       int script_line_offset = script->line_offset()->value();
       int position = frame->code()->SourcePosition(frame->pc());
-      int line_number = GetScriptLineNumber(Handle<Script>(script), position);
+      int line_number = GetScriptLineNumber(script, position);
       // line_number is already shifted by the script_line_offset.
       int relative_line_number = line_number - script_line_offset;
       if (options & StackTrace::kColumnOffset && relative_line_number >= 0) {
@@ -383,6 +387,22 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
     if (options & StackTrace::kScriptName) {
       Handle<Object> script_name(script->name());
       SetProperty(stackFrame, script_key, script_name, NONE);
+    }
+
+    if (options & StackTrace::kScriptNameOrSourceURL) {
+      Handle<Object> script_name(script->name());
+      Handle<JSValue> script_wrapper = GetScriptWrapper(script);
+      Handle<Object> property = GetProperty(script_wrapper,
+                                            name_or_source_url_key);
+      ASSERT(property->IsJSFunction());
+      Handle<JSFunction> method = Handle<JSFunction>::cast(property);
+      bool caught_exception;
+      Handle<Object> result = Execution::TryCall(method, script_wrapper, 0,
+                                                 NULL, &caught_exception);
+      if (caught_exception) {
+        result = Factory::undefined_value();
+      }
+      SetProperty(stackFrame, script_name_or_source_url_key, result, NONE);
     }
 
     if (options & StackTrace::kFunctionName) {

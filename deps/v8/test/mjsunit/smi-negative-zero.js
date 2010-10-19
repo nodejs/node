@@ -98,3 +98,16 @@ assertEquals(-Infinity, one / (-4 % 2), "fiskhest1");
 assertEquals(-Infinity, one / (-4 % -2), "fiskhest2");
 assertEquals(Infinity, one / (4 % 2), "fiskhest3");
 assertEquals(Infinity, one / (4 % -2), "fiskhest4");
+
+
+// This tests against a singleton -0.0 object being overwritten.gc
+x = 0;
+z = 3044;
+
+function foo(x) {
+  var y = -x + z;
+  return -x;
+}
+
+assertEquals(0, foo(x));
+assertEquals(0, foo(x));

@@ -438,18 +438,18 @@ Script.prototype.lineCount = function() {
 
 /**
  * Returns the name of script if available, contents of sourceURL comment
- * otherwise. See 
+ * otherwise. See
  * http://fbug.googlecode.com/svn/branches/firebug1.1/docs/ReleaseNotes_1.1.txt
  * for details on using //@ sourceURL comment to identify scritps that don't
  * have name.
- * 
+ *
  * @return {?string} script name if present, value for //@ sourceURL comment
  * otherwise.
  */
 Script.prototype.nameOrSourceURL = function() {
   if (this.name)
     return this.name;
-  // TODO(608): the spaces in a regexp below had to be escaped as \040 
+  // TODO(608): the spaces in a regexp below had to be escaped as \040
   // because this file is being processed by js2c whose handling of spaces
   // in regexps is broken. Also, ['"] are excluded from allowed URLs to
   // avoid matches against sources that invoke evals with sourceURL.

@@ -68,7 +68,7 @@ bool V8::Initialize(Deserializer* des) {
   OS::Setup();
 
   // Initialize other runtime facilities
-#if !V8_HOST_ARCH_ARM && V8_TARGET_ARCH_ARM
+#if (defined(USE_SIMULATOR) || !V8_HOST_ARCH_ARM) && V8_TARGET_ARCH_ARM
   ::assembler::arm::Simulator::Initialize();
 #endif
 

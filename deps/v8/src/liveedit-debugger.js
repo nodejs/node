@@ -46,8 +46,7 @@ Debug.LiveEdit = new function() {
 
   // Forward declaration for minifier.
   var FunctionStatus;
-  
-  
+
   // Applies the change to the script.
   // The change is in form of list of chunks encoded in a single array as
   // a series of triplets (pos1_start, pos1_end, pos2_end)
@@ -58,7 +57,7 @@ Debug.LiveEdit = new function() {
 
     // Gather compile information about old version of script.
     var old_compile_info = GatherCompileInfo(old_source, script);
-  
+
     // Build tree structures for old and new versions of the script.
     var root_old_node = BuildCodeInfoTree(old_compile_info);
 
@@ -69,7 +68,7 @@ Debug.LiveEdit = new function() {
 
     // Find all SharedFunctionInfo's that were compiled from this script.
     FindLiveSharedInfos(root_old_node, script);
-    
+
     // Gather compile information about new version of script.
     var new_compile_info;
     try {
@@ -81,7 +80,7 @@ Debug.LiveEdit = new function() {
 
     // Link recompiled script data with other data.
     FindCorrespondingFunctions(root_old_node, root_new_node);
-    
+
     // Prepare to-do lists.
     var replace_code_list = new Array();
     var link_to_old_script_list = new Array();
@@ -104,7 +103,7 @@ Debug.LiveEdit = new function() {
           CollectNew(node_list[i].children);
         }
       }
-      
+
       if (old_node.status == FunctionStatus.DAMAGED) {
         CollectDamaged(old_node);
         return;
@@ -131,17 +130,17 @@ Debug.LiveEdit = new function() {
         },
         updated: false
     };
-    
+
     if (preview_only) {
       return preview_description;
     }
-    
+
     HarvestTodo(root_old_node);
-    
+
     // Collect shared infos for functions whose code need to be patched.
     var replaced_function_infos = new Array();
     for (var i = 0; i < replace_code_list.length; i++) {
-      var info_wrapper = replace_code_list[i].live_shared_info_wrapper; 
+      var info_wrapper = replace_code_list[i].live_shared_info_wrapper;
       if (info_wrapper) {
         replaced_function_infos.push(info_wrapper);
       }
@@ -149,14 +148,14 @@ Debug.LiveEdit = new function() {
 
     // We haven't changed anything before this line yet.
     // Committing all changes.
-    
+
     // Check that function being patched is not currently on stack or drop them.
     var dropped_functions_number =
         CheckStackActivations(replaced_function_infos, change_log);
-    
-    preview_description.stack_modified = dropped_functions_number != 0; 
-  
-    // Start with breakpoints. Convert their line/column positions and 
+
+    preview_description.stack_modified = dropped_functions_number != 0;
+
+    // Start with breakpoints. Convert their line/column positions and
     // temporary remove.
     var break_points_restorer = TemporaryRemoveBreakPoints(script, change_log);
 
@@ -169,24 +168,24 @@ Debug.LiveEdit = new function() {
       old_script = void 0;
     } else {
       var old_script_name = CreateNameForOldScript(script);
-      
+
       // Update the script text and create a new script representing an old
       // version of the script.
       old_script = %LiveEditReplaceScript(script, new_source,
           old_script_name);
-      
+
       var link_to_old_script_report = new Array();
       change_log.push( { linked_to_old_script: link_to_old_script_report } );
-    
+
       // We need to link to old script all former nested functions.
       for (var i = 0; i < link_to_old_script_list.length; i++) {
         LinkToOldScript(link_to_old_script_list[i], old_script,
             link_to_old_script_report);
       }
-      
+
       preview_description.created_script_name = old_script_name;
     }
-    
+
     // Link to an actual script all the functions that we are going to use.
     for (var i = 0; i < link_to_original_script_list.length; i++) {
       %LiveEditFunctionSetScript(
@@ -196,26 +195,26 @@ Debug.LiveEdit = new function() {
     for (var i = 0; i < replace_code_list.length; i++) {
       PatchFunctionCode(replace_code_list[i], change_log);
     }
-  
+
     var position_patch_report = new Array();
     change_log.push( {position_patched: position_patch_report} );
-    
+
     for (var i = 0; i < update_positions_list.length; i++) {
       // TODO(LiveEdit): take into account wether it's source_changed or
       // unchanged and whether positions changed at all.
       PatchPositions(update_positions_list[i], diff_array,
           position_patch_report);
     }
-    
+
     break_points_restorer(pos_translator, old_script);
-    
+
     preview_description.updated = true;
     return preview_description;
   }
   // Function is public.
   this.ApplyPatchMultiChunk = ApplyPatchMultiChunk;
 
-  
+
   // Fully compiles source string as a script. Returns Array of
   // FunctionCompileInfo -- a descriptions of all functions of the script.
   // Elements of array are ordered by start positions of functions (from top
@@ -224,7 +223,7 @@ Debug.LiveEdit = new function() {
   //
   // All functions get compiled linked to script provided as parameter script.
   // TODO(LiveEdit): consider not using actual scripts as script, because
-  //     we have to manually erase all links right after compile. 
+  // we have to manually erase all links right after compile.
   function GatherCompileInfo(source, script) {
     // Get function info, elements are partially sorted (it is a tree of
     // nested functions serialized as parent followed by serialized children.
@@ -291,7 +290,7 @@ Debug.LiveEdit = new function() {
     return compile_info;
   }
 
-  
+
   // Replaces function's Code.
   function PatchFunctionCode(old_node, change_log) {
     var new_info = old_node.corresponding_node.info;
@@ -318,7 +317,7 @@ Debug.LiveEdit = new function() {
           }
         }
       }
-      
+
       change_log.push( {function_patched: new_info.function_name} );
     } else {
       change_log.push( {function_patched: new_info.function_name,
@@ -326,7 +325,7 @@ Debug.LiveEdit = new function() {
     }
   }
 
-  
+
   // Makes a function associated with another instance of a script (the
   // one representing its old version). This way the function still
   // may access its own text.
@@ -340,12 +339,12 @@ Debug.LiveEdit = new function() {
           { name: old_info_node.info.function_name, not_found: true } );
     }
   }
-  
+
 
   // Returns function that restores breakpoints.
   function TemporaryRemoveBreakPoints(original_script, change_log) {
     var script_break_points = GetScriptBreakPoints(original_script);
-    
+
     var break_points_update_report = [];
     change_log.push( { break_points_update: break_points_update_report } );
 
@@ -354,11 +353,11 @@ Debug.LiveEdit = new function() {
       var break_point = script_break_points[i];
 
       break_point.clear();
-      
-      // TODO(LiveEdit): be careful with resource offset here. 
+
+      // TODO(LiveEdit): be careful with resource offset here.
       var break_point_position = Debug.findScriptSourcePosition(original_script,
           break_point.line(), break_point.column());
-      
+
       var old_position_description = {
           position: break_point_position,
           line: break_point.line(),
@@ -366,8 +365,8 @@ Debug.LiveEdit = new function() {
       }
       break_point_old_positions.push(old_position_description);
     }
-    
-    
+
+
     // Restores breakpoints and creates their copies in the "old" copy of
     // the script.
     return function (pos_translator, old_script_copy_opt) {
@@ -378,19 +377,19 @@ Debug.LiveEdit = new function() {
         if (old_script_copy_opt) {
           var clone = break_point.cloneForOtherScript(old_script_copy_opt);
           clone.set(old_script_copy_opt);
-          
+
           break_points_update_report.push( {
             type: "copied_to_old",
             id: break_point.number(),
-            new_id: clone.number(), 
+            new_id: clone.number(),
             positions: break_point_old_positions[i]
             } );
         }
-        
+
         var updated_position = pos_translator.Translate(
             break_point_old_positions[i].position,
             PosTranslator.ShiftWithTopInsideChunkHandler);
-        
+
         var new_location =
             original_script.locationFromPosition(updated_position, false);
 
@@ -401,9 +400,9 @@ Debug.LiveEdit = new function() {
             line: new_location.line,
             column: new_location.column
         }
-        
+
         break_point.set(original_script);
-        
+
         break_points_update_report.push( { type: "position_changed",
           id: break_point.number(),
           old_positions: break_point_old_positions[i],
@@ -413,7 +412,7 @@ Debug.LiveEdit = new function() {
     }
   }
 
-  
+
   function Assert(condition, message) {
     if (!condition) {
       if (message) {
@@ -430,7 +429,7 @@ Debug.LiveEdit = new function() {
     this.len1 = len1;
     this.len2 = len2;
   }
-  
+
   function PosTranslator(diff_array) {
     var chunks = new Array();
     var current_diff = 0;
@@ -441,16 +440,16 @@ Debug.LiveEdit = new function() {
       var pos2_end = diff_array[i + 2];
       chunks.push(new DiffChunk(pos1_begin, pos2_begin, pos1_end - pos1_begin,
           pos2_end - pos2_begin));
-      current_diff = pos2_end - pos1_end; 
+      current_diff = pos2_end - pos1_end;
     }
     this.chunks = chunks;
   }
   PosTranslator.prototype.GetChunks = function() {
     return this.chunks;
   }
-  
+
   PosTranslator.prototype.Translate = function(pos, inside_chunk_handler) {
-    var array = this.chunks; 
+    var array = this.chunks;
     if (array.length == 0 || pos < array[0].pos1) {
       return pos;
     }
@@ -467,9 +466,9 @@ Debug.LiveEdit = new function() {
     }
     var chunk = array[chunk_index1];
     if (pos >= chunk.pos1 + chunk.len1) {
-      return pos + chunk.pos2 + chunk.len2 - chunk.pos1 - chunk.len1; 
+      return pos + chunk.pos2 + chunk.len2 - chunk.pos1 - chunk.len1;
     }
-    
+
     if (!inside_chunk_handler) {
       inside_chunk_handler = PosTranslator.DefaultInsideChunkHandler;
     }
@@ -479,17 +478,17 @@ Debug.LiveEdit = new function() {
   PosTranslator.DefaultInsideChunkHandler = function(pos, diff_chunk) {
     Assert(false, "Cannot translate position in changed area");
   }
-  
+
   PosTranslator.ShiftWithTopInsideChunkHandler =
       function(pos, diff_chunk) {
     // We carelessly do not check whether we stay inside the chunk after
     // translation.
-    return pos - diff_chunk.pos1 + diff_chunk.pos2; 
+    return pos - diff_chunk.pos1 + diff_chunk.pos2;
   }
-  
+
   var FunctionStatus = {
       // No change to function or its inner functions; however its positions
-      // in script may have been shifted. 
+      // in script may have been shifted.
       UNCHANGED: "unchanged",
       // The code of a function remains unchanged, but something happened inside
       // some inner functions.
@@ -500,14 +499,14 @@ Debug.LiveEdit = new function() {
       // Function is changed but cannot be patched.
       DAMAGED: "damaged"
   }
-  
+
   function CodeInfoTreeNode(code_info, children, array_index) {
     this.info = code_info;
     this.children = children;
     // an index in array of compile_info
-    this.array_index = array_index; 
+    this.array_index = array_index;
     this.parent = void 0;
-    
+
     this.status = FunctionStatus.UNCHANGED;
     // Status explanation is used for debugging purposes and will be shown
     // in user UI if some explanations are needed.
@@ -516,26 +515,26 @@ Debug.LiveEdit = new function() {
     this.new_end_pos = void 0;
     this.corresponding_node = void 0;
     this.unmatched_new_nodes = void 0;
-    
+
     // 'Textual' correspondence/matching is weaker than 'pure'
     // correspondence/matching. We need 'textual' level for visual presentation
     // in UI, we use 'pure' level for actual code manipulation.
     // Sometimes only function body is changed (functions in old and new script
     // textually correspond), but we cannot patch the code, so we see them
-    // as an old function deleted and new function created.  
+    // as an old function deleted and new function created.
     this.textual_corresponding_node = void 0;
     this.textually_unmatched_new_nodes = void 0;
-    
+
     this.live_shared_info_wrapper = void 0;
   }
-  
+
   // From array of function infos that is implicitly a tree creates
   // an actual tree of functions in script.
   function BuildCodeInfoTree(code_info_array) {
     // Throughtout all function we iterate over input array.
     var index = 0;
 
-    // Recursive function that builds a branch of tree. 
+    // Recursive function that builds a branch of tree.
     function BuildNode() {
       var my_index = index;
       index++;
@@ -551,7 +550,7 @@ Debug.LiveEdit = new function() {
       }
       return node;
     }
-    
+
     var root = BuildNode();
     Assert(index == code_info_array.length);
     return root;
@@ -570,7 +569,7 @@ Debug.LiveEdit = new function() {
       this.current = function() { return chunks[chunk_index]; }
       this.next = function() {
         var chunk = chunks[chunk_index];
-        pos_diff = chunk.pos2 + chunk.len2 - (chunk.pos1 + chunk.len1); 
+        pos_diff = chunk.pos2 + chunk.len2 - (chunk.pos1 + chunk.len1);
         chunk_index++;
       }
       this.done = function() { return chunk_index >= chunks.length; }
@@ -582,7 +581,7 @@ Debug.LiveEdit = new function() {
     // below function start.
     function ProcessInternals(info_node) {
       info_node.new_start_pos = chunk_it.TranslatePos(
-          info_node.info.start_position); 
+          info_node.info.start_position);
       var child_index = 0;
       var code_changed = false;
       var source_changed = false;
@@ -591,7 +590,7 @@ Debug.LiveEdit = new function() {
           chunk_it.current().pos1 < info_node.info.end_position) {
         if (child_index < info_node.children.length) {
           var child = info_node.children[child_index];
-          
+
           if (child.info.end_position <= chunk_it.current().pos1) {
             ProcessUnchangedChild(child);
             child_index++;
@@ -620,7 +619,7 @@ Debug.LiveEdit = new function() {
             continue;
           }
         } else {
-          if (chunk_it.current().pos1 + chunk_it.current().len1 <= 
+          if (chunk_it.current().pos1 + chunk_it.current().len1 <=
               info_node.info.end_position) {
             info_node.status = FunctionStatus.CHANGED;
             chunk_it.next();
@@ -645,14 +644,14 @@ Debug.LiveEdit = new function() {
         info_node.status = FunctionStatus.SOURCE_CHANGED;
       }
       info_node.new_end_pos =
-          chunk_it.TranslatePos(info_node.info.end_position); 
+          chunk_it.TranslatePos(info_node.info.end_position);
     }
-    
+
     function ProcessUnchangedChild(node) {
       node.new_start_pos = chunk_it.TranslatePos(node.info.start_position);
       node.new_end_pos = chunk_it.TranslatePos(node.info.end_position);
     }
-    
+
     ProcessInternals(code_info_tree);
   }
 
@@ -670,7 +669,7 @@ Debug.LiveEdit = new function() {
     function ProcessChildren(old_node, new_node) {
       var old_children = old_node.children;
       var new_children = new_node.children;
-      
+
       var unmatched_new_nodes_list = [];
       var textually_unmatched_new_nodes_list = [];
 
@@ -728,13 +727,13 @@ Debug.LiveEdit = new function() {
           old_index++;
         }
       }
-      
+
       while (new_index < new_children.length) {
         unmatched_new_nodes_list.push(new_children[new_index]);
         textually_unmatched_new_nodes_list.push(new_children[new_index]);
         new_index++;
       }
-      
+
       if (old_node.status == FunctionStatus.CHANGED) {
         var why_wrong_expectations =
             WhyFunctionExpectationsDiffer(old_node.info, new_node.info);
@@ -749,23 +748,23 @@ Debug.LiveEdit = new function() {
     }
 
     ProcessChildren(old_code_tree, new_code_tree);
-    
+
     old_code_tree.corresponding_node = new_code_tree;
     old_code_tree.textual_corresponding_node = new_code_tree;
 
     Assert(old_code_tree.status != FunctionStatus.DAMAGED,
         "Script became damaged");
   }
-  
+
   function FindLiveSharedInfos(old_code_tree, script) {
     var shared_raw_list = %LiveEditFindSharedFunctionInfosForScript(script);
-    
+
     var shared_infos = new Array();
-  
+
     for (var i = 0; i < shared_raw_list.length; i++) {
       shared_infos.push(new SharedInfoWrapper(shared_raw_list[i]));
     }
-    
+
     // Finds SharedFunctionInfo that corresponds compile info with index
     // in old version of the script.
     function FindFunctionInfo(compile_info) {
@@ -777,7 +776,7 @@ Debug.LiveEdit = new function() {
         }
       }
     }
-    
+
     function TraverseTree(node) {
       var info_wrapper = FindFunctionInfo(node.info);
       if (info_wrapper) {
@@ -791,7 +790,7 @@ Debug.LiveEdit = new function() {
     TraverseTree(old_code_tree);
   }
 
-  
+
   // An object describing function compilation details. Its index fields
   // apply to indexes inside array that stores these objects.
   function FunctionCompileInfo(raw_array) {
@@ -807,7 +806,7 @@ Debug.LiveEdit = new function() {
     this.next_sibling_index = null;
     this.raw_array = raw_array;
   }
-  
+
   function SharedInfoWrapper(raw_array) {
     this.function_name = raw_array[0];
     this.start_position = raw_array[1];
@@ -821,7 +820,7 @@ Debug.LiveEdit = new function() {
     var shared_info_wrapper = old_info_node.live_shared_info_wrapper;
     if (!shared_info_wrapper) {
       // TODO(LiveEdit): function is not compiled yet or is already collected.
-      report_array.push( 
+      report_array.push(
           { name: old_info_node.info.function_name, info_not_found: true } );
       return;
     }
@@ -835,44 +834,44 @@ Debug.LiveEdit = new function() {
     // TODO(635): try better than this; support several changes.
     return script.name + " (old)";
   }
-  
+
   // Compares a function interface old and new version, whether it
   // changed or not. Returns explanation if they differ.
   function WhyFunctionExpectationsDiffer(function_info1, function_info2) {
     // Check that function has the same number of parameters (there may exist
     // an adapter, that won't survive function parameter number change).
     if (function_info1.param_num != function_info2.param_num) {
-      return "Changed parameter number: " + function_info1.param_num + 
+      return "Changed parameter number: " + function_info1.param_num +
           " and " + function_info2.param_num;
     }
     var scope_info1 = function_info1.scope_info;
     var scope_info2 = function_info2.scope_info;
 
-    var scope_info1_text; 
-    var scope_info2_text; 
-    
+    var scope_info1_text;
+    var scope_info2_text;
+
     if (scope_info1) {
-      scope_info1_text = scope_info1.toString(); 
+      scope_info1_text = scope_info1.toString();
     } else {
       scope_info1_text = "";
     }
     if (scope_info2) {
-      scope_info2_text = scope_info2.toString(); 
+      scope_info2_text = scope_info2.toString();
     } else {
       scope_info2_text = "";
     }
-    
+
     if (scope_info1_text != scope_info2_text) {
       return "Incompatible variable maps: [" + scope_info1_text +
-          "] and [" + scope_info2_text + "]";  
+          "] and [" + scope_info2_text + "]";
     }
     // No differences. Return undefined.
     return;
   }
-  
+
   // Minifier forward declaration.
   var FunctionPatchabilityStatus;
-  
+
   // For array of wrapped shared function infos checks that none of them
   // have activations on stack (of any thread). Throws a Failure exception
   // if this proves to be false.
@@ -886,7 +885,7 @@ Debug.LiveEdit = new function() {
       // Extra array element may contain error message.
       throw new Failure(result[shared_list.length]);
     }
-  
+
     var problems = new Array();
     var dropped = new Array();
     for (var i = 0; i < shared_list.length; i++) {
@@ -896,7 +895,7 @@ Debug.LiveEdit = new function() {
       } else if (result[i] != FunctionPatchabilityStatus.AVAILABLE_FOR_PATCH) {
         var description = {
             name: shared.function_name,
-            start_pos: shared.start_position, 
+            start_pos: shared.start_position,
             end_pos: shared.end_position,
             replace_problem:
                 FunctionPatchabilityStatus.SymbolName(result[i])
@@ -911,10 +910,10 @@ Debug.LiveEdit = new function() {
       change_log.push( { functions_on_stack: problems } );
       throw new Failure("Blocked by functions on stack");
     }
-    
+
     return dropped.length;
   }
-  
+
   // A copy of the FunctionPatchabilityStatus enum from liveedit.h
   var FunctionPatchabilityStatus = {
       AVAILABLE_FOR_PATCH: 1,
@@ -923,17 +922,17 @@ Debug.LiveEdit = new function() {
       BLOCKED_UNDER_NATIVE_CODE: 4,
       REPLACED_ON_ACTIVE_STACK: 5
   }
-  
+
   FunctionPatchabilityStatus.SymbolName = function(code) {
     var enum = FunctionPatchabilityStatus;
     for (name in enum) {
       if (enum[name] == code) {
         return name;
       }
-    }      
+    }
   }
-  
-  
+
+
   // A logical failure in liveedit process. This means that change_log
   // is valid and consistent description of what happened.
   function Failure(message) {
@@ -941,11 +940,11 @@ Debug.LiveEdit = new function() {
   }
   // Function (constructor) is public.
   this.Failure = Failure;
-  
+
   Failure.prototype.toString = function() {
     return "LiveEdit Failure: " + this.message;
   }
-  
+
   // A testing entry.
   function GetPcFromSourcePos(func, source_pos) {
     return %GetFunctionCodePositionFromSource(func, source_pos);
@@ -962,7 +961,7 @@ Debug.LiveEdit = new function() {
   }
   // Function is public.
   this.SetScriptSource = SetScriptSource;
-  
+
   function CompareStringsLinewise(s1, s2) {
     return %LiveEditCompareStringsLinewise(s1, s2);
   }
@@ -978,19 +977,19 @@ Debug.LiveEdit = new function() {
   function ApplySingleChunkPatch(script, change_pos, change_len, new_str,
       change_log) {
     var old_source = script.source;
-  
+
     // Prepare new source string.
     var new_source = old_source.substring(0, change_pos) +
         new_str + old_source.substring(change_pos + change_len);
-    
+
     return ApplyPatchMultiChunk(script,
         [ change_pos, change_pos + change_len, change_pos + new_str.length],
         new_source, false, change_log);
   }
-  
+
   // Creates JSON description for a change tree.
   function DescribeChangeTree(old_code_tree) {
-    
+
     function ProcessOldNode(node) {
       var child_infos = [];
       for (var i = 0; i < node.children.length; i++) {
@@ -1011,7 +1010,7 @@ Debug.LiveEdit = new function() {
         positions: DescribePositions(node),
         status: node.status,
         children: child_infos,
-        new_children: new_child_infos  
+        new_children: new_child_infos
       };
       if (node.status_explanation) {
         res.status_explanation = node.status_explanation;
@@ -1021,7 +1020,7 @@ Debug.LiveEdit = new function() {
       }
       return res;
     }
-    
+
     function ProcessNewNode(node) {
       var child_infos = [];
       // Do not list ancestors.
@@ -1037,18 +1036,18 @@ Debug.LiveEdit = new function() {
       };
       return res;
     }
-    
+
     function DescribePositions(node) {
       return {
         start_position: node.info.start_position,
         end_position: node.info.end_position
       };
     }
-    
+
     return ProcessOldNode(old_code_tree);
   }
 
-  
+
   // Functions are public for tests.
   this.TestApi = {
     PosTranslator: PosTranslator,

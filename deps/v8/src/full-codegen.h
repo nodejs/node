@@ -74,7 +74,7 @@ class FullCodeGenerator: public AstVisitor {
         context_(NULL) {
   }
 
-  static Handle<Code> MakeCode(CompilationInfo* info);
+  static bool MakeCode(CompilationInfo* info);
 
   void Generate(CompilationInfo* info);
 
@@ -603,6 +603,15 @@ class FullCodeGenerator: public AstVisitor {
           true_label_(true_label),
           false_label_(false_label),
           fall_through_(fall_through) { }
+
+    static const TestContext* cast(const ExpressionContext* context) {
+      ASSERT(context->IsTest());
+      return reinterpret_cast<const TestContext*>(context);
+    }
+
+    Label* true_label() const { return true_label_; }
+    Label* false_label() const { return false_label_; }
+    Label* fall_through() const { return fall_through_; }
 
     virtual void Plug(bool flag) const;
     virtual void Plug(Register reg) const;

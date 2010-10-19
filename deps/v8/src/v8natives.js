@@ -547,11 +547,11 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
 
   if (!IS_UNDEFINED(current) && !current.isConfigurable()) {
     // Step 5 and 6
-    if ((!desc.hasEnumerable() || 
+    if ((!desc.hasEnumerable() ||
          SameValue(desc.isEnumerable() && current.isEnumerable())) &&
-        (!desc.hasConfigurable() || 
+        (!desc.hasConfigurable() ||
          SameValue(desc.isConfigurable(), current.isConfigurable())) &&
-        (!desc.hasWritable() || 
+        (!desc.hasWritable() ||
          SameValue(desc.isWritable(), current.isWritable())) &&
         (!desc.hasValue() ||
          SameValue(desc.getValue(), current.getValue())) &&
@@ -755,7 +755,7 @@ function ObjectSeal(obj) {
     var desc = GetOwnProperty(obj, name);
     if (desc.isConfigurable()) desc.setConfigurable(false);
     DefineOwnProperty(obj, name, desc, true);
-  }  
+  }
   return ObjectPreventExtension(obj);
 }
 
@@ -772,7 +772,7 @@ function ObjectFreeze(obj) {
     if (IsDataDescriptor(desc)) desc.setWritable(false);
     if (desc.isConfigurable()) desc.setConfigurable(false);
     DefineOwnProperty(obj, name, desc, true);
-  }  
+  }
   return ObjectPreventExtension(obj);
 }
 
@@ -1118,12 +1118,12 @@ function FunctionBind(this_arg) { // Length is 1.
     var bound_args = new $Array(argc_bound);
     for(var i = 0; i < argc_bound; i++) {
       bound_args[i] = %_Arguments(i+1);
-    }  
+    }
   }
   var fn = this;
   var result = function() {
     // Combine the args we got from the bind call with the args
-    // given as argument to the invocation. 
+    // given as argument to the invocation.
     var argc = %_ArgumentsLength();
     var args = new $Array(argc + argc_bound);
     // Add bound arguments.
@@ -1132,7 +1132,7 @@ function FunctionBind(this_arg) { // Length is 1.
     }
     // Add arguments from call.
     for (var i = 0; i < argc; i++) {
-      args[argc_bound + i] = %_Arguments(i); 
+      args[argc_bound + i] = %_Arguments(i);
     }
     // If this is a construct call we use a special runtime method
     // to generate the actual object using the bound function.
@@ -1147,7 +1147,7 @@ function FunctionBind(this_arg) { // Length is 1.
   // try to redefine these as defined by the spec. The spec says
   // that bind should make these throw a TypeError if get or set
   // is called and make them non-enumerable and non-configurable.
-  // To be consistent with our normal functions we leave this as it is. 
+  // To be consistent with our normal functions we leave this as it is.
 
   // Set the correct length.
   var length = (this.length - argc_bound) > 0 ? this.length - argc_bound : 0;

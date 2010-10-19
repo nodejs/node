@@ -62,7 +62,6 @@
 //   ComputeCallInitializeInLoop
 //   ProcessDeclarations
 //   DeclareGlobals
-//   FindInlineRuntimeLUT
 //   CheckForInlineRuntimeCall
 //   AnalyzeCondition
 //   CodeForFunctionPosition

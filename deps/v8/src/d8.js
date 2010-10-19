@@ -949,7 +949,7 @@ function DebugResponseDetails(response) {
       case 'suspend':
         details.text = 'stopped';
         break;
-        
+
       case 'setbreakpoint':
         result = 'set breakpoint #';
         result += body.breakpoint;
@@ -961,7 +961,7 @@ function DebugResponseDetails(response) {
         result += body.breakpoint;
         details.text = result;
         break;
-        
+
       case 'listbreakpoints':
         result = 'breakpoints: (' + body.breakpoints.length + ')';
         for (var i = 0; i < body.breakpoints.length; i++) {

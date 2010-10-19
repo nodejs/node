@@ -25,19 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CACHED_POWERS_H_
-#define V8_CACHED_POWERS_H_
+// Flags: --max-new-space-size=256
 
-#include "diy-fp.h"
+// Check for GC bug constructing exceptions.
+var v = [1, 2, 3, 4]
 
-namespace v8 {
-namespace internal {
+Object.preventExtensions(v);
 
-void GetCachedPowerForBinaryExponentRange(int min_exponent,
-                                          int max_exponent,
-                                          DiyFp* power,
-                                          int* decimal_exponent);
+function foo() {
+  var re = /2147483647/;  // Equal to 0x7fffffff.
+  for  (var i = 0; i < 10000; i++) {
+    var ok = false;
+    try {
+      var j = 1;
+      // Allocate some heap numbers in order to randomize the behaviour of the
+      // garbage collector.  93 is chosen to be a prime number to avoid the
+      // allocation settling into a too neat pattern.
+      for (var j = 0; j < i % 93; j++) {
+        j *= 1.123567;  // An arbitrary floating point number.
+      }
+      v[0x7fffffff] = 0;  // Trigger exception.
+      assertTrue(false);
+      return j;  // Make sure that future optimizations don't eliminate j.
+    } catch(e) {
+      ok = true;
+      assertTrue(re.test(e));
+    }
+    assertTrue(ok);
+  }
+}
 
-} }  // namespace v8::internal
-
-#endif  // V8_CACHED_POWERS_H_
+foo();

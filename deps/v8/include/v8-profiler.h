@@ -245,7 +245,9 @@ class V8EXPORT HeapGraphNode {
     kString = 2,     // A string.
     kObject = 3,     // A JS object (except for arrays and strings).
     kCode = 4,       // Compiled code.
-    kClosure = 5     // Function closure.
+    kClosure = 5,    // Function closure.
+    kRegExp = 6,     // RegExp.
+    kHeapNumber = 7  // Number stored in the heap.
   };
 
   /** Returns node type (see HeapGraphNode::Type). */

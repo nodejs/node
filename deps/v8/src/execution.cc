@@ -473,6 +473,19 @@ Handle<Object> Execution::NewDate(double time, bool* exc) {
 #undef RETURN_NATIVE_CALL
 
 
+Handle<JSRegExp> Execution::NewJSRegExp(Handle<String> pattern,
+                                        Handle<String> flags,
+                                        bool* exc) {
+  Handle<Object> re_obj = RegExpImpl::CreateRegExpLiteral(
+      Handle<JSFunction>(Top::global_context()->regexp_function()),
+      pattern,
+      flags,
+      exc);
+  if (*exc) return Handle<JSRegExp>();
+  return Handle<JSRegExp>::cast(re_obj);
+}
+
+
 Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
   int int_index = static_cast<int>(index);
   if (int_index < 0 || int_index >= string->length()) {

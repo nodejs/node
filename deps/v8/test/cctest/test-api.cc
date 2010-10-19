@@ -766,6 +766,12 @@ static v8::Handle<Value> construct_call(const v8::Arguments& args) {
   return args.This();
 }
 
+static v8::Handle<Value> Return239(Local<String> name, const AccessorInfo&) {
+  ApiTestFuzzer::Fuzz();
+  return v8_num(239);
+}
+
+
 THREADED_TEST(FunctionTemplate) {
   v8::HandleScope scope;
   LocalContext env;
@@ -792,6 +798,7 @@ THREADED_TEST(FunctionTemplate) {
     Local<v8::FunctionTemplate> fun_templ =
         v8::FunctionTemplate::New(construct_call);
     fun_templ->SetClassName(v8_str("funky"));
+    fun_templ->InstanceTemplate()->SetAccessor(v8_str("m"), Return239);
     Local<Function> fun = fun_templ->GetFunction();
     env->Global()->Set(v8_str("obj"), fun);
     Local<Script> script = v8_compile("var s = new obj(); s.x");
@@ -799,6 +806,9 @@ THREADED_TEST(FunctionTemplate) {
 
     Local<Value> result = v8_compile("(new obj()).toString()")->Run();
     CHECK_EQ(v8_str("[object funky]"), result);
+
+    result = v8_compile("(new obj()).m")->Run();
+    CHECK_EQ(239, result->Int32Value());
   }
 }
 
@@ -6509,12 +6519,6 @@ THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
 }
 
 
-static v8::Handle<Value> Return239(Local<String> name, const AccessorInfo&) {
-  ApiTestFuzzer::Fuzz();
-  return v8_num(239);
-}
-
-
 static void SetOnThis(Local<String> name,
                       Local<Value> value,
                       const AccessorInfo& info) {
@@ -10555,6 +10559,45 @@ TEST(CaptureStackTraceForUncaughtException) {
 }
 
 
+v8::Handle<Value> AnalyzeStackOfEvalWithSourceURL(const v8::Arguments& args) {
+  v8::HandleScope scope;
+  v8::Handle<v8::StackTrace> stackTrace =
+      v8::StackTrace::CurrentStackTrace(10, v8::StackTrace::kDetailed);
+  CHECK_EQ(5, stackTrace->GetFrameCount());
+  v8::Handle<v8::String> url = v8_str("eval_url");
+  for (int i = 0; i < 3; i++) {
+    v8::Handle<v8::String> name =
+        stackTrace->GetFrame(i)->GetScriptNameOrSourceURL();
+    CHECK(!name.IsEmpty());
+    CHECK_EQ(url, name);
+  }
+  return v8::Undefined();
+}
+
+
+TEST(SourceURLInStackTrace) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("AnalyzeStackOfEvalWithSourceURL"),
+             v8::FunctionTemplate::New(AnalyzeStackOfEvalWithSourceURL));
+  LocalContext context(0, templ);
+
+  const char *source =
+    "function outer() {\n"
+    "function bar() {\n"
+    "  AnalyzeStackOfEvalWithSourceURL();\n"
+    "}\n"
+    "function foo() {\n"
+    "\n"
+    "  bar();\n"
+    "}\n"
+    "foo();\n"
+    "}\n"
+    "eval('(' + outer +')()//@ sourceURL=eval_url');";
+  CHECK(CompileRun(source)->IsUndefined());
+}
+
+
 // Test that idle notification can be handled and eventually returns true.
 THREADED_TEST(IdleNotification) {
   bool rv = false;
@@ -11618,4 +11661,97 @@ TEST(GlobalLoadICGC) {
     CompileRun(function_code);
     CheckSurvivingGlobalObjectsCount(1);
   }
+}
+
+
+TEST(RegExp) {
+  v8::HandleScope scope;
+  LocalContext context;
+
+  v8::Handle<v8::RegExp> re = v8::RegExp::New(v8_str("foo"), v8::RegExp::kNone);
+  CHECK(re->IsRegExp());
+  CHECK(re->GetSource()->Equals(v8_str("foo")));
+  CHECK_EQ(re->GetFlags(), v8::RegExp::kNone);
+
+  re = v8::RegExp::New(v8_str("bar"),
+                       static_cast<v8::RegExp::Flags>(v8::RegExp::kIgnoreCase |
+                                                      v8::RegExp::kGlobal));
+  CHECK(re->IsRegExp());
+  CHECK(re->GetSource()->Equals(v8_str("bar")));
+  CHECK_EQ(static_cast<int>(re->GetFlags()),
+           v8::RegExp::kIgnoreCase | v8::RegExp::kGlobal);
+
+  re = v8::RegExp::New(v8_str("baz"),
+                       static_cast<v8::RegExp::Flags>(v8::RegExp::kIgnoreCase |
+                                                      v8::RegExp::kMultiline));
+  CHECK(re->IsRegExp());
+  CHECK(re->GetSource()->Equals(v8_str("baz")));
+  CHECK_EQ(static_cast<int>(re->GetFlags()),
+           v8::RegExp::kIgnoreCase | v8::RegExp::kMultiline);
+
+  re = CompileRun("/quux/").As<v8::RegExp>();
+  CHECK(re->IsRegExp());
+  CHECK(re->GetSource()->Equals(v8_str("quux")));
+  CHECK_EQ(re->GetFlags(), v8::RegExp::kNone);
+
+  re = CompileRun("/quux/gm").As<v8::RegExp>();
+  CHECK(re->IsRegExp());
+  CHECK(re->GetSource()->Equals(v8_str("quux")));
+  CHECK_EQ(static_cast<int>(re->GetFlags()),
+           v8::RegExp::kGlobal | v8::RegExp::kMultiline);
+
+  // Override the RegExp constructor and check the API constructor
+  // still works.
+  CompileRun("RegExp = function() {}");
+
+  re = v8::RegExp::New(v8_str("foobar"), v8::RegExp::kNone);
+  CHECK(re->IsRegExp());
+  CHECK(re->GetSource()->Equals(v8_str("foobar")));
+  CHECK_EQ(re->GetFlags(), v8::RegExp::kNone);
+
+  re = v8::RegExp::New(v8_str("foobarbaz"),
+                       static_cast<v8::RegExp::Flags>(v8::RegExp::kIgnoreCase |
+                                                      v8::RegExp::kMultiline));
+  CHECK(re->IsRegExp());
+  CHECK(re->GetSource()->Equals(v8_str("foobarbaz")));
+  CHECK_EQ(static_cast<int>(re->GetFlags()),
+           v8::RegExp::kIgnoreCase | v8::RegExp::kMultiline);
+
+  context->Global()->Set(v8_str("re"), re);
+  ExpectTrue("re.test('FoobarbaZ')");
+
+  v8::TryCatch try_catch;
+  re = v8::RegExp::New(v8_str("foo["), v8::RegExp::kNone);
+  CHECK(re.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  context->Global()->Set(v8_str("ex"), try_catch.Exception());
+  ExpectTrue("ex instanceof SyntaxError");
+}
+
+
+static v8::Handle<v8::Value> Getter(v8::Local<v8::String> property,
+                                    const v8::AccessorInfo& info ) {
+  return v8_str("42!");
+}
+
+
+static v8::Handle<v8::Array> Enumerator(const v8::AccessorInfo& info) {
+  v8::Handle<v8::Array> result = v8::Array::New();
+  result->Set(0, v8_str("universalAnswer"));
+  return result;
+}
+
+
+TEST(NamedEnumeratorAndForIn) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+  v8::Context::Scope context_scope(context.local());
+
+  v8::Handle<v8::ObjectTemplate> tmpl = v8::ObjectTemplate::New();
+  tmpl->SetNamedPropertyHandler(Getter, NULL, NULL, NULL, Enumerator);
+  context->Global()->Set(v8_str("o"), tmpl->NewInstance());
+  v8::Handle<v8::Array> result = v8::Handle<v8::Array>::Cast(CompileRun(
+        "var result = []; for (var k in o) result.push(k); result"));
+  CHECK_EQ(1, result->Length());
+  CHECK_EQ(v8_str("universalAnswer"), result->Get(0));
 }

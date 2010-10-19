@@ -398,45 +398,30 @@ Handle<JSArray> LiveEdit::CompareStringsLinewise(Handle<String> s1,
 
 
 static void CompileScriptForTracker(Handle<Script> script) {
-  const bool is_eval = false;
-  const bool is_global = true;
   // TODO(635): support extensions.
-  Extension* extension = NULL;
-
   PostponeInterruptsScope postpone;
 
-  // Only allow non-global compiles for eval.
-  ASSERT(is_eval || is_global);
-
   // Build AST.
-  ScriptDataImpl* pre_data = NULL;
-  EagerCompilationInfo info(script, is_eval);
-  FunctionLiteral* lit =
-      Parser::MakeAST(is_global, script, extension, pre_data);
-
-  // Check for parse errors.
-  if (lit == NULL) {
-    ASSERT(Top::has_pending_exception());
-    return;
+  CompilationInfo info(script);
+  info.MarkAsGlobal();
+  if (Parser::Parse(&info)) {
+    // Compile the code.
+    LiveEditFunctionTracker tracker(info.function());
+    if (Compiler::MakeCodeForLiveEdit(&info)) {
+      ASSERT(!info.code().is_null());
+      tracker.RecordRootFunctionInfo(info.code());
+    } else {
+      Top::StackOverflow();
+    }
   }
-  info.set_function(lit);
-
-  // Compile the code.
-  LiveEditFunctionTracker tracker(lit);
-  Handle<Code> code = MakeCodeForLiveEdit(&info);
-
-  // Check for stack-overflow exceptions.
-  if (code.is_null()) {
-    Top::StackOverflow();
-    return;
-  }
-  tracker.RecordRootFunctionInfo(code);
 }
+
 
 // Unwraps JSValue object, returning its field "value"
 static Handle<Object> UnwrapJSValue(Handle<JSValue> jsValue) {
   return Handle<Object>(jsValue->value());
 }
+
 
 // Wraps any object into a OpaqueReference, that will hide the object
 // from JavaScript.
@@ -447,6 +432,7 @@ static Handle<JSValue> WrapInJSValue(Object* object) {
   result->set_value(object);
   return result;
 }
+
 
 // Simple helper class that creates more or less typed structures over
 // JSArray object. This is an adhoc method of passing structures from C++
@@ -468,6 +454,7 @@ class JSArrayBasedStruct {
   Handle<JSArray> GetJSArray() {
     return array_;
   }
+
  protected:
   void SetField(int field_position, Handle<Object> value) {
     SetElement(array_, field_position, value);
@@ -482,6 +469,7 @@ class JSArrayBasedStruct {
     Object* res = GetField(field_position);
     return Smi::cast(res)->value();
   }
+
  private:
   Handle<JSArray> array_;
 };
@@ -554,6 +542,7 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   friend class JSArrayBasedStruct<FunctionInfoWrapper>;
 };
 
+
 // Wraps SharedFunctionInfo along with some of its fields for passing it
 // back to JavaScript. SharedFunctionInfo object itself is additionally
 // wrapped into BlindReference for sanitizing reasons.
@@ -594,6 +583,7 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
   friend class JSArrayBasedStruct<SharedInfoWrapper>;
 };
 
+
 class FunctionInfoListener {
  public:
   FunctionInfoListener() {
@@ -620,7 +610,6 @@ class FunctionInfoListener {
     current_parent_index_ = info.GetParentIndex();
   }
 
- public:
   // Saves only function code, because for a script function we
   // may never create a SharedFunctionInfo object.
   void FunctionCode(Handle<Code> function_code) {
@@ -707,6 +696,7 @@ class FunctionInfoListener {
   int len_;
   int current_parent_index_;
 };
+
 
 static FunctionInfoListener* active_function_info_listener = NULL;
 

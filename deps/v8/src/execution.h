@@ -105,6 +105,11 @@ class Execution : public AllStatic {
   // Create a new date object from 'time'.
   static Handle<Object> NewDate(double time, bool* exc);
 
+  // Create a new regular expression object from 'pattern' and 'flags'.
+  static Handle<JSRegExp> NewJSRegExp(Handle<String> pattern,
+                                      Handle<String> flags,
+                                      bool* exc);
+
   // Used to implement [] notation on strings (calls JS code)
   static Handle<Object> CharAt(Handle<String> str, uint32_t index);
 

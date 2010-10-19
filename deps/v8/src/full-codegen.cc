@@ -277,7 +277,7 @@ void BreakableStatementChecker::VisitThisFunction(ThisFunction* expr) {
 
 #define __ ACCESS_MASM(masm())
 
-Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
+bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
@@ -291,10 +291,13 @@ Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
   cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
-    return Handle<Code>::null();
+    return false;
   }
+
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);
-  return CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
+  Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
+  info->SetCode(code);  // may be an empty handle.
+  return !code.is_null();
 }
 
 
@@ -462,9 +465,12 @@ void FullCodeGenerator::VisitDeclarations(
           }
         } else {
           Handle<SharedFunctionInfo> function =
-              Compiler::BuildFunctionInfo(decl->fun(), script(), this);
+              Compiler::BuildFunctionInfo(decl->fun(), script());
           // Check for stack-overflow exception.
-          if (HasStackOverflow()) return;
+          if (function.is_null()) {
+            SetStackOverflow();
+            return;
+          }
           array->set(j++, *function);
         }
       }
@@ -1122,9 +1128,14 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
   __ bind(&true_case);
   SetExpressionPosition(expr->then_expression(),
                         expr->then_expression_position());
-  Visit(expr->then_expression());
-  // If control flow falls through Visit, jump to done.
-  if (!context()->IsTest()) {
+  if (context()->IsTest()) {
+    const TestContext* for_test = TestContext::cast(context());
+    VisitForControl(expr->then_expression(),
+                    for_test->true_label(),
+                    for_test->false_label(),
+                    NULL);
+  } else {
+    Visit(expr->then_expression());
     __ jmp(&done);
   }
 
@@ -1156,8 +1167,11 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Build the function boilerplate and instantiate it.
   Handle<SharedFunctionInfo> function_info =
-      Compiler::BuildFunctionInfo(expr, script(), this);
-  if (HasStackOverflow()) return;
+      Compiler::BuildFunctionInfo(expr, script());
+  if (function_info.is_null()) {
+    SetStackOverflow();
+    return;
+  }
   EmitNewClosure(function_info);
 }
 

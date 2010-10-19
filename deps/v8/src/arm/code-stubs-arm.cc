@@ -935,7 +935,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ orr(r2, r1, r0);
     __ tst(r2, Operand(kSmiTagMask));
     __ b(ne, &not_two_smis);
-    __ sub(r0, r1, r0);
+    __ sub(r0, r1, r0, SetCC);
     __ b(vc, &smi_done);
     // Correct the sign in case of overflow.
     __ rsb(r0, r0, Operand(0, RelocInfo::NONE));

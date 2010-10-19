@@ -62,6 +62,13 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
+#ifdef DEBUG
+  if (strlen(FLAG_stop_at) > 0 &&
+      info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+    __ stop("stop-at");
+  }
+#endif
+
   int locals_count = scope()->num_stack_slots();
 
   __ Push(lr, fp, cp, r1);

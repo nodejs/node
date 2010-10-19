@@ -611,7 +611,7 @@ function StringSplit(separator, limit) {
   if (%_ObjectEquals(cache.type, 'split') &&
       %_IsRegExpEquivalent(cache.regExp, separator) &&
       %_ObjectEquals(cache.subject, subject) &&
-      %_ObjectEquals(cache.lastIndex, limit)) {
+      %_ObjectEquals(cache.splitLimit, limit)) {
     if (cache.answerSaved) {
       return CloneDenseArray(cache.answer);
     } else {
@@ -622,8 +622,7 @@ function StringSplit(separator, limit) {
   cache.type = 'split';
   cache.regExp = separator;
   cache.subject = subject;
-  // Reuse lastIndex field for split limit when type is "split".
-  cache.lastIndex = limit;
+  cache.splitLimit = limit;
 
   %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
 
