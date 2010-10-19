@@ -164,10 +164,8 @@ var module = (function () {
     };
   }
 
-  function findModulePath (id, dirs) {
-    process.assert(Array.isArray(dirs));
-
-    var nextLoc = traverser(id, id.charAt(0) === '/' ? [''] : dirs);
+  function findModulePath (request, paths) {
+    var nextLoc = traverser(request, request.charAt(0) === '/' ? [''] : paths);
 
     var fs = requireNative('fs');
 
@@ -181,7 +179,10 @@ var module = (function () {
 
 
   // sync - no i/o performed
-  function resolveModulePath(request, parent) {
+  function resolveModuleLookupPaths (request, parent) {
+
+    if (natives[request]) return [request, []];
+
     var start = request.substring(0, 2);
     if (start !== "./" && start !== "..") {
       return [request, modulePaths];
@@ -207,26 +208,19 @@ var module = (function () {
   function loadModule (request, parent) {
     debug("loadModule REQUEST  " + (request) + " parent: " + parent.id);
 
+    var resolved = resolveModuleFilename(request, parent);
+    var id = resolved[0];
+    var filename = resolved[1];
+
     // With natives id === request
     // We deal with these first
-    var cachedNative = internalModuleCache[request];
+    var cachedNative = internalModuleCache[id];
     if (cachedNative) {
       return cachedNative.exports;
     }
-    if (natives[request]) {
+    if (natives[id]) {
       debug('load native module ' + request);
-      return loadNative(request).exports;
-    }
-
-    var resolvedModule = resolveModulePath(request, parent),
-        id             = resolvedModule[0],
-        paths          = resolvedModule[1];
-
-    // look up the filename first, since that's the cache key.
-    debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
-    var filename = findModulePath(request, paths);
-    if (!filename) {
-      throw new Error("Cannot find module '" + request + "'");
+      return loadNative(id).exports;
     }
 
     var cachedModule = moduleCache[filename];
@@ -237,6 +231,21 @@ var module = (function () {
     module.load(filename);
     return module.exports;
   };
+  
+  function resolveModuleFilename (request, parent) {
+    if (natives[request]) return [request, request];
+    var resolvedModule = resolveModuleLookupPaths(request, parent),
+        id             = resolvedModule[0],
+        paths          = resolvedModule[1];
+
+    // look up the filename first, since that's the cache key.
+    debug("looking for " + JSON.stringify(id) + " in " + JSON.stringify(paths));
+    var filename = findModulePath(request, paths);
+    if (!filename) {
+      throw new Error("Cannot find module '" + request + "'");
+    }
+    return [id, filename];
+  }
 
 
   Module.prototype.load = function (filename) {
@@ -262,6 +271,9 @@ var module = (function () {
       return loadModule(path, self);
     }
 
+    require.resolve = function (request) {
+      return resolveModuleFilename(request, self)[1];
+    }
     require.paths = modulePaths;
     require.main = process.mainModule;
     // Enable support to add extra extension types
