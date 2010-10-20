@@ -439,6 +439,11 @@ The process object. See the `'process object'` section.
 
 To require modules. See the `'Modules'` section.
 
+### require.resolve()
+
+Use the internal `require()` machinery to look up the location of a module,
+but rather than loading the module, just return the resolved filename.
+
 ### require.paths
 
 An array of search paths for `require()`.  This array can be modified to add custom paths.
@@ -3227,6 +3232,8 @@ private to `circle.js`. The function `puts()` comes from the module `'util'`,
 which is a built-in module. Modules which are not prefixed by `'./'` are
 built-in module--more about this later.
 
+### Module Resolving
+
 A module prefixed with `'./'` is relative to the file calling `require()`.
 That is, `circle.js` must be in the same directory as `foo.js` for
 `require('./circle')` to find it.
@@ -3237,12 +3244,13 @@ this:
 
 `[ '/home/ryan/.node_libraries' ]`
 
-That is, when `require('assert')` is called Node looks for: 
+That is, when `require('foo')` is called Node looks for:
 
-* 1: `/home/ryan/.node_libraries/assert.js`
-* 2: `/home/ryan/.node_libraries/assert.node`
-* 3: `/home/ryan/.node_libraries/assert/index.js`
-* 4: `/home/ryan/.node_libraries/assert/index.node`
+* 1: `/home/ryan/.node_libraries/foo`
+* 2: `/home/ryan/.node_libraries/foo.js`
+* 3: `/home/ryan/.node_libraries/foo.node`
+* 4: `/home/ryan/.node_libraries/foo/index.js`
+* 5: `/home/ryan/.node_libraries/foo/index.node`
 
 interrupting once a file is found. Files ending in `'.node'` are binary Addon
 Modules; see 'Addons' below. `'index.js'` allows one to package a module as
@@ -3255,6 +3263,9 @@ variable (which should be a list of paths, colon separated).
 The second time `require('foo')` is called, it is not loaded again from
 disk. It looks in the `require.cache` object to see if it has been loaded
 before.
+
+To get the exact filename that will be loaded when `require()` is called, use
+the `require.resolve()` function.
 
 
 ## Addons
