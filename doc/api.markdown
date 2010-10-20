@@ -208,7 +208,7 @@ there is a stream, a child process emits an event when it exits. All
 objects which emit events are instances of `events.EventEmitter`.
 
 Events are represented by a camel-cased string. Here are some examples:
-`'stream'`, `'data'`, `'messageBegin'`.
+`'connection'`, `'data'`, `'messageBegin'`.
 
 Functions can be then be attached to objects, to be executed when an event
 is emitted. These functions are called _listeners_.
@@ -240,7 +240,7 @@ terminate execution and display the exception's stack trace.
 
 Adds a listener to the end of the listeners array for the specified event.
 
-    server.on('stream', function (stream) {
+    server.on('connection', function (stream) {
       console.log('someone connected!');
     });
 
@@ -262,9 +262,9 @@ Remove a listener from the listener array for the specified event.
     var callback = function(stream) {
 	  console.log('someone connected!');
 	};
-    server.on('stream', callback);
+    server.on('connection', callback);
 	// ...
-	server.removeListener('stream', callback);
+	server.removeListener('connection', callback);
 
 
 ### emitter.removeAllListeners(event)
@@ -277,10 +277,10 @@ Removes all listeners from the listener array for the specified event.
 Returns an array of listeners for the specified event. This array can be
 manipulated, e.g. to remove listeners.
 
-    server.on('stream', function (stream) {
+    server.on('connection', function (stream) {
       console.log('someone connected!');
     });
-	console.log(util.inspect(server.listeners('stream'));
+	console.log(util.inspect(server.listeners('connection'));
 	// [ [Function] ]
 
 
@@ -1623,7 +1623,7 @@ HTTP message headers are represented by an object like this:
 
     { 'content-length': '123'
     , 'content-type': 'text/plain'
-    , 'stream': 'keep-alive'
+    , 'connection': 'keep-alive'
     , 'accept': '*/*'
     }
 
