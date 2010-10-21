@@ -616,9 +616,7 @@ if (process.argv[1]) {
   }
   // REMOVEME: nextTick should not be necessary. This hack to get
   // test/simple/test-exception-handler2.js working.
-  process.nextTick(function() {
-    module.runMain();
-  });
+  process.nextTick(module.runMain);
 
 } else if (process._eval) {
     // -e, --eval
