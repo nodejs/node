@@ -304,7 +304,9 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
             "First arg should be a Buffer")));
   }
 
-  Buffer *target = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
+  Local<Object> target = args[0]->ToObject();
+  char *target_data = Buffer::Data(target);
+  ssize_t target_length = Buffer::Length(target);
 
   ssize_t target_start = args[1]->Int32Value();
   ssize_t source_start = args[2]->Int32Value();
@@ -321,7 +323,7 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
     return scope.Close(Integer::New(0));
   }
 
-  if (target_start < 0 || target_start >= target->length_) {
+  if (target_start < 0 || target_start >= target_length) {
     return ThrowException(Exception::Error(String::New(
             "targetStart out of bounds")));
   }
@@ -337,12 +339,12 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
   }
 
   ssize_t to_copy = MIN(MIN(source_end - source_start,
-                            target->length_ - target_start), 
+                            target_length - target_start),
                             source->length_ - source_start);
   
 
   // need to use slightly slower memmove is the ranges might overlap
-  memmove((void*)(target->data_ + target_start),
+  memmove((void *)(target_data + target_start),
           (const void*)(source->data_ + source_start),
           to_copy);
 
