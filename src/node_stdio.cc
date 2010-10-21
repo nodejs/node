@@ -104,6 +104,18 @@ static Handle<Value> GetRows (const Arguments& args) {
   return scope.Close(Integer::NewFromUnsigned(ws.ws_row));
 }
 
+
+static Handle<Value> IsATTY (const Arguments& args) {
+  HandleScope scope;
+
+  int fd = args[0]->IntegerValue();
+
+  int r = isatty(fd);
+
+  return scope.Close(r ? True() : False());
+}
+
+
 /* STDERR IS ALWAY SYNC ALWAYS UTF8 */
 static Handle<Value>
 WriteError (const Arguments& args)
@@ -219,6 +231,7 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "setRawMode", SetRawMode);
   NODE_SET_METHOD(target, "getColumns", GetColumns);
   NODE_SET_METHOD(target, "getRows", GetRows);
+  NODE_SET_METHOD(target, "isatty", IsATTY);
 
   struct sigaction sa = {0};
   sa.sa_handler = HandleSIGCONT;
