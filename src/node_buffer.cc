@@ -107,35 +107,15 @@ Buffer* Buffer::New(char* data, size_t len) {
 
 
 char* Buffer::Data(Handle<Object> obj) {
-  if (obj->HasIndexedPropertiesInPixelData()) {
-    return (char*)obj->GetIndexedPropertiesPixelData();
-  }
-
-  HandleScope scope;
-
-  // Return true for "SlowBuffer"
-  if (constructor_template->HasInstance(obj)) {
-    return ObjectWrap::Unwrap<Buffer>(obj)->data_;
-  }
-
-  // Not a buffer.
+  if (Buffer::HasInstance(obj))
+    return (char*)obj->GetIndexedPropertiesExternalArrayData();
   return NULL;
 }
 
 
 size_t Buffer::Length(Handle<Object> obj) {
-  if (obj->HasIndexedPropertiesInPixelData()) {
-    return (size_t)obj->GetIndexedPropertiesPixelDataLength();
-  }
-
-  HandleScope scope;
-
-  // Return true for "SlowBuffer"
-  if (constructor_template->HasInstance(obj)) {
-    return ObjectWrap::Unwrap<Buffer>(obj)->length_;
-  }
-
-  // Not a buffer.
+  if (Buffer::HasInstance(obj))
+    return (size_t)obj->GetIndexedPropertiesExternalArrayDataLength();
   return 0;
 }
 
@@ -584,8 +564,9 @@ Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
   uint32_t offset = args[2]->Uint32Value();
   uint32_t length = args[3]->Uint32Value();
 
-  fast_buffer->SetIndexedPropertiesToPixelData((uint8_t*)buffer->data_ + offset,
-                                               length);
+  fast_buffer->SetIndexedPropertiesToExternalArrayData(buffer->data_ + offset,
+                                                       kExternalUnsignedByteArray,
+                                                       length);
 
   return Undefined();
 }
@@ -594,13 +575,7 @@ Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
 bool Buffer::HasInstance(v8::Handle<v8::Value> val) {
   if (!val->IsObject()) return false;
   v8::Local<v8::Object> obj = val->ToObject();
-
-  if (obj->HasIndexedPropertiesInPixelData()) return true;
-
-  // Return true for "SlowBuffer"
-  if (constructor_template->HasInstance(obj)) return true;
-
-  return false;
+  return obj->GetIndexedPropertiesExternalArrayDataType() == kExternalUnsignedByteArray;
 }
 
 
