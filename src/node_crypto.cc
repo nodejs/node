@@ -242,6 +242,31 @@ Handle<Value> SecureContext::Close(const Arguments& args) {
   return False();
 }
 
+char ssl_error_buf[512];
+
+static int serr(SSL *ssl, const char* func, int rv)
+{
+  if (rv >= 0) {
+    return rv;
+  }
+
+  int err = SSL_get_error(ssl, rv);
+  if (err != SSL_ERROR_WANT_WRITE &&
+      err != SSL_ERROR_WANT_READ) {
+    /* TODO: look at ssl error queue */
+    ERR_error_string_n(ERR_get_error(), &ssl_error_buf[0], sizeof(ssl_error_buf));
+    /* fprintf(stderr, "[%p] SSL: %s failed: (%d:%d) %s\n", ssl, func, err, rv, buf); */
+    return rv;
+  }
+  else if (err == SSL_ERROR_WANT_WRITE) {
+    /* fprintf(stderr, "[%p] SSL: %s want write\n", ssl, func); */
+  }
+  else if (err == SSL_ERROR_WANT_READ) {
+    /* fprintf(stderr, "[%p] SSL: %s want read\n", ssl, func); */
+  }
+
+  return 0;
+}
 
 void SecureStream::Initialize(Handle<Object> target) {
   HandleScope scope;
@@ -260,6 +285,7 @@ void SecureStream::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished", SecureStream::IsInitFinished);
   NODE_SET_PROTOTYPE_METHOD(t, "verifyPeer", SecureStream::VerifyPeer);
   NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", SecureStream::GetCurrentCipher);
+  NODE_SET_PROTOTYPE_METHOD(t, "start", SecureStream::Start);
   NODE_SET_PROTOTYPE_METHOD(t, "shutdown", SecureStream::Shutdown);
   NODE_SET_PROTOTYPE_METHOD(t, "close", SecureStream::Close);
 
@@ -333,7 +359,7 @@ Handle<Value> SecureStream::EncIn(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  int bytes_written = BIO_write(ss->bio_read_, (char*)buffer_data + off, len);
+  int bytes_written = serr(ss->ssl_, "BIO_write", BIO_write(ss->bio_read_, (char*)buffer_data + off, len));
 
   if (bytes_written < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();
@@ -379,32 +405,19 @@ Handle<Value> SecureStream::ClearOut(const Arguments& args) {
 
   if (!SSL_is_init_finished(ss->ssl_)) {
     if (ss->is_server_) {
-      bytes_read = SSL_accept(ss->ssl_);
+      bytes_read =  serr(ss->ssl_, "SSL_accept:ClearOut", SSL_accept(ss->ssl_));
     } else {
-      bytes_read = SSL_connect(ss->ssl_);
+      bytes_read = serr(ss->ssl_, "SSL_connect:ClearOut", SSL_connect(ss->ssl_));
     }
     if (bytes_read < 0) {
-      int err;
-      if ((err = SSL_get_error(ss->ssl_, bytes_read)) == SSL_ERROR_WANT_READ) {
-        return scope.Close(Integer::New(0));
-      }
+      return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
     }
     return scope.Close(Integer::New(0));
   }
 
-  bytes_read = SSL_read(ss->ssl_, (char*)buffer_data + off, len);
+  bytes_read = serr(ss->ssl_, "SSL_read:ClearOut", SSL_read(ss->ssl_, (char*)buffer_data + off, len));
   if (bytes_read < 0) {
-    int err = SSL_get_error(ss->ssl_, bytes_read);
-    if (err == SSL_ERROR_WANT_READ) {
-      return scope.Close(Integer::New(0));
-    }
-    // SSL read error
-    return scope.Close(Integer::New(-2));
-  }
-
-  if (bytes_read < 0) {
-    if (errno == EAGAIN || errno == EINTR) return Null();
-    return ThrowException(ErrnoException(errno, "read"));
+    return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
   }
 
   return scope.Close(Integer::New(bytes_read));
@@ -460,7 +473,7 @@ Handle<Value> SecureStream::EncOut(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  int bytes_read = BIO_read(ss->bio_write_, (char*)buffer_data + off, len);
+  int bytes_read = serr(ss->ssl_, "BIO_read:EncOut", BIO_read(ss->bio_write_, (char*)buffer_data + off, len));
 
   return scope.Close(Integer::New(bytes_read));
 }
@@ -500,13 +513,21 @@ Handle<Value> SecureStream::ClearIn(const Arguments& args) {
   if (!SSL_is_init_finished(ss->ssl_)) {
     int s;
     if (ss->is_server_) {
-      s = SSL_accept(ss->ssl_);
+      s = serr(ss->ssl_, "SSL_accept:ClearIn", SSL_accept(ss->ssl_));
     } else {
-      s = SSL_connect(ss->ssl_);
+      s = serr(ss->ssl_, "SSL_connect:ClearIn", SSL_connect(ss->ssl_));
+    }
+    if (s < 0) {
+      return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
     }
     return scope.Close(Integer::New(0));
   }
-  int bytes_written = SSL_write(ss->ssl_, (char*)buffer_data + off, len);
+
+  int bytes_written = serr(ss->ssl_, "SSL_write:ClearIn", SSL_write(ss->ssl_, (char*)buffer_data + off, len));
+
+  if (bytes_written < 0) {
+    return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
+  }
 
   return scope.Close(Integer::New(bytes_written));
 }
@@ -570,6 +591,31 @@ Handle<Value> SecureStream::GetPeerCertificate(const Arguments& args) {
   return scope.Close(info);
 }
 
+Handle<Value> SecureStream::Start(const Arguments& args) {
+  HandleScope scope;
+  int rv;
+
+  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+
+  if (!SSL_is_init_finished(ss->ssl_)) {
+    if (ss->is_server_) {
+      rv = serr(ss->ssl_, "SSL_accept:Start", SSL_accept(ss->ssl_));
+    } else {
+      rv = serr(ss->ssl_, "SSL_connect:Start", SSL_connect(ss->ssl_));
+    }
+    if (rv < 0) {
+      return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
+    }
+    if (rv == 1) {
+      return True();
+    }
+    else {
+      return False();
+    }
+  }
+
+  return True();
+}
 
 Handle<Value> SecureStream::Shutdown(const Arguments& args) {
   HandleScope scope;
