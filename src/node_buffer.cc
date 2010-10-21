@@ -168,7 +168,6 @@ Handle<Value> Buffer::New(const Arguments &args) {
 
 
 Buffer::Buffer(size_t length) : ObjectWrap() {
-  off_ = 0;
   length_ = length;
   data_ = new char[length_];
 
