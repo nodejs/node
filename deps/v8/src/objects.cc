@@ -574,28 +574,6 @@ void Failure::FailurePrint() {
 }
 
 
-Failure* Failure::RetryAfterGC(int requested_bytes, AllocationSpace space) {
-  ASSERT((space & ~kSpaceTagMask) == 0);
-  // TODO(X64): Stop using Smi validation for non-smi checks, even if they
-  // happen to be identical at the moment.
-
-  int requested = requested_bytes >> kObjectAlignmentBits;
-  int value = (requested << kSpaceTagSize) | space;
-  // We can't very well allocate a heap number in this situation, and if the
-  // requested memory is so large it seems reasonable to say that this is an
-  // out of memory situation.  This fixes a crash in
-  // js1_5/Regress/regress-303213.js.
-  if (value >> kSpaceTagSize != requested ||
-      !Smi::IsValid(value) ||
-      value != ((value << kFailureTypeTagSize) >> kFailureTypeTagSize) ||
-      !Smi::IsValid(value << kFailureTypeTagSize)) {
-    Top::context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException();
-  }
-  return Construct(RETRY_AFTER_GC, value);
-}
-
-
 // Should a word be prefixed by 'a' or 'an' in order to read naturally in
 // English?  Returns false for non-ASCII or words that don't start with
 // a capital letter.  The a/an rule follows pronunciation in English.
@@ -8591,7 +8569,9 @@ Object* NumberDictionary::Set(uint32_t key,
   details = PropertyDetails(details.attributes(),
                             details.type(),
                             DetailsAt(entry).index());
-  SetEntry(entry, NumberDictionaryShape::AsObject(key), value, details);
+  Object* object_key = NumberDictionaryShape::AsObject(key);
+  if (object_key->IsFailure()) return object_key;
+  SetEntry(entry, object_key, value, details);
   return this;
 }
 

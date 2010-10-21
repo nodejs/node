@@ -37,7 +37,7 @@ using namespace v8::internal;
 
 static Object* AllocateAfterFailures() {
   static int attempts = 0;
-  if (++attempts < 3) return Failure::RetryAfterGC(0);
+  if (++attempts < 3) return Failure::RetryAfterGC();
 
   // New space.
   NewSpace* new_space = Heap::new_space();

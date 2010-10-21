@@ -397,6 +397,30 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
+static const char kGCFakeMmap[] = "/tmp/__v8_gc__";
+
+
+void OS::SignalCodeMovingGC() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // Support for ll_prof.py.
+  //
+  // The Linux profiler built into the kernel logs all mmap's with
+  // PROT_EXEC so that analysis tools can properly attribute ticks. We
+  // do a mmap with a name known by ll_prof.py and immediately munmap
+  // it. This injects a GC marker into the stream of events generated
+  // by the kernel and allows us to synchronize V8 code log and the
+  // kernel log.
+  int size = sysconf(_SC_PAGESIZE);
+  FILE* f = fopen(kGCFakeMmap, "w+");
+  void* addr = mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_PRIVATE,
+                    fileno(f), 0);
+  ASSERT(addr != MAP_FAILED);
+  munmap(addr, size);
+  fclose(f);
+#endif
+}
+
+
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
   // backtrace is a glibc extension.
 #ifdef __GLIBC__
@@ -748,6 +772,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   USE(info);
   if (signal != SIGPROF) return;
   if (active_sampler_ == NULL) return;
+  if (!IsVmThread()) return;
 
   TickSample sample_obj;
   TickSample* sample = CpuProfiler::TickSampleEvent();
@@ -755,6 +780,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 
   // We always sample the VM state.
   sample->state = VMState::current_state();
+
   // If profiling, we extract the current pc and sp.
   if (active_sampler_->IsProfiling()) {
     // Extracting the sample from the context is extremely machine dependent.
@@ -783,9 +809,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     // Implement this on MIPS.
     UNIMPLEMENTED();
 #endif
-    if (IsVmThread()) {
-      active_sampler_->SampleStack(sample);
-    }
+    active_sampler_->SampleStack(sample);
   }
 
   active_sampler_->Tick(sample);
@@ -806,7 +830,10 @@ class Sampler::PlatformData : public Malloced {
 
 
 Sampler::Sampler(int interval, bool profiling)
-    : interval_(interval), profiling_(profiling), active_(false) {
+    : interval_(interval),
+      profiling_(profiling),
+      synchronous_(profiling),
+      active_(false) {
   data_ = new PlatformData();
 }
 

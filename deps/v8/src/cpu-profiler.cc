@@ -188,6 +188,20 @@ bool ProfilerEventsProcessor::IsKnownFunction(Address start) {
 }
 
 
+void ProfilerEventsProcessor::ProcessMovedFunctions() {
+  for (int i = 0; i < moved_functions_.length(); ++i) {
+    JSFunction* function = moved_functions_[i];
+    CpuProfiler::FunctionCreateEvent(function);
+  }
+  moved_functions_.Clear();
+}
+
+
+void ProfilerEventsProcessor::RememberMovedFunction(JSFunction* function) {
+  moved_functions_.Add(function);
+}
+
+
 void ProfilerEventsProcessor::RegExpCodeCreateEvent(
     Logger::LogEventsAndTags tag,
     const char* prefix,
@@ -426,8 +440,12 @@ void CpuProfiler::FunctionCreateEvent(JSFunction* function) {
 }
 
 
-void CpuProfiler::FunctionCreateEventFromMove(JSFunction* function,
-                                              HeapObject* source) {
+void CpuProfiler::ProcessMovedFunctions() {
+  singleton_->processor_->ProcessMovedFunctions();
+}
+
+
+void CpuProfiler::FunctionCreateEventFromMove(JSFunction* function) {
   // This function is called from GC iterators (during Scavenge,
   // MC, and MS), so marking bits can be set on objects. That's
   // why unchecked accessors are used here.
@@ -436,27 +454,7 @@ void CpuProfiler::FunctionCreateEventFromMove(JSFunction* function,
   if (function->unchecked_code() == Builtins::builtin(Builtins::LazyCompile)
       || singleton_->processor_->IsKnownFunction(function->address())) return;
 
-  int security_token_id = TokenEnumerator::kNoSecurityToken;
-  // In debug mode, assertions may fail for contexts,
-  // and we can live without security tokens in debug mode.
-#ifndef DEBUG
-  if (function->unchecked_context()->IsContext()) {
-    security_token_id = singleton_->token_enumerator_->GetTokenId(
-        function->context()->global_context()->security_token());
-  }
-  // Security token may not be moved yet.
-  if (security_token_id == TokenEnumerator::kNoSecurityToken) {
-    JSFunction* old_function = reinterpret_cast<JSFunction*>(source);
-    if (old_function->unchecked_context()->IsContext()) {
-      security_token_id = singleton_->token_enumerator_->GetTokenId(
-          old_function->context()->global_context()->security_token());
-    }
-  }
-#endif
-  singleton_->processor_->FunctionCreateEvent(
-      function->address(),
-      function->unchecked_code()->address(),
-      security_token_id);
+  singleton_->processor_->RememberMovedFunction(function);
 }
 
 

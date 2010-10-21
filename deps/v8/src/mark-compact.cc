@@ -282,6 +282,11 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                                          FixedArray::BodyDescriptor,
                                          void>::Visit);
 
+    table_.Register(kVisitGlobalContext,
+                    &FixedBodyVisitor<StaticMarkingVisitor,
+                                      Context::MarkCompactBodyDescriptor,
+                                      void>::Visit);
+
     table_.Register(kVisitSharedFunctionInfo, &VisitSharedFunctionInfo);
 
     table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
@@ -578,6 +583,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     VisitPointers(SLOT_ADDR(object,
                             JSFunction::kCodeEntryOffset + kPointerSize),
                   SLOT_ADDR(object, JSFunction::kSize));
+
 #undef SLOT_ADDR
   }
 
@@ -735,6 +741,21 @@ class SymbolTableCleaner : public ObjectVisitor {
   }
  private:
   int pointers_removed_;
+};
+
+
+// Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
+// are retained.
+class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
+ public:
+  virtual Object* RetainAs(Object* object) {
+    MapWord first_word = HeapObject::cast(object)->map_word();
+    if (first_word.IsMarked()) {
+      return object;
+    } else {
+      return NULL;
+    }
+  }
 };
 
 
@@ -1068,6 +1089,10 @@ void MarkCompactCollector::MarkLiveObjects() {
   symbol_table->ElementsRemoved(v.PointersRemoved());
   ExternalStringTable::Iterate(&v);
   ExternalStringTable::CleanUp();
+
+  // Process the weak references.
+  MarkCompactWeakObjectRetainer mark_compact_object_retainer;
+  Heap::ProcessWeakReferences(&mark_compact_object_retainer);
 
   // Remove object groups after marking phase.
   GlobalHandles::RemoveObjectGroups();
@@ -1638,6 +1663,9 @@ static void SweepNewSpace(NewSpace* space) {
       updating_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
     }
   }
+
+  // Update pointer from the global contexts list.
+  updating_visitor.VisitPointer(Heap::global_contexts_list_address());
 
   // Update pointers from external string table.
   Heap::UpdateNewSpaceReferencesInExternalStringTable(
@@ -2245,6 +2273,9 @@ void MarkCompactCollector::UpdatePointers() {
   Heap::IterateRoots(&updating_visitor, VISIT_ONLY_STRONG);
   GlobalHandles::IterateWeakRoots(&updating_visitor);
 
+  // Update the pointer to the head of the weak list of global contexts.
+  updating_visitor.VisitPointer(&Heap::global_contexts_list_);
+
   int live_maps_size = IterateLiveObjects(Heap::map_space(),
                                           &UpdatePointersInOldObject);
   int live_pointer_olds_size = IterateLiveObjects(Heap::old_pointer_space(),
@@ -2522,7 +2553,7 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsJSFunction()) {
     PROFILE(FunctionMoveEvent(old_addr, new_addr));
-    PROFILE(FunctionCreateEventFromMove(JSFunction::cast(copied_to), obj));
+    PROFILE(FunctionCreateEventFromMove(JSFunction::cast(copied_to)));
   }
   HEAP_PROFILE(ObjectMoveEvent(old_addr, new_addr));
 
@@ -2615,7 +2646,7 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsJSFunction()) {
     PROFILE(FunctionMoveEvent(old_addr, new_addr));
-    PROFILE(FunctionCreateEventFromMove(JSFunction::cast(copied_to), obj));
+    PROFILE(FunctionCreateEventFromMove(JSFunction::cast(copied_to)));
   }
   HEAP_PROFILE(ObjectMoveEvent(old_addr, new_addr));
 

@@ -198,4 +198,10 @@ TEST(Strtod) {
   CHECK_EQ(1234e304, StrtodChar("0000000123400000", 299));
   CHECK_EQ(V8_INFINITY, StrtodChar("00000000180000000", 300));
   CHECK_EQ(17e307, StrtodChar("00000000170000000", 300));
+
+  // The following number is the result of 89255.0/1e-22. Both floating-point
+  // numbers can be accurately represented with doubles. However on Linux,x86
+  // the floating-point stack is set to 80bits and the double-rounding
+  // introduces an error.
+  CHECK_EQ(89255e-22, StrtodChar("89255", -22));
 }

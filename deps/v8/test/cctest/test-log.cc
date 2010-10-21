@@ -469,7 +469,7 @@ TEST(ProfMultipleThreads) {
   CHECK(!sampler.WasSampleStackCalled());
   nonJsThread.WaitForRunning();
   nonJsThread.SendSigProf();
-  CHECK(sampler.WaitForTick());
+  CHECK(!sampler.WaitForTick());
   CHECK(!sampler.WasSampleStackCalled());
   sampler.Stop();
 

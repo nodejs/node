@@ -607,6 +607,15 @@ static bool RawMatch(const byte* code_base,
           pc = code_base + Load32Aligned(pc + 4);
         }
         break;
+      BYTECODE(SET_CURRENT_POSITION_FROM_END) {
+        int by = static_cast<uint32_t>(insn) >> BYTECODE_SHIFT;
+        if (subject.length() - current > by) {
+          current = subject.length() - by;
+          current_char = subject[current - 1];
+        }
+        pc += BC_SET_CURRENT_POSITION_FROM_END_LENGTH;
+        break;
+      }
       default:
         UNREACHABLE();
         break;

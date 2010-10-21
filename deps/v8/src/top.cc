@@ -69,6 +69,9 @@ void ThreadLocalTop::Initialize() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   js_entry_sp_ = 0;
 #endif
+#ifdef ENABLE_VMSTATE_TRACKING
+  current_vm_state_ = NULL;
+#endif
   try_catch_handler_address_ = NULL;
   context_ = NULL;
   int id = ThreadManager::CurrentId();

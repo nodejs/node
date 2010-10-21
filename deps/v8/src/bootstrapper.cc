@@ -1814,6 +1814,11 @@ Genesis::Genesis(Handle<Object> global_object,
     i::Counters::contexts_created_from_scratch.Increment();
   }
 
+  // Add this context to the weak list of global contexts.
+  (*global_context_)->set(Context::NEXT_CONTEXT_LINK,
+                          Heap::global_contexts_list());
+  Heap::set_global_contexts_list(*global_context_);
+
   result_ = global_context_;
 }
 

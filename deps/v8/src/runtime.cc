@@ -6703,7 +6703,7 @@ static Object* Runtime_StackOverflow(Arguments args) {
 
 
 static Object* Runtime_StackGuard(Arguments args) {
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 0);
 
   // First check if this is a real stack overflow.
   if (StackGuard::IsStackOverflow()) {
@@ -10153,7 +10153,7 @@ void Runtime::PerformGC(Object* result) {
   if (failure->IsRetryAfterGC()) {
     // Try to do a garbage collection; ignore it if it fails. The C
     // entry stub will throw an out-of-memory exception in that case.
-    Heap::CollectGarbage(failure->requested(), failure->allocation_space());
+    Heap::CollectGarbage(failure->allocation_space());
   } else {
     // Handle last resort GC and make sure to allow future allocations
     // to grow the heap without causing GCs (if possible).

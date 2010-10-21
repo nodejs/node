@@ -240,6 +240,11 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
+void OS::SignalCodeMovingGC() {
+  UNIMPLEMENTED();
+}
+
+
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
   UNIMPLEMENTED();
   return 0;

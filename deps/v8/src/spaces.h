@@ -2194,7 +2194,6 @@ class LargeObjectSpace : public Space {
   // if such a page doesn't exist.
   LargeObjectChunk* FindChunkContainingPc(Address pc);
 
-
   // Iterates objects covered by dirty regions.
   void IterateDirtyRegions(ObjectSlotCallback func);
 

@@ -75,9 +75,9 @@ VMState::VMState(StateTag state)
 #endif
   state_ = state;
   // Save the previous state.
-  previous_ = reinterpret_cast<VMState*>(current_state_);
+  previous_ = Top::current_vm_state();
   // Install the new state.
-  OS::ReleaseStore(&current_state_, reinterpret_cast<AtomicWord>(this));
+  Top::set_current_vm_state(this);
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
@@ -106,7 +106,7 @@ VMState::VMState(StateTag state)
 VMState::~VMState() {
   if (disabled_) return;
   // Return to the previous state.
-  OS::ReleaseStore(&current_state_, reinterpret_cast<AtomicWord>(previous_));
+  Top::set_current_vm_state(previous_);
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {

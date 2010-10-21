@@ -476,7 +476,6 @@
         '../../src/virtual-frame.cc',
         '../../src/virtual-frame.h',
         '../../src/vm-state-inl.h',
-        '../../src/vm-state.cc',
         '../../src/vm-state.h',
         '../../src/zone-inl.h',
         '../../src/zone.cc',

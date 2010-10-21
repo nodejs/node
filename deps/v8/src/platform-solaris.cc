@@ -256,6 +256,10 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
+void OS::SignalCodeMovingGC() {
+}
+
+
 struct StackWalker {
   Vector<OS::StackFrame>& frames;
   int index;
@@ -598,7 +602,10 @@ class Sampler::PlatformData : public Malloced {
 
 
 Sampler::Sampler(int interval, bool profiling)
-    : interval_(interval), profiling_(profiling), active_(false) {
+    : interval_(interval),
+      profiling_(profiling),
+      synchronous_(profiling),
+      active_(false) {
   data_ = new PlatformData();
 }
 

@@ -245,6 +245,10 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
+void OS::SignalCodeMovingGC() {
+}
+
+
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
   // MacOSX requires all these to install so we can assume they are present.
   // These constants are defined by the CPUid instructions.
@@ -549,17 +553,24 @@ class Sampler::PlatformData : public Malloced {
 
   // Sampler thread handler.
   void Runner() {
-    // Loop until the sampler is disengaged, keeping the specified samling freq.
+    // Loop until the sampler is disengaged, keeping the specified
+    // sampling frequency.
     for ( ; sampler_->IsActive(); OS::Sleep(sampler_->interval_)) {
       TickSample sample_obj;
       TickSample* sample = CpuProfiler::TickSampleEvent();
       if (sample == NULL) sample = &sample_obj;
 
+      // If the sampler runs in sync with the JS thread, we try to
+      // suspend it. If we fail, we skip the current sample.
+      if (sampler_->IsSynchronous()) {
+        if (KERN_SUCCESS != thread_suspend(profiled_thread_)) continue;
+      }
+
       // We always sample the VM state.
       sample->state = VMState::current_state();
+
       // If profiling, we record the pc and sp of the profiled thread.
-      if (sampler_->IsProfiling()
-          && KERN_SUCCESS == thread_suspend(profiled_thread_)) {
+      if (sampler_->IsProfiling()) {
 #if V8_HOST_ARCH_X64
         thread_state_flavor_t flavor = x86_THREAD_STATE64;
         x86_thread_state64_t state;
@@ -591,11 +602,14 @@ class Sampler::PlatformData : public Malloced {
           sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
           sampler_->SampleStack(sample);
         }
-        thread_resume(profiled_thread_);
       }
 
       // Invoke tick handler with program counter and stack pointer.
       sampler_->Tick(sample);
+
+      // If the sampler runs in sync with the JS thread, we have to
+      // remember to resume it.
+      if (sampler_->IsSynchronous()) thread_resume(profiled_thread_);
     }
   }
 };
@@ -613,7 +627,10 @@ static void* SamplerEntry(void* arg) {
 
 
 Sampler::Sampler(int interval, bool profiling)
-    : interval_(interval), profiling_(profiling), active_(false) {
+    : interval_(interval),
+      profiling_(profiling),
+      synchronous_(profiling),
+      active_(false) {
   data_ = new PlatformData(this);
 }
 
@@ -624,9 +641,9 @@ Sampler::~Sampler() {
 
 
 void Sampler::Start() {
-  // If we are profiling, we need to be able to access the calling
-  // thread.
-  if (IsProfiling()) {
+  // If we are starting a synchronous sampler, we need to be able to
+  // access the calling thread.
+  if (IsSynchronous()) {
     data_->profiled_thread_ = mach_thread_self();
   }
 
@@ -655,7 +672,7 @@ void Sampler::Stop() {
   pthread_join(data_->sampler_thread_, NULL);
 
   // Deallocate Mach port for thread.
-  if (IsProfiling()) {
+  if (IsSynchronous()) {
     mach_port_deallocate(data_->task_self_, data_->profiled_thread_);
   }
 }

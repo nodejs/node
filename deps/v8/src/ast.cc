@@ -398,39 +398,70 @@ Interval RegExpQuantifier::CaptureRegisters() {
 }
 
 
-bool RegExpAssertion::IsAnchored() {
+bool RegExpAssertion::IsAnchoredAtStart() {
   return type() == RegExpAssertion::START_OF_INPUT;
 }
 
 
-bool RegExpAlternative::IsAnchored() {
+bool RegExpAssertion::IsAnchoredAtEnd() {
+  return type() == RegExpAssertion::END_OF_INPUT;
+}
+
+
+bool RegExpAlternative::IsAnchoredAtStart() {
   ZoneList<RegExpTree*>* nodes = this->nodes();
   for (int i = 0; i < nodes->length(); i++) {
     RegExpTree* node = nodes->at(i);
-    if (node->IsAnchored()) { return true; }
+    if (node->IsAnchoredAtStart()) { return true; }
     if (node->max_match() > 0) { return false; }
   }
   return false;
 }
 
 
-bool RegExpDisjunction::IsAnchored() {
+bool RegExpAlternative::IsAnchoredAtEnd() {
+  ZoneList<RegExpTree*>* nodes = this->nodes();
+  for (int i = nodes->length() - 1; i >= 0; i--) {
+    RegExpTree* node = nodes->at(i);
+    if (node->IsAnchoredAtEnd()) { return true; }
+    if (node->max_match() > 0) { return false; }
+  }
+  return false;
+}
+
+
+bool RegExpDisjunction::IsAnchoredAtStart() {
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
   for (int i = 0; i < alternatives->length(); i++) {
-    if (!alternatives->at(i)->IsAnchored())
+    if (!alternatives->at(i)->IsAnchoredAtStart())
       return false;
   }
   return true;
 }
 
 
-bool RegExpLookahead::IsAnchored() {
-  return is_positive() && body()->IsAnchored();
+bool RegExpDisjunction::IsAnchoredAtEnd() {
+  ZoneList<RegExpTree*>* alternatives = this->alternatives();
+  for (int i = 0; i < alternatives->length(); i++) {
+    if (!alternatives->at(i)->IsAnchoredAtEnd())
+      return false;
+  }
+  return true;
 }
 
 
-bool RegExpCapture::IsAnchored() {
-  return body()->IsAnchored();
+bool RegExpLookahead::IsAnchoredAtStart() {
+  return is_positive() && body()->IsAnchoredAtStart();
+}
+
+
+bool RegExpCapture::IsAnchoredAtStart() {
+  return body()->IsAnchoredAtStart();
+}
+
+
+bool RegExpCapture::IsAnchoredAtEnd() {
+  return body()->IsAnchoredAtEnd();
 }
 
 

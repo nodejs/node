@@ -267,7 +267,7 @@ namespace internal {
   F(Throw, 1, 1) \
   F(ReThrow, 1, 1) \
   F(ThrowReferenceError, 1, 1) \
-  F(StackGuard, 1, 1) \
+  F(StackGuard, 0, 1) \
   F(PromoteScheduledException, 0, 1) \
   \
   /* Contexts */ \

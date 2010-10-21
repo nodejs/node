@@ -844,15 +844,6 @@ bool Failure::IsOutOfMemoryException() const {
 }
 
 
-int Failure::requested() const {
-  const int kShiftBits =
-      kFailureTypeTagSize + kSpaceTagSize - kObjectAlignmentBits;
-  STATIC_ASSERT(kShiftBits >= 0);
-  ASSERT(type() == RETRY_AFTER_GC);
-  return static_cast<int>(value() >> kShiftBits);
-}
-
-
 AllocationSpace Failure::allocation_space() const {
   ASSERT_EQ(RETRY_AFTER_GC, type());
   return static_cast<AllocationSpace>((value() >> kFailureTypeTagSize)
@@ -881,20 +872,14 @@ intptr_t Failure::value() const {
 }
 
 
-Failure* Failure::RetryAfterGC(int requested_bytes) {
-  // Assert that the space encoding fits in the three bytes allotted for it.
-  ASSERT((LAST_SPACE & ~kSpaceTagMask) == 0);
-  uintptr_t requested =
-      static_cast<uintptr_t>(requested_bytes >> kObjectAlignmentBits);
-  int tag_bits = kSpaceTagSize + kFailureTypeTagSize + kFailureTagSize;
-  if (((requested << tag_bits) >> tag_bits) != requested) {
-    // No room for entire requested size in the bits. Round down to
-    // maximally representable size.
-    requested = static_cast<intptr_t>(
-                    (~static_cast<uintptr_t>(0)) >> (tag_bits + 1));
-  }
-  int value = static_cast<int>(requested << kSpaceTagSize) | NEW_SPACE;
-  return Construct(RETRY_AFTER_GC, value);
+Failure* Failure::RetryAfterGC() {
+  return RetryAfterGC(NEW_SPACE);
+}
+
+
+Failure* Failure::RetryAfterGC(AllocationSpace space) {
+  ASSERT((space & ~kSpaceTagMask) == 0);
+  return Construct(RETRY_AFTER_GC, space);
 }
 
 
@@ -1482,6 +1467,15 @@ void FixedArray::set_unchecked(int index, Smi* value) {
   ASSERT(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
+}
+
+
+void FixedArray::set_unchecked(int index,
+                               Object* value,
+                               WriteBarrierMode mode) {
+  int offset = kHeaderSize + index * kPointerSize;
+  WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(this, offset, mode);
 }
 
 

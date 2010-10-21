@@ -1082,10 +1082,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\vm-state.cc"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\vm-state-inl.h"
 				>
 			</File>

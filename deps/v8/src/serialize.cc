@@ -500,7 +500,7 @@ void ExternalReferenceEncoder::Put(Address key, int index) {
 
 
 ExternalReferenceDecoder::ExternalReferenceDecoder()
-  : encodings_(NewArray<Address*>(kTypeCodeCount)) {
+    : encodings_(NewArray<Address*>(kTypeCodeCount)) {
   ExternalReferenceTable* external_references =
       ExternalReferenceTable::instance();
   for (int type = kFirstTypeCode; type < kTypeCodeCount; ++type) {
@@ -619,6 +619,8 @@ void Deserializer::Deserialize() {
   external_reference_decoder_ = new ExternalReferenceDecoder();
   Heap::IterateStrongRoots(this, VISIT_ONLY_STRONG);
   Heap::IterateWeakRoots(this, VISIT_ALL);
+
+  Heap::set_global_contexts_list(Heap::undefined_value());
 }
 
 

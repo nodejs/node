@@ -2123,7 +2123,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ JumpIfNotBothSmi(rax, rdx, &non_smi);
     __ subq(rdx, rax);
     __ j(no_overflow, &smi_done);
-    __ neg(rdx);  // Correct sign in case of overflow.
+    __ not_(rdx);  // Correct sign in case of overflow. rdx cannot be 0 here.
     __ bind(&smi_done);
     __ movq(rax, rdx);
     __ ret(0);
@@ -2394,16 +2394,7 @@ void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
 
 
 void StackCheckStub::Generate(MacroAssembler* masm) {
-  // Because builtins always remove the receiver from the stack, we
-  // have to fake one to avoid underflowing the stack. The receiver
-  // must be inserted below the return address on the stack so we
-  // temporarily store that in a register.
-  __ pop(rax);
-  __ Push(Smi::FromInt(0));
-  __ push(rax);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kStackGuard, 1, 1);
+  __ TailCallRuntime(Runtime::kStackGuard, 0, 1);
 }
 
 

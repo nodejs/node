@@ -1828,7 +1828,7 @@ Object* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
   if (cur == kEnd) {
     // No large enough size in list.
     *wasted_bytes = 0;
-    return Failure::RetryAfterGC(size_in_bytes, owner_);
+    return Failure::RetryAfterGC(owner_);
   }
   ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
   int rem = cur - index;
@@ -1926,7 +1926,7 @@ void FixedSizeFreeList::Free(Address start) {
 
 Object* FixedSizeFreeList::Allocate() {
   if (head_ == NULL) {
-    return Failure::RetryAfterGC(object_size_, owner_);
+    return Failure::RetryAfterGC(owner_);
   }
 
   ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
@@ -2753,14 +2753,14 @@ Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!Heap::always_allocate() && Heap::OldGenerationAllocationLimitReached()) {
-    return Failure::RetryAfterGC(requested_size, identity());
+    return Failure::RetryAfterGC(identity());
   }
 
   size_t chunk_size;
   LargeObjectChunk* chunk =
       LargeObjectChunk::New(requested_size, &chunk_size, executable);
   if (chunk == NULL) {
-    return Failure::RetryAfterGC(requested_size, identity());
+    return Failure::RetryAfterGC(identity());
   }
 
   size_ += static_cast<int>(chunk_size);

@@ -289,6 +289,10 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
+void OS::SignalCodeMovingGC() {
+}
+
+
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
   UNIMPLEMENTED();
   return 1;

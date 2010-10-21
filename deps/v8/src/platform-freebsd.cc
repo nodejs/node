@@ -291,6 +291,10 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
+void OS::SignalCodeMovingGC() {
+}
+
+
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
   int frames_size = frames.length();
   ScopedVector<void*> addresses(frames_size);

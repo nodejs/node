@@ -845,14 +845,15 @@ void* OS::Allocate(const size_t requested,
                    bool is_executable) {
   // The address range used to randomize RWX allocations in OS::Allocate
   // Try not to map pages into the default range that windows loads DLLs
+  // Use a multiple of 64k to prevent committing unused memory.
   // Note: This does not guarantee RWX regions will be within the
   // range kAllocationRandomAddressMin to kAllocationRandomAddressMax
 #ifdef V8_HOST_ARCH_64_BIT
   static const intptr_t kAllocationRandomAddressMin = 0x0000000080000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x000004FFFFFFFFFF;
+  static const intptr_t kAllocationRandomAddressMax = 0x000003FFFFFF0000;
 #else
   static const intptr_t kAllocationRandomAddressMin = 0x04000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x4FFFFFFF;
+  static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
 #endif
 
   // VirtualAlloc rounds allocated size to page size automatically.
@@ -1214,6 +1215,10 @@ void OS::LogSharedLibraryAddresses() {
   if (!LoadDbgHelpAndTlHelp32()) return;
   HANDLE process_handle = GetCurrentProcess();
   LoadSymbols(process_handle);
+}
+
+
+void OS::SignalCodeMovingGC() {
 }
 
 
@@ -1838,17 +1843,25 @@ class Sampler::PlatformData : public Malloced {
     // Context used for sampling the register state of the profiled thread.
     CONTEXT context;
     memset(&context, 0, sizeof(context));
-    // Loop until the sampler is disengaged, keeping the specified samling freq.
+    // Loop until the sampler is disengaged, keeping the specified
+    // sampling frequency.
     for ( ; sampler_->IsActive(); Sleep(sampler_->interval_)) {
       TickSample sample_obj;
       TickSample* sample = CpuProfiler::TickSampleEvent();
       if (sample == NULL) sample = &sample_obj;
 
+      // If the sampler runs in sync with the JS thread, we try to
+      // suspend it. If we fail, we skip the current sample.
+      if (sampler_->IsSynchronous()) {
+        static const DWORD kSuspendFailed = static_cast<DWORD>(-1);
+        if (SuspendThread(profiled_thread_) == kSuspendFailed) continue;
+      }
+
       // We always sample the VM state.
       sample->state = VMState::current_state();
+
       // If profiling, we record the pc and sp of the profiled thread.
-      if (sampler_->IsProfiling()
-          && SuspendThread(profiled_thread_) != (DWORD)-1) {
+      if (sampler_->IsProfiling()) {
         context.ContextFlags = CONTEXT_FULL;
         if (GetThreadContext(profiled_thread_, &context) != 0) {
 #if V8_HOST_ARCH_X64
@@ -1862,11 +1875,14 @@ class Sampler::PlatformData : public Malloced {
 #endif
           sampler_->SampleStack(sample);
         }
-        ResumeThread(profiled_thread_);
       }
 
       // Invoke tick handler with program counter and stack pointer.
       sampler_->Tick(sample);
+
+      // If the sampler runs in sync with the JS thread, we have to
+      // remember to resume it.
+      if (sampler_->IsSynchronous()) ResumeThread(profiled_thread_);
     }
   }
 };
@@ -1883,7 +1899,10 @@ static unsigned int __stdcall SamplerEntry(void* arg) {
 
 // Initialize a profile sampler.
 Sampler::Sampler(int interval, bool profiling)
-    : interval_(interval), profiling_(profiling), active_(false) {
+    : interval_(interval),
+      profiling_(profiling),
+      synchronous_(profiling),
+      active_(false) {
   data_ = new PlatformData(this);
 }
 
@@ -1895,9 +1914,9 @@ Sampler::~Sampler() {
 
 // Start profiling.
 void Sampler::Start() {
-  // If we are profiling, we need to be able to access the calling
-  // thread.
-  if (IsProfiling()) {
+  // If we are starting a synchronous sampler, we need to be able to
+  // access the calling thread.
+  if (IsSynchronous()) {
     // Get a handle to the calling thread. This is the thread that we are
     // going to profile. We need to make a copy of the handle because we are
     // going to use it in the sampler thread. Using GetThreadHandle() will

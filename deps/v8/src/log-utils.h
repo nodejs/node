@@ -152,6 +152,9 @@ class Log : public AllStatic {
   // mutex_ should be acquired before using output_handle_ or output_buffer_.
   static FILE* output_handle_;
 
+  // Used when low-level profiling is active to save code object contents.
+  static FILE* output_code_handle_;
+
   static LogDynamicBuffer* output_buffer_;
 
   // Size of dynamic buffer block (and dynamic buffer initial size).
@@ -171,6 +174,7 @@ class Log : public AllStatic {
   // mutex_ should be acquired before using it.
   static char* message_buffer_;
 
+  friend class Logger;
   friend class LogMessageBuilder;
   friend class LogRecordCompressor;
 };

@@ -794,7 +794,7 @@ class Smi: public Object {
 //
 // Failures are a single word, encoded as follows:
 // +-------------------------+---+--+--+
-// |...rrrrrrrrrrrrrrrrrrrrrr|sss|tt|11|
+// |.........unused..........|sss|tt|11|
 // +-------------------------+---+--+--+
 //                          7 6 4 32 10
 //
@@ -810,11 +810,6 @@ class Smi: public Object {
 // allocation space tag is 000 for all failure types except
 // RETRY_AFTER_GC.  For RETRY_AFTER_GC, the possible values are the
 // allocation spaces (the encoding is found in globals.h).
-//
-// The remaining bits is the size of the allocation request in units
-// of the pointer size, and is zeroed except for RETRY_AFTER_GC
-// failures.  The 25 bits (on a 32 bit platform) gives a representable
-// range of 2^27 bytes (128MB).
 
 // Failure type tag info.
 const int kFailureTypeTagSize = 2;
@@ -836,15 +831,11 @@ class Failure: public Object {
   // Returns the space that needs to be collected for RetryAfterGC failures.
   inline AllocationSpace allocation_space() const;
 
-  // Returns the number of bytes requested (up to the representable maximum)
-  // for RetryAfterGC failures.
-  inline int requested() const;
-
   inline bool IsInternalError() const;
   inline bool IsOutOfMemoryException() const;
 
-  static Failure* RetryAfterGC(int requested_bytes, AllocationSpace space);
-  static inline Failure* RetryAfterGC(int requested_bytes);  // NEW_SPACE
+  static inline Failure* RetryAfterGC(AllocationSpace space);
+  static inline Failure* RetryAfterGC();  // NEW_SPACE
   static inline Failure* Exception();
   static inline Failure* InternalError();
   static inline Failure* OutOfMemoryException();
@@ -1760,6 +1751,7 @@ class FixedArray: public HeapObject {
   // Setters with less debug checks for the GC to use.
   inline void set_unchecked(int index, Smi* value);
   inline void set_null_unchecked(int index);
+  inline void set_unchecked(int index, Object* value, WriteBarrierMode mode);
 
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();

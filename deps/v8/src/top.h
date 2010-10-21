@@ -41,6 +41,7 @@ namespace internal {
 
 class SaveContext;  // Forward declaration.
 class ThreadVisitor;  // Defined in v8threads.h
+class VMState;  // Defined in vm-state.h
 
 class ThreadLocalTop BASE_EMBEDDED {
  public:
@@ -101,8 +102,13 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Stack.
   Address c_entry_fp_;  // the frame pointer of the top c entry frame
   Address handler_;   // try-blocks are chained through the stack
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
   Address js_entry_sp_;  // the stack pointer of the bottom js entry frame
+#endif
+
+#ifdef ENABLE_VMSTATE_TRACKING
+  VMState* current_vm_state_;
 #endif
 
   // Generated code scratch locations.
@@ -251,6 +257,16 @@ class Top {
   }
   static inline Address* js_entry_sp_address() {
     return &thread_local_.js_entry_sp_;
+  }
+#endif
+
+#ifdef ENABLE_VMSTATE_TRACKING
+  static VMState* current_vm_state() {
+    return thread_local_.current_vm_state_;
+  }
+
+  static void set_current_vm_state(VMState* state) {
+    thread_local_.current_vm_state_ = state;
   }
 #endif
 

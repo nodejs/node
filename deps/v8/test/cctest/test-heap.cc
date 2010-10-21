@@ -177,13 +177,11 @@ TEST(Tagging) {
   int request = 24;
   CHECK_EQ(request, static_cast<int>(OBJECT_POINTER_ALIGN(request)));
   CHECK(Smi::FromInt(42)->IsSmi());
-  CHECK(Failure::RetryAfterGC(request, NEW_SPACE)->IsFailure());
-  CHECK_EQ(request, Failure::RetryAfterGC(request, NEW_SPACE)->requested());
+  CHECK(Failure::RetryAfterGC(NEW_SPACE)->IsFailure());
   CHECK_EQ(NEW_SPACE,
-           Failure::RetryAfterGC(request, NEW_SPACE)->allocation_space());
+           Failure::RetryAfterGC(NEW_SPACE)->allocation_space());
   CHECK_EQ(OLD_POINTER_SPACE,
-           Failure::RetryAfterGC(request,
-                                 OLD_POINTER_SPACE)->allocation_space());
+           Failure::RetryAfterGC(OLD_POINTER_SPACE)->allocation_space());
   CHECK(Failure::Exception()->IsFailure());
   CHECK(Smi::FromInt(Smi::kMinValue)->IsSmi());
   CHECK(Smi::FromInt(Smi::kMaxValue)->IsSmi());
@@ -195,8 +193,7 @@ TEST(GarbageCollection) {
 
   v8::HandleScope sc;
   // Check GC.
-  int free_bytes = Heap::MaxObjectSizeInPagedSpace();
-  CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
+  Heap::CollectGarbage(NEW_SPACE);
 
   Handle<String> name = Factory::LookupAsciiSymbol("theFunction");
   Handle<String> prop_name = Factory::LookupAsciiSymbol("theSlot");
@@ -221,7 +218,7 @@ TEST(GarbageCollection) {
     CHECK_EQ(Smi::FromInt(24), obj->GetProperty(*prop_namex));
   }
 
-  CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
+  Heap::CollectGarbage(NEW_SPACE);
 
   // Function should be alive.
   CHECK(Top::context()->global()->HasLocalProperty(*name));
@@ -239,7 +236,7 @@ TEST(GarbageCollection) {
   }
 
   // After gc, it should survive.
-  CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
+  Heap::CollectGarbage(NEW_SPACE);
 
   CHECK(Top::context()->global()->HasLocalProperty(*obj_name));
   CHECK(Top::context()->global()->GetProperty(*obj_name)->IsJSObject());
@@ -301,7 +298,7 @@ TEST(GlobalHandles) {
   }
 
   // after gc, it should survive
-  CHECK(Heap::CollectGarbage(0, NEW_SPACE));
+  Heap::CollectGarbage(NEW_SPACE);
 
   CHECK((*h1)->IsString());
   CHECK((*h2)->IsHeapNumber());
@@ -382,8 +379,8 @@ TEST(WeakGlobalHandlesMark) {
     h2 = GlobalHandles::Create(*u);
   }
 
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
-  CHECK(Heap::CollectGarbage(0, NEW_SPACE));
+  Heap::CollectGarbage(OLD_POINTER_SPACE);
+  Heap::CollectGarbage(NEW_SPACE);
   // Make sure the object is promoted.
 
   GlobalHandles::MakeWeak(h2.location(),
@@ -392,7 +389,7 @@ TEST(WeakGlobalHandlesMark) {
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
   CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  Heap::CollectGarbage(OLD_POINTER_SPACE);
 
   CHECK((*h1)->IsString());
 
@@ -426,7 +423,7 @@ TEST(DeleteWeakGlobalHandle) {
   CHECK(!WeakPointerCleared);
 
   // Mark-compact treats weak reference properly.
-  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
+  Heap::CollectGarbage(OLD_POINTER_SPACE);
 
   CHECK(WeakPointerCleared);
 }
@@ -814,8 +811,7 @@ TEST(Iteration) {
 TEST(LargeObjectSpaceContains) {
   InitializeVM();
 
-  int free_bytes = Heap::MaxObjectSizeInPagedSpace();
-  CHECK(Heap::CollectGarbage(free_bytes, NEW_SPACE));
+  Heap::CollectGarbage(NEW_SPACE);
 
   Address current_top = Heap::new_space()->top();
   Page* page = Page::FromAddress(current_top);
@@ -958,6 +954,7 @@ TEST(Regression39128) {
   CHECK(page->IsRegionDirty(clone_addr + (object_size - kPointerSize)));
 }
 
+
 TEST(TestCodeFlushing) {
   i::FLAG_allow_natives_syntax = true;
   // If we do not flush code this test is invalid.
@@ -1000,4 +997,92 @@ TEST(TestCodeFlushing) {
   CompileRun("foo()");
   CHECK(function->shared()->is_compiled());
   CHECK(function->is_compiled());
+}
+
+
+// Count the number of global contexts in the weak list of global contexts.
+static int CountGlobalContexts() {
+  int count = 0;
+  Object* object = Heap::global_contexts_list();
+  while (!object->IsUndefined()) {
+    count++;
+    object = Context::cast(object)->get(Context::NEXT_CONTEXT_LINK);
+  }
+  return count;
+}
+
+
+TEST(TestInternalWeakLists) {
+  static const int kNumTestContexts = 10;
+
+  v8::HandleScope scope;
+  v8::Persistent<v8::Context> ctx[kNumTestContexts];
+
+  CHECK_EQ(0, CountGlobalContexts());
+
+  // Create a number of global contests which gets linked together.
+  for (int i = 0; i < kNumTestContexts; i++) {
+    ctx[i] = v8::Context::New();
+    CHECK_EQ(i + 1, CountGlobalContexts());
+
+    ctx[i]->Enter();
+    ctx[i]->Exit();
+  }
+
+  // Force compilation cache cleanup.
+  Heap::CollectAllGarbage(true);
+
+  // Dispose the global contexts one by one.
+  for (int i = 0; i < kNumTestContexts; i++) {
+    ctx[i].Dispose();
+    ctx[i].Clear();
+
+    // Scavenge treats these references as strong.
+    for (int j = 0; j < 10; j++) {
+      Heap::PerformScavenge();
+      CHECK_EQ(kNumTestContexts - i, CountGlobalContexts());
+    }
+
+    // Mark compact handles the weak references.
+    Heap::CollectAllGarbage(true);
+    CHECK_EQ(kNumTestContexts - i - 1, CountGlobalContexts());
+  }
+
+  CHECK_EQ(0, CountGlobalContexts());
+}
+
+
+// Count the number of global contexts in the weak list of global contexts
+// causing a GC after the specified number of elements.
+static int CountGlobalContextsWithGC(int n) {
+  int count = 0;
+  Handle<Object> object(Heap::global_contexts_list());
+  while (!object->IsUndefined()) {
+    count++;
+    if (count == n) Heap::CollectAllGarbage(true);
+    object =
+        Handle<Object>(Context::cast(*object)->get(Context::NEXT_CONTEXT_LINK));
+  }
+  return count;
+}
+
+
+TEST(TestInternalWeakListsTraverseWithGC) {
+  static const int kNumTestContexts = 10;
+
+  v8::HandleScope scope;
+  v8::Persistent<v8::Context> ctx[kNumTestContexts];
+
+  CHECK_EQ(0, CountGlobalContexts());
+
+  // Create an number of contexts and check the length of the weak list both
+  // with and without GCs while iterating the list.
+  for (int i = 0; i < kNumTestContexts; i++) {
+    ctx[i] = v8::Context::New();
+    CHECK_EQ(i + 1, CountGlobalContexts());
+    CHECK_EQ(i + 1, CountGlobalContextsWithGC(i / 2 + 1));
+
+    ctx[i]->Enter();
+    ctx[i]->Exit();
+  }
 }

@@ -202,9 +202,10 @@ namespace internal {
   V(closure_symbol, "(closure)")
 
 
-// Forward declaration of the GCTracer class.
+// Forward declarations.
 class GCTracer;
 class HeapStats;
+class WeakObjectRetainer;
 
 
 typedef String* (*ExternalStringTableUpdaterCallback)(Object** pointer);
@@ -696,8 +697,7 @@ class Heap : public AllStatic {
 
   // Performs garbage collection operation.
   // Returns whether required_space bytes are available after the collection.
-  static bool CollectGarbage(int required_space,
-                             AllocationSpace space,
+  static void CollectGarbage(AllocationSpace space,
                              CollectionPolicy collectionPolicy = NORMAL);
 
   // Performs a full garbage collection. Force compaction if the
@@ -717,7 +717,7 @@ class Heap : public AllStatic {
 
 #ifdef DEBUG
   // Utility used with flag gc-greedy.
-  static bool GarbageCollectionGreedyCheck();
+  static void GarbageCollectionGreedyCheck();
 #endif
 
   static void AddGCPrologueCallback(
@@ -766,6 +766,11 @@ class Heap : public AllStatic {
   // The hidden_symbol is special because it is the empty string, but does
   // not match the empty string.
   static String* hidden_symbol() { return hidden_symbol_; }
+
+  static void set_global_contexts_list(Object* object) {
+    global_contexts_list_ = object;
+  }
+  static Object* global_contexts_list() { return global_contexts_list_; }
 
   // Iterates over all roots in the heap.
   static void IterateRoots(ObjectVisitor* v, VisitMode mode);
@@ -869,6 +874,11 @@ class Heap : public AllStatic {
 
   // Generated code can embed this address to get access to the roots.
   static Object** roots_address() { return roots_; }
+
+  // Get address of global contexts list for serialization support.
+  static Object** global_contexts_list_address() {
+    return &global_contexts_list_;
+  }
 
 #ifdef DEBUG
   static void Print();
@@ -1051,6 +1061,8 @@ class Heap : public AllStatic {
   static void UpdateNewSpaceReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
 
+  static void ProcessWeakReferences(WeakObjectRetainer* retainer);
+
   // Helper function that governs the promotion policy from new space to
   // old.  If the object's old address lies below the new space's age
   // mark or if we've already filled the bottom 1/16th of the to space,
@@ -1156,6 +1168,8 @@ class Heap : public AllStatic {
   static int old_gen_exhausted_;
 
   static Object* roots_[kRootListLength];
+
+  static Object* global_contexts_list_;
 
   struct StringTypeTable {
     InstanceType type;
@@ -2042,6 +2056,19 @@ class ExternalStringTable : public AllStatic {
   static List<Object*> new_space_strings_;
   static List<Object*> old_space_strings_;
 };
+
+
+// Abstract base class for checking whether a weak object should be retained.
+class WeakObjectRetainer {
+ public:
+  virtual ~WeakObjectRetainer() {}
+
+  // Return whether this object should be retained. If NULL is returned the
+  // object has no references. Otherwise the address of the retained object
+  // should be returned as in some GC situations the object has been moved.
+  virtual Object* RetainAs(Object* object) = 0;
+};
+
 
 } }  // namespace v8::internal
 

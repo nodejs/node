@@ -935,11 +935,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ orr(r2, r1, r0);
     __ tst(r2, Operand(kSmiTagMask));
     __ b(ne, &not_two_smis);
-    __ sub(r0, r1, r0, SetCC);
-    __ b(vc, &smi_done);
-    // Correct the sign in case of overflow.
-    __ rsb(r0, r0, Operand(0, RelocInfo::NONE));
-    __ bind(&smi_done);
+    __ mov(r1, Operand(r1, ASR, 1));
+    __ sub(r0, r1, Operand(r0, ASR, 1));
     __ Ret();
     __ bind(&not_two_smis);
   } else if (FLAG_debug_code) {
@@ -2300,13 +2297,7 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 
 
 void StackCheckStub::Generate(MacroAssembler* masm) {
-  // Do tail-call to runtime routine.  Runtime routines expect at least one
-  // argument, so give it a Smi.
-  __ mov(r0, Operand(Smi::FromInt(0)));
-  __ push(r0);
-  __ TailCallRuntime(Runtime::kStackGuard, 1, 1);
-
-  __ Ret();
+  __ TailCallRuntime(Runtime::kStackGuard, 0, 1);
 }
 
 

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-const SMI_MAX = (1 << 30) - 1;
-const SMI_MIN = -(1 << 30);
+const SMI_MAX = (1 << 29) - 1 + (1 << 29);  // Create without overflowing.
+const SMI_MIN = -SMI_MAX - 1;  // Create without overflowing.
 const ONE = 1;
 const ONE_HUNDRED = 100;
 
@@ -212,6 +212,15 @@ assertEquals(0x40000000, v, "smimax++");
 v = SMI_MIN;
 v--;
 assertEquals(-0x40000001, v, "smimin--");
+
+// Check that comparisons of numbers separated by MIN_SMI work.
+assertFalse(SMI_MIN > 0);
+assertFalse(SMI_MIN + 1 > 1);
+assertFalse(SMI_MIN + 1 > 2);
+assertFalse(SMI_MIN + 2 > 1);
+assertFalse(0 < SMI_MIN);
+assertTrue(-1 < SMI_MAX);
+assertFalse(SMI_MAX < -1);
 
 // Not actually Smi operations.
 // Check that relations on unary ops work.

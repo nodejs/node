@@ -136,6 +136,12 @@ void RegExpMacroAssemblerTracer::AdvanceRegister(int reg, int by) {
 }
 
 
+void RegExpMacroAssemblerTracer::SetCurrentPositionFromEnd(int by) {
+  PrintF(" SetCurrentPositionFromEnd(by=%d);\n", by);
+  assembler_->SetCurrentPositionFromEnd(by);
+}
+
+
 void RegExpMacroAssemblerTracer::SetRegister(int register_index, int to) {
   PrintF(" SetRegister(register=%d, to=%d);\n", register_index, to);
   assembler_->SetRegister(register_index, to);

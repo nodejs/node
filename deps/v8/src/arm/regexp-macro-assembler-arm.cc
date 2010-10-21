@@ -142,7 +142,6 @@ int RegExpMacroAssemblerARM::stack_limit_slack()  {
 
 void RegExpMacroAssemblerARM::AdvanceCurrentPosition(int by) {
   if (by != 0) {
-    Label inside_string;
     __ add(current_input_offset(),
            current_input_offset(), Operand(by * char_size()));
   }
@@ -924,6 +923,19 @@ void RegExpMacroAssemblerARM::ReadStackPointerFromRegister(int reg) {
   __ ldr(backtrack_stackpointer(), register_location(reg));
   __ ldr(r0, MemOperand(frame_pointer(), kStackHighEnd));
   __ add(backtrack_stackpointer(), backtrack_stackpointer(), Operand(r0));
+}
+
+
+void RegExpMacroAssemblerARM::SetCurrentPositionFromEnd(int by) {
+  Label after_position;
+  __ cmp(current_input_offset(), Operand(-by * char_size()));
+  __ b(ge, &after_position);
+  __ mov(current_input_offset(), Operand(-by * char_size()));
+  // On RegExp code entry (where this operation is used), the character before
+  // the current position is expected to be already loaded.
+  // We have advanced the position, so it's safe to read backwards.
+  LoadCurrentCharacterUnchecked(-1, 1);
+  __ bind(&after_position);
 }
 
 

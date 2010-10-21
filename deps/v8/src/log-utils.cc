@@ -122,6 +122,7 @@ int LogDynamicBuffer::WriteInternal(const char* data, int data_size) {
 bool Log::is_stopped_ = false;
 Log::WritePtr Log::Write = NULL;
 FILE* Log::output_handle_ = NULL;
+FILE* Log::output_code_handle_ = NULL;
 LogDynamicBuffer* Log::output_buffer_ = NULL;
 // Must be the same message as in Logger::PauseProfiler.
 const char* Log::kDynamicBufferSeal = "profiler,\"pause\"\n";
@@ -143,9 +144,22 @@ void Log::OpenStdout() {
 }
 
 
+static const char kCodeLogExt[] = ".code";
+
+
 void Log::OpenFile(const char* name) {
   ASSERT(!IsEnabled());
   output_handle_ = OS::FOpen(name, OS::LogFileOpenMode);
+  if (FLAG_ll_prof) {
+    // Open a file for logging the contents of code objects so that
+    // they can be disassembled later.
+    size_t name_len = strlen(name);
+    ScopedVector<char> code_name(
+        static_cast<int>(name_len + sizeof(kCodeLogExt)));
+    memcpy(code_name.start(), name, name_len);
+    memcpy(code_name.start() + name_len, kCodeLogExt, sizeof(kCodeLogExt));
+    output_code_handle_ = OS::FOpen(code_name.start(), OS::LogFileOpenMode);
+  }
   Write = WriteToFile;
   Init();
 }
@@ -165,6 +179,8 @@ void Log::Close() {
   if (Write == WriteToFile) {
     if (output_handle_ != NULL) fclose(output_handle_);
     output_handle_ = NULL;
+    if (output_code_handle_ != NULL) fclose(output_code_handle_);
+    output_code_handle_ = NULL;
   } else if (Write == WriteToMemory) {
     delete output_buffer_;
     output_buffer_ = NULL;

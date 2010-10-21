@@ -155,6 +155,7 @@ class RegExpMacroAssembler {
                             StackCheckFlag check_stack_limit) = 0;
   virtual void ReadCurrentPositionFromRegister(int reg) = 0;
   virtual void ReadStackPointerFromRegister(int reg) = 0;
+  virtual void SetCurrentPositionFromEnd(int by) = 0;
   virtual void SetRegister(int register_index, int to) = 0;
   virtual void Succeed() = 0;
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset) = 0;

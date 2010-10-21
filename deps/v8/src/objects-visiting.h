@@ -50,6 +50,7 @@ class StaticVisitorBase : public AllStatic {
     kVisitShortcutCandidate,
     kVisitByteArray,
     kVisitFixedArray,
+    kVisitGlobalContext,
 
     // For data objects, JS objects and structs along with generic visitor which
     // can visit object of any size we provide visitors specialized by
@@ -262,6 +263,11 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
                     &FlexibleBodyVisitor<StaticVisitor,
                                          FixedArray::BodyDescriptor,
                                          int>::Visit);
+
+    table_.Register(kVisitGlobalContext,
+                    &FixedBodyVisitor<StaticVisitor,
+                                      Context::ScavengeBodyDescriptor,
+                                      int>::Visit);
 
     table_.Register(kVisitByteArray, &VisitByteArray);
 

@@ -85,12 +85,22 @@ static const int kExactPowersOfTenSize = ARRAY_SIZE(exact_powers_of_ten);
 extern "C" double gay_strtod(const char* s00, const char** se);
 
 static double old_strtod(Vector<const char> buffer, int exponent) {
+  // gay_strtod is broken on Linux,x86. For numbers with few decimal digits
+  // the computation is done using floating-point operations which (on Linux)
+  // are prone to double-rounding errors.
+  // By adding several zeroes to the buffer gay_strtod falls back to a slower
+  // (but correct) algorithm.
+  const int kInsertedZeroesCount = 20;
   char gay_buffer[1024];
   Vector<char> gay_buffer_vector(gay_buffer, sizeof(gay_buffer));
   int pos = 0;
   for (int i = 0; i < buffer.length(); ++i) {
     gay_buffer_vector[pos++] = buffer[i];
   }
+  for (int i = 0; i < kInsertedZeroesCount; ++i) {
+    gay_buffer_vector[pos++] = '0';
+  }
+  exponent -= kInsertedZeroesCount;
   gay_buffer_vector[pos++] = 'e';
   if (exponent < 0) {
     gay_buffer_vector[pos++] = '-';
@@ -139,13 +149,18 @@ uint64_t ReadUint64(Vector<const char> buffer) {
 }
 
 
-double Strtod(Vector<const char> buffer, int exponent) {
-  Vector<const char> left_trimmed = TrimLeadingZeros(buffer);
-  Vector<const char> trimmed = TrimTrailingZeros(left_trimmed);
-  exponent += left_trimmed.length() - trimmed.length();
-  if (trimmed.length() == 0) return 0.0;
-  if (exponent + trimmed.length() - 1 >= kMaxDecimalPower) return V8_INFINITY;
-  if (exponent + trimmed.length() <= kMinDecimalPower) return 0.0;
+static bool DoubleStrtod(Vector<const char> trimmed,
+                         int exponent,
+                         double* result) {
+#if (defined(V8_TARGET_ARCH_IA32) || defined(USE_SIMULATOR)) && !defined(WIN32)
+  // On x86 the floating-point stack can be 64 or 80 bits wide. If it is
+  // 80 bits wide (as is the case on Linux) then double-rounding occurs and the
+  // result is not accurate.
+  // We know that Windows32 uses 64 bits and is therefore accurate.
+  // Note that the ARM simulator is compiled for 32bits. It therefore exhibits
+  // the same problem.
+  return false;
+#endif
   if (trimmed.length() <= kMaxExactDoubleIntegerDecimalDigits) {
     // The trimmed input fits into a double.
     // If the 10^exponent (resp. 10^-exponent) fits into a double too then we
@@ -155,13 +170,15 @@ double Strtod(Vector<const char> buffer, int exponent) {
     // return the best possible approximation.
     if (exponent < 0 && -exponent < kExactPowersOfTenSize) {
       // 10^-exponent fits into a double.
-      double buffer_d = static_cast<double>(ReadUint64(trimmed));
-      return buffer_d / exact_powers_of_ten[-exponent];
+      *result = static_cast<double>(ReadUint64(trimmed));
+      *result /= exact_powers_of_ten[-exponent];
+      return true;
     }
     if (0 <= exponent && exponent < kExactPowersOfTenSize) {
       // 10^exponent fits into a double.
-      double buffer_d = static_cast<double>(ReadUint64(trimmed));
-      return buffer_d * exact_powers_of_ten[exponent];
+      *result = static_cast<double>(ReadUint64(trimmed));
+      *result *= exact_powers_of_ten[exponent];
+      return true;
     }
     int remaining_digits =
         kMaxExactDoubleIntegerDecimalDigits - trimmed.length();
@@ -170,10 +187,26 @@ double Strtod(Vector<const char> buffer, int exponent) {
       // The trimmed string was short and we can multiply it with
       // 10^remaining_digits. As a result the remaining exponent now fits
       // into a double too.
-      double buffer_d = static_cast<double>(ReadUint64(trimmed));
-      buffer_d *= exact_powers_of_ten[remaining_digits];
-      return buffer_d * exact_powers_of_ten[exponent - remaining_digits];
+      *result = static_cast<double>(ReadUint64(trimmed));
+      *result *= exact_powers_of_ten[remaining_digits];
+      *result *= exact_powers_of_ten[exponent - remaining_digits];
+      return true;
     }
+  }
+  return false;
+}
+
+
+double Strtod(Vector<const char> buffer, int exponent) {
+  Vector<const char> left_trimmed = TrimLeadingZeros(buffer);
+  Vector<const char> trimmed = TrimTrailingZeros(left_trimmed);
+  exponent += left_trimmed.length() - trimmed.length();
+  if (trimmed.length() == 0) return 0.0;
+  if (exponent + trimmed.length() - 1 >= kMaxDecimalPower) return V8_INFINITY;
+  if (exponent + trimmed.length() <= kMinDecimalPower) return 0.0;
+  double result;
+  if (DoubleStrtod(trimmed, exponent, &result)) {
+    return result;
   }
   return old_strtod(trimmed, exponent);
 }

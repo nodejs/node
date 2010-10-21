@@ -65,6 +65,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void PushRegister(int register_index,
                             StackCheckFlag check_stack_limit);
   virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
+  virtual void SetCurrentPositionFromEnd(int by);
   virtual void SetRegister(int register_index, int to);
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void ClearRegisters(int reg_from, int reg_to);

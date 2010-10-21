@@ -76,7 +76,7 @@ Object* Heap::AllocateRaw(int size_in_bytes,
   if (FLAG_gc_interval >= 0 &&
       !disallow_allocation_failure_ &&
       Heap::allocation_timeout_-- <= 0) {
-    return Failure::RetryAfterGC(size_in_bytes, space);
+    return Failure::RetryAfterGC(space);
   }
   Counters::objs_since_last_full.Increment();
   Counters::objs_since_last_young.Increment();
@@ -389,8 +389,12 @@ void Heap::SetLastScriptId(Object* last_script_id) {
 }
 
 
+#ifdef DEBUG
 #define GC_GREEDY_CHECK() \
-  ASSERT(!FLAG_gc_greedy || v8::internal::Heap::GarbageCollectionGreedyCheck())
+  if (FLAG_gc_greedy) v8::internal::Heap::GarbageCollectionGreedyCheck()
+#else
+#define GC_GREEDY_CHECK() { }
+#endif
 
 
 // Calls the FUNCTION_CALL function and retries it up to three times
@@ -409,8 +413,7 @@ void Heap::SetLastScriptId(Object* last_script_id) {
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0", true);\
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
-    Heap::CollectGarbage(Failure::cast(__object__)->requested(),          \
-                         Failure::cast(__object__)->allocation_space());  \
+    Heap::CollectGarbage(Failure::cast(__object__)->allocation_space());  \
     __object__ = FUNCTION_CALL;                                           \
     if (!__object__->IsFailure()) RETURN_VALUE;                           \
     if (__object__->IsOutOfMemoryFailure()) {                             \

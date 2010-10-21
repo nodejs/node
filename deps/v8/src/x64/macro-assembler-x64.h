@@ -101,9 +101,9 @@ class MacroAssembler: public Assembler {
   // dirty. |object| is the object being stored into, |value| is the
   // object being stored. If |offset| is zero, then the |scratch|
   // register contains the array index into the elements array
-  // represented as a Smi. All registers are clobbered by the
-  // operation. RecordWrite filters out smis so it does not update the
-  // write barrier if the value is a smi.
+  // represented as an untagged 32-bit integer. All registers are
+  // clobbered by the operation. RecordWrite filters out smis so it
+  // does not update the write barrier if the value is a smi.
   void RecordWrite(Register object,
                    int offset,
                    Register value,
@@ -122,7 +122,7 @@ class MacroAssembler: public Assembler {
   // The value is known to not be a smi.
   // object is the object being stored into, value is the object being stored.
   // If offset is zero, then the scratch register contains the array index into
-  // the elements array represented as a Smi.
+  // the elements array represented as an untagged 32-bit integer.
   // All registers are clobbered by the operation.
   void RecordWriteNonSmi(Register object,
                          int offset,

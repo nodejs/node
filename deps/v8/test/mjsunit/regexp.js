@@ -589,3 +589,61 @@ assertEquals(0, desc.value);
 assertEquals(false, desc.configurable);
 assertEquals(false, desc.enumerable);
 assertEquals(true, desc.writable);
+
+
+// Check that end-anchored regexps are optimized correctly.
+var re = /(?:a|bc)g$/;
+assertTrue(re.test("ag"));
+assertTrue(re.test("bcg"));
+assertTrue(re.test("abcg"));
+assertTrue(re.test("zimbag"));
+assertTrue(re.test("zimbcg"));
+
+assertFalse(re.test("g"));
+assertFalse(re.test(""));
+
+// Global regexp (non-zero start).
+var re = /(?:a|bc)g$/g;
+assertTrue(re.test("ag"));
+re.lastIndex = 1;  // Near start of string.
+assertTrue(re.test("zimbag"));
+re.lastIndex = 6;  // At end of string.
+assertFalse(re.test("zimbag"));
+re.lastIndex = 5;  // Near end of string.
+assertFalse(re.test("zimbag"));
+re.lastIndex = 4;
+assertTrue(re.test("zimbag"));
+
+// Anchored at both ends.
+var re = /^(?:a|bc)g$/g;
+assertTrue(re.test("ag"));
+re.lastIndex = 1;
+assertFalse(re.test("ag"));
+re.lastIndex = 1;
+assertFalse(re.test("zag"));
+
+// Long max_length of RegExp.
+var re = /VeryLongRegExp!{1,1000}$/;
+assertTrue(re.test("BahoolaVeryLongRegExp!!!!!!"));
+assertFalse(re.test("VeryLongRegExp"));
+assertFalse(re.test("!"));
+
+// End anchor inside disjunction.
+var re = /(?:a$|bc$)/;
+assertTrue(re.test("a"));
+assertTrue(re.test("bc"));
+assertTrue(re.test("abc"));
+assertTrue(re.test("zimzamzumba"));
+assertTrue(re.test("zimzamzumbc"));
+assertFalse(re.test("c"));
+assertFalse(re.test(""));
+
+// Only partially anchored.
+var re = /(?:a|bc$)/;
+assertTrue(re.test("a"));
+assertTrue(re.test("bc"));
+assertEquals(["a"], re.exec("abc"));
+assertEquals(4, re.exec("zimzamzumba").index);
+assertEquals(["bc"], re.exec("zimzomzumbc"));
+assertFalse(re.test("c"));
+assertFalse(re.test(""));

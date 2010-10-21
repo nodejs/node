@@ -145,6 +145,12 @@ void RegExpMacroAssemblerIrregexp::ReadStackPointerFromRegister(
 }
 
 
+void RegExpMacroAssemblerIrregexp::SetCurrentPositionFromEnd(int by) {
+  ASSERT(is_uint24(by));
+  Emit(BC_SET_CURRENT_POSITION_FROM_END, by);
+}
+
+
 void RegExpMacroAssemblerIrregexp::SetRegister(int register_index, int to) {
   ASSERT(register_index >= 0);
   ASSERT(register_index <= kMaxRegister);

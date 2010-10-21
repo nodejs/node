@@ -867,7 +867,7 @@ static void DebugEventBreakPointCollectGarbage(
     break_point_hit_count++;
     if (break_point_hit_count % 2 == 0) {
       // Scavenge.
-      Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
+      Heap::CollectGarbage(v8::internal::NEW_SPACE);
     } else {
       // Mark sweep compact.
       Heap::CollectAllGarbage(true);
@@ -891,7 +891,7 @@ static void DebugEventBreak(v8::DebugEvent event,
 
     // Run the garbage collector to enforce heap verification if option
     // --verify-heap is set.
-    Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
+    Heap::CollectGarbage(v8::internal::NEW_SPACE);
 
     // Set the break flag again to come back here as soon as possible.
     v8::Debug::DebugBreak();
@@ -1322,7 +1322,7 @@ static void CallAndGC(v8::Local<v8::Object> recv,
     CHECK_EQ(1 + i * 3, break_point_hit_count);
 
     // Scavenge and call function.
-    Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
+    Heap::CollectGarbage(v8::internal::NEW_SPACE);
     f->Call(recv, 0, NULL);
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 

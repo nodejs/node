@@ -1,3 +1,20 @@
+2010-10-20: Version 2.5.1
+
+        Fixed bug causing spurious out of memory exceptions
+        (issue http://crbug.com/54580).
+
+        Fixed compilation error on Solaris platform (issue 901).
+
+        Fixed error in strtod (string to floating point number conversion)
+        due to glibc's use of 80-bit floats in the FPU on 32-bit linux.
+
+        Adjusted randomized allocations of executable memory to have 64k
+        granularity (issue http://crbug.com/56036).
+
+        Supported profiling using kernel perf_events on linux.  Added ll_prof
+        script to tools and --ll-prof flag to V8.
+
+
 2010-10-18: Version 2.5.0
 
         Fixed bug in cache handling of lastIndex on global regexps

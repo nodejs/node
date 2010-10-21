@@ -54,6 +54,7 @@ namespace internal {
 
 String* Heap::hidden_symbol_;
 Object* Heap::roots_[Heap::kRootListLength];
+Object* Heap::global_contexts_list_;
 
 NewSpace Heap::new_space_;
 OldSpace* Heap::old_pointer_space_ = NULL;
@@ -420,7 +421,7 @@ void Heap::CollectAllGarbage(bool force_compaction,
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
   MarkCompactCollector::SetForceCompaction(force_compaction);
-  CollectGarbage(0, OLD_POINTER_SPACE, collectionPolicy);
+  CollectGarbage(OLD_POINTER_SPACE, collectionPolicy);
   MarkCompactCollector::SetForceCompaction(false);
 }
 
@@ -431,8 +432,7 @@ void Heap::CollectAllAvailableGarbage() {
 }
 
 
-bool Heap::CollectGarbage(int requested_size,
-                          AllocationSpace space,
+void Heap::CollectGarbage(AllocationSpace space,
                           CollectionPolicy collectionPolicy) {
   // The VM is in the GC state until exiting this function.
   VMState state(GC);
@@ -469,25 +469,8 @@ bool Heap::CollectGarbage(int requested_size,
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_gc) HeapProfiler::WriteSample();
+  if (CpuProfiler::is_profiling()) CpuProfiler::ProcessMovedFunctions();
 #endif
-
-  switch (space) {
-    case NEW_SPACE:
-      return new_space_.Available() >= requested_size;
-    case OLD_POINTER_SPACE:
-      return old_pointer_space_->Available() >= requested_size;
-    case OLD_DATA_SPACE:
-      return old_data_space_->Available() >= requested_size;
-    case CODE_SPACE:
-      return code_space_->Available() >= requested_size;
-    case MAP_SPACE:
-      return map_space_->Available() >= requested_size;
-    case CELL_SPACE:
-      return cell_space_->Available() >= requested_size;
-    case LO_SPACE:
-      return lo_space_->Available() >= requested_size;
-  }
-  return false;
 }
 
 
@@ -542,27 +525,27 @@ void Heap::ReserveSpace(
   while (gc_performed) {
     gc_performed = false;
     if (!new_space->ReserveSpace(new_space_size)) {
-      Heap::CollectGarbage(new_space_size, NEW_SPACE);
+      Heap::CollectGarbage(NEW_SPACE);
       gc_performed = true;
     }
     if (!old_pointer_space->ReserveSpace(pointer_space_size)) {
-      Heap::CollectGarbage(pointer_space_size, OLD_POINTER_SPACE);
+      Heap::CollectGarbage(OLD_POINTER_SPACE);
       gc_performed = true;
     }
     if (!(old_data_space->ReserveSpace(data_space_size))) {
-      Heap::CollectGarbage(data_space_size, OLD_DATA_SPACE);
+      Heap::CollectGarbage(OLD_DATA_SPACE);
       gc_performed = true;
     }
     if (!(code_space->ReserveSpace(code_space_size))) {
-      Heap::CollectGarbage(code_space_size, CODE_SPACE);
+      Heap::CollectGarbage(CODE_SPACE);
       gc_performed = true;
     }
     if (!(map_space->ReserveSpace(map_space_size))) {
-      Heap::CollectGarbage(map_space_size, MAP_SPACE);
+      Heap::CollectGarbage(MAP_SPACE);
       gc_performed = true;
     }
     if (!(cell_space->ReserveSpace(cell_space_size))) {
-      Heap::CollectGarbage(cell_space_size, CELL_SPACE);
+      Heap::CollectGarbage(CELL_SPACE);
       gc_performed = true;
     }
     // We add a slack-factor of 2 in order to have space for a series of
@@ -574,7 +557,7 @@ void Heap::ReserveSpace(
     large_object_size += cell_space_size + map_space_size + code_space_size +
         data_space_size + pointer_space_size;
     if (!(lo_space->ReserveSpace(large_object_size))) {
-      Heap::CollectGarbage(large_object_size, LO_SPACE);
+      Heap::CollectGarbage(LO_SPACE);
       gc_performed = true;
     }
   }
@@ -624,19 +607,14 @@ void Heap::ClearJSFunctionResultCaches() {
 }
 
 
-class ClearThreadNormalizedMapCachesVisitor: public ThreadVisitor {
-  virtual void VisitThread(ThreadLocalTop* top) {
-    Context* context = top->context_;
-    if (context == NULL) return;
-    context->global()->global_context()->normalized_map_cache()->Clear();
-  }
-};
-
-
 void Heap::ClearNormalizedMapCaches() {
   if (Bootstrapper::IsActive()) return;
-  ClearThreadNormalizedMapCachesVisitor visitor;
-  ThreadManager::IterateArchivedThreads(&visitor);
+
+  Object* context = global_contexts_list_;
+  while (!context->IsUndefined()) {
+    Context::cast(context)->normalized_map_cache()->Clear();
+    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+  }
 }
 
 
@@ -685,6 +663,10 @@ void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
 void Heap::PerformGarbageCollection(GarbageCollector collector,
                                     GCTracer* tracer,
                                     CollectionPolicy collectionPolicy) {
+  if (collector != SCAVENGER) {
+    PROFILE(CodeMovingGCEvent());
+  }
+
   VerifySymbolTable();
   if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
     ASSERT(!allocation_allowed_);
@@ -1034,6 +1016,9 @@ void Heap::Scavenge() {
     }
   }
 
+  // Scavenge object reachable from the global contexts list directly.
+  scavenge_visitor.VisitPointer(BitCast<Object**>(&global_contexts_list_));
+
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
   UpdateNewSpaceReferencesInExternalStringTable(
@@ -1101,6 +1086,44 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 }
 
 
+void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
+  Object* head = undefined_value();
+  Context* tail = NULL;
+  Object* candidate = global_contexts_list_;
+  while (!candidate->IsUndefined()) {
+    // Check whether to keep the candidate in the list.
+    Context* candidate_context = reinterpret_cast<Context*>(candidate);
+    Object* retain = retainer->RetainAs(candidate);
+    if (retain != NULL) {
+      if (head->IsUndefined()) {
+        // First element in the list.
+        head = candidate_context;
+      } else {
+        // Subsequent elements in the list.
+        ASSERT(tail != NULL);
+        tail->set_unchecked(Context::NEXT_CONTEXT_LINK,
+                            candidate_context,
+                            UPDATE_WRITE_BARRIER);
+      }
+      // Retained context is new tail.
+      tail = candidate_context;
+    }
+    // Move to next element in the list.
+    candidate = candidate_context->get(Context::NEXT_CONTEXT_LINK);
+  }
+
+  // Terminate the list if there is one or more elements.
+  if (tail != NULL) {
+    tail->set_unchecked(Context::NEXT_CONTEXT_LINK,
+                        Heap::undefined_value(),
+                        UPDATE_WRITE_BARRIER);
+  }
+
+  // Update the head of the list of contexts.
+  Heap::global_contexts_list_ = head;
+}
+
+
 class NewSpaceScavenger : public StaticNewSpaceVisitor<NewSpaceScavenger> {
  public:
   static inline void VisitPointer(Object** p) {
@@ -1157,6 +1180,9 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitShortcutCandidate, &EvacuateShortcutCandidate);
     table_.Register(kVisitByteArray, &EvacuateByteArray);
     table_.Register(kVisitFixedArray, &EvacuateFixedArray);
+    table_.Register(kVisitGlobalContext,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                        VisitSpecialized<Context::kSize>);
 
     typedef ObjectEvacuationStrategy<POINTER_OBJECT> PointerObject;
 
@@ -1235,7 +1261,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     if (Logger::is_logging() || CpuProfiler::is_profiling()) {
       if (target->IsJSFunction()) {
         PROFILE(FunctionMoveEvent(source->address(), target->address()));
-        PROFILE(FunctionCreateEventFromMove(JSFunction::cast(target), source));
+        PROFILE(FunctionCreateEventFromMove(JSFunction::cast(target)));
       }
     }
 #endif
@@ -1647,7 +1673,9 @@ bool Heap::CreateInitialMaps() {
 
   obj = AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   if (obj->IsFailure()) return false;
-  set_global_context_map(Map::cast(obj));
+  Map* global_context_map = Map::cast(obj);
+  global_context_map->set_visitor_id(StaticVisitorBase::kVisitGlobalContext);
+  set_global_context_map(global_context_map);
 
   obj = AllocateMap(SHARED_FUNCTION_INFO_TYPE,
                     SharedFunctionInfo::kAlignedSize);
@@ -3431,7 +3459,7 @@ bool Heap::IdleNotification() {
       HistogramTimerScope scope(&Counters::gc_context);
       CollectAllGarbage(false);
     } else {
-      CollectGarbage(0, NEW_SPACE);
+      CollectGarbage(NEW_SPACE);
     }
     new_space_.Shrink();
     last_gc_count = gc_count_;
@@ -4236,6 +4264,8 @@ bool Heap::Setup(bool create_heap_objects) {
 
     // Create initial objects
     if (!CreateInitialObjects()) return false;
+
+    global_contexts_list_ = undefined_value();
   }
 
   LOG(IntPtrTEvent("heap-capacity", Capacity()));
@@ -4937,11 +4967,11 @@ int DescriptorLookupCache::results_[DescriptorLookupCache::kLength];
 
 
 #ifdef DEBUG
-bool Heap::GarbageCollectionGreedyCheck() {
+void Heap::GarbageCollectionGreedyCheck() {
   ASSERT(FLAG_gc_greedy);
-  if (Bootstrapper::IsActive()) return true;
-  if (disallow_allocation_failure()) return true;
-  return CollectGarbage(0, NEW_SPACE);
+  if (Bootstrapper::IsActive()) return;
+  if (disallow_allocation_failure()) return;
+  CollectGarbage(NEW_SPACE);
 }
 #endif
 
