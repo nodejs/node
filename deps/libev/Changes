@@ -1,5 +1,51 @@
 Revision history for libev, a high-performance and full-featured event loop.
 
+TODO: include ev_xyz_start in each example?
+TODO: section watcher states/lifetime
+TODO: use enums //TODO: enum?
+	- "PORTING FROM LIBEV 3.X TO 4.X" (in ev.pod) is recommended reading.
+	- ev_embed_stop did not correctly stop the watcher (very good
+          testcase by Vladimir Timofeev).
+        - ev_run will now always update the current loop time - it errornously
+          didn't when idle watchers were active, causing timers not to fire.
+        - fix a bug where a timeout of zero caused the timer not to fire
+          in the libevent emulation (testcase by Péter Szabó).
+	- applied win32 fixes by Michael Lenaghan (also James Mansion).
+	- replace EV_MINIMAL by EV_FEATURES.
+        - prefer EPOLL_CTL_ADD over EPOLL_CTL_MOD in some more cases, as it
+          seems the former is *much* faster than the latter.
+        - reduce the number of spurious wake-ups with the ports backend.
+        - remove dependency on sys/queue.h on freebsd (patch by Vanilla Hsu).
+        - do async init within ev_async_start, not ev_async_set, which avoids
+          an API quirk where the set function must be called in the C++ API
+          even when there is nothing to set.
+        - add (undocumented) EV_ENABLE when adding events with kqueue,
+          this might help with OS X, which seems to need it despite documenting
+          not to need it (helpfully pointed out by Tilghman Lesher).
+        - do not use poll by default on freebsd, it's broken (what isn't
+          on freebsd...).
+        - configure now prepends -O3, not appends it, so one can still
+          override it.
+        - greatly expanded the portability section.
+        - disable poll backend on AIX, the poll header spams the namespace
+          and it's not worth working around dead platforms (reported
+          and analyzed by Aivars Kalvans).
+        - improve header file compatibility of the standalone eventfd code
+          in an obscure case.
+        - implement EV_AVOID_STDIO option.
+        - do not use sscanf to parse linux version number (smaller, faster,
+          no sscanf dependency).
+        - new EV_CHILD_ENABLE and EV_SIGNAL_ENABLE configurable settings.
+        - update libev.m4 HAVE_CLOCK_SYSCALL test for newer glibcs.
+        - add section on accept() problems to the manpage.
+        - rename EV_TIMEOUT to EV_TIMER.
+        - rename ev_loop_count/depth/verify.
+        - switch to two-digit minor version.
+        - work around an apparent gentoo compiler bug.
+        - define _DARWIN_UNLIMITED_SELECT. just so.
+        - use enum instead of #define for most constants.
+        - improve compatibility to older C++ compilers.
+
 3.9  Thu Dec 31 07:59:59 CET 2009
 	- signalfd is no longer used by default and has to be requested
           explicitly - this means that easy to catch bugs become hard to

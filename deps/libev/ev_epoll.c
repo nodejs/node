@@ -1,7 +1,7 @@
 /*
  * libev epoll fd activity backend
  *
- * Copyright (c) 2007,2008,2009 Marc Alexander Lehmann <libev@schmorp.de>
+ * Copyright (c) 2007,2008,2009,2010 Marc Alexander Lehmann <libev@schmorp.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modifica-
@@ -49,6 +49,11 @@
  * c) the inability to handle fork or file descriptors (think dup)
  *    limits the applicability over poll, so this is not a generic
  *    poll replacement.
+ * d) epoll doesn't work the same as select with many file descriptors
+ *    (such as files). while not critical, no other advanced interface
+ *    seems to share this (rather non-unixy) limitation.
+ * e) epoll claims to be embeddable, but in practise you never get
+ *    a ready event for the epoll fd.
  *
  * lots of "weird code" and complication handling in this file is due
  * to these design problems with epoll, as we try very hard to avoid
@@ -85,7 +90,7 @@ epoll_modify (EV_P_ int fd, int oev, int nev)
   ev.events   = (nev & EV_READ  ? EPOLLIN  : 0)
               | (nev & EV_WRITE ? EPOLLOUT : 0);
 
-  if (expect_true (!epoll_ctl (backend_fd, oev ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, fd, &ev)))
+  if (expect_true (!epoll_ctl (backend_fd, oev && oldmask != nev ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, fd, &ev)))
     return;
 
   if (expect_true (errno == ENOENT))
@@ -165,7 +170,7 @@ epoll_poll (EV_P_ ev_tstamp timeout)
           /* which is fortunately easy to do for us. */
           if (epoll_ctl (backend_fd, want ? EPOLL_CTL_MOD : EPOLL_CTL_DEL, fd, ev))
             {
-              postfork = 1; /* an error occured, recreate kernel state */
+              postfork = 1; /* an error occurred, recreate kernel state */
               continue;
             }
         }

@@ -1,7 +1,7 @@
 /*
  * libevent compatibility layer
  *
- * Copyright (c) 2007,2008,2009 Marc Alexander Lehmann <libev@schmorp.de>
+ * Copyright (c) 2007,2008,2009,2010 Marc Alexander Lehmann <libev@schmorp.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modifica-
@@ -63,18 +63,14 @@ struct event_base
 
 static struct event_base *ev_x_cur;
 
-static void
-ev_tv_set (struct timeval *tv, ev_tstamp at)
-{
-  tv->tv_sec  = (long)at;
-  tv->tv_usec = (long)((at - (ev_tstamp)tv->tv_sec) * 1e6);
-}
-
 static ev_tstamp
 ev_tv_get (struct timeval *tv)
 {
   if (tv)
-    return tv->tv_sec + tv->tv_usec * 1e-6;
+    {
+      ev_tstamp after = tv->tv_sec + tv->tv_usec * 1e-6;
+      return after ? after : 1e-6;
+    }
   else
     return -1.;
 }
@@ -144,7 +140,7 @@ int event_loopexit (struct timeval *tv)
 static void
 ev_x_cb (struct event *ev, int revents)
 {
-  revents &= EV_READ | EV_WRITE | EV_TIMEOUT | EV_SIGNAL;
+  revents &= EV_READ | EV_WRITE | EV_TIMER | EV_SIGNAL;
 
   ev->ev_res = revents;
   ev->ev_callback (ev->ev_fd, (short)revents, ev->ev_arg);
@@ -302,7 +298,7 @@ int event_pending (struct event *ev, short events, struct timeval *tv)
       revents |= EV_TIMEOUT;
 
       if (tv)
-        ev_tv_set (tv, ev_now (EV_A)); /* not sure if this is right :) */
+        EV_TV_SET (tv, ev_now (EV_A)); /* not sure if this is right :) */
     }
 
   return events & revents;
@@ -331,7 +327,7 @@ int event_base_loop (struct event_base *base, int flags)
 {
   dLOOPbase;
 
-  ev_loop (EV_A_ flags);
+  ev_run (EV_A_ flags);
 
   return 0;
 }
@@ -346,7 +342,7 @@ ev_x_loopexit_cb (int revents, void *base)
 {
   dLOOPbase;
 
-  ev_unloop (EV_A_ EVUNLOOP_ONE);
+  ev_break (EV_A_ EVBREAK_ONE);
 }
 
 int event_base_loopexit (struct event_base *base, struct timeval *tv)

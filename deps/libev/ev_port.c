@@ -1,7 +1,7 @@
 /*
  * libev solaris event port backend
  *
- * Copyright (c) 2007,2008,2009 Marc Alexander Lehmann <libev@schmorp.de>
+ * Copyright (c) 2007,2008,2009,2010 Marc Alexander Lehmann <libev@schmorp.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modifica-
@@ -86,8 +86,7 @@ port_poll (EV_P_ ev_tstamp timeout)
   uint_t nget = 1;
 
   EV_RELEASE_CB;
-  ts.tv_sec  = (time_t)timeout;
-  ts.tv_nsec = (long)(timeout - (ev_tstamp)ts.tv_sec) * 1e9;
+  EV_TS_SET (ts, timeout);
   res = port_getn (backend_fd, port_events, port_eventmax, &nget, &ts);
   EV_ACQUIRE_CB;
 
@@ -112,7 +111,7 @@ port_poll (EV_P_ ev_tstamp timeout)
             | (port_events [i].portev_events & (POLLIN | POLLERR | POLLHUP) ? EV_READ : 0)
           );
 
-          port_associate_and_check (EV_A_ fd, anfds [fd].events);
+          fd_change (EV_A_ fd, EV__IOFDSET);
         }
     }
 
@@ -127,7 +126,7 @@ port_poll (EV_P_ ev_tstamp timeout)
 int inline_size
 port_init (EV_P_ int flags)
 {
-  /* Initalize the kernel queue */
+  /* Initialize the kernel queue */
   if ((backend_fd = port_create ()) < 0)
     return 0;
 
@@ -137,7 +136,7 @@ port_init (EV_P_ int flags)
   backend_modify = port_modify;
   backend_poll   = port_poll;
 
-  port_eventmax = 64; /* intiial number of events receivable per poll */
+  port_eventmax = 64; /* initial number of events receivable per poll */
   port_events = (port_event_t *)ev_malloc (sizeof (port_event_t) * port_eventmax);
 
   return EVBACKEND_PORT;

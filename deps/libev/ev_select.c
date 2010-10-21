@@ -1,7 +1,7 @@
 /*
  * libev select fd activity backend
  *
- * Copyright (c) 2007,2008,2009 Marc Alexander Lehmann <libev@schmorp.de>
+ * Copyright (c) 2007,2008,2009,2010 Marc Alexander Lehmann <libev@schmorp.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modifica-
@@ -141,8 +141,7 @@ select_poll (EV_P_ ev_tstamp timeout)
   int fd_setsize;
 
   EV_RELEASE_CB;
-  tv.tv_sec  = (long)timeout;
-  tv.tv_usec = (long)((timeout - (ev_tstamp)tv.tv_sec) * 1e6);
+  EV_TV_SET (tv, timeout);
 
 #if EV_SELECT_USE_FD_SET
   fd_setsize = sizeof (fd_set);
@@ -184,7 +183,7 @@ select_poll (EV_P_ ev_tstamp timeout)
       #endif
 
       #ifdef _WIN32
-      /* select on windows errornously returns EINVAL when no fd sets have been
+      /* select on windows erroneously returns EINVAL when no fd sets have been
        * provided (this is documented). what microsoft doesn't tell you that this bug
        * exists even when the fd sets _are_ provided, so we have to check for this bug
        * here and emulate by sleeping manually.

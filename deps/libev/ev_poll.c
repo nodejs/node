@@ -1,7 +1,7 @@
 /*
  * libev poll fd activity backend
  *
- * Copyright (c) 2007,2008,2009 Marc Alexander Lehmann <libev@schmorp.de>
+ * Copyright (c) 2007,2008,2009,2010 Marc Alexander Lehmann <libev@schmorp.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modifica-
@@ -42,7 +42,7 @@
 void inline_size
 pollidx_init (int *base, int count)
 {
-  /* consider using memset (.., -1, ...), which is pratically guarenteed
+  /* consider using memset (.., -1, ...), which is practically guaranteed
    * to work on all systems implementing poll */
   while (count--)
     *base++ = -1;
@@ -106,20 +106,24 @@ poll_poll (EV_P_ ev_tstamp timeout)
     }
   else
     for (p = polls; res; ++p)
-      if (expect_false (p->revents)) /* this expect is debatable */
-        {
-          --res;
+      {
+        assert (("libev: poll() returned illegal result, broken BSD kernel?", p < polls + pollcnt));
 
-          if (expect_false (p->revents & POLLNVAL))
-            fd_kill (EV_A_ p->fd);
-          else
-            fd_event (
-              EV_A_
-              p->fd,
-              (p->revents & (POLLOUT | POLLERR | POLLHUP) ? EV_WRITE : 0)
-              | (p->revents & (POLLIN | POLLERR | POLLHUP) ? EV_READ : 0)
-            );
-        }
+        if (expect_false (p->revents)) /* this expect is debatable */
+          {
+            --res;
+
+            if (expect_false (p->revents & POLLNVAL))
+              fd_kill (EV_A_ p->fd);
+            else
+              fd_event (
+                EV_A_
+                p->fd,
+                (p->revents & (POLLOUT | POLLERR | POLLHUP) ? EV_WRITE : 0)
+                | (p->revents & (POLLIN | POLLERR | POLLHUP) ? EV_READ : 0)
+              );
+          }
+      }
 }
 
 int inline_size

@@ -1,7 +1,7 @@
 /*
  * libev kqueue backend
  *
- * Copyright (c) 2007,2008,2009 Marc Alexander Lehmann <libev@schmorp.de>
+ * Copyright (c) 2007,2008,2009,2010 Marc Alexander Lehmann <libev@schmorp.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modifica-
@@ -39,7 +39,6 @@
 
 #include <sys/types.h>
 #include <sys/time.h>
-#include <sys/queue.h>
 #include <sys/event.h>
 #include <string.h>
 #include <errno.h>
@@ -53,6 +52,10 @@ kqueue_change (EV_P_ int fd, int filter, int flags, int fflags)
   EV_SET (&kqueue_changes [kqueue_changecnt - 1], fd, filter, flags, fflags, 0, 0);
 }
 
+/* OS X at least needs this */
+#ifndef EV_ENABLE
+# define EV_ENABLE 0
+#endif
 #ifndef NOTE_EOF
 # define NOTE_EOF 0
 #endif
@@ -73,10 +76,10 @@ kqueue_modify (EV_P_ int fd, int oev, int nev)
   /* event requests even when oev == nev */
 
   if (nev & EV_READ)
-    kqueue_change (EV_A_ fd, EVFILT_READ , EV_ADD, NOTE_EOF);
+    kqueue_change (EV_A_ fd, EVFILT_READ , EV_ADD | EV_ENABLE, NOTE_EOF);
 
   if (nev & EV_WRITE)
-    kqueue_change (EV_A_ fd, EVFILT_WRITE, EV_ADD, NOTE_EOF);
+    kqueue_change (EV_A_ fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, NOTE_EOF);
 }
 
 static void
@@ -94,8 +97,7 @@ kqueue_poll (EV_P_ ev_tstamp timeout)
     }
 
   EV_RELEASE_CB;
-  ts.tv_sec  = (time_t)timeout;
-  ts.tv_nsec = (long)((timeout - (ev_tstamp)ts.tv_sec) * 1e9);
+  EV_TS_SET (ts, timeout);
   res = kevent (backend_fd, kqueue_changes, kqueue_changecnt, kqueue_events, kqueue_eventmax, &ts);
   EV_ACQUIRE_CB;
   kqueue_changecnt = 0;
@@ -114,11 +116,11 @@ kqueue_poll (EV_P_ ev_tstamp timeout)
 
       if (expect_false (kqueue_events [i].flags & EV_ERROR))
         {
-	  int err = kqueue_events [i].data;
+          int err = kqueue_events [i].data;
 
           /* we are only interested in errors for fds that we are interested in :) */
           if (anfds [fd].events)
-	    {
+            {
               if (err == ENOENT) /* resubmit changes on ENOENT */
                 kqueue_modify (EV_A_ fd, 0, anfds [fd].events);
               else if (err == EBADF) /* on EBADF, we re-check the fd */
@@ -130,7 +132,7 @@ kqueue_poll (EV_P_ ev_tstamp timeout)
                 }
               else /* on all other errors, we error out on the fd */
                 fd_kill (EV_A_ fd);
-	    }
+            }
         }
       else
         fd_event (
@@ -153,7 +155,7 @@ kqueue_poll (EV_P_ ev_tstamp timeout)
 int inline_size
 kqueue_init (EV_P_ int flags)
 {
-  /* Initalize the kernel queue */
+  /* Initialize the kernel queue */
   if ((backend_fd = kqueue ()) < 0)
     return 0;
 
