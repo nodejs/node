@@ -1776,7 +1776,8 @@ static void AtExit() {
 
 
 static void SignalExit(int signal) {
-  ev_unloop(EV_DEFAULT_ EVUNLOOP_ALL);
+  AtExit();
+  exit(1);
 }
 
 
