@@ -22,9 +22,13 @@ class Buffer : public ObjectWrap {
  public:
   ~Buffer();
 
+  typedef void (*free_callback)(char *data, void *hint);
+
   static void Initialize(v8::Handle<v8::Object> target);
   static Buffer* New(size_t length); // public constructor
   static Buffer* New(char *data, size_t len); // public constructor
+  static Buffer* New(char *data, size_t length,
+                     free_callback callback, void *hint); // public constructor
   static bool HasInstance(v8::Handle<v8::Value> val);
 
   static char* Data(v8::Handle<v8::Object>);
@@ -56,10 +60,13 @@ class Buffer : public ObjectWrap {
   static v8::Handle<v8::Value> MakeFastBuffer(const v8::Arguments &args);
   static v8::Handle<v8::Value> Copy(const v8::Arguments &args);
 
-  Buffer(size_t length);
+  Buffer(v8::Handle<v8::Object> wrapper, size_t length);
+  void Replace(char *data, size_t length, free_callback callback, void *hint);
 
   size_t length_;
   char* data_;
+  free_callback callback_;
+  void* callback_hint_;
 };
 
 

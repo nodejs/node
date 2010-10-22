@@ -82,25 +82,38 @@ static size_t ByteLength (Handle<String> string, enum encoding enc) {
 }
 
 
-Buffer* Buffer::New(size_t size) {
+Buffer* Buffer::New(size_t length) {
   HandleScope scope;
 
-  Local<Value> arg = Integer::NewFromUnsigned(size);
+  Local<Value> arg = Integer::NewFromUnsigned(length);
   Local<Object> b = constructor_template->GetFunction()->NewInstance(1, &arg);
 
   return ObjectWrap::Unwrap<Buffer>(b);
 }
 
 
-Buffer* Buffer::New(char* data, size_t len) {
+Buffer* Buffer::New(char* data, size_t length) {
   HandleScope scope;
 
-  Local<Value> arg = Integer::NewFromUnsigned(len);
+  Local<Value> arg = Integer::NewFromUnsigned(0);
   Local<Object> obj = constructor_template->GetFunction()->NewInstance(1, &arg);
 
-  Buffer *buffer =  ObjectWrap::Unwrap<Buffer>(obj);
+  Buffer *buffer = ObjectWrap::Unwrap<Buffer>(obj);
+  buffer->Replace(data, length, NULL, NULL);
 
-  memcpy(buffer->data_, data, len);
+  return buffer;
+}
+
+
+Buffer* Buffer::New(char *data, size_t length,
+                    free_callback callback, void *hint) {
+  HandleScope scope;
+
+  Local<Value> arg = Integer::NewFromUnsigned(0);
+  Local<Object> obj = constructor_template->GetFunction()->NewInstance(1, &arg);
+
+  Buffer *buffer = ObjectWrap::Unwrap<Buffer>(obj);
+  buffer->Replace(data, length, callback, hint);
 
   return buffer;
 }
@@ -131,34 +144,59 @@ Handle<Value> Buffer::New(const Arguments &args) {
   if (args[0]->IsInt32()) {
     // var buffer = new Buffer(1024);
     size_t length = args[0]->Uint32Value();
-    buffer = new Buffer(length);
-
+    buffer = new Buffer(args.This(), length);
   } else {
     return ThrowException(Exception::TypeError(String::New("Bad argument")));
   }
-
-  buffer->Wrap(args.This());
-  args.This()->SetIndexedPropertiesToExternalArrayData(buffer->data_,
-                                                       kExternalUnsignedByteArray,
-                                                       buffer->length_);
-  args.This()->Set(length_symbol, Integer::New(buffer->length_));
-
   return args.This();
 }
 
 
-Buffer::Buffer(size_t length) : ObjectWrap() {
-  length_ = length;
-  data_ = new char[length_];
+Buffer::Buffer(Handle<Object> wrapper, size_t length) : ObjectWrap() {
+  Wrap(wrapper);
 
-  V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer) + length_);
+  length_ = 0;
+  callback_ = NULL;
+
+  Replace(NULL, length, NULL, NULL);
 }
 
 
 Buffer::~Buffer() {
-  //fprintf(stderr, "free buffer (%d refs left)\n", blob_->refs);
-  delete data_;
-  V8::AdjustAmountOfExternalAllocatedMemory(-(sizeof(Buffer) + length_));
+  Replace(NULL, 0, NULL, NULL);
+}
+
+
+void Buffer::Replace(char *data, size_t length,
+                     free_callback callback, void *hint) {
+  HandleScope scope;
+
+  if (callback_) {
+    callback_(data_, callback_hint_);
+  } else if (length_) {
+    delete data_;
+    V8::AdjustAmountOfExternalAllocatedMemory(-(sizeof(Buffer) + length_));
+  }
+
+  length_ = length;
+  callback_ = callback;
+  callback_hint_ = hint;
+
+  if (callback_) {
+    data_ = data;
+  } else if (length_) {
+    data_ = new char[length_];
+    if (data)
+      memcpy(data_, data, length_);
+    V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer) + length_);
+  } else {
+    data_ = NULL;
+  }
+
+  handle_->SetIndexedPropertiesToExternalArrayData(data_,
+                                                   kExternalUnsignedByteArray,
+                                                   length_);
+  handle_->Set(length_symbol, Integer::NewFromUnsigned(length_));
 }
 
 
@@ -577,7 +615,15 @@ Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
 bool Buffer::HasInstance(v8::Handle<v8::Value> val) {
   if (!val->IsObject()) return false;
   v8::Local<v8::Object> obj = val->ToObject();
-  return obj->GetIndexedPropertiesExternalArrayDataType() == kExternalUnsignedByteArray;
+
+  if (obj->GetIndexedPropertiesExternalArrayDataType() == kExternalUnsignedByteArray)
+    return true;
+
+  // Also check for SlowBuffers that are empty.
+  if (constructor_template->HasInstance(obj))
+    return true;
+
+  return false;
 }
 
 
