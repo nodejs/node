@@ -4,7 +4,7 @@ assert = common.assert
 var path = require('path'),
     fs = require('fs');
     
-var file = path.join(common.fixturesDir, "write.txt");
+var file = path.join(common.tmpDir, "write.txt");
 
 (function() {
   var stream = fs.WriteStream(file),

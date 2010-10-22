@@ -3,7 +3,7 @@ assert = common.assert
 path = require('path'),
 Buffer = require('buffer').Buffer
 fs = require('fs')
-fn = path.join(common.fixturesDir, 'write.txt');
+fn = path.join(common.tmpDir, 'write.txt');
 
 
 foo = 'foo'
