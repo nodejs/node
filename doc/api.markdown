@@ -925,9 +925,6 @@ normally, `code` is the final exit code of the process, otherwise `null`. If
 the process terminated due to receipt of a signal, `signal` is the string name
 of the signal, otherwise `null`.
 
-After this event is emitted, the `'output'` and `'error'` callbacks will no
-longer be made.
-
 See `waitpid(2)`.
 
 ### child.stdin
