@@ -1776,7 +1776,6 @@ static void AtExit() {
 
 
 static void SignalExit(int signal) {
-  AtExit();
   exit(1);
 }
 
