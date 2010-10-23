@@ -26,28 +26,31 @@ var srv = net.createServer(function(c) {
         c.end();
     });
 });
-srv.listen(common.PORT, '127.0.0.1');
 
 var gotUpgrade = false;
-var hc = http.createClient(common.PORT, '127.0.0.1');
-hc.addListener('upgrade', function(res, socket, upgradeHead) {
-    // XXX: This test isn't fantastic, as it assumes that the entire response
-    //      from the server will arrive in a single data callback
-    assert.equal(upgradeHead, 'nurtzo');
 
-    console.log(res.headers);
-    var expectedHeaders = { "hello": "world"
-                          , "connection": "upgrade" 
-                          , "upgrade": "websocket"
-                          };
-    assert.deepEqual(expectedHeaders, res.headers);
+srv.listen(common.PORT, '127.0.0.1', function () {
 
-    socket.end();
-    srv.close();
+  var hc = http.createClient(common.PORT, '127.0.0.1');
+  hc.addListener('upgrade', function(res, socket, upgradeHead) {
+      // XXX: This test isn't fantastic, as it assumes that the entire response
+      //      from the server will arrive in a single data callback
+      assert.equal(upgradeHead, 'nurtzo');
 
-    gotUpgrade = true;
+      console.log(res.headers);
+      var expectedHeaders = { "hello": "world"
+                            , "connection": "upgrade" 
+                            , "upgrade": "websocket"
+                            };
+      assert.deepEqual(expectedHeaders, res.headers);
+
+      socket.end();
+      srv.close();
+
+      gotUpgrade = true;
+  });
+  hc.request('GET', '/').end();
 });
-hc.request('GET', '/').end();
 
 process.addListener('exit', function() {
     assert.ok(gotUpgrade);
