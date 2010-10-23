@@ -1,4 +1,70 @@
-2010.08.20, Version 0.2.0
+2010.10.23, Version 0.3.0 (unstable)
+
+* Bugfix: Do not spin on aceept() with EMFILE
+
+* Improvments to readline.js (Trent Mick, Johan Euphrosine, Brian White)
+
+* Safe constructors (missing 'new' doesn't segfault)
+
+* Fix process.nextTick so thrown errors don't confuse it.
+  (Benjamin Thomas)
+
+* Allow Strings for ports on net.Server.listen (Bradley Meck)
+
+* fs bugfixes (Tj Holowaychuk, Tobie Langel, Marco Rogers, isaacs)
+
+* http bug fixes (Fedor Indutny, Mikeal Rogers) 
+
+* Faster buffers; breaks C++ API (Tim-Smart, Stéphan Kochen)
+
+* crypto, tls improvements (Paul Querna)
+
+* Add lfs flags to node addon script
+
+* Simpler querystring parsing; breaks API (Peter Griess)
+
+* HTTP trailers (Mark Nottingham)
+
+* http 100-continue support (Mark Nottingham)
+
+* Module system simplifications (Herbert Vojčík, isaacs, Tim-Smart)
+  - remove require.async
+  - remove registerExtension, add .extensions
+  - expose require.resolve
+  - expose require.cache
+  - require looks in  node_modules folders
+
+* Add --eval command line option (TJ Holowaychuk)
+
+* Commas last in sys.inspect
+
+* Constatnts moved from process object to require('constants')
+
+* Fix parsing of linux memory (Vitali Lovich)
+
+* inspect shows function names (Jorge Chamorro Bieling)
+
+* uncaughtException corner cases (Felix Geisendörfer)
+
+* TCP clients now buffer writes before connection
+
+* Rename sys module to 'util' (Micheil Smith)
+
+* Properly set stdio handlers to blocking on SIGTERM and SIGINT
+  (Tom Hughes)
+
+* Add destroy methods to HTTP messages
+
+* base64 improvements (isaacs, Jorge Chamorro Bieling)
+
+* API for defining REPL commands (Sami Samhuri)
+
+* child_process.exec timeout fix (Aaron Heckmann)
+
+* Upgrade V8 to 2.5.1, Libev to 4.00, libeio, http-parser
+
+
+2010.08.20, Version 0.2.0, 9283e134e558900ba89d9a33c18a9bdedab07cb9
 
 * process.title support for FreeBSD, Macintosh, Linux
 
