@@ -44,7 +44,7 @@ exec("sleep 3", { timeout: 50 }, function (err, stdout, stderr) {
   assert.ok(diff < 500);
   assert.ok(err);
   assert.ok(err.killed);
-  assert.equal(err.signal, 'SIGKILL');
+  assert.equal(err.signal, 'SIGTERM');
 });
 
 
@@ -69,7 +69,7 @@ function killMeTwiceCallback(err, stdout, stderr) {
   // parameters.
   assert.ok(err);
   assert.ok(err.killed);
-  assert.equal(err.signal, 'SIGKILL');
+  assert.equal(err.signal, 'SIGTERM');
 
   // the timeout should still be in effect
   console.log("'sleep 3' was already killed. Took %d ms", diff);
@@ -81,7 +81,7 @@ function killMeTwiceCallback(err, stdout, stderr) {
 exec('python -c "print 200000*\'C\'"', { maxBuffer: 1000 }, function (err, stdout, stderr) {
   assert.ok(err);
   assert.ok(err.killed);
-  assert.equal(err.signal, 'SIGKILL');
+  assert.equal(err.signal, 'SIGTERM');
 });
 
 process.addListener("exit", function () {
