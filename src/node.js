@@ -570,8 +570,8 @@ global.console.assert = function(expression){
 global.Buffer = module.requireNative('buffer').Buffer;
 
 process.exit = function (code) {
-  process.emit("exit");
-  process.reallyExit(code);
+  process.emit("exit", code || 0);
+  process.reallyExit(code || 0);
 };
 
 process.kill = function (pid, sig) {
