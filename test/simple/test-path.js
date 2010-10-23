@@ -39,10 +39,6 @@ assert.equal(path.extname("file."), ".");
 
 assert.equal(path.join(".", "fixtures/b", "..", "/b/c.js"), "fixtures/b/c.js");
 assert.equal(path.join("/foo", "../../../bar"), "/bar");
-assert.equal(path.join('./'), '.');
-assert.equal(path.join('.'), '.');
-assert.equal(path.join('', 'foo'), 'foo');
-assert.equal(path.join('foo', '/bar'), 'foo/bar');
 
 assert.equal(path.normalize("./fixtures///b/../b/c.js"), "fixtures/b/c.js");
 assert.equal(path.normalize("./fixtures///b/../b/c.js",true), "fixtures///b/c.js");
