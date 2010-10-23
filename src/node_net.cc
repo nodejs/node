@@ -1322,15 +1322,6 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "isIP", IsIP);
   NODE_SET_METHOD(target, "errnoException", CreateErrnoException);
 
-  target->Set(String::NewSymbol("ENOENT"), Integer::New(ENOENT));
-  target->Set(String::NewSymbol("EMFILE"), Integer::New(EMFILE));
-  target->Set(String::NewSymbol("EINPROGRESS"), Integer::New(EINPROGRESS));
-  target->Set(String::NewSymbol("EINTR"), Integer::New(EINTR));
-  target->Set(String::NewSymbol("EACCES"), Integer::New(EACCES));
-  target->Set(String::NewSymbol("EPERM"), Integer::New(EPERM));
-  target->Set(String::NewSymbol("EADDRINUSE"), Integer::New(EADDRINUSE));
-  target->Set(String::NewSymbol("ECONNREFUSED"), Integer::New(ECONNREFUSED));
-
   errno_symbol          = NODE_PSYMBOL("errno");
   syscall_symbol        = NODE_PSYMBOL("syscall");
   fd_symbol             = NODE_PSYMBOL("fd");
