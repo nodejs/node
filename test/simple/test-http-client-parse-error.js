@@ -12,18 +12,19 @@ var srv = net.createServer(function(c) {
 
   c.addListener('end', function() { c.end(); });
 });
-srv.listen(common.PORT, '127.0.0.1');
-
-var hc = http.createClient(common.PORT, '127.0.0.1');
-hc.request('GET', '/').end();
 
 var parseError = false;
 
-hc.on('error', function (e) {
-  console.log("got error from client");
-  srv.close();
-  assert.ok(e.message.indexOf("Parse Error") >= 0);
-  parseError = true;
+srv.listen(common.PORT, '127.0.0.1', function () {
+  var hc = http.createClient(common.PORT, '127.0.0.1');
+  hc.request('GET', '/').end();
+
+  hc.on('error', function (e) {
+    console.log("got error from client");
+    srv.close();
+    assert.ok(e.message.indexOf("Parse Error") >= 0);
+    parseError = true;
+  });
 });
 
 

@@ -32,44 +32,44 @@ var echo_server = net.createServer(function (socket) {
 
 echo_server.listen(common.PORT, function () {
   console.log("server listening at " + common.PORT);
-});
 
-var client = net.createConnection(common.PORT);
-client.setEncoding("UTF8");
-client.setTimeout(0); // disable the timeout for client
-client.addListener("connect", function () {
-  console.log("client connected.");
-  client.write("hello\r\n");
-});
+  var client = net.createConnection(common.PORT);
+  client.setEncoding("UTF8");
+  client.setTimeout(0); // disable the timeout for client
+  client.addListener("connect", function () {
+    console.log("client connected.");
+    client.write("hello\r\n");
+  });
 
-client.addListener("data", function (chunk) {
-  assert.equal("hello\r\n", chunk);
-  if (exchanges++ < 5) {
-    setTimeout(function () {
-      console.log("client write 'hello'");
-      client.write("hello\r\n");
-    }, 500);
+  client.addListener("data", function (chunk) {
+    assert.equal("hello\r\n", chunk);
+    if (exchanges++ < 5) {
+      setTimeout(function () {
+        console.log("client write 'hello'");
+        client.write("hello\r\n");
+      }, 500);
 
-    if (exchanges == 5) {
-      console.log("wait for timeout - should come in " + timeout + " ms");
-      starttime = new Date;
-      console.dir(starttime);
+      if (exchanges == 5) {
+        console.log("wait for timeout - should come in " + timeout + " ms");
+        starttime = new Date;
+        console.dir(starttime);
+      }
     }
-  }
-});
+  });
 
-client.addListener("timeout", function () {
-  throw new Error("client timeout - this shouldn't happen");
-});
+  client.addListener("timeout", function () {
+    throw new Error("client timeout - this shouldn't happen");
+  });
 
-client.addListener("end", function () {
-  console.log("client end");
-  client.end();
-});
+  client.addListener("end", function () {
+    console.log("client end");
+    client.end();
+  });
 
-client.addListener("close", function () {
-  console.log("client disconnect");
-  echo_server.close();
+  client.addListener("close", function () {
+    console.log("client disconnect");
+    echo_server.close();
+  });
 });
 
 process.addListener("exit", function () {
