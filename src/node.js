@@ -601,7 +601,8 @@ if (process.argv[1]) {
 
 } else if (process._eval) {
     // -e, --eval
-    if (process._eval) console.log(eval(process._eval));
+    var indirectEval= eval; // so the eval happens in global scope.
+    if (process._eval) console.log(indirectEval(process._eval));
 } else {
     // REPL
   module.requireNative('repl').start();
