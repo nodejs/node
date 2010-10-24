@@ -1519,6 +1519,7 @@ static Handle<Value> Binding(const Arguments& args) {
     exports->Set(String::New("tcp"),          String::New(native_tcp));
     exports->Set(String::New("url"),          String::New(native_url));
     exports->Set(String::New("utils"),        String::New(native_utils));
+    exports->Set(String::New("util"),         String::New(native_sys));
     exports->Set(String::New("path"),         String::New(native_path));
     exports->Set(String::New("string_decoder"), String::New(native_string_decoder));
     binding_cache->Set(module, exports);
