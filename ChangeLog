@@ -1,4 +1,28 @@
-2010.10.02, Version 0.2.3
+2010.10.24, Version 0.2.4
+
+* Add --eval to command line options (TJ Holowaychuk)
+
+* net fixes
+  - TCP clients buffer writes before connection
+  - Don't flush net writeQueue on end() if its still connecting
+    (Joshua Peek)
+  - Do not spin on aceept() with EMFILE
+
+* Add --max-stack-size flag. (Tom Hughes)
+
+* Fixes to child_process.exec (timeouts and proper termination)
+  Default to SIGTERM instead of SIGKILL.
+
+* Add signal handlers so we clean up before exiting. (Tom Hughes)
+
+* Fix parsing of linux memory (Vitali Lovich)
+
+* http-parser: Allow whitespace in the 'Content-Length' header.
+  (Nathan Rajlich)
+
+* Add flag to disable colors in REPL
+
+2010.10.02, Version 0.2.3, dc103ae020ecd6182aa2adb482ac72ea944130ee
 
 * Fix require in REPL (bug introduced in v0.2.2)
 
