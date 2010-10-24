@@ -1,10 +1,18 @@
 WAF=python tools/waf-light
 
-all:
-	@$(WAF) build
+all: program
 
 all-progress:
 	@$(WAF) -p build
+
+program:
+	@$(WAF) --product-type=program build
+
+staticlib:
+	@$(WAF) --product-type=cstaticlib build
+
+dynamiclib:
+	@$(WAF) --product-type=cshlib build
 
 install:
 	@$(WAF) install
@@ -91,4 +99,4 @@ bench-idle:
 	./node benchmark/idle_clients.js &
 
 
-.PHONY: bench clean docclean dist distclean check uninstall install all test test-all website-upload
+.PHONY: bench clean docclean dist distclean check uninstall install all program staticlib dynamiclib test test-all website-upload

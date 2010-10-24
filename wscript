@@ -13,12 +13,20 @@ import js2c
 
 srcdir = '.'
 blddir = 'build'
-
+supported_archs = ('arm', 'ia32', 'x64') # 'mips' supported by v8, but not node
 
 jobs=1
 if os.environ.has_key('JOBS'):
   jobs = int(os.environ['JOBS'])
 
+
+def canonical_cpu_type(arch):
+  m = {'i386':'ia32', 'x86_64':'x64', 'amd64':'x64'}
+  if arch in m: arch = m[arch]
+  if not arch in supported_archs:
+    raise Exception("supported architectures are "+', '.join(supported_archs)+\
+                    " but NOT '" + arch + "'.")
+  return arch
 
 def set_options(opt):
   # the gcc module provides a --debug-level option
@@ -126,6 +134,23 @@ def set_options(opt):
                 )
 
 
+  opt.add_option( '--product-type'
+                , action='store'
+                , default='program'
+                , help='What kind of product to produce (program, cstaticlib '\
+                       'or cshlib) [default: %default]'
+                , dest='product_type'
+                )
+
+  opt.add_option( '--dest-cpu'
+                , action='store'
+                , default=None
+                , help='CPU architecture to build for. Valid values are: '+\
+                       ', '.join(supported_archs)
+                , dest='dest_cpu'
+                )
+
+
 
 
 def configure(conf):
@@ -188,6 +213,14 @@ def configure(conf):
                    "Use configure --without-ssl to disable this message.")
   else:
     Options.options.use_openssl = conf.env["USE_OPENSSL"] = False
+
+  # normalize DEST_CPU from --dest-cpu, DEST_CPU or built-in value
+  if Options.options.dest_cpu and Options.options.dest_cpu:
+    conf.env['DEST_CPU'] = canonical_cpu_type(Options.options.dest_cpu)
+  elif 'DEST_CPU' in os.environ and os.environ['DEST_CPU']:
+    conf.env['DEST_CPU'] = canonical_cpu_type(os.environ['DEST_CPU'])
+  elif 'DEST_CPU' in conf.env and conf.env['DEST_CPU']:
+    conf.env['DEST_CPU'] = canonical_cpu_type(conf.env['DEST_CPU'])
 
   conf.check(lib='rt', uselib_store='RT')
 
@@ -265,6 +298,27 @@ def configure(conf):
   if sys.platform.startswith("darwin"):
     # used by platform_darwin_*.cc
     conf.env.append_value('LINKFLAGS', ['-framework','Carbon'])
+    # cross compile for architecture specified by DEST_CPU
+    if 'DEST_CPU' in conf.env:
+      arch = conf.env['DEST_CPU']
+      # map supported_archs to GCC names:
+      arch_mappings = {'ia32': 'i386', 'x64': 'x86_64'}
+      if arch in arch_mappings:
+        arch = arch_mappings[arch]
+      flags = ['-arch', arch]
+      conf.env.append_value('CCFLAGS', flags)
+      conf.env.append_value('CXXFLAGS', flags)
+      conf.env.append_value('LINKFLAGS', flags)
+  if 'DEST_CPU' in conf.env:
+    arch = conf.env['DEST_CPU']
+    # TODO: -m32 is only available on 64 bit machines, so check host type
+    flags = None
+    if arch == 'ia32':
+      flags = '-m32'
+    if flags:
+      conf.env.append_value('CCFLAGS', flags)
+      conf.env.append_value('CXXFLAGS', flags)
+      conf.env.append_value('LINKFLAGS', flags)
 
   # Needed for getaddrinfo in libeio
   conf.env.append_value("CPPFLAGS", "-DX_STACKSIZE=%d" % (1024*64))
@@ -325,15 +379,10 @@ def v8_cmd(bld, variant):
   # executable is statically linked together...
 
   # XXX Change this when v8 defaults x86_64 to native builds
+  # Possible values are (arm, ia32, x64, mips).
   arch = ""
-  if bld.env['DEST_CPU'] == 'x86':
-    arch = ""
-  elif bld.env['DEST_CPU'] == 'x86_64':
-    arch = "arch=x64"
-  elif bld.env['DEST_CPU'] == 'arm':
-    arch = "arch=arm"
-  else:
-    raise Exception("supported architectures are 'x86', 'x86_64', and 'arm', but NOT '" + bld.env['DEST_CPU'] + "'.")
+  if bld.env['DEST_CPU']:
+    arch = "arch="+bld.env['DEST_CPU']
 
   if variant == "default":
     mode = "release"
@@ -397,10 +446,13 @@ def build(bld):
   Build.BuildContext.exec_command = exec_command
 
   Options.options.jobs=jobs
+  product_type = Options.options.product_type
+  product_type_is_lib = product_type != 'program'
 
   print "DEST_OS: " + bld.env['DEST_OS']
   print "DEST_CPU: " + bld.env['DEST_CPU']
   print "Parallel Jobs: " + str(Options.options.jobs)
+  print "Product type: " + product_type
 
   bld.add_subdirs('deps/libeio')
 
@@ -471,16 +523,17 @@ def build(bld):
   native_cc.rule = javascript_in_c
 
   ### node lib
-  node = bld.new_task_gen("cxx", "program")
+  node = bld.new_task_gen("cxx", product_type)
   node.name         = "node"
   node.target       = "node"
   node.uselib = 'RT EV OPENSSL CARES EXECINFO DL KVM SOCKET NSL'
   node.add_objects = 'eio http_parser'
-  node.install_path = '${PREFIX}/lib'
-  node.install_path = '${PREFIX}/bin'
+  if product_type_is_lib:
+    node.install_path = '${PREFIX}/lib'
+  else:
+    node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
   node.source = """
-    src/node_main.cc
     src/node.cc
     src/node_buffer.cc
     src/node_javascript.cc
@@ -499,6 +552,8 @@ def build(bld):
     src/node_timer.cc
     src/node_script.cc
   """
+  if not product_type_is_lib:
+    node.source = 'src/node_main.cc '+node.source
 
   platform_file = "src/platform_%s.cc" % bld.env['DEST_OS']
   if os.path.exists(join(cwd, platform_file)):
