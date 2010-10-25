@@ -26,3 +26,5 @@
   concat them together.
 - process object should be defined in src/node.js not in c++
 - Test for EMFILE accept spin bug.
+- destroy tcp sockets on 'end' by default. optionally leaving them half
+  open. current half-opne is default.
