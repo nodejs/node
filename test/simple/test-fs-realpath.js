@@ -32,6 +32,7 @@ function bashRealpath(path, callback) {
 // sub-tests:
 
 function test_simple_relative_symlink(callback) {
+  console.log("test_simple_relative_symlink");
   var entry = common.fixturesDir+'/cycles/symlink',
       expected = common.fixturesDir+'/cycles/root.js';
   [
@@ -51,6 +52,7 @@ function test_simple_relative_symlink(callback) {
 }
 
 function test_simple_absolute_symlink(callback) {
+  console.log("test_simple_absolute_symlink");
   bashRealpath(common.fixturesDir, function(err, fixturesAbsDir) {
     if (err) return callback(err);
     var entry = fixturesAbsDir+'/cycles/symlink',
@@ -73,6 +75,7 @@ function test_simple_absolute_symlink(callback) {
 }
 
 function test_deep_relative_file_symlink(callback) {
+  console.log("test_deep_relative_file_symlink");
   var expected = path.join(common.fixturesDir, 'cycles', 'root.js');
   var linkData1 = "../../cycles/root.js";
   var linkPath1 = path.join(common.fixturesDir, "nested-index", 'one', 'symlink1.js');
@@ -94,6 +97,7 @@ function test_deep_relative_file_symlink(callback) {
 }
 
 function test_deep_relative_dir_symlink(callback) {
+  console.log("test_deep_relative_dir_symlink");
   var expected = path.join(common.fixturesDir, 'cycles', 'folder');
   var linkData1b = "../../cycles/folder";
   var linkPath1b = path.join(common.fixturesDir, "nested-index", 'one', 'symlink1-dir');
@@ -116,6 +120,7 @@ function test_deep_relative_dir_symlink(callback) {
 }
 
 function test_cyclic_link_protection(callback) {
+  console.log("test_cyclic_link_protection");
   var entry = common.fixturesDir+'/cycles/realpath-3a';
   [
     [entry, '../cycles/realpath-3b'],
@@ -133,7 +138,24 @@ function test_cyclic_link_protection(callback) {
   });
 }
 
+function test_cyclic_link_overprotection (callback) {
+  console.log("test_cyclic_link_overprotection");
+  var cycles = common.fixturesDir+'/cycles';
+  var expected = fs.realpathSync(cycles);
+  var folder = cycles+'/folder';
+  var link = folder+'/cycles';
+  var testPath = cycles;
+  for (var i = 0; i < 10; i ++) testPath += '/folder/cycles';
+  try {fs.unlinkSync(link)} catch (ex) {}
+  fs.symlinkSync(cycles, link);
+  assert.equal(fs.realpathSync(testPath), expected);
+  asynctest(fs.realpath, [testPath], callback, function (er, res) {
+    assert.equal(res, expected);
+  });
+}
+
 function test_relative_input_cwd(callback) {
+  console.log("test_relative_input_cwd");
   var p = common.fixturesDir.lastIndexOf('/');
   var entrydir = common.fixturesDir.substr(0, p);
   var entry = common.fixturesDir.substr(p+1)+'/cycles/realpath-3a';
@@ -161,6 +183,7 @@ function test_relative_input_cwd(callback) {
 }
 
 function test_deep_symlink_mix(callback) {
+  console.log("test_deep_symlink_mix");
   // todo: check to see that common.fixturesDir is not rooted in the
   //       same directory as our test symlink.
   // obtain our current realpath using bash (so we can test ourselves)
@@ -209,6 +232,7 @@ function test_deep_symlink_mix(callback) {
 }
 
 function test_non_symlinks(callback) {
+  console.log("test_non_symlinks");
   bashRealpath(common.fixturesDir, function(err, fixturesAbsDir) {
     if (err) return callback(err);
     var p = fixturesAbsDir.lastIndexOf('/');
@@ -229,6 +253,7 @@ function test_non_symlinks(callback) {
 
 var upone = path.join(process.cwd(), "..");
 function test_escape_cwd (cb) {
+  console.log("test_escape_cwd");
   asynctest(fs.realpath, [".."], cb, function(er, uponeActual){
     assert.equal(upone, uponeActual,
       "realpath('..') expected: "+upone+" actual:"+uponeActual);
@@ -247,6 +272,7 @@ assert.equal(upone, uponeActual,
 //     `-- link -> /tmp/node-test-realpath-abs-kids/a/b/
 // realpath(root+'/a/link/c/x.txt') ==> root+'/a/b/c/x.txt'
 function test_abs_with_kids (cb) {
+  console.log("test_abs_with_kids");
   bashRealpath(common.fixturesDir, function(err, fixturesAbsDir) {
     var root = fixturesAbsDir+'/node-test-realpath-abs-kids';
     function cleanup () {
@@ -298,11 +324,12 @@ var tests = [
   test_deep_relative_file_symlink,
   test_deep_relative_dir_symlink,
   test_cyclic_link_protection,
+  test_cyclic_link_overprotection,
   test_relative_input_cwd,
   test_deep_symlink_mix,
   test_non_symlinks,
   test_escape_cwd,
-  test_abs_with_kids  
+  test_abs_with_kids
 ];
 var numtests = tests.length;
 function runNextTest(err) {
