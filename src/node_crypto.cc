@@ -253,7 +253,6 @@ static int serr(SSL *ssl, const char* func, int rv)
   int err = SSL_get_error(ssl, rv);
   if (err != SSL_ERROR_WANT_WRITE &&
       err != SSL_ERROR_WANT_READ) {
-    /* TODO: look at ssl error queue */
     ERR_error_string_n(ERR_get_error(), &ssl_error_buf[0], sizeof(ssl_error_buf));
     /* fprintf(stderr, "[%p] SSL: %s failed: (%d:%d) %s\n", ssl, func, err, rv, buf); */
     return rv;
