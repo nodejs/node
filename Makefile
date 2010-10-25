@@ -6,25 +6,19 @@ WANT_OPENSSL=1
 PREFIX=/usr
 SHELL=/bin/sh
 INSTALL = install
-
+SCONS = python tools/scons/scons.py
+LINKFLAGS += $(LDFLAGS)
 
 -include config.mak.autogen
 -include config.mak
 
+# -----------------------------------------------------------------------------
 
-platform := $(shell python -c 'import sys; print sys.platform')
-
-
-ifeq ($(platform),linux2)
-	platform := linux
-endif
-
-# fix me
-arch = x86_64
-
+dylib_suffix = so
 
 ifeq ($(platform),darwin)
 	LINKFLAGS += -framework Carbon
+	dylib_suffix = dylib
 endif
 
 ifeq ($(platform),linux)
@@ -41,9 +35,13 @@ ifdef WANT_OPENSSL
 	OPENSSL_LINKFLAGS += -lssl -lcrypto
 endif
 
+ifneq (,$(findstring build/libnode.so,$(MAKEFLAGS)))
+	CFLAGS += -shared -fPIC
+#else
+#	CFLAGS += $(MAKEFLAGS)
+endif
+
 cflags += -pedantic
-
-
 
 
 debug_CPPDEFINES = -DDEBUG $(CFLAGS)
@@ -51,8 +49,8 @@ debug_CFLAGS = -Wall -O0 -ggdb $(CFLAGS)
 debug_CXXFLAGS = $(debug_CFLAGS)
 debug_LINKFLAGS = $(LINKFLAGS)
 
-release_CPPDEFINES = -DNODEBUG
-release_CFLAGS = -Wall -O2
+release_CPPDEFINES = -DNODEBUG $(CFLAGS)
+release_CFLAGS = -Wall -O2 $(CFLAGS)
 release_CXXFLAGS = $(release_CFLAGS)
 release_LINKFLAGS = $(LINKFLAGS)
 
@@ -96,7 +94,6 @@ node_sources = src/node.cc \
 	src/node_http_parser.cc \
 	src/node_idle_watcher.cc \
 	src/node_io_watcher.cc \
-	src/node_main.cc \
 	src/node_net.cc \
 	src/node_script.cc \
 	src/node_signal_watcher.cc \
@@ -107,6 +104,13 @@ node_sources = src/node.cc \
 
 node_debug_objects = $(addprefix $(builddir)/debug/,$(node_sources:.cc=.o))
 node_release_objects = $(addprefix $(builddir)/release/,$(node_sources:.cc=.o))
+
+node_exe_sources = src/node_main.cc
+
+node_exe_debug_objects = \
+    $(addprefix $(builddir)/debug/,$(node_exe_sources:.cc=.o))
+node_exe_release_objects = \
+    $(addprefix $(builddir)/release/,$(node_exe_sources:.cc=.o))
 
 # TODO HAVE_FDATASYNC should be set in configure.
 
@@ -215,21 +219,50 @@ $(builddir)/debug/src/node_javascript.o: src/node_javascript.cc $(builddir)/debu
 	$(CXX) -c $(debug_CXXFLAGS) $(debug_CPPFLAGS) $(node_CFLAGS) \
 		$(node_CPPFLAGS) $(OPENSSL_CPPFLAGS) $< -o $@
 
+# -----------------------------------------------------------------------------
+# end products
+
+endproduct_release_objects = $(node_release_objects) \
+		$(libev_release_objects) $(libeio_release_objects) \
+		$(http_parser_release_objects) $(cares_release_objects) $(libv8)
+
+endproduct_debug_objects = $(node_debug_objects) \
+		$(libev_debug_objects) $(libeio_debug_objects) \
+		$(http_parser_debug_objects) $(cares_debug_objects) $(libv8_g)
+
+endproduct_release_linkflags = $(release_LINKFLAGS) $(node_LINKFLAGS) \
+		$(OPENSSL_LINKFLAGS)
+
+endproduct_debug_linkflags = $(debug_LINKFLAGS) $(node_LINKFLAGS) \
+		$(OPENSSL_LINKFLAGS)
+
+
 
 # node executable
+$(builddir)/node: $(node_exe_release_objects) $(endproduct_release_objects)
+	$(CXX) -o $@ $^ $(endproduct_release_linkflags)
 
-$(builddir)/node: $(node_release_objects) $(libev_release_objects) \
-		$(libeio_release_objects) $(http_parser_release_objects) \
-		$(cares_release_objects) $(libv8)
-	$(CXX) -o $@ $^ $(release_LINKFLAGS) $(node_LINKFLAGS) $(OPENSSL_LINKFLAGS)
+$(builddir)/node_g: $(node_exe_debug_objects) $(endproduct_debug_objects)
+	$(CXX) -o $@ $^ $(endproduct_debug_linkflags)
 
-$(builddir)/node_g: $(node_debug_objects) $(libev_debug_objects) \
-		$(libeio_debug_objects) $(http_parser_debug_objects) \
-		$(cares_debug_objects) $(libv8_g)
-	$(CXX) -o $@ $^ $(debug_LINKFLAGS) $(node_LINKFLAGS) $(OPENSSL_LINKFLAGS)
+# node static library
+$(builddir)/libnode.a: $(endproduct_release_objects)
+	ar -rcs $@ $^
 
+$(builddir)/libnode_g.a: $(endproduct_debug_objects)
+	ar -rcs $@ $^
 
+# node dynamic library
+# WIP -- currently disabled
+#$(builddir)/libnode.$(dylib_suffix): CFLAGS += -shared -fPIC
+#$(builddir)/libnode.$(dylib_suffix): $(endproduct_release_objects)
+#	$(CXX) -o $@ $^ $(endproduct_release_linkflags)
+#
+#$(builddir)/libnode_g.$(dylib_suffix): CFLAGS += -shared -fPIC
+#$(builddir)/libnode_g.$(dylib_suffix): $(endproduct_debug_objects)
+#	$(CXX) -o $@ $^ $(endproduct_debug_linkflags)
 
+# built-in javascript (the "node standard library")
 $(builddir)/release/src/node_natives.h: src/node.js lib/*.js
 	python tools/js2c.py $^ > $@
 
@@ -260,13 +293,16 @@ $(builddir)/release/lib/pkgconfig/nodejs.pc: tools/nodejs.pc.in
 
 # v8 does its own debug and release version, so we don't put it in the
 # profile_builddir but rather just the builddir.
+libv8_flags = --directory="$(builddir)" --srcdir="`pwd`/deps/v8" \
+		visibility=default arch=$(arch) library=static
+# TODO: if env[SNAPSHOT_V8]; then
+libv8_flags += snapshot=on
+#fi
 $(libv8):
-	python tools/scons/scons.py -C $(builddir) -Y `pwd`/deps/v8 \
-		visibility=default mode=release arch=x64 library=static snapshot=on
+	$(SCONS) $(libv8_flags) mode=release
 
 $(libv8_g):
-	python tools/scons/scons.py -C $(builddir) -Y `pwd`/deps/v8 \
-		visibility=default mode=debug arch=x64 library=static snapshot=on
+	$(SCONS) $(libv8_flags) mode=debug
 
 
 # header deps
@@ -283,6 +319,18 @@ install: all doc
 	$(INSTALL) tools/wafadmin/*.py '$(PREFIX)/lib/node/wafadmin'
 	$(INSTALL) tools/wafadmin/Tools/*.py '$(PREFIX)/lib/node/wafadmin/Tools'
 	$(INSTALL) doc/node.1 '$(PREFIX)/share/man/man1/'
+
+libnode-static: $(builddir)/libnode.a
+	ln -fs $< $@
+
+libnode-static-debug: $(builddir)/libnode_g.a
+	ln -fs $< $@
+
+libnode-dynamic: $(builddir)/libnode.$(dylib_suffix)
+	ln -fs $< $@
+
+libnode-dynamic-debug: $(builddir)/libnode_g.$(dylib_suffix)
+	ln -fs $< $@
 
 
 
@@ -315,12 +363,14 @@ test-internet: $(builddir)/node
 doc: doc/node.1 doc/api.html doc/index.html doc/changelog.html
 
 ## HACK to give the ronn-generated page a TOC
-doc/api.html: $(builddir)/node  doc/api.markdown doc/api_header.html doc/api_footer.html
+doc/api.html: $(builddir)/node  doc/api.markdown doc/api_header.html \
+		doc/api_footer.html
 	build/node tools/ronnjs/bin/ronn.js --fragment doc/api.markdown \
 	| sed "s/<h2>\(.*\)<\/h2>/<h2 id=\"\1\">\1<\/h2>/g" \
 	| cat doc/api_header.html - doc/api_footer.html > doc/api.html
 
-doc/changelog.html: ChangeLog doc/changelog_header.html doc/changelog_footer.html
+doc/changelog.html: ChangeLog doc/changelog_header.html \
+		doc/changelog_footer.html
 	cat doc/changelog_header.html ChangeLog doc/changelog_footer.html > doc/changelog.html
 
 doc/node.1: $(builddir)/node doc/api.markdown all
@@ -334,7 +384,8 @@ docclean:
 
 clean:
 	-rm -f node node_g $(builddir)/node $(builddir)/node_g
-	-find $(builddir) -name "*.o" | xargs rm -f
+	-find $(builddir) -name "*.o" -or -name "*.a" \
+			-or -name "*.so" -or -name "*.dylib" | xargs rm -f
 	-find . -name "*.pyc" | xargs rm -f
 
 distclean: docclean
@@ -365,4 +416,10 @@ bench-idle:
 	./node benchmark/idle_clients.js &
 
 
-.PHONY: bench clean docclean dist distclean check uninstall install all test test-all website-upload
+.PHONY: all \
+  test test-all \
+  bench \
+  install uninstall \
+  dist distclean \
+  website-upload \
+  clean docclean

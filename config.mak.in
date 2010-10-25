@@ -13,6 +13,11 @@ exec_prefix = @exec_prefix@
 bindir = @bindir@
 datarootdir = @datarootdir@
 PREFIX = @prefix@
+target_cpu = @target_cpu@
+target_vendor = @target_vendor@
+target_os = @target_os@
+arch = @arch@
+platform = @platform@
 
 mandir=@mandir@
 
