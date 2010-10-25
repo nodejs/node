@@ -44,8 +44,8 @@ AC_CHECK_TOOLS(AR, [gar ar], :)
 
 
 
-# OpenSSL
-AC_SUBST([WANT_OPENSSL],[YES])
+# TODO: OpenSSL
+AC_SUBST([HAVE_OPENSSL],[1])
 
 
 

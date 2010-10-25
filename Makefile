@@ -113,6 +113,7 @@ node_release_objects = $(addprefix $(builddir)/release/,$(node_sources:.cc=.o))
 node_CPPFLAGS = -Isrc/ -Ideps/libeio/ -Ideps/libev/ -Ideps/http_parser/ \
 	-Ideps/libev/include/ -Ideps/v8/include -DPLATFORM=\"$(platform)\" \
 	-DX_STACKSIZE=65536 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 \
+	-DHAVE_OPENSSL=${HAVE_OPENSSL} \
 	-DHAVE_FDATASYNC=0 -I$(builddir)/release/src $(cares_CPPFLAGS)
 node_debug_CPPFLAGS = $(subst release,debug,$(NODE_CPPFLAGS))
 
@@ -214,6 +215,17 @@ $(builddir)/release/src/node.o: src/node.cc $(builddir)/release/src/node_natives
 		$(node_CPPFLAGS) $(OPENSSL_CPPFLAGS) $< -o $@
 
 $(builddir)/debug/src/node.o: src/node.cc $(builddir)/debug/src/node_natives.h
+	$(CXX) -c $(debug_CXXFLAGS) $(debug_CPPFLAGS) $(node_CFLAGS) \
+		$(node_CPPFLAGS) $(OPENSSL_CPPFLAGS) $< -o $@
+
+
+# node_javascript.o
+
+$(builddir)/release/src/node_javascript.o: src/node_javascript.cc $(builddir)/release/src/node_natives.h
+	$(CXX) -c $(release_CXXFLAGS) $(release_CPPFLAGS) $(node_CFLAGS) \
+		$(node_CPPFLAGS) $(OPENSSL_CPPFLAGS) $< -o $@
+
+$(builddir)/debug/src/node_javascript.o: src/node_javascript.cc $(builddir)/debug/src/node_natives.h
 	$(CXX) -c $(debug_CXXFLAGS) $(debug_CPPFLAGS) $(node_CFLAGS) \
 		$(node_CPPFLAGS) $(OPENSSL_CPPFLAGS) $< -o $@
 
