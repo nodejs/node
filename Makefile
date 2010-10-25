@@ -288,7 +288,17 @@ $(builddir)/release/src/node.o: $(builddir)/release/src/node_config.h
 $(builddir)/debug/src/node.o: $(builddir)/debug/src/node_config.h
 
 
-# TODO install
+# TODO install libs
+install: all doc
+	$(INSTALL) -d -m 755 '$(PREFIX)/bin'
+	$(INSTALL) $(builddir)/node '$(PREFIX)/bin'
+	$(INSTALL) -d -m 755 '$(PREFIX)/share/man/man1/'
+	$(INSTALL) -d -m 755 '$(PREFIX)/lib/node/wafadmin/Tools'
+	$(INSTALL) tools/wafadmin/*.py '$(PREFIX)/lib/node/wafadmin'
+	$(INSTALL) tools/wafadmin/Tools/*.py '$(PREFIX)/lib/node/wafadmin/Tools'
+	$(INSTALL) doc/node.1 '$(PREFIX)/share/man/man1/'
+
+
 
 test: $(builddir)/node
 	python tools/test.py --mode=release simple message
@@ -319,16 +329,16 @@ test-internet: $(builddir)/node
 doc: doc/node.1 doc/api.html doc/index.html doc/changelog.html
 
 ## HACK to give the ronn-generated page a TOC
-doc/api.html: all doc/api.markdown doc/api_header.html doc/api_footer.html
-	build/default/node tools/ronnjs/bin/ronn.js --fragment doc/api.markdown \
+doc/api.html: $(builddir)/node  doc/api.markdown doc/api_header.html doc/api_footer.html
+	build/node tools/ronnjs/bin/ronn.js --fragment doc/api.markdown \
 	| sed "s/<h2>\(.*\)<\/h2>/<h2 id=\"\1\">\1<\/h2>/g" \
 	| cat doc/api_header.html - doc/api_footer.html > doc/api.html
 
 doc/changelog.html: ChangeLog doc/changelog_header.html doc/changelog_footer.html
 	cat doc/changelog_header.html ChangeLog doc/changelog_footer.html > doc/changelog.html
 
-doc/node.1: doc/api.markdown all
-	build/default/node tools/ronnjs/bin/ronn.js --roff doc/api.markdown > doc/node.1
+doc/node.1: $(builddir)/node doc/api.markdown all
+	$(builddir)/node tools/ronnjs/bin/ronn.js --roff doc/api.markdown > doc/node.1
 
 website-upload: doc
 	scp doc/* ryan@nodejs.org:~/web/nodejs.org/

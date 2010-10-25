@@ -12,6 +12,7 @@ prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
 datarootdir = @datarootdir@
+PREFIX = @prefix@
 
 mandir=@mandir@
 
@@ -19,7 +20,7 @@ srcdir = @srcdir@
 VPATH = @srcdir@
 
 export exec_prefix mandir
-export srcdir VPATH
+export srcdir VPATH PREFIX
 
 
 
