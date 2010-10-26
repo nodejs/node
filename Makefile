@@ -120,24 +120,14 @@ node_debug_CPPFLAGS = $(subst release,debug,$(NODE_CPPFLAGS))
 libv8 = $(builddir)/libv8.a
 libv8_g = $(builddir)/libv8_g.a
 
-dirs = $(builddir)/release/src \
-	$(builddir)/release/deps/libev \
-	$(builddir)/release/deps/libeio \
-	$(builddir)/release/deps/c-ares \
-	$(builddir)/release/deps/http_parser \
-	$(builddir)/release/deps/v8 \
-	$(builddir)/release/lib/pkgconfig
-debug_dirs = $(subst release,debug,$(dirs))
-
-
 
 
 # Rules
 
-all: $(dirs) node
+all: node
 
 ifdef DEBUG
-all: $(debug_dirs) node_g
+all: node_g
 endif
 
 
@@ -147,10 +137,6 @@ node: $(builddir)/node
 node_g: $(builddir)/node_g
 	ln -fs $< $@
 
-
-
-$(dirs) $(debug_dirs):
-	mkdir -p $@
 
 
 # libev

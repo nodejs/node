@@ -58,6 +58,16 @@ AC_CONFIG_HEADERS([build/deps/libeio/config.h:deps/libeio/config.h.in])
 
 AC_CONFIG_FILES(["${config_file}":"${config_in}"])
 
+
+mkdir -p build/debug/src                build/release/src 
+mkdir -p build/debug/deps/libev         build/release/deps/libev 
+mkdir -p build/debug/deps/libeio        build/release/deps/libeio
+mkdir -p build/debug/deps/c-ares        build/release/deps/c-ares
+mkdir -p build/debug/deps/http_parser   build/release/deps/http_parser
+mkdir -p build/debug/deps/v8            build/release/deps/v8
+mkdir -p build/debug/lib/pkgconfig      build/release/lib/pkgconfig
+
+
 ## Output files
 AC_OUTPUT
 
