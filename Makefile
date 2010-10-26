@@ -354,7 +354,7 @@ clean:
 distclean: docclean
 	-find tools -name "*.pyc" | xargs rm -f
 	-rm -rf build/ node node_g
-	-rm -rf configure config.mak.autogen config.log autom4te.cache config.status
+	-rm -rf configure.real config.mak.autogen config.log autom4te.cache config.status
 
 
 VERSION=$(shell git describe)

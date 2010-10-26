@@ -1,0 +1,5 @@
+#!/bin/sh
+
+autoconf --output configure.real
+sh ./configure.real
+
