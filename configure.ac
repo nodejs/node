@@ -53,8 +53,6 @@ AC_SUBST([HAVE_OPENSSL],[1])
 m4_include([deps/libev/libev.m4])
 m4_include([deps/libeio/libeio.m4])
 
-mkdir -p build/deps/libev/
-mkdir -p build/deps/libeio/
 AC_CONFIG_HEADERS([build/deps/libev/config.h:deps/libev/config.h.in])
 AC_CONFIG_HEADERS([build/deps/libeio/config.h:deps/libeio/config.h.in])
 
