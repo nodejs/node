@@ -244,8 +244,7 @@ Handle<Value> SecureContext::Close(const Arguments& args) {
 
 char ssl_error_buf[512];
 
-static int serr(SSL *ssl, const char* func, int rv)
-{
+static int serr(SSL *ssl, const char* func, int rv) {
   if (rv >= 0) {
     return rv;
   }
@@ -256,11 +255,9 @@ static int serr(SSL *ssl, const char* func, int rv)
     ERR_error_string_n(ERR_get_error(), &ssl_error_buf[0], sizeof(ssl_error_buf));
     /* fprintf(stderr, "[%p] SSL: %s failed: (%d:%d) %s\n", ssl, func, err, rv, buf); */
     return rv;
-  }
-  else if (err == SSL_ERROR_WANT_WRITE) {
+  } else if (err == SSL_ERROR_WANT_WRITE) {
     /* fprintf(stderr, "[%p] SSL: %s want write\n", ssl, func); */
-  }
-  else if (err == SSL_ERROR_WANT_READ) {
+  } else if (err == SSL_ERROR_WANT_READ) {
     /* fprintf(stderr, "[%p] SSL: %s want read\n", ssl, func); */
   }
 
@@ -516,9 +513,11 @@ Handle<Value> SecureStream::ClearIn(const Arguments& args) {
     } else {
       s = serr(ss->ssl_, "SSL_connect:ClearIn", SSL_connect(ss->ssl_));
     }
+
     if (s < 0) {
       return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
     }
+
     return scope.Close(Integer::New(0));
   }
 
@@ -602,13 +601,14 @@ Handle<Value> SecureStream::Start(const Arguments& args) {
     } else {
       rv = serr(ss->ssl_, "SSL_connect:Start", SSL_connect(ss->ssl_));
     }
+
     if (rv < 0) {
       return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
     }
+
     if (rv == 1) {
       return True();
-    }
-    else {
+    } else {
       return False();
     }
   }
