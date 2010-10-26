@@ -82,6 +82,22 @@ static size_t ByteLength (Handle<String> string, enum encoding enc) {
 }
 
 
+Handle<Object> Buffer::New(Handle<String> string) {
+  HandleScope scope;
+
+  // get Buffer from global scope.
+  Local<Object> global = v8::Context::GetCurrent()->Global();
+  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
+  assert(bv->IsFunction());
+  Local<Function> b = Local<Function>::Cast(bv);
+
+  Local<Value> argv[1] = { Local<Value>::New(string) };
+  Local<Object> instance = b->NewInstance(1, argv);
+
+  return scope.Close(instance);
+}
+
+
 Buffer* Buffer::New(size_t length) {
   HandleScope scope;
 
