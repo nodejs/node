@@ -9,13 +9,8 @@
 - Documentation needs a major refactor; should generate more than one HTML
   page/man page from the single api.markdown file. Deep sections should be
   allowed.
-- debug and production modes
 - EventSource branch merged
-- TCP servers should have an optional number of maximum connections. When
-  the maximum is reached it stops accepting new connections.
 - Use C++ style casts everywhere.
-- fs.readFile[Sync] should not call stat() and use the length. 
-  Test on Linux's /proc/sys/kernel/hostname
 - Ruby-like Process#detach (is that possible?)
 - stderr isn't flushing on exit
 - ReadStream should not use an offset in calls to fs.read
@@ -25,5 +20,3 @@
   concat them together.
 - process object should be defined in src/node.js not in c++
 - Test for EMFILE accept spin bug.
-- destroy tcp sockets on 'end' by default. optionally leaving them half
-  open. current half-opne is default.
