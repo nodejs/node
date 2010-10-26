@@ -9,7 +9,7 @@ function pingPongTest (port, host, on_complete) {
   var count = 0;
   var sent_final_ping = false;
 
-  var server = net.createServer(function (socket) {
+  var server = net.createServer({ allowHalfOpen: true }, function (socket) {
     assert.equal(true, socket.remoteAddress !== null);
     assert.equal(true, socket.remoteAddress !== undefined);
     if (host === "127.0.0.1" || host === "localhost" || !host) {

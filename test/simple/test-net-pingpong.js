@@ -10,7 +10,7 @@ function pingPongTest (port, host) {
   var count = 0;
   var sent_final_ping = false;
 
-  var server = net.createServer(function (socket) {
+  var server = net.createServer({ allowHalfOpen: true }, function (socket) {
     console.log("connection: " + socket.remoteAddress);
     assert.equal(server, socket.server);
     assert.equal(1, server.connections);
@@ -30,7 +30,7 @@ function pingPongTest (port, host) {
     });
 
     socket.addListener("end", function () {
-      assert.equal(true, socket.writable);
+      assert.equal(true, socket.writable); // because allowHalfOpen
       assert.equal(false, socket.readable);
       socket.end();
     });

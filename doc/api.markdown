@@ -2311,9 +2311,16 @@ Emitted when data is received.  The argument `data` will be a `Buffer` or
 
 `function () { }`
 
-Emitted when the other end of the stream sends a FIN packet. After this is
-emitted the `readyState` will be `'writeOnly'`. One should probably just
-call `stream.end()` when this event is emitted.
+Emitted when the other end of the stream sends a FIN packet. 
+
+By default (`allowHalfOpen == false`) the stream will destroy its file
+descriptor  once it has written out its pending write queue.  However, by
+setting `allowHalfOpen == true` the stream will not automatically `end()`
+its side allowing the user to write arbitrary amounts of data, with the
+caviot that the user is required to `end()` thier side now. In the
+`allowHalfOpen == true` case after `'end'` is emitted the `readyState` will
+be `'writeOnly'`.
+
 
 ### Event: 'timeout'
 
