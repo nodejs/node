@@ -2,30 +2,41 @@ net = require('net');
 
 var errors = 0, connections = 0;
 
+var lastClose = 0;
+
+function maybeConnect (s) {
+  var now = new Date();
+  if (now - lastClose > 5000) {
+    // Just connect immediately
+    connect();
+  } else {
+    // Otherwise wait a little - see if this one is connected still. Just to
+    // avoid spinning at 100% cpu when the server totally rejects our
+    // connections.
+    setTimeout(function () {
+      if (s.writable && s.readable) connect();
+    }, 100);
+  }
+}
+
 function connect () {
   process.nextTick(function () {
     var s = net.Stream();
     var gotConnected = false;
     s.connect(9000);
+
     s.on('connect', function () {
       gotConnected = true;
       connections++;
-      connect();
+      maybeConnect(s);
     });
-
-    var haderror = false;
 
     s.on('close', function () {
       if (gotConnected) connections--;
-      //if (!haderror) connect();
-    });
-
-    s.on('end', function () {
-      s.end();
+      lastClose = new Date();
     });
 
     s.on('error', function () {
-      haderror = true;
       errors++;
     });
   });
