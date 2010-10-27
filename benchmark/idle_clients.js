@@ -4,21 +4,6 @@ var errors = 0, connections = 0;
 
 var lastClose = 0;
 
-function maybeConnect (s) {
-  var now = new Date();
-  if (now - lastClose > 5000) {
-    // Just connect immediately
-    connect();
-  } else {
-    // Otherwise wait a little - see if this one is connected still. Just to
-    // avoid spinning at 100% cpu when the server totally rejects our
-    // connections.
-    setTimeout(function () {
-      if (s.writable && s.readable) connect();
-    }, 100);
-  }
-}
-
 function connect () {
   process.nextTick(function () {
     var s = net.Stream();
@@ -28,7 +13,7 @@ function connect () {
     s.on('connect', function () {
       gotConnected = true;
       connections++;
-      maybeConnect(s);
+      connect();
     });
 
     s.on('close', function () {
