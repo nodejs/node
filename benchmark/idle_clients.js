@@ -17,7 +17,7 @@ function connect () {
 
     s.on('close', function () {
       if (gotConnected) connections--;
-      if (!haderror) connect();
+      //if (!haderror) connect();
     });
 
     s.on('end', function () {
@@ -35,6 +35,9 @@ connect();
 
 
 var oldConnections, oldErrors;
+
+// Try to start new connections every so often
+setInterval(connect, 5000);
 
 setInterval(function () {
   if (oldConnections != connections) {
