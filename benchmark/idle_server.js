@@ -11,7 +11,7 @@ server = net.Server(function (socket) {
 
 });
 
-server.maxConnections = 128;
+//server.maxConnections = 128;
 
 server.listen(9000);
 
