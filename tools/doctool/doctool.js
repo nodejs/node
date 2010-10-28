@@ -31,12 +31,13 @@ var step = function(){
 };
 
 
-var includeExpr = /^@include\s+([A-Za-z0-9-_]+).([a-zA-Z]+)$/gmi;
+var includeExpr = /^@include\s+([A-Za-z0-9-_]+)(?:\.)?([a-zA-Z]*)$/gmi;
 function convertData(data){
   // Allow including other pages in the data.
   data = data.replace(includeExpr, function(src, name, ext){
     try {
-      return fs.readFileSync(path.join(doc_root, name+"."+ext), "utf8");
+      var inc_path = path.join(doc_root, name+"."+(ext || "markdown"));
+      return fs.readFileSync(inc_path, "utf8");
     } catch(e) {
       return "";
     }
@@ -100,7 +101,10 @@ function convertFiles(next){
     if(err) throw err;
     
     files.filter(function(file){
-      return path.extname(file) == ".markdown";
+      var basename = path.basename(file, ".markdown");
+      return path.extname(file) == ".markdown" &&
+        basename != "index" &&
+        basename != "_toc";
     }).forEach(function(file){
       var filename = path.basename(file, '.markdown')
         , build_path = path.join(build_root, filename+".html")
@@ -126,7 +130,7 @@ function convertFiles(next){
 };
 
 function createIndex(next){
-  fs.readFile(path.join(doc_root, "_index.markdown"), "utf8", function(err, data){
+  fs.readFile(path.join(doc_root, "index.markdown"), "utf8", function(err, data){
     if(err) throw err;
     
     // do conversion stuff.
