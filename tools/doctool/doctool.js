@@ -71,22 +71,14 @@ function checkdir(next){
 /*
 Loads the template for which the documentation should be outputed into.
 */
-var template_index, template_page;
+var template;
 
 function loadTemplates(next){
-  var templates_path = path.join(doc_root, "..", "template");
-  
-  fs.readFile(templates_path+"_page.html", "utf8", function(err, data){
-    if(err) throw err;
+  fs.readFile(path.join(doc_root, "../template.html"), "utf8", function(e, d){
+    if(e) throw e;
     
-    template_page = data;
-    
-    fs.readFile(templates_path+"_index.html", "utf8", function(err, data){
-      if(err) throw err;
-
-      template_index = data;
-      next();
-    });
+    template = d;
+    next();
   });
 };
 
@@ -103,8 +95,7 @@ function convertFiles(next){
     files.filter(function(file){
       var basename = path.basename(file, ".markdown");
       return path.extname(file) == ".markdown" &&
-        basename != "index" &&
-        basename != "_toc";
+        basename.substr(0,1) != "_";
     }).forEach(function(file){
       var filename = path.basename(file, '.markdown')
         , build_path = path.join(build_root, filename+".html")
@@ -115,9 +106,13 @@ function convertFiles(next){
         
         // do conversion stuff.
         var html = convertData(data);
-        var output = template_page
-          .replace("{{section}}", filename)
-          .replace("{{content}}", html);
+        var output = template.replace("{{content}}", html);
+        
+        if(filename == "index"){
+          output = output.replace("{{section}}", "");
+        } else {
+          output = output.replace("{{section}}", filename+" - ")
+        }
         
         fs.writeFile(build_path, output, function(err){
           if(err) throw err;
@@ -126,22 +121,6 @@ function convertFiles(next){
     });
   });
   // we don't need the next call to wait at all, so stick it here.
-  next();
-};
-
-function createIndex(next){
-  fs.readFile(path.join(doc_root, "index.markdown"), "utf8", function(err, data){
-    if(err) throw err;
-    
-    // do conversion stuff.
-    var html = convertData(data);
-    var output = template_index.replace("{{content}}", html);
-    
-    fs.writeFile(path.join(build_root, "index.html"), output, function(err){
-      if(err) throw err;
-    });
-  });
-  // one again, no need to wait.
   next();
 };
 
@@ -155,6 +134,5 @@ step(
   checkdir,
   copyAssets,
   loadTemplates,
-  convertFiles,
-  createIndex
+  convertFiles
 )();
