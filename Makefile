@@ -311,14 +311,15 @@ $(builddir)/debug/src/node.o: $(builddir)/debug/src/node_config.h
 
 
 # TODO install libs
-install: all doc
+#install: all doc
+install: all
 	$(INSTALL) -d -m 755 '$(PREFIX)/bin'
 	$(INSTALL) $(builddir)/node '$(PREFIX)/bin'
 	$(INSTALL) -d -m 755 '$(PREFIX)/share/man/man1/'
 	$(INSTALL) -d -m 755 '$(PREFIX)/lib/node/wafadmin/Tools'
 	$(INSTALL) tools/wafadmin/*.py '$(PREFIX)/lib/node/wafadmin'
 	$(INSTALL) tools/wafadmin/Tools/*.py '$(PREFIX)/lib/node/wafadmin/Tools'
-	$(INSTALL) doc/node.1 '$(PREFIX)/share/man/man1/'
+#	$(INSTALL) doc/node.1 '$(PREFIX)/share/man/man1/'
 
 libnode-static: $(builddir)/libnode.a
 	ln -fs $< $@
@@ -371,8 +372,8 @@ $(builddir)/doc/changelog.html: ChangeLog doc/changelog_header.html \
 		doc/changelog_footer.html
 	cat doc/changelog_header.html ChangeLog doc/changelog_footer.html > $(builddir)/doc/changelog.html
 
-$(buildir)/doc/node.1: $(builddir)/node doc/api.markdown all
-	$(builddir)/node tools/ronnjs/bin/ronn.js --roff doc/api.markdown > $(builddir)/doc/node.1
+# $(buildir)/doc/node.1: $(builddir)/node doc/api.markdown all
+# 	$(builddir)/node tools/ronnjs/bin/ronn.js --roff doc/api.markdown > $(builddir)/doc/node.1
 
 website-upload: doc
 	scp doc/* ryan@nodejs.org:~/web/nodejs.org/
