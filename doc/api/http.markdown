@@ -121,17 +121,6 @@ This function is asynchronous. The last parameter `callback` will be called
 when the server has been bound.
 
 
-### server.setSecure(credentials)
-
-Enables HTTPS support for the server, with the crypto module credentials
-specifying the private key and certificate of the server, and optionally
-the CA certificates for use in client authentication.
-
-If the credentials hold one or more CA certificates, then the server will request
-for the client to submit a client certificate as part of the HTTPS connection handshake.
-The validity and content of this can be accessed via `verifyPeer()`
-and `getPeerCertificate()` from the server's `request.connection`.
-
 ### server.close()
 
 Stops the server from accepting new connections.

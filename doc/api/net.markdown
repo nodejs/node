@@ -257,14 +257,6 @@ Either `'closed'`, `'open'`, `'opening'`, `'readOnly'`, or `'writeOnly'`.
 Emitted when a stream connection successfully is established.
 See `connect()`.
 
-
-#### Event: 'secure'
-
-`function () { }`
-
-Emitted when a stream connection successfully establishes an SSL handshake with its peer.
-
-
 #### Event: 'data'
 
 `function (data) { }`
