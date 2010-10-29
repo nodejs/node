@@ -4,6 +4,7 @@
 
 WANT_OPENSSL=1
 PREFIX=/usr
+DESTDIR=
 SHELL=/bin/sh
 INSTALL = install
 SCONS = python tools/scons/scons.py
@@ -322,14 +323,14 @@ $(builddir)/debug/src/node.o: $(builddir)/debug/src/node_config.h
 # TODO install libs
 #install: all doc
 install: all
-	$(INSTALL) -d -m 755 '$(PREFIX)/bin'
-	$(INSTALL) $(builddir)/node '$(PREFIX)/bin'
-	$(INSTALL) -d -m 755 '$(PREFIX)/share/man/man1/'
-	$(INSTALL) -d -m 755 '$(PREFIX)/lib/node/wafadmin/Tools'
-	$(INSTALL) tools/wafadmin/*.py '$(PREFIX)/lib/node/wafadmin'
-	$(INSTALL) tools/wafadmin/Tools/*.py '$(PREFIX)/lib/node/wafadmin/Tools'
-	$(INSTALL) tools/node-waf '$(PREFIX)/bin'
-#	$(INSTALL) doc/node.1 '$(PREFIX)/share/man/man1/'
+	$(INSTALL) -d -m 755 '$(DESTDIR)$(PREFIX)/bin'
+	$(INSTALL) $(builddir)/node '$(DESTDIR)$(PREFIX)/bin'
+	$(INSTALL) -d -m 755 '$(DESTDIR)$(PREFIX)/share/man/man1/'
+	$(INSTALL) -d -m 755 '$(DESTDIR)$(PREFIX)/lib/node/wafadmin/Tools'
+	$(INSTALL) tools/wafadmin/*.py '$(DESTDIR)$(PREFIX)/lib/node/wafadmin'
+	$(INSTALL) tools/wafadmin/Tools/*.py '$(DESTDIR)$(PREFIX)/lib/node/wafadmin/Tools'
+	$(INSTALL) tools/node-waf '$(DESTDIR)$(PREFIX)/bin'
+#	$(INSTALL) doc/node.1 '$(DESTDIR)$(PREFIX)/share/man/man1/'
 
 libnode-static: $(builddir)/libnode.a
 	ln -fs $< $@
