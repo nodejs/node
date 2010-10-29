@@ -1,8 +1,0 @@
-#!/usr/bin/env node
-
-console.log("Type '.help' for options.");
-console.log("(The REPL can also be started by typing 'node' without arguments)");
-
-require('repl').start();
-
-// vim:ft=javascript
