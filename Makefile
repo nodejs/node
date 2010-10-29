@@ -319,6 +319,7 @@ install: all
 	$(INSTALL) -d -m 755 '$(PREFIX)/lib/node/wafadmin/Tools'
 	$(INSTALL) tools/wafadmin/*.py '$(PREFIX)/lib/node/wafadmin'
 	$(INSTALL) tools/wafadmin/Tools/*.py '$(PREFIX)/lib/node/wafadmin/Tools'
+	$(INSTALL) tools/node-waf '$(PREFIX)/bin'
 #	$(INSTALL) doc/node.1 '$(PREFIX)/share/man/man1/'
 
 libnode-static: $(builddir)/libnode.a
