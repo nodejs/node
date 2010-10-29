@@ -112,6 +112,22 @@ node_sources = src/node.cc \
 	src/node_timer.cc \
 	src/node_javascript.cc \
 
+node_install_includes = src/node.h \
+	src/node_object_wrap.h \
+	src/node_buffer.h \
+	src/node_events.h \
+	src/node_version.h \
+	deps/libeio/eio.h \
+	deps/libev/ev.h \
+	deps/v8/include/*.h \
+
+ifdef DEBUG
+node_install_includes += $(builddir)/debug/src/node_config.h
+else
+node_install_includes += $(builddir)/release/src/node_config.h
+endif
+
+
 node_debug_objects = $(addprefix $(builddir)/debug/,$(node_sources:.cc=.o))
 node_release_objects = $(addprefix $(builddir)/release/,$(node_sources:.cc=.o))
 
@@ -325,6 +341,8 @@ $(builddir)/debug/src/node.o: $(builddir)/debug/src/node_config.h
 install: all
 	$(INSTALL) -d -m 755 '$(DESTDIR)$(PREFIX)/bin'
 	$(INSTALL) $(builddir)/node '$(DESTDIR)$(PREFIX)/bin'
+	$(INSTALL) -d -m 755 '$(DESTDIR)$(PREFIX)/include/node'
+	$(INSTALL) $(node_install_includes) '$(DESTDIR)$(PREFIX)/include/node'
 	$(INSTALL) -d -m 755 '$(DESTDIR)$(PREFIX)/share/man/man1/'
 	$(INSTALL) -d -m 755 '$(DESTDIR)$(PREFIX)/lib/node/wafadmin/Tools'
 	$(INSTALL) tools/wafadmin/*.py '$(DESTDIR)$(PREFIX)/lib/node/wafadmin'
