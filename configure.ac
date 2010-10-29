@@ -116,6 +116,13 @@ AC_SEARCH_LIBS([dlopen], [dl dld], [], [
 # TODO FIXME: Check for OpenSSL -- expect it to exist for now
 AC_SUBST([HAVE_OPENSSL],[1])
 
+
+# check for -lsocket on solaris
+AC_CHECK_LIB([c], [socket], [WANT_SOCKET=], [WANT_SOCKET=1])
+AC_SUBST(WANT_SOCKET)
+
+
+
 # ------------------------------------------------------------------------------
 # Embedded dependencies
 

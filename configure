@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cd $(dirname "$0")
+cd `dirname "$0"`
 autoconf --output configure.real
 exec ./configure.real "$@"
 

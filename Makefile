@@ -25,6 +25,10 @@ ifeq ($(platform),linux)
 	LINKFLAGS += -pthread -lrt
 endif
 
+ifeq ($(platform),solaris)
+	WANT_SOCKET = 1
+endif
+
 ifdef WANT_OPENSSL
 	HAVE_OPENSSL = 1
 	HAVE_CRYPTO = 1
@@ -35,6 +39,10 @@ ifdef WANT_OPENSSL
 	OPENSSL_LINKFLAGS += -lssl -lcrypto
 endif
 
+ifdef WANT_SOCKET
+	LINKFLAGS += -lsocket -lnsl
+endif
+
 ifneq (,$(findstring build/libnode.so,$(MAKEFLAGS)))
 	CFLAGS += -shared -fPIC
 #else
@@ -42,6 +50,7 @@ ifneq (,$(findstring build/libnode.so,$(MAKEFLAGS)))
 endif
 
 cflags += -pedantic
+
 
 
 debug_CPPDEFINES = -DDEBUG $(CFLAGS)
@@ -384,8 +393,9 @@ docclean:
 
 clean:
 	-rm -f node node_g $(builddir)/node $(builddir)/node_g
-	-find $(builddir) -name "*.o" -or -name "*.a" \
-			-or -name "*.so" -or -name "*.dylib" | xargs rm -f
+	-find $(builddir) -name "*.o" | xargs rm -f
+	-find $(builddir) -name "*.so" | xargs rm -f
+	-find $(builddir) -name "*.dylib" | xargs rm -f
 	-find . -name "*.pyc" | xargs rm -f
 
 distclean: docclean
