@@ -6,6 +6,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -108,6 +109,11 @@ static int After(eio_req *req) {
       case EIO_CHOWN:
         // These, however, don't.
         argc = 1;
+        break;
+
+      case EIO_UTIME:
+      case EIO_FUTIME:
+        argc = 0;
         break;
 
       case EIO_OPEN:
@@ -824,6 +830,78 @@ static Handle<Value> Chown(const Arguments& args) {
 }
 #endif // __POSIX__
 
+
+// Utimes() and Futimes() helper function, converts 123.456 timestamps to timevals
+static inline void ToTimevals(eio_tstamp atime,
+                              eio_tstamp mtime,
+                              timeval times[2]) {
+  times[0].tv_sec  = atime;
+  times[0].tv_usec = 10e5 * (atime - (long) atime);
+  times[1].tv_sec  = mtime;
+  times[1].tv_usec = 10e5 * (mtime - (long) mtime);
+}
+
+
+static Handle<Value> UTimes(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 3
+      || !args[0]->IsString()
+      || !args[1]->IsNumber()
+      || !args[2]->IsNumber())
+  {
+    return THROW_BAD_ARGS;
+  }
+
+  const String::Utf8Value path(args[0]->ToString());
+  const eio_tstamp atime = static_cast<eio_tstamp>(args[1]->NumberValue());
+  const eio_tstamp mtime = static_cast<eio_tstamp>(args[2]->NumberValue());
+
+  if (args[3]->IsFunction()) {
+    ASYNC_CALL(utime, args[3], *path, atime, mtime);
+  } else {
+    timeval times[2];
+
+    ToTimevals(atime, mtime, times);
+    if (utimes(*path, times) == -1) {
+      return ThrowException(ErrnoException(errno, "utimes", "", *path));
+    }
+  }
+
+  return Undefined();
+}
+
+
+static Handle<Value> FUTimes(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 3
+      || !args[0]->IsInt32()
+      || !args[1]->IsNumber()
+      || !args[2]->IsNumber())
+  {
+    return THROW_BAD_ARGS;
+  }
+
+  const int fd = args[0]->Int32Value();
+  const eio_tstamp atime = static_cast<eio_tstamp>(args[1]->NumberValue());
+  const eio_tstamp mtime = static_cast<eio_tstamp>(args[2]->NumberValue());
+
+  if (args[3]->IsFunction()) {
+    ASYNC_CALL(futime, args[3], fd, atime, mtime);
+  } else {
+    timeval times[2];
+
+    ToTimevals(atime, mtime, times);
+    if (futimes(fd, times) == -1) {
+      return ThrowException(ErrnoException(errno, "futimes", "", 0));
+    }
+  }
+
+  return Undefined();
+}
+
+
 void File::Initialize(Handle<Object> target) {
   HandleScope scope;
 
@@ -855,6 +933,9 @@ void File::Initialize(Handle<Object> target) {
 #ifdef __POSIX__
   NODE_SET_METHOD(target, "chown", Chown);
 #endif // __POSIX__
+
+  NODE_SET_METHOD(target, "utimes", UTimes);
+  NODE_SET_METHOD(target, "futimes", FUTimes);
 
   errno_symbol = NODE_PSYMBOL("errno");
   encoding_symbol = NODE_PSYMBOL("node:encoding");

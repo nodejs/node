@@ -216,6 +216,18 @@ or 'a+'. `mode` defaults to 0666. The callback gets two arguments `(err, fd)`.
 
 Synchronous open(2).
 
+### fs.utimes(path, atime, mtime, callback)
+### fs.utimesSync(path, atime, mtime)
+
+Change file timestamps.
+
+### fs.futimes(path, atime, mtime, callback)
+### fs.futimesSync(path, atime, mtime)
+
+Change file timestamps with the difference that if filename refers to a
+symbolic link, then the link is not dereferenced.
+
+
 ### fs.write(fd, buffer, offset, length, position, [callback])
 
 Write `buffer` to the file specified by `fd`.
