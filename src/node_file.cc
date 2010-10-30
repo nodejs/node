@@ -45,7 +45,10 @@ static int After(eio_req *req) {
 
   // there is always at least one argument. "error"
   int argc = 1;
-  Local<Value> argv[2];  // 6 is the maximum number of args
+
+  // Allocate space for two args. We may only use one depending on the case.
+  // (Feel free to increase this if you need more)
+  Local<Value> argv[2];
 
   // NOTE: This may be needed to be changed if something returns a -1
   // for a success, which is possible.
