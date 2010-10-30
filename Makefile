@@ -392,7 +392,7 @@ docclean:
 	-rm -rf $(builddir)/doc
 
 clean:
-	-rm -f node node_g $(builddir)/node $(builddir)/node_g
+	-rm -f node node_g $(builddir)/node $(builddir)/node_g $(libv8) $(libv8_g)
 	-find $(builddir) -name "*.o" | xargs rm -f
 	-find $(builddir) -name "*.so" | xargs rm -f
 	-find $(builddir) -name "*.dylib" | xargs rm -f
