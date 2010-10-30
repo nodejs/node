@@ -23,6 +23,7 @@ mandir=@mandir@
 
 srcdir = @srcdir@
 VPATH = @srcdir@
+DEBUG = @DEBUG@
 
 export exec_prefix mandir
 export srcdir VPATH PREFIX
