@@ -1180,10 +1180,13 @@ void DeferredInlineSmiOperation::GenerateNonSmiInput() {
 
 void DeferredInlineSmiOperation::GenerateAnswerOutOfRange() {
   // The input from a bitwise operation were Smis but the result cannot fit
-  // into a Smi, so we store it into a heap number. tos_resgiter_ holds the
-  // result to be converted.
+  // into a Smi, so we store it into a heap number. VirtualFrame::scratch0()
+  // holds the untagged result to be converted.  tos_register_ contains the
+  // input.  See the calls to JumpToAnswerOutOfRange to see how we got here.
   ASSERT(Token::IsBitOp(op_));
   ASSERT(!reversed_);
+
+  Register untagged_result = VirtualFrame::scratch0();
 
   if (FLAG_debug_code) {
     __ Abort("Should not fall through!");
@@ -1191,9 +1194,9 @@ void DeferredInlineSmiOperation::GenerateAnswerOutOfRange() {
 
   __ bind(&answer_out_of_range_);
   if (((value_ & 0x1f) == 0) && (op_ == Token::SHR)) {
-    // >>> 0 is a special case where the result is already tagged but wrong
-    // because the Smi is negative. We untag it.
-    __ mov(tos_register_, Operand(tos_register_, ASR, kSmiTagSize));
+    // >>> 0 is a special case where the untagged_result register is not set up
+    // yet.  We untag the input to get it.
+    __ mov(untagged_result, Operand(tos_register_, ASR, kSmiTagSize));
   }
 
   // This routine uses the registers from r2 to r6.  At the moment they are
@@ -1201,12 +1204,12 @@ void DeferredInlineSmiOperation::GenerateAnswerOutOfRange() {
   // SpillAll and MergeTo like DeferredInlineSmiOperation::Generate() above.
 
   // Allocate the result heap number.
-  Register heap_number_map = r7;
+  Register heap_number_map = VirtualFrame::scratch1();
   Register heap_number = r4;
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   // If the allocation fails, fall back to the GenericBinaryOpStub.
   __ AllocateHeapNumber(heap_number, r5, r6, heap_number_map, entry_label());
-  WriteNonSmiAnswer(tos_register_, heap_number, r3);
+  WriteNonSmiAnswer(untagged_result, heap_number, r3);
   __ mov(tos_register_, Operand(heap_number));
 
   Exit();
@@ -1474,25 +1477,29 @@ void CodeGenerator::SmiOperation(Token::Value op,
       switch (op) {
         case Token::SHL: {
           if (shift_value != 0) {
-            Register scratch = VirtualFrame::scratch0();
+            Register untagged_result = VirtualFrame::scratch0();
+            Register scratch = VirtualFrame::scratch1();
             int adjusted_shift = shift_value - kSmiTagSize;
             ASSERT(adjusted_shift >= 0);
 
             if (adjusted_shift != 0) {
-              __ mov(tos, Operand(tos, LSL, adjusted_shift));
+              __ mov(untagged_result, Operand(tos, LSL, adjusted_shift));
+            } else {
+              __ mov(untagged_result, Operand(tos));
             }
             // Check that the *signed* result fits in a smi.
-            __ add(scratch, tos, Operand(0x40000000), SetCC);
+            __ add(scratch, untagged_result, Operand(0x40000000), SetCC);
             deferred->JumpToAnswerOutOfRange(mi);
-            __ mov(tos, Operand(tos, LSL, kSmiTagSize));
+            __ mov(tos, Operand(untagged_result, LSL, kSmiTagSize));
           }
           break;
         }
         case Token::SHR: {
           if (shift_value != 0) {
-            Register scratch = VirtualFrame::scratch0();
-            __ mov(scratch, Operand(tos, ASR, kSmiTagSize));  // Remove tag.
-            __ mov(tos, Operand(scratch, LSR, shift_value));
+            Register untagged_result = VirtualFrame::scratch0();
+            // Remove tag.
+            __ mov(untagged_result, Operand(tos, ASR, kSmiTagSize));
+            __ mov(untagged_result, Operand(untagged_result, LSR, shift_value));
             if (shift_value == 1) {
               // Check that the *unsigned* result fits in a smi.
               // Neither of the two high-order bits can be set:
@@ -1501,17 +1508,10 @@ void CodeGenerator::SmiOperation(Token::Value op,
               //   tagging.
               // These two cases can only happen with shifts by 0 or 1 when
               // handed a valid smi.
-              __ tst(tos, Operand(0xc0000000));
-              if (!CpuFeatures::IsSupported(VFP3)) {
-                // If the unsigned result does not fit in a Smi, we require an
-                // unsigned to double conversion. Without VFP V8 has to fall
-                // back to the runtime. The deferred code will expect tos
-                // to hold the original Smi to be shifted.
-                __ mov(tos, Operand(scratch, LSL, kSmiTagSize), LeaveCC, ne);
-              }
+              __ tst(untagged_result, Operand(0xc0000000));
               deferred->JumpToAnswerOutOfRange(ne);
             }
-            __ mov(tos, Operand(tos, LSL, kSmiTagSize));
+            __ mov(tos, Operand(untagged_result, LSL, kSmiTagSize));
           } else {
             __ cmp(tos, Operand(0, RelocInfo::NONE));
             deferred->JumpToAnswerOutOfRange(mi);
@@ -4733,6 +4733,7 @@ void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
     runtime.set_entry_frame(frame_);
 
     Register heap_number_map = r6;
+    Register new_heap_number = r5;
     __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
 
     // Get the double value from the heap number into vfp register d0.
@@ -4742,8 +4743,12 @@ void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
 
     // Calculate the square root of d0 and place result in a heap number object.
     __ vsqrt(d0, d0);
-    __ AllocateHeapNumberWithValue(
-        tos, d0, scratch1, scratch2, heap_number_map, runtime.entry_label());
+    __ AllocateHeapNumberWithValue(new_heap_number,
+                                   d0,
+                                   scratch1, scratch2,
+                                   heap_number_map,
+                                   runtime.entry_label());
+    __ mov(tos, Operand(new_heap_number));
     done.Jump();
 
     runtime.Bind();

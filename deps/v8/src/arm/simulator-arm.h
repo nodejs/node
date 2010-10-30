@@ -38,11 +38,23 @@
 
 #include "allocation.h"
 
-#if defined(__arm__) && !defined(USE_SIMULATOR)
+#if !defined(USE_SIMULATOR)
+// Running without a simulator on a native arm platform.
+
+namespace v8 {
+namespace internal {
 
 // When running without a simulator we call the entry directly.
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
   (entry(p0, p1, p2, p3, p4))
+
+// Call the generated regexp code directly. The entry function pointer should
+// expect seven int/pointer sized arguments and return an int.
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
+  (entry(p0, p1, p2, p3, p4, p5, p6))
+
+#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
+  (reinterpret_cast<TryCatch*>(try_catch_address))
 
 // The stack limit beyond which we will throw stack overflow errors in
 // generated code. Because generated code on arm uses the C stack, we
@@ -60,37 +72,13 @@ class SimulatorStack : public v8::internal::AllStatic {
   static inline void UnregisterCTryCatch() { }
 };
 
+} }  // namespace v8::internal
 
-// Call the generated regexp code directly. The entry function pointer should
-// expect eight int/pointer sized arguments and return an int.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
-  entry(p0, p1, p2, p3, p4, p5, p6)
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  reinterpret_cast<TryCatch*>(try_catch_address)
-
-
-#else  // !defined(__arm__) || defined(USE_SIMULATOR)
-
-// When running with the simulator transition into simulated execution at this
-// point.
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  reinterpret_cast<Object*>( \
-      assembler::arm::Simulator::current()->Call(FUNCTION_ADDR(entry), 5, \
-                                                 p0, p1, p2, p3, p4))
-
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
-  assembler::arm::Simulator::current()->Call( \
-    FUNCTION_ADDR(entry), 7, p0, p1, p2, p3, p4, p5, p6)
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  try_catch_address == NULL ? \
-      NULL : *(reinterpret_cast<TryCatch**>(try_catch_address))
-
+#else  // !defined(USE_SIMULATOR)
+// Running with a simulator.
 
 #include "constants-arm.h"
 #include "hashmap.h"
-
 
 namespace assembler {
 namespace arm {
@@ -334,6 +322,24 @@ class Simulator {
 } }  // namespace assembler::arm
 
 
+namespace v8 {
+namespace internal {
+
+// When running with the simulator transition into simulated execution at this
+// point.
+#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
+  reinterpret_cast<Object*>(assembler::arm::Simulator::current()->Call( \
+      FUNCTION_ADDR(entry), 5, p0, p1, p2, p3, p4))
+
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
+  assembler::arm::Simulator::current()->Call( \
+      FUNCTION_ADDR(entry), 7, p0, p1, p2, p3, p4, p5, p6)
+
+#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
+  try_catch_address == \
+      NULL ? NULL : *(reinterpret_cast<TryCatch**>(try_catch_address))
+
+
 // The simulator has its own stack. Thus it has a different stack limit from
 // the C-based native code.  Setting the c_limit to indicate a very small
 // stack cause stack overflow errors, since the simulator ignores the input.
@@ -355,7 +361,7 @@ class SimulatorStack : public v8::internal::AllStatic {
   }
 };
 
+} }  // namespace v8::internal
 
-#endif  // !defined(__arm__) || defined(USE_SIMULATOR)
-
+#endif  // !defined(USE_SIMULATOR)
 #endif  // V8_ARM_SIMULATOR_ARM_H_

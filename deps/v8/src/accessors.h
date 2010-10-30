@@ -75,40 +75,44 @@ class Accessors : public AllStatic {
   };
 
   // Accessor functions called directly from the runtime system.
-  MUST_USE_RESULT static Object* FunctionGetPrototype(Object* object, void*);
-  MUST_USE_RESULT static Object* FunctionSetPrototype(JSObject* object,
-                                                      Object* value,
-                                                      void*);
+  MUST_USE_RESULT static MaybeObject* FunctionGetPrototype(Object* object,
+                                                           void*);
+  MUST_USE_RESULT static MaybeObject* FunctionSetPrototype(JSObject* object,
+                                                           Object* value,
+                                                           void*);
  private:
   // Accessor functions only used through the descriptor.
-  static Object* FunctionGetLength(Object* object, void*);
-  static Object* FunctionGetName(Object* object, void*);
-  static Object* FunctionGetArguments(Object* object, void*);
-  static Object* FunctionGetCaller(Object* object, void*);
-  static Object* ArraySetLength(JSObject* object, Object* value, void*);
-  static Object* ArrayGetLength(Object* object, void*);
-  static Object* StringGetLength(Object* object, void*);
-  static Object* ScriptGetName(Object* object, void*);
-  static Object* ScriptGetId(Object* object, void*);
-  static Object* ScriptGetSource(Object* object, void*);
-  static Object* ScriptGetLineOffset(Object* object, void*);
-  static Object* ScriptGetColumnOffset(Object* object, void*);
-  static Object* ScriptGetData(Object* object, void*);
-  static Object* ScriptGetType(Object* object, void*);
-  static Object* ScriptGetCompilationType(Object* object, void*);
-  static Object* ScriptGetLineEnds(Object* object, void*);
-  static Object* ScriptGetContextData(Object* object, void*);
-  static Object* ScriptGetEvalFromScript(Object* object, void*);
-  static Object* ScriptGetEvalFromScriptPosition(Object* object, void*);
-  static Object* ScriptGetEvalFromFunctionName(Object* object, void*);
-  static Object* ObjectGetPrototype(Object* receiver, void*);
-  static Object* ObjectSetPrototype(JSObject* receiver, Object* value, void*);
+  static MaybeObject* FunctionGetLength(Object* object, void*);
+  static MaybeObject* FunctionGetName(Object* object, void*);
+  static MaybeObject* FunctionGetArguments(Object* object, void*);
+  static MaybeObject* FunctionGetCaller(Object* object, void*);
+  MUST_USE_RESULT static MaybeObject* ArraySetLength(JSObject* object,
+                                                     Object* value, void*);
+  static MaybeObject* ArrayGetLength(Object* object, void*);
+  static MaybeObject* StringGetLength(Object* object, void*);
+  static MaybeObject* ScriptGetName(Object* object, void*);
+  static MaybeObject* ScriptGetId(Object* object, void*);
+  static MaybeObject* ScriptGetSource(Object* object, void*);
+  static MaybeObject* ScriptGetLineOffset(Object* object, void*);
+  static MaybeObject* ScriptGetColumnOffset(Object* object, void*);
+  static MaybeObject* ScriptGetData(Object* object, void*);
+  static MaybeObject* ScriptGetType(Object* object, void*);
+  static MaybeObject* ScriptGetCompilationType(Object* object, void*);
+  static MaybeObject* ScriptGetLineEnds(Object* object, void*);
+  static MaybeObject* ScriptGetContextData(Object* object, void*);
+  static MaybeObject* ScriptGetEvalFromScript(Object* object, void*);
+  static MaybeObject* ScriptGetEvalFromScriptPosition(Object* object, void*);
+  static MaybeObject* ScriptGetEvalFromFunctionName(Object* object, void*);
+  static MaybeObject* ObjectGetPrototype(Object* receiver, void*);
+  static MaybeObject* ObjectSetPrototype(JSObject* receiver,
+                                         Object* value,
+                                         void*);
 
   // Helper functions.
   static Object* FlattenNumber(Object* value);
-  static Object* IllegalSetter(JSObject*, Object*, void*);
+  static MaybeObject* IllegalSetter(JSObject*, Object*, void*);
   static Object* IllegalGetAccessor(Object* object, void*);
-  static Object* ReadOnlySetAccessor(JSObject*, Object* value, void*);
+  static MaybeObject* ReadOnlySetAccessor(JSObject*, Object* value, void*);
 };
 
 } }  // namespace v8::internal

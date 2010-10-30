@@ -42,6 +42,11 @@ struct CachedPower {
 };
 
 static const CachedPower kCachedPowers[] = {
+  {V8_2PART_UINT64_C(0xfa8fd5a0, 081c0288), -1220, -348},
+  {V8_2PART_UINT64_C(0xbaaee17f, a23ebf76), -1193, -340},
+  {V8_2PART_UINT64_C(0x8b16fb20, 3055ac76), -1166, -332},
+  {V8_2PART_UINT64_C(0xcf42894a, 5dce35ea), -1140, -324},
+  {V8_2PART_UINT64_C(0x9a6bb0aa, 55653b2d), -1113, -316},
   {V8_2PART_UINT64_C(0xe61acf03, 3d1a45df), -1087, -308},
   {V8_2PART_UINT64_C(0xab70fe17, c79ac6ca), -1060, -300},
   {V8_2PART_UINT64_C(0xff77b1fc, bebcdc4f), -1034, -292},
@@ -129,24 +134,44 @@ static const CachedPower kCachedPowers[] = {
 static const int kCachedPowersLength = ARRAY_SIZE(kCachedPowers);
 static const int kCachedPowersOffset = -kCachedPowers[0].decimal_exponent;
 static const double kD_1_LOG2_10 = 0.30102999566398114;  //  1 / lg(10)
-static const int kCachedPowersDecimalDistance =
+const int PowersOfTenCache::kDecimalExponentDistance =
     kCachedPowers[1].decimal_exponent - kCachedPowers[0].decimal_exponent;
+const int PowersOfTenCache::kMinDecimalExponent =
+    kCachedPowers[0].decimal_exponent;
+const int PowersOfTenCache::kMaxDecimalExponent =
+    kCachedPowers[kCachedPowersLength - 1].decimal_exponent;
 
-void GetCachedPowerForBinaryExponentRange(int min_exponent,
-                                          int max_exponent,
-                                          DiyFp* power,
-                                          int* decimal_exponent) {
-    int kQ = DiyFp::kSignificandSize;
-    double k = ceiling((min_exponent + kQ - 1) * kD_1_LOG2_10);
-    int foo = kCachedPowersOffset;
-    int index =
-        (foo + static_cast<int>(k) - 1) / kCachedPowersDecimalDistance + 1;
-    ASSERT(0 <= index && index < kCachedPowersLength);
-    CachedPower cached_power = kCachedPowers[index];
-    ASSERT(min_exponent <= cached_power.binary_exponent);
-    ASSERT(cached_power.binary_exponent <= max_exponent);
-    *decimal_exponent = cached_power.decimal_exponent;
-    *power = DiyFp(cached_power.significand, cached_power.binary_exponent);
+void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
+    int min_exponent,
+    int max_exponent,
+    DiyFp* power,
+    int* decimal_exponent) {
+  int kQ = DiyFp::kSignificandSize;
+  double k = ceiling((min_exponent + kQ - 1) * kD_1_LOG2_10);
+  int foo = kCachedPowersOffset;
+  int index =
+      (foo + static_cast<int>(k) - 1) / kDecimalExponentDistance + 1;
+  ASSERT(0 <= index && index < kCachedPowersLength);
+  CachedPower cached_power = kCachedPowers[index];
+  ASSERT(min_exponent <= cached_power.binary_exponent);
+  ASSERT(cached_power.binary_exponent <= max_exponent);
+  *decimal_exponent = cached_power.decimal_exponent;
+  *power = DiyFp(cached_power.significand, cached_power.binary_exponent);
+}
+
+
+void PowersOfTenCache::GetCachedPowerForDecimalExponent(int requested_exponent,
+                                                        DiyFp* power,
+                                                        int* found_exponent) {
+  ASSERT(kMinDecimalExponent <= requested_exponent);
+  ASSERT(requested_exponent < kMaxDecimalExponent + kDecimalExponentDistance);
+  int index =
+      (requested_exponent + kCachedPowersOffset) / kDecimalExponentDistance;
+  CachedPower cached_power = kCachedPowers[index];
+  *power = DiyFp(cached_power.significand, cached_power.binary_exponent);
+  *found_exponent = cached_power.decimal_exponent;
+  ASSERT(*found_exponent <= requested_exponent);
+  ASSERT(requested_exponent < *found_exponent + kDecimalExponentDistance);
 }
 
 } }  // namespace v8::internal

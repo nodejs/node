@@ -199,13 +199,6 @@ static void InitializeVM() {
 }
 
 
-static Handle<JSFunction> CompileFunction(const char* source) {
-  Handle<JSFunction> result(JSFunction::cast(
-      *v8::Utils::OpenHandle(*Script::Compile(String::New(source)))));
-  return result;
-}
-
-
 static void CheckJSFunctionAtAddress(const char* func_name, Address addr) {
   i::Object* obj = i::HeapObject::FromAddress(addr);
   CHECK(obj->IsJSFunction());
@@ -215,16 +208,6 @@ static void CheckJSFunctionAtAddress(const char* func_name, Address addr) {
           JSFunction::cast(
               obj)->shared()->name())->ToCString();
   CHECK_EQ(func_name, *found_name);
-}
-
-
-static void SetGlobalProperty(const char* name, Local<Value> value) {
-  env->Global()->Set(String::New(name), value);
-}
-
-
-static Handle<v8::internal::String> NewString(const char* s) {
-  return i::Factory::NewStringFromAscii(i::CStrVector(s));
 }
 
 
@@ -273,25 +256,18 @@ static void CreateTraceCallerFunction(const char* func_name,
                                       const char* trace_func_name) {
   i::EmbeddedVector<char, 256> trace_call_buf;
   i::OS::SNPrintF(trace_call_buf,
-                  "fp = new FPGrabber(); %s(fp.low_bits, fp.high_bits);",
-                  trace_func_name);
+                  "function %s() {"
+                  "  fp = new FPGrabber();"
+                  "  %s(fp.low_bits, fp.high_bits);"
+                  "}",
+                  func_name, trace_func_name);
 
   // Create the FPGrabber function, which grabs the caller's frame pointer
   // when called as a constructor.
   CreateFramePointerGrabberConstructor("FPGrabber");
 
   // Compile the script.
-  Handle<JSFunction> func = CompileFunction(trace_call_buf.start());
-  CHECK(!func.is_null());
-  func->shared()->set_name(*NewString(func_name));
-
-#ifdef DEBUG
-  v8::internal::Code* func_code = func->code();
-  CHECK(func_code->IsCode());
-  func_code->Print();
-#endif
-
-  SetGlobalProperty(func_name, v8::ToApi<Value>(func));
+  CompileRun(trace_call_buf.start());
 }
 
 

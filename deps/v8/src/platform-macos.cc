@@ -206,7 +206,11 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
     void* initial) {
   FILE* file = fopen(name, "w+");
   if (file == NULL) return NULL;
-  fwrite(initial, size, 1, file);
+  int result = fwrite(initial, size, 1, file);
+  if (result < 1) {
+    fclose(file);
+    return NULL;
+  }
   void* memory =
       mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
   return new PosixMemoryMappedFile(file, memory, size);

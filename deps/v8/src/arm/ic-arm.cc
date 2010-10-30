@@ -1410,9 +1410,12 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
 
     __ bind(&box_int);
     // Allocate a HeapNumber for the result and perform int-to-double
-    // conversion. Use r0 for result as key is not needed any more.
+    // conversion.  Don't touch r0 or r1 as they are needed if allocation
+    // fails.
     __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(r0, r3, r4, r6, &slow);
+    __ AllocateHeapNumber(r5, r3, r4, r6, &slow);
+    // Now we can use r0 for the result as key is not needed any more.
+    __ mov(r0, r5);
 
     if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);

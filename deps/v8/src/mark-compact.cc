@@ -1264,8 +1264,9 @@ void EncodeFreeRegion(Address free_start, int free_size) {
 // Try to promote all objects in new space.  Heap numbers and sequential
 // strings are promoted to the code space, large objects to large object space,
 // and all others to the old space.
-inline Object* MCAllocateFromNewSpace(HeapObject* object, int object_size) {
-  Object* forwarded;
+inline MaybeObject* MCAllocateFromNewSpace(HeapObject* object,
+                                           int object_size) {
+  MaybeObject* forwarded;
   if (object_size > Heap::MaxObjectSizeInPagedSpace()) {
     forwarded = Failure::Exception();
   } else {
@@ -1274,36 +1275,45 @@ inline Object* MCAllocateFromNewSpace(HeapObject* object, int object_size) {
            target_space == Heap::old_data_space());
     forwarded = target_space->MCAllocateRaw(object_size);
   }
-  if (forwarded->IsFailure()) {
-    forwarded = Heap::new_space()->MCAllocateRaw(object_size);
+  Object* result;
+  if (!forwarded->ToObject(&result)) {
+    result = Heap::new_space()->MCAllocateRaw(object_size)->ToObjectUnchecked();
   }
-  return forwarded;
+  return result;
 }
 
 
 // Allocation functions for the paged spaces call the space's MCAllocateRaw.
-inline Object* MCAllocateFromOldPointerSpace(HeapObject* ignore,
-                                             int object_size) {
+MUST_USE_RESULT inline MaybeObject* MCAllocateFromOldPointerSpace(
+    HeapObject* ignore,
+    int object_size) {
   return Heap::old_pointer_space()->MCAllocateRaw(object_size);
 }
 
 
-inline Object* MCAllocateFromOldDataSpace(HeapObject* ignore, int object_size) {
+MUST_USE_RESULT inline MaybeObject* MCAllocateFromOldDataSpace(
+    HeapObject* ignore,
+    int object_size) {
   return Heap::old_data_space()->MCAllocateRaw(object_size);
 }
 
 
-inline Object* MCAllocateFromCodeSpace(HeapObject* ignore, int object_size) {
+MUST_USE_RESULT inline MaybeObject* MCAllocateFromCodeSpace(
+    HeapObject* ignore,
+    int object_size) {
   return Heap::code_space()->MCAllocateRaw(object_size);
 }
 
 
-inline Object* MCAllocateFromMapSpace(HeapObject* ignore, int object_size) {
+MUST_USE_RESULT inline MaybeObject* MCAllocateFromMapSpace(
+    HeapObject* ignore,
+    int object_size) {
   return Heap::map_space()->MCAllocateRaw(object_size);
 }
 
 
-inline Object* MCAllocateFromCellSpace(HeapObject* ignore, int object_size) {
+MUST_USE_RESULT inline MaybeObject* MCAllocateFromCellSpace(
+    HeapObject* ignore, int object_size) {
   return Heap::cell_space()->MCAllocateRaw(object_size);
 }
 
@@ -1380,9 +1390,8 @@ inline void EncodeForwardingAddressesInRange(Address start,
       MarkCompactCollector::tracer()->decrement_marked_count();
       object_size = object->Size();
 
-      Object* forwarded = Alloc(object, object_size);
       // Allocation cannot fail, because we are compacting the space.
-      ASSERT(!forwarded->IsFailure());
+      Object* forwarded = Alloc(object, object_size)->ToObjectUnchecked();
       Encode(object, object_size, forwarded, offset);
 
 #ifdef DEBUG
@@ -1551,8 +1560,9 @@ static bool TryPromoteObject(HeapObject* object, int object_size) {
   Object* result;
 
   if (object_size > Heap::MaxObjectSizeInPagedSpace()) {
-    result = Heap::lo_space()->AllocateRawFixedArray(object_size);
-    if (!result->IsFailure()) {
+    MaybeObject* maybe_result =
+        Heap::lo_space()->AllocateRawFixedArray(object_size);
+    if (maybe_result->ToObject(&result)) {
       HeapObject* target = HeapObject::cast(result);
       MigrateObject(target->address(), object->address(), object_size, true);
       MarkCompactCollector::tracer()->
@@ -1564,8 +1574,8 @@ static bool TryPromoteObject(HeapObject* object, int object_size) {
 
     ASSERT(target_space == Heap::old_pointer_space() ||
            target_space == Heap::old_data_space());
-    result = target_space->AllocateRaw(object_size);
-    if (!result->IsFailure()) {
+    MaybeObject* maybe_result = target_space->AllocateRaw(object_size);
+    if (maybe_result->ToObject(&result)) {
       HeapObject* target = HeapObject::cast(result);
       MigrateObject(target->address(),
                     object->address(),
@@ -1613,10 +1623,8 @@ static void SweepNewSpace(NewSpace* space) {
       }
 
       // Promotion failed. Just migrate object to another semispace.
-      Object* target = space->AllocateRaw(size);
-
       // Allocation cannot fail at this point: semispaces are of equal size.
-      ASSERT(!target->IsFailure());
+      Object* target = space->AllocateRaw(size)->ToObjectUnchecked();
 
       MigrateObject(HeapObject::cast(target)->address(),
                     current,

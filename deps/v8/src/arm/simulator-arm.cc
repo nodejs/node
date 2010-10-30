@@ -37,7 +37,7 @@
 #include "arm/constants-arm.h"
 #include "arm/simulator-arm.h"
 
-#if !defined(__arm__) || defined(USE_SIMULATOR)
+#if defined(USE_SIMULATOR)
 
 // Only build the simulator if not compiling for real ARM hardware.
 namespace assembler {
@@ -2840,6 +2840,6 @@ uintptr_t Simulator::PopAddress() {
 
 } }  // namespace assembler::arm
 
-#endif  // !__arm__ || USE_SIMULATOR
+#endif  // USE_SIMULATOR
 
 #endif  // V8_TARGET_ARCH_ARM

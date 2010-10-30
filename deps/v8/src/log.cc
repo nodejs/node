@@ -559,7 +559,12 @@ void Logger::LogRuntime(Vector<const char> format, JSArray* args) {
     if (c == '%' && i <= format.length() - 2) {
       i++;
       ASSERT('0' <= format[i] && format[i] <= '9');
-      Object* obj = args->GetElement(format[i] - '0');
+      MaybeObject* maybe = args->GetElement(format[i] - '0');
+      Object* obj;
+      if (!maybe->ToObject(&obj)) {
+        msg.Append("<exception>");
+        continue;
+      }
       i++;
       switch (format[i]) {
         case 's':
@@ -1378,8 +1383,10 @@ void Logger::LogCodeInfo() {
 void Logger::LowLevelCodeCreateEvent(Code* code, LogMessageBuilder* msg) {
   if (!FLAG_ll_prof || Log::output_code_handle_ == NULL) return;
   int pos = static_cast<int>(ftell(Log::output_code_handle_));
-  fwrite(code->instruction_start(), 1, code->instruction_size(),
-         Log::output_code_handle_);
+  size_t rv = fwrite(code->instruction_start(), 1, code->instruction_size(),
+                     Log::output_code_handle_);
+  ASSERT(static_cast<size_t>(code->instruction_size()) == rv);
+  USE(rv);
   msg->Append(",%d", pos);
 }
 

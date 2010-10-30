@@ -110,7 +110,7 @@ class CompilationCacheScript : public CompilationSubCache {
   void Put(Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
  private:
-  MUST_USE_RESULT Object* TryTablePut(
+  MUST_USE_RESULT MaybeObject* TryTablePut(
       Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
   // Note: Returns a new hash table if operation results in expansion.
@@ -140,7 +140,7 @@ class CompilationCacheEval: public CompilationSubCache {
            Handle<SharedFunctionInfo> function_info);
 
  private:
-  MUST_USE_RESULT Object* TryTablePut(
+  MUST_USE_RESULT MaybeObject* TryTablePut(
       Handle<String> source,
       Handle<Context> context,
       Handle<SharedFunctionInfo> function_info);
@@ -168,9 +168,9 @@ class CompilationCacheRegExp: public CompilationSubCache {
            JSRegExp::Flags flags,
            Handle<FixedArray> data);
  private:
-  MUST_USE_RESULT Object* TryTablePut(Handle<String> source,
-                                      JSRegExp::Flags flags,
-                                      Handle<FixedArray> data);
+  MUST_USE_RESULT MaybeObject* TryTablePut(Handle<String> source,
+                                           JSRegExp::Flags flags,
+                                           Handle<FixedArray> data);
 
   // Note: Returns a new hash table if operation results in expansion.
   Handle<CompilationCacheTable> TablePut(Handle<String> source,
@@ -333,7 +333,7 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
 }
 
 
-Object* CompilationCacheScript::TryTablePut(
+MaybeObject* CompilationCacheScript::TryTablePut(
     Handle<String> source,
     Handle<SharedFunctionInfo> function_info) {
   Handle<CompilationCacheTable> table = GetFirstTable();
@@ -386,7 +386,7 @@ Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
 }
 
 
-Object* CompilationCacheEval::TryTablePut(
+MaybeObject* CompilationCacheEval::TryTablePut(
     Handle<String> source,
     Handle<Context> context,
     Handle<SharedFunctionInfo> function_info) {
@@ -442,7 +442,7 @@ Handle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
 }
 
 
-Object* CompilationCacheRegExp::TryTablePut(
+MaybeObject* CompilationCacheRegExp::TryTablePut(
     Handle<String> source,
     JSRegExp::Flags flags,
     Handle<FixedArray> data) {

@@ -584,6 +584,20 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
+  if (!FLAG_inline_new) {
+    if (FLAG_debug_code) {
+      // Trash the registers to simulate an allocation failure.
+      mov(result, Immediate(0x7091));
+      if (result_end.is_valid()) {
+        mov(result_end, Immediate(0x7191));
+      }
+      if (scratch.is_valid()) {
+        mov(scratch, Immediate(0x7291));
+      }
+    }
+    jmp(gc_required);
+    return;
+  }
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
@@ -627,6 +641,19 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
+  if (!FLAG_inline_new) {
+    if (FLAG_debug_code) {
+      // Trash the registers to simulate an allocation failure.
+      mov(result, Immediate(0x7091));
+      mov(result_end, Immediate(0x7191));
+      if (scratch.is_valid()) {
+        mov(scratch, Immediate(0x7291));
+      }
+      // Register element_count is not modified by the function.
+    }
+    jmp(gc_required);
+    return;
+  }
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
@@ -655,6 +682,19 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
+  if (!FLAG_inline_new) {
+    if (FLAG_debug_code) {
+      // Trash the registers to simulate an allocation failure.
+      mov(result, Immediate(0x7091));
+      mov(result_end, Immediate(0x7191));
+      if (scratch.is_valid()) {
+        mov(scratch, Immediate(0x7291));
+      }
+      // object_size is left unchanged by this function.
+    }
+    jmp(gc_required);
+    return;
+  }
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
@@ -936,12 +976,13 @@ void MacroAssembler::CallStub(CodeStub* stub) {
 }
 
 
-Object* MacroAssembler::TryCallStub(CodeStub* stub) {
+MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
-  Object* result = stub->TryGetCode();
-  if (!result->IsFailure()) {
-    call(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
+  Object* result;
+  { MaybeObject* maybe_result = stub->TryGetCode();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
   }
+  call(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
   return result;
 }
 
@@ -952,12 +993,13 @@ void MacroAssembler::TailCallStub(CodeStub* stub) {
 }
 
 
-Object* MacroAssembler::TryTailCallStub(CodeStub* stub) {
+MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
-  Object* result = stub->TryGetCode();
-  if (!result->IsFailure()) {
-    jmp(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
+  Object* result;
+  { MaybeObject* maybe_result = stub->TryGetCode();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
   }
+  jmp(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
   return result;
 }
 
@@ -1000,8 +1042,8 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
 }
 
 
-Object* MacroAssembler::TryCallRuntime(Runtime::FunctionId id,
-                                       int num_arguments) {
+MaybeObject* MacroAssembler::TryCallRuntime(Runtime::FunctionId id,
+                                            int num_arguments) {
   return TryCallRuntime(Runtime::FunctionForId(id), num_arguments);
 }
 
@@ -1026,8 +1068,8 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 }
 
 
-Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
-                                       int num_arguments) {
+MaybeObject* MacroAssembler::TryCallRuntime(Runtime::Function* f,
+                                            int num_arguments) {
   if (f->nargs >= 0 && f->nargs != num_arguments) {
     IllegalOperation(num_arguments);
     // Since we did not call the stub, there was no allocation failure.
@@ -1075,66 +1117,116 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
 }
 
 
-void MacroAssembler::PushHandleScope(Register scratch) {
-  // Push the number of extensions, smi-tagged so the gc will ignore it.
-  ExternalReference extensions_address =
-      ExternalReference::handle_scope_extensions_address();
-  mov(scratch, Operand::StaticVariable(extensions_address));
-  SmiTag(scratch);
-  push(scratch);
-  mov(Operand::StaticVariable(extensions_address), Immediate(0));
-  // Push next and limit pointers which will be wordsize aligned and
-  // hence automatically smi tagged.
+// If true, a Handle<T> passed by value is passed and returned by
+// using the location_ field directly.  If false, it is passed and
+// returned as a pointer to a handle.
+#ifdef USING_BSD_ABI
+static const bool kPassHandlesDirectly = true;
+#else
+static const bool kPassHandlesDirectly = false;
+#endif
+
+
+Operand ApiParameterOperand(int index) {
+  return Operand(esp, (index + (kPassHandlesDirectly ? 0 : 1)) * kPointerSize);
+}
+
+
+void MacroAssembler::PrepareCallApiFunction(int stack_space, int argc) {
+  if (kPassHandlesDirectly) {
+    EnterApiExitFrame(stack_space, argc);
+    // When handles as passed directly we don't have to allocate extra
+    // space for and pass an out parameter.
+  } else {
+    // We allocate two additional slots: return value and pointer to it.
+    EnterApiExitFrame(stack_space, argc + 2);
+  }
+}
+
+
+void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function, int argc) {
+  if (!kPassHandlesDirectly) {
+    // The argument slots are filled as follows:
+    //
+    //   n + 1: output cell
+    //   n: arg n
+    //   ...
+    //   1: arg1
+    //   0: pointer to the output cell
+    //
+    // Note that this is one more "argument" than the function expects
+    // so the out cell will have to be popped explicitly after returning
+    // from the function. The out cell contains Handle.
+    lea(eax, Operand(esp, (argc + 1) * kPointerSize));  // pointer to out cell.
+    mov(Operand(esp, 0 * kPointerSize), eax);  // output.
+    mov(Operand(esp, (argc + 1) * kPointerSize), Immediate(0));  // out cell.
+  }
+
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address();
-  push(Operand::StaticVariable(next_address));
   ExternalReference limit_address =
       ExternalReference::handle_scope_limit_address();
-  push(Operand::StaticVariable(limit_address));
-}
+  ExternalReference level_address =
+      ExternalReference::handle_scope_level_address();
 
+  // Allocate HandleScope in callee-save registers.
+  mov(ebx, Operand::StaticVariable(next_address));
+  mov(edi, Operand::StaticVariable(limit_address));
+  add(Operand::StaticVariable(level_address), Immediate(1));
 
-Object* MacroAssembler::PopHandleScopeHelper(Register saved,
-                                             Register scratch,
-                                             bool gc_allowed) {
-  Object* result = NULL;
-  ExternalReference extensions_address =
-        ExternalReference::handle_scope_extensions_address();
-  Label write_back;
-  mov(scratch, Operand::StaticVariable(extensions_address));
-  cmp(Operand(scratch), Immediate(0));
-  j(equal, &write_back);
-  push(saved);
-  if (gc_allowed) {
-    CallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
-  } else {
-    result = TryCallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
-    if (result->IsFailure()) return result;
+  // Call the api function!
+  call(function->address(), RelocInfo::RUNTIME_ENTRY);
+
+  if (!kPassHandlesDirectly) {
+    // The returned value is a pointer to the handle holding the result.
+    // Dereference this to get to the location.
+    mov(eax, Operand(eax, 0));
   }
-  pop(saved);
 
-  bind(&write_back);
-  ExternalReference limit_address =
-        ExternalReference::handle_scope_limit_address();
-  pop(Operand::StaticVariable(limit_address));
-  ExternalReference next_address =
-        ExternalReference::handle_scope_next_address();
-  pop(Operand::StaticVariable(next_address));
-  pop(scratch);
-  SmiUntag(scratch);
-  mov(Operand::StaticVariable(extensions_address), scratch);
+  Label empty_handle;
+  Label prologue;
+  Label promote_scheduled_exception;
+  Label delete_allocated_handles;
+  Label leave_exit_frame;
 
-  return result;
-}
+  // Check if the result handle holds 0.
+  test(eax, Operand(eax));
+  j(zero, &empty_handle, not_taken);
+  // It was non-zero.  Dereference to get the result value.
+  mov(eax, Operand(eax, 0));
+  bind(&prologue);
+  // No more valid handles (the result handle was the last one). Restore
+  // previous handle scope.
+  mov(Operand::StaticVariable(next_address), ebx);
+  sub(Operand::StaticVariable(level_address), Immediate(1));
+  Assert(above_equal, "Invalid HandleScope level");
+  cmp(edi, Operand::StaticVariable(limit_address));
+  j(not_equal, &delete_allocated_handles, not_taken);
+  bind(&leave_exit_frame);
 
+  // Check if the function scheduled an exception.
+  ExternalReference scheduled_exception_address =
+      ExternalReference::scheduled_exception_address();
+  cmp(Operand::StaticVariable(scheduled_exception_address),
+         Immediate(Factory::the_hole_value()));
+  j(not_equal, &promote_scheduled_exception, not_taken);
+  LeaveExitFrame();
+  ret(0);
+  bind(&promote_scheduled_exception);
+  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  bind(&empty_handle);
+  // It was zero; the result is undefined.
+  mov(eax, Factory::undefined_value());
+  jmp(&prologue);
 
-void MacroAssembler::PopHandleScope(Register saved, Register scratch) {
-  PopHandleScopeHelper(saved, scratch, true);
-}
-
-
-Object* MacroAssembler::TryPopHandleScope(Register saved, Register scratch) {
-  return PopHandleScopeHelper(saved, scratch, false);
+  // HandleScope limit has changed. Delete allocated extensions.
+  bind(&delete_allocated_handles);
+  mov(Operand::StaticVariable(limit_address), edi);
+  mov(edi, eax);
+  mov(eax, Immediate(ExternalReference::delete_handle_scope_extensions()));
+  call(Operand(eax));
+  mov(eax, edi);
+  jmp(&leave_exit_frame);
 }
 
 

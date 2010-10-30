@@ -695,7 +695,6 @@ class Assembler : public Malloced {
   void call(Label* L);
   void call(byte* entry, RelocInfo::Mode rmode);
   void call(const Operand& adr);
-  void call(const ExternalReference& target);
   void call(Handle<Code> code, RelocInfo::Mode rmode);
 
   // Jumps

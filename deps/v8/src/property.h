@@ -45,10 +45,12 @@ class Descriptor BASE_EMBEDDED {
     return Smi::cast(value)->value();
   }
 
-  Object* KeyToSymbol() {
+  MUST_USE_RESULT MaybeObject* KeyToSymbol() {
     if (!StringShape(key_).IsSymbol()) {
-      Object* result = Heap::LookupSymbol(key_);
-      if (result->IsFailure()) return result;
+      Object* result;
+      { MaybeObject* maybe_result = Heap::LookupSymbol(key_);
+        if (!maybe_result->ToObject(&result)) return maybe_result;
+      }
       key_ = String::cast(result);
     }
     return key_;

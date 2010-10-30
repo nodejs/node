@@ -1319,11 +1319,9 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
                     retainers_count);
   } else if (object->IsSharedFunctionInfo()) {
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(object);
-    String* name = String::cast(shared->name())->length() > 0 ?
-        String::cast(shared->name()) : shared->inferred_name();
     return AddEntry(object,
                     HeapEntry::kCode,
-                    collection_->GetFunctionName(name),
+                    collection_->GetName(String::cast(shared->name())),
                     children_count,
                     retainers_count);
   } else if (object->IsScript()) {

@@ -44,7 +44,7 @@ namespace internal {
 
 
 v8::ImplementationUtilities::HandleScopeData HandleScope::current_ =
-    { -1, NULL, NULL };
+    { NULL, NULL, 0 };
 
 
 int HandleScope::NumberOfHandles() {
@@ -61,7 +61,7 @@ Object** HandleScope::Extend() {
   ASSERT(result == current_.limit);
   // Make sure there's at least one scope on the stack and that the
   // top of the scope stack isn't a barrier.
-  if (current_.extensions < 0) {
+  if (current_.level == 0) {
     Utils::ReportApiFailure("v8::HandleScope::CreateHandle()",
                             "Cannot create a handle without a HandleScope");
     return NULL;
@@ -73,6 +73,7 @@ Object** HandleScope::Extend() {
     Object** limit = &impl->blocks()->last()[kHandleBlockSize];
     if (current_.limit != limit) {
       current_.limit = limit;
+      ASSERT(limit - current_.next < kHandleBlockSize);
     }
   }
 
@@ -84,7 +85,6 @@ Object** HandleScope::Extend() {
     // Add the extension to the global list of blocks, but count the
     // extension as part of the current scope.
     impl->blocks()->Add(result);
-    current_.extensions++;
     current_.limit = &result[kHandleBlockSize];
   }
 
@@ -93,21 +93,20 @@ Object** HandleScope::Extend() {
 
 
 void HandleScope::DeleteExtensions() {
-  ASSERT(current_.extensions != 0);
-  HandleScopeImplementer::instance()->DeleteExtensions(current_.extensions);
+  HandleScopeImplementer::instance()->DeleteExtensions(current_.limit);
 }
 
 
 void HandleScope::ZapRange(Object** start, Object** end) {
-  if (start == NULL) return;
-  for (Object** p = start; p < end; p++) {
+  ASSERT(end - start <= kHandleBlockSize);
+  for (Object** p = start; p != end; p++) {
     *reinterpret_cast<Address*>(p) = v8::internal::kHandleZapValue;
   }
 }
 
 
-Address HandleScope::current_extensions_address() {
-  return reinterpret_cast<Address>(&current_.extensions);
+Address HandleScope::current_level_address() {
+  return reinterpret_cast<Address>(&current_.level);
 }
 
 
@@ -207,6 +206,14 @@ void TransformToFastProperties(Handle<JSObject> object,
                                int unused_property_fields) {
   CALL_HEAP_FUNCTION_VOID(
       object->TransformToFastProperties(unused_property_fields));
+}
+
+
+void NumberDictionarySet(Handle<NumberDictionary> dictionary,
+                         uint32_t index,
+                         Handle<Object> value,
+                         PropertyDetails details) {
+  CALL_HEAP_FUNCTION_VOID(dictionary->Set(index, *value, details));
 }
 
 

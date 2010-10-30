@@ -35,7 +35,7 @@
 using namespace v8::internal;
 
 
-static Object* AllocateAfterFailures() {
+static MaybeObject* AllocateAfterFailures() {
   static int attempts = 0;
   if (++attempts < 3) return Failure::RetryAfterGC();
 
@@ -60,7 +60,8 @@ static Object* AllocateAfterFailures() {
   CHECK(!Heap::AllocateFixedArray(100)->IsFailure());
   CHECK(!Heap::AllocateHeapNumber(0.42)->IsFailure());
   CHECK(!Heap::AllocateArgumentsObject(Smi::FromInt(87), 10)->IsFailure());
-  Object* object = Heap::AllocateJSObject(*Top::object_function());
+  Object* object =
+      Heap::AllocateJSObject(*Top::object_function())->ToObjectChecked();
   CHECK(!Heap::CopyJSObject(JSObject::cast(object))->IsFailure());
 
   // Old data space.
@@ -111,7 +112,7 @@ TEST(StressHandles) {
 }
 
 
-static Object* TestAccessorGet(Object* object, void*) {
+static MaybeObject* TestAccessorGet(Object* object, void*) {
   return AllocateAfterFailures();
 }
 

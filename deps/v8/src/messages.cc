@@ -152,8 +152,8 @@ void MessageHandler::ReportMessage(MessageLocation* loc,
 Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
   Handle<String> fmt_str = Factory::LookupAsciiSymbol("FormatMessage");
   Handle<JSFunction> fun =
-      Handle<JSFunction>(
-          JSFunction::cast(Top::builtins()->GetProperty(*fmt_str)));
+      Handle<JSFunction>(JSFunction::cast(
+          Top::builtins()->GetPropertyNoExceptionThrown(*fmt_str)));
   Object** argv[1] = { data.location() };
 
   bool caught_exception;

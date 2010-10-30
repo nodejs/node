@@ -1,3 +1,17 @@
+2010-10-27: Version 2.5.2
+
+        Improved sampler resolution on Linux.
+
+        Allowed forcing the use of a simulator from the build script
+        independently of the host architecture.
+
+        Fixed FreeBSD port (Issue 912).
+
+        Made windows-tick-processor respect D8_PATH.
+
+        Implemented --noinline-new flag fully on IA32, X64 and ARM platforms.
+
+
 2010-10-20: Version 2.5.1
 
         Fixed bug causing spurious out of memory exceptions

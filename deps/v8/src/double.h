@@ -45,10 +45,14 @@ class Double {
   static const uint64_t kSignificandMask =
       V8_2PART_UINT64_C(0x000FFFFF, FFFFFFFF);
   static const uint64_t kHiddenBit = V8_2PART_UINT64_C(0x00100000, 00000000);
+  static const int kPhysicalSignificandSize = 52;  // Excludes the hidden bit.
+  static const int kSignificandSize = 53;
 
   Double() : d64_(0) {}
   explicit Double(double d) : d64_(double_to_uint64(d)) {}
   explicit Double(uint64_t d64) : d64_(d64) {}
+  explicit Double(DiyFp diy_fp)
+    : d64_(DiyFpToUint64(diy_fp)) {}
 
   DiyFp AsDiyFp() const {
     ASSERT(!IsSpecial());
@@ -67,9 +71,9 @@ class Double {
       f <<= 1;
       e--;
     }
-    // Do the final shifts in one go. Don't forget the hidden bit (the '-1').
-    f <<= DiyFp::kSignificandSize - kSignificandSize - 1;
-    e -= DiyFp::kSignificandSize - kSignificandSize - 1;
+    // Do the final shifts in one go.
+    f <<= DiyFp::kSignificandSize - kSignificandSize;
+    e -= DiyFp::kSignificandSize - kSignificandSize;
     return DiyFp(f, e);
   }
 
@@ -82,7 +86,8 @@ class Double {
     if (IsDenormal()) return kDenormalExponent;
 
     uint64_t d64 = AsUint64();
-    int biased_e = static_cast<int>((d64 & kExponentMask) >> kSignificandSize);
+    int biased_e =
+        static_cast<int>((d64 & kExponentMask) >> kPhysicalSignificandSize);
     return biased_e - kExponentBias;
   }
 
@@ -156,12 +161,54 @@ class Double {
 
   double value() const { return uint64_to_double(d64_); }
 
- private:
-  static const int kSignificandSize = 52;  // Excludes the hidden bit.
-  static const int kExponentBias = 0x3FF + kSignificandSize;
-  static const int kDenormalExponent = -kExponentBias + 1;
+  // Returns the significand size for a given order of magnitude.
+  // If v = f*2^e with 2^p-1 <= f <= 2^p then p+e is v's order of magnitude.
+  // This function returns the number of significant binary digits v will have
+  // once its encoded into a double. In almost all cases this is equal to
+  // kSignificandSize. The only exception are denormals. They start with leading
+  // zeroes and their effective significand-size is hence smaller.
+  static int SignificandSizeForOrderOfMagnitude(int order) {
+    if (order >= (kDenormalExponent + kSignificandSize)) {
+      return kSignificandSize;
+    }
+    if (order <= kDenormalExponent) return 0;
+    return order - kDenormalExponent;
+  }
 
-  uint64_t d64_;
+ private:
+  static const int kExponentBias = 0x3FF + kPhysicalSignificandSize;
+  static const int kDenormalExponent = -kExponentBias + 1;
+  static const int kMaxExponent = 0x7FF - kExponentBias;
+  static const uint64_t kInfinity = V8_2PART_UINT64_C(0x7FF00000, 00000000);
+
+  const uint64_t d64_;
+
+  static uint64_t DiyFpToUint64(DiyFp diy_fp) {
+    uint64_t significand = diy_fp.f();
+    int exponent = diy_fp.e();
+    while (significand > kHiddenBit + kSignificandMask) {
+      significand >>= 1;
+      exponent++;
+    }
+    if (exponent >= kMaxExponent) {
+      return kInfinity;
+    }
+    if (exponent < kDenormalExponent) {
+      return 0;
+    }
+    while (exponent > kDenormalExponent && (significand & kHiddenBit) == 0) {
+      significand <<= 1;
+      exponent--;
+    }
+    uint64_t biased_exponent;
+    if (exponent == kDenormalExponent && (significand & kHiddenBit) == 0) {
+      biased_exponent = 0;
+    } else {
+      biased_exponent = static_cast<uint64_t>(exponent + kExponentBias);
+    }
+    return (significand & kSignificandMask) |
+        (biased_exponent << kPhysicalSignificandSize);
+  }
 };
 
 } }  // namespace v8::internal

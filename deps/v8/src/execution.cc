@@ -50,7 +50,7 @@ static Handle<Object> Invoke(bool construct,
   VMState state(JS);
 
   // Placeholder for return value.
-  Object* value = reinterpret_cast<Object*>(kZapValue);
+  MaybeObject* value = reinterpret_cast<Object*>(kZapValue);
 
   typedef Object* (*JSEntryFunction)(
     byte* entry,
@@ -109,7 +109,7 @@ static Handle<Object> Invoke(bool construct,
     Top::clear_pending_message();
   }
 
-  return Handle<Object>(value);
+  return Handle<Object>(value->ToObjectUnchecked());
 }
 
 
@@ -172,7 +172,17 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   // and Safari so we allow it too.
   if (object->IsJSRegExp()) {
     Handle<String> exec = Factory::exec_symbol();
-    return Handle<Object>(object->GetProperty(*exec));
+    // TODO(lrn): Bug 617.  We should use the default function here, not the
+    // one on the RegExp object.
+    Object* exec_function;
+    { MaybeObject* maybe_exec_function = object->GetProperty(*exec);
+      // This can lose an exception, but the alternative is to put a failure
+      // object in a handle, which is not GC safe.
+      if (!maybe_exec_function->ToObject(&exec_function)) {
+        return Factory::undefined_value();
+      }
+    }
+    return Handle<Object>(exec_function);
   }
 
   // Objects created through the API can have an instance-call handler
@@ -517,8 +527,8 @@ Handle<JSFunction> Execution::InstantiateFunction(
     Handle<FunctionTemplateInfo> data, bool* exc) {
   // Fast case: see if the function has already been instantiated
   int serial_number = Smi::cast(data->serial_number())->value();
-  Object* elm =
-      Top::global_context()->function_cache()->GetElement(serial_number);
+  Object* elm = Top::global_context()->function_cache()->
+      GetElementNoExceptionThrown(serial_number);
   if (elm->IsJSFunction()) return Handle<JSFunction>(JSFunction::cast(elm));
   // The function has not yet been instantiated in this context; do it.
   Object** args[1] = { Handle<Object>::cast(data).location() };
@@ -671,7 +681,7 @@ void Execution::ProcessDebugMesssages(bool debug_command_only) {
 
 #endif
 
-Object* Execution::HandleStackGuardInterrupt() {
+MaybeObject* Execution::HandleStackGuardInterrupt() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (StackGuard::IsDebugBreak() || StackGuard::IsDebugCommand()) {
     DebugBreakHelper();

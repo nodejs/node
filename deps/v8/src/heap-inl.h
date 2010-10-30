@@ -35,38 +35,28 @@
 namespace v8 {
 namespace internal {
 
-void Heap::UpdateOldSpaceLimits() {
-  intptr_t old_gen_size = PromotedSpaceSize();
-  old_gen_promotion_limit_ =
-      old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
-  old_gen_allocation_limit_ =
-      old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
-  old_gen_exhausted_ = false;
-}
-
-
 int Heap::MaxObjectSizeInPagedSpace() {
   return Page::kMaxHeapObjectSize;
 }
 
 
-Object* Heap::AllocateSymbol(Vector<const char> str,
-                             int chars,
-                             uint32_t hash_field) {
+MaybeObject* Heap::AllocateSymbol(Vector<const char> str,
+                                  int chars,
+                                  uint32_t hash_field) {
   unibrow::Utf8InputBuffer<> buffer(str.start(),
                                     static_cast<unsigned>(str.length()));
   return AllocateInternalSymbol(&buffer, chars, hash_field);
 }
 
 
-Object* Heap::CopyFixedArray(FixedArray* src) {
+MaybeObject* Heap::CopyFixedArray(FixedArray* src) {
   return CopyFixedArrayWithMap(src, src->map());
 }
 
 
-Object* Heap::AllocateRaw(int size_in_bytes,
-                          AllocationSpace space,
-                          AllocationSpace retry_space) {
+MaybeObject* Heap::AllocateRaw(int size_in_bytes,
+                               AllocationSpace space,
+                               AllocationSpace retry_space) {
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   ASSERT(space != NEW_SPACE ||
          retry_space == OLD_POINTER_SPACE ||
@@ -81,7 +71,7 @@ Object* Heap::AllocateRaw(int size_in_bytes,
   Counters::objs_since_last_full.Increment();
   Counters::objs_since_last_young.Increment();
 #endif
-  Object* result;
+  MaybeObject* result;
   if (NEW_SPACE == space) {
     result = new_space_.AllocateRaw(size_in_bytes);
     if (always_allocate() && result->IsFailure()) {
@@ -110,14 +100,14 @@ Object* Heap::AllocateRaw(int size_in_bytes,
 }
 
 
-Object* Heap::NumberFromInt32(int32_t value) {
+MaybeObject* Heap::NumberFromInt32(int32_t value) {
   if (Smi::IsValid(value)) return Smi::FromInt(value);
   // Bypass NumberFromDouble to avoid various redundant checks.
   return AllocateHeapNumber(FastI2D(value));
 }
 
 
-Object* Heap::NumberFromUint32(uint32_t value) {
+MaybeObject* Heap::NumberFromUint32(uint32_t value) {
   if ((int32_t)value >= 0 && Smi::IsValid((int32_t)value)) {
     return Smi::FromInt((int32_t)value);
   }
@@ -144,12 +134,12 @@ void Heap::FinalizeExternalString(String* string) {
 }
 
 
-Object* Heap::AllocateRawMap() {
+MaybeObject* Heap::AllocateRawMap() {
 #ifdef DEBUG
   Counters::objs_since_last_full.Increment();
   Counters::objs_since_last_young.Increment();
 #endif
-  Object* result = map_space_->AllocateRaw(Map::kSize);
+  MaybeObject* result = map_space_->AllocateRaw(Map::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
 #ifdef DEBUG
   if (!result->IsFailure()) {
@@ -162,12 +152,12 @@ Object* Heap::AllocateRawMap() {
 }
 
 
-Object* Heap::AllocateRawCell() {
+MaybeObject* Heap::AllocateRawCell() {
 #ifdef DEBUG
   Counters::objs_since_last_full.Increment();
   Counters::objs_since_last_young.Increment();
 #endif
-  Object* result = cell_space_->AllocateRaw(JSGlobalPropertyCell::kSize);
+  MaybeObject* result = cell_space_->AllocateRaw(JSGlobalPropertyCell::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
   return result;
 }
@@ -340,14 +330,14 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
-Object* Heap::PrepareForCompare(String* str) {
+MaybeObject* Heap::PrepareForCompare(String* str) {
   // Always flatten small strings and force flattening of long strings
   // after we have accumulated a certain amount we failed to flatten.
   static const int kMaxAlwaysFlattenLength = 32;
   static const int kFlattenLongThreshold = 16*KB;
 
   const int length = str->length();
-  Object* obj = str->TryFlatten();
+  MaybeObject* obj = str->TryFlatten();
   if (length <= kMaxAlwaysFlattenLength ||
       unflattened_strings_length_ >= kFlattenLongThreshold) {
     return obj;
@@ -401,34 +391,36 @@ void Heap::SetLastScriptId(Object* last_script_id) {
 // to guarantee that any allocations performed during the call will
 // succeed if there's enough memory.
 
-// Warning: Do not use the identifiers __object__ or __scope__ in a
-// call to this macro.
+// Warning: Do not use the identifiers __object__, __maybe_object__ or
+// __scope__ in a call to this macro.
 
 #define CALL_AND_RETRY(FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)         \
   do {                                                                    \
     GC_GREEDY_CHECK();                                                    \
-    Object* __object__ = FUNCTION_CALL;                                   \
-    if (!__object__->IsFailure()) RETURN_VALUE;                           \
-    if (__object__->IsOutOfMemoryFailure()) {                             \
+    MaybeObject* __maybe_object__ = FUNCTION_CALL;                        \
+    Object* __object__ = NULL;                                            \
+    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
+    if (__maybe_object__->IsOutOfMemory()) {                              \
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0", true);\
     }                                                                     \
-    if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
-    Heap::CollectGarbage(Failure::cast(__object__)->allocation_space());  \
-    __object__ = FUNCTION_CALL;                                           \
-    if (!__object__->IsFailure()) RETURN_VALUE;                           \
-    if (__object__->IsOutOfMemoryFailure()) {                             \
+    if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
+    Heap::CollectGarbage(Failure::cast(__maybe_object__)->                \
+                             allocation_space());                         \
+    __maybe_object__ = FUNCTION_CALL;                                     \
+    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
+    if (__maybe_object__->IsOutOfMemory()) {                              \
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_1", true);\
     }                                                                     \
-    if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
+    if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
     Counters::gc_last_resort_from_handles.Increment();                    \
-    Heap::CollectAllAvailableGarbage();                                   \
+    Heap::CollectAllGarbage(false);                                       \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
-      __object__ = FUNCTION_CALL;                                         \
+      __maybe_object__ = FUNCTION_CALL;                                   \
     }                                                                     \
-    if (!__object__->IsFailure()) RETURN_VALUE;                           \
-    if (__object__->IsOutOfMemoryFailure() ||                             \
-        __object__->IsRetryAfterGC()) {                                   \
+    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
+    if (__maybe_object__->IsOutOfMemory() ||                              \
+        __maybe_object__->IsRetryAfterGC()) {                             \
       /* TODO(1181417): Fix this. */                                      \
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_2", true);\
     }                                                                     \

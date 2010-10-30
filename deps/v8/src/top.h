@@ -29,6 +29,7 @@
 #define V8_TOP_H_
 
 #include "frames-inl.h"
+#include "simulator.h"
 
 namespace v8 {
 namespace internal {
@@ -84,7 +85,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // lookups.
   Context* context_;
   int thread_id_;
-  Object* pending_exception_;
+  MaybeObject* pending_exception_;
   bool has_pending_message_;
   const char* pending_message_;
   Object* pending_message_obj_;
@@ -94,7 +95,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Use a separate value for scheduled exceptions to preserve the
   // invariants that hold about pending_exception.  We may want to
   // unify them later.
-  Object* scheduled_exception_;
+  MaybeObject* scheduled_exception_;
   bool external_caught_exception_;
   SaveContext* save_context_;
   v8::TryCatch* catcher_;
@@ -102,6 +103,10 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Stack.
   Address c_entry_fp_;  // the frame pointer of the top c entry frame
   Address handler_;   // try-blocks are chained through the stack
+
+#ifdef USE_SIMULATOR
+  assembler::arm::Simulator* simulator_;
+#endif  // USE_SIMULATOR
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   Address js_entry_sp_;  // the stack pointer of the bottom js entry frame
@@ -165,21 +170,21 @@ class Top {
   static void set_thread_id(int id) { thread_local_.thread_id_ = id; }
 
   // Interface to pending exception.
-  static Object* pending_exception() {
+  static MaybeObject* pending_exception() {
     ASSERT(has_pending_exception());
     return thread_local_.pending_exception_;
   }
   static bool external_caught_exception() {
     return thread_local_.external_caught_exception_;
   }
-  static void set_pending_exception(Object* exception) {
+  static void set_pending_exception(MaybeObject* exception) {
     thread_local_.pending_exception_ = exception;
   }
   static void clear_pending_exception() {
     thread_local_.pending_exception_ = Heap::the_hole_value();
   }
 
-  static Object** pending_exception_address() {
+  static MaybeObject** pending_exception_address() {
     return &thread_local_.pending_exception_;
   }
   static bool has_pending_exception() {
@@ -208,11 +213,11 @@ class Top {
     return &thread_local_.external_caught_exception_;
   }
 
-  static Object** scheduled_exception_address() {
+  static MaybeObject** scheduled_exception_address() {
     return &thread_local_.scheduled_exception_;
   }
 
-  static Object* scheduled_exception() {
+  static MaybeObject* scheduled_exception() {
     ASSERT(has_scheduled_exception());
     return thread_local_.scheduled_exception_;
   }
@@ -302,14 +307,15 @@ class Top {
   // Re-throw an exception.  This involves no error reporting since
   // error reporting was handled when the exception was thrown
   // originally.
-  static Failure* ReThrow(Object* exception, MessageLocation* location = NULL);
+  static Failure* ReThrow(MaybeObject* exception,
+                          MessageLocation* location = NULL);
   static void ScheduleThrow(Object* exception);
   static void ReportPendingMessages();
   static Failure* ThrowIllegalOperation();
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
-  static Object* PromoteScheduledException();
-  static void DoThrow(Object* exception,
+  static Failure* PromoteScheduledException();
+  static void DoThrow(MaybeObject* exception,
                       MessageLocation* location,
                       const char* message);
   static bool ShouldReturnException(bool* is_caught_externally,

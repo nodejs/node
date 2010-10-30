@@ -482,6 +482,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference fill_heap_number_with_random_function();
   static ExternalReference random_uint32_function();
   static ExternalReference transcendental_cache_array_address();
+  static ExternalReference delete_handle_scope_extensions();
 
   // Static data in the keyed lookup cache.
   static ExternalReference keyed_lookup_cache_keys();
@@ -519,9 +520,9 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference double_fp_operation(Token::Value operation);
   static ExternalReference compare_doubles();
 
-  static ExternalReference handle_scope_extensions_address();
   static ExternalReference handle_scope_next_address();
   static ExternalReference handle_scope_limit_address();
+  static ExternalReference handle_scope_level_address();
 
   static ExternalReference scheduled_exception_address();
 

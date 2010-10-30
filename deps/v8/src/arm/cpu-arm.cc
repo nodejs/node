@@ -36,10 +36,7 @@
 
 #include "cpu.h"
 #include "macro-assembler.h"
-
-#ifndef __arm__
-#include "simulator-arm.h"  // for cache flushing.
-#endif
+#include "simulator.h"  // for cache flushing.
 
 namespace v8 {
 namespace internal {
@@ -50,7 +47,7 @@ void CPU::Setup() {
 
 
 void CPU::FlushICache(void* start, size_t size) {
-#if !defined (__arm__)
+#if defined (USE_SIMULATOR)
   // Not generating ARM instructions for C-code. This means that we are
   // building an ARM emulator based target.  We should notify the simulator
   // that the Icache was flushed.

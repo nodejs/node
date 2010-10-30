@@ -41,9 +41,10 @@
 // Most object types in the V8 JavaScript are described in this file.
 //
 // Inheritance hierarchy:
+// - MaybeObject    (an object or a failure)
+//   - Failure      (immediate for marking failed operation)
 //   - Object
 //     - Smi          (immediate small integer)
-//     - Failure      (immediate for marking failed operation)
 //     - HeapObject   (superclass for everything allocated in the heap)
 //       - JSObject
 //         - JSArray
@@ -584,6 +585,35 @@ struct ValueInfo : public Malloced {
 // A template-ized version of the IsXXX functions.
 template <class C> static inline bool Is(Object* obj);
 
+class MaybeObject BASE_EMBEDDED {
+ public:
+  inline bool IsFailure();
+  inline bool IsRetryAfterGC();
+  inline bool IsOutOfMemory();
+  inline bool IsException();
+  INLINE(bool IsTheHole());
+  inline bool ToObject(Object** obj) {
+    if (IsFailure()) return false;
+    *obj = reinterpret_cast<Object*>(this);
+    return true;
+  }
+  inline Object* ToObjectUnchecked() {
+    ASSERT(!IsFailure());
+    return reinterpret_cast<Object*>(this);
+  }
+  inline Object* ToObjectChecked() {
+    CHECK(!IsFailure());
+    return reinterpret_cast<Object*>(this);
+  }
+
+#ifdef DEBUG
+  // Prints this object with details.
+  void Print();
+  void PrintLn();
+  // Verifies the object.
+  void Verify();
+#endif
+};
 
 // Object is the abstract superclass for all classes in the
 // object hierarchy.
@@ -591,7 +621,7 @@ template <class C> static inline bool Is(Object* obj);
 // allocation of the C++ vtable.
 // Since Smi and Failure are subclasses of Object no
 // data members can be present in Object.
-class Object BASE_EMBEDDED {
+class Object : public MaybeObject {
  public:
   // Type testing.
   inline bool IsSmi();
@@ -619,10 +649,6 @@ class Object BASE_EMBEDDED {
   inline bool IsExternalIntArray();
   inline bool IsExternalUnsignedIntArray();
   inline bool IsExternalFloatArray();
-  inline bool IsFailure();
-  inline bool IsRetryAfterGC();
-  inline bool IsOutOfMemoryFailure();
-  inline bool IsException();
   inline bool IsJSObject();
   inline bool IsJSContextExtensionObject();
   inline bool IsMap();
@@ -669,7 +695,6 @@ class Object BASE_EMBEDDED {
 
   // Oddball testing.
   INLINE(bool IsUndefined());
-  INLINE(bool IsTheHole());
   INLINE(bool IsNull());
   INLINE(bool IsTrue());
   INLINE(bool IsFalse());
@@ -679,38 +704,43 @@ class Object BASE_EMBEDDED {
 
   inline bool HasSpecificClassOf(String* name);
 
-  Object* ToObject();             // ECMA-262 9.9.
-  Object* ToBoolean();            // ECMA-262 9.2.
+  MUST_USE_RESULT MaybeObject* ToObject();             // ECMA-262 9.9.
+  Object* ToBoolean();                                 // ECMA-262 9.2.
 
   // Convert to a JSObject if needed.
   // global_context is used when creating wrapper object.
-  Object* ToObject(Context* global_context);
+  MUST_USE_RESULT MaybeObject* ToObject(Context* global_context);
 
   // Converts this to a Smi if possible.
   // Failure is returned otherwise.
-  inline Object* ToSmi();
+  MUST_USE_RESULT inline MaybeObject* ToSmi();
 
   void Lookup(String* name, LookupResult* result);
 
   // Property access.
-  inline Object* GetProperty(String* key);
-  inline Object* GetProperty(String* key, PropertyAttributes* attributes);
-  Object* GetPropertyWithReceiver(Object* receiver,
-                                  String* key,
-                                  PropertyAttributes* attributes);
-  Object* GetProperty(Object* receiver,
-                      LookupResult* result,
-                      String* key,
-                      PropertyAttributes* attributes);
-  Object* GetPropertyWithCallback(Object* receiver,
-                                  Object* structure,
-                                  String* name,
-                                  Object* holder);
-  Object* GetPropertyWithDefinedGetter(Object* receiver,
-                                       JSFunction* getter);
+  MUST_USE_RESULT inline MaybeObject* GetProperty(String* key);
+  MUST_USE_RESULT inline MaybeObject* GetProperty(
+      String* key,
+      PropertyAttributes* attributes);
+  MUST_USE_RESULT MaybeObject* GetPropertyWithReceiver(
+      Object* receiver,
+      String* key,
+      PropertyAttributes* attributes);
+  MUST_USE_RESULT MaybeObject* GetProperty(Object* receiver,
+                                           LookupResult* result,
+                                           String* key,
+                                           PropertyAttributes* attributes);
+  MUST_USE_RESULT MaybeObject* GetPropertyWithCallback(Object* receiver,
+                                                       Object* structure,
+                                                       String* name,
+                                                       Object* holder);
+  MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
+                                                            JSFunction* getter);
 
-  inline Object* GetElement(uint32_t index);
-  Object* GetElementWithReceiver(Object* receiver, uint32_t index);
+  inline MaybeObject* GetElement(uint32_t index);
+  // For use when we know that no exception can be thrown.
+  inline Object* GetElementNoExceptionThrown(uint32_t index);
+  MaybeObject* GetElementWithReceiver(Object* receiver, uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype();
@@ -724,12 +754,6 @@ class Object BASE_EMBEDDED {
   inline bool IsStringObjectWithCharacterAt(uint32_t index);
 
 #ifdef DEBUG
-  // Prints this object with details.
-  void Print();
-  void PrintLn();
-  // Verifies the object.
-  void Verify();
-
   // Verify a pointer is a valid object pointer.
   static void VerifyPointer(Object* p);
 #endif
@@ -815,7 +839,7 @@ class Smi: public Object {
 const int kFailureTypeTagSize = 2;
 const int kFailureTypeTagMask = (1 << kFailureTypeTagSize) - 1;
 
-class Failure: public Object {
+class Failure: public MaybeObject {
  public:
   // RuntimeStubs assumes EXCEPTION = 1 in the compiler-generated code.
   enum Type {
@@ -840,7 +864,7 @@ class Failure: public Object {
   static inline Failure* InternalError();
   static inline Failure* OutOfMemoryException();
   // Casting.
-  static inline Failure* cast(Object* object);
+  static inline Failure* cast(MaybeObject* object);
 
   // Dispatched behavior.
   void FailurePrint();
@@ -1249,7 +1273,7 @@ class JSObject: public HeapObject {
   // PixelArray or an ExternalArray.
   DECL_ACCESSORS(elements, HeapObject)
   inline void initialize_elements();
-  inline Object* ResetElements();
+  MUST_USE_RESULT inline MaybeObject* ResetElements();
   inline ElementsKind GetElementsKind();
   inline bool HasFastElements();
   inline bool HasDictionaryElements();
@@ -1265,41 +1289,45 @@ class JSObject: public HeapObject {
   inline bool AllowsSetElementsLength();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
   // Requires: this->HasFastElements().
-  inline Object* EnsureWritableFastElements();
+  MUST_USE_RESULT inline MaybeObject* EnsureWritableFastElements();
 
   // Collects elements starting at index 0.
   // Undefined values are placed after non-undefined values.
   // Returns the number of non-undefined values.
-  Object* PrepareElementsForSort(uint32_t limit);
+  MUST_USE_RESULT MaybeObject* PrepareElementsForSort(uint32_t limit);
   // As PrepareElementsForSort, but only on objects where elements is
   // a dictionary, and it will stay a dictionary.
-  MUST_USE_RESULT Object* PrepareSlowElementsForSort(uint32_t limit);
+  MUST_USE_RESULT MaybeObject* PrepareSlowElementsForSort(uint32_t limit);
 
-  Object* SetProperty(String* key,
-                      Object* value,
-                      PropertyAttributes attributes);
-  Object* SetProperty(LookupResult* result,
-                      String* key,
-                      Object* value,
-                      PropertyAttributes attributes);
-  Object* SetPropertyWithFailedAccessCheck(LookupResult* result,
-                                           String* name,
-                                           Object* value);
-  Object* SetPropertyWithCallback(Object* structure,
-                                  String* name,
-                                  Object* value,
-                                  JSObject* holder);
-  Object* SetPropertyWithDefinedSetter(JSFunction* setter,
-                                       Object* value);
-  Object* SetPropertyWithInterceptor(String* name,
-                                     Object* value,
-                                     PropertyAttributes attributes);
-  Object* SetPropertyPostInterceptor(String* name,
-                                     Object* value,
-                                     PropertyAttributes attributes);
-  Object* IgnoreAttributesAndSetLocalProperty(String* key,
-                                              Object* value,
-                                              PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* SetProperty(String* key,
+                                           Object* value,
+                                           PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* SetProperty(LookupResult* result,
+                                           String* key,
+                                           Object* value,
+                                           PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* SetPropertyWithFailedAccessCheck(
+      LookupResult* result,
+      String* name,
+      Object* value);
+  MUST_USE_RESULT MaybeObject* SetPropertyWithCallback(Object* structure,
+                                                       String* name,
+                                                       Object* value,
+                                                       JSObject* holder);
+  MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSFunction* setter,
+                                                            Object* value);
+  MUST_USE_RESULT MaybeObject* SetPropertyWithInterceptor(
+      String* name,
+      Object* value,
+      PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* SetPropertyPostInterceptor(
+      String* name,
+      Object* value,
+      PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* IgnoreAttributesAndSetLocalProperty(
+      String* key,
+      Object* value,
+      PropertyAttributes attributes);
 
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
@@ -1311,13 +1339,13 @@ class JSObject: public HeapObject {
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
-  MUST_USE_RESULT Object* SetNormalizedProperty(String* name,
-                                                Object* value,
-                                                PropertyDetails details);
+  MUST_USE_RESULT MaybeObject* SetNormalizedProperty(String* name,
+                                                     Object* value,
+                                                     PropertyDetails details);
 
   // Deletes the named property in a normalized object.
-  MUST_USE_RESULT Object* DeleteNormalizedProperty(String* name,
-                                                   DeleteMode mode);
+  MUST_USE_RESULT MaybeObject* DeleteNormalizedProperty(String* name,
+                                                        DeleteMode mode);
 
   // Returns the class name ([[Class]] property in the specification).
   String* class_name();
@@ -1335,28 +1363,31 @@ class JSObject: public HeapObject {
                                                       String* name);
   PropertyAttributes GetLocalPropertyAttribute(String* name);
 
-  MUST_USE_RESULT Object* DefineAccessor(String* name,
-                                         bool is_getter,
-                                         JSFunction* fun,
-                                         PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
+                                              bool is_getter,
+                                              JSFunction* fun,
+                                              PropertyAttributes attributes);
   Object* LookupAccessor(String* name, bool is_getter);
 
-  MUST_USE_RESULT Object* DefineAccessor(AccessorInfo* info);
+  MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
 
   // Used from Object::GetProperty().
-  Object* GetPropertyWithFailedAccessCheck(Object* receiver,
-                                           LookupResult* result,
-                                           String* name,
-                                           PropertyAttributes* attributes);
-  Object* GetPropertyWithInterceptor(JSObject* receiver,
-                                     String* name,
-                                     PropertyAttributes* attributes);
-  Object* GetPropertyPostInterceptor(JSObject* receiver,
-                                     String* name,
-                                     PropertyAttributes* attributes);
-  Object* GetLocalPropertyPostInterceptor(JSObject* receiver,
-                                          String* name,
-                                          PropertyAttributes* attributes);
+  MaybeObject* GetPropertyWithFailedAccessCheck(
+      Object* receiver,
+      LookupResult* result,
+      String* name,
+      PropertyAttributes* attributes);
+  MaybeObject* GetPropertyWithInterceptor(
+      JSObject* receiver,
+      String* name,
+      PropertyAttributes* attributes);
+  MaybeObject* GetPropertyPostInterceptor(
+      JSObject* receiver,
+      String* name,
+      PropertyAttributes* attributes);
+  MaybeObject* GetLocalPropertyPostInterceptor(JSObject* receiver,
+                                               String* name,
+                                               PropertyAttributes* attributes);
 
   // Returns true if this is an instance of an api function and has
   // been modified since it was created.  May give false positives.
@@ -1390,10 +1421,11 @@ class JSObject: public HeapObject {
   // These accessors do not touch interceptors or accessors.
   inline bool HasHiddenPropertiesObject();
   inline Object* GetHiddenPropertiesObject();
-  inline Object* SetHiddenPropertiesObject(Object* hidden_obj);
+  MUST_USE_RESULT inline MaybeObject* SetHiddenPropertiesObject(
+      Object* hidden_obj);
 
-  MUST_USE_RESULT Object* DeleteProperty(String* name, DeleteMode mode);
-  MUST_USE_RESULT Object* DeleteElement(uint32_t index, DeleteMode mode);
+  MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
+  MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -1411,7 +1443,8 @@ class JSObject: public HeapObject {
   inline Object* GetPrototype();
 
   // Set the object's prototype (only JSObject and null are allowed).
-  Object* SetPrototype(Object* value, bool skip_hidden_prototypes);
+  MUST_USE_RESULT MaybeObject* SetPrototype(Object* value,
+                                            bool skip_hidden_prototypes);
 
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
@@ -1440,20 +1473,20 @@ class JSObject: public HeapObject {
   bool HasElementWithInterceptor(JSObject* receiver, uint32_t index);
   bool HasElementPostInterceptor(JSObject* receiver, uint32_t index);
 
-  MUST_USE_RESULT Object* SetFastElement(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index, Object* value);
 
   // Set the index'th array element.
   // A Failure object is returned if GC is needed.
-  MUST_USE_RESULT Object* SetElement(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetElement(uint32_t index, Object* value);
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
-  Object* GetElementWithReceiver(JSObject* receiver, uint32_t index);
-  Object* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
+  MaybeObject* GetElementWithReceiver(JSObject* receiver, uint32_t index);
+  MaybeObject* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
 
-  MUST_USE_RESULT Object* SetFastElementsCapacityAndLength(int capacity,
-                                                           int length);
-  MUST_USE_RESULT Object* SetSlowElements(Object* length);
+  MUST_USE_RESULT MaybeObject* SetFastElementsCapacityAndLength(int capacity,
+                                                                int length);
+  MUST_USE_RESULT MaybeObject* SetSlowElements(Object* length);
 
   // Lookup interceptors are used for handling properties controlled by host
   // objects.
@@ -1466,7 +1499,7 @@ class JSObject: public HeapObject {
   bool HasRealNamedCallbackProperty(String* key);
 
   // Initializes the array to a certain length
-  MUST_USE_RESULT Object* SetElementsLength(Object* length);
+  MUST_USE_RESULT MaybeObject* SetElementsLength(Object* length);
 
   // Get the header size for a JSObject.  Used to compute the index of
   // internal fields as well as the number of internal fields.
@@ -1515,9 +1548,9 @@ class JSObject: public HeapObject {
 
   // Add a property to a fast-case object using a map transition to
   // new_map.
-  Object* AddFastPropertyUsingMap(Map* new_map,
-                                  String* name,
-                                  Object* value);
+  MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(Map* new_map,
+                                                       String* name,
+                                                       Object* value);
 
   // Add a constant function property to a fast-case object.
   // This leaves a CONSTANT_TRANSITION in the old map, and
@@ -1525,20 +1558,22 @@ class JSObject: public HeapObject {
   // normal property is added instead, with a map transition.
   // This avoids the creation of many maps with the same constant
   // function, all orphaned.
-  Object* AddConstantFunctionProperty(String* name,
-                                      JSFunction* function,
-                                      PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* AddConstantFunctionProperty(
+      String* name,
+      JSFunction* function,
+      PropertyAttributes attributes);
 
-  Object* ReplaceSlowProperty(String* name,
-                              Object* value,
-                              PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* ReplaceSlowProperty(
+      String* name,
+      Object* value,
+      PropertyAttributes attributes);
 
   // Converts a descriptor of any other type to a real field,
   // backed by the properties array.  Descriptors of visible
   // types, such as CONSTANT_FUNCTION, keep their enumeration order.
   // Converts the descriptor on the original object's map to a
   // map transition, and the the new field is on the object's new map.
-  Object* ConvertDescriptorToFieldAndMapTransition(
+  MUST_USE_RESULT MaybeObject* ConvertDescriptorToFieldAndMapTransition(
       String* name,
       Object* new_value,
       PropertyAttributes attributes);
@@ -1546,38 +1581,41 @@ class JSObject: public HeapObject {
   // Converts a descriptor of any other type to a real field,
   // backed by the properties array.  Descriptors of visible
   // types, such as CONSTANT_FUNCTION, keep their enumeration order.
-  Object* ConvertDescriptorToField(String* name,
-                                   Object* new_value,
-                                   PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* ConvertDescriptorToField(
+      String* name,
+      Object* new_value,
+      PropertyAttributes attributes);
 
   // Add a property to a fast-case object.
-  Object* AddFastProperty(String* name,
-                          Object* value,
-                          PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* AddFastProperty(String* name,
+                                               Object* value,
+                                               PropertyAttributes attributes);
 
   // Add a property to a slow-case object.
-  Object* AddSlowProperty(String* name,
-                          Object* value,
-                          PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* AddSlowProperty(String* name,
+                                               Object* value,
+                                               PropertyAttributes attributes);
 
   // Add a property to an object.
-  Object* AddProperty(String* name,
-                      Object* value,
-                      PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* AddProperty(String* name,
+                                           Object* value,
+                                           PropertyAttributes attributes);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
   // added this number can be indicated to have the backing store allocated to
   // an initial capacity for holding these properties.
-  Object* NormalizeProperties(PropertyNormalizationMode mode,
-                              int expected_additional_properties);
-  Object* NormalizeElements();
+  MUST_USE_RESULT MaybeObject* NormalizeProperties(
+      PropertyNormalizationMode mode,
+      int expected_additional_properties);
+  MUST_USE_RESULT MaybeObject* NormalizeElements();
 
-  Object* UpdateMapCodeCache(String* name, Code* code);
+  MUST_USE_RESULT MaybeObject* UpdateMapCodeCache(String* name, Code* code);
 
   // Transform slow named properties to fast variants.
   // Returns failure if allocation failed.
-  Object* TransformToFastProperties(int unused_property_fields);
+  MUST_USE_RESULT MaybeObject* TransformToFastProperties(
+      int unused_property_fields);
 
   // Access fast-case object properties at index.
   inline Object* FastPropertyAt(int index);
@@ -1603,7 +1641,7 @@ class JSObject: public HeapObject {
   static inline JSObject* cast(Object* obj);
 
   // Disalow further properties to be added to the object.
-  MUST_USE_RESULT Object* PreventExtensions();
+  MUST_USE_RESULT MaybeObject* PreventExtensions();
 
 
   // Dispatched behavior.
@@ -1668,28 +1706,28 @@ class JSObject: public HeapObject {
   };
 
  private:
-  Object* GetElementWithCallback(Object* receiver,
-                                 Object* structure,
-                                 uint32_t index,
-                                 Object* holder);
-  Object* SetElementWithCallback(Object* structure,
-                                 uint32_t index,
-                                 Object* value,
-                                 JSObject* holder);
-  MUST_USE_RESULT Object* SetElementWithInterceptor(uint32_t index,
-                                                    Object* value);
-  MUST_USE_RESULT Object* SetElementWithoutInterceptor(uint32_t index,
-                                                       Object* value);
+  MUST_USE_RESULT MaybeObject* GetElementWithCallback(Object* receiver,
+                                                      Object* structure,
+                                                      uint32_t index,
+                                                      Object* holder);
+  MaybeObject* SetElementWithCallback(Object* structure,
+                                      uint32_t index,
+                                      Object* value,
+                                      JSObject* holder);
+  MUST_USE_RESULT MaybeObject* SetElementWithInterceptor(uint32_t index,
+                                                         Object* value);
+  MUST_USE_RESULT MaybeObject* SetElementWithoutInterceptor(uint32_t index,
+                                                            Object* value);
 
-  Object* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
+  MaybeObject* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
 
-  MUST_USE_RESULT Object* DeletePropertyPostInterceptor(String* name,
-                                                        DeleteMode mode);
-  MUST_USE_RESULT Object* DeletePropertyWithInterceptor(String* name);
+  MUST_USE_RESULT MaybeObject* DeletePropertyPostInterceptor(String* name,
+                                                             DeleteMode mode);
+  MUST_USE_RESULT MaybeObject* DeletePropertyWithInterceptor(String* name);
 
-  MUST_USE_RESULT Object* DeleteElementPostInterceptor(uint32_t index,
-                                                       DeleteMode mode);
-  MUST_USE_RESULT Object* DeleteElementWithInterceptor(uint32_t index);
+  MUST_USE_RESULT MaybeObject* DeleteElementPostInterceptor(uint32_t index,
+                                                            DeleteMode mode);
+  MUST_USE_RESULT MaybeObject* DeleteElementWithInterceptor(uint32_t index);
 
   PropertyAttributes GetPropertyAttributePostInterceptor(JSObject* receiver,
                                                          String* name,
@@ -1711,14 +1749,17 @@ class JSObject: public HeapObject {
   bool HasDenseElements();
 
   bool CanSetCallback(String* name);
-  MUST_USE_RESULT Object* SetElementCallback(uint32_t index,
-                                             Object* structure,
-                                             PropertyAttributes attributes);
-  MUST_USE_RESULT Object* SetPropertyCallback(String* name,
-                                              Object* structure,
-                                              PropertyAttributes attributes);
-  MUST_USE_RESULT Object* DefineGetterSetter(String* name,
-                                             PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* SetElementCallback(
+      uint32_t index,
+      Object* structure,
+      PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* SetPropertyCallback(
+      String* name,
+      Object* structure,
+      PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* DefineGetterSetter(
+      String* name,
+      PropertyAttributes attributes);
 
   void LookupInDescriptor(String* name, LookupResult* result);
 
@@ -1757,14 +1798,14 @@ class FixedArray: public HeapObject {
   inline Object** data_start();
 
   // Copy operations.
-  inline Object* Copy();
-  MUST_USE_RESULT Object* CopySize(int new_length);
+  MUST_USE_RESULT inline MaybeObject* Copy();
+  MUST_USE_RESULT MaybeObject* CopySize(int new_length);
 
   // Add the elements of a JSArray to this FixedArray.
-  MUST_USE_RESULT Object* AddKeysFromJSArray(JSArray* array);
+  MUST_USE_RESULT MaybeObject* AddKeysFromJSArray(JSArray* array);
 
   // Compute the union of this and other.
-  MUST_USE_RESULT Object* UnionOfKeys(FixedArray* other);
+  MUST_USE_RESULT MaybeObject* UnionOfKeys(FixedArray* other);
 
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);
@@ -1903,12 +1944,12 @@ class DescriptorArray: public FixedArray {
   // or null), its enumeration index is kept as is.
   // If adding a real property, map transitions must be removed.  If adding
   // a transition, they must not be removed.  All null descriptors are removed.
-  MUST_USE_RESULT Object* CopyInsert(Descriptor* descriptor,
-                                     TransitionFlag transition_flag);
+  MUST_USE_RESULT MaybeObject* CopyInsert(Descriptor* descriptor,
+                                          TransitionFlag transition_flag);
 
   // Remove all transitions.  Return  a copy of the array with all transitions
   // removed, or a Failure object if the new array could not be allocated.
-  MUST_USE_RESULT Object* RemoveTransitions();
+  MUST_USE_RESULT MaybeObject* RemoveTransitions();
 
   // Sort the instance descriptors by the hash codes of their keys.
   // Does not check for duplicates.
@@ -1941,7 +1982,7 @@ class DescriptorArray: public FixedArray {
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  MUST_USE_RESULT static Object* Allocate(int number_of_descriptors);
+  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_descriptors);
 
   // Casting.
   static inline DescriptorArray* cast(Object* obj);
@@ -2081,7 +2122,7 @@ class HashTable: public FixedArray {
   }
 
   // Returns a new HashTable object. Might return Failure.
-  MUST_USE_RESULT static Object* Allocate(
+  MUST_USE_RESULT static MaybeObject* Allocate(
       int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -2177,7 +2218,7 @@ class HashTable: public FixedArray {
   }
 
   // Ensure enough space for n additional elements.
-  MUST_USE_RESULT Object* EnsureCapacity(int n, Key key);
+  MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
 };
 
 
@@ -2193,7 +2234,7 @@ class HashTableKey {
   virtual uint32_t HashForObject(Object* key) = 0;
   // Returns the key object for storing into the hash table.
   // If allocations fails a failure object is returned.
-  MUST_USE_RESULT virtual Object* AsObject() = 0;
+  MUST_USE_RESULT virtual MaybeObject* AsObject() = 0;
   // Required.
   virtual ~HashTableKey() {}
 };
@@ -2209,7 +2250,7 @@ class SymbolTableShape {
   static uint32_t HashForObject(HashTableKey* key, Object* object) {
     return key->HashForObject(object);
   }
-  MUST_USE_RESULT static Object* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
     return key->AsObject();
   }
 
@@ -2227,8 +2268,8 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   // added.  The return value is the symbol table which might have
   // been enlarged.  If the return value is not a failure, the symbol
   // pointer *s is set to the symbol found.
-  Object* LookupSymbol(Vector<const char> str, Object** s);
-  Object* LookupString(String* key, Object** s);
+  MUST_USE_RESULT MaybeObject* LookupSymbol(Vector<const char> str, Object** s);
+  MUST_USE_RESULT MaybeObject* LookupString(String* key, Object** s);
 
   // Looks up a symbol that is equal to the given string and returns
   // true if it is found, assigning the symbol to the given output
@@ -2240,7 +2281,7 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   static inline SymbolTable* cast(Object* obj);
 
  private:
-  Object* LookupKey(HashTableKey* key, Object** s);
+  MUST_USE_RESULT MaybeObject* LookupKey(HashTableKey* key, Object** s);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SymbolTable);
 };
@@ -2259,7 +2300,7 @@ class MapCacheShape {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static Object* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
     return key->AsObject();
   }
 
@@ -2276,7 +2317,7 @@ class MapCache: public HashTable<MapCacheShape, HashTableKey*> {
  public:
   // Find cached value for a string key, otherwise return null.
   Object* Lookup(FixedArray* key);
-  Object* Put(FixedArray* key, Map* value);
+  MUST_USE_RESULT MaybeObject* Put(FixedArray* key, Map* value);
   static inline MapCache* cast(Object* obj);
 
  private:
@@ -2347,10 +2388,10 @@ class Dictionary: public HashTable<Shape, Key> {
   }
 
   // Returns a new array for dictionary usage. Might return Failure.
-  MUST_USE_RESULT static Object* Allocate(int at_least_space_for);
+  MUST_USE_RESULT static MaybeObject* Allocate(int at_least_space_for);
 
   // Ensure enough space for n additional elements.
-  Object* EnsureCapacity(int n, Key key);
+  MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
 
 #ifdef DEBUG
   void Print();
@@ -2364,20 +2405,22 @@ class Dictionary: public HashTable<Shape, Key> {
                        Object* value,
                        PropertyDetails details);
 
-  Object* Add(Key key, Object* value, PropertyDetails details);
+  MUST_USE_RESULT MaybeObject* Add(Key key,
+                                   Object* value,
+                                   PropertyDetails details);
 
  protected:
   // Generic at put operation.
-  Object* AtPut(Key key, Object* value);
+  MUST_USE_RESULT MaybeObject* AtPut(Key key, Object* value);
 
   // Add entry to dictionary.
-  Object* AddEntry(Key key,
-                   Object* value,
-                   PropertyDetails details,
-                   uint32_t hash);
+  MUST_USE_RESULT MaybeObject* AddEntry(Key key,
+                                        Object* value,
+                                        PropertyDetails details,
+                                        uint32_t hash);
 
   // Generate new enumeration indices to avoid enumeration index overflow.
-  Object* GenerateNewEnumerationIndices();
+  MUST_USE_RESULT MaybeObject* GenerateNewEnumerationIndices();
   static const int kMaxNumberKeyIndex =
       HashTable<Shape, Key>::kPrefixStartIndex;
   static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;
@@ -2389,7 +2432,7 @@ class StringDictionaryShape {
   static inline bool IsMatch(String* key, Object* other);
   static inline uint32_t Hash(String* key);
   static inline uint32_t HashForObject(String* key, Object* object);
-  MUST_USE_RESULT static inline Object* AsObject(String* key);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(String* key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = true;
@@ -2407,8 +2450,9 @@ class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
   void CopyEnumKeysTo(FixedArray* storage, FixedArray* sort_array);
 
   // For transforming properties of a JSObject.
-  Object* TransformPropertiesToFastFor(JSObject* obj,
-                                       int unused_property_fields);
+  MUST_USE_RESULT MaybeObject* TransformPropertiesToFastFor(
+      JSObject* obj,
+      int unused_property_fields);
 
   // Find entry for key otherwise return kNotFound. Optimzed version of
   // HashTable::FindEntry.
@@ -2421,7 +2465,7 @@ class NumberDictionaryShape {
   static inline bool IsMatch(uint32_t key, Object* other);
   static inline uint32_t Hash(uint32_t key);
   static inline uint32_t HashForObject(uint32_t key, Object* object);
-  MUST_USE_RESULT static inline Object* AsObject(uint32_t key);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(uint32_t key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = false;
@@ -2436,13 +2480,15 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
   }
 
   // Type specific at put (default NONE attributes is used when adding).
-  Object* AtNumberPut(uint32_t key, Object* value);
-  Object* AddNumberEntry(uint32_t key,
-                         Object* value,
-                         PropertyDetails details);
+  MUST_USE_RESULT MaybeObject* AtNumberPut(uint32_t key, Object* value);
+  MUST_USE_RESULT MaybeObject* AddNumberEntry(uint32_t key,
+                                              Object* value,
+                                              PropertyDetails details);
 
   // Set an existing entry or add a new one if needed.
-  Object* Set(uint32_t key, Object* value, PropertyDetails details);
+  MUST_USE_RESULT MaybeObject* Set(uint32_t key,
+                                   Object* value,
+                                   PropertyDetails details);
 
   void UpdateMaxNumberKey(uint32_t key);
 
@@ -2509,7 +2555,8 @@ class NormalizedMapCache: public FixedArray {
  public:
   static const int kEntries = 64;
 
-  Object* Get(JSObject* object, PropertyNormalizationMode mode);
+  MUST_USE_RESULT MaybeObject* Get(JSObject* object,
+                                   PropertyNormalizationMode mode);
 
   void Clear();
 
@@ -2686,7 +2733,7 @@ class ExternalByteArray: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  Object* SetValue(uint32_t index, Object* value);
+  MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalByteArray* cast(Object* obj);
@@ -2709,7 +2756,7 @@ class ExternalUnsignedByteArray: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  Object* SetValue(uint32_t index, Object* value);
+  MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUnsignedByteArray* cast(Object* obj);
@@ -2732,7 +2779,7 @@ class ExternalShortArray: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  Object* SetValue(uint32_t index, Object* value);
+  MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalShortArray* cast(Object* obj);
@@ -2755,7 +2802,7 @@ class ExternalUnsignedShortArray: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  Object* SetValue(uint32_t index, Object* value);
+  MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUnsignedShortArray* cast(Object* obj);
@@ -2778,7 +2825,7 @@ class ExternalIntArray: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  Object* SetValue(uint32_t index, Object* value);
+  MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalIntArray* cast(Object* obj);
@@ -2801,7 +2848,7 @@ class ExternalUnsignedIntArray: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  Object* SetValue(uint32_t index, Object* value);
+  MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUnsignedIntArray* cast(Object* obj);
@@ -2824,7 +2871,7 @@ class ExternalFloatArray: public ExternalArray {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  Object* SetValue(uint32_t index, Object* value);
+  MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalFloatArray* cast(Object* obj);
@@ -3192,24 +3239,24 @@ class Map: public HeapObject {
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
 
-  MUST_USE_RESULT Object* CopyDropDescriptors();
+  MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
 
-  MUST_USE_RESULT Object* CopyNormalized(PropertyNormalizationMode mode,
-                                         NormalizedMapSharingMode sharing);
+  MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
+                                              NormalizedMapSharingMode sharing);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
-  MUST_USE_RESULT Object* CopyDropTransitions();
+  MUST_USE_RESULT MaybeObject* CopyDropTransitions();
 
   // Returns this map if it has the fast elements bit set, otherwise
   // returns a copy of the map, with all transitions dropped from the
   // descriptors and the fast elements bit set.
-  inline Object* GetFastElementsMap();
+  MUST_USE_RESULT inline MaybeObject* GetFastElementsMap();
 
   // Returns this map if it has the fast elements bit cleared,
   // otherwise returns a copy of the map, with all transitions dropped
   // from the descriptors and the fast elements bit cleared.
-  inline Object* GetSlowElementsMap();
+  MUST_USE_RESULT inline MaybeObject* GetSlowElementsMap();
 
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);
@@ -3232,7 +3279,7 @@ class Map: public HeapObject {
   inline void ClearCodeCache();
 
   // Update code cache.
-  MUST_USE_RESULT Object* UpdateCodeCache(String* name, Code* code);
+  MUST_USE_RESULT MaybeObject* UpdateCodeCache(String* name, Code* code);
 
   // Returns the found code or undefined if absent.
   Object* FindInCodeCache(String* name, Code::Flags flags);
@@ -3881,7 +3928,7 @@ class JSFunction: public JSObject {
   inline Object* prototype();
   inline Object* instance_prototype();
   Object* SetInstancePrototype(Object* value);
-  MUST_USE_RESULT Object* SetPrototype(Object* value);
+  MUST_USE_RESULT MaybeObject* SetPrototype(Object* value);
 
   // After prototype is removed, it will not be created when accessed, and
   // [[Construct]] from this function will not be allowed.
@@ -3991,8 +4038,17 @@ class GlobalObject: public JSObject {
   // Retrieve the property cell used to store a property.
   Object* GetPropertyCell(LookupResult* result);
 
+  // This is like GetProperty, but is used when you know the lookup won't fail
+  // by throwing an exception.  This is for the debug and builtins global
+  // objects, where it is known which properties can be expected to be present
+  // on the object.
+  Object* GetPropertyNoExceptionThrown(String* key) {
+    Object* answer = GetProperty(key)->ToObjectUnchecked();
+    return answer;
+  }
+
   // Ensure that the global object has a cell for the given property name.
-  Object* EnsurePropertyCell(String* name);
+  MUST_USE_RESULT MaybeObject* EnsurePropertyCell(String* name);
 
   // Casting.
   static inline GlobalObject* cast(Object* obj);
@@ -4222,7 +4278,7 @@ class CompilationCacheShape {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static Object* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
     return key->AsObject();
   }
 
@@ -4238,9 +4294,9 @@ class CompilationCacheTable: public HashTable<CompilationCacheShape,
   Object* Lookup(String* src);
   Object* LookupEval(String* src, Context* context);
   Object* LookupRegExp(String* source, JSRegExp::Flags flags);
-  Object* Put(String* src, Object* value);
-  Object* PutEval(String* src, Context* context, Object* value);
-  Object* PutRegExp(String* src, JSRegExp::Flags flags, FixedArray* value);
+  MaybeObject* Put(String* src, Object* value);
+  MaybeObject* PutEval(String* src, Context* context, Object* value);
+  MaybeObject* PutRegExp(String* src, JSRegExp::Flags flags, FixedArray* value);
 
   static inline CompilationCacheTable* cast(Object* obj);
 
@@ -4255,7 +4311,7 @@ class CodeCache: public Struct {
   DECL_ACCESSORS(normal_type_cache, Object)
 
   // Add the code object to the cache.
-  MUST_USE_RESULT Object* Update(String* name, Code* code);
+  MUST_USE_RESULT MaybeObject* Update(String* name, Code* code);
 
   // Lookup code object in the cache. Returns code object if found and undefined
   // if not.
@@ -4283,8 +4339,8 @@ class CodeCache: public Struct {
   static const int kSize = kNormalTypeCacheOffset + kPointerSize;
 
  private:
-  MUST_USE_RESULT Object* UpdateDefaultCache(String* name, Code* code);
-  MUST_USE_RESULT Object* UpdateNormalTypeCache(String* name, Code* code);
+  MUST_USE_RESULT MaybeObject* UpdateDefaultCache(String* name, Code* code);
+  MUST_USE_RESULT MaybeObject* UpdateNormalTypeCache(String* name, Code* code);
   Object* LookupDefaultCache(String* name, Code::Flags flags);
   Object* LookupNormalTypeCache(String* name, Code::Flags flags);
 
@@ -4312,7 +4368,7 @@ class CodeCacheHashTableShape {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static Object* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
     return key->AsObject();
   }
 
@@ -4325,7 +4381,7 @@ class CodeCacheHashTable: public HashTable<CodeCacheHashTableShape,
                                            HashTableKey*> {
  public:
   Object* Lookup(String* name, Code::Flags flags);
-  MUST_USE_RESULT Object* Put(String* name, Code* code);
+  MUST_USE_RESULT MaybeObject* Put(String* name, Code* code);
 
   int GetIndex(String* name, Code::Flags flags);
   void RemoveByIndex(int index);
@@ -4492,7 +4548,7 @@ class String: public HeapObject {
   //
   // Use FlattenString from Handles.cc to flatten even in case an
   // allocation failure happens.
-  inline Object* TryFlatten(PretenureFlag pretenure = NOT_TENURED);
+  inline MaybeObject* TryFlatten(PretenureFlag pretenure = NOT_TENURED);
 
   // Convenience function.  Has exactly the same behavior as
   // TryFlatten(), except in the case of failure returns the original
@@ -4507,7 +4563,9 @@ class String: public HeapObject {
   bool MarkAsUndetectable();
 
   // Return a substring.
-  Object* SubString(int from, int to, PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT MaybeObject* SubString(int from,
+                                         int to,
+                                         PretenureFlag pretenure = NOT_TENURED);
 
   // String equality operations.
   inline bool Equals(String* other);
@@ -4709,7 +4767,7 @@ class String: public HeapObject {
   // Try to flatten the top level ConsString that is hiding behind this
   // string.  This is a no-op unless the string is a ConsString.  Flatten
   // mutates the ConsString and might return a failure.
-  Object* SlowTryFlatten(PretenureFlag pretenure);
+  MUST_USE_RESULT MaybeObject* SlowTryFlatten(PretenureFlag pretenure);
 
   static inline bool IsHashFieldComputed(uint32_t field);
 
@@ -5101,7 +5159,8 @@ class Oddball: public HeapObject {
 #endif
 
   // Initialize the fields.
-  Object* Initialize(const char* to_string, Object* to_number);
+  MUST_USE_RESULT MaybeObject* Initialize(const char* to_string,
+                                          Object* to_number);
 
   // Layout description.
   static const int kToStringOffset = HeapObject::kHeaderSize;
@@ -5193,13 +5252,13 @@ class JSArray: public JSObject {
   // is set to a smi. This matches the set function on FixedArray.
   inline void set_length(Smi* length);
 
-  MUST_USE_RESULT Object* JSArrayUpdateLengthFromIndex(uint32_t index,
-                                                       Object* value);
+  MUST_USE_RESULT MaybeObject* JSArrayUpdateLengthFromIndex(uint32_t index,
+                                                            Object* value);
 
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested
   // capacity is non-zero.
-  MUST_USE_RESULT Object* Initialize(int capacity);
+  MUST_USE_RESULT MaybeObject* Initialize(int capacity);
 
   // Set the content of the array to the content of storage.
   inline void SetContent(FixedArray* storage);

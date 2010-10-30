@@ -421,7 +421,7 @@ class MacroAssembler: public Assembler {
   // Call a code stub and return the code object called.  Try to generate
   // the code if necessary.  Do not perform a GC but instead return a retry
   // after GC failure.
-  Object* TryCallStub(CodeStub* stub);
+  MUST_USE_RESULT MaybeObject* TryCallStub(CodeStub* stub);
 
   // Tail call a code stub (jump).  Generate the code if necessary.
   void TailCallStub(CodeStub* stub);
@@ -429,7 +429,7 @@ class MacroAssembler: public Assembler {
   // Tail call a code stub (jump) and return the code object called.  Try to
   // generate the code if necessary.  Do not perform a GC but instead return
   // a retry after GC failure.
-  Object* TryTailCallStub(CodeStub* stub);
+  MUST_USE_RESULT MaybeObject* TryTailCallStub(CodeStub* stub);
 
   // Return from a code stub after popping its arguments.
   void StubReturn(int argc);
@@ -440,13 +440,15 @@ class MacroAssembler: public Assembler {
   // Call a runtime function, returning the CodeStub object called.
   // Try to generate the stub code if necessary.  Do not perform a GC
   // but instead return a retry after GC failure.
-  Object* TryCallRuntime(Runtime::Function* f, int num_arguments);
+  MUST_USE_RESULT MaybeObject* TryCallRuntime(Runtime::Function* f,
+                                              int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId id, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
-  Object* TryCallRuntime(Runtime::FunctionId id, int num_arguments);
+  MUST_USE_RESULT MaybeObject* TryCallRuntime(Runtime::FunctionId id,
+                                              int num_arguments);
 
   // Convenience function: call an external reference.
   void CallExternalReference(ExternalReference ref, int num_arguments);
@@ -480,15 +482,16 @@ class MacroAssembler: public Assembler {
   void CallCFunction(ExternalReference function, int num_arguments);
   void CallCFunction(Register function, int num_arguments);
 
-  void PushHandleScope(Register scratch);
+  // Prepares stack to put arguments (aligns and so on). Reserves
+  // space for return value if needed (assumes the return value is a handle).
+  // Uses callee-saved esi to restore stack state after call. Arguments must be
+  // stored in ApiParameterOperand(0), ApiParameterOperand(1) etc.
+  void PrepareCallApiFunction(int stack_space, int argc);
 
-  // Pops a handle scope using the specified scratch register and
-  // ensuring that saved register is left unchanged.
-  void PopHandleScope(Register saved, Register scratch);
-
-  // As PopHandleScope, but does not perform a GC.  Instead, returns a
-  // retry after GC failure object if GC is necessary.
-  Object* TryPopHandleScope(Register saved, Register scratch);
+  // Tail call an API function (jump). Allocates HandleScope, extracts
+  // returned value from handle and propagates exceptions.
+  // Clobbers ebx, esi, edi and caller-save registers.
+  void CallApiFunctionAndReturn(ApiFunction* function, int argc);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext);
@@ -596,9 +599,9 @@ class MacroAssembler: public Assembler {
   // Helper for PopHandleScope.  Allowed to perform a GC and returns
   // NULL if gc_allowed.  Does not perform a GC if !gc_allowed, and
   // possibly returns a failure object indicating an allocation failure.
-  Object* PopHandleScopeHelper(Register saved,
-                               Register scratch,
-                               bool gc_allowed);
+  MUST_USE_RESULT MaybeObject* PopHandleScopeHelper(Register saved,
+                                                    Register scratch,
+                                                    bool gc_allowed);
 };
 
 
@@ -638,6 +641,9 @@ static inline Operand FieldOperand(Register object,
                                    int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
 }
+
+// Generates an Operand for saving parameters after PrepareCallApiFunction.
+Operand ApiParameterOperand(int index);
 
 
 #ifdef GENERATED_CODE_COVERAGE

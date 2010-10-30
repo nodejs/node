@@ -4266,11 +4266,9 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
   for (int i = 0; i < argc; i++) {
     Handle<Object> element = arguments[i];
     if (!element.is_null()) {
-      Object* ok = array->SetFastElement(i, *element);
-      USE(ok);  // Don't get an unused variable warning.
       // We know this doesn't cause a GC here because we allocated the JSArray
       // large enough.
-      ASSERT(!ok->IsFailure());
+      array->SetFastElement(i, *element)->ToObjectUnchecked();
     }
   }
   ZoneList<Expression*>* args = new ZoneList<Expression*>(2);

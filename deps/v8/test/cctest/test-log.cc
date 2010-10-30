@@ -337,8 +337,8 @@ TEST(ProfLazyMode) {
 }
 
 
-// Profiling multiple threads that use V8 is currently only available on Linux.
-#ifdef __linux__
+// BUG(913). Need to implement support for profiling multiple VM threads.
+#if 0
 
 namespace {
 

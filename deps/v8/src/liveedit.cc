@@ -463,7 +463,7 @@ class JSArrayBasedStruct {
     SetElement(array_, field_position, Handle<Smi>(Smi::FromInt(value)));
   }
   Object* GetField(int field_position) {
-    return array_->GetElement(field_position);
+    return array_->GetElementNoExceptionThrown(field_position);
   }
   int GetSmiValueField(int field_position) {
     Object* res = GetField(field_position);
@@ -550,7 +550,7 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
  public:
   static bool IsInstance(Handle<JSArray> array) {
     return array->length() == Smi::FromInt(kSize_) &&
-        array->GetElement(kSharedInfoOffset_)->IsJSValue();
+        array->GetElementNoExceptionThrown(kSharedInfoOffset_)->IsJSValue();
   }
 
   explicit SharedInfoWrapper(Handle<JSArray> array)
@@ -605,16 +605,18 @@ class FunctionInfoListener {
 
   void FunctionDone() {
     HandleScope scope;
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
+    Object* element =
+        result_->GetElementNoExceptionThrown(current_parent_index_);
+    FunctionInfoWrapper info = FunctionInfoWrapper::cast(element);
     current_parent_index_ = info.GetParentIndex();
   }
 
   // Saves only function code, because for a script function we
   // may never create a SharedFunctionInfo object.
   void FunctionCode(Handle<Code> function_code) {
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
+    Object* element =
+        result_->GetElementNoExceptionThrown(current_parent_index_);
+    FunctionInfoWrapper info = FunctionInfoWrapper::cast(element);
     info.SetFunctionCode(function_code, Handle<Object>(Heap::null_value()));
   }
 
@@ -624,8 +626,9 @@ class FunctionInfoListener {
     if (!shared->IsSharedFunctionInfo()) {
       return;
     }
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
+    Object* element =
+        result_->GetElementNoExceptionThrown(current_parent_index_);
+    FunctionInfoWrapper info = FunctionInfoWrapper::cast(element);
     info.SetFunctionCode(Handle<Code>(shared->code()),
         Handle<Object>(shared->scope_info()));
     info.SetSharedFunctionInfo(shared);
@@ -721,7 +724,7 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
   int len = Smi::cast(array->length())->value();
   for (int i = 0; i < len; i++) {
     Handle<SharedFunctionInfo> info(
-        SharedFunctionInfo::cast(array->GetElement(i)));
+        SharedFunctionInfo::cast(array->GetElementNoExceptionThrown(i)));
     SharedInfoWrapper info_wrapper = SharedInfoWrapper::Create();
     Handle<String> name_handle(String::cast(info->name()));
     info_wrapper.SetProperties(name_handle, info->start_position(),
@@ -825,8 +828,9 @@ static bool IsJSFunctionCode(Code* code) {
 }
 
 
-Object* LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
-                                      Handle<JSArray> shared_info_array) {
+MaybeObject* LiveEdit::ReplaceFunctionCode(
+    Handle<JSArray> new_compile_info_array,
+    Handle<JSArray> shared_info_array) {
   HandleScope scope;
 
   if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
@@ -889,17 +893,17 @@ static int TranslatePosition(int original_position,
   int array_len = Smi::cast(position_change_array->length())->value();
   // TODO(635): binary search may be used here
   for (int i = 0; i < array_len; i += 3) {
-    int chunk_start =
-        Smi::cast(position_change_array->GetElement(i))->value();
+    Object* element = position_change_array->GetElementNoExceptionThrown(i);
+    int chunk_start = Smi::cast(element)->value();
     if (original_position < chunk_start) {
       break;
     }
-    int chunk_end =
-        Smi::cast(position_change_array->GetElement(i + 1))->value();
+    element = position_change_array->GetElementNoExceptionThrown(i + 1);
+    int chunk_end = Smi::cast(element)->value();
     // Position mustn't be inside a chunk.
     ASSERT(original_position >= chunk_end);
-    int chunk_changed_end =
-        Smi::cast(position_change_array->GetElement(i + 2))->value();
+    element = position_change_array->GetElementNoExceptionThrown(i + 2);
+    int chunk_changed_end = Smi::cast(element)->value();
     position_diff = chunk_changed_end - chunk_end;
   }
 
@@ -1024,7 +1028,7 @@ static Handle<Code> PatchPositionsInCode(Handle<Code> code,
 }
 
 
-Object* LiveEdit::PatchFunctionPositions(
+MaybeObject* LiveEdit::PatchFunctionPositions(
     Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array) {
 
   if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
@@ -1138,7 +1142,8 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
   }
   int len = Smi::cast(shared_info_array->length())->value();
   for (int i = 0; i < len; i++) {
-    JSValue* wrapper = JSValue::cast(shared_info_array->GetElement(i));
+    JSValue* wrapper =
+        JSValue::cast(shared_info_array->GetElementNoExceptionThrown(i));
     Handle<SharedFunctionInfo> shared(
         SharedFunctionInfo::cast(wrapper->value()));
 

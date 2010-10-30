@@ -3058,74 +3058,12 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 }
 
 
-// If true, a Handle<T> passed by value is passed and returned by
-// using the location_ field directly.  If false, it is passed and
-// returned as a pointer to a handle.
-#ifdef USING_BSD_ABI
-static const bool kPassHandlesDirectly = true;
-#else
-static const bool kPassHandlesDirectly = false;
-#endif
-
-
 void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
-  Label empty_handle;
-  Label prologue;
-  Label promote_scheduled_exception;
-  __ EnterApiExitFrame(kStackSpace, kArgc);
-  STATIC_ASSERT(kArgc == 4);
-  if (kPassHandlesDirectly) {
-    // When handles as passed directly we don't have to allocate extra
-    // space for and pass an out parameter.
-    __ mov(Operand(esp, 0 * kPointerSize), ebx);  // name.
-    __ mov(Operand(esp, 1 * kPointerSize), eax);  // arguments pointer.
-  } else {
-    // The function expects three arguments to be passed but we allocate
-    // four to get space for the output cell.  The argument slots are filled
-    // as follows:
-    //
-    //   3: output cell
-    //   2: arguments pointer
-    //   1: name
-    //   0: pointer to the output cell
-    //
-    // Note that this is one more "argument" than the function expects
-    // so the out cell will have to be popped explicitly after returning
-    // from the function.
-    __ mov(Operand(esp, 1 * kPointerSize), ebx);  // name.
-    __ mov(Operand(esp, 2 * kPointerSize), eax);  // arguments pointer.
-    __ mov(ebx, esp);
-    __ add(Operand(ebx), Immediate(3 * kPointerSize));
-    __ mov(Operand(esp, 0 * kPointerSize), ebx);  // output
-    __ mov(Operand(esp, 3 * kPointerSize), Immediate(0));  // out cell.
-  }
-  // Call the api function!
-  __ call(fun()->address(), RelocInfo::RUNTIME_ENTRY);
-  // Check if the function scheduled an exception.
-  ExternalReference scheduled_exception_address =
-      ExternalReference::scheduled_exception_address();
-  __ cmp(Operand::StaticVariable(scheduled_exception_address),
-         Immediate(Factory::the_hole_value()));
-  __ j(not_equal, &promote_scheduled_exception, not_taken);
-  if (!kPassHandlesDirectly) {
-    // The returned value is a pointer to the handle holding the result.
-    // Dereference this to get to the location.
-    __ mov(eax, Operand(eax, 0));
-  }
-  // Check if the result handle holds 0.
-  __ test(eax, Operand(eax));
-  __ j(zero, &empty_handle, not_taken);
-  // It was non-zero.  Dereference to get the result value.
-  __ mov(eax, Operand(eax, 0));
-  __ bind(&prologue);
-  __ LeaveExitFrame();
-  __ ret(0);
-  __ bind(&promote_scheduled_exception);
-  __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
-  __ bind(&empty_handle);
-  // It was zero; the result is undefined.
-  __ mov(eax, Factory::undefined_value());
-  __ jmp(&prologue);
+  __ PrepareCallApiFunction(kStackSpace, kArgc);
+  STATIC_ASSERT(kArgc == 2);
+  __ mov(ApiParameterOperand(0), ebx);  // name.
+  __ mov(ApiParameterOperand(1), eax);  // arguments pointer.
+  __ CallApiFunctionAndReturn(fun(), kArgc);
 }
 
 

@@ -33,6 +33,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <stdlib.h>
 
@@ -714,7 +715,6 @@ Semaphore* OS::CreateSemaphore(int count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 static Sampler* active_sampler_ = NULL;
-static pthread_t vm_thread_ = 0;
 
 
 #if !defined(__GLIBC__) && (defined(__arm__) || defined(__thumb__))
@@ -743,36 +743,11 @@ enum ArmRegisters {R15 = 15, R13 = 13, R11 = 11};
 #endif
 
 
-// A function that determines if a signal handler is called in the context
-// of a VM thread.
-//
-// The problem is that SIGPROF signal can be delivered to an arbitrary thread
-// (see http://code.google.com/p/google-perftools/issues/detail?id=106#c2)
-// So, if the signal is being handled in the context of a non-VM thread,
-// it means that the VM thread is running, and trying to sample its stack can
-// cause a crash.
-static inline bool IsVmThread() {
-  // In the case of a single VM thread, this check is enough.
-  if (pthread_equal(pthread_self(), vm_thread_)) return true;
-  // If there are multiple threads that use VM, they must have a thread id
-  // stored in TLS. To verify that the thread is really executing VM,
-  // we check Top's data. Having that ThreadManager::RestoreThread first
-  // restores ThreadLocalTop from TLS, and only then erases the TLS value,
-  // reading Top::thread_id() should not be affected by races.
-  if (ThreadManager::HasId() && !ThreadManager::IsArchived() &&
-      ThreadManager::CurrentId() == Top::thread_id()) {
-    return true;
-  }
-  return false;
-}
-
-
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #ifndef V8_HOST_ARCH_MIPS
   USE(info);
   if (signal != SIGPROF) return;
   if (active_sampler_ == NULL) return;
-  if (!IsVmThread()) return;
 
   TickSample sample_obj;
   TickSample* sample = CpuProfiler::TickSampleEvent();
@@ -819,14 +794,43 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 
 class Sampler::PlatformData : public Malloced {
  public:
-  PlatformData() {
-    signal_handler_installed_ = false;
+  explicit PlatformData(Sampler* sampler)
+      : sampler_(sampler),
+        signal_handler_installed_(false),
+        vm_tgid_(getpid()),
+        // Glibc doesn't provide a wrapper for gettid(2).
+        vm_tid_(syscall(SYS_gettid)),
+        signal_sender_launched_(false) {
   }
 
+  void SignalSender() {
+    while (sampler_->IsActive()) {
+      // Glibc doesn't provide a wrapper for tgkill(2).
+      syscall(SYS_tgkill, vm_tgid_, vm_tid_, SIGPROF);
+      // Convert ms to us and subtract 100 us to compensate delays
+      // occuring during signal delivery.
+      int result = usleep(sampler_->interval_ * 1000 - 100);
+      ASSERT(result == 0 || errno == EINTR);
+      USE(result);
+    }
+  }
+
+  Sampler* sampler_;
   bool signal_handler_installed_;
   struct sigaction old_signal_handler_;
-  struct itimerval old_timer_value_;
+  int vm_tgid_;
+  int vm_tid_;
+  bool signal_sender_launched_;
+  pthread_t signal_sender_thread_;
 };
+
+
+static void* SenderEntry(void* arg) {
+  Sampler::PlatformData* data =
+      reinterpret_cast<Sampler::PlatformData*>(arg);
+  data->SignalSender();
+  return 0;
+}
 
 
 Sampler::Sampler(int interval, bool profiling)
@@ -834,7 +838,7 @@ Sampler::Sampler(int interval, bool profiling)
       profiling_(profiling),
       synchronous_(profiling),
       active_(false) {
-  data_ = new PlatformData();
+  data_ = new PlatformData(this);
 }
 
 
@@ -848,8 +852,6 @@ void Sampler::Start() {
   // platforms.
   if (active_sampler_ != NULL) return;
 
-  vm_thread_ = pthread_self();
-
   // Request profiling signals.
   struct sigaction sa;
   sa.sa_sigaction = ProfilerSignalHandler;
@@ -858,31 +860,38 @@ void Sampler::Start() {
   if (sigaction(SIGPROF, &sa, &data_->old_signal_handler_) != 0) return;
   data_->signal_handler_installed_ = true;
 
-  // Set the itimer to generate a tick for each interval.
-  itimerval itimer;
-  itimer.it_interval.tv_sec = interval_ / 1000;
-  itimer.it_interval.tv_usec = (interval_ % 1000) * 1000;
-  itimer.it_value.tv_sec = itimer.it_interval.tv_sec;
-  itimer.it_value.tv_usec = itimer.it_interval.tv_usec;
-  setitimer(ITIMER_PROF, &itimer, &data_->old_timer_value_);
+  // Start a thread that sends SIGPROF signal to VM thread.
+  // Sending the signal ourselves instead of relying on itimer provides
+  // much better accuracy.
+  active_ = true;
+  if (pthread_create(
+          &data_->signal_sender_thread_, NULL, SenderEntry, data_) == 0) {
+    data_->signal_sender_launched_ = true;
+  }
 
   // Set this sampler as the active sampler.
   active_sampler_ = this;
-  active_ = true;
 }
 
 
 void Sampler::Stop() {
+  active_ = false;
+
+  // Wait for signal sender termination (it will exit after setting
+  // active_ to false).
+  if (data_->signal_sender_launched_) {
+    pthread_join(data_->signal_sender_thread_, NULL);
+    data_->signal_sender_launched_ = false;
+  }
+
   // Restore old signal handler
   if (data_->signal_handler_installed_) {
-    setitimer(ITIMER_PROF, &data_->old_timer_value_, NULL);
     sigaction(SIGPROF, &data_->old_signal_handler_, 0);
     data_->signal_handler_installed_ = false;
   }
 
   // This sampler is no longer the active sampler.
   active_sampler_ = NULL;
-  active_ = false;
 }
 
 

@@ -337,6 +337,11 @@ void ExternalReferenceTable::PopulateTable() {
       3,
       "V8::Random");
 
+  Add(ExternalReference::delete_handle_scope_extensions().address(),
+      RUNTIME_ENTRY,
+      3,
+      "HandleScope::DeleteExtensions");
+
   // Miscellaneous
   Add(ExternalReference::the_hole_value_location().address(),
       UNCLASSIFIED,
@@ -457,6 +462,18 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       29,
       "TranscendentalCache::caches()");
+  Add(ExternalReference::handle_scope_next_address().address(),
+      UNCLASSIFIED,
+      30,
+      "HandleScope::next");
+  Add(ExternalReference::handle_scope_limit_address().address(),
+      UNCLASSIFIED,
+      31,
+      "HandleScope::limit");
+  Add(ExternalReference::handle_scope_level_address().address(),
+      UNCLASSIFIED,
+      32,
+      "HandleScope::level");
 }
 
 
@@ -538,14 +555,16 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
   if (!SpaceIsLarge(space_index)) {
     ASSERT(!SpaceIsPaged(space_index) ||
            size <= Page::kPageSize - Page::kObjectStartOffset);
-    Object* new_allocation;
+    MaybeObject* maybe_new_allocation;
     if (space_index == NEW_SPACE) {
-      new_allocation = reinterpret_cast<NewSpace*>(space)->AllocateRaw(size);
+      maybe_new_allocation =
+          reinterpret_cast<NewSpace*>(space)->AllocateRaw(size);
     } else {
-      new_allocation = reinterpret_cast<PagedSpace*>(space)->AllocateRaw(size);
+      maybe_new_allocation =
+          reinterpret_cast<PagedSpace*>(space)->AllocateRaw(size);
     }
+    Object* new_allocation = maybe_new_allocation->ToObjectUnchecked();
     HeapObject* new_object = HeapObject::cast(new_allocation);
-    ASSERT(!new_object->IsFailure());
     address = new_object->address();
     high_water_[space_index] = address + size;
   } else {
@@ -554,14 +573,14 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
     LargeObjectSpace* lo_space = reinterpret_cast<LargeObjectSpace*>(space);
     Object* new_allocation;
     if (space_index == kLargeData) {
-      new_allocation = lo_space->AllocateRaw(size);
+      new_allocation = lo_space->AllocateRaw(size)->ToObjectUnchecked();
     } else if (space_index == kLargeFixedArray) {
-      new_allocation = lo_space->AllocateRawFixedArray(size);
+      new_allocation =
+          lo_space->AllocateRawFixedArray(size)->ToObjectUnchecked();
     } else {
       ASSERT_EQ(kLargeCode, space_index);
-      new_allocation = lo_space->AllocateRawCode(size);
+      new_allocation = lo_space->AllocateRawCode(size)->ToObjectUnchecked();
     }
-    ASSERT(!new_allocation->IsFailure());
     HeapObject* new_object = HeapObject::cast(new_allocation);
     // Record all large objects in the same space.
     address = new_object->address();

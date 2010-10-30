@@ -467,16 +467,21 @@ class V8EXPORT HandleScope {
   // typedef in the ImplementationUtilities class.
   class V8EXPORT Data {
    public:
-    int extensions;
     internal::Object** next;
     internal::Object** limit;
+    int level;
+
     inline void Initialize() {
-      extensions = -1;
       next = limit = NULL;
+      level = 0;
     }
   };
+  
+  void Leave();
 
-  Data previous_;
+  
+  internal::Object** prev_next_;
+  internal::Object** prev_limit_;
 
   // Allow for the active closing of HandleScopes which allows to pass a handle
   // from the HandleScope being closed to the next top most HandleScope.

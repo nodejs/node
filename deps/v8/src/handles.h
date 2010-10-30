@@ -107,12 +107,20 @@ class Handle {
 // for which the handle scope has been deleted is undefined.
 class HandleScope {
  public:
-  HandleScope() : previous_(current_) {
-    current_.extensions = 0;
+  HandleScope() : prev_next_(current_.next), prev_limit_(current_.limit) {
+    current_.level++;
   }
 
   ~HandleScope() {
-    Leave(&previous_);
+    current_.next = prev_next_;
+    current_.level--;
+    if (current_.limit != prev_limit_) {
+      current_.limit = prev_limit_;
+      DeleteExtensions();
+    }
+#ifdef DEBUG
+    ZapRange(prev_next_, prev_limit_);
+#endif
   }
 
   // Counts the number of allocated handles.
@@ -136,9 +144,9 @@ class HandleScope {
   // Deallocates any extensions used by the current scope.
   static void DeleteExtensions();
 
-  static Address current_extensions_address();
   static Address current_next_address();
   static Address current_limit_address();
+  static Address current_level_address();
 
  private:
   // Prevent heap allocation or illegal handle scopes.
@@ -148,27 +156,8 @@ class HandleScope {
   void operator delete(void* size_t);
 
   static v8::ImplementationUtilities::HandleScopeData current_;
-  const v8::ImplementationUtilities::HandleScopeData previous_;
-
-  // Pushes a fresh handle scope to be used when allocating new handles.
-  static void Enter(
-      v8::ImplementationUtilities::HandleScopeData* previous) {
-    *previous = current_;
-    current_.extensions = 0;
-  }
-
-  // Re-establishes the previous scope state. Should be called only
-  // once, and only for the current scope.
-  static void Leave(
-      const v8::ImplementationUtilities::HandleScopeData* previous) {
-    if (current_.extensions > 0) {
-      DeleteExtensions();
-    }
-    current_ = *previous;
-#ifdef DEBUG
-    ZapRange(current_.next, current_.limit);
-#endif
-  }
+  Object** const prev_next_;
+  Object** const prev_limit_;
 
   // Extend the handle scope making room for more handles.
   static internal::Object** Extend();
@@ -193,6 +182,10 @@ void NormalizeProperties(Handle<JSObject> object,
 void NormalizeElements(Handle<JSObject> object);
 void TransformToFastProperties(Handle<JSObject> object,
                                int unused_property_fields);
+void NumberDictionarySet(Handle<NumberDictionary> dictionary,
+                         uint32_t index,
+                         Handle<Object> value,
+                         PropertyDetails details);
 
 // Flattens a string.
 void FlattenString(Handle<String> str);
@@ -358,7 +351,7 @@ class NoHandleAllocation BASE_EMBEDDED {
   inline NoHandleAllocation();
   inline ~NoHandleAllocation();
  private:
-  int extensions_;
+  int level_;
 #endif
 };
 

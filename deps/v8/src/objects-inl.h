@@ -396,25 +396,36 @@ bool Object::IsExternalFloatArray() {
 }
 
 
-bool Object::IsFailure() {
+bool MaybeObject::IsFailure() {
   return HAS_FAILURE_TAG(this);
 }
 
 
-bool Object::IsRetryAfterGC() {
+bool MaybeObject::IsRetryAfterGC() {
   return HAS_FAILURE_TAG(this)
     && Failure::cast(this)->type() == Failure::RETRY_AFTER_GC;
 }
 
 
-bool Object::IsOutOfMemoryFailure() {
+bool MaybeObject::IsOutOfMemory() {
   return HAS_FAILURE_TAG(this)
     && Failure::cast(this)->IsOutOfMemoryException();
 }
 
 
-bool Object::IsException() {
+bool MaybeObject::IsException() {
   return this == Failure::Exception();
+}
+
+
+bool MaybeObject::IsTheHole() {
+  return this == Heap::the_hole_value();
+}
+
+
+Failure* Failure::cast(MaybeObject* obj) {
+  ASSERT(HAS_FAILURE_TAG(obj));
+  return reinterpret_cast<Failure*>(obj);
 }
 
 
@@ -677,11 +688,6 @@ bool Object::IsUndefined() {
 }
 
 
-bool Object::IsTheHole() {
-  return this == Heap::the_hole_value();
-}
-
-
 bool Object::IsNull() {
   return this == Heap::null_value();
 }
@@ -706,7 +712,7 @@ double Object::Number() {
 
 
 
-Object* Object::ToSmi() {
+MaybeObject* Object::ToSmi() {
   if (IsSmi()) return this;
   if (IsHeapNumber()) {
     double value = HeapNumber::cast(this)->value();
@@ -724,18 +730,27 @@ bool Object::HasSpecificClassOf(String* name) {
 }
 
 
-Object* Object::GetElement(uint32_t index) {
+MaybeObject* Object::GetElement(uint32_t index) {
   return GetElementWithReceiver(this, index);
 }
 
 
-Object* Object::GetProperty(String* key) {
+Object* Object::GetElementNoExceptionThrown(uint32_t index) {
+  MaybeObject* maybe = GetElementWithReceiver(this, index);
+  ASSERT(!maybe->IsFailure());
+  Object* result = NULL;  // Initialization to please compiler.
+  maybe->ToObject(&result);
+  return result;
+}
+
+
+MaybeObject* Object::GetProperty(String* key) {
   PropertyAttributes attributes;
   return GetPropertyWithReceiver(this, key, &attributes);
 }
 
 
-Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
+MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
   return GetPropertyWithReceiver(this, key, attributes);
 }
 
@@ -1189,9 +1204,11 @@ void JSObject::initialize_elements() {
 }
 
 
-Object* JSObject::ResetElements() {
-  Object* obj = map()->GetFastElementsMap();
-  if (obj->IsFailure()) return obj;
+MaybeObject* JSObject::ResetElements() {
+  Object* obj;
+  { MaybeObject* maybe_obj = map()->GetFastElementsMap();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
   set_map(Map::cast(obj));
   initialize_elements();
   return this;
@@ -1681,7 +1698,6 @@ CAST_ACCESSOR(ExternalAsciiString)
 CAST_ACCESSOR(ExternalTwoByteString)
 CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(Smi)
-CAST_ACCESSOR(Failure)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(Oddball)
@@ -1754,7 +1770,7 @@ bool String::Equals(String* other) {
 }
 
 
-Object* String::TryFlatten(PretenureFlag pretenure) {
+MaybeObject* String::TryFlatten(PretenureFlag pretenure) {
   if (!StringShape(this).IsCons()) return this;
   ConsString* cons = ConsString::cast(this);
   if (cons->second()->length() == 0) return cons->first();
@@ -1763,8 +1779,12 @@ Object* String::TryFlatten(PretenureFlag pretenure) {
 
 
 String* String::TryFlattenGetString(PretenureFlag pretenure) {
-  Object* flat = TryFlatten(pretenure);
-  return flat->IsFailure() ? this : String::cast(flat);
+  MaybeObject* flat = TryFlatten(pretenure);
+  Object* successfully_flattened;
+  if (flat->ToObject(&successfully_flattened)) {
+    return String::cast(successfully_flattened);
+  }
+  return this;
 }
 
 
@@ -2475,10 +2495,12 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 }
 
 
-Object* Map::GetFastElementsMap() {
+MaybeObject* Map::GetFastElementsMap() {
   if (has_fast_elements()) return this;
-  Object* obj = CopyDropTransitions();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = CopyDropTransitions();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(true);
   Counters::map_slow_to_fast_elements.Increment();
@@ -2486,10 +2508,12 @@ Object* Map::GetFastElementsMap() {
 }
 
 
-Object* Map::GetSlowElementsMap() {
+MaybeObject* Map::GetSlowElementsMap() {
   if (!has_fast_elements()) return this;
-  Object* obj = CopyDropTransitions();
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = CopyDropTransitions();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(false);
   Counters::map_fast_to_slow_elements.Increment();
@@ -3189,13 +3213,17 @@ bool JSObject::AllowsSetElementsLength() {
 }
 
 
-Object* JSObject::EnsureWritableFastElements() {
+MaybeObject* JSObject::EnsureWritableFastElements() {
   ASSERT(HasFastElements());
   FixedArray* elems = FixedArray::cast(elements());
   if (elems->map() != Heap::fixed_cow_array_map()) return elems;
-  Object* writable_elems = Heap::CopyFixedArrayWithMap(elems,
-                                                       Heap::fixed_array_map());
-  if (writable_elems->IsFailure()) return writable_elems;
+  Object* writable_elems;
+  { MaybeObject* maybe_writable_elems =
+        Heap::CopyFixedArrayWithMap(elems, Heap::fixed_array_map());
+    if (!maybe_writable_elems->ToObject(&writable_elems)) {
+      return maybe_writable_elems;
+    }
+  }
   set_elements(FixedArray::cast(writable_elems));
   Counters::cow_arrays_converted.Increment();
   return writable_elems;
@@ -3340,13 +3368,18 @@ bool JSObject::HasHiddenPropertiesObject() {
 Object* JSObject::GetHiddenPropertiesObject() {
   ASSERT(!IsJSGlobalProxy());
   PropertyAttributes attributes;
-  return GetLocalPropertyPostInterceptor(this,
-                                         Heap::hidden_symbol(),
-                                         &attributes);
+  // You can't install a getter on a property indexed by the hidden symbol,
+  // so we can be sure that GetLocalPropertyPostInterceptor returns a real
+  // object.
+  Object* result =
+      GetLocalPropertyPostInterceptor(this,
+                                      Heap::hidden_symbol(),
+                                      &attributes)->ToObjectUnchecked();
+  return result;
 }
 
 
-Object* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
+MaybeObject* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
   ASSERT(!IsJSGlobalProxy());
   return SetPropertyPostInterceptor(Heap::hidden_symbol(),
                                     hidden_obj,
@@ -3453,7 +3486,7 @@ void JSArray::SetContent(FixedArray* storage) {
 }
 
 
-Object* FixedArray::Copy() {
+MaybeObject* FixedArray::Copy() {
   if (length() == 0) return this;
   return Heap::CopyFixedArray(this);
 }

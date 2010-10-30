@@ -207,7 +207,6 @@ LIBRARY_FLAGS = {
     'simulator:arm': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32'],
-      'CPPDEFINES':   ['USE_SIMULATOR']
     },
     'arch:mips': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
@@ -219,7 +218,6 @@ LIBRARY_FLAGS = {
     'simulator:mips': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32'],
-      'CPPDEFINES':   ['USE_SIMULATOR']
     },
     'arch:x64': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],

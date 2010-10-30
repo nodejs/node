@@ -297,8 +297,6 @@ namespace internal {
   F(Log, 2, 1) \
   /* ES5 */ \
   F(LocalKeys, 1, 1) \
-  /* Handle scopes */ \
-  F(DeleteHandleScopeExtensions, 0, 1) \
   /* Cache suport */ \
   F(GetFromCache, 2, 1) \
   \
@@ -488,7 +486,8 @@ class Runtime : public AllStatic {
   // Returns failure if an allocation fails.  In this case, it must be
   // retried with a new, empty StringDictionary, not with the same one.
   // Alternatively, heap initialization can be completely restarted.
-  static Object* InitializeIntrinsicFunctionNames(Object* dictionary);
+  MUST_USE_RESULT static MaybeObject* InitializeIntrinsicFunctionNames(
+      Object* dictionary);
 
   // Get the intrinsic function with the given name, which must be a symbol.
   static Function* FunctionForSymbol(Handle<String> name);
@@ -506,23 +505,29 @@ class Runtime : public AllStatic {
 
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
-  static Object* GetElementOrCharAt(Handle<Object> object, uint32_t index);
-  static Object* GetElement(Handle<Object> object, uint32_t index);
+  MUST_USE_RESULT static MaybeObject* GetElementOrCharAt(Handle<Object> object,
+                                                         uint32_t index);
+  MUST_USE_RESULT static MaybeObject* GetElement(Handle<Object> object,
+                                                 uint32_t index);
 
-  static Object* SetObjectProperty(Handle<Object> object,
-                                   Handle<Object> key,
-                                   Handle<Object> value,
-                                   PropertyAttributes attr);
+  MUST_USE_RESULT static MaybeObject* SetObjectProperty(
+      Handle<Object> object,
+      Handle<Object> key,
+      Handle<Object> value,
+      PropertyAttributes attr);
 
-  static Object* ForceSetObjectProperty(Handle<JSObject> object,
-                                        Handle<Object> key,
-                                        Handle<Object> value,
-                                        PropertyAttributes attr);
+  MUST_USE_RESULT static MaybeObject* ForceSetObjectProperty(
+      Handle<JSObject> object,
+      Handle<Object> key,
+      Handle<Object> value,
+      PropertyAttributes attr);
 
-  static Object* ForceDeleteObjectProperty(Handle<JSObject> object,
-                                           Handle<Object> key);
+  MUST_USE_RESULT static MaybeObject* ForceDeleteObjectProperty(
+      Handle<JSObject> object,
+      Handle<Object> key);
 
-  static Object* GetObjectProperty(Handle<Object> object, Handle<Object> key);
+  MUST_USE_RESULT static MaybeObject* GetObjectProperty(Handle<Object> object,
+                                                        Handle<Object> key);
 
   // This function is used in FunctionNameUsing* tests.
   static Object* FindSharedFunctionInfoInScript(Handle<Script> script,

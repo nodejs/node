@@ -191,7 +191,9 @@ class CallICBase: public IC {
   explicit CallICBase(Code::Kind kind) : IC(EXTRA_CALL_FRAME), kind_(kind) {}
 
  public:
-  Object* LoadFunction(State state, Handle<Object> object, Handle<String> name);
+  MUST_USE_RESULT MaybeObject* LoadFunction(State state,
+                                            Handle<Object> object,
+                                            Handle<String> name);
 
  protected:
   Code::Kind kind_;
@@ -235,7 +237,9 @@ class KeyedCallIC: public CallICBase {
     ASSERT(target()->is_keyed_call_stub());
   }
 
-  Object* LoadFunction(State state, Handle<Object> object, Handle<Object> key);
+  MUST_USE_RESULT MaybeObject* LoadFunction(State state,
+                                            Handle<Object> object,
+                                            Handle<Object> key);
 
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm, int argc) {
@@ -251,7 +255,9 @@ class LoadIC: public IC {
  public:
   LoadIC() : IC(NO_EXTRA_FRAME) { ASSERT(target()->is_load_stub()); }
 
-  Object* Load(State state, Handle<Object> object, Handle<String> name);
+  MUST_USE_RESULT MaybeObject* Load(State state,
+                                    Handle<Object> object,
+                                    Handle<String> name);
 
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
@@ -311,7 +317,9 @@ class KeyedLoadIC: public IC {
  public:
   KeyedLoadIC() : IC(NO_EXTRA_FRAME) { ASSERT(target()->is_keyed_load_stub()); }
 
-  Object* Load(State state, Handle<Object> object, Handle<Object> key);
+  MUST_USE_RESULT MaybeObject* Load(State state,
+                                    Handle<Object> object,
+                                    Handle<Object> key);
 
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
@@ -384,10 +392,10 @@ class StoreIC: public IC {
  public:
   StoreIC() : IC(NO_EXTRA_FRAME) { ASSERT(target()->is_store_stub()); }
 
-  Object* Store(State state,
-                Handle<Object> object,
-                Handle<String> name,
-                Handle<Object> value);
+  MUST_USE_RESULT MaybeObject* Store(State state,
+                                     Handle<Object> object,
+                                     Handle<String> name,
+                                     Handle<Object> value);
 
   // Code generators for stub routines. Only called once at startup.
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
@@ -433,10 +441,10 @@ class KeyedStoreIC: public IC {
  public:
   KeyedStoreIC() : IC(NO_EXTRA_FRAME) { }
 
-  Object* Store(State state,
-                Handle<Object> object,
-                Handle<Object> name,
-                Handle<Object> value);
+  MUST_USE_RESULT MaybeObject* Store(State state,
+                                     Handle<Object> object,
+                                     Handle<Object> name,
+                                     Handle<Object> value);
 
   // Code generators for stub routines.  Only called once at startup.
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }

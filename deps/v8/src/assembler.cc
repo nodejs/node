@@ -583,6 +583,12 @@ ExternalReference ExternalReference::fill_heap_number_with_random_function() {
 }
 
 
+ExternalReference ExternalReference::delete_handle_scope_extensions() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(
+                           HandleScope::DeleteExtensions)));
+}
+
+
 ExternalReference ExternalReference::random_uint32_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(V8::Random)));
 }
@@ -653,8 +659,8 @@ ExternalReference ExternalReference::new_space_allocation_limit_address() {
 }
 
 
-ExternalReference ExternalReference::handle_scope_extensions_address() {
-  return ExternalReference(HandleScope::current_extensions_address());
+ExternalReference ExternalReference::handle_scope_level_address() {
+  return ExternalReference(HandleScope::current_level_address());
 }
 
 

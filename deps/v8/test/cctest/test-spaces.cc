@@ -160,8 +160,8 @@ TEST(NewSpace) {
   CHECK(new_space.HasBeenSetup());
 
   while (new_space.Available() >= Page::kMaxHeapObjectSize) {
-    Object* obj = new_space.AllocateRaw(Page::kMaxHeapObjectSize);
-    CHECK(!obj->IsFailure());
+    Object* obj =
+        new_space.AllocateRaw(Page::kMaxHeapObjectSize)->ToObjectUnchecked();
     CHECK(new_space.Contains(HeapObject::cast(obj)));
   }
 
@@ -188,8 +188,7 @@ TEST(OldSpace) {
   CHECK(s->Setup(start, size));
 
   while (s->Available() > 0) {
-    Object* obj = s->AllocateRaw(Page::kMaxHeapObjectSize);
-    CHECK(!obj->IsFailure());
+    s->AllocateRaw(Page::kMaxHeapObjectSize)->ToObjectUnchecked();
   }
 
   s->TearDown();
@@ -207,8 +206,7 @@ TEST(LargeObjectSpace) {
   Map* faked_map = reinterpret_cast<Map*>(HeapObject::FromAddress(0));
   int lo_size = Page::kPageSize;
 
-  Object* obj = lo->AllocateRaw(lo_size);
-  CHECK(!obj->IsFailure());
+  Object* obj = lo->AllocateRaw(lo_size)->ToObjectUnchecked();
   CHECK(obj->IsHeapObject());
 
   HeapObject* ho = HeapObject::cast(obj);
@@ -222,16 +220,16 @@ TEST(LargeObjectSpace) {
 
   while (true) {
     intptr_t available = lo->Available();
-    obj = lo->AllocateRaw(lo_size);
-    if (obj->IsFailure()) break;
+    { MaybeObject* maybe_obj = lo->AllocateRaw(lo_size);
+      if (!maybe_obj->ToObject(&obj)) break;
+    }
     HeapObject::cast(obj)->set_map(faked_map);
     CHECK(lo->Available() < available);
   };
 
   CHECK(!lo->IsEmpty());
 
-  obj = lo->AllocateRaw(lo_size);
-  CHECK(obj->IsFailure());
+  CHECK(lo->AllocateRaw(lo_size)->IsFailure());
 
   lo->TearDown();
   delete lo;

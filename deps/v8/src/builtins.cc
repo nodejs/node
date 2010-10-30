@@ -121,18 +121,21 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 
 #ifdef DEBUG
 
-#define BUILTIN(name)                                           \
-  static Object* Builtin_Impl_##name(name##ArgumentsType args); \
-  static Object* Builtin_##name(name##ArgumentsType args) {     \
-    args.Verify();                                              \
-    return Builtin_Impl_##name(args);                           \
-  }                                                             \
-  static Object* Builtin_Impl_##name(name##ArgumentsType args)
+#define BUILTIN(name)                                                \
+  MUST_USE_RESULT static MaybeObject* Builtin_Impl_##name(           \
+      name##ArgumentsType args);                                     \
+  MUST_USE_RESULT static MaybeObject* Builtin_##name(                \
+      name##ArgumentsType args) {     \
+    args.Verify();                                                   \
+    return Builtin_Impl_##name(args);                                \
+  }                                                                  \
+  MUST_USE_RESULT static MaybeObject* Builtin_Impl_##name(           \
+    name##ArgumentsType args)
 
 #else  // For release mode.
 
-#define BUILTIN(name)                                           \
-  static Object* Builtin_##name(name##ArgumentsType args)
+#define BUILTIN(name)                                                \
+  static MaybeObject* Builtin_##name(name##ArgumentsType args)
 
 #endif
 
@@ -189,8 +192,10 @@ BUILTIN(ArrayCodeGeneric) {
     // Allocate the JS Array
     JSFunction* constructor =
         Top::context()->global_context()->array_function();
-    Object* obj = Heap::AllocateJSObject(constructor);
-    if (obj->IsFailure()) return obj;
+    Object* obj;
+    { MaybeObject* maybe_obj = Heap::AllocateJSObject(constructor);
+      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    }
     array = JSArray::cast(obj);
   }
 
@@ -204,15 +209,18 @@ BUILTIN(ArrayCodeGeneric) {
     if (obj->IsSmi()) {
       int len = Smi::cast(obj)->value();
       if (len >= 0 && len < JSObject::kInitialMaxFastElementArray) {
-        Object* obj = Heap::AllocateFixedArrayWithHoles(len);
-        if (obj->IsFailure()) return obj;
+        Object* obj;
+        { MaybeObject* maybe_obj = Heap::AllocateFixedArrayWithHoles(len);
+          if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+        }
         array->SetContent(FixedArray::cast(obj));
         return array;
       }
     }
     // Take the argument as the length.
-    obj = array->Initialize(0);
-    if (obj->IsFailure()) return obj;
+    { MaybeObject* maybe_obj = array->Initialize(0);
+      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    }
     return array->SetElementsLength(args[1]);
   }
 
@@ -224,8 +232,10 @@ BUILTIN(ArrayCodeGeneric) {
   // Take the arguments as elements.
   int number_of_elements = args.length() - 1;
   Smi* len = Smi::FromInt(number_of_elements);
-  Object* obj = Heap::AllocateFixedArrayWithHoles(len->value());
-  if (obj->IsFailure()) return obj;
+  Object* obj;
+  { MaybeObject* maybe_obj = Heap::AllocateFixedArrayWithHoles(len->value());
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
   AssertNoAllocation no_gc;
   FixedArray* elms = FixedArray::cast(obj);
@@ -243,18 +253,22 @@ BUILTIN(ArrayCodeGeneric) {
 }
 
 
-MUST_USE_RESULT static Object* AllocateJSArray() {
+MUST_USE_RESULT static MaybeObject* AllocateJSArray() {
   JSFunction* array_function =
       Top::context()->global_context()->array_function();
-  Object* result = Heap::AllocateJSObject(array_function);
-  if (result->IsFailure()) return result;
+  Object* result;
+  { MaybeObject* maybe_result = Heap::AllocateJSObject(array_function);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
   return result;
 }
 
 
-MUST_USE_RESULT static Object* AllocateEmptyJSArray() {
-  Object* result = AllocateJSArray();
-  if (result->IsFailure()) return result;
+MUST_USE_RESULT static MaybeObject* AllocateEmptyJSArray() {
+  Object* result;
+  { MaybeObject* maybe_result = AllocateJSArray();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
   JSArray* result_array = JSArray::cast(result);
   result_array->set_length(Smi::FromInt(0));
   result_array->set_elements(Heap::empty_fixed_array());
@@ -360,7 +374,9 @@ static bool ArrayPrototypeHasNoElements(Context* global_context,
 }
 
 
-static inline Object* EnsureJSArrayWithWritableFastElements(Object* receiver) {
+MUST_USE_RESULT
+static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
+    Object* receiver) {
   if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
   HeapObject* elms = HeapObject::cast(array->elements());
@@ -381,8 +397,9 @@ static inline bool IsJSArrayFastElementMovingAllowed(JSArray* receiver) {
 }
 
 
-static Object* CallJsBuiltin(const char* name,
-                             BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
+MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
+    const char* name,
+    BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
   HandleScope handleScope;
 
   Handle<Object> js_builtin =
@@ -408,9 +425,12 @@ static Object* CallJsBuiltin(const char* name,
 
 BUILTIN(ArrayPush) {
   Object* receiver = *args.receiver();
-  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
-  if (elms_obj == NULL) return CallJsBuiltin("ArrayPush", args);
-  if (elms_obj->IsFailure()) return elms_obj;
+  Object* elms_obj;
+  { MaybeObject* maybe_elms_obj =
+        EnsureJSArrayWithWritableFastElements(receiver);
+    if (maybe_elms_obj == NULL) return CallJsBuiltin("ArrayPush", args);
+    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
+  }
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
 
@@ -428,8 +448,10 @@ BUILTIN(ArrayPush) {
   if (new_length > elms->length()) {
     // New backing storage is needed.
     int capacity = new_length + (new_length >> 1) + 16;
-    Object* obj = Heap::AllocateUninitializedFixedArray(capacity);
-    if (obj->IsFailure()) return obj;
+    Object* obj;
+    { MaybeObject* maybe_obj = Heap::AllocateUninitializedFixedArray(capacity);
+      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    }
     FixedArray* new_elms = FixedArray::cast(obj);
 
     AssertNoAllocation no_gc;
@@ -457,9 +479,12 @@ BUILTIN(ArrayPush) {
 
 BUILTIN(ArrayPop) {
   Object* receiver = *args.receiver();
-  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
-  if (elms_obj == NULL) return CallJsBuiltin("ArrayPop", args);
-  if (elms_obj->IsFailure()) return elms_obj;
+  Object* elms_obj;
+  { MaybeObject* maybe_elms_obj =
+        EnsureJSArrayWithWritableFastElements(receiver);
+    if (maybe_elms_obj == NULL) return CallJsBuiltin("ArrayPop", args);
+    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
+  }
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
 
@@ -467,7 +492,7 @@ BUILTIN(ArrayPop) {
   if (len == 0) return Heap::undefined_value();
 
   // Get top element
-  Object* top = elms->get(len - 1);
+  MaybeObject* top = elms->get(len - 1);
 
   // Set the length.
   array->set_length(Smi::FromInt(len - 1));
@@ -486,8 +511,11 @@ BUILTIN(ArrayPop) {
 
 BUILTIN(ArrayShift) {
   Object* receiver = *args.receiver();
-  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
-  if (elms_obj->IsFailure()) return elms_obj;
+  Object* elms_obj;
+  { MaybeObject* maybe_elms_obj =
+        EnsureJSArrayWithWritableFastElements(receiver);
+    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
+  }
   if (elms_obj == NULL ||
       !IsJSArrayFastElementMovingAllowed(JSArray::cast(receiver))) {
     return CallJsBuiltin("ArrayShift", args);
@@ -525,8 +553,11 @@ BUILTIN(ArrayShift) {
 
 BUILTIN(ArrayUnshift) {
   Object* receiver = *args.receiver();
-  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
-  if (elms_obj->IsFailure()) return elms_obj;
+  Object* elms_obj;
+  { MaybeObject* maybe_elms_obj =
+        EnsureJSArrayWithWritableFastElements(receiver);
+    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
+  }
   if (elms_obj == NULL ||
       !IsJSArrayFastElementMovingAllowed(JSArray::cast(receiver))) {
     return CallJsBuiltin("ArrayUnshift", args);
@@ -545,8 +576,10 @@ BUILTIN(ArrayUnshift) {
   if (new_length > elms->length()) {
     // New backing storage is needed.
     int capacity = new_length + (new_length >> 1) + 16;
-    Object* obj = Heap::AllocateUninitializedFixedArray(capacity);
-    if (obj->IsFailure()) return obj;
+    Object* obj;
+    { MaybeObject* maybe_obj = Heap::AllocateUninitializedFixedArray(capacity);
+      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    }
     FixedArray* new_elms = FixedArray::cast(obj);
 
     AssertNoAllocation no_gc;
@@ -577,8 +610,11 @@ BUILTIN(ArrayUnshift) {
 
 BUILTIN(ArraySlice) {
   Object* receiver = *args.receiver();
-  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
-  if (elms_obj->IsFailure()) return elms_obj;
+  Object* elms_obj;
+  { MaybeObject* maybe_elms_obj =
+        EnsureJSArrayWithWritableFastElements(receiver);
+    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
+  }
   if (elms_obj == NULL ||
       !IsJSArrayFastElementMovingAllowed(JSArray::cast(receiver))) {
     return CallJsBuiltin("ArraySlice", args);
@@ -627,12 +663,16 @@ BUILTIN(ArraySlice) {
     return AllocateEmptyJSArray();
   }
 
-  Object* result = AllocateJSArray();
-  if (result->IsFailure()) return result;
+  Object* result;
+  { MaybeObject* maybe_result = AllocateJSArray();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
   JSArray* result_array = JSArray::cast(result);
 
-  result = Heap::AllocateUninitializedFixedArray(result_len);
-  if (result->IsFailure()) return result;
+  { MaybeObject* maybe_result =
+        Heap::AllocateUninitializedFixedArray(result_len);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
   FixedArray* result_elms = FixedArray::cast(result);
 
   AssertNoAllocation no_gc;
@@ -649,8 +689,11 @@ BUILTIN(ArraySlice) {
 
 BUILTIN(ArraySplice) {
   Object* receiver = *args.receiver();
-  Object* elms_obj = EnsureJSArrayWithWritableFastElements(receiver);
-  if (elms_obj->IsFailure()) return elms_obj;
+  Object* elms_obj;
+  { MaybeObject* maybe_elms_obj =
+        EnsureJSArrayWithWritableFastElements(receiver);
+    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
+  }
   if (elms_obj == NULL ||
       !IsJSArrayFastElementMovingAllowed(JSArray::cast(receiver))) {
     return CallJsBuiltin("ArraySplice", args);
@@ -695,17 +738,23 @@ BUILTIN(ArraySplice) {
 
   JSArray* result_array = NULL;
   if (actual_delete_count == 0) {
-    Object* result = AllocateEmptyJSArray();
-    if (result->IsFailure()) return result;
+    Object* result;
+    { MaybeObject* maybe_result = AllocateEmptyJSArray();
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+    }
     result_array = JSArray::cast(result);
   } else {
     // Allocate result array.
-    Object* result = AllocateJSArray();
-    if (result->IsFailure()) return result;
+    Object* result;
+    { MaybeObject* maybe_result = AllocateJSArray();
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+    }
     result_array = JSArray::cast(result);
 
-    result = Heap::AllocateUninitializedFixedArray(actual_delete_count);
-    if (result->IsFailure()) return result;
+    { MaybeObject* maybe_result =
+          Heap::AllocateUninitializedFixedArray(actual_delete_count);
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+    }
     FixedArray* result_elms = FixedArray::cast(result);
 
     AssertNoAllocation no_gc;
@@ -758,8 +807,11 @@ BUILTIN(ArraySplice) {
     if (new_length > elms->length()) {
       // New backing storage is needed.
       int capacity = new_length + (new_length >> 1) + 16;
-      Object* obj = Heap::AllocateUninitializedFixedArray(capacity);
-      if (obj->IsFailure()) return obj;
+      Object* obj;
+      { MaybeObject* maybe_obj =
+            Heap::AllocateUninitializedFixedArray(capacity);
+        if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+      }
       FixedArray* new_elms = FixedArray::cast(obj);
 
       AssertNoAllocation no_gc;
@@ -838,12 +890,16 @@ BUILTIN(ArrayConcat) {
   }
 
   // Allocate result.
-  Object* result = AllocateJSArray();
-  if (result->IsFailure()) return result;
+  Object* result;
+  { MaybeObject* maybe_result = AllocateJSArray();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
   JSArray* result_array = JSArray::cast(result);
 
-  result = Heap::AllocateUninitializedFixedArray(result_len);
-  if (result->IsFailure()) return result;
+  { MaybeObject* maybe_result =
+        Heap::AllocateUninitializedFixedArray(result_len);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
   FixedArray* result_elms = FixedArray::cast(result);
 
   // Copy data.
@@ -921,7 +977,7 @@ static inline Object* TypeCheck(int argc,
 
 
 template <bool is_construct>
-static Object* HandleApiCallHelper(
+MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
     BuiltinArguments<NEEDS_CALLED_FUNCTION> args) {
   ASSERT(is_construct == CalledAsConstructor());
 
@@ -1079,7 +1135,7 @@ BUILTIN(FastHandleApiCall) {
 // Helper function to handle calls to non-function objects created through the
 // API. The object can be called as either a constructor (using new) or just as
 // a function (without new).
-static Object* HandleApiCallAsFunctionOrConstructor(
+MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
     bool is_construct_call,
     BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
   // Non-functions are never called as constructors. Even if this is an object
@@ -1481,14 +1537,16 @@ void Builtins::Setup(bool create_heap_objects) {
       CodeDesc desc;
       masm.GetCode(&desc);
       Code::Flags flags =  functions[i].flags;
-      Object* code;
+      Object* code = 0;
       {
         // During startup it's OK to always allocate and defer GC to later.
         // This simplifies things because we don't need to retry.
         AlwaysAllocateScope __scope__;
-        code = Heap::CreateCode(desc, flags, masm.CodeObject());
-        if (code->IsFailure()) {
-          v8::internal::V8::FatalProcessOutOfMemory("CreateCode");
+        { MaybeObject* maybe_code =
+              Heap::CreateCode(desc, flags, masm.CodeObject());
+          if (!maybe_code->ToObject(&code)) {
+            v8::internal::V8::FatalProcessOutOfMemory("CreateCode");
+          }
         }
       }
       // Log the event and add the code to the builtins array.
@@ -1535,6 +1593,5 @@ const char* Builtins::Lookup(byte* pc) {
   }
   return NULL;
 }
-
 
 } }  // namespace v8::internal

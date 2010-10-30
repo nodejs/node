@@ -55,18 +55,22 @@ inline T* Handle<T>::operator*() const {
 inline NoHandleAllocation::NoHandleAllocation() {
   v8::ImplementationUtilities::HandleScopeData* current =
       v8::ImplementationUtilities::CurrentHandleScope();
-  extensions_ = current->extensions;
   // Shrink the current handle scope to make it impossible to do
   // handle allocations without an explicit handle scope.
   current->limit = current->next;
-  current->extensions = -1;
+
+  level_ = current->level;
+  current->level = 0;
 }
 
 
 inline NoHandleAllocation::~NoHandleAllocation() {
   // Restore state in current handle scope to re-enable handle
   // allocations.
-  v8::ImplementationUtilities::CurrentHandleScope()->extensions = extensions_;
+  v8::ImplementationUtilities::HandleScopeData* current =
+      v8::ImplementationUtilities::CurrentHandleScope();
+  ASSERT_EQ(0, current->level);
+  current->level = level_;
 }
 #endif
 

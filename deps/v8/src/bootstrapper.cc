@@ -1009,11 +1009,10 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
 }
 
 
-#define INSTALL_NATIVE(Type, name, var)                                  \
-  Handle<String> var##_name = Factory::LookupAsciiSymbol(name);          \
-  global_context()->set_##var(Type::cast(global_context()->              \
-                                           builtins()->                  \
-                                             GetProperty(*var##_name)));
+#define INSTALL_NATIVE(Type, name, var)                                     \
+  Handle<String> var##_name = Factory::LookupAsciiSymbol(name);             \
+  global_context()->set_##var(Type::cast(                                   \
+      global_context()->builtins()->GetPropertyNoExceptionThrown(*var##_name)));
 
 void Genesis::InstallNativeFunctions() {
   HandleScope scope;
@@ -1369,7 +1368,8 @@ static void InstallCustomCallGenerator(Handle<JSObject> holder,
                                        const char* function_name,
                                        int id) {
   Handle<String> name = Factory::LookupAsciiSymbol(function_name);
-  Handle<JSFunction> function(JSFunction::cast(holder->GetProperty(*name)));
+  Object* function_object = holder->GetProperty(*name)->ToObjectUnchecked();
+  Handle<JSFunction> function(JSFunction::cast(function_object));
   function->shared()->set_function_data(Smi::FromInt(id));
 }
 
@@ -1584,8 +1584,9 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
   for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
     Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
     Handle<String> name = Factory::LookupAsciiSymbol(Builtins::GetName(id));
+    Object* function_object = builtins->GetPropertyNoExceptionThrown(*name);
     Handle<JSFunction> function
-        = Handle<JSFunction>(JSFunction::cast(builtins->GetProperty(*name)));
+        = Handle<JSFunction>(JSFunction::cast(function_object));
     builtins->set_javascript_builtin(id, *function);
     Handle<SharedFunctionInfo> shared
         = Handle<SharedFunctionInfo>(function->shared());

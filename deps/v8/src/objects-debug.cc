@@ -40,31 +40,37 @@ namespace internal {
 static const char* TypeToString(InstanceType type);
 
 
-void Object::Print() {
-  if (IsSmi()) {
-    Smi::cast(this)->SmiPrint();
-  } else if (IsFailure()) {
-    Failure::cast(this)->FailurePrint();
+void MaybeObject::Print() {
+  Object* this_as_object;
+  if (ToObject(&this_as_object)) {
+    if (this_as_object->IsSmi()) {
+      Smi::cast(this_as_object)->SmiPrint();
+    } else {
+      HeapObject::cast(this_as_object)->HeapObjectPrint();
+    }
   } else {
-    HeapObject::cast(this)->HeapObjectPrint();
+    Failure::cast(this)->FailurePrint();
   }
   Flush();
 }
 
 
-void Object::PrintLn() {
+void MaybeObject::PrintLn() {
   Print();
   PrintF("\n");
 }
 
 
-void Object::Verify() {
-  if (IsSmi()) {
-    Smi::cast(this)->SmiVerify();
-  } else if (IsFailure()) {
-    Failure::cast(this)->FailureVerify();
+void MaybeObject::Verify() {
+  Object* this_as_object;
+  if (ToObject(&this_as_object)) {
+    if (this_as_object->IsSmi()) {
+      Smi::cast(this_as_object)->SmiVerify();
+    } else {
+      HeapObject::cast(this_as_object)->HeapObjectVerify();
+    }
   } else {
-    HeapObject::cast(this)->HeapObjectVerify();
+    Failure::cast(this)->FailureVerify();
   }
 }
 

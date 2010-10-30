@@ -425,7 +425,8 @@ class CodeRange : public AllStatic {
   // Allocates a chunk of memory from the large-object portion of
   // the code range.  On platforms with no separate code range, should
   // not be called.
-  static void* AllocateRawMemory(const size_t requested, size_t* allocated);
+  MUST_USE_RESULT static void* AllocateRawMemory(const size_t requested,
+                                                 size_t* allocated);
   static void FreeRawMemory(void* buf, size_t length);
 
  private:
@@ -563,9 +564,9 @@ class MemoryAllocator : public AllStatic {
   // If the flag is EXECUTABLE and a code range exists, the requested
   // memory is allocated from the code range.  If a code range exists
   // and the freed memory is in it, the code range manages the freed memory.
-  static void* AllocateRawMemory(const size_t requested,
-                                 size_t* allocated,
-                                 Executability executable);
+  MUST_USE_RESULT static void* AllocateRawMemory(const size_t requested,
+                                                 size_t* allocated,
+                                                 Executability executable);
   static void FreeRawMemory(void* buf,
                             size_t length,
                             Executability executable);
@@ -1010,7 +1011,7 @@ class PagedSpace : public Space {
   // in this space, or Failure::Exception() if it is not. The implementation
   // iterates over objects in the page containing the address, the cost is
   // linear in the number of objects in the page. It may be slow.
-  Object* FindObject(Address addr);
+  MUST_USE_RESULT MaybeObject* FindObject(Address addr);
 
   // Checks whether page is currently in use by this space.
   bool IsUsed(Page* page);
@@ -1059,11 +1060,11 @@ class PagedSpace : public Space {
 
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
-  inline Object* AllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes);
 
   // Allocate the requested number of bytes for relocation during mark-compact
   // collection.
-  inline Object* MCAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT inline MaybeObject* MCAllocateRaw(int size_in_bytes);
 
   virtual bool ReserveSpace(int bytes);
 
@@ -1206,10 +1207,10 @@ class PagedSpace : public Space {
                                          int size_in_bytes) = 0;
 
   // Slow path of AllocateRaw.  This function is space-dependent.
-  virtual HeapObject* SlowAllocateRaw(int size_in_bytes) = 0;
+  MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes) = 0;
 
   // Slow path of MCAllocateRaw.
-  HeapObject* SlowMCAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT HeapObject* SlowMCAllocateRaw(int size_in_bytes);
 
 #ifdef DEBUG
   // Returns the number of total pages in this space.
@@ -1527,13 +1528,13 @@ class NewSpace : public Space {
   Address* allocation_top_address() { return &allocation_info_.top; }
   Address* allocation_limit_address() { return &allocation_info_.limit; }
 
-  Object* AllocateRaw(int size_in_bytes) {
+  MUST_USE_RESULT MaybeObject* AllocateRaw(int size_in_bytes) {
     return AllocateRawInternal(size_in_bytes, &allocation_info_);
   }
 
   // Allocate the requested number of bytes for relocation during mark-compact
   // collection.
-  Object* MCAllocateRaw(int size_in_bytes) {
+  MUST_USE_RESULT MaybeObject* MCAllocateRaw(int size_in_bytes) {
     return AllocateRawInternal(size_in_bytes, &mc_forwarding_info_);
   }
 
@@ -1635,8 +1636,9 @@ class NewSpace : public Space {
 #endif
 
   // Implementation of AllocateRaw and MCAllocateRaw.
-  inline Object* AllocateRawInternal(int size_in_bytes,
-                                     AllocationInfo* alloc_info);
+  MUST_USE_RESULT inline MaybeObject* AllocateRawInternal(
+      int size_in_bytes,
+      AllocationInfo* alloc_info);
 
   friend class SemiSpaceIterator;
 
@@ -1703,7 +1705,7 @@ class OldSpaceFreeList BASE_EMBEDDED {
   // is unitialized.  A failure is returned if no block is available.  The
   // number of bytes lost to fragmentation is returned in the output parameter
   // 'wasted_bytes'.  The size should be a non-zero multiple of the word size.
-  Object* Allocate(int size_in_bytes, int* wasted_bytes);
+  MUST_USE_RESULT MaybeObject* Allocate(int size_in_bytes, int* wasted_bytes);
 
  private:
   // The size range of blocks, in bytes. (Smaller allocations are allowed, but
@@ -1801,7 +1803,7 @@ class FixedSizeFreeList BASE_EMBEDDED {
 
   // Allocate a fixed sized block from the free list.  The block is unitialized.
   // A failure is returned if no block is available.
-  Object* Allocate();
+  MUST_USE_RESULT MaybeObject* Allocate();
 
  private:
   // Available bytes on the free list.
@@ -1881,7 +1883,7 @@ class OldSpace : public PagedSpace {
 
  protected:
   // Virtual function in the superclass.  Slow path of AllocateRaw.
-  HeapObject* SlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes);
 
   // Virtual function in the superclass.  Allocate linearly at the start of
   // the page after current_page (there is assumed to be one).
@@ -1948,7 +1950,7 @@ class FixedSpace : public PagedSpace {
 
  protected:
   // Virtual function in the superclass.  Slow path of AllocateRaw.
-  HeapObject* SlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes);
 
   // Virtual function in the superclass.  Allocate linearly at the start of
   // the page after current_page (there is assumed to be one).
@@ -2166,11 +2168,11 @@ class LargeObjectSpace : public Space {
   void TearDown();
 
   // Allocates a (non-FixedArray, non-Code) large object.
-  Object* AllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT MaybeObject* AllocateRaw(int size_in_bytes);
   // Allocates a large Code object.
-  Object* AllocateRawCode(int size_in_bytes);
+  MUST_USE_RESULT MaybeObject* AllocateRawCode(int size_in_bytes);
   // Allocates a large FixedArray.
-  Object* AllocateRawFixedArray(int size_in_bytes);
+  MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int size_in_bytes);
 
   // Available bytes for objects in this space.
   intptr_t Available() {
@@ -2188,7 +2190,7 @@ class LargeObjectSpace : public Space {
   // Finds an object for a given address, returns Failure::Exception()
   // if it is not found. The function iterates through all objects in this
   // space, may be slow.
-  Object* FindObject(Address a);
+  MaybeObject* FindObject(Address a);
 
   // Finds a large object page containing the given pc, returns NULL
   // if such a page doesn't exist.
@@ -2236,9 +2238,9 @@ class LargeObjectSpace : public Space {
 
   // Shared implementation of AllocateRaw, AllocateRawCode and
   // AllocateRawFixedArray.
-  Object* AllocateRawInternal(int requested_size,
-                              int object_size,
-                              Executability executable);
+  MUST_USE_RESULT MaybeObject* AllocateRawInternal(int requested_size,
+                                                   int object_size,
+                                                   Executability executable);
 
   friend class LargeObjectIterator;
 
