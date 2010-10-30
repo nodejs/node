@@ -87,13 +87,13 @@ process.addListener('exit', function() {
   assert.equal(10000, file3.length);
 });
 
-var file4 = fs.createReadStream(rangeFile, {start: 1, end: 2});
+var file4 = fs.createReadStream(rangeFile, {bufferSize: 1, start: 1, end: 2});
 var contentRead = '';
 file4.addListener('data', function(data) {
-	contentRead += data.toString('utf-8');
+  contentRead += data.toString('utf-8');
 });
 file4.addListener('end', function(data) {
-	assert.equal(contentRead, 'yz');
+  assert.equal(contentRead, 'yz');
 });
 
 try {
