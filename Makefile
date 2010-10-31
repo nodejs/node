@@ -53,12 +53,12 @@ cflags += -pedantic
 
 
 
-debug_CPPDEFINES = -DDEBUG $(CFLAGS)
-debug_CFLAGS = -Wall -O0 -ggdb $(CFLAGS)
+debug_CPPDEFINES = -DDEBUG
+debug_CFLAGS = -Wall -O0 -ggdb
 debug_CXXFLAGS = $(debug_CFLAGS)
 debug_LINKFLAGS = $(LINKFLAGS)
 
-release_CPPDEFINES = -DNODEBUG $(CFLAGS)
+release_CPPDEFINES = -DNODEBUG
 release_CFLAGS = -Wall -O2 $(CFLAGS)
 release_CXXFLAGS = $(release_CFLAGS)
 release_LINKFLAGS = $(LINKFLAGS)
