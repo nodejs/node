@@ -2,7 +2,6 @@
 # @configure_input@
 
 CC = @CC@
-CFLAGS = @CFLAGS@
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
 AR = @AR@

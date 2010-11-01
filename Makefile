@@ -53,12 +53,12 @@ cflags += -pedantic
 
 
 
-debug_CPPDEFINES = -DDEBUG
+debug_CPPFLAGS = -DDEBUG $(CPPFALGS)
 debug_CFLAGS = -Wall -O0 -ggdb
 debug_CXXFLAGS = $(debug_CFLAGS)
 debug_LINKFLAGS = $(LINKFLAGS)
 
-release_CPPDEFINES = -DNODEBUG
+release_CPPFLAGS = -DNODEBUG $(CPPFALGS)
 release_CFLAGS = -Wall -O2 $(CFLAGS)
 release_CXXFLAGS = $(release_CFLAGS)
 release_LINKFLAGS = $(LINKFLAGS)
@@ -393,9 +393,11 @@ docclean:
 
 clean:
 	-rm -f node node_g $(builddir)/node $(builddir)/node_g $(libv8) $(libv8_g)
-	-find $(builddir) -name "*.o" | xargs rm -f
-	-find $(builddir) -name "*.so" | xargs rm -f
-	-find $(builddir) -name "*.dylib" | xargs rm -f
+	-rm -f $(node_release_objects) $(node_debug_objects)
+	-rm -f $(cares_release_objects) $(cares_debug_objects)
+	-rm -f $(http_parser_release_objects) $(http_parser_debug_objects)
+	-rm -f $(libev_release_objects) $(libev_debug_objects)
+	-rm -f $(libeio_release_objects) $(libeio_debug_objects)
 	-find . -name "*.pyc" | xargs rm -f
 
 distclean: docclean
