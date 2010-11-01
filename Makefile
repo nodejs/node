@@ -30,6 +30,10 @@ ifeq ($(platform),solaris)
 	WANT_SOCKET = 1
 endif
 
+ifeq ($(platform),freebsd)
+	LINKFLAGS += -L/usr/local/lib -lpthread -lexecinfo -lkvm
+endif
+
 ifdef WANT_OPENSSL
 	HAVE_OPENSSL = 1
 	HAVE_CRYPTO = 1
