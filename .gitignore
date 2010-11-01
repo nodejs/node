@@ -15,9 +15,3 @@ node
 node_g
 *.swp
 .benchmark_reports
-
-autom4te.cache/
-config.log
-config.mak.autogen
-config.status
-configure.real

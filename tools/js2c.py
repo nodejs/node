@@ -252,7 +252,7 @@ GET_DELAY_SCRIPT_NAME_CASE = """\
     if (index == %(i)i) return Vector<const char>("%(name)s", %(length)i);
 """
 
-def JS2C(source):
+def JS2C(source, target):
   ids = []
   delay_ids = []
   modules = []
@@ -328,7 +328,8 @@ def JS2C(source):
     i = i + 1
 
   # Emit result
-  return HEADER_TEMPLATE % {
+  output = open(str(target[0]), "w")
+  output.write(HEADER_TEMPLATE % {
     'builtin_count': len(ids) + len(delay_ids),
     'delay_count': len(delay_ids),
     'source_lines': "\n".join(source_lines),
@@ -336,11 +337,17 @@ def JS2C(source):
     'get_index_cases': "".join(get_index_cases),
     'get_script_source_cases': "".join(get_script_source_cases),
     'get_script_name_cases': "".join(get_script_name_cases)
-  }
+  })
+  output.close()
 
-
-if __name__ == "__main__":
-  files = sys.argv[1:]
-  print JS2C(files)
-
-
+  if len(target) > 1:
+    output = open(str(target[1]), "w")
+    output.write(HEADER_TEMPLATE % {
+      'builtin_count': len(ids) + len(delay_ids),
+      'delay_count': len(delay_ids),
+      'source_lines': "\n".join(source_lines_empty),
+      'get_index_cases': "".join(get_index_cases),
+      'get_script_source_cases': "".join(get_script_source_cases),
+      'get_script_name_cases': "".join(get_script_name_cases)
+    })
+    output.close()

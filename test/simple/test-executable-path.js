@@ -4,8 +4,8 @@ path = require("path");
 
 isDebug = (process.version.indexOf('debug') >= 0);
 
-debugPath = path.normalize(path.join(__dirname, '..', '..', 'build', 'node_g'));
-defaultPath = path.normalize(path.join(__dirname, '..', '..', 'build', 'node'));
+debugPath = path.normalize(path.join(__dirname, '..', '..', 'build', 'debug', 'node_g'));
+defaultPath = path.normalize(path.join(__dirname, '..', '..', 'build', 'default', 'node'));
 
 console.log('debugPath: ' + debugPath);
 console.log('defaultPath: ' + defaultPath);
