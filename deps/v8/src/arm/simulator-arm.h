@@ -226,6 +226,15 @@ class Simulator {
   void HandleRList(Instr* instr, bool load);
   void SoftwareInterrupt(Instr* instr);
 
+  // Stop helper functions.
+  inline bool isStopInstruction(Instr* instr);
+  inline bool isWatchedStop(uint32_t bkpt_code);
+  inline bool isEnabledStop(uint32_t bkpt_code);
+  inline void EnableStop(uint32_t bkpt_code);
+  inline void DisableStop(uint32_t bkpt_code);
+  inline void IncreaseStopCounter(uint32_t bkpt_code);
+  void PrintStopInfo(uint32_t code);
+
   // Read and write memory.
   inline uint8_t ReadBU(int32_t addr);
   inline int8_t ReadB(int32_t addr);
@@ -252,7 +261,6 @@ class Simulator {
   void DecodeType5(Instr* instr);
   void DecodeType6(Instr* instr);
   void DecodeType7(Instr* instr);
-  void DecodeUnconditional(Instr* instr);
 
   // Support for VFP.
   void DecodeTypeVFP(Instr* instr);
@@ -317,6 +325,23 @@ class Simulator {
   // Registered breakpoints.
   Instr* break_pc_;
   instr_t break_instr_;
+
+  // A stop is watched if its code is less than kNumOfWatchedStops.
+  // Only watched stops support enabling/disabling and the counter feature.
+  static const uint32_t kNumOfWatchedStops = 256;
+
+  // Breakpoint is disabled if bit 31 is set.
+  static const uint32_t kStopDisabledBit = 1 << 31;
+
+  // A stop is enabled, meaning the simulator will stop when meeting the
+  // instruction, if bit 31 of watched_stops[code].count is unset.
+  // The value watched_stops[code].count & ~(1 << 31) indicates how many times
+  // the breakpoint was hit or gone through.
+  struct StopCoundAndDesc {
+    uint32_t count;
+    char* desc;
+  };
+  StopCoundAndDesc watched_stops[kNumOfWatchedStops];
 };
 
 } }  // namespace assembler::arm

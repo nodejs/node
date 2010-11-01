@@ -1004,7 +1004,7 @@ void Assembler::blx(int branch_offset) {  // v5 and above
   int h = ((branch_offset & 2) >> 1)*B24;
   int imm24 = branch_offset >> 2;
   ASSERT(is_int24(imm24));
-  emit(15 << 28 | B27 | B25 | h | (imm24 & Imm24Mask));
+  emit(nv | B27 | B25 | h | (imm24 & Imm24Mask));
 }
 
 
@@ -1634,15 +1634,29 @@ void Assembler::stm(BlockAddrMode am,
 
 
 // Exception-generating instructions and debugging support.
-void Assembler::stop(const char* msg) {
+// Stops with a non-negative code less than kNumOfWatchedStops support
+// enabling/disabling and a counter feature. See simulator-arm.h .
+void Assembler::stop(const char* msg, Condition cond, int32_t code) {
 #ifndef __arm__
-  // The simulator handles these special instructions and stops execution.
-  emit(15 << 28 | ((intptr_t) msg));
+  // See constants-arm.h SoftwareInterruptCodes. Unluckily the Assembler and
+  // Simulator do not share constants declaration.
+  ASSERT(code >= kDefaultStopCode);
+  static const uint32_t kStopInterruptCode = 1 << 23;
+  static const uint32_t kMaxStopCode = kStopInterruptCode - 1;
+  // The Simulator will handle the stop instruction and get the message address.
+  // It expects to find the address just after the svc instruction.
+  BlockConstPoolFor(2);
+  if (code >= 0) {
+    svc(kStopInterruptCode + code, cond);
+  } else {
+    svc(kStopInterruptCode + kMaxStopCode, cond);
+  }
+  emit(reinterpret_cast<Instr>(msg));
 #else  // def __arm__
 #ifdef CAN_USE_ARMV5_INSTRUCTIONS
   bkpt(0);
 #else  // ndef CAN_USE_ARMV5_INSTRUCTIONS
-  swi(0x9f0001);
+  svc(0x9f0001);
 #endif  // ndef CAN_USE_ARMV5_INSTRUCTIONS
 #endif  // def __arm__
 }
@@ -1654,7 +1668,7 @@ void Assembler::bkpt(uint32_t imm16) {  // v5 and above
 }
 
 
-void Assembler::swi(uint32_t imm24, Condition cond) {
+void Assembler::svc(uint32_t imm24, Condition cond) {
   ASSERT(is_uint24(imm24));
   emit(cond | 15*B24 | imm24);
 }

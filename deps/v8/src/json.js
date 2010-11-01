@@ -29,8 +29,7 @@ var $JSON = global.JSON;
 
 function ParseJSONUnfiltered(text) {
   var s = $String(text);
-  var f = %CompileString(s, true);
-  return f();
+  return %ParseJson(s);
 }
 
 function Revive(holder, name, reviver) {

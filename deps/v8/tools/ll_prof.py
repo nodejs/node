@@ -353,7 +353,7 @@ class CodeLogReader(object):
     r"code-info,([^,]+),(\d+)")
 
   _CODE_CREATE_RE = re.compile(
-    r"code-creation,([^,]+),(0x[a-f0-9]+),(\d+),\"([^\"]*)\"(?:,(\d+))?")
+    r"code-creation,([^,]+),(0x[a-f0-9]+),(\d+),\"(.*)\"(?:,(\d+))?")
 
   _CODE_MOVE_RE = re.compile(
     r"code-move,(0x[a-f0-9]+),(0x[a-f0-9]+)")
@@ -910,7 +910,7 @@ if __name__ == "__main__":
       start = time.time()
       mmap_info = trace_reader.ReadMmap(header, offset)
       if mmap_info.filename == V8_GC_FAKE_MMAP:
-        log_reader.ReadUpToGC()
+        log_reader.ReadUpToGC(code_info)
       else:
         library_repo.Load(mmap_info, code_map, options)
       mmap_time += time.time() - start

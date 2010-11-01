@@ -186,12 +186,18 @@ enum Shift {
 
 // Special Software Interrupt codes when used in the presence of the ARM
 // simulator.
+// svc (formerly swi) provides a 24bit immediate value. Use bits 22:0 for
+// standard SoftwareInterrupCode. Bit 23 is reserved for the stop feature.
 enum SoftwareInterruptCodes {
   // transition to C code
   call_rt_redirected = 0x10,
   // break point
-  break_point = 0x20
+  break_point = 0x20,
+  // stop
+  stop = 1 << 23
 };
+static const int32_t kStopCodeMask = stop - 1;
+static const uint32_t kMaxStopCode = stop - 1;
 
 
 // Type of VFP register. Determines register encoding.
@@ -325,7 +331,7 @@ class Instr {
   inline int SImmed24Field() const { return ((InstructionBits() << 8) >> 8); }
 
   // Fields used in Software interrupt instructions
-  inline SoftwareInterruptCodes SwiField() const {
+  inline SoftwareInterruptCodes SvcField() const {
     return static_cast<SoftwareInterruptCodes>(Bits(23, 0));
   }
 

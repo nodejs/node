@@ -125,7 +125,8 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   PostponeInterruptsScope postpone;
   RegExpCompileData parse_result;
   FlatStringReader reader(pattern);
-  if (!Parser::ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
+  if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
+                                 &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
     ThrowRegExpException(re,
                          pattern,
@@ -267,7 +268,8 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
 
   RegExpCompileData compile_data;
   FlatStringReader reader(pattern);
-  if (!Parser::ParseRegExp(&reader, flags.is_multiline(), &compile_data)) {
+  if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
+                                 &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
     ThrowRegExpException(re,

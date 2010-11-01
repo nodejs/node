@@ -164,6 +164,9 @@ namespace internal {
   F(RegExpConstructResult, 3, 1) \
   F(RegExpCloneResult, 1, 1) \
   \
+  /* JSON */ \
+  F(ParseJson, 1, 1) \
+  \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \
   F(StringIndexOf, 3, 1) \
@@ -222,7 +225,7 @@ namespace internal {
   /* Numbers */ \
   \
   /* Globals */ \
-  F(CompileString, 2, 1) \
+  F(CompileString, 1, 1) \
   F(GlobalPrint, 1, 1) \
   \
   /* Eval */ \

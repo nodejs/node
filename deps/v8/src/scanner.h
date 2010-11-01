@@ -296,6 +296,9 @@ class Scanner {
   // Returns the next token.
   Token::Value Next();
 
+  // Returns the current token again.
+  Token::Value current_token() { return current_.token; }
+
   // One token look-ahead (past the token returned by Next()).
   Token::Value peek() const { return next_.token; }
 

@@ -581,25 +581,22 @@ void Heap::EnsureFromSpaceIsCommitted() {
 }
 
 
-class ClearThreadJSFunctionResultCachesVisitor: public ThreadVisitor  {
-  virtual void VisitThread(ThreadLocalTop* top) {
-    Context* context = top->context_;
-    if (context == NULL) return;
+void Heap::ClearJSFunctionResultCaches() {
+  if (Bootstrapper::IsActive()) return;
 
+  Object* context = global_contexts_list_;
+  while (!context->IsUndefined()) {
+    // Get the caches for this context:
     FixedArray* caches =
-      context->global()->global_context()->jsfunction_result_caches();
+      Context::cast(context)->jsfunction_result_caches();
+    // Clear the caches:
     int length = caches->length();
     for (int i = 0; i < length; i++) {
       JSFunctionResultCache::cast(caches->get(i))->Clear();
     }
+    // Get the next context:
+    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
   }
-};
-
-
-void Heap::ClearJSFunctionResultCaches() {
-  if (Bootstrapper::IsActive()) return;
-  ClearThreadJSFunctionResultCachesVisitor visitor;
-  ThreadManager::IterateArchivedThreads(&visitor);
 }
 
 

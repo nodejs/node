@@ -206,8 +206,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
                               Register receiver,
                               Register name,
                               Register scratch,
-                              Register extra) {
+                              Register extra,
+                              Register extra2) {
   Label miss;
+  USE(extra2);  // The register extra2 is not used on the ia32 platform.
 
   // Make sure that code is valid. The shifting code relies on the
   // entry size being 8.
@@ -222,6 +224,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   ASSERT(!extra.is(receiver));
   ASSERT(!extra.is(name));
   ASSERT(!extra.is(scratch));
+
+  // Check scratch and extra registers are valid, and extra2 is unused.
+  ASSERT(!scratch.is(no_reg));
+  ASSERT(extra2.is(no_reg));
 
   // Check that the receiver isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));

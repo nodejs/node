@@ -785,6 +785,11 @@ class CodeGenerator: public AstVisitor {
   // in a spilled state.
   bool in_spilled_code_;
 
+  // A cookie that is used for JIT IMM32 Encoding.  Initialized to a
+  // random number when the command-line
+  // FLAG_mask_constants_with_cookie is true, zero otherwise.
+  int jit_cookie_;
+
   friend class VirtualFrame;
   friend class JumpTarget;
   friend class Reference;

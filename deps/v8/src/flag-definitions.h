@@ -140,6 +140,9 @@ DEFINE_bool(stack_trace_on_abort, true,
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(trace, false, "trace function calls")
 DEFINE_bool(defer_negation, true, "defer negation operation")
+DEFINE_bool(mask_constants_with_cookie,
+            true,
+            "use random jit cookie to mask large constants")
 
 // codegen.cc
 DEFINE_bool(lazy, true, "use lazy compilation")

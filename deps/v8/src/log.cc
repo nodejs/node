@@ -164,7 +164,10 @@ void StackTracer::Trace(TickSample* sample) {
 
   int i = 0;
   const Address callback = VMState::external_callback();
-  if (callback != NULL) {
+  // Surprisingly, PC can point _exactly_ to callback start, with good
+  // probability, and this will result in reporting fake nested
+  // callback call.
+  if (callback != NULL && callback != sample->pc) {
     sample->stack[i++] = callback;
   }
 

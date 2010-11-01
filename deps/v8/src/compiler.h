@@ -49,7 +49,6 @@ class CompilationInfo BASE_EMBEDDED {
   bool is_lazy() const { return (flags_ & IsLazy::mask()) != 0; }
   bool is_eval() const { return (flags_ & IsEval::mask()) != 0; }
   bool is_global() const { return (flags_ & IsGlobal::mask()) != 0; }
-  bool is_json() const { return (flags_ & IsJson::mask()) != 0; }
   bool is_in_loop() const { return (flags_ & IsInLoop::mask()) != 0; }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
@@ -68,10 +67,6 @@ class CompilationInfo BASE_EMBEDDED {
   void MarkAsGlobal() {
     ASSERT(!is_lazy());
     flags_ |= IsGlobal::encode(true);
-  }
-  void MarkAsJson() {
-    ASSERT(!is_lazy());
-    flags_ |= IsJson::encode(true);
   }
   void MarkAsInLoop() {
     ASSERT(is_lazy());
@@ -108,16 +103,15 @@ class CompilationInfo BASE_EMBEDDED {
   // Flags that can be set for eager compilation.
   class IsEval:   public BitField<bool, 1, 1> {};
   class IsGlobal: public BitField<bool, 2, 1> {};
-  class IsJson:   public BitField<bool, 3, 1> {};
   // Flags that can be set for lazy compilation.
-  class IsInLoop: public BitField<bool, 4, 1> {};
+  class IsInLoop: public BitField<bool, 3, 1> {};
 
   unsigned flags_;
 
   // Fields filled in by the compilation pipeline.
   // AST filled in by the parser.
   FunctionLiteral* function_;
-  // The scope of the function literal as a convenience.  Set to indidicate
+  // The scope of the function literal as a convenience.  Set to indicate
   // that scopes have been analyzed.
   Scope* scope_;
   // The compiled code.
@@ -153,8 +147,6 @@ class CompilationInfo BASE_EMBEDDED {
 
 class Compiler : public AllStatic {
  public:
-  enum ValidationState { DONT_VALIDATE_JSON, VALIDATE_JSON };
-
   // All routines return a JSFunction.
   // If an error occurs an exception is raised and
   // the return handle contains NULL.
@@ -172,8 +164,7 @@ class Compiler : public AllStatic {
   // Compile a String source within a context for Eval.
   static Handle<SharedFunctionInfo> CompileEval(Handle<String> source,
                                                 Handle<Context> context,
-                                                bool is_global,
-                                                ValidationState validation);
+                                                bool is_global);
 
   // Compile from function info (used for lazy compilation). Returns true on
   // success and false if the compilation resulted in a stack overflow.

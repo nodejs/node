@@ -1155,13 +1155,13 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 
 ScriptData* ScriptData::PreCompile(const char* input, int length) {
   unibrow::Utf8InputBuffer<> buf(input, length);
-  return i::Parser::PreParse(i::Handle<i::String>(), &buf, NULL);
+  return i::ParserApi::PreParse(i::Handle<i::String>(), &buf, NULL);
 }
 
 
 ScriptData* ScriptData::PreCompile(v8::Handle<String> source) {
   i::Handle<i::String> str = Utils::OpenHandle(*source);
-  return i::Parser::PreParse(str, NULL, NULL);
+  return i::ParserApi::PreParse(str, NULL, NULL);
 }
 
 

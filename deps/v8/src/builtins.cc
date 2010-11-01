@@ -1014,20 +1014,18 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
     Object* data_obj = call_data->data();
     Object* result;
 
-    Handle<Object> data_handle(data_obj);
-    v8::Local<v8::Value> data = v8::Utils::ToLocal(data_handle);
-    ASSERT(raw_holder->IsJSObject());
-    v8::Local<v8::Function> callee = v8::Utils::ToLocal(function);
-    Handle<JSObject> holder_handle(JSObject::cast(raw_holder));
-    v8::Local<v8::Object> holder = v8::Utils::ToLocal(holder_handle);
     LOG(ApiObjectAccess("call", JSObject::cast(*args.receiver())));
+    ASSERT(raw_holder->IsJSObject());
+
+    CustomArguments custom;
+    v8::ImplementationUtilities::PrepareArgumentsData(custom.end(),
+        data_obj, *function, raw_holder);
+
     v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
-        data,
-        holder,
-        callee,
-        is_construct,
-        reinterpret_cast<void**>(&args[0] - 1),
-        args.length() - 1);
+        custom.end(),
+        &args[0] - 1,
+        args.length() - 1,
+        is_construct);
 
     v8::Handle<v8::Value> value;
     {
@@ -1089,26 +1087,22 @@ BUILTIN(FastHandleApiCall) {
 
   Handle<JSFunction> function = args.at<JSFunction>(args_length);
   Object* callback_obj = args[args_length + 1];
-  Handle<Object> data_handle = args.at<Object>(args_length + 2);
+  Handle<Object> data = args.at<Object>(args_length + 2);
   Handle<JSObject> checked_holder = args.at<JSObject>(args_length + 3);
 
 #ifdef DEBUG
   VerifyTypeCheck(checked_holder, function);
 #endif
 
-  v8::Local<v8::Object> holder = v8::Utils::ToLocal(checked_holder);
-  v8::Local<v8::Function> callee = v8::Utils::ToLocal(function);
-  v8::InvocationCallback callback =
-      v8::ToCData<v8::InvocationCallback>(callback_obj);
-  v8::Local<v8::Value> data = v8::Utils::ToLocal(data_handle);
+  CustomArguments custom;
+  v8::ImplementationUtilities::PrepareArgumentsData(custom.end(),
+      *data, *function, *checked_holder);
 
   v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
-      data,
-      holder,
-      callee,
-      is_construct,
-      reinterpret_cast<void**>(&args[0] - 1),
-      args_length - 1);
+      custom.end(),
+      &args[0] - 1,
+      args_length - 1,
+      is_construct);
 
   HandleScope scope;
   Object* result;
@@ -1119,6 +1113,9 @@ BUILTIN(FastHandleApiCall) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
     state.set_external_callback(v8::ToCData<Address>(callback_obj));
 #endif
+    v8::InvocationCallback callback =
+        v8::ToCData<v8::InvocationCallback>(callback_obj);
+
     value = callback(new_args);
   }
   if (value.IsEmpty()) {
@@ -1161,23 +1158,20 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
       v8::ToCData<v8::InvocationCallback>(callback_obj);
 
   // Get the data for the call and perform the callback.
-  Object* data_obj = call_data->data();
   Object* result;
-  { HandleScope scope;
-    v8::Local<v8::Object> self =
-        v8::Utils::ToLocal(Handle<JSObject>::cast(args.receiver()));
-    Handle<Object> data_handle(data_obj);
-    v8::Local<v8::Value> data = v8::Utils::ToLocal(data_handle);
-    Handle<JSFunction> callee_handle(constructor);
-    v8::Local<v8::Function> callee = v8::Utils::ToLocal(callee_handle);
-    LOG(ApiObjectAccess("call non-function", JSObject::cast(*args.receiver())));
+  {
+    HandleScope scope;
+
+    LOG(ApiObjectAccess("call non-function", obj));
+
+    CustomArguments custom;
+    v8::ImplementationUtilities::PrepareArgumentsData(custom.end(),
+        call_data->data(), constructor, obj);
     v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
-        data,
-        self,
-        callee,
-        is_construct_call,
-        reinterpret_cast<void**>(&args[0] - 1),
-        args.length() - 1);
+        custom.end(),
+        &args[0] - 1,
+        args.length() - 1,
+        is_construct_call);
     v8::Handle<v8::Value> value;
     {
       // Leaving JavaScript.

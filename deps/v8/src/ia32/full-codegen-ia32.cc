@@ -1202,6 +1202,11 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // result_saved is false the result is in eax.
   bool result_saved = false;
 
+  // Mark all computed expressions that are bound to a key that
+  // is shadowed by a later occurrence of the same key. For the
+  // marked expressions, no store code is emitted.
+  expr->CalculateEmitStore();
+
   for (int i = 0; i < expr->properties()->length(); i++) {
     ObjectLiteral::Property* property = expr->properties()->at(i);
     if (property->IsCompileTimeValue()) continue;
@@ -1221,8 +1226,10 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           VisitForAccumulatorValue(value);
           __ mov(ecx, Immediate(key->handle()));
           __ mov(edx, Operand(esp, 0));
-          Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-          EmitCallIC(ic,  RelocInfo::CODE_TARGET);
+          if (property->emit_store()) {
+            Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+            EmitCallIC(ic, RelocInfo::CODE_TARGET);
+          }
           break;
         }
         // Fall through.
@@ -1230,7 +1237,11 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         __ push(Operand(esp, 0));  // Duplicate receiver.
         VisitForStackValue(key);
         VisitForStackValue(value);
-        __ CallRuntime(Runtime::kSetProperty, 3);
+        if (property->emit_store()) {
+          __ CallRuntime(Runtime::kSetProperty, 3);
+        } else {
+          __ Drop(3);
+        }
         break;
       case ObjectLiteral::Property::SETTER:
       case ObjectLiteral::Property::GETTER:

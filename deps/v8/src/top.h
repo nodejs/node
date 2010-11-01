@@ -105,7 +105,11 @@ class ThreadLocalTop BASE_EMBEDDED {
   Address handler_;   // try-blocks are chained through the stack
 
 #ifdef USE_SIMULATOR
+#ifdef V8_TARGET_ARCH_ARM
   assembler::arm::Simulator* simulator_;
+#elif V8_TARGET_ARCH_MIPS
+  assembler::mips::Simulator* simulator_;
+#endif
 #endif  // USE_SIMULATOR
 
 #ifdef ENABLE_LOGGING_AND_PROFILING

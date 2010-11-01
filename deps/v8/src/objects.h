@@ -3409,8 +3409,7 @@ class Script: public Struct {
   // Script compilation types.
   enum CompilationType {
     COMPILATION_TYPE_HOST = 0,
-    COMPILATION_TYPE_EVAL = 1,
-    COMPILATION_TYPE_JSON = 2
+    COMPILATION_TYPE_EVAL = 1
   };
 
   // [source]: the script source.

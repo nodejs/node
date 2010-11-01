@@ -1952,7 +1952,9 @@ void JSFunctionResultCache::MakeZeroSize() {
 void JSFunctionResultCache::Clear() {
   int cache_size = Smi::cast(get(kCacheSizeIndex))->value();
   Object** entries_start = RawField(this, OffsetOfElementAt(kEntriesIndex));
-  MemsetPointer(entries_start, Heap::the_hole_value(), cache_size);
+  MemsetPointer(entries_start,
+                Heap::the_hole_value(),
+                cache_size - kEntriesIndex);
   MakeZeroSize();
 }
 

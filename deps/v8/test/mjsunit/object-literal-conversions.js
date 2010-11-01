@@ -25,45 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-externalize-string --expose-gc
+// Test that the various conversions between property names are correctly
+// used when overwriting initializers.
 
-function test() {
-  assertEquals("0123", "aa0bb1cc2dd3".replace(/[a-z]/g, ""));
-  assertEquals("0123", "\u1234a0bb1cc2dd3".replace(/[\u1234a-z]/g, ""));
+var test1 = { 13: 6, "13": 7 };
+var test2 = { 13: 7, "13.0": 6 };
+var test3 = { "13": 6, 13.0000000000000000: 7 };
+var test4 = { 13.213000: 6, "13.213": 7 };
 
-  var expected = "0123";
-  var cons = "a0b1c2d3";
-  for (var i = 0; i < 5; i++) {
-    expected += expected;
-    cons += cons;
-  }
-  assertEquals(expected, cons.replace(/[a-z]/g, ""));
-  cons = "\u12340b1c2d3";
-  for (var i = 0; i < 5; i++) {
-    cons += cons;
-  }
-  assertEquals(expected, cons.replace(/[\u1234a-z]/g, ""));
+assertEquals(7, test1[13]);
+assertEquals(7, test2[13]);
+assertEquals(7, test3[13]);
+assertEquals(7, test4[13.213]);
 
-  cons = "a0b1c2d3";
-  for (var i = 0; i < 5; i++) {
-    cons += cons;
-  }
-  externalizeString(cons, true/* force two-byte */);
-  assertEquals(expected, cons.replace(/[a-z]/g, ""));
-  cons = "\u12340b1c2d3";
-  for (var i = 0; i < 5; i++) {
-    cons += cons;
-  }
-  externalizeString(cons);
-  assertEquals(expected, cons.replace(/[\u1234a-z]/g, ""));
-}
+var test5 = { 13: function() {}, "13": 7 };
+var test6 = { 17.31: function() {}, "17.31": 7 };
 
-test();
-
-// Clear the regexp cache to allow the GC to work.
-"foo".replace(/foo/g, "");
-
-// GC in order to free up things on the C side so we don't get
-// a memory leak.  This makes valgrind happy.
-gc();
-gc();
+assertEquals(7, test5[13]);
+assertEquals(7, test6[17.31]);
+  

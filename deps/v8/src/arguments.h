@@ -84,6 +84,15 @@ class CustomArguments : public Relocatable {
     values_[1] = holder;
     values_[0] = data;
   }
+
+  inline CustomArguments() {
+#ifdef DEBUG
+    for (size_t i = 0; i < ARRAY_SIZE(values_); i++) {
+      values_[i] = reinterpret_cast<Object*>(kZapValue);
+    }
+#endif
+  }
+
   void IterateInstance(ObjectVisitor* v);
   Object** end() { return values_ + ARRAY_SIZE(values_) - 1; }
  private:

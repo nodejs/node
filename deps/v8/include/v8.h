@@ -1790,18 +1790,19 @@ class Arguments {
   inline bool IsConstructCall() const;
   inline Local<Value> Data() const;
  private:
+  static const int kDataIndex = 0;
+  static const int kCalleeIndex = -1;
+  static const int kHolderIndex = -2;
+
   friend class ImplementationUtilities;
-  inline Arguments(Local<Value> data,
-                   Local<Object> holder,
-                   Local<Function> callee,
-                   bool is_construct_call,
-                   void** values, int length);
-  Local<Value> data_;
-  Local<Object> holder_;
-  Local<Function> callee_;
-  bool is_construct_call_;
-  void** values_;
+  inline Arguments(internal::Object** implicit_args,
+                   internal::Object** values,
+                   int length,
+                   bool is_construct_call);
+  internal::Object** implicit_args_;
+  internal::Object** values_;
   int length_;
+  bool is_construct_call_;
 };
 
 
@@ -3470,14 +3471,13 @@ void Persistent<T>::ClearWeak() {
 }
 
 
-Arguments::Arguments(v8::Local<v8::Value> data,
-                     v8::Local<v8::Object> holder,
-                     v8::Local<v8::Function> callee,
-                     bool is_construct_call,
-                     void** values, int length)
-    : data_(data), holder_(holder), callee_(callee),
-      is_construct_call_(is_construct_call),
-      values_(values), length_(length) { }
+Arguments::Arguments(internal::Object** implicit_args,
+                     internal::Object** values, int length,
+                     bool is_construct_call)
+    : implicit_args_(implicit_args),
+      values_(values),
+      length_(length),
+      is_construct_call_(is_construct_call) { }
 
 
 Local<Value> Arguments::operator[](int i) const {
@@ -3487,7 +3487,8 @@ Local<Value> Arguments::operator[](int i) const {
 
 
 Local<Function> Arguments::Callee() const {
-  return callee_;
+  return Local<Function>(reinterpret_cast<Function*>(
+      &implicit_args_[kCalleeIndex]));
 }
 
 
@@ -3497,12 +3498,13 @@ Local<Object> Arguments::This() const {
 
 
 Local<Object> Arguments::Holder() const {
-  return holder_;
+  return Local<Object>(reinterpret_cast<Object*>(
+      &implicit_args_[kHolderIndex]));
 }
 
 
 Local<Value> Arguments::Data() const {
-  return data_;
+  return Local<Value>(reinterpret_cast<Value*>(&implicit_args_[kDataIndex]));
 }
 
 

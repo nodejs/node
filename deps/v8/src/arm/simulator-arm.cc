@@ -112,15 +112,29 @@ static void InitializeCoverage() {
 
 
 void Debugger::Stop(Instr* instr) {
-  char* str = reinterpret_cast<char*>(instr->InstructionBits() & 0x0fffffff);
-  if (strlen(str) > 0) {
+  // Get the stop code.
+  uint32_t code = instr->SvcField() & kStopCodeMask;
+  // Retrieve the encoded address, which comes just after this stop.
+  char** msg_address =
+    reinterpret_cast<char**>(sim_->get_pc() + Instr::kInstrSize);
+  char* msg = *msg_address;
+  ASSERT(msg != NULL);
+
+  // Update this stop description.
+  if (isWatchedStop(code) && !watched_stops[code].desc) {
+    watched_stops[code].desc = msg;
+  }
+
+  if (strlen(msg) > 0) {
     if (coverage_log != NULL) {
-      fprintf(coverage_log, "%s\n", str);
+      fprintf(coverage_log, "%s\n", msg);
       fflush(coverage_log);
     }
-    instr->SetInstructionBits(0xe1a00000);  // Overwrite with nop.
+    // Overwrite the instruction and address with nops.
+    instr->SetInstructionBits(kNopInstr);
+    reinterpret_cast<Instr*>(msg_address)->SetInstructionBits(kNopInstr);
   }
-  sim_->set_pc(sim_->get_pc() + Instr::kInstrSize);
+  sim_->set_pc(sim_->get_pc() + 2 * Instr::kInstrSize);
 }
 
 #else  // ndef GENERATED_CODE_COVERAGE
@@ -130,9 +144,16 @@ static void InitializeCoverage() {
 
 
 void Debugger::Stop(Instr* instr) {
-  const char* str = (const char*)(instr->InstructionBits() & 0x0fffffff);
-  PrintF("Simulator hit %s\n", str);
-  sim_->set_pc(sim_->get_pc() + Instr::kInstrSize);
+  // Get the stop code.
+  uint32_t code = instr->SvcField() & kStopCodeMask;
+  // Retrieve the encoded address, which comes just after this stop.
+  char* msg = *reinterpret_cast<char**>(sim_->get_pc() + Instr::kInstrSize);
+  // Update this stop description.
+  if (sim_->isWatchedStop(code) && !sim_->watched_stops[code].desc) {
+    sim_->watched_stops[code].desc = msg;
+  }
+  PrintF("Simulator hit %s\n", msg);
+  sim_->set_pc(sim_->get_pc() + 2 * Instr::kInstrSize);
   Debug();
 }
 #endif
@@ -359,6 +380,7 @@ void Debugger::Debug() {
         // use a reasonably large buffer
         v8::internal::EmbeddedVector<char, 256> buffer;
 
+        byte* prev = NULL;
         byte* cur = NULL;
         byte* end = NULL;
 
@@ -368,9 +390,9 @@ void Debugger::Debug() {
         } else if (argc == 2) {
           int32_t value;
           if (GetValue(arg1, &value)) {
-            cur = reinterpret_cast<byte*>(value);
-            // no length parameter passed, assume 10 instructions
-            end = cur + (10 * Instr::kInstrSize);
+            cur = reinterpret_cast<byte*>(sim_->get_pc());
+            // Disassemble <arg1> instructions.
+            end = cur + (value * Instr::kInstrSize);
           }
         } else {
           int32_t value1;
@@ -382,10 +404,10 @@ void Debugger::Debug() {
         }
 
         while (cur < end) {
-          dasm.InstructionDecode(buffer, cur);
+          prev = cur;
+          cur += dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08x  %s\n",
-                 reinterpret_cast<intptr_t>(cur), buffer.start());
-          cur += Instr::kInstrSize;
+                 reinterpret_cast<intptr_t>(prev), buffer.start());
         }
       } else if (strcmp(cmd, "gdb") == 0) {
         PrintF("relinquishing control to gdb\n");
@@ -418,13 +440,58 @@ void Debugger::Debug() {
         PrintF("OVERFLOW flag: %d; ", sim_->overflow_vfp_flag_);
         PrintF("UNDERFLOW flag: %d; ", sim_->underflow_vfp_flag_);
         PrintF("INEXACT flag: %d; ", sim_->inexact_vfp_flag_);
-      } else if (strcmp(cmd, "unstop") == 0) {
-        intptr_t stop_pc = sim_->get_pc() - Instr::kInstrSize;
+      } else if (strcmp(cmd, "stop") == 0) {
+        int32_t value;
+        intptr_t stop_pc = sim_->get_pc() - 2 * Instr::kInstrSize;
         Instr* stop_instr = reinterpret_cast<Instr*>(stop_pc);
-        if (stop_instr->ConditionField() == special_condition) {
-          stop_instr->SetInstructionBits(kNopInstr);
+        Instr* msg_address =
+          reinterpret_cast<Instr*>(stop_pc + Instr::kInstrSize);
+        if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
+          // Remove the current stop.
+          if (sim_->isStopInstruction(stop_instr)) {
+            stop_instr->SetInstructionBits(kNopInstr);
+            msg_address->SetInstructionBits(kNopInstr);
+          } else {
+            PrintF("Not at debugger stop.\n");
+          }
+        } else if (argc == 3) {
+          // Print information about all/the specified breakpoint(s).
+          if (strcmp(arg1, "info") == 0) {
+            if (strcmp(arg2, "all") == 0) {
+              PrintF("Stop information:\n");
+              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+                sim_->PrintStopInfo(i);
+              }
+            } else if (GetValue(arg2, &value)) {
+              sim_->PrintStopInfo(value);
+            } else {
+              PrintF("Unrecognized argument.\n");
+            }
+          } else if (strcmp(arg1, "enable") == 0) {
+            // Enable all/the specified breakpoint(s).
+            if (strcmp(arg2, "all") == 0) {
+              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+                sim_->EnableStop(i);
+              }
+            } else if (GetValue(arg2, &value)) {
+              sim_->EnableStop(value);
+            } else {
+              PrintF("Unrecognized argument.\n");
+            }
+          } else if (strcmp(arg1, "disable") == 0) {
+            // Disable all/the specified breakpoint(s).
+            if (strcmp(arg2, "all") == 0) {
+              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+                sim_->DisableStop(i);
+              }
+            } else if (GetValue(arg2, &value)) {
+              sim_->DisableStop(value);
+            } else {
+              PrintF("Unrecognized argument.\n");
+            }
+          }
         } else {
-          PrintF("Not at debugger stop.");
+          PrintF("Wrong usage. Use help command for more information.\n");
         }
       } else if ((strcmp(cmd, "t") == 0) || strcmp(cmd, "trace") == 0) {
         ::v8::internal::FLAG_trace_sim = !::v8::internal::FLAG_trace_sim;
@@ -455,11 +522,29 @@ void Debugger::Debug() {
         PrintF("  set a break point on the address\n");
         PrintF("del\n");
         PrintF("  delete the breakpoint\n");
-        PrintF("unstop\n");
-        PrintF("  ignore the stop instruction at the current location");
-        PrintF("  from now on\n");
         PrintF("trace (alias 't')\n");
         PrintF("  toogle the tracing of all executed statements\n");
+        PrintF("stop feature:\n");
+        PrintF("  Description:\n");
+        PrintF("    Stops are debug instructions inserted by\n");
+        PrintF("    the Assembler::stop() function.\n");
+        PrintF("    When hitting a stop, the Simulator will\n");
+        PrintF("    stop and and give control to the Debugger.\n");
+        PrintF("    The first %d stop codes are watched:\n",
+               Simulator::kNumOfWatchedStops);
+        PrintF("    - They can be enabled / disabled: the Simulator\n");
+        PrintF("       will / won't stop when hitting them.\n");
+        PrintF("    - The Simulator keeps track of how many times they \n");
+        PrintF("      are met. (See the info command.) Going over a\n");
+        PrintF("      disabled stop still increases its counter. \n");
+        PrintF("  Commands:\n");
+        PrintF("    stop info all/<code> : print infos about number <code>\n");
+        PrintF("      or all stop(s).\n");
+        PrintF("    stop enable/disable all/<code> : enables / disables\n");
+        PrintF("      all or number <code> stop(s)\n");
+        PrintF("    stop unstop\n");
+        PrintF("      ignore the stop instruction at the current location\n");
+        PrintF("      from now on\n");
       } else {
         PrintF("Unknown command: %s\n", cmd);
       }
@@ -643,9 +728,9 @@ Simulator::Simulator() {
 // the simulator.  The external reference will be a function compiled for the
 // host architecture.  We need to call that function instead of trying to
 // execute it with the simulator.  We do that by redirecting the external
-// reference to a swi (software-interrupt) instruction that is handled by
+// reference to a svc (Supervisor Call) instruction that is handled by
 // the simulator.  We write the original destination of the jump just at a known
-// offset from the swi instruction so the simulator knows what to call.
+// offset from the svc instruction so the simulator knows what to call.
 class Redirection {
  public:
   Redirection(void* external_function, bool fp_return)
@@ -1434,8 +1519,8 @@ typedef double (*SimulatorRuntimeFPCall)(int32_t arg0,
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.
 void Simulator::SoftwareInterrupt(Instr* instr) {
-  int swi = instr->SwiField();
-  switch (swi) {
+  int svc = instr->SvcField();
+  switch (svc) {
     case call_rt_redirected: {
       // Check if stack is aligned. Error if not aligned is reported below to
       // include information on the function called.
@@ -1505,9 +1590,98 @@ void Simulator::SoftwareInterrupt(Instr* instr) {
       dbg.Debug();
       break;
     }
+    // stop uses all codes greater than 1 << 23.
     default: {
-      UNREACHABLE();
-      break;
+      if (svc >= (1 << 23)) {
+        uint32_t code = svc & kStopCodeMask;
+        if (isWatchedStop(code)) {
+          IncreaseStopCounter(code);
+        }
+        // Stop if it is enabled, otherwise go on jumping over the stop
+        // and the message address.
+        if (isEnabledStop(code)) {
+          Debugger dbg(this);
+          dbg.Stop(instr);
+        } else {
+          set_pc(get_pc() + 2 * Instr::kInstrSize);
+        }
+      } else {
+        // This is not a valid svc code.
+        UNREACHABLE();
+        break;
+      }
+    }
+  }
+}
+
+
+// Stop helper functions.
+bool Simulator::isStopInstruction(Instr* instr) {
+  return (instr->Bits(27, 24) == 0xF) && (instr->SvcField() >= stop);
+}
+
+
+bool Simulator::isWatchedStop(uint32_t code) {
+  ASSERT(code <= kMaxStopCode);
+  return code < kNumOfWatchedStops;
+}
+
+
+bool Simulator::isEnabledStop(uint32_t code) {
+  ASSERT(code <= kMaxStopCode);
+  // Unwatched stops are always enabled.
+  return !isWatchedStop(code) ||
+    !(watched_stops[code].count & kStopDisabledBit);
+}
+
+
+void Simulator::EnableStop(uint32_t code) {
+  ASSERT(isWatchedStop(code));
+  if (!isEnabledStop(code)) {
+    watched_stops[code].count &= ~kStopDisabledBit;
+  }
+}
+
+
+void Simulator::DisableStop(uint32_t code) {
+  ASSERT(isWatchedStop(code));
+  if (isEnabledStop(code)) {
+    watched_stops[code].count |= kStopDisabledBit;
+  }
+}
+
+
+void Simulator::IncreaseStopCounter(uint32_t code) {
+  ASSERT(code <= kMaxStopCode);
+  ASSERT(isWatchedStop(code));
+  if ((watched_stops[code].count & ~(1 << 31)) == 0x7fffffff) {
+    PrintF("Stop counter for code %i has overflowed.\n"
+           "Enabling this code and reseting the counter to 0.\n", code);
+    watched_stops[code].count = 0;
+    EnableStop(code);
+  } else {
+    watched_stops[code].count++;
+  }
+}
+
+
+// Print a stop status.
+void Simulator::PrintStopInfo(uint32_t code) {
+  ASSERT(code <= kMaxStopCode);
+  if (!isWatchedStop(code)) {
+    PrintF("Stop not watched.");
+  } else {
+    const char* state = isEnabledStop(code) ? "Enabled" : "Disabled";
+    int32_t count = watched_stops[code].count & ~kStopDisabledBit;
+    // Don't print the state of unused breakpoints.
+    if (count != 0) {
+      if (watched_stops[code].desc) {
+        PrintF("stop %i - 0x%x: \t%s, \tcounter = %i, \t%s\n",
+               code, code, state, count, watched_stops[code].desc);
+      } else {
+        PrintF("stop %i - 0x%x: \t%s, \tcounter = %i\n",
+               code, code, state, count);
+      }
     }
   }
 }
@@ -2216,73 +2390,6 @@ void Simulator::DecodeType7(Instr* instr) {
 }
 
 
-void Simulator::DecodeUnconditional(Instr* instr) {
-  if (instr->Bits(7, 4) == 0x0B && instr->Bits(27, 25) == 0 && instr->HasL()) {
-    // Load halfword instruction, either register or immediate offset.
-    int rd = instr->RdField();
-    int rn = instr->RnField();
-    int32_t rn_val = get_register(rn);
-    int32_t addr = 0;
-    int32_t offset;
-    if (instr->Bit(22) == 0) {
-      // Register offset.
-      int rm = instr->RmField();
-      offset = get_register(rm);
-    } else {
-      // Immediate offset
-      offset = instr->Bits(3, 0) + (instr->Bits(11, 8) << 4);
-    }
-    switch (instr->PUField()) {
-      case 0: {
-        // Post index, negative.
-        ASSERT(!instr->HasW());
-        addr = rn_val;
-        rn_val -= offset;
-        set_register(rn, rn_val);
-        break;
-      }
-      case 1: {
-        // Post index, positive.
-        ASSERT(!instr->HasW());
-        addr = rn_val;
-        rn_val += offset;
-        set_register(rn, rn_val);
-        break;
-      }
-      case 2: {
-        // Pre index or offset, negative.
-        rn_val -= offset;
-        addr = rn_val;
-        if (instr->HasW()) {
-          set_register(rn, rn_val);
-        }
-        break;
-      }
-      case 3: {
-        // Pre index or offset, positive.
-        rn_val += offset;
-        addr = rn_val;
-        if (instr->HasW()) {
-          set_register(rn, rn_val);
-        }
-        break;
-      }
-      default: {
-        // The PU field is a 2-bit field.
-        UNREACHABLE();
-        break;
-      }
-    }
-    // Not sign extending, so load as unsigned.
-    uint16_t halfword = ReadH(addr, instr);
-    set_register(rd, halfword);
-  } else {
-    Debugger dbg(this);
-    dbg.Stop(instr);
-  }
-}
-
-
 // void Simulator::DecodeTypeVFP(Instr* instr)
 // The Following ARMv7 VFPv instructions are currently supported.
 // vmov :Sn = Rt
@@ -2655,7 +2762,7 @@ void Simulator::InstructionDecode(Instr* instr) {
     PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
   }
   if (instr->ConditionField() == special_condition) {
-    DecodeUnconditional(instr);
+    UNIMPLEMENTED();
   } else if (ConditionallyExecute(instr)) {
     switch (instr->TypeField()) {
       case 0:

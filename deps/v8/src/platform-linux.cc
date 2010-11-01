@@ -856,7 +856,7 @@ void Sampler::Start() {
   struct sigaction sa;
   sa.sa_sigaction = ProfilerSignalHandler;
   sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_SIGINFO;
+  sa.sa_flags = SA_RESTART | SA_SIGINFO;
   if (sigaction(SIGPROF, &sa, &data_->old_signal_handler_) != 0) return;
   data_->signal_handler_installed_ = true;
 

@@ -404,7 +404,7 @@ static void CompileScriptForTracker(Handle<Script> script) {
   // Build AST.
   CompilationInfo info(script);
   info.MarkAsGlobal();
-  if (Parser::Parse(&info)) {
+  if (ParserApi::Parse(&info)) {
     // Compile the code.
     LiveEditFunctionTracker tracker(info.function());
     if (Compiler::MakeCodeForLiveEdit(&info)) {

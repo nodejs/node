@@ -273,9 +273,11 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
                               Register receiver,
                               Register name,
                               Register scratch,
-                              Register extra) {
+                              Register extra,
+                              Register extra2) {
   Label miss;
-  USE(extra);  // The register extra is not used on the X64 platform.
+  USE(extra);   // The register extra is not used on the X64 platform.
+  USE(extra2);  // The register extra2 is not used on the X64 platform.
   // Make sure that code is valid. The shifting code relies on the
   // entry size being 16.
   ASSERT(sizeof(Entry) == 16);
@@ -286,6 +288,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   // Make sure that there are no register conflicts.
   ASSERT(!scratch.is(receiver));
   ASSERT(!scratch.is(name));
+
+  // Check scratch register is valid, extra and extra2 are unused.
+  ASSERT(!scratch.is(no_reg));
+  ASSERT(extra2.is(no_reg));
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, &miss);

@@ -36,7 +36,6 @@ var current_source = '';  // Current source being compiled.
 var source_count = 0;  // Total number of scources compiled.
 var host_compilations = 0;  // Number of scources compiled through the API.
 var eval_compilations = 0;  // Number of scources compiled through eval.
-var json_compilations = 0;  // Number of scources compiled through JSON.parse.
 
 
 function compileSource(source) {
@@ -62,9 +61,6 @@ function listener(event, exec_state, event_data, data) {
           case Debug.ScriptCompilationType.Eval:
             eval_compilations++;
             break;
-          case Debug.ScriptCompilationType.JSON:
-            json_compilations++;
-            break;
         }
       }
 
@@ -74,13 +70,6 @@ function listener(event, exec_state, event_data, data) {
         // For source with 'eval' there will be compile events with substrings
         // as well as with with the exact source.
         assertTrue(current_source.indexOf(event_data.script().source()) >= 0);
-      } else if (current_source.indexOf('JSON.parse') == 0) {
-        // For JSON the JSON source will be in parentheses.
-        var s = event_data.script().source();
-        if (s[0] == '(') {
-          s = s.substring(1, s.length - 2);
-        }
-        assertTrue(current_source.indexOf(s) >= 0);
       } else {
         // For source without 'eval' there will be a compile events with the
         // exact source.
@@ -113,7 +102,7 @@ source_count++;  // Using eval causes additional compilation event.
 compileSource('eval("eval(\'(function(){return a;})\')")');
 source_count += 2;  // Using eval causes additional compilation event.
 compileSource('JSON.parse(\'{"a":1,"b":2}\')');
-source_count++;  // Using JSON.parse causes additional compilation event.
+// Using JSON.parse does not causes additional compilation events.
 compileSource('x=1; //@ sourceURL=myscript.js');
 
 // Make sure that the debug event listener was invoked.
@@ -123,10 +112,9 @@ assertFalse(exception, "exception in listener")
 assertEquals(before_compile_count, after_compile_count);
 
 // Check the actual number of events (no compilation through the API as all
-// source compiled through eval except for one JSON.parse call).
+// source compiled through eval).
 assertEquals(source_count, after_compile_count);
 assertEquals(0, host_compilations);
-assertEquals(source_count - 1, eval_compilations);
-assertEquals(1, json_compilations);
+assertEquals(source_count, eval_compilations);
 
 Debug.setListener(null);

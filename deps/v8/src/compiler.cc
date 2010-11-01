@@ -152,10 +152,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   script->set_context_data((*i::Top::global_context())->data());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (info->is_eval() || info->is_json()) {
-    Script::CompilationType compilation_type = info->is_json()
-        ? Script::COMPILATION_TYPE_JSON
-        : Script::COMPILATION_TYPE_EVAL;
+  if (info->is_eval()) {
+    Script::CompilationType compilation_type = Script::COMPILATION_TYPE_EVAL;
     script->set_compilation_type(Smi::FromInt(compilation_type));
     // For eval scripts add information on the function from which eval was
     // called.
@@ -178,7 +176,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // Only allow non-global compiles for eval.
   ASSERT(info->is_eval() || info->is_global());
 
-  if (!Parser::Parse(info)) return Handle<SharedFunctionInfo>::null();
+  if (!ParserApi::Parse(info)) return Handle<SharedFunctionInfo>::null();
 
   // Measure how long it takes to do the compilation; only take the
   // rest of the function into account to avoid overlap with the
@@ -283,7 +281,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     if (pre_data == NULL
         && FLAG_lazy
         && source_length >= FLAG_min_preparse_length) {
-      pre_data = Parser::PartialPreParse(source, NULL, extension);
+      pre_data = ParserApi::PartialPreParse(source, NULL, extension);
     }
 
     // Create a script object describing the script to be compiled.
@@ -323,13 +321,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
 
 Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
                                                  Handle<Context> context,
-                                                 bool is_global,
-                                                 ValidationState validate) {
-  // Note that if validation is required then no path through this function
-  // is allowed to return a value without validating that the input is legal
-  // json.
-  bool is_json = (validate == VALIDATE_JSON);
-
+                                                 bool is_global) {
   int source_length = source->length();
   Counters::total_eval_size.Increment(source_length);
   Counters::total_compile_size.Increment(source_length);
@@ -338,13 +330,9 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
   VMState state(COMPILER);
 
   // Do a lookup in the compilation cache; if the entry is not there, invoke
-  // the compiler and add the result to the cache.  If we're evaluating json
-  // we bypass the cache since we can't be sure a potential value in the
-  // cache has been validated.
+  // the compiler and add the result to the cache.
   Handle<SharedFunctionInfo> result;
-  if (!is_json) {
-    result = CompilationCache::LookupEval(source, context, is_global);
-  }
+  result = CompilationCache::LookupEval(source, context, is_global);
 
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
@@ -352,12 +340,9 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     CompilationInfo info(script);
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
-    if (is_json) info.MarkAsJson();
     info.SetCallingContext(context);
     result = MakeFunctionInfo(&info);
-    if (!result.is_null() && !is_json) {
-      // For json it's unlikely that we'll ever see exactly the same string
-      // again so we don't use the compilation cache.
+    if (!result.is_null()) {
       CompilationCache::PutEval(source, context, is_global, result);
     }
   }
@@ -379,7 +364,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   Counters::total_compile_size.Increment(compiled_size);
 
   // Generate the AST for the lazily compiled function.
-  if (Parser::Parse(info)) {
+  if (ParserApi::Parse(info)) {
     // Measure how long it takes to do the lazy compilation; only take the
     // rest of the function into account to avoid overlap with the lazy
     // parsing statistics.

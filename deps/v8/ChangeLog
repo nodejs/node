@@ -1,3 +1,12 @@
+2010-11-01: Version 2.5.3
+
+        Fixed a bug that prevents constants from overwriting function values
+        in object literals (issue 907).
+
+        Fixed a bug with reporting of impossible nested calls of DOM functions
+        (issue http://crbug.com/60753).
+
+
 2010-10-27: Version 2.5.2
 
         Improved sampler resolution on Linux.

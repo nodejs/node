@@ -25,45 +25,94 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-externalize-string --expose-gc
+// Check that constants and computed properties are overwriting each other
+// correctly, i.e., the last initializer for any name is stored in the object.
 
-function test() {
-  assertEquals("0123", "aa0bb1cc2dd3".replace(/[a-z]/g, ""));
-  assertEquals("0123", "\u1234a0bb1cc2dd3".replace(/[\u1234a-z]/g, ""));
 
-  var expected = "0123";
-  var cons = "a0b1c2d3";
-  for (var i = 0; i < 5; i++) {
-    expected += expected;
-    cons += cons;
-  }
-  assertEquals(expected, cons.replace(/[a-z]/g, ""));
-  cons = "\u12340b1c2d3";
-  for (var i = 0; i < 5; i++) {
-    cons += cons;
-  }
-  assertEquals(expected, cons.replace(/[\u1234a-z]/g, ""));
+// Tests for the full code generator (if active).
 
-  cons = "a0b1c2d3";
-  for (var i = 0; i < 5; i++) {
-    cons += cons;
-  }
-  externalizeString(cons, true/* force two-byte */);
-  assertEquals(expected, cons.replace(/[a-z]/g, ""));
-  cons = "\u12340b1c2d3";
-  for (var i = 0; i < 5; i++) {
-    cons += cons;
-  }
-  externalizeString(cons);
-  assertEquals(expected, cons.replace(/[\u1234a-z]/g, ""));
+var foo1 = {
+  bar: 6,
+  bar: 7
+};
+
+var foo2 = {
+  bar: function(a){},
+  bar: 7
+};
+
+var foo3 = {
+  bar: function(a){},
+  bar: function(b){},
+  bar: 7
+};
+
+var foo4 = {
+  bar: function(b){},
+  bar: 7,
+  bar: function(){return 7},
+};
+
+var foo5 = {
+  13: function(a){},
+  13: 7
 }
 
-test();
+var foo6 = {
+  14.31: function(a){},
+  14.31: 7
+}
 
-// Clear the regexp cache to allow the GC to work.
-"foo".replace(/foo/g, "");
+var foo7 = {
+  15: 6,
+  15: 7
+}
 
-// GC in order to free up things on the C side so we don't get
-// a memory leak.  This makes valgrind happy.
-gc();
-gc();
+assertEquals(7, foo1.bar);
+assertEquals(7, foo2.bar);
+assertEquals(7, foo3.bar);
+assertEquals(7, foo4.bar());
+assertEquals(7, foo5[13]);
+assertEquals(7, foo6[14.31]);
+assertEquals(7, foo7[15]);
+
+// Test for the classic code generator.
+
+function fun(x) {
+  var inner = { j: function(x) { return x; }, j: 7 }; 
+  return inner.j;
+}
+
+assertEquals(7, fun(7) );
+
+// Check that the initializers of computed properties are executed, even if
+// no store instructions are generated for the literals.
+
+var glob1 = 0;
+
+var bar1 = { x: glob1++, x: glob1++, x: glob1++, x: 7};
+
+assertEquals(3, glob1);
+
+
+var glob2 = 0;
+
+function fun2() {
+  var r = { y: glob2++, y: glob2++, y: glob2++, y: 7};
+  return r.y;
+}
+
+var y = fun2();
+assertEquals(7, y);
+assertEquals(3, glob2);
+
+var glob3 = 0;
+
+function fun3() {
+  var r = { 113: glob3++, 113: glob3++, 113: glob3++, 113: 7};
+  return r[113];
+}
+
+var y = fun3();
+assertEquals(7, y);
+assertEquals(3, glob3);

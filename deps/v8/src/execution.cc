@@ -797,6 +797,7 @@ v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
     if (result && !string->IsSymbol()) {
       i::ExternalStringTable::AddString(*string);
     }
+    if (!result) delete resource;
   } else {
     uc16* data = new uc16[string->length()];
     String::WriteToFlat(*string, data, 0, string->length());
@@ -806,6 +807,7 @@ v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
     if (result && !string->IsSymbol()) {
       i::ExternalStringTable::AddString(*string);
     }
+    if (!result) delete resource;
   }
   if (!result) {
     return v8::ThrowException(v8::String::New("externalizeString() failed."));

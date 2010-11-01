@@ -832,10 +832,14 @@ class ObjectLiteral: public MaterializedLiteral {
 
     bool IsCompileTimeValue();
 
+    void set_emit_store(bool emit_store);
+    bool emit_store();
+
    private:
     Literal* key_;
     Expression* value_;
     Kind kind_;
+    bool emit_store_;
   };
 
   ObjectLiteral(Handle<FixedArray> constant_properties,
@@ -857,6 +861,12 @@ class ObjectLiteral: public MaterializedLiteral {
   ZoneList<Property*>* properties() const { return properties_; }
 
   bool fast_elements() const { return fast_elements_; }
+
+
+  // Mark all computed expressions that are bound to a key that
+  // is shadowed by a later occurrence of the same key. For the
+  // marked expressions, no store code is emitted.
+  void CalculateEmitStore();
 
  private:
   Handle<FixedArray> constant_properties_;

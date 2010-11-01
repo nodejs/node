@@ -7129,20 +7129,31 @@ static MaybeObject* Runtime_GlobalReceiver(Arguments args) {
 }
 
 
+static MaybeObject* Runtime_ParseJson(Arguments args) {
+  HandleScope scope;
+  ASSERT_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(String, source, 0);
+
+  Handle<Object> result = JsonParser::Parse(source);
+  if (result.is_null()) {
+    // Syntax error or stack overflow in scanner.
+    ASSERT(Top::has_pending_exception());
+    return Failure::Exception();
+  }
+  return *result;
+}
+
+
 static MaybeObject* Runtime_CompileString(Arguments args) {
   HandleScope scope;
-  ASSERT_EQ(2, args.length());
+  ASSERT_EQ(1, args.length());
   CONVERT_ARG_CHECKED(String, source, 0);
-  CONVERT_ARG_CHECKED(Oddball, is_json, 1)
 
   // Compile source string in the global context.
   Handle<Context> context(Top::context()->global_context());
-  Compiler::ValidationState validate = (is_json->IsTrue())
-    ? Compiler::VALIDATE_JSON : Compiler::DONT_VALIDATE_JSON;
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(source,
                                                             context,
-                                                            true,
-                                                            validate);
+                                                            true);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       Factory::NewFunctionFromSharedFunctionInfo(shared, context, NOT_TENURED);
@@ -7157,8 +7168,7 @@ static ObjectPair CompileGlobalEval(Handle<String> source,
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source,
       Handle<Context>(Top::context()),
-      Top::context()->IsGlobalContext(),
-      Compiler::DONT_VALIDATE_JSON);
+      Top::context()->IsGlobalContext());
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
   Handle<JSFunction> compiled = Factory::NewFunctionFromSharedFunctionInfo(
       shared,
@@ -9370,8 +9380,7 @@ static MaybeObject* Runtime_DebugEvaluate(Arguments args) {
   Handle<SharedFunctionInfo> shared =
       Compiler::CompileEval(function_source,
                             context,
-                            context->IsGlobalContext(),
-                            Compiler::DONT_VALIDATE_JSON);
+                            context->IsGlobalContext());
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Factory::NewFunctionFromSharedFunctionInfo(shared, context);
@@ -9442,8 +9451,7 @@ static MaybeObject* Runtime_DebugEvaluateGlobal(Arguments args) {
   Handle<SharedFunctionInfo> shared =
       Compiler::CompileEval(source,
                             context,
-                            true,
-                            Compiler::DONT_VALIDATE_JSON);
+                            true);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Handle<JSFunction>(Factory::NewFunctionFromSharedFunctionInfo(shared,

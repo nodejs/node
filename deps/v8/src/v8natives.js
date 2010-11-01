@@ -140,7 +140,7 @@ function GlobalEval(x) {
                          'be the global object from which eval originated');
   }
 
-  var f = %CompileString(x, false);
+  var f = %CompileString(x);
   if (!IS_FUNCTION(f)) return f;
 
   return f.call(this);
@@ -151,7 +151,7 @@ function GlobalEval(x) {
 function GlobalExecScript(expr, lang) {
   // NOTE: We don't care about the character casing.
   if (!lang || /javascript/i.test(lang)) {
-    var f = %CompileString(ToString(expr), false);
+    var f = %CompileString(ToString(expr));
     f.call(%GlobalReceiver(global));
   }
   return null;
@@ -1177,7 +1177,7 @@ function NewFunction(arg1) {  // length == 1
 
   // The call to SetNewFunctionAttributes will ensure the prototype
   // property of the resulting function is enumerable (ECMA262, 15.3.5.2).
-  var f = %CompileString(source, false)();
+  var f = %CompileString(source)();
   %FunctionSetName(f, "anonymous");
   return %SetNewFunctionAttributes(f);
 }
