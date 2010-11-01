@@ -23,7 +23,7 @@ ifeq ($(platform),darwin)
 endif
 
 ifeq ($(platform),linux)
-	LINKFLAGS += -pthread -lrt
+	LINKFLAGS += -pthread -lrt -rdynamic
 endif
 
 ifeq ($(platform),solaris)
