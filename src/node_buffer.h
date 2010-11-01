@@ -37,17 +37,7 @@ class Buffer : public ObjectWrap {
   static char* Data(v8::Handle<v8::Object>);
   static size_t Length(v8::Handle<v8::Object>);
 
-  char* data() {
-    assert(0 && "v0.3 API change: Use node::Buffer::Data().");
-    return NULL;
-  }
-
-  size_t length() const {
-    assert(0 && "v0.3 API change: Use node::Buffer::Length().");
-    return 0;
-  }
-
- private:
+  private:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
   static v8::Handle<v8::Value> New(const v8::Arguments &args);
