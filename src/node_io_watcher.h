@@ -33,8 +33,14 @@ class IOWatcher : ObjectWrap {
  private:
   static void Callback(EV_P_ ev_io *watcher, int revents);
 
+  static void Dump(EV_P_ ev_prepare *watcher, int revents);
+
   void Start();
   void Stop();
+
+  // stats. TODO: expose to js, add reset() method
+  uint64_t dumps_;
+  ev_tstamp last_dump_;
 
   ev_io watcher_;
 };
