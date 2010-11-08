@@ -74,11 +74,11 @@ Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit cod
         ls    = spawn('ls', ['-lh', '/usr']);
 
     ls.stdout.on('data', function (data) {
-      util.print('stdout: ' + data);
+      console.log('stdout: ' + data);
     });
 
     ls.stderr.on('data', function (data) {
-      util.print('stderr: ' + data);
+      console.log('stderr: ' + data);
     });
 
     ls.on('exit', function (code) {
@@ -98,7 +98,7 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
     });
 
     ps.stderr.on('data', function (data) {
-      util.print('ps stderr: ' + data);
+      console.log('ps stderr: ' + data);
     });
 
     ps.on('exit', function (code) {
@@ -109,11 +109,11 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
     });
 
     grep.stdout.on('data', function (data) {
-      util.print(data);
+      console.log(data);
     });
 
     grep.stderr.on('data', function (data) {
-      util.print('grep stderr: ' + data);
+      console.log('grep stderr: ' + data);
     });
 
     grep.on('exit', function (code) {
@@ -148,8 +148,8 @@ output, and return it all in a callback.
 
     child = exec('cat *.js bad_file | wc -l', 
       function (error, stdout, stderr) {
-        util.print('stdout: ' + stdout);
-        util.print('stderr: ' + stderr);
+        console.log('stdout: ' + stdout);
+        console.log('stderr: ' + stderr);
         if (error !== null) {
           console.log('exec error: ' + error);
         }

@@ -4,13 +4,6 @@ These functions are in the module `'util'`. Use `require('util')` to access
 them.
 
 
-### util.print(string)
-
-Like `console.log()` but without the trailing newline.
-
-    require('util').print('String with no newline');
-
-
 ### util.debug(string)
 
 A synchronous output function. Will block the process and
