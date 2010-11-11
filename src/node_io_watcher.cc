@@ -31,6 +31,7 @@ static Persistent<String> prev_sym;
 static Persistent<String> ondrain_sym;
 static Persistent<String> onerror_sym;
 static Persistent<String> data_sym;
+static Persistent<String> encoding_sym;
 static Persistent<String> offset_sym;
 static Persistent<String> fd_sym;
 static Persistent<String> is_unix_socket_sym;
@@ -65,6 +66,7 @@ void IOWatcher::Initialize(Handle<Object> target) {
   fd_sym = NODE_PSYMBOL("fd");
   is_unix_socket_sym = NODE_PSYMBOL("isUnixSocket");
   data_sym = NODE_PSYMBOL("data");
+  encoding_sym = NODE_PSYMBOL("encoding");
 
 
   ev_prepare_init(&dumper, IOWatcher::Dump);
@@ -321,9 +323,9 @@ void IOWatcher::Dump(EV_P_ ev_prepare *w, int revents) {
 
       if (data_v->IsString()) {
         // TODO: insert v8::String::Pointers() hack here.
-        // TODO: handle different encodings.
         Local<String> s = data_v->ToString();
-        buf_object = Local<Object>::New(Buffer::New(s));
+        Local<Value> e = bucket->Get(encoding_sym);
+        buf_object = Local<Object>::New(Buffer::New(s, e));
         bucket->Set(data_sym, buf_object);
       } else if (Buffer::HasInstance(data_v)) {
         buf_object = data_v->ToObject();
