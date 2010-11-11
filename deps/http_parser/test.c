@@ -498,7 +498,7 @@ const struct message requests[] =
 #define CONNECT_REQUEST 17
 , {.name = "connect request"
   ,.type= HTTP_REQUEST
-  ,.raw= "CONNECT home.netscape.com:443 HTTP/1.0\r\n"
+  ,.raw= "CONNECT home0.netscape.com:443 HTTP/1.0\r\n"
          "User-agent: Mozilla/1.1N\r\n"
          "Proxy-authorization: basic aGVsbG86d29ybGQ=\r\n"
          "\r\n"
@@ -510,7 +510,7 @@ const struct message requests[] =
   ,.query_string= ""
   ,.fragment= ""
   ,.request_path= ""
-  ,.request_url= "home.netscape.com:443"
+  ,.request_url= "home0.netscape.com:443"
   ,.num_headers= 2
   ,.upgrade=1
   ,.headers= { { "User-agent", "Mozilla/1.1N" }
@@ -538,6 +538,25 @@ const struct message requests[] =
   ,.body= ""
   }
 
+#define NO_HTTP_VERSION 19
+, {.name= "request with no http version"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET /\r\n"
+         "\r\n"
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 0
+  ,.http_minor= 9
+  ,.method= HTTP_GET
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/"
+  ,.request_url= "/"
+  ,.num_headers= 0
+  ,.headers= {}
+  ,.body= ""
+  }
+
 , {.name= NULL } /* sentinel */
 };
 
@@ -551,9 +570,10 @@ const struct message responses[] =
          "Content-Type: text/html; charset=UTF-8\r\n"
          "Date: Sun, 26 Apr 2009 11:11:49 GMT\r\n"
          "Expires: Tue, 26 May 2009 11:11:49 GMT\r\n"
+         "X-$PrototypeBI-Version: 1.6.0.3\r\n" /* $ char in header field */
          "Cache-Control: public, max-age=2592000\r\n"
          "Server: gws\r\n"
-         "Content-Length: 219\r\n"
+         "Content-Length:  219  \r\n"
          "\r\n"
          "<HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n"
          "<TITLE>301 Moved</TITLE></HEAD><BODY>\n"
@@ -566,15 +586,16 @@ const struct message responses[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 301
-  ,.num_headers= 7
+  ,.num_headers= 8
   ,.headers=
     { { "Location", "http://www.google.com/" }
     , { "Content-Type", "text/html; charset=UTF-8" }
     , { "Date", "Sun, 26 Apr 2009 11:11:49 GMT" }
     , { "Expires", "Tue, 26 May 2009 11:11:49 GMT" }
+    , { "X-$PrototypeBI-Version", "1.6.0.3" }
     , { "Cache-Control", "public, max-age=2592000" }
     , { "Server", "gws" }
-    , { "Content-Length", "219" }
+    , { "Content-Length", "219  " }
     }
   ,.body= "<HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n"
           "<TITLE>301 Moved</TITLE></HEAD><BODY>\n"
@@ -843,7 +864,7 @@ const struct message responses[] =
          "Server: Apache\r\n"
          "Cache-Control: no-cache, must-revalidate\r\n"
          "Expires: Mon, 26 Jul 1997 05:00:00 GMT\r\n"
-         "Set-Cookie: PlaxoCS=1274804622353690521; path=/; domain=.plaxo.com\r\n"
+         ".et-Cookie: PlaxoCS=1274804622353690521; path=/; domain=.plaxo.com\r\n"
          "Vary: Accept-Encoding\r\n"
          "_eep-Alive: timeout=45\r\n" /* semantic value ignored */
          "_onnection: Keep-Alive\r\n" /* semantic value ignored */
@@ -863,7 +884,7 @@ const struct message responses[] =
     , { "Server", "Apache" }
     , { "Cache-Control", "no-cache, must-revalidate" }
     , { "Expires", "Mon, 26 Jul 1997 05:00:00 GMT" }
-    , { "Set-Cookie", "PlaxoCS=1274804622353690521; path=/; domain=.plaxo.com" }
+    , { ".et-Cookie", "PlaxoCS=1274804622353690521; path=/; domain=.plaxo.com" }
     , { "Vary", "Accept-Encoding" }
     , { "_eep-Alive", "timeout=45" }
     , { "_onnection", "Keep-Alive" }
