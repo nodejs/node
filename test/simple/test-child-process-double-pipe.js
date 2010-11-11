@@ -3,10 +3,10 @@ var assert   = require('assert'),
     spawn = require('child_process').spawn;
 
 // We're trying to reproduce:
-// $ echo -e "hello\nnode\nand\nworld" | grep o | sed s/o/a/
+// $ echo "hello\nnode\nand\nworld" | grep o | sed s/o/a/
 
 var
-  echo    = spawn('echo', ['-e', 'hello\nnode\nand\nworld\n']),
+  echo    = spawn('echo', ['hello\nnode\nand\nworld\n']),
   grep  = spawn('grep', ['o']),
   sed  = spawn('sed', ['s/o/O/']);
 
