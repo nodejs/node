@@ -1,20 +1,20 @@
-From 9bf51816bed45ef41d3e5e54bedcb0c8d01384e8 Mon Sep 17 00:00:00 2001
+From 0ed25321cf3d2ca54dd148cc58e79712b73b9b3e Mon Sep 17 00:00:00 2001
 From: unknown <cyg_server@.(none)>
-Date: Wed, 8 Sep 2010 14:57:59 -0700
+Date: Fri, 12 Nov 2010 00:15:30 +0100
 Subject: [PATCH] Patch for Cygwin
 
 ---
  SConstruct             |    3 +-
  src/SConscript         |    1 +
- src/platform-cygwin.cc |  858 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/platform-cygwin.cc |  865 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/platform.h         |    5 +
  src/utils.h            |    2 +-
  tools/utils.py         |    2 +
- 6 files changed, 868 insertions(+), 3 deletions(-)
+ 6 files changed, 875 insertions(+), 3 deletions(-)
  create mode 100644 src/platform-cygwin.cc
 
 diff --git a/SConstruct b/SConstruct
-index 2a39583..9328699 100644
+index 820c1a1..7107e91 100644
 --- a/SConstruct
 +++ b/SConstruct
 @@ -292,7 +292,6 @@ V8_EXTRA_FLAGS = {
@@ -26,19 +26,19 @@ index 2a39583..9328699 100644
                         '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor']
 @@ -666,7 +665,7 @@ SIMPLE_OPTIONS = {
-     'help': 'the toolchain to use (' + TOOLCHAIN_GUESS + ')'
+     'help': 'the toolchain to use (%s)' % TOOLCHAIN_GUESS
    },
    'os': {
 -    'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd', 'solaris'],
 +    'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd', 'solaris', 'cygwin'],
      'default': OS_GUESS,
-     'help': 'the os to build for (' + OS_GUESS + ')'
+     'help': 'the os to build for (%s)' % OS_GUESS
    },
 diff --git a/src/SConscript b/src/SConscript
-index 7fae8d4..e2b01aa 100755
+index 8995d48..ef5485d 100755
 --- a/src/SConscript
 +++ b/src/SConscript
-@@ -202,6 +202,7 @@ SOURCES = {
+@@ -204,6 +204,7 @@ SOURCES = {
    'os:android': ['platform-linux.cc', 'platform-posix.cc'],
    'os:macos':   ['platform-macos.cc', 'platform-posix.cc'],
    'os:solaris': ['platform-solaris.cc', 'platform-posix.cc'],
@@ -48,10 +48,10 @@ index 7fae8d4..e2b01aa 100755
    'mode:release': [],
 diff --git a/src/platform-cygwin.cc b/src/platform-cygwin.cc
 new file mode 100644
-index 0000000..34410e8
+index 0000000..ad0ad8c
 --- /dev/null
 +++ b/src/platform-cygwin.cc
-@@ -0,0 +1,858 @@
+@@ -0,0 +1,865 @@
 +// Copyright 2006-2008 the V8 project authors. All rights reserved.
 +// Redistribution and use in source and binary forms, with or without
 +// modification, are permitted provided that the following conditions are
@@ -430,6 +430,10 @@ index 0000000..34410e8
 +  free(lib_name);
 +  fclose(fp);
 +#endif
++}
++
++
++void OS::SignalCodeMovingGC() {
 +}
 +
 +
@@ -854,7 +858,10 @@ index 0000000..34410e8
 +
 +
 +Sampler::Sampler(int interval, bool profiling)
-+    : interval_(interval), profiling_(profiling), active_(false) {
++    : interval_(interval),
++      profiling_(profiling),
++      synchronous_(profiling),
++      active_(false) {
 +  data_ = new PlatformData();
 +}
 +
@@ -911,10 +918,10 @@ index 0000000..34410e8
 +
 +} }  // namespace v8::internal
 diff --git a/src/platform.h b/src/platform.h
-index e9e7c22..f4ce29f 100644
+index 42e6eae..c4ef230 100644
 --- a/src/platform.h
 +++ b/src/platform.h
-@@ -362,6 +362,7 @@ class ThreadHandle {
+@@ -367,6 +367,7 @@ class ThreadHandle {
  
  class Thread: public ThreadHandle {
   public:
@@ -922,7 +929,7 @@ index e9e7c22..f4ce29f 100644
    // Opaque data type for thread-local storage keys.
    // LOCAL_STORAGE_KEY_MIN_VALUE and LOCAL_STORAGE_KEY_MAX_VALUE are specified
    // to ensure that enumeration type has correct value range (see Issue 830 for
-@@ -370,6 +371,10 @@ class Thread: public ThreadHandle {
+@@ -375,6 +376,10 @@ class Thread: public ThreadHandle {
      LOCAL_STORAGE_KEY_MIN_VALUE = kMinInt,
      LOCAL_STORAGE_KEY_MAX_VALUE = kMaxInt
    };
@@ -934,10 +941,10 @@ index e9e7c22..f4ce29f 100644
    // Create new thread.
    Thread();
 diff --git a/src/utils.h b/src/utils.h
-index d605891..30db7ab 100644
+index ffdb639..0521767 100644
 --- a/src/utils.h
 +++ b/src/utils.h
-@@ -947,7 +947,7 @@ inline Dest BitCast(const Source& source) {
+@@ -963,7 +963,7 @@ inline Dest BitCast(const Source& source) {
  }
  
  template <class Dest, class Source>
