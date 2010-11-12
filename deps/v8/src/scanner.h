@@ -30,6 +30,7 @@
 
 #include "token.h"
 #include "char-predicates-inl.h"
+#include "scanner-base.h"
 
 namespace v8 {
 namespace internal {
@@ -142,127 +143,6 @@ class ExternalStringUTF16Buffer: public UTF16Buffer {
 };
 
 
-class KeywordMatcher {
-//  Incrementally recognize keywords.
-//
-//  Recognized keywords:
-//      break case catch const* continue debugger* default delete do else
-//      finally false for function if in instanceof native* new null
-//      return switch this throw true try typeof var void while with
-//
-//  *: Actually "future reserved keywords". These are the only ones we
-//     recognized, the remaining are allowed as identifiers.
- public:
-  KeywordMatcher()
-      : state_(INITIAL),
-        token_(Token::IDENTIFIER),
-        keyword_(NULL),
-        counter_(0),
-        keyword_token_(Token::ILLEGAL) {}
-
-  Token::Value token() { return token_; }
-
-  inline void AddChar(uc32 input) {
-    if (state_ != UNMATCHABLE) {
-      Step(input);
-    }
-  }
-
-  void Fail() {
-    token_ = Token::IDENTIFIER;
-    state_ = UNMATCHABLE;
-  }
-
- private:
-  enum State {
-    UNMATCHABLE,
-    INITIAL,
-    KEYWORD_PREFIX,
-    KEYWORD_MATCHED,
-    C,
-    CA,
-    CO,
-    CON,
-    D,
-    DE,
-    F,
-    I,
-    IN,
-    N,
-    T,
-    TH,
-    TR,
-    V,
-    W
-  };
-
-  struct FirstState {
-    const char* keyword;
-    State state;
-    Token::Value token;
-  };
-
-  // Range of possible first characters of a keyword.
-  static const unsigned int kFirstCharRangeMin = 'b';
-  static const unsigned int kFirstCharRangeMax = 'w';
-  static const unsigned int kFirstCharRangeLength =
-      kFirstCharRangeMax - kFirstCharRangeMin + 1;
-  // State map for first keyword character range.
-  static FirstState first_states_[kFirstCharRangeLength];
-
-  // If input equals keyword's character at position, continue matching keyword
-  // from that position.
-  inline bool MatchKeywordStart(uc32 input,
-                                const char* keyword,
-                                int position,
-                                Token::Value token_if_match) {
-    if (input == keyword[position]) {
-      state_ = KEYWORD_PREFIX;
-      this->keyword_ = keyword;
-      this->counter_ = position + 1;
-      this->keyword_token_ = token_if_match;
-      return true;
-    }
-    return false;
-  }
-
-  // If input equals match character, transition to new state and return true.
-  inline bool MatchState(uc32 input, char match, State new_state) {
-    if (input == match) {
-      state_ = new_state;
-      return true;
-    }
-    return false;
-  }
-
-  inline bool MatchKeyword(uc32 input,
-                           char match,
-                           State new_state,
-                           Token::Value keyword_token) {
-    if (input != match) {
-      return false;
-    }
-    state_ = new_state;
-    token_ = keyword_token;
-    return true;
-  }
-
-  void Step(uc32 input);
-
-  // Current state.
-  State state_;
-  // Token for currently added characters.
-  Token::Value token_;
-
-  // Matching a specific keyword string (there is only one possible valid
-  // keyword with the current prefix).
-  const char* keyword_;
-  int counter_;
-  Token::Value keyword_token_;
-};
-
-
-enum ParserMode { PARSE, PREPARSE };
 enum ParserLanguage { JAVASCRIPT, JSON };
 
 

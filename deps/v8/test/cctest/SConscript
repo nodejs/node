@@ -41,6 +41,7 @@ SOURCES = {
     'test-alloc.cc',
     'test-api.cc',
     'test-ast.cc',
+    'test-bignum.cc',
     'test-circular-queue.cc',
     'test-compiler.cc',
     'test-conversions.cc',

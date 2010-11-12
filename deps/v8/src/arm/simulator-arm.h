@@ -306,6 +306,9 @@ class Simulator {
   bool c_flag_FPSCR_;
   bool v_flag_FPSCR_;
 
+  // VFP rounding mode. See ARM DDI 0406B Page A2-29.
+  FPSCRRoundingModes FPSCR_rounding_mode_;
+
   // VFP FP exception flags architecture state.
   bool inv_op_vfp_flag_;
   bool div_zero_vfp_flag_;

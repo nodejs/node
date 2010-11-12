@@ -563,9 +563,10 @@ void FullCodeGenerator::SetStatementPosition(int pos) {
 }
 
 
-void FullCodeGenerator::SetSourcePosition(int pos) {
+void FullCodeGenerator::SetSourcePosition(
+    int pos, PositionRecordingType recording_type) {
   if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
-    masm_->RecordPosition(pos);
+    masm_->positions_recorder()->RecordPosition(pos, recording_type);
   }
 }
 
@@ -1224,13 +1225,6 @@ int FullCodeGenerator::TryCatch::Exit(int stack_depth) {
   return 0;
 }
 
-
-void FullCodeGenerator::EmitRegExpCloneResult(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kRegExpCloneResult, 1);
-  context()->Plug(result_register());
-}
 
 #undef __
 

@@ -2956,7 +2956,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   CodeForStatementPosition(node);
   Load(node->expression());
   Result return_value = frame_->Pop();
-  masm()->WriteRecordedPositions();
+  masm()->positions_recorder()->WriteRecordedPositions();
   if (function_return_is_shadowed_) {
     function_return_.Jump(&return_value);
   } else {
@@ -6560,86 +6560,6 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
     __ bind(&done);
   }
   frame_->Forget(3);
-  frame_->Push(rax);
-}
-
-
-void CodeGenerator::GenerateRegExpCloneResult(ZoneList<Expression*>* args) {
-  ASSERT_EQ(1, args->length());
-
-  Load(args->at(0));
-  Result object_result = frame_->Pop();
-  object_result.ToRegister(rax);
-  object_result.Unuse();
-  {
-    VirtualFrame::SpilledScope spilled_scope;
-
-    Label done;
-    __ JumpIfSmi(rax, &done);
-
-    // Load JSRegExpResult map into rdx.
-    // Arguments to this function should be results of calling RegExp exec,
-    // which is either an unmodified JSRegExpResult or null. Anything not having
-    // the unmodified JSRegExpResult map is returned unmodified.
-    // This also ensures that elements are fast.
-
-    __ movq(rdx, ContextOperand(rsi, Context::GLOBAL_INDEX));
-    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalContextOffset));
-    __ movq(rdx, ContextOperand(rdx, Context::REGEXP_RESULT_MAP_INDEX));
-    __ cmpq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
-    __ j(not_equal, &done);
-
-    if (FLAG_debug_code) {
-      // Check that object really has empty properties array, as the map
-      // should guarantee.
-      __ CompareRoot(FieldOperand(rax, JSObject::kPropertiesOffset),
-                     Heap::kEmptyFixedArrayRootIndex);
-      __ Check(equal, "JSRegExpResult: default map but non-empty properties.");
-    }
-
-    DeferredAllocateInNewSpace* allocate_fallback =
-        new DeferredAllocateInNewSpace(JSRegExpResult::kSize,
-                                       rbx,
-                                       rdx.bit() | rax.bit());
-
-    // All set, copy the contents to a new object.
-    __ AllocateInNewSpace(JSRegExpResult::kSize,
-                          rbx,
-                          no_reg,
-                          no_reg,
-                          allocate_fallback->entry_label(),
-                          TAG_OBJECT);
-    __ bind(allocate_fallback->exit_label());
-
-    STATIC_ASSERT(JSRegExpResult::kSize % (2 * kPointerSize) == 0);
-    // There is an even number of fields, so unroll the loop once
-    // for efficiency.
-    for (int i = 0; i < JSRegExpResult::kSize; i += 2 * kPointerSize) {
-      STATIC_ASSERT(JSObject::kMapOffset % (2 * kPointerSize) == 0);
-      if (i != JSObject::kMapOffset) {
-        // The map was already loaded into edx.
-        __ movq(rdx, FieldOperand(rax, i));
-      }
-      __ movq(rcx, FieldOperand(rax, i + kPointerSize));
-
-      STATIC_ASSERT(JSObject::kElementsOffset % (2 * kPointerSize) == 0);
-      if (i == JSObject::kElementsOffset) {
-        // If the elements array isn't empty, make it copy-on-write
-        // before copying it.
-        Label empty;
-        __ CompareRoot(rdx, Heap::kEmptyFixedArrayRootIndex);
-        __ j(equal, &empty);
-        __ LoadRoot(kScratchRegister, Heap::kFixedCOWArrayMapRootIndex);
-        __ movq(FieldOperand(rdx, HeapObject::kMapOffset), kScratchRegister);
-        __ bind(&empty);
-      }
-      __ movq(FieldOperand(rbx, i), rdx);
-      __ movq(FieldOperand(rbx, i + kPointerSize), rcx);
-    }
-    __ movq(rax, rbx);
-
-    __ bind(&done);
-  }
   frame_->Push(rax);
 }
 

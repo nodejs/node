@@ -206,6 +206,13 @@ enum VFPRegPrecision {
   kDoublePrecision = 1
 };
 
+// VFP rounding modes. See ARM DDI 0406B Page A2-29.
+enum FPSCRRoundingModes {
+  RN,   // Round to Nearest.
+  RP,   // Round towards Plus Infinity.
+  RM,   // Round towards Minus Infinity.
+  RZ    // Round towards zero.
+};
 
 typedef int32_t instr_t;
 

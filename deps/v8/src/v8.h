@@ -56,7 +56,7 @@
 #include "globals.h"
 #include "checks.h"
 #include "allocation.h"
-#include "utils.h"
+#include "v8utils.h"
 #include "flags.h"
 
 // Objects & heap

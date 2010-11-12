@@ -31,13 +31,13 @@
 #include "allocation.h"
 #include "ast.h"
 #include "scanner.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
 
 class CompilationInfo;
 class FuncNameInferrer;
-class ParserFactory;
 class ParserLog;
 class PositionStack;
 class Target;
@@ -177,6 +177,125 @@ class ScriptDataImpl : public ScriptData {
 };
 
 
+// Record only functions.
+class PartialParserRecorder {
+ public:
+  PartialParserRecorder();
+
+  void LogFunction(int start, int end, int literals, int properties) {
+    function_store_.Add(start);
+    function_store_.Add(end);
+    function_store_.Add(literals);
+    function_store_.Add(properties);
+  }
+
+  void LogSymbol(int start, const char* symbol, int length) { }
+
+  // Logs an error message and marks the log as containing an error.
+  // Further logging will be ignored, and ExtractData will return a vector
+  // representing the error only.
+  void LogMessage(int start,
+                  int end,
+                  const char* message,
+                  const char* argument_opt) {
+    Scanner::Location location(start, end);
+    Vector<const char*> arguments;
+    if (argument_opt != NULL) {
+      arguments = Vector<const char*>(&argument_opt, 1);
+    }
+    this->LogMessage(location, message, arguments);
+  }
+
+  int function_position() { return function_store_.size(); }
+
+  void LogMessage(Scanner::Location loc,
+                  const char* message,
+                  Vector<const char*> args);
+
+  Vector<unsigned> ExtractData();
+
+  void PauseRecording() {
+    pause_count_++;
+    is_recording_ = false;
+  }
+
+  void ResumeRecording() {
+    ASSERT(pause_count_ > 0);
+    if (--pause_count_ == 0) is_recording_ = !has_error();
+  }
+
+  int symbol_position() { return 0; }
+  int symbol_ids() { return 0; }
+
+ protected:
+  bool has_error() {
+    return static_cast<bool>(preamble_[ScriptDataImpl::kHasErrorOffset]);
+  }
+
+  bool is_recording() {
+    return is_recording_;
+  }
+
+  void WriteString(Vector<const char> str);
+
+  Collector<unsigned> function_store_;
+  unsigned preamble_[ScriptDataImpl::kHeaderSize];
+  bool is_recording_;
+  int pause_count_;
+
+#ifdef DEBUG
+  int prev_start_;
+#endif
+};
+
+
+// Record both functions and symbols.
+class CompleteParserRecorder: public PartialParserRecorder {
+ public:
+  CompleteParserRecorder();
+
+  void LogSymbol(int start, Vector<const char> literal);
+
+  void LogSymbol(int start, const char* symbol, int length) {
+    LogSymbol(start, Vector<const char>(symbol, length));
+  }
+
+  Vector<unsigned> ExtractData();
+
+  int symbol_position() { return symbol_store_.size(); }
+  int symbol_ids() { return symbol_id_; }
+
+ private:
+  static int vector_hash(Vector<const char> string) {
+    int hash = 0;
+    for (int i = 0; i < string.length(); i++) {
+      int c = string[i];
+      hash += c;
+      hash += (hash << 10);
+      hash ^= (hash >> 6);
+    }
+    return hash;
+  }
+
+  static bool vector_compare(void* a, void* b) {
+    Vector<const char>* string1 = reinterpret_cast<Vector<const char>* >(a);
+    Vector<const char>* string2 = reinterpret_cast<Vector<const char>* >(b);
+    int length = string1->length();
+    if (string2->length() != length) return false;
+    return memcmp(string1->start(), string2->start(), length) == 0;
+  }
+
+  // Write a non-negative number to the symbol store.
+  void WriteNumber(int number);
+
+  Collector<byte> symbol_store_;
+  Collector<Vector<const char> > symbol_entries_;
+  HashMap symbol_table_;
+  int symbol_id_;
+};
+
+
+
 class ParserApi {
  public:
   // Parses the source code represented by the compilation info and sets its
@@ -196,6 +315,8 @@ class ParserApi {
                                          v8::Extension* extension);
 };
 
+// ----------------------------------------------------------------------------
+// REGEXP PARSING
 
 // A BuffferedZoneList is an automatically growing list, just like (and backed
 // by) a ZoneList, that is optimized for the case of adding and removing
@@ -411,51 +532,44 @@ class RegExpParser {
   uc32 Next();
   FlatStringReader* in() { return in_; }
   void ScanForCaptures();
-  uc32 current_;
-  bool has_more_;
-  bool multiline_;
-  int next_pos_;
-  FlatStringReader* in_;
+
   Handle<String>* error_;
-  bool simple_;
-  bool contains_anchor_;
   ZoneList<RegExpCapture*>* captures_;
-  bool is_scanned_for_captures_;
+  FlatStringReader* in_;
+  uc32 current_;
+  int next_pos_;
   // The capture count is only valid after we have scanned for captures.
   int capture_count_;
+  bool has_more_;
+  bool multiline_;
+  bool simple_;
+  bool contains_anchor_;
+  bool is_scanned_for_captures_;
   bool failed_;
 };
 
+// ----------------------------------------------------------------------------
+// JAVASCRIPT PARSING
 
 class Parser {
  public:
-  Parser(Handle<Script> script, bool allow_natives_syntax,
-         v8::Extension* extension, ParserMode is_pre_parsing,
-         ParserFactory* factory, ParserLog* log, ScriptDataImpl* pre_data);
+  Parser(Handle<Script> script,
+         bool allow_natives_syntax,
+         v8::Extension* extension,
+         ScriptDataImpl* pre_data);
   virtual ~Parser() { }
-
-  // Pre-parse the program from the character stream; returns true on
-  // success, false if a stack-overflow happened during parsing.
-  bool PreParseProgram(Handle<String> source, unibrow::CharacterStream* stream);
-
-  void ReportMessage(const char* message, Vector<const char*> args);
-  virtual void ReportMessageAt(Scanner::Location loc,
-                               const char* message,
-                               Vector<const char*> args) = 0;
-
 
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram(Handle<String> source,
                                 bool in_global_context);
+
   FunctionLiteral* ParseLazy(Handle<SharedFunctionInfo> info);
 
-  // The minimum number of contiguous assignment that will
-  // be treated as an initialization block. Benchmarks show that
-  // the overhead exceeds the savings below this limit.
-  static const int kMinInitializationBlock = 3;
+  void ReportMessageAt(Scanner::Location loc,
+                       const char* message,
+                       Vector<const char*> args);
 
  protected:
-
   enum Mode {
     PARSE_LAZILY,
     PARSE_EAGERLY
@@ -464,28 +578,9 @@ class Parser {
   // Report syntax error
   void ReportUnexpectedToken(Token::Value token);
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
-
-  Handle<Script> script_;
-  Scanner scanner_;
-
-  Scope* top_scope_;
-  int with_nesting_level_;
-
-  TemporaryScope* temp_scope_;
-  Mode mode_;
-
-  Target* target_stack_;  // for break, continue statements
-  bool allow_natives_syntax_;
-  v8::Extension* extension_;
-  ParserFactory* factory_;
-  ParserLog* log_;
-  bool is_pre_parsing_;
-  ScriptDataImpl* pre_data_;
-  FuncNameInferrer* fni_;
+  void ReportMessage(const char* message, Vector<const char*> args);
 
   bool inside_with() const { return with_nesting_level_ > 0; }
-  ParserFactory* factory() const { return factory_; }
-  ParserLog* log() const { return log_; }
   Scanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
@@ -494,7 +589,7 @@ class Parser {
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  void* ParseSourceElements(ZoneListWrapper<Statement>* processor,
+  void* ParseSourceElements(ZoneList<Statement*>* processor,
                             int end_token, bool* ok);
   Statement* ParseStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseFunctionDeclaration(bool* ok);
@@ -607,16 +702,38 @@ class Parser {
                                            bool* ok);
 
   // Parser support
-  virtual VariableProxy* Declare(Handle<String> name, Variable::Mode mode,
-                                 FunctionLiteral* fun,
-                                 bool resolve,
-                                 bool* ok) = 0;
+  VariableProxy* Declare(Handle<String> name, Variable::Mode mode,
+                         FunctionLiteral* fun,
+                         bool resolve,
+                         bool* ok);
 
   bool TargetStackContainsLabel(Handle<String> label);
   BreakableStatement* LookupBreakTarget(Handle<String> label, bool* ok);
   IterationStatement* LookupContinueTarget(Handle<String> label, bool* ok);
 
   void RegisterTargetUse(BreakTarget* target, Target* stop);
+
+  // Factory methods.
+
+  Statement* EmptyStatement() {
+    static v8::internal::EmptyStatement empty;
+    return &empty;
+  }
+
+  Scope* NewScope(Scope* parent, Scope::Type type, bool inside_with);
+
+  Handle<String> LookupSymbol(int symbol_id,
+                              Vector<const char> string);
+
+  Handle<String> LookupCachedSymbol(int symbol_id,
+                                    Vector<const char> string);
+
+  Expression* NewCall(Expression* expression,
+                      ZoneList<Expression*>* arguments,
+                      int pos) {
+    return new Call(expression, arguments, pos);
+  }
+
 
   // Create a number literal.
   Literal* NewNumberLiteral(double value);
@@ -639,6 +756,24 @@ class Parser {
   Expression* NewThrowError(Handle<String> constructor,
                             Handle<String> type,
                             Vector< Handle<Object> > arguments);
+
+  ZoneList<Handle<String> > symbol_cache_;
+
+  Handle<Script> script_;
+  Scanner scanner_;
+
+  Scope* top_scope_;
+  int with_nesting_level_;
+
+  TemporaryScope* temp_scope_;
+  Mode mode_;
+
+  Target* target_stack_;  // for break, continue statements
+  bool allow_natives_syntax_;
+  v8::Extension* extension_;
+  bool is_pre_parsing_;
+  ScriptDataImpl* pre_data_;
+  FuncNameInferrer* fni_;
 };
 
 
@@ -672,6 +807,9 @@ class CompileTimeValue: public AllStatic {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompileTimeValue);
 };
 
+
+// ----------------------------------------------------------------------------
+// JSON PARSING
 
 // JSON is a subset of JavaScript, as specified in, e.g., the ECMAScript 5
 // specification section 15.12.1 (and appendix A.8).

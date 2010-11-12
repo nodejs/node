@@ -414,8 +414,9 @@ void BreakTarget::Branch(Condition cc, Hint hint) {
 
 DeferredCode::DeferredCode()
     : masm_(CodeGeneratorScope::Current()->masm()),
-      statement_position_(masm_->current_statement_position()),
-      position_(masm_->current_position()),
+      statement_position_(masm_->positions_recorder()->
+                          current_statement_position()),
+      position_(masm_->positions_recorder()->current_position()),
       frame_state_(CodeGeneratorScope::Current()->frame()) {
   ASSERT(statement_position_ != RelocInfo::kNoPosition);
   ASSERT(position_ != RelocInfo::kNoPosition);

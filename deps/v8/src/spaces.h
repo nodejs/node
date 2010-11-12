@@ -491,8 +491,8 @@ class CodeRange : public AllStatic {
 class MemoryAllocator : public AllStatic {
  public:
   // Initializes its internal bookkeeping structures.
-  // Max capacity of the total space.
-  static bool Setup(intptr_t max_capacity);
+  // Max capacity of the total space and executable memory limit.
+  static bool Setup(intptr_t max_capacity, intptr_t capacity_executable);
 
   // Deletes valid chunks.
   static void TearDown();
@@ -590,6 +590,12 @@ class MemoryAllocator : public AllStatic {
   // Returns allocated spaces in bytes.
   static intptr_t Size() { return size_; }
 
+  // Returns the maximum available executable bytes of heaps.
+  static int AvailableExecutable() {
+    if (capacity_executable_ < size_executable_) return 0;
+    return capacity_executable_ - size_executable_;
+  }
+
   // Returns allocated executable spaces in bytes.
   static intptr_t SizeExecutable() { return size_executable_; }
 
@@ -653,6 +659,8 @@ class MemoryAllocator : public AllStatic {
  private:
   // Maximum space size in bytes.
   static intptr_t capacity_;
+  // Maximum subset of capacity_ that can be executable
+  static intptr_t capacity_executable_;
 
   // Allocated space size in bytes.
   static intptr_t size_;

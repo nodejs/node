@@ -488,7 +488,7 @@ class MacroAssembler: public Assembler {
   // stored in ApiParameterOperand(0), ApiParameterOperand(1) etc.
   void PrepareCallApiFunction(int stack_space, int argc);
 
-  // Tail call an API function (jump). Allocates HandleScope, extracts
+  // Calls an API function. Allocates HandleScope, extracts
   // returned value from handle and propagates exceptions.
   // Clobbers ebx, esi, edi and caller-save registers.
   void CallApiFunctionAndReturn(ApiFunction* function, int argc);

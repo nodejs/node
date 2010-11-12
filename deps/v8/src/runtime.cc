@@ -1424,66 +1424,6 @@ static MaybeObject* Runtime_RegExpConstructResult(Arguments args) {
 }
 
 
-static MaybeObject* Runtime_RegExpCloneResult(Arguments args) {
-  ASSERT(args.length() == 1);
-  Map* regexp_result_map;
-  {
-    AssertNoAllocation no_gc;
-    HandleScope handles;
-    regexp_result_map = Top::global_context()->regexp_result_map();
-  }
-  if (!args[0]->IsJSArray()) return args[0];
-
-  JSArray* result = JSArray::cast(args[0]);
-  // Arguments to RegExpCloneResult should always be fresh RegExp exec call
-  // results (either a fresh JSRegExpResult or null).
-  // If the argument is not a JSRegExpResult, or isn't unmodified, just return
-  // the argument uncloned.
-  if (result->map() != regexp_result_map) return result;
-
-  // Having the original JSRegExpResult map guarantees that we have
-  // fast elements and no properties except the two in-object properties.
-  ASSERT(result->HasFastElements());
-  ASSERT(result->properties() == Heap::empty_fixed_array());
-  ASSERT_EQ(2, regexp_result_map->inobject_properties());
-
-  Object* new_array_alloc;
-  { MaybeObject* maybe_new_array_alloc =
-        Heap::AllocateRaw(JSRegExpResult::kSize, NEW_SPACE, OLD_POINTER_SPACE);
-    if (!maybe_new_array_alloc->ToObject(&new_array_alloc)) {
-      return maybe_new_array_alloc;
-    }
-  }
-
-  // Set HeapObject map to JSRegExpResult map.
-  reinterpret_cast<HeapObject*>(new_array_alloc)->set_map(regexp_result_map);
-
-  JSArray* new_array = JSArray::cast(new_array_alloc);
-
-  // Copy JSObject properties.
-  new_array->set_properties(result->properties());  // Empty FixedArray.
-
-  // Copy JSObject elements as copy-on-write.
-  FixedArray* elements = FixedArray::cast(result->elements());
-  if (elements != Heap::empty_fixed_array()) {
-    elements->set_map(Heap::fixed_cow_array_map());
-  }
-  new_array->set_elements(elements);
-
-  // Copy JSArray length.
-  new_array->set_length(result->length());
-
-  // Copy JSRegExpResult in-object property fields input and index.
-  new_array->FastPropertyAtPut(JSRegExpResult::kIndexIndex,
-                               result->FastPropertyAt(
-                                   JSRegExpResult::kIndexIndex));
-  new_array->FastPropertyAtPut(JSRegExpResult::kInputIndex,
-                               result->FastPropertyAt(
-                                   JSRegExpResult::kInputIndex));
-  return new_array;
-}
-
-
 static MaybeObject* Runtime_RegExpInitializeObject(Arguments args) {
   AssertNoAllocation no_alloc;
   ASSERT(args.length() == 5);
@@ -8887,12 +8827,6 @@ static MaybeObject* Runtime_DebugPrintScopes(Arguments args) {
     it.DebugPrint();
   }
 #endif
-  return Heap::undefined_value();
-}
-
-
-static MaybeObject* Runtime_GetCFrames(Arguments args) {
-  // See bug 906.
   return Heap::undefined_value();
 }
 

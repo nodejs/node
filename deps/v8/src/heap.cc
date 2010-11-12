@@ -83,16 +83,19 @@ int Heap::max_semispace_size_  = 2*MB;
 intptr_t Heap::max_old_generation_size_ = 192*MB;
 int Heap::initial_semispace_size_ = 128*KB;
 intptr_t Heap::code_range_size_ = 0;
+intptr_t Heap::max_executable_size_ = max_old_generation_size_;
 #elif defined(V8_TARGET_ARCH_X64)
 int Heap::max_semispace_size_  = 16*MB;
 intptr_t Heap::max_old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
 intptr_t Heap::code_range_size_ = 512*MB;
+intptr_t Heap::max_executable_size_ = 256*MB;
 #else
 int Heap::max_semispace_size_  = 8*MB;
 intptr_t Heap::max_old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
 intptr_t Heap::code_range_size_ = 0;
+intptr_t Heap::max_executable_size_ = 128*MB;
 #endif
 
 // The snapshot semispace size will be the default semispace size if
@@ -170,6 +173,12 @@ intptr_t Heap::CommittedMemory() {
       map_space_->CommittedMemory() +
       cell_space_->CommittedMemory() +
       lo_space_->Size();
+}
+
+intptr_t Heap::CommittedMemoryExecutable() {
+  if (!HasBeenSetup()) return 0;
+
+  return MemoryAllocator::SizeExecutable();
 }
 
 
@@ -429,7 +438,31 @@ void Heap::CollectAllGarbage(bool force_compaction) {
 }
 
 
-void Heap::CollectGarbage(AllocationSpace space) {
+void Heap::CollectAllAvailableGarbage() {
+  // Since we are ignoring the return value, the exact choice of space does
+  // not matter, so long as we do not specify NEW_SPACE, which would not
+  // cause a full GC.
+  MarkCompactCollector::SetForceCompaction(true);
+
+  // Major GC would invoke weak handle callbacks on weakly reachable
+  // handles, but won't collect weakly reachable objects until next
+  // major GC.  Therefore if we collect aggressively and weak handle callback
+  // has been invoked, we rerun major GC to release objects which become
+  // garbage.
+  // Note: as weak callbacks can execute arbitrary code, we cannot
+  // hope that eventually there will be no weak callbacks invocations.
+  // Therefore stop recollecting after several attempts.
+  const int kMaxNumberOfAttempts = 7;
+  for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
+    if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR)) {
+      break;
+    }
+  }
+  MarkCompactCollector::SetForceCompaction(false);
+}
+
+
+bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
   // The VM is in the GC state until exiting this function.
   VMState state(GC);
 
@@ -442,13 +475,14 @@ void Heap::CollectGarbage(AllocationSpace space) {
   allocation_timeout_ = Max(6, FLAG_gc_interval);
 #endif
 
+  bool next_gc_likely_to_collect_more = false;
+
   { GCTracer tracer;
     GarbageCollectionPrologue();
     // The GC count was incremented in the prologue.  Tell the tracer about
     // it.
     tracer.set_gc_count(gc_count_);
 
-    GarbageCollector collector = SelectGarbageCollector(space);
     // Tell the tracer which collector we've selected.
     tracer.set_collector(collector);
 
@@ -456,7 +490,8 @@ void Heap::CollectGarbage(AllocationSpace space) {
         ? &Counters::gc_scavenger
         : &Counters::gc_compactor;
     rate->Start();
-    PerformGarbageCollection(collector, &tracer);
+    next_gc_likely_to_collect_more =
+        PerformGarbageCollection(collector, &tracer);
     rate->Stop();
 
     GarbageCollectionEpilogue();
@@ -467,6 +502,8 @@ void Heap::CollectGarbage(AllocationSpace space) {
   if (FLAG_log_gc) HeapProfiler::WriteSample();
   if (CpuProfiler::is_profiling()) CpuProfiler::ProcessMovedFunctions();
 #endif
+
+  return next_gc_likely_to_collect_more;
 }
 
 
@@ -653,8 +690,10 @@ void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
   survival_rate_ = survival_rate;
 }
 
-void Heap::PerformGarbageCollection(GarbageCollector collector,
+bool Heap::PerformGarbageCollection(GarbageCollector collector,
                                     GCTracer* tracer) {
+  bool next_gc_likely_to_collect_more = false;
+
   if (collector != SCAVENGER) {
     PROFILE(CodeMovingGCEvent());
   }
@@ -720,7 +759,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   if (collector == MARK_COMPACTOR) {
     DisableAssertNoAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-    GlobalHandles::PostGarbageCollectionProcessing();
+    next_gc_likely_to_collect_more =
+        GlobalHandles::PostGarbageCollectionProcessing();
   }
 
   // Update relocatables.
@@ -747,6 +787,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     global_gc_epilogue_callback_();
   }
   VerifySymbolTable();
+
+  return next_gc_likely_to_collect_more;
 }
 
 
@@ -4280,7 +4322,9 @@ static bool heap_configured = false;
 // TODO(1236194): Since the heap size is configurable on the command line
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
-bool Heap::ConfigureHeap(int max_semispace_size, int max_old_gen_size) {
+bool Heap::ConfigureHeap(int max_semispace_size,
+                         int max_old_gen_size,
+                         int max_executable_size) {
   if (HasBeenSetup()) return false;
 
   if (max_semispace_size > 0) max_semispace_size_ = max_semispace_size;
@@ -4301,6 +4345,15 @@ bool Heap::ConfigureHeap(int max_semispace_size, int max_old_gen_size) {
   }
 
   if (max_old_gen_size > 0) max_old_generation_size_ = max_old_gen_size;
+  if (max_executable_size > 0) {
+    max_executable_size_ = RoundUp(max_executable_size, Page::kPageSize);
+  }
+
+  // The max executable size must be less than or equal to the max old
+  // generation size.
+  if (max_executable_size_ > max_old_generation_size_) {
+    max_executable_size_ = max_old_generation_size_;
+  }
 
   // The new space size must be a power of two to support single-bit testing
   // for containment.
@@ -4318,8 +4371,9 @@ bool Heap::ConfigureHeap(int max_semispace_size, int max_old_gen_size) {
 
 
 bool Heap::ConfigureHeapDefault() {
-  return ConfigureHeap(
-      FLAG_max_new_space_size * (KB / 2), FLAG_max_old_space_size * MB);
+  return ConfigureHeap(FLAG_max_new_space_size / 2 * KB,
+                       FLAG_max_old_space_size * MB,
+                       FLAG_max_executable_size * MB);
 }
 
 
@@ -4402,7 +4456,7 @@ bool Heap::Setup(bool create_heap_objects) {
   // space.  The chunk is double the size of the requested reserved
   // new space size to ensure that we can find a pair of semispaces that
   // are contiguous and aligned to their size.
-  if (!MemoryAllocator::Setup(MaxReserved())) return false;
+  if (!MemoryAllocator::Setup(MaxReserved(), MaxExecutableSize())) return false;
   void* chunk =
       MemoryAllocator::ReserveInitialChunk(4 * reserved_semispace_size_);
   if (chunk == NULL) return false;

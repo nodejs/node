@@ -142,7 +142,7 @@ class EXPORT Debug {
 
     virtual ~Message() {}
   };
-  
+
 
   /**
    * An event details object passed to the debug event listener.
@@ -300,7 +300,7 @@ class EXPORT Debug {
   * get access to information otherwise not available during normal JavaScript
   * execution e.g. details on stack frames. Receiver of the function call will
   * be the debugger context global object, however this is a subject to change.
-  * The following example show a JavaScript function which when passed to 
+  * The following example show a JavaScript function which when passed to
   * v8::Debug::Call will return the current line of JavaScript execution.
   *
   * \code

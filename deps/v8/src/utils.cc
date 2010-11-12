@@ -37,34 +37,6 @@ namespace v8 {
 namespace internal {
 
 
-// Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,
-// figure 3-3, page 48, where the function is called clp2.
-uint32_t RoundUpToPowerOf2(uint32_t x) {
-  ASSERT(x <= 0x80000000u);
-  x = x - 1;
-  x = x | (x >> 1);
-  x = x | (x >> 2);
-  x = x | (x >> 4);
-  x = x | (x >> 8);
-  x = x | (x >> 16);
-  return x + 1;
-}
-
-
-// Thomas Wang, Integer Hash Functions.
-// http://www.concentric.net/~Ttwang/tech/inthash.htm
-uint32_t ComputeIntegerHash(uint32_t key) {
-  uint32_t hash = key;
-  hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
-  hash = hash ^ (hash >> 12);
-  hash = hash + (hash << 2);
-  hash = hash ^ (hash >> 4);
-  hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
-  hash = hash ^ (hash >> 16);
-  return hash;
-}
-
-
 void PrintF(const char* format, ...) {
   va_list arguments;
   va_start(arguments, format);
@@ -273,13 +245,5 @@ char* StringBuilder::Finalize() {
   return buffer_.start();
 }
 
-
-int TenToThe(int exponent) {
-  ASSERT(exponent <= 9);
-  ASSERT(exponent >= 1);
-  int answer = 10;
-  for (int i = 1; i < exponent; i++) answer *= 10;
-  return answer;
-}
 
 } }  // namespace v8::internal

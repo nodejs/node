@@ -397,4 +397,72 @@ TEST(6) {
   }
 }
 
+
+static void TestRoundingMode(int32_t mode, double value, int expected) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  Assembler assm(NULL, 0);
+
+  __ vmrs(r1);
+  // Set custom FPSCR.
+  __ bic(r2, r1, Operand(((mode ^ 3) << 22) | 0xf));
+  __ orr(r2, r2, Operand(mode << 22));
+  __ vmsr(r2);
+
+  // Load value, convert, and move back result to r0.
+  __ vmov(d1, value);
+  __ vcvt_s32_f64(s0, d1, Assembler::FPSCRRounding, al);
+  __ vmov(r0, s0);
+
+  __ mov(pc, Operand(lr));
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code = Heap::CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Object>(Heap::undefined_value()))->ToObjectChecked();
+  CHECK(code->IsCode());
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+  F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(
+              CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("res = %d\n", res);
+  CHECK_EQ(expected, res);
+}
+
+
+TEST(7) {
+  // Test vfp rounding modes.
+
+  // See ARM DDI 0406B Page A2-29.
+  enum FPSCRRoungingMode {
+    RN,   // Round to Nearest.
+    RP,   // Round towards Plus Infinity.
+    RM,   // Round towards Minus Infinity.
+    RZ    // Round towards zero.
+  };
+
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+
+    TestRoundingMode(RZ,  0.5, 0);
+    TestRoundingMode(RZ, -0.5, 0);
+    TestRoundingMode(RZ,  123.7,  123);
+    TestRoundingMode(RZ, -123.7, -123);
+    TestRoundingMode(RZ,  123456.2,  123456);
+    TestRoundingMode(RZ, -123456.2, -123456);
+
+    TestRoundingMode(RM,  0.5, 0);
+    TestRoundingMode(RM, -0.5, -1);
+    TestRoundingMode(RM,  123.7, 123);
+    TestRoundingMode(RM, -123.7, -124);
+    TestRoundingMode(RM,  123456.2,  123456);
+    TestRoundingMode(RM, -123456.2, -123457);
+  }
+}
+
 #undef __

@@ -902,6 +902,7 @@ static void DebugEventBreak(v8::DebugEvent event,
 // Debug event handler which re-issues a debug break until a limit has been
 // reached.
 int max_break_point_hit_count = 0;
+bool terminate_after_max_break_point_hit = false;
 static void DebugEventBreakMax(v8::DebugEvent event,
                                v8::Handle<v8::Object> exec_state,
                                v8::Handle<v8::Object> event_data,
@@ -909,12 +910,17 @@ static void DebugEventBreakMax(v8::DebugEvent event,
   // When hitting a debug event listener there must be a break set.
   CHECK_NE(v8::internal::Debug::break_id(), 0);
 
-  if (event == v8::Break && break_point_hit_count < max_break_point_hit_count) {
-    // Count the number of breaks.
-    break_point_hit_count++;
+  if (event == v8::Break) {
+    if (break_point_hit_count < max_break_point_hit_count) {
+      // Count the number of breaks.
+      break_point_hit_count++;
 
-    // Set the break flag again to come back here as soon as possible.
-    v8::Debug::DebugBreak();
+      // Set the break flag again to come back here as soon as possible.
+      v8::Debug::DebugBreak();
+    } else if (terminate_after_max_break_point_hit) {
+      // Terminate execution after the last break if requested.
+      v8::V8::TerminateExecution();
+    }
   }
 }
 
@@ -6891,5 +6897,34 @@ TEST(DebugEventBreakData) {
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
 }
+
+
+// Test that setting the terminate execution flag during debug break processing.
+TEST(DebugBreakLoop) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Receive 100 breaks and terminate.
+  max_break_point_hit_count = 100;
+  terminate_after_max_break_point_hit = true;
+
+  // Register a debug event listener which sets the break flag and counts.
+  v8::Debug::SetDebugEventListener(DebugEventBreakMax);
+
+  // Function with infinite loop.
+  CompileRun("function f() { while (true) { } }");
+
+  // Set the debug break to enter the debugger as soon as possible.
+  v8::Debug::DebugBreak();
+
+  // Call function with infinite loop.
+  CompileRun("f();");
+  CHECK_EQ(100, break_point_hit_count);
+
+  // Get rid of the debug event listener.
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
 
 #endif  // ENABLE_DEBUGGER_SUPPORT

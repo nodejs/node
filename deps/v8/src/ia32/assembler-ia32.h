@@ -521,7 +521,6 @@ class Assembler : public Malloced {
   void push(const Immediate& x);
   void push(Register src);
   void push(const Operand& src);
-  void push(Label* label, RelocInfo::Mode relocation_mode);
 
   void pop(Register dst);
   void pop(const Operand& dst);
@@ -847,17 +846,11 @@ class Assembler : public Malloced {
   // Use --debug_code to enable.
   void RecordComment(const char* msg);
 
-  void RecordPosition(int pos);
-  void RecordStatementPosition(int pos);
-  bool WriteRecordedPositions();
-
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
   void dd(uint32_t data, RelocInfo::Mode reloc_info);
 
   int pc_offset() const { return pc_ - buffer_; }
-  int current_statement_position() const { return current_statement_position_; }
-  int current_position() const { return current_position_; }
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
@@ -868,6 +861,8 @@ class Assembler : public Malloced {
   inline int available_space() const { return reloc_info_writer.pos() - pc_; }
 
   static bool IsNop(Address addr) { return *addr == 0x90; }
+
+  PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;
@@ -947,11 +942,9 @@ class Assembler : public Malloced {
   // push-pop elimination
   byte* last_pc_;
 
-  // source position information
-  int current_statement_position_;
-  int current_position_;
-  int written_statement_position_;
-  int written_position_;
+  PositionsRecorder positions_recorder_;
+
+  friend class PositionsRecorder;
 };
 
 

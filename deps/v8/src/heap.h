@@ -222,7 +222,9 @@ class Heap : public AllStatic {
  public:
   // Configure heap size before setup. Return false if the heap has been
   // setup already.
-  static bool ConfigureHeap(int max_semispace_size, int max_old_gen_size);
+  static bool ConfigureHeap(int max_semispace_size,
+                            int max_old_gen_size,
+                            int max_executable_size);
   static bool ConfigureHeapDefault();
 
   // Initializes the global object heap. If create_heap_objects is true,
@@ -253,6 +255,7 @@ class Heap : public AllStatic {
   static int ReservedSemiSpaceSize() { return reserved_semispace_size_; }
   static int InitialSemiSpaceSize() { return initial_semispace_size_; }
   static intptr_t MaxOldGenerationSize() { return max_old_generation_size_; }
+  static intptr_t MaxExecutableSize() { return max_executable_size_; }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
@@ -260,6 +263,9 @@ class Heap : public AllStatic {
 
   // Returns the amount of memory currently committed for the heap.
   static intptr_t CommittedMemory();
+
+  // Returns the amount of executable memory currently committed for the heap.
+  static intptr_t CommittedMemoryExecutable();
 
   // Returns the available bytes in space w/o growing.
   // Heap doesn't guarantee that it can allocate an object that requires
@@ -705,12 +711,21 @@ class Heap : public AllStatic {
   static void GarbageCollectionEpilogue();
 
   // Performs garbage collection operation.
-  // Returns whether required_space bytes are available after the collection.
-  static void CollectGarbage(AllocationSpace space);
+  // Returns whether there is a chance that another major GC could
+  // collect more garbage.
+  static bool CollectGarbage(AllocationSpace space, GarbageCollector collector);
+
+  // Performs garbage collection operation.
+  // Returns whether there is a chance that another major GC could
+  // collect more garbage.
+  inline static bool CollectGarbage(AllocationSpace space);
 
   // Performs a full garbage collection. Force compaction if the
   // parameter is true.
   static void CollectAllGarbage(bool force_compaction);
+
+  // Last hope GC, should try to squeeze as much as possible.
+  static void CollectAllAvailableGarbage();
 
   // Notify the heap that a context has been disposed.
   static int NotifyContextDisposed() { return ++contexts_disposed_; }
@@ -1087,6 +1102,7 @@ class Heap : public AllStatic {
   static int max_semispace_size_;
   static int initial_semispace_size_;
   static intptr_t max_old_generation_size_;
+  static intptr_t max_executable_size_;
   static intptr_t code_range_size_;
 
   // For keeping track of how much data has survived
@@ -1246,7 +1262,9 @@ class Heap : public AllStatic {
   static GarbageCollector SelectGarbageCollector(AllocationSpace space);
 
   // Performs garbage collection
-  static void PerformGarbageCollection(GarbageCollector collector,
+  // Returns whether there is a chance another major GC could
+  // collect more garbage.
+  static bool PerformGarbageCollection(GarbageCollector collector,
                                        GCTracer* tracer);
 
   // Allocate an uninitialized object in map space.  The behavior is identical

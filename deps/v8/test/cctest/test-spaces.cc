@@ -91,7 +91,7 @@ TEST(Page) {
 
 TEST(MemoryAllocator) {
   CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved()));
+  CHECK(MemoryAllocator::Setup(Heap::MaxReserved(), Heap::MaxExecutableSize()));
 
   OldSpace faked_space(Heap::MaxReserved(), OLD_POINTER_SPACE, NOT_EXECUTABLE);
   int total_pages = 0;
@@ -147,7 +147,7 @@ TEST(MemoryAllocator) {
 
 TEST(NewSpace) {
   CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved()));
+  CHECK(MemoryAllocator::Setup(Heap::MaxReserved(), Heap::MaxExecutableSize()));
 
   NewSpace new_space;
 
@@ -172,7 +172,7 @@ TEST(NewSpace) {
 
 TEST(OldSpace) {
   CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved()));
+  CHECK(MemoryAllocator::Setup(Heap::MaxReserved(), Heap::MaxExecutableSize()));
 
   OldSpace* s = new OldSpace(Heap::MaxOldGenerationSize(),
                              OLD_POINTER_SPACE,

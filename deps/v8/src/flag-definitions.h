@@ -186,6 +186,7 @@ DEFINE_bool(always_inline_smi_code, false,
 // heap.cc
 DEFINE_int(max_new_space_size, 0, "max size of the new generation (in kBytes)")
 DEFINE_int(max_old_space_size, 0, "max size of the old generation (in Mbytes)")
+DEFINE_int(max_executable_size, 0, "max size of executable memory (in Mbytes)")
 DEFINE_bool(gc_global, false, "always perform global GCs")
 DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_bool(trace_gc, false,

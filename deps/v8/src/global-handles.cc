@@ -372,13 +372,14 @@ void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
 
 int post_gc_processing_count = 0;
 
-void GlobalHandles::PostGarbageCollectionProcessing() {
+bool GlobalHandles::PostGarbageCollectionProcessing() {
   // Process weak global handle callbacks. This must be done after the
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
   // At the same time deallocate all DESTROYED nodes.
   ASSERT(Heap::gc_state() == Heap::NOT_IN_GC);
   const int initial_post_gc_processing_count = ++post_gc_processing_count;
+  bool next_gc_likely_to_collect_more = false;
   Node** p = &head_;
   while (*p != NULL) {
     if ((*p)->PostGarbageCollectionProcessing()) {
@@ -399,6 +400,7 @@ void GlobalHandles::PostGarbageCollectionProcessing() {
       }
       node->set_next_free(first_deallocated());
       set_first_deallocated(node);
+      next_gc_likely_to_collect_more = true;
     } else {
       p = (*p)->next_addr();
     }
@@ -407,6 +409,8 @@ void GlobalHandles::PostGarbageCollectionProcessing() {
   if (first_deallocated()) {
     first_deallocated()->set_next(head());
   }
+
+  return next_gc_likely_to_collect_more;
 }
 
 

@@ -697,11 +697,6 @@ class CodeGenerator: public AstVisitor {
   // Construct a RegExp exec result with two in-object properties.
   void GenerateRegExpConstructResult(ZoneList<Expression*>* args);
 
-  // Clone the result of a regexp function.
-  // Must be an object created by GenerateRegExpConstructResult with
-  // no extra properties.
-  void GenerateRegExpCloneResult(ZoneList<Expression*>* args);
-
   // Support for fast native caches.
   void GenerateGetFromCache(ZoneList<Expression*>* args);
 

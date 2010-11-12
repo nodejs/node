@@ -542,9 +542,35 @@ class ApiGetterEntryStub : public CodeStub {
   ApiFunction* fun() { return fun_; }
   Major MajorKey() { return NoCache; }
   int MinorKey() { return 0; }
-  const char* GetName() { return "ApiEntryStub"; }
+  const char* GetName() { return "ApiGetterEntryStub"; }
   // The accessor info associated with the function.
   Handle<AccessorInfo> info_;
+  // The function to be called.
+  ApiFunction* fun_;
+};
+
+
+class ApiCallEntryStub : public CodeStub {
+ public:
+  ApiCallEntryStub(Handle<CallHandlerInfo> info,
+                   ApiFunction* fun)
+      : info_(info),
+        fun_(fun) { }
+  void Generate(MacroAssembler* masm);
+  virtual bool has_custom_cache() { return true; }
+  virtual bool GetCustomCache(Code** code_out);
+  virtual void SetCustomCache(Code* value);
+
+  static const int kStackSpace = 0;
+  static const int kArgc = 5;
+ private:
+  Handle<CallHandlerInfo> info() { return info_; }
+  ApiFunction* fun() { return fun_; }
+  Major MajorKey() { return NoCache; }
+  int MinorKey() { return 0; }
+  const char* GetName() { return "ApiCallEntryStub"; }
+  // The call handler info associated with the function.
+  Handle<CallHandlerInfo> info_;
   // The function to be called.
   ApiFunction* fun_;
 };

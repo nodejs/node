@@ -997,6 +997,8 @@ void AccessorInfo::AccessorInfoPrint() {
   data()->ShortPrint();
   PrintF("\n - flag: ");
   flag()->ShortPrint();
+  PrintF("\n - load_stub_cache: ");
+  load_stub_cache()->ShortPrint();
 }
 
 void AccessCheckInfo::AccessCheckInfoVerify() {
@@ -1046,6 +1048,7 @@ void CallHandlerInfo::CallHandlerInfoVerify() {
   CHECK(IsCallHandlerInfo());
   VerifyPointer(callback());
   VerifyPointer(data());
+  VerifyPointer(call_stub_cache());
 }
 
 void CallHandlerInfo::CallHandlerInfoPrint() {
@@ -1054,6 +1057,8 @@ void CallHandlerInfo::CallHandlerInfoPrint() {
   callback()->ShortPrint();
   PrintF("\n - data: ");
   data()->ShortPrint();
+  PrintF("\n - call_stub_cache: ");
+  call_stub_cache()->ShortPrint();
 }
 
 void TemplateInfo::TemplateInfoVerify() {

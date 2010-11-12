@@ -195,7 +195,7 @@ class CppLintProcessor(SourceFileProcessor):
               or (name in CppLintProcessor.IGNORE_LINT))
 
   def GetPathsToSearch(self):
-    return ['src', 'public', 'samples', join('test', 'cctest')]
+    return ['src', 'include', 'samples', join('test', 'cctest')]
 
   def ProcessFiles(self, files, path):
     good_files_cache = FileContentsCache('.cpplint-cache')

@@ -145,6 +145,22 @@
 				</FileConfiguration>
 			</File>
     		<File
+				RelativePath="..\..\src\bignum.cc"
+				>
+			</File>
+    		<File
+				RelativePath="..\..\src\bignum.h"
+				>
+			</File>
+    		<File
+				RelativePath="..\..\src\bignum-dtoa.cc"
+				>
+			</File>
+    		<File
+				RelativePath="..\..\src\bignum-dtoa.h"
+				>
+			</File>
+    		<File
 				RelativePath="..\..\src\dtoa.cc"
 				>
 			</File>
@@ -238,6 +254,22 @@
 			</File>
 			<File
 				RelativePath="..\..\src\ast.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\bignum.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\bignum.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\bignum-dtoa.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\bignum-dtoa.h"
 				>
 			</File>
 			<File
@@ -879,6 +911,14 @@
 			</File>
 			<File
 				RelativePath="..\..\src\runtime.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\scanner-base.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\scanner-base.h"
 				>
 			</File>
 			<File

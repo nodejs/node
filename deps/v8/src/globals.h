@@ -193,10 +193,9 @@ const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 
 const int kCharSize     = sizeof(char);      // NOLINT
 const int kShortSize    = sizeof(short);     // NOLINT
-const int kIntSize      = sizeof(int);       // NOLINT
 const int kDoubleSize   = sizeof(double);    // NOLINT
-const int kPointerSize  = sizeof(void*);     // NOLINT
 const int kIntptrSize   = sizeof(intptr_t);  // NOLINT
+// kIntSize and kPointerSize are defined in include/v8.h.
 
 #if V8_HOST_ARCH_64_BIT
 const int kPointerSizeLog2 = 3;

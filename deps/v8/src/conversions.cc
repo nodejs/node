@@ -816,7 +816,7 @@ const char* IntToCString(int n, Vector<char> buffer) {
 
 
 char* DoubleToFixedCString(double value, int f) {
-  const int kMaxDigitsBeforePoint = 20;
+  const int kMaxDigitsBeforePoint = 21;
   const double kFirstNonFixed = 1e21;
   const int kMaxDigitsAfterPoint = 20;
   ASSERT(f >= 0);
@@ -840,9 +840,9 @@ char* DoubleToFixedCString(double value, int f) {
   // Find a sufficiently precise decimal representation of n.
   int decimal_point;
   int sign;
-  // Add space for the '.' and the '\0' byte.
+  // Add space for the '\0' byte.
   const int kDecimalRepCapacity =
-      kMaxDigitsBeforePoint + kMaxDigitsAfterPoint + 2;
+      kMaxDigitsBeforePoint + kMaxDigitsAfterPoint + 1;
   char decimal_rep[kDecimalRepCapacity];
   int decimal_rep_length;
   bool status = DoubleToAscii(value, DTOA_FIXED, f,
