@@ -1030,19 +1030,6 @@ Local<Value> ExecuteString(Local<String> source, Local<Value> filename) {
 }
 
 
-static Handle<Value> Loop(const Arguments& args) {
-  HandleScope scope;
-  assert(args.Length() == 0);
-
-  // TODO Probably don't need to start this each time.
-  // Avoids failing on test/simple/test-eio-race3.js though
-  ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
-
-  ev_loop(EV_DEFAULT_UC_ 0);
-  return Undefined();
-}
-
-
 static Handle<Value> Chdir(const Arguments& args) {
   HandleScope scope;
 
@@ -1666,7 +1653,6 @@ static void Load(int argc, char *argv[]) {
 
 
   // define various internal methods
-  NODE_SET_METHOD(process, "loop", Loop);
   NODE_SET_METHOD(process, "compile", Compile);
   NODE_SET_METHOD(process, "_needTickCallback", NeedTickCallback);
   NODE_SET_METHOD(process, "reallyExit", Exit);
@@ -1981,6 +1967,30 @@ int Start(int argc, char *argv[]) {
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
   node::Load(argc, argv);
+
+  // TODO Probably don't need to start this each time.
+  // Avoids failing on test/simple/test-eio-race3.js though
+  ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
+
+  // All our arguments are loaded. We've evaluated all of the scripts. We
+  // might even have created TCP servers. Now we enter the main eventloop. If
+  // there are no watchers on the loop (except for the ones that were
+  // ev_unref'd) then this function exits. As long as there are active
+  // watchers, it blocks.
+  ev_loop(EV_DEFAULT_UC_ 0);
+
+
+  // process.emit('exit')
+  Local<Value> emit_v = process->Get(String::New("emit"));
+  assert(emit_v->IsFunction());
+  Local<Function> emit = Local<Function>::Cast(emit_v);
+  Local<Value> args[] = { String::New("exit") };
+  TryCatch try_catch;
+  emit->Call(process, 1, args);
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+
 
 #ifndef NDEBUG
   // Clean up.

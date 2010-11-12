@@ -11,4 +11,3 @@ ReferenceError: foo is not defined
     at Module.load (node.js:*)
     at Array.<anonymous> (node.js:*)
     at EventEmitter._tickCallback (node.js:*)
-    at node.js:*

@@ -608,13 +608,4 @@ if (process.argv[1]) {
   module.requireNative('repl').start();
 }
 
-// All our arguments are loaded. We've evaluated all of the scripts. We
-// might even have created TCP servers. Now we enter the main eventloop. If
-// there are no watchers on the loop (except for the ones that were
-// ev_unref'd) then this function exits. As long as there are active
-// watchers, it blocks.
-process.loop();
-
-process.emit("exit");
-
 });
