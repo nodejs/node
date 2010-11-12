@@ -26,6 +26,7 @@ class IOWatcher : ObjectWrap {
   }
 
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Flush(const v8::Arguments& args);
   static v8::Handle<v8::Value> Start(const v8::Arguments& args);
   static v8::Handle<v8::Value> Stop(const v8::Arguments& args);
   static v8::Handle<v8::Value> Set(const v8::Arguments& args);
@@ -34,6 +35,7 @@ class IOWatcher : ObjectWrap {
   static void Callback(EV_P_ ev_io *watcher, int revents);
 
   static void Dump(EV_P_ ev_prepare *watcher, int revents);
+  static void Dump();
 
   void Start();
   void Stop();
