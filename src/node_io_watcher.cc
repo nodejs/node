@@ -335,6 +335,8 @@ void IOWatcher::Dump(EV_P_ ev_prepare *w, int revents) {
 
       size_t l = Buffer::Length(buf_object);
 
+      if (l == 0) continue;
+
       assert(first_offset < l);
       iov[iovcnt].iov_base = Buffer::Data(buf_object) + first_offset;
       iov[iovcnt].iov_len = l - first_offset;
