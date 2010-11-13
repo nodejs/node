@@ -5,7 +5,7 @@ tags
 *.pyc
 *.patch
 doc/api.xml
-doc/api.html
+doc/api/*.html
 doc/changelog.html
 doc/node.1
 tools/nodejs.pc
