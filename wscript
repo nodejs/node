@@ -31,6 +31,12 @@ def set_options(opt):
                 , help='Build debug variant [Default: False]'
                 , dest='debug'
                 )
+  opt.add_option( '--profile'
+                , action='store_true'
+                , default=False
+                , help='Enable profiling [Default: False]'
+                , dest='profile'
+                )
   opt.add_option( '--efence'
                 , action='store_true'
                 , default=False
@@ -138,6 +144,7 @@ def configure(conf):
 
   conf.env["USE_DEBUG"] = o.debug
   conf.env["SNAPSHOT_V8"] = not o.without_snapshot
+  conf.env["USE_PROFILING"] = o.profile
 
   conf.env["USE_SHARED_V8"] = o.shared_v8 or o.shared_v8_includes or o.shared_v8_libpath or o.shared_v8_libname
   conf.env["USE_SHARED_CARES"] = o.shared_cares or o.shared_cares_includes or o.shared_cares_libpath
@@ -290,6 +297,10 @@ def configure(conf):
 
   # platform
   conf.env.append_value('CPPFLAGS', '-DPLATFORM="' + conf.env['DEST_OS'] + '"')
+
+  if conf.env['USE_PROFILING'] == True:
+    conf.env.append_value('CPPFLAGS', '-pg')
+    conf.env.append_value('LINKFLAGS', '-pg')
 
   # Split off debug variant before adding variant specific defines
   debug_env = conf.env.copy()
