@@ -55,7 +55,7 @@ var qsWeirdObjects = [
 ];
 }
 
-var Script = process.binding('evals').Script;
+var Script = require('javascript').Script;
 var foreignObject = Script.runInContext('({"foo": ["bar", "baz"]})', Script.createContext());
 
 var qsNoMungeTestCases = [
