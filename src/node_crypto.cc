@@ -729,25 +729,23 @@ static void HexDecode(unsigned char *input,
 
 
 void base64(unsigned char *input, int length, char** buf64, int* buf64_len) {
-  BIO *bmem, *b64;
-  BUF_MEM *bptr;
-  int len;
-
-  b64 = BIO_new(BIO_f_base64());
-  bmem = BIO_new(BIO_s_mem());
+  BIO *b64 = BIO_new(BIO_f_base64());
+  BIO *bmem = BIO_new(BIO_s_mem());
   b64 = BIO_push(b64, bmem);
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-  len = BIO_write(b64, input, length);
+  int len = BIO_write(b64, input, length);
   assert(len == length);
   int r = BIO_flush(b64);
   assert(r == 1);
+
+  BUF_MEM *bptr;
   BIO_get_mem_ptr(b64, &bptr);
 
   *buf64_len = bptr->length;
   *buf64 = new char[*buf64_len+1];
-  memcpy(*buf64, bptr->data, bptr->length);
+  memcpy(*buf64, bptr->data, *buf64_len);
   char* b = *buf64;
-  b[bptr->length] = 0;
+  b[*buf64_len] = 0;
 
   BIO_free_all(b64);
 }
@@ -1881,15 +1879,6 @@ class Hash : public ObjectWrap {
     return 1;
   }
 
-  int HashDigest(unsigned char** md_value, unsigned int *md_len) {
-    if (!initialised_) return 0;
-    *md_value = new unsigned char[EVP_MAX_MD_SIZE];
-    EVP_DigestFinal_ex(&mdctx, *md_value, md_len);
-    EVP_MD_CTX_cleanup(&mdctx);
-    initialised_ = false;
-    return 1;
-  }
-
 
  protected:
 
@@ -1948,21 +1937,26 @@ class Hash : public ObjectWrap {
   }
 
   static Handle<Value> HashDigest(const Arguments& args) {
-    Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
-
     HandleScope scope;
 
-    unsigned char* md_value;
+    Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
+
+    if (!hash->initialised_) {
+      return ThrowException(Exception::Error(String::New("Not initialized")));
+    }
+
+    unsigned char md_value[EVP_MAX_MD_SIZE];
     unsigned int md_len;
-    char* md_hexdigest;
-    int md_hex_len;
-    Local<Value> outString ;
 
-    int r = hash->HashDigest(&md_value, &md_len);
+    EVP_DigestFinal_ex(&hash->mdctx, md_value, &md_len);
+    EVP_MD_CTX_cleanup(&hash->mdctx);
+    hash->initialised_ = false;
 
-    if (md_len == 0 || r == 0) {
+    if (md_len == 0) {
       return scope.Close(String::New(""));
     }
+
+    Local<Value> outString;
 
     if (args.Length() == 0 || !args[0]->IsString()) {
       // Binary
@@ -1971,10 +1965,14 @@ class Hash : public ObjectWrap {
       String::Utf8Value encoding(args[0]->ToString());
       if (strcasecmp(*encoding, "hex") == 0) {
         // Hex encoding
+        char* md_hexdigest;
+        int md_hex_len;
         HexEncode(md_value, md_len, &md_hexdigest, &md_hex_len);
         outString = Encode(md_hexdigest, md_hex_len, BINARY);
         delete [] md_hexdigest;
       } else if (strcasecmp(*encoding, "base64") == 0) {
+        char* md_hexdigest;
+        int md_hex_len;
         base64(md_value, md_len, &md_hexdigest, &md_hex_len);
         outString = Encode(md_hexdigest, md_hex_len, BINARY);
         delete [] md_hexdigest;
@@ -1985,9 +1983,8 @@ class Hash : public ObjectWrap {
                         "can be binary, hex or base64\n");
       }
     }
-    delete [] md_value;
-    return scope.Close(outString);
 
+    return scope.Close(outString);
   }
 
   Hash () : ObjectWrap () {
