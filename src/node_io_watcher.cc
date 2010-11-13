@@ -38,6 +38,7 @@ static Persistent<String> is_unix_socket_sym;
 static Persistent<String> first_bucket_sym;
 static Persistent<String> last_bucket_sym;
 static Persistent<String> queue_size_sym;
+static Persistent<String> callback_sym;
 
 
 void IOWatcher::Initialize(Handle<Object> target) {
@@ -73,6 +74,7 @@ void IOWatcher::Initialize(Handle<Object> target) {
   is_unix_socket_sym = NODE_PSYMBOL("isUnixSocket");
   data_sym = NODE_PSYMBOL("data");
   encoding_sym = NODE_PSYMBOL("encoding");
+  callback_sym = NODE_PSYMBOL("callback");
 
 
   ev_prepare_init(&dumper, IOWatcher::Dump);
@@ -496,6 +498,17 @@ void IOWatcher::Dump() {
                     bucket_index);
 
         written -= bucket_len - offset;
+
+        Local<Value> bucket_callback_v = bucket->Get(callback_sym);
+        if (bucket_callback_v->IsFunction()) {
+          Local<Function> bucket_callback =
+            Local<Function>::Cast(bucket_callback_v);
+          TryCatch try_catch;
+          bucket_callback->Call(io->handle_, 0, NULL);
+          if (try_catch.HasCaught()) {
+            FatalException(try_catch);
+          }
+        }
 
         // Offset is now zero
         watcher->Set(offset_sym, Integer::NewFromUnsigned(0));
