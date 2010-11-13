@@ -44,27 +44,23 @@ test-pummel: all
 test-internet: all
 	python tools/test.py internet
 
-# http://rtomayko.github.com/ronn
-# gem install ronn
-doc: doc/node.1 doc/api.html doc/index.html doc/changelog.html
 
-## HACK to give the ronn-generated page a TOC
-doc/api.html: all doc/api.markdown doc/api_header.html doc/api_footer.html
-	build/default/node tools/ronnjs/bin/ronn.js --fragment doc/api.markdown \
-	| sed "s/<h2>\(.*\)<\/h2>/<h2 id=\"\1\">\1<\/h2>/g" \
-	| cat doc/api_header.html - doc/api_footer.html > doc/api.html
+doc: doc/api/all.html doc/changelog.html
+
+docopen: doc/api/all.html
+	-google-chrome doc/api/all.html
+
+doc/api/all.html: node  doc/api/*.markdown
+	./node tools/doctool/doctool.js
 
 doc/changelog.html: ChangeLog doc/changelog_header.html doc/changelog_footer.html
 	cat doc/changelog_header.html ChangeLog doc/changelog_footer.html > doc/changelog.html
-
-doc/node.1: doc/api.markdown all
-	build/default/node tools/ronnjs/bin/ronn.js --roff doc/api.markdown > doc/node.1
 
 website-upload: doc
 	scp doc/* ryan@nodejs.org:~/web/nodejs.org/
 
 docclean:
-	@-rm -f doc/node.1 doc/api.html doc/changelog.html
+	@-rm -f doc/node.1 doc/api/*.html doc/changelog.html
 
 clean:
 	@$(WAF) clean

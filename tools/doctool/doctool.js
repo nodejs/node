@@ -5,7 +5,7 @@ var fs = require("fs")
 
 var cwd = process.cwd()
   , doc_root = path.join(cwd, "doc/api/")
-  , build_root = path.join(cwd, "build/doc/api/")
+  , build_root = path.join(cwd, "doc/api/")
   , assets_path = path.join(cwd, "doc/api_assets/")
   , bassets_path = path.join(build_root, "assets/");
 
