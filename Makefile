@@ -1,5 +1,7 @@
 WAF=python tools/waf-light
 
+web_root = ryan@nodejs.org:~/web/nodejs.org/
+
 all: program
 
 all-progress:
@@ -37,30 +39,60 @@ test-message: all
 
 test-simple: all
 	python tools/test.py simple
-     
+
 test-pummel: all
 	python tools/test.py pummel
-	
+
 test-internet: all
 	python tools/test.py internet
 
+build/default/node: all
 
-doc: doc/api/all.html doc/changelog.html
+apidoc_sources = $(wildcard doc/api/*.markdown)
+apidocs = $(addprefix build/,$(apidoc_sources:.markdown=.html))
 
-docopen: doc/api/all.html
-	-google-chrome doc/api/all.html
+apidoc_dirs = build/doc build/doc/api/ build/doc/api/assets
 
-doc/api/all.html: node  doc/api/*.markdown
-	./node tools/doctool/doctool.js
+apiassets = $(subst api_assets,api/assets,$(addprefix build/,$(wildcard doc/api_assets/*)))
 
-doc/changelog.html: ChangeLog doc/changelog_header.html doc/changelog_footer.html
-	cat doc/changelog_header.html ChangeLog doc/changelog_footer.html > doc/changelog.html
+doc: build/default/node $(apidoc_dirs) $(apiassets) $(apidocs) build/doc/changelog.html
+
+$(apidoc_dirs):
+	mkdir -p $@
+
+build/doc/api/assets/%: doc/api_assets/% build/doc/api/assets/
+	cp $< $@
+
+build/doc/api/%.html: doc/api/%.markdown build/default/node $(apidoc_dirs) $(apiassets)
+	build/default/node tools/doctool/doctool.js doc/template.html $< > $@
+
+build/doc/changelog.html: ChangeLog build/default/node build/doc/ $(apidoc_dirs) $(apiassets)
+	build/default/node tools/doctool/doctool.js doc/template.html $< \
+	| sed 's|assets/|api/assets/|g' \
+	| sed 's|<body>|<body id="changelog">|g' > $@
+	@echo $(apiassets)
+
+
+website_files = \
+	doc/index.html    \
+	doc/cla.html      \
+	doc/jquery.js     \
+	doc/sh_main.js    \
+	doc/sh_javascript.min.js \
+	doc/sh_vim-dark.css \
+	doc/logo.png      \
+	doc/sponsored.png \
+	doc/pipe.css
 
 website-upload: doc
-	scp doc/* ryan@nodejs.org:~/web/nodejs.org/
+	scp -r build/doc/* $(web_root)
+	scp $(website_files) $(web_root)
+
+docopen: build/doc/api/all.html
+	-google-chrome build/doc/api/all.html
 
 docclean:
-	@-rm -f doc/api/*.html doc/changelog.html
+	-rm -rf build/doc
 
 clean:
 	@$(WAF) clean
@@ -76,11 +108,12 @@ check:
 VERSION=$(shell git describe)
 TARNAME=node-$(VERSION)
 
-dist: doc/node.1 doc/api.html
-	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
+#dist: doc/node.1 doc/api
+dist: doc
+	  git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
 	mkdir -p $(TARNAME)/doc
 	cp doc/node.1 $(TARNAME)/doc/node.1
-	cp doc/api.html $(TARNAME)/doc/api.html
+	cp -r build/doc/api $(TARNAME)/doc/api
 	rm -rf $(TARNAME)/deps/v8/test # too big
 	tar -cf $(TARNAME).tar $(TARNAME)
 	rm -rf $(TARNAME)
@@ -95,4 +128,4 @@ bench-idle:
 	./node benchmark/idle_clients.js &
 
 
-.PHONY: bench clean docclean dist distclean check uninstall install all program staticlib dynamiclib test test-all website-upload
+.PHONY: bench clean docclean doc dist distclean check uninstall install all program staticlib dynamiclib test test-all website-upload

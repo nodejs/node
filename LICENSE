@@ -25,6 +25,9 @@ are:
     Apache-style license. OpenSSL is not included in the Node distribution.
     See http://openssl.org/ for more information.
 
+  - tools/doctool/markdown.js is Released under MIT license and
+    Copyright 2009-2010 Dominic Baggott and Ash Berli
+
   - HTTP Parser, located at deps/http_parser, is a small C library
     copyrighted by Ryan Lienhart Dahl and has a MIT license.
 
