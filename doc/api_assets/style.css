@@ -24,6 +24,10 @@ a {
       color: #b950b7;
     }
 
+#changelog #gtoc {
+  display: none;
+}
+
 .notice {
   display: block;
   padding: 1em;
@@ -97,16 +101,15 @@ h1 {
 }
 
 h2 {
-  font-size: 1.8em;
+  font-size: 1.9em;
   line-height: 1.227em;
-  margin: 0 0 0.75em;
-  font-style: italic;
+  margin: 0 0 0.5em;
 }
 
 h3 {
-  font-size: 1.6em;
+  font-size: 1.5em;
   line-height: 1.0909em;
-  margin: 1.6em 0 1em;
+  margin: 1.5em 0 0.5em;
 }
 
 h3 + h3 {
@@ -175,11 +178,34 @@ code.pre {
   padding: 0 0.5em 0.225em;
 }
 
-#container header hr {
+hr {
   background: none;
   border: medium none;
   border-bottom: 1px solid #ccc;
+  margin: 5em 0 2em;
 }
+
+#container header hr {
+  margin: 0;
+  padding: 0;
+}
+
+#toc {
+  
+}
+
+  #toc h2 {
+    font-size: 1em;
+    line-height: 1.4em;
+  }
+  
+  #toc h2 a {
+    float: right;
+  }
+  
+  #toc hr {
+    margin: 1em 0 2em;
+  }
 
 p tt, p code {
   background: #f8f8ff;
