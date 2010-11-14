@@ -109,14 +109,18 @@ h3 {
   margin: 1.6em 0 1em;
 }
 
+h3 + h3 {
+  margin: 0 0 0.5em;
+}
+
 h4 {
   font-size: 1.3em;
   line-height: 1.1282em;
-  margin: 2.2em 0 1.25em;
+  margin: 2.2em 0 0.5em;
 }
 
 h4 + h4 {
-  margin: 0 0 1.25em;
+  margin: 0 0 0.5em;
 }
 
 h5 {
