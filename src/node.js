@@ -130,6 +130,7 @@ var module = (function () {
 
   if (process.env["HOME"]) {
     modulePaths.unshift(path.join(process.env["HOME"], ".node_libraries"));
+    modulePaths.unshift(path.join(process.env["HOME"], ".node_modules"));
   }
 
   if (process.env["NODE_PATH"]) {
