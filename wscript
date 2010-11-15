@@ -21,7 +21,7 @@ if os.environ.has_key('JOBS'):
 
 
 def canonical_cpu_type(arch):
-  m = {'i386':'ia32', 'x86_64':'x64', 'amd64':'x64'}
+  m = {'x86': 'ia32', 'i386':'ia32', 'x86_64':'x64', 'amd64':'x64'}
   if arch in m: arch = m[arch]
   if not arch in supported_archs:
     raise Exception("supported architectures are "+', '.join(supported_archs)+\
