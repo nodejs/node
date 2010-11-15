@@ -60,7 +60,7 @@ website-upload: doc
 	scp doc/* ryan@nodejs.org:~/web/nodejs.org/
 
 docclean:
-	@-rm -f doc/node.1 doc/api/*.html doc/changelog.html
+	@-rm -f doc/api/*.html doc/changelog.html
 
 clean:
 	@$(WAF) clean

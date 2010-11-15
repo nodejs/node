@@ -1,0 +1,62 @@
+.TH NODE.JS "1" "2010" "" ""
+
+
+.SH "NAME"
+node \- Server-side JavaScript
+
+.SH SYNOPSIS
+
+
+.B node
+[
+.B \-v
+]
+[
+.B \-\-debug
+|
+.B \-\-debug-brk
+]
+[
+.B \-\-v8-options
+]
+.br
+     [
+.B \-e
+.I command
+|
+.I script.js
+]
+[
+.I arguments
+]
+
+Execute without arguments to start the REPL.
+
+
+.SH DESCRIPTION
+
+Node is a set of libraries for javascript which allows
+it to be used outside of the browser. It is primarally
+focused on creating simple, easy to build network clients
+and servers.
+
+
+.SH ENVIRONMENT VARIABLES
+
+.IP NODE_PATH
+':'-separated list of directories prefixed to the module search path,
+require.paths.
+
+.IP NODE_MODULE_CONTEXTS
+If set to 1 then modules will load in their own global contexts.
+
+.IP NODE_DISABLE_COLORS
+If set to 1 then colors will not be used in the REPL.
+
+.SH RESOURCES AND DOCUMENTATION
+
+See the website for documentation http://nodejs.org/
+
+Mailing list: http://groups.google.com/group/nodejs
+
+IRC: irc.freenode.net #node.js
