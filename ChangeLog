@@ -1,4 +1,44 @@
-2010.10.24, Version 0.2.4
+2010.11.16, Version 0.2.5
+
+* Add ref to buffer during fs.write and fs.read. Sometimes buffers
+  would be GCed before making it to the thread pool.
+
+* Fix http buffer pushing bug:
+  http://groups.google.com/group/nodejs/browse_thread/thread/f66cd3c960406919
+
+* Gracefully handle EMFILE and server.maxConnections
+
+* "node --eval" evals in the global scope. (Jorge Chamorro Bieling)
+
+* Handle cyclic links smarter in fs.realpath (isaacs, Issue #167)
+
+* Rewrite libeio After callback to use req->result instead of req->errorno
+  for error checking (Micheil Smith)
+
+* Removed range read optimization as it doesn't work with libeio. (Chandra
+  Sekar S)
+
+* Make writes to process.env update the real environment (Ben Noordhuis)
+
+* Set FD_CLOEXEC flag on stdio FDs before spawning. (Guillaume Tuton)
+
+* Upgrade http-parser
+
+* Readline: Switch \n with \r\n for all strings printed out.
+  Simplify displayPrompt
+
+* Fix segfault on test-crypto
+
+* Add --profile flag to configure script, enables gprof profiling. (Ben
+  Noordhuis)
+
+* writeFileSync could exhibit pathological behavior when a buffer could
+  not be written to the file in a single write() call. (isaacs)
+
+* Fix OS::GetExecutablePath for platform_none shouldn't return garbage.
+
+
+2010.10.24, Version 0.2.4, 428a67012158eb2ff478a0dc58336e85e4c6399a
 
 * Add --eval to command line options (TJ Holowaychuk)
 
