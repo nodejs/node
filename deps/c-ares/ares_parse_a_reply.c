@@ -201,7 +201,7 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
         }
     }
 
-  if (status == ARES_SUCCESS && naddrs == 0)
+  if (status == ARES_SUCCESS && naddrs == 0 && naliases == 0)
     status = ARES_ENODATA;
   if (status == ARES_SUCCESS)
     {
