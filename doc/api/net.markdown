@@ -86,6 +86,25 @@ Stops the server from accepting new connections. This function is
 asynchronous, the server is finally closed when the server emits a `'close'`
 event.
 
+
+#### server.address()
+
+Returns the bound address of the server as seen by the operating system.
+Useful to find which port was assigned when giving getting an OS-assigned address
+
+Example:
+
+    var server = net.createServer(function (socket) {
+      socket.end("goodbye\n");
+    });
+
+    // grab a random port.
+    server.listen(function() {
+      address = server.address();
+      console.log("opened server on %j", address);
+    });
+
+
 #### server.maxConnections
 
 Set this property to reject connections when the server's connection count gets high.
