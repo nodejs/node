@@ -16,7 +16,7 @@ Example of using `vm.runInThisContext` and `eval` to run the same code:
 
     var localVar = 123,
         usingscript, evaled,
-        vm = require('javascript');
+        vm = require('vm');
 
     usingscript = vm.runInThisContext('localVar = 1;',
       'myfile.vm');
@@ -47,7 +47,7 @@ Example: compile and execute code that increments a global variable and sets a n
 These globals are contained in the sandbox.
 
     var util = require('util'),
-        vm = require('javascript'),
+        vm = require('vm'),
         sandbox = {
           animal: 'cat',
           count: 2
@@ -87,7 +87,7 @@ Running code does not have access to local scope, but does have access to the `g
 
 Example of using `script.runInThisContext` to compile code once and run it multiple times:
 
-    var vm = require('javascript');
+    var vm = require('vm');
 
     globalVar = 0;
 
@@ -112,7 +112,7 @@ Example: compile code that increments a global variable and sets one, then execu
 These globals are contained in the sandbox.
 
     var util = require('util'),
-        vm = require('javascript'),
+        vm = require('vm'),
         sandbox = {
           animal: 'cat',
           count: 2
