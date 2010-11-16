@@ -6,9 +6,6 @@
 - add completion callbacks to all stream write() methods
 - Erradicate all traces of 'binary' encoding. Only used, now, in OpenSSL
   binding.
-- Documentation needs a major refactor; should generate more than one HTML
-  page/man page from the single api.markdown file. Deep sections should be
-  allowed.
 - EventSource branch merged
 - Use C++ style casts everywhere.
 - Ruby-like Process#detach (is that possible?)
@@ -17,3 +14,13 @@
   (so that it can pull in files larger than 2G)
 - process object should be defined in src/node.js not in c++
 - Test for EMFILE accept spin bug.
+- Deprecate setEncoding() and instead add option to on('data').
+  Example:
+
+    stdin.on('data', { encoding: 'utf8' }, function (chunk) {
+      process.stdout.write('WRITE: ' + chunk);
+    });
+
+  Perhaps by assigning cb.opts.encoding and calling
+  EventEmitter.optHandlers.encoding() if it exists.
+
