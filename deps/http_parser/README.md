@@ -39,10 +39,10 @@ like this for a request parser:
     settings.on_path = my_path_callback;
     settings.on_header_field = my_header_field_callback;
     /* ... */
-    settings.data = my_socket;
 
     http_parser *parser = malloc(sizeof(http_parser));
     http_parser_init(parser, HTTP_REQUEST);
+    parser->data = my_socket;
 
 When data is received on the socket execute the parser and check for errors.
 
