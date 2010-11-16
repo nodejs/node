@@ -1686,7 +1686,7 @@ static void Load(int argc, char *argv[]) {
     // as a last ditch effort, fallback on argv[0] ?
     process->Set(String::NewSymbol("execPath"), String::New(argv[0]));
   } else {
-    process->Set(String::NewSymbol("execPath"), String::New(execPath));
+    process->Set(String::NewSymbol("execPath"), String::New(execPath, size));
   }
 
 
