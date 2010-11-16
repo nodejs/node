@@ -23,7 +23,7 @@
 * [Query Strings](querystring.html)
 * [Readline](readline.html)
 * [REPL](repl.html)
-* [Script](script.html)
+* [VM](vm.html)
 * [Child Processes](child_processes.html)
 * [Assertion Testing](assert.html)
 * Appendixes

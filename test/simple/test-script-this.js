@@ -1,7 +1,7 @@
 common = require("../common");
 assert = common.assert
 
-var Script = require('javascript').Script;
+var Script = require('vm').Script;
 
 common.debug('run a string');
 var script = new Script('"passed";');
