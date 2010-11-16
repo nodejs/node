@@ -90,7 +90,7 @@ build/doc/changelog.html: ChangeLog build/default/node build/doc/ $(apidoc_dirs)
 build/doc/%:
 
 website-upload: doc
-	scp -r build/* $(web_root)
+	scp -r build/doc/* $(web_root)
 
 docopen: build/doc/api/all.html
 	-google-chrome build/doc/api/all.html
