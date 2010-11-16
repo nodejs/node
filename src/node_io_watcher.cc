@@ -135,6 +135,7 @@ Handle<Value> IOWatcher::Set(const Arguments& args) {
 
   if (args[2]->IsTrue()) events |= EV_WRITE;
 
+  assert(!io->watcher_.active);
   ev_io_set(&io->watcher_, fd, events);
 
   return Undefined();
