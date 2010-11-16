@@ -55,12 +55,26 @@ apidoc_dirs = build/doc build/doc/api/ build/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix build/,$(wildcard doc/api_assets/*)))
 
-doc: build/default/node $(apidoc_dirs) $(apiassets) $(apidocs) build/doc/changelog.html
+website_files = \
+	build/doc/index.html    \
+	build/doc/cla.html      \
+	build/doc/jquery.js     \
+	build/doc/sh_main.js    \
+	build/doc/sh_javascript.min.js \
+	build/doc/sh_vim-dark.css \
+	build/doc/logo.png      \
+	build/doc/sponsored.png \
+	build/doc/pipe.css
+
+doc: build/default/node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs) build/doc/changelog.html
 
 $(apidoc_dirs):
 	mkdir -p $@
 
 build/doc/api/assets/%: doc/api_assets/% build/doc/api/assets/
+	cp $< $@
+
+build/doc/%: doc/%
 	cp $< $@
 
 build/doc/api/%.html: doc/api/%.markdown build/default/node $(apidoc_dirs) $(apiassets)
@@ -73,20 +87,10 @@ build/doc/changelog.html: ChangeLog build/default/node build/doc/ $(apidoc_dirs)
 	@echo $(apiassets)
 
 
-website_files = \
-	doc/index.html    \
-	doc/cla.html      \
-	doc/jquery.js     \
-	doc/sh_main.js    \
-	doc/sh_javascript.min.js \
-	doc/sh_vim-dark.css \
-	doc/logo.png      \
-	doc/sponsored.png \
-	doc/pipe.css
+build/doc/%:
 
 website-upload: doc
-	scp -r build/doc/* $(web_root)
-	scp $(website_files) $(web_root)
+	scp -r build/* $(web_root)
 
 docopen: build/doc/api/all.html
 	-google-chrome build/doc/api/all.html
@@ -128,4 +132,4 @@ bench-idle:
 	./node benchmark/idle_clients.js &
 
 
-.PHONY: bench clean docclean doc dist distclean check uninstall install all program staticlib dynamiclib test test-all website-upload
+.PHONY: bench clean docopen docclean doc dist distclean check uninstall install all program staticlib dynamiclib test test-all website-upload
