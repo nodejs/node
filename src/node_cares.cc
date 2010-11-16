@@ -98,6 +98,7 @@ void Cares::Initialize(Handle<Object> target) {
   target->Set(String::NewSymbol("PTR"), Integer::New(ns_t_ptr));
   target->Set(String::NewSymbol("TXT"), Integer::New(ns_t_txt));
   target->Set(String::NewSymbol("SRV"), Integer::New(ns_t_srv));
+  target->Set(String::NewSymbol("CNAME"), Integer::New(ns_t_cname));
 
   target->Set(String::NewSymbol("NODATA"), Integer::New(ARES_ENODATA));
   target->Set(String::NewSymbol("FORMERR"), Integer::New(ARES_EFORMERR));
@@ -311,6 +312,29 @@ static void ParseAnswerAAAA(QueryArg *arg, unsigned char* abuf, int alen) {
   Local<Value> argv[2] = { Local<Value>::New(Null()), addresses};
   cb_call(arg->js_cb, 2, argv);
 }
+
+
+static void ParseAnswerCNAME(QueryArg *arg, unsigned char* abuf, int alen) {
+  HandleScope scope;
+
+  hostent* host;
+
+  int status = ares_parse_a_reply(abuf, alen, &host, NULL, NULL);
+  if (status != ARES_SUCCESS) {
+    ResolveError(arg->js_cb, status);
+    return;
+  }
+
+  // a CNAME lookup always returns a single record but
+  // it's probably best to follow the common API here
+  Local<Array> addresses = Array::New(1);
+  addresses->Set(0, String::New(host->h_name));
+  ares_free_hostent(host);
+
+  Local<Value> argv[2] = { Local<Value>::New(Null()), addresses };
+  cb_call(arg->js_cb, 2, argv);
+}
+
 
 static void ParseAnswerMX(QueryArg *arg, unsigned char* abuf, int alen) {
   HandleScope scope;
@@ -541,6 +565,10 @@ Handle<Value> Channel::Query(const Arguments& args) {
 
     case ns_t_srv:
       parse_cb = ParseAnswerSRV;
+      break;
+
+    case ns_t_cname:
+      parse_cb = ParseAnswerCNAME;
       break;
 
     case ns_t_ptr:

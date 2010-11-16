@@ -38,6 +38,16 @@ while (i--) {
   }
 }
 
+// CNAME should resolve
+dns.resolve('labs.nrcmedia.nl', 'CNAME', function(err, result) {
+  assert.deepEqual(result, ['nrcmedia.nl']);
+});
+
+// CNAME should not resolve
+dns.resolve('nrcmedia.nl', 'CNAME', function(err, result) {
+  assert.ok(err.errno, dns.NODATA);
+});
+
 function checkDnsRecord(host, record) {
   var myHost = host,
       myRecord = record;
