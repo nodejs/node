@@ -10,6 +10,7 @@ namespace node {
 class IOWatcher : ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
+  static void Dump();
 
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
@@ -35,7 +36,6 @@ class IOWatcher : ObjectWrap {
   static void Callback(EV_P_ ev_io *watcher, int revents);
 
   static void Dump(EV_P_ ev_prepare *watcher, int revents);
-  static void Dump();
 
   void Start();
   void Stop();
