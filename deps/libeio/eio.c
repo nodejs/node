@@ -232,6 +232,10 @@ static xmutex_t reslock = X_MUTEX_INIT;
 static xmutex_t reqlock = X_MUTEX_INIT;
 static xcond_t  reqwait = X_COND_INIT;
 
+#if defined (__APPLE__)
+static xmutex_t apple_bug_writelock = X_MUTEX_INIT;
+#endif
+
 #if !HAVE_PREADWRITE
 /*
  * make our pread/pwrite emulation safe against themselves, but not against
@@ -1640,9 +1644,19 @@ static void eio_execute (etp_worker *self, eio_req *req)
                           req->result = req->offs >= 0
                                       ? pread     (req->int1, req->ptr2, req->size, req->offs)
                                       : read      (req->int1, req->ptr2, req->size); break;
-      case EIO_WRITE:     req->result = req->offs >= 0
+      case EIO_WRITE:
+#if defined (__APPLE__)
+                          pthread_mutex_lock (&apple_bug_writelock);
+#endif
+
+                          req->result = req->offs >= 0
                                       ? pwrite    (req->int1, req->ptr2, req->size, req->offs)
-                                      : write     (req->int1, req->ptr2, req->size); break;
+                                      : write     (req->int1, req->ptr2, req->size);
+
+#if defined (__APPLE__)
+                          pthread_mutex_unlock (&apple_bug_writelock);
+#endif
+                          break;
 
       case EIO_READAHEAD: req->result = readahead     (req->int1, req->offs, req->size); break;
       case EIO_SENDFILE:  req->result = eio__sendfile (req->int1, req->int2, req->offs, req->size, self); break;
