@@ -54,7 +54,8 @@ the entire process until they complete--halting all connections.
 
 ### fs.rename(path1, path2, [callback])
 
-Asynchronous rename(2). No arguments other than a possible exception are given to the completion callback.
+Asynchronous rename(2). No arguments other than a possible exception are given 
+to the completion callback.
 
 ### fs.renameSync(path1, path2)
 
@@ -62,7 +63,8 @@ Synchronous rename(2).
 
 ### fs.truncate(fd, len, [callback])
 
-Asynchronous ftruncate(2). No arguments other than a possible exception are given to the completion callback.
+Asynchronous ftruncate(2). No arguments other than a possible exception are 
+given to the completion callback.
 
 ### fs.truncateSync(fd, len)
 
@@ -70,7 +72,8 @@ Synchronous ftruncate(2).
 
 ### fs.chmod(path, mode, [callback])
 
-Asynchronous chmod(2). No arguments other than a possible exception are given to the completion callback.
+Asynchronous chmod(2). No arguments other than a possible exception are given 
+to the completion callback.
 
 ### fs.chmodSync(path, mode)
 
@@ -78,7 +81,8 @@ Synchronous chmod(2).
   
 ### fs.stat(path, [callback])
 
-Asynchronous stat(2). The callback gets two arguments `(err, stats)` where `stats` is a `fs.Stats` object. It looks like this:
+Asynchronous stat(2). The callback gets two arguments `(err, stats)` where 
+`stats` is a `fs.Stats` object. It looks like this:
 
     { dev: 2049
     , ino: 305352
@@ -99,11 +103,15 @@ See the `fs.Stats` section below for more information.
 
 ### fs.lstat(path, [callback])
 
-Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where `stats` is a `fs.Stats` object.
+Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where 
+`stats` is a `fs.Stats` object. lstat() is identical to stat(), except that if 
+path is a symbolic link, then the link itself is stat-ed, not the file that it 
+refers to.
 
 ### fs.fstat(fd, [callback])
 
-Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where `stats` is a `fs.Stats` object.
+Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where 
+`stats` is a `fs.Stats` object.
 
 ### fs.statSync(path)
 
@@ -119,7 +127,8 @@ Synchronous fstat(2). Returns an instance of `fs.Stats`.
 
 ### fs.link(srcpath, dstpath, [callback])
 
-Asynchronous link(2). No arguments other than a possible exception are given to the completion callback.
+Asynchronous link(2). No arguments other than a possible exception are given to 
+the completion callback.
 
 ### fs.linkSync(dstpath, srcpath)
 
@@ -127,7 +136,8 @@ Synchronous link(2).
 
 ### fs.symlink(linkdata, path, [callback])
 
-Asynchronous symlink(2). No arguments other than a possible exception are given to the completion callback.
+Asynchronous symlink(2). No arguments other than a possible exception are given 
+to the completion callback.
 
 ### fs.symlinkSync(linkdata, path)
 
@@ -135,7 +145,8 @@ Synchronous symlink(2).
 
 ### fs.readlink(path, [callback])
 
-Asynchronous readlink(2). The callback gets two arguments `(err, resolvedPath)`. 
+Asynchronous readlink(2). The callback gets two arguments `(err, 
+resolvedPath)`. 
 
 ### fs.readlinkSync(path)
 
@@ -143,7 +154,8 @@ Synchronous readlink(2). Returns the resolved path.
 
 ### fs.realpath(path, [callback])
 
-Asynchronous realpath(2).  The callback gets two arguments `(err, resolvedPath)`.
+Asynchronous realpath(2).  The callback gets two arguments `(err, 
+resolvedPath)`.
 
 ### fs.realpathSync(path)
 
@@ -151,7 +163,8 @@ Synchronous realpath(2). Returns the resolved path.
 
 ### fs.unlink(path, [callback])
 
-Asynchronous unlink(2). No arguments other than a possible exception are given to the completion callback.
+Asynchronous unlink(2). No arguments other than a possible exception are given 
+to the completion callback.
 
 ### fs.unlinkSync(path)
 
@@ -159,7 +172,8 @@ Synchronous unlink(2).
 
 ### fs.rmdir(path, [callback])
 
-Asynchronous rmdir(2). No arguments other than a possible exception are given to the completion callback.
+Asynchronous rmdir(2). No arguments other than a possible exception are given 
+to the completion callback.
 
 ### fs.rmdirSync(path)
 
@@ -167,7 +181,8 @@ Synchronous rmdir(2).
 
 ### fs.mkdir(path, mode, [callback])
 
-Asynchronous mkdir(2). No arguments other than a possible exception are given to the completion callback.
+Asynchronous mkdir(2). No arguments other than a possible exception are given 
+to the completion callback.
 
 ### fs.mkdirSync(path, mode)
 
@@ -186,7 +201,8 @@ Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
 
 ### fs.close(fd, [callback])
 
-Asynchronous close(2).  No arguments other than a possible exception are given to the completion callback.
+Asynchronous close(2).  No arguments other than a possible exception are given 
+to the completion callback.
 
 ### fs.closeSync(fd)
 
@@ -217,11 +233,13 @@ specifies how many _bytes_ were written.
 
 ### fs.writeSync(fd, buffer, offset, length, position)
 
-Synchronous version of buffer-based `fs.write()`. Returns the number of bytes written.
+Synchronous version of buffer-based `fs.write()`. Returns the number of bytes 
+written.
 
 ### fs.writeSync(fd, str, position, encoding='utf8')
 
-Synchronous version of string-based `fs.write()`. Returns the number of bytes written.
+Synchronous version of string-based `fs.write()`. Returns the number of bytes 
+written.
 
 ### fs.read(fd, buffer, offset, length, position, [callback])
 
@@ -240,11 +258,13 @@ The callback is given the two arguments, `(err, bytesRead)`.
 
 ### fs.readSync(fd, buffer, offset, length, position)
 
-Synchronous version of buffer-based `fs.read`. Returns the number of `bytesRead`.
+Synchronous version of buffer-based `fs.read`. Returns the number of 
+`bytesRead`.
 
 ### fs.readSync(fd, length, position, encoding)
 
-Synchronous version of string-based `fs.read`. Returns the number of `bytesRead`.
+Synchronous version of string-based `fs.read`. Returns the number of 
+`bytesRead`.
 
 ### fs.readFile(filename, [encoding], [callback])
 
