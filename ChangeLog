@@ -1,4 +1,66 @@
-2010.10.23, Version 0.3.0 (unstable)
+2010.11.16, Version 0.3.1 (unstable)
+
+* TLS improvments (Paul Querna)
+  - Centralize error handling in SecureStream
+  - Add SecurePair for handling of a ssl/tls stream.
+
+* New documentation organization (Micheil Smith)
+
+* allowHalfOpen TCP connections disabled by default.
+
+* Add C++ API for constructing fast buffer from string
+
+* Move idle timers into its own module
+
+* Gracefully handle EMFILE and server.maxConnections
+
+* make "node --eval" eval in the global scope.
+  (Jorge Chamorro Bieling)
+
+* Let exit listeners know the exit code (isaacs)
+
+* Handle cyclic links smarter in fs.realpath (isaacs)
+
+* Remove node-repl (just use 'node' without args)
+
+* Rewrite libeio After callback to use req->result instead of req->errorno
+  for error checking (Micheil Smith)
+
+* Remove warning about deprecating 'sys' - too aggressive
+
+* Make writes to process.env update the real environment. (Ben Noordhuis)
+
+* Set FD_CLOEXEC flag on stdio FDs before spawning. (Guillaume Tuton)
+
+* Move ev_loop out of javascript
+
+* Switch \n with \r\n for all strings printed out.
+
+* Added support for cross compilation (Rasmus Andersson)
+
+* Add --profile flag to configure script, enables gprof profiling.
+  (Ben Noordhuis)
+
+* writeFileSync could exhibit pathological behavior when a buffer
+  could not be written to the file in a single write() call.
+
+* new path.join behavior (isaacs)
+  - Express desired path.join behavior in tests.
+  - Update fs.realpath to reflect new path.join behavior
+  - Update url.resolve() to use new path.join behavior.
+
+* API: Move process.binding('evals') to require('vm')
+
+* Fix V8 build on Cygwin (Bert Belder)
+
+* Add ref to buffer during fs.write and fs.read
+
+* Fix segfault on test-crypto
+
+* Upgrade http-parser to latest and V8 to 2.5.3
+
+
+2010.10.23, Version 0.3.0 (unstable) 1582cfebd6719b2d2373547994b3dca5c8c569c0
 
 * Bugfix: Do not spin on aceept() with EMFILE
 
