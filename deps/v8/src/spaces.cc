@@ -270,9 +270,8 @@ void CodeRange::TearDown() {
 // -----------------------------------------------------------------------------
 // MemoryAllocator
 //
-intptr_t MemoryAllocator::capacity_ = 0;
-intptr_t MemoryAllocator::capacity_executable_ = 0;
-intptr_t MemoryAllocator::size_ = 0;
+intptr_t MemoryAllocator::capacity_   = 0;
+intptr_t MemoryAllocator::size_       = 0;
 intptr_t MemoryAllocator::size_executable_ = 0;
 
 List<MemoryAllocator::MemoryAllocationCallbackRegistration>
@@ -303,10 +302,8 @@ int MemoryAllocator::Pop() {
 }
 
 
-bool MemoryAllocator::Setup(intptr_t capacity, intptr_t capacity_executable) {
+bool MemoryAllocator::Setup(intptr_t capacity) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
-  capacity_executable_ = RoundUp(capacity_executable, Page::kPageSize);
-  ASSERT_GE(capacity_, capacity_executable_);
 
   // Over-estimate the size of chunks_ array.  It assumes the expansion of old
   // space is always in the unit of a chunk (kChunkSize) except the last
@@ -349,7 +346,6 @@ void MemoryAllocator::TearDown() {
   ASSERT(top_ == max_nof_chunks_);  // all chunks are free
   top_ = 0;
   capacity_ = 0;
-  capacity_executable_ = 0;
   size_ = 0;
   max_nof_chunks_ = 0;
 }
@@ -361,31 +357,16 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
   if (size_ + static_cast<size_t>(requested) > static_cast<size_t>(capacity_)) {
     return NULL;
   }
-
   void* mem;
-  if (executable == EXECUTABLE) {
-    // Check executable memory limit.
-    if (size_executable_ + requested >
-        static_cast<size_t>(capacity_executable_)) {
-      LOG(StringEvent("MemoryAllocator::AllocateRawMemory",
-                      "V8 Executable Allocation capacity exceeded"));
-      return NULL;
-    }
-    // Allocate executable memory either from code range or from the
-    // OS.
-    if (CodeRange::exists()) {
-      mem = CodeRange::AllocateRawMemory(requested, allocated);
-    } else {
-      mem = OS::Allocate(requested, allocated, true);
-    }
-    // Update executable memory size.
-    size_executable_ += static_cast<int>(*allocated);
+  if (executable == EXECUTABLE  && CodeRange::exists()) {
+    mem = CodeRange::AllocateRawMemory(requested, allocated);
   } else {
-    mem = OS::Allocate(requested, allocated, false);
+    mem = OS::Allocate(requested, allocated, (executable == EXECUTABLE));
   }
   int alloced = static_cast<int>(*allocated);
   size_ += alloced;
 
+  if (executable == EXECUTABLE) size_executable_ += alloced;
 #ifdef DEBUG
   ZapBlock(reinterpret_cast<Address>(mem), alloced);
 #endif
@@ -410,7 +391,6 @@ void MemoryAllocator::FreeRawMemory(void* mem,
   if (executable == EXECUTABLE) size_executable_ -= static_cast<int>(length);
 
   ASSERT(size_ >= 0);
-  ASSERT(size_executable_ >= 0);
 }
 
 

@@ -518,6 +518,8 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateRegExpConstructResult(ZoneList<Expression*>* args);
 
+  void GenerateRegExpCloneResult(ZoneList<Expression*>* args);
+
   // Support for fast native caches.
   void GenerateGetFromCache(ZoneList<Expression*>* args);
 

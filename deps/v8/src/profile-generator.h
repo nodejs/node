@@ -948,6 +948,8 @@ class HeapSnapshotGenerator {
 
  private:
   HeapEntry* GetEntry(Object* obj);
+  int GetGlobalSecurityToken();
+  int GetObjectSecurityToken(HeapObject* obj);
   void ExtractReferences(HeapObject* obj);
   void ExtractClosureReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractPropertyReferences(JSObject* js_obj, HeapEntry* entry);

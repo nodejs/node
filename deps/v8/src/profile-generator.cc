@@ -1848,6 +1848,22 @@ HeapEntry* HeapSnapshotGenerator::GetEntry(Object* obj) {
 }
 
 
+int HeapSnapshotGenerator::GetGlobalSecurityToken() {
+  return collection_->token_enumerator()->GetTokenId(
+      Top::context()->global()->global_context()->security_token());
+}
+
+
+int HeapSnapshotGenerator::GetObjectSecurityToken(HeapObject* obj) {
+  if (obj->IsGlobalContext()) {
+    return collection_->token_enumerator()->GetTokenId(
+        Context::cast(obj)->security_token());
+  } else {
+    return TokenEnumerator::kNoSecurityToken;
+  }
+}
+
+
 class IndexedReferencesExtractor : public ObjectVisitor {
  public:
   IndexedReferencesExtractor(HeapSnapshotGenerator* generator,
@@ -1877,11 +1893,19 @@ class IndexedReferencesExtractor : public ObjectVisitor {
 
 void HeapSnapshotGenerator::ExtractReferences(HeapObject* obj) {
   // We need to reference JS global objects from snapshot's root.
-  // We use JSGlobalProxy because this is what embedder (e.g. browser)
-  // uses for the global object.
+  // We also need to only include global objects from the current
+  // security context. And we don't want to add the global proxy,
+  // as we don't have a special type for it.
   if (obj->IsJSGlobalProxy()) {
+    int global_security_token = GetGlobalSecurityToken();
     JSGlobalProxy* proxy = JSGlobalProxy::cast(obj);
-    SetRootReference(proxy->map()->prototype());
+    int object_security_token =
+        collection_->token_enumerator()->GetTokenId(
+            Context::cast(proxy->context())->security_token());
+    if (object_security_token == TokenEnumerator::kNoSecurityToken
+        || object_security_token == global_security_token) {
+      SetRootReference(proxy->map()->prototype());
+    }
     return;
   }
 

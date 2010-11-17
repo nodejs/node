@@ -40,7 +40,6 @@ SOURCES = {
     api.cc
     assembler.cc
     ast.cc
-    bignum.cc
     bootstrapper.cc
     builtins.cc
     cached-powers.cc
@@ -96,7 +95,6 @@ SOURCES = {
     register-allocator.cc
     rewriter.cc
     runtime.cc
-    scanner-base.cc
     scanner.cc
     scopeinfo.cc
     scopes.cc

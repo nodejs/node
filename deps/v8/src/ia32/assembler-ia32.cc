@@ -298,8 +298,7 @@ static void InitCoverageLog();
 // Spare buffer.
 byte* Assembler::spare_buffer_ = NULL;
 
-Assembler::Assembler(void* buffer, int buffer_size)
-    : positions_recorder_(this) {
+Assembler::Assembler(void* buffer, int buffer_size) {
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
@@ -340,6 +339,10 @@ Assembler::Assembler(void* buffer, int buffer_size)
   reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
 
   last_pc_ = NULL;
+  current_statement_position_ = RelocInfo::kNoPosition;
+  current_position_ = RelocInfo::kNoPosition;
+  written_statement_position_ = current_statement_position_;
+  written_position_ = current_position_;
 #ifdef GENERATED_CODE_COVERAGE
   InitCoverageLog();
 #endif
@@ -1578,7 +1581,7 @@ void Assembler::call(const Operand& adr) {
 
 
 void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {
-  positions_recorder()->WriteRecordedPositions();
+  WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   ASSERT(RelocInfo::IsCodeTarget(rmode));
@@ -2461,14 +2464,14 @@ void Assembler::Print() {
 
 
 void Assembler::RecordJSReturn() {
-  positions_recorder()->WriteRecordedPositions();
+  WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   RecordRelocInfo(RelocInfo::JS_RETURN);
 }
 
 
 void Assembler::RecordDebugBreakSlot() {
-  positions_recorder()->WriteRecordedPositions();
+  WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
 }
@@ -2479,6 +2482,47 @@ void Assembler::RecordComment(const char* msg) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
+}
+
+
+void Assembler::RecordPosition(int pos) {
+  ASSERT(pos != RelocInfo::kNoPosition);
+  ASSERT(pos >= 0);
+  current_position_ = pos;
+}
+
+
+void Assembler::RecordStatementPosition(int pos) {
+  ASSERT(pos != RelocInfo::kNoPosition);
+  ASSERT(pos >= 0);
+  current_statement_position_ = pos;
+}
+
+
+bool Assembler::WriteRecordedPositions() {
+  bool written = false;
+
+  // Write the statement position if it is different from what was written last
+  // time.
+  if (current_statement_position_ != written_statement_position_) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::STATEMENT_POSITION, current_statement_position_);
+    written_statement_position_ = current_statement_position_;
+    written = true;
+  }
+
+  // Write the position if it is different from what was written last time and
+  // also different from the written statement position.
+  if (current_position_ != written_position_ &&
+      current_position_ != written_statement_position_) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::POSITION, current_position_);
+    written_position_ = current_position_;
+    written = true;
+  }
+
+  // Return whether something was written.
+  return written;
 }
 
 

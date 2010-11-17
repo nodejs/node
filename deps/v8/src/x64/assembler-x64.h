@@ -1174,9 +1174,13 @@ class Assembler : public Malloced {
   // Use --debug_code to enable.
   void RecordComment(const char* msg);
 
-  int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
+  void RecordPosition(int pos);
+  void RecordStatementPosition(int pos);
+  bool WriteRecordedPositions();
 
-  PositionsRecorder* positions_recorder() { return &positions_recorder_; }
+  int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
+  int current_statement_position() const { return current_statement_position_; }
+  int current_position() const { return current_position_; }
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
@@ -1400,8 +1404,11 @@ class Assembler : public Malloced {
   // push-pop elimination
   byte* last_pc_;
 
-  PositionsRecorder positions_recorder_;
-  friend class PositionsRecorder;
+  // source position information
+  int current_statement_position_;
+  int current_position_;
+  int written_statement_position_;
+  int written_position_;
 };
 
 

@@ -115,7 +115,6 @@
 		89A88E180E71A6960043BA31 /* property.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF16D0E719B8F00D62E90 /* property.cc */; };
 		89A88E190E71A6970043BA31 /* rewriter.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF16F0E719B8F00D62E90 /* rewriter.cc */; };
 		89A88E1A0E71A69B0043BA31 /* runtime.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1710E719B8F00D62E90 /* runtime.cc */; };
-		89A88E1B0E71A69D0043BA31 /* scanner-base.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1730E719B8F00D62E90 /* scanner-base.cc */; };
 		89A88E1B0E71A69D0043BA31 /* scanner.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1730E719B8F00D62E90 /* scanner.cc */; };
 		89A88E1C0E71A69E0043BA31 /* scopeinfo.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1760E719B8F00D62E90 /* scopeinfo.cc */; };
 		89A88E1D0E71A6A00043BA31 /* scopes.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1780E719B8F00D62E90 /* scopes.cc */; };
@@ -178,7 +177,6 @@
 		89F23C6C0E78D5B2006B2466 /* property.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF16D0E719B8F00D62E90 /* property.cc */; };
 		89F23C6D0E78D5B2006B2466 /* rewriter.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF16F0E719B8F00D62E90 /* rewriter.cc */; };
 		89F23C6E0E78D5B2006B2466 /* runtime.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1710E719B8F00D62E90 /* runtime.cc */; };
-		89F23C6F0E78D5B2006B2466 /* scanner-base.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1730E719B8F00D62E90 /* scanner-base.cc */; };
 		89F23C6F0E78D5B2006B2466 /* scanner.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1730E719B8F00D62E90 /* scanner.cc */; };
 		89F23C700E78D5B2006B2466 /* scopeinfo.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1760E719B8F00D62E90 /* scopeinfo.cc */; };
 		89F23C710E78D5B2006B2466 /* scopes.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1780E719B8F00D62E90 /* scopes.cc */; };
@@ -483,8 +481,6 @@
 		897FF1700E719B8F00D62E90 /* rewriter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = rewriter.h; sourceTree = "<group>"; };
 		897FF1710E719B8F00D62E90 /* runtime.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = runtime.cc; sourceTree = "<group>"; };
 		897FF1720E719B8F00D62E90 /* runtime.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = runtime.h; sourceTree = "<group>"; };
-		897FF1730E719B8F00D62E90 /* scanner-base.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = scanner-base.cc; sourceTree = "<group>"; };
-		897FF1740E719B8F00D62E90 /* scanner-base.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = scanner-base.h; sourceTree = "<group>"; };
 		897FF1730E719B8F00D62E90 /* scanner.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = scanner.cc; sourceTree = "<group>"; };
 		897FF1740E719B8F00D62E90 /* scanner.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = scanner.h; sourceTree = "<group>"; };
 		897FF1750E719B8F00D62E90 /* SConscript */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = SConscript; sourceTree = "<group>"; };
@@ -947,8 +943,6 @@
 				897FF1700E719B8F00D62E90 /* rewriter.h */,
 				897FF1710E719B8F00D62E90 /* runtime.cc */,
 				897FF1720E719B8F00D62E90 /* runtime.h */,
-				897FF1730E719B8F00D62E90 /* scanner-base.cc */,
-				897FF1740E719B8F00D62E90 /* scanner-base.h */,
 				897FF1730E719B8F00D62E90 /* scanner.cc */,
 				897FF1740E719B8F00D62E90 /* scanner.h */,
 				897FF1760E719B8F00D62E90 /* scopeinfo.cc */,
@@ -1354,7 +1348,6 @@
 				58950D630F5551AF00F3E8BA /* register-allocator.cc in Sources */,
 				89A88E190E71A6970043BA31 /* rewriter.cc in Sources */,
 				89A88E1A0E71A69B0043BA31 /* runtime.cc in Sources */,
-				89A88E1B0E71A69D0043BA31 /* scanner-base.cc in Sources */,
 				89A88E1B0E71A69D0043BA31 /* scanner.cc in Sources */,
 				89A88E1C0E71A69E0043BA31 /* scopeinfo.cc in Sources */,
 				89A88E1D0E71A6A00043BA31 /* scopes.cc in Sources */,
@@ -1479,7 +1472,6 @@
 				58950D640F5551B500F3E8BA /* register-allocator.cc in Sources */,
 				89F23C6D0E78D5B2006B2466 /* rewriter.cc in Sources */,
 				89F23C6E0E78D5B2006B2466 /* runtime.cc in Sources */,
-				89F23C6F0E78D5B2006B2466 /* scanner-base.cc in Sources */,
 				89F23C6F0E78D5B2006B2466 /* scanner.cc in Sources */,
 				89F23C700E78D5B2006B2466 /* scopeinfo.cc in Sources */,
 				89F23C710E78D5B2006B2466 /* scopes.cc in Sources */,

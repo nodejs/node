@@ -2557,7 +2557,6 @@ ACCESSORS(InterceptorInfo, data, Object, kDataOffset)
 
 ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
 ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
-ACCESSORS(CallHandlerInfo, call_stub_cache, Object, kCallStubCacheOffset)
 
 ACCESSORS(TemplateInfo, tag, Object, kTagOffset)
 ACCESSORS(TemplateInfo, property_list, Object, kPropertyListOffset)
@@ -2672,7 +2671,6 @@ SMI_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
 #else
 
 #define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
-  STATIC_ASSERT(holder::offset % kPointerSize == 0);              \
   int holder::name() {                                            \
     int value = READ_INT_FIELD(this, offset);                     \
     ASSERT(kHeapObjectTag == 1);                                  \
@@ -2688,36 +2686,30 @@ SMI_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
                     (value << 1) & ~kHeapObjectTag);              \
   }
 
-#define PSEUDO_SMI_ACCESSORS_HI(holder, name, offset)             \
-  STATIC_ASSERT(holder::offset % kPointerSize == kIntSize);       \
+#define PSEUDO_SMI_ACCESSORS_HI(holder, name, offset) \
   INT_ACCESSORS(holder, name, offset)
 
 
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, length, kLengthOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
-                        formal_parameter_count,
-                        kFormalParameterCountOffset)
 
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
-                        expected_nof_properties,
-                        kExpectedNofPropertiesOffset)
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, length, kLengthOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, formal_parameter_count,
+              kFormalParameterCountOffset)
+
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, expected_nof_properties,
+              kExpectedNofPropertiesOffset)
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, num_literals, kNumLiteralsOffset)
 
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, end_position, kEndPositionOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
-                        start_position_and_type,
-                        kStartPositionAndTypeOffset)
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, start_position_and_type,
+              kStartPositionAndTypeOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, end_position, kEndPositionOffset)
 
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
-                        function_token_position,
-                        kFunctionTokenPositionOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
-                        compiler_hints,
-                        kCompilerHintsOffset)
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, function_token_position,
+              kFunctionTokenPositionOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, compiler_hints,
+              kCompilerHintsOffset)
 
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
-                        this_property_assignments_count,
-                        kThisPropertyAssignmentsCountOffset)
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, this_property_assignments_count,
+              kThisPropertyAssignmentsCountOffset)
 #endif
 
 

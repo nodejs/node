@@ -162,6 +162,7 @@ namespace internal {
   F(RegExpExecMultiple, 4, 1) \
   F(RegExpInitializeObject, 5, 1) \
   F(RegExpConstructResult, 3, 1) \
+  F(RegExpCloneResult, 1, 1) \
   \
   /* JSON */ \
   F(ParseJson, 1, 1) \
@@ -324,6 +325,7 @@ namespace internal {
   F(GetScopeCount, 2, 1) \
   F(GetScopeDetails, 3, 1) \
   F(DebugPrintScopes, 0, 1) \
+  F(GetCFrames, 1, 1) \
   F(GetThreadCount, 1, 1) \
   F(GetThreadDetails, 2, 1) \
   F(SetDisableBreak, 1, 1) \
@@ -424,7 +426,7 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // INLINE_AND_RUNTIME_FUNCTION_LIST defines all inlined functions accessed
 // with a native call of the form %_name from within JS code that also have
-// a corresponding runtime function, that is called for slow cases.
+  // a corresponding runtime function, that is called for slow cases.
 // Entries have the form F(name, number of arguments, number of return values).
 #define INLINE_RUNTIME_FUNCTION_LIST(F) \
   F(IsConstructCall, 0, 1)                                                   \
@@ -436,6 +438,7 @@ namespace internal {
   F(StringCompare, 2, 1)                                                     \
   F(RegExpExec, 4, 1)                                                        \
   F(RegExpConstructResult, 3, 1)                                             \
+  F(RegExpCloneResult, 1, 1)                                                 \
   F(GetFromCache, 2, 1)                                                      \
   F(NumberToString, 1, 1)                                                    \
   F(SwapElements, 3, 1)

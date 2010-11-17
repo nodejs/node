@@ -330,11 +330,6 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
-bool Heap::CollectGarbage(AllocationSpace space) {
-  return CollectGarbage(space, SelectGarbageCollector(space));
-}
-
-
 MaybeObject* Heap::PrepareForCompare(String* str) {
   // Always flatten small strings and force flattening of long strings
   // after we have accumulated a certain amount we failed to flatten.
@@ -418,7 +413,7 @@ void Heap::SetLastScriptId(Object* last_script_id) {
     }                                                                     \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
     Counters::gc_last_resort_from_handles.Increment();                    \
-    Heap::CollectAllAvailableGarbage();                                   \
+    Heap::CollectAllGarbage(false);                                       \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
       __maybe_object__ = FUNCTION_CALL;                                   \
