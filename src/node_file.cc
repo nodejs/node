@@ -31,6 +31,7 @@ using namespace v8;
   ThrowException(Exception::TypeError(String::New("Bad argument")))
 static Persistent<String> encoding_symbol;
 static Persistent<String> errno_symbol;
+static Persistent<String> buf_symbol;
 
 // Buffer for readlink()  and other misc callers; keep this scoped at
 // file-level rather than method-level to avoid excess stack usage.
@@ -636,6 +637,10 @@ static Handle<Value> Write(const Arguments& args) {
   Local<Value> cb = args[5];
 
   if (cb->IsFunction()) {
+    // Grab a reference to buffer so it isn't GCed
+    Local<Object> cb_obj = cb->ToObject();
+    cb_obj->Set(buf_symbol, buffer->handle_);
+
     ASYNC_CALL(write, cb, fd, buf, len, pos)
   } else {
     ssize_t written = pos < 0 ? write(fd, buf, len) : pwrite(fd, buf, len, pos);
@@ -698,6 +703,11 @@ static Handle<Value> Read(const Arguments& args) {
   cb = args[5];
 
   if (cb->IsFunction()) {
+    // Grab a reference to buffer so it isn't GCed
+    // TODO: need test coverage
+    Local<Object> cb_obj = cb->ToObject();
+    cb_obj->Set(buf_symbol, buffer->handle_);
+
     ASYNC_CALL(read, cb, fd, buf, len, pos);
   } else {
     // SYNC
@@ -788,6 +798,7 @@ void File::Initialize(Handle<Object> target) {
 
   errno_symbol = NODE_PSYMBOL("errno");
   encoding_symbol = NODE_PSYMBOL("node:encoding");
+  buf_symbol = NODE_PSYMBOL("__buf");
 }
 
 void InitFs(Handle<Object> target) {
