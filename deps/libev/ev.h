@@ -603,6 +603,7 @@ void ev_break (EV_P_ int how); /* set to 1 to break out of event loop, set to 2 
  */
 void ev_ref   (EV_P);
 void ev_unref (EV_P);
+int ev_activecnt (EV_P);
 
 /*
  * convenience function, wait for a single event, without registering an event watcher
