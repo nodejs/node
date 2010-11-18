@@ -10,11 +10,10 @@ user is able to stream data.
 
 HTTP message headers are represented by an object like this:
 
-    { 'content-length': '123'
-    , 'content-type': 'text/plain'
-    , 'connection': 'keep-alive'
-    , 'accept': '*/*'
-    }
+    { 'content-length': '123',
+      'content-type': 'text/plain',
+      'connection': 'keep-alive',
+      'accept': '*/*' }
 
 Keys are lowercased. Values are not modified.
 
@@ -182,22 +181,20 @@ If you would like to parse the URL into its parts, you can use
 `require('url').parse(request.url)`.  Example:
 
     node> require('url').parse('/status?name=ryan')
-    { href: '/status?name=ryan'
-    , search: '?name=ryan'
-    , query: 'name=ryan'
-    , pathname: '/status'
-    }
+    { href: '/status?name=ryan',
+      search: '?name=ryan',
+      query: 'name=ryan',
+      pathname: '/status' }
 
 If you would like to extract the params from the query string,
 you can use the `require('querystring').parse` function, or pass
 `true` as the second argument to `require('url').parse`.  Example:
 
     node> require('url').parse('/status?name=ryan', true)
-    { href: '/status?name=ryan'
-    , search: '?name=ryan'
-    , query: { name: 'ryan' }
-    , pathname: '/status'
-    }
+    { href: '/status?name=ryan',
+      search: '?name=ryan',
+      query: { name: 'ryan' },
+      pathname: '/status' }
 
 
 
@@ -266,8 +263,7 @@ Example:
     var body = 'hello world';
     response.writeHead(200, {
       'Content-Length': body.length,
-      'Content-Type': 'text/plain'
-    });
+      'Content-Type': 'text/plain' });
 
 This method must only be called once on a message and it must
 be called before `response.end()` is called.

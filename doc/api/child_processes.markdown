@@ -57,10 +57,9 @@ If omitted, `args` defaults to an empty Array.
 
 The third argument is used to specify additional options, which defaults to:
 
-    { cwd: undefined
-    , env: process.env,
-    , customFds: [-1, -1, -1]
-    }
+    { cwd: undefined,
+      env: process.env,
+      customFds: [-1, -1, -1] }
 
 `cwd` allows you to specify the working directory from which the process is spawned.
 Use `env` to specify environment variables that will be visible to the new process.
@@ -162,13 +161,12 @@ signal that terminated the process.
 
 There is a second optional argument to specify several options. The default options are
 
-    { encoding: 'utf8'
-    , timeout: 0
-    , maxBuffer: 200*1024
-    , killSignal: 'SIGTERM'
-    , cwd: null
-    , env: null
-    }
+    { encoding: 'utf8',
+      timeout: 0,
+      maxBuffer: 200*1024,
+      killSignal: 'SIGTERM',
+      cwd: null,
+      env: null }
 
 If `timeout` is greater than 0, then it will kill the child process
 if it runs longer than `timeout` milliseconds. The child process is killed with

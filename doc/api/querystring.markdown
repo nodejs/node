@@ -24,9 +24,7 @@ Example:
 
     querystring.parse('a=b&b=c')
     // returns
-    { 'a': 'b'
-    , 'b': 'c'
-    }
+    { a: 'b', b: 'c' }
 
 ### querystring.escape
 

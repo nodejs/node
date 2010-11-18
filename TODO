@@ -25,8 +25,6 @@
   EventEmitter.optHandlers.encoding() if it exists.
 
 - DOCS
-  - Fix examples using leading comma style. EG
-    http://nodejs.org/docs/v0.3.1/api/fs.html#fs.stat
   - anchor links next to each function, for easy linking.
     EG <a href="#fs.stat">#</a>
 

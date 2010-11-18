@@ -84,20 +84,19 @@ Synchronous chmod(2).
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where 
 `stats` is a `fs.Stats` object. It looks like this:
 
-    { dev: 2049
-    , ino: 305352
-    , mode: 16877
-    , nlink: 12
-    , uid: 1000
-    , gid: 1000
-    , rdev: 0
-    , size: 4096
-    , blksize: 4096
-    , blocks: 8
-    , atime: '2009-06-29T11:11:55Z'
-    , mtime: '2009-06-29T11:11:40Z'
-    , ctime: '2009-06-29T11:11:40Z' 
-    }
+    { dev: 2049,
+      ino: 305352,
+      mode: 16877,
+      nlink: 12,
+      uid: 1000,
+      gid: 1000,
+      rdev: 0,
+      size: 4096,
+      blksize: 4096,
+      blocks: 8,
+      atime: '2009-06-29T11:11:55Z',
+      mtime: '2009-06-29T11:11:40Z',
+      ctime: '2009-06-29T11:11:40Z' }
 
 See the `fs.Stats` section below for more information.
 
@@ -350,11 +349,10 @@ Returns a new ReadStream object (See `Readable Stream`).
 
 `options` is an object with the following defaults:
 
-    { 'flags': 'r'
-    , 'encoding': null
-    , 'mode': 0666
-    , 'bufferSize': 4 * 1024
-    }
+    { flags: 'r',
+      encoding: null,
+      mode: 0666,
+      bufferSize: 4096 }
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file.  Both `start` and `end` are inclusive and
@@ -381,7 +379,6 @@ Returns a new WriteStream object (See `Writable Stream`).
 
 `options` is an object with the following defaults:
 
-    { 'flags': 'w'
-    , 'encoding': null
-    , 'mode': 0666
-    }
+    { flags: 'w',
+      encoding: null,
+      mode: 0666 }

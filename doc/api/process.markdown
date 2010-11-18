@@ -276,11 +276,10 @@ Returns an object describing the memory usage of the Node process.
 
 This will generate:
 
-    { rss: 4935680
-    , vsize: 41893888
-    , heapTotal: 1826816
-    , heapUsed: 650472
-    }
+    { rss: 4935680,
+      vsize: 41893888,
+      heapTotal: 1826816,
+      heapUsed: 650472 }
 
 `heapTotal` and `heapUsed` refer to V8's memory usage.
 
