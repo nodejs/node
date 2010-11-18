@@ -82,8 +82,8 @@ static size_t ByteLength (Handle<String> string, enum encoding enc) {
 }
 
 
-Handle<Object> Buffer::New(Handle<String> string,
-                           Handle<Value> encoding) {
+Local<Object> Buffer::New(Handle<String> string,
+                          Handle<Value> encoding) {
   HandleScope scope;
 
   // get Buffer from global scope.

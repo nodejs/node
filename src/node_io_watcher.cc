@@ -344,12 +344,11 @@ void IOWatcher::Dump() {
         // TODO: insert v8::String::Pointers() hack here.
         Local<String> s = data_v->ToString();
         Local<Value> e = bucket->Get(encoding_sym);
-        buf_object = Local<Object>::New(Buffer::New(s, e));
+        buf_object = Buffer::New(s, e);
         bucket->Set(data_sym, buf_object);
-      } else if (Buffer::HasInstance(data_v)) {
-        buf_object = data_v->ToObject();
       } else {
-        assert(0);
+        assert(Buffer::HasInstance(data_v));
+        buf_object = data_v->ToObject();
       }
 
       size_t l = Buffer::Length(buf_object);
