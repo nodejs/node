@@ -18,7 +18,7 @@ var chargen = http.createServer(function (req, res) {
   }
   res.end();
 });
-chargen.listen(9000);
+chargen.listen(9000, ready);
 
 // Proxy to the chargen server.
 var proxy = http.createServer(function (req, res) {
@@ -56,7 +56,7 @@ var proxy = http.createServer(function (req, res) {
 
   proxy_req.end();
 });
-proxy.listen(9001);
+proxy.listen(9001, ready);
 
 var done = false;
 
@@ -94,7 +94,11 @@ function call_chargen(list) {
   }
 }
 
-call_chargen([ 100, 1000, 10000, 100000, 1000000 ]);
+serversRunning = 0;
+function ready () {
+  if (++serversRunning < 2) return;
+  call_chargen([ 100, 1000, 10000, 100000, 1000000 ]);
+}
 
 process.addListener('exit', function () {
   assert.ok(done);
