@@ -10,12 +10,12 @@ else()
   get_target_property(node_bin node LOCATION)
 endif()
 
-enable_testing()
 file(GLOB_RECURSE node_tests ${CMAKE_SOURCE_DIR}/test/*)
 
+# add all tests with add_test
 foreach(test ${node_tests})
-  if(test MATCHES ".*/test-[^./\ ]*.\\.js" AND NOT test MATCHES ".*disabled.*"
-      AND NOT test MATCHES ".*pummel.*")
+  if(test MATCHES ".*/test-[^./\ ]*.\\.js"
+      AND NOT test MATCHES ".*disabled.*")
 
     # build a fancy name for each test
     string(REPLACE ${CMAKE_SOURCE_DIR}/test/ "" test_name ${test})
@@ -27,6 +27,8 @@ foreach(test ${node_tests})
   endif()
 endforeach()
 
+# the CTest custom config makes ctest recreate the tmp directory before and after
+# each run
 configure_file(${CMAKE_SOURCE_DIR}/cmake/CTestCustom.cmake ${CMAKE_BINARY_DIR}/CTestCustom.cmake COPYONLY)
 
 add_custom_command(

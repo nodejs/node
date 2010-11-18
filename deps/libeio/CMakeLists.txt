@@ -5,7 +5,6 @@ if(!${CMAKE_USE_PTHREADS_INIT})
     message(FATAL_ERROR "Unable to find pthreads")
 endif()
 
-include_directories(${platform})
 add_definitions(-DHAVE_CONFIG_H=1 -D_GNU_SOURCE)
 
 check_function_exists(futimes HAVE_FUTIMES)

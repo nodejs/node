@@ -12,7 +12,7 @@ option(V8_SNAPSHOT "turn on snapshot when building stock v8")
 
 
 # cmake policies to get rid of some warnings
-cmake_policy(SET CMP0009 NEW)
+cmake_policy(SET CMP0009 NEW) # GLOB_RECURSE should no follow symlinks
 
 # generic cmake configuration
 include("cmake/configure.cmake")
@@ -27,10 +27,12 @@ include("cmake/node_build.cmake")
 include("cmake/v8_build.cmake")
 
 # docs
+## might want to move this to doc/CMakeLists.txt
 include("cmake/docs.cmake")
 
 # tests
-include("cmake/tests.cmake")
+enable_testing()
+add_subdirectory("test/")
 
 # package
 include("cmake/package.cmake")
@@ -64,7 +66,7 @@ message("  RT library:         ${RT}")
 message("  DL library:         ${DL}")
 
 if(${OPENSSL_FOUND} MATCHES TRUE)
-  message("  OpenSSL:            Found!")
+  message("  OpenSSL:            ${OPENSSL_LIBRARIES}")
 endif()
 
 # message("  CCFLAGS:            ${CCFLAGS}")
