@@ -170,14 +170,17 @@ The shell that executed node should see the exit code as 1.
 
 ### process.getgid()
 
-Gets the group identity of the process. (See getgid(2).)  This is the numerical group id, not the group name.
+Gets the group identity of the process. (See getgid(2).)
+This is the numerical group id, not the group name.
 
     console.log('Current gid: ' + process.getgid());
 
 
 ### process.setgid(id)
 
-Sets the group identity of the process. (See setgid(2).)  This accepts either a numerical ID or a groupname string.  If a groupname is specified, this method blocks while resolving it to a numerical ID.
+Sets the group identity of the process. (See setgid(2).)  This accepts either
+a numerical ID or a groupname string. If a groupname is specified, this method
+blocks while resolving it to a numerical ID.
 
     console.log('Current gid: ' + process.getgid());
     try {
@@ -191,14 +194,17 @@ Sets the group identity of the process. (See setgid(2).)  This accepts either a 
 
 ### process.getuid()
 
-Gets the user identity of the process. (See getuid(2).)  This is the numerical userid, not the username.
+Gets the user identity of the process. (See getuid(2).) 
+This is the numerical userid, not the username.
 
     console.log('Current uid: ' + process.getuid());
 
 
 ### process.setuid(id)
 
-Sets the user identity of the process. (See setuid(2).)  This accepts either a numerical ID or a username string.  If a username is specified, this method blocks while resolving it to a numerical ID.
+Sets the user identity of the process. (See setuid(2).)  This accepts either
+a numerical ID or a username string.  If a username is specified, this method
+blocks while resolving it to a numerical ID.
 
     console.log('Current uid: ' + process.getuid());
     try {

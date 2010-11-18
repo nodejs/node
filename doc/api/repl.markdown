@@ -95,8 +95,8 @@ Things in the `context` object appear as local within the REPL:
 
 There are a few special REPL commands:
 
-  - `.break` - While inputting a multi-line expression, sometimes you get lost or just don't care 
-  about completing it.  `.break` will start over.
+  - `.break` - While inputting a multi-line expression, sometimes you get lost
+    or just don't care about completing it. `.break` will start over.
   - `.clear` - Resets the `context` object to an empty object and clears any multi-line expression.
   - `.exit` - Close the I/O stream, which will cause the REPL to exit.
   - `.help` - Show this list of special commands.

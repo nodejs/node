@@ -74,7 +74,8 @@ the first character, then it returns an empty string.  Examples:
 
 ### path.exists(p, [callback])
 
-Test whether or not the given path exists.  Then, call the `callback` argument with either true or false.  Example:
+Test whether or not the given path exists.  Then, call the `callback` argument
+with either true or false. Example:
 
     path.exists('/etc/passwd', function (exists) {
       util.debug(exists ? "it's there" : "no passwd!");

@@ -168,7 +168,7 @@ for use in peer authentication.
 
 If the credentials hold one ore more CA certificates, then the stream will request
 for the peer to submit a client certificate as part of the SSL connection handshake.
-The validity and content of this can be accessed via verifyPeer() and getPeerCertificate().
+The validity and content of this can be accessed via `verifyPeer()` and `getPeerCertificate()`.
 
 #### stream.verifyPeer()
 
@@ -178,7 +178,7 @@ context of the defined or default list of trusted CA certificates.
 #### stream.getPeerCertificate()
 
 Returns a JSON structure detailing the peer's certificate, containing a dictionary
-with keys for the certificate 'subject', 'issuer', 'valid\_from' and 'valid\_to'
+with keys for the certificate `'subject'`, `'issuer'`, `'valid_from'` and `'valid_to'`.
 
 #### stream.write(data, encoding='ascii')
 
@@ -315,9 +315,8 @@ following this event.
 
 `function (had_error) { }`
 
-Emitted once the stream is fully closed. The argument `had_error` is a boolean which says if
-the stream was closed due to a transmission
-error.
+Emitted once the stream is fully closed. The argument `had_error` is a boolean
+which says if the stream was closed due to a transmission error.
 
 ---
 

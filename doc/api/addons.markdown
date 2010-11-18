@@ -69,7 +69,7 @@ like this:
 Running `node-waf configure build` will create a file
 `build/default/hello.node` which is our Addon.
 
-`node-waf` is just http://code.google.com/p/waf/[WAF], the python-based build system. `node-waf` is
+`node-waf` is just [WAF](http://code.google.com/p/waf/), the python-based build system. `node-waf` is
 provided for the ease of users.
 
 All Node addons must export a function called `init` with this signature:
