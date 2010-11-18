@@ -77,10 +77,10 @@ build/doc/api/assets/%: doc/api_assets/% build/doc/api/assets/
 build/doc/%: doc/%
 	cp $< $@
 
-build/doc/api/%.html: doc/api/%.markdown build/default/node $(apidoc_dirs) $(apiassets)
+build/doc/api/%.html: doc/api/%.markdown build/default/node $(apidoc_dirs) $(apiassets) tools/doctool/doctool.js
 	build/default/node tools/doctool/doctool.js doc/template.html $< > $@
 
-build/doc/changelog.html: ChangeLog build/default/node build/doc/ $(apidoc_dirs) $(apiassets)
+build/doc/changelog.html: ChangeLog build/default/node build/doc/ $(apidoc_dirs) $(apiassets) tools/doctool/doctool.js
 	build/default/node tools/doctool/doctool.js doc/template.html $< \
 	| sed 's|assets/|api/assets/|g' \
 	| sed 's|<body>|<body id="changelog">|g' > $@
