@@ -87,11 +87,13 @@ function test (N, b, cb) {
 
   w.firstBucket = { data: b };
   w.lastBucket = w.firstBucket;
+  w.queueSize = b.length;
 
   for (var i = 0; i < N-1; i++) {
     var bucket = { data: b };
     w.lastBucket.next = bucket;
     w.lastBucket = bucket;
+    w.queueSize += b.length;
     // Kind of randomly fill these buckets with fds.
     if (fdsSent < 5 && i % 2 == 0) {
       bucket.fd = 1; // send stdout

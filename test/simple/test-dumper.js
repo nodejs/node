@@ -49,7 +49,6 @@ function test (N, b, cb) {
   stream.readable = true;
   stream.resume();
 
-
   // Count the data as it arrives on the read end of the pipe.
   stream.on('data', function (d) {
     nread += d.length;
@@ -84,12 +83,14 @@ function test (N, b, cb) {
 
   w.firstBucket = { data: b };
   w.lastBucket = w.firstBucket;
+  w.queueSize = b.length;
 
   for (var i = 0; i < N-1; i++) {
     var bucket = { data: b };
     assert.ok(!w.lastBucket.next);
     w.lastBucket.next = bucket;
     w.lastBucket = bucket;
+    w.queueSize += b.length;
   }
 }
 

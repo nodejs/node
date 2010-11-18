@@ -93,7 +93,6 @@ function startClient () {
   req.write(buffer);
   req.end();
 
-
   console.log("request fd=%d", req.connection.fd);
 
   // note the queue includes http headers.
