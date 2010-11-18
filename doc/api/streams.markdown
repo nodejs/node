@@ -65,7 +65,32 @@ Resumes the incoming `'data'` events after a `pause()`.
 
 Closes the underlying file descriptor. Stream will not emit any more events.
 
+### stream.pipe(destination, [options])
 
+This is a `Stream.prototype` method available on all `Stream`s.
+
+Connects this read stream to `destination` WriteStream. Incoming
+data on this stream gets written to `destination`. The destination and source
+streams are kept in sync by pausing and resuming as necessary.
+
+Emulating the Unix `cat` command:
+
+    process.openStdin().pipe(process.stdout);
+
+
+By default `end()` is called on the destination when the source stream emits
+`end`, so that `destination` is no longer writable. Pass `{ end: false }` as
+`options` to keep the destination stream open.
+
+This keeps `process.stdout` open so that "Goodbye" can be written at the end.
+
+    var stdin = process.openStdin();
+    stdin.pipe(process.stdout, { end: false });
+    stdin.on("end", function() { process.stdout.write("Goodbye\n"); });
+
+NOTE: If the source stream does not support `pause()` and `resume()`, this function
+adds simple definitions which simply emit `'pause'` and `'resume'` events on
+the source stream.
 
 ## Writable Stream
 
