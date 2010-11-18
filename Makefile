@@ -58,7 +58,6 @@ apiassets = $(subst api_assets,api/assets,$(addprefix build/,$(wildcard doc/api_
 website_files = \
 	build/doc/index.html    \
 	build/doc/cla.html      \
-	build/doc/jquery.js     \
 	build/doc/sh_main.js    \
 	build/doc/sh_javascript.min.js \
 	build/doc/sh_vim-dark.css \
