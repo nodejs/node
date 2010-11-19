@@ -203,7 +203,7 @@ def configure(conf):
       Options.options.use_openssl = conf.env["USE_OPENSSL"] = True
       conf.env.append_value("CPPFLAGS", "-DHAVE_OPENSSL=1")
     else:
-      libssl = conf.check_cc(lib='ssl',
+      libssl = conf.check_cc(lib=['ssl', 'crypto'],
                              header_name='openssl/ssl.h',
                              function_name='SSL_library_init',
                              libpath=['/usr/lib', '/usr/local/lib', '/opt/local/lib', '/usr/sfw/lib'],
