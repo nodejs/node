@@ -631,14 +631,9 @@ Handle<Value> SecureStream::Shutdown(const Arguments& args) {
 
 Handle<Value> SecureStream::IsInitFinished(const Arguments& args) {
   HandleScope scope;
-
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
-
   if (ss->ssl_ == NULL) return False();
-  if (SSL_is_init_finished(ss->ssl_)) {
-    return True();
-  }
-  return False();
+  return SSL_is_init_finished(ss->ssl_) ? True() : False();
 }
 
 
