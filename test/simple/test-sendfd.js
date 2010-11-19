@@ -53,7 +53,7 @@ var logChild = function(d) {
 
   d.split('\n').forEach(function(l) {
     if (l.length > 0) {
-      common.debug('CHILD: ' + l);
+      console.error('CHILD: ' + l);
     }
   });
 };
@@ -96,19 +96,18 @@ var srv = net.createServer(function(s) {
   buf.write(JSON.stringify(DATA) + '\n', 'utf8');
 
   s.write(str, 'utf8', pipeFDs[1]);
-  if (s.write(buf, undefined, pipeFDs[1])) {
+
+  s.write(buf, pipeFDs[1], function () {
+    console.error("close pipeFDs[1]");
     netBinding.close(pipeFDs[1]);
-  } else {
-    s.addListener('drain', function() {
-      netBinding.close(pipeFDs[1]);
-    });
-  }
+  });
 });
 srv.listen(SOCK_PATH);
 
 // Spawn a child running test/fixtures/recvfd.js
-var cp = child_process.spawn(process.argv[0],
-                             [path.join(common.fixturesDir, 'recvfd.js'), SOCK_PATH]);
+var cp = child_process.spawn(process.execPath,
+                             [path.join(common.fixturesDir, 'recvfd.js'),
+                              SOCK_PATH]);
 
 cp.stdout.addListener('data', logChild);
 cp.stderr.addListener('data', logChild);

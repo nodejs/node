@@ -82,7 +82,8 @@ static size_t ByteLength (Handle<String> string, enum encoding enc) {
 }
 
 
-Handle<Object> Buffer::New(Handle<String> string) {
+Local<Object> Buffer::New(Handle<String> string,
+                          Handle<Value> encoding) {
   HandleScope scope;
 
   // get Buffer from global scope.
@@ -91,8 +92,9 @@ Handle<Object> Buffer::New(Handle<String> string) {
   assert(bv->IsFunction());
   Local<Function> b = Local<Function>::Cast(bv);
 
-  Local<Value> argv[1] = { Local<Value>::New(string) };
-  Local<Object> instance = b->NewInstance(1, argv);
+  Local<Value> argv[2] = { Local<Value>::New(string),
+                           Local<Value>::New(encoding) };
+  Local<Object> instance = b->NewInstance(2, argv);
 
   return scope.Close(instance);
 }

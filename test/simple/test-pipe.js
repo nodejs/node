@@ -17,12 +17,14 @@ var bufferSize = 5 * 1024 * 1024;
  */
 var buffer = Buffer(bufferSize);
 for (var i = 0; i < buffer.length; i++) {
-  buffer[i] = parseInt(Math.random()*10000) % 256;
+  buffer[i] = 100; //parseInt(Math.random()*10000) % 256;
 }
 
 
 var web = http.Server(function (req, res) {
   web.close();
+
+  console.log("web server connection fd=%d", req.connection.fd);
 
   console.log(req.headers);
 
@@ -30,7 +32,7 @@ var web = http.Server(function (req, res) {
   socket.connect(tcpPort);
   
   socket.on('connect', function () {
-    console.log('socket connected');
+    console.log('http->tcp connected fd=%d', socket.fd);
   });
 
   req.pipe(socket);
@@ -54,7 +56,7 @@ web.listen(webPort, startClient);
 var tcp = net.Server(function (s) {
   tcp.close();
 
-  console.log("tcp server connection");
+  console.log("tcp server connection fd=%d", s.fd);
 
   var i = 0;
 
@@ -90,6 +92,11 @@ function startClient () {
   var req = client.request('GET', '/', { 'content-length': buffer.length });
   req.write(buffer);
   req.end();
+
+  console.log("request fd=%d", req.connection.fd);
+
+  // note the queue includes http headers.
+  assert.ok(req.connection.writeQueueSize() > buffer.length);
 
   req.on('response', function (res) {
     console.log('Got response');
