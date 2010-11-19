@@ -30,27 +30,15 @@
 #include "ast.h"
 #include "handles.h"
 #include "scanner.h"
+#include "unicode-inl.h"
 
 namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// Character predicates
-
-
-unibrow::Predicate<IdentifierStart, 128> Scanner::kIsIdentifierStart;
-unibrow::Predicate<IdentifierPart, 128> Scanner::kIsIdentifierPart;
-unibrow::Predicate<unibrow::LineTerminator, 128> Scanner::kIsLineTerminator;
-unibrow::Predicate<unibrow::WhiteSpace, 128> Scanner::kIsWhiteSpace;
-
-
-StaticResource<Scanner::Utf8Decoder> Scanner::utf8_decoder_;
-
-
-// ----------------------------------------------------------------------------
 // UTF8Buffer
 
-UTF8Buffer::UTF8Buffer() : buffer_(kInitialCapacity) { }
+UTF8Buffer::UTF8Buffer() : buffer_(kInitialCapacity), recording_(false) { }
 
 
 UTF8Buffer::~UTF8Buffer() {}
@@ -133,191 +121,6 @@ void CharacterStreamUTF16Buffer::SeekForward(int pos) {
   ASSERT(pushback_buffer()->is_empty());
   stream_->Seek(pos);
 }
-
-
-// ExternalStringUTF16Buffer
-template <typename StringType, typename CharType>
-ExternalStringUTF16Buffer<StringType, CharType>::ExternalStringUTF16Buffer()
-    : raw_data_(NULL) { }
-
-
-template <typename StringType, typename CharType>
-void ExternalStringUTF16Buffer<StringType, CharType>::Initialize(
-     Handle<StringType> data,
-     int start_position,
-     int end_position) {
-  ASSERT(!data.is_null());
-  raw_data_ = data->resource()->data();
-
-  ASSERT(end_position <= data->length());
-  if (start_position > 0) {
-    SeekForward(start_position);
-  }
-  end_ =
-      end_position != Scanner::kNoEndPosition ? end_position : data->length();
-}
-
-
-template <typename StringType, typename CharType>
-uc32 ExternalStringUTF16Buffer<StringType, CharType>::Advance() {
-  if (pos_ < end_) {
-    return raw_data_[pos_++];
-  } else {
-    // note: currently the following increment is necessary to avoid a
-    // test-parser problem!
-    pos_++;
-    return static_cast<uc32>(-1);
-  }
-}
-
-
-template <typename StringType, typename CharType>
-void ExternalStringUTF16Buffer<StringType, CharType>::PushBack(uc32 ch) {
-  pos_--;
-  ASSERT(pos_ >= Scanner::kCharacterLookaheadBufferSize);
-  ASSERT(raw_data_[pos_ - Scanner::kCharacterLookaheadBufferSize] == ch);
-}
-
-
-template <typename StringType, typename CharType>
-void ExternalStringUTF16Buffer<StringType, CharType>::SeekForward(int pos) {
-  pos_ = pos;
-}
-
-
-// ----------------------------------------------------------------------------
-// Keyword Matcher
-
-KeywordMatcher::FirstState KeywordMatcher::first_states_[] = {
-  { "break",  KEYWORD_PREFIX, Token::BREAK },
-  { NULL,     C,              Token::ILLEGAL },
-  { NULL,     D,              Token::ILLEGAL },
-  { "else",   KEYWORD_PREFIX, Token::ELSE },
-  { NULL,     F,              Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { NULL,     I,              Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { NULL,     N,              Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { "return", KEYWORD_PREFIX, Token::RETURN },
-  { "switch", KEYWORD_PREFIX, Token::SWITCH },
-  { NULL,     T,              Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { NULL,     V,              Token::ILLEGAL },
-  { NULL,     W,              Token::ILLEGAL }
-};
-
-
-void KeywordMatcher::Step(uc32 input) {
-  switch (state_) {
-    case INITIAL: {
-      // matching the first character is the only state with significant fanout.
-      // Match only lower-case letters in range 'b'..'w'.
-      unsigned int offset = input - kFirstCharRangeMin;
-      if (offset < kFirstCharRangeLength) {
-        state_ = first_states_[offset].state;
-        if (state_ == KEYWORD_PREFIX) {
-          keyword_ = first_states_[offset].keyword;
-          counter_ = 1;
-          keyword_token_ = first_states_[offset].token;
-        }
-        return;
-      }
-      break;
-    }
-    case KEYWORD_PREFIX:
-      if (keyword_[counter_] == input) {
-        ASSERT_NE(input, '\0');
-        counter_++;
-        if (keyword_[counter_] == '\0') {
-          state_ = KEYWORD_MATCHED;
-          token_ = keyword_token_;
-        }
-        return;
-      }
-      break;
-    case KEYWORD_MATCHED:
-      token_ = Token::IDENTIFIER;
-      break;
-    case C:
-      if (MatchState(input, 'a', CA)) return;
-      if (MatchState(input, 'o', CO)) return;
-      break;
-    case CA:
-      if (MatchKeywordStart(input, "case", 2, Token::CASE)) return;
-      if (MatchKeywordStart(input, "catch", 2, Token::CATCH)) return;
-      break;
-    case CO:
-      if (MatchState(input, 'n', CON)) return;
-      break;
-    case CON:
-      if (MatchKeywordStart(input, "const", 3, Token::CONST)) return;
-      if (MatchKeywordStart(input, "continue", 3, Token::CONTINUE)) return;
-      break;
-    case D:
-      if (MatchState(input, 'e', DE)) return;
-      if (MatchKeyword(input, 'o', KEYWORD_MATCHED, Token::DO)) return;
-      break;
-    case DE:
-      if (MatchKeywordStart(input, "debugger", 2, Token::DEBUGGER)) return;
-      if (MatchKeywordStart(input, "default", 2, Token::DEFAULT)) return;
-      if (MatchKeywordStart(input, "delete", 2, Token::DELETE)) return;
-      break;
-    case F:
-      if (MatchKeywordStart(input, "false", 1, Token::FALSE_LITERAL)) return;
-      if (MatchKeywordStart(input, "finally", 1, Token::FINALLY)) return;
-      if (MatchKeywordStart(input, "for", 1, Token::FOR)) return;
-      if (MatchKeywordStart(input, "function", 1, Token::FUNCTION)) return;
-      break;
-    case I:
-      if (MatchKeyword(input, 'f', KEYWORD_MATCHED, Token::IF)) return;
-      if (MatchKeyword(input, 'n', IN, Token::IN)) return;
-      break;
-    case IN:
-      token_ = Token::IDENTIFIER;
-      if (MatchKeywordStart(input, "instanceof", 2, Token::INSTANCEOF)) {
-        return;
-      }
-      break;
-    case N:
-      if (MatchKeywordStart(input, "native", 1, Token::NATIVE)) return;
-      if (MatchKeywordStart(input, "new", 1, Token::NEW)) return;
-      if (MatchKeywordStart(input, "null", 1, Token::NULL_LITERAL)) return;
-      break;
-    case T:
-      if (MatchState(input, 'h', TH)) return;
-      if (MatchState(input, 'r', TR)) return;
-      if (MatchKeywordStart(input, "typeof", 1, Token::TYPEOF)) return;
-      break;
-    case TH:
-      if (MatchKeywordStart(input, "this", 2, Token::THIS)) return;
-      if (MatchKeywordStart(input, "throw", 2, Token::THROW)) return;
-      break;
-    case TR:
-      if (MatchKeywordStart(input, "true", 2, Token::TRUE_LITERAL)) return;
-      if (MatchKeyword(input, 'y', KEYWORD_MATCHED, Token::TRY)) return;
-      break;
-    case V:
-      if (MatchKeywordStart(input, "var", 1, Token::VAR)) return;
-      if (MatchKeywordStart(input, "void", 1, Token::VOID)) return;
-      break;
-    case W:
-      if (MatchKeywordStart(input, "while", 1, Token::WHILE)) return;
-      if (MatchKeywordStart(input, "with", 1, Token::WITH)) return;
-      break;
-    default:
-      UNREACHABLE();
-  }
-  // On fallthrough, it's a failure.
-  state_ = UNMATCHABLE;
-}
-
 
 
 // ----------------------------------------------------------------------------
@@ -445,7 +248,7 @@ void Scanner::StartLiteral() {
 }
 
 
-void Scanner::AddChar(uc32 c) {
+void Scanner::AddLiteralChar(uc32 c) {
   literal_buffer_.AddChar(c);
 }
 
@@ -460,8 +263,8 @@ void Scanner::DropLiteral() {
 }
 
 
-void Scanner::AddCharAdvance() {
-  AddChar(c0_);
+void Scanner::AddLiteralCharAdvance() {
+  AddLiteralChar(c0_);
   Advance();
 }
 
@@ -494,9 +297,9 @@ bool Scanner::SkipJavaScriptWhiteSpace() {
   while (true) {
     // We treat byte-order marks (BOMs) as whitespace for better
     // compatibility with Spidermonkey and other JavaScript engines.
-    while (kIsWhiteSpace.get(c0_) || IsByteOrderMark(c0_)) {
+    while (ScannerConstants::kIsWhiteSpace.get(c0_) || IsByteOrderMark(c0_)) {
       // IsWhiteSpace() includes line terminators!
-      if (kIsLineTerminator.get(c0_)) {
+      if (ScannerConstants::kIsLineTerminator.get(c0_)) {
         // Ignore line terminators, but remember them. This is necessary
         // for automatic semicolon insertion.
         has_line_terminator_before_next_ = true;
@@ -536,7 +339,7 @@ Token::Value Scanner::SkipSingleLineComment() {
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
   // ECMA-262, section 7.4, page 12).
-  while (c0_ >= 0 && !kIsLineTerminator.get(c0_)) {
+  while (c0_ >= 0 && !ScannerConstants::kIsLineTerminator.get(c0_)) {
     Advance();
   }
 
@@ -673,29 +476,29 @@ Token::Value Scanner::ScanJsonString() {
     // Check for control character (0x00-0x1f) or unterminated string (<0).
     if (c0_ < 0x20) return Token::ILLEGAL;
     if (c0_ != '\\') {
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     } else {
       Advance();
       switch (c0_) {
         case '"':
         case '\\':
         case '/':
-          AddChar(c0_);
+          AddLiteralChar(c0_);
           break;
         case 'b':
-          AddChar('\x08');
+          AddLiteralChar('\x08');
           break;
         case 'f':
-          AddChar('\x0c');
+          AddLiteralChar('\x0c');
           break;
         case 'n':
-          AddChar('\x0a');
+          AddLiteralChar('\x0a');
           break;
         case 'r':
-          AddChar('\x0d');
+          AddLiteralChar('\x0d');
           break;
         case 't':
-          AddChar('\x09');
+          AddLiteralChar('\x09');
           break;
         case 'u': {
           uc32 value = 0;
@@ -707,7 +510,7 @@ Token::Value Scanner::ScanJsonString() {
             }
             value = value * 16 + digit;
           }
-          AddChar(value);
+          AddLiteralChar(value);
           break;
         }
         default:
@@ -727,31 +530,31 @@ Token::Value Scanner::ScanJsonString() {
 
 Token::Value Scanner::ScanJsonNumber() {
   LiteralScope literal(this);
-  if (c0_ == '-') AddCharAdvance();
+  if (c0_ == '-') AddLiteralCharAdvance();
   if (c0_ == '0') {
-    AddCharAdvance();
+    AddLiteralCharAdvance();
     // Prefix zero is only allowed if it's the only digit before
     // a decimal point or exponent.
     if ('0' <= c0_ && c0_ <= '9') return Token::ILLEGAL;
   } else {
     if (c0_ < '1' || c0_ > '9') return Token::ILLEGAL;
     do {
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     } while (c0_ >= '0' && c0_ <= '9');
   }
   if (c0_ == '.') {
-    AddCharAdvance();
+    AddLiteralCharAdvance();
     if (c0_ < '0' || c0_ > '9') return Token::ILLEGAL;
     do {
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     } while (c0_ >= '0' && c0_ <= '9');
   }
   if (AsciiAlphaToLower(c0_) == 'e') {
-    AddCharAdvance();
-    if (c0_ == '-' || c0_ == '+') AddCharAdvance();
+    AddLiteralCharAdvance();
+    if (c0_ == '-' || c0_ == '+') AddLiteralCharAdvance();
     if (c0_ < '0' || c0_ > '9') return Token::ILLEGAL;
     do {
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     } while (c0_ >= '0' && c0_ <= '9');
   }
   literal.Complete();
@@ -767,7 +570,7 @@ Token::Value Scanner::ScanJsonIdentifier(const char* text,
     Advance();
     text++;
   }
-  if (kIsIdentifierPart.get(c0_)) return Token::ILLEGAL;
+  if (ScannerConstants::kIsIdentifierPart.get(c0_)) return Token::ILLEGAL;
   literal.Complete();
   return token;
 }
@@ -990,7 +793,7 @@ void Scanner::ScanJavaScript() {
         break;
 
       default:
-        if (kIsIdentifierStart.get(c0_)) {
+        if (ScannerConstants::kIsIdentifierStart.get(c0_)) {
           token = ScanIdentifier();
         } else if (IsDecimalDigit(c0_)) {
           token = ScanNumber(false);
@@ -1073,7 +876,7 @@ void Scanner::ScanEscape() {
   Advance();
 
   // Skip escaped newlines.
-  if (kIsLineTerminator.get(c)) {
+  if (ScannerConstants::kIsLineTerminator.get(c)) {
     // Allow CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
     // Allow LF+CR newlines in multiline string literals.
@@ -1106,7 +909,7 @@ void Scanner::ScanEscape() {
   // According to ECMA-262, 3rd, 7.8.4 (p 18ff) these
   // should be illegal, but they are commonly handled
   // as non-escaped characters by JS VMs.
-  AddChar(c);
+  AddLiteralChar(c);
 }
 
 
@@ -1115,14 +918,15 @@ Token::Value Scanner::ScanString() {
   Advance();  // consume quote
 
   LiteralScope literal(this);
-  while (c0_ != quote && c0_ >= 0 && !kIsLineTerminator.get(c0_)) {
+  while (c0_ != quote && c0_ >= 0
+         && !ScannerConstants::kIsLineTerminator.get(c0_)) {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
       if (c0_ < 0) return Token::ILLEGAL;
       ScanEscape();
     } else {
-      AddChar(c);
+      AddLiteralChar(c);
     }
   }
   if (c0_ != quote) return Token::ILLEGAL;
@@ -1153,7 +957,7 @@ Token::Value Scanner::Select(uc32 next, Token::Value then, Token::Value else_) {
 // Returns true if any decimal digits were scanned, returns false otherwise.
 void Scanner::ScanDecimalDigits() {
   while (IsDecimalDigit(c0_))
-    AddCharAdvance();
+    AddLiteralCharAdvance();
 }
 
 
@@ -1165,25 +969,25 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   LiteralScope literal(this);
   if (seen_period) {
     // we have already seen a decimal point of the float
-    AddChar('.');
+    AddLiteralChar('.');
     ScanDecimalDigits();  // we know we have at least one digit
 
   } else {
     // if the first character is '0' we must check for octals and hex
     if (c0_ == '0') {
-      AddCharAdvance();
+      AddLiteralCharAdvance();
 
       // either 0, 0exxx, 0Exxx, 0.xxx, an octal number, or a hex number
       if (c0_ == 'x' || c0_ == 'X') {
         // hex number
         kind = HEX;
-        AddCharAdvance();
+        AddLiteralCharAdvance();
         if (!IsHexDigit(c0_)) {
           // we must have at least one hex digit after 'x'/'X'
           return Token::ILLEGAL;
         }
         while (IsHexDigit(c0_)) {
-          AddCharAdvance();
+          AddLiteralCharAdvance();
         }
       } else if ('0' <= c0_ && c0_ <= '7') {
         // (possible) octal number
@@ -1194,7 +998,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
             break;
           }
           if (c0_  < '0' || '7'  < c0_) break;
-          AddCharAdvance();
+          AddLiteralCharAdvance();
         }
       }
     }
@@ -1203,7 +1007,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     if (kind == DECIMAL) {
       ScanDecimalDigits();  // optional
       if (c0_ == '.') {
-        AddCharAdvance();
+        AddLiteralCharAdvance();
         ScanDecimalDigits();  // optional
       }
     }
@@ -1214,9 +1018,9 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     ASSERT(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
     if (kind == OCTAL) return Token::ILLEGAL;  // no exponent for octals allowed
     // scan exponent
-    AddCharAdvance();
+    AddLiteralCharAdvance();
     if (c0_ == '+' || c0_ == '-')
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     if (!IsDecimalDigit(c0_)) {
       // we must have at least one decimal digit after 'e'/'E'
       return Token::ILLEGAL;
@@ -1228,7 +1032,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   // not be an identifier start or a decimal digit; see ECMA-262
   // section 7.8.3, page 17 (note that we read only one decimal digit
   // if the value is 0).
-  if (IsDecimalDigit(c0_) || kIsIdentifierStart.get(c0_))
+  if (IsDecimalDigit(c0_) || ScannerConstants::kIsIdentifierStart.get(c0_))
     return Token::ILLEGAL;
 
   literal.Complete();
@@ -1250,7 +1054,7 @@ uc32 Scanner::ScanIdentifierUnicodeEscape() {
 
 
 Token::Value Scanner::ScanIdentifier() {
-  ASSERT(kIsIdentifierStart.get(c0_));
+  ASSERT(ScannerConstants::kIsIdentifierStart.get(c0_));
 
   LiteralScope literal(this);
   KeywordMatcher keyword_match;
@@ -1259,25 +1063,25 @@ Token::Value Scanner::ScanIdentifier() {
   if (c0_ == '\\') {
     uc32 c = ScanIdentifierUnicodeEscape();
     // Only allow legal identifier start characters.
-    if (!kIsIdentifierStart.get(c)) return Token::ILLEGAL;
-    AddChar(c);
+    if (!ScannerConstants::kIsIdentifierStart.get(c)) return Token::ILLEGAL;
+    AddLiteralChar(c);
     keyword_match.Fail();
   } else {
-    AddChar(c0_);
+    AddLiteralChar(c0_);
     keyword_match.AddChar(c0_);
     Advance();
   }
 
   // Scan the rest of the identifier characters.
-  while (kIsIdentifierPart.get(c0_)) {
+  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       // Only allow legal identifier part characters.
-      if (!kIsIdentifierPart.get(c)) return Token::ILLEGAL;
-      AddChar(c);
+      if (!ScannerConstants::kIsIdentifierPart.get(c)) return Token::ILLEGAL;
+      AddLiteralChar(c);
       keyword_match.Fail();
     } else {
-      AddChar(c0_);
+      AddLiteralChar(c0_);
       keyword_match.AddChar(c0_);
       Advance();
     }
@@ -1287,17 +1091,6 @@ Token::Value Scanner::ScanIdentifier() {
   return keyword_match.token();
 }
 
-
-
-bool Scanner::IsIdentifier(unibrow::CharacterStream* buffer) {
-  // Checks whether the buffer contains an identifier (no escape).
-  if (!buffer->has_more()) return false;
-  if (!kIsIdentifierStart.get(buffer->GetNext())) return false;
-  while (buffer->has_more()) {
-    if (!kIsIdentifierPart.get(buffer->GetNext())) return false;
-  }
-  return true;
-}
 
 
 bool Scanner::ScanRegExpPattern(bool seen_equal) {
@@ -1314,18 +1107,18 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
   // constructor.
   LiteralScope literal(this);
   if (seen_equal)
-    AddChar('=');
+    AddLiteralChar('=');
 
   while (c0_ != '/' || in_character_class) {
-    if (kIsLineTerminator.get(c0_) || c0_ < 0) return false;
+    if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
     if (c0_ == '\\') {  // escaped character
-      AddCharAdvance();
-      if (kIsLineTerminator.get(c0_) || c0_ < 0) return false;
-      AddCharAdvance();
+      AddLiteralCharAdvance();
+      if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
+      AddLiteralCharAdvance();
     } else {  // unescaped character
       if (c0_ == '[') in_character_class = true;
       if (c0_ == ']') in_character_class = false;
-      AddCharAdvance();
+      AddLiteralCharAdvance();
     }
   }
   Advance();  // consume '/'
@@ -1338,17 +1131,17 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
 bool Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this);
-  while (kIsIdentifierPart.get(c0_)) {
+  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       if (c != static_cast<uc32>(unibrow::Utf8::kBadChar)) {
         // We allow any escaped character, unlike the restriction on
         // IdentifierPart when it is used to build an IdentifierName.
-        AddChar(c);
+        AddLiteralChar(c);
         continue;
       }
     }
-    AddCharAdvance();
+    AddLiteralCharAdvance();
   }
   literal.Complete();
 

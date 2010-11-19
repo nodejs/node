@@ -145,6 +145,22 @@
 				</FileConfiguration>
 			</File>
     		<File
+				RelativePath="..\..\src\bignum.cc"
+				>
+			</File>
+    		<File
+				RelativePath="..\..\src\bignum.h"
+				>
+			</File>
+    		<File
+				RelativePath="..\..\src\bignum-dtoa.cc"
+				>
+			</File>
+    		<File
+				RelativePath="..\..\src\bignum-dtoa.h"
+				>
+			</File>
+    		<File
 				RelativePath="..\..\src\dtoa.cc"
 				>
 			</File>
@@ -238,6 +254,22 @@
 			</File>
 			<File
 				RelativePath="..\..\src\ast.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\bignum.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\bignum.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\bignum-dtoa.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\bignum-dtoa.h"
 				>
 			</File>
 			<File
@@ -882,6 +914,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\scanner-base.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\scanner-base.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\scanner.cc"
 				>
 			</File>
@@ -1099,6 +1139,22 @@
 			</File>
 			<File
 				RelativePath="..\..\src\zone.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\extensions\externalize-string-extension.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\extensions\externalize-string-extension.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\extensions\gc-extension.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\extensions\gc-extension.h"
 				>
 			</File>
 			<Filter

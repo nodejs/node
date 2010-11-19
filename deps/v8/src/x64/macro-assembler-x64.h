@@ -155,17 +155,23 @@ class MacroAssembler: public Assembler {
   // debug mode. Expects the number of arguments in register rax and
   // sets up the number of arguments in register rdi and the pointer
   // to the first argument in register rsi.
-  void EnterExitFrame(int result_size = 1);
+  //
+  // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
+  // accessible via StackSpaceOperand.
+  void EnterExitFrame(int arg_stack_space = 0);
 
-  void EnterApiExitFrame(int stack_space,
-                         int argc,
-                         int result_size = 1);
+  // Enter specific kind of exit frame. Allocates arg_stack_space * kPointerSize
+  // memory (not GCed) on the stack accessible via StackSpaceOperand.
+  void EnterApiExitFrame(int arg_stack_space);
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax:rdx (untouched) and the pointer to the first
   // argument in register rsi.
-  void LeaveExitFrame(int result_size = 1);
+  void LeaveExitFrame();
 
+  // Leave the current exit frame. Expects/provides the return value in
+  // register rax (untouched).
+  void LeaveApiExitFrame();
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -813,22 +819,38 @@ class MacroAssembler: public Assembler {
                                  int num_arguments,
                                  int result_size);
 
+  MUST_USE_RESULT MaybeObject* TryTailCallExternalReference(
+      const ExternalReference& ext, int num_arguments, int result_size);
+
   // Convenience function: tail call a runtime routine (jump).
   void TailCallRuntime(Runtime::FunctionId fid,
                        int num_arguments,
                        int result_size);
 
+  MUST_USE_RESULT  MaybeObject* TryTailCallRuntime(Runtime::FunctionId fid,
+                                                   int num_arguments,
+                                                   int result_size);
+
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext, int result_size);
 
-  // Prepares stack to put arguments (aligns and so on).
-  // Uses calle-saved esi to restore stack state after call.
-  void PrepareCallApiFunction(int stack_space);
+  // Jump to a runtime routine.
+  MaybeObject* TryJumpToExternalReference(const ExternalReference& ext,
+                                          int result_size);
 
-  // Tail call an API function (jump). Allocates HandleScope, extracts
-  // returned value from handle and propogates exceptions.
-  // Clobbers ebx, edi and caller-save registers.
-  void CallApiFunctionAndReturn(ApiFunction* function);
+  // Prepares stack to put arguments (aligns and so on).
+  // WIN64 calling convention requires to put the pointer to the return value
+  // slot into rcx (rcx must be preserverd until TryCallApiFunctionAndReturn).
+  // Saves context (rsi). Clobbers rax. Allocates arg_stack_space * kPointerSize
+  // inside the exit frame (not GCed) accessible via StackSpaceOperand.
+  void PrepareCallApiFunction(int arg_stack_space);
+
+  // Calls an API function. Allocates HandleScope, extracts
+  // returned value from handle and propagates exceptions.
+  // Clobbers r12, r14, rbx and caller-save registers. Restores context.
+  // On return removes stack_space * kPointerSize (GCed).
+  MUST_USE_RESULT MaybeObject* TryCallApiFunctionAndReturn(
+      ApiFunction* function, int stack_space);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],
@@ -919,7 +941,12 @@ class MacroAssembler: public Assembler {
   void LeaveFrame(StackFrame::Type type);
 
   void EnterExitFramePrologue(bool save_rax);
-  void EnterExitFrameEpilogue(int result_size, int argc);
+
+  // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
+  // accessible via StackSpaceOperand.
+  void EnterExitFrameEpilogue(int arg_stack_space);
+
+  void LeaveExitFrameEpilogue();
 
   // Allocation support helpers.
   // Loads the top of new-space into the result register.
@@ -980,6 +1007,28 @@ static inline Operand FieldOperand(Register object,
                                    int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
 }
+
+
+static inline Operand ContextOperand(Register context, int index) {
+  return Operand(context, Context::SlotOffset(index));
+}
+
+
+static inline Operand GlobalObjectOperand() {
+  return ContextOperand(rsi, Context::GLOBAL_INDEX);
+}
+
+
+// Provides access to exit frame stack space (not GCed).
+static inline Operand StackSpaceOperand(int index) {
+#ifdef _WIN64
+  const int kShaddowSpace = 4;
+  return Operand(rsp, (index + kShaddowSpace) * kPointerSize);
+#else
+  return Operand(rsp, index * kPointerSize);
+#endif
+}
+
 
 
 #ifdef GENERATED_CODE_COVERAGE

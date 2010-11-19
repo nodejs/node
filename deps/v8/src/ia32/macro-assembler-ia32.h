@@ -123,12 +123,16 @@ class MacroAssembler: public Assembler {
   // to the first argument in register esi.
   void EnterExitFrame();
 
-  void EnterApiExitFrame(int stack_space, int argc);
+  void EnterApiExitFrame(int argc);
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
   // argument in register esi.
   void LeaveExitFrame();
+
+  // Leave the current exit frame. Expects the return value in
+  // register eax (untouched).
+  void LeaveApiExitFrame();
 
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
@@ -460,10 +464,22 @@ class MacroAssembler: public Assembler {
                                  int num_arguments,
                                  int result_size);
 
+  // Tail call of a runtime routine (jump). Try to generate the code if
+  // necessary. Do not perform a GC but instead return a retry after GC failure.
+  MUST_USE_RESULT MaybeObject* TryTailCallExternalReference(
+      const ExternalReference& ext, int num_arguments, int result_size);
+
   // Convenience function: tail call a runtime routine (jump).
   void TailCallRuntime(Runtime::FunctionId fid,
                        int num_arguments,
                        int result_size);
+
+  // Convenience function: tail call a runtime routine (jump). Try to generate
+  // the code if necessary. Do not perform a GC but instead return a retry after
+  // GC failure.
+  MUST_USE_RESULT MaybeObject* TryTailCallRuntime(Runtime::FunctionId fid,
+                                                  int num_arguments,
+                                                  int result_size);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],
@@ -485,16 +501,21 @@ class MacroAssembler: public Assembler {
   // Prepares stack to put arguments (aligns and so on). Reserves
   // space for return value if needed (assumes the return value is a handle).
   // Uses callee-saved esi to restore stack state after call. Arguments must be
-  // stored in ApiParameterOperand(0), ApiParameterOperand(1) etc.
-  void PrepareCallApiFunction(int stack_space, int argc);
+  // stored in ApiParameterOperand(0), ApiParameterOperand(1) etc. Saves
+  // context (esi).
+  void PrepareCallApiFunction(int argc, Register scratch);
 
-  // Tail call an API function (jump). Allocates HandleScope, extracts
+  // Calls an API function. Allocates HandleScope, extracts
   // returned value from handle and propagates exceptions.
-  // Clobbers ebx, esi, edi and caller-save registers.
-  void CallApiFunctionAndReturn(ApiFunction* function, int argc);
+  // Clobbers ebx, edi and caller-save registers. Restores context.
+  // On return removes stack_space * kPointerSize (GCed).
+  MaybeObject* TryCallApiFunctionAndReturn(ApiFunction* function,
+                                           int stack_space);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext);
+
+  MaybeObject* TryJumpToExternalReference(const ExternalReference& ext);
 
 
   // ---------------------------------------------------------------------------
@@ -589,6 +610,8 @@ class MacroAssembler: public Assembler {
   void EnterExitFramePrologue();
   void EnterExitFrameEpilogue(int argc);
 
+  void LeaveExitFrameEpilogue();
+
   // Allocation support helpers.
   void LoadAllocationTopHelper(Register result,
                                Register result_end,
@@ -641,6 +664,17 @@ static inline Operand FieldOperand(Register object,
                                    int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
 }
+
+
+static inline Operand ContextOperand(Register context, int index) {
+  return Operand(context, Context::SlotOffset(index));
+}
+
+
+static inline Operand GlobalObjectOperand() {
+  return ContextOperand(esi, Context::GLOBAL_INDEX);
+}
+
 
 // Generates an Operand for saving parameters after PrepareCallApiFunction.
 Operand ApiParameterOperand(int index);

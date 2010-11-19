@@ -124,12 +124,6 @@ class CodeStub BASE_EMBEDDED {
 
   virtual ~CodeStub() {}
 
-  // Override these methods to provide a custom caching mechanism for
-  // an individual type of code stub.
-  virtual bool GetCustomCache(Code** code_out) { return false; }
-  virtual void SetCustomCache(Code* value) { }
-  virtual bool has_custom_cache() { return false; }
-
  protected:
   static const int kMajorBits = 5;
   static const int kMinorBits = kBitsPerInt - kSmiTagSize - kMajorBits;
@@ -521,32 +515,6 @@ class CEntryStub : public CodeStub {
   int MinorKey();
 
   const char* GetName() { return "CEntryStub"; }
-};
-
-
-class ApiGetterEntryStub : public CodeStub {
- public:
-  ApiGetterEntryStub(Handle<AccessorInfo> info,
-                     ApiFunction* fun)
-      : info_(info),
-        fun_(fun) { }
-  void Generate(MacroAssembler* masm);
-  virtual bool has_custom_cache() { return true; }
-  virtual bool GetCustomCache(Code** code_out);
-  virtual void SetCustomCache(Code* value);
-
-  static const int kStackSpace = 5;
-  static const int kArgc = 2;
- private:
-  Handle<AccessorInfo> info() { return info_; }
-  ApiFunction* fun() { return fun_; }
-  Major MajorKey() { return NoCache; }
-  int MinorKey() { return 0; }
-  const char* GetName() { return "ApiEntryStub"; }
-  // The accessor info associated with the function.
-  Handle<AccessorInfo> info_;
-  // The function to be called.
-  ApiFunction* fun_;
 };
 
 

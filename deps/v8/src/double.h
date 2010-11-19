@@ -54,17 +54,19 @@ class Double {
   explicit Double(DiyFp diy_fp)
     : d64_(DiyFpToUint64(diy_fp)) {}
 
+  // The value encoded by this Double must be greater or equal to +0.0.
+  // It must not be special (infinity, or NaN).
   DiyFp AsDiyFp() const {
+    ASSERT(Sign() > 0);
     ASSERT(!IsSpecial());
     return DiyFp(Significand(), Exponent());
   }
 
-  // this->Significand() must not be 0.
+  // The value encoded by this Double must be strictly greater than 0.
   DiyFp AsNormalizedDiyFp() const {
+    ASSERT(value() > 0.0);
     uint64_t f = Significand();
     int e = Exponent();
-
-    ASSERT(f != 0);
 
     // The current double could be a denormal.
     while ((f & kHiddenBit) == 0) {
@@ -80,6 +82,20 @@ class Double {
   // Returns the double's bit as uint64.
   uint64_t AsUint64() const {
     return d64_;
+  }
+
+  // Returns the next greater double. Returns +infinity on input +infinity.
+  double NextDouble() const {
+    if (d64_ == kInfinity) return Double(kInfinity).value();
+    if (Sign() < 0 && Significand() == 0) {
+      // -0.0
+      return 0.0;
+    }
+    if (Sign() < 0) {
+      return Double(d64_ - 1).value();
+    } else {
+      return Double(d64_ + 1).value();
+    }
   }
 
   int Exponent() const {
@@ -120,24 +136,30 @@ class Double {
         ((d64 & kSignificandMask) != 0);
   }
 
-
   bool IsInfinite() const {
     uint64_t d64 = AsUint64();
     return ((d64 & kExponentMask) == kExponentMask) &&
         ((d64 & kSignificandMask) == 0);
   }
 
-
   int Sign() const {
     uint64_t d64 = AsUint64();
     return (d64 & kSignMask) == 0? 1: -1;
   }
 
+  // Precondition: the value encoded by this Double must be greater or equal
+  // than +0.0.
+  DiyFp UpperBoundary() const {
+    ASSERT(Sign() > 0);
+    return DiyFp(Significand() * 2 + 1, Exponent() - 1);
+  }
 
   // Returns the two boundaries of this.
   // The bigger boundary (m_plus) is normalized. The lower boundary has the same
   // exponent as m_plus.
+  // Precondition: the value encoded by this Double must be greater than 0.
   void NormalizedBoundaries(DiyFp* out_m_minus, DiyFp* out_m_plus) const {
+    ASSERT(value() > 0.0);
     DiyFp v = this->AsDiyFp();
     bool significand_is_zero = (v.f() == kHiddenBit);
     DiyFp m_plus = DiyFp::Normalize(DiyFp((v.f() << 1) + 1, v.e() - 1));

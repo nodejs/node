@@ -44,6 +44,7 @@ bool V8::has_been_setup_ = false;
 bool V8::has_been_disposed_ = false;
 bool V8::has_fatal_error_ = false;
 
+
 bool V8::Initialize(Deserializer* des) {
   bool create_heap_objects = des == NULL;
   if (has_been_disposed_ || has_fatal_error_) return false;
@@ -176,22 +177,41 @@ static uint32_t random_seed() {
 }
 
 
-uint32_t V8::Random() {
-  // Random number generator using George Marsaglia's MWC algorithm.
-  static uint32_t hi = 0;
-  static uint32_t lo = 0;
+typedef struct {
+  uint32_t hi;
+  uint32_t lo;
+} random_state;
 
+
+// Random number generator using George Marsaglia's MWC algorithm.
+static uint32_t random_base(random_state *state) {
   // Initialize seed using the system random(). If one of the seeds
   // should ever become zero again, or if random() returns zero, we
   // avoid getting stuck with zero bits in hi or lo by re-initializing
   // them on demand.
-  if (hi == 0) hi = random_seed();
-  if (lo == 0) lo = random_seed();
+  if (state->hi == 0) state->hi = random_seed();
+  if (state->lo == 0) state->lo = random_seed();
 
   // Mix the bits.
-  hi = 36969 * (hi & 0xFFFF) + (hi >> 16);
-  lo = 18273 * (lo & 0xFFFF) + (lo >> 16);
-  return (hi << 16) + (lo & 0xFFFF);
+  state->hi = 36969 * (state->hi & 0xFFFF) + (state->hi >> 16);
+  state->lo = 18273 * (state->lo & 0xFFFF) + (state->lo >> 16);
+  return (state->hi << 16) + (state->lo & 0xFFFF);
+}
+
+
+// Used by JavaScript APIs
+uint32_t V8::Random() {
+  static random_state state = {0, 0};
+  return random_base(&state);
+}
+
+
+// Used internally by the JIT and memory allocator for security
+// purposes. So, we keep a different state to prevent informations
+// leaks that could be used in an exploit.
+uint32_t V8::RandomPrivate() {
+  static random_state state = {0, 0};
+  return random_base(&state);
 }
 
 

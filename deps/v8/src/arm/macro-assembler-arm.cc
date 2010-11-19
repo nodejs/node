@@ -129,7 +129,7 @@ void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
     // address is loaded. The mov method will automatically record
     // positions when pc is the target, since this is not the case here
     // we have to do it explicitly.
-    WriteRecordedPositions();
+    positions_recorder()->WriteRecordedPositions();
 
     mov(ip, Operand(target, rmode), LeaveCC, cond);
     blx(ip, cond);
@@ -220,20 +220,20 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
                          Condition cond) {
-  if (!CpuFeatures::IsSupported(ARMv7) || src2.is_single_instruction()) {
-    and_(dst, src1, src2, LeaveCC, cond);
-    return;
-  }
-  int32_t immediate = src2.immediate();
-  if (immediate == 0) {
+  if (!src2.is_reg() &&
+      !src2.must_use_constant_pool() &&
+      src2.immediate() == 0) {
     mov(dst, Operand(0, RelocInfo::NONE), LeaveCC, cond);
-    return;
+
+  } else if (!src2.is_single_instruction() &&
+             !src2.must_use_constant_pool() &&
+             CpuFeatures::IsSupported(ARMv7) &&
+             IsPowerOf2(src2.immediate() + 1)) {
+    ubfx(dst, src1, 0, WhichPowerOf2(src2.immediate() + 1), cond);
+
+  } else {
+    and_(dst, src1, src2, LeaveCC, cond);
   }
-  if (IsPowerOf2(immediate + 1) && ((immediate & 1) != 0)) {
-    ubfx(dst, src1, 0, WhichPowerOf2(immediate + 1), cond);
-    return;
-  }
-  and_(dst, src1, src2, LeaveCC, cond);
 }
 
 

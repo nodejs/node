@@ -499,6 +499,10 @@ void InitScriptLineEnds(Handle<Script> script) {
 
   Handle<FixedArray> array = CalculateLineEnds(src, true);
 
+  if (*array != Heap::empty_fixed_array()) {
+    array->set_map(Heap::fixed_cow_array_map());
+  }
+
   script->set_line_ends(*array);
   ASSERT(script->line_ends()->IsFixedArray());
 }

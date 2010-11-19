@@ -1988,9 +1988,9 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 
       // Not infinity or NaN simply convert to int.
       if (IsElementTypeSigned(array_type)) {
-        __ vcvt_s32_f64(s0, d0, ne);
+        __ vcvt_s32_f64(s0, d0, Assembler::RoundToZero, ne);
       } else {
-        __ vcvt_u32_f64(s0, d0, ne);
+        __ vcvt_u32_f64(s0, d0, Assembler::RoundToZero, ne);
       }
       __ vmov(r5, s0, ne);
 

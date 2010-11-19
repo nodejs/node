@@ -3058,15 +3058,6 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 }
 
 
-void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
-  __ PrepareCallApiFunction(kStackSpace, kArgc);
-  STATIC_ASSERT(kArgc == 2);
-  __ mov(ApiParameterOperand(0), ebx);  // name.
-  __ mov(ApiParameterOperand(1), eax);  // arguments pointer.
-  __ CallApiFunctionAndReturn(fun(), kArgc);
-}
-
-
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,

@@ -316,8 +316,10 @@ MaybeObject* Accessors::ScriptGetLineEnds(Object* object, void*) {
   InitScriptLineEnds(script);
   ASSERT(script->line_ends()->IsFixedArray());
   Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
-  Handle<FixedArray> copy = Factory::CopyFixedArray(line_ends);
-  Handle<JSArray> js_array = Factory::NewJSArrayWithElements(copy);
+  // We do not want anyone to modify this array from JS.
+  ASSERT(*line_ends == Heap::empty_fixed_array() ||
+         line_ends->map() == Heap::fixed_cow_array_map());
+  Handle<JSArray> js_array = Factory::NewJSArrayWithElements(line_ends);
   return *js_array;
 }
 

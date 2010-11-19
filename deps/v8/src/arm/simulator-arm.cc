@@ -705,6 +705,7 @@ Simulator::Simulator() {
   z_flag_FPSCR_ = false;
   c_flag_FPSCR_ = false;
   v_flag_FPSCR_ = false;
+  FPSCR_rounding_mode_ = RZ;
 
   inv_op_vfp_flag_ = false;
   div_zero_vfp_flag_ = false;
@@ -2501,10 +2502,45 @@ void Simulator::DecodeTypeVFP(Instr* instr) {
                (instr->VAField() == 0x7) &&
                (instr->Bits(19, 16) == 0x1)) {
       // vmrs
-      if (instr->RtField() == 0xF)
+      uint32_t rt = instr->RtField();
+      if (rt == 0xF) {
         Copy_FPSCR_to_APSR();
-      else
-        UNIMPLEMENTED();  // Not used by V8.
+      } else {
+        // Emulate FPSCR from the Simulator flags.
+        uint32_t fpscr = (n_flag_FPSCR_ << 31) |
+                         (z_flag_FPSCR_ << 30) |
+                         (c_flag_FPSCR_ << 29) |
+                         (v_flag_FPSCR_ << 28) |
+                         (inexact_vfp_flag_ << 4) |
+                         (underflow_vfp_flag_ << 3) |
+                         (overflow_vfp_flag_ << 2) |
+                         (div_zero_vfp_flag_ << 1) |
+                         (inv_op_vfp_flag_ << 0) |
+                         (FPSCR_rounding_mode_ << 22);
+        set_register(rt, fpscr);
+      }
+    } else if ((instr->VLField() == 0x0) &&
+               (instr->VCField() == 0x0) &&
+               (instr->VAField() == 0x7) &&
+               (instr->Bits(19, 16) == 0x1)) {
+      // vmsr
+      uint32_t rt = instr->RtField();
+      if (rt == pc) {
+        UNREACHABLE();
+      } else {
+        uint32_t rt_value = get_register(rt);
+        n_flag_FPSCR_ = (rt_value >> 31) & 1;
+        z_flag_FPSCR_ = (rt_value >> 30) & 1;
+        c_flag_FPSCR_ = (rt_value >> 29) & 1;
+        v_flag_FPSCR_ = (rt_value >> 28) & 1;
+        inexact_vfp_flag_ = (rt_value >> 4) & 1;
+        underflow_vfp_flag_ = (rt_value >> 3) & 1;
+        overflow_vfp_flag_ = (rt_value >> 2) & 1;
+        div_zero_vfp_flag_ = (rt_value >> 1) & 1;
+        inv_op_vfp_flag_ = (rt_value >> 0) & 1;
+        FPSCR_rounding_mode_ =
+          static_cast<FPSCRRoundingModes>((rt_value >> 22) & 3);
+      }
     } else {
       UNIMPLEMENTED();  // Not used by V8.
     }
@@ -2605,29 +2641,71 @@ void Simulator::DecodeVCVTBetweenFloatingPointAndInteger(Instr* instr) {
 
   if (to_integer) {
     bool unsigned_integer = (instr->Bit(16) == 0);
+    FPSCRRoundingModes mode;
     if (instr->Bit(7) != 1) {
-      // Only rounding towards zero supported.
-      UNIMPLEMENTED();  // Not used by V8.
+      // Use FPSCR defined rounding mode.
+      mode = FPSCR_rounding_mode_;
+      // Only RZ and RM modes are supported.
+      ASSERT((mode == RM) || (mode == RZ));
+    } else {
+      // VFP uses round towards zero by default.
+      mode = RZ;
     }
 
     int dst = instr->VFPDRegCode(kSinglePrecision);
     int src = instr->VFPMRegCode(src_precision);
+    int32_t kMaxInt = v8::internal::kMaxInt;
+    int32_t kMinInt = v8::internal::kMinInt;
+    switch (mode) {
+      case RM:
+        if (src_precision == kDoublePrecision) {
+          double val = get_double_from_d_register(src);
 
-    if (src_precision == kDoublePrecision) {
-      double val = get_double_from_d_register(src);
+          inv_op_vfp_flag_ = (val > kMaxInt) || (val < kMinInt) || (val != val);
 
-      int sint = unsigned_integer ? static_cast<uint32_t>(val) :
-                                    static_cast<int32_t>(val);
+          int sint = unsigned_integer ? static_cast<uint32_t>(val) :
+                                        static_cast<int32_t>(val);
+          sint = sint > val ? sint - 1 : sint;
 
-      set_s_register_from_sinteger(dst, sint);
-    } else {
-      float val = get_float_from_s_register(src);
+          set_s_register_from_sinteger(dst, sint);
+        } else {
+          float val = get_float_from_s_register(src);
 
-      int sint = unsigned_integer ? static_cast<uint32_t>(val) :
-                                      static_cast<int32_t>(val);
+          inv_op_vfp_flag_ = (val > kMaxInt) || (val < kMinInt) || (val != val);
 
-      set_s_register_from_sinteger(dst, sint);
+          int sint = unsigned_integer ? static_cast<uint32_t>(val) :
+                                        static_cast<int32_t>(val);
+          sint = sint > val ? sint - 1 : sint;
+
+          set_s_register_from_sinteger(dst, sint);
+        }
+        break;
+      case RZ:
+        if (src_precision == kDoublePrecision) {
+          double val = get_double_from_d_register(src);
+
+          inv_op_vfp_flag_ = (val > kMaxInt) || (val < kMinInt) || (val != val);
+
+          int sint = unsigned_integer ? static_cast<uint32_t>(val) :
+                                        static_cast<int32_t>(val);
+
+          set_s_register_from_sinteger(dst, sint);
+        } else {
+          float val = get_float_from_s_register(src);
+
+          inv_op_vfp_flag_ = (val > kMaxInt) || (val < kMinInt) || (val != val);
+
+          int sint = unsigned_integer ? static_cast<uint32_t>(val) :
+                                        static_cast<int32_t>(val);
+
+          set_s_register_from_sinteger(dst, sint);
+        }
+        break;
+
+      default:
+        UNREACHABLE();
     }
+
   } else {
     bool unsigned_integer = (instr->Bit(7) == 0);
 

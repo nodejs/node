@@ -788,15 +788,13 @@ void AggregatedHeapSnapshotGenerator::CalculateStringsStats() {
 void AggregatedHeapSnapshotGenerator::CollectStats(HeapObject* obj) {
   InstanceType type = obj->map()->instance_type();
   ASSERT(0 <= type && type <= LAST_TYPE);
-  if (!FreeListNode::IsFreeListNode(obj)) {
-    agg_snapshot_->info()[type].increment_number(1);
-    agg_snapshot_->info()[type].increment_bytes(obj->Size());
-  }
+  agg_snapshot_->info()[type].increment_number(1);
+  agg_snapshot_->info()[type].increment_bytes(obj->Size());
 }
 
 
 void AggregatedHeapSnapshotGenerator::GenerateSnapshot() {
-  HeapIterator iterator;
+  HeapIterator iterator(HeapIterator::kPreciseFiltering);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     CollectStats(obj);
     agg_snapshot_->js_cons_profile()->CollectStats(obj);

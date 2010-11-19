@@ -31,6 +31,9 @@
 #include "frame-element.h"
 #include "macro-assembler.h"
 
+#include "list-inl.h"
+#include "utils.h"
+
 #if V8_TARGET_ARCH_IA32
 #include "ia32/virtual-frame-ia32.h"
 #elif V8_TARGET_ARCH_X64
@@ -42,5 +45,15 @@
 #else
 #error Unsupported target architecture.
 #endif
+
+namespace v8 {
+namespace internal {
+
+// Add() on List is inlined, ResizeAdd() called by Add() is inlined except for
+// Lists of FrameElements, and ResizeAddInternal() is inlined in ResizeAdd().
+template <>
+void List<FrameElement,
+          FreeStoreAllocationPolicy>::ResizeAdd(const FrameElement& element);
+} }  // namespace v8::internal
 
 #endif  // V8_VIRTUAL_FRAME_H_

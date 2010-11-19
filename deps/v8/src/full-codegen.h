@@ -423,7 +423,9 @@ class FullCodeGenerator: public AstVisitor {
   void SetStatementPosition(Statement* stmt);
   void SetExpressionPosition(Expression* expr, int pos);
   void SetStatementPosition(int pos);
-  void SetSourcePosition(int pos);
+  void SetSourcePosition(
+      int pos,
+      PositionRecordingType recording_type = NORMAL_POSITION);
 
   // Non-local control flow support.
   void EnterFinallyBlock();
@@ -461,9 +463,6 @@ class FullCodeGenerator: public AstVisitor {
   // Load a value from the current context. Indices are defined as an enum
   // in v8::internal::Context.
   void LoadContextField(Register dst, int context_index);
-
-  // Create an operand for a context field.
-  MemOperand ContextOperand(Register context, int context_index);
 
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);

@@ -1046,6 +1046,7 @@ int Decoder::DecodeType7(Instr* instr) {
 // Dd = vdiv(Dn, Dm)
 // vcmp(Dd, Dm)
 // vmrs
+// vmsr
 // Dd = vsqrt(Dm)
 void Decoder::DecodeTypeVFP(Instr* instr) {
   ASSERT((instr->TypeField() == 7) && (instr->Bit(24) == 0x0) );
@@ -1111,16 +1112,22 @@ void Decoder::DecodeTypeVFP(Instr* instr) {
     if ((instr->VCField() == 0x0) &&
         (instr->VAField() == 0x0)) {
       DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(instr);
-    } else if ((instr->VLField() == 0x1) &&
-               (instr->VCField() == 0x0) &&
+    } else if ((instr->VCField() == 0x0) &&
                (instr->VAField() == 0x7) &&
                (instr->Bits(19, 16) == 0x1)) {
-      if (instr->Bits(15, 12) == 0xF)
-        Format(instr, "vmrs'cond APSR, FPSCR");
-      else
-        Unknown(instr);  // Not used by V8.
-    } else {
-      Unknown(instr);  // Not used by V8.
+      if (instr->VLField() == 0) {
+        if (instr->Bits(15, 12) == 0xF) {
+          Format(instr, "vmsr'cond FPSCR, APSR");
+        } else {
+          Format(instr, "vmsr'cond FPSCR, 'rt");
+        }
+      } else {
+        if (instr->Bits(15, 12) == 0xF) {
+          Format(instr, "vmrs'cond APSR, FPSCR");
+        } else {
+          Format(instr, "vmrs'cond 'rt, FPSCR");
+        }
+      }
     }
   }
 }

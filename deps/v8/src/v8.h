@@ -53,10 +53,10 @@
 
 // Basic includes
 #include "../include/v8.h"
-#include "globals.h"
+#include "v8globals.h"
 #include "checks.h"
 #include "allocation.h"
-#include "utils.h"
+#include "v8utils.h"
 #include "flags.h"
 
 // Objects & heap
@@ -94,6 +94,11 @@ class V8 : public AllStatic {
 
   // Random number generation support. Not cryptographically safe.
   static uint32_t Random();
+  // We use random numbers internally in memory allocation and in the
+  // compilers for security. In order to prevent information leaks we
+  // use a separate random state for internal random number
+  // generation.
+  static uint32_t RandomPrivate();
   static Object* FillHeapNumberWithRandom(Object* heap_number);
 
   // Idle notification directly from the API.

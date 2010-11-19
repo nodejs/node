@@ -31,6 +31,7 @@
 #include "v8.h"
 
 #include "strtod.h"
+#include "bignum.h"
 #include "cached-powers.h"
 #include "double.h"
 
@@ -83,44 +84,12 @@ static const double exact_powers_of_ten[] = {
   // 10^22 = 0x21e19e0c9bab2400000 = 0x878678326eac9 * 2^22
   10000000000000000000000.0
 };
-
 static const int kExactPowersOfTenSize = ARRAY_SIZE(exact_powers_of_ten);
 
-
-extern "C" double gay_strtod(const char* s00, const char** se);
-
-static double old_strtod(Vector<const char> buffer, int exponent) {
-  // gay_strtod is broken on Linux,x86. For numbers with few decimal digits
-  // the computation is done using floating-point operations which (on Linux)
-  // are prone to double-rounding errors.
-  // By adding several zeroes to the buffer gay_strtod falls back to a slower
-  // (but correct) algorithm.
-  const int kInsertedZeroesCount = 20;
-  char gay_buffer[1024];
-  Vector<char> gay_buffer_vector(gay_buffer, sizeof(gay_buffer));
-  int pos = 0;
-  for (int i = 0; i < buffer.length(); ++i) {
-    gay_buffer_vector[pos++] = buffer[i];
-  }
-  for (int i = 0; i < kInsertedZeroesCount; ++i) {
-    gay_buffer_vector[pos++] = '0';
-  }
-  exponent -= kInsertedZeroesCount;
-  gay_buffer_vector[pos++] = 'e';
-  if (exponent < 0) {
-    gay_buffer_vector[pos++] = '-';
-    exponent = -exponent;
-  }
-  const int kNumberOfExponentDigits = 5;
-  for (int i = kNumberOfExponentDigits - 1; i >= 0; i--) {
-    gay_buffer_vector[pos + i] = exponent % 10 + '0';
-    exponent /= 10;
-  }
-  pos += kNumberOfExponentDigits;
-  gay_buffer_vector[pos] = '\0';
-  return gay_strtod(gay_buffer, NULL);
-}
-
+// Maximum number of significant digits in the decimal representation.
+// In fact the value is 772 (see conversions.cc), but to give us some margin
+// we round up to 780.
+static const int kMaxSignificantDecimalDigits = 780;
 
 static Vector<const char> TrimLeadingZeros(Vector<const char> buffer) {
   for (int i = 0; i < buffer.length(); i++) {
@@ -141,6 +110,23 @@ static Vector<const char> TrimTrailingZeros(Vector<const char> buffer) {
   return Vector<const char>(buffer.start(), 0);
 }
 
+
+static void TrimToMaxSignificantDigits(Vector<const char> buffer,
+                                       int exponent,
+                                       char* significant_buffer,
+                                       int* significant_exponent) {
+  for (int i = 0; i < kMaxSignificantDecimalDigits - 1; ++i) {
+    significant_buffer[i] = buffer[i];
+  }
+  // The input buffer has been trimmed. Therefore the last digit must be
+  // different from '0'.
+  ASSERT(buffer[buffer.length() - 1] != '0');
+  // Set the last digit to be non-zero. This is sufficient to guarantee
+  // correct rounding.
+  significant_buffer[kMaxSignificantDecimalDigits - 1] = '1';
+  *significant_exponent =
+      exponent + (buffer.length() - kMaxSignificantDecimalDigits);
+}
 
 // Reads digits from the buffer and converts them to a uint64.
 // Reads in as many digits as fit into a uint64.
@@ -374,20 +360,81 @@ static bool DiyFpStrtod(Vector<const char> buffer,
 }
 
 
+// Returns the correct double for the buffer*10^exponent.
+// The variable guess should be a close guess that is either the correct double
+// or its lower neighbor (the nearest double less than the correct one).
+// Preconditions:
+//   buffer.length() + exponent <= kMaxDecimalPower + 1
+//   buffer.length() + exponent > kMinDecimalPower
+//   buffer.length() <= kMaxDecimalSignificantDigits
+static double BignumStrtod(Vector<const char> buffer,
+                           int exponent,
+                           double guess) {
+  if (guess == V8_INFINITY) {
+    return guess;
+  }
+
+  DiyFp upper_boundary = Double(guess).UpperBoundary();
+
+  ASSERT(buffer.length() + exponent <= kMaxDecimalPower + 1);
+  ASSERT(buffer.length() + exponent > kMinDecimalPower);
+  ASSERT(buffer.length() <= kMaxSignificantDecimalDigits);
+  // Make sure that the Bignum will be able to hold all our numbers.
+  // Our Bignum implementation has a separate field for exponents. Shifts will
+  // consume at most one bigit (< 64 bits).
+  // ln(10) == 3.3219...
+  ASSERT(((kMaxDecimalPower + 1) * 333 / 100) < Bignum::kMaxSignificantBits);
+  Bignum input;
+  Bignum boundary;
+  input.AssignDecimalString(buffer);
+  boundary.AssignUInt64(upper_boundary.f());
+  if (exponent >= 0) {
+    input.MultiplyByPowerOfTen(exponent);
+  } else {
+    boundary.MultiplyByPowerOfTen(-exponent);
+  }
+  if (upper_boundary.e() > 0) {
+    boundary.ShiftLeft(upper_boundary.e());
+  } else {
+    input.ShiftLeft(-upper_boundary.e());
+  }
+  int comparison = Bignum::Compare(input, boundary);
+  if (comparison < 0) {
+    return guess;
+  } else if (comparison > 0) {
+    return Double(guess).NextDouble();
+  } else if ((Double(guess).Significand() & 1) == 0) {
+    // Round towards even.
+    return guess;
+  } else {
+    return Double(guess).NextDouble();
+  }
+}
+
+
 double Strtod(Vector<const char> buffer, int exponent) {
   Vector<const char> left_trimmed = TrimLeadingZeros(buffer);
   Vector<const char> trimmed = TrimTrailingZeros(left_trimmed);
   exponent += left_trimmed.length() - trimmed.length();
   if (trimmed.length() == 0) return 0.0;
+  if (trimmed.length() > kMaxSignificantDecimalDigits) {
+    char significant_buffer[kMaxSignificantDecimalDigits];
+    int significant_exponent;
+    TrimToMaxSignificantDigits(trimmed, exponent,
+                               significant_buffer, &significant_exponent);
+    return Strtod(Vector<const char>(significant_buffer,
+                                     kMaxSignificantDecimalDigits),
+                  significant_exponent);
+  }
   if (exponent + trimmed.length() - 1 >= kMaxDecimalPower) return V8_INFINITY;
   if (exponent + trimmed.length() <= kMinDecimalPower) return 0.0;
 
-  double result;
-  if (DoubleStrtod(trimmed, exponent, &result) ||
-      DiyFpStrtod(trimmed, exponent, &result)) {
-    return result;
+  double guess;
+  if (DoubleStrtod(trimmed, exponent, &guess) ||
+      DiyFpStrtod(trimmed, exponent, &guess)) {
+    return guess;
   }
-  return old_strtod(trimmed, exponent);
+  return BignumStrtod(trimmed, exponent, guess);
 }
 
 } }  // namespace v8::internal

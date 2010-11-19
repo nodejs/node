@@ -70,9 +70,10 @@ void CodeGenerator::ProcessDeferred() {
     DeferredCode* code = deferred_.RemoveLast();
     ASSERT(masm_ == code->masm());
     // Record position of deferred code stub.
-    masm_->RecordStatementPosition(code->statement_position());
+    masm_->positions_recorder()->RecordStatementPosition(
+        code->statement_position());
     if (code->position() != RelocInfo::kNoPosition) {
-      masm_->RecordPosition(code->position());
+      masm_->positions_recorder()->RecordPosition(code->position());
     }
     // Generate the code.
     Comment cmnt(masm_, code->comment());
@@ -251,39 +252,6 @@ bool CodeGenerator::ShouldGenerateLog(Expression* type) {
 #endif
 
 
-Handle<Code> CodeGenerator::ComputeCallInitialize(
-    int argc,
-    InLoopFlag in_loop) {
-  if (in_loop == IN_LOOP) {
-    // Force the creation of the corresponding stub outside loops,
-    // because it may be used when clearing the ICs later - it is
-    // possible for a series of IC transitions to lose the in-loop
-    // information, and the IC clearing code can't generate a stub
-    // that it needs so we need to ensure it is generated already.
-    ComputeCallInitialize(argc, NOT_IN_LOOP);
-  }
-  CALL_HEAP_FUNCTION(
-      StubCache::ComputeCallInitialize(argc, in_loop, Code::CALL_IC),
-      Code);
-}
-
-
-Handle<Code> CodeGenerator::ComputeKeyedCallInitialize(
-    int argc,
-    InLoopFlag in_loop) {
-  if (in_loop == IN_LOOP) {
-    // Force the creation of the corresponding stub outside loops,
-    // because it may be used when clearing the ICs later - it is
-    // possible for a series of IC transitions to lose the in-loop
-    // information, and the IC clearing code can't generate a stub
-    // that it needs so we need to ensure it is generated already.
-    ComputeKeyedCallInitialize(argc, NOT_IN_LOOP);
-  }
-  CALL_HEAP_FUNCTION(
-      StubCache::ComputeCallInitialize(argc, in_loop, Code::KEYED_CALL_IC),
-      Code);
-}
-
 void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
   int globals = 0;
@@ -402,10 +370,10 @@ bool CodeGenerator::RecordPositions(MacroAssembler* masm,
                                     int pos,
                                     bool right_here) {
   if (pos != RelocInfo::kNoPosition) {
-    masm->RecordStatementPosition(pos);
-    masm->RecordPosition(pos);
+    masm->positions_recorder()->RecordStatementPosition(pos);
+    masm->positions_recorder()->RecordPosition(pos);
     if (right_here) {
-      return masm->WriteRecordedPositions();
+      return masm->positions_recorder()->WriteRecordedPositions();
     }
   }
   return false;
@@ -435,7 +403,7 @@ void CodeGenerator::CodeForDoWhileConditionPosition(DoWhileStatement* stmt) {
 
 void CodeGenerator::CodeForSourcePosition(int pos) {
   if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
-    masm()->RecordPosition(pos);
+    masm()->positions_recorder()->RecordPosition(pos);
   }
 }
 
@@ -478,22 +446,6 @@ int CEntryStub::MinorKey() {
 #else
   return 0;
 #endif
-}
-
-
-bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
-  Object* cache = info()->load_stub_cache();
-  if (cache->IsUndefined()) {
-    return false;
-  } else {
-    *code_out = Code::cast(cache);
-    return true;
-  }
-}
-
-
-void ApiGetterEntryStub::SetCustomCache(Code* value) {
-  info()->set_load_stub_cache(value);
 }
 
 

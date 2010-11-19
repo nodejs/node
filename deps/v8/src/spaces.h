@@ -371,7 +371,12 @@ class Space : public Malloced {
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
 
+  // Returns allocated size.
   virtual intptr_t Size() = 0;
+
+  // Returns size of objects. Can differ from the allocated size
+  // (e.g. see LargeObjectSpace).
+  virtual intptr_t SizeOfObjects() { return Size(); }
 
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect the space by marking it read-only/writable.
@@ -491,8 +496,8 @@ class CodeRange : public AllStatic {
 class MemoryAllocator : public AllStatic {
  public:
   // Initializes its internal bookkeeping structures.
-  // Max capacity of the total space.
-  static bool Setup(intptr_t max_capacity);
+  // Max capacity of the total space and executable memory limit.
+  static bool Setup(intptr_t max_capacity, intptr_t capacity_executable);
 
   // Deletes valid chunks.
   static void TearDown();
@@ -590,6 +595,12 @@ class MemoryAllocator : public AllStatic {
   // Returns allocated spaces in bytes.
   static intptr_t Size() { return size_; }
 
+  // Returns the maximum available executable bytes of heaps.
+  static intptr_t AvailableExecutable() {
+    if (capacity_executable_ < size_executable_) return 0;
+    return capacity_executable_ - size_executable_;
+  }
+
   // Returns allocated executable spaces in bytes.
   static intptr_t SizeExecutable() { return size_executable_; }
 
@@ -653,6 +664,8 @@ class MemoryAllocator : public AllStatic {
  private:
   // Maximum space size in bytes.
   static intptr_t capacity_;
+  // Maximum subset of capacity_ that can be executable
+  static intptr_t capacity_executable_;
 
   // Allocated space size in bytes.
   static intptr_t size_;
@@ -1707,6 +1720,8 @@ class OldSpaceFreeList BASE_EMBEDDED {
   // 'wasted_bytes'.  The size should be a non-zero multiple of the word size.
   MUST_USE_RESULT MaybeObject* Allocate(int size_in_bytes, int* wasted_bytes);
 
+  void MarkNodes();
+
  private:
   // The size range of blocks, in bytes. (Smaller allocations are allowed, but
   // will always result in waste.)
@@ -1805,6 +1820,8 @@ class FixedSizeFreeList BASE_EMBEDDED {
   // A failure is returned if no block is available.
   MUST_USE_RESULT MaybeObject* Allocate();
 
+  void MarkNodes();
+
  private:
   // Available bytes on the free list.
   intptr_t available_;
@@ -1876,6 +1893,8 @@ class OldSpace : public PagedSpace {
 
   virtual void PutRestOfCurrentPageOnFreeList(Page* current_page);
 
+  void MarkFreeListNodes() { free_list_.MarkNodes(); }
+
 #ifdef DEBUG
   // Reports statistics for the space
   void ReportStatistics();
@@ -1943,6 +1962,9 @@ class FixedSpace : public PagedSpace {
   virtual void DeallocateBlock(Address start,
                                int size_in_bytes,
                                bool add_to_freelist);
+
+  void MarkFreeListNodes() { free_list_.MarkNodes(); }
+
 #ifdef DEBUG
   // Reports statistic info of the space
   void ReportStatistics();
@@ -2183,6 +2205,10 @@ class LargeObjectSpace : public Space {
     return size_;
   }
 
+  virtual intptr_t SizeOfObjects() {
+    return objects_size_;
+  }
+
   int PageCount() {
     return page_count_;
   }
@@ -2234,7 +2260,7 @@ class LargeObjectSpace : public Space {
   LargeObjectChunk* first_chunk_;
   intptr_t size_;  // allocated bytes
   int page_count_;  // number of chunks
-
+  intptr_t objects_size_;  // size of objects
 
   // Shared implementation of AllocateRaw, AllocateRawCode and
   // AllocateRawFixedArray.

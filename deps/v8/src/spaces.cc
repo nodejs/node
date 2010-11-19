@@ -270,8 +270,9 @@ void CodeRange::TearDown() {
 // -----------------------------------------------------------------------------
 // MemoryAllocator
 //
-intptr_t MemoryAllocator::capacity_   = 0;
-intptr_t MemoryAllocator::size_       = 0;
+intptr_t MemoryAllocator::capacity_ = 0;
+intptr_t MemoryAllocator::capacity_executable_ = 0;
+intptr_t MemoryAllocator::size_ = 0;
 intptr_t MemoryAllocator::size_executable_ = 0;
 
 List<MemoryAllocator::MemoryAllocationCallbackRegistration>
@@ -302,8 +303,10 @@ int MemoryAllocator::Pop() {
 }
 
 
-bool MemoryAllocator::Setup(intptr_t capacity) {
+bool MemoryAllocator::Setup(intptr_t capacity, intptr_t capacity_executable) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
+  capacity_executable_ = RoundUp(capacity_executable, Page::kPageSize);
+  ASSERT_GE(capacity_, capacity_executable_);
 
   // Over-estimate the size of chunks_ array.  It assumes the expansion of old
   // space is always in the unit of a chunk (kChunkSize) except the last
@@ -346,6 +349,7 @@ void MemoryAllocator::TearDown() {
   ASSERT(top_ == max_nof_chunks_);  // all chunks are free
   top_ = 0;
   capacity_ = 0;
+  capacity_executable_ = 0;
   size_ = 0;
   max_nof_chunks_ = 0;
 }
@@ -357,16 +361,31 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
   if (size_ + static_cast<size_t>(requested) > static_cast<size_t>(capacity_)) {
     return NULL;
   }
+
   void* mem;
-  if (executable == EXECUTABLE  && CodeRange::exists()) {
-    mem = CodeRange::AllocateRawMemory(requested, allocated);
+  if (executable == EXECUTABLE) {
+    // Check executable memory limit.
+    if (size_executable_ + requested >
+        static_cast<size_t>(capacity_executable_)) {
+      LOG(StringEvent("MemoryAllocator::AllocateRawMemory",
+                      "V8 Executable Allocation capacity exceeded"));
+      return NULL;
+    }
+    // Allocate executable memory either from code range or from the
+    // OS.
+    if (CodeRange::exists()) {
+      mem = CodeRange::AllocateRawMemory(requested, allocated);
+    } else {
+      mem = OS::Allocate(requested, allocated, true);
+    }
+    // Update executable memory size.
+    size_executable_ += static_cast<int>(*allocated);
   } else {
-    mem = OS::Allocate(requested, allocated, (executable == EXECUTABLE));
+    mem = OS::Allocate(requested, allocated, false);
   }
   int alloced = static_cast<int>(*allocated);
   size_ += alloced;
 
-  if (executable == EXECUTABLE) size_executable_ += alloced;
 #ifdef DEBUG
   ZapBlock(reinterpret_cast<Address>(mem), alloced);
 #endif
@@ -391,6 +410,7 @@ void MemoryAllocator::FreeRawMemory(void* mem,
   if (executable == EXECUTABLE) size_executable_ -= static_cast<int>(length);
 
   ASSERT(size_ >= 0);
+  ASSERT(size_executable_ >= 0);
 }
 
 
@@ -1878,6 +1898,18 @@ MaybeObject* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
 }
 
 
+void OldSpaceFreeList::MarkNodes() {
+  for (int i = 0; i < kFreeListsLength; i++) {
+    Address cur_addr = free_[i].head_node_;
+    while (cur_addr != NULL) {
+      FreeListNode* cur_node = FreeListNode::FromAddress(cur_addr);
+      cur_addr = cur_node->next();
+      cur_node->SetMark();
+    }
+  }
+}
+
+
 #ifdef DEBUG
 bool OldSpaceFreeList::Contains(FreeListNode* node) {
   for (int i = 0; i < kFreeListsLength; i++) {
@@ -1934,6 +1966,16 @@ MaybeObject* FixedSizeFreeList::Allocate() {
   head_ = node->next();
   available_ -= object_size_;
   return node;
+}
+
+
+void FixedSizeFreeList::MarkNodes() {
+  Address cur_addr = head_;
+  while (cur_addr != NULL && cur_addr != tail_) {
+    FreeListNode* cur_node = FreeListNode::FromAddress(cur_addr);
+    cur_addr = cur_node->next();
+    cur_node->SetMark();
+  }
 }
 
 
@@ -2691,13 +2733,15 @@ LargeObjectSpace::LargeObjectSpace(AllocationSpace id)
     : Space(id, NOT_EXECUTABLE),  // Managed on a per-allocation basis
       first_chunk_(NULL),
       size_(0),
-      page_count_(0) {}
+      page_count_(0),
+      objects_size_(0) {}
 
 
 bool LargeObjectSpace::Setup() {
   first_chunk_ = NULL;
   size_ = 0;
   page_count_ = 0;
+  objects_size_ = 0;
   return true;
 }
 
@@ -2720,6 +2764,7 @@ void LargeObjectSpace::TearDown() {
 
   size_ = 0;
   page_count_ = 0;
+  objects_size_ = 0;
 }
 
 
@@ -2766,6 +2811,7 @@ MaybeObject* LargeObjectSpace::AllocateRawInternal(int requested_size,
   }
 
   size_ += static_cast<int>(chunk_size);
+  objects_size_ += requested_size;
   page_count_++;
   chunk->set_next(first_chunk_);
   chunk->set_size(chunk_size);
@@ -2928,6 +2974,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       // Free the chunk.
       MarkCompactCollector::ReportDeleteIfNeeded(object);
       size_ -= static_cast<int>(chunk_size);
+      objects_size_ -= object->Size();
       page_count_--;
       ObjectSpace space = kObjectSpaceLoSpace;
       if (executable == EXECUTABLE) space = kObjectSpaceCodeSpace;
@@ -3032,7 +3079,8 @@ void LargeObjectSpace::ReportStatistics() {
     CollectHistogramInfo(obj);
   }
 
-  PrintF("  number of objects %d\n", num_objects);
+  PrintF("  number of objects %d, "
+         "size of objects %" V8_PTR_PREFIX "d\n", num_objects, objects_size_);
   if (num_objects > 0) ReportHistogram(false);
 }
 

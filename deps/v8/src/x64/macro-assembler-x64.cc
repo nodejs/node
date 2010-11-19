@@ -327,7 +327,7 @@ MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub) {
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
+  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
@@ -456,10 +456,37 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
 }
 
 
+MaybeObject* MacroAssembler::TryTailCallExternalReference(
+    const ExternalReference& ext, int num_arguments, int result_size) {
+  // ----------- S t a t e -------------
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : argument num_arguments - 1
+  //  ...
+  //  -- rsp[8 * num_arguments] : argument 0 (receiver)
+  // -----------------------------------
+
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  Set(rax, num_arguments);
+  return TryJumpToExternalReference(ext, result_size);
+}
+
+
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                                      int num_arguments,
                                      int result_size) {
   TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
+}
+
+
+MaybeObject* MacroAssembler::TryTailCallRuntime(Runtime::FunctionId fid,
+                                                int num_arguments,
+                                                int result_size) {
+  return TryTailCallExternalReference(ExternalReference(fid),
+                                      num_arguments,
+                                      result_size);
 }
 
 
@@ -471,12 +498,22 @@ static int Offset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-void MacroAssembler::PrepareCallApiFunction(int stack_space) {
-  EnterApiExitFrame(stack_space, 0);
+void MacroAssembler::PrepareCallApiFunction(int arg_stack_space) {
+#ifdef _WIN64
+  // We need to prepare a slot for result handle on stack and put
+  // a pointer to it into 1st arg register.
+  EnterApiExitFrame(arg_stack_space + 1);
+
+  // rcx must be used to pass the pointer to the return value slot.
+  lea(rcx, StackSpaceOperand(arg_stack_space));
+#else
+  EnterApiExitFrame(arg_stack_space);
+#endif
 }
 
 
-void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function) {
+MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
+    ApiFunction* function, int stack_space) {
   Label empty_result;
   Label prologue;
   Label promote_scheduled_exception;
@@ -499,7 +536,7 @@ void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function) {
   // Allocate HandleScope in callee-save registers.
   Register prev_next_address_reg = r14;
   Register prev_limit_reg = rbx;
-  Register base_reg = kSmiConstantRegister;
+  Register base_reg = r12;
   movq(base_reg, next_address);
   movq(prev_next_address_reg, Operand(base_reg, kNextOffset));
   movq(prev_limit_reg, Operand(base_reg, kLimitOffset));
@@ -528,18 +565,21 @@ void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function) {
   cmpq(prev_limit_reg, Operand(base_reg, kLimitOffset));
   j(not_equal, &delete_allocated_handles);
   bind(&leave_exit_frame);
-  InitializeSmiConstantRegister();
 
   // Check if the function scheduled an exception.
   movq(rsi, scheduled_exception_address);
   Cmp(Operand(rsi, 0), Factory::the_hole_value());
   j(not_equal, &promote_scheduled_exception);
 
-  LeaveExitFrame();
-  ret(0);
+  LeaveApiExitFrame();
+  ret(stack_space * kPointerSize);
 
   bind(&promote_scheduled_exception);
-  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+  MaybeObject* result = TryTailCallRuntime(Runtime::kPromoteScheduledException,
+                                           0, 1);
+  if (result->IsFailure()) {
+    return result;
+  }
 
   bind(&empty_result);
   // It was zero; the result is undefined.
@@ -554,6 +594,8 @@ void MacroAssembler::CallApiFunctionAndReturn(ApiFunction* function) {
   call(rax);
   movq(rax, prev_limit_reg);
   jmp(&leave_exit_frame);
+
+  return result;
 }
 
 
@@ -563,6 +605,15 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   movq(rbx, ext);
   CEntryStub ces(result_size);
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+MaybeObject* MacroAssembler::TryJumpToExternalReference(
+    const ExternalReference& ext, int result_size) {
+  // Set the entry point and jump to the C entry runtime stub.
+  movq(rbx, ext);
+  CEntryStub ces(result_size);
+  return TryTailCallStub(&ces);
 }
 
 
@@ -1690,22 +1741,15 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   store_rax(context_address);
 }
 
-void MacroAssembler::EnterExitFrameEpilogue(int result_size,
-                                            int argc) {
+
+void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space) {
 #ifdef _WIN64
-  // Reserve space on stack for result and argument structures, if necessary.
-  int result_stack_space = (result_size < 2) ? 0 : result_size * kPointerSize;
-  // Reserve space for the Arguments object.  The Windows 64-bit ABI
-  // requires us to pass this structure as a pointer to its location on
-  // the stack.  The structure contains 2 values.
-  int argument_stack_space = argc * kPointerSize;
-  // We also need backing space for 4 parameters, even though
-  // we only pass one or two parameter, and it is in a register.
-  int argument_mirror_space = 4 * kPointerSize;
-  int total_stack_space =
-      argument_mirror_space + argument_stack_space + result_stack_space;
-  subq(rsp, Immediate(total_stack_space));
+  const int kShaddowSpace = 4;
+  arg_stack_space += kShaddowSpace;
 #endif
+  if (arg_stack_space > 0) {
+    subq(rsp, Immediate(arg_stack_space * kPointerSize));
+  }
 
   // Get the required frame alignment for the OS.
   static const int kFrameAlignment = OS::ActivationFrameAlignment();
@@ -1720,7 +1764,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int result_size,
 }
 
 
-void MacroAssembler::EnterExitFrame(int result_size) {
+void MacroAssembler::EnterExitFrame(int arg_stack_space) {
   EnterExitFramePrologue(true);
 
   // Setup argv in callee-saved register r12. It is reused in LeaveExitFrame,
@@ -1728,25 +1772,17 @@ void MacroAssembler::EnterExitFrame(int result_size) {
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   lea(r12, Operand(rbp, r14, times_pointer_size, offset));
 
-  EnterExitFrameEpilogue(result_size, 2);
+  EnterExitFrameEpilogue(arg_stack_space);
 }
 
 
-void MacroAssembler::EnterApiExitFrame(int stack_space,
-                                       int argc,
-                                       int result_size) {
+void MacroAssembler::EnterApiExitFrame(int arg_stack_space) {
   EnterExitFramePrologue(false);
-
-  // Setup argv in callee-saved register r12. It is reused in LeaveExitFrame,
-  // so it must be retained across the C-call.
-  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  lea(r12, Operand(rbp, (stack_space * kPointerSize) + offset));
-
-  EnterExitFrameEpilogue(result_size, argc);
+  EnterExitFrameEpilogue(arg_stack_space);
 }
 
 
-void MacroAssembler::LeaveExitFrame(int result_size) {
+void MacroAssembler::LeaveExitFrame() {
   // Registers:
   // r12 : argv
 
@@ -1758,6 +1794,22 @@ void MacroAssembler::LeaveExitFrame(int result_size) {
   // from the caller stack.
   lea(rsp, Operand(r12, 1 * kPointerSize));
 
+  // Push the return address to get ready to return.
+  push(rcx);
+
+  LeaveExitFrameEpilogue();
+}
+
+
+void MacroAssembler::LeaveApiExitFrame() {
+  movq(rsp, rbp);
+  pop(rbp);
+
+  LeaveExitFrameEpilogue();
+}
+
+
+void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(Top::k_context_address);
   movq(kScratchRegister, context_address);
@@ -1765,9 +1817,6 @@ void MacroAssembler::LeaveExitFrame(int result_size) {
 #ifdef DEBUG
   movq(Operand(kScratchRegister, 0), Immediate(0));
 #endif
-
-  // Push the return address to get ready to return.
-  push(rcx);
 
   // Clear the top frame.
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);

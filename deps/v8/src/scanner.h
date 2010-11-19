@@ -30,6 +30,7 @@
 
 #include "token.h"
 #include "char-predicates-inl.h"
+#include "scanner-base.h"
 
 namespace v8 {
 namespace internal {
@@ -41,25 +42,35 @@ class UTF8Buffer {
   ~UTF8Buffer();
 
   inline void AddChar(uc32 c) {
-    if (static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
-      buffer_.Add(static_cast<char>(c));
-    } else {
-      AddCharSlow(c);
+    if (recording_) {
+      if (static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
+        buffer_.Add(static_cast<char>(c));
+      } else {
+        AddCharSlow(c);
+      }
     }
   }
 
   void StartLiteral() {
     buffer_.StartSequence();
+    recording_ = true;
   }
 
   Vector<const char> EndLiteral() {
-    buffer_.Add(kEndMarker);
-    Vector<char> sequence = buffer_.EndSequence();
-    return Vector<const char>(sequence.start(), sequence.length());
+    if (recording_) {
+      recording_ = false;
+      buffer_.Add(kEndMarker);
+      Vector<char> sequence = buffer_.EndSequence();
+      return Vector<const char>(sequence.start(), sequence.length());
+    }
+    return Vector<const char>();
   }
 
   void DropLiteral() {
-    buffer_.DropSequence();
+    if (recording_) {
+      recording_ = false;
+      buffer_.DropSequence();
+    }
   }
 
   void Reset() {
@@ -78,27 +89,8 @@ class UTF8Buffer {
  private:
   static const int kInitialCapacity = 256;
   SequenceCollector<char, 4> buffer_;
-
+  bool recording_;
   void AddCharSlow(uc32 c);
-};
-
-
-// Interface through which the scanner reads characters from the input source.
-class UTF16Buffer {
- public:
-  UTF16Buffer();
-  virtual ~UTF16Buffer() {}
-
-  virtual void PushBack(uc32 ch) = 0;
-  // Returns a value < 0 when the buffer end is reached.
-  virtual uc32 Advance() = 0;
-  virtual void SeekForward(int pos) = 0;
-
-  int pos() const { return pos_; }
-
- protected:
-  int pos_;  // Current position in the buffer.
-  int end_;  // Position where scanning should stop (EOF).
 };
 
 
@@ -142,127 +134,6 @@ class ExternalStringUTF16Buffer: public UTF16Buffer {
 };
 
 
-class KeywordMatcher {
-//  Incrementally recognize keywords.
-//
-//  Recognized keywords:
-//      break case catch const* continue debugger* default delete do else
-//      finally false for function if in instanceof native* new null
-//      return switch this throw true try typeof var void while with
-//
-//  *: Actually "future reserved keywords". These are the only ones we
-//     recognized, the remaining are allowed as identifiers.
- public:
-  KeywordMatcher()
-      : state_(INITIAL),
-        token_(Token::IDENTIFIER),
-        keyword_(NULL),
-        counter_(0),
-        keyword_token_(Token::ILLEGAL) {}
-
-  Token::Value token() { return token_; }
-
-  inline void AddChar(uc32 input) {
-    if (state_ != UNMATCHABLE) {
-      Step(input);
-    }
-  }
-
-  void Fail() {
-    token_ = Token::IDENTIFIER;
-    state_ = UNMATCHABLE;
-  }
-
- private:
-  enum State {
-    UNMATCHABLE,
-    INITIAL,
-    KEYWORD_PREFIX,
-    KEYWORD_MATCHED,
-    C,
-    CA,
-    CO,
-    CON,
-    D,
-    DE,
-    F,
-    I,
-    IN,
-    N,
-    T,
-    TH,
-    TR,
-    V,
-    W
-  };
-
-  struct FirstState {
-    const char* keyword;
-    State state;
-    Token::Value token;
-  };
-
-  // Range of possible first characters of a keyword.
-  static const unsigned int kFirstCharRangeMin = 'b';
-  static const unsigned int kFirstCharRangeMax = 'w';
-  static const unsigned int kFirstCharRangeLength =
-      kFirstCharRangeMax - kFirstCharRangeMin + 1;
-  // State map for first keyword character range.
-  static FirstState first_states_[kFirstCharRangeLength];
-
-  // If input equals keyword's character at position, continue matching keyword
-  // from that position.
-  inline bool MatchKeywordStart(uc32 input,
-                                const char* keyword,
-                                int position,
-                                Token::Value token_if_match) {
-    if (input == keyword[position]) {
-      state_ = KEYWORD_PREFIX;
-      this->keyword_ = keyword;
-      this->counter_ = position + 1;
-      this->keyword_token_ = token_if_match;
-      return true;
-    }
-    return false;
-  }
-
-  // If input equals match character, transition to new state and return true.
-  inline bool MatchState(uc32 input, char match, State new_state) {
-    if (input == match) {
-      state_ = new_state;
-      return true;
-    }
-    return false;
-  }
-
-  inline bool MatchKeyword(uc32 input,
-                           char match,
-                           State new_state,
-                           Token::Value keyword_token) {
-    if (input != match) {
-      return false;
-    }
-    state_ = new_state;
-    token_ = keyword_token;
-    return true;
-  }
-
-  void Step(uc32 input);
-
-  // Current state.
-  State state_;
-  // Token for currently added characters.
-  Token::Value token_;
-
-  // Matching a specific keyword string (there is only one possible valid
-  // keyword with the current prefix).
-  const char* keyword_;
-  int counter_;
-  Token::Value keyword_token_;
-};
-
-
-enum ParserMode { PARSE, PREPARSE };
 enum ParserLanguage { JAVASCRIPT, JSON };
 
 
@@ -371,16 +242,9 @@ class Scanner {
 
   bool stack_overflow() { return stack_overflow_; }
 
-  static StaticResource<Utf8Decoder>* utf8_decoder() { return &utf8_decoder_; }
-
   // Tells whether the buffer contains an identifier (no escapes).
   // Used for checking if a property name is an identifier.
   static bool IsIdentifier(unibrow::CharacterStream* buffer);
-
-  static unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
-  static unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
-  static unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
-  static unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
 
   static const int kCharacterLookaheadBufferSize = 1;
   static const int kNoEndPosition = 1;
@@ -400,8 +264,8 @@ class Scanner {
 
   // Literal buffer support
   inline void StartLiteral();
-  inline void AddChar(uc32 ch);
-  inline void AddCharAdvance();
+  inline void AddLiteralChar(uc32 ch);
+  inline void AddLiteralCharAdvance();
   inline void TerminateLiteral();
   // Stops scanning of a literal, e.g., due to an encountered error.
   inline void DropLiteral();
@@ -511,11 +375,60 @@ class Scanner {
   UTF8Buffer literal_buffer_;
 
   bool stack_overflow_;
-  static StaticResource<Utf8Decoder> utf8_decoder_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
 };
+
+
+// ExternalStringUTF16Buffer
+template <typename StringType, typename CharType>
+ExternalStringUTF16Buffer<StringType, CharType>::ExternalStringUTF16Buffer()
+    : raw_data_(NULL) { }
+
+
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::Initialize(
+     Handle<StringType> data,
+     int start_position,
+     int end_position) {
+  ASSERT(!data.is_null());
+  raw_data_ = data->resource()->data();
+
+  ASSERT(end_position <= data->length());
+  if (start_position > 0) {
+    SeekForward(start_position);
+  }
+  end_ =
+      end_position != Scanner::kNoEndPosition ? end_position : data->length();
+}
+
+
+template <typename StringType, typename CharType>
+uc32 ExternalStringUTF16Buffer<StringType, CharType>::Advance() {
+  if (pos_ < end_) {
+    return raw_data_[pos_++];
+  } else {
+    // note: currently the following increment is necessary to avoid a
+    // test-parser problem!
+    pos_++;
+    return static_cast<uc32>(-1);
+  }
+}
+
+
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::PushBack(uc32 ch) {
+  pos_--;
+  ASSERT(pos_ >= Scanner::kCharacterLookaheadBufferSize);
+  ASSERT(raw_data_[pos_ - Scanner::kCharacterLookaheadBufferSize] == ch);
+}
+
+
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::SeekForward(int pos) {
+  pos_ = pos;
+}
 
 } }  // namespace v8::internal
 

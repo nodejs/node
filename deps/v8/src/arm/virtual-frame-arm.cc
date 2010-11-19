@@ -245,18 +245,15 @@ void VirtualFrame::AllocateStackSlots() {
     __ LoadRoot(r2, Heap::kStackLimitRootIndex);
   }
   // Check the stack for overflow or a break request.
-  // Put the lr setup instruction in the delay slot.  The kInstrSize is added
-  // to the implicit 8 byte offset that always applies to operations with pc
-  // and gives a return address 12 bytes down.
-  masm()->add(lr, pc, Operand(Assembler::kInstrSize));
   masm()->cmp(sp, Operand(r2));
   StackCheckStub stub;
   // Call the stub if lower.
-  masm()->mov(pc,
+  masm()->mov(ip,
               Operand(reinterpret_cast<intptr_t>(stub.GetCode().location()),
                       RelocInfo::CODE_TARGET),
               LeaveCC,
               lo);
+  masm()->Call(ip, lo);
 }
 
 

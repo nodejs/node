@@ -820,6 +820,34 @@ MaybeObject* StubCache::ComputeCallInitialize(int argc,
 }
 
 
+Handle<Code> StubCache::ComputeCallInitialize(int argc, InLoopFlag in_loop) {
+  if (in_loop == IN_LOOP) {
+    // Force the creation of the corresponding stub outside loops,
+    // because it may be used when clearing the ICs later - it is
+    // possible for a series of IC transitions to lose the in-loop
+    // information, and the IC clearing code can't generate a stub
+    // that it needs so we need to ensure it is generated already.
+    ComputeCallInitialize(argc, NOT_IN_LOOP);
+  }
+  CALL_HEAP_FUNCTION(ComputeCallInitialize(argc, in_loop, Code::CALL_IC), Code);
+}
+
+
+Handle<Code> StubCache::ComputeKeyedCallInitialize(int argc,
+                                                   InLoopFlag in_loop) {
+  if (in_loop == IN_LOOP) {
+    // Force the creation of the corresponding stub outside loops,
+    // because it may be used when clearing the ICs later - it is
+    // possible for a series of IC transitions to lose the in-loop
+    // information, and the IC clearing code can't generate a stub
+    // that it needs so we need to ensure it is generated already.
+    ComputeKeyedCallInitialize(argc, NOT_IN_LOOP);
+  }
+  CALL_HEAP_FUNCTION(
+      ComputeCallInitialize(argc, in_loop, Code::KEYED_CALL_IC), Code);
+}
+
+
 MaybeObject* StubCache::ComputeCallPreMonomorphic(int argc,
                                                   InLoopFlag in_loop,
                                                   Code::Kind kind) {

@@ -982,7 +982,6 @@ void AccessorInfo::AccessorInfoVerify() {
   VerifyPointer(name());
   VerifyPointer(data());
   VerifyPointer(flag());
-  VerifyPointer(load_stub_cache());
 }
 
 void AccessorInfo::AccessorInfoPrint() {
@@ -1054,6 +1053,7 @@ void CallHandlerInfo::CallHandlerInfoPrint() {
   callback()->ShortPrint();
   PrintF("\n - data: ");
   data()->ShortPrint();
+  PrintF("\n - call_stub_cache: ");
 }
 
 void TemplateInfo::TemplateInfoVerify() {

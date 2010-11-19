@@ -1676,8 +1676,143 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
                                                     JSGlobalPropertyCell* cell,
                                                     JSFunction* function,
                                                     String* name) {
-  // TODO(872): implement this.
-  return Heap::undefined_value();
+  // ----------- S t a t e -------------
+  //  -- r2                     : function name
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- sp[argc * 4]           : receiver
+  // -----------------------------------
+
+  if (!CpuFeatures::IsSupported(VFP3)) return Heap::undefined_value();
+  CpuFeatures::Scope scope_vfp3(VFP3);
+
+  const int argc = arguments().immediate();
+
+  // If the object is not a JSObject or we got an unexpected number of
+  // arguments, bail out to the regular call.
+  if (!object->IsJSObject() || argc != 1) return Heap::undefined_value();
+
+  Label miss, slow;
+  GenerateNameCheck(name, &miss);
+
+  if (cell == NULL) {
+    __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
+
+    STATIC_ASSERT(kSmiTag == 0);
+    __ BranchOnSmi(r1, &miss);
+
+    CheckPrototypes(JSObject::cast(object), r1, holder, r0, r3, r4, name,
+                    &miss);
+  } else {
+    ASSERT(cell->value() == function);
+    GenerateGlobalReceiverCheck(JSObject::cast(object), holder, name, &miss);
+    GenerateLoadFunctionFromCell(cell, function, &miss);
+  }
+
+  // Load the (only) argument into r0.
+  __ ldr(r0, MemOperand(sp, 0 * kPointerSize));
+
+  // If the argument is a smi, just return.
+  STATIC_ASSERT(kSmiTag == 0);
+  __ tst(r0, Operand(kSmiTagMask));
+  __ Drop(argc + 1, eq);
+  __ Ret(eq);
+
+  __ CheckMap(r0, r1, Heap::kHeapNumberMapRootIndex, &slow, true);
+
+  Label wont_fit_smi, no_vfp_exception, restore_fpscr_and_return;
+
+  // If vfp3 is enabled, we use the fpu rounding with the RM (round towards
+  // minus infinity) mode.
+
+  // Load the HeapNumber value.
+  // We will need access to the value in the core registers, so we load it
+  // with ldrd and move it to the fpu. It also spares a sub instruction for
+  // updating the HeapNumber value address, as vldr expects a multiple
+  // of 4 offset.
+  __ Ldrd(r4, r5, FieldMemOperand(r0, HeapNumber::kValueOffset));
+  __ vmov(d1, r4, r5);
+
+  // Backup FPSCR.
+  __ vmrs(r3);
+  // Set custom FPCSR:
+  //  - Set rounding mode to "Round towards Minus Infinity"
+  //    (ie bits [23:22] = 0b10).
+  //  - Clear vfp cumulative exception flags (bits [3:0]).
+  //  - Make sure Flush-to-zero mode control bit is unset (bit 22).
+  __ bic(r9, r3,
+      Operand(kVFPExceptionMask | kVFPRoundingModeMask | kVFPFlushToZeroMask));
+  __ orr(r9, r9, Operand(kVFPRoundToMinusInfinityBits));
+  __ vmsr(r9);
+
+  // Convert the argument to an integer.
+  __ vcvt_s32_f64(s0, d1, Assembler::FPSCRRounding, al);
+
+  // Use vcvt latency to start checking for special cases.
+  // Get the argument exponent and clear the sign bit.
+  __ bic(r6, r5, Operand(HeapNumber::kSignMask));
+  __ mov(r6, Operand(r6, LSR, HeapNumber::kMantissaBitsInTopWord));
+
+  // Retrieve FPSCR and check for vfp exceptions.
+  __ vmrs(r9);
+  __ tst(r9, Operand(kVFPExceptionMask));
+  __ b(&no_vfp_exception, eq);
+
+  // Check for NaN, Infinity, and -Infinity.
+  // They are invariant through a Math.Floor call, so just
+  // return the original argument.
+  __ sub(r7, r6, Operand(HeapNumber::kExponentMask
+        >> HeapNumber::kMantissaBitsInTopWord), SetCC);
+  __ b(&restore_fpscr_and_return, eq);
+  // We had an overflow or underflow in the conversion. Check if we
+  // have a big exponent.
+  __ cmp(r7, Operand(HeapNumber::kMantissaBits));
+  // If greater or equal, the argument is already round and in r0.
+  __ b(&restore_fpscr_and_return, ge);
+  __ b(&slow);
+
+  __ bind(&no_vfp_exception);
+  // Move the result back to general purpose register r0.
+  __ vmov(r0, s0);
+  // Check if the result fits into a smi.
+  __ add(r1, r0, Operand(0x40000000), SetCC);
+  __ b(&wont_fit_smi, mi);
+  // Tag the result.
+  STATIC_ASSERT(kSmiTag == 0);
+  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
+
+  // Check for -0.
+  __ cmp(r0, Operand(0));
+  __ b(&restore_fpscr_and_return, ne);
+  // r5 already holds the HeapNumber exponent.
+  __ tst(r5, Operand(HeapNumber::kSignMask));
+  // If our HeapNumber is negative it was -0, so load its address and return.
+  // Else r0 is loaded with 0, so we can also just return.
+  __ ldr(r0, MemOperand(sp, 0 * kPointerSize), ne);
+
+  __ bind(&restore_fpscr_and_return);
+  // Restore FPSCR and return.
+  __ vmsr(r3);
+  __ Drop(argc + 1);
+  __ Ret();
+
+  __ bind(&wont_fit_smi);
+  __ bind(&slow);
+  // Restore FPCSR and fall to slow case.
+  __ vmsr(r3);
+
+  // Tail call the full function. We do not have to patch the receiver
+  // because the function makes no use of it.
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+
+  __ bind(&miss);
+  // r2: function name.
+  MaybeObject* obj = GenerateMissBranch();
+  if (obj->IsFailure()) return obj;
+
+  // Return the generated code.
+  return (cell == NULL) ? GetCode(function) : GetCode(NORMAL, name);
 }
 
 

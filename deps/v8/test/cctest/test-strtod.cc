@@ -4,7 +4,10 @@
 
 #include "v8.h"
 
+#include "bignum.h"
 #include "cctest.h"
+#include "diy-fp.h"
+#include "double.h"
 #include "strtod.h"
 
 using namespace v8::internal;
@@ -202,11 +205,14 @@ TEST(Strtod) {
   CHECK_EQ(1.7976931348623158E+308, StrtodChar("17976931348623158", 292));
   CHECK_EQ(V8_INFINITY, StrtodChar("17976931348623159", 292));
 
-  // The following number is the result of 89255.0/1e-22. Both floating-point
+  // The following number is the result of 89255.0/1e22. Both floating-point
   // numbers can be accurately represented with doubles. However on Linux,x86
   // the floating-point stack is set to 80bits and the double-rounding
   // introduces an error.
   CHECK_EQ(89255e-22, StrtodChar("89255", -22));
+
+  // Some random values.
+  CHECK_EQ(358416272e-33, StrtodChar("358416272", -33));
   CHECK_EQ(104110013277974872254e-225,
            StrtodChar("104110013277974872254", -225));
 
@@ -252,4 +258,177 @@ TEST(Strtod) {
            StrtodChar("1234567890123456789052345", 114));
   CHECK_EQ(1234567890123456789052345e115,
            StrtodChar("1234567890123456789052345", 115));
+
+  CHECK_EQ(5.445618932859895e-255,
+           StrtodChar("5445618932859895362967233318697132813618813095743952975"
+                      "4392982234069699615600475529427176366709107287468930197"
+                      "8628345413991790019316974825934906752493984055268219809"
+                      "5012176093045431437495773903922425632551857520884625114"
+                      "6241265881735209066709685420744388526014389929047617597"
+                      "0302268848374508109029268898695825171158085457567481507"
+                      "4162979705098246243690189880319928315307816832576838178"
+                      "2563074014542859888710209237525873301724479666744537857"
+                      "9026553346649664045621387124193095870305991178772256504"
+                      "4368663670643970181259143319016472430928902201239474588"
+                      "1392338901353291306607057623202353588698746085415097902"
+                      "6640064319118728664842287477491068264828851624402189317"
+                      "2769161449825765517353755844373640588822904791244190695"
+                      "2998382932630754670573838138825217065450843010498555058"
+                      "88186560731", -1035));
+
+  // Boundary cases. Boundaries themselves should round to even.
+  //
+  // 0x1FFFFFFFFFFFF * 2^3 = 72057594037927928
+  //                   next: 72057594037927936
+  //               boundary: 72057594037927932  should round up.
+  CHECK_EQ(72057594037927928.0, StrtodChar("72057594037927928", 0));
+  CHECK_EQ(72057594037927936.0, StrtodChar("72057594037927936", 0));
+  CHECK_EQ(72057594037927936.0, StrtodChar("72057594037927932", 0));
+  CHECK_EQ(72057594037927928.0, StrtodChar("7205759403792793199999", -5));
+  CHECK_EQ(72057594037927936.0, StrtodChar("7205759403792793200001", -5));
+
+  // 0x1FFFFFFFFFFFF * 2^10 = 9223372036854774784
+  //                    next: 9223372036854775808
+  //                boundary: 9223372036854775296 should round up.
+  CHECK_EQ(9223372036854774784.0, StrtodChar("9223372036854774784", 0));
+  CHECK_EQ(9223372036854775808.0, StrtodChar("9223372036854775808", 0));
+  CHECK_EQ(9223372036854775808.0, StrtodChar("9223372036854775296", 0));
+  CHECK_EQ(9223372036854774784.0, StrtodChar("922337203685477529599999", -5));
+  CHECK_EQ(9223372036854775808.0, StrtodChar("922337203685477529600001", -5));
+
+  // 0x1FFFFFFFFFFFF * 2^50 = 10141204801825834086073718800384
+  //                    next: 10141204801825835211973625643008
+  //                boundary: 10141204801825834649023672221696 should round up.
+  CHECK_EQ(10141204801825834086073718800384.0,
+           StrtodChar("10141204801825834086073718800384", 0));
+  CHECK_EQ(10141204801825835211973625643008.0,
+           StrtodChar("10141204801825835211973625643008", 0));
+  CHECK_EQ(10141204801825835211973625643008.0,
+           StrtodChar("10141204801825834649023672221696", 0));
+  CHECK_EQ(10141204801825834086073718800384.0,
+           StrtodChar("1014120480182583464902367222169599999", -5));
+  CHECK_EQ(10141204801825835211973625643008.0,
+           StrtodChar("1014120480182583464902367222169600001", -5));
+
+  // 0x1FFFFFFFFFFFF * 2^99 = 5708990770823838890407843763683279797179383808
+  //                    next: 5708990770823839524233143877797980545530986496
+  //                boundary: 5708990770823839207320493820740630171355185152
+  // The boundary should round up.
+  CHECK_EQ(5708990770823838890407843763683279797179383808.0,
+           StrtodChar("5708990770823838890407843763683279797179383808", 0));
+  CHECK_EQ(5708990770823839524233143877797980545530986496.0,
+           StrtodChar("5708990770823839524233143877797980545530986496", 0));
+  CHECK_EQ(5708990770823839524233143877797980545530986496.0,
+           StrtodChar("5708990770823839207320493820740630171355185152", 0));
+  CHECK_EQ(5708990770823838890407843763683279797179383808.0,
+           StrtodChar("5708990770823839207320493820740630171355185151999", -3));
+  CHECK_EQ(5708990770823839524233143877797980545530986496.0,
+           StrtodChar("5708990770823839207320493820740630171355185152001", -3));
+}
+
+
+static int CompareBignumToDiyFp(const Bignum& bignum_digits,
+                                int bignum_exponent,
+                                DiyFp diy_fp) {
+  Bignum bignum;
+  bignum.AssignBignum(bignum_digits);
+  Bignum other;
+  other.AssignUInt64(diy_fp.f());
+  if (bignum_exponent >= 0) {
+    bignum.MultiplyByPowerOfTen(bignum_exponent);
+  } else {
+    other.MultiplyByPowerOfTen(-bignum_exponent);
+  }
+  if (diy_fp.e() >= 0) {
+    other.ShiftLeft(diy_fp.e());
+  } else {
+    bignum.ShiftLeft(-diy_fp.e());
+  }
+  return Bignum::Compare(bignum, other);
+}
+
+
+static bool CheckDouble(Vector<const char> buffer,
+                        int exponent,
+                        double to_check) {
+  DiyFp lower_boundary;
+  DiyFp upper_boundary;
+  Bignum input_digits;
+  input_digits.AssignDecimalString(buffer);
+  if (to_check == 0.0) {
+    const double kMinDouble = 4e-324;
+    // Check that the buffer*10^exponent < (0 + kMinDouble)/2.
+    Double d(kMinDouble);
+    d.NormalizedBoundaries(&lower_boundary, &upper_boundary);
+    return CompareBignumToDiyFp(input_digits, exponent, lower_boundary) <= 0;
+  }
+  if (to_check == V8_INFINITY) {
+    const double kMaxDouble = 1.7976931348623157e308;
+    // Check that the buffer*10^exponent >= boundary between kMaxDouble and inf.
+    Double d(kMaxDouble);
+    d.NormalizedBoundaries(&lower_boundary, &upper_boundary);
+    return CompareBignumToDiyFp(input_digits, exponent, upper_boundary) >= 0;
+  }
+  Double d(to_check);
+  d.NormalizedBoundaries(&lower_boundary, &upper_boundary);
+  if ((d.Significand() & 1) == 0) {
+    return CompareBignumToDiyFp(input_digits, exponent, lower_boundary) >= 0 &&
+        CompareBignumToDiyFp(input_digits, exponent, upper_boundary) <= 0;
+  } else {
+    return CompareBignumToDiyFp(input_digits, exponent, lower_boundary) > 0 &&
+        CompareBignumToDiyFp(input_digits, exponent, upper_boundary) < 0;
+  }
+}
+
+
+// Copied from v8.cc and adapted to make the function deterministic.
+static uint32_t DeterministicRandom() {
+  // Random number generator using George Marsaglia's MWC algorithm.
+  static uint32_t hi = 0;
+  static uint32_t lo = 0;
+
+  // Initialization values don't have any special meaning. (They are the result
+  // of two calls to random().)
+  if (hi == 0) hi = 0xbfe166e7;
+  if (lo == 0) lo = 0x64d1c3c9;
+
+  // Mix the bits.
+  hi = 36969 * (hi & 0xFFFF) + (hi >> 16);
+  lo = 18273 * (lo & 0xFFFF) + (lo >> 16);
+  return (hi << 16) + (lo & 0xFFFF);
+}
+
+
+static const int kBufferSize = 1024;
+static const int kShortStrtodRandomCount = 2;
+static const int kLargeStrtodRandomCount = 2;
+
+TEST(RandomStrtod) {
+  char buffer[kBufferSize];
+  for (int length = 1; length < 15; length++) {
+    for (int i = 0; i < kShortStrtodRandomCount; ++i) {
+      int pos = 0;
+      for (int j = 0; j < length; ++j) {
+        buffer[pos++] = random() % 10 + '0';
+      }
+      int exponent = DeterministicRandom() % (25*2 + 1) - 25 - length;
+      buffer[pos] = '\0';
+      Vector<const char> vector(buffer, pos);
+      double strtod_result = Strtod(vector, exponent);
+      CHECK(CheckDouble(vector, exponent, strtod_result));
+    }
+  }
+  for (int length = 15; length < 800; length += 2) {
+    for (int i = 0; i < kLargeStrtodRandomCount; ++i) {
+      int pos = 0;
+      for (int j = 0; j < length; ++j) {
+        buffer[pos++] = random() % 10 + '0';
+      }
+      int exponent = DeterministicRandom() % (308*2 + 1) - 308 - length;
+      buffer[pos] = '\0';
+      Vector<const char> vector(buffer, pos);
+      double strtod_result = Strtod(vector, exponent);
+      CHECK(CheckDouble(vector, exponent, strtod_result));
+    }
+  }
 }

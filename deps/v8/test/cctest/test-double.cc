@@ -202,3 +202,19 @@ TEST(NormalizedBoundaries) {
   CHECK(diy_fp.f() - boundary_minus.f() == boundary_plus.f() - diy_fp.f());
   CHECK((1 << 10) == diy_fp.f() - boundary_minus.f());  // NOLINT
 }
+
+
+TEST(NextDouble) {
+  CHECK_EQ(4e-324, Double(0.0).NextDouble());
+  CHECK_EQ(0.0, Double(-0.0).NextDouble());
+  CHECK_EQ(-0.0, Double(-4e-324).NextDouble());
+  Double d0(-4e-324);
+  Double d1(d0.NextDouble());
+  Double d2(d1.NextDouble());
+  CHECK_EQ(-0.0, d1.value());
+  CHECK_EQ(0.0, d2.value());
+  CHECK_EQ(4e-324, d2.NextDouble());
+  CHECK_EQ(-1.7976931348623157e308, Double(-V8_INFINITY).NextDouble());
+  CHECK_EQ(V8_INFINITY,
+           Double(V8_2PART_UINT64_C(0x7fefffff, ffffffff)).NextDouble());
+}

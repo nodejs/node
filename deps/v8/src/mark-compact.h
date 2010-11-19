@@ -119,6 +119,9 @@ class MarkCompactCollector: public AllStatic {
   // Determine type of object and emit deletion log event.
   static void ReportDeleteIfNeeded(HeapObject* obj);
 
+  // Returns size of a possibly marked object.
+  static int SizeOfMarkedObject(HeapObject* obj);
+
   // Distinguishable invalid map encodings (for single word and multiple words)
   // that indicate free regions.
   static const uint32_t kSingleFreeEncoding = 0;

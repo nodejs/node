@@ -33,7 +33,7 @@
 #include "conversions-inl.h"
 #include "dtoa.h"
 #include "factory.h"
-#include "scanner.h"
+#include "scanner-base.h"
 #include "strtod.h"
 
 namespace v8 {
@@ -121,7 +121,7 @@ static const double JUNK_STRING_VALUE = OS::nan_value();
 template <class Iterator, class EndMark>
 static inline bool AdvanceToNonspace(Iterator* current, EndMark end) {
   while (*current != end) {
-    if (!Scanner::kIsWhiteSpace.get(**current)) return true;
+    if (!ScannerConstants::kIsWhiteSpace.get(**current)) return true;
     ++*current;
   }
   return false;
@@ -654,7 +654,7 @@ static double InternalStringToDouble(Iterator current,
   buffer[buffer_pos] = '\0';
 
   double converted = Strtod(Vector<const char>(buffer, buffer_pos), exponent);
-  return sign? -converted: converted;
+  return sign ? -converted : converted;
 }
 
 
@@ -711,11 +711,6 @@ double StringToDouble(Vector<const char> str,
 }
 
 
-extern "C" char* dtoa(double d, int mode, int ndigits,
-                      int* decpt, int* sign, char** rve);
-
-extern "C" void freedtoa(char* s);
-
 const char* DoubleToCString(double v, Vector<char> buffer) {
   StringBuilder builder(buffer.start(), buffer.length());
 
@@ -739,21 +734,13 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
     default: {
       int decimal_point;
       int sign;
-      char* decimal_rep;
-      bool used_gay_dtoa = false;
       const int kV8DtoaBufferCapacity = kBase10MaximalLength + 1;
-      char v8_dtoa_buffer[kV8DtoaBufferCapacity];
+      char decimal_rep[kV8DtoaBufferCapacity];
       int length;
 
-      if (DoubleToAscii(v, DTOA_SHORTEST, 0,
-                        Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
-                        &sign, &length, &decimal_point)) {
-        decimal_rep = v8_dtoa_buffer;
-      } else {
-        decimal_rep = dtoa(v, 0, 0, &decimal_point, &sign, NULL);
-        used_gay_dtoa = true;
-        length = StrLength(decimal_rep);
-      }
+      DoubleToAscii(v, DTOA_SHORTEST, 0,
+                    Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                    &sign, &length, &decimal_point);
 
       if (sign) builder.AddCharacter('-');
 
@@ -787,8 +774,6 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
         if (exponent < 0) exponent = -exponent;
         builder.AddFormatted("%d", exponent);
       }
-
-      if (used_gay_dtoa) freedtoa(decimal_rep);
     }
   }
   return builder.Finalize();
@@ -816,7 +801,7 @@ const char* IntToCString(int n, Vector<char> buffer) {
 
 
 char* DoubleToFixedCString(double value, int f) {
-  const int kMaxDigitsBeforePoint = 20;
+  const int kMaxDigitsBeforePoint = 21;
   const double kFirstNonFixed = 1e21;
   const int kMaxDigitsAfterPoint = 20;
   ASSERT(f >= 0);
@@ -840,16 +825,14 @@ char* DoubleToFixedCString(double value, int f) {
   // Find a sufficiently precise decimal representation of n.
   int decimal_point;
   int sign;
-  // Add space for the '.' and the '\0' byte.
+  // Add space for the '\0' byte.
   const int kDecimalRepCapacity =
-      kMaxDigitsBeforePoint + kMaxDigitsAfterPoint + 2;
+      kMaxDigitsBeforePoint + kMaxDigitsAfterPoint + 1;
   char decimal_rep[kDecimalRepCapacity];
   int decimal_rep_length;
-  bool status = DoubleToAscii(value, DTOA_FIXED, f,
-                              Vector<char>(decimal_rep, kDecimalRepCapacity),
-                              &sign, &decimal_rep_length, &decimal_point);
-  USE(status);
-  ASSERT(status);
+  DoubleToAscii(value, DTOA_FIXED, f,
+                Vector<char>(decimal_rep, kDecimalRepCapacity),
+                &sign, &decimal_rep_length, &decimal_point);
 
   // Create a representation that is padded with zeros if needed.
   int zero_prefix_length = 0;
@@ -935,8 +918,6 @@ char* DoubleToExponentialCString(double value, int f) {
   // Find a sufficiently precise decimal representation of n.
   int decimal_point;
   int sign;
-  char* decimal_rep = NULL;
-  bool used_gay_dtoa = false;
   // f corresponds to the digits after the point. There is always one digit
   // before the point. The number of requested_digits equals hence f + 1.
   // And we have to add one character for the null-terminator.
@@ -944,31 +925,18 @@ char* DoubleToExponentialCString(double value, int f) {
   // Make sure that the buffer is big enough, even if we fall back to the
   // shortest representation (which happens when f equals -1).
   ASSERT(kBase10MaximalLength <= kMaxDigitsAfterPoint + 1);
-  char v8_dtoa_buffer[kV8DtoaBufferCapacity];
+  char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
   if (f == -1) {
-    if (DoubleToAscii(value, DTOA_SHORTEST, 0,
-                      Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
-                      &sign, &decimal_rep_length, &decimal_point)) {
-      f = decimal_rep_length - 1;
-      decimal_rep = v8_dtoa_buffer;
-    } else {
-      decimal_rep = dtoa(value, 0, 0, &decimal_point, &sign, NULL);
-      decimal_rep_length = StrLength(decimal_rep);
-      f = decimal_rep_length - 1;
-      used_gay_dtoa = true;
-    }
+    DoubleToAscii(value, DTOA_SHORTEST, 0,
+                  Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                  &sign, &decimal_rep_length, &decimal_point);
+    f = decimal_rep_length - 1;
   } else {
-    if (DoubleToAscii(value, DTOA_PRECISION, f + 1,
-                      Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
-                      &sign, &decimal_rep_length, &decimal_point)) {
-      decimal_rep = v8_dtoa_buffer;
-    } else {
-      decimal_rep = dtoa(value, 2, f + 1, &decimal_point, &sign, NULL);
-      decimal_rep_length = StrLength(decimal_rep);
-      used_gay_dtoa = true;
-    }
+    DoubleToAscii(value, DTOA_PRECISION, f + 1,
+                  Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                  &sign, &decimal_rep_length, &decimal_point);
   }
   ASSERT(decimal_rep_length > 0);
   ASSERT(decimal_rep_length <= f + 1);
@@ -976,10 +944,6 @@ char* DoubleToExponentialCString(double value, int f) {
   int exponent = decimal_point - 1;
   char* result =
       CreateExponentialRepresentation(decimal_rep, exponent, negative, f+1);
-
-  if (used_gay_dtoa) {
-    freedtoa(decimal_rep);
-  }
 
   return result;
 }
@@ -1000,22 +964,14 @@ char* DoubleToPrecisionCString(double value, int p) {
   // Find a sufficiently precise decimal representation of n.
   int decimal_point;
   int sign;
-  char* decimal_rep = NULL;
-  bool used_gay_dtoa = false;
   // Add one for the terminating null character.
   const int kV8DtoaBufferCapacity = kMaximalDigits + 1;
-  char v8_dtoa_buffer[kV8DtoaBufferCapacity];
+  char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
-  if (DoubleToAscii(value, DTOA_PRECISION, p,
-                    Vector<char>(v8_dtoa_buffer, kV8DtoaBufferCapacity),
-                    &sign, &decimal_rep_length, &decimal_point)) {
-    decimal_rep = v8_dtoa_buffer;
-  } else {
-    decimal_rep = dtoa(value, 2, p, &decimal_point, &sign, NULL);
-    decimal_rep_length = StrLength(decimal_rep);
-    used_gay_dtoa = true;
-  }
+  DoubleToAscii(value, DTOA_PRECISION, p,
+                Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                &sign, &decimal_rep_length, &decimal_point);
   ASSERT(decimal_rep_length <= p);
 
   int exponent = decimal_point - 1;
@@ -1059,9 +1015,6 @@ char* DoubleToPrecisionCString(double value, int p) {
     result = builder.Finalize();
   }
 
-  if (used_gay_dtoa) {
-    freedtoa(decimal_rep);
-  }
   return result;
 }
 

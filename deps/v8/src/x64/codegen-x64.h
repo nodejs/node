@@ -341,10 +341,6 @@ class CodeGenerator: public AstVisitor {
   bool in_spilled_code() const { return in_spilled_code_; }
   void set_in_spilled_code(bool flag) { in_spilled_code_ = flag; }
 
-  static Operand ContextOperand(Register context, int index) {
-    return Operand(context, Context::SlotOffset(index));
-  }
-
  private:
   // Type of a member function that generates inline code for a native function.
   typedef void (CodeGenerator::*InlineFunctionGenerator)
@@ -417,10 +413,6 @@ class CodeGenerator: public AstVisitor {
                                             JumpTarget* slow);
 
   // Expressions
-  static Operand GlobalObject() {
-    return ContextOperand(rsi, Context::GLOBAL_INDEX);
-  }
-
   void LoadCondition(Expression* x,
                      ControlDestination* destination,
                      bool force_control);
@@ -588,10 +580,6 @@ class CodeGenerator: public AstVisitor {
 
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
-  static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
-
-  static Handle<Code> ComputeKeyedCallInitialize(int argc, InLoopFlag in_loop);
-
   // Declare global variables and functions in the given array of
   // name/value pairs.
   void DeclareGlobals(Handle<FixedArray> pairs);
@@ -655,8 +643,6 @@ class CodeGenerator: public AstVisitor {
   void GenerateRegExpExec(ZoneList<Expression*>* args);
 
   void GenerateRegExpConstructResult(ZoneList<Expression*>* args);
-
-  void GenerateRegExpCloneResult(ZoneList<Expression*>* args);
 
   // Support for fast native caches.
   void GenerateGetFromCache(ZoneList<Expression*>* args);

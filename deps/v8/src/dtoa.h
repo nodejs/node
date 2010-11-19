@@ -32,13 +32,15 @@ namespace v8 {
 namespace internal {
 
 enum DtoaMode {
-  // 0.9999999999999999 becomes 0.1
+  // Return the shortest correct representation.
+  // For example the output of 0.299999999999999988897 is (the less accurate but
+  // correct) 0.3.
   DTOA_SHORTEST,
-  // Fixed number of digits after the decimal point.
+  // Return a fixed number of digits after the decimal point.
   // For instance fixed(0.1, 4) becomes 0.1000
   // If the input number is big, the output will be big.
   DTOA_FIXED,
-  // Fixed number of digits (independent of the decimal point).
+  // Return a fixed number of digits, no matter what the exponent is.
   DTOA_PRECISION
 };
 
@@ -72,8 +74,10 @@ static const int kBase10MaximalLength = 17;
 //   which case the caller has to fill the missing digits with '0's.
 //   Halfway cases are again rounded away from 0.
 // 'DoubleToAscii' expects the given buffer to be big enough to hold all digits
-// and a terminating null-character.
-bool DoubleToAscii(double v, DtoaMode mode, int requested_digits,
+// and a terminating null-character. In SHORTEST-mode it expects a buffer of
+// at least kBase10MaximalLength + 1. Otherwise, the size of the output is
+// limited to requested_digits digits plus the null terminator.
+void DoubleToAscii(double v, DtoaMode mode, int requested_digits,
                    Vector<char> buffer, int* sign, int* length, int* point);
 
 } }  // namespace v8::internal

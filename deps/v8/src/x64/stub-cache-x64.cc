@@ -497,8 +497,10 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
   __ ret(0);
 }
 
+// Number of pointers to be reserved on stack for fast API call.
+static const int kFastApiCallArguments = 3;
 
-// Reserves space for the extra arguments to FastHandleApiCall in the
+// Reserves space for the extra arguments to API function in the
 // caller's frame.
 //
 // These arguments are set by CheckPrototypes and GenerateFastApiCall.
@@ -508,48 +510,48 @@ static void ReserveSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   //  -- rsp[8] : last argument in the internal frame of the caller
   // -----------------------------------
   __ movq(scratch, Operand(rsp, 0));
-  __ subq(rsp, Immediate(4 * kPointerSize));
+  __ subq(rsp, Immediate(kFastApiCallArguments * kPointerSize));
   __ movq(Operand(rsp, 0), scratch);
   __ Move(scratch, Smi::FromInt(0));
-  __ movq(Operand(rsp, 1 * kPointerSize), scratch);
-  __ movq(Operand(rsp, 2 * kPointerSize), scratch);
-  __ movq(Operand(rsp, 3 * kPointerSize), scratch);
-  __ movq(Operand(rsp, 4 * kPointerSize), scratch);
+  for (int i = 1; i <= kFastApiCallArguments; i++) {
+     __ movq(Operand(rsp, i * kPointerSize), scratch);
+  }
 }
 
 
 // Undoes the effects of ReserveSpaceForFastApiCall.
 static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   // ----------- S t a t e -------------
-  //  -- rsp[0]  : return address
-  //  -- rsp[8]  : last fast api call extra argument
+  //  -- rsp[0]  : return address.
+  //  -- rsp[8]  : last fast api call extra argument.
   //  -- ...
-  //  -- rsp[32] : first fast api call extra argument
-  //  -- rsp[40] : last argument in the internal frame
+  //  -- rsp[kFastApiCallArguments * 8] : first fast api call extra argument.
+  //  -- rsp[kFastApiCallArguments * 8 + 8] : last argument in the internal
+  //                                          frame.
   // -----------------------------------
   __ movq(scratch, Operand(rsp, 0));
-  __ movq(Operand(rsp, 4 * kPointerSize), scratch);
-  __ addq(rsp, Immediate(kPointerSize * 4));
+  __ movq(Operand(rsp, kFastApiCallArguments * kPointerSize), scratch);
+  __ addq(rsp, Immediate(kPointerSize * kFastApiCallArguments));
 }
 
 
-// Generates call to FastHandleApiCall builtin.
-static void GenerateFastApiCall(MacroAssembler* masm,
+// Generates call to API function.
+static bool GenerateFastApiCall(MacroAssembler* masm,
                                 const CallOptimization& optimization,
-                                int argc) {
+                                int argc,
+                                Failure** failure) {
   // ----------- S t a t e -------------
   //  -- rsp[0]              : return address
   //  -- rsp[8]              : object passing the type check
   //                           (last fast api call extra argument,
   //                            set by CheckPrototypes)
-  //  -- rsp[16]             : api call data
-  //  -- rsp[24]             : api callback
-  //  -- rsp[32]             : api function
+  //  -- rsp[16]             : api function
   //                           (first fast api call extra argument)
-  //  -- rsp[40]             : last argument
+  //  -- rsp[24]             : api call data
+  //  -- rsp[32]             : last argument
   //  -- ...
-  //  -- rsp[(argc + 5) * 8] : first argument
-  //  -- rsp[(argc + 6) * 8] : receiver
+  //  -- rsp[(argc + 3) * 8] : first argument
+  //  -- rsp[(argc + 4) * 8] : receiver
   // -----------------------------------
 
   // Get the function and setup the context.
@@ -557,38 +559,58 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   __ Move(rdi, Handle<JSFunction>(function));
   __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-  // Pass the additional arguments FastHandleApiCall expects.
-  __ movq(Operand(rsp, 4 * kPointerSize), rdi);
-  bool info_loaded = false;
-  Object* callback = optimization.api_call_info()->callback();
-  if (Heap::InNewSpace(callback)) {
-    info_loaded = true;
-    __ Move(rcx, Handle<CallHandlerInfo>(optimization.api_call_info()));
-    __ movq(rbx, FieldOperand(rcx, CallHandlerInfo::kCallbackOffset));
+  // Pass the additional arguments.
+  __ movq(Operand(rsp, 2 * kPointerSize), rdi);
+  Object* call_data = optimization.api_call_info()->data();
+  Handle<CallHandlerInfo> api_call_info_handle(optimization.api_call_info());
+  if (Heap::InNewSpace(call_data)) {
+    __ Move(rcx, api_call_info_handle);
+    __ movq(rbx, FieldOperand(rcx, CallHandlerInfo::kDataOffset));
     __ movq(Operand(rsp, 3 * kPointerSize), rbx);
   } else {
-    __ Move(Operand(rsp, 3 * kPointerSize), Handle<Object>(callback));
-  }
-  Object* call_data = optimization.api_call_info()->data();
-  if (Heap::InNewSpace(call_data)) {
-    if (!info_loaded) {
-      __ Move(rcx, Handle<CallHandlerInfo>(optimization.api_call_info()));
-    }
-    __ movq(rbx, FieldOperand(rcx, CallHandlerInfo::kDataOffset));
-    __ movq(Operand(rsp, 2 * kPointerSize), rbx);
-  } else {
-    __ Move(Operand(rsp, 2 * kPointerSize), Handle<Object>(call_data));
+    __ Move(Operand(rsp, 3 * kPointerSize), Handle<Object>(call_data));
   }
 
-  // Set the number of arguments.
-  __ movq(rax, Immediate(argc + 4));
+  // Prepare arguments.
+  __ lea(rbx, Operand(rsp, 3 * kPointerSize));
 
-  // Jump to the fast api call builtin (tail call).
-  Handle<Code> code = Handle<Code>(
-      Builtins::builtin(Builtins::FastHandleApiCall));
-  ParameterCount expected(0);
-  __ InvokeCode(code, expected, expected,
-                RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+  Object* callback = optimization.api_call_info()->callback();
+  Address api_function_address = v8::ToCData<Address>(callback);
+  ApiFunction fun(api_function_address);
+
+#ifdef _WIN64
+  // Win64 uses first register--rcx--for returned value.
+  Register arguments_arg = rdx;
+#else
+  Register arguments_arg = rdi;
+#endif
+
+  // Allocate the v8::Arguments structure in the arguments' space since
+  // it's not controlled by GC.
+  const int kApiStackSpace = 4;
+
+  __ PrepareCallApiFunction(kApiStackSpace);
+
+  __ movq(StackSpaceOperand(0), rbx);  // v8::Arguments::implicit_args_.
+  __ addq(rbx, Immediate(argc * kPointerSize));
+  __ movq(StackSpaceOperand(1), rbx);  // v8::Arguments::values_.
+  __ Set(StackSpaceOperand(2), argc);  // v8::Arguments::length_.
+  // v8::Arguments::is_construct_call_.
+  __ Set(StackSpaceOperand(3), 0);
+
+  // v8::InvocationCallback's argument.
+  __ lea(arguments_arg, StackSpaceOperand(0));
+  // Emitting a stub call may try to allocate (if the code is not
+  // already generated).  Do not allow the assembler to perform a
+  // garbage collection but instead return the allocation failure
+  // object.
+  MaybeObject* result =
+      masm->TryCallApiFunctionAndReturn(&fun, argc + kFastApiCallArguments + 1);
+  if (result->IsFailure()) {
+    *failure = Failure::cast(result);
+    return false;
+  }
+  return true;
 }
 
 
@@ -601,7 +623,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
         arguments_(arguments),
         name_(name) {}
 
-  void Compile(MacroAssembler* masm,
+  bool Compile(MacroAssembler* masm,
                JSObject* object,
                JSObject* holder,
                String* name,
@@ -610,7 +632,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                Register scratch1,
                Register scratch2,
                Register scratch3,
-               Label* miss) {
+               Label* miss,
+               Failure** failure) {
     ASSERT(holder->HasNamedInterceptor());
     ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
 
@@ -620,17 +643,18 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     CallOptimization optimization(lookup);
 
     if (optimization.is_constant_call()) {
-      CompileCacheable(masm,
-                       object,
-                       receiver,
-                       scratch1,
-                       scratch2,
-                       scratch3,
-                       holder,
-                       lookup,
-                       name,
-                       optimization,
-                       miss);
+      return CompileCacheable(masm,
+                              object,
+                              receiver,
+                              scratch1,
+                              scratch2,
+                              scratch3,
+                              holder,
+                              lookup,
+                              name,
+                              optimization,
+                              miss,
+                              failure);
     } else {
       CompileRegular(masm,
                      object,
@@ -641,11 +665,12 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                      name,
                      holder,
                      miss);
+      return true;
     }
   }
 
  private:
-  void CompileCacheable(MacroAssembler* masm,
+  bool CompileCacheable(MacroAssembler* masm,
                         JSObject* object,
                         Register receiver,
                         Register scratch1,
@@ -655,7 +680,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                         LookupResult* lookup,
                         String* name,
                         const CallOptimization& optimization,
-                        Label* miss_label) {
+                        Label* miss_label,
+                        Failure** failure) {
     ASSERT(optimization.is_constant_call());
     ASSERT(!lookup->holder()->IsGlobalObject());
 
@@ -717,7 +743,13 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
     // Invoke function.
     if (can_do_fast_api_call) {
-      GenerateFastApiCall(masm, optimization, arguments_.immediate());
+      bool success = GenerateFastApiCall(masm,
+                                         optimization,
+                                         arguments_.immediate(),
+                                         failure);
+      if (!success) {
+        return false;
+      }
     } else {
       __ InvokeFunction(optimization.constant_function(), arguments_,
                         JUMP_FUNCTION);
@@ -735,6 +767,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     if (can_do_fast_api_call) {
       FreeSpaceForFastApiCall(masm, scratch1);
     }
+
+    return true;
   }
 
   void CompileRegular(MacroAssembler* masm,
@@ -958,7 +992,9 @@ MaybeObject* CallStubCompiler::CompileCallConstant(
 
       if (depth != kInvalidProtoDepth) {
         __ IncrementCounter(&Counters::call_const_fast_api, 1);
-        ReserveSpaceForFastApiCall(masm(), rax);
+        // Allocate space for v8::Arguments implicit values. Must be initialized
+        // before to call any runtime function.
+        __ subq(rsp, Immediate(kFastApiCallArguments * kPointerSize));
       }
 
       // Check that the maps haven't changed.
@@ -1036,7 +1072,17 @@ MaybeObject* CallStubCompiler::CompileCallConstant(
   }
 
   if (depth != kInvalidProtoDepth) {
-    GenerateFastApiCall(masm(), optimization, argc);
+    Failure* failure;
+    // Move the return address on top of the stack.
+    __ movq(rax, Operand(rsp, 3 * kPointerSize));
+    __ movq(Operand(rsp, 0 * kPointerSize), rax);
+
+    // rsp[2 * kPointerSize] is uninitialized, rsp[3 * kPointerSize] contains
+    // duplicate of return address and will be overwritten.
+    bool success = GenerateFastApiCall(masm(), optimization, argc, &failure);
+    if (!success) {
+      return failure;
+    }
   } else {
     __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
   }
@@ -1044,7 +1090,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(
   // Handle call cache miss.
   __ bind(&miss);
   if (depth != kInvalidProtoDepth) {
-    FreeSpaceForFastApiCall(masm(), rax);
+    __ addq(rsp, Immediate(kFastApiCallArguments * kPointerSize));
   }
 
   // Handle call cache miss.
@@ -1723,16 +1769,21 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
   CallInterceptorCompiler compiler(this, arguments(), rcx);
-  compiler.Compile(masm(),
-                   object,
-                   holder,
-                   name,
-                   &lookup,
-                   rdx,
-                   rbx,
-                   rdi,
-                   rax,
-                   &miss);
+  Failure* failure;
+  bool success = compiler.Compile(masm(),
+                                  object,
+                                  holder,
+                                  name,
+                                  &lookup,
+                                  rdx,
+                                  rbx,
+                                  rdi,
+                                  rax,
+                                  &miss,
+                                  &failure);
+  if (!success) {
+    return failure;
+  }
 
   // Restore receiver.
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
@@ -1844,7 +1895,7 @@ MaybeObject* LoadStubCompiler::CompileLoadCallback(String* name,
   Label miss;
 
   Failure* failure = Failure::InternalError();
-  bool success = GenerateLoadCallback(object, holder, rax, rcx, rbx, rdx, rdi,
+  bool success = GenerateLoadCallback(object, holder, rax, rcx, rdx, rbx, rdi,
                                       callback, name, &miss, &failure);
   if (!success) {
     miss.Unuse();
@@ -2585,16 +2636,15 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
 
   Handle<AccessorInfo> callback_handle(callback);
 
-  __ EnterInternalFrame();
-  // Push the stack address where the list of arguments ends.
-  __ movq(scratch2, rsp);
-  __ subq(scratch2, Immediate(2 * kPointerSize));
-  __ push(scratch2);
+  // Insert additional parameters into the stack frame above return address.
+  ASSERT(!scratch2.is(reg));
+  __ pop(scratch2);  // Get return address to place it below.
+
   __ push(receiver);  // receiver
   __ push(reg);  // holder
   if (Heap::InNewSpace(callback_handle->data())) {
-    __ Move(scratch2, callback_handle);
-    __ push(FieldOperand(scratch2, AccessorInfo::kDataOffset));  // data
+    __ Move(scratch1, callback_handle);
+    __ push(FieldOperand(scratch1, AccessorInfo::kDataOffset));  // data
   } else {
     __ Push(Handle<Object>(callback_handle->data()));
   }
@@ -2607,42 +2657,43 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   Register accessor_info_arg = r8;
   Register name_arg = rdx;
 #else
-  Register accessor_info_arg = rdx;  // temporary, copied to rsi by the stub.
+  Register accessor_info_arg = rsi;
   Register name_arg = rdi;
 #endif
 
-  __ movq(accessor_info_arg, rsp);
-  __ addq(accessor_info_arg, Immediate(4 * kPointerSize));
+  ASSERT(!name_arg.is(scratch2));
   __ movq(name_arg, rsp);
+  __ push(scratch2);  // Restore return address.
 
   // Do call through the api.
-  ASSERT_EQ(5, ApiGetterEntryStub::kStackSpace);
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
-  ApiGetterEntryStub stub(callback_handle, &fun);
-#ifdef _WIN64
-  // We need to prepare a slot for result handle on stack and put
-  // a pointer to it into 1st arg register.
-  __ push(Immediate(0));
-  __ movq(rcx, rsp);
-#endif
+
+  // 3 elements array for v8::Agruments::values_ and handler for name.
+  const int kStackSpace = 4;
+
+  // Allocate v8::AccessorInfo in non-GCed stack space.
+  const int kArgStackSpace = 1;
+
+  __ PrepareCallApiFunction(kArgStackSpace);
+  __ lea(rax, Operand(name_arg, 3 * kPointerSize));
+
+  // v8::AccessorInfo::args_.
+  __ movq(StackSpaceOperand(0), rax);
+
+  // The context register (rsi) has been saved in PrepareCallApiFunction and
+  // could be used to pass arguments.
+  __ lea(accessor_info_arg, StackSpaceOperand(0));
+
   // Emitting a stub call may try to allocate (if the code is not
   // already generated).  Do not allow the assembler to perform a
   // garbage collection but instead return the allocation failure
   // object.
-  MaybeObject* result = masm()->TryCallStub(&stub);
+  MaybeObject* result = masm()->TryCallApiFunctionAndReturn(&fun, kStackSpace);
   if (result->IsFailure()) {
     *failure = Failure::cast(result);
     return false;
   }
-#ifdef _WIN64
-  // Discard allocated slot.
-  __ addq(rsp, Immediate(kPointerSize));
-#endif
-  __ LeaveInternalFrame();
-
-  __ ret(0);
-
   return true;
 }
 

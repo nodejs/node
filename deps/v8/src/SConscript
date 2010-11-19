@@ -40,6 +40,8 @@ SOURCES = {
     api.cc
     assembler.cc
     ast.cc
+    bignum.cc
+    bignum-dtoa.cc
     bootstrapper.cc
     builtins.cc
     cached-powers.cc
@@ -95,6 +97,7 @@ SOURCES = {
     register-allocator.cc
     rewriter.cc
     runtime.cc
+    scanner-base.cc
     scanner.cc
     scopeinfo.cc
     scopes.cc
@@ -117,6 +120,8 @@ SOURCES = {
     version.cc
     virtual-frame.cc
     zone.cc
+    extensions/gc-extension.cc
+    extensions/externalize-string-extension.cc
     """),
   'arch:arm': Split("""
     jump-target-light.cc

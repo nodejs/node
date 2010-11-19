@@ -290,10 +290,6 @@ void ExternalReferenceTable::PopulateTable() {
     Add(Top::get_address_from_id((Top::AddressId)i), TOP_ADDRESS, i, chars);
   }
 
-  // Extensions
-  Add(FUNCTION_ADDR(GCExtension::GC), EXTENSION, 1,
-      "GCExtension::GC");
-
   // Accessors
 #define ACCESSOR_DESCRIPTOR_DECLARATION(name) \
   Add((Address)&Accessors::name, \

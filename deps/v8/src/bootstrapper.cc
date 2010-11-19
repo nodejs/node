@@ -39,6 +39,8 @@
 #include "objects-visiting.h"
 #include "snapshot.h"
 #include "stub-cache.h"
+#include "extensions/externalize-string-extension.h"
+#include "extensions/gc-extension.h"
 
 namespace v8 {
 namespace internal {
@@ -137,6 +139,8 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
 
 void Bootstrapper::Initialize(bool create_heap_objects) {
   extensions_cache.Initialize(create_heap_objects);
+  GCExtension::Register();
+  ExternalizeStringExtension::Register();
 }
 
 

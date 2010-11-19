@@ -43,7 +43,6 @@
 #include "serialize.h"
 #include "snapshot.h"
 #include "top.h"
-#include "utils.h"
 #include "v8threads.h"
 #include "version.h"
 
@@ -116,7 +115,6 @@ static void DefaultFatalErrorHandler(const char* location,
 }
 
 
-
 static FatalErrorCallback& GetFatalErrorHandler() {
   if (exception_behavior == NULL) {
     exception_behavior = DefaultFatalErrorHandler;
@@ -124,6 +122,10 @@ static FatalErrorCallback& GetFatalErrorHandler() {
   return exception_behavior;
 }
 
+
+void i::FatalProcessOutOfMemory(const char* location) {
+  i::V8::FatalProcessOutOfMemory(location, false);
+}
 
 
 // When V8 cannot allocated memory FatalProcessOutOfMemory is called.
@@ -394,14 +396,18 @@ v8::Handle<Boolean> False() {
 ResourceConstraints::ResourceConstraints()
   : max_young_space_size_(0),
     max_old_space_size_(0),
+    max_executable_size_(0),
     stack_limit_(NULL) { }
 
 
 bool SetResourceConstraints(ResourceConstraints* constraints) {
   int young_space_size = constraints->max_young_space_size();
   int old_gen_size = constraints->max_old_space_size();
-  if (young_space_size != 0 || old_gen_size != 0) {
-    bool result = i::Heap::ConfigureHeap(young_space_size / 2, old_gen_size);
+  int max_executable_size = constraints->max_executable_size();
+  if (young_space_size != 0 || old_gen_size != 0 || max_executable_size != 0) {
+    bool result = i::Heap::ConfigureHeap(young_space_size / 2,
+                                         old_gen_size,
+                                         max_executable_size);
     if (!result) return false;
   }
   if (constraints->stack_limit() != NULL) {
@@ -3260,11 +3266,15 @@ bool v8::V8::Dispose() {
 }
 
 
-HeapStatistics::HeapStatistics(): total_heap_size_(0), used_heap_size_(0) { }
+HeapStatistics::HeapStatistics(): total_heap_size_(0),
+                                  total_heap_size_executable_(0),
+                                  used_heap_size_(0) { }
 
 
 void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->set_total_heap_size(i::Heap::CommittedMemory());
+  heap_statistics->set_total_heap_size_executable(
+      i::Heap::CommittedMemoryExecutable());
   heap_statistics->set_used_heap_size(i::Heap::SizeOfObjects());
 }
 

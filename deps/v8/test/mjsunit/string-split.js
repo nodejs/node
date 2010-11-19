@@ -27,76 +27,45 @@
 
 expected = ["A", undefined, "B", "bold", "/", "B", "and", undefined, "CODE", "coded", "/", "CODE", ""];
 result = "A<B>bold</B>and<CODE>coded</CODE>".split(/<(\/)?([^<>]+)>/);
-assertArrayEquals(expected, result, 1);
+assertArrayEquals(expected, result);
 
-expected = ["a", "b"];
-result = "ab".split(/a*?/);
-assertArrayEquals(expected, result, 2);
 
-expected = ["", "b"];
-result = "ab".split(/a*/);
-assertArrayEquals(expected, result, 3);
+assertArrayEquals(["a", "b"], "ab".split(/a*?/));
 
-expected = ["a"];
-result = "ab".split(/a*?/, 1);
-assertArrayEquals(expected, result, 4);
+assertArrayEquals(["", "b"], "ab".split(/a*/));
 
-expected = [""];
-result = "ab".split(/a*/, 1);
-assertArrayEquals(expected, result, 5);
+assertArrayEquals(["a"], "ab".split(/a*?/, 1));
 
-expected = ["as","fas","fas","f"];
-result = "asdfasdfasdf".split("d");
-assertArrayEquals(expected, result, 6);
+assertArrayEquals([""], "ab".split(/a*/, 1));
 
-expected = ["as","fas","fas","f"];
-result = "asdfasdfasdf".split("d", -1);
-assertArrayEquals(expected, result, 7);
+assertArrayEquals(["as","fas","fas","f"], "asdfasdfasdf".split("d"));
 
-expected = ["as", "fas"];
-result = "asdfasdfasdf".split("d", 2);
-assertArrayEquals(expected, result, 8);
+assertArrayEquals(["as","fas","fas","f"], "asdfasdfasdf".split("d", -1));
 
-expected = [];
-result = "asdfasdfasdf".split("d", 0);
-assertArrayEquals(expected, result, 9);
+assertArrayEquals(["as", "fas"], "asdfasdfasdf".split("d", 2));
 
-expected = ["as","fas","fas",""];
-result = "asdfasdfasd".split("d");
-assertArrayEquals(expected, result, 10);
+assertArrayEquals([], "asdfasdfasdf".split("d", 0));
 
-expected = [];
-result = "".split("");
-assertArrayEquals(expected, result, 11);
+assertArrayEquals(["as","fas","fas",""], "asdfasdfasd".split("d"));
 
-expected = [""]
-result = "".split("a");
-assertArrayEquals(expected, result, 12);
+assertArrayEquals([], "".split(""));
 
-expected = ["a","b"]
-result = "axxb".split(/x*/);
-assertArrayEquals(expected, result, 13);
+assertArrayEquals([""], "".split("a"));
 
-expected = ["a","b"]
-result = "axxb".split(/x+/);
-assertArrayEquals(expected, result, 14);
+assertArrayEquals(["a","b"], "axxb".split(/x*/));
 
-expected = ["a","","b"]
-result = "axxb".split(/x/);
-assertArrayEquals(expected, result, 15);
+assertArrayEquals(["a","b"], "axxb".split(/x+/));
+
+assertArrayEquals(["a","","b"], "axxb".split(/x/));
 
 // This was http://b/issue?id=1151354
-expected = ["div", "#id", ".class"]
-result = "div#id.class".split(/(?=[#.])/);
-assertArrayEquals(expected, result, 16);
+assertArrayEquals(["div", "#id", ".class"], "div#id.class".split(/(?=[#.])/));
 
-expected = ["div", "#i", "d", ".class"]
-result = "div#id.class".split(/(?=[d#.])/);
-assertArrayEquals(expected, result, 17);
 
-expected = ["a", "b", "c"]
-result = "abc".split(/(?=.)/);
-assertArrayEquals(expected, result, 18);
+assertArrayEquals(["div", "#i", "d", ".class"], "div#id.class".split(/(?=[d#.])/));
+
+assertArrayEquals(["a", "b", "c"], "abc".split(/(?=.)/));
+
 
 /* "ab".split(/((?=.))/)
  * 
@@ -108,19 +77,23 @@ assertArrayEquals(expected, result, 18);
  * 
  * Opera seems to have this right.  The others make no sense.
  */
-expected = ["a", "", "b"]
-result = "ab".split(/((?=.))/);
-assertArrayEquals(expected, result, 19);
+assertArrayEquals(["a", "", "b"], "ab".split(/((?=.))/));
 
 /* "ab".split(/(?=)/)
  *
  * KJS:   a,b
  * SM:    ab
  * IE:    a,b
- * Opera: a,b
+ * Opera: a,bb
  * V8:    a,b
  */
-expected = ["a", "b"]
-result = "ab".split(/(?=)/);
-assertArrayEquals(expected, result, 20);
+assertArrayEquals(["a", "b"], "ab".split(/(?=)/));
 
+
+// For issue http://code.google.com/p/v8/issues/detail?id=924
+// Splitting the empty string is a special case.
+assertEquals([""], ''.split());
+assertEquals([""], ''.split(/./));
+assertEquals([], ''.split(/.?/));
+assertEquals([], ''.split(/.??/));
+assertEquals([], ''.split(/()()/));

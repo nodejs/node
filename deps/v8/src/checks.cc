@@ -98,3 +98,12 @@ void API_Fatal(const char* location, const char* format, ...) {
   i::OS::PrintError("\n#\n\n");
   i::OS::Abort();
 }
+
+
+namespace v8 { namespace internal {
+
+  bool EnableSlowAsserts() { return FLAG_enable_slow_asserts; }
+
+  intptr_t HeapObjectTagMask() { return kHeapObjectTagMask; }
+
+} }  // namespace v8::internal

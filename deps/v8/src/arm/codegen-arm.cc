@@ -43,6 +43,7 @@
 #include "register-allocator-inl.h"
 #include "runtime.h"
 #include "scopes.h"
+#include "stub-cache.h"
 #include "virtual-frame-inl.h"
 #include "virtual-frame-arm-inl.h"
 
@@ -557,7 +558,7 @@ void CodeGenerator::Load(Expression* expr) {
 
 void CodeGenerator::LoadGlobal() {
   Register reg = frame_->GetTOSRegister();
-  __ ldr(reg, GlobalObject());
+  __ ldr(reg, GlobalObjectOperand());
   frame_->EmitPush(reg);
 }
 
@@ -1891,18 +1892,15 @@ void CodeGenerator::CheckStack() {
   frame_->SpillAll();
   Comment cmnt(masm_, "[ check stack");
   __ LoadRoot(ip, Heap::kStackLimitRootIndex);
-  // Put the lr setup instruction in the delay slot.  kInstrSize is added to
-  // the implicit 8 byte offset that always applies to operations with pc and
-  // gives a return address 12 bytes down.
-  masm_->add(lr, pc, Operand(Assembler::kInstrSize));
   masm_->cmp(sp, Operand(ip));
   StackCheckStub stub;
   // Call the stub if lower.
-  masm_->mov(pc,
+  masm_->mov(ip,
              Operand(reinterpret_cast<intptr_t>(stub.GetCode().location()),
                      RelocInfo::CODE_TARGET),
              LeaveCC,
              lo);
+  masm_->Call(ip, lo);
 }
 
 
@@ -4232,7 +4230,7 @@ void CodeGenerator::VisitCall(Call* node) {
     // Setup the name register and call the IC initialization code.
     __ mov(r2, Operand(var->name()));
     InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-    Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
+    Handle<Code> stub = StubCache::ComputeCallInitialize(arg_count, in_loop);
     CodeForSourcePosition(node->position());
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
                            arg_count + 1);
@@ -4326,7 +4324,8 @@ void CodeGenerator::VisitCall(Call* node) {
         // Set the name register and call the IC initialization code.
         __ mov(r2, Operand(name));
         InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-        Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
+        Handle<Code> stub =
+            StubCache::ComputeCallInitialize(arg_count, in_loop);
         CodeForSourcePosition(node->position());
         frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
         __ ldr(cp, frame_->Context());
@@ -4337,9 +4336,12 @@ void CodeGenerator::VisitCall(Call* node) {
       // -------------------------------------------
       // JavaScript example: 'array[index](1, 2, 3)'
       // -------------------------------------------
+
+      // Load the receiver and name of the function.
       Load(property->obj());
+      Load(property->key());
+
       if (property->is_synthetic()) {
-        Load(property->key());
         EmitKeyedLoad();
         // Put the function below the receiver.
         // Use the global receiver.
@@ -4349,21 +4351,28 @@ void CodeGenerator::VisitCall(Call* node) {
         CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
         frame_->EmitPush(r0);
       } else {
+        // Swap the name of the function and the receiver on the stack to follow
+        // the calling convention for call ICs.
+        Register key = frame_->PopToRegister();
+        Register receiver = frame_->PopToRegister(key);
+        frame_->EmitPush(key);
+        frame_->EmitPush(receiver);
+
         // Load the arguments.
         int arg_count = args->length();
         for (int i = 0; i < arg_count; i++) {
           Load(args->at(i));
         }
 
-        // Set the name register and call the IC initialization code.
-        Load(property->key());
-        frame_->SpillAll();
-        frame_->EmitPop(r2);  // Function name.
-
+        // Load the key into r2 and call the IC initialization code.
         InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-        Handle<Code> stub = ComputeKeyedCallInitialize(arg_count, in_loop);
+        Handle<Code> stub =
+            StubCache::ComputeKeyedCallInitialize(arg_count, in_loop);
         CodeForSourcePosition(node->position());
+        frame_->SpillAll();
+        __ ldr(r2, frame_->ElementAt(arg_count + 1));
         frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
+        frame_->Drop();  // Drop the key still on the stack.
         __ ldr(cp, frame_->Context());
         frame_->EmitPush(r0);
       }
@@ -5135,11 +5144,11 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
     __ b(eq, &false_result);
     __ ldr(scratch1_, FieldMemOperand(scratch1_, HeapObject::kMapOffset));
     __ ldr(scratch2_,
-           CodeGenerator::ContextOperand(cp, Context::GLOBAL_INDEX));
+           ContextOperand(cp, Context::GLOBAL_INDEX));
     __ ldr(scratch2_,
            FieldMemOperand(scratch2_, GlobalObject::kGlobalContextOffset));
     __ ldr(scratch2_,
-           CodeGenerator::ContextOperand(
+           ContextOperand(
                scratch2_, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
     __ cmp(scratch1_, scratch2_);
     __ b(ne, &false_result);
@@ -5496,73 +5505,6 @@ void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateRegExpCloneResult(ZoneList<Expression*>* args) {
-  ASSERT_EQ(1, args->length());
-
-  Load(args->at(0));
-  frame_->PopToR0();
-  {
-    VirtualFrame::SpilledScope spilled_scope(frame_);
-
-    Label done;
-    Label call_runtime;
-    __ BranchOnSmi(r0, &done);
-
-    // Load JSRegExp map into r1. Check that argument object has this map.
-    // Arguments to this function should be results of calling RegExp exec,
-    // which is either an unmodified JSRegExpResult or null. Anything not having
-    // the unmodified JSRegExpResult map is returned unmodified.
-    // This also ensures that elements are fast.
-
-    __ ldr(r1, ContextOperand(cp, Context::GLOBAL_INDEX));
-    __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalContextOffset));
-    __ ldr(r1, ContextOperand(r1, Context::REGEXP_RESULT_MAP_INDEX));
-    __ ldr(ip, FieldMemOperand(r0, HeapObject::kMapOffset));
-    __ cmp(r1, Operand(ip));
-    __ b(ne, &done);
-
-    if (FLAG_debug_code) {
-      __ LoadRoot(r2, Heap::kEmptyFixedArrayRootIndex);
-      __ ldr(ip, FieldMemOperand(r0, JSObject::kPropertiesOffset));
-      __ cmp(ip, r2);
-      __ Check(eq, "JSRegExpResult: default map but non-empty properties.");
-    }
-
-    // All set, copy the contents to a new object.
-    __ AllocateInNewSpace(JSRegExpResult::kSize,
-                          r2,
-                          r3,
-                          r4,
-                          &call_runtime,
-                          NO_ALLOCATION_FLAGS);
-    // Store RegExpResult map as map of allocated object.
-    ASSERT(JSRegExpResult::kSize == 6 * kPointerSize);
-    // Copy all fields (map is already in r1) from (untagged) r0 to r2.
-    // Change map of elements array (ends up in r4) to be a FixedCOWArray.
-    __ bic(r0, r0, Operand(kHeapObjectTagMask));
-    __ ldm(ib, r0, r3.bit() | r4.bit() | r5.bit() | r6.bit() | r7.bit());
-    __ stm(ia, r2,
-           r1.bit() | r3.bit() | r4.bit() | r5.bit() | r6.bit() | r7.bit());
-    ASSERT(JSRegExp::kElementsOffset == 2 * kPointerSize);
-    // Check whether elements array is empty fixed array, and otherwise make
-    // it copy-on-write (it never should be empty unless someone is messing
-    // with the arguments to the runtime function).
-    __ LoadRoot(ip, Heap::kEmptyFixedArrayRootIndex);
-    __ add(r0, r2, Operand(kHeapObjectTag));  // Tag result and move it to r0.
-    __ cmp(r4, ip);
-    __ b(eq, &done);
-    __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
-    __ str(ip, FieldMemOperand(r4, HeapObject::kMapOffset));
-    __ b(&done);
-    __ bind(&call_runtime);
-    __ push(r0);
-    __ CallRuntime(Runtime::kRegExpCloneResult, 1);
-    __ bind(&done);
-  }
-  frame_->EmitPush(r0);
-}
-
-
 class DeferredSearchCache: public DeferredCode {
  public:
   DeferredSearchCache(Register dst, Register cache, Register key)
@@ -5892,7 +5834,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     // Prepare stack for calling JS runtime function.
     // Push the builtins object found in the current global object.
     Register scratch = VirtualFrame::scratch0();
-    __ ldr(scratch, GlobalObject());
+    __ ldr(scratch, GlobalObjectOperand());
     Register builtins = frame_->GetTOSRegister();
     __ ldr(builtins, FieldMemOperand(scratch, GlobalObject::kBuiltinsOffset));
     frame_->EmitPush(builtins);
@@ -5910,7 +5852,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     // Call the JS runtime function.
     __ mov(r2, Operand(node->name()));
     InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-    Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
+    Handle<Code> stub = StubCache::ComputeCallInitialize(arg_count, in_loop);
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
     __ ldr(cp, frame_->Context());
     frame_->EmitPush(r0);

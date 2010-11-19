@@ -279,7 +279,6 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     // in that case too.
     ScriptDataImpl* pre_data = input_pre_data;
     if (pre_data == NULL
-        && FLAG_lazy
         && source_length >= FLAG_min_preparse_length) {
       pre_data = ParserApi::PartialPreParse(source, NULL, extension);
     }

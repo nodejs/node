@@ -865,8 +865,9 @@ void* OS::Allocate(const size_t requested,
 
   // For exectutable pages try and randomize the allocation address
   if (prot == PAGE_EXECUTE_READWRITE && msize >= Page::kPageSize) {
-      address = (V8::Random() << kPageSizeBits) | kAllocationRandomAddressMin;
-      address &= kAllocationRandomAddressMax;
+    address = (V8::RandomPrivate() << kPageSizeBits)
+      | kAllocationRandomAddressMin;
+    address &= kAllocationRandomAddressMax;
   }
 
   LPVOID mbase = VirtualAlloc(reinterpret_cast<void *>(address),

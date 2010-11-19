@@ -28,6 +28,8 @@
 #ifndef V8_TOKEN_H_
 #define V8_TOKEN_H_
 
+#include "checks.h"
+
 namespace v8 {
 namespace internal {
 

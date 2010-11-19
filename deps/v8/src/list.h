@@ -148,14 +148,6 @@ class List {
   DISALLOW_COPY_AND_ASSIGN(List);
 };
 
-class FrameElement;
-
-// Add() is inlined, ResizeAdd() called by Add() is inlined except for
-// Lists of FrameElements, and ResizeAddInternal() is inlined in ResizeAdd().
-template <>
-void List<FrameElement,
-          FreeStoreAllocationPolicy>::ResizeAdd(const FrameElement& element);
-
 } }  // namespace v8::internal
 
 #endif  // V8_LIST_H_

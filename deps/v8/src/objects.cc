@@ -35,7 +35,7 @@
 #include "objects-inl.h"
 #include "objects-visiting.h"
 #include "macro-assembler.h"
-#include "scanner.h"
+#include "scanner-base.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
 #include "utils.h"
@@ -1208,7 +1208,8 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   // Normalize the object if the name is an actual string (not the
   // hidden symbols) and is not a real identifier.
   StringInputBuffer buffer(name);
-  if (!Scanner::IsIdentifier(&buffer) && name != Heap::hidden_symbol()) {
+  if (!ScannerConstants::IsIdentifier(&buffer)
+      && name != Heap::hidden_symbol()) {
     Object* obj;
     { MaybeObject* maybe_obj =
           NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
@@ -5088,7 +5089,8 @@ bool String::MarkAsUndetectable() {
 
 bool String::IsEqualTo(Vector<const char> str) {
   int slen = length();
-  Access<Scanner::Utf8Decoder> decoder(Scanner::utf8_decoder());
+  Access<ScannerConstants::Utf8Decoder>
+      decoder(ScannerConstants::utf8_decoder());
   decoder->Reset(str.start(), str.length());
   int i;
   for (i = 0; i < slen && decoder->has_more(); i++) {

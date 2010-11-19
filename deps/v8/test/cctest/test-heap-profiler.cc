@@ -388,14 +388,10 @@ namespace {
 class NamedEntriesDetector {
  public:
   NamedEntriesDetector()
-      : has_A1(false), has_B1(false), has_C1(false),
-        has_A2(false), has_B2(false), has_C2(false) {
+      : has_A2(false), has_B2(false), has_C2(false) {
   }
 
   void Apply(i::HeapEntry** entry_ptr) {
-    if (IsReachableNodeWithName(*entry_ptr, "A1")) has_A1 = true;
-    if (IsReachableNodeWithName(*entry_ptr, "B1")) has_B1 = true;
-    if (IsReachableNodeWithName(*entry_ptr, "C1")) has_C1 = true;
     if (IsReachableNodeWithName(*entry_ptr, "A2")) has_A2 = true;
     if (IsReachableNodeWithName(*entry_ptr, "B2")) has_B2 = true;
     if (IsReachableNodeWithName(*entry_ptr, "C2")) has_C2 = true;
@@ -405,9 +401,6 @@ class NamedEntriesDetector {
     return strcmp(name, entry->name()) == 0 && entry->painted_reachable();
   }
 
-  bool has_A1;
-  bool has_B1;
-  bool has_C1;
   bool has_A2;
   bool has_B2;
   bool has_C2;
@@ -464,21 +457,7 @@ static bool HasString(const v8::HeapGraphNode* node, const char* contents) {
 
 TEST(HeapSnapshot) {
   v8::HandleScope scope;
-  v8::Handle<v8::String> token1 = v8::String::New("token1");
-  LocalContext env1;
-  env1->SetSecurityToken(token1);
-
-  CompileRun(
-      "function A1() {}\n"
-      "function B1(x) { this.x = x; }\n"
-      "function C1(x) { this.x1 = x; this.x2 = x; }\n"
-      "var a1 = new A1();\n"
-      "var b1_1 = new B1(a1), b1_2 = new B1(a1);\n"
-      "var c1 = new C1(a1);");
-
-  v8::Handle<v8::String> token2 = v8::String::New("token2");
   LocalContext env2;
-  env2->SetSecurityToken(token2);
 
   CompileRun(
       "function A2() {}\n"
@@ -498,14 +477,7 @@ TEST(HeapSnapshot) {
   const_cast<i::HeapEntry*>(
       reinterpret_cast<const i::HeapEntry*>(global_env2))->PaintAllReachable();
 
-  // Verify, that JS global object of env2 doesn't have '..1'
-  // properties, but has '..2' properties.
-  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "a1"));
-  CHECK_EQ(
-      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "b1_1"));
-  CHECK_EQ(
-      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "b1_2"));
-  CHECK_EQ(NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "c1"));
+  // Verify, that JS global object of env2 has '..2' properties.
   const v8::HeapGraphNode* a2_node =
       GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "a2");
   CHECK_NE(NULL, a2_node);
@@ -518,9 +490,6 @@ TEST(HeapSnapshot) {
   // Verify that anything related to '[ABC]1' is not reachable.
   NamedEntriesDetector det;
   i_snapshot_env2->IterateEntries(&det);
-  CHECK(!det.has_A1);
-  CHECK(!det.has_B1);
-  CHECK(!det.has_C1);
   CHECK(det.has_A2);
   CHECK(det.has_B2);
   CHECK(det.has_C2);

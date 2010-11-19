@@ -585,6 +585,67 @@ class ExternalReference BASE_EMBEDDED {
 
 
 // -----------------------------------------------------------------------------
+// Position recording support
+
+enum PositionRecordingType { FORCED_POSITION, NORMAL_POSITION };
+
+class PositionsRecorder BASE_EMBEDDED {
+ public:
+  explicit PositionsRecorder(Assembler* assembler)
+      : assembler_(assembler),
+        current_position_(RelocInfo::kNoPosition),
+        current_position_recording_type_(NORMAL_POSITION),
+        written_position_(RelocInfo::kNoPosition),
+        current_statement_position_(RelocInfo::kNoPosition),
+        written_statement_position_(RelocInfo::kNoPosition) { }
+
+  // Set current position to pos. If recording_type is FORCED_POSITION then
+  // WriteRecordedPositions will write this position even if it is equal to
+  // statement position previously written for another pc.
+  void RecordPosition(int pos,
+                      PositionRecordingType recording_type = NORMAL_POSITION);
+
+  // Set current statement position to pos.
+  void RecordStatementPosition(int pos);
+
+  // Write recorded positions to relocation information.
+  bool WriteRecordedPositions();
+
+  int current_position() const { return current_position_; }
+
+  int current_statement_position() const { return current_statement_position_; }
+
+ private:
+  Assembler* assembler_;
+
+  int current_position_;
+  PositionRecordingType current_position_recording_type_;
+  int written_position_;
+
+  int current_statement_position_;
+  int written_statement_position_;
+};
+
+
+class PreserveStatementPositionScope BASE_EMBEDDED {
+ public:
+  explicit PreserveStatementPositionScope(PositionsRecorder* positions_recorder)
+      : positions_recorder_(positions_recorder),
+        statement_position_(positions_recorder->current_statement_position()) {}
+
+  ~PreserveStatementPositionScope() {
+    if (statement_position_ != RelocInfo::kNoPosition) {
+      positions_recorder_->RecordStatementPosition(statement_position_);
+    }
+  }
+
+ private:
+  PositionsRecorder* positions_recorder_;
+  int statement_position_;
+};
+
+
+// -----------------------------------------------------------------------------
 // Utility functions
 
 static inline bool is_intn(int x, int n)  {

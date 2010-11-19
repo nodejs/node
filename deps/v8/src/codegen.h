@@ -58,8 +58,6 @@
 //   Generate
 //   ComputeLazyCompile
 //   BuildFunctionInfo
-//   ComputeCallInitialize
-//   ComputeCallInitializeInLoop
 //   ProcessDeclarations
 //   DeclareGlobals
 //   CheckForInlineRuntimeCall

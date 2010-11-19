@@ -28,7 +28,8 @@
 #ifndef V8_DATEPARSER_H_
 #define V8_DATEPARSER_H_
 
-#include "scanner.h"
+#include "char-predicates-inl.h"
+#include "scanner-base.h"
 
 namespace v8 {
 namespace internal {
@@ -99,10 +100,20 @@ class DateParser : public AllStatic {
     }
 
     // The skip methods return whether they actually skipped something.
-    bool Skip(uint32_t c) { return ch_ == c ?  (Next(), true) : false; }
+    bool Skip(uint32_t c) {
+      if (ch_ == c) {
+        Next();
+        return true;
+      }
+      return false;
+    }
 
     bool SkipWhiteSpace() {
-      return Scanner::kIsWhiteSpace.get(ch_) ? (Next(), true) : false;
+      if (ScannerConstants::kIsWhiteSpace.get(ch_)) {
+        Next();
+        return true;
+      }
+      return false;
     }
 
     bool SkipParentheses() {

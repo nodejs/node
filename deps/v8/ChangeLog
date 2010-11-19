@@ -1,3 +1,50 @@
+2010-11-18: Version 2.5.7
+
+        Fixed obscure evaluation order bug (issue 931).
+
+        Split the random number state between JavaScript and the private API.
+
+        Fixed performance bug causing GCs when generating stack traces on
+        code from very large scripts.
+
+        Fixed bug in parser that allowed (foo):42 as a labelled statement
+        (issue 918).
+
+        Provide more accurate results about used heap size via
+        GetHeapStatistics.
+
+        Allow build-time customization of the max semispace size.
+
+        Made String.prototype.split honor limit when separator is empty
+        (issue 929).
+
+        Added missing failure check after expecting an identifier in
+        preparser (Chromium issue 62639).
+
+
+2010-11-10: Version 2.5.6
+
+        Added support for VFP rounding modes to the ARM simulator.
+
+        Fixed multiplication overflow bug (issue 927).
+
+        Added a limit for the amount of executable memory (issue 925).
+
+
+2010-11-08: Version 2.5.5
+
+        Added more aggressive GC of external objects in near out-of-memory
+        situations.
+
+        Fixed a bug that gave the incorrect result for String.split called
+        on the empty string (issue 924).
+
+
+2010-11-03: Version 2.5.4
+
+        Improved V8 VFPv3 runtime detection to address issue 914.
+
+
 2010-11-01: Version 2.5.3
 
         Fixed a bug that prevents constants from overwriting function values

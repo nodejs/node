@@ -99,30 +99,12 @@ uint64_t OS::CpuFeaturesImpliedByPlatform() {
 
 
 #ifdef __arm__
-bool OS::ArmCpuHasFeature(CpuFeature feature) {
-  const char* search_string = NULL;
+static bool CPUInfoContainsString(const char * search_string) {
   const char* file_name = "/proc/cpuinfo";
-  // Simple detection of VFP at runtime for Linux.
-  // It is based on /proc/cpuinfo, which reveals hardware configuration
-  // to user-space applications.  According to ARM (mid 2009), no similar
-  // facility is universally available on the ARM architectures,
-  // so it's up to individual OSes to provide such.
-  //
   // This is written as a straight shot one pass parser
   // and not using STL string and ifstream because,
   // on Linux, it's reading from a (non-mmap-able)
   // character special device.
-  switch (feature) {
-    case VFP3:
-      search_string = "vfp";
-      break;
-    case ARMv7:
-      search_string = "ARMv7";
-      break;
-    default:
-      UNREACHABLE();
-  }
-
   FILE* f = NULL;
   const char* what = search_string;
 
@@ -147,6 +129,43 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
   fclose(f);
 
   // Did not find string in the proc file.
+  return false;
+}
+
+bool OS::ArmCpuHasFeature(CpuFeature feature) {
+  const int max_items = 2;
+  const char* search_strings[max_items] = { NULL, NULL };
+  int search_items = 0;
+  // Simple detection of VFP at runtime for Linux.
+  // It is based on /proc/cpuinfo, which reveals hardware configuration
+  // to user-space applications.  According to ARM (mid 2009), no similar
+  // facility is universally available on the ARM architectures,
+  // so it's up to individual OSes to provide such.
+  switch (feature) {
+    case VFP3:
+      search_strings[0] = "vfpv3";
+      // Some old kernels will report vfp for A8, not vfpv3, so we check for
+      // A8 explicitely. The cpuinfo file report the CPU Part which for Cortex
+      // A8 is 0xc08.
+      search_strings[1] = "0xc08";
+      search_items = 2;
+      ASSERT(search_items <= max_items);
+      break;
+    case ARMv7:
+      search_strings[0] = "ARMv7" ;
+      search_items = 1;
+      ASSERT(search_items <= max_items);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  for (int i = 0; i < search_items; ++i) {
+    if (CPUInfoContainsString(search_strings[i])) {
+      return true;
+    }
+  }
+
   return false;
 }
 #endif  // def __arm__
@@ -809,8 +828,17 @@ class Sampler::PlatformData : public Malloced {
       syscall(SYS_tgkill, vm_tgid_, vm_tid_, SIGPROF);
       // Convert ms to us and subtract 100 us to compensate delays
       // occuring during signal delivery.
-      int result = usleep(sampler_->interval_ * 1000 - 100);
-      ASSERT(result == 0 || errno == EINTR);
+      const useconds_t interval = sampler_->interval_ * 1000 - 100;
+      int result = usleep(interval);
+#ifdef DEBUG
+      if (result != 0 && errno != EINTR) {
+        fprintf(stderr,
+                "SignalSender usleep error; interval = %u, errno = %d\n",
+                interval,
+                errno);
+        ASSERT(result == 0 || errno == EINTR);
+      }
+#endif
       USE(result);
     }
   }
@@ -843,6 +871,7 @@ Sampler::Sampler(int interval, bool profiling)
 
 
 Sampler::~Sampler() {
+  ASSERT(!data_->signal_sender_launched_);
   delete data_;
 }
 

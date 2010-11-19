@@ -38,6 +38,7 @@
 #include "utils.h"
 #include "cctest.h"
 #include "parser.h"
+#include "unicode-inl.h"
 
 static const bool kLogThreading = true;
 
@@ -10629,7 +10630,7 @@ THREADED_TEST(IdleNotification) {
 static uint32_t* stack_limit;
 
 static v8::Handle<Value> GetStackLimitCallback(const v8::Arguments& args) {
-  stack_limit = reinterpret_cast<uint32_t*>(i::StackGuard::climit());
+  stack_limit = reinterpret_cast<uint32_t*>(i::StackGuard::real_climit());
   return v8::Undefined();
 }
 
