@@ -365,6 +365,9 @@ def configure(conf):
     conf.env.append_value('CPPFLAGS', '-pg')
     conf.env.append_value('LINKFLAGS', '-pg')
 
+  conf.env.append_value('CPPFLAGS', '-Wno-unused-parameter');
+  conf.env.append_value('CPPFLAGS', '-D_FORTIFY_SOURCE=2');
+
   # Split off debug variant before adding variant specific defines
   debug_env = conf.env.copy()
   conf.set_env_name('debug', debug_env)
