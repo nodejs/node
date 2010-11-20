@@ -226,9 +226,9 @@ int ChildProcess::Spawn(const char *file,
   int stdin_pipe[2], stdout_pipe[2], stderr_pipe[2];
 
   /* An implementation of popen(), basically */
-  if (custom_fds[0] == -1 && pipe(stdin_pipe) < 0 ||
-      custom_fds[1] == -1 && pipe(stdout_pipe) < 0 ||
-      custom_fds[2] == -1 && pipe(stderr_pipe) < 0) {
+  if ((custom_fds[0] == -1 && pipe(stdin_pipe) < 0) ||
+      (custom_fds[1] == -1 && pipe(stdout_pipe) < 0) ||
+      (custom_fds[2] == -1 && pipe(stderr_pipe) < 0)) {
     perror("pipe()");
     return -1;
   }

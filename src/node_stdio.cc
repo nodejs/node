@@ -129,7 +129,7 @@ WriteError (const Arguments& args)
 
   ssize_t r;
   size_t written = 0;
-  while (written < msg.length()) {
+  while (written < (size_t) msg.length()) {
     r = write(STDERR_FILENO, (*msg) + written, msg.length() - written);
     if (r < 0) {
       if (errno == EAGAIN || errno == EIO) {
@@ -217,7 +217,7 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
     // XXX selecting on tty fds wont work in windows.
     // Must ALWAYS make a coupling on shitty platforms.
     stdout_flags = fcntl(STDOUT_FILENO, F_GETFL, 0);
-    int r = fcntl(STDOUT_FILENO, F_SETFL, stdout_flags | O_NONBLOCK);
+    fcntl(STDOUT_FILENO, F_SETFL, stdout_flags | O_NONBLOCK);
   }
 
   target->Set(String::NewSymbol("stdoutFD"), Integer::New(STDOUT_FILENO));
@@ -233,8 +233,10 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "getRows", GetRows);
   NODE_SET_METHOD(target, "isatty", IsATTY);
 
-  struct sigaction sa = {0};
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
   sa.sa_handler = HandleSIGCONT;
+  sa.sa_restorer = NULL;
   sigaction(SIGCONT, &sa, NULL);
 }
 
