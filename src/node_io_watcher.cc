@@ -367,6 +367,9 @@ void IOWatcher::Dump() {
           DEBUG_PRINT("<%d> got fd to send: %d", io->watcher_.fd, fd_to_send);
           assert(fd_to_send >= 0);
         }
+        // Already set this to null. We will readd the fd later if there was
+        // an error.
+        bucket->Set(fd_sym, Null());
       }
     }
 
@@ -410,6 +413,14 @@ void IOWatcher::Dump() {
                   written);
 
       if (written < 0) {
+
+        // Some sort of error. Must set the fd_to_send back in the bucket.
+        if (fd_to_send >= 0) {
+          Local<Value> bucket_v = watcher->Get(first_bucket_sym);
+          assert(bucket_v->IsObject());
+          bucket_v->ToObject()->Set(fd_sym, Integer::New(fd_to_send));
+        }
+
         // Allow EAGAIN.
         // TODO: handle EMSGSIZE after sendmsg().
         if (errno == EAGAIN) {
@@ -470,10 +481,6 @@ void IOWatcher::Dump() {
         // will only apply to ASCII strings - UTF8 ones will need to be
         // serialized onto a buffer.
         size_t bucket_len = Buffer::Length(data_v->ToObject());
-
-        if (unix_socket && bucket->Has(fd_sym)) {
-          bucket->Set(fd_sym, Null());
-        }
 
         DEBUG_PRINT("<%d,%ld> bucket_len: %ld, offset: %ld",
                     io->watcher_.fd,
