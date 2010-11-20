@@ -137,20 +137,6 @@ Buffer* Buffer::New(char *data, size_t length,
 }
 
 
-char* Buffer::Data(Handle<Object> obj) {
-  if (Buffer::HasInstance(obj))
-    return (char*)obj->GetIndexedPropertiesExternalArrayData();
-  return NULL;
-}
-
-
-size_t Buffer::Length(Handle<Object> obj) {
-  if (Buffer::HasInstance(obj))
-    return (size_t)obj->GetIndexedPropertiesExternalArrayDataLength();
-  return 0;
-}
-
-
 Handle<Value> Buffer::New(const Arguments &args) {
   if (!args.IsConstructCall()) {
     return FromConstructorTemplate(constructor_template, args);

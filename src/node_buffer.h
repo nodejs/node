@@ -36,8 +36,13 @@ class Buffer : public ObjectWrap {
                      free_callback callback, void *hint); // public constructor
   static bool HasInstance(v8::Handle<v8::Value> val);
 
-  static char* Data(v8::Handle<v8::Object>);
-  static size_t Length(v8::Handle<v8::Object>);
+  static inline char* Data(v8::Handle<v8::Object> obj) {
+    return (char*)obj->GetIndexedPropertiesExternalArrayData();
+  }
+
+  static inline size_t Length(v8::Handle<v8::Object> obj) {
+    return (size_t)obj->GetIndexedPropertiesExternalArrayDataLength();
+  }
 
   private:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
