@@ -348,7 +348,17 @@ var module = (function () {
   exports.runMain = function () {
     // Load the main module--the command line argument.
     process.mainModule = new Module(".");
-    process.mainModule.load(process.argv[1]);
+    try {
+      process.mainModule.load(process.argv[1]);
+    } catch (e) {
+      if (!constants) constants = process.binding("constants");
+      if (e.errno == constants.ENOENT) {
+        console.error("Cannot load '%s'", process.argv[1]);
+        process.exit(1);
+      } else {
+        throw e;
+      }
+    }
   };
 
   return exports;
