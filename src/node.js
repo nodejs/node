@@ -29,6 +29,15 @@ process.assert = function (x, msg) {
 
 var writeError = process.binding('stdio').writeError;
 
+
+// lazy loaded.
+var constants;
+function lazyConstants () {
+  if (!constants) constants = process.binding("constants");
+  return constants;
+}
+
+
 // nextTick()
 
 var nextTickQueue = [];
@@ -351,8 +360,7 @@ var module = (function () {
     try {
       process.mainModule.load(process.argv[1]);
     } catch (e) {
-      if (!constants) constants = process.binding("constants");
-      if (e.errno == constants.ENOENT) {
+      if (e.errno == lazyConstants().ENOENT) {
         console.error("Cannot load '%s'", process.argv[1]);
         process.exit(1);
       } else {
@@ -369,8 +377,6 @@ var module = (function () {
 // process.addListener.
 var events = module.requireNative('events');
 
-var constants; // lazy loaded.
-
 // Signal Handlers
 (function() {
   var signalWatchers = {};
@@ -378,8 +384,7 @@ var constants; // lazy loaded.
   var removeListener = process.removeListener;
 
   function isSignal (event) {
-    if (!constants) constants = process.binding("constants");
-    return event.slice(0, 3) === 'SIG' && constants[event];
+    return event.slice(0, 3) === 'SIG' && lazyConstants()[event];
   }
 
   // Wrap addListener for the special signal types
@@ -387,9 +392,8 @@ var constants; // lazy loaded.
     var ret = addListener.apply(this, arguments);
     if (isSignal(type)) {
       if (!signalWatchers.hasOwnProperty(type)) {
-        if (!constants) constants = process.binding("constants");
         var b = process.binding('signal_watcher');
-        var w = new b.SignalWatcher(constants[type]);
+        var w = new b.SignalWatcher(lazyConstants()[type]);
         w.callback = function () { process.emit(type); };
         signalWatchers[type] = w;
         w.start();
@@ -566,10 +570,9 @@ process.exit = function (code) {
 };
 
 process.kill = function (pid, sig) {
-  if (!constants) constants = process.binding("constants");
   sig = sig || 'SIGTERM';
-  if (!constants[sig]) throw new Error("Unknown signal: " + sig);
-  process._kill(pid, constants[sig]);
+  if (!lazyConstants()[sig]) throw new Error("Unknown signal: " + sig);
+  process._kill(pid, lazyConstants()[sig]);
 };
 
 
