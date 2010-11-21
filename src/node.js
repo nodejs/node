@@ -104,21 +104,31 @@ var module = (function () {
   // Like, natives.fs is the contents of lib/fs.js
   var natives = process.binding('natives');
 
-  function loadNative (id) {
-    var m = new Module(id);
-    internalModuleCache[id] = m;
-    var e = m._compile(natives[id], id+".js");
-    if (e) throw e; // error compiling native module
-    return m;
-  }
-
-  exports.requireNative = requireNative;
-
+  // Native modules don't need a full require function. So we can bootstrap
+  // most of the system with this mini-require.
   function requireNative (id) {
     if (internalModuleCache[id]) return internalModuleCache[id].exports;
     if (!natives[id]) throw new Error('No such native module ' + id);
-    return loadNative(id).exports;
+
+    // REPL is a special case, because it needs the real require.
+    if (id == 'repl') {
+      var replModule = new Module("repl");
+      replModule._compile(natives.repl, 'repl.js');
+      internalModuleCache.repl = replModule;
+      return replModule.exports;
+    }
+
+    var fn = process.compile(
+      "(function (exports, require) {" + natives[id] + "\n})",
+      id + '.js');
+    var m = new Module(id);
+    fn(m.exports, requireNative);
+    m.loaded = true;
+    internalModuleCache[id] = m;
+    return m.exports;
   }
+
+  exports.requireNative = requireNative;
 
 
   // Modules
@@ -230,7 +240,7 @@ var module = (function () {
     }
     if (natives[id]) {
       debug('load native module ' + request);
-      return loadNative(id).exports;
+      return requireNative(id);
     }
 
     var cachedModule = moduleCache[filename];
