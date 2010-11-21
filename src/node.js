@@ -28,7 +28,7 @@ process.assert = function (x, msg) {
 };
 
 var writeError = process.binding('stdio').writeError;
-
+var evals = process.binding('evals');
 
 // lazy loaded.
 var constants;
@@ -118,7 +118,7 @@ var module = (function () {
       return replModule.exports;
     }
 
-    var fn = process.compile(
+    var fn = evals.Script.runInThisContext(
       "(function (exports, require) {" + natives[id] + "\n})",
       id + '.js');
     var m = new Module(id);
@@ -303,8 +303,6 @@ var module = (function () {
     var dirname = path.dirname(filename);
 
     if (contextLoad) {
-      if (!Script) Script = process.binding('evals').Script;
-
       if (self.id !== ".") {
         debug('load submodule');
         // not root module
@@ -320,7 +318,7 @@ var module = (function () {
         sandbox.global      = sandbox;
         sandbox.root        = root;
 
-        Script.runInNewContext(content, sandbox, filename);
+        evals.Script.runInNewContext(content, sandbox, filename);
 
       } else {
         debug('load root module');
@@ -330,7 +328,7 @@ var module = (function () {
         global.__filename = filename;
         global.__dirname  = dirname;
         global.module     = self;
-        Script.runInThisContext(content, filename);
+        evals.Script.runInThisContext(content, filename);
       }
 
     } else {
@@ -339,7 +337,7 @@ var module = (function () {
                   + content
                   + "\n});";
 
-      var compiledWrapper = process.compile(wrapper, filename);
+      var compiledWrapper = evals.Script.runInThisContext(wrapper, filename);
       if (filename === process.argv[1] && global.v8debug) {
         global.v8debug.Debug.setBreakPoint(compiledWrapper, 0, 0);
       }
