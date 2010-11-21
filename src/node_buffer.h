@@ -25,9 +25,7 @@ class Buffer : public ObjectWrap {
   typedef void (*free_callback)(char *data, void *hint);
 
   // C++ API for constructing fast buffer
-  static v8::Local<v8::Object> New(
-      v8::Handle<v8::String> string,
-      v8::Handle<v8::Value> encoding = v8::Handle<v8::Value>());
+  static v8::Handle<v8::Object> New(v8::Handle<v8::String> string);
 
   static void Initialize(v8::Handle<v8::Object> target);
   static Buffer* New(size_t length); // public constructor

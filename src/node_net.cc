@@ -3,7 +3,6 @@
 
 #include <node.h>
 #include <node_buffer.h>
-#include <node_io_watcher.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -37,6 +36,7 @@
 #endif
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+
 
 namespace node {
 

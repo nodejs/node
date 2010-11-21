@@ -10,7 +10,6 @@ namespace node {
 class IOWatcher : ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
-  static void Dump();
 
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
@@ -27,7 +26,6 @@ class IOWatcher : ObjectWrap {
   }
 
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Flush(const v8::Arguments& args);
   static v8::Handle<v8::Value> Start(const v8::Arguments& args);
   static v8::Handle<v8::Value> Stop(const v8::Arguments& args);
   static v8::Handle<v8::Value> Set(const v8::Arguments& args);
@@ -35,14 +33,8 @@ class IOWatcher : ObjectWrap {
  private:
   static void Callback(EV_P_ ev_io *watcher, int revents);
 
-  static void Dump(EV_P_ ev_prepare *watcher, int revents);
-
   void Start();
   void Stop();
-
-  // stats. TODO: expose to js, add reset() method
-  uint64_t dumps_;
-  ev_tstamp last_dump_;
 
   ev_io watcher_;
 };

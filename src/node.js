@@ -29,10 +29,6 @@ process.assert = function (x, msg) {
 
 var writeError = process.binding('stdio').writeError;
 
-// Need to force-load this binding so that we can IOWatcher::Dump in
-// src/node.cc
-var IOWatcher = process.binding('io_watcher');
-
 // nextTick()
 
 var nextTickQueue = [];

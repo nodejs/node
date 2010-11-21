@@ -1967,8 +1967,6 @@ int Start(int argc, char *argv[]) {
 
     Tick();
 
-    IOWatcher::Dump();
-
   } while (need_tick_cb || ev_activecnt(EV_DEFAULT_UC) > 0);
 
 
