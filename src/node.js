@@ -140,10 +140,8 @@ var module = (function () {
     }
   }
 
-  var pathFn = process.compile("(function (exports) {" + natives.path + "\n})",
-                               "path");
-  var pathModule = createInternalModule('path', pathFn);
-  var path = pathModule.exports;
+
+  var path = requireNative('path');
 
   var modulePaths = [path.join(process.execPath, "..", "..", "lib", "node")];
 
