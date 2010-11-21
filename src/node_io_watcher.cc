@@ -297,6 +297,10 @@ void IOWatcher::Dump() {
       unix_socket = true;
     }
 
+    // Unix sockets don't like huge messages. TCP sockets do.
+    // TODO: handle EMSGSIZE after sendmsg().
+    size_t max_to_write = unix_socket ? 8*KB : 256*KB;
+
     int fd_to_send = -1;
 
     // Offset is only as large as the first buffer of data. (See assert
@@ -323,7 +327,7 @@ void IOWatcher::Dump() {
            // break if we've hit the end
            bucket_v->IsObject() &&
            // break if iov contains a lot of data
-           to_write < 256*KB &&
+           to_write < max_to_write &&
            // break if iov is running out of space
            iovcnt < IOV_MAX;
          bucket_v = bucket->Get(next_sym), bucket_index++) {
