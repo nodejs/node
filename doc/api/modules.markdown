@@ -8,7 +8,7 @@ variable with the same name as the module.
 Example:
 
     var util = require('util');
-    
+
 It is possible to extend node with other modules.  See `'Modules'`
 
 ## Modules
@@ -53,7 +53,7 @@ That is, `circle.js` must be in the same directory as `foo.js` for
 
 Without the leading `'./'`, like `require('assert')` the module is searched
 for in the `require.paths` array. `require.paths` on my system looks like
-this: 
+this:
 
 `[ '/home/ryan/.node_modules' ]`
 

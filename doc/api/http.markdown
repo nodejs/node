@@ -47,7 +47,7 @@ This is an `EventEmitter` with the following events:
 
 `function (errno) { }`
 
- Emitted when the server closes. 
+ Emitted when the server closes.
 
 ### Event: 'request'
 
@@ -284,9 +284,9 @@ first chunk of body.
 ### response.addTrailers(headers)
 
 This method adds HTTP trailing headers (a header but at the end of the
-message) to the response. 
+message) to the response.
 
-Trailers will **only** be emitted if chunked encoding is used for the 
+Trailers will **only** be emitted if chunked encoding is used for the
 response; if it is not (e.g., if the request was HTTP/1.0), they will
 be silently discarded.
 
@@ -345,7 +345,7 @@ There are a few special headers that should be noted.
 
 * Sending a 'Content-length' header will disable the default chunked encoding.
 
-* Sending an 'Expect' header will immediately send the request headers. 
+* Sending an 'Expect' header will immediately send the request headers.
   Usually, when sending 'Expect: 100-continue', you should both set a timeout
   and listen for the `continue` event. See RFC2616 Section 8.2.3 for more
   information.

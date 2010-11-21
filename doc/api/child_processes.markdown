@@ -145,7 +145,7 @@ output, and return it all in a callback.
         exec  = require('child_process').exec,
         child;
 
-    child = exec('cat *.js bad_file | wc -l', 
+    child = exec('cat *.js bad_file | wc -l',
       function (error, stdout, stderr) {
         console.log('stdout: ' + stdout);
         console.log('stderr: ' + stderr);

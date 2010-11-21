@@ -19,7 +19,7 @@ Normalize an array of path parts, taking care of `'..'` and `'.'` parts.
 
 Example:
 
-    path.normalizeArray(['', 
+    path.normalizeArray(['',
       'foo', 'bar', 'baz', 'asdf', 'quux', '..'])
     // returns
     [ '', 'foo', 'bar', 'baz', 'asdf' ]
@@ -65,7 +65,7 @@ of the path.  If there is no '.' in the last portion of the path or the only '.'
 the first character, then it returns an empty string.  Examples:
 
     path.extname('index.html')
-    // returns 
+    // returns
     '.html'
 
     path.extname('index')

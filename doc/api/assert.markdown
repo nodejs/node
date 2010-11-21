@@ -13,7 +13,7 @@ Tests if value is a `true` value, it is equivalent to `assert.equal(true, value,
 
 ### assert.equal(actual, expected, [message])
 
-Tests shallow, coercive equality with the equal comparison operator ( `==` ). 
+Tests shallow, coercive equality with the equal comparison operator ( `==` ).
 
 ### assert.notEqual(actual, expected, [message])
 
@@ -25,15 +25,15 @@ Tests for deep equality.
 
 ### assert.notDeepEqual(actual, expected, [message])
 
-Tests for any deep inequality. 
+Tests for any deep inequality.
 
 ### assert.strictEqual(actual, expected, [message])
 
-Tests strict equality, as determined by the strict equality operator ( `===` ) 
+Tests strict equality, as determined by the strict equality operator ( `===` )
 
 ### assert.notStrictEqual(actual, expected, [message])
 
-Tests strict non-equality, as determined by the strict not equal operator ( `!==` ) 
+Tests strict non-equality, as determined by the strict not equal operator ( `!==` )
 
 ### assert.throws(block, [error], [message])
 

@@ -158,7 +158,7 @@ An object containing the user environment. See environ(7).
 
 ### process.exit(code=0)
 
-Ends the process with the specified `code`.  If omitted, exit uses the 
+Ends the process with the specified `code`.  If omitted, exit uses the
 'success' code `0`.
 
 To exit with a 'failure' code:
@@ -194,7 +194,7 @@ blocks while resolving it to a numerical ID.
 
 ### process.getuid()
 
-Gets the user identity of the process. (See getuid(2).) 
+Gets the user identity of the process. (See getuid(2).)
 This is the numerical userid, not the username.
 
     console.log('Current uid: ' + process.getuid());

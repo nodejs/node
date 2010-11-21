@@ -54,8 +54,8 @@ the error in English.
 
 ### dns.resolve4(domain, callback)
 
-The same as `dns.resolve()`, but only for IPv4 queries (`A` records). 
-`addresses` is an array of IPv4 addresses (e.g.  
+The same as `dns.resolve()`, but only for IPv4 queries (`A` records).
+`addresses` is an array of IPv4 addresses (e.g.
 `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
 ### dns.resolve6(domain, callback)
@@ -80,14 +80,14 @@ The same as `dns.resolve()`, but only for text queries (`TXT` records).
 
 The same as `dns.resolve()`, but only for service records (`SRV` records).
 `addresses` is an array of the SRV records available for `domain`. Properties
-of SRV records are priority, weight, port, and name (e.g., 
+of SRV records are priority, weight, port, and name (e.g.,
 `[{'priority': 10, {'weight': 5, 'port': 21223, 'name': 'service.example.com'}, ...]`).
 
 ### dns.reverse(ip, callback)
 
 Reverse resolves an ip address to an array of domain names.
 
-The callback has arguments `(err, domains)`. 
+The callback has arguments `(err, domains)`.
 
 If there an an error, `err` will be non-null and an instanceof the Error
 object.

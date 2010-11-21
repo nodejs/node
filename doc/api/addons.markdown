@@ -40,10 +40,10 @@ To get started we create a file `hello.cc`:
     using namespace v8;
 
     extern "C" void
-    init (Handle<Object> target) 
+    init (Handle<Object> target)
     {
       HandleScope scope;
-      target->Set(String::New("hello"), String::New("World"));
+      target->Set(String::New("hello"), String::New("world"));
     }
 
 This source code needs to be built into `hello.node`, the binary Addon. To
