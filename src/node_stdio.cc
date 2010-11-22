@@ -236,7 +236,6 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = HandleSIGCONT;
-  sa.sa_restorer = NULL;
   sigaction(SIGCONT, &sa, NULL);
 }
 
