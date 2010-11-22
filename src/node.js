@@ -67,6 +67,27 @@ process.nextTick = function (callback) {
   process._needTickCallback();
 };
 
+var internalModuleCache = {};
+
+// This contains the source code for the files in lib/
+// Like, natives.fs is the contents of lib/fs.js
+var natives = process.binding('natives');
+
+// Native modules don't need a full require function. So we can bootstrap
+// most of the system with this mini-require.
+function requireNative (id) {
+  if (internalModuleCache[id]) return internalModuleCache[id].exports;
+  if (!natives[id]) throw new Error('No such native module ' + id);
+
+  var fn = evals.Script.runInThisContext(
+    "(function (exports, require) {" + natives[id] + "\n})",
+    id + '.js');
+  var m = {id: id, exports: {}};
+  fn(m.exports, requireNative);
+  m.loaded = true;
+  internalModuleCache[id] = m;
+  return m.exports;
+}
 
 // Module System
 var module = (function () {
@@ -77,7 +98,6 @@ var module = (function () {
   if (+process.env["NODE_MODULE_CONTEXTS"] > 0) contextLoad = true;
   var Script;
 
-  var internalModuleCache = {};
   var moduleCache = {};
 
   function Module (id, parent) {
@@ -90,46 +110,6 @@ var module = (function () {
     this.exited = false;
     this.children = [];
   };
-
-  function createInternalModule (id, constructor) {
-    var m = new Module(id);
-    constructor(m.exports);
-    m.loaded = true;
-    internalModuleCache[id] = m;
-    return m;
-  };
-
-
-  // This contains the source code for the files in lib/
-  // Like, natives.fs is the contents of lib/fs.js
-  var natives = process.binding('natives');
-
-  // Native modules don't need a full require function. So we can bootstrap
-  // most of the system with this mini-require.
-  function requireNative (id) {
-    if (internalModuleCache[id]) return internalModuleCache[id].exports;
-    if (!natives[id]) throw new Error('No such native module ' + id);
-
-    // REPL is a special case, because it needs the real require.
-    if (id == 'repl') {
-      var replModule = new Module("repl");
-      replModule._compile(natives.repl, 'repl.js');
-      internalModuleCache.repl = replModule;
-      return replModule.exports;
-    }
-
-    var fn = evals.Script.runInThisContext(
-      "(function (exports, require) {" + natives[id] + "\n})",
-      id + '.js');
-    var m = new Module(id);
-    fn(m.exports, requireNative);
-    m.loaded = true;
-    internalModuleCache[id] = m;
-    return m.exports;
-  }
-
-  exports.requireNative = requireNative;
-
 
   // Modules
 
@@ -232,11 +212,15 @@ var module = (function () {
 
     // With natives id === request
     // We deal with these first
-    var cachedNative = internalModuleCache[id];
-    if (cachedNative) {
-      return cachedNative.exports;
-    }
     if (natives[id]) {
+      // REPL is a special case, because it needs the real require.
+      if (id == 'repl') {
+        var replModule = new Module("repl");
+        replModule._compile(natives.repl, 'repl.js');
+        internalModuleCache.repl = replModule;
+        return replModule.exports;
+      }
+
       debug('load native module ' + request);
       return requireNative(id);
     }
@@ -374,6 +358,9 @@ var module = (function () {
       }
     }
   };
+  
+  // bootstrap repl
+  exports.requireRepl = function () { return loadModule("repl", "."); };
 
   return exports;
 })();
@@ -381,7 +368,7 @@ var module = (function () {
 
 // Load events module in order to access prototype elements on process like
 // process.addListener.
-var events = module.requireNative('events');
+var events = requireNative('events');
 
 // Signal Handlers
 (function() {
@@ -428,22 +415,22 @@ var events = module.requireNative('events');
 
 
 global.setTimeout = function () {
-  var t = module.requireNative('timers');
+  var t = requireNative('timers');
   return t.setTimeout.apply(this, arguments);
 };
 
 global.setInterval = function () {
-  var t = module.requireNative('timers');
+  var t = requireNative('timers');
   return t.setInterval.apply(this, arguments);
 };
 
 global.clearTimeout = function () {
-  var t = module.requireNative('timers');
+  var t = requireNative('timers');
   return t.clearTimeout.apply(this, arguments);
 };
 
 global.clearInterval = function () {
-  var t = module.requireNative('timers');
+  var t = requireNative('timers');
   return t.clearInterval.apply(this, arguments);
 };
 
@@ -453,8 +440,8 @@ process.__defineGetter__('stdout', function () {
   if (stdout) return stdout;
 
   var binding = process.binding('stdio'),
-      net = module.requireNative('net'),
-      fs = module.requireNative('fs'),
+      net = requireNative('net'),
+      fs = requireNative('fs'),
       fd = binding.stdoutFD;
 
   if (binding.isStdoutBlocking()) {
@@ -476,8 +463,8 @@ process.openStdin = function () {
   if (stdin) return stdin;
 
   var binding = process.binding('stdio'),
-      net = module.requireNative('net'),
-      fs = module.requireNative('fs'),
+      net = requireNative('net'),
+      fs = requireNative('fs'),
       fd = binding.openStdin();
 
   if (binding.isStdinBlocking()) {
@@ -497,7 +484,7 @@ process.openStdin = function () {
 var formatRegExp = /%[sdj]/g;
 function format (f) {
   if (typeof f !== 'string') {
-    var objects = [], util = module.requireNative('util');
+    var objects = [], util = requireNative('util');
     for (var i = 0; i < arguments.length; i++) {
       objects.push(util.inspect(arguments[i]));
     }
@@ -537,7 +524,7 @@ global.console.warn = function () {
 global.console.error = global.console.warn;
 
 global.console.dir = function(object){
-  var util = module.requireNative('util');
+  var util = requireNative('util');
   process.stdout.write(util.inspect(object) + '\n');
 };
 
@@ -568,7 +555,7 @@ global.console.assert = function(expression){
   }
 };
 
-global.Buffer = module.requireNative('buffer').Buffer;
+global.Buffer = requireNative('buffer').Buffer;
 
 process.exit = function (code) {
   process.emit("exit", code || 0);
@@ -583,7 +570,7 @@ process.kill = function (pid, sig) {
 
 
 var cwd = process.cwd();
-var path = module.requireNative('path');
+var path = requireNative('path');
 
 // Make process.argv[0] and process.argv[1] into full paths.
 if (process.argv[0].indexOf('/') > 0) {
@@ -604,8 +591,8 @@ if (process.argv[1]) {
     var indirectEval= eval; // so the eval happens in global scope.
     if (process._eval) console.log(indirectEval(process._eval));
 } else {
-    // REPL
-  module.requireNative('repl').start();
+  // REPL
+  module.requireRepl().start();
 }
 
 });
