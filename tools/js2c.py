@@ -351,3 +351,11 @@ def JS2C(source, target):
       'get_script_name_cases': "".join(get_script_name_cases)
     })
     output.close()
+
+def main():
+  natives = sys.argv[1]
+  source_files = sys.argv[2:]
+  JS2C(source_files, [natives])
+
+if __name__ == "__main__":
+  main()

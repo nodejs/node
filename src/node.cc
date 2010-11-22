@@ -1608,7 +1608,7 @@ static void Load(int argc, char *argv[]) {
 
 
   // process.platform
-  process->Set(String::NewSymbol("platform"), String::New(PLATFORM));
+  process->Set(String::NewSymbol("platform"), String::New("PLATFORM"));
 
   // process.argv
   int i, j;
