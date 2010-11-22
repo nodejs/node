@@ -80,10 +80,10 @@ function requireNative (id) {
   if (!natives[id]) throw new Error('No such native module ' + id);
 
   var fn = evals.Script.runInThisContext(
-    "(function (exports, require) {" + natives[id] + "\n})",
+    "(function (module, exports, require) {" + natives[id] + "\n})",
     id + '.js');
   var m = {id: id, exports: {}};
-  fn(m.exports, requireNative);
+  fn(m, m.exports, requireNative);
   m.loaded = true;
   internalModuleCache[id] = m;
   return m.exports;
