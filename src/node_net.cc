@@ -437,7 +437,7 @@ static Handle<Value> GetPeerName(const Arguments& args) {
   int r = getpeername(fd, (struct sockaddr *) &address_storage, &len);
 
   if (r < 0) {
-    return ThrowException(ErrnoException(errno, "getsockname"));
+    return ThrowException(ErrnoException(errno, "getpeername"));
   }
 
   Local<Object> info = Object::New();
@@ -970,7 +970,7 @@ static Handle<Value> SendTo(const Arguments& args) {
 
   if (written < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();
-    return ThrowException(ErrnoException(errno, "sendmsg"));
+    return ThrowException(ErrnoException(errno, "sendto"));
   }
 
   /* Note that the FD isn't explicitly closed here, this
