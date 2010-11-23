@@ -59,6 +59,22 @@ var testCases =
           { name: 'nocert', shouldReject: true }
         ]
     },
+
+
+    { title: "Allow only certs signed by CA2 but not in the CRL",
+      requestCert: true,
+      rejectUnauthorized: true,
+      CAs: ['ca2-cert'],
+      crl: 'ca2-crl',
+      clients:
+        [ { name: 'agent1', shouldReject: true, shouldAuth: false },
+          { name: 'agent2', shouldReject: true, shouldAuth: false  },
+          { name: 'agent3', shouldReject: false, shouldAuth: true },
+          // Agent4 has a cert in the CRL.
+          { name: 'agent4', shouldReject: true, shouldAuth: false },
+          { name: 'nocert', shouldReject: true }
+        ]
+    },
   ];
 
 
@@ -92,6 +108,9 @@ function runClient (options, cb) {
 
   var args = ['s_client', '-connect', '127.0.0.1:' + common.PORT];
 
+
+  console.log("  connecting with", options.name);
+
   switch (options.name) {
     case 'agent1':
       // Signed by CA1
@@ -116,6 +135,14 @@ function runClient (options, cb) {
       args.push(filenamePEM('agent3-key'));
       args.push('-cert');
       args.push(filenamePEM('agent3-cert'));
+      break;
+
+    case 'agent4':
+      // Signed by CA2 (rejected by ca2-crl)
+      args.push('-key');
+      args.push(filenamePEM('agent4-key'));
+      args.push('-cert');
+      args.push(filenamePEM('agent4-cert'));
       break;
 
     case 'nocert':
@@ -182,10 +209,13 @@ function runTest (testIndex) {
 
   var cas = tcase.CAs.map(loadPEM);
 
+  var crl = tcase.crl ? loadPEM(tcase.crl) : null;
+
   var serverOptions = {
     key: serverKey,
     cert: serverCert,
     ca: cas,
+    crl: crl,
     requestCert: tcase.requestCert,
     rejectUnauthorized: tcase.rejectUnauthorized
   };
@@ -204,7 +234,7 @@ function runTest (testIndex) {
     }
   });
 
-  function runNextClient (clientIndex) {
+  function runNextClient(clientIndex) {
     var options = tcase.clients[clientIndex];
     if (options) {
       runClient(options, function () {
