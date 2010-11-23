@@ -353,3 +353,7 @@ assert.equal(14, Buffer.byteLength("Il était tué"));
 assert.equal(14, Buffer.byteLength("Il était tué", "utf8"));
 assert.equal(12, Buffer.byteLength("Il était tué", "ascii"));
 assert.equal(12, Buffer.byteLength("Il était tué", "binary"));
+
+
+// slice(0,0).length === 0
+assert.equal(0, Buffer('hello').slice(0, 0).length)
