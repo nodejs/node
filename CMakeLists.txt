@@ -5,6 +5,8 @@ project(node)
 # options
 #
 
+find_package(PythonInterp 2 REQUIRED)
+
 option(SHARED_V8 "use system shared V8 library")
 option(SHARED_LIBEV "use system shared libev library")
 option(SHARED_CARES "use system shared c-ares library")

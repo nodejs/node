@@ -4,7 +4,7 @@
 
 add_custom_command(
   OUTPUT ${PROJECT_BINARY_DIR}/src/node_natives.h
-  COMMAND tools/js2c.py ${PROJECT_BINARY_DIR}/src/node_natives.h ${js2c_files}
+  COMMAND ${PYTHON_EXECUTABLE} tools/js2c.py ${PROJECT_BINARY_DIR}/src/node_natives.h ${js2c_files}
   DEPENDS ${js2c_files})
 
 set(node_extra_src "src/platform_${node_platform}.cc")

@@ -43,7 +43,7 @@ if(NOT SHARED_V8)
       URL ${PROJECT_SOURCE_DIR}/deps/v8
       
       BUILD_IN_SOURCE True
-      BUILD_COMMAND sh -c "${PROJECT_BINARY_DIR}/tools/scons/scons.py library=static visibility=default ${v8snapshot} mode=${v8mode} verbose=on arch=${v8arch} -j ${parallel_jobs}"
+      BUILD_COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_BINARY_DIR}/tools/scons/scons.py library=static visibility=default ${v8snapshot} mode=${v8mode} verbose=on arch=${v8arch} -j ${parallel_jobs}
       
       SOURCE_DIR ${PROJECT_BINARY_DIR}/deps/v8
       # ignore this stuff, it's not needed for building v8 but ExternalProject
@@ -74,7 +74,7 @@ if(NOT SHARED_V8)
 
     add_custom_command(
       OUTPUT ${PROJECT_BINARY_DIR}/deps/v8/${v8_fn}
-      COMMAND ${PROJECT_BINARY_DIR}/tools/scons/scons.py library=static visibility=default ${v8snapshot} mode=${v8mode} verbose=on arch=${v8arch} -j ${parallel_jobs}
+      COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_BINARY_DIR}/tools/scons/scons.py library=static visibility=default ${v8snapshot} mode=${v8mode} verbose=on arch=${v8arch} -j ${parallel_jobs}
       WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/deps/v8/
       DEPENDS ${v8_sources_dest}
     )
