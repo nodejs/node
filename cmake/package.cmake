@@ -15,12 +15,12 @@ else()
 endif()
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Tom Hughes <tom.hughes@palm.com>")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Evented I/O for V8 JavaScript.")
-set(CPACK_PACKAGE_DESCRIPTION "Node's goal is to provide an easy way to
-  build scalable network programs.
-
-  Node is similar in design to and influenced by systems like Ruby's Event
-  Machine or Python's Twisted. Node takes the event model a bit further—it
-  presents the event loop as a language construct instead of as a library.")
+set(CPACK_PACKAGE_DESCRIPTION "Evented I/O for V8 JavaScript.
+ Node's goal is to provide an easy way to build scalable network programs.
+ Node is similar in design to and influenced by systems like Ruby's Event
+ Machine or Python's Twisted. Node takes the event model a bit further—it
+ presents the event loop as a language construct instead of as a library.")
+set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "${CPACK_PACKAGE_DESCRIPTION}")
 set(CPACK_DEBIAN_PACKAGE_SECTION "web")
 file(READ ${PROJECT_SOURCE_DIR}/src/node_version.h node_version_h LIMIT 1024 OFFSET 0)
 string(REGEX REPLACE ".*NODE_MAJOR_VERSION[ ]*([0-9]+).*" "\\1" CPACK_PACKAGE_VERSION_MAJOR "${node_version_h}")
