@@ -27,4 +27,7 @@ package: $(BUILD)/Makefile
 test: $(BUILD)/Makefile
 	cd $(BUILD) && make test
 
-.PHONY: build install clean doc package test
+cdash: $(BUILD)/Makefile
+	cd $(BUILD) && make Experimental
+
+.PHONY: build install clean doc package test cdash

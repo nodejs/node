@@ -32,6 +32,7 @@ include("cmake/docs.cmake")
 
 # tests
 enable_testing()
+include(CTest)
 add_subdirectory("test/")
 
 # package

@@ -26,6 +26,10 @@ To build distro packages (tgz, deb, rpm, PackageMaker):
 
   make -f Makefile.cmake package
 
+To submit test results (see http://my.cdash.org/index.php?project=node):
+
+  make -f Makefile.cmake cdash
+
 Using cmake directly:
   cd ~/your-node-source-dir
   mkdir name-of-build-dir     (can be anything)
@@ -35,6 +39,11 @@ Using cmake directly:
   At this point you have generated a set of Makefiles and can use the standard
   make commands (make, make install, etc.). The Makefile.cmake file is just a
   wrapper around these commands; take a look at it for more details.
+
+Other build targets:
+  make Experimental
+  make Nightly
+  make Continuous
 
 Additional options:
   In the CMakeLists.txt, you'll see things like
