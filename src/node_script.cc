@@ -3,6 +3,7 @@
 #include <assert.h>
 
 
+
 using namespace v8;
 using namespace node;
 
@@ -233,6 +234,8 @@ template <node::Script::EvalInputFlags iFlag,
     script = oFlag == returnResult ? v8::Script::Compile(code, filename)
                                    : v8::Script::New(code, filename);
     if (script.IsEmpty()) {
+      // FIXME HACK TO DISPLAY SYNTAX ERRORS.
+      FatalException(try_catch);
       // Hack because I can't get a proper stacktrace on SyntaxError
       return try_catch.ReThrow();
     }
