@@ -889,6 +889,57 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
       Immediate(Factory::cons_ascii_string_map()));
 }
 
+// All registers must be distinct.  Only current_string needs valid contents
+// on entry.  All registers may be invalid on exit.  result_operand is
+// unchanged, padding_chars is updated correctly.
+void MacroAssembler::AppendStringToTopOfNewSpace(
+    Register current_string,  // Tagged pointer to string to copy.
+    Register current_string_length,
+    Register result_pos,
+    Register scratch,
+    Register new_padding_chars,
+    Operand operand_result,
+    Operand operand_padding_chars,
+    Label* bailout) {
+  mov(current_string_length,
+      FieldOperand(current_string, String::kLengthOffset));
+  shr(current_string_length, 1);
+  sub(current_string_length, operand_padding_chars);
+  mov(new_padding_chars, current_string_length);
+  add(Operand(current_string_length), Immediate(kObjectAlignmentMask));
+  and_(Operand(current_string_length), Immediate(~kObjectAlignmentMask));
+  sub(new_padding_chars, Operand(current_string_length));
+  neg(new_padding_chars);
+  // We need an allocation even if current_string_length is 0, to fetch
+  // result_pos.  Consider using a faster fetch of result_pos in that case.
+  AllocateInNewSpace(current_string_length, result_pos, scratch, no_reg,
+                     bailout, NO_ALLOCATION_FLAGS);
+  sub(result_pos, operand_padding_chars);
+  mov(operand_padding_chars, new_padding_chars);
+
+  Register scratch_2 = new_padding_chars;  // Used to compute total length.
+  // Copy string to the end of result.
+  mov(current_string_length,
+      FieldOperand(current_string, String::kLengthOffset));
+  mov(scratch, operand_result);
+  mov(scratch_2, current_string_length);
+  add(scratch_2, FieldOperand(scratch, String::kLengthOffset));
+  mov(FieldOperand(scratch, String::kLengthOffset), scratch_2);
+  shr(current_string_length, 1);
+  lea(current_string,
+      FieldOperand(current_string, SeqAsciiString::kHeaderSize));
+  // Loop condition: while (--current_string_length >= 0).
+  Label copy_loop;
+  Label copy_loop_entry;
+  jmp(&copy_loop_entry);
+  bind(&copy_loop);
+  mov_b(scratch, Operand(current_string, current_string_length, times_1, 0));
+  mov_b(Operand(result_pos, current_string_length, times_1, 0), scratch);
+  bind(&copy_loop_entry);
+  sub(Operand(current_string_length), Immediate(1));
+  j(greater_equal, &copy_loop);
+}
+
 
 void MacroAssembler::NegativeZeroTest(CodeGenerator* cgen,
                                       Register result,

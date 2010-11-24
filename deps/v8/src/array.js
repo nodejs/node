@@ -364,6 +364,10 @@ function ArrayJoin(separator) {
   } else if (!IS_STRING(separator)) {
     separator = ToString(separator);
   }
+
+  var result = %_FastAsciiArrayJoin(this, separator);
+  if (typeof result != "undefined") return result;
+
   var length = TO_UINT32(this.length);
   return Join(this, length, separator, ConvertToString);
 }

@@ -6900,26 +6900,71 @@ TEST(DebugEventBreakData) {
 
 
 // Test that setting the terminate execution flag during debug break processing.
+static void TestDebugBreakInLoop(const char* loop_head,
+                                 const char** loop_bodies,
+                                 const char* loop_tail) {
+  // Receive 100 breaks for each test and then terminate JavaScript execution.
+  static int count = 0;
+
+  for (int i = 0; loop_bodies[i] != NULL; i++) {
+    count++;
+    max_break_point_hit_count = count * 100;
+    terminate_after_max_break_point_hit = true;
+
+    EmbeddedVector<char, 1024> buffer;
+    OS::SNPrintF(buffer,
+                 "function f() {%s%s%s}",
+                 loop_head, loop_bodies[i], loop_tail);
+
+    // Function with infinite loop.
+    CompileRun(buffer.start());
+
+    // Set the debug break to enter the debugger as soon as possible.
+    v8::Debug::DebugBreak();
+
+    // Call function with infinite loop.
+    CompileRun("f();");
+    CHECK_EQ(count * 100, break_point_hit_count);
+
+    CHECK(!v8::V8::IsExecutionTerminating());
+  }
+}
+
+
 TEST(DebugBreakLoop) {
   v8::HandleScope scope;
   DebugLocalContext env;
 
-  // Receive 100 breaks and terminate.
-  max_break_point_hit_count = 100;
-  terminate_after_max_break_point_hit = true;
-
   // Register a debug event listener which sets the break flag and counts.
   v8::Debug::SetDebugEventListener(DebugEventBreakMax);
 
-  // Function with infinite loop.
-  CompileRun("function f() { while (true) { } }");
+  CompileRun("var a = 1;");
+  CompileRun("function g() { }");
+  CompileRun("function h() { }");
 
-  // Set the debug break to enter the debugger as soon as possible.
-  v8::Debug::DebugBreak();
+  const char* loop_bodies[] = {
+      "",
+      "g()",
+      "if (a == 0) { g() }",
+      "if (a == 1) { g() }",
+      "if (a == 0) { g() } else { h() }",
+      "if (a == 0) { continue }",
+      "if (a == 1) { continue }",
+      "switch (a) { case 1: g(); }",
+      "switch (a) { case 1: continue; }",
+      "switch (a) { case 1: g(); break; default: h() }",
+      "switch (a) { case 1: continue; break; default: h() }",
+      NULL
+  };
 
-  // Call function with infinite loop.
-  CompileRun("f();");
-  CHECK_EQ(100, break_point_hit_count);
+  TestDebugBreakInLoop("while (true) {", loop_bodies, "}");
+  TestDebugBreakInLoop("while (a == 1) {", loop_bodies, "}");
+
+  TestDebugBreakInLoop("do {", loop_bodies, "} while (true)");
+  TestDebugBreakInLoop("do {", loop_bodies, "} while (a == 1)");
+
+  TestDebugBreakInLoop("for (;;) {", loop_bodies, "}");
+  TestDebugBreakInLoop("for (;a == 1;) {", loop_bodies, "}");
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);

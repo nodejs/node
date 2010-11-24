@@ -348,7 +348,7 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific support for allocating a new closure based on
   // the given function info.
-  void EmitNewClosure(Handle<SharedFunctionInfo> info);
+  void EmitNewClosure(Handle<SharedFunctionInfo> info, bool pretenure);
 
   // Platform-specific support for compiling assignments.
 

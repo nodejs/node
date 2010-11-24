@@ -4244,7 +4244,8 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 
 
 void CodeGenerator::InstantiateFunction(
-    Handle<SharedFunctionInfo> function_info) {
+    Handle<SharedFunctionInfo> function_info,
+    bool pretenure) {
   // The inevitable call will sync frame elements to memory anyway, so
   // we do it eagerly to allow us to push the arguments directly into
   // place.
@@ -4252,7 +4253,9 @@ void CodeGenerator::InstantiateFunction(
 
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && function_info->num_literals() == 0) {
+  if (scope()->is_function_scope() &&
+      function_info->num_literals() == 0 &&
+      !pretenure) {
     FastNewClosureStub stub;
     frame_->Push(function_info);
     Result answer = frame_->CallStub(&stub, 1);
@@ -4262,7 +4265,10 @@ void CodeGenerator::InstantiateFunction(
     // shared function info.
     frame_->EmitPush(rsi);
     frame_->EmitPush(function_info);
-    Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
+    frame_->EmitPush(pretenure
+                     ? Factory::true_value()
+                     : Factory::false_value());
+    Result result = frame_->CallRuntime(Runtime::kNewClosure, 3);
     frame_->Push(&result);
   }
 }
@@ -4279,14 +4285,14 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
     SetStackOverflow();
     return;
   }
-  InstantiateFunction(function_info);
+  InstantiateFunction(function_info, node->pretenure());
 }
 
 
 void CodeGenerator::VisitSharedFunctionInfoLiteral(
     SharedFunctionInfoLiteral* node) {
   Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
-  InstantiateFunction(node->shared_function_info());
+  InstantiateFunction(node->shared_function_info(), false);
 }
 
 
@@ -7214,6 +7220,11 @@ void CodeGenerator::GenerateGetCachedArrayIndex(ZoneList<Expression*>* args) {
   __ IndexFromHash(number.reg(), number.reg());
   string.Unuse();
   frame_->Push(&number);
+}
+
+
+void CodeGenerator::GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args) {
+  frame_->Push(Factory::undefined_value());
 }
 
 

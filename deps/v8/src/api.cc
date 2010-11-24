@@ -4669,9 +4669,11 @@ Handle<Value> HeapGraphEdge::GetName() const {
     case i::HeapGraphEdge::kContextVariable:
     case i::HeapGraphEdge::kInternal:
     case i::HeapGraphEdge::kProperty:
+    case i::HeapGraphEdge::kShortcut:
       return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
           edge->name())));
     case i::HeapGraphEdge::kElement:
+    case i::HeapGraphEdge::kHidden:
       return Handle<Number>(ToApi<Number>(i::Factory::NewNumberFromInt(
           edge->index())));
     default: UNREACHABLE();
@@ -4761,15 +4763,9 @@ int HeapGraphNode::GetSelfSize() const {
 }
 
 
-int HeapGraphNode::GetReachableSize() const {
-  IsDeadCheck("v8::HeapSnapshot::GetReachableSize");
-  return ToInternal(this)->ReachableSize();
-}
-
-
-int HeapGraphNode::GetRetainedSize() const {
+int HeapGraphNode::GetRetainedSize(bool exact) const {
   IsDeadCheck("v8::HeapSnapshot::GetRetainedSize");
-  return ToInternal(this)->RetainedSize();
+  return ToInternal(this)->RetainedSize(exact);
 }
 
 
@@ -4809,6 +4805,12 @@ const HeapGraphPath* HeapGraphNode::GetRetainingPath(int index) const {
   IsDeadCheck("v8::HeapSnapshot::GetRetainingPath");
   return reinterpret_cast<const HeapGraphPath*>(
       ToInternal(this)->GetRetainingPaths()->at(index));
+}
+
+
+const HeapGraphNode* HeapGraphNode::GetDominatorNode() const {
+  IsDeadCheck("v8::HeapSnapshot::GetDominatorNode");
+  return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->dominator());
 }
 
 

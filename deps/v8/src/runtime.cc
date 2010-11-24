@@ -6340,15 +6340,20 @@ static MaybeObject* Runtime_NewArgumentsFast(Arguments args) {
 
 static MaybeObject* Runtime_NewClosure(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
   CONVERT_ARG_CHECKED(Context, context, 0);
   CONVERT_ARG_CHECKED(SharedFunctionInfo, shared, 1);
+  CONVERT_BOOLEAN_CHECKED(pretenure, args[2]);
 
-  PretenureFlag pretenure = (context->global_context() == *context)
-      ? TENURED       // Allocate global closures in old space.
-      : NOT_TENURED;  // Allocate local closures in new space.
+  // Allocate global closures in old space and allocate local closures
+  // in new space. Additionally pretenure closures that are assigned
+  // directly to properties.
+  pretenure = pretenure || (context->global_context() == *context);
+  PretenureFlag pretenure_flag = pretenure ? TENURED : NOT_TENURED;
   Handle<JSFunction> result =
-      Factory::NewFunctionFromSharedFunctionInfo(shared, context, pretenure);
+      Factory::NewFunctionFromSharedFunctionInfo(shared,
+                                                 context,
+                                                 pretenure_flag);
   return *result;
 }
 

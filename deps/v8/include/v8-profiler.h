@@ -197,8 +197,13 @@ class V8EXPORT HeapGraphEdge {
     kContextVariable = 0,  // A variable from a function context.
     kElement = 1,          // An element of an array.
     kProperty = 2,         // A named object property.
-    kInternal = 3          // A link that can't be accessed from JS,
-                           // thus, its name isn't a real property name.
+    kInternal = 3,         // A link that can't be accessed from JS,
+                           // thus, its name isn't a real property name
+                           // (e.g. parts of a ConsString).
+    kHidden = 4,           // A link that is needed for proper sizes
+                           // calculation, but may be hidden from user.
+    kShortcut = 5          // A link that must not be followed during
+                           // sizes calculation.
   };
 
   /** Returns edge type (see HeapGraphEdge::Type). */
@@ -240,7 +245,8 @@ class V8EXPORT HeapGraphPath {
 class V8EXPORT HeapGraphNode {
  public:
   enum Type {
-    kInternal = 0,   // Internal node, a virtual one, for housekeeping.
+    kInternal = 0,   // For compatibility, will be removed.
+    kHidden = 0,     // Hidden node, may be filtered when shown to user.
     kArray = 1,      // An array of elements.
     kString = 2,     // A string.
     kObject = 3,     // A JS object (except for arrays and strings).
@@ -276,16 +282,19 @@ class V8EXPORT HeapGraphNode {
   /** Returns node's own size, in bytes. */
   int GetSelfSize() const;
 
-  /** Returns node's network (self + reachable nodes) size, in bytes. */
-  int GetReachableSize() const;
-
   /**
    * Returns node's retained size, in bytes. That is, self + sizes of
    * the objects that are reachable only from this object. In other
    * words, the size of memory that will be reclaimed having this node
    * collected.
+   *
+   * Exact retained size calculation has O(N) (number of nodes)
+   * computational complexity, while approximate has O(1). It is
+   * assumed that initially heap profiling tools provide approximate
+   * sizes for all nodes, and then exact sizes are calculated for the
+   * most 'interesting' nodes.
    */
-  int GetRetainedSize() const;
+  int GetRetainedSize(bool exact) const;
 
   /** Returns child nodes count of the node. */
   int GetChildrenCount() const;
@@ -304,6 +313,12 @@ class V8EXPORT HeapGraphNode {
 
   /** Returns a retaining path by index. */
   const HeapGraphPath* GetRetainingPath(int index) const;
+
+  /**
+   * Returns a dominator node. This is the node that participates in every
+   * path from the snapshot root to the current node.
+   */
+  const HeapGraphNode* GetDominatorNode() const;
 };
 
 

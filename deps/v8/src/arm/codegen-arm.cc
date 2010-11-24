@@ -3103,10 +3103,13 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 
 
 void CodeGenerator::InstantiateFunction(
-    Handle<SharedFunctionInfo> function_info) {
+    Handle<SharedFunctionInfo> function_info,
+    bool pretenure) {
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && function_info->num_literals() == 0) {
+  if (scope()->is_function_scope() &&
+      function_info->num_literals() == 0 &&
+      !pretenure) {
     FastNewClosureStub stub;
     frame_->EmitPush(Operand(function_info));
     frame_->SpillAll();
@@ -3116,7 +3119,10 @@ void CodeGenerator::InstantiateFunction(
     // Create a new closure.
     frame_->EmitPush(cp);
     frame_->EmitPush(Operand(function_info));
-    frame_->CallRuntime(Runtime::kNewClosure, 2);
+    frame_->EmitPush(Operand(pretenure
+                             ? Factory::true_value()
+                             : Factory::false_value()));
+    frame_->CallRuntime(Runtime::kNewClosure, 3);
     frame_->EmitPush(r0);
   }
 }
@@ -3136,7 +3142,7 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
     ASSERT(frame_->height() == original_height);
     return;
   }
-  InstantiateFunction(function_info);
+  InstantiateFunction(function_info, node->pretenure());
   ASSERT_EQ(original_height + 1, frame_->height());
 }
 
@@ -3147,7 +3153,7 @@ void CodeGenerator::VisitSharedFunctionInfoLiteral(
   int original_height = frame_->height();
 #endif
   Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
-  InstantiateFunction(node->shared_function_info());
+  InstantiateFunction(node->shared_function_info(), false);
   ASSERT_EQ(original_height + 1, frame_->height());
 }
 
@@ -5812,6 +5818,15 @@ void CodeGenerator::GenerateGetCachedArrayIndex(ZoneList<Expression*>* args) {
 
   __ ldr(value, FieldMemOperand(value, String::kHashFieldOffset));
   __ IndexFromHash(value, value);
+  frame_->EmitPush(value);
+}
+
+
+void CodeGenerator::GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+  Load(args->at(0));
+  Register value = frame_->PopToRegister();
+  __ LoadRoot(value, Heap::kUndefinedValueRootIndex);
   frame_->EmitPush(value);
 }
 

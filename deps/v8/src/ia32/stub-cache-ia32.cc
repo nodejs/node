@@ -417,7 +417,7 @@ static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
 static const int kFastApiCallArguments = 3;
 
 
-// Reserves space for the extra arguments to FastHandleApiCall in the
+// Reserves space for the extra arguments to API function in the
 // caller's frame.
 //
 // These arguments are set by CheckPrototypes and GenerateFastApiCall.
@@ -450,7 +450,7 @@ static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
 }
 
 
-// Generates call to FastHandleApiCall builtin.
+// Generates call to API function.
 static bool GenerateFastApiCall(MacroAssembler* masm,
                                 const CallOptimization& optimization,
                                 int argc,
@@ -473,7 +473,7 @@ static bool GenerateFastApiCall(MacroAssembler* masm,
   __ mov(edi, Immediate(Handle<JSFunction>(function)));
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
-  // Pass the additional arguments FastHandleApiCall expects.
+  // Pass the additional arguments.
   __ mov(Operand(esp, 2 * kPointerSize), edi);
   Object* call_data = optimization.api_call_info()->data();
   Handle<CallHandlerInfo> api_call_info_handle(optimization.api_call_info());
@@ -1141,9 +1141,8 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
   __ j(zero, miss, not_taken);
 
   // Check that the maps haven't changed.
-  Register reg =
-      CheckPrototypes(object, receiver, holder,
-                      scratch1, scratch2, scratch3, name, miss);
+  CheckPrototypes(object, receiver, holder,
+                  scratch1, scratch2, scratch3, name, miss);
 
   // Return the constant value.
   __ mov(eax, Handle<Object>(value));
@@ -1263,8 +1262,8 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
       __ push(receiver);
       __ push(holder_reg);
       __ mov(holder_reg, Immediate(Handle<AccessorInfo>(callback)));
-      __ push(holder_reg);
       __ push(FieldOperand(holder_reg, AccessorInfo::kDataOffset));
+      __ push(holder_reg);
       __ push(name_reg);
       __ push(scratch2);  // restore return address
 
@@ -2318,7 +2317,7 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
                                   &miss,
                                   &failure);
   if (!success) {
-    return false;
+    return failure;
   }
 
   // Restore receiver.

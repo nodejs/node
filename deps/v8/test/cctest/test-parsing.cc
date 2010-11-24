@@ -36,7 +36,6 @@
 #include "parser.h"
 #include "utils.h"
 #include "execution.h"
-#include "scanner.h"
 #include "preparser.h"
 #include "cctest.h"
 
@@ -262,9 +261,10 @@ TEST(StandAlonePreParser) {
     const char* program = programs[i];
     unibrow::Utf8InputBuffer<256> stream(program, strlen(program));
     i::CompleteParserRecorder log;
-    i::Scanner scanner;
-    scanner.Initialize(i::Handle<i::String>::null(), &stream, i::JAVASCRIPT);
-    v8::preparser::PreParser<i::Scanner, i::CompleteParserRecorder> preparser;
+    i::V8JavaScriptScanner scanner;
+    scanner.Initialize(i::Handle<i::String>::null(), &stream);
+    v8::preparser::PreParser<i::V8JavaScriptScanner,
+                             i::CompleteParserRecorder> preparser;
     bool result = preparser.PreParseProgram(&scanner, &log, true);
     CHECK(result);
     i::ScriptDataImpl data(log.ExtractData());

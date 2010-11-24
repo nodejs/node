@@ -36,34 +36,7 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// UTF8Buffer
-
-UTF8Buffer::UTF8Buffer() : buffer_(kInitialCapacity), recording_(false) { }
-
-
-UTF8Buffer::~UTF8Buffer() {}
-
-
-void UTF8Buffer::AddCharSlow(uc32 c) {
-  ASSERT(static_cast<unsigned>(c) > unibrow::Utf8::kMaxOneByteChar);
-  int length = unibrow::Utf8::Length(c);
-  Vector<char> block = buffer_.AddBlock(length, '\0');
-#ifdef DEBUG
-  int written_length = unibrow::Utf8::Encode(block.start(), c);
-  CHECK_EQ(length, written_length);
-#else
-  unibrow::Utf8::Encode(block.start(), c);
-#endif
-}
-
-
-// ----------------------------------------------------------------------------
 // UTF16Buffer
-
-
-UTF16Buffer::UTF16Buffer()
-    : pos_(0), end_(Scanner::kNoEndPosition) { }
-
 
 // CharacterStreamUTF16Buffer
 CharacterStreamUTF16Buffer::CharacterStreamUTF16Buffer()
@@ -78,7 +51,7 @@ void CharacterStreamUTF16Buffer::Initialize(Handle<String> data,
   if (start_position > 0) {
     SeekForward(start_position);
   }
-  end_ = end_position != Scanner::kNoEndPosition ? end_position : kMaxInt;
+  end_ = end_position != kNoEndPosition ? end_position : kMaxInt;
 }
 
 
@@ -90,7 +63,7 @@ void CharacterStreamUTF16Buffer::PushBack(uc32 ch) {
 
 
 uc32 CharacterStreamUTF16Buffer::Advance() {
-  ASSERT(end_ != Scanner::kNoEndPosition);
+  ASSERT(end_ != kNoEndPosition);
   ASSERT(end_ >= 0);
   // NOTE: It is of importance to Persian / Farsi resources that we do
   // *not* strip format control characters in the scanner; see
@@ -143,41 +116,74 @@ void Scanner::LiteralScope::Complete() {
 }
 
 // ----------------------------------------------------------------------------
-// Scanner
+// V8JavaScriptScanner
 
-Scanner::Scanner()
-    : has_line_terminator_before_next_(false),
-      is_parsing_json_(false),
-      source_(NULL),
-      stack_overflow_(false) {}
-
-
-void Scanner::Initialize(Handle<String> source,
-                         ParserLanguage language) {
-  Init(source, NULL, 0, source->length(), language);
+void V8JavaScriptScanner::Initialize(Handle<String> source,
+                                     int literal_flags) {
+  source_ = stream_initializer_.Init(source, NULL, 0, source->length());
+  // Need to capture identifiers in order to recognize "get" and "set"
+  // in object literals.
+  literal_flags_ = literal_flags | kLiteralIdentifier;
+  Init();
+  // Skip initial whitespace allowing HTML comment ends just like
+  // after a newline and scan first token.
+  has_line_terminator_before_next_ = true;
+  SkipWhiteSpace();
+  Scan();
 }
 
 
-void Scanner::Initialize(Handle<String> source,
-                         unibrow::CharacterStream* stream,
-                         ParserLanguage language) {
-  Init(source, stream, 0, kNoEndPosition, language);
+void V8JavaScriptScanner::Initialize(Handle<String> source,
+                                     unibrow::CharacterStream* stream,
+                                     int literal_flags) {
+  source_ = stream_initializer_.Init(source, stream,
+                                     0, UTF16Buffer::kNoEndPosition);
+  literal_flags_ = literal_flags | kLiteralIdentifier;
+  Init();
+  // Skip initial whitespace allowing HTML comment ends just like
+  // after a newline and scan first token.
+  has_line_terminator_before_next_ = true;
+  SkipWhiteSpace();
+  Scan();
 }
 
 
-void Scanner::Initialize(Handle<String> source,
-                         int start_position,
-                         int end_position,
-                         ParserLanguage language) {
-  Init(source, NULL, start_position, end_position, language);
+void V8JavaScriptScanner::Initialize(Handle<String> source,
+                                     int start_position,
+                                     int end_position,
+                                     int literal_flags) {
+  source_ = stream_initializer_.Init(source, NULL,
+                                     start_position, end_position);
+  literal_flags_ = literal_flags | kLiteralIdentifier;
+  Init();
+  // Skip initial whitespace allowing HTML comment ends just like
+  // after a newline and scan first token.
+  has_line_terminator_before_next_ = true;
+  SkipWhiteSpace();
+  Scan();
 }
 
 
-void Scanner::Init(Handle<String> source,
-                   unibrow::CharacterStream* stream,
-                   int start_position,
-                   int end_position,
-                   ParserLanguage language) {
+Token::Value V8JavaScriptScanner::NextCheckStack() {
+  // BUG 1215673: Find a thread safe way to set a stack limit in
+  // pre-parse mode. Otherwise, we cannot safely pre-parse from other
+  // threads.
+  StackLimitCheck check;
+  if (check.HasOverflowed()) {
+    stack_overflow_ = true;
+    current_ = next_;
+    next_.token = Token::ILLEGAL;
+    return current_.token;
+  } else {
+    return Next();
+  }
+}
+
+
+UTF16Buffer* StreamInitializer::Init(Handle<String> source,
+                                     unibrow::CharacterStream* stream,
+                                     int start_position,
+                                     int end_position) {
   // Either initialize the scanner from a character stream or from a
   // string.
   ASSERT(source.is_null() || stream == NULL);
@@ -188,13 +194,13 @@ void Scanner::Init(Handle<String> source,
         Handle<ExternalTwoByteString>::cast(source),
         start_position,
         end_position);
-    source_ = &two_byte_string_buffer_;
+    return &two_byte_string_buffer_;
   } else if (!source.is_null() && StringShape(*source).IsExternalAscii()) {
     ascii_string_buffer_.Initialize(
         Handle<ExternalAsciiString>::cast(source),
         start_position,
         end_position);
-    source_ = &ascii_string_buffer_;
+    return &ascii_string_buffer_;
   } else {
     if (!source.is_null()) {
       safe_string_input_buffer_.Reset(source.location());
@@ -204,28 +210,27 @@ void Scanner::Init(Handle<String> source,
                                    stream,
                                    start_position,
                                    end_position);
-    source_ = &char_stream_buffer_;
+    return &char_stream_buffer_;
   }
+}
 
-  is_parsing_json_ = (language == JSON);
+// ----------------------------------------------------------------------------
+// JsonScanner
 
-  // Set c0_ (one character ahead)
-  ASSERT(kCharacterLookaheadBufferSize == 1);
-  Advance();
-  // Initialize current_ to not refer to a literal.
-  current_.literal_chars = Vector<const char>();
-  // Reset literal buffer.
-  literal_buffer_.Reset();
+JsonScanner::JsonScanner() {}
 
-  // Skip initial whitespace allowing HTML comment ends just like
-  // after a newline and scan first token.
-  has_line_terminator_before_next_ = true;
-  SkipWhiteSpace();
-  Scan();
+
+void JsonScanner::Initialize(Handle<String> source) {
+  source_ = stream_initializer_.Init(source, NULL, 0, source->length());
+  Init();
+  // Skip initial whitespace.
+  SkipJsonWhiteSpace();
+  // Preload first token as look-ahead.
+  ScanJson();
 }
 
 
-Token::Value Scanner::Next() {
+Token::Value JsonScanner::Next() {
   // BUG 1215673: Find a thread safe way to set a stack limit in
   // pre-parse mode. Otherwise, we cannot safely pre-parse from other
   // threads.
@@ -236,52 +241,13 @@ Token::Value Scanner::Next() {
     stack_overflow_ = true;
     next_.token = Token::ILLEGAL;
   } else {
-    has_line_terminator_before_next_ = false;
-    Scan();
+    ScanJson();
   }
   return current_.token;
 }
 
 
-void Scanner::StartLiteral() {
-  literal_buffer_.StartLiteral();
-}
-
-
-void Scanner::AddLiteralChar(uc32 c) {
-  literal_buffer_.AddChar(c);
-}
-
-
-void Scanner::TerminateLiteral() {
-  next_.literal_chars = literal_buffer_.EndLiteral();
-}
-
-
-void Scanner::DropLiteral() {
-  literal_buffer_.DropLiteral();
-}
-
-
-void Scanner::AddLiteralCharAdvance() {
-  AddLiteralChar(c0_);
-  Advance();
-}
-
-
-static inline bool IsByteOrderMark(uc32 c) {
-  // The Unicode value U+FFFE is guaranteed never to be assigned as a
-  // Unicode character; this implies that in a Unicode context the
-  // 0xFF, 0xFE byte pattern can only be interpreted as the U+FEFF
-  // character expressed in little-endian byte order (since it could
-  // not be a U+FFFE character expressed in big-endian byte
-  // order). Nevertheless, we check for it to be compatible with
-  // Spidermonkey.
-  return c == 0xFEFF || c == 0xFFFE;
-}
-
-
-bool Scanner::SkipJsonWhiteSpace() {
+bool JsonScanner::SkipJsonWhiteSpace() {
   int start_position = source_pos();
   // JSON WhiteSpace is tab, carrige-return, newline and space.
   while (c0_ == ' ' || c0_ == '\n' || c0_ == '\r' || c0_ == '\t') {
@@ -291,107 +257,9 @@ bool Scanner::SkipJsonWhiteSpace() {
 }
 
 
-bool Scanner::SkipJavaScriptWhiteSpace() {
-  int start_position = source_pos();
-
-  while (true) {
-    // We treat byte-order marks (BOMs) as whitespace for better
-    // compatibility with Spidermonkey and other JavaScript engines.
-    while (ScannerConstants::kIsWhiteSpace.get(c0_) || IsByteOrderMark(c0_)) {
-      // IsWhiteSpace() includes line terminators!
-      if (ScannerConstants::kIsLineTerminator.get(c0_)) {
-        // Ignore line terminators, but remember them. This is necessary
-        // for automatic semicolon insertion.
-        has_line_terminator_before_next_ = true;
-      }
-      Advance();
-    }
-
-    // If there is an HTML comment end '-->' at the beginning of a
-    // line (with only whitespace in front of it), we treat the rest
-    // of the line as a comment. This is in line with the way
-    // SpiderMonkey handles it.
-    if (c0_ == '-' && has_line_terminator_before_next_) {
-      Advance();
-      if (c0_ == '-') {
-        Advance();
-        if (c0_ == '>') {
-          // Treat the rest of the line as a comment.
-          SkipSingleLineComment();
-          // Continue skipping white space after the comment.
-          continue;
-        }
-        PushBack('-');  // undo Advance()
-      }
-      PushBack('-');  // undo Advance()
-    }
-    // Return whether or not we skipped any characters.
-    return source_pos() != start_position;
-  }
-}
-
-
-Token::Value Scanner::SkipSingleLineComment() {
-  Advance();
-
-  // The line terminator at the end of the line is not considered
-  // to be part of the single-line comment; it is recognized
-  // separately by the lexical grammar and becomes part of the
-  // stream of input elements for the syntactic grammar (see
-  // ECMA-262, section 7.4, page 12).
-  while (c0_ >= 0 && !ScannerConstants::kIsLineTerminator.get(c0_)) {
-    Advance();
-  }
-
-  return Token::WHITESPACE;
-}
-
-
-Token::Value Scanner::SkipMultiLineComment() {
-  ASSERT(c0_ == '*');
-  Advance();
-
-  while (c0_ >= 0) {
-    char ch = c0_;
-    Advance();
-    // If we have reached the end of the multi-line comment, we
-    // consume the '/' and insert a whitespace. This way all
-    // multi-line comments are treated as whitespace - even the ones
-    // containing line terminators. This contradicts ECMA-262, section
-    // 7.4, page 12, that says that multi-line comments containing
-    // line terminators should be treated as a line terminator, but it
-    // matches the behaviour of SpiderMonkey and KJS.
-    if (ch == '*' && c0_ == '/') {
-      c0_ = ' ';
-      return Token::WHITESPACE;
-    }
-  }
-
-  // Unterminated multi-line comment.
-  return Token::ILLEGAL;
-}
-
-
-Token::Value Scanner::ScanHtmlComment() {
-  // Check for <!-- comments.
-  ASSERT(c0_ == '!');
-  Advance();
-  if (c0_ == '-') {
-    Advance();
-    if (c0_ == '-') return SkipSingleLineComment();
-    PushBack('-');  // undo Advance()
-  }
-  PushBack('!');  // undo Advance()
-  ASSERT(c0_ == '!');
-  return Token::LT;
-}
-
-
-
-void Scanner::ScanJson() {
+void JsonScanner::ScanJson() {
   next_.literal_chars = Vector<const char>();
   Token::Value token;
-  has_line_terminator_before_next_ = false;
   do {
     // Remember the position of the next token
     next_.location.beg_pos = source_pos();
@@ -468,7 +336,7 @@ void Scanner::ScanJson() {
 }
 
 
-Token::Value Scanner::ScanJsonString() {
+Token::Value JsonScanner::ScanJsonString() {
   ASSERT_EQ('"', c0_);
   Advance();
   LiteralScope literal(this);
@@ -528,7 +396,7 @@ Token::Value Scanner::ScanJsonString() {
 }
 
 
-Token::Value Scanner::ScanJsonNumber() {
+Token::Value JsonScanner::ScanJsonNumber() {
   LiteralScope literal(this);
   if (c0_ == '-') AddLiteralCharAdvance();
   if (c0_ == '0') {
@@ -562,8 +430,8 @@ Token::Value Scanner::ScanJsonNumber() {
 }
 
 
-Token::Value Scanner::ScanJsonIdentifier(const char* text,
-                                         Token::Value token) {
+Token::Value JsonScanner::ScanJsonIdentifier(const char* text,
+                                             Token::Value token) {
   LiteralScope literal(this);
   while (*text != '\0') {
     if (c0_ != *text) return Token::ILLEGAL;
@@ -576,577 +444,5 @@ Token::Value Scanner::ScanJsonIdentifier(const char* text,
 }
 
 
-void Scanner::ScanJavaScript() {
-  next_.literal_chars = Vector<const char>();
-  Token::Value token;
-  do {
-    // Remember the position of the next token
-    next_.location.beg_pos = source_pos();
-
-    switch (c0_) {
-      case ' ':
-      case '\t':
-        Advance();
-        token = Token::WHITESPACE;
-        break;
-
-      case '\n':
-        Advance();
-        has_line_terminator_before_next_ = true;
-        token = Token::WHITESPACE;
-        break;
-
-      case '"': case '\'':
-        token = ScanString();
-        break;
-
-      case '<':
-        // < <= << <<= <!--
-        Advance();
-        if (c0_ == '=') {
-          token = Select(Token::LTE);
-        } else if (c0_ == '<') {
-          token = Select('=', Token::ASSIGN_SHL, Token::SHL);
-        } else if (c0_ == '!') {
-          token = ScanHtmlComment();
-        } else {
-          token = Token::LT;
-        }
-        break;
-
-      case '>':
-        // > >= >> >>= >>> >>>=
-        Advance();
-        if (c0_ == '=') {
-          token = Select(Token::GTE);
-        } else if (c0_ == '>') {
-          // >> >>= >>> >>>=
-          Advance();
-          if (c0_ == '=') {
-            token = Select(Token::ASSIGN_SAR);
-          } else if (c0_ == '>') {
-            token = Select('=', Token::ASSIGN_SHR, Token::SHR);
-          } else {
-            token = Token::SAR;
-          }
-        } else {
-          token = Token::GT;
-        }
-        break;
-
-      case '=':
-        // = == ===
-        Advance();
-        if (c0_ == '=') {
-          token = Select('=', Token::EQ_STRICT, Token::EQ);
-        } else {
-          token = Token::ASSIGN;
-        }
-        break;
-
-      case '!':
-        // ! != !==
-        Advance();
-        if (c0_ == '=') {
-          token = Select('=', Token::NE_STRICT, Token::NE);
-        } else {
-          token = Token::NOT;
-        }
-        break;
-
-      case '+':
-        // + ++ +=
-        Advance();
-        if (c0_ == '+') {
-          token = Select(Token::INC);
-        } else if (c0_ == '=') {
-          token = Select(Token::ASSIGN_ADD);
-        } else {
-          token = Token::ADD;
-        }
-        break;
-
-      case '-':
-        // - -- --> -=
-        Advance();
-        if (c0_ == '-') {
-          Advance();
-          if (c0_ == '>' && has_line_terminator_before_next_) {
-            // For compatibility with SpiderMonkey, we skip lines that
-            // start with an HTML comment end '-->'.
-            token = SkipSingleLineComment();
-          } else {
-            token = Token::DEC;
-          }
-        } else if (c0_ == '=') {
-          token = Select(Token::ASSIGN_SUB);
-        } else {
-          token = Token::SUB;
-        }
-        break;
-
-      case '*':
-        // * *=
-        token = Select('=', Token::ASSIGN_MUL, Token::MUL);
-        break;
-
-      case '%':
-        // % %=
-        token = Select('=', Token::ASSIGN_MOD, Token::MOD);
-        break;
-
-      case '/':
-        // /  // /* /=
-        Advance();
-        if (c0_ == '/') {
-          token = SkipSingleLineComment();
-        } else if (c0_ == '*') {
-          token = SkipMultiLineComment();
-        } else if (c0_ == '=') {
-          token = Select(Token::ASSIGN_DIV);
-        } else {
-          token = Token::DIV;
-        }
-        break;
-
-      case '&':
-        // & && &=
-        Advance();
-        if (c0_ == '&') {
-          token = Select(Token::AND);
-        } else if (c0_ == '=') {
-          token = Select(Token::ASSIGN_BIT_AND);
-        } else {
-          token = Token::BIT_AND;
-        }
-        break;
-
-      case '|':
-        // | || |=
-        Advance();
-        if (c0_ == '|') {
-          token = Select(Token::OR);
-        } else if (c0_ == '=') {
-          token = Select(Token::ASSIGN_BIT_OR);
-        } else {
-          token = Token::BIT_OR;
-        }
-        break;
-
-      case '^':
-        // ^ ^=
-        token = Select('=', Token::ASSIGN_BIT_XOR, Token::BIT_XOR);
-        break;
-
-      case '.':
-        // . Number
-        Advance();
-        if (IsDecimalDigit(c0_)) {
-          token = ScanNumber(true);
-        } else {
-          token = Token::PERIOD;
-        }
-        break;
-
-      case ':':
-        token = Select(Token::COLON);
-        break;
-
-      case ';':
-        token = Select(Token::SEMICOLON);
-        break;
-
-      case ',':
-        token = Select(Token::COMMA);
-        break;
-
-      case '(':
-        token = Select(Token::LPAREN);
-        break;
-
-      case ')':
-        token = Select(Token::RPAREN);
-        break;
-
-      case '[':
-        token = Select(Token::LBRACK);
-        break;
-
-      case ']':
-        token = Select(Token::RBRACK);
-        break;
-
-      case '{':
-        token = Select(Token::LBRACE);
-        break;
-
-      case '}':
-        token = Select(Token::RBRACE);
-        break;
-
-      case '?':
-        token = Select(Token::CONDITIONAL);
-        break;
-
-      case '~':
-        token = Select(Token::BIT_NOT);
-        break;
-
-      default:
-        if (ScannerConstants::kIsIdentifierStart.get(c0_)) {
-          token = ScanIdentifier();
-        } else if (IsDecimalDigit(c0_)) {
-          token = ScanNumber(false);
-        } else if (SkipWhiteSpace()) {
-          token = Token::WHITESPACE;
-        } else if (c0_ < 0) {
-          token = Token::EOS;
-        } else {
-          token = Select(Token::ILLEGAL);
-        }
-        break;
-    }
-
-    // Continue scanning for tokens as long as we're just skipping
-    // whitespace.
-  } while (token == Token::WHITESPACE);
-
-  next_.location.end_pos = source_pos();
-  next_.token = token;
-}
-
-
-void Scanner::SeekForward(int pos) {
-  source_->SeekForward(pos - 1);
-  Advance();
-  // This function is only called to seek to the location
-  // of the end of a function (at the "}" token). It doesn't matter
-  // whether there was a line terminator in the part we skip.
-  has_line_terminator_before_next_ = false;
-  Scan();
-}
-
-
-uc32 Scanner::ScanHexEscape(uc32 c, int length) {
-  ASSERT(length <= 4);  // prevent overflow
-
-  uc32 digits[4];
-  uc32 x = 0;
-  for (int i = 0; i < length; i++) {
-    digits[i] = c0_;
-    int d = HexValue(c0_);
-    if (d < 0) {
-      // According to ECMA-262, 3rd, 7.8.4, page 18, these hex escapes
-      // should be illegal, but other JS VMs just return the
-      // non-escaped version of the original character.
-
-      // Push back digits read, except the last one (in c0_).
-      for (int j = i-1; j >= 0; j--) {
-        PushBack(digits[j]);
-      }
-      // Notice: No handling of error - treat it as "\u"->"u".
-      return c;
-    }
-    x = x * 16 + d;
-    Advance();
-  }
-
-  return x;
-}
-
-
-// Octal escapes of the forms '\0xx' and '\xxx' are not a part of
-// ECMA-262. Other JS VMs support them.
-uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
-  uc32 x = c - '0';
-  for (int i = 0; i < length; i++) {
-    int d = c0_ - '0';
-    if (d < 0 || d > 7) break;
-    int nx = x * 8 + d;
-    if (nx >= 256) break;
-    x = nx;
-    Advance();
-  }
-  return x;
-}
-
-
-void Scanner::ScanEscape() {
-  uc32 c = c0_;
-  Advance();
-
-  // Skip escaped newlines.
-  if (ScannerConstants::kIsLineTerminator.get(c)) {
-    // Allow CR+LF newlines in multiline string literals.
-    if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
-    // Allow LF+CR newlines in multiline string literals.
-    if (IsLineFeed(c) && IsCarriageReturn(c0_)) Advance();
-    return;
-  }
-
-  switch (c) {
-    case '\'':  // fall through
-    case '"' :  // fall through
-    case '\\': break;
-    case 'b' : c = '\b'; break;
-    case 'f' : c = '\f'; break;
-    case 'n' : c = '\n'; break;
-    case 'r' : c = '\r'; break;
-    case 't' : c = '\t'; break;
-    case 'u' : c = ScanHexEscape(c, 4); break;
-    case 'v' : c = '\v'; break;
-    case 'x' : c = ScanHexEscape(c, 2); break;
-    case '0' :  // fall through
-    case '1' :  // fall through
-    case '2' :  // fall through
-    case '3' :  // fall through
-    case '4' :  // fall through
-    case '5' :  // fall through
-    case '6' :  // fall through
-    case '7' : c = ScanOctalEscape(c, 2); break;
-  }
-
-  // According to ECMA-262, 3rd, 7.8.4 (p 18ff) these
-  // should be illegal, but they are commonly handled
-  // as non-escaped characters by JS VMs.
-  AddLiteralChar(c);
-}
-
-
-Token::Value Scanner::ScanString() {
-  uc32 quote = c0_;
-  Advance();  // consume quote
-
-  LiteralScope literal(this);
-  while (c0_ != quote && c0_ >= 0
-         && !ScannerConstants::kIsLineTerminator.get(c0_)) {
-    uc32 c = c0_;
-    Advance();
-    if (c == '\\') {
-      if (c0_ < 0) return Token::ILLEGAL;
-      ScanEscape();
-    } else {
-      AddLiteralChar(c);
-    }
-  }
-  if (c0_ != quote) return Token::ILLEGAL;
-  literal.Complete();
-
-  Advance();  // consume quote
-  return Token::STRING;
-}
-
-
-Token::Value Scanner::Select(Token::Value tok) {
-  Advance();
-  return tok;
-}
-
-
-Token::Value Scanner::Select(uc32 next, Token::Value then, Token::Value else_) {
-  Advance();
-  if (c0_ == next) {
-    Advance();
-    return then;
-  } else {
-    return else_;
-  }
-}
-
-
-// Returns true if any decimal digits were scanned, returns false otherwise.
-void Scanner::ScanDecimalDigits() {
-  while (IsDecimalDigit(c0_))
-    AddLiteralCharAdvance();
-}
-
-
-Token::Value Scanner::ScanNumber(bool seen_period) {
-  ASSERT(IsDecimalDigit(c0_));  // the first digit of the number or the fraction
-
-  enum { DECIMAL, HEX, OCTAL } kind = DECIMAL;
-
-  LiteralScope literal(this);
-  if (seen_period) {
-    // we have already seen a decimal point of the float
-    AddLiteralChar('.');
-    ScanDecimalDigits();  // we know we have at least one digit
-
-  } else {
-    // if the first character is '0' we must check for octals and hex
-    if (c0_ == '0') {
-      AddLiteralCharAdvance();
-
-      // either 0, 0exxx, 0Exxx, 0.xxx, an octal number, or a hex number
-      if (c0_ == 'x' || c0_ == 'X') {
-        // hex number
-        kind = HEX;
-        AddLiteralCharAdvance();
-        if (!IsHexDigit(c0_)) {
-          // we must have at least one hex digit after 'x'/'X'
-          return Token::ILLEGAL;
-        }
-        while (IsHexDigit(c0_)) {
-          AddLiteralCharAdvance();
-        }
-      } else if ('0' <= c0_ && c0_ <= '7') {
-        // (possible) octal number
-        kind = OCTAL;
-        while (true) {
-          if (c0_ == '8' || c0_ == '9') {
-            kind = DECIMAL;
-            break;
-          }
-          if (c0_  < '0' || '7'  < c0_) break;
-          AddLiteralCharAdvance();
-        }
-      }
-    }
-
-    // Parse decimal digits and allow trailing fractional part.
-    if (kind == DECIMAL) {
-      ScanDecimalDigits();  // optional
-      if (c0_ == '.') {
-        AddLiteralCharAdvance();
-        ScanDecimalDigits();  // optional
-      }
-    }
-  }
-
-  // scan exponent, if any
-  if (c0_ == 'e' || c0_ == 'E') {
-    ASSERT(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
-    if (kind == OCTAL) return Token::ILLEGAL;  // no exponent for octals allowed
-    // scan exponent
-    AddLiteralCharAdvance();
-    if (c0_ == '+' || c0_ == '-')
-      AddLiteralCharAdvance();
-    if (!IsDecimalDigit(c0_)) {
-      // we must have at least one decimal digit after 'e'/'E'
-      return Token::ILLEGAL;
-    }
-    ScanDecimalDigits();
-  }
-
-  // The source character immediately following a numeric literal must
-  // not be an identifier start or a decimal digit; see ECMA-262
-  // section 7.8.3, page 17 (note that we read only one decimal digit
-  // if the value is 0).
-  if (IsDecimalDigit(c0_) || ScannerConstants::kIsIdentifierStart.get(c0_))
-    return Token::ILLEGAL;
-
-  literal.Complete();
-
-  return Token::NUMBER;
-}
-
-
-uc32 Scanner::ScanIdentifierUnicodeEscape() {
-  Advance();
-  if (c0_ != 'u') return unibrow::Utf8::kBadChar;
-  Advance();
-  uc32 c = ScanHexEscape('u', 4);
-  // We do not allow a unicode escape sequence to start another
-  // unicode escape sequence.
-  if (c == '\\') return unibrow::Utf8::kBadChar;
-  return c;
-}
-
-
-Token::Value Scanner::ScanIdentifier() {
-  ASSERT(ScannerConstants::kIsIdentifierStart.get(c0_));
-
-  LiteralScope literal(this);
-  KeywordMatcher keyword_match;
-
-  // Scan identifier start character.
-  if (c0_ == '\\') {
-    uc32 c = ScanIdentifierUnicodeEscape();
-    // Only allow legal identifier start characters.
-    if (!ScannerConstants::kIsIdentifierStart.get(c)) return Token::ILLEGAL;
-    AddLiteralChar(c);
-    keyword_match.Fail();
-  } else {
-    AddLiteralChar(c0_);
-    keyword_match.AddChar(c0_);
-    Advance();
-  }
-
-  // Scan the rest of the identifier characters.
-  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
-    if (c0_ == '\\') {
-      uc32 c = ScanIdentifierUnicodeEscape();
-      // Only allow legal identifier part characters.
-      if (!ScannerConstants::kIsIdentifierPart.get(c)) return Token::ILLEGAL;
-      AddLiteralChar(c);
-      keyword_match.Fail();
-    } else {
-      AddLiteralChar(c0_);
-      keyword_match.AddChar(c0_);
-      Advance();
-    }
-  }
-  literal.Complete();
-
-  return keyword_match.token();
-}
-
-
-
-bool Scanner::ScanRegExpPattern(bool seen_equal) {
-  // Scan: ('/' | '/=') RegularExpressionBody '/' RegularExpressionFlags
-  bool in_character_class = false;
-
-  // Previous token is either '/' or '/=', in the second case, the
-  // pattern starts at =.
-  next_.location.beg_pos = source_pos() - (seen_equal ? 2 : 1);
-  next_.location.end_pos = source_pos() - (seen_equal ? 1 : 0);
-
-  // Scan regular expression body: According to ECMA-262, 3rd, 7.8.5,
-  // the scanner should pass uninterpreted bodies to the RegExp
-  // constructor.
-  LiteralScope literal(this);
-  if (seen_equal)
-    AddLiteralChar('=');
-
-  while (c0_ != '/' || in_character_class) {
-    if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
-    if (c0_ == '\\') {  // escaped character
-      AddLiteralCharAdvance();
-      if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
-      AddLiteralCharAdvance();
-    } else {  // unescaped character
-      if (c0_ == '[') in_character_class = true;
-      if (c0_ == ']') in_character_class = false;
-      AddLiteralCharAdvance();
-    }
-  }
-  Advance();  // consume '/'
-
-  literal.Complete();
-
-  return true;
-}
-
-bool Scanner::ScanRegExpFlags() {
-  // Scan regular expression flags.
-  LiteralScope literal(this);
-  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
-    if (c0_ == '\\') {
-      uc32 c = ScanIdentifierUnicodeEscape();
-      if (c != static_cast<uc32>(unibrow::Utf8::kBadChar)) {
-        // We allow any escaped character, unlike the restriction on
-        // IdentifierPart when it is used to build an IdentifierName.
-        AddLiteralChar(c);
-        continue;
-      }
-    }
-    AddLiteralCharAdvance();
-  }
-  literal.Complete();
-
-  next_.location.end_pos = source_pos() - 1;
-  return true;
-}
 
 } }  // namespace v8::internal

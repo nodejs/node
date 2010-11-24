@@ -379,6 +379,23 @@ class MacroAssembler: public Assembler {
                                Register scratch2,
                                Label* gc_required);
 
+  // All registers must be distinct.  Only current_string needs valid contents
+  // on entry.  All registers may be invalid on exit.  result_operand is
+  // unchanged, padding_chars is updated correctly.
+  // The top of new space must contain a sequential ascii string with
+  // padding_chars bytes free in its top word.  The sequential ascii string
+  // current_string is concatenated to it, allocating the necessary amount
+  // of new memory.
+  void AppendStringToTopOfNewSpace(
+      Register current_string,  // Tagged pointer to string to copy.
+      Register current_string_length,
+      Register result_pos,
+      Register scratch,
+      Register new_padding_chars,
+      Operand operand_result,
+      Operand operand_padding_chars,
+      Label* bailout);
+
   // ---------------------------------------------------------------------------
   // Support functions.
 

@@ -75,11 +75,6 @@ static inline uint32_t DoubleToUint32(double x) {
 }
 
 
-// Returns the value (0 .. 15) of a hexadecimal character c.
-// If c is not a legal hexadecimal character, returns a value < 0.
-int HexValue(uc32 c);
-
-
 // Enumeration for allowing octals and ignoring junk when converting
 // strings to numbers.
 enum ConversionFlags {

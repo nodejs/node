@@ -298,14 +298,8 @@ def ConfigureObjectFiles():
   libraries_src, libraries_empty_src = env.JS2C(['libraries.cc', 'libraries-empty.cc'], library_files, TYPE='CORE')
   libraries_obj = context.ConfigureObject(env, libraries_src, CPPPATH=['.'])
 
-  # Build dtoa.
-  dtoa_env = env.Copy()
-  dtoa_env.Replace(**context.flags['dtoa'])
-  dtoa_files = ['dtoa-config.c']
-  dtoa_obj = context.ConfigureObject(dtoa_env, dtoa_files)
-
   source_objs = context.ConfigureObject(env, source_files)
-  non_snapshot_files = [dtoa_obj, source_objs]
+  non_snapshot_files = [source_objs]
 
   # Create snapshot if necessary.  For cross compilation you should either
   # do without snapshots and take the performance hit or you should build a

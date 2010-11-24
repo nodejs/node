@@ -34,6 +34,43 @@ assertEquals("abc", eval("'abc'"));
 
 assertEquals(8, eval("6;'abc';8"));
 
+// Characters just outside the ranges of hex-escapes.
+// "/" comes just before "0".
+assertEquals("x1/", "\x1/");
+assertEquals("u111/", "\u111/");
+assertEquals("\\x1/", RegExp("\\x1/").source);
+assertEquals("\\u111/", RegExp("\\u111/").source);
+
+// ":" comes just after "9".
+assertEquals("x1:", "\x1:");
+assertEquals("u111:", "\u111:");
+assertEquals("\\x1:", /\x1:/.source);
+assertEquals("\\u111:", /\u111:/.source);
+
+// "`" comes just before "a".
+assertEquals("x1`", "\x1`");
+assertEquals("u111`", "\u111`");
+assertEquals("\\x1`", /\x1`/.source);
+assertEquals("\\u111`", /\u111`/.source);
+
+// "g" comes just before "f".
+assertEquals("x1g", "\x1g");
+assertEquals("u111g", "\u111g");
+assertEquals("\\x1g", /\x1g/.source);
+assertEquals("\\u111g", /\u111g/.source);
+
+// "@" comes just before "A".
+assertEquals("x1@", "\x1@");
+assertEquals("u111@", "\u111@");
+assertEquals("\\x1@", /\x1@/.source);
+assertEquals("\\u111@", /\u111@/.source);
+
+// "G" comes just after "F".
+assertEquals("x1G", "\x1G");
+assertEquals("u111G", "\u111G");
+assertEquals("\\x1G", /\x1G/.source);
+assertEquals("\\u111G", /\u111G/.source);
+
 // Test some materialized array literals.
 assertEquals([1,2,3,4], eval('[1,2,3,4]'));
 assertEquals([[1,2],3,4], eval('[[1,2],3,4]'));
@@ -50,3 +87,4 @@ assertEquals([2,4,6,8], eval(s));
 assertEquals(17, eval('[1,2,3,4]; 17'));
 assertEquals(19, eval('var a=1, b=2; [a,b,3,4]; 19'));
 assertEquals(23, eval('var a=1, b=2; c=23; [a,b,3,4]; c'));
+

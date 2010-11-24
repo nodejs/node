@@ -720,7 +720,7 @@ Statement PreParser<Scanner, Log>::ParseThrowStatement(bool* ok) {
     ReportMessageAt(pos.beg_pos, pos.end_pos,
                     "newline_after_throw", NULL);
     *ok = false;
-    return NULL;
+    return kUnknownStatement;
   }
   ParseExpression(true, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
@@ -1006,7 +1006,7 @@ Expression PreParser<Scanner, Log>::ParseMemberWithNewPrefixesExpression(
   //     ('[' Expression ']' | '.' Identifier | Arguments)*
 
   // Parse the initial primary or function expression.
-  Expression result = NULL;
+  Expression result = kUnknownExpression;
   if (peek() == i::Token::FUNCTION) {
     Consume(i::Token::FUNCTION);
     if (peek() == i::Token::IDENTIFIER) {

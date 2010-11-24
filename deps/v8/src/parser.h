@@ -181,6 +181,7 @@ class ScriptDataImpl : public ScriptData {
 class PartialParserRecorder {
  public:
   PartialParserRecorder();
+  virtual ~PartialParserRecorder() {}
 
   void LogFunction(int start, int end, int literals, int properties) {
     function_store_.Add(start);
@@ -189,7 +190,7 @@ class PartialParserRecorder {
     function_store_.Add(properties);
   }
 
-  void LogSymbol(int start, const char* symbol, int length) { }
+  virtual void LogSymbol(int start, const char* symbol, int length) { }
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
@@ -212,7 +213,7 @@ class PartialParserRecorder {
                   const char* message,
                   Vector<const char*> args);
 
-  Vector<unsigned> ExtractData();
+  virtual Vector<unsigned> ExtractData();
 
   void PauseRecording() {
     pause_count_++;
@@ -253,14 +254,15 @@ class PartialParserRecorder {
 class CompleteParserRecorder: public PartialParserRecorder {
  public:
   CompleteParserRecorder();
+  virtual ~CompleteParserRecorder() { }
 
   void LogSymbol(int start, Vector<const char> literal);
 
-  void LogSymbol(int start, const char* symbol, int length) {
+  virtual void LogSymbol(int start, const char* symbol, int length) {
     LogSymbol(start, Vector<const char>(symbol, length));
   }
 
-  Vector<unsigned> ExtractData();
+  virtual Vector<unsigned> ExtractData();
 
   int symbol_position() { return symbol_store_.size(); }
   int symbol_ids() { return symbol_id_; }
@@ -682,7 +684,7 @@ class Parser {
   Expression* ParseV8Intrinsic(bool* ok);
 
   INLINE(Token::Value peek()) { return scanner_.peek(); }
-  INLINE(Token::Value Next()) { return scanner_.Next(); }
+  INLINE(Token::Value Next()) { return scanner_.NextCheckStack(); }
   INLINE(void Consume(Token::Value token));
   void Expect(Token::Value token, bool* ok);
   bool Check(Token::Value token);
@@ -760,7 +762,7 @@ class Parser {
   ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
-  Scanner scanner_;
+  V8JavaScriptScanner scanner_;
 
   Scope* top_scope_;
   int with_nesting_level_;
@@ -852,7 +854,7 @@ class JsonParser BASE_EMBEDDED {
   // Converts the currently parsed literal to a JavaScript String.
   Handle<String> GetString();
 
-  Scanner scanner_;
+  JsonScanner scanner_;
 };
 } }  // namespace v8::internal
 

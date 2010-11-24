@@ -2588,8 +2588,8 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
       __ push(receiver);
       __ push(holder_reg);
       __ Move(holder_reg, Handle<AccessorInfo>(callback));
-      __ push(holder_reg);
       __ push(FieldOperand(holder_reg, AccessorInfo::kDataOffset));
+      __ push(holder_reg);
       __ push(name_reg);
       __ push(scratch2);  // restore return address
 

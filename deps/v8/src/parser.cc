@@ -37,7 +37,6 @@
 #include "parser.h"
 #include "platform.h"
 #include "preparser.h"
-#include "prescanner.h"
 #include "runtime.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
@@ -728,7 +727,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 
   // Initialize parser state.
   source->TryFlatten();
-  scanner_.Initialize(source, JAVASCRIPT);
+  scanner_.Initialize(source);
   ASSERT(target_stack_ == NULL);
   if (pre_data_ != NULL) pre_data_->Initialize();
 
@@ -791,8 +790,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
 
   // Initialize parser state.
   source->TryFlatten();
-  scanner_.Initialize(source, info->start_position(), info->end_position(),
-                      JAVASCRIPT);
+  scanner_.Initialize(source, info->start_position(), info->end_position());
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
 
@@ -2278,6 +2276,12 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     temp_scope_->AddProperty();
   }
 
+  // If we assign a function literal to a property we pretenure the
+  // literal so it can be added as a constant function property.
+  if (property != NULL && right->AsFunctionLiteral() != NULL) {
+    right->AsFunctionLiteral()->set_pretenure(true);
+  }
+
   if (fni_ != NULL) {
     // Check if the right hand side is a call to avoid inferring a
     // name if we're dealing with "a = function(){...}();"-like
@@ -3613,7 +3617,7 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 
 Handle<Object> JsonParser::ParseJson(Handle<String> source) {
   source->TryFlatten();
-  scanner_.Initialize(source, JSON);
+  scanner_.Initialize(source);
   Handle<Object> result = ParseJsonValue();
   if (result.is_null() || scanner_.Next() != Token::EOS) {
     if (scanner_.stack_overflow()) {
@@ -4638,13 +4642,15 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 }
 
 
-static ScriptDataImpl* DoPreParse(UTF16Buffer* stream,
+// Create a Scanner for the preparser to use as input, and preparse the source.
+static ScriptDataImpl* DoPreParse(Handle<String> source,
+                                  unibrow::CharacterStream* stream,
                                   bool allow_lazy,
-                                  PartialParserRecorder* recorder) {
-  typedef preparser::Scanner<UTF16Buffer, UTF8Buffer> PreScanner;
-  PreScanner scanner;
-  scanner.Initialize(stream);
-  preparser::PreParser<PreScanner, PartialParserRecorder> preparser;
+                                  PartialParserRecorder* recorder,
+                                  int literal_flags) {
+  V8JavaScriptScanner scanner;
+  scanner.Initialize(source, stream, literal_flags);
+  preparser::PreParser<JavaScriptScanner, PartialParserRecorder> preparser;
   if (!preparser.PreParseProgram(&scanner, recorder, allow_lazy)) {
     Top::StackOverflow();
     return NULL;
@@ -4657,44 +4663,11 @@ static ScriptDataImpl* DoPreParse(UTF16Buffer* stream,
 }
 
 
-// Create an UTF16Buffer for the preparser to use as input,
-// and preparse the source.
-static ScriptDataImpl* DoPreParse(Handle<String> source,
-                                  unibrow::CharacterStream* stream,
-                                  bool allow_lazy,
-                                  PartialParserRecorder* recorder) {
-  if (source.is_null()) {
-    CharacterStreamUTF16Buffer buffer;
-    int length = stream->Length();
-    buffer.Initialize(source, stream, 0, length);
-    return DoPreParse(&buffer, allow_lazy, recorder);
-  } else if (source->IsExternalAsciiString()) {
-    ExternalStringUTF16Buffer<ExternalAsciiString, char> buffer;
-    int length = source->length();
-    buffer.Initialize(Handle<ExternalAsciiString>::cast(source), 0, length);
-    return DoPreParse(&buffer, allow_lazy, recorder);
-  } else if (source->IsExternalTwoByteString()) {
-    ExternalStringUTF16Buffer<ExternalTwoByteString, uint16_t> buffer;
-    int length = source->length();
-    buffer.Initialize(Handle<ExternalTwoByteString>::cast(source), 0, length);
-    return DoPreParse(&buffer, allow_lazy, recorder);
-  } else {
-    CharacterStreamUTF16Buffer buffer;
-    SafeStringInputBuffer input;
-    input.Reset(0, source.location());
-    int length = source->length();
-    buffer.Initialize(source, &input, 0, length);
-    return DoPreParse(&buffer, allow_lazy, recorder);
-  }
-}
-
-
 // Preparse, but only collect data that is immediately useful,
 // even if the preparser data is only used once.
 ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
                                            unibrow::CharacterStream* stream,
                                            v8::Extension* extension) {
-  Handle<Script> no_script;
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   if (!allow_lazy) {
     // Partial preparsing is only about lazily compiled functions.
@@ -4703,7 +4676,8 @@ ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
   }
   PartialParserRecorder recorder;
 
-  return DoPreParse(source, stream, allow_lazy, &recorder);
+  return DoPreParse(source, stream, allow_lazy, &recorder,
+                    JavaScriptScanner::kNoLiterals);
 }
 
 
@@ -4713,7 +4687,10 @@ ScriptDataImpl* ParserApi::PreParse(Handle<String> source,
   Handle<Script> no_script;
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   CompleteParserRecorder recorder;
-  return DoPreParse(source, stream, allow_lazy, &recorder);
+  int kPreParseLiteralsFlags =
+      JavaScriptScanner::kLiteralString | JavaScriptScanner::kLiteralIdentifier;
+  return DoPreParse(source, stream, allow_lazy,
+                    &recorder, kPreParseLiteralsFlags);
 }
 
 

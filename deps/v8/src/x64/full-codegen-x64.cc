@@ -837,17 +837,21 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 }
 
 
-void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info) {
+void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
+                                       bool pretenure) {
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() && info->num_literals() == 0) {
+  if (scope()->is_function_scope() &&
+      info->num_literals() == 0 &&
+      !pretenure) {
     FastNewClosureStub stub;
     __ Push(info);
     __ CallStub(&stub);
   } else {
     __ push(rsi);
     __ Push(info);
-    __ CallRuntime(Runtime::kNewClosure, 2);
+    __ Push(pretenure ? Factory::true_value() : Factory::false_value());
+    __ CallRuntime(Runtime::kNewClosure, 3);
   }
   context()->Plug(rax);
 }
@@ -2792,6 +2796,11 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
   __ IndexFromHash(rax, rax);
 
   context()->Plug(rax);
+}
+
+
+void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
+  context()->Plug(Heap::kUndefinedValueRootIndex);
 }
 
 

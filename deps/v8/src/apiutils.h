@@ -58,6 +58,9 @@ class ImplementationUtilities {
   static v8::Arguments NewArguments(internal::Object** implicit_args,
                                     internal::Object** argv, int argc,
                                     bool is_construct_call) {
+    ASSERT(implicit_args[v8::Arguments::kCalleeIndex]->IsJSFunction());
+    ASSERT(implicit_args[v8::Arguments::kHolderIndex]->IsHeapObject());
+
     return v8::Arguments(implicit_args, argv, argc, is_construct_call);
   }
 

@@ -598,8 +598,8 @@ static void GenerateFastApiCall(MacroAssembler* masm,
                                 int argc) {
   // Get the function and setup the context.
   JSFunction* function = optimization.constant_function();
-  __ mov(r7, Operand(Handle<JSFunction>(function)));
-  __ ldr(cp, FieldMemOperand(r7, JSFunction::kContextOffset));
+  __ mov(r5, Operand(Handle<JSFunction>(function)));
+  __ ldr(cp, FieldMemOperand(r5, JSFunction::kContextOffset));
 
   // Pass the additional arguments FastHandleApiCall expects.
   bool info_loaded = false;
@@ -607,18 +607,18 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   if (Heap::InNewSpace(callback)) {
     info_loaded = true;
     __ Move(r0, Handle<CallHandlerInfo>(optimization.api_call_info()));
-    __ ldr(r6, FieldMemOperand(r0, CallHandlerInfo::kCallbackOffset));
+    __ ldr(r7, FieldMemOperand(r0, CallHandlerInfo::kCallbackOffset));
   } else {
-    __ Move(r6, Handle<Object>(callback));
+    __ Move(r7, Handle<Object>(callback));
   }
   Object* call_data = optimization.api_call_info()->data();
   if (Heap::InNewSpace(call_data)) {
     if (!info_loaded) {
       __ Move(r0, Handle<CallHandlerInfo>(optimization.api_call_info()));
     }
-    __ ldr(r5, FieldMemOperand(r0, CallHandlerInfo::kDataOffset));
+    __ ldr(r6, FieldMemOperand(r0, CallHandlerInfo::kDataOffset));
   } else {
-    __ Move(r5, Handle<Object>(call_data));
+    __ Move(r6, Handle<Object>(call_data));
   }
 
   __ add(sp, sp, Operand(1 * kPointerSize));
@@ -1082,10 +1082,9 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
 
   // Push the arguments on the JS stack of the caller.
   __ push(receiver);  // Receiver.
-  __ push(reg);  // Holder.
-  __ mov(ip, Operand(Handle<AccessorInfo>(callback)));  // callback data
-  __ ldr(reg, FieldMemOperand(ip, AccessorInfo::kDataOffset));
-  __ Push(ip, reg, name_reg);
+  __ mov(scratch3, Operand(Handle<AccessorInfo>(callback)));  // callback data
+  __ ldr(ip, FieldMemOperand(scratch3, AccessorInfo::kDataOffset));
+  __ Push(reg, ip, scratch3, name_reg);
 
   // Do tail-call to the runtime system.
   ExternalReference load_callback_property =
@@ -1208,15 +1207,15 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
       // holder_reg is either receiver or scratch1.
       if (!receiver.is(holder_reg)) {
         ASSERT(scratch1.is(holder_reg));
-        __ Push(receiver, holder_reg, scratch2);
-        __ ldr(scratch1,
-               FieldMemOperand(holder_reg, AccessorInfo::kDataOffset));
-        __ Push(scratch1, name_reg);
+        __ Push(receiver, holder_reg);
+        __ ldr(scratch3,
+               FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
+        __ Push(scratch3, scratch2, name_reg);
       } else {
         __ push(receiver);
-        __ ldr(scratch1,
-               FieldMemOperand(holder_reg, AccessorInfo::kDataOffset));
-        __ Push(holder_reg, scratch2, scratch1, name_reg);
+        __ ldr(scratch3,
+               FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
+        __ Push(holder_reg, scratch3, scratch2, name_reg);
       }
 
       ExternalReference ref =
@@ -1360,9 +1359,10 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- sp[argc * 4]           : receiver
   // -----------------------------------
-
-  // TODO(639): faster implementation.
 
   // If object is not an array, bail out to regular call.
   if (!object->IsJSArray() || cell != NULL) return Heap::undefined_value();
@@ -1371,20 +1371,133 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
   GenerateNameCheck(name, &miss);
 
+  Register receiver = r1;
+
   // Get the receiver from the stack
   const int argc = arguments().immediate();
-  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+  __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
 
   // Check that the receiver isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  __ BranchOnSmi(receiver, &miss);
 
   // Check that the maps haven't changed.
-  CheckPrototypes(JSObject::cast(object), r1, holder, r3, r0, r4, name, &miss);
+  CheckPrototypes(JSObject::cast(object), receiver,
+                  holder, r3, r0, r4, name, &miss);
 
-  __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPush),
-                               argc + 1,
-                               1);
+  if (argc == 0) {
+    // Nothing to do, just return the length.
+    __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+    __ Drop(argc + 1);
+    __ Ret();
+  } else {
+    Label call_builtin;
+
+    Register elements = r3;
+    Register end_elements = r5;
+
+    // Get the elements array of the object.
+    __ ldr(elements, FieldMemOperand(receiver, JSArray::kElementsOffset));
+
+    // Check that the elements are in fast mode and writable.
+    __ CheckMap(elements, r0,
+                Heap::kFixedArrayMapRootIndex, &call_builtin, true);
+
+    if (argc == 1) {  // Otherwise fall through to call the builtin.
+      Label exit, with_write_barrier, attempt_to_grow_elements;
+
+      // Get the array's length into r0 and calculate new length.
+      __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+      STATIC_ASSERT(kSmiTagSize == 1);
+      STATIC_ASSERT(kSmiTag == 0);
+      __ add(r0, r0, Operand(Smi::FromInt(argc)));
+
+      // Get the element's length.
+      __ ldr(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
+
+      // Check if we could survive without allocation.
+      __ cmp(r0, r4);
+      __ b(gt, &attempt_to_grow_elements);
+
+      // Save new length.
+      __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+      // Push the element.
+      __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
+      // We may need a register containing the address end_elements below,
+      // so write back the value in end_elements.
+      __ add(end_elements, elements,
+             Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+      const int kEndElementsOffset =
+          FixedArray::kHeaderSize - kHeapObjectTag - argc * kPointerSize;
+      __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
+
+      // Check for a smi.
+      __ BranchOnNotSmi(r4, &with_write_barrier);
+      __ bind(&exit);
+      __ Drop(argc + 1);
+      __ Ret();
+
+      __ bind(&with_write_barrier);
+      __ InNewSpace(elements, r4, eq, &exit);
+      __ RecordWriteHelper(elements, end_elements, r4);
+      __ Drop(argc + 1);
+      __ Ret();
+
+      __ bind(&attempt_to_grow_elements);
+      // r0: array's length + 1.
+      // r4: elements' length.
+
+      if (!FLAG_inline_new) {
+        __ b(&call_builtin);
+      }
+
+      ExternalReference new_space_allocation_top =
+          ExternalReference::new_space_allocation_top_address();
+      ExternalReference new_space_allocation_limit =
+          ExternalReference::new_space_allocation_limit_address();
+
+      const int kAllocationDelta = 4;
+      // Load top and check if it is the end of elements.
+      __ add(end_elements, elements,
+             Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+      __ add(end_elements, end_elements, Operand(kEndElementsOffset));
+      __ mov(r7, Operand(new_space_allocation_top));
+      __ ldr(r6, MemOperand(r7));
+      __ cmp(end_elements, r6);
+      __ b(ne, &call_builtin);
+
+      __ mov(r9, Operand(new_space_allocation_limit));
+      __ ldr(r9, MemOperand(r9));
+      __ add(r6, r6, Operand(kAllocationDelta * kPointerSize));
+      __ cmp(r6, r9);
+      __ b(hi, &call_builtin);
+
+      // We fit and could grow elements.
+      // Update new_space_allocation_top.
+      __ str(r6, MemOperand(r7));
+      // Push the argument.
+      __ ldr(r6, MemOperand(sp, (argc - 1) * kPointerSize));
+      __ str(r6, MemOperand(end_elements));
+      // Fill the rest with holes.
+      __ LoadRoot(r6, Heap::kTheHoleValueRootIndex);
+      for (int i = 1; i < kAllocationDelta; i++) {
+        __ str(r6, MemOperand(end_elements, i * kPointerSize));
+      }
+
+      // Update elements' and array's sizes.
+      __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+      __ add(r4, r4, Operand(Smi::FromInt(kAllocationDelta)));
+      __ str(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
+
+      // Elements are in new space, so write barrier is not required.
+      __ Drop(argc + 1);
+      __ Ret();
+    }
+    __ bind(&call_builtin);
+    __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPush),
+                                 argc + 1,
+                                 1);
+  }
 
   // Handle call cache miss.
   __ bind(&miss);
@@ -1406,28 +1519,68 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- sp[argc * 4]           : receiver
   // -----------------------------------
-
-  // TODO(642): faster implementation.
 
   // If object is not an array, bail out to regular call.
   if (!object->IsJSArray() || cell != NULL) return Heap::undefined_value();
 
-  Label miss;
+  Label miss, return_undefined, call_builtin;
+
+  Register receiver = r1;
+  Register elements = r3;
 
   GenerateNameCheck(name, &miss);
 
   // Get the receiver from the stack
   const int argc = arguments().immediate();
-  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+  __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
 
   // Check that the receiver isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  __ BranchOnSmi(receiver, &miss);
 
   // Check that the maps haven't changed.
-  CheckPrototypes(JSObject::cast(object), r1, holder, r3, r0, r4, name, &miss);
+  CheckPrototypes(JSObject::cast(object),
+                  receiver, holder, elements, r4, r0, name, &miss);
 
+  // Get the elements array of the object.
+  __ ldr(elements, FieldMemOperand(receiver, JSArray::kElementsOffset));
+
+  // Check that the elements are in fast mode and writable.
+  __ CheckMap(elements, r0, Heap::kFixedArrayMapRootIndex, &call_builtin, true);
+
+  // Get the array's length into r4 and calculate new length.
+  __ ldr(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  __ sub(r4, r4, Operand(Smi::FromInt(1)), SetCC);
+  __ b(lt, &return_undefined);
+
+  // Get the last element.
+  __ LoadRoot(r6, Heap::kTheHoleValueRootIndex);
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0);
+  // We can't address the last element in one operation. Compute the more
+  // expensive shift first, and use an offset later on.
+  __ add(elements, elements, Operand(r4, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r0, MemOperand(elements, FixedArray::kHeaderSize - kHeapObjectTag));
+  __ cmp(r0, r6);
+  __ b(eq, &call_builtin);
+
+  // Set the array's length.
+  __ str(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+  // Fill with the hole.
+  __ str(r6, MemOperand(elements, FixedArray::kHeaderSize - kHeapObjectTag));
+  __ Drop(argc + 1);
+  __ Ret();
+
+  __ bind(&return_undefined);
+  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+  __ Drop(argc + 1);
+  __ Ret();
+
+  __ bind(&call_builtin);
   __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPop),
                                argc + 1,
                                1);
@@ -2672,7 +2825,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   //  -- r1    : receiver
   // -----------------------------------
   Label miss;
-  __ IncrementCounter(&Counters::keyed_load_string_length, 1, r1, r3);
+  __ IncrementCounter(&Counters::keyed_load_string_length, 1, r2, r3);
 
   // Check the key is the cached one.
   __ cmp(r0, Operand(Handle<String>(name)));
@@ -2680,7 +2833,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
 
   GenerateLoadStringLength(masm(), r1, r2, r3, &miss);
   __ bind(&miss);
-  __ DecrementCounter(&Counters::keyed_load_string_length, 1, r1, r3);
+  __ DecrementCounter(&Counters::keyed_load_string_length, 1, r2, r3);
 
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
@@ -2688,13 +2841,23 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
 }
 
 
-// TODO(1224671): implement the fast case.
 MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
   //  -- r1    : receiver
   // -----------------------------------
+  Label miss;
+
+  __ IncrementCounter(&Counters::keyed_load_function_prototype, 1, r2, r3);
+
+  // Check the name hasn't changed.
+  __ cmp(r0, Operand(Handle<String>(name)));
+  __ b(ne, &miss);
+
+  GenerateLoadFunctionPrototype(masm(), r1, r2, r3, &miss);
+  __ bind(&miss);
+  __ DecrementCounter(&Counters::keyed_load_function_prototype, 1, r2, r3);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   return GetCode(CALLBACKS, name);

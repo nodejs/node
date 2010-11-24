@@ -882,12 +882,12 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Visit(stmt->body());
 
   // Check stack before looping.
+  __ bind(loop_statement.continue_target());
   __ StackLimitCheck(&stack_limit_hit);
   __ bind(&stack_check_success);
 
   // Record the position of the do while condition and make sure it is
   // possible to break on the condition.
-  __ bind(loop_statement.continue_target());
   SetExpressionPosition(stmt->cond(), stmt->condition_position());
   VisitForControl(stmt->cond(),
                   &body,
@@ -1168,14 +1168,14 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
     SetStackOverflow();
     return;
   }
-  EmitNewClosure(function_info);
+  EmitNewClosure(function_info, expr->pretenure());
 }
 
 
 void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
     SharedFunctionInfoLiteral* expr) {
   Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
-  EmitNewClosure(expr->shared_function_info());
+  EmitNewClosure(expr->shared_function_info(), false);
 }
 
 

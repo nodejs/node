@@ -449,7 +449,8 @@ class CodeGenerator: public AstVisitor {
   void DeclareGlobals(Handle<FixedArray> pairs);
 
   // Instantiate the function based on the shared function info.
-  void InstantiateFunction(Handle<SharedFunctionInfo> function_info);
+  void InstantiateFunction(Handle<SharedFunctionInfo> function_info,
+                           bool pretenure);
 
   // Support for type checks.
   void GenerateIsSmi(ZoneList<Expression*>* args);
@@ -528,6 +529,7 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateHasCachedArrayIndex(ZoneList<Expression*>* args);
   void GenerateGetCachedArrayIndex(ZoneList<Expression*>* args);
+  void GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args);
 
   // Simple condition analysis.
   enum ConditionAnalysis {

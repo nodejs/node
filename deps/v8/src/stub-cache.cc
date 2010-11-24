@@ -960,14 +960,11 @@ void StubCache::Clear() {
 MaybeObject* LoadCallbackProperty(Arguments args) {
   ASSERT(args[0]->IsJSObject());
   ASSERT(args[1]->IsJSObject());
-  AccessorInfo* callback = AccessorInfo::cast(args[2]);
+  AccessorInfo* callback = AccessorInfo::cast(args[3]);
   Address getter_address = v8::ToCData<Address>(callback->getter());
   v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
   ASSERT(fun != NULL);
-  CustomArguments custom_args(callback->data(),
-                              JSObject::cast(args[0]),
-                              JSObject::cast(args[1]));
-  v8::AccessorInfo info(custom_args.end());
+  v8::AccessorInfo info(&args[0]);
   HandleScope scope;
   v8::Handle<v8::Value> result;
   {

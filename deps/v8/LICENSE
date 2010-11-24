@@ -12,9 +12,6 @@ are:
     based on layout tests from webkit.org which are copyrighted by
     Apple Computer, Inc. and released under a 3-clause BSD license.
 
-  - Dtoa, located under third_party/dtoa.  This code is copyrighted by
-    David M. Gay and released under an MIT license.
-
   - Strongtalk assembler, the basis of the files assembler-arm-inl.h,
     assembler-arm.cc, assembler-arm.h, assembler-ia32-inl.h,
     assembler-ia32.cc, assembler-ia32.h, assembler.cc and assembler.h.

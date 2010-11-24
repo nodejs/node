@@ -927,10 +927,16 @@ class AllocatingRetainersIterator {
   void Call(const JSObjectsCluster& cluster,
             const NumberAndSizeInfo& number_and_size) {
     int child_index, retainer_index;
-    map_->CountReference(ClusterAsHeapObject(cluster), child_,
-                         &child_index, &retainer_index);
-    map_->Map(ClusterAsHeapObject(cluster))->SetElementReference(
-        child_index, number_and_size.number(), child_entry_, retainer_index);
+    map_->CountReference(ClusterAsHeapObject(cluster),
+                         child_,
+                         &child_index,
+                         &retainer_index);
+    map_->Map(ClusterAsHeapObject(cluster))->SetIndexedReference(
+        HeapGraphEdge::kElement,
+        child_index,
+        number_and_size.number(),
+        child_entry_,
+        retainer_index);
   }
 
  private:
@@ -1042,7 +1048,7 @@ void AggregatedHeapSnapshotGenerator::FillHeapSnapshot(HeapSnapshot* snapshot) {
     if (agg_snapshot_->info()[i].bytes() > 0) {
       AddEntryFromAggregatedSnapshot(snapshot,
                                      &root_child_index,
-                                     HeapEntry::kInternal,
+                                     HeapEntry::kHidden,
                                      agg_snapshot_->info()[i].name(),
                                      agg_snapshot_->info()[i].number(),
                                      agg_snapshot_->info()[i].bytes(),

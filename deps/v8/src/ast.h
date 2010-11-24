@@ -1416,7 +1416,8 @@ class FunctionLiteral: public Expression {
         contains_loops_(contains_loops),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(Heap::empty_string()),
-        try_full_codegen_(false) {
+        try_full_codegen_(false),
+        pretenure_(false) {
 #ifdef DEBUG
     already_compiled_ = false;
 #endif
@@ -1459,6 +1460,9 @@ class FunctionLiteral: public Expression {
   bool try_full_codegen() { return try_full_codegen_; }
   void set_try_full_codegen(bool flag) { try_full_codegen_ = flag; }
 
+  bool pretenure() { return pretenure_; }
+  void set_pretenure(bool value) { pretenure_ = value; }
+
 #ifdef DEBUG
   void mark_as_compiled() {
     ASSERT(!already_compiled_);
@@ -1482,6 +1486,7 @@ class FunctionLiteral: public Expression {
   int function_token_position_;
   Handle<String> inferred_name_;
   bool try_full_codegen_;
+  bool pretenure_;
 #ifdef DEBUG
   bool already_compiled_;
 #endif

@@ -326,6 +326,8 @@ class Vector {
     return start_[index];
   }
 
+  T& at(int i) const { return operator[](i); }
+
   T& first() { return start_[0]; }
 
   T& last() { return start_[length_ - 1]; }

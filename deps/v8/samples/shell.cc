@@ -37,6 +37,7 @@ bool ExecuteString(v8::Handle<v8::String> source,
                    v8::Handle<v8::Value> name,
                    bool print_result,
                    bool report_exceptions);
+v8::Handle<v8::Value> PrintToInteger(const v8::Arguments& args);
 v8::Handle<v8::Value> Print(const v8::Arguments& args);
 v8::Handle<v8::Value> Read(const v8::Arguments& args);
 v8::Handle<v8::Value> Load(const v8::Arguments& args);
@@ -53,7 +54,8 @@ int RunMain(int argc, char* argv[]) {
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   // Bind the global 'print' function to the C++ Print callback.
   global->Set(v8::String::New("print"), v8::FunctionTemplate::New(Print));
-  // Bind the global 'read' function to the C++ Read callback.
+global->Set(v8::String::New("print2int"), v8::FunctionTemplate::New(PrintToInteger));
+// Bind the global 'read' function to the C++ Read callback.
   global->Set(v8::String::New("read"), v8::FunctionTemplate::New(Read));
   // Bind the global 'load' function to the C++ Load callback.
   global->Set(v8::String::New("load"), v8::FunctionTemplate::New(Load));
@@ -133,6 +135,16 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
     printf("%s", cstr);
   }
   printf("\n");
+  fflush(stdout);
+  return v8::Undefined();
+}
+
+
+v8::Handle<v8::Value> PrintToInteger(const v8::Arguments& args) {
+  v8::HandleScope handle_scope;
+  v8::String::Utf8Value str(args[0]);
+  const char* cstr = ToCString(str);
+  printf("%s -> %d\n", cstr, args[0]->ToInt32()->Value());
   fflush(stdout);
   return v8::Undefined();
 }
