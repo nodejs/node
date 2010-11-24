@@ -33,4 +33,7 @@ cdash: $(BUILD)/Makefile
 cdash-cov: $(BUILD)/Makefile
 	cd $(BUILD) && $(CMAKE) -DUSE_GCOV=True .. && make Experimental
 
-.PHONY: build install clean doc package test cdash cdash-cov
+cdash-mem: $(BUILD)/Makefile
+	cd $(BUILD) && make NightlyMemoryCheck
+
+.PHONY: build install clean doc package test cdash cdash-cov cdash-mem
