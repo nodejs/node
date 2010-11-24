@@ -28,6 +28,10 @@
 #ifndef V8_UTILS_H_
 #define V8_UTILS_H_
 
+#ifdef __MINGW32__
+#include <stdarg.h>
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 
