@@ -30,6 +30,10 @@ To submit test results (see http://my.cdash.org/index.php?project=node):
 
   make -f Makefile.cmake cdash
 
+To submit coverage test results:
+
+  make -f Makefile.cmake cdash-cov
+
 Using cmake directly:
   cd ~/your-node-source-dir
   mkdir name-of-build-dir     (can be anything)

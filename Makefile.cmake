@@ -30,4 +30,7 @@ test: $(BUILD)/Makefile
 cdash: $(BUILD)/Makefile
 	cd $(BUILD) && make Experimental
 
-.PHONY: build install clean doc package test cdash
+cdash-cov: $(BUILD)/Makefile
+	cd $(BUILD) && $(CMAKE) -DUSE_GCOV=True .. && make Experimental
+
+.PHONY: build install clean doc package test cdash cdash-cov
