@@ -1,5 +1,6 @@
 #include "node.h"
 #include "platform.h"
+#include "platform_win32.h"
 
 #include <sys/param.h> // for MAXPATHLEN
 #include <unistd.h> // getpagesize
@@ -13,7 +14,7 @@ static char *process_title = NULL;
 
 
 // Does the about the same as perror(), but for windows api functions
-static void _winapi_perror(const char* prefix = NULL) {
+void winapi_perror(const char* prefix = NULL) {
   DWORD errno = GetLastError();
   char *errmsg;
 
@@ -50,7 +51,7 @@ void OS::SetProcessTitle(char *title) {
   // Find out how big the buffer for the wide-char title must be
   length = MultiByteToWideChar(CP_UTF8, 0, title, -1, NULL, 0);
   if (!length) {
-    _winapi_perror("MultiByteToWideChar");
+    winapi_perror("MultiByteToWideChar");
     return;
   }
 
@@ -58,7 +59,7 @@ void OS::SetProcessTitle(char *title) {
   title_w = new WCHAR[length];
   length = MultiByteToWideChar(CP_UTF8, 0, title, -1, title_w, length);
   if (!length) {
-    _winapi_perror("MultiByteToWideChar");
+    winapi_perror("MultiByteToWideChar");
     delete title_w;
     return;
   };
@@ -69,7 +70,7 @@ void OS::SetProcessTitle(char *title) {
   }
 
   if (!SetConsoleTitleW(title_w)) {
-    _winapi_perror("SetConsoleTitleW");
+    winapi_perror("SetConsoleTitleW");
   }
 
   free(process_title);
@@ -89,7 +90,7 @@ static inline char* _getProcessTitle() {
   // If length is zero, there may be an error or the title may be empty
   if (!length_w) {
     if (GetLastError()) {
-      _winapi_perror("GetConsoleTitleW");
+      winapi_perror("GetConsoleTitleW");
       return NULL;
     }
     else {
@@ -105,7 +106,7 @@ static inline char* _getProcessTitle() {
   title_w = new WCHAR[length_w];
 
   if (!GetConsoleTitleW(title_w, length_w * sizeof(WCHAR))) {
-    _winapi_perror("GetConsoleTitleW");
+    winapi_perror("GetConsoleTitleW");
     delete title_w;
     return NULL;
   }
@@ -113,7 +114,7 @@ static inline char* _getProcessTitle() {
   // Find out what the size of the buffer is that we need
   length = WideCharToMultiByte(CP_UTF8, 0, title_w, length_w, NULL, 0, NULL, NULL);
   if (!length) {
-    _winapi_perror("WideCharToMultiByte");
+    winapi_perror("WideCharToMultiByte");
     delete title_w;
     return NULL;
   }
@@ -127,7 +128,7 @@ static inline char* _getProcessTitle() {
 
   // Do utf16 -> utf8 conversion here
   if (!WideCharToMultiByte(CP_UTF8, 0, title_w, -1, title, length, NULL, NULL)) {
-    _winapi_perror("WideCharToMultiByte");
+    winapi_perror("WideCharToMultiByte");
     delete title_w;
     free(title);
     return NULL;
