@@ -176,7 +176,7 @@ void Buffer::Replace(char *data, size_t length,
   if (callback_) {
     callback_(data_, callback_hint_);
   } else if (length_) {
-    delete data_;
+    delete [] data_;
     V8::AdjustAmountOfExternalAllocatedMemory(-(sizeof(Buffer) + length_));
   }
 
