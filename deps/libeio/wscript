@@ -11,10 +11,12 @@ def configure(conf):
 
   conf.check(lib='pthread', uselib_store='PTHREAD')
   conf.check_cc(lib="pthread", header_name="pthread.h", function_name="pthread_create", mandatory=True)
-  if not sys.platform.startswith("cygwin"):
-    conf.check_cc(lib="pthread", header_name="pthread.h", function_name="pthread_atfork", mandatory=True)
-  else:
+  if sys.platform.startswith("cygwin"):
     conf.check_cc(lib="pthread", header_name="unistd.h", function_name="pthread_atfork", mandatory=True)
+  elif sys.platform.startswith("win32"):
+    conf.check_cc(lib="pthread", header_name="pthread.h", function_name="pthread_atfork")
+  else:
+    conf.check_cc(lib="pthread", header_name="pthread.h", function_name="pthread_atfork", mandatory=True)
 
   conf.check_cc(msg="Checking for futimes(2)", define_name="HAVE_FUTIMES", fragment="""
     #include <sys/types.h>
