@@ -12,50 +12,51 @@ var key = fs.readFileSync(join(common.fixturesDir, "agent.key")).toString();
 var cert = fs.readFileSync(join(common.fixturesDir, "agent.crt")).toString();
 
 function log (a) {
-  console.log('***server*** ' + a);
+  console.error('***server*** ' + a);
 }
 
 var server = net.createServer(function (socket) {
   connections++;
-  log('connection');
+  log('connection fd=' + socket.fd);
   var sslcontext = crypto.createCredentials({key: key, cert: cert});
   sslcontext.context.setCiphers('RC4-SHA:AES128-SHA:AES256-SHA');
 
-  var spair = crypto.createPair(sslcontext, true);
+  var pair = crypto.createPair(sslcontext, true);
 
-  spair.encrypted.pipe(socket);
-  socket.pipe(spair.encrypted);
+  assert.ok(pair.encrypted.writable);
+  assert.ok(pair.cleartext.writable);
 
-  var clear = spair.cleartext;
+  pair.encrypted.pipe(socket);
+  socket.pipe(pair.encrypted);
 
   log('i set it secure');
 
-  spair.on('secure', function () {
+  pair.on('secure', function () {
     log('connected+secure!');
-    clear.write(new Buffer('hello\r\n'));
-    log(spair.getPeerCertificate());
-    log(spair.getCipher());
+    pair.cleartext.write('hello\r\n');
+    log(pair.getPeerCertificate());
+    log(pair.getCipher());
   });
 
-  clear.on('data', function (data) {
-    log('read %d bytes', data.length);
-    clear.write(data);
+  pair.cleartext.on('data', function (data) {
+    log('read bytes ' + data.length);
+    pair.cleartext.write(data);
   });
 
-  socket.on('end', function (err) {
-    log('all done: '+ err);
-    clear.write(new Buffer('goodbye\r\n'));
-    clear.end();
+  socket.on('end', function () {
+    log('socket end');
+    pair.cleartext.write('goodbye\r\n');
+    pair.cleartext.end();
   });
 
-  clear.on('error', function(err) {
+  pair.cleartext.on('error', function(err) {
     log('got error: ');
     log(err);
     log(err.stack);
     socket.destroy();
   });
 
-  spair.encrypted.on('error', function(err) {
+  pair.encrypted.on('error', function(err) {
     log('encrypted error: ');
     log(err);
     log(err.stack);
@@ -69,7 +70,11 @@ var server = net.createServer(function (socket) {
     socket.destroy();
   });
 
-  spair.on('error', function(err) {
+  socket.on('close', function(err) {
+    log('socket closed');
+  });
+
+  pair.on('error', function(err) {
     log('secure error: ');
     log(err);
     log(err.stack);
