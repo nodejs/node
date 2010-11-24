@@ -85,7 +85,7 @@ static inline char* _getProcessTitle() {
   char *title;
   int length, length_w;
 
-  length_w = GetConsoleTitleW(L"\0", sizeof(WCHAR));
+  length_w = GetConsoleTitleW((WCHAR*)L"\0", sizeof(WCHAR));
 
   // If length is zero, there may be an error or the title may be empty
   if (!length_w) {
