@@ -151,6 +151,8 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
   for (i = 0; i < argv_length; i++) free(argv[i]);
   delete [] argv;
 
+  free(cwd);
+
   for (i = 0; i < envc; i++) free(env[i]);
   delete [] env;
 
