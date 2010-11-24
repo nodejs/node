@@ -810,7 +810,7 @@ int eio_poll (void)
 # define pread  eio__pread
 # define pwrite eio__pwrite
 
-static ssize_t
+ssize_t
 eio__pread (int fd, void *buf, size_t count, off_t offset)
 {
   ssize_t res;
@@ -826,7 +826,7 @@ eio__pread (int fd, void *buf, size_t count, off_t offset)
   return res;
 }
 
-static ssize_t
+ssize_t
 eio__pwrite (int fd, void *buf, size_t count, off_t offset)
 {
   ssize_t res;

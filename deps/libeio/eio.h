@@ -332,6 +332,14 @@ void eio_destroy (eio_req *req);
 
 ssize_t eio_sendfile_sync (int ofd, int ifd, off_t offset, size_t count);
 
+/*****************************************************************************/
+/* export these so node_file can use these function instead of pread/write */
+
+#if !HAVE_PREADWRITE
+ssize_t eio__pread (int fd, void *buf, size_t count, off_t offset);
+ssize_t eio__pwrite (int fd, void *buf, size_t count, off_t offset);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
