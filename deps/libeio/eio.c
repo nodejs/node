@@ -42,9 +42,11 @@
 #ifdef EIO_STACKSIZE
 # define XTHREAD_STACKSIZE EIO_STACKSIZE
 #endif
-#ifdef _WIN32
-# define PTW32_STATIC_LIB 1
-#endif
+
+// For statically-linked pthreads-w32, use:
+// #ifdef _WIN32
+// # define PTW32_STATIC_LIB 1
+// #endif
 #include "xthread.h"
 
 #include <errno.h>
