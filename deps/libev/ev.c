@@ -1289,7 +1289,11 @@ evpipe_write (EV_P_ EV_ATOMIC_T *flag)
         /* so when you think this write should be a send instead, please find out */
         /* where your send() is from - it's definitely not the microsoft send, and */
         /* tell me. thank you. */
+#ifdef __MINGW32__
+        send(EV_FD_TO_WIN32_HANDLE(evpipe [1]), &dummy, 1, 0);
+#else
         write (evpipe [1], &dummy, 1);
+#endif
 
       errno = old_errno;
     }
@@ -1313,7 +1317,11 @@ pipecb (EV_P_ ev_io *iow, int revents)
     {
       char dummy;
       /* see discussion in evpipe_write when you think this read should be recv in win32 */
+#ifdef __MINGW32__
+      recv(EV_FD_TO_WIN32_HANDLE(evpipe [0]), &dummy, 1, 0);
+#else
       read (evpipe [0], &dummy, 1);
+#endif
     }
 
   if (sig_pending)
