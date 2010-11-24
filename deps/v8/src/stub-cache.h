@@ -762,6 +762,11 @@ class CallOptimization BASE_EMBEDDED {
   }
 
   bool is_simple_api_call() const {
+    // As of V8 2.6.8 simple api call optimization causes segfaults on MINGW
+    // Disable it until this gets resolved
+#ifdef __MINGW32__
+    return false;
+#endif
     return is_simple_api_call_;
   }
 
