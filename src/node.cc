@@ -925,26 +925,24 @@ ssize_t DecodeWrite(char *buf,
   return buflen;
 }
 
-// Extracts a C str from a V8 Utf8Value.
-const char* ToCString(const v8::String::Utf8Value& value) {
-  return *value ? *value : "<str conversion failed>";
-}
 
-static void ReportException(TryCatch &try_catch, bool show_line) {
+void DisplayExceptionLine (TryCatch &try_catch) {
+  HandleScope scope;
+
   Handle<Message> message = try_catch.Message();
 
   node::Stdio::DisableRawMode(STDIN_FILENO);
   fprintf(stderr, "\n");
 
-  if (show_line && !message.IsEmpty()) {
+  if (!message.IsEmpty()) {
     // Print (filename):(line number): (message).
     String::Utf8Value filename(message->GetScriptResourceName());
-    const char* filename_string = ToCString(filename);
+    const char* filename_string = *filename;
     int linenum = message->GetLineNumber();
     fprintf(stderr, "%s:%i\n", filename_string, linenum);
     // Print line of source code.
     String::Utf8Value sourceline(message->GetSourceLine());
-    const char* sourceline_string = ToCString(sourceline);
+    const char* sourceline_string = *sourceline;
 
     // HACK HACK HACK
     //
@@ -978,6 +976,14 @@ static void ReportException(TryCatch &try_catch, bool show_line) {
     }
     fprintf(stderr, "\n");
   }
+}
+
+
+static void ReportException(TryCatch &try_catch, bool show_line) {
+  HandleScope scope;
+  Handle<Message> message = try_catch.Message();
+
+  if (show_line) DisplayExceptionLine(try_catch);
 
   String::Utf8Value trace(try_catch.StackTrace());
 

@@ -234,8 +234,9 @@ template <node::Script::EvalInputFlags iFlag,
     script = oFlag == returnResult ? v8::Script::Compile(code, filename)
                                    : v8::Script::New(code, filename);
     if (script.IsEmpty()) {
-      // FIXME HACK TO DISPLAY SYNTAX ERRORS.
-      FatalException(try_catch);
+      // FIXME UGLY HACK TO DISPLAY SYNTAX ERRORS.
+      DisplayExceptionLine(try_catch);
+
       // Hack because I can't get a proper stacktrace on SyntaxError
       return try_catch.ReThrow();
     }
