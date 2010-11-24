@@ -47,6 +47,11 @@ extern "C" {
 #include <stddef.h>
 #include <sys/types.h>
 
+#ifdef _WIN32
+# define uid_t int
+# define gid_t int
+#endif
+
 typedef struct eio_req    eio_req;
 typedef struct eio_dirent eio_dirent;
 

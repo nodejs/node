@@ -16,7 +16,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #ifdef _WIN32
-typedef int ssize_t;
+
+#ifndef __MINGW32__
+typedef int ssize_t
+#endif
 
 #define NTDDI_VERSION NTDDI_WIN2K // needed to get win2000 api calls
 #define _WIN32_WINNT 0x400
@@ -27,7 +30,7 @@ typedef int ssize_t;
 #include <winsock2.h>
 #include <process.h>
 #include <windows.h>
-#include <pthread.h>
+#include "pthread.h"
 #define sigset_t int
 #define sigfillset(a)
 #define pthread_sigmask(a,b,c)
