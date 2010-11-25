@@ -2,6 +2,7 @@
 #include "platform.h"
 #include "platform_win32.h"
 
+#include <errno.h> // for MAXPATHLEN
 #include <sys/param.h> // for MAXPATHLEN
 #include <unistd.h> // getpagesize
 #include <windows.h>
