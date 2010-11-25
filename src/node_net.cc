@@ -8,18 +8,23 @@
 #include <stdlib.h>
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <arpa/inet.h> /* inet_pton */
 
-#include <netdb.h>
+#ifdef __MINGW32__
+# include <winsock2.h>
 
-#include <netinet/in.h>
-#include <netinet/tcp.h>
+#else // __POSIX__
+# include <sys/ioctl.h>
+# include <sys/socket.h>
+# include <sys/un.h>
 
-#include <sys/ioctl.h>
+# include <arpa/inet.h> /* inet_pton */
+
+# include <netdb.h>
+# include <netinet/in.h>
+# include <netinet/tcp.h>
+#endif
 
 #ifdef __linux__
 # include <linux/sockios.h> /* For the SIOCINQ / FIONREAD ioctl */
