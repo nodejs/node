@@ -13,6 +13,7 @@
 
 #ifdef __MINGW32__
 # include <winsock2.h>
+# include <ws2tcpip.h>
 
 #else // __POSIX__
 # include <sys/ioctl.h>
@@ -162,6 +163,8 @@ static Handle<Value> SocketPair(const Arguments& args) {
   return scope.Close(a);
 }
 
+#endif
+
 
 // Creates a new non-blocking socket fd
 // t.socket("TCP");
@@ -219,7 +222,11 @@ static Handle<Value> Socket(const Arguments& args) {
     }
   }
 
+#ifdef __POSIX__
   int fd = socket(domain, type, 0);
+#else // __MINGW32__
+  int fd = _open_osfhandle(socket(domain, type, 0), 0);
+#endif
 
   if (fd < 0) return ThrowException(ErrnoException(errno, "socket"));
 
@@ -250,9 +257,14 @@ static socklen_t addrlen;
 static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
                                              Handle<Value> second,
                                              bool is_bind) {
+#ifdef __POSIX__ // No unix sockets on windows
   static struct sockaddr_un un;
+#endif
   static struct sockaddr_in in;
   static struct sockaddr_in6 in6;
+
+#ifdef __POSIX__ // No unix sockets on windows
+  static struct sockaddr_un un;
 
   if (first->IsString() && !second->IsString()) {
     // UNIX
@@ -270,6 +282,11 @@ static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
     addrlen = sizeof(un) - sizeof(un.sun_path) + path.length() + 1;
 
   } else {
+#else // __MINGW32__
+  if (first->IsString() && !second->IsString()) {
+    return ErrnoException(errno, "ParseAddressArgs", "Unix sockets are not supported on windows");
+  } else {
+#endif
     // TCP or UDP
     memset(&in, 0, sizeof in);
     memset(&in6, 0, sizeof in6);
@@ -321,9 +338,13 @@ static Handle<Value> Bind(const Arguments& args) {
   if (!error.IsEmpty()) return ThrowException(error);
 
   int flags = 1;
+#ifdef __POSIX__
   setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags));
-
   int r = bind(fd, addr, addrlen);
+#else // __MINGW32__
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&flags, sizeof(flags));
+  int r = bind(_get_osfhandle(fd), addr, addrlen);
+#endif
 
   if (r < 0) {
     return ThrowException(ErrnoException(errno, "bind"));
@@ -331,8 +352,6 @@ static Handle<Value> Bind(const Arguments& args) {
 
   return Undefined();
 }
-
-#endif // __POSIX__
 
 
 static Handle<Value> Close(const Arguments& args) {
@@ -414,6 +433,11 @@ static Handle<Value> Connect(const Arguments& args) {
   return Undefined();
 }
 
+#endif // __POSIX__
+
+
+#ifdef __POSIX__
+
 #define ADDRESS_TO_JS(info, address_storage) \
 do { \
   char ip[INET6_ADDRSTRLEN]; \
@@ -445,6 +469,37 @@ do { \
   } \
 } while (0)
 
+#else // __MINGW32__
+
+#define ADDRESS_TO_JS(info, address_storage) \
+do { \
+  char ip[INET6_ADDRSTRLEN]; \
+  int port; \
+  struct sockaddr_in *a4; \
+  struct sockaddr_in6 *a6; \
+  switch ((address_storage).ss_family) { \
+    case AF_INET6: \
+      a6 = (struct sockaddr_in6*)&(address_storage); \
+      inet_ntop(AF_INET6, &(a6->sin6_addr), ip, INET6_ADDRSTRLEN); \
+      port = ntohs(a6->sin6_port); \
+      (info)->Set(address_symbol, String::New(ip)); \
+      (info)->Set(port_symbol, Integer::New(port)); \
+      break; \
+    case AF_INET: \
+      a4 = (struct sockaddr_in*)&(address_storage); \
+      inet_ntop(AF_INET, &(a4->sin_addr), ip, INET6_ADDRSTRLEN); \
+      port = ntohs(a4->sin_port); \
+      (info)->Set(address_symbol, String::New(ip)); \
+      (info)->Set(port_symbol, Integer::New(port)); \
+      break; \
+    default: \
+      (info)->Set(address_symbol, String::Empty()); \
+  } \
+} while (0)
+
+#endif // __MINGW32__
+
+#ifdef __POSIX__
 
 static Handle<Value> GetSockName(const Arguments& args) {
   HandleScope scope;
@@ -489,6 +544,8 @@ static Handle<Value> GetPeerName(const Arguments& args) {
   return scope.Close(info);
 }
 
+#endif // __POSIX__
+
 
 static Handle<Value> Listen(const Arguments& args) {
   HandleScope scope;
@@ -496,7 +553,7 @@ static Handle<Value> Listen(const Arguments& args) {
   FD_ARG(args[0])
   int backlog = args[1]->IsInt32() ? args[1]->Int32Value() : 128;
 
-  if (0 > listen(fd, backlog)) {
+  if (0 > listen(_get_osfhandle(fd), backlog)) {
     return ThrowException(ErrnoException(errno, "listen"));
   }
 
@@ -522,12 +579,23 @@ static Handle<Value> Accept(const Arguments& args) {
   struct sockaddr_storage address_storage;
   socklen_t len = sizeof(struct sockaddr_storage);
 
+#ifdef __POSIX__
   int peer_fd = accept(fd, (struct sockaddr*) &address_storage, &len);
 
   if (peer_fd < 0) {
     if (errno == EAGAIN) return scope.Close(Null());
     return ThrowException(ErrnoException(errno, "accept"));
   }
+#else // __MINGW32__
+  int peer_handle = accept(_get_osfhandle(fd), (struct sockaddr*) &address_storage, &len);
+
+  if (peer_handle == INVALID_SOCKET) {
+     if (WSAGetLastError() == WSAEWOULDBLOCK) return scope.Close(Null());
+    return ThrowException(ErrnoException(errno, "accept"));
+  }
+
+  int peer_fd = _open_osfhandle(peer_handle, 0);
+#endif // __MINGW32__
 
   if (!SetSockFlags(peer_fd)) {
     int fcntl_errno = errno;
@@ -544,6 +612,8 @@ static Handle<Value> Accept(const Arguments& args) {
   return scope.Close(peer_info);
 }
 
+
+#ifdef __POSIX__
 
 static Handle<Value> SocketError(const Arguments& args) {
   HandleScope scope;
@@ -1352,10 +1422,9 @@ void InitNet(Handle<Object> target) {
   recv_msg_template =
       Persistent<FunctionTemplate>::New(FunctionTemplate::New(RecvMsg));
   target->Set(String::NewSymbol("recvMsg"), recv_msg_template->GetFunction());
-
-  NODE_SET_METHOD(target, "socket", Socket);
 #endif //__POSIX__
 
+  NODE_SET_METHOD(target, "socket", Socket);
   NODE_SET_METHOD(target, "close", Close);
 
 #ifdef __POSIX__
@@ -1364,9 +1433,13 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "socketpair", SocketPair);
 
   NODE_SET_METHOD(target, "connect", Connect);
+#endif // __POSIX__
+
   NODE_SET_METHOD(target, "bind", Bind);
   NODE_SET_METHOD(target, "listen", Listen);
   NODE_SET_METHOD(target, "accept", Accept);
+
+#ifdef __POSIX__
   NODE_SET_METHOD(target, "socketError", SocketError);
   NODE_SET_METHOD(target, "toRead", ToRead);
   NODE_SET_METHOD(target, "setNoDelay", SetNoDelay);
