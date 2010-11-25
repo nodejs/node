@@ -40,6 +40,21 @@
 #include <sys/uio.h>
 #endif
 
+/*
+ * HACK to use inet_pton/inet_ntop from c-ares because mingw32 doesn't have it /*
+ * This trick is used in node_ares.cc as well
+ * TODO fixme
+ */
+#ifdef __MINGW32__
+  extern "C" {
+#   include <inet_net_pton.h>
+#   include <inet_ntop.h>
+  }
+
+# define inet_pton ares_inet_pton
+# define inet_ntop ares_inet_ntop
+#endif
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
 
