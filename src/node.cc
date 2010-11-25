@@ -96,6 +96,10 @@ static ev_async eio_want_poll_notifier;
 static ev_async eio_done_poll_notifier;
 static ev_idle  eio_poller;
 
+#ifdef __MINGW32__
+WSAData winsockData;
+#endif
+
 // Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
 // scoped at file-level rather than method-level to avoid excess stack usage.
 static char getbuf[PATH_MAX + 1];
@@ -1919,6 +1923,13 @@ int Start(int argc, char *argv[]) {
   RegisterSignalHandler(SIGINT, SignalExit);
   RegisterSignalHandler(SIGTERM, SignalExit);
 
+#ifdef __MINGW32__
+  // On windows, to use winsock it must be initialized
+  WORD winsockVersion = MAKEWORD(2, 2);
+  if (WSAStartup(winsockVersion, &winsockData)) {
+    winapi_perror("WSAStartup");
+  }
+#endif // __MINGW32__
 
   // Initialize the default ev loop.
 #if defined(__sun)
