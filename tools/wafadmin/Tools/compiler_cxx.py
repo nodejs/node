@@ -8,7 +8,7 @@ import Utils, Configure, Options
 from Logs import debug
 
 cxx_compiler = {
-'win32':  ['msvc', 'g++'],
+'win32':  ['g++'],
 'cygwin': ['g++'],
 'darwin': ['g++'],
 'aix':    ['xlc++', 'g++'],

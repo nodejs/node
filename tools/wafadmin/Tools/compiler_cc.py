@@ -8,7 +8,7 @@ import Utils, Configure, Options
 from Logs import debug
 
 c_compiler = {
-	'win32':  ['msvc', 'gcc'],
+	'win32':  ['gcc'],
 	'cygwin': ['gcc'],
 	'darwin': ['gcc'],
 	'aix':    ['xlc', 'gcc'],
