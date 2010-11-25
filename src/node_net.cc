@@ -68,9 +68,14 @@ static Persistent<FunctionTemplate> recv_msg_template;
           String::New("Bad file descriptor argument"))); \
   }
 
+
+#ifdef __POSIX__
+
 static inline bool SetCloseOnExec(int fd) {
   return (fcntl(fd, F_SETFD, FD_CLOEXEC) != -1);
 }
+
+#endif // __POSIX__
 
 
 static inline bool SetNonBlock(int fd) {
@@ -96,6 +101,8 @@ static inline bool SetSockFlags(int fd) {
 }
 
 
+#ifdef __POSIX__
+
 // Creates nonblocking pipe
 static Handle<Value> Pipe(const Arguments& args) {
   HandleScope scope;
@@ -115,7 +122,6 @@ static Handle<Value> Pipe(const Arguments& args) {
   a->Set(Integer::New(1), Integer::New(fds[1]));
   return scope.Close(a);
 }
-
 
 // Creates nonblocking socket pair
 static Handle<Value> SocketPair(const Arguments& args) {
@@ -311,6 +317,8 @@ static Handle<Value> Bind(const Arguments& args) {
   return Undefined();
 }
 
+#endif // __POSIX__
+
 
 static Handle<Value> Close(const Arguments& args) {
   HandleScope scope;
@@ -324,6 +332,8 @@ static Handle<Value> Close(const Arguments& args) {
   return Undefined();
 }
 
+
+#ifdef __POSIX__
 
 // t.shutdown(fd, "read");      -- SHUT_RD
 // t.shutdown(fd, "write");     -- SHUT_WR
@@ -535,6 +545,8 @@ static Handle<Value> SocketError(const Arguments& args) {
   return scope.Close(Integer::New(error));
 }
 
+#endif // __POSIX__
+
 
 //  var bytesRead = t.read(fd, buffer, offset, length);
 //  returns null on EAGAIN or EINTR, raises an exception on all other errors
@@ -579,6 +591,8 @@ static Handle<Value> Read(const Arguments& args) {
 
   return scope.Close(Integer::New(bytes_read));
 }
+
+#ifdef __POSIX__
 
 //  var info = t.recvfrom(fd, buffer, offset, length, flags);
 //    info.size // bytes read
@@ -736,6 +750,8 @@ static Handle<Value> RecvMsg(const Arguments& args) {
   return scope.Close(Integer::New(bytes_read));
 }
 
+#endif // __POSIX__
+
 
 //  var bytesWritten = t.write(fd, buffer, offset, length);
 //  returns null on EAGAIN or EINTR, raises an exception on all other errors
@@ -782,6 +798,8 @@ static Handle<Value> Write(const Arguments& args) {
   return scope.Close(Integer::New(written));
 }
 
+
+#ifdef __POSIX__
 
 // var bytes = sendmsg(fd, buf, off, len, fd, flags);
 //
@@ -1301,6 +1319,8 @@ static Handle<Value> CreateErrnoException(const Arguments& args) {
   return scope.Close(exception);
 }
 
+#endif // __POSIX__
+
 
 void InitNet(Handle<Object> target) {
   HandleScope scope;
@@ -1308,6 +1328,7 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "write", Write);
   NODE_SET_METHOD(target, "read", Read);
 
+#ifdef __POSIX__
   NODE_SET_METHOD(target, "sendMsg", SendMsg);
   NODE_SET_METHOD(target, "recvfrom", RecvFrom);
   NODE_SET_METHOD(target, "sendto", SendTo);
@@ -1317,7 +1338,11 @@ void InitNet(Handle<Object> target) {
   target->Set(String::NewSymbol("recvMsg"), recv_msg_template->GetFunction());
 
   NODE_SET_METHOD(target, "socket", Socket);
+#endif //__POSIX__
+
   NODE_SET_METHOD(target, "close", Close);
+
+#ifdef __POSIX__
   NODE_SET_METHOD(target, "shutdown", Shutdown);
   NODE_SET_METHOD(target, "pipe", Pipe);
   NODE_SET_METHOD(target, "socketpair", SocketPair);
@@ -1337,6 +1362,7 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
   NODE_SET_METHOD(target, "isIP", IsIP);
   NODE_SET_METHOD(target, "errnoException", CreateErrnoException);
+#endif // __POSIX__
 
   errno_symbol          = NODE_PSYMBOL("errno");
   syscall_symbol        = NODE_PSYMBOL("syscall");
