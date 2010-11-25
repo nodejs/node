@@ -518,7 +518,11 @@ static Handle<Value> MKDir(const Arguments& args) {
   if (args[2]->IsFunction()) {
     ASYNC_CALL(mkdir, args[2], *path, mode)
   } else {
+#ifdef __MINGW32__
+    int ret = mkdir(*path);
+#else
     int ret = mkdir(*path, mode);
+#endif
     if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
     return Undefined();
   }
