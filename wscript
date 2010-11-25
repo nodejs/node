@@ -356,6 +356,10 @@ def configure(conf):
   # platform
   conf.env.append_value('CPPFLAGS', '-DPLATFORM="' + conf.env['DEST_OS'] + '"')
 
+  # posix?
+  if not sys.platform.startswith('win'):
+    conf.env.append_value('CPPFLAGS', '-D__POSIX__=1')
+
   platform_file = "src/platform_%s.cc" % conf.env['DEST_OS']
   if os.path.exists(join(cwd, platform_file)):
     Options.options.platform_file = True
