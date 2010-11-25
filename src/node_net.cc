@@ -96,7 +96,7 @@ static inline bool SetCloseOnExec(int fd) {
 static inline bool SetNonBlock(int fd) {
 #ifdef __MINGW32__
   unsigned long value = 1;
-  return (ioctlsocket(fd, FIONBIO, &value));
+  return (ioctlsocket(_get_osfhandle(fd), FIONBIO, &value) == 0);
 #else // __POSIX__
   return (fcntl(fd, F_SETFL, O_NONBLOCK) != -1);
 #endif
@@ -106,7 +106,7 @@ static inline bool SetNonBlock(int fd) {
 static inline bool SetSockFlags(int fd) {
 #ifdef __MINGW32__
   int flags = 1;
-  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char *)&flags, sizeof(flags));
+  setsockopt(_get_osfhandle(fd), SOL_SOCKET, SO_REUSEADDR, (const char *)&flags, sizeof(flags));
   return SetNonBlock(fd);
 #else // __POSIX__
   int flags = 1;
@@ -340,6 +340,7 @@ static Handle<Value> Close(const Arguments& args) {
 
   FD_ARG(args[0])
 
+  // Windows: don't use _get_osfhandle here!
   if (0 > close(fd)) {
     return ThrowException(ErrnoException(errno, "close"));
   }
