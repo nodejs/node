@@ -688,7 +688,10 @@ const char *signo_string(int signo) {
 #endif
 
   SIGNO_CASE(SIGTERM);
+
+#ifdef SIGCHLD
   SIGNO_CASE(SIGCHLD);
+#endif
 
 #ifdef SIGSTKFLT
   SIGNO_CASE(SIGSTKFLT);
