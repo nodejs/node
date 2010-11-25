@@ -5,11 +5,18 @@
 #include <ares.h>
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
 
-#include <arpa/nameser.h>
-#include <arpa/inet.h>
+#ifdef __POSIX__
+# include <sys/socket.h>
+# include <netdb.h>
+
+# include <arpa/nameser.h>
+# include <arpa/inet.h>
+#endif
+
+#ifdef __MINGW32__
+# include <nameser.h>
+#endif
 
 #ifdef __OpenBSD__
 # ifndef ns_t_a
