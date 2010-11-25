@@ -24,6 +24,18 @@
 # endif
 #endif  // __OpenBSD__
 
+/* HACK to use inet_pton/inet_ntop from c-ares because mingw32 doesn't have it /*
+/* TODO fixme */
+#ifdef __MINGW32__
+  extern "C" {
+#   include <inet_net_pton.h>
+#   include <inet_ntop.h>
+  }
+
+# define inet_pton ares_inet_pton
+# define inet_ntop ares_inet_ntop
+#endif
+
 namespace node {
 
 using namespace v8;
