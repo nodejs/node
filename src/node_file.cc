@@ -15,6 +15,10 @@
 #include <errno.h>
 #include <limits.h>
 
+#ifdef __MINGW32__
+#include <windows.h>
+#endif
+
 /* used for readlink, AIX doesn't provide it */
 #ifndef PATH_MAX
 #define PATH_MAX 4096
