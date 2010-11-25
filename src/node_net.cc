@@ -677,8 +677,9 @@ static Handle<Value> Read(const Arguments& args) {
   }
 #else // __MINGW32__
   /*
-   * read() should work for in mingw, but always gives EINVAL; someone should really file a bug about it.
-   * We'll use recv() however, it's faster as well.
+   * read() _should_ work for sockets in mingw, but always gives EINVAL;
+   * someone should really file a bug about it.
+   * We'll use recv() for sockets however, it's faster as well.
    */
   ssize_t bytes_read = recv(_get_osfhandle(fd), (char*)buffer_data + off, len, 0);
 
@@ -897,14 +898,15 @@ static Handle<Value> Write(const Arguments& args) {
   }
 #else // __MINGW32__
   /*
-   * write() should work for sockets in mingw, but always gives EINVAL; someone should really file a bug about it.
-   * We'll use send() however, it's faster as well.
+   * write() _should_ work for sockets in mingw, but always gives EINVAL;
+   * someone should really file a bug about it.
+   * We'll use send() for sockets however, it's faster as well.
    */
   ssize_t written = send(_get_osfhandle(fd), buffer_data + off, len, 0);
 
   if (written < 0) {
     int wsaErrno = WSAGetLastError();
-    if (errno == WSAEWOULDBLOCK || errno == WSAEINTR) {
+    if (wsaErrno == WSAEWOULDBLOCK || wsaErrno == WSAEINTR) {
       return scope.Close(Integer::New(0));
     }
     return ThrowException(ErrnoException(wsaErrno, "write"));
