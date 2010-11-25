@@ -668,12 +668,26 @@ static Handle<Value> Read(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
+#ifdef __POSIX__
   ssize_t bytes_read = read(fd, (char*)buffer_data + off, len);
 
   if (bytes_read < 0) {
     if (errno == EAGAIN || errno == EINTR) return Null();
     return ThrowException(ErrnoException(errno, "read"));
   }
+#else // __MINGW32__
+  /*
+   * read() should work for in mingw, but always gives EINVAL; someone should really file a bug about it.
+   * We'll use recv() however, it's faster as well.
+   */
+  ssize_t bytes_read = recv(_get_osfhandle(fd), (char*)buffer_data + off, len, 0);
+
+  if (bytes_read < 0) {
+    int wsaErrno = WSAGetLastError();
+    if (wsaErrno == WSAEWOULDBLOCK || wsaErrno == WSAEINTR) return Null();
+    return ThrowException(ErrnoException(wsaErrno, "read"));
+  }
+#endif
 
   return scope.Close(Integer::New(bytes_read));
 }
@@ -872,6 +886,7 @@ static Handle<Value> Write(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
+#ifdef __POSIX__
   ssize_t written = write(fd, buffer_data + off, len);
 
   if (written < 0) {
@@ -880,6 +895,21 @@ static Handle<Value> Write(const Arguments& args) {
     }
     return ThrowException(ErrnoException(errno, "write"));
   }
+#else // __MINGW32__
+  /*
+   * write() should work for sockets in mingw, but always gives EINVAL; someone should really file a bug about it.
+   * We'll use send() however, it's faster as well.
+   */
+  ssize_t written = send(_get_osfhandle(fd), buffer_data + off, len, 0);
+
+  if (written < 0) {
+    int wsaErrno = WSAGetLastError();
+    if (errno == WSAEWOULDBLOCK || errno == WSAEINTR) {
+      return scope.Close(Integer::New(0));
+    }
+    return ThrowException(ErrnoException(wsaErrno, "write"));
+  }
+#endif // __MINGW32__
 
   return scope.Close(Integer::New(written));
 }
