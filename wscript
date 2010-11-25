@@ -282,7 +282,12 @@ def configure(conf):
                             libpath=v8_libpath):
         conf.fatal("Cannot find v8_g")
 
-  if conf.env['USE_SHARED_CARES']:
+  if sys.platform.startswith("win32"):
+    # On win32 CARES is always static, so we can call internal functions like ares_inet_pton et al. 
+    # CARES_STATICLIB must be defined or gcc will try to make DLL stub calls
+    conf.env.append_value('CPPFLAGS', '-DCARES_STATICLIB=1')
+    conf.sub_config('deps/c-ares')
+  elif conf.env['USE_SHARED_CARES']:
     cares_includes = [];
     if o.shared_cares_includes: cares_includes.append(o.shared_cares_includes);
     cares_libpath = [];
