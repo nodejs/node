@@ -292,6 +292,7 @@ static Handle<Value> Stat(const Arguments& args) {
   }
 }
 
+#ifdef __POSIX__
 static Handle<Value> LStat(const Arguments& args) {
   HandleScope scope;
 
@@ -310,6 +311,7 @@ static Handle<Value> LStat(const Arguments& args) {
     return scope.Close(BuildStatsObject(&s));
   }
 }
+#endif // __POSIX__
 
 static Handle<Value> FStat(const Arguments& args) {
   HandleScope scope;
@@ -330,6 +332,7 @@ static Handle<Value> FStat(const Arguments& args) {
   }
 }
 
+#ifdef __POSIX__
 static Handle<Value> Symlink(const Arguments& args) {
   HandleScope scope;
 
@@ -348,7 +351,9 @@ static Handle<Value> Symlink(const Arguments& args) {
     return Undefined();
   }
 }
+#endif // __POSIX__
 
+#ifdef __POSIX__
 static Handle<Value> Link(const Arguments& args) {
   HandleScope scope;
 
@@ -367,7 +372,9 @@ static Handle<Value> Link(const Arguments& args) {
     return Undefined();
   }
 }
+#endif // __POSIX__
 
+#ifdef __POSIX__
 static Handle<Value> ReadLink(const Arguments& args) {
   HandleScope scope;
 
@@ -386,6 +393,7 @@ static Handle<Value> ReadLink(const Arguments& args) {
     return scope.Close(String::New(getbuf, bz));
   }
 }
+#endif // __POSIX__
 
 static Handle<Value> Rename(const Arguments& args) {
   HandleScope scope;
@@ -773,6 +781,7 @@ static Handle<Value> Chmod(const Arguments& args) {
 /* fs.chown(fd, uid, gid);
  * Wrapper for chown(1) / EIO_CHOWN
  */
+#ifdef __POSIX__
 static Handle<Value> Chown(const Arguments& args) {
   HandleScope scope;
 
@@ -796,6 +805,7 @@ static Handle<Value> Chown(const Arguments& args) {
     return Undefined();
   }
 }
+#endif // __POSIX__
 
 void File::Initialize(Handle<Object> target) {
   HandleScope scope;
@@ -812,16 +822,22 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "sendfile", SendFile);
   NODE_SET_METHOD(target, "readdir", ReadDir);
   NODE_SET_METHOD(target, "stat", Stat);
+#ifdef __POSIX__
   NODE_SET_METHOD(target, "lstat", LStat);
+#endif // __POSIX__
   NODE_SET_METHOD(target, "fstat", FStat);
+#ifdef __POSIX__
   NODE_SET_METHOD(target, "link", Link);
   NODE_SET_METHOD(target, "symlink", Symlink);
   NODE_SET_METHOD(target, "readlink", ReadLink);
+#endif // __POSIX__
   NODE_SET_METHOD(target, "unlink", Unlink);
   NODE_SET_METHOD(target, "write", Write);
 
   NODE_SET_METHOD(target, "chmod", Chmod);
+#ifdef __POSIX__
   NODE_SET_METHOD(target, "chown", Chown);
+#endif // __POSIX__
 
   errno_symbol = NODE_PSYMBOL("errno");
   encoding_symbol = NODE_PSYMBOL("node:encoding");
