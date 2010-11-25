@@ -812,7 +812,9 @@ void InitFs(Handle<Object> target) {
   stats_constructor_template = Persistent<FunctionTemplate>::New(stat_templ);
   target->Set(String::NewSymbol("Stats"),
                stats_constructor_template->GetFunction());
+#ifdef __POSIX__
   StatWatcher::Initialize(target);
+#endif // __POSIX__
   File::Initialize(target);
 }
 
