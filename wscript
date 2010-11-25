@@ -720,10 +720,20 @@ def shutdown():
       print "WARNING: Platform not fully supported. Using src/platform_none.cc"
 
   elif not Options.commands['clean']:
-    if os.path.exists('build/default/node') and not os.path.exists('node'):
-      os.symlink('build/default/node', 'node')
-    if os.path.exists('build/debug/node_g') and not os.path.exists('node_g'):
-      os.symlink('build/debug/node_g', 'node_g')
+    if sys.platform.startswith("win32"):
+      if os.path.exists('build/default/node.exe') and not os.path.exists('node.exe'):
+        os.system('cp build/default/node.exe .')
+      if os.path.exists('build/debug/node_g.exe') and not os.path.exists('node_g.exe'):
+        os.system('cp build/debug/node_g.exe .')
+    else:
+      if os.path.exists('build/default/node') and not os.path.exists('node'):
+        os.symlink('build/default/node', 'node')
+      if os.path.exists('build/debug/node_g') and not os.path.exists('node_g'):
+        os.symlink('build/debug/node_g', 'node_g')
   else:
-    if os.path.exists('node'): os.unlink('node')
-    if os.path.exists('node_g'): os.unlink('node_g')
+    if sys.platform.startswith("win32"):
+      if os.path.exists('node.exe'): os.unlink('node.exe')
+      if os.path.exists('node_g.exe'): os.unlink('node_g.exe')
+    else:
+      if os.path.exists('node'): os.unlink('node')
+      if os.path.exists('node_g'): os.unlink('node_g')
