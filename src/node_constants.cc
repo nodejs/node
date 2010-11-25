@@ -29,8 +29,14 @@ void DefineConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, S_IFCHR);
   NODE_DEFINE_CONSTANT(target, S_IFBLK);
   NODE_DEFINE_CONSTANT(target, S_IFIFO);
+
+#ifdef S_IFLNK
   NODE_DEFINE_CONSTANT(target, S_IFLNK);
+#endif
+
+#ifdef S_IFSOCK
   NODE_DEFINE_CONSTANT(target, S_IFSOCK);
+#endif
 
 #ifdef O_CREAT
   NODE_DEFINE_CONSTANT(target, O_CREAT);
@@ -498,7 +504,10 @@ void DefineConstants(Handle<Object> target) {
 #endif
 
   NODE_DEFINE_CONSTANT(target, SIGTERM);
+
+#ifdef SIGCHLD
   NODE_DEFINE_CONSTANT(target, SIGCHLD);
+#endif
 
 #ifdef SIGSTKFLT
   NODE_DEFINE_CONSTANT(target, SIGSTKFLT);
