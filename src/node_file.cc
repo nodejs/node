@@ -253,11 +253,13 @@ Local<Object> BuildStatsObject(struct stat * s) {
   /* total size, in bytes */
   stats->Set(size_symbol, Number::New(s->st_size));
 
+#ifdef __POSIX__
   /* blocksize for filesystem I/O */
   stats->Set(blksize_symbol, Integer::New(s->st_blksize));
 
   /* number of blocks allocated */
   stats->Set(blocks_symbol, Integer::New(s->st_blocks));
+#endif
 
   /* time of last access */
   stats->Set(atime_symbol, NODE_UNIXTIME_V8(s->st_atime));
