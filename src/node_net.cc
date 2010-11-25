@@ -257,9 +257,6 @@ static socklen_t addrlen;
 static inline Handle<Value> ParseAddressArgs(Handle<Value> first,
                                              Handle<Value> second,
                                              bool is_bind) {
-#ifdef __POSIX__ // No unix sockets on windows
-  static struct sockaddr_un un;
-#endif
   static struct sockaddr_in in;
   static struct sockaddr_in6 in6;
 
@@ -553,10 +550,13 @@ static Handle<Value> Listen(const Arguments& args) {
   FD_ARG(args[0])
   int backlog = args[1]->IsInt32() ? args[1]->Int32Value() : 128;
 
+#ifdef __POSIX__
+  if (0 > listen(fd, backlog)) {
+#else // __MINGW32__
   if (0 > listen(_get_osfhandle(fd), backlog)) {
+#endif
     return ThrowException(ErrnoException(errno, "listen"));
   }
-
 
   return Undefined();
 }

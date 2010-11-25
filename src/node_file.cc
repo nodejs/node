@@ -24,9 +24,9 @@
 #define PATH_MAX 4096
 #endif
 
-/* HACK to use pread/pwrite from eio if our platform doesn't have it /*
+/* HACK to use pread/pwrite from eio because MINGW32 doesn't have it /*
 /* TODO fixme */
-#if !HAVE_PREADWRITE
+#if __MINGW32__
 # define pread  eio__pread
 # define pwrite eio__pwrite
 #endif
