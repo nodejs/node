@@ -437,6 +437,8 @@ static Handle<Value> Fdatasync(const Arguments& args) {
   } else {
 #if HAVE_FDATASYNC
     int ret = fdatasync(fd);
+#elif defined(__MINGW32__)
+    int ret = FlushFileBuffers((HANDLE)_get_osfhandle(fd)) ? 0 : -1;
 #else
     int ret = fsync(fd);
 #endif
@@ -457,7 +459,11 @@ static Handle<Value> Fsync(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(fsync, args[1], fd)
   } else {
+#ifdef __MINGW32__
+    int ret = FlushFileBuffers((HANDLE)_get_osfhandle(fd)) ? 0 : -1;
+#else
     int ret = fsync(fd);
+#endif
     if (ret != 0) return ThrowException(ErrnoException(errno));
     return Undefined();
   }
