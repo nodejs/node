@@ -11,13 +11,18 @@
 #include <assert.h>
 #include <unistd.h>
 #include <errno.h>
-#include <dlfcn.h> /* dlopen(), dlsym() */
 #include <sys/types.h>
 #include <unistd.h> /* setuid, getuid */
-#include <pwd.h> /* getpwnam() */
-#include <grp.h> /* getgrnam() */
 
 #include "platform.h"
+
+#ifdef __MINGW32__
+# include "platform_win32.h" /* winapi_perror() */
+#else // __POSIX__
+# include <dlfcn.h> /* dlopen(), dlsym() */
+# include <pwd.h> /* getpwnam() */
+# include <grp.h> /* getgrnam() */
+#endif
 
 #include <node_buffer.h>
 #include <node_io_watcher.h>
