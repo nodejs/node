@@ -74,14 +74,25 @@ static inline bool SetCloseOnExec(int fd) {
 
 
 static inline bool SetNonBlock(int fd) {
+#ifdef __MINGW32__
+  unsigned long value = 1;
+  return (ioctlsocket(fd, FIONBIO, &value));
+#else // __POSIX__
   return (fcntl(fd, F_SETFL, O_NONBLOCK) != -1);
+#endif
 }
 
 
 static inline bool SetSockFlags(int fd) {
+#ifdef __MINGW32__
+  int flags = 1;
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char *)&flags, sizeof(flags));
+  return SetNonBlock(fd);
+#else // __POSIX__
   int flags = 1;
   setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags));
   return SetNonBlock(fd) && SetCloseOnExec(fd);
+#endif
 }
 
 
