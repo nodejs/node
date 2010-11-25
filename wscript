@@ -194,7 +194,7 @@ def configure(conf):
     conf.check(lib=['bfd', 'opagent'], uselib_store="OPROFILE")
 
   conf.check(lib='dl', uselib_store='DL')
-  if not sys.platform.startswith("sunos") and not sys.platform.startswith("cygwin"):
+  if not sys.platform.startswith("sunos") and not sys.platform.startswith("cygwin") and not sys.platform.startswith("win32"):
     conf.env.append_value("CCFLAGS", "-rdynamic")
     conf.env.append_value("LINKFLAGS_DL", "-rdynamic")
 
@@ -323,7 +323,7 @@ def configure(conf):
     conf.env.append_value ('CCFLAGS', '-threads')
     conf.env.append_value ('CXXFLAGS', '-threads')
     #conf.env.append_value ('LINKFLAGS', ' -threads')
-  elif not sys.platform.startswith("cygwin"):
+  elif not sys.platform.startswith("cygwin") and not sys.platform.startswith("win32"):
     threadflags='-pthread'
     conf.env.append_value ('CCFLAGS', threadflags)
     conf.env.append_value ('CXXFLAGS', threadflags)
