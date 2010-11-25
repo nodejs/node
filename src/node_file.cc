@@ -24,6 +24,13 @@
 #define PATH_MAX 4096
 #endif
 
+/* HACK to use pread/pwrite from eio if our platform doesn't have it /*
+/* TODO fixme */
+#if !HAVE_PREADWRITE
+# define pread  eio__pread
+# define pwrite eio__pwrite
+#endif
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
 namespace node {
