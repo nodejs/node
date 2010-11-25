@@ -22,6 +22,8 @@ jobs=1
 if os.environ.has_key('JOBS'):
   jobs = int(os.environ['JOBS'])
 
+def safe_path(path):
+  return path.replace("\\", "/")
 
 def canonical_cpu_type(arch):
   m = {'x86': 'ia32', 'i386':'ia32', 'x86_64':'x64', 'amd64':'x64'}
@@ -462,8 +464,8 @@ def v8_cmd(bld, variant):
 
   cmd = cmd_R % ( scons
                 , Options.options.jobs
-                , bld.srcnode.abspath(bld.env_of_name(variant))
-                , v8dir_src
+                , safe_path(bld.srcnode.abspath(bld.env_of_name(variant)))
+                , safe_path(v8dir_src)
                 , mode
                 , arch
                 , snapshot
@@ -650,7 +652,7 @@ def build(bld):
     x = { 'CCFLAGS'   : " ".join(program.env["CCFLAGS"]).replace('"', '\\"')
         , 'CPPFLAGS'  : " ".join(program.env["CPPFLAGS"]).replace('"', '\\"')
         , 'LIBFLAGS'  : " ".join(program.env["LIBFLAGS"]).replace('"', '\\"')
-        , 'PREFIX'    : program.env["PREFIX"]
+        , 'PREFIX'    : safe_path(program.env["PREFIX"])
         , 'VERSION'   : '0.3.2' # FIXME should not be hard-coded, see NODE_VERSION_STRING in src/node_version.
         }
     return x
