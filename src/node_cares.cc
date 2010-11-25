@@ -45,7 +45,7 @@ class Channel : public ObjectWrap {
 
   ares_channel channel;
 
-  static void SockStateCb(void *data, int sock, int read, int write);
+  static void SockStateCb(void *data, ares_socket_t sock, int read, int write);
   static void QueryCb(void *arg, int status, int timeouts, unsigned char* abuf, int alen);
 };
 
@@ -746,7 +746,7 @@ Handle<Value> Channel::ProcessFD(const Arguments& args) {
 }
 
 
-void Channel::SockStateCb(void *data, int sock, int read, int write) {
+void Channel::SockStateCb(void *data, ares_socket_t sock, int read, int write) {
   Channel *c = static_cast<Channel*>(data);
   HandleScope scope;
 
