@@ -342,17 +342,23 @@ static Handle<Value> Bind(const Arguments& args) {
   if (!error.IsEmpty()) return ThrowException(error);
 
   int flags = 1;
+
 #ifdef __POSIX__
   setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags));
   int r = bind(fd, addr, addrlen);
-#else // __MINGW32__
-  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&flags, sizeof(flags));
-  int r = bind(_get_osfhandle(fd), addr, addrlen);
-#endif
 
   if (r < 0) {
     return ThrowException(ErrnoException(errno, "bind"));
   }
+#else // __MINGW32__
+  SOCKET handle =  _get_osfhandle(fd);
+  setsockopt(handle, SOL_SOCKET, SO_REUSEADDR, (char *)&flags, sizeof(flags));
+  int r = bind(handle, addr, addrlen);
+
+  if (r == SOCKET_ERROR) {
+    return ThrowException(ErrnoException(WSAGetLastError(), "bind"));
+  }
+#endif // __MINGW32__
 
   return Undefined();
 }
@@ -363,7 +369,7 @@ static Handle<Value> Close(const Arguments& args) {
 
   FD_ARG(args[0])
 
-  // Windows: don't use _get_osfhandle here!
+  // Windows: this is not a winsock operation, don't use _get_osfhandle here!
   if (0 > close(fd)) {
     return ThrowException(ErrnoException(errno, "close"));
   }
@@ -402,7 +408,7 @@ static Handle<Value> Shutdown(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "shutdown"));
   }
 #else // __MINGW32__
-  if (0 > shutdown(_get_osfhandle(fd), how)) {
+  if (SOCKET_ERROR == shutdown(_get_osfhandle(fd), how)) {
     return ThrowException(ErrnoException(WSAGetLastError(), "shutdown"));
   }
 #endif // __MINGW32__
@@ -439,9 +445,9 @@ static Handle<Value> Connect(const Arguments& args) {
 #else // __MINGW32__
   int r = connect(_get_osfhandle(fd), addr, addrlen);
   if (r == INVALID_SOCKET) {
-    int winsockErrno = WSAGetLastError();
-    if (winsockErrno != WSAEALREADY && winsockErrno != WSAEINPROGRESS) {
-      return ThrowException(ErrnoException(winsockErrno, "connect"));
+    int wsaErrno = WSAGetLastError();
+    if (wsaErrno != WSAEALREADY && wsaErrno != WSAEINPROGRESS) {
+      return ThrowException(ErrnoException(wsaErrno, "connect"));
     }
   }
 #endif // __MINGW32__
@@ -569,11 +575,13 @@ static Handle<Value> Listen(const Arguments& args) {
 
 #ifdef __POSIX__
   if (0 > listen(fd, backlog)) {
-#else // __MINGW32__
-  if (0 > listen(_get_osfhandle(fd), backlog)) {
-#endif
     return ThrowException(ErrnoException(errno, "listen"));
   }
+#else // __MINGW32__
+  if (SOCKET_ERROR == listen(_get_osfhandle(fd), backlog)) {
+    return ThrowException(ErrnoException(WSAGetLastError(), "listen"));
+  }
+#endif
 
   return Undefined();
 }
@@ -607,15 +615,20 @@ static Handle<Value> Accept(const Arguments& args) {
   int peer_handle = accept(_get_osfhandle(fd), (struct sockaddr*) &address_storage, &len);
 
   if (peer_handle == INVALID_SOCKET) {
-     if (WSAGetLastError() == WSAEWOULDBLOCK) return scope.Close(Null());
-    return ThrowException(ErrnoException(errno, "accept"));
+    int wsaErrno = WSAGetLastError();
+    if (wsaErrno == WSAEWOULDBLOCK) return scope.Close(Null());
+    return ThrowException(ErrnoException(wsaErrno, "accept"));
   }
 
   int peer_fd = _open_osfhandle(peer_handle, 0);
 #endif // __MINGW32__
 
   if (!SetSockFlags(peer_fd)) {
+#ifdef __POSIX__
     int fcntl_errno = errno;
+#else // __MINGW32__
+    int fcntl_errno = WSAGetLastError();
+#endif // __MINGW32__
     close(peer_fd);
     return ThrowException(ErrnoException(fcntl_errno, "fcntl"));
   }
