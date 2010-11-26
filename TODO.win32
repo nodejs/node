@@ -15,7 +15,12 @@
   that relays everything to an internal socket?
   Also verify writeError and isStdoutBlocking correctness.
 
-- Think about `make install`
+- Think about exposing the platform through the process object
+  It sucks but it may be necessary to know which platfom you're running on, e.g.
+  you can't do spawn('grep') on windows (unless there's msys).
+  Something like process.os or process.platform?
+
+- Skip/fix tests that can never pass on windows
 
 - Find a solution for fs.symlink / fs.lstat / fs.chown
   Windows has different symlink types: file symlinks (vista+), directory symlinks (vista+), junction points (xp+) 
@@ -28,6 +33,8 @@
 
 - Check error number mappings.
   Winsock errnos are different.
+
+- Think about `make install`
 
 - Extensions
   Should be DLLs on windows.
@@ -52,5 +59,8 @@
   It prevents linking c-ares dynamically. 
 
 - See what libev/libeio changes can be pushed upstream
+
+- 64-bit build
+  Should be possible with MinGW-w64, it's pretty good.
 
 - ... much more probably
