@@ -1,0 +1,51 @@
+- Implement setenv / unsetenv
+
+- Implement other stuff missing in node.cc/process
+  Like setuid, setgid, kill etc.
+
+- Implement missing `net` methods 
+
+- Child processes
+
+- Stdio (make TTY's / repl / readline work)
+  Also verify writeError and isStdoutBlocking correctness
+
+- Make `make test` work, think about `make install`
+
+- Find a solution for fs.symlink / fs.lstat / fs.chown
+  Windows has different symlink types: file symlinks (vista+), directory symlinks (vista+), junction points (xp+) 
+
+- Handle _open_osfhandle failures
+  E.g. currently we're using the construct _open_osfhandle(socket/open/accept(...)).
+  Now socket() can fail by itself and _open_osfhandle can fail by itself too.
+  If socket() fails it returns -1 so _open_osfhandle fails as well, but and we'll always return/throw EBADF.
+  If _open_osfhandle fails but socket doesn't, a stray handle is left open. It should be fixed.
+
+- Check error number mappings.
+  Winsock errnos are different.
+
+- Extensions
+  Should be DLLs on windows.
+
+- Link pthreads-w32 statically by default
+
+- Make (open?)SSL work
+
+- Support using shared libs (libeio, v8, c-ares)
+  Need to link with with a stub library. Libraries should use `dllexport`, headers must have `dllimport`.
+
+- V8: push MING32 build fixes upstream
+
+- Work with the V8 team to get the stack corruption bug fixed
+
+- Work around missing pread/pwrite more elegantly
+  Currently it's exported from libeio, while it wasn't intended to be exported.
+  The libeio workaround implementation sucks, it uses a global mutex.
+
+- Work around missing inet_pton/inet_ntop more elegantly
+  Currently it's exported from from c-ares, while it wasn't intended to be exported.
+  It prevents linking c-ares dynamically. 
+
+- See what libev/libeio changes can be pushed upstream
+
+- ... much more probably
