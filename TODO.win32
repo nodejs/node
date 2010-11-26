@@ -1,13 +1,17 @@
 - Implement setenv / unsetenv
 
 - Implement other stuff missing in node.cc/process
-  Like setuid, setgid, kill etc.
+  Like getuid, getgid, setgid, kill etc.
 
 - Implement missing `net` methods
   A pressing issue is: how do we work with windows api functions that are not utf8 aware?
   E.g. getaddrinfo() is ansi-only; GetAddrInfoW is utf16-only. Can we get utf16 straight out of v8?
+  Are unix sockets similar to windows named pipes? If so, should they be supported? -> currently: no. Complication: they block.
 
 - Child processes
+  Should not be too hard using CreatePipe, CreateProcessW and GetExitCodeProcess.
+  When customFds are specified, should we support hooking up to a socket fd?
+  How can we distinguish between the exit code and exception number after calling GetExitCodeProcess?
 
 - Stdio (make TTY's / repl / readline work)
   This will be hard: there is no ANSI escape code support in windows.
@@ -32,7 +36,7 @@
   If _open_osfhandle fails but socket doesn't, a stray handle is left open. It should be fixed.
 
 - Check error number mappings.
-  Winsock errnos are different.
+  Winsock errnos are sometimes different.
 
 - Think about `make install`
 
@@ -40,6 +44,10 @@
   Should be DLLs on windows.
 
 - Link pthreads-w32 statically by default
+
+- Link Mingw libraries statically by default
+  Like libstdc++.dll, more maybe.
+  Microsoft libs are always there, no static linkage required (e.g. msvcrt, winsock2).
 
 - Make (open?)SSL work
 
