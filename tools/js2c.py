@@ -31,7 +31,13 @@
 # char arrays. It is used for embedded JavaScript code in the V8
 # library.
 
-import os, re, sys, string
+import os
+from os.path import dirname
+import re
+import sys
+import string
+
+sys.path.append(dirname(__file__) + "/../deps/v8/tools");
 import jsmin
 
 
