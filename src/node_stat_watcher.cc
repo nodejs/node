@@ -1,5 +1,3 @@
-#ifdef __POSIX__
-
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #include <node_stat_watcher.h>
 
@@ -113,5 +111,3 @@ void StatWatcher::Stop () {
 
 
 }  // namespace node
-
-#endif // __POSIX__
