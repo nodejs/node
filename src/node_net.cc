@@ -410,8 +410,6 @@ static Handle<Value> Shutdown(const Arguments& args) {
   return Undefined();
 }
 
-#ifdef __POSIX__
-
 // Connect with unix
 //   t.connect(fd, "/tmp/socket")
 //
@@ -433,16 +431,23 @@ static Handle<Value> Connect(const Arguments& args) {
   Handle<Value> error = ParseAddressArgs(args[1], args[2], false);
   if (!error.IsEmpty()) return ThrowException(error);
 
+#ifdef __POSIX__
   int r = connect(fd, addr, addrlen);
-
   if (r < 0 && errno != EINPROGRESS) {
     return ThrowException(ErrnoException(errno, "connect"));
   }
+#else // __MINGW32__
+  int r = connect(_get_osfhandle(fd), addr, addrlen);
+  if (r == INVALID_SOCKET) {
+    int winsockErrno = WSAGetLastError();
+    if (winsockErrno != WSAEALREADY && winsockErrno != WSAEINPROGRESS) {
+      return ThrowException(ErrnoException(winsockErrno, "connect"));
+    }
+  }
+#endif // __MINGW32__
 
   return Undefined();
 }
-
-#endif // __POSIX__
 
 
 #ifdef __POSIX__
@@ -1475,10 +1480,9 @@ void InitNet(Handle<Object> target) {
 #ifdef __POSIX__
   NODE_SET_METHOD(target, "pipe", Pipe);
   NODE_SET_METHOD(target, "socketpair", SocketPair);
-
-  NODE_SET_METHOD(target, "connect", Connect);
 #endif // __POSIX__
 
+  NODE_SET_METHOD(target, "connect", Connect);
   NODE_SET_METHOD(target, "bind", Bind);
   NODE_SET_METHOD(target, "listen", Listen);
   NODE_SET_METHOD(target, "accept", Accept);
