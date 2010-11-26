@@ -26,7 +26,7 @@
 
 /* HACK to use pread/pwrite from eio because MINGW32 doesn't have it /*
 /* TODO fixme */
-#if __MINGW32__
+#ifdef __MINGW32__
 # define pread  eio__pread
 # define pwrite eio__pwrite
 #endif
@@ -109,7 +109,7 @@ static int After(eio_req *req) {
       case EIO_LSTAT:
       case EIO_FSTAT:
         {
-          struct stat *s = reinterpret_cast<struct stat*>(req->ptr2);
+          NODE_STAT_STRUCT *s = reinterpret_cast<NODE_STAT_STRUCT*>(req->ptr2);
           argv[1] = BuildStatsObject(s);
         }
         break;
@@ -207,7 +207,7 @@ static Persistent<String> atime_symbol;
 static Persistent<String> mtime_symbol;
 static Persistent<String> ctime_symbol;
 
-Local<Object> BuildStatsObject(struct stat * s) {
+Local<Object> BuildStatsObject(NODE_STAT_STRUCT *s) {
   HandleScope scope;
 
   if (dev_symbol.IsEmpty()) {
@@ -285,8 +285,8 @@ static Handle<Value> Stat(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(stat, args[1], *path)
   } else {
-    struct stat s;
-    int ret = stat(*path, &s);
+    NODE_STAT_STRUCT s;
+    int ret = NODE_STAT(*path, &s);
     if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
     return scope.Close(BuildStatsObject(&s));
   }
@@ -305,7 +305,7 @@ static Handle<Value> LStat(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(lstat, args[1], *path)
   } else {
-    struct stat s;
+    NODE_STAT_STRUCT s;
     int ret = lstat(*path, &s);
     if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
     return scope.Close(BuildStatsObject(&s));
@@ -325,8 +325,8 @@ static Handle<Value> FStat(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(fstat, args[1], fd)
   } else {
-    struct stat s;
-    int ret = fstat(fd, &s);
+    NODE_STAT_STRUCT s;
+    int ret = NODE_FSTAT(fd, &s);
     if (ret != 0) return ThrowException(ErrnoException(errno));
     return scope.Close(BuildStatsObject(&s));
   }
