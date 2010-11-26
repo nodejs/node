@@ -3,12 +3,17 @@
 - Implement other stuff missing in node.cc/process
   Like setuid, setgid, kill etc.
 
-- Implement missing `net` methods 
+- Implement missing `net` methods
+  A pressing issue is: how do we work with windows api functions that are not utf8 aware?
+  E.g. getaddrinfo() is ansi-only; GetAddrInfoW is utf16-only. Can we get utf16 straight out of v8?
 
 - Child processes
 
 - Stdio (make TTY's / repl / readline work)
-  Also verify writeError and isStdoutBlocking correctness
+  This will be hard: there is no ANSI escape code support in windows.
+  Select() doesn't work on TTYs -- use a dedicated `getchar()` thread 
+  that relays everything to an internal socket?
+  Also verify writeError and isStdoutBlocking correctness.
 
 - Make `make test` work, think about `make install`
 
