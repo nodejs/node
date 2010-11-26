@@ -158,3 +158,13 @@ assert.equal(true,threw,'a.doesNotThrow is not catching type matching errors');
 assert.throws(function () {assert.ifError(new Error('test error'))});
 assert.doesNotThrow(function(){assert.ifError(null)});
 assert.doesNotThrow(function(){assert.ifError()});
+
+// use a RegExp to validate error message
+a.throws(makeBlock(thrower, TypeError), /test/ );
+
+// use a fn to validate error object
+a.throws(makeBlock(thrower, TypeError), function(err) {
+    if (!(err instanceof TypeError) || !/test/.test(err)) {
+        return false;
+    }
+});
