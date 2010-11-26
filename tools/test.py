@@ -669,7 +669,7 @@ class Context(object):
       name = 'build/default/node'
 
     if utils.IsWindows() and not name.endswith('.exe'):
-      name = name + '.exe'
+      name = os.path.abspath(name + '.exe')
     return name
 
   def GetVmCommand(self, testcase, mode):

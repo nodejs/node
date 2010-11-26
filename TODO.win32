@@ -15,7 +15,7 @@
   that relays everything to an internal socket?
   Also verify writeError and isStdoutBlocking correctness.
 
-- Make `make test` work, think about `make install`
+- Think about `make install`
 
 - Find a solution for fs.symlink / fs.lstat / fs.chown
   Windows has different symlink types: file symlinks (vista+), directory symlinks (vista+), junction points (xp+) 
