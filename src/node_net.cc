@@ -56,6 +56,13 @@
 # define inet_ntop ares_inet_ntop
 #endif
 
+// SHUT_* constants aren't available on windows but there are 1:1 equivalents
+#ifdef __MINGW32__
+# define SHUT_RD   SD_RECEIVE
+# define SHUT_WR   SD_SEND
+# define SHUT_RDWR SD_BOTH
+#endif
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
 
@@ -365,8 +372,6 @@ static Handle<Value> Close(const Arguments& args) {
 }
 
 
-#ifdef __POSIX__
-
 // t.shutdown(fd, "read");      -- SHUT_RD
 // t.shutdown(fd, "write");     -- SHUT_WR
 // t.shutdown(fd, "readwrite"); -- SHUT_RDWR
@@ -392,13 +397,20 @@ static Handle<Value> Shutdown(const Arguments& args) {
     }
   }
 
+#ifdef __POSIX__
   if (0 > shutdown(fd, how)) {
     return ThrowException(ErrnoException(errno, "shutdown"));
   }
+#else // __MINGW32__
+  if (0 > shutdown(_get_osfhandle(fd), how)) {
+    return ThrowException(ErrnoException(WSAGetLastError(), "shutdown"));
+  }
+#endif // __MINGW32__
 
   return Undefined();
 }
 
+#ifdef __POSIX__
 
 // Connect with unix
 //   t.connect(fd, "/tmp/socket")
@@ -1458,9 +1470,9 @@ void InitNet(Handle<Object> target) {
 
   NODE_SET_METHOD(target, "socket", Socket);
   NODE_SET_METHOD(target, "close", Close);
+  NODE_SET_METHOD(target, "shutdown", Shutdown);
 
 #ifdef __POSIX__
-  NODE_SET_METHOD(target, "shutdown", Shutdown);
   NODE_SET_METHOD(target, "pipe", Pipe);
   NODE_SET_METHOD(target, "socketpair", SocketPair);
 
