@@ -233,6 +233,9 @@ def configure(conf):
   else:
     Options.options.use_openssl = conf.env["USE_OPENSSL"] = False
 
+  conf.check(lib='util', libpath=['/usr/lib', '/usr/local/lib'],
+             uselib_store='UTIL')
+
   # normalize DEST_CPU from --dest-cpu, DEST_CPU or built-in value
   if Options.options.dest_cpu and Options.options.dest_cpu:
     conf.env['DEST_CPU'] = canonical_cpu_type(Options.options.dest_cpu)
@@ -570,7 +573,7 @@ def build(bld):
   node = bld.new_task_gen("cxx", product_type)
   node.name         = "node"
   node.target       = "node"
-  node.uselib = 'RT EV OPENSSL CARES EXECINFO DL KVM SOCKET NSL'
+  node.uselib = 'RT EV OPENSSL CARES EXECINFO DL KVM SOCKET NSL UTIL'
   node.add_objects = 'eio http_parser'
   if product_type_is_lib:
     node.install_path = '${PREFIX}/lib'

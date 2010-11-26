@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#include <pty.h>
 
 #include <termios.h>
 #include <sys/ioctl.h>
@@ -189,6 +190,26 @@ static Handle<Value> IsStdoutBlocking(const Arguments& args) {
 }
 
 
+static Handle<Value> OpenPTY(const Arguments& args) {
+  HandleScope scope;
+
+  int master_fd, slave_fd;
+
+  int r = openpty(&master_fd, &slave_fd, NULL, NULL, NULL);
+
+  if (r == -1) {
+    return ThrowException(ErrnoException(errno, "openpty"));
+  }
+
+  Local<Array> a = Array::New(2);
+
+  a->Set(0, Integer::New(master_fd));
+  a->Set(1, Integer::New(slave_fd));
+
+  return scope.Close(a);
+}
+
+
 void Stdio::Flush() {
   if (stdin_flags != -1) {
     fcntl(STDIN_FILENO, F_SETFL, stdin_flags & ~O_NONBLOCK);
@@ -232,6 +253,7 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "getColumns", GetColumns);
   NODE_SET_METHOD(target, "getRows", GetRows);
   NODE_SET_METHOD(target, "isatty", IsATTY);
+  NODE_SET_METHOD(target, "openpty", OpenPTY);
 
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
