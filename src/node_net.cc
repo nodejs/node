@@ -1430,6 +1430,8 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   return Undefined();
 }
 
+#endif // __POSIX__
+
 
 static Handle<Value> IsIP(const Arguments& args) {
   HandleScope scope;
@@ -1466,8 +1468,6 @@ static Handle<Value> CreateErrnoException(const Arguments& args) {
 
   return scope.Close(exception);
 }
-
-#endif // __POSIX__
 
 
 void InitNet(Handle<Object> target) {
@@ -1510,9 +1510,9 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "getsockname", GetSockName);
   NODE_SET_METHOD(target, "getpeername", GetPeerName);
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
+#endif // __POSIX__
   NODE_SET_METHOD(target, "isIP", IsIP);
   NODE_SET_METHOD(target, "errnoException", CreateErrnoException);
-#endif // __POSIX__
 
   errno_symbol          = NODE_PSYMBOL("errno");
   syscall_symbol        = NODE_PSYMBOL("syscall");
