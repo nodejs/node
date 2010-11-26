@@ -885,6 +885,14 @@ static int eio__futimes (int fd, const struct timeval tv[2])
 # define fdatasync(fd) fsync (fd)
 #endif
 
+// Use unicode and big file aware stat on windows
+#ifdef _WIN32
+# undef stat
+# undef fstat
+# define stat  _stati64
+# define fstat _fstati64
+#endif
+
 /* sync_file_range always needs emulation */
 int
 eio__sync_file_range (int fd, off_t offset, size_t nbytes, unsigned int flags)
