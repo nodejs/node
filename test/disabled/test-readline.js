@@ -1,3 +1,5 @@
+// Can't test this when 'make test' doesn't assign a tty to the stdout.
+// Yet another use-case for require('tty').spawn ?
 common = require("../common");
 assert = common.assert;
 var readline = require("readline");
