@@ -10,7 +10,8 @@
 
 - Child processes
   Should not be too hard using CreatePipe, CreateProcessW and GetExitCodeProcess.
-  When customFds are specified, should we support hooking up to a socket fd?
+  Hooking up the child to a socket is tricky but it can be done (http://www.spinellis.gr/sw/unix/socketpipe/socketpipe-win.c)
+  Waiting for the child to exit is tricky, probably would require a wait thread to wait for the child, then ev_async notify.
   How can we distinguish between the exit code and exception number after calling GetExitCodeProcess?
 
 - Stdio (make TTY's / repl / readline work)
@@ -54,13 +55,15 @@
 - Support using shared libs (libeio, v8, c-ares)
   Need to link with with a stub library. Libraries should use `dllexport`, headers must have `dllimport`.
 
-- V8: push MING32 build fixes upstream
+- V8: push MINGW32 build fixes upstream
 
 - Work with the V8 team to get the stack corruption bug fixed
 
 - Work around missing pread/pwrite more elegantly
   Currently it's exported from libeio, while it wasn't intended to be exported.
   The libeio workaround implementation sucks, it uses a global mutex.
+  It should be possible to implement pread and pwrite using winapi's ReadFile/Writefile
+  directly, passing an OVERLAPPED structure while not associating with an completion port.
 
 - Work around missing inet_pton/inet_ntop more elegantly
   Currently it's exported from from c-ares, while it wasn't intended to be exported.
