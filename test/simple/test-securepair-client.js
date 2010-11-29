@@ -6,6 +6,12 @@ var fs = require('fs');
 var crypto = require('crypto');
 var spawn = require('child_process').spawn;
 
+// FIXME: Avoid the common PORT as this test currently hits a C-level
+// assertion error with node_g. The program aborts without HUPing
+// the openssl s_server thus causing many tests to fail with
+// EADDRINUSE.
+var PORT = common.PORT + 5;
+
 var connections = 0;
 
 var keyfn = join(common.fixturesDir, "agent.key");
@@ -15,7 +21,7 @@ var certfn = join(common.fixturesDir, "agent.crt");
 var cert = fs.readFileSync(certfn).toString();
 
 var server = spawn('openssl', ['s_server',
-                               '-accept', common.PORT,
+                               '-accept', PORT,
                                '-cert', certfn,
                                '-key', keyfn]);
 server.stdout.pipe(process.stdout);
@@ -77,7 +83,7 @@ function startClient () {
   pair.encrypted.pipe(s);
   s.pipe(pair.encrypted);
 
-  s.connect(common.PORT);
+  s.connect(PORT);
 
   s.on('connect', function () {
     console.log("client connected");
