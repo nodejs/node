@@ -2,6 +2,7 @@
 # libraries
 #
 
+include(CheckLibraryExists)
 include(FindPackageHandleStandardArgs)
 set(HAVE_CONFIG_H True)
 add_definitions(-DHAVE_CONFIG_H=1)
@@ -10,6 +11,8 @@ find_package(OpenSSL QUIET)
 find_package(Threads)
 find_library(RT rt)
 find_library(DL dl)
+check_library_exists(socket socket "" HAVE_SOCKET_LIB)
+check_library_exists(nsl gethostbyname "" HAVE_NSL_LIB)
 
 if(RT)
   set(extra_libs ${extra_libs} ${RT})
@@ -22,6 +25,14 @@ endif()
 if(${node_platform} MATCHES freebsd)
   find_library(KVM NAMES kvm)
   set(extra_libs ${extra_libs} KVM)
+endif()
+
+if(${HAVE_SOCKET_LIB})
+  set(extra_libs ${extra_libs} socket)
+endif()
+
+if(${HAVE_NSL_LIB})
+  set(extra_libs ${extra_libs} nsl)
 endif()
 
 if(${OPENSSL_FOUND} MATCHES True)

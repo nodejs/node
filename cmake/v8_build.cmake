@@ -22,6 +22,10 @@ if(NOT SHARED_V8)
   elseif(${node_platform} MATCHES linux)
     execute_process(COMMAND sh -c "cat /proc/cpuinfo | grep processor | sort | uniq | wc -l"
       OUTPUT_VARIABLE cpu_count)
+  elseif(${node_platform} MATCHES sunos)
+    execute_process(COMMAND sh -c "psrinfo | wc -l" OUTPUT_VARIABLE cpu_count)
+  else()
+    set(cpu_count 1)
   endif()
 
   if(${cpu_count} GREATER 1)
