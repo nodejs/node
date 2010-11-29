@@ -84,8 +84,26 @@ interval4 = setInterval(function () {
   if (++count4 > 10) clearInterval(interval4);
 }, 0);
 
+
+// we should be able to clearTimeout multiple times without breakage.
+var expectedTimeouts = 3;
+
+function t () {
+  expectedTimeouts--;
+}
+
+w = setTimeout(t, 200),
+x = setTimeout(t, 200),
+y = setTimeout(t, 200);
+
+clearTimeout(y),
+z = setTimeout(t, 200);
+clearTimeout(y);
+
+
 process.addListener("exit", function () {
   assert.equal(true, setTimeout_called);
   assert.equal(3, interval_count);
   assert.equal(11, count4);
+  assert.equal(0, expectedTimeouts, "clearTimeout cleared too many timeouts");
 });
