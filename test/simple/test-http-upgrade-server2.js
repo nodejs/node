@@ -31,11 +31,10 @@ server.listen(common.PORT, function () {
 
   c.addListener('connect', function () {
     common.error('client wrote message');
-    c.write( "GET /blah HTTP/1.1\r\n"
-           + "Upgrade: WebSocket\r\n"
-           + "Connection: Upgrade\r\n"
-           + "\r\n\r\nhello world"
-           );
+    c.write("GET /blah HTTP/1.1\r\n" +
+            "Upgrade: WebSocket\r\n" +
+            "Connection: Upgrade\r\n" +
+            "\r\n\r\nhello world");
   });
 
   c.addListener('end', function () {

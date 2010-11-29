@@ -38,10 +38,9 @@ srv.listen(common.PORT, '127.0.0.1', function () {
       assert.equal(upgradeHead, 'nurtzo');
 
       console.log(res.headers);
-      var expectedHeaders = { "hello": "world"
-                            , "connection": "upgrade" 
-                            , "upgrade": "websocket"
-                            };
+      var expectedHeaders = { "hello": "world",
+                              "connection": "upgrade",
+                              "upgrade": "websocket" };
       assert.deepEqual(expectedHeaders, res.headers);
 
       socket.end();
