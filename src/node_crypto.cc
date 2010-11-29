@@ -310,6 +310,11 @@ Handle<Value> SecureStream::New(const Arguments& args) {
   p->bio_write_ = BIO_new(BIO_s_mem());
   SSL_set_bio(p->ssl_, p->bio_read_, p->bio_write_);
 
+#ifdef SSL_MODE_RELEASE_BUFFERS
+  long mode = SSL_get_mode(p->ssl_);
+  SSL_set_mode(p->ssl_, mode | SSL_MODE_RELEASE_BUFFERS);
+#endif
+
   if ((p->should_verify_ = should_verify)) {
     SSL_set_verify(p->ssl_, SSL_VERIFY_PEER, verify_callback);
   }
