@@ -5,6 +5,10 @@ var path = require('path');
 var exec = require('child_process').exec;
 var async_completed = 0, async_expected = 0, unlink = [];
 
+function tmp (p) {
+  return path.join(common.tmpDir, p);
+}
+
 function asynctest(testBlock, args, callback, assertBlock) {
   async_expected++;
   testBlock.apply(testBlock, args.concat(function(err){
@@ -200,26 +204,26 @@ function test_deep_symlink_mix(callback) {
     /node/test/fixtures/nested-index/two/realpath-c -> ../../cycles/root.js
     /node/test/fixtures/cycles/root.js (hard)
     */
-    var entry = '/tmp/node-test-realpath-f1';
-    try {fs.unlinkSync('/tmp/node-test-realpath-d2/foo');}catch(e){}
-    try {fs.rmdirSync('/tmp/node-test-realpath-d2');}catch(e){}
-    fs.mkdirSync('/tmp/node-test-realpath-d2', 0700);
+    var entry = tmp('node-test-realpath-f1');
+    try { fs.unlinkSync(tmp('node-test-realpath-d2/foo')); } catch (e) {}
+    try { fs.rmdirSync(tmp('node-test-realpath-d2')); } catch(e) {}
+    fs.mkdirSync(tmp('node-test-realpath-d2'), 0700);
     try {
       [
         [entry, '../tmp/node-test-realpath-d1/foo'],
-        ['/tmp/node-test-realpath-d1', '../tmp/node-test-realpath-d2'],
-        ['/tmp/node-test-realpath-d2/foo', '../node-test-realpath-f2'],
-        ['/tmp/node-test-realpath-f2', fixturesAbsDir+'/nested-index/one/realpath-c'],
+        [tmp('node-test-realpath-d1'), '../tmp/node-test-realpath-d2'],
+        [tmp('node-test-realpath-d2/foo'), '../node-test-realpath-f2'],
+        [tmp('node-test-realpath-f2'), fixturesAbsDir+'/nested-index/one/realpath-c'],
         [fixturesAbsDir+'/nested-index/one/realpath-c', fixturesAbsDir+'/nested-index/two/realpath-c'],
         [fixturesAbsDir+'/nested-index/two/realpath-c', '../../cycles/root.js'],
       ].forEach(function(t) {
         //common.debug('setting up '+t[0]+' -> '+t[1]);
-        try {fs.unlinkSync(t[0]);}catch(e){}
+        try { fs.unlinkSync(t[0]); } catch(e) {}
         fs.symlinkSync(t[1], t[0]);
         unlink.push(t[0]);
       });
     } finally {
-      unlink.push('/tmp/node-test-realpath-d2');
+      unlink.push(tmp('node-test-realpath-d2'));
     }
     var expected = fixturesAbsDir+'/cycles/root.js';
     assert.equal(fs.realpathSync(entry), expected);
