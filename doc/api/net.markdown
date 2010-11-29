@@ -66,6 +66,23 @@ IPv4 address (`INADDR_ANY`).
 This function is asynchronous. The last parameter `callback` will be called
 when the server has been bound.
 
+One issue some users run into is getting `EADDRINUSE` errors. Meaning
+another server is already running on the requested port. One way of handling this
+would be to wait a second and the try again. This can be done with
+
+    server.on('error', function (e) {
+      if (e.errno == require('constants').EADDRINUSE) {
+        console.log('Address in use, retrying...');
+        setTimeout(function () {
+          server.close();
+          server.listen(PORT, HOST);
+        }, 1000);
+      }
+    });
+
+(Note: All sockets in Node are set SO_REUSEADDR already)
+
+
 #### server.listen(path, [callback])
 
 Start a UNIX socket server listening for connections on the given `path`.
