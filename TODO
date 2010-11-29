@@ -28,3 +28,5 @@
 
 - Add callbacks to write() on other streams (fs.WriteStream, http outgoing)
   callbacks are already on net.Stream streams.
+- Add callback to net.Stream.connect
+- new TLS frontend api using securepair
