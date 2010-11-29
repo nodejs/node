@@ -69,36 +69,36 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
 
   OPENSSL_CONST SSL_METHOD *method = SSLv23_method();
 
-  if (args.Length() == 1) {
-    if (!args[0]->IsString())
-    return ThrowException(Exception::TypeError(
-          String::New("Bad parameter")));
-
+  if (args.Length() == 1 && args[0]->IsString()) {
     String::Utf8Value sslmethod(args[0]->ToString());
-    if (strcmp(*sslmethod, "SSLv2_method") == 0)
+
+    if (strcmp(*sslmethod, "SSLv2_method") == 0) {
       method = SSLv2_method();
-    if (strcmp(*sslmethod, "SSLv2_server_method") == 0)
+    } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
       method = SSLv2_server_method();
-    if (strcmp(*sslmethod, "SSLv2_client_method") == 0)
+    } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
       method = SSLv2_client_method();
-    if (strcmp(*sslmethod, "SSLv3_method") == 0)
+    } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
       method = SSLv3_method();
-    if (strcmp(*sslmethod, "SSLv3_server_method") == 0)
+    } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
       method = SSLv3_server_method();
-    if (strcmp(*sslmethod, "SSLv3_client_method") == 0)
+    } else if (strcmp(*sslmethod, "SSLv3_client_method") == 0) {
       method = SSLv3_client_method();
-    if (strcmp(*sslmethod, "SSLv23_method") == 0)
+    } else if (strcmp(*sslmethod, "SSLv23_method") == 0) {
       method = SSLv23_method();
-    if (strcmp(*sslmethod, "SSLv23_server_method") == 0)
+    } else if (strcmp(*sslmethod, "SSLv23_server_method") == 0) {
       method = SSLv23_server_method();
-    if (strcmp(*sslmethod, "SSLv23_client_method") == 0)
+    } else if (strcmp(*sslmethod, "SSLv23_client_method") == 0) {
       method = SSLv23_client_method();
-    if (strcmp(*sslmethod, "TLSv1_method") == 0)
+    } else if (strcmp(*sslmethod, "TLSv1_method") == 0) {
       method = TLSv1_method();
-    if (strcmp(*sslmethod, "TLSv1_server_method") == 0)
+    } else if (strcmp(*sslmethod, "TLSv1_server_method") == 0) {
       method = TLSv1_server_method();
-    if (strcmp(*sslmethod, "TLSv1_client_method") == 0)
+    } else if (strcmp(*sslmethod, "TLSv1_client_method") == 0) {
       method = TLSv1_client_method();
+    } else {
+      return ThrowException(Exception::Error(String::New("Unknown method")));
+    }
   }
 
   sc->ctx_ = SSL_CTX_new(method);
