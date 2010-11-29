@@ -96,7 +96,6 @@ var module = (function () {
   // modules in thier own context.
   var contextLoad = false;
   if (+process.env["NODE_MODULE_CONTEXTS"] > 0) contextLoad = true;
-  var Script;
 
   var moduleCache = {};
 
