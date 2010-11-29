@@ -146,6 +146,7 @@ static Handle<Value> Pipe(const Arguments& args) {
   return scope.Close(a);
 }
 
+
 // Creates nonblocking socket pair
 static Handle<Value> SocketPair(const Arguments& args) {
   HandleScope scope;
@@ -416,6 +417,7 @@ static Handle<Value> Shutdown(const Arguments& args) {
   return Undefined();
 }
 
+
 // Connect with unix
 //   t.connect(fd, "/tmp/socket")
 //
@@ -439,11 +441,13 @@ static Handle<Value> Connect(const Arguments& args) {
 
 #ifdef __POSIX__
   int r = connect(fd, addr, addrlen);
+
   if (r < 0 && errno != EINPROGRESS) {
     return ThrowException(ErrnoException(errno, "connect"));
   }
 #else // __MINGW32__
   int r = connect(_get_osfhandle(fd), addr, addrlen);
+
   if (r == INVALID_SOCKET) {
     int wsaErrno = WSAGetLastError();
     if (wsaErrno != WSAEALREADY && wsaErrno != WSAEINPROGRESS) {
@@ -518,6 +522,7 @@ do { \
 } while (0)
 
 #endif // __MINGW32__
+
 
 #ifdef __POSIX__
 
@@ -722,6 +727,7 @@ static Handle<Value> Read(const Arguments& args) {
 
   return scope.Close(Integer::New(bytes_read));
 }
+
 
 #ifdef __POSIX__
 
@@ -1499,7 +1505,6 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "bind", Bind);
   NODE_SET_METHOD(target, "listen", Listen);
   NODE_SET_METHOD(target, "accept", Accept);
-
 #ifdef __POSIX__
   NODE_SET_METHOD(target, "socketError", SocketError);
   NODE_SET_METHOD(target, "toRead", ToRead);

@@ -20,7 +20,7 @@
           False()
 
 #define NO_IMPL_MSG(name...) \
-	      fprintf(stderr, "Not implemented: %s\n", #name);
+          fprintf(stderr, "Not implemented: %s\n", #name);
 
 namespace node {
 

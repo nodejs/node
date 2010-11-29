@@ -7,9 +7,9 @@
 #include <string.h> // memcpy
 
 #ifdef __MINGW32__
-# include <winsock2.h>  // htons, htonl
+# include <winsock2.h> // htons, htonl
 #else // __POSIX__
-# include <arpa/inet.h>  // htons, htonl
+# include <arpa/inet.h> // htons, htonl
 #endif
 
 #include <node.h>

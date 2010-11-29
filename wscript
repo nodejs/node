@@ -407,7 +407,7 @@ def configure(conf):
   # Split off debug variant before adding variant specific defines
   debug_env = conf.env.copy()
   conf.set_env_name('debug', debug_env)
-  
+
   if (sys.platform.startswith("win32")):
     # Static pthread - crashes
     #conf.env.append_value('LINKFLAGS', '../deps/pthreads-w32/libpthreadGC2.a')

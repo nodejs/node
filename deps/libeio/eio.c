@@ -1435,6 +1435,7 @@ eio__scandir (eio_req *req, etp_worker *self)
           }
       }
 }
+
 #ifdef PAGESIZE
 # define eio_pagesize() PAGESIZE
 
@@ -1444,10 +1445,10 @@ eio__scandir (eio_req *req, etp_worker *self)
   eio_pagesize (void)
   { 
     SYSTEM_INFO si;
-	GetSystemInfo(&si);
-	return si.dwPageSize;
+    GetSystemInfo(&si);
+    return si.dwPageSize;
   }
-  
+
 #else
   /* POSIX */
   static intptr_t
@@ -1457,7 +1458,7 @@ eio__scandir (eio_req *req, etp_worker *self)
 
     if (!page)
       page = sysconf (_SC_PAGESIZE);
-	
+
     return page;
   }
 #endif
@@ -1712,19 +1713,21 @@ static void eio_execute (etp_worker *self, eio_req *req)
 #ifndef _WIN32
       case EIO_LSTAT:     ALLOC (sizeof (EIO_STRUCT_STAT));
                           req->result = lstat     (req->ptr1, (EIO_STRUCT_STAT *)req->ptr2); break;
-#endif	  
+#endif
       case EIO_FSTAT:     ALLOC (sizeof (EIO_STRUCT_STAT));
                           req->result = fstat     (req->int1, (EIO_STRUCT_STAT *)req->ptr2); break;
+
 #ifndef _WIN32
       case EIO_STATVFS:   ALLOC (sizeof (EIO_STRUCT_STATVFS));
                           req->result = statvfs   (req->ptr1, (EIO_STRUCT_STATVFS *)req->ptr2); break;
       case EIO_FSTATVFS:  ALLOC (sizeof (EIO_STRUCT_STATVFS));
                           req->result = fstatvfs  (req->int1, (EIO_STRUCT_STATVFS *)req->ptr2); break;
+
       case EIO_CHOWN:     req->result = chown     (req->ptr1, req->int2, req->int3); break;
       case EIO_FCHOWN:    req->result = fchown    (req->int1, req->int2, req->int3); break;
-#endif	  
+#endif
       case EIO_CHMOD:     req->result = chmod     (req->ptr1, (mode_t)req->int2); break;
-#ifndef _WIN32	  
+#ifndef _WIN32
       case EIO_FCHMOD:    req->result = fchmod    (req->int1, (mode_t)req->int2); break;
       case EIO_TRUNCATE:  req->result = truncate  (req->ptr1, req->offs); break;
 #endif
@@ -1737,11 +1740,11 @@ static void eio_execute (etp_worker *self, eio_req *req)
       case EIO_RMDIR:     req->result = rmdir     (req->ptr1); break;
 #ifdef _WIN32
       case EIO_MKDIR:     req->result = mkdir     (req->ptr1); break;
-#else 
+#else
       case EIO_MKDIR:     req->result = mkdir     (req->ptr1, (mode_t)req->int2); break;
 #endif
       case EIO_RENAME:    req->result = rename    (req->ptr1, req->ptr2); break;
-#ifndef _WIN32	  
+#ifndef _WIN32
       case EIO_LINK:      req->result = link      (req->ptr1, req->ptr2); break;
       case EIO_SYMLINK:   req->result = symlink   (req->ptr1, req->ptr2); break;
       case EIO_MKNOD:     req->result = mknod     (req->ptr1, (mode_t)req->int2, (dev_t)req->int3); break;

@@ -1257,6 +1257,7 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
   return scope.Close(info);
 }
 
+
 #ifdef __POSIX__
 
 Handle<Value> Kill(const Arguments& args) {
@@ -1892,6 +1893,7 @@ static void SignalExit(int signal) {
   Stdio::DisableRawMode(STDIN_FILENO);
   _exit(1);
 }
+
 
 #ifdef __POSIX__
 static int RegisterSignalHandler(int signal, void (*handler)(int)) {
