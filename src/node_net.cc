@@ -648,8 +648,6 @@ static Handle<Value> Accept(const Arguments& args) {
 }
 
 
-#ifdef __POSIX__
-
 static Handle<Value> SocketError(const Arguments& args) {
   HandleScope scope;
 
@@ -657,16 +655,23 @@ static Handle<Value> SocketError(const Arguments& args) {
 
   int error;
   socklen_t len = sizeof(int);
+
+#ifdef __POSIX__
   int r = getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len);
 
   if (r < 0) {
     return ThrowException(ErrnoException(errno, "getsockopt"));
   }
+#else // __MINGW32__
+  int r = getsockopt(_get_osfhandle(fd), SOL_SOCKET, SO_ERROR, (char*)&error, &len);
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(WSAGetLastError(), "getsockopt"));
+  }
+#endif
 
   return scope.Close(Integer::New(error));
 }
-
-#endif // __POSIX__
 
 
 //  var bytesRead = t.read(fd, buffer, offset, length);
@@ -1505,8 +1510,8 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "bind", Bind);
   NODE_SET_METHOD(target, "listen", Listen);
   NODE_SET_METHOD(target, "accept", Accept);
-#ifdef __POSIX__
   NODE_SET_METHOD(target, "socketError", SocketError);
+#ifdef __POSIX__
   NODE_SET_METHOD(target, "toRead", ToRead);
   NODE_SET_METHOD(target, "setNoDelay", SetNoDelay);
   NODE_SET_METHOD(target, "setBroadcast", SetBroadcast);
