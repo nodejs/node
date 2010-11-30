@@ -164,7 +164,7 @@ bool RelocInfo::IsPatchedReturnSequence() {
 
 bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
   Instr current_instr = Assembler::instr_at(pc_);
-  return !Assembler::IsNop(current_instr, 2);
+  return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
 }
 
 
@@ -288,9 +288,7 @@ Address Assembler::target_address_address_at(Address pc) {
   }
 #endif
 
-  // Verify that the instruction to patch is a
-  // ldr<cond> <Rd>, [pc +/- offset_12].
-  ASSERT((instr & 0x0f7f0000) == 0x051f0000);
+  ASSERT(IsLdrPcImmediateOffset(instr));
   int offset = instr & 0xfff;  // offset_12 is unsigned
   if ((instr & (1 << 23)) == 0) offset = -offset;  // U bit defines offset sign
   // Verify that the constant pool comes after the instruction referencing it.

@@ -263,8 +263,7 @@ TEST(StandAlonePreParser) {
     i::CompleteParserRecorder log;
     i::V8JavaScriptScanner scanner;
     scanner.Initialize(i::Handle<i::String>::null(), &stream);
-    v8::preparser::PreParser<i::V8JavaScriptScanner,
-                             i::CompleteParserRecorder> preparser;
+    v8::preparser::PreParser preparser;
     bool result = preparser.PreParseProgram(&scanner, &log, true);
     CHECK(result);
     i::ScriptDataImpl data(log.ExtractData());

@@ -89,6 +89,8 @@ SOURCES = {
     objects-visiting.cc
     oprofile-agent.cc
     parser.cc
+    preparser.cc
+    preparse-data.cc
     profile-generator.cc
     property.cc
     regexp-macro-assembler-irregexp.cc

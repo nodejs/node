@@ -950,12 +950,9 @@ class MacroAssembler: public Assembler {
 
   // Allocation support helpers.
   // Loads the top of new-space into the result register.
-  // If flags contains RESULT_CONTAINS_TOP then result_end is valid and
-  // already contains the top of new-space, and scratch is invalid.
   // Otherwise the address of the new-space top is loaded into scratch (if
   // scratch is valid), and the new-space top is loaded into result.
   void LoadAllocationTopHelper(Register result,
-                               Register result_end,
                                Register scratch,
                                AllocationFlags flags);
   // Update allocation top with value in result_end register.

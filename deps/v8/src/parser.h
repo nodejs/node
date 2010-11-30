@@ -32,6 +32,7 @@
 #include "ast.h"
 #include "scanner.h"
 #include "scopes.h"
+#include "preparse-data.h"
 
 namespace v8 {
 namespace internal {
@@ -123,32 +124,15 @@ class ScriptDataImpl : public ScriptData {
   Vector<const char*> BuildArgs();
 
   int symbol_count() {
-    return (store_.length() > kHeaderSize) ? store_[kSymbolCountOffset] : 0;
+    return (store_.length() > PreparseDataConstants::kHeaderSize)
+        ? store_[PreparseDataConstants::kSymbolCountOffset]
+        : 0;
   }
   // The following functions should only be called if SanityCheck has
   // returned true.
-  bool has_error() { return store_[kHasErrorOffset]; }
-  unsigned magic() { return store_[kMagicOffset]; }
-  unsigned version() { return store_[kVersionOffset]; }
-
-  static const unsigned kMagicNumber = 0xBadDead;
-  static const unsigned kCurrentVersion = 5;
-
-  static const int kMagicOffset = 0;
-  static const int kVersionOffset = 1;
-  static const int kHasErrorOffset = 2;
-  static const int kFunctionsSizeOffset = 3;
-  static const int kSymbolCountOffset = 4;
-  static const int kSizeOffset = 5;
-  static const int kHeaderSize = 6;
-
-  // If encoding a message, the following positions are fixed.
-  static const int kMessageStartPos = 0;
-  static const int kMessageEndPos = 1;
-  static const int kMessageArgCountPos = 2;
-  static const int kMessageTextPos = 3;
-
-  static const byte kNumberTerminator = 0x80u;
+  bool has_error() { return store_[PreparseDataConstants::kHasErrorOffset]; }
+  unsigned magic() { return store_[PreparseDataConstants::kMagicOffset]; }
+  unsigned version() { return store_[PreparseDataConstants::kVersionOffset]; }
 
  private:
   Vector<unsigned> store_;
@@ -175,127 +159,6 @@ class ScriptDataImpl : public ScriptData {
 
   friend class ScriptData;
 };
-
-
-// Record only functions.
-class PartialParserRecorder {
- public:
-  PartialParserRecorder();
-  virtual ~PartialParserRecorder() {}
-
-  void LogFunction(int start, int end, int literals, int properties) {
-    function_store_.Add(start);
-    function_store_.Add(end);
-    function_store_.Add(literals);
-    function_store_.Add(properties);
-  }
-
-  virtual void LogSymbol(int start, const char* symbol, int length) { }
-
-  // Logs an error message and marks the log as containing an error.
-  // Further logging will be ignored, and ExtractData will return a vector
-  // representing the error only.
-  void LogMessage(int start,
-                  int end,
-                  const char* message,
-                  const char* argument_opt) {
-    Scanner::Location location(start, end);
-    Vector<const char*> arguments;
-    if (argument_opt != NULL) {
-      arguments = Vector<const char*>(&argument_opt, 1);
-    }
-    this->LogMessage(location, message, arguments);
-  }
-
-  int function_position() { return function_store_.size(); }
-
-  void LogMessage(Scanner::Location loc,
-                  const char* message,
-                  Vector<const char*> args);
-
-  virtual Vector<unsigned> ExtractData();
-
-  void PauseRecording() {
-    pause_count_++;
-    is_recording_ = false;
-  }
-
-  void ResumeRecording() {
-    ASSERT(pause_count_ > 0);
-    if (--pause_count_ == 0) is_recording_ = !has_error();
-  }
-
-  int symbol_position() { return 0; }
-  int symbol_ids() { return 0; }
-
- protected:
-  bool has_error() {
-    return static_cast<bool>(preamble_[ScriptDataImpl::kHasErrorOffset]);
-  }
-
-  bool is_recording() {
-    return is_recording_;
-  }
-
-  void WriteString(Vector<const char> str);
-
-  Collector<unsigned> function_store_;
-  unsigned preamble_[ScriptDataImpl::kHeaderSize];
-  bool is_recording_;
-  int pause_count_;
-
-#ifdef DEBUG
-  int prev_start_;
-#endif
-};
-
-
-// Record both functions and symbols.
-class CompleteParserRecorder: public PartialParserRecorder {
- public:
-  CompleteParserRecorder();
-  virtual ~CompleteParserRecorder() { }
-
-  void LogSymbol(int start, Vector<const char> literal);
-
-  virtual void LogSymbol(int start, const char* symbol, int length) {
-    LogSymbol(start, Vector<const char>(symbol, length));
-  }
-
-  virtual Vector<unsigned> ExtractData();
-
-  int symbol_position() { return symbol_store_.size(); }
-  int symbol_ids() { return symbol_id_; }
-
- private:
-  static int vector_hash(Vector<const char> string) {
-    int hash = 0;
-    for (int i = 0; i < string.length(); i++) {
-      int c = string[i];
-      hash += c;
-      hash += (hash << 10);
-      hash ^= (hash >> 6);
-    }
-    return hash;
-  }
-
-  static bool vector_compare(void* a, void* b) {
-    Vector<const char>* string1 = reinterpret_cast<Vector<const char>* >(a);
-    Vector<const char>* string2 = reinterpret_cast<Vector<const char>* >(b);
-    int length = string1->length();
-    if (string2->length() != length) return false;
-    return memcmp(string1->start(), string2->start(), length) == 0;
-  }
-
-  // Write a non-negative number to the symbol store.
-  void WriteNumber(int number);
-
-  Collector<byte> symbol_store_;
-  Collector<Vector<const char> > symbol_entries_;
-  HashMap symbol_table_;
-  int symbol_id_;
-};
-
 
 
 class ParserApi {

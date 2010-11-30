@@ -143,7 +143,7 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
 
 void SetExpectedNofProperties(Handle<JSFunction> func, int nof) {
   // If objects constructed from this function exist then changing
-  // 'estimated_nof_properties' is dangerous since the previois value might
+  // 'estimated_nof_properties' is dangerous since the previous value might
   // have been compiled into the fast construct stub. More over, the inobject
   // slack tracking logic might have adjusted the previous value, so even
   // passing the same value is risky.

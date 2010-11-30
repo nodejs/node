@@ -6024,6 +6024,68 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
+class DeferredCountOperation: public DeferredCode {
+ public:
+  DeferredCountOperation(Register value,
+                         bool is_increment,
+                         bool is_postfix,
+                         int target_size)
+      : value_(value),
+        is_increment_(is_increment),
+        is_postfix_(is_postfix),
+        target_size_(target_size) {}
+
+  virtual void Generate() {
+    VirtualFrame copied_frame(*frame_state()->frame());
+
+    Label slow;
+    // Check for smi operand.
+    __ tst(value_, Operand(kSmiTagMask));
+    __ b(ne, &slow);
+
+    // Revert optimistic increment/decrement.
+    if (is_increment_) {
+      __ sub(value_, value_, Operand(Smi::FromInt(1)));
+    } else {
+      __ add(value_, value_, Operand(Smi::FromInt(1)));
+    }
+
+    // Slow case: Convert to number.  At this point the
+    // value to be incremented is in the value register..
+    __ bind(&slow);
+
+    // Convert the operand to a number.
+    copied_frame.EmitPush(value_);
+
+    copied_frame.InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, 1);
+
+    if (is_postfix_) {
+      // Postfix: store to result (on the stack).
+      __ str(r0,  MemOperand(sp, target_size_ * kPointerSize));
+    }
+
+    copied_frame.EmitPush(r0);
+    copied_frame.EmitPush(Operand(Smi::FromInt(1)));
+
+    if (is_increment_) {
+      copied_frame.CallRuntime(Runtime::kNumberAdd, 2);
+    } else {
+      copied_frame.CallRuntime(Runtime::kNumberSub, 2);
+    }
+
+    __ Move(value_, r0);
+
+    copied_frame.MergeTo(frame_state()->frame());
+  }
+
+ private:
+  Register value_;
+  bool is_increment_;
+  bool is_postfix_;
+  int target_size_;
+};
+
+
 void CodeGenerator::VisitCountOperation(CountOperation* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
@@ -6083,9 +6145,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     // the target.  It also pushes the current value of the target.
     target.GetValue();
 
-    JumpTarget slow;
-    JumpTarget exit;
-
+    bool value_is_known_smi = frame_->KnownSmiAt(0);
     Register value = frame_->PopToRegister();
 
     // Postfix: Store the old value as the result.
@@ -6097,9 +6157,27 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       value = VirtualFrame::scratch0();
     }
 
-    // Check for smi operand.
-    __ tst(value, Operand(kSmiTagMask));
-    slow.Branch(ne);
+    // We can't use any type information here since the virtual frame from the
+    // deferred code may have lost information and we can't merge a virtual
+    // frame with less specific type knowledge to a virtual frame with more
+    // specific knowledge that has already used that specific knowledge to
+    // generate code.
+    frame_->ForgetTypeInfo();
+
+    // The constructor here will capture the current virtual frame and use it to
+    // merge to after the deferred code has run.  No virtual frame changes are
+    // allowed from here until the 'BindExit' below.
+    DeferredCode* deferred =
+        new DeferredCountOperation(value,
+                                   is_increment,
+                                   is_postfix,
+                                   target.size());
+    if (!value_is_known_smi) {
+      // Check for smi operand.
+      __ tst(value, Operand(kSmiTagMask));
+
+      deferred->Branch(ne);
+    }
 
     // Perform optimistic increment/decrement.
     if (is_increment) {
@@ -6108,46 +6186,13 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       __ sub(value, value, Operand(Smi::FromInt(1)), SetCC);
     }
 
-    // If the increment/decrement didn't overflow, we're done.
-    exit.Branch(vc);
+    // If increment/decrement overflows, go to deferred code.
+    deferred->Branch(vs);
 
-    // Revert optimistic increment/decrement.
-    if (is_increment) {
-      __ sub(value, value, Operand(Smi::FromInt(1)));
-    } else {
-      __ add(value, value, Operand(Smi::FromInt(1)));
-    }
+    deferred->BindExit();
 
-    // Slow case: Convert to number.  At this point the
-    // value to be incremented is in the value register..
-    slow.Bind();
-
-    // Convert the operand to a number.
-    frame_->EmitPush(value);
-
-    {
-      VirtualFrame::SpilledScope spilled(frame_);
-      frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, 1);
-
-      if (is_postfix) {
-        // Postfix: store to result (on the stack).
-        __ str(r0, frame_->ElementAt(target.size()));
-      }
-
-      // Compute the new value.
-      frame_->EmitPush(r0);
-      frame_->EmitPush(Operand(Smi::FromInt(1)));
-      if (is_increment) {
-        frame_->CallRuntime(Runtime::kNumberAdd, 2);
-      } else {
-        frame_->CallRuntime(Runtime::kNumberSub, 2);
-      }
-    }
-
-    __ Move(value, r0);
     // Store the new value in the target if not const.
     // At this point the answer is in the value register.
-    exit.Bind();
     frame_->EmitPush(value);
     // Set the target with the result, leaving the result on
     // top of the stack.  Removes the target from the stack if
@@ -6537,16 +6582,29 @@ void CodeGenerator::VisitCompareToNull(CompareToNull* node) {
 class DeferredReferenceGetNamedValue: public DeferredCode {
  public:
   explicit DeferredReferenceGetNamedValue(Register receiver,
-                                          Handle<String> name)
-      : receiver_(receiver), name_(name) {
-    set_comment("[ DeferredReferenceGetNamedValue");
+                                          Handle<String> name,
+                                          bool is_contextual)
+      : receiver_(receiver),
+        name_(name),
+        is_contextual_(is_contextual),
+        is_dont_delete_(false) {
+    set_comment(is_contextual
+                ? "[ DeferredReferenceGetNamedValue (contextual)"
+                : "[ DeferredReferenceGetNamedValue");
   }
 
   virtual void Generate();
 
+  void set_is_dont_delete(bool value) {
+    ASSERT(is_contextual_);
+    is_dont_delete_ = value;
+  }
+
  private:
   Register receiver_;
   Handle<String> name_;
+  bool is_contextual_;
+  bool is_dont_delete_;
 };
 
 
@@ -6573,10 +6631,20 @@ void DeferredReferenceGetNamedValue::Generate() {
   // The rest of the instructions in the deferred code must be together.
   { Assembler::BlockConstPoolScope block_const_pool(masm_);
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-    __ Call(ic, RelocInfo::CODE_TARGET);
-    // The call must be followed by a nop(1) instruction to indicate that the
-    // in-object has been inlined.
-    __ nop(PROPERTY_ACCESS_INLINED);
+    RelocInfo::Mode mode = is_contextual_
+        ? RelocInfo::CODE_TARGET_CONTEXT
+        : RelocInfo::CODE_TARGET;
+    __ Call(ic,  mode);
+    // We must mark the code just after the call with the correct marker.
+    MacroAssembler::NopMarkerTypes code_marker;
+    if (is_contextual_) {
+      code_marker = is_dont_delete_
+                   ? MacroAssembler::PROPERTY_ACCESS_INLINED_CONTEXT_DONT_DELETE
+                   : MacroAssembler::PROPERTY_ACCESS_INLINED_CONTEXT;
+    } else {
+      code_marker = MacroAssembler::PROPERTY_ACCESS_INLINED;
+    }
+    __ MarkCode(code_marker);
 
     // At this point the answer is in r0.  We move it to the expected register
     // if necessary.
@@ -6640,7 +6708,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop instruction to indicate that the
     // keyed load has been inlined.
-    __ nop(PROPERTY_ACCESS_INLINED);
+    __ MarkCode(MacroAssembler::PROPERTY_ACCESS_INLINED);
 
     // Now go back to the frame that we entered with.  This will not overwrite
     // the receiver or key registers since they were not in use when we came
@@ -6697,7 +6765,7 @@ void DeferredReferenceSetKeyedValue::Generate() {
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop instruction to indicate that the
     // keyed store has been inlined.
-    __ nop(PROPERTY_ACCESS_INLINED);
+    __ MarkCode(MacroAssembler::PROPERTY_ACCESS_INLINED);
 
     // Block the constant pool for one more instruction after leaving this
     // constant pool block scope to include the branch instruction ending the
@@ -6745,7 +6813,7 @@ void DeferredReferenceSetNamedValue::Generate() {
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop instruction to indicate that the
     // named store has been inlined.
-    __ nop(PROPERTY_ACCESS_INLINED);
+    __ MarkCode(MacroAssembler::PROPERTY_ACCESS_INLINED);
 
     // Go back to the frame we entered with. The instructions
     // generated by this merge are skipped over by the inline store
@@ -6763,7 +6831,14 @@ void DeferredReferenceSetNamedValue::Generate() {
 
 // Consumes the top of stack (the receiver) and pushes the result instead.
 void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
-  if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
+  bool contextual_load_in_builtin =
+      is_contextual &&
+      (Bootstrapper::IsActive() ||
+      (!info_->closure().is_null() && info_->closure()->IsBuiltin()));
+
+  if (scope()->is_global_scope() ||
+      loop_nesting() == 0 ||
+      contextual_load_in_builtin) {
     Comment cmnt(masm(), "[ Load from named Property");
     // Setup the name register and call load IC.
     frame_->CallLoadIC(name,
@@ -6773,12 +6848,19 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     frame_->EmitPush(r0);  // Push answer.
   } else {
     // Inline the in-object property case.
-    Comment cmnt(masm(), "[ Inlined named property load");
+    Comment cmnt(masm(), is_contextual
+                             ? "[ Inlined contextual property load"
+                             : "[ Inlined named property load");
 
     // Counter will be decremented in the deferred code. Placed here to avoid
     // having it in the instruction stream below where patching will occur.
-    __ IncrementCounter(&Counters::named_load_inline, 1,
-                        frame_->scratch0(), frame_->scratch1());
+    if (is_contextual) {
+      __ IncrementCounter(&Counters::named_load_global_inline, 1,
+                          frame_->scratch0(), frame_->scratch1());
+    } else {
+      __ IncrementCounter(&Counters::named_load_inline, 1,
+                          frame_->scratch0(), frame_->scratch1());
+    }
 
     // The following instructions are the inlined load of an in-object property.
     // Parts of this code is patched, so the exact instructions generated needs
@@ -6789,18 +6871,56 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     Register receiver = frame_->PopToRegister();
 
     DeferredReferenceGetNamedValue* deferred =
-        new DeferredReferenceGetNamedValue(receiver, name);
+        new DeferredReferenceGetNamedValue(receiver, name, is_contextual);
 
-#ifdef DEBUG
-    int kInlinedNamedLoadInstructions = 7;
-    Label check_inlined_codesize;
-    masm_->bind(&check_inlined_codesize);
-#endif
+    bool is_dont_delete = false;
+    if (is_contextual) {
+      if (!info_->closure().is_null()) {
+        // When doing lazy compilation we can check if the global cell
+        // already exists and use its "don't delete" status as a hint.
+        AssertNoAllocation no_gc;
+        v8::internal::GlobalObject* global_object =
+            info_->closure()->context()->global();
+        LookupResult lookup;
+        global_object->LocalLookupRealNamedProperty(*name, &lookup);
+        if (lookup.IsProperty() && lookup.type() == NORMAL) {
+          ASSERT(lookup.holder() == global_object);
+          ASSERT(global_object->property_dictionary()->ValueAt(
+              lookup.GetDictionaryEntry())->IsJSGlobalPropertyCell());
+          is_dont_delete = lookup.IsDontDelete();
+        }
+      }
+      if (is_dont_delete) {
+        __ IncrementCounter(&Counters::dont_delete_hint_hit, 1,
+                            frame_->scratch0(), frame_->scratch1());
+      }
+    }
 
     { Assembler::BlockConstPoolScope block_const_pool(masm_);
-      // Check that the receiver is a heap object.
-      __ tst(receiver, Operand(kSmiTagMask));
-      deferred->Branch(eq);
+      if (!is_contextual) {
+        // Check that the receiver is a heap object.
+        __ tst(receiver, Operand(kSmiTagMask));
+        deferred->Branch(eq);
+      }
+
+      // Check for the_hole_value if necessary.
+      // Below we rely on the number of instructions generated, and we can't
+      // cope with the Check macro which does not generate a fixed number of
+      // instructions.
+      Label skip, check_the_hole, cont;
+      if (FLAG_debug_code && is_contextual && is_dont_delete) {
+        __ b(&skip);
+        __ bind(&check_the_hole);
+        __ Check(ne, "DontDelete cells can't contain the hole");
+        __ b(&cont);
+        __ bind(&skip);
+      }
+
+#ifdef DEBUG
+      int InlinedNamedLoadInstructions = 5;
+      Label check_inlined_codesize;
+      masm_->bind(&check_inlined_codesize);
+#endif
 
       Register scratch = VirtualFrame::scratch0();
       Register scratch2 = VirtualFrame::scratch1();
@@ -6812,12 +6932,42 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
       __ cmp(scratch, scratch2);
       deferred->Branch(ne);
 
-      // Initially use an invalid index. The index will be patched by the
-      // inline cache code.
-      __ ldr(receiver, MemOperand(receiver, 0));
+      if (is_contextual) {
+#ifdef DEBUG
+        InlinedNamedLoadInstructions += 1;
+#endif
+        // Load the (initially invalid) cell and get its value.
+        masm()->mov(receiver, Operand(Factory::null_value()));
+        __ ldr(receiver,
+               FieldMemOperand(receiver, JSGlobalPropertyCell::kValueOffset));
+
+        deferred->set_is_dont_delete(is_dont_delete);
+
+        if (!is_dont_delete) {
+#ifdef DEBUG
+          InlinedNamedLoadInstructions += 3;
+#endif
+          __ cmp(receiver, Operand(Factory::the_hole_value()));
+          deferred->Branch(eq);
+        } else if (FLAG_debug_code) {
+#ifdef DEBUG
+          InlinedNamedLoadInstructions += 3;
+#endif
+          __ cmp(receiver, Operand(Factory::the_hole_value()));
+          __ b(&check_the_hole, eq);
+          __ bind(&cont);
+        }
+      } else {
+        // Initially use an invalid index. The index will be patched by the
+        // inline cache code.
+        __ ldr(receiver, MemOperand(receiver, 0));
+      }
 
       // Make sure that the expected number of instructions are generated.
-      ASSERT_EQ(kInlinedNamedLoadInstructions,
+      // If the code before is updated, the offsets in ic-arm.cc
+      // LoadIC::PatchInlinedContextualLoad and PatchInlinedLoad need
+      // to be updated.
+      ASSERT_EQ(InlinedNamedLoadInstructions,
                 masm_->InstructionsGeneratedSince(&check_inlined_codesize));
     }
 

@@ -31,7 +31,6 @@
 #include <string.h>
 
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
-void API_Fatal(const char* location, const char* format, ...);
 
 // The FATAL, UNREACHABLE and UNIMPLEMENTED macros are useful during
 // development, but they should not be relied on in the final product.
@@ -222,28 +221,6 @@ static inline void CheckNonEqualsHelper(const char* file,
 }
 
 
-namespace v8 {
-  class Value;
-  template <class T> class Handle;
-}
-
-
-void CheckNonEqualsHelper(const char* file,
-                          int line,
-                          const char* unexpected_source,
-                          v8::Handle<v8::Value> unexpected,
-                          const char* value_source,
-                          v8::Handle<v8::Value> value);
-
-
-void CheckEqualsHelper(const char* file,
-                       int line,
-                       const char* expected_source,
-                       v8::Handle<v8::Value> expected,
-                       const char* value_source,
-                       v8::Handle<v8::Value> value);
-
-
 #define CHECK_EQ(expected, value) CheckEqualsHelper(__FILE__, __LINE__, \
   #expected, expected, #value, value)
 
@@ -306,17 +283,6 @@ bool EnableSlowAsserts();
 // inside class declaration, this leads to inconsistency between debug
 // and release compilation modes behaviour.
 #define STATIC_ASSERT(test)  STATIC_CHECK(test)
-
-namespace v8 { namespace internal {
-
-intptr_t HeapObjectTagMask();
-
-} }  // namespace v8::internal
-
-#define ASSERT_TAG_ALIGNED(address) \
-  ASSERT((reinterpret_cast<intptr_t>(address) & HeapObjectTagMask()) == 0)
-
-#define ASSERT_SIZE_TAG_ALIGNED(size) ASSERT((size & HeapObjectTagMask()) == 0)
 
 #define ASSERT_NOT_NULL(p)  ASSERT_NE(NULL, p)
 

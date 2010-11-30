@@ -264,6 +264,14 @@ class MacroAssembler: public Assembler {
 
   void LoadContext(Register dst, int context_chain_length);
 
+  void LoadGlobalFunction(int index, Register function);
+
+  // Load the initial map from the global function. The registers
+  // function and map can be the same, function is then overwritten.
+  void LoadGlobalFunctionInitialMap(Register function,
+                                    Register map,
+                                    Register scratch);
+
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
@@ -318,6 +326,40 @@ class MacroAssembler: public Assembler {
   void CheckAccessGlobalProxy(Register holder_reg,
                               Register scratch,
                               Label* miss);
+
+  inline void MarkCode(NopMarkerTypes type) {
+    nop(type);
+  }
+
+  // Check if the given instruction is a 'type' marker.
+  // ie. check if is is a mov r<type>, r<type> (referenced as nop(type))
+  // These instructions are generated to mark special location in the code,
+  // like some special IC code.
+  static inline bool IsMarkedCode(Instr instr, int type) {
+    ASSERT((FIRST_IC_MARKER <= type) && (type < LAST_CODE_MARKER));
+    return IsNop(instr, type);
+  }
+
+
+  static inline int GetCodeMarker(Instr instr) {
+    int dst_reg_offset = 12;
+    int dst_mask = 0xf << dst_reg_offset;
+    int src_mask = 0xf;
+    int dst_reg = (instr & dst_mask) >> dst_reg_offset;
+    int src_reg = instr & src_mask;
+    uint32_t non_register_mask = ~(dst_mask | src_mask);
+    uint32_t mov_mask = al | 13 << 21;
+
+    // Return <n> if we have a mov rn rn, else return -1.
+    int type = ((instr & non_register_mask) == mov_mask) &&
+               (dst_reg == src_reg) &&
+               (FIRST_IC_MARKER <= dst_reg) && (dst_reg < LAST_CODE_MARKER)
+                   ? src_reg
+                   : -1;
+    ASSERT((type == -1) ||
+           ((FIRST_IC_MARKER <= type) && (type < LAST_CODE_MARKER)));
+    return type;
+  }
 
 
   // ---------------------------------------------------------------------------

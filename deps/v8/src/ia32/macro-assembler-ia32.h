@@ -631,7 +631,6 @@ class MacroAssembler: public Assembler {
 
   // Allocation support helpers.
   void LoadAllocationTopHelper(Register result,
-                               Register result_end,
                                Register scratch,
                                AllocationFlags flags);
   void UpdateAllocationTopHelper(Register result_end, Register scratch);

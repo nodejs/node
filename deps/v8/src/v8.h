@@ -54,7 +54,7 @@
 // Basic includes
 #include "../include/v8.h"
 #include "v8globals.h"
-#include "checks.h"
+#include "v8checks.h"
 #include "allocation.h"
 #include "v8utils.h"
 #include "flags.h"

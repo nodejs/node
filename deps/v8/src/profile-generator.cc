@@ -1295,8 +1295,8 @@ HeapEntry* HeapSnapshot::AddEntry(HeapObject* object,
   } else if (object->IsJSObject()) {
     return AddEntry(object,
                     HeapEntry::kObject,
-                    collection_->GetName(
-                        JSObject::cast(object)->constructor_name()),
+                    collection_->GetName(GetConstructorNameForHeapProfile(
+                        JSObject::cast(object))),
                     children_count,
                     retainers_count);
   } else if (object->IsString()) {
@@ -1462,6 +1462,14 @@ void HeapSnapshot::BuildDominatorTree(const Vector<HeapEntry*>& entries,
 }
 
 
+void HeapSnapshot::SetDominatorsToSelf() {
+  for (int i = 0; i < entries_.length(); ++i) {
+    HeapEntry* entry = entries_[i];
+    if (entry->dominator() == NULL) entry->set_dominator(entry);
+  }
+}
+
+
 void HeapSnapshot::SetEntriesDominators() {
   // This array is used for maintaining reverse postorder of nodes.
   ScopedVector<HeapEntry*> ordered_entries(entries_.length());
@@ -1473,10 +1481,7 @@ void HeapSnapshot::SetEntriesDominators() {
     ordered_entries[i]->set_dominator(dominators[i]);
   }
   // For nodes unreachable from root, set dominator to itself.
-  for (int i = 0; i < entries_.length(); ++i) {
-    HeapEntry* entry = entries_[i];
-    if (entry->dominator() == NULL) entry->set_dominator(entry);
-  }
+  SetDominatorsToSelf();
 }
 
 
@@ -2762,6 +2767,12 @@ void HeapSnapshotJSONSerializer::SortHashMap(
   for (HashMap::Entry* p = map->Start(); p != NULL; p = map->Next(p))
     sorted_entries->Add(p);
   sorted_entries->Sort(SortUsingEntryValue);
+}
+
+
+String* GetConstructorNameForHeapProfile(JSObject* object) {
+  if (object->IsJSFunction()) return Heap::closure_symbol();
+  return object->constructor_name();
 }
 
 } }  // namespace v8::internal

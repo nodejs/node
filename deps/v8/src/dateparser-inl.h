@@ -59,7 +59,7 @@ bool DateParser::Parse(Vector<Char> str, FixedArray* out) {
       } else if (in.Skip('.') && time.IsExpecting(n)) {
         time.Add(n);
         if (!in.IsAsciiDigit()) return false;
-        int n = in.ReadUnsignedNumber();
+        int n = in.ReadMilliseconds();
         time.AddFinal(n);
       } else if (tz.IsExpecting(n)) {
         tz.SetAbsoluteMinute(n);

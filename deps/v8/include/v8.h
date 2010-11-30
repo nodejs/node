@@ -1539,6 +1539,11 @@ class Object : public Value {
    */
   V8EXPORT Local<String> ObjectProtoToString();
 
+  /**
+   * Returns the name of the function invoked as a constructor for this object.
+   */
+  V8EXPORT Local<String> GetConstructorName();
+
   /** Gets the number of internal fields for this Object. */
   V8EXPORT int InternalFieldCount();
   /** Gets the value in an internal field. */

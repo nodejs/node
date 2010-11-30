@@ -107,3 +107,4 @@ namespace v8 { namespace internal {
   intptr_t HeapObjectTagMask() { return kHeapObjectTagMask; }
 
 } }  // namespace v8::internal
+

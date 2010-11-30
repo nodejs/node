@@ -104,8 +104,10 @@ TEST(IntegerStrLiteral) {
   CHECK_EQ(0.0, StringToDouble("000", NO_FLAGS));
   CHECK_EQ(1.0, StringToDouble("1", NO_FLAGS));
   CHECK_EQ(-1.0, StringToDouble("-1", NO_FLAGS));
-  CHECK_EQ(-1.0, StringToDouble("  -  1  ", NO_FLAGS));
-  CHECK_EQ(1.0, StringToDouble("  +  1  ", NO_FLAGS));
+  CHECK_EQ(-1.0, StringToDouble("  -1  ", NO_FLAGS));
+  CHECK_EQ(1.0, StringToDouble("  +1  ", NO_FLAGS));
+  CHECK(isnan(StringToDouble("  -  1  ", NO_FLAGS)));
+  CHECK(isnan(StringToDouble("  +  1  ", NO_FLAGS)));
 
   CHECK_EQ(0.0, StringToDouble("0e0", ALLOW_HEX | ALLOW_OCTALS));
   CHECK_EQ(0.0, StringToDouble("0e1", ALLOW_HEX | ALLOW_OCTALS));

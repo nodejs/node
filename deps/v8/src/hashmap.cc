@@ -25,7 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#include "../include/v8stdint.h"
+#include "globals.h"
+#include "checks.h"
+#include "utils.h"
+#include "allocation.h"
 
 #include "hashmap.h"
 
@@ -195,7 +199,7 @@ void HashMap::Initialize(uint32_t capacity) {
   ASSERT(IsPowerOf2(capacity));
   map_ = reinterpret_cast<Entry*>(allocator_->New(capacity * sizeof(Entry)));
   if (map_ == NULL) {
-    V8::FatalProcessOutOfMemory("HashMap::Initialize");
+    v8::internal::FatalProcessOutOfMemory("HashMap::Initialize");
     return;
   }
   capacity_ = capacity;

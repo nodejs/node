@@ -1178,4 +1178,19 @@ TEST(HeapSnapshotJSONSerializationAborting) {
   CHECK_EQ(0, stream.eos_signaled());
 }
 
+
+// Must not crash in debug mode.
+TEST(AggregatedHeapSnapshotJSONSerialization) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(
+          v8::String::New("agg"), v8::HeapSnapshot::kAggregated);
+  TestJSONStream stream;
+  snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
+  CHECK_GT(stream.size(), 0);
+  CHECK_EQ(1, stream.eos_signaled());
+}
+
 #endif  // ENABLE_LOGGING_AND_PROFILING

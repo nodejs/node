@@ -397,13 +397,6 @@ void Assembler::CodeTargetAlign() {
 }
 
 
-bool Assembler::IsNop(Instr instr, int type) {
-  // Check for mov rx, rx.
-  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
-  return instr == (al | 13*B21 | type*B12 | type);
-}
-
-
 bool Assembler::IsBranch(Instr instr) {
   return (instr & (B27 | B25)) == (B27 | B25);
 }
@@ -507,6 +500,13 @@ bool Assembler::IsStrRegFpNegOffset(Instr instr) {
 
 bool Assembler::IsLdrRegFpNegOffset(Instr instr) {
   return ((instr & kLdrStrInstrTypeMask) == kLdrRegFpNegOffsetPattern);
+}
+
+
+bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
+  // Check the instruction is indeed a
+  // ldr<cond> <Rd>, [pc +/- offset_12].
+  return (instr & 0x0f7f0000) == 0x051f0000;
 }
 
 
@@ -1113,8 +1113,8 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
     positions_recorder()->WriteRecordedPositions();
   }
   // Don't allow nop instructions in the form mov rn, rn to be generated using
-  // the mov instruction. They must be generated using nop(int)
-  // pseudo instructions.
+  // the mov instruction. They must be generated using nop(int/NopMarkerTypes)
+  // or MarkCode(int/NopMarkerTypes) pseudo instructions.
   ASSERT(!(src.is_reg() && src.rm().is(dst) && s == LeaveCC && cond == al));
   addrmod1(cond | 13*B21 | s, r0, dst, src);
 }
@@ -2373,6 +2373,13 @@ void Assembler::nop(int type) {
   // This is mov rx, rx.
   ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
   emit(al | 13*B21 | type*B12 | type);
+}
+
+
+bool Assembler::IsNop(Instr instr, int type) {
+  // Check for mov rx, rx.
+  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
+  return instr == (al | 13*B21 | type*B12 | type);
 }
 
 

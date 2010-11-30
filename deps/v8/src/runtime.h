@@ -175,7 +175,7 @@ namespace internal {
   F(StringReplaceRegExpWithString, 4, 1) \
   F(StringMatch, 3, 1) \
   F(StringTrim, 3, 1) \
-  F(StringToArray, 1, 1) \
+  F(StringToArray, 2, 1) \
   F(NewStringWrapper, 1, 1) \
   \
   /* Numbers */ \

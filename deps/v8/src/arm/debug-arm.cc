@@ -279,7 +279,7 @@ void Debug::GenerateSlot(MacroAssembler* masm) {
   __ bind(&check_codesize);
   __ RecordDebugBreakSlot();
   for (int i = 0; i < Assembler::kDebugBreakSlotInstructions; i++) {
-    __ nop(2);
+    __ nop(MacroAssembler::DEBUG_BREAK_NOP);
   }
   ASSERT_EQ(Assembler::kDebugBreakSlotInstructions,
             masm->InstructionsGeneratedSince(&check_codesize));

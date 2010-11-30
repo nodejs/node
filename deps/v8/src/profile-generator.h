@@ -700,6 +700,7 @@ class HeapSnapshot {
   List<HeapEntry*>* GetSortedEntriesList();
   template<class Visitor>
   void IterateEntries(Visitor* visitor) { entries_.Iterate(visitor); }
+  void SetDominatorsToSelf();
 
   void Print(int max_depth);
   void PrintEntriesSize();
@@ -1071,6 +1072,9 @@ class HeapSnapshotJSONSerializer {
 
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshotJSONSerializer);
 };
+
+
+String* GetConstructorNameForHeapProfile(JSObject* object);
 
 } }  // namespace v8::internal
 

@@ -552,7 +552,7 @@ function StringSplit(separator, limit) {
     var separator_length = separator.length;
 
     // If the separator string is empty then return the elements in the subject.
-    if (separator_length === 0) return %StringToArray(subject);
+    if (separator_length === 0) return %StringToArray(subject, limit);
 
     var result = %StringSplit(subject, separator, limit);
 

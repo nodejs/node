@@ -559,11 +559,14 @@ class TickSample {
 class Sampler {
  public:
   // Initialize sampler.
-  explicit Sampler(int interval, bool profiling);
+  Sampler(int interval, bool profiling);
   virtual ~Sampler();
 
   // Performs stack sampling.
-  virtual void SampleStack(TickSample* sample) = 0;
+  void SampleStack(TickSample* sample) {
+    DoSampleStack(sample);
+    IncSamplesTaken();
+  }
 
   // This method is called for each sampling period with the current
   // program counter.
@@ -585,14 +588,24 @@ class Sampler {
   // Whether the sampler is running (that is, consumes resources).
   bool IsActive() const { return active_; }
 
+  // Used in tests to make sure that stack sampling is performed.
+  int samples_taken() const { return samples_taken_; }
+  void ResetSamplesTaken() { samples_taken_ = 0; }
+
   class PlatformData;
 
+ protected:
+  virtual void DoSampleStack(TickSample* sample) = 0;
+
  private:
+  void IncSamplesTaken() { if (++samples_taken_ < 0) samples_taken_ = 0; }
+
   const int interval_;
   const bool profiling_;
   const bool synchronous_;
   bool active_;
   PlatformData* data_;  // Platform specific data.
+  int samples_taken_;  // Counts stack samples taken.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
 

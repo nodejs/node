@@ -2451,6 +2451,15 @@ Local<String> v8::Object::ObjectProtoToString() {
 }
 
 
+Local<String> v8::Object::GetConstructorName() {
+  ON_BAILOUT("v8::Object::GetConstructorName()", return Local<v8::String>());
+  ENTER_V8;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::String> name(self->constructor_name());
+  return Utils::ToLocal(name);
+}
+
+
 bool v8::Object::Delete(v8::Handle<String> key) {
   ON_BAILOUT("v8::Object::Delete()", return false);
   ENTER_V8;

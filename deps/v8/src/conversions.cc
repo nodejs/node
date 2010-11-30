@@ -448,12 +448,12 @@ static double InternalStringToDouble(Iterator current,
   bool sign = false;
 
   if (*current == '+') {
-    // Ignore leading sign; skip following spaces.
+    // Ignore leading sign.
     ++current;
-    if (!AdvanceToNonspace(&current, end)) return JUNK_STRING_VALUE;
+    if (current == end) return JUNK_STRING_VALUE;
   } else if (*current == '-') {
     ++current;
-    if (!AdvanceToNonspace(&current, end)) return JUNK_STRING_VALUE;
+    if (current == end) return JUNK_STRING_VALUE;
     sign = true;
   }
 

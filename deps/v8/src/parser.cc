@@ -356,65 +356,6 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id,
 }
 
 
-Vector<unsigned> PartialParserRecorder::ExtractData() {
-  int function_size = function_store_.size();
-  int total_size = ScriptDataImpl::kHeaderSize + function_size;
-  Vector<unsigned> data = Vector<unsigned>::New(total_size);
-  preamble_[ScriptDataImpl::kFunctionsSizeOffset] = function_size;
-  preamble_[ScriptDataImpl::kSymbolCountOffset] = 0;
-  memcpy(data.start(), preamble_, sizeof(preamble_));
-  int symbol_start = ScriptDataImpl::kHeaderSize + function_size;
-  if (function_size > 0) {
-    function_store_.WriteTo(data.SubVector(ScriptDataImpl::kHeaderSize,
-                                           symbol_start));
-  }
-  return data;
-}
-
-
-void CompleteParserRecorder::LogSymbol(int start, Vector<const char> literal) {
-  if (!is_recording_) return;
-
-  int hash = vector_hash(literal);
-  HashMap::Entry* entry = symbol_table_.Lookup(&literal, hash, true);
-  int id = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-  if (id == 0) {
-    // Put (symbol_id_ + 1) into entry and increment it.
-    id = ++symbol_id_;
-    entry->value = reinterpret_cast<void*>(id);
-    Vector<Vector<const char> > symbol = symbol_entries_.AddBlock(1, literal);
-    entry->key = &symbol[0];
-  }
-  WriteNumber(id - 1);
-}
-
-
-Vector<unsigned> CompleteParserRecorder::ExtractData() {
-  int function_size = function_store_.size();
-  // Add terminator to symbols, then pad to unsigned size.
-  int symbol_size = symbol_store_.size();
-  int padding = sizeof(unsigned) - (symbol_size % sizeof(unsigned));
-  symbol_store_.AddBlock(padding, ScriptDataImpl::kNumberTerminator);
-  symbol_size += padding;
-  int total_size = ScriptDataImpl::kHeaderSize + function_size
-      + (symbol_size / sizeof(unsigned));
-  Vector<unsigned> data = Vector<unsigned>::New(total_size);
-  preamble_[ScriptDataImpl::kFunctionsSizeOffset] = function_size;
-  preamble_[ScriptDataImpl::kSymbolCountOffset] = symbol_id_;
-  memcpy(data.start(), preamble_, sizeof(preamble_));
-  int symbol_start = ScriptDataImpl::kHeaderSize + function_size;
-  if (function_size > 0) {
-    function_store_.WriteTo(data.SubVector(ScriptDataImpl::kHeaderSize,
-                                           symbol_start));
-  }
-  if (!has_error()) {
-    symbol_store_.WriteTo(
-        Vector<byte>::cast(data.SubVector(symbol_start, total_size)));
-  }
-  return data;
-}
-
-
 FunctionEntry ScriptDataImpl::GetFunctionEntry(int start) {
   // The current pre-data entry must be a FunctionEntry with the given
   // start position.
@@ -437,88 +378,48 @@ int ScriptDataImpl::GetSymbolIdentifier() {
 bool ScriptDataImpl::SanityCheck() {
   // Check that the header data is valid and doesn't specify
   // point to positions outside the store.
-  if (store_.length() < ScriptDataImpl::kHeaderSize) return false;
-  if (magic() != ScriptDataImpl::kMagicNumber) return false;
-  if (version() != ScriptDataImpl::kCurrentVersion) return false;
+  if (store_.length() < PreparseDataConstants::kHeaderSize) return false;
+  if (magic() != PreparseDataConstants::kMagicNumber) return false;
+  if (version() != PreparseDataConstants::kCurrentVersion) return false;
   if (has_error()) {
     // Extra sane sanity check for error message encoding.
-    if (store_.length() <= kHeaderSize + kMessageTextPos) return false;
-    if (Read(kMessageStartPos) > Read(kMessageEndPos)) return false;
-    unsigned arg_count = Read(kMessageArgCountPos);
-    int pos = kMessageTextPos;
+    if (store_.length() <= PreparseDataConstants::kHeaderSize
+                         + PreparseDataConstants::kMessageTextPos) {
+      return false;
+    }
+    if (Read(PreparseDataConstants::kMessageStartPos) >
+        Read(PreparseDataConstants::kMessageEndPos)) {
+      return false;
+    }
+    unsigned arg_count = Read(PreparseDataConstants::kMessageArgCountPos);
+    int pos = PreparseDataConstants::kMessageTextPos;
     for (unsigned int i = 0; i <= arg_count; i++) {
-      if (store_.length() <= kHeaderSize + pos) return false;
+      if (store_.length() <= PreparseDataConstants::kHeaderSize + pos) {
+        return false;
+      }
       int length = static_cast<int>(Read(pos));
       if (length < 0) return false;
       pos += 1 + length;
     }
-    if (store_.length() < kHeaderSize + pos) return false;
+    if (store_.length() < PreparseDataConstants::kHeaderSize + pos) {
+      return false;
+    }
     return true;
   }
   // Check that the space allocated for function entries is sane.
   int functions_size =
-      static_cast<int>(store_[ScriptDataImpl::kFunctionsSizeOffset]);
+      static_cast<int>(store_[PreparseDataConstants::kFunctionsSizeOffset]);
   if (functions_size < 0) return false;
   if (functions_size % FunctionEntry::kSize != 0) return false;
   // Check that the count of symbols is non-negative.
   int symbol_count =
-      static_cast<int>(store_[ScriptDataImpl::kSymbolCountOffset]);
+      static_cast<int>(store_[PreparseDataConstants::kSymbolCountOffset]);
   if (symbol_count < 0) return false;
   // Check that the total size has room for header and function entries.
   int minimum_size =
-      ScriptDataImpl::kHeaderSize + functions_size;
+      PreparseDataConstants::kHeaderSize + functions_size;
   if (store_.length() < minimum_size) return false;
   return true;
-}
-
-
-
-PartialParserRecorder::PartialParserRecorder()
-    : function_store_(0),
-      is_recording_(true),
-      pause_count_(0) {
-  preamble_[ScriptDataImpl::kMagicOffset] = ScriptDataImpl::kMagicNumber;
-  preamble_[ScriptDataImpl::kVersionOffset] = ScriptDataImpl::kCurrentVersion;
-  preamble_[ScriptDataImpl::kHasErrorOffset] = false;
-  preamble_[ScriptDataImpl::kFunctionsSizeOffset] = 0;
-  preamble_[ScriptDataImpl::kSymbolCountOffset] = 0;
-  preamble_[ScriptDataImpl::kSizeOffset] = 0;
-  ASSERT_EQ(6, ScriptDataImpl::kHeaderSize);
-#ifdef DEBUG
-  prev_start_ = -1;
-#endif
-}
-
-
-CompleteParserRecorder::CompleteParserRecorder()
-    : PartialParserRecorder(),
-      symbol_store_(0),
-      symbol_entries_(0),
-      symbol_table_(vector_compare),
-      symbol_id_(0) {
-}
-
-
-void PartialParserRecorder::WriteString(Vector<const char> str) {
-  function_store_.Add(str.length());
-  for (int i = 0; i < str.length(); i++) {
-    function_store_.Add(str[i]);
-  }
-}
-
-
-void CompleteParserRecorder::WriteNumber(int number) {
-  ASSERT(number >= 0);
-
-  int mask = (1 << 28) - 1;
-  for (int i = 28; i > 0; i -= 7) {
-    if (number > mask) {
-      symbol_store_.Add(static_cast<byte>(number >> i) | 0x80u);
-      number &= mask;
-    }
-    mask >>= 7;
-  }
-  symbol_store_.Add(static_cast<byte>(number));
 }
 
 
@@ -534,47 +435,26 @@ const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
   return result;
 }
 
-
-void PartialParserRecorder::LogMessage(Scanner::Location loc,
-                                       const char* message,
-                                       Vector<const char*> args) {
-  if (has_error()) return;
-  preamble_[ScriptDataImpl::kHasErrorOffset] = true;
-  function_store_.Reset();
-  STATIC_ASSERT(ScriptDataImpl::kMessageStartPos == 0);
-  function_store_.Add(loc.beg_pos);
-  STATIC_ASSERT(ScriptDataImpl::kMessageEndPos == 1);
-  function_store_.Add(loc.end_pos);
-  STATIC_ASSERT(ScriptDataImpl::kMessageArgCountPos == 2);
-  function_store_.Add(args.length());
-  STATIC_ASSERT(ScriptDataImpl::kMessageTextPos == 3);
-  WriteString(CStrVector(message));
-  for (int i = 0; i < args.length(); i++) {
-    WriteString(CStrVector(args[i]));
-  }
-  is_recording_ = false;
-}
-
-
 Scanner::Location ScriptDataImpl::MessageLocation() {
-  int beg_pos = Read(kMessageStartPos);
-  int end_pos = Read(kMessageEndPos);
+  int beg_pos = Read(PreparseDataConstants::kMessageStartPos);
+  int end_pos = Read(PreparseDataConstants::kMessageEndPos);
   return Scanner::Location(beg_pos, end_pos);
 }
 
 
 const char* ScriptDataImpl::BuildMessage() {
-  unsigned* start = ReadAddress(kMessageTextPos);
+  unsigned* start = ReadAddress(PreparseDataConstants::kMessageTextPos);
   return ReadString(start, NULL);
 }
 
 
 Vector<const char*> ScriptDataImpl::BuildArgs() {
-  int arg_count = Read(kMessageArgCountPos);
+  int arg_count = Read(PreparseDataConstants::kMessageArgCountPos);
   const char** array = NewArray<const char*>(arg_count);
   // Position after text found by skipping past length field and
   // length field content words.
-  int pos = kMessageTextPos + 1 + Read(kMessageTextPos);
+  int pos = PreparseDataConstants::kMessageTextPos + 1
+      + Read(PreparseDataConstants::kMessageTextPos);
   for (int i = 0; i < arg_count; i++) {
     int count = 0;
     array[i] = ReadString(ReadAddress(pos), &count);
@@ -585,12 +465,12 @@ Vector<const char*> ScriptDataImpl::BuildArgs() {
 
 
 unsigned ScriptDataImpl::Read(int position) {
-  return store_[ScriptDataImpl::kHeaderSize + position];
+  return store_[PreparseDataConstants::kHeaderSize + position];
 }
 
 
 unsigned* ScriptDataImpl::ReadAddress(int position) {
-  return &store_[ScriptDataImpl::kHeaderSize + position];
+  return &store_[PreparseDataConstants::kHeaderSize + position];
 }
 
 
@@ -4601,9 +4481,10 @@ bool ScriptDataImpl::HasError() {
 
 void ScriptDataImpl::Initialize() {
   // Prepares state for use.
-  if (store_.length() >= kHeaderSize) {
-    function_index_ = kHeaderSize;
-    int symbol_data_offset = kHeaderSize + store_[kFunctionsSizeOffset];
+  if (store_.length() >= PreparseDataConstants::kHeaderSize) {
+    function_index_ = PreparseDataConstants::kHeaderSize;
+    int symbol_data_offset = PreparseDataConstants::kHeaderSize
+        + store_[PreparseDataConstants::kFunctionsSizeOffset];
     if (store_.length() > symbol_data_offset) {
       symbol_data_ = reinterpret_cast<byte*>(&store_[symbol_data_offset]);
     } else {
@@ -4625,7 +4506,7 @@ int ScriptDataImpl::ReadNumber(byte** source) {
   byte* data = *source;
   if (data >= symbol_data_end_) return -1;
   byte input = *data;
-  if (input == kNumberTerminator) {
+  if (input == PreparseDataConstants::kNumberTerminator) {
     // End of stream marker.
     return -1;
   }
@@ -4646,11 +4527,11 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 static ScriptDataImpl* DoPreParse(Handle<String> source,
                                   unibrow::CharacterStream* stream,
                                   bool allow_lazy,
-                                  PartialParserRecorder* recorder,
+                                  ParserRecorder* recorder,
                                   int literal_flags) {
   V8JavaScriptScanner scanner;
   scanner.Initialize(source, stream, literal_flags);
-  preparser::PreParser<JavaScriptScanner, PartialParserRecorder> preparser;
+  preparser::PreParser preparser;
   if (!preparser.PreParseProgram(&scanner, recorder, allow_lazy)) {
     Top::StackOverflow();
     return NULL;

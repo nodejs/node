@@ -1,3 +1,28 @@
+2010-11-29: Version 2.5.9
+
+        Fixed crashes during GC caused by partially initialize heap
+        objects.
+
+        Fixed bug in process sample that caused memory leaks.
+
+        Improved performance on ARM by implementing missing stubs and
+        inlining.
+
+        Improved heap profiler support.
+
+        Added separate seeding on Windows of the random number generator
+        used internally by the compiler (issue 936).
+
+        Exposed API for getting the name of the function used to construct
+        an object.
+
+        Fixed date parser to handle one and two digit millisecond
+        values (issue 944).
+
+        Fixed number parsing to disallow space between sign and
+        digits (issue 946).
+
+
 2010-11-23: Version 2.5.8
 
         Removed dependency on Gay's dtoa.

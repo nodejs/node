@@ -762,6 +762,22 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\preparser.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\preparser.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\preparse-data.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\preparse-data.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\profile-generator.cc"
 				>
 			</File>
@@ -1034,11 +1050,23 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\v8checks.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\v8globals.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\v8threads.cc"
 				>
 			</File>
 			<File
 				RelativePath="..\..\src\v8threads.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\v8utils.h"
 				>
 			</File>
 			<File
@@ -1155,6 +1183,10 @@
 			</File>
 			<File
 				RelativePath="..\..\include\v8.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\include\v8stdint.h"
 				>
 			</File>
 		</Filter>

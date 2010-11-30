@@ -1166,9 +1166,6 @@ String* JSObject::class_name() {
 
 
 String* JSObject::constructor_name() {
-  if (IsJSFunction()) {
-    return Heap::closure_symbol();
-  }
   if (map()->constructor()->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(map()->constructor());
     String* name = String::cast(constructor->shared()->name());

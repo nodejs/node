@@ -25,39 +25,40 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "../include/v8stdint.h"
-#include "token.h"
+#ifndef V8_V8CHECKS_H_
+#define V8_V8CHECKS_H_
+
+#include "checks.h"
+
+void API_Fatal(const char* location, const char* format, ...);
 
 namespace v8 {
+  class Value;
+  template <class T> class Handle;
+
 namespace internal {
-
-#define T(name, string, precedence) #name,
-const char* Token::name_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define T(name, string, precedence) string,
-const char* Token::string_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define T(name, string, precedence) precedence,
-int8_t Token::precedence_[NUM_TOKENS] = {
-  TOKEN_LIST(T, T, IGNORE_TOKEN)
-};
-#undef T
-
-
-#define KT(a, b, c) 'T',
-#define KK(a, b, c) 'K',
-const char Token::token_type[] = {
-  TOKEN_LIST(KT, KK, IGNORE_TOKEN)
-};
-#undef KT
-#undef KK
+  intptr_t HeapObjectTagMask();
 
 } }  // namespace v8::internal
+
+
+void CheckNonEqualsHelper(const char* file,
+                          int line,
+                          const char* unexpected_source,
+                          v8::Handle<v8::Value> unexpected,
+                          const char* value_source,
+                          v8::Handle<v8::Value> value);
+
+void CheckEqualsHelper(const char* file,
+                       int line,
+                       const char* expected_source,
+                       v8::Handle<v8::Value> expected,
+                       const char* value_source,
+                       v8::Handle<v8::Value> value);
+
+#define ASSERT_TAG_ALIGNED(address) \
+  ASSERT((reinterpret_cast<intptr_t>(address) & HeapObjectTagMask()) == 0)
+
+#define ASSERT_SIZE_TAG_ALIGNED(size) ASSERT((size & HeapObjectTagMask()) == 0)
+
+#endif  // V8_V8CHECKS_H_

@@ -152,18 +152,16 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
   Handle<ObjectTemplate> global = ObjectTemplate::New();
   global->Set(String::New("log"), FunctionTemplate::New(LogCallback));
 
-  // Each processor gets its own context so different processors
-  // don't affect each other (ignore the first three lines).
-  Handle<Context> context = Context::New(NULL, global);
-
-  // Store the context in the processor object in a persistent handle,
-  // since we want the reference to remain after we return from this
-  // method.
-  context_ = Persistent<Context>::New(context);
+  // Each processor gets its own context so different processors don't
+  // affect each other. Context::New returns a persistent handle which
+  // is what we need for the reference to remain after we return from
+  // this method. That persistent handle has to be disposed in the
+  // destructor.
+  context_ = Context::New(NULL, global);
 
   // Enter the new context so all the following operations take place
   // within it.
-  Context::Scope context_scope(context);
+  Context::Scope context_scope(context_);
 
   // Make the options mapping available within the context
   if (!InstallMaps(opts, output))
@@ -176,7 +174,7 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
   // The script compiled and ran correctly.  Now we fetch out the
   // Process function from the global object.
   Handle<String> process_name = String::New("Process");
-  Handle<Value> process_val = context->Global()->Get(process_name);
+  Handle<Value> process_val = context_->Global()->Get(process_name);
 
   // If there is no Process function, or if it is not a function,
   // bail out

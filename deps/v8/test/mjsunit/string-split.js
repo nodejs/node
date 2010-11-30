@@ -97,3 +97,22 @@ assertEquals([""], ''.split(/./));
 assertEquals([], ''.split(/.?/));
 assertEquals([], ''.split(/.??/));
 assertEquals([], ''.split(/()()/));
+
+
+// Issue http://code.google.com/p/v8/issues/detail?id=929
+// (Splitting with empty separator and a limit.)
+
+function numberObj(num) {
+  return {valueOf: function() { return num; }};
+}
+
+assertEquals([], "abc".split("", 0));
+assertEquals([], "abc".split("", numberObj(0)));
+assertEquals(["a"], "abc".split("", 1));
+assertEquals(["a"], "abc".split("", numberObj(1)));
+assertEquals(["a", "b"], "abc".split("", 2));
+assertEquals(["a", "b"], "abc".split("", numberObj(2)));
+assertEquals(["a", "b", "c"], "abc".split("", 3));
+assertEquals(["a", "b", "c"], "abc".split("", numberObj(3)));
+assertEquals(["a", "b", "c"], "abc".split("", 4));
+assertEquals(["a", "b", "c"], "abc".split("", numberObj(4)));

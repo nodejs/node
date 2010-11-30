@@ -194,14 +194,6 @@ enum ArgumentsAllocationMode {
 };
 
 
-// Different nop operations are used by the code generator to detect certain
-// states of the generated code.
-enum NopMarkerTypes {
-  NON_MARKING_NOP = 0,
-  PROPERTY_ACCESS_INLINED
-};
-
-
 // -------------------------------------------------------------------------
 // CodeGenerator
 

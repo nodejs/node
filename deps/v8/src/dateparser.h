@@ -87,6 +87,18 @@ class DateParser : public AllStatic {
       return n;
     }
 
+    // Read a string of digits, take the first three or fewer as an unsigned
+    // number of milliseconds, and ignore any digits after the first three.
+    int ReadMilliseconds() {
+      has_read_number_ = true;
+      int n = 0;
+      int power;
+      for (power = 100; IsAsciiDigit(); Next(), power = power / 10) {
+        n = n + power * (ch_ - '0');
+      }
+      return n;
+    }
+
     // Read a word (sequence of chars. >= 'A'), fill the given buffer with a
     // lower-case prefix, and pad any remainder of the buffer with zeroes.
     // Return word length.

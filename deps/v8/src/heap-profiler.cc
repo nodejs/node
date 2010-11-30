@@ -69,7 +69,8 @@ class Clusterizer : public AllStatic {
 JSObjectsCluster Clusterizer::Clusterize(HeapObject* obj, bool fine_grain) {
   if (obj->IsJSObject()) {
     JSObject* js_obj = JSObject::cast(obj);
-    String* constructor = JSObject::cast(js_obj)->constructor_name();
+    String* constructor = GetConstructorNameForHeapProfile(
+        JSObject::cast(js_obj));
     // Differentiate Object and Array instances.
     if (fine_grain && (constructor == Heap::Object_symbol() ||
                        constructor == Heap::Array_symbol())) {
@@ -714,7 +715,7 @@ static void StackWeakReferenceCallback(Persistent<Value> object,
 
 static void PrintProducerStackTrace(Object* obj, void* trace) {
   if (!obj->IsJSObject()) return;
-  String* constructor = JSObject::cast(obj)->constructor_name();
+  String* constructor = GetConstructorNameForHeapProfile(JSObject::cast(obj));
   SmartPointer<char> s_name(
       constructor->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL));
   LOG(HeapSampleJSProducerEvent(GetConstructorName(*s_name),
@@ -886,7 +887,8 @@ static JSObjectsCluster HeapObjectAsCluster(HeapObject* object) {
     return JSObjectsCluster(String::cast(object));
   } else {
     JSObject* js_obj = JSObject::cast(object);
-    String* constructor = JSObject::cast(js_obj)->constructor_name();
+    String* constructor = GetConstructorNameForHeapProfile(
+        JSObject::cast(js_obj));
     return JSObjectsCluster(constructor, object);
   }
 }
@@ -1064,6 +1066,8 @@ void AggregatedHeapSnapshotGenerator::FillHeapSnapshot(HeapSnapshot* snapshot) {
 
   // Fill up references.
   IterateRetainers<AllocatingRetainersIterator>(&entries_map);
+
+  snapshot->SetDominatorsToSelf();
 }
 
 

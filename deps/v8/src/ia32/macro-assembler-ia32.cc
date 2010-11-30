@@ -537,7 +537,6 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
 
 void MacroAssembler::LoadAllocationTopHelper(Register result,
-                                             Register result_end,
                                              Register scratch,
                                              AllocationFlags flags) {
   ExternalReference new_space_allocation_top =
@@ -559,7 +558,6 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
   if (scratch.is(no_reg)) {
     mov(result, Operand::StaticVariable(new_space_allocation_top));
   } else {
-    ASSERT(!scratch.is(result_end));
     mov(Operand(scratch), Immediate(new_space_allocation_top));
     mov(result, Operand(scratch, 0));
   }
@@ -608,7 +606,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  LoadAllocationTopHelper(result, result_end, scratch, flags);
+  LoadAllocationTopHelper(result, scratch, flags);
 
   Register top_reg = result_end.is_valid() ? result_end : result;
 
@@ -664,7 +662,7 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  LoadAllocationTopHelper(result, result_end, scratch, flags);
+  LoadAllocationTopHelper(result, scratch, flags);
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
@@ -705,7 +703,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  LoadAllocationTopHelper(result, result_end, scratch, flags);
+  LoadAllocationTopHelper(result, scratch, flags);
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
