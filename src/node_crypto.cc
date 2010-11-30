@@ -61,7 +61,7 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  OPENSSL_CONST SSL_METHOD *method = TLSv1_method();
+  OPENSSL_CONST SSL_METHOD *method = SSLv23_method();
 
   if (args.Length() == 1 && args[0]->IsString()) {
     String::Utf8Value sslmethod(args[0]->ToString());
