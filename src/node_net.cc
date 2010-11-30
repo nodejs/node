@@ -450,7 +450,7 @@ static Handle<Value> Connect(const Arguments& args) {
 
   if (r == INVALID_SOCKET) {
     int wsaErrno = WSAGetLastError();
-    if (wsaErrno != WSAEALREADY && wsaErrno != WSAEINPROGRESS) {
+    if (wsaErrno != WSAEWOULDBLOCK && wsaErrno != WSAEINPROGRESS) {
       return ThrowException(ErrnoException(wsaErrno, "connect"));
     }
   }
