@@ -9,6 +9,9 @@ from logging import fatal
 cwd = os.getcwd()
 APPNAME="node.js"
 
+# Use the directory that this file is found in to find the tools
+# directory where the js2c.py file can be found.
+sys.path.append(sys.argv[0] + '/tools');
 import js2c
 
 srcdir = '.'
