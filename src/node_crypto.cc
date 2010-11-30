@@ -30,12 +30,6 @@ static Persistent<String> name_symbol;
 static Persistent<String> version_symbol;
 
 
-static int verify_callback(int ok, X509_STORE_CTX *ctx) {
-  assert(ok);
-  return(1); // Ignore errors by now. VerifyPeer will catch them by using SSL_get_verify_result.
-}
-
-
 void SecureContext::Initialize(Handle<Object> target) {
   HandleScope scope;
 
@@ -289,6 +283,52 @@ void SecureStream::Initialize(Handle<Object> target) {
 }
 
 
+static int VerifyCallback(int preverify_ok, X509_STORE_CTX *ctx) {
+  // Quoting SSL_set_verify(3ssl):
+  //
+  //   The VerifyCallback function is used to control the behaviour when
+  //   the SSL_VERIFY_PEER flag is set. It must be supplied by the
+  //   application and receives two arguments: preverify_ok indicates,
+  //   whether the verification of the certificate in question was passed
+  //   (preverify_ok=1) or not (preverify_ok=0). x509_ctx is a pointer to
+  //   the complete context used for the certificate chain verification.
+  //
+  //   The certificate chain is checked starting with the deepest nesting
+  //   level (the root CA certificate) and worked upward to the peer's
+  //   certificate.  At each level signatures and issuer attributes are
+  //   checked.  Whenever a verification error is found, the error number is
+  //   stored in x509_ctx and VerifyCallback is called with preverify_ok=0.
+  //   By applying X509_CTX_store_* functions VerifyCallback can locate the
+  //   certificate in question and perform additional steps (see EXAMPLES).
+  //   If no error is found for a certificate, VerifyCallback is called
+  //   with preverify_ok=1 before advancing to the next level.
+  //
+  //   The return value of VerifyCallback controls the strategy of the
+  //   further verification process. If VerifyCallback returns 0, the
+  //   verification process is immediately stopped with "verification
+  //   failed" state. If SSL_VERIFY_PEER is set, a verification failure
+  //   alert is sent to the peer and the TLS/SSL handshake is terminated. If
+  //   VerifyCallback returns 1, the verification process is continued. If
+  //   VerifyCallback always returns 1, the TLS/SSL handshake will not be
+  //   terminated with respect to verification failures and the connection
+  //   will be established. The calling process can however retrieve the
+  //   error code of the last verification error using
+  //   SSL_get_verify_result(3) or by maintaining its own error storage
+  //   managed by VerifyCallback.
+  //
+  //   If no VerifyCallback is specified, the default callback will be
+  //   used.  Its return value is identical to preverify_ok, so that any
+  //   verification failure will lead to a termination of the TLS/SSL
+  //   handshake with an alert message, if SSL_VERIFY_PEER is set.
+  //
+  // Since we cannot perform I/O quickly enough in this callback, we ignore
+  // all preverify_ok errors and let the handshake continue. It is
+  // imparative that the user use SecureStream::VerifyPeer after the 'secure'
+  // callback has been made.
+  return 1;
+}
+
+
 Handle<Value> SecureStream::New(const Arguments& args) {
   HandleScope scope;
 
@@ -316,7 +356,7 @@ Handle<Value> SecureStream::New(const Arguments& args) {
 #endif
 
   if ((p->should_verify_ = should_verify)) {
-    SSL_set_verify(p->ssl_, SSL_VERIFY_PEER, verify_callback);
+    SSL_set_verify(p->ssl_, SSL_VERIFY_PEER, VerifyCallback);
   }
 
   if ((p->is_server_ = is_server)) {
