@@ -113,7 +113,7 @@ buffer object.  It does not change when the contents of the buffer are changed.
     // 1234
     // 1234
 
-### buffer.copy(targetBuffer, targetStart, sourceStart=0, sourceEnd=buffer.length)
+### buffer.copy(targetBuffer, targetStart=0, sourceStart=0, sourceEnd=buffer.length)
 
 Does a memcpy() between buffers.
 
