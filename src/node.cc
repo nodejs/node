@@ -1818,7 +1818,8 @@ static void AtExit() {
 
 
 static void SignalExit(int signal) {
-  exit(1);
+  Stdio::DisableRawMode(STDIN_FILENO);
+  _exit(1);
 }
 
 
