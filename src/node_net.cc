@@ -716,11 +716,8 @@ static Handle<Value> Read(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "read"));
   }
 #else // __MINGW32__
-  /*
-   * read() _should_ work for sockets in mingw, but always gives EINVAL;
-   * someone should really file a bug about it.
-   * We'll use recv() for sockets however, it's faster as well.
-   */
+   // read() doesn't work for overlapped sockets (the only usable 
+   // type of sockets) so recv() is used here.
   ssize_t bytes_read = recv(_get_osfhandle(fd), (char*)buffer_data + off, len, 0);
 
   if (bytes_read < 0) {
@@ -938,11 +935,8 @@ static Handle<Value> Write(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "write"));
   }
 #else // __MINGW32__
-  /*
-   * write() _should_ work for sockets in mingw, but always gives EINVAL;
-   * someone should really file a bug about it.
-   * We'll use send() for sockets however, it's faster as well.
-   */
+  // write() doesn't work for overlapped sockets (the only usable 
+  // type of sockets) so send() is used.
   ssize_t written = send(_get_osfhandle(fd), buffer_data + off, len, 0);
 
   if (written < 0) {

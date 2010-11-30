@@ -10,7 +10,8 @@
 
 - Child processes
   Should not be too hard using CreatePipe, CreateProcessW and GetExitCodeProcess.
-  Hooking up the child to a socket is tricky but it can be done (http://www.spinellis.gr/sw/unix/socketpipe/socketpipe-win.c)
+  Hooking up a child process to a file handle can be done; hooking up to a normal socket won't work;
+  we'd need some sort of pump() mechanism.
   Waiting for the child to exit is tricky, probably would require a wait thread to wait for the child, then ev_async notify.
   How can we distinguish between the exit code and exception number after calling GetExitCodeProcess?
 

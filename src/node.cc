@@ -17,7 +17,8 @@
 #include "platform.h"
 
 #ifdef __MINGW32__
-# include "platform_win32.h" /* winapi_perror() */
+# include <platform_win32.h> /* winapi_perror() */
+# include <platform_win32_winsock.h> /* wsa_init() */
 #else // __POSIX__
 # include <dlfcn.h> /* dlopen(), dlsym() */
 # include <pwd.h> /* getpwnam() */
@@ -95,10 +96,6 @@ static Persistent<String> tick_callback_sym;
 static ev_async eio_want_poll_notifier;
 static ev_async eio_done_poll_notifier;
 static ev_idle  eio_poller;
-
-#ifdef __MINGW32__
-WSAData winsockData;
-#endif
 
 // Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
 // scoped at file-level rather than method-level to avoid excess stack usage.
@@ -1952,11 +1949,8 @@ int Start(int argc, char *argv[]) {
 #endif // __POSIX__
 
 #ifdef __MINGW32__
-  // On windows, to use winsock it must be initialized
-  WORD winsockVersion = MAKEWORD(2, 2);
-  if (WSAStartup(winsockVersion, &winsockData)) {
-    winapi_perror("WSAStartup");
-  }
+  // Initialize winsock and soem related caches
+  wsa_init();
 #endif // __MINGW32__
 
   // Initialize the default ev loop.

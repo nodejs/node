@@ -7,6 +7,7 @@
 #include <unistd.h> // getpagesize
 #include <windows.h>
 
+#include "platform_win32_winsock.cc"
 
 namespace node {
 
