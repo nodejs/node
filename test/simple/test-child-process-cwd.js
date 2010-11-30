@@ -30,7 +30,6 @@ function testCwd(options, forCode, forData) {
 }
 
 // Assume these exist, and 'pwd' gives us the right directory back
-testCwd( { cwd: '/bin'    }, 0, '/bin' );
 testCwd( { cwd: '/dev'    }, 0, '/dev' );
 testCwd( { cwd: '/'       }, 0, '/'    );
 
