@@ -27,7 +27,6 @@ process.assert = function (x, msg) {
   if (!x) throw new Error(msg || "assertion error");
 };
 
-var writeError = process.binding('stdio').writeError;
 var evals = process.binding('evals');
 
 // lazy loaded.
@@ -115,9 +114,7 @@ var module = (function () {
 
   var debugLevel = parseInt(process.env["NODE_DEBUG"], 16);
   function debug (x) {
-    if (debugLevel & 1) {
-      process.binding('stdio').writeError(x + "\n");
-    }
+    if (debugLevel & 1) console.error(x);
   }
 
 
@@ -490,80 +487,11 @@ process.openStdin = function () {
 };
 
 
-// console object
-var formatRegExp = /%[sdj]/g;
-function format (f) {
-  if (typeof f !== 'string') {
-    var objects = [], util = requireNative('util');
-    for (var i = 0; i < arguments.length; i++) {
-      objects.push(util.inspect(arguments[i]));
-    }
-    return objects.join(' ');
-  }
+// Lazy load console object
+global.__defineGetter__('console', function () {
+  return requireNative('console');
+});
 
-
-  var i = 1;
-  var args = arguments;
-  var str = String(f).replace(formatRegExp, function (x) {
-    switch (x) {
-      case '%s': return args[i++];
-      case '%d': return +args[i++];
-      case '%j': return JSON.stringify(args[i++]);
-      default:
-        return x;
-    }
-  });
-  for (var len = args.length; i < len; ++i) {
-    str += ' ' + args[i];
-  }
-  return str;
-}
-
-global.console = {};
-
-global.console.log = function () {
-  process.stdout.write(format.apply(this, arguments) + '\n');
-};
-
-global.console.info = global.console.log;
-
-global.console.warn = function () {
-  writeError(format.apply(this, arguments) + '\n');
-};
-
-global.console.error = global.console.warn;
-
-global.console.dir = function(object){
-  var util = requireNative('util');
-  process.stdout.write(util.inspect(object) + '\n');
-};
-
-var times = {};
-global.console.time = function(label){
-  times[label] = Date.now();
-};
-
-global.console.timeEnd = function(label){
-  var duration = Date.now() - times[label];
-  global.console.log('%s: %dms', label, duration);
-};
-
-global.console.trace = function(label){
-  // TODO probably can to do this better with V8's debug object once that is
-  // exposed.
-  var err = new Error;
-  err.name = 'Trace';
-  err.message = label || '';
-  Error.captureStackTrace(err, arguments.callee);
-  console.error(err.stack);
-};
-
-global.console.assert = function(expression){
-  if(!expression){
-    var arr = Array.prototype.slice.call(arguments, 1);
-    process.assert(false, format.apply(this, arr));
-  }
-};
 
 global.Buffer = requireNative('buffer').Buffer;
 
