@@ -530,14 +530,16 @@
   var path = requireNative('path');
 
   // Make process.argv[0] and process.argv[1] into full paths.
-  if (process.argv[0].indexOf('/') > 0) {
+  if ('/\\'.indexOf(process.argv[0].charAt(0)) < 0 
+      && process.argv[0].charAt(1) != ':') {
     process.argv[0] = path.join(cwd, process.argv[0]);
   }
 
   if (process.argv[1]) {
     // Load module
-    if (process.argv[1].charAt(0) != '/' &&
-        !(/^http:\/\//).exec(process.argv[1])) {
+    if ('/\\'.indexOf(process.argv[1].charAt(0)) < 0
+        && process.argv[1].charAt(1) != ':'
+        && !(/^http:\/\//).exec(process.argv[1])) {    
       process.argv[1] = path.join(cwd, process.argv[1]);
     }
     // REMOVEME: nextTick should not be necessary. This hack to get
