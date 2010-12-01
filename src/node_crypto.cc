@@ -306,7 +306,7 @@ void SecureStream::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "encPending", SecureStream::EncPending);
   NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate", SecureStream::GetPeerCertificate);
   NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished", SecureStream::IsInitFinished);
-  NODE_SET_PROTOTYPE_METHOD(t, "verifyPeer", SecureStream::VerifyPeer);
+  NODE_SET_PROTOTYPE_METHOD(t, "verifyPeerError", SecureStream::VerifyPeerError);
   NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", SecureStream::GetCurrentCipher);
   NODE_SET_PROTOTYPE_METHOD(t, "start", SecureStream::Start);
   NODE_SET_PROTOTYPE_METHOD(t, "shutdown", SecureStream::Shutdown);
@@ -356,8 +356,8 @@ static int VerifyCallback(int preverify_ok, X509_STORE_CTX *ctx) {
   //
   // Since we cannot perform I/O quickly enough in this callback, we ignore
   // all preverify_ok errors and let the handshake continue. It is
-  // imparative that the user use SecureStream::VerifyPeer after the 'secure'
-  // callback has been made.
+  // imparative that the user use SecureStream::VerifyPeerError after the
+  // 'secure' callback has been made.
   return 1;
 }
 
@@ -715,32 +715,143 @@ Handle<Value> SecureStream::IsInitFinished(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::VerifyPeer(const Arguments& args) {
+Handle<Value> SecureStream::VerifyPeerError(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
 
   if (ss->ssl_ == NULL) return False();
   if (!ss->should_verify_) return False();
+
+#if 0
+  // Why?
   X509* peer_cert = SSL_get_peer_certificate(ss->ssl_);
-  if (peer_cert==NULL) return False();
+  if (peer_cert == NULL) return False();
   X509_free(peer_cert);
+#endif
 
   long x509_verify_error = SSL_get_verify_result(ss->ssl_);
 
-  // Can also check for:
-  // X509_V_ERR_CERT_HAS_EXPIRED
-  // X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT
-  // X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN
-  // X509_V_ERR_INVALID_CA
-  // X509_V_ERR_PATH_LENGTH_EXCEEDED
-  // X509_V_ERR_INVALID_PURPOSE
-  // X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT
+  Local<String> s;
 
-  // printf("%s\n", X509_verify_cert_error_string(x509_verify_error));
+  switch (x509_verify_error) {
+    case X509_V_OK:
+      return Null();
 
-  if (!x509_verify_error) return True();
-  return False();
+    case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
+      s = String::New("UNABLE_TO_GET_ISSUER_CERT");
+      break;
+
+    case X509_V_ERR_UNABLE_TO_GET_CRL:
+      s = String::New("UNABLE_TO_GET_CRL");
+      break;
+
+    case X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE:
+      s = String::New("UNABLE_TO_DECRYPT_CERT_SIGNATURE");
+      break;
+
+    case X509_V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE:
+      s = String::New("UNABLE_TO_DECRYPT_CRL_SIGNATURE");
+      break;
+
+    case X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY:
+      s = String::New("UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY");
+      break;
+
+    case X509_V_ERR_CERT_SIGNATURE_FAILURE:
+      s = String::New("CERT_SIGNATURE_FAILURE");
+      break;
+
+    case X509_V_ERR_CRL_SIGNATURE_FAILURE:
+      s = String::New("CRL_SIGNATURE_FAILURE");
+      break;
+
+    case X509_V_ERR_CERT_NOT_YET_VALID:
+      s = String::New("CERT_NOT_YET_VALID");
+      break;
+
+    case X509_V_ERR_CERT_HAS_EXPIRED:
+      s = String::New("CERT_HAS_EXPIRED");
+      break;
+
+    case X509_V_ERR_CRL_NOT_YET_VALID:
+      s = String::New("CRL_NOT_YET_VALID");
+      break;
+
+    case X509_V_ERR_CRL_HAS_EXPIRED:
+      s = String::New("CRL_HAS_EXPIRED");
+      break;
+
+    case X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
+      s = String::New("ERROR_IN_CERT_NOT_BEFORE_FIELD");
+      break;
+
+    case X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
+      s = String::New("ERROR_IN_CERT_NOT_AFTER_FIELD");
+      break;
+
+    case X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD:
+      s = String::New("ERROR_IN_CRL_LAST_UPDATE_FIELD");
+      break;
+
+    case X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD:
+      s = String::New("ERROR_IN_CRL_NEXT_UPDATE_FIELD");
+      break;
+
+    case X509_V_ERR_OUT_OF_MEM:
+      s = String::New("OUT_OF_MEM");
+      break;
+
+    case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+      s = String::New("DEPTH_ZERO_SELF_SIGNED_CERT");
+      break;
+
+    case X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
+      s = String::New("SELF_SIGNED_CERT_IN_CHAIN");
+      break;
+
+    case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
+      s = String::New("UNABLE_TO_GET_ISSUER_CERT_LOCALLY");
+      break;
+
+    case X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+      s = String::New("UNABLE_TO_VERIFY_LEAF_SIGNATURE");
+      break;
+
+    case X509_V_ERR_CERT_CHAIN_TOO_LONG:
+      s = String::New("CERT_CHAIN_TOO_LONG");
+      break;
+
+    case X509_V_ERR_CERT_REVOKED:
+      s = String::New("CERT_REVOKED");
+      break;
+
+    case X509_V_ERR_INVALID_CA:
+      s = String::New("INVALID_CA");
+      break;
+
+    case X509_V_ERR_PATH_LENGTH_EXCEEDED:
+      s = String::New("PATH_LENGTH_EXCEEDED");
+      break;
+
+    case X509_V_ERR_INVALID_PURPOSE:
+      s = String::New("INVALID_PURPOSE");
+      break;
+
+    case X509_V_ERR_CERT_UNTRUSTED:
+      s = String::New("CERT_UNTRUSTED");
+      break;
+
+    case X509_V_ERR_CERT_REJECTED:
+      s = String::New("CERT_REJECTED");
+      break;
+
+    default:
+      s = String::New(X509_verify_cert_error_string(x509_verify_error));
+      break;
+  }
+
+  return scope.Close(s);
 }
 
 
