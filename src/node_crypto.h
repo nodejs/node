@@ -89,7 +89,6 @@ class SecureStream : ObjectWrap {
   BIO *bio_write_;
   SSL *ssl_;
   bool is_server_; /* coverity[member_decl] */
-  bool should_verify_; /* coverity[member_decl] */
 };
 
 void InitCrypto(v8::Handle<v8::Object> target);

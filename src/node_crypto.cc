@@ -378,7 +378,6 @@ Handle<Value> SecureStream::New(const Arguments& args) {
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args[0]->ToObject());
 
   bool is_server = args[1]->BooleanValue();
-  bool should_verify = args[2]->BooleanValue();
 
   p->ssl_ = SSL_new(sc->ctx_);
   p->bio_read_ = BIO_new(BIO_s_mem());
@@ -390,9 +389,8 @@ Handle<Value> SecureStream::New(const Arguments& args) {
   SSL_set_mode(p->ssl_, mode | SSL_MODE_RELEASE_BUFFERS);
 #endif
 
-  if ((p->should_verify_ = should_verify)) {
-    SSL_set_verify(p->ssl_, SSL_VERIFY_PEER, VerifyCallback);
-  }
+  // Always allow a connection. We'll reject in javascript.
+  SSL_set_verify(p->ssl_, SSL_VERIFY_PEER, VerifyCallback);
 
   if ((p->is_server_ = is_server)) {
     SSL_set_accept_state(p->ssl_);
@@ -722,8 +720,7 @@ Handle<Value> SecureStream::VerifyError(const Arguments& args) {
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
 
-  if (ss->ssl_ == NULL) return False();
-  if (!ss->should_verify_) return False();
+  if (ss->ssl_ == NULL) return Null();
 
 #if 0
   // Why?
