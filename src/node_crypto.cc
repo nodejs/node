@@ -264,6 +264,7 @@ Handle<Value> SecureContext::Close(const Arguments& args) {
   if (sc->ctx_ != NULL) {
     SSL_CTX_free(sc->ctx_);
     sc->ctx_ = NULL;
+    sc->ca_store_ = NULL;
     return True();
   }
 

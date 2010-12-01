@@ -43,11 +43,9 @@ class SecureContext : ObjectWrap {
     if (ctx_) {
       SSL_CTX_free(ctx_);
       ctx_ = NULL;
-    }
-
-    if (ca_store_) {
-      X509_STORE_free(ca_store_);
       ca_store_ = NULL;
+    } else {
+      assert(ca_store_ == NULL);
     }
   }
 
