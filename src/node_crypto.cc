@@ -307,7 +307,7 @@ void SecureStream::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "encPending", SecureStream::EncPending);
   NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate", SecureStream::GetPeerCertificate);
   NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished", SecureStream::IsInitFinished);
-  NODE_SET_PROTOTYPE_METHOD(t, "verifyPeerError", SecureStream::VerifyPeerError);
+  NODE_SET_PROTOTYPE_METHOD(t, "verifyError", SecureStream::VerifyError);
   NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", SecureStream::GetCurrentCipher);
   NODE_SET_PROTOTYPE_METHOD(t, "start", SecureStream::Start);
   NODE_SET_PROTOTYPE_METHOD(t, "shutdown", SecureStream::Shutdown);
@@ -357,7 +357,7 @@ static int VerifyCallback(int preverify_ok, X509_STORE_CTX *ctx) {
   //
   // Since we cannot perform I/O quickly enough in this callback, we ignore
   // all preverify_ok errors and let the handshake continue. It is
-  // imparative that the user use SecureStream::VerifyPeerError after the
+  // imparative that the user use SecureStream::VerifyError after the
   // 'secure' callback has been made.
   return 1;
 }
@@ -716,7 +716,7 @@ Handle<Value> SecureStream::IsInitFinished(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::VerifyPeerError(const Arguments& args) {
+Handle<Value> SecureStream::VerifyError(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());

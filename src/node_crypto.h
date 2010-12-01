@@ -68,7 +68,7 @@ class SecureStream : ObjectWrap {
   static v8::Handle<v8::Value> ClearIn(const v8::Arguments& args);
   static v8::Handle<v8::Value> GetPeerCertificate(const v8::Arguments& args);
   static v8::Handle<v8::Value> IsInitFinished(const v8::Arguments& args);
-  static v8::Handle<v8::Value> VerifyPeerError(const v8::Arguments& args);
+  static v8::Handle<v8::Value> VerifyError(const v8::Arguments& args);
   static v8::Handle<v8::Value> GetCurrentCipher(const v8::Arguments& args);
   static v8::Handle<v8::Value> Shutdown(const v8::Arguments& args);
   static v8::Handle<v8::Value> Start(const v8::Arguments& args);
