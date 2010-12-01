@@ -30,6 +30,7 @@ class SecureContext : ObjectWrap {
   static v8::Handle<v8::Value> SetKey(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetCert(const v8::Arguments& args);
   static v8::Handle<v8::Value> AddCACert(const v8::Arguments& args);
+  static v8::Handle<v8::Value> AddRootCerts(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetCiphers(const v8::Arguments& args);
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
 

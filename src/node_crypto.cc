@@ -3,6 +3,7 @@
 
 #include <node.h>
 #include <node_buffer.h>
+#include <node_root_certs.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -41,6 +42,7 @@ void SecureContext::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "setKey", SecureContext::SetKey);
   NODE_SET_PROTOTYPE_METHOD(t, "setCert", SecureContext::SetCert);
   NODE_SET_PROTOTYPE_METHOD(t, "addCACert", SecureContext::AddCACert);
+  NODE_SET_PROTOTYPE_METHOD(t, "addRootCerts", SecureContext::AddRootCerts);
   NODE_SET_PROTOTYPE_METHOD(t, "setCiphers", SecureContext::SetCiphers);
   NODE_SET_PROTOTYPE_METHOD(t, "close", SecureContext::Close);
 
@@ -202,6 +204,37 @@ Handle<Value> SecureContext::AddCACert(const Arguments& args) {
 
   BIO_free(bp);
   X509_free(x509);
+
+  return True();
+}
+
+
+Handle<Value> SecureContext::AddRootCerts(const Arguments& args) {
+  HandleScope scope;
+
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+
+  for (int i = 0; root_certs[i]; i++) {
+    // TODO: reuse bp ?
+    BIO *bp = BIO_new(BIO_s_mem());
+
+    if (!BIO_write(bp, root_certs[i], strlen(root_certs[i]))) {
+      BIO_free(bp);
+      return False();
+    }
+
+    X509 *x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
+
+    if (x509 == NULL) {
+      BIO_free(bp);
+      return False();
+    }
+
+    X509_STORE_add_cert(sc->ca_store_, x509);
+
+    BIO_free(bp);
+    X509_free(x509);
+  }
 
   return True();
 }
