@@ -11,7 +11,7 @@ var net = require("net"),
   server_tcp, server_unix, client_tcp, client_unix, timer;
 
 // absolute path to test/fixtures/a.js
-var moduleFilename = require("path").join(common.fixturesDir, "a.js");
+var moduleFilename = require("path").join(common.fixturesDir, "a");
 
 common.error('repl test');
 
