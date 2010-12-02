@@ -74,6 +74,7 @@ int OS::GetExecutablePath(char* buffer, size_t* size) {
   if (sysctl(mib, 4, buffer, size, NULL, 0) == -1) {
     return -1;
   }
+  *size-=1;
   return 0;
 }
 
