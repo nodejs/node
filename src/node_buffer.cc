@@ -381,7 +381,7 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
   ssize_t to_copy = MIN(MIN(source_end - source_start,
                             target_length - target_start),
                             source->length_ - source_start);
-  
+
 
   // need to use slightly slower memmove is the ranges might overlap
   memmove((void *)(target_data + target_start),
@@ -406,7 +406,7 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   size_t offset = args[1]->Uint32Value();
 
-  if (s->Utf8Length() > 0 && offset >= buffer->length_) {
+  if (s->Length() > 0 && offset >= buffer->length_) {
     return ThrowException(Exception::TypeError(String::New(
             "Offset is out of bounds")));
   }
