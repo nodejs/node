@@ -130,11 +130,8 @@ bench-idle:
 	sleep 1
 	./node benchmark/idle_clients.js &
 
-GJSLINT = PYTHONPATH=tools/closure_linter/ \
-	python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc
-
 jslint:
-	$(GJSLINT) -r lib/ -r src/ -r test/
+	PYTHONPATH=tools/closure_linter/ python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ -r test/
 
 cpplint:
 	@python tools/cpplint.py $(wildcard src/*.cc src/*.h src/*.c)
