@@ -130,5 +130,11 @@ bench-idle:
 	sleep 1
 	./node benchmark/idle_clients.js &
 
+lint:
+	@for i in lib/*.js; do \
+	  PYTHONPATH=tools/closure_linter/ python tools/closure_linter/closure_linter/gjslint.py \
+	    --unix_mode --strict --nojsdoc $$i || exit 1; \
+	done
 
-.PHONY: bench clean docopen docclean doc dist distclean check uninstall install all program staticlib dynamiclib test test-all website-upload
+
+.PHONY: lint bench clean docopen docclean doc dist distclean check uninstall install all program staticlib dynamiclib test test-all website-upload

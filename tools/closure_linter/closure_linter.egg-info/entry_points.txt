@@ -1,0 +1,4 @@
+[console_scripts]
+fixjsstyle = closure_linter.fixjsstyle:main
+gjslint = closure_linter.gjslint:main
+

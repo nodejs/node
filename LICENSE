@@ -34,6 +34,9 @@ are:
   - src/platform_darwin_proctitle.cc, has code taken from the Chromium
     project copyright Google Inc. and released with the BSD license.
 
+  - tools/closure_linter is copyrighted by The Closure Linter Authors and
+    Google Inc and is released under the Apache license.
+
 
 Node's license follows:
 
