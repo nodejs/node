@@ -113,7 +113,7 @@ TARNAME=node-$(VERSION)
 
 #dist: doc/node.1 doc/api
 dist: doc
-	  git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
+	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
 	mkdir -p $(TARNAME)/doc
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r build/doc/api $(TARNAME)/doc/api
@@ -130,17 +130,14 @@ bench-idle:
 	sleep 1
 	./node benchmark/idle_clients.js &
 
-# TODO lint the test directories and src/node.js
+GJSLINT = PYTHONPATH=tools/closure_linter/ \
+	python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc
+
 jslint:
-	@for i in lib/*.js; do \
-	  PYTHONPATH=tools/closure_linter/ python tools/closure_linter/closure_linter/gjslint.py \
-	    --unix_mode --strict --nojsdoc $$i || exit 1; \
-	done
+	$(GJSLINT) -r lib/ -r src/ -r test/
 
 cpplint:
-	@for i in src/*.cc src/*.h src/*.c; do \
-	  python tools/cpplint.py $$i || exit 1; \
-	done
+	@python tools/cpplint.py $(wildcard src/*.cc src/*.h src/*.c)
 
 lint: jslint cpplint
 
