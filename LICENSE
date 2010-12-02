@@ -37,6 +37,9 @@ are:
   - tools/closure_linter is copyrighted by The Closure Linter Authors and
     Google Inc and is released under the Apache license.
 
+  - tools/cpplint.py is copyrighted by Google Inc and is released under the
+    BSD license.
+
 
 Node's license follows:
 
