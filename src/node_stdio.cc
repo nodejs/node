@@ -5,14 +5,17 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#ifdef __APPLE__
-#include <util.h>
+#if defined(__APPLE__)
+# include <util.h>
+#elif defined(__sun)
+# include <stropts.h> // for openpty ioctls
 #else
-#include <pty.h>
+# include <pty.h>
 #endif
 
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <stdlib.h>
 
 using namespace v8;
 namespace node {
@@ -199,11 +202,29 @@ static Handle<Value> OpenPTY(const Arguments& args) {
 
   int master_fd, slave_fd;
 
+#ifdef __sun
+
+typedef void (*sighandler)(int);
+  // TODO move to platform files.
+  master_fd = open("/dev/ptmx", O_RDWR | O_NOCTTY);
+  sighandler sig_saved = signal(SIGCHLD, SIG_DFL);
+  grantpt(master_fd);
+  unlockpt(master_fd);
+  signal(SIGCHLD, sig_saved);
+  char *slave_name = ptsname(master_fd);
+  slave_fd = open(slave_name, O_RDWR);
+  ioctl(slave_fd, I_PUSH, "ptem");
+  ioctl(slave_fd, I_PUSH, "ldterm");
+  ioctl(slave_fd, I_PUSH, "ttcompat");
+
+#else
+
   int r = openpty(&master_fd, &slave_fd, NULL, NULL, NULL);
 
   if (r == -1) {
     return ThrowException(ErrnoException(errno, "openpty"));
   }
+#endif
 
   Local<Array> a = Array::New(2);
 
