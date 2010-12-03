@@ -1,2 +1,2 @@
-exports.hello = "hello from one!";
+exports.hello = 'hello from one!';
 

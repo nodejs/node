@@ -1,4 +1,4 @@
-common = require("../common");
-assert = common.assert
+common = require('../common');
+assert = common.assert;
 
 console.log('hello world');

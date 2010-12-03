@@ -1,2 +1,2 @@
-exports.hello = "world";
-common.debug("load package/index.js");
+exports.hello = 'world';
+common.debug('load package/index.js');

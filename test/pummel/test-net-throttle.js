@@ -1,49 +1,49 @@
-common = require("../common");
-assert = common.assert
-net = require("net");
-N = 160*1024; // 30kb
+common = require('../common');
+assert = common.assert;
+net = require('net');
+N = 160 * 1024; // 30kb
 
 
 chars_recved = 0;
 npauses = 0;
 
-console.log("build big string");
-var body = "";
+console.log('build big string');
+var body = '';
 for (var i = 0; i < N; i++) {
-  body += "C";
+  body += 'C';
 }
 
-console.log("start server on port " + common.PORT);
+console.log('start server on port ' + common.PORT);
 
-server = net.createServer(function (connection) {
-  connection.addListener("connect", function () {
+server = net.createServer(function(connection) {
+  connection.addListener('connect', function() {
     assert.equal(false, connection.write(body));
     connection.end();
   });
 });
-server.listen(common.PORT, function () {
+server.listen(common.PORT, function() {
   var paused = false;
   client = net.createConnection(common.PORT);
-  client.setEncoding("ascii");
-  client.addListener("data", function (d) {
+  client.setEncoding('ascii');
+  client.addListener('data', function(d) {
     chars_recved += d.length;
-    console.log("got " + chars_recved);
+    console.log('got ' + chars_recved);
     if (!paused) {
       client.pause();
       npauses += 1;
       paused = true;
-      console.log("pause");
+      console.log('pause');
       x = chars_recved;
-      setTimeout(function () {
+      setTimeout(function() {
         assert.equal(chars_recved, x);
         client.resume();
-        console.log("resume");
+        console.log('resume');
         paused = false;
       }, 100);
     }
   });
 
-  client.addListener("end", function () {
+  client.addListener('end', function() {
     server.close();
     client.end();
   });
@@ -51,7 +51,7 @@ server.listen(common.PORT, function () {
 
 
 
-process.addListener("exit", function () {
+process.addListener('exit', function() {
   assert.equal(N, chars_recved);
   assert.equal(true, npauses > 2);
 });

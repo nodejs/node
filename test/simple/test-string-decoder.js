@@ -1,5 +1,5 @@
-common = require("../common");
-assert = common.assert
+common = require('../common');
+assert = common.assert;
 
 Buffer = require('buffer').Buffer;
 StringDecoder = require('string_decoder').StringDecoder;
@@ -34,8 +34,9 @@ assert.ok(s.length > 0);
 // U+12E4 -> E1 8B A4
 // U+0030 -> 30
 // U+3045 -> E3 81 85
-expected = "\u02e4\u0064\u12e4\u0030\u3045";
-buffer = new Buffer([0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4, 0x30, 0xE3, 0x81, 0x85]);
+expected = '\u02e4\u0064\u12e4\u0030\u3045';
+buffer = new Buffer([0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4,
+                     0x30, 0xE3, 0x81, 0x85]);
 charLengths = [0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 5];
 
 // Split the buffer into 3 segments
@@ -57,8 +58,8 @@ for (var j = 2; j < buffer.length; j++) {
     sum += decoder.write(buffer.slice(i, j));
     sum += decoder.write(buffer.slice(j, buffer.length));
     assert.equal(expected, sum);
-    common.print(".");
+    common.print('.');
   }
 }
-console.log(" crayon!");
+console.log(' crayon!');
 

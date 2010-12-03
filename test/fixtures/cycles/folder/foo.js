@@ -1,6 +1,6 @@
 
-var root = require("./../root");
+var root = require('./../root');
 
-exports.hello = function () {
+exports.hello = function() {
   return root.calledFromFoo();
 };

@@ -1,8 +1,8 @@
-common = require("../common");
-assert = common.assert
+common = require('../common');
+assert = common.assert;
 
 var order = [];
-process.nextTick(function () {
+process.nextTick(function() {
   setTimeout(function() {
     order.push('setTimeout');
   }, 0);
@@ -12,6 +12,6 @@ process.nextTick(function () {
   });
 })
 
-process.addListener('exit', function () {
+process.addListener('exit', function() {
   assert.deepEqual(order, ['nextTick', 'setTimeout']);
 });

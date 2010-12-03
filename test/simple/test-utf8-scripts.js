@@ -1,9 +1,9 @@
-common = require("../common");
-assert = common.assert
+common = require('../common');
+assert = common.assert;
 
 // üäö
 
-console.log("Σὲ γνωρίζω ἀπὸ τὴν κόψη");
+console.log('Σὲ γνωρίζω ἀπὸ τὴν κόψη');
 
-assert.equal(true,  /Hellö Wörld/.test("Hellö Wörld") );
+assert.equal(true, /Hellö Wörld/.test('Hellö Wörld'));
 

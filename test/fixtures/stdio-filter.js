@@ -5,7 +5,7 @@ var replacement = process.argv[3];
 var re = new RegExp(regexIn, 'g');
 var stdin = process.openStdin();
 
-stdin.addListener("data", function (data) {
+stdin.addListener('data', function(data) {
   data = data.toString();
   process.stdout.write(data.replace(re, replacement));
 });

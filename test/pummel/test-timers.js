@@ -1,4 +1,4 @@
-common = require("../common");
+common = require('../common');
 assert = common.assert
 
 assert = require('assert');
@@ -14,28 +14,28 @@ clearInterval(null);
 
 assert.equal(true, setTimeout instanceof Function);
 var starttime = new Date;
-setTimeout(function () {
+setTimeout(function() {
   var endtime = new Date;
 
   var diff = endtime - starttime;
   assert.ok(diff > 0);
-  console.log("diff: " + diff);
+  console.log('diff: ' + diff);
 
   assert.equal(true, 1000 - WINDOW < diff && diff < 1000 + WINDOW);
   setTimeout_called = true;
 }, 1000);
 
 // this timer shouldn't execute
-var id = setTimeout(function () { assert.equal(true, false); }, 500);
+var id = setTimeout(function() { assert.equal(true, false); }, 500);
 clearTimeout(id);
 
-setInterval(function () {
+setInterval(function() {
   interval_count += 1;
   var endtime = new Date;
 
   var diff = endtime - starttime;
   assert.ok(diff > 0);
-  console.log("diff: " + diff);
+  console.log('diff: ' + diff);
 
   var t = interval_count * 1000;
 
@@ -49,38 +49,38 @@ setInterval(function () {
 
 // Single param:
 setTimeout(function(param){
-  assert.equal("test param", param);
-}, 1000, "test param");
+  assert.equal('test param', param);
+}, 1000, 'test param');
 
 var interval_count2 = 0;
 setInterval(function(param){
   ++interval_count2;
-  assert.equal("test param", param);
+  assert.equal('test param', param);
 
   if(interval_count2 == 3)
     clearInterval(this);
-}, 1000, "test param");
+}, 1000, 'test param');
 
 
 // Multiple param
 setTimeout(function(param1, param2){
-  assert.equal("param1", param1);
-  assert.equal("param2", param2);
-}, 1000, "param1", "param2");
+  assert.equal('param1', param1);
+  assert.equal('param2', param2);
+}, 1000, 'param1', 'param2');
 
 var interval_count3 = 0;
 setInterval(function(param1, param2){
   ++interval_count3;
-  assert.equal("param1", param1);
-  assert.equal("param2", param2);
+  assert.equal('param1', param1);
+  assert.equal('param2', param2);
 
   if(interval_count3 == 3)
     clearInterval(this);
-}, 1000, "param1", "param2");
+}, 1000, 'param1', 'param2');
 
 // setInterval(cb, 0) should be called multiple times.
 count4 = 0;
-interval4 = setInterval(function () {
+interval4 = setInterval(function() {
   if (++count4 > 10) clearInterval(interval4);
 }, 0);
 
@@ -101,9 +101,9 @@ z = setTimeout(t, 200);
 clearTimeout(y);
 
 
-process.addListener("exit", function () {
+process.addListener('exit', function() {
   assert.equal(true, setTimeout_called);
   assert.equal(3, interval_count);
   assert.equal(11, count4);
-  assert.equal(0, expectedTimeouts, "clearTimeout cleared too many timeouts");
+  assert.equal(0, expectedTimeouts, 'clearTimeout cleared too many timeouts');
 });

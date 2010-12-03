@@ -1,12 +1,12 @@
-common.debug("load fixtures/b/d.js");
+common.debug('load fixtures/b/d.js');
 
-var string = "D";
+var string = 'D';
 
-exports.D = function () {
+exports.D = function() {
   return string;
 };
 
-process.addListener("exit", function () {
-  string = "D done";
+process.addListener('exit', function() {
+  string = 'D done';
 });
 

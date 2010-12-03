@@ -1,5 +1,5 @@
-common = require("../common");
-assert = common.assert
+common = require('../common');
+assert = common.assert;
 
 var mask = 0664;
 var old = process.umask(mask);

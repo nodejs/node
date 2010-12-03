@@ -1,3 +1,3 @@
-process.nextTick(function () {
+process.nextTick(function() {
   JSON.parse(undefined);
 });

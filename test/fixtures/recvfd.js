@@ -36,7 +36,7 @@ function processData(s) {
   if (pipeStream.write(JSON.stringify(d) + '\n')) {
     drainFunc();
   }
-};
+}
 
 // Create a UNIX socket to the path defined by argv[2] and read a file
 // descriptor and misc data from it.

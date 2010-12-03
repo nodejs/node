@@ -1,5 +1,5 @@
-common = require("../common");
-assert = common.assert
+common = require('../common');
+assert = common.assert;
 
 var Script = require('vm').Script;
 

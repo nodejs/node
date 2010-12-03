@@ -1,9 +1,9 @@
-common = require("../common");
-assert = common.assert
+common = require('../common');
+assert = common.assert;
 
 var n = parseInt(process.argv[2]);
 
-var s = "";
+var s = '';
 for (var i = 0; i < n; i++) {
   s += 'c';
 }
