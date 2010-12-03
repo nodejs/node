@@ -362,6 +362,10 @@ def configure(conf):
   conf.env.append_value('CPPFLAGS',  '-D_FILE_OFFSET_BITS=64')
   conf.env.append_value('CPPFLAGS',  '-DEV_MULTIPLICITY=0')
 
+  # Makes select on windows support more than 64 FDs
+  if sys.platform.startswith("win32"):
+    conf.env.append_value('CPPFLAGS', '-DFD_SETSIZE=1024');
+
   ## needed for node_file.cc fdatasync
   ## Strangely on OSX 10.6 the g++ doesn't see fdatasync but gcc does?
   code =  """
