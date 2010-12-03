@@ -28,26 +28,22 @@ server.stdout.pipe(process.stdout);
 server.stderr.pipe(process.stdout);
 
 
-function watchForAccept (d) {
-  if (/ACCEPT/g.test(d.toString())) {
-    server.stdout.removeListener('data', watchForAccept);
-    startClient();
-  }
-}
-
 var state = "WAIT-ACCEPT";
 
-server.stdout.on('data', function (d) {
+var serverStdoutBuffer = ''
+server.stdout.setEncoding('utf8');
+server.stdout.on('data', function (s) {
+  serverStdoutBuffer += s;
   switch (state) {
     case "WAIT-ACCEPT":
-      if (/ACCEPT/g.test(d.toString())) {
+      if (/ACCEPT/g.test(serverStdoutBuffer)) {
         startClient();
         state = "WAIT-HELLO"
       }
       break;
 
     case "WAIT-HELLO":
-      if (/hello/g.test(d.toString())) {
+      if (/hello/g.test(serverStdoutBuffer)) {
 
         // End the current SSL connection and exit.
         // See s_server(1ssl).
