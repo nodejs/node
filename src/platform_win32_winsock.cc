@@ -19,6 +19,72 @@ namespace node {
 
 
 /*
+ * Guids and typedefs for winsock extension functions
+ * Mingw32 doesn't have these :-(
+ */
+#ifndef WSAID_ACCEPTEX
+  const GUID WSAID_ACCEPTEX =
+        {0xb5367df1, 0xcbac, 0x11cf, {0x95, 0xca, 0x00, 0x80, 0x5f, 0x48, 0xa1, 0x92}};
+
+  const GUID WSAID_CONNECTEX =
+        {0x25a207b9, 0xddf3, 0x4660, {0x8e, 0xe9, 0x76, 0xe5, 0x8c, 0x74, 0x06, 0x3e}};
+
+  const GUID WSAID_GETACCEPTEXSOCKADDRS =
+        {0xb5367df2, 0xcbac, 0x11cf, {0x95, 0xca, 0x00, 0x80, 0x5f, 0x48, 0xa1, 0x92}};
+
+  const GUID WSAID_DISCONNECTEX =
+        {0x7fda2e11, 0x8630, 0x436f, {0xa0, 0x31, 0xf5, 0x36, 0xa6, 0xee, 0xc1, 0x57}};
+
+  const GUID WSAID_TRANSMITFILE =
+        {0xb5367df0, 0xcbac, 0x11cf, {0x95, 0xca, 0x00, 0x80, 0x5f, 0x48, 0xa1, 0x92}};
+
+  typedef BOOL(*LPFN_ACCEPTEX)
+              (SOCKET sListenSocket,
+               SOCKET sAcceptSocket,
+               PVOID lpOutputBuffer,
+               DWORD dwReceiveDataLength,
+               DWORD dwLocalAddressLength,
+               DWORD dwRemoteAddressLength,
+               LPDWORD lpdwBytesReceived,
+               LPOVERLAPPED lpOverlapped);
+
+  typedef BOOL(*LPFN_CONNECTEX)
+              (SOCKET s,
+               const struct sockaddr *name,
+               int namelen,
+               PVOID lpSendBuffer,
+               DWORD dwSendDataLength,
+               LPDWORD lpdwBytesSent,
+               LPOVERLAPPED lpOverlapped);
+
+  typedef void(*LPFN_GETACCEPTEXSOCKADDRS)
+              (PVOID lpOutputBuffer,
+               DWORD dwReceiveDataLength,
+               DWORD dwLocalAddressLength,
+               DWORD dwRemoteAddressLength,
+               LPSOCKADDR *LocalSockaddr,
+               LPINT LocalSockaddrLength,
+               LPSOCKADDR *RemoteSockaddr,
+               LPINT RemoteSockaddrLength);
+
+  typedef BOOL(*LPFN_DISCONNECTEX)
+              (SOCKET hSocket,
+               LPOVERLAPPED lpOverlapped,
+               DWORD dwFlags,
+               DWORD reserved);
+
+  typedef BOOL(*LPFN_TRANSMITFILE)
+              (SOCKET hSocket,
+               HANDLE hFile,
+               DWORD nNumberOfBytesToWrite,
+               DWORD nNumberOfBytesPerSend,
+               LPOVERLAPPED lpOverlapped,
+               LPTRANSMIT_FILE_BUFFERS lpTransmitBuffers,
+               DWORD dwFlags);
+#endif
+
+
+/*
  * Winsock version data goes here
  */
 static WSAData winsock_info;
@@ -32,6 +98,18 @@ static WSAData winsock_info;
  * [3] UDP/IPv6
  */
 static WSAPROTOCOL_INFOW proto_info_cache[4];
+
+
+/*
+ * Pointers to winsock extension functions that have to be retrieved dynamically
+ */
+static struct WINSOCK_EXTENSION_FUNCTIONS {
+  //LPFN_CONNECTEX            ConnectEx;
+  //LPFN_ACCEPTEX             AcceptEx;
+  //LPFN_GETACCEPTEXSOCKADDRS GetAcceptExSockAddrs;
+  LPFN_DISCONNECTEX         DisconnectEx;
+  //LPFN_TRANSMITFILE         TransmitFile;
+} wsexf;
 
 
 /*
@@ -51,6 +129,14 @@ void wsa_perror(const char *prefix) {
   } else {
     fputs(errmsg, stderr);
   }
+}
+
+
+/*
+ * Wrapper for DisconnectEx extension function
+ */
+BOOL wsa_disconnect_ex(SOCKET socket, OVERLAPPED *overlapped, DWORD flags, DWORD reserved) {
+  return wsexf.DisconnectEx(socket, overlapped, flags, reserved);
 }
 
 
@@ -316,6 +402,51 @@ static void wsa_init_proto_info_cache() {
 
 
 /*
+ * Gets the pointer to a winsock extension function
+ */
+inline static void wsa_get_extension_function(SOCKET socket, GUID guid, void **target) {
+  DWORD bytes;
+
+  if (WSAIoctl(socket,
+               SIO_GET_EXTENSION_FUNCTION_POINTER,
+               &guid,
+               sizeof(guid),
+               (void*)target,
+               sizeof(*target),
+               &bytes,
+               NULL,
+               NULL) == SOCKET_ERROR) {
+
+    *target = NULL;
+    wsa_perror("WSAIoctl(SIO_GET_EXTENSION_FUNCTION_POINTER)");
+  }
+}
+
+
+/*
+ * Retrieves the needed winsock extension function pointers for the tcp/ip subsystem,
+ * storing them in the `wsexf` cache
+ */
+inline static void wsa_init_extension_functions() {
+  SOCKET dummy = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+
+  if (dummy == SOCKET_ERROR) {
+    memset((void*)&wsexf, 0, sizeof(wsexf));
+    wsa_perror("socket");
+    return;
+  }
+
+  //wsa_get_extension_function(dummy, WSAID_CONNECTEX,            (void**)&wsexf.ConnectEx           );
+  //wsa_get_extension_function(dummy, WSAID_ACCEPTEX,             (void**)&wsexf.AcceptEx            );
+  //wsa_get_extension_function(dummy, WSAID_GETACCEPTEXSOCKADDRS, (void**)&wsexf.GetAcceptExSockAddrs);
+  wsa_get_extension_function(dummy, WSAID_DISCONNECTEX,         (void**)&wsexf.DisconnectEx        );
+  //wsa_get_extension_function(dummy, WSAID_TRANSMITFILE,         (void**)&wsexf.TransmitFile        );
+
+  closesocket(dummy);
+}
+
+
+/*
  * Initializes winsock and winsock-related stuff
  */
 void wsa_init() {
@@ -325,6 +456,7 @@ void wsa_init() {
   }
 
   wsa_init_proto_info_cache();
+  wsa_init_extension_functions();
 }
 
 
