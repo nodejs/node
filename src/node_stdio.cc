@@ -5,7 +5,11 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#ifdef __APPLE__
+#include <util.h>
+#else
 #include <pty.h>
+#endif
 
 #include <termios.h>
 #include <sys/ioctl.h>
