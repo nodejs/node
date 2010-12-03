@@ -2,9 +2,7 @@
 NODE_EXT_LIST_START
 NODE_EXT_LIST_ITEM(node_buffer)
 NODE_EXT_LIST_ITEM(node_cares)
-#ifdef __POSIX__
 NODE_EXT_LIST_ITEM(node_child_process)
-#endif
 #ifdef HAVE_OPENSSL
 NODE_EXT_LIST_ITEM(node_crypto)
 #endif

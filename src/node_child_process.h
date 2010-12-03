@@ -7,6 +7,10 @@
 #include <v8.h>
 #include <ev.h>
 
+#ifdef __MINGW32__
+# include <windows.h> // HANDLE type
+#endif
+
 // ChildProcess is a thin wrapper around ev_child. It has the extra
 // functionality that it can spawn a child process with pipes connected to
 // its stdin, stdout, stderr. This class is not meant to be exposed to but
@@ -28,13 +32,25 @@ class ChildProcess : ObjectWrap {
   static v8::Handle<v8::Value> Kill(const v8::Arguments& args);
 
   ChildProcess() : ObjectWrap() {
+#ifdef __POSIX__
     ev_init(&child_watcher_, ChildProcess::on_chld);
     child_watcher_.data = this;
+#endif // __POSIX__
+
     pid_ = -1;
+
+#ifdef __MINGW32__
+    InitializeCriticalSection(&info_lock_);
+    kill_me_ = false;
+    did_start_ = false;
+    exit_signal_ = 0;
+#endif // __MINGW32__
   }
 
   ~ChildProcess() {
+#ifdef __POSIX__
     Stop();
+#endif // __POSIX__
   }
 
   // Returns 0 on success. stdio_fds will contain file desciptors for stdin,
@@ -48,8 +64,10 @@ class ChildProcess : ObjectWrap {
   // called still.
   int Kill(int sig);
 
- private:
+private:
   void OnExit(int code);
+
+#ifdef __POSIX__ // Shouldn't this just move to node_child_process.cc?
   void Stop(void);
 
   static void on_chld(EV_P_ ev_child *watcher, int revents) {
@@ -62,6 +80,36 @@ class ChildProcess : ObjectWrap {
 
   ev_child child_watcher_;
   pid_t pid_;
+#endif // __POSIX__
+
+#ifdef __MINGW32__
+  static int do_spawn(eio_req *req);
+  static int after_spawn(eio_req *req);
+  static void watch(ChildProcess *child);
+  static void CALLBACK watch_wait_callback(void *data, BOOLEAN didTimeout);
+  static void notify_spawn_failure(ChildProcess *child);
+  static void notify_exit(ev_async *ev, int revent);
+  static int do_kill(ChildProcess *child, int sig);static void close_stdio_handles(ChildProcess *child);
+
+  int pid_;
+  int exit_signal_;
+
+  WCHAR *application_;
+  WCHAR *arguments_;
+  WCHAR *env_win_;
+  WCHAR *cwd_;
+  const WCHAR *path_;
+  const WCHAR *path_ext_;
+
+  HANDLE stdio_handles_[3];
+  bool got_custom_fds_[3];
+
+  CRITICAL_SECTION info_lock_;
+  bool did_start_;
+  bool kill_me_;
+  HANDLE wait_handle_;
+  HANDLE process_handle_;
+#endif // __MINGW32__
 };
 
 }  // namespace node

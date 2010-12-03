@@ -8,12 +8,23 @@
   E.g. getaddrinfo() is ansi-only; GetAddrInfoW is utf16-only. Can we get utf16 straight out of v8?
   Are unix sockets similar to windows named pipes? If so, should they be supported? -> currently: no. Complication: they block.
 
-- Child processes
-  Should not be too hard using CreatePipe, CreateProcessW and GetExitCodeProcess.
-  Hooking up a child process to a file handle can be done; hooking up to a normal socket won't work;
-  we'd need some sort of pump() mechanism.
-  Waiting for the child to exit is tricky, probably would require a wait thread to wait for the child, then ev_async notify.
-  How can we distinguish between the exit code and exception number after calling GetExitCodeProcess?
+- Child process issues
+  * Communication between parent and child is slow; it uses a socketpair
+    where a pipe would be much faster. Replace it by a pipe when there
+    is a libev backend that supports waiting for a pipe.
+  * When a child process spawns the pid is not available straightaway.
+    On linux the pid is available immediately because fork() doesn't
+    block; on windows a libeio thread is used to call CreateProcess.
+    So this can't really be fixed, but it could be worked around by adding a
+    'spawn' or 'pid' method.
+  * kill() doesn't work when the pid is not available yet. All the plumbing
+    is there to make it work, but lib/child_process.js just doesn't call
+    ChildProcess::Kill() as long as the pid is not known.
+  * passing socket custom_fds is not supported
+  * child_process.exec() only works on systems with msys installed.
+    It's because it relies on the 'sh' shell. The default windows shell
+    is 'cmd' and it works a little differently. Maybe add an option to
+    specify the shell to exec()?
 
 - Stdio (make TTY's / repl / readline work)
   This will be hard: there is no ANSI escape code support in windows.
