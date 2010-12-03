@@ -98,6 +98,13 @@ def set_options(opt):
                 , dest='shared_v8_libname'
                 )
 
+  opt.add_option( '--oprofile'
+                , action='store_true'
+                , default=False
+                , help="add oprofile support"
+                , dest='use_oprofile'
+                )
+
 
   opt.add_option('--shared-cares'
                 , action='store_true'
@@ -177,6 +184,8 @@ def configure(conf):
   conf.env["USE_SHARED_V8"] = o.shared_v8 or o.shared_v8_includes or o.shared_v8_libpath or o.shared_v8_libname
   conf.env["USE_SHARED_CARES"] = o.shared_cares or o.shared_cares_includes or o.shared_cares_libpath
   conf.env["USE_SHARED_LIBEV"] = o.shared_libev or o.shared_libev_includes or o.shared_libev_libpath
+
+  conf.env["USE_OPROFILE"] = o.use_oprofile
 
   conf.check(lib='dl', uselib_store='DL')
   if not sys.platform.startswith("sunos") and not sys.platform.startswith("cygwin"):
@@ -423,7 +432,12 @@ def v8_cmd(bld, variant):
   else:
     snapshot = ""
 
-  cmd_R = sys.executable + ' "%s" -j %d -C "%s" -Y "%s" visibility=default mode=%s %s library=static %s'
+  if bld.env["USE_OPROFILE"]:
+    profile = "prof=oprofile"
+  else:
+    profile = ""
+
+  cmd_R = sys.executable + ' "%s" -j %d -C "%s" -Y "%s" visibility=default mode=%s %s library=static %s %s'
 
   cmd = cmd_R % ( scons
                 , Options.options.jobs
@@ -432,6 +446,7 @@ def v8_cmd(bld, variant):
                 , mode
                 , arch
                 , snapshot
+		, profile
                 )
   
   return ("echo '%s' && " % cmd) + cmd
