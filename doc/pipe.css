@@ -9,6 +9,7 @@ body {
 }
 img {
   padding: 5em 0;
+  border: 0;
 }
 #toc {
   position: absolute;
