@@ -13,7 +13,11 @@ var join = require('path').join;
 var key = fs.readFileSync(join(common.fixturesDir, 'agent.key')).toString();
 var cert = fs.readFileSync(join(common.fixturesDir, 'agent.crt')).toString();
 
-s = tls.Server({key: key, cert: cert, unauthorizedPeers: false});
+s = tls.Server({ key: key,
+                 cert: cert,
+                 ca: [],
+                 requestCert: true,
+                 rejectUnauthorized: true });
 
 s.listen(common.PORT, function() {
   console.log('TLS server on 127.0.0.1:%d', common.PORT);

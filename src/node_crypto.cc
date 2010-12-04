@@ -389,8 +389,26 @@ Handle<Value> SecureStream::New(const Arguments& args) {
   SSL_set_mode(p->ssl_, mode | SSL_MODE_RELEASE_BUFFERS);
 #endif
 
+
+  int verify_mode;
+  if (is_server) {
+    bool request_cert = args[2]->BooleanValue();
+    if (!request_cert) {
+      // Note reject_unauthorized ignored.
+      verify_mode = SSL_VERIFY_NONE;
+    } else {
+      bool reject_unauthorized = args[3]->BooleanValue();
+      verify_mode = SSL_VERIFY_PEER;
+      if (reject_unauthorized) verify_mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+    }
+  } else {
+    // Note request_cert and reject_unauthorized are ignored for clients.
+    verify_mode = SSL_VERIFY_NONE;
+  }
+
+
   // Always allow a connection. We'll reject in javascript.
-  SSL_set_verify(p->ssl_, SSL_VERIFY_PEER, VerifyCallback);
+  SSL_set_verify(p->ssl_, verify_mode, VerifyCallback);
 
   if ((p->is_server_ = is_server)) {
     SSL_set_accept_state(p->ssl_);
