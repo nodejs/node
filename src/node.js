@@ -165,7 +165,7 @@
       // check if the file exists and is not a directory
       var tryFile = function(requestPath) {
         try {
-          stats = fs.statSync(requestPath);
+          var stats = fs.statSync(requestPath);
           if (stats && !stats.isDirectory()) {
             return requestPath;
           }
