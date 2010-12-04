@@ -2,9 +2,9 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var server1 = net.createServer(function (socket) {
+var server1 = net.createServer(function(socket) {
 });
-var server2 = net.createServer(function (socket) {
+var server2 = net.createServer(function(socket) {
 });
 server1.listen(common.PORT);
 server2.addListener('error', function(error) {

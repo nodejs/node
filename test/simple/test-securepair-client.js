@@ -14,10 +14,10 @@ var PORT = common.PORT + 5;
 
 var connections = 0;
 
-var keyfn = join(common.fixturesDir, "agent.key");
+var keyfn = join(common.fixturesDir, 'agent.key');
 var key = fs.readFileSync(keyfn).toString();
 
-var certfn = join(common.fixturesDir, "agent.crt");
+var certfn = join(common.fixturesDir, 'agent.crt');
 var cert = fs.readFileSync(certfn).toString();
 
 var server = spawn('openssl', ['s_server',
@@ -28,28 +28,28 @@ server.stdout.pipe(process.stdout);
 server.stderr.pipe(process.stdout);
 
 
-var state = "WAIT-ACCEPT";
+var state = 'WAIT-ACCEPT';
 
-var serverStdoutBuffer = ''
+var serverStdoutBuffer = '';
 server.stdout.setEncoding('utf8');
-server.stdout.on('data', function (s) {
+server.stdout.on('data', function(s) {
   serverStdoutBuffer += s;
   switch (state) {
-    case "WAIT-ACCEPT":
+    case 'WAIT-ACCEPT':
       if (/ACCEPT/g.test(serverStdoutBuffer)) {
         startClient();
-        state = "WAIT-HELLO"
+        state = 'WAIT-HELLO';
       }
       break;
 
-    case "WAIT-HELLO":
+    case 'WAIT-HELLO':
       if (/hello/g.test(serverStdoutBuffer)) {
 
         // End the current SSL connection and exit.
         // See s_server(1ssl).
-        server.stdin.write("Q");
+        server.stdin.write('Q');
 
-        state = "WAIT-SERVER-CLOSE";
+        state = 'WAIT-SERVER-CLOSE';
       }
       break;
 
@@ -60,12 +60,12 @@ server.stdout.on('data', function (s) {
 
 
 var serverExitCode = -1;
-server.on('exit', function (code) {
+server.on('exit', function(code) {
   serverExitCode = code;
 });
 
 
-function startClient () {
+function startClient() {
   var s = new net.Stream();
 
   var sslcontext = crypto.createCredentials({key: key, cert: cert});
@@ -81,25 +81,27 @@ function startClient () {
 
   s.connect(PORT);
 
-  s.on('connect', function () {
-    console.log("client connected");
+  s.on('connect', function() {
+    console.log('client connected');
   });
 
-  pair.on('secure', function () {
+  pair.on('secure', function() {
     console.log('client: connected+secure!');
-    console.log('client pair.getPeerCertificate(): %j', pair.getPeerCertificate());
-    console.log('client pair.getCipher(): %j', pair.getCipher());
-    setTimeout(function () {
+    console.log('client pair.getPeerCertificate(): %j',
+                pair.getPeerCertificate());
+    console.log('client pair.getCipher(): %j',
+                pair.getCipher());
+    setTimeout(function() {
       pair.cleartext.write('hello\r\n');
     }, 500);
   });
 
-  pair.cleartext.on('data', function (d) {
-    console.log("cleartext: %s", d.toString());
+  pair.cleartext.on('data', function(d) {
+    console.log('cleartext: %s', d.toString());
   });
 
-  s.on('close', function () {
-    console.log("client close");
+  s.on('close', function() {
+    console.log('client close');
   });
 
   pair.encrypted.on('error', function(err) {
@@ -116,7 +118,7 @@ function startClient () {
 }
 
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.equal(0, serverExitCode);
-  assert.equal("WAIT-SERVER-CLOSE", state);
+  assert.equal('WAIT-SERVER-CLOSE', state);
 });

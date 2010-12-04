@@ -10,7 +10,7 @@ process.nextTick(function() {
   process.nextTick(function() {
     order.push('nextTick');
   });
-})
+});
 
 process.addListener('exit', function() {
   assert.deepEqual(order, ['nextTick', 'setTimeout']);

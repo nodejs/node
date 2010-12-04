@@ -40,11 +40,9 @@ var DATA = {
   'ord' : 0
 };
 
-var SOCK_PATH = path.join(
-  __dirname,
-  '..',
-  path.basename(__filename, '.js') + '.sock'
-);
+var SOCK_PATH = path.join(__dirname,
+                          '..',
+                          path.basename(__filename, '.js') + '.sock');
 
 var logChild = function(d) {
   if (typeof d == 'object') {
@@ -108,7 +106,8 @@ srv.listen(SOCK_PATH);
 
 // Spawn a child running test/fixtures/recvfd.js
 var cp = child_process.spawn(process.argv[0],
-                             [path.join(common.fixturesDir, 'recvfd.js'), SOCK_PATH]);
+                             [path.join(common.fixturesDir, 'recvfd.js'),
+                              SOCK_PATH]);
 
 cp.stdout.addListener('data', logChild);
 cp.stderr.addListener('data', logChild);

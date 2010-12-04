@@ -8,15 +8,14 @@ var scriptString = path.join(common.fixturesDir, 'print-chars.js');
 var scriptBuffer = path.join(common.fixturesDir, 'print-chars-from-buffer.js');
 var tmpFile = path.join(common.fixturesDir, 'stdout.txt');
 
-function test (size, useBuffer, cb) {
-  var cmd = process.argv[0]
-          + ' '
-          + (useBuffer ? scriptBuffer : scriptString)
-          + ' '
-          + size
-          + ' > '
-          + tmpFile
-          ;
+function test(size, useBuffer, cb) {
+  var cmd = process.argv[0] +
+            ' ' +
+            (useBuffer ? scriptBuffer : scriptString) +
+            ' ' +
+            size +
+            ' > ' +
+            tmpFile;
 
   try {
     fs.unlinkSync(tmpFile);
@@ -41,14 +40,14 @@ function test (size, useBuffer, cb) {
 }
 
 var finished = false;
-test(1024*1024, false, function () {
-  console.log("Done printing with string");
-  test(1024*1024, true, function () {
-    console.log("Done printing with buffer");
+test(1024 * 1024, false, function() {
+  console.log('Done printing with string');
+  test(1024 * 1024, true, function() {
+    console.log('Done printing with buffer');
     finished = true;
   });
 });
 
-process.addListener('exit', function () {
+process.addListener('exit', function() {
   assert.ok(finished);
 });

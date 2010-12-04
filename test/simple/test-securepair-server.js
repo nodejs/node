@@ -8,14 +8,14 @@ var crypto = require('crypto');
 var spawn = require('child_process').spawn;
 
 var connections = 0;
-var key = fs.readFileSync(join(common.fixturesDir, "agent.key")).toString();
-var cert = fs.readFileSync(join(common.fixturesDir, "agent.crt")).toString();
+var key = fs.readFileSync(join(common.fixturesDir, 'agent.key')).toString();
+var cert = fs.readFileSync(join(common.fixturesDir, 'agent.crt')).toString();
 
-function log (a) {
+function log(a) {
   console.error('***server*** ' + a);
 }
 
-var server = net.createServer(function (socket) {
+var server = net.createServer(function(socket) {
   connections++;
   log('connection fd=' + socket.fd);
   var sslcontext = crypto.createCredentials({key: key, cert: cert});
@@ -31,19 +31,19 @@ var server = net.createServer(function (socket) {
 
   log('i set it secure');
 
-  pair.on('secure', function () {
+  pair.on('secure', function() {
     log('connected+secure!');
     pair.cleartext.write('hello\r\n');
     log(pair.getPeerCertificate());
     log(pair.getCipher());
   });
 
-  pair.cleartext.on('data', function (data) {
+  pair.cleartext.on('data', function(data) {
     log('read bytes ' + data.length);
     pair.cleartext.write(data);
   });
 
-  socket.on('end', function () {
+  socket.on('end', function() {
     log('socket end');
     pair.cleartext.write('goodbye\r\n');
     pair.cleartext.end();
@@ -87,7 +87,7 @@ var sentWorld = false;
 var gotWorld = false;
 var opensslExitCode = -1;
 
-server.listen(8000, function () {
+server.listen(8000, function() {
   // To test use: openssl s_client -connect localhost:8000
   var client = spawn('openssl', ['s_client', '-connect', '127.0.0.1:8000']);
 
@@ -95,7 +95,7 @@ server.listen(8000, function () {
   var out = '';
 
   client.stdout.setEncoding('utf8');
-  client.stdout.on('data', function (d) {
+  client.stdout.on('data', function(d) {
     out += d;
 
     if (!gotHello && /hello/.test(out)) {
@@ -112,13 +112,13 @@ server.listen(8000, function () {
 
   client.stdout.pipe(process.stdout);
 
-  client.on('exit', function (code) {
+  client.on('exit', function(code) {
     opensslExitCode = code;
     server.close();
   });
 });
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.equal(1, connections);
   assert.ok(gotHello);
   assert.ok(sentWorld);
