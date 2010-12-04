@@ -1,6 +1,5 @@
-common = require("../common");
-assert = common.assert
-assert = require("assert");
+var common = require("../common");
+var assert = require("assert");
 
 var Buffer = require('buffer').Buffer;
 
@@ -228,13 +227,13 @@ assert.deepEqual(f, new Buffer([252, 98, 101, 114]));
 //
 assert.equal('TWFu', (new Buffer('Man')).toString('base64'));
 // big example
-quote = "Man is distinguished, not only by his reason, but by this singular passion from other animals, which is a lust of the mind, that by a perseverance of delight in the continued and indefatigable generation of knowledge, exceeds the short vehemence of any carnal pleasure.";
-expected = "TWFuIGlzIGRpc3Rpbmd1aXNoZWQsIG5vdCBvbmx5IGJ5IGhpcyByZWFzb24sIGJ1dCBieSB0aGlzIHNpbmd1bGFyIHBhc3Npb24gZnJvbSBvdGhlciBhbmltYWxzLCB3aGljaCBpcyBhIGx1c3Qgb2YgdGhlIG1pbmQsIHRoYXQgYnkgYSBwZXJzZXZlcmFuY2Ugb2YgZGVsaWdodCBpbiB0aGUgY29udGludWVkIGFuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yga25vd2xlZGdlLCBleGNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm5hbCBwbGVhc3VyZS4=";
+var quote = "Man is distinguished, not only by his reason, but by this singular passion from other animals, which is a lust of the mind, that by a perseverance of delight in the continued and indefatigable generation of knowledge, exceeds the short vehemence of any carnal pleasure.";
+var expected = "TWFuIGlzIGRpc3Rpbmd1aXNoZWQsIG5vdCBvbmx5IGJ5IGhpcyByZWFzb24sIGJ1dCBieSB0aGlzIHNpbmd1bGFyIHBhc3Npb24gZnJvbSBvdGhlciBhbmltYWxzLCB3aGljaCBpcyBhIGx1c3Qgb2YgdGhlIG1pbmQsIHRoYXQgYnkgYSBwZXJzZXZlcmFuY2Ugb2YgZGVsaWdodCBpbiB0aGUgY29udGludWVkIGFuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yga25vd2xlZGdlLCBleGNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm5hbCBwbGVhc3VyZS4=";
 assert.equal(expected, (new Buffer(quote)).toString('base64'));
 
 
 b = new Buffer(1024);
-bytesWritten = b.write(expected, 0, 'base64');
+var bytesWritten = b.write(expected, 0, 'base64');
 assert.equal(quote.length, bytesWritten);
 assert.equal(quote, b.toString('ascii', 0, quote.length));
 
@@ -318,7 +317,7 @@ assert.equal(new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=',   'base64
 assert.equal(new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg',    'base64').length, 31);
 
 // This string encodes single '.' character in UTF-16
-dot = new Buffer('//4uAA==', 'base64');
+var dot = new Buffer('//4uAA==', 'base64');
 assert.equal(dot[0], 0xff);
 assert.equal(dot[1], 0xfe);
 assert.equal(dot[2], 0x2e);
@@ -327,19 +326,19 @@ assert.equal(dot.toString('base64'), '//4uAA==');
 
 
 // Creating buffers larger than pool size.
-l = Buffer.poolSize + 5;
-s = ""
+var l = Buffer.poolSize + 5;
+var s = ""
 for (i = 0; i < l; i++) {
   s += "h";
 }
 
-b = new Buffer(s);
+var b = new Buffer(s);
 
 for (i = 0; i < l; i++) {
   assert.equal("h".charCodeAt(0), b[i]);
 }
 
-sb = b.toString();
+var sb = b.toString();
 assert.equal(sb.length, s.length);
 assert.equal(sb, s);
 
