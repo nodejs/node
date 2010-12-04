@@ -1,7 +1,8 @@
 var common = require('../common');
 var assert = require('assert');
-
 var Script = require('vm').Script;
+
+common.globalCheck = false;
 
 common.debug('run a string');
 var result = Script.runInNewContext('"passed";');

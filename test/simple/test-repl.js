@@ -1,6 +1,8 @@
 var common = require('../common');
 var assert = require('assert');
 
+common.globalCheck = false;
+
 var net = require("net"),
   repl = require("repl"),
   message = "Read, Eval, Print Loop",

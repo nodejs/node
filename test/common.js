@@ -24,3 +24,35 @@ exports.indirectInstanceOf = function (obj, cls) {
   var objChain = protoCtrChain(obj);
   return objChain.slice(-clsChain.length) === clsChain;
 };
+
+
+// Turn this off if the test should not check for global leaks.
+exports.globalCheck = true;
+
+process.on('exit', function () {
+  if (!exports.globalCheck) return;
+  var knownGlobals = [ setTimeout,
+                       setInterval,
+                       clearTimeout,
+                       clearInterval,
+                       console,
+                       Buffer,
+                       process,
+                       global ];
+
+  for (var x in global) {
+    var found = false;
+
+    for (var y in knownGlobals) {
+      if (global[x] === knownGlobals[y]) {
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      console.error("Unknown global: %s", x);
+      exports.assert.ok(false);
+    }
+  }
+});

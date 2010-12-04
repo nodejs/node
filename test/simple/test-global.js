@@ -1,6 +1,8 @@
 var common = require('../common');
 var assert = require('assert');
 
+common.globalCheck = false;
+
 baseFoo = "foo";
 global.baseBar = "bar";
 
