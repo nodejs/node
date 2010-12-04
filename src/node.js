@@ -146,45 +146,55 @@
         removed('require.registerExtension() removed.' +
                 ' Use require.extensions instead');
 
-    // Which files to traverse while finding id? Returns generator function.
-    function traverser(id, dirs) {
-      var head = [], inDir = [], dirs = dirs.slice(),
-          exts = Object.keys(extensions);
-      return function next() {
-        var result = head.shift();
-        if (result) { return result; }
-
-        var gen = inDir.shift();
-        if (gen) { head = gen(); return next(); }
-
-        var dir = dirs.shift();
-        if (dir !== undefined) {
-          function direct(ext) { return path.join(dir, id + ext); }
-          function index(ext) { return path.join(dir, id, 'index' + ext); }
-          inDir = [
-            function() { return exts.map(direct); },
-            function() { return exts.map(index); }
-          ];
-          head = [path.join(dir, id)];
-          return next();
-        }
-      };
-    }
-
+    // given a module name, and a list of paths to test, returns the first
+    // matching file in the following precedence.
+    //
+    // require("a.<ext>")
+    //   -> a.<ext>
+    //
+    // require("a")
+    //   -> a
+    //   -> a.<ext>
+    //   -> a/index.<ext>
     function findModulePath(request, paths) {
-      var nextLoc =
-          traverser(request, request.charAt(0) === '/' ? [''] : paths);
+      var fs = requireNative('fs'),
+          exts = Object.keys(extensions);
 
-      var fs = requireNative('fs');
+      paths = request.charAt(0) === '/' ? [''] : paths;
 
-      var location, stats;
-      while (location = nextLoc()) {
-        try { stats = fs.statSync(location); } catch (e) { continue; }
-        if (stats && !stats.isDirectory()) return location;
+      // check if the file exists and is not a directory
+      var tryFile = function(requestPath) {
+        try {
+          stats = fs.statSync(requestPath);
+          if (stats && !stats.isDirectory()) {
+            return requestPath;
+          }
+        } catch (e) {}
+        return false;
+      };
+
+      // given a path check a the file exists with any of the set extensions
+      var tryExtensions = function(p, extension) {
+        for (var i = 0, EL = exts.length; i < EL; i++) {
+          f = tryFile(p + exts[i]);
+          if (f) { return f; }
+        }
+        return false;
+      };
+
+      // For each path
+      for (var i = 0, PL = paths.length; i < PL; i++) {
+        var p = paths[i],
+            // try to join the request to the path
+            f = tryFile(path.join(p, request)) ||
+            // try it with each of the extensions
+            tryExtensions(path.join(p, request)) ||
+            // try it with each of the extensions at "index"
+            tryExtensions(path.join(p, request, 'index'));
+        if (f) { return f; }
       }
       return false;
     }
-
 
     // sync - no i/o performed
     function resolveModuleLookupPaths(request, parent) {
