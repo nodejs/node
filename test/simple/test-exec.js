@@ -1,8 +1,8 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 var exec = require('child_process').exec;
-success_count = 0;
-error_count = 0;
+var success_count = 0;
+var error_count = 0;
 
 exec("ls /", function (err, stdout, stderr) {
   if (err) {

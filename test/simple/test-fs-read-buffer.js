@@ -1,5 +1,5 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 var path = require('path'),
     Buffer = require('buffer').Buffer,
     fs = require('fs'),

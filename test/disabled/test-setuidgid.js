@@ -1,6 +1,6 @@
 // Requires special privlages
-common = require("../common");
-assert = common.assert;
+var common = require('../common');
+var assert = require('assert');;
 var assert = require('assert');
 
 var oldgid = process.getgid();

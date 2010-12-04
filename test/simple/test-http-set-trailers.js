@@ -1,9 +1,9 @@
-common = require("../common");
-assert = common.assert;
-http = require("http");
-net = require("net");
+var common = require('../common');
+var assert = require('assert');
+var http = require('http');
+var net = require('net');
 
-outstanding_reqs = 0;
+var outstanding_reqs = 0;
 
 var server = http.createServer(function(req, res) {
   res.writeHead(200, [ ['content-type', 'text/plain'] ]);

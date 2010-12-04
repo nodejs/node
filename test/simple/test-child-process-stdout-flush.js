@@ -1,10 +1,10 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 var path = require('path');
 var spawn = require('child_process').spawn;
 var sub = path.join(common.fixturesDir, 'print-chars.js');
 
-n = 500000;
+var n = 500000;
 
 var child = spawn(process.argv[0], [sub, n]);
 

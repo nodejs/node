@@ -6,7 +6,7 @@ var package = require('./package');
 
 assert.equal('world', package.hello);
 
-common.debug('load fixtures/b/c.js');
+console.error('load fixtures/b/c.js');
 
 var string = 'C';
 

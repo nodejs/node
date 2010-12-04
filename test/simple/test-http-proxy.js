@@ -1,7 +1,7 @@
-common = require("../common");
-assert = common.assert
-http = require("http");
-url = require("url");
+var common = require('../common');
+var assert = require('assert');
+var http = require('http');
+var url = require("url");
 
 var PROXY_PORT = common.PORT;
 var BACKEND_PORT = common.PORT+1;
@@ -48,7 +48,7 @@ var proxy = http.createServer(function (req, res) {
 
 var body = "";
 
-nlistening = 0;
+var nlistening = 0;
 function startReq () {
   nlistening++;
   if (nlistening < 2) return;

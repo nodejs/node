@@ -1,9 +1,9 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
 assert = require("assert");
-http = require("http");
-util = require("util");
+var http = require('http');
+var util = require('util');
 
 body = "hello world\n";
 headers = {'connection':'keep-alive'}

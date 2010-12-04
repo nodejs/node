@@ -1,10 +1,10 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
-http = require('http');
-childProcess = require('child_process');
+var http = require('http');
+var childProcess = require('child_process');
 
-s = http.createServer(function (request, response) {
+var s = http.createServer(function (request, response) {
   response.writeHead(304);
   response.end();
 });

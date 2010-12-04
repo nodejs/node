@@ -1,6 +1,6 @@
-common = require("../common");
-assert = common.assert
-http = require("http");
+var common = require('../common');
+var assert = require('assert');
+var http = require('http');
 url = require("url");
 
 function p (x) {

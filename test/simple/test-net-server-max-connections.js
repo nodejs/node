@@ -1,6 +1,6 @@
-common = require("../common");
-assert = common.assert;
-net = require('net');
+var common = require('../common');
+var assert = require('assert');;
+var net = require('net');
 
 // This test creates 200 connections to a server and sets the server's
 // maxConnections property to 100. The first 100 connections make it through

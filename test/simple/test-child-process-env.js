@@ -1,10 +1,10 @@
-common = require("../common");
-assert = common.assert
+var common = require("../common");
+var assert = require('assert');
 
 var spawn = require('child_process').spawn;
-child = spawn('/usr/bin/env', [], {env: {'HELLO' : 'WORLD'}});
+var child = spawn('/usr/bin/env', [], {env: {'HELLO' : 'WORLD'}});
 
-response = "";
+var response = "";
 
 child.stdout.setEncoding('utf8');
 

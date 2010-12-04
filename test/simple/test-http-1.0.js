@@ -1,7 +1,7 @@
-common = require("../common");
-assert = common.assert
-net = require("net");
-http = require("http");
+var common = require('../common');
+var assert = require('assert');
+var net = require("net");
+var http = require("http");
 
 var body = "hello world\n";
 var server_response = "";

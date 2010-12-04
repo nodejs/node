@@ -1,7 +1,7 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
-net = require("net");
+var net = require('net');
 
 var tests_run = 0;
 

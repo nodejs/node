@@ -1,5 +1,5 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
 // The purpose of this test is not to check HTTP compliance but to test the
 // binding. Tests for pathological http messages should be submitted

@@ -1,6 +1,6 @@
-common = require("../common");
-assert = common.assert
-http = require("http");
+var common = require('../common');
+var assert = require('assert');
+var http = require('http');
 
 var sent_body = "";
 var server_req_complete = false;

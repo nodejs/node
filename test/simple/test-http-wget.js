@@ -1,7 +1,7 @@
-common = require("../common");
-assert = common.assert
-net = require("net");
-http = require("http");
+var common = require('../common');
+var assert = require('assert');
+var net = require('net');
+var http = require('http');
 
 // wget sends an HTTP/1.0 request with Connection: Keep-Alive
 //

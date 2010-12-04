@@ -1,6 +1,6 @@
 var path = require("path");
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
 var f = __filename;
 

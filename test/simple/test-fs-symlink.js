@@ -1,4 +1,4 @@
-common = require("../common");
+var common = require('../common');
 var assert = common.assert;
 var path = require('path');
 var fs = require('fs');

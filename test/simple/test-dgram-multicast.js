@@ -1,5 +1,5 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
 var dgram = require("dgram"),
     util = require('util'),
@@ -41,7 +41,7 @@ sendSocket.sendNext = function () {
   });
 };
 
-listener_count = 0;
+var listener_count = 0;
 
 function mkListener() {
   var receivedMessages = [];

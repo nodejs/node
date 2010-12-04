@@ -1,8 +1,8 @@
-common = require("../common");
-assert = common.assert
-path = require('path');
+var common = require('../common');
+var assert = require('assert');
+var path = require('path');
 childProccess = require('child_process');
-fs = require('fs');
+var fs = require('fs');
 scriptString = path.join(common.fixturesDir, 'print-chars.js');
 scriptBuffer = path.join(common.fixturesDir, 'print-chars-from-buffer.js');
 tmpFile = path.join(common.fixturesDir, 'stdout.txt');

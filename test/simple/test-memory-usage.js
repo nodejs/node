@@ -1,5 +1,5 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
 var r = process.memoryUsage();
 console.log(common.inspect(r));

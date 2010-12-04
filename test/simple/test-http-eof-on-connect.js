@@ -1,7 +1,7 @@
-common = require("../common");
-assert = common.assert
-net = require("net");
-http = require("http");
+var common = require('../common');
+var assert = require('assert');
+var net = require('net');
+var http = require('http');
 
 // This is a regression test for http://github.com/ry/node/issues/#issue/44
 // It is separate from test-http-malformed-request.js because it is only

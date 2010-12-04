@@ -1,20 +1,19 @@
-common = require("../common");
-assert = common.assert
-path = require('path'),
-Buffer = require('buffer').Buffer
-fs = require('fs')
-fn = path.join(common.tmpDir, 'write.txt');
+var common = require('../common');
+var assert = require('assert');
+var path = require('path');
+var fs = require('fs');
+var fn = path.join(common.tmpDir, 'write.txt');
 
 
-foo = 'foo'
+var foo = 'foo'
 var fd = fs.openSync(fn, 'w');
 
-written = fs.writeSync(fd, '');
+var written = fs.writeSync(fd, '');
 assert.strictEqual(0, written);
 
 fs.writeSync(fd, foo);
 
-bar = 'bár'
+var bar = 'bár'
 written = fs.writeSync(fd, new Buffer(bar), 0, Buffer.byteLength(bar));
 assert.ok(written > 3);
 fs.closeSync(fd);

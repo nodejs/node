@@ -1,14 +1,16 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
-fs = require("fs");
-dgram = require("dgram");
+var fs = require("fs");
+var dgram = require("dgram");
 
-serverPath = "/tmp/dgram_server_sock";
-clientPath = "/tmp/dgram_client_sock";
-msgToSend = new Buffer("A message to send");
+// TODO use common.tmpDir here
+var serverPath = "/tmp/dgram_server_sock";
+var clientPath = "/tmp/dgram_client_sock";
 
-server = dgram.createSocket("unix_dgram");
+var msgToSend = new Buffer("A message to send");
+
+var server = dgram.createSocket("unix_dgram");
 server.on("message", function (msg, rinfo) {
   console.log("server got: " + msg + " from " + rinfo.address);
   assert.strictEqual(rinfo.address, clientPath);
@@ -19,7 +21,7 @@ server.on("message", function (msg, rinfo) {
 server.on("listening", function () {
   console.log("server is listening");
 
-  client = dgram.createSocket("unix_dgram");
+  var client = dgram.createSocket("unix_dgram");
 
   client.on("message", function (msg, rinfo) {
     console.log("client got: " + msg + " from " + rinfo.address);

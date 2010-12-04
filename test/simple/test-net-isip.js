@@ -1,6 +1,6 @@
-common = require("../common");
-assert = common.assert
-net = require("net");
+var common = require('../common');
+var assert = require('assert');
+var net = require('net');
 
 assert.equal(net.isIP("127.0.0.1"), 4);
 assert.equal(net.isIP("x127.0.0.1"), 0);

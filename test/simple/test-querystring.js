@@ -1,5 +1,5 @@
-common = require("../common");
-assert = common.assert;
+var common = require('../common');
+var assert = require('assert');;
 
 // test using assert
 var qs = require("querystring");

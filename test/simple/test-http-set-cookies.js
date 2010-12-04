@@ -1,8 +1,8 @@
-common = require("../common");
-assert = common.assert;
-http = require("http");
+var common = require('../common');
+var assert = require('assert');;
+var http = require('http');
 
-nresponses = 0;
+var nresponses = 0;
 
 var server = http.createServer(function(req, res) {
   if (req.url == '/one') {

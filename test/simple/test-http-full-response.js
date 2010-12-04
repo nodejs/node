@@ -1,15 +1,17 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 // This test requires the program "ab"
-http = require("http");
-exec = require("child_process").exec;
+var http = require('http');
+var exec = require("child_process").exec;
 
-bodyLength = 12345;
+var bodyLength = 12345;
 
-body = "";
-for (var i = 0; i < bodyLength; i++) body += 'c';
+var body = "";
+for (var i = 0; i < bodyLength; i++) {
+  body += 'c';
+}
 
-server = http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
   res.writeHead(200, {
     "Content-Length": bodyLength,
     "Content-Type": "text/plain"
@@ -17,7 +19,7 @@ server = http.createServer(function (req, res) {
   res.end(body);
 });
 
-runs = 0;
+var runs = 0;
 
 function runAb(opts, callback) {
   var command = "ab " + opts + " http://127.0.0.1:" + common.PORT + "/";

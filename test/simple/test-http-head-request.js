@@ -1,14 +1,12 @@
-common = require("../common");
-assert = common.assert
-
-assert = require("assert");
-http = require("http");
-util = require("util");
+var common = require('../common');
+var assert = require('assert');
+var http = require('http');
+var util = require('util');
 
 
-body = "hello world\n";
+var body = "hello world\n";
 
-server = http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
   common.error('req: ' + req.method);
   res.writeHead(200, {"Content-Length": body.length});
   res.end();

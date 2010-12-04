@@ -1,2 +1,2 @@
 exports.hello = 'world';
-common.debug('load package/index.js');
+console.error('load package/index.js');

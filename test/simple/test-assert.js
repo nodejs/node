@@ -1,6 +1,5 @@
-common = require("../common");
-assert = common.assert
-
+var common = require("../common");
+var assert = require('assert');
 var a = require('assert');
 
 function makeBlock (f) {
@@ -115,7 +114,7 @@ assert.throws(makeBlock(a.deepEqual, 'a', {}), a.AssertionError);
 function thrower (errorConstructor){
   throw new errorConstructor('test');
 }
-aethrow = makeBlock(thrower, a.AssertionError);
+var aethrow = makeBlock(thrower, a.AssertionError);
 aethrow = makeBlock(thrower, a.AssertionError);
 
 // the basic calls work

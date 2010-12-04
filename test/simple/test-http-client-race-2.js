@@ -1,7 +1,7 @@
-common = require("../common");
-assert = common.assert
-http = require("http");
-url = require("url");
+var common = require('../common');
+var assert = require('assert');
+var http = require('http');
+var url = require("url");
 
 //
 // Slight variation on test-http-client-race to test for another race

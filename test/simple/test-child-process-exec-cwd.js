@@ -5,7 +5,7 @@ var exec   = require('child_process').exec;
 var success_count = 0;
 var error_count = 0;
 
-child = exec('pwd', {cwd: "/dev"}, function (err, stdout, stderr) {
+var child = exec('pwd', {cwd: "/dev"}, function (err, stdout, stderr) {
   if (err) {
     error_count++;
     console.log('error!: ' + err.code);

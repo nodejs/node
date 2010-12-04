@@ -1,9 +1,9 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
 join = require('path').join;
 childProccess = require('child_process');
-fs = require('fs');
+var fs = require('fs');
 
 stdoutScript = join(common.fixturesDir, 'echo.js');
 tmpFile = join(common.fixturesDir, 'stdin.txt');

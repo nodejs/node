@@ -42,6 +42,8 @@ var web = http.Server(function (req, res) {
   });
 });
 
+var gotThanks = false;
+
 web.listen(common.PORT, function () {
   console.log("Making request");
 
@@ -62,4 +64,5 @@ web.listen(common.PORT, function () {
 
 process.on('exit', function () {
   assert.equal(bufferSize, measuredSize);
+  assert.ok(gotThanks);
 });

@@ -1,7 +1,8 @@
 var common = require("../common");
-var assert = common.assert
-var http = require('http'),
-    CRLF = '\r\n';
+var assert = require('assert');
+var http = require('http');
+
+var CRLF = '\r\n';
 
 var server = http.createServer();
 server.on('upgrade', function(req, socket, head) {
@@ -13,6 +14,7 @@ server.on('upgrade', function(req, socket, head) {
   });
 });
 
+var successCount = 0;
 
 server.listen(common.PORT, function () {
 
@@ -45,7 +47,6 @@ server.listen(common.PORT, function () {
 
   }
 
-  successCount = 0;
   upgradeRequest(function() {
     successCount++;
     upgradeRequest(function() {

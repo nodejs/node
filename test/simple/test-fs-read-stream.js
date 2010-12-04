@@ -1,21 +1,20 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
 // TODO Improved this test. test_ca.pem is too small. A proper test would
 // great a large utf8 (with multibyte chars) file and stream it in,
 // performing sanity checks throughout.
 
-Buffer = require('buffer').Buffer;
-path = require('path');
-fs = require('fs');
-fn = path.join(common.fixturesDir, 'elipses.txt');
-rangeFile = path.join(common.fixturesDir, 'x.txt');
+var path = require('path');
+var fs = require('fs');
+var fn = path.join(common.fixturesDir, 'elipses.txt');
+var rangeFile = path.join(common.fixturesDir, 'x.txt');
 
-callbacks = { open: 0, end: 0, close: 0, destroy: 0 };
+var callbacks = { open: 0, end: 0, close: 0, destroy: 0 };
 
-paused = false;
+var paused = false;
 
-file = fs.ReadStream(fn);
+var file = fs.ReadStream(fn);
 
 file.addListener('open', function(fd) {
   file.length = 0;

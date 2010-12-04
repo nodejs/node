@@ -1,5 +1,5 @@
-common = require("../common");
-assert = common.assert;
+var common = require('../common');
+var assert = require('assert');;
 var util = require("util"),
 fs = require("fs"),
 http = require("http"),

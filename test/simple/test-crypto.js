@@ -1,5 +1,5 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
 try {
   var crypto = require('crypto');
@@ -45,7 +45,7 @@ var h2 = crypto.createHash("sha1").update("Test").update("123").digest("hex");
 assert.equal(h1, h2, "multipled updates");
 
 // Test hashing for binary files
-fn = path.join(common.fixturesDir, 'sample.png');
+var fn = path.join(common.fixturesDir, 'sample.png');
 var sha1Hash = crypto.createHash('sha1');
 var fileStream = fs.createReadStream(fn);
 fileStream.addListener('data', function(data){

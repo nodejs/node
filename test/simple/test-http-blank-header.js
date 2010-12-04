@@ -1,12 +1,11 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
+var http = require('http');
+var net = require('net');
 
-http = require('http');
-net = require('net');
+var gotReq = false;
 
-gotReq = false;
-
-server = http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
   common.error('got req');
   gotReq = true;
   assert.equal('GET', req.method);

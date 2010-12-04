@@ -1,9 +1,9 @@
 // Verify that net.Server.listenFD() can be used to accept connections on an
 // already-bound, already-listening socket.
 
-common = require("../common");
-assert = common.assert
-http = require('http');
+var common = require('../common');
+var assert = require('assert');
+var http = require('http');
 netBinding = process.binding('net');
 
 // Create an server and set it listening on a socket bound to common.PORT

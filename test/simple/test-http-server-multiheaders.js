@@ -2,8 +2,8 @@
 // of the same header as per RFC2616: joining the handful of fields by ', '
 // that support it, and dropping duplicates for other fields.
 
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 var http = require('http');
 
 var srv = http.createServer(function(req, res) {

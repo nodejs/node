@@ -1,5 +1,5 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
 process.on('uncaughtException', function (err) {
   console.log('Caught exception: ' + err);

@@ -25,8 +25,8 @@
 //     seen in a response yet. This is intended to ensure that all blobs
 //     sent out have been relayed back to us.
 
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
 var buffer = require('buffer');
 var child_process = require('child_process');

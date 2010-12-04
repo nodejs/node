@@ -1,6 +1,6 @@
 var c = require('./b/c');
 
-common.debug('load fixtures/a.js');
+console.error('load fixtures/a.js');
 
 var string = 'A';
 

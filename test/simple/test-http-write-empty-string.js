@@ -1,7 +1,7 @@
-common = require("../common");
-assert = common.assert
+var common = require('../common');
+var assert = require('assert');
 
-http = require('http');
+var http = require('http');
 assert = require('assert');
 
 server = http.createServer(function (request, response) {

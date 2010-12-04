@@ -1,6 +1,6 @@
-common = require("../common");
-assert = common.assert
-net = require('net');
+var common = require('../common');
+var assert = require('assert');
+var net = require('net');
 
 var serverConnection;
 var echoServer = net.createServer(function (connection) {

@@ -1,9 +1,9 @@
-common = require("../common");
-assert = common.assert
-exec = require('child_process').exec,
-path = require('path');
+var common = require('../common');
+var assert = require('assert');
+var exec = require('child_process').exec;
+var path = require('path');
 
-exits = 0;
+var exits = 0;
 
 function errExec (script, callback) {
   var cmd = process.argv[0] + ' ' + path.join(common.fixturesDir, script);

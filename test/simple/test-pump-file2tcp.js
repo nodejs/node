@@ -1,9 +1,9 @@
-common = require("../common");
-assert = common.assert
-net = require("net");
-fs = require("fs");
-util = require("util");
-path = require("path");
+var common = require('../common');
+var assert = require('assert');
+var net = require('net');
+var fs = require('fs');
+var util = require('util');
+var path = require('path');
 fn = path.join(common.fixturesDir, 'elipses.txt');
 
 expected = fs.readFileSync(fn, 'utf8');

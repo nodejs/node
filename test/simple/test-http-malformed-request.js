@@ -1,14 +1,14 @@
-common = require("../common");
-assert = common.assert
-net = require("net");
-http = require("http");
-url = require("url");
+var common = require('../common');
+var assert = require('assert');
+var net = require('net');
+var http = require('http');
+var url = require("url");
 
 // Make sure no exceptions are thrown when receiving malformed HTTP
 // requests.
 
-nrequests_completed = 0;
-nrequests_expected = 1;
+var nrequests_completed = 0;
+var nrequests_expected = 1;
 
 var server = http.createServer(function (req, res) {
   console.log("req: " + JSON.stringify(url.parse(req.url)));

@@ -1,6 +1,6 @@
 // This test requires the program 'ab'
-common = require('../common');
-assert = common.assert;
+var common = require('../common');
+var assert = require('assert');;
 http = require('http');
 exec = require('child_process').exec;
 
