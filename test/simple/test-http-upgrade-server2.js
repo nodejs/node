@@ -1,10 +1,9 @@
 var common = require('../common');
 var assert = require('assert');
-
 var http = require('http');
 var net = require('net');
 
-server = http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
   common.error('got req');
   throw new Error("This shouldn't happen.");
 });
@@ -16,7 +15,7 @@ server.addListener('upgrade', function (req, socket, upgradeHead) {
   throw new Error('upgrade error');
 });
 
-gotError = false;
+var gotError = false;
 
 process.addListener('uncaughtException', function (e) {
   common.error('got "clientError" event');

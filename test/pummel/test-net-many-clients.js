@@ -1,6 +1,7 @@
 var common = require('../common');
 var assert = require('assert');;
-net = require('net');
+var net = require('net');
+
 // settings
 var bytes = 1024 * 40;
 var concurrency = 100;

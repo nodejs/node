@@ -4,12 +4,12 @@ var net = require('net');
 var fs = require('fs');
 var util = require('util');
 var path = require('path');
-fn = path.join(common.fixturesDir, 'does_not_exist.txt');
+var fn = path.join(common.fixturesDir, 'does_not_exist.txt');
 
 var got_error = false;
 var conn_closed = false;
 
-server = net.createServer(function (stream) {
+var server = net.createServer(function (stream) {
   common.error('pump!');
   util.pump(fs.createReadStream(fn), stream, function (err) {
     common.error("util.pump's callback fired");
@@ -25,7 +25,7 @@ server = net.createServer(function (stream) {
 });
 
 server.listen(common.PORT, function () {
-  conn = net.createConnection(common.PORT);
+  var conn = net.createConnection(common.PORT);
   conn.setEncoding('utf8');
   conn.addListener("data", function (chunk) {
     common.error('recv data! nchars = ' + chunk.length);
@@ -43,7 +43,6 @@ server.listen(common.PORT, function () {
 });
 
 var buffer = '';
-count = 0;
 
 process.addListener('exit', function () {
   assert.equal(true, got_error);

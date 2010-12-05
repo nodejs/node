@@ -1,19 +1,18 @@
 var common = require('../common');
 var assert = require('assert');
+var exec = require('child_process').exec;
+var join = require('path').join;
 
-exec = require('child_process').exec;
-join = require('path').join;
+var nodePath = process.argv[0];
+var script = join(common.fixturesDir, 'print-10-lines.js');
 
-nodePath = process.argv[0];
-script = join(common.fixturesDir, 'print-10-lines.js');
+var cmd = nodePath + ' ' + script + ' | head -2';
 
-cmd = nodePath + ' ' + script + ' | head -2';
-
-finished = false;
+var finished = false;
 
 exec(cmd, function (err, stdout, stderr) {
   if (err) throw err;
-  lines = stdout.split('\n');
+  var lines = stdout.split('\n');
   assert.equal(3, lines.length);
   finished = true;
 });

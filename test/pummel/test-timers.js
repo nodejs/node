@@ -1,8 +1,6 @@
 var common = require('../common');
 var assert = require('assert');
 
-assert = require('assert');
-
 var WINDOW = 200; // why is does this need to be so big?
 
 var interval_count = 0;
@@ -79,8 +77,8 @@ setInterval(function(param1, param2){
 }, 1000, 'param1', 'param2');
 
 // setInterval(cb, 0) should be called multiple times.
-count4 = 0;
-interval4 = setInterval(function() {
+var count4 = 0;
+var interval4 = setInterval(function() {
   if (++count4 > 10) clearInterval(interval4);
 }, 0);
 
@@ -92,12 +90,12 @@ function t () {
   expectedTimeouts--;
 }
 
-w = setTimeout(t, 200),
-x = setTimeout(t, 200),
-y = setTimeout(t, 200);
+var w = setTimeout(t, 200);
+var x = setTimeout(t, 200);
+var y = setTimeout(t, 200);
 
-clearTimeout(y),
-z = setTimeout(t, 200);
+clearTimeout(y);
+var z = setTimeout(t, 200);
 clearTimeout(y);
 
 

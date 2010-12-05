@@ -1,20 +1,18 @@
 var common = require('../common');
 var assert = require('assert');
-
-assert = require("assert");
 var http = require('http');
 var util = require('util');
 
-body = "hello world\n";
-headers = {'connection':'keep-alive'}
+var body = "hello world\n";
+var headers = {'connection':'keep-alive'}
 
-server = http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
   res.writeHead(200, {"Content-Length": body.length});
   res.write(body);
   res.end();
 });
 
-connectCount = 0;
+var connectCount = 0;
 
 server.listen(common.PORT, function () {
   var client = http.createClient(common.PORT);

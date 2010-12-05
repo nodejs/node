@@ -2,9 +2,8 @@ var common = require('../common');
 var assert = require('assert');
 
 var http = require('http');
-assert = require('assert');
 
-server = http.createServer(function (request, response) {
+var server = http.createServer(function (request, response) {
   console.log('responding to ' + request.url);
 
   response.writeHead(200, {'Content-Type': 'text/plain'});

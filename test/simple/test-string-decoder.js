@@ -1,13 +1,11 @@
 var common = require('../common');
-var assert = require('assert');;
-
-Buffer = require('buffer').Buffer;
-StringDecoder = require('string_decoder').StringDecoder;
-decoder = new StringDecoder('utf8');
+var assert = require('assert');
+var StringDecoder = require('string_decoder').StringDecoder;
+var decoder = new StringDecoder('utf8');
 
 
 
-buffer = new Buffer('$');
+var buffer = new Buffer('$');
 assert.deepEqual('$', decoder.write(buffer));
 
 buffer = new Buffer('¢');
@@ -20,7 +18,7 @@ assert.deepEqual('', decoder.write(buffer.slice(1, 2)));
 assert.deepEqual('€', decoder.write(buffer.slice(2, 3)));
 
 buffer = new Buffer([0xF0, 0xA4, 0xAD, 0xA2]);
-s = '';
+var s = '';
 s += decoder.write(buffer.slice(0, 1));
 s += decoder.write(buffer.slice(1, 2));
 s += decoder.write(buffer.slice(2, 3));
@@ -34,10 +32,10 @@ assert.ok(s.length > 0);
 // U+12E4 -> E1 8B A4
 // U+0030 -> 30
 // U+3045 -> E3 81 85
-expected = '\u02e4\u0064\u12e4\u0030\u3045';
-buffer = new Buffer([0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4,
-                     0x30, 0xE3, 0x81, 0x85]);
-charLengths = [0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 5];
+var expected = '\u02e4\u0064\u12e4\u0030\u3045';
+var buffer = new Buffer([0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4,
+                         0x30, 0xE3, 0x81, 0x85]);
+var charLengths = [0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 5];
 
 // Split the buffer into 3 segments
 //  |----|------|-------|

@@ -4,7 +4,7 @@
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
-netBinding = process.binding('net');
+var netBinding = process.binding('net');
 
 // Create an server and set it listening on a socket bound to common.PORT
 var gotRequest = false;

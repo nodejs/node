@@ -1,11 +1,11 @@
 // This test requires the program 'ab'
 var common = require('../common');
 var assert = require('assert');;
-http = require('http');
-exec = require('child_process').exec;
+var http = require('http');
+var exec = require('child_process').exec;
 
-body = 'hello world\n';
-server = http.createServer(function(req, res) {
+var body = 'hello world\n';
+var server = http.createServer(function(req, res) {
   res.writeHead(200, {
     'Content-Length': body.length,
     'Content-Type': 'text/plain'

@@ -2,7 +2,7 @@ var common = require('../common');
 var assert = require('assert');;
 var http = require('http');
 
-server = http.createServer(function (req, res) {
+var server = http.createServer(function (req, res) {
   intentionally_not_defined();
   res.writeHead(200, {"Content-Type": "text/plain"});
   res.write("Thank you, come again.");
@@ -17,7 +17,7 @@ server.listen(common.PORT, function () {
   }
 });
 
-exception_count = 0;
+var exception_count = 0;
 
 process.addListener("uncaughtException", function (err) {
   console.log("Caught an exception: " + err);

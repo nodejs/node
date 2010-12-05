@@ -4,11 +4,11 @@ var net = require('net');
 var fs = require('fs');
 var util = require('util');
 var path = require('path');
-fn = path.join(common.fixturesDir, 'elipses.txt');
+var fn = path.join(common.fixturesDir, 'elipses.txt');
 
-expected = fs.readFileSync(fn, 'utf8');
+var expected = fs.readFileSync(fn, 'utf8');
 
-server = net.createServer(function (stream) {
+var server = net.createServer(function (stream) {
   common.error('pump!');
   util.pump(fs.createReadStream(fn), stream, function () {
     common.error('server stream close');
@@ -18,7 +18,7 @@ server = net.createServer(function (stream) {
 });
 
 server.listen(common.PORT, function () {
-  conn = net.createConnection(common.PORT);
+  var conn = net.createConnection(common.PORT);
   conn.setEncoding('utf8');
   conn.addListener("data", function (chunk) {
     common.error('recv data! nchars = ' + chunk.length);
@@ -34,7 +34,7 @@ server.listen(common.PORT, function () {
 });
 
 var buffer = '';
-count = 0;
+var count = 0;
 
 server.addListener('listening', function () {
 });

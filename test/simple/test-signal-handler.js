@@ -19,7 +19,7 @@ process.addListener('SIGUSR1', function () {
   }, 5);
 });
 
-i = 0;
+var i = 0;
 setInterval(function () {
   console.log("running process..." + ++i);
 

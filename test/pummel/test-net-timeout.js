@@ -1,10 +1,11 @@
 var common = require('../common');
 var assert = require('assert');;
-net = require('net');
-exchanges = 0;
-starttime = null;
-timeouttime = null;
-timeout = 1000;
+var net = require('net');
+
+var exchanges = 0;
+var starttime = null;
+var timeouttime = null;
+var timeout = 1000;
 
 var echo_server = net.createServer(function(socket) {
   socket.setTimeout(timeout);

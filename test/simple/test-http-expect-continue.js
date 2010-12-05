@@ -1,5 +1,5 @@
 var common = require("../common");
-var assert = common.assert;
+var assert = require('assert');
 var http = require("http");
 
 var outstanding_reqs = 0;
@@ -31,12 +31,12 @@ server.listen(common.PORT);
 
 server.addListener("listening", function() {
   var client = http.createClient(common.PORT);
-  req = client.request("POST", "/world", {
+  var req = client.request("POST", "/world", {
       "Expect": "100-continue",
   });
   common.debug("Client sending request...");
   outstanding_reqs++;
-  body = "";
+  var body = "";
   req.addListener('continue', function () {
       common.debug("Client got 100 Continue...");
       got_continue = true;

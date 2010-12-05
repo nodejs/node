@@ -1,10 +1,11 @@
 var common = require('../common');
 var assert = common.assert;
 var net = require('net');
+
 var N = 200;
 var recv = '', chars_recved = 0;
 
-server = net.createServer(function(connection) {
+var server = net.createServer(function(connection) {
   function write(j) {
     if (j >= N) {
       connection.end();
@@ -17,8 +18,9 @@ server = net.createServer(function(connection) {
   }
   write(0);
 });
+
 server.on('listening', function() {
-  client = net.createConnection(common.PORT);
+  var client = net.createConnection(common.PORT);
   client.setEncoding('ascii');
   client.addListener('data', function(d) {
     common.print(d);

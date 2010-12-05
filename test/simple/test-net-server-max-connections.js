@@ -8,12 +8,12 @@ var net = require('net');
 // TODO: test that the server can accept more connections after it reaches
 // its maximum and some are closed.
 
-N = 200;
-count = 0;
-closes = 0;
-waits = [];
+var N = 200;
+var count = 0;
+var closes = 0;
+var waits = [];
 
-server = net.createServer(function (connection) {
+var server = net.createServer(function (connection) {
   console.error("connect %d", count++);
   connection.write("hello");
   waits.push(function () { connection.end(); });

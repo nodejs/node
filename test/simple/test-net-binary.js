@@ -2,10 +2,10 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-binaryString = "";
+var binaryString = "";
 for (var i = 255; i >= 0; i--) {
   var s = "'\\" + i.toString(8) + "'";
-  S = eval(s);
+  var S = eval(s);
   common.error( s
        + " "
        + JSON.stringify(S)

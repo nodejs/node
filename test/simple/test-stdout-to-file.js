@@ -1,11 +1,12 @@
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
-childProccess = require('child_process');
+var childProccess = require('child_process');
 var fs = require('fs');
-scriptString = path.join(common.fixturesDir, 'print-chars.js');
-scriptBuffer = path.join(common.fixturesDir, 'print-chars-from-buffer.js');
-tmpFile = path.join(common.fixturesDir, 'stdout.txt');
+
+var scriptString = path.join(common.fixturesDir, 'print-chars.js');
+var scriptBuffer = path.join(common.fixturesDir, 'print-chars-from-buffer.js');
+var tmpFile = path.join(common.fixturesDir, 'stdout.txt');
 
 function test (size, useBuffer, cb) {
   var cmd = process.argv[0]
@@ -39,7 +40,7 @@ function test (size, useBuffer, cb) {
   });
 }
 
-finished = false;
+var finished = false;
 test(1024*1024, false, function () {
   console.log("Done printing with string");
   test(1024*1024, true, function () {
