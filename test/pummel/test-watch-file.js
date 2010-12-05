@@ -10,7 +10,7 @@ var f2 = path.join(common.fixturesDir, 'x2.txt');
 console.log('watching for changes of ' + f);
 
 var changes = 0;
-function watchFile () {
+function watchFile() {
   fs.watchFile(f, function(curr, prev) {
     console.log(f + ' change');
     changes++;

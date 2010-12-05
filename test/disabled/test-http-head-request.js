@@ -1,16 +1,17 @@
 var common = require('../common');
-var assert = require('assert');;
+var assert = require('assert');
 
-var assert = require("assert");
-var http = require("http");
-var util = require("util");
+var assert = require('assert');
+var http = require('http');
+var util = require('util');
 
-var body = "hello world";
+var body = 'hello world';
 
-server = http.createServer(function (req, res) {
-  res.writeHeader(200 , { 'Content-Length': body.length.toString()
-                        , 'Content-Type': 'text/plain'
-                        });
+var server = http.createServer(function(req, res) {
+  res.writeHeader(200,
+                  {'Content-Length': body.length.toString(),
+                    'Content-Type': 'text/plain'
+                  });
   console.log('method: ' + req.method);
   if (req.method != 'HEAD') res.write(body);
   res.end();
@@ -21,13 +22,13 @@ var gotEnd = false;
 
 server.addListener('listening', function() {
   var client = http.createClient(common.PORT);
-  var request = client.request("HEAD", "/");
-  request.addListener('response', function (response) {
+  var request = client.request('HEAD', '/');
+  request.addListener('response', function(response) {
     console.log('got response');
-    response.addListener("data", function () {
+    response.addListener('data', function() {
       process.exit(2);
     });
-    response.addListener("end", function () {
+    response.addListener('end', function() {
       process.exit(0);
     });
   });

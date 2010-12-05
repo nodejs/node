@@ -1,24 +1,24 @@
 var common = require('../common');
-var assert = require('assert');;
+var assert = require('assert');
 var http = require('http');
 
 var nresponses = 0;
 
 var server = http.createServer(function(req, res) {
   if (req.url == '/one') {
-    res.writeHead(200, [ ['set-cookie', 'A'],
-                         ['content-type', 'text/plain'] ]);
-    res.end("one\n");
+    res.writeHead(200, [['set-cookie', 'A'],
+                        ['content-type', 'text/plain']]);
+    res.end('one\n');
   } else {
-    res.writeHead(200, [ ['set-cookie', 'A'],
-                         ['set-cookie', 'B'],
-                         ['content-type', 'text/plain'] ]);
-    res.end("two\n");
+    res.writeHead(200, [['set-cookie', 'A'],
+                        ['set-cookie', 'B'],
+                        ['content-type', 'text/plain']]);
+    res.end('two\n');
   }
 });
 server.listen(common.PORT);
 
-server.addListener("listening", function() {
+server.addListener('listening', function() {
   //
   // one set-cookie header
   //
@@ -66,6 +66,6 @@ server.addListener("listening", function() {
 
 });
 
-process.addListener("exit", function () {
+process.addListener('exit', function() {
   assert.equal(2, nresponses);
 });

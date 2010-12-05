@@ -1,4 +1,4 @@
-var common = require("../common");
+var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -9,14 +9,14 @@ server.on('upgrade', function(req, socket, head) {
   socket.write('HTTP/1.1 101 Ok' + CRLF +
                'Connection: Upgrade' + CRLF +
                'Upgrade: Test' + CRLF + CRLF + 'head');
-  socket.on('end', function () {
+  socket.on('end', function() {
     socket.end();
   });
 });
 
 var successCount = 0;
 
-server.listen(common.PORT, function () {
+server.listen(common.PORT, function() {
 
   var client = http.createClient(common.PORT);
 
@@ -61,6 +61,6 @@ server.listen(common.PORT, function () {
 
 });
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.equal(2, successCount);
 });

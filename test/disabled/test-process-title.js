@@ -1,5 +1,5 @@
-var common = require("../common");
-var assert = common.assert;
+var common = require('../common');
+var assert = require('assert');
 var spawn = require('child_process').spawn;
 
 if (process.title === '') {
@@ -16,11 +16,11 @@ function verifyProcessName(str, callback) {
   var buf = '';
   ps = spawn('ps');
   ps.stdout.setEncoding('utf8');
-  ps.stdout.addListener("data", function (s) { buf += s; });
-  ps.addListener("exit", function (c) {
+  ps.stdout.addListener('data', function(s) { buf += s; });
+  ps.addListener('exit', function(c) {
     try {
       assert.equal(0, c);
-      assert.ok(new RegExp(process.pid+' ', 'm').test(buf));
+      assert.ok(new RegExp(process.pid + ' ', 'm').test(buf));
       assert.ok(new RegExp(str, 'm').test(buf));
       callback();
     } catch (err) {
@@ -29,10 +29,10 @@ function verifyProcessName(str, callback) {
   });
 }
 
-verifyProcessName("3kd023mslkfp--unique-string--sksdf", function(err){
+verifyProcessName('3kd023mslkfp--unique-string--sksdf', function(err) {
   if (err) throw err;
   console.log('title is now %j', process.title);
-  verifyProcessName("3kd023mslxxx--unique-string--xxx", function(err){
+  verifyProcessName('3kd023mslxxx--unique-string--xxx', function(err) {
     if (err) throw err;
     console.log('title is now %j', process.title);
   });

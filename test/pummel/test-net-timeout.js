@@ -1,5 +1,5 @@
 var common = require('../common');
-var assert = require('assert');;
+var assert = require('assert');
 var net = require('net');
 
 var exchanges = 0;
@@ -18,8 +18,9 @@ var echo_server = net.createServer(function(socket) {
   });
 
   socket.addListener('error', function(e) {
-    throw new Error('Server side socket should not get error. We disconnect willingly.');
-  })
+    throw new Error('Server side socket should not get error. ' +
+                      'We disconnect willingly.');
+  });
 
   socket.addListener('data', function(d) {
     console.log(d);

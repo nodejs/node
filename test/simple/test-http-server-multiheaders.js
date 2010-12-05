@@ -18,20 +18,19 @@ var srv = http.createServer(function(req, res) {
   srv.close();
 });
 
-srv.listen(common.PORT, function () {
+srv.listen(common.PORT, function() {
   var hc = http.createClient(common.PORT, 'localhost');
   var hr = hc.request('/',
-    [
-      ['accept', 'abc'],
-      ['accept', 'def'],
-      ['Accept', 'ghijklmnopqrst'],
-      ['host', 'foo'],
-      ['Host', 'bar'],
-      ['hOst', 'baz'],
-      ['x-foo', 'bingo'],
-      ['x-bar', 'banjo'],
-      ['x-bar', 'bango']
-    ]
-  );
+      [
+        ['accept', 'abc'],
+        ['accept', 'def'],
+        ['Accept', 'ghijklmnopqrst'],
+        ['host', 'foo'],
+        ['Host', 'bar'],
+        ['hOst', 'baz'],
+        ['x-foo', 'bingo'],
+        ['x-bar', 'banjo'],
+        ['x-bar', 'bango']
+      ]);
   hr.end();
 });

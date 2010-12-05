@@ -1,13 +1,13 @@
 var common = require('../common');
-var assert = require('assert');;
+var assert = require('assert');
 
-tcp = require("tcp");
-util = require("util");
-var x = path.join(common.fixturesDir, "x.txt");
-var expected = "xyz";
+var net = require('net');
+var util = require('util');
+var x = path.join(common.fixturesDir, 'x.txt');
+var expected = 'xyz';
 
-var server = tcp.createServer(function (socket) {
-  socket.addListener("receive", function (data) {
+var server = net.createServer(function(socket) {
+  socket.addListener('receive', function(data) {
     found = data;
     client.close();
     socket.close();
@@ -17,11 +17,12 @@ var server = tcp.createServer(function (socket) {
 });
 server.listen(common.PORT);
 
-var client = tcp.createConnection(common.PORT);
-client.addListener("connect", function () {
-  fs.open(x, 'r').addCallback(function (fd) {
-    fs.sendfile(client.fd, fd, 0, expected.length).addCallback(function (size) {
-      assert.equal(expected.length, size);
-    });
+var client = net.createConnection(common.PORT);
+client.addListener('connect', function() {
+  fs.open(x, 'r').addCallback(function(fd) {
+    fs.sendfile(client.fd, fd, 0, expected.length)
+      .addCallback(function(size) {
+          assert.equal(expected.length, size);
+        });
   });
 });

@@ -8,39 +8,39 @@ var assert = require('assert');
 
 var HTTPParser = process.binding('http_parser').HTTPParser;
 
-var parser = new HTTPParser("request");
+var parser = new HTTPParser('request');
 
 var Buffer = require('buffer').Buffer;
 var buffer = new Buffer(1024);
 
-var request = "GET /hello HTTP/1.1\r\n\r\n";
+var request = 'GET /hello HTTP/1.1\r\n\r\n';
 
 buffer.write(request, 0, 'ascii');
 
 var callbacks = 0;
 
-parser.onMessageBegin = function () {
-  console.log("message begin");
+parser.onMessageBegin = function() {
+  console.log('message begin');
   callbacks++;
 };
 
-parser.onHeadersComplete = function (info) {
-  console.log("headers complete: " + JSON.stringify(info));
+parser.onHeadersComplete = function(info) {
+  console.log('headers complete: ' + JSON.stringify(info));
   assert.equal('GET', info.method);
   assert.equal(1, info.versionMajor);
   assert.equal(1, info.versionMinor);
   callbacks++;
 };
 
-parser.onURL = function (b, off, len) {
-  //throw new Error("hello world");
+parser.onURL = function(b, off, len) {
+  //throw new Error('hello world');
   callbacks++;
 };
 
-parser.onPath = function (b, off, length) {
-  console.log("path [" + off + ", " + length + "]");
-  var path = b.toString('ascii', off, off+length);
-  console.log("path = '" + path + "'");
+parser.onPath = function(b, off, length) {
+  console.log('path [' + off + ', ' + length + ']');
+  var path = b.toString('ascii', off, off + length);
+  console.log('path = "' + path + '"');
   assert.equal('/hello', path);
   callbacks++;
 };
@@ -53,11 +53,11 @@ assert.equal(4, callbacks);
 // thrown from parser.execute()
 //
 
-parser.onURL = function (b, off, len) {
-  throw new Error("hello world");
+parser.onURL = function(b, off, len) {
+  throw new Error('hello world');
 };
 
-assert.throws(function () {
+assert.throws(function() {
   parser.execute(buffer, 0, request.length);
-}, Error, "hello world");
+}, Error, 'hello world');
 

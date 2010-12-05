@@ -1,8 +1,8 @@
 // Can't test this when 'make test' doesn't assign a tty to the stdout.
 // Yet another use-case for require('tty').spawn ?
 var common = require('../common');
-var assert = require('assert');;
-var readline = require("readline");
+var assert = require('assert');
+var readline = require('readline');
 
 var key = {
   xterm: {
@@ -28,13 +28,15 @@ var key = {
 
 var readlineFakeStream = function() {
   var written_bytes = [];
-  var rl = readline.createInterface({
-    fd: 1,
-    write: function(b) {
-      written_bytes.push(b);
-    }}, function (text) {
-      return [[], ""];
-    });
+  var rl = readline.createInterface(
+      { fd: 1,
+        write: function(b) {
+          written_bytes.push(b);
+        }
+      },
+      function(text) {
+        return [[], ''];
+      });
   rl.written_bytes = written_bytes;
   return rl;
 };
@@ -68,7 +70,7 @@ written_bytes_length = rl.written_bytes.length;
 rl.write(key.xterm.metaf);
 assert.equal(3, rl.cursor);
 refreshed = written_bytes_length !== rl.written_bytes.length;
-assert.equal(true,  refreshed);
+assert.equal(true, refreshed);
 rl.write(key.xterm.metaf);
 assert.equal(7, rl.cursor);
 rl.write(key.xterm.metaf);
@@ -77,12 +79,12 @@ written_bytes_length = rl.written_bytes.length;
 rl.write(key.xterm.metaf);
 assert.equal(15, rl.cursor);
 refreshed = written_bytes_length !== rl.written_bytes.length;
-assert.equal(true,  refreshed);
+assert.equal(true, refreshed);
 written_bytes_length = rl.written_bytes.length;
 rl.write(key.xterm.metab);
 assert.equal(12, rl.cursor);
 refreshed = written_bytes_length !== rl.written_bytes.length;
-assert.equal(true,  refreshed);
+assert.equal(true, refreshed);
 rl.write(key.xterm.metab);
 assert.equal(8, rl.cursor);
 rl.write(key.xterm.metab);
@@ -91,7 +93,7 @@ written_bytes_length = rl.written_bytes.length;
 rl.write(key.xterm.metab);
 assert.equal(0, rl.cursor);
 refreshed = written_bytes_length !== rl.written_bytes.length;
-assert.equal(true,  refreshed);
+assert.equal(true, refreshed);
 
 rl = readlineFakeStream();
 rl.write('foo bar.hop/zoo');

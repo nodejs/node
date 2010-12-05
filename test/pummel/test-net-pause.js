@@ -1,5 +1,5 @@
 var common = require('../common');
-var assert = common.assert;
+var assert = require('assert');
 var net = require('net');
 
 var N = 200;

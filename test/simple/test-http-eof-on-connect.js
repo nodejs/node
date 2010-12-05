@@ -7,13 +7,13 @@ var http = require('http');
 // It is separate from test-http-malformed-request.js because it is only
 // reproduceable on the first packet on the first connection to a server.
 
-var server = http.createServer(function (req, res) {});
+var server = http.createServer(function(req, res) {});
 server.listen(common.PORT);
 
-server.addListener("listening", function() {
-  net.createConnection(common.PORT).addListener("connect", function () {
+server.addListener('listening', function() {
+  net.createConnection(common.PORT).addListener('connect', function() {
     this.destroy();
-  }).addListener("close", function () {
+  }).addListener('close', function() {
     server.close();
   });
 });

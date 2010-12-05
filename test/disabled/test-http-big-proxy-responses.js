@@ -1,18 +1,18 @@
 var common = require('../common');
-var assert = require('assert');;
-var util = require("util"),
-fs = require("fs"),
-http = require("http"),
-url = require("url");
+var assert = require('assert');
+var util = require('util'),
+    fs = require('fs'),
+    http = require('http'),
+    url = require('url');
 
 var chunk = '01234567890123456789';
 
 // Produce a very large response.
-var chargen = http.createServer(function (req, res) {
+var chargen = http.createServer(function(req, res) {
   var len = parseInt(req.headers['x-len'], 10);
   assert.ok(len > 0);
-  res.writeHead(200, {"transfer-encoding":"chunked"});
-  for (var i=0; i<len; i++) {
+  res.writeHead(200, {'transfer-encoding': 'chunked'});
+  for (var i = 0; i < len; i++) {
     if (i % 1000 == 0) common.print(',');
     res.write(chunk);
   }
@@ -21,7 +21,7 @@ var chargen = http.createServer(function (req, res) {
 chargen.listen(9000, ready);
 
 // Proxy to the chargen server.
-var proxy = http.createServer(function (req, res) {
+var proxy = http.createServer(function(req, res) {
   var c = http.createClient(9000, 'localhost');
 
   var len = parseInt(req.headers['x-len'], 10);
@@ -30,7 +30,7 @@ var proxy = http.createServer(function (req, res) {
   var sent = 0;
 
 
-  c.addListener('error', function (e) {
+  c.addListener('error', function(e) {
     console.log('proxy client error. sent ' + sent);
     throw e;
   });
@@ -45,7 +45,7 @@ var proxy = http.createServer(function (req, res) {
       if (count++ % 1000 == 0) common.print('.');
       res.write(d);
       sent += d.length;
-      assert.ok(sent <= (len*chunk.length));
+      assert.ok(sent <= (len * chunk.length));
     });
 
     proxy_res.addListener('end', function() {
@@ -64,7 +64,7 @@ function call_chargen(list) {
   if (list.length > 0) {
     var len = list.shift();
 
-    common.debug("calling chargen for " + len + " chunks.");
+    common.debug('calling chargen for ' + len + ' chunks.');
 
     var recved = 0;
 
@@ -74,12 +74,12 @@ function call_chargen(list) {
 
       res.addListener('data', function(d) {
         recved += d.length;
-        assert.ok(recved <= (len*chunk.length));
+        assert.ok(recved <= (len * chunk.length));
       });
 
       res.addListener('end', function() {
-        assert.ok(recved <= (len*chunk.length));
-        common.debug("end for " + len + " chunks.");
+        assert.ok(recved <= (len * chunk.length));
+        common.debug('end for ' + len + ' chunks.');
         call_chargen(list);
       });
 
@@ -87,7 +87,7 @@ function call_chargen(list) {
     req.end();
 
   } else {
-    console.log("End of list. closing servers");
+    console.log('End of list. closing servers');
     proxy.close();
     chargen.close();
     done = true;
@@ -95,11 +95,11 @@ function call_chargen(list) {
 }
 
 serversRunning = 0;
-function ready () {
+function ready() {
   if (++serversRunning < 2) return;
-  call_chargen([ 100, 1000, 10000, 100000, 1000000 ]);
+  call_chargen([100, 1000, 10000, 100000, 1000000]);
 }
 
-process.addListener('exit', function () {
+process.addListener('exit', function() {
   assert.ok(done);
 });

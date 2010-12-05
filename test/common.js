@@ -1,12 +1,11 @@
 var path = require('path');
+var assert = require('assert');
 
 exports.testDir = path.dirname(__filename);
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
 exports.libDir = path.join(exports.testDir, '../lib');
 exports.tmpDir = path.join(exports.testDir, 'tmp');
 exports.PORT = 12346;
-
-exports.assert = require('assert');
 
 var util = require('util');
 for (var i in util) exports[i] = util[i];
@@ -52,7 +51,7 @@ process.on('exit', function() {
 
     if (!found) {
       console.error('Unknown global: %s', x);
-      exports.assert.ok(false);
+      assert.ok(false, 'Unknown global founded');
     }
   }
 });

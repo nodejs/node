@@ -1,6 +1,5 @@
 // Requires special privlages
 var common = require('../common');
-var assert = require('assert');;
 var assert = require('assert');
 
 var oldgid = process.getgid();
@@ -16,9 +15,8 @@ assert.notEqual(newuid, olduid, 'uids expected to be different');
 try {
   process.setuid('nobody1234');
 } catch (e) {
-  assert.equal(
-    e.message,
-    'failed to resolve group',
-    'unexpected error message'
+  assert.equal(e.message,
+               'failed to resolve group',
+               'unexpected error message'
   );
 }
