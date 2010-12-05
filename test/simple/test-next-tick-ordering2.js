@@ -1,5 +1,5 @@
 var common = require('../common');
-var assert = require('assert');;
+var assert = require('assert');
 
 var order = [];
 process.nextTick(function() {

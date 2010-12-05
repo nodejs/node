@@ -5,7 +5,7 @@ var net = require('net');
 
 var tests_run = 0;
 
-function pingPongTest (port, host) {
+function pingPongTest(port, host) {
   var N = 1000;
   var count = 0;
   var sent_final_ping = false;
@@ -86,7 +86,7 @@ function pingPongTest (port, host) {
 
     client.addListener('close', function() {
       console.log('client.endd');
-      assert.equal(N+1, count);
+      assert.equal(N + 1, count);
       assert.equal(true, sent_final_ping);
       tests_run += 1;
     });

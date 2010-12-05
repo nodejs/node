@@ -9,7 +9,7 @@ var path = require('path'),
     writeCalled = 0;
 
 
-fs.open(filename, 'w', 0644, function (err, fd) {
+fs.open(filename, 'w', 0644, function(err, fd) {
   openCalled++;
   if (err) throw err;
 
@@ -26,7 +26,7 @@ fs.open(filename, 'w', 0644, function (err, fd) {
   });
 });
 
-process.addListener("exit", function () {
+process.addListener('exit', function() {
   assert.equal(1, openCalled);
   assert.equal(1, writeCalled);
 });

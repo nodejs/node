@@ -1,8 +1,8 @@
 var common = require('../common');
+var assert = require('assert');
 
 var join = require('path').join;
 var net = require('net');
-var assert = require('assert');
 var fs = require('fs');
 var crypto = require('crypto');
 var spawn = require('child_process').spawn;

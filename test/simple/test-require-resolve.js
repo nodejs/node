@@ -1,6 +1,6 @@
 var common = require('../common');
 var fixturesDir = common.fixturesDir;
-var assert = common.assert;
+var assert = require('assert');
 var path = require('path');
 
 assert.equal(path.join(__dirname, '../fixtures/a.js'),

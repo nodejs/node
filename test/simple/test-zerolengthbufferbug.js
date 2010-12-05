@@ -1,7 +1,7 @@
 // Serving up a zero-length buffer should work.
 
 var common = require('../common');
-var assert = common.assert;
+var assert = require('assert');
 var http = require('http');
 
 var server = http.createServer(function(req, res) {

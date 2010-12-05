@@ -9,7 +9,7 @@ var c = net.createConnection(common.PORT);
 c.on('connect', function() {
   console.error('connected?!');
   assert.ok(false);
-})
+});
 
 var gotError = false;
 c.on('error', function(e) {

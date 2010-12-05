@@ -1,12 +1,12 @@
 var common = require('../common');
 var assert = require('assert');
 
-process.on('uncaughtException', function (err) {
+process.on('uncaughtException', function(err) {
   console.log('Caught exception: ' + err);
 });
 
 var timeoutFired = false;
-setTimeout(function () {
+setTimeout(function() {
   console.log('This will still run.');
   timeoutFired = true;
 }, 500);

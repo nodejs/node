@@ -1,11 +1,13 @@
 var common = require('../common');
-var assert = require('assert');;
-var path = require("path");
+var assert = require('assert');
+var path = require('path');
 
 var isDebug = (process.version.indexOf('debug') >= 0);
 
-var debugPath = path.normalize(path.join(__dirname, '..', '..', 'build', 'debug', 'node_g'));
-var defaultPath = path.normalize(path.join(__dirname, '..', '..', 'build', 'default', 'node'));
+var debugPath = path.normalize(path.join(__dirname, '..', '..',
+                                         'build', 'debug', 'node_g'));
+var defaultPath = path.normalize(path.join(__dirname, '..', '..',
+                                           'build', 'default', 'node'));
 
 console.log('debugPath: ' + debugPath);
 console.log('defaultPath: ' + defaultPath);

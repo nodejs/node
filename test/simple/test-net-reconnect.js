@@ -51,7 +51,7 @@ server.listen(common.PORT, function() {
 });
 
 process.addListener('exit', function() {
-  assert.equal(N+1, disconnect_count);
-  assert.equal(N+1, client_recv_count);
+  assert.equal(N + 1, disconnect_count);
+  assert.equal(N + 1, client_recv_count);
 });
 

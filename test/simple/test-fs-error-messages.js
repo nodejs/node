@@ -9,7 +9,7 @@ var path = require('path'),
 // ASYNC_CALL
 
 fs.stat(fn, function(err) {
-  assert.equal(fn, err.path)
+  assert.equal(fn, err.path);
   assert.ok(0 <= err.message.indexOf(fn));
 });
 
@@ -60,7 +60,7 @@ fs.readFile(fn, function(err) {
 // Sync
 
 var errors = [],
-  expected = 0;
+    expected = 0;
 
 try {
   ++expected;
@@ -158,7 +158,8 @@ try {
   assert.ok(0 <= err.message.indexOf(fn));
 }
 
-process.addListener('exit', function () {
+process.addListener('exit', function() {
   assert.equal(expected, errors.length,
-    'Test fs sync exceptions raised, got ' + errors.length + ' expected ' + expected);
+               'Test fs sync exceptions raised, got ' + errors.length +
+               ' expected ' + expected);
 });

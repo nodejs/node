@@ -123,16 +123,16 @@ function tcp_test() {
       assert.equal(true, client_tcp.writable);
 
       send_expect([
-          { client: client_tcp, send: '',
-            expect: prompt_tcp },
-          { client: client_tcp, send: 'invoke_me(333)\n',
-            expect: ('\'' + 'invoked 333' + '\'\n' + prompt_tcp) },
-          { client: client_tcp, send: 'a += 1\n',
-            expect: ('12346' + '\n' + prompt_tcp) },
-          { client: client_tcp,
-            send: 'require(\'' + moduleFilename + '\').number\n',
-            expect: ('42' + '\n' + prompt_tcp) }
-        ]);
+        { client: client_tcp, send: '',
+          expect: prompt_tcp },
+        { client: client_tcp, send: 'invoke_me(333)\n',
+          expect: ('\'' + 'invoked 333' + '\'\n' + prompt_tcp) },
+        { client: client_tcp, send: 'a += 1\n',
+          expect: ('12346' + '\n' + prompt_tcp) },
+        { client: client_tcp,
+          send: 'require(\'' + moduleFilename + '\').number\n',
+          expect: ('42' + '\n' + prompt_tcp) }
+      ]);
     });
 
     client_tcp.addListener('data', function(data) {
@@ -187,15 +187,15 @@ function unix_test() {
       assert.equal(true, client_unix.writable);
 
       send_expect([
-          { client: client_unix, send: '',
-            expect: prompt_unix },
-          { client: client_unix, send: 'message\n',
-            expect: ('\'' + message + '\'\n' + prompt_unix) },
-          { client: client_unix, send: 'invoke_me(987)\n',
-            expect: ('\'' + 'invoked 987' + '\'\n' + prompt_unix) },
-          { client: client_unix, send: 'a = 12345\n',
-            expect: ('12345' + '\n' + prompt_unix) }
-        ]);
+        { client: client_unix, send: '',
+          expect: prompt_unix },
+        { client: client_unix, send: 'message\n',
+          expect: ('\'' + message + '\'\n' + prompt_unix) },
+        { client: client_unix, send: 'invoke_me(987)\n',
+          expect: ('\'' + 'invoked 987' + '\'\n' + prompt_unix) },
+        { client: client_unix, send: 'a = 12345\n',
+          expect: ('12345' + '\n' + prompt_unix) }
+      ]);
     });
 
     client_unix.addListener('data', function(data) {

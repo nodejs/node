@@ -1,5 +1,5 @@
 var common = require('../common');
-var assert = require('assert');;
+var assert = require('assert');
 
 var childKilled = false, done = false,
     spawn = require('child_process').spawn,

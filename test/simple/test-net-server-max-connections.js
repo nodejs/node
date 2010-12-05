@@ -26,12 +26,12 @@ server.listen(common.PORT, function() {
   }
 });
 
-server.maxConnections = N/2;
+server.maxConnections = N / 2;
 
 console.error('server.maxConnections = %d', server.maxConnections);
 
 
-function makeConnection (index) {
+function makeConnection(index) {
   setTimeout(function() {
     var c = net.createConnection(common.PORT);
     var gotData = false;
@@ -51,12 +51,14 @@ function makeConnection (index) {
       console.error('closed %d', index);
       closes++;
 
-      if (closes < N/2) {
-        assert.ok(server.maxConnections <= index, 
-            index + ' was one of the first closed connections but shouldnt have been');
+      if (closes < N / 2) {
+        assert.ok(server.maxConnections <= index,
+                  index +
+                  ' was one of the first closed connections ' +
+                  'but shouldnt have been');
       }
 
-      if (closes === N/2) {
+      if (closes === N / 2) {
         var cb;
         console.error('calling wait callback.');
         while (cb = waits.shift()) {
@@ -66,9 +68,11 @@ function makeConnection (index) {
       }
 
       if (index < server.maxConnections) {
-        assert.equal(true, gotData, index + ' didn\'t get data, but should have');
+        assert.equal(true, gotData,
+                     index + ' didn\'t get data, but should have');
       } else {
-        assert.equal(false, gotData, index + ' got data, but shouldn\'t have');
+        assert.equal(false, gotData,
+                     index + ' got data, but shouldn\'t have');
       }
     });
   }, index);

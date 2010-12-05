@@ -5,7 +5,7 @@ var fs = require('fs');
 var fn = path.join(common.tmpDir, 'write.txt');
 
 
-var foo = 'foo'
+var foo = 'foo';
 var fd = fs.openSync(fn, 'w');
 
 var written = fs.writeSync(fd, '');
@@ -13,7 +13,7 @@ assert.strictEqual(0, written);
 
 fs.writeSync(fd, foo);
 
-var bar = 'bár'
+var bar = 'bár';
 written = fs.writeSync(fd, new Buffer(bar), 0, Buffer.byteLength(bar));
 assert.ok(written > 3);
 fs.closeSync(fd);

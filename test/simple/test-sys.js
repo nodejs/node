@@ -1,5 +1,5 @@
 var common = require('../common');
-var assert = require('assert');;
+var assert = require('assert');
 
 assert.equal('0', common.inspect(0));
 assert.equal('1', common.inspect(1));

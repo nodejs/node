@@ -12,7 +12,7 @@ var util = require('util');
 for (var i in util) exports[i] = util[i];
 //for (var i in exports) global[i] = exports[i];
 
-function protoCtrChain (o) {
+function protoCtrChain(o) {
   var result = [];
   for (; o; o = o.__proto__) { result.push(o.constructor); }
   return result.join();
@@ -29,16 +29,16 @@ exports.indirectInstanceOf = function(obj, cls) {
 // Turn this off if the test should not check for global leaks.
 exports.globalCheck = true;
 
-process.on('exit', function () {
+process.on('exit', function() {
   if (!exports.globalCheck) return;
-  var knownGlobals = [ setTimeout,
-                       setInterval,
-                       clearTimeout,
-                       clearInterval,
-                       console,
-                       Buffer,
-                       process,
-                       global ];
+  var knownGlobals = [setTimeout,
+                      setInterval,
+                      clearTimeout,
+                      clearInterval,
+                      console,
+                      Buffer,
+                      process,
+                      global];
 
   for (var x in global) {
     var found = false;
@@ -51,7 +51,7 @@ process.on('exit', function () {
     }
 
     if (!found) {
-      console.error("Unknown global: %s", x);
+      console.error('Unknown global: %s', x);
       exports.assert.ok(false);
     }
   }

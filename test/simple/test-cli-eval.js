@@ -10,19 +10,19 @@ if (module.parent) {
 }
 
 // assert that the result of the final expression is written to stdout
-child.exec(nodejs + ' --eval \'1337; 42\'',
-  function(err, stdout, stderr) {
-    assert.equal(parseInt(stdout), 42);
-  });
+child.exec(nodejs + ' --eval "1337; 42"',
+    function(err, stdout, stderr) {
+      assert.equal(parseInt(stdout), 42);
+    });
 
 // assert that module loading works
-child.exec(nodejs + ' --eval \'require("' + __filename + '")\'',
-  function(status, stdout, stderr) {
-    assert.equal(status.code, 42);
-  });
+child.exec(nodejs + ' --eval "require(\'' + __filename + '\')"',
+    function(status, stdout, stderr) {
+      assert.equal(status.code, 42);
+    });
 
 // module path resolve bug, regression test
-child.exec(nodejs + ' --eval \'require("./test/simple/test-cli-eval.js")\'',
-  function(status, stdout, stderr) {
-    assert.equal(status.code, 42);
-  });
+child.exec(nodejs + ' --eval "require(\'./test/simple/test-cli-eval.js\')"',
+    function(status, stdout, stderr) {
+      assert.equal(status.code, 42);
+    });

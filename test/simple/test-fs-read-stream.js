@@ -62,16 +62,16 @@ file2.destroy(function(err) {
 var file3 = fs.createReadStream(fn, {encoding: 'utf8'});
 file3.length = 0;
 file3.addListener('data', function(data) {
-  assert.equal("string", typeof(data));
+  assert.equal('string', typeof(data));
   file3.length += data.length;
 
   for (var i = 0; i < data.length; i++) {
     // http://www.fileformat.info/info/unicode/char/2026/index.htm
-    assert.equal("\u2026", data[i]);
+    assert.equal('\u2026', data[i]);
   }
 });
 
-file3.addListener('close', function () {
+file3.addListener('close', function() {
   callbacks.close++;
 });
 
@@ -98,24 +98,24 @@ file4.addListener('end', function(data) {
 try {
   fs.createReadStream(rangeFile, {start: 10, end: 2});
   assert.fail('Creating a ReadStream with incorrect range limits must throw.');
-} catch(e) {
+} catch (e) {
   assert.equal(e.message, 'start must be <= end');
 }
 
 try {
   fs.createReadStream(rangeFile, {start: 2});
   assert.fail('Creating a ReadStream with a only one range limits must throw.');
-} catch(e) {
+} catch (e) {
   assert.equal(e.message, 'Both start and end are needed for range streaming.');
 }
 
 var stream = fs.createReadStream(rangeFile, { start: 0, end: 0 });
 stream.data = '';
 
-stream.on('data', function(chunk){
+stream.on('data', function(chunk) {
   stream.data += chunk;
 });
 
-stream.on('end', function(){
+stream.on('end', function() {
   assert.equal('x', stream.data);
 });

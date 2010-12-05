@@ -1,11 +1,11 @@
 require('../common');
 var assert = require('assert');
-var exec   = require('child_process').exec;
+var exec = require('child_process').exec;
 
 var success_count = 0;
 var error_count = 0;
 
-var child = exec('pwd', {cwd: "/dev"}, function (err, stdout, stderr) {
+var child = exec('pwd', {cwd: '/dev'}, function(err, stdout, stderr) {
   if (err) {
     error_count++;
     console.log('error!: ' + err.code);
@@ -18,7 +18,7 @@ var child = exec('pwd', {cwd: "/dev"}, function (err, stdout, stderr) {
   }
 });
 
-process.addListener('exit', function () {
+process.addListener('exit', function() {
   assert.equal(1, success_count);
   assert.equal(0, error_count);
 });

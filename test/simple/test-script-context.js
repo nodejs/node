@@ -1,5 +1,5 @@
 var common = require('../common');
-var assert = require('assert');;
+var assert = require('assert');
 
 var Script = require('vm').Script;
 var script = new Script('"passed";');
