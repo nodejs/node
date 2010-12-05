@@ -59,9 +59,9 @@ function bashRealpath(path, callback) {
 function test_simple_relative_symlink(callback) {
   console.log('test_simple_relative_symlink');
   var entry = common.tmpDir + '/symlink',
-      expected = common.fixturesDir + '/cycles/root.js';
+      expected = common.tmpDir + '/cycles/root.js';
   [
-    [entry, '../fixtures/cycles/root.js']
+    [entry, '../tmp/cycles/root.js']
   ].forEach(function(t) {
     try {fs.unlinkSync(t[0]);}catch (e) {}
     fs.symlinkSync(t[1], t[0]);
@@ -82,7 +82,7 @@ function test_simple_relative_symlink(callback) {
 
 function test_simple_absolute_symlink(callback) {
   console.log('test_simple_absolute_symlink');
-  var entry = fixturesAbsDir + '/cycles/symlink',
+  var entry = tmpAbsDir + '/symlink',
       expected = fixturesAbsDir + '/nested-index/one/index.js';
   [
     [entry, expected]
@@ -163,11 +163,11 @@ function test_deep_relative_dir_symlink(callback) {
 
 function test_cyclic_link_protection(callback) {
   console.log('test_cyclic_link_protection');
-  var entry = common.fixturesDir + '/cycles/realpath-3a';
+  var entry = common.tmpDir + '/cycles/realpath-3a';
   [
     [entry, '../cycles/realpath-3b'],
-    [common.fixturesDir + '/cycles/realpath-3b', '../cycles/realpath-3c'],
-    [common.fixturesDir + '/cycles/realpath-3c', '../cycles/realpath-3a']
+    [common.tmpDir + '/cycles/realpath-3b', '../cycles/realpath-3c'],
+    [common.tmpDir + '/cycles/realpath-3c', '../cycles/realpath-3a']
   ].forEach(function(t) {
     try {fs.unlinkSync(t[0]);} catch (e) {}
     fs.symlinkSync(t[1], t[0]);
@@ -182,7 +182,7 @@ function test_cyclic_link_protection(callback) {
 
 function test_cyclic_link_overprotection(callback) {
   console.log('test_cyclic_link_overprotection');
-  var cycles = common.fixturesDir + '/cycles';
+  var cycles = common.tmpDir + '/cycles';
   var expected = fs.realpathSync(cycles);
   var folder = cycles + '/folder';
   var link = folder + '/cycles';
@@ -190,6 +190,7 @@ function test_cyclic_link_overprotection(callback) {
   for (var i = 0; i < 10; i++) testPath += '/folder/cycles';
   try {fs.unlinkSync(link)} catch (ex) {}
   fs.symlinkSync(cycles, link);
+  unlink.push(link);
   assert.equal(fs.realpathSync(testPath), expected);
   asynctest(fs.realpath, [testPath], callback, function(er, res) {
     assert.equal(res, expected);
@@ -198,14 +199,14 @@ function test_cyclic_link_overprotection(callback) {
 
 function test_relative_input_cwd(callback) {
   console.log('test_relative_input_cwd');
-  var p = common.fixturesDir.lastIndexOf('/');
-  var entrydir = common.fixturesDir.substr(0, p);
-  var entry = common.fixturesDir.substr(p + 1) + '/cycles/realpath-3a';
-  var expected = common.fixturesDir + '/cycles/root.js';
+  var p = common.tmpDir.lastIndexOf('/');
+  var entrydir = common.tmpDir.substr(0, p);
+  var entry = common.tmpDir.substr(p + 1) + '/cycles/realpath-3a';
+  var expected = common.tmpDir + '/cycles/root.js';
   [
     [entry, '../cycles/realpath-3b'],
-    [common.fixturesDir + '/cycles/realpath-3b', '../cycles/realpath-3c'],
-    [common.fixturesDir + '/cycles/realpath-3c', 'root.js']
+    [common.tmpDir + '/cycles/realpath-3b', '../cycles/realpath-3c'],
+    [common.tmpDir + '/cycles/realpath-3c', 'root.js']
   ].forEach(function(t) {
     var fn = t[0];
     if (fn.charAt(0) !== '/') fn = entrydir + '/' + fn;
@@ -257,7 +258,7 @@ function test_deep_symlink_mix(callback) {
       [fixturesAbsDir + '/nested-index/one/realpath-c', fixturesAbsDir +
             '/nested-index/two/realpath-c'],
       [fixturesAbsDir + '/nested-index/two/realpath-c',
-        '../../cycles/root.js']
+        '../../../tmp/cycles/root.js']
     ].forEach(function(t) {
       //common.debug('setting up '+t[0]+' -> '+t[1]);
       try { fs.unlinkSync(t[0]); } catch (e) {}
@@ -267,7 +268,7 @@ function test_deep_symlink_mix(callback) {
   } finally {
     unlink.push(tmp('node-test-realpath-d2'));
   }
-  var expected = fixturesAbsDir + '/cycles/root.js';
+  var expected = tmpAbsDir + '/cycles/root.js';
   assert.equal(fs.realpathSync(entry), expected);
   asynctest(fs.realpath, [entry], callback, function(err, result) {
     assert.equal(result, expected,
@@ -281,10 +282,10 @@ function test_deep_symlink_mix(callback) {
 
 function test_non_symlinks(callback) {
   console.log('test_non_symlinks');
-  var p = fixturesAbsDir.lastIndexOf('/');
-  var entrydir = fixturesAbsDir.substr(0, p);
-  var entry = fixturesAbsDir.substr(p + 1) + '/cycles/root.js';
-  var expected = fixturesAbsDir + '/cycles/root.js';
+  var p = tmpAbsDir.lastIndexOf('/');
+  var entrydir = tmpAbsDir.substr(0, p);
+  var entry = tmpAbsDir.substr(p + 1) + '/cycles/root.js';
+  var expected = tmpAbsDir + '/cycles/root.js';
   var origcwd = process.cwd();
   process.chdir(entrydir);
   assert.equal(fs.realpathSync(entry), expected);
@@ -321,7 +322,7 @@ assert.equal(upone, uponeActual,
 // realpath(root+'/a/link/c/x.txt') ==> root+'/a/b/c/x.txt'
 function test_abs_with_kids(cb) {
   console.log('test_abs_with_kids');
-  var root = fixturesAbsDir + '/node-test-realpath-abs-kids';
+  var root = tmpAbsDir + '/node-test-realpath-abs-kids';
   function cleanup() {
     ['/a/b/c/x.txt',
       '/a/link'
@@ -387,6 +388,15 @@ function runNextTest(err) {
 }
 getAbsPaths(function(er) {
   if (er) throw er;
+  var tmpDirs = ['cycles', 'cycles/folder'];
+  tmpDirs.forEach(function(t) {
+    t = tmp(t);
+    var s;
+    try { s = fs.statSync(t); } catch (ex) {}
+    if (s) return;
+    fs.mkdirSync(t, 0700);
+  });
+  fs.writeFileSync(tmp('cycles/root.js'), "console.error('roooot!');");
   runNextTest();
 });
 
