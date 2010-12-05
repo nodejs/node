@@ -13,6 +13,7 @@ find_library(RT rt)
 find_library(DL dl)
 check_library_exists(socket socket "" HAVE_SOCKET_LIB)
 check_library_exists(nsl gethostbyname "" HAVE_NSL_LIB)
+check_library_exists(util openpty "" HAVE_UTIL_LIB)
 
 if(RT)
   set(extra_libs ${extra_libs} ${RT})
@@ -33,6 +34,10 @@ endif()
 
 if(${HAVE_NSL_LIB})
   set(extra_libs ${extra_libs} nsl)
+endif()
+
+if(HAVE_UTIL_LIB)
+  set(extra_libs ${extra_libs} util)
 endif()
 
 if(${OPENSSL_FOUND} MATCHES True)
