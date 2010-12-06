@@ -4,6 +4,7 @@ var net = require('net');
 var assert = require('assert');
 var fs = require('fs');
 var crypto = require('crypto');
+var tls = require('tls');
 var spawn = require('child_process').spawn;
 
 // FIXME: Avoid the common PORT as this test currently hits a C-level
@@ -71,7 +72,7 @@ function startClient() {
   var sslcontext = crypto.createCredentials({key: key, cert: cert});
   sslcontext.context.setCiphers('RC4-SHA:AES128-SHA:AES256-SHA');
 
-  var pair = crypto.createPair(sslcontext, false);
+  var pair = tls.createSecurePair(sslcontext, false);
 
   assert.ok(pair.encrypted.writable);
   assert.ok(pair.cleartext.writable);

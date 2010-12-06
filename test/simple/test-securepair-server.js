@@ -5,6 +5,7 @@ var join = require('path').join;
 var net = require('net');
 var fs = require('fs');
 var crypto = require('crypto');
+var tls = require('tls');
 var spawn = require('child_process').spawn;
 
 var connections = 0;
@@ -21,7 +22,7 @@ var server = net.createServer(function(socket) {
   var sslcontext = crypto.createCredentials({key: key, cert: cert});
   sslcontext.context.setCiphers('RC4-SHA:AES128-SHA:AES256-SHA');
 
-  var pair = crypto.createPair(sslcontext, true);
+  var pair = tls.createSecurePair(sslcontext, true);
 
   assert.ok(pair.encrypted.writable);
   assert.ok(pair.cleartext.writable);
