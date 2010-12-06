@@ -725,9 +725,9 @@ def shutdown():
 
   elif not Options.commands['clean']:
     if sys.platform.startswith("win32"):
-      if os.path.exists('build/default/node.exe') and not os.path.exists('node.exe'):
+      if os.path.exists('build/default/node.exe'):
         os.system('cp build/default/node.exe .')
-      if os.path.exists('build/debug/node_g.exe') and not os.path.exists('node_g.exe'):
+      if os.path.exists('build/debug/node_g.exe'):
         os.system('cp build/debug/node_g.exe .')
     else:
       if os.path.exists('build/default/node') and not os.path.exists('node'):
