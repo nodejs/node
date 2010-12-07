@@ -379,16 +379,7 @@
     exports.runMain = function() {
       // Load the main module--the command line argument.
       process.mainModule = new Module('.');
-      try {
-        process.mainModule.load(process.argv[1]);
-      } catch (e) {
-        if (e.errno == lazyConstants().ENOENT) {
-          console.error("Cannot load '%s'", process.argv[1]);
-          process.exit(1);
-        } else {
-          throw e;
-        }
-      }
+      process.mainModule.load(process.argv[1]);
     };
 
     // bootstrap repl
