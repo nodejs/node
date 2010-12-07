@@ -1156,6 +1156,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\include\v8-testing.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\include\v8.h"
 				>
 			</File>

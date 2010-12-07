@@ -266,10 +266,24 @@ class LookupResult BASE_EMBEDDED {
     return Map::cast(GetValue());
   }
 
+  Map* GetTransitionMapFromMap(Map* map) {
+    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
+    ASSERT(type() == MAP_TRANSITION);
+    return Map::cast(map->instance_descriptors()->GetValue(number_));
+  }
+
   int GetFieldIndex() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(type() == FIELD);
     return Descriptor::IndexFromValue(GetValue());
+  }
+
+  int GetLocalFieldIndexFromMap(Map* map) {
+    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
+    ASSERT(type() == FIELD);
+    return Descriptor::IndexFromValue(
+        map->instance_descriptors()->GetValue(number_)) -
+        map->inobject_properties();
   }
 
   int GetDictionaryEntry() {
@@ -280,6 +294,12 @@ class LookupResult BASE_EMBEDDED {
   JSFunction* GetConstantFunction() {
     ASSERT(type() == CONSTANT_FUNCTION);
     return JSFunction::cast(GetValue());
+  }
+
+  JSFunction* GetConstantFunctionFromMap(Map* map) {
+    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
+    ASSERT(type() == CONSTANT_FUNCTION);
+    return JSFunction::cast(map->instance_descriptors()->GetValue(number_));
   }
 
   Object* GetCallbackObject() {

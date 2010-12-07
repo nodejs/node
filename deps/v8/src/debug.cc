@@ -35,6 +35,7 @@
 #include "compilation-cache.h"
 #include "compiler.h"
 #include "debug.h"
+#include "deoptimizer.h"
 #include "execution.h"
 #include "global-handles.h"
 #include "ic.h"
@@ -140,7 +141,9 @@ void BreakLocationIterator::Next() {
       Address target = original_rinfo()->target_address();
       Code* code = Code::GetCodeFromTargetAddress(target);
       if ((code->is_inline_cache_stub() &&
-           code->kind() != Code::BINARY_OP_IC) ||
+           !code->is_binary_op_stub() &&
+           !code->is_type_recording_binary_op_stub() &&
+           !code->is_compare_ic_stub()) ||
           RelocInfo::IsConstructCall(rmode())) {
         break_point_++;
         return;
@@ -1660,6 +1663,12 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
 
   // Ensure shared in compiled. Return false if this failed.
   if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
+
+  // If preparing for the first break point make sure to deoptimize all
+  // functions as debugging does not work with optimized code.
+  if (!has_break_points_) {
+    Deoptimizer::DeoptimizeAll();
+  }
 
   // Create the debug info object.
   Handle<DebugInfo> debug_info = Factory::NewDebugInfo(shared);

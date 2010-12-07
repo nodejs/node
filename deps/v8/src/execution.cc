@@ -33,8 +33,10 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
+#include "runtime-profiler.h"
 #include "simulator.h"
 #include "v8threads.h"
+#include "vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -292,6 +294,25 @@ void StackGuard::TerminateExecution() {
   ExecutionAccess access;
   thread_local_.interrupt_flags_ |= TERMINATE;
   set_interrupt_limits(access);
+}
+
+
+bool StackGuard::IsRuntimeProfilerTick() {
+  ExecutionAccess access;
+  return thread_local_.interrupt_flags_ & RUNTIME_PROFILER_TICK;
+}
+
+
+void StackGuard::RequestRuntimeProfilerTick() {
+  // Ignore calls if we're not optimizing or if we can't get the lock.
+  if (FLAG_opt && ExecutionAccess::TryLock()) {
+    thread_local_.interrupt_flags_ |= RUNTIME_PROFILER_TICK;
+    if (thread_local_.postpone_interrupts_nesting_ == 0) {
+      thread_local_.jslimit_ = thread_local_.climit_ = kInterruptLimit;
+      Heap::SetStackLimits();
+    }
+    ExecutionAccess::Unlock();
+  }
 }
 
 
@@ -682,6 +703,12 @@ void Execution::ProcessDebugMesssages(bool debug_command_only) {
 #endif
 
 MaybeObject* Execution::HandleStackGuardInterrupt() {
+  Counters::stack_interrupts.Increment();
+  if (StackGuard::IsRuntimeProfilerTick()) {
+    Counters::runtime_profiler_ticks.Increment();
+    StackGuard::Continue(RUNTIME_PROFILER_TICK);
+    RuntimeProfiler::OptimizeNow();
+  }
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (StackGuard::IsDebugBreak() || StackGuard::IsDebugCommand()) {
     DebugBreakHelper();

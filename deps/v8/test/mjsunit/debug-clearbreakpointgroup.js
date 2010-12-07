@@ -115,3 +115,8 @@ var breakpointNumbers = breakpoints.map(
 assertEquals([bp2, bp3, bp5].sort(), breakpointNumbers.sort());
 
 assertFalse(exception, "exception in listener");
+
+// Clear all breakpoints to allow the test to run again (--stress-opt).
+Debug.clearBreakPoint(bp2);
+Debug.clearBreakPoint(bp3);
+Debug.clearBreakPoint(bp5);

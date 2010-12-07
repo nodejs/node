@@ -333,6 +333,11 @@ bool MemoryAllocator::Setup(intptr_t capacity, intptr_t capacity_executable) {
 }
 
 
+bool MemoryAllocator::SafeIsInAPageChunk(Address addr) {
+  return InInitialChunk(addr) || InAllocatedChunks(addr);
+}
+
+
 void MemoryAllocator::TearDown() {
   for (int i = 0; i < max_nof_chunks_; i++) {
     if (chunks_[i].address() != NULL) DeleteChunk(i);
@@ -346,12 +351,32 @@ void MemoryAllocator::TearDown() {
     initial_chunk_ = NULL;
   }
 
+  FreeChunkTables(&chunk_table_[0],
+                  kChunkTableTopLevelEntries,
+                  kChunkTableLevels);
+
   ASSERT(top_ == max_nof_chunks_);  // all chunks are free
   top_ = 0;
   capacity_ = 0;
   capacity_executable_ = 0;
   size_ = 0;
   max_nof_chunks_ = 0;
+}
+
+
+void MemoryAllocator::FreeChunkTables(AtomicWord* array, int len, int level) {
+  for (int i = 0; i < len; i++) {
+    if (array[i] != kUnusedChunkTableEntry) {
+      AtomicWord* subarray = reinterpret_cast<AtomicWord*>(array[i]);
+      if (level > 1) {
+        Release_Store(&array[i], kUnusedChunkTableEntry);
+        FreeChunkTables(subarray, 1 << kChunkTableBitsPerLevel, level - 1);
+      } else {
+        Release_Store(&array[i], kUnusedChunkTableEntry);
+      }
+      delete[] subarray;
+    }
+  }
 }
 
 
@@ -488,25 +513,19 @@ static int PagesInChunk(Address start, size_t size) {
 }
 
 
-Page* MemoryAllocator::AllocatePages(int requested_pages, int* allocated_pages,
+Page* MemoryAllocator::AllocatePages(int requested_pages,
+                                     int* allocated_pages,
                                      PagedSpace* owner) {
   if (requested_pages <= 0) return Page::FromAddress(NULL);
   size_t chunk_size = requested_pages * Page::kPageSize;
 
-  // There is not enough space to guarantee the desired number pages can be
-  // allocated.
-  if (size_ + static_cast<int>(chunk_size) > capacity_) {
-    // Request as many pages as we can.
-    chunk_size = capacity_ - size_;
-    requested_pages = static_cast<int>(chunk_size >> kPageSizeBits);
-
-    if (requested_pages <= 0) return Page::FromAddress(NULL);
-  }
   void* chunk = AllocateRawMemory(chunk_size, &chunk_size, owner->executable());
   if (chunk == NULL) return Page::FromAddress(NULL);
   LOG(NewEvent("PagedChunk", chunk, chunk_size));
 
   *allocated_pages = PagesInChunk(static_cast<Address>(chunk), chunk_size);
+  // We may 'lose' a page due to alignment.
+  ASSERT(*allocated_pages >= kPagesPerChunk - 1);
   if (*allocated_pages == 0) {
     FreeRawMemory(chunk, chunk_size, owner->executable());
     LOG(DeleteEvent("PagedChunk", chunk));
@@ -518,7 +537,11 @@ Page* MemoryAllocator::AllocatePages(int requested_pages, int* allocated_pages,
 
   ObjectSpace space = static_cast<ObjectSpace>(1 << owner->identity());
   PerformAllocationCallback(space, kAllocationActionAllocate, chunk_size);
-  return InitializePagesInChunk(chunk_id, *allocated_pages, owner);
+  Page* new_pages = InitializePagesInChunk(chunk_id, *allocated_pages, owner);
+
+  AddToAllocatedChunks(static_cast<Address>(chunk), chunk_size);
+
+  return new_pages;
 }
 
 
@@ -675,6 +698,7 @@ void MemoryAllocator::DeleteChunk(int chunk_id) {
     initial_chunk_->Uncommit(c.address(), c.size());
     Counters::memory_allocated.Decrement(static_cast<int>(c.size()));
   } else {
+    RemoveFromAllocatedChunks(c.address(), c.size());
     LOG(DeleteEvent("PagedChunk", c.address()));
     ObjectSpace space = static_cast<ObjectSpace>(1 << c.owner()->identity());
     size_t size = c.size();
@@ -787,6 +811,126 @@ Page* MemoryAllocator::RelinkPagesInChunk(int chunk_id,
   return last_page;
 }
 
+
+void MemoryAllocator::AddToAllocatedChunks(Address addr, intptr_t size) {
+  ASSERT(size == kChunkSize);
+  uintptr_t int_address = reinterpret_cast<uintptr_t>(addr);
+  AddChunkUsingAddress(int_address, int_address);
+  AddChunkUsingAddress(int_address, int_address + size - 1);
+}
+
+
+void MemoryAllocator::AddChunkUsingAddress(uintptr_t chunk_start,
+                                           uintptr_t chunk_index_base) {
+  AtomicWord* fine_grained = AllocatedChunksFinder(
+      chunk_table_,
+      chunk_index_base,
+      kChunkSizeLog2 + (kChunkTableLevels - 1) * kChunkTableBitsPerLevel,
+      kCreateTablesAsNeeded);
+  int index = FineGrainedIndexForAddress(chunk_index_base);
+  if (fine_grained[index] != kUnusedChunkTableEntry) index++;
+  ASSERT(fine_grained[index] == kUnusedChunkTableEntry);
+  Release_Store(&fine_grained[index], chunk_start);
+}
+
+
+void MemoryAllocator::RemoveFromAllocatedChunks(Address addr, intptr_t size) {
+  ASSERT(size == kChunkSize);
+  uintptr_t int_address = reinterpret_cast<uintptr_t>(addr);
+  RemoveChunkFoundUsingAddress(int_address, int_address);
+  RemoveChunkFoundUsingAddress(int_address, int_address + size - 1);
+}
+
+
+void MemoryAllocator::RemoveChunkFoundUsingAddress(
+    uintptr_t chunk_start,
+    uintptr_t chunk_index_base) {
+  AtomicWord* fine_grained = AllocatedChunksFinder(
+      chunk_table_,
+      chunk_index_base,
+      kChunkSizeLog2 + (kChunkTableLevels - 1) * kChunkTableBitsPerLevel,
+      kDontCreateTables);
+  // Can't remove an entry that's not there.
+  ASSERT(fine_grained != kUnusedChunkTableEntry);
+  int index = FineGrainedIndexForAddress(chunk_index_base);
+  ASSERT(fine_grained[index] != kUnusedChunkTableEntry);
+  if (fine_grained[index] != static_cast<AtomicWord>(chunk_start)) {
+    index++;
+    ASSERT(fine_grained[index] == static_cast<AtomicWord>(chunk_start));
+    Release_Store(&fine_grained[index], kUnusedChunkTableEntry);
+  } else {
+    Release_Store(&fine_grained[index], fine_grained[index + 1]);
+    // Here for a moment the two entries are duplicates, but the reader can
+    // handle that.
+    NoBarrier_Store(&fine_grained[index + 1], kUnusedChunkTableEntry);
+  }
+}
+
+
+bool MemoryAllocator::InAllocatedChunks(Address addr) {
+  uintptr_t int_address = reinterpret_cast<uintptr_t>(addr);
+  AtomicWord* fine_grained = AllocatedChunksFinder(
+      chunk_table_,
+      int_address,
+      kChunkSizeLog2 + (kChunkTableLevels - 1) * kChunkTableBitsPerLevel,
+      kDontCreateTables);
+  if (fine_grained == NULL) return false;
+  int index = FineGrainedIndexForAddress(int_address);
+  if (fine_grained[index] == kUnusedChunkTableEntry) return false;
+  uintptr_t entry = static_cast<uintptr_t>(fine_grained[index]);
+  if (entry <= int_address && entry + kChunkSize > int_address) return true;
+  index++;
+  if (fine_grained[index] == kUnusedChunkTableEntry) return false;
+  entry = static_cast<uintptr_t>(fine_grained[index]);
+  // At this point it would seem that we must have a hit, but there is a small
+  // window during RemoveChunkFoundUsingAddress where the two entries are
+  // duplicates and we have to handle that.
+  if (entry <= int_address && entry + kChunkSize > int_address) return true;
+  return false;
+}
+
+
+AtomicWord* MemoryAllocator::AllocatedChunksFinder(
+    AtomicWord* table,
+    uintptr_t address,
+    int bit_position,
+    CreateTables create_as_needed) {
+  if (bit_position == kChunkSizeLog2) {
+    return table;
+  }
+  ASSERT(bit_position >= kChunkSizeLog2 + kChunkTableBitsPerLevel);
+  int index =
+      ((address >> bit_position) &
+       ((V8_INTPTR_C(1) << kChunkTableBitsPerLevel) - 1));
+  uintptr_t more_fine_grained_address =
+      address & ((V8_INTPTR_C(1) << bit_position) - 1);
+  ASSERT((table == chunk_table_ && index < kChunkTableTopLevelEntries) ||
+         (table != chunk_table_ && index < 1 << kChunkTableBitsPerLevel));
+  AtomicWord* more_fine_grained_table =
+      reinterpret_cast<AtomicWord*>(table[index]);
+  if (more_fine_grained_table == kUnusedChunkTableEntry) {
+    if (create_as_needed == kDontCreateTables) return NULL;
+    int words_needed = 1 << kChunkTableBitsPerLevel;
+    if (bit_position == kChunkTableBitsPerLevel + kChunkSizeLog2) {
+      words_needed =
+          (1 << kChunkTableBitsPerLevel) * kChunkTableFineGrainedWordsPerEntry;
+    }
+    more_fine_grained_table = new AtomicWord[words_needed];
+    for (int i = 0; i < words_needed; i++) {
+      more_fine_grained_table[i] = NULL;
+    }
+    Release_Store(&table[index],
+                  reinterpret_cast<AtomicWord>(more_fine_grained_table));
+  }
+  return AllocatedChunksFinder(
+      more_fine_grained_table,
+      more_fine_grained_address,
+      bit_position - kChunkTableBitsPerLevel,
+      create_as_needed);
+}
+
+
+AtomicWord MemoryAllocator::chunk_table_[kChunkTableTopLevelEntries];
 
 
 // -----------------------------------------------------------------------------
@@ -1010,7 +1154,10 @@ bool PagedSpace::Expand(Page* last_page) {
 
   int available_pages =
       static_cast<int>((max_capacity_ - Capacity()) / Page::kObjectAreaSize);
-  if (available_pages <= 0) return false;
+  // We don't want to have to handle small chunks near the end so if there are
+  // not kPagesPerChunk pages available without exceeding the max capacity then
+  // act as if memory has run out.
+  if (available_pages < MemoryAllocator::kPagesPerChunk) return false;
 
   int desired_pages = Min(available_pages, MemoryAllocator::kPagesPerChunk);
   Page* p = MemoryAllocator::AllocatePages(desired_pages, &desired_pages, this);
@@ -1544,6 +1691,7 @@ static void ReportCodeKindStatistics() {
   for (int i = 0; i < Code::NUMBER_OF_KINDS; i++) {
     switch (static_cast<Code::Kind>(i)) {
       CASE(FUNCTION);
+      CASE(OPTIMIZED_FUNCTION);
       CASE(STUB);
       CASE(BUILTIN);
       CASE(LOAD_IC);
@@ -1553,6 +1701,8 @@ static void ReportCodeKindStatistics() {
       CASE(CALL_IC);
       CASE(KEYED_CALL_IC);
       CASE(BINARY_OP_IC);
+      CASE(TYPE_RECORDING_BINARY_OP_IC);
+      CASE(COMPARE_IC);
     }
   }
 
@@ -2697,32 +2847,40 @@ HeapObject* LargeObjectIterator::next() {
 // LargeObjectChunk
 
 LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
-                                        size_t* chunk_size,
                                         Executability executable) {
   size_t requested = ChunkSizeFor(size_in_bytes);
-  void* mem = MemoryAllocator::AllocateRawMemory(requested,
-                                                 chunk_size,
-                                                 executable);
+  size_t size;
+  void* mem = MemoryAllocator::AllocateRawMemory(requested, &size, executable);
   if (mem == NULL) return NULL;
-  LOG(NewEvent("LargeObjectChunk", mem, *chunk_size));
-  if (*chunk_size < requested) {
-    MemoryAllocator::FreeRawMemory(mem, *chunk_size, executable);
+
+  // The start of the chunk may be overlayed with a page so we have to
+  // make sure that the page flags fit in the size field.
+  ASSERT((size & Page::kPageFlagMask) == 0);
+
+  LOG(NewEvent("LargeObjectChunk", mem, size));
+  if (size < requested) {
+    MemoryAllocator::FreeRawMemory(mem, size, executable);
     LOG(DeleteEvent("LargeObjectChunk", mem));
     return NULL;
   }
-  ObjectSpace space =
-      (executable == EXECUTABLE) ? kObjectSpaceCodeSpace : kObjectSpaceLoSpace;
-  MemoryAllocator::PerformAllocationCallback(space,
-                                             kAllocationActionAllocate,
-                                             *chunk_size);
-  return reinterpret_cast<LargeObjectChunk*>(mem);
+
+  ObjectSpace space = (executable == EXECUTABLE)
+      ? kObjectSpaceCodeSpace
+      : kObjectSpaceLoSpace;
+  MemoryAllocator::PerformAllocationCallback(
+      space, kAllocationActionAllocate, size);
+
+  LargeObjectChunk* chunk = reinterpret_cast<LargeObjectChunk*>(mem);
+  chunk->size_ = size;
+  return chunk;
 }
 
 
 int LargeObjectChunk::ChunkSizeFor(int size_in_bytes) {
   int os_alignment = static_cast<int>(OS::AllocateAlignment());
-  if (os_alignment < Page::kPageSize)
+  if (os_alignment < Page::kPageSize) {
     size_in_bytes += (Page::kPageSize - os_alignment);
+  }
   return size_in_bytes + Page::kObjectStartOffset;
 }
 
@@ -2803,27 +2961,24 @@ MaybeObject* LargeObjectSpace::AllocateRawInternal(int requested_size,
     return Failure::RetryAfterGC(identity());
   }
 
-  size_t chunk_size;
-  LargeObjectChunk* chunk =
-      LargeObjectChunk::New(requested_size, &chunk_size, executable);
+  LargeObjectChunk* chunk = LargeObjectChunk::New(requested_size, executable);
   if (chunk == NULL) {
     return Failure::RetryAfterGC(identity());
   }
 
-  size_ += static_cast<int>(chunk_size);
+  size_ += static_cast<int>(chunk->size());
   objects_size_ += requested_size;
   page_count_++;
   chunk->set_next(first_chunk_);
-  chunk->set_size(chunk_size);
   first_chunk_ = chunk;
 
   // Initialize page header.
   Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
   Address object_address = page->ObjectAreaStart();
+
   // Clear the low order bit of the second word in the page to flag it as a
   // large object page.  If the chunk_size happened to be written there, its
   // low order bit should already be clear.
-  ASSERT((chunk_size & 0x1) == 0);
   page->SetIsLargeObjectPage(true);
   page->SetIsPageExecutable(executable);
   page->SetRegionMarks(Page::kAllRegionsCleanMarks);

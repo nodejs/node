@@ -733,7 +733,9 @@ int DisassemblerIA32::RegisterFPUInstruction(int escape_opcode,
             case 0xE4: mnem = "ftst"; break;
             case 0xE8: mnem = "fld1"; break;
             case 0xEB: mnem = "fldpi"; break;
+            case 0xED: mnem = "fldln2"; break;
             case 0xEE: mnem = "fldz"; break;
+            case 0xF1: mnem = "fyl2x"; break;
             case 0xF5: mnem = "fprem1"; break;
             case 0xF7: mnem = "fincstp"; break;
             case 0xF8: mnem = "fprem"; break;
@@ -1166,6 +1168,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
              int mod, regop, rm;
              get_modrm(*data, &mod, &regop, &rm);
              AppendToBuffer("pxor %s,%s",
+                            NameOfXMMRegister(regop),
+                            NameOfXMMRegister(rm));
+             data++;
+          } else if (*data == 0xDB) {
+             data++;
+             int mod, regop, rm;
+             get_modrm(*data, &mod, &regop, &rm);
+             AppendToBuffer("pand %s,%s",
                             NameOfXMMRegister(regop),
                             NameOfXMMRegister(rm));
              data++;

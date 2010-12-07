@@ -511,7 +511,7 @@ static void CheckSymbols(const char** strings) {
     if (!maybe_a->ToObject(&a)) continue;
     CHECK(a->IsSymbol());
     Object* b;
-    MaybeObject* maybe_b = Heap::LookupAsciiSymbol(string);
+    MaybeObject *maybe_b = Heap::LookupAsciiSymbol(string);
     if (!maybe_b->ToObject(&b)) continue;
     CHECK_EQ(b, a);
     CHECK(String::cast(b)->IsEqualTo(CStrVector(string)));
@@ -978,7 +978,9 @@ TEST(TestCodeFlushing) {
   Handle<String> foo_name = Factory::LookupAsciiSymbol("foo");
 
   // This compile will add the code to the compilation cache.
-  CompileRun(source);
+  { v8::HandleScope scope;
+    CompileRun(source);
+  }
 
   // Check function is compiled.
   Object* func_value =
@@ -1000,8 +1002,8 @@ TEST(TestCodeFlushing) {
   Heap::CollectAllGarbage(true);
 
   // foo should no longer be in the compilation cache
-  CHECK(!function->shared()->is_compiled());
-  CHECK(!function->is_compiled());
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
+  CHECK(!function->is_compiled() || function->IsOptimized());
   // Call foo to get it recompiled.
   CompileRun("foo()");
   CHECK(function->shared()->is_compiled());
@@ -1021,6 +1023,20 @@ static int CountGlobalContexts() {
 }
 
 
+// Count the number of user functions in the weak list of optimized
+// functions attached to a global context.
+static int CountOptimizedUserFunctions(v8::Handle<v8::Context> context) {
+  int count = 0;
+  Handle<Context> icontext = v8::Utils::OpenHandle(*context);
+  Object* object = icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST);
+  while (object->IsJSFunction() && !JSFunction::cast(object)->IsBuiltin()) {
+    count++;
+    object = JSFunction::cast(object)->next_function_link();
+  }
+  return count;
+}
+
+
 TEST(TestInternalWeakLists) {
   static const int kNumTestContexts = 10;
 
@@ -1032,9 +1048,63 @@ TEST(TestInternalWeakLists) {
   // Create a number of global contests which gets linked together.
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i] = v8::Context::New();
+
+    bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
+
     CHECK_EQ(i + 1, CountGlobalContexts());
 
     ctx[i]->Enter();
+
+    // Create a handle scope so no function objects get stuch in the outer
+    // handle scope
+    v8::HandleScope scope;
+    const char* source = "function f1() { };"
+                         "function f2() { };"
+                         "function f3() { };"
+                         "function f4() { };"
+                         "function f5() { };";
+    CompileRun(source);
+    CHECK_EQ(0, CountOptimizedUserFunctions(ctx[i]));
+    CompileRun("f1()");
+    CHECK_EQ(opt ? 1 : 0, CountOptimizedUserFunctions(ctx[i]));
+    CompileRun("f2()");
+    CHECK_EQ(opt ? 2 : 0, CountOptimizedUserFunctions(ctx[i]));
+    CompileRun("f3()");
+    CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
+    CompileRun("f4()");
+    CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
+    CompileRun("f5()");
+    CHECK_EQ(opt ? 5 : 0, CountOptimizedUserFunctions(ctx[i]));
+
+    // Remove function f1, and
+    CompileRun("f1=null");
+
+    // Scavenge treats these references as strong.
+    for (int j = 0; j < 10; j++) {
+      Heap::PerformScavenge();
+      CHECK_EQ(opt ? 5 : 0, CountOptimizedUserFunctions(ctx[i]));
+    }
+
+    // Mark compact handles the weak references.
+    Heap::CollectAllGarbage(true);
+    CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
+
+    // Get rid of f3 and f5 in the same way.
+    CompileRun("f3=null");
+    for (int j = 0; j < 10; j++) {
+      Heap::PerformScavenge();
+      CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
+    }
+    Heap::CollectAllGarbage(true);
+    CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
+    CompileRun("f5=null");
+    for (int j = 0; j < 10; j++) {
+      Heap::PerformScavenge();
+      CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
+    }
+    Heap::CollectAllGarbage(true);
+    CHECK_EQ(opt ? 2 : 0, CountOptimizedUserFunctions(ctx[i]));
+
     ctx[i]->Exit();
   }
 
@@ -1076,6 +1146,25 @@ static int CountGlobalContextsWithGC(int n) {
 }
 
 
+// Count the number of user functions in the weak list of optimized
+// functions attached to a global context causing a GC after the
+// specified number of elements.
+static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
+                                             int n) {
+  int count = 0;
+  Handle<Context> icontext = v8::Utils::OpenHandle(*context);
+  Handle<Object> object(icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST));
+  while (object->IsJSFunction() &&
+         !Handle<JSFunction>::cast(object)->IsBuiltin()) {
+    count++;
+    if (count == n) Heap::CollectAllGarbage(true);
+    object = Handle<Object>(
+        Object::cast(JSFunction::cast(*object)->next_function_link()));
+  }
+  return count;
+}
+
+
 TEST(TestInternalWeakListsTraverseWithGC) {
   static const int kNumTestContexts = 10;
 
@@ -1090,10 +1179,37 @@ TEST(TestInternalWeakListsTraverseWithGC) {
     ctx[i] = v8::Context::New();
     CHECK_EQ(i + 1, CountGlobalContexts());
     CHECK_EQ(i + 1, CountGlobalContextsWithGC(i / 2 + 1));
-
-    ctx[i]->Enter();
-    ctx[i]->Exit();
   }
+
+  bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
+
+  // Compile a number of functions the length of the weak list of optimized
+  // functions both with and without GCs while iterating the list.
+  ctx[0]->Enter();
+  const char* source = "function f1() { };"
+                       "function f2() { };"
+                       "function f3() { };"
+                       "function f4() { };"
+                       "function f5() { };";
+  CompileRun(source);
+  CHECK_EQ(0, CountOptimizedUserFunctions(ctx[0]));
+  CompileRun("f1()");
+  CHECK_EQ(opt ? 1 : 0, CountOptimizedUserFunctions(ctx[0]));
+  CHECK_EQ(opt ? 1 : 0, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
+  CompileRun("f2()");
+  CHECK_EQ(opt ? 2 : 0, CountOptimizedUserFunctions(ctx[0]));
+  CHECK_EQ(opt ? 2 : 0, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
+  CompileRun("f3()");
+  CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[0]));
+  CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
+  CompileRun("f4()");
+  CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[0]));
+  CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctionsWithGC(ctx[0], 2));
+  CompileRun("f5()");
+  CHECK_EQ(opt ? 5 : 0, CountOptimizedUserFunctions(ctx[0]));
+  CHECK_EQ(opt ? 5 : 0, CountOptimizedUserFunctionsWithGC(ctx[0], 4));
+
+  ctx[0]->Exit();
 }
 
 

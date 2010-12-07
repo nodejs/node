@@ -193,7 +193,6 @@ S9.9_A1: FAIL_OK
 S9.9_A2: FAIL_OK
 
 
-
 ##################### SKIPPED TESTS #####################
 
 # These tests take a looong time to run in debug mode.
@@ -253,6 +252,20 @@ S15.9.5.9_A1_T2: FAIL_OK
 S11.4.3_A3.6: FAIL_OK
 S15.10.7_A3_T2: FAIL_OK
 S15.10.7_A3_T1: FAIL_OK
+
+[ $arch == arm ]
+
+# BUG(3251225): Tests that timeout with --nocrankshaft.
+S15.1.3.1_A2.5_T1: SKIP
+S15.1.3.2_A2.5_T1: SKIP
+S15.1.3.1_A2.4_T1: SKIP
+S15.1.3.1_A2.5_T1: SKIP
+S15.1.3.2_A2.4_T1: SKIP
+S15.1.3.2_A2.5_T1: SKIP
+S15.1.3.3_A2.3_T1: SKIP
+S15.1.3.4_A2.3_T1: SKIP
+S15.1.3.1_A2.5_T1: SKIP
+S15.1.3.2_A2.5_T1: SKIP
 
 [ $arch == mips ]
 

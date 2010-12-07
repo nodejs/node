@@ -358,6 +358,9 @@ class V8EXPORT HeapSnapshot {
   /** Returns the root node of the heap graph. */
   const HeapGraphNode* GetRoot() const;
 
+  /** Returns a node by its id. */
+  const HeapGraphNode* GetNodeById(uint64_t id) const;
+
   /**
    * Returns a diff between this snapshot and another one. Only snapshots
    * of the same type can be compared.

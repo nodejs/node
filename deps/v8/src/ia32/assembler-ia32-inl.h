@@ -120,6 +120,30 @@ Address* RelocInfo::target_reference_address() {
 }
 
 
+Handle<JSGlobalPropertyCell> RelocInfo::target_cell_handle() {
+  ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
+  Address address = Memory::Address_at(pc_);
+  return Handle<JSGlobalPropertyCell>(
+      reinterpret_cast<JSGlobalPropertyCell**>(address));
+}
+
+
+JSGlobalPropertyCell* RelocInfo::target_cell() {
+  ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
+  Address address = Memory::Address_at(pc_);
+  Object* object = HeapObject::FromAddress(
+      address - JSGlobalPropertyCell::kValueOffset);
+  return reinterpret_cast<JSGlobalPropertyCell*>(object);
+}
+
+
+void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell) {
+  ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
+  Address address = cell->address() + JSGlobalPropertyCell::kValueOffset;
+  Memory::Address_at(pc_) = address;
+}
+
+
 Address RelocInfo::call_address() {
   ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
@@ -167,6 +191,8 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitPointer(target_object_address());
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(this);
+  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
+    visitor->VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -190,6 +216,8 @@ void RelocInfo::Visit() {
     StaticVisitor::VisitPointer(target_object_address());
   } else if (RelocInfo::IsCodeTarget(mode)) {
     StaticVisitor::VisitCodeTarget(this);
+  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
+    StaticVisitor::VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -242,6 +270,12 @@ Immediate::Immediate(Handle<Object> handle) {
 
 Immediate::Immediate(Smi* value) {
   x_ = reinterpret_cast<intptr_t>(value);
+  rmode_ = RelocInfo::NONE;
+}
+
+
+Immediate::Immediate(Address addr) {
+  x_ = reinterpret_cast<int32_t>(addr);
   rmode_ = RelocInfo::NONE;
 }
 

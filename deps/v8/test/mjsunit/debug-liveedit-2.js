@@ -31,17 +31,14 @@
 
 Debug = debug.Debug
 
-
-eval(
-    "function ChooseAnimal(p) {\n " +
-    "  if (p == 7) {\n" + // Use p
-    "    return;\n" +
-    "  }\n" +
-    "  return function Chooser() {\n" +
-    "    return 'Cat';\n" +
-    "  };\n" +
-    "}\n"
-);
+eval("function ChooseAnimal(p) {\n " +
+     "  if (p == 7) {\n" + // Use p
+     "    return;\n" +
+     "  }\n" +
+     "  return function Chooser() {\n" +
+     "    return 'Cat';\n" +
+     "  };\n" +
+     "}\n");
 
 var old_closure = ChooseAnimal(19);
 
@@ -67,4 +64,3 @@ assertEquals("Capybara19", new_closure());
 
 // Old instance of closure is not patched.
 assertEquals("Cat", old_closure());
-

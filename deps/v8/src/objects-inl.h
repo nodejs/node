@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -456,6 +456,33 @@ bool Object::IsFixedArray() {
 
 bool Object::IsDescriptorArray() {
   return IsFixedArray();
+}
+
+
+bool Object::IsDeoptimizationInputData() {
+  // Must be a fixed array.
+  if (!IsFixedArray()) return false;
+
+  // There's no sure way to detect the difference between a fixed array and
+  // a deoptimization data array.  Since this is used for asserts we can
+  // check that the length is zero or else the fixed size plus a multiple of
+  // the entry size.
+  int length = FixedArray::cast(this)->length();
+  if (length == 0) return true;
+
+  length -= DeoptimizationInputData::kFirstDeoptEntryIndex;
+  return length >= 0 &&
+      length % DeoptimizationInputData::kDeoptEntrySize == 0;
+}
+
+
+bool Object::IsDeoptimizationOutputData() {
+  if (!IsFixedArray()) return false;
+  // There's actually no way to see the difference between a fixed array and
+  // a deoptimization data array.  Since this is used for asserts we can check
+  // that the length is plausible though.
+  if (FixedArray::cast(this)->length() % 2 != 0) return false;
+  return true;
 }
 
 
@@ -1682,6 +1709,8 @@ void NumberDictionary::set_requires_slow_elements() {
 
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(DescriptorArray)
+CAST_ACCESSOR(DeoptimizationInputData)
+CAST_ACCESSOR(DeoptimizationOutputData)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(JSFunctionResultCache)
 CAST_ACCESSOR(NormalizedMapCache)
@@ -2376,15 +2405,157 @@ int Code::arguments_count() {
 
 
 int Code::major_key() {
-  ASSERT(kind() == STUB || kind() == BINARY_OP_IC);
+  ASSERT(kind() == STUB ||
+         kind() == BINARY_OP_IC ||
+         kind() == TYPE_RECORDING_BINARY_OP_IC ||
+         kind() == COMPARE_IC);
   return READ_BYTE_FIELD(this, kStubMajorKeyOffset);
 }
 
 
 void Code::set_major_key(int major) {
-  ASSERT(kind() == STUB || kind() == BINARY_OP_IC);
+  ASSERT(kind() == STUB ||
+         kind() == BINARY_OP_IC ||
+         kind() == TYPE_RECORDING_BINARY_OP_IC ||
+         kind() == COMPARE_IC);
   ASSERT(0 <= major && major < 256);
   WRITE_BYTE_FIELD(this, kStubMajorKeyOffset, major);
+}
+
+
+bool Code::optimizable() {
+  ASSERT(kind() == FUNCTION);
+  return READ_BYTE_FIELD(this, kOptimizableOffset) == 1;
+}
+
+
+void Code::set_optimizable(bool value) {
+  ASSERT(kind() == FUNCTION);
+  WRITE_BYTE_FIELD(this, kOptimizableOffset, value ? 1 : 0);
+}
+
+
+bool Code::has_deoptimization_support() {
+  ASSERT(kind() == FUNCTION);
+  return READ_BYTE_FIELD(this, kHasDeoptimizationSupportOffset) == 1;
+}
+
+
+void Code::set_has_deoptimization_support(bool value) {
+  ASSERT(kind() == FUNCTION);
+  WRITE_BYTE_FIELD(this, kHasDeoptimizationSupportOffset, value ? 1 : 0);
+}
+
+
+int Code::allow_osr_at_loop_nesting_level() {
+  ASSERT(kind() == FUNCTION);
+  return READ_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset);
+}
+
+
+void Code::set_allow_osr_at_loop_nesting_level(int level) {
+  ASSERT(kind() == FUNCTION);
+  ASSERT(level >= 0 && level <= kMaxLoopNestingMarker);
+  WRITE_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset, level);
+}
+
+
+unsigned Code::stack_slots() {
+  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  return READ_UINT32_FIELD(this, kStackSlotsOffset);
+}
+
+
+void Code::set_stack_slots(unsigned slots) {
+  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  WRITE_UINT32_FIELD(this, kStackSlotsOffset, slots);
+}
+
+
+unsigned Code::safepoint_table_start() {
+  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  return READ_UINT32_FIELD(this, kSafepointTableStartOffset);
+}
+
+
+void Code::set_safepoint_table_start(unsigned offset) {
+  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
+  WRITE_UINT32_FIELD(this, kSafepointTableStartOffset, offset);
+}
+
+
+unsigned Code::stack_check_table_start() {
+  ASSERT(kind() == FUNCTION);
+  return READ_UINT32_FIELD(this, kStackCheckTableStartOffset);
+}
+
+
+void Code::set_stack_check_table_start(unsigned offset) {
+  ASSERT(kind() == FUNCTION);
+  ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
+  WRITE_UINT32_FIELD(this, kStackCheckTableStartOffset, offset);
+}
+
+
+CheckType Code::check_type() {
+  ASSERT(is_call_stub() || is_keyed_call_stub());
+  byte type = READ_BYTE_FIELD(this, kCheckTypeOffset);
+  return static_cast<CheckType>(type);
+}
+
+
+void Code::set_check_type(CheckType value) {
+  ASSERT(is_call_stub() || is_keyed_call_stub());
+  WRITE_BYTE_FIELD(this, kCheckTypeOffset, value);
+}
+
+
+byte Code::binary_op_type() {
+  ASSERT(is_binary_op_stub());
+  return READ_BYTE_FIELD(this, kBinaryOpTypeOffset);
+}
+
+
+void Code::set_binary_op_type(byte value) {
+  ASSERT(is_binary_op_stub());
+  WRITE_BYTE_FIELD(this, kBinaryOpTypeOffset, value);
+}
+
+
+byte Code::type_recording_binary_op_type() {
+  ASSERT(is_type_recording_binary_op_stub());
+  return READ_BYTE_FIELD(this, kBinaryOpTypeOffset);
+}
+
+
+void Code::set_type_recording_binary_op_type(byte value) {
+  ASSERT(is_type_recording_binary_op_stub());
+  WRITE_BYTE_FIELD(this, kBinaryOpTypeOffset, value);
+}
+
+
+byte Code::type_recording_binary_op_result_type() {
+  ASSERT(is_type_recording_binary_op_stub());
+  return READ_BYTE_FIELD(this, kBinaryOpReturnTypeOffset);
+}
+
+
+void Code::set_type_recording_binary_op_result_type(byte value) {
+  ASSERT(is_type_recording_binary_op_stub());
+  WRITE_BYTE_FIELD(this, kBinaryOpReturnTypeOffset, value);
+}
+
+
+byte Code::compare_state() {
+  ASSERT(is_compare_ic_stub());
+  return READ_BYTE_FIELD(this, kCompareStateOffset);
+}
+
+
+void Code::set_compare_state(byte value) {
+  ASSERT(is_compare_ic_stub());
+  WRITE_BYTE_FIELD(this, kCompareStateOffset, value);
 }
 
 
@@ -2530,6 +2701,7 @@ ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, literals, FixedArray, kLiteralsOffset)
+ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
 ACCESSORS(GlobalObject, builtins, JSBuiltinsObject, kBuiltinsOffset)
 ACCESSORS(GlobalObject, global_context, Context, kGlobalContextOffset)
@@ -2667,6 +2839,7 @@ SMI_ACCESSORS(SharedFunctionInfo, compiler_hints,
               kCompilerHintsOffset)
 SMI_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
               kThisPropertyAssignmentsCountOffset)
+SMI_ACCESSORS(SharedFunctionInfo, opt_count, kOptCountOffset)
 #else
 
 #define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
@@ -2716,6 +2889,7 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
                         this_property_assignments_count,
                         kThisPropertyAssignmentsCountOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, opt_count, kOptCountOffset)
 #endif
 
 
@@ -2746,6 +2920,23 @@ void SharedFunctionInfo::set_live_objects_may_exist(bool value) {
 
 bool SharedFunctionInfo::IsInobjectSlackTrackingInProgress() {
   return initial_map() != Heap::undefined_value();
+}
+
+
+bool SharedFunctionInfo::optimization_disabled() {
+  return BooleanBit::get(compiler_hints(), kOptimizationDisabled);
+}
+
+
+void SharedFunctionInfo::set_optimization_disabled(bool disable) {
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kOptimizationDisabled,
+                                     disable));
+  // If disabling optimizations we reflect that in the code object so
+  // it will not be counted as optimizable code.
+  if ((code()->kind() == Code::FUNCTION) && disable) {
+    code()->set_optimizable(false);
+  }
 }
 
 
@@ -2794,6 +2985,13 @@ Code* SharedFunctionInfo::unchecked_code() {
 
 
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
+  // If optimization has been disabled for the shared function info,
+  // reflect that in the code object so it will not be counted as
+  // optimizable code.
+  ASSERT(value->kind() != Code::FUNCTION ||
+         !value->optimizable() ||
+         this->code() == Builtins::builtin(Builtins::Illegal) ||
+         this->allows_lazy_compilation());
   WRITE_FIELD(this, kCodeOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kCodeOffset, mode);
 }
@@ -2809,6 +3007,16 @@ void SharedFunctionInfo::set_scope_info(SerializedScopeInfo* value,
                                         WriteBarrierMode mode) {
   WRITE_FIELD(this, kScopeInfoOffset, reinterpret_cast<Object*>(value));
   CONDITIONAL_WRITE_BARRIER(this, kScopeInfoOffset, mode);
+}
+
+
+Smi* SharedFunctionInfo::deopt_counter() {
+  return reinterpret_cast<Smi*>(READ_FIELD(this, kDeoptCounterOffset));
+}
+
+
+void SharedFunctionInfo::set_deopt_counter(Smi* value) {
+  WRITE_FIELD(this, kDeoptCounterOffset, value);
 }
 
 
@@ -2833,6 +3041,19 @@ bool SharedFunctionInfo::HasCustomCallGenerator() {
 }
 
 
+MathFunctionId SharedFunctionInfo::math_function_id() {
+  return static_cast<MathFunctionId>(
+      (compiler_hints() >> kMathFunctionShift) & kMathFunctionMask);
+}
+
+
+void SharedFunctionInfo::set_math_function_id(int math_fn) {
+  ASSERT(math_fn <= max_math_id_number());
+  set_compiler_hints(compiler_hints() |
+                     ((math_fn & kMathFunctionMask) << kMathFunctionShift));
+}
+
+
 int SharedFunctionInfo::custom_call_generator_id() {
   ASSERT(HasCustomCallGenerator());
   return Smi::cast(function_data())->value();
@@ -2850,8 +3071,30 @@ void SharedFunctionInfo::set_code_age(int code_age) {
 }
 
 
+bool SharedFunctionInfo::has_deoptimization_support() {
+  Code* code = this->code();
+  return code->kind() == Code::FUNCTION && code->has_deoptimization_support();
+}
+
+
 bool JSFunction::IsBuiltin() {
   return context()->global()->IsJSBuiltinsObject();
+}
+
+
+bool JSFunction::NeedsArgumentsAdaption() {
+  return shared()->formal_parameter_count() !=
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+}
+
+
+bool JSFunction::IsOptimized() {
+  return code()->kind() == Code::OPTIMIZED_FUNCTION;
+}
+
+
+bool JSFunction::IsMarkedForLazyRecompilation() {
+  return code() == Builtins::builtin(Builtins::LazyRecompile);
 }
 
 
@@ -2871,6 +3114,23 @@ void JSFunction::set_code(Code* value) {
   ASSERT(!Heap::InNewSpace(value));
   Address entry = value->entry();
   WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
+}
+
+
+void JSFunction::ReplaceCode(Code* code) {
+  bool was_optimized = IsOptimized();
+  bool is_optimized = code->kind() == Code::OPTIMIZED_FUNCTION;
+
+  set_code(code);
+
+  // Add/remove the function from the list of optimized functions for this
+  // context based on the state change.
+  if (!was_optimized && is_optimized) {
+    context()->global_context()->AddOptimizedFunction(this);
+  }
+  if (was_optimized && !is_optimized) {
+    context()->global_context()->RemoveOptimizedFunction(this);
+  }
 }
 
 
@@ -3007,6 +3267,7 @@ JSValue* JSValue::cast(Object* obj) {
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
+ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 
 
 byte* Code::instruction_start()  {
@@ -3021,6 +3282,12 @@ byte* Code::instruction_end()  {
 
 int Code::body_size() {
   return RoundUp(instruction_size(), kObjectAlignment);
+}
+
+
+FixedArray* Code::unchecked_deoptimization_data() {
+  return reinterpret_cast<FixedArray*>(
+      READ_FIELD(this, kDeoptimizationDataOffset));
 }
 
 

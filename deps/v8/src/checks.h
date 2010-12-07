@@ -281,7 +281,7 @@ bool EnableSlowAsserts();
 // safely enabled in release mode. Moreover, the ((void) 0) expression
 // obeys different syntax rules than typedef's, e.g. it can't appear
 // inside class declaration, this leads to inconsistency between debug
-// and release compilation modes behaviour.
+// and release compilation modes behavior.
 #define STATIC_ASSERT(test)  STATIC_CHECK(test)
 
 #define ASSERT_NOT_NULL(p)  ASSERT_NE(NULL, p)

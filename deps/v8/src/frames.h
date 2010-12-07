@@ -51,6 +51,7 @@ class PcToCodeCache : AllStatic {
   struct PcToCodeCacheEntry {
     Address pc;
     Code* code;
+    uint8_t* safepoint_entry;
   };
 
   static PcToCodeCacheEntry* cache(int index) {
@@ -115,6 +116,7 @@ class StackHandler BASE_EMBEDDED {
   V(ENTRY_CONSTRUCT,   EntryConstructFrame)   \
   V(EXIT,              ExitFrame)             \
   V(JAVA_SCRIPT,       JavaScriptFrame)       \
+  V(OPTIMIZED,         OptimizedFrame)        \
   V(INTERNAL,          InternalFrame)         \
   V(CONSTRUCT,         ConstructFrame)        \
   V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)
@@ -158,11 +160,16 @@ class StackFrame BASE_EMBEDDED {
   bool is_entry() const { return type() == ENTRY; }
   bool is_entry_construct() const { return type() == ENTRY_CONSTRUCT; }
   bool is_exit() const { return type() == EXIT; }
-  bool is_java_script() const { return type() == JAVA_SCRIPT; }
+  bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
   bool is_internal() const { return type() == INTERNAL; }
   bool is_construct() const { return type() == CONSTRUCT; }
   virtual bool is_standard() const { return false; }
+
+  bool is_java_script() const {
+    Type type = this->type();
+    return (type == JAVA_SCRIPT) || (type == OPTIMIZED);
+  }
 
   // Accessors.
   Address sp() const { return state_.sp; }
@@ -193,9 +200,16 @@ class StackFrame BASE_EMBEDDED {
   Code* code() const { return GetContainingCode(pc()); }
 
   // Get the code object that contains the given pc.
-  Code* GetContainingCode(Address pc) const {
+  static Code* GetContainingCode(Address pc) {
     return PcToCodeCache::GetCacheEntry(pc)->code;
   }
+
+  // Get the code object containing the given pc and fill in the
+  // safepoint entry and the number of stack slots. The pc must be at
+  // a safepoint.
+  static Code* GetSafepointData(Address pc,
+                                uint8_t** safepoint_entry,
+                                unsigned* stack_slots);
 
   virtual void Iterate(ObjectVisitor* v) const = 0;
   static void IteratePc(ObjectVisitor* v, Address* pc_address, Code* holder);
@@ -393,6 +407,36 @@ class StandardFrame: public StackFrame {
 };
 
 
+class FrameSummary BASE_EMBEDDED {
+ public:
+  FrameSummary(Object* receiver,
+               JSFunction* function,
+               Code* code,
+               int offset,
+               bool is_constructor)
+      : receiver_(receiver),
+        function_(function),
+        code_(code),
+        offset_(offset),
+        is_constructor_(is_constructor) { }
+  Handle<Object> receiver() { return receiver_; }
+  Handle<JSFunction> function() { return function_; }
+  Handle<Code> code() { return code_; }
+  Address pc() { return reinterpret_cast<Address>(*code_) + offset_; }
+  int offset() { return offset_; }
+  bool is_constructor() { return is_constructor_; }
+
+  void Print();
+
+ private:
+  Handle<Object> receiver_;
+  Handle<JSFunction> function_;
+  Handle<Code> code_;
+  int offset_;
+  bool is_constructor_;
+};
+
+
 class JavaScriptFrame: public StandardFrame {
  public:
   virtual Type type() const { return JAVA_SCRIPT; }
@@ -431,6 +475,12 @@ class JavaScriptFrame: public StandardFrame {
   // Determine the code for the frame.
   virtual Code* unchecked_code() const;
 
+  // Return a list with JSFunctions of this frame.
+  virtual void GetFunctions(List<JSFunction*>* functions);
+
+  // Build a list with summaries for this frame including all inlined frames.
+  virtual void Summarize(List<FrameSummary>* frames);
+
   static JavaScriptFrame* cast(StackFrame* frame) {
     ASSERT(frame->is_java_script());
     return static_cast<JavaScriptFrame*>(frame);
@@ -442,11 +492,40 @@ class JavaScriptFrame: public StandardFrame {
 
   virtual Address GetCallerStackPointer() const;
 
+  // Garbage collection support. Iterates over incoming arguments,
+  // receiver, and any callee-saved registers.
+  void IterateArguments(ObjectVisitor* v) const;
+
  private:
   inline Object* function_slot_object() const;
 
   friend class StackFrameIterator;
   friend class StackTracer;
+};
+
+
+class OptimizedFrame : public JavaScriptFrame {
+ public:
+  virtual Type type() const { return OPTIMIZED; }
+
+  // GC support.
+  virtual void Iterate(ObjectVisitor* v) const;
+
+  // Return a list with JSFunctions of this frame.
+  // The functions are ordered bottom-to-top (i.e. functions.last()
+  // is the top-most activation)
+  virtual void GetFunctions(List<JSFunction*>* functions);
+
+  virtual void Summarize(List<FrameSummary>* frames);
+
+  DeoptimizationInputData* GetDeoptimizationData(int* deopt_index);
+
+ protected:
+  explicit OptimizedFrame(StackFrameIterator* iterator)
+      : JavaScriptFrame(iterator) { }
+
+ private:
+  friend class StackFrameIterator;
 };
 
 

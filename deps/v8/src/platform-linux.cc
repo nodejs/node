@@ -59,6 +59,7 @@
 #include "platform.h"
 #include "top.h"
 #include "v8threads.h"
+#include "vm-state-inl.h"
 
 
 namespace v8 {
@@ -185,21 +186,10 @@ int OS::ActivationFrameAlignment() {
 }
 
 
-#ifdef V8_TARGET_ARCH_ARM
-// 0xffff0fa0 is the hard coded address of a function provided by
-// the kernel which implements a memory barrier. On older
-// ARM architecture revisions (pre-v6) this may be implemented using
-// a syscall. This address is stable, and in active use (hard coded)
-// by at least glibc-2.7 and the Android C library.
-typedef void (*LinuxKernelMemoryBarrierFunc)(void);
-LinuxKernelMemoryBarrierFunc pLinuxKernelMemoryBarrier __attribute__((weak)) =
-    (LinuxKernelMemoryBarrierFunc) 0xffff0fa0;
-#endif
-
 void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
 #if defined(V8_TARGET_ARCH_ARM) && defined(__arm__)
   // Only use on ARM hardware.
-  pLinuxKernelMemoryBarrier();
+  MemoryBarrier();
 #else
   __asm__ __volatile__("" : : : "memory");
   // An x86 store acts as a release barrier.
@@ -651,6 +641,16 @@ class LinuxMutex : public Mutex {
     return result;
   }
 
+  virtual bool TryLock() {
+    int result = pthread_mutex_trylock(&mutex_);
+    // Return false if the lock is busy and locking failed.
+    if (result == EBUSY) {
+      return false;
+    }
+    ASSERT(result == 0);  // Verify no other errors.
+    return true;
+  }
+
  private:
   pthread_mutex_t mutex_;   // Pthread mutex for POSIX platforms.
 };
@@ -734,6 +734,7 @@ Semaphore* OS::CreateSemaphore(int count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 static Sampler* active_sampler_ = NULL;
+static int vm_tid_ = 0;
 
 
 #if !defined(__GLIBC__) && (defined(__arm__) || defined(__thumb__))
@@ -762,50 +763,51 @@ enum ArmRegisters {R15 = 15, R13 = 13, R11 = 11};
 #endif
 
 
+static int GetThreadID() {
+  // Glibc doesn't provide a wrapper for gettid(2).
+  return syscall(SYS_gettid);
+}
+
+
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #ifndef V8_HOST_ARCH_MIPS
   USE(info);
   if (signal != SIGPROF) return;
-  if (active_sampler_ == NULL) return;
+  if (active_sampler_ == NULL || !active_sampler_->IsActive()) return;
+  if (vm_tid_ != GetThreadID()) return;
 
   TickSample sample_obj;
   TickSample* sample = CpuProfiler::TickSampleEvent();
   if (sample == NULL) sample = &sample_obj;
 
-  // We always sample the VM state.
-  sample->state = VMState::current_state();
-
-  // If profiling, we extract the current pc and sp.
-  if (active_sampler_->IsProfiling()) {
-    // Extracting the sample from the context is extremely machine dependent.
-    ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-    mcontext_t& mcontext = ucontext->uc_mcontext;
+  // Extracting the sample from the context is extremely machine dependent.
+  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
+  mcontext_t& mcontext = ucontext->uc_mcontext;
+  sample->state = Top::current_vm_state();
 #if V8_HOST_ARCH_IA32
-    sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
-    sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
-    sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_EBP]);
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_EBP]);
 #elif V8_HOST_ARCH_X64
-    sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_RIP]);
-    sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
-    sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_RIP]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
 #elif V8_HOST_ARCH_ARM
 // An undefined macro evaluates to 0, so this applies to Android's Bionic also.
 #if (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
-    sample->pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
-    sample->sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
-    sample->fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
 #else
-    sample->pc = reinterpret_cast<Address>(mcontext.arm_pc);
-    sample->sp = reinterpret_cast<Address>(mcontext.arm_sp);
-    sample->fp = reinterpret_cast<Address>(mcontext.arm_fp);
+  sample->pc = reinterpret_cast<Address>(mcontext.arm_pc);
+  sample->sp = reinterpret_cast<Address>(mcontext.arm_sp);
+  sample->fp = reinterpret_cast<Address>(mcontext.arm_fp);
 #endif
 #elif V8_HOST_ARCH_MIPS
-    // Implement this on MIPS.
-    UNIMPLEMENTED();
+  // Implement this on MIPS.
+  UNIMPLEMENTED();
 #endif
-    active_sampler_->SampleStack(sample);
-  }
-
+  active_sampler_->SampleStack(sample);
   active_sampler_->Tick(sample);
 #endif
 }
@@ -813,43 +815,64 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 
 class Sampler::PlatformData : public Malloced {
  public:
+  enum SleepInterval {
+    FULL_INTERVAL,
+    HALF_INTERVAL
+  };
+
   explicit PlatformData(Sampler* sampler)
       : sampler_(sampler),
         signal_handler_installed_(false),
         vm_tgid_(getpid()),
-        // Glibc doesn't provide a wrapper for gettid(2).
-        vm_tid_(syscall(SYS_gettid)),
         signal_sender_launched_(false) {
   }
 
   void SignalSender() {
     while (sampler_->IsActive()) {
-      // Glibc doesn't provide a wrapper for tgkill(2).
-      syscall(SYS_tgkill, vm_tgid_, vm_tid_, SIGPROF);
-      // Convert ms to us and subtract 100 us to compensate delays
-      // occuring during signal delivery.
-      const useconds_t interval = sampler_->interval_ * 1000 - 100;
-      int result = usleep(interval);
-#ifdef DEBUG
-      if (result != 0 && errno != EINTR) {
-        fprintf(stderr,
-                "SignalSender usleep error; interval = %u, errno = %d\n",
-                interval,
-                errno);
-        ASSERT(result == 0 || errno == EINTR);
+      if (rate_limiter_.SuspendIfNecessary()) continue;
+      if (sampler_->IsProfiling() && RuntimeProfiler::IsEnabled()) {
+        SendProfilingSignal();
+        Sleep(HALF_INTERVAL);
+        RuntimeProfiler::NotifyTick();
+        Sleep(HALF_INTERVAL);
+      } else {
+        if (sampler_->IsProfiling()) SendProfilingSignal();
+        if (RuntimeProfiler::IsEnabled()) RuntimeProfiler::NotifyTick();
+        Sleep(FULL_INTERVAL);
       }
-#endif
-      USE(result);
     }
+  }
+
+  void SendProfilingSignal() {
+    // Glibc doesn't provide a wrapper for tgkill(2).
+    syscall(SYS_tgkill, vm_tgid_, vm_tid_, SIGPROF);
+  }
+
+  void Sleep(SleepInterval full_or_half) {
+    // Convert ms to us and subtract 100 us to compensate delays
+    // occuring during signal delivery.
+    useconds_t interval = sampler_->interval_ * 1000 - 100;
+    if (full_or_half == HALF_INTERVAL) interval /= 2;
+    int result = usleep(interval);
+#ifdef DEBUG
+    if (result != 0 && errno != EINTR) {
+      fprintf(stderr,
+              "SignalSender usleep error; interval = %u, errno = %d\n",
+              interval,
+              errno);
+      ASSERT(result == 0 || errno == EINTR);
+    }
+#endif
+    USE(result);
   }
 
   Sampler* sampler_;
   bool signal_handler_installed_;
   struct sigaction old_signal_handler_;
   int vm_tgid_;
-  int vm_tid_;
   bool signal_sender_launched_;
   pthread_t signal_sender_thread_;
+  RuntimeProfilerRateLimiter rate_limiter_;
 };
 
 
@@ -861,10 +884,9 @@ static void* SenderEntry(void* arg) {
 }
 
 
-Sampler::Sampler(int interval, bool profiling)
+Sampler::Sampler(int interval)
     : interval_(interval),
-      profiling_(profiling),
-      synchronous_(profiling),
+      profiling_(false),
       active_(false),
       samples_taken_(0) {
   data_ = new PlatformData(this);
@@ -880,7 +902,8 @@ Sampler::~Sampler() {
 void Sampler::Start() {
   // There can only be one active sampler at the time on POSIX
   // platforms.
-  if (active_sampler_ != NULL) return;
+  ASSERT(!IsActive());
+  vm_tid_ = GetThreadID();
 
   // Request profiling signals.
   struct sigaction sa;
@@ -893,7 +916,7 @@ void Sampler::Start() {
   // Start a thread that sends SIGPROF signal to VM thread.
   // Sending the signal ourselves instead of relying on itimer provides
   // much better accuracy.
-  active_ = true;
+  SetActive(true);
   if (pthread_create(
           &data_->signal_sender_thread_, NULL, SenderEntry, data_) == 0) {
     data_->signal_sender_launched_ = true;
@@ -905,11 +928,12 @@ void Sampler::Start() {
 
 
 void Sampler::Stop() {
-  active_ = false;
+  SetActive(false);
 
   // Wait for signal sender termination (it will exit after setting
   // active_ to false).
   if (data_->signal_sender_launched_) {
+    Top::WakeUpRuntimeProfilerThreadBeforeShutdown();
     pthread_join(data_->signal_sender_thread_, NULL);
     data_->signal_sender_launched_ = false;
   }

@@ -29,6 +29,8 @@ prefix es5conform
 def UNIMPLEMENTED = PASS || FAIL
 def FAIL_OK = FAIL, OKAY
 
+
+##############################################################################
 # Non UTF8 characters in test files.
 chapter10/10.4/10.4.2/10.4.2-3-c-2-s: FAIL_OK
 chapter10/10.4/10.4.2/10.4.2-3-c-1-s: FAIL_OK

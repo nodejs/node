@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -224,6 +224,12 @@ class MacroAssembler: public Assembler {
     }
   }
 
+  // Push and pop the registers that can hold pointers, as defined by the
+  // RegList constant kSafepointSavedRegisters.
+  void PushSafepointRegisters();
+  void PopSafepointRegisters();
+  static int SafepointRegisterStackIndex(int reg_code);
+
   // Load two consecutive registers with two consecutive memory locations.
   void Ldrd(Register dst1,
             Register dst2,
@@ -235,11 +241,6 @@ class MacroAssembler: public Assembler {
             Register src2,
             const MemOperand& dst,
             Condition cond = al);
-
-  // ---------------------------------------------------------------------------
-  // Stack limit support
-
-  void StackLimitCheck(Label* on_stack_limit_hit);
 
   // ---------------------------------------------------------------------------
   // Activation frames
@@ -254,10 +255,10 @@ class MacroAssembler: public Assembler {
   // Expects the number of arguments in register r0 and
   // the builtin function to call in register r1. Exits with argc in
   // r4, argv in r6, and and the builtin function to call in r5.
-  void EnterExitFrame();
+  void EnterExitFrame(bool save_doubles);
 
   // Leave the current exit frame. Expects the return value in r0.
-  void LeaveExitFrame();
+  void LeaveExitFrame(bool save_doubles);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -575,6 +576,7 @@ class MacroAssembler: public Assembler {
 
   // Call a runtime routine.
   void CallRuntime(Runtime::Function* f, int num_arguments);
+  void CallRuntimeSaveDoubles(Runtime::FunctionId id);
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId fid, int num_arguments);
@@ -664,6 +666,14 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // Smi utilities
+
+  void SmiTag(Register reg, SBit s = LeaveCC) {
+    add(reg, reg, Operand(reg), s);
+  }
+
+  void SmiUntag(Register reg) {
+    mov(reg, Operand(reg, ASR, kSmiTagSize));
+  }
 
   // Jump if either of the registers contain a non-smi.
   void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
@@ -764,6 +774,17 @@ class CodePatcher {
   MacroAssembler masm_;  // Macro assembler used to generate the code.
 };
 #endif  // ENABLE_DEBUGGER_SUPPORT
+
+
+// Helper class for generating code or data associated with the code
+// right after a call instruction. As an example this can be used to
+// generate safepoint data after calls for crankshaft.
+class PostCallGenerator {
+ public:
+  PostCallGenerator() { }
+  virtual ~PostCallGenerator() { }
+  virtual void Generate() = 0;
+};
 
 
 // -----------------------------------------------------------------------------

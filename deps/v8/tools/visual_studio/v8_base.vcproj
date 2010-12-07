@@ -577,6 +577,22 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\hydrogen.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\hydrogen.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\hydrogen-instructions.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\hydrogen-instructions.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\ia32\ic-ia32.cc"
 				>
 			</File>
@@ -886,6 +902,22 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\runtime-profiler.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\runtime-profiler.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\safepoint-table.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\safepoint-table.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\scanner-base.cc"
 				>
 			</File>
@@ -1179,6 +1211,10 @@
 			</File>
 			<File
 				RelativePath="..\..\include\v8-profiler.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\include\v8-testing.h"
 				>
 			</File>
 			<File

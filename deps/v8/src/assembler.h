@@ -38,10 +38,19 @@
 #include "runtime.h"
 #include "top.h"
 #include "token.h"
-#include "objects.h"
 
 namespace v8 {
 namespace internal {
+
+
+// -----------------------------------------------------------------------------
+// Common double constants.
+
+class DoubleConstant: public AllStatic {
+ public:
+  static const double min_int;
+  static const double one_half;
+};
 
 
 // -----------------------------------------------------------------------------
@@ -174,6 +183,8 @@ class RelocInfo BASE_EMBEDDED {
     CODE_TARGET,  // Code target which is not any of the above.
     EMBEDDED_OBJECT,
 
+    GLOBAL_PROPERTY_CELL,
+
     // Everything after runtime_entry (inclusive) is not GC'ed.
     RUNTIME_ENTRY,
     JS_RETURN,  // Marks start of the ExitJSFrame code.
@@ -254,6 +265,10 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Handle<Object> target_object_handle(Assembler* origin));
   INLINE(Object** target_object_address());
   INLINE(void set_target_object(Object* target));
+  INLINE(JSGlobalPropertyCell* target_cell());
+  INLINE(Handle<JSGlobalPropertyCell> target_cell_handle());
+  INLINE(void set_target_cell(JSGlobalPropertyCell* cell));
+
 
   // Read the address of the word containing the target_address in an
   // instruction stream.  What this means exactly is architecture-independent.
@@ -419,7 +434,7 @@ class RelocIterator: public Malloced {
   // If the given mode is wanted, set it in rinfo_ and return true.
   // Else return false. Used for efficiently skipping unwanted modes.
   bool SetMode(RelocInfo::Mode mode) {
-    return (mode_mask_ & 1 << mode) ? (rinfo_.rmode_ = mode, true) : false;
+    return (mode_mask_ & (1 << mode)) ? (rinfo_.rmode_ = mode, true) : false;
   }
 
   byte* pos_;
@@ -484,6 +499,11 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference transcendental_cache_array_address();
   static ExternalReference delete_handle_scope_extensions();
 
+  // Deoptimization support.
+  static ExternalReference new_deoptimizer_function();
+  static ExternalReference compute_output_frames_function();
+  static ExternalReference global_contexts_list();
+
   // Static data in the keyed lookup cache.
   static ExternalReference keyed_lookup_cache_keys();
   static ExternalReference keyed_lookup_cache_field_offsets();
@@ -525,6 +545,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference handle_scope_level_address();
 
   static ExternalReference scheduled_exception_address();
+
+  // Static variables containing common double constants.
+  static ExternalReference address_of_min_int();
+  static ExternalReference address_of_one_half();
 
   Address address() const {return reinterpret_cast<Address>(address_);}
 
@@ -587,23 +611,27 @@ class ExternalReference BASE_EMBEDDED {
 // -----------------------------------------------------------------------------
 // Position recording support
 
-enum PositionRecordingType { FORCED_POSITION, NORMAL_POSITION };
+struct PositionState {
+  PositionState() : current_position(RelocInfo::kNoPosition),
+                    written_position(RelocInfo::kNoPosition),
+                    current_statement_position(RelocInfo::kNoPosition),
+                    written_statement_position(RelocInfo::kNoPosition) {}
+
+  int current_position;
+  int written_position;
+
+  int current_statement_position;
+  int written_statement_position;
+};
+
 
 class PositionsRecorder BASE_EMBEDDED {
  public:
   explicit PositionsRecorder(Assembler* assembler)
-      : assembler_(assembler),
-        current_position_(RelocInfo::kNoPosition),
-        current_position_recording_type_(NORMAL_POSITION),
-        written_position_(RelocInfo::kNoPosition),
-        current_statement_position_(RelocInfo::kNoPosition),
-        written_statement_position_(RelocInfo::kNoPosition) { }
+      : assembler_(assembler) {}
 
-  // Set current position to pos. If recording_type is FORCED_POSITION then
-  // WriteRecordedPositions will write this position even if it is equal to
-  // statement position previously written for another pc.
-  void RecordPosition(int pos,
-                      PositionRecordingType recording_type = NORMAL_POSITION);
+  // Set current position to pos.
+  void RecordPosition(int pos);
 
   // Set current statement position to pos.
   void RecordStatementPosition(int pos);
@@ -611,37 +639,37 @@ class PositionsRecorder BASE_EMBEDDED {
   // Write recorded positions to relocation information.
   bool WriteRecordedPositions();
 
-  int current_position() const { return current_position_; }
+  int current_position() const { return state_.current_position; }
 
-  int current_statement_position() const { return current_statement_position_; }
+  int current_statement_position() const {
+    return state_.current_statement_position;
+  }
 
  private:
   Assembler* assembler_;
+  PositionState state_;
 
-  int current_position_;
-  PositionRecordingType current_position_recording_type_;
-  int written_position_;
+  friend class PreservePositionScope;
 
-  int current_statement_position_;
-  int written_statement_position_;
+  DISALLOW_COPY_AND_ASSIGN(PositionsRecorder);
 };
 
 
-class PreserveStatementPositionScope BASE_EMBEDDED {
+class PreservePositionScope BASE_EMBEDDED {
  public:
-  explicit PreserveStatementPositionScope(PositionsRecorder* positions_recorder)
+  explicit PreservePositionScope(PositionsRecorder* positions_recorder)
       : positions_recorder_(positions_recorder),
-        statement_position_(positions_recorder->current_statement_position()) {}
+        saved_state_(positions_recorder->state_) {}
 
-  ~PreserveStatementPositionScope() {
-    if (statement_position_ != RelocInfo::kNoPosition) {
-      positions_recorder_->RecordStatementPosition(statement_position_);
-    }
+  ~PreservePositionScope() {
+    positions_recorder_->state_ = saved_state_;
   }
 
  private:
   PositionsRecorder* positions_recorder_;
-  int statement_position_;
+  const PositionState saved_state_;
+
+  DISALLOW_COPY_AND_ASSIGN(PreservePositionScope);
 };
 
 

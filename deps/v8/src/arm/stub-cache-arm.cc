@@ -874,6 +874,34 @@ MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCell(
   return cell;
 }
 
+// Calls GenerateCheckPropertyCell for each global object in the prototype chain
+// from object to (but not including) holder.
+MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCells(
+    MacroAssembler* masm,
+    JSObject* object,
+    JSObject* holder,
+    String* name,
+    Register scratch,
+    Label* miss) {
+  JSObject* current = object;
+  while (current != holder) {
+    if (current->IsGlobalObject()) {
+      // Returns a cell or a failure.
+      MaybeObject* result = GenerateCheckPropertyCell(
+          masm,
+          GlobalObject::cast(current),
+          name,
+          scratch,
+          miss);
+      if (result->IsFailure()) return result;
+    }
+    ASSERT(current->IsJSObject());
+    current = JSObject::cast(current->GetPrototype());
+  }
+  return NULL;
+}
+
+
 
 #undef __
 #define __ ACCESS_MASM(masm())
@@ -911,18 +939,19 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
     // checks are allowed in stubs.
     ASSERT(current->IsJSGlobalProxy() || !current->IsAccessCheckNeeded());
 
+    ASSERT(current->GetPrototype()->IsJSObject());
     JSObject* prototype = JSObject::cast(current->GetPrototype());
     if (!current->HasFastProperties() &&
         !current->IsJSGlobalObject() &&
         !current->IsJSGlobalProxy()) {
       if (!name->IsSymbol()) {
-        MaybeObject* lookup_result = Heap::LookupSymbol(name);
-        if (lookup_result->IsFailure()) {
-          set_failure(Failure::cast(lookup_result));
+        MaybeObject* maybe_lookup_result = Heap::LookupSymbol(name);
+        Object* lookup_result = NULL;  // Initialization to please compiler.
+        if (!maybe_lookup_result->ToObject(&lookup_result)) {
+          set_failure(Failure::cast(maybe_lookup_result));
           return reg;
-        } else {
-          name = String::cast(lookup_result->ToObjectUnchecked());
         }
+        name = String::cast(lookup_result);
       }
       ASSERT(current->property_dictionary()->FindEntry(name) ==
              StringDictionary::kNotFound);
@@ -936,7 +965,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
       __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
       reg = holder_reg;  // from now the object is in holder_reg
       __ ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
-    } else {
+    } else if (Heap::InNewSpace(prototype)) {
       // Get the map of the current object.
       __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
       __ cmp(scratch1, Operand(Handle<Map>(current->map())));
@@ -956,14 +985,24 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
       }
 
       reg = holder_reg;  // from now the object is in holder_reg
-      if (Heap::InNewSpace(prototype)) {
-        // The prototype is in new space; we cannot store a reference
-        // to it in the code. Load it from the map.
-        __ ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
-      } else {
-        // The prototype is in old space; load it directly.
-        __ mov(reg, Operand(Handle<JSObject>(prototype)));
+      // The prototype is in new space; we cannot store a reference
+      // to it in the code. Load it from the map.
+      __ ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
+    } else {
+      // Check the map of the current object.
+      __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+      __ cmp(scratch1, Operand(Handle<Map>(current->map())));
+      // Branch on the result of the map check.
+      __ b(ne, miss);
+      // Check access rights to the global object.  This has to happen
+      // after the map check so that we know that the object is
+      // actually a global object.
+      if (current->IsJSGlobalProxy()) {
+        __ CheckAccessGlobalProxy(reg, scratch1, miss);
       }
+      // The prototype is in old space; load it directly.
+      reg = holder_reg;  // from now the object is in holder_reg
+      __ mov(reg, Operand(Handle<JSObject>(prototype)));
     }
 
     if (save_at_depth == depth) {
@@ -982,32 +1021,22 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
   // Log the check depth.
   LOG(IntEvent("check-maps-depth", depth + 1));
 
-  // Perform security check for access to the global object and return
-  // the holder register.
-  ASSERT(current == holder);
-  ASSERT(current->IsJSGlobalProxy() || !current->IsAccessCheckNeeded());
-  if (current->IsJSGlobalProxy()) {
+  // Perform security check for access to the global object.
+  ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
+  if (holder->IsJSGlobalProxy()) {
     __ CheckAccessGlobalProxy(reg, scratch1, miss);
-  }
+  };
 
   // If we've skipped any global objects, it's not enough to verify
   // that their maps haven't changed.  We also need to check that the
   // property cell for the property is still empty.
-  current = object;
-  while (current != holder) {
-    if (current->IsGlobalObject()) {
-      MaybeObject* cell = GenerateCheckPropertyCell(masm(),
-                                                    GlobalObject::cast(current),
-                                                    name,
-                                                    scratch1,
-                                                    miss);
-      if (cell->IsFailure()) {
-        set_failure(Failure::cast(cell));
-        return reg;
-      }
-    }
-    current = JSObject::cast(current->GetPrototype());
-  }
+  MaybeObject* result = GenerateCheckPropertyCells(masm(),
+                                                   object,
+                                                   holder,
+                                                   name,
+                                                   scratch1,
+                                                   miss);
+  if (result->IsFailure()) set_failure(Failure::cast(result));
 
   // Return the register containing the holder.
   return reg;
@@ -1652,7 +1681,7 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
   __ Drop(argc + 1);
   __ Ret();
 
-  ICRuntimeCallHelper call_helper;
+  StubRuntimeCallHelper call_helper;
   char_code_at_generator.GenerateSlow(masm(), call_helper);
 
   __ bind(&index_out_of_range);
@@ -1729,7 +1758,7 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
   __ Drop(argc + 1);
   __ Ret();
 
-  ICRuntimeCallHelper call_helper;
+  StubRuntimeCallHelper call_helper;
   char_at_generator.GenerateSlow(masm(), call_helper);
 
   __ bind(&index_out_of_range);
@@ -1804,7 +1833,7 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
   __ Drop(argc + 1);
   __ Ret();
 
-  ICRuntimeCallHelper call_helper;
+  StubRuntimeCallHelper call_helper;
   char_from_code_generator.GenerateSlow(masm(), call_helper);
 
   // Tail call the full function. We do not have to patch the receiver
@@ -2330,8 +2359,16 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
   ASSERT(function->is_compiled());
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  __ InvokeCode(code, expected, arguments(),
-                RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+  if (V8::UseCrankshaft()) {
+    // TODO(kasperl): For now, we always call indirectly through the
+    // code field in the function to allow recompilation to take effect
+    // without changing any of the call sites.
+    __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
+    __ InvokeCode(r3, expected, arguments(), JUMP_FUNCTION);
+  } else {
+    __ InvokeCode(code, expected, arguments(),
+                  RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+  }
 
   // Handle call cache miss.
   __ bind(&miss);
@@ -2864,13 +2901,62 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
 }
 
 
+MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- r0    : key
+  //  -- r1    : receiver
+  // -----------------------------------
+  Label miss;
+
+  // Check that the receiver isn't a smi.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(eq, &miss);
+
+  // Check that the map matches.
+  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ cmp(r2, Operand(Handle<Map>(receiver->map())));
+  __ b(ne, &miss);
+
+  // Check that the key is a smi.
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(ne, &miss);
+
+  // Get the elements array.
+  __ ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
+  __ AssertFastElements(r2);
+
+  // Check that the key is within bounds.
+  __ ldr(r3, FieldMemOperand(r2, FixedArray::kLengthOffset));
+  __ cmp(r0, Operand(r3));
+  __ b(hs, &miss);
+
+  // Load the result and make sure it's not the hole.
+  __ add(r3, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  __ ldr(r4,
+         MemOperand(r3, r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ cmp(r4, ip);
+  __ b(eq, &miss);
+  __ mov(r0, r4);
+  __ Ret();
+
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
+}
+
+
 MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                                                        int index,
                                                        Map* transition,
                                                        String* name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
-  //  -- r1    : key
+  //  -- r1    : name
   //  -- r2    : receiver
   //  -- lr    : return address
   // -----------------------------------
@@ -2899,6 +2985,76 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
 
   // Return the generated code.
   return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
+}
+
+
+MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
+    JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : key
+  //  -- r2    : receiver
+  //  -- lr    : return address
+  //  -- r3    : scratch
+  //  -- r4    : scratch (elements)
+  // -----------------------------------
+  Label miss;
+
+  Register value_reg = r0;
+  Register key_reg = r1;
+  Register receiver_reg = r2;
+  Register scratch = r3;
+  Register elements_reg = r4;
+
+  // Check that the receiver isn't a smi.
+  __ tst(receiver_reg, Operand(kSmiTagMask));
+  __ b(eq, &miss);
+
+  // Check that the map matches.
+  __ ldr(scratch, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
+  __ cmp(scratch, Operand(Handle<Map>(receiver->map())));
+  __ b(ne, &miss);
+
+  // Check that the key is a smi.
+  __ tst(key_reg, Operand(kSmiTagMask));
+  __ b(ne, &miss);
+
+  // Get the elements array and make sure it is a fast element array, not 'cow'.
+  __ ldr(elements_reg,
+         FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
+  __ ldr(scratch, FieldMemOperand(elements_reg, HeapObject::kMapOffset));
+  __ cmp(scratch, Operand(Handle<Map>(Factory::fixed_array_map())));
+  __ b(ne, &miss);
+
+  // Check that the key is within bounds.
+  if (receiver->IsJSArray()) {
+    __ ldr(scratch, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+  } else {
+    __ ldr(scratch, FieldMemOperand(elements_reg, FixedArray::kLengthOffset));
+  }
+  // Compare smis.
+  __ cmp(key_reg, scratch);
+  __ b(hs, &miss);
+
+  __ add(scratch,
+         elements_reg, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  __ str(value_reg,
+         MemOperand(scratch, key_reg, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ RecordWrite(scratch,
+                 Operand(key_reg, LSL, kPointerSizeLog2 - kSmiTagSize),
+                 receiver_reg , elements_reg);
+
+  // value_reg (r0) is preserved.
+  // Done.
+  __ Ret();
+
+  __ bind(&miss);
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
 }
 
 

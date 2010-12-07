@@ -138,6 +138,10 @@ class Shell: public i::AllStatic {
   static Handle<Value> DebugCommandToJSONRequest(Handle<String> command);
 #endif
 
+#ifdef WIN32
+#undef Yield
+#endif
+
   static Handle<Value> Print(const Arguments& args);
   static Handle<Value> Write(const Arguments& args);
   static Handle<Value> Yield(const Arguments& args);

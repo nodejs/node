@@ -82,6 +82,7 @@ const uint64_t kDebugZapValue = 0xbadbaddbbadbaddb;
 const Address kZapValue = reinterpret_cast<Address>(0xdeadbeed);
 const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddead);
 const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
+const uint32_t kSlotsZapValue = 0xbeefdeed;
 const uint32_t kDebugZapValue = 0xbadbaddb;
 #endif
 
@@ -282,6 +283,14 @@ enum InlineCacheState {
   // Special states for debug break or step in prepare stubs.
   DEBUG_BREAK,
   DEBUG_PREPARE_STEP_IN
+};
+
+
+enum CheckType {
+  RECEIVER_MAP_CHECK,
+  STRING_CHECK,
+  NUMBER_CHECK,
+  BOOLEAN_CHECK
 };
 
 

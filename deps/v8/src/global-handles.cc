@@ -30,6 +30,8 @@
 #include "api.h"
 #include "global-handles.h"
 
+#include "vm-state-inl.h"
+
 namespace v8 {
 namespace internal {
 

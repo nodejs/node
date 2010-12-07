@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -44,10 +44,10 @@ uint64_t CpuFeatures::supported_ = kDefaultCpuFeatures;
 uint64_t CpuFeatures::enabled_ = 0;
 uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 
-void CpuFeatures::Probe()  {
+void CpuFeatures::Probe(bool portable)  {
   ASSERT(Heap::HasBeenSetup());
-  ASSERT(supported_ == kDefaultCpuFeatures);
-  if (Serializer::enabled()) {
+  supported_ = kDefaultCpuFeatures;
+  if (portable && Serializer::enabled()) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
     return;  // No features if we might serialize.
   }
@@ -133,7 +133,7 @@ void CpuFeatures::Probe()  {
   found_by_runtime_probing_ &= ~kDefaultCpuFeatures;
   uint64_t os_guarantees = OS::CpuFeaturesImpliedByPlatform();
   supported_ |= os_guarantees;
-  found_by_runtime_probing_ &= ~os_guarantees;
+  found_by_runtime_probing_ &= portable ? ~os_guarantees : 0;
   // SSE2 and CMOV must be available on an X64 CPU.
   ASSERT(IsSupported(CPUID));
   ASSERT(IsSupported(SSE2));
@@ -821,6 +821,7 @@ void Assembler::bts(const Operand& dst, Register src) {
 
 
 void Assembler::call(Label* L) {
+  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   // 1110 1000 #32-bit disp.
@@ -852,6 +853,7 @@ void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
 
 
 void Assembler::call(Register adr) {
+  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   // Opcode: FF /2 r64.
@@ -862,6 +864,7 @@ void Assembler::call(Register adr) {
 
 
 void Assembler::call(const Operand& op) {
+  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   // Opcode: FF /2 m64.
@@ -2217,6 +2220,14 @@ void Assembler::fldpi() {
 }
 
 
+void Assembler::fldln2() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xD9);
+  emit(0xED);
+}
+
+
 void Assembler::fld_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2355,6 +2366,14 @@ void Assembler::fsin() {
   last_pc_ = pc_;
   emit(0xD9);
   emit(0xFE);
+}
+
+
+void Assembler::fyl2x() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xD9);
+  emit(0xF1);
 }
 
 
@@ -2917,6 +2936,12 @@ void Assembler::emit_sse_operand(Register dst, XMMRegister src) {
 }
 
 
+void Assembler::dd(uint32_t data) {
+  EnsureSpace ensure_space(this);
+  emitl(data);
+}
+
+
 // Relocation information implementations.
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
@@ -2946,7 +2971,7 @@ void Assembler::RecordDebugBreakSlot() {
 
 
 void Assembler::RecordComment(const char* msg) {
-  if (FLAG_debug_code) {
+  if (FLAG_code_comments) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }

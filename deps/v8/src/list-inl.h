@@ -96,6 +96,17 @@ Vector<T> List<T, P>::AddBlock(T value, int count) {
 
 
 template<typename T, class P>
+void List<T, P>::InsertAt(int index, const T& elm) {
+  ASSERT(index >= 0 && index <= length_);
+  Add(elm);
+  for (int i = length_ - 1; i > index; --i) {
+    data_[i] = data_[i - 1];
+  }
+  data_[index] = elm;
+}
+
+
+template<typename T, class P>
 T List<T, P>::Remove(int i) {
   T element = at(i);
   length_--;
@@ -104,6 +115,18 @@ T List<T, P>::Remove(int i) {
     i++;
   }
   return element;
+}
+
+
+template<typename T, class P>
+bool List<T, P>::RemoveElement(const T& elm) {
+  for (int i = 0; i < length_; i++) {
+    if (data_[i] == elm) {
+      Remove(i);
+      return true;
+    }
+  }
+  return false;
 }
 
 
@@ -134,12 +157,22 @@ void List<T, P>::Iterate(Visitor* visitor) {
 
 
 template<typename T, class P>
-bool List<T, P>::Contains(const T& elm) {
+bool List<T, P>::Contains(const T& elm) const {
   for (int i = 0; i < length_; i++) {
     if (data_[i] == elm)
       return true;
   }
   return false;
+}
+
+
+template<typename T, class P>
+int List<T, P>::CountOccurrences(const T& elm, int start, int end) const {
+  int result = 0;
+  for (int i = start; i <= end; i++) {
+    if (data_[i] == elm) ++result;
+  }
+  return result;
 }
 
 

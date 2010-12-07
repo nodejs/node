@@ -906,7 +906,9 @@ int DisassemblerX64::RegisterFPUInstruction(int escape_opcode,
             case 0xE4: mnem = "ftst"; break;
             case 0xE8: mnem = "fld1"; break;
             case 0xEB: mnem = "fldpi"; break;
+            case 0xED: mnem = "fldln2"; break;
             case 0xEE: mnem = "fldz"; break;
+            case 0xF1: mnem = "fyl2x"; break;
             case 0xF5: mnem = "fprem1"; break;
             case 0xF7: mnem = "fincstp"; break;
             case 0xF8: mnem = "fprem"; break;

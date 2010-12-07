@@ -449,6 +449,7 @@ class Serializer : public SerializerDeserializer {
     void VisitExternalReferences(Address* start, Address* end);
     void VisitCodeTarget(RelocInfo* target);
     void VisitCodeEntry(Address entry_address);
+    void VisitGlobalPropertyCell(RelocInfo* rinfo);
     void VisitRuntimeEntry(RelocInfo* reloc);
     // Used for seralizing the external strings that hold the natives source.
     void VisitExternalAsciiString(

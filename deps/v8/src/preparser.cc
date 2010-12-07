@@ -65,7 +65,7 @@ void PreParser::ReportUnexpectedToken(i::Token::Value token) {
   // We don't report stack overflows here, to avoid increasing the
   // stack depth even further.  Instead we report it after parsing is
   // over, in ParseProgram.
-  if (token == i::Token::ILLEGAL && scanner_->stack_overflow()) {
+  if (token == i::Token::ILLEGAL && stack_overflow_) {
     return;
   }
   i::JavaScriptScanner::Location source_location = scanner_->location();
@@ -92,8 +92,8 @@ void PreParser::ReportUnexpectedToken(i::Token::Value token) {
 }
 
 
-SourceElements PreParser::ParseSourceElements(int end_token,
-                                                            bool* ok) {
+PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
+                                                         bool* ok) {
   // SourceElements ::
   //   (Statement)* <end_token>
 
@@ -104,7 +104,7 @@ SourceElements PreParser::ParseSourceElements(int end_token,
 }
 
 
-Statement PreParser::ParseStatement(bool* ok) {
+PreParser::Statement PreParser::ParseStatement(bool* ok) {
   // Statement ::
   //   Block
   //   VariableStatement
@@ -190,7 +190,7 @@ Statement PreParser::ParseStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseFunctionDeclaration(bool* ok) {
+PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
   Expect(i::Token::FUNCTION, CHECK_OK);
@@ -204,7 +204,7 @@ Statement PreParser::ParseFunctionDeclaration(bool* ok) {
 // through the API's extension mechanism.  A native function
 // declaration is resolved by looking up the function through a
 // callback provided by the extension.
-Statement PreParser::ParseNativeDeclaration(bool* ok) {
+PreParser::Statement PreParser::ParseNativeDeclaration(bool* ok) {
   Expect(i::Token::NATIVE, CHECK_OK);
   Expect(i::Token::FUNCTION, CHECK_OK);
   ParseIdentifier(CHECK_OK);
@@ -223,7 +223,7 @@ Statement PreParser::ParseNativeDeclaration(bool* ok) {
 }
 
 
-Statement PreParser::ParseBlock(bool* ok) {
+PreParser::Statement PreParser::ParseBlock(bool* ok) {
   // Block ::
   //   '{' Statement* '}'
 
@@ -239,7 +239,7 @@ Statement PreParser::ParseBlock(bool* ok) {
 }
 
 
-Statement PreParser::ParseVariableStatement(bool* ok) {
+PreParser::Statement PreParser::ParseVariableStatement(bool* ok) {
   // VariableStatement ::
   //   VariableDeclarations ';'
 
@@ -254,9 +254,9 @@ Statement PreParser::ParseVariableStatement(bool* ok) {
 // *var is untouched; in particular, it is the caller's responsibility
 // to initialize it properly. This mechanism is also used for the parsing
 // of 'for-in' loops.
-Statement PreParser::ParseVariableDeclarations(bool accept_IN,
-                                                  int* num_decl,
-                                                  bool* ok) {
+PreParser::Statement PreParser::ParseVariableDeclarations(bool accept_IN,
+                                                          int* num_decl,
+                                                          bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
 
@@ -288,7 +288,7 @@ Statement PreParser::ParseVariableDeclarations(bool accept_IN,
 }
 
 
-Statement PreParser::ParseExpressionOrLabelledStatement(
+PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
     bool* ok) {
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
@@ -305,7 +305,7 @@ Statement PreParser::ParseExpressionOrLabelledStatement(
 }
 
 
-Statement PreParser::ParseIfStatement(bool* ok) {
+PreParser::Statement PreParser::ParseIfStatement(bool* ok) {
   // IfStatement ::
   //   'if' '(' Expression ')' Statement ('else' Statement)?
 
@@ -322,7 +322,7 @@ Statement PreParser::ParseIfStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseContinueStatement(bool* ok) {
+PreParser::Statement PreParser::ParseContinueStatement(bool* ok) {
   // ContinueStatement ::
   //   'continue' [no line terminator] Identifier? ';'
 
@@ -339,7 +339,7 @@ Statement PreParser::ParseContinueStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseBreakStatement(bool* ok) {
+PreParser::Statement PreParser::ParseBreakStatement(bool* ok) {
   // BreakStatement ::
   //   'break' [no line terminator] Identifier? ';'
 
@@ -356,7 +356,7 @@ Statement PreParser::ParseBreakStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseReturnStatement(bool* ok) {
+PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
   // ReturnStatement ::
   //   'return' [no line terminator] Expression? ';'
 
@@ -382,7 +382,7 @@ Statement PreParser::ParseReturnStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseWithStatement(bool* ok) {
+PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   // WithStatement ::
   //   'with' '(' Expression ')' Statement
   Expect(i::Token::WITH, CHECK_OK);
@@ -397,7 +397,7 @@ Statement PreParser::ParseWithStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseSwitchStatement(bool* ok) {
+PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
   // SwitchStatement ::
   //   'switch' '(' Expression ')' '{' CaseClause* '}'
 
@@ -427,7 +427,7 @@ Statement PreParser::ParseSwitchStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseDoWhileStatement(bool* ok) {
+PreParser::Statement PreParser::ParseDoWhileStatement(bool* ok) {
   // DoStatement ::
   //   'do' Statement 'while' '(' Expression ')' ';'
 
@@ -441,7 +441,7 @@ Statement PreParser::ParseDoWhileStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseWhileStatement(bool* ok) {
+PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
   // WhileStatement ::
   //   'while' '(' Expression ')' Statement
 
@@ -454,7 +454,7 @@ Statement PreParser::ParseWhileStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseForStatement(bool* ok) {
+PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   // ForStatement ::
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
 
@@ -503,7 +503,7 @@ Statement PreParser::ParseForStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseThrowStatement(bool* ok) {
+PreParser::Statement PreParser::ParseThrowStatement(bool* ok) {
   // ThrowStatement ::
   //   'throw' [no line terminator] Expression ';'
 
@@ -522,7 +522,7 @@ Statement PreParser::ParseThrowStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseTryStatement(bool* ok) {
+PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   // TryStatement ::
   //   'try' Block Catch
   //   'try' Block Finally
@@ -565,7 +565,7 @@ Statement PreParser::ParseTryStatement(bool* ok) {
 }
 
 
-Statement PreParser::ParseDebuggerStatement(bool* ok) {
+PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
   // In ECMA-262 'debugger' is defined as a reserved keyword. In some browser
   // contexts this is used as a statement which invokes the debugger as if a
   // break point is present.
@@ -579,7 +579,7 @@ Statement PreParser::ParseDebuggerStatement(bool* ok) {
 
 
 // Precedence = 1
-Expression PreParser::ParseExpression(bool accept_IN, bool* ok) {
+PreParser::Expression PreParser::ParseExpression(bool accept_IN, bool* ok) {
   // Expression ::
   //   AssignmentExpression
   //   Expression ',' AssignmentExpression
@@ -595,8 +595,8 @@ Expression PreParser::ParseExpression(bool accept_IN, bool* ok) {
 
 
 // Precedence = 2
-Expression PreParser::ParseAssignmentExpression(bool accept_IN,
-                                                              bool* ok) {
+PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
+                                                           bool* ok) {
   // AssignmentExpression ::
   //   ConditionalExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
@@ -620,8 +620,8 @@ Expression PreParser::ParseAssignmentExpression(bool accept_IN,
 
 
 // Precedence = 3
-Expression PreParser::ParseConditionalExpression(bool accept_IN,
-                                                               bool* ok) {
+PreParser::Expression PreParser::ParseConditionalExpression(bool accept_IN,
+                                                            bool* ok) {
   // ConditionalExpression ::
   //   LogicalOrExpression
   //   LogicalOrExpression '?' AssignmentExpression ':' AssignmentExpression
@@ -649,9 +649,9 @@ int PreParser::Precedence(i::Token::Value tok, bool accept_IN) {
 
 
 // Precedence >= 4
-Expression PreParser::ParseBinaryExpression(int prec,
-                                                          bool accept_IN,
-                                                          bool* ok) {
+PreParser::Expression PreParser::ParseBinaryExpression(int prec,
+                                                       bool accept_IN,
+                                                       bool* ok) {
   Expression result = ParseUnaryExpression(CHECK_OK);
   for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
     // prec1 >= 4
@@ -665,7 +665,7 @@ Expression PreParser::ParseBinaryExpression(int prec,
 }
 
 
-Expression PreParser::ParseUnaryExpression(bool* ok) {
+PreParser::Expression PreParser::ParseUnaryExpression(bool* ok) {
   // UnaryExpression ::
   //   PostfixExpression
   //   'delete' UnaryExpression
@@ -689,7 +689,7 @@ Expression PreParser::ParseUnaryExpression(bool* ok) {
 }
 
 
-Expression PreParser::ParsePostfixExpression(bool* ok) {
+PreParser::Expression PreParser::ParsePostfixExpression(bool* ok) {
   // PostfixExpression ::
   //   LeftHandSideExpression ('++' | '--')?
 
@@ -703,7 +703,7 @@ Expression PreParser::ParsePostfixExpression(bool* ok) {
 }
 
 
-Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
+PreParser::Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
   // LeftHandSideExpression ::
   //   (NewExpression | MemberExpression) ...
 
@@ -752,7 +752,7 @@ Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
 }
 
 
-Expression PreParser::ParseNewExpression(bool* ok) {
+PreParser::Expression PreParser::ParseNewExpression(bool* ok) {
   // NewExpression ::
   //   ('new')+ MemberExpression
 
@@ -774,12 +774,12 @@ Expression PreParser::ParseNewExpression(bool* ok) {
 }
 
 
-Expression PreParser::ParseMemberExpression(bool* ok) {
+PreParser::Expression PreParser::ParseMemberExpression(bool* ok) {
   return ParseMemberWithNewPrefixesExpression(0, ok);
 }
 
 
-Expression PreParser::ParseMemberWithNewPrefixesExpression(
+PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
     unsigned new_count, bool* ok) {
   // MemberExpression ::
   //   (PrimaryExpression | FunctionLiteral)
@@ -835,7 +835,7 @@ Expression PreParser::ParseMemberWithNewPrefixesExpression(
 }
 
 
-Expression PreParser::ParsePrimaryExpression(bool* ok) {
+PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
   // PrimaryExpression ::
   //   'this'
   //   'null'
@@ -914,7 +914,7 @@ Expression PreParser::ParsePrimaryExpression(bool* ok) {
 }
 
 
-Expression PreParser::ParseArrayLiteral(bool* ok) {
+PreParser::Expression PreParser::ParseArrayLiteral(bool* ok) {
   // ArrayLiteral ::
   //   '[' Expression? (',' Expression?)* ']'
   Expect(i::Token::LBRACK, CHECK_OK);
@@ -933,7 +933,7 @@ Expression PreParser::ParseArrayLiteral(bool* ok) {
 }
 
 
-Expression PreParser::ParseObjectLiteral(bool* ok) {
+PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
   // ObjectLiteral ::
   //   '{' (
   //       ((IdentifierName | String | Number) ':' AssignmentExpression)
@@ -995,8 +995,8 @@ Expression PreParser::ParseObjectLiteral(bool* ok) {
 }
 
 
-Expression PreParser::ParseRegExpLiteral(bool seen_equal,
-                                         bool* ok) {
+PreParser::Expression PreParser::ParseRegExpLiteral(bool seen_equal,
+                                                    bool* ok) {
   if (!scanner_->ScanRegExpPattern(seen_equal)) {
     Next();
     i::JavaScriptScanner::Location location = scanner_->location();
@@ -1021,7 +1021,7 @@ Expression PreParser::ParseRegExpLiteral(bool seen_equal,
 }
 
 
-Arguments PreParser::ParseArguments(bool* ok) {
+PreParser::Arguments PreParser::ParseArguments(bool* ok) {
   // Arguments ::
   //   '(' (AssignmentExpression)*[','] ')'
 
@@ -1039,7 +1039,7 @@ Arguments PreParser::ParseArguments(bool* ok) {
 }
 
 
-Expression PreParser::ParseFunctionLiteral(bool* ok) {
+PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
@@ -1090,7 +1090,7 @@ Expression PreParser::ParseFunctionLiteral(bool* ok) {
 }
 
 
-Expression PreParser::ParseV8Intrinsic(bool* ok) {
+PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
   // CallRuntime ::
   //   '%' Identifier Arguments
 
@@ -1119,7 +1119,7 @@ void PreParser::ExpectSemicolon(bool* ok) {
 }
 
 
-Identifier PreParser::GetIdentifierSymbol() {
+PreParser::Identifier PreParser::GetIdentifierSymbol() {
   const char* literal_chars = scanner_->literal_string();
   int literal_length = scanner_->literal_length();
   int identifier_pos = scanner_->location().beg_pos;
@@ -1130,7 +1130,7 @@ Identifier PreParser::GetIdentifierSymbol() {
 }
 
 
-Expression PreParser::GetStringSymbol() {
+PreParser::Expression PreParser::GetStringSymbol() {
   const char* literal_chars = scanner_->literal_string();
   int literal_length = scanner_->literal_length();
 
@@ -1141,14 +1141,14 @@ Expression PreParser::GetStringSymbol() {
 }
 
 
-Identifier PreParser::ParseIdentifier(bool* ok) {
+PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
   Expect(i::Token::IDENTIFIER, ok);
   if (!*ok) return kUnknownIdentifier;
   return GetIdentifierSymbol();
 }
 
 
-Identifier PreParser::ParseIdentifierName(bool* ok) {
+PreParser::Identifier PreParser::ParseIdentifierName(bool* ok) {
   i::Token::Value next = Next();
   if (i::Token::IsKeyword(next)) {
     int pos = scanner_->location().beg_pos;
@@ -1168,9 +1168,9 @@ Identifier PreParser::ParseIdentifierName(bool* ok) {
 // is 'get' or 'set'.  The reason for not using ParseIdentifier and
 // checking on the output is that this involves heap allocation which
 // we can't do during preparsing.
-Identifier PreParser::ParseIdentifierOrGetOrSet(bool* is_get,
-                                                bool* is_set,
-                                                bool* ok) {
+PreParser::Identifier PreParser::ParseIdentifierOrGetOrSet(bool* is_get,
+                                                           bool* is_set,
+                                                           bool* ok) {
   Expect(i::Token::IDENTIFIER, CHECK_OK);
   if (scanner_->literal_length() == 3) {
     const char* token = scanner_->literal_string();

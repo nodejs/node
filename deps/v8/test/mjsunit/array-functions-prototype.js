@@ -55,7 +55,7 @@ function assertHasOwnProperties(object, limit) {
 // shift.
 // ----------------------------------------------------------------------
 
-function runTest() {
+function runTest1() {
   var nonArray = new constructor();
   var array = ['zero', , 'two'];
   // Shift away the zero.
@@ -80,13 +80,13 @@ function runTest() {
   assertEquals('two', nonArray[2]);
 }
 
-runTest();
+runTest1();
 
 // ----------------------------------------------------------------------
 // unshift.
 // ----------------------------------------------------------------------
 
-runTest = function() {
+runTest2 = function() {
   var nonArray = new constructor();
   var array = ['zero', , 'two'];
   // Unshift a new 'zero'.
@@ -110,14 +110,14 @@ runTest = function() {
   assertEquals('two', nonArray[3]);
 }
 
-runTest();
+runTest2();
 
 
 // ----------------------------------------------------------------------
 // splice
 // ----------------------------------------------------------------------
 
-runTest = function() {
+runTest3 = function() {
   var nonArray = new constructor();
   var array = ['zero', , 'two'];
   // Delete the first element by splicing in nothing.
@@ -140,14 +140,14 @@ runTest = function() {
   assertEquals('two', nonArray[2]);
 };
 
-runTest();
+runTest3();
 
 
 // ----------------------------------------------------------------------
 // slice
 // ----------------------------------------------------------------------
 
-runTest = function() {
+runTest4 = function() {
   var nonArray = new constructor();
   var array = ['zero', , 'two'];
   // Again Spidermonkey is inconsistent.  (array.slice(0, 3))[1] is
@@ -156,4 +156,4 @@ runTest = function() {
   assertArrayEquals(['zero', 'one', 'two'], Array.prototype.slice.call(nonArray, 0, 3));
 };
 
-runTest();
+runTest4();

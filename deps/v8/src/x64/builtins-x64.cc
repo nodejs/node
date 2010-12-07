@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1346,6 +1346,47 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
   __ lea(rcx, FieldOperand(rax, Code::kHeaderSize));
   __ jmp(rcx);
 }
+
+
+void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Push a copy of the function onto the stack.
+  __ push(rdi);
+
+  __ push(rdi);  // Function is also the parameter to the runtime call.
+  __ CallRuntime(Runtime::kLazyRecompile, 1);
+
+  // Restore function and tear down temporary frame.
+  __ pop(rdi);
+  __ LeaveInternalFrame();
+
+  // Do a tail-call of the compiled function.
+  __ lea(rcx, FieldOperand(rax, Code::kHeaderSize));
+  __ jmp(rcx);
+}
+
+
+void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
+  __ int3();
+}
+
+
+void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
+  __ int3();
+}
+
+
+void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
+  __ int3();
+}
+
+
+void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
+  __ int3();
+}
+
 
 } }  // namespace v8::internal
 

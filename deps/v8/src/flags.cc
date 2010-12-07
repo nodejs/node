@@ -279,7 +279,7 @@ static void SplitArgument(const char* arg,
   *value = NULL;
   *is_bool = false;
 
-  if (*arg == '-') {
+  if (arg != NULL && *arg == '-') {
     // find the begin of the flag name
     arg++;  // remove 1st '-'
     if (*arg == '-') {

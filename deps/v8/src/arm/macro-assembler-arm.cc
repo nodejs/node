@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -168,13 +168,6 @@ void MacroAssembler::Ret(Condition cond) {
 #else
   mov(pc, Operand(lr), LeaveCC, cond);
 #endif
-}
-
-
-void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
-  LoadRoot(ip, Heap::kStackLimitRootIndex);
-  cmp(sp, Operand(ip));
-  b(lo, on_stack_overflow);
 }
 
 
@@ -447,6 +440,34 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
+// Push and pop all registers that can hold pointers.
+void MacroAssembler::PushSafepointRegisters() {
+  // Safepoints expect a block of contiguous register values starting with r0:
+  ASSERT(((1 << kNumSafepointSavedRegisters) - 1) == kSafepointSavedRegisters);
+  // Safepoints expect a block of kNumSafepointRegisters values on the
+  // stack, so adjust the stack for unsaved registers.
+  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
+  ASSERT(num_unsaved >= 0);
+  sub(sp, sp, Operand(num_unsaved * kPointerSize));
+  stm(db_w, sp, kSafepointSavedRegisters);
+}
+
+
+void MacroAssembler::PopSafepointRegisters() {
+  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
+  ldm(ia_w, sp, kSafepointSavedRegisters);
+  add(sp, sp, Operand(num_unsaved * kPointerSize));
+}
+
+
+int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
+  // The registers are pushed starting with the highest encoding,
+  // which means that lowest encodings are closest to the stack pointer.
+  ASSERT(reg_code >= 0 && reg_code < kNumSafepointRegisters);
+  return reg_code;
+}
+
+
 void MacroAssembler::Ldrd(Register dst1, Register dst2,
                           const MemOperand& src, Condition cond) {
   ASSERT(src.rm().is(no_reg));
@@ -515,18 +536,17 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::EnterExitFrame() {
-  // Compute the argv pointer and keep it in a callee-saved register.
+void MacroAssembler::EnterExitFrame(bool save_doubles) {
   // r0 is argc.
-  add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
-  sub(r6, r6, Operand(kPointerSize));
-
   // Compute callee's stack pointer before making changes and save it as
   // ip register so that it is restored as sp register on exit, thereby
   // popping the args.
 
   // ip = sp + kPointerSize * #args;
   add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
+
+  // Compute the argv pointer and keep it in a callee-saved register.
+  sub(r6, ip, Operand(kPointerSize));
 
   // Prepare the stack to be aligned when calling into C. After this point there
   // are 5 pushes before the call into C, so the stack needs to be aligned after
@@ -558,6 +578,28 @@ void MacroAssembler::EnterExitFrame() {
   // Setup argc and the builtin function in callee-saved registers.
   mov(r4, Operand(r0));
   mov(r5, Operand(r1));
+
+  // Optionally save all double registers.
+  if (save_doubles) {
+    // TODO(regis): Use vstrm instruction.
+    // The stack alignment code above made sp unaligned, so add space for one
+    // more double register and use aligned addresses.
+    ASSERT(kDoubleSize == frame_alignment);
+    // Mark the frame as containing doubles by pushing a non-valid return
+    // address, i.e. 0.
+    ASSERT(ExitFrameConstants::kMarkerOffset == -2 * kPointerSize);
+    mov(ip, Operand(0));  // Marker and alignment word.
+    push(ip);
+    int space = DwVfpRegister::kNumRegisters * kDoubleSize + kPointerSize;
+    sub(sp, sp, Operand(space));
+    for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
+      DwVfpRegister reg = DwVfpRegister::from_code(i);
+      vstr(reg, sp, i * kDoubleSize + kPointerSize);
+    }
+    // Note that d0 will be accessible at fp - 2*kPointerSize -
+    // DwVfpRegister::kNumRegisters * kDoubleSize, since the code slot and the
+    // alignment word were pushed after the fp.
+  }
 }
 
 
@@ -592,7 +634,18 @@ int MacroAssembler::ActivationFrameAlignment() {
 }
 
 
-void MacroAssembler::LeaveExitFrame() {
+void MacroAssembler::LeaveExitFrame(bool save_doubles) {
+  // Optionally restore all double registers.
+  if (save_doubles) {
+    // TODO(regis): Use vldrm instruction.
+    for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
+      DwVfpRegister reg = DwVfpRegister::from_code(i);
+      // Register d15 is just below the marker.
+      const int offset = ExitFrameConstants::kMarkerOffset;
+      vldr(reg, fp, (i - DwVfpRegister::kNumRegisters) * kDoubleSize + offset);
+    }
+  }
+
   // Clear top frame.
   mov(r3, Operand(0, RelocInfo::NONE));
   mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
@@ -756,7 +809,15 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   // Invoke the cached code.
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+  if (V8::UseCrankshaft()) {
+    // TODO(kasperl): For now, we always call indirectly through the
+    // code field in the function to allow recompilation to take effect
+    // without changing any of the call sites.
+    ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
+    InvokeCode(r3, expected, actual, flag);
+  } else {
+    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+  }
 }
 
 
@@ -920,6 +981,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   }
 
   ASSERT(!result.is(scratch1));
+  ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
 
   // Make object size into bytes.
@@ -928,38 +990,55 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   }
   ASSERT_EQ(0, object_size & kObjectAlignmentMask);
 
-  // Load address of new object into result and allocation top address into
-  // scratch1.
+  // Check relative positions of allocation top and limit addresses.
+  // The values must be adjacent in memory to allow the use of LDM.
+  // Also, assert that the registers are numbered such that the values
+  // are loaded in the correct order.
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address();
-  mov(scratch1, Operand(new_space_allocation_top));
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  intptr_t top   =
+      reinterpret_cast<intptr_t>(new_space_allocation_top.address());
+  intptr_t limit =
+      reinterpret_cast<intptr_t>(new_space_allocation_limit.address());
+  ASSERT((limit - top) == kPointerSize);
+  ASSERT(result.code() < ip.code());
+
+  // Set up allocation top address and object size registers.
+  Register topaddr = scratch1;
+  Register obj_size_reg = scratch2;
+  mov(topaddr, Operand(new_space_allocation_top));
+  mov(obj_size_reg, Operand(object_size));
+
+  // This code stores a temporary value in ip. This is OK, as the code below
+  // does not need ip for implicit literal generation.
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
-    ldr(result, MemOperand(scratch1));
-  } else if (FLAG_debug_code) {
-    // Assert that result actually contains top on entry. scratch2 is used
-    // immediately below so this use of scratch2 does not cause difference with
-    // respect to register content between debug and release mode.
-    ldr(scratch2, MemOperand(scratch1));
-    cmp(result, scratch2);
-    Check(eq, "Unexpected allocation top");
+    // Load allocation top into result and allocation limit into ip.
+    ldm(ia, topaddr, result.bit() | ip.bit());
+  } else {
+    if (FLAG_debug_code) {
+      // Assert that result actually contains top on entry. ip is used
+      // immediately below so this use of ip does not cause difference with
+      // respect to register content between debug and release mode.
+      ldr(ip, MemOperand(topaddr));
+      cmp(result, ip);
+      Check(eq, "Unexpected allocation top");
+    }
+    // Load allocation limit into ip. Result already contains allocation top.
+    ldr(ip, MemOperand(topaddr, limit - top));
   }
 
   // Calculate new top and bail out if new space is exhausted. Use result
   // to calculate the new top.
-  ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address();
-  mov(scratch2, Operand(new_space_allocation_limit));
-  ldr(scratch2, MemOperand(scratch2));
-  add(result, result, Operand(object_size));
-  cmp(result, Operand(scratch2));
+  add(scratch2, result, Operand(obj_size_reg));
+  cmp(scratch2, Operand(ip));
   b(hi, gc_required);
-  str(result, MemOperand(scratch1));
+  str(scratch2, MemOperand(topaddr));
 
-  // Tag and adjust back to start of new object.
+  // Tag object if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    sub(result, result, Operand(object_size - kHeapObjectTag));
-  } else {
-    sub(result, result, Operand(object_size));
+    add(result, result, Operand(kHeapObjectTag));
   }
 }
 
@@ -982,52 +1061,63 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   }
 
   ASSERT(!result.is(scratch1));
+  ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
 
-  // Load address of new object into result and allocation top address into
-  // scratch1.
+  // Check relative positions of allocation top and limit addresses.
+  // The values must be adjacent in memory to allow the use of LDM.
+  // Also, assert that the registers are numbered such that the values
+  // are loaded in the correct order.
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address();
-  mov(scratch1, Operand(new_space_allocation_top));
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  intptr_t top =
+      reinterpret_cast<intptr_t>(new_space_allocation_top.address());
+  intptr_t limit =
+      reinterpret_cast<intptr_t>(new_space_allocation_limit.address());
+  ASSERT((limit - top) == kPointerSize);
+  ASSERT(result.code() < ip.code());
+
+  // Set up allocation top address.
+  Register topaddr = scratch1;
+  mov(topaddr, Operand(new_space_allocation_top));
+
+  // This code stores a temporary value in ip. This is OK, as the code below
+  // does not need ip for implicit literal generation.
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
-    ldr(result, MemOperand(scratch1));
-  } else if (FLAG_debug_code) {
-    // Assert that result actually contains top on entry. scratch2 is used
-    // immediately below so this use of scratch2 does not cause difference with
-    // respect to register content between debug and release mode.
-    ldr(scratch2, MemOperand(scratch1));
-    cmp(result, scratch2);
-    Check(eq, "Unexpected allocation top");
+    // Load allocation top into result and allocation limit into ip.
+    ldm(ia, topaddr, result.bit() | ip.bit());
+  } else {
+    if (FLAG_debug_code) {
+      // Assert that result actually contains top on entry. ip is used
+      // immediately below so this use of ip does not cause difference with
+      // respect to register content between debug and release mode.
+      ldr(ip, MemOperand(topaddr));
+      cmp(result, ip);
+      Check(eq, "Unexpected allocation top");
+    }
+    // Load allocation limit into ip. Result already contains allocation top.
+    ldr(ip, MemOperand(topaddr, limit - top));
   }
 
   // Calculate new top and bail out if new space is exhausted. Use result
-  // to calculate the new top. Object size is in words so a shift is required to
-  // get the number of bytes
-  ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address();
-  mov(scratch2, Operand(new_space_allocation_limit));
-  ldr(scratch2, MemOperand(scratch2));
+  // to calculate the new top. Object size may be in words so a shift is
+  // required to get the number of bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
-    add(result, result, Operand(object_size, LSL, kPointerSizeLog2));
+    add(scratch2, result, Operand(object_size, LSL, kPointerSizeLog2));
   } else {
-    add(result, result, Operand(object_size));
+    add(scratch2, result, Operand(object_size));
   }
-  cmp(result, Operand(scratch2));
+  cmp(scratch2, Operand(ip));
   b(hi, gc_required);
 
   // Update allocation top. result temporarily holds the new top.
   if (FLAG_debug_code) {
-    tst(result, Operand(kObjectAlignmentMask));
+    tst(scratch2, Operand(kObjectAlignmentMask));
     Check(eq, "Unaligned allocation in new space");
   }
-  str(result, MemOperand(scratch1));
-
-  // Adjust back to start of new object.
-  if ((flags & SIZE_IN_WORDS) != 0) {
-    sub(result, result, Operand(object_size, LSL, kPointerSizeLog2));
-  } else {
-    sub(result, result, Operand(object_size));
-  }
+  str(scratch2, MemOperand(topaddr));
 
   // Tag object if requested.
   if ((flags & TAG_OBJECT) != 0) {
@@ -1482,6 +1572,16 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 
 void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
   CallRuntime(Runtime::FunctionForId(fid), num_arguments);
+}
+
+
+void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
+  Runtime::Function* function = Runtime::FunctionForId(id);
+  mov(r0, Operand(function->nargs));
+  mov(r1, Operand(ExternalReference(function)));
+  CEntryStub stub(1);
+  stub.SaveDoubles();
+  CallStub(&stub);
 }
 
 

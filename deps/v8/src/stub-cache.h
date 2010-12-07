@@ -29,6 +29,7 @@
 #define V8_STUB_CACHE_H_
 
 #include "macro-assembler.h"
+#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -43,6 +44,7 @@ namespace internal {
 // validates the map chain as in the mono-morphic case.
 
 class SCTableReference;
+
 
 class StubCache : public AllStatic {
  public:
@@ -76,9 +78,10 @@ class StubCache : public AllStatic {
                                                           JSObject* holder,
                                                           Object* value);
 
-  MUST_USE_RESULT static MaybeObject* ComputeLoadInterceptor(String* name,
-                                                             JSObject* receiver,
-                                                             JSObject* holder);
+  MUST_USE_RESULT static MaybeObject* ComputeLoadInterceptor(
+      String* name,
+      JSObject* receiver,
+      JSObject* holder);
 
   MUST_USE_RESULT static MaybeObject* ComputeLoadNormal();
 
@@ -127,6 +130,9 @@ class StubCache : public AllStatic {
       String* name,
       JSFunction* receiver);
 
+  MUST_USE_RESULT static MaybeObject* ComputeKeyedLoadSpecialized(
+      JSObject* receiver);
+
   // ---
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreField(String* name,
@@ -157,6 +163,9 @@ class StubCache : public AllStatic {
       JSObject* receiver,
       int field_index,
       Map* transition = NULL);
+
+  MUST_USE_RESULT static MaybeObject* ComputeKeyedStoreSpecialized(
+      JSObject* receiver);
 
   // ---
 
@@ -243,6 +252,11 @@ class StubCache : public AllStatic {
 
   // Clear the lookup table (@ mark compact collection).
   static void Clear();
+
+  // Collect all maps that match the name and flags.
+  static void CollectMatchingMaps(ZoneMapList* types,
+                                  String* name,
+                                  Code::Flags flags);
 
   // Generate code for probing the stub cache table.
   // Arguments extra and extra2 may be used to pass additional scratch
@@ -366,13 +380,6 @@ MaybeObject* KeyedLoadPropertyWithInterceptor(Arguments args);
 // The stub compiler compiles stubs for the stub cache.
 class StubCompiler BASE_EMBEDDED {
  public:
-  enum CheckType {
-    RECEIVER_MAP_CHECK,
-    STRING_CHECK,
-    NUMBER_CHECK,
-    BOOLEAN_CHECK
-  };
-
   StubCompiler() : scope_(), masm_(NULL, 256), failure_(NULL) { }
 
   MUST_USE_RESULT MaybeObject* CompileCallInitialize(Code::Flags flags);
@@ -564,7 +571,7 @@ class LoadStubCompiler: public StubCompiler {
                                                  bool is_dont_delete);
 
  private:
-  MaybeObject* GetCode(PropertyType type, String* name);
+  MUST_USE_RESULT MaybeObject* GetCode(PropertyType type, String* name);
 };
 
 
@@ -593,6 +600,8 @@ class KeyedLoadStubCompiler: public StubCompiler {
   MUST_USE_RESULT MaybeObject* CompileLoadStringLength(String* name);
   MUST_USE_RESULT MaybeObject* CompileLoadFunctionPrototype(String* name);
 
+  MUST_USE_RESULT MaybeObject* CompileLoadSpecialized(JSObject* receiver);
+
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
 };
@@ -604,6 +613,7 @@ class StoreStubCompiler: public StubCompiler {
                                                  int index,
                                                  Map* transition,
                                                  String* name);
+
   MUST_USE_RESULT MaybeObject* CompileStoreCallback(JSObject* object,
                                                     AccessorInfo* callbacks,
                                                     String* name);
@@ -615,16 +625,18 @@ class StoreStubCompiler: public StubCompiler {
 
 
  private:
-  MUST_USE_RESULT MaybeObject* GetCode(PropertyType type, String* name);
+  MaybeObject* GetCode(PropertyType type, String* name);
 };
 
 
 class KeyedStoreStubCompiler: public StubCompiler {
  public:
-  MaybeObject* CompileStoreField(JSObject* object,
-                                 int index,
-                                 Map* transition,
-                                 String* name);
+  MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
+                                                 int index,
+                                                 Map* transition,
+                                                 String* name);
+
+  MUST_USE_RESULT MaybeObject* CompileStoreSpecialized(JSObject* receiver);
 
  private:
   MaybeObject* GetCode(PropertyType type, String* name);

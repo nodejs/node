@@ -105,8 +105,6 @@ class V8JavaScriptScanner : public JavaScriptScanner {
  public:
   V8JavaScriptScanner() {}
 
-  Token::Value NextCheckStack();
-
   // Initialize the Scanner to scan source.
   void Initialize(Handle<String> source, int literal_flags = kAllLiterals);
   void Initialize(Handle<String> source,

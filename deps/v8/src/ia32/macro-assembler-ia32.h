@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -51,6 +51,7 @@ typedef Operand MemOperand;
 
 // Forward declaration.
 class JumpTarget;
+class PostCallGenerator;
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
@@ -103,12 +104,6 @@ class MacroAssembler: public Assembler {
 #endif
 
   // ---------------------------------------------------------------------------
-  // Stack limit support
-
-  // Do simple test for stack overflow. This doesn't handle an overflow.
-  void StackLimitCheck(Label* on_stack_limit_hit);
-
-  // ---------------------------------------------------------------------------
   // Activation frames
 
   void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }
@@ -117,18 +112,18 @@ class MacroAssembler: public Assembler {
   void EnterConstructFrame() { EnterFrame(StackFrame::CONSTRUCT); }
   void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
 
-  // Enter specific kind of exit frame; either in normal or debug mode.
-  // Expects the number of arguments in register eax and
-  // sets up the number of arguments in register edi and the pointer
-  // to the first argument in register esi.
-  void EnterExitFrame();
+  // Enter specific kind of exit frame. Expects the number of
+  // arguments in register eax and sets up the number of arguments in
+  // register edi and the pointer to the first argument in register
+  // esi.
+  void EnterExitFrame(bool save_doubles);
 
   void EnterApiExitFrame(int argc);
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
   // argument in register esi.
-  void LeaveExitFrame();
+  void LeaveExitFrame(bool save_doubles);
 
   // Leave the current exit frame. Expects the return value in
   // register eax (untouched).
@@ -144,6 +139,11 @@ class MacroAssembler: public Assembler {
   // function and map can be the same.
   void LoadGlobalFunctionInitialMap(Register function, Register map);
 
+  // Push and pop the registers that can hold pointers.
+  void PushSafepointRegisters() { pushad(); }
+  void PopSafepointRegisters() { popad(); }
+  static int SafepointRegisterStackIndex(int reg_code);
+
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
@@ -151,27 +151,33 @@ class MacroAssembler: public Assembler {
   void InvokeCode(const Operand& code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
-                  InvokeFlag flag);
+                  InvokeFlag flag,
+                  PostCallGenerator* post_call_generator = NULL);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
-                  InvokeFlag flag);
+                  InvokeFlag flag,
+                  PostCallGenerator* post_call_generator = NULL);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      PostCallGenerator* post_call_generator = NULL);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      PostCallGenerator* post_call_generator = NULL);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
-  void InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag);
+  void InvokeBuiltin(Builtins::JavaScript id,
+                     InvokeFlag flag,
+                     PostCallGenerator* post_call_generator = NULL);
 
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);
@@ -457,6 +463,7 @@ class MacroAssembler: public Assembler {
 
   // Call a runtime routine.
   void CallRuntime(Runtime::Function* f, int num_arguments);
+  void CallRuntimeSaveDoubles(Runtime::FunctionId id);
 
   // Call a runtime function, returning the CodeStub object called.
   // Try to generate the stub code if necessary.  Do not perform a GC
@@ -546,6 +553,12 @@ class MacroAssembler: public Assembler {
 
   void Call(Label* target) { call(target); }
 
+  // Emit call to the code we are currently generating.
+  void CallSelf() {
+    Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
+    call(self, RelocInfo::CODE_TARGET);
+  }
+
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
@@ -618,14 +631,15 @@ class MacroAssembler: public Assembler {
                       Handle<Code> code_constant,
                       const Operand& code_operand,
                       Label* done,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      PostCallGenerator* post_call_generator = NULL);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
 
   void EnterExitFramePrologue();
-  void EnterExitFrameEpilogue(int argc);
+  void EnterExitFrameEpilogue(int argc, bool save_doubles);
 
   void LeaveExitFrameEpilogue();
 
@@ -661,6 +675,17 @@ class CodePatcher {
   byte* address_;  // The address of the code being patched.
   int size_;  // Number of bytes of the expected patch size.
   MacroAssembler masm_;  // Macro assembler used to generate the code.
+};
+
+
+// Helper class for generating code or data associated with the code
+// right after a call instruction. As an example this can be used to
+// generate safepoint data after calls for crankshaft.
+class PostCallGenerator {
+ public:
+  PostCallGenerator() { }
+  virtual ~PostCallGenerator() { }
+  virtual void Generate() = 0;
 };
 
 

@@ -38,7 +38,8 @@ enum InterruptFlag {
   DEBUGBREAK = 1 << 1,
   DEBUGCOMMAND = 1 << 2,
   PREEMPT = 1 << 3,
-  TERMINATE = 1 << 4
+  TERMINATE = 1 << 4,
+  RUNTIME_PROFILER_TICK = 1 << 5
 };
 
 class Execution : public AllStatic {
@@ -175,6 +176,8 @@ class StackGuard : public AllStatic {
   static void Interrupt();
   static bool IsTerminateExecution();
   static void TerminateExecution();
+  static bool IsRuntimeProfilerTick();
+  static void RequestRuntimeProfilerTick();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static bool IsDebugBreak();
   static void DebugBreak();

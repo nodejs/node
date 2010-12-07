@@ -28,16 +28,16 @@
 #include "v8.h"
 
 #include "ast.h"
+#include "jump-target-inl.h"
 #include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
-#include "ast-inl.h"
-#include "jump-target-inl.h"
 
 namespace v8 {
 namespace internal {
 
-
+unsigned AstNode::current_id_ = 0;
+unsigned AstNode::count_ = 0;
 VariableProxySentinel VariableProxySentinel::this_proxy_(true);
 VariableProxySentinel VariableProxySentinel::identifier_proxy_(false);
 ValidLeftHandSideSentinel ValidLeftHandSideSentinel::instance_;
@@ -47,6 +47,8 @@ Call Call::sentinel_(NULL, NULL, 0);
 
 // ----------------------------------------------------------------------------
 // All the Accept member functions for each syntax tree node type.
+
+void Slot::Accept(AstVisitor* v) { v->VisitSlot(this); }
 
 #define DECL_ACCEPT(type)                                       \
   void type::Accept(AstVisitor* v) { v->Visit##type(this); }
@@ -115,6 +117,29 @@ void VariableProxy::BindTo(Variable* var) {
 }
 
 
+Assignment::Assignment(Token::Value op,
+                       Expression* target,
+                       Expression* value,
+                       int pos)
+    : op_(op),
+      target_(target),
+      value_(value),
+      pos_(pos),
+      compound_bailout_id_(kNoNumber),
+      block_start_(false),
+      block_end_(false),
+      is_monomorphic_(false),
+      receiver_types_(NULL) {
+  ASSERT(Token::IsAssignmentOp(op));
+  binary_operation_ = is_compound()
+      ? new BinaryOperation(binary_op(), target, value, pos + 1)
+      : NULL;
+  if (is_compound()) {
+    compound_bailout_id_ = GetNextId();
+  }
+}
+
+
 Token::Value Assignment::binary_op() const {
   switch (op_) {
     case Token::ASSIGN_BIT_OR: return Token::BIT_OR;
@@ -136,6 +161,12 @@ Token::Value Assignment::binary_op() const {
 
 bool FunctionLiteral::AllowsLazyCompilation() {
   return scope()->AllowsLazyCompilation();
+}
+
+
+bool FunctionLiteral::AllowOptimize() {
+  // We can't deal with heap-allocated locals.
+  return scope()->num_heap_slots() == 0;
 }
 
 
@@ -369,6 +400,265 @@ BinaryOperation::BinaryOperation(Assignment* assignment) {
   right_ = assignment->value();
   pos_ = assignment->position();
   CopyAnalysisResultsFrom(assignment);
+}
+
+
+// ----------------------------------------------------------------------------
+// Inlining support
+
+bool Block::IsInlineable() const {
+  const int count = statements_.length();
+  for (int i = 0; i < count; ++i) {
+    if (!statements_[i]->IsInlineable()) return false;
+  }
+  return true;
+}
+
+
+bool ExpressionStatement::IsInlineable() const {
+  return expression()->IsInlineable();
+}
+
+
+bool IfStatement::IsInlineable() const {
+  return condition()->IsInlineable() && then_statement()->IsInlineable() &&
+      else_statement()->IsInlineable();
+}
+
+
+bool ReturnStatement::IsInlineable() const {
+  return expression()->IsInlineable();
+}
+
+
+bool Conditional::IsInlineable() const {
+  return condition()->IsInlineable() && then_expression()->IsInlineable() &&
+      else_expression()->IsInlineable();
+}
+
+
+bool VariableProxy::IsInlineable() const {
+  return var()->is_global() || var()->IsStackAllocated();
+}
+
+
+bool Assignment::IsInlineable() const {
+  return target()->IsInlineable() && value()->IsInlineable();
+}
+
+
+bool Property::IsInlineable() const {
+  return obj()->IsInlineable() && key()->IsInlineable();
+}
+
+
+bool Call::IsInlineable() const {
+  if (!expression()->IsInlineable()) return false;
+  const int count = arguments()->length();
+  for (int i = 0; i < count; ++i) {
+    if (!arguments()->at(i)->IsInlineable()) return false;
+  }
+  return true;
+}
+
+
+bool CallNew::IsInlineable() const {
+  if (!expression()->IsInlineable()) return false;
+  const int count = arguments()->length();
+  for (int i = 0; i < count; ++i) {
+    if (!arguments()->at(i)->IsInlineable()) return false;
+  }
+  return true;
+}
+
+
+bool CallRuntime::IsInlineable() const {
+  const int count = arguments()->length();
+  for (int i = 0; i < count; ++i) {
+    if (!arguments()->at(i)->IsInlineable()) return false;
+  }
+  return true;
+}
+
+
+bool UnaryOperation::IsInlineable() const {
+  return expression()->IsInlineable();
+}
+
+
+bool BinaryOperation::IsInlineable() const {
+  return left()->IsInlineable() && right()->IsInlineable();
+}
+
+
+bool CompareOperation::IsInlineable() const {
+  return left()->IsInlineable() && right()->IsInlineable();
+}
+
+
+bool CompareToNull::IsInlineable() const {
+  return expression()->IsInlineable();
+}
+
+
+bool CountOperation::IsInlineable() const {
+  return expression()->IsInlineable();
+}
+
+
+// ----------------------------------------------------------------------------
+// Recording of type feedback
+
+void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  // Record type feedback from the oracle in the AST.
+  is_monomorphic_ = oracle->LoadIsMonomorphic(this);
+  if (key()->IsPropertyName()) {
+    if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_ArrayLength)) {
+      is_array_length_ = true;
+    } else {
+      Literal* lit_key = key()->AsLiteral();
+      ASSERT(lit_key != NULL && lit_key->handle()->IsString());
+      Handle<String> name = Handle<String>::cast(lit_key->handle());
+      ZoneMapList* types = oracle->LoadReceiverTypes(this, name);
+      receiver_types_ = types;
+    }
+  } else if (is_monomorphic_) {
+    monomorphic_receiver_type_ = oracle->LoadMonomorphicReceiverType(this);
+  }
+}
+
+
+void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  Property* prop = target()->AsProperty();
+  ASSERT(prop != NULL);
+  is_monomorphic_ = oracle->StoreIsMonomorphic(this);
+  if (prop->key()->IsPropertyName()) {
+    Literal* lit_key = prop->key()->AsLiteral();
+    ASSERT(lit_key != NULL && lit_key->handle()->IsString());
+    Handle<String> name = Handle<String>::cast(lit_key->handle());
+    ZoneMapList* types = oracle->StoreReceiverTypes(this, name);
+    receiver_types_ = types;
+  } else if (is_monomorphic_) {
+    // Record receiver type for monomorphic keyed loads.
+    monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
+  }
+}
+
+
+void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  TypeInfo info = oracle->SwitchType(this);
+  if (info.IsSmi()) {
+    compare_type_ = SMI_ONLY;
+  } else if (info.IsNonPrimitive()) {
+    compare_type_ = OBJECT_ONLY;
+  } else {
+    ASSERT(compare_type_ == NONE);
+  }
+}
+
+
+static bool CallWithoutIC(Handle<JSFunction> target, int arity) {
+  if (target->NeedsArgumentsAdaption()) {
+    // If the number of formal parameters of the target function
+    // does not match the number of arguments we're passing, we
+    // don't want to deal with it.
+    return target->shared()->formal_parameter_count() == arity;
+  } else {
+    // If the target doesn't need arguments adaption, we can call
+    // it directly, but we avoid to do so if it has a custom call
+    // generator, because that is likely to generate better code.
+    return !target->shared()->HasCustomCallGenerator();
+  }
+}
+
+
+bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
+  holder_ = Handle<JSObject>::null();
+  while (true) {
+    LookupResult lookup;
+    type->LookupInDescriptors(NULL, *name, &lookup);
+    // If the function wasn't found directly in the map, we start
+    // looking upwards through the prototype chain.
+    if (!lookup.IsFound() && type->prototype()->IsJSObject()) {
+      holder_ = Handle<JSObject>(JSObject::cast(type->prototype()));
+      type = Handle<Map>(holder()->map());
+    } else if (lookup.IsProperty() && lookup.type() == CONSTANT_FUNCTION) {
+      target_ = Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
+      return CallWithoutIC(target_, arguments()->length());
+    } else {
+      return false;
+    }
+  }
+}
+
+
+bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
+                               Handle<String> name) {
+  target_ = Handle<JSFunction>::null();
+  cell_ = Handle<JSGlobalPropertyCell>::null();
+  LookupResult lookup;
+  global->Lookup(*name, &lookup);
+  if (lookup.IsProperty() && lookup.type() == NORMAL) {
+    cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(&lookup));
+    if (cell_->value()->IsJSFunction()) {
+      Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
+      // If the function is in new space we assume it's more likely to
+      // change and thus prefer the general IC code.
+      if (!Heap::InNewSpace(*candidate)
+          && CallWithoutIC(candidate, arguments()->length())) {
+        target_ = candidate;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+
+void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  Property* property = expression()->AsProperty();
+  ASSERT(property != NULL);
+  // Specialize for the receiver types seen at runtime.
+  Literal* key = property->key()->AsLiteral();
+  ASSERT(key != NULL && key->handle()->IsString());
+  Handle<String> name = Handle<String>::cast(key->handle());
+  receiver_types_ = oracle->CallReceiverTypes(this, name);
+#ifdef DEBUG
+  if (FLAG_enable_slow_asserts) {
+    if (receiver_types_ != NULL) {
+      int length = receiver_types_->length();
+      for (int i = 0; i < length; i++) {
+        Handle<Map> map = receiver_types_->at(i);
+        ASSERT(!map.is_null() && *map != NULL);
+      }
+    }
+  }
+#endif
+  if (receiver_types_ != NULL && receiver_types_->length() > 0) {
+    Handle<Map> type = receiver_types_->at(0);
+    is_monomorphic_ = oracle->CallIsMonomorphic(this);
+    if (is_monomorphic_) is_monomorphic_ = ComputeTarget(type, name);
+  }
+}
+
+
+void BinaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  TypeInfo left = oracle->BinaryType(this, TypeFeedbackOracle::LEFT);
+  TypeInfo right = oracle->BinaryType(this, TypeFeedbackOracle::RIGHT);
+  is_smi_only_ = left.IsSmi() && right.IsSmi();
+}
+
+
+void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  TypeInfo left = oracle->CompareType(this, TypeFeedbackOracle::LEFT);
+  TypeInfo right = oracle->CompareType(this, TypeFeedbackOracle::RIGHT);
+  if (left.IsSmi() && right.IsSmi()) {
+    compare_type_ = SMI_ONLY;
+  } else if (left.IsNonPrimitive() && right.IsNonPrimitive()) {
+    compare_type_ = OBJECT_ONLY;
+  } else {
+    ASSERT(compare_type_ == NONE);
+  }
 }
 
 
@@ -742,15 +1032,12 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
 }
 
 
-WhileStatement::WhileStatement(ZoneStringList* labels)
-    : IterationStatement(labels),
-      cond_(NULL),
-      may_have_function_literal_(true) {
-}
-
-
-CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements)
-    : label_(label), statements_(statements) {
-}
+CaseClause::CaseClause(Expression* label,
+                       ZoneList<Statement*>* statements,
+                       int pos)
+    : label_(label),
+      statements_(statements),
+      position_(pos),
+      compare_type_(NONE) {}
 
 } }  // namespace v8::internal

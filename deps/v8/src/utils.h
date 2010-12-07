@@ -226,6 +226,11 @@ class BitField {
   static T decode(uint32_t value) {
     return static_cast<T>((value & mask()) >> shift);
   }
+
+  // Value for the field with all bits set.
+  static T max() {
+    return decode(mask());
+  }
 };
 
 
@@ -326,7 +331,7 @@ class Vector {
     return start_[index];
   }
 
-  T& at(int i) const { return operator[](i); }
+  const T& at(int index) const { return operator[](index); }
 
   T& first() { return start_[0]; }
 
@@ -387,10 +392,39 @@ class Vector {
 };
 
 
+// A pointer that can only be set once and doesn't allow NULL values.
+template<typename T>
+class SetOncePointer {
+ public:
+  SetOncePointer() : pointer_(NULL) { }
+
+  bool is_set() const { return pointer_ != NULL; }
+
+  T* get() const {
+    ASSERT(pointer_ != NULL);
+    return pointer_;
+  }
+
+  void set(T* value) {
+    ASSERT(pointer_ == NULL && value != NULL);
+    pointer_ = value;
+  }
+
+ private:
+  T* pointer_;
+};
+
+
 template <typename T, int kSize>
 class EmbeddedVector : public Vector<T> {
  public:
   EmbeddedVector() : Vector<T>(buffer_, kSize) { }
+
+  explicit EmbeddedVector(T initial_value) : Vector<T>(buffer_, kSize) {
+    for (int i = 0; i < kSize; ++i) {
+      buffer_[i] = initial_value;
+    }
+  }
 
   // When copying, make underlying Vector to reference our buffer.
   EmbeddedVector(const EmbeddedVector& rhs)

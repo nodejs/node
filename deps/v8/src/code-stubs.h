@@ -29,7 +29,6 @@
 #define V8_CODE_STUBS_H_
 
 #include "globals.h"
-#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -39,11 +38,15 @@ namespace internal {
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
   V(GenericBinaryOp)                     \
+  V(TypeRecordingBinaryOp)               \
   V(StringAdd)                           \
+  V(StringCharAt)                        \
   V(SubString)                           \
   V(StringCompare)                       \
   V(SmiOp)                               \
   V(Compare)                             \
+  V(CompareIC)                           \
+  V(MathPow)                             \
   V(RecordWrite)                         \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
@@ -60,6 +63,7 @@ namespace internal {
   V(CounterOp)                           \
   V(ArgumentsAccess)                     \
   V(RegExpExec)                          \
+  V(RegExpConstructResult)               \
   V(NumberToString)                      \
   V(CEntry)                              \
   V(JSEntry)                             \
@@ -125,7 +129,7 @@ class CodeStub BASE_EMBEDDED {
   virtual ~CodeStub() {}
 
  protected:
-  static const int kMajorBits = 5;
+  static const int kMajorBits = 6;
   static const int kMinorBits = kBitsPerInt - kSmiTagSize - kMajorBits;
 
  private:
@@ -142,6 +146,9 @@ class CodeStub BASE_EMBEDDED {
   // Perform bookkeeping required after code generation when stub code is
   // initially generated.
   void RecordCodeGeneration(Code* code, MacroAssembler* masm);
+
+  // Finish the code object after it has been generated.
+  virtual void FinishCode(Code* code) { }
 
   // Returns information for computing the number key.
   virtual Major MajorKey() = 0;
@@ -216,11 +223,11 @@ namespace v8 {
 namespace internal {
 
 
-// RuntimeCallHelper implementation used in IC stubs: enters/leaves a
+// RuntimeCallHelper implementation used in stubs: enters/leaves a
 // newly created internal frame before/after the runtime call.
-class ICRuntimeCallHelper : public RuntimeCallHelper {
+class StubRuntimeCallHelper : public RuntimeCallHelper {
  public:
-  ICRuntimeCallHelper() {}
+  StubRuntimeCallHelper() {}
 
   virtual void BeforeCall(MacroAssembler* masm) const;
 
@@ -376,9 +383,61 @@ class GenericUnaryOpStub : public CodeStub {
 };
 
 
-enum NaNInformation {
-  kBothCouldBeNaN,
-  kCantBothBeNaN
+class MathPowStub: public CodeStub {
+ public:
+  MathPowStub() {}
+  virtual void Generate(MacroAssembler* masm);
+
+ private:
+  virtual CodeStub::Major MajorKey() { return MathPow; }
+  virtual int MinorKey() { return 0; }
+
+  const char* GetName() { return "MathPowStub"; }
+};
+
+
+class StringCharAtStub: public CodeStub {
+ public:
+  StringCharAtStub() {}
+
+ private:
+  Major MajorKey() { return StringCharAt; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+};
+
+
+class ICCompareStub: public CodeStub {
+ public:
+  ICCompareStub(Token::Value op, CompareIC::State state)
+      : op_(op), state_(state) {
+    ASSERT(Token::IsCompareOp(op));
+  }
+
+  virtual void Generate(MacroAssembler* masm);
+
+ private:
+  class OpField: public BitField<int, 0, 3> { };
+  class StateField: public BitField<int, 3, 5> { };
+
+  virtual void FinishCode(Code* code) { code->set_compare_state(state_); }
+
+  virtual CodeStub::Major MajorKey() { return CompareIC; }
+  virtual int MinorKey();
+
+  virtual int GetCodeKind() { return Code::COMPARE_IC; }
+
+  void GenerateSmis(MacroAssembler* masm);
+  void GenerateHeapNumbers(MacroAssembler* masm);
+  void GenerateObjects(MacroAssembler* masm);
+  void GenerateMiss(MacroAssembler* masm);
+
+  bool strict() const { return op_ == Token::EQ_STRICT; }
+  Condition GetCondition() const { return CompareIC::ComputeCondition(op_); }
+
+  Token::Value op_;
+  CompareIC::State state_;
 };
 
 
@@ -391,6 +450,12 @@ enum CompareFlags {
 };
 
 
+enum NaNInformation {
+  kBothCouldBeNaN,
+  kCantBothBeNaN
+};
+
+
 class CompareStub: public CodeStub {
  public:
   CompareStub(Condition cc,
@@ -398,7 +463,7 @@ class CompareStub: public CodeStub {
               CompareFlags flags,
               Register lhs,
               Register rhs) :
-      cc_(cc),
+     cc_(cc),
       strict_(strict),
       never_nan_nan_((flags & CANT_BOTH_BE_NAN) != 0),
       include_number_compare_((flags & NO_NUMBER_COMPARE_IN_STUB) == 0),
@@ -440,6 +505,7 @@ class CompareStub: public CodeStub {
 
   // Register holding the left hand side of the comparison if the stub gives
   // a choice, no_reg otherwise.
+
   Register lhs_;
   // Register holding the right hand side of the comparison if the stub gives
   // a choice, no_reg otherwise.
@@ -456,6 +522,11 @@ class CompareStub: public CodeStub {
   Major MajorKey() { return Compare; }
 
   int MinorKey();
+
+  virtual int GetCodeKind() { return Code::COMPARE_IC; }
+  virtual void FinishCode(Code* code) {
+    code->set_compare_state(CompareIC::GENERIC);
+  }
 
   // Branch to the label if the given object isn't a symbol.
   void BranchIfNonSymbol(MacroAssembler* masm,
@@ -490,9 +561,11 @@ class CompareStub: public CodeStub {
 
 class CEntryStub : public CodeStub {
  public:
-  explicit CEntryStub(int result_size) : result_size_(result_size) { }
+  explicit CEntryStub(int result_size)
+      : result_size_(result_size), save_doubles_(false) { }
 
   void Generate(MacroAssembler* masm);
+  void SaveDoubles() { save_doubles_ = true; }
 
  private:
   void GenerateCore(MacroAssembler* masm,
@@ -508,10 +581,9 @@ class CEntryStub : public CodeStub {
 
   // Number of pointers/values returned.
   const int result_size_;
+  bool save_doubles_;
 
   Major MajorKey() { return CEntry; }
-  // Minor key must differ if different result_size_ values means different
-  // code is generated.
   int MinorKey();
 
   const char* GetName() { return "CEntryStub"; }
@@ -592,6 +664,26 @@ class RegExpExecStub: public CodeStub {
 #ifdef DEBUG
   void Print() {
     PrintF("RegExpExecStub\n");
+  }
+#endif
+};
+
+
+class RegExpConstructResultStub: public CodeStub {
+ public:
+  RegExpConstructResultStub() { }
+
+ private:
+  Major MajorKey() { return RegExpConstructResult; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "RegExpConstructResultStub"; }
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("RegExpConstructResultStub\n");
   }
 #endif
 };

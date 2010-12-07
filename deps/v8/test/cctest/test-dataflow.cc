@@ -52,6 +52,24 @@ TEST(BitVector) {
   }
 
   {
+    BitVector v(64);
+    v.Add(27);
+    v.Add(30);
+    v.Add(31);
+    v.Add(33);
+    BitVector::Iterator iter(&v);
+    CHECK_EQ(27, iter.Current());
+    iter.Advance();
+    CHECK_EQ(30, iter.Current());
+    iter.Advance();
+    CHECK_EQ(31, iter.Current());
+    iter.Advance();
+    CHECK_EQ(33, iter.Current());
+    iter.Advance();
+    CHECK(iter.Done());
+  }
+
+  {
     BitVector v(15);
     v.Add(0);
     BitVector w(15);

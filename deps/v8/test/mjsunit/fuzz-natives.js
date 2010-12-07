@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --noalways-opt
 
 var RUN_WITH_ALL_ARGUMENT_ENTRIES = false;
 var kOnManyArgumentsRemove = 5;
@@ -144,6 +144,9 @@ var knownProblems = {
   "NewArgumentsFast": true,
   "PushContext": true,
   "LazyCompile": true,
+  "LazyRecompile": true,
+  "NotifyDeoptimized": true,
+  "NotifyOSR": true,
   "CreateObjectLiteralBoilerplate": true,
   "CloneLiteralBoilerplate": true,
   "CloneShallowLiteralBoilerplate": true,

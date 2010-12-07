@@ -74,7 +74,7 @@ function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
     assertEquals('property', properties[i].type(), 'Unexpected mirror type');
     assertEquals(names[i], properties[i].name(), 'Unexpected property name');
   }
-  
+
   for (var p in obj) {
     var property_mirror = mirror.property(p);
     assertTrue(property_mirror instanceof debug.PropertyMirror);

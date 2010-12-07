@@ -149,7 +149,7 @@ class GenericBinaryOpStub: public CodeStub {
   class ArgsReversedBits: public BitField<bool, 10, 1> {};
   class FlagBits: public BitField<GenericBinaryFlags, 11, 1> {};
   class StaticTypeInfoBits: public BitField<int, 12, 3> {};
-  class RuntimeTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 15, 2> {};
+  class RuntimeTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 15, 3> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {

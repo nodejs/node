@@ -262,8 +262,8 @@ class FrameElement BASE_EMBEDDED {
   class CopiedField: public BitField<bool, 3, 1> {};
   class SyncedField: public BitField<bool, 4, 1> {};
   class UntaggedInt32Field: public BitField<bool, 5, 1> {};
-  class TypeInfoField: public BitField<int, 6, 6> {};
-  class DataField: public BitField<uint32_t, 12, 32 - 12> {};
+  class TypeInfoField: public BitField<int, 6, 7> {};
+  class DataField: public BitField<uint32_t, 13, 32 - 13> {};
 
   friend class VirtualFrame;
 };

@@ -63,3 +63,14 @@ assertEquals(4, g);
 code = "g--; 1";
 assertEquals(1, eval(code));
 assertEquals(3, g);
+
+// Test simple assignment to non-deletable and deletable globals.
+var glo1 = 0;
+function f1(x) { glo1 = x; }
+f1(42);
+assertEquals(glo1, 42);
+
+glo2 = 0;
+function f2(x) { glo2 = x; }
+f2(42);
+assertEquals(42, glo2);

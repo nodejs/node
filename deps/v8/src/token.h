@@ -238,6 +238,40 @@ class Token {
     return EQ <= op && op <= IN;
   }
 
+  static bool IsOrderedCompareOp(Value op) {
+    return op == LT || op == LTE || op == GT || op == GTE;
+  }
+
+  static Value NegateCompareOp(Value op) {
+    ASSERT(IsCompareOp(op));
+    switch (op) {
+      case EQ: return NE;
+      case NE: return EQ;
+      case EQ_STRICT: return NE_STRICT;
+      case LT: return GTE;
+      case GT: return LTE;
+      case LTE: return GT;
+      case GTE: return LT;
+      default:
+        return op;
+    }
+  }
+
+  static Value InvertCompareOp(Value op) {
+    ASSERT(IsCompareOp(op));
+    switch (op) {
+      case EQ: return NE;
+      case NE: return EQ;
+      case EQ_STRICT: return NE_STRICT;
+      case LT: return GT;
+      case GT: return LT;
+      case LTE: return GTE;
+      case GTE: return LTE;
+      default:
+        return op;
+    }
+  }
+
   static bool IsBitOp(Value op) {
     return (BIT_OR <= op && op <= SHR) || op == BIT_NOT;
   }

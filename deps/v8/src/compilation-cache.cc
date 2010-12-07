@@ -86,6 +86,9 @@ class CompilationSubCache {
   // Clear this sub-cache evicting all its content.
   void Clear();
 
+  // Remove given shared function info from sub-cache.
+  void Remove(Handle<SharedFunctionInfo> function_info);
+
   // Number of generations in this sub-cache.
   inline int generations() { return generations_; }
 
@@ -246,6 +249,18 @@ void CompilationSubCache::Iterate(ObjectVisitor* v) {
 
 void CompilationSubCache::Clear() {
   MemsetPointer(tables_, Heap::undefined_value(), generations_);
+}
+
+
+void CompilationSubCache::Remove(Handle<SharedFunctionInfo> function_info) {
+  // Probe the script generation tables. Make sure not to leak handles
+  // into the caller's handle scope.
+  { HandleScope scope;
+    for (int generation = 0; generation < generations(); generation++) {
+      Handle<CompilationCacheTable> table = GetTable(generation);
+      table->Remove(*function_info);
+    }
+  }
 }
 
 
@@ -467,6 +482,15 @@ void CompilationCacheRegExp::Put(Handle<String> source,
 }
 
 
+void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
+  if (!IsEnabled()) return;
+
+  eval_global.Remove(function_info);
+  eval_contextual.Remove(function_info);
+  script.Remove(function_info);
+}
+
+
 Handle<SharedFunctionInfo> CompilationCache::LookupScript(Handle<String> source,
                                                           Handle<Object> name,
                                                           int line_offset,
@@ -542,6 +566,45 @@ void CompilationCache::PutRegExp(Handle<String> source,
   }
 
   reg_exp.Put(source, flags, data);
+}
+
+
+static bool SourceHashCompare(void* key1, void* key2) {
+  return key1 == key2;
+}
+
+
+static HashMap* EagerOptimizingSet() {
+  static HashMap map(&SourceHashCompare);
+  return &map;
+}
+
+
+bool CompilationCache::ShouldOptimizeEagerly(Handle<JSFunction> function) {
+  if (FLAG_opt_eagerly) return true;
+  uint32_t hash = function->SourceHash();
+  void* key = reinterpret_cast<void*>(hash);
+  return EagerOptimizingSet()->Lookup(key, hash, false) != NULL;
+}
+
+
+void CompilationCache::MarkForEagerOptimizing(Handle<JSFunction> function) {
+  uint32_t hash = function->SourceHash();
+  void* key = reinterpret_cast<void*>(hash);
+  EagerOptimizingSet()->Lookup(key, hash, true);
+}
+
+
+void CompilationCache::MarkForLazyOptimizing(Handle<JSFunction> function) {
+  uint32_t hash = function->SourceHash();
+  void* key = reinterpret_cast<void*>(hash);
+  EagerOptimizingSet()->Remove(key, hash);
+}
+
+
+void CompilationCache::ResetEagerOptimizingData() {
+  HashMap* set = EagerOptimizingSet();
+  if (set->occupancy() > 0) set->Clear();
 }
 
 

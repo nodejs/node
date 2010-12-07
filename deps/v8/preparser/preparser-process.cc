@@ -25,17 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <stdlib.h>
 #include <stdarg.h>
 #include "../include/v8stdint.h"
-#include "globals.h"
-#include "checks.h"
-#include "allocation.h"
-#include "utils.h"
-#include "list.h"
-#include "smart-pointer.h"
-#include "scanner-base.h"
-#include "preparse-data.h"
-#include "preparser.h"
+#include "../include/v8-preparser.h"
+#include "unicode-inl.h"
 
 enum ResultCode { kSuccess = 0, kErrorReading = 1, kErrorWriting = 2 };
 
@@ -45,75 +39,63 @@ namespace internal {
 // THIS FILE IS PROOF-OF-CONCEPT ONLY.
 // The final goal is a stand-alone preparser library.
 
-// UTF16Buffer based on an UTF-8 string in memory.
-class UTF8UTF16Buffer : public UTF16Buffer {
+
+class UTF8InputStream : public v8::UnicodeInputStream {
  public:
-  UTF8UTF16Buffer(uint8_t* buffer, size_t length)
-      : UTF16Buffer(),
-        buffer_(buffer),
+  UTF8InputStream(uint8_t* buffer, size_t length)
+      : buffer_(buffer),
         offset_(0),
+        pos_(0),
         end_offset_(static_cast<int>(length)) { }
 
-  virtual void PushBack(uc32 ch) {
+  virtual ~UTF8InputStream() { }
+
+  virtual void PushBack(int32_t ch) {
     // Pushback assumes that the character pushed back is the
     // one that was most recently read, and jumps back in the
     // UTF-8 stream by the length of that character's encoding.
     offset_ -= unibrow::Utf8::Length(ch);
     pos_--;
 #ifdef DEBUG
-    int tmp = 0;
-    ASSERT_EQ(ch, unibrow::Utf8::ValueOf(buffer_ + offset_,
-                                         end_offset_ - offset_,
-                                         &tmp);
+    if (static_cast<unsigned>(ch) <= unibrow::Utf8::kMaxOneByteChar) {
+      if (ch != buffer_[offset_]) {
+        fprintf(stderr, "Invalid pushback: '%c'.", ch);
+        exit(1);
+      }
+    } else {
+      unsigned tmp = 0;
+      if (static_cast<unibrow::uchar>(ch) !=
+          unibrow::Utf8::CalculateValue(buffer_ + offset_,
+                                        end_offset_ - offset_,
+                                        &tmp)) {
+        fprintf(stderr, "Invalid pushback: 0x%x.", ch);
+        exit(1);
+      }
+    }
 #endif
   }
 
-  virtual uc32 Advance() {
+  virtual int32_t Next() {
     if (offset_ == end_offset_) return -1;
     uint8_t first_char = buffer_[offset_];
     if (first_char <= unibrow::Utf8::kMaxOneByteChar) {
       pos_++;
       offset_++;
-      return static_cast<uc32>(first_char);
+      return static_cast<int32_t>(first_char);
     }
     unibrow::uchar codepoint =
         unibrow::Utf8::CalculateValue(buffer_ + offset_,
                                       end_offset_ - offset_,
                                       &offset_);
     pos_++;
-    return static_cast<uc32>(codepoint);
-  }
-
-  virtual void SeekForward(int pos) {
-    while (pos_ < pos) {
-      uint8_t first_byte = buffer_[offset_++];
-      while (first_byte & 0x80u && offset_ < end_offset_) {
-        offset_++;
-        first_byte <<= 1;
-      }
-      pos_++;
-    }
+    return static_cast<int32_t>(codepoint);
   }
 
  private:
   const uint8_t* buffer_;
   unsigned offset_;
+  unsigned pos_;
   unsigned end_offset_;
-};
-
-
-class StandAloneJavaScriptScanner : public JavaScriptScanner {
- public:
-  void Initialize(UTF16Buffer* source) {
-    source_ = source;
-    literal_flags_ = kLiteralString | kLiteralIdentifier;
-    Init();
-    // Skip initial whitespace allowing HTML comment ends just like
-    // after a newline and scan first token.
-    has_line_terminator_before_next_ = true;
-    SkipWhiteSpace();
-    Scan();
-  }
 };
 
 
@@ -150,10 +132,23 @@ bool ReadBuffer(FILE* source, void* buffer, size_t length) {
 }
 
 
-bool WriteBuffer(FILE* dest, void* buffer, size_t length) {
+bool WriteBuffer(FILE* dest, const void* buffer, size_t length) {
   size_t actually_written = fwrite(buffer, 1, length, dest);
   return (actually_written == length);
 }
+
+
+template <typename T>
+class ScopedPointer {
+ public:
+  explicit ScopedPointer(T* pointer) : pointer_(pointer) {}
+  ~ScopedPointer() { delete[] pointer_; }
+  T& operator[](int index) { return pointer_[index]; }
+  T* operator*() { return pointer_ ;}
+ private:
+  T* pointer_;
+};
+
 
 // Preparse stdin and output result on stdout.
 int PreParseIO() {
@@ -161,44 +156,30 @@ int PreParseIO() {
   bool ok = true;
   uint32_t length = ReadUInt32(stdin, &ok);
   if (!ok) return kErrorReading;
-  SmartPointer<byte> buffer(NewArray<byte>(length));
+  ScopedPointer<uint8_t> buffer(new uint8_t[length]);
+
   if (!ReadBuffer(stdin, *buffer, length)) {
     return kErrorReading;
   }
-  UTF8UTF16Buffer input_buffer(*buffer, static_cast<size_t>(length));
-  StandAloneJavaScriptScanner scanner;
-  scanner.Initialize(&input_buffer);
-  CompleteParserRecorder recorder;
-  preparser::PreParser preparser;
+  UTF8InputStream input_buffer(*buffer, static_cast<size_t>(length));
 
-  if (!preparser.PreParseProgram(&scanner, &recorder, true)) {
-    if (scanner.stack_overflow()) {
-      // Report stack overflow error/no-preparser-data.
-      WriteUInt32(stdout, 0, &ok);
-      if (!ok) return kErrorWriting;
-      return 0;
-    }
+  v8::PreParserData data =
+      v8::Preparse(&input_buffer, 64 * sizeof(void*));  // NOLINT
+  if (data.stack_overflow()) {
+    // Report stack overflow error/no-preparser-data.
+    WriteUInt32(stdout, 0, &ok);
+    if (!ok) return kErrorWriting;
+    return 0;
   }
-  Vector<unsigned> pre_data = recorder.ExtractData();
 
-  uint32_t size = static_cast<uint32_t>(pre_data.length() * sizeof(uint32_t));
+  uint32_t size = data.size();
   WriteUInt32(stdout, size, &ok);
   if (!ok) return kErrorWriting;
-  if (!WriteBuffer(stdout,
-                   reinterpret_cast<byte*>(pre_data.start()),
-                   size)) {
+  if (!WriteBuffer(stdout, data.data(), size)) {
     return kErrorWriting;
   }
   return 0;
 }
-
-// Functions declared by allocation.h
-
-void FatalProcessOutOfMemory(const char* location) {
-  V8_Fatal("", 0, location);
-}
-
-bool EnableSlowAsserts() { return true; }
 
 } }  // namespace v8::internal
 
@@ -210,18 +191,4 @@ int main(int argc, char* argv[]) {
   } while (status == 0);
   fprintf(stderr, "EXIT: Failure %d\n", status);
   return EXIT_FAILURE;
-}
-
-
-// Fatal error handling declared by checks.h.
-
-extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
-  fflush(stdout);
-  fflush(stderr);
-  va_list arguments;
-  va_start(arguments, format);
-  vfprintf(stderr, format, arguments);
-  va_end(arguments);
-  fputs("\n#\n\n", stderr);
-  exit(EXIT_FAILURE);
 }

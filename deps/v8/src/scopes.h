@@ -105,7 +105,7 @@ class Scope: public ZoneObject {
   static bool Analyze(CompilationInfo* info);
 
   // The scope name is only used for printing/debugging.
-  void SetScopeName(Handle<String> scope_name)  { scope_name_ = scope_name; }
+  void SetScopeName(Handle<String> scope_name) { scope_name_ = scope_name; }
 
   virtual void Initialize(bool inside_with);
 
@@ -156,11 +156,11 @@ class Scope: public ZoneObject {
   // such a variable again if it was added; otherwise this is a no-op.
   void RemoveUnresolved(VariableProxy* var);
 
-  // Creates a new temporary variable in this scope and binds a proxy to it.
-  // The name is only used for printing and cannot be used to find the variable.
-  // In particular, the only way to get hold of the temporary is by keeping the
-  // VariableProxy* around.
-  virtual VariableProxy* NewTemporary(Handle<String> name);
+  // Creates a new temporary variable in this scope.  The name is only used
+  // for printing and cannot be used to find the variable.  In particular,
+  // the only way to get hold of the temporary is by keeping the Variable*
+  // around.
+  virtual Variable* NewTemporary(Handle<String> name);
 
   // Adds the specific declaration node to the list of declarations in
   // this scope. The declarations are processed as part of entering
@@ -188,10 +188,10 @@ class Scope: public ZoneObject {
   // Scope-specific info.
 
   // Inform the scope that the corresponding code contains a with statement.
-  void RecordWithStatement()  { scope_contains_with_ = true; }
+  void RecordWithStatement() { scope_contains_with_ = true; }
 
   // Inform the scope that the corresponding code contains an eval call.
-  void RecordEvalCall()  { scope_calls_eval_ = true; }
+  void RecordEvalCall() { scope_calls_eval_ = true; }
 
 
   // ---------------------------------------------------------------------------
@@ -423,7 +423,7 @@ class DummyScope : public Scope {
     return NULL;
   }
 
-  virtual VariableProxy* NewTemporary(Handle<String> name)  { return NULL; }
+  virtual Variable* NewTemporary(Handle<String> name)  { return NULL; }
 
   virtual bool HasTrivialOuterContext() const {
     return (nesting_level_ == 0 || inside_with_level_ <= 0);

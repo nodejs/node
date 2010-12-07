@@ -596,8 +596,13 @@ class RegExpNode: public ZoneObject {
   // How many characters must this node consume at a minimum in order to
   // succeed.  If we have found at least 'still_to_find' characters that
   // must be consumed there is no need to ask any following nodes whether
-  // they are sure to eat any more characters.
-  virtual int EatsAtLeast(int still_to_find, int recursion_depth) = 0;
+  // they are sure to eat any more characters.  The not_at_start argument is
+  // used to indicate that we know we are not at the start of the input.  In
+  // this case anchored branches will always fail and can be ignored when
+  // determining how many characters are consumed on success.
+  virtual int EatsAtLeast(int still_to_find,
+                          int recursion_depth,
+                          bool not_at_start) = 0;
   // Emits some quick code that checks whether the preloaded characters match.
   // Falls through on certain failure, jumps to the label on possible success.
   // If the node cannot make a quick check it does nothing and returns false.
@@ -765,7 +770,9 @@ class ActionNode: public SeqRegExpNode {
                                      RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
+  virtual int EatsAtLeast(int still_to_find,
+                          int recursion_depth,
+                          bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int filled_in,
@@ -829,7 +836,9 @@ class TextNode: public SeqRegExpNode {
   }
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
+  virtual int EatsAtLeast(int still_to_find,
+                          int recursion_depth,
+                          bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
@@ -897,7 +906,9 @@ class AssertionNode: public SeqRegExpNode {
   }
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
+  virtual int EatsAtLeast(int still_to_find,
+                          int recursion_depth,
+                          bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int filled_in,
@@ -925,7 +936,9 @@ class BackReferenceNode: public SeqRegExpNode {
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
+  virtual int EatsAtLeast(int still_to_find,
+                          int recursion_depth,
+                          bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
@@ -946,7 +959,9 @@ class EndNode: public RegExpNode {
   explicit EndNode(Action action) : action_(action) { }
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find, int recursion_depth) { return 0; }
+  virtual int EatsAtLeast(int still_to_find,
+                          int recursion_depth,
+                          bool not_at_start) { return 0; }
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
@@ -1028,10 +1043,13 @@ class ChoiceNode: public RegExpNode {
   ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
   DispatchTable* GetTable(bool ignore_case);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
+  virtual int EatsAtLeast(int still_to_find,
+                          int recursion_depth,
+                          bool not_at_start);
   int EatsAtLeastHelper(int still_to_find,
                         int recursion_depth,
-                        RegExpNode* ignore_this_node);
+                        RegExpNode* ignore_this_node,
+                        bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
@@ -1054,7 +1072,7 @@ class ChoiceNode: public RegExpNode {
   void GenerateGuard(RegExpMacroAssembler* macro_assembler,
                      Guard* guard,
                      Trace* trace);
-  int CalculatePreloadCharacters(RegExpCompiler* compiler);
+  int CalculatePreloadCharacters(RegExpCompiler* compiler, bool not_at_start);
   void EmitOutOfLineContinuation(RegExpCompiler* compiler,
                                  Trace* trace,
                                  GuardedAlternative alternative,
@@ -1077,7 +1095,9 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
     AddAlternative(this_must_fail);
     AddAlternative(then_do_this);
   }
-  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
+  virtual int EatsAtLeast(int still_to_find,
+                          int recursion_depth,
+                          bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
@@ -1102,7 +1122,9 @@ class LoopChoiceNode: public ChoiceNode {
   void AddLoopAlternative(GuardedAlternative alt);
   void AddContinueAlternative(GuardedAlternative alt);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
+  virtual int EatsAtLeast(int still_to_find,
+                          int recursion_depth,
+                          bool not_at_start);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,

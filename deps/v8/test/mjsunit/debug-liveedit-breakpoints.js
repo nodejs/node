@@ -62,6 +62,8 @@ assertEquals(26, F26());
 
 var script = Debug.findScript(F25);
 
+assertEquals(0, Debug.scriptBreakPoints().length);
+
 Debug.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId, script.id, 1, 1, "true || false || false");
 Debug.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId, script.id, 6, 1, "true || false || false");
 Debug.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId, script.id, 14, 1, "true || false || false");
@@ -96,3 +98,16 @@ assertEquals(3, breakpoints_in_script);
 assertTrue(break_position_map[1]);
 assertTrue(break_position_map[11]);
 
+// Delete all breakpoints to make this test reentrant.
+var breaks = Debug.scriptBreakPoints();
+var breaks_ids = [];
+
+for (var i = 0; i < breaks.length; i++) {
+  breaks_ids.push(breaks[i].number());
+}
+
+for (var i = 0; i < breaks_ids.length; i++) {
+  Debug.clearBreakPoint(breaks_ids[i]);
+}
+
+assertEquals(0, Debug.scriptBreakPoints().length);

@@ -33,6 +33,7 @@ Debug = debug.Debug
 listenerComplete = false;
 exception = false;
 
+var breakpoint = -1;
 var base_request = '"seq":0,"type":"request","command":"changebreakpoint"'
 
 function safeEval(code) {
@@ -68,21 +69,21 @@ function listener(event, exec_state, event_data, data) {
 
     testArguments(dcp, '{}', false);
     testArguments(dcp, '{"breakpoint":0,"condition":"false"}', false);
-    // TODO(1241036) change this to 2 when break points have been restructured.
-    testArguments(dcp, '{"breakpoint":3,"condition":"false"}', false);
+    testArguments(dcp, '{"breakpoint":' + (breakpoint + 1) + ',"condition":"false"}', false);
     testArguments(dcp, '{"breakpoint":"xx","condition":"false"}', false);
 
     // Test some legal clearbreakpoint requests.
-    testArguments(dcp, '{"breakpoint":1}', true);
-    testArguments(dcp, '{"breakpoint":1,"enabled":"true"}', true);
-    testArguments(dcp, '{"breakpoint":1,"enabled":"false"}', true);
-    testArguments(dcp, '{"breakpoint":1,"condition":"1==2"}', true);
-    testArguments(dcp, '{"breakpoint":1,"condition":"false"}', true);
-    testArguments(dcp, '{"breakpoint":1,"ignoreCount":7}', true);
-    testArguments(dcp, '{"breakpoint":1,"ignoreCount":0}', true);
+    var bp_str = '"breakpoint":' + breakpoint;;
+    testArguments(dcp, '{' + bp_str + '}', true);
+    testArguments(dcp, '{' + bp_str + ',"enabled":"true"}', true);
+    testArguments(dcp, '{' + bp_str + ',"enabled":"false"}', true);
+    testArguments(dcp, '{' + bp_str + ',"condition":"1==2"}', true);
+    testArguments(dcp, '{' + bp_str + ',"condition":"false"}', true);
+    testArguments(dcp, '{' + bp_str + ',"ignoreCount":7}', true);
+    testArguments(dcp, '{' + bp_str + ',"ignoreCount":0}', true);
     testArguments(
         dcp,
-        '{"breakpoint":1,"enabled":"true","condition":"false","ignoreCount":0}',
+        '{' + bp_str + ',"enabled":"true","condition":"false","ignoreCount":0}',
         true);
 
     // Indicate that all was processed.
@@ -99,8 +100,7 @@ Debug.setListener(listener);
 function g() {};
 
 // Set a break point and call to invoke the debug event listener.
-bp = Debug.setBreakPoint(g, 0, 0);
-assertEquals(1, bp);
+breakpoint = Debug.setBreakPoint(g, 0, 0);
 g();
 
 // Make sure that the debug event listener vas invoked.

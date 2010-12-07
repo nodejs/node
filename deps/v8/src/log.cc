@@ -31,11 +31,14 @@
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
+#include "deoptimizer.h"
 #include "global-handles.h"
 #include "log.h"
 #include "macro-assembler.h"
+#include "runtime-profiler.h"
 #include "serialize.h"
 #include "string-stream.h"
+#include "vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -147,6 +150,7 @@ void StackTracer::Trace(TickSample* sample) {
   sample->function = NULL;
   sample->frames_count = 0;
 
+  // Avoid collecting traces while doing GC.
   if (sample->state == GC) return;
 
   const Address js_entry_sp = Top::js_entry_sp(Top::GetCurrentThread());
@@ -155,15 +159,18 @@ void StackTracer::Trace(TickSample* sample) {
     return;
   }
 
-  const Address functionAddr =
+  const Address function_address =
       sample->fp + JavaScriptFrameConstants::kFunctionOffset;
   if (SafeStackFrameIterator::IsWithinBounds(sample->sp, js_entry_sp,
-                                             functionAddr)) {
-    sample->function = Memory::Address_at(functionAddr) - kHeapObjectTag;
+                                             function_address)) {
+    Object* object = Memory::Object_at(function_address);
+    if (object->IsHeapObject()) {
+      sample->function = HeapObject::cast(object)->address();
+    }
   }
 
   int i = 0;
-  const Address callback = VMState::external_callback();
+  const Address callback = Top::external_callback();
   // Surprisingly, PC can point _exactly_ to callback start, with good
   // probability, and this will result in reporting fake nested
   // callback call.
@@ -174,9 +181,10 @@ void StackTracer::Trace(TickSample* sample) {
   SafeStackTraceFrameIterator it(sample->fp, sample->sp,
                                  sample->sp, js_entry_sp);
   while (!it.done() && i < TickSample::kMaxFramesCount) {
-    sample->stack[i++] =
-        reinterpret_cast<Address>(it.frame()->function_slot_object()) -
-            kHeapObjectTag;
+    Object* object = it.frame()->function_slot_object();
+    if (object->IsHeapObject()) {
+      sample->stack[i++] = HeapObject::cast(object)->address();
+    }
     it.Advance();
   }
   sample->frames_count = i;
@@ -189,8 +197,10 @@ void StackTracer::Trace(TickSample* sample) {
 //
 class Ticker: public Sampler {
  public:
-  explicit Ticker(int interval):
-      Sampler(interval, FLAG_prof), window_(NULL), profiler_(NULL) {}
+  explicit Ticker(int interval) :
+      Sampler(interval),
+      window_(NULL),
+      profiler_(NULL) {}
 
   ~Ticker() { if (IsActive()) Stop(); }
 
@@ -206,22 +216,24 @@ class Ticker: public Sampler {
 
   void ClearWindow() {
     window_ = NULL;
-    if (!profiler_ && IsActive()) Stop();
+    if (!profiler_ && IsActive() && !RuntimeProfiler::IsEnabled()) Stop();
   }
 
   void SetProfiler(Profiler* profiler) {
+    ASSERT(profiler_ == NULL);
     profiler_ = profiler;
+    IncreaseProfilingDepth();
     if (!FLAG_prof_lazy && !IsActive()) Start();
   }
 
   void ClearProfiler() {
+    DecreaseProfilingDepth();
     profiler_ = NULL;
-    if (!window_ && IsActive()) Stop();
+    if (!window_ && IsActive() && !RuntimeProfiler::IsEnabled()) Stop();
   }
 
  protected:
   virtual void DoSampleStack(TickSample* sample) {
-    ASSERT(IsSynchronous());
     StackTracer::Trace(sample);
   }
 
@@ -759,6 +771,15 @@ void Logger::SetterCallbackEvent(String* name, Address entry_point) {
 }
 
 
+static const char* ComputeMarker(Code* code) {
+  switch (code->kind()) {
+    case Code::FUNCTION: return code->optimizable() ? "~" : "";
+    case Code::OPTIMIZED_FUNCTION: return "*";
+    default: return "";
+  }
+}
+
+
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              const char* comment) {
@@ -767,7 +788,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   LogMessageBuilder msg;
   msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
   msg.AppendAddress(code->address());
-  msg.Append(",%d,\"", code->ExecutableSize());
+  msg.Append(",%d,\"%s", code->ExecutableSize(), ComputeMarker(code));
   for (const char* p = comment; *p != '\0'; p++) {
     if (*p == '"') {
       msg.Append('\\');
@@ -794,7 +815,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name) {
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
   msg.AppendAddress(code->address());
-  msg.Append(",%d,\"%s\"", code->ExecutableSize(), *str);
+  msg.Append(",%d,\"%s%s\"", code->ExecutableSize(), ComputeMarker(code), *str);
   LowLevelCodeCreateEvent(code, &msg);
   if (FLAG_compress_log) {
     ASSERT(compression_helper_ != NULL);
@@ -818,8 +839,12 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
   msg.AppendAddress(code->address());
-  msg.Append(",%d,\"%s %s:%d\"",
-             code->ExecutableSize(), *str, *sourcestr, line);
+  msg.Append(",%d,\"%s%s %s:%d\"",
+             code->ExecutableSize(),
+             ComputeMarker(code),
+             *str,
+             *sourcestr,
+             line);
   LowLevelCodeCreateEvent(code, &msg);
   if (FLAG_compress_log) {
     ASSERT(compression_helper_ != NULL);
@@ -1226,7 +1251,9 @@ void Logger::PauseProfiler(int flags, int tag) {
     if (--cpu_profiler_nesting_ == 0) {
       profiler_->pause();
       if (FLAG_prof_lazy) {
-        if (!FLAG_sliding_state_window) ticker_->Stop();
+        if (!FLAG_sliding_state_window && !RuntimeProfiler::IsEnabled()) {
+          ticker_->Stop();
+        }
         FLAG_log_code = false;
         // Must be the same message as Log::kDynamicBufferSeal.
         LOG(UncheckedStringEvent("profiler", "pause"));
@@ -1262,7 +1289,9 @@ void Logger::ResumeProfiler(int flags, int tag) {
         LogCompiledFunctions();
         LogFunctionObjects();
         LogAccessorCallbacks();
-        if (!FLAG_sliding_state_window) ticker_->Start();
+        if (!FLAG_sliding_state_window && !ticker_->IsActive()) {
+          ticker_->Start();
+        }
       }
       profiler_->resume();
     }
@@ -1295,9 +1324,41 @@ int Logger::GetLogLines(int from_pos, char* dest_buf, int max_size) {
 }
 
 
-static int EnumerateCompiledFunctions(Handle<SharedFunctionInfo>* sfis) {
+class EnumerateOptimizedFunctionsVisitor: public OptimizedFunctionVisitor {
+ public:
+  EnumerateOptimizedFunctionsVisitor(Handle<SharedFunctionInfo>* sfis,
+                                     Handle<Code>* code_objects,
+                                     int* count)
+      : sfis_(sfis), code_objects_(code_objects), count_(count) { }
+
+  virtual void EnterContext(Context* context) {}
+  virtual void LeaveContext(Context* context) {}
+
+  virtual void VisitFunction(JSFunction* function) {
+    if (sfis_ != NULL) {
+      sfis_[*count_] = Handle<SharedFunctionInfo>(function->shared());
+    }
+    if (code_objects_ != NULL) {
+      ASSERT(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
+      code_objects_[*count_] = Handle<Code>(function->code());
+    }
+    *count_ = *count_ + 1;
+  }
+
+ private:
+  Handle<SharedFunctionInfo>* sfis_;
+  Handle<Code>* code_objects_;
+  int* count_;
+};
+
+
+static int EnumerateCompiledFunctions(Handle<SharedFunctionInfo>* sfis,
+                                      Handle<Code>* code_objects) {
   AssertNoAllocation no_alloc;
   int compiled_funcs_count = 0;
+
+  // Iterate the heap to find shared function info objects and record
+  // the unoptimized code for them.
   HeapIterator iterator;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsSharedFunctionInfo()) continue;
@@ -1305,11 +1366,22 @@ static int EnumerateCompiledFunctions(Handle<SharedFunctionInfo>* sfis) {
     if (sfi->is_compiled()
         && (!sfi->script()->IsScript()
             || Script::cast(sfi->script())->HasValidSource())) {
-      if (sfis != NULL)
+      if (sfis != NULL) {
         sfis[compiled_funcs_count] = Handle<SharedFunctionInfo>(sfi);
+      }
+      if (code_objects != NULL) {
+        code_objects[compiled_funcs_count] = Handle<Code>(sfi->code());
+      }
       ++compiled_funcs_count;
     }
   }
+
+  // Iterate all optimized functions in all contexts.
+  EnumerateOptimizedFunctionsVisitor visitor(sfis,
+                                             code_objects,
+                                             &compiled_funcs_count);
+  Deoptimizer::VisitAllOptimizedFunctions(&visitor);
+
   return compiled_funcs_count;
 }
 
@@ -1321,9 +1393,11 @@ void Logger::LogCodeObject(Object* object) {
     const char* description = "Unknown code from the snapshot";
     switch (code_object->kind()) {
       case Code::FUNCTION:
+      case Code::OPTIMIZED_FUNCTION:
         return;  // We log this later using LogCompiledFunctions.
-      case Code::BINARY_OP_IC:
-        // fall through
+      case Code::BINARY_OP_IC:  // fall through
+      case Code::TYPE_RECORDING_BINARY_OP_IC:   // fall through
+      case Code::COMPARE_IC:  // fall through
       case Code::STUB:
         description =
             CodeStub::MajorName(CodeStub::GetMajorKey(code_object), true);
@@ -1406,9 +1480,10 @@ void Logger::LogCodeObjects() {
 
 void Logger::LogCompiledFunctions() {
   HandleScope scope;
-  const int compiled_funcs_count = EnumerateCompiledFunctions(NULL);
+  const int compiled_funcs_count = EnumerateCompiledFunctions(NULL, NULL);
   ScopedVector< Handle<SharedFunctionInfo> > sfis(compiled_funcs_count);
-  EnumerateCompiledFunctions(sfis.start());
+  ScopedVector< Handle<Code> > code_objects(compiled_funcs_count);
+  EnumerateCompiledFunctions(sfis.start(), code_objects.start());
 
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
@@ -1425,18 +1500,18 @@ void Logger::LogCompiledFunctions() {
         if (line_num > 0) {
           PROFILE(CodeCreateEvent(
               Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
-              shared->code(), *func_name,
+              *code_objects[i], *func_name,
               *script_name, line_num + 1));
         } else {
           // Can't distinguish eval and script here, so always use Script.
           PROFILE(CodeCreateEvent(
               Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
-              shared->code(), *script_name));
+              *code_objects[i], *script_name));
         }
       } else {
         PROFILE(CodeCreateEvent(
             Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
-            shared->code(), *func_name));
+            *code_objects[i], *func_name));
       }
     } else if (shared->IsApiFunction()) {
       // API function.
@@ -1450,7 +1525,7 @@ void Logger::LogCompiledFunctions() {
       }
     } else {
       PROFILE(CodeCreateEvent(
-          Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
+          Logger::LAZY_COMPILE_TAG, *code_objects[i], *func_name));
     }
   }
 }
@@ -1571,8 +1646,6 @@ bool Logger::Setup() {
     }
   }
 
-  ASSERT(VMState::is_outermost_external());
-
   if (FLAG_ll_prof) LogCodeInfo();
 
   ticker_ = new Ticker(kSamplingIntervalMs);
@@ -1604,12 +1677,22 @@ bool Logger::Setup() {
   }
 
   LogMessageBuilder::set_write_failure_handler(StopLoggingAndProfiling);
-
   return true;
 
 #else
   return false;
 #endif
+}
+
+
+void Logger::EnsureTickerStarted() {
+  ASSERT(ticker_ != NULL);
+  if (!ticker_->IsActive()) ticker_->Start();
+}
+
+
+void Logger::EnsureTickerStopped() {
+  if (ticker_ != NULL && ticker_->IsActive()) ticker_->Stop();
 }
 
 

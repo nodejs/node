@@ -28,6 +28,7 @@
 #ifndef V8_SPACES_H_
 #define V8_SPACES_H_
 
+#include "atomicops.h"
 #include "list-inl.h"
 #include "log.h"
 
@@ -609,6 +610,9 @@ class MemoryAllocator : public AllStatic {
     return (Available() / Page::kPageSize) * Page::kObjectAreaSize;
   }
 
+  // Sanity check on a pointer.
+  static bool SafeIsInAPageChunk(Address addr);
+
   // Links two pages.
   static inline void SetNextPage(Page* prev, Page* next);
 
@@ -650,22 +654,49 @@ class MemoryAllocator : public AllStatic {
   static void ReportStatistics();
 #endif
 
+  static void AddToAllocatedChunks(Address addr, intptr_t size);
+  static void RemoveFromAllocatedChunks(Address addr, intptr_t size);
+  // Note: This only checks the regular chunks, not the odd-sized initial
+  // chunk.
+  static bool InAllocatedChunks(Address addr);
+
   // Due to encoding limitation, we can only have 8K chunks.
   static const int kMaxNofChunks = 1 << kPageSizeBits;
   // If a chunk has at least 16 pages, the maximum heap size is about
   // 8K * 8K * 16 = 1G bytes.
 #ifdef V8_TARGET_ARCH_X64
   static const int kPagesPerChunk = 32;
+  // On 64 bit the chunk table consists of 4 levels of 4096-entry tables.
+  static const int kPagesPerChunkLog2 = 5;
+  static const int kChunkTableLevels = 4;
+  static const int kChunkTableBitsPerLevel = 12;
 #else
   static const int kPagesPerChunk = 16;
+  // On 32 bit the chunk table consists of 2 levels of 256-entry tables.
+  static const int kPagesPerChunkLog2 = 4;
+  static const int kChunkTableLevels = 2;
+  static const int kChunkTableBitsPerLevel = 8;
 #endif
-  static const int kChunkSize = kPagesPerChunk * Page::kPageSize;
 
  private:
+  static const int kChunkSize = kPagesPerChunk * Page::kPageSize;
+  static const int kChunkSizeLog2 = kPagesPerChunkLog2 + kPageSizeBits;
+  static const int kChunkTableTopLevelEntries =
+      1 << (sizeof(intptr_t) * kBitsPerByte - kChunkSizeLog2 -
+          (kChunkTableLevels - 1) * kChunkTableBitsPerLevel);
+
+  // The chunks are not chunk-size aligned so for a given chunk-sized area of
+  // memory there can be two chunks that cover it.
+  static const int kChunkTableFineGrainedWordsPerEntry = 2;
+  static const AtomicWord kUnusedChunkTableEntry = 0;
+
   // Maximum space size in bytes.
   static intptr_t capacity_;
   // Maximum subset of capacity_ that can be executable
   static intptr_t capacity_executable_;
+
+  // Top level table to track whether memory is part of a chunk or not.
+  static AtomicWord chunk_table_[kChunkTableTopLevelEntries];
 
   // Allocated space size in bytes.
   static intptr_t size_;
@@ -724,6 +755,28 @@ class MemoryAllocator : public AllStatic {
 
   // Frees a chunk.
   static void DeleteChunk(int chunk_id);
+
+  // Helpers to maintain and query the chunk tables.
+  static void AddChunkUsingAddress(
+      uintptr_t chunk_start,        // Where the chunk starts.
+      uintptr_t chunk_index_base);  // Used to place the chunk in the tables.
+  static void RemoveChunkFoundUsingAddress(
+      uintptr_t chunk_start,        // Where the chunk starts.
+      uintptr_t chunk_index_base);  // Used to locate the entry in the tables.
+  // Controls whether the lookup creates intermediate levels of tables as
+  // needed.
+  enum CreateTables { kDontCreateTables, kCreateTablesAsNeeded };
+  static AtomicWord* AllocatedChunksFinder(AtomicWord* table,
+                                           uintptr_t address,
+                                           int bit_position,
+                                           CreateTables create_as_needed);
+  static void FreeChunkTables(AtomicWord* array, int length, int level);
+  static int FineGrainedIndexForAddress(uintptr_t address) {
+    int index = ((address >> kChunkSizeLog2) &
+        ((1 << kChunkTableBitsPerLevel) - 1));
+    return index * kChunkTableFineGrainedWordsPerEntry;
+  }
+
 
   // Basic check whether a chunk id is in the valid range.
   static inline bool IsValidChunkId(int chunk_id);
@@ -1019,6 +1072,8 @@ class PagedSpace : public Space {
   // Checks whether an object/address is in this space.
   inline bool Contains(Address a);
   bool Contains(HeapObject* o) { return Contains(o->address()); }
+  // Never crashes even if a is not a valid pointer.
+  inline bool SafeContains(Address a);
 
   // Given an address occupied by a live object, return that object if it is
   // in this space, or Failure::Exception() if it is not. The implementation
@@ -2132,10 +2187,10 @@ class LargeObjectChunk {
   // Allocates a new LargeObjectChunk that contains a large object page
   // (Page::kPageSize aligned) that has at least size_in_bytes (for a large
   // object) bytes after the object area start of that page.
-  // The allocated chunk size is set in the output parameter chunk_size.
-  static LargeObjectChunk* New(int size_in_bytes,
-                               size_t* chunk_size,
-                               Executability executable);
+  static LargeObjectChunk* New(int size_in_bytes, Executability executable);
+
+  // Free the memory associated with the chunk.
+  inline void Free(Executability executable);
 
   // Interpret a raw address as a large object chunk.
   static LargeObjectChunk* FromAddress(Address address) {
@@ -2148,12 +2203,13 @@ class LargeObjectChunk {
   // Accessors for the fields of the chunk.
   LargeObjectChunk* next() { return next_; }
   void set_next(LargeObjectChunk* chunk) { next_ = chunk; }
-
   size_t size() { return size_ & ~Page::kPageFlagMask; }
-  void set_size(size_t size_in_bytes) { size_ = size_in_bytes; }
+
+  // Compute the start address in the chunk.
+  inline Address GetStartAddress();
 
   // Returns the object in this chunk.
-  inline HeapObject* GetObject();
+  HeapObject* GetObject() { return HeapObject::FromAddress(GetStartAddress()); }
 
   // Given a requested size returns the physical size of a chunk to be
   // allocated.
@@ -2170,7 +2226,7 @@ class LargeObjectChunk {
   // A pointer to the next large object chunk in the space or NULL.
   LargeObjectChunk* next_;
 
-  // The size of this chunk.
+  // The total size of this chunk.
   size_t size_;
 
  public:

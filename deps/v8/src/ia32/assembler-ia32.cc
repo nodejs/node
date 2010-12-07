@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been modified
 // significantly by Google Inc.
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 
 #include "v8.h"
 
@@ -56,10 +56,10 @@ uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 
 // The Probe method needs executable memory, so it uses Heap::CreateCode.
 // Allocation failure is silent and leads to safe default.
-void CpuFeatures::Probe() {
+void CpuFeatures::Probe(bool portable) {
   ASSERT(Heap::HasBeenSetup());
   ASSERT(supported_ == 0);
-  if (Serializer::enabled()) {
+  if (portable && Serializer::enabled()) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
     return;  // No features if we might serialize.
   }
@@ -137,7 +137,7 @@ void CpuFeatures::Probe() {
   found_by_runtime_probing_ = supported_;
   uint64_t os_guarantees = OS::CpuFeaturesImpliedByPlatform();
   supported_ |= os_guarantees;
-  found_by_runtime_probing_ &= ~os_guarantees;
+  found_by_runtime_probing_ &= portable ? ~os_guarantees : 0;
 }
 
 
@@ -432,6 +432,13 @@ void Assembler::push(const Immediate& x) {
     EMIT(0x68);
     emit(x);
   }
+}
+
+
+void Assembler::push_imm32(int32_t imm32) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x68);
+  emit(imm32);
 }
 
 
@@ -1542,7 +1549,9 @@ void Assembler::bind(NearLabel* L) {
   L->bind_to(pc_offset());
 }
 
+
 void Assembler::call(Label* L) {
+  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (L->is_bound()) {
@@ -1561,6 +1570,7 @@ void Assembler::call(Label* L) {
 
 
 void Assembler::call(byte* entry, RelocInfo::Mode rmode) {
+  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   ASSERT(!RelocInfo::IsCodeTarget(rmode));
@@ -1570,6 +1580,7 @@ void Assembler::call(byte* entry, RelocInfo::Mode rmode) {
 
 
 void Assembler::call(const Operand& adr) {
+  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xFF);
@@ -1772,6 +1783,14 @@ void Assembler::fldz() {
 }
 
 
+void Assembler::fldln2() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xD9);
+  EMIT(0xED);
+}
+
+
 void Assembler::fld_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1899,6 +1918,14 @@ void Assembler::fsin() {
   last_pc_ = pc_;
   EMIT(0xD9);
   EMIT(0xFE);
+}
+
+
+void Assembler::fyl2x() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xD9);
+  EMIT(0xF1);
 }
 
 
@@ -2404,6 +2431,17 @@ void Assembler::movd(XMMRegister dst, const Operand& src) {
 }
 
 
+void Assembler::pand(XMMRegister dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xDB);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::pxor(XMMRegister dst, XMMRegister src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
@@ -2475,7 +2513,7 @@ void Assembler::RecordDebugBreakSlot() {
 
 
 void Assembler::RecordComment(const char* msg) {
-  if (FLAG_debug_code) {
+  if (FLAG_code_comments) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
@@ -2607,9 +2645,15 @@ void Assembler::emit_farith(int b1, int b2, int i) {
 }
 
 
-void Assembler::dd(uint32_t data, RelocInfo::Mode reloc_info) {
+void Assembler::db(uint8_t data) {
   EnsureSpace ensure_space(this);
-  emit(data, reloc_info);
+  EMIT(data);
+}
+
+
+void Assembler::dd(uint32_t data) {
+  EnsureSpace ensure_space(this);
+  emit(data);
 }
 
 

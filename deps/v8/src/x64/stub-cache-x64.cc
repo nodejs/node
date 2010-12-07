@@ -923,22 +923,20 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
 
 
 MaybeObject* CallStubCompiler::GenerateMissBranch() {
+  MaybeObject* maybe_obj =
+      StubCache::ComputeCallMiss(arguments().immediate(), kind_);
   Object* obj;
-  { MaybeObject* maybe_obj =
-        StubCache::ComputeCallMiss(arguments().immediate(), kind_);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   __ Jump(Handle<Code>(Code::cast(obj)), RelocInfo::CODE_TARGET);
   return obj;
 }
 
 
-MaybeObject* CallStubCompiler::CompileCallConstant(
-    Object* object,
-    JSObject* holder,
-    JSFunction* function,
-    String* name,
-    StubCompiler::CheckType check) {
+MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
+                                                   JSObject* holder,
+                                                   JSFunction* function,
+                                                   String* name,
+                                                   CheckType check) {
   // ----------- S t a t e -------------
   // rcx                 : function name
   // rsp[0]              : return address
@@ -1467,7 +1465,7 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
   char_at_generator.GenerateFast(masm());
   __ ret((argc + 1) * kPointerSize);
 
-  ICRuntimeCallHelper call_helper;
+  StubRuntimeCallHelper call_helper;
   char_at_generator.GenerateSlow(masm(), call_helper);
 
   __ bind(&index_out_of_range);
@@ -1539,7 +1537,7 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
   char_code_at_generator.GenerateFast(masm());
   __ ret((argc + 1) * kPointerSize);
 
-  ICRuntimeCallHelper call_helper;
+  StubRuntimeCallHelper call_helper;
   char_code_at_generator.GenerateSlow(masm(), call_helper);
 
   __ bind(&index_out_of_range);
@@ -1608,7 +1606,7 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
   char_from_code_generator.GenerateFast(masm());
   __ ret(2 * kPointerSize);
 
-  ICRuntimeCallHelper call_helper;
+  StubRuntimeCallHelper call_helper;
   char_from_code_generator.GenerateSlow(masm(), call_helper);
 
   // Tail call the full function. We do not have to patch the receiver
@@ -2249,6 +2247,52 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
 }
 
 
+MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(rdx, &miss);
+
+  // Check that the map matches.
+  __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
+         Handle<Map>(receiver->map()));
+  __ j(not_equal, &miss);
+
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(rax, &miss);
+
+  // Get the elements array.
+  __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ AssertFastElements(rcx);
+
+  // Check that the key is within bounds.
+  __ SmiCompare(rax, FieldOperand(rcx, FixedArray::kLengthOffset));
+  __ j(above_equal, &miss);
+
+  // Load the result and make sure it's not the hole.
+  SmiIndex index = masm()->SmiToIndex(rbx, rax, kPointerSizeLog2);
+  __ movq(rbx, FieldOperand(rcx,
+                            index.reg,
+                            index.scale,
+                            FixedArray::kHeaderSize));
+  __ CompareRoot(rbx, Heap::kTheHoleValueRootIndex);
+  __ j(equal, &miss);
+  __ movq(rax, rbx);
+  __ ret(0);
+
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
+}
+
+
 MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
                                                      AccessorInfo* callback,
                                                      String* name) {
@@ -2474,6 +2518,63 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
 
   // Return the generated code.
   return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
+}
+
+
+MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
+    JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(rdx, &miss);
+
+  // Check that the map matches.
+  __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
+         Handle<Map>(receiver->map()));
+  __ j(not_equal, &miss);
+
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(rcx, &miss);
+
+  // Get the elements array and make sure it is a fast element array, not 'cow'.
+  __ movq(rdi, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ Cmp(FieldOperand(rdi, HeapObject::kMapOffset),
+         Factory::fixed_array_map());
+  __ j(not_equal, &miss);
+
+  // Check that the key is within bounds.
+  if (receiver->IsJSArray()) {
+    __ SmiCompare(rcx, FieldOperand(rdx, JSArray::kLengthOffset));
+    __ j(above_equal, &miss);
+  } else {
+    __ SmiCompare(rcx, FieldOperand(rdi, FixedArray::kLengthOffset));
+    __ j(above_equal, &miss);
+  }
+
+  // Do the store and update the write barrier. Make sure to preserve
+  // the value in register eax.
+  __ movq(rdx, rax);
+  __ SmiToInteger32(rcx, rcx);
+  __ movq(FieldOperand(rdi, rcx, times_pointer_size, FixedArray::kHeaderSize),
+          rax);
+  __ RecordWrite(rdi, 0, rdx, rcx);
+
+  // Done.
+  __ ret(0);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
+  __ jmp(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
 }
 
 

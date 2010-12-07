@@ -209,6 +209,9 @@ class CodeGenerator: public AstVisitor {
                                        Code::Flags flags,
                                        CompilationInfo* info);
 
+  // Print the code after compiling it.
+  static void PrintCode(Handle<Code> code, CompilationInfo* info);
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static bool ShouldGenerateLog(Expression* type);
 #endif
@@ -305,8 +308,9 @@ class CodeGenerator: public AstVisitor {
   // Node visitors.
   void VisitStatements(ZoneList<Statement*>* statements);
 
+  virtual void VisitSlot(Slot* node);
 #define DEF_VISIT(type) \
-  void Visit##type(type* node);
+  virtual void Visit##type(type* node);
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
@@ -516,6 +520,7 @@ class CodeGenerator: public AstVisitor {
   void GenerateMathSin(ZoneList<Expression*>* args);
   void GenerateMathCos(ZoneList<Expression*>* args);
   void GenerateMathSqrt(ZoneList<Expression*>* args);
+  void GenerateMathLog(ZoneList<Expression*>* args);
 
   void GenerateIsRegExpEquivalent(ZoneList<Expression*>* args);
 
@@ -578,6 +583,7 @@ class CodeGenerator: public AstVisitor {
   friend class FastCodeGenerator;
   friend class FullCodeGenerator;
   friend class FullCodeGenSyntaxChecker;
+  friend class LCodeGen;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

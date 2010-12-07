@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,6 +31,8 @@
 
 #include "code-stubs.h"
 #include "codegen-inl.h"
+#include "deoptimizer.h"
+#include "full-codegen.h"
 
 namespace v8 {
 namespace internal {
@@ -477,6 +479,85 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
   // Do a tail-call of the compiled function.
   __ lea(ecx, FieldOperand(eax, Code::kHeaderSize));
   __ jmp(Operand(ecx));
+}
+
+
+void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Push a copy of the function onto the stack.
+  __ push(edi);
+
+  __ push(edi);  // Function is also the parameter to the runtime call.
+  __ CallRuntime(Runtime::kLazyRecompile, 1);
+
+  // Restore function and tear down temporary frame.
+  __ pop(edi);
+  __ LeaveInternalFrame();
+
+  // Do a tail-call of the compiled function.
+  __ lea(ecx, FieldOperand(eax, Code::kHeaderSize));
+  __ jmp(Operand(ecx));
+}
+
+
+static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
+                                             Deoptimizer::BailoutType type) {
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Pass the function and deoptimization type to the runtime system.
+  __ push(Immediate(Smi::FromInt(static_cast<int>(type))));
+  __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
+
+  // Tear down temporary frame.
+  __ LeaveInternalFrame();
+
+  // Get the full codegen state from the stack and untag it.
+  __ mov(ecx, Operand(esp, 1 * kPointerSize));
+  __ SmiUntag(ecx);
+
+  // Switch on the state.
+  NearLabel not_no_registers, not_tos_eax;
+  __ cmp(ecx, FullCodeGenerator::NO_REGISTERS);
+  __ j(not_equal, &not_no_registers);
+  __ ret(1 * kPointerSize);  // Remove state.
+
+  __ bind(&not_no_registers);
+  __ mov(eax, Operand(esp, 2 * kPointerSize));
+  __ cmp(ecx, FullCodeGenerator::TOS_REG);
+  __ j(not_equal, &not_tos_eax);
+  __ ret(2 * kPointerSize);  // Remove state, eax.
+
+  __ bind(&not_tos_eax);
+  __ Abort("no cases left");
+}
+
+
+void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
+  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::EAGER);
+}
+
+
+void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
+  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
+}
+
+
+void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
+  // TODO(kasperl): Do we need to save/restore the XMM registers too?
+
+  // For now, we are relying on the fact that Runtime::NotifyOSR
+  // doesn't do any garbage collection which allows us to save/restore
+  // the registers without worrying about which of them contain
+  // pointers. This seems a bit fragile.
+  __ pushad();
+  __ EnterInternalFrame();
+  __ CallRuntime(Runtime::kNotifyOSR, 0);
+  __ LeaveInternalFrame();
+  __ popad();
+  __ ret(0);
 }
 
 
@@ -1415,6 +1496,76 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
   __ jmp(Operand(edx));
+}
+
+
+void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
+  // We shouldn't be performing on-stack replacement in the first
+  // place if the CPU features we need for the optimized Crankshaft
+  // code aren't supported.
+  CpuFeatures::Probe(false);
+  if (!CpuFeatures::IsSupported(SSE2)) {
+    __ Abort("Unreachable code: Cannot optimize without SSE2 support.");
+    return;
+  }
+
+  // Get the loop depth of the stack guard check. This is recorded in
+  // a test(eax, depth) instruction right after the call.
+  Label stack_check;
+  __ mov(ebx, Operand(esp, 0));  // return address
+  if (FLAG_debug_code) {
+    __ cmpb(Operand(ebx, 0), Assembler::kTestAlByte);
+    __ Assert(equal, "test eax instruction not found after loop stack check");
+  }
+  __ movzx_b(ebx, Operand(ebx, 1));  // depth
+
+  // Get the loop nesting level at which we allow OSR from the
+  // unoptimized code and check if we want to do OSR yet. If not we
+  // should perform a stack guard check so we can get interrupts while
+  // waiting for on-stack replacement.
+  __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ mov(ecx, FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kCodeOffset));
+  __ cmpb(ebx, FieldOperand(ecx, Code::kAllowOSRAtLoopNestingLevelOffset));
+  __ j(greater, &stack_check);
+
+  // Pass the function to optimize as the argument to the on-stack
+  // replacement runtime function.
+  __ EnterInternalFrame();
+  __ push(eax);
+  __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
+  __ LeaveInternalFrame();
+
+  // If the result was -1 it means that we couldn't optimize the
+  // function. Just return and continue in the unoptimized version.
+  NearLabel skip;
+  __ cmp(Operand(eax), Immediate(Smi::FromInt(-1)));
+  __ j(not_equal, &skip);
+  __ ret(0);
+
+  // If we decide not to perform on-stack replacement we perform a
+  // stack guard check to enable interrupts.
+  __ bind(&stack_check);
+  NearLabel ok;
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit();
+  __ cmp(esp, Operand::StaticVariable(stack_limit));
+  __ j(above_equal, &ok, taken);
+  StackCheckStub stub;
+  __ TailCallStub(&stub);
+  __ Abort("Unreachable code: returned from tail call.");
+  __ bind(&ok);
+  __ ret(0);
+
+  __ bind(&skip);
+  // Untag the AST id and push it on the stack.
+  __ SmiUntag(eax);
+  __ push(eax);
+
+  // Generate the code for doing the frame-to-frame translation using
+  // the deoptimizer infrastructure.
+  Deoptimizer::EntryGenerator generator(masm, Deoptimizer::OSR);
+  generator.Generate();
 }
 
 

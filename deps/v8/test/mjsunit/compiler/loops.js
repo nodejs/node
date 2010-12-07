@@ -33,3 +33,29 @@ for (var i = 1; (6 - i); i++) {
   n = n * i;
 }
 assertEquals(120, n);
+
+// Test assignments in the loop condition.
+function f(i, n) {
+  while((n = n - 1) >= 0) {
+    i = n + 1;
+  }
+  return i;
+}
+assertEquals(1, f(0, 42));
+
+
+// Test do-while loop and continue.
+function g(a) {
+  var x = 0, c = 0;
+  do {
+    x = x + 1;
+    if (x < 5) continue;
+    c = c + 1;
+  } while(x < a);
+  return c;
+}
+
+assertEquals(6, g(10));
+
+// Test deoptimization in the loop condition.
+assertEquals(0, g("foo"));

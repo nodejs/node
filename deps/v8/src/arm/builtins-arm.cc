@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,6 +31,8 @@
 
 #include "codegen-inl.h"
 #include "debug.h"
+#include "deoptimizer.h"
+#include "full-codegen.h"
 #include "runtime.h"
 
 namespace v8 {
@@ -1086,6 +1088,80 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
 
   // Do a tail-call of the compiled function.
   __ Jump(r2);
+}
+
+
+void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Preserve the function.
+  __ push(r1);
+
+  // Push the function on the stack as the argument to the runtime function.
+  __ push(r1);
+  __ CallRuntime(Runtime::kLazyRecompile, 1);
+  // Calculate the entry point.
+  __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  // Restore saved function.
+  __ pop(r1);
+
+  // Tear down temporary frame.
+  __ LeaveInternalFrame();
+
+  // Do a tail-call of the compiled function.
+  __ Jump(r2);
+}
+
+
+static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
+                                             Deoptimizer::BailoutType type) {
+  __ EnterInternalFrame();
+  // Pass the function and deoptimization type to the runtime system.
+  __ mov(r0, Operand(Smi::FromInt(static_cast<int>(type))));
+  __ push(r0);
+  __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
+  __ LeaveInternalFrame();
+
+  // Get the full codegen state from the stack and untag it -> r6.
+  __ ldr(r6, MemOperand(sp, 0 * kPointerSize));
+  __ SmiUntag(r6);
+  // Switch on the state.
+  Label with_tos_register, unknown_state;
+  __ cmp(r6, Operand(FullCodeGenerator::NO_REGISTERS));
+  __ b(ne, &with_tos_register);
+  __ add(sp, sp, Operand(1 * kPointerSize));  // Remove state.
+  __ Ret();
+
+  __ bind(&with_tos_register);
+  __ ldr(r0, MemOperand(sp, 1 * kPointerSize));
+  __ cmp(r6, Operand(FullCodeGenerator::TOS_REG));
+  __ b(ne, &unknown_state);
+  __ add(sp, sp, Operand(2 * kPointerSize));  // Remove state.
+  __ Ret();
+
+  __ bind(&unknown_state);
+  __ stop("no cases left");
+}
+
+
+void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
+  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::EAGER);
+}
+
+
+void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
+  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
+}
+
+
+void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
+  __ stop("builtins-arm.cc: NotifyOSR");
+}
+
+
+void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
+  __ stop("builtins-arm.cc: OnStackReplacement");
 }
 
 

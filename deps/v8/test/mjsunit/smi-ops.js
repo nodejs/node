@@ -699,3 +699,6 @@ assertEquals(24, LeftShiftThreeBy(-29));
 // allocations we got the Smi overflow case wrong.
 function f(x, y) { return y +  ( 1 << (x & 31)); }
 assertEquals(-2147483647, f(31, 1));
+
+// Regression test for correct handling of overflow in smi comparison.
+assertTrue(-0x40000000 < 42);

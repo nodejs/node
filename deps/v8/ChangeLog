@@ -1,3 +1,9 @@
+2010-12-07: Version 3.0.0
+
+        Improved performance by (partially) addressing issue 957 on
+        IA-32. Still needs more work for the other architectures.
+
+
 2010-11-29: Version 2.5.9
 
         Fixed crashes during GC caused by partially initialize heap

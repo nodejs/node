@@ -546,8 +546,25 @@ class Parser {
   // Magical syntax support.
   Expression* ParseV8Intrinsic(bool* ok);
 
-  INLINE(Token::Value peek()) { return scanner_.peek(); }
-  INLINE(Token::Value Next()) { return scanner_.NextCheckStack(); }
+  INLINE(Token::Value peek()) {
+    if (stack_overflow_) return Token::ILLEGAL;
+    return scanner_.peek();
+  }
+
+  INLINE(Token::Value Next()) {
+    // BUG 1215673: Find a thread safe way to set a stack limit in
+    // pre-parse mode. Otherwise, we cannot safely pre-parse from other
+    // threads.
+    if (stack_overflow_) {
+      return Token::ILLEGAL;
+    }
+    if (StackLimitCheck().HasOverflowed()) {
+      // Any further calls to Next or peek will return the illegal token.
+      stack_overflow_ = true;
+    }
+    return scanner_.Next();
+  }
+
   INLINE(void Consume(Token::Value token));
   void Expect(Token::Value token, bool* ok);
   bool Check(Token::Value token);
@@ -639,6 +656,7 @@ class Parser {
   bool is_pre_parsing_;
   ScriptDataImpl* pre_data_;
   FuncNameInferrer* fni_;
+  bool stack_overflow_;
 };
 
 
@@ -718,6 +736,7 @@ class JsonParser BASE_EMBEDDED {
   Handle<String> GetString();
 
   JsonScanner scanner_;
+  bool stack_overflow_;
 };
 } }  // namespace v8::internal
 

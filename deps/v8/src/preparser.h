@@ -46,56 +46,24 @@ namespace preparser {
 
 namespace i = v8::internal;
 
-enum StatementType {
-  kUnknownStatement
-};
-
-enum ExpressionType {
-  kUnknownExpression,
-  kIdentifierExpression,  // Used to detect labels.
-  kThisExpression,
-  kThisPropertyExpression
-};
-
-enum IdentifierType {
-  kUnknownIdentifier
-};
-
-enum SourceElementTypes {
-  kUnknownSourceElements
-};
-
-
-typedef int SourceElements;
-typedef int Expression;
-typedef int Statement;
-typedef int Identifier;
-typedef int Arguments;
-
-
 class PreParser {
  public:
-  PreParser() : scope_(NULL), allow_lazy_(true) { }
+  enum PreParseResult {
+    kPreParseStackOverflow,
+    kPreParseSuccess
+  };
+
   ~PreParser() { }
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  bool PreParseProgram(i::JavaScriptScanner* scanner,
-                       i::ParserRecorder* log,
-                       bool allow_lazy) {
-    allow_lazy_ = allow_lazy;
-    scanner_ = scanner;
-    log_ = log;
-    Scope top_scope(&scope_, kTopLevelScope);
-    bool ok = true;
-    ParseSourceElements(i::Token::EOS, &ok);
-    bool stack_overflow = scanner_->stack_overflow();
-    if (!ok && !stack_overflow) {
-      ReportUnexpectedToken(scanner_->current_token());
-    }
-    return !stack_overflow;
+  static PreParseResult PreParseProgram(i::JavaScriptScanner* scanner,
+                                        i::ParserRecorder* log,
+                                        bool allow_lazy,
+                                        uintptr_t stack_limit) {
+    return PreParser(scanner, log, stack_limit, allow_lazy).PreParse();
   }
 
  private:
@@ -103,6 +71,38 @@ class PreParser {
     kTopLevelScope,
     kFunctionScope
   };
+
+  // Types that allow us to recognize simple this-property assignments.
+  // A simple this-property assignment is a statement on the form
+  // "this.propertyName = {primitive constant or function parameter name);"
+  // where propertyName isn't "__proto__".
+  // The result is only relevant if the function body contains only
+  // simple this-property assignments.
+
+  enum StatementType {
+    kUnknownStatement
+  };
+
+  enum ExpressionType {
+    kUnknownExpression,
+    kIdentifierExpression,  // Used to detect labels.
+    kThisExpression,
+    kThisPropertyExpression
+  };
+
+  enum IdentifierType {
+    kUnknownIdentifier
+  };
+
+  enum SourceElementTypes {
+    kUnknownSourceElements
+  };
+
+  typedef int SourceElements;
+  typedef int Expression;
+  typedef int Statement;
+  typedef int Identifier;
+  typedef int Arguments;
 
   class Scope {
    public:
@@ -134,12 +134,30 @@ class PreParser {
     int with_nesting_count_;
   };
 
-  // Types that allow us to recognize simple this-property assignments.
-  // A simple this-property assignment is a statement on the form
-  // "this.propertyName = {primitive constant or function parameter name);"
-  // where propertyName isn't "__proto__".
-  // The result is only relevant if the function body contains only
-  // simple this-property assignments.
+  // Private constructor only used in PreParseProgram.
+  PreParser(i::JavaScriptScanner* scanner,
+            i::ParserRecorder* log,
+            uintptr_t stack_limit,
+            bool allow_lazy)
+      : scanner_(scanner),
+        log_(log),
+        scope_(NULL),
+        stack_limit_(stack_limit),
+        stack_overflow_(false),
+        allow_lazy_(true) { }
+
+  // Preparse the program. Only called in PreParseProgram after creating
+  // the instance.
+  PreParseResult PreParse() {
+    Scope top_scope(&scope_, kTopLevelScope);
+    bool ok = true;
+    ParseSourceElements(i::Token::EOS, &ok);
+    if (stack_overflow_) return kPreParseStackOverflow;
+    if (!ok) {
+      ReportUnexpectedToken(scanner_->current_token());
+    }
+    return kPreParseSuccess;
+  }
 
   // Report syntax error
   void ReportUnexpectedToken(i::Token::Value token);
@@ -202,16 +220,26 @@ class PreParser {
   unsigned int HexDigitValue(char digit);
   Expression GetStringSymbol();
 
+  i::Token::Value peek() {
+    if (stack_overflow_) return i::Token::ILLEGAL;
+    return scanner_->peek();
+  }
 
-  i::Token::Value peek() { return scanner_->peek(); }
   i::Token::Value Next() {
-    i::Token::Value next = scanner_->Next();
-    return next;
+    if (stack_overflow_) return i::Token::ILLEGAL;
+    {
+      int marker;
+      if (reinterpret_cast<uintptr_t>(&marker) < stack_limit_) {
+        // Further calls to peek/Next will return illegal token.
+        // The current one will still be returned. It might already
+        // have been seen using peek.
+        stack_overflow_ = true;
+      }
+    }
+    return scanner_->Next();
   }
 
-  void Consume(i::Token::Value token) {
-    Next();
-  }
+  void Consume(i::Token::Value token) { Next(); }
 
   void Expect(i::Token::Value token, bool* ok) {
     if (Next() != token) {
@@ -234,6 +262,8 @@ class PreParser {
   i::JavaScriptScanner* scanner_;
   i::ParserRecorder* log_;
   Scope* scope_;
+  uintptr_t stack_limit_;
+  bool stack_overflow_;
   bool allow_lazy_;
 };
 } }  // v8::preparser

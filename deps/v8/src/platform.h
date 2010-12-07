@@ -113,6 +113,8 @@ int signbit(double x);
 
 #endif  // __GNUC__
 
+#include "atomicops.h"
+
 namespace v8 {
 namespace internal {
 
@@ -438,6 +440,10 @@ class Mutex {
   // Unlocks the given mutex. The mutex is assumed to be locked and owned by
   // the calling thread on entrance.
   virtual int Unlock() = 0;
+
+  // Tries to lock the given mutex. Returns whether the mutex was
+  // successfully locked.
+  virtual bool TryLock() = 0;
 };
 
 
@@ -559,7 +565,7 @@ class TickSample {
 class Sampler {
  public:
   // Initialize sampler.
-  Sampler(int interval, bool profiling);
+  explicit Sampler(int interval);
   virtual ~Sampler();
 
   // Performs stack sampling.
@@ -577,16 +583,12 @@ class Sampler {
   void Stop();
 
   // Is the sampler used for profiling?
-  bool IsProfiling() const { return profiling_; }
-
-  // Is the sampler running in sync with the JS thread? On platforms
-  // where the sampler is implemented with a thread that wakes up
-  // every now and then, having a synchronous sampler implies
-  // suspending/resuming the JS thread.
-  bool IsSynchronous() const { return synchronous_; }
+  bool IsProfiling() const { return NoBarrier_Load(&profiling_) > 0; }
+  void IncreaseProfilingDepth() { NoBarrier_AtomicIncrement(&profiling_, 1); }
+  void DecreaseProfilingDepth() { NoBarrier_AtomicIncrement(&profiling_, -1); }
 
   // Whether the sampler is running (that is, consumes resources).
-  bool IsActive() const { return active_; }
+  bool IsActive() const { return NoBarrier_Load(&active_); }
 
   // Used in tests to make sure that stack sampling is performed.
   int samples_taken() const { return samples_taken_; }
@@ -598,12 +600,12 @@ class Sampler {
   virtual void DoSampleStack(TickSample* sample) = 0;
 
  private:
+  void SetActive(bool value) { NoBarrier_Store(&active_, value); }
   void IncSamplesTaken() { if (++samples_taken_ < 0) samples_taken_ = 0; }
 
   const int interval_;
-  const bool profiling_;
-  const bool synchronous_;
-  bool active_;
+  Atomic32 profiling_;
+  Atomic32 active_;
   PlatformData* data_;  // Platform specific data.
   int samples_taken_;  // Counts stack samples taken.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);

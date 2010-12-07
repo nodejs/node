@@ -228,8 +228,6 @@ class Scanner {
     return Vector<const char>(next_literal_string(), next_literal_length());
   }
 
-  bool stack_overflow() { return stack_overflow_; }
-
   static const int kCharacterLookaheadBufferSize = 1;
 
  protected:
@@ -315,8 +313,6 @@ class Scanner {
   // Buffer to hold literal values (identifiers, strings, numbers)
   // using '\x00'-terminated UTF-8 encoding. Handles allocation internally.
   LiteralCollector literal_buffer_;
-
-  bool stack_overflow_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;

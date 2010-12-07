@@ -39,6 +39,7 @@
 #include "cctest.h"
 #include "disassembler.h"
 #include "register-allocator-inl.h"
+#include "vm-state-inl.h"
 
 using v8::Function;
 using v8::Local;
@@ -200,6 +201,7 @@ static void InitializeVM() {
 
 
 static void CheckJSFunctionAtAddress(const char* func_name, Address addr) {
+  CHECK(i::Heap::Contains(addr));
   i::Object* obj = i::HeapObject::FromAddress(addr);
   CHECK(obj->IsJSFunction());
   CHECK(JSFunction::cast(obj)->shared()->name()->IsString());
@@ -298,10 +300,17 @@ TEST(CFromJSStackTrace) {
   //       trace(EBP) [native (extension)]
   //         DoTrace(EBP) [native]
   //           StackTracer::Trace
-  CHECK_GT(sample.frames_count, 1);
+
+  // The VM state tracking keeps track of external callbacks and puts
+  // them at the top of the sample stack.
+  int base = 0;
+  CHECK(sample.stack[0] == FUNCTION_ADDR(TraceExtension::Trace));
+  base++;
+
   // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
-  CheckJSFunctionAtAddress("JSFuncDoTrace", sample.stack[0]);
-  CheckJSFunctionAtAddress("JSTrace", sample.stack[1]);
+  CHECK_GT(sample.frames_count, base + 1);
+  CheckJSFunctionAtAddress("JSFuncDoTrace", sample.stack[base + 0]);
+  CheckJSFunctionAtAddress("JSTrace", sample.stack[base + 1]);
 }
 
 
@@ -311,6 +320,10 @@ TEST(CFromJSStackTrace) {
 // Top::c_entry_fp value. In this case, StackTracer uses passed frame
 // pointer value as a starting point for stack walking.
 TEST(PureJSStackTrace) {
+  // This test does not pass with inlining enabled since inlined functions
+  // don't appear in the stack trace.
+  i::FLAG_use_inlining = false;
+
   TickSample sample;
   InitTraceEnv(&sample);
 
@@ -341,10 +354,17 @@ TEST(PureJSStackTrace) {
   // The last JS function called. It is only visible through
   // sample.function, as its return address is above captured EBP value.
   CheckJSFunctionAtAddress("JSFuncDoTrace", sample.function);
-  CHECK_GT(sample.frames_count, 1);
+
+  // The VM state tracking keeps track of external callbacks and puts
+  // them at the top of the sample stack.
+  int base = 0;
+  CHECK(sample.stack[0] == FUNCTION_ADDR(TraceExtension::JSTrace));
+  base++;
+
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
-  CheckJSFunctionAtAddress("JSTrace", sample.stack[0]);
-  CheckJSFunctionAtAddress("OuterJSTrace", sample.stack[1]);
+  CHECK_GT(sample.frames_count, base + 1);
+  CheckJSFunctionAtAddress("JSTrace", sample.stack[base + 0]);
+  CheckJSFunctionAtAddress("OuterJSTrace", sample.stack[base + 1]);
 }
 
 

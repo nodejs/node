@@ -75,7 +75,7 @@ Code* IC::GetTargetAtAddress(Address address) {
 
 
 void IC::SetTargetAtAddress(Address address, Code* target) {
-  ASSERT(target->is_inline_cache_stub());
+  ASSERT(target->is_inline_cache_stub() || target->is_compare_ic_stub());
   Assembler::set_target_address_at(address, target->instruction_start());
 }
 

@@ -42,7 +42,7 @@ namespace v8 {
 namespace internal {
 
 void CPU::Setup() {
-  CpuFeatures::Probe();
+  CpuFeatures::Probe(true);
 }
 
 

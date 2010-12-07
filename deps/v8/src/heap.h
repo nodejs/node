@@ -62,6 +62,7 @@ namespace internal {
   V(Object, termination_exception, TerminationException)                       \
   V(Map, hash_table_map, HashTableMap)                                         \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
+  V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(Map, string_map, StringMap)                                                \
   V(Map, ascii_string_map, AsciiStringMap)                                     \
   V(Map, symbol_map, SymbolMap)                                                \
@@ -173,6 +174,8 @@ namespace internal {
   V(value_of_symbol, "valueOf")                                          \
   V(InitializeVarGlobal_symbol, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
+  V(KeyedLoadSpecialized_symbol, "KeyedLoadSpecialized")                 \
+  V(KeyedStoreSpecialized_symbol, "KeyedStoreSpecialized")               \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \

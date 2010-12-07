@@ -409,8 +409,8 @@ void Heap::SetLastScriptId(Object* last_script_id) {
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0", true);\
     }                                                                     \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
-    Heap::CollectGarbage(Failure::cast(__maybe_object__)->                \
-                             allocation_space());                         \
+    Heap::CollectGarbage(                                                 \
+        Failure::cast(__maybe_object__)->allocation_space());             \
     __maybe_object__ = FUNCTION_CALL;                                     \
     if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
     if (__maybe_object__->IsOutOfMemory()) {                              \

@@ -30,6 +30,13 @@ prefix mjsunit
 # All tests in the bug directory are expected to fail.
 bugs: FAIL
 
+
+##############################################################################
+# Too slow in debug mode with --stress-opt
+compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
+
+
+##############################################################################
 # This one uses a built-in that's only present in debug mode. It takes
 # too long to run in debug mode on ARM.
 fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
@@ -49,6 +56,8 @@ regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 debug-liveedit-check-stack: SKIP
 debug-liveedit-patch-positions-replace: SKIP
 
+
+##############################################################################
 [ $arch == arm ]
 
 # Slow tests which times out in debug mode.
@@ -60,15 +69,44 @@ array-constructor: PASS, SKIP if $mode == debug
 unicode-test: PASS, (PASS || FAIL) if $mode == debug
 
 # Times out often in release mode on ARM.
+compiler/regress-stacktrace-methods: PASS, PASS || TIMEOUT if $mode == release
 array-splice: PASS || TIMEOUT
 
-# Skip long running test in debug mode on ARM.
-string-indexof-2: PASS, SKIP if $mode == debug
+# Long running test.
+mirror-object: PASS || TIMEOUT
+string-indexof-2: PASS || TIMEOUT
+
+# BUG(3251035): Timeouts in long looping crankshaft optimization
+# tests. Skipping because having them timeout takes too long on the
+# buildbot.
+compiler/alloc-number: SKIP
+compiler/array-length: SKIP
+compiler/assignment-deopt: SKIP
+compiler/deopt-args: SKIP
+compiler/inline-compare: SKIP
+compiler/inline-global-access: SKIP
+compiler/optimized-function-calls: SKIP
+compiler/pic: SKIP
+compiler/property-calls: SKIP
+compiler/recursive-deopt: SKIP
+compiler/regress-4: SKIP
+compiler/regress-funcaller: SKIP
+compiler/regress-gvn: SKIP
+compiler/regress-rep-change: SKIP
+compiler/regress-arguments: SKIP
+compiler/regress-funarguments: SKIP
+compiler/regress-or: SKIP
+compiler/regress-3249650: SKIP
+compiler/simple-deopt: SKIP
+regress/regress-490: SKIP
+regress/regress-634: SKIP
+regress/regress-create-exception: SKIP
+regress/regress-3218915: SKIP
+regress/regress-3247124: SKIP
 
 
+##############################################################################
 [ $arch == mips ]
 
 # Skip all tests on MIPS.
 *: SKIP
-
-

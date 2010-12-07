@@ -757,6 +757,10 @@ static const ProfileNode* PickChild(const ProfileNode* parent,
 
 
 TEST(RecordStackTraceAtStartProfiling) {
+  // This test does not pass with inlining enabled since inlined functions
+  // don't appear in the stack trace.
+  i::FLAG_use_inlining = false;
+
   if (env.IsEmpty()) {
     v8::HandleScope scope;
     const char* extensions[] = { "v8/profiler" };

@@ -29,18 +29,42 @@ prefix cctest
 
 test-api/Bug*: FAIL
 
+
+##############################################################################
 # BUG(281): This test fails on some Linuxes.
 test-debug/DebuggerAgent: PASS, (PASS || FAIL) if $system == linux
 
 # BUG(382): Weird test. Can't guarantee that it never times out.
 test-api/ApplyInterruption: PASS || TIMEOUT
 
+# BUG(484): This test which we thought was originally corrected in r5236
+# is re-appearing. Disabled until bug in test is fixed. This only fails
+# when snapshot is on, so I am marking it PASS || FAIL
+test-heap-profiler/HeapSnapshotsDiff: PASS || FAIL
+
+# BUG(3260336): Flaky test. May be timing related.
+test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
+
 # These tests always fail.  They are here to test test.py.  If
 # they don't fail then test.py has failed.
 test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
+
+##############################################################################
+[ $arch == x64 ]
+
+# Optimization is currently not working on crankshaft x64 and ARM.
+test-heap/TestInternalWeakLists: PASS || FAIL
+test-heap/TestInternalWeakListsTraverseWithGC: PASS || FAIL
+
+
+##############################################################################
 [ $arch == arm ]
+
+# Optimization is currently not working on crankshaft x64 and ARM.
+test-heap/TestInternalWeakLists: PASS || FAIL
+test-heap/TestInternalWeakListsTraverseWithGC: PASS || FAIL
 
 # We cannot assume that we can throw OutOfMemory exceptions in all situations.
 # Apparently our ARM box is in such a state. Skip the test as it also runs for
@@ -51,6 +75,12 @@ test-api/OutOfMemoryNested: SKIP
 # BUG(355): Test crashes on ARM.
 test-log/ProfLazyMode: SKIP
 
+# BUG(945): Socket connect fails on ARM
+test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
+test-sockets/Socket: SKIP
+
+
+##############################################################################
 [ $arch == mips ]
 test-accessors: SKIP
 test-alloc: SKIP

@@ -228,12 +228,13 @@ class Context: public FixedArray {
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
-    NEXT_CONTEXT_LINK,
+    OPTIMIZED_FUNCTIONS_LIST,  // Weak.
+    NEXT_CONTEXT_LINK,  // Weak.
 
     // Total number of slots.
     GLOBAL_CONTEXT_SLOTS,
 
-    FIRST_WEAK_SLOT = NEXT_CONTEXT_LINK
+    FIRST_WEAK_SLOT = OPTIMIZED_FUNCTIONS_LIST
   };
 
   // Direct slot access.
@@ -290,6 +291,12 @@ class Context: public FixedArray {
   bool is_exception_holder(Object* object) {
     return IsCatchContext() && extension() == object;
   }
+
+  // A global context hold a list of all functions which have been optimized.
+  void AddOptimizedFunction(JSFunction* function);
+  void RemoveOptimizedFunction(JSFunction* function);
+  Object* OptimizedFunctionsListHead();
+  void ClearOptimizedFunctions();
 
 #define GLOBAL_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   void  set_##name(type* value) {                         \

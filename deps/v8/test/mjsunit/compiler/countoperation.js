@@ -109,3 +109,23 @@ assertEquals(1, ++b[c] && 1);
 assertEquals(45, b[c]);
 assertEquals(1, b[c]++ && 1);
 assertEquals(46, b[c]);
+
+// Test count operations with parameters.
+function f(x) { x++; return x; }
+assertEquals(43, f(42));
+
+function g(x) { ++x; return x; }
+assertEquals(43, g(42));
+
+function h(x) { var y = x++; return y; }
+assertEquals(42, h(42));
+
+function k(x) { var y = ++x; return y; }
+assertEquals(43, k(42));
+
+// Test count operation in a test context.
+function countTestPost(i) { var k = 0; while (i--) { k++; } return k; }
+assertEquals(10, countTestPost(10));
+
+function countTestPre(i) { var k = 0; while (--i) { k++; } return k; }
+assertEquals(9, countTestPre(10));

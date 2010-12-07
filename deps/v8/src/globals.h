@@ -147,13 +147,16 @@ typedef byte* Address;
 #ifdef _MSC_VER
 #define V8_UINT64_C(x)  (x ## UI64)
 #define V8_INT64_C(x)   (x ## I64)
+#define V8_INTPTR_C(x)  (x ## I64)
 #define V8_PTR_PREFIX "ll"
 #else  // _MSC_VER
 #define V8_UINT64_C(x)  (x ## UL)
 #define V8_INT64_C(x)   (x ## L)
+#define V8_INTPTR_C(x)  (x ## L)
 #define V8_PTR_PREFIX "l"
 #endif  // _MSC_VER
 #else  // V8_HOST_ARCH_64_BIT
+#define V8_INTPTR_C(x)  (x)
 #define V8_PTR_PREFIX ""
 #endif  // V8_HOST_ARCH_64_BIT
 
@@ -222,6 +225,7 @@ const int kBinary32MaxExponent  = 0xFE;
 const int kBinary32MinExponent  = 0x01;
 const int kBinary32MantissaBits = 23;
 const int kBinary32ExponentShift = 23;
+
 
 // The expression OFFSET_OF(type, field) computes the byte-offset
 // of the specified field relative to the containing type. This

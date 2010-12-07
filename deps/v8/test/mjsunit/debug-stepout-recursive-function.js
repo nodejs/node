@@ -97,7 +97,7 @@ fact(3);
 EndTest(2);
 
 BeginTest('Test 4');
-shouldBreak = function(x) { print(x); return x == 1 || x == 3; };
+shouldBreak = function(x) { return x == 1 || x == 3; };
 step_out_count = 2;
 fact(3);
 EndTest(3);

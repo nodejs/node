@@ -74,12 +74,6 @@ void MacroAssembler::CompareRoot(Operand with, Heap::RootListIndex index) {
 }
 
 
-void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
-  CompareRoot(rsp, Heap::kStackLimitRootIndex);
-  j(below, on_stack_overflow);
-}
-
-
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register addr,
                                        Register scratch) {

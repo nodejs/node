@@ -31,6 +31,8 @@
 #include "apiutils.h"
 #include "factory.h"
 
+#include "../include/v8-testing.h"
+
 namespace v8 {
 
 // Constants used in the implementation of the API.  The most natural thing
@@ -488,6 +490,18 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
   ASSERT((blocks_.is_empty() && prev_limit == NULL) ||
          (!blocks_.is_empty() && prev_limit != NULL));
 }
+
+
+class Testing {
+ public:
+  static v8::Testing::StressType stress_type() { return stress_type_; }
+  static void set_stress_type(v8::Testing::StressType stress_type) {
+    stress_type_ = stress_type;
+  }
+
+ private:
+  static v8::Testing::StressType stress_type_;
+};
 
 } }  // namespace v8::internal
 

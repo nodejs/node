@@ -28,8 +28,11 @@
 #include "v8.h"
 
 #include "accessors.h"
+#include "ast.h"
+#include "deoptimizer.h"
 #include "execution.h"
 #include "factory.h"
+#include "safepoint-table.h"
 #include "scopeinfo.h"
 #include "top.h"
 
@@ -503,11 +506,9 @@ MaybeObject* Accessors::FunctionGetLength(Object* object, void*) {
     // If the function isn't compiled yet, the length is not computed
     // correctly yet. Compile it now and return the right length.
     HandleScope scope;
-    Handle<SharedFunctionInfo> shared(function->shared());
-    if (!CompileLazyShared(shared, KEEP_EXCEPTION)) {
-      return Failure::Exception();
-    }
-    return Smi::FromInt(shared->length());
+    Handle<JSFunction> handle(function);
+    if (!CompileLazy(handle, KEEP_EXCEPTION)) return Failure::Exception();
+    return Smi::FromInt(handle->shared()->length());
   } else {
     return Smi::FromInt(function->shared()->length());
   }
@@ -545,6 +546,208 @@ const AccessorDescriptor Accessors::FunctionName = {
 // Accessors::FunctionArguments
 //
 
+static Address SlotAddress(JavaScriptFrame* frame, int slot_index) {
+  if (slot_index >= 0) {
+    const int offset = JavaScriptFrameConstants::kLocal0Offset;
+    return frame->fp() + offset - (slot_index * kPointerSize);
+  } else {
+    const int offset = JavaScriptFrameConstants::kReceiverOffset;
+    return frame->caller_sp() + offset + (slot_index * kPointerSize);
+  }
+}
+
+
+// We can't intermix stack decoding and allocations because
+// deoptimization infrastracture is not GC safe.
+// Thus we build a temporary structure in malloced space.
+class SlotRef BASE_EMBEDDED {
+ public:
+  enum SlotRepresentation {
+    UNKNOWN,
+    TAGGED,
+    INT32,
+    DOUBLE,
+    LITERAL
+  };
+
+  SlotRef()
+      : addr_(NULL), representation_(UNKNOWN) { }
+
+  SlotRef(Address addr, SlotRepresentation representation)
+      : addr_(addr), representation_(representation) { }
+
+  explicit SlotRef(Object* literal)
+      : literal_(literal), representation_(LITERAL) { }
+
+  Handle<Object> GetValue() {
+    switch (representation_) {
+      case TAGGED:
+        return Handle<Object>(Memory::Object_at(addr_));
+
+      case INT32: {
+        int value = Memory::int32_at(addr_);
+        if (Smi::IsValid(value)) {
+          return Handle<Object>(Smi::FromInt(value));
+        } else {
+          return Factory::NewNumberFromInt(value);
+        }
+      }
+
+      case DOUBLE: {
+        double value = Memory::double_at(addr_);
+        return Factory::NewNumber(value);
+      }
+
+      case LITERAL:
+        return literal_;
+
+      default:
+        UNREACHABLE();
+        return Handle<Object>::null();
+    }
+  }
+
+ private:
+  Address addr_;
+  Handle<Object> literal_;
+  SlotRepresentation representation_;
+};
+
+
+static SlotRef ComputeSlotForNextArgument(TranslationIterator* iterator,
+                                          DeoptimizationInputData* data,
+                                          JavaScriptFrame* frame) {
+  Translation::Opcode opcode =
+      static_cast<Translation::Opcode>(iterator->Next());
+
+  switch (opcode) {
+    case Translation::BEGIN:
+    case Translation::FRAME:
+      // Peeled off before getting here.
+      break;
+
+    case Translation::ARGUMENTS_OBJECT:
+      // This can be only emitted for local slots not for argument slots.
+      break;
+
+    case Translation::REGISTER:
+    case Translation::INT32_REGISTER:
+    case Translation::DOUBLE_REGISTER:
+    case Translation::DUPLICATE:
+      // We are at safepoint which corresponds to call.  All registers are
+      // saved by caller so there would be no live registers at this
+      // point. Thus these translation commands should not be used.
+      break;
+
+    case Translation::STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::TAGGED);
+    }
+
+    case Translation::INT32_STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::INT32);
+    }
+
+    case Translation::DOUBLE_STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::DOUBLE);
+    }
+
+    case Translation::LITERAL: {
+      int literal_index = iterator->Next();
+      return SlotRef(data->LiteralArray()->get(literal_index));
+    }
+  }
+
+  UNREACHABLE();
+  return SlotRef();
+}
+
+
+
+
+
+static void ComputeSlotMappingForArguments(JavaScriptFrame* frame,
+                                           int inlined_frame_index,
+                                           Vector<SlotRef>* args_slots) {
+  AssertNoAllocation no_gc;
+
+  int deopt_index = AstNode::kNoNumber;
+
+  DeoptimizationInputData* data =
+      static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
+
+  TranslationIterator it(data->TranslationByteArray(),
+                         data->TranslationIndex(deopt_index)->value());
+
+  Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
+  ASSERT(opcode == Translation::BEGIN);
+  int frame_count = it.Next();
+
+  USE(frame_count);
+  ASSERT(frame_count > inlined_frame_index);
+
+  int frames_to_skip = inlined_frame_index;
+  while (true) {
+    opcode = static_cast<Translation::Opcode>(it.Next());
+
+    // Skip over operands to advance to the next opcode.
+    it.Skip(Translation::NumberOfOperandsFor(opcode));
+
+    if (opcode == Translation::FRAME) {
+      if (frames_to_skip == 0) {
+        // We reached frame corresponding to inlined function in question.
+        // Process translation commands for arguments.
+
+        // Skip translation command for receiver.
+        it.Skip(Translation::NumberOfOperandsFor(
+            static_cast<Translation::Opcode>(it.Next())));
+
+        // Compute slots for arguments.
+        for (int i = 0; i < args_slots->length(); ++i) {
+          (*args_slots)[i] = ComputeSlotForNextArgument(&it, data, frame);
+        }
+
+        return;
+      }
+
+      frames_to_skip--;
+    }
+  }
+
+  UNREACHABLE();
+}
+
+
+static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
+    JavaScriptFrame* frame,
+    Handle<JSFunction> inlined_function,
+    int inlined_frame_index) {
+
+  int args_count = inlined_function->shared()->formal_parameter_count();
+
+  ScopedVector<SlotRef> args_slots(args_count);
+
+  ComputeSlotMappingForArguments(frame, inlined_frame_index, &args_slots);
+
+  Handle<JSObject> arguments =
+      Factory::NewArgumentsObject(inlined_function, args_count);
+
+  Handle<FixedArray> array = Factory::NewFixedArray(args_count);
+  for (int i = 0; i < args_count; ++i) {
+    Handle<Object> value = args_slots[i].GetValue();
+    array->set(i, *value);
+  }
+  arguments->set_elements(*array);
+
+  // Return the freshly allocated arguments object.
+  return *arguments;
+}
+
 
 MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
   HandleScope scope;
@@ -554,38 +757,50 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
   Handle<JSFunction> function(holder);
 
   // Find the top invocation of the function by traversing frames.
+  List<JSFunction*> functions(2);
   for (JavaScriptFrameIterator it; !it.done(); it.Advance()) {
-    // Skip all frames that aren't invocations of the given function.
     JavaScriptFrame* frame = it.frame();
-    if (frame->function() != *function) continue;
+    frame->GetFunctions(&functions);
+    for (int i = functions.length() - 1; i >= 0; i--) {
+      // Skip all frames that aren't invocations of the given function.
+      if (functions[i] != *function) continue;
 
-    // If there is an arguments variable in the stack, we return that.
-    int index = function->shared()->scope_info()->
-        StackSlotIndex(Heap::arguments_symbol());
-    if (index >= 0) {
-      Handle<Object> arguments = Handle<Object>(frame->GetExpression(index));
-      if (!arguments->IsTheHole()) return *arguments;
+      if (i > 0) {
+        // Function in question was inlined.
+        return ConstructArgumentsObjectForInlinedFunction(frame, function, i);
+      } else {
+        // If there is an arguments variable in the stack, we return that.
+        int index = function->shared()->scope_info()->
+            StackSlotIndex(Heap::arguments_symbol());
+        if (index >= 0) {
+          Handle<Object> arguments =
+              Handle<Object>(frame->GetExpression(index));
+          if (!arguments->IsTheHole()) return *arguments;
+        }
+
+        // If there isn't an arguments variable in the stack, we need to
+        // find the frame that holds the actual arguments passed to the
+        // function on the stack.
+        it.AdvanceToArgumentsFrame();
+        frame = it.frame();
+
+        // Get the number of arguments and construct an arguments object
+        // mirror for the right frame.
+        const int length = frame->GetProvidedParametersCount();
+        Handle<JSObject> arguments = Factory::NewArgumentsObject(function,
+                                                                 length);
+        Handle<FixedArray> array = Factory::NewFixedArray(length);
+
+        // Copy the parameters to the arguments object.
+        ASSERT(array->length() == length);
+        for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
+        arguments->set_elements(*array);
+
+        // Return the freshly allocated arguments object.
+        return *arguments;
+      }
     }
-
-    // If there isn't an arguments variable in the stack, we need to
-    // find the frame that holds the actual arguments passed to the
-    // function on the stack.
-    it.AdvanceToArgumentsFrame();
-    frame = it.frame();
-
-    // Get the number of arguments and construct an arguments object
-    // mirror for the right frame.
-    const int length = frame->GetProvidedParametersCount();
-    Handle<JSObject> arguments = Factory::NewArgumentsObject(function, length);
-    Handle<FixedArray> array = Factory::NewFixedArray(length);
-
-    // Copy the parameters to the arguments object.
-    ASSERT(array->length() == length);
-    for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
-    arguments->set_elements(*array);
-
-    // Return the freshly allocated arguments object.
-    return *arguments;
+    functions.Rewind(0);
   }
 
   // No frame corresponding to the given function found. Return null.
@@ -613,19 +828,34 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   if (!found_it) return Heap::undefined_value();
   Handle<JSFunction> function(holder);
 
-  // Find the top invocation of the function by traversing frames.
+  List<JSFunction*> functions(2);
   for (JavaScriptFrameIterator it; !it.done(); it.Advance()) {
-    // Skip all frames that aren't invocations of the given function.
-    if (it.frame()->function() != *function) continue;
-    // Once we have found the frame, we need to go to the caller
-    // frame. This may require skipping through a number of top-level
-    // frames, e.g. frames for scripts not functions.
-    while (true) {
-      it.Advance();
-      if (it.done()) return Heap::null_value();
-      JSFunction* caller = JSFunction::cast(it.frame()->function());
-      if (!caller->shared()->is_toplevel()) return caller;
+    JavaScriptFrame* frame = it.frame();
+    frame->GetFunctions(&functions);
+    for (int i = functions.length() - 1; i >= 0; i--) {
+      if (functions[i] == *function) {
+        // Once we have found the frame, we need to go to the caller
+        // frame. This may require skipping through a number of top-level
+        // frames, e.g. frames for scripts not functions.
+        if (i > 0) {
+          ASSERT(!functions[i - 1]->shared()->is_toplevel());
+          return functions[i - 1];
+        } else {
+          for (it.Advance(); !it.done(); it.Advance()) {
+            frame = it.frame();
+            functions.Rewind(0);
+            frame->GetFunctions(&functions);
+            if (!functions.last()->shared()->is_toplevel()) {
+              return functions.last();
+            }
+            ASSERT(functions.length() == 1);
+          }
+          if (it.done()) return Heap::null_value();
+          break;
+        }
+      }
     }
+    functions.Rewind(0);
   }
 
   // No frame corresponding to the given function found. Return null.

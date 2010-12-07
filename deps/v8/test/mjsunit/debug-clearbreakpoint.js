@@ -33,6 +33,7 @@ Debug = debug.Debug
 listenerComplete = false;
 exception = false;
 
+var breakpoint = -1;
 var base_request = '"seq":0,"type":"request","command":"clearbreakpoint"'
 
 function safeEval(code) {
@@ -68,15 +69,14 @@ function listener(event, exec_state, event_data, data) {
 
     testArguments(dcp, '{}', false);
     testArguments(dcp, '{"breakpoint":0}', false);
-    // TODO(1241036) change this to 2 when break points have been restructured.
-    testArguments(dcp, '{"breakpoint":3}', false);
+    testArguments(dcp, '{"breakpoint":' + (breakpoint + 1)+ '}', false);
     testArguments(dcp, '{"breakpoint":"xx"}', false);
 
     // Test some legal clearbreakpoint requests.
-    testArguments(dcp, '{"breakpoint":1}', true);
+    testArguments(dcp, '{"breakpoint":' + breakpoint + '}', true);
 
     // Cannot clear the same break point twice.
-    testArguments(dcp, '{"breakpoint":1}', false);
+    testArguments(dcp, '{"breakpoint":' + breakpoint + '}', false);
 
     // Indicate that all was processed.
     listenerComplete = true;
@@ -92,8 +92,7 @@ Debug.setListener(listener);
 function g() {};
 
 // Set a break point and call to invoke the debug event listener.
-bp = Debug.setBreakPoint(g, 0, 0);
-assertEquals(1, bp);
+breakpoint = Debug.setBreakPoint(g, 0, 0);
 g();
 
 // Make sure that the debug event listener vas invoked.

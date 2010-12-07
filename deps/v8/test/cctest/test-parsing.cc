@@ -257,15 +257,20 @@ TEST(StandAlonePreParser) {
       NULL
   };
 
+  uintptr_t stack_limit = i::StackGuard::real_climit();
   for (int i = 0; programs[i]; i++) {
     const char* program = programs[i];
     unibrow::Utf8InputBuffer<256> stream(program, strlen(program));
     i::CompleteParserRecorder log;
     i::V8JavaScriptScanner scanner;
     scanner.Initialize(i::Handle<i::String>::null(), &stream);
-    v8::preparser::PreParser preparser;
-    bool result = preparser.PreParseProgram(&scanner, &log, true);
-    CHECK(result);
+
+    v8::preparser::PreParser::PreParseResult result =
+        v8::preparser::PreParser::PreParseProgram(&scanner,
+                                                  &log,
+                                                  true,
+                                                  stack_limit);
+    CHECK_EQ(v8::preparser::PreParser::kPreParseSuccess, result);
     i::ScriptDataImpl data(log.ExtractData());
     CHECK(!data.has_error());
   }
@@ -326,4 +331,32 @@ TEST(Regress928) {
   CHECK(entry2.is_valid());
   CHECK_EQ('}', program[entry2.end_pos() - 1]);
   delete data;
+}
+
+
+TEST(PreParseOverflow) {
+  int marker;
+  i::StackGuard::SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  size_t kProgramSize = 1024 * 1024;
+  i::SmartPointer<char> program(
+      reinterpret_cast<char*>(malloc(kProgramSize + 1)));
+  memset(*program, '(', kProgramSize);
+  program[kProgramSize] = '\0';
+
+  uintptr_t stack_limit = i::StackGuard::real_climit();
+
+  unibrow::Utf8InputBuffer<256> stream(*program, strlen(*program));
+  i::CompleteParserRecorder log;
+  i::V8JavaScriptScanner scanner;
+  scanner.Initialize(i::Handle<i::String>::null(), &stream);
+
+
+  v8::preparser::PreParser::PreParseResult result =
+      v8::preparser::PreParser::PreParseProgram(&scanner,
+                                                &log,
+                                                true,
+                                                stack_limit);
+  CHECK_EQ(v8::preparser::PreParser::kPreParseStackOverflow, result);
 }

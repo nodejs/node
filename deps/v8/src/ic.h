@@ -28,7 +28,7 @@
 #ifndef V8_IC_H_
 #define V8_IC_H_
 
-#include "assembler.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -53,8 +53,9 @@ namespace internal {
   ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)                       \
-  ICU(BinaryOp_Patch)
-
+  ICU(BinaryOp_Patch)                                 \
+  ICU(TypeRecordingBinaryOp_Patch)                    \
+  ICU(CompareIC_Miss)
 //
 // IC is the base class for LoadIC, StoreIC, CallIC, KeyedLoadIC,
 // and KeyedStoreIC.
@@ -403,6 +404,7 @@ class StoreIC: public IC {
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateArrayLength(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
+  static void GenerateGlobalProxy(MacroAssembler* masm);
 
   // Clear the use of an inlined version.
   static void ClearInlinedVersion(Address address);
@@ -425,6 +427,9 @@ class StoreIC: public IC {
   }
   static Code* initialize_stub() {
     return Builtins::builtin(Builtins::StoreIC_Initialize);
+  }
+  static Code* global_proxy_stub() {
+    return Builtins::builtin(Builtins::StoreIC_GlobalProxy);
   }
 
   static void Clear(Address address, Code* target);
@@ -503,6 +508,7 @@ class BinaryOpIC: public IC {
  public:
 
   enum TypeInfo {
+    UNINIT_OR_SMI,
     DEFAULT,  // Initial state. When first executed, patches to one
               // of the following states depending on the operands types.
     HEAP_NUMBERS,  // Both arguments are HeapNumbers.
@@ -514,14 +520,77 @@ class BinaryOpIC: public IC {
 
   void patch(Code* code);
 
-  static void Clear(Address address, Code* target);
-
   static const char* GetName(TypeInfo type_info);
 
   static State ToState(TypeInfo type_info);
 
   static TypeInfo GetTypeInfo(Object* left, Object* right);
 };
+
+
+// Type Recording BinaryOpIC, that records the types of the inputs and outputs.
+class TRBinaryOpIC: public IC {
+ public:
+
+  enum TypeInfo {
+    UNINITIALIZED,
+    SMI,
+    INT32,
+    HEAP_NUMBER,
+    STRING,  // Only used for addition operation.  At least one string operand.
+    GENERIC
+  };
+
+  TRBinaryOpIC() : IC(NO_EXTRA_FRAME) { }
+
+  void patch(Code* code);
+
+  static const char* GetName(TypeInfo type_info);
+
+  static State ToState(TypeInfo type_info);
+
+  static TypeInfo GetTypeInfo(Handle<Object> left, Handle<Object> right);
+
+  static TypeInfo JoinTypes(TypeInfo x, TypeInfo y);
+};
+
+
+class CompareIC: public IC {
+ public:
+  enum State {
+    UNINITIALIZED,
+    SMIS,
+    HEAP_NUMBERS,
+    OBJECTS,
+    GENERIC
+  };
+
+  explicit CompareIC(Token::Value op) : IC(EXTRA_CALL_FRAME), op_(op) { }
+
+  // Update the inline cache for the given operands.
+  void UpdateCaches(Handle<Object> x, Handle<Object> y);
+
+  // Factory method for getting an uninitialized compare stub.
+  static Handle<Code> GetUninitialized(Token::Value op);
+
+  // Helper function for computing the condition for a compare operation.
+  static Condition ComputeCondition(Token::Value op);
+
+  // Helper function for determining the state of a compare IC.
+  static State ComputeState(Code* target);
+
+  static const char* GetStateName(State state);
+
+ private:
+  State TargetState(Handle<Object> x, Handle<Object> y);
+
+  bool strict() const { return op_ == Token::EQ_STRICT; }
+  Condition GetCondition() const { return ComputeCondition(op_); }
+  State GetState() { return ComputeState(target()); }
+
+  Token::Value op_;
+};
+
 
 } }  // namespace v8::internal
 

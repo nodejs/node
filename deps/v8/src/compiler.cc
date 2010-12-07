@@ -35,12 +35,16 @@
 #include "data-flow.h"
 #include "debug.h"
 #include "full-codegen.h"
+#include "hydrogen.h"
+#include "lithium-allocator.h"
 #include "liveedit.h"
 #include "oprofile-agent.h"
 #include "parser.h"
 #include "rewriter.h"
+#include "runtime-profiler.h"
 #include "scopeinfo.h"
 #include "scopes.h"
+#include "vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -52,7 +56,10 @@ CompilationInfo::CompilationInfo(Handle<Script> script)
       scope_(NULL),
       script_(script),
       extension_(NULL),
-      pre_parse_data_(NULL) {
+      pre_parse_data_(NULL),
+      supports_deoptimization_(false),
+      osr_ast_id_(AstNode::kNoNumber) {
+  Initialize(NONOPT);
 }
 
 
@@ -63,7 +70,10 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info)
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       extension_(NULL),
-      pre_parse_data_(NULL) {
+      pre_parse_data_(NULL),
+      supports_deoptimization_(false),
+      osr_ast_id_(AstNode::kNoNumber) {
+  Initialize(BASE);
 }
 
 
@@ -75,20 +85,189 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       extension_(NULL),
-      pre_parse_data_(NULL) {
+      pre_parse_data_(NULL),
+      supports_deoptimization_(false),
+      osr_ast_id_(AstNode::kNoNumber) {
+  Initialize(BASE);
 }
 
 
-// For normal operation the syntax checker is used to determine whether to
-// use the full compiler for top level code or not. However if the flag
-// --always-full-compiler is specified or debugging is active the full
-// compiler will be used for all code.
+// Determine whether to use the full compiler for all code. If the flag
+// --always-full-compiler is specified this is the case. For the virtual frame
+// based compiler the full compiler is also used if a debugger is connected, as
+// the code from the full compiler supports mode precise break points. For the
+// crankshaft adaptive compiler debugging the optimized code is not possible at
+// all. However crankshaft support recompilation of functions, so in this case
+// the full compiler need not be be used if a debugger is attached, but only if
+// break points has actually been set.
 static bool AlwaysFullCompiler() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  return FLAG_always_full_compiler || Debugger::IsDebuggerActive();
+  if (V8::UseCrankshaft()) {
+    return FLAG_always_full_compiler || Debug::has_break_points();
+  } else {
+    return FLAG_always_full_compiler || Debugger::IsDebuggerActive();
+  }
 #else
   return FLAG_always_full_compiler;
 #endif
+}
+
+
+static void FinishOptimization(Handle<JSFunction> function, int64_t start) {
+  int opt_count = function->shared()->opt_count();
+  function->shared()->set_opt_count(opt_count + 1);
+  if (!FLAG_trace_opt) return;
+
+  double ms = static_cast<double>(OS::Ticks() - start) / 1000;
+  PrintF("[optimizing: ");
+  function->PrintName();
+  PrintF(" / %" V8PRIxPTR, reinterpret_cast<intptr_t>(*function));
+  PrintF(" - took %0.3f ms]\n", ms);
+}
+
+
+static void AbortAndDisable(CompilationInfo* info) {
+  // Disable optimization for the shared function info and mark the
+  // code as non-optimizable. The marker on the shared function info
+  // is there because we flush non-optimized code thereby loosing the
+  // non-optimizable information for the code. When the code is
+  // regenerated and set on the shared function info it is marked as
+  // non-optimizable if optimization is disabled for the shared
+  // function info.
+  Handle<SharedFunctionInfo> shared = info->shared_info();
+  shared->set_optimization_disabled(true);
+  Handle<Code> code = Handle<Code>(shared->code());
+  ASSERT(code->kind() == Code::FUNCTION);
+  code->set_optimizable(false);
+  info->SetCode(code);
+  if (FLAG_trace_opt) {
+    PrintF("[disabled optimization for: ");
+    info->closure()->PrintName();
+    PrintF(" / %" V8PRIxPTR "]\n",
+           reinterpret_cast<intptr_t>(*info->closure()));
+  }
+}
+
+
+static bool MakeCrankshaftCode(CompilationInfo* info) {
+  // Test if we can optimize this function when asked to. We can only
+  // do this after the scopes are computed.
+  if (!info->AllowOptimize()) info->DisableOptimization();
+
+  // In case we are not optimizing simply return the code from
+  // the full code generator.
+  if (!info->IsOptimizing()) {
+    return FullCodeGenerator::MakeCode(info);
+  }
+
+  // We should never arrive here if there is not code object on the
+  // shared function object.
+  Handle<Code> code(info->shared_info()->code());
+  ASSERT(code->kind() == Code::FUNCTION);
+
+  // Fall back to using the full code generator if it's not possible
+  // to use the Hydrogen-based optimizing compiler. We already have
+  // generated code for this from the shared function object.
+  if (AlwaysFullCompiler() || !FLAG_use_hydrogen) {
+    info->SetCode(code);
+    return true;
+  }
+
+  // Limit the number of times we re-compile a functions with
+  // the optimizing compiler.
+  const int kMaxOptCount = FLAG_deopt_every_n_times == 0 ? 10 : 1000;
+  if (info->shared_info()->opt_count() > kMaxOptCount) {
+    AbortAndDisable(info);
+    // True indicates the compilation pipeline is still going, not
+    // necessarily that we optimized the code.
+    return true;
+  }
+
+  // Due to an encoding limit on LUnallocated operands in the Lithium
+  // language, we cannot optimize functions with too many formal parameters
+  // or perform on-stack replacement for function with too many
+  // stack-allocated local variables.
+  //
+  // The encoding is as a signed value, with parameters using the negative
+  // indices and locals the non-negative ones.
+  const int limit = LUnallocated::kMaxFixedIndices / 2;
+  Scope* scope = info->scope();
+  if (scope->num_parameters() > limit || scope->num_stack_slots() > limit) {
+    AbortAndDisable(info);
+    // True indicates the compilation pipeline is still going, not
+    // necessarily that we optimized the code.
+    return true;
+  }
+
+  // Take --hydrogen-filter into account.
+  Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
+  Handle<String> name = info->function()->debug_name();
+  bool match = filter.is_empty() || name->IsEqualTo(filter);
+  if (!match) {
+    info->SetCode(code);
+    return true;
+  }
+
+  // Recompile the unoptimized version of the code if the current version
+  // doesn't have deoptimization support. Alternatively, we may decide to
+  // run the full code generator to get a baseline for the compile-time
+  // performance of the hydrogen-based compiler.
+  int64_t start = OS::Ticks();
+  bool should_recompile = !info->shared_info()->has_deoptimization_support();
+  if (should_recompile || FLAG_time_hydrogen) {
+    HPhase phase(HPhase::kFullCodeGen);
+    CompilationInfo unoptimized(info->shared_info());
+    // Note that we use the same AST that we will use for generating the
+    // optimized code.
+    unoptimized.SetFunction(info->function());
+    unoptimized.SetScope(info->scope());
+    if (should_recompile) unoptimized.EnableDeoptimizationSupport();
+    bool succeeded = FullCodeGenerator::MakeCode(&unoptimized);
+    if (should_recompile) {
+      if (!succeeded) return false;
+      Handle<SharedFunctionInfo> shared = info->shared_info();
+      shared->EnableDeoptimizationSupport(*unoptimized.code());
+      // The existing unoptimized code was replaced with the new one.
+      Compiler::RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG,
+          Handle<String>(shared->DebugName()),
+          shared->start_position(),
+          &unoptimized);
+    }
+  }
+
+  // Check that the unoptimized, shared code is ready for
+  // optimizations.  When using the always_opt flag we disregard the
+  // optimizable marker in the code object and optimize anyway. This
+  // is safe as long as the unoptimized code has deoptimization
+  // support.
+  ASSERT(FLAG_always_opt || info->shared_info()->code()->optimizable());
+  ASSERT(info->shared_info()->has_deoptimization_support());
+
+  if (FLAG_trace_hydrogen) {
+    PrintF("-----------------------------------------------------------\n");
+    PrintF("Compiling method %s using hydrogen\n", *name->ToCString());
+    HTracer::Instance()->TraceCompilation(info->function());
+  }
+
+  TypeFeedbackOracle oracle(Handle<Code>(info->shared_info()->code()));
+  HGraphBuilder builder(&oracle);
+  HPhase phase(HPhase::kTotal);
+  HGraph* graph = builder.CreateGraph(info);
+  if (graph != NULL && FLAG_build_lithium) {
+    Handle<Code> code = graph->Compile();
+    if (!code.is_null()) {
+      info->SetCode(code);
+      FinishOptimization(info->closure(), start);
+      return true;
+    }
+  }
+
+  // Compilation with the Hydrogen compiler failed. Keep using the
+  // shared code but mark it as unoptimizable.
+  AbortAndDisable(info);
+  // True indicates the compilation pipeline is still going, not necessarily
+  // that we optimized the code.
+  return true;
 }
 
 
@@ -97,9 +276,9 @@ static bool MakeCode(CompilationInfo* info) {
   // the compilation info is set if compilation succeeded.
   ASSERT(info->function() != NULL);
 
-  if (Rewriter::Rewrite(info) &&
-      Scope::Analyze(info) &&
-      Rewriter::Analyze(info)) {
+  if (Rewriter::Rewrite(info) && Scope::Analyze(info)) {
+    if (V8::UseCrankshaft()) return MakeCrankshaftCode(info);
+
     // Generate code and return it.  Code generator selection is governed by
     // which backends are enabled and whether the function is considered
     // run-once code or not.
@@ -109,17 +288,19 @@ static bool MakeCode(CompilationInfo* info) {
     //
     // The normal choice of backend can be overridden with the flags
     // --always-full-compiler.
-    Handle<SharedFunctionInfo> shared = info->shared_info();
-    bool is_run_once = (shared.is_null())
-        ? info->scope()->is_global_scope()
-        : (shared->is_toplevel() || shared->try_full_codegen());
-    bool can_use_full =
-        FLAG_full_compiler && !info->function()->contains_loops();
-    if (AlwaysFullCompiler() || (is_run_once && can_use_full)) {
-      return FullCodeGenerator::MakeCode(info);
-    } else {
-      AssignedVariablesAnalyzer ava;
-      return ava.Analyze(info) && CodeGenerator::MakeCode(info);
+    if (Rewriter::Analyze(info)) {
+      Handle<SharedFunctionInfo> shared = info->shared_info();
+      bool is_run_once = (shared.is_null())
+          ? info->scope()->is_global_scope()
+          : (shared->is_toplevel() || shared->try_full_codegen());
+      bool can_use_full =
+          FLAG_full_compiler && !info->function()->contains_loops();
+      if (AlwaysFullCompiler() || (is_run_once && can_use_full)) {
+        return FullCodeGenerator::MakeCode(info);
+      } else {
+        return AssignedVariablesAnalyzer::Analyze(info) &&
+            CodeGenerator::MakeCode(info);
+      }
     }
   }
 
@@ -374,40 +555,60 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
       Top::StackOverflow();
     } else {
       ASSERT(!info->code().is_null());
+      Handle<Code> code = info->code();
+      Handle<JSFunction> function = info->closure();
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG,
                                 Handle<String>(shared->DebugName()),
                                 shared->start_position(),
                                 info);
 
-      // Update the shared function info with the compiled code and the
-      // scope info.  Please note, that the order of the sharedfunction
-      // initialization is important since SerializedScopeInfo::Create might
-      // trigger a GC, causing the ASSERT below to be invalid if the code
-      // was flushed. By setting the code object last we avoid this.
-      Handle<SerializedScopeInfo> scope_info =
-          SerializedScopeInfo::Create(info->scope());
-      shared->set_scope_info(*scope_info);
-      shared->set_code(*info->code());
-      if (!info->closure().is_null()) {
-        info->closure()->set_code(*info->code());
+      if (info->IsOptimizing()) {
+        function->ReplaceCode(*code);
+      } else {
+        // Update the shared function info with the compiled code and the
+        // scope info.  Please note, that the order of the shared function
+        // info initialization is important since set_scope_info might
+        // trigger a GC, causing the ASSERT below to be invalid if the code
+        // was flushed. By settting the code object last we avoid this.
+        Handle<SerializedScopeInfo> scope_info =
+            SerializedScopeInfo::Create(info->scope());
+        shared->set_scope_info(*scope_info);
+        shared->set_code(*code);
+        if (!function.is_null()) {
+          function->ReplaceCode(*code);
+          ASSERT(!function->IsOptimized());
+        }
+
+        // Set the expected number of properties for instances.
+        FunctionLiteral* lit = info->function();
+        int expected = lit->expected_property_count();
+        SetExpectedNofPropertiesFromEstimate(shared, expected);
+
+        // Set the optimization hints after performing lazy compilation, as
+        // these are not set when the function is set up as a lazily
+        // compiled function.
+        shared->SetThisPropertyAssignmentsInfo(
+            lit->has_only_simple_this_property_assignments(),
+            *lit->this_property_assignments());
+
+        // Check the function has compiled code.
+        ASSERT(shared->is_compiled());
+        shared->set_code_age(0);
+
+        if (V8::UseCrankshaft() && info->AllowOptimize()) {
+          // If we're asked to always optimize, we compile the optimized
+          // version of the function right away - unless the debugger is
+          // active as it makes no sense to compile optimized code then.
+          if (FLAG_always_opt && !Debug::has_break_points()) {
+            CompilationInfo optimized(function);
+            optimized.SetOptimizing(AstNode::kNoNumber);
+            return CompileLazy(&optimized);
+          } else if (CompilationCache::ShouldOptimizeEagerly(function)) {
+            RuntimeProfiler::OptimizeSoon(*function);
+          }
+        }
       }
 
-      // Set the expected number of properties for instances.
-      FunctionLiteral* lit = info->function();
-      SetExpectedNofPropertiesFromEstimate(shared,
-                                           lit->expected_property_count());
-
-      // Set the optimization hints after performing lazy compilation, as
-      // these are not set when the function is set up as a lazily compiled
-      // function.
-      shared->SetThisPropertyAssignmentsInfo(
-          lit->has_only_simple_this_property_assignments(),
-          *lit->this_property_assignments());
-
-      // Check the function has compiled code.
-      ASSERT(shared->is_compiled());
-      shared->set_code_age(0);
-      ASSERT(!info->code().is_null());
       return true;
     }
   }
@@ -419,12 +620,6 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
 Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                                                        Handle<Script> script) {
-#ifdef DEBUG
-  // We should not try to compile the same function literal more than
-  // once.
-  literal->mark_as_compiled();
-#endif
-
   // Precondition: code has been parsed and scopes have been analyzed.
   CompilationInfo info(script);
   info.SetFunction(literal);
@@ -446,28 +641,31 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
     Handle<Code> code(Builtins::builtin(Builtins::LazyCompile));
     info.SetCode(code);
   } else {
-    // Generate code and return it.  The way that the compilation mode
-    // is controlled by the command-line flags is described in
-    // the static helper function MakeCode.
-    //
-    // The bodies of function literals have not yet been visited by
-    // the AST analyzer.
-    if (!Rewriter::Analyze(&info)) return Handle<SharedFunctionInfo>::null();
-
-    bool is_run_once = literal->try_full_codegen();
-    bool use_full = FLAG_full_compiler && !literal->contains_loops();
-    if (AlwaysFullCompiler() || (use_full && is_run_once)) {
-      if (!FullCodeGenerator::MakeCode(&info)) {
+    if (V8::UseCrankshaft()) {
+      if (!MakeCrankshaftCode(&info)) {
         return Handle<SharedFunctionInfo>::null();
       }
     } else {
-      // We fall back to the classic V8 code generator.
-      AssignedVariablesAnalyzer ava;
-      if (!ava.Analyze(&info)) return Handle<SharedFunctionInfo>::null();
-      if (!CodeGenerator::MakeCode(&info)) {
-        return Handle<SharedFunctionInfo>::null();
+      // The bodies of function literals have not yet been visited by the
+      // AST optimizer/analyzer.
+      if (!Rewriter::Analyze(&info)) return Handle<SharedFunctionInfo>::null();
+
+      bool is_run_once = literal->try_full_codegen();
+      bool can_use_full = FLAG_full_compiler && !literal->contains_loops();
+
+      if (AlwaysFullCompiler() || (is_run_once && can_use_full)) {
+        if (!FullCodeGenerator::MakeCode(&info)) {
+          return Handle<SharedFunctionInfo>::null();
+        }
+      } else {
+        // We fall back to the classic V8 code generator.
+        if (!AssignedVariablesAnalyzer::Analyze(&info) ||
+            !CodeGenerator::MakeCode(&info)) {
+          return Handle<SharedFunctionInfo>::null();
+        }
       }
     }
+    ASSERT(!info.code().is_null());
 
     // Function compilation complete.
     RecordFunctionCompilation(Logger::FUNCTION_TAG,
@@ -484,6 +682,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                                      info.code(),
                                      scope_info);
   SetFunctionInfo(result, literal, false, script);
+  result->set_allows_lazy_compilation(allow_lazy);
 
   // Set the expected number of properties for instances and return
   // the resulting function.

@@ -70,7 +70,7 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
 #endif  // def __arm__
 
 
-void CpuFeatures::Probe() {
+void CpuFeatures::Probe(bool portable) {
 #ifndef __arm__
   // For the simulator=arm build, use VFP when FLAG_enable_vfp3 is enabled.
   if (FLAG_enable_vfp3) {
@@ -81,7 +81,7 @@ void CpuFeatures::Probe() {
     supported_ |= 1u << ARMv7;
   }
 #else  // def __arm__
-  if (Serializer::enabled()) {
+  if (portable && Serializer::enabled()) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
     supported_ |= CpuFeaturesImpliedByCompiler();
     return;  // No features if we might serialize.
@@ -98,6 +98,8 @@ void CpuFeatures::Probe() {
     supported_ |= 1u << ARMv7;
     found_by_runtime_probing_ |= 1u << ARMv7;
   }
+
+  if (!portable) found_by_runtime_probing_ = 0;
 #endif
 }
 
@@ -318,7 +320,10 @@ static const int kMinimalBufferSize = 4*KB;
 static byte* spare_buffer_ = NULL;
 
 Assembler::Assembler(void* buffer, int buffer_size)
-    : positions_recorder_(this) {
+    : positions_recorder_(this),
+      allow_peephole_optimization_(false) {
+  // BUG(3245989): disable peephole optimization if crankshaft is enabled.
+  allow_peephole_optimization_ = FLAG_peephole_optimization;
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
@@ -987,6 +992,7 @@ void Assembler::b(int branch_offset, Condition cond) {
 
 
 void Assembler::bl(int branch_offset, Condition cond) {
+  positions_recorder()->WriteRecordedPositions();
   ASSERT((branch_offset & 3) == 0);
   int imm24 = branch_offset >> 2;
   ASSERT(is_int24(imm24));
@@ -1650,9 +1656,10 @@ void Assembler::stop(const char* msg, Condition cond, int32_t code) {
   emit(reinterpret_cast<Instr>(msg));
 #else  // def __arm__
 #ifdef CAN_USE_ARMV5_INSTRUCTIONS
+  ASSERT(cond == al);
   bkpt(0);
 #else  // ndef CAN_USE_ARMV5_INSTRUCTIONS
-  svc(0x9f0001);
+  svc(0x9f0001, cond);
 #endif  // ndef CAN_USE_ARMV5_INSTRUCTIONS
 #endif  // def __arm__
 }
@@ -1826,13 +1833,18 @@ void Assembler::vldr(const DwVfpRegister dst,
                      const Condition cond) {
   // Ddst = MEM(Rbase + offset).
   // Instruction details available in ARM DDI 0406A, A8-628.
-  // cond(31-28) | 1101(27-24)| 1001(23-20) | Rbase(19-16) |
+  // cond(31-28) | 1101(27-24)| U001(23-20) | Rbase(19-16) |
   // Vdst(15-12) | 1011(11-8) | offset
   ASSERT(CpuFeatures::IsEnabled(VFP3));
+  int u = 1;
+  if (offset < 0) {
+    offset = -offset;
+    u = 0;
+  }
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
   ASSERT(offset >= 0);
-  emit(cond | 0xD9*B20 | base.code()*B16 | dst.code()*B12 |
+  emit(cond | u*B23 | 0xD1*B20 | base.code()*B16 | dst.code()*B12 |
        0xB*B8 | ((offset / 4) & 255));
 }
 
@@ -1843,15 +1855,20 @@ void Assembler::vldr(const SwVfpRegister dst,
                      const Condition cond) {
   // Sdst = MEM(Rbase + offset).
   // Instruction details available in ARM DDI 0406A, A8-628.
-  // cond(31-28) | 1101(27-24)| 1001(23-20) | Rbase(19-16) |
+  // cond(31-28) | 1101(27-24)| U001(23-20) | Rbase(19-16) |
   // Vdst(15-12) | 1010(11-8) | offset
   ASSERT(CpuFeatures::IsEnabled(VFP3));
+  int u = 1;
+  if (offset < 0) {
+    offset = -offset;
+    u = 0;
+  }
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
   ASSERT(offset >= 0);
   int sd, d;
   dst.split_code(&sd, &d);
-  emit(cond | d*B22 | 0xD9*B20 | base.code()*B16 | sd*B12 |
+  emit(cond | u*B23 | d*B22 | 0xD1*B20 | base.code()*B16 | sd*B12 |
        0xA*B8 | ((offset / 4) & 255));
 }
 
@@ -1862,13 +1879,18 @@ void Assembler::vstr(const DwVfpRegister src,
                      const Condition cond) {
   // MEM(Rbase + offset) = Dsrc.
   // Instruction details available in ARM DDI 0406A, A8-786.
-  // cond(31-28) | 1101(27-24)| 1000(23-20) | | Rbase(19-16) |
+  // cond(31-28) | 1101(27-24)| U000(23-20) | | Rbase(19-16) |
   // Vsrc(15-12) | 1011(11-8) | (offset/4)
   ASSERT(CpuFeatures::IsEnabled(VFP3));
+  int u = 1;
+  if (offset < 0) {
+    offset = -offset;
+    u = 0;
+  }
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
   ASSERT(offset >= 0);
-  emit(cond | 0xD8*B20 | base.code()*B16 | src.code()*B12 |
+  emit(cond | u*B23 | 0xD0*B20 | base.code()*B16 | src.code()*B12 |
        0xB*B8 | ((offset / 4) & 255));
 }
 
@@ -1879,15 +1901,20 @@ void Assembler::vstr(const SwVfpRegister src,
                      const Condition cond) {
   // MEM(Rbase + offset) = SSrc.
   // Instruction details available in ARM DDI 0406A, A8-786.
-  // cond(31-28) | 1101(27-24)| 1000(23-20) | Rbase(19-16) |
+  // cond(31-28) | 1101(27-24)| U000(23-20) | Rbase(19-16) |
   // Vdst(15-12) | 1010(11-8) | (offset/4)
   ASSERT(CpuFeatures::IsEnabled(VFP3));
+  int u = 1;
+  if (offset < 0) {
+    offset = -offset;
+    u = 0;
+  }
   ASSERT(offset % 4 == 0);
   ASSERT((offset / 4) < 256);
   ASSERT(offset >= 0);
   int sd, d;
   src.split_code(&sd, &d);
-  emit(cond | d*B22 | 0xD8*B20 | base.code()*B16 | sd*B12 |
+  emit(cond | u*B23 | d*B22 | 0xD0*B20 | base.code()*B16 | sd*B12 |
        0xA*B8 | ((offset / 4) & 255));
 }
 
@@ -2411,7 +2438,7 @@ void Assembler::RecordDebugBreakSlot() {
 
 
 void Assembler::RecordComment(const char* msg) {
-  if (FLAG_debug_code) {
+  if (FLAG_code_comments) {
     CheckBuffer();
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
@@ -2466,6 +2493,20 @@ void Assembler::GrowBuffer() {
       rinfo.set_pc(rinfo.pc() + pc_delta);
     }
   }
+}
+
+
+void Assembler::db(uint8_t data) {
+  CheckBuffer();
+  *reinterpret_cast<uint8_t*>(pc_) = data;
+  pc_ += sizeof(uint8_t);
+}
+
+
+void Assembler::dd(uint32_t data) {
+  CheckBuffer();
+  *reinterpret_cast<uint32_t*>(pc_) = data;
+  pc_ += sizeof(uint32_t);
 }
 
 

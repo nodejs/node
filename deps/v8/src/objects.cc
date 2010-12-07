@@ -30,17 +30,24 @@
 #include "api.h"
 #include "arguments.h"
 #include "bootstrapper.h"
+#include "codegen.h"
 #include "debug.h"
+#include "deoptimizer.h"
 #include "execution.h"
+#include "full-codegen.h"
+#include "hydrogen.h"
 #include "objects-inl.h"
 #include "objects-visiting.h"
 #include "macro-assembler.h"
+#include "safepoint-table.h"
 #include "scanner-base.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
 #include "utils.h"
+#include "vm-state-inl.h"
 
 #ifdef ENABLE_DISASSEMBLER
+#include "disasm.h"
 #include "disassembler.h"
 #endif
 
@@ -1728,6 +1735,23 @@ void JSObject::LookupInDescriptor(String* name, LookupResult* result) {
 }
 
 
+void Map::LookupInDescriptors(JSObject* holder,
+                              String* name,
+                              LookupResult* result) {
+  DescriptorArray* descriptors = instance_descriptors();
+  int number = DescriptorLookupCache::Lookup(descriptors, name);
+  if (number == DescriptorLookupCache::kAbsent) {
+    number = descriptors->Search(name);
+    DescriptorLookupCache::Update(descriptors, name, number);
+  }
+  if (number != DescriptorArray::kNotFound) {
+    result->DescriptorResult(holder, descriptors->GetDetails(number), number);
+  } else {
+    result->NotFound();
+  }
+}
+
+
 void JSObject::LocalLookupRealNamedProperty(String* name,
                                             LookupResult* result) {
   if (IsJSGlobalProxy()) {
@@ -3051,6 +3075,10 @@ MaybeObject* JSObject::SetPropertyCallback(String* name,
       if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
     }
     set_map(Map::cast(new_map));
+    // When running crankshaft, changing the map is not enough. We
+    // need to deoptimize all functions that rely on this global
+    // object.
+    Deoptimizer::DeoptimizeGlobalObject(this);
   }
 
   // Update the dictionary with the new CALLBACKS property.
@@ -4120,6 +4148,22 @@ int DescriptorArray::LinearSearch(String* name, int len) {
     }
   }
   return kNotFound;
+}
+
+
+MaybeObject* DeoptimizationInputData::Allocate(int deopt_entry_count,
+                                               PretenureFlag pretenure) {
+  ASSERT(deopt_entry_count > 0);
+  return Heap::AllocateFixedArray(LengthFor(deopt_entry_count),
+                                  pretenure);
+}
+
+
+MaybeObject* DeoptimizationOutputData::Allocate(int number_of_deopt_points,
+                                                PretenureFlag pretenure) {
+  if (number_of_deopt_points == 0) return Heap::empty_fixed_array();
+  return Heap::AllocateFixedArray(LengthOfFixedArray(number_of_deopt_points),
+                                  pretenure);
 }
 
 
@@ -5331,6 +5375,38 @@ void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
 }
 
 
+void JSFunction::MarkForLazyRecompilation() {
+  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(shared()->allows_lazy_compilation());
+  ReplaceCode(Builtins::builtin(Builtins::LazyRecompile));
+}
+
+
+uint32_t JSFunction::SourceHash() {
+  uint32_t hash = 0;
+  Object* script = shared()->script();
+  if (!script->IsUndefined()) {
+    Object* source = Script::cast(script)->source();
+    if (source->IsUndefined()) hash = String::cast(source)->Hash();
+  }
+  hash ^= ComputeIntegerHash(shared()->start_position_and_type());
+  hash += ComputeIntegerHash(shared()->end_position());
+  return hash;
+}
+
+
+bool JSFunction::IsInlineable() {
+  if (IsBuiltin()) return false;
+  // Check that the function has a script associated with it.
+  if (!shared()->script()->IsScript()) return false;
+  Code* code = shared()->code();
+  if (code->kind() == Code::OPTIMIZED_FUNCTION) return true;
+  // If we never ran this (unlikely) then lets try to optimize it.
+  if (code->kind() != Code::FUNCTION) return true;
+  return code->optimizable();
+}
+
+
 Object* JSFunction::SetInstancePrototype(Object* value) {
   ASSERT(value->IsJSObject());
 
@@ -5390,6 +5466,12 @@ Object* JSFunction::SetInstanceClassName(String* name) {
 }
 
 
+void JSFunction::PrintName() {
+  SmartPointer<char> name = shared()->DebugName()->ToCString();
+  PrintF("%s", *name);
+}
+
+
 Context* JSFunction::GlobalContextFromLiterals(FixedArray* literals) {
   return Context::cast(literals->get(JSFunction::kLiteralGlobalContextIndex));
 }
@@ -5420,12 +5502,16 @@ bool SharedFunctionInfo::HasSourceCode() {
 
 
 Object* SharedFunctionInfo::GetSourceCode() {
+  if (!HasSourceCode()) return Heap::undefined_value();
   HandleScope scope;
-  if (script()->IsUndefined()) return Heap::undefined_value();
   Object* source = Script::cast(script())->source();
-  if (source->IsUndefined()) return Heap::undefined_value();
   return *SubString(Handle<String>(String::cast(source)),
                     start_position(), end_position());
+}
+
+
+int SharedFunctionInfo::SourceSize() {
+  return end_position() - start_position();
 }
 
 
@@ -5546,8 +5632,7 @@ Object* SharedFunctionInfo::GetThisPropertyAssignmentConstant(int index) {
 void SharedFunctionInfo::SourceCodePrint(StringStream* accumulator,
                                          int max_length) {
   // For some native functions there is no source.
-  if (script()->IsUndefined() ||
-      Script::cast(script())->source()->IsUndefined()) {
+  if (!HasSourceCode()) {
     accumulator->Add("<No Source>");
     return;
   }
@@ -5572,14 +5657,60 @@ void SharedFunctionInfo::SourceCodePrint(StringStream* accumulator,
   }
 
   int len = end_position() - start_position();
-  if (len > max_length) {
+  if (len <= max_length || max_length < 0) {
+    accumulator->Put(script_source, start_position(), end_position());
+  } else {
     accumulator->Put(script_source,
                      start_position(),
                      start_position() + max_length);
     accumulator->Add("...\n");
-  } else {
-    accumulator->Put(script_source, start_position(), end_position());
   }
+}
+
+
+static bool IsCodeEquivalent(Code* code, Code* recompiled) {
+  if (code->instruction_size() != recompiled->instruction_size()) return false;
+  ByteArray* code_relocation = code->relocation_info();
+  ByteArray* recompiled_relocation = recompiled->relocation_info();
+  int length = code_relocation->length();
+  if (length != recompiled_relocation->length()) return false;
+  int compare = memcmp(code_relocation->GetDataStartAddress(),
+                       recompiled_relocation->GetDataStartAddress(),
+                       length);
+  return compare == 0;
+}
+
+
+void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
+  ASSERT(!has_deoptimization_support());
+  AssertNoAllocation no_allocation;
+  Code* code = this->code();
+  if (IsCodeEquivalent(code, recompiled)) {
+    // Copy the deoptimization data from the recompiled code.
+    code->set_deoptimization_data(recompiled->deoptimization_data());
+    code->set_has_deoptimization_support(true);
+  } else {
+    // TODO(3025757): In case the recompiled isn't equivalent to the
+    // old code, we have to replace it. We should try to avoid this
+    // altogether because it flushes valuable type feedback by
+    // effectively resetting all IC state.
+    set_code(recompiled);
+  }
+  ASSERT(has_deoptimization_support());
+}
+
+
+bool SharedFunctionInfo::VerifyBailoutId(int id) {
+  // TODO(srdjan): debugging ARM crashes in hydrogen. OK to disable while
+  // we are always bailing out on ARM.
+
+  ASSERT(id != AstNode::kNoNumber);
+  Code* unoptimized = code();
+  DeoptimizationOutputData* data =
+      DeoptimizationOutputData::cast(unoptimized->deoptimization_data());
+  unsigned ignore = Deoptimizer::GetOutputInfo(data, id, this);
+  USE(ignore);
+  return true;  // Return true if there was no ASSERT.
 }
 
 
@@ -5703,6 +5834,17 @@ void ObjectVisitor::VisitCodeEntry(Address entry_address) {
 }
 
 
+void ObjectVisitor::VisitGlobalPropertyCell(RelocInfo* rinfo) {
+  ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
+  Object* cell = rinfo->target_cell();
+  Object* old_cell = cell;
+  VisitPointer(&cell);
+  if (cell != old_cell) {
+    rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell));
+  }
+}
+
+
 void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
   ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
           rinfo->IsPatchedReturnSequence()) ||
@@ -5712,6 +5854,12 @@ void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
   Object* old_target = target;
   VisitPointer(&target);
   CHECK_EQ(target, old_target);  // VisitPointer doesn't change Code* *target.
+}
+
+
+void Code::InvalidateRelocation() {
+  HandleScope scope;
+  set_relocation_info(Heap::empty_byte_array());
 }
 
 
@@ -5736,6 +5884,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
   intptr_t delta = instruction_start() - desc.buffer;
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                  RelocInfo::ModeMask(RelocInfo::GLOBAL_PROPERTY_CELL) |
                   RelocInfo::kApplyMask;
   Assembler* origin = desc.origin;  // Needed to find target_object on X64.
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
@@ -5743,6 +5892,9 @@ void Code::CopyFrom(const CodeDesc& desc) {
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       it.rinfo()->set_target_object(*p);
+    } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
+      Handle<JSGlobalPropertyCell> cell  = it.rinfo()->target_cell_handle();
+      it.rinfo()->set_target_cell(*cell);
     } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles in inline cache targets to direct
       // pointers to the first instruction in the code object
@@ -5813,11 +5965,194 @@ int Code::SourceStatementPosition(Address pc) {
 }
 
 
+uint8_t* Code::GetSafepointEntry(Address pc) {
+  SafepointTable table(this);
+  unsigned pc_offset = static_cast<unsigned>(pc - instruction_start());
+  for (unsigned i = 0; i < table.length(); i++) {
+    // TODO(kasperl): Replace the linear search with binary search.
+    if (table.GetPcOffset(i) == pc_offset) return table.GetEntry(i);
+  }
+  return NULL;
+}
+
+
+void Code::SetNoStackCheckTable() {
+  // Indicate the absence of a stack-check table by a table start after the
+  // end of the instructions.  Table start must be aligned, so round up.
+  set_stack_check_table_start(RoundUp(instruction_size(), kIntSize));
+}
+
+
+Map* Code::FindFirstMap() {
+  ASSERT(is_inline_cache_stub());
+  AssertNoAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    Object* object = info->target_object();
+    if (object->IsMap()) return Map::cast(object);
+  }
+  return NULL;
+}
+
+
 #ifdef ENABLE_DISASSEMBLER
+
+#ifdef DEBUG
+
+void DeoptimizationInputData::DeoptimizationInputDataPrint() {
+  disasm::NameConverter converter;
+  int deopt_count = DeoptCount();
+  PrintF("Deoptimization Input Data (deopt points = %d)\n", deopt_count);
+  if (0 == deopt_count) return;
+
+  PrintF("%6s  %6s  %6s  %12s\n", "index", "ast id", "argc", "commands");
+  for (int i = 0; i < deopt_count; i++) {
+    int command_count = 0;
+    PrintF("%6d  %6d  %6d",
+           i, AstId(i)->value(), ArgumentsStackHeight(i)->value());
+    int translation_index = TranslationIndex(i)->value();
+    TranslationIterator iterator(TranslationByteArray(), translation_index);
+    Translation::Opcode opcode =
+        static_cast<Translation::Opcode>(iterator.Next());
+    ASSERT(Translation::BEGIN == opcode);
+    int frame_count = iterator.Next();
+    if (FLAG_print_code_verbose) {
+      PrintF("  %s {count=%d}\n", Translation::StringFor(opcode), frame_count);
+    }
+
+    for (int i = 0; i < frame_count; ++i) {
+      opcode = static_cast<Translation::Opcode>(iterator.Next());
+      ASSERT(Translation::FRAME == opcode);
+      int ast_id = iterator.Next();
+      int function_id = iterator.Next();
+      JSFunction* function =
+          JSFunction::cast(LiteralArray()->get(function_id));
+      unsigned height = iterator.Next();
+      if (FLAG_print_code_verbose) {
+        PrintF("%24s  %s {ast_id=%d, function=",
+               "", Translation::StringFor(opcode), ast_id);
+        function->PrintName();
+        PrintF(", height=%u}\n", height);
+      }
+
+      // Size of translation is height plus all incoming arguments including
+      // receiver.
+      int size = height + function->shared()->formal_parameter_count() + 1;
+      command_count += size;
+      for (int j = 0; j < size; ++j) {
+        opcode = static_cast<Translation::Opcode>(iterator.Next());
+        if (FLAG_print_code_verbose) {
+          PrintF("%24s    %s ", "", Translation::StringFor(opcode));
+        }
+
+        if (opcode == Translation::DUPLICATE) {
+          opcode = static_cast<Translation::Opcode>(iterator.Next());
+          if (FLAG_print_code_verbose) {
+            PrintF("%s ", Translation::StringFor(opcode));
+          }
+          --j;  // Two commands share the same frame index.
+        }
+
+        switch (opcode) {
+          case Translation::BEGIN:
+          case Translation::FRAME:
+          case Translation::DUPLICATE:
+            UNREACHABLE();
+            break;
+
+          case Translation::REGISTER: {
+            int reg_code = iterator.Next();
+            if (FLAG_print_code_verbose)  {
+              PrintF("{input=%s}", converter.NameOfCPURegister(reg_code));
+            }
+            break;
+          }
+
+          case Translation::INT32_REGISTER: {
+            int reg_code = iterator.Next();
+            if (FLAG_print_code_verbose)  {
+              PrintF("{input=%s}", converter.NameOfCPURegister(reg_code));
+            }
+            break;
+          }
+
+          case Translation::DOUBLE_REGISTER: {
+            int reg_code = iterator.Next();
+            if (FLAG_print_code_verbose)  {
+              PrintF("{input=%s}",
+                     DoubleRegister::AllocationIndexToString(reg_code));
+            }
+            break;
+          }
+
+          case Translation::STACK_SLOT: {
+            int input_slot_index = iterator.Next();
+            if (FLAG_print_code_verbose)  {
+              PrintF("{input=%d}", input_slot_index);
+            }
+            break;
+          }
+
+          case Translation::INT32_STACK_SLOT: {
+            int input_slot_index = iterator.Next();
+            if (FLAG_print_code_verbose)  {
+              PrintF("{input=%d}", input_slot_index);
+            }
+            break;
+          }
+
+          case Translation::DOUBLE_STACK_SLOT: {
+            int input_slot_index = iterator.Next();
+            if (FLAG_print_code_verbose)  {
+              PrintF("{input=%d}", input_slot_index);
+            }
+            break;
+          }
+
+          case Translation::LITERAL: {
+            unsigned literal_index = iterator.Next();
+            if (FLAG_print_code_verbose)  {
+              PrintF("{literal_id=%u}", literal_index);
+            }
+            break;
+          }
+
+          case Translation::ARGUMENTS_OBJECT:
+            break;
+        }
+        if (FLAG_print_code_verbose) PrintF("\n");
+      }
+    }
+    if (!FLAG_print_code_verbose) PrintF("  %12d\n", command_count);
+  }
+}
+
+
+void DeoptimizationOutputData::DeoptimizationOutputDataPrint() {
+  PrintF("Deoptimization Output Data (deopt points = %d)\n",
+         this->DeoptPoints());
+  if (this->DeoptPoints() == 0) return;
+
+  PrintF("%6s  %8s  %s\n", "ast id", "pc", "state");
+  for (int i = 0; i < this->DeoptPoints(); i++) {
+    int pc_and_state = this->PcAndState(i)->value();
+    PrintF("%6d  %8d  %s\n",
+           this->AstId(i)->value(),
+           FullCodeGenerator::PcField::decode(pc_and_state),
+           FullCodeGenerator::State2String(
+               FullCodeGenerator::StateField::decode(pc_and_state)));
+  }
+}
+
+#endif
+
+
 // Identify kind of code.
 const char* Code::Kind2String(Kind kind) {
   switch (kind) {
     case FUNCTION: return "FUNCTION";
+    case OPTIMIZED_FUNCTION: return "OPTIMIZED_FUNCTION";
     case STUB: return "STUB";
     case BUILTIN: return "BUILTIN";
     case LOAD_IC: return "LOAD_IC";
@@ -5827,6 +6162,8 @@ const char* Code::Kind2String(Kind kind) {
     case CALL_IC: return "CALL_IC";
     case KEYED_CALL_IC: return "KEYED_CALL_IC";
     case BINARY_OP_IC: return "BINARY_OP_IC";
+    case TYPE_RECORDING_BINARY_OP_IC: return "TYPE_RECORDING_BINARY_OP_IC";
+    case COMPARE_IC: return "COMPARE_IC";
   }
   UNREACHABLE();
   return NULL;
@@ -5863,6 +6200,7 @@ const char* Code::PropertyType2String(PropertyType type) {
   return NULL;
 }
 
+
 void Code::Disassemble(const char* name) {
   PrintF("kind = %s\n", Kind2String(kind()));
   if (is_inline_cache_stub()) {
@@ -5875,14 +6213,64 @@ void Code::Disassemble(const char* name) {
   if ((name != NULL) && (name[0] != '\0')) {
     PrintF("name = %s\n", name);
   }
+  if (kind() == OPTIMIZED_FUNCTION) {
+    PrintF("stack_slots = %d\n", stack_slots());
+  }
 
   PrintF("Instructions (size = %d)\n", instruction_size());
   Disassembler::Decode(NULL, this);
   PrintF("\n");
 
+#ifdef DEBUG
+  if (kind() == FUNCTION) {
+    DeoptimizationOutputData* data =
+        DeoptimizationOutputData::cast(this->deoptimization_data());
+    data->DeoptimizationOutputDataPrint();
+  } else if (kind() == OPTIMIZED_FUNCTION) {
+    DeoptimizationInputData* data =
+        DeoptimizationInputData::cast(this->deoptimization_data());
+    data->DeoptimizationInputDataPrint();
+  }
+  PrintF("\n");
+#endif
+
+  if (kind() == OPTIMIZED_FUNCTION) {
+    SafepointTable table(this);
+    PrintF("Safepoints (size = %u)\n", table.size());
+    for (unsigned i = 0; i < table.length(); i++) {
+      unsigned pc_offset = table.GetPcOffset(i);
+      PrintF("%p  %4d  ", (instruction_start() + pc_offset), pc_offset);
+      table.PrintEntry(i);
+      PrintF(" (sp -> fp)");
+      int deoptimization_index = table.GetDeoptimizationIndex(i);
+      if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
+        PrintF("  %6d", deoptimization_index);
+      } else {
+        PrintF("  <none>");
+      }
+      PrintF("\n");
+    }
+    PrintF("\n");
+  } else if (kind() == FUNCTION) {
+    unsigned offset = stack_check_table_start();
+    // If there is no stack check table, the "table start" will at or after
+    // (due to alignment) the end of the instruction stream.
+    if (static_cast<int>(offset) < instruction_size()) {
+      unsigned* address =
+          reinterpret_cast<unsigned*>(instruction_start() + offset);
+      unsigned length = address[0];
+      PrintF("Stack checks (size = %u)\n", length);
+      PrintF("ast_id  pc_offset\n");
+      for (unsigned i = 0; i < length; ++i) {
+        unsigned index = (2 * i) + 1;
+        PrintF("%6u  %9u\n", address[index], address[index + 1]);
+      }
+      PrintF("\n");
+    }
+  }
+
   PrintF("RelocInfo (size = %d)\n", relocation_size());
-  for (RelocIterator it(this); !it.done(); it.next())
-    it.rinfo()->Print();
+  for (RelocIterator it(this); !it.done(); it.next()) it.rinfo()->Print();
   PrintF("\n");
 }
 #endif  // ENABLE_DISASSEMBLER
@@ -8304,11 +8692,10 @@ MaybeObject* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
 }
 
 
-Object* GlobalObject::GetPropertyCell(LookupResult* result) {
+JSGlobalPropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
-  ASSERT(value->IsJSGlobalPropertyCell());
-  return value;
+  return JSGlobalPropertyCell::cast(value);
 }
 
 
@@ -8561,6 +8948,20 @@ MaybeObject* CompilationCacheTable::PutRegExp(String* src,
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();
   return cache;
+}
+
+
+void CompilationCacheTable::Remove(Object* value) {
+  for (int entry = 0, size = Capacity(); entry < size; entry++) {
+    int entry_index = EntryToIndex(entry);
+    int value_index = entry_index + 1;
+    if (get(value_index) == value) {
+      fast_set(this, entry_index, Heap::null_value());
+      fast_set(this, value_index, Heap::null_value());
+      ElementRemoved();
+    }
+  }
+  return;
 }
 
 

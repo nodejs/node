@@ -855,9 +855,14 @@ MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCell(
   }
   JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(probe);
   ASSERT(cell->value()->IsTheHole());
-  __ mov(scratch, Immediate(Handle<Object>(cell)));
-  __ cmp(FieldOperand(scratch, JSGlobalPropertyCell::kValueOffset),
-         Immediate(Factory::the_hole_value()));
+  if (Serializer::enabled()) {
+    __ mov(scratch, Immediate(Handle<Object>(cell)));
+    __ cmp(FieldOperand(scratch, JSGlobalPropertyCell::kValueOffset),
+           Immediate(Factory::the_hole_value()));
+  } else {
+    __ cmp(Operand::Cell(Handle<JSGlobalPropertyCell>(cell)),
+           Immediate(Factory::the_hole_value()));
+  }
   __ j(not_equal, miss, not_taken);
   return cell;
 }
@@ -1326,8 +1331,12 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
                                                     JSFunction* function,
                                                     Label* miss) {
   // Get the value from the cell.
-  __ mov(edi, Immediate(Handle<JSGlobalPropertyCell>(cell)));
-  __ mov(edi, FieldOperand(edi, JSGlobalPropertyCell::kValueOffset));
+  if (Serializer::enabled()) {
+    __ mov(edi, Immediate(Handle<JSGlobalPropertyCell>(cell)));
+    __ mov(edi, FieldOperand(edi, JSGlobalPropertyCell::kValueOffset));
+  } else {
+    __ mov(edi, Operand::Cell(Handle<JSGlobalPropertyCell>(cell)));
+  }
 
   // Check that the cell contains the same function.
   if (Heap::InNewSpace(function)) {
@@ -1710,7 +1719,7 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
   char_code_at_generator.GenerateFast(masm());
   __ ret((argc + 1) * kPointerSize);
 
-  ICRuntimeCallHelper call_helper;
+  StubRuntimeCallHelper call_helper;
   char_code_at_generator.GenerateSlow(masm(), call_helper);
 
   __ bind(&index_out_of_range);
@@ -1785,7 +1794,7 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
   char_at_generator.GenerateFast(masm());
   __ ret((argc + 1) * kPointerSize);
 
-  ICRuntimeCallHelper call_helper;
+  StubRuntimeCallHelper call_helper;
   char_at_generator.GenerateSlow(masm(), call_helper);
 
   __ bind(&index_out_of_range);
@@ -1858,7 +1867,7 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
   char_from_code_generator.GenerateFast(masm());
   __ ret(2 * kPointerSize);
 
-  ICRuntimeCallHelper call_helper;
+  StubRuntimeCallHelper call_helper;
   char_from_code_generator.GenerateSlow(masm(), call_helper);
 
   // Tail call the full function. We do not have to patch the receiver
@@ -2399,10 +2408,18 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // Jump to the cached code (tail call).
   __ IncrementCounter(&Counters::call_global_inline, 1);
   ASSERT(function->is_compiled());
-  Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  __ InvokeCode(code, expected, arguments(),
-                RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+  if (V8::UseCrankshaft()) {
+    // TODO(kasperl): For now, we always call indirectly through the
+    // code field in the function to allow recompilation to take effect
+    // without changing any of the call sites.
+    __ InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
+                  expected, arguments(), JUMP_FUNCTION);
+  } else {
+    Handle<Code> code(function->code());
+    __ InvokeCode(code, expected, arguments(),
+                  RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+  }
 
   // Handle call cache miss.
   __ bind(&miss);
@@ -2565,8 +2582,12 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ j(not_equal, &miss, not_taken);
 
   // Store the value in the cell.
-  __ mov(ecx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
-  __ mov(FieldOperand(ecx, JSGlobalPropertyCell::kValueOffset), eax);
+  if (Serializer::enabled()) {
+    __ mov(ecx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
+    __ mov(FieldOperand(ecx, JSGlobalPropertyCell::kValueOffset), eax);
+  } else {
+    __ mov(Operand::Cell(Handle<JSGlobalPropertyCell>(cell)), eax);
+  }
 
   // Return the value (register eax).
   __ IncrementCounter(&Counters::named_store_global_inline, 1);
@@ -2617,6 +2638,63 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
 
   // Return the generated code.
   return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
+}
+
+
+MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
+    JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the receiver isn't a smi.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &miss, not_taken);
+
+  // Check that the map matches.
+  __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+         Immediate(Handle<Map>(receiver->map())));
+  __ j(not_equal, &miss, not_taken);
+
+  // Check that the key is a smi.
+  __ test(ecx, Immediate(kSmiTagMask));
+  __ j(not_zero, &miss, not_taken);
+
+  // Get the elements array and make sure it is a fast element array, not 'cow'.
+  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+  __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
+         Immediate(Factory::fixed_array_map()));
+  __ j(not_equal, &miss, not_taken);
+
+  // Check that the key is within bounds.
+  if (receiver->IsJSArray()) {
+    __ cmp(ecx, FieldOperand(edx, JSArray::kLengthOffset));  // Compare smis.
+    __ j(above_equal, &miss, not_taken);
+  } else {
+    __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));  // Compare smis.
+    __ j(above_equal, &miss, not_taken);
+  }
+
+  // Do the store and update the write barrier. Make sure to preserve
+  // the value in register eax.
+  __ mov(edx, Operand(eax));
+  __ mov(FieldOperand(edi, ecx, times_2, FixedArray::kHeaderSize), eax);
+  __ RecordWrite(edi, 0, edx, ecx);
+
+  // Done.
+  __ ret(0);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
+  __ jmp(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
 }
 
 
@@ -2793,8 +2871,12 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   CheckPrototypes(object, eax, holder, ebx, edx, edi, name, &miss);
 
   // Get the value from the cell.
-  __ mov(ebx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
-  __ mov(ebx, FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset));
+  if (Serializer::enabled()) {
+    __ mov(ebx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
+    __ mov(ebx, FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset));
+  } else {
+    __ mov(ebx, Operand::Cell(Handle<JSGlobalPropertyCell>(cell)));
+  }
 
   // Check for deleted property if property can actually be deleted.
   if (!is_dont_delete) {
@@ -3016,6 +3098,51 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
 
   // Return the generated code.
   return GetCode(CALLBACKS, name);
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the receiver isn't a smi.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &miss, not_taken);
+
+  // Check that the map matches.
+  __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+         Immediate(Handle<Map>(receiver->map())));
+  __ j(not_equal, &miss, not_taken);
+
+  // Check that the key is a smi.
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(not_zero, &miss, not_taken);
+
+  // Get the elements array.
+  __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
+  __ AssertFastElements(ecx);
+
+  // Check that the key is within bounds.
+  __ cmp(eax, FieldOperand(ecx, FixedArray::kLengthOffset));
+  __ j(above_equal, &miss, not_taken);
+
+  // Load the result and make sure it's not the hole.
+  __ mov(ebx, Operand(ecx, eax, times_2,
+                      FixedArray::kHeaderSize - kHeapObjectTag));
+  __ cmp(ebx, Factory::the_hole_value());
+  __ j(equal, &miss, not_taken);
+  __ mov(eax, ebx);
+  __ ret(0);
+
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
 }
 
 

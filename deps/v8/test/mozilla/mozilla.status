@@ -45,6 +45,7 @@
 prefix mozilla
 def FAIL_OK = FAIL, OKAY
 
+
 ##################### SKIPPED TESTS #####################
 
 # This test checks that we behave properly in an out-of-memory
@@ -288,6 +289,10 @@ js1_2/regexp/RegExp_multiline_as_array: FAIL_OK
 js1_2/regexp/beginLine: FAIL_OK
 js1_2/regexp/endLine: FAIL_OK
 
+# To be compatible with JSC, we no longer accept [\d-x], [x-\d] or 
+# [\d-\d] as valid ranges.
+ecma_3/RegExp/regress-375715-02: FAIL
+js1_5/extensions/regress-351463-01: FAIL
 
 # To be compatible with safari typeof a regexp yields 'function';
 # in firefox it yields 'object'.
@@ -807,6 +812,29 @@ js1_5/decompilation/regress-460870: PASS || FAIL
 
 js1_5/Regress/regress-312588: TIMEOUT || SKIP if $FAST == yes
 js1_5/Regress/regress-271716-n: PASS || SKIP if $FAST == yes
+
+
+[ $ARCH == arm ]
+
+# Times out and print so much output that we need to skip it to not
+# hang the builder.
+js1_5/extensions/regress-342960: SKIP
+
+# BUG(3251229): Times out when running new crankshaft test script.
+ecma/Date/15.9.5.12-2: SKIP
+ecma/Date/15.9.5.11-2: SKIP
+ecma/Date/15.9.5.10-2: SKIP
+ecma/Date/15.9.5.8: SKIP
+ecma_3/RegExp/regress-311414: SKIP
+js1_5/Array/regress-99120-02: SKIP
+js1_5/Regress/regress-203278-1: SKIP
+ecma/Date/15.9.5.8: SKIP
+ecma/Date/15.9.5.10-2: SKIP
+ecma/Date/15.9.5.11-2: SKIP
+ecma/Date/15.9.5.12-2: SKIP
+js1_5/Regress/regress-404755:  SKIP
+js1_5/Regress/regress-451322: SKIP
+js1_5/extensions/regress-371636: SKIP
 
 
 [ $FAST == yes && $ARCH == arm ]

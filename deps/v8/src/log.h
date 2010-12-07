@@ -149,6 +149,9 @@ class Logger {
   // Acquires resources for logging if the right flags are set.
   static bool Setup();
 
+  static void EnsureTickerStarted();
+  static void EnsureTickerStopped();
+
   // Frees resources acquired in Setup.
   static void TearDown();
 

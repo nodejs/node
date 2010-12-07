@@ -92,7 +92,7 @@ bool ScannerConstants::IsIdentifier(unibrow::CharacterStream* buffer) {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner() : source_(NULL), stack_overflow_(false) {}
+Scanner::Scanner() : source_(NULL) {}
 
 
 uc32 Scanner::ScanHexEscape(uc32 c, int length) {

@@ -103,6 +103,7 @@ Handle<Code> CodeStub::GetCode() {
         GetICState());
     Handle<Code> new_object = Factory::NewCode(desc, flags, masm.CodeObject());
     RecordCodeGeneration(*new_object, &masm);
+    FinishCode(*new_object);
 
     // Update the dictionary and the root in Heap.
     Handle<NumberDictionary> dict =
@@ -142,6 +143,7 @@ MaybeObject* CodeStub::TryGetCode() {
     }
     code = Code::cast(new_object);
     RecordCodeGeneration(code, &masm);
+    FinishCode(code);
 
     // Try to update the code cache but do not fail if unable.
     MaybeObject* maybe_new_object =
@@ -166,6 +168,31 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
         UNREACHABLE();
       }
       return NULL;
+  }
+}
+
+
+int ICCompareStub::MinorKey() {
+  return OpField::encode(op_ - Token::EQ) | StateField::encode(state_);
+}
+
+
+void ICCompareStub::Generate(MacroAssembler* masm) {
+  switch (state_) {
+    case CompareIC::UNINITIALIZED:
+      GenerateMiss(masm);
+      break;
+    case CompareIC::SMIS:
+      GenerateSmis(masm);
+      break;
+    case CompareIC::HEAP_NUMBERS:
+      GenerateHeapNumbers(masm);
+      break;
+    case CompareIC::OBJECTS:
+      GenerateObjects(masm);
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 

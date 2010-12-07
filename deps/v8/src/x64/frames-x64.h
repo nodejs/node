@@ -43,6 +43,12 @@ static const int kNumJSCallerSaved = 5;
 
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
+// Number of registers for which space is reserved in safepoints.
+// TODO(x64): This should not be 0.
+static const int kNumSafepointRegisters = 0;
+
+// ----------------------------------------------------
+
 class StackHandlerConstants : public AllStatic {
  public:
   static const int kNextOffset  = 0 * kPointerSize;

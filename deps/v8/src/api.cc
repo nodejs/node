@@ -33,6 +33,7 @@
 #include "bootstrapper.h"
 #include "compiler.h"
 #include "debug.h"
+#include "deoptimizer.h"
 #include "execution.h"
 #include "global-handles.h"
 #include "heap-profiler.h"
@@ -40,18 +41,21 @@
 #include "parser.h"
 #include "platform.h"
 #include "profile-generator-inl.h"
+#include "runtime-profiler.h"
 #include "serialize.h"
 #include "snapshot.h"
 #include "top.h"
 #include "v8threads.h"
 #include "version.h"
+#include "vm-state-inl.h"
 
 #include "../include/v8-profiler.h"
+#include "../include/v8-testing.h"
 
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
 
 #ifdef ENABLE_VMSTATE_TRACKING
-#define ENTER_V8 i::VMState __state__(i::OTHER)
+#define ENTER_V8 ASSERT(i::V8::IsRunning()); i::VMState __state__(i::OTHER)
 #define LEAVE_V8 i::VMState __state__(i::EXTERNAL)
 #else
 #define ENTER_V8 ((void) 0)
@@ -96,6 +100,7 @@ namespace v8 {
                "Entering the V8 API without proper locking in place");         \
     }                                                                          \
   } while (false)
+
 
 // --- D a t a   t h a t   i s   s p e c i f i c   t o   a   t h r e a d ---
 
@@ -2312,6 +2317,11 @@ bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+
+  // When turning on access checks for a global object deoptimize all functions
+  // as optimized code does not always handle access checks.
+  i::Deoptimizer::DeoptimizeGlobalObject(*self);
+
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> obj = i::ForceDeleteProperty(self, key_obj);
   has_pending_exception = obj.is_null();
@@ -2597,6 +2607,10 @@ void v8::Object::TurnOnAccessCheck() {
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+
+  // When turning on access checks for a global object deoptimize all functions
+  // as optimized code does not always handle access checks.
+  i::Deoptimizer::DeoptimizeGlobalObject(*obj);
 
   i::Handle<i::Map> new_map =
     i::Factory::CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
@@ -3262,7 +3276,6 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
 
 bool v8::V8::Initialize() {
   if (i::V8::IsRunning()) return true;
-  ENTER_V8;
   HandleScope scope;
   if (i::Snapshot::Initialize()) return true;
   return i::V8::Initialize(NULL);
@@ -3386,6 +3399,7 @@ Persistent<Context> v8::Context::New(
       global_constructor->set_needs_access_check(
           proxy_constructor->needs_access_check());
     }
+    i::RuntimeProfiler::Reset();
   }
   // Leave V8.
 
@@ -4872,6 +4886,13 @@ const HeapGraphNode* HeapSnapshot::GetRoot() const {
 }
 
 
+const HeapGraphNode* HeapSnapshot::GetNodeById(uint64_t id) const {
+  IsDeadCheck("v8::HeapSnapshot::GetNodeById");
+  return reinterpret_cast<const HeapGraphNode*>(
+      ToInternal(this)->GetEntryById(id));
+}
+
+
 const HeapSnapshotsDiff* HeapSnapshot::CompareWith(
     const HeapSnapshot* snapshot) const {
   IsDeadCheck("v8::HeapSnapshot::CompareWith");
@@ -4936,6 +4957,66 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
+
+
+v8::Testing::StressType internal::Testing::stress_type_ =
+    v8::Testing::kStressTypeOpt;
+
+
+void Testing::SetStressRunType(Testing::StressType type) {
+  internal::Testing::set_stress_type(type);
+}
+
+int Testing::GetStressRuns() {
+#ifdef DEBUG
+  // In debug mode the code runs much slower so stressing will only make two
+  // runs.
+  return 2;
+#else
+  return 5;
+#endif
+}
+
+
+static void SetFlagsFromString(const char* flags) {
+  V8::SetFlagsFromString(flags, i::StrLength(flags));
+}
+
+
+void Testing::PrepareStressRun(int run) {
+  static const char* kLazyOptimizations =
+      "--prepare-always-opt --nolimit-inlining "
+      "--noalways-opt --noopt-eagerly";
+  static const char* kEagerOptimizations = "--opt-eagerly";
+  static const char* kForcedOptimizations = "--always-opt";
+
+  // If deoptimization stressed turn on frequent deoptimization. If no value
+  // is spefified through --deopt-every-n-times use a default default value.
+  static const char* kDeoptEvery13Times = "--deopt-every-n-times=13";
+  if (internal::Testing::stress_type() == Testing::kStressTypeDeopt &&
+      internal::FLAG_deopt_every_n_times == 0) {
+    SetFlagsFromString(kDeoptEvery13Times);
+  }
+
+#ifdef DEBUG
+  // As stressing in debug mode only make two runs skip the deopt stressing
+  // here.
+  if (run == GetStressRuns() - 1) {
+    SetFlagsFromString(kForcedOptimizations);
+  } else {
+    SetFlagsFromString(kEagerOptimizations);
+    SetFlagsFromString(kLazyOptimizations);
+  }
+#else
+  if (run == GetStressRuns() - 1) {
+    SetFlagsFromString(kForcedOptimizations);
+  } else if (run == GetStressRuns() - 2) {
+    SetFlagsFromString(kEagerOptimizations);
+  } else {
+    SetFlagsFromString(kLazyOptimizations);
+  }
+#endif
+}
 
 
 namespace internal {

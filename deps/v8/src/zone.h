@@ -169,7 +169,17 @@ class ZoneList: public List<T, ZoneListAllocationPolicy> {
   // always zero. The capacity must be non-negative.
   explicit ZoneList(int capacity)
       : List<T, ZoneListAllocationPolicy>(capacity) { }
+
+  // Construct a new ZoneList by copying the elements of the given ZoneList.
+  explicit ZoneList(const ZoneList<T>& other)
+      : List<T, ZoneListAllocationPolicy>(other.length()) {
+    AddAll(other);
+  }
 };
+
+
+// Introduce a convenience type for zone lists of map handles.
+typedef ZoneList<Handle<Map> > ZoneMapList;
 
 
 // ZoneScopes keep track of the current parsing and compilation

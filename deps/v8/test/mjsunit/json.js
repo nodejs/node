@@ -278,6 +278,12 @@ assertEquals('{\n "a": "b",\n "c": "d"\n}',
              JSON.stringify({a:"b",c:"d"}, null, 1));
 assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x']));
 
+// toJSON get string keys.
+var checker = {};
+var array = [checker];
+checker.toJSON = function(key) { return 1 + key; };
+assertEquals('["10"]', JSON.stringify(array));
+
 // The gap is capped at ten characters if specified as string.
 assertEquals('{\n          "a": "b",\n          "c": "d"\n}',
               JSON.stringify({a:"b",c:"d"}, null, 

@@ -40,6 +40,7 @@ SOURCES = {
     api.cc
     assembler.cc
     ast.cc
+    atomicops_internals_x86_gcc.cc
     bignum.cc
     bignum-dtoa.cc
     bootstrapper.cc
@@ -59,6 +60,7 @@ SOURCES = {
     dateparser.cc
     debug-agent.cc
     debug.cc
+    deoptimizer.cc
     disassembler.cc
     diy-fp.cc
     dtoa.cc
@@ -76,10 +78,13 @@ SOURCES = {
     hashmap.cc
     heap-profiler.cc
     heap.cc
+    hydrogen.cc
+    hydrogen-instructions.cc
     ic.cc
     interpreter-irregexp.cc
     jsregexp.cc
     jump-target.cc
+    lithium-allocator.cc
     liveedit.cc
     log-utils.cc
     log.cc
@@ -99,6 +104,8 @@ SOURCES = {
     register-allocator.cc
     rewriter.cc
     runtime.cc
+    runtime-profiler.cc
+    safepoint-table.cc
     scanner-base.cc
     scanner.cc
     scopeinfo.cc
@@ -134,11 +141,14 @@ SOURCES = {
     arm/constants-arm.cc
     arm/cpu-arm.cc
     arm/debug-arm.cc
+    arm/deoptimizer-arm.cc
     arm/disasm-arm.cc
     arm/frames-arm.cc
     arm/full-codegen-arm.cc
     arm/ic-arm.cc
     arm/jump-target-arm.cc
+    arm/lithium-arm.cc
+    arm/lithium-codegen-arm.cc
     arm/macro-assembler-arm.cc
     arm/regexp-macro-assembler-arm.cc
     arm/register-allocator-arm.cc
@@ -172,11 +182,14 @@ SOURCES = {
     ia32/codegen-ia32.cc
     ia32/cpu-ia32.cc
     ia32/debug-ia32.cc
+    ia32/deoptimizer-ia32.cc
     ia32/disasm-ia32.cc
     ia32/frames-ia32.cc
     ia32/full-codegen-ia32.cc
     ia32/ic-ia32.cc
     ia32/jump-target-ia32.cc
+    ia32/lithium-codegen-ia32.cc
+    ia32/lithium-ia32.cc
     ia32/macro-assembler-ia32.cc
     ia32/regexp-macro-assembler-ia32.cc
     ia32/register-allocator-ia32.cc
@@ -192,6 +205,7 @@ SOURCES = {
     x64/codegen-x64.cc
     x64/cpu-x64.cc
     x64/debug-x64.cc
+    x64/deoptimizer-x64.cc
     x64/disasm-x64.cc
     x64/frames-x64.cc
     x64/full-codegen-x64.cc

@@ -106,9 +106,9 @@ class GenericBinaryOpStub : public CodeStub {
   // Minor key encoding in 17 bits.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
   class OpBits: public BitField<Token::Value, 2, 6> {};
-  class TypeInfoBits: public BitField<int, 8, 2> {};
-  class RegisterBits: public BitField<bool, 10, 1> {};
-  class KnownIntBits: public BitField<int, 11, kKnownRhsKeyBits> {};
+  class TypeInfoBits: public BitField<int, 8, 3> {};
+  class RegisterBits: public BitField<bool, 11, 1> {};
+  class KnownIntBits: public BitField<int, 12, kKnownRhsKeyBits> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
@@ -195,6 +195,10 @@ class GenericBinaryOpStub : public CodeStub {
   }
 
   const char* GetName();
+
+  virtual void FinishCode(Code* code) {
+    code->set_binary_op_type(runtime_operands_type_);
+  }
 
 #ifdef DEBUG
   void Print() {

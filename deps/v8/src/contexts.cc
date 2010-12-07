@@ -239,6 +239,69 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
 }
 
 
+void Context::AddOptimizedFunction(JSFunction* function) {
+  ASSERT(IsGlobalContext());
+#ifdef DEBUG
+  Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
+  while (!element->IsUndefined()) {
+    CHECK(element != function);
+    element = JSFunction::cast(element)->next_function_link();
+  }
+
+  CHECK(function->next_function_link()->IsUndefined());
+
+  // Check that the context belongs to the weak global contexts list.
+  bool found = false;
+  Object* context = Heap::global_contexts_list();
+  while (!context->IsUndefined()) {
+    if (context == this) {
+      found = true;
+      break;
+    }
+    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+  }
+  CHECK(found);
+#endif
+  function->set_next_function_link(get(OPTIMIZED_FUNCTIONS_LIST));
+  set(OPTIMIZED_FUNCTIONS_LIST, function);
+}
+
+
+void Context::RemoveOptimizedFunction(JSFunction* function) {
+  ASSERT(IsGlobalContext());
+  Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
+  JSFunction* prev = NULL;
+  while (!element->IsUndefined()) {
+    JSFunction* element_function = JSFunction::cast(element);
+    ASSERT(element_function->next_function_link()->IsUndefined() ||
+           element_function->next_function_link()->IsJSFunction());
+    if (element_function == function) {
+      if (prev == NULL) {
+        set(OPTIMIZED_FUNCTIONS_LIST, element_function->next_function_link());
+      } else {
+        prev->set_next_function_link(element_function->next_function_link());
+      }
+      element_function->set_next_function_link(Heap::undefined_value());
+      return;
+    }
+    prev = element_function;
+    element = element_function->next_function_link();
+  }
+  UNREACHABLE();
+}
+
+
+Object* Context::OptimizedFunctionsListHead() {
+  ASSERT(IsGlobalContext());
+  return get(OPTIMIZED_FUNCTIONS_LIST);
+}
+
+
+void Context::ClearOptimizedFunctions() {
+  set(OPTIMIZED_FUNCTIONS_LIST, Heap::undefined_value());
+}
+
+
 #ifdef DEBUG
 bool Context::IsBootstrappingOrContext(Object* object) {
   // During bootstrapping we allow all objects to pass as

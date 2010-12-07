@@ -907,6 +907,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 // Returns the code marker, or the 0 if the code is not marked.
 static inline int InlinedICSiteMarker(Address address,
                                       Address* inline_end_address) {
+  if (V8::UseCrankshaft()) return false;
+
   // If the instruction after the call site is not the pseudo instruction nop1
   // then this is not related to an inlined in-object property load. The nop1
   // instruction is located just after the call to the IC in the deferred code
@@ -940,6 +942,8 @@ static inline int InlinedICSiteMarker(Address address,
 
 
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
+  if (V8::UseCrankshaft()) return false;
+
   // Find the end of the inlined code for handling the load if this is an
   // inlined IC call site.
   Address inline_end_address;
@@ -1019,6 +1023,8 @@ bool LoadIC::PatchInlinedContextualLoad(Address address,
 
 
 bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
+  if (V8::UseCrankshaft()) return false;
+
   // Find the end of the inlined code for the store if there is an
   // inlined version of the store.
   Address inline_end_address;
@@ -1069,6 +1075,8 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
 
 
 bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
+  if (V8::UseCrankshaft()) return false;
+
   Address inline_end_address;
   if (InlinedICSiteMarker(address, &inline_end_address)
       != Assembler::PROPERTY_ACCESS_INLINED) {
@@ -1087,6 +1095,8 @@ bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
 
 
 bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
+  if (V8::UseCrankshaft()) return false;
+
   // Find the end of the inlined code for handling the store if this is an
   // inlined IC call site.
   Address inline_end_address;
@@ -1315,7 +1325,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   char_at_generator.GenerateFast(masm);
   __ Ret();
 
-  ICRuntimeCallHelper call_helper;
+  StubRuntimeCallHelper call_helper;
   char_at_generator.GenerateSlow(masm, call_helper);
 
   __ bind(&miss);
@@ -2307,8 +2317,71 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
+void StoreIC::GenerateGlobalProxy(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : receiver
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  __ Push(r1, r2, r0);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+}
+
+
 #undef __
 
+
+Condition CompareIC::ComputeCondition(Token::Value op) {
+  switch (op) {
+    case Token::EQ_STRICT:
+    case Token::EQ:
+      return eq;
+    case Token::LT:
+      return lt;
+    case Token::GT:
+      // Reverse left and right operands to obtain ECMA-262 conversion order.
+      return lt;
+    case Token::LTE:
+      // Reverse left and right operands to obtain ECMA-262 conversion order.
+      return ge;
+    case Token::GTE:
+      return ge;
+    default:
+      UNREACHABLE();
+      return no_condition;
+  }
+}
+
+
+void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
+  HandleScope scope;
+  Handle<Code> rewritten;
+#ifdef DEBUG
+  State previous_state = GetState();
+#endif
+  State state = TargetState(x, y);
+  if (state == GENERIC) {
+    CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS, r1, r0);
+    rewritten = stub.GetCode();
+  } else {
+    ICCompareStub stub(op_, state);
+    rewritten = stub.GetCode();
+  }
+  set_target(*rewritten);
+
+#ifdef DEBUG
+  if (FLAG_trace_ic) {
+    PrintF("[CompareIC (%s->%s)#%s]\n",
+           GetStateName(previous_state),
+           GetStateName(state),
+           Token::Name(op_));
+  }
+#endif
+}
 
 } }  // namespace v8::internal
 

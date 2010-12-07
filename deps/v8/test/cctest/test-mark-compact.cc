@@ -71,6 +71,10 @@ TEST(MarkingStack) {
 
 
 TEST(Promotion) {
+  // This test requires compaction. If compaction is turned off, we
+  // skip the entire test.
+  if (FLAG_never_compact) return;
+
   // Ensure that we get a compacting collection so that objects are promoted
   // from new space.
   FLAG_gc_global = true;

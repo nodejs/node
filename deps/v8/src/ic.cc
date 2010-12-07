@@ -30,6 +30,7 @@
 #include "accessors.h"
 #include "api.h"
 #include "arguments.h"
+#include "codegen.h"
 #include "execution.h"
 #include "ic-inl.h"
 #include "runtime.h"
@@ -156,7 +157,7 @@ static bool HasNormalObjectsInPrototypeChain(LookupResult* lookup,
 IC::State IC::StateFrom(Code* target, Object* receiver, Object* name) {
   IC::State state = target->ic_state();
 
-  if (state != MONOMORPHIC) return state;
+  if (state != MONOMORPHIC || !name->IsString()) return state;
   if (receiver->IsUndefined() || receiver->IsNull()) return state;
 
   InlineCacheHolderFlag cache_holder =
@@ -259,8 +260,12 @@ void IC::Clear(Address address) {
     case Code::KEYED_STORE_IC: return KeyedStoreIC::Clear(address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
-    case Code::BINARY_OP_IC: return;  // Clearing these is tricky and does not
-                                      // make any performance difference.
+    case Code::BINARY_OP_IC:
+    case Code::TYPE_RECORDING_BINARY_OP_IC:
+    case Code::COMPARE_IC:
+      // Clearing these is tricky and does not
+      // make any performance difference.
+      return;
     default: UNREACHABLE();
   }
 }
@@ -1134,9 +1139,20 @@ MaybeObject* KeyedLoadIC::Load(State state,
         stub = external_array_stub(receiver->GetElementsKind());
       } else if (receiver->HasIndexedInterceptor()) {
         stub = indexed_interceptor_stub();
+      } else if (state == UNINITIALIZED &&
+                 key->IsSmi() &&
+                 receiver->map()->has_fast_elements()) {
+        MaybeObject* probe = StubCache::ComputeKeyedLoadSpecialized(*receiver);
+        stub =
+            probe->IsFailure() ? NULL : Code::cast(probe->ToObjectUnchecked());
       }
     }
-    set_target(stub);
+    if (stub != NULL) set_target(stub);
+
+#ifdef DEBUG
+    TraceIC("KeyedLoadIC", key, state, target());
+#endif  // DEBUG
+
     // For JSObjects with fast elements that are not value wrappers
     // and that do not have indexed interceptors, we initialize the
     // inlined fast case (if present) by patching the inlined map
@@ -1360,6 +1376,17 @@ MaybeObject* StoreIC::Store(State state,
     }
   }
 
+  if (receiver->IsJSGlobalProxy()) {
+    // Generate a generic stub that goes to the runtime when we see a global
+    // proxy as receiver.
+    if (target() != global_proxy_stub()) {
+      set_target(global_proxy_stub());
+#ifdef DEBUG
+      TraceIC("StoreIC", name, state, target());
+#endif
+    }
+  }
+
   // Set the property.
   return receiver->SetProperty(*name, *value, NONE);
 }
@@ -1503,9 +1530,15 @@ MaybeObject* KeyedStoreIC::Store(State state,
       Handle<JSObject> receiver = Handle<JSObject>::cast(object);
       if (receiver->HasExternalArrayElements()) {
         stub = external_array_stub(receiver->GetElementsKind());
+      } else if (state == UNINITIALIZED &&
+                 key->IsSmi() &&
+                 receiver->map()->has_fast_elements()) {
+        MaybeObject* probe = StubCache::ComputeKeyedStoreSpecialized(*receiver);
+        stub =
+            probe->IsFailure() ? NULL : Code::cast(probe->ToObjectUnchecked());
       }
     }
-    set_target(stub);
+    if (stub != NULL) set_target(stub);
   }
 
   // Set the property.
@@ -1750,6 +1783,7 @@ void BinaryOpIC::patch(Code* code) {
 
 const char* BinaryOpIC::GetName(TypeInfo type_info) {
   switch (type_info) {
+    case UNINIT_OR_SMI: return "UninitOrSmi";
     case DEFAULT: return "Default";
     case GENERIC: return "Generic";
     case HEAP_NUMBERS: return "HeapNumbers";
@@ -1761,23 +1795,26 @@ const char* BinaryOpIC::GetName(TypeInfo type_info) {
 
 BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
   switch (type_info) {
-    // DEFAULT is mapped to UNINITIALIZED so that calls to DEFAULT stubs
-    // are not cleared at GC.
-    case DEFAULT: return UNINITIALIZED;
-
-    // Could have mapped GENERIC to MONOMORPHIC just as well but MEGAMORPHIC is
-    // conceptually closer.
-    case GENERIC: return MEGAMORPHIC;
-
-    default: return MONOMORPHIC;
+    case UNINIT_OR_SMI:
+      return UNINITIALIZED;
+    case DEFAULT:
+    case HEAP_NUMBERS:
+    case STRINGS:
+      return MONOMORPHIC;
+    case GENERIC:
+      return MEGAMORPHIC;
   }
+  UNREACHABLE();
+  return UNINITIALIZED;
 }
 
 
 BinaryOpIC::TypeInfo BinaryOpIC::GetTypeInfo(Object* left,
                                              Object* right) {
   if (left->IsSmi() && right->IsSmi()) {
-    return GENERIC;
+    // If we have two smi inputs we can reach here because
+    // of an overflow. Enter default state.
+    return DEFAULT;
   }
 
   if (left->IsNumber() && right->IsNumber()) {
@@ -1794,43 +1831,36 @@ BinaryOpIC::TypeInfo BinaryOpIC::GetTypeInfo(Object* left,
 }
 
 
-// defined in codegen-<arch>.cc
+// defined in code-stubs-<arch>.cc
 Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info);
 
 
 MUST_USE_RESULT MaybeObject* BinaryOp_Patch(Arguments args) {
   ASSERT(args.length() == 5);
 
+  HandleScope scope;
   Handle<Object> left = args.at<Object>(0);
   Handle<Object> right = args.at<Object>(1);
   int key = Smi::cast(args[2])->value();
   Token::Value op = static_cast<Token::Value>(Smi::cast(args[3])->value());
-#ifdef DEBUG
-  BinaryOpIC::TypeInfo prev_type_info =
+  BinaryOpIC::TypeInfo previous_type =
       static_cast<BinaryOpIC::TypeInfo>(Smi::cast(args[4])->value());
-#endif  // DEBUG
-  { HandleScope scope;
-    BinaryOpIC::TypeInfo type_info = BinaryOpIC::GetTypeInfo(*left, *right);
-    Handle<Code> code = GetBinaryOpStub(key, type_info);
-    if (!code.is_null()) {
-      BinaryOpIC ic;
-      ic.patch(*code);
-#ifdef DEBUG
-      if (FLAG_trace_ic) {
-        PrintF("[BinaryOpIC (%s->%s)#%s]\n",
-            BinaryOpIC::GetName(prev_type_info),
-            BinaryOpIC::GetName(type_info),
-            Token::Name(op));
-      }
-#endif  // DEBUG
+
+  BinaryOpIC::TypeInfo type = BinaryOpIC::GetTypeInfo(*left, *right);
+  Handle<Code> code = GetBinaryOpStub(key, type);
+  if (!code.is_null()) {
+    BinaryOpIC ic;
+    ic.patch(*code);
+    if (FLAG_trace_ic) {
+      PrintF("[BinaryOpIC (%s->%s)#%s]\n",
+             BinaryOpIC::GetName(previous_type),
+             BinaryOpIC::GetName(type),
+             Token::Name(op));
     }
   }
 
-  HandleScope scope;
   Handle<JSBuiltinsObject> builtins = Top::builtins();
-
   Object* builtin = NULL;  // Initialization calms down the compiler.
-
   switch (op) {
     case Token::ADD:
       builtin = builtins->javascript_builtin(Builtins::ADD);
@@ -1882,6 +1912,239 @@ MUST_USE_RESULT MaybeObject* BinaryOp_Patch(Arguments args) {
     return Failure::Exception();
   }
   return *result;
+}
+
+
+void TRBinaryOpIC::patch(Code* code) {
+  set_target(code);
+}
+
+
+const char* TRBinaryOpIC::GetName(TypeInfo type_info) {
+  switch (type_info) {
+    case UNINITIALIZED: return "Uninitialized";
+    case SMI: return "SMI";
+    case INT32: return "Int32s";
+    case HEAP_NUMBER: return "HeapNumbers";
+    case STRING: return "Strings";
+    case GENERIC: return "Generic";
+    default: return "Invalid";
+  }
+}
+
+
+TRBinaryOpIC::State TRBinaryOpIC::ToState(TypeInfo type_info) {
+  switch (type_info) {
+    case UNINITIALIZED:
+      return ::v8::internal::UNINITIALIZED;
+    case SMI:
+    case INT32:
+    case HEAP_NUMBER:
+    case STRING:
+      return MONOMORPHIC;
+    case GENERIC:
+      return MEGAMORPHIC;
+  }
+  UNREACHABLE();
+  return ::v8::internal::UNINITIALIZED;
+}
+
+
+TRBinaryOpIC::TypeInfo TRBinaryOpIC::JoinTypes(TRBinaryOpIC::TypeInfo x,
+                                           TRBinaryOpIC::TypeInfo y) {
+  if (x == UNINITIALIZED) return y;
+  if (y == UNINITIALIZED) return x;
+  if (x == STRING && y == STRING) return STRING;
+  if (x == STRING || y == STRING) return GENERIC;
+  if (x >= y) return x;
+  return y;
+}
+
+TRBinaryOpIC::TypeInfo TRBinaryOpIC::GetTypeInfo(Handle<Object> left,
+                                                 Handle<Object> right) {
+  ::v8::internal::TypeInfo left_type =
+      ::v8::internal::TypeInfo::TypeFromValue(left);
+  ::v8::internal::TypeInfo right_type =
+      ::v8::internal::TypeInfo::TypeFromValue(right);
+
+  if (left_type.IsSmi() && right_type.IsSmi()) {
+    return SMI;
+  }
+
+  if (left_type.IsInteger32() && right_type.IsInteger32()) {
+    return INT32;
+  }
+
+  if (left_type.IsNumber() && right_type.IsNumber()) {
+    return HEAP_NUMBER;
+  }
+
+  if (left_type.IsString() || right_type.IsString()) {
+    // Patching for fast string ADD makes sense even if only one of the
+    // arguments is a string.
+    return STRING;
+  }
+
+  return GENERIC;
+}
+
+
+// defined in code-stubs-<arch>.cc
+// Only needed to remove dependency of ic.cc on code-stubs-<arch>.h.
+Handle<Code> GetTypeRecordingBinaryOpStub(int key,
+                                          TRBinaryOpIC::TypeInfo type_info,
+                                          TRBinaryOpIC::TypeInfo result_type);
+
+
+MaybeObject* TypeRecordingBinaryOp_Patch(Arguments args) {
+  ASSERT(args.length() == 5);
+
+  HandleScope scope;
+  Handle<Object> left = args.at<Object>(0);
+  Handle<Object> right = args.at<Object>(1);
+  int key = Smi::cast(args[2])->value();
+  Token::Value op = static_cast<Token::Value>(Smi::cast(args[3])->value());
+  TRBinaryOpIC::TypeInfo previous_type =
+      static_cast<TRBinaryOpIC::TypeInfo>(Smi::cast(args[4])->value());
+
+  TRBinaryOpIC::TypeInfo type = TRBinaryOpIC::GetTypeInfo(left, right);
+  type = TRBinaryOpIC::JoinTypes(type, previous_type);
+  TRBinaryOpIC::TypeInfo result_type = TRBinaryOpIC::UNINITIALIZED;
+  if (type == TRBinaryOpIC::STRING && op != Token::ADD) {
+    type = TRBinaryOpIC::GENERIC;
+  }
+  if (type == TRBinaryOpIC::SMI &&
+      previous_type == TRBinaryOpIC::SMI) {
+    if (op == Token::DIV || op == Token::MUL) {
+      // Arithmetic on two Smi inputs has yielded a heap number.
+      // That is the only way to get here from the Smi stub.
+      result_type = TRBinaryOpIC::HEAP_NUMBER;
+    } else {
+      // Other operations on SMIs that overflow yield int32s.
+      result_type = TRBinaryOpIC::INT32;
+    }
+  }
+  if (type == TRBinaryOpIC::INT32 &&
+      previous_type == TRBinaryOpIC::INT32) {
+    // We must be here because an operation on two INT32 types overflowed.
+    result_type = TRBinaryOpIC::HEAP_NUMBER;
+  }
+
+  Handle<Code> code = GetTypeRecordingBinaryOpStub(key, type, result_type);
+  if (!code.is_null()) {
+    TRBinaryOpIC ic;
+    ic.patch(*code);
+    if (FLAG_trace_ic) {
+      PrintF("[TypeRecordingBinaryOpIC (%s->(%s->%s))#%s]\n",
+             TRBinaryOpIC::GetName(previous_type),
+             TRBinaryOpIC::GetName(type),
+             TRBinaryOpIC::GetName(result_type),
+             Token::Name(op));
+    }
+  }
+
+  Handle<JSBuiltinsObject> builtins = Top::builtins();
+  Object* builtin = NULL;  // Initialization calms down the compiler.
+  switch (op) {
+    case Token::ADD:
+      builtin = builtins->javascript_builtin(Builtins::ADD);
+      break;
+    case Token::SUB:
+      builtin = builtins->javascript_builtin(Builtins::SUB);
+      break;
+    case Token::MUL:
+      builtin = builtins->javascript_builtin(Builtins::MUL);
+      break;
+    case Token::DIV:
+      builtin = builtins->javascript_builtin(Builtins::DIV);
+      break;
+    case Token::MOD:
+      builtin = builtins->javascript_builtin(Builtins::MOD);
+      break;
+    case Token::BIT_AND:
+      builtin = builtins->javascript_builtin(Builtins::BIT_AND);
+      break;
+    case Token::BIT_OR:
+      builtin = builtins->javascript_builtin(Builtins::BIT_OR);
+      break;
+    case Token::BIT_XOR:
+      builtin = builtins->javascript_builtin(Builtins::BIT_XOR);
+      break;
+    case Token::SHR:
+      builtin = builtins->javascript_builtin(Builtins::SHR);
+      break;
+    case Token::SAR:
+      builtin = builtins->javascript_builtin(Builtins::SAR);
+      break;
+    case Token::SHL:
+      builtin = builtins->javascript_builtin(Builtins::SHL);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  Handle<JSFunction> builtin_function(JSFunction::cast(builtin));
+
+  bool caught_exception;
+  Object** builtin_args[] = { right.location() };
+  Handle<Object> result = Execution::Call(builtin_function,
+                                          left,
+                                          ARRAY_SIZE(builtin_args),
+                                          builtin_args,
+                                          &caught_exception);
+  if (caught_exception) {
+    return Failure::Exception();
+  }
+  return *result;
+}
+
+
+Handle<Code> CompareIC::GetUninitialized(Token::Value op) {
+  ICCompareStub stub(op, UNINITIALIZED);
+  return stub.GetCode();
+}
+
+
+CompareIC::State CompareIC::ComputeState(Code* target) {
+  int key = target->major_key();
+  if (key == CodeStub::Compare) return GENERIC;
+  ASSERT(key == CodeStub::CompareIC);
+  return static_cast<State>(target->compare_state());
+}
+
+
+const char* CompareIC::GetStateName(State state) {
+  switch (state) {
+    case UNINITIALIZED: return "UNINITIALIZED";
+    case SMIS: return "SMIS";
+    case HEAP_NUMBERS: return "HEAP_NUMBERS";
+    case OBJECTS: return "OBJECTS";
+    case GENERIC: return "GENERIC";
+    default:
+      UNREACHABLE();
+      return NULL;
+  }
+}
+
+
+CompareIC::State CompareIC::TargetState(Handle<Object> x, Handle<Object> y) {
+  State state = GetState();
+  if (state != UNINITIALIZED) return GENERIC;
+  if (x->IsSmi() && y->IsSmi()) return SMIS;
+  if (x->IsNumber() && y->IsNumber()) return HEAP_NUMBERS;
+  if (op_ != Token::EQ && op_ != Token::EQ_STRICT) return GENERIC;
+  if (x->IsJSObject() && y->IsJSObject()) return OBJECTS;
+  return GENERIC;
+}
+
+
+// Used from ic_<arch>.cc.
+Code* CompareIC_Miss(Arguments args) {
+  NoHandleAllocation na;
+  ASSERT(args.length() == 3);
+  CompareIC ic(static_cast<Token::Value>(Smi::cast(args[2])->value()));
+  ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
+  return ic.target();
 }
 
 

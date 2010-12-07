@@ -33,6 +33,7 @@
 #include "factory.h"
 #include "jsregexp.h"
 #include "platform.h"
+#include "string-search.h"
 #include "runtime.h"
 #include "top.h"
 #include "compilation-cache.h"
@@ -120,7 +121,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     re->set_data(*cached);
     return re;
   }
-  FlattenString(pattern);
+  pattern = FlattenGetString(pattern);
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
   PostponeInterruptsScope postpone;
   RegExpCompileData parse_result;
@@ -205,23 +206,61 @@ static void SetAtomLastCapture(FixedArray* array,
   RegExpImpl::SetCapture(array, 1, to);
 }
 
+  /* template <typename SubjectChar>, typename PatternChar>
+static int ReStringMatch(Vector<const SubjectChar> sub_vector,
+                         Vector<const PatternChar> pat_vector,
+                         int start_index) {
 
+  int pattern_length = pat_vector.length();
+  if (pattern_length == 0) return start_index;
+
+  int subject_length = sub_vector.length();
+  if (start_index + pattern_length > subject_length) return -1;
+  return SearchString(sub_vector, pat_vector, start_index);
+}
+  */
 Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                     Handle<String> subject,
                                     int index,
                                     Handle<JSArray> last_match_info) {
-  Handle<String> needle(String::cast(re->DataAt(JSRegExp::kAtomPatternIndex)));
+  ASSERT(0 <= index);
+  ASSERT(index <= subject->length());
 
-  uint32_t start_index = index;
+  if (!subject->IsFlat()) FlattenString(subject);
+  AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
+  // Extract flattened substrings of cons strings before determining asciiness.
+  String* seq_sub = *subject;
+  if (seq_sub->IsConsString()) seq_sub = ConsString::cast(seq_sub)->first();
 
-  int value = Runtime::StringMatch(subject, needle, start_index);
-  if (value == -1) return Factory::null_value();
+  String* needle = String::cast(re->DataAt(JSRegExp::kAtomPatternIndex));
+  int needle_len = needle->length();
+
+  if (needle_len != 0) {
+    if (index + needle_len > subject->length()) return Factory::null_value();
+    // dispatch on type of strings
+    index = (needle->IsAsciiRepresentation()
+             ? (seq_sub->IsAsciiRepresentation()
+                ? SearchString(seq_sub->ToAsciiVector(),
+                               needle->ToAsciiVector(),
+                               index)
+                : SearchString(seq_sub->ToUC16Vector(),
+                               needle->ToAsciiVector(),
+                               index))
+             : (seq_sub->IsAsciiRepresentation()
+                ? SearchString(seq_sub->ToAsciiVector(),
+                               needle->ToUC16Vector(),
+                               index)
+                : SearchString(seq_sub->ToUC16Vector(),
+                               needle->ToUC16Vector(),
+                               index)));
+    if (index == -1) return Factory::null_value();
+  }
   ASSERT(last_match_info->HasFastElements());
 
   {
     NoHandleAllocation no_handles;
     FixedArray* array = FixedArray::cast(last_match_info->elements());
-    SetAtomLastCapture(array, *subject, value, value + needle->length());
+    SetAtomLastCapture(array, *subject, index, index + needle_len);
   }
   return last_match_info;
 }
@@ -364,7 +403,7 @@ int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
     AssertNoAllocation no_gc;
     String* sequential_string = *subject;
     if (subject->IsConsString()) {
-      sequential_string =  ConsString::cast(*subject)->first();
+      sequential_string = ConsString::cast(*subject)->first();
     }
     is_ascii = sequential_string->IsAsciiRepresentation();
   }
@@ -1611,41 +1650,64 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
 }
 
 
-int ActionNode::EatsAtLeast(int still_to_find, int recursion_depth) {
+int ActionNode::EatsAtLeast(int still_to_find,
+                            int recursion_depth,
+                            bool not_at_start) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
   if (type_ == POSITIVE_SUBMATCH_SUCCESS) return 0;  // Rewinds input!
-  return on_success()->EatsAtLeast(still_to_find, recursion_depth + 1);
+  return on_success()->EatsAtLeast(still_to_find,
+                                   recursion_depth + 1,
+                                   not_at_start);
 }
 
 
-int AssertionNode::EatsAtLeast(int still_to_find, int recursion_depth) {
+int AssertionNode::EatsAtLeast(int still_to_find,
+                               int recursion_depth,
+                               bool not_at_start) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
-  return on_success()->EatsAtLeast(still_to_find, recursion_depth + 1);
+  // If we know we are not at the start and we are asked "how many characters
+  // will you match if you succeed?" then we can answer anything since false
+  // implies false.  So lets just return the max answer (still_to_find) since
+  // that won't prevent us from preloading a lot of characters for the other
+  // branches in the node graph.
+  if (type() == AT_START && not_at_start) return still_to_find;
+  return on_success()->EatsAtLeast(still_to_find,
+                                   recursion_depth + 1,
+                                   not_at_start);
 }
 
 
-int BackReferenceNode::EatsAtLeast(int still_to_find, int recursion_depth) {
+int BackReferenceNode::EatsAtLeast(int still_to_find,
+                                   int recursion_depth,
+                                   bool not_at_start) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
-  return on_success()->EatsAtLeast(still_to_find, recursion_depth + 1);
+  return on_success()->EatsAtLeast(still_to_find,
+                                   recursion_depth + 1,
+                                   not_at_start);
 }
 
 
-int TextNode::EatsAtLeast(int still_to_find, int recursion_depth) {
+int TextNode::EatsAtLeast(int still_to_find,
+                          int recursion_depth,
+                          bool not_at_start) {
   int answer = Length();
   if (answer >= still_to_find) return answer;
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return answer;
+  // We are not at start after this node so we set the last argument to 'true'.
   return answer + on_success()->EatsAtLeast(still_to_find - answer,
-                                            recursion_depth + 1);
+                                            recursion_depth + 1,
+                                            true);
 }
 
 
 int NegativeLookaheadChoiceNode::EatsAtLeast(int still_to_find,
-                                             int recursion_depth) {
+                                             int recursion_depth,
+                                             bool not_at_start) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
   // Alternative 0 is the negative lookahead, alternative 1 is what comes
   // afterwards.
   RegExpNode* node = alternatives_->at(1).node();
-  return node->EatsAtLeast(still_to_find, recursion_depth + 1);
+  return node->EatsAtLeast(still_to_find, recursion_depth + 1, not_at_start);
 }
 
 
@@ -1663,7 +1725,8 @@ void NegativeLookaheadChoiceNode::GetQuickCheckDetails(
 
 int ChoiceNode::EatsAtLeastHelper(int still_to_find,
                                   int recursion_depth,
-                                  RegExpNode* ignore_this_node) {
+                                  RegExpNode* ignore_this_node,
+                                  bool not_at_start) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
   int min = 100;
   int choice_count = alternatives_->length();
@@ -1671,20 +1734,31 @@ int ChoiceNode::EatsAtLeastHelper(int still_to_find,
     RegExpNode* node = alternatives_->at(i).node();
     if (node == ignore_this_node) continue;
     int node_eats_at_least = node->EatsAtLeast(still_to_find,
-                                               recursion_depth + 1);
+                                               recursion_depth + 1,
+                                               not_at_start);
     if (node_eats_at_least < min) min = node_eats_at_least;
   }
   return min;
 }
 
 
-int LoopChoiceNode::EatsAtLeast(int still_to_find, int recursion_depth) {
-  return EatsAtLeastHelper(still_to_find, recursion_depth, loop_node_);
+int LoopChoiceNode::EatsAtLeast(int still_to_find,
+                                int recursion_depth,
+                                bool not_at_start) {
+  return EatsAtLeastHelper(still_to_find,
+                           recursion_depth,
+                           loop_node_,
+                           not_at_start);
 }
 
 
-int ChoiceNode::EatsAtLeast(int still_to_find, int recursion_depth) {
-  return EatsAtLeastHelper(still_to_find, recursion_depth, NULL);
+int ChoiceNode::EatsAtLeast(int still_to_find,
+                            int recursion_depth,
+                            bool not_at_start) {
+  return EatsAtLeastHelper(still_to_find,
+                           recursion_depth,
+                           NULL,
+                           not_at_start);
 }
 
 
@@ -2591,8 +2665,9 @@ void LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 }
 
 
-int ChoiceNode::CalculatePreloadCharacters(RegExpCompiler* compiler) {
-  int preload_characters = EatsAtLeast(4, 0);
+int ChoiceNode::CalculatePreloadCharacters(RegExpCompiler* compiler,
+                                           bool not_at_start) {
+  int preload_characters = EatsAtLeast(4, 0, not_at_start);
   if (compiler->macro_assembler()->CanReadUnaligned()) {
     bool ascii = compiler->ascii();
     if (ascii) {
@@ -2800,7 +2875,9 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   int first_normal_choice = greedy_loop ? 1 : 0;
 
-  int preload_characters = CalculatePreloadCharacters(compiler);
+  int preload_characters =
+      CalculatePreloadCharacters(compiler,
+                                 current_trace->at_start() == Trace::FALSE);
   bool preload_is_current =
       (current_trace->characters_preloaded() == preload_characters);
   bool preload_has_checked_bounds = preload_is_current;

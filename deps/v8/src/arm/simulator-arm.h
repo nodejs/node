@@ -186,6 +186,10 @@ class Simulator {
   // ICache checking.
   static void FlushICache(void* start, size_t size);
 
+  // Returns true if pc register contains one of the 'special_values' defined
+  // below (bad_lr, end_sim_pc).
+  bool has_bad_pc() const;
+
  private:
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute

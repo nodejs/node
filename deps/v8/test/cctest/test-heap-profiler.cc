@@ -1193,4 +1193,22 @@ TEST(AggregatedHeapSnapshotJSONSerialization) {
   CHECK_EQ(1, stream.eos_signaled());
 }
 
+
+TEST(HeapSnapshotGetNodeById) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("id"));
+  const v8::HeapGraphNode* root = snapshot->GetRoot();
+  CHECK_EQ(root, snapshot->GetNodeById(root->GetId()));
+  for (int i = 0, count = root->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = root->GetChild(i);
+    CHECK_EQ(
+        prop->GetToNode(), snapshot->GetNodeById(prop->GetToNode()->GetId()));
+  }
+  // Check a big id, which should not exist yet.
+  CHECK_EQ(NULL, snapshot->GetNodeById(0x1000000UL));
+}
+
 #endif  // ENABLE_LOGGING_AND_PROFILING

@@ -60,6 +60,10 @@ class Memory {
     return *reinterpret_cast<int*>(addr);
   }
 
+  static double& double_at(Address addr)  {
+    return *reinterpret_cast<double*>(addr);
+  }
+
   static Address& Address_at(Address addr)  {
     return *reinterpret_cast<Address*>(addr);
   }

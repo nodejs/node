@@ -104,12 +104,12 @@ void VirtualFrameRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 }
 
 
-void ICRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
+void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
   masm->EnterInternalFrame();
 }
 
 
-void ICRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
+void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
   masm->LeaveInternalFrame();
 }
 
@@ -7398,6 +7398,7 @@ void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
   Load(args->at(1));
   Load(args->at(2));
   Load(args->at(3));
+
   RegExpExecStub stub;
   Result result = frame_->CallStub(&stub, 4);
   frame_->Push(&result);
@@ -7405,91 +7406,15 @@ void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateRegExpConstructResult(ZoneList<Expression*>* args) {
-  // No stub. This code only occurs a few times in regexp.js.
-  const int kMaxInlineLength = 100;
   ASSERT_EQ(3, args->length());
+
   Load(args->at(0));  // Size of array, smi.
   Load(args->at(1));  // "index" property value.
   Load(args->at(2));  // "input" property value.
-  {
-    VirtualFrame::SpilledScope spilled_scope;
 
-    Label slowcase;
-    Label done;
-    __ mov(ebx, Operand(esp, kPointerSize * 2));
-    __ test(ebx, Immediate(kSmiTagMask));
-    __ j(not_zero, &slowcase);
-    __ cmp(Operand(ebx), Immediate(Smi::FromInt(kMaxInlineLength)));
-    __ j(above, &slowcase);
-    // Smi-tagging is equivalent to multiplying by 2.
-    STATIC_ASSERT(kSmiTag == 0);
-    STATIC_ASSERT(kSmiTagSize == 1);
-    // Allocate RegExpResult followed by FixedArray with size in ebx.
-    // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
-    // Elements:  [Map][Length][..elements..]
-    __ AllocateInNewSpace(JSRegExpResult::kSize + FixedArray::kHeaderSize,
-                          times_half_pointer_size,
-                          ebx,  // In: Number of elements (times 2, being a smi)
-                          eax,  // Out: Start of allocation (tagged).
-                          ecx,  // Out: End of allocation.
-                          edx,  // Scratch register
-                          &slowcase,
-                          TAG_OBJECT);
-    // eax: Start of allocated area, object-tagged.
-
-    // Set JSArray map to global.regexp_result_map().
-    // Set empty properties FixedArray.
-    // Set elements to point to FixedArray allocated right after the JSArray.
-    // Interleave operations for better latency.
-    __ mov(edx, ContextOperand(esi, Context::GLOBAL_INDEX));
-    __ mov(ecx, Immediate(Factory::empty_fixed_array()));
-    __ lea(ebx, Operand(eax, JSRegExpResult::kSize));
-    __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalContextOffset));
-    __ mov(FieldOperand(eax, JSObject::kElementsOffset), ebx);
-    __ mov(FieldOperand(eax, JSObject::kPropertiesOffset), ecx);
-    __ mov(edx, ContextOperand(edx, Context::REGEXP_RESULT_MAP_INDEX));
-    __ mov(FieldOperand(eax, HeapObject::kMapOffset), edx);
-
-    // Set input, index and length fields from arguments.
-    __ pop(FieldOperand(eax, JSRegExpResult::kInputOffset));
-    __ pop(FieldOperand(eax, JSRegExpResult::kIndexOffset));
-    __ pop(ecx);
-    __ mov(FieldOperand(eax, JSArray::kLengthOffset), ecx);
-
-    // Fill out the elements FixedArray.
-    // eax: JSArray.
-    // ebx: FixedArray.
-    // ecx: Number of elements in array, as smi.
-
-    // Set map.
-    __ mov(FieldOperand(ebx, HeapObject::kMapOffset),
-           Immediate(Factory::fixed_array_map()));
-    // Set length.
-    __ mov(FieldOperand(ebx, FixedArray::kLengthOffset), ecx);
-    // Fill contents of fixed-array with the-hole.
-    __ SmiUntag(ecx);
-    __ mov(edx, Immediate(Factory::the_hole_value()));
-    __ lea(ebx, FieldOperand(ebx, FixedArray::kHeaderSize));
-    // Fill fixed array elements with hole.
-    // eax: JSArray.
-    // ecx: Number of elements to fill.
-    // ebx: Start of elements in FixedArray.
-    // edx: the hole.
-    Label loop;
-    __ test(ecx, Operand(ecx));
-    __ bind(&loop);
-    __ j(less_equal, &done);  // Jump if ecx is negative or zero.
-    __ sub(Operand(ecx), Immediate(1));
-    __ mov(Operand(ebx, ecx, times_pointer_size, 0), edx);
-    __ jmp(&loop);
-
-    __ bind(&slowcase);
-    __ CallRuntime(Runtime::kRegExpConstructResult, 3);
-
-    __ bind(&done);
-  }
-  frame_->Forget(3);
-  frame_->Push(eax);
+  RegExpConstructResultStub stub;
+  Result result = frame_->CallStub(&stub, 3);
+  frame_->Push(&result);
 }
 
 
@@ -7990,6 +7915,15 @@ void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
   TranscendentalCacheStub stub(TranscendentalCache::COS);
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateMathLog(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  Load(args->at(0));
+  TranscendentalCacheStub stub(TranscendentalCache::LOG);
   Result result = frame_->CallStub(&stub, 1);
   frame_->Push(&result);
 }
@@ -10073,14 +10007,15 @@ void Reference::SetValue(InitState init_state) {
 
 #define __ masm.
 
+
+static void MemCopyWrapper(void* dest, const void* src, size_t size) {
+  memcpy(dest, src, size);
+}
+
+
 MemCopyFunction CreateMemCopyFunction() {
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
-  CHECK(buffer);
-  HandleScope handles;
-  MacroAssembler masm(buffer, static_cast<int>(actual_size));
+  HandleScope scope;
+  MacroAssembler masm(NULL, 1 * KB);
 
   // Generated code is put into a fixed, unmovable, buffer, and not into
   // the V8 heap. We can't, and don't, refer to any relocatable addresses
@@ -10174,6 +10109,7 @@ MemCopyFunction CreateMemCopyFunction() {
       __ movdqu(xmm0, Operand(src, count, times_1, -0x10));
       __ movdqu(Operand(dst, count, times_1, -0x10), xmm0);
 
+      __ mov(eax, Operand(esp, stack_offset + kDestinationOffset));
       __ pop(esi);
       __ pop(edi);
       __ ret(0);
@@ -10220,6 +10156,7 @@ MemCopyFunction CreateMemCopyFunction() {
       __ movdqu(xmm0, Operand(src, count, times_1, -0x10));
       __ movdqu(Operand(dst, count, times_1, -0x10), xmm0);
 
+      __ mov(eax, Operand(esp, stack_offset + kDestinationOffset));
       __ pop(esi);
       __ pop(edi);
       __ ret(0);
@@ -10263,6 +10200,7 @@ MemCopyFunction CreateMemCopyFunction() {
     __ mov(eax, Operand(src, count, times_1, -4));
     __ mov(Operand(dst, count, times_1, -4), eax);
 
+    __ mov(eax, Operand(esp, stack_offset + kDestinationOffset));
     __ pop(esi);
     __ pop(edi);
     __ ret(0);
@@ -10270,8 +10208,15 @@ MemCopyFunction CreateMemCopyFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  // Call the function from C++.
-  return FUNCTION_CAST<MemCopyFunction>(buffer);
+  ASSERT(desc.reloc_size == 0);
+
+  // Copy the generated code into an executable chunk and return a pointer
+  // to the first instruction in it as a C++ function pointer.
+  LargeObjectChunk* chunk = LargeObjectChunk::New(desc.instr_size, EXECUTABLE);
+  if (chunk == NULL) return &MemCopyWrapper;
+  memcpy(chunk->GetStartAddress(), desc.buffer, desc.instr_size);
+  CPU::FlushICache(chunk->GetStartAddress(), desc.instr_size);
+  return FUNCTION_CAST<MemCopyFunction>(chunk->GetStartAddress());
 }
 
 #undef __

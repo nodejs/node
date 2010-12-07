@@ -775,6 +775,9 @@ void JSFunction::JSFunctionPrint() {
 void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());
   VerifyObjectField(kPrototypeOrInitialMapOffset);
+  VerifyObjectField(kNextFunctionLinkOffset);
+  CHECK(next_function_link()->IsUndefined() ||
+        next_function_link()->IsJSFunction());
 }
 
 

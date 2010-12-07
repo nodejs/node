@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -32,11 +32,13 @@
 #include "v8.h"
 
 #include "api.h"
+#include "cctest.h"
 #include "compilation-cache.h"
 #include "debug.h"
+#include "deoptimizer.h"
 #include "platform.h"
 #include "stub-cache.h"
-#include "cctest.h"
+#include "utils.h"
 
 
 using ::v8::internal::EmbeddedVector;
@@ -515,16 +517,52 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
 // ---
 
 
-// Source for The JavaScript function which picks out the function name of the
-// top frame.
+// Source for the JavaScript function which picks out the function
+// name of a frame.
 const char* frame_function_name_source =
-    "function frame_function_name(exec_state) {"
-    "  return exec_state.frame(0).func().name();"
+    "function frame_function_name(exec_state, frame_number) {"
+    "  return exec_state.frame(frame_number).func().name();"
     "}";
 v8::Local<v8::Function> frame_function_name;
 
 
-// Source for The JavaScript function which picks out the source line for the
+// Source for the JavaScript function which pick out the name of the
+// first argument of a frame.
+const char* frame_argument_name_source =
+    "function frame_argument_name(exec_state, frame_number) {"
+    "  return exec_state.frame(frame_number).argumentName(0);"
+    "}";
+v8::Local<v8::Function> frame_argument_name;
+
+
+// Source for the JavaScript function which pick out the value of the
+// first argument of a frame.
+const char* frame_argument_value_source =
+    "function frame_argument_value(exec_state, frame_number) {"
+    "  return exec_state.frame(frame_number).argumentValue(0).value_;"
+    "}";
+v8::Local<v8::Function> frame_argument_value;
+
+
+// Source for the JavaScript function which pick out the name of the
+// first argument of a frame.
+const char* frame_local_name_source =
+    "function frame_local_name(exec_state, frame_number) {"
+    "  return exec_state.frame(frame_number).localName(0);"
+    "}";
+v8::Local<v8::Function> frame_local_name;
+
+
+// Source for the JavaScript function which pick out the value of the
+// first argument of a frame.
+const char* frame_local_value_source =
+    "function frame_local_value(exec_state, frame_number) {"
+    "  return exec_state.frame(frame_number).localValue(0).value_;"
+    "}";
+v8::Local<v8::Function> frame_local_value;
+
+
+// Source for the JavaScript function which picks out the source line for the
 // top frame.
 const char* frame_source_line_source =
     "function frame_source_line(exec_state) {"
@@ -533,7 +571,7 @@ const char* frame_source_line_source =
 v8::Local<v8::Function> frame_source_line;
 
 
-// Source for The JavaScript function which picks out the source column for the
+// Source for the JavaScript function which picks out the source column for the
 // top frame.
 const char* frame_source_column_source =
     "function frame_source_column(exec_state) {"
@@ -542,7 +580,7 @@ const char* frame_source_column_source =
 v8::Local<v8::Function> frame_source_column;
 
 
-// Source for The JavaScript function which picks out the script name for the
+// Source for the JavaScript function which picks out the script name for the
 // top frame.
 const char* frame_script_name_source =
     "function frame_script_name(exec_state) {"
@@ -551,7 +589,7 @@ const char* frame_script_name_source =
 v8::Local<v8::Function> frame_script_name;
 
 
-// Source for The JavaScript function which picks out the script data for the
+// Source for the JavaScript function which picks out the script data for the
 // top frame.
 const char* frame_script_data_source =
     "function frame_script_data(exec_state) {"
@@ -560,7 +598,7 @@ const char* frame_script_data_source =
 v8::Local<v8::Function> frame_script_data;
 
 
-// Source for The JavaScript function which picks out the script data from
+// Source for the JavaScript function which picks out the script data from
 // AfterCompile event
 const char* compiled_script_data_source =
     "function compiled_script_data(event_data) {"
@@ -569,7 +607,7 @@ const char* compiled_script_data_source =
 v8::Local<v8::Function> compiled_script_data;
 
 
-// Source for The JavaScript function which returns the number of frames.
+// Source for the JavaScript function which returns the number of frames.
 static const char* frame_count_source =
     "function frame_count(exec_state) {"
     "  return exec_state.frameCount();"
@@ -603,8 +641,8 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
     break_point_hit_count++;
     if (!frame_function_name.IsEmpty()) {
       // Get the name of the function.
-      const int argc = 1;
-      v8::Handle<v8::Value> argv[argc] = { exec_state };
+      const int argc = 2;
+      v8::Handle<v8::Value> argv[argc] = { exec_state, v8::Integer::New(0) };
       v8::Handle<v8::Value> result = frame_function_name->Call(exec_state,
                                                                argc, argv);
       if (result->IsUndefined()) {
@@ -834,8 +872,8 @@ static void DebugEventStepSequence(v8::DebugEvent event,
     // Check that the current function is the expected.
     CHECK(break_point_hit_count <
           StrLength(expected_step_sequence));
-    const int argc = 1;
-    v8::Handle<v8::Value> argv[argc] = { exec_state };
+    const int argc = 2;
+    v8::Handle<v8::Value> argv[argc] = { exec_state, v8::Integer::New(0) };
     v8::Handle<v8::Value> result = frame_function_name->Call(exec_state,
                                                              argc, argv);
     CHECK(result->IsString());
@@ -2586,6 +2624,10 @@ TEST(DebugStepLinear) {
   v8::Local<v8::Function> foo = CompileFunction(&env,
                                                 "function foo(){a=1;b=1;c=1;}",
                                                 "foo");
+
+  // Run foo to allow it to get optimized.
+  CompileRun("a=0; b=0; c=0; foo();");
+
   SetBreakPoint(foo, 3);
 
   // Register a debug event listener which steps and counts.
@@ -2635,7 +2677,8 @@ TEST(DebugStepKeyedLoadLoop) {
       "    y = 1;\n"
       "    x = a[i];\n"
       "  }\n"
-      "}\n",
+      "}\n"
+      "y=0\n",
       "foo");
 
   // Create array [0,1,2,3,4,5,6,7,8,9]
@@ -2681,7 +2724,8 @@ TEST(DebugStepKeyedStoreLoop) {
       "    y = 1;\n"
       "    a[i] = 42;\n"
       "  }\n"
-      "}\n",
+      "}\n"
+      "y=0\n",
       "foo");
 
   // Create array [0,1,2,3,4,5,6,7,8,9]
@@ -2753,15 +2797,12 @@ TEST(DebugStepNamedLoadLoop) {
 }
 
 
-static void DoDebugStepNamedStoreLoop(int expected, bool full_compiler = true) {
+static void DoDebugStepNamedStoreLoop(int expected) {
   v8::HandleScope scope;
   DebugLocalContext env;
 
-  // Register a debug event listener which steps and counts before compiling the
-  // function to ensure the full compiler is used.
-  if (full_compiler) {
-    v8::Debug::SetDebugEventListener(DebugEventStep);
-  }
+  // Register a debug event listener which steps and counts.
+  v8::Debug::SetDebugEventListener(DebugEventStep);
 
   // Create a function for testing stepping of named store.
   v8::Local<v8::Function> foo = CompileFunction(
@@ -2776,12 +2817,6 @@ static void DoDebugStepNamedStoreLoop(int expected, bool full_compiler = true) {
 
   // Call function without any break points to ensure inlining is in place.
   foo->Call(env->Global(), 0, NULL);
-
-  // Register a debug event listener which steps and counts after compiling the
-  // function to ensure the optimizing compiler is used.
-  if (!full_compiler) {
-    v8::Debug::SetDebugEventListener(DebugEventStep);
-  }
 
   // Setup break point and step through the function.
   SetBreakPoint(foo, 3);
@@ -2798,17 +2833,8 @@ static void DoDebugStepNamedStoreLoop(int expected, bool full_compiler = true) {
 
 
 // Test of the stepping mechanism for named load in a loop.
-TEST(DebugStepNamedStoreLoopFull) {
-  // With the full compiler it is possible to break on the for statement.
+TEST(DebugStepNamedStoreLoop) {
   DoDebugStepNamedStoreLoop(22);
-}
-
-
-// Test of the stepping mechanism for named load in a loop.
-TEST(DebugStepNamedStoreLoopOptimizing) {
-  // With the optimizing compiler it is not possible to break on the for
-  // statement as it uses a local variable thus no IC's.
-  DoDebugStepNamedStoreLoop(11, false);
 }
 
 
@@ -2828,6 +2854,10 @@ TEST(DebugStepLinearMixedICs) {
       "  var index='name';"
       "  var y = {};"
       "  a=1;b=2;x=a;y[index]=3;x=y[index];bar();}", "foo");
+
+  // Run functions to allow them to get optimized.
+  CompileRun("a=0; b=0; bar(); foo();");
+
   SetBreakPoint(foo, 0);
 
   step_action = StepIn;
@@ -2862,15 +2892,18 @@ TEST(DebugStepDeclarations) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
-  // Create a function for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const char* src = "function foo() { "
                     "  var a;"
                     "  var b = 1;"
                     "  var c = foo;"
                     "  var d = Math.floor;"
                     "  var e = b + d(1.2);"
-                    "}";
+                    "}"
+                    "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
+
   SetBreakPoint(foo, 0);
 
   // Stepping through the declarations.
@@ -2892,15 +2925,18 @@ TEST(DebugStepLocals) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
-  // Create a function for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const char* src = "function foo() { "
                     "  var a,b;"
                     "  a = 1;"
                     "  b = a + 2;"
                     "  b = 1 + 2 + 3;"
                     "  a = Math.floor(b);"
-                    "}";
+                    "}"
+                    "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
+
   SetBreakPoint(foo, 0);
 
   // Stepping through the declarations.
@@ -2922,7 +2958,8 @@ TEST(DebugStepIf) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
-  // Create a function for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const int argc = 1;
   const char* src = "function foo(x) { "
                     "  a = 1;"
@@ -2932,7 +2969,8 @@ TEST(DebugStepIf) {
                     "    c = 1;"
                     "    d = 1;"
                     "  }"
-                    "}";
+                    "}"
+                    "a=0; b=0; c=0; d=0; foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 0);
 
@@ -2963,7 +3001,8 @@ TEST(DebugStepSwitch) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
-  // Create a function for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const int argc = 1;
   const char* src = "function foo(x) { "
                     "  a = 1;"
@@ -2979,7 +3018,8 @@ TEST(DebugStepSwitch) {
                     "      f = 1;"
                     "      break;"
                     "  }"
-                    "}";
+                    "}"
+                    "a=0; b=0; c=0; d=0; e=0; f=0; foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 0);
 
@@ -3017,14 +3057,16 @@ TEST(DebugStepWhile) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
-  // Create a function for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const int argc = 1;
   const char* src = "function foo(x) { "
                     "  var a = 0;"
                     "  while (a < x) {"
                     "    a++;"
                     "  }"
-                    "}";
+                    "}"
+                    "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 8);  // "var a = 0;"
 
@@ -3033,14 +3075,14 @@ TEST(DebugStepWhile) {
   break_point_hit_count = 0;
   v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(10) };
   foo->Call(env->Global(), argc, argv_10);
-  CHECK_EQ(23, break_point_hit_count);
+  CHECK_EQ(22, break_point_hit_count);
 
   // Looping 100 times.
   step_action = StepIn;
   break_point_hit_count = 0;
   v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(100) };
   foo->Call(env->Global(), argc, argv_100);
-  CHECK_EQ(203, break_point_hit_count);
+  CHECK_EQ(202, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -3055,14 +3097,16 @@ TEST(DebugStepDoWhile) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
-  // Create a function for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const int argc = 1;
   const char* src = "function foo(x) { "
                     "  var a = 0;"
                     "  do {"
                     "    a++;"
                     "  } while (a < x)"
-                    "}";
+                    "}"
+                    "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 8);  // "var a = 0;"
 
@@ -3093,15 +3137,18 @@ TEST(DebugStepFor) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
-  // Create a function for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const int argc = 1;
   const char* src = "function foo(x) { "
                     "  a = 1;"
                     "  for (i = 0; i < x; i++) {"
                     "    b = 1;"
                     "  }"
-                    "}";
+                    "}"
+                    "a=0; b=0; i=0; foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
+
   SetBreakPoint(foo, 8);  // "a = 1;"
 
   // Looping 10 times.
@@ -3131,7 +3178,8 @@ TEST(DebugStepForContinue) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
-  // Create a function for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const int argc = 1;
   const char* src = "function foo(x) { "
                     "  var a = 0;"
@@ -3144,7 +3192,8 @@ TEST(DebugStepForContinue) {
                     "    c++;"
                     "  }"
                     "  return b;"
-                    "}";
+                    "}"
+                    "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   v8::Handle<v8::Value> result;
   SetBreakPoint(foo, 8);  // "var a = 0;"
@@ -3180,7 +3229,8 @@ TEST(DebugStepForBreak) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
-  // Create a function for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const int argc = 1;
   const char* src = "function foo(x) { "
                     "  var a = 0;"
@@ -3193,7 +3243,8 @@ TEST(DebugStepForBreak) {
                     "    c++;"
                     "  }"
                     "  return b;"
-                    "}";
+                    "}"
+                    "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   v8::Handle<v8::Value> result;
   SetBreakPoint(foo, 8);  // "var a = 0;"
@@ -3230,13 +3281,16 @@ TEST(DebugStepForIn) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   v8::Local<v8::Function> foo;
   const char* src_1 = "function foo() { "
                       "  var a = [1, 2];"
                       "  for (x in a) {"
                       "    b = 0;"
                       "  }"
-                      "}";
+                      "}"
+                      "foo()";
   foo = CompileFunction(&env, src_1, "foo");
   SetBreakPoint(foo, 0);  // "var a = ..."
 
@@ -3245,12 +3299,15 @@ TEST(DebugStepForIn) {
   foo->Call(env->Global(), 0, NULL);
   CHECK_EQ(6, break_point_hit_count);
 
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const char* src_2 = "function foo() { "
                       "  var a = {a:[1, 2, 3]};"
                       "  for (x in a.a) {"
                       "    b = 0;"
                       "  }"
-                      "}";
+                      "}"
+                      "foo()";
   foo = CompileFunction(&env, src_2, "foo");
   SetBreakPoint(foo, 0);  // "var a = ..."
 
@@ -3272,12 +3329,14 @@ TEST(DebugStepWith) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
-  // Create a function for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const char* src = "function foo(x) { "
                     "  var a = {};"
                     "  with (a) {}"
                     "  with (b) {}"
-                    "}";
+                    "}"
+                    "foo()";
   env->Global()->Set(v8::String::New("b"), v8::Object::New());
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   v8::Handle<v8::Value> result;
@@ -3301,12 +3360,14 @@ TEST(DebugConditional) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
 
-  // Create a function for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const char* src = "function foo(x) { "
                     "  var a;"
                     "  a = x ? 1 : 2;"
                     "  return a;"
-                    "}";
+                    "}"
+                    "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 0);  // "var a;"
 
@@ -3340,10 +3401,12 @@ TEST(StepInOutSimple) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStepSequence);
 
-  // Create functions for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const char* src = "function a() {b();c();}; "
                     "function b() {c();}; "
-                    "function c() {}; ";
+                    "function c() {}; "
+                    "a(); b(); c()";
   v8::Local<v8::Function> a = CompileFunction(&env, src, "a");
   SetBreakPoint(a, 0);
 
@@ -3389,11 +3452,13 @@ TEST(StepInOutTree) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStepSequence);
 
-  // Create functions for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const char* src = "function a() {b(c(d()),d());c(d());d()}; "
                     "function b(x,y) {c();}; "
                     "function c(x) {}; "
-                    "function d() {}; ";
+                    "function d() {}; "
+                    "a(); b(); c(); d()";
   v8::Local<v8::Function> a = CompileFunction(&env, src, "a");
   SetBreakPoint(a, 0);
 
@@ -3439,10 +3504,12 @@ TEST(StepInOutBranch) {
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStepSequence);
 
-  // Create functions for testing stepping.
+  // Create a function for testing stepping. Run it to allow it to get
+  // optimized.
   const char* src = "function a() {b(false);c();}; "
                     "function b(x) {if(x){c();};}; "
-                    "function c() {}; ";
+                    "function c() {}; "
+                    "a(); b(); c()";
   v8::Local<v8::Function> a = CompileFunction(&env, src, "a");
   SetBreakPoint(a, 0);
 
@@ -6116,8 +6183,8 @@ static void DebugEventDebugBreak(
     // Get the name of the top frame function.
     if (!frame_function_name.IsEmpty()) {
       // Get the name of the function.
-      const int argc = 1;
-      v8::Handle<v8::Value> argv[argc] = { exec_state };
+      const int argc = 2;
+      v8::Handle<v8::Value> argv[argc] = { exec_state, v8::Integer::New(0) };
       v8::Handle<v8::Value> result = frame_function_name->Call(exec_state,
                                                                argc, argv);
       if (result->IsUndefined()) {
@@ -6846,6 +6913,7 @@ static void DebugEventBreakDataChecker(const v8::Debug::EventDetails& details) {
   }
 }
 
+
 // Check that event details contain context where debug event occured.
 TEST(DebugEventBreakData) {
   v8::HandleScope scope;
@@ -6896,6 +6964,156 @@ TEST(DebugEventBreakData) {
 
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
+}
+
+static bool debug_event_break_deoptimize_done = false;
+
+static void DebugEventBreakDeoptimize(v8::DebugEvent event,
+                                      v8::Handle<v8::Object> exec_state,
+                                      v8::Handle<v8::Object> event_data,
+                                      v8::Handle<v8::Value> data) {
+  if (event == v8::Break) {
+    if (!frame_function_name.IsEmpty()) {
+      // Get the name of the function.
+      const int argc = 2;
+      v8::Handle<v8::Value> argv[argc] = { exec_state, v8::Integer::New(0) };
+      v8::Handle<v8::Value> result =
+          frame_function_name->Call(exec_state, argc, argv);
+      if (!result->IsUndefined()) {
+        char fn[80];
+        CHECK(result->IsString());
+        v8::Handle<v8::String> function_name(result->ToString());
+        function_name->WriteAscii(fn);
+        if (strcmp(fn, "bar") == 0) {
+          i::Deoptimizer::DeoptimizeAll();
+          debug_event_break_deoptimize_done = true;
+        }
+      }
+    }
+
+    v8::Debug::DebugBreak();
+  }
+}
+
+
+// Test deoptimization when execution is broken using the debug break stack
+// check interrupt.
+TEST(DeoptimizeDuringDebugBreak) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  // Create a function for checking the function when hitting a break point.
+  frame_function_name = CompileFunction(&env,
+                                        frame_function_name_source,
+                                        "frame_function_name");
+
+
+  // Set a debug event listener which will keep interrupting execution until
+  // debug break. When inside function bar it will deoptimize all functions.
+  // This tests lazy deoptimization bailout for the stack check, as the first
+  // time in function bar when using debug break and no break points will be at
+  // the initial stack check.
+  v8::Debug::SetDebugEventListener(DebugEventBreakDeoptimize,
+                                   v8::Undefined());
+
+  // Compile and run function bar which will optimize it for some flag settings.
+  v8::Script::Compile(v8::String::New("function bar(){}; bar()"))->Run();
+
+  // Set debug break and call bar again.
+  v8::Debug::DebugBreak();
+  v8::Script::Compile(v8::String::New("bar()"))->Run();
+
+  CHECK(debug_event_break_deoptimize_done);
+
+  v8::Debug::SetDebugEventListener(NULL);
+}
+
+
+static void DebugEventBreakWithOptimizedStack(v8::DebugEvent event,
+                                              v8::Handle<v8::Object> exec_state,
+                                              v8::Handle<v8::Object> event_data,
+                                              v8::Handle<v8::Value> data) {
+  if (event == v8::Break) {
+    if (!frame_function_name.IsEmpty()) {
+      for (int i = 0; i < 2; i++) {
+        const int argc = 2;
+        v8::Handle<v8::Value> argv[argc] = { exec_state, v8::Integer::New(i) };
+        // Get the name of the function in frame i.
+        v8::Handle<v8::Value> result =
+            frame_function_name->Call(exec_state, argc, argv);
+        CHECK(result->IsString());
+        v8::Handle<v8::String> function_name(result->ToString());
+        CHECK(function_name->Equals(v8::String::New("loop")));
+        // Get the name of the first argument in frame i.
+        result = frame_argument_name->Call(exec_state, argc, argv);
+        CHECK(result->IsString());
+        v8::Handle<v8::String> argument_name(result->ToString());
+        CHECK(argument_name->Equals(v8::String::New("count")));
+        // Get the value of the first argument in frame i. If the
+        // funtion is optimized the value will be undefined, otherwise
+        // the value will be '1 - i'.
+        //
+        // TODO(3141533): We should be able to get the real value for
+        // optimized frames.
+        result = frame_argument_value->Call(exec_state, argc, argv);
+        CHECK(result->IsUndefined() || (result->Int32Value() == 1 - i));
+        // Get the name of the first local variable.
+        result = frame_local_name->Call(exec_state, argc, argv);
+        CHECK(result->IsString());
+        v8::Handle<v8::String> local_name(result->ToString());
+        CHECK(local_name->Equals(v8::String::New("local")));
+        // Get the value of the first local variable. If the function
+        // is optimized the value will be undefined, otherwise it will
+        // be 42.
+        //
+        // TODO(3141533): We should be able to get the real value for
+        // optimized frames.
+        result = frame_local_value->Call(exec_state, argc, argv);
+        CHECK(result->IsUndefined() || (result->Int32Value() == 42));
+      }
+    }
+  }
+}
+
+
+static v8::Handle<v8::Value> ScheduleBreak(const v8::Arguments& args) {
+  v8::Debug::SetDebugEventListener(DebugEventBreakWithOptimizedStack,
+                                   v8::Undefined());
+  v8::Debug::DebugBreak();
+  return v8::Undefined();
+}
+
+
+TEST(DebugBreakStackInspection) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  frame_function_name =
+      CompileFunction(&env, frame_function_name_source, "frame_function_name");
+  frame_argument_name =
+      CompileFunction(&env, frame_argument_name_source, "frame_argument_name");
+  frame_argument_value = CompileFunction(&env,
+                                         frame_argument_value_source,
+                                         "frame_argument_value");
+  frame_local_name =
+      CompileFunction(&env, frame_local_name_source, "frame_local_name");
+  frame_local_value =
+      CompileFunction(&env, frame_local_value_source, "frame_local_value");
+
+  v8::Handle<v8::FunctionTemplate> schedule_break_template =
+      v8::FunctionTemplate::New(ScheduleBreak);
+  v8::Handle<v8::Function> schedule_break =
+      schedule_break_template->GetFunction();
+  env->Global()->Set(v8_str("scheduleBreak"), schedule_break);
+
+  const char* src =
+      "function loop(count) {"
+      "  var local = 42;"
+      "  if (count < 1) { scheduleBreak(); loop(count + 1); }"
+      "}"
+      "loop(0);";
+  v8::Script::Compile(v8::String::New(src))->Run();
 }
 
 

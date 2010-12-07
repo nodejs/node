@@ -87,6 +87,8 @@ class LiveEdit : AllStatic {
       Handle<JSArray> new_compile_info_array,
       Handle<JSArray> shared_info_array);
 
+  static MaybeObject* FunctionSourceUpdated(Handle<JSArray> shared_info_array);
+
   // Updates script field in FunctionSharedInfo.
   static void SetFunctionScript(Handle<JSValue> function_wrapper,
                                 Handle<Object> script_handle);

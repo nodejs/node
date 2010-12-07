@@ -109,8 +109,13 @@ class SerializedScopeInfo : public FixedArray {
     return reinterpret_cast<SerializedScopeInfo*>(object);
   }
 
-  // Does this scope call eval.
+  // Does this scope call eval?
   bool CallsEval();
+
+  // Does this scope have an arguments shadow?
+  bool HasArgumentsShadow() {
+    return StackSlotIndex(Heap::arguments_shadow_symbol()) >= 0;
+  }
 
   // Return the number of stack slots for code.
   int NumberOfStackSlots();

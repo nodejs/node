@@ -164,22 +164,6 @@ void V8JavaScriptScanner::Initialize(Handle<String> source,
 }
 
 
-Token::Value V8JavaScriptScanner::NextCheckStack() {
-  // BUG 1215673: Find a thread safe way to set a stack limit in
-  // pre-parse mode. Otherwise, we cannot safely pre-parse from other
-  // threads.
-  StackLimitCheck check;
-  if (check.HasOverflowed()) {
-    stack_overflow_ = true;
-    current_ = next_;
-    next_.token = Token::ILLEGAL;
-    return current_.token;
-  } else {
-    return Next();
-  }
-}
-
-
 UTF16Buffer* StreamInitializer::Init(Handle<String> source,
                                      unibrow::CharacterStream* stream,
                                      int start_position,
@@ -236,13 +220,7 @@ Token::Value JsonScanner::Next() {
   // threads.
   current_ = next_;
   // Check for stack-overflow before returning any tokens.
-  StackLimitCheck check;
-  if (check.HasOverflowed()) {
-    stack_overflow_ = true;
-    next_.token = Token::ILLEGAL;
-  } else {
-    ScanJson();
-  }
+  ScanJson();
   return current_.token;
 }
 
