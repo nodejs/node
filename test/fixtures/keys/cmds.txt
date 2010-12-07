@@ -1,0 +1,49 @@
+# Create Certificate Authority: ca1
+#
+# ('password' is used for the CA password.)
+openssl req -new -x509 -extensions v3_ca -keyout ca1-key.pem -out ca1-cert.pem
+
+# Create Certificate Authority: ca2
+#
+# ('password' is used for the CA password.)
+openssl req -new -x509 -extensions v3_ca -keyout ca2-key.pem -out ca2-cert.pem
+
+
+#
+# agent1 is signed by ca1.
+#
+# Generate new private key
+openssl genrsa -out agent1-key.pem
+# Create a Certificate Signing Request for the key
+openssl req -new -key agent1-key.pem -out agent1-csr.pem
+# Create a Certificate for the agent.
+openssl x509 -req -in agent1-csr.pem -CA ca1-cert.pem -CAkey ca1-key.pem -CAcreateserial -out agent1-cert.pem
+
+
+
+#
+# agent2 has a self signed cert
+#
+# Generate new private key
+openssl genrsa -out agent2-key.pem
+# Create a Certificate Signing Request for the key
+openssl req -new -key agent2-key.pem -out agent2-csr.pem
+# Create a Certificate for the agent.
+openssl x509 -req -in agent2-csr.pem -signkey agent2-key.pem -out agent2-cert.pem
+
+
+
+#
+# agent3 is signed by ca2.
+#
+# Generate new private key
+openssl genrsa -out agent3-key.pem
+# Create a Certificate Signing Request for the key
+openssl req -new -key agent3-key.pem -out agent3-csr.pem
+# Create a Certificate for the agent.
+openssl x509 -req -in agent3-csr.pem -CA ca2-cert.pem -CAkey ca2-key.pem -CAcreateserial -out agent3-cert.pem
+
+
+#### TODO: agent on CRL
+
+
