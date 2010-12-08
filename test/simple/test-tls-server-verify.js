@@ -70,7 +70,7 @@ function filenamePEM(n) {
 
 
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n)).toString();
+  return fs.readFileSync(filenamePEM(n));
 }
 
 

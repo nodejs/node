@@ -108,34 +108,76 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
 }
 
 
+// Takes a string or buffer and loads it into a BIO.
+// Caller responsible for BIO_free-ing the returned object.
+static BIO* LoadBIO (Handle<Value> v) {
+  BIO *bio = BIO_new(BIO_s_mem());
+  if (!bio) return NULL;
+
+  HandleScope scope;
+
+  int r;
+
+  if (v->IsString()) {
+    String::Utf8Value s(v->ToString());
+    r = BIO_write(bio, *s, s.length());
+  } else if (Buffer::HasInstance(v)) {
+    Local<Object> buffer_obj = v->ToObject();
+    char *buffer_data = Buffer::Data(buffer_obj);
+    size_t buffer_length = Buffer::Length(buffer_obj);
+    r = BIO_write(bio, buffer_data, buffer_length);
+  }
+
+  if (r <= 0) {
+    BIO_free(bio);
+    return NULL;
+  }
+
+  return bio;
+}
+
+
+// Takes a string or buffer and loads it into an X509
+// Caller responsible for X509_free-ing the returned object.
+static X509* LoadX509 (Handle<Value> v) {
+  HandleScope scope; // necessary?
+
+  BIO *bio = LoadBIO(v);
+  if (!bio) return NULL;
+
+  X509 * x509 = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+  if (!x509) {
+    BIO_free(bio);
+    return NULL;
+  }
+
+  BIO_free(bio);
+  return x509;
+}
+
+
 Handle<Value> SecureContext::SetKey(const Arguments& args) {
   HandleScope scope;
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  if (args.Length() != 1 || !args[0]->IsString()) {
+  if (args.Length() != 1) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
 
-  String::Utf8Value key_pem(args[0]->ToString());
+  BIO *bio = LoadBIO(args[0]);
+  if (!bio) return False();
 
-  BIO *bp = BIO_new(BIO_s_mem());
+  EVP_PKEY* key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
 
-  if (!BIO_write(bp, *key_pem, key_pem.length())) {
-    BIO_free(bp);
+  if (!key) {
+    BIO_free(bio);
     return False();
   }
 
-  EVP_PKEY* pkey = PEM_read_bio_PrivateKey(bp, NULL, NULL, NULL);
-
-  if (pkey == NULL) {
-    BIO_free(bp);
-    return False();
-  }
-
-  SSL_CTX_use_PrivateKey(sc->ctx_, pkey);
-  BIO_free(bp);
-  // XXX Free pkey? 
+  SSL_CTX_use_PrivateKey(sc->ctx_, key);
+  BIO_free(bio);
+  // XXX Free key?
 
   return True();
 }
@@ -146,30 +188,15 @@ Handle<Value> SecureContext::SetCert(const Arguments& args) {
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  if (args.Length() != 1 ||
-      !args[0]->IsString()) {
+  if (args.Length() != 1) {
     return ThrowException(Exception::TypeError(
           String::New("Bad parameter")));
   }
-  String::Utf8Value cert_pem(args[0]->ToString());
 
-  BIO *bp = BIO_new(BIO_s_mem());
-
-  if (!BIO_write(bp, *cert_pem, cert_pem.length())) {
-    BIO_free(bp);
-    return False();
-  }
-
-  X509 * x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
-
-  if (x509 == NULL) {
-    BIO_free(bp);
-    return False();
-  }
+  X509* x509 = LoadX509(args[0]);
+  if (!x509) return False();
 
   SSL_CTX_use_certificate(sc->ctx_, x509);
-
-  BIO_free(bp);
   X509_free(x509);
 
   return True();
@@ -181,28 +208,15 @@ Handle<Value> SecureContext::AddCACert(const Arguments& args) {
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  if (args.Length() != 1 || !args[0]->IsString()) {
+  if (args.Length() != 1) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
-  String::Utf8Value cert_pem(args[0]->ToString());
 
-  BIO *bp = BIO_new(BIO_s_mem());
-
-  if (!BIO_write(bp, *cert_pem, cert_pem.length())) {
-    BIO_free(bp);
-    return False();
-  }
-
-  X509 *x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
-
-  if (x509 == NULL) {
-    BIO_free(bp);
-    return False();
-  }
+  X509* x509 = LoadX509(args[0]);
+  if (!x509) return False();
 
   X509_STORE_add_cert(sc->ca_store_, x509);
 
-  BIO_free(bp);
   X509_free(x509);
 
   return True();
