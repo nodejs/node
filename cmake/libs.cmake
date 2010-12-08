@@ -40,7 +40,7 @@ if(HAVE_UTIL_LIB)
   set(extra_libs ${extra_libs} util)
 endif()
 
-if(${OPENSSL_FOUND} MATCHES True)
+if(OPENSSL_FOUND)
   add_definitions(-DHAVE_OPENSSL=1)
   set(HAVE_OPENSSL True)
   set(node_extra_src ${node_extra_src} src/node_crypto.cc)

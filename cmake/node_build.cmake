@@ -7,10 +7,12 @@ add_custom_command(
   COMMAND ${PYTHON_EXECUTABLE} tools/js2c.py ${PROJECT_BINARY_DIR}/src/node_natives.h ${js2c_files}
   DEPENDS ${js2c_files})
 
-set(node_extra_src "src/platform_${node_platform}.cc")
+set(node_platform_src "src/platform_${node_platform}.cc")
 
-if(NOT EXISTS ${CMAKE_SOURCE_DIR}/${node_extra_src})
-  set(node_extra_src "src/platform_none.cc")
+if(NOT EXISTS ${CMAKE_SOURCE_DIR}/${node_platform_src})
+  set(node_extra_src ${node_extra_src} "src/platform_none.cc")
+else()
+  set(node_extra_src ${node_extra_src} ${node_platform_src})
 endif()
 
 set(node_sources
@@ -35,6 +37,18 @@ set(node_sources
   src/node_os.cc
   src/node_natives.h
   ${node_extra_src})
+
+# Set up PREFIX, CCFLAGS, and CPPFLAGS for node_config.h
+set(PREFIX ${CMAKE_INSTALL_PREFIX})
+if(${CMAKE_BUILD_TYPE} MATCHES Debug)
+  set(CCFLAGS "${CMAKE_C_FLAGS_DEBUG} ${CMAKE_C_FLAGS}")
+else()
+  set(CCFLAGS "${CMAKE_C_FLAGS_RELEASE} ${CMAKE_C_FLAGS}")
+endif()
+get_directory_property(compile_defs COMPILE_DEFINITIONS)
+foreach(def ${compile_defs})
+  set(CPPFLAGS "${CPPFLAGS} -D${def}")
+endforeach()
 
 configure_file(src/node_config.h.in ${PROJECT_BINARY_DIR}/src/node_config.h)
 configure_file(config.h.cmake ${PROJECT_BINARY_DIR}/config.h)
