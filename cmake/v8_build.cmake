@@ -38,6 +38,7 @@ if(NOT SHARED_V8)
   set_property(TARGET v8
     PROPERTY IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/deps/v8/${v8_fn})
 
+  set(compile_env_vars  "CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} AR=${CMAKE_AR} RANLIB=${CMAKE_RANLIB} CFLAGS=\"${CMAKE_C_FLAGS}\" CXXFLAGS=\"${CMAKE_CXX_FLAGS}\" LDFLAGS=\"${CMAKE_EXE_LINKER_FLAGS}\"")
 
   if(CMAKE_VERSION VERSION_GREATER 2.8 OR CMAKE_VERSION VERSION_EQUAL 2.8)
     # use ExternalProject for CMake >2.8
@@ -47,7 +48,7 @@ if(NOT SHARED_V8)
       URL ${PROJECT_SOURCE_DIR}/deps/v8
       
       BUILD_IN_SOURCE True
-      BUILD_COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_BINARY_DIR}/tools/scons/scons.py library=static visibility=default ${v8snapshot} mode=${v8mode} verbose=on arch=${v8arch} -j ${parallel_jobs}
+      BUILD_COMMAND sh -c "${compile_env_vars} ${PYTHON_EXECUTABLE} ${PROJECT_BINARY_DIR}/tools/scons/scons.py library=static visibility=default ${v8snapshot} mode=${v8mode} verbose=on arch=${v8arch} -j ${parallel_jobs}"
       
       SOURCE_DIR ${PROJECT_BINARY_DIR}/deps/v8
       # ignore this stuff, it's not needed for building v8 but ExternalProject
@@ -78,7 +79,7 @@ if(NOT SHARED_V8)
 
     add_custom_command(
       OUTPUT ${PROJECT_BINARY_DIR}/deps/v8/${v8_fn}
-      COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_BINARY_DIR}/tools/scons/scons.py library=static visibility=default ${v8snapshot} mode=${v8mode} verbose=on arch=${v8arch} -j ${parallel_jobs}
+      COMMAND sh -c "${compile_env_vars} ${PYTHON_EXECUTABLE} ${PROJECT_BINARY_DIR}/tools/scons/scons.py library=static visibility=default ${v8snapshot} mode=${v8mode} verbose=on arch=${v8arch} -j ${parallel_jobs}"
       WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/deps/v8/
       DEPENDS ${v8_sources_dest}
     )

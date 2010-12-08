@@ -2,12 +2,13 @@ BUILD?=build
 VERBOSE?=0
 PARALLEL_JOBS?=1
 CMAKE?=cmake
+TOOLCHAIN_FILE=#./cmake/codesourcery-arm-toolchain.cmake
 
-all: doc package
+all: package
 
 $(BUILD)/Makefile:
 	mkdir $(BUILD) || exit 0
-	cd $(BUILD) && $(CMAKE) -DCMAKE_VERBOSE_MAKEFILE=$(VERBOSE) ..
+	cd $(BUILD) && $(CMAKE) -DCMAKE_VERBOSE_MAKEFILE=$(VERBOSE) -DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_FILE) ..
 
 build: $(BUILD)/Makefile
 	cd $(BUILD) && make -j $(PARALLEL_JOBS)
