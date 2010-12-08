@@ -177,24 +177,25 @@ function runTest (testIndex) {
 
   var cas = tcase.CAs.map(loadPEM);
 
-  var server = tls.Server({ key: serverKey,
-                            cert: serverCert,
-                            ca: cas,
-                            requestCert: tcase.requestCert,
-                            rejectUnauthorized: tcase.rejectUnauthorized });
+  var serverOptions = {
+    key: serverKey,
+    cert: serverCert,
+    ca: cas,
+    requestCert: tcase.requestCert,
+    rejectUnauthorized: tcase.rejectUnauthorized
+  };
 
   var connections = 0;
 
-  server.on('authorized', function(c) {
+  var server = tls.Server(serverOptions, function (c) {
     connections++;
-    console.error('- authed connection');
-    c.write('\n_authed\n');
-  });
-
-  server.on('unauthorized', function(c, e) {
-    connections++;
-    console.error('- unauthed connection: %s', e);
-    c.write('\n_unauthed\n');
+    if (c.authorized) {
+      console.error('- authed connection');
+      c.write('\n_authed\n');
+    } else {
+      console.error('- unauthed connection: %s', c.authorizationError);
+      c.write('\n_unauthed\n');
+    }
   });
 
   function runNextClient (clientIndex) {
