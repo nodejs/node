@@ -35,27 +35,26 @@ Here is an example of a echo server which listens for connections
 on port 8124:
 
     var net = require('net');
-    var server = net.createServer(function (stream) {
-      stream.setEncoding('utf8');
-      stream.on('connect', function () {
-        stream.write('hello\r\n');
-      });
-      stream.on('data', function (data) {
-        stream.write(data);
-      });
-      stream.on('end', function () {
-        stream.write('goodbye\r\n');
-        stream.end();
-      });
+    var server = net.createServer(function (c) {
+      c.write('hello\r\n');
+      c.pipe(c);
     });
     server.listen(8124, 'localhost');
 
-To listen on the socket `'/tmp/echo.sock'`, the last line would just be
+Test this by using `telnet`:
+
+    telnet localhost 8124
+
+To listen on the socket `/tmp/echo.sock` the last line would just be
 changed to
 
     server.listen('/tmp/echo.sock');
 
-This is an `EventEmitter` with the following events:
+Use `nc` to connect to a UNIX domain socket server:
+
+    nc -U /tmp/echo.sock
+
+`net.Server` is an `EventEmitter` with the following events:
 
 #### server.listen(port, [host], [callback])
 
