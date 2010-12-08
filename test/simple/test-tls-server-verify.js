@@ -43,6 +43,17 @@ var testCases =
         ]
     },
 
+    { title: "Allow only authed connections with CA1 and CA2",
+      requestCert: true,
+      rejectUnauthorized: true,
+      CAs: ['ca1-cert', 'ca2-cert'],
+      clients:
+        [ { name: 'agent1', shouldReject: false, shouldAuth: true },
+          { name: 'agent2', shouldReject: true },
+          { name: 'agent3', shouldReject: false, shouldAuth: true },
+          { name: 'nocert', shouldReject: true }
+        ]
+    },
   ];
 
 
