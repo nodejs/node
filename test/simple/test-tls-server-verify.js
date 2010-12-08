@@ -112,7 +112,7 @@ function runClient (options, cb) {
 
   // To test use: openssl s_client -connect localhost:8000
   var client = spawn('openssl', args);
-  //console.error(args);
+  console.error(args);
 
   var out = '';
 
@@ -141,10 +141,13 @@ function runClient (options, cb) {
   //client.stdout.pipe(process.stdout);
 
   client.on('exit', function(code) {
+    assert.equal(0, code);
     if (options.shouldReject) {
-      assert.equal(true, rejected);
+      assert.equal(true, rejected, options.name +
+          " NOT rejected, but should have been");
     } else {
-      assert.equal(false, rejected);
+      assert.equal(false, rejected, options.name +
+          " rejected, but should NOT have been");
       assert.equal(options.shouldAuth, authed);
     }
 
