@@ -740,12 +740,17 @@ Handle<Value> SecureStream::VerifyError(const Arguments& args) {
 
   if (ss->ssl_ == NULL) return Null();
 
-#if 0
-  // Why?
+
+  // XXX Do this check in JS land?
   X509* peer_cert = SSL_get_peer_certificate(ss->ssl_);
-  if (peer_cert == NULL) return False();
+  if (peer_cert == NULL) {
+    // We requested a certificate and they did not send us one.
+    // Definitely an error.
+    // XXX is this the right error message?
+    return scope.Close(String::New("UNABLE_TO_GET_ISSUER_CERT"));
+  }
   X509_free(peer_cert);
-#endif
+
 
   long x509_verify_error = SSL_get_verify_result(ss->ssl_);
 

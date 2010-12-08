@@ -15,7 +15,7 @@ var testCases =
         [ { name: 'agent1', shouldReject: false, shouldAuth: false },
           { name: 'agent2', shouldReject: false, shouldAuth: false },
           { name: 'agent3', shouldReject: false, shouldAuth: false },
-          { name: 'agent4', shouldReject: false, shouldAuth: false }
+          { name: 'nocert', shouldReject: false, shouldAuth: false }
         ]
     },
 
@@ -27,7 +27,7 @@ var testCases =
         [ { name: 'agent1', shouldReject: false, shouldAuth: true },
           { name: 'agent2', shouldReject: false, shouldAuth: false },
           { name: 'agent3', shouldReject: false, shouldAuth: false },
-          { name: 'agent4', shouldReject: false, shouldAuth: false }
+          { name: 'nocert', shouldReject: false, shouldAuth: false }
         ]
     },
 
@@ -39,7 +39,7 @@ var testCases =
         [ { name: 'agent1', shouldReject: false, shouldAuth: true },
           { name: 'agent2', shouldReject: true },
           { name: 'agent3', shouldReject: true },
-          { name: 'agent4', shouldReject: true }
+          { name: 'nocert', shouldReject: true }
         ]
     },
 
@@ -102,8 +102,8 @@ function runClient (options, cb) {
       args.push(filenamePEM('agent3-cert'));
       break;
 
-    case 'agent4':
-      // Self-signed
+    case 'nocert':
+      // Do not send certificate
       break;
 
     default:
