@@ -12,6 +12,7 @@
 * [Streams](streams.html)
 * [Crypto](crypto.html)
   * [Secure Streams](securepair.html)
+* [TLS/SSL](tls.html)
 * [String Decoder](string_decoder.html)
 * [File System](fs.html)
 * [Path](path.html)
