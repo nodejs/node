@@ -35,6 +35,10 @@ agent1-cert.pem: agent1-csr.pem ca1-cert.pem ca1-key.pem
 		-CAcreateserial \
 		-out agent1-cert.pem
 
+agent1-verify: agent1-cert.pem ca1-cert.pem
+	openssl verify -CAfile ca1-cert.pem agent1-cert.pem
+
+
 #
 # agent2 has a self signed cert
 #
@@ -53,6 +57,8 @@ agent2-cert.pem: agent2-csr.pem agent2-key.pem
 		-signkey agent2-key.pem \
 		-out agent2-cert.pem
 
+agent2-verify: agent2-cert.pem
+	openssl verify -CAfile agent2-cert.pem agent2-cert.pem
 
 #
 # agent3 is signed by ca2.
@@ -73,11 +79,16 @@ agent3-cert.pem: agent3-csr.pem ca2-cert.pem ca2-key.pem
 		-CAcreateserial \
 		-out agent3-cert.pem
 
+agent3-verify: agent3-cert.pem ca2-cert.pem
+	openssl verify -CAfile ca2-cert.pem agent3-cert.pem
+
 # TODO: agent on CRL
 
 
 clean:
 	rm -f *.pem *.srl
 
+test: agent1-verify agent2-verify agent3-verify
 
-.PHONY: all clean
+
+.PHONY: all clean test agent1-verify agent2-verify agent3-verify
