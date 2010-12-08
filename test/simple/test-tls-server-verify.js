@@ -112,7 +112,6 @@ function runClient (options, cb) {
 
   // To test use: openssl s_client -connect localhost:8000
   var client = spawn('openssl', args);
-  console.error(args);
 
   var out = '';
 
