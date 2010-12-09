@@ -89,10 +89,10 @@ function startClient() {
 
   pair.on('secure', function() {
     console.log('client: connected+secure!');
-    console.log('client pair.getPeerCertificate(): %j',
-                pair.getPeerCertificate());
-    console.log('client pair.getCipher(): %j',
-                pair.getCipher());
+    console.log('client pair.cleartext.getPeerCertificate(): %j',
+                pair.cleartext.getPeerCertificate());
+    console.log('client pair.cleartext.getCipher(): %j',
+                pair.cleartext.getCipher());
     setTimeout(function() {
       pair.cleartext.write('hello\r\n');
     }, 500);

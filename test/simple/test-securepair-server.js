@@ -35,8 +35,8 @@ var server = net.createServer(function(socket) {
   pair.on('secure', function() {
     log('connected+secure!');
     pair.cleartext.write('hello\r\n');
-    log(pair.getPeerCertificate());
-    log(pair.getCipher());
+    log(pair.cleartext.getPeerCertificate());
+    log(pair.cleartext.getCipher());
   });
 
   pair.cleartext.on('data', function(data) {
