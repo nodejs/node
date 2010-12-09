@@ -35,6 +35,7 @@ var serverStdoutBuffer = '';
 server.stdout.setEncoding('utf8');
 server.stdout.on('data', function(s) {
   serverStdoutBuffer += s;
+  console.error(state);
   switch (state) {
     case 'WAIT-ACCEPT':
       if (/ACCEPT/g.test(serverStdoutBuffer)) {
