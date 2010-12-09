@@ -209,8 +209,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 #### stream.end([data], [encoding])
 
 Half-closes the stream. I.E., it sends a FIN packet. It is possible the
-server will still send some data. After calling this `readyState` will be
-`'readOnly'`.
+server will still send some data.
 
 If `data` is specified, it is equivalent to calling `stream.write(data, encoding)`
 followed by `stream.end()`.
@@ -262,9 +261,6 @@ The string representation of the remote IP address. For example,
 
 This member is only present in server-side connections.
 
-#### stream.readyState
-
-Either `'closed'`, `'open'`, `'opening'`, `'readOnly'`, or `'writeOnly'`.
 
 #### Event: 'connect'
 
@@ -291,9 +287,7 @@ By default (`allowHalfOpen == false`) the stream will destroy its file
 descriptor  once it has written out its pending write queue.  However, by
 setting `allowHalfOpen == true` the stream will not automatically `end()`
 its side allowing the user to write arbitrary amounts of data, with the
-caveat that the user is required to `end()` their side now. In the
-`allowHalfOpen == true` case after `'end'` is emitted the `readyState` will
-be `'writeOnly'`.
+caveat that the user is required to `end()` their side now.
 
 
 #### Event: 'timeout'
