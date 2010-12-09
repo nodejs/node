@@ -10,8 +10,12 @@ var options = {
 };
 
 
-var s = tls.connect(443, "google.com", options, function() {
-  console.error("CONNECTED");
+var s = tls.connect(443, "joyent.com", options, function() {
+  if (!s.authorized) {
+    console.error("CONNECTED: " +  s.authorizationError);
+    s.destroy();
+    return;
+  }
   s.pipe(process.stdout);
   process.openStdin().pipe(s);
 });
