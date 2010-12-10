@@ -481,7 +481,7 @@ void LargeObjectChunk::Free(Executability executable) {
 }
 
 // -----------------------------------------------------------------------------
-// LargeObjectSpace
+// NewSpace
 
 MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes,
                                            AllocationInfo* alloc_info) {
@@ -498,6 +498,18 @@ MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes,
          && alloc_info->limit == space->high());
 #endif
   return obj;
+}
+
+
+template <typename StringType>
+void NewSpace::ShrinkStringAtAllocationBoundary(String* string, int length) {
+  ASSERT(length <= string->length());
+  ASSERT(string->IsSeqString());
+  ASSERT(string->address() + StringType::SizeFor(string->length()) ==
+         allocation_info_.top);
+  allocation_info_.top =
+      string->address() + StringType::SizeFor(length);
+  string->set_length(length);
 }
 
 
