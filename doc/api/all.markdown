@@ -12,7 +12,7 @@
 @include buffers
 @include streams
 @include crypto
-@include securepair
+@include tls
 @include string_decoder
 @include fs
 @include path
@@ -27,6 +27,8 @@
 @include script
 @include child_processes
 @include assert
+@include tty
+@include os
 
 # Appendixes
 @include appendix_1

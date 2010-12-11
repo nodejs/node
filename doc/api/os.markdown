@@ -2,6 +2,6 @@
 
 Use `require('os')` to access this module.
 
-### os.getHostname
+### os.getHostname()
 
 Returns the hostname of the operating system.

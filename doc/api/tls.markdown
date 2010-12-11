@@ -27,7 +27,7 @@ Alternatively you can send the CSR to a Certificate Authority for signing.
 `test/fixtures/keys/Makefile` in the Node source code)
 
 
-#### s = tls.connect(port, [host], [options], callback)
+### s = tls.connect(port, [host], [options], callback)
 
 Creates a new client connection to the given `port` and `host`. (If `host`
 defaults to `localhost`.) `options` should be an object which specifies
