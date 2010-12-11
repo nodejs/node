@@ -326,6 +326,7 @@ void SecureStream::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", SecureStream::GetCurrentCipher);
   NODE_SET_PROTOTYPE_METHOD(t, "start", SecureStream::Start);
   NODE_SET_PROTOTYPE_METHOD(t, "shutdown", SecureStream::Shutdown);
+  NODE_SET_PROTOTYPE_METHOD(t, "receivedShutdown", SecureStream::ReceivedShutdown);
   NODE_SET_PROTOTYPE_METHOD(t, "close", SecureStream::Close);
 
   target->Set(String::NewSymbol("SecureStream"), t->GetFunction());
@@ -726,15 +727,29 @@ Handle<Value> SecureStream::Start(const Arguments& args) {
   return True();
 }
 
+
 Handle<Value> SecureStream::Shutdown(const Arguments& args) {
   HandleScope scope;
 
   SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
 
   if (ss->ssl_ == NULL) return False();
-  if (SSL_shutdown(ss->ssl_) == 1) {
-    return True();
-  }
+  int r = SSL_shutdown(ss->ssl_);
+
+  return scope.Close(Integer::New(r));
+}
+
+
+Handle<Value> SecureStream::ReceivedShutdown(const Arguments& args) {
+  HandleScope scope;
+
+  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+
+  if (ss->ssl_ == NULL) return False();
+  int r = SSL_get_shutdown(ss->ssl_);
+
+  if (r | SSL_RECEIVED_SHUTDOWN) return True();
+
   return False();
 }
 
