@@ -27,6 +27,29 @@ Alternatively you can send the CSR to a Certificate Authority for signing.
 `test/fixtures/keys/Makefile` in the Node source code)
 
 
+#### s = tls.connect(port, [host], [options], callback)
+
+Creates a new client connection to the given `port` and `host`. (If `host`
+defaults to `localhost`.) `options` should be an object which specifies
+
+  - `key`: A string or `Buffer` containing the private key of the server in
+    PEM format. (Required)
+
+  - `cert`: A string or `Buffer` containing the certificate key of the server in
+    PEM format.
+
+  - `ca`: An array of strings or `Buffer`s of trusted certificates. If this is
+    omitted several well known "root" CAs will be used, like VeriSign.
+    These are used to authorize connections.
+
+`tls.connect()` returns a cleartext `CryptoStream` object.
+
+After the TLS/SSL handshake the `callback` is called. The `callback` will be
+called no matter if the server's certificate was authorized or not. It is up
+to the user to test `s.authorized` to see if the server certificate was
+signed by one of the specified CAs. If `s.authorized === false` then the error
+can be found in `s.authorizationError`.
+
 
 ### tls.Server
 
@@ -54,6 +77,7 @@ You can test this server by connecting to it with `openssl s_client`:
 
 
     openssl s_client -connect 127.0.0.1:8000
+
 
 #### tls.createServer(options, secureConnectionListener)
 
