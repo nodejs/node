@@ -86,8 +86,7 @@ function testServers(index, servers, clientOptions, cb) {
     });
 
     client.on('end', function() {
-      // TODO: 
-      //assert.equal('hello world\n', b);
+      assert.equal('hello world\n', b);
     });
 
     client.on('close', function() {
