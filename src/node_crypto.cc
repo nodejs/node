@@ -17,6 +17,7 @@
 #endif
 
 namespace node {
+namespace crypto {
 
 using namespace v8;
 
@@ -307,29 +308,29 @@ static int serr(SSL *ssl, const char* func, int rv) {
   return 0;
 }
 
-void SecureStream::Initialize(Handle<Object> target) {
+void Connection::Initialize(Handle<Object> target) {
   HandleScope scope;
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(SecureStream::New);
+  Local<FunctionTemplate> t = FunctionTemplate::New(Connection::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(String::NewSymbol("SecureStream"));
+  t->SetClassName(String::NewSymbol("Connection"));
 
-  NODE_SET_PROTOTYPE_METHOD(t, "encIn", SecureStream::EncIn);
-  NODE_SET_PROTOTYPE_METHOD(t, "clearOut", SecureStream::ClearOut);
-  NODE_SET_PROTOTYPE_METHOD(t, "clearIn", SecureStream::ClearIn);
-  NODE_SET_PROTOTYPE_METHOD(t, "encOut", SecureStream::EncOut);
-  NODE_SET_PROTOTYPE_METHOD(t, "clearPending", SecureStream::ClearPending);
-  NODE_SET_PROTOTYPE_METHOD(t, "encPending", SecureStream::EncPending);
-  NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate", SecureStream::GetPeerCertificate);
-  NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished", SecureStream::IsInitFinished);
-  NODE_SET_PROTOTYPE_METHOD(t, "verifyError", SecureStream::VerifyError);
-  NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", SecureStream::GetCurrentCipher);
-  NODE_SET_PROTOTYPE_METHOD(t, "start", SecureStream::Start);
-  NODE_SET_PROTOTYPE_METHOD(t, "shutdown", SecureStream::Shutdown);
-  NODE_SET_PROTOTYPE_METHOD(t, "receivedShutdown", SecureStream::ReceivedShutdown);
-  NODE_SET_PROTOTYPE_METHOD(t, "close", SecureStream::Close);
+  NODE_SET_PROTOTYPE_METHOD(t, "encIn", Connection::EncIn);
+  NODE_SET_PROTOTYPE_METHOD(t, "clearOut", Connection::ClearOut);
+  NODE_SET_PROTOTYPE_METHOD(t, "clearIn", Connection::ClearIn);
+  NODE_SET_PROTOTYPE_METHOD(t, "encOut", Connection::EncOut);
+  NODE_SET_PROTOTYPE_METHOD(t, "clearPending", Connection::ClearPending);
+  NODE_SET_PROTOTYPE_METHOD(t, "encPending", Connection::EncPending);
+  NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate", Connection::GetPeerCertificate);
+  NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished", Connection::IsInitFinished);
+  NODE_SET_PROTOTYPE_METHOD(t, "verifyError", Connection::VerifyError);
+  NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", Connection::GetCurrentCipher);
+  NODE_SET_PROTOTYPE_METHOD(t, "start", Connection::Start);
+  NODE_SET_PROTOTYPE_METHOD(t, "shutdown", Connection::Shutdown);
+  NODE_SET_PROTOTYPE_METHOD(t, "receivedShutdown", Connection::ReceivedShutdown);
+  NODE_SET_PROTOTYPE_METHOD(t, "close", Connection::Close);
 
-  target->Set(String::NewSymbol("SecureStream"), t->GetFunction());
+  target->Set(String::NewSymbol("Connection"), t->GetFunction());
 }
 
 
@@ -373,16 +374,16 @@ static int VerifyCallback(int preverify_ok, X509_STORE_CTX *ctx) {
   //
   // Since we cannot perform I/O quickly enough in this callback, we ignore
   // all preverify_ok errors and let the handshake continue. It is
-  // imparative that the user use SecureStream::VerifyError after the
+  // imparative that the user use Connection::VerifyError after the
   // 'secure' callback has been made.
   return 1;
 }
 
 
-Handle<Value> SecureStream::New(const Arguments& args) {
+Handle<Value> Connection::New(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *p = new SecureStream();
+  Connection *p = new Connection();
   p->Wrap(args.Holder());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
@@ -435,10 +436,10 @@ Handle<Value> SecureStream::New(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::EncIn(const Arguments& args) {
+Handle<Value> Connection::EncIn(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   if (args.Length() < 3) {
     return ThrowException(Exception::TypeError(
@@ -477,10 +478,10 @@ Handle<Value> SecureStream::EncIn(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::ClearOut(const Arguments& args) {
+Handle<Value> Connection::ClearOut(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   if (args.Length() < 3) {
     return ThrowException(Exception::TypeError(
@@ -531,28 +532,28 @@ Handle<Value> SecureStream::ClearOut(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::ClearPending(const Arguments& args) {
+Handle<Value> Connection::ClearPending(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
   int bytes_pending = BIO_pending(ss->bio_read_);
   return scope.Close(Integer::New(bytes_pending));
 }
 
 
-Handle<Value> SecureStream::EncPending(const Arguments& args) {
+Handle<Value> Connection::EncPending(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
   int bytes_pending = BIO_pending(ss->bio_write_);
   return scope.Close(Integer::New(bytes_pending));
 }
 
 
-Handle<Value> SecureStream::EncOut(const Arguments& args) {
+Handle<Value> Connection::EncOut(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   if (args.Length() < 3) {
     return ThrowException(Exception::TypeError(
@@ -586,10 +587,10 @@ Handle<Value> SecureStream::EncOut(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::ClearIn(const Arguments& args) {
+Handle<Value> Connection::ClearIn(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   if (args.Length() < 3) {
     return ThrowException(Exception::TypeError(
@@ -642,10 +643,10 @@ Handle<Value> SecureStream::ClearIn(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::GetPeerCertificate(const Arguments& args) {
+Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   if (ss->ssl_ == NULL) return Undefined();
   Local<Object> info = Object::New();
@@ -700,11 +701,11 @@ Handle<Value> SecureStream::GetPeerCertificate(const Arguments& args) {
   return scope.Close(info);
 }
 
-Handle<Value> SecureStream::Start(const Arguments& args) {
+Handle<Value> Connection::Start(const Arguments& args) {
   HandleScope scope;
   int rv;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   if (!SSL_is_init_finished(ss->ssl_)) {
     if (ss->is_server_) {
@@ -728,10 +729,10 @@ Handle<Value> SecureStream::Start(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::Shutdown(const Arguments& args) {
+Handle<Value> Connection::Shutdown(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   if (ss->ssl_ == NULL) return False();
   int r = SSL_shutdown(ss->ssl_);
@@ -740,10 +741,10 @@ Handle<Value> SecureStream::Shutdown(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::ReceivedShutdown(const Arguments& args) {
+Handle<Value> Connection::ReceivedShutdown(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   if (ss->ssl_ == NULL) return False();
   int r = SSL_get_shutdown(ss->ssl_);
@@ -754,18 +755,18 @@ Handle<Value> SecureStream::ReceivedShutdown(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::IsInitFinished(const Arguments& args) {
+Handle<Value> Connection::IsInitFinished(const Arguments& args) {
   HandleScope scope;
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
   if (ss->ssl_ == NULL) return False();
   return SSL_is_init_finished(ss->ssl_) ? True() : False();
 }
 
 
-Handle<Value> SecureStream::VerifyError(const Arguments& args) {
+Handle<Value> Connection::VerifyError(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   if (ss->ssl_ == NULL) return Null();
 
@@ -906,10 +907,10 @@ Handle<Value> SecureStream::VerifyError(const Arguments& args) {
 }
 
 
-Handle<Value> SecureStream::GetCurrentCipher(const Arguments& args) {
+Handle<Value> Connection::GetCurrentCipher(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
   OPENSSL_CONST SSL_CIPHER *c;
 
   if ( ss->ssl_ == NULL ) return Undefined();
@@ -923,10 +924,10 @@ Handle<Value> SecureStream::GetCurrentCipher(const Arguments& args) {
   return scope.Close(info);
 }
 
-Handle<Value> SecureStream::Close(const Arguments& args) {
+Handle<Value> Connection::Close(const Arguments& args) {
   HandleScope scope;
 
-  SecureStream *ss = ObjectWrap::Unwrap<SecureStream>(args.Holder());
+  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   if (ss->ssl_ != NULL) {
     SSL_free(ss->ssl_);
@@ -2667,7 +2668,7 @@ void InitCrypto(Handle<Object> target) {
   ERR_load_crypto_strings();
 
   SecureContext::Initialize(target);
-  SecureStream::Initialize(target);
+  Connection::Initialize(target);
   Cipher::Initialize(target);
   Decipher::Initialize(target);
   Hmac::Initialize(target);
@@ -2684,7 +2685,8 @@ void InitCrypto(Handle<Object> target) {
   version_symbol    = NODE_PSYMBOL("version");
 }
 
+}  // namespace crypto
 }  // namespace node
 
-NODE_MODULE(node_crypto, node::InitCrypto);
+NODE_MODULE(node_crypto, node::crypto::InitCrypto);
 

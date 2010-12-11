@@ -16,6 +16,7 @@
 
 
 namespace node {
+namespace crypto {
 
 class SecureContext : ObjectWrap {
  public:
@@ -52,7 +53,7 @@ class SecureContext : ObjectWrap {
  private:
 };
 
-class SecureStream : ObjectWrap {
+class Connection : ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
 
@@ -73,12 +74,12 @@ class SecureStream : ObjectWrap {
   static v8::Handle<v8::Value> Start(const v8::Arguments& args);
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
 
-  SecureStream() : ObjectWrap() {
+  Connection() : ObjectWrap() {
     bio_read_ = bio_write_ = NULL;
     ssl_ = NULL;
   }
 
-  ~SecureStream() {
+  ~Connection() {
     if (ssl_ != NULL) {
       SSL_free(ssl_);
       ssl_ = NULL;
@@ -93,6 +94,8 @@ class SecureStream : ObjectWrap {
 };
 
 void InitCrypto(v8::Handle<v8::Object> target);
-}
+
+}  // namespace crypto
+}  // namespace node
 
 #endif  // SRC_NODE_CRYPTO_H_
