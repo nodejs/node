@@ -598,6 +598,7 @@ def build(bld):
     src/node_stdio.cc
     src/node_timer.cc
     src/node_script.cc
+    src/node_os.cc
   """
   node.source += bld.env["PLATFORM_FILE"]
   if not product_type_is_lib:
