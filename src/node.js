@@ -238,6 +238,9 @@
       var id = resolved[0];
       var filename = resolved[1];
 
+      var cachedModule = moduleCache[filename];
+      if (cachedModule) return cachedModule.exports;
+
       // With natives id === request
       // We deal with these first
       if (natives[id]) {
@@ -252,9 +255,6 @@
         debug('load native module ' + request);
         return requireNative(id);
       }
-
-      var cachedModule = moduleCache[filename];
-      if (cachedModule) return cachedModule.exports;
 
       var module = new Module(id, parent);
       moduleCache[filename] = module;
