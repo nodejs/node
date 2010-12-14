@@ -98,12 +98,12 @@ docclean:
 	-rm -rf build/doc
 
 clean:
-	@$(WAF) clean
-	@-find tools -name "*.pyc" | xargs rm -f
+	$(WAF) clean
+	-find tools -name "*.pyc" | xargs rm -f
 
 distclean: docclean
-	@-find tools -name "*.pyc" | xargs rm -f
-	@-rm -rf build/ node node_g
+	-find tools -name "*.pyc" | xargs rm -f
+	-rm -rf build/ node node_g
 
 check:
 	@tools/waf-light check
