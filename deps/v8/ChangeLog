@@ -1,3 +1,26 @@
+2010-12-13: Version 3.0.1
+
+        Added support for an experimental internationalization API as an
+        extension.  This extension is disabled by default but can be enabled
+        when building V8.  The ECMAScript internationalization strawman is
+        at http://wiki.ecmascript.org/doku.php?id=strawman:i18n_api.
+
+        Made RegExp character class parsing stricter.  This mirrors a change
+        to RegExp parsing in WebKit.
+
+        Fixed a bug in Object.defineProperty when used to change attributes
+        of an existing property.  It incorrectly set the property value to
+        undefined (issue 965).
+
+        Fixed several different compilation failures on various platforms
+        caused by the 3.0.0 release.
+
+        Optimized Math.pow so it can work on unboxed doubles.
+
+        Sped up quoting of JSON strings by removing one traversal of the
+        string.
+
+
 2010-12-07: Version 3.0.0
 
         Improved performance by (partially) addressing issue 957 on
@@ -132,7 +155,7 @@
 
         Added USE_SIMULATOR macro that explicitly indicates that we wish to use
         the simulator as the execution engine (by Mark Lam <mark.lam@palm.com>
-	from Hewlett-Packard Development Company, LP).
+        from Hewlett-Packard Development Company, LP).
 
         Fixed compilation error on ARM with gcc 4.4 (issue 894).
 

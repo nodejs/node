@@ -173,6 +173,9 @@ TEST(Parser) {
   CHECK_PARSE_EQ("[a-b-c]", "[a-b - c]");
   CHECK_PARSE_EQ("[\\d]", "[0-9]");
   CHECK_PARSE_EQ("[x\\dz]", "[x 0-9 z]");
+  CHECK_PARSE_EQ("[\\d-z]", "[0-9 - z]");
+  CHECK_PARSE_EQ("[\\d-\\d]", "[0-9 - 0-9]");
+  CHECK_PARSE_EQ("[z-\\d]", "[z - 0-9]");
   CHECK_PARSE_EQ("\\cj\\cJ\\ci\\cI\\ck\\cK",
                  "'\\x0a\\x0a\\x09\\x09\\x0b\\x0b'");
   CHECK_PARSE_EQ("\\c!", "'c!'");

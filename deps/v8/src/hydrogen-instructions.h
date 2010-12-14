@@ -77,6 +77,7 @@ class LChunkBuilder;
 //         HLoadKeyedFastElement
 //         HLoadKeyedGeneric
 //       HLoadNamedGeneric
+//       HPower
 //       HStoreNamed
 //         HStoreNamedField
 //         HStoreNamedGeneric
@@ -223,6 +224,7 @@ class LChunkBuilder;
   V(ObjectLiteral)                             \
   V(OsrEntry)                                  \
   V(Parameter)                                 \
+  V(Power)                                     \
   V(PushArgument)                              \
   V(RegExpLiteral)                             \
   V(Return)                                    \
@@ -1377,6 +1379,7 @@ class HUnaryMathOperation: public HUnaryOperation {
         SetFlag(kFlexibleRepresentation);
         break;
       case kMathSqrt:
+      case kMathPowHalf:
       default:
         set_representation(Representation::Double());
     }
@@ -1395,6 +1398,7 @@ class HUnaryMathOperation: public HUnaryOperation {
       case kMathRound:
       case kMathCeil:
       case kMathSqrt:
+      case kMathPowHalf:
         return Representation::Double();
         break;
       case kMathAbs:
@@ -2181,6 +2185,22 @@ class HInstanceOf: public HBinaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance_of")
+};
+
+
+class HPower: public HBinaryOperation {
+ public:
+  HPower(HValue* left, HValue* right)
+      : HBinaryOperation(left, right) {
+    set_representation(Representation::Double());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return (index == 1) ? Representation::None() : Representation::Double();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Power, "power")
 };
 
 

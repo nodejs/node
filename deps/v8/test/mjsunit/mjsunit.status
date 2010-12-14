@@ -104,6 +104,11 @@ regress/regress-create-exception: SKIP
 regress/regress-3218915: SKIP
 regress/regress-3247124: SKIP
 
+##############################################################################
+[ $arch == arm && $crankshaft ]
+
+# Test that currently fail with crankshaft on ARM.
+compiler/simple-osr: FAIL
 
 ##############################################################################
 [ $arch == mips ]

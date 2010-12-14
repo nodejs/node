@@ -460,12 +460,6 @@ int LChunk::NearestGapPos(int index) const {
 }
 
 
-int LChunk::NearestNextGapPos(int index) const {
-  while (!IsGapAt(index)) index++;
-  return index;
-}
-
-
 void LChunk::AddGapMove(int index, LOperand* from, LOperand* to) {
   GetGapAt(index)->GetOrCreateParallelMove(LGap::START)->AddMove(from, to);
 }
@@ -1372,6 +1366,8 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       return AssignEnvironment(DefineAsRegister(result));
     case kMathSqrt:
       return DefineSameAsFirst(result);
+    case kMathPowHalf:
+      return AssignEnvironment(DefineSameAsFirst(result));
     default:
       UNREACHABLE();
       return NULL;
@@ -1569,6 +1565,22 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     ASSERT(instr->representation().IsTagged());
     return DoArithmeticT(Token::ADD, instr);
   }
+}
+
+
+LInstruction* LChunkBuilder::DoPower(HPower* instr) {
+  ASSERT(instr->representation().IsDouble());
+  // We call a C function for double power. It can't trigger a GC.
+  // We need to use fixed result register for the call.
+  Representation exponent_type = instr->right()->representation();
+  ASSERT(instr->left()->representation().IsDouble());
+  LOperand* left = UseFixedDouble(instr->left(), xmm1);
+  LOperand* right = exponent_type.IsDouble() ?
+      UseFixedDouble(instr->right(), xmm2) :
+      UseFixed(instr->right(), eax);
+  LPower* result = new LPower(left, right);
+  return MarkAsCall(DefineFixedDouble(result, xmm1), instr,
+                    CAN_DEOPTIMIZE_EAGERLY);
 }
 
 

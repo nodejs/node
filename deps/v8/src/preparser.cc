@@ -1078,6 +1078,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
 
     Expect(i::Token::RBRACE, CHECK_OK);
 
+    // Position right after terminal '}'.
     int end_pos = scanner_->location().end_pos;
     log_->LogFunction(function_block_pos, end_pos,
                       function_scope.materialized_literal_count(),

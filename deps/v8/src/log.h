@@ -74,7 +74,6 @@ class Profiler;
 class Semaphore;
 class SlidingStateWindow;
 class LogMessageBuilder;
-class CompressionHelper;
 
 #undef LOG
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -88,58 +87,55 @@ class CompressionHelper;
 #endif
 
 #define LOG_EVENTS_AND_TAGS_LIST(V) \
-  V(CODE_CREATION_EVENT,            "code-creation",          "cc")       \
-  V(CODE_MOVE_EVENT,                "code-move",              "cm")       \
-  V(CODE_DELETE_EVENT,              "code-delete",            "cd")       \
-  V(CODE_MOVING_GC,                 "code-moving-gc",         "cg")       \
-  V(FUNCTION_CREATION_EVENT,        "function-creation",      "fc")       \
-  V(FUNCTION_MOVE_EVENT,            "function-move",          "fm")       \
-  V(FUNCTION_DELETE_EVENT,          "function-delete",        "fd")       \
-  V(SNAPSHOT_POSITION_EVENT,        "snapshot-pos",           "sp")       \
-  V(TICK_EVENT,                     "tick",                   "t")        \
-  V(REPEAT_META_EVENT,              "repeat",                 "r")        \
-  V(BUILTIN_TAG,                    "Builtin",                "bi")       \
-  V(CALL_DEBUG_BREAK_TAG,           "CallDebugBreak",         "cdb")      \
-  V(CALL_DEBUG_PREPARE_STEP_IN_TAG, "CallDebugPrepareStepIn", "cdbsi")    \
-  V(CALL_IC_TAG,                    "CallIC",                 "cic")      \
-  V(CALL_INITIALIZE_TAG,            "CallInitialize",         "ci")       \
-  V(CALL_MEGAMORPHIC_TAG,           "CallMegamorphic",        "cmm")      \
-  V(CALL_MISS_TAG,                  "CallMiss",               "cm")       \
-  V(CALL_NORMAL_TAG,                "CallNormal",             "cn")       \
-  V(CALL_PRE_MONOMORPHIC_TAG,       "CallPreMonomorphic",     "cpm")      \
-  V(KEYED_CALL_DEBUG_BREAK_TAG,     "KeyedCallDebugBreak",    "kcdb")     \
-  V(KEYED_CALL_DEBUG_PREPARE_STEP_IN_TAG,                                 \
-    "KeyedCallDebugPrepareStepIn",                                        \
-    "kcdbsi")                                                             \
-  V(KEYED_CALL_IC_TAG,              "KeyedCallIC",            "kcic")     \
-  V(KEYED_CALL_INITIALIZE_TAG,      "KeyedCallInitialize",    "kci")      \
-  V(KEYED_CALL_MEGAMORPHIC_TAG,     "KeyedCallMegamorphic",   "kcmm")     \
-  V(KEYED_CALL_MISS_TAG,            "KeyedCallMiss",          "kcm")      \
-  V(KEYED_CALL_NORMAL_TAG,          "KeyedCallNormal",        "kcn")      \
-  V(KEYED_CALL_PRE_MONOMORPHIC_TAG,                                       \
-    "KeyedCallPreMonomorphic",                                            \
-    "kcpm")                                                               \
-  V(CALLBACK_TAG,                   "Callback",               "cb")       \
-  V(EVAL_TAG,                       "Eval",                   "e")        \
-  V(FUNCTION_TAG,                   "Function",               "f")        \
-  V(KEYED_LOAD_IC_TAG,              "KeyedLoadIC",            "klic")     \
-  V(KEYED_STORE_IC_TAG,             "KeyedStoreIC",           "ksic")     \
-  V(LAZY_COMPILE_TAG,               "LazyCompile",            "lc")       \
-  V(LOAD_IC_TAG,                    "LoadIC",                 "lic")      \
-  V(REG_EXP_TAG,                    "RegExp",                 "re")       \
-  V(SCRIPT_TAG,                     "Script",                 "sc")       \
-  V(STORE_IC_TAG,                   "StoreIC",                "sic")      \
-  V(STUB_TAG,                       "Stub",                   "s")        \
-  V(NATIVE_FUNCTION_TAG,            "Function",               "f")        \
-  V(NATIVE_LAZY_COMPILE_TAG,        "LazyCompile",            "lc")       \
-  V(NATIVE_SCRIPT_TAG,              "Script",                 "sc")
+  V(CODE_CREATION_EVENT,            "code-creation")            \
+  V(CODE_MOVE_EVENT,                "code-move")                \
+  V(CODE_DELETE_EVENT,              "code-delete")              \
+  V(CODE_MOVING_GC,                 "code-moving-gc")           \
+  V(FUNCTION_CREATION_EVENT,        "function-creation")        \
+  V(FUNCTION_MOVE_EVENT,            "function-move")            \
+  V(FUNCTION_DELETE_EVENT,          "function-delete")          \
+  V(SNAPSHOT_POSITION_EVENT,        "snapshot-pos")             \
+  V(TICK_EVENT,                     "tick")                     \
+  V(REPEAT_META_EVENT,              "repeat")                   \
+  V(BUILTIN_TAG,                    "Builtin")                  \
+  V(CALL_DEBUG_BREAK_TAG,           "CallDebugBreak")           \
+  V(CALL_DEBUG_PREPARE_STEP_IN_TAG, "CallDebugPrepareStepIn")   \
+  V(CALL_IC_TAG,                    "CallIC")                   \
+  V(CALL_INITIALIZE_TAG,            "CallInitialize")           \
+  V(CALL_MEGAMORPHIC_TAG,           "CallMegamorphic")          \
+  V(CALL_MISS_TAG,                  "CallMiss")                 \
+  V(CALL_NORMAL_TAG,                "CallNormal")               \
+  V(CALL_PRE_MONOMORPHIC_TAG,       "CallPreMonomorphic")       \
+  V(KEYED_CALL_DEBUG_BREAK_TAG,     "KeyedCallDebugBreak")      \
+  V(KEYED_CALL_DEBUG_PREPARE_STEP_IN_TAG,                       \
+    "KeyedCallDebugPrepareStepIn")                              \
+  V(KEYED_CALL_IC_TAG,              "KeyedCallIC")              \
+  V(KEYED_CALL_INITIALIZE_TAG,      "KeyedCallInitialize")      \
+  V(KEYED_CALL_MEGAMORPHIC_TAG,     "KeyedCallMegamorphic")     \
+  V(KEYED_CALL_MISS_TAG,            "KeyedCallMiss")            \
+  V(KEYED_CALL_NORMAL_TAG,          "KeyedCallNormal")          \
+  V(KEYED_CALL_PRE_MONOMORPHIC_TAG, "KeyedCallPreMonomorphic")  \
+  V(CALLBACK_TAG,                   "Callback")                 \
+  V(EVAL_TAG,                       "Eval")                     \
+  V(FUNCTION_TAG,                   "Function")                 \
+  V(KEYED_LOAD_IC_TAG,              "KeyedLoadIC")              \
+  V(KEYED_STORE_IC_TAG,             "KeyedStoreIC")             \
+  V(LAZY_COMPILE_TAG,               "LazyCompile")              \
+  V(LOAD_IC_TAG,                    "LoadIC")                   \
+  V(REG_EXP_TAG,                    "RegExp")                   \
+  V(SCRIPT_TAG,                     "Script")                   \
+  V(STORE_IC_TAG,                   "StoreIC")                  \
+  V(STUB_TAG,                       "Stub")                     \
+  V(NATIVE_FUNCTION_TAG,            "Function")                 \
+  V(NATIVE_LAZY_COMPILE_TAG,        "LazyCompile")              \
+  V(NATIVE_SCRIPT_TAG,              "Script")
 // Note that 'NATIVE_' cases for functions and scripts are mapped onto
 // original tags when writing to the log.
 
 
 class Logger {
  public:
-#define DECLARE_ENUM(enum_item, ignore1, ignore2) enum_item,
+#define DECLARE_ENUM(enum_item, ignore) enum_item,
   enum LogEventsAndTags {
     LOG_EVENTS_AND_TAGS_LIST(DECLARE_ENUM)
     NUMBER_OF_LOG_EVENTS
@@ -292,9 +288,6 @@ class Logger {
 
  private:
 
-  // Size of window used for log records compression.
-  static const int kCompressionWindowSize = 4;
-
   // Emits the profiler's first message.
   static void ProfilerBeginEvent();
 
@@ -311,9 +304,6 @@ class Logger {
   // Internal configurable move event.
   static void DeleteEventInternal(LogEventsAndTags event,
                                   Address from);
-
-  // Emits aliases for compressed messages.
-  static void LogAliases();
 
   // Emits the source code of a regexp. Used by regexp events.
   static void LogRegExpSource(Handle<JSRegExp> regexp);
@@ -357,15 +347,8 @@ class Logger {
   // recent VM states.
   static SlidingStateWindow* sliding_state_window_;
 
-  // An array of log events names.
-  static const char** log_events_;
-
-  // An instance of helper created if log compression is enabled.
-  static CompressionHelper* compression_helper_;
-
   // Internal implementation classes with access to
   // private members.
-  friend class CompressionHelper;
   friend class EventLog;
   friend class TimeLog;
   friend class Profiler;

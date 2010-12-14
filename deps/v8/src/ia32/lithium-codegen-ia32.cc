@@ -2174,6 +2174,67 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
 }
 
 
+void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
+  XMMRegister xmm_scratch = xmm0;
+  XMMRegister input_reg = ToDoubleRegister(instr->input());
+  ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
+  ExternalReference negative_infinity =
+      ExternalReference::address_of_negative_infinity();
+  __ movdbl(xmm_scratch, Operand::StaticVariable(negative_infinity));
+  __ ucomisd(xmm_scratch, input_reg);
+  DeoptimizeIf(equal, instr->environment());
+  __ sqrtsd(input_reg, input_reg);
+}
+
+
+void LCodeGen::DoPower(LPower* instr) {
+  LOperand* left = instr->left();
+  LOperand* right = instr->right();
+  Representation exponent_type = instr->hydrogen()->right()->representation();
+  if (exponent_type.IsDouble()) {
+    // Pass two doubles as arguments on the stack.
+    __ PrepareCallCFunction(4, eax);
+    __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
+    __ movdbl(Operand(esp, 1 * kDoubleSize), ToDoubleRegister(right));
+    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+  } else if (exponent_type.IsInteger32()) {
+    __ PrepareCallCFunction(4, ebx);
+    __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
+    __ mov(Operand(esp, 1 * kDoubleSize), ToRegister(right));
+    __ CallCFunction(ExternalReference::power_double_int_function(), 4);
+  } else {
+    ASSERT(exponent_type.IsTagged());
+    __ PrepareCallCFunction(4, ebx);
+    __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
+    Register right_reg = ToRegister(right);
+    Label non_smi;
+    Label done;
+    __ test(right_reg, Immediate(kSmiTagMask));
+    __ j(not_zero, &non_smi);
+    __ SmiUntag(right_reg);
+    __ mov(Operand(esp, 1 * kDoubleSize), ToRegister(right));
+    __ CallCFunction(ExternalReference::power_double_int_function(), 4);
+    __ jmp(&done);
+
+    __ bind(&non_smi);
+    __ CmpObjectType(right_reg, HEAP_NUMBER_TYPE , ebx);
+    DeoptimizeIf(not_equal, instr->environment());
+    __ movdbl(xmm1, FieldOperand(right_reg, HeapNumber::kValueOffset));
+    __ movdbl(Operand(esp, 1 * kDoubleSize), xmm1);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+
+    __ bind(&done);
+  }
+
+  // Return value is in st(0) on ia32.
+  // Store it into the (fixed) result register.
+  __ sub(Operand(esp), Immediate(kDoubleSize));
+  __ fstp_d(Operand(esp, 0));
+  __ movdbl(ToDoubleRegister(instr->result()), Operand(esp, 0));
+  __ add(Operand(esp), Immediate(kDoubleSize));
+}
+
+
 void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
   switch (instr->op()) {
     case kMathAbs:
@@ -2187,6 +2248,9 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
       break;
     case kMathSqrt:
       DoMathSqrt(instr);
+      break;
+    case kMathPowHalf:
+      DoMathPowHalf(instr);
       break;
     default:
       UNREACHABLE();

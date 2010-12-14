@@ -94,7 +94,8 @@ ForStatement::ForStatement(ZoneStringList* labels)
 
 
 ForInStatement::ForInStatement(ZoneStringList* labels)
-    : IterationStatement(labels), each_(NULL), enumerable_(NULL) {
+    : IterationStatement(labels), each_(NULL), enumerable_(NULL),
+      assignment_id_(GetNextId()) {
 }
 
 

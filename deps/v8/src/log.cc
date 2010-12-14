@@ -303,7 +303,6 @@ void Profiler::Engage() {
   Logger::ticker_->SetProfiler(this);
 
   Logger::ProfilerBeginEvent();
-  Logger::LogAliases();
 }
 
 
@@ -343,43 +342,21 @@ void Profiler::Run() {
 Ticker* Logger::ticker_ = NULL;
 Profiler* Logger::profiler_ = NULL;
 SlidingStateWindow* Logger::sliding_state_window_ = NULL;
-const char** Logger::log_events_ = NULL;
-CompressionHelper* Logger::compression_helper_ = NULL;
 int Logger::logging_nesting_ = 0;
 int Logger::cpu_profiler_nesting_ = 0;
 int Logger::heap_profiler_nesting_ = 0;
 
-#define DECLARE_LONG_EVENT(ignore1, long_name, ignore2) long_name,
-const char* kLongLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
-  LOG_EVENTS_AND_TAGS_LIST(DECLARE_LONG_EVENT)
+#define DECLARE_EVENT(ignore1, name) name,
+const char* kLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
+  LOG_EVENTS_AND_TAGS_LIST(DECLARE_EVENT)
 };
-#undef DECLARE_LONG_EVENT
-
-#define DECLARE_SHORT_EVENT(ignore1, ignore2, short_name) short_name,
-const char* kCompressedLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
-  LOG_EVENTS_AND_TAGS_LIST(DECLARE_SHORT_EVENT)
-};
-#undef DECLARE_SHORT_EVENT
+#undef DECLARE_EVENT
 
 
 void Logger::ProfilerBeginEvent() {
   if (!Log::IsEnabled()) return;
   LogMessageBuilder msg;
   msg.Append("profiler,\"begin\",%d\n", kSamplingIntervalMs);
-  if (FLAG_compress_log) {
-    msg.Append("profiler,\"compression\",%d\n", kCompressionWindowSize);
-  }
-  msg.WriteToLogFile();
-}
-
-
-void Logger::LogAliases() {
-  if (!Log::IsEnabled() || !FLAG_compress_log) return;
-  LogMessageBuilder msg;
-  for (int i = 0; i < NUMBER_OF_LOG_EVENTS; ++i) {
-    msg.Append("alias,%s,%s\n",
-               kCompressedLogEventsNames[i], kLongLogEventsNames[i]);
-  }
   msg.WriteToLogFile();
 }
 
@@ -687,54 +664,15 @@ void Logger::DeleteEvent(const char* name, void* object) {
 
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
-
-// A class that contains all common code dealing with record compression.
-class CompressionHelper {
- public:
-  explicit CompressionHelper(int window_size)
-      : compressor_(window_size), repeat_count_(0) { }
-
-  // Handles storing message in compressor, retrieving the previous one and
-  // prefixing it with repeat count, if needed.
-  // Returns true if message needs to be written to log.
-  bool HandleMessage(LogMessageBuilder* msg) {
-    if (!msg->StoreInCompressor(&compressor_)) {
-      // Current message repeats the previous one, don't write it.
-      ++repeat_count_;
-      return false;
-    }
-    if (repeat_count_ == 0) {
-      return msg->RetrieveCompressedPrevious(&compressor_);
-    }
-    OS::SNPrintF(prefix_, "%s,%d,",
-                 Logger::log_events_[Logger::REPEAT_META_EVENT],
-                 repeat_count_ + 1);
-    repeat_count_ = 0;
-    return msg->RetrieveCompressedPrevious(&compressor_, prefix_.start());
-  }
-
- private:
-  LogRecordCompressor compressor_;
-  int repeat_count_;
-  EmbeddedVector<char, 20> prefix_;
-};
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
-
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::CallbackEventInternal(const char* prefix, const char* name,
                                    Address entry_point) {
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("%s,%s,",
-             log_events_[CODE_CREATION_EVENT], log_events_[CALLBACK_TAG]);
+             kLogEventsNames[CODE_CREATION_EVENT],
+             kLogEventsNames[CALLBACK_TAG]);
   msg.AppendAddress(entry_point);
   msg.Append(",1,\"%s%s\"", prefix, name);
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
-  }
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -786,7 +724,9 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
+  msg.Append("%s,%s,",
+             kLogEventsNames[CODE_CREATION_EVENT],
+             kLogEventsNames[tag]);
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"%s", code->ExecutableSize(), ComputeMarker(code));
   for (const char* p = comment; *p != '\0'; p++) {
@@ -797,10 +737,6 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
   msg.Append('"');
   LowLevelCodeCreateEvent(code, &msg);
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
-  }
   msg.Append('\n');
   msg.WriteToLogFile();
 #endif
@@ -813,14 +749,12 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name) {
   LogMessageBuilder msg;
   SmartPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
+  msg.Append("%s,%s,",
+             kLogEventsNames[CODE_CREATION_EVENT],
+             kLogEventsNames[tag]);
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"%s%s\"", code->ExecutableSize(), ComputeMarker(code), *str);
   LowLevelCodeCreateEvent(code, &msg);
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
-  }
   msg.Append('\n');
   msg.WriteToLogFile();
 #endif
@@ -837,7 +771,9 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   SmartPointer<char> sourcestr =
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
+  msg.Append("%s,%s,",
+             kLogEventsNames[CODE_CREATION_EVENT],
+             kLogEventsNames[tag]);
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"%s%s %s:%d\"",
              code->ExecutableSize(),
@@ -846,10 +782,6 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
              *sourcestr,
              line);
   LowLevelCodeCreateEvent(code, &msg);
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
-  }
   msg.Append('\n');
   msg.WriteToLogFile();
 #endif
@@ -860,14 +792,12 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
+  msg.Append("%s,%s,",
+             kLogEventsNames[CODE_CREATION_EVENT],
+             kLogEventsNames[tag]);
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"args_count: %d\"", code->ExecutableSize(), args_count);
   LowLevelCodeCreateEvent(code, &msg);
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
-  }
   msg.Append('\n');
   msg.WriteToLogFile();
 #endif
@@ -878,7 +808,7 @@ void Logger::CodeMovingGCEvent() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code || !FLAG_ll_prof) return;
   LogMessageBuilder msg;
-  msg.Append("%s\n", log_events_[CODE_MOVING_GC]);
+  msg.Append("%s\n", kLogEventsNames[CODE_MOVING_GC]);
   msg.WriteToLogFile();
   OS::SignalCodeMovingGC();
 #endif
@@ -890,16 +820,13 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("%s,%s,",
-             log_events_[CODE_CREATION_EVENT], log_events_[REG_EXP_TAG]);
+             kLogEventsNames[CODE_CREATION_EVENT],
+             kLogEventsNames[REG_EXP_TAG]);
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"", code->ExecutableSize());
   msg.AppendDetailed(source, false);
   msg.Append('\"');
   LowLevelCodeCreateEvent(code, &msg);
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
-  }
   msg.Append('\n');
   msg.WriteToLogFile();
 #endif
@@ -924,13 +851,9 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_snapshot_positions) return;
   LogMessageBuilder msg;
-  msg.Append("%s,", log_events_[SNAPSHOT_POSITION_EVENT]);
+  msg.Append("%s,", kLogEventsNames[SNAPSHOT_POSITION_EVENT]);
   msg.AppendAddress(addr);
   msg.Append(",%d", pos);
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
-  }
   msg.Append('\n');
   msg.WriteToLogFile();
 #endif
@@ -942,18 +865,12 @@ void Logger::FunctionCreateEvent(JSFunction* function) {
   // This function can be called from GC iterators (during Scavenge,
   // MC, and MS), so marking bits can be set on objects. That's
   // why unchecked accessors are used here.
-  static Address prev_code = NULL;
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("%s,", log_events_[FUNCTION_CREATION_EVENT]);
+  msg.Append("%s,", kLogEventsNames[FUNCTION_CREATION_EVENT]);
   msg.AppendAddress(function->address());
   msg.Append(',');
-  msg.AppendAddress(function->unchecked_code()->address(), prev_code);
-  prev_code = function->unchecked_code()->address();
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
-  }
+  msg.AppendAddress(function->unchecked_code()->address());
   msg.Append('\n');
   msg.WriteToLogFile();
 #endif
@@ -987,18 +904,12 @@ void Logger::FunctionDeleteEvent(Address from) {
 void Logger::MoveEventInternal(LogEventsAndTags event,
                                Address from,
                                Address to) {
-  static Address prev_to_ = NULL;
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("%s,", log_events_[event]);
+  msg.Append("%s,", kLogEventsNames[event]);
   msg.AppendAddress(from);
   msg.Append(',');
-  msg.AppendAddress(to, prev_to_);
-  prev_to_ = to;
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
-  }
+  msg.AppendAddress(to);
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -1009,12 +920,8 @@ void Logger::MoveEventInternal(LogEventsAndTags event,
 void Logger::DeleteEventInternal(LogEventsAndTags event, Address from) {
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("%s,", log_events_[event]);
+  msg.Append("%s,", kLogEventsNames[event]);
   msg.AppendAddress(from);
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
-  }
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -1202,30 +1109,20 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (!Log::IsEnabled() || !FLAG_prof) return;
-  static Address prev_sp = NULL;
-  static Address prev_function = NULL;
   LogMessageBuilder msg;
-  msg.Append("%s,", log_events_[TICK_EVENT]);
-  Address prev_addr = sample->pc;
-  msg.AppendAddress(prev_addr);
+  msg.Append("%s,", kLogEventsNames[TICK_EVENT]);
+  msg.AppendAddress(sample->pc);
   msg.Append(',');
-  msg.AppendAddress(sample->sp, prev_sp);
-  prev_sp = sample->sp;
+  msg.AppendAddress(sample->sp);
   msg.Append(',');
-  msg.AppendAddress(sample->function, prev_function);
-  prev_function = sample->function;
+  msg.AppendAddress(sample->function);
   msg.Append(",%d", static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");
   }
   for (int i = 0; i < sample->frames_count; ++i) {
     msg.Append(',');
-    msg.AppendAddress(sample->stack[i], prev_addr);
-    prev_addr = sample->stack[i];
-  }
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
+    msg.AppendAddress(sample->stack[i]);
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1654,12 +1551,6 @@ bool Logger::Setup() {
     sliding_state_window_ = new SlidingStateWindow();
   }
 
-  log_events_ = FLAG_compress_log ?
-      kCompressedLogEventsNames : kLongLogEventsNames;
-  if (FLAG_compress_log) {
-    compression_helper_ = new CompressionHelper(kCompressionWindowSize);
-  }
-
   if (start_logging) {
     logging_nesting_ = 1;
   }
@@ -1706,9 +1597,6 @@ void Logger::TearDown() {
     delete profiler_;
     profiler_ = NULL;
   }
-
-  delete compression_helper_;
-  compression_helper_ = NULL;
 
   delete sliding_state_window_;
   sliding_state_window_ = NULL;

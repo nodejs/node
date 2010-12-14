@@ -125,17 +125,18 @@ Assignment::Assignment(Token::Value op,
       target_(target),
       value_(value),
       pos_(pos),
-      compound_bailout_id_(kNoNumber),
+      binary_operation_(NULL),
+      compound_load_id_(kNoNumber),
+      assignment_id_(GetNextId()),
       block_start_(false),
       block_end_(false),
       is_monomorphic_(false),
       receiver_types_(NULL) {
   ASSERT(Token::IsAssignmentOp(op));
-  binary_operation_ = is_compound()
-      ? new BinaryOperation(binary_op(), target, value, pos + 1)
-      : NULL;
   if (is_compound()) {
-    compound_bailout_id_ = GetNextId();
+    binary_operation_ =
+        new BinaryOperation(binary_op(), target, value, pos + 1);
+    compound_load_id_ = GetNextId();
   }
 }
 

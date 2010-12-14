@@ -196,6 +196,38 @@
       },
     },
     {
+      'target_name': 'v8_preparser',
+      'include_dirs': [
+        '../../include',
+        '../../src',
+      ],
+      'sources': [
+        '../../src/allocation.cc',
+        '../../src/hashmap.cc',
+        '../../src/preparse-data.cc',
+        '../../src/preparser.cc',
+        '../../src/preparser-api.cc',
+        '../../src/scanner-base.cc',
+        '../../src/token.cc',
+        '../../src/unicode.cc',
+      ],
+      'conditions': [
+        ['OS=="win" and component=="shared_library"', {
+          'sources': [ '../../src/v8preparserdll-main.cc' ],
+          'defines': [ 'BUILDING_V8_SHARED' ],
+          'direct_dependent_settings': {
+            'defines': [ 'USING_V8_SHARED' ]
+          },
+          'type': '<(component)',
+        } , {
+          'type': 'none'
+        }],
+        ['OS!="win"', {
+          'type': '<(library)'
+        }],
+      ]
+    },
+    {
       'target_name': 'v8_snapshot',
       'type': '<(library)',
       'conditions': [

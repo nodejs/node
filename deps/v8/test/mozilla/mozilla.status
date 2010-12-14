@@ -53,6 +53,9 @@ def FAIL_OK = FAIL, OKAY
 # time to do so.
 js1_5/Regress/regress-271716-n: SKIP
 
+# BUG(960): This test has an insane amount of output when it times out,
+# messing up ability to see other failures on the waterfall.
+js1_5/extensions/regress-342960: SKIP
 
 # This test uses a unitialized variable. A Bug has been filed:
 # https://bugzilla.mozilla.org/show_bug.cgi?id=575575
@@ -289,10 +292,6 @@ js1_2/regexp/RegExp_multiline_as_array: FAIL_OK
 js1_2/regexp/beginLine: FAIL_OK
 js1_2/regexp/endLine: FAIL_OK
 
-# To be compatible with JSC, we no longer accept [\d-x], [x-\d] or 
-# [\d-\d] as valid ranges.
-ecma_3/RegExp/regress-375715-02: FAIL
-js1_5/extensions/regress-351463-01: FAIL
 
 # To be compatible with safari typeof a regexp yields 'function';
 # in firefox it yields 'object'.

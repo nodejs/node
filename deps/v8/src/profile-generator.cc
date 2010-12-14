@@ -1382,145 +1382,10 @@ HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
 }
 
 
-void HeapSnapshot::FillReversePostorderIndexes(Vector<HeapEntry*>* entries) {
-  ClearPaint();
-  int current_entry = 0;
-  List<HeapEntry*> nodes_to_visit;
-  nodes_to_visit.Add(root());
-  root()->paint_reachable();
-  while (!nodes_to_visit.is_empty()) {
-    HeapEntry* entry = nodes_to_visit.last();
-    Vector<HeapGraphEdge> children = entry->children();
-    bool has_new_edges = false;
-    for (int i = 0; i < children.length(); ++i) {
-      if (children[i].type() == HeapGraphEdge::kShortcut) continue;
-      HeapEntry* child = children[i].to();
-      if (!child->painted_reachable()) {
-        nodes_to_visit.Add(child);
-        child->paint_reachable();
-        has_new_edges = true;
-      }
-    }
-    if (!has_new_edges) {
-      entry->set_ordered_index(current_entry);
-      (*entries)[current_entry++] = entry;
-      nodes_to_visit.RemoveLast();
-    }
-  }
-  entries->Truncate(current_entry);
-}
-
-
-static int Intersect(int i1, int i2, const Vector<HeapEntry*>& dominators) {
-  int finger1 = i1, finger2 = i2;
-  while (finger1 != finger2) {
-    while (finger1 < finger2) finger1 = dominators[finger1]->ordered_index();
-    while (finger2 < finger1) finger2 = dominators[finger2]->ordered_index();
-  }
-  return finger1;
-}
-
-// The algorithm is based on the article:
-// K. Cooper, T. Harvey and K. Kennedy "A Simple, Fast Dominance Algorithm"
-// Softw. Pract. Exper. 4 (2001), pp. 1–10.
-void HeapSnapshot::BuildDominatorTree(const Vector<HeapEntry*>& entries,
-                                      Vector<HeapEntry*>* dominators) {
-  if (entries.length() == 0) return;
-  const int root_index = entries.length() - 1;
-  for (int i = 0; i < root_index; ++i) (*dominators)[i] = NULL;
-  (*dominators)[root_index] = entries[root_index];
-  bool changed = true;
-  while (changed) {
-    changed = false;
-    for (int i = root_index - 1; i >= 0; --i) {
-      HeapEntry* new_idom = NULL;
-      Vector<HeapGraphEdge*> rets = entries[i]->retainers();
-      int j = 0;
-      for (; j < rets.length(); ++j) {
-        if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
-        HeapEntry* ret = rets[j]->From();
-        if (dominators->at(ret->ordered_index()) != NULL) {
-          new_idom = ret;
-          break;
-        }
-      }
-      for (++j; j < rets.length(); ++j) {
-        if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
-        HeapEntry* ret = rets[j]->From();
-        if (dominators->at(ret->ordered_index()) != NULL) {
-          new_idom = entries[Intersect(ret->ordered_index(),
-                                       new_idom->ordered_index(),
-                                       *dominators)];
-        }
-      }
-      if (new_idom != NULL && dominators->at(i) != new_idom) {
-        (*dominators)[i] = new_idom;
-        changed = true;
-      }
-    }
-  }
-}
-
-
 void HeapSnapshot::SetDominatorsToSelf() {
   for (int i = 0; i < entries_.length(); ++i) {
     HeapEntry* entry = entries_[i];
     if (entry->dominator() == NULL) entry->set_dominator(entry);
-  }
-}
-
-
-void HeapSnapshot::SetEntriesDominators() {
-  // This array is used for maintaining reverse postorder of nodes.
-  ScopedVector<HeapEntry*> ordered_entries(entries_.length());
-  FillReversePostorderIndexes(&ordered_entries);
-  ScopedVector<HeapEntry*> dominators(ordered_entries.length());
-  BuildDominatorTree(ordered_entries, &dominators);
-  for (int i = 0; i < ordered_entries.length(); ++i) {
-    ASSERT(dominators[i] != NULL);
-    ordered_entries[i]->set_dominator(dominators[i]);
-  }
-  // For nodes unreachable from root, set dominator to itself.
-  SetDominatorsToSelf();
-}
-
-
-void HeapSnapshot::ApproximateRetainedSizes() {
-  SetEntriesDominators();
-  // As for the dominators tree we only know parent nodes, not
-  // children, to sum up total sizes we traverse the tree level by
-  // level upwards, starting from leaves.
-  for (int i = 0; i < entries_.length(); ++i) {
-    HeapEntry* entry = entries_[i];
-    entry->set_retained_size(entry->self_size());
-    entry->set_leaf();
-  }
-  while (true) {
-    bool onlyLeaves = true;
-    for (int i = 0; i < entries_.length(); ++i) {
-      HeapEntry *entry = entries_[i], *dominator = entry->dominator();
-      if (!entry->is_processed() && dominator != entry) {
-        dominator->set_non_leaf();
-        onlyLeaves = false;
-      }
-    }
-    if (onlyLeaves) break;
-
-    for (int i = 0; i < entries_.length(); ++i) {
-      HeapEntry *entry = entries_[i], *dominator = entry->dominator();
-      if (entry->is_leaf() && dominator != entry) {
-        dominator->add_retained_size(entry->retained_size());
-      }
-    }
-
-    // Mark all current leaves as processed, reset non-leaves back to leaves.
-    for (int i = 0; i < entries_.length(); ++i) {
-      HeapEntry* entry = entries_[i];
-      if (entry->is_leaf())
-        entry->set_processed();
-      else if (entry->is_non_leaf())
-        entry->set_leaf();
-    }
   }
 }
 
@@ -1716,15 +1581,22 @@ HeapSnapshot* HeapSnapshotsCollection::NewSnapshot(HeapSnapshot::Type type,
                                                    const char* name,
                                                    unsigned uid) {
   is_tracking_objects_ = true;  // Start watching for heap objects moves.
-  HeapSnapshot* snapshot = new HeapSnapshot(this, type, name, uid);
-  snapshots_.Add(snapshot);
-  HashMap::Entry* entry =
-      snapshots_uids_.Lookup(reinterpret_cast<void*>(snapshot->uid()),
-                             static_cast<uint32_t>(snapshot->uid()),
-                             true);
-  ASSERT(entry->value == NULL);
-  entry->value = snapshot;
-  return snapshot;
+  return new HeapSnapshot(this, type, name, uid);
+}
+
+
+void HeapSnapshotsCollection::SnapshotGenerationFinished(
+    HeapSnapshot* snapshot) {
+  ids_.SnapshotGenerationFinished();
+  if (snapshot != NULL) {
+    snapshots_.Add(snapshot);
+    HashMap::Entry* entry =
+        snapshots_uids_.Lookup(reinterpret_cast<void*>(snapshot->uid()),
+                               static_cast<uint32_t>(snapshot->uid()),
+                               true);
+    ASSERT(entry->value == NULL);
+    entry->value = snapshot;
+  }
 }
 
 
@@ -1832,8 +1704,10 @@ void HeapObjectsSet::Insert(Object* obj) {
 }
 
 
-HeapSnapshotGenerator::HeapSnapshotGenerator(HeapSnapshot* snapshot)
+HeapSnapshotGenerator::HeapSnapshotGenerator(HeapSnapshot* snapshot,
+                                             v8::ActivityControl* control)
     : snapshot_(snapshot),
+      control_(control),
       collection_(snapshot->collection()),
       filler_(NULL) {
 }
@@ -1990,21 +1864,13 @@ class RootsReferencesExtractor : public ObjectVisitor {
 };
 
 
-void HeapSnapshotGenerator::GenerateSnapshot() {
+bool HeapSnapshotGenerator::GenerateSnapshot() {
   AssertNoAllocation no_alloc;
 
+  SetProgressTotal(4);  // 2 passes + dominators + sizes.
+
   // Pass 1. Iterate heap contents to count entries and references.
-  SnapshotCounter counter(&entries_);
-  filler_ = &counter;
-  filler_->AddEntry(HeapSnapshot::kInternalRootObject);
-  filler_->AddEntry(HeapSnapshot::kGcRootsObject);
-  HeapIterator iterator(HeapIterator::kPreciseFiltering);
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    ExtractReferences(obj);
-  }
-  SetRootGcRootsReference();
-  RootsReferencesExtractor extractor(this);
-  Heap::IterateRoots(&extractor, VISIT_ONLY_STRONG);
+  if (!CountEntriesAndReferences()) return false;
 
   // Allocate and fill entries in the snapshot, allocate references.
   snapshot_->AllocateEntries(entries_.entries_count(),
@@ -2014,16 +1880,14 @@ void HeapSnapshotGenerator::GenerateSnapshot() {
   entries_.UpdateEntries(&allocator);
 
   // Pass 2. Fill references.
-  SnapshotFiller filler(snapshot_, &entries_);
-  filler_ = &filler;
-  iterator.reset();
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    ExtractReferences(obj);
-  }
-  SetRootGcRootsReference();
-  Heap::IterateRoots(&extractor, VISIT_ONLY_STRONG);
+  if (!FillReferences()) return false;
 
-  snapshot_->ApproximateRetainedSizes();
+  if (!SetEntriesDominators()) return false;
+  if (!ApproximateRetainedSizes()) return false;
+
+  progress_counter_ = progress_total_;
+  if (!ReportProgress(true)) return false;
+  return true;
 }
 
 
@@ -2348,6 +2212,183 @@ void HeapSnapshotGenerator::SetGcRootsReference(Object* child_obj) {
   if (child_entry != NULL) {
     filler_->SetStrongRootReference(child_obj, child_entry);
   }
+}
+
+
+void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
+  if (control_ == NULL) return;
+
+  HeapIterator iterator(HeapIterator::kPreciseFiltering);
+  int objects_count = 0;
+  for (HeapObject* obj = iterator.next();
+       obj != NULL;
+       obj = iterator.next(), ++objects_count) {}
+  progress_total_ = objects_count * iterations_count;
+  progress_counter_ = 0;
+}
+
+
+bool HeapSnapshotGenerator::CountEntriesAndReferences() {
+  SnapshotCounter counter(&entries_);
+  filler_ = &counter;
+  filler_->AddEntry(HeapSnapshot::kInternalRootObject);
+  filler_->AddEntry(HeapSnapshot::kGcRootsObject);
+  return IterateAndExtractReferences();
+}
+
+
+bool HeapSnapshotGenerator::FillReferences() {
+  SnapshotFiller filler(snapshot_, &entries_);
+  filler_ = &filler;
+  return IterateAndExtractReferences();
+}
+
+
+void HeapSnapshotGenerator::FillReversePostorderIndexes(
+    Vector<HeapEntry*>* entries) {
+  snapshot_->ClearPaint();
+  int current_entry = 0;
+  List<HeapEntry*> nodes_to_visit;
+  nodes_to_visit.Add(snapshot_->root());
+  snapshot_->root()->paint_reachable();
+  while (!nodes_to_visit.is_empty()) {
+    HeapEntry* entry = nodes_to_visit.last();
+    Vector<HeapGraphEdge> children = entry->children();
+    bool has_new_edges = false;
+    for (int i = 0; i < children.length(); ++i) {
+      if (children[i].type() == HeapGraphEdge::kShortcut) continue;
+      HeapEntry* child = children[i].to();
+      if (!child->painted_reachable()) {
+        nodes_to_visit.Add(child);
+        child->paint_reachable();
+        has_new_edges = true;
+      }
+    }
+    if (!has_new_edges) {
+      entry->set_ordered_index(current_entry);
+      (*entries)[current_entry++] = entry;
+      nodes_to_visit.RemoveLast();
+    }
+  }
+  entries->Truncate(current_entry);
+}
+
+
+static int Intersect(int i1, int i2, const Vector<HeapEntry*>& dominators) {
+  int finger1 = i1, finger2 = i2;
+  while (finger1 != finger2) {
+    while (finger1 < finger2) finger1 = dominators[finger1]->ordered_index();
+    while (finger2 < finger1) finger2 = dominators[finger2]->ordered_index();
+  }
+  return finger1;
+}
+
+// The algorithm is based on the article:
+// K. Cooper, T. Harvey and K. Kennedy "A Simple, Fast Dominance Algorithm"
+// Softw. Pract. Exper. 4 (2001), pp. 1–10.
+bool HeapSnapshotGenerator::BuildDominatorTree(
+    const Vector<HeapEntry*>& entries,
+    Vector<HeapEntry*>* dominators) {
+  if (entries.length() == 0) return true;
+  const int entries_length = entries.length(), root_index = entries_length - 1;
+  for (int i = 0; i < root_index; ++i) (*dominators)[i] = NULL;
+  (*dominators)[root_index] = entries[root_index];
+  int changed = 1;
+  const int base_progress_counter = progress_counter_;
+  while (changed != 0) {
+    changed = 0;
+    for (int i = root_index - 1; i >= 0; --i) {
+      HeapEntry* new_idom = NULL;
+      Vector<HeapGraphEdge*> rets = entries[i]->retainers();
+      int j = 0;
+      for (; j < rets.length(); ++j) {
+        if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
+        HeapEntry* ret = rets[j]->From();
+        if (dominators->at(ret->ordered_index()) != NULL) {
+          new_idom = ret;
+          break;
+        }
+      }
+      for (++j; j < rets.length(); ++j) {
+        if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
+        HeapEntry* ret = rets[j]->From();
+        if (dominators->at(ret->ordered_index()) != NULL) {
+          new_idom = entries[Intersect(ret->ordered_index(),
+                                       new_idom->ordered_index(),
+                                       *dominators)];
+        }
+      }
+      if (new_idom != NULL && dominators->at(i) != new_idom) {
+        (*dominators)[i] = new_idom;
+        ++changed;
+      }
+    }
+    int remaining = entries_length - changed;
+    if (remaining < 0) remaining = 0;
+    progress_counter_ = base_progress_counter + remaining;
+    if (!ReportProgress(true)) return false;
+  }
+  return true;
+}
+
+
+bool HeapSnapshotGenerator::SetEntriesDominators() {
+  // This array is used for maintaining reverse postorder of nodes.
+  ScopedVector<HeapEntry*> ordered_entries(snapshot_->entries()->length());
+  FillReversePostorderIndexes(&ordered_entries);
+  ScopedVector<HeapEntry*> dominators(ordered_entries.length());
+  if (!BuildDominatorTree(ordered_entries, &dominators)) return false;
+  for (int i = 0; i < ordered_entries.length(); ++i) {
+    ASSERT(dominators[i] != NULL);
+    ordered_entries[i]->set_dominator(dominators[i]);
+  }
+  // For nodes unreachable from root, set dominator to itself.
+  snapshot_->SetDominatorsToSelf();
+  return true;
+}
+
+
+bool HeapSnapshotGenerator::ApproximateRetainedSizes() {
+  // As for the dominators tree we only know parent nodes, not
+  // children, to sum up total sizes we "bubble" node's self size
+  // adding it to all of its parents.
+  for (int i = 0; i < snapshot_->entries()->length(); ++i) {
+    HeapEntry* entry = snapshot_->entries()->at(i);
+    entry->set_retained_size(entry->self_size());
+  }
+  for (int i = 0;
+       i < snapshot_->entries()->length();
+       ++i, IncProgressCounter()) {
+    HeapEntry* entry = snapshot_->entries()->at(i);
+    int entry_size = entry->self_size();
+    for (HeapEntry* dominator = entry->dominator();
+         dominator != entry;
+         entry = dominator, dominator = entry->dominator()) {
+      dominator->add_retained_size(entry_size);
+    }
+    if (!ReportProgress()) return false;
+  }
+  return true;
+}
+
+
+bool HeapSnapshotGenerator::IterateAndExtractReferences() {
+  HeapIterator iterator(HeapIterator::kPreciseFiltering);
+  bool interrupted = false;
+  // Heap iteration with precise filtering must be finished in any case.
+  for (HeapObject* obj = iterator.next();
+       obj != NULL;
+       obj = iterator.next(), IncProgressCounter()) {
+    if (!interrupted) {
+      ExtractReferences(obj);
+      if (!ReportProgress()) interrupted = true;
+    }
+  }
+  if (interrupted) return false;
+  SetRootGcRootsReference();
+  RootsReferencesExtractor extractor(this);
+  Heap::IterateRoots(&extractor, VISIT_ONLY_STRONG);
+  return ReportProgress();
 }
 
 

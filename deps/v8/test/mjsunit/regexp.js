@@ -110,6 +110,44 @@ assertFalse(re.test("\\]"));
 assertFalse(re.test("\x03]"));  // I.e., read as \cc
 
 
+// Test that we handle \s and \S correctly inside some bizarre
+// character classes.
+re = /[\s-:]/;
+assertTrue(re.test('-'));
+assertTrue(re.test(':'));
+assertTrue(re.test(' '));
+assertTrue(re.test('\t'));
+assertTrue(re.test('\n'));
+assertFalse(re.test('a'));
+assertFalse(re.test('Z'));
+
+re = /[\S-:]/;
+assertTrue(re.test('-'));
+assertTrue(re.test(':'));
+assertFalse(re.test(' '));
+assertFalse(re.test('\t'));
+assertFalse(re.test('\n'));
+assertTrue(re.test('a'));
+assertTrue(re.test('Z'));
+
+re = /[^\s-:]/;
+assertFalse(re.test('-'));
+assertFalse(re.test(':'));
+assertFalse(re.test(' '));
+assertFalse(re.test('\t'));
+assertFalse(re.test('\n'));
+assertTrue(re.test('a'));
+assertTrue(re.test('Z'));
+
+re = /[^\S-:]/;
+assertFalse(re.test('-'));
+assertFalse(re.test(':'));
+assertTrue(re.test(' '));
+assertTrue(re.test('\t'));
+assertTrue(re.test('\n'));
+assertFalse(re.test('a'));
+assertFalse(re.test('Z'));
+
 re = /[\s]/;
 assertFalse(re.test('-'));
 assertFalse(re.test(':'));
@@ -163,6 +201,17 @@ assertFalse(re.test('\t'));
 assertFalse(re.test('\n'));
 assertFalse(re.test('a'));
 assertFalse(re.test('Z'));
+
+// First - is treated as range operator, second as literal minus.
+// This follows the specification in parsing, but doesn't throw on
+// the \s at the beginning of the range.
+re = /[\s-0-9]/;
+assertTrue(re.test(' '));
+assertTrue(re.test('\xA0'));
+assertTrue(re.test('-'));
+assertTrue(re.test('0'));
+assertTrue(re.test('9'));
+assertFalse(re.test('1'));
 
 // Test beginning and end of line assertions with or without the
 // multiline flag.
@@ -609,47 +658,4 @@ assertEquals(4, re.exec("zimzamzumba").index);
 assertEquals(["bc"], re.exec("zimzomzumbc"));
 assertFalse(re.test("c"));
 assertFalse(re.test(""));
-
-
-function testInvalidRange(str) {
-  try {
-    RegExp(str).test("x");
-  } catch (e) {
-    return;
-  }    
-  assetUnreachable("Allowed invalid range in " + str);
-}
-
-function testValidRange(str) {
-  try { 
-    RegExp(str).test("x");
-  } catch (e) {
-    assertUnreachable("Shouldn't fail parsing: " + str + ", was: " + e);
-  }
-}
-
-testInvalidRange("[\\d-z]");
-testInvalidRange("[z-\\d]");
-testInvalidRange("[\\d-\\d]");
-testInvalidRange("[z-x]");  // Larger value first.
-testInvalidRange("[x-\\d-\\d]");
-
-testValidRange("[x-z]");
-testValidRange("[!--\d]");  // Second "-" is end of range.
-testValidRange("[\d-]");
-testValidRange("[-\d]");
-testValidRange("[-\d-]");
-testValidRange("[^-\d-]");
-testValidRange("[^-\d-]");
-testValidRange("[0-9-\w]");
-
-// Escaped dashes do not count as range operators.
-testValidRange("[\\d\\-z]");
-testValidRange("[z\\-\\d]");
-testValidRange("[\\d\\-\\d]");
-testValidRange("[z\\-x]");
-testValidRange("[x\\-\\d\\-\\d]");
-
-
-
 

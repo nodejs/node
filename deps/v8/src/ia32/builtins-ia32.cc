@@ -29,7 +29,6 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
-#include "code-stubs.h"
 #include "codegen-inl.h"
 #include "deoptimizer.h"
 #include "full-codegen.h"

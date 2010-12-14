@@ -46,36 +46,6 @@ devtools.profiler.LogReader = function(dispatchTable) {
    * @type {Array.<Object>}
    */
   this.dispatchTable_ = dispatchTable;
-  this.dispatchTable_['alias'] =
-      { parsers: [null, null], processor: this.processAlias_ };
-  this.dispatchTable_['repeat'] =
-      { parsers: [parseInt, 'var-args'], processor: this.processRepeat_,
-        backrefs: true };
-
-  /**
-   * A key-value map for aliases. Translates short name -> full name.
-   * @type {Object}
-   */
-  this.aliases_ = {};
-
-  /**
-   * A key-value map for previous address values.
-   * @type {Object}
-   */
-  this.prevAddresses_ = {};
-
-  /**
-   * A key-value map for events than can be backreference-compressed.
-   * @type {Object}
-   */
-  this.backRefsCommands_ = {};
-  this.initBackRefsCommands_();
-
-  /**
-   * Back references for decompression.
-   * @type {Array.<string>}
-   */
-  this.backRefs_ = [];
 
   /**
    * Current line.
@@ -88,42 +58,6 @@ devtools.profiler.LogReader = function(dispatchTable) {
    * @type {devtools.profiler.CsvParser}
    */
   this.csvParser_ = new devtools.profiler.CsvParser();
-};
-
-
-/**
- * Creates a parser for an address entry.
- *
- * @param {string} addressTag Address tag to perform offset decoding.
- * @return {function(string):number} Address parser.
- */
-devtools.profiler.LogReader.prototype.createAddressParser = function(
-    addressTag) {
-  var self = this;
-  return (function (str) {
-    var value = parseInt(str, 16);
-    var firstChar = str.charAt(0);
-    if (firstChar == '+' || firstChar == '-') {
-      var addr = self.prevAddresses_[addressTag];
-      addr += value;
-      self.prevAddresses_[addressTag] = addr;
-      return addr;
-    } else if (firstChar != '0' || str.charAt(1) != 'x') {
-      self.prevAddresses_[addressTag] = value;
-    }
-    return value;
-  });
-};
-
-
-/**
- * Expands an alias symbol, if applicable.
- *
- * @param {string} symbol Symbol to expand.
- * @return {string} Expanded symbol, or the input symbol itself.
- */
-devtools.profiler.LogReader.prototype.expandAlias = function(symbol) {
-  return symbol in this.aliases_ ? this.aliases_[symbol] : symbol;
 };
 
 
@@ -234,68 +168,6 @@ devtools.profiler.LogReader.prototype.dispatchLogRow_ = function(fields) {
 
 
 /**
- * Decompresses a line if it was backreference-compressed.
- *
- * @param {string} line Possibly compressed line.
- * @return {string} Decompressed line.
- * @private
- */
-devtools.profiler.LogReader.prototype.expandBackRef_ = function(line) {
-  var backRefPos;
-  // Filter out case when a regexp is created containing '#'.
-  if (line.charAt(line.length - 1) != '"'
-      && (backRefPos = line.lastIndexOf('#')) != -1) {
-    var backRef = line.substr(backRefPos + 1);
-    var backRefIdx = parseInt(backRef, 10) - 1;
-    var colonPos = backRef.indexOf(':');
-    var backRefStart =
-        colonPos != -1 ? parseInt(backRef.substr(colonPos + 1), 10) : 0;
-    line = line.substr(0, backRefPos) +
-        this.backRefs_[backRefIdx].substr(backRefStart);
-  }
-  this.backRefs_.unshift(line);
-  if (this.backRefs_.length > 10) {
-    this.backRefs_.length = 10;
-  }
-  return line;
-};
-
-
-/**
- * Initializes the map of backward reference compressible commands.
- * @private
- */
-devtools.profiler.LogReader.prototype.initBackRefsCommands_ = function() {
-  for (var event in this.dispatchTable_) {
-    var dispatch = this.dispatchTable_[event];
-    if (dispatch && dispatch.backrefs) {
-      this.backRefsCommands_[event] = true;
-    }
-  }
-};
-
-
-/**
- * Processes alias log record. Adds an alias to a corresponding map.
- *
- * @param {string} symbol Short name.
- * @param {string} expansion Long name.
- * @private
- */
-devtools.profiler.LogReader.prototype.processAlias_ = function(
-    symbol, expansion) {
-  if (expansion in this.dispatchTable_) {
-    this.dispatchTable_[symbol] = this.dispatchTable_[expansion];
-    if (expansion in this.backRefsCommands_) {
-      this.backRefsCommands_[symbol] = true;
-    }
-  } else {
-    this.aliases_[symbol] = expansion;
-  }
-};
-
-
-/**
  * Processes log lines.
  *
  * @param {Array.<string>} lines Log lines.
@@ -308,31 +180,10 @@ devtools.profiler.LogReader.prototype.processLog_ = function(lines) {
       continue;
     }
     try {
-      if (line.charAt(0) == '#' ||
-          line.substr(0, line.indexOf(',')) in this.backRefsCommands_) {
-        line = this.expandBackRef_(line);
-      }
       var fields = this.csvParser_.parseLine(line);
       this.dispatchLogRow_(fields);
     } catch (e) {
       this.printError('line ' + (this.lineNum_ + 1) + ': ' + (e.message || e));
     }
-  }
-};
-
-
-/**
- * Processes repeat log record. Expands it according to calls count and
- * invokes processing.
- *
- * @param {number} count Count.
- * @param {Array.<string>} cmd Parsed command.
- * @private
- */
-devtools.profiler.LogReader.prototype.processRepeat_ = function(count, cmd) {
-  // Replace the repeat-prefixed command from backrefs list with a non-prefixed.
-  this.backRefs_[0] = cmd.join(',');
-  for (var i = 0; i < count; ++i) {
-    this.dispatchLogRow_(cmd);
   }
 };
