@@ -225,7 +225,8 @@ LIBRARY_FLAGS = {
       'LINKFLAGS':    ['-m64'],
     },
     'prof:oprofile': {
-      'CPPDEFINES':   ['ENABLE_OPROFILE_AGENT']
+      'CPPDEFINES':   ['ENABLE_OPROFILE_AGENT'],
+      'LIBS': ['opagent', 'bfd']
     }
   },
   'msvc': {
