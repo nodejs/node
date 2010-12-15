@@ -8,6 +8,7 @@ var tests_run = 0;
 function pingPongTest(port, host) {
   var N = 1000;
   var count = 0;
+  var sentPongs = 0;
   var sent_final_ping = false;
 
   var server = net.createServer({ allowHalfOpen: true }, function(socket) {
@@ -25,7 +26,10 @@ function pingPongTest(port, host) {
       assert.equal(true, socket.readable);
       assert.equal(true, count <= N);
       if (/PING/.exec(data)) {
-        socket.write('PONG');
+        socket.write('PONG', function () {
+          sentPongs++;
+          console.error('sent PONG');
+        });
       }
     });
 
@@ -85,8 +89,9 @@ function pingPongTest(port, host) {
     });
 
     client.addListener('close', function() {
-      console.log('client.endd');
+      console.log('client.end');
       assert.equal(N + 1, count);
+      assert.equal(N + 1, sentPongs);
       assert.equal(true, sent_final_ping);
       tests_run += 1;
     });
