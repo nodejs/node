@@ -94,7 +94,7 @@ var srv = net.createServer(function(s) {
   buf.write(JSON.stringify(DATA) + '\n', 'utf8');
 
   s.write(str, 'utf8', pipeFDs[1]);
-  if (s.write(buf, undefined, pipeFDs[1])) {
+  if (s.write(buf, pipeFDs[1])) {
     netBinding.close(pipeFDs[1]);
   } else {
     s.addListener('drain', function() {

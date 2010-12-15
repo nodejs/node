@@ -196,15 +196,21 @@ context of the defined or default list of trusted CA certificates.
 Returns a JSON structure detailing the peer's certificate, containing a dictionary
 with keys for the certificate `'subject'`, `'issuer'`, `'valid_from'` and `'valid_to'`.
 
-#### stream.write(data, encoding='ascii')
+#### stream.write(data, [encoding])
 
-Sends data on the stream. The second parameter specifies the encoding in
-the case of a string--it defaults to ASCII because encoding to UTF8 is rather
-slow.
+Sends data on the stream. The second parameter specifies the encoding in the
+case of a string--it defaults to UTF8 encoding.
 
 Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in user memory.
 `'drain'` will be emitted when the buffer is again free.
+
+#### stream.write(data, [encoding], [fileDescriptor])
+
+For UNIX sockets, it is possible to send a file descriptor through the
+stream. Simply add the `fileDescriptor` argument and listen for the `'fd'`
+event on the other end.
+
 
 #### stream.end([data], [encoding])
 
