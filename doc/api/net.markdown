@@ -153,8 +153,8 @@ and passed to the user through the `'connection'` event of a server.
 
 `net.Stream` instances are EventEmitters with the following events:
 
-#### stream.connect(port, [host])
-#### stream.connect(path)
+#### stream.connect(port, [host], [callback])
+#### stream.connect(path, [callback])
 
 Opens the connection for a given stream. If `port` and `host` are given,
 then the stream will be opened as a TCP stream, if `host` is omitted,
@@ -169,6 +169,9 @@ This function is asynchronous. When the `'connect'` event is emitted the
 stream is established. If there is a problem connecting, the `'connect'`
 event will not be emitted, the `'error'` event will be emitted with
 the exception.
+
+The `callback` paramenter will be added as an listener for the 'connect'
+event.
 
 
 #### stream.setEncoding(encoding=null)

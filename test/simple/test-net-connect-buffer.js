@@ -33,10 +33,7 @@ tcp.listen(common.PORT, function () {
 
   console.log('Connecting to socket');
 
-  socket.connect(tcpPort);
-
-
-  socket.on('connect', function() {
+  socket.connect(tcpPort, function() {
     console.log('socket connected');
     connectHappened = true;
   });
