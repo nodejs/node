@@ -45,6 +45,7 @@
 #include <errno.h>
 #include <ieeefp.h>  // finite()
 #include <signal.h>  // sigemptyset(), etc
+#include <sys/kdi_regs.h>
 
 
 #undef MAP_TYPE
@@ -481,6 +482,16 @@ class SolarisMutex : public Mutex {
 
   int Unlock() { return pthread_mutex_unlock(&mutex_); }
 
+  virtual bool TryLock() {
+    int result = pthread_mutex_trylock(&mutex_);
+    // Return false if the lock is busy and locking failed.
+    if (result == EBUSY) {
+      return false;
+    }
+    ASSERT(result == 0);  // Verify no other errors.
+    return true;
+  }
+
  private:
   pthread_mutex_t mutex_;
 };
@@ -572,21 +583,37 @@ Semaphore* OS::CreateSemaphore(int count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 static Sampler* active_sampler_ = NULL;
+static pthread_t vm_tid_ = 0;
+
 
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   USE(info);
   if (signal != SIGPROF) return;
-  if (active_sampler_ == NULL) return;
+  if (active_sampler_ == NULL || !active_sampler_->IsActive()) return;
+  if (vm_tid_ != pthread_self()) return;
 
-  TickSample sample;
-  sample.pc = 0;
-  sample.sp = 0;
-  sample.fp = 0;
+  TickSample sample_obj;
+  TickSample* sample = CpuProfiler::TickSampleEvent();
+  if (sample == NULL) sample = &sample_obj;
 
-  // We always sample the VM state.
-  sample.state = VMState::current_state();
+  // Extracting the sample from the context is extremely machine dependent.
+  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
+  mcontext_t& mcontext = ucontext->uc_mcontext;
+  sample->state = Top::current_vm_state();
 
-  active_sampler_->Tick(&sample);
+#if V8_HOST_ARCH_IA32
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[KDIREG_EIP]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[KDIREG_ESP]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[KDIREG_EBP]);
+#elif V8_HOST_ARCH_X64
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[KDIREG_RIP]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[KDIREG_RSP]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[KDIREG_RBP]);
+#else
+  UNIMPLEMENTED();
+#endif
+  active_sampler_->SampleStack(sample);
+  active_sampler_->Tick(sample);
 }
 
 

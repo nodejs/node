@@ -29,6 +29,7 @@
 #define V8_V8UTILS_H_
 
 #include "utils.h"
+#include <stdarg.h>
 
 namespace v8 {
 namespace internal {
