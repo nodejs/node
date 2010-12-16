@@ -61,9 +61,16 @@ server.stdout.on('data', function(s) {
 });
 
 
+var timeout = setTimeout(function () {
+  server.kill();
+  process.exit(1);
+}, 5000);
+
+
 var serverExitCode = -1;
 server.on('exit', function(code) {
   serverExitCode = code;
+  clearTimeout(timeout);
 });
 
 
