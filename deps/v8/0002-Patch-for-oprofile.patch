@@ -1,0 +1,12 @@
+--- SConstruct	2010-12-16 11:49:26.000000000 -0800
++++ /tmp/SConstruct	2010-12-16 11:48:23.000000000 -0800
+@@ -225,7 +225,8 @@
+       'LINKFLAGS':    ['-m64'],
+     },
+     'prof:oprofile': {
+-      'CPPDEFINES':   ['ENABLE_OPROFILE_AGENT']
++      'CPPDEFINES':   ['ENABLE_OPROFILE_AGENT'],
++      'LIBS': ['opagent', 'bfd']
+     }
+   },
+   'msvc': {
