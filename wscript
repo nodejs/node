@@ -638,7 +638,7 @@ def build(bld):
         , 'CPPFLAGS'  : " ".join(program.env["CPPFLAGS"]).replace('"', '\\"')
         , 'LIBFLAGS'  : " ".join(program.env["LIBFLAGS"]).replace('"', '\\"')
         , 'PREFIX'    : program.env["PREFIX"]
-        , 'VERSION'   : '0.3.1-pre' # FIXME should not be hard-coded, see NODE_VERSION_STRING in src/node_version.h
+        , 'VERSION'   : '0.3.2' # FIXME should not be hard-coded, see NODE_VERSION_STRING in src/node_version.
         }
     return x
 

@@ -1,4 +1,36 @@
-2010.11.16, Version 0.3.1 (unstable)
+2010.12.16, Version 0.3.2 (unstable)
+
+* Rip out the old (broken) TLS implementation introduce new tested
+  implementation and API. See docs. HTTPS not supported in this release.
+
+* Introduce 'os' and 'tty' modules.
+
+* Callback parameters for socket.write() and socket.connect().
+
+* Support CNAME lookups in DNS module. (Ben Noordhuis)
+
+* cmake support (Tom Hughes)
+
+* 'make lint'
+
+* oprofile support (./configure --oprofile)
+
+* Lots of bug fixes, including:
+  - Memory leak in ChildProcess:Spawn(). (Tom Hughes)
+  - buffer.slice(0, 0)
+  - Global variable leaks
+  - clearTimeouts calling multiple times (Michael W)
+  - utils.inspect's detection of circular structures (Tim Cooijmans)
+  - Apple's threaded write()s bug (Jorge Chamorro Bieling)
+  - Make sure raw mode is disabled when exiting a terminal-based REPL.
+    (Brian White)
+
+* Deprecate process.compile, process.ENV
+
+* Upgrade V8 to 3.0.3, upgrade http-parser.
+
+
+2010.11.16, Version 0.3.1 (unstable), ce9a54aa1fbf709dd30316af8a2f14d83150e947
 
 * TLS improvments (Paul Querna)
   - Centralize error handling in SecureStream
