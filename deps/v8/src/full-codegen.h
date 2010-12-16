@@ -481,7 +481,7 @@ class FullCodeGenerator: public AstVisitor {
 
   // Assign to the given expression as if via '='. The right-hand-side value
   // is expected in the accumulator.
-  void EmitAssignment(Expression* expr, int bailout_ast_id);
+  void EmitAssignment(Expression* expr);
 
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.

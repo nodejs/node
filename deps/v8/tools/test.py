@@ -729,9 +729,6 @@ class Variable(Expression):
     if self.name in env: return ListSet([env[self.name]])
     else: return Nothing()
 
-  def Evaluate(self, env, defs):
-    return env[self.name]
-
 
 class Outcome(Expression):
 
@@ -1178,9 +1175,6 @@ def BuildOptions():
   result.add_option("--nostress",
                     help="Don't run crankshaft --always-opt --stress-op test",
                     default=False, action="store_true")
-  result.add_option("--crankshaft",
-                    help="Run with the --crankshaft flag",
-                    default=False, action="store_true")
   return result
 
 
@@ -1215,11 +1209,6 @@ def ProcessOptions(options):
     VARIANT_FLAGS = [['--stress-opt', '--always-opt']]
   if options.nostress:
     VARIANT_FLAGS = [[],['--nocrankshaft']]
-  if options.crankshaft:
-    if options.special_command:
-      options.special_command += " --crankshaft"
-    else:
-      options.special_command = "@--crankshaft"
   return True
 
 
@@ -1370,8 +1359,7 @@ def Main():
         'mode': mode,
         'system': utils.GuessOS(),
         'arch': options.arch,
-        'simulator': options.simulator,
-        'crankshaft': options.crankshaft
+        'simulator': options.simulator
       }
       test_list = root.ListTests([], path, context, mode)
       unclassified_tests += test_list

@@ -67,7 +67,6 @@ class LGapNode;
 //     LLoadKeyedGeneric
 //     LModI
 //     LMulI
-//     LPower
 //     LShiftI
 //     LSubI
 //   LCallConstantFunction
@@ -230,7 +229,6 @@ class LGapNode;
   V(ObjectLiteral)                              \
   V(OsrEntry)                                   \
   V(Parameter)                                  \
-  V(Power)                                      \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
   V(Return)                                     \
@@ -1156,16 +1154,6 @@ class LAddI: public LBinaryOperation {
 };
 
 
-class LPower: public LBinaryOperation {
- public:
-  LPower(LOperand* left, LOperand* right)
-      : LBinaryOperation(left, right) { }
-
-  DECLARE_CONCRETE_INSTRUCTION(Power, "power")
-  DECLARE_HYDROGEN_ACCESSOR(Power)
-};
-
-
 class LArithmeticD: public LBinaryOperation {
  public:
   LArithmeticD(Token::Value op, LOperand* left, LOperand* right)
@@ -1902,6 +1890,7 @@ class LChunk: public ZoneObject {
   LGap* GetGapAt(int index) const;
   bool IsGapAt(int index) const;
   int NearestGapPos(int index) const;
+  int NearestNextGapPos(int index) const;
   void MarkEmptyBlocks();
   const ZoneList<LPointerMap*>* pointer_maps() const { return &pointer_maps_; }
   LLabel* GetLabel(int block_id) const {

@@ -609,25 +609,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 
   // Initialize parser state.
   source->TryFlatten();
-  if (source->IsExternalTwoByteString()) {
-    // Notice that the stream is destroyed at the end of the branch block.
-    // The last line of the blocks can't be moved outside, even though they're
-    // identical calls.
-    ExternalTwoByteStringUC16CharacterStream stream(
-        Handle<ExternalTwoByteString>::cast(source), 0, source->length());
-    scanner_.Initialize(&stream, JavaScriptScanner::kAllLiterals);
-    return DoParseProgram(source, in_global_context, &zone_scope);
-  } else {
-    GenericStringUC16CharacterStream stream(source, 0, source->length());
-    scanner_.Initialize(&stream, JavaScriptScanner::kAllLiterals);
-    return DoParseProgram(source, in_global_context, &zone_scope);
-  }
-}
-
-
-FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
-                                        bool in_global_context,
-                                        ZoneScope* zone_scope) {
+  scanner_.Initialize(source);
   ASSERT(target_stack_ == NULL);
   if (pre_data_ != NULL) pre_data_->Initialize();
 
@@ -673,9 +655,10 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
 
   // If there was a syntax error we have to get rid of the AST
   // and it is not safe to do so before the scope has been deleted.
-  if (result == NULL) zone_scope->DeleteOnExit();
+  if (result == NULL) zone_scope.DeleteOnExit();
   return result;
 }
+
 
 FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
@@ -683,35 +666,14 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
   Handle<String> source(String::cast(script_->source()));
   Counters::total_parse_size.Increment(source->length());
 
-  // Initialize parser state.
-  source->TryFlatten();
-  if (source->IsExternalTwoByteString()) {
-    ExternalTwoByteStringUC16CharacterStream stream(
-        Handle<ExternalTwoByteString>::cast(source),
-        info->start_position(),
-        info->end_position());
-    FunctionLiteral* result = ParseLazy(info, &stream, &zone_scope);
-    return result;
-  } else {
-    GenericStringUC16CharacterStream stream(source,
-                                            info->start_position(),
-                                            info->end_position());
-    FunctionLiteral* result = ParseLazy(info, &stream, &zone_scope);
-    return result;
-  }
-}
-
-
-FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info,
-                                   UC16CharacterStream* source,
-                                   ZoneScope* zone_scope) {
-  scanner_.Initialize(source, JavaScriptScanner::kAllLiterals);
-  ASSERT(target_stack_ == NULL);
-
   Handle<String> name(String::cast(info->name()));
   fni_ = new FuncNameInferrer();
   fni_->PushEnclosingName(name);
 
+  // Initialize parser state.
+  source->TryFlatten();
+  scanner_.Initialize(source, info->start_position(), info->end_position());
+  ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
 
   // Place holder for the result.
@@ -743,7 +705,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info,
   // not safe to do before scope has been deleted.
   if (result == NULL) {
     Top::StackOverflow();
-    zone_scope->DeleteOnExit();
+    zone_scope.DeleteOnExit();
   } else {
     Handle<String> inferred_name(info->inferred_name());
     result->set_inferred_name(inferred_name);
@@ -757,12 +719,12 @@ Handle<String> Parser::GetSymbol(bool* ok) {
   if (pre_data() != NULL) {
     symbol_id = pre_data()->GetSymbolIdentifier();
   }
-  return LookupSymbol(symbol_id, scanner().literal());
+  return LookupSymbol(symbol_id, scanner_.literal());
 }
 
 
 void Parser::ReportMessage(const char* type, Vector<const char*> args) {
-  Scanner::Location source_location = scanner().location();
+  Scanner::Location source_location = scanner_.location();
   ReportMessageAt(source_location, type, args);
 }
 
@@ -1679,7 +1641,7 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   Expect(Token::CONTINUE, CHECK_OK);
   Handle<String> label = Handle<String>::null();
   Token::Value tok = peek();
-  if (!scanner().has_line_terminator_before_next() &&
+  if (!scanner_.has_line_terminator_before_next() &&
       tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
     label = ParseIdentifier(CHECK_OK);
   }
@@ -1705,7 +1667,7 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
   Expect(Token::BREAK, CHECK_OK);
   Handle<String> label;
   Token::Value tok = peek();
-  if (!scanner().has_line_terminator_before_next() &&
+  if (!scanner_.has_line_terminator_before_next() &&
       tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
     label = ParseIdentifier(CHECK_OK);
   }
@@ -1750,7 +1712,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   }
 
   Token::Value tok = peek();
-  if (scanner().has_line_terminator_before_next() ||
+  if (scanner_.has_line_terminator_before_next() ||
       tok == Token::SEMICOLON ||
       tok == Token::RBRACE ||
       tok == Token::EOS) {
@@ -1882,7 +1844,7 @@ Statement* Parser::ParseThrowStatement(bool* ok) {
 
   Expect(Token::THROW, CHECK_OK);
   int pos = scanner().location().beg_pos;
-  if (scanner().has_line_terminator_before_next()) {
+  if (scanner_.has_line_terminator_before_next()) {
     ReportMessage("newline_after_throw", Vector<const char*>::empty());
     *ok = false;
     return NULL;
@@ -2446,8 +2408,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
   //   LeftHandSideExpression ('++' | '--')?
 
   Expression* expression = ParseLeftHandSideExpression(CHECK_OK);
-  if (!scanner().has_line_terminator_before_next() &&
-      Token::IsCountOp(peek())) {
+  if (!scanner_.has_line_terminator_before_next() && Token::IsCountOp(peek())) {
     // Signal a reference error if the expression is an invalid
     // left-hand side expression.  We could report this as a syntax
     // error here but for compatibility with JSC we choose to report the
@@ -2716,7 +2677,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::NUMBER: {
       Consume(Token::NUMBER);
       double value =
-        StringToDouble(scanner().literal(), ALLOW_HEX | ALLOW_OCTALS);
+        StringToDouble(scanner_.literal(), ALLOW_HEX | ALLOW_OCTALS);
       result = NewNumberLiteral(value);
       break;
     }
@@ -3067,7 +3028,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       case Token::NUMBER: {
         Consume(Token::NUMBER);
         double value =
-          StringToDouble(scanner().literal(), ALLOW_HEX | ALLOW_OCTALS);
+          StringToDouble(scanner_.literal(), ALLOW_HEX | ALLOW_OCTALS);
         key = NewNumberLiteral(value);
         break;
       }
@@ -3128,7 +3089,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
 
 Expression* Parser::ParseRegExpLiteral(bool seen_equal, bool* ok) {
-  if (!scanner().ScanRegExpPattern(seen_equal)) {
+  if (!scanner_.ScanRegExpPattern(seen_equal)) {
     Next();
     ReportMessage("unterminated_regexp", Vector<const char*>::empty());
     *ok = false;
@@ -3138,10 +3099,10 @@ Expression* Parser::ParseRegExpLiteral(bool seen_equal, bool* ok) {
   int literal_index = temp_scope_->NextMaterializedLiteralIndex();
 
   Handle<String> js_pattern =
-      Factory::NewStringFromUtf8(scanner().next_literal(), TENURED);
-  scanner().ScanRegExpFlags();
+      Factory::NewStringFromUtf8(scanner_.next_literal(), TENURED);
+  scanner_.ScanRegExpFlags();
   Handle<String> js_flags =
-      Factory::NewStringFromUtf8(scanner().next_literal(), TENURED);
+      Factory::NewStringFromUtf8(scanner_.next_literal(), TENURED);
   Next();
 
   return new RegExpLiteral(js_pattern, js_flags, literal_index);
@@ -3197,7 +3158,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     //  FormalParameterList ::
     //    '(' (Identifier)*[','] ')'
     Expect(Token::LPAREN, CHECK_OK);
-    int start_pos = scanner().location().beg_pos;
+    int start_pos = scanner_.location().beg_pos;
     bool done = (peek() == Token::RPAREN);
     while (!done) {
       Handle<String> param_name = ParseIdentifier(CHECK_OK);
@@ -3234,7 +3195,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     bool is_lazily_compiled =
         mode() == PARSE_LAZILY && top_scope_->HasTrivialOuterContext();
 
-    int function_block_pos = scanner().location().beg_pos;
+    int function_block_pos = scanner_.location().beg_pos;
     int materialized_literal_count;
     int expected_property_count;
     int end_pos;
@@ -3251,8 +3212,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         ReportInvalidPreparseData(name, CHECK_OK);
       }
       Counters::total_preparse_skipped.Increment(end_pos - function_block_pos);
-      // Seek to position just before terminal '}'.
-      scanner().SeekForward(end_pos - 1);
+      scanner_.SeekForward(end_pos);
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();
       only_simple_this_property_assignments = false;
@@ -3268,7 +3228,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       this_property_assignments = temp_scope.this_property_assignments();
 
       Expect(Token::RBRACE, CHECK_OK);
-      end_pos = scanner().location().end_pos;
+      end_pos = scanner_.location().end_pos;
     }
 
     FunctionLiteral* function_literal =
@@ -3372,7 +3332,7 @@ void Parser::ExpectSemicolon(bool* ok) {
     Next();
     return;
   }
-  if (scanner().has_line_terminator_before_next() ||
+  if (scanner_.has_line_terminator_before_next() ||
       tok == Token::RBRACE ||
       tok == Token::EOS) {
     return;
@@ -3423,8 +3383,8 @@ Handle<String> Parser::ParseIdentifierOrGetOrSet(bool* is_get,
                                                  bool* ok) {
   Expect(Token::IDENTIFIER, ok);
   if (!*ok) return Handle<String>();
-  if (scanner().literal_length() == 3) {
-    const char* token = scanner().literal_string();
+  if (scanner_.literal_length() == 3) {
+    const char* token = scanner_.literal_string();
     *is_get = strcmp(token, "get") == 0;
     *is_set = !*is_get && strcmp(token, "set") == 0;
   }
@@ -3543,8 +3503,8 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 // ----------------------------------------------------------------------------
 // JSON
 
-Handle<Object> JsonParser::ParseJson(Handle<String> script,
-                                     UC16CharacterStream* source) {
+Handle<Object> JsonParser::ParseJson(Handle<String> source) {
+  source->TryFlatten();
   scanner_.Initialize(source);
   stack_overflow_ = false;
   Handle<Object> result = ParseJsonValue();
@@ -3580,7 +3540,7 @@ Handle<Object> JsonParser::ParseJson(Handle<String> script,
       }
 
       Scanner::Location source_location = scanner_.location();
-      MessageLocation location(Factory::NewScript(script),
+      MessageLocation location(Factory::NewScript(source),
                                source_location.beg_pos,
                                source_location.end_pos);
       int argc = (name_opt == NULL) ? 0 : 1;
@@ -4595,12 +4555,13 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 
 
 // Create a Scanner for the preparser to use as input, and preparse the source.
-static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
+static ScriptDataImpl* DoPreParse(Handle<String> source,
+                                  unibrow::CharacterStream* stream,
                                   bool allow_lazy,
                                   ParserRecorder* recorder,
                                   int literal_flags) {
   V8JavaScriptScanner scanner;
-  scanner.Initialize(source, literal_flags);
+  scanner.Initialize(source, stream, literal_flags);
   intptr_t stack_limit = StackGuard::real_climit();
   if (!preparser::PreParser::PreParseProgram(&scanner,
                                              recorder,
@@ -4619,7 +4580,8 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
 
 // Preparse, but only collect data that is immediately useful,
 // even if the preparser data is only used once.
-ScriptDataImpl* ParserApi::PartialPreParse(UC16CharacterStream* source,
+ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
+                                           unibrow::CharacterStream* stream,
                                            v8::Extension* extension) {
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   if (!allow_lazy) {
@@ -4628,19 +4590,22 @@ ScriptDataImpl* ParserApi::PartialPreParse(UC16CharacterStream* source,
     return NULL;
   }
   PartialParserRecorder recorder;
-  return DoPreParse(source, allow_lazy, &recorder,
+
+  return DoPreParse(source, stream, allow_lazy, &recorder,
                     JavaScriptScanner::kNoLiterals);
 }
 
 
-ScriptDataImpl* ParserApi::PreParse(UC16CharacterStream* source,
+ScriptDataImpl* ParserApi::PreParse(Handle<String> source,
+                                    unibrow::CharacterStream* stream,
                                     v8::Extension* extension) {
   Handle<Script> no_script;
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   CompleteParserRecorder recorder;
   int kPreParseLiteralsFlags =
       JavaScriptScanner::kLiteralString | JavaScriptScanner::kLiteralIdentifier;
-  return DoPreParse(source, allow_lazy, &recorder, kPreParseLiteralsFlags);
+  return DoPreParse(source, stream, allow_lazy,
+                    &recorder, kPreParseLiteralsFlags);
 }
 
 

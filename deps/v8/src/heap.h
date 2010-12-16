@@ -1119,9 +1119,9 @@ class Heap : public AllStatic {
   static int contexts_disposed_;
 
 #if defined(V8_TARGET_ARCH_X64)
-  static const int kMaxObjectSizeInNewSpace = 1024*KB;
-#else
   static const int kMaxObjectSizeInNewSpace = 512*KB;
+#else
+  static const int kMaxObjectSizeInNewSpace = 256*KB;
 #endif
 
   static NewSpace new_space_;

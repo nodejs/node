@@ -890,9 +890,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&update_each);
   __ mov(result_register(), r3);
   // Perform the assignment as if via '='.
-  { EffectContext context(this);
-    EmitAssignment(stmt->each(), stmt->AssignmentId());
-  }
+  EmitAssignment(stmt->each());
 
   // Generate code for the body of the loop.
   Visit(stmt->body());
@@ -1446,7 +1444,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     // For property compound assignments we need another deoptimization
     // point after the property load.
     if (property != NULL) {
-      PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
+      PrepareForBailoutForId(expr->compound_bailout_id(), TOS_REG);
     }
 
     Token::Value op = expr->binary_op();
@@ -1538,7 +1536,7 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
 }
 
 
-void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
+void FullCodeGenerator::EmitAssignment(Expression* expr) {
   // Invalid left-hand sides are rewritten to have a 'throw
   // ReferenceError' on the left-hand side.
   if (!expr->IsValidLeftHandSide()) {
@@ -1586,8 +1584,6 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       break;
     }
   }
-  PrepareForBailoutForId(bailout_ast_id, TOS_REG);
-  context()->Plug(r0);
 }
 
 
@@ -1661,6 +1657,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     }
     __ bind(&done);
   }
+
+  context()->Plug(result_register());
 }
 
 
@@ -1703,10 +1701,10 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ push(ip);
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(r0);
-    __ Drop(1);
+    context()->DropAndPlug(1, r0);
+  } else {
+    context()->Plug(r0);
   }
-  PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
-  context()->Plug(r0);
 }
 
 
@@ -1747,10 +1745,10 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
     __ push(ip);
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(r0);
-    __ Drop(1);
+    context()->DropAndPlug(1, r0);
+  } else {
+    context()->Plug(r0);
   }
-  PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
-  context()->Plug(r0);
 }
 
 
@@ -3202,8 +3200,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         { EffectContext context(this);
           EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
                                  Token::ASSIGN);
-          PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
-          context.Plug(r0);
         }
         // For all contexts except EffectConstant We have the result on
         // top of the stack.
@@ -3213,8 +3209,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       } else {
         EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
                                Token::ASSIGN);
-        PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
-        context()->Plug(r0);
       }
       break;
     case NAMED_PROPERTY: {
@@ -3222,7 +3216,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ pop(r1);
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
-      PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
           context()->PlugTOS();
@@ -3237,7 +3230,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ pop(r2);  // Receiver.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
-      PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
           context()->PlugTOS();

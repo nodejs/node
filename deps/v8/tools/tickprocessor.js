@@ -60,17 +60,18 @@ function inherits(childCtor, parentCtor) {
 function SnapshotLogProcessor() {
   devtools.profiler.LogReader.call(this, {
       'code-creation': {
-          parsers: [null, parseInt, parseInt, null],
-          processor: this.processCodeCreation },
-      'code-move': { parsers: [parseInt, parseInt],
-          processor: this.processCodeMove },
-      'code-delete': { parsers: [parseInt],
-          processor: this.processCodeDelete },
+          parsers: [null, this.createAddressParser('code'), parseInt, null],
+          processor: this.processCodeCreation, backrefs: true },
+      'code-move': { parsers: [this.createAddressParser('code'),
+          this.createAddressParser('code-move-to')],
+          processor: this.processCodeMove, backrefs: true },
+      'code-delete': { parsers: [this.createAddressParser('code')],
+          processor: this.processCodeDelete, backrefs: true },
       'function-creation': null,
       'function-move': null,
       'function-delete': null,
-      'snapshot-pos': { parsers: [parseInt, parseInt],
-          processor: this.processSnapshotPosition }});
+      'snapshot-pos': { parsers: [this.createAddressParser('code'), parseInt],
+          processor: this.processSnapshotPosition, backrefs: true }});
 
   Profile.prototype.handleUnknownCode = function(operation, addr) {
     var op = devtools.profiler.Profile.Operation;
@@ -94,7 +95,8 @@ inherits(SnapshotLogProcessor, devtools.profiler.LogReader);
 
 SnapshotLogProcessor.prototype.processCodeCreation = function(
     type, start, size, name) {
-  var entry = this.profile_.addCode(type, name, start, size);
+  var entry = this.profile_.addCode(
+      this.expandAlias(type), name, start, size);
 };
 
 
@@ -131,28 +133,33 @@ function TickProcessor(
       'shared-library': { parsers: [null, parseInt, parseInt],
           processor: this.processSharedLibrary },
       'code-creation': {
-          parsers: [null, parseInt, parseInt, null],
-          processor: this.processCodeCreation },
-      'code-move': { parsers: [parseInt, parseInt],
-          processor: this.processCodeMove },
-      'code-delete': { parsers: [parseInt],
-          processor: this.processCodeDelete },
-      'function-creation': { parsers: [parseInt, parseInt],
-          processor: this.processFunctionCreation },
-      'function-move': { parsers: [parseInt, parseInt],
-          processor: this.processFunctionMove },
-      'function-delete': { parsers: [parseInt],
-          processor: this.processFunctionDelete },
-      'snapshot-pos': { parsers: [parseInt, parseInt],
-          processor: this.processSnapshotPosition },
-      'tick': { parsers: [parseInt, parseInt, parseInt, parseInt, 'var-args'],
-          processor: this.processTick },
+          parsers: [null, this.createAddressParser('code'), parseInt, null],
+          processor: this.processCodeCreation, backrefs: true },
+      'code-move': { parsers: [this.createAddressParser('code'),
+          this.createAddressParser('code-move-to')],
+          processor: this.processCodeMove, backrefs: true },
+      'code-delete': { parsers: [this.createAddressParser('code')],
+          processor: this.processCodeDelete, backrefs: true },
+      'function-creation': { parsers: [this.createAddressParser('code'),
+          this.createAddressParser('function-obj')],
+          processor: this.processFunctionCreation, backrefs: true },
+      'function-move': { parsers: [this.createAddressParser('code'),
+          this.createAddressParser('code-move-to')],
+          processor: this.processFunctionMove, backrefs: true },
+      'function-delete': { parsers: [this.createAddressParser('code')],
+          processor: this.processFunctionDelete, backrefs: true },
+      'snapshot-pos': { parsers: [this.createAddressParser('code'), parseInt],
+          processor: this.processSnapshotPosition, backrefs: true },
+      'tick': { parsers: [this.createAddressParser('code'),
+          this.createAddressParser('stack'),
+          this.createAddressParser('func'), parseInt, 'var-args'],
+          processor: this.processTick, backrefs: true },
       'heap-sample-begin': { parsers: [null, null, parseInt],
           processor: this.processHeapSampleBegin },
       'heap-sample-end': { parsers: [null, null],
           processor: this.processHeapSampleEnd },
       'heap-js-prod-item': { parsers: [null, 'var-args'],
-          processor: this.processJSProducer },
+          processor: this.processJSProducer, backrefs: true },
       // Ignored events.
       'profiler': null,
       'heap-sample-stats': null,
@@ -287,7 +294,8 @@ TickProcessor.prototype.processSharedLibrary = function(
 TickProcessor.prototype.processCodeCreation = function(
     type, start, size, name) {
   name = this.deserializedEntriesNames_[start] || name;
-  var entry = this.profile_.addCode(type, name, start, size);
+  var entry = this.profile_.addCode(
+      this.expandAlias(type), name, start, size);
 };
 
 

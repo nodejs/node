@@ -35,96 +35,66 @@
 namespace v8 {
 namespace internal {
 
-// A buffered character stream based on a random access character
-// source (ReadBlock can be called with pos_ pointing to any position,
-// even positions before the current).
-class BufferedUC16CharacterStream: public UC16CharacterStream {
+// UTF16 buffer to read characters from a character stream.
+class CharacterStreamUTF16Buffer: public UTF16Buffer {
  public:
-  BufferedUC16CharacterStream();
-  virtual ~BufferedUC16CharacterStream();
+  CharacterStreamUTF16Buffer();
+  virtual ~CharacterStreamUTF16Buffer() {}
+  void Initialize(Handle<String> data,
+                  unibrow::CharacterStream* stream,
+                  int start_position,
+                  int end_position);
+  virtual void PushBack(uc32 ch);
+  virtual uc32 Advance();
+  virtual void SeekForward(int pos);
 
-  virtual void PushBack(uc16 character);
+ private:
+  List<uc32> pushback_buffer_;
+  uc32 last_;
+  unibrow::CharacterStream* stream_;
 
- protected:
-  static const unsigned kBufferSize = 512;
-  static const unsigned kPushBackStepSize = 16;
-
-  virtual unsigned SlowSeekForward(unsigned delta);
-  virtual bool ReadBlock();
-  virtual void SlowPushBack(uc16 character);
-
-  virtual unsigned BufferSeekForward(unsigned delta) = 0;
-  virtual unsigned FillBuffer(unsigned position, unsigned length) = 0;
-
-  const uc16* pushback_limit_;
-  uc16 buffer_[kBufferSize];
-};
-
-
-// Generic string stream.
-class GenericStringUC16CharacterStream: public BufferedUC16CharacterStream {
- public:
-  GenericStringUC16CharacterStream(Handle<String> data,
-                                   unsigned start_position,
-                                   unsigned end_position);
-  virtual ~GenericStringUC16CharacterStream();
-
- protected:
-  virtual unsigned BufferSeekForward(unsigned delta);
-  virtual unsigned FillBuffer(unsigned position, unsigned length);
-
-  Handle<String> string_;
-  unsigned start_position_;
-  unsigned length_;
-};
-
-
-// UC16 stream based on a literal UTF-8 string.
-class Utf8ToUC16CharacterStream: public BufferedUC16CharacterStream {
- public:
-  Utf8ToUC16CharacterStream(const byte* data, unsigned length);
-  virtual ~Utf8ToUC16CharacterStream();
-
- protected:
-  virtual unsigned BufferSeekForward(unsigned delta);
-  virtual unsigned FillBuffer(unsigned char_position, unsigned length);
-  void SetRawPosition(unsigned char_position);
-
-  const byte* raw_data_;
-  unsigned raw_data_length_;  // Measured in bytes, not characters.
-  unsigned raw_data_pos_;
-  // The character position of the character at raw_data[raw_data_pos_].
-  // Not necessarily the same as pos_.
-  unsigned raw_character_position_;
+  List<uc32>* pushback_buffer() { return &pushback_buffer_; }
 };
 
 
 // UTF16 buffer to read characters from an external string.
-class ExternalTwoByteStringUC16CharacterStream: public UC16CharacterStream {
+template <typename StringType, typename CharType>
+class ExternalStringUTF16Buffer: public UTF16Buffer {
  public:
-  ExternalTwoByteStringUC16CharacterStream(Handle<ExternalTwoByteString> data,
-                                           int start_position,
-                                           int end_position);
-  virtual ~ExternalTwoByteStringUC16CharacterStream();
+  ExternalStringUTF16Buffer();
+  virtual ~ExternalStringUTF16Buffer() {}
+  void Initialize(Handle<StringType> data,
+                  int start_position,
+                  int end_position);
+  virtual void PushBack(uc32 ch);
+  virtual uc32 Advance();
+  virtual void SeekForward(int pos);
 
-  virtual void PushBack(uc16 character) {
-    ASSERT(buffer_cursor_ > raw_data_);
-    buffer_cursor_--;
-    pos_--;
-  }
- protected:
-  virtual unsigned SlowSeekForward(unsigned delta) {
-    // Fast case always handles seeking.
-    return 0;
-  }
-  virtual bool ReadBlock() {
-    // Entire string is read at start.
-    return false;
-  }
-  Handle<ExternalTwoByteString> source_;
-  const uc16* raw_data_;  // Pointer to the actual array of characters.
+ private:
+  const CharType* raw_data_;  // Pointer to the actual array of characters.
 };
 
+
+// Initializes a UTF16Buffer as input stream, using one of a number
+// of strategies depending on the available character sources.
+class StreamInitializer {
+ public:
+  UTF16Buffer* Init(Handle<String> source,
+                    unibrow::CharacterStream* stream,
+                    int start_position,
+                    int end_position);
+ private:
+  // Different UTF16 buffers used to pull characters from. Based on input one of
+  // these will be initialized as the actual data source.
+  CharacterStreamUTF16Buffer char_stream_buffer_;
+  ExternalStringUTF16Buffer<ExternalTwoByteString, uint16_t>
+      two_byte_string_buffer_;
+  ExternalStringUTF16Buffer<ExternalAsciiString, char> ascii_string_buffer_;
+
+  // Used to convert the source string into a character stream when a stream
+  // is not passed to the scanner.
+  SafeStringInputBuffer safe_string_input_buffer_;
+};
 
 // ----------------------------------------------------------------------------
 // V8JavaScriptScanner
@@ -133,9 +103,19 @@ class ExternalTwoByteStringUC16CharacterStream: public UC16CharacterStream {
 
 class V8JavaScriptScanner : public JavaScriptScanner {
  public:
-  V8JavaScriptScanner();
-  void Initialize(UC16CharacterStream* source,
+  V8JavaScriptScanner() {}
+
+  // Initialize the Scanner to scan source.
+  void Initialize(Handle<String> source, int literal_flags = kAllLiterals);
+  void Initialize(Handle<String> source,
+                  unibrow::CharacterStream* stream,
                   int literal_flags = kAllLiterals);
+  void Initialize(Handle<String> source,
+                  int start_position, int end_position,
+                  int literal_flags = kAllLiterals);
+
+ protected:
+  StreamInitializer stream_initializer_;
 };
 
 
@@ -143,7 +123,8 @@ class JsonScanner : public Scanner {
  public:
   JsonScanner();
 
-  void Initialize(UC16CharacterStream* source);
+  // Initialize the Scanner to scan source.
+  void Initialize(Handle<String> source);
 
   // Returns the next token.
   Token::Value Next();
@@ -157,7 +138,7 @@ class JsonScanner : public Scanner {
   // Recognizes all of the single-character tokens directly, or calls a function
   // to scan a number, string or identifier literal.
   // The only allowed whitespace characters between tokens are tab,
-  // carriage-return, newline and space.
+  // carrige-return, newline and space.
   void ScanJson();
 
   // A JSON number (production JSONNumber) is a subset of the valid JavaScript
@@ -178,7 +159,59 @@ class JsonScanner : public Scanner {
   // are the only valid JSON identifiers (productions JSONBooleanLiteral,
   // JSONNullLiteral).
   Token::Value ScanJsonIdentifier(const char* text, Token::Value token);
+
+  StreamInitializer stream_initializer_;
 };
+
+
+// ExternalStringUTF16Buffer
+template <typename StringType, typename CharType>
+ExternalStringUTF16Buffer<StringType, CharType>::ExternalStringUTF16Buffer()
+    : raw_data_(NULL) { }
+
+
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::Initialize(
+     Handle<StringType> data,
+     int start_position,
+     int end_position) {
+  ASSERT(!data.is_null());
+  raw_data_ = data->resource()->data();
+
+  ASSERT(end_position <= data->length());
+  if (start_position > 0) {
+    SeekForward(start_position);
+  }
+  end_ =
+      end_position != kNoEndPosition ? end_position : data->length();
+}
+
+
+template <typename StringType, typename CharType>
+uc32 ExternalStringUTF16Buffer<StringType, CharType>::Advance() {
+  if (pos_ < end_) {
+    return raw_data_[pos_++];
+  } else {
+    // note: currently the following increment is necessary to avoid a
+    // test-parser problem!
+    pos_++;
+    return static_cast<uc32>(-1);
+  }
+}
+
+
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::PushBack(uc32 ch) {
+  pos_--;
+  ASSERT(pos_ >= Scanner::kCharacterLookaheadBufferSize);
+  ASSERT(raw_data_[pos_ - Scanner::kCharacterLookaheadBufferSize] == ch);
+}
+
+
+template <typename StringType, typename CharType>
+void ExternalStringUTF16Buffer<StringType, CharType>::SeekForward(int pos) {
+  pos_ = pos;
+}
 
 } }  // namespace v8::internal
 

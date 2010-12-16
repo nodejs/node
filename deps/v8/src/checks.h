@@ -231,8 +231,6 @@ static inline void CheckNonEqualsHelper(const char* file,
 
 #define CHECK_GT(a, b) CHECK((a) > (b))
 #define CHECK_GE(a, b) CHECK((a) >= (b))
-#define CHECK_LT(a, b) CHECK((a) < (b))
-#define CHECK_LE(a, b) CHECK((a) <= (b))
 
 
 // This is inspired by the static assertion facility in boost.  This

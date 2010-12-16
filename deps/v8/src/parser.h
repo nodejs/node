@@ -169,12 +169,14 @@ class ParserApi {
   static bool Parse(CompilationInfo* info);
 
   // Generic preparser generating full preparse data.
-  static ScriptDataImpl* PreParse(UC16CharacterStream* source,
+  static ScriptDataImpl* PreParse(Handle<String> source,
+                                  unibrow::CharacterStream* stream,
                                   v8::Extension* extension);
 
   // Preparser that only does preprocessing that makes sense if only used
   // immediately after.
-  static ScriptDataImpl* PartialPreParse(UC16CharacterStream* source,
+  static ScriptDataImpl* PartialPreParse(Handle<String> source,
+                                         unibrow::CharacterStream* stream,
                                          v8::Extension* extension);
 };
 
@@ -433,18 +435,10 @@ class Parser {
                        Vector<const char*> args);
 
  protected:
-  FunctionLiteral* ParseLazy(Handle<SharedFunctionInfo> info,
-                             UC16CharacterStream* source,
-                             ZoneScope* zone_scope);
   enum Mode {
     PARSE_LAZILY,
     PARSE_EAGERLY
   };
-
-  // Called by ParseProgram after setting up the scanner.
-  FunctionLiteral* DoParseProgram(Handle<String> source,
-                                  bool in_global_context,
-                                  ZoneScope* zone_scope);
 
   // Report syntax error
   void ReportUnexpectedToken(Token::Value token);
@@ -452,7 +446,7 @@ class Parser {
   void ReportMessage(const char* message, Vector<const char*> args);
 
   bool inside_with() const { return with_nesting_level_ > 0; }
-  V8JavaScriptScanner& scanner()  { return scanner_; }
+  Scanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
 
@@ -554,7 +548,7 @@ class Parser {
 
   INLINE(Token::Value peek()) {
     if (stack_overflow_) return Token::ILLEGAL;
-    return scanner().peek();
+    return scanner_.peek();
   }
 
   INLINE(Token::Value Next()) {
@@ -566,11 +560,9 @@ class Parser {
     }
     if (StackLimitCheck().HasOverflowed()) {
       // Any further calls to Next or peek will return the illegal token.
-      // The current call must return the next token, which might already
-      // have been peek'ed.
       stack_overflow_ = true;
     }
-    return scanner().Next();
+    return scanner_.Next();
   }
 
   INLINE(void Consume(Token::Value token));
@@ -710,14 +702,7 @@ class JsonParser BASE_EMBEDDED {
   // Parse JSON input as a single JSON value.
   // Returns null handle and sets exception if parsing failed.
   static Handle<Object> Parse(Handle<String> source) {
-    if (source->IsExternalTwoByteString()) {
-      ExternalTwoByteStringUC16CharacterStream stream(
-          Handle<ExternalTwoByteString>::cast(source), 0, source->length());
-      return JsonParser().ParseJson(source, &stream);
-    } else {
-      GenericStringUC16CharacterStream stream(source, 0, source->length());
-      return JsonParser().ParseJson(source, &stream);
-    }
+    return JsonParser().ParseJson(source);
   }
 
  private:
@@ -725,7 +710,7 @@ class JsonParser BASE_EMBEDDED {
   ~JsonParser() { }
 
   // Parse a string containing a single JSON value.
-  Handle<Object> ParseJson(Handle<String> script, UC16CharacterStream* source);
+  Handle<Object> ParseJson(Handle<String>);
   // Parse a single JSON value from input (grammar production JSONValue).
   // A JSON value is either a (double-quoted) string literal, a number literal,
   // one of "true", "false", or "null", or an object or array literal.

@@ -460,6 +460,12 @@ int LChunk::NearestGapPos(int index) const {
 }
 
 
+int LChunk::NearestNextGapPos(int index) const {
+  while (!IsGapAt(index)) index++;
+  return index;
+}
+
+
 void LChunk::AddGapMove(int index, LOperand* from, LOperand* to) {
   GetGapAt(index)->GetOrCreateParallelMove(LGap::START)->AddMove(from, to);
 }
@@ -1351,9 +1357,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       return AssignEnvironment(DefineAsRegister(result));
     case kMathSqrt:
       return DefineSameAsFirst(result);
-    case kMathPowHalf:
-      Abort("MathPowHalf LUnaryMathOperation not implemented");
-      return NULL;
     default:
       UNREACHABLE();
       return NULL;
@@ -1551,12 +1554,6 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoPower(HPower* instr) {
-  Abort("LPower instruction not implemented on ARM");
-  return NULL;
-}
-
-
 LInstruction* LChunkBuilder::DoCompare(HCompare* instr) {
   Token::Value op = instr->token();
   if (instr->left()->representation().IsInteger32()) {
@@ -1691,13 +1688,11 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   } else if (from.IsDouble()) {
     if (to.IsTagged()) {
       LOperand* value = UseRegister(instr->value());
-      LOperand* temp1 = TempRegister();
-      LOperand* temp2 = TempRegister();
+      LOperand* temp = TempRegister();
 
-      // Make sure that the temp and result_temp registers are
-      // different.
+      // Make sure that temp and result_temp are different registers.
       LUnallocated* result_temp = TempRegister();
-      LInstruction* result = new LNumberTagD(value, temp1, temp2);
+      LInstruction* result = new LNumberTagD(value, temp);
       Define(result, result_temp);
       return AssignPointerMap(result);
     } else {

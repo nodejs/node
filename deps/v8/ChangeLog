@@ -1,3 +1,8 @@
+2010-12-15: Version 3.0.2
+
+        Revert version 3.0.1 and patch 3.0.1.1.
+
+
 2010-12-13: Version 3.0.1
 
         Added support for an experimental internationalization API as an

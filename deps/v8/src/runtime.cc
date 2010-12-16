@@ -4546,53 +4546,42 @@ static MaybeObject* Runtime_URIUnescape(Arguments args) {
 
 static const unsigned int kQuoteTableLength = 128u;
 
-static const int kJsonQuotesCharactersPerEntry = 8;
-static const char* const JsonQuotes =
-    "\\u0000  \\u0001  \\u0002  \\u0003  "
-    "\\u0004  \\u0005  \\u0006  \\u0007  "
-    "\\b      \\t      \\n      \\u000b  "
-    "\\f      \\r      \\u000e  \\u000f  "
-    "\\u0010  \\u0011  \\u0012  \\u0013  "
-    "\\u0014  \\u0015  \\u0016  \\u0017  "
-    "\\u0018  \\u0019  \\u001a  \\u001b  "
-    "\\u001c  \\u001d  \\u001e  \\u001f  "
-    "        !       \\\"      #       "
-    "$       %       &       '       "
-    "(       )       *       +       "
-    ",       -       .       /       "
-    "0       1       2       3       "
-    "4       5       6       7       "
-    "8       9       :       ;       "
-    "<       =       >       ?       "
-    "@       A       B       C       "
-    "D       E       F       G       "
-    "H       I       J       K       "
-    "L       M       N       O       "
-    "P       Q       R       S       "
-    "T       U       V       W       "
-    "X       Y       Z       [       "
-    "\\\\      ]       ^       _       "
-    "`       a       b       c       "
-    "d       e       f       g       "
-    "h       i       j       k       "
-    "l       m       n       o       "
-    "p       q       r       s       "
-    "t       u       v       w       "
-    "x       y       z       {       "
-    "|       }       ~       \177       ";
+static const char* const JsonQuotes[kQuoteTableLength] = {
+    "\\u0000", "\\u0001", "\\u0002", "\\u0003",
+    "\\u0004", "\\u0005", "\\u0006", "\\u0007",
+    "\\b", "\\t", "\\n", "\\u000b",
+    "\\f", "\\r", "\\u000e", "\\u000f",
+    "\\u0010", "\\u0011", "\\u0012", "\\u0013",
+    "\\u0014", "\\u0015", "\\u0016", "\\u0017",
+    "\\u0018", "\\u0019", "\\u001a", "\\u001b",
+    "\\u001c", "\\u001d", "\\u001e", "\\u001f",
+    NULL, NULL, "\\\"", NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    "\\\\", NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
 
 
-// For a string that is less than 32k characters it should always be
-// possible to allocate it in new space.
-static const int kMaxGuaranteedNewSpaceString = 32 * 1024;
-
-
-// Doing JSON quoting cannot make the string more than this many times larger.
-static const int kJsonQuoteWorstCaseBlowup = 6;
-
-
-// Covers the entire ASCII range (all other characters are unchanged by JSON
-// quoting).
 static const byte JsonQuoteLengths[kQuoteTableLength] = {
     6, 6, 6, 6, 6, 6, 6, 6,
     2, 2, 2, 6, 2, 2, 6, 6,
@@ -4613,6 +4602,18 @@ static const byte JsonQuoteLengths[kQuoteTableLength] = {
 };
 
 
+template <typename Char>
+Char* WriteString(Char* dst, const char* src_string) {
+  char c;
+  for (c = *src_string; c; c = *src_string) {
+    *dst = c;
+    dst++;
+    src_string++;
+  }
+  return dst;
+}
+
+
 template <typename StringType>
 MaybeObject* AllocateRawString(int length);
 
@@ -4630,111 +4631,58 @@ MaybeObject* AllocateRawString<SeqAsciiString>(int length) {
 
 
 template <typename Char, typename StringType>
-static MaybeObject* SlowQuoteJsonString(Vector<const Char> characters) {
+static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
   int length = characters.length();
-  const Char* read_cursor = characters.start();
-  const Char* end = read_cursor + length;
-  const int kSpaceForQuotes = 2;
-  int quoted_length = kSpaceForQuotes;
-  while (read_cursor < end) {
-    Char c = *(read_cursor++);
-    if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
-      quoted_length++;
+  int quoted_length = 0;
+  for (int i = 0; i < length; i++) {
+    unsigned int c = characters[i];
+    if (sizeof(Char) > 1u) {
+      quoted_length += (c >= kQuoteTableLength) ? 1 : JsonQuoteLengths[c];
     } else {
-      quoted_length += JsonQuoteLengths[static_cast<unsigned>(c)];
+      quoted_length += JsonQuoteLengths[c];
     }
   }
+  Counters::quote_json_char_count.Increment(length);
+
+  // Add space for quotes.
+  quoted_length += 2;
+
   MaybeObject* new_alloc = AllocateRawString<StringType>(quoted_length);
   Object* new_object;
   if (!new_alloc->ToObject(&new_object)) {
+    Counters::quote_json_char_recount.Increment(length);
     return new_alloc;
   }
   StringType* new_string = StringType::cast(new_object);
 
-  Char* write_cursor = reinterpret_cast<Char*>(
-      new_string->address() + SeqAsciiString::kHeaderSize);
-  *(write_cursor++) = '"';
-
-  read_cursor = characters.start();
-  while (read_cursor < end) {
-    Char c = *(read_cursor++);
-    if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
-      *(write_cursor++) = c;
-    } else {
-      int len = JsonQuoteLengths[static_cast<unsigned>(c)];
-      const char* replacement = JsonQuotes +
-          static_cast<unsigned>(c) * kJsonQuotesCharactersPerEntry;
-      for (int i = 0; i < len; i++) {
-        *write_cursor++ = *replacement++;
-      }
-    }
-  }
-  *(write_cursor++) = '"';
-  return new_string;
-}
-
-
-template <typename Char, typename StringType>
-static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
-  int length = characters.length();
-  Counters::quote_json_char_count.Increment(length);
-  const int kSpaceForQuotes = 2;
-  int worst_case_length = length * kJsonQuoteWorstCaseBlowup + kSpaceForQuotes;
-  if (worst_case_length > kMaxGuaranteedNewSpaceString) {
-    return SlowQuoteJsonString<Char, StringType>(characters);
-  }
-
-  MaybeObject* new_alloc = AllocateRawString<StringType>(worst_case_length);
-  Object* new_object;
-  if (!new_alloc->ToObject(&new_object)) {
-    return new_alloc;
-  }
-  if (!Heap::new_space()->Contains(new_object)) {
-    // Even if our string is small enough to fit in new space we still have to
-    // handle it being allocated in old space as may happen in the third
-    // attempt.  See CALL_AND_RETRY in heap-inl.h and similar code in
-    // CEntryStub::GenerateCore.
-    return SlowQuoteJsonString<Char, StringType>(characters);
-  }
-  StringType* new_string = StringType::cast(new_object);
-  ASSERT(Heap::new_space()->Contains(new_string));
 
   STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
   Char* write_cursor = reinterpret_cast<Char*>(
       new_string->address() + SeqAsciiString::kHeaderSize);
   *(write_cursor++) = '"';
-
   const Char* read_cursor = characters.start();
-  const Char* end = read_cursor + length;
-  while (read_cursor < end) {
-    Char c = *(read_cursor++);
-    if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
-      *(write_cursor++) = c;
-    } else {
-      int len = JsonQuoteLengths[static_cast<unsigned>(c)];
-      const char* replacement = JsonQuotes +
-          static_cast<unsigned>(c) * kJsonQuotesCharactersPerEntry;
-      write_cursor[0] = replacement[0];
-      if (len > 1) {
-        write_cursor[1] = replacement[1];
-        if (len > 2) {
-          ASSERT(len == 6);
-          write_cursor[2] = replacement[2];
-          write_cursor[3] = replacement[3];
-          write_cursor[4] = replacement[4];
-          write_cursor[5] = replacement[5];
+  if (quoted_length == length + 2) {
+    CopyChars(write_cursor, read_cursor, length);
+    write_cursor += length;
+  } else {
+    const Char* end = read_cursor + length;
+    while (read_cursor < end) {
+      Char c = *(read_cursor++);
+      if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
+        *(write_cursor++) = c;
+      } else {
+        const char* replacement = JsonQuotes[static_cast<unsigned>(c)];
+        if (!replacement) {
+          *(write_cursor++) = c;
+        } else {
+          write_cursor = WriteString(write_cursor, replacement);
         }
       }
-      write_cursor += len;
     }
   }
   *(write_cursor++) = '"';
-
-  int final_length = static_cast<int>(
-      write_cursor - reinterpret_cast<Char*>(
-          new_string->address() + SeqAsciiString::kHeaderSize));
-  Heap::new_space()->ShrinkStringAtAllocationBoundary<StringType>(new_string,
-                                                                  final_length);
+  ASSERT_EQ(SeqAsciiString::kHeaderSize + quoted_length * sizeof(Char),
+            reinterpret_cast<Address>(write_cursor) - new_string->address());
   return new_string;
 }
 
@@ -6029,6 +5977,37 @@ static MaybeObject* Runtime_Math_log(Arguments args) {
 }
 
 
+// Helper function to compute x^y, where y is known to be an
+// integer. Uses binary decomposition to limit the number of
+// multiplications; see the discussion in "Hacker's Delight" by Henry
+// S. Warren, Jr., figure 11-6, page 213.
+static double powi(double x, int y) {
+  ASSERT(y != kMinInt);
+  unsigned n = (y < 0) ? -y : y;
+  double m = x;
+  double p = 1;
+  while (true) {
+    if ((n & 1) != 0) p *= m;
+    n >>= 1;
+    if (n == 0) {
+      if (y < 0) {
+        // Unfortunately, we have to be careful when p has reached
+        // infinity in the computation, because sometimes the higher
+        // internal precision in the pow() implementation would have
+        // given us a finite p. This happens very rarely.
+        double result = 1.0 / p;
+        return (result == 0 && isinf(p))
+            ? pow(x, static_cast<double>(y))  // Avoid pow(double, int).
+            : result;
+      } else {
+        return p;
+      }
+    }
+    m *= m;
+  }
+}
+
+
 static MaybeObject* Runtime_Math_pow(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -6040,11 +6019,31 @@ static MaybeObject* Runtime_Math_pow(Arguments args) {
   // custom powi() function than the generic pow().
   if (args[1]->IsSmi()) {
     int y = Smi::cast(args[1])->value();
-    return Heap::NumberFromDouble(power_double_int(x, y));
+    return Heap::NumberFromDouble(powi(x, y));
   }
 
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  return Heap::AllocateHeapNumber(power_double_double(x, y));
+
+  if (!isinf(x)) {
+    if (y == 0.5) {
+      // It's not uncommon to use Math.pow(x, 0.5) to compute the
+      // square root of a number. To speed up such computations, we
+      // explictly check for this case and use the sqrt() function
+      // which is faster than pow().
+      return Heap::AllocateHeapNumber(sqrt(x));
+    } else if (y == -0.5) {
+      // Optimized using Math.pow(x, -0.5) == 1 / Math.pow(x, 0.5).
+      return Heap::AllocateHeapNumber(1.0 / sqrt(x));
+    }
+  }
+
+  if (y == 0) {
+    return Smi::FromInt(1);
+  } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
+    return Heap::nan_value();
+  } else {
+    return Heap::AllocateHeapNumber(pow(x, y));
+  }
 }
 
 // Fast version of Math.pow if we know that y is not an integer and
@@ -6055,11 +6054,11 @@ static MaybeObject* Runtime_Math_pow_cfunction(Arguments args) {
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
   if (y == 0) {
-    return Smi::FromInt(1);
+      return Smi::FromInt(1);
   } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
-    return Heap::nan_value();
+      return Heap::nan_value();
   } else {
-    return Heap::AllocateHeapNumber(pow(x, y));
+      return Heap::AllocateHeapNumber(pow(x, y));
   }
 }
 
@@ -7672,13 +7671,13 @@ static MaybeObject* Runtime_AllocateInNewSpace(Arguments args) {
 }
 
 
-// Push an object unto an array of objects if it is not already in the
+// Push an array unto an array of arrays if it is not already in the
 // array.  Returns true if the element was pushed on the stack and
 // false otherwise.
 static MaybeObject* Runtime_PushIfAbsent(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, array, args[0]);
-  CONVERT_CHECKED(JSObject, element, args[1]);
+  CONVERT_CHECKED(JSArray, element, args[1]);
   RUNTIME_ASSERT(array->HasFastElements());
   int length = Smi::cast(array->length())->value();
   FixedArray* elements = FixedArray::cast(array->elements());

@@ -66,10 +66,21 @@ function JSONParse(text, reviver) {
   }
 }
 
+function StackContains(stack, val) {
+  var length = stack.length;
+  for (var i = 0; i < length; i++) {
+    if (stack[i] === val) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function SerializeArray(value, replacer, stack, indent, gap) {
-  if (!%PushIfAbsent(stack, value)) {
+  if (StackContains(stack, value)) {
     throw MakeTypeError('circular_structure', []);
   }
+  stack.push(value);
   var stepback = indent;
   indent += gap;
   var partial = [];
@@ -97,9 +108,10 @@ function SerializeArray(value, replacer, stack, indent, gap) {
 }
 
 function SerializeObject(value, replacer, stack, indent, gap) {
-  if (!%PushIfAbsent(stack, value)) {
+  if (StackContains(stack, value)) {
     throw MakeTypeError('circular_structure', []);
   }
+  stack.push(value);
   var stepback = indent;
   indent += gap;
   var partial = [];
@@ -185,9 +197,10 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
 
 
 function BasicSerializeArray(value, stack, builder) {
-  if (!%PushIfAbsent(stack, value)) {
+  if (StackContains(stack, value)) {
     throw MakeTypeError('circular_structure', []);
   }
+  stack.push(value);
   builder.push("[");
   var len = value.length;
   for (var i = 0; i < len; i++) {
@@ -207,9 +220,10 @@ function BasicSerializeArray(value, stack, builder) {
 
 
 function BasicSerializeObject(value, stack, builder) {
-  if (!%PushIfAbsent(stack, value)) {
+  if (StackContains(stack, value)) {
     throw MakeTypeError('circular_structure', []);
   }
+  stack.push(value);
   builder.push("{");
   for (var p in value) {
     if (%HasLocalProperty(value, p)) {

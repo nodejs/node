@@ -159,11 +159,9 @@ function Join(array, length, separator, convert) {
 }
 
 
-function ConvertToString(x) {
-  if (IS_STRING(x)) return x;
-  if (IS_NUMBER(x)) return %_NumberToString(x);
-  if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
-  return (IS_NULL_OR_UNDEFINED(x)) ? '' : %ToString(%DefaultString(x));
+function ConvertToString(e) {
+  if (e == null) return '';
+  else return ToString(e);
 }
 
 
@@ -367,13 +365,14 @@ function ArrayJoin(separator) {
   if (IS_UNDEFINED(separator)) {
     separator = ',';
   } else if (!IS_STRING(separator)) {
-    separator = NonStringToString(separator);
+    separator = ToString(separator);
   }
 
   var result = %_FastAsciiArrayJoin(this, separator);
   if (!IS_UNDEFINED(result)) return result;
 
-  return Join(this, TO_UINT32(this.length), separator, ConvertToString);
+  var length = TO_UINT32(this.length);
+  return Join(this, length, separator, ConvertToString);
 }
 
 

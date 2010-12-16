@@ -1395,17 +1395,15 @@ class LNumberTagI: public LUnaryOperation {
 
 class LNumberTagD: public LUnaryOperation {
  public:
-  LNumberTagD(LOperand* value, LOperand* temp1, LOperand* temp2)
-      : LUnaryOperation(value), temp1_(temp1), temp2_(temp2) { }
+  explicit LNumberTagD(LOperand* value, LOperand* temp)
+      : LUnaryOperation(value), temp_(temp) { }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagD, "number-tag-d")
 
-  LOperand* temp1() const { return temp1_; }
-  LOperand* temp2() const { return temp2_; }
+  LOperand* temp() const { return temp_; }
 
  private:
-  LOperand* temp1_;
-  LOperand* temp2_;
+  LOperand* temp_;
 };
 
 
@@ -1889,6 +1887,7 @@ class LChunk: public ZoneObject {
   LGap* GetGapAt(int index) const;
   bool IsGapAt(int index) const;
   int NearestGapPos(int index) const;
+  int NearestNextGapPos(int index) const;
   void MarkEmptyBlocks();
   const ZoneList<LPointerMap*>* pointer_maps() const { return &pointer_maps_; }
   LLabel* GetLabel(int block_id) const {

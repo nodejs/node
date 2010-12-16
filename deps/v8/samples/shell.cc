@@ -45,6 +45,7 @@ v8::Handle<v8::Value> Quit(const v8::Arguments& args);
 v8::Handle<v8::Value> Version(const v8::Arguments& args);
 v8::Handle<v8::String> ReadFile(const char* name);
 void ReportException(v8::TryCatch* handler);
+void SetFlagsFromString(const char* flags);
 
 
 int RunMain(int argc, char* argv[]) {
@@ -343,4 +344,9 @@ void ReportException(v8::TryCatch* try_catch) {
       printf("%s\n", stack_trace_string);
     }
   }
+}
+
+
+void SetFlagsFromString(const char* flags) {
+  v8::V8::SetFlagsFromString(flags, strlen(flags));
 }

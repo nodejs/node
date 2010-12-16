@@ -136,7 +136,7 @@ bool LCodeGen::GeneratePrologue() {
       Label loop;
       __ bind(&loop);
       __ push(r2);
-      __ sub(r0, r0, Operand(1), SetCC);
+      __ sub(r0, r0, Operand(1));
       __ b(ne, &loop);
     } else {
       __ sub(sp,  sp, Operand(slots * kPointerSize));
@@ -1733,14 +1733,13 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
 
   DoubleRegister input_reg = ToDoubleRegister(instr->input());
   Register reg = ToRegister(instr->result());
-  Register temp1 = ToRegister(instr->temp1());
-  Register temp2 = ToRegister(instr->temp2());
+  Register tmp = ToRegister(instr->temp());
   Register scratch = r9;
 
   DeferredNumberTagD* deferred = new DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry());
+    __ AllocateHeapNumber(reg, tmp, ip, scratch, deferred->entry());
   } else {
     __ jmp(deferred->entry());
   }

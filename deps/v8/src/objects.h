@@ -3729,9 +3729,7 @@ enum MathFunctionId {
   kMathACos = 0xa,
   kMathATan = 0xb,
   kMathExp = 0xc,
-  kMathSqrt = 0xd,
-  kMathPow = 0xe,
-  kMathPowHalf = 0xf
+  kMathSqrt = 0xd
 };
 
 
@@ -4156,11 +4154,11 @@ class SharedFunctionInfo: public HeapObject {
   static const int kTryFullCodegen = 1;
   static const int kAllowLazyCompilation = 2;
   static const int kMathFunctionShift = 3;
-  static const int kMathFunctionMask = 0x1f;
-  static const int kLiveObjectsMayExist = 8;
-  static const int kCodeAgeShift = 9;
+  static const int kMathFunctionMask = 0xf;
+  static const int kLiveObjectsMayExist = 7;
+  static const int kCodeAgeShift = 8;
   static const int kCodeAgeMask = 0x7;
-  static const int kOptimizationDisabled = 12;
+  static const int kOptimizationDisabled = 11;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };

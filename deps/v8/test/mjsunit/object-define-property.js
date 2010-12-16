@@ -866,36 +866,4 @@ assertFalse(desc.writable);
 assertFalse(desc.enumerable);
 assertFalse(desc.configurable);
 
-// See issue 968: http://code.google.com/p/v8/issues/detail?id=968
-var o = { x : 42 };
-Object.defineProperty(o, "x", { writable: false });
-assertEquals(42, o.x);
-o.x = 37;
-assertEquals(42, o.x);
-
-o = { x : 42 };
-Object.defineProperty(o, "x", {});
-assertEquals(42, o.x);
-o.x = 37;
-// Writability is preserved.
-assertEquals(37, o.x);
-
-var o = { };
-Object.defineProperty(o, "x", { writable: false });
-assertEquals(undefined, o.x);
-o.x = 37;
-assertEquals(undefined, o.x);
-
-o = { get x() { return 87; } };
-Object.defineProperty(o, "x", { writable: false });
-assertEquals(undefined, o.x);
-o.x = 37;
-assertEquals(undefined, o.x);
-
-// Ignore inherited properties.
-o = { __proto__ : { x : 87 } };
-Object.defineProperty(o, "x", { writable: false });
-assertEquals(undefined, o.x);
-o.x = 37;
-assertEquals(undefined, o.x);
 

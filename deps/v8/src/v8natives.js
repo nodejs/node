@@ -615,13 +615,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     } else {
       flag |= READ_ONLY;
     }
-    var value = void 0;  // Default value is undefined.
-    if (desc.hasValue()) {
-      value = desc.getValue();
-    } else if (!IS_UNDEFINED(current)) {
-      value = current.getValue();
-    }
-    %DefineOrRedefineDataProperty(obj, p, value, flag);
+    %DefineOrRedefineDataProperty(obj, p, desc.getValue(), flag);
   } else {
     if (desc.hasGetter() && IS_FUNCTION(desc.getGet())) {
        %DefineOrRedefineAccessorProperty(obj, p, GETTER, desc.getGet(), flag);

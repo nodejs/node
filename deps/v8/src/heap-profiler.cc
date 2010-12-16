@@ -348,34 +348,27 @@ void HeapProfiler::TearDown() {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
-HeapSnapshot* HeapProfiler::TakeSnapshot(const char* name,
-                                         int type,
-                                         v8::ActivityControl* control) {
+HeapSnapshot* HeapProfiler::TakeSnapshot(const char* name, int type) {
   ASSERT(singleton_ != NULL);
-  return singleton_->TakeSnapshotImpl(name, type, control);
+  return singleton_->TakeSnapshotImpl(name, type);
 }
 
 
-HeapSnapshot* HeapProfiler::TakeSnapshot(String* name,
-                                         int type,
-                                         v8::ActivityControl* control) {
+HeapSnapshot* HeapProfiler::TakeSnapshot(String* name, int type) {
   ASSERT(singleton_ != NULL);
-  return singleton_->TakeSnapshotImpl(name, type, control);
+  return singleton_->TakeSnapshotImpl(name, type);
 }
 
 
-HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name,
-                                             int type,
-                                             v8::ActivityControl* control) {
+HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name, int type) {
   Heap::CollectAllGarbage(true);
   HeapSnapshot::Type s_type = static_cast<HeapSnapshot::Type>(type);
   HeapSnapshot* result =
       snapshots_->NewSnapshot(s_type, name, next_snapshot_uid_++);
-  bool generation_completed = true;
   switch (s_type) {
     case HeapSnapshot::kFull: {
-      HeapSnapshotGenerator generator(result, control);
-      generation_completed = generator.GenerateSnapshot();
+      HeapSnapshotGenerator generator(result);
+      generator.GenerateSnapshot();
       break;
     }
     case HeapSnapshot::kAggregated: {
@@ -388,19 +381,13 @@ HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name,
     default:
       UNREACHABLE();
   }
-  if (!generation_completed) {
-    delete result;
-    result = NULL;
-  }
-  snapshots_->SnapshotGenerationFinished(result);
+  snapshots_->SnapshotGenerationFinished();
   return result;
 }
 
 
-HeapSnapshot* HeapProfiler::TakeSnapshotImpl(String* name,
-                                             int type,
-                                             v8::ActivityControl* control) {
-  return TakeSnapshotImpl(snapshots_->GetName(name), type, control);
+HeapSnapshot* HeapProfiler::TakeSnapshotImpl(String* name, int type) {
+  return TakeSnapshotImpl(snapshots_->GetName(name), type);
 }
 
 

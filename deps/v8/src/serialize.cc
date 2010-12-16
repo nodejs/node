@@ -486,18 +486,6 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       36,
       "LDoubleConstant::one_half");
-  Add(ExternalReference::address_of_negative_infinity().address(),
-      UNCLASSIFIED,
-      37,
-      "LDoubleConstant::negative_infinity");
-  Add(ExternalReference::power_double_double_function().address(),
-      UNCLASSIFIED,
-      38,
-      "power_double_double_function");
-  Add(ExternalReference::power_double_int_function().address(),
-      UNCLASSIFIED,
-      39,
-      "power_double_int_function");
 }
 
 

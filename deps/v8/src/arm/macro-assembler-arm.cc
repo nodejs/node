@@ -1060,14 +1060,9 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     return;
   }
 
-  // Assert that the register arguments are different and that none of
-  // them are ip. ip is used explicitly in the code generated below.
   ASSERT(!result.is(scratch1));
   ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
-  ASSERT(!result.is(ip));
-  ASSERT(!scratch1.is(ip));
-  ASSERT(!scratch2.is(ip));
 
   // Check relative positions of allocation top and limit addresses.
   // The values must be adjacent in memory to allow the use of LDM.

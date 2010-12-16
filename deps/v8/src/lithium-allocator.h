@@ -55,7 +55,6 @@ class LPointerMap;
 class LStackSlot;
 class LRegister;
 
-
 // This class represents a single point of a LOperand's lifetime.
 // For each lithium instruction there are exactly two lifetime positions:
 // the beginning and the end of the instruction. Lifetime positions for
@@ -122,13 +121,7 @@ class LifetimePosition {
   // instruction.
   bool IsValid() const { return value_ != -1; }
 
-  static inline LifetimePosition Invalid() { return LifetimePosition(); }
-
-  static inline LifetimePosition MaxPosition() {
-    // We have to use this kind of getter instead of static member due to
-    // crash bug in GDB.
-    return LifetimePosition(kMaxInt);
-  }
+  static LifetimePosition Invalid() { return LifetimePosition(); }
 
  private:
   static const int kStep = 2;
@@ -139,13 +132,6 @@ class LifetimePosition {
   explicit LifetimePosition(int value) : value_(value) { }
 
   int value_;
-};
-
-
-enum RegisterKind {
-  NONE,
-  GENERAL_REGISTERS,
-  DOUBLE_REGISTERS
 };
 
 
@@ -608,8 +594,8 @@ class LiveRange: public ZoneObject {
   explicit LiveRange(int id)
       : id_(id),
         spilled_(false),
+        assigned_double_(false),
         assigned_register_(kInvalidAssignment),
-        assigned_register_kind_(NONE),
         last_interval_(NULL),
         first_interval_(NULL),
         first_pos_(NULL),
@@ -634,10 +620,10 @@ class LiveRange: public ZoneObject {
   LOperand* CreateAssignedOperand();
   int assigned_register() const { return assigned_register_; }
   int spill_start_index() const { return spill_start_index_; }
-  void set_assigned_register(int reg, RegisterKind register_kind) {
+  void set_assigned_register(int reg, bool double_reg) {
     ASSERT(!HasRegisterAssigned() && !IsSpilled());
     assigned_register_ = reg;
-    assigned_register_kind_ = register_kind;
+    assigned_double_ = double_reg;
     ConvertOperands();
   }
   void MakeSpilled() {
@@ -666,13 +652,9 @@ class LiveRange: public ZoneObject {
   // Can this live range be spilled at this position.
   bool CanBeSpilled(LifetimePosition pos);
 
-  // Split this live range at the given position which must follow the start of
-  // the range.
-  // All uses following the given position will be moved from this
-  // live range to the result live range.
   void SplitAt(LifetimePosition position, LiveRange* result);
 
-  bool IsDouble() const { return assigned_register_kind_ == DOUBLE_REGISTERS; }
+  bool IsDouble() const { return assigned_double_; }
   bool HasRegisterAssigned() const {
     return assigned_register_ != kInvalidAssignment;
   }
@@ -739,8 +721,8 @@ class LiveRange: public ZoneObject {
 
   int id_;
   bool spilled_;
+  bool assigned_double_;
   int assigned_register_;
-  RegisterKind assigned_register_kind_;
   UseInterval* last_interval_;
   UseInterval* first_interval_;
   UsePosition* first_pos_;
@@ -792,8 +774,8 @@ class LAllocator BASE_EMBEDDED {
   // Checks whether the value of a given virtual register is tagged.
   bool HasTaggedValue(int virtual_register) const;
 
-  // Returns the register kind required by the given virtual register.
-  RegisterKind RequiredRegisterKind(int virtual_register) const;
+  // Checks whether the value of a given virtual register is a double.
+  bool HasDoubleValue(int virtual_register) const;
 
   // Begin a new instruction.
   void BeginInstruction();
@@ -832,6 +814,12 @@ class LAllocator BASE_EMBEDDED {
 #endif
 
  private:
+  enum OperationMode {
+    NONE,
+    CPU_REGISTERS,
+    XMM_REGISTERS
+  };
+
   void MeetRegisterConstraints();
   void ResolvePhis();
   void BuildLiveRanges();
@@ -883,38 +871,17 @@ class LAllocator BASE_EMBEDDED {
   // Helper methods for allocating registers.
   bool TryAllocateFreeReg(LiveRange* range);
   void AllocateBlockedReg(LiveRange* range);
-
-  // Live range splitting helpers.
-
-  // Split the given range at the given position.
-  // If range starts at or after the given position then the
-  // original range is returned.
-  // Otherwise returns the live range that starts at pos and contains
-  // all uses from the original range that follow pos. Uses at pos will
-  // still be owned by the original range after splitting.
-  LiveRange* SplitAt(LiveRange* range, LifetimePosition pos);
-
-  // Split the given range in a position from the interval [start, end].
-  LiveRange* SplitBetween(LiveRange* range,
-                          LifetimePosition start,
-                          LifetimePosition end);
-
-  // Find a lifetime position in the interval [start, end] which
-  // is optimal for splitting: it is either header of the outermost
-  // loop covered by this interval or the latest possible position.
+  void SplitAndSpillIntersecting(LiveRange* range);
   LifetimePosition FindOptimalSplitPos(LifetimePosition start,
                                        LifetimePosition end);
-
-  // Spill the given life range after position pos.
-  void SpillAfter(LiveRange* range, LifetimePosition pos);
-
-  // Spill the given life range after position start and up to position end.
-  void SpillBetween(LiveRange* range,
-                    LifetimePosition start,
-                    LifetimePosition end);
-
-  void SplitAndSpillIntersecting(LiveRange* range);
-
+  LiveRange* Split(LiveRange* range,
+                   LifetimePosition start,
+                   LifetimePosition end);
+  LiveRange* Split(LiveRange* range, LifetimePosition split_pos);
+  void SplitAndSpill(LiveRange* range,
+                     LifetimePosition start,
+                     LifetimePosition end);
+  void SplitAndSpill(LiveRange* range, LifetimePosition at);
   void Spill(LiveRange* range);
   bool IsBlockBoundary(LifetimePosition pos);
   void AddGapMove(int pos, LiveRange* prev, LiveRange* next);
@@ -947,8 +914,6 @@ class LAllocator BASE_EMBEDDED {
   HPhi* LookupPhi(LOperand* operand) const;
   LGap* GetLastGap(HBasicBlock* block) const;
 
-  const char* RegisterName(int allocation_index);
-
   LChunk* chunk_;
   ZoneList<InstructionSummary*> summaries_;
   InstructionSummary* next_summary_;
@@ -973,7 +938,7 @@ class LAllocator BASE_EMBEDDED {
   // Next virtual register number to be assigned to temporaries.
   int next_virtual_register_;
 
-  RegisterKind mode_;
+  OperationMode mode_;
   int num_registers_;
 
   HGraph* graph_;

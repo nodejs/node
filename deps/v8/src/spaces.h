@@ -1643,11 +1643,6 @@ class NewSpace : public Space {
 
   virtual bool ReserveSpace(int bytes);
 
-  // Resizes a sequential string which must be the most recent thing that was
-  // allocated in new space.
-  template <typename StringType>
-  inline void ShrinkStringAtAllocationBoundary(String* string, int len);
-
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect the space by marking it read-only/writable.
   virtual void Protect();

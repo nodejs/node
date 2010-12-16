@@ -36,265 +36,63 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// BufferedUC16CharacterStreams
+// UTF16Buffer
 
-BufferedUC16CharacterStream::BufferedUC16CharacterStream()
-    : UC16CharacterStream(),
-      pushback_limit_(NULL) {
-  // Initialize buffer as being empty. First read will fill the buffer.
-  buffer_cursor_ = buffer_;
-  buffer_end_ = buffer_;
-}
+// CharacterStreamUTF16Buffer
+CharacterStreamUTF16Buffer::CharacterStreamUTF16Buffer()
+    : pushback_buffer_(0), last_(0), stream_(NULL) { }
 
-BufferedUC16CharacterStream::~BufferedUC16CharacterStream() { }
 
-void BufferedUC16CharacterStream::PushBack(uc16 character) {
-  if (pushback_limit_ == NULL && buffer_cursor_ > buffer_) {
-    // buffer_ is writable, buffer_cursor_ is const pointer.
-    buffer_[--buffer_cursor_ - buffer_] = character;
-    pos_--;
-    return;
+void CharacterStreamUTF16Buffer::Initialize(Handle<String> data,
+                                            unibrow::CharacterStream* input,
+                                            int start_position,
+                                            int end_position) {
+  stream_ = input;
+  if (start_position > 0) {
+    SeekForward(start_position);
   }
-  SlowPushBack(character);
+  end_ = end_position != kNoEndPosition ? end_position : kMaxInt;
 }
 
 
-void BufferedUC16CharacterStream::SlowPushBack(uc16 character) {
-  // In pushback mode, the end of the buffer contains pushback,
-  // and the start of the buffer (from buffer start to pushback_limit_)
-  // contains valid data that comes just after the pushback.
-  // We NULL the pushback_limit_ if pushing all the way back to the
-  // start of the buffer.
-
-  if (pushback_limit_ == NULL) {
-    // Enter pushback mode.
-    pushback_limit_ = buffer_end_;
-    buffer_end_ = buffer_ + kBufferSize;
-    buffer_cursor_ = buffer_end_;
-  }
-  ASSERT(pushback_limit_ > buffer_);
-  ASSERT(pos_ > 0);
-  buffer_[--buffer_cursor_ - buffer_] = character;
-  if (buffer_cursor_ == buffer_) {
-    pushback_limit_ = NULL;
-  } else if (buffer_cursor_ < pushback_limit_) {
-    pushback_limit_ = buffer_cursor_;
-  }
+void CharacterStreamUTF16Buffer::PushBack(uc32 ch) {
+  pushback_buffer()->Add(last_);
+  last_ = ch;
   pos_--;
 }
 
 
-bool BufferedUC16CharacterStream::ReadBlock() {
-  if (pushback_limit_ != NULL) {
-    buffer_cursor_ = buffer_;
-    buffer_end_ = pushback_limit_;
-    pushback_limit_ = NULL;
-    ASSERT(buffer_cursor_ != buffer_end_);
-    return true;
-  }
-  unsigned length = FillBuffer(pos_, kBufferSize);
-  buffer_cursor_ = buffer_;
-  buffer_end_ = buffer_ + length;
-  return length > 0;
-}
-
-
-unsigned BufferedUC16CharacterStream::SlowSeekForward(unsigned delta) {
-  // Leave pushback mode (i.e., ignore that there might be valid data
-  // in the buffer before the pushback_limit_ point).
-  pushback_limit_ = NULL;
-  return BufferSeekForward(delta);
-}
-
-// ----------------------------------------------------------------------------
-// GenericStringUC16CharacterStream
-
-
-GenericStringUC16CharacterStream::GenericStringUC16CharacterStream(
-    Handle<String> data,
-    unsigned start_position,
-    unsigned end_position)
-    : string_(data),
-      length_(end_position) {
-  ASSERT(end_position >= start_position);
-  buffer_cursor_ = buffer_;
-  buffer_end_ = buffer_;
-  pos_ = start_position;
-}
-
-
-GenericStringUC16CharacterStream::~GenericStringUC16CharacterStream() { }
-
-
-unsigned GenericStringUC16CharacterStream::BufferSeekForward(unsigned delta) {
-  unsigned old_pos = pos_;
-  pos_ = Min(pos_ + delta, length_);
-  ReadBlock();
-  return pos_ - old_pos;
-}
-
-
-unsigned GenericStringUC16CharacterStream::FillBuffer(unsigned from_pos,
-                                                      unsigned length) {
-  if (from_pos >= length_) return 0;
-  if (from_pos + length > length_) {
-    length = length_ - from_pos;
-  }
-  String::WriteToFlat<uc16>(*string_, buffer_, from_pos, from_pos + length);
-  return length;
-}
-
-
-// ----------------------------------------------------------------------------
-// Utf8ToUC16CharacterStream
-Utf8ToUC16CharacterStream::Utf8ToUC16CharacterStream(const byte* data,
-                                                     unsigned length)
-    : BufferedUC16CharacterStream(),
-      raw_data_(data),
-      raw_data_length_(length),
-      raw_data_pos_(0),
-      raw_character_position_(0) {
-  ReadBlock();
-}
-
-
-Utf8ToUC16CharacterStream::~Utf8ToUC16CharacterStream() { }
-
-
-unsigned Utf8ToUC16CharacterStream::BufferSeekForward(unsigned delta) {
-  unsigned old_pos = pos_;
-  unsigned target_pos = pos_ + delta;
-  SetRawPosition(target_pos);
-  pos_ = raw_character_position_;
-  ReadBlock();
-  return pos_ - old_pos;
-}
-
-
-unsigned Utf8ToUC16CharacterStream::FillBuffer(unsigned char_position,
-                                               unsigned length) {
-  static const unibrow::uchar kMaxUC16Character = 0xffff;
-  SetRawPosition(char_position);
-  if (raw_character_position_ != char_position) {
-    // char_position was not a valid position in the stream (hit the end
-    // while spooling to it).
-    return 0u;
-  }
-  unsigned i = 0;
-  while (i < length) {
-    if (raw_data_pos_ == raw_data_length_) break;
-    unibrow::uchar c = raw_data_[raw_data_pos_];
-    if (c <= unibrow::Utf8::kMaxOneByteChar) {
-      raw_data_pos_++;
-    } else {
-      c =  unibrow::Utf8::CalculateValue(raw_data_ + raw_data_pos_,
-                                         raw_data_length_ - raw_data_pos_,
-                                         &raw_data_pos_);
-      // Don't allow characters outside of the BMP.
-      if (c > kMaxUC16Character) {
-        c = unibrow::Utf8::kBadChar;
-      }
-    }
-    buffer_[i++] = static_cast<uc16>(c);
-  }
-  raw_character_position_ = char_position + i;
-  return i;
-}
-
-
-static const byte kUtf8MultiByteMask = 0xC0;
-static const byte kUtf8MultiByteCharStart = 0xC0;
-static const byte kUtf8MultiByteCharFollower = 0x80;
-
-
-#ifdef DEBUG
-static bool IsUtf8MultiCharacterStart(byte first_byte) {
-  return (first_byte & kUtf8MultiByteMask) == kUtf8MultiByteCharStart;
-}
-#endif
-
-
-static bool IsUtf8MultiCharacterFollower(byte later_byte) {
-  return (later_byte & kUtf8MultiByteMask) == kUtf8MultiByteCharFollower;
-}
-
-
-// Move the cursor back to point at the preceding UTF-8 character start
-// in the buffer.
-static inline void Utf8CharacterBack(const byte* buffer, unsigned* cursor) {
-  byte character = buffer[--*cursor];
-  if (character > unibrow::Utf8::kMaxOneByteChar) {
-    ASSERT(IsUtf8MultiCharacterFollower(character));
-    // Last byte of a multi-byte character encoding. Step backwards until
-    // pointing to the first byte of the encoding, recognized by having the
-    // top two bits set.
-    while (IsUtf8MultiCharacterFollower(buffer[--*cursor])) { }
-    ASSERT(IsUtf8MultiCharacterStart(buffer[*cursor]));
+uc32 CharacterStreamUTF16Buffer::Advance() {
+  ASSERT(end_ != kNoEndPosition);
+  ASSERT(end_ >= 0);
+  // NOTE: It is of importance to Persian / Farsi resources that we do
+  // *not* strip format control characters in the scanner; see
+  //
+  //    https://bugzilla.mozilla.org/show_bug.cgi?id=274152
+  //
+  // So, even though ECMA-262, section 7.1, page 11, dictates that we
+  // must remove Unicode format-control characters, we do not. This is
+  // in line with how IE and SpiderMonkey handles it.
+  if (!pushback_buffer()->is_empty()) {
+    pos_++;
+    return last_ = pushback_buffer()->RemoveLast();
+  } else if (stream_->has_more() && pos_ < end_) {
+    pos_++;
+    uc32 next = stream_->GetNext();
+    return last_ = next;
+  } else {
+    // Note: currently the following increment is necessary to avoid a
+    // test-parser problem!
+    pos_++;
+    return last_ = static_cast<uc32>(-1);
   }
 }
 
 
-// Move the cursor forward to point at the next following UTF-8 character start
-// in the buffer.
-static inline void Utf8CharacterForward(const byte* buffer, unsigned* cursor) {
-  byte character = buffer[(*cursor)++];
-  if (character > unibrow::Utf8::kMaxOneByteChar) {
-    // First character of a multi-byte character encoding.
-    // The number of most-significant one-bits determines the length of the
-    // encoding:
-    //  110..... - (0xCx, 0xDx) one additional byte (minimum).
-    //  1110.... - (0xEx) two additional bytes.
-    //  11110... - (0xFx) three additional bytes (maximum).
-    ASSERT(IsUtf8MultiCharacterStart(character));
-    // Additional bytes is:
-    // 1 if value in range 0xC0 .. 0xDF.
-    // 2 if value in range 0xE0 .. 0xEF.
-    // 3 if value in range 0xF0 .. 0xF7.
-    // Encode that in a single value.
-    unsigned additional_bytes =
-        ((0x3211u) >> (((character - 0xC0) >> 2) & 0xC)) & 0x03;
-    *cursor += additional_bytes;
-    ASSERT(!IsUtf8MultiCharacterFollower(buffer[1 + additional_bytes]));
-  }
-}
-
-
-void Utf8ToUC16CharacterStream::SetRawPosition(unsigned target_position) {
-  if (raw_character_position_ > target_position) {
-    // Spool backwards in utf8 buffer.
-    do {
-      Utf8CharacterBack(raw_data_, &raw_data_pos_);
-      raw_character_position_--;
-    } while (raw_character_position_ > target_position);
-    return;
-  }
-  // Spool forwards in the utf8 buffer.
-  while (raw_character_position_ < target_position) {
-    if (raw_data_pos_ == raw_data_length_) return;
-    Utf8CharacterForward(raw_data_, &raw_data_pos_);
-    raw_character_position_++;
-  }
-}
-
-
-// ----------------------------------------------------------------------------
-// ExternalTwoByteStringUC16CharacterStream
-
-ExternalTwoByteStringUC16CharacterStream::
-    ~ExternalTwoByteStringUC16CharacterStream() { }
-
-
-ExternalTwoByteStringUC16CharacterStream
-    ::ExternalTwoByteStringUC16CharacterStream(
-        Handle<ExternalTwoByteString> data,
-        int start_position,
-        int end_position)
-    : UC16CharacterStream(),
-      source_(data),
-      raw_data_(data->GetTwoByteData(start_position)) {
-  buffer_cursor_ = raw_data_,
-  buffer_end_ = raw_data_ + (end_position - start_position);
-  pos_ = start_position;
+void CharacterStreamUTF16Buffer::SeekForward(int pos) {
+  pos_ = pos;
+  ASSERT(pushback_buffer()->is_empty());
+  stream_->Seek(pos);
 }
 
 
@@ -317,19 +115,15 @@ void Scanner::LiteralScope::Complete() {
   complete_ = true;
 }
 
-
 // ----------------------------------------------------------------------------
 // V8JavaScriptScanner
 
-V8JavaScriptScanner::V8JavaScriptScanner() : JavaScriptScanner() { }
-
-
-void V8JavaScriptScanner::Initialize(UC16CharacterStream* source,
+void V8JavaScriptScanner::Initialize(Handle<String> source,
                                      int literal_flags) {
-  source_ = source;
-  literal_flags_ = literal_flags | kLiteralIdentifier;
+  source_ = stream_initializer_.Init(source, NULL, 0, source->length());
   // Need to capture identifiers in order to recognize "get" and "set"
   // in object literals.
+  literal_flags_ = literal_flags | kLiteralIdentifier;
   Init();
   // Skip initial whitespace allowing HTML comment ends just like
   // after a newline and scan first token.
@@ -339,14 +133,79 @@ void V8JavaScriptScanner::Initialize(UC16CharacterStream* source,
 }
 
 
+void V8JavaScriptScanner::Initialize(Handle<String> source,
+                                     unibrow::CharacterStream* stream,
+                                     int literal_flags) {
+  source_ = stream_initializer_.Init(source, stream,
+                                     0, UTF16Buffer::kNoEndPosition);
+  literal_flags_ = literal_flags | kLiteralIdentifier;
+  Init();
+  // Skip initial whitespace allowing HTML comment ends just like
+  // after a newline and scan first token.
+  has_line_terminator_before_next_ = true;
+  SkipWhiteSpace();
+  Scan();
+}
+
+
+void V8JavaScriptScanner::Initialize(Handle<String> source,
+                                     int start_position,
+                                     int end_position,
+                                     int literal_flags) {
+  source_ = stream_initializer_.Init(source, NULL,
+                                     start_position, end_position);
+  literal_flags_ = literal_flags | kLiteralIdentifier;
+  Init();
+  // Skip initial whitespace allowing HTML comment ends just like
+  // after a newline and scan first token.
+  has_line_terminator_before_next_ = true;
+  SkipWhiteSpace();
+  Scan();
+}
+
+
+UTF16Buffer* StreamInitializer::Init(Handle<String> source,
+                                     unibrow::CharacterStream* stream,
+                                     int start_position,
+                                     int end_position) {
+  // Either initialize the scanner from a character stream or from a
+  // string.
+  ASSERT(source.is_null() || stream == NULL);
+
+  // Initialize the source buffer.
+  if (!source.is_null() && StringShape(*source).IsExternalTwoByte()) {
+    two_byte_string_buffer_.Initialize(
+        Handle<ExternalTwoByteString>::cast(source),
+        start_position,
+        end_position);
+    return &two_byte_string_buffer_;
+  } else if (!source.is_null() && StringShape(*source).IsExternalAscii()) {
+    ascii_string_buffer_.Initialize(
+        Handle<ExternalAsciiString>::cast(source),
+        start_position,
+        end_position);
+    return &ascii_string_buffer_;
+  } else {
+    if (!source.is_null()) {
+      safe_string_input_buffer_.Reset(source.location());
+      stream = &safe_string_input_buffer_;
+    }
+    char_stream_buffer_.Initialize(source,
+                                   stream,
+                                   start_position,
+                                   end_position);
+    return &char_stream_buffer_;
+  }
+}
+
 // ----------------------------------------------------------------------------
 // JsonScanner
 
-JsonScanner::JsonScanner() : Scanner() { }
+JsonScanner::JsonScanner() {}
 
 
-void JsonScanner::Initialize(UC16CharacterStream* source) {
-  source_ = source;
+void JsonScanner::Initialize(Handle<String> source) {
+  source_ = stream_initializer_.Init(source, NULL, 0, source->length());
   Init();
   // Skip initial whitespace.
   SkipJsonWhiteSpace();

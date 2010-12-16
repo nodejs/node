@@ -917,7 +917,7 @@ AtomicWord* MemoryAllocator::AllocatedChunksFinder(
     }
     more_fine_grained_table = new AtomicWord[words_needed];
     for (int i = 0; i < words_needed; i++) {
-      more_fine_grained_table[i] = kUnusedChunkTableEntry;
+      more_fine_grained_table[i] = NULL;
     }
     Release_Store(&table[index],
                   reinterpret_cast<AtomicWord>(more_fine_grained_table));

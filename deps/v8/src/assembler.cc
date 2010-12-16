@@ -66,7 +66,6 @@ namespace internal {
 
 const double DoubleConstant::min_int = kMinInt;
 const double DoubleConstant::one_half = 0.5;
-const double DoubleConstant::negative_infinity = -V8_INFINITY;
 
 
 // -----------------------------------------------------------------------------
@@ -723,12 +722,6 @@ ExternalReference ExternalReference::address_of_one_half() {
 }
 
 
-ExternalReference ExternalReference::address_of_negative_infinity() {
-  return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::negative_infinity)));
-}
-
-
 #ifndef V8_INTERPRETED_REGEXP
 
 ExternalReference ExternalReference::re_check_stack_guard_state() {
@@ -797,51 +790,6 @@ static double div_two_doubles(double x, double y) {
 
 static double mod_two_doubles(double x, double y) {
   return modulo(x, y);
-}
-
-
-// Helper function to compute x^y, where y is known to be an
-// integer. Uses binary decomposition to limit the number of
-// multiplications; see the discussion in "Hacker's Delight" by Henry
-// S. Warren, Jr., figure 11-6, page 213.
-double power_double_int(double x, int y) {
-  double m = (y < 0) ? 1 / x : x;
-  unsigned n = (y < 0) ? -y : y;
-  double p = 1;
-  while (n != 0) {
-    if ((n & 1) != 0) p *= m;
-    m *= m;
-    if ((n & 2) != 0) p *= m;
-    m *= m;
-    n >>= 2;
-  }
-  return p;
-}
-
-
-double power_double_double(double x, double y) {
-  int y_int = static_cast<int>(y);
-  if (y == y_int) {
-    return power_double_int(x, y_int);  // Returns 1.0 for exponent 0.
-  }
-  if (!isinf(x)) {
-    if (y == 0.5) return sqrt(x);
-    if (y == -0.5) return 1.0 / sqrt(x);
-  }
-  if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
-    return OS::nan_value();
-  }
-  return pow(x, y);
-}
-
-
-ExternalReference ExternalReference::power_double_double_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_double)));
-}
-
-
-ExternalReference ExternalReference::power_double_int_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_int)));
 }
 
 

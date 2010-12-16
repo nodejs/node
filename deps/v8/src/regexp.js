@@ -120,28 +120,22 @@ function DoRegExpExec(regexp, string, index) {
 
 function BuildResultFromMatchInfo(lastMatchInfo, s) {
   var numResults = NUMBER_OF_CAPTURES(lastMatchInfo) >> 1;
-  var start = lastMatchInfo[CAPTURE0];
-  var end = lastMatchInfo[CAPTURE1];
-  var result = %_RegExpConstructResult(numResults, start, s);
-  if (start + 1 == end) {
-    result[0] = %_StringCharAt(s, start);
+  var result = %_RegExpConstructResult(numResults, lastMatchInfo[CAPTURE0], s);
+  if (numResults === 1) {
+    var matchStart = lastMatchInfo[CAPTURE(0)];
+    var matchEnd = lastMatchInfo[CAPTURE(1)];
+    result[0] = SubString(s, matchStart, matchEnd);
   } else {
-    result[0] = %_SubString(s, start, end);
-  }
-  var j = REGEXP_FIRST_CAPTURE + 2;
-  for (var i = 1; i < numResults; i++) {
-    start = lastMatchInfo[j++];
-    end = lastMatchInfo[j++];
-    if (end != -1) {
-      if (start + 1 == end) {
-        result[i] = %_StringCharAt(s, start);
+    for (var i = 0; i < numResults; i++) {
+      var matchStart = lastMatchInfo[CAPTURE(i << 1)];
+      var matchEnd = lastMatchInfo[CAPTURE((i << 1) + 1)];
+      if (matchStart != -1 && matchEnd != -1) {
+        result[i] = SubString(s, matchStart, matchEnd);
       } else {
-        result[i] = %_SubString(s, start, end);
+        // Make sure the element is present. Avoid reading the undefined
+        // property from the global object since this may change.
+        result[i] = void 0;
       }
-    } else {
-      // Make sure the element is present. Avoid reading the undefined
-      // property from the global object since this may change.
-      result[i] = void 0;
     }
   }
   return result;
@@ -172,7 +166,12 @@ function RegExpExec(string) {
     }
     string = regExpInput;
   }
-  string = TO_STRING_INLINE(string);
+  var s;
+  if (IS_STRING(string)) {
+    s = string;
+  } else {
+    s = ToString(string);
+  }
   var lastIndex = this.lastIndex;
 
   // Conversion is required by the ES5 specification (RegExp.prototype.exec
@@ -181,7 +180,7 @@ function RegExpExec(string) {
 
   var global = this.global;
   if (global) {
-    if (i < 0 || i > string.length) {
+    if (i < 0 || i > s.length) {
       this.lastIndex = 0;
       return null;
     }
@@ -189,9 +188,9 @@ function RegExpExec(string) {
     i = 0;
   }
 
-  %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, string, lastIndex]);
+  %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
   // matchIndices is either null or the lastMatchInfo array.
-  var matchIndices = %_RegExpExec(this, string, i, lastMatchInfo);
+  var matchIndices = %_RegExpExec(this, s, i, lastMatchInfo);
 
   if (matchIndices === null) {
     if (global) this.lastIndex = 0;
@@ -203,7 +202,7 @@ function RegExpExec(string) {
   if (global) {
     this.lastIndex = lastMatchInfo[CAPTURE1];
   }
-  return BuildResultFromMatchInfo(matchIndices, string);
+  return BuildResultFromMatchInfo(matchIndices, s);
 }
 
 
@@ -228,7 +227,12 @@ function RegExpTest(string) {
     string = regExpInput;
   }
 
-  string = TO_STRING_INLINE(string);
+  var s;
+  if (IS_STRING(string)) {
+    s = string;
+  } else {
+    s = ToString(string);
+  }
 
   var lastIndex = this.lastIndex;
 
@@ -237,13 +241,13 @@ function RegExpTest(string) {
   var i = TO_INTEGER(lastIndex);
   
   if (this.global) {
-    if (i < 0 || i > string.length) {
+    if (i < 0 || i > s.length) {
       this.lastIndex = 0;
       return false;
     }
-    %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, string, lastIndex]);
+    %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
     // matchIndices is either null or the lastMatchInfo array.
-    var matchIndices = %_RegExpExec(this, string, i, lastMatchInfo);
+    var matchIndices = %_RegExpExec(this, s, i, lastMatchInfo);
     if (matchIndices === null) {
       this.lastIndex = 0;
       return false;
@@ -265,11 +269,11 @@ function RegExpTest(string) {
                                  (this.ignoreCase ? 'i' : '')
                                  + (this.multiline ? 'm' : ''));
       }
-      if (!regexp_val.test(string)) return false;
+      if (!regexp_val.test(s)) return false;
     }    
-    %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, string, lastIndex]);
+    %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
     // matchIndices is either null or the lastMatchInfo array.
-    var matchIndices = %_RegExpExec(this, string, 0, lastMatchInfo);
+    var matchIndices = %_RegExpExec(this, s, 0, lastMatchInfo);
     if (matchIndices === null) return false;
     lastMatchInfoOverride = null;
     return true;
