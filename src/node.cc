@@ -83,6 +83,7 @@ static int max_stack_size = 0;
 
 static ev_check check_tick_watcher;
 static ev_prepare prepare_tick_watcher;
+static ev_idle tick_spinner;
 static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
 
@@ -172,7 +173,19 @@ static void Check(EV_P_ ev_check *watcher, int revents) {
 static Handle<Value> NeedTickCallback(const Arguments& args) {
   HandleScope scope;
   need_tick_cb = true;
+  // TODO: this tick_spinner shouldn't be necessary. An ev_prepare should be
+  // sufficent, the problem is only in the case of the very last "tick" -
+  // there is nothing left to do in the event loop and libev will exit. The
+  // ev_prepare callback isn't called before exiting. Thus we start this
+  // tick_spinner to keep the event loop alive long enough to handle it.
+  ev_idle_start(EV_DEFAULT_UC_ &tick_spinner);
   return Undefined();
+}
+
+
+static void Spin(EV_P_ ev_idle *watcher, int revents) {
+  assert(watcher == &tick_spinner);
+  assert(revents == EV_IDLE);
 }
 
 
@@ -181,6 +194,7 @@ static void Tick(void) {
   if (!need_tick_cb) return;
 
   need_tick_cb = false;
+  ev_idle_stop(EV_DEFAULT_UC_ &tick_spinner);
 
   HandleScope scope;
 
@@ -1920,6 +1934,8 @@ int Start(int argc, char *argv[]) {
   ev_check_start(EV_DEFAULT_UC_ &node::check_tick_watcher);
   ev_unref(EV_DEFAULT_UC);
 
+  ev_idle_init(&node::tick_spinner, node::Spin);
+
   ev_check_init(&node::gc_check, node::Check);
   ev_check_start(EV_DEFAULT_UC_ &node::gc_check);
   ev_unref(EV_DEFAULT_UC);
@@ -1998,18 +2014,12 @@ int Start(int argc, char *argv[]) {
   // Avoids failing on test/simple/test-eio-race3.js though
   ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
 
-
-  do {
-    // All our arguments are loaded. We've evaluated all of the scripts. We
-    // might even have created TCP servers. Now we enter the main eventloop. If
-    // there are no watchers on the loop (except for the ones that were
-    // ev_unref'd) then this function exits. As long as there are active
-    // watchers, it blocks.
-    ev_loop(EV_DEFAULT_UC_ 0);
-
-    Tick();
-
-  } while (need_tick_cb || ev_activecnt(EV_DEFAULT_UC) > 0);
+  // All our arguments are loaded. We've evaluated all of the scripts. We
+  // might even have created TCP servers. Now we enter the main eventloop. If
+  // there are no watchers on the loop (except for the ones that were
+  // ev_unref'd) then this function exits. As long as there are active
+  // watchers, it blocks.
+  ev_loop(EV_DEFAULT_UC_ 0);
 
 
   // process.emit('exit')

@@ -2469,12 +2469,6 @@ ev_unref (EV_P)
   --activecnt;
 }
 
-int
-ev_activecnt (EV_P)
-{
-  return activecnt;
-}
-
 void
 ev_now_update (EV_P)
 {
