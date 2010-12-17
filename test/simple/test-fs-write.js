@@ -21,8 +21,8 @@ fs.open(fn, 'w', 0644, function(err, fd) {
     assert.equal(Buffer.byteLength(expected), written);
     fs.closeSync(fd);
     found = fs.readFileSync(fn, 'utf8');
-    console.log('expected: ' + expected.toJSON());
-    console.log('found: ' + found.toJSON());
+    console.log('expected: "%s"', expected);
+    console.log('found: "%s"', found);
     fs.unlinkSync(fn);
   });
 });
@@ -41,8 +41,8 @@ fs.open(fn2, constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC, 0644,
         assert.equal(Buffer.byteLength(expected), written);
         fs.closeSync(fd);
         found2 = fs.readFileSync(fn2, 'utf8');
-        console.log('expected: ' + expected.toJSON());
-        console.log('found: ' + found2.toJSON());
+        console.log('expected: "%s"', expected);
+        console.log('found: "%s"', found2);
         fs.unlinkSync(fn2);
       });
     });
