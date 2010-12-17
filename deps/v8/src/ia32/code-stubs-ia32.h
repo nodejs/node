@@ -45,7 +45,26 @@ class TranscendentalCacheStub: public CodeStub {
   void Generate(MacroAssembler* masm);
  private:
   TranscendentalCache::Type type_;
+
   Major MajorKey() { return TranscendentalCache; }
+  int MinorKey() { return type_; }
+  Runtime::FunctionId RuntimeFunction();
+  void GenerateOperation(MacroAssembler* masm);
+};
+
+
+// Check the transcendental cache, or generate the result, using SSE2.
+// The argument and result will be in xmm1.
+// Only supports TranscendentalCache::LOG at this point.
+class TranscendentalCacheSSE2Stub: public CodeStub {
+ public:
+  explicit TranscendentalCacheSSE2Stub(TranscendentalCache::Type type)
+      : type_(type) {}
+  void Generate(MacroAssembler* masm);
+ private:
+  TranscendentalCache::Type type_;
+
+  Major MajorKey() { return TranscendentalCacheSSE2; }
   int MinorKey() { return type_; }
   Runtime::FunctionId RuntimeFunction();
   void GenerateOperation(MacroAssembler* masm);
@@ -231,7 +250,8 @@ class TypeRecordingBinaryOpStub: public CodeStub {
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 
-  TypeRecordingBinaryOpStub(int key,
+  TypeRecordingBinaryOpStub(
+      int key,
       TRBinaryOpIC::TypeInfo operands_type,
       TRBinaryOpIC::TypeInfo result_type = TRBinaryOpIC::UNINITIALIZED)
       : op_(OpBits::decode(key)),
@@ -239,8 +259,7 @@ class TypeRecordingBinaryOpStub: public CodeStub {
         use_sse3_(SSE3Bits::decode(key)),
         operands_type_(operands_type),
         result_type_(result_type),
-        name_(NULL) {
-  }
+        name_(NULL) { }
 
   // Generate code to call the stub with the supplied arguments. This will add
   // code at the call site to prepare arguments either in registers or on the

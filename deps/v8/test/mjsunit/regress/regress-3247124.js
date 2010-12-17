@@ -50,4 +50,4 @@ function bar(x) {
   return r.toLowerCase();
 }
 
-for (var i = 0; i < 10000; i++) bar(foo);
+for (var i = 0; i < 100; i++) bar(foo);

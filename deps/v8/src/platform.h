@@ -114,6 +114,8 @@ int signbit(double x);
 #endif  // __GNUC__
 
 #include "atomicops.h"
+#include "utils.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -123,6 +125,7 @@ namespace internal {
 typedef intptr_t AtomicWord;
 
 class Semaphore;
+class Mutex;
 
 double ceiling(double x);
 double modulo(double x, double y);

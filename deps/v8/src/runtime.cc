@@ -614,22 +614,6 @@ static MaybeObject* Runtime_SetHiddenPrototype(Arguments args) {
 }
 
 
-// Sets the magic number that identifies a function as one of the special
-// math functions that can be inlined.
-static MaybeObject* Runtime_SetMathFunctionId(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-  CONVERT_CHECKED(JSFunction, function, args[0]);
-  CONVERT_CHECKED(Smi, id, args[1]);
-  RUNTIME_ASSERT(id->value() >= 0);
-  RUNTIME_ASSERT(id->value() < SharedFunctionInfo::max_math_id_number());
-
-  function->shared()->set_math_function_id(id->value());
-
-  return Heap::undefined_value();
-}
-
-
 static MaybeObject* Runtime_IsConstructCall(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 0);
@@ -3516,7 +3500,8 @@ static MaybeObject* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_CHECKED(String, name, args[1]);
   CONVERT_CHECKED(Smi, flag_setter, args[2]);
-  CONVERT_CHECKED(JSFunction, fun, args[3]);
+  Object* fun = args[3];
+  RUNTIME_ASSERT(fun->IsJSFunction() || fun->IsUndefined());
   CONVERT_CHECKED(Smi, flag_attr, args[4]);
   int unchecked = flag_attr->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
@@ -3572,7 +3557,7 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   }
 
   LookupResult result;
-  js_object->LocalLookupRealNamedProperty(*name, &result);
+  js_object->LookupRealNamedProperty(*name, &result);
 
   // Take special care when attributes are different and there is already
   // a property. For simplicity we normalize the property which enables us
@@ -3580,7 +3565,8 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   // map. The current version of SetObjectProperty does not handle attributes
   // correctly in the case where a property is a field and is reset with
   // new attributes.
-  if (result.IsProperty() && attr != result.GetAttributes()) {
+  if (result.IsProperty() &&
+      (attr != result.GetAttributes() || result.type() == CALLBACKS)) {
     // New attributes - normalize to avoid writing to instance descriptor
     NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
     // Use IgnoreAttributes version since a readonly property may be
@@ -4689,6 +4675,13 @@ static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
   if (!new_alloc->ToObject(&new_object)) {
     return new_alloc;
   }
+  if (!Heap::new_space()->Contains(new_object)) {
+    // Even if our string is small enough to fit in new space we still have to
+    // handle it being allocated in old space as may happen in the third
+    // attempt.  See CALL_AND_RETRY in heap-inl.h and similar code in
+    // CEntryStub::GenerateCore.
+    return SlowQuoteJsonString<Char, StringType>(characters);
+  }
   StringType* new_string = StringType::cast(new_object);
   ASSERT(Heap::new_space()->Contains(new_string));
 
@@ -4723,9 +4716,9 @@ static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
   }
   *(write_cursor++) = '"';
 
-  int final_length =
+  int final_length = static_cast<int>(
       write_cursor - reinterpret_cast<Char*>(
-          new_string->address() + SeqAsciiString::kHeaderSize);
+          new_string->address() + SeqAsciiString::kHeaderSize));
   Heap::new_space()->ShrinkStringAtAllocationBoundary<StringType>(new_string,
                                                                   final_length);
   return new_string;
@@ -6022,37 +6015,6 @@ static MaybeObject* Runtime_Math_log(Arguments args) {
 }
 
 
-// Helper function to compute x^y, where y is known to be an
-// integer. Uses binary decomposition to limit the number of
-// multiplications; see the discussion in "Hacker's Delight" by Henry
-// S. Warren, Jr., figure 11-6, page 213.
-static double powi(double x, int y) {
-  ASSERT(y != kMinInt);
-  unsigned n = (y < 0) ? -y : y;
-  double m = x;
-  double p = 1;
-  while (true) {
-    if ((n & 1) != 0) p *= m;
-    n >>= 1;
-    if (n == 0) {
-      if (y < 0) {
-        // Unfortunately, we have to be careful when p has reached
-        // infinity in the computation, because sometimes the higher
-        // internal precision in the pow() implementation would have
-        // given us a finite p. This happens very rarely.
-        double result = 1.0 / p;
-        return (result == 0 && isinf(p))
-            ? pow(x, static_cast<double>(y))  // Avoid pow(double, int).
-            : result;
-      } else {
-        return p;
-      }
-    }
-    m *= m;
-  }
-}
-
-
 static MaybeObject* Runtime_Math_pow(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -6064,31 +6026,11 @@ static MaybeObject* Runtime_Math_pow(Arguments args) {
   // custom powi() function than the generic pow().
   if (args[1]->IsSmi()) {
     int y = Smi::cast(args[1])->value();
-    return Heap::NumberFromDouble(powi(x, y));
+    return Heap::NumberFromDouble(power_double_int(x, y));
   }
 
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-
-  if (!isinf(x)) {
-    if (y == 0.5) {
-      // It's not uncommon to use Math.pow(x, 0.5) to compute the
-      // square root of a number. To speed up such computations, we
-      // explictly check for this case and use the sqrt() function
-      // which is faster than pow().
-      return Heap::AllocateHeapNumber(sqrt(x));
-    } else if (y == -0.5) {
-      // Optimized using Math.pow(x, -0.5) == 1 / Math.pow(x, 0.5).
-      return Heap::AllocateHeapNumber(1.0 / sqrt(x));
-    }
-  }
-
-  if (y == 0) {
-    return Smi::FromInt(1);
-  } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
-    return Heap::nan_value();
-  } else {
-    return Heap::AllocateHeapNumber(pow(x, y));
-  }
+  return Heap::AllocateHeapNumber(power_double_double(x, y));
 }
 
 // Fast version of Math.pow if we know that y is not an integer and
@@ -6099,11 +6041,11 @@ static MaybeObject* Runtime_Math_pow_cfunction(Arguments args) {
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
   if (y == 0) {
-      return Smi::FromInt(1);
+    return Smi::FromInt(1);
   } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
-      return Heap::nan_value();
+    return Heap::nan_value();
   } else {
-      return Heap::AllocateHeapNumber(pow(x, y));
+    return Heap::AllocateHeapNumber(pow(x, y));
   }
 }
 
@@ -6936,12 +6878,17 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(Arguments args) {
     if (CompileOptimized(function, ast_id) && function->IsOptimized()) {
       DeoptimizationInputData* data = DeoptimizationInputData::cast(
           function->code()->deoptimization_data());
-      if (FLAG_trace_osr) {
-        PrintF("[on-stack replacement offset %d in optimized code]\n",
+      if (data->OsrPcOffset()->value() >= 0) {
+        if (FLAG_trace_osr) {
+          PrintF("[on-stack replacement offset %d in optimized code]\n",
                data->OsrPcOffset()->value());
+        }
+        ASSERT(data->OsrAstId()->value() == ast_id);
+      } else {
+        // We may never generate the desired OSR entry if we emit an
+        // early deoptimize.
+        succeeded = false;
       }
-      ASSERT(data->OsrAstId()->value() == ast_id);
-      ASSERT(data->OsrPcOffset()->value() >= 0);
     } else {
       succeeded = false;
     }
@@ -7716,13 +7663,13 @@ static MaybeObject* Runtime_AllocateInNewSpace(Arguments args) {
 }
 
 
-// Push an array unto an array of arrays if it is not already in the
+// Push an object unto an array of objects if it is not already in the
 // array.  Returns true if the element was pushed on the stack and
 // false otherwise.
 static MaybeObject* Runtime_PushIfAbsent(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, array, args[0]);
-  CONVERT_CHECKED(JSArray, element, args[1]);
+  CONVERT_CHECKED(JSObject, element, args[1]);
   RUNTIME_ASSERT(array->HasFastElements());
   int length = Smi::cast(array->length())->value();
   FixedArray* elements = FixedArray::cast(array->elements());
@@ -9733,7 +9680,7 @@ static MaybeObject* Runtime_DebugEvaluate(Arguments args) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  ASSERT(args.length() == 4);
+  ASSERT(args.length() == 5);
   Object* check_result;
   { MaybeObject* maybe_check_result = Runtime_CheckExecutionState(args);
     if (!maybe_check_result->ToObject(&check_result)) {
@@ -9743,6 +9690,7 @@ static MaybeObject* Runtime_DebugEvaluate(Arguments args) {
   CONVERT_CHECKED(Smi, wrapped_id, args[1]);
   CONVERT_ARG_CHECKED(String, source, 2);
   CONVERT_BOOLEAN_CHECKED(disable_break, args[3]);
+  Handle<Object> additional_context(args[4]);
 
   // Handle the processing of break.
   DisableBreak disable_break_save(disable_break);
@@ -9792,6 +9740,11 @@ static MaybeObject* Runtime_DebugEvaluate(Arguments args) {
   Handle<Context> frame_context(Context::cast(frame->context()));
   Handle<Context> function_context(frame_context->fcontext());
   context = CopyWithContextChain(frame_context, context);
+
+  if (additional_context->IsJSObject()) {
+    context = Factory::NewWithContext(context,
+        Handle<JSObject>::cast(additional_context), false);
+  }
 
   // Wrap the evaluation statement in a new function compiled in the newly
   // created context. The function has one parameter which has to be called
@@ -9847,7 +9800,7 @@ static MaybeObject* Runtime_DebugEvaluateGlobal(Arguments args) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   Object* check_result;
   { MaybeObject* maybe_check_result = Runtime_CheckExecutionState(args);
     if (!maybe_check_result->ToObject(&check_result)) {
@@ -9856,6 +9809,7 @@ static MaybeObject* Runtime_DebugEvaluateGlobal(Arguments args) {
   }
   CONVERT_ARG_CHECKED(String, source, 1);
   CONVERT_BOOLEAN_CHECKED(disable_break, args[2]);
+  Handle<Object> additional_context(args[3]);
 
   // Handle the processing of break.
   DisableBreak disable_break_save(disable_break);
@@ -9874,11 +9828,24 @@ static MaybeObject* Runtime_DebugEvaluateGlobal(Arguments args) {
   // debugger was invoked.
   Handle<Context> context = Top::global_context();
 
+  bool is_global = true;
+
+  if (additional_context->IsJSObject()) {
+    // Create a function context first, than put 'with' context on top of it.
+    Handle<JSFunction> go_between = Factory::NewFunction(
+        Factory::empty_string(), Factory::undefined_value());
+    go_between->set_context(*context);
+    context =
+        Factory::NewFunctionContext(Context::MIN_CONTEXT_SLOTS, go_between);
+    context->set_extension(JSObject::cast(*additional_context));
+    is_global = false;
+  }
+
   // Compile the source to be evaluated.
   Handle<SharedFunctionInfo> shared =
       Compiler::CompileEval(source,
                             context,
-                            true);
+                            is_global);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Handle<JSFunction>(Factory::NewFunctionFromSharedFunctionInfo(shared,

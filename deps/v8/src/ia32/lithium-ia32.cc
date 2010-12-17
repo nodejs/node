@@ -206,6 +206,13 @@ void LIsNullAndBranch::PrintDataTo(StringStream* stream) const {
 }
 
 
+void LIsObjectAndBranch::PrintDataTo(StringStream* stream) const {
+  stream->Add("if is_object(");
+  input()->PrintTo(stream);
+  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
+}
+
+
 void LIsSmiAndBranch::PrintDataTo(StringStream* stream) const {
   stream->Add("if is_smi(");
   input()->PrintTo(stream);
@@ -456,12 +463,6 @@ bool LChunk::IsGapAt(int index) const {
 
 int LChunk::NearestGapPos(int index) const {
   while (!IsGapAt(index)) index--;
-  return index;
-}
-
-
-int LChunk::NearestNextGapPos(int index) const {
-  while (!IsGapAt(index)) index++;
   return index;
 }
 
@@ -880,19 +881,6 @@ LOperand* LChunkBuilder::FixedTemp(XMMRegister reg) {
 
 
 LInstruction* LChunkBuilder::DoBlockEntry(HBlockEntry* instr) {
-  HBasicBlock* deopt_predecessor = instr->block()->deopt_predecessor();
-  if (deopt_predecessor != NULL &&
-      deopt_predecessor->inverted()) {
-    HEnvironment* env = current_block_->last_environment();
-    HValue* value = env->Pop();
-    ASSERT(value->IsConstant());
-    Handle<Object> obj = HConstant::cast(value)->handle();
-    ASSERT(*obj == *Factory::true_value() || *obj == *Factory::false_value());
-    env->Push(*obj == *Factory::true_value()
-              ? current_block_->graph()->GetConstantFalse()
-              : current_block_->graph()->GetConstantTrue());
-  }
-
   return new LLabel(instr->block());
 }
 
@@ -1257,6 +1245,17 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
                                   temp,
                                   first_id,
                                   second_id);
+    } else if (v->IsIsObject()) {
+      HIsObject* compare = HIsObject::cast(v);
+      ASSERT(compare->value()->representation().IsTagged());
+
+      LOperand* temp1 = TempRegister();
+      LOperand* temp2 = TempRegister();
+      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
+                                    temp1,
+                                    temp2,
+                                    first_id,
+                                    second_id);
     } else if (v->IsCompareJSObjectEq()) {
       HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
       return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
@@ -1266,8 +1265,8 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
     } else if (v->IsInstanceOf()) {
       HInstanceOf* instance_of = HInstanceOf::cast(v);
       LInstruction* result =
-          new LInstanceOfAndBranch(Use(instance_of->left()),
-                                   Use(instance_of->right()),
+          new LInstanceOfAndBranch(UseFixed(instance_of->left(), eax),
+                                   UseFixed(instance_of->right(), edx),
                                    first_id,
                                    second_id);
       return MarkAsCall(result, instr);
@@ -1317,7 +1316,8 @@ LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
 
 LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
   LInstruction* result =
-      new LInstanceOf(Use(instr->left()), Use(instr->right()));
+      new LInstanceOf(UseFixed(instr->left(), eax),
+                      UseFixed(instr->right(), edx));
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1337,7 +1337,7 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
 
 LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
   ++argument_count_;
-  LOperand* argument = Use(instr->argument());
+  LOperand* argument = UseOrConstant(instr->argument());
   return new LPushArgument(argument);
 }
 
@@ -1360,21 +1360,29 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 
 
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
-  MathFunctionId op = instr->op();
-  LOperand* input = UseRegisterAtStart(instr->value());
-  LInstruction* result = new LUnaryMathOperation(input);
-  switch (op) {
-    case kMathAbs:
-      return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
-    case kMathFloor:
-      return AssignEnvironment(DefineAsRegister(result));
-    case kMathRound:
-      return AssignEnvironment(DefineAsRegister(result));
-    case kMathSqrt:
-      return DefineSameAsFirst(result);
-    default:
-      UNREACHABLE();
-      return NULL;
+  BuiltinFunctionId op = instr->op();
+  if (op == kMathLog) {
+    LOperand* input = UseFixedDouble(instr->value(), xmm1);
+    LInstruction* result = new LUnaryMathOperation(input);
+    return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
+  } else {
+    LOperand* input = UseRegisterAtStart(instr->value());
+    LInstruction* result = new LUnaryMathOperation(input);
+    switch (op) {
+      case kMathAbs:
+        return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
+      case kMathFloor:
+        return AssignEnvironment(DefineAsRegister(result));
+      case kMathRound:
+        return AssignEnvironment(DefineAsRegister(result));
+      case kMathSqrt:
+        return DefineSameAsFirst(result);
+      case kMathPowHalf:
+        return AssignEnvironment(DefineSameAsFirst(result));
+      default:
+        UNREACHABLE();
+        return NULL;
+    }
   }
 }
 
@@ -1572,6 +1580,22 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoPower(HPower* instr) {
+  ASSERT(instr->representation().IsDouble());
+  // We call a C function for double power. It can't trigger a GC.
+  // We need to use fixed result register for the call.
+  Representation exponent_type = instr->right()->representation();
+  ASSERT(instr->left()->representation().IsDouble());
+  LOperand* left = UseFixedDouble(instr->left(), xmm1);
+  LOperand* right = exponent_type.IsDouble() ?
+      UseFixedDouble(instr->right(), xmm2) :
+      UseFixed(instr->right(), eax);
+  LPower* result = new LPower(left, right);
+  return MarkAsCall(DefineFixedDouble(result, xmm3), instr,
+                    CAN_DEOPTIMIZE_EAGERLY);
+}
+
+
 LInstruction* LChunkBuilder::DoCompare(HCompare* instr) {
   Token::Value op = instr->token();
   if (instr->left()->representation().IsInteger32()) {
@@ -1609,6 +1633,14 @@ LInstruction* LChunkBuilder::DoIsNull(HIsNull* instr) {
 
   return DefineAsRegister(new LIsNull(value,
                                       instr->is_strict()));
+}
+
+
+LInstruction* LChunkBuilder::DoIsObject(HIsObject* instr) {
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegister(instr->value());
+
+  return DefineAsRegister(new LIsObject(value, TempRegister()));
 }
 
 

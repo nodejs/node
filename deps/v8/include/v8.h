@@ -992,18 +992,23 @@ class String : public Primitive {
    * the contents of the string and the NULL terminator into the
    * buffer.
    *
+   * WriteUtf8 will not write partial UTF-8 sequences, preferring to stop
+   * before the end of the buffer.
+   *
    * Copies up to length characters into the output buffer.
    * Only null-terminates if there is enough space in the buffer.
    *
    * \param buffer The buffer into which the string will be copied.
    * \param start The starting position within the string at which
    * copying begins.
-   * \param length The number of bytes to copy from the string.
+   * \param length The number of characters to copy from the string.  For
+   *    WriteUtf8 the number of bytes in the buffer.
    * \param nchars_ref The number of characters written, can be NULL.
    * \param hints Various hints that might affect performance of this or
    *    subsequent operations.
-   * \return The number of bytes copied to the buffer
-   * excluding the NULL terminator.
+   * \return The number of characters copied to the buffer excluding the null
+   *    terminator.  For WriteUtf8: The number of bytes copied to the buffer
+   *    including the null terminator.
    */
   enum WriteHints {
     NO_HINTS = 0,
@@ -3280,6 +3285,24 @@ class V8EXPORT OutputStream {  // NOLINT
   virtual WriteResult WriteAsciiChunk(char* data, int size) = 0;
 };
 
+
+/**
+ * An interface for reporting progress and controlling long-running
+ * activities.
+ */
+class V8EXPORT ActivityControl {  // NOLINT
+ public:
+  enum ControlOption {
+    kContinue = 0,
+    kAbort = 1
+  };
+  virtual ~ActivityControl() {}
+  /**
+   * Notify about current progress. The activity can be stopped by
+   * returning kAbort as the callback result.
+   */
+  virtual ControlOption ReportProgressValue(int done, int total) = 0;
+};
 
 
 // --- I m p l e m e n t a t i o n ---

@@ -66,21 +66,10 @@ function JSONParse(text, reviver) {
   }
 }
 
-function StackContains(stack, val) {
-  var length = stack.length;
-  for (var i = 0; i < length; i++) {
-    if (stack[i] === val) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function SerializeArray(value, replacer, stack, indent, gap) {
-  if (StackContains(stack, value)) {
+  if (!%PushIfAbsent(stack, value)) {
     throw MakeTypeError('circular_structure', []);
   }
-  stack.push(value);
   var stepback = indent;
   indent += gap;
   var partial = [];
@@ -108,10 +97,9 @@ function SerializeArray(value, replacer, stack, indent, gap) {
 }
 
 function SerializeObject(value, replacer, stack, indent, gap) {
-  if (StackContains(stack, value)) {
+  if (!%PushIfAbsent(stack, value)) {
     throw MakeTypeError('circular_structure', []);
   }
-  stack.push(value);
   var stepback = indent;
   indent += gap;
   var partial = [];
@@ -158,49 +146,47 @@ function SerializeObject(value, replacer, stack, indent, gap) {
 
 function JSONSerialize(key, holder, replacer, stack, indent, gap) {
   var value = holder[key];
-  if (IS_OBJECT(value) && value) {
+  if (IS_SPEC_OBJECT(value)) {
     var toJSON = value.toJSON;
     if (IS_FUNCTION(toJSON)) {
-      value = toJSON.call(value, key);
+      value = %_CallFunction(value, key, toJSON);
     }
   }
   if (IS_FUNCTION(replacer)) {
-    value = replacer.call(holder, key, value);
+    value = %_CallFunction(holder, key, value, replacer);
   }
-  // Unwrap value if necessary
-  if (IS_OBJECT(value)) {
-    if (IS_NUMBER_WRAPPER(value)) {
-      value = $Number(value);
+  if (IS_STRING(value)) {
+    return %QuoteJSONString(value);
+  } else if (IS_NUMBER(value)) {
+    return $isFinite(value) ? $String(value) : "null";
+  } else if (IS_BOOLEAN(value)) {
+    return value ? "true" : "false";
+  } else if (IS_NULL(value)) {
+    return "null";
+  } else if (IS_SPEC_OBJECT(value) && !(typeof value == "function")) {
+    // Non-callable object. If it's a primitive wrapper, it must be unwrapped.
+    if (IS_ARRAY(value)) {
+      return SerializeArray(value, replacer, stack, indent, gap);
+    } else if (IS_NUMBER_WRAPPER(value)) {
+      value = ToNumber(value);
+      return $isFinite(value) ? ToString(value) : "null";
     } else if (IS_STRING_WRAPPER(value)) {
-      value = $String(value);
+      return %QuoteJSONString(ToString(value));
     } else if (IS_BOOLEAN_WRAPPER(value)) {
-      value =  %_ValueOf(value);
+      return %_ValueOf(value) ? "true" : "false";
+    } else {
+      return SerializeObject(value, replacer, stack, indent, gap);
     }
   }
-  switch (typeof value) {
-    case "string":
-      return %QuoteJSONString(value);
-    case "object":
-      if (!value) {
-        return "null";
-      } else if (IS_ARRAY(value)) {
-        return SerializeArray(value, replacer, stack, indent, gap);
-      } else {
-        return SerializeObject(value, replacer, stack, indent, gap);
-      }
-    case "number":
-      return $isFinite(value) ? $String(value) : "null";
-    case "boolean":
-      return value ? "true" : "false";
-  }
+  // Undefined or a callable object.
+  return void 0;
 }
 
 
 function BasicSerializeArray(value, stack, builder) {
-  if (StackContains(stack, value)) {
+  if (!%PushIfAbsent(stack, value)) {
     throw MakeTypeError('circular_structure', []);
   }
-  stack.push(value);
   builder.push("[");
   var len = value.length;
   for (var i = 0; i < len; i++) {
@@ -220,10 +206,9 @@ function BasicSerializeArray(value, stack, builder) {
 
 
 function BasicSerializeObject(value, stack, builder) {
-  if (StackContains(stack, value)) {
+  if (!%PushIfAbsent(stack, value)) {
     throw MakeTypeError('circular_structure', []);
   }
-  stack.push(value);
   builder.push("{");
   for (var p in value) {
     if (%HasLocalProperty(value, p)) {
@@ -250,40 +235,41 @@ function BasicSerializeObject(value, stack, builder) {
 
 function BasicJSONSerialize(key, holder, stack, builder) {
   var value = holder[key];
-  if (IS_OBJECT(value) && value) {
+  if (IS_SPEC_OBJECT(value)) {
     var toJSON = value.toJSON;
-    if (IS_FUNCTION(toJSON)) value = toJSON.call(value, $String(key));
+    if (IS_FUNCTION(toJSON)) {
+      value = %_CallFunction(value, ToString(key), toJSON);
+    }
   }
   if (IS_STRING(value)) {
     builder.push(%QuoteJSONString(value));
   } else if (IS_NUMBER(value)) {
     builder.push(($isFinite(value) ? %_NumberToString(value) : "null"));
   } else if (IS_BOOLEAN(value)) {
-    builder.push((value ? "true" : "false"));
-  } else if (IS_OBJECT(value)) {
+    builder.push(value ? "true" : "false");
+  } else if (IS_NULL(value)) {
+    builder.push("null");
+  } else if (IS_SPEC_OBJECT(value) && !(typeof value == "function")) {
+    // Value is a non-callable object.
     // Unwrap value if necessary
     if (IS_NUMBER_WRAPPER(value)) {
-      value = %_ValueOf(value);
-      builder.push(($isFinite(value) ? %_NumberToString(value) : "null"));      
+      value = ToNumber(value);
+      builder.push(($isFinite(value) ? %_NumberToString(value) : "null"));
     } else if (IS_STRING_WRAPPER(value)) {
-      builder.push(%QuoteJSONString(%_ValueOf(value)));
+      builder.push(%QuoteJSONString(ToString(value)));
     } else if (IS_BOOLEAN_WRAPPER(value)) {
-      builder.push((%_ValueOf(value) ? "true" : "false")); 
+      builder.push(%_ValueOf(value) ? "true" : "false");
+    } else if (IS_ARRAY(value)) {
+      BasicSerializeArray(value, stack, builder);
     } else {
-      // Regular non-wrapped object
-      if (!value) {
-        builder.push("null");
-      } else if (IS_ARRAY(value)) {
-        BasicSerializeArray(value, stack, builder);
-      } else {
-        BasicSerializeObject(value, stack, builder);
-      }
+      BasicSerializeObject(value, stack, builder);
     }
   }
 }
 
+
 function JSONStringify(value, replacer, space) {
-  if (IS_UNDEFINED(replacer) && IS_UNDEFINED(space)) {
+  if (%_ArgumentsLength() == 1) {
     var builder = [];
     BasicJSONSerialize('', {'': value}, [], builder);
     if (builder.length == 0) return;
@@ -294,21 +280,18 @@ function JSONStringify(value, replacer, space) {
   if (IS_OBJECT(space)) {
     // Unwrap 'space' if it is wrapped
     if (IS_NUMBER_WRAPPER(space)) {
-      space = $Number(space);
+      space = ToNumber(space);
     } else if (IS_STRING_WRAPPER(space)) {
-      space = $String(space);
+      space = ToString(space);
     }
   }
   var gap;
   if (IS_NUMBER(space)) {
-    space = $Math.min(ToInteger(space), 10);
-    gap = "";
-    for (var i = 0; i < space; i++) {
-      gap += " ";
-    }
+    space = MathMax(0, MathMin(ToInteger(space), 10));
+    gap = SubString("          ", 0, space);
   } else if (IS_STRING(space)) {
     if (space.length > 10) {
-      gap = space.substring(0, 10);
+      gap = SubString(space, 0, 10);
     } else {
       gap = space;
     }

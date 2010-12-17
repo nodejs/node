@@ -571,6 +571,15 @@ class Assembler : public Malloced {
   static const byte kTestEaxByte = 0xA9;
   // One byte opcode for test al, 0xXX.
   static const byte kTestAlByte = 0xA8;
+  // One byte opcode for nop.
+  static const byte kNopByte = 0x90;
+
+  // One byte opcode for a short unconditional jump.
+  static const byte kJmpShortOpcode = 0xEB;
+  // One byte prefix for a short conditional jump.
+  static const byte kJccShortPrefix = 0x70;
+  static const byte kJncShortOpcode = kJccShortPrefix | not_carry;
+  static const byte kJcShortOpcode = kJccShortPrefix | carry;
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -905,13 +914,16 @@ class Assembler : public Malloced {
   void movdbl(const Operand& dst, XMMRegister src);
 
   void movd(XMMRegister dst, const Operand& src);
+  void movd(const Operand& src, XMMRegister dst);
   void movsd(XMMRegister dst, XMMRegister src);
 
   void pand(XMMRegister dst, XMMRegister src);
   void pxor(XMMRegister dst, XMMRegister src);
   void ptest(XMMRegister dst, XMMRegister src);
 
-  void psllq(XMMRegister reg, int8_t imm8);
+  void psllq(XMMRegister reg, int8_t shift);
+  void pshufd(XMMRegister dst, XMMRegister src, int8_t shuffle);
+  void pextrd(const Operand& dst, XMMRegister src, int8_t offset);
 
   // Parallel XMM operations.
   void movntdqa(XMMRegister src, const Operand& dst);

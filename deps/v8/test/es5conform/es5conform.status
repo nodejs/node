@@ -88,7 +88,7 @@ chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-215: UNIMPLEMENTED
 # than those described in the spec - but according to spec they can 
 # have additional properties.
 # All compareArray calls in these tests could be exchanged with a 
-# isSubsetOfArray call (I will upload a path to the es5conform site).
+# isSubsetOfArray call (I will upload a patch to the es5conform site).
 
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-1: FAIL_OK
@@ -110,12 +110,6 @@ chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-6: FAIL_OK
 
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-7: FAIL_OK
-
-# SUBSETFAIL
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-8: FAIL_OK
-
-# SUBSETFAIL
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-9: FAIL_OK
 
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-11: FAIL_OK

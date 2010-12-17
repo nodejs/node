@@ -38,7 +38,6 @@
 #include "natives.h"
 #include "objects-visiting.h"
 #include "snapshot.h"
-#include "stub-cache.h"
 #include "extensions/externalize-string-extension.h"
 #include "extensions/gc-extension.h"
 
@@ -234,7 +233,7 @@ class Genesis BASE_EMBEDDED {
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
   bool InstallNatives();
-  void InstallCustomCallGenerators();
+  void InstallBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
   void InitializeNormalizedMapCaches();
   // Used both for deserialized and from-scratch contexts to add the extensions
@@ -1270,7 +1269,7 @@ bool Genesis::InstallNatives() {
   global_context()->set_string_function_prototype_map(
       HeapObject::cast(string_function->initial_map()->prototype())->map());
 
-  InstallCustomCallGenerators();
+  InstallBuiltinFunctionIds();
 
   // Install Function.prototype.call and apply.
   { Handle<String> key = Factory::function_class_symbol();
@@ -1369,7 +1368,7 @@ bool Genesis::InstallNatives() {
 }
 
 
-static Handle<JSObject> ResolveCustomCallGeneratorHolder(
+static Handle<JSObject> ResolveBuiltinIdHolder(
     Handle<Context> global_context,
     const char* holder_expr) {
   Handle<GlobalObject> global(global_context->global());
@@ -1387,9 +1386,9 @@ static Handle<JSObject> ResolveCustomCallGeneratorHolder(
 }
 
 
-static void InstallCustomCallGenerator(Handle<JSObject> holder,
-                                       const char* function_name,
-                                       int id) {
+static void InstallBuiltinFunctionId(Handle<JSObject> holder,
+                                     const char* function_name,
+                                     BuiltinFunctionId id) {
   Handle<String> name = Factory::LookupAsciiSymbol(function_name);
   Object* function_object = holder->GetProperty(*name)->ToObjectUnchecked();
   Handle<JSFunction> function(JSFunction::cast(function_object));
@@ -1397,17 +1396,17 @@ static void InstallCustomCallGenerator(Handle<JSObject> holder,
 }
 
 
-void Genesis::InstallCustomCallGenerators() {
+void Genesis::InstallBuiltinFunctionIds() {
   HandleScope scope;
-#define INSTALL_CALL_GENERATOR(holder_expr, fun_name, name)     \
-  {                                                             \
-    Handle<JSObject> holder = ResolveCustomCallGeneratorHolder( \
-        global_context(), #holder_expr);                        \
-    const int id = CallStubCompiler::k##name##CallGenerator;    \
-    InstallCustomCallGenerator(holder, #fun_name, id);          \
+#define INSTALL_BUILTIN_ID(holder_expr, fun_name, name) \
+  {                                                     \
+    Handle<JSObject> holder = ResolveBuiltinIdHolder(   \
+        global_context(), #holder_expr);                \
+    BuiltinFunctionId id = k##name;                     \
+    InstallBuiltinFunctionId(holder, #fun_name, id);    \
   }
-  CUSTOM_CALL_IC_GENERATORS(INSTALL_CALL_GENERATOR)
-#undef INSTALL_CALL_GENERATOR
+  FUNCTIONS_WITH_ID_LIST(INSTALL_BUILTIN_ID)
+#undef INSTALL_BUILTIN_ID
 }
 
 

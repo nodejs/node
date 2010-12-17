@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2009-2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -56,8 +56,12 @@ class HeapProfiler {
   static void TearDown();
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  static HeapSnapshot* TakeSnapshot(const char* name, int type);
-  static HeapSnapshot* TakeSnapshot(String* name, int type);
+  static HeapSnapshot* TakeSnapshot(const char* name,
+                                    int type,
+                                    v8::ActivityControl* control);
+  static HeapSnapshot* TakeSnapshot(String* name,
+                                    int type,
+                                    v8::ActivityControl* control);
   static int GetSnapshotsCount();
   static HeapSnapshot* GetSnapshot(int index);
   static HeapSnapshot* FindSnapshot(unsigned uid);
@@ -75,8 +79,12 @@ class HeapProfiler {
  private:
   HeapProfiler();
   ~HeapProfiler();
-  HeapSnapshot* TakeSnapshotImpl(const char* name, int type);
-  HeapSnapshot* TakeSnapshotImpl(String* name, int type);
+  HeapSnapshot* TakeSnapshotImpl(const char* name,
+                                 int type,
+                                 v8::ActivityControl* control);
+  HeapSnapshot* TakeSnapshotImpl(String* name,
+                                 int type,
+                                 v8::ActivityControl* control);
 
   HeapSnapshotsCollection* snapshots_;
   unsigned next_snapshot_uid_;

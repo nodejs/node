@@ -74,7 +74,7 @@
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'Optimizations': '0',
+            'Optimization': '0',
             
             'conditions': [
               ['OS=="win" and component=="shared_library"', {
@@ -134,7 +134,7 @@
             },
             'msvs_settings': {
               'VCCLCompilerTool': {
-                'Optimizations': '2',
+                'Optimization': '2',
                 'InlineFunctionExpansion': '2',
                 'EnableIntrinsicFunctions': 'true',
                 'FavorSizeOrSpeed': '0',
@@ -191,9 +191,41 @@
       ],
       'direct_dependent_settings': {
         'include_dirs': [
-          '../../include',
+           '../../include',
         ],
       },
+    },
+    {
+      'target_name': 'v8_preparser',
+      'include_dirs': [
+        '../../include',
+        '../../src',
+      ],
+      'sources': [
+        '../../src/allocation.cc',
+        '../../src/hashmap.cc',
+        '../../src/preparse-data.cc',
+        '../../src/preparser.cc',
+        '../../src/preparser-api.cc',
+        '../../src/scanner-base.cc',
+        '../../src/token.cc',
+        '../../src/unicode.cc',
+      ],
+      'conditions': [
+        ['OS=="win" and component=="shared_library"', {
+          'sources': [ '../../src/v8preparserdll-main.cc' ],
+          'defines': [ 'BUILDING_V8_SHARED' ],
+          'direct_dependent_settings': {
+            'defines': [ 'USING_V8_SHARED' ]
+          },
+          'type': '<(component)',
+        } , {
+          'type': 'none'
+        }],
+        ['OS!="win"', {
+          'type': '<(library)'
+        }],
+      ]
     },
     {
       'target_name': 'v8_snapshot',
@@ -505,10 +537,10 @@
         '../../src/zone-inl.h',
         '../../src/zone.cc',
         '../../src/zone.h',
-	'../../src/extensions/externalize-string-extension.cc',
-	'../../src/extensions/externalize-string-extension.h',
-	'../../src/extensions/gc-extension.cc',
-	'../../src/extensions/gc-extension.h',
+        '../../src/extensions/externalize-string-extension.cc',
+        '../../src/extensions/externalize-string-extension.h',
+        '../../src/extensions/gc-extension.cc',
+        '../../src/extensions/gc-extension.h',
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {

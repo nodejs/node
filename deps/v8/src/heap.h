@@ -1119,9 +1119,9 @@ class Heap : public AllStatic {
   static int contexts_disposed_;
 
 #if defined(V8_TARGET_ARCH_X64)
-  static const int kMaxObjectSizeInNewSpace = 512*KB;
+  static const int kMaxObjectSizeInNewSpace = 1024*KB;
 #else
-  static const int kMaxObjectSizeInNewSpace = 256*KB;
+  static const int kMaxObjectSizeInNewSpace = 512*KB;
 #endif
 
   static NewSpace new_space_;
@@ -2054,8 +2054,9 @@ class TranscendentalCache {
 
   // Allow access to the caches_ array as an ExternalReference.
   friend class ExternalReference;
-  // Inline implementation of the caching.
+  // Inline implementation of the cache.
   friend class TranscendentalCacheStub;
+  friend class TranscendentalCacheSSE2Stub;
 
   static TranscendentalCache* caches_[kNumberOfCaches];
   Element elements_[kCacheSize];

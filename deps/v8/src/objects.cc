@@ -3097,8 +3097,9 @@ MaybeObject* JSObject::SetPropertyCallback(String* name,
 
 MaybeObject* JSObject::DefineAccessor(String* name,
                                       bool is_getter,
-                                      JSFunction* fun,
+                                      Object* fun,
                                       PropertyAttributes attributes) {
+  ASSERT(fun->IsJSFunction() || fun->IsUndefined());
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {

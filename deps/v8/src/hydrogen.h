@@ -136,14 +136,6 @@ class HBasicBlock: public ZoneObject {
   bool IsInlineReturnTarget() const { return is_inline_return_target_; }
   void MarkAsInlineReturnTarget() { is_inline_return_target_ = true; }
 
-  // If this block is a successor of a branch, his flags tells whether the
-  // preceding branch was inverted or not.
-  bool inverted() { return inverted_; }
-  void set_inverted(bool b) { inverted_ = b; }
-
-  HBasicBlock* deopt_predecessor() { return deopt_predecessor_; }
-  void set_deopt_predecessor(HBasicBlock* block) { deopt_predecessor_ = block; }
-
   Handle<Object> cond() { return cond_; }
   void set_cond(Handle<Object> value) { cond_ = value; }
 
@@ -176,8 +168,6 @@ class HBasicBlock: public ZoneObject {
   ZoneList<int> deleted_phis_;
   SetOncePointer<HBasicBlock> parent_loop_header_;
   bool is_inline_return_target_;
-  bool inverted_;
-  HBasicBlock* deopt_predecessor_;
   Handle<Object> cond_;
 };
 
@@ -557,9 +547,28 @@ class AstContext {
   bool IsValue() const { return kind_ == Expression::kValue; }
   bool IsTest() const { return kind_ == Expression::kTest; }
 
+  // 'Fill' this context with a hydrogen value.  The value is assumed to
+  // have already been inserted in the instruction stream (or not need to
+  // be, e.g., HPhi).  Call this function in tail position in the Visit
+  // functions for expressions.
+  virtual void ReturnValue(HValue* value) = 0;
+
+  // Add a hydrogen instruction to the instruction stream (recording an
+  // environment simulation if necessary) and then fill this context with
+  // the instruction as value.
+  virtual void ReturnInstruction(HInstruction* instr, int ast_id) = 0;
+
  protected:
   AstContext(HGraphBuilder* owner, Expression::Context kind);
   virtual ~AstContext();
+
+  HGraphBuilder* owner() const { return owner_; }
+
+  // We want to be able to assert, in a context-specific way, that the stack
+  // height makes sense when the context is filled.
+#ifdef DEBUG
+  int original_count_;
+#endif
 
  private:
   HGraphBuilder* owner_;
@@ -573,6 +582,10 @@ class EffectContext: public AstContext {
   explicit EffectContext(HGraphBuilder* owner)
       : AstContext(owner, Expression::kEffect) {
   }
+  virtual ~EffectContext();
+
+  virtual void ReturnValue(HValue* value);
+  virtual void ReturnInstruction(HInstruction* instr, int ast_id);
 };
 
 
@@ -581,6 +594,10 @@ class ValueContext: public AstContext {
   explicit ValueContext(HGraphBuilder* owner)
       : AstContext(owner, Expression::kValue) {
   }
+  virtual ~ValueContext();
+
+  virtual void ReturnValue(HValue* value);
+  virtual void ReturnInstruction(HInstruction* instr, int ast_id);
 };
 
 
@@ -588,15 +605,14 @@ class TestContext: public AstContext {
  public:
   TestContext(HGraphBuilder* owner,
               HBasicBlock* if_true,
-              HBasicBlock* if_false,
-              bool invert_true,
-              bool invert_false)
+              HBasicBlock* if_false)
       : AstContext(owner, Expression::kTest),
         if_true_(if_true),
-        if_false_(if_false),
-        invert_true_(invert_true),
-        invert_false_(invert_false) {
+        if_false_(if_false) {
   }
+
+  virtual void ReturnValue(HValue* value);
+  virtual void ReturnInstruction(HInstruction* instr, int ast_id);
 
   static TestContext* cast(AstContext* context) {
     ASSERT(context->IsTest());
@@ -606,14 +622,13 @@ class TestContext: public AstContext {
   HBasicBlock* if_true() const { return if_true_; }
   HBasicBlock* if_false() const { return if_false_; }
 
-  bool invert_true() { return invert_true_; }
-  bool invert_false() { return invert_false_; }
-
  private:
+  // Build the shared core part of the translation unpacking a value into
+  // control flow.
+  void BuildBranch(HValue* value);
+
   HBasicBlock* if_true_;
   HBasicBlock* if_false_;
-  bool invert_true_;
-  bool invert_false_;
 };
 
 
@@ -631,9 +646,25 @@ class HGraphBuilder: public AstVisitor {
 
   HGraph* CreateGraph(CompilationInfo* info);
 
+  // Simple accessors.
+  HGraph* graph() const { return graph_; }
+  HSubgraph* subgraph() const { return current_subgraph_; }
+
+  HEnvironment* environment() const { return subgraph()->environment(); }
+  HBasicBlock* CurrentBlock() const { return subgraph()->exit_block(); }
+
+  // Adding instructions.
+  HInstruction* AddInstruction(HInstruction* instr);
+  void AddSimulate(int id);
+
+  // Bailout environment manipulation.
+  void Push(HValue* value) { environment()->Push(value); }
+  HValue* Pop() { return environment()->Pop(); }
+
  private:
   // Type of a member function that generates inline code for a native function.
-  typedef void (HGraphBuilder::*InlineFunctionGenerator)(int argument_count);
+  typedef void (HGraphBuilder::*InlineFunctionGenerator)(int argument_count,
+                                                         int ast_id);
 
   // Forward declarations for inner scope classes.
   class SubgraphScope;
@@ -650,19 +681,14 @@ class HGraphBuilder: public AstVisitor {
 
   // Simple accessors.
   TypeFeedbackOracle* oracle() const { return oracle_; }
-  HGraph* graph() const { return graph_; }
-  HSubgraph* subgraph() const { return current_subgraph_; }
   AstContext* ast_context() const { return ast_context_; }
   void set_ast_context(AstContext* context) { ast_context_ = context; }
   AstContext* call_context() const { return call_context_; }
   HBasicBlock* function_return() const { return function_return_; }
-  HEnvironment* environment() const { return subgraph()->environment(); }
-
-  HBasicBlock* CurrentBlock() const { return subgraph()->exit_block(); }
 
   // Generators for inline runtime functions.
-#define INLINE_FUNCTION_GENERATOR_DECLARATION(Name, argc, ressize)          \
-    void Generate##Name(int argument_count);
+#define INLINE_FUNCTION_GENERATOR_DECLARATION(Name, argc, ressize)      \
+  void Generate##Name(int argument_count, int ast_id);
 
   INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
   INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
@@ -678,13 +704,7 @@ class HGraphBuilder: public AstVisitor {
   void AddToSubgraph(HSubgraph* graph, ZoneList<Statement*>* stmts);
   void AddToSubgraph(HSubgraph* graph, Statement* stmt);
   void AddToSubgraph(HSubgraph* graph, Expression* expr);
-  void AddConditionToSubgraph(HSubgraph* subgraph,
-                              Expression* expr,
-                              HSubgraph* true_graph,
-                              HSubgraph* false_graph);
 
-  void Push(HValue* value) { environment()->Push(value); }
-  HValue* Pop() { return environment()->Pop(); }
   HValue* Top() const { return environment()->Top(); }
   void Drop(int n) { environment()->Drop(n); }
   void Bind(Variable* var, HValue* value) { environment()->Bind(var, value); }
@@ -693,33 +713,21 @@ class HGraphBuilder: public AstVisitor {
   void VisitForEffect(Expression* expr);
   void VisitForControl(Expression* expr,
                        HBasicBlock* true_block,
-                       HBasicBlock* false_block,
-                       bool invert_true,
-                       bool invert_false);
+                       HBasicBlock* false_block);
 
-  // Visit an expression in a 'condition' context, i.e., in a control
-  // context but not a subexpression of logical and, or, or not.
-  void VisitCondition(Expression* expr,
-                      HBasicBlock* true_graph,
-                      HBasicBlock* false_graph,
-                      bool invert_true,
-                      bool invert_false);
   // Visit an argument and wrap it in a PushArgument instruction.
   HValue* VisitArgument(Expression* expr);
   void VisitArgumentList(ZoneList<Expression*>* arguments);
 
-  HInstruction* AddInstruction(HInstruction* instr);
-  void AddSimulate(int id);
   void AddPhi(HPhi* phi);
 
   void PushAndAdd(HInstruction* instr);
-  void PushAndAdd(HInstruction* instr, int position);
 
   void PushArgumentsForStubCall(int argument_count);
 
-  // Initialize the arguments to the call based on then environment, add it
-  // to the graph, and drop the arguments from the environment.
-  void ProcessCall(HCall* call, int source_position);
+  // Remove the arguments from the bailout environment and emit instructions
+  // to push them as outgoing parameters.
+  void ProcessCall(HCall* call);
 
   void AssumeRepresentation(HValue* value, Representation r);
   static Representation ToRepresentation(TypeInfo info);
@@ -743,7 +751,7 @@ class HGraphBuilder: public AstVisitor {
                                    FunctionLiteral* function);
 
   // Helpers for flow graph construction.
-  void LookupGlobalPropertyCell(VariableProxy* expr,
+  void LookupGlobalPropertyCell(Variable* var,
                                 LookupResult* lookup,
                                 bool is_store);
 
@@ -753,10 +761,11 @@ class HGraphBuilder: public AstVisitor {
   bool TryMathFunctionInline(Call* expr);
   void TraceInline(Handle<JSFunction> target, bool result);
 
-  void HandleGlobalVariableAssignment(VariableProxy* proxy,
+  void HandleGlobalVariableAssignment(Variable* var,
                                       HValue* value,
-                                      int position);
-  void HandleGlobalVariableLoad(VariableProxy* expr);
+                                      int position,
+                                      int ast_id);
+
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
   void HandlePolymorphicLoadNamedField(Property* expr,

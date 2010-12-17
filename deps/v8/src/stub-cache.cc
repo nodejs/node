@@ -1501,25 +1501,31 @@ CallStubCompiler::CallStubCompiler(int argc,
 }
 
 
-MaybeObject* CallStubCompiler::CompileCustomCall(int generator_id,
+bool CallStubCompiler::HasCustomCallGenerator(BuiltinFunctionId id) {
+#define CALL_GENERATOR_CASE(name) if (id == k##name) return true;
+  CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
+#undef CALL_GENERATOR_CASE
+  return false;
+}
+
+
+MaybeObject* CallStubCompiler::CompileCustomCall(BuiltinFunctionId id,
                                                  Object* object,
                                                  JSObject* holder,
                                                  JSGlobalPropertyCell* cell,
                                                  JSFunction* function,
                                                  String* fname) {
-  ASSERT(generator_id >= 0 && generator_id < kNumCallGenerators);
-  switch (generator_id) {
-#define CALL_GENERATOR_CASE(ignored1, ignored2, name)           \
-    case k##name##CallGenerator:                                \
-      return CallStubCompiler::Compile##name##Call(object,      \
-                                                   holder,      \
-                                                   cell,        \
-                                                   function,    \
-                                                   fname);
-    CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
-#undef CALL_GENERATOR_CASE
+#define CALL_GENERATOR_CASE(name)                          \
+  if (id == k##name) {                                     \
+    return CallStubCompiler::Compile##name##Call(object,   \
+                                                 holder,   \
+                                                 cell,     \
+                                                 function, \
+                                                 fname);   \
   }
-  UNREACHABLE();
+  CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
+#undef CALL_GENERATOR_CASE
+  ASSERT(!HasCustomCallGenerator(id));
   return Heap::undefined_value();
 }
 

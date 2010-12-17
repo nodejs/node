@@ -74,7 +74,7 @@ function getter3() {return val3; }
 // Descriptors.
 var emptyDesc = {};
 
-var accessorConfigurable = { 
+var accessorConfigurable = {
     set: setter1,
     get: getter1,
     configurable: true
@@ -83,7 +83,7 @@ var accessorConfigurable = {
 var accessorNoConfigurable = {
     set: setter2,
     get: getter2,
-    configurable: false 
+    configurable: false
 };
 
 var accessorOnlySet = {
@@ -234,7 +234,7 @@ assertEquals(desc.value, undefined);
 assertEquals(1, obj1.setOnly = 1);
 assertEquals(2, val3);
 
-// The above should also work if redefining just a getter or setter on 
+// The above should also work if redefining just a getter or setter on
 // an existing property with both a getter and a setter.
 Object.defineProperty(obj1, "both", accessorConfigurable);
 
@@ -384,7 +384,7 @@ assertEquals(desc.get, undefined);
 assertEquals(desc.set, undefined);
 
 
-// Redefinition of an accessor defined using __defineGetter__ and 
+// Redefinition of an accessor defined using __defineGetter__ and
 // __defineSetter__.
 function get(){return this.x}
 function set(x){this.x=x};
@@ -462,7 +462,7 @@ try {
 
 
 // Test runtime calls to DefineOrRedefineDataProperty and
-// DefineOrRedefineAccessorProperty - make sure we don't 
+// DefineOrRedefineAccessorProperty - make sure we don't
 // crash.
 try {
   %DefineOrRedefineAccessorProperty(0, 0, 0, 0, 0);
@@ -511,7 +511,7 @@ try {
 // Test that all possible differences in step 6 in DefineOwnProperty are
 // exercised, i.e., any difference in the given property descriptor and the
 // existing properties should not return true, but throw an error if the
-// existing configurable property is false. 
+// existing configurable property is false.
 
 var obj5 = {};
 // Enumerable will default to false.
@@ -727,7 +727,7 @@ var descElement = { value: 'foobar' };
 var descElementNonConfigurable = { value: 'barfoo', configurable: false };
 var descElementNonWritable = { value: 'foofoo', writable: false };
 var descElementNonEnumerable = { value: 'barbar', enumerable: false };
-var descElementAllFalse = { value: 'foofalse', 
+var descElementAllFalse = { value: 'foofalse',
                             configurable: false,
                             writable: false,
                             enumerable: false };
@@ -790,7 +790,7 @@ assertFalse(desc.configurable);
 
 // Make sure that we can't redefine using direct access.
 obj6[15] ='overwrite';
-assertEquals(obj6[15],'foobar'); 
+assertEquals(obj6[15],'foobar');
 
 
 // Repeat the above tests on an array.
@@ -805,7 +805,7 @@ var descElement = { value: 'foobar' };
 var descElementNonConfigurable = { value: 'barfoo', configurable: false };
 var descElementNonWritable = { value: 'foofoo', writable: false };
 var descElementNonEnumerable = { value: 'barbar', enumerable: false };
-var descElementAllFalse = { value: 'foofalse', 
+var descElementAllFalse = { value: 'foofalse',
                             configurable: false,
                             writable: false,
                             enumerable: false };
@@ -866,4 +866,35 @@ assertFalse(desc.writable);
 assertFalse(desc.enumerable);
 assertFalse(desc.configurable);
 
+// See issue 968: http://code.google.com/p/v8/issues/detail?id=968
+var o = { x : 42 };
+Object.defineProperty(o, "x", { writable: false });
+assertEquals(42, o.x);
+o.x = 37;
+assertEquals(42, o.x);
 
+o = { x : 42 };
+Object.defineProperty(o, "x", {});
+assertEquals(42, o.x);
+o.x = 37;
+// Writability is preserved.
+assertEquals(37, o.x);
+
+var o = { };
+Object.defineProperty(o, "x", { writable: false });
+assertEquals(undefined, o.x);
+o.x = 37;
+assertEquals(undefined, o.x);
+
+o = { get x() { return 87; } };
+Object.defineProperty(o, "x", { writable: false });
+assertEquals(undefined, o.x);
+o.x = 37;
+assertEquals(undefined, o.x);
+
+// Ignore inherited properties.
+o = { __proto__ : { x : 87 } };
+Object.defineProperty(o, "x", { writable: false });
+assertEquals(undefined, o.x);
+o.x = 37;
+assertEquals(undefined, o.x);

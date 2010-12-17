@@ -273,29 +273,7 @@ void LogMessageBuilder::Append(String* str) {
 
 
 void LogMessageBuilder::AppendAddress(Address addr) {
-  static Address last_address_ = NULL;
-  AppendAddress(addr, last_address_);
-  last_address_ = addr;
-}
-
-
-void LogMessageBuilder::AppendAddress(Address addr, Address bias) {
-  if (!FLAG_compress_log) {
-    Append("0x%" V8PRIxPTR, addr);
-  } else if (bias == NULL) {
-    Append("%" V8PRIxPTR, addr);
-  } else {
-    uintptr_t delta;
-    char sign;
-    if (addr >= bias) {
-      delta = addr - bias;
-      sign = '+';
-    } else {
-      delta = bias - addr;
-      sign = '-';
-    }
-    Append("%c%" V8PRIxPTR, sign, delta);
-  }
+  Append("0x%" V8PRIxPTR, addr);
 }
 
 
@@ -343,169 +321,12 @@ void LogMessageBuilder::AppendStringPart(const char* str, int len) {
 }
 
 
-bool LogMessageBuilder::StoreInCompressor(LogRecordCompressor* compressor) {
-  return compressor->Store(Vector<const char>(Log::message_buffer_, pos_));
-}
-
-
-bool LogMessageBuilder::RetrieveCompressedPrevious(
-    LogRecordCompressor* compressor, const char* prefix) {
-  pos_ = 0;
-  if (prefix[0] != '\0') Append(prefix);
-  Vector<char> prev_record(Log::message_buffer_ + pos_,
-                           Log::kMessageBufferSize - pos_);
-  const bool has_prev = compressor->RetrievePreviousCompressed(&prev_record);
-  if (!has_prev) return false;
-  pos_ += prev_record.length();
-  return true;
-}
-
-
 void LogMessageBuilder::WriteToLogFile() {
   ASSERT(pos_ <= Log::kMessageBufferSize);
   const int written = Log::Write(Log::message_buffer_, pos_);
   if (written != pos_ && write_failure_handler != NULL) {
     write_failure_handler();
   }
-}
-
-
-// Formatting string for back references to the whole line. E.g. "#2" means
-// "the second line above".
-const char* LogRecordCompressor::kLineBackwardReferenceFormat = "#%d";
-
-// Formatting string for back references. E.g. "#2:10" means
-// "the second line above, start from char 10 (0-based)".
-const char* LogRecordCompressor::kBackwardReferenceFormat = "#%d:%d";
-
-
-LogRecordCompressor::~LogRecordCompressor() {
-  for (int i = 0; i < buffer_.length(); ++i) {
-    buffer_[i].Dispose();
-  }
-}
-
-
-static int GetNumberLength(int number) {
-  ASSERT(number >= 0);
-  ASSERT(number < 10000);
-  if (number < 10) return 1;
-  if (number < 100) return 2;
-  if (number < 1000) return 3;
-  return 4;
-}
-
-
-int LogRecordCompressor::GetBackwardReferenceSize(int distance, int pos) {
-  // See kLineBackwardReferenceFormat and kBackwardReferenceFormat.
-  return pos == 0 ? GetNumberLength(distance) + 1
-      : GetNumberLength(distance) + GetNumberLength(pos) + 2;
-}
-
-
-void LogRecordCompressor::PrintBackwardReference(Vector<char> dest,
-                                                 int distance,
-                                                 int pos) {
-  if (pos == 0) {
-    OS::SNPrintF(dest, kLineBackwardReferenceFormat, distance);
-  } else {
-    OS::SNPrintF(dest, kBackwardReferenceFormat, distance, pos);
-  }
-}
-
-
-bool LogRecordCompressor::Store(const Vector<const char>& record) {
-  // Check if the record is the same as the last stored one.
-  if (curr_ != -1) {
-    Vector<const char>& curr = buffer_[curr_];
-    if (record.length() == curr.length()
-        && strncmp(record.start(), curr.start(), record.length()) == 0) {
-      return false;
-    }
-  }
-  // buffer_ is circular.
-  prev_ = curr_++;
-  curr_ %= buffer_.length();
-  Vector<char> record_copy = Vector<char>::New(record.length());
-  memcpy(record_copy.start(), record.start(), record.length());
-  buffer_[curr_].Dispose();
-  buffer_[curr_] =
-      Vector<const char>(record_copy.start(), record_copy.length());
-  return true;
-}
-
-
-bool LogRecordCompressor::RetrievePreviousCompressed(
-    Vector<char>* prev_record) {
-  if (prev_ == -1) return false;
-
-  int index = prev_;
-  // Distance from prev_.
-  int distance = 0;
-  // Best compression result among records in the buffer.
-  struct {
-    intptr_t truncated_len;
-    int distance;
-    int copy_from_pos;
-    int backref_size;
-  } best = {-1, 0, 0, 0};
-  Vector<const char>& prev = buffer_[prev_];
-  const char* const prev_start = prev.start();
-  const char* const prev_end = prev.start() + prev.length();
-  do {
-    // We're moving backwards until we reach the current record.
-    // Remember that buffer_ is circular.
-    if (--index == -1) index = buffer_.length() - 1;
-    ++distance;
-    if (index == curr_) break;
-
-    Vector<const char>& data = buffer_[index];
-    if (data.start() == NULL) break;
-    const char* const data_end = data.start() + data.length();
-    const char* prev_ptr = prev_end;
-    const char* data_ptr = data_end;
-    // Compare strings backwards, stop on the last matching character.
-    while (prev_ptr != prev_start && data_ptr != data.start()
-          && *(prev_ptr - 1) == *(data_ptr - 1)) {
-      --prev_ptr;
-      --data_ptr;
-    }
-    const intptr_t truncated_len = prev_end - prev_ptr;
-    const int copy_from_pos = static_cast<int>(data_ptr - data.start());
-    // Check if the length of compressed tail is enough.
-    if (truncated_len <= kMaxBackwardReferenceSize
-        && truncated_len <= GetBackwardReferenceSize(distance, copy_from_pos)) {
-      continue;
-    }
-
-    // Record compression results.
-    if (truncated_len > best.truncated_len) {
-      best.truncated_len = truncated_len;
-      best.distance = distance;
-      best.copy_from_pos = copy_from_pos;
-      best.backref_size = GetBackwardReferenceSize(distance, copy_from_pos);
-    }
-  } while (true);
-
-  if (best.distance == 0) {
-    // Can't compress the previous record. Return as is.
-    ASSERT(prev_record->length() >= prev.length());
-    memcpy(prev_record->start(), prev.start(), prev.length());
-    prev_record->Truncate(prev.length());
-  } else {
-    // Copy the uncompressible part unchanged.
-    const intptr_t unchanged_len = prev.length() - best.truncated_len;
-    // + 1 for '\0'.
-    ASSERT(prev_record->length() >= unchanged_len + best.backref_size + 1);
-    memcpy(prev_record->start(), prev.start(), unchanged_len);
-    // Append the backward reference.
-    Vector<char> backref(
-        prev_record->start() + unchanged_len, best.backref_size + 1);
-    PrintBackwardReference(backref, best.distance, best.copy_from_pos);
-    ASSERT(strlen(backref.start()) - best.backref_size == 0);
-    prev_record->Truncate(static_cast<int>(unchanged_len + best.backref_size));
-  }
-  return true;
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

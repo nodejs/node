@@ -134,9 +134,7 @@ static bool CPUInfoContainsString(const char * search_string) {
 }
 
 bool OS::ArmCpuHasFeature(CpuFeature feature) {
-  const int max_items = 2;
-  const char* search_strings[max_items] = { NULL, NULL };
-  int search_items = 0;
+  const char* search_string = NULL;
   // Simple detection of VFP at runtime for Linux.
   // It is based on /proc/cpuinfo, which reveals hardware configuration
   // to user-space applications.  According to ARM (mid 2009), no similar
@@ -144,25 +142,26 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
   // so it's up to individual OSes to provide such.
   switch (feature) {
     case VFP3:
-      search_strings[0] = "vfpv3";
-      // Some old kernels will report vfp for A8, not vfpv3, so we check for
-      // A8 explicitely. The cpuinfo file report the CPU Part which for Cortex
-      // A8 is 0xc08.
-      search_strings[1] = "0xc08";
-      search_items = 2;
-      ASSERT(search_items <= max_items);
+      search_string = "vfpv3";
       break;
     case ARMv7:
-      search_strings[0] = "ARMv7" ;
-      search_items = 1;
-      ASSERT(search_items <= max_items);
+      search_string = "ARMv7";
       break;
     default:
       UNREACHABLE();
   }
 
-  for (int i = 0; i < search_items; ++i) {
-    if (CPUInfoContainsString(search_strings[i])) {
+  if (CPUInfoContainsString(search_string)) {
+    return true;
+  }
+
+  if (feature == VFP3) {
+    // Some old kernels will report vfp not vfpv3. Here we make a last attempt
+    // to detect vfpv3 by checking for vfp *and* neon, since neon is only
+    // available on architectures with vfpv3.
+    // Checking neon on its own is not enough as it is possible to have neon
+    // without vfp.
+    if (CPUInfoContainsString("vfp") && CPUInfoContainsString("neon")) {
       return true;
     }
   }

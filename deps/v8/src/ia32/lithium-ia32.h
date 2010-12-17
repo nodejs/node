@@ -67,6 +67,7 @@ class LGapNode;
 //     LLoadKeyedGeneric
 //     LModI
 //     LMulI
+//     LPower
 //     LShiftI
 //     LSubI
 //   LCallConstantFunction
@@ -123,6 +124,8 @@ class LGapNode;
 //     LInteger32ToDouble
 //     LIsNull
 //     LIsNullAndBranch
+//     LIsObject
+//     LIsObjectAndBranch
 //     LIsSmi
 //     LIsSmiAndBranch
 //     LLoadNamedField
@@ -205,6 +208,8 @@ class LGapNode;
   V(Integer32ToDouble)                          \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
+  V(IsObject)                                   \
+  V(IsObjectAndBranch)                          \
   V(IsSmi)                                      \
   V(IsSmiAndBranch)                             \
   V(HasInstanceType)                            \
@@ -229,6 +234,7 @@ class LGapNode;
   V(ObjectLiteral)                              \
   V(OsrEntry)                                   \
   V(Parameter)                                  \
+  V(Power)                                      \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
   V(Return)                                     \
@@ -668,7 +674,7 @@ class LUnaryMathOperation: public LUnaryOperation {
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
 
   virtual void PrintDataTo(StringStream* stream) const;
-  MathFunctionId op() const { return hydrogen()->op(); }
+  BuiltinFunctionId op() const { return hydrogen()->op(); }
 };
 
 
@@ -740,6 +746,48 @@ class LIsNullAndBranch: public LIsNull {
 
  private:
   LOperand* temp_;
+  int true_block_id_;
+  int false_block_id_;
+};
+
+
+class LIsObject: public LUnaryOperation {
+ public:
+  LIsObject(LOperand* value, LOperand* temp)
+      : LUnaryOperation(value), temp_(temp) {}
+
+  DECLARE_CONCRETE_INSTRUCTION(IsObject, "is-object")
+
+  LOperand* temp() const { return temp_; }
+
+ private:
+  LOperand* temp_;
+};
+
+
+class LIsObjectAndBranch: public LIsObject {
+ public:
+  LIsObjectAndBranch(LOperand* value,
+                     LOperand* temp,
+                     LOperand* temp2,
+                     int true_block_id,
+                     int false_block_id)
+      : LIsObject(value, temp),
+        temp2_(temp2),
+        true_block_id_(true_block_id),
+        false_block_id_(false_block_id) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch, "is-object-and-branch")
+  virtual void PrintDataTo(StringStream* stream) const;
+  virtual bool IsControl() const { return true; }
+
+  int true_block_id() const { return true_block_id_; }
+  int false_block_id() const { return false_block_id_; }
+
+  LOperand* temp2() const { return temp2_; }
+
+ private:
+  LOperand* temp2_;
   int true_block_id_;
   int false_block_id_;
 };
@@ -1151,6 +1199,16 @@ class LAddI: public LBinaryOperation {
 
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
+};
+
+
+class LPower: public LBinaryOperation {
+ public:
+  LPower(LOperand* left, LOperand* right)
+      : LBinaryOperation(left, right) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(Power, "power")
+  DECLARE_HYDROGEN_ACCESSOR(Power)
 };
 
 
@@ -1890,7 +1948,6 @@ class LChunk: public ZoneObject {
   LGap* GetGapAt(int index) const;
   bool IsGapAt(int index) const;
   int NearestGapPos(int index) const;
-  int NearestNextGapPos(int index) const;
   void MarkEmptyBlocks();
   const ZoneList<LPointerMap*>* pointer_maps() const { return &pointer_maps_; }
   LLabel* GetLabel(int block_id) const {

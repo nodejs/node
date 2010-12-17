@@ -2112,8 +2112,8 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
   //  -- lr    : return address
   // -----------------------------------
   SharedFunctionInfo* function_info = function->shared();
-  if (function_info->HasCustomCallGenerator()) {
-    const int id = function_info->custom_call_generator_id();
+  if (function_info->HasBuiltinFunctionId()) {
+    BuiltinFunctionId id = function_info->builtin_function_id();
     MaybeObject* maybe_result = CompileCustomCall(
         id, object, holder, NULL, function, name);
     Object* result;
@@ -2323,8 +2323,8 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // -----------------------------------
 
   SharedFunctionInfo* function_info = function->shared();
-  if (function_info->HasCustomCallGenerator()) {
-    const int id = function_info->custom_call_generator_id();
+  if (function_info->HasBuiltinFunctionId()) {
+    BuiltinFunctionId id = function_info->builtin_function_id();
     MaybeObject* maybe_result = CompileCustomCall(
         id, object, holder, cell, function, name);
     Object* result;

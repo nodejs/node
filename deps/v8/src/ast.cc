@@ -32,6 +32,7 @@
 #include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -125,17 +126,18 @@ Assignment::Assignment(Token::Value op,
       target_(target),
       value_(value),
       pos_(pos),
-      compound_bailout_id_(kNoNumber),
+      binary_operation_(NULL),
+      compound_load_id_(kNoNumber),
+      assignment_id_(GetNextId()),
       block_start_(false),
       block_end_(false),
       is_monomorphic_(false),
       receiver_types_(NULL) {
   ASSERT(Token::IsAssignmentOp(op));
-  binary_operation_ = is_compound()
-      ? new BinaryOperation(binary_op(), target, value, pos + 1)
-      : NULL;
   if (is_compound()) {
-    compound_bailout_id_ = GetNextId();
+    binary_operation_ =
+        new BinaryOperation(binary_op(), target, value, pos + 1);
+    compound_load_id_ = GetNextId();
   }
 }
 
@@ -558,16 +560,18 @@ void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 static bool CallWithoutIC(Handle<JSFunction> target, int arity) {
+  SharedFunctionInfo* info = target->shared();
   if (target->NeedsArgumentsAdaption()) {
     // If the number of formal parameters of the target function
     // does not match the number of arguments we're passing, we
     // don't want to deal with it.
-    return target->shared()->formal_parameter_count() == arity;
+    return info->formal_parameter_count() == arity;
   } else {
     // If the target doesn't need arguments adaption, we can call
     // it directly, but we avoid to do so if it has a custom call
     // generator, because that is likely to generate better code.
-    return !target->shared()->HasCustomCallGenerator();
+    return !info->HasBuiltinFunctionId() ||
+        !CallStubCompiler::HasCustomCallGenerator(info->builtin_function_id());
   }
 }
 

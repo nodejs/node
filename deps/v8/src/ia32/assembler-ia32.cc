@@ -2409,6 +2409,7 @@ void Assembler::movsd(XMMRegister dst, const Operand& src) {
   emit_sse_operand(dst, src);
 }
 
+
 void Assembler::movsd(XMMRegister dst, XMMRegister src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
@@ -2428,6 +2429,17 @@ void Assembler::movd(XMMRegister dst, const Operand& src) {
   EMIT(0x0F);
   EMIT(0x6E);
   emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movd(const Operand& dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x7E);
+  emit_sse_operand(src, dst);
 }
 
 
@@ -2465,7 +2477,7 @@ void Assembler::ptest(XMMRegister dst, XMMRegister src) {
 }
 
 
-void Assembler::psllq(XMMRegister reg, int8_t imm8) {
+void Assembler::psllq(XMMRegister reg, int8_t shift) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2473,7 +2485,32 @@ void Assembler::psllq(XMMRegister reg, int8_t imm8) {
   EMIT(0x0F);
   EMIT(0x73);
   emit_sse_operand(esi, reg);  // esi == 6
-  EMIT(imm8);
+  EMIT(shift);
+}
+
+
+void Assembler::pshufd(XMMRegister dst, XMMRegister src, int8_t shuffle) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x70);
+  emit_sse_operand(dst, src);
+  EMIT(shuffle);
+}
+
+
+void Assembler::pextrd(const Operand& dst, XMMRegister src, int8_t offset) {
+  ASSERT(CpuFeatures::IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x3A);
+  EMIT(0x16);
+  emit_sse_operand(src, dst);
+  EMIT(offset);
 }
 
 

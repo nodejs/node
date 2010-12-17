@@ -315,6 +315,13 @@ void LCodeGen::CallCode(Handle<Code> code,
     __ call(code, mode);
     RecordSafepoint(&no_pointers, Safepoint::kNoDeoptimizationIndex);
   }
+
+  // Signal that we don't inline smi code before these stubs in the
+  // optimizing code generator.
+  if (code->kind() == Code::TYPE_RECORDING_BINARY_OP_IC ||
+      code->kind() == Code::COMPARE_IC) {
+    __ nop();
+  }
 }
 
 
@@ -1403,6 +1410,71 @@ void LCodeGen::DoIsNullAndBranch(LIsNullAndBranch* instr) {
 }
 
 
+Condition LCodeGen::EmitIsObject(Register input,
+                                 Register temp1,
+                                 Register temp2,
+                                 Label* is_not_object,
+                                 Label* is_object) {
+  ASSERT(!input.is(temp1));
+  ASSERT(!input.is(temp2));
+  ASSERT(!temp1.is(temp2));
+
+  __ test(input, Immediate(kSmiTagMask));
+  __ j(equal, is_not_object);
+
+  __ cmp(input, Factory::null_value());
+  __ j(equal, is_object);
+
+  __ mov(temp1, FieldOperand(input, HeapObject::kMapOffset));
+  // Undetectable objects behave like undefined.
+  __ movzx_b(temp2, FieldOperand(temp1, Map::kBitFieldOffset));
+  __ test(temp2, Immediate(1 << Map::kIsUndetectable));
+  __ j(not_zero, is_not_object);
+
+  __ movzx_b(temp2, FieldOperand(temp1, Map::kInstanceTypeOffset));
+  __ cmp(temp2, FIRST_JS_OBJECT_TYPE);
+  __ j(below, is_not_object);
+  __ cmp(temp2, LAST_JS_OBJECT_TYPE);
+  return below_equal;
+}
+
+
+void LCodeGen::DoIsObject(LIsObject* instr) {
+  Register reg = ToRegister(instr->input());
+  Register result = ToRegister(instr->result());
+  Register temp = ToRegister(instr->temp());
+  Label is_false, is_true, done;
+
+  Condition true_cond = EmitIsObject(reg, result, temp, &is_false, &is_true);
+  __ j(true_cond, &is_true);
+
+  __ bind(&is_false);
+  __ mov(result, Handle<Object>(Heap::false_value()));
+  __ jmp(&done);
+
+  __ bind(&is_true);
+  __ mov(result, Handle<Object>(Heap::true_value()));
+
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
+  Register reg = ToRegister(instr->input());
+  Register temp = ToRegister(instr->temp());
+  Register temp2 = ToRegister(instr->temp2());
+
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+  Label* true_label = chunk_->GetAssemblyLabel(true_block);
+  Label* false_label = chunk_->GetAssemblyLabel(false_block);
+
+  Condition true_cond = EmitIsObject(reg, temp, temp2, false_label, true_label);
+
+  EmitBranch(true_block, false_block, true_cond);
+}
+
+
 void LCodeGen::DoIsSmi(LIsSmi* instr) {
   Operand input = ToOperand(instr->input());
   Register result = ToRegister(instr->result());
@@ -1627,9 +1699,8 @@ void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
 
 
 void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
-  InstanceofStub stub;
-  __ push(ToOperand(instr->left()));
-  __ push(ToOperand(instr->right()));
+  // Object and function are in fixed registers eax and edx.
+  InstanceofStub stub(InstanceofStub::kArgsInRegisters);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 
   NearLabel true_value, done;
@@ -1647,9 +1718,7 @@ void LCodeGen::DoInstanceOfAndBranch(LInstanceOfAndBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
 
-  InstanceofStub stub;
-  __ push(ToOperand(instr->left()));
-  __ push(ToOperand(instr->right()));
+  InstanceofStub stub(InstanceofStub::kArgsInRegisters);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   __ test(eax, Operand(eax));
   EmitBranch(true_block, false_block, zero);
@@ -2174,6 +2243,82 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
 }
 
 
+void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
+  XMMRegister xmm_scratch = xmm0;
+  XMMRegister input_reg = ToDoubleRegister(instr->input());
+  ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
+  ExternalReference negative_infinity =
+      ExternalReference::address_of_negative_infinity();
+  __ movdbl(xmm_scratch, Operand::StaticVariable(negative_infinity));
+  __ ucomisd(xmm_scratch, input_reg);
+  DeoptimizeIf(equal, instr->environment());
+  __ sqrtsd(input_reg, input_reg);
+}
+
+
+void LCodeGen::DoPower(LPower* instr) {
+  LOperand* left = instr->left();
+  LOperand* right = instr->right();
+  DoubleRegister result_reg = ToDoubleRegister(instr->result());
+  Representation exponent_type = instr->hydrogen()->right()->representation();
+  if (exponent_type.IsDouble()) {
+    // It is safe to use ebx directly since the instruction is marked
+    // as a call.
+    __ PrepareCallCFunction(4, ebx);
+    __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
+    __ movdbl(Operand(esp, 1 * kDoubleSize), ToDoubleRegister(right));
+    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+  } else if (exponent_type.IsInteger32()) {
+    // It is safe to use ebx directly since the instruction is marked
+    // as a call.
+    ASSERT(!ToRegister(right).is(ebx));
+    __ PrepareCallCFunction(4, ebx);
+    __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
+    __ mov(Operand(esp, 1 * kDoubleSize), ToRegister(right));
+    __ CallCFunction(ExternalReference::power_double_int_function(), 4);
+  } else {
+    ASSERT(exponent_type.IsTagged());
+    CpuFeatures::Scope scope(SSE2);
+    Register right_reg = ToRegister(right);
+
+    Label non_smi, call;
+    __ test(right_reg, Immediate(kSmiTagMask));
+    __ j(not_zero, &non_smi);
+    __ SmiUntag(right_reg);
+    __ cvtsi2sd(result_reg, Operand(right_reg));
+    __ jmp(&call);
+
+    __ bind(&non_smi);
+    // It is safe to use ebx directly since the instruction is marked
+    // as a call.
+    ASSERT(!right_reg.is(ebx));
+    __ CmpObjectType(right_reg, HEAP_NUMBER_TYPE , ebx);
+    DeoptimizeIf(not_equal, instr->environment());
+    __ movdbl(result_reg, FieldOperand(right_reg, HeapNumber::kValueOffset));
+
+    __ bind(&call);
+    __ PrepareCallCFunction(4, ebx);
+    __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
+    __ movdbl(Operand(esp, 1 * kDoubleSize), result_reg);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+  }
+
+  // Return value is in st(0) on ia32.
+  // Store it into the (fixed) result register.
+  __ sub(Operand(esp), Immediate(kDoubleSize));
+  __ fstp_d(Operand(esp, 0));
+  __ movdbl(result_reg, Operand(esp, 0));
+  __ add(Operand(esp), Immediate(kDoubleSize));
+}
+
+
+void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
+  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
+  TranscendentalCacheSSE2Stub stub(TranscendentalCache::LOG);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+}
+
+
 void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
   switch (instr->op()) {
     case kMathAbs:
@@ -2188,6 +2333,13 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
     case kMathSqrt:
       DoMathSqrt(instr);
       break;
+    case kMathPowHalf:
+      DoMathPowHalf(instr);
+      break;
+    case kMathLog:
+      DoMathLog(instr);
+      break;
+
     default:
       UNREACHABLE();
   }

@@ -1368,7 +1368,7 @@ class JSObject: public HeapObject {
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
                                               bool is_getter,
-                                              JSFunction* fun,
+                                              Object* fun,
                                               PropertyAttributes attributes);
   Object* LookupAccessor(String* name, bool is_getter);
 
@@ -3714,22 +3714,49 @@ class Script: public Struct {
 };
 
 
-enum MathFunctionId {
-  kNotSpecialMathFunction = 0,
-  // These numbers must be kept in sync with the ones in math.js.
-  kMathFloor = 1,
-  kMathRound = 2,
-  kMathCeil = 3,
-  kMathAbs = 4,
-  kMathLog = 5,
-  kMathSin = 6,
-  kMathCos = 7,
-  kMathTan = 8,
-  kMathASin = 9,
-  kMathACos = 0xa,
-  kMathATan = 0xb,
-  kMathExp = 0xc,
-  kMathSqrt = 0xd
+// List of builtin functions we want to identify to improve code
+// generation.
+//
+// Each entry has a name of a global object property holding an object
+// optionally followed by ".prototype", a name of a builtin function
+// on the object (the one the id is set for), and a label.
+//
+// Installation of ids for the selected builtin functions is handled
+// by the bootstrapper.
+//
+// NOTE: Order is important: math functions should be at the end of
+// the list and MathFloor should be the first math function.
+#define FUNCTIONS_WITH_ID_LIST(V)                   \
+  V(Array.prototype, push, ArrayPush)               \
+  V(Array.prototype, pop, ArrayPop)                 \
+  V(String.prototype, charCodeAt, StringCharCodeAt) \
+  V(String.prototype, charAt, StringCharAt)         \
+  V(String, fromCharCode, StringFromCharCode)       \
+  V(Math, floor, MathFloor)                         \
+  V(Math, round, MathRound)                         \
+  V(Math, ceil, MathCeil)                           \
+  V(Math, abs, MathAbs)                             \
+  V(Math, log, MathLog)                             \
+  V(Math, sin, MathSin)                             \
+  V(Math, cos, MathCos)                             \
+  V(Math, tan, MathTan)                             \
+  V(Math, asin, MathASin)                           \
+  V(Math, acos, MathACos)                           \
+  V(Math, atan, MathATan)                           \
+  V(Math, exp, MathExp)                             \
+  V(Math, sqrt, MathSqrt)                           \
+  V(Math, pow, MathPow)
+
+
+enum BuiltinFunctionId {
+#define DECLARE_FUNCTION_ID(ignored1, ignore2, name)    \
+  k##name,
+  FUNCTIONS_WITH_ID_LIST(DECLARE_FUNCTION_ID)
+#undef DECLARE_FUNCTION_ID
+  // Fake id for a special case of Math.pow. Note, it continues the
+  // list of math functions.
+  kMathPowHalf,
+  kFirstMathFunctionId = kMathFloor
 };
 
 
@@ -3870,7 +3897,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // [function data]: This field holds some additional data for function.
   // Currently it either has FunctionTemplateInfo to make benefit the API
-  // or Smi identifying a custom call generator.
+  // or Smi identifying a builtin function.
   // In the long run we don't want all functions to have this field but
   // we can fix that when we have a better model for storing hidden data
   // on objects.
@@ -3878,8 +3905,9 @@ class SharedFunctionInfo: public HeapObject {
 
   inline bool IsApiFunction();
   inline FunctionTemplateInfo* get_api_func_data();
-  inline bool HasCustomCallGenerator();
-  inline int custom_call_generator_id();
+  inline bool HasBuiltinFunctionId();
+  inline bool IsBuiltinMathFunction();
+  inline BuiltinFunctionId builtin_function_id();
 
   // [script info]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
@@ -4130,12 +4158,6 @@ class SharedFunctionInfo: public HeapObject {
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
-  // Get/set a special tag on the functions from math.js so we can inline
-  // efficient versions of them in the code.
-  inline MathFunctionId math_function_id();
-  inline void set_math_function_id(int id);
-  static inline int max_math_id_number() { return kMathFunctionMask; }
-
   typedef FixedBodyDescriptor<kNameOffset,
                               kThisPropertyAssignmentsOffset + kPointerSize,
                               kSize> BodyDescriptor;
@@ -4153,12 +4175,10 @@ class SharedFunctionInfo: public HeapObject {
   static const int kHasOnlySimpleThisPropertyAssignments = 0;
   static const int kTryFullCodegen = 1;
   static const int kAllowLazyCompilation = 2;
-  static const int kMathFunctionShift = 3;
-  static const int kMathFunctionMask = 0xf;
-  static const int kLiveObjectsMayExist = 7;
-  static const int kCodeAgeShift = 8;
+  static const int kLiveObjectsMayExist = 3;
+  static const int kCodeAgeShift = 4;
   static const int kCodeAgeMask = 0x7;
-  static const int kOptimizationDisabled = 11;
+  static const int kOptimizationDisabled = 7;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };

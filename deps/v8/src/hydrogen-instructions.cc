@@ -64,69 +64,34 @@ const char* Representation::Mnemonic() const {
 }
 
 
-static int32_t AddAssertNoOverflow(int32_t a, int32_t b) {
-  ASSERT(static_cast<int64_t>(a + b) == (static_cast<int64_t>(a) +
-                                         static_cast<int64_t>(b)));
-  return a + b;
-}
-
-
-static int32_t SubAssertNoOverflow(int32_t a, int32_t b) {
-  ASSERT(static_cast<int64_t>(a - b) == (static_cast<int64_t>(a) -
-                                         static_cast<int64_t>(b)));
-  return a - b;
-}
-
-
-static int32_t MulAssertNoOverflow(int32_t a, int32_t b) {
-  ASSERT(static_cast<int64_t>(a * b) == (static_cast<int64_t>(a) *
-                                         static_cast<int64_t>(b)));
-  return a * b;
-}
-
-
-static int32_t AddWithoutOverflow(int32_t a, int32_t b) {
-  if (b > 0) {
-    if (a <= kMaxInt - b) return AddAssertNoOverflow(a, b);
+static int32_t ConvertAndSetOverflow(int64_t result, bool* overflow) {
+  if (result > kMaxInt) {
+    *overflow = true;
     return kMaxInt;
-  } else {
-    if (a >= kMinInt - b) return AddAssertNoOverflow(a, b);
+  }
+  if (result < kMinInt) {
+    *overflow = true;
     return kMinInt;
   }
+  return static_cast<int32_t>(result);
 }
 
 
-static int32_t SubWithoutOverflow(int32_t a, int32_t b) {
-  if (b < 0) {
-    if (a <= kMaxInt + b) return SubAssertNoOverflow(a, b);
-    return kMaxInt;
-  } else {
-    if (a >= kMinInt + b) return SubAssertNoOverflow(a, b);
-    return kMinInt;
-  }
+static int32_t AddWithoutOverflow(int32_t a, int32_t b, bool* overflow) {
+  int64_t result = static_cast<int64_t>(a) + static_cast<int64_t>(b);
+  return ConvertAndSetOverflow(result, overflow);
+}
+
+
+static int32_t SubWithoutOverflow(int32_t a, int32_t b, bool* overflow) {
+  int64_t result = static_cast<int64_t>(a) - static_cast<int64_t>(b);
+  return ConvertAndSetOverflow(result, overflow);
 }
 
 
 static int32_t MulWithoutOverflow(int32_t a, int32_t b, bool* overflow) {
-  if (b == 0 || a == 0) return 0;
-  if (a == 1) return b;
-  if (b == 1) return a;
-
-  int sign = 1;
-  if ((a < 0 && b > 0) || (a > 0 && b < 0)) sign = -1;
-  if (a < 0) a = -a;
-  if (b < 0) b = -b;
-
-  if (kMaxInt / b > a && a != kMinInt && b != kMinInt) {
-    return MulAssertNoOverflow(a, b) * sign;
-  }
-
-  *overflow = true;
-  if (sign == 1) {
-    return kMaxInt;
-  } else {
-    return kMinInt;
-  }
+  int64_t result = static_cast<int64_t>(a) * static_cast<int64_t>(b);
+  return ConvertAndSetOverflow(result, overflow);
 }
 
 
@@ -143,39 +108,32 @@ int32_t Range::Mask() const {
 }
 
 
-void Range::Add(int32_t value) {
+void Range::AddConstant(int32_t value) {
   if (value == 0) return;
-  lower_ = AddWithoutOverflow(lower_, value);
-  upper_ = AddWithoutOverflow(upper_, value);
+  bool may_overflow = false;  // Overflow is ignored here.
+  lower_ = AddWithoutOverflow(lower_, value, &may_overflow);
+  upper_ = AddWithoutOverflow(upper_, value, &may_overflow);
   Verify();
 }
 
 
-// Returns whether the add may overflow.
 bool Range::AddAndCheckOverflow(Range* other) {
-  int old_lower = lower_;
-  int old_upper = upper_;
-  lower_ = AddWithoutOverflow(lower_, other->lower());
-  upper_ = AddWithoutOverflow(upper_, other->upper());
-  bool r = (old_lower + other->lower() != lower_ ||
-           old_upper + other->upper() != upper_);
+  bool may_overflow = false;
+  lower_ = AddWithoutOverflow(lower_, other->lower(), &may_overflow);
+  upper_ = AddWithoutOverflow(upper_, other->upper(), &may_overflow);
   KeepOrder();
   Verify();
-  return r;
+  return may_overflow;
 }
 
 
-// Returns whether the sub may overflow.
 bool Range::SubAndCheckOverflow(Range* other) {
-  int old_lower = lower_;
-  int old_upper = upper_;
-  lower_ = SubWithoutOverflow(lower_, other->lower());
-  upper_ = SubWithoutOverflow(upper_, other->upper());
-  bool r = (old_lower - other->lower() != lower_ ||
-           old_upper - other->upper() != upper_);
+  bool may_overflow = false;
+  lower_ = SubWithoutOverflow(lower_, other->upper(), &may_overflow);
+  upper_ = SubWithoutOverflow(upper_, other->lower(), &may_overflow);
   KeepOrder();
   Verify();
-  return r;
+  return may_overflow;
 }
 
 
@@ -193,7 +151,6 @@ void Range::Verify() const {
 }
 
 
-// Returns whether the mul may overflow.
 bool Range::MulAndCheckOverflow(Range* other) {
   bool may_overflow = false;
   int v1 = MulWithoutOverflow(lower_, other->lower(), &may_overflow);

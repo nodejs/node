@@ -4344,47 +4344,167 @@ THREADED_TEST(ObjectInstantiation) {
 }
 
 
+static int StrCmp16(uint16_t* a, uint16_t* b) {
+  while (true) {
+    if (*a == 0 && *b == 0) return 0;
+    if (*a != *b) return 0 + *a - *b;
+    a++;
+    b++;
+  }
+}
+
+
+static int StrNCmp16(uint16_t* a, uint16_t* b, int n) {
+  while (true) {
+    if (n-- == 0) return 0;
+    if (*a == 0 && *b == 0) return 0;
+    if (*a != *b) return 0 + *a - *b;
+    a++;
+    b++;
+  }
+}
+
+
 THREADED_TEST(StringWrite) {
   v8::HandleScope scope;
   v8::Handle<String> str = v8_str("abcde");
+  // abc<Icelandic eth><Unicode snowman>.
+  v8::Handle<String> str2 = v8_str("abc\303\260\342\230\203");
+
+  CHECK_EQ(5, str2->Length());
 
   char buf[100];
+  char utf8buf[100];
+  uint16_t wbuf[100];
   int len;
+  int charlen;
+
+  memset(utf8buf, 0x1, sizeof(utf8buf));
+  len = str2->WriteUtf8(utf8buf, sizeof(utf8buf), &charlen);
+  CHECK_EQ(len, 9);
+  CHECK_EQ(charlen, 5);
+  CHECK_EQ(strcmp(utf8buf, "abc\303\260\342\230\203"), 0);
+
+  memset(utf8buf, 0x1, sizeof(utf8buf));
+  len = str2->WriteUtf8(utf8buf, 8, &charlen);
+  CHECK_EQ(len, 8);
+  CHECK_EQ(charlen, 5);
+  CHECK_EQ(strncmp(utf8buf, "abc\303\260\342\230\203\1", 9), 0);
+
+  memset(utf8buf, 0x1, sizeof(utf8buf));
+  len = str2->WriteUtf8(utf8buf, 7, &charlen);
+  CHECK_EQ(len, 5);
+  CHECK_EQ(charlen, 4);
+  CHECK_EQ(strncmp(utf8buf, "abc\303\260\1", 5), 0);
+
+  memset(utf8buf, 0x1, sizeof(utf8buf));
+  len = str2->WriteUtf8(utf8buf, 6, &charlen);
+  CHECK_EQ(len, 5);
+  CHECK_EQ(charlen, 4);
+  CHECK_EQ(strncmp(utf8buf, "abc\303\260\1", 5), 0);
+
+  memset(utf8buf, 0x1, sizeof(utf8buf));
+  len = str2->WriteUtf8(utf8buf, 5, &charlen);
+  CHECK_EQ(len, 5);
+  CHECK_EQ(charlen, 4);
+  CHECK_EQ(strncmp(utf8buf, "abc\303\260\1", 5), 0);
+
+  memset(utf8buf, 0x1, sizeof(utf8buf));
+  len = str2->WriteUtf8(utf8buf, 4, &charlen);
+  CHECK_EQ(len, 3);
+  CHECK_EQ(charlen, 3);
+  CHECK_EQ(strncmp(utf8buf, "abc\1", 4), 0);
+
+  memset(utf8buf, 0x1, sizeof(utf8buf));
+  len = str2->WriteUtf8(utf8buf, 3, &charlen);
+  CHECK_EQ(len, 3);
+  CHECK_EQ(charlen, 3);
+  CHECK_EQ(strncmp(utf8buf, "abc\1", 4), 0);
+
+  memset(utf8buf, 0x1, sizeof(utf8buf));
+  len = str2->WriteUtf8(utf8buf, 2, &charlen);
+  CHECK_EQ(len, 2);
+  CHECK_EQ(charlen, 2);
+  CHECK_EQ(strncmp(utf8buf, "ab\1", 3), 0);
 
   memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf);
   CHECK_EQ(len, 5);
-  CHECK_EQ(strncmp("abcde\0", buf, 6), 0);
+  len = str->Write(wbuf);
+  CHECK_EQ(len, 5);
+  CHECK_EQ(strcmp("abcde", buf), 0);
+  uint16_t answer1[] = {'a', 'b', 'c', 'd', 'e', '\0'};
+  CHECK_EQ(StrCmp16(answer1, wbuf), 0);
 
   memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 0, 4);
   CHECK_EQ(len, 4);
+  len = str->Write(wbuf, 0, 4);
+  CHECK_EQ(len, 4);
   CHECK_EQ(strncmp("abcd\1", buf, 5), 0);
+  uint16_t answer2[] = {'a', 'b', 'c', 'd', 0x101};
+  CHECK_EQ(StrNCmp16(answer2, wbuf, 5), 0);
 
   memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 0, 5);
   CHECK_EQ(len, 5);
+  len = str->Write(wbuf, 0, 5);
+  CHECK_EQ(len, 5);
   CHECK_EQ(strncmp("abcde\1", buf, 6), 0);
+  uint16_t answer3[] = {'a', 'b', 'c', 'd', 'e', 0x101};
+  CHECK_EQ(StrNCmp16(answer3, wbuf, 6), 0);
 
   memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 0, 6);
   CHECK_EQ(len, 5);
-  CHECK_EQ(strncmp("abcde\0", buf, 6), 0);
+  len = str->Write(wbuf, 0, 6);
+  CHECK_EQ(len, 5);
+  CHECK_EQ(strcmp("abcde", buf), 0);
+  uint16_t answer4[] = {'a', 'b', 'c', 'd', 'e', '\0'};
+  CHECK_EQ(StrCmp16(answer4, wbuf), 0);
 
   memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 4, -1);
   CHECK_EQ(len, 1);
-  CHECK_EQ(strncmp("e\0", buf, 2), 0);
+  len = str->Write(wbuf, 4, -1);
+  CHECK_EQ(len, 1);
+  CHECK_EQ(strcmp("e", buf), 0);
+  uint16_t answer5[] = {'e', '\0'};
+  CHECK_EQ(StrCmp16(answer5, wbuf), 0);
 
   memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 4, 6);
   CHECK_EQ(len, 1);
-  CHECK_EQ(strncmp("e\0", buf, 2), 0);
+  len = str->Write(wbuf, 4, 6);
+  CHECK_EQ(len, 1);
+  CHECK_EQ(strcmp("e", buf), 0);
+  CHECK_EQ(StrCmp16(answer5, wbuf), 0);
 
   memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 4, 1);
   CHECK_EQ(len, 1);
+  len = str->Write(wbuf, 4, 1);
+  CHECK_EQ(len, 1);
   CHECK_EQ(strncmp("e\1", buf, 2), 0);
+  uint16_t answer6[] = {'e', 0x101};
+  CHECK_EQ(StrNCmp16(answer6, wbuf, 2), 0);
+
+  memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
+  len = str->WriteAscii(buf, 3, 1);
+  CHECK_EQ(len, 1);
+  len = str->Write(wbuf, 3, 1);
+  CHECK_EQ(len, 1);
+  CHECK_EQ(strncmp("d\1", buf, 2), 0);
+  uint16_t answer7[] = {'d', 0x101};
+  CHECK_EQ(StrNCmp16(answer7, wbuf, 2), 0);
 }
 
 

@@ -563,7 +563,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     }
 
     // Step 7
-    if (desc.isConfigurable() ||  desc.isEnumerable() != current.isEnumerable())
+    if (desc.isConfigurable() || desc.isEnumerable() != current.isEnumerable())
       throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
     // Step 9
     if (IsDataDescriptor(current) != IsDataDescriptor(desc))
@@ -615,12 +615,20 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     } else {
       flag |= READ_ONLY;
     }
-    %DefineOrRedefineDataProperty(obj, p, desc.getValue(), flag);
+    var value = void 0;  // Default value is undefined.
+    if (desc.hasValue()) {
+      value = desc.getValue();
+    } else if (!IS_UNDEFINED(current)) {
+      value = current.getValue();
+    }
+    %DefineOrRedefineDataProperty(obj, p, value, flag);
   } else {
-    if (desc.hasGetter() && IS_FUNCTION(desc.getGet())) {
+    if (desc.hasGetter() &&
+        (IS_FUNCTION(desc.getGet()) || IS_UNDEFINED(desc.getGet()))) {
        %DefineOrRedefineAccessorProperty(obj, p, GETTER, desc.getGet(), flag);
     }
-    if (desc.hasSetter() && IS_FUNCTION(desc.getSet())) {
+    if (desc.hasSetter() &&
+        (IS_FUNCTION(desc.getSet()) || IS_UNDEFINED(desc.getSet()))) {
       %DefineOrRedefineAccessorProperty(obj, p, SETTER, desc.getSet(), flag);
     }
   }
@@ -903,19 +911,13 @@ function BooleanValueOf() {
 }
 
 
-function BooleanToJSON(key) {
-  return CheckJSONPrimitive(this.valueOf());
-}
-
-
 // ----------------------------------------------------------------------------
 
 
 function SetupBoolean() {
   InstallFunctions($Boolean.prototype, DONT_ENUM, $Array(
     "toString", BooleanToString,
-    "valueOf", BooleanValueOf,
-    "toJSON", BooleanToJSON
+    "valueOf", BooleanValueOf
   ));
 }
 
@@ -1015,18 +1017,6 @@ function NumberToPrecision(precision) {
 }
 
 
-function CheckJSONPrimitive(val) {
-  if (!IsPrimitive(val))
-    throw MakeTypeError('result_not_primitive', ['toJSON', val]);
-  return val;
-}
-
-
-function NumberToJSON(key) {
-  return CheckJSONPrimitive(this.valueOf());
-}
-
-
 // ----------------------------------------------------------------------------
 
 function SetupNumber() {
@@ -1067,13 +1057,11 @@ function SetupNumber() {
     "valueOf", NumberValueOf,
     "toFixed", NumberToFixed,
     "toExponential", NumberToExponential,
-    "toPrecision", NumberToPrecision,
-    "toJSON", NumberToJSON
+    "toPrecision", NumberToPrecision
   ));
 }
 
 SetupNumber();
-
 
 
 // ----------------------------------------------------------------------------

@@ -167,8 +167,8 @@ assertDoesNotThrow("new Date(-0x40000001, -0x40000001, -0x40000001," +
 // Modified test from WebKit
 // LayoutTests/fast/js/script-tests/date-utc-timeclip.js:
 
-assertEquals(Date.UTC(275760, 8, 12, 23, 59, 59, 999), 8639999999999999);
-assertEquals(Date.UTC(275760, 8, 13), 8640000000000000);
+assertEquals(8639999999999999, Date.UTC(275760, 8, 12, 23, 59, 59, 999));
+assertEquals(8640000000000000, Date.UTC(275760, 8, 13));
 assertTrue(isNaN(Date.UTC(275760, 8, 13, 0, 0, 0, 1)));
 assertTrue(isNaN(Date.UTC(275760, 8, 14)));
 
@@ -176,3 +176,14 @@ assertEquals(Date.UTC(-271821, 3, 20, 0, 0, 0, 1), -8639999999999999);
 assertEquals(Date.UTC(-271821, 3, 20), -8640000000000000);
 assertTrue(isNaN(Date.UTC(-271821, 3, 19, 23, 59, 59, 999)));
 assertTrue(isNaN(Date.UTC(-271821, 3, 19)));
+
+
+// Test creation of large date values.
+d = new Date(1969, 12, 1, 99999999999);
+assertTrue(isNaN(d.getTime()));
+d = new Date(1969, 12, 1, -99999999999);
+assertTrue(isNaN(d.getTime()));
+d = new Date(1969, 12, 1, Infinity);
+assertTrue(isNaN(d.getTime()));
+d = new Date(1969, 12, 1, -Infinity);
+assertTrue(isNaN(d.getTime()));

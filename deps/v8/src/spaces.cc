@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -917,7 +917,7 @@ AtomicWord* MemoryAllocator::AllocatedChunksFinder(
     }
     more_fine_grained_table = new AtomicWord[words_needed];
     for (int i = 0; i < words_needed; i++) {
-      more_fine_grained_table[i] = NULL;
+      more_fine_grained_table[i] = kUnusedChunkTableEntry;
     }
     Release_Store(&table[index],
                   reinterpret_cast<AtomicWord>(more_fine_grained_table));

@@ -122,7 +122,7 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
 }
 
 
-inline uint64_t HeapEntry::id() {
+uint64_t HeapEntry::id() {
   union {
     Id stored_id;
     uint64_t returned_id;
@@ -144,6 +144,18 @@ void HeapEntriesMap::UpdateEntries(Visitor* visitor) {
     entry_info->children_count = 0;
     entry_info->retainers_count = 0;
   }
+}
+
+
+bool HeapSnapshotGenerator::ReportProgress(bool force) {
+  const int kProgressReportGranularity = 10000;
+  if (control_ != NULL
+      && (force || progress_counter_ % kProgressReportGranularity == 0)) {
+      return
+          control_->ReportProgressValue(progress_counter_, progress_total_) ==
+          v8::ActivityControl::kContinue;
+  }
+  return true;
 }
 
 } }  // namespace v8::internal

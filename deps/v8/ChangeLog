@@ -1,3 +1,15 @@
+2010-12-17: Version 3.0.3
+
+        Reapplied all changes for version 3.0.1.
+
+        Improved debugger protocol for remote debugging.
+
+        Added experimental support for using gyp to generate build files
+        for V8.
+
+        Fixed implementation of String::Write in the API (issue 975).
+
+
 2010-12-15: Version 3.0.2
 
         Revert version 3.0.1 and patch 3.0.1.1.

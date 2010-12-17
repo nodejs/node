@@ -720,7 +720,6 @@ MaybeObject* Execution::HandleStackGuardInterrupt() {
     return Top::TerminateExecution();
   }
   if (StackGuard::IsInterrupted()) {
-    // interrupt
     StackGuard::Continue(INTERRUPT);
     return Top::StackOverflow();
   }

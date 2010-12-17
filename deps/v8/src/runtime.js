@@ -594,13 +594,15 @@ function IsPrimitive(x) {
 
 // ECMA-262, section 8.6.2.6, page 28.
 function DefaultNumber(x) {
-  if (IS_FUNCTION(x.valueOf)) {
-    var v = x.valueOf();
+  var valueOf = x.valueOf;
+  if (IS_FUNCTION(valueOf)) {
+    var v = %_CallFunction(x, valueOf);
     if (%IsPrimitive(v)) return v;
   }
 
-  if (IS_FUNCTION(x.toString)) {
-    var s = x.toString();
+  var toString = x.toString;
+  if (IS_FUNCTION(toString)) {
+    var s = %_CallFunction(x, toString);
     if (%IsPrimitive(s)) return s;
   }
 
@@ -610,13 +612,15 @@ function DefaultNumber(x) {
 
 // ECMA-262, section 8.6.2.6, page 28.
 function DefaultString(x) {
-  if (IS_FUNCTION(x.toString)) {
-    var s = x.toString();
+  var toString = x.toString;
+  if (IS_FUNCTION(toString)) {
+    var s = %_CallFunction(x, toString);
     if (%IsPrimitive(s)) return s;
   }
 
-  if (IS_FUNCTION(x.valueOf)) {
-    var v = x.valueOf();
+  var valueOf = x.valueOf;
+  if (IS_FUNCTION(valueOf)) {
+    var v = %_CallFunction(x, valueOf);
     if (%IsPrimitive(v)) return v;
   }
 

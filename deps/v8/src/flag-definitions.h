@@ -141,6 +141,7 @@ DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(use_osr, false, "use on-stack replacement")
 #endif
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
+DEFINE_int(stress_runs, 0, "number of stress runs")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
@@ -194,6 +195,7 @@ DEFINE_bool(mask_constants_with_cookie,
 // codegen.cc
 DEFINE_bool(lazy, true, "use lazy compilation")
 DEFINE_bool(trace_opt, false, "trace lazy optimization")
+DEFINE_bool(trace_opt_stats, false, "trace lazy optimization statistics")
 DEFINE_bool(opt, true, "use adaptive optimizations")
 DEFINE_bool(opt_eagerly, false, "be more eager when adaptively optimizing")
 DEFINE_bool(always_opt, false, "always try to optimize functions")
@@ -456,8 +458,6 @@ DEFINE_bool(log_snapshot_positions, false,
             "log positions of (de)serialized objects in the snapshot.")
 DEFINE_bool(log_suspect, false, "Log suspect operations.")
 DEFINE_bool(log_producers, false, "Log stack traces of JS objects allocations.")
-DEFINE_bool(compress_log, false,
-            "Compress log to save space (makes log less human-readable).")
 DEFINE_bool(prof, false,
             "Log statistical profiling information (implies --log-code).")
 DEFINE_bool(prof_auto, true,

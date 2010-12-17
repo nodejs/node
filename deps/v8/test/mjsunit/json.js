@@ -25,45 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function GenericToJSONChecks(Constructor, value, alternative) {
-  var n1 = new Constructor(value);
-  n1.valueOf = function () { return alternative; };
-  assertEquals(alternative, n1.toJSON());
-  var n2 = new Constructor(value);
-  n2.valueOf = null;
-  assertThrows(function () { n2.toJSON(); }, TypeError);
-  var n3 = new Constructor(value);
-  n3.valueOf = function () { return {}; };
-  assertThrows(function () { n3.toJSON(); }, TypeError, 'result_not_primitive');
-  var n4 = new Constructor(value);
-  n4.valueOf = function () {
-    assertEquals(0, arguments.length);
-    assertEquals(this, n4);
-    return null;
-  };
-  assertEquals(null, n4.toJSON());
-}
-
-// Number toJSON
-assertEquals(3, (3).toJSON());
-assertEquals(3, (3).toJSON(true));
-assertEquals(4, (new Number(4)).toJSON());
-GenericToJSONChecks(Number, 5, 6);
-
-// Boolean toJSON
-assertEquals(true, (true).toJSON());
-assertEquals(true, (true).toJSON(false));
-assertEquals(false, (false).toJSON());
-assertEquals(true, (new Boolean(true)).toJSON());
-GenericToJSONChecks(Boolean, true, false);
-GenericToJSONChecks(Boolean, false, true);
-
-// String toJSON
-assertEquals("flot", "flot".toJSON());
-assertEquals("flot", "flot".toJSON(3));
-assertEquals("tolf", (new String("tolf")).toJSON());
-GenericToJSONChecks(String, "x", "y");
-
 // Date toJSON
 assertEquals("1970-01-01T00:00:00.000Z", new Date(0).toJSON());
 assertEquals("1979-01-11T08:00:00.000Z", new Date("1979-01-11 08:00 GMT").toJSON());
@@ -74,9 +35,6 @@ assertEquals("foo", n1.toJSON());
 var n2 = new Date(10001);
 n2.toISOString = null;
 assertThrows(function () { n2.toJSON(); }, TypeError);
-var n3 = new Date(10002);
-n3.toISOString = function () { return {}; };
-assertThrows(function () { n3.toJSON(); }, TypeError, "result_not_primitive");
 var n4 = new Date(10003);
 n4.toISOString = function () {
   assertEquals(0, arguments.length);
@@ -88,9 +46,47 @@ assertEquals(null, n4.toJSON());
 assertTrue(Object.prototype === JSON.__proto__);
 assertEquals("[object JSON]", Object.prototype.toString.call(JSON));
 
+//Test Date.prototype.toJSON as generic function.
+var d1 = {toJSON: Date.prototype.toJSON,
+         toISOString: function() { return 42; }};
+assertEquals(42, d1.toJSON());
+
+var d2 = {toJSON: Date.prototype.toJSON,
+          valueOf: function() { return Infinity; },
+          toISOString: function() { return 42; }};
+assertEquals(null, d2.toJSON());
+
+var d3 = {toJSON: Date.prototype.toJSON,
+          valueOf: "not callable",
+          toString: function() { return Infinity; },
+          toISOString: function() { return 42; }};
+
+assertEquals(null, d3.toJSON());
+
+var d4 = {toJSON: Date.prototype.toJSON,
+          valueOf: "not callable",
+          toString: "not callable either",
+          toISOString: function() { return 42; }};
+assertThrows("d4.toJSON()", TypeError);  // ToPrimitive throws. 
+
+var d5 = {toJSON: Date.prototype.toJSON,
+          valueOf: "not callable",
+          toString: function() { return "Infinity"; },
+          toISOString: function() { return 42; }};
+assertEquals(42, d5.toJSON());
+
+var d6 = {toJSON: Date.prototype.toJSON,
+          toISOString: function() { return ["not primitive"]; }};
+assertEquals(["not primitive"], d6.toJSON());
+
+var d7 = {toJSON: Date.prototype.toJSON,
+          ISOString: "not callable"};
+assertThrows("d7.toJSON()", TypeError);
+
 // DontEnum
-for (var p in this)
+for (var p in this) {
   assertFalse(p == "JSON");
+}
 
 // Parse
 assertEquals({}, JSON.parse("{}"));
@@ -286,7 +282,7 @@ assertEquals('["10"]', JSON.stringify(array));
 
 // The gap is capped at ten characters if specified as string.
 assertEquals('{\n          "a": "b",\n          "c": "d"\n}',
-              JSON.stringify({a:"b",c:"d"}, null, 
+              JSON.stringify({a:"b",c:"d"}, null,
                              "          /*characters after 10th*/"));
 
 //The gap is capped at ten characters if specified as number.
@@ -301,16 +297,16 @@ assertEquals('{"x":true}', JSON.stringify({x: Boolean}, newx));
 
 assertEquals(undefined, JSON.stringify(undefined));
 assertEquals(undefined, JSON.stringify(function () { }));
-// Arrays with missing, undefined or function elements have those elements 
+// Arrays with missing, undefined or function elements have those elements
 // replaced by null.
-assertEquals("[null,null,null]", 
+assertEquals("[null,null,null]",
              JSON.stringify([undefined,,function(){}]));
 
 // Objects with undefined or function properties (including replaced properties)
 // have those properties ignored.
-assertEquals('{}', 
+assertEquals('{}',
              JSON.stringify({a: undefined, b: function(){}, c: 42, d: 42},
-                            function(k, v) { if (k == "c") return undefined; 
+                            function(k, v) { if (k == "c") return undefined;
                                              if (k == "d") return function(){};
                                              return v; }));
 
@@ -334,7 +330,7 @@ for (var i = 0; i < 65536; i++) {
     // Step 2.a
     expected = '\\' + string;
   } else if ("\b\t\n\r\f".indexOf(string) >= 0) {
-    // Step 2.b 
+    // Step 2.b
     if (string == '\b') expected = '\\b';
     else if (string == '\t') expected = '\\t';
     else if (string == '\n') expected = '\\n';
@@ -349,6 +345,73 @@ for (var i = 0; i < 65536; i++) {
     }
   } else {
     expected = string;
-  }  
+  }
   assertEquals('"' + expected + '"', encoded, "Codepoint " + i);
-} 
+}
+
+
+// Ensure that wrappers and callables are handled correctly.
+var num37 = new Number(42);
+num37.valueOf = function() { return 37; };
+
+var numFoo = new Number(42);
+numFoo.valueOf = "not callable";
+numFoo.toString = function() { return "foo"; };
+
+var numTrue = new Number(42);
+numTrue.valueOf = function() { return true; }
+
+var strFoo = new String("bar");
+strFoo.toString = function() { return "foo"; };
+
+var str37 = new String("bar");
+str37.toString = "not callable";
+str37.valueOf = function() { return 37; };
+
+var strTrue = new String("bar");
+strTrue.toString = function() { return true; }
+
+var func = function() { /* Is callable */ };
+
+var funcJSON = function() { /* Is callable */ };
+funcJSON.toJSON = function() { return "has toJSON"; };
+
+var re = /Is callable/;
+
+var reJSON = /Is callable/;
+reJSON.toJSON = function() { return "has toJSON"; };
+
+assertEquals(
+    '[37,null,1,"foo","37","true",null,"has toJSON",null,"has toJSON"]',
+    JSON.stringify([num37, numFoo, numTrue,
+                    strFoo, str37, strTrue,
+                    func, funcJSON, re, reJSON]));
+
+
+var oddball = Object(42);
+oddball.__proto__ = { __proto__: null, toString: function() { return true; } };
+assertEquals('1', JSON.stringify(oddball));
+
+var getCount = 0;
+var callCount = 0;
+var counter = { get toJSON() { getCount++;
+                               return function() { callCount++;
+                                                   return 42; }; } };
+assertEquals('42', JSON.stringify(counter));
+assertEquals(1, getCount);
+assertEquals(1, callCount);
+
+var oddball2 = Object(42);
+var oddball3 = Object("foo");
+oddball3.__proto__ = { __proto__: null,
+                       toString: "not callable",
+                       valueOf: function() { return true; } };
+oddball2.__proto__ = { __proto__: null,
+                       toJSON: function () { return oddball3; } }
+assertEquals('"true"', JSON.stringify(oddball2));
+
+
+var falseNum = Object("37");
+falseNum.__proto__ = Number.prototype;
+falseNum.toString = function() { return 42; };
+assertEquals('"42"', JSON.stringify(falseNum));

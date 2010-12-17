@@ -500,16 +500,6 @@ class FreeBSDMutex : public Mutex {
     return result;
   }
 
-  virtual bool TryLock() {
-    int result = pthread_mutex_trylock(&mutex_);
-    // Return false if the lock is busy and locking failed.
-    if (result == EBUSY) {
-      return false;
-    }
-    ASSERT(result == 0);  // Verify no other errors.
-    return true;
-  }
-
  private:
   pthread_mutex_t mutex_;   // Pthread mutex for POSIX platforms.
 };
@@ -587,12 +577,14 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 
   TickSample sample;
 
+  // We always sample the VM state.
+  sample.state = VMState::current_state();
+
   // If profiling, we extract the current pc and sp.
   if (active_sampler_->IsProfiling()) {
     // Extracting the sample from the context is extremely machine dependent.
     ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
     mcontext_t& mcontext = ucontext->uc_mcontext;
-    sample.state = Top::current_vm_state();
 #if V8_HOST_ARCH_IA32
     sample.pc = reinterpret_cast<Address>(mcontext.mc_eip);
     sample.sp = reinterpret_cast<Address>(mcontext.mc_esp);

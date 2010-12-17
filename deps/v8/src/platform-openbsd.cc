@@ -476,16 +476,6 @@ class OpenBSDMutex : public Mutex {
     return result;
   }
 
-  virtual bool TryLock() {
-    int result = pthread_mutex_trylock(&mutex_);
-    // Return false if the lock is busy and locking failed.
-    if (result == EBUSY) {
-      return false;
-    }
-    ASSERT(result == 0);  // Verify no other errors.
-    return true;
-  }
-
  private:
   pthread_mutex_t mutex_;   // Pthread mutex for POSIX platforms.
 };
@@ -564,7 +554,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   TickSample sample;
 
   // We always sample the VM state.
-  sample.state = Top::current_vm_state();
+  sample.state = VMState::current_state();
 
   active_sampler_->Tick(&sample);
 }

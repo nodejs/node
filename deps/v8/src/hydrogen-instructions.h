@@ -77,6 +77,7 @@ class LChunkBuilder;
 //         HLoadKeyedFastElement
 //         HLoadKeyedGeneric
 //       HLoadNamedGeneric
+//       HPower
 //       HStoreNamed
 //         HStoreNamedField
 //         HStoreNamedGeneric
@@ -93,13 +94,13 @@ class LChunkBuilder;
 //     HCallStub
 //     HConstant
 //     HControlInstruction
+//       HDeoptimize
 //       HGoto
 //       HUnaryControlInstruction
 //         HBranch
 //         HCompareMapAndBranch
 //         HReturn
 //         HThrow
-//     HDeoptimize
 //     HEnterInlined
 //     HFunctionLiteral
 //     HGlobalObject
@@ -139,6 +140,7 @@ class LChunkBuilder;
 //         HHasCachedArrayIndex
 //         HHasInstanceType
 //         HIsNull
+//         HIsObject
 //         HIsSmi
 //       HValueOf
 //     HUnknownOSRValue
@@ -207,6 +209,7 @@ class LChunkBuilder;
   V(Goto)                                      \
   V(InstanceOf)                                \
   V(IsNull)                                    \
+  V(IsObject)                                  \
   V(IsSmi)                                     \
   V(HasInstanceType)                           \
   V(HasCachedArrayIndex)                       \
@@ -223,6 +226,7 @@ class LChunkBuilder;
   V(ObjectLiteral)                             \
   V(OsrEntry)                                  \
   V(Parameter)                                 \
+  V(Power)                                     \
   V(PushArgument)                              \
   V(RegExpLiteral)                             \
   V(Return)                                    \
@@ -330,6 +334,9 @@ class Range: public ZoneObject {
     set_can_be_minus_zero(false);
   }
 
+  // Adds a constant to the lower and upper bound of the range.
+  void AddConstant(int32_t value);
+
   void StackUpon(Range* other) {
     Intersect(other);
     next_ = other;
@@ -349,7 +356,8 @@ class Range: public ZoneObject {
     set_can_be_minus_zero(b);
   }
 
-  void Add(int32_t value);
+  // Compute a new result range and return true, if the operation
+  // can overflow.
   bool AddAndCheckOverflow(Range* other);
   bool SubAndCheckOverflow(Range* other);
   bool MulAndCheckOverflow(Range* other);
@@ -1364,7 +1372,7 @@ class HBitNot: public HUnaryOperation {
 
 class HUnaryMathOperation: public HUnaryOperation {
  public:
-  HUnaryMathOperation(HValue* value, MathFunctionId op)
+  HUnaryMathOperation(HValue* value, BuiltinFunctionId op)
       : HUnaryOperation(value), op_(op) {
     switch (op) {
       case kMathFloor:
@@ -1377,8 +1385,12 @@ class HUnaryMathOperation: public HUnaryOperation {
         SetFlag(kFlexibleRepresentation);
         break;
       case kMathSqrt:
-      default:
+      case kMathPowHalf:
+      case kMathLog:
         set_representation(Representation::Double());
+        break;
+      default:
+        UNREACHABLE();
     }
     SetFlag(kUseGVN);
   }
@@ -1395,6 +1407,8 @@ class HUnaryMathOperation: public HUnaryOperation {
       case kMathRound:
       case kMathCeil:
       case kMathSqrt:
+      case kMathPowHalf:
+      case kMathLog:
         return Representation::Double();
         break;
       case kMathAbs:
@@ -1415,13 +1429,19 @@ class HUnaryMathOperation: public HUnaryOperation {
     return this;
   }
 
-  MathFunctionId op() const { return op_; }
+  BuiltinFunctionId op() const { return op_; }
   const char* OpName() const;
 
   DECLARE_CONCRETE_INSTRUCTION(UnaryMathOperation, "unary_math_operation")
 
+ protected:
+  virtual bool DataEquals(HValue* other) const {
+    HUnaryMathOperation* b = HUnaryMathOperation::cast(other);
+    return op_ == b->op();
+  }
+
  private:
-  MathFunctionId op_;
+  BuiltinFunctionId op_;
 };
 
 
@@ -2087,8 +2107,22 @@ class HIsNull: public HUnaryPredicate {
 
   DECLARE_CONCRETE_INSTRUCTION(IsNull, "is_null")
 
+ protected:
+  virtual bool DataEquals(HValue* other) const {
+    HIsNull* b = HIsNull::cast(other);
+    return is_strict_ == b->is_strict();
+  }
+
  private:
   bool is_strict_;
+};
+
+
+class HIsObject: public HUnaryPredicate {
+ public:
+  explicit HIsObject(HValue* value) : HUnaryPredicate(value) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsObject, "is_object")
 };
 
 
@@ -2116,6 +2150,12 @@ class HHasInstanceType: public HUnaryPredicate {
 
   DECLARE_CONCRETE_INSTRUCTION(HasInstanceType, "has_instance_type")
 
+ protected:
+  virtual bool DataEquals(HValue* other) const {
+    HHasInstanceType* b = HHasInstanceType::cast(other);
+    return (from_ == b->from()) && (to_ == b->to());
+  }
+
  private:
   InstanceType from_;
   InstanceType to_;  // Inclusive range, not all combinations work.
@@ -2140,6 +2180,12 @@ class HClassOfTest: public HUnaryPredicate {
   virtual void PrintDataTo(StringStream* stream) const;
 
   Handle<String> class_name() const { return class_name_; }
+
+ protected:
+  virtual bool DataEquals(HValue* other) const {
+    HClassOfTest* b = HClassOfTest::cast(other);
+    return class_name_.is_identical_to(b->class_name_);
+  }
 
  private:
   Handle<String> class_name_;
@@ -2181,6 +2227,22 @@ class HInstanceOf: public HBinaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance_of")
+};
+
+
+class HPower: public HBinaryOperation {
+ public:
+  HPower(HValue* left, HValue* right)
+      : HBinaryOperation(left, right) {
+    set_representation(Representation::Double());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return (index == 1) ? Representation::None() : Representation::Double();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Power, "power")
 };
 
 

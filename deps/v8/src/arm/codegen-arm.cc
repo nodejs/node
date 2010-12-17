@@ -5592,6 +5592,12 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   __ tst(tmp2, Operand(kSmiTagMask));
   deferred->Branch(nz);
 
+  // Check that both indices are valid.
+  __ ldr(tmp2, FieldMemOperand(object, JSArray::kLengthOffset));
+  __ cmp(tmp2, index1);
+  __ cmp(tmp2, index2, hi);
+  deferred->Branch(ls);
+
   // Bring the offsets into the fixed array in tmp1 into index1 and
   // index2.
   __ mov(tmp2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -6463,7 +6469,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     case Token::INSTANCEOF: {
       Load(left);
       Load(right);
-      InstanceofStub stub;
+      InstanceofStub stub(InstanceofStub::kNoFlags);
       frame_->CallStub(&stub, 2);
       // At this point if instanceof succeeded then r0 == 0.
       __ tst(r0, Operand(r0));

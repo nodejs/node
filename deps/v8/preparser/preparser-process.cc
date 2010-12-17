@@ -127,7 +127,7 @@ uint32_t ReadUInt32(FILE* source, bool* ok) {
 
 
 bool ReadBuffer(FILE* source, void* buffer, size_t length) {
-  size_t actually_read = fread(buffer, 1, length, stdin);
+  size_t actually_read = fread(buffer, 1, length, source);
   return (actually_read == length);
 }
 
@@ -150,22 +150,25 @@ class ScopedPointer {
 };
 
 
-// Preparse stdin and output result on stdout.
-int PreParseIO() {
+// Preparse input and output result on stdout.
+int PreParseIO(FILE* input) {
   fprintf(stderr, "LOG: Enter parsing loop\n");
   bool ok = true;
-  uint32_t length = ReadUInt32(stdin, &ok);
+  uint32_t length = ReadUInt32(input, &ok);
+  fprintf(stderr, "LOG: Input length: %d\n", length);
   if (!ok) return kErrorReading;
   ScopedPointer<uint8_t> buffer(new uint8_t[length]);
 
-  if (!ReadBuffer(stdin, *buffer, length)) {
+  if (!ReadBuffer(input, *buffer, length)) {
     return kErrorReading;
   }
   UTF8InputStream input_buffer(*buffer, static_cast<size_t>(length));
 
   v8::PreParserData data =
-      v8::Preparse(&input_buffer, 64 * sizeof(void*));  // NOLINT
+      v8::Preparse(&input_buffer, 64 * 1024 * sizeof(void*));  // NOLINT
   if (data.stack_overflow()) {
+    fprintf(stderr, "LOG: Stack overflow\n");
+    fflush(stderr);
     // Report stack overflow error/no-preparser-data.
     WriteUInt32(stdout, 0, &ok);
     if (!ok) return kErrorWriting;
@@ -173,6 +176,8 @@ int PreParseIO() {
   }
 
   uint32_t size = data.size();
+  fprintf(stderr, "LOG: Success, data size: %u\n", size);
+  fflush(stderr);
   WriteUInt32(stdout, size, &ok);
   if (!ok) return kErrorWriting;
   if (!WriteBuffer(stdout, data.data(), size)) {
@@ -185,10 +190,17 @@ int PreParseIO() {
 
 
 int main(int argc, char* argv[]) {
+  FILE* input = stdin;
+  if (argc > 1) {
+    char* arg = argv[1];
+    input = fopen(arg, "rb");
+    if (input == NULL) return EXIT_FAILURE;
+  }
   int status = 0;
   do {
-    status = v8::internal::PreParseIO();
+    status = v8::internal::PreParseIO(input);
   } while (status == 0);
   fprintf(stderr, "EXIT: Failure %d\n", status);
+  fflush(stderr);
   return EXIT_FAILURE;
 }

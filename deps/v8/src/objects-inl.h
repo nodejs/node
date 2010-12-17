@@ -3036,27 +3036,20 @@ FunctionTemplateInfo* SharedFunctionInfo::get_api_func_data() {
 }
 
 
-bool SharedFunctionInfo::HasCustomCallGenerator() {
+bool SharedFunctionInfo::HasBuiltinFunctionId() {
   return function_data()->IsSmi();
 }
 
 
-MathFunctionId SharedFunctionInfo::math_function_id() {
-  return static_cast<MathFunctionId>(
-      (compiler_hints() >> kMathFunctionShift) & kMathFunctionMask);
+bool SharedFunctionInfo::IsBuiltinMathFunction() {
+  return HasBuiltinFunctionId() &&
+      builtin_function_id() >= kFirstMathFunctionId;
 }
 
 
-void SharedFunctionInfo::set_math_function_id(int math_fn) {
-  ASSERT(math_fn <= max_math_id_number());
-  set_compiler_hints(compiler_hints() |
-                     ((math_fn & kMathFunctionMask) << kMathFunctionShift));
-}
-
-
-int SharedFunctionInfo::custom_call_generator_id() {
-  ASSERT(HasCustomCallGenerator());
-  return Smi::cast(function_data())->value();
+BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
+  ASSERT(HasBuiltinFunctionId());
+  return static_cast<BuiltinFunctionId>(Smi::cast(function_data())->value());
 }
 
 

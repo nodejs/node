@@ -198,6 +198,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 }
 
 
+void FullCodeGenerator::ClearAccumulator() {
+  __ xor_(rax, rax);
+}
+
+
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   Comment cmnt(masm_, "[ Stack check");
   NearLabel ok;
@@ -839,7 +844,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&update_each);
   __ movq(result_register(), rbx);
   // Perform the assignment as if via '='.
-  EmitAssignment(stmt->each());
+  { EffectContext context(this);
+    EmitAssignment(stmt->each(), stmt->AssignmentId());
+  }
 
   // Generate code for the body of the loop.
   Visit(stmt->body());
@@ -1413,6 +1420,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     case VARIABLE:
       EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
                              expr->op());
+      context()->Plug(rax);
       break;
     case NAMED_PROPERTY:
       EmitNamedPropertyAssignment(expr);
@@ -1521,7 +1529,7 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
 }
 
 
-void FullCodeGenerator::EmitAssignment(Expression* expr) {
+void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_id) {
   // Invalid left-hand sides are rewritten to have a 'throw
   // ReferenceError' on the left-hand side.
   if (!expr->IsValidLeftHandSide()) {
@@ -1569,6 +1577,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       break;
     }
   }
+  context()->Plug(rax);
 }
 
 
@@ -1641,8 +1650,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     }
     __ bind(&done);
   }
-
-  context()->Plug(rax);
 }
 
 
@@ -1679,10 +1686,9 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ push(Operand(rsp, kPointerSize));  // Receiver is under value.
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(rax);
-    context()->DropAndPlug(1, rax);
-  } else {
-    context()->Plug(rax);
+    __ Drop(1);
   }
+  context()->Plug(rax);
 }
 
 
@@ -3127,6 +3133,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         { EffectContext context(this);
           EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
                                  Token::ASSIGN);
+          context.Plug(rax);
         }
         // For all contexts except kEffect: We have the result on
         // top of the stack.
@@ -3137,6 +3144,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         // Perform the assignment as if via '='.
         EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
                                Token::ASSIGN);
+        context()->Plug(rax);
       }
       break;
     case NAMED_PROPERTY: {
@@ -3328,7 +3336,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     case Token::INSTANCEOF: {
       VisitForStackValue(expr->right());
-      InstanceofStub stub;
+      InstanceofStub stub(InstanceofStub::kNoFlags);
       __ CallStub(&stub);
       __ testq(rax, rax);
        // The stub returns 0 for true.

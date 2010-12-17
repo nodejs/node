@@ -53,6 +53,9 @@ def FAIL_OK = FAIL, OKAY
 # time to do so.
 js1_5/Regress/regress-271716-n: SKIP
 
+# BUG(960): This test has an insane amount of output when it times out,
+# messing up ability to see other failures on the waterfall.
+js1_5/extensions/regress-342960: SKIP
 
 # This test uses a unitialized variable. A Bug has been filed:
 # https://bugzilla.mozilla.org/show_bug.cgi?id=575575
@@ -810,7 +813,7 @@ js1_5/Regress/regress-312588: TIMEOUT || SKIP if $FAST == yes
 js1_5/Regress/regress-271716-n: PASS || SKIP if $FAST == yes
 
 
-[ $ARCH == arm ]
+[ $arch == arm ]
 
 # Times out and print so much output that we need to skip it to not
 # hang the builder.
@@ -833,7 +836,14 @@ js1_5/Regress/regress-451322: SKIP
 js1_5/extensions/regress-371636: SKIP
 
 
-[ $FAST == yes && $ARCH == arm ]
+[ $arch == arm && $crankshaft ]
+
+# Test that only fail with crankshaft.
+js1_5/Regress/regress-416628: CRASH
+js1_5/Regress/regress-96128-n: PASS || CRASH
+
+
+[ $fast == yes && $arch == arm ]
 
 # In fast mode on arm we try to skip all tests that would time out,
 # since running the tests takes so long in the first place.

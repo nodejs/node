@@ -28,6 +28,8 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
+#include "../include/v8stdint.h"
+
 namespace v8 {
 namespace internal {
 

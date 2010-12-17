@@ -258,14 +258,6 @@ function SetupMath() {
     "max", MathMax,
     "min", MathMin
   ));
-
-  // The values here are from the MathFunctionId enum in objects.h.
-  %SetMathFunctionId($Math.floor, 1);
-  %SetMathFunctionId($Math.round, 2);
-  %SetMathFunctionId($Math.abs, 4);
-  %SetMathFunctionId($Math.sqrt, 0xd);
-  // TODO(erikcorry): Set the id of the other functions so they can be
-  // optimized.
 };
 
 

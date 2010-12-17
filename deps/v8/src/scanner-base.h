@@ -52,30 +52,74 @@ inline int HexValue(uc32 c) {
   return -1;
 }
 
-// ----------------------------------------------------------------------------
-// UTF16Buffer - scanner input source with pushback.
 
-class UTF16Buffer {
+// ---------------------------------------------------------------------
+// Buffered stream of characters, using an internal UC16 buffer.
+
+class UC16CharacterStream {
  public:
-  UTF16Buffer();
-  virtual ~UTF16Buffer() {}
+  UC16CharacterStream() : pos_(0) { }
+  virtual ~UC16CharacterStream() { }
 
-  virtual void PushBack(uc32 ch) = 0;
-  // Returns a value < 0 when the buffer end is reached.
-  virtual uc32 Advance() = 0;
-  virtual void SeekForward(int pos) = 0;
+  // Returns and advances past the next UC16 character in the input
+  // stream. If there are no more characters, it returns a negative
+  // value.
+  inline int32_t Advance() {
+    if (buffer_cursor_ < buffer_end_ || ReadBlock()) {
+      pos_++;
+      return *(buffer_cursor_++);
+    }
+    // Note: currently the following increment is necessary to avoid a
+    // parser problem! The scanner treats the final kEndOfInput as
+    // a character with a position, and does math relative to that
+    // position.
+    pos_++;
 
-  int pos() const { return pos_; }
+    return kEndOfInput;
+  }
 
-  static const int kNoEndPosition = 1;
+  // Return the current position in the character stream.
+  // Starts at zero.
+  inline unsigned pos() const { return pos_; }
+
+  // Skips forward past the next character_count UC16 characters
+  // in the input, or until the end of input if that comes sooner.
+  // Returns the number of characters actually skipped. If less
+  // than character_count,
+  inline unsigned SeekForward(unsigned character_count) {
+    unsigned buffered_chars =
+        static_cast<unsigned>(buffer_end_ - buffer_cursor_);
+    if (character_count <= buffered_chars) {
+      buffer_cursor_ += character_count;
+      pos_ += character_count;
+      return character_count;
+    }
+    return SlowSeekForward(character_count);
+  }
+
+  // Pushes back the most recently read UC16 character, i.e.,
+  // the value returned by the most recent call to Advance.
+  // Must not be used right after calling SeekForward.
+  virtual void PushBack(uc16 character) = 0;
 
  protected:
-  // Initial value of end_ before the input stream is initialized.
+  static const int32_t kEndOfInput = -1;
 
-  int pos_;  // Current position in the buffer.
-  int end_;  // Position where scanning should stop (EOF).
+  // Ensures that the buffer_cursor_ points to the character at
+  // position pos_ of the input, if possible. If the position
+  // is at or after the end of the input, return false. If there
+  // are more characters available, return true.
+  virtual bool ReadBlock() = 0;
+  virtual unsigned SlowSeekForward(unsigned character_count) = 0;
+
+  const uc16* buffer_cursor_;
+  const uc16* buffer_end_;
+  unsigned pos_;
 };
 
+
+// ---------------------------------------------------------------------
+// Constants used by scanners.
 
 class ScannerConstants : AllStatic {
  public:
@@ -277,7 +321,7 @@ class Scanner {
   // Low-level scanning support.
   void Advance() { c0_ = source_->Advance(); }
   void PushBack(uc32 ch) {
-    source_->PushBack(ch);
+    source_->PushBack(c0_);
     c0_ = ch;
   }
 
@@ -307,8 +351,8 @@ class Scanner {
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)
 
-  // Input stream. Must be initialized to an UTF16Buffer.
-  UTF16Buffer* source_;
+  // Input stream. Must be initialized to an UC16CharacterStream.
+  UC16CharacterStream* source_;
 
   // Buffer to hold literal values (identifiers, strings, numbers)
   // using '\x00'-terminated UTF-8 encoding. Handles allocation internally.

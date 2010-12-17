@@ -74,30 +74,6 @@ void MacroAssembler::RecordWriteHelper(Register object,
 }
 
 
-void MacroAssembler::InNewSpace(Register object,
-                                Register scratch,
-                                Condition cc,
-                                Label* branch) {
-  ASSERT(cc == equal || cc == not_equal);
-  if (Serializer::enabled()) {
-    // Can't do arithmetic on external references if it might get serialized.
-    mov(scratch, Operand(object));
-    // The mask isn't really an address.  We load it as an external reference in
-    // case the size of the new space is different between the snapshot maker
-    // and the running system.
-    and_(Operand(scratch), Immediate(ExternalReference::new_space_mask()));
-    cmp(Operand(scratch), Immediate(ExternalReference::new_space_start()));
-    j(cc, branch);
-  } else {
-    int32_t new_space_start = reinterpret_cast<int32_t>(
-        ExternalReference::new_space_start().address());
-    lea(scratch, Operand(object, -new_space_start));
-    and_(scratch, Heap::NewSpaceMask());
-    j(cc, branch);
-  }
-}
-
-
 void MacroAssembler::RecordWrite(Register object,
                                  int offset,
                                  Register value,
@@ -109,7 +85,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
-  Label done;
+  NearLabel done;
 
   // Skip barrier if writing a smi.
   ASSERT_EQ(0, kSmiTag);
@@ -1216,25 +1192,29 @@ MaybeObject* MacroAssembler::TryTailCallRuntime(Runtime::FunctionId fid,
 }
 
 
-// If true, a Handle<T> passed by value is passed and returned by
-// using the location_ field directly.  If false, it is passed and
-// returned as a pointer to a handle.
-#ifdef USING_BSD_ABI
-static const bool kPassHandlesDirectly = true;
+// If true, a Handle<T> returned by value from a function with cdecl calling
+// convention will be returned directly as a value of location_ field in a
+// register eax.
+// If false, it is returned as a pointer to a preallocated by caller memory
+// region. Pointer to this region should be passed to a function as an
+// implicit first argument.
+#if defined(USING_BSD_ABI) || defined(__MINGW32__)
+static const bool kReturnHandlesDirectly = true;
 #else
-static const bool kPassHandlesDirectly = false;
+static const bool kReturnHandlesDirectly = false;
 #endif
 
 
 Operand ApiParameterOperand(int index) {
-  return Operand(esp, (index + (kPassHandlesDirectly ? 0 : 1)) * kPointerSize);
+  return Operand(
+      esp, (index + (kReturnHandlesDirectly ? 0 : 1)) * kPointerSize);
 }
 
 
 void MacroAssembler::PrepareCallApiFunction(int argc, Register scratch) {
-  if (kPassHandlesDirectly) {
+  if (kReturnHandlesDirectly) {
     EnterApiExitFrame(argc);
-    // When handles as passed directly we don't have to allocate extra
+    // When handles are returned directly we don't have to allocate extra
     // space for and pass an out parameter.
   } else {
     // We allocate two additional slots: return value and pointer to it.
@@ -1279,7 +1259,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
   // Call the api function!
   call(function->address(), RelocInfo::RUNTIME_ENTRY);
 
-  if (!kPassHandlesDirectly) {
+  if (!kReturnHandlesDirectly) {
     // The returned value is a pointer to the handle holding the result.
     // Dereference this to get to the location.
     mov(eax, Operand(eax, 0));

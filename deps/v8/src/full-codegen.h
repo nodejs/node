@@ -38,6 +38,9 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class JumpPatchSite;
+
 // AST node visitor which can tell whether a given statement will be breakable
 // when the code is compiled by the full compiler in the debugger. This means
 // that there will be an IC (load/store/call) in the code generated for the
@@ -283,6 +286,10 @@ class FullCodeGenerator: public AstVisitor {
 
   static const InlineFunctionGenerator kInlineFunctionGenerators[];
 
+  // A platform-specific utility to overwrite the accumulator register
+  // with a GC-safe value.
+  void ClearAccumulator();
+
   // Compute the frame pointer relative offset for a given local or
   // parameter slot.
   int SlotOffset(Slot* slot);
@@ -481,7 +488,7 @@ class FullCodeGenerator: public AstVisitor {
 
   // Assign to the given expression as if via '='. The right-hand-side value
   // is expected in the accumulator.
-  void EmitAssignment(Expression* expr);
+  void EmitAssignment(Expression* expr, int bailout_ast_id);
 
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
@@ -532,6 +539,10 @@ class FullCodeGenerator: public AstVisitor {
 
   // Helper for calling an IC stub.
   void EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode);
+
+  // Calling an IC stub with a patch site. Passing NULL for patch_site
+  // indicates no inlined smi code and emits a nop after the IC call.
+  void EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site);
 
   // Set fields in the stack frame. Offsets are the frame pointer relative
   // offsets defined in, e.g., StandardFrameConstants.

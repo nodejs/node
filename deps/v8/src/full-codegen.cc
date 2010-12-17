@@ -761,6 +761,7 @@ void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
 
   context()->EmitLogicalLeft(expr, &eval_right, &done);
 
+  PrepareForBailoutForId(expr->RightId(), NO_REGISTERS);
   __ bind(&eval_right);
   if (context()->IsTest()) ForwardBailoutToChild(expr);
   context()->HandleExpression(expr->right());
@@ -925,16 +926,21 @@ void FullCodeGenerator::VisitIfStatement(IfStatement* stmt) {
 
   if (stmt->HasElseStatement()) {
     VisitForControl(stmt->condition(), &then_part, &else_part, &then_part);
+    PrepareForBailoutForId(stmt->ThenId(), NO_REGISTERS);
     __ bind(&then_part);
     Visit(stmt->then_statement());
     __ jmp(&done);
 
+    PrepareForBailoutForId(stmt->ElseId(), NO_REGISTERS);
     __ bind(&else_part);
     Visit(stmt->else_statement());
   } else {
     VisitForControl(stmt->condition(), &then_part, &done, &then_part);
+    PrepareForBailoutForId(stmt->ThenId(), NO_REGISTERS);
     __ bind(&then_part);
     Visit(stmt->then_statement());
+
+    PrepareForBailoutForId(stmt->ElseId(), NO_REGISTERS);
   }
   __ bind(&done);
   PrepareForBailoutForId(stmt->id(), NO_REGISTERS);
@@ -946,6 +952,11 @@ void FullCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
   SetStatementPosition(stmt);
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
+  // When continuing, we clobber the unpredictable value in the accumulator
+  // with one that's safe for GC.  If we hit an exit from the try block of
+  // try...finally on our way out, we will unconditionally preserve the
+  // accumulator on the stack.
+  ClearAccumulator();
   while (!current->IsContinueTarget(stmt->target())) {
     stack_depth = current->Exit(stack_depth);
     current = current->outer();
@@ -962,6 +973,11 @@ void FullCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
   SetStatementPosition(stmt);
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
+  // When breaking, we clobber the unpredictable value in the accumulator
+  // with one that's safe for GC.  If we hit an exit from the try block of
+  // try...finally on our way out, we will unconditionally preserve the
+  // accumulator on the stack.
+  ClearAccumulator();
   while (!current->IsBreakTarget(stmt->target())) {
     stack_depth = current->Exit(stack_depth);
     current = current->outer();
@@ -1043,12 +1059,13 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
                   &stack_check);
 
   // Check stack before looping.
+  PrepareForBailoutForId(stmt->BackEdgeId(), NO_REGISTERS);
   __ bind(&stack_check);
   EmitStackCheck(stmt);
   __ jmp(&body);
 
-  __ bind(loop_statement.break_target());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
+  __ bind(loop_statement.break_target());
   decrement_loop_depth();
 }
 
@@ -1063,6 +1080,7 @@ void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   // Emit the test at the bottom of the loop.
   __ jmp(&test);
 
+  PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
   __ bind(&body);
   Visit(stmt->body());
 
@@ -1080,8 +1098,8 @@ void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
                   loop_statement.break_target(),
                   loop_statement.break_target());
 
-  __ bind(loop_statement.break_target());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
+  __ bind(loop_statement.break_target());
   decrement_loop_depth();
 }
 
@@ -1099,12 +1117,12 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   // Emit the test at the bottom of the loop (even if empty).
   __ jmp(&test);
 
+  PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
   __ bind(&body);
   Visit(stmt->body());
 
-  __ bind(loop_statement.continue_target());
   PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
-
+  __ bind(loop_statement.continue_target());
   SetStatementPosition(stmt);
   if (stmt->next() != NULL) {
     Visit(stmt->next());
@@ -1127,8 +1145,8 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
     __ jmp(&body);
   }
 
-  __ bind(loop_statement.break_target());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
+  __ bind(loop_statement.break_target());
   decrement_loop_depth();
 }
 
@@ -1235,7 +1253,10 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
     Visit(stmt->try_block());
     __ PopTryHandler();
   }
-  // Execute the finally block on the way out.
+  // Execute the finally block on the way out.  Clobber the unpredictable
+  // value in the accumulator with one that's safe for GC.  The finally
+  // block will unconditionally preserve the accumulator on the stack.
+  ClearAccumulator();
   __ Call(&finally_entry);
 }
 
@@ -1256,6 +1277,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
   Label true_case, false_case, done;
   VisitForControl(expr->condition(), &true_case, &false_case, &true_case);
 
+  PrepareForBailoutForId(expr->ThenId(), NO_REGISTERS);
   __ bind(&true_case);
   SetExpressionPosition(expr->then_expression(),
                         expr->then_expression_position());
@@ -1270,6 +1292,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
     __ jmp(&done);
   }
 
+  PrepareForBailoutForId(expr->ElseId(), NO_REGISTERS);
   __ bind(&false_case);
   if (context()->IsTest()) ForwardBailoutToChild(expr);
   SetExpressionPosition(expr->else_expression(),

@@ -41,7 +41,60 @@
 namespace v8 {
 namespace internal {
 
+
 #define __ ACCESS_MASM(masm_)
+
+
+class JumpPatchSite BASE_EMBEDDED {
+ public:
+  explicit JumpPatchSite(MacroAssembler* masm)
+      : masm_(masm) {
+#ifdef DEBUG
+    info_emitted_ = false;
+#endif
+  }
+
+  ~JumpPatchSite() {
+    ASSERT(patch_site_.is_bound() == info_emitted_);
+  }
+
+  void EmitJumpIfNotSmi(Register reg, NearLabel* target) {
+    __ test(reg, Immediate(kSmiTagMask));
+    EmitJump(not_carry, target);   // Always taken before patched.
+  }
+
+  void EmitJumpIfSmi(Register reg, NearLabel* target) {
+    __ test(reg, Immediate(kSmiTagMask));
+    EmitJump(carry, target);  // Never taken before patched.
+  }
+
+  void EmitPatchInfo() {
+    int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(&patch_site_);
+    ASSERT(is_int8(delta_to_patch_site));
+    __ test(eax, Immediate(delta_to_patch_site));
+#ifdef DEBUG
+    info_emitted_ = true;
+#endif
+  }
+
+  bool is_bound() const { return patch_site_.is_bound(); }
+
+ private:
+  // jc will be patched with jz, jnc will become jnz.
+  void EmitJump(Condition cc, NearLabel* target) {
+    ASSERT(!patch_site_.is_bound() && !info_emitted_);
+    ASSERT(cc == carry || cc == not_carry);
+    __ bind(&patch_site_);
+    __ j(cc, target);
+  }
+
+  MacroAssembler* masm_;
+  Label patch_site_;
+#ifdef DEBUG
+  bool info_emitted_;
+#endif
+};
+
 
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right, with the
@@ -195,6 +248,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ mov(eax, Factory::undefined_value());
     EmitReturnSequence();
   }
+}
+
+
+void FullCodeGenerator::ClearAccumulator() {
+  __ Set(eax, Immediate(Smi::FromInt(0)));
 }
 
 
@@ -687,10 +745,9 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
 
-  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
-
   // Keep the switch value on the stack until a case matches.
   VisitForStackValue(stmt->tag());
+  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
 
   ZoneList<CaseClause*>* clauses = stmt->cases();
   CaseClause* default_clause = NULL;  // Can occur anywhere in the list.
@@ -715,12 +772,13 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // Perform the comparison as if via '==='.
     __ mov(edx, Operand(esp, 0));  // Switch value.
     bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
+    JumpPatchSite patch_site(masm_);
     if (inline_smi_code) {
       NearLabel slow_case;
       __ mov(ecx, edx);
       __ or_(ecx, Operand(eax));
-      __ test(ecx, Immediate(kSmiTagMask));
-      __ j(not_zero, &slow_case, not_taken);
+      patch_site.EmitJumpIfNotSmi(ecx, &slow_case);
+
       __ cmp(edx, Operand(eax));
       __ j(not_equal, &next_test);
       __ Drop(1);  // Switch value is no longer needed.
@@ -730,9 +788,8 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
     // Record position before stub call for type feedback.
     SetSourcePosition(clause->position());
-
     Handle<Code> ic = CompareIC::GetUninitialized(Token::EQ_STRICT);
-    __ call(ic, RelocInfo::CODE_TARGET);
+    EmitCallIC(ic, &patch_site);
 
     __ test(eax, Operand(eax));
     __ j(not_equal, &next_test);
@@ -911,7 +968,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&update_each);
   __ mov(result_register(), ebx);
   // Perform the assignment as if via '='.
-  EmitAssignment(stmt->each());
+  { EffectContext context(this);
+    EmitAssignment(stmt->each(), stmt->AssignmentId());
+  }
 
   // Generate code for the body of the loop.
   Visit(stmt->body());
@@ -1478,7 +1537,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     // For property compound assignments we need another deoptimization
     // point after the property load.
     if (property != NULL) {
-      PrepareForBailoutForId(expr->compound_bailout_id(), TOS_REG);
+      PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
     }
 
     Token::Value op = expr->binary_op();
@@ -1521,6 +1580,8 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     case VARIABLE:
       EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
                              expr->op());
+      PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
+      context()->Plug(eax);
       break;
     case NAMED_PROPERTY:
       EmitNamedPropertyAssignment(expr);
@@ -1552,12 +1613,11 @@ void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
                                            OverwriteMode mode,
                                            bool left_is_constant_smi,
                                            Smi* value) {
-  NearLabel call_stub;
-  Label done;
+  NearLabel call_stub, done;
   __ add(Operand(eax), Immediate(value));
   __ j(overflow, &call_stub);
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &done);
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfSmi(eax, &done);
 
   // Undo the optimistic add operation and call the shared stub.
   __ bind(&call_stub);
@@ -1570,7 +1630,8 @@ void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
     __ mov(edx, eax);
     __ mov(eax, Immediate(value));
   }
-  __ CallStub(&stub);
+  EmitCallIC(stub.GetCode(), &patch_site);
+
   __ bind(&done);
   context()->Plug(eax);
 }
@@ -1580,7 +1641,7 @@ void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
                                            OverwriteMode mode,
                                            bool left_is_constant_smi,
                                            Smi* value) {
-  Label call_stub, done;
+  NearLabel call_stub, done;
   if (left_is_constant_smi) {
     __ mov(ecx, eax);
     __ mov(eax, Immediate(value));
@@ -1589,8 +1650,8 @@ void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
     __ sub(Operand(eax), Immediate(value));
   }
   __ j(overflow, &call_stub);
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &done);
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfSmi(eax, &done);
 
   __ bind(&call_stub);
   if (left_is_constant_smi) {
@@ -1603,7 +1664,8 @@ void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
   }
   Token::Value op = Token::SUB;
   TypeRecordingBinaryOpStub stub(op, mode);
-  __ CallStub(&stub);
+  EmitCallIC(stub.GetCode(), &patch_site);
+
   __ bind(&done);
   context()->Plug(eax);
 }
@@ -1613,19 +1675,21 @@ void FullCodeGenerator::EmitConstantSmiShiftOp(Expression* expr,
                                                Token::Value op,
                                                OverwriteMode mode,
                                                Smi* value) {
-  Label call_stub, smi_case, done;
+  NearLabel call_stub, smi_case, done;
   int shift_value = value->value() & 0x1f;
 
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &smi_case);
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfSmi(eax, &smi_case);
 
+  // Call stub.
   __ bind(&call_stub);
   __ mov(edx, eax);
   __ mov(eax, Immediate(value));
   TypeRecordingBinaryOpStub stub(op, mode);
-  __ CallStub(&stub);
+  EmitCallIC(stub.GetCode(), &patch_site);
   __ jmp(&done);
 
+  // Smi case.
   __ bind(&smi_case);
   switch (op) {
     case Token::SHL:
@@ -1675,17 +1739,19 @@ void FullCodeGenerator::EmitConstantSmiBitOp(Expression* expr,
                                              Token::Value op,
                                              OverwriteMode mode,
                                              Smi* value) {
-  Label smi_case, done;
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &smi_case);
+  NearLabel smi_case, done;
+
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfSmi(eax, &smi_case);
 
   // The order of the arguments does not matter for bit-ops with a
   // constant operand.
   __ mov(edx, Immediate(value));
   TypeRecordingBinaryOpStub stub(op, mode);
-  __ CallStub(&stub);
+  EmitCallIC(stub.GetCode(), &patch_site);
   __ jmp(&done);
 
+  // Smi case.
   __ bind(&smi_case);
   switch (op) {
     case Token::BIT_OR:
@@ -1753,19 +1819,20 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
 
   // Do combined smi check of the operands. Left operand is on the
   // stack. Right operand is in eax.
-  Label done, stub_call, smi_case;
+  NearLabel done, smi_case, stub_call;
   __ pop(edx);
   __ mov(ecx, eax);
   __ or_(eax, Operand(edx));
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &smi_case);
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfSmi(eax, &smi_case);
 
   __ bind(&stub_call);
   __ mov(eax, ecx);
   TypeRecordingBinaryOpStub stub(op, mode);
-  __ CallStub(&stub);
+  EmitCallIC(stub.GetCode(), &patch_site);
   __ jmp(&done);
 
+  // Smi case.
   __ bind(&smi_case);
   __ mov(eax, edx);  // Copy left operand in case of a stub call.
 
@@ -1844,12 +1911,12 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      OverwriteMode mode) {
   __ pop(edx);
   TypeRecordingBinaryOpStub stub(op, mode);
-  __ CallStub(&stub);
+  EmitCallIC(stub.GetCode(), NULL);  // NULL signals no inlined smi code.
   context()->Plug(eax);
 }
 
 
-void FullCodeGenerator::EmitAssignment(Expression* expr) {
+void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
   // Invalid left-hand sides are rewritten to have a 'throw
   // ReferenceError' on the left-hand side.
   if (!expr->IsValidLeftHandSide()) {
@@ -1897,6 +1964,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       break;
     }
   }
+  PrepareForBailoutForId(bailout_ast_id, TOS_REG);
+  context()->Plug(eax);
 }
 
 
@@ -1969,8 +2038,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     }
     __ bind(&done);
   }
-
-  context()->Plug(eax);
 }
 
 
@@ -2007,10 +2074,10 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ push(Operand(esp, kPointerSize));  // Receiver is under value.
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(eax);
-    context()->DropAndPlug(1, eax);
-  } else {
-    context()->Plug(eax);
+    __ Drop(1);
   }
+  PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
+  context()->Plug(eax);
 }
 
 
@@ -2048,6 +2115,7 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
     __ pop(eax);
   }
 
+  PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
   context()->Plug(eax);
 }
 
@@ -3103,6 +3171,13 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ test(temp, Immediate(kSmiTagMask));
   __ j(not_zero, &slow_case);
 
+  // Check that both indices are valid.
+  __ mov(temp, FieldOperand(object, JSArray::kLengthOffset));
+  __ cmp(temp, Operand(index_1));
+  __ j(below_equal, &slow_case);
+  __ cmp(temp, Operand(index_2));
+  __ j(below_equal, &slow_case);
+
   // Bring addresses into index1 and index2.
   __ lea(index_1, CodeGenerator::FixedArrayElementOperand(elements, index_1));
   __ lea(index_2, CodeGenerator::FixedArrayElementOperand(elements, index_2));
@@ -3708,8 +3783,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Inline smi case if we are in a loop.
-  NearLabel stub_call;
-  Label done;
+  NearLabel stub_call, done;
+  JumpPatchSite patch_site(masm_);
+
   if (ShouldInlineSmiCase(expr->op())) {
     if (expr->op() == Token::INC) {
       __ add(Operand(eax), Immediate(Smi::FromInt(1)));
@@ -3719,8 +3795,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     __ j(overflow, &stub_call);
     // We could eliminate this smi check if we split the code at
     // the first smi check before calling ToNumber.
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, &done);
+    patch_site.EmitJumpIfSmi(eax, &done);
+
     __ bind(&stub_call);
     // Call stub. Undo operation first.
     if (expr->op() == Token::INC) {
@@ -3738,7 +3814,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   __ mov(eax, Immediate(Smi::FromInt(1)));
   TypeRecordingBinaryOpStub stub(expr->binary_op(),
                                  NO_OVERWRITE);
-  __ CallStub(&stub);
+  EmitCallIC(stub.GetCode(), &patch_site);
   __ bind(&done);
 
   // Store the value returned in eax.
@@ -3749,6 +3825,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         { EffectContext context(this);
           EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
                                  Token::ASSIGN);
+          PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
+          context.Plug(eax);
         }
         // For all contexts except EffectContext We have the result on
         // top of the stack.
@@ -3759,6 +3837,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         // Perform the assignment as if via '='.
         EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
                                Token::ASSIGN);
+        PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
+        context()->Plug(eax);
       }
       break;
     case NAMED_PROPERTY: {
@@ -3766,6 +3846,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ pop(edx);
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
+      PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
           context()->PlugTOS();
@@ -3780,6 +3861,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ pop(edx);
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
+      PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
         // Result is on the stack
         if (!context()->IsEffect()) {
@@ -3957,7 +4039,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     case Token::INSTANCEOF: {
       VisitForStackValue(expr->right());
-      InstanceofStub stub;
+      __ IncrementCounter(&Counters::instance_of_full, 1);
+      InstanceofStub stub(InstanceofStub::kNoFlags);
       __ CallStub(&stub);
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
       __ test(eax, Operand(eax));
@@ -4005,21 +4088,22 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       }
 
       bool inline_smi_code = ShouldInlineSmiCase(op);
+      JumpPatchSite patch_site(masm_);
       if (inline_smi_code) {
         NearLabel slow_case;
         __ mov(ecx, Operand(edx));
         __ or_(ecx, Operand(eax));
-        __ test(ecx, Immediate(kSmiTagMask));
-        __ j(not_zero, &slow_case, not_taken);
+        patch_site.EmitJumpIfNotSmi(ecx, &slow_case);
         __ cmp(edx, Operand(eax));
         Split(cc, if_true, if_false, NULL);
         __ bind(&slow_case);
       }
 
       // Record position and call the compare IC.
-      Handle<Code> ic = CompareIC::GetUninitialized(op);
       SetSourcePosition(expr->position());
-      __ call(ic, RelocInfo::CODE_TARGET);
+      Handle<Code> ic = CompareIC::GetUninitialized(op);
+      EmitCallIC(ic, &patch_site);
+
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
       __ test(eax, Operand(eax));
       Split(cc, if_true, if_false, fall_through);
@@ -4119,6 +4203,16 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
     default:
       // Do nothing.
       break;
+  }
+}
+
+
+void FullCodeGenerator::EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site) {
+  __ call(ic, RelocInfo::CODE_TARGET);
+  if (patch_site != NULL && patch_site->is_bound()) {
+    patch_site->EmitPatchInfo();
+  } else {
+    __ nop();  // Signals no inlined code.
   }
 }
 
