@@ -47,6 +47,10 @@ extern "C" {
 #include <stddef.h>
 #include <sys/types.h>
 
+#ifdef __OpenBSD__
+# include <inttypes.h>
+#endif
+
 #ifdef _WIN32
 # define uid_t int
 # define gid_t int

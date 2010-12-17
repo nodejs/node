@@ -178,6 +178,7 @@ def configure(conf):
   o = Options.options
 
   conf.env["USE_DEBUG"] = o.debug
+  conf.env["SNAPSHOT_V8"] = not o.without_snapshot
   if sys.platform.startswith("sunos"):
     conf.env["SNAPSHOT_V8"] = False
   conf.env["USE_PROFILING"] = o.profile

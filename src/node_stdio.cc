@@ -5,8 +5,10 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__OpenBSD__)
 # include <util.h>
+#elif __FreeBSD__
+# include <libutil.h>
 #elif defined(__sun)
 # include <stropts.h> // for openpty ioctls
 #else
