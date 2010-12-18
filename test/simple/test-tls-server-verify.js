@@ -190,7 +190,8 @@ function runTest (testIndex) {
   var server = tls.Server(serverOptions, function (c) {
     connections++;
     if (c.authorized) {
-      console.error('- authed connection');
+      console.error('- authed connection: ' +
+                    c.getPeerCertificate().subject.CN);
       c.write('\n_authed\n');
     } else {
       console.error('- unauthed connection: %s', c.authorizationError);
