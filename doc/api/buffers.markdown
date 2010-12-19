@@ -81,6 +81,9 @@ Example: copy an ASCII string into a buffer, one byte at a time:
 
     // node.js
 
+### Buffer.isBuffer(obj)
+
+Tests if `obj` is a `Buffer`.
 
 ### Buffer.byteLength(string, encoding='utf8')
 
