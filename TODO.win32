@@ -4,9 +4,15 @@
   Like getuid, getgid, setgid, kill etc.
 
 - Implement missing `net` methods
-  A pressing issue is: how do we work with windows api functions that are not utf8 aware?
-  E.g. getaddrinfo() is ansi-only; GetAddrInfoW is utf16-only. Can we get utf16 straight out of v8?
-  Are unix sockets similar to windows named pipes? If so, should they be supported? -> currently: no. Complication: they block.
+  Are unix sockets similar to windows named pipes? If so, should they be 
+  supported? -> currently: no. Complication: they block.
+
+- New libev backend
+  The current libev backend supports sockets only. This complicates stuff like
+  child processes, stdio. Best would be if node_net switched from exposing
+  readyness notifications to using completion notifications, so on windows we
+  could use IOCP for sockets. Experts tell me that is really the fastest way
+  to work with sockets on windows.
 
 - Child process issues
   * Communication between parent and child is slow; it uses a socketpair
@@ -16,7 +22,7 @@
     On linux the pid is available immediately because fork() doesn't
     block; on windows a libeio thread is used to call CreateProcess.
     So this can't really be fixed, but it could be worked around by adding a
-    'spawn' or 'pid' method.
+    'spawn' or 'pid' event.
   * kill() doesn't work when the pid is not available yet. All the plumbing
     is there to make it work, but lib/child_process.js just doesn't call
     ChildProcess::Kill() as long as the pid is not known.
@@ -40,7 +46,8 @@
 - Skip/fix tests that can never pass on windows
 
 - Find a solution for fs.symlink / fs.lstat / fs.chown
-  Windows has different symlink types: file symlinks (vista+), directory symlinks (vista+), junction points (xp+) 
+  Windows has different symlink types: file symlinks (vista+),
+  directory symlinks (vista+), junction points (xp+) 
 
 - Handle _open_osfhandle failures
   E.g. currently we're using the construct _open_osfhandle(socket/open/accept(...)).
@@ -49,7 +56,7 @@
   If _open_osfhandle fails but socket doesn't, a stray handle is left open. It should be fixed.
 
 - Check error number mappings.
-  Winsock errnos are sometimes different.
+  Winsock errnos are sometimes different. Subtracting WSABASEERR from errnos works in most cases.
 
 - Think about `make install`
 
@@ -65,11 +72,14 @@
 - Make (open?)SSL work
 
 - Support using shared libs (libeio, v8, c-ares)
-  Need to link with with a stub library. Libraries should use `dllexport`, headers must have `dllimport`.
+  Need to link with with a stub library. Libraries should use `dllexport`,
+  headers must have `dllimport`.
 
 - V8: push MINGW32 build fixes upstream
+  (mostly done, V8 3.0.0 introduces some new issues)
 
 - Work with the V8 team to get the stack corruption bug fixed
+  (fixed in 3.0.0)
 
 - Work around missing pread/pwrite more elegantly
   Currently it's exported from libeio, while it wasn't intended to be exported.
