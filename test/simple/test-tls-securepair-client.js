@@ -66,8 +66,9 @@ var timeout = setTimeout(function () {
   process.exit(1);
 }, 5000);
 
-
+var gotWriteCallback = false;
 var serverExitCode = -1;
+
 server.on('exit', function(code) {
   serverExitCode = code;
   clearTimeout(timeout);
@@ -101,7 +102,9 @@ function startClient() {
     console.log('client pair.cleartext.getCipher(): %j',
                 pair.cleartext.getCipher());
     setTimeout(function() {
-      pair.cleartext.write('hello\r\n');
+      pair.cleartext.write('hello\r\n', function () {
+        gotWriteCallback = true;
+      });
     }, 500);
   });
 
@@ -130,4 +133,5 @@ function startClient() {
 process.on('exit', function() {
   assert.equal(0, serverExitCode);
   assert.equal('WAIT-SERVER-CLOSE', state);
+  assert.ok(gotWriteCallback);
 });
