@@ -4,7 +4,12 @@
 #include <v8.h>
 
 #include <errno.h>
-#include <unistd.h>  // gethostname
+
+#ifdef __POSIX__
+# include <unistd.h>  // gethostname
+#else // __MINGW32__
+# include <winsock2.h> // gethostname
+#endif // __MINGW32__
 
 namespace node {
 
@@ -16,6 +21,9 @@ static Handle<Value> GetHostname(const Arguments& args) {
   int r = gethostname(s, 255);
 
   if (r < 0) {
+#ifdef __MINGW32__
+    errno = WSAGetLastError() - WSABASEERR;
+#endif
     return ThrowException(ErrnoException(errno, "gethostname"));
   }
 
