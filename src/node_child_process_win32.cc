@@ -524,7 +524,6 @@ int ChildProcess::do_spawn(eio_req *req) {
       child->pid_ = GetProcessId(info.hProcess);
       child->did_start_ = true;
       watch(child);
-      LeaveCriticalSection(&child->info_lock_);
 
       // Not interesting
       CloseHandle(info.hThread);
@@ -534,8 +533,8 @@ int ChildProcess::do_spawn(eio_req *req) {
   }
 
   // kill_me set or process failed to start
-  notify_spawn_failure(child);
   LeaveCriticalSection(&child->info_lock_);
+  notify_spawn_failure(child);
 
   return 0;
 }
