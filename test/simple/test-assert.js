@@ -165,12 +165,26 @@ assert.throws(function() {assert.ifError(new Error('test error'))});
 assert.doesNotThrow(function() {assert.ifError(null)});
 assert.doesNotThrow(function() {assert.ifError()});
 
+// make sure that validating using constructor really works
+threw = false;
+try {
+  assert.throws(
+    function() {
+      throw {};
+    },
+    Array
+  );
+} catch(e) {
+  threw = true;
+}
+assert.ok(threw, "wrong constructor validation");
+
 // use a RegExp to validate error message
 a.throws(makeBlock(thrower, TypeError), /test/);
 
 // use a fn to validate error object
 a.throws(makeBlock(thrower, TypeError), function(err) {
-  if (!(err instanceof TypeError) || !/test/.test(err)) {
-    return false;
+  if ( (err instanceof TypeError) && /test/.test(err)) {
+    return true;
   }
 });
