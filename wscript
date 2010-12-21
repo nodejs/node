@@ -456,7 +456,10 @@ def v8_cmd(bld, variant):
                 , snapshot
 		, profile
                 )
-  
+
+  if sys.platform.startswith("sunos"): cmd += ' toolchain=gcc'
+
+
   return ("echo '%s' && " % cmd) + cmd
 
 
