@@ -1410,19 +1410,19 @@ class Decipher : public ObjectWrap {
 
         if (alloc_buf) {
           delete [] buf;
-          alloc_buf = false;
         }
         buf = ciphertext;
         len = ciphertext_len;
+        alloc_buf = true;
 
       } else if (strcasecmp(*encoding, "base64") == 0) {
         unbase64((unsigned char*)buf, len, (char **)&ciphertext, &ciphertext_len);
         if (alloc_buf) {
           delete [] buf;
-          alloc_buf = false;
         }
         buf = ciphertext;
         len = ciphertext_len;
+        alloc_buf = true;
 
       } else if (strcasecmp(*encoding, "binary") == 0) {
         // Binary - do nothing
