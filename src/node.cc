@@ -1244,7 +1244,7 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
 Handle<Value> Kill(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() != 2 || !args[0]->IsNumber() || !args[1]->IsNumber()) {
+  if (args.Length() != 2) {
     return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
 
