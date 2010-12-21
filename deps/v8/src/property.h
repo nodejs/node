@@ -60,8 +60,8 @@ class Descriptor BASE_EMBEDDED {
   Object* GetValue() { return value_; }
   PropertyDetails GetDetails() { return details_; }
 
-#ifdef DEBUG
-  void Print();
+#ifdef OBJECT_PRINT
+  void Print(FILE* out);
 #endif
 
   void SetEnumerationIndex(int index) {
@@ -310,8 +310,8 @@ class LookupResult BASE_EMBEDDED {
     return GetValue();
   }
 
-#ifdef DEBUG
-  void Print();
+#ifdef OBJECT_PRINT
+  void Print(FILE* out);
 #endif
 
   Object* GetValue() {

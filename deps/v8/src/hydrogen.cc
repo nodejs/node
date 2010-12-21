@@ -3165,6 +3165,9 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
   if (lookup->type() == MAP_TRANSITION) {
     Handle<Map> transition(lookup->GetTransitionMapFromMap(*type));
     instr->set_transition(transition);
+    // TODO(fschneider): Record the new map type of the object in the IR to
+    // enable elimination of redundant checks after the transition store.
+    instr->SetFlag(HValue::kChangesMaps);
   }
   return instr;
 }
@@ -3529,9 +3532,10 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
       maps.Add(map);
       HSubgraph* subgraph = CreateBranchSubgraph(environment());
       SubgraphScope scope(this, subgraph);
-      HInstruction* instr =
+      HLoadNamedField* instr =
           BuildLoadNamedField(object, expr, map, &lookup, false);
       instr->set_position(expr->position());
+      instr->ClearFlag(HValue::kUseGVN);  // Don't do GVN on polymorphic loads.
       PushAndAdd(instr);
       subgraphs.Add(subgraph);
     } else {
@@ -3570,11 +3574,11 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
 }
 
 
-HInstruction* HGraphBuilder::BuildLoadNamedField(HValue* object,
-                                                 Property* expr,
-                                                 Handle<Map> type,
-                                                 LookupResult* lookup,
-                                                 bool smi_and_map_check) {
+HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
+                                                    Property* expr,
+                                                    Handle<Map> type,
+                                                    LookupResult* lookup,
+                                                    bool smi_and_map_check) {
   if (smi_and_map_check) {
     AddInstruction(new HCheckNonSmi(object));
     AddInstruction(new HCheckMap(object, type));
@@ -4093,6 +4097,8 @@ bool HGraphBuilder::TryMathFunctionInline(Call* expr) {
     case kMathAbs:
     case kMathSqrt:
     case kMathLog:
+    case kMathSin:
+    case kMathCos:
       if (argument_count == 2) {
         HValue* argument = Pop();
         Drop(1);  // Receiver.
@@ -4169,7 +4175,7 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   if (args->length() != 2) return false;
 
   VariableProxy* arg_two = args->at(1)->AsVariableProxy();
-  if (arg_two == NULL) return false;
+  if (arg_two == NULL || !arg_two->var()->IsStackAllocated()) return false;
   HValue* arg_two_value = environment()->Lookup(arg_two->var());
   if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
 

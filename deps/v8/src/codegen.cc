@@ -215,8 +215,17 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       }
       PrintF("\n\n");
     }
-    PrintF("--- Code ---\n");
-    code->Disassemble(*function->name()->ToCString());
+    if (info->IsOptimizing()) {
+      if (FLAG_print_unopt_code) {
+        PrintF("--- Unoptimized code ---\n");
+        info->closure()->shared()->code()->Disassemble(
+            *function->debug_name()->ToCString());
+      }
+      PrintF("--- Optimized code ---\n");
+    } else {
+      PrintF("--- Code ---\n");
+    }
+    code->Disassemble(*function->debug_name()->ToCString());
   }
 #endif  // ENABLE_DISASSEMBLER
 }

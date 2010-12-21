@@ -142,6 +142,23 @@ void OS::VPrint(const char* format, va_list args) {
 }
 
 
+void OS::FPrint(FILE* out, const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  VFPrint(out, format, args);
+  va_end(args);
+}
+
+
+void OS::VFPrint(FILE* out, const char* format, va_list args) {
+#if defined(ANDROID)
+  LOG_PRI_VA(ANDROID_LOG_INFO, LOG_TAG, format, args);
+#else
+  vfprintf(out, format, args);
+#endif
+}
+
+
 void OS::PrintError(const char* format, ...) {
   va_list args;
   va_start(args, format);
@@ -173,7 +190,9 @@ int OS::VSNPrintF(Vector<char> str,
                   va_list args) {
   int n = vsnprintf(str.start(), str.length(), format, args);
   if (n < 0 || n >= str.length()) {
-    str[str.length() - 1] = '\0';
+    // If the length is zero, the assignment fails.
+    if (str.length() > 0)
+      str[str.length() - 1] = '\0';
     return -1;
   } else {
     return n;
@@ -204,6 +223,14 @@ class POSIXSocket : public Socket {
   explicit POSIXSocket() {
     // Create the socket.
     socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (IsValid()) {
+      // Allow rapid reuse.
+      static const int kOn = 1;
+      int ret = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR,
+                           &kOn, sizeof(kOn));
+      ASSERT(ret == 0);
+      USE(ret);
+    }
   }
   explicit POSIXSocket(int socket): socket_(socket) { }
   virtual ~POSIXSocket() { Shutdown(); }

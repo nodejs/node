@@ -6784,9 +6784,9 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
 
   // Check that both indices are valid.
   __ movq(tmp2.reg(), FieldOperand(object.reg(), JSArray::kLengthOffset));
-  __ cmpl(tmp2.reg(), index1.reg());
+  __ SmiCompare(tmp2.reg(), index1.reg());
   deferred->Branch(below_equal);
-  __ cmpl(tmp2.reg(), index2.reg());
+  __ SmiCompare(tmp2.reg(), index2.reg());
   deferred->Branch(below_equal);
 
   // Bring addresses into index1 and index2.

@@ -671,8 +671,12 @@ const FullCodeGenerator::InlineFunctionGenerator
 
 FullCodeGenerator::InlineFunctionGenerator
   FullCodeGenerator::FindInlineFunctionGenerator(Runtime::FunctionId id) {
-    return kInlineFunctionGenerators[
-      static_cast<int>(id) - static_cast<int>(Runtime::kFirstInlineFunction)];
+    int lookup_index =
+        static_cast<int>(id) - static_cast<int>(Runtime::kFirstInlineFunction);
+    ASSERT(lookup_index >= 0);
+    ASSERT(static_cast<size_t>(lookup_index) <
+           ARRAY_SIZE(kInlineFunctionGenerators));
+    return kInlineFunctionGenerators[lookup_index];
 }
 
 
@@ -684,7 +688,6 @@ void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* node) {
   ASSERT(function->intrinsic_type == Runtime::INLINE);
   InlineFunctionGenerator generator =
       FindInlineFunctionGenerator(function->function_id);
-  ASSERT(generator != NULL);
   ((*this).*(generator))(args);
 }
 

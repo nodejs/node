@@ -579,6 +579,13 @@ void HBranch::PrintDataTo(StringStream* stream) const {
 }
 
 
+void HCompareMapAndBranch::PrintDataTo(StringStream* stream) const {
+  stream->Add("on ");
+  value()->PrintNameTo(stream);
+  stream->Add(" (%p)", *map());
+}
+
+
 void HGoto::PrintDataTo(StringStream* stream) const {
   stream->Add("B%d", FirstSuccessor()->block_id());
 }

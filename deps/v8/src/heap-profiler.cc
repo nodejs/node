@@ -367,7 +367,6 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(String* name,
 HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name,
                                              int type,
                                              v8::ActivityControl* control) {
-  Heap::CollectAllGarbage(true);
   HeapSnapshot::Type s_type = static_cast<HeapSnapshot::Type>(type);
   HeapSnapshot* result =
       snapshots_->NewSnapshot(s_type, name, next_snapshot_uid_++);
@@ -379,6 +378,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name,
       break;
     }
     case HeapSnapshot::kAggregated: {
+      Heap::CollectAllGarbage(true);
       AggregatedHeapSnapshot agg_snapshot;
       AggregatedHeapSnapshotGenerator generator(&agg_snapshot);
       generator.GenerateSnapshot();
@@ -808,7 +808,7 @@ void AggregatedHeapSnapshotGenerator::CollectStats(HeapObject* obj) {
 
 
 void AggregatedHeapSnapshotGenerator::GenerateSnapshot() {
-  HeapIterator iterator(HeapIterator::kPreciseFiltering);
+  HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     CollectStats(obj);
     agg_snapshot_->js_cons_profile()->CollectStats(obj);

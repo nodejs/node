@@ -3802,6 +3802,35 @@ double v8::Date::NumberValue() const {
 }
 
 
+void v8::Date::DateTimeConfigurationChangeNotification() {
+  ON_BAILOUT("v8::Date::DateTimeConfigurationChangeNotification()", return);
+  LOG_API("Date::DateTimeConfigurationChangeNotification");
+  ENTER_V8;
+
+  HandleScope scope;
+
+  // Get the function ResetDateCache (defined in date-delay.js).
+  i::Handle<i::String> func_name_str =
+      i::Factory::LookupAsciiSymbol("ResetDateCache");
+  i::MaybeObject* result = i::Top::builtins()->GetProperty(*func_name_str);
+  i::Object* object_func;
+  if (!result->ToObject(&object_func)) {
+    return;
+  }
+
+  if (object_func->IsJSFunction()) {
+    i::Handle<i::JSFunction> func =
+        i::Handle<i::JSFunction>(i::JSFunction::cast(object_func));
+
+    // Call ResetDateCache(0 but expect no exceptions:
+    bool caught_exception = false;
+    i::Handle<i::Object> result =
+        i::Execution::TryCall(func, i::Top::builtins(), 0, NULL,
+        &caught_exception);
+  }
+}
+
+
 static i::Handle<i::String> RegExpFlagsToString(RegExp::Flags flags) {
   char flags_buf[3];
   int num_flags = 0;

@@ -128,6 +128,19 @@ void OS::VPrint(const char* format, va_list args) {
 }
 
 
+void OS::FPrint(FILE* out, const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  VFPrint(out, format, args);
+  va_end(args);
+}
+
+
+void OS::VFPrint(FILE* out, const char* format, va_list args) {
+  vfprintf(out, format, args);
+}
+
+
 // Print error message to console.
 void OS::PrintError(const char* format, ...) {
   // Minimalistic implementation for bootstrapping.

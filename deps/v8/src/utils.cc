@@ -45,8 +45,16 @@ void PrintF(const char* format, ...) {
 }
 
 
-void Flush() {
-  fflush(stdout);
+void PrintF(FILE* out, const char* format, ...) {
+  va_list arguments;
+  va_start(arguments, format);
+  OS::VFPrint(out, format, arguments);
+  va_end(arguments);
+}
+
+
+void Flush(FILE* out) {
+  fflush(out);
 }
 
 

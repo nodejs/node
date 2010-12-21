@@ -476,7 +476,7 @@ class Translation BASE_EMBEDDED {
 
   static int NumberOfOperandsFor(Opcode opcode);
 
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
   static const char* StringFor(Opcode opcode);
 #endif
 

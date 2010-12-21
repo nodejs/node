@@ -178,6 +178,12 @@ void MacroAssembler::Drop(int count, Condition cond) {
 }
 
 
+void MacroAssembler::Ret(int drop, Condition cond) {
+  Drop(drop, cond);
+  Ret(cond);
+}
+
+
 void MacroAssembler::Swap(Register reg1,
                           Register reg2,
                           Register scratch,
@@ -818,6 +824,38 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   } else {
     InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
   }
+}
+
+
+void MacroAssembler::IsObjectJSObjectType(Register heap_object,
+                                          Register map,
+                                          Register scratch,
+                                          Label* fail) {
+  ldr(map, FieldMemOperand(heap_object, HeapObject::kMapOffset));
+  IsInstanceJSObjectType(map, scratch, fail);
+}
+
+
+void MacroAssembler::IsInstanceJSObjectType(Register map,
+                                            Register scratch,
+                                            Label* fail) {
+  ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  cmp(scratch, Operand(FIRST_JS_OBJECT_TYPE));
+  b(lt, fail);
+  cmp(scratch, Operand(LAST_JS_OBJECT_TYPE));
+  b(gt, fail);
+}
+
+
+void MacroAssembler::IsObjectJSStringType(Register object,
+                                           Register scratch,
+                                           Label* fail) {
+  ASSERT(kNotStringTag != 0);
+
+  ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+  ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  tst(scratch, Operand(kIsNotStringMask));
+  b(nz, fail);
 }
 
 

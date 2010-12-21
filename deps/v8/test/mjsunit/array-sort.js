@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -360,3 +360,18 @@ function TestSpecialCasesInheritedElementSort() {
 }
 
 TestSpecialCasesInheritedElementSort();
+
+// Test that sort calls compare function with global object as receiver,
+// and with only elements of the array as arguments.
+function o(v) { 
+  return {__proto__: o.prototype, val: v};
+}
+var arr = [o(1), o(2), o(4), o(8), o(16), o(32), o(64), o(128), o(256), o(-0)];
+var global = this;
+function cmpTest(a, b) {
+  assertEquals(global, this);
+  assertTrue(a instanceof o);
+  assertTrue(b instanceof o);
+  return a.val - b.val;
+}
+arr.sort(cmpTest);

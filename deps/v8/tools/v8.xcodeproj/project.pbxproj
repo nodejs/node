@@ -1850,6 +1850,7 @@
 					DEBUG,
 					ENABLE_LOGGING_AND_PROFILING,
 					V8_ENABLE_CHECKS,
+                                        OBJECT_PRINT,
 					ENABLE_VMSTATE_TRACKING,
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
@@ -1914,6 +1915,7 @@
 					V8_TARGET_ARCH_IA32,
 					DEBUG,
 					V8_ENABLE_CHECKS,
+                                        OBJECT_PRINT,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
@@ -1976,6 +1978,7 @@
 					V8_TARGET_ARCH_IA32,
 					DEBUG,
 					V8_ENABLE_CHECKS,
+                                        OBJECT_PRINT,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;

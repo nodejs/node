@@ -786,11 +786,11 @@ class HGraphBuilder: public AstVisitor {
                                      HValue* left,
                                      HValue* right);
   HInstruction* BuildIncrement(HValue* value, bool increment);
-  HInstruction* BuildLoadNamedField(HValue* object,
-                                    Property* expr,
-                                    Handle<Map> type,
-                                    LookupResult* result,
-                                    bool smi_and_map_check);
+  HLoadNamedField* BuildLoadNamedField(HValue* object,
+                                       Property* expr,
+                                       Handle<Map> type,
+                                       LookupResult* result,
+                                       bool smi_and_map_check);
   HInstruction* BuildLoadNamedGeneric(HValue* object, Property* expr);
   HInstruction* BuildLoadKeyedFastElement(HValue* object,
                                           HValue* key,

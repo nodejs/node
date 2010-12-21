@@ -1007,6 +1007,39 @@ function DateToJSON(key) {
 }
 
 
+function ResetDateCache() {
+
+  // Reset the local_time_offset:
+  local_time_offset = %DateLocalTimeOffset();
+
+  // Reset the DST offset cache:
+  var cache = DST_offset_cache;
+  cache.offset = 0;
+  cache.start = 0;
+  cache.end = -1;
+  cache.increment = 0;
+  cache.initial_increment = 19 * msPerDay;
+
+  // Reset the timezone cache:
+  timezone_cache_time = $NaN;
+  timezone_cache_timezone = undefined;
+
+  // Reset the ltcache:
+  ltcache.key = null;
+  ltcache.val = null;
+
+  // Reset the ymd_from_time_cache:
+  ymd_from_time_cache = [$NaN, $NaN, $NaN];
+  ymd_from_time_cached_time = $NaN;
+
+  // Reset the date cache:
+  cache = Date_cache;
+  cache.time = $NaN;
+  cache.year = $NaN;
+  cache.string = null;
+}
+
+
 // -------------------------------------------------------------------
 
 function SetupDate() {

@@ -40,32 +40,21 @@ namespace internal {
 // TranscendentalCache runtime function.
 class TranscendentalCacheStub: public CodeStub {
  public:
-  explicit TranscendentalCacheStub(TranscendentalCache::Type type)
-      : type_(type) {}
+  enum ArgumentType {
+    TAGGED = 0,
+    UNTAGGED = 1 << TranscendentalCache::kTranscendentalTypeBits
+  };
+
+  explicit TranscendentalCacheStub(TranscendentalCache::Type type,
+                                   ArgumentType argument_type)
+      : type_(type), argument_type_(argument_type) {}
   void Generate(MacroAssembler* masm);
  private:
   TranscendentalCache::Type type_;
+  ArgumentType argument_type_;
 
   Major MajorKey() { return TranscendentalCache; }
-  int MinorKey() { return type_; }
-  Runtime::FunctionId RuntimeFunction();
-  void GenerateOperation(MacroAssembler* masm);
-};
-
-
-// Check the transcendental cache, or generate the result, using SSE2.
-// The argument and result will be in xmm1.
-// Only supports TranscendentalCache::LOG at this point.
-class TranscendentalCacheSSE2Stub: public CodeStub {
- public:
-  explicit TranscendentalCacheSSE2Stub(TranscendentalCache::Type type)
-      : type_(type) {}
-  void Generate(MacroAssembler* masm);
- private:
-  TranscendentalCache::Type type_;
-
-  Major MajorKey() { return TranscendentalCacheSSE2; }
-  int MinorKey() { return type_; }
+  int MinorKey() { return type_ | argument_type_; }
   Runtime::FunctionId RuntimeFunction();
   void GenerateOperation(MacroAssembler* masm);
 };

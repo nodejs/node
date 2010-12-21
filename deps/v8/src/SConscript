@@ -231,7 +231,8 @@ SOURCES = {
   'mode:release': [],
   'mode:debug': [
     'objects-debug.cc', 'prettyprinter.cc', 'regexp-macro-assembler-tracer.cc'
-  ]
+  ],
+  'objectprint:on': ['objects-debug.cc']
 }
 
 

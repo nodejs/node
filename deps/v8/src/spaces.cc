@@ -364,15 +364,15 @@ void MemoryAllocator::TearDown() {
 }
 
 
-void MemoryAllocator::FreeChunkTables(AtomicWord* array, int len, int level) {
+void MemoryAllocator::FreeChunkTables(uintptr_t* array, int len, int level) {
   for (int i = 0; i < len; i++) {
     if (array[i] != kUnusedChunkTableEntry) {
-      AtomicWord* subarray = reinterpret_cast<AtomicWord*>(array[i]);
+      uintptr_t* subarray = reinterpret_cast<uintptr_t*>(array[i]);
       if (level > 1) {
-        Release_Store(&array[i], kUnusedChunkTableEntry);
+        array[i] = kUnusedChunkTableEntry;
         FreeChunkTables(subarray, 1 << kChunkTableBitsPerLevel, level - 1);
       } else {
-        Release_Store(&array[i], kUnusedChunkTableEntry);
+        array[i] = kUnusedChunkTableEntry;
       }
       delete[] subarray;
     }
@@ -822,7 +822,7 @@ void MemoryAllocator::AddToAllocatedChunks(Address addr, intptr_t size) {
 
 void MemoryAllocator::AddChunkUsingAddress(uintptr_t chunk_start,
                                            uintptr_t chunk_index_base) {
-  AtomicWord* fine_grained = AllocatedChunksFinder(
+  uintptr_t* fine_grained = AllocatedChunksFinder(
       chunk_table_,
       chunk_index_base,
       kChunkSizeLog2 + (kChunkTableLevels - 1) * kChunkTableBitsPerLevel,
@@ -830,7 +830,7 @@ void MemoryAllocator::AddChunkUsingAddress(uintptr_t chunk_start,
   int index = FineGrainedIndexForAddress(chunk_index_base);
   if (fine_grained[index] != kUnusedChunkTableEntry) index++;
   ASSERT(fine_grained[index] == kUnusedChunkTableEntry);
-  Release_Store(&fine_grained[index], chunk_start);
+  fine_grained[index] = chunk_start;
 }
 
 
@@ -845,7 +845,7 @@ void MemoryAllocator::RemoveFromAllocatedChunks(Address addr, intptr_t size) {
 void MemoryAllocator::RemoveChunkFoundUsingAddress(
     uintptr_t chunk_start,
     uintptr_t chunk_index_base) {
-  AtomicWord* fine_grained = AllocatedChunksFinder(
+  uintptr_t* fine_grained = AllocatedChunksFinder(
       chunk_table_,
       chunk_index_base,
       kChunkSizeLog2 + (kChunkTableLevels - 1) * kChunkTableBitsPerLevel,
@@ -854,22 +854,23 @@ void MemoryAllocator::RemoveChunkFoundUsingAddress(
   ASSERT(fine_grained != kUnusedChunkTableEntry);
   int index = FineGrainedIndexForAddress(chunk_index_base);
   ASSERT(fine_grained[index] != kUnusedChunkTableEntry);
-  if (fine_grained[index] != static_cast<AtomicWord>(chunk_start)) {
+  if (fine_grained[index] != chunk_start) {
     index++;
-    ASSERT(fine_grained[index] == static_cast<AtomicWord>(chunk_start));
-    Release_Store(&fine_grained[index], kUnusedChunkTableEntry);
+    ASSERT(fine_grained[index] == chunk_start);
+    fine_grained[index] = kUnusedChunkTableEntry;
   } else {
-    Release_Store(&fine_grained[index], fine_grained[index + 1]);
-    // Here for a moment the two entries are duplicates, but the reader can
-    // handle that.
-    NoBarrier_Store(&fine_grained[index + 1], kUnusedChunkTableEntry);
+    // If only one of the entries is used it must be the first, since
+    // InAllocatedChunks relies on that.  Move things around so that this is
+    // the case.
+    fine_grained[index] = fine_grained[index + 1];
+    fine_grained[index + 1] = kUnusedChunkTableEntry;
   }
 }
 
 
 bool MemoryAllocator::InAllocatedChunks(Address addr) {
   uintptr_t int_address = reinterpret_cast<uintptr_t>(addr);
-  AtomicWord* fine_grained = AllocatedChunksFinder(
+  uintptr_t* fine_grained = AllocatedChunksFinder(
       chunk_table_,
       int_address,
       kChunkSizeLog2 + (kChunkTableLevels - 1) * kChunkTableBitsPerLevel,
@@ -877,21 +878,18 @@ bool MemoryAllocator::InAllocatedChunks(Address addr) {
   if (fine_grained == NULL) return false;
   int index = FineGrainedIndexForAddress(int_address);
   if (fine_grained[index] == kUnusedChunkTableEntry) return false;
-  uintptr_t entry = static_cast<uintptr_t>(fine_grained[index]);
+  uintptr_t entry = fine_grained[index];
   if (entry <= int_address && entry + kChunkSize > int_address) return true;
   index++;
   if (fine_grained[index] == kUnusedChunkTableEntry) return false;
-  entry = static_cast<uintptr_t>(fine_grained[index]);
-  // At this point it would seem that we must have a hit, but there is a small
-  // window during RemoveChunkFoundUsingAddress where the two entries are
-  // duplicates and we have to handle that.
+  entry = fine_grained[index];
   if (entry <= int_address && entry + kChunkSize > int_address) return true;
   return false;
 }
 
 
-AtomicWord* MemoryAllocator::AllocatedChunksFinder(
-    AtomicWord* table,
+uintptr_t* MemoryAllocator::AllocatedChunksFinder(
+    uintptr_t* table,
     uintptr_t address,
     int bit_position,
     CreateTables create_as_needed) {
@@ -906,8 +904,8 @@ AtomicWord* MemoryAllocator::AllocatedChunksFinder(
       address & ((V8_INTPTR_C(1) << bit_position) - 1);
   ASSERT((table == chunk_table_ && index < kChunkTableTopLevelEntries) ||
          (table != chunk_table_ && index < 1 << kChunkTableBitsPerLevel));
-  AtomicWord* more_fine_grained_table =
-      reinterpret_cast<AtomicWord*>(table[index]);
+  uintptr_t* more_fine_grained_table =
+      reinterpret_cast<uintptr_t*>(table[index]);
   if (more_fine_grained_table == kUnusedChunkTableEntry) {
     if (create_as_needed == kDontCreateTables) return NULL;
     int words_needed = 1 << kChunkTableBitsPerLevel;
@@ -915,12 +913,11 @@ AtomicWord* MemoryAllocator::AllocatedChunksFinder(
       words_needed =
           (1 << kChunkTableBitsPerLevel) * kChunkTableFineGrainedWordsPerEntry;
     }
-    more_fine_grained_table = new AtomicWord[words_needed];
+    more_fine_grained_table = new uintptr_t[words_needed];
     for (int i = 0; i < words_needed; i++) {
       more_fine_grained_table[i] = kUnusedChunkTableEntry;
     }
-    Release_Store(&table[index],
-                  reinterpret_cast<AtomicWord>(more_fine_grained_table));
+    table[index] = reinterpret_cast<uintptr_t>(more_fine_grained_table);
   }
   return AllocatedChunksFinder(
       more_fine_grained_table,
@@ -930,7 +927,7 @@ AtomicWord* MemoryAllocator::AllocatedChunksFinder(
 }
 
 
-AtomicWord MemoryAllocator::chunk_table_[kChunkTableTopLevelEntries];
+uintptr_t MemoryAllocator::chunk_table_[kChunkTableTopLevelEntries];
 
 
 // -----------------------------------------------------------------------------

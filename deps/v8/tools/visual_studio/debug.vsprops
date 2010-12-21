@@ -7,7 +7,7 @@
 	<Tool
 		Name="VCCLCompilerTool"
 		Optimization="0"
-		PreprocessorDefinitions="DEBUG;_DEBUG;ENABLE_DISASSEMBLER;V8_ENABLE_CHECKS"
+		PreprocessorDefinitions="DEBUG;_DEBUG;ENABLE_DISASSEMBLER;V8_ENABLE_CHECKS,OBJECT_PRINT"
 		RuntimeLibrary="1"
 	/>
 	<Tool

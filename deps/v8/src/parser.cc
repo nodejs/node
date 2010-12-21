@@ -3730,7 +3730,7 @@ RegExpParser::RegExpParser(FlatStringReader* in,
     contains_anchor_(false),
     is_scanned_for_captures_(false),
     failed_(false) {
-  Advance(1);
+  Advance();
 }
 
 
@@ -3768,8 +3768,8 @@ void RegExpParser::Reset(int pos) {
 
 
 void RegExpParser::Advance(int dist) {
-  for (int i = 0; i < dist; i++)
-    Advance();
+  next_pos_ += dist - 1;
+  Advance();
 }
 
 

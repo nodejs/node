@@ -467,34 +467,35 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
 }
 
 
-void RelocInfo::Print() {
-  PrintF("%p  %s", pc_, RelocModeName(rmode_));
+void RelocInfo::Print(FILE* out) {
+  PrintF(out, "%p  %s", pc_, RelocModeName(rmode_));
   if (IsComment(rmode_)) {
-    PrintF("  (%s)", reinterpret_cast<char*>(data_));
+    PrintF(out, "  (%s)", reinterpret_cast<char*>(data_));
   } else if (rmode_ == EMBEDDED_OBJECT) {
-    PrintF("  (");
-    target_object()->ShortPrint();
-    PrintF(")");
+    PrintF(out, "  (");
+    target_object()->ShortPrint(out);
+    PrintF(out, ")");
   } else if (rmode_ == EXTERNAL_REFERENCE) {
     ExternalReferenceEncoder ref_encoder;
-    PrintF(" (%s)  (%p)",
+    PrintF(out, " (%s)  (%p)",
            ref_encoder.NameOfAddress(*target_reference_address()),
            *target_reference_address());
   } else if (IsCodeTarget(rmode_)) {
     Code* code = Code::GetCodeFromTargetAddress(target_address());
-    PrintF(" (%s)  (%p)", Code::Kind2String(code->kind()), target_address());
+    PrintF(out, " (%s)  (%p)", Code::Kind2String(code->kind()),
+           target_address());
   } else if (IsPosition(rmode_)) {
-    PrintF("  (%" V8_PTR_PREFIX "d)", data());
+    PrintF(out, "  (%" V8_PTR_PREFIX "d)", data());
   } else if (rmode_ == RelocInfo::RUNTIME_ENTRY) {
     // Depotimization bailouts are stored as runtime entries.
     int id = Deoptimizer::GetDeoptimizationId(
         target_address(), Deoptimizer::EAGER);
     if (id != Deoptimizer::kNotDeoptimizationEntry) {
-      PrintF("  (deoptimization bailout %d)", id);
+      PrintF(out, "  (deoptimization bailout %d)", id);
     }
   }
 
-  PrintF("\n");
+  PrintF(out, "\n");
 }
 #endif  // ENABLE_DISASSEMBLER
 

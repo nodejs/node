@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -677,39 +677,76 @@ function ArraySort(comparefn) {
 
   function QuickSort(a, from, to) {
     // Insertion sort is faster for short arrays.
-    if (to - from <= 22) {
+    if (to - from <= 10) {
       InsertionSort(a, from, to);
       return;
     }
-    var pivot_index = $floor($random() * (to - from)) + from;
-    var pivot = a[pivot_index];
-    // Issue 95: Keep the pivot element out of the comparisons to avoid
-    // infinite recursion if comparefn(pivot, pivot) != 0.
-    %_SwapElements(a, from, pivot_index);
-    var low_end = from;   // Upper bound of the elements lower than pivot.
-    var high_start = to;  // Lower bound of the elements greater than pivot.
+    // Find a pivot as the median of first, last and middle element.
+    var v0 = a[from];
+    var v1 = a[to - 1];
+    var middle_index = from + ((to - from) >> 1);
+    var v2 = a[middle_index];
+    var c01 = %_CallFunction(global_receiver, v0, v1, comparefn);
+    if (c01 > 0) {
+      // v1 < v0, so swap them.
+      var tmp = v0;
+      v0 = v1;
+      v1 = tmp;
+    } // v0 <= v1.
+    var c02 = %_CallFunction(global_receiver, v0, v2, comparefn);
+    if (c02 >= 0) {
+      // v2 <= v0 <= v1.
+      var tmp = v0;
+      v0 = v2;
+      v2 = v1;
+      v1 = tmp;
+    } else {
+      // v0 <= v1 && v0 < v2
+      var c12 = %_CallFunction(global_receiver, v1, v2, comparefn);
+      if (c12 > 0) {
+        // v0 <= v2 < v1
+        var tmp = v1;
+        v1 = v2;
+        v2 = tmp;
+      }
+    }
+    // v0 <= v1 <= v2
+    a[from] = v0;
+    a[to - 1] = v2;
+    var pivot = v1;
+    var low_end = from + 1;   // Upper bound of elements lower than pivot.
+    var high_start = to - 1;  // Lower bound of elements greater than pivot.
+    a[middle_index] = a[low_end];
+    a[low_end] = pivot;
+
     // From low_end to i are elements equal to pivot.
     // From i to high_start are elements that haven't been compared yet.
-    for (var i = from + 1; i < high_start; ) {
+    partition: for (var i = low_end + 1; i < high_start; i++) {
       var element = a[i];
       var order = %_CallFunction(global_receiver, element, pivot, comparefn);
       if (order < 0) {
         %_SwapElements(a, i, low_end);
-        i++;
         low_end++;
       } else if (order > 0) {
-        high_start--;
+        do {
+          high_start--;
+          if (high_start == i) break partition;
+          var top_elem = a[high_start];
+          order = %_CallFunction(global_receiver, top_elem, pivot, comparefn);
+        } while (order > 0);
         %_SwapElements(a, i, high_start);
-      } else {  // order == 0
-        i++;
+        if (order < 0) {
+          %_SwapElements(a, i, low_end);
+          low_end++;
+        }
       }
     }
     QuickSort(a, from, low_end);
     QuickSort(a, high_start, to);
   }
 
-  // Copies elements in the range 0..length from obj's prototype chain
-  // to obj itself, if obj has holes. Returns one more than the maximal index
+  // Copy elements in the range 0..length from obj's prototype chain
+  // to obj itself, if obj has holes. Return one more than the maximal index
   // of a prototype property.
   function CopyFromPrototype(obj, length) {
     var max = 0;
