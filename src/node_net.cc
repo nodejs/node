@@ -484,6 +484,7 @@ static Handle<Value> Accept(const Arguments& args) {
 
   if (peer_fd < 0) {
     if (errno == EAGAIN) return scope.Close(Null());
+    if (errno == ECONNABORTED) return scope.Close(Null());
     return ThrowException(ErrnoException(errno, "accept"));
   }
 
