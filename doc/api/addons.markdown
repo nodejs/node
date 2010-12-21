@@ -12,7 +12,7 @@ knowledge of several libraries:
    descriptor to become readable, wait for a timer, or wait for a signal to
    received one will need to interface with libev.  That is, if you perform
    any I/O, libev will need to be used.  Node uses the `EV_DEFAULT` event
-   loop.  Documentation can be found http:/cvs.schmorp.de/libev/ev.html[here].
+   loop.  Documentation can be found [here](http://cvs.schmorp.de/libev/ev.html).
 
  - libeio, C thread pool library. Used to execute blocking POSIX system
    calls asynchronously. Mostly wrappers already exist for such calls, in
@@ -69,7 +69,7 @@ like this:
 Running `node-waf configure build` will create a file
 `build/default/hello.node` which is our Addon.
 
-`node-waf` is just [WAF](http://code.google.com/p/waf/), the python-based build system. `node-waf` is
+`node-waf` is just [WAF](http://code.google.com/p/waf), the python-based build system. `node-waf` is
 provided for the ease of users.
 
 All Node addons must export a function called `init` with this signature:
