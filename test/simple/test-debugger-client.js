@@ -65,7 +65,7 @@ var connectCount = 0;
 
 function doTest(cb, done) {
   var nodeProcess = spawn(process.execPath,
-      ['-e', 'setInterval(function () { console.log("blah"); }, 1000);']);
+      ['-e', 'setInterval(function () { console.log("blah"); }, 100);']);
 
   nodeProcess.stdout.once('data', function () {
     console.log(">>> new node process: %d", nodeProcess.pid);
@@ -82,9 +82,10 @@ function doTest(cb, done) {
       // Wait for some data before trying to connect
       var c = new debug.Client();
       process.stdout.write(">>> connecting...");
-      c.connect(debug.port, function () {
+      c.connect(debug.port)
+      c.on('ready', function () {
         connectCount++;
-        console.log("connected!");
+        console.log("ready!");
         cb(c, function () {
           console.error(">>> killing node process %d\n\n", nodeProcess.pid);
           nodeProcess.kill();
