@@ -197,7 +197,7 @@ def configure(conf):
     conf.env.append_value("CCFLAGS", "-rdynamic")
     conf.env.append_value("LINKFLAGS_DL", "-rdynamic")
 
-  if sys.platform.startswith("freebsd"):
+  if sys.platform.startswith("freebsd") or sys.platform.startswith("openbsd"):
     conf.check(lib='kvm', uselib_store='KVM')
 
   #if Options.options.debug:

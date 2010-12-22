@@ -9,14 +9,14 @@
 #include <sys/sysctl.h>
 #include <sys/user.h>
 #include <sys/dkstat.h>
-#include <vm/vm_param.h>
+#include <uvm/uvm_param.h>
 #include <string.h>
 #include <paths.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <time.h>
 
-
+#include <stdio.h>
 namespace node {
 
 using namespace v8;
@@ -46,21 +46,21 @@ const char* Platform::GetProcessTitle(int *len) {
 
 int Platform::GetMemory(size_t *rss, size_t *vsize) {
   kvm_t *kd = NULL;
-  struct kinfo_proc *kinfo = NULL;
+  struct kinfo_proc2 *kinfo = NULL;
   pid_t pid;
-  int nprocs;
+  int nprocs, max_size = sizeof(struct kinfo_proc2);
   size_t page_size = getpagesize();
 
   pid = getpid();
 
-  kd = kvm_open(NULL, _PATH_DEVNULL, NULL, O_RDONLY, "kvm_open");
+  kd = kvm_open(NULL, _PATH_MEM, NULL, O_RDONLY, "kvm_open");
   if (kd == NULL) goto error;
 
-  kinfo = kvm_getprocs(kd, KERN_PROC_PID, pid, &nprocs);
+  kinfo = kvm_getproc2(kd, KERN_PROC_PID, pid, max_size, &nprocs);
   if (kinfo == NULL) goto error;
 
-  *rss = kinfo->ki_rssize * page_size;
-  *vsize = kinfo->ki_size;
+  *rss = kinfo->p_vm_rssize * page_size;
+  *vsize = kinfo->p_uru_ixrss;
 
   kvm_close(kd);
 
@@ -73,89 +73,80 @@ error:
 
 
 int Platform::GetExecutablePath(char* buffer, size_t* size) {
-  int mib[4];
-  mib[0] = CTL_KERN;
-  mib[1] = KERN_PROC;
-  mib[2] = KERN_PROC_PATHNAME;
-  mib[3] = -1;
-
-  if (sysctl(mib, 4, buffer, size, NULL, 0) == -1) {
-    return -1;
-  }
-  *size-=1;
-  return 0;
+  *size = 0;
+  return -1;
 }
 
 int Platform::GetCPUInfo(Local<Array> *cpus) {
   Local<Object> cpuinfo;
   Local<Object> cputimes;
   unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK),
-               multiplier = ((uint64_t)1000L / ticks), cpuspeed, maxcpus,
-               cur = 0;
+               multiplier = ((uint64_t)1000L / ticks), cpuspeed;
+  uint64_t info[CPUSTATES];
   char model[512];
-  int numcpus;
+  int numcpus = 1;
+  static int which[] = {CTL_HW, HW_MODEL, NULL};
   size_t size;
 
   size = sizeof(model);
-  if (sysctlbyname("hw.model", &model, &size, NULL, 0) < 0) {
+  if (sysctl(which, 2, &model, &size, NULL, 0) < 0) {
     return -1;
   }
+  which[1] = HW_NCPU;
   size = sizeof(numcpus);
-  if (sysctlbyname("hw.ncpu", &numcpus, &size, NULL, 0) < 0) {
+  if (sysctl(which, 2, &numcpus, &size, NULL, 0) < 0) {
     return -1;
   }
 
   *cpus = Array::New(numcpus);
 
+  which[1] = HW_CPUSPEED;
   size = sizeof(cpuspeed);
-  if (sysctlbyname("hw.clockrate", &cpuspeed, &size, NULL, 0) < 0) {
+  if (sysctl(which, 2, &cpuspeed, &size, NULL, 0) < 0) {
     return -1;
   }
-  // kern.cp_times on FreeBSD i386 gives an array up to maxcpus instead of ncpu
-  size = sizeof(maxcpus);
-  if (sysctlbyname("kern.smp.maxcpus", &maxcpus, &size, NULL, 0) < 0) {
-    return -1;
-  }
-  size = maxcpus * CPUSTATES * sizeof(long);
-  long cp_times[size];
-  if (sysctlbyname("kern.cp_times", &cp_times, &size, NULL, 0) < 0) {
-    return -1;
-  }
+  size = sizeof(info);
+  which[0] = CTL_KERN;
+  which[1] = KERN_CPTIME2;
   for (int i = 0; i < numcpus; i++) {
+    which[2] = i;
+    size = sizeof(info);
+    if (sysctl(which, 3, &info, &size, NULL, 0) < 0) {
+      return -1;
+    }
     cpuinfo = Object::New();
     cputimes = Object::New();
     cputimes->Set(String::New("user"),
-                  Number::New((uint64_t)(cp_times[CP_USER+cur]) * multiplier));
+                  Number::New((uint64_t)(info[CP_USER]) * multiplier));
     cputimes->Set(String::New("nice"),
-                  Number::New((uint64_t)(cp_times[CP_NICE+cur]) * multiplier));
+                  Number::New((uint64_t)(info[CP_NICE]) * multiplier));
     cputimes->Set(String::New("sys"),
-                  Number::New((uint64_t)(cp_times[CP_SYS+cur]) * multiplier));
+                  Number::New((uint64_t)(info[CP_SYS]) * multiplier));
     cputimes->Set(String::New("idle"),
-                  Number::New((uint64_t)(cp_times[CP_IDLE+cur]) * multiplier));
+                  Number::New((uint64_t)(info[CP_IDLE]) * multiplier));
     cputimes->Set(String::New("irq"),
-                  Number::New((uint64_t)(cp_times[CP_INTR+cur]) * multiplier));
+                  Number::New((uint64_t)(info[CP_INTR]) * multiplier));
 
     cpuinfo->Set(String::New("model"), String::New(model));
     cpuinfo->Set(String::New("speed"), Number::New(cpuspeed));
 
     cpuinfo->Set(String::New("times"), cputimes);
     (*cpus)->Set(i, cpuinfo);
-    cur+=CPUSTATES;
   }
-
   return 0;
 }
 
 double Platform::GetFreeMemory() {
   double pagesize = static_cast<double>(sysconf(_SC_PAGESIZE));
-  unsigned long info;
+  struct uvmexp info;
   size_t size = sizeof(info);
+  static int which[] = {CTL_VM, VM_UVMEXP};
 
-  if (sysctlbyname("vm.stats.vm.v_free_count", &info, &size, NULL, 0) < 0) {
+  if (sysctl(which, 2, &info, &size, NULL, 0) < 0) {
     return -1;
   }
 
-  return (static_cast<double>(info)) * pagesize;
+  return static_cast<double>(info.free) * pagesize;
 }
 
 double Platform::GetTotalMemory() {

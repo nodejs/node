@@ -38,7 +38,7 @@
 
 namespace node {
 
-void OS::SetProcessTitle(char *title) {
+void Platform::SetProcessTitle(char *title) {
   static int symbol_lookup_status = 0; // 1=ok, 2=unavailable
   if (symbol_lookup_status == 2) {
     // feature is unavailable
