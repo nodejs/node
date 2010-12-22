@@ -1,12 +1,12 @@
 var common = require('../common');
 var assert = require('assert');
-var d = require('_debugger');
+var debug = require('_debugger');
 
 var spawn = require('child_process').spawn;
 
 
 var resCount = 0;
-var p = new d.Protocol();
+var p = new debug.Protocol();
 p.onResponse = function (res) {
   resCount++;
 };
@@ -18,46 +18,48 @@ p.execute("Type: connect\r\n" +
           "Content-Length: 0\r\n\r\n");
 assert.equal(1, resCount);
 
-var n = spawn(process.execPath,
-              ['-e', 'setInterval(function () { console.log("blah"); }, 1000);']);
 
+var connectCount = 0;
 
-var connected = false;
+function test(cb) {
+  var nodeProcess = spawn(process.execPath,
+      ['-e', 'setInterval(function () { console.log("blah"); }, 1000);']);
 
-n.stdout.once('data', function () {
-  console.log("new node process: %d", n.pid);
-  process.kill(n.pid, "SIGUSR1");
-  console.log("signaling it with SIGUSR1");
-
-});
-
-var didTryConnect = false;
-n.stderr.setEncoding('utf8');
-n.stderr.on('data', function (d) {
-  if (didTryConnect == false && /debugger/.test(d)) {
-    didTryConnect = true;
-    tryConnect();
-  }
-})
-
-
-function tryConnect() {
-  // Wait for some data before trying to connect
-  var c = new d.Client();
-  process.stdout.write("connecting...");
-  c.connect(d.port, function () {
-    connected = true;
-    console.log("connected!");
+  nodeProcess.stdout.once('data', function () {
+    console.log("new node process: %d", nodeProcess.pid);
+    process.kill(nodeProcess.pid, "SIGUSR1");
+    console.log("signaling it with SIGUSR1");
   });
 
-  c.reqVersion(function (v) {
-    assert.equal(process.versions.v8, v);
-    n.kill();
+  var didTryConnect = false;
+  nodeProcess.stderr.setEncoding('utf8');
+  nodeProcess.stderr.on('data', function (data) {
+    if (didTryConnect == false && /debugger/.test(data)) {
+      didTryConnect = true;
+
+      // Wait for some data before trying to connect
+      var c = new debug.Client();
+      process.stdout.write("connecting...");
+      c.connect(debug.port, function () {
+        connectCount++;
+        console.log("connected!");
+        cb(c, nodeProcess);
+      });
+    }
   });
 }
 
 
+test(function (client, nodeProcess) {
+  client.reqVersion(function (v) {
+    console.log("version: %s", v);
+    assert.equal(process.versions.v8, v);
+    nodeProcess.kill();
+  });
+});
+
+
 process.on('exit', function() {
-  assert.ok(connected);
+  assert.equal(1, connectCount);
 });
 
