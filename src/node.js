@@ -535,14 +535,23 @@
   }
 
   if (process.argv[1]) {
-    // Load module
-    if (process.argv[1].charAt(0) != '/' &&
-        !(/^http:\/\//).exec(process.argv[1])) {
-      process.argv[1] = path.join(cwd, process.argv[1]);
+
+    if (process.argv[1] == 'debug') {
+      // Start the debugger agent
+      var d = requireNative('_debugger');
+      var pid = process.argv[2];
+      d.start(pid);
+
+    } else {
+      // Load module
+      if (process.argv[1].charAt(0) != '/' &&
+          !(/^http:\/\//).exec(process.argv[1])) {
+        process.argv[1] = path.join(cwd, process.argv[1]);
+      }
+      // REMOVEME: nextTick should not be necessary. This hack to get
+      // test/simple/test-exception-handler2.js working.
+      process.nextTick(module.runMain);
     }
-    // REMOVEME: nextTick should not be necessary. This hack to get
-    // test/simple/test-exception-handler2.js working.
-    process.nextTick(module.runMain);
 
   } else if (process._eval) {
     // -e, --eval
