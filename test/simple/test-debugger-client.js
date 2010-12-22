@@ -18,17 +18,59 @@ p.execute("Type: connect\r\n" +
           "Content-Length: 0\r\n\r\n");
 assert.equal(1, resCount);
 
+var expectedConnections = 0;
+var tests = [];
+function addTest (cb) {
+  expectedConnections++;
+  tests.push(cb);
+}
+
+addTest(function (client, done) {
+  console.error("requesting version");
+  client.reqVersion(function (v) {
+    console.log("version: %s", v);
+    assert.equal(process.versions.v8, v);
+    done();
+  });
+});
+
+addTest(function (client, done) {
+  console.error("requesting scripts");
+  client.reqScripts(function (s) {
+    console.error("got %d scripts", s.length);
+    var foundMainScript = false;
+    for (var i = 0; i < s.length; i++) {
+      if (s[i].name === 'node.js') {
+        foundMainScript = true;
+        break;
+      }
+    }
+    assert.ok(foundMainScript);
+    done();
+  });
+});
+
+addTest(function (client, done) {
+  console.error("eval 2+2");
+  client.reqEval("2+2", function (res) {
+    console.error(res);
+    assert.equal('4', res.text);
+    assert.equal(4, res.value);
+    done();
+  });
+});
+
 
 var connectCount = 0;
 
-function test(cb) {
+function doTest(cb, done) {
   var nodeProcess = spawn(process.execPath,
       ['-e', 'setInterval(function () { console.log("blah"); }, 1000);']);
 
   nodeProcess.stdout.once('data', function () {
-    console.log("new node process: %d", nodeProcess.pid);
+    console.log(">>> new node process: %d", nodeProcess.pid);
     process.kill(nodeProcess.pid, "SIGUSR1");
-    console.log("signaling it with SIGUSR1");
+    console.log(">>> signaling it with SIGUSR1");
   });
 
   var didTryConnect = false;
@@ -39,27 +81,34 @@ function test(cb) {
 
       // Wait for some data before trying to connect
       var c = new debug.Client();
-      process.stdout.write("connecting...");
+      process.stdout.write(">>> connecting...");
       c.connect(debug.port, function () {
         connectCount++;
         console.log("connected!");
-        cb(c, nodeProcess);
+        cb(c, function () {
+          console.error(">>> killing node process %d\n\n", nodeProcess.pid);
+          nodeProcess.kill();
+          done();
+        });
       });
     }
   });
 }
 
 
-test(function (client, nodeProcess) {
-  client.reqVersion(function (v) {
-    console.log("version: %s", v);
-    assert.equal(process.versions.v8, v);
-    nodeProcess.kill();
-  });
-});
+function run () {
+  var t = tests[0];
+  if (!t) return;
 
+  doTest(t, function () {
+    tests.shift();
+    run();
+  });
+}
+
+run();
 
 process.on('exit', function() {
-  assert.equal(1, connectCount);
+  assert.equal(expectedConnections, connectCount);
 });
 
