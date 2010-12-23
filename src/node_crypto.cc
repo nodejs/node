@@ -177,8 +177,8 @@ Handle<Value> SecureContext::SetKey(const Arguments& args) {
   }
 
   SSL_CTX_use_PrivateKey(sc->ctx_, key);
+  EVP_PKEY_free(key);
   BIO_free(bio);
-  // XXX Free key?
 
   return True();
 }
