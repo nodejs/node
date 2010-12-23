@@ -1960,7 +1960,7 @@ static void HandleDebugEvent(DebugEvent event,
   // TODO probably need to waitpid here or something to avoid zombies.
   // int status;
   // waitpid(pid, &status, 0);
-  Debug::DebugBreak();
+  //Debug::DebugBreak();
 }
 
 
