@@ -17,6 +17,11 @@
 #include <pwd.h> /* getpwnam() */
 #include <grp.h> /* getgrnam() */
 
+// waitpid
+#include <sys/types.h>
+#include <sys/wait.h>
+
+
 #include "platform.h"
 
 #include <node_buffer.h>
@@ -1908,6 +1913,57 @@ static int RegisterSignalHandler(int signal, void (*handler)(int)) {
 }
 
 
+static bool debugger_slave_running = false;
+
+static void HandleDebugEvent(DebugEvent event,
+                             Handle<Object> exec_state,
+                             Handle<Object> event_data,
+                             Handle<Value> data) {
+  HandleScope scope;
+
+  if (debugger_slave_running) return;
+
+  if (event != Break) {
+    return;
+  }
+
+  // Then we take one of two actions
+  // 1. Inspect the environ variable NODE_DEBUG_PROG; if it is not empty //
+  //    then start it. (TODO)
+  // 2. Start the built-in debugger.
+
+
+  size_t size = 2*PATH_MAX;
+  char node_path[size];
+  OS::GetExecutablePath(node_path, &size);
+
+  int pid = vfork();
+
+  if (pid == -1) {
+    perror("vfork()");
+    return;
+  }
+
+  if (pid == 0) {
+    // Child process
+    char *argv[] =  { node_path, "debug", NULL };
+    execvp(node_path, argv);
+    perror("execvp()");
+    _exit(127);
+  }
+
+  debugger_slave_running = true;
+
+  // We've hit some debugger event. First we will enable the debugger agent.
+  EnableDebug(true);
+
+  // TODO probably need to waitpid here or something to avoid zombies.
+  // int status;
+  // waitpid(pid, &status, 0);
+  Debug::DebugBreak();
+}
+
+
 int Start(int argc, char *argv[]) {
   // Hack aroung with the argv pointer. Used for process.title = "blah".
   argv = node::Platform::SetupArgs(argc, argv);
@@ -2022,7 +2078,8 @@ int Start(int argc, char *argv[]) {
 
   // If the --debug flag was specified then initialize the debug thread.
   if (node::use_debug_agent) {
-    EnableDebug(debug_wait_connect);
+    // XXX: only use if debug flag enabled?
+    Debug::SetDebugEventListener(HandleDebugEvent);
   } else {
     RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
     ev_async_init(&enable_debug, EnableDebug2);
