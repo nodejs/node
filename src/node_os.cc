@@ -7,8 +7,8 @@
 
 #include <errno.h>
 #include <unistd.h>  // gethostname, sysconf
-#include <sys/param.h>  // sysctl
-#include <sys/sysctl.h>  // sysctl
+#include <sys/utsname.h>
+#include <string.h>
 
 namespace node {
 
@@ -28,12 +28,11 @@ static Handle<Value> GetHostname(const Arguments& args) {
 static Handle<Value> GetOSType(const Arguments& args) {
   HandleScope scope;
   char type[256];
-  static int which[] = {CTL_KERN, KERN_OSTYPE};
-  size_t size = sizeof(type);
+  struct utsname info;
 
-  if (sysctl(which, 2, &type, &size, NULL, 0) < 0) {
-    return Undefined();
-  }
+  uname(&info);
+  strncpy(type, info.sysname, strlen(info.sysname));
+  type[strlen(info.sysname)] = 0;
 
   return scope.Close(String::New(type));
 }
@@ -41,12 +40,11 @@ static Handle<Value> GetOSType(const Arguments& args) {
 static Handle<Value> GetOSRelease(const Arguments& args) {
   HandleScope scope;
   char release[256];
-  static int which[] = {CTL_KERN, KERN_OSRELEASE};
-  size_t size = sizeof(release);
+  struct utsname info;
 
-  if (sysctl(which, 2, &release, &size, NULL, 0) < 0) {
-    return Undefined();
-  }
+  uname(&info);
+  strncpy(release, info.release, strlen(info.release));
+  release[strlen(info.release)] = 0;
 
   return scope.Close(String::New(release));
 }
