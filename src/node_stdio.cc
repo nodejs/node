@@ -198,15 +198,15 @@ static Handle<Value> OpenStdin(const Arguments& args) {
   if (isatty(STDIN_FILENO)) {
     // XXX selecting on tty fds wont work in windows.
     // Must ALWAYS make a coupling on shitty platforms.
+    int r = -1;
+
     stdin_flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-    if (stdin_flags == -1) {
-      // TODO DRY
-      return ThrowException(Exception::Error(String::New("fcntl error!")));
+
+    if (stdin_flags != -1) {
+      r = fcntl(STDIN_FILENO, F_SETFL, stdin_flags | O_NONBLOCK);
     }
 
-    int r = fcntl(STDIN_FILENO, F_SETFL, stdin_flags | O_NONBLOCK);
     if (r == -1) {
-      // TODO DRY
       return ThrowException(Exception::Error(String::New("fcntl error!")));
     }
   }
