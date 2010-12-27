@@ -7,7 +7,7 @@ var fs = require('fs');
 var stdoutScript = join(common.fixturesDir, 'echo.js');
 var tmpFile = join(common.fixturesDir, 'stdin.txt');
 
-var cmd = process.argv[0] + ' ' + stdoutScript + ' < ' + tmpFile;
+var cmd = '"' + process.argv[0] + '" "' + stdoutScript + '" < "' + tmpFile + '"';
 
 var string = 'abc\nümlaut.\nsomething else\n' +
              '南越国是前203年至前111年存在于岭南地区的一个国家，国都位于番禺，' +

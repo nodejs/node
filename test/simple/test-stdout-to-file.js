@@ -9,13 +9,13 @@ var scriptBuffer = path.join(common.fixturesDir, 'print-chars-from-buffer.js');
 var tmpFile = path.join(common.fixturesDir, 'stdout.txt');
 
 function test(size, useBuffer, cb) {
-  var cmd = process.argv[0] +
+  var cmd = '"' + process.argv[0] + '"' +
             ' ' +
-            (useBuffer ? scriptBuffer : scriptString) +
+            '"' + (useBuffer ? scriptBuffer : scriptString) + '"' +
             ' ' +
             size +
             ' > ' +
-            tmpFile;
+            '"' + tmpFile + '"';
 
   try {
     fs.unlinkSync(tmpFile);

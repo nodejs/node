@@ -1,7 +1,7 @@
 assert = require('assert');
 child = require('child_process');
 
-nodejs = process.execPath;
+nodejs = '"' + process.execPath + '"';
 
 if (module.parent) {
   // signal we've been loaded as a module

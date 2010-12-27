@@ -7,7 +7,7 @@ var join = require('path').join;
 var nodePath = process.argv[0];
 var script = join(common.fixturesDir, 'print-10-lines.js');
 
-var cmd = nodePath + ' ' + script + ' | head -2';
+var cmd = '"' + nodePath + '" "' + script + '" | head -2';
 
 var finished = false;
 

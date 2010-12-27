@@ -22,7 +22,7 @@ function maybeMakeRequest() {
 }
 
 
-cp.exec('dd if=/dev/zero of=' + filename + ' bs=1024 count=10240',
+cp.exec('dd if=/dev/zero of="' + filename + '" bs=1024 count=10240',
         function(err, stdout, stderr) {
           if (err) throw err;
           maybeMakeRequest();

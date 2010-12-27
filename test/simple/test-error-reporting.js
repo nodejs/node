@@ -6,7 +6,7 @@ var path = require('path');
 var exits = 0;
 
 function errExec(script, callback) {
-  var cmd = process.argv[0] + ' ' + path.join(common.fixturesDir, script);
+  var cmd = '"' + process.argv[0] + '" "' + path.join(common.fixturesDir, script) + '"';
   return exec(cmd, function(err, stdout, stderr) {
     // There was some error
     assert.ok(err);
