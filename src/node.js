@@ -539,8 +539,7 @@
     if (process.argv[1] == 'debug') {
       // Start the debugger agent
       var d = requireNative('_debugger');
-      var pid = process.argv[2];
-      d.start(pid);
+      d.start();
 
     } else {
       // Load module
