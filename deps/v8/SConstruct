@@ -657,7 +657,7 @@ def GuessToolchain(os):
   elif 'msvc' in tools:
     return 'msvc'
   else:
-    return None
+    return 'gcc'
 
 
 OS_GUESS = utils.GuessOS()
