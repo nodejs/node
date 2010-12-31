@@ -1,4 +1,25 @@
-2010.11.16, Version 0.2.5
+2010.12.30, Version 0.2.6
+
+* Make sure raw mode is disabled when exiting a terminal-based REPL.
+  (Brian White)
+
+* Fix OpenSSL SSL_library_init function check on OpenBSD.
+  (Brian White)
+
+* Fix test-http-allow-req-after-204-res.js
+
+* Fix length of arguments emitted by EventEmitter (Jeremy Martin)
+
+* Fix unhandled ECONNABORTED (Theo Schlossnagle)
+
+* Default to gcc for V8 build on Solaris (Trent Mick)
+
+* Fix various memory leaks (Tom Hughes)
+
+* Apple's threaded write()s bug (Jorge Chamorro Bieling)
+
+
+2010.11.16, Version 0.2.5, 74a1fc334e486683d6da02fd918725d246ffc273
 
 * Add ref to buffer during fs.write and fs.read. Sometimes buffers
   would be GCed before making it to the thread pool.
