@@ -85,11 +85,13 @@ addTest(function (client, done) {
 
 addTest(function (client, done) {
   console.error("requesting scripts");
-  client.reqScripts(function (s) {
-    console.error("got %d scripts", s.length);
+  client.reqScripts(function () {
+    console.error("got %d scripts", Object.keys(client.scripts).length);
+
     var foundMainScript = false;
-    for (var i = 0; i < s.length; i++) {
-      if (s[i].name === 'node.js') {
+    for (var k in client.scripts) {
+      var script = client.scripts[k];
+      if (script && script.name === 'node.js') {
         foundMainScript = true;
         break;
       }
