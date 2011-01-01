@@ -61,6 +61,14 @@ Remove a listener from the listener array for the specified event.
 Removes all listeners from the listener array for the specified event.
 
 
+#### emitter.setMaxListeners(n)
+
+By default EventEmitters will print a warning if more than 10 listeners are
+added to it. This is a useful default which helps finding memory leaks.
+Obviously not all Emitters should be limited to 10. This function allows
+that to be increased. Set to zero for unlimited.
+
+
 #### emitter.listeners(event)
 
 Returns an array of listeners for the specified event. This array can be
