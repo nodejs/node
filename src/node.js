@@ -35,7 +35,9 @@
     if (!x) throw new Error(msg || 'assertion error');
   };
 
-  var evals = process.binding('evals');
+  var Script = process.binding('evals').Script;
+  var runInThisContext = Script.runInThisContext;
+  var runInNewContext = Script.runInNewContext;
 
   // lazy loaded.
   var constants;
@@ -86,7 +88,7 @@
     if (internalModuleCache[id]) return internalModuleCache[id].exports;
     if (!natives[id]) throw new Error('No such native module ' + id);
 
-    var fn = evals.Script.runInThisContext(
+    var fn = runInThisContext(
         '(function (module, exports, require) {' + natives[id] + '\n})',
         id + '.js');
     var m = {id: id, exports: {}};
@@ -332,7 +334,7 @@
           sandbox.global = sandbox;
           sandbox.root = root;
 
-          return evals.Script.runInNewContext(content, sandbox, filename);
+          return runInNewContext(content, sandbox, filename);
         } else {
           debug('load root module');
           // root module
@@ -342,7 +344,7 @@
           global.__dirname = dirname;
           global.module = self;
 
-          return evals.Script.runInThisContext(content, filename);
+          return runInThisContext(content, filename);
         }
 
       } else {
@@ -352,7 +354,7 @@
             content +
             '\n});';
 
-        var compiledWrapper = evals.Script.runInThisContext(wrapper, filename);
+        var compiledWrapper = runInThisContext(wrapper, filename);
         if (filename === process.argv[1] && global.v8debug) {
           global.v8debug.Debug.setBreakPoint(compiledWrapper, 0, 0);
         }

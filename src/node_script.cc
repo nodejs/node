@@ -280,6 +280,14 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
                            ? args[filename_index]->ToString()
                            : String::New("evalmachine.<anonymous>");
 
+  const int display_error_index = args.Length() - 1;
+  bool display_error = false;
+  if (args.Length() > display_error_index &&
+      args[display_error_index]->IsBoolean() &&
+      args[display_error_index]->BooleanValue() == true) {
+    display_error = true;
+  }
+
   Persistent<Context> context;
 
   Local<Array> keys;
@@ -325,7 +333,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
                                          : Script::New(code, filename);
     if (script.IsEmpty()) {
       // FIXME UGLY HACK TO DISPLAY SYNTAX ERRORS.
-      DisplayExceptionLine(try_catch);
+      if (display_error) DisplayExceptionLine(try_catch);
 
       // Hack because I can't get a proper stacktrace on SyntaxError
       return try_catch.ReThrow();
