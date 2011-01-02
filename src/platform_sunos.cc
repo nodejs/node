@@ -23,24 +23,25 @@
 
 namespace node {
 
+using namespace v8;
 
-char** OS::SetupArgs(int argc, char *argv[]) {
+char** Platform::SetupArgs(int argc, char *argv[]) {
   return argv;
 }
 
 
-void OS::SetProcessTitle(char *title) {
+void Platform::SetProcessTitle(char *title) {
   ;
 }
 
 
-const char* OS::GetProcessTitle(int *len) {
+const char* Platform::GetProcessTitle(int *len) {
   *len = 0;
   return NULL;
 }
 
 
-int OS::GetMemory(size_t *rss, size_t *vsize) {
+int Platform::GetMemory(size_t *rss, size_t *vsize) {
   pid_t pid = getpid();
 
   size_t page_size = getpagesize();
@@ -67,7 +68,7 @@ int OS::GetMemory(size_t *rss, size_t *vsize) {
 }
 
 
-int OS::GetExecutablePath(char* buffer, size_t* size) {
+int Platform::GetExecutablePath(char* buffer, size_t* size) {
   const char *execname = getexecname();
   if (!execname) return -1;
   if (execname[0] == '/') {
@@ -82,6 +83,36 @@ int OS::GetExecutablePath(char* buffer, size_t* size) {
     if (!result) return -1;
     *size = strlen(result);
   }
+  return 0;
+}
+
+
+// TODO: libkstat provides all this info. Need to link it though.
+
+
+int Platform::GetCPUInfo(Local<Array> *cpus) {
+  // http://src.opensolaris.org/source/xref/onnv/onnv-gate/usr/src/cmd/psrinfo/psrinfo.pl
+  return 0;
+}
+
+
+double Platform::GetFreeMemory() {
+  return 0.0;
+}
+
+
+double Platform::GetTotalMemory() {
+  return 0.0;
+}
+
+
+double Platform::GetUptime() {
+  // http://munin-monitoring.org/attachment/ticket/419/uptime
+  return 0.0;
+}
+
+
+int Platform::GetLoadAvg(Local<Array> *loads) {
   return 0;
 }
 
