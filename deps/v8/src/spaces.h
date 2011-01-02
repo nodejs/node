@@ -28,7 +28,6 @@
 #ifndef V8_SPACES_H_
 #define V8_SPACES_H_
 
-#include "atomicops.h"
 #include "list-inl.h"
 #include "log.h"
 
@@ -688,7 +687,7 @@ class MemoryAllocator : public AllStatic {
   // The chunks are not chunk-size aligned so for a given chunk-sized area of
   // memory there can be two chunks that cover it.
   static const int kChunkTableFineGrainedWordsPerEntry = 2;
-  static const AtomicWord kUnusedChunkTableEntry = 0;
+  static const uintptr_t kUnusedChunkTableEntry = 0;
 
   // Maximum space size in bytes.
   static intptr_t capacity_;
@@ -696,7 +695,7 @@ class MemoryAllocator : public AllStatic {
   static intptr_t capacity_executable_;
 
   // Top level table to track whether memory is part of a chunk or not.
-  static AtomicWord chunk_table_[kChunkTableTopLevelEntries];
+  static uintptr_t chunk_table_[kChunkTableTopLevelEntries];
 
   // Allocated space size in bytes.
   static intptr_t size_;
@@ -766,11 +765,11 @@ class MemoryAllocator : public AllStatic {
   // Controls whether the lookup creates intermediate levels of tables as
   // needed.
   enum CreateTables { kDontCreateTables, kCreateTablesAsNeeded };
-  static AtomicWord* AllocatedChunksFinder(AtomicWord* table,
-                                           uintptr_t address,
-                                           int bit_position,
-                                           CreateTables create_as_needed);
-  static void FreeChunkTables(AtomicWord* array, int length, int level);
+  static uintptr_t* AllocatedChunksFinder(uintptr_t* table,
+                                          uintptr_t address,
+                                          int bit_position,
+                                          CreateTables create_as_needed);
+  static void FreeChunkTables(uintptr_t* array, int length, int level);
   static int FineGrainedIndexForAddress(uintptr_t address) {
     int index = ((address >> kChunkSizeLog2) &
         ((1 << kChunkTableBitsPerLevel) - 1));

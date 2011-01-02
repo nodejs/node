@@ -28,6 +28,9 @@
 #ifndef V8_COUNTERS_H_
 #define V8_COUNTERS_H_
 
+#include "../include/v8.h"
+#include "allocation.h"
+
 namespace v8 {
 namespace internal {
 

@@ -8,8 +8,10 @@ var b = Buffer(1024); // safe constructor
 console.log('b.length == ' + b.length);
 assert.strictEqual(1024, b.length);
 
+b[0] = -1;
+assert.equal(b[0], 255);
+
 for (var i = 0; i < 1024; i++) {
-  assert.ok(b[i] >= 0);
   b[i] = i % 256;
 }
 

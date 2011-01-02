@@ -1216,7 +1216,7 @@ TEST(TestInternalWeakListsTraverseWithGC) {
 TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   InitializeVM();
   intptr_t size_of_objects_1 = Heap::SizeOfObjects();
-  HeapIterator iterator(HeapIterator::kPreciseFiltering);
+  HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
   intptr_t size_of_objects_2 = 0;
   for (HeapObject* obj = iterator.next();
        obj != NULL;
@@ -1238,5 +1238,67 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
            "delta: %" V8_PTR_PREFIX "d\n",
            size_of_objects_1, size_of_objects_2, delta);
     CHECK_GT(size_of_objects_2 / 100, delta);
+  }
+}
+
+
+class HeapIteratorTestHelper {
+ public:
+  HeapIteratorTestHelper(Object* a, Object* b)
+      : a_(a), b_(b), a_found_(false), b_found_(false) {}
+  bool a_found() { return a_found_; }
+  bool b_found() { return b_found_; }
+  void IterateHeap(HeapIterator::HeapObjectsFiltering mode) {
+    HeapIterator iterator(mode);
+    for (HeapObject* obj = iterator.next();
+         obj != NULL;
+         obj = iterator.next()) {
+      if (obj == a_)
+        a_found_ = true;
+      else if (obj == b_)
+        b_found_ = true;
+    }
+  }
+ private:
+  Object* a_;
+  Object* b_;
+  bool a_found_;
+  bool b_found_;
+};
+
+TEST(HeapIteratorFilterUnreachable) {
+  InitializeVM();
+  v8::HandleScope scope;
+  CompileRun("a = {}; b = {};");
+  v8::Handle<Object> a(Top::context()->global()->GetProperty(
+      *Factory::LookupAsciiSymbol("a"))->ToObjectChecked());
+  v8::Handle<Object> b(Top::context()->global()->GetProperty(
+      *Factory::LookupAsciiSymbol("b"))->ToObjectChecked());
+  CHECK_NE(*a, *b);
+  {
+    HeapIteratorTestHelper helper(*a, *b);
+    helper.IterateHeap(HeapIterator::kFilterUnreachable);
+    CHECK(helper.a_found());
+    CHECK(helper.b_found());
+  }
+  CHECK(Top::context()->global()->DeleteProperty(
+      *Factory::LookupAsciiSymbol("a"), JSObject::FORCE_DELETION));
+  // We ensure that GC will not happen, so our raw pointer stays valid.
+  AssertNoAllocation no_alloc;
+  Object* a_saved = *a;
+  a.Clear();
+  // Verify that "a" object still resides in the heap...
+  {
+    HeapIteratorTestHelper helper(a_saved, *b);
+    helper.IterateHeap(HeapIterator::kNoFiltering);
+    CHECK(helper.a_found());
+    CHECK(helper.b_found());
+  }
+  // ...but is now unreachable.
+  {
+    HeapIteratorTestHelper helper(a_saved, *b);
+    helper.IterateHeap(HeapIterator::kFilterUnreachable);
+    CHECK(!helper.a_found());
+    CHECK(helper.b_found());
   }
 }

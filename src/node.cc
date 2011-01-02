@@ -1200,7 +1200,7 @@ static void CheckStatus(EV_P_ ev_timer *watcher, int revents) {
 
   // check memory
   size_t rss, vsize;
-  if (!ev_is_active(&gc_idle) && OS::GetMemory(&rss, &vsize) == 0) {
+  if (!ev_is_active(&gc_idle) && Platform::GetMemory(&rss, &vsize) == 0) {
     if (rss > 1024*1024*128) {
       // larger than 128 megs, just start the idle watcher
       ev_idle_start(EV_A_ &gc_idle);
@@ -1225,7 +1225,7 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
 
   size_t rss, vsize;
 
-  int r = OS::GetMemory(&rss, &vsize);
+  int r = Platform::GetMemory(&rss, &vsize);
 
   if (r != 0) {
     return ThrowException(Exception::Error(String::New(strerror(errno))));
@@ -1260,7 +1260,7 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
 Handle<Value> Kill(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() != 2 || !args[0]->IsNumber() || !args[1]->IsNumber()) {
+  if (args.Length() != 2) {
     return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
 
@@ -1537,7 +1537,7 @@ static Handle<Value> ProcessTitleGetter(Local<String> property,
                                         const AccessorInfo& info) {
   HandleScope scope;
   int len;
-  const char *s = OS::GetProcessTitle(&len);
+  const char *s = Platform::GetProcessTitle(&len);
   return scope.Close(s ? String::New(s, len) : String::Empty());
 }
 
@@ -1547,7 +1547,7 @@ static void ProcessTitleSetter(Local<String> property,
                                const AccessorInfo& info) {
   HandleScope scope;
   String::Utf8Value title(value->ToString());
-  OS::SetProcessTitle(*title);
+  Platform::SetProcessTitle(*title);
 }
 
 
@@ -1636,6 +1636,8 @@ static Handle<Array> EnvEnumerator(const AccessorInfo& info) {
 static void Load(int argc, char *argv[]) {
   HandleScope scope;
 
+  int i, j;
+
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
   node::EventEmitter::Initialize(process_template);
 
@@ -1661,6 +1663,22 @@ static void Load(int argc, char *argv[]) {
   versions->Set(String::NewSymbol("ares"), String::New(ARES_VERSION_STR));
   snprintf(buf, 20, "%d.%d", ev_version_major(), ev_version_minor());
   versions->Set(String::NewSymbol("ev"), String::New(buf));
+#ifdef HAVE_OPENSSL
+  // Stupid code to slice out the version string.
+  int c, l = strlen(OPENSSL_VERSION_TEXT);
+  for (i = 0; i < l; i++) {
+    c = OPENSSL_VERSION_TEXT[i];
+    if ('0' <= c && c <= '9') {
+      for (j = i + 1; j < l; j++) {
+        c = OPENSSL_VERSION_TEXT[j];
+        if (c == ' ') break;
+      }
+      break;
+    }
+  }
+  versions->Set(String::NewSymbol("openssl"),
+                String::New(OPENSSL_VERSION_TEXT + i, j - i));
+#endif
 
 
 
@@ -1668,7 +1686,6 @@ static void Load(int argc, char *argv[]) {
   process->Set(String::NewSymbol("platform"), String::New("PLATFORM"));
 
   // process.argv
-  int i, j;
   Local<Array> arguments = Array::New(argc - option_end_index + 1);
   arguments->Set(Integer::New(0), String::New(argv[0]));
   for (j = 1, i = option_end_index; i < argc; j++, i++) {
@@ -1711,7 +1728,7 @@ static void Load(int argc, char *argv[]) {
 
   size_t size = 2*PATH_MAX;
   char execPath[size];
-  if (OS::GetExecutablePath(execPath, &size) != 0) {
+  if (Platform::GetExecutablePath(execPath, &size) != 0) {
     // as a last ditch effort, fallback on argv[0] ?
     process->Set(String::NewSymbol("execPath"), String::New(argv[0]));
   } else {
@@ -1906,7 +1923,7 @@ static int RegisterSignalHandler(int signal, void (*handler)(int)) {
 
 int Start(int argc, char *argv[]) {
   // Hack aroung with the argv pointer. Used for process.title = "blah".
-  argv = node::OS::SetupArgs(argc, argv);
+  argv = node::Platform::SetupArgs(argc, argv);
 
   // Parse a few arguments which are specific to Node.
   node::ParseArgs(&argc, argv);

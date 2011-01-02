@@ -1096,7 +1096,7 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
 }
 
 
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
 
 const char* Translation::StringFor(Opcode opcode) {
   switch (opcode) {

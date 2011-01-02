@@ -70,7 +70,8 @@
           'DEBUG',
           '_DEBUG',
           'ENABLE_DISASSEMBLER',
-          'V8_ENABLE_CHECKS'
+          'V8_ENABLE_CHECKS',
+          'OBJECT_PRINT',
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {

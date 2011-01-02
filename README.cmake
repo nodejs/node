@@ -38,6 +38,18 @@ To submit valgrind test results:
 
   make -f Makefile.cmake cdash-mem
 
+Cross-compiling:
+  An example toolchain file for the CodeSourcery ARM toolchain is included in
+  the cmake directory: codesourcery-arm-toolchain.cmake.
+
+  Install the CodeSourcery toolchain, set the path to the toolchain in
+  cmake/codesourcery-arm-toolchain.cmake, and uncomment the TOOLCHAIN_FILE
+  variable in Makefile.cmake to use it.
+
+  If you are using cmake directly, just add the flag
+  "-DCMAKE_TOOLCHAIN_FILE=/path/to/toolchain-file" when
+  running cmake.
+
 Using cmake directly:
   cd ~/your-node-source-dir
   mkdir name-of-build-dir     (can be anything)

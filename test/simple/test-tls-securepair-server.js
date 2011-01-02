@@ -1,3 +1,9 @@
+if (!process.versions.openssl) {
+  console.error("Skipping because node compiled without OpenSSL.");
+  process.exit(0);
+}
+
+
 var common = require('../common');
 var assert = require('assert');
 

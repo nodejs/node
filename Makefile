@@ -25,8 +25,14 @@ uninstall:
 test: all
 	python tools/test.py --mode=release simple message
 
+test-valgrind: all
+	python tools/test.py --mode=release --valgrind simple message
+
 test-all: all
 	python tools/test.py --mode=debug,release
+
+test-all-valgrind: all
+	python tools/test.py --mode=debug,release --valgrind
 
 test-release: all
 	python tools/test.py --mode=release

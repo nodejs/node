@@ -108,10 +108,13 @@ LIBRARY_FLAGS = {
       'CPPDEFINES': ['V8_INTERPRETED_REGEXP']
     },
     'mode:debug': {
-      'CPPDEFINES': ['V8_ENABLE_CHECKS']
+      'CPPDEFINES': ['V8_ENABLE_CHECKS', 'OBJECT_PRINT']
     },
     'vmstate:on': {
       'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING'],
+    },
+    'objectprint:on': {
+      'CPPDEFINES':   ['OBJECT_PRINT'],
     },
     'protectheap:on': {
       'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING', 'ENABLE_HEAP_PROTECTION'],
@@ -225,8 +228,7 @@ LIBRARY_FLAGS = {
       'LINKFLAGS':    ['-m64'],
     },
     'prof:oprofile': {
-      'CPPDEFINES':   ['ENABLE_OPROFILE_AGENT'],
-      'LIBS': ['opagent', 'bfd']
+      'CPPDEFINES':   ['ENABLE_OPROFILE_AGENT']
     }
   },
   'msvc': {
@@ -710,6 +712,11 @@ SIMPLE_OPTIONS = {
     'values': ['on', 'off'],
     'default': 'off',
     'help': 'enable VM state tracking'
+  },
+  'objectprint': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable object printing'
   },
   'protectheap': {
     'values': ['on', 'off'],

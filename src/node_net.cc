@@ -462,62 +462,84 @@ static Handle<Value> Connect(const Arguments& args) {
 
 #ifdef __POSIX__
 
-#define ADDRESS_TO_JS(info, address_storage) \
+#define ADDRESS_TO_JS(info, address_storage, addrlen) \
 do { \
   char ip[INET6_ADDRSTRLEN]; \
   int port; \
   struct sockaddr_in *a4; \
   struct sockaddr_in6 *a6; \
   struct sockaddr_un *au; \
-  switch ((address_storage).ss_family) { \
-    case AF_INET6: \
-      a6 = (struct sockaddr_in6*)&(address_storage); \
-      inet_ntop(AF_INET6, &(a6->sin6_addr), ip, INET6_ADDRSTRLEN); \
-      port = ntohs(a6->sin6_port); \
-      (info)->Set(address_symbol, String::New(ip)); \
-      (info)->Set(port_symbol, Integer::New(port)); \
-      break; \
-    case AF_INET: \
-      a4 = (struct sockaddr_in*)&(address_storage); \
-      inet_ntop(AF_INET, &(a4->sin_addr), ip, INET6_ADDRSTRLEN); \
-      port = ntohs(a4->sin_port); \
-      (info)->Set(address_symbol, String::New(ip)); \
-      (info)->Set(port_symbol, Integer::New(port)); \
-      break; \
-    case AF_UNIX: \
-      au = (struct sockaddr_un*)&(address_storage); \
-      (info)->Set(address_symbol, String::New(au->sun_path)); \
-      break; \
-    default: \
-      (info)->Set(address_symbol, String::Empty()); \
+  if (addrlen == 0) { \
+    (info)->Set(address_symbol, String::Empty()); \
+  } else { \
+    switch ((address_storage).ss_family) { \
+      case AF_INET6: \
+        a6 = (struct sockaddr_in6*)&(address_storage); \
+        inet_ntop(AF_INET6, &(a6->sin6_addr), ip, INET6_ADDRSTRLEN); \
+        port = ntohs(a6->sin6_port); \
+        (info)->Set(address_symbol, String::New(ip)); \
+        (info)->Set(port_symbol, Integer::New(port)); \
+        break; \
+      case AF_INET: \
+        a4 = (struct sockaddr_in*)&(address_storage); \
+        inet_ntop(AF_INET, &(a4->sin_addr), ip, INET6_ADDRSTRLEN); \
+        port = ntohs(a4->sin_port); \
+        (info)->Set(address_symbol, String::New(ip)); \
+        (info)->Set(port_symbol, Integer::New(port)); \
+        break; \
+      case AF_UNIX: \
+        /*
+         * Three types of addresses (see man 7 unix):
+         *   * unnamed:  sizeof(sa_family_t) (sun_path should not be used)
+         *   * abstract (Linux extension): sizeof(struct sockaddr_un)
+         *   * pathname: sizeof(sa_family_t) + strlen(sun_path) + 1
+         */ \
+        au = (struct sockaddr_un*)&(address_storage); \
+        if (addrlen == sizeof(sa_family_t)) { \
+          (info)->Set(address_symbol, String::Empty()); \
+        } else if (addrlen == sizeof(struct sockaddr_un)) { \
+          /* first byte is '\0' and all remaining bytes are name;
+           * it is not NUL-terminated and may contain embedded NULs */ \
+          (info)->Set(address_symbol, String::New(au->sun_path + 1, sizeof(au->sun_path - 1))); \
+        } else { \
+          (info)->Set(address_symbol, String::New(au->sun_path)); \
+        } \
+        break; \
+      default: \
+        (info)->Set(address_symbol, String::Empty()); \
+    } \
   } \
 } while (0)
 
 #else // __MINGW32__
 
-#define ADDRESS_TO_JS(info, address_storage) \
+#define ADDRESS_TO_JS(info, address_storage, addrlen) \
 do { \
   char ip[INET6_ADDRSTRLEN]; \
   int port; \
   struct sockaddr_in *a4; \
   struct sockaddr_in6 *a6; \
-  switch ((address_storage).ss_family) { \
-    case AF_INET6: \
-      a6 = (struct sockaddr_in6*)&(address_storage); \
-      inet_ntop(AF_INET6, &(a6->sin6_addr), ip, INET6_ADDRSTRLEN); \
-      port = ntohs(a6->sin6_port); \
-      (info)->Set(address_symbol, String::New(ip)); \
-      (info)->Set(port_symbol, Integer::New(port)); \
-      break; \
-    case AF_INET: \
-      a4 = (struct sockaddr_in*)&(address_storage); \
-      inet_ntop(AF_INET, &(a4->sin_addr), ip, INET6_ADDRSTRLEN); \
-      port = ntohs(a4->sin_port); \
-      (info)->Set(address_symbol, String::New(ip)); \
-      (info)->Set(port_symbol, Integer::New(port)); \
-      break; \
-    default: \
-      (info)->Set(address_symbol, String::Empty()); \
+  if (addrlen == 0) { \
+    (info)->Set(address_symbol, String::Empty()); \
+  } else { \
+    switch ((address_storage).ss_family) { \
+      case AF_INET6: \
+        a6 = (struct sockaddr_in6*)&(address_storage); \
+        inet_ntop(AF_INET6, &(a6->sin6_addr), ip, INET6_ADDRSTRLEN); \
+        port = ntohs(a6->sin6_port); \
+        (info)->Set(address_symbol, String::New(ip)); \
+        (info)->Set(port_symbol, Integer::New(port)); \
+        break; \
+      case AF_INET: \
+        a4 = (struct sockaddr_in*)&(address_storage); \
+        inet_ntop(AF_INET, &(a4->sin_addr), ip, INET6_ADDRSTRLEN); \
+        port = ntohs(a4->sin_port); \
+        (info)->Set(address_symbol, String::New(ip)); \
+        (info)->Set(port_symbol, Integer::New(port)); \
+        break; \
+      default: \
+        (info)->Set(address_symbol, String::Empty()); \
+    } \
   } \
 } while (0)
 
@@ -542,7 +564,7 @@ static Handle<Value> GetSockName(const Arguments& args) {
 
   Local<Object> info = Object::New();
 
-  ADDRESS_TO_JS(info, address_storage);
+  ADDRESS_TO_JS(info, address_storage, len);
 
   return scope.Close(info);
 }
@@ -564,7 +586,7 @@ static Handle<Value> GetPeerName(const Arguments& args) {
 
   Local<Object> info = Object::New();
 
-  ADDRESS_TO_JS(info, address_storage);
+  ADDRESS_TO_JS(info, address_storage, len);
 
   return scope.Close(info);
 }
@@ -614,6 +636,7 @@ static Handle<Value> Accept(const Arguments& args) {
 
   if (peer_fd < 0) {
     if (errno == EAGAIN) return scope.Close(Null());
+    if (errno == ECONNABORTED) return scope.Close(Null());
     return ThrowException(ErrnoException(errno, "accept"));
   }
 #else // __MINGW32__
@@ -642,7 +665,7 @@ static Handle<Value> Accept(const Arguments& args) {
 
   peer_info->Set(fd_symbol, Integer::New(peer_fd));
 
-  ADDRESS_TO_JS(peer_info, address_storage);
+  ADDRESS_TO_JS(peer_info, address_storage, len);
 
   return scope.Close(peer_info);
 }
@@ -787,7 +810,7 @@ static Handle<Value> RecvFrom(const Arguments& args) {
 
   info->Set(size_symbol, Integer::New(bytes_read));
 
-  ADDRESS_TO_JS(info, address_storage);
+  ADDRESS_TO_JS(info, address_storage, addrlen);
 
   return scope.Close(info);
 }

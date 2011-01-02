@@ -35,7 +35,9 @@
     if (!x) throw new Error(msg || 'assertion error');
   };
 
-  var evals = process.binding('evals');
+  var Script = process.binding('evals').Script;
+  var runInThisContext = Script.runInThisContext;
+  var runInNewContext = Script.runInNewContext;
 
   // lazy loaded.
   var constants;
@@ -86,9 +88,10 @@
     if (internalModuleCache[id]) return internalModuleCache[id].exports;
     if (!natives[id]) throw new Error('No such native module ' + id);
 
-    var fn = evals.Script.runInThisContext(
+    var fn = runInThisContext(
         '(function (module, exports, require) {' + natives[id] + '\n})',
-        id + '.js');
+        id + '.js',
+        true);
     var m = {id: id, exports: {}};
     fn(m, m.exports, requireNative);
     m.loaded = true;
@@ -332,7 +335,7 @@
           sandbox.global = sandbox;
           sandbox.root = root;
 
-          return evals.Script.runInNewContext(content, sandbox, filename);
+          return runInNewContext(content, sandbox, filename, true);
         } else {
           debug('load root module');
           // root module
@@ -342,7 +345,7 @@
           global.__dirname = dirname;
           global.module = self;
 
-          return evals.Script.runInThisContext(content, filename);
+          return runInThisContext(content, filename, true);
         }
 
       } else {
@@ -352,7 +355,7 @@
             content +
             '\n});';
 
-        var compiledWrapper = evals.Script.runInThisContext(wrapper, filename);
+        var compiledWrapper = runInThisContext(wrapper, filename, true);
         if (filename === process.argv[1] && global.v8debug) {
           global.v8debug.Debug.setBreakPoint(compiledWrapper, 0, 0);
         }
@@ -461,7 +464,9 @@
   };
 
 
-  var stdout;
+  var stdout, stdin;
+
+
   process.__defineGetter__('stdout', function() {
     if (stdout) return stdout;
 
@@ -484,8 +489,8 @@
     return stdout;
   });
 
-  var stdin;
-  process.openStdin = function() {
+
+  process.__defineGetter__('stdin', function() {
     if (stdin) return stdin;
 
     var binding = process.binding('stdio'),
@@ -500,9 +505,13 @@
       stdin.readable = true;
     }
 
-    stdin.resume();
-
     return stdin;
+  });
+
+
+  process.openStdin = function() {
+    process.stdin.resume();
+    return process.stdin;
   };
 
 

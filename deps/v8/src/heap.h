@@ -1585,17 +1585,18 @@ class SpaceIterator : public Malloced {
 // nodes filtering uses GC marks, it can't be used during MS/MC GC
 // phases. Also, it is forbidden to interrupt iteration in this mode,
 // as this will leave heap objects marked (and thus, unusable).
-class FreeListNodesFilter;
+class HeapObjectsFilter;
 
 class HeapIterator BASE_EMBEDDED {
  public:
-  enum FreeListNodesFiltering {
+  enum HeapObjectsFiltering {
     kNoFiltering,
-    kPreciseFiltering
+    kFilterFreeListNodes,
+    kFilterUnreachable
   };
 
   HeapIterator();
-  explicit HeapIterator(FreeListNodesFiltering filtering);
+  explicit HeapIterator(HeapObjectsFiltering filtering);
   ~HeapIterator();
 
   HeapObject* next();
@@ -1608,8 +1609,8 @@ class HeapIterator BASE_EMBEDDED {
   void Shutdown();
   HeapObject* NextObject();
 
-  FreeListNodesFiltering filtering_;
-  FreeListNodesFilter* filter_;
+  HeapObjectsFiltering filtering_;
+  HeapObjectsFilter* filter_;
   // Space iterator for iterating all the spaces.
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.
@@ -1968,6 +1969,8 @@ class GCTracer BASE_EMBEDDED {
 class TranscendentalCache {
  public:
   enum Type {ACOS, ASIN, ATAN, COS, EXP, LOG, SIN, TAN, kNumberOfCaches};
+  static const int kTranscendentalTypeBits = 3;
+  STATIC_ASSERT((1 << kTranscendentalTypeBits) >= kNumberOfCaches);
 
   explicit TranscendentalCache(Type t);
 
@@ -2056,7 +2059,6 @@ class TranscendentalCache {
   friend class ExternalReference;
   // Inline implementation of the cache.
   friend class TranscendentalCacheStub;
-  friend class TranscendentalCacheSSE2Stub;
 
   static TranscendentalCache* caches_[kNumberOfCaches];
   Element elements_[kCacheSize];

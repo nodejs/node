@@ -2218,7 +2218,7 @@ void HeapSnapshotGenerator::SetGcRootsReference(Object* child_obj) {
 void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
   if (control_ == NULL) return;
 
-  HeapIterator iterator(HeapIterator::kPreciseFiltering);
+  HeapIterator iterator(HeapIterator::kFilterUnreachable);
   int objects_count = 0;
   for (HeapObject* obj = iterator.next();
        obj != NULL;
@@ -2342,8 +2342,6 @@ bool HeapSnapshotGenerator::SetEntriesDominators() {
     ASSERT(dominators[i] != NULL);
     ordered_entries[i]->set_dominator(dominators[i]);
   }
-  // For nodes unreachable from root, set dominator to itself.
-  snapshot_->SetDominatorsToSelf();
   return true;
 }
 
@@ -2373,9 +2371,9 @@ bool HeapSnapshotGenerator::ApproximateRetainedSizes() {
 
 
 bool HeapSnapshotGenerator::IterateAndExtractReferences() {
-  HeapIterator iterator(HeapIterator::kPreciseFiltering);
+  HeapIterator iterator(HeapIterator::kFilterUnreachable);
   bool interrupted = false;
-  // Heap iteration with precise filtering must be finished in any case.
+  // Heap iteration with filtering must be finished in any case.
   for (HeapObject* obj = iterator.next();
        obj != NULL;
        obj = iterator.next(), IncProgressCounter()) {

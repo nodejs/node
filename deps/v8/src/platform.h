@@ -184,6 +184,10 @@ class OS {
   static void Print(const char* format, ...);
   static void VPrint(const char* format, va_list args);
 
+  // Print output to a file. This is mostly used for debugging output.
+  static void FPrint(FILE* out, const char* format, ...);
+  static void VFPrint(FILE* out, const char* format, va_list args);
+
   // Print error output to console. This is mostly used for error message
   // output. On platforms that has standard terminal output, the output
   // should go to stderr.

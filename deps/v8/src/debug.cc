@@ -858,7 +858,7 @@ bool Debug::Load() {
   if (caught_exception) return false;
 
   // Debugger loaded.
-  debug_context_ = Handle<Context>::cast(GlobalHandles::Create(*context));
+  debug_context_ = context;
 
   return true;
 }

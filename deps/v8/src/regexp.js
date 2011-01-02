@@ -32,7 +32,7 @@ const $RegExp = global.RegExp;
 
 // A recursive descent parser for Patterns according to the grammar of
 // ECMA-262 15.10.1, with deviations noted below.
-function DoConstructRegExp(object, pattern, flags, isConstructorCall) {
+function DoConstructRegExp(object, pattern, flags) {
   // RegExp : Called as constructor; see ECMA-262, section 15.10.4.
   if (IS_REGEXP(pattern)) {
     if (!IS_UNDEFINED(flags)) {
@@ -80,7 +80,7 @@ function DoConstructRegExp(object, pattern, flags, isConstructorCall) {
 
 function RegExpConstructor(pattern, flags) {
   if (%_IsConstructCall()) {
-    DoConstructRegExp(this, pattern, flags, true);
+    DoConstructRegExp(this, pattern, flags);
   } else {
     // RegExp : Called as function; see ECMA-262, section 15.10.3.1.
     if (IS_REGEXP(pattern) && IS_UNDEFINED(flags)) {
@@ -104,9 +104,9 @@ function CompileRegExp(pattern, flags) {
   // the empty string.  For compatibility with JSC, we match their
   // behavior.
   if (IS_UNDEFINED(pattern) && %_ArgumentsLength() != 0) {
-    DoConstructRegExp(this, 'undefined', flags, false);
+    DoConstructRegExp(this, 'undefined', flags);
   } else {
-    DoConstructRegExp(this, pattern, flags, false);
+    DoConstructRegExp(this, pattern, flags);
   }
 }
 
@@ -150,12 +150,12 @@ function BuildResultFromMatchInfo(lastMatchInfo, s) {
 
 function RegExpExecNoTests(regexp, string, start) {
   // Must be called with RegExp, string and positive integer as arguments.
-  var matchInfo = DoRegExpExec(regexp, string, start);
-  var result = null;
+  var matchInfo = %_RegExpExec(regexp, string, start, lastMatchInfo);
   if (matchInfo !== null) {
-    result = BuildResultFromMatchInfo(matchInfo, string);
+    lastMatchInfoOverride = null;
+    return BuildResultFromMatchInfo(matchInfo, string);
   }
-  return result;
+  return null;
 }
 
 
@@ -261,11 +261,14 @@ function RegExpTest(string) {
         %_StringCharCodeAt(this.source, 2) != 63) {  // '?'
       if (!%_ObjectEquals(regexp_key, this)) {
         regexp_key = this;
-        regexp_val = new $RegExp(this.source.substring(2, this.source.length),
-                                 (this.ignoreCase ? 'i' : '')
-                                 + (this.multiline ? 'm' : ''));
+        regexp_val = new $RegExp(SubString(this.source, 2, this.source.length),
+                                 (!this.ignoreCase 
+                                  ? !this.multiline ? "" : "m"
+                                  : !this.multiline ? "i" : "im"));
       }
-      if (!regexp_val.test(string)) return false;
+      if (%_RegExpExec(regexp_val, string, 0, lastMatchInfo) === null) {
+        return false;
+      }
     }    
     %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, string, lastIndex]);
     // matchIndices is either null or the lastMatchInfo array.

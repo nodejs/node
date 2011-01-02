@@ -1316,7 +1316,8 @@ LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
 
 LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
   LInstruction* result =
-      new LInstanceOf(Use(instr->left()), Use(instr->right()));
+      new LInstanceOf(UseFixed(instr->left(), r1),
+                      UseFixed(instr->right(), r0));
   return MarkAsCall(DefineFixed(result, r0), instr);
 }
 
@@ -1374,6 +1375,12 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       return NULL;
     case kMathLog:
       Abort("MathLog LUnaryMathOperation not implemented");
+      return NULL;
+    case kMathCos:
+      Abort("MathCos LUnaryMathOperation not implemented");
+      return NULL;
+    case kMathSin:
+      Abort("MathSin LUnaryMathOperation not implemented");
       return NULL;
     default:
       UNREACHABLE();

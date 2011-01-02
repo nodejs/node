@@ -218,3 +218,16 @@
     assertTrue(delete Array.prototype[5]);
   }
 })();
+
+// Check slicing on arguments object.
+(function() {
+  function func(expected, a0, a1, a2) {
+    assertEquals(expected, Array.prototype.slice.call(arguments, 1));
+  }
+
+  func([]);
+  func(['a'], 'a');
+  func(['a', 1], 'a', 1);
+  func(['a', 1, undefined], 'a', 1, undefined);
+  func(['a', 1, undefined, void(0)], 'a', 1, undefined, void(0));
+})();

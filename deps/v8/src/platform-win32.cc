@@ -688,6 +688,19 @@ void OS::VPrint(const char* format, va_list args) {
 }
 
 
+void OS::FPrint(FILE* out, const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  VFPrint(out, format, args);
+  va_end(args);
+}
+
+
+void OS::VFPrint(FILE* out, const char* format, va_list args) {
+  VPrintHelper(out, format, args);
+}
+
+
 // Print error message to console.
 void OS::PrintError(const char* format, ...) {
   va_list args;
@@ -716,7 +729,8 @@ int OS::VSNPrintF(Vector<char> str, const char* format, va_list args) {
   // Make sure to zero-terminate the string if the output was
   // truncated or if there was an error.
   if (n < 0 || n >= str.length()) {
-    str[str.length() - 1] = '\0';
+    if (str.length() > 0)
+      str[str.length() - 1] = '\0';
     return -1;
   } else {
     return n;

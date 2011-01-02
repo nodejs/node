@@ -159,7 +159,7 @@ function StringLocaleCompare(other) {
 function StringMatch(regexp) {
   var subject = TO_STRING_INLINE(this);
   if (IS_REGEXP(regexp)) {
-    if (!regexp.global) return regexp.exec(subject);
+    if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
     %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
     // lastMatchInfo is defined in regexp.js.
     return %StringMatch(subject, regexp, lastMatchInfo);
@@ -245,17 +245,18 @@ function StringReplace(search, replace) {
 // Expand the $-expressions in the string and return a new string with
 // the result.
 function ExpandReplacement(string, subject, matchInfo, builder) {
+  var length = string.length;
+  var builder_elements = builder.elements; 
   var next = %StringIndexOf(string, '$', 0);
   if (next < 0) {
-    builder.add(string);
+    if (length > 0) builder_elements.push(string);
     return;
   }
 
   // Compute the number of captures; see ECMA-262, 15.5.4.11, p. 102.
   var m = NUMBER_OF_CAPTURES(matchInfo) >> 1;  // Includes the match.
 
-  if (next > 0) builder.add(SubString(string, 0, next));
-  var length = string.length;
+  if (next > 0) builder_elements.push(SubString(string, 0, next));
 
   while (true) {
     var expansion = '$';
@@ -264,7 +265,7 @@ function ExpandReplacement(string, subject, matchInfo, builder) {
       var peek = %_StringCharCodeAt(string, position);
       if (peek == 36) {         // $$
         ++position;
-        builder.add('$');
+        builder_elements.push('$');
       } else if (peek == 38) {  // $& - match
         ++position;
         builder.addSpecialSlice(matchInfo[CAPTURE0],
@@ -301,14 +302,14 @@ function ExpandReplacement(string, subject, matchInfo, builder) {
           // digit capture references, we can only enter here when a
           // single digit capture reference is outside the range of
           // captures.
-          builder.add('$');
+          builder_elements.push('$');
           --position;
         }
       } else {
-        builder.add('$');
+        builder_elements.push('$');
       }
     } else {
-      builder.add('$');
+      builder_elements.push('$');
     }
 
     // Go the the next $ in the string.
@@ -318,13 +319,15 @@ function ExpandReplacement(string, subject, matchInfo, builder) {
     // haven't reached the end, we need to append the suffix.
     if (next < 0) {
       if (position < length) {
-        builder.add(SubString(string, position, length));
+        builder_elements.push(SubString(string, position, length));
       }
       return;
     }
 
     // Append substring between the previous and the next $ character.
-    builder.add(SubString(string, position, next));
+    if (next > position) {
+      builder_elements.push(SubString(string, position, next));
+    }
   }
 };
 
@@ -559,23 +562,22 @@ function StringSplit(separator, limit) {
 
   var currentIndex = 0;
   var startIndex = 0;
+  var startMatch = 0;
   var result = [];
 
   outer_loop:
   while (true) {
 
     if (startIndex === length) {
-      result.push(subject.slice(currentIndex, length));
+      result.push(SubString(subject, currentIndex, length));
       break;
     }
 
-    var matchInfo = splitMatch(separator, subject, currentIndex, startIndex);
-
-    if (IS_NULL(matchInfo)) {
-      result.push(subject.slice(currentIndex, length));
+    var matchInfo = DoRegExpExec(separator, subject, startIndex);
+    if (matchInfo == null || length === (startMatch = matchInfo[CAPTURE0])) {
+      result.push(SubString(subject, currentIndex, length));
       break;
     }
-
     var endIndex = matchInfo[CAPTURE1];
 
     // We ignore a zero-length match at the currentIndex.
@@ -584,7 +586,12 @@ function StringSplit(separator, limit) {
       continue;
     }
 
-    result.push(SubString(subject, currentIndex, matchInfo[CAPTURE0]));
+    if (currentIndex + 1 == startMatch) {
+      result.push(%_StringCharAt(subject, currentIndex));
+    } else {
+      result.push(%_SubString(subject, currentIndex, startMatch));
+    }
+
     if (result.length === limit) break;
 
     var matchinfo_len = NUMBER_OF_CAPTURES(matchInfo) + REGEXP_FIRST_CAPTURE;
@@ -606,19 +613,6 @@ function StringSplit(separator, limit) {
     startIndex = currentIndex = endIndex;
   }
   return result;
-}
-
-
-// ECMA-262 section 15.5.4.14
-// Helper function used by split.  This version returns the matchInfo
-// instead of allocating a new array with basically the same information.
-function splitMatch(separator, subject, current_index, start_index) {
-  var matchInfo = DoRegExpExec(separator, subject, start_index);
-  if (matchInfo == null) return null;
-  // Section 15.5.4.14 paragraph two says that we do not allow zero length
-  // matches at the end of the string.
-  if (matchInfo[CAPTURE0] === subject.length) return null;
-  return matchInfo;
 }
 
 
@@ -844,24 +838,21 @@ function ReplaceResultBuilder(str) {
 
 ReplaceResultBuilder.prototype.add = function(str) {
   str = TO_STRING_INLINE(str);
-  if (str.length > 0) {
-    var elements = this.elements;
-    elements[elements.length] = str;
-  }
+  if (str.length > 0) this.elements.push(str);
 }
 
 
 ReplaceResultBuilder.prototype.addSpecialSlice = function(start, end) {
   var len = end - start;
   if (start < 0 || len <= 0) return;
-  var elements = this.elements;
   if (start < 0x80000 && len < 0x800) {
-    elements[elements.length] = (start << 11) | len;
+    this.elements.push((start << 11) | len);
   } else {
     // 0 < len <= String::kMaxLength and Smi::kMaxValue >= String::kMaxLength,
     // so -len is a smi.
-    elements[elements.length] = -len;
-    elements[elements.length] = start;
+    var elements = this.elements;
+    elements.push(-len);
+    elements.push(start);
   }
 }
 

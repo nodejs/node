@@ -65,7 +65,7 @@ Resumes the incoming `'data'` events after a `pause()`.
 
 Closes the underlying file descriptor. Stream will not emit any more events.
 
-### stream.pipe(destination, [options], [filter])
+### stream.pipe(destination, [options])
 
 This is a `Stream.prototype` method available on all `Stream`s.
 
@@ -75,7 +75,8 @@ streams are kept in sync by pausing and resuming as necessary.
 
 Emulating the Unix `cat` command:
 
-    process.openStdin().pipe(process.stdout);
+    process.stdin.resume();
+    process.stdin.pipe(process.stdout);
 
 
 By default `end()` is called on the destination when the source stream emits
@@ -84,55 +85,17 @@ By default `end()` is called on the destination when the source stream emits
 
 This keeps `process.stdout` open so that "Goodbye" can be written at the end.
 
-    var stdin = process.openStdin();
-    stdin.pipe(process.stdout, { end: false });
-    stdin.on("end", function() { process.stdout.write("Goodbye\n"); });
+    process.stdin.resume();
+
+    process.stdin.pipe(process.stdout, { end: false });
+
+    process.stdin.on("end", function() {
+      process.stdout.write("Goodbye\n");
+    });
 
 NOTE: If the source stream does not support `pause()` and `resume()`, this function
 adds simple definitions which simply emit `'pause'` and `'resume'` events on
 the source stream.
-
-
-The `filter` argument is an optional callback which can be used to filter all
-data passing through the pipe. This makes it easy to do arbitrary transforms
-(like gzip) while still maintaining the proper throttling. `filter` gets
-three arguments: a buffer, a write function, and a done function. Here is an
-example of a chat which uses a `filter` to append each message with the
-address of the sender.
-
-    var net = require('net');
-    var people = [];
-
-    function address(socket) {
-      return '<' + socket.remoteAddress + ':' + socket.remotePort + '> ';
-    }
-
-    net.Server(function (socket) {
-      socket.write("hello!\r\n");
-
-      people.forEach(function (p) {
-        socket.pipe(p, { end: false }, function (d, write, done) {
-          write(address(socket));
-          write(d);
-          done();
-        });
-
-        p.pipe(socket, { end: false }, function (d, write, done) {
-          write(address(p));
-          write(d);
-          done();
-        });
-      });
-
-      people.push(socket);
-
-      socket.on('end', function () {
-        people.splice(people.indexOf(socket), 1);
-      });
-    }).listen(8000);
-
-
-
 
 ## Writable Stream
 
