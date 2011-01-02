@@ -90,7 +90,8 @@
 
     var fn = runInThisContext(
         '(function (module, exports, require) {' + natives[id] + '\n})',
-        id + '.js');
+        id + '.js',
+        true);
     var m = {id: id, exports: {}};
     fn(m, m.exports, requireNative);
     m.loaded = true;
@@ -334,7 +335,7 @@
           sandbox.global = sandbox;
           sandbox.root = root;
 
-          return runInNewContext(content, sandbox, filename);
+          return runInNewContext(content, sandbox, filename, true);
         } else {
           debug('load root module');
           // root module
@@ -344,7 +345,7 @@
           global.__dirname = dirname;
           global.module = self;
 
-          return runInThisContext(content, filename);
+          return runInThisContext(content, filename, true);
         }
 
       } else {
@@ -354,7 +355,7 @@
             content +
             '\n});';
 
-        var compiledWrapper = runInThisContext(wrapper, filename);
+        var compiledWrapper = runInThisContext(wrapper, filename, true);
         if (filename === process.argv[1] && global.v8debug) {
           global.v8debug.Debug.setBreakPoint(compiledWrapper, 0, 0);
         }
