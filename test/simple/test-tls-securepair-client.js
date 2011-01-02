@@ -2,7 +2,7 @@
 // important events to stdout when done over a pipe. Therefore we skip this
 // test for all openssl versions less than 1.0.0.
 if (!process.versions.openssl ||
-    parseInt(process.versions.openssl.charCodeAt(0)) < 1) {
+    parseInt(process.versions.openssl[0]) < 1) {
   console.error("Skipping due to old OpenSSL version.");
   process.exit(0);
 }
