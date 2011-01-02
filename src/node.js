@@ -464,7 +464,9 @@
   };
 
 
-  var stdout;
+  var stdout, stdin;
+
+
   process.__defineGetter__('stdout', function() {
     if (stdout) return stdout;
 
@@ -487,8 +489,8 @@
     return stdout;
   });
 
-  var stdin;
-  process.openStdin = function() {
+
+  process.__defineGetter__('stdin', function() {
     if (stdin) return stdin;
 
     var binding = process.binding('stdio'),
@@ -503,9 +505,13 @@
       stdin.readable = true;
     }
 
-    stdin.resume();
-
     return stdin;
+  });
+
+
+  process.openStdin = function() {
+    process.stdin.resume();
+    return process.stdin;
   };
 
 

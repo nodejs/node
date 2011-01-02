@@ -59,7 +59,8 @@ standard POSIX signal names such as SIGINT, SIGUSR1, etc.
 
 Example of listening for `SIGINT`:
 
-    var stdin = process.openStdin();
+    // Start reading from stdin so we don't exit.
+    process.stdin.resume();
 
     process.on('SIGINT', function () {
       console.log('Got SIGINT.  Press Control-D to exit.');
@@ -80,21 +81,21 @@ Example: the definition of `console.log`
     };
 
 
-### process.openStdin()
+### process.stdin
 
-Opens the standard input stream, returns a `Readable Stream`.
+A `Readable Stream` for stdin. The stdin stream is paused by default, so one
+must call `process.stdin.resume()` to read from it.
 
 Example of opening standard input and listening for both events:
 
-    var stdin = process.openStdin();
+    process.stdin.resume();
+    process.stdin.setEncoding('utf8');
 
-    stdin.setEncoding('utf8');
-
-    stdin.on('data', function (chunk) {
+    process.stdin.on('data', function (chunk) {
       process.stdout.write('data: ' + chunk);
     });
 
-    stdin.on('end', function () {
+    process.stdin.on('end', function () {
       process.stdout.write('end');
     });
 
