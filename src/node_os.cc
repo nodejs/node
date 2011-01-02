@@ -12,6 +12,7 @@
 # include <unistd.h>  // gethostname, sysconf
 # include <sys/utsname.h>
 #else // __MINGW32__
+# include <windows.h> // GetVersionEx
 # include <winsock2.h> // gethostname
 #endif // __MINGW32__
 
@@ -36,6 +37,8 @@ static Handle<Value> GetHostname(const Arguments& args) {
 
 static Handle<Value> GetOSType(const Arguments& args) {
   HandleScope scope;
+
+#ifdef __POSIX__
   char type[256];
   struct utsname info;
 
@@ -44,16 +47,32 @@ static Handle<Value> GetOSType(const Arguments& args) {
   type[strlen(info.sysname)] = 0;
 
   return scope.Close(String::New(type));
+#else // __MINGW32__
+  return scope.Close(String::New("Windows_NT"));
+#endif
 }
 
 static Handle<Value> GetOSRelease(const Arguments& args) {
   HandleScope scope;
   char release[256];
+
+#ifdef __POSIX__
   struct utsname info;
 
   uname(&info);
   strncpy(release, info.release, strlen(info.release));
   release[strlen(info.release)] = 0;
+
+#else // __MINGW32__
+  OSVERSIONINFO info;
+  info.dwOSVersionInfoSize = sizeof(info);
+
+  if (GetVersionEx(&info) == 0) {
+    return Undefined();
+  }
+
+  sprintf(release, "%d.%d.%d", info.dwMajorVersion, info.dwMinorVersion, info.dwBuildNumber);
+#endif
 
   return scope.Close(String::New(release));
 }

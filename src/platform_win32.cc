@@ -2,7 +2,9 @@
 #include "platform.h"
 #include "platform_win32.h"
 
-#include <errno.h> // for MAXPATHLEN
+#include <v8.h>
+
+#include <errno.h>
 #include <sys/param.h> // for MAXPATHLEN
 #include <unistd.h> // getpagesize
 #include <windows.h>
@@ -10,6 +12,8 @@
 #include "platform_win32_winsock.cc"
 
 namespace node {
+
+using namespace v8;
 
 static char buf[MAXPATHLEN + 1];
 static char *process_title = NULL;
@@ -33,12 +37,12 @@ void winapi_perror(const char* prefix = NULL) {
 }
 
 
-char** OS::SetupArgs(int argc, char *argv[]) {
+char** Platform::SetupArgs(int argc, char *argv[]) {
   return argv;
 }
 
 
-void OS::SetProcessTitle(char *title) {
+void Platform::SetProcessTitle(char *title) {
   // We need to convert _title_ to UTF-16 first, because that's what windows uses internally.
   // It would be more efficient to use the UTF-16 value that we can obtain from v8,
   // but it's not accessible from here.
@@ -142,7 +146,7 @@ static inline char* _getProcessTitle() {
 }
 
 
-const char* OS::GetProcessTitle(int *len) {
+const char* Platform::GetProcessTitle(int *len) {
   // If the process_title was never read before nor explicitly set,
   // we must query it with getConsoleTitleW
   if (!process_title) {
@@ -159,16 +163,38 @@ const char* OS::GetProcessTitle(int *len) {
 }
 
 
-int OS::GetMemory(size_t *rss, size_t *vsize) {
-  // Not implemented
+int Platform::GetMemory(size_t *rss, size_t *vsize) {
   *rss = 0;
   *vsize = 0;
   return 0;
 }
 
 
-int OS::GetExecutablePath(char* buffer, size_t* size) {
+double Platform::GetFreeMemory() {
+  return -1;
+}
+
+double Platform::GetTotalMemory() {
+  return -1;
+}
+
+
+int Platform::GetExecutablePath(char* buffer, size_t* size) {
   *size = 0;
+  return -1;
+}
+
+
+int Platform::GetCPUInfo(Local<Array> *cpus) {
+  return -1;
+}
+
+
+double Platform::GetUptime() {
+  return -1;
+}
+
+int Platform::GetLoadAvg(Local<Array> *loads) {
   return -1;
 }
 
