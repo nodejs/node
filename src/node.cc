@@ -1610,6 +1610,8 @@ static Handle<Array> EnvEnumerator(const AccessorInfo& info) {
 static void Load(int argc, char *argv[]) {
   HandleScope scope;
 
+  int i, j;
+
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
   node::EventEmitter::Initialize(process_template);
 
@@ -1635,6 +1637,22 @@ static void Load(int argc, char *argv[]) {
   versions->Set(String::NewSymbol("ares"), String::New(ARES_VERSION_STR));
   snprintf(buf, 20, "%d.%d", ev_version_major(), ev_version_minor());
   versions->Set(String::NewSymbol("ev"), String::New(buf));
+#ifdef HAVE_OPENSSL
+  // Stupid code to slice out the version string.
+  int c, l = strlen(OPENSSL_VERSION_TEXT);
+  for (i = 0; i < l; i++) {
+    c = OPENSSL_VERSION_TEXT[i];
+    if ('0' <= c && c <= '9') {
+      for (j = i + 1; j < l; j++) {
+        c = OPENSSL_VERSION_TEXT[j];
+        if (c == ' ') break;
+      }
+      break;
+    }
+  }
+  versions->Set(String::NewSymbol("openssl"),
+                String::New(OPENSSL_VERSION_TEXT + i, j - i));
+#endif
 
 
 
@@ -1642,7 +1660,6 @@ static void Load(int argc, char *argv[]) {
   process->Set(String::NewSymbol("platform"), String::New("PLATFORM"));
 
   // process.argv
-  int i, j;
   Local<Array> arguments = Array::New(argc - option_end_index + 1);
   arguments->Set(Integer::New(0), String::New(argv[0]));
   for (j = 1, i = option_end_index; i < argc; j++, i++) {
