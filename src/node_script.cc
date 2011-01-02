@@ -342,11 +342,11 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
     WrappedScript *n_script = ObjectWrap::Unwrap<WrappedScript>(args.Holder());
     if (!n_script) {
       return ThrowException(Exception::Error(
-            String::New("Must be called as a method of WrappedScript.")));
+            String::New("Must be called as a method of Script.")));
     } else if (n_script->script_.IsEmpty()) {
       return ThrowException(Exception::Error(
             String::New("'this' must be a result of previous "
-                        "new WrappedScript(code) call.")));
+                        "new Script(code) call.")));
     }
 
     script = n_script->script_;
@@ -360,7 +360,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
     WrappedScript *n_script = ObjectWrap::Unwrap<WrappedScript>(args.Holder());
     if (!n_script) {
       return ThrowException(Exception::Error(
-            String::New("Must be called as a method of WrappedScript.")));
+            String::New("Must be called as a method of Script.")));
     }
     n_script->script_ = Persistent<Script>::New(script);
     result = args.This();
