@@ -194,7 +194,9 @@ function unix_test() {
         { client: client_unix, send: 'invoke_me(987)\n',
           expect: ('\'' + 'invoked 987' + '\'\n' + prompt_unix) },
         { client: client_unix, send: 'a = 12345\n',
-          expect: ('12345' + '\n' + prompt_unix) }
+          expect: ('12345' + '\n' + prompt_unix) },
+        { client: client_unix, send: '{a:1}\n',
+          expect: ('{ a: 1 }' + '\n' + prompt_unix) },
       ]);
     });
 
