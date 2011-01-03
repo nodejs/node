@@ -1,4 +1,27 @@
-2010.12.16, Version 0.3.2 (unstable)
+2011.01.02, Version 0.3.3 (unstable)
+
+* TLS improvements.
+
+* url.parse(url, true) defaults query field to {} (Jeremy Martin)
+
+* Upgrade V8 to 3.0.4
+
+* Handle ECONNABORT properly (Theo Schlossnagle)
+
+* Fix memory leaks (Tom Hughes)
+
+* Add os.cpus(), os.freemem(), os.totalmem(), os.loadavg() and other
+  functions for OSX, Linux, and Cygwin. (Brian White)
+
+* Fix REPL syntax error bug (GH-543), improve how REPL commands are
+  evaulated.
+
+* Use process.stdin instead of process.openStdin().
+
+* Disable TLS tests when node doesn't have OpenSSL.
+
+
+2010.12.16, Version 0.3.2 (unstable), 4bb914bde9f3c2d6de00853353b6b8fc9c66143a
 
 * Rip out the old (broken) TLS implementation introduce new tested
   implementation and API. See docs. HTTPS not supported in this release.
