@@ -123,9 +123,8 @@
 
     // Modules
 
-    var debugLevel = parseInt(process.env['NODE_DEBUG'], 16);
     var debug;
-    if (debugLevel & 1) {
+    if (process.env.NODE_DEBUG && /module/.test(process.env.NODE_DEBUG)) {
       debug = function(x) { console.error(x); };
     } else {
       debug = function() { };
