@@ -2079,10 +2079,12 @@ int Start(int argc, char *argv[]) {
   if (node::use_debug_agent) {
     EnableDebug(debug_wait_connect);
   } else {
+#ifdef __POSIX__
     RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
     ev_async_init(&enable_debug, EnableDebug2);
     ev_async_start(EV_DEFAULT_UC_ &enable_debug);
     ev_unref(EV_DEFAULT_UC);
+#endif // __POSIX__
   }
 
   // Create the one and only Context.
