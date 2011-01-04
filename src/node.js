@@ -169,7 +169,7 @@
         try {
           var stats = fs.statSync(requestPath);
           if (stats && !stats.isDirectory()) {
-            return requestPath;
+            return fs.realpathSync(requestPath);
           }
         } catch (e) {}
         return false;
@@ -277,6 +277,7 @@
       if (!filename) {
         throw new Error("Cannot find module '" + request + "'");
       }
+      id = filename;
       return [id, filename];
     }
 
