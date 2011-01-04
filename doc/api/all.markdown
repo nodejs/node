@@ -29,6 +29,7 @@
 @include assert
 @include tty
 @include os
+@include debugger
 
 # Appendixes
 @include appendix_1

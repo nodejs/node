@@ -93,6 +93,7 @@ static ev_idle tick_spinner;
 static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
 
+static ev_async enable_debug;
 static ev_async eio_want_poll_notifier;
 static ev_async eio_done_poll_notifier;
 static ev_idle  eio_poller;
@@ -1909,7 +1910,42 @@ static void SignalExit(int signal) {
 }
 
 
+static void EnableDebugSignalHandler(int signal) {
+  // can't do much here, marshal this back into the main thread where we'll
+  // enable the debugger.
+  ev_async_send(EV_DEFAULT_UC_ &enable_debug);
+}
+
+
+static void EnableDebug(bool wait_connect) {
+  // Start the debug thread and it's associated TCP server on port 5858.
+  bool r = Debug::EnableAgent("node " NODE_VERSION, debug_port);
+
+  if (wait_connect) {
+    // Set up an empty handler so v8 will not continue until a debugger
+    // attaches. This is the same behavior as Debug::EnableAgent(_,_,true)
+    // except we don't break at the beginning of the script.
+    // see Debugger::StartAgent in debug.cc of v8/src
+    Debug::SetMessageHandler2(node::DebugBreakMessageHandler);
+  }
+
+  // Crappy check that everything went well. FIXME
+  assert(r);
+
+  // Print out some information.
+  fprintf(stderr, "debugger listening on port %d\r\n", debug_port);
+}
+
+
+static void EnableDebug2(EV_P_ ev_async *watcher, int revents) {
+  assert(watcher == &enable_debug);
+  assert(revents == EV_ASYNC);
+  EnableDebug(false);
+}
+
+
 #ifdef __POSIX__
+
 static int RegisterSignalHandler(int signal, void (*handler)(int)) {
   struct sigaction sa;
 
@@ -2022,37 +2058,31 @@ int Start(int argc, char *argv[]) {
 
   V8::SetFatalErrorHandler(node::OnFatalError);
 
+
+  // Initialize the async watcher for receiving messages from the debug
+  // thread and marshal it into the main thread. DebugMessageCallback()
+  // is called from the main thread to execute a random bit of javascript
+  // - which will give V8 control so it can handle whatever new message
+  // had been received on the debug thread.
+  ev_async_init(&node::debug_watcher, node::DebugMessageCallback);
+  ev_set_priority(&node::debug_watcher, EV_MAXPRI);
+  // Set the callback DebugMessageDispatch which is called from the debug
+  // thread.
+  Debug::SetDebugMessageDispatchHandler(node::DebugMessageDispatch);
+  // Start the async watcher.
+  ev_async_start(EV_DEFAULT_UC_ &node::debug_watcher);
+  // unref it so that we exit the event loop despite it being active.
+  ev_unref(EV_DEFAULT_UC);
+
+
   // If the --debug flag was specified then initialize the debug thread.
   if (node::use_debug_agent) {
-    // Initialize the async watcher for receiving messages from the debug
-    // thread and marshal it into the main thread. DebugMessageCallback()
-    // is called from the main thread to execute a random bit of javascript
-    // - which will give V8 control so it can handle whatever new message
-    // had been received on the debug thread.
-    ev_async_init(&node::debug_watcher, node::DebugMessageCallback);
-    ev_set_priority(&node::debug_watcher, EV_MAXPRI);
-    // Set the callback DebugMessageDispatch which is called from the debug
-    // thread.
-    Debug::SetDebugMessageDispatchHandler(node::DebugMessageDispatch);
-    // Start the async watcher.
-    ev_async_start(EV_DEFAULT_UC_ &node::debug_watcher);
-    // unref it so that we exit the event loop despite it being active.
+    EnableDebug(debug_wait_connect);
+  } else {
+    RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
+    ev_async_init(&enable_debug, EnableDebug2);
+    ev_async_start(EV_DEFAULT_UC_ &enable_debug);
     ev_unref(EV_DEFAULT_UC);
-
-    // Start the debug thread and it's associated TCP server on port 5858.
-    bool r = Debug::EnableAgent("node " NODE_VERSION, node::debug_port);
-    if (node::debug_wait_connect) {
-      // Set up an empty handler so v8 will not continue until a debugger
-      // attaches. This is the same behavior as Debug::EnableAgent(_,_,true)
-      // except we don't break at the beginning of the script.
-      // see Debugger::StartAgent in debug.cc of v8/src
-      Debug::SetMessageHandler2(node::DebugBreakMessageHandler);
-    }
-
-    // Crappy check that everything went well. FIXME
-    assert(r);
-    // Print out some information.
-    printf("debugger listening on port %d\n", node::debug_port);
   }
 
   // Create the one and only Context.

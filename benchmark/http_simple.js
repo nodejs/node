@@ -43,6 +43,7 @@ var server = http.createServer(function (req, res) {
 
   if (command == "bytes") {
     var n = parseInt(arg, 10)
+    debugger;
     if (n <= 0)
       throw "bytes called with n <= 0"
     if (stored[n] === undefined) {

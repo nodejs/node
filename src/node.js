@@ -123,9 +123,8 @@
 
     // Modules
 
-    var debugLevel = parseInt(process.env['NODE_DEBUG'], 16);
     var debug;
-    if (debugLevel & 1) {
+    if (process.env.NODE_DEBUG && /module/.test(process.env.NODE_DEBUG)) {
       debug = function(x) { console.error(x); };
     } else {
       debug = function() { };
@@ -170,7 +169,7 @@
         try {
           var stats = fs.statSync(requestPath);
           if (stats && !stats.isDirectory()) {
-            return requestPath;
+            return fs.realpathSync(requestPath);
           }
         } catch (e) {}
         return false;
@@ -278,6 +277,7 @@
       if (!filename) {
         throw new Error("Cannot find module '" + request + "'");
       }
+      id = filename;
       return [id, filename];
     }
 
@@ -545,15 +545,23 @@
   }
 
   if (process.argv[1]) {
-    // Load module
-    if ('/\\'.indexOf(process.argv[1].charAt(0)) < 0
-        && process.argv[1].charAt(1) != ':'
-        && !(/^http:\/\//).exec(process.argv[1])) {    
-      process.argv[1] = path.join(cwd, process.argv[1]);
+
+    if (process.argv[1] == 'debug') {
+      // Start the debugger agent
+      var d = requireNative('_debugger');
+      d.start();
+
+    } else {
+      // Load module
+      if ('/\\'.indexOf(process.argv[1].charAt(0)) < 0
+          && process.argv[1].charAt(1) != ':'
+          && !(/^http:\/\//).exec(process.argv[1])) {    
+        process.argv[1] = path.join(cwd, process.argv[1]);
+      }
+      // REMOVEME: nextTick should not be necessary. This hack to get
+      // test/simple/test-exception-handler2.js working.
+      process.nextTick(module.runMain);
     }
-    // REMOVEME: nextTick should not be necessary. This hack to get
-    // test/simple/test-exception-handler2.js working.
-    process.nextTick(module.runMain);
 
   } else if (process._eval) {
     // -e, --eval

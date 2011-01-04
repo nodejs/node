@@ -97,7 +97,26 @@ function error_test() {
     // invalid input to JSON.parse error is special case of syntax error,
     // should throw
     { client: client_unix, send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
-      expect: /^SyntaxError: Unexpected token ILLEGAL/ }
+      expect: /^SyntaxError: Unexpected token ILLEGAL/ },
+    // Named functions can be used:
+    { client: client_unix, send: 'function blah() { return 1; }',
+      expect: prompt_unix },
+    { client: client_unix, send: 'blah()',
+      expect: "1\n" + prompt_unix },
+    // Multiline object
+    { client: client_unix, send: '{ a: ',
+      expect: prompt_multiline },
+    { client: client_unix, send: '1 }',
+      expect: "{ a: 1 }" },
+    // Multiline anonymous function with comment
+    { client: client_unix, send: '(function () {',
+      expect: prompt_multiline },
+    { client: client_unix, send: '// blah',
+      expect: prompt_multiline },
+    { client: client_unix, send: 'return 1;',
+      expect: prompt_multiline },
+    { client: client_unix, send: '})()',
+      expect: "1" },
   ]);
 }
 
