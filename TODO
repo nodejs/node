@@ -26,9 +26,8 @@
   - anchor links next to each function, for easy linking.
     EG <a href="#fs.stat">#</a>
 
-- Add callbacks to write() on other streams (fs.WriteStream, http outgoing)
-  callbacks are already on net.Stream streams.
-- Add callback to net.Stream.connect
-- new TLS frontend api using securepair
 - "node --raw-js script.js" should bipass all Node code and load a raw V8
   interpreter
+- Use http_parser_execute2() in node_http_parser.cc and make req.pause()
+  work correctly
+  https://github.com/ry/http-parser/blob/c95a5479596e95b7cdd88ca9d7b32fd3afb4379c/http_parser.h#L266
