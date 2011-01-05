@@ -179,25 +179,11 @@ event.
 Sets the encoding (either `'ascii'`, `'utf8'`, or `'base64'`) for data that is
 received.
 
-#### socket.setSecure([credentials])
+#### socket.setSecure()
 
-Enables SSL support for the socket, with the crypto module credentials specifying
-the private key and certificate of the socket, and optionally the CA certificates
-for use in peer authentication.
+This function has been removed in v0.3. It used to upgrade the connection to
+SSL/TLS. See the TLS for the new API.
 
-If the credentials hold one ore more CA certificates, then the socket will request
-for the peer to submit a client certificate as part of the SSL connection handshake.
-The validity and content of this can be accessed via `verifyPeer()` and `getPeerCertificate()`.
-
-#### socket.verifyPeer()
-
-Returns true or false depending on the validity of the peers's certificate in the
-context of the defined or default list of trusted CA certificates.
-
-#### socket.getPeerCertificate()
-
-Returns a JSON structure detailing the peer's certificate, containing a dictionary
-with keys for the certificate `'subject'`, `'issuer'`, `'valid_from'` and `'valid_to'`.
 
 #### socket.write(data, [encoding], [callback])
 
