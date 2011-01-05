@@ -17,9 +17,56 @@ namespace node {
  * buffer.asciiSlice(0, 3)
  */
 
+/*
+   The C++ API for Buffer changed radically between v0.2 and v0.3, in fact
+   it was the reason for bumping the version. In v0.2 JavaScript Buffers and
+   C++ Buffers were in one-to-one correspondence via ObjectWrap. We found
+   that it was faster to expose the C++ Buffers to JavaScript as a
+   "SlowBuffer" which is used as a private backend to pure JavaScript
+   "Buffer" objects - a 'Buffer' in v0.3 might look like this:
+
+   { _parent: s,
+     _offset: 520,
+     length: 5 }
+
+   Migrating code C++ Buffer code from v0.2 to v0.3 is difficult. Here are
+   some tips:
+    - buffer->data() calls should become Buffer::Data(buffer) calls.
+    - buffer->length() calls should become Buffer::Length(buffer) calls. 
+    - There should not be any ObjectWrap::Unwrap<Buffer>() calls. You should
+      not be storing pointers to Buffer objects at all - as they are
+      now considered internal structures. Instead consider making a
+      JavaScript reference to the buffer.
+
+   See the source code node-png as an example of a module which successfully
+   compiles on both v0.2 and v0.3 while making heavy use of the C++ Buffer
+   API.
+
+ */
+
 
 class Buffer : public ObjectWrap {
  public:
+
+  static bool HasInstance(v8::Handle<v8::Value> val);
+
+  static inline char* Data(v8::Handle<v8::Object> obj) {
+    return (char*)obj->GetIndexedPropertiesExternalArrayData();
+  }
+
+  static inline char* Data(Buffer *b) {
+    return Buffer::Data(b->handle_);
+  }
+
+  static inline size_t Length(v8::Handle<v8::Object> obj) {
+    return (size_t)obj->GetIndexedPropertiesExternalArrayDataLength();
+  }
+
+  static inline size_t Length(Buffer *b) {
+    return Buffer::Length(b);
+  }
+
+
   ~Buffer();
 
   typedef void (*free_callback)(char *data, void *hint);
@@ -32,15 +79,6 @@ class Buffer : public ObjectWrap {
   static Buffer* New(char *data, size_t len); // public constructor
   static Buffer* New(char *data, size_t length,
                      free_callback callback, void *hint); // public constructor
-  static bool HasInstance(v8::Handle<v8::Value> val);
-
-  static inline char* Data(v8::Handle<v8::Object> obj) {
-    return (char*)obj->GetIndexedPropertiesExternalArrayData();
-  }
-
-  static inline size_t Length(v8::Handle<v8::Object> obj) {
-    return (size_t)obj->GetIndexedPropertiesExternalArrayDataLength();
-  }
 
   private:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
