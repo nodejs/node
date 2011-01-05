@@ -82,13 +82,6 @@ var joinTests =
      [[' ', '.'], ' '],
      [[' ', '/'], ' /'],
      [[' ', ''], ' '],
-     // preserving empty path parts, for url resolution case
-     // pass boolean true as LAST argument.
-     [['', '', true], '/'],
-     [['foo', '', true], 'foo/'],
-     [['foo', '', 'bar', true], 'foo//bar'],
-     [['foo/', '', 'bar', true], 'foo///bar'],
-     [['', true], '.'],
      // filtration of non-strings.
      [['x', true, 7, 'y', null, {}], 'x/y']
     ];
@@ -106,20 +99,11 @@ assert.equal(failures.length, 0, failures.join(''));
 
 assert.equal(path.normalize('./fixtures///b/../b/c.js'),
              'fixtures/b/c.js');
-assert.equal(path.normalize('./fixtures///b/../b/c.js', true),
-             'fixtures///b/c.js');
 assert.equal(path.normalize('/foo/../../../bar'), '/bar');
 
 assert.deepEqual(path.normalizeArray(['fixtures', 'b', '', '..', 'b', 'c.js']),
                  ['fixtures', 'b', 'c.js']);
-assert.deepEqual(path.normalizeArray(['fixtures', '', 'b', '..', 'b', 'c.js'],
-                                     true), ['fixtures', '', 'b', 'c.js']);
 
-assert.equal(path.normalize('a//b//../b', true), 'a//b/b');
 assert.equal(path.normalize('a//b//../b'), 'a/b');
-
-assert.equal(path.normalize('a//b//./c', true), 'a//b//c');
 assert.equal(path.normalize('a//b//./c'), 'a/b/c');
-assert.equal(path.normalize('a//b//.', true), 'a//b/');
 assert.equal(path.normalize('a//b//.'), 'a/b');
-
