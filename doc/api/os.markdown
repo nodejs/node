@@ -14,6 +14,10 @@ Returns the operating system name.
 
 Returns the operating system release.
 
+### os.isWindows
+
+True on windows, false otherwise.
+
 ### os.uptime()
 
 Returns the system uptime in seconds.
