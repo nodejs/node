@@ -132,11 +132,11 @@
 
     var path = requireNative('path');
 
-    var modulePaths = [path.join(process.execPath, '..', '..', 'lib', 'node')];
+    var modulePaths = [path.resolve(process.execPath, '..', '..', 'lib', 'node')];
 
     if (process.env['HOME']) {
-      modulePaths.unshift(path.join(process.env['HOME'], '.node_libraries'));
-      modulePaths.unshift(path.join(process.env['HOME'], '.node_modules'));
+      modulePaths.unshift(path.resolve(process.env['HOME'], '.node_libraries'));
+      modulePaths.unshift(path.resolve(process.env['HOME'], '.node_modules'));
     }
 
     if (process.env['NODE_PATH']) {
@@ -188,11 +188,11 @@
       for (var i = 0, PL = paths.length; i < PL; i++) {
         var p = paths[i],
             // try to join the request to the path
-            f = tryFile(path.join(p, request)) ||
+            f = tryFile(path.resolve(p, request)) ||
             // try it with each of the extensions
-            tryExtensions(path.join(p, request)) ||
+            tryExtensions(path.resolve(p, request)) ||
             // try it with each of the extensions at "index"
-            tryExtensions(path.join(p, request, 'index'));
+            tryExtensions(path.resolve(p, request, 'index'));
         if (f) { return f; }
       }
       return false;
@@ -220,7 +220,7 @@
       // as it already has been accepted as a module.
       var isIndex = /^index\.\w+?$/.test(path.basename(parent.filename)),
           parentIdPath = isIndex ? parent.id : path.dirname(parent.id),
-          id = path.join(parentIdPath, request);
+          id = path.resolve(parentIdPath, request);
 
       // make sure require('./path') and require('path') get distinct ids, even
       // when called from the toplevel js file
@@ -557,10 +557,9 @@
 
     } else {
       // Load module
-      if ('/\\'.indexOf(process.argv[1].charAt(0)) < 0
-          && process.argv[1].charAt(1) != ':'
-          && !(/^http:\/\//).exec(process.argv[1])) {    
-        process.argv[1] = path.join(cwd, process.argv[1]);
+      // make process.argv[1] into a full path
+      if (!(/^http:\/\//).exec(process.argv[1])) {
+        process.argv[1] = path.resolve(process.argv[1]);
       }
       // REMOVEME: nextTick should not be necessary. This hack to get
       // test/simple/test-exception-handler2.js working.
