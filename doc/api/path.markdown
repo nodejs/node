@@ -3,9 +3,23 @@
 This module contains utilities for dealing with file paths.  Use
 `require('path')` to use it.  It provides the following methods:
 
+### path.normalize(p)
+
+Normalize a string path, taking care of `'..'` and `'.'` parts.
+
+When multiple slashes are found, they're replaces by a single one;
+when the path contains a trailing slash, it is preserved.
+On windows backslashes are used. 
+
+Example:
+
+    path.normalize('/foo/bar//baz/asdf/quux/..')
+    // returns
+    '/foo/bar/baz/asdf'
+
 ### path.join([path1], [path2], [...])
 
-Join all arguments together and resolve the resulting path.
+Join all arguments together and normalize the resulting path.
 
 Example:
 
@@ -13,26 +27,36 @@ Example:
     ...   '/foo', 'bar', 'baz/asdf', 'quux', '..')
     '/foo/bar/baz/asdf'
 
-### path.normalizeArray(arr)
+### path.resolve([from ...], to)
 
-Normalize an array of path parts, taking care of `'..'` and `'.'` parts.
+Resolves `to` to an absolute path name and normalizes it.
 
-Example:
+One ore more `from` arguments may be provided to specify the the starting
+point from where the path will be resolved. `resolve` will prepend `from`
+arguments from right to left until an absolute path is found. If no `from`
+arguments are specified, or after prepending them still no absolute path is
+found, the current working directory will be prepended eventually.
 
-    path.normalizeArray(['',
-      'foo', 'bar', 'baz', 'asdf', 'quux', '..'])
+Trailing slashes are removed unless the path gets resolved to the root
+directory.
+
+Examples:
+
+    path.resolve('index.html')
     // returns
-    [ '', 'foo', 'bar', 'baz', 'asdf' ]
+    '/home/tank/index.html'
 
-### path.normalize(p)
-
-Normalize a string path, taking care of `'..'` and `'.'` parts.
-
-Example:
-
-    path.normalize('/foo/bar/baz/asdf/quux/..')
+    path.resolve('/foo/bar', './baz')
     // returns
-    '/foo/bar/baz/asdf'
+    '/foo/baz/baz'
+
+    path.resolve('/foo/bar', '/tmp/file/')
+    // returns
+    '/tmp/file'
+
+    path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif')
+    // returns
+    '/home/tank/wwwroot/static_files/gif/image.gif'
 
 ### path.dirname(p)
 
