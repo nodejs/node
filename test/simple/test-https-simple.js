@@ -26,17 +26,24 @@ var server = https.createServer(options, function (req, res) {
   res.end(body);
 })
 
-function afterCurl (err, stdout, stderr) {
-  if (err) throw err;
-  server.close();
-  common.error(common.inspect(stdout));
-  assert.equal(body, stdout);
-};
 
 server.listen(common.PORT, function () {
   var cmd = 'curl --insecure https://127.0.0.1:' + common.PORT +  '/';
   console.error("executing %j", cmd);
-  exec(cmd, afterCurl);
+  exec(cmd, function(err, stdout, stderr) {
+    if (err) throw err;
+    common.error(common.inspect(stdout));
+    assert.equal(body, stdout);
+
+    // Do the same thing now without --insecure
+    // The connection should not be accepted.
+    var cmd = 'curl https://127.0.0.1:' + common.PORT +  '/';
+    console.error("executing %j", cmd);
+    exec(cmd, function(err, stdout, stderr) {
+      assert.ok(err);
+      server.close();
+    });
+  });
 });
 
 process.on('exit', function () {
