@@ -132,7 +132,11 @@
 
     var path = requireNative('path');
 
-    var modulePaths = [path.resolve(process.execPath, '..', '..', 'lib', 'node')];
+    var modulePaths = [path.resolve(process.execPath,
+                                    '..',
+                                    '..',
+                                    'lib',
+                                    'node')];
 
     if (process.env['HOME']) {
       modulePaths.unshift(path.resolve(process.env['HOME'], '.node_libraries'));
