@@ -1,4 +1,20 @@
-2011.01.02, Version 0.3.3 (unstable)
+2011.01.08, Version 0.3.4 (unstable)
+
+* Primordal mingw build (Bert Belder)
+
+* HTTPS server
+
+* Built in debugger 'node debug script.js' 
+
+* realpath files during module load (Mihai Călin Bazon)
+
+* Rename net.Stream to net.Socket (existing name will continue to be
+  supported)
+
+* Fix process.platform
+
+
+2011.01.02, Version 0.3.3 (unstable), 57544ba1c54c7d0da890317deeb73076350c5647
 
 * TLS improvements.
 
