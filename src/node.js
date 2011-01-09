@@ -78,6 +78,11 @@
 
   var internalModuleCache = {};
 
+  var moduleWrapper =
+    ['(function (exports, require, module, __filename, __dirname) { ',
+     '\n});'];
+
+
   // This contains the source code for the files in lib/
   // Like, natives.fs is the contents of lib/fs.js
   var natives = process.binding('natives');
@@ -85,15 +90,18 @@
   // Native modules don't need a full require function. So we can bootstrap
   // most of the system with this mini-require.
   function requireNative(id) {
+    if (id == 'module') return module;
     if (internalModuleCache[id]) return internalModuleCache[id].exports;
     if (!natives[id]) throw new Error('No such native module ' + id);
 
+    var filename = id + '.js';
+
     var fn = runInThisContext(
-        '(function (module, exports, require) {' + natives[id] + '\n})',
-        id + '.js',
+        moduleWrapper[0] + natives[id] + moduleWrapper[1],
+        filename,
         true);
     var m = {id: id, exports: {}};
-    fn(m, m.exports, requireNative);
+    fn(m.exports, requireNative, m, filename);
     m.loaded = true;
     internalModuleCache[id] = m;
     return m.exports;
@@ -354,10 +362,7 @@
 
       } else {
         // create wrapper function
-        var wrapper =
-            '(function (exports, require, module, __filename, __dirname) { ' +
-            content +
-            '\n});';
+        var wrapper = moduleWrapper[0] + content + moduleWrapper[1];
 
         var compiledWrapper = runInThisContext(wrapper, filename, true);
         if (filename === process.argv[1] && global.v8debug) {
@@ -368,6 +373,7 @@
       }
     };
 
+    exports.wrapper = moduleWrapper;
 
     // Native extension for .js
     extensions['.js'] = function(module, filename) {
