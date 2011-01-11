@@ -15,6 +15,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <pwd.h> /* getpwnam() */
+#include <grp.h> /* getgrnam() */
 #if defined(__FreeBSD__ ) || defined(__OpenBSD__)
 #include <sys/wait.h>
 #endif
@@ -25,6 +27,8 @@
 # else
 extern char **environ;
 # endif
+
+#include <limits.h> /* PATH_MAX */
 
 namespace node {
 
@@ -100,7 +104,11 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
       !args[0]->IsString() ||
       !args[1]->IsArray() ||
       !args[2]->IsString() ||
-      !args[3]->IsArray()) {
+      !args[3]->IsArray() ||
+      !args[4]->IsArray() ||
+      !args[5]->IsBoolean() ||
+      !(args[6]->IsInt32() || args[6]->IsString()) ||
+      !(args[7]->IsInt32() || args[7]->IsString())) {
     return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
 
@@ -158,8 +166,33 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
 
   int fds[3];
 
-  int uid = args[6]->ToInteger()->Value();
-  int gid = args[7]->ToInteger()->Value();
+  char *custom_uname = NULL;
+  int custom_uid = -1;
+  if (args[6]->IsNumber()) {
+    custom_uid = args[6]->Int32Value();
+  } else if (args[6]->IsString()) {
+    String::Utf8Value pwnam(args[6]->ToString());
+    custom_uname = (char *)calloc(sizeof(char), pwnam.length() + 1);
+    strncpy(custom_uname, *pwnam, pwnam.length() + 1);
+  } else {
+    return ThrowException(Exception::Error(
+      String::New("setuid argument must be a number or a string")));
+  }
+
+  char *custom_gname = NULL;
+  int custom_gid = -1;
+  if (args[7]->IsNumber()) {
+    custom_gid = args[7]->Int32Value();
+  } else if (args[7]->IsString()) {
+    String::Utf8Value grnam(args[7]->ToString());
+    custom_gname = (char *)calloc(sizeof(char), grnam.length() + 1);
+    strncpy(custom_gname, *grnam, grnam.length() + 1);
+  } else {
+    return ThrowException(Exception::Error(
+      String::New("setgid argument must be a number or a string")));
+  }
+
+
 
   int r = child->Spawn(argv[0],
                        argv,
@@ -168,8 +201,13 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
                        fds,
                        custom_fds,
                        do_setsid,
-                       uid,
-                       gid);
+                       custom_uid,
+                       custom_uname,
+                       custom_gid,
+                       custom_gname);
+
+  if (custom_uname != NULL) free(custom_uname);
+  if (custom_gname != NULL) free(custom_gname);
 
   for (i = 0; i < argv_length; i++) free(argv[i]);
   delete [] argv;
@@ -246,7 +284,9 @@ int ChildProcess::Spawn(const char *file,
                         int custom_fds[3],
                         bool do_setsid,
                         int custom_uid,
-                        int custom_gid) {
+                        char *custom_uname,
+                        int custom_gid,
+                        char *custom_gname) {
   HandleScope scope;
   assert(pid_ == -1);
   assert(!ev_is_active(&child_watcher_));
@@ -292,15 +332,58 @@ int ChildProcess::Spawn(const char *file,
         _exit(127);
       }
 
-      if (custom_gid != -1 && setgid(custom_gid)) {
+      static char buf[PATH_MAX + 1];
+
+      int gid = -1;
+      if (custom_gid != -1) {
+        gid = custom_gid;
+      } else if (custom_gname != NULL) {
+        struct group grp, *grpp = NULL;
+        int err = getgrnam_r(custom_gname,
+                             &grp,
+                             buf,
+                             PATH_MAX + 1,
+                             &grpp);
+
+        if (err || grpp == NULL) {
+          perror("getgrnam_r()");
+          _exit(127);
+        }
+
+        gid = grpp->gr_gid;
+      }
+
+
+      int uid = -1;
+      if (custom_uid != -1) {
+        uid = custom_uid;
+      } else if (custom_uname != NULL) {
+        struct passwd pwd, *pwdp = NULL;
+        int err = getpwnam_r(custom_uname,
+                             &pwd,
+                             buf,
+                             PATH_MAX + 1,
+                             &pwdp);
+
+        if (err || pwdp == NULL) {
+          perror("getpwnam_r()");
+          _exit(127);
+        }
+
+        uid = pwdp->pw_uid;
+      }
+
+
+      if (gid != -1 && setgid(gid)) {
         perror("setgid()");
         _exit(127);
       }
 
-      if (custom_uid != -1 && setuid(custom_uid)) {
+      if (uid != -1 && setuid(uid)) {
         perror("setuid()");
         _exit(127);
       }
+
 
       if (custom_fds[0] == -1) {
         close(stdin_pipe[1]);  // close write end
