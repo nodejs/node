@@ -16,6 +16,109 @@ namespace node {
 #define THROW_BAD_ARGS \
     return ThrowException(Exception::TypeError(String::New("Bad argument")));
 
+#define KEY(scancode, name) \
+    scancodes[scancode] = name;
+#define MAX_KEY VK_RMENU
+
+static const char* scancodes[MAX_KEY + 1] = {0};
+
+static Persistent<String> name_symbol;
+static Persistent<String> shift_symbol;
+static Persistent<String> ctrl_symbol;
+static Persistent<String> meta_symbol;
+
+
+static void init_scancode_table() {
+  KEY(VK_CANCEL, "break")
+  KEY(VK_BACK, "backspace")
+  KEY(VK_TAB, "tab")
+  KEY(VK_CLEAR, "clear")
+  KEY(VK_RETURN, "enter")
+  KEY(VK_PAUSE, "pause")
+  KEY(VK_ESCAPE, "escape")
+  KEY(VK_SPACE, "space")
+  KEY(VK_PRIOR, "pageup")
+  KEY(VK_NEXT, "pagedown")
+  KEY(VK_END, "end")
+  KEY(VK_HOME, "home")
+  KEY(VK_LEFT, "left")
+  KEY(VK_UP, "up")
+  KEY(VK_RIGHT, "right")
+  KEY(VK_DOWN, "down")
+  KEY(VK_SELECT, "select")
+  KEY(VK_PRINT, "print")
+  KEY(VK_EXECUTE, "execute")
+  KEY(VK_SNAPSHOT, "printscreen")
+  KEY(VK_INSERT, "insert")
+  KEY(VK_DELETE, "delete")
+  KEY(VK_HELP, "help")
+  KEY(VK_LWIN, "lwin")
+  KEY(VK_RWIN, "rwin")
+  KEY(VK_APPS, "apps")
+  KEY(VK_SLEEP, "sleep")
+  KEY(VK_NUMPAD0, "numpad0")
+  KEY(VK_NUMPAD1, "numpad1")
+  KEY(VK_NUMPAD2, "numpad2")
+  KEY(VK_NUMPAD3, "numpad3")
+  KEY(VK_NUMPAD4, "numpad4")
+  KEY(VK_NUMPAD5, "numpad5")
+  KEY(VK_NUMPAD6, "numpad6")
+  KEY(VK_NUMPAD7, "numpad7")
+  KEY(VK_NUMPAD8, "numpad8")
+  KEY(VK_NUMPAD9, "numpad9")
+  KEY(VK_MULTIPLY, "numpad*")
+  KEY(VK_ADD, "numpad+")
+  KEY(VK_SEPARATOR, "numpad,")
+  KEY(VK_SUBTRACT, "numpad-")
+  KEY(VK_DECIMAL, "numpad.")
+  KEY(VK_DIVIDE, "numpad/")
+  KEY(VK_F1, "f1")
+  KEY(VK_F2, "f2")
+  KEY(VK_F3, "f3")
+  KEY(VK_F4, "f4")
+  KEY(VK_F5, "f5")
+  KEY(VK_F6, "f6")
+  KEY(VK_F7, "f7")
+  KEY(VK_F8, "f8")
+  KEY(VK_F9, "f9")
+  KEY(VK_F10, "f10")
+  KEY(VK_F11, "f11")
+  KEY(VK_F12, "f12")
+  KEY(VK_F13, "f13")
+  KEY(VK_F14, "f14")
+  KEY(VK_F15, "f15")
+  KEY(VK_F16, "f16")
+  KEY(VK_F17, "f17")
+  KEY(VK_F18, "f18")
+  KEY(VK_F19, "f19")
+  KEY(VK_F20, "f20")
+  KEY(VK_F21, "f21")
+  KEY(VK_F22, "f22")
+  KEY(VK_F23, "f23")
+  KEY(VK_F24, "f24")
+  KEY(VK_OEM_PLUS, "+")
+  KEY(VK_OEM_MINUS, "-")
+  KEY(VK_OEM_COMMA, ",")
+  KEY(VK_OEM_PERIOD, ".")
+
+  // Letter keys have the ascii code of their uppercase equivalent as a scan code
+  for (int i = 0; i < 26; i++) {
+    char *name = new char[2];
+    name[0] = 'a' + i;
+    name[1] = '\0';
+    KEY('A' + i, name)
+  }
+
+  // Number keys have their ascii code as scan code
+  for (int i = '0'; i <= '9'; i++) {
+    char *name = new char[2];
+    name[0] = i;
+    name[1] = '\0';
+    KEY(i, name)
+  }
+}
+
+
 /*
  * Flush stdout and stderr on node exit
  * Not necessary on windows, so a no-op
@@ -142,7 +245,254 @@ static Handle<Value> GetWindowSize (const Arguments& args) {
 }
 
 
+/* TTY watcher data */
+bool tty_watcher_initialized = false;
+HANDLE tty_handle;
+HANDLE tty_wait_handle;
+void *tty_error_callback;
+void *tty_keypress_callback;
+void *tty_resize_callback;
+static ev_async tty_avail_notifier;
+
+
+static void CALLBACK tty_want_poll(void *context, BOOLEAN didTimeout) {
+  assert(!didTimeout);
+  ev_async_send(EV_DEFAULT_UC_ &tty_avail_notifier);
+}
+
+
+static void tty_watcher_arm() {
+  // Register a new wait handle before dropping the old one, because
+  // otherwise windows might destroy and recreate the wait thread.
+  // MSDN promises that thread pool threads are kept alive when they're idle,
+  // but apparently this does not apply to wait threads. Sigh.
+
+  HANDLE old_wait_handle = tty_wait_handle;
+  tty_wait_handle = NULL;
+
+  if (ev_is_active(&tty_avail_notifier)) {
+    if (!RegisterWaitForSingleObject(&tty_wait_handle, tty_handle, tty_want_poll, NULL,
+        INFINITE, WT_EXECUTEINWAITTHREAD | WT_EXECUTEONLYONCE))
+      ThrowException(ErrnoException(GetLastError(), "RegisterWaitForSingleObject"));
+  }
+
+  if (old_wait_handle != NULL) {
+    if (!UnregisterWait(old_wait_handle) && GetLastError() != ERROR_IO_PENDING)
+      ThrowException(ErrnoException(GetLastError(), "UnregisterWait"));
+  }
+}
+
+
+static void tty_watcher_disarm() {
+  DWORD result;
+  if (tty_wait_handle != NULL) {
+    result = UnregisterWait(tty_wait_handle);
+    tty_wait_handle = NULL;
+    if (!result && GetLastError() != ERROR_IO_PENDING)
+      ThrowException(ErrnoException(GetLastError(), "UnregisterWait"));
+  }
+}
+
+
+static void tty_watcher_start() {
+  if (!ev_is_active(&tty_avail_notifier)) {
+    ev_async_start(EV_DEFAULT_UC_ &tty_avail_notifier);
+    tty_watcher_arm();
+  }
+}
+
+
+static void tty_watcher_stop() {
+  if (ev_is_active(&tty_avail_notifier)) {
+    tty_watcher_disarm();
+    ev_async_stop(EV_DEFAULT_UC_ &tty_avail_notifier);
+  }
+}
+
+
+static inline void tty_emit_error(Handle<Value> err) {
+  HandleScope scope;
+  Handle<Object> global = v8::Context::GetCurrent()->Global();
+  Handle<Function> *handler = cb_unwrap(tty_error_callback);
+  Handle<Value> argv[1] = { err };
+  (*handler)->Call(global, 1, argv);
+}
+
+
+static void tty_poll(EV_P_ ev_async *watcher, int revents) {
+  assert(watcher == &tty_avail_notifier);
+  assert(revents == EV_ASYNC);
+
+  HandleScope scope;
+  TryCatch try_catch;
+  Handle<Object> global = v8::Context::GetCurrent()->Global();
+  Handle<Function> *callback;
+  INPUT_RECORD input;
+  KEY_EVENT_RECORD k;
+  const char *keyName;
+  DWORD i, j, numev, read;
+  Handle<Value> argv[2];
+  Handle<Object> key;
+
+  if (!GetNumberOfConsoleInputEvents(tty_handle, &numev)) {
+    tty_emit_error(ErrnoException(GetLastError(),
+        "GetNumberOfConsoleInputEvents"));
+    numev = 0;
+  }
+
+  for (i = numev; i > 0 &&
+      ev_is_active(EV_DEFAULT_UC_ &tty_avail_notifier); i--) {
+    if (!ReadConsoleInputW(tty_handle, &input, 1, &read)) {
+      tty_emit_error(ErrnoException(GetLastError(), "ReadConsoleInputW"));
+      break;
+    }
+
+    switch (input.EventType) {
+      case KEY_EVENT:
+        // Skip if no callback set
+        if (!tty_keypress_callback)
+          break;
+
+        k = input.Event.KeyEvent;
+
+        // Ignore keyup
+        if (!k.bKeyDown)
+          break;
+
+        // Try to find a symbolic name for the key
+        keyName = (k.wVirtualKeyCode <= MAX_KEY)
+            ? scancodes[k.wVirtualKeyCode]
+            : 0;
+
+        // The key must have a symbolic name or a char or both
+        if (k.uChar.UnicodeChar == 0 && keyName == 0)
+          break;
+
+        // Set the event name and character
+        argv[0] = k.uChar.UnicodeChar
+            ? String::New(reinterpret_cast<uint16_t*>(&k.uChar.UnicodeChar), 1)
+            : Undefined();
+
+        // Set the key info, if any
+        if (keyName) {
+          key = Object::New();
+          key->Set(name_symbol, String::New(keyName));
+          key->Set(shift_symbol, Boolean::New(k.dwControlKeyState &
+              SHIFT_PRESSED));
+          key->Set(ctrl_symbol, Boolean::New(k.dwControlKeyState &
+              (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)));
+          key->Set(meta_symbol, Boolean::New(k.dwControlKeyState &
+              (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)));
+          argv[1] = key;
+        } else {
+          argv[1] = Undefined();
+        }
+
+        callback = cb_unwrap(tty_keypress_callback);
+        j = k.wRepeatCount;
+        do {
+          (*callback)->Call(global, 2, argv);
+        } while (--j > 0 && ev_is_active(EV_DEFAULT_UC_ &tty_avail_notifier));
+        break;
+
+      case WINDOW_BUFFER_SIZE_EVENT:
+        if (!tty_resize_callback)
+          break;
+        argv[0] = Integer::New(input.Event.WindowBufferSizeEvent.dwSize.Y);
+        argv[1] = Integer::New(input.Event.WindowBufferSizeEvent.dwSize.X);
+        callback = cb_unwrap(tty_resize_callback);
+        (*callback)->Call(global, 2, argv);
+        break;
+    }
+  }
+
+  // Rearm the watcher
+  tty_watcher_arm();
+
+  // Emit fatal errors and unhandled error events
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+}
+
+
+/* StartTTYWatcher(fd, onError, onKeypress, onResize) */
+static Handle<Value> InitTTYWatcher(const Arguments& args) {
+  HandleScope scope;
+
+  if (tty_watcher_initialized)
+    THROW_ERROR("TTY watcher already initialized")
+
+  if (!args[0]->IsNumber())
+    THROW_BAD_ARGS;
+  tty_handle = (HANDLE)_get_osfhandle(args[0]->IntegerValue());
+
+  if (!args[1]->IsFunction())
+    THROW_BAD_ARGS;
+  tty_error_callback = cb_persist(args[1]);
+
+  tty_keypress_callback = args[2]->IsFunction()
+      ? cb_persist(args[2])
+      : NULL;
+
+  tty_resize_callback = args[3]->IsFunction()
+      ? cb_persist(args[3])
+      : NULL;
+
+  ev_async_init(EV_DEFAULT_UC_ &tty_avail_notifier, tty_poll);
+
+  tty_watcher_initialized = true;
+  tty_wait_handle = NULL;
+
+  return Undefined();
+}
+
+
+static Handle<Value> DestroyTTYWatcher(const Arguments& args) {
+  if (!tty_watcher_initialized)
+    THROW_ERROR("TTY watcher not initialized")
+
+  tty_watcher_stop();
+
+  if (tty_error_callback != NULL)
+    cb_destroy(cb_unwrap(tty_error_callback));
+  if (tty_keypress_callback != NULL)
+    cb_destroy(cb_unwrap(tty_keypress_callback));
+  if (tty_resize_callback != NULL)
+    cb_destroy(cb_unwrap(tty_resize_callback));
+
+  tty_watcher_initialized = false;
+
+  return Undefined();
+}
+
+
+static Handle<Value> StartTTYWatcher(const Arguments& args) {
+  if (!tty_watcher_initialized)
+    THROW_ERROR("TTY watcher not initialized")
+
+  tty_watcher_start();
+  return Undefined();
+}
+
+
+static Handle<Value> StopTTYWatcher(const Arguments& args) {
+  if (!tty_watcher_initialized)
+    THROW_ERROR("TTY watcher not initialized")
+
+  tty_watcher_stop();
+  return Undefined();
+}
+
+
 void Stdio::Initialize(v8::Handle<v8::Object> target) {
+  init_scancode_table();
+
+  name_symbol = NODE_PSYMBOL("name");
+  shift_symbol = NODE_PSYMBOL("shift");
+  ctrl_symbol = NODE_PSYMBOL("ctrl");
+  meta_symbol = NODE_PSYMBOL("meta");
+
   target->Set(String::NewSymbol("stdoutFD"), Integer::New(STDOUT_FILENO));
   target->Set(String::NewSymbol("stderrFD"), Integer::New(STDERR_FILENO));
   target->Set(String::NewSymbol("stdinFD"), Integer::New(STDIN_FILENO));
@@ -154,6 +504,10 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "setRawMode", SetRawMode);
   NODE_SET_METHOD(target, "openStdin", OpenStdin);
   NODE_SET_METHOD(target, "getWindowSize", GetWindowSize);
+  NODE_SET_METHOD(target, "initTTYWatcher", InitTTYWatcher);
+  NODE_SET_METHOD(target, "destroyTTYWatcher", DestroyTTYWatcher);
+  NODE_SET_METHOD(target, "startTTYWatcher", StartTTYWatcher);
+  NODE_SET_METHOD(target, "stopTTYWatcher", StopTTYWatcher);
 }
 
 
