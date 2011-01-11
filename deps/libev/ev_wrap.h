@@ -40,6 +40,9 @@
 #define pollidxmax ((loop)->pollidxmax)
 #define epoll_events ((loop)->epoll_events)
 #define epoll_eventmax ((loop)->epoll_eventmax)
+#define epoll_eperms ((loop)->epoll_eperms)
+#define epoll_epermcnt ((loop)->epoll_epermcnt)
+#define epoll_epermmax ((loop)->epoll_epermmax)
 #define kqueue_changes ((loop)->kqueue_changes)
 #define kqueue_changemax ((loop)->kqueue_changemax)
 #define kqueue_changecnt ((loop)->kqueue_changecnt)
@@ -47,6 +50,7 @@
 #define kqueue_eventmax ((loop)->kqueue_eventmax)
 #define port_events ((loop)->port_events)
 #define port_eventmax ((loop)->port_eventmax)
+#define iocp ((loop)->iocp)
 #define fdchanges ((loop)->fdchanges)
 #define fdchangemax ((loop)->fdchangemax)
 #define fdchangecnt ((loop)->fdchangecnt)
@@ -69,6 +73,9 @@
 #define forks ((loop)->forks)
 #define forkmax ((loop)->forkmax)
 #define forkcnt ((loop)->forkcnt)
+#define cleanups ((loop)->cleanups)
+#define cleanupmax ((loop)->cleanupmax)
+#define cleanupcnt ((loop)->cleanupcnt)
 #define async_pending ((loop)->async_pending)
 #define asyncs ((loop)->asyncs)
 #define asyncmax ((loop)->asyncmax)
@@ -78,9 +85,11 @@
 #define fs_2625 ((loop)->fs_2625)
 #define fs_hash ((loop)->fs_hash)
 #define sig_pending ((loop)->sig_pending)
+#define nosigmask ((loop)->nosigmask)
 #define sigfd ((loop)->sigfd)
 #define sigfd_w ((loop)->sigfd_w)
 #define sigfd_set ((loop)->sigfd_set)
+#define origflags ((loop)->origflags)
 #define loop_count ((loop)->loop_count)
 #define loop_depth ((loop)->loop_depth)
 #define userdata ((loop)->userdata)
@@ -128,6 +137,9 @@
 #undef pollidxmax
 #undef epoll_events
 #undef epoll_eventmax
+#undef epoll_eperms
+#undef epoll_epermcnt
+#undef epoll_epermmax
 #undef kqueue_changes
 #undef kqueue_changemax
 #undef kqueue_changecnt
@@ -135,6 +147,7 @@
 #undef kqueue_eventmax
 #undef port_events
 #undef port_eventmax
+#undef iocp
 #undef fdchanges
 #undef fdchangemax
 #undef fdchangecnt
@@ -157,6 +170,9 @@
 #undef forks
 #undef forkmax
 #undef forkcnt
+#undef cleanups
+#undef cleanupmax
+#undef cleanupcnt
 #undef async_pending
 #undef asyncs
 #undef asyncmax
@@ -166,9 +182,11 @@
 #undef fs_2625
 #undef fs_hash
 #undef sig_pending
+#undef nosigmask
 #undef sigfd
 #undef sigfd_w
 #undef sigfd_set
+#undef origflags
 #undef loop_count
 #undef loop_depth
 #undef userdata

@@ -95,6 +95,8 @@ struct event
   short ev_events;
 };
 
+#define EV_READ                    EV_READ
+#define EV_WRITE                   EV_WRITE
 #define EV_PERSIST                 0x10
 
 #define EVENT_SIGNAL(ev)           ((int) (ev)->ev_fd)

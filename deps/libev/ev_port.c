@@ -37,6 +37,17 @@
  * either the BSD or the GPL.
  */
 
+/* useful reading:
+ *
+ * http://bugs.opensolaris.org/view_bug.do?bug_id=6268715 (random results)
+ * http://bugs.opensolaris.org/view_bug.do?bug_id=6455223 (just totally broken)
+ * http://bugs.opensolaris.org/view_bug.do?bug_id=6873782 (manpage ETIME)
+ * http://bugs.opensolaris.org/view_bug.do?bug_id=6874410 (implementation ETIME)
+ * http://www.mail-archive.com/networking-discuss@opensolaris.org/msg11898.html ETIME vs. nget
+ * http://src.opensolaris.org/source/xref/onnv/onnv-gate/usr/src/lib/libc/port/gen/event_port.c (libc)
+ * http://cvs.opensolaris.org/source/xref/onnv/onnv-gate/usr/src/uts/common/fs/portfs/port.c#1325 (kernel)
+ */
+
 #include <sys/types.h>
 #include <sys/time.h>
 #include <poll.h>
@@ -85,18 +96,20 @@ port_poll (EV_P_ ev_tstamp timeout)
   struct timespec ts;
   uint_t nget = 1;
 
+  /* we initialise this to something we will skip in the loop, as */
+  /* port_getn can return with nget unchanged, but no indication */
+  /* whether it was the original value or has been updated :/ */
+  port_events [0].portev_source = 0;
+
   EV_RELEASE_CB;
   EV_TS_SET (ts, timeout);
   res = port_getn (backend_fd, port_events, port_eventmax, &nget, &ts);
   EV_ACQUIRE_CB;
 
-  if (res == -1)
-    { 
-      if (errno != EINTR && errno != ETIME)
-        ev_syserr ("(libev) port_getn (see http://bugs.opensolaris.org/view_bug.do?bug_id=6268715, try LIBEV_FLAGS=3 env variable)");
-
-      return;
-    } 
+  /* port_getn may or may not set nget on error */
+  /* so we rely on port_events [0].portev_source not being updated */
+  if (res == -1 && errno != ETIME && errno != EINTR)
+    ev_syserr ("(libev) port_getn (see http://bugs.opensolaris.org/view_bug.do?bug_id=6268715, try LIBEV_FLAGS=3 env variable)");
 
   for (i = 0; i < nget; ++i)
     {
@@ -129,6 +142,8 @@ port_init (EV_P_ int flags)
   /* Initialize the kernel queue */
   if ((backend_fd = port_create ()) < 0)
     return 0;
+
+  assert (("libev: PORT_SOURCE_FD must not be zero", PORT_SOURCE_FD));
 
   fcntl (backend_fd, F_SETFD, FD_CLOEXEC); /* not sure if necessary, hopefully doesn't hurt */
 

@@ -1,12 +1,33 @@
 Revision history for libev, a high-performance and full-featured event loop.
 
-TODO: include ev_xyz_start in each example?
-TODO: section watcher states/lifetime
-TODO: use enums //TODO: enum?
+4.03 Tue Jan 11 14:37:25 CET 2011
+	- officially support polling files with all backends.
+	- support files, /dev/zero etc. the same way as select in the epoll
+          backend, by generating events on our own.
+        - ports backend: work around solaris bug 6874410 and many related ones
+          (EINTR, maybe more), with no performance loss (note that the solaris
+          bug report is actually wrong, reality is far more bizarre and broken
+          than that).
+	- define EV_READ/EV_WRITE as macros in event.h, as some programs use
+          #ifdef to test for them.
+        - new (experimental) function: ev_feed_signal.
+        - new (to become default) EVFLAG_NOSIGMASK flag.
+        - new EVBACKEND_MASK symbol.
+        - updated COMMON IDIOMS SECTION.
+
+4.01 Fri Nov  5 21:51:29 CET 2010
+        - automake fucked it up, apparently, --add-missing -f is not quite enough
+          to make it update its files, so 4.00 didn't install ev++.h and
+          event.h on make install. grrr.
+        - ev_loop(count|depth) didn't return anything (Robin Haberkorn).
+        - change EV_UNDEF to 0xffffffff to silence some overzealous compilers.
+        - use "(libev) " prefix for all libev error messages now.
+
+4.00 Mon Oct 25 12:32:12 CEST 2010
 	- "PORTING FROM LIBEV 3.X TO 4.X" (in ev.pod) is recommended reading.
 	- ev_embed_stop did not correctly stop the watcher (very good
           testcase by Vladimir Timofeev).
-        - ev_run will now always update the current loop time - it errornously
+        - ev_run will now always update the current loop time - it erroneously
           didn't when idle watchers were active, causing timers not to fire.
         - fix a bug where a timeout of zero caused the timer not to fire
           in the libevent emulation (testcase by Péter Szabó).
@@ -14,6 +35,8 @@ TODO: use enums //TODO: enum?
 	- replace EV_MINIMAL by EV_FEATURES.
         - prefer EPOLL_CTL_ADD over EPOLL_CTL_MOD in some more cases, as it
           seems the former is *much* faster than the latter.
+        - linux kernel version detection (for inotify bug workarounds)
+          did not work properly.
         - reduce the number of spurious wake-ups with the ports backend.
         - remove dependency on sys/queue.h on freebsd (patch by Vanilla Hsu).
         - do async init within ev_async_start, not ev_async_set, which avoids
@@ -24,9 +47,11 @@ TODO: use enums //TODO: enum?
           not to need it (helpfully pointed out by Tilghman Lesher).
         - do not use poll by default on freebsd, it's broken (what isn't
           on freebsd...).
+        - allow to embed epoll on kernels >= 2.6.32.
         - configure now prepends -O3, not appends it, so one can still
           override it.
-        - greatly expanded the portability section.
+        - ev.pod: greatly expanded the portability section, added a porting
+          section, a description of watcher states and made lots of minor fixes.
         - disable poll backend on AIX, the poll header spams the namespace
           and it's not worth working around dead platforms (reported
           and analyzed by Aivars Kalvans).
@@ -39,12 +64,18 @@ TODO: use enums //TODO: enum?
         - update libev.m4 HAVE_CLOCK_SYSCALL test for newer glibcs.
         - add section on accept() problems to the manpage.
         - rename EV_TIMEOUT to EV_TIMER.
-        - rename ev_loop_count/depth/verify.
+        - rename ev_loop_count/depth/verify/loop/unloop.
+        - remove ev_default_destroy and ev_default_fork.
         - switch to two-digit minor version.
         - work around an apparent gentoo compiler bug.
         - define _DARWIN_UNLIMITED_SELECT. just so.
         - use enum instead of #define for most constants.
         - improve compatibility to older C++ compilers.
+        - (experimental) ev_run/ev_default_loop/ev_break/ev_loop_new have now
+          default arguments when compiled as C++.
+        - enable automake dependency tracking.
+        - ev_loop_new no longer leaks memory when loop creation failed.
+        - new ev_cleanup watcher type.
 
 3.9  Thu Dec 31 07:59:59 CET 2009
 	- signalfd is no longer used by default and has to be requested
@@ -70,14 +101,14 @@ TODO: use enums //TODO: enum?
         - add missing string.h include (Denis F. Latypoff).
         - only replace ev_stat.prev when we detect an actual difference,
           so prev is (almost) always different to attr. this might
-          have caused the probems with 04_stat.t.
+          have caused the problems with 04_stat.t.
         - add ev::timer->remaining () method to C++ API.
 
 3.8  Sun Aug  9 14:30:45 CEST 2009
 	- incompatible change: do not necessarily reset signal handler
           to SIG_DFL when a sighandler is stopped.
         - ev_default_destroy did not properly free or zero some members,
-          potentially causing crashes and memory corruption on repated
+          potentially causing crashes and memory corruption on repeated
           ev_default_destroy/ev_default_loop calls.
 	- take advantage of signalfd on GNU/Linux systems.
 	- document that the signal mask might be in an unspecified
@@ -209,7 +240,7 @@ TODO: use enums //TODO: enum?
 3.45 Tue Oct 21 21:59:26 CEST 2008
 	- disable inotify usage on linux <2.6.25, as it is broken
           (reported by Yoann Vandoorselaere).
-        - ev_stat errornously would try to add inotify watchers
+        - ev_stat erroneously would try to add inotify watchers
           even when inotify wasn't available (this should only
           have a performance impact).
 	- ev_once now passes both timeout and io to the callback if both
@@ -287,10 +318,10 @@ TODO: use enums //TODO: enum?
           not clearing revents field in ev_poll (Brandon Black)
           (no such systems are known at this time).
         - work around a bug in realloc on openbsd and darwin,
-          also makes the errornous valgrind complaints
+          also makes the erroneous valgrind complaints
           go away (noted by various people).
         - fix ev_async_pending, add c++ wrapper for ev_async
-          (based on patch sent by Johannes Deisenhofer.
+          (based on patch sent by Johannes Deisenhofer).
         - add sensible set method to ev::embed.
         - made integer constants type int in ev.h.
 

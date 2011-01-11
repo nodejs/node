@@ -110,7 +110,7 @@ void event_base_free (struct event_base *base)
   dLOOPbase;
 
 #if EV_MULTIPLICITY
-  if (ev_default_loop (EVFLAG_AUTO) != loop)
+  if (!ev_is_default_loop (loop))
     ev_loop_destroy (loop);
 #endif
 }
@@ -298,7 +298,12 @@ int event_pending (struct event *ev, short events, struct timeval *tv)
       revents |= EV_TIMEOUT;
 
       if (tv)
-        EV_TV_SET (tv, ev_now (EV_A)); /* not sure if this is right :) */
+        {
+          ev_tstamp at = ev_now (EV_A);
+
+          tv->tv_sec  = (long)at;
+          tv->tv_usec = (long)((at - (ev_tstamp)tv->tv_sec) * 1e6);
+        }
     }
 
   return events & revents;
