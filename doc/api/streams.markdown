@@ -125,7 +125,7 @@ Emitted on error with the exception `exception`.
 
 Emitted when the underlying file descriptor has been closed.
 
-### stream.writeable
+### stream.writable
 
 A boolean that is `true` by default, but turns `false` after an `'error'`
 occurred or `end()` / `destroy()` was called.
