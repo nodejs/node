@@ -14,7 +14,7 @@ if test "x$GCC" = xyes ; then
 fi
 
 dnl somebody will forgive me
-CFLAGS="-D_GNU_SOURCE"
+CFLAGS="-D_GNU_SOURCE $CFLAGS"
 
 m4_include([libeio.m4])
 

@@ -5,6 +5,20 @@ AC_SEARCH_LIBS(
    [AC_MSG_ERROR(pthread functions not found)]
 )
 
+AC_CACHE_CHECK(for utimes, ac_cv_utimes, [AC_LINK_IFELSE([[
+#include <sys/types.h>
+#include <sys/time.h>
+#include <utime.h>
+struct timeval tv[2];
+int res;
+int main (void)
+{
+   res = utimes ("/", tv);
+   return 0;
+}
+]],ac_cv_utimes=yes,ac_cv_utimes=no)])
+test $ac_cv_utimes = yes && AC_DEFINE(HAVE_UTIMES, 1, utimes(2) is available)
+
 AC_CACHE_CHECK(for futimes, ac_cv_futimes, [AC_LINK_IFELSE([[
 #include <sys/types.h>
 #include <sys/time.h>
@@ -12,7 +26,7 @@ AC_CACHE_CHECK(for futimes, ac_cv_futimes, [AC_LINK_IFELSE([[
 struct timeval tv[2];
 int res;
 int fd;
-int main(void)
+int main (void)
 {
    res = futimes (fd, tv);
    return 0;
@@ -22,7 +36,7 @@ test $ac_cv_futimes = yes && AC_DEFINE(HAVE_FUTIMES, 1, futimes(2) is available)
 
 AC_CACHE_CHECK(for readahead, ac_cv_readahead, [AC_LINK_IFELSE([
 #include <fcntl.h>
-int main(void)
+int main (void)
 {
    int fd = 0;
    size_t count = 2;
@@ -35,7 +49,7 @@ test $ac_cv_readahead = yes && AC_DEFINE(HAVE_READAHEAD, 1, readahead(2) is avai
 
 AC_CACHE_CHECK(for fdatasync, ac_cv_fdatasync, [AC_LINK_IFELSE([
 #include <unistd.h>
-int main(void)
+int main (void)
 {
    int fd = 0;
    fdatasync (fd);
@@ -46,7 +60,7 @@ test $ac_cv_fdatasync = yes && AC_DEFINE(HAVE_FDATASYNC, 1, fdatasync(2) is avai
 
 AC_CACHE_CHECK(for pread and pwrite, ac_cv_preadwrite, [AC_LINK_IFELSE([
 #include <unistd.h>
-int main(void)
+int main (void)
 {
    int fd = 0;
    size_t count = 1;
@@ -72,7 +86,7 @@ AC_CACHE_CHECK(for sendfile, ac_cv_sendfile, [AC_LINK_IFELSE([
 #else
 # error unsupported architecture
 #endif
-int main(void)
+int main (void)
 {
    int fd = 0;
    off_t offset = 1;
@@ -92,7 +106,7 @@ test $ac_cv_sendfile = yes && AC_DEFINE(HAVE_SENDFILE, 1, sendfile(2) is availab
 
 AC_CACHE_CHECK(for sync_file_range, ac_cv_sync_file_range, [AC_LINK_IFELSE([
 #include <fcntl.h>
-int main(void)
+int main (void)
 {
    int fd = 0;
    off64_t offset = 1;
@@ -104,4 +118,39 @@ int main(void)
 }
 ],ac_cv_sync_file_range=yes,ac_cv_sync_file_range=no)])
 test $ac_cv_sync_file_range = yes && AC_DEFINE(HAVE_SYNC_FILE_RANGE, 1, sync_file_range(2) is available)
+
+dnl #############################################################################
+dnl # these checks exist for the benefit of IO::AIO
+
+dnl at least uclibc defines _POSIX_ADVISORY_INFO without *any* of the required
+dnl functionality actually being present. ugh.
+AC_CACHE_CHECK(for posix_madvise, ac_cv_posix_madvise, [AC_LINK_IFELSE([
+#include <sys/mman.h>
+int main (void)
+{
+   int res = posix_madvise ((void *)0, (size_t)0, POSIX_MADV_NORMAL);
+   int a = POSIX_MADV_SEQUENTIAL;
+   int b = POSIX_MADV_RANDOM;
+   int c = POSIX_MADV_WILLNEED;
+   int d = POSIX_MADV_DONTNEED;
+   return 0;
+}
+],ac_cv_posix_madvise=yes,ac_cv_posix_madvise=no)])
+test $ac_cv_posix_madvise = yes && AC_DEFINE(HAVE_POSIX_MADVISE, 1, posix_madvise(2) is available)
+
+AC_CACHE_CHECK(for posix_fadvise, ac_cv_posix_fadvise, [AC_LINK_IFELSE([
+#define _XOPEN_SOURCE 600
+#include <fcntl.h>
+int main (void)
+{
+   int res = posix_fadvise ((int)0, (off_t)0, (off_t)0, POSIX_FADV_NORMAL);
+   int a = POSIX_FADV_SEQUENTIAL;
+   int b = POSIX_FADV_NOREUSE;
+   int c = POSIX_FADV_RANDOM;
+   int d = POSIX_FADV_WILLNEED;
+   int e = POSIX_FADV_DONTNEED;
+   return 0;
+}
+],ac_cv_posix_fadvise=yes,ac_cv_posix_fadvise=no)])
+test $ac_cv_posix_fadvise = yes && AC_DEFINE(HAVE_POSIX_FADVISE, 1, posix_fadvise(2) is available)
 

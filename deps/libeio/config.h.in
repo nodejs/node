@@ -15,6 +15,12 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
+/* posix_fadvise(2) is available */
+#undef HAVE_POSIX_FADVISE
+
+/* posix_madvise(2) is available */
+#undef HAVE_POSIX_MADVISE
+
 /* pread(2) and pwrite(2) are available */
 #undef HAVE_PREADWRITE
 
@@ -48,6 +54,13 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* utimes(2) is available */
+#undef HAVE_UTIMES
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
 /* Name of package */
 #undef PACKAGE
 
@@ -62,6 +75,9 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
