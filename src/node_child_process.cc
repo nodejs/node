@@ -150,15 +150,15 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
     }
   }
 
-  int do_setuid = false;
+  int do_setsid = false;
   if (args[5]->IsBoolean()) {
-    do_setuid = args[5]->BooleanValue();
+    do_setsid = args[5]->BooleanValue();
   }
 
 
   int fds[3];
 
-  int r = child->Spawn(argv[0], argv, cwd, env, fds, custom_fds, do_setuid);
+  int r = child->Spawn(argv[0], argv, cwd, env, fds, custom_fds, do_setsid);
 
   for (i = 0; i < argv_length; i++) free(argv[i]);
   delete [] argv;
@@ -233,7 +233,7 @@ int ChildProcess::Spawn(const char *file,
                         char **env,
                         int stdio_fds[3],
                         int custom_fds[3],
-                        bool do_setuid) {
+                        bool do_setsid) {
   HandleScope scope;
   assert(pid_ == -1);
   assert(!ev_is_active(&child_watcher_));
@@ -274,8 +274,8 @@ int ChildProcess::Spawn(const char *file,
       return -4;
 
     case 0:  // Child.
-      if (do_setuid && setsid() < 0) {
-        perror("setuid");
+      if (do_setsid && setsid() < 0) {
+        perror("setsid");
       }
 
       if (custom_fds[0] == -1) {

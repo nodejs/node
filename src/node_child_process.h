@@ -64,7 +64,7 @@ class ChildProcess : ObjectWrap {
             char **env,
             int stdio_fds[3],
             int custom_fds[3],
-            bool do_setuid);
+            bool do_setsid);
 
   // Simple syscall wrapper. Does not disable the watcher. onexit will be
   // called still.
