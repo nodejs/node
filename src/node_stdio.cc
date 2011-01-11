@@ -94,30 +94,47 @@ static Handle<Value> SetRawMode (const Arguments& args) {
 }
 
 
-// process.binding('stdio').getColumns();
-static Handle<Value> GetColumns (const Arguments& args) {
+// process.binding('stdio').getWindowSize(fd);
+// returns [row, col]
+static Handle<Value> GetWindowSize (const Arguments& args) {
   HandleScope scope;
+
+  int fd = args[0]->IntegerValue();
 
   struct winsize ws;
 
-  if (ioctl(1, TIOCGWINSZ, &ws) == -1) {
-    return scope.Close(Integer::New(80));
+  if (ioctl(fd, TIOCGWINSZ, &ws) < 0) {
+    return ThrowException(ErrnoException(errno, "ioctl"));
   }
 
-  return scope.Close(Integer::NewFromUnsigned(ws.ws_col));
+  Local<Array> ret = Array::New(2);
+  ret->Set(0, Integer::NewFromUnsigned(ws.ws_row));
+  ret->Set(1, Integer::NewFromUnsigned(ws.ws_col));
+
+  return scope.Close(ret);
 }
 
-// process.binding('stdio').getRows();
-static Handle<Value> GetRows (const Arguments& args) {
+
+// process.binding('stdio').setWindowSize(fd, row, col);
+static Handle<Value> SetWindowSize (const Arguments& args) {
   HandleScope scope;
+
+  int fd = args[0]->IntegerValue();
+  int row = args[1]->IntegerValue();
+  int col = args[2]->IntegerValue();
 
   struct winsize ws;
 
-  if (ioctl(1, TIOCGWINSZ, &ws) == -1) {
-    return scope.Close(Integer::New(132));
+  ws.ws_row = row;
+  ws.ws_col = col;
+  ws.ws_xpixel = 0;
+  ws.ws_ypixel = 0;
+
+  if (ioctl(fd, TIOCSWINSZ, &ws) < 0) {
+    return ThrowException(ErrnoException(errno, "ioctl"));
   }
 
-  return scope.Close(Integer::NewFromUnsigned(ws.ws_row));
+  return True();
 }
 
 
@@ -283,8 +300,8 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "isStdoutBlocking", IsStdoutBlocking);
   NODE_SET_METHOD(target, "isStdinBlocking", IsStdinBlocking);
   NODE_SET_METHOD(target, "setRawMode", SetRawMode);
-  NODE_SET_METHOD(target, "getColumns", GetColumns);
-  NODE_SET_METHOD(target, "getRows", GetRows);
+  NODE_SET_METHOD(target, "getWindowSize", GetWindowSize);
+  NODE_SET_METHOD(target, "setWindowSize", GetWindowSize);
   NODE_SET_METHOD(target, "isatty", IsATTY);
   NODE_SET_METHOD(target, "openpty", OpenPTY);
 
