@@ -49,7 +49,8 @@ server.stdout.on('data', function(s) {
   switch (state) {
     case 'WAIT-ACCEPT':
       if (/ACCEPT/g.test(serverStdoutBuffer)) {
-        startClient();
+        // Give s_server half a second to start up.
+        setTimeout(startClient, 500);
         state = 'WAIT-HELLO';
       }
       break;
