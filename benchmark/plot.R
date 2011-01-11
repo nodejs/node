@@ -65,7 +65,7 @@ png(filename = hist_png_filename, width = 480, height = 380, units = "px")
 qplot(ttime, data=data, geom="histogram",
       main="xxx",
       binwidth=1, xlab="response time (ms)",
-      xlim=c(0,50))
+      xlim=c(0,100))
 
 print(hist_png_filename)
 
