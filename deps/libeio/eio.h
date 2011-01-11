@@ -184,7 +184,7 @@ enum
 enum {
   EIO_PRI_MIN     = -4,
   EIO_PRI_MAX     =  4,
-  EIO_PRI_DEFAULT =  0
+  EIO_PRI_DEFAULT =  0,
 };
 
 /* eio request structure */

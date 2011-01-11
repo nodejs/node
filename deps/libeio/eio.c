@@ -104,7 +104,7 @@
 # include <signal.h>
 # include <dirent.h>
 
-#if _POSIX_MEMLOCK || _POSIX_MAPPED_FILES
+#if _POSIX_MEMLOCK || _POSIX_MEMLOCK_RANGE || _POSIX_MAPPED_FILES
 # include <sys/mman.h>
 #endif
 
@@ -845,12 +845,10 @@ eio__pwrite (int fd, void *buf, size_t count, off_t offset)
 }
 #endif
 
-#ifndef HAVE_FUTIMES
+#ifndef HAVE_UTIMES
 
 # undef utimes
-# undef futimes
-# define utimes(path,times)  eio__utimes  (path, times)
-# define futimes(fd,times)   eio__futimes (fd, times)
+# define utimes(path,times)  eio__utimes (path, times)
 
 static int
 eio__utimes (const char *filename, const struct timeval times[2])
@@ -867,6 +865,13 @@ eio__utimes (const char *filename, const struct timeval times[2])
   else
     return utime (filename, 0);
 }
+
+#endif
+
+#ifndef HAVE_FUTIMES
+
+# undef futimes
+# define futimes(fd,times) eio__futimes (fd, times)
 
 static int eio__futimes (int fd, const struct timeval tv[2])
 {
@@ -1479,17 +1484,8 @@ eio_page_align (void **addr, size_t *length)
 }
 
 #if !_POSIX_MEMLOCK
-# define eio__mlock(a,b) ((errno = ENOSYS), -1)
 # define eio__mlockall(a) ((errno = ENOSYS), -1)
 #else
-
-static int
-eio__mlock (void *addr, size_t length)
-{
-  eio_page_align (&addr, &length);
-
-  return mlock (addr, length);
-}
 
 static int
 eio__mlockall (int flags)
@@ -1509,6 +1505,20 @@ eio__mlockall (int flags)
 
   return mlockall (flags);
 }
+#endif
+
+#if !_POSIX_MEMLOCK_RANGE
+# define eio__mlock(a,b) ((errno = ENOSYS), -1)
+#else
+
+static int
+eio__mlock (void *addr, size_t length)
+{
+  eio_page_align (&addr, &length);
+
+  return mlock (addr, length);
+}
+
 #endif
 
 #if !(_POSIX_MAPPED_FILES && _POSIX_SYNCHRONIZED_IO)
@@ -1683,8 +1693,6 @@ static void eio_api_destroy (eio_req *req)
 
 static void eio_execute (etp_worker *self, eio_req *req)
 {
-  errno = 0;
-
   switch (req->type)
     {
       case EIO_READ:      ALLOC (req->size);
@@ -1801,7 +1809,6 @@ static void eio_execute (etp_worker *self, eio_req *req)
           else
             times = 0;
 
-
           req->result = req->type == EIO_FUTIME
                         ? futimes (req->int1, times)
                         : utimes  (req->ptr1, times);
@@ -1820,6 +1827,7 @@ static void eio_execute (etp_worker *self, eio_req *req)
         break;
 
       default:
+        errno = ENOSYS;
         req->result = -1;
         break;
     }
