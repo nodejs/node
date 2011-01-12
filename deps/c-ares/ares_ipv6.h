@@ -71,4 +71,8 @@ struct addrinfo
 #endif
 #endif
 
+/* Defined in ares_net_pton.c for no particular reason. */
+extern const struct ares_in6_addr ares_in6addr_any; /* :: */
+
+
 #endif /* ARES_IPV6_H */

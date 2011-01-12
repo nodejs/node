@@ -50,3 +50,21 @@ int aresx_uztosi(size_t uznum)
 #  pragma warning(pop)
 #endif
 }
+
+/*
+** signed long to signed int
+*/
+
+int aresx_sltosi(long slnum)
+{
+#ifdef __INTEL_COMPILER
+#  pragma warning(push)
+#  pragma warning(disable:810) /* conversion may lose significant bits */
+#endif
+
+  return (int)(slnum & (long) CARES_MASK_SINT);
+
+#ifdef __INTEL_COMPILER
+#  pragma warning(pop)
+#endif
+}

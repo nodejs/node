@@ -19,4 +19,6 @@
 
 int aresx_uztosi(size_t uznum);
 
+int aresx_sltosi(long slnum);
+
 #endif /* HEADER_CARES_NOWARN_H */

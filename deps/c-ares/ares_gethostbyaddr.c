@@ -265,11 +265,11 @@ static void ptr_rr_name(char *name, const struct ares_addr *addr)
   if (addr->family == AF_INET)
     {
        unsigned long laddr = ntohl(addr->addrV4.s_addr);
-       int a1 = (int)((laddr >> 24) & 0xff);
-       int a2 = (int)((laddr >> 16) & 0xff);
-       int a3 = (int)((laddr >> 8) & 0xff);
-       int a4 = (int)(laddr & 0xff);
-       sprintf(name, "%d.%d.%d.%d.in-addr.arpa", a4, a3, a2, a1);
+       unsigned long a1 = (laddr >> 24UL) & 0xFFUL;
+       unsigned long a2 = (laddr >> 16UL) & 0xFFUL;
+       unsigned long a3 = (laddr >>  8UL) & 0xFFUL;
+       unsigned long a4 = laddr & 0xFFUL;
+       sprintf(name, "%lu.%lu.%lu.%lu.in-addr.arpa", a4, a3, a2, a1);
     }
   else
     {

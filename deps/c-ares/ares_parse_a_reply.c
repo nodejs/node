@@ -202,6 +202,8 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
     }
 
   if (status == ARES_SUCCESS && naddrs == 0 && naliases == 0)
+    /* the check for naliases to be zero is to make sure CNAME responses
+       don't get caught here */
     status = ARES_ENODATA;
   if (status == ARES_SUCCESS)
     {

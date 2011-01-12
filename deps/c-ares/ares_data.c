@@ -145,7 +145,8 @@ void *ares_malloc_data(ares_datatype type)
         ptr->data.addr_node.next = NULL;
         ptr->data.addr_node.family = 0;
         memset(&ptr->data.addr_node.addrV6, 0,
-          sizeof(ptr->data.addr_node.addrV6));
+               sizeof(ptr->data.addr_node.addrV6));
+        break;
 
       default:
         free(ptr);

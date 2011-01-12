@@ -313,6 +313,20 @@ CARES_EXTERN void ares_destroy(ares_channel channel);
 
 CARES_EXTERN void ares_cancel(ares_channel channel);
 
+/* These next 3 configure local binding for the out-going socket
+ * connection.  Use these to specify source IP and/or network device
+ * on multi-homed systems.
+ */
+CARES_EXTERN void ares_set_local_ip4(ares_channel channel, unsigned int local_ip);
+
+/* local_ip6 should be 16 bytes in length */
+CARES_EXTERN void ares_set_local_ip6(ares_channel channel,
+                                     const unsigned char* local_ip6);
+
+/* local_dev_name should be null terminated. */
+CARES_EXTERN void ares_set_local_dev(ares_channel channel,
+                                     const char* local_dev_name);
+
 CARES_EXTERN void ares_set_socket_callback(ares_channel channel,
                                            ares_sock_create_callback callback,
                                            void *user_data);
@@ -496,6 +510,7 @@ CARES_EXTERN void ares_free_data(void *dataptr);
 
 CARES_EXTERN const char *ares_strerror(int code);
 
+/* TODO:  Hold port here as well. */
 struct ares_addr_node {
   struct ares_addr_node *next;
   int family;
@@ -507,6 +522,10 @@ struct ares_addr_node {
 
 CARES_EXTERN int ares_set_servers(ares_channel channel,
                                   struct ares_addr_node *servers);
+
+/* Incomming string format: host[:port][,host[:port]]... */
+CARES_EXTERN int ares_set_servers_csv(ares_channel channel,
+                                      const char* servers);
 
 CARES_EXTERN int ares_get_servers(ares_channel channel,
                                   struct ares_addr_node **servers);

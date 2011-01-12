@@ -287,7 +287,7 @@ static int single_domain(ares_channel channel, const char *name, char **s)
                 }
               free(line);
               fclose(fp);
-              if (status != ARES_SUCCESS)
+              if (status != ARES_SUCCESS && status != ARES_EOF)
                 return status;
             }
           else

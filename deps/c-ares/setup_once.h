@@ -252,6 +252,8 @@ struct timeval {
 #define ISBLANK(x)  (int)((((unsigned char)x) == ' ') || \
                           (((unsigned char)x) == '\t'))
 
+#define TOLOWER(x)  (tolower((int)  ((unsigned char)x)))
+
 
 /*
  * 'bool' exists on platforms with <stdbool.h>, i.e. C99 platforms.

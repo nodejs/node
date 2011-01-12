@@ -67,6 +67,7 @@
 #include "ares.h"
 #include "inet_net_pton.h"
 #include "ares_library_init.h"
+#include "ares_nowarn.h"
 #include "ares_private.h"
 
 #ifdef ANDROID
@@ -94,7 +95,7 @@ static int init_id_key(rc4_key* key,int key_data_len);
 
 #if !defined(WIN32) && !defined(WATT32)
 static int sortlist_alloc(struct apattern **sortlist, int *nsort, struct apattern *pat);
-static int ip_addr(const char *s, int len, struct in_addr *addr);
+static int ip_addr(const char *s, ssize_t len, struct in_addr *addr);
 static void natural_mask(struct apattern *pat);
 static int config_domain(ares_channel channel, char *str);
 static int config_lookup(ares_channel channel, const char *str,
@@ -129,8 +130,12 @@ int ares_init_options(ares_channel *channelptr, struct ares_options *options,
   if (env)
     curl_memdebug(env);
   env = getenv("CARES_MEMLIMIT");
-  if (env)
-    curl_memlimit(atoi(env));
+  if (env) {
+    char *endptr;
+    long num = strtol(env, &endptr, 10);
+    if((endptr != env) && (endptr == env + strlen(env)) && (num > 0))
+      curl_memlimit(num);
+  }
 #endif
 
   if (ares_library_initialized() != ARES_SUCCESS)
@@ -171,6 +176,10 @@ int ares_init_options(ares_channel *channelptr, struct ares_options *options,
 
   channel->last_server = 0;
   channel->last_timeout_processed = (time_t)now.tv_sec;
+
+  memset(&channel->local_dev_name, 0, sizeof(channel->local_dev_name));
+  channel->local_ip4 = 0;
+  memset(&channel->local_ip6, 0, sizeof(channel->local_ip6));
 
   /* Initialize our lists of queries */
   ares__init_list_head(&(channel->all_queries));
@@ -286,6 +295,10 @@ int ares_dup(ares_channel *dest, ares_channel src)
   (*dest)->sock_create_cb      = src->sock_create_cb;
   (*dest)->sock_create_cb_data = src->sock_create_cb_data;
 
+  strncpy((*dest)->local_dev_name, src->local_dev_name, sizeof(src->local_dev_name));
+  (*dest)->local_ip4 = src->local_ip4;
+  memcpy((*dest)->local_ip6, src->local_ip6, sizeof(src->local_ip6));
+
   /* Full name server cloning required when not all are IPv4 */
   for (i = 0; i < src->nservers; i++)
     {
@@ -393,10 +406,7 @@ int ares_save_options(ares_channel channel, struct ares_options *options,
     if (!options->sortlist)
       return ARES_ENOMEM;
     for (i = 0; i < channel->nsort; i++)
-    {
-      memcpy(&(options->sortlist[i]), &(channel->sortlist[i]),
-             sizeof(struct apattern));
-    }
+      options->sortlist[i] = channel->sortlist[i];
   }
   options->nsort = channel->nsort;
 
@@ -490,18 +500,15 @@ static int init_by_options(ares_channel channel,
     }
 
   /* copy sortlist */
-  if ((optmask & ARES_OPT_SORTLIST) && channel->nsort == -1)
-    {
-      channel->sortlist = malloc(options->nsort * sizeof(struct apattern));
-      if (!channel->sortlist)
-        return ARES_ENOMEM;
-      for (i = 0; i < options->nsort; i++)
-        {
-          memcpy(&(channel->sortlist[i]), &(options->sortlist[i]),
-                 sizeof(struct apattern));
-        }
-      channel->nsort = options->nsort;
-    }
+  if ((optmask & ARES_OPT_SORTLIST) && (channel->nsort == -1) &&
+      (options->nsort>0)) {
+    channel->sortlist = malloc(options->nsort * sizeof(struct apattern));
+    if (!channel->sortlist)
+      return ARES_ENOMEM;
+    for (i = 0; i < options->nsort; i++)
+      channel->sortlist[i] = options->sortlist[i];
+    channel->nsort = options->nsort;
+  }
 
   channel->optmask = optmask;
 
@@ -1254,16 +1261,16 @@ static int config_sortlist(struct apattern **sortlist, int *nsort,
       q = str;
       while (*q && *q != '/' && *q != ';' && !ISSPACE(*q))
         q++;
-      memcpy(ipbuf, str, (int)(q-str));
-      ipbuf[(int)(q-str)] = '\0';
+      memcpy(ipbuf, str, q-str);
+      ipbuf[q-str] = '\0';
       /* Find the prefix */
       if (*q == '/')
         {
           const char *str2 = q+1;
           while (*q && *q != ';' && !ISSPACE(*q))
             q++;
-          memcpy(ipbufpfx, str, (int)(q-str));
-          ipbufpfx[(int)(q-str)] = '\0';
+          memcpy(ipbufpfx, str, q-str);
+          ipbufpfx[q-str] = '\0';
           str = str2;
         }
       else
@@ -1291,13 +1298,13 @@ static int config_sortlist(struct apattern **sortlist, int *nsort,
             return ARES_ENOMEM;
         }
       /* See if it is just a regular IP */
-      else if (ip_addr(ipbuf, (int)(q-str), &pat.addrV4) == 0)
+      else if (ip_addr(ipbuf, q-str, &pat.addrV4) == 0)
         {
           if (ipbufpfx[0])
             {
-              memcpy(ipbuf, str, (int)(q-str));
-              ipbuf[(int)(q-str)] = '\0';
-              if (ip_addr(ipbuf, (int)(q - str), &pat.mask.addr4) != 0)
+              memcpy(ipbuf, str, q-str);
+              ipbuf[q-str] = '\0';
+              if (ip_addr(ipbuf, q-str, &pat.mask.addr4) != 0)
                 natural_mask(&pat);
             }
           else
@@ -1394,13 +1401,13 @@ static int set_options(ares_channel channel, const char *str)
         q++;
       val = try_option(p, q, "ndots:");
       if (val && channel->ndots == -1)
-        channel->ndots = atoi(val);
+        channel->ndots = aresx_sltosi(strtol(val, NULL, 10));
       val = try_option(p, q, "retrans:");
       if (val && channel->timeout == -1)
-        channel->timeout = atoi(val);
+        channel->timeout = aresx_sltosi(strtol(val, NULL, 10));
       val = try_option(p, q, "retry:");
       if (val && channel->tries == -1)
-        channel->tries = atoi(val);
+        channel->tries = aresx_sltosi(strtol(val, NULL, 10));
       val = try_option(p, q, "rotate");
       if (val && channel->rotate == -1)
         channel->rotate = 1;
@@ -1495,7 +1502,7 @@ static int sortlist_alloc(struct apattern **sortlist, int *nsort,
   return 1;
 }
 
-static int ip_addr(const char *ipbuf, int len, struct in_addr *addr)
+static int ip_addr(const char *ipbuf, ssize_t len, struct in_addr *addr)
 {
 
   /* Four octets and three periods yields at most 15 characters. */
@@ -1552,7 +1559,7 @@ static void randomize_key(unsigned char* key,int key_data_len)
 #ifdef RANDOM_FILE
   FILE *f = fopen(RANDOM_FILE, "rb");
   if(f) {
-    counter = fread(key, 1, key_data_len, f);
+    counter = aresx_uztosi(fread(key, 1, key_data_len, f));
     fclose(f);
   }
 #endif
@@ -1603,6 +1610,28 @@ unsigned short ares__generate_new_id(rc4_key* key)
   ares__rc4(key, (unsigned char *)&r, sizeof(r));
   return r;
 }
+
+void ares_set_local_ip4(ares_channel channel, unsigned int local_ip)
+{
+  channel->local_ip4 = local_ip;
+}
+
+/* local_ip6 should be 16 bytes in length */
+void ares_set_local_ip6(ares_channel channel,
+                        const unsigned char* local_ip6)
+{
+  memcpy(&channel->local_ip6, local_ip6, sizeof(channel->local_ip6));
+}
+
+/* local_dev_name should be null terminated. */
+void ares_set_local_dev(ares_channel channel,
+                        const char* local_dev_name)
+{
+  strncpy(channel->local_dev_name, local_dev_name,
+          sizeof(channel->local_dev_name));
+  channel->local_dev_name[sizeof(channel->local_dev_name) - 1] = 0;
+}
+
 
 void ares_set_socket_callback(ares_channel channel,
                               ares_sock_create_callback cb,

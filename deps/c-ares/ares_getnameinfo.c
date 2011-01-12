@@ -99,13 +99,15 @@ void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
   struct nameinfo_query *niquery;
   unsigned int port = 0;
 
-  /* Verify the buffer size */
-  if (salen == sizeof(struct sockaddr_in))
+  /* Validate socket address family and length */
+  if ((sa->sa_family == AF_INET) &&
+      (salen == sizeof(struct sockaddr_in)))
     {
       addr = (struct sockaddr_in *)sa;
       port = addr->sin_port;
     }
-  else if (salen == sizeof(struct sockaddr_in6))
+  else if ((sa->sa_family == AF_INET6) &&
+           (salen == sizeof(struct sockaddr_in6)))
     {
       addr6 = (struct sockaddr_in6 *)sa;
       port = addr6->sin6_port;
@@ -232,7 +234,7 @@ static void nameinfo_callback(void *arg, int status, int timeouts,
            char buf[255];
            char *domain;
            gethostname(buf, 255);
-           if ((domain = strchr(buf, '.')))
+           if ((domain = strchr(buf, '.')) != NULL)
              {
                char *end = ares_striendstr(host->h_name, domain);
                if (end)
@@ -243,6 +245,7 @@ static void nameinfo_callback(void *arg, int status, int timeouts,
       niquery->callback(niquery->arg, ARES_SUCCESS, niquery->timeouts,
                         (char *)(host->h_name),
                         service);
+      free(niquery);
       return;
     }
   /* We couldn't find the host, but it's OK, we can use the IP */
@@ -273,6 +276,7 @@ static void nameinfo_callback(void *arg, int status, int timeouts,
         }
       niquery->callback(niquery->arg, ARES_SUCCESS, niquery->timeouts, ipbuf,
                         service);
+      free(niquery);
       return;
     }
   niquery->callback(niquery->arg, status, niquery->timeouts, NULL, NULL);
@@ -354,11 +358,11 @@ static void append_scopeid(struct sockaddr_in6 *addr6, unsigned int flags,
 #ifdef HAVE_IF_INDEXTONAME
   int is_ll, is_mcll;
 #endif
-  char fmt_u[] = "%u";
-  char fmt_lu[] = "%lu";
+  static const char fmt_u[] = "%u";
+  static const char fmt_lu[] = "%lu";
   char tmpbuf[IF_NAMESIZE + 2];
   size_t bufl;
-  char *fmt = (sizeof(addr6->sin6_scope_id) > sizeof(unsigned int))?
+  const char *fmt = (sizeof(addr6->sin6_scope_id) > sizeof(unsigned int))?
     fmt_lu:fmt_u;
 
   tmpbuf[0] = '%';
@@ -406,8 +410,8 @@ static char *ares_striendstr(const char *s1, const char *s2)
   c2 = s2;
   while (c2 < s2+s2_len)
     {
-      lo1 = tolower(*c1);
-      lo2 = tolower(*c2);
+      lo1 = TOLOWER(*c1);
+      lo2 = TOLOWER(*c2);
       if (lo1 != lo2)
         return NULL;
       else

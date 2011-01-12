@@ -257,6 +257,13 @@ struct ares_channeldata {
   int nsort;
   char *lookups;
 
+  /* For binding to local devices and/or IP addresses.  Leave
+   * them null/zero for no binding.
+   */
+  char local_dev_name[32];
+  unsigned int local_ip4;
+  unsigned char local_ip6[16];
+
   int optmask; /* the option bitfield passed in at init time */
 
   /* Server addresses and communications state */
