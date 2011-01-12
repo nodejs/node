@@ -388,7 +388,6 @@
 
     // bootstrap main module.
     Module.runMain = function() {
-      Module._initPaths();
       // Load the main module--the command line argument.
       process.mainModule = new Module('.');
       process.mainModule.load(process.argv[1]);
@@ -413,6 +412,8 @@
     Module.requireRepl = function() {
       return Module._load('repl', '.');
     };
+
+    Module._initPaths();
 
     // backwards compatibility
     Module.Module = Module;
