@@ -30,13 +30,13 @@ socket0.on('timeout', function() {
   gotTimeout0 = true;
   var now = new Date();
   assert.ok(now - start < T + 500);
-  socket0.end();
+  socket0.destroy();
 });
 
 socket0.on('connect', function() {
   console.error("connect");
   gotConnect0 = true;
-  socket0.end();
+  socket0.destroy();
 });
 
 
@@ -51,13 +51,13 @@ socket1.on('timeout', function() {
   gotTimeout1 = true;
   var now = new Date();
   assert.ok(now - start < T + 500);
-  socket1.end();
+  socket1.destroy();
 });
 
 socket1.on('connect', function() {
   console.error("connect");
   gotConnect1 = true;
-  socket1.end();
+  socket1.destroy();
 });
 
 
