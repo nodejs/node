@@ -402,7 +402,7 @@
       }
 
       if (process.env['NODE_PATH']) {
-        paths = process.env['NODE_PATH'].split(':').concat(Module._paths);
+        paths = process.env['NODE_PATH'].split(':').concat(paths);
       }
 
       Module._paths = paths;
