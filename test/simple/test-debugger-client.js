@@ -126,23 +126,27 @@ function doTest(cb, done) {
 
   var didTryConnect = false;
   nodeProcess.stderr.setEncoding('utf8');
+  var b = ''
   nodeProcess.stderr.on('data', function (data) {
-    if (didTryConnect == false && /debugger/.test(data)) {
+    b += data;
+    if (didTryConnect == false && /debugger listening on port/.test(b)) {
       didTryConnect = true;
 
-      // Wait for some data before trying to connect
-      var c = new debug.Client();
-      process.stdout.write(">>> connecting...");
-      c.connect(debug.port)
-      c.on('ready', function () {
-        connectCount++;
-        console.log("ready!");
-        cb(c, function () {
-          console.error(">>> killing node process %d\n\n", nodeProcess.pid);
-          nodeProcess.kill();
-          done();
+      setTimeout(function() {
+        // Wait for some data before trying to connect
+        var c = new debug.Client();
+        process.stdout.write(">>> connecting...");
+        c.connect(debug.port)
+        c.on('ready', function () {
+          connectCount++;
+          console.log("ready!");
+          cb(c, function () {
+            console.error(">>> killing node process %d\n\n", nodeProcess.pid);
+            nodeProcess.kill();
+            done();
+          });
         });
-      });
+      }, 100);
     }
   });
 }
