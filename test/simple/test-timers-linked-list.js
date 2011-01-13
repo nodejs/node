@@ -11,6 +11,11 @@ var D = { name: "D" };
 
 
 L.init(list);
+L.init(A);
+L.init(B);
+L.init(C);
+L.init(D);
+
 assert.ok(L.isEmpty(list));
 assert.equal(null, L.peek(list));
 
