@@ -104,9 +104,10 @@ addTest(function (client, done) {
 addTest(function (client, done) {
   console.error("eval 2+2");
   client.reqEval("2+2", function (res) {
+    assert.ok(res.success);
     console.error(res);
-    assert.equal('4', res.text);
-    assert.equal(4, res.value);
+    assert.equal('4', res.body.text);
+    assert.equal(4, res.body.value);
     done();
   });
 });
