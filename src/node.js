@@ -576,6 +576,16 @@
     process.argv[0] = path.join(cwd, process.argv[0]);
   }
 
+  // To allow people to extend Node in different ways, this hook allows
+  // one to drop a file lib/_third_party_main.js into the build directory
+  // which will be executed instead of Node's normal loading.
+  if (process.binding('natives')['_third_party_main']) {
+    process.nextTick(function () {
+      Module._requireNative('_third_party_main');
+    });
+    return;
+  }
+
   if (process.argv[1]) {
     if (process.argv[1] == 'debug') {
       // Start the debugger agent
