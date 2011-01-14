@@ -145,12 +145,6 @@ void OS::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "getCPUs", GetCPUInfo);
   NODE_SET_METHOD(target, "getOSType", GetOSType);
   NODE_SET_METHOD(target, "getOSRelease", GetOSRelease);
-
-#ifdef __POSIX__
-  target->Set(String::New("isWindows"), False());
-#else // __MINGW32__
-  target->Set(String::New("isWindows"), True());
-#endif
 }
 
 
