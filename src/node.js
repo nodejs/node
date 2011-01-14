@@ -76,9 +76,78 @@
     process._needTickCallback();
   };
 
-  // This contains the source code for the files in lib/
-  // Like, natives.fs is the contents of lib/fs.js
-  var natives = process.binding('natives');
+  // Native modules don't need a full require function. So we can bootstrap
+  // most of the system with this mini module system.
+  var NativeModule = (function() {
+    function NativeModule(id) {
+      this.filename = id + '.js';
+      this.id = id;
+      this.exports = {};
+      this.loaded = false;
+    }
+
+    NativeModule._source = process.binding('natives');
+    NativeModule._cache = {};
+
+    NativeModule.require = function(id) {
+      if (id == 'module') {
+        return Module;
+      }
+
+      var cached = NativeModule.getCached(id);
+      if (cached) {
+        return cached.exports;
+      }
+
+      if (!NativeModule.exists(id)) {
+        throw new Error('No such native module ' + id);
+      }
+
+      var nativeModule = new NativeModule(id);
+
+      nativeModule.compile();
+      nativeModule.cache();
+
+      return nativeModule.exports;
+    };
+
+    NativeModule.getCached = function(id) {
+      return NativeModule._cache[id];
+    }
+
+    NativeModule.exists = function(id) {
+      return (id in NativeModule._source);
+    }
+
+    NativeModule.getSource = function(id) {
+      return NativeModule._source[id];
+    }
+
+    NativeModule.wrap = function(script) {
+      return NativeModule.wrapper[0] + script + NativeModule.wrapper[1];
+    };
+
+    NativeModule.wrapper = [
+      '(function (exports, require, module, __filename, __dirname) { ',
+      '\n});'
+    ];
+
+    NativeModule.prototype.compile = function() {
+      var source = NativeModule.getSource(this.id);
+      source = NativeModule.wrap(source);
+
+      var fn = runInThisContext(source, this.filename, true);
+      fn(this.exports, NativeModule.require, this, this.filename);
+
+      this.loaded = true;
+    };
+
+    NativeModule.prototype.cache = function() {
+      NativeModule._cache[this.id] = this;
+    };
+
+    return NativeModule;
+  })();
 
   // Module System
   var Module = (function() {
@@ -96,47 +165,14 @@
     // Set the environ variable NODE_MODULE_CONTEXTS=1 to make node load all
     // modules in thier own context.
     Module._contextLoad = (+process.env['NODE_MODULE_CONTEXTS'] > 0);
-    Module._internalCache = {};
     Module._cache = {};
     Module._extensions = {};
     Module._paths = [];
 
-    // Native modules don't need a full require function. So we can bootstrap
-    // most of the system with this mini-require.
-    Module._requireNative = function(id) {
-      if (id == 'module') {
-        return Module;
-      }
+    Module.wrapper = NativeModule.wrapper;
+    Module.wrap = NativeModule.wrap;
 
-      if (Module._internalCache[id]) {
-        return Module._internalCache[id].exports;
-      }
-
-      if (!natives[id]) {
-        throw new Error('No such native module ' + id);
-      }
-
-      var filename = id + '.js';
-
-      var fn = runInThisContext(Module.wrap(natives[id]), filename, true);
-
-      var m = {id: id, exports: {}};
-      fn(m.exports, Module._requireNative, m, filename);
-      m.loaded = true;
-      Module._internalCache[id] = m;
-      return m.exports;
-    };
-
-    Module.wrap = function(script) {
-      return Module.wrapper[0] + script + Module.wrapper[1];
-    };
-
-    Module.wrapper = [
-      '(function (exports, require, module, __filename, __dirname) { ',
-      '\n});'
-    ];
-
-    var path = Module._requireNative('path');
+    var path = NativeModule.require('path');
 
     Module._debug = function() {};
     if (process.env.NODE_DEBUG && /module/.test(process.env.NODE_DEBUG)) {
@@ -159,7 +195,7 @@
     //   -> a.<ext>
     //   -> a/index.<ext>
     Module._findPath = function(request, paths) {
-      var fs = Module._requireNative('fs');
+      var fs = NativeModule.require('fs');
       var exts = Object.keys(Module._extensions);
 
       if (request.charAt(0) === '/') {
@@ -201,7 +237,7 @@
     }
 
     Module._resolveLookupPaths = function(request, parent) {
-      if (natives[request]) {
+      if (NativeModule.exists(request)) {
         return [request, []];
       }
 
@@ -250,19 +286,17 @@
         return cachedModule.exports;
       }
 
-      // With natives id === request
-      // We deal with these first
-      if (natives[id]) {
+      if (NativeModule.exists(id)) {
         // REPL is a special case, because it needs the real require.
         if (id == 'repl') {
           var replModule = new Module('repl');
-          replModule._compile(natives.repl, 'repl.js');
-          Module._internalCache.repl = replModule;
+          replModule._compile(NativeModule.getSource('repl'), 'repl.js');
+          NativeModule._cache.repl = replModule;
           return replModule.exports;
         }
 
         debug('load native module ' + request);
-        return Module._requireNative(id);
+        return NativeModule.require(id);
       }
 
       var module = new Module(id, parent);
@@ -272,7 +306,7 @@
     };
 
     Module._resolveFilename = function(request, parent) {
-      if (natives[request]) {
+      if (NativeModule.exists(request)) {
         return [request, request];
       }
 
@@ -375,7 +409,7 @@
 
     // Native extension for .js
     Module._extensions['.js'] = function(module, filename) {
-      var content = Module._requireNative('fs').readFileSync(filename, 'utf8');
+      var content = NativeModule.require('fs').readFileSync(filename, 'utf8');
       module._compile(content, filename);
     };
 
@@ -424,7 +458,7 @@
 
   // Load events module in order to access prototype elements on process like
   // process.addListener.
-  var events = Module._requireNative('events');
+  var events = NativeModule.require('events');
 
   // Signal Handlers
   (function() {
@@ -471,22 +505,22 @@
 
 
   global.setTimeout = function() {
-    var t = Module._requireNative('timers');
+    var t = NativeModule.require('timers');
     return t.setTimeout.apply(this, arguments);
   };
 
   global.setInterval = function() {
-    var t = Module._requireNative('timers');
+    var t = NativeModule.require('timers');
     return t.setInterval.apply(this, arguments);
   };
 
   global.clearTimeout = function() {
-    var t = Module._requireNative('timers');
+    var t = NativeModule.require('timers');
     return t.clearTimeout.apply(this, arguments);
   };
 
   global.clearInterval = function() {
-    var t = Module._requireNative('timers');
+    var t = NativeModule.require('timers');
     return t.clearInterval.apply(this, arguments);
   };
 
@@ -498,8 +532,8 @@
     if (stdout) return stdout;
 
     var binding = process.binding('stdio'),
-        net = Module._requireNative('net'),
-        fs = Module._requireNative('fs'),
+        net = NativeModule.require('net'),
+        fs = NativeModule.require('fs'),
         fd = binding.stdoutFD;
 
     if (binding.isStdoutBlocking()) {
@@ -521,8 +555,8 @@
     if (stdin) return stdin;
 
     var binding = process.binding('stdio'),
-        net = Module._requireNative('net'),
-        fs = Module._requireNative('fs'),
+        net = NativeModule.require('net'),
+        fs = NativeModule.require('fs'),
         fd = binding.openStdin();
 
     if (binding.isStdinBlocking()) {
@@ -544,11 +578,11 @@
 
   // Lazy load console object
   global.__defineGetter__('console', function() {
-    return Module._requireNative('console');
+    return NativeModule.require('console');
   });
 
 
-  global.Buffer = Module._requireNative('buffer').Buffer;
+  global.Buffer = NativeModule.require('buffer').Buffer;
 
   process.exit = function(code) {
     process.emit('exit', code || 0);
@@ -563,7 +597,7 @@
 
 
   var cwd = process.cwd();
-  var path = Module._requireNative('path');
+  var path = NativeModule.require('path');
   var isWindows = process.platform === 'win32';
 
   // Make process.argv[0] and process.argv[1] into full paths, but only
@@ -579,9 +613,9 @@
   // To allow people to extend Node in different ways, this hook allows
   // one to drop a file lib/_third_party_main.js into the build directory
   // which will be executed instead of Node's normal loading.
-  if (process.binding('natives')['_third_party_main']) {
+  if (NativeModule.exists('_third_party_main')) {
     process.nextTick(function () {
-      Module._requireNative('_third_party_main');
+      NativeModule.require('_third_party_main');
     });
     return;
   }
@@ -589,7 +623,7 @@
   if (process.argv[1]) {
     if (process.argv[1] == 'debug') {
       // Start the debugger agent
-      var d = Module._requireNative('_debugger');
+      var d = NativeModule.require('_debugger');
       d.start();
       return;
     }
