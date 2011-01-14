@@ -43,7 +43,7 @@ object.  (Alternatively, one can use `this` instead of `exports`.) Variables
 local to the module will be private. In this example the variable `PI` is
 private to `circle.js`. The function `puts()` comes from the module `'util'`,
 which is a built-in module. Modules which are not prefixed by `'./'` are
-built-in module--more about this later.
+built-in modules--more about this later.
 
 ### Module Resolving
 
@@ -76,7 +76,7 @@ Additionally node will search for directories called `node_modules` starting
 at the current directory (of the module calling `require`) and upwards
 towards the root of the package tree.
 This feature makes it easy to have different module versions for different
-environments. Imagine the situation where you have a devopment environment
+environments. Imagine the situation where you have a development environment
 and a production environment each with a different version of the `foo`
 module: `projects/x/development/node_modules/foo` and
 `projects/x/production/node_modules/foo`.
