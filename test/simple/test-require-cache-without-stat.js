@@ -23,10 +23,11 @@ fs.stat = function() {
   return _stat.apply(this, arguments);
 };
 
-// Load the module a.js once. It should become cached.
+// Load the module 'a' and 'http' once. It should become cached.
 
-var m = common.fixturesDir + '/a.js';
+var m = common.fixturesDir + '/a';
 require(m);
+require('http');
 
 console.log("counterBefore = %d", counter);
 var counterBefore = counter;
@@ -35,6 +36,11 @@ var counterBefore = counter;
 // stat should not be called.
 for (var i = 0; i < 100; i++) {
   require(m);
+}
+
+// Do the same with a built-in module
+for (var i = 0; i < 100; i++) {
+  require('http');
 }
 
 console.log("counterAfter = %d", counter);
