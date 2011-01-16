@@ -1,4 +1,4 @@
-# git log --pretty='format:%ae %an' | tail -r |  awk -f updateAuthors.awk
+# git log --pretty='format:%ae %an' | tac | awk -f tools/updateAuthors.awk
 {
   if (!x[$1]++) {
     #print $0

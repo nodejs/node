@@ -1,3 +1,20 @@
+2011.01.16, Version 0.3.5 (unstable)
+
+* Built-in debugger improvements.
+
+* Add setsid, setuid, setgid options to child_process.spawn
+  (Isaac Schlueter)
+
+* tty module improvements.
+
+* Upgrade libev to 4.3, libeio to latest, c-ares to 1.7.4
+
+* Allow third party hooks before main module load.
+  (See 496be457b6a2bc5b01ec13644b9c9783976159b2)
+
+* Don't stat() on cached modules. (Felix Geisendörfer)
+
+
 2011.01.08, Version 0.3.4 (unstable)
 
 * Primordal mingw build (Bert Belder)
