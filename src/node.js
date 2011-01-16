@@ -166,6 +166,7 @@
     // modules in thier own context.
     Module._contextLoad = (+process.env['NODE_MODULE_CONTEXTS'] > 0);
     Module._cache = {};
+    Module._pathCache = {};
     Module._extensions = {};
     Module._paths = [];
 
@@ -216,22 +217,41 @@
       // given a path check a the file exists with any of the set extensions
       function tryExtensions(p, extension) {
         for (var i = 0, EL = exts.length; i < EL; i++) {
-          f = tryFile(p + exts[i]);
-          if (f) { return f; }
+          var filename = tryFile(p + exts[i]);
+
+          if (filename) {
+            return filename;
+          }
         }
         return false;
       };
 
+      var cacheKey = JSON.stringify({request: request, paths: paths});
+      if (Module._pathCache[cacheKey]) {
+        return Module._pathCache[cacheKey];
+      }
+
       // For each path
       for (var i = 0, PL = paths.length; i < PL; i++) {
-        var p = paths[i],
-            // try to join the request to the path
-            f = tryFile(path.resolve(p, request)) ||
-            // try it with each of the extensions
-            tryExtensions(path.resolve(p, request)) ||
-            // try it with each of the extensions at "index"
-            tryExtensions(path.resolve(p, request, 'index'));
-        if (f) { return f; }
+        var basePath = path.resolve(paths[i], request);
+
+        // try to join the request to the path
+        var filename = tryFile(basePath);
+
+        if (!filename) {
+          // try it with each of the extensions
+          filename = tryExtensions(basePath)
+        }
+
+        if (!filename) {
+          // try it with each of the extensions at "index"
+          filename = tryExtensions(path.resolve(basePath, 'index'))
+        }
+
+        if (filename) {
+          Module._pathCache[cacheKey] = filename;
+          return filename;
+        }
       }
       return false;
     }

@@ -24,9 +24,8 @@ fs.stat = function() {
 };
 
 // Load the module 'a' and 'http' once. It should become cached.
-
-var m = common.fixturesDir + '/a';
-require(m);
+require.paths.push(common.fixturesDir);
+require('a');
 require('http');
 
 console.log("counterBefore = %d", counter);
@@ -35,7 +34,7 @@ var counterBefore = counter;
 // Now load the module a bunch of times.
 // stat should not be called.
 for (var i = 0; i < 100; i++) {
-  require(m);
+  require('a');
 }
 
 // Do the same with a built-in module
