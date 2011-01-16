@@ -167,7 +167,7 @@
       }
 
       // check if the file exists and is not a directory
-      var tryFile = function(requestPath) {
+      function tryFile(requestPath) {
         try {
           var stats = fs.statSync(requestPath);
           if (stats && !stats.isDirectory()) {
@@ -178,7 +178,7 @@
       };
 
       // given a path check a the file exists with any of the set extensions
-      var tryExtensions = function(p, extension) {
+      function tryExtensions(p, extension) {
         for (var i = 0, EL = exts.length; i < EL; i++) {
           f = tryFile(p + exts[i]);
           if (f) { return f; }
