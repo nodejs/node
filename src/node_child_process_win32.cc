@@ -50,16 +50,18 @@ static inline WCHAR* search_path_join_test(
   WCHAR *result, *result_pos;
 
   if (dir_len >= 1 && (dir[0] == L'/' || dir[0] == L'\\')) {
-    // It's a full path with drive letter, don't use cwd
-    cwd_len = 0;
-  } else if (dir_len == 2 && dir[1] == L':') {
+    // It's a full path without drive letter, use cwd's drive letter only
+    cwd_len = 2;
+  } else if (dir_len >= 2 && dir[1] == L':' &&
+      (dir_len < 3 || (dir[2] != L'/' && dir[2] != L'\\'))) {
     // It's a relative path with drive letter (ext.g. D:../some/file)
-    // Replace dir by full cwd if it points to the same drive,
+    // Replace drive letter in dir by full cwd if it points to the same drive,
     // otherwise use the dir only.
     if (cwd_len < 2 || _wcsnicmp(cwd, dir, 2) != 0) {
       cwd_len = 0;
     } else {
-      dir_len = 0;
+      dir += 2;
+      dir_len -= 2;
     }
   } else if (dir_len > 2 && dir[1] == L':') {
     // It's an absolute path with drive letter
@@ -327,7 +329,7 @@ void ChildProcess::close_stdio_handles(ChildProcess *child) {
 
 
 // Called from the main thread
-void ChildProcess::notify_exit(ev_async *ev, int revent) {
+void ChildProcess::notify_exit(EV_P_ ev_async *ev, int revent) {
   // Get the child process, then release the lock
   ChildProcess *child = watcher_status.child;
 
@@ -355,7 +357,6 @@ void ChildProcess::notify_exit(ev_async *ev, int revent) {
     }
 
     // Close and unset the process handle
-    EnterCriticalSection(&child->info_lock_);
     CloseHandle(child->process_handle_);
     child->process_handle_ = NULL;
     child->pid_ = 0;
@@ -363,7 +364,6 @@ void ChildProcess::notify_exit(ev_async *ev, int revent) {
 
   LeaveCriticalSection(&child->info_lock_);
 
-  // The process never even started
   child->OnExit(exit_code);
 }
 
@@ -381,7 +381,7 @@ void ChildProcess::notify_spawn_failure(ChildProcess *child) {
 
   watcher_status.child = child;
 
-  ev_async_send(&watcher_status.async_watcher);
+  ev_async_send(EV_DEFAULT_UC_ &watcher_status.async_watcher);
 }
 
 
@@ -401,7 +401,7 @@ void CALLBACK ChildProcess::watch_wait_callback(void *data,
   assert(result == WAIT_OBJECT_0);
 
   watcher_status.child = child;
-  ev_async_send(&watcher_status.async_watcher);
+  ev_async_send(EV_DEFAULT_UC_ &watcher_status.async_watcher);
 }
 
 
@@ -415,7 +415,7 @@ inline void ChildProcess::watch(ChildProcess *child) {
   }
 
   // We must retain the lock here because we don't want the RegisterWait
-  // to complete before the waithandle is set to the child process.
+  // to complete before the wait handle is set to the child process.
   RegisterWaitForSingleObject(&child->wait_handle_, child->process_handle_,
       watch_wait_callback, (void*)child, INFINITE,
       WT_EXECUTEINWAITTHREAD | WT_EXECUTEONLYONCE);
@@ -480,54 +480,57 @@ int ChildProcess::do_spawn(eio_req *req) {
   WCHAR* application_path = search_path(child->application_, child->cwd_,
       child->path_, child->path_ext_);
 
-  STARTUPINFOW startup;
-  PROCESS_INFORMATION info;
+  if (application_path) {
+    STARTUPINFOW startup;
+    PROCESS_INFORMATION info;
 
-  startup.cb = sizeof(startup);
-  startup.lpReserved = NULL;
-  startup.lpDesktop = NULL;
-  startup.lpTitle = NULL;
-  startup.dwFlags = STARTF_USESTDHANDLES;
-  startup.cbReserved2 = 0;
-  startup.lpReserved2 = NULL;
-  startup.hStdInput = child->stdio_handles_[0];
-  startup.hStdOutput = child->stdio_handles_[1];
-  startup.hStdError = child->stdio_handles_[2];
+    startup.cb = sizeof(startup);
+    startup.lpReserved = NULL;
+    startup.lpDesktop = NULL;
+    startup.lpTitle = NULL;
+    startup.dwFlags = STARTF_USESTDHANDLES;
+    startup.cbReserved2 = 0;
+    startup.lpReserved2 = NULL;
+    startup.hStdInput = child->stdio_handles_[0];
+    startup.hStdOutput = child->stdio_handles_[1];
+    startup.hStdError = child->stdio_handles_[2];
 
-  EnterCriticalSection(&child->info_lock_);
+    EnterCriticalSection(&child->info_lock_);
 
-  if (!child->kill_me_) {
-    // Try start the process
-    BOOL success = CreateProcessW(
-      application_path,
-      child->arguments_,
-      NULL,
-      NULL,
-      1,
-      CREATE_UNICODE_ENVIRONMENT,
-      child->env_win_,
-      child->cwd_,
-      &startup,
-      &info
-    );
+    if (!child->kill_me_) {
+      // Try start the process
+      BOOL success = CreateProcessW(
+        application_path,
+        child->arguments_,
+        NULL,
+        NULL,
+        1,
+        CREATE_UNICODE_ENVIRONMENT,
+        child->env_win_,
+        child->cwd_,
+        &startup,
+        &info
+      );
 
-    if (success) {
-      child->process_handle_ = info.hProcess;
-      child->pid_ = GetProcessId(info.hProcess);
-      child->did_start_ = true;
-      watch(child);
+      if (success) {
+        child->process_handle_ = info.hProcess;
+        child->pid_ = GetProcessId(info.hProcess);
+        child->did_start_ = true;
+        watch(child);
 
-      // Not interesting
-      CloseHandle(info.hThread);
+        // Not interesting
+        CloseHandle(info.hThread);
 
-      return 0;
+        LeaveCriticalSection(&child->info_lock_);
+        return 0;
+      }
     }
+
+    LeaveCriticalSection(&child->info_lock_);
   }
 
-  // kill_me set or process failed to start
-  LeaveCriticalSection(&child->info_lock_);
+  // not found, kill_me set or process failed to start
   notify_spawn_failure(child);
-
   return 0;
 }
 
@@ -560,23 +563,23 @@ int ChildProcess::after_spawn(eio_req *req) {
 // Called from the main thread while eio/wait threads may still be busy with
 // the process
 int ChildProcess::do_kill(ChildProcess *child, int sig) {
+  int rv = 0;
+
   EnterCriticalSection(&child->info_lock_);
 
   child->exit_signal_ = sig;
 
   if (child->did_start_) {
     // On windows killed processes normally return 1
-    if (TerminateProcess(child->process_handle_, 1) != 0) {
-      return 0;
-    } else {
-      return GetLastError();
-    }
+    if (!TerminateProcess(child->process_handle_, 1))
+      rv = -1;
   } else {
     child->kill_me_ = true;
-    return 0;
   }
 
   LeaveCriticalSection(&child->info_lock_);
+
+  return rv;
 }
 
 
@@ -609,57 +612,58 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
   ChildProcess *child = ObjectWrap::Unwrap<ChildProcess>(args.Holder());
 
   // Copy appplication name
-  String::Value application(args[0]->ToString());
-  child->application_ = _wcsdup((WCHAR*)*application);
+  Handle<String> app_handle = args[0]->ToString();
+  int app_len = app_handle->Length();
+  String::Value app(app_handle);
+  child->application_ = new WCHAR[app_len + 1];
+  wcsncpy(child->application_, (WCHAR*)*app, app_len + 1);
 
   /*
    * Copy second argument args[1] into a c-string called argv.
    * On windows command line arguments are all quoted and concatenated to
-   * one string.
-   * Assuming that all arguments must be wrapped in quotes,
+   * one string. The executable name must be prepended. This is not really
+   * required by windows but if you don't do this programs that rely on
+   * argv[0] being the executable misbehave.
+   * Assuming that executable plus all arguments must be wrapped in quotes,
    * every character needs to be quoted with a backslash,
    * and every argument is followed by either a space or a nul char,
-   * the maximum required buffer size is Σ[arg1..argc](2 * length + 3).
+   * the maximum required buffer size is Σ[exe and args](2 * length + 3).
    */
   Local<Array> cmd_args_handle = Local<Array>::Cast(args[1]);
   int cmd_argc = cmd_args_handle->Length();
 
-  if (cmd_argc > 0) {
-	// Compute required buffer
-    int max_buf = cmd_argc * 3,
-        i;
-	for (i = 0; i < cmd_argc; i++) {
-	  Local<String> arg_handle =
-	      cmd_args_handle->Get(Integer::New(i))->ToString();
-	  max_buf += 2 * arg_handle->Length();
-	}
-
-	child->arguments_ = new WCHAR[max_buf];
-	WCHAR *pos = child->arguments_;
-	for (i = 0; i < cmd_argc - 1; i++) {
-	  String::Value arg(cmd_args_handle->Get(Integer::New(i))->ToString());
-	  pos = quote_cmd_arg((WCHAR*)*arg, pos, L' ');
-	}
-	String::Value arg(cmd_args_handle->Get(Integer::New(i))->ToString());
-	quote_cmd_arg((WCHAR*)*arg, pos, L'\0');
-
-  } else {
-    // No arguments
-    child->arguments_ = _wcsdup(L"\0");
+  // Compute required buffer
+  int max_buf = (1 + cmd_argc) * 3 + app_len * 2,
+      i;
+  for (i = 0; i < cmd_argc; i++) {
+    Local<String> arg_handle =
+        cmd_args_handle->Get(Integer::New(i))->ToString();
+    max_buf += arg_handle->Length() * 2;
   }
 
-  // Copy command-line arguments
+  child->arguments_ = new WCHAR[max_buf];
+  WCHAR *pos = child->arguments_;
+  pos = quote_cmd_arg((WCHAR*)*app, pos, cmd_argc ? L' ' : L'\0');
+  for (i = 0; i < cmd_argc; i++) {
+    String::Value arg(cmd_args_handle->Get(Integer::New(i))->ToString());
+    pos = quote_cmd_arg((WCHAR*)*arg, pos, (i < cmd_argc - 1) ? L' ' : L'\0');
+  }
+
+  // Current working directory
   Local<String>cwd_handle = Local<String>::Cast(args[2]);
-  if (cwd_handle->Length() > 0) {
+  int cwd_len = cwd_handle->Length();
+  if (cwd_len > 0) {
     // Cwd was specified
-    String::Value cwd(args[2]);
-    child->cwd_ = _wcsdup((WCHAR*)*cwd);
+    String::Value cwd(cwd_handle);
+    child->cwd_ = new WCHAR[cwd_len + 1];
+    wcsncpy(child->cwd_, (WCHAR*)*cwd, cwd_len + 1);
   } else {
     // Cwd not specified
     int chars = GetCurrentDirectoryW(0, NULL);
     if (!chars) {
       winapi_perror("GetCurrentDirectoryW");
-      child->cwd_ = _wcsdup(L"");
+      child->cwd_ = new WCHAR[0];
+      child->cwd_[0] = '\0';
     } else {
       child->cwd_ = new WCHAR[chars];
       GetCurrentDirectoryW(chars, child->cwd_);
@@ -765,10 +769,11 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
       // Use this custom fd
       HANDLE custom_handle = (HANDLE)_get_osfhandle(custom_fd);
 
-      // Make handle inheritable
-      if (!SetHandleInformation(child_handles[i], HANDLE_FLAG_INHERIT,
-          HANDLE_FLAG_INHERIT))
-        winapi_perror("SetHandleInformation");
+      // Make handle inheritable, don't care it it fails
+      // It may fail for certain types of handles - but always try to
+      // spawn; it'll still work for e.g. console handles
+      SetHandleInformation(custom_handle, HANDLE_FLAG_INHERIT,
+          HANDLE_FLAG_INHERIT);
 
       has_custom_fds[i] = true;
       child_handles[i] = custom_handle;
@@ -784,6 +789,9 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
   result->Set(1, Integer::New(parent_fds[1]));
   assert(parent_fds[2] >= 0);
   result->Set(2, Integer::New(parent_fds[2]));
+
+  // Grab a reference so it doesn't get GC'ed
+  child->Ref();
 
   eio_custom(do_spawn, EIO_PRI_DEFAULT, after_spawn, (void*)child);
 
@@ -818,6 +826,9 @@ Handle<Value> ChildProcess::Kill(const Arguments& args) {
 // process, so there's no need to lock here.
 void ChildProcess::OnExit(int status) {
   HandleScope scope;
+
+  // Unref() the child, as it's no longer used by threads
+  Unref();
 
   handle_->Set(pid_symbol, Null());
 
@@ -859,7 +870,7 @@ void ChildProcess::Initialize(Handle<Object> target) {
 
   target->Set(String::NewSymbol("ChildProcess"), t->GetFunction());
 
-  ev_async_init(&watcher_status.async_watcher, notify_exit);
+  ev_async_init(EV_DEFAULT_UC_ &watcher_status.async_watcher, notify_exit);
   watcher_status.lock = CreateSemaphore(NULL, 1, 1, NULL);
 }
 
