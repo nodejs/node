@@ -55,9 +55,6 @@
   If socket() fails it returns -1 so _open_osfhandle fails as well, but and we'll always return/throw EBADF.
   If _open_osfhandle fails but socket doesn't, a stray handle is left open. It should be fixed.
 
-- Check error number mappings.
-  Winsock errnos are sometimes different. Subtracting WSABASEERR from errnos works in most cases.
-
 - Think about `make install`
 
 - Extensions

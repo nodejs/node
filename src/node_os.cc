@@ -28,10 +28,11 @@ static Handle<Value> GetHostname(const Arguments& args) {
   int r = gethostname(s, 255);
 
   if (r < 0) {
-#ifdef __MINGW32__
-    errno = WSAGetLastError() - WSABASEERR;
-#endif
+#ifdef __POSIX__
     return ThrowException(ErrnoException(errno, "gethostname"));
+#else // __MINGW32__
+    return ThrowException(ErrnoException(WSAGetLastError(), "gethostname"));
+#endif // __MINGW32__
   }
 
   return scope.Close(String::New(s));
