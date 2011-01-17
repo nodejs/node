@@ -554,9 +554,12 @@
     var binding = process.binding('stdio'),
         net = NativeModule.require('net'),
         fs = NativeModule.require('fs'),
+        tty = NativeModule.require('tty'),
         fd = binding.stdoutFD;
 
-    if (binding.isStdoutBlocking()) {
+    if (binding.isatty(fd)) {
+      stdout = new tty.WriteStream(fd);
+    } else if (binding.isStdoutBlocking()) {
       stdout = new fs.WriteStream(null, {fd: fd});
     } else {
       stdout = new net.Stream(fd);
@@ -577,9 +580,12 @@
     var binding = process.binding('stdio'),
         net = NativeModule.require('net'),
         fs = NativeModule.require('fs'),
+        tty = NativeModule.require('tty'),
         fd = binding.openStdin();
 
-    if (binding.isStdinBlocking()) {
+    if (binding.isatty(fd)) {
+      stdin = new tty.ReadStream(fd);
+    } else if (binding.isStdinBlocking()) {
       stdin = new fs.ReadStream(null, {fd: fd});
     } else {
       stdin = new net.Stream(fd);
