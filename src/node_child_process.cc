@@ -240,7 +240,8 @@ Handle<Value> ChildProcess::Kill(const Arguments& args) {
   assert(child);
 
   if (child->pid_ < 1) {
-    return ThrowException(Exception::Error(String::New("No such process")));
+    // nothing to do
+    return False();
   }
 
   int sig = SIGTERM;
@@ -249,15 +250,15 @@ Handle<Value> ChildProcess::Kill(const Arguments& args) {
     if (args[0]->IsNumber()) {
       sig = args[0]->Int32Value();
     } else {
-      return ThrowException(Exception::Error(String::New("Bad argument.")));
+      return ThrowException(Exception::TypeError(String::New("Bad argument.")));
     }
   }
 
   if (child->Kill(sig) != 0) {
-    return ThrowException(Exception::Error(String::New(strerror(errno))));
+    return ThrowException(ErrnoException(errno, "Kill"));
   }
 
-  return Undefined();
+  return True();
 }
 
 

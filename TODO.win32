@@ -23,9 +23,6 @@
     block; on windows a libeio thread is used to call CreateProcess.
     So this can't really be fixed, but it could be worked around by adding a
     'spawn' or 'pid' event.
-  * kill() doesn't work when the pid is not available yet. All the plumbing
-    is there to make it work, but lib/child_process.js just doesn't call
-    ChildProcess::Kill() as long as the pid is not known.
   * passing socket custom_fds is not supported
   * child_process.exec() only works on systems with msys installed.
     It's because it relies on the 'sh' shell. The default windows shell
