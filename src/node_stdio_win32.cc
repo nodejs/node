@@ -221,6 +221,40 @@ static Handle<Value> IsStdoutBlocking(const Arguments& args) {
 }
 
 
+static Handle<Value> WriteTTY(const Arguments& args) {
+  HandleScope scope;
+  int fd, len;
+  DWORD written;
+  HANDLE handle;
+
+  if (!args[0]->IsNumber())
+    THROW_BAD_ARGS
+
+  fd = args[0]->IntegerValue();
+  handle = (HANDLE)_get_osfhandle(fd);
+
+  Handle<String> data = args[1]->ToString();
+  String::Value buf(data);
+  len = data->Length();
+
+  if (!WriteConsoleW(handle, reinterpret_cast<void*>(*buf), len, &written, NULL))
+    return ThrowException(ErrnoException(GetLastError(), "WriteConsole"));
+
+  return scope.Close(Integer::New(written));
+}
+
+
+static Handle<Value> CloseTTY(const Arguments& args) {
+  HandleScope scope;
+
+  int fd = args[0]->IntegerValue();
+  if (close(fd) < 0)
+    return ThrowException(ErrnoException(errno, "close"));
+
+  return Undefined();
+}
+
+
 // process.binding('stdio').getWindowSize(fd);
 // returns [row, col]
 static Handle<Value> GetWindowSize (const Arguments& args) {
@@ -242,6 +276,120 @@ static Handle<Value> GetWindowSize (const Arguments& args) {
   ret->Set(1, Integer::New(static_cast<int>(info.dwSize.X)));
 
   return scope.Close(ret);
+}
+
+
+/* moveCursor(fd, dx, dy) */
+/* cursorTo(fd, x, y) */
+template<bool relative>
+static Handle<Value> SetCursor(const Arguments& args) {
+  HandleScope scope;
+  int fd;
+  COORD size, pos;
+  HANDLE handle;
+  CONSOLE_SCREEN_BUFFER_INFO info;
+
+  if (!args[0]->IsNumber())
+    THROW_BAD_ARGS
+  fd = args[0]->IntegerValue();
+  handle = (HANDLE)_get_osfhandle(fd);
+
+  if (!GetConsoleScreenBufferInfo(handle, &info))
+    return ThrowException(ErrnoException(GetLastError(), "GetConsoleScreenBufferInfo"));
+
+  pos = info.dwCursorPosition;
+  if (relative) {
+    if (args[1]->IsNumber())
+      pos.X += static_cast<short>(args[1]->Int32Value());
+    if (args[2]->IsNumber())
+      pos.Y += static_cast<short>(args[2]->Int32Value());
+  } else {
+    if (args[1]->IsNumber())
+      pos.X = static_cast<short>(args[1]->Int32Value());
+    if (args[2]->IsNumber())
+      pos.Y = static_cast<short>(args[2]->Int32Value());
+  }
+
+  size = info.dwSize;
+  if (pos.X >= size.X) pos.X = size.X - 1;
+  if (pos.X < 0) pos.X = 0;
+  if (pos.Y >= size.Y) pos.Y = size.Y - 1;
+  if (pos.Y < 0) pos.Y = 0;
+
+  if (!SetConsoleCursorPosition(handle, pos))
+    return ThrowException(ErrnoException(GetLastError(), "SetConsoleCursorPosition"));
+
+  return Undefined();
+}
+
+
+/*
+ * ClearLine(fd, direction)
+ * direction:
+ *   -1: from cursor leftward
+ *    0: entire line
+ *    1: from cursor to right
+ */
+static Handle<Value> ClearLine(const Arguments& args) {
+  HandleScope scope;
+  int fd, dir;
+  short x1, x2, count;
+  WCHAR *buf;
+  COORD pos;
+  HANDLE handle;
+  CONSOLE_SCREEN_BUFFER_INFO info;
+  DWORD res, written, mode, oldmode;
+
+  if (!args[0]->IsNumber())
+    THROW_BAD_ARGS
+  fd = args[0]->IntegerValue();
+  handle = (HANDLE)_get_osfhandle(fd);
+
+  if (args[1]->IsNumber())
+    dir = args[1]->IntegerValue();
+
+  if (!GetConsoleScreenBufferInfo(handle, &info))
+    return ThrowException(ErrnoException(GetLastError(), "GetConsoleScreenBufferInfo"));
+
+  x1 = dir <= 0 ? 0 : info.dwCursorPosition.X;
+  x2 = dir >= 0 ? info.dwSize.X - 1: info.dwCursorPosition.X;
+  count = x2 - x1 + 1;
+
+  if (x1 != info.dwCursorPosition.X) {
+    pos.Y = info.dwCursorPosition.Y;
+    pos.X = x1;
+    if (!SetConsoleCursorPosition(handle, pos))
+      return ThrowException(ErrnoException(GetLastError(), "SetConsoleCursorPosition"));
+  }
+
+  if (!GetConsoleMode(handle, &oldmode))
+    return ThrowException(ErrnoException(GetLastError(), "GetConsoleMode"));
+
+  // Disable wrapping at eol because otherwise windows scrolls the console
+  // when clearing the last line of the console
+  mode = oldmode & ~ENABLE_WRAP_AT_EOL_OUTPUT;
+  if (!SetConsoleMode(handle, mode))
+    return ThrowException(ErrnoException(GetLastError(), "SetConsoleMode"));
+
+  buf = new WCHAR[count];
+  for (short i = 0; i < count; i++) {
+    buf[i] = L' ';
+  }
+
+  res = WriteConsoleW(handle, buf, count, &written, NULL);
+
+  delete[] buf;
+
+  if (!res)
+    return ThrowException(ErrnoException(GetLastError(), "WriteConsole"));
+
+  if (!SetConsoleCursorPosition(handle, info.dwCursorPosition))
+    return ThrowException(ErrnoException(GetLastError(), "SetConsoleCursorPosition"));
+
+  if (!SetConsoleMode(handle, oldmode))
+    return ThrowException(ErrnoException(GetLastError(), "SetConsoleMode"));
+
+  return Undefined();
 }
 
 
@@ -503,6 +651,11 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "isStdinBlocking", IsStdinBlocking);
   NODE_SET_METHOD(target, "setRawMode", SetRawMode);
   NODE_SET_METHOD(target, "openStdin", OpenStdin);
+  NODE_SET_METHOD(target, "writeTTY", WriteTTY);
+  NODE_SET_METHOD(target, "closeTTY", CloseTTY);
+  NODE_SET_METHOD(target, "moveCursor", SetCursor<true>);
+  NODE_SET_METHOD(target, "cursorTo", SetCursor<false>);
+  NODE_SET_METHOD(target, "clearLine", ClearLine);
   NODE_SET_METHOD(target, "getWindowSize", GetWindowSize);
   NODE_SET_METHOD(target, "initTTYWatcher", InitTTYWatcher);
   NODE_SET_METHOD(target, "destroyTTYWatcher", DestroyTTYWatcher);
