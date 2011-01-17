@@ -448,7 +448,7 @@ static Handle<Value> Connect(const Arguments& args) {
 #else // __MINGW32__
   int r = connect(_get_osfhandle(fd), addr, addrlen);
 
-  if (r == INVALID_SOCKET) {
+  if (r == SOCKET_ERROR) {
     int wsaErrno = WSAGetLastError();
     if (wsaErrno != WSAEWOULDBLOCK && wsaErrno != WSAEINPROGRESS) {
       return ThrowException(ErrnoException(wsaErrno, "connect"));
@@ -642,7 +642,7 @@ static Handle<Value> Accept(const Arguments& args) {
 #else // __MINGW32__
   int peer_handle = accept(_get_osfhandle(fd), (struct sockaddr*) &address_storage, &len);
 
-  if (peer_handle == INVALID_SOCKET) {
+  if (peer_handle == SOCKET_ERROR) {
     int wsaErrno = WSAGetLastError();
     if (wsaErrno == WSAEWOULDBLOCK) return scope.Close(Null());
     return ThrowException(ErrnoException(wsaErrno, "accept"));

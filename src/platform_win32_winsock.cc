@@ -229,10 +229,10 @@ int wsa_socketpair(int af, int type, int proto, SOCKET sock[2]) {
   if ((sock[1] = accept(listen_sock, 0, 0)) == INVALID_SOCKET)
     goto error;
 
-  if (getpeername(sock[0], (SOCKADDR*)&addr1, &addr1_len) == INVALID_SOCKET)
+  if (getpeername(sock[0], (SOCKADDR*)&addr1, &addr1_len) == SOCKET_ERROR)
     goto error;
 
-  if (getsockname(sock[1], (SOCKADDR*)&addr2, &addr2_len) == INVALID_SOCKET)
+  if (getsockname(sock[1], (SOCKADDR*)&addr2, &addr2_len) == SOCKET_ERROR)
     goto error;
 
   if (addr1_len != addr2_len
@@ -308,10 +308,10 @@ int wsa_sync_async_socketpair(int af, int type, int proto, SOCKET *syncSocket, S
   if ((sock2 = accept(listen_sock, 0, 0)) == INVALID_SOCKET)
     goto error;
 
-  if (getpeername(sock1, (SOCKADDR*)&addr1, &addr1_len) == INVALID_SOCKET)
+  if (getpeername(sock1, (SOCKADDR*)&addr1, &addr1_len) == SOCKET_ERROR)
     goto error;
 
-  if (getsockname(sock2, (SOCKADDR*)&addr2, &addr2_len) == INVALID_SOCKET)
+  if (getsockname(sock2, (SOCKADDR*)&addr2, &addr2_len) == SOCKET_ERROR)
     goto error;
 
   if (addr1_len != addr2_len
@@ -425,7 +425,7 @@ inline static void wsa_get_extension_function(SOCKET socket, GUID guid, void **t
 inline static void wsa_init_extension_functions() {
   SOCKET dummy = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
-  if (dummy == SOCKET_ERROR) {
+  if (dummy == INVALID_SOCKET) {
     memset((void*)&wsexf, 0, sizeof(wsexf));
     wsa_perror("socket");
     return;
