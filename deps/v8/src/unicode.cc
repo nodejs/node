@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// This file was generated at 2010-07-30 14:07:24.988557
+// This file was generated at 2011-01-03 10:57:02.088925
 
 #include "unicode-inl.h"
 #include <stdlib.h>
@@ -35,6 +35,7 @@ namespace unibrow {
 
 static const int kStartBit = (1 << 30);
 static const int kChunkBits = (1 << 13);
+static const uchar kSentinel = static_cast<uchar>(-1);
 
 /**
  * \file
@@ -96,12 +97,12 @@ static bool LookupPredicate(const int32_t* table, uint16_t size, uchar chr) {
   int32_t field = TableGet<kEntryDist>(table, low);
   uchar entry = GetEntry(field);
   bool is_start = IsStart(field);
-  return (entry == value) ||
-          (entry < value && is_start);
+  return (entry == value) || (entry < value && is_start);
 }
 
 template <int kW>
 struct MultiCharacterSpecialCase {
+  static const uchar kEndOfEncoding = kSentinel;
   uchar chars[kW];
 };
 
@@ -172,7 +173,7 @@ static int LookupMapping(const int32_t* table,
       int length = 0;
       for (length = 0; length < kW; length++) {
         uchar mapped = mapping.chars[length];
-        if (mapped == static_cast<uchar>(-1)) break;
+        if (mapped == MultiCharacterSpecialCase<kW>::kEndOfEncoding) break;
         if (ranges_are_linear) {
           result[length] = mapped + (key - entry);
         } else {
@@ -225,13 +226,13 @@ uchar Utf8::CalculateValue(const byte* str,
       *cursor += 1;
       return kBadChar;
     }
-    uchar l = ((first << 6) | second) & kMaxTwoByteChar;
-    if (l <= kMaxOneByteChar) {
+    uchar code_point = ((first << 6) | second) & kMaxTwoByteChar;
+    if (code_point <= kMaxOneByteChar) {
       *cursor += 1;
       return kBadChar;
     }
     *cursor += 2;
-    return l;
+    return code_point;
   }
   if (length == 2) {
     *cursor += 1;
@@ -243,13 +244,14 @@ uchar Utf8::CalculateValue(const byte* str,
     return kBadChar;
   }
   if (first < 0xF0) {
-    uchar l = ((((first << 6) | second) << 6) | third) & kMaxThreeByteChar;
-    if (l <= kMaxTwoByteChar) {
+    uchar code_point = ((((first << 6) | second) << 6) | third)
+        & kMaxThreeByteChar;
+    if (code_point <= kMaxTwoByteChar) {
       *cursor += 1;
       return kBadChar;
     }
     *cursor += 3;
-    return l;
+    return code_point;
   }
   if (length == 3) {
     *cursor += 1;
@@ -261,14 +263,14 @@ uchar Utf8::CalculateValue(const byte* str,
     return kBadChar;
   }
   if (first < 0xF8) {
-    uchar l = (((((first << 6 | second) << 6) | third) << 6) | fourth) &
-              kMaxFourByteChar;
-    if (l <= kMaxThreeByteChar) {
+    uchar code_point = (((((first << 6 | second) << 6) | third) << 6) | fourth)
+        & kMaxFourByteChar;
+    if (code_point <= kMaxThreeByteChar) {
       *cursor += 1;
       return kBadChar;
     }
     *cursor += 4;
-    return l;
+    return code_point;
   }
   *cursor += 1;
   return kBadChar;
@@ -823,7 +825,7 @@ bool ConnectorPunctuation::Is(uchar c) {
 }
 
 static const MultiCharacterSpecialCase<2> kToLowercaseMultiStrings0[2] = {  // NOLINT
-  {{105, 775}}, {{-1}} }; // NOLINT
+  {{105, 775}}, {{kSentinel}} }; // NOLINT
 static const uint16_t kToLowercaseTable0Size = 463;  // NOLINT
 static const int32_t kToLowercaseTable0[926] = {
   1073741889, 128, 90, 128, 1073742016, 128, 214, 128, 1073742040, 128, 222, 128, 256, 4, 258, 4,  // NOLINT
@@ -886,7 +888,7 @@ static const int32_t kToLowercaseTable0[926] = {
   8171, -448, 8172, -28, 1073750008, -512, 8185, -512, 1073750010, -504, 8187, -504, 8188, -36 };  // NOLINT
 static const uint16_t kToLowercaseMultiStrings0Size = 2;  // NOLINT
 static const MultiCharacterSpecialCase<1> kToLowercaseMultiStrings1[1] = {  // NOLINT
-  {{-1}} }; // NOLINT
+  {{kSentinel}} }; // NOLINT
 static const uint16_t kToLowercaseTable1Size = 69;  // NOLINT
 static const int32_t kToLowercaseTable1[138] = {
   294, -30068, 298, -33532, 299, -33048, 306, 112, 1073742176, 64, 367, 64, 387, 4, 1073743030, 104,  // NOLINT
@@ -900,7 +902,7 @@ static const int32_t kToLowercaseTable1[138] = {
   3290, 4, 3292, 4, 3294, 4, 3296, 4, 3298, 4 };  // NOLINT
 static const uint16_t kToLowercaseMultiStrings1Size = 1;  // NOLINT
 static const MultiCharacterSpecialCase<1> kToLowercaseMultiStrings7[1] = {  // NOLINT
-  {{-1}} }; // NOLINT
+  {{kSentinel}} }; // NOLINT
 static const uint16_t kToLowercaseTable7Size = 2;  // NOLINT
 static const int32_t kToLowercaseTable7[4] = {
   1073749793, 128, 7994, 128 };  // NOLINT
@@ -937,22 +939,22 @@ int ToLowercase::Convert(uchar c,
 }
 
 static const MultiCharacterSpecialCase<3> kToUppercaseMultiStrings0[62] = {  // NOLINT
-  {{83, 83, -1}}, {{700, 78, -1}}, {{74, 780, -1}}, {{921, 776, 769}},  // NOLINT
-  {{933, 776, 769}}, {{1333, 1362, -1}}, {{72, 817, -1}}, {{84, 776, -1}},  // NOLINT
-  {{87, 778, -1}}, {{89, 778, -1}}, {{65, 702, -1}}, {{933, 787, -1}},  // NOLINT
-  {{933, 787, 768}}, {{933, 787, 769}}, {{933, 787, 834}}, {{7944, 921, -1}},  // NOLINT
-  {{7945, 921, -1}}, {{7946, 921, -1}}, {{7947, 921, -1}}, {{7948, 921, -1}},  // NOLINT
-  {{7949, 921, -1}}, {{7950, 921, -1}}, {{7951, 921, -1}}, {{7976, 921, -1}},  // NOLINT
-  {{7977, 921, -1}}, {{7978, 921, -1}}, {{7979, 921, -1}}, {{7980, 921, -1}},  // NOLINT
-  {{7981, 921, -1}}, {{7982, 921, -1}}, {{7983, 921, -1}}, {{8040, 921, -1}},  // NOLINT
-  {{8041, 921, -1}}, {{8042, 921, -1}}, {{8043, 921, -1}}, {{8044, 921, -1}},  // NOLINT
-  {{8045, 921, -1}}, {{8046, 921, -1}}, {{8047, 921, -1}}, {{8122, 921, -1}},  // NOLINT
-  {{913, 921, -1}}, {{902, 921, -1}}, {{913, 834, -1}}, {{913, 834, 921}},  // NOLINT
-  {{8138, 921, -1}}, {{919, 921, -1}}, {{905, 921, -1}}, {{919, 834, -1}},  // NOLINT
-  {{919, 834, 921}}, {{921, 776, 768}}, {{921, 834, -1}}, {{921, 776, 834}},  // NOLINT
-  {{933, 776, 768}}, {{929, 787, -1}}, {{933, 834, -1}}, {{933, 776, 834}},  // NOLINT
-  {{8186, 921, -1}}, {{937, 921, -1}}, {{911, 921, -1}}, {{937, 834, -1}},  // NOLINT
-  {{937, 834, 921}}, {{-1}} }; // NOLINT
+  {{83, 83, kSentinel}}, {{700, 78, kSentinel}}, {{74, 780, kSentinel}}, {{921, 776, 769}},  // NOLINT
+  {{933, 776, 769}}, {{1333, 1362, kSentinel}}, {{72, 817, kSentinel}}, {{84, 776, kSentinel}},  // NOLINT
+  {{87, 778, kSentinel}}, {{89, 778, kSentinel}}, {{65, 702, kSentinel}}, {{933, 787, kSentinel}},  // NOLINT
+  {{933, 787, 768}}, {{933, 787, 769}}, {{933, 787, 834}}, {{7944, 921, kSentinel}},  // NOLINT
+  {{7945, 921, kSentinel}}, {{7946, 921, kSentinel}}, {{7947, 921, kSentinel}}, {{7948, 921, kSentinel}},  // NOLINT
+  {{7949, 921, kSentinel}}, {{7950, 921, kSentinel}}, {{7951, 921, kSentinel}}, {{7976, 921, kSentinel}},  // NOLINT
+  {{7977, 921, kSentinel}}, {{7978, 921, kSentinel}}, {{7979, 921, kSentinel}}, {{7980, 921, kSentinel}},  // NOLINT
+  {{7981, 921, kSentinel}}, {{7982, 921, kSentinel}}, {{7983, 921, kSentinel}}, {{8040, 921, kSentinel}},  // NOLINT
+  {{8041, 921, kSentinel}}, {{8042, 921, kSentinel}}, {{8043, 921, kSentinel}}, {{8044, 921, kSentinel}},  // NOLINT
+  {{8045, 921, kSentinel}}, {{8046, 921, kSentinel}}, {{8047, 921, kSentinel}}, {{8122, 921, kSentinel}},  // NOLINT
+  {{913, 921, kSentinel}}, {{902, 921, kSentinel}}, {{913, 834, kSentinel}}, {{913, 834, 921}},  // NOLINT
+  {{8138, 921, kSentinel}}, {{919, 921, kSentinel}}, {{905, 921, kSentinel}}, {{919, 834, kSentinel}},  // NOLINT
+  {{919, 834, 921}}, {{921, 776, 768}}, {{921, 834, kSentinel}}, {{921, 776, 834}},  // NOLINT
+  {{933, 776, 768}}, {{929, 787, kSentinel}}, {{933, 834, kSentinel}}, {{933, 776, 834}},  // NOLINT
+  {{8186, 921, kSentinel}}, {{937, 921, kSentinel}}, {{911, 921, kSentinel}}, {{937, 834, kSentinel}},  // NOLINT
+  {{937, 834, 921}}, {{kSentinel}} }; // NOLINT
 static const uint16_t kToUppercaseTable0Size = 554;  // NOLINT
 static const int32_t kToUppercaseTable0[1108] = {
   1073741921, -128, 122, -128, 181, 2972, 223, 1, 1073742048, -128, 246, -128, 1073742072, -128, 254, -128,  // NOLINT
@@ -1027,7 +1029,7 @@ static const int32_t kToUppercaseTable0[1108] = {
   8183, 241, 8188, 229 };  // NOLINT
 static const uint16_t kToUppercaseMultiStrings0Size = 62;  // NOLINT
 static const MultiCharacterSpecialCase<1> kToUppercaseMultiStrings1[1] = {  // NOLINT
-  {{-1}} }; // NOLINT
+  {{kSentinel}} }; // NOLINT
 static const uint16_t kToUppercaseTable1Size = 67;  // NOLINT
 static const int32_t kToUppercaseTable1[134] = {
   334, -112, 1073742192, -64, 383, -64, 388, -4, 1073743056, -104, 1257, -104, 1073744944, -192, 3166, -192,  // NOLINT
@@ -1041,9 +1043,9 @@ static const int32_t kToUppercaseTable1[134] = {
   3299, -4, 1073745152, -29056, 3365, -29056 };  // NOLINT
 static const uint16_t kToUppercaseMultiStrings1Size = 1;  // NOLINT
 static const MultiCharacterSpecialCase<3> kToUppercaseMultiStrings7[12] = {  // NOLINT
-  {{70, 70, -1}}, {{70, 73, -1}}, {{70, 76, -1}}, {{70, 70, 73}},  // NOLINT
-  {{70, 70, 76}}, {{83, 84, -1}}, {{1348, 1350, -1}}, {{1348, 1333, -1}},  // NOLINT
-  {{1348, 1339, -1}}, {{1358, 1350, -1}}, {{1348, 1341, -1}}, {{-1}} }; // NOLINT
+  {{70, 70, kSentinel}}, {{70, 73, kSentinel}}, {{70, 76, kSentinel}}, {{70, 70, 73}},  // NOLINT
+  {{70, 70, 76}}, {{83, 84, kSentinel}}, {{1348, 1350, kSentinel}}, {{1348, 1333, kSentinel}},  // NOLINT
+  {{1348, 1339, kSentinel}}, {{1358, 1350, kSentinel}}, {{1348, 1341, kSentinel}}, {{kSentinel}} }; // NOLINT
 static const uint16_t kToUppercaseTable7Size = 14;  // NOLINT
 static const int32_t kToUppercaseTable7[28] = {
   6912, 1, 6913, 5, 6914, 9, 6915, 13, 6916, 17, 6917, 21, 6918, 21, 6931, 25,  // NOLINT
@@ -1081,7 +1083,7 @@ int ToUppercase::Convert(uchar c,
 }
 
 static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings0[1] = {  // NOLINT
-  {{-1}} }; // NOLINT
+  {{kSentinel}} }; // NOLINT
 static const uint16_t kEcma262CanonicalizeTable0Size = 462;  // NOLINT
 static const int32_t kEcma262CanonicalizeTable0[924] = {
   1073741921, -128, 122, -128, 181, 2972, 1073742048, -128, 246, -128, 1073742072, -128, 254, -128, 255, 484,  // NOLINT
@@ -1144,7 +1146,7 @@ static const int32_t kEcma262CanonicalizeTable0[924] = {
   8126, -28820, 1073749968, 32, 8145, 32, 1073749984, 32, 8161, 32, 8165, 28 };  // NOLINT
 static const uint16_t kEcma262CanonicalizeMultiStrings0Size = 1;  // NOLINT
 static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings1[1] = {  // NOLINT
-  {{-1}} }; // NOLINT
+  {{kSentinel}} }; // NOLINT
 static const uint16_t kEcma262CanonicalizeTable1Size = 67;  // NOLINT
 static const int32_t kEcma262CanonicalizeTable1[134] = {
   334, -112, 1073742192, -64, 383, -64, 388, -4, 1073743056, -104, 1257, -104, 1073744944, -192, 3166, -192,  // NOLINT
@@ -1158,7 +1160,7 @@ static const int32_t kEcma262CanonicalizeTable1[134] = {
   3299, -4, 1073745152, -29056, 3365, -29056 };  // NOLINT
 static const uint16_t kEcma262CanonicalizeMultiStrings1Size = 1;  // NOLINT
 static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings7[1] = {  // NOLINT
-  {{-1}} }; // NOLINT
+  {{kSentinel}} }; // NOLINT
 static const uint16_t kEcma262CanonicalizeTable7Size = 2;  // NOLINT
 static const int32_t kEcma262CanonicalizeTable7[4] = {
   1073749825, -128, 8026, -128 };  // NOLINT
@@ -1195,124 +1197,124 @@ int Ecma262Canonicalize::Convert(uchar c,
 }
 
 static const MultiCharacterSpecialCase<4> kEcma262UnCanonicalizeMultiStrings0[469] = {  // NOLINT
-  {{65, 97, -1}}, {{90, 122, -1}}, {{181, 924, 956, -1}}, {{192, 224, -1}},  // NOLINT
-  {{214, 246, -1}}, {{216, 248, -1}}, {{222, 254, -1}}, {{255, 376, -1}},  // NOLINT
-  {{256, 257, -1}}, {{258, 259, -1}}, {{260, 261, -1}}, {{262, 263, -1}},  // NOLINT
-  {{264, 265, -1}}, {{266, 267, -1}}, {{268, 269, -1}}, {{270, 271, -1}},  // NOLINT
-  {{272, 273, -1}}, {{274, 275, -1}}, {{276, 277, -1}}, {{278, 279, -1}},  // NOLINT
-  {{280, 281, -1}}, {{282, 283, -1}}, {{284, 285, -1}}, {{286, 287, -1}},  // NOLINT
-  {{288, 289, -1}}, {{290, 291, -1}}, {{292, 293, -1}}, {{294, 295, -1}},  // NOLINT
-  {{296, 297, -1}}, {{298, 299, -1}}, {{300, 301, -1}}, {{302, 303, -1}},  // NOLINT
-  {{306, 307, -1}}, {{308, 309, -1}}, {{310, 311, -1}}, {{313, 314, -1}},  // NOLINT
-  {{315, 316, -1}}, {{317, 318, -1}}, {{319, 320, -1}}, {{321, 322, -1}},  // NOLINT
-  {{323, 324, -1}}, {{325, 326, -1}}, {{327, 328, -1}}, {{330, 331, -1}},  // NOLINT
-  {{332, 333, -1}}, {{334, 335, -1}}, {{336, 337, -1}}, {{338, 339, -1}},  // NOLINT
-  {{340, 341, -1}}, {{342, 343, -1}}, {{344, 345, -1}}, {{346, 347, -1}},  // NOLINT
-  {{348, 349, -1}}, {{350, 351, -1}}, {{352, 353, -1}}, {{354, 355, -1}},  // NOLINT
-  {{356, 357, -1}}, {{358, 359, -1}}, {{360, 361, -1}}, {{362, 363, -1}},  // NOLINT
-  {{364, 365, -1}}, {{366, 367, -1}}, {{368, 369, -1}}, {{370, 371, -1}},  // NOLINT
-  {{372, 373, -1}}, {{374, 375, -1}}, {{377, 378, -1}}, {{379, 380, -1}},  // NOLINT
-  {{381, 382, -1}}, {{384, 579, -1}}, {{385, 595, -1}}, {{386, 387, -1}},  // NOLINT
-  {{388, 389, -1}}, {{390, 596, -1}}, {{391, 392, -1}}, {{393, 598, -1}},  // NOLINT
-  {{394, 599, -1}}, {{395, 396, -1}}, {{398, 477, -1}}, {{399, 601, -1}},  // NOLINT
-  {{400, 603, -1}}, {{401, 402, -1}}, {{403, 608, -1}}, {{404, 611, -1}},  // NOLINT
-  {{405, 502, -1}}, {{406, 617, -1}}, {{407, 616, -1}}, {{408, 409, -1}},  // NOLINT
-  {{410, 573, -1}}, {{412, 623, -1}}, {{413, 626, -1}}, {{414, 544, -1}},  // NOLINT
-  {{415, 629, -1}}, {{416, 417, -1}}, {{418, 419, -1}}, {{420, 421, -1}},  // NOLINT
-  {{422, 640, -1}}, {{423, 424, -1}}, {{425, 643, -1}}, {{428, 429, -1}},  // NOLINT
-  {{430, 648, -1}}, {{431, 432, -1}}, {{433, 650, -1}}, {{434, 651, -1}},  // NOLINT
-  {{435, 436, -1}}, {{437, 438, -1}}, {{439, 658, -1}}, {{440, 441, -1}},  // NOLINT
-  {{444, 445, -1}}, {{447, 503, -1}}, {{452, 453, 454, -1}}, {{455, 456, 457, -1}},  // NOLINT
-  {{458, 459, 460, -1}}, {{461, 462, -1}}, {{463, 464, -1}}, {{465, 466, -1}},  // NOLINT
-  {{467, 468, -1}}, {{469, 470, -1}}, {{471, 472, -1}}, {{473, 474, -1}},  // NOLINT
-  {{475, 476, -1}}, {{478, 479, -1}}, {{480, 481, -1}}, {{482, 483, -1}},  // NOLINT
-  {{484, 485, -1}}, {{486, 487, -1}}, {{488, 489, -1}}, {{490, 491, -1}},  // NOLINT
-  {{492, 493, -1}}, {{494, 495, -1}}, {{497, 498, 499, -1}}, {{500, 501, -1}},  // NOLINT
-  {{504, 505, -1}}, {{506, 507, -1}}, {{508, 509, -1}}, {{510, 511, -1}},  // NOLINT
-  {{512, 513, -1}}, {{514, 515, -1}}, {{516, 517, -1}}, {{518, 519, -1}},  // NOLINT
-  {{520, 521, -1}}, {{522, 523, -1}}, {{524, 525, -1}}, {{526, 527, -1}},  // NOLINT
-  {{528, 529, -1}}, {{530, 531, -1}}, {{532, 533, -1}}, {{534, 535, -1}},  // NOLINT
-  {{536, 537, -1}}, {{538, 539, -1}}, {{540, 541, -1}}, {{542, 543, -1}},  // NOLINT
-  {{546, 547, -1}}, {{548, 549, -1}}, {{550, 551, -1}}, {{552, 553, -1}},  // NOLINT
-  {{554, 555, -1}}, {{556, 557, -1}}, {{558, 559, -1}}, {{560, 561, -1}},  // NOLINT
-  {{562, 563, -1}}, {{570, 11365, -1}}, {{571, 572, -1}}, {{574, 11366, -1}},  // NOLINT
-  {{577, 578, -1}}, {{580, 649, -1}}, {{581, 652, -1}}, {{582, 583, -1}},  // NOLINT
-  {{584, 585, -1}}, {{586, 587, -1}}, {{588, 589, -1}}, {{590, 591, -1}},  // NOLINT
-  {{619, 11362, -1}}, {{637, 11364, -1}}, {{837, 921, 953, 8126}}, {{891, 1021, -1}},  // NOLINT
-  {{893, 1023, -1}}, {{902, 940, -1}}, {{904, 941, -1}}, {{906, 943, -1}},  // NOLINT
-  {{908, 972, -1}}, {{910, 973, -1}}, {{911, 974, -1}}, {{913, 945, -1}},  // NOLINT
-  {{914, 946, 976, -1}}, {{915, 947, -1}}, {{916, 948, -1}}, {{917, 949, 1013, -1}},  // NOLINT
-  {{918, 950, -1}}, {{919, 951, -1}}, {{920, 952, 977, -1}}, {{922, 954, 1008, -1}},  // NOLINT
-  {{923, 955, -1}}, {{925, 957, -1}}, {{927, 959, -1}}, {{928, 960, 982, -1}},  // NOLINT
-  {{929, 961, 1009, -1}}, {{931, 962, 963, -1}}, {{932, 964, -1}}, {{933, 965, -1}},  // NOLINT
-  {{934, 966, 981, -1}}, {{935, 967, -1}}, {{939, 971, -1}}, {{984, 985, -1}},  // NOLINT
-  {{986, 987, -1}}, {{988, 989, -1}}, {{990, 991, -1}}, {{992, 993, -1}},  // NOLINT
-  {{994, 995, -1}}, {{996, 997, -1}}, {{998, 999, -1}}, {{1000, 1001, -1}},  // NOLINT
-  {{1002, 1003, -1}}, {{1004, 1005, -1}}, {{1006, 1007, -1}}, {{1010, 1017, -1}},  // NOLINT
-  {{1015, 1016, -1}}, {{1018, 1019, -1}}, {{1024, 1104, -1}}, {{1039, 1119, -1}},  // NOLINT
-  {{1040, 1072, -1}}, {{1071, 1103, -1}}, {{1120, 1121, -1}}, {{1122, 1123, -1}},  // NOLINT
-  {{1124, 1125, -1}}, {{1126, 1127, -1}}, {{1128, 1129, -1}}, {{1130, 1131, -1}},  // NOLINT
-  {{1132, 1133, -1}}, {{1134, 1135, -1}}, {{1136, 1137, -1}}, {{1138, 1139, -1}},  // NOLINT
-  {{1140, 1141, -1}}, {{1142, 1143, -1}}, {{1144, 1145, -1}}, {{1146, 1147, -1}},  // NOLINT
-  {{1148, 1149, -1}}, {{1150, 1151, -1}}, {{1152, 1153, -1}}, {{1162, 1163, -1}},  // NOLINT
-  {{1164, 1165, -1}}, {{1166, 1167, -1}}, {{1168, 1169, -1}}, {{1170, 1171, -1}},  // NOLINT
-  {{1172, 1173, -1}}, {{1174, 1175, -1}}, {{1176, 1177, -1}}, {{1178, 1179, -1}},  // NOLINT
-  {{1180, 1181, -1}}, {{1182, 1183, -1}}, {{1184, 1185, -1}}, {{1186, 1187, -1}},  // NOLINT
-  {{1188, 1189, -1}}, {{1190, 1191, -1}}, {{1192, 1193, -1}}, {{1194, 1195, -1}},  // NOLINT
-  {{1196, 1197, -1}}, {{1198, 1199, -1}}, {{1200, 1201, -1}}, {{1202, 1203, -1}},  // NOLINT
-  {{1204, 1205, -1}}, {{1206, 1207, -1}}, {{1208, 1209, -1}}, {{1210, 1211, -1}},  // NOLINT
-  {{1212, 1213, -1}}, {{1214, 1215, -1}}, {{1216, 1231, -1}}, {{1217, 1218, -1}},  // NOLINT
-  {{1219, 1220, -1}}, {{1221, 1222, -1}}, {{1223, 1224, -1}}, {{1225, 1226, -1}},  // NOLINT
-  {{1227, 1228, -1}}, {{1229, 1230, -1}}, {{1232, 1233, -1}}, {{1234, 1235, -1}},  // NOLINT
-  {{1236, 1237, -1}}, {{1238, 1239, -1}}, {{1240, 1241, -1}}, {{1242, 1243, -1}},  // NOLINT
-  {{1244, 1245, -1}}, {{1246, 1247, -1}}, {{1248, 1249, -1}}, {{1250, 1251, -1}},  // NOLINT
-  {{1252, 1253, -1}}, {{1254, 1255, -1}}, {{1256, 1257, -1}}, {{1258, 1259, -1}},  // NOLINT
-  {{1260, 1261, -1}}, {{1262, 1263, -1}}, {{1264, 1265, -1}}, {{1266, 1267, -1}},  // NOLINT
-  {{1268, 1269, -1}}, {{1270, 1271, -1}}, {{1272, 1273, -1}}, {{1274, 1275, -1}},  // NOLINT
-  {{1276, 1277, -1}}, {{1278, 1279, -1}}, {{1280, 1281, -1}}, {{1282, 1283, -1}},  // NOLINT
-  {{1284, 1285, -1}}, {{1286, 1287, -1}}, {{1288, 1289, -1}}, {{1290, 1291, -1}},  // NOLINT
-  {{1292, 1293, -1}}, {{1294, 1295, -1}}, {{1296, 1297, -1}}, {{1298, 1299, -1}},  // NOLINT
-  {{1329, 1377, -1}}, {{1366, 1414, -1}}, {{4256, 11520, -1}}, {{4293, 11557, -1}},  // NOLINT
-  {{7549, 11363, -1}}, {{7680, 7681, -1}}, {{7682, 7683, -1}}, {{7684, 7685, -1}},  // NOLINT
-  {{7686, 7687, -1}}, {{7688, 7689, -1}}, {{7690, 7691, -1}}, {{7692, 7693, -1}},  // NOLINT
-  {{7694, 7695, -1}}, {{7696, 7697, -1}}, {{7698, 7699, -1}}, {{7700, 7701, -1}},  // NOLINT
-  {{7702, 7703, -1}}, {{7704, 7705, -1}}, {{7706, 7707, -1}}, {{7708, 7709, -1}},  // NOLINT
-  {{7710, 7711, -1}}, {{7712, 7713, -1}}, {{7714, 7715, -1}}, {{7716, 7717, -1}},  // NOLINT
-  {{7718, 7719, -1}}, {{7720, 7721, -1}}, {{7722, 7723, -1}}, {{7724, 7725, -1}},  // NOLINT
-  {{7726, 7727, -1}}, {{7728, 7729, -1}}, {{7730, 7731, -1}}, {{7732, 7733, -1}},  // NOLINT
-  {{7734, 7735, -1}}, {{7736, 7737, -1}}, {{7738, 7739, -1}}, {{7740, 7741, -1}},  // NOLINT
-  {{7742, 7743, -1}}, {{7744, 7745, -1}}, {{7746, 7747, -1}}, {{7748, 7749, -1}},  // NOLINT
-  {{7750, 7751, -1}}, {{7752, 7753, -1}}, {{7754, 7755, -1}}, {{7756, 7757, -1}},  // NOLINT
-  {{7758, 7759, -1}}, {{7760, 7761, -1}}, {{7762, 7763, -1}}, {{7764, 7765, -1}},  // NOLINT
-  {{7766, 7767, -1}}, {{7768, 7769, -1}}, {{7770, 7771, -1}}, {{7772, 7773, -1}},  // NOLINT
-  {{7774, 7775, -1}}, {{7776, 7777, 7835, -1}}, {{7778, 7779, -1}}, {{7780, 7781, -1}},  // NOLINT
-  {{7782, 7783, -1}}, {{7784, 7785, -1}}, {{7786, 7787, -1}}, {{7788, 7789, -1}},  // NOLINT
-  {{7790, 7791, -1}}, {{7792, 7793, -1}}, {{7794, 7795, -1}}, {{7796, 7797, -1}},  // NOLINT
-  {{7798, 7799, -1}}, {{7800, 7801, -1}}, {{7802, 7803, -1}}, {{7804, 7805, -1}},  // NOLINT
-  {{7806, 7807, -1}}, {{7808, 7809, -1}}, {{7810, 7811, -1}}, {{7812, 7813, -1}},  // NOLINT
-  {{7814, 7815, -1}}, {{7816, 7817, -1}}, {{7818, 7819, -1}}, {{7820, 7821, -1}},  // NOLINT
-  {{7822, 7823, -1}}, {{7824, 7825, -1}}, {{7826, 7827, -1}}, {{7828, 7829, -1}},  // NOLINT
-  {{7840, 7841, -1}}, {{7842, 7843, -1}}, {{7844, 7845, -1}}, {{7846, 7847, -1}},  // NOLINT
-  {{7848, 7849, -1}}, {{7850, 7851, -1}}, {{7852, 7853, -1}}, {{7854, 7855, -1}},  // NOLINT
-  {{7856, 7857, -1}}, {{7858, 7859, -1}}, {{7860, 7861, -1}}, {{7862, 7863, -1}},  // NOLINT
-  {{7864, 7865, -1}}, {{7866, 7867, -1}}, {{7868, 7869, -1}}, {{7870, 7871, -1}},  // NOLINT
-  {{7872, 7873, -1}}, {{7874, 7875, -1}}, {{7876, 7877, -1}}, {{7878, 7879, -1}},  // NOLINT
-  {{7880, 7881, -1}}, {{7882, 7883, -1}}, {{7884, 7885, -1}}, {{7886, 7887, -1}},  // NOLINT
-  {{7888, 7889, -1}}, {{7890, 7891, -1}}, {{7892, 7893, -1}}, {{7894, 7895, -1}},  // NOLINT
-  {{7896, 7897, -1}}, {{7898, 7899, -1}}, {{7900, 7901, -1}}, {{7902, 7903, -1}},  // NOLINT
-  {{7904, 7905, -1}}, {{7906, 7907, -1}}, {{7908, 7909, -1}}, {{7910, 7911, -1}},  // NOLINT
-  {{7912, 7913, -1}}, {{7914, 7915, -1}}, {{7916, 7917, -1}}, {{7918, 7919, -1}},  // NOLINT
-  {{7920, 7921, -1}}, {{7922, 7923, -1}}, {{7924, 7925, -1}}, {{7926, 7927, -1}},  // NOLINT
-  {{7928, 7929, -1}}, {{7936, 7944, -1}}, {{7943, 7951, -1}}, {{7952, 7960, -1}},  // NOLINT
-  {{7957, 7965, -1}}, {{7968, 7976, -1}}, {{7975, 7983, -1}}, {{7984, 7992, -1}},  // NOLINT
-  {{7991, 7999, -1}}, {{8000, 8008, -1}}, {{8005, 8013, -1}}, {{8017, 8025, -1}},  // NOLINT
-  {{8019, 8027, -1}}, {{8021, 8029, -1}}, {{8023, 8031, -1}}, {{8032, 8040, -1}},  // NOLINT
-  {{8039, 8047, -1}}, {{8048, 8122, -1}}, {{8049, 8123, -1}}, {{8050, 8136, -1}},  // NOLINT
-  {{8053, 8139, -1}}, {{8054, 8154, -1}}, {{8055, 8155, -1}}, {{8056, 8184, -1}},  // NOLINT
-  {{8057, 8185, -1}}, {{8058, 8170, -1}}, {{8059, 8171, -1}}, {{8060, 8186, -1}},  // NOLINT
-  {{8061, 8187, -1}}, {{8112, 8120, -1}}, {{8113, 8121, -1}}, {{8144, 8152, -1}},  // NOLINT
-  {{8145, 8153, -1}}, {{8160, 8168, -1}}, {{8161, 8169, -1}}, {{8165, 8172, -1}},  // NOLINT
-  {{-1}} }; // NOLINT
+  {{65, 97, kSentinel}}, {{90, 122, kSentinel}}, {{181, 924, 956, kSentinel}}, {{192, 224, kSentinel}},  // NOLINT
+  {{214, 246, kSentinel}}, {{216, 248, kSentinel}}, {{222, 254, kSentinel}}, {{255, 376, kSentinel}},  // NOLINT
+  {{256, 257, kSentinel}}, {{258, 259, kSentinel}}, {{260, 261, kSentinel}}, {{262, 263, kSentinel}},  // NOLINT
+  {{264, 265, kSentinel}}, {{266, 267, kSentinel}}, {{268, 269, kSentinel}}, {{270, 271, kSentinel}},  // NOLINT
+  {{272, 273, kSentinel}}, {{274, 275, kSentinel}}, {{276, 277, kSentinel}}, {{278, 279, kSentinel}},  // NOLINT
+  {{280, 281, kSentinel}}, {{282, 283, kSentinel}}, {{284, 285, kSentinel}}, {{286, 287, kSentinel}},  // NOLINT
+  {{288, 289, kSentinel}}, {{290, 291, kSentinel}}, {{292, 293, kSentinel}}, {{294, 295, kSentinel}},  // NOLINT
+  {{296, 297, kSentinel}}, {{298, 299, kSentinel}}, {{300, 301, kSentinel}}, {{302, 303, kSentinel}},  // NOLINT
+  {{306, 307, kSentinel}}, {{308, 309, kSentinel}}, {{310, 311, kSentinel}}, {{313, 314, kSentinel}},  // NOLINT
+  {{315, 316, kSentinel}}, {{317, 318, kSentinel}}, {{319, 320, kSentinel}}, {{321, 322, kSentinel}},  // NOLINT
+  {{323, 324, kSentinel}}, {{325, 326, kSentinel}}, {{327, 328, kSentinel}}, {{330, 331, kSentinel}},  // NOLINT
+  {{332, 333, kSentinel}}, {{334, 335, kSentinel}}, {{336, 337, kSentinel}}, {{338, 339, kSentinel}},  // NOLINT
+  {{340, 341, kSentinel}}, {{342, 343, kSentinel}}, {{344, 345, kSentinel}}, {{346, 347, kSentinel}},  // NOLINT
+  {{348, 349, kSentinel}}, {{350, 351, kSentinel}}, {{352, 353, kSentinel}}, {{354, 355, kSentinel}},  // NOLINT
+  {{356, 357, kSentinel}}, {{358, 359, kSentinel}}, {{360, 361, kSentinel}}, {{362, 363, kSentinel}},  // NOLINT
+  {{364, 365, kSentinel}}, {{366, 367, kSentinel}}, {{368, 369, kSentinel}}, {{370, 371, kSentinel}},  // NOLINT
+  {{372, 373, kSentinel}}, {{374, 375, kSentinel}}, {{377, 378, kSentinel}}, {{379, 380, kSentinel}},  // NOLINT
+  {{381, 382, kSentinel}}, {{384, 579, kSentinel}}, {{385, 595, kSentinel}}, {{386, 387, kSentinel}},  // NOLINT
+  {{388, 389, kSentinel}}, {{390, 596, kSentinel}}, {{391, 392, kSentinel}}, {{393, 598, kSentinel}},  // NOLINT
+  {{394, 599, kSentinel}}, {{395, 396, kSentinel}}, {{398, 477, kSentinel}}, {{399, 601, kSentinel}},  // NOLINT
+  {{400, 603, kSentinel}}, {{401, 402, kSentinel}}, {{403, 608, kSentinel}}, {{404, 611, kSentinel}},  // NOLINT
+  {{405, 502, kSentinel}}, {{406, 617, kSentinel}}, {{407, 616, kSentinel}}, {{408, 409, kSentinel}},  // NOLINT
+  {{410, 573, kSentinel}}, {{412, 623, kSentinel}}, {{413, 626, kSentinel}}, {{414, 544, kSentinel}},  // NOLINT
+  {{415, 629, kSentinel}}, {{416, 417, kSentinel}}, {{418, 419, kSentinel}}, {{420, 421, kSentinel}},  // NOLINT
+  {{422, 640, kSentinel}}, {{423, 424, kSentinel}}, {{425, 643, kSentinel}}, {{428, 429, kSentinel}},  // NOLINT
+  {{430, 648, kSentinel}}, {{431, 432, kSentinel}}, {{433, 650, kSentinel}}, {{434, 651, kSentinel}},  // NOLINT
+  {{435, 436, kSentinel}}, {{437, 438, kSentinel}}, {{439, 658, kSentinel}}, {{440, 441, kSentinel}},  // NOLINT
+  {{444, 445, kSentinel}}, {{447, 503, kSentinel}}, {{452, 453, 454, kSentinel}}, {{455, 456, 457, kSentinel}},  // NOLINT
+  {{458, 459, 460, kSentinel}}, {{461, 462, kSentinel}}, {{463, 464, kSentinel}}, {{465, 466, kSentinel}},  // NOLINT
+  {{467, 468, kSentinel}}, {{469, 470, kSentinel}}, {{471, 472, kSentinel}}, {{473, 474, kSentinel}},  // NOLINT
+  {{475, 476, kSentinel}}, {{478, 479, kSentinel}}, {{480, 481, kSentinel}}, {{482, 483, kSentinel}},  // NOLINT
+  {{484, 485, kSentinel}}, {{486, 487, kSentinel}}, {{488, 489, kSentinel}}, {{490, 491, kSentinel}},  // NOLINT
+  {{492, 493, kSentinel}}, {{494, 495, kSentinel}}, {{497, 498, 499, kSentinel}}, {{500, 501, kSentinel}},  // NOLINT
+  {{504, 505, kSentinel}}, {{506, 507, kSentinel}}, {{508, 509, kSentinel}}, {{510, 511, kSentinel}},  // NOLINT
+  {{512, 513, kSentinel}}, {{514, 515, kSentinel}}, {{516, 517, kSentinel}}, {{518, 519, kSentinel}},  // NOLINT
+  {{520, 521, kSentinel}}, {{522, 523, kSentinel}}, {{524, 525, kSentinel}}, {{526, 527, kSentinel}},  // NOLINT
+  {{528, 529, kSentinel}}, {{530, 531, kSentinel}}, {{532, 533, kSentinel}}, {{534, 535, kSentinel}},  // NOLINT
+  {{536, 537, kSentinel}}, {{538, 539, kSentinel}}, {{540, 541, kSentinel}}, {{542, 543, kSentinel}},  // NOLINT
+  {{546, 547, kSentinel}}, {{548, 549, kSentinel}}, {{550, 551, kSentinel}}, {{552, 553, kSentinel}},  // NOLINT
+  {{554, 555, kSentinel}}, {{556, 557, kSentinel}}, {{558, 559, kSentinel}}, {{560, 561, kSentinel}},  // NOLINT
+  {{562, 563, kSentinel}}, {{570, 11365, kSentinel}}, {{571, 572, kSentinel}}, {{574, 11366, kSentinel}},  // NOLINT
+  {{577, 578, kSentinel}}, {{580, 649, kSentinel}}, {{581, 652, kSentinel}}, {{582, 583, kSentinel}},  // NOLINT
+  {{584, 585, kSentinel}}, {{586, 587, kSentinel}}, {{588, 589, kSentinel}}, {{590, 591, kSentinel}},  // NOLINT
+  {{619, 11362, kSentinel}}, {{637, 11364, kSentinel}}, {{837, 921, 953, 8126}}, {{891, 1021, kSentinel}},  // NOLINT
+  {{893, 1023, kSentinel}}, {{902, 940, kSentinel}}, {{904, 941, kSentinel}}, {{906, 943, kSentinel}},  // NOLINT
+  {{908, 972, kSentinel}}, {{910, 973, kSentinel}}, {{911, 974, kSentinel}}, {{913, 945, kSentinel}},  // NOLINT
+  {{914, 946, 976, kSentinel}}, {{915, 947, kSentinel}}, {{916, 948, kSentinel}}, {{917, 949, 1013, kSentinel}},  // NOLINT
+  {{918, 950, kSentinel}}, {{919, 951, kSentinel}}, {{920, 952, 977, kSentinel}}, {{922, 954, 1008, kSentinel}},  // NOLINT
+  {{923, 955, kSentinel}}, {{925, 957, kSentinel}}, {{927, 959, kSentinel}}, {{928, 960, 982, kSentinel}},  // NOLINT
+  {{929, 961, 1009, kSentinel}}, {{931, 962, 963, kSentinel}}, {{932, 964, kSentinel}}, {{933, 965, kSentinel}},  // NOLINT
+  {{934, 966, 981, kSentinel}}, {{935, 967, kSentinel}}, {{939, 971, kSentinel}}, {{984, 985, kSentinel}},  // NOLINT
+  {{986, 987, kSentinel}}, {{988, 989, kSentinel}}, {{990, 991, kSentinel}}, {{992, 993, kSentinel}},  // NOLINT
+  {{994, 995, kSentinel}}, {{996, 997, kSentinel}}, {{998, 999, kSentinel}}, {{1000, 1001, kSentinel}},  // NOLINT
+  {{1002, 1003, kSentinel}}, {{1004, 1005, kSentinel}}, {{1006, 1007, kSentinel}}, {{1010, 1017, kSentinel}},  // NOLINT
+  {{1015, 1016, kSentinel}}, {{1018, 1019, kSentinel}}, {{1024, 1104, kSentinel}}, {{1039, 1119, kSentinel}},  // NOLINT
+  {{1040, 1072, kSentinel}}, {{1071, 1103, kSentinel}}, {{1120, 1121, kSentinel}}, {{1122, 1123, kSentinel}},  // NOLINT
+  {{1124, 1125, kSentinel}}, {{1126, 1127, kSentinel}}, {{1128, 1129, kSentinel}}, {{1130, 1131, kSentinel}},  // NOLINT
+  {{1132, 1133, kSentinel}}, {{1134, 1135, kSentinel}}, {{1136, 1137, kSentinel}}, {{1138, 1139, kSentinel}},  // NOLINT
+  {{1140, 1141, kSentinel}}, {{1142, 1143, kSentinel}}, {{1144, 1145, kSentinel}}, {{1146, 1147, kSentinel}},  // NOLINT
+  {{1148, 1149, kSentinel}}, {{1150, 1151, kSentinel}}, {{1152, 1153, kSentinel}}, {{1162, 1163, kSentinel}},  // NOLINT
+  {{1164, 1165, kSentinel}}, {{1166, 1167, kSentinel}}, {{1168, 1169, kSentinel}}, {{1170, 1171, kSentinel}},  // NOLINT
+  {{1172, 1173, kSentinel}}, {{1174, 1175, kSentinel}}, {{1176, 1177, kSentinel}}, {{1178, 1179, kSentinel}},  // NOLINT
+  {{1180, 1181, kSentinel}}, {{1182, 1183, kSentinel}}, {{1184, 1185, kSentinel}}, {{1186, 1187, kSentinel}},  // NOLINT
+  {{1188, 1189, kSentinel}}, {{1190, 1191, kSentinel}}, {{1192, 1193, kSentinel}}, {{1194, 1195, kSentinel}},  // NOLINT
+  {{1196, 1197, kSentinel}}, {{1198, 1199, kSentinel}}, {{1200, 1201, kSentinel}}, {{1202, 1203, kSentinel}},  // NOLINT
+  {{1204, 1205, kSentinel}}, {{1206, 1207, kSentinel}}, {{1208, 1209, kSentinel}}, {{1210, 1211, kSentinel}},  // NOLINT
+  {{1212, 1213, kSentinel}}, {{1214, 1215, kSentinel}}, {{1216, 1231, kSentinel}}, {{1217, 1218, kSentinel}},  // NOLINT
+  {{1219, 1220, kSentinel}}, {{1221, 1222, kSentinel}}, {{1223, 1224, kSentinel}}, {{1225, 1226, kSentinel}},  // NOLINT
+  {{1227, 1228, kSentinel}}, {{1229, 1230, kSentinel}}, {{1232, 1233, kSentinel}}, {{1234, 1235, kSentinel}},  // NOLINT
+  {{1236, 1237, kSentinel}}, {{1238, 1239, kSentinel}}, {{1240, 1241, kSentinel}}, {{1242, 1243, kSentinel}},  // NOLINT
+  {{1244, 1245, kSentinel}}, {{1246, 1247, kSentinel}}, {{1248, 1249, kSentinel}}, {{1250, 1251, kSentinel}},  // NOLINT
+  {{1252, 1253, kSentinel}}, {{1254, 1255, kSentinel}}, {{1256, 1257, kSentinel}}, {{1258, 1259, kSentinel}},  // NOLINT
+  {{1260, 1261, kSentinel}}, {{1262, 1263, kSentinel}}, {{1264, 1265, kSentinel}}, {{1266, 1267, kSentinel}},  // NOLINT
+  {{1268, 1269, kSentinel}}, {{1270, 1271, kSentinel}}, {{1272, 1273, kSentinel}}, {{1274, 1275, kSentinel}},  // NOLINT
+  {{1276, 1277, kSentinel}}, {{1278, 1279, kSentinel}}, {{1280, 1281, kSentinel}}, {{1282, 1283, kSentinel}},  // NOLINT
+  {{1284, 1285, kSentinel}}, {{1286, 1287, kSentinel}}, {{1288, 1289, kSentinel}}, {{1290, 1291, kSentinel}},  // NOLINT
+  {{1292, 1293, kSentinel}}, {{1294, 1295, kSentinel}}, {{1296, 1297, kSentinel}}, {{1298, 1299, kSentinel}},  // NOLINT
+  {{1329, 1377, kSentinel}}, {{1366, 1414, kSentinel}}, {{4256, 11520, kSentinel}}, {{4293, 11557, kSentinel}},  // NOLINT
+  {{7549, 11363, kSentinel}}, {{7680, 7681, kSentinel}}, {{7682, 7683, kSentinel}}, {{7684, 7685, kSentinel}},  // NOLINT
+  {{7686, 7687, kSentinel}}, {{7688, 7689, kSentinel}}, {{7690, 7691, kSentinel}}, {{7692, 7693, kSentinel}},  // NOLINT
+  {{7694, 7695, kSentinel}}, {{7696, 7697, kSentinel}}, {{7698, 7699, kSentinel}}, {{7700, 7701, kSentinel}},  // NOLINT
+  {{7702, 7703, kSentinel}}, {{7704, 7705, kSentinel}}, {{7706, 7707, kSentinel}}, {{7708, 7709, kSentinel}},  // NOLINT
+  {{7710, 7711, kSentinel}}, {{7712, 7713, kSentinel}}, {{7714, 7715, kSentinel}}, {{7716, 7717, kSentinel}},  // NOLINT
+  {{7718, 7719, kSentinel}}, {{7720, 7721, kSentinel}}, {{7722, 7723, kSentinel}}, {{7724, 7725, kSentinel}},  // NOLINT
+  {{7726, 7727, kSentinel}}, {{7728, 7729, kSentinel}}, {{7730, 7731, kSentinel}}, {{7732, 7733, kSentinel}},  // NOLINT
+  {{7734, 7735, kSentinel}}, {{7736, 7737, kSentinel}}, {{7738, 7739, kSentinel}}, {{7740, 7741, kSentinel}},  // NOLINT
+  {{7742, 7743, kSentinel}}, {{7744, 7745, kSentinel}}, {{7746, 7747, kSentinel}}, {{7748, 7749, kSentinel}},  // NOLINT
+  {{7750, 7751, kSentinel}}, {{7752, 7753, kSentinel}}, {{7754, 7755, kSentinel}}, {{7756, 7757, kSentinel}},  // NOLINT
+  {{7758, 7759, kSentinel}}, {{7760, 7761, kSentinel}}, {{7762, 7763, kSentinel}}, {{7764, 7765, kSentinel}},  // NOLINT
+  {{7766, 7767, kSentinel}}, {{7768, 7769, kSentinel}}, {{7770, 7771, kSentinel}}, {{7772, 7773, kSentinel}},  // NOLINT
+  {{7774, 7775, kSentinel}}, {{7776, 7777, 7835, kSentinel}}, {{7778, 7779, kSentinel}}, {{7780, 7781, kSentinel}},  // NOLINT
+  {{7782, 7783, kSentinel}}, {{7784, 7785, kSentinel}}, {{7786, 7787, kSentinel}}, {{7788, 7789, kSentinel}},  // NOLINT
+  {{7790, 7791, kSentinel}}, {{7792, 7793, kSentinel}}, {{7794, 7795, kSentinel}}, {{7796, 7797, kSentinel}},  // NOLINT
+  {{7798, 7799, kSentinel}}, {{7800, 7801, kSentinel}}, {{7802, 7803, kSentinel}}, {{7804, 7805, kSentinel}},  // NOLINT
+  {{7806, 7807, kSentinel}}, {{7808, 7809, kSentinel}}, {{7810, 7811, kSentinel}}, {{7812, 7813, kSentinel}},  // NOLINT
+  {{7814, 7815, kSentinel}}, {{7816, 7817, kSentinel}}, {{7818, 7819, kSentinel}}, {{7820, 7821, kSentinel}},  // NOLINT
+  {{7822, 7823, kSentinel}}, {{7824, 7825, kSentinel}}, {{7826, 7827, kSentinel}}, {{7828, 7829, kSentinel}},  // NOLINT
+  {{7840, 7841, kSentinel}}, {{7842, 7843, kSentinel}}, {{7844, 7845, kSentinel}}, {{7846, 7847, kSentinel}},  // NOLINT
+  {{7848, 7849, kSentinel}}, {{7850, 7851, kSentinel}}, {{7852, 7853, kSentinel}}, {{7854, 7855, kSentinel}},  // NOLINT
+  {{7856, 7857, kSentinel}}, {{7858, 7859, kSentinel}}, {{7860, 7861, kSentinel}}, {{7862, 7863, kSentinel}},  // NOLINT
+  {{7864, 7865, kSentinel}}, {{7866, 7867, kSentinel}}, {{7868, 7869, kSentinel}}, {{7870, 7871, kSentinel}},  // NOLINT
+  {{7872, 7873, kSentinel}}, {{7874, 7875, kSentinel}}, {{7876, 7877, kSentinel}}, {{7878, 7879, kSentinel}},  // NOLINT
+  {{7880, 7881, kSentinel}}, {{7882, 7883, kSentinel}}, {{7884, 7885, kSentinel}}, {{7886, 7887, kSentinel}},  // NOLINT
+  {{7888, 7889, kSentinel}}, {{7890, 7891, kSentinel}}, {{7892, 7893, kSentinel}}, {{7894, 7895, kSentinel}},  // NOLINT
+  {{7896, 7897, kSentinel}}, {{7898, 7899, kSentinel}}, {{7900, 7901, kSentinel}}, {{7902, 7903, kSentinel}},  // NOLINT
+  {{7904, 7905, kSentinel}}, {{7906, 7907, kSentinel}}, {{7908, 7909, kSentinel}}, {{7910, 7911, kSentinel}},  // NOLINT
+  {{7912, 7913, kSentinel}}, {{7914, 7915, kSentinel}}, {{7916, 7917, kSentinel}}, {{7918, 7919, kSentinel}},  // NOLINT
+  {{7920, 7921, kSentinel}}, {{7922, 7923, kSentinel}}, {{7924, 7925, kSentinel}}, {{7926, 7927, kSentinel}},  // NOLINT
+  {{7928, 7929, kSentinel}}, {{7936, 7944, kSentinel}}, {{7943, 7951, kSentinel}}, {{7952, 7960, kSentinel}},  // NOLINT
+  {{7957, 7965, kSentinel}}, {{7968, 7976, kSentinel}}, {{7975, 7983, kSentinel}}, {{7984, 7992, kSentinel}},  // NOLINT
+  {{7991, 7999, kSentinel}}, {{8000, 8008, kSentinel}}, {{8005, 8013, kSentinel}}, {{8017, 8025, kSentinel}},  // NOLINT
+  {{8019, 8027, kSentinel}}, {{8021, 8029, kSentinel}}, {{8023, 8031, kSentinel}}, {{8032, 8040, kSentinel}},  // NOLINT
+  {{8039, 8047, kSentinel}}, {{8048, 8122, kSentinel}}, {{8049, 8123, kSentinel}}, {{8050, 8136, kSentinel}},  // NOLINT
+  {{8053, 8139, kSentinel}}, {{8054, 8154, kSentinel}}, {{8055, 8155, kSentinel}}, {{8056, 8184, kSentinel}},  // NOLINT
+  {{8057, 8185, kSentinel}}, {{8058, 8170, kSentinel}}, {{8059, 8171, kSentinel}}, {{8060, 8186, kSentinel}},  // NOLINT
+  {{8061, 8187, kSentinel}}, {{8112, 8120, kSentinel}}, {{8113, 8121, kSentinel}}, {{8144, 8152, kSentinel}},  // NOLINT
+  {{8145, 8153, kSentinel}}, {{8160, 8168, kSentinel}}, {{8161, 8169, kSentinel}}, {{8165, 8172, kSentinel}},  // NOLINT
+  {{kSentinel}} }; // NOLINT
 static const uint16_t kEcma262UnCanonicalizeTable0Size = 945;  // NOLINT
 static const int32_t kEcma262UnCanonicalizeTable0[1890] = {
   1073741889, 1, 90, 5, 1073741921, 1, 122, 5, 181, 9, 1073742016, 13, 214, 17, 1073742040, 21,  // NOLINT
@@ -1453,7 +1455,7 @@ static const MultiCharacterSpecialCase<2> kEcma262UnCanonicalizeMultiStrings1[71
   {{11468, 11469}}, {{11470, 11471}}, {{11472, 11473}}, {{11474, 11475}},  // NOLINT
   {{11476, 11477}}, {{11478, 11479}}, {{11480, 11481}}, {{11482, 11483}},  // NOLINT
   {{11484, 11485}}, {{11486, 11487}}, {{11488, 11489}}, {{11490, 11491}},  // NOLINT
-  {{4256, 11520}}, {{4293, 11557}}, {{-1}} }; // NOLINT
+  {{4256, 11520}}, {{4293, 11557}}, {{kSentinel}} }; // NOLINT
 static const uint16_t kEcma262UnCanonicalizeTable1Size = 133;  // NOLINT
 static const int32_t kEcma262UnCanonicalizeTable1[266] = {
   306, 1, 334, 1, 1073742176, 5, 367, 9, 1073742192, 5, 383, 9, 387, 13, 388, 13,  // NOLINT
@@ -1475,7 +1477,7 @@ static const int32_t kEcma262UnCanonicalizeTable1[266] = {
   3297, 265, 3298, 269, 3299, 269, 1073745152, 273, 3365, 277 };  // NOLINT
 static const uint16_t kEcma262UnCanonicalizeMultiStrings1Size = 71;  // NOLINT
 static const MultiCharacterSpecialCase<2> kEcma262UnCanonicalizeMultiStrings7[3] = {  // NOLINT
-  {{65313, 65345}}, {{65338, 65370}}, {{-1}} }; // NOLINT
+  {{65313, 65345}}, {{65338, 65370}}, {{kSentinel}} }; // NOLINT
 static const uint16_t kEcma262UnCanonicalizeTable7Size = 4;  // NOLINT
 static const int32_t kEcma262UnCanonicalizeTable7[8] = {
   1073749793, 1, 7994, 5, 1073749825, 1, 8026, 5 };  // NOLINT
@@ -1512,7 +1514,7 @@ int Ecma262UnCanonicalize::Convert(uchar c,
 }
 
 static const MultiCharacterSpecialCase<1> kCanonicalizationRangeMultiStrings0[1] = {  // NOLINT
-  {{-1}} }; // NOLINT
+  {{kSentinel}} }; // NOLINT
 static const uint16_t kCanonicalizationRangeTable0Size = 70;  // NOLINT
 static const int32_t kCanonicalizationRangeTable0[140] = {
   1073741889, 100, 90, 0, 1073741921, 100, 122, 0, 1073742016, 88, 214, 0, 1073742040, 24, 222, 0,  // NOLINT
@@ -1526,14 +1528,14 @@ static const int32_t kCanonicalizationRangeTable0[140] = {
   1073749864, 28, 8047, 0, 1073749874, 12, 8053, 0, 1073749960, 12, 8139, 0 };  // NOLINT
 static const uint16_t kCanonicalizationRangeMultiStrings0Size = 1;  // NOLINT
 static const MultiCharacterSpecialCase<1> kCanonicalizationRangeMultiStrings1[1] = {  // NOLINT
-  {{-1}} }; // NOLINT
+  {{kSentinel}} }; // NOLINT
 static const uint16_t kCanonicalizationRangeTable1Size = 14;  // NOLINT
 static const int32_t kCanonicalizationRangeTable1[28] = {
   1073742176, 60, 367, 0, 1073742192, 60, 383, 0, 1073743030, 100, 1231, 0, 1073743056, 100, 1257, 0,  // NOLINT
   1073744896, 184, 3118, 0, 1073744944, 184, 3166, 0, 1073745152, 148, 3365, 0 };  // NOLINT
 static const uint16_t kCanonicalizationRangeMultiStrings1Size = 1;  // NOLINT
 static const MultiCharacterSpecialCase<1> kCanonicalizationRangeMultiStrings7[1] = {  // NOLINT
-  {{-1}} }; // NOLINT
+  {{kSentinel}} }; // NOLINT
 static const uint16_t kCanonicalizationRangeTable7Size = 4;  // NOLINT
 static const int32_t kCanonicalizationRangeTable7[8] = {
   1073749793, 100, 7994, 0, 1073749825, 100, 8026, 0 };  // NOLINT

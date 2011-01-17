@@ -53,6 +53,7 @@ namespace internal {
   V(Object, null_value, NullValue)                                             \
   V(Object, true_value, TrueValue)                                             \
   V(Object, false_value, FalseValue)                                           \
+  V(Object, arguments_marker, ArgumentsMarker)                                 \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
@@ -412,7 +413,10 @@ class Heap : public AllStatic {
   MUST_USE_RESULT static MaybeObject* AllocateStringFromAscii(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
-  MUST_USE_RESULT static MaybeObject* AllocateStringFromUtf8(
+  MUST_USE_RESULT static inline MaybeObject* AllocateStringFromUtf8(
+      Vector<const char> str,
+      PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT static MaybeObject* AllocateStringFromUtf8Slow(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT static MaybeObject* AllocateStringFromTwoByte(
@@ -427,6 +431,14 @@ class Heap : public AllStatic {
       Vector<const char> str,
       int chars,
       uint32_t hash_field);
+
+  MUST_USE_RESULT static inline MaybeObject* AllocateAsciiSymbol(
+        Vector<const char> str,
+        uint32_t hash_field);
+
+  MUST_USE_RESULT static inline MaybeObject* AllocateTwoByteSymbol(
+        Vector<const uc16> str,
+        uint32_t hash_field);
 
   MUST_USE_RESULT static MaybeObject* AllocateInternalSymbol(
       unibrow::CharacterStream* buffer, int chars, uint32_t hash_field);
@@ -683,6 +695,9 @@ class Heap : public AllStatic {
   // failed.
   // Please note this function does not perform a garbage collection.
   MUST_USE_RESULT static MaybeObject* LookupSymbol(Vector<const char> str);
+  MUST_USE_RESULT static MaybeObject* LookupAsciiSymbol(Vector<const char> str);
+  MUST_USE_RESULT static MaybeObject* LookupTwoByteSymbol(
+      Vector<const uc16> str);
   MUST_USE_RESULT static MaybeObject* LookupAsciiSymbol(const char* str) {
     return LookupSymbol(CStrVector(str));
   }
@@ -1850,7 +1865,7 @@ class GCTracer BASE_EMBEDDED {
     }
 
     ~Scope() {
-      ASSERT((0 <= scope_) && (scope_ < kNumberOfScopes));
+      ASSERT(scope_ < kNumberOfScopes);  // scope_ is unsigned.
       tracer_->scopes_[scope_] += OS::TimeCurrentMillis() - start_time_;
     }
 

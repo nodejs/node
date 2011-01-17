@@ -288,7 +288,7 @@ void MacroAssembler::Abort(const char* msg) {
   }
 #endif
   // Disable stub call restrictions to always allow calls to abort.
-  set_allow_stub_calls(true);
+  AllowStubCallsScope allow_scope(this, true);
 
   push(rax);
   movq(kScratchRegister, p0, RelocInfo::NONE);
@@ -1110,7 +1110,7 @@ void MacroAssembler::SmiAnd(Register dst, Register src1, Register src2) {
 
 void MacroAssembler::SmiAndConstant(Register dst, Register src, Smi* constant) {
   if (constant->value() == 0) {
-    xor_(dst, dst);
+    Set(dst, 0);
   } else if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
     Register constant_reg = GetSmiConstant(constant);
@@ -1272,8 +1272,6 @@ void MacroAssembler::Move(Register dst, Register src) {
     movq(dst, src);
   }
 }
-
-
 
 
 void MacroAssembler::Move(Register dst, Handle<Object> source) {
@@ -1605,7 +1603,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
   ASSERT(allow_stub_calls());
-  xor_(rax, rax);  // no arguments
+  Set(rax, 0);  // No arguments.
   movq(rbx, ExternalReference(Runtime::kDebugBreak));
   CEntryStub ces(1);
   Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);

@@ -3266,18 +3266,35 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
 }
 
 
+static bool CanBeEncodedAsSmi(void* ptr) {
+  const intptr_t address = reinterpret_cast<intptr_t>(ptr);
+  return ((address & i::kEncodablePointerMask) == 0);
+}
+
+
+static i::Smi* EncodeAsSmi(void* ptr) {
+  ASSERT(CanBeEncodedAsSmi(ptr));
+  const intptr_t address = reinterpret_cast<intptr_t>(ptr);
+  i::Smi* result = reinterpret_cast<i::Smi*>(address << i::kPointerToSmiShift);
+  ASSERT(i::Internals::HasSmiTag(result));
+  ASSERT_EQ(result, i::Smi::FromInt(result->value()));
+  ASSERT_EQ(ptr, i::Internals::GetExternalPointerFromSmi(result));
+  return result;
+}
+
+
 void v8::Object::SetPointerInInternalField(int index, void* value) {
   ENTER_V8;
-  i::Object* as_object = reinterpret_cast<i::Object*>(value);
-  if (as_object->IsSmi()) {
-    Utils::OpenHandle(this)->SetInternalField(index, as_object);
-    return;
+  if (CanBeEncodedAsSmi(value)) {
+    Utils::OpenHandle(this)->SetInternalField(index, EncodeAsSmi(value));
+  } else {
+    HandleScope scope;
+    i::Handle<i::Proxy> proxy =
+        i::Factory::NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
+    if (!proxy.is_null())
+        Utils::OpenHandle(this)->SetInternalField(index, *proxy);
   }
-  HandleScope scope;
-  i::Handle<i::Proxy> proxy =
-      i::Factory::NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
-  if (!proxy.is_null())
-      Utils::OpenHandle(this)->SetInternalField(index, *proxy);
+  ASSERT_EQ(value, GetPointerFromInternalField(index));
 }
 
 
@@ -3299,7 +3316,8 @@ bool v8::V8::Dispose() {
 
 HeapStatistics::HeapStatistics(): total_heap_size_(0),
                                   total_heap_size_executable_(0),
-                                  used_heap_size_(0) { }
+                                  used_heap_size_(0),
+                                  heap_size_limit_(0) { }
 
 
 void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
@@ -3307,6 +3325,7 @@ void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->set_total_heap_size_executable(
       i::Heap::CommittedMemoryExecutable());
   heap_statistics->set_used_heap_size(i::Heap::SizeOfObjects());
+  heap_statistics->set_heap_size_limit(i::Heap::MaxReserved());
 }
 
 
@@ -3560,11 +3579,13 @@ Local<Value> v8::External::Wrap(void* data) {
   LOG_API("External::Wrap");
   EnsureInitialized("v8::External::Wrap()");
   ENTER_V8;
-  i::Object* as_object = reinterpret_cast<i::Object*>(data);
-  if (as_object->IsSmi()) {
-    return Utils::ToLocal(i::Handle<i::Object>(as_object));
-  }
-  return ExternalNewImpl(data);
+
+  v8::Local<v8::Value> result = CanBeEncodedAsSmi(data)
+      ? Utils::ToLocal(i::Handle<i::Object>(EncodeAsSmi(data)))
+      : v8::Local<v8::Value>(ExternalNewImpl(data));
+
+  ASSERT_EQ(data, Unwrap(result));
+  return result;
 }
 
 
@@ -3572,7 +3593,7 @@ void* v8::Object::SlowGetPointerFromInternalField(int index) {
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   i::Object* value = obj->GetInternalField(index);
   if (value->IsSmi()) {
-    return value;
+    return i::Internals::GetExternalPointerFromSmi(value);
   } else if (value->IsProxy()) {
     return reinterpret_cast<void*>(i::Proxy::cast(value)->proxy());
   } else {
@@ -3586,8 +3607,7 @@ void* v8::External::FullUnwrap(v8::Handle<v8::Value> wrapper) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*wrapper);
   void* result;
   if (obj->IsSmi()) {
-    // The external value was an aligned pointer.
-    result = *obj;
+    result = i::Internals::GetExternalPointerFromSmi(*obj);
   } else if (obj->IsProxy()) {
     result = ExternalValueImpl(obj);
   } else {

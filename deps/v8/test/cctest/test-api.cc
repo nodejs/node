@@ -814,6 +814,75 @@ THREADED_TEST(FunctionTemplate) {
 }
 
 
+static void* expected_ptr;
+static v8::Handle<v8::Value> callback(const v8::Arguments& args) {
+  void* ptr = v8::External::Unwrap(args.Data());
+  CHECK_EQ(expected_ptr, ptr);
+  return v8::Boolean::New(true);
+}
+
+
+static void TestExternalPointerWrapping() {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  v8::Handle<v8::Value> data = v8::External::Wrap(expected_ptr);
+
+  v8::Handle<v8::Object> obj = v8::Object::New();
+  obj->Set(v8_str("func"),
+           v8::FunctionTemplate::New(callback, data)->GetFunction());
+  env->Global()->Set(v8_str("obj"), obj);
+
+  CHECK(CompileRun(
+        "function foo() {\n"
+        "  for (var i = 0; i < 13; i++) obj.func();\n"
+        "}\n"
+        "foo(), true")->BooleanValue());
+}
+
+
+THREADED_TEST(ExternalWrap) {
+  // Check heap allocated object.
+  int* ptr = new int;
+  expected_ptr = ptr;
+  TestExternalPointerWrapping();
+  delete ptr;
+
+  // Check stack allocated object.
+  int foo;
+  expected_ptr = &foo;
+  TestExternalPointerWrapping();
+
+  // Check not aligned addresses.
+  const int n = 100;
+  char* s = new char[n];
+  for (int i = 0; i < n; i++) {
+    expected_ptr = s + i;
+    TestExternalPointerWrapping();
+  }
+
+  delete[] s;
+
+  // Check several invalid addresses.
+  expected_ptr = reinterpret_cast<void*>(1);
+  TestExternalPointerWrapping();
+
+  expected_ptr = reinterpret_cast<void*>(0xdeadbeef);
+  TestExternalPointerWrapping();
+
+  expected_ptr = reinterpret_cast<void*>(0xdeadbeef + 1);
+  TestExternalPointerWrapping();
+
+#if defined(V8_HOST_ARCH_X64)
+  expected_ptr = reinterpret_cast<void*>(0xdeadbeefdeadbeef);
+  TestExternalPointerWrapping();
+
+  expected_ptr = reinterpret_cast<void*>(0xdeadbeefdeadbeef + 1);
+  TestExternalPointerWrapping();
+#endif
+}
+
+
 THREADED_TEST(FindInstanceInPrototypeChain) {
   v8::HandleScope scope;
   LocalContext env;
@@ -2285,6 +2354,30 @@ TEST(TryCatchInTryFinally) {
                                    "} catch (e) {"
                                    "}");
   CHECK(result->IsTrue());
+}
+
+
+static void check_reference_error_message(
+    v8::Handle<v8::Message> message,
+    v8::Handle<v8::Value> data) {
+  const char* reference_error = "Uncaught ReferenceError: asdf is not defined";
+  CHECK(message->Get()->Equals(v8_str(reference_error)));
+}
+
+
+// Test that overwritten toString methods are not invoked on uncaught
+// exception formatting. However, they are invoked when performing
+// normal error string conversions.
+TEST(APIThrowMessageOverwrittenToString) {
+  v8::HandleScope scope;
+  v8::V8::AddMessageListener(check_reference_error_message);
+  LocalContext context;
+  CompileRun("ReferenceError.prototype.toString ="
+             "  function() { return 'Whoops' }");
+  CompileRun("asdf;");
+  v8::Handle<Value> string = CompileRun("try { asdf; } catch(e) { e + ''; }");
+  CHECK(string->Equals(v8_str("Whoops")));
+  v8::V8::RemoveMessageListeners(check_message);
 }
 
 

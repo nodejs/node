@@ -29,7 +29,7 @@
 #define V8_V8UTILS_H_
 
 #include "utils.h"
-#include <stdarg.h>
+#include "platform.h"  // For va_list on Solaris.
 
 namespace v8 {
 namespace internal {

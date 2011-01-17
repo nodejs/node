@@ -98,6 +98,12 @@ bool Variable::IsStackLocal() const {
 }
 
 
+bool Variable::IsContextSlot() const {
+  Slot* s = AsSlot();
+  return s != NULL && s->type() == Slot::CONTEXT;
+}
+
+
 Variable::Variable(Scope* scope,
                    Handle<String> name,
                    Mode mode,

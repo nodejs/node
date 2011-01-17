@@ -110,26 +110,29 @@ Vector<unsigned> PartialParserRecorder::ExtractData() {
 
 CompleteParserRecorder::CompleteParserRecorder()
     : FunctionLoggingParserRecorder(),
+      literal_chars_(0),
       symbol_store_(0),
-      symbol_entries_(0),
+      symbol_keys_(0),
       symbol_table_(vector_compare),
       symbol_id_(0) {
 }
 
 
-void CompleteParserRecorder::LogSymbol(
-    int start, const char* literal_chars, int length) {
-  if (!is_recording_) return;
-
-  Vector<const char> literal(literal_chars, length);
-  int hash = vector_hash(literal);
-  HashMap::Entry* entry = symbol_table_.Lookup(&literal, hash, true);
+void CompleteParserRecorder::LogSymbol(int start,
+                                       int hash,
+                                       bool is_ascii,
+                                       Vector<const byte> literal_bytes) {
+  Key key = { is_ascii, literal_bytes };
+  HashMap::Entry* entry = symbol_table_.Lookup(&key, hash, true);
   int id = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
   if (id == 0) {
+    // Copy literal contents for later comparison.
+    key.literal_bytes =
+        Vector<const byte>::cast(literal_chars_.AddBlock(literal_bytes));
     // Put (symbol_id_ + 1) into entry and increment it.
     id = ++symbol_id_;
     entry->value = reinterpret_cast<void*>(id);
-    Vector<Vector<const char> > symbol = symbol_entries_.AddBlock(1, literal);
+    Vector<Key> symbol = symbol_keys_.AddBlock(1, key);
     entry->key = &symbol[0];
   }
   WriteNumber(id - 1);

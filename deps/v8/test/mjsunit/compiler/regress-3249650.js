@@ -50,4 +50,4 @@ function test(x) {
 }
 
 var x = {a: {b: "" }};
-for (var i = 0; i < 1000000; i++) test(x);
+for (var i = 0; i < 20000; i++) test(x);

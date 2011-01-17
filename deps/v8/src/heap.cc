@@ -2011,6 +2011,12 @@ bool Heap::CreateInitialObjects() {
   }
   set_the_hole_value(obj);
 
+  { MaybeObject* maybe_obj = CreateOddball("arguments_marker",
+                                           Smi::FromInt(-4));
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_arguments_marker(obj);
+
   { MaybeObject* maybe_obj =
         CreateOddball("no_interceptor_result_sentinel", Smi::FromInt(-2));
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -2549,20 +2555,10 @@ MaybeObject* Heap::AllocateExternalStringFromTwoByte(
   }
 
   // For small strings we check whether the resource contains only
-  // ascii characters.  If yes, we use a different string map.
-  bool is_ascii = true;
-  if (length >= static_cast<size_t>(String::kMinNonFlatLength)) {
-    is_ascii = false;
-  } else {
-    const uc16* data = resource->data();
-    for (size_t i = 0; i < length; i++) {
-      if (data[i] > String::kMaxAsciiCharCode) {
-        is_ascii = false;
-        break;
-      }
-    }
-  }
-
+  // ASCII characters.  If yes, we use a different string map.
+  static const size_t kAsciiCheckLengthLimit = 32;
+  bool is_ascii = length <= kAsciiCheckLengthLimit &&
+      String::IsAscii(resource->data(), static_cast<int>(length));
   Map* map = is_ascii ?
       Heap::external_string_with_ascii_data_map() : Heap::external_string_map();
   Object* result;
@@ -2728,6 +2724,9 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(ByteArray::cast(reloc_info));
   code->set_flags(flags);
+  if (code->is_call_stub() || code->is_keyed_call_stub()) {
+    code->set_check_type(RECEIVER_MAP_CHECK);
+  }
   code->set_deoptimization_data(empty_fixed_array());
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
@@ -3307,8 +3306,8 @@ MaybeObject* Heap::AllocateStringFromAscii(Vector<const char> string,
 }
 
 
-MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> string,
-                                          PretenureFlag pretenure) {
+MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
+                                              PretenureFlag pretenure) {
   // V8 only supports characters in the Basic Multilingual Plane.
   const uc32 kMaxSupportedChar = 0xFFFF;
   // Count the number of characters in the UTF-8 string and check if
@@ -3317,16 +3316,10 @@ MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> string,
       decoder(ScannerConstants::utf8_decoder());
   decoder->Reset(string.start(), string.length());
   int chars = 0;
-  bool is_ascii = true;
   while (decoder->has_more()) {
-    uc32 r = decoder->GetNext();
-    if (r > String::kMaxAsciiCharCode) is_ascii = false;
+    decoder->GetNext();
     chars++;
   }
-
-  // If the string is ascii, we do not need to convert the characters
-  // since UTF8 is backwards compatible with ascii.
-  if (is_ascii) return AllocateStringFromAscii(string, pretenure);
 
   Object* result;
   { MaybeObject* maybe_result = AllocateRawTwoByteString(chars, pretenure);
@@ -3348,11 +3341,8 @@ MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> string,
 MaybeObject* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
                                              PretenureFlag pretenure) {
   // Check if the string is an ASCII string.
-  int i = 0;
-  while (i < string.length() && string[i] <= String::kMaxAsciiCharCode) i++;
-
   MaybeObject* maybe_result;
-  if (i == string.length()) {  // It's an ASCII string.
+  if (String::IsAscii(string.start(), string.length())) {
     maybe_result = AllocateRawAsciiString(string.length(), pretenure);
   } else {  // It's not an ASCII string.
     maybe_result = AllocateRawTwoByteString(string.length(), pretenure);
@@ -4022,6 +4012,36 @@ MaybeObject* Heap::LookupSymbol(Vector<const char> string) {
   Object* new_table;
   { MaybeObject* maybe_new_table =
         symbol_table()->LookupSymbol(string, &symbol);
+    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
+  }
+  // Can't use set_symbol_table because SymbolTable::cast knows that
+  // SymbolTable is a singleton and checks for identity.
+  roots_[kSymbolTableRootIndex] = new_table;
+  ASSERT(symbol != NULL);
+  return symbol;
+}
+
+
+MaybeObject* Heap::LookupAsciiSymbol(Vector<const char> string) {
+  Object* symbol = NULL;
+  Object* new_table;
+  { MaybeObject* maybe_new_table =
+        symbol_table()->LookupAsciiSymbol(string, &symbol);
+    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
+  }
+  // Can't use set_symbol_table because SymbolTable::cast knows that
+  // SymbolTable is a singleton and checks for identity.
+  roots_[kSymbolTableRootIndex] = new_table;
+  ASSERT(symbol != NULL);
+  return symbol;
+}
+
+
+MaybeObject* Heap::LookupTwoByteSymbol(Vector<const uc16> string) {
+  Object* symbol = NULL;
+  Object* new_table;
+  { MaybeObject* maybe_new_table =
+        symbol_table()->LookupTwoByteSymbol(string, &symbol);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
   // Can't use set_symbol_table because SymbolTable::cast knows that
@@ -5012,7 +5032,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       obj->SetMark();
     }
     UnmarkingVisitor visitor;
-    Heap::IterateRoots(&visitor, VISIT_ONLY_STRONG);
+    Heap::IterateRoots(&visitor, VISIT_ALL);
     while (visitor.can_process())
       visitor.ProcessNext();
   }

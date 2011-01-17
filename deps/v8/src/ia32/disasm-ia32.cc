@@ -1182,15 +1182,33 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(rm),
                            static_cast<int>(imm8));
             data += 2;
+          } else if (*data == 0xF3) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("psllq %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
           } else if (*data == 0x73) {
             data++;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             int8_t imm8 = static_cast<int8_t>(data[1]);
-            AppendToBuffer("psllq %s,%d",
+            ASSERT(regop == esi || regop == edx);
+            AppendToBuffer("%s %s,%d",
+                           (regop == esi) ? "psllq" : "psrlq",
                            NameOfXMMRegister(rm),
                            static_cast<int>(imm8));
             data += 2;
+          } else if (*data == 0xD3) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("psrlq %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
           } else if (*data == 0x7F) {
             AppendToBuffer("movdqa ");
             data++;
@@ -1225,6 +1243,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("pxor %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
+          } else if (*data == 0xEB) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("por %s,%s",
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;

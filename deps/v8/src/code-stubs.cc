@@ -49,8 +49,10 @@ bool CodeStub::FindCodeInCache(Code** code_out) {
 void CodeStub::GenerateCode(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
   Counters::code_stubs.Increment();
+
   // Nested stubs are not allowed for leafs.
-  masm->set_allow_stub_calls(AllowsStubCalls());
+  AllowStubCallsScope allow_scope(masm, AllowsStubCalls());
+
   // Generate the code for the stub.
   masm->set_generating_stub(true);
   Generate(masm);
@@ -194,6 +196,36 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
+}
+
+
+const char* InstanceofStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+
+  const char* args = "";
+  if (HasArgsInRegisters()) {
+    args = "_REGS";
+  }
+
+  const char* inline_check = "";
+  if (HasCallSiteInlineCheck()) {
+    inline_check = "_INLINE";
+  }
+
+  const char* return_true_false_object = "";
+  if (ReturnTrueFalseObject()) {
+    return_true_false_object = "_TRUEFALSE";
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "InstanceofStub%s%s%s",
+               args,
+               inline_check,
+               return_true_false_object);
+  return name_;
 }
 
 

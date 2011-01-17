@@ -114,7 +114,7 @@ class RegExpImpl {
   static IrregexpResult IrregexpExecOnce(Handle<JSRegExp> regexp,
                                          Handle<String> subject,
                                          int index,
-                                         Vector<int32_t> registers);
+                                         Vector<int> registers);
 
   // Execute an Irregexp bytecode pattern.
   // On a successful match, the result is a JSArray containing

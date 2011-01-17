@@ -111,6 +111,12 @@ class MjsunitTestConfiguration(test.TestConfiguration):
     third_party = [current_path + ['third_party', t] for t in self.Ls(join(self.root, 'third_party'))]
     tools = [current_path + ['tools', t] for t in self.Ls(join(self.root, 'tools'))]
     compiler = [current_path + ['compiler', t] for t in self.Ls(join(self.root, 'compiler'))]
+    mjsunit.sort()
+    regress.sort()
+    bugs.sort()
+    third_party.sort()
+    tools.sort()
+    compiler.sort()
     all_tests = mjsunit + regress + bugs + third_party + tools + compiler
     result = []
     for test in all_tests:

@@ -25,11 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// We throw syntax errors early for invalid break and continue statements.
+// (Notice that the example isn't valid ECMAScript due to the
+// function declaration that is not at top level.)
+
 function f() {
   // Force eager compilation of x through the use of eval. The break
   // in function x should not try to break out of the enclosing while.
   return eval("while(0) function x() { break; }; 42");
 };
 
-assertEquals(42, f());
+assertThrows("f()");
 

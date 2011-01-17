@@ -44,26 +44,26 @@ $Math.__proto__ = global.Object.prototype;
 // ECMA 262 - 15.8.2.1
 function MathAbs(x) {
   if (%_IsSmi(x)) return x >= 0 ? x : -x;
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   if (x === 0) return 0;  // To handle -0.
   return x > 0 ? x : -x;
 }
 
 // ECMA 262 - 15.8.2.2
 function MathAcos(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %Math_acos(x);
 }
 
 // ECMA 262 - 15.8.2.3
 function MathAsin(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %Math_asin(x);
 }
 
 // ECMA 262 - 15.8.2.4
 function MathAtan(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %Math_atan(x);
 }
 
@@ -71,32 +71,32 @@ function MathAtan(x) {
 // The naming of y and x matches the spec, as does the order in which
 // ToNumber (valueOf) is called.
 function MathAtan2(y, x) {
-  if (!IS_NUMBER(y)) y = ToNumber(y);
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(y)) y = NonNumberToNumber(y);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %Math_atan2(y, x);
 }
 
 // ECMA 262 - 15.8.2.6
 function MathCeil(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %Math_ceil(x);
 }
 
 // ECMA 262 - 15.8.2.7
 function MathCos(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %_MathCos(x);
 }
 
 // ECMA 262 - 15.8.2.8
 function MathExp(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %Math_exp(x);
 }
 
 // ECMA 262 - 15.8.2.9
 function MathFloor(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   // It's more common to call this with a positive number that's out
   // of range than negative numbers; check the upper bound first.
   if (x < 0x80000000 && x > 0) {
@@ -112,7 +112,7 @@ function MathFloor(x) {
 
 // ECMA 262 - 15.8.2.10
 function MathLog(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %_MathLog(x);
 }
 
@@ -123,11 +123,11 @@ function MathMax(arg1, arg2) {  // length == 2
     return -1/0;  // Compiler constant-folds this to -Infinity.
   }
   var r = arg1;
-  if (!IS_NUMBER(r)) r = ToNumber(r);
+  if (!IS_NUMBER(r)) r = NonNumberToNumber(r);
   if (NUMBER_IS_NAN(r)) return r;
   for (var i = 1; i < length; i++) {
     var n = %_Arguments(i);
-    if (!IS_NUMBER(n)) n = ToNumber(n);
+    if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
     if (NUMBER_IS_NAN(n)) return n;
     // Make sure +0 is considered greater than -0.  -0 is never a Smi, +0 can be
     // a Smi or heap number.
@@ -143,11 +143,11 @@ function MathMin(arg1, arg2) {  // length == 2
     return 1/0;  // Compiler constant-folds this to Infinity.
   }
   var r = arg1;
-  if (!IS_NUMBER(r)) r = ToNumber(r);
+  if (!IS_NUMBER(r)) r = NonNumberToNumber(r);
   if (NUMBER_IS_NAN(r)) return r;
   for (var i = 1; i < length; i++) {
     var n = %_Arguments(i);
-    if (!IS_NUMBER(n)) n = ToNumber(n);
+    if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
     if (NUMBER_IS_NAN(n)) return n;
     // Make sure -0 is considered less than +0.  -0 is never a Smi, +0 can b a
     // Smi or a heap number.
@@ -158,8 +158,8 @@ function MathMin(arg1, arg2) {  // length == 2
 
 // ECMA 262 - 15.8.2.13
 function MathPow(x, y) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
-  if (!IS_NUMBER(y)) y = ToNumber(y);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  if (!IS_NUMBER(y)) y = NonNumberToNumber(y);
   return %_MathPow(x, y);
 }
 
@@ -170,25 +170,25 @@ function MathRandom() {
 
 // ECMA 262 - 15.8.2.15
 function MathRound(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %RoundNumber(x);
 }
 
 // ECMA 262 - 15.8.2.16
 function MathSin(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %_MathSin(x);
 }
 
 // ECMA 262 - 15.8.2.17
 function MathSqrt(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %_MathSqrt(x);
 }
 
 // ECMA 262 - 15.8.2.18
 function MathTan(x) {
-  if (!IS_NUMBER(x)) x = ToNumber(x);
+  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   return %Math_tan(x);
 }
 

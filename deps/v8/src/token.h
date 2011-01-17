@@ -217,7 +217,7 @@ class Token {
   // Returns a string corresponding to the C++ token name
   // (e.g. "LT" for the token LT).
   static const char* Name(Value tok) {
-    ASSERT(0 <= tok && tok < NUM_TOKENS);
+    ASSERT(tok < NUM_TOKENS);  // tok is unsigned
     return name_[tok];
   }
 
@@ -292,14 +292,14 @@ class Token {
   // (.e., "<" for the token LT) or NULL if the token doesn't
   // have a (unique) string (e.g. an IDENTIFIER).
   static const char* String(Value tok) {
-    ASSERT(0 <= tok && tok < NUM_TOKENS);
+    ASSERT(tok < NUM_TOKENS);  // tok is unsigned.
     return string_[tok];
   }
 
   // Returns the precedence > 0 for binary and compare
   // operators; returns 0 otherwise.
   static int Precedence(Value tok) {
-    ASSERT(0 <= tok && tok < NUM_TOKENS);
+    ASSERT(tok < NUM_TOKENS);  // tok is unsigned.
     return precedence_[tok];
   }
 

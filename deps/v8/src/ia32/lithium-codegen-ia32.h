@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -40,7 +40,29 @@ namespace internal {
 
 // Forward declarations.
 class LDeferredCode;
+class LGapNode;
 class SafepointGenerator;
+
+class LGapResolver BASE_EMBEDDED {
+ public:
+  LGapResolver();
+  const ZoneList<LMoveOperands>* Resolve(const ZoneList<LMoveOperands>* moves,
+                                         LOperand* marker_operand);
+
+ private:
+  LGapNode* LookupNode(LOperand* operand);
+  bool CanReach(LGapNode* a, LGapNode* b, int visited_id);
+  bool CanReach(LGapNode* a, LGapNode* b);
+  void RegisterMove(LMoveOperands move);
+  void AddResultMove(LOperand* from, LOperand* to);
+  void AddResultMove(LGapNode* from, LGapNode* to);
+  void ResolveCycle(LGapNode* start, LOperand* marker_operand);
+
+  ZoneList<LGapNode*> nodes_;
+  ZoneList<LGapNode*> identified_cycles_;
+  ZoneList<LMoveOperands> result_;
+  int next_visited_id_;
+};
 
 
 class LCodeGen BASE_EMBEDDED {
@@ -77,9 +99,14 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LGoto* instr);
+  void DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
+                                        Label* map_check);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
+
+  // Emit frame translation commands for an environment.
+  void WriteTranslation(LEnvironment* environment, Translation* translation);
 
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) void Do##type(L##type* node);
@@ -148,7 +175,7 @@ class LCodeGen BASE_EMBEDDED {
                          int arity,
                          LInstruction* instr);
 
-  void LoadPrototype(Register result, Handle<JSObject> prototype);
+  void LoadHeapObject(Register result, Handle<HeapObject> object);
 
   void RegisterLazyDeoptimization(LInstruction* instr);
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment);
@@ -227,6 +254,9 @@ class LCodeGen BASE_EMBEDDED {
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.
   SafepointTableBuilder safepoints_;
+
+  // Compiler from a set of parallel moves to a sequential list of moves.
+  LGapResolver resolver_;
 
   friend class LDeferredCode;
   friend class LEnvironment;

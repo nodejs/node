@@ -81,19 +81,6 @@ testArray();
 expected[0] = 111;
 testArray();
 
-// The functionality is not implemented for arrays due to performance issues.
-var a = [ 1 ];
-a.__defineGetter__('2', function() { return 7; });
-assertEquals(undefined, a[2]);
-assertEquals(1, a.length);
-var b = 0;
-a.__defineSetter__('5', function(y) { b = y; });
-assertEquals(1, a.length);
-a[5] = 42;
-assertEquals(0, b);
-assertEquals(42, a[5]);
-assertEquals(6, a.length);
-
 // Using a setter where only a getter is defined throws an exception.
 var q = {};
 q.__defineGetter__('0', function() { return 42; });

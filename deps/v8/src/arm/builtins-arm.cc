@@ -502,7 +502,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   // Load the first arguments in r0 and get rid of the rest.
   Label no_arguments;
-  __ cmp(r0, Operand(0));
+  __ cmp(r0, Operand(0, RelocInfo::NONE));
   __ b(eq, &no_arguments);
   // First args = sp[(argc - 1) * 4].
   __ sub(r0, r0, Operand(1));
@@ -546,7 +546,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
     __ cmp(r4, Operand(JSValue::kSize >> kPointerSizeLog2));
     __ Assert(eq, "Unexpected string wrapper instance size");
     __ ldrb(r4, FieldMemOperand(map, Map::kUnusedPropertyFieldsOffset));
-    __ cmp(r4, Operand(0));
+    __ cmp(r4, Operand(0, RelocInfo::NONE));
     __ Assert(eq, "Unexpected unused properties of string wrapper");
   }
   __ str(map, FieldMemOperand(r0, HeapObject::kMapOffset));

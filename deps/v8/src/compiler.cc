@@ -92,6 +92,25 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
 }
 
 
+void CompilationInfo::DisableOptimization() {
+  if (FLAG_optimize_closures) {
+    // If we allow closures optimizations and it's an optimizable closure
+    // mark it correspondingly.
+    bool is_closure = closure_.is_null() && !scope_->HasTrivialOuterContext();
+    if (is_closure) {
+      bool is_optimizable_closure =
+          !scope_->outer_scope_calls_eval() && !scope_->inside_with();
+      if (is_optimizable_closure) {
+        SetMode(BASE);
+        return;
+      }
+    }
+  }
+
+  SetMode(NONOPT);
+}
+
+
 // Determine whether to use the full compiler for all code. If the flag
 // --always-full-compiler is specified this is the case. For the virtual frame
 // based compiler the full compiler is also used if a debugger is connected, as
@@ -262,7 +281,9 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
     HTracer::Instance()->TraceCompilation(info->function());
   }
 
-  TypeFeedbackOracle oracle(Handle<Code>(info->shared_info()->code()));
+  TypeFeedbackOracle oracle(
+      Handle<Code>(info->shared_info()->code()),
+      Handle<Context>(info->closure()->context()->global_context()));
   HGraphBuilder builder(&oracle);
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph(info);

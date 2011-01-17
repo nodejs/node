@@ -25,14 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-xeval = function(s) { eval(s); }
-xeval("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }");
+assertThrows("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }");
 
-foo = function() { eval("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }"); }
+function foo() {
+  assertThrows("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }");
+}
 foo();
 
-xeval = function(s) { eval(s); }
-eval("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }");
+assertThrows("$=function anonymous() { /*noex*/do {} while(({ get x(x) { break ; }, set x() { (undefined);} })); }");
 
 xeval = function(s) { eval(s); }
 xeval('$=function(){L: {break L;break L;}};');

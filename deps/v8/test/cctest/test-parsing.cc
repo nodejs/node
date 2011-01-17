@@ -573,7 +573,7 @@ void TestStreamScanner(i::UC16CharacterStream* stream,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
   i::V8JavaScriptScanner scanner;
-  scanner.Initialize(stream, i::JavaScriptScanner::kAllLiterals);
+  scanner.Initialize(stream);
 
   int i = 0;
   do {
@@ -644,4 +644,59 @@ TEST(StreamScanner) {
          static_cast<unsigned>(strlen(str3)));
      TestStreamScanner(&stream3, expectations3, 1, 1 + i);
   }
+}
+
+
+void TestScanRegExp(const char* re_source, const char* expected) {
+  i::Utf8ToUC16CharacterStream stream(
+       reinterpret_cast<const i::byte*>(re_source),
+       static_cast<unsigned>(strlen(re_source)));
+  i::V8JavaScriptScanner scanner;
+  scanner.Initialize(&stream);
+
+  i::Token::Value start = scanner.peek();
+  CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
+  CHECK(scanner.ScanRegExpPattern(start == i::Token::ASSIGN_DIV));
+  scanner.Next();  // Current token is now the regexp literal.
+  CHECK(scanner.is_literal_ascii());
+  i::Vector<const char> actual = scanner.literal_ascii_string();
+  for (int i = 0; i < actual.length(); i++) {
+    CHECK_NE('\0', expected[i]);
+    CHECK_EQ(expected[i], actual[i]);
+  }
+}
+
+
+TEST(RegExpScanning) {
+  // RegExp token with added garbage at the end. The scanner should only
+  // scan the RegExp until the terminating slash just before "flipperwald".
+  TestScanRegExp("/b/flipperwald", "b");
+  // Incomplete escape sequences doesn't hide the terminating slash.
+  TestScanRegExp("/\\x/flipperwald", "\\x");
+  TestScanRegExp("/\\u/flipperwald", "\\u");
+  TestScanRegExp("/\\u1/flipperwald", "\\u1");
+  TestScanRegExp("/\\u12/flipperwald", "\\u12");
+  TestScanRegExp("/\\u123/flipperwald", "\\u123");
+  TestScanRegExp("/\\c/flipperwald", "\\c");
+  TestScanRegExp("/\\c//flipperwald", "\\c");
+  // Slashes inside character classes are not terminating.
+  TestScanRegExp("/[/]/flipperwald", "[/]");
+  TestScanRegExp("/[\\s-/]/flipperwald", "[\\s-/]");
+  // Incomplete escape sequences inside a character class doesn't hide
+  // the end of the character class.
+  TestScanRegExp("/[\\c/]/flipperwald", "[\\c/]");
+  TestScanRegExp("/[\\c]/flipperwald", "[\\c]");
+  TestScanRegExp("/[\\x]/flipperwald", "[\\x]");
+  TestScanRegExp("/[\\x1]/flipperwald", "[\\x1]");
+  TestScanRegExp("/[\\u]/flipperwald", "[\\u]");
+  TestScanRegExp("/[\\u1]/flipperwald", "[\\u1]");
+  TestScanRegExp("/[\\u12]/flipperwald", "[\\u12]");
+  TestScanRegExp("/[\\u123]/flipperwald", "[\\u123]");
+  // Escaped ']'s wont end the character class.
+  TestScanRegExp("/[\\]/]/flipperwald", "[\\]/]");
+  // Escaped slashes are not terminating.
+  TestScanRegExp("/\\//flipperwald", "\\/");
+  // Starting with '=' works too.
+  TestScanRegExp("/=/", "=");
+  TestScanRegExp("/=?/", "=?");
 }

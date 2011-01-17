@@ -64,10 +64,10 @@ class UC16CharacterStream {
   // Returns and advances past the next UC16 character in the input
   // stream. If there are no more characters, it returns a negative
   // value.
-  inline int32_t Advance() {
+  inline uc32 Advance() {
     if (buffer_cursor_ < buffer_end_ || ReadBlock()) {
       pos_++;
-      return *(buffer_cursor_++);
+      return static_cast<uc32>(*(buffer_cursor_++));
     }
     // Note: currently the following increment is necessary to avoid a
     // parser problem! The scanner treats the final kEndOfInput as
@@ -97,13 +97,14 @@ class UC16CharacterStream {
     return SlowSeekForward(character_count);
   }
 
-  // Pushes back the most recently read UC16 character, i.e.,
-  // the value returned by the most recent call to Advance.
+  // Pushes back the most recently read UC16 character (or negative
+  // value if at end of input), i.e., the value returned by the most recent
+  // call to Advance.
   // Must not be used right after calling SeekForward.
-  virtual void PushBack(uc16 character) = 0;
+  virtual void PushBack(int32_t character) = 0;
 
  protected:
-  static const int32_t kEndOfInput = -1;
+  static const uc32 kEndOfInput = -1;
 
   // Ensures that the buffer_cursor_ points to the character at
   // position pos_ of the input, if possible. If the position
@@ -141,60 +142,104 @@ class ScannerConstants : AllStatic {
 };
 
 // ----------------------------------------------------------------------------
-// LiteralCollector -  Collector of chars of literals.
+// LiteralBuffer -  Collector of chars of literals.
 
-class LiteralCollector {
+class LiteralBuffer {
  public:
-  LiteralCollector();
-  ~LiteralCollector();
+  LiteralBuffer() : is_ascii_(true), position_(0), backing_store_() { }
 
-  inline void AddChar(uc32 c) {
-    if (recording_) {
-      if (static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
-        buffer_.Add(static_cast<char>(c));
-      } else {
-        AddCharSlow(c);
+  ~LiteralBuffer() {
+    if (backing_store_.length() > 0) {
+      backing_store_.Dispose();
+    }
+  }
+
+  inline void AddChar(uc16 character) {
+    if (position_ >= backing_store_.length()) ExpandBuffer();
+    if (is_ascii_) {
+      if (character < kMaxAsciiCharCodeU) {
+        backing_store_[position_] = static_cast<byte>(character);
+        position_ += kASCIISize;
+        return;
       }
+      ConvertToUC16();
     }
+    *reinterpret_cast<uc16*>(&backing_store_[position_]) = character;
+    position_ += kUC16Size;
   }
 
-  void StartLiteral() {
-    buffer_.StartSequence();
-    recording_ = true;
+  bool is_ascii() { return is_ascii_; }
+
+  Vector<const uc16> uc16_literal() {
+    ASSERT(!is_ascii_);
+    ASSERT((position_ & 0x1) == 0);
+    return Vector<const uc16>(
+        reinterpret_cast<const uc16*>(backing_store_.start()),
+        position_ >> 1);
   }
 
-  Vector<const char> EndLiteral() {
-    if (recording_) {
-      recording_ = false;
-      buffer_.Add(kEndMarker);
-      Vector<char> sequence = buffer_.EndSequence();
-      return Vector<const char>(sequence.start(), sequence.length());
-    }
-    return Vector<const char>();
+  Vector<const char> ascii_literal() {
+    ASSERT(is_ascii_);
+    return Vector<const char>(
+        reinterpret_cast<const char*>(backing_store_.start()),
+        position_);
   }
 
-  void DropLiteral() {
-    if (recording_) {
-      recording_ = false;
-      buffer_.DropSequence();
-    }
+  int length() {
+    return is_ascii_ ? position_ : (position_ >> 1);
   }
 
   void Reset() {
-    buffer_.Reset();
+    position_ = 0;
+    is_ascii_ = true;
+  }
+ private:
+  static const int kInitialCapacity = 16;
+  static const int kGrowthFactory = 4;
+  static const int kMinConversionSlack = 256;
+  static const int kMaxGrowth = 1 * MB;
+  inline int NewCapacity(int min_capacity) {
+    int capacity = Max(min_capacity, backing_store_.length());
+    int new_capacity = Min(capacity * kGrowthFactory, capacity + kMaxGrowth);
+    return new_capacity;
   }
 
-  // The end marker added after a parsed literal.
-  // Using zero allows the usage of strlen and similar functions on
-  // identifiers and numbers (but not strings, since they may contain zero
-  // bytes).
-  static const char kEndMarker = '\x00';
- private:
-  static const int kInitialCapacity = 256;
-  SequenceCollector<char, 4> buffer_;
-  bool recording_;
-  void AddCharSlow(uc32 c);
+  void ExpandBuffer() {
+    Vector<byte> new_store = Vector<byte>::New(NewCapacity(kInitialCapacity));
+    memcpy(new_store.start(), backing_store_.start(), position_);
+    backing_store_.Dispose();
+    backing_store_ = new_store;
+  }
+
+  void ConvertToUC16() {
+    ASSERT(is_ascii_);
+    Vector<byte> new_store;
+    int new_content_size = position_ * kUC16Size;
+    if (new_content_size >= backing_store_.length()) {
+      // Ensure room for all currently read characters as UC16 as well
+      // as the character about to be stored.
+      new_store = Vector<byte>::New(NewCapacity(new_content_size));
+    } else {
+      new_store = backing_store_;
+    }
+    char* src = reinterpret_cast<char*>(backing_store_.start());
+    uc16* dst = reinterpret_cast<uc16*>(new_store.start());
+    for (int i = position_ - 1; i >= 0; i--) {
+      dst[i] = src[i];
+    }
+    if (new_store.start() != backing_store_.start()) {
+      backing_store_.Dispose();
+      backing_store_ = new_store;
+    }
+    position_ = new_content_size;
+    is_ascii_ = false;
+  }
+
+  bool is_ascii_;
+  int position_;
+  Vector<byte> backing_store_;
 };
+
 
 // ----------------------------------------------------------------------------
 // Scanner base-class.
@@ -241,35 +286,40 @@ class Scanner {
   // collected for identifiers, strings, and numbers.
   // These functions only give the correct result if the literal
   // was scanned between calls to StartLiteral() and TerminateLiteral().
-  const char* literal_string() const {
-    return current_.literal_chars.start();
+  bool is_literal_ascii() {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->is_ascii();
   }
-
+  Vector<const char> literal_ascii_string() {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->ascii_literal();
+  }
+  Vector<const uc16> literal_uc16_string() {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->uc16_literal();
+  }
   int literal_length() const {
-    // Excluding terminal '\x00' added by TerminateLiteral().
-    return current_.literal_chars.length() - 1;
-  }
-
-  Vector<const char> literal() const {
-    return Vector<const char>(literal_string(), literal_length());
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->length();
   }
 
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
-  const char* next_literal_string() const {
-    return next_.literal_chars.start();
+  bool is_next_literal_ascii() {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->is_ascii();
   }
-
-
-  // Returns the length of the next token (that would be returned if
-  // Next() were called).
+  Vector<const char> next_literal_ascii_string() {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->ascii_literal();
+  }
+  Vector<const uc16> next_literal_uc16_string() {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->uc16_literal();
+  }
   int next_literal_length() const {
-    // Excluding terminal '\x00' added by TerminateLiteral().
-    return next_.literal_chars.length() - 1;
-  }
-
-  Vector<const char> next_literal() const {
-    return Vector<const char>(next_literal_string(), next_literal_length());
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->length();
   }
 
   static const int kCharacterLookaheadBufferSize = 1;
@@ -279,7 +329,7 @@ class Scanner {
   struct TokenDesc {
     Token::Value token;
     Location location;
-    Vector<const char> literal_chars;
+    LiteralBuffer* literal_chars;
   };
 
   // Call this after setting source_ to the input.
@@ -288,29 +338,31 @@ class Scanner {
     ASSERT(kCharacterLookaheadBufferSize == 1);
     Advance();
     // Initialize current_ to not refer to a literal.
-    current_.literal_chars = Vector<const char>();
-    // Reset literal buffer.
-    literal_buffer_.Reset();
+    current_.literal_chars = NULL;
   }
 
   // Literal buffer support
   inline void StartLiteral() {
-    literal_buffer_.StartLiteral();
+    LiteralBuffer* free_buffer = (current_.literal_chars == &literal_buffer1_) ?
+            &literal_buffer2_ : &literal_buffer1_;
+    free_buffer->Reset();
+    next_.literal_chars = free_buffer;
   }
 
   inline void AddLiteralChar(uc32 c) {
-    literal_buffer_.AddChar(c);
+    ASSERT_NOT_NULL(next_.literal_chars);
+    next_.literal_chars->AddChar(c);
   }
 
   // Complete scanning of a literal.
   inline void TerminateLiteral() {
-    next_.literal_chars = literal_buffer_.EndLiteral();
+    // Does nothing in the current implementation.
   }
 
   // Stops scanning of a literal and drop the collected characters,
   // e.g., due to an encountered error.
   inline void DropLiteral() {
-    literal_buffer_.DropLiteral();
+    next_.literal_chars = NULL;
   }
 
   inline void AddLiteralCharAdvance() {
@@ -348,15 +400,16 @@ class Scanner {
     return source_->pos() - kCharacterLookaheadBufferSize;
   }
 
+  // Buffers collecting literal strings, numbers, etc.
+  LiteralBuffer literal_buffer1_;
+  LiteralBuffer literal_buffer2_;
+
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)
 
   // Input stream. Must be initialized to an UC16CharacterStream.
   UC16CharacterStream* source_;
 
-  // Buffer to hold literal values (identifiers, strings, numbers)
-  // using '\x00'-terminated UTF-8 encoding. Handles allocation internally.
-  LiteralCollector literal_buffer_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
@@ -367,28 +420,14 @@ class Scanner {
 
 class JavaScriptScanner : public Scanner {
  public:
-
-  // Bit vector representing set of types of literals.
-  enum LiteralType {
-    kNoLiterals = 0,
-    kLiteralNumber = 1,
-    kLiteralIdentifier = 2,
-    kLiteralString = 4,
-    kLiteralRegExp = 8,
-    kLiteralRegExpFlags = 16,
-    kAllLiterals = 31
-  };
-
   // A LiteralScope that disables recording of some types of JavaScript
   // literals. If the scanner is configured to not record the specific
   // type of literal, the scope will not call StartLiteral.
   class LiteralScope {
    public:
-    LiteralScope(JavaScriptScanner* self, LiteralType type)
+    explicit LiteralScope(JavaScriptScanner* self)
         : scanner_(self), complete_(false) {
-      if (scanner_->RecordsLiteral(type)) {
-        scanner_->StartLiteral();
-      }
+      scanner_->StartLiteral();
     }
      ~LiteralScope() {
        if (!complete_) scanner_->DropLiteral();
@@ -430,11 +469,6 @@ class JavaScriptScanner : public Scanner {
   // tokens, which is what it is used for.
   void SeekForward(int pos);
 
-  // Whether this scanner records the given literal type or not.
-  bool RecordsLiteral(LiteralType type) {
-    return (literal_flags_ & type) != 0;
-  }
-
  protected:
   bool SkipWhiteSpace();
   Token::Value SkipSingleLineComment();
@@ -458,7 +492,6 @@ class JavaScriptScanner : public Scanner {
   // If the escape sequence cannot be decoded the result is kBadChar.
   uc32 ScanIdentifierUnicodeEscape();
 
-  int literal_flags_;
   bool has_line_terminator_before_next_;
 };
 

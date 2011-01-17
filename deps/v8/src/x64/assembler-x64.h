@@ -98,19 +98,29 @@ struct Register {
   static const int kNumRegisters = 16;
   static const int kNumAllocatableRegisters = 10;
 
+  static int ToAllocationIndex(Register reg) {
+    return allocationIndexByRegisterCode[reg.code()];
+  }
+
+  static Register FromAllocationIndex(int index) {
+    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    Register result = { registerCodeByAllocationIndex[index] };
+    return result;
+  }
+
   static const char* AllocationIndexToString(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
       "rax",
-      "rcx",
-      "rdx",
       "rbx",
+      "rdx",
+      "rcx",
       "rdi",
       "r8",
       "r9",
       "r11",
-      "r12",
-      "r14"
+      "r14",
+      "r12"
     };
     return names[index];
   }
@@ -143,6 +153,9 @@ struct Register {
   // Unfortunately we can't make this private in a struct when initializing
   // by assignment.
   int code_;
+ private:
+  static const int registerCodeByAllocationIndex[kNumAllocatableRegisters];
+  static const int allocationIndexByRegisterCode[kNumRegisters];
 };
 
 const Register rax = { 0 };
@@ -173,6 +186,12 @@ struct XMMRegister {
     return reg.code() - 1;
   }
 
+  static XMMRegister FromAllocationIndex(int index) {
+    ASSERT(0 <= index && index < kNumAllocatableRegisters);
+    XMMRegister result = { index + 1 };
+    return result;
+  }
+
   static const char* AllocationIndexToString(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
@@ -196,6 +215,7 @@ struct XMMRegister {
   }
 
   bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
+  bool is(XMMRegister reg) const { return code_ == reg.code_; }
   int code() const {
     ASSERT(is_valid());
     return code_;
@@ -536,6 +556,8 @@ class Assembler : public Malloced {
   // The debug break slot must be able to contain a call instruction.
   static const int kDebugBreakSlotLength = kCallInstructionLength;
 
+  // One byte opcode for test eax,0xXXXXXXXX.
+  static const byte kTestEaxByte = 0xA9;
 
   // ---------------------------------------------------------------------------
   // Code generation

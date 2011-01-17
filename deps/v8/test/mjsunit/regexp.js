@@ -84,15 +84,14 @@ assertEquals(result[4], 'D');
 assertEquals(result[5], 'E');
 assertEquals(result[6], 'F');
 
-// Some tests from the Mozilla tests, where our behavior differs from
+// Some tests from the Mozilla tests, where our behavior used to differ from
 // SpiderMonkey.
 // From ecma_3/RegExp/regress-334158.js
 assertTrue(/\ca/.test( "\x01" ));
 assertFalse(/\ca/.test( "\\ca" ));
-// Passes in KJS, fails in IrregularExpressions.
-// See http://code.google.com/p/v8/issues/detail?id=152
-//assertTrue(/\c[a/]/.test( "\x1ba/]" ));
-
+assertFalse(/\ca/.test( "ca" ));
+assertTrue(/\c[a/]/.test( "\\ca" ));
+assertTrue(/\c[a/]/.test( "\\c/" ));
 
 // Test \c in character class
 re = /^[\cM]$/;
@@ -104,11 +103,29 @@ assertFalse(re.test("\x03"));  // I.e., read as \cc
 
 re = /^[\c]]$/;
 assertTrue(re.test("c]"));
-assertFalse(re.test("\\]"));
+assertTrue(re.test("\\]"));
 assertFalse(re.test("\x1d"));  // ']' & 0x1f
-assertFalse(re.test("\\]"));
 assertFalse(re.test("\x03]"));  // I.e., read as \cc
 
+re = /^[\c1]$/;  // Digit control characters are masked in character classes.
+assertTrue(re.test("\x11"));
+assertFalse(re.test("\\"));
+assertFalse(re.test("c"));
+assertFalse(re.test("1"));
+
+re = /^[\c_]$/;  // Underscore control character is masked in character classes.
+assertTrue(re.test("\x1f"));
+assertFalse(re.test("\\"));
+assertFalse(re.test("c"));
+assertFalse(re.test("_"));
+
+re = /^[\c$]$/;  // Other characters are interpreted literally.
+assertFalse(re.test("\x04"));
+assertTrue(re.test("\\"));
+assertTrue(re.test("c"));
+assertTrue(re.test("$"));
+
+assertTrue(/^[Z-\c-e]*$/.test("Z[\\cde"));
 
 // Test that we handle \s and \S correctly inside some bizarre
 // character classes.

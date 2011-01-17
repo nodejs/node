@@ -31,6 +31,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <sys/prctl.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
@@ -551,6 +552,12 @@ bool ThreadHandle::IsValid() const {
 
 
 Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
+  set_name("v8:<unknown>");
+}
+
+
+Thread::Thread(const char* name) : ThreadHandle(ThreadHandle::INVALID) {
+  set_name(name);
 }
 
 
@@ -563,10 +570,17 @@ static void* ThreadEntry(void* arg) {
   // This is also initialized by the first argument to pthread_create() but we
   // don't know which thread will run first (the original thread or the new
   // one) so we initialize it here too.
+  prctl(PR_SET_NAME, thread->name(), 0, 0, 0);
   thread->thread_handle_data()->thread_ = pthread_self();
   ASSERT(thread->IsValid());
   thread->Run();
   return NULL;
+}
+
+
+void Thread::set_name(const char* name) {
+  strncpy(name_, name, sizeof(name_));
+  name_[sizeof(name_) - 1] = '\0';
 }
 
 

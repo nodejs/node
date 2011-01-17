@@ -399,7 +399,7 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // Clear the context before we push it when entering the JS frame.
-  __ xor_(esi, Operand(esi));  // clear esi
+  __ Set(esi, Immediate(0));
 
   // Enter an internal frame.
   __ EnterInternalFrame();
@@ -421,7 +421,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Copy arguments to the stack in a loop.
   Label loop, entry;
-  __ xor_(ecx, Operand(ecx));  // clear ecx
+  __ Set(ecx, Immediate(0));
   __ jmp(&entry);
   __ bind(&loop);
   __ mov(edx, Operand(ebx, ecx, times_4, 0));  // push parameter from argv
@@ -644,7 +644,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ bind(&non_function);
   __ mov(Operand(esp, eax, times_4, 0), edi);
   // Clear edi to indicate a non-function being called.
-  __ xor_(edi, Operand(edi));
+  __ Set(edi, Immediate(0));
 
   // 4. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
@@ -665,7 +665,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   { Label function;
     __ test(edi, Operand(edi));
     __ j(not_zero, &function, taken);
-    __ xor_(ebx, Operand(ebx));
+    __ Set(ebx, Immediate(0));
     __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
     __ jmp(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
            RelocInfo::CODE_TARGET);

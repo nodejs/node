@@ -165,7 +165,7 @@ function ADD(x) {
   if (IS_STRING(a)) {
     return %_StringAdd(a, %ToString(b));
   } else if (IS_STRING(b)) {
-    return %_StringAdd(%ToString(a), b);
+    return %_StringAdd(%NonStringToString(a), b);
   } else {
     return %NumberAdd(%ToNumber(a), %ToNumber(b));
   }
@@ -205,32 +205,32 @@ function STRING_ADD_RIGHT(y) {
 
 // ECMA-262, section 11.6.2, page 50.
 function SUB(y) {
-  var x = IS_NUMBER(this) ? this : %ToNumber(this);
-  if (!IS_NUMBER(y)) y = %ToNumber(y);
+  var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   return %NumberSub(x, y);
 }
 
 
 // ECMA-262, section 11.5.1, page 48.
 function MUL(y) {
-  var x = IS_NUMBER(this) ? this : %ToNumber(this);
-  if (!IS_NUMBER(y)) y = %ToNumber(y);
+  var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   return %NumberMul(x, y);
 }
 
 
 // ECMA-262, section 11.5.2, page 49.
 function DIV(y) {
-  var x = IS_NUMBER(this) ? this : %ToNumber(this);
-  if (!IS_NUMBER(y)) y = %ToNumber(y);
+  var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   return %NumberDiv(x, y);
 }
 
 
 // ECMA-262, section 11.5.3, page 49.
 function MOD(y) {
-  var x = IS_NUMBER(this) ? this : %ToNumber(this);
-  if (!IS_NUMBER(y)) y = %ToNumber(y);
+  var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   return %NumberMod(x, y);
 }
 
@@ -243,8 +243,8 @@ function MOD(y) {
 
 // ECMA-262, section 11.10, page 57.
 function BIT_OR(y) {
-  var x = IS_NUMBER(this) ? this : %ToNumber(this);
-  if (!IS_NUMBER(y)) y = %ToNumber(y);
+  var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   return %NumberOr(x, y);
 }
 
@@ -254,14 +254,14 @@ function BIT_AND(y) {
   var x;
   if (IS_NUMBER(this)) {
     x = this;
-    if (!IS_NUMBER(y)) y = %ToNumber(y);
+    if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   } else {
-    x = %ToNumber(this);
+    x = %NonNumberToNumber(this);
     // Make sure to convert the right operand to a number before
     // bailing out in the fast case, but after converting the
     // left operand. This ensures that valueOf methods on the right
     // operand are always executed.
-    if (!IS_NUMBER(y)) y = %ToNumber(y);
+    if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
     // Optimize for the case where we end up AND'ing a value
     // that doesn't convert to a number. This is common in
     // certain benchmarks.
@@ -273,30 +273,30 @@ function BIT_AND(y) {
 
 // ECMA-262, section 11.10, page 57.
 function BIT_XOR(y) {
-  var x = IS_NUMBER(this) ? this : %ToNumber(this);
-  if (!IS_NUMBER(y)) y = %ToNumber(y);
+  var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   return %NumberXor(x, y);
 }
 
 
 // ECMA-262, section 11.4.7, page 47.
 function UNARY_MINUS() {
-  var x = IS_NUMBER(this) ? this : %ToNumber(this);
+  var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
   return %NumberUnaryMinus(x);
 }
 
 
 // ECMA-262, section 11.4.8, page 48.
 function BIT_NOT() {
-  var x = IS_NUMBER(this) ? this : %ToNumber(this);
+  var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
   return %NumberNot(x);
 }
 
 
 // ECMA-262, section 11.7.1, page 51.
 function SHL(y) {
-  var x = IS_NUMBER(this) ? this : %ToNumber(this);
-  if (!IS_NUMBER(y)) y = %ToNumber(y);
+  var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   return %NumberShl(x, y);
 }
 
@@ -306,14 +306,14 @@ function SAR(y) {
   var x;
   if (IS_NUMBER(this)) {
     x = this;
-    if (!IS_NUMBER(y)) y = %ToNumber(y);
+    if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   } else {
-    x = %ToNumber(this);
+    x = %NonNumberToNumber(this);
     // Make sure to convert the right operand to a number before
     // bailing out in the fast case, but after converting the
     // left operand. This ensures that valueOf methods on the right
     // operand are always executed.
-    if (!IS_NUMBER(y)) y = %ToNumber(y);
+    if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
     // Optimize for the case where we end up shifting a value
     // that doesn't convert to a number. This is common in
     // certain benchmarks.
@@ -325,8 +325,8 @@ function SAR(y) {
 
 // ECMA-262, section 11.7.3, page 52.
 function SHR(y) {
-  var x = IS_NUMBER(this) ? this : %ToNumber(this);
-  if (!IS_NUMBER(y)) y = %ToNumber(y);
+  var x = IS_NUMBER(this) ? this : %NonNumberToNumber(this);
+  if (!IS_NUMBER(y)) y = %NonNumberToNumber(y);
   return %NumberShr(x, y);
 }
 
@@ -511,6 +511,16 @@ function ToNumber(x) {
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 }
 
+function NonNumberToNumber(x) {
+  if (IS_STRING(x)) {
+    return %_HasCachedArrayIndex(x) ? %_GetCachedArrayIndex(x)
+                                    : %StringToNumber(x);
+  }
+  if (IS_BOOLEAN(x)) return x ? 1 : 0;
+  if (IS_UNDEFINED(x)) return $NaN;
+  return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
+}
+
 
 // ECMA-262, section 9.8, page 35.
 function ToString(x) {
@@ -568,12 +578,9 @@ function SameValue(x, y) {
   if (IS_NUMBER(x)) {
     if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) return true;
     // x is +0 and y is -0 or vice versa.
-    if (x === 0 && y === 0 && (1 / x) != (1 / y)) {
-      return false;
-    }
-    return x === y;
+    if (x === 0 && y === 0 && (1 / x) != (1 / y)) return false;
   }
-  return x === y
+  return x === y;
 }
 
 

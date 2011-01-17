@@ -1463,6 +1463,19 @@ class Thread::PlatformData : public Malloced {
 
 Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
   data_ = new PlatformData(kNoThread);
+  set_name("v8:<unknown>");
+}
+
+
+Thread::Thread(const char* name) : ThreadHandle(ThreadHandle::INVALID) {
+  data_ = new PlatformData(kNoThread);
+  set_name(name);
+}
+
+
+void Thread::set_name(const char* name) {
+  strncpy_s(name_, name, sizeof(name_));
+  name_[sizeof(name_) - 1] = '\0';
 }
 
 

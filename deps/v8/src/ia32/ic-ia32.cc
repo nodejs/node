@@ -1199,7 +1199,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
         break;
       case kExternalShortArray:
       case kExternalUnsignedShortArray:
-        __ xor_(ecx, Operand(ecx));
+        __ Set(ecx, Immediate(0));
         __ mov_w(Operand(edi, ebx, times_2, 0), ecx);
         break;
       case kExternalIntArray:
@@ -1218,9 +1218,6 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   GenerateRuntimeSetProperty(masm);
 }
 
-
-// Defined in ic.cc.
-Object* CallIC_Miss(Arguments args);
 
 // The generated code does not accept smi keys.
 // The generated code falls through if both probes miss.
@@ -1567,9 +1564,6 @@ void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
 }
 
 
-// Defined in ic.cc.
-Object* LoadIC_Miss(Arguments args);
-
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : receiver
@@ -1795,10 +1789,6 @@ bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
 }
 
 
-// Defined in ic.cc.
-Object* KeyedLoadIC_Miss(Arguments args);
-
-
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : key
@@ -1981,9 +1971,6 @@ void StoreIC::GenerateGlobalProxy(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
 }
 
-
-// Defined in ic.cc.
-Object* KeyedStoreIC_Miss(Arguments args);
 
 void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
   // ----------- S t a t e -------------

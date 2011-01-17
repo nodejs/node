@@ -112,9 +112,12 @@ class BitVector: public ZoneObject {
   }
 
   void CopyFrom(const BitVector& other) {
-    ASSERT(other.length() == length());
-    for (int i = 0; i < data_length_; i++) {
+    ASSERT(other.length() <= length());
+    for (int i = 0; i < other.data_length_; i++) {
       data_[i] = other.data_[i];
+    }
+    for (int i = other.data_length_; i < data_length_; i++) {
+      data_[i] = 0;
     }
   }
 

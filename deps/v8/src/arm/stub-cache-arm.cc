@@ -1952,7 +1952,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   __ cmp(r7, Operand(HeapNumber::kMantissaBits));
   // If greater or equal, the argument is already round and in r0.
   __ b(&restore_fpscr_and_return, ge);
-  __ b(&slow);
+  __ b(&wont_fit_smi);
 
   __ bind(&no_vfp_exception);
   // Move the result back to general purpose register r0.
@@ -1965,7 +1965,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
 
   // Check for -0.
-  __ cmp(r0, Operand(0));
+  __ cmp(r0, Operand(0, RelocInfo::NONE));
   __ b(&restore_fpscr_and_return, ne);
   // r5 already holds the HeapNumber exponent.
   __ tst(r5, Operand(HeapNumber::kSignMask));
@@ -1980,10 +1980,10 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   __ Ret();
 
   __ bind(&wont_fit_smi);
-  __ bind(&slow);
   // Restore FPCSR and fall to slow case.
   __ vmsr(r3);
 
+  __ bind(&slow);
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
   __ InvokeFunction(function, arguments(), JUMP_FUNCTION);

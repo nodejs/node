@@ -280,13 +280,13 @@ Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
 }
 
 
-Handle<Object> IgnoreAttributesAndSetLocalProperty(
+Handle<Object> SetLocalPropertyIgnoreAttributes(
     Handle<JSObject> object,
     Handle<String> key,
     Handle<Object> value,
     PropertyAttributes attributes) {
   CALL_HEAP_FUNCTION(object->
-      IgnoreAttributesAndSetLocalProperty(*key, *value, attributes), Object);
+      SetLocalPropertyIgnoreAttributes(*key, *value, attributes), Object);
 }
 
 
@@ -419,6 +419,15 @@ Handle<Object> SetElement(Handle<JSObject> object,
     }
   }
   CALL_HEAP_FUNCTION(object->SetElement(index, *value), Object);
+}
+
+
+Handle<Object> SetOwnElement(Handle<JSObject> object,
+                             uint32_t index,
+                             Handle<Object> value) {
+  ASSERT(!object->HasPixelElements());
+  ASSERT(!object->HasExternalArrayElements());
+  CALL_HEAP_FUNCTION(object->SetElement(index, *value, false), Object);
 }
 
 

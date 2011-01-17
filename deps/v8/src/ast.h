@@ -1208,6 +1208,7 @@ class Property: public Expression {
         is_monomorphic_(false),
         receiver_types_(NULL),
         is_array_length_(false),
+        is_function_prototype_(false),
         is_arguments_access_(false) { }
 
   DECLARE_NODE_TYPE(Property)
@@ -1219,6 +1220,8 @@ class Property: public Expression {
   Expression* key() const { return key_; }
   int position() const { return pos_; }
   bool is_synthetic() const { return type_ == SYNTHETIC; }
+
+  bool IsFunctionPrototype() const { return is_function_prototype_; }
 
   // Marks that this is actually an argument rewritten to a keyed property
   // accessing the argument through the arguments shadow object.
@@ -1249,6 +1252,7 @@ class Property: public Expression {
   bool is_monomorphic_;
   ZoneMapList* receiver_types_;
   bool is_array_length_;
+  bool is_function_prototype_;
   bool is_arguments_access_;
   Handle<Map> monomorphic_receiver_type_;
 
@@ -1264,6 +1268,7 @@ class Call: public Expression {
         arguments_(arguments),
         pos_(pos),
         is_monomorphic_(false),
+        check_type_(RECEIVER_MAP_CHECK),
         receiver_types_(NULL),
         return_id_(GetNextId()) {
   }
@@ -1279,6 +1284,7 @@ class Call: public Expression {
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
   virtual bool IsMonomorphic() { return is_monomorphic_; }
+  CheckType check_type() const { return check_type_; }
   Handle<JSFunction> target() { return target_; }
   Handle<JSObject> holder() { return holder_; }
   Handle<JSGlobalPropertyCell> cell() { return cell_; }
@@ -1302,6 +1308,7 @@ class Call: public Expression {
   int pos_;
 
   bool is_monomorphic_;
+  CheckType check_type_;
   ZoneMapList* receiver_types_;
   Handle<JSFunction> target_;
   Handle<JSObject> holder_;
@@ -1391,7 +1398,7 @@ class BinaryOperation: public Expression {
       : op_(op), left_(left), right_(right), pos_(pos), is_smi_only_(false) {
     ASSERT(Token::IsBinaryOp(op));
     right_id_ = (op == Token::AND || op == Token::OR)
-        ? GetNextId()
+        ? static_cast<int>(GetNextId())
         : AstNode::kNoNumber;
   }
 
@@ -1710,7 +1717,6 @@ class FunctionLiteral: public Expression {
   int num_parameters() { return num_parameters_; }
 
   bool AllowsLazyCompilation();
-  bool AllowOptimize();
 
   Handle<String> debug_name() const {
     if (name_->length() > 0) return name_;

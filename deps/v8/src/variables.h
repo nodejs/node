@@ -138,6 +138,9 @@ class Variable: public ZoneObject {
   bool is_accessed_from_inner_scope() const {
     return is_accessed_from_inner_scope_;
   }
+  void MarkAsAccessedFromInnerScope() {
+    is_accessed_from_inner_scope_ = true;
+  }
   bool is_used() { return is_used_; }
   void set_is_used(bool flag) { is_used_ = flag; }
 
@@ -148,6 +151,7 @@ class Variable: public ZoneObject {
   bool IsStackAllocated() const;
   bool IsParameter() const;  // Includes 'this'.
   bool IsStackLocal() const;
+  bool IsContextSlot() const;
 
   bool is_dynamic() const {
     return (mode_ == DYNAMIC ||
@@ -175,6 +179,7 @@ class Variable: public ZoneObject {
   }
 
   Expression* rewrite() const { return rewrite_; }
+  void set_rewrite(Expression* expr) { rewrite_ = expr; }
 
   StaticType* type() { return &type_; }
 
@@ -197,8 +202,6 @@ class Variable: public ZoneObject {
   // Code generation.
   // rewrite_ is usually a Slot or a Property, but may be any expression.
   Expression* rewrite_;
-
-  friend class Scope;  // Has explicit access to rewrite_.
 };
 
 

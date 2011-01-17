@@ -380,7 +380,7 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
     Object* receiver) {
   if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
-  HeapObject* elms = HeapObject::cast(array->elements());
+  HeapObject* elms = array->elements();
   if (elms->map() == Heap::fixed_array_map()) return elms;
   if (elms->map() == Heap::fixed_cow_array_map()) {
     return array->EnsureWritableFastElements();
@@ -613,41 +613,42 @@ BUILTIN(ArraySlice) {
   Object* receiver = *args.receiver();
   FixedArray* elms;
   int len = -1;
-  { MaybeObject* maybe_elms_obj =
-        EnsureJSArrayWithWritableFastElements(receiver);
-    Object* elms_obj;
-    if (maybe_elms_obj != NULL && maybe_elms_obj->ToObject(&elms_obj)) {
-      if (!IsJSArrayFastElementMovingAllowed(JSArray::cast(receiver))) {
+  if (receiver->IsJSArray()) {
+    JSArray* array = JSArray::cast(receiver);
+    if (!array->HasFastElements() ||
+        !IsJSArrayFastElementMovingAllowed(array)) {
+      return CallJsBuiltin("ArraySlice", args);
+    }
+
+    elms = FixedArray::cast(array->elements());
+    len = Smi::cast(array->length())->value();
+  } else {
+    // Array.slice(arguments, ...) is quite a common idiom (notably more
+    // than 50% of invocations in Web apps).  Treat it in C++ as well.
+    Map* arguments_map =
+        Top::context()->global_context()->arguments_boilerplate()->map();
+
+    bool is_arguments_object_with_fast_elements =
+        receiver->IsJSObject()
+        && JSObject::cast(receiver)->map() == arguments_map
+        && JSObject::cast(receiver)->HasFastElements();
+    if (!is_arguments_object_with_fast_elements) {
+      return CallJsBuiltin("ArraySlice", args);
+    }
+    elms = FixedArray::cast(JSObject::cast(receiver)->elements());
+    Object* len_obj = JSObject::cast(receiver)
+        ->InObjectPropertyAt(Heap::arguments_length_index);
+    if (!len_obj->IsSmi()) {
+      return CallJsBuiltin("ArraySlice", args);
+    }
+    len = Smi::cast(len_obj)->value();
+    if (len > elms->length()) {
+      return CallJsBuiltin("ArraySlice", args);
+    }
+    for (int i = 0; i < len; i++) {
+      if (elms->get(i) == Heap::the_hole_value()) {
         return CallJsBuiltin("ArraySlice", args);
       }
-      elms = FixedArray::cast(elms_obj);
-      JSArray* array = JSArray::cast(receiver);
-      ASSERT(array->HasFastElements());
-
-      len = Smi::cast(array->length())->value();
-    } else {
-      // Array.slice(arguments, ...) is quite a common idiom (notably more
-      // than 50% of invocations in Web apps).  Treat it in C++ as well.
-      Map* arguments_map =
-          Top::context()->global_context()->arguments_boilerplate()->map();
-
-      bool is_arguments_object_with_fast_elements =
-          receiver->IsJSObject()
-          && JSObject::cast(receiver)->map() == arguments_map
-          && JSObject::cast(receiver)->HasFastElements();
-      if (!is_arguments_object_with_fast_elements) {
-        return CallJsBuiltin("ArraySlice", args);
-      }
-      elms = FixedArray::cast(JSObject::cast(receiver)->elements());
-      len = elms->length();
-#ifdef DEBUG
-      // Arguments object by construction should have no holes, check it.
-      if (FLAG_enable_slow_asserts) {
-        for (int i = 0; i < len; i++) {
-          ASSERT(elms->get(i) != Heap::the_hole_value());
-        }
-      }
-#endif
     }
   }
   ASSERT(len >= 0);

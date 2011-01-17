@@ -61,6 +61,8 @@ class Factory : public AllStatic {
       PretenureFlag pretenure);
 
   static Handle<String> LookupSymbol(Vector<const char> str);
+  static Handle<String> LookupAsciiSymbol(Vector<const char> str);
+  static Handle<String> LookupTwoByteSymbol(Vector<const uc16> str);
   static Handle<String> LookupAsciiSymbol(const char* str) {
     return LookupSymbol(CStrVector(str));
   }

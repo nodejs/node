@@ -31,11 +31,15 @@
 Debug = debug.Debug
 
 function CheckCompareOneWay(s1, s2) {
-  var diff_array = Debug.LiveEdit.TestApi.CompareStringsLinewise(s1, s2);
+  var diff_array = Debug.LiveEdit.TestApi.CompareStrings(s1, s2);
 
   var pos1 = 0;
   var pos2 = 0;
   print("Compare:");
+  print("s1='" + s1 + "'");
+  print("s2='" + s2 + "'");
+  print("Diff:");
+  print("" + diff_array);
   for (var i = 0; i < diff_array.length; i += 3) {
     var similar_length = diff_array[i] - pos1;
     assertEquals(s1.substring(pos1, pos1 + similar_length),
@@ -45,12 +49,12 @@ function CheckCompareOneWay(s1, s2) {
     pos1 += similar_length;
     pos2 += similar_length;
     print("<<< " + pos1 + " " + diff_array[i + 1]);
-    print(s1.substring(pos1, pos1 + diff_array[i + 1]));
+    print(s1.substring(pos1, diff_array[i + 1]));
     print("===");
-    print(s2.substring(pos2, pos2 + diff_array[i + 2]));
+    print(s2.substring(pos2, diff_array[i + 2]));
     print(">>> " + pos2 + " " + diff_array[i + 2]);
-    pos1 += diff_array[i + 1];
-    pos2 += diff_array[i + 2];
+    pos1 = diff_array[i + 1];
+    pos2 = diff_array[i + 2];
   }
   {
     // After last change
@@ -64,9 +68,18 @@ function CheckCompareOneWay(s1, s2) {
   print("");
 }
 
-function CheckCompare(s1, s2) {
+function CheckCompareOneWayPlayWithLF(s1, s2) {
+  var s1Oneliner = s1.replace(/\n/g, ' ');
+  var s2Oneliner = s2.replace(/\n/g, ' ');
   CheckCompareOneWay(s1, s2);
-  CheckCompareOneWay(s2, s1);
+  CheckCompareOneWay(s1Oneliner, s2);
+  CheckCompareOneWay(s1, s2Oneliner);
+  CheckCompareOneWay(s1Oneliner, s2Oneliner);
+}
+
+function CheckCompare(s1, s2) {
+  CheckCompareOneWayPlayWithLF(s1, s2);
+  CheckCompareOneWayPlayWithLF(s2, s1);
 }
 
 CheckCompare("", "");

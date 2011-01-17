@@ -2369,7 +2369,7 @@ function NumberToJSON_(value) {
   if (isNaN(value)) {
     return 'NaN';
   }
-  if (!isFinite(value)) {
+  if (!NUMBER_IS_FINITE(value)) {
     if (value > 0) {
       return 'Infinity';
     } else {

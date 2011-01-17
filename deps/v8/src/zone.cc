@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -38,6 +38,7 @@ Address Zone::position_ = 0;
 Address Zone::limit_ = 0;
 int Zone::zone_excess_limit_ = 256 * MB;
 int Zone::segment_bytes_allocated_ = 0;
+unsigned Zone::allocation_size_ = 0;
 
 bool AssertNoZoneAllocation::allow_allocation_ = true;
 

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -264,16 +264,24 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   __ j(above_equal, &ok, taken);
   StackCheckStub stub;
   __ CallStub(&stub);
-  __ bind(&ok);
-  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
-  PrepareForBailoutForId(stmt->OsrEntryId(), NO_REGISTERS);
+  // Record a mapping of this PC offset to the OSR id.  This is used to find
+  // the AST id from the unoptimized code in order to use it as a key into
+  // the deoptimization input data found in the optimized code.
   RecordStackCheck(stmt->OsrEntryId());
-  // Loop stack checks can be patched to perform on-stack
-  // replacement. In order to decide whether or not to perform OSR we
-  // embed the loop depth in a test instruction after the call so we
-  // can extract it from the OSR builtin.
+
+  // Loop stack checks can be patched to perform on-stack replacement. In
+  // order to decide whether or not to perform OSR we embed the loop depth
+  // in a test instruction after the call so we can extract it from the OSR
+  // builtin.
   ASSERT(loop_depth() > 0);
   __ test(eax, Immediate(Min(loop_depth(), Code::kMaxLoopNestingMarker)));
+
+  __ bind(&ok);
+  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
+  // Record a mapping of the OSR id to this PC.  This is used if the OSR
+  // entry becomes the target of a bailout.  We don't expect it to be, but
+  // we want it to work if it is.
+  PrepareForBailoutForId(stmt->OsrEntryId(), NO_REGISTERS);
 }
 
 
@@ -379,7 +387,7 @@ void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const {
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Handle<Object> lit) const {
-  __ mov(result_register(), lit);
+  __ Set(result_register(), Immediate(lit));
 }
 
 
@@ -1497,7 +1505,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       if (expr->is_compound()) {
         if (property->is_arguments_access()) {
           VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
-          __ push(EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx));
+          MemOperand slot_operand =
+              EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
+          __ push(slot_operand);
           __ mov(eax, Immediate(property->key()->AsLiteral()->handle()));
         } else {
           VisitForStackValue(property->obj());
@@ -1508,7 +1518,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       } else {
         if (property->is_arguments_access()) {
           VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
-          __ push(EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx));
+          MemOperand slot_operand =
+              EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
+          __ push(slot_operand);
           __ push(Immediate(property->key()->AsLiteral()->handle()));
         } else {
           VisitForStackValue(property->obj());
@@ -3339,39 +3351,37 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
-  Label bailout;
-  Label done;
+  Label bailout, done, one_char_separator, long_separator,
+      non_trivial_array, not_size_one_array, loop, loop_condition,
+      loop_1, loop_1_condition, loop_2, loop_2_entry, loop_3, loop_3_entry;
 
   ASSERT(args->length() == 2);
   // We will leave the separator on the stack until the end of the function.
   VisitForStackValue(args->at(1));
   // Load this to eax (= array)
   VisitForAccumulatorValue(args->at(0));
-
   // All aliases of the same register have disjoint lifetimes.
   Register array = eax;
-  Register result_pos = no_reg;
+  Register elements = no_reg;  // Will be eax.
 
-  Register index = edi;
+  Register index = edx;
 
-  Register current_string_length = ecx;  // Will be ecx when live.
+  Register string_length = ecx;
 
-  Register current_string = edx;
+  Register string = esi;
 
   Register scratch = ebx;
 
-  Register scratch_2 = esi;
-  Register new_padding_chars = scratch_2;
+  Register array_length = edi;
+  Register result_pos = no_reg;  // Will be edi.
 
-  Operand separator = Operand(esp, 4 * kPointerSize);  // Already pushed.
-  Operand elements = Operand(esp, 3 * kPointerSize);
-  Operand result = Operand(esp, 2 * kPointerSize);
-  Operand padding_chars = Operand(esp, 1 * kPointerSize);
-  Operand array_length = Operand(esp, 0);
-  __ sub(Operand(esp), Immediate(4 * kPointerSize));
-
-
-  // Check that eax is a JSArray
+  // Separator operand is already pushed.
+  Operand separator_operand = Operand(esp, 2 * kPointerSize);
+  Operand result_operand = Operand(esp, 1 * kPointerSize);
+  Operand array_length_operand = Operand(esp, 0);
+  __ sub(Operand(esp), Immediate(2 * kPointerSize));
+  __ cld();
+  // Check that the array is a JSArray
   __ test(array, Immediate(kSmiTagMask));
   __ j(zero, &bailout);
   __ CmpObjectType(array, JS_ARRAY_TYPE, scratch);
@@ -3382,140 +3392,226 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
             1 << Map::kHasFastElements);
   __ j(zero, &bailout);
 
-  // If the array is empty, return the empty string.
-  __ mov(scratch, FieldOperand(array, JSArray::kLengthOffset));
-  __ sar(scratch, 1);
-  Label non_trivial;
-  __ j(not_zero, &non_trivial);
-  __ mov(result, Factory::empty_string());
+  // If the array has length zero, return the empty string.
+  __ mov(array_length, FieldOperand(array, JSArray::kLengthOffset));
+  __ sar(array_length, 1);
+  __ j(not_zero, &non_trivial_array);
+  __ mov(result_operand, Factory::empty_string());
   __ jmp(&done);
 
-  __ bind(&non_trivial);
-  __ mov(array_length, scratch);
+  // Save the array length.
+  __ bind(&non_trivial_array);
+  __ mov(array_length_operand, array_length);
 
-  __ mov(scratch, FieldOperand(array, JSArray::kElementsOffset));
-  __ mov(elements, scratch);
-
+  // Save the FixedArray containing array's elements.
   // End of array's live range.
-  result_pos = array;
+  elements = array;
+  __ mov(elements, FieldOperand(array, JSArray::kElementsOffset));
   array = no_reg;
 
 
-  // Check that the separator is a flat ascii string.
-  __ mov(current_string, separator);
-  __ test(current_string, Immediate(kSmiTagMask));
-  __ j(zero, &bailout);
-  __ mov(scratch, FieldOperand(current_string, HeapObject::kMapOffset));
-  __ mov_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ and_(scratch, Immediate(
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
-  __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
-  __ j(not_equal, &bailout);
-  // If the separator is the empty string, replace it with NULL.
-  // The test for NULL is quicker than the empty string test, in a loop.
-  __ cmp(FieldOperand(current_string, SeqAsciiString::kLengthOffset),
-         Immediate(0));
-  Label separator_checked;
-  __ j(not_zero, &separator_checked);
-  __ mov(separator, Immediate(0));
-  __ bind(&separator_checked);
-
-  // Check that elements[0] is a flat ascii string, and copy it in new space.
-  __ mov(scratch, elements);
-  __ mov(current_string, FieldOperand(scratch, FixedArray::kHeaderSize));
-  __ test(current_string, Immediate(kSmiTagMask));
-  __ j(zero, &bailout);
-  __ mov(scratch, FieldOperand(current_string, HeapObject::kMapOffset));
-  __ mov_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ and_(scratch, Immediate(
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
-  __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
-  __ j(not_equal, &bailout);
-
-  // Allocate space to copy it.  Round up the size to the alignment granularity.
-  __ mov(current_string_length,
-         FieldOperand(current_string, String::kLengthOffset));
-  __ shr(current_string_length, 1);
-
-  // Live registers and stack values:
-  //   current_string_length: length of elements[0].
-
-  // New string result in new space = elements[0]
-  __ AllocateAsciiString(result_pos, current_string_length, scratch_2,
-                         index, no_reg, &bailout);
-  __ mov(result, result_pos);
-
-  // Adjust current_string_length to include padding bytes at end of string.
-  // Keep track of the number of padding bytes.
-  __ mov(new_padding_chars, current_string_length);
-  __ add(Operand(current_string_length), Immediate(kObjectAlignmentMask));
-  __ and_(Operand(current_string_length), Immediate(~kObjectAlignmentMask));
-  __ sub(new_padding_chars, Operand(current_string_length));
-  __ neg(new_padding_chars);
-  __ mov(padding_chars, new_padding_chars);
-
-  Label copy_loop_1_done;
-  Label copy_loop_1;
-  __ test(current_string_length, Operand(current_string_length));
-  __ j(zero, &copy_loop_1_done);
-  __ bind(&copy_loop_1);
-  __ sub(Operand(current_string_length), Immediate(kPointerSize));
-  __ mov(scratch, FieldOperand(current_string, current_string_length,
-                               times_1, SeqAsciiString::kHeaderSize));
-  __ mov(FieldOperand(result_pos, current_string_length,
-                      times_1, SeqAsciiString::kHeaderSize),
-         scratch);
-  __ j(not_zero, &copy_loop_1);
-  __ bind(&copy_loop_1_done);
-
-  __ mov(index, Immediate(1));
+  // Check that all array elements are sequential ASCII strings, and
+  // accumulate the sum of their lengths, as a smi-encoded value.
+  __ Set(index, Immediate(0));
+  __ Set(string_length, Immediate(0));
   // Loop condition: while (index < length).
-  Label loop;
+  // Live loop registers: index, array_length, string,
+  //                      scratch, string_length, elements.
+  __ jmp(&loop_condition);
   __ bind(&loop);
-  __ cmp(index, array_length);
+  __ cmp(index, Operand(array_length));
   __ j(greater_equal, &done);
 
-  // If the separator is the empty string, signalled by NULL, skip it.
-  Label separator_done;
-  __ mov(current_string, separator);
-  __ test(current_string, Operand(current_string));
-  __ j(zero, &separator_done);
-
-  // Append separator to result.  It is known to be a flat ascii string.
-  __ AppendStringToTopOfNewSpace(current_string, current_string_length,
-                                 result_pos, scratch, scratch_2, result,
-                                 padding_chars, &bailout);
-  __ bind(&separator_done);
-
-  // Add next element of array to the end of the result.
-  // Get current_string = array[index].
-  __ mov(scratch, elements);
-  __ mov(current_string, FieldOperand(scratch, index,
+  __ mov(string, FieldOperand(elements, index,
                                       times_pointer_size,
                                       FixedArray::kHeaderSize));
-  // If current != flat ascii string drop result, return undefined.
-  __ test(current_string, Immediate(kSmiTagMask));
+  __ test(string, Immediate(kSmiTagMask));
   __ j(zero, &bailout);
-  __ mov(scratch, FieldOperand(current_string, HeapObject::kMapOffset));
-  __ mov_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ mov(scratch, FieldOperand(string, HeapObject::kMapOffset));
+  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, Immediate(
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
+  __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
+  __ j(not_equal, &bailout);
+  __ add(string_length,
+         FieldOperand(string, SeqAsciiString::kLengthOffset));
+  __ j(overflow, &bailout);
+  __ add(Operand(index), Immediate(1));
+  __ bind(&loop_condition);
+  __ cmp(index, Operand(array_length));
+  __ j(less, &loop);
+
+  // If array_length is 1, return elements[0], a string.
+  __ cmp(array_length, 1);
+  __ j(not_equal, &not_size_one_array);
+  __ mov(scratch, FieldOperand(elements, FixedArray::kHeaderSize));
+  __ mov(result_operand, scratch);
+  __ jmp(&done);
+
+  __ bind(&not_size_one_array);
+
+  // End of array_length live range.
+  result_pos = array_length;
+  array_length = no_reg;
+
+  // Live registers:
+  // string_length: Sum of string lengths, as a smi.
+  // elements: FixedArray of strings.
+
+  // Check that the separator is a flat ASCII string.
+  __ mov(string, separator_operand);
+  __ test(string, Immediate(kSmiTagMask));
+  __ j(zero, &bailout);
+  __ mov(scratch, FieldOperand(string, HeapObject::kMapOffset));
+  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   __ and_(scratch, Immediate(
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
   __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
   __ j(not_equal, &bailout);
 
-  // Append current to the result.
-  __ AppendStringToTopOfNewSpace(current_string, current_string_length,
-                                 result_pos, scratch, scratch_2, result,
-                                 padding_chars, &bailout);
+  // Add (separator length times array_length) - separator length
+  // to string_length.
+  __ mov(scratch, separator_operand);
+  __ mov(scratch, FieldOperand(scratch, SeqAsciiString::kLengthOffset));
+  __ sub(string_length, Operand(scratch));  // May be negative, temporarily.
+  __ imul(scratch, array_length_operand);
+  __ j(overflow, &bailout);
+  __ add(string_length, Operand(scratch));
+  __ j(overflow, &bailout);
+
+  __ shr(string_length, 1);
+  // Live registers and stack values:
+  //   string_length
+  //   elements
+  __ AllocateAsciiString(result_pos, string_length, scratch,
+                         index, string, &bailout);
+  __ mov(result_operand, result_pos);
+  __ lea(result_pos, FieldOperand(result_pos, SeqAsciiString::kHeaderSize));
+
+
+  __ mov(string, separator_operand);
+  __ cmp(FieldOperand(string, SeqAsciiString::kLengthOffset),
+         Immediate(Smi::FromInt(1)));
+  __ j(equal, &one_char_separator);
+  __ j(greater, &long_separator);
+
+
+  // Empty separator case
+  __ mov(index, Immediate(0));
+  __ jmp(&loop_1_condition);
+  // Loop condition: while (index < length).
+  __ bind(&loop_1);
+  // Each iteration of the loop concatenates one string to the result.
+  // Live values in registers:
+  //   index: which element of the elements array we are adding to the result.
+  //   result_pos: the position to which we are currently copying characters.
+  //   elements: the FixedArray of strings we are joining.
+
+  // Get string = array[index].
+  __ mov(string, FieldOperand(elements, index,
+                              times_pointer_size,
+                              FixedArray::kHeaderSize));
+  __ mov(string_length,
+         FieldOperand(string, String::kLengthOffset));
+  __ shr(string_length, 1);
+  __ lea(string,
+         FieldOperand(string, SeqAsciiString::kHeaderSize));
+  __ CopyBytes(string, result_pos, string_length, scratch);
   __ add(Operand(index), Immediate(1));
-  __ jmp(&loop);  // End while (index < length).
+  __ bind(&loop_1_condition);
+  __ cmp(index, array_length_operand);
+  __ j(less, &loop_1);  // End while (index < length).
+  __ jmp(&done);
+
+
+
+  // One-character separator case
+  __ bind(&one_char_separator);
+  // Replace separator with its ascii character value.
+  __ mov_b(scratch, FieldOperand(string, SeqAsciiString::kHeaderSize));
+  __ mov_b(separator_operand, scratch);
+
+  __ Set(index, Immediate(0));
+  // Jump into the loop after the code that copies the separator, so the first
+  // element is not preceded by a separator
+  __ jmp(&loop_2_entry);
+  // Loop condition: while (index < length).
+  __ bind(&loop_2);
+  // Each iteration of the loop concatenates one string to the result.
+  // Live values in registers:
+  //   index: which element of the elements array we are adding to the result.
+  //   result_pos: the position to which we are currently copying characters.
+
+  // Copy the separator character to the result.
+  __ mov_b(scratch, separator_operand);
+  __ mov_b(Operand(result_pos, 0), scratch);
+  __ inc(result_pos);
+
+  __ bind(&loop_2_entry);
+  // Get string = array[index].
+  __ mov(string, FieldOperand(elements, index,
+                              times_pointer_size,
+                              FixedArray::kHeaderSize));
+  __ mov(string_length,
+         FieldOperand(string, String::kLengthOffset));
+  __ shr(string_length, 1);
+  __ lea(string,
+         FieldOperand(string, SeqAsciiString::kHeaderSize));
+  __ CopyBytes(string, result_pos, string_length, scratch);
+  __ add(Operand(index), Immediate(1));
+
+  __ cmp(index, array_length_operand);
+  __ j(less, &loop_2);  // End while (index < length).
+  __ jmp(&done);
+
+
+  // Long separator case (separator is more than one character).
+  __ bind(&long_separator);
+
+  __ Set(index, Immediate(0));
+  // Jump into the loop after the code that copies the separator, so the first
+  // element is not preceded by a separator
+  __ jmp(&loop_3_entry);
+  // Loop condition: while (index < length).
+  __ bind(&loop_3);
+  // Each iteration of the loop concatenates one string to the result.
+  // Live values in registers:
+  //   index: which element of the elements array we are adding to the result.
+  //   result_pos: the position to which we are currently copying characters.
+
+  // Copy the separator to the result.
+  __ mov(string, separator_operand);
+  __ mov(string_length,
+         FieldOperand(string, String::kLengthOffset));
+  __ shr(string_length, 1);
+  __ lea(string,
+         FieldOperand(string, SeqAsciiString::kHeaderSize));
+  __ CopyBytes(string, result_pos, string_length, scratch);
+
+  __ bind(&loop_3_entry);
+  // Get string = array[index].
+  __ mov(string, FieldOperand(elements, index,
+                              times_pointer_size,
+                              FixedArray::kHeaderSize));
+  __ mov(string_length,
+         FieldOperand(string, String::kLengthOffset));
+  __ shr(string_length, 1);
+  __ lea(string,
+         FieldOperand(string, SeqAsciiString::kHeaderSize));
+  __ CopyBytes(string, result_pos, string_length, scratch);
+  __ add(Operand(index), Immediate(1));
+
+  __ cmp(index, array_length_operand);
+  __ j(less, &loop_3);  // End while (index < length).
+  __ jmp(&done);
+
 
   __ bind(&bailout);
-  __ mov(result, Factory::undefined_value());
+  __ mov(result_operand, Factory::undefined_value());
   __ bind(&done);
-  __ mov(eax, result);
+  __ mov(eax, result_operand);
   // Drop temp values from the stack, and restore context register.
-  __ add(Operand(esp), Immediate(5 * kPointerSize));
+  __ add(Operand(esp), Immediate(3 * kPointerSize));
 
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   context()->Plug(eax);
@@ -3739,7 +3835,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     } else {
       if (prop->is_arguments_access()) {
         VariableProxy* obj_proxy = prop->obj()->AsVariableProxy();
-        __ push(EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx));
+        MemOperand slot_operand =
+            EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
+        __ push(slot_operand);
         __ mov(eax, Immediate(prop->key()->AsLiteral()->handle()));
       } else {
         VisitForStackValue(prop->obj());
@@ -4042,7 +4140,6 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     case Token::INSTANCEOF: {
       VisitForStackValue(expr->right());
-      __ IncrementCounter(&Counters::instance_of_full, 1);
       InstanceofStub stub(InstanceofStub::kNoFlags);
       __ CallStub(&stub);
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);

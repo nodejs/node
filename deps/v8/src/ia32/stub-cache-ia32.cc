@@ -1686,6 +1686,7 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
 
   Label miss;
   Label index_out_of_range;
+
   GenerateNameCheck(name, &miss);
 
   // Check that the maps starting from the prototype haven't changed.

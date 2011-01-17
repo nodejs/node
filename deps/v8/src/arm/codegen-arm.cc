@@ -596,7 +596,7 @@ void CodeGenerator::StoreArgumentsObject(bool initial) {
     // When using lazy arguments allocation, we store the hole value
     // as a sentinel indicating that the arguments object hasn't been
     // allocated yet.
-    frame_->EmitPushRoot(Heap::kTheHoleValueRootIndex);
+    frame_->EmitPushRoot(Heap::kArgumentsMarkerRootIndex);
   } else {
     frame_->SpillAll();
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
@@ -623,7 +623,7 @@ void CodeGenerator::StoreArgumentsObject(bool initial) {
     // has a local variable named 'arguments'.
     LoadFromSlot(scope()->arguments()->AsSlot(), NOT_INSIDE_TYPEOF);
     Register arguments = frame_->PopToRegister();
-    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+    __ LoadRoot(ip, Heap::kArgumentsMarkerRootIndex);
     __ cmp(arguments, ip);
     done.Branch(ne);
   }
@@ -1748,7 +1748,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // named 'arguments' has been introduced.
   JumpTarget slow;
   Label done;
-  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ LoadRoot(ip, Heap::kArgumentsMarkerRootIndex);
   __ cmp(ip, arguments_reg);
   slow.Branch(ne);
 
@@ -3255,7 +3255,7 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
   // If the loaded value is the sentinel that indicates that we
   // haven't loaded the arguments object yet, we need to do it now.
   JumpTarget exit;
-  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ LoadRoot(ip, Heap::kArgumentsMarkerRootIndex);
   __ cmp(tos, ip);
   exit.Branch(ne);
   frame_->Drop();
@@ -4667,8 +4667,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ mov(scratch2, Operand(0x7FF00000));
     __ mov(scratch1, Operand(0, RelocInfo::NONE));
     __ vmov(d1, scratch1, scratch2);  // Load infinity into d1.
-    __ vcmp(d0, d1);
-    __ vmrs(pc);
+    __ VFPCompareAndSetFlags(d0, d1);
     runtime.Branch(eq);  // d0 reached infinity.
     __ vdiv(d0, d2, d0);
     __ b(&allocate_return);
@@ -5618,12 +5617,10 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   // (or them and test against Smi mask.)
 
   __ mov(tmp2, tmp1);
-  RecordWriteStub recordWrite1(tmp1, index1, tmp3);
-  __ CallStub(&recordWrite1);
-
-  RecordWriteStub recordWrite2(tmp2, index2, tmp3);
-  __ CallStub(&recordWrite2);
-
+  __ add(index1, index1, tmp1);
+  __ add(index2, index2, tmp1);
+  __ RecordWriteHelper(tmp1, index1, tmp3);
+  __ RecordWriteHelper(tmp2, index2, tmp3);
   __ bind(&done);
 
   deferred->BindExit();

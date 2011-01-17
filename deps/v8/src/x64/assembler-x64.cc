@@ -74,7 +74,7 @@ void CpuFeatures::Probe(bool portable)  {
   __ xor_(rax, rdx);  // Different if CPUID is supported.
   __ j(not_zero, &cpuid);
 
-  // CPUID not supported. Clear the supported features in edx:eax.
+  // CPUID not supported. Clear the supported features in rax.
   __ xor_(rax, rax);
   __ jmp(&done);
 
@@ -185,6 +185,20 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   // Indicate that code has changed.
   CPU::FlushICache(pc_, instruction_count);
 }
+
+
+// -----------------------------------------------------------------------------
+// Register constants.
+
+const int Register::registerCodeByAllocationIndex[kNumAllocatableRegisters] = {
+    // rax, rbx, rdx, rcx, rdi, r8, r9, r11, r14, r12
+    0, 3, 2, 1, 7, 8, 9, 11, 14, 12
+};
+
+const int Register::allocationIndexByRegisterCode[kNumRegisters] = {
+    0, 3, 2, 1, -1, -1, -1, 4, 5, 6, -1, 7, 9, -1, 8, -1
+};
+
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand

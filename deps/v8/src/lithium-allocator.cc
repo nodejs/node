@@ -27,7 +27,6 @@
 
 #include "lithium-allocator.h"
 
-#include "data-flow.h"
 #include "hydrogen.h"
 #include "string-stream.h"
 
@@ -106,9 +105,6 @@ void LOperand::PrintTo(StringStream* stream) {
           break;
         case LUnallocated::SAME_AS_FIRST_INPUT:
           stream->Add("(1)");
-          break;
-        case LUnallocated::SAME_AS_ANY_INPUT:
-          stream->Add("(A)");
           break;
         case LUnallocated::ANY:
           stream->Add("(-)");
@@ -832,9 +828,19 @@ void LAllocator::MeetConstraintsBetween(InstructionSummary* first,
         AllocateFixed(cur_input, gap_index + 1, is_tagged);
         AddConstraintsGapMove(gap_index, input_copy, cur_input);
       } else if (cur_input->policy() == LUnallocated::WRITABLE_REGISTER) {
+        // The live range of writable input registers always goes until the end
+        // of the instruction.
+        ASSERT(!cur_input->IsUsedAtStart());
+
         LUnallocated* input_copy = cur_input->CopyUnconstrained();
         cur_input->set_virtual_register(next_virtual_register_++);
-        second->AddTemp(cur_input);
+
+        if (RequiredRegisterKind(input_copy->virtual_register()) ==
+            DOUBLE_REGISTERS) {
+          double_artificial_registers_.Add(
+              cur_input->virtual_register() - first_artificial_register_);
+        }
+
         AddConstraintsGapMove(gap_index, input_copy, cur_input);
       }
     }
@@ -937,6 +943,9 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
                                     curr_position.InstructionEnd());
             }
           }
+        }
+
+        if (summary->IsCall() || summary->IsSaveDoubles()) {
           for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; ++i) {
             if (output == NULL || !output->IsDoubleRegister() ||
                 output->index() != i) {
@@ -1036,6 +1045,7 @@ void LAllocator::Allocate(LChunk* chunk) {
 
 void LAllocator::MeetRegisterConstraints() {
   HPhase phase("Register constraints", chunk());
+  first_artificial_register_ = next_virtual_register_;
   const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
   for (int i = 0; i < blocks->length(); ++i) {
     HBasicBlock* block = blocks->at(i);
@@ -1564,16 +1574,47 @@ bool LAllocator::HasTaggedValue(int virtual_register) const {
 
 
 RegisterKind LAllocator::RequiredRegisterKind(int virtual_register) const {
-  HValue* value = graph()->LookupValue(virtual_register);
-  if (value != NULL && value->representation().IsDouble()) {
+  if (virtual_register < first_artificial_register_) {
+    HValue* value = graph()->LookupValue(virtual_register);
+    if (value != NULL && value->representation().IsDouble()) {
+      return DOUBLE_REGISTERS;
+    }
+  } else if (double_artificial_registers_.Contains(
+      virtual_register - first_artificial_register_)) {
     return DOUBLE_REGISTERS;
   }
+
   return GENERAL_REGISTERS;
 }
 
 
 void LAllocator::MarkAsCall() {
-  current_summary()->MarkAsCall();
+  // Call instructions can use only fixed registers as
+  // temporaries and outputs because all registers
+  // are blocked by the calling convention.
+  // Inputs can use either fixed register or have a short lifetime (be
+  // used at start of the instruction).
+  InstructionSummary* summary = current_summary();
+#ifdef DEBUG
+  ASSERT(summary->Output() == NULL ||
+         LUnallocated::cast(summary->Output())->HasFixedPolicy() ||
+         !LUnallocated::cast(summary->Output())->HasRegisterPolicy());
+  for (int i = 0; i < summary->InputCount(); i++) {
+    ASSERT(LUnallocated::cast(summary->InputAt(i))->HasFixedPolicy() ||
+           LUnallocated::cast(summary->InputAt(i))->IsUsedAtStart() ||
+           !LUnallocated::cast(summary->InputAt(i))->HasRegisterPolicy());
+  }
+  for (int i = 0; i < summary->TempCount(); i++) {
+    ASSERT(LUnallocated::cast(summary->TempAt(i))->HasFixedPolicy() ||
+           !LUnallocated::cast(summary->TempAt(i))->HasRegisterPolicy());
+  }
+#endif
+  summary->MarkAsCall();
+}
+
+
+void LAllocator::MarkAsSaveDoubles() {
+  current_summary()->MarkAsSaveDoubles();
 }
 
 

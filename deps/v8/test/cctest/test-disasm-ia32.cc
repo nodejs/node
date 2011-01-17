@@ -416,7 +416,7 @@ TEST(DisasmIa320) {
     }
   }
 
-  // andpd, cmpltsd, movaps, psllq.
+  // andpd, cmpltsd, movaps, psllq, psrlq, por.
   {
     if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
@@ -431,6 +431,18 @@ TEST(DisasmIa320) {
 
       __ psllq(xmm0, 17);
       __ psllq(xmm1, 42);
+
+      __ psllq(xmm0, xmm1);
+      __ psllq(xmm1, xmm2);
+
+      __ psrlq(xmm0, 17);
+      __ psrlq(xmm1, 42);
+
+      __ psrlq(xmm0, xmm1);
+      __ psrlq(xmm1, xmm2);
+
+      __ por(xmm0, xmm1);
+      __ por(xmm1, xmm2);
     }
   }
 
@@ -443,7 +455,7 @@ TEST(DisasmIa320) {
       Code::ComputeFlags(Code::STUB),
       Handle<Object>(Heap::undefined_value()))->ToObjectChecked();
   CHECK(code->IsCode());
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
   Code::cast(code)->Print();
   byte* begin = Code::cast(code)->instruction_start();
   byte* end = begin + Code::cast(code)->instruction_size();

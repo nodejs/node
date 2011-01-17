@@ -1,3 +1,57 @@
+2011-01-17: Version 3.0.8
+
+        Exposed heap size limit to the heap statistics gathered by
+        the GetHeapStatistics API. 
+
+        Wrapped external pointers more carefully (issue 1037).
+
+        Hardened the implementation of error objects to avoid setters
+        intercepting the properties set then throwing an error.
+
+        Avoided trashing the FPSCR when calculating Math.floor on ARM.
+
+        Performance improvements on the IA32 platform.
+
+
+2011-01-10: Version 3.0.7
+
+        Stopped calling inherited setters when creating object literals
+        (issue 1015).
+
+        Changed interpretation of malformed \c? escapes in RegExp to match
+        JSC.
+
+        Enhanced the command-line debugger interface and fixed some minor
+        bugs in the debugger.
+
+        Performance improvements on the IA32 platform.
+
+
+2011-01-05: Version 3.0.6
+
+        Allowed getters and setters on JSArray elements (issue 900).
+
+        Stopped JSON objects from hitting inherited setters (part of
+        issue 1015).
+
+        Allowed numbers and strings as names of getters/setters in object
+        initializer (issue 820).
+
+        Added use_system_v8 option to gyp (off by default), to make it easier
+        for Linux distributions to ship with system-provided V8 library.
+
+        Exported external array data accessors (issue 1016).
+
+        Added labelled thread names to help with debugging (on Linux).
+
+
+2011-01-03: Version 3.0.5
+
+        Fixed a couple of cast errors for gcc-3.4.3.
+
+        Performance improvements in GC and IA32 code generator.
+
+
 2010-12-21: Version 3.0.4
 
         Added Date::ResetCache() to the API so that the cached values in the
@@ -152,7 +206,7 @@
         Allowed forcing the use of a simulator from the build script
         independently of the host architecture.
 
-        Fixed FreeBSD port (Issue 912).
+        Fixed FreeBSD port (issue 912).
 
         Made windows-tick-processor respect D8_PATH.
 

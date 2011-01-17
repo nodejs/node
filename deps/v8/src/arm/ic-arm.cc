@@ -1591,7 +1591,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
       __ and_(r1, r1, Operand(kBinary32ExponentMask >> kBinary32MantissaBits));
 
       Label exponent_rebiased;
-      __ teq(r1, Operand(0x00));
+      __ teq(r1, Operand(0x00, RelocInfo::NONE));
       __ b(eq, &exponent_rebiased);
 
       __ teq(r1, Operand(0xff));

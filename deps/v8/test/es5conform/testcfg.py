@@ -82,8 +82,10 @@ class ES5ConformTestConfiguration(test.TestConfiguration):
     for root, dirs, files in os.walk(current_root):
       for dotted in [x  for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
+      dirs.sort()
       root_path = root[len(self.root):].split(os.path.sep)
       root_path = current_path + [x for x in root_path if x]
+      files.sort()
       for file in files:
         if file.endswith('.js'):
           full_path = root_path + [file[:-3]]

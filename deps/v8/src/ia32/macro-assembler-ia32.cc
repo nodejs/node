@@ -877,55 +877,53 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
       Immediate(Factory::cons_ascii_string_map()));
 }
 
-// All registers must be distinct.  Only current_string needs valid contents
-// on entry.  All registers may be invalid on exit.  result_operand is
-// unchanged, padding_chars is updated correctly.
-void MacroAssembler::AppendStringToTopOfNewSpace(
-    Register current_string,  // Tagged pointer to string to copy.
-    Register current_string_length,
-    Register result_pos,
-    Register scratch,
-    Register new_padding_chars,
-    Operand operand_result,
-    Operand operand_padding_chars,
-    Label* bailout) {
-  mov(current_string_length,
-      FieldOperand(current_string, String::kLengthOffset));
-  shr(current_string_length, 1);
-  sub(current_string_length, operand_padding_chars);
-  mov(new_padding_chars, current_string_length);
-  add(Operand(current_string_length), Immediate(kObjectAlignmentMask));
-  and_(Operand(current_string_length), Immediate(~kObjectAlignmentMask));
-  sub(new_padding_chars, Operand(current_string_length));
-  neg(new_padding_chars);
-  // We need an allocation even if current_string_length is 0, to fetch
-  // result_pos.  Consider using a faster fetch of result_pos in that case.
-  AllocateInNewSpace(current_string_length, result_pos, scratch, no_reg,
-                     bailout, NO_ALLOCATION_FLAGS);
-  sub(result_pos, operand_padding_chars);
-  mov(operand_padding_chars, new_padding_chars);
 
-  Register scratch_2 = new_padding_chars;  // Used to compute total length.
-  // Copy string to the end of result.
-  mov(current_string_length,
-      FieldOperand(current_string, String::kLengthOffset));
-  mov(scratch, operand_result);
-  mov(scratch_2, current_string_length);
-  add(scratch_2, FieldOperand(scratch, String::kLengthOffset));
-  mov(FieldOperand(scratch, String::kLengthOffset), scratch_2);
-  shr(current_string_length, 1);
-  lea(current_string,
-      FieldOperand(current_string, SeqAsciiString::kHeaderSize));
-  // Loop condition: while (--current_string_length >= 0).
-  Label copy_loop;
-  Label copy_loop_entry;
-  jmp(&copy_loop_entry);
-  bind(&copy_loop);
-  mov_b(scratch, Operand(current_string, current_string_length, times_1, 0));
-  mov_b(Operand(result_pos, current_string_length, times_1, 0), scratch);
-  bind(&copy_loop_entry);
-  sub(Operand(current_string_length), Immediate(1));
-  j(greater_equal, &copy_loop);
+// Copy memory, byte-by-byte, from source to destination.  Not optimized for
+// long or aligned copies.  The contents of scratch and length are destroyed.
+// Source and destination are incremented by length.
+// Many variants of movsb, loop unrolling, word moves, and indexed operands
+// have been tried here already, and this is fastest.
+// A simpler loop is faster on small copies, but 30% slower on large ones.
+// The cld() instruction must have been emitted, to set the direction flag(),
+// before calling this function.
+void MacroAssembler::CopyBytes(Register source,
+                               Register destination,
+                               Register length,
+                               Register scratch) {
+  Label loop, done, short_string, short_loop;
+  // Experimentation shows that the short string loop is faster if length < 10.
+  cmp(Operand(length), Immediate(10));
+  j(less_equal, &short_string);
+
+  ASSERT(source.is(esi));
+  ASSERT(destination.is(edi));
+  ASSERT(length.is(ecx));
+
+  // Because source is 4-byte aligned in our uses of this function,
+  // we keep source aligned for the rep_movs call by copying the odd bytes
+  // at the end of the ranges.
+  mov(scratch, Operand(source, length, times_1, -4));
+  mov(Operand(destination, length, times_1, -4), scratch);
+  mov(scratch, ecx);
+  shr(ecx, 2);
+  rep_movs();
+  and_(Operand(scratch), Immediate(0x3));
+  add(destination, Operand(scratch));
+  jmp(&done);
+
+  bind(&short_string);
+  test(length, Operand(length));
+  j(zero, &done);
+
+  bind(&short_loop);
+  mov_b(scratch, Operand(source, 0));
+  mov_b(Operand(destination, 0), scratch);
+  inc(source);
+  inc(destination);
+  dec(length);
+  j(not_zero, &short_loop);
+
+  bind(&done);
 }
 
 
@@ -1715,7 +1713,7 @@ void MacroAssembler::Abort(const char* msg) {
   }
 #endif
   // Disable stub call restrictions to always allow calls to abort.
-  set_allow_stub_calls(true);
+  AllowStubCallsScope allow_scope(this, true);
 
   push(eax);
   push(Immediate(p0));

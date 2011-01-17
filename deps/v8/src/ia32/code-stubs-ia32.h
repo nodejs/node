@@ -250,13 +250,6 @@ class TypeRecordingBinaryOpStub: public CodeStub {
         result_type_(result_type),
         name_(NULL) { }
 
-  // Generate code to call the stub with the supplied arguments. This will add
-  // code at the call site to prepare arguments either in registers or on the
-  // stack together with the actual call.
-  void GenerateCall(MacroAssembler* masm, Register left, Register right);
-  void GenerateCall(MacroAssembler* masm, Register left, Smi* right);
-  void GenerateCall(MacroAssembler* masm, Smi* left, Register right);
-
  private:
   enum SmiCodeGenerateHeapNumberResults {
     ALLOW_HEAPNUMBER_RESULTS,
@@ -320,10 +313,6 @@ class TypeRecordingBinaryOpStub: public CodeStub {
   void GenerateRegisterArgsPush(MacroAssembler* masm);
   void GenerateTypeTransition(MacroAssembler* masm);
   void GenerateTypeTransitionWithSavedArgs(MacroAssembler* masm);
-
-  bool IsOperationCommutative() {
-    return (op_ == Token::ADD) || (op_ == Token::MUL);
-  }
 
   virtual int GetCodeKind() { return Code::TYPE_RECORDING_BINARY_OP_IC; }
 

@@ -730,6 +730,11 @@ bool Object::IsFalse() {
 }
 
 
+bool Object::IsArgumentsMarker() {
+  return this == Heap::arguments_marker();
+}
+
+
 double Object::Number() {
   ASSERT(IsNumber());
   return IsSmi()
@@ -2233,7 +2238,6 @@ InstanceType Map::instance_type() {
 
 
 void Map::set_instance_type(InstanceType value) {
-  ASSERT(0 <= value && value < 256);
   WRITE_BYTE_FIELD(this, kInstanceTypeOffset, value);
 }
 
@@ -2985,13 +2989,6 @@ Code* SharedFunctionInfo::unchecked_code() {
 
 
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
-  // If optimization has been disabled for the shared function info,
-  // reflect that in the code object so it will not be counted as
-  // optimizable code.
-  ASSERT(value->kind() != Code::FUNCTION ||
-         !value->optimizable() ||
-         this->code() == Builtins::builtin(Builtins::Illegal) ||
-         this->allows_lazy_compilation());
   WRITE_FIELD(this, kCodeOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kCodeOffset, mode);
 }
@@ -3211,28 +3208,28 @@ int JSFunction::NumberOfLiterals() {
 
 
 Object* JSBuiltinsObject::javascript_builtin(Builtins::JavaScript id) {
-  ASSERT(0 <= id && id < kJSBuiltinsCount);
+  ASSERT(id < kJSBuiltinsCount);  // id is unsigned.
   return READ_FIELD(this, OffsetOfFunctionWithId(id));
 }
 
 
 void JSBuiltinsObject::set_javascript_builtin(Builtins::JavaScript id,
                                               Object* value) {
-  ASSERT(0 <= id && id < kJSBuiltinsCount);
+  ASSERT(id < kJSBuiltinsCount);  // id is unsigned.
   WRITE_FIELD(this, OffsetOfFunctionWithId(id), value);
   WRITE_BARRIER(this, OffsetOfFunctionWithId(id));
 }
 
 
 Code* JSBuiltinsObject::javascript_builtin_code(Builtins::JavaScript id) {
-  ASSERT(0 <= id && id < kJSBuiltinsCount);
+  ASSERT(id < kJSBuiltinsCount);  // id is unsigned.
   return Code::cast(READ_FIELD(this, OffsetOfCodeWithId(id)));
 }
 
 
 void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
                                                    Code* value) {
-  ASSERT(0 <= id && id < kJSBuiltinsCount);
+  ASSERT(id < kJSBuiltinsCount);  // id is unsigned.
   WRITE_FIELD(this, OffsetOfCodeWithId(id), value);
   ASSERT(!Heap::InNewSpace(value));
 }

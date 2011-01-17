@@ -181,10 +181,6 @@ typedef byte* Address;
 #define USING_BSD_ABI
 #endif
 
-// Code-point values in Unicode 4.0 are 21 bits wide.
-typedef uint16_t uc16;
-typedef int32_t uc32;
-
 // -----------------------------------------------------------------------------
 // Constants
 
@@ -227,6 +223,15 @@ const int kBinary32MaxExponent  = 0xFE;
 const int kBinary32MinExponent  = 0x01;
 const int kBinary32MantissaBits = 23;
 const int kBinary32ExponentShift = 23;
+
+// ASCII/UC16 constants
+// Code-point values in Unicode 4.0 are 21 bits wide.
+typedef uint16_t uc16;
+typedef int32_t uc32;
+const int kASCIISize    = kCharSize;
+const int kUC16Size     = sizeof(uc16);      // NOLINT
+const uc32 kMaxAsciiCharCode = 0x7f;
+const uint32_t kMaxAsciiCharCodeU = 0x7fu;
 
 
 // The expression OFFSET_OF(type, field) computes the byte-offset

@@ -1190,6 +1190,11 @@ void HStoreGlobal::PrintDataTo(StringStream* stream) const {
 }
 
 
+void HLoadContextSlot::PrintDataTo(StringStream* stream) const {
+  stream->Add("(%d, %d)", context_chain_length(), slot_index());
+}
+
+
 // Implementation of type inference and type conversions. Calculates
 // the inferred type of this instruction based on the input operands.
 

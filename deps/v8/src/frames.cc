@@ -329,21 +329,20 @@ void SafeStackTraceFrameIterator::Advance() {
 
 
 Code* StackFrame::GetSafepointData(Address pc,
-                                   uint8_t** safepoint_entry,
+                                   SafepointEntry* safepoint_entry,
                                    unsigned* stack_slots) {
   PcToCodeCache::PcToCodeCacheEntry* entry = PcToCodeCache::GetCacheEntry(pc);
-  uint8_t* cached_safepoint_entry = entry->safepoint_entry;
-  if (cached_safepoint_entry == NULL) {
-    cached_safepoint_entry = entry->code->GetSafepointEntry(pc);
-    ASSERT(cached_safepoint_entry != NULL);  // No safepoint found.
-    entry->safepoint_entry = cached_safepoint_entry;
+  SafepointEntry cached_safepoint_entry = entry->safepoint_entry;
+  if (!entry->safepoint_entry.is_valid()) {
+    entry->safepoint_entry = entry->code->GetSafepointEntry(pc);
+    ASSERT(entry->safepoint_entry.is_valid());
   } else {
-    ASSERT(cached_safepoint_entry == entry->code->GetSafepointEntry(pc));
+    ASSERT(entry->safepoint_entry.Equals(entry->code->GetSafepointEntry(pc)));
   }
 
   // Fill in the results and return the code.
   Code* code = entry->code;
-  *safepoint_entry = cached_safepoint_entry;
+  *safepoint_entry = entry->safepoint_entry;
   *stack_slots = code->stack_slots();
   return code;
 }
@@ -536,7 +535,7 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
 
   // Compute the safepoint information.
   unsigned stack_slots = 0;
-  uint8_t* safepoint_entry = NULL;
+  SafepointEntry safepoint_entry;
   Code* code = StackFrame::GetSafepointData(
       pc(), &safepoint_entry, &stack_slots);
   unsigned slot_space = stack_slots * kPointerSize;
@@ -548,10 +547,22 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
   Object** parameters_limit = &Memory::Object_at(
       fp() + JavaScriptFrameConstants::kFunctionOffset - slot_space);
 
+  // Visit the parameters that may be on top of the saved registers.
+  if (safepoint_entry.argument_count() > 0) {
+    v->VisitPointers(parameters_base,
+                     parameters_base + safepoint_entry.argument_count());
+    parameters_base += safepoint_entry.argument_count();
+  }
+
+  if (safepoint_entry.has_doubles()) {
+    parameters_base += DoubleRegister::kNumAllocatableRegisters *
+        kDoubleSize / kPointerSize;
+  }
+
   // Visit the registers that contain pointers if any.
-  if (SafepointTable::HasRegisters(safepoint_entry)) {
+  if (safepoint_entry.HasRegisters()) {
     for (int i = kNumSafepointRegisters - 1; i >=0; i--) {
-      if (SafepointTable::HasRegisterAt(safepoint_entry, i)) {
+      if (safepoint_entry.HasRegisterAt(i)) {
         int reg_stack_index = MacroAssembler::SafepointRegisterStackIndex(i);
         v->VisitPointer(parameters_base + reg_stack_index);
       }
@@ -561,7 +572,8 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
   }
 
   // We're done dealing with the register bits.
-  safepoint_entry += kNumSafepointRegisters >> kBitsPerByteLog2;
+  uint8_t* safepoint_bits = safepoint_entry.bits();
+  safepoint_bits += kNumSafepointRegisters >> kBitsPerByteLog2;
 
   // Visit the rest of the parameters.
   v->VisitPointers(parameters_base, parameters_limit);
@@ -570,7 +582,7 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
   for (unsigned index = 0; index < stack_slots; index++) {
     int byte_index = index >> kBitsPerByteLog2;
     int bit_index = index & (kBitsPerByte - 1);
-    if ((safepoint_entry[byte_index] & (1U << bit_index)) != 0) {
+    if ((safepoint_bits[byte_index] & (1U << bit_index)) != 0) {
       v->VisitPointer(parameters_limit + index);
     }
   }
@@ -778,14 +790,8 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
   ASSERT(code != NULL);
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
 
-  SafepointTable table(code);
-  unsigned pc_offset = static_cast<unsigned>(pc() - code->instruction_start());
-  for (unsigned i = 0; i < table.length(); i++) {
-    if (table.GetPcOffset(i) == pc_offset) {
-      *deopt_index = table.GetDeoptimizationIndex(i);
-      break;
-    }
-  }
+  SafepointEntry safepoint_entry = code->GetSafepointEntry(pc());
+  *deopt_index = safepoint_entry.deoptimization_index();
   ASSERT(*deopt_index != AstNode::kNoNumber);
 
   return DeoptimizationInputData::cast(code->deoptimization_data());
@@ -1150,7 +1156,7 @@ PcToCodeCache::PcToCodeCacheEntry* PcToCodeCache::GetCacheEntry(Address pc) {
     // been set. Otherwise, we risk trying to use a cache entry before
     // the code has been computed.
     entry->code = GcSafeFindCodeForPc(pc);
-    entry->safepoint_entry = NULL;
+    entry->safepoint_entry.Reset();
     entry->pc = pc;
   }
   return entry;

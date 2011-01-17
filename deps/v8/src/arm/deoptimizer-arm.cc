@@ -55,8 +55,9 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   SafepointTable table(function->code());
   for (unsigned i = 0; i < table.length(); i++) {
     unsigned pc_offset = table.GetPcOffset(i);
-    int deoptimization_index = table.GetDeoptimizationIndex(i);
-    int gap_code_size = table.GetGapCodeSize(i);
+    SafepointEntry safepoint_entry = table.GetEntry(i);
+    int deoptimization_index = safepoint_entry.deoptimization_index();
+    int gap_code_size = safepoint_entry.gap_code_size();
     // Check that we did not shoot past next safepoint.
     // TODO(srdjan): How do we guarantee that safepoint code does not
     // overlap other safepoint patching code?

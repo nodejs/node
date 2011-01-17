@@ -104,7 +104,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(length));
 
   // Setup the fixed slots.
-  __ xor_(rbx, rbx);  // Set to NULL.
+  __ Set(rbx, 0);  // Set to NULL.
   __ movq(Operand(rax, Context::SlotOffset(Context::CLOSURE_INDEX)), rcx);
   __ movq(Operand(rax, Context::SlotOffset(Context::FCONTEXT_INDEX)), rax);
   __ movq(Operand(rax, Context::SlotOffset(Context::PREVIOUS_INDEX)), rbx);
@@ -250,7 +250,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ movq(rax, Immediate(1));
   __ ret(1 * kPointerSize);
   __ bind(&false_result);
-  __ xor_(rax, rax);
+  __ Set(rax, 0);
   __ ret(1 * kPointerSize);
 }
 
@@ -988,8 +988,195 @@ Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
 Handle<Code> GetTypeRecordingBinaryOpStub(int key,
     TRBinaryOpIC::TypeInfo type_info,
     TRBinaryOpIC::TypeInfo result_type_info) {
+  TypeRecordingBinaryOpStub stub(key, type_info, result_type_info);
+  return stub.GetCode();
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
+  __ pop(rcx);  // Save return address.
+  __ push(rdx);
+  __ push(rax);
+  // Left and right arguments are now on top.
+  // Push this stub's key. Although the operation and the type info are
+  // encoded into the key, the encoding is opaque, so push them too.
+  __ Push(Smi::FromInt(MinorKey()));
+  __ Push(Smi::FromInt(op_));
+  __ Push(Smi::FromInt(operands_type_));
+
+  __ push(rcx);  // Push return address.
+
+  // Patch the caller to an appropriate specialized stub and return the
+  // operation result to the caller of the stub.
+  __ TailCallExternalReference(
+      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch)),
+      5,
+      1);
+}
+
+
+// Prepare for a type transition runtime call when the args are already on
+// the stack, under the return address.
+void TypeRecordingBinaryOpStub::GenerateTypeTransitionWithSavedArgs(
+    MacroAssembler* masm) {
+  __ pop(rcx);  // Save return address.
+  // Left and right arguments are already on top of the stack.
+  // Push this stub's key. Although the operation and the type info are
+  // encoded into the key, the encoding is opaque, so push them too.
+  __ Push(Smi::FromInt(MinorKey()));
+  __ Push(Smi::FromInt(op_));
+  __ Push(Smi::FromInt(operands_type_));
+
+  __ push(rcx);  // Push return address.
+
+  // Patch the caller to an appropriate specialized stub and return the
+  // operation result to the caller of the stub.
+  __ TailCallExternalReference(
+      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch)),
+      5,
+      1);
+}
+
+
+void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
+  switch (operands_type_) {
+    case TRBinaryOpIC::UNINITIALIZED:
+      GenerateTypeTransition(masm);
+      break;
+    case TRBinaryOpIC::SMI:
+      GenerateSmiStub(masm);
+      break;
+    case TRBinaryOpIC::INT32:
+      GenerateInt32Stub(masm);
+      break;
+    case TRBinaryOpIC::HEAP_NUMBER:
+      GenerateHeapNumberStub(masm);
+      break;
+    case TRBinaryOpIC::STRING:
+      GenerateStringStub(masm);
+      break;
+    case TRBinaryOpIC::GENERIC:
+      GenerateGeneric(masm);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+const char* TypeRecordingBinaryOpStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name;
+  switch (mode_) {
+    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
+    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
+    default: overwrite_name = "UnknownOverwrite"; break;
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "TypeRecordingBinaryOpStub_%s_%s_%s",
+               op_name,
+               overwrite_name,
+               TRBinaryOpIC::GetName(operands_type_));
+  return name_;
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
+    Label* slow,
+    SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
   UNIMPLEMENTED();
-  return Handle<Code>::null();
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
+  Label call_runtime;
+
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+      break;
+    case Token::MOD:
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SAR:
+    case Token::SHL:
+    case Token::SHR:
+      GenerateRegisterArgsPush(masm);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  if (result_type_ == TRBinaryOpIC::UNINITIALIZED ||
+      result_type_ == TRBinaryOpIC::SMI) {
+    GenerateSmiCode(masm, &call_runtime, NO_HEAPNUMBER_RESULTS);
+  } else {
+    GenerateSmiCode(masm, &call_runtime, ALLOW_HEAPNUMBER_RESULTS);
+  }
+  __ bind(&call_runtime);
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+      GenerateTypeTransition(masm);
+      break;
+    case Token::MOD:
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SAR:
+    case Token::SHL:
+    case Token::SHR:
+      GenerateTypeTransitionWithSavedArgs(masm);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateHeapResultAllocation(
+    MacroAssembler* masm,
+    Label* alloc_failure) {
+  UNIMPLEMENTED();
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
+  __ pop(rcx);
+  __ push(rdx);
+  __ push(rax);
+  __ push(rcx);
 }
 
 
@@ -2572,7 +2759,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 
   // Before returning we restore the context from the frame pointer if not NULL.
   // The frame pointer is NULL in the exception handler of a JS entry frame.
-  __ xor_(rsi, rsi);  // tentatively set context pointer to NULL
+  __ Set(rsi, 0);  // Tentatively set context pointer to NULL
   NearLabel skip;
   __ cmpq(rbp, Immediate(0));
   __ j(equal, &skip);
@@ -2756,7 +2943,7 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
   }
 
   // Clear the context pointer.
-  __ xor_(rsi, rsi);
+  __ Set(rsi, 0);
 
   // Restore registers from handler.
   STATIC_ASSERT(StackHandlerConstants::kNextOffset + kPointerSize ==

@@ -176,11 +176,23 @@ TEST(Parser) {
   CHECK_PARSE_EQ("[\\d-z]", "[0-9 - z]");
   CHECK_PARSE_EQ("[\\d-\\d]", "[0-9 - 0-9]");
   CHECK_PARSE_EQ("[z-\\d]", "[z - 0-9]");
+  // Control character outside character class.
   CHECK_PARSE_EQ("\\cj\\cJ\\ci\\cI\\ck\\cK",
                  "'\\x0a\\x0a\\x09\\x09\\x0b\\x0b'");
-  CHECK_PARSE_EQ("\\c!", "'c!'");
-  CHECK_PARSE_EQ("\\c_", "'c_'");
-  CHECK_PARSE_EQ("\\c~", "'c~'");
+  CHECK_PARSE_EQ("\\c!", "'\\c!'");
+  CHECK_PARSE_EQ("\\c_", "'\\c_'");
+  CHECK_PARSE_EQ("\\c~", "'\\c~'");
+  CHECK_PARSE_EQ("\\c1", "'\\c1'");
+  // Control character inside character class.
+  CHECK_PARSE_EQ("[\\c!]", "[\\ c !]");
+  CHECK_PARSE_EQ("[\\c_]", "[\\x1f]");
+  CHECK_PARSE_EQ("[\\c~]", "[\\ c ~]");
+  CHECK_PARSE_EQ("[\\ca]", "[\\x01]");
+  CHECK_PARSE_EQ("[\\cz]", "[\\x1a]");
+  CHECK_PARSE_EQ("[\\cA]", "[\\x01]");
+  CHECK_PARSE_EQ("[\\cZ]", "[\\x1a]");
+  CHECK_PARSE_EQ("[\\c1]", "[\\x11]");
+
   CHECK_PARSE_EQ("[a\\]c]", "[a ] c]");
   CHECK_PARSE_EQ("\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ", "'[]{}()%^# '");
   CHECK_PARSE_EQ("[\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ]", "[[ ] { } ( ) % ^ #  ]");
@@ -234,7 +246,7 @@ TEST(Parser) {
   CHECK_PARSE_EQ("\\x34", "'\x34'");
   CHECK_PARSE_EQ("\\x60", "'\x60'");
   CHECK_PARSE_EQ("\\x3z", "'x3z'");
-  CHECK_PARSE_EQ("\\c", "'c'");
+  CHECK_PARSE_EQ("\\c", "'\\c'");
   CHECK_PARSE_EQ("\\u0034", "'\x34'");
   CHECK_PARSE_EQ("\\u003z", "'u003z'");
   CHECK_PARSE_EQ("foo[z]*", "(: 'foo' (# 0 - g [z]))");

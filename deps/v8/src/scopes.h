@@ -302,6 +302,14 @@ class Scope: public ZoneObject {
 
   explicit Scope(Type type);
 
+  void InsertAfterScope(Scope* scope) {
+    inner_scopes_.Add(scope);
+    outer_scope_ = scope->outer_scope_;
+    outer_scope_->inner_scopes_.RemoveElement(scope);
+    outer_scope_->inner_scopes_.Add(this);
+    scope->outer_scope_ = this;
+  }
+
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
@@ -355,6 +363,10 @@ class Scope: public ZoneObject {
   int num_stack_slots_;
   int num_heap_slots_;
 
+  // Serialized scopes support.
+  SerializedScopeInfo* scope_info_;
+  bool resolved() { return scope_info_ != NULL; }
+
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
   Variable* NonLocal(Handle<String> name, Variable::Mode mode);
@@ -386,6 +398,33 @@ class Scope: public ZoneObject {
   void AllocateNonParameterLocal(Variable* var);
   void AllocateNonParameterLocals();
   void AllocateVariablesRecursively();
+
+ private:
+  Scope(Scope* inner_scope, SerializedScopeInfo* scope_info);
+
+  void SetDefaults(Type type,
+                   Scope* outer_scope,
+                   SerializedScopeInfo* scope_info) {
+    outer_scope_ = outer_scope;
+    type_ = type;
+    scope_name_ = Factory::empty_symbol();
+    dynamics_ = NULL;
+    receiver_ = NULL;
+    function_ = NULL;
+    arguments_ = NULL;
+    arguments_shadow_ = NULL;
+    illegal_redecl_ = NULL;
+    scope_inside_with_ = false;
+    scope_contains_with_ = false;
+    scope_calls_eval_ = false;
+    outer_scope_calls_eval_ = false;
+    inner_scope_calls_eval_ = false;
+    outer_scope_is_eval_scope_ = false;
+    force_eager_compilation_ = false;
+    num_stack_slots_ = 0;
+    num_heap_slots_ = 0;
+    scope_info_ = scope_info;
+  }
 };
 
 

@@ -1,4 +1,4 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -85,6 +85,7 @@ SOURCES = {
     jsregexp.cc
     jump-target.cc
     lithium-allocator.cc
+    lithium.cc
     liveedit.cc
     log-utils.cc
     log.cc
@@ -211,6 +212,8 @@ SOURCES = {
     x64/full-codegen-x64.cc
     x64/ic-x64.cc
     x64/jump-target-x64.cc
+    x64/lithium-x64.cc
+    x64/lithium-codegen-x64.cc
     x64/macro-assembler-x64.cc
     x64/regexp-macro-assembler-x64.cc
     x64/register-allocator-x64.cc
@@ -225,14 +228,14 @@ SOURCES = {
   'os:android': ['platform-linux.cc', 'platform-posix.cc'],
   'os:macos':   ['platform-macos.cc', 'platform-posix.cc'],
   'os:solaris': ['platform-solaris.cc', 'platform-posix.cc'],
-  'os:cygwin':  ['platform-cygwin.cc', 'platform-posix.cc'],
   'os:nullos':  ['platform-nullos.cc'],
   'os:win32':   ['platform-win32.cc'],
   'mode:release': [],
   'mode:debug': [
-    'objects-debug.cc', 'prettyprinter.cc', 'regexp-macro-assembler-tracer.cc'
+    'objects-debug.cc', 'objects-printer.cc', 'prettyprinter.cc',
+    'regexp-macro-assembler-tracer.cc'
   ],
-  'objectprint:on': ['objects-debug.cc']
+  'objectprint:on': ['objects-printer.cc']
 }
 
 

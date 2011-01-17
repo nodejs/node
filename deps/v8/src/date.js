@@ -1000,7 +1000,7 @@ function DateToISOString() {
 function DateToJSON(key) {
   var o = ToObject(this);
   var tv = DefaultNumber(o);
-  if (IS_NUMBER(tv) && !$isFinite(tv)) { 
+  if (IS_NUMBER(tv) && !NUMBER_IS_FINITE(tv)) { 
     return null; 
   }
   return o.toISOString();

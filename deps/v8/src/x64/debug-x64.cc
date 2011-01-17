@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 #include "v8.h"
 
 #if defined(V8_TARGET_ARCH_X64)
@@ -39,12 +38,60 @@ namespace internal {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
+bool BreakLocationIterator::IsDebugBreakAtReturn()  {
+  return Debug::IsDebugBreakAtReturn(rinfo());
+}
+
+
+// Patch the JS frame exit code with a debug break call. See
+// CodeGenerator::VisitReturnStatement and VirtualFrame::Exit in codegen-x64.cc
+// for the precise return instructions sequence.
+void BreakLocationIterator::SetDebugBreakAtReturn()  {
+  ASSERT(Assembler::kJSReturnSequenceLength >=
+         Assembler::kCallInstructionLength);
+  rinfo()->PatchCodeWithCall(Debug::debug_break_return()->entry(),
+      Assembler::kJSReturnSequenceLength - Assembler::kCallInstructionLength);
+}
+
+
+// Restore the JS frame exit code.
+void BreakLocationIterator::ClearDebugBreakAtReturn() {
+  rinfo()->PatchCode(original_rinfo()->pc(),
+                     Assembler::kJSReturnSequenceLength);
+}
+
+
+// A debug break in the frame exit code is identified by the JS frame exit code
+// having been patched with a call instruction.
 bool Debug::IsDebugBreakAtReturn(v8::internal::RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
   return rinfo->IsPatchedReturnSequence();
 }
 
+
+bool BreakLocationIterator::IsDebugBreakAtSlot() {
+  ASSERT(IsDebugBreakSlot());
+  // Check whether the debug break slot instructions have been patched.
+  return !Assembler::IsNop(rinfo()->pc());
+}
+
+
+void BreakLocationIterator::SetDebugBreakAtSlot() {
+  ASSERT(IsDebugBreakSlot());
+  rinfo()->PatchCodeWithCall(
+      Debug::debug_break_slot()->entry(),
+      Assembler::kDebugBreakSlotLength - Assembler::kCallInstructionLength);
+}
+
+
+void BreakLocationIterator::ClearDebugBreakAtSlot() {
+  ASSERT(IsDebugBreakSlot());
+  rinfo()->PatchCode(original_rinfo()->pc(), Assembler::kDebugBreakSlotLength);
+}
+
+
 #define __ ACCESS_MASM(masm)
+
 
 static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
                                           RegList object_regs,
@@ -55,7 +102,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 
   // Store the registers containing live values on the expression stack to
   // make sure that these are correctly updated during GC. Non object values
-  // are stored as as two smi causing it to be untouched by GC.
+  // are stored as as two smis causing it to be untouched by GC.
   ASSERT((object_regs & ~kJSCallerSaved) == 0);
   ASSERT((non_object_regs & ~kJSCallerSaved) == 0);
   ASSERT((object_regs & non_object_regs) == 0);
@@ -80,7 +127,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 #ifdef DEBUG
   __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
-  __ xor_(rax, rax);  // No arguments (argc == 0).
+  __ Set(rax, 0);  // No arguments (argc == 0).
   __ movq(rbx, ExternalReference::debug_break());
 
   CEntryStub ceb(1);
@@ -126,24 +173,25 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 }
 
 
-void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
-  // Register state for IC call call (from ic-x64.cc)
+void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
+  // Register state for IC load call (from ic-x64.cc).
   // ----------- S t a t e -------------
-  //  -- rcx: function name
+  //  -- rax    : receiver
+  //  -- rcx    : name
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, rcx.bit(), 0, false);
+  Generate_DebugBreakCallHelper(masm, rax.bit() | rcx.bit(), 0, false);
 }
 
 
-void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
-  // Register state just before return from JS function (from codegen-x64.cc).
-  // rax is the actual number of arguments not encoded as a smi, see comment
-  // above IC call.
+void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
+  // Register state for IC store call (from ic-x64.cc).
   // ----------- S t a t e -------------
-  //  -- rax: number of arguments
+  //  -- rax    : value
+  //  -- rcx    : name
+  //  -- rdx    : receiver
   // -----------------------------------
-  // The number of arguments in rax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, rdi.bit(), rax.bit(), false);
+  Generate_DebugBreakCallHelper(
+      masm, rax.bit() | rcx.bit() | rdx.bit(), 0, false);
 }
 
 
@@ -169,13 +217,24 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
-  // Register state for IC load call (from ic-x64.cc).
+void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
+  // Register state for IC call call (from ic-x64.cc)
   // ----------- S t a t e -------------
-  //  -- rax    : receiver
-  //  -- rcx    : name
+  //  -- rcx: function name
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, rax.bit() | rcx.bit(), 0, false);
+  Generate_DebugBreakCallHelper(masm, rcx.bit(), 0, false);
+}
+
+
+void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
+  // Register state just before return from JS function (from codegen-x64.cc).
+  // rax is the actual number of arguments not encoded as a smi, see comment
+  // above IC call.
+  // ----------- S t a t e -------------
+  //  -- rax: number of arguments
+  // -----------------------------------
+  // The number of arguments in rax is not smi encoded.
+  Generate_DebugBreakCallHelper(masm, rdi.bit(), rax.bit(), false);
 }
 
 
@@ -185,18 +244,6 @@ void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   //  -- rax: return value
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, rax.bit(), 0, true);
-}
-
-
-void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
-  // Register state for IC store call (from ic-x64.cc).
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : name
-  //  -- rdx    : receiver
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(
-      masm, rax.bit() | rcx.bit() | rdx.bit(), 0, false);
 }
 
 
@@ -261,49 +308,6 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
 const bool Debug::kFrameDropperSupported = true;
 
 #undef __
-
-
-
-
-void BreakLocationIterator::ClearDebugBreakAtReturn() {
-  rinfo()->PatchCode(original_rinfo()->pc(),
-                     Assembler::kJSReturnSequenceLength);
-}
-
-
-bool BreakLocationIterator::IsDebugBreakAtReturn()  {
-  return Debug::IsDebugBreakAtReturn(rinfo());
-}
-
-
-void BreakLocationIterator::SetDebugBreakAtReturn()  {
-  ASSERT(Assembler::kJSReturnSequenceLength >=
-         Assembler::kCallInstructionLength);
-  rinfo()->PatchCodeWithCall(Debug::debug_break_return()->entry(),
-      Assembler::kJSReturnSequenceLength - Assembler::kCallInstructionLength);
-}
-
-
-bool BreakLocationIterator::IsDebugBreakAtSlot() {
-  ASSERT(IsDebugBreakSlot());
-  // Check whether the debug break slot instructions have been patched.
-  return !Assembler::IsNop(rinfo()->pc());
-}
-
-
-void BreakLocationIterator::SetDebugBreakAtSlot() {
-  ASSERT(IsDebugBreakSlot());
-  rinfo()->PatchCodeWithCall(
-      Debug::debug_break_slot()->entry(),
-      Assembler::kDebugBreakSlotLength - Assembler::kCallInstructionLength);
-}
-
-
-void BreakLocationIterator::ClearDebugBreakAtSlot() {
-  ASSERT(IsDebugBreakSlot());
-  rinfo()->PatchCode(original_rinfo()->pc(), Assembler::kDebugBreakSlotLength);
-}
-
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 

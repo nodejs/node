@@ -114,7 +114,7 @@ class CompilationInfo BASE_EMBEDDED {
     SetMode(OPTIMIZE);
     osr_ast_id_ = osr_ast_id;
   }
-  void DisableOptimization() { SetMode(NONOPT); }
+  void DisableOptimization();
 
   // Deoptimization support.
   bool HasDeoptimizationSupport() const { return supports_deoptimization_; }
@@ -125,9 +125,7 @@ class CompilationInfo BASE_EMBEDDED {
 
   // Determine whether or not we can adaptively optimize.
   bool AllowOptimize() {
-    return V8::UseCrankshaft() &&
-           !closure_.is_null() &&
-           function_->AllowOptimize();
+    return V8::UseCrankshaft() && !closure_.is_null();
   }
 
  private:

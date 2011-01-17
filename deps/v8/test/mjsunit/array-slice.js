@@ -231,3 +231,62 @@
   func(['a', 1, undefined], 'a', 1, undefined);
   func(['a', 1, undefined, void(0)], 'a', 1, undefined, void(0));
 })();
+
+// Check slicing on arguments object when missing arguments get assigined.
+(function() {
+  function func(x, y) {
+    assertEquals(1, arguments.length);
+    assertEquals(undefined, y);
+    y = 239;
+    assertEquals(1, arguments.length);  // arguments length is the same.
+    assertEquals([x], Array.prototype.slice.call(arguments, 0));
+  }
+
+  func('a');
+})();
+
+// Check slicing on arguments object when length property has been set.
+(function() {
+  function func(x, y) {
+    assertEquals(1, arguments.length);
+    arguments.length = 7;
+    assertEquals([x,,,,,,,], Array.prototype.slice.call(arguments, 0));
+  }
+
+  func('a');
+})();
+
+// Check slicing on arguments object when length property has been set to
+// some strange value.
+(function() {
+  function func(x, y) {
+    assertEquals(1, arguments.length);
+    arguments.length = 'foobar';
+    assertEquals([], Array.prototype.slice.call(arguments, 0));
+  }
+
+  func('a');
+})();
+
+// Check slicing on arguments object when extra argument has been added
+// via indexed assignment.
+(function() {
+  function func(x, y) {
+    assertEquals(1, arguments.length);
+    arguments[3] = 239;
+    assertEquals([x], Array.prototype.slice.call(arguments, 0));
+  }
+
+  func('a');
+})();
+
+// Check slicing on arguments object when argument has been deleted by index.
+(function() {
+  function func(x, y, z) {
+    assertEquals(3, arguments.length);
+    delete arguments[1];
+    assertEquals([x,,z], Array.prototype.slice.call(arguments, 0));
+  }
+
+  func('a', 'b', 'c');
+})();

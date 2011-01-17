@@ -417,8 +417,8 @@ void RegExpMacroAssemblerARM::CheckNotBackReference(
 
 
 void RegExpMacroAssemblerARM::CheckNotRegistersEqual(int reg1,
-                                                      int reg2,
-                                                      Label* on_not_equal) {
+                                                     int reg2,
+                                                     Label* on_not_equal) {
   __ ldr(r0, register_location(reg1));
   __ ldr(r1, register_location(reg2));
   __ cmp(r0, r1);
@@ -426,7 +426,7 @@ void RegExpMacroAssemblerARM::CheckNotRegistersEqual(int reg1,
 }
 
 
-void RegExpMacroAssemblerARM::CheckNotCharacter(uint32_t c,
+void RegExpMacroAssemblerARM::CheckNotCharacter(unsigned c,
                                                 Label* on_not_equal) {
   __ cmp(current_character(), Operand(c));
   BranchOrBacktrack(ne, on_not_equal);
@@ -442,8 +442,8 @@ void RegExpMacroAssemblerARM::CheckCharacterAfterAnd(uint32_t c,
 }
 
 
-void RegExpMacroAssemblerARM::CheckNotCharacterAfterAnd(uint32_t c,
-                                                        uint32_t mask,
+void RegExpMacroAssemblerARM::CheckNotCharacterAfterAnd(unsigned c,
+                                                        unsigned mask,
                                                         Label* on_not_equal) {
   __ and_(r0, current_character(), Operand(mask));
   __ cmp(r0, Operand(c));

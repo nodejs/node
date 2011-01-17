@@ -64,6 +64,6 @@ print("Change log: " + JSON.stringify(change_log) + "\n");
 assertEquals("Capybara", ChooseAnimal());
 // Global variable do not get changed (without restarting script).
 assertEquals(25, something1);
-// Function is oneliner, so currently it is treated as damaged and not patched.
-assertEquals(17, ChooseNumber());
+// We should support changes in oneliners.
+assertEquals(18, ChooseNumber());
 assertEquals("Hello Peter", ChooseAnimal.Factory()("Peter"));

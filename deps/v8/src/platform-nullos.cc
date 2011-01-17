@@ -335,12 +335,25 @@ bool ThreadHandle::IsValid() const {
 
 
 Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
+  set_name("v8:<unknown>");
+  UNIMPLEMENTED();
+}
+
+
+Thread::Thread(const char* name) : ThreadHandle(ThreadHandle::INVALID) {
+  set_name(name);
   UNIMPLEMENTED();
 }
 
 
 Thread::~Thread() {
   UNIMPLEMENTED();
+}
+
+
+void Thread::set_name(const char* name) {
+  strncpy(name_, name, sizeof(name_));
+  name_[sizeof(name_) - 1] = '\0';
 }
 
 

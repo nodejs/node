@@ -69,8 +69,12 @@ class InputStreamUTF16Buffer : public UC16CharacterStream {
     }
   }
 
-  virtual void PushBack(uc16 ch) {
+  virtual void PushBack(uc32 ch) {
     ASSERT(pos_ > 0);
+    if (ch == kEndOfInput) {
+      pos_--;
+      return;
+    }
     if (buffer_cursor_ <= pushback_buffer_) {
       // No more room in the current buffer to do pushbacks.
       if (pushback_buffer_end_cache_ == NULL) {
@@ -98,7 +102,8 @@ class InputStreamUTF16Buffer : public UC16CharacterStream {
         buffer_end_ = pushback_buffer_backing_ + pushback_buffer_backing_size_;
       }
     }
-    pushback_buffer_[buffer_cursor_ - pushback_buffer_- 1] = ch;
+    pushback_buffer_[buffer_cursor_ - pushback_buffer_- 1] =
+        static_cast<uc16>(ch);
     pos_--;
   }
 
@@ -155,7 +160,6 @@ class StandAloneJavaScriptScanner : public JavaScriptScanner {
  public:
   void Initialize(UC16CharacterStream* source) {
     source_ = source;
-    literal_flags_ = kLiteralString | kLiteralIdentifier;
     Init();
     // Skip initial whitespace allowing HTML comment ends just like
     // after a newline and scan first token.

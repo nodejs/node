@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -401,27 +401,33 @@ class HEnvironment: public ZoneObject {
                Scope* scope,
                Handle<JSFunction> closure);
 
+  // Simple accessors.
+  Handle<JSFunction> closure() const { return closure_; }
+  const ZoneList<HValue*>* values() const { return &values_; }
+  const ZoneList<int>* assigned_variables() const {
+    return &assigned_variables_;
+  }
+  int parameter_count() const { return parameter_count_; }
+  int local_count() const { return local_count_; }
+  HEnvironment* outer() const { return outer_; }
+  int pop_count() const { return pop_count_; }
+  int push_count() const { return push_count_; }
+
+  int ast_id() const { return ast_id_; }
+  void set_ast_id(int id) { ast_id_ = id; }
+
+  int length() const { return values_.length(); }
+
   void Bind(Variable* variable, HValue* value) {
     Bind(IndexFor(variable), value);
-
-    if (FLAG_trace_environment) {
-      PrintF("Slot index=%d name=%s\n",
-             variable->AsSlot()->index(),
-             *variable->name()->ToCString());
-    }
   }
 
-  void Bind(int index, HValue* value) {
-    ASSERT(value != NULL);
-    if (!assigned_variables_.Contains(index)) {
-      assigned_variables_.Add(index);
-    }
-    values_[index] = value;
-  }
+  void Bind(int index, HValue* value);
 
   HValue* Lookup(Variable* variable) const {
     return Lookup(IndexFor(variable));
   }
+
   HValue* Lookup(int index) const {
     HValue* result = values_[index];
     ASSERT(result != NULL);
@@ -434,53 +440,28 @@ class HEnvironment: public ZoneObject {
     values_.Add(value);
   }
 
-  HValue* Top() const { return ExpressionStackAt(0); }
-
-  HValue* ExpressionStackAt(int index_from_top) const {
-    int index = values_.length() - index_from_top - 1;
-    ASSERT(IsExpressionStackIndex(index));
-    return values_[index];
-  }
-
-  void SetExpressionStackAt(int index_from_top, HValue* value) {
-    int index = values_.length() - index_from_top - 1;
-    ASSERT(IsExpressionStackIndex(index));
-    values_[index] = value;
-  }
-
   HValue* Pop() {
-    ASSERT(!IsExpressionStackEmpty());
+    ASSERT(!ExpressionStackIsEmpty());
     if (push_count_ > 0) {
       --push_count_;
-      ASSERT(push_count_ >= 0);
     } else {
       ++pop_count_;
     }
     return values_.RemoveLast();
   }
 
-  void Drop(int count) {
-    for (int i = 0; i < count; ++i) {
-      Pop();
-    }
+  void Drop(int count);
+
+  HValue* Top() const { return ExpressionStackAt(0); }
+
+  HValue* ExpressionStackAt(int index_from_top) const {
+    int index = length() - index_from_top - 1;
+    ASSERT(HasExpressionAt(index));
+    return values_[index];
   }
 
-  Handle<JSFunction> closure() const { return closure_; }
+  void SetExpressionStackAt(int index_from_top, HValue* value);
 
-  // ID of the original AST node to identify deoptimization points.
-  int ast_id() const { return ast_id_; }
-  void set_ast_id(int id) { ast_id_ = id; }
-
-  const ZoneList<HValue*>* values() const { return &values_; }
-  const ZoneList<int>* assigned_variables() const {
-    return &assigned_variables_;
-  }
-  int parameter_count() const { return parameter_count_; }
-  int local_count() const { return local_count_; }
-  int push_count() const { return push_count_; }
-  int pop_count() const { return pop_count_; }
-  int total_count() const { return values_.length(); }
-  HEnvironment* outer() const { return outer_; }
   HEnvironment* Copy() const;
   HEnvironment* CopyWithoutHistory() const;
   HEnvironment* CopyAsLoopHeader(HBasicBlock* block) const;
@@ -496,13 +477,15 @@ class HEnvironment: public ZoneObject {
                                 HConstant* undefined) const;
 
   void AddIncomingEdge(HBasicBlock* block, HEnvironment* other);
+
   void ClearHistory() {
     pop_count_ = 0;
     push_count_ = 0;
     assigned_variables_.Clear();
   }
+
   void SetValueAt(int index, HValue* value) {
-    ASSERT(index < total_count());
+    ASSERT(index < length());
     values_[index] = value;
   }
 
@@ -512,19 +495,23 @@ class HEnvironment: public ZoneObject {
  private:
   explicit HEnvironment(const HEnvironment* other);
 
-  bool IsExpressionStackIndex(int index) const {
-    return index >= parameter_count_ + local_count_;
-  }
-  bool IsExpressionStackEmpty() const {
-    int length = values_.length();
-    int first_expression = parameter_count() + local_count();
-    ASSERT(length >= first_expression);
-    return length == first_expression;
-  }
+  // True if index is included in the expression stack part of the environment.
+  bool HasExpressionAt(int index) const;
+
+  bool ExpressionStackIsEmpty() const;
+
   void Initialize(int parameter_count, int local_count, int stack_height);
   void Initialize(const HEnvironment* other);
-  int VariableToIndex(Variable* var);
-  int IndexFor(Variable* variable) const;
+
+  // Map a variable to an environment index.  Parameter indices are shifted
+  // by 1 (receiver is parameter index -1 but environment index 0).
+  // Stack-allocated local indices are shifted by the number of parameters.
+  int IndexFor(Variable* variable) const {
+    Slot* slot = variable->AsSlot();
+    ASSERT(slot != NULL && slot->IsStackAllocated());
+    int shift = (slot->type() == Slot::PARAMETER) ? 1 : parameter_count_;
+    return slot->index() + shift;
+  }
 
   Handle<JSFunction> closure_;
   // Value array [parameters] [locals] [temporaries].
@@ -567,7 +554,7 @@ class AstContext {
   // We want to be able to assert, in a context-specific way, that the stack
   // height makes sense when the context is filled.
 #ifdef DEBUG
-  int original_count_;
+  int original_length_;
 #endif
 
  private:
@@ -919,7 +906,7 @@ class HValueMap: public ZoneObject {
 class HStatistics: public Malloced {
  public:
   void Print();
-  void SaveTiming(const char* name, int64_t ticks);
+  void SaveTiming(const char* name, int64_t ticks, unsigned size);
   static HStatistics* Instance() {
     static SetOncePointer<HStatistics> instance;
     if (!instance.is_set()) {
@@ -930,11 +917,19 @@ class HStatistics: public Malloced {
 
  private:
 
-  HStatistics() : timing_(5), names_(5), total_(0), full_code_gen_(0) { }
+  HStatistics()
+      : timing_(5),
+        names_(5),
+        sizes_(5),
+        total_(0),
+        total_size_(0),
+        full_code_gen_(0) { }
 
   List<int64_t> timing_;
   List<const char*> names_;
+  List<unsigned> sizes_;
   int64_t total_;
+  unsigned total_size_;
   int64_t full_code_gen_;
 };
 
@@ -971,6 +966,7 @@ class HPhase BASE_EMBEDDED {
   HGraph* graph_;
   LChunk* chunk_;
   LAllocator* allocator_;
+  unsigned start_allocation_size_;
 };
 
 

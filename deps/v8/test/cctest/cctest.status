@@ -1,4 +1,4 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -29,6 +29,10 @@ prefix cctest
 
 test-api/Bug*: FAIL
 
+# The problem is that a code object can get a different optimizable flag
+# in crankshaft after creation.
+test-log/EquivalenceOfLoggingAndTraversal: SKIP
+
 
 ##############################################################################
 # BUG(281): This test fails on some Linuxes.
@@ -57,6 +61,24 @@ test-heap/TestInternalWeakListsTraverseWithGC: PASS || FAIL
 
 
 ##############################################################################
+[ $arch == x64 && $crankshaft ]
+
+# Tests that fail with crankshaft.
+test-deoptimization/DeoptimizeBinaryOperationADDString: FAIL
+test-deoptimization/DeoptimizeBinaryOperationADD: FAIL
+test-deoptimization/DeoptimizeBinaryOperationSUB: FAIL
+test-deoptimization/DeoptimizeBinaryOperationMUL: FAIL
+test-deoptimization/DeoptimizeBinaryOperationMOD: FAIL
+test-deoptimization/DeoptimizeBinaryOperationDIV: FAIL
+test-deoptimization/DeoptimizeLoadICStoreIC: FAIL
+test-deoptimization/DeoptimizeLoadICStoreICNested: FAIL
+test-deoptimization/DeoptimizeCompare: FAIL
+
+# Tests that time out with crankshaft.
+test-api/Threading: SKIP
+
+
+##############################################################################
 [ $arch == arm ]
 
 # Optimization is currently not working on crankshaft x64 and ARM.
@@ -80,8 +102,9 @@ test-sockets/Socket: SKIP
 ##############################################################################
 [ $arch == arm && $crankshaft ]
 
-# Tests that fail with crankshaft.
-test-deoptimization/DeoptimizeBinaryOperationMOD: FAIL
+# Tests that can fail with crankshaft.
+test-deoptimization/DeoptimizeBinaryOperationMOD: PASS || FAIL
+test-deoptimization/DeoptimizeBinaryOperationDIV: PASS || FAIL
 
 # Tests that time out with crankshaft.
 test-debug/ThreadedDebugging: SKIP

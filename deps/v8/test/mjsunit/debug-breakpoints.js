@@ -118,3 +118,89 @@ Debug.clearBreakPoint(bp3);
 //   b=2;
 // }
 assertTrue(Debug.showBreakPoints(g).indexOf("[B0]") < 0);
+
+
+// Tests for setting break points by script id and position.
+function setBreakpointByPosition(f, position)
+{
+  var break_point = Debug.setBreakPointByScriptIdAndPosition(
+      Debug.findScript(f).id,
+      position + Debug.sourcePosition(f),
+      "",
+      true);
+  return break_point.number();
+}
+
+bp = setBreakpointByPosition(f, 0);
+assertEquals("() {[B0]a=1;b=2}", Debug.showBreakPoints(f));
+Debug.clearBreakPoint(bp);
+assertEquals("() {a=1;b=2}", Debug.showBreakPoints(f));
+bp1 = setBreakpointByPosition(f, 8);
+assertEquals("() {a=1;[B0]b=2}", Debug.showBreakPoints(f));
+bp2 = setBreakpointByPosition(f, 4);
+assertEquals("() {[B0]a=1;[B1]b=2}", Debug.showBreakPoints(f));
+bp3 = setBreakpointByPosition(f, 11);
+assertEquals("() {[B0]a=1;[B1]b=2[B2]}", Debug.showBreakPoints(f));
+Debug.clearBreakPoint(bp1);
+assertEquals("() {[B0]a=1;b=2[B1]}", Debug.showBreakPoints(f));
+Debug.clearBreakPoint(bp2);
+assertEquals("() {a=1;b=2[B0]}", Debug.showBreakPoints(f));
+Debug.clearBreakPoint(bp3);
+assertEquals("() {a=1;b=2}", Debug.showBreakPoints(f));
+
+bp = setBreakpointByPosition(g, 0);
+//function g() {
+//[B0]a=1;
+//b=2;
+//}
+assertTrue(Debug.showBreakPoints(g).indexOf("[B0]a=1;") > 0);
+Debug.clearBreakPoint(bp);
+//function g() {
+//a=1;
+//b=2;
+//}
+assertTrue(Debug.showBreakPoints(g).indexOf("[B0]") < 0);
+
+//Second test set and clear breakpoints on lines 1, 2 and 3 (column = 0).
+bp1 = setBreakpointByPosition(g, 12);
+//function g() {
+//a=1;
+//[B0]b=2;
+//}
+assertTrue(Debug.showBreakPoints(g).indexOf("[B0]b=2;") > 0);
+bp2 = setBreakpointByPosition(g, 5);
+//function g() {
+//[B0]a=1;
+//[B1]b=2;
+//}
+assertTrue(Debug.showBreakPoints(g).indexOf("[B0]a=1;") > 0);
+assertTrue(Debug.showBreakPoints(g).indexOf("[B1]b=2;") > 0);
+bp3 = setBreakpointByPosition(g, 19);
+//function g() {
+//[B0]a=1;
+//[B1]b=2;
+//}[B2]
+assertTrue(Debug.showBreakPoints(g).indexOf("[B0]a=1;") > 0);
+assertTrue(Debug.showBreakPoints(g).indexOf("[B1]b=2;") > 0);
+assertTrue(Debug.showBreakPoints(g).indexOf("[B2]}") > 0);
+Debug.clearBreakPoint(bp1);
+//function g() {
+//[B0]a=1;
+//b=2;
+//}[B1]
+assertTrue(Debug.showBreakPoints(g).indexOf("[B0]a=1;") > 0);
+assertTrue(Debug.showBreakPoints(g).indexOf("[B1]}") > 0);
+assertTrue(Debug.showBreakPoints(g).indexOf("[B2]") < 0);
+Debug.clearBreakPoint(bp2);
+//function g() {
+//a=1;
+//b=2;
+//}[B0]
+assertTrue(Debug.showBreakPoints(g).indexOf("[B0]}") > 0);
+assertTrue(Debug.showBreakPoints(g).indexOf("[B1]") < 0);
+Debug.clearBreakPoint(bp3);
+//function g() {
+//a=1;
+//b=2;
+//}
+assertTrue(Debug.showBreakPoints(g).indexOf("[B0]") < 0);

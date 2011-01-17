@@ -236,7 +236,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
     RESULT
   };
 
-  explicit TypeFeedbackOracle(Handle<Code> code);
+  TypeFeedbackOracle(Handle<Code> code, Handle<Context> global_context);
 
   bool LoadIsMonomorphic(Property* expr);
   bool StoreIsMonomorphic(Assignment* expr);
@@ -244,11 +244,13 @@ class TypeFeedbackOracle BASE_EMBEDDED {
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
   Handle<Map> StoreMonomorphicReceiverType(Assignment* expr);
-  Handle<Map> CallMonomorphicReceiverType(Call* expr);
 
   ZoneMapList* LoadReceiverTypes(Property* expr, Handle<String> name);
   ZoneMapList* StoreReceiverTypes(Assignment* expr, Handle<String> name);
   ZoneMapList* CallReceiverTypes(Call* expr, Handle<String> name);
+
+  CheckType GetCallCheckType(Call* expr);
+  Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
 
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
 
@@ -260,8 +262,6 @@ class TypeFeedbackOracle BASE_EMBEDDED {
  private:
   void Initialize(Handle<Code> code);
 
-  bool IsMonomorphic(int pos) { return GetElement(map_, pos)->IsMap(); }
-
   ZoneMapList* CollectReceiverTypes(int position,
                                     Handle<String> name,
                                     Code::Flags flags);
@@ -272,6 +272,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
                         List<int>* code_positions,
                         List<int>* source_positions);
 
+  Handle<Context> global_context_;
   Handle<JSObject> map_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);

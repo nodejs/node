@@ -770,6 +770,10 @@
         >
       </File>
       <File
+        RelativePath="..\..\src\objects-printer.cc"
+        >
+      </File>
+      <File
         RelativePath="..\..\src\objects-visiting.cc"
         >
       </File>

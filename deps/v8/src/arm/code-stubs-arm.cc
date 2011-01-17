@@ -866,8 +866,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
       __ vldr(d0, scratch2, HeapNumber::kValueOffset);
       __ sub(probe, probe, Operand(kHeapObjectTag));
       __ vldr(d1, probe, HeapNumber::kValueOffset);
-      __ vcmp(d0, d1);
-      __ vmrs(pc);
+      __ VFPCompareAndSetFlags(d0, d1);
       __ b(ne, not_found);  // The cache did not contain this value.
       __ b(&load_result_from_cache);
     } else {
@@ -914,13 +913,6 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
   __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
-}
-
-
-void RecordWriteStub::Generate(MacroAssembler* masm) {
-  __ add(offset_, object_, Operand(offset_));
-  __ RecordWriteHelper(object_, offset_, scratch_);
-  __ Ret();
 }
 
 
@@ -982,8 +974,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     CpuFeatures::Scope scope(VFP3);
     Label no_nan;
     // ARMv7 VFP3 instructions to implement double precision comparison.
-    __ vcmp(d7, d6);
-    __ vmrs(pc);  // Move vector status bits to normal status bits.
+    __ VFPCompareAndSetFlags(d7, d6);
     Label nan;
     __ b(vs, &nan);
     __ mov(r0, Operand(EQUAL), LeaveCC, eq);
@@ -1103,8 +1094,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
   __ sub(ip, tos_, Operand(kHeapObjectTag));
   __ vldr(d1, ip, HeapNumber::kValueOffset);
-  __ vcmp(d1, 0.0);
-  __ vmrs(pc);
+  __ VFPCompareAndSetFlags(d1, 0.0);
   // "tos_" is a register, and contains a non zero value by default.
   // Hence we only need to overwrite "tos_" with zero to return false for
   // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
@@ -1229,14 +1219,20 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
   bool generate_code_to_calculate_answer = true;
 
   if (ShouldGenerateFPCode()) {
+    // DIV has neither SmiSmi fast code nor specialized slow code.
+    // So don't try to patch a DIV Stub.
     if (runtime_operands_type_ == BinaryOpIC::DEFAULT) {
       switch (op_) {
         case Token::ADD:
         case Token::SUB:
         case Token::MUL:
-        case Token::DIV:
           GenerateTypeTransition(masm);  // Tail call.
           generate_code_to_calculate_answer = false;
+          break;
+
+        case Token::DIV:
+          // DIV has neither SmiSmi fast code nor specialized slow code.
+          // So don't try to patch a DIV Stub.
           break;
 
         default:
@@ -1299,7 +1295,8 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       // HEAP_NUMBERS stub is slower than GENERIC on a pair of smis.
       // r0 is known to be a smi. If r1 is also a smi then switch to GENERIC.
       Label r1_is_not_smi;
-      if (runtime_operands_type_ == BinaryOpIC::HEAP_NUMBERS) {
+      if ((runtime_operands_type_ == BinaryOpIC::HEAP_NUMBERS) &&
+          HasSmiSmiFastPath()) {
         __ tst(r1, Operand(kSmiTagMask));
         __ b(ne, &r1_is_not_smi);
         GenerateTypeTransition(masm);  // Tail call.
@@ -2519,7 +2516,7 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
     ExternalReference external_caught(Top::k_external_caught_exception_address);
-    __ mov(r0, Operand(false));
+    __ mov(r0, Operand(false, RelocInfo::NONE));
     __ mov(r2, Operand(external_caught));
     __ str(r0, MemOperand(r2));
 
@@ -2894,45 +2891,45 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 
 // Uses registers r0 to r4. Expected input is
-// function in r0 (or at sp+1*ptrsz) and object in
+// object in r0 (or at sp+1*kPointerSize) and function in
 // r1 (or at sp), depending on whether or not
 // args_in_registers() is true.
 void InstanceofStub::Generate(MacroAssembler* masm) {
   // Fixed register usage throughout the stub:
-  const Register object = r1;  // Object (lhs).
+  const Register object = r0;  // Object (lhs).
   const Register map = r3;  // Map of the object.
-  const Register function = r0;  // Function (rhs).
+  const Register function = r1;  // Function (rhs).
   const Register prototype = r4;  // Prototype of the function.
   const Register scratch = r2;
   Label slow, loop, is_instance, is_not_instance, not_js_object;
-  if (!args_in_registers()) {
-    __ ldr(function, MemOperand(sp, 1 * kPointerSize));
-    __ ldr(object, MemOperand(sp, 0));
+  if (!HasArgsInRegisters()) {
+    __ ldr(object, MemOperand(sp, 1 * kPointerSize));
+    __ ldr(function, MemOperand(sp, 0));
   }
 
   // Check that the left hand is a JS object and load map.
-  __ BranchOnSmi(object, &slow);
-  __ IsObjectJSObjectType(object, map, scratch, &slow);
+  __ BranchOnSmi(object, &not_js_object);
+  __ IsObjectJSObjectType(object, map, scratch, &not_js_object);
 
   // Look up the function and the map in the instanceof cache.
   Label miss;
   __ LoadRoot(ip, Heap::kInstanceofCacheFunctionRootIndex);
-  __ cmp(object, ip);
+  __ cmp(function, ip);
   __ b(ne, &miss);
   __ LoadRoot(ip, Heap::kInstanceofCacheMapRootIndex);
   __ cmp(map, ip);
   __ b(ne, &miss);
-  __ LoadRoot(function, Heap::kInstanceofCacheAnswerRootIndex);
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ LoadRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   __ bind(&miss);
-  __ TryGetFunctionPrototype(object, prototype, scratch, &slow);
+  __ TryGetFunctionPrototype(function, prototype, scratch, &slow);
 
   // Check that the function prototype is a JS object.
   __ BranchOnSmi(prototype, &slow);
   __ IsObjectJSObjectType(prototype, scratch, scratch, &slow);
 
-  __ StoreRoot(object, Heap::kInstanceofCacheFunctionRootIndex);
+  __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
   __ StoreRoot(map, Heap::kInstanceofCacheMapRootIndex);
 
   // Register mapping: r3 is object map and r4 is function prototype.
@@ -2953,11 +2950,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ bind(&is_instance);
   __ mov(r0, Operand(Smi::FromInt(0)));
   __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   __ bind(&is_not_instance);
   __ mov(r0, Operand(Smi::FromInt(1)));
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   Label object_not_null, object_not_null_or_smi;
   __ bind(&not_js_object);
@@ -2971,22 +2969,25 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ cmp(scratch, Operand(Factory::null_value()));
   __ b(ne, &object_not_null);
   __ mov(r0, Operand(Smi::FromInt(1)));
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   __ bind(&object_not_null);
   // Smi values are not instances of anything.
   __ BranchOnNotSmi(object, &object_not_null_or_smi);
   __ mov(r0, Operand(Smi::FromInt(1)));
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   __ bind(&object_not_null_or_smi);
   // String values are not instances of anything.
   __ IsObjectJSStringType(object, scratch, &slow);
   __ mov(r0, Operand(Smi::FromInt(1)));
-  __ Ret(args_in_registers() ? 0 : 2);
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
 
   // Slow-case.  Tail call builtin.
   __ bind(&slow);
+  if (HasArgsInRegisters()) {
+    __ Push(r0, r1);
+  }
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_JS);
 }
 
@@ -3012,7 +3013,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // through register r0. Use unsigned comparison to get negative
   // check for free.
   __ cmp(r1, r0);
-  __ b(cs, &slow);
+  __ b(hs, &slow);
 
   // Read the argument from the stack and return it.
   __ sub(r3, r0, r1);
@@ -4911,8 +4912,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
     __ vldr(d1, r2, HeapNumber::kValueOffset);
 
     // Compare operands
-    __ vcmp(d0, d1);
-    __ vmrs(pc);  // Move vector status bits to normal status bits.
+    __ VFPCompareAndSetFlags(d0, d1);
 
     // Don't base result on status bits when a NaN is involved.
     __ b(vs, &unordered);

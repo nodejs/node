@@ -104,7 +104,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
          Immediate(Smi::FromInt(length)));
 
   // Setup the fixed slots.
-  __ xor_(ebx, Operand(ebx));  // Set to NULL.
+  __ Set(ebx, Immediate(0));  // Set to NULL.
   __ mov(Operand(eax, Context::SlotOffset(Context::CLOSURE_INDEX)), ecx);
   __ mov(Operand(eax, Context::SlotOffset(Context::FCONTEXT_INDEX)), eax);
   __ mov(Operand(eax, Context::SlotOffset(Context::PREVIOUS_INDEX)), ebx);
@@ -1772,7 +1772,6 @@ void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 }
 
 
-
 void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
   Label call_runtime;
   ASSERT(operands_type_ == TRBinaryOpIC::STRING);
@@ -2016,8 +2015,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
 void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
   Label call_runtime;
-  ASSERT(operands_type_ == TRBinaryOpIC::HEAP_NUMBER ||
-         operands_type_ == TRBinaryOpIC::INT32);
+  ASSERT(operands_type_ == TRBinaryOpIC::HEAP_NUMBER);
 
   // Floating point case.
   switch (op_) {
@@ -4303,7 +4301,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // that contains the exponent and high bit of the mantissa.
       STATIC_ASSERT(((kQuietNaNHighBitsMask << 1) & 0x80000000u) != 0);
       __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
-      __ xor_(eax, Operand(eax));
+      __ Set(eax, Immediate(0));
       // Shift value and mask so kQuietNaNHighBitsMask applies to topmost
       // bits.
       __ add(edx, Operand(edx));
@@ -4433,7 +4431,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ j(below, &below_label, not_taken);
       __ j(above, &above_label, not_taken);
 
-      __ xor_(eax, Operand(eax));
+      __ Set(eax, Immediate(0));
       __ ret(0);
 
       __ bind(&below_label);
@@ -4646,7 +4644,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Before returning we restore the context from the frame pointer if
   // not NULL.  The frame pointer is NULL in the exception handler of
   // a JS entry frame.
-  __ xor_(esi, Operand(esi));  // Tentatively set context pointer to NULL.
+  __ Set(esi, Immediate(0));  // Tentatively set context pointer to NULL.
   NearLabel skip;
   __ cmp(ebp, 0);
   __ j(equal, &skip, not_taken);
@@ -4799,7 +4797,7 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
   }
 
   // Clear the context pointer.
-  __ xor_(esi, Operand(esi));
+  __ Set(esi, Immediate(0));
 
   // Restore fp from handler and discard handler state.
   STATIC_ASSERT(StackHandlerConstants::kFPOffset == 1 * kPointerSize);
@@ -4973,7 +4971,26 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 }
 
 
+// Generate stub code for instanceof.
+// This code can patch a call site inlined cache of the instance of check,
+// which looks like this.
+//
+//   81 ff XX XX XX XX   cmp    edi, <the hole, patched to a map>
+//   75 0a               jne    <some near label>
+//   b8 XX XX XX XX      mov    eax, <the hole, patched to either true or false>
+//
+// If call site patching is requested the stack will have the delta from the
+// return address to the cmp instruction just below the return address. This
+// also means that call site patching can only take place with arguments in
+// registers. TOS looks like this when call site patching is requested
+//
+//   esp[0] : return address
+//   esp[4] : delta from return address to cmp instruction
+//
 void InstanceofStub::Generate(MacroAssembler* masm) {
+  // Call site inlining and patching implies arguments in registers.
+  ASSERT(HasArgsInRegisters() || !HasCallSiteInlineCheck());
+
   // Fixed register usage throughout the stub.
   Register object = eax;  // Object (lhs).
   Register map = ebx;  // Map of the object.
@@ -4981,9 +4998,22 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   Register prototype = edi;  // Prototype of the function.
   Register scratch = ecx;
 
+  // Constants describing the call site code to patch.
+  static const int kDeltaToCmpImmediate = 2;
+  static const int kDeltaToMov = 8;
+  static const int kDeltaToMovImmediate = 9;
+  static const int8_t kCmpEdiImmediateByte1 = BitCast<int8_t, uint8_t>(0x81);
+  static const int8_t kCmpEdiImmediateByte2 = BitCast<int8_t, uint8_t>(0xff);
+  static const int8_t kMovEaxImmediateByte = BitCast<int8_t, uint8_t>(0xb8);
+
+  ExternalReference roots_address = ExternalReference::roots_address();
+
+  ASSERT_EQ(object.code(), InstanceofStub::left().code());
+  ASSERT_EQ(function.code(), InstanceofStub::right().code());
+
   // Get the object and function - they are always both needed.
   Label slow, not_js_object;
-  if (!args_in_registers()) {
+  if (!HasArgsInRegisters()) {
     __ mov(object, Operand(esp, 2 * kPointerSize));
     __ mov(function, Operand(esp, 1 * kPointerSize));
   }
@@ -4993,22 +5023,26 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ j(zero, &not_js_object, not_taken);
   __ IsObjectJSObjectType(object, map, scratch, &not_js_object);
 
-  // Look up the function and the map in the instanceof cache.
-  NearLabel miss;
-  ExternalReference roots_address = ExternalReference::roots_address();
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
-  __ cmp(function,
-         Operand::StaticArray(scratch, times_pointer_size, roots_address));
-  __ j(not_equal, &miss);
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
-  __ cmp(map, Operand::StaticArray(scratch, times_pointer_size, roots_address));
-  __ j(not_equal, &miss);
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
-  __ mov(eax, Operand::StaticArray(scratch, times_pointer_size, roots_address));
-  __ IncrementCounter(&Counters::instance_of_cache, 1);
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  // If there is a call site cache don't look in the global cache, but do the
+  // real lookup and update the call site cache.
+  if (!HasCallSiteInlineCheck()) {
+    // Look up the function and the map in the instanceof cache.
+    NearLabel miss;
+    __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
+    __ cmp(function,
+           Operand::StaticArray(scratch, times_pointer_size, roots_address));
+    __ j(not_equal, &miss);
+    __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
+    __ cmp(map, Operand::StaticArray(
+        scratch, times_pointer_size, roots_address));
+    __ j(not_equal, &miss);
+    __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+    __ mov(eax, Operand::StaticArray(
+        scratch, times_pointer_size, roots_address));
+    __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
+    __ bind(&miss);
+  }
 
-  __ bind(&miss);
   // Get the prototype of the function.
   __ TryGetFunctionPrototype(function, prototype, scratch, &slow);
 
@@ -5017,13 +5051,29 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ j(zero, &slow, not_taken);
   __ IsObjectJSObjectType(prototype, scratch, scratch, &slow);
 
-  // Update the golbal instanceof cache with the current map and function. The
-  // cached answer will be set when it is known.
+  // Update the global instanceof or call site inlined cache with the current
+  // map and function. The cached answer will be set when it is known below.
+  if (!HasCallSiteInlineCheck()) {
   __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
   __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address), map);
   __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
   __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address),
          function);
+  } else {
+    // The constants for the code patching are based on no push instructions
+    // at the call site.
+    ASSERT(HasArgsInRegisters());
+    // Get return address and delta to inlined map check.
+    __ mov(scratch, Operand(esp, 0 * kPointerSize));
+    __ sub(scratch, Operand(esp, 1 * kPointerSize));
+    if (FLAG_debug_code) {
+      __ cmpb(Operand(scratch, 0), kCmpEdiImmediateByte1);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 1)");
+      __ cmpb(Operand(scratch, 1), kCmpEdiImmediateByte2);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 2)");
+    }
+    __ mov(Operand(scratch, kDeltaToCmpImmediate), map);
+  }
 
   // Loop through the prototype chain of the object looking for the function
   // prototype.
@@ -5039,18 +5089,48 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ jmp(&loop);
 
   __ bind(&is_instance);
-  __ IncrementCounter(&Counters::instance_of_stub_true, 1);
-  __ Set(eax, Immediate(0));
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
-  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address), eax);
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  if (!HasCallSiteInlineCheck()) {
+    __ Set(eax, Immediate(0));
+    __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+    __ mov(Operand::StaticArray(scratch,
+                                times_pointer_size, roots_address), eax);
+  } else {
+    // Get return address and delta to inlined map check.
+    __ mov(eax, Factory::true_value());
+    __ mov(scratch, Operand(esp, 0 * kPointerSize));
+    __ sub(scratch, Operand(esp, 1 * kPointerSize));
+    if (FLAG_debug_code) {
+      __ cmpb(Operand(scratch, kDeltaToMov), kMovEaxImmediateByte);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (mov)");
+    }
+    __ mov(Operand(scratch, kDeltaToMovImmediate), eax);
+    if (!ReturnTrueFalseObject()) {
+      __ Set(eax, Immediate(0));
+    }
+  }
+  __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&is_not_instance);
-  __ IncrementCounter(&Counters::instance_of_stub_false, 1);
-  __ Set(eax, Immediate(Smi::FromInt(1)));
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
-  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address), eax);
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  if (!HasCallSiteInlineCheck()) {
+    __ Set(eax, Immediate(Smi::FromInt(1)));
+    __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+    __ mov(Operand::StaticArray(
+        scratch, times_pointer_size, roots_address), eax);
+  } else {
+    // Get return address and delta to inlined map check.
+    __ mov(eax, Factory::false_value());
+    __ mov(scratch, Operand(esp, 0 * kPointerSize));
+    __ sub(scratch, Operand(esp, 1 * kPointerSize));
+    if (FLAG_debug_code) {
+      __ cmpb(Operand(scratch, kDeltaToMov), kMovEaxImmediateByte);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (mov)");
+    }
+    __ mov(Operand(scratch, kDeltaToMovImmediate), eax);
+    if (!ReturnTrueFalseObject()) {
+      __ Set(eax, Immediate(Smi::FromInt(1)));
+    }
+  }
+  __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   Label object_not_null, object_not_null_or_smi;
   __ bind(&not_js_object);
@@ -5064,37 +5144,59 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Null is not instance of anything.
   __ cmp(object, Factory::null_value());
   __ j(not_equal, &object_not_null);
-  __ IncrementCounter(&Counters::instance_of_stub_false_null, 1);
   __ Set(eax, Immediate(Smi::FromInt(1)));
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&object_not_null);
   // Smi values is not instance of anything.
   __ test(object, Immediate(kSmiTagMask));
   __ j(not_zero, &object_not_null_or_smi, not_taken);
   __ Set(eax, Immediate(Smi::FromInt(1)));
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&object_not_null_or_smi);
   // String values is not instance of anything.
   Condition is_string = masm->IsObjectStringType(object, scratch, scratch);
   __ j(NegateCondition(is_string), &slow);
-  __ IncrementCounter(&Counters::instance_of_stub_false_string, 1);
   __ Set(eax, Immediate(Smi::FromInt(1)));
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   // Slow-case: Go through the JavaScript implementation.
   __ bind(&slow);
-  if (args_in_registers()) {
-    // Push arguments below return address.
-    __ pop(scratch);
+  if (!ReturnTrueFalseObject()) {
+    // Tail call the builtin which returns 0 or 1.
+    if (HasArgsInRegisters()) {
+      // Push arguments below return address.
+      __ pop(scratch);
+      __ push(object);
+      __ push(function);
+      __ push(scratch);
+    }
+    __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
+  } else {
+    // Call the builtin and convert 0/1 to true/false.
+    __ EnterInternalFrame();
     __ push(object);
     __ push(function);
-    __ push(scratch);
+    __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
+    __ LeaveInternalFrame();
+    NearLabel true_value, done;
+    __ test(eax, Operand(eax));
+    __ j(zero, &true_value);
+    __ mov(eax, Factory::false_value());
+    __ jmp(&done);
+    __ bind(&true_value);
+    __ mov(eax, Factory::true_value());
+    __ bind(&done);
+    __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
   }
-  __ IncrementCounter(&Counters::instance_of_slow, 1);
-  __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
 }
+
+
+Register InstanceofStub::left() { return eax; }
+
+
+Register InstanceofStub::right() { return edx; }
 
 
 int CompareStub::MinorKey() {

@@ -49,7 +49,7 @@ function foo() {
       return j;  // Make sure that future optimizations don't eliminate j.
     } catch(e) {
       ok = true;
-      assertTrue(re.test(e));
+      assertTrue(re.test(e), 'e: ' + e);
     }
     assertTrue(ok);
   }

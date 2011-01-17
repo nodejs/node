@@ -1651,9 +1651,9 @@ class Object : public Value {
    *       the backing store is preserved while V8 has a reference.
    */
   V8EXPORT void SetIndexedPropertiesToPixelData(uint8_t* data, int length);
-  bool HasIndexedPropertiesInPixelData();
-  uint8_t* GetIndexedPropertiesPixelData();
-  int GetIndexedPropertiesPixelDataLength();
+  V8EXPORT bool HasIndexedPropertiesInPixelData();
+  V8EXPORT uint8_t* GetIndexedPropertiesPixelData();
+  V8EXPORT int GetIndexedPropertiesPixelDataLength();
 
   /**
    * Set the backing store of the indexed properties to be managed by the
@@ -1666,10 +1666,10 @@ class Object : public Value {
       void* data,
       ExternalArrayType array_type,
       int number_of_elements);
-  bool HasIndexedPropertiesInExternalArrayData();
-  void* GetIndexedPropertiesExternalArrayData();
-  ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
-  int GetIndexedPropertiesExternalArrayDataLength();
+  V8EXPORT bool HasIndexedPropertiesInExternalArrayData();
+  V8EXPORT void* GetIndexedPropertiesExternalArrayData();
+  V8EXPORT ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
+  V8EXPORT int GetIndexedPropertiesExternalArrayDataLength();
 
   V8EXPORT static Local<Object> New();
   static inline Object* Cast(Value* obj);
@@ -2515,6 +2515,7 @@ class V8EXPORT HeapStatistics {
   size_t total_heap_size() { return total_heap_size_; }
   size_t total_heap_size_executable() { return total_heap_size_executable_; }
   size_t used_heap_size() { return used_heap_size_; }
+  size_t heap_size_limit() { return heap_size_limit_; }
 
  private:
   void set_total_heap_size(size_t size) { total_heap_size_ = size; }
@@ -2522,10 +2523,12 @@ class V8EXPORT HeapStatistics {
     total_heap_size_executable_ = size;
   }
   void set_used_heap_size(size_t size) { used_heap_size_ = size; }
+  void set_heap_size_limit(size_t size) { heap_size_limit_ = size; }
 
   size_t total_heap_size_;
   size_t total_heap_size_executable_;
   size_t used_heap_size_;
+  size_t heap_size_limit_;
 
   friend class V8;
 };
@@ -3076,6 +3079,18 @@ class V8EXPORT Context {
    * Returns a persistent handle to the newly allocated context. This
    * persistent handle has to be disposed when the context is no
    * longer used so the context can be garbage collected.
+   *
+   * \param extensions An optional extension configuration containing
+   * the extensions to be installed in the newly created context.
+   *
+   * \param global_template An optional object template from which the
+   * global object for the newly created context will be created.
+   *
+   * \param global_object An optional global object to be reused for
+   * the newly created context. This global object must have been
+   * created by a previous call to Context::New with the same global
+   * template. The state of the global object will be completely reset
+   * and only object identify will remain.
    */
   static Persistent<Context> New(
       ExtensionConfiguration* extensions = NULL,
@@ -3338,10 +3353,10 @@ const int kSmiTag = 0;
 const int kSmiTagSize = 1;
 const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
 
-template <size_t ptr_size> struct SmiConstants;
+template <size_t ptr_size> struct SmiTagging;
 
 // Smi constants for 32-bit systems.
-template <> struct SmiConstants<4> {
+template <> struct SmiTagging<4> {
   static const int kSmiShiftSize = 0;
   static const int kSmiValueSize = 31;
   static inline int SmiToInt(internal::Object* value) {
@@ -3349,10 +3364,15 @@ template <> struct SmiConstants<4> {
     // Throw away top 32 bits and shift down (requires >> to be sign extending).
     return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> shift_bits;
   }
+
+  // For 32-bit systems any 2 bytes aligned pointer can be encoded as smi
+  // with a plain reinterpret_cast.
+  static const intptr_t kEncodablePointerMask = 0x1;
+  static const int kPointerToSmiShift = 0;
 };
 
 // Smi constants for 64-bit systems.
-template <> struct SmiConstants<8> {
+template <> struct SmiTagging<8> {
   static const int kSmiShiftSize = 31;
   static const int kSmiValueSize = 32;
   static inline int SmiToInt(internal::Object* value) {
@@ -3360,10 +3380,26 @@ template <> struct SmiConstants<8> {
     // Shift down and throw away top 32 bits.
     return static_cast<int>(reinterpret_cast<intptr_t>(value) >> shift_bits);
   }
+
+  // To maximize the range of pointers that can be encoded
+  // in the available 32 bits, we require them to be 8 bytes aligned.
+  // This gives 2 ^ (32 + 3) = 32G address space covered.
+  // It might be not enough to cover stack allocated objects on some platforms.
+  static const int kPointerAlignment = 3;
+
+  static const intptr_t kEncodablePointerMask =
+      ~(intptr_t(0xffffffff) << kPointerAlignment);
+
+  static const int kPointerToSmiShift =
+      kSmiTagSize + kSmiShiftSize - kPointerAlignment;
 };
 
-const int kSmiShiftSize = SmiConstants<kApiPointerSize>::kSmiShiftSize;
-const int kSmiValueSize = SmiConstants<kApiPointerSize>::kSmiValueSize;
+typedef SmiTagging<kApiPointerSize> PlatformSmiTagging;
+const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
+const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
+const intptr_t kEncodablePointerMask =
+    PlatformSmiTagging::kEncodablePointerMask;
+const int kPointerToSmiShift = PlatformSmiTagging::kPointerToSmiShift;
 
 template <size_t ptr_size> struct InternalConstants;
 
@@ -3411,7 +3447,7 @@ class Internals {
   }
 
   static inline int SmiValue(internal::Object* value) {
-    return SmiConstants<kApiPointerSize>::SmiToInt(value);
+    return PlatformSmiTagging::SmiToInt(value);
   }
 
   static inline int GetInstanceType(internal::Object* obj) {
@@ -3420,9 +3456,14 @@ class Internals {
     return ReadField<uint8_t>(map, kMapInstanceTypeOffset);
   }
 
+  static inline void* GetExternalPointerFromSmi(internal::Object* value) {
+    const intptr_t address = reinterpret_cast<intptr_t>(value);
+    return reinterpret_cast<void*>(address >> kPointerToSmiShift);
+  }
+
   static inline void* GetExternalPointer(internal::Object* obj) {
     if (HasSmiTag(obj)) {
-      return obj;
+      return GetExternalPointerFromSmi(obj);
     } else if (GetInstanceType(obj) == kProxyType) {
       return ReadField<void*>(obj, kProxyProxyOffset);
     } else {

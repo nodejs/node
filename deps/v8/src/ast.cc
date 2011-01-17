@@ -166,12 +166,6 @@ bool FunctionLiteral::AllowsLazyCompilation() {
 }
 
 
-bool FunctionLiteral::AllowOptimize() {
-  // We can't deal with heap-allocated locals.
-  return scope()->num_heap_slots() == 0;
-}
-
-
 ObjectLiteral::Property::Property(Literal* key, Expression* value) {
   emit_store_ = true;
   key_ = key;
@@ -215,12 +209,16 @@ bool ObjectLiteral::Property::emit_store() {
 
 
 bool IsEqualString(void* first, void* second) {
+  ASSERT((*reinterpret_cast<String**>(first))->IsString());
+  ASSERT((*reinterpret_cast<String**>(second))->IsString());
   Handle<String> h1(reinterpret_cast<String**>(first));
   Handle<String> h2(reinterpret_cast<String**>(second));
   return (*h1)->Equals(*h2);
 }
 
 bool IsEqualSmi(void* first, void* second) {
+  ASSERT((*reinterpret_cast<Smi**>(first))->IsSmi());
+  ASSERT((*reinterpret_cast<Smi**>(second))->IsSmi());
   Handle<Smi> h1(reinterpret_cast<Smi**>(first));
   Handle<Smi> h2(reinterpret_cast<Smi**>(second));
   return (*h1)->value() == (*h2)->value();
@@ -266,12 +264,12 @@ void ObjectLiteral::CalculateEmitStore() {
     // If the key of a computed property is in the table, do not emit
     // a store for the property later.
     if (property->kind() == ObjectLiteral::Property::COMPUTED) {
-      if (table->Lookup(literal, hash, false) != NULL) {
+      if (table->Lookup(key, hash, false) != NULL) {
         property->set_emit_store(false);
       }
     }
     // Add key to the table.
-    table->Lookup(literal, hash, true);
+    table->Lookup(key, hash, true);
   }
 }
 
@@ -517,6 +515,9 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   if (key()->IsPropertyName()) {
     if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_ArrayLength)) {
       is_array_length_ = true;
+    } else if (oracle->LoadIsBuiltin(this,
+                                     Builtins::LoadIC_FunctionPrototype)) {
+      is_function_prototype_ = true;
     } else {
       Literal* lit_key = key()->AsLiteral();
       ASSERT(lit_key != NULL && lit_key->handle()->IsString());
@@ -638,10 +639,19 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     }
   }
 #endif
-  if (receiver_types_ != NULL && receiver_types_->length() > 0) {
-    Handle<Map> type = receiver_types_->at(0);
-    is_monomorphic_ = oracle->CallIsMonomorphic(this);
-    if (is_monomorphic_) is_monomorphic_ = ComputeTarget(type, name);
+  is_monomorphic_ = oracle->CallIsMonomorphic(this);
+  check_type_ = oracle->GetCallCheckType(this);
+  if (is_monomorphic_) {
+    Handle<Map> map;
+    if (receiver_types_ != NULL && receiver_types_->length() > 0) {
+      ASSERT(check_type_ == RECEIVER_MAP_CHECK);
+      map = receiver_types_->at(0);
+    } else {
+      ASSERT(check_type_ != RECEIVER_MAP_CHECK);
+      map = Handle<Map>(
+          oracle->GetPrototypeForPrimitiveCheck(check_type_)->map());
+    }
+    is_monomorphic_ = ComputeTarget(map, name);
   }
 }
 

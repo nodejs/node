@@ -40,6 +40,19 @@ int Heap::MaxObjectSizeInPagedSpace() {
 }
 
 
+MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> str,
+                                          PretenureFlag pretenure) {
+  // Check for ASCII first since this is the common case.
+  if (String::IsAscii(str.start(), str.length())) {
+    // If the string is ASCII, we do not need to convert the characters
+    // since UTF8 is backwards compatible with ASCII.
+    return AllocateStringFromAscii(str, pretenure);
+  }
+  // Non-ASCII and we need to decode.
+  return AllocateStringFromUtf8Slow(str, pretenure);
+}
+
+
 MaybeObject* Heap::AllocateSymbol(Vector<const char> str,
                                   int chars,
                                   uint32_t hash_field) {
@@ -48,6 +61,71 @@ MaybeObject* Heap::AllocateSymbol(Vector<const char> str,
   return AllocateInternalSymbol(&buffer, chars, hash_field);
 }
 
+
+MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
+                                       uint32_t hash_field) {
+  if (str.length() > SeqAsciiString::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
+  // Compute map and object size.
+  Map* map = ascii_symbol_map();
+  int size = SeqAsciiString::SizeFor(str.length());
+
+  // Allocate string.
+  Object* result;
+  { MaybeObject* maybe_result = (size > MaxObjectSizeInPagedSpace())
+                   ? lo_space_->AllocateRaw(size)
+                   : old_data_space_->AllocateRaw(size);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+
+  reinterpret_cast<HeapObject*>(result)->set_map(map);
+  // Set length and hash fields of the allocated string.
+  String* answer = String::cast(result);
+  answer->set_length(str.length());
+  answer->set_hash_field(hash_field);
+
+  ASSERT_EQ(size, answer->Size());
+
+  // Fill in the characters.
+  memcpy(answer->address() + SeqAsciiString::kHeaderSize,
+         str.start(), str.length());
+
+  return answer;
+}
+
+
+MaybeObject* Heap::AllocateTwoByteSymbol(Vector<const uc16> str,
+                                         uint32_t hash_field) {
+  if (str.length() > SeqTwoByteString::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
+  // Compute map and object size.
+  Map* map = symbol_map();
+  int size = SeqTwoByteString::SizeFor(str.length());
+
+  // Allocate string.
+  Object* result;
+  { MaybeObject* maybe_result = (size > MaxObjectSizeInPagedSpace())
+                   ? lo_space_->AllocateRaw(size)
+                   : old_data_space_->AllocateRaw(size);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+
+  reinterpret_cast<HeapObject*>(result)->set_map(map);
+  // Set length and hash fields of the allocated string.
+  String* answer = String::cast(result);
+  answer->set_length(str.length());
+  answer->set_hash_field(hash_field);
+
+  ASSERT_EQ(size, answer->Size());
+
+  // Fill in the characters.
+  memcpy(answer->address() + SeqTwoByteString::kHeaderSize,
+         str.start(), str.length() * kUC16Size);
+
+  return answer;
+}
 
 MaybeObject* Heap::CopyFixedArray(FixedArray* src) {
   return CopyFixedArrayWithMap(src, src->map());

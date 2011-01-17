@@ -378,81 +378,50 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
 }
 
 
-// One byte opcode for test rax,0xXXXXXXXX.
-static const byte kTestEaxByte = 0xA9;
+// The offset from the inlined patch site to the start of the inlined
+// load instruction.
+const int LoadIC::kOffsetToLoadInstruction = 20;
 
 
-static bool PatchInlinedMapCheck(Address address, Object* map) {
-  if (V8::UseCrankshaft()) return false;
-
-  // Arguments are address of start of call sequence that called
-  // the IC,
-  Address test_instruction_address =
-      address + Assembler::kCallTargetAddressOffset;
-  // The keyed load has a fast inlined case if the IC call instruction
-  // is immediately followed by a test instruction.
-  if (*test_instruction_address != kTestEaxByte) return false;
-
-  // Fetch the offset from the test instruction to the map compare
-  // instructions (starting with the 64-bit immediate mov of the map
-  // address). This offset is stored in the last 4 bytes of the 5
-  // byte test instruction.
-  Address delta_address = test_instruction_address + 1;
-  int delta = *reinterpret_cast<int*>(delta_address);
-  // Compute the map address.  The map address is in the last 8 bytes
-  // of the 10-byte immediate mov instruction (incl. REX prefix), so we add 2
-  // to the offset to get the map address.
-  Address map_address = test_instruction_address + delta + 2;
-  // Patch the map check.
-  *(reinterpret_cast<Object**>(map_address)) = map;
-  return true;
-}
-
-
-bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
-  return PatchInlinedMapCheck(address, map);
-}
-
-
-bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
-  return PatchInlinedMapCheck(address, map);
-}
-
-
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
+void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0]  : return address
+  //  -- rax    : receiver
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
   // -----------------------------------
+  Label miss;
 
-  __ IncrementCounter(&Counters::keyed_load_miss, 1);
-
-  __ pop(rbx);
-  __ push(rdx);  // receiver
-  __ push(rax);  // name
-  __ push(rbx);  // return address
-
-  // Perform tail call to the entry.
-  ExternalReference ref = ExternalReference(IC_Utility(kKeyedLoadIC_Miss));
-  __ TailCallExternalReference(ref, 2, 1);
+  StubCompiler::GenerateLoadArrayLength(masm, rax, rdx, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
 
 
-void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
+void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0]  : return address
+  //  -- rax    : receiver
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
   // -----------------------------------
+  Label miss;
 
-  __ pop(rbx);
-  __ push(rdx);  // receiver
-  __ push(rax);  // name
-  __ push(rbx);  // return address
+  StubCompiler::GenerateLoadStringLength(masm, rax, rdx, rbx, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
+}
 
-  // Perform tail call to the entry.
-  __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);
+
+void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : receiver
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  StubCompiler::GenerateLoadFunctionPrototype(masm, rax, rdx, rbx, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
 
 
@@ -923,45 +892,6 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
-  // -----------------------------------
-
-  __ pop(rbx);
-  __ push(rdx);  // receiver
-  __ push(rcx);  // key
-  __ push(rax);  // value
-  __ push(rbx);  // return address
-
-  // Do tail-call to runtime routine.
-  ExternalReference ref = ExternalReference(IC_Utility(kKeyedStoreIC_Miss));
-  __ TailCallExternalReference(ref, 3, 1);
-}
-
-
-void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
-  // -----------------------------------
-
-  __ pop(rbx);
-  __ push(rdx);  // receiver
-  __ push(rcx);  // key
-  __ push(rax);  // value
-  __ push(rbx);  // return address
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
-}
-
-
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax     : value
@@ -1236,71 +1166,6 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 }
 
 
-// Defined in ic.cc.
-Object* CallIC_Miss(Arguments args);
-
-
-static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
-  // ----------- S t a t e -------------
-  // rcx                      : function name
-  // rsp[0]                   : return address
-  // rsp[8]                   : argument argc
-  // rsp[16]                  : argument argc - 1
-  // ...
-  // rsp[argc * 8]            : argument 1
-  // rsp[(argc + 1) * 8]      : argument 0 = receiver
-  // -----------------------------------
-
-  if (id == IC::kCallIC_Miss) {
-    __ IncrementCounter(&Counters::call_miss, 1);
-  } else {
-    __ IncrementCounter(&Counters::keyed_call_miss, 1);
-  }
-
-  // Get the receiver of the function from the stack; 1 ~ return address.
-  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
-
-  // Enter an internal frame.
-  __ EnterInternalFrame();
-
-  // Push the receiver and the name of the function.
-  __ push(rdx);
-  __ push(rcx);
-
-  // Call the entry.
-  CEntryStub stub(1);
-  __ movq(rax, Immediate(2));
-  __ movq(rbx, ExternalReference(IC_Utility(id)));
-  __ CallStub(&stub);
-
-  // Move result to rdi and exit the internal frame.
-  __ movq(rdi, rax);
-  __ LeaveInternalFrame();
-
-  // Check if the receiver is a global object of some sort.
-  // This can happen only for regular CallIC but not KeyedCallIC.
-  if (id == IC::kCallIC_Miss) {
-    Label invoke, global;
-    __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));  // receiver
-    __ JumpIfSmi(rdx, &invoke);
-    __ CmpObjectType(rdx, JS_GLOBAL_OBJECT_TYPE, rcx);
-    __ j(equal, &global);
-    __ CmpInstanceType(rcx, JS_BUILTINS_OBJECT_TYPE);
-    __ j(not_equal, &invoke);
-
-    // Patch the receiver on the stack.
-    __ bind(&global);
-    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
-    __ movq(Operand(rsp, (argc + 1) * kPointerSize), rdx);
-    __ bind(&invoke);
-  }
-
-  // Invoke the function.
-  ParameterCount actual(argc);
-  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
-}
-
-
 // The generated code does not accept smi keys.
 // The generated code falls through if both probes miss.
 static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
@@ -1409,7 +1274,7 @@ static void GenerateCallNormal(MacroAssembler* masm, int argc) {
 }
 
 
-void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
   // ----------- S t a t e -------------
   // rcx                      : function name
   // rsp[0]                   : return address
@@ -1419,7 +1284,54 @@ void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   // rsp[argc * 8]            : argument 1
   // rsp[(argc + 1) * 8]      : argument 0 = receiver
   // -----------------------------------
-  GenerateCallMiss(masm, argc, IC::kCallIC_Miss);
+
+  if (id == IC::kCallIC_Miss) {
+    __ IncrementCounter(&Counters::call_miss, 1);
+  } else {
+    __ IncrementCounter(&Counters::keyed_call_miss, 1);
+  }
+
+  // Get the receiver of the function from the stack; 1 ~ return address.
+  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Push the receiver and the name of the function.
+  __ push(rdx);
+  __ push(rcx);
+
+  // Call the entry.
+  CEntryStub stub(1);
+  __ movq(rax, Immediate(2));
+  __ movq(rbx, ExternalReference(IC_Utility(id)));
+  __ CallStub(&stub);
+
+  // Move result to rdi and exit the internal frame.
+  __ movq(rdi, rax);
+  __ LeaveInternalFrame();
+
+  // Check if the receiver is a global object of some sort.
+  // This can happen only for regular CallIC but not KeyedCallIC.
+  if (id == IC::kCallIC_Miss) {
+    Label invoke, global;
+    __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));  // receiver
+    __ JumpIfSmi(rdx, &invoke);
+    __ CmpObjectType(rdx, JS_GLOBAL_OBJECT_TYPE, rcx);
+    __ j(equal, &global);
+    __ CmpInstanceType(rcx, JS_BUILTINS_OBJECT_TYPE);
+    __ j(not_equal, &invoke);
+
+    // Patch the receiver on the stack.
+    __ bind(&global);
+    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
+    __ movq(Operand(rsp, (argc + 1) * kPointerSize), rdx);
+    __ bind(&invoke);
+  }
+
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
 }
 
 
@@ -1457,7 +1369,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 }
 
 
-void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
   // rcx                      : function name
   // rsp[0]                   : return address
@@ -1468,7 +1380,7 @@ void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   // rsp[(argc + 1) * 8]      : argument 0 = receiver
   // -----------------------------------
 
-  GenerateCallMiss(masm, argc, IC::kKeyedCallIC_Miss);
+  GenerateCallMiss(masm, argc, IC::kCallIC_Miss);
 }
 
 
@@ -1594,56 +1506,18 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 }
 
 
-// The offset from the inlined patch site to the start of the inlined
-// load instruction.
-const int LoadIC::kOffsetToLoadInstruction = 20;
-
-
-void LoadIC::GenerateMiss(MacroAssembler* masm) {
+void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  //  -- rax    : receiver
-  //  -- rcx    : name
-  //  -- rsp[0] : return address
+  // rcx                      : function name
+  // rsp[0]                   : return address
+  // rsp[8]                   : argument argc
+  // rsp[16]                  : argument argc - 1
+  // ...
+  // rsp[argc * 8]            : argument 1
+  // rsp[(argc + 1) * 8]      : argument 0 = receiver
   // -----------------------------------
 
-  __ IncrementCounter(&Counters::load_miss, 1);
-
-  __ pop(rbx);
-  __ push(rax);  // receiver
-  __ push(rcx);  // name
-  __ push(rbx);  // return address
-
-  // Perform tail call to the entry.
-  ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss));
-  __ TailCallExternalReference(ref, 2, 1);
-}
-
-
-void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax    : receiver
-  //  -- rcx    : name
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  StubCompiler::GenerateLoadArrayLength(masm, rax, rdx, &miss);
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
-}
-
-
-void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax    : receiver
-  //  -- rcx    : name
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  StubCompiler::GenerateLoadFunctionPrototype(masm, rax, rdx, rbx, &miss);
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
+  GenerateCallMiss(masm, argc, IC::kKeyedCallIC_Miss);
 }
 
 
@@ -1686,17 +1560,23 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateStringLength(MacroAssembler* masm) {
+void LoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
   //  -- rcx    : name
   //  -- rsp[0] : return address
   // -----------------------------------
-  Label miss;
 
-  StubCompiler::GenerateLoadStringLength(masm, rax, rdx, rbx, &miss);
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
+  __ IncrementCounter(&Counters::load_miss, 1);
+
+  __ pop(rbx);
+  __ push(rax);  // receiver
+  __ push(rcx);  // name
+  __ push(rbx);  // return address
+
+  // Perform tail call to the entry.
+  ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss));
+  __ TailCallExternalReference(ref, 2, 1);
 }
 
 
@@ -1708,7 +1588,7 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
       address + Assembler::kCallTargetAddressOffset;
   // If the instruction following the call is not a test rax, nothing
   // was inlined.
-  if (*test_instruction_address != kTestEaxByte) return false;
+  if (*test_instruction_address != Assembler::kTestEaxByte) return false;
 
   Address delta_address = test_instruction_address + 1;
   // The delta to the start of the map check instruction.
@@ -1739,11 +1619,6 @@ bool LoadIC::PatchInlinedContextualLoad(Address address,
 }
 
 
-// The offset from the inlined patch site to the start of the inlined
-// store instruction.
-const int StoreIC::kOffsetToStoreInstruction = 20;
-
-
 bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
   if (V8::UseCrankshaft()) return false;
 
@@ -1753,7 +1628,7 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
 
   // If the instruction following the call is not a test rax, nothing
   // was inlined.
-  if (*test_instruction_address != kTestEaxByte) return false;
+  if (*test_instruction_address != Assembler::kTestEaxByte) return false;
 
   // Extract the encoded deltas from the test rax instruction.
   Address encoded_offsets_address = test_instruction_address + 1;
@@ -1792,23 +1667,77 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
 }
 
 
-void StoreIC::GenerateMiss(MacroAssembler* masm) {
+static bool PatchInlinedMapCheck(Address address, Object* map) {
+  if (V8::UseCrankshaft()) return false;
+
+  // Arguments are address of start of call sequence that called
+  // the IC,
+  Address test_instruction_address =
+      address + Assembler::kCallTargetAddressOffset;
+  // The keyed load has a fast inlined case if the IC call instruction
+  // is immediately followed by a test instruction.
+  if (*test_instruction_address != Assembler::kTestEaxByte) return false;
+
+  // Fetch the offset from the test instruction to the map compare
+  // instructions (starting with the 64-bit immediate mov of the map
+  // address). This offset is stored in the last 4 bytes of the 5
+  // byte test instruction.
+  Address delta_address = test_instruction_address + 1;
+  int delta = *reinterpret_cast<int*>(delta_address);
+  // Compute the map address.  The map address is in the last 8 bytes
+  // of the 10-byte immediate mov instruction (incl. REX prefix), so we add 2
+  // to the offset to get the map address.
+  Address map_address = test_instruction_address + delta + 2;
+  // Patch the map check.
+  *(reinterpret_cast<Object**>(map_address)) = map;
+  return true;
+}
+
+
+bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
+  return PatchInlinedMapCheck(address, map);
+}
+
+
+bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
+  return PatchInlinedMapCheck(address, map);
+}
+
+
+void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : name
+  //  -- rax    : key
   //  -- rdx    : receiver
-  //  -- rsp[0] : return address
+  //  -- rsp[0]  : return address
+  // -----------------------------------
+
+  __ IncrementCounter(&Counters::keyed_load_miss, 1);
+
+  __ pop(rbx);
+  __ push(rdx);  // receiver
+  __ push(rax);  // name
+  __ push(rbx);  // return address
+
+  // Perform tail call to the entry.
+  ExternalReference ref = ExternalReference(IC_Utility(kKeyedLoadIC_Miss));
+  __ TailCallExternalReference(ref, 2, 1);
+}
+
+
+void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0]  : return address
   // -----------------------------------
 
   __ pop(rbx);
   __ push(rdx);  // receiver
-  __ push(rcx);  // name
-  __ push(rax);  // value
+  __ push(rax);  // name
   __ push(rbx);  // return address
 
   // Perform tail call to the entry.
-  ExternalReference ref = ExternalReference(IC_Utility(kStoreIC_Miss));
-  __ TailCallExternalReference(ref, 3, 1);
+  __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);
 }
 
 
@@ -1829,6 +1758,31 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);
 }
+
+
+void StoreIC::GenerateMiss(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : name
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
+  // -----------------------------------
+
+  __ pop(rbx);
+  __ push(rdx);  // receiver
+  __ push(rcx);  // name
+  __ push(rax);  // value
+  __ push(rbx);  // return address
+
+  // Perform tail call to the entry.
+  ExternalReference ref = ExternalReference(IC_Utility(kStoreIC_Miss));
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
+// The offset from the inlined patch site to the start of the inlined
+// store instruction.
+const int StoreIC::kOffsetToStoreInstruction = 20;
 
 
 void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
@@ -1923,6 +1877,45 @@ void StoreIC::GenerateGlobalProxy(MacroAssembler* masm) {
 }
 
 
+void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax     : value
+  //  -- rcx     : key
+  //  -- rdx     : receiver
+  //  -- rsp[0]  : return address
+  // -----------------------------------
+
+  __ pop(rbx);
+  __ push(rdx);  // receiver
+  __ push(rcx);  // key
+  __ push(rax);  // value
+  __ push(rbx);  // return address
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+}
+
+
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax     : value
+  //  -- rcx     : key
+  //  -- rdx     : receiver
+  //  -- rsp[0]  : return address
+  // -----------------------------------
+
+  __ pop(rbx);
+  __ push(rdx);  // receiver
+  __ push(rcx);  // key
+  __ push(rax);  // value
+  __ push(rbx);  // return address
+
+  // Do tail-call to runtime routine.
+  ExternalReference ref = ExternalReference(IC_Utility(kKeyedStoreIC_Miss));
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
 #undef __
 
 
@@ -1975,6 +1968,7 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 void PatchInlinedSmiCode(Address address) {
   UNIMPLEMENTED();
 }
+
 
 } }  // namespace v8::internal
 

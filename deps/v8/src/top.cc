@@ -170,7 +170,9 @@ void Top::InitializeThreadLocal() {
 // into for use by a stacks only core dump (aka minidump).
 class PreallocatedMemoryThread: public Thread {
  public:
-  PreallocatedMemoryThread() : keep_running_(true) {
+  PreallocatedMemoryThread()
+    : Thread("v8:PreallocMem"),
+      keep_running_(true) {
     wait_for_ever_semaphore_ = OS::CreateSemaphore(0);
     data_ready_semaphore_ = OS::CreateSemaphore(0);
   }

@@ -978,7 +978,7 @@ void Processor::VisitThisFunction(ThisFunction* node) {
 }
 
 
-// Assumes code has been parsed and scopes hve been analyzed.  Mutates the
+// Assumes code has been parsed and scopes have been analyzed.  Mutates the
 // AST, so the AST should not continue to be used in the case of failure.
 bool Rewriter::Rewrite(CompilationInfo* info) {
   FunctionLiteral* function = info->function();

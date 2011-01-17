@@ -127,7 +127,7 @@ function StringLastIndexOf(pat /* position */) {  // length == 1
   var index = subLength - patLength;
   if (%_ArgumentsLength() > 1) {
     var position = ToNumber(%_Arguments(1));
-    if (!$isNaN(position)) {
+    if (!NUMBER_IS_NAN(position)) {
       position = TO_INTEGER(position);
       if (position < 0) {
         position = 0;

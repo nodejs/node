@@ -275,6 +275,82 @@ static bool CompareSubstrings(Handle<String> s1, int pos1,
 }
 
 
+// A helper class that writes chunk numbers into JSArray.
+// Each chunk is stored as 3 array elements: (pos1_begin, pos1_end, pos2_end).
+class CompareOutputArrayWriter {
+ public:
+  CompareOutputArrayWriter()
+      : array_(Factory::NewJSArray(10)), current_size_(0) {}
+
+  Handle<JSArray> GetResult() {
+    return array_;
+  }
+
+  void WriteChunk(int char_pos1, int char_pos2, int char_len1, int char_len2) {
+    SetElement(array_, current_size_, Handle<Object>(Smi::FromInt(char_pos1)));
+    SetElement(array_, current_size_ + 1,
+               Handle<Object>(Smi::FromInt(char_pos1 + char_len1)));
+    SetElement(array_, current_size_ + 2,
+               Handle<Object>(Smi::FromInt(char_pos2 + char_len2)));
+    current_size_ += 3;
+  }
+
+ private:
+  Handle<JSArray> array_;
+  int current_size_;
+};
+
+
+// Represents 2 strings as 2 arrays of tokens.
+// TODO(LiveEdit): Currently it's actually an array of charactres.
+//     Make array of tokens instead.
+class TokensCompareInput : public Comparator::Input {
+ public:
+  TokensCompareInput(Handle<String> s1, int offset1, int len1,
+                       Handle<String> s2, int offset2, int len2)
+      : s1_(s1), offset1_(offset1), len1_(len1),
+        s2_(s2), offset2_(offset2), len2_(len2) {
+  }
+  virtual int getLength1() {
+    return len1_;
+  }
+  virtual int getLength2() {
+    return len2_;
+  }
+  bool equals(int index1, int index2) {
+    return s1_->Get(offset1_ + index1) == s2_->Get(offset2_ + index2);
+  }
+
+ private:
+  Handle<String> s1_;
+  int offset1_;
+  int len1_;
+  Handle<String> s2_;
+  int offset2_;
+  int len2_;
+};
+
+
+// Stores compare result in JSArray. Converts substring positions
+// to absolute positions.
+class TokensCompareOutput : public Comparator::Output {
+ public:
+  TokensCompareOutput(CompareOutputArrayWriter* array_writer,
+                      int offset1, int offset2)
+        : array_writer_(array_writer), offset1_(offset1), offset2_(offset2) {
+  }
+
+  void AddChunk(int pos1, int pos2, int len1, int len2) {
+    array_writer_->WriteChunk(pos1 + offset1_, pos2 + offset2_, len1, len2);
+  }
+
+ private:
+  CompareOutputArrayWriter* array_writer_;
+  int offset1_;
+  int offset2_;
+};
+
+
 // Wraps raw n-elements line_ends array as a list of n+1 lines. The last line
 // never has terminating new line character.
 class LineEndsWrapper {
@@ -350,13 +426,14 @@ class LineArrayCompareInput : public Comparator::Input {
 };
 
 
-// Stores compare result in JSArray. Each chunk is stored as 3 array elements:
-// (pos1_begin, pos1_end, pos2_end).
-class LineArrayCompareOutput : public Comparator::Output {
+// Stores compare result in JSArray. For each chunk tries to conduct
+// a fine-grained nested diff token-wise.
+class TokenizingLineArrayCompareOutput : public Comparator::Output {
  public:
-  LineArrayCompareOutput(LineEndsWrapper line_ends1, LineEndsWrapper line_ends2)
-      : array_(Factory::NewJSArray(10)), current_size_(0),
-        line_ends1_(line_ends1), line_ends2_(line_ends2) {
+  TokenizingLineArrayCompareOutput(LineEndsWrapper line_ends1,
+                                   LineEndsWrapper line_ends2,
+                                   Handle<String> s1, Handle<String> s2)
+      : line_ends1_(line_ends1), line_ends2_(line_ends2), s1_(s1), s2_(s2) {
   }
 
   void AddChunk(int line_pos1, int line_pos2, int line_len1, int line_len2) {
@@ -365,33 +442,43 @@ class LineArrayCompareOutput : public Comparator::Output {
     int char_len1 = line_ends1_.GetLineStart(line_pos1 + line_len1) - char_pos1;
     int char_len2 = line_ends2_.GetLineStart(line_pos2 + line_len2) - char_pos2;
 
-    SetElement(array_, current_size_, Handle<Object>(Smi::FromInt(char_pos1)));
-    SetElement(array_, current_size_ + 1,
-               Handle<Object>(Smi::FromInt(char_pos1 + char_len1)));
-    SetElement(array_, current_size_ + 2,
-               Handle<Object>(Smi::FromInt(char_pos2 + char_len2)));
-    current_size_ += 3;
+    if (char_len1 < CHUNK_LEN_LIMIT && char_len2 < CHUNK_LEN_LIMIT) {
+      // Chunk is small enough to conduct a nested token-level diff.
+      HandleScope subTaskScope;
+
+      TokensCompareInput tokens_input(s1_, char_pos1, char_len1,
+                                      s2_, char_pos2, char_len2);
+      TokensCompareOutput tokens_output(&array_writer_, char_pos1,
+                                          char_pos2);
+
+      Comparator::CalculateDifference(&tokens_input, &tokens_output);
+    } else {
+      array_writer_.WriteChunk(char_pos1, char_pos2, char_len1, char_len2);
+    }
   }
 
   Handle<JSArray> GetResult() {
-    return array_;
+    return array_writer_.GetResult();
   }
 
  private:
-  Handle<JSArray> array_;
-  int current_size_;
+  static const int CHUNK_LEN_LIMIT = 800;
+
+  CompareOutputArrayWriter array_writer_;
   LineEndsWrapper line_ends1_;
   LineEndsWrapper line_ends2_;
+  Handle<String> s1_;
+  Handle<String> s2_;
 };
 
 
-Handle<JSArray> LiveEdit::CompareStringsLinewise(Handle<String> s1,
-                                                 Handle<String> s2) {
+Handle<JSArray> LiveEdit::CompareStrings(Handle<String> s1,
+                                         Handle<String> s2) {
   LineEndsWrapper line_ends1(s1);
   LineEndsWrapper line_ends2(s2);
 
   LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
-  LineArrayCompareOutput output(line_ends1, line_ends2);
+  TokenizingLineArrayCompareOutput output(line_ends1, line_ends2, s1, s2);
 
   Comparator::CalculateDifference(&input, &output);
 

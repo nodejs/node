@@ -99,6 +99,14 @@ Handle<String> Factory::LookupSymbol(Vector<const char> string) {
   CALL_HEAP_FUNCTION(Heap::LookupSymbol(string), String);
 }
 
+Handle<String> Factory::LookupAsciiSymbol(Vector<const char> string) {
+  CALL_HEAP_FUNCTION(Heap::LookupAsciiSymbol(string), String);
+}
+
+Handle<String> Factory::LookupTwoByteSymbol(Vector<const uc16> string) {
+  CALL_HEAP_FUNCTION(Heap::LookupTwoByteSymbol(string), String);
+}
+
 
 Handle<String> Factory::NewStringFromAscii(Vector<const char> string,
                                            PretenureFlag pretenure) {

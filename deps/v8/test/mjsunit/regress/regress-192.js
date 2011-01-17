@@ -30,9 +30,16 @@
 
 // See http://code.google.com/p/v8/issues/detail?id=192
 
+// UPDATE: This bug report is no longer valid. In ES5, creating object
+// literals MUST NOT trigger inherited accessors, but act as if creating
+// the properties using DefineOwnProperty.
+
 Object.prototype.__defineGetter__("x", function() {});
+Object.prototype.__defineSetter__("y",
+                                  function() { assertUnreachable("setter"); });
 
-// Creating this object literal will throw an exception because we are
+// Creating this object literal will *not* throw an exception because we are
 // assigning to a property that has only a getter.
-assertThrows("({ x: 42 })");
-
+var x = ({ x: 42, y: 37 });
+assertEquals(42, x.x);
+assertEquals(37, x.y);

@@ -117,41 +117,59 @@ function Join(array, length, separator, convert) {
     // Fast case for one-element arrays.
     if (length == 1) {
       var e = array[0];
-      if (!IS_UNDEFINED(e) || (0 in array)) {
-        if (IS_STRING(e)) return e;
-        return convert(e);
-      }
+      if (IS_STRING(e)) return e;
+      return convert(e);
     }
 
     // Construct an array for the elements.
-    var elements;
-    var elements_length = 0;
+    var elements = new $Array(length);
 
     // We pull the empty separator check outside the loop for speed!
     if (separator.length == 0) {
-      elements = new $Array(length);
+      var elements_length = 0;
       for (var i = 0; i < length; i++) {
         var e = array[i];
-        if (!IS_UNDEFINED(e) || (i in array)) {
+        if (!IS_UNDEFINED(e)) {
           if (!IS_STRING(e)) e = convert(e);
           elements[elements_length++] = e;
         }
       }
-    } else {
-      elements = new $Array(length << 1);
-      for (var i = 0; i < length; i++) {
-        var e = array[i];
-        if (i != 0) elements[elements_length++] = separator;
-        if (!IS_UNDEFINED(e) || (i in array)) {
-          if (!IS_STRING(e)) e = convert(e);
-          elements[elements_length++] = e;
-        }
-      }
+      elements.length = elements_length;
+      var result = %_FastAsciiArrayJoin(elements, '');
+      if (!IS_UNDEFINED(result)) return result;
+      return %StringBuilderConcat(elements, elements_length, '');
     }
-    elements.length = elements_length;
-    var result = %_FastAsciiArrayJoin(elements, "");
-    if (!IS_UNDEFINED(result)) return result;
-    return %StringBuilderConcat(elements, elements_length, '');
+    // Non-empty separator case.
+    // If the first element is a number then use the heuristic that the 
+    // remaining elements are also likely to be numbers.
+    if (!IS_NUMBER(array[0])) {
+      for (var i = 0; i < length; i++) {
+        var e = array[i];
+        if (!IS_STRING(e)) e = convert(e);
+        elements[i] = e;
+      }
+    } else { 
+      for (var i = 0; i < length; i++) {
+        var e = array[i];
+        if (IS_NUMBER(e)) elements[i] = %_NumberToString(e);
+        else {
+          if (!IS_STRING(e)) e = convert(e);
+          elements[i] = e;
+        }
+      }
+    }   
+    var result = %_FastAsciiArrayJoin(elements, separator);
+    if (!IS_UNDEFINED(result)) return result;   
+
+    var length2 = (length << 1) - 1;
+    var j = length2;
+    var i = length;
+    elements[--j] = elements[--i];
+    while (i > 0) {
+      elements[--j] = separator;
+      elements[--j] = elements[--i];
+    }
+    return %StringBuilderConcat(elements, length2, '');    
   } finally {
     // Make sure to pop the visited array no matter what happens.
     if (is_array) visited_arrays.pop();
@@ -160,7 +178,7 @@ function Join(array, length, separator, convert) {
 
 
 function ConvertToString(x) {
-  if (IS_STRING(x)) return x;
+  // Assumes x is a non-string. 
   if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   return (IS_NULL_OR_UNDEFINED(x)) ? '' : %ToString(%DefaultString(x));

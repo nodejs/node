@@ -66,12 +66,7 @@ class StringSearchBase {
   }
 
   static inline bool IsAsciiString(Vector<const uc16> string) {
-    for (int i = 0, n = string.length(); i < n; i++) {
-      if (static_cast<unsigned>(string[i]) > String::kMaxAsciiCharCodeU) {
-        return false;
-      }
-    }
-    return true;
+    return String::IsAscii(string.start(), string.length());
   }
 
   // The following tables are shared by all searches.

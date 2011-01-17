@@ -599,7 +599,8 @@ void Shell::RunShell() {
 class ShellThread : public i::Thread {
  public:
   ShellThread(int no, i::Vector<const char> files)
-    : no_(no), files_(files) { }
+    : Thread("d8:ShellThread"),
+      no_(no), files_(files) { }
   virtual void Run();
  private:
   int no_;

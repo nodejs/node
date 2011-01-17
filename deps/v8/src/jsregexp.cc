@@ -425,7 +425,7 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
     Handle<JSRegExp> regexp,
     Handle<String> subject,
     int index,
-    Vector<int32_t> output) {
+    Vector<int> output) {
   Handle<FixedArray> irregexp(FixedArray::cast(regexp->data()));
 
   ASSERT(index >= 0);
@@ -521,8 +521,8 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   OffsetsVector registers(required_registers);
 
   IrregexpResult res = RegExpImpl::IrregexpExecOnce(
-      jsregexp, subject, previous_index, Vector<int32_t>(registers.vector(),
-                                                         registers.length()));
+      jsregexp, subject, previous_index, Vector<int>(registers.vector(),
+                                                     registers.length()));
   if (res == RE_SUCCESS) {
     int capture_register_count =
         (IrregexpNumberOfCaptures(FixedArray::cast(jsregexp->data())) + 1) * 2;

@@ -50,9 +50,9 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   virtual void Backtrack();
   virtual void Bind(Label* label);
   virtual void CheckAtStart(Label* on_at_start);
-  virtual void CheckCharacter(uint32_t c, Label* on_equal);
-  virtual void CheckCharacterAfterAnd(uint32_t c,
-                                      uint32_t mask,
+  virtual void CheckCharacter(unsigned c, Label* on_equal);
+  virtual void CheckCharacterAfterAnd(unsigned c,
+                                      unsigned mask,
                                       Label* on_equal);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
@@ -68,9 +68,9 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match);
   virtual void CheckNotRegistersEqual(int reg1, int reg2, Label* on_not_equal);
-  virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterAnd(uint32_t c,
-                                         uint32_t mask,
+  virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
+  virtual void CheckNotCharacterAfterAnd(unsigned c,
+                                         unsigned mask,
                                          Label* on_not_equal);
   virtual void CheckNotCharacterAfterMinusAnd(uc16 c,
                                               uc16 minus,

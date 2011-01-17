@@ -146,7 +146,7 @@ class VisitorDispatchTable {
   }
 
   void Register(StaticVisitorBase::VisitorId id, Callback callback) {
-    ASSERT((0 <= id) && (id < StaticVisitorBase::kVisitorIdCount));
+    ASSERT(id < StaticVisitorBase::kVisitorIdCount);  // id is unsigned.
     callbacks_[id] = callback;
   }
 
@@ -186,9 +186,9 @@ class VisitorDispatchTable {
 template<typename StaticVisitor>
 class BodyVisitorBase : public AllStatic {
  public:
-  static inline void IteratePointers(HeapObject* object,
+  INLINE(static void IteratePointers(HeapObject* object,
                                      int start_offset,
-                                     int end_offset) {
+                                     int end_offset)) {
     Object** start_slot = reinterpret_cast<Object**>(object->address() +
                                                      start_offset);
     Object** end_slot = reinterpret_cast<Object**>(object->address() +

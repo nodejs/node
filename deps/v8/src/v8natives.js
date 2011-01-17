@@ -83,7 +83,7 @@ function GlobalIsNaN(number) {
 
 // ECMA 262 - 15.1.5
 function GlobalIsFinite(number) {
-  if (!IS_NUMBER(number)) number = ToNumber(number);
+  if (!IS_NUMBER(number)) number = NonNumberToNumber(number);
 
   // NaN - NaN == NaN, Infinity - Infinity == NaN, -Infinity - -Infinity == NaN.
   return %_IsSmi(number) || number - number == 0;
@@ -896,9 +896,14 @@ SetupObject();
 function BooleanToString() {
   // NOTE: Both Boolean objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
-  if (!IS_BOOLEAN(this) && !IS_BOOLEAN_WRAPPER(this))
-    throw new $TypeError('Boolean.prototype.toString is not generic');
-  return ToString(%_ValueOf(this));
+  var b = this;
+  if (!IS_BOOLEAN(b)) {
+    if (!IS_BOOLEAN_WRAPPER(b)) {
+      throw new $TypeError('Boolean.prototype.toString is not generic');
+    }
+    b = %_ValueOf(b);
+  }
+  return b ? 'true' : 'false';
 }
 
 
@@ -951,7 +956,7 @@ function NumberToString(radix) {
   }
   // Fast case: Convert number in radix 10.
   if (IS_UNDEFINED(radix) || radix === 10) {
-    return ToString(number);
+    return %_NumberToString(number);
   }
 
   // Convert the radix to an integer and check the range.
@@ -1150,11 +1155,8 @@ function NewFunction(arg1) {  // length == 1
   var p = '';
   if (n > 1) {
     p = new $Array(n - 1);
-    // Explicitly convert all parameters to strings.
-    // Array.prototype.join replaces null with empty strings which is
-    // not appropriate.
-    for (var i = 0; i < n - 1; i++) p[i] = ToString(%_Arguments(i));
-    p = p.join(',');
+    for (var i = 0; i < n - 1; i++) p[i] = %_Arguments(i);
+    p = Join(p, n - 1, ',', NonStringToString);
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
     // compile. We avoid this problem by checking for this early on.

@@ -2600,11 +2600,6 @@ void Simulator::DecodeVCMP(Instr* instr) {
     precision = kDoublePrecision;
   }
 
-  if (instr->Bit(7) != 0) {
-    // Raising exceptions for quiet NaNs are not supported.
-    UNIMPLEMENTED();  // Not used by V8.
-  }
-
   int d = instr->VFPDRegCode(precision);
   int m = 0;
   if (instr->Opc2Field() == 0x4) {
@@ -2616,6 +2611,13 @@ void Simulator::DecodeVCMP(Instr* instr) {
     double dm_value = 0.0;
     if (instr->Opc2Field() == 0x4) {
       dm_value = get_double_from_d_register(m);
+    }
+
+    // Raise exceptions for quiet NaNs if necessary.
+    if (instr->Bit(7) == 1) {
+      if (isnan(dd_value)) {
+        inv_op_vfp_flag_ = true;
+      }
     }
 
     Compute_FPSCR_Flags(dd_value, dm_value);

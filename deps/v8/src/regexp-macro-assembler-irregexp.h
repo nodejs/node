@@ -76,18 +76,18 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
                                     Label* on_end_of_input,
                                     bool check_bounds = true,
                                     int characters = 1);
-  virtual void CheckCharacter(uint32_t c, Label* on_equal);
-  virtual void CheckCharacterAfterAnd(uint32_t c,
-                                      uint32_t mask,
+  virtual void CheckCharacter(unsigned c, Label* on_equal);
+  virtual void CheckCharacterAfterAnd(unsigned c,
+                                      unsigned mask,
                                       Label* on_equal);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
   virtual void CheckAtStart(Label* on_at_start);
   virtual void CheckNotAtStart(Label* on_not_at_start);
-  virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterAnd(uint32_t c,
-                                         uint32_t mask,
+  virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
+  virtual void CheckNotCharacterAfterAnd(unsigned c,
+                                         unsigned mask,
                                          Label* on_not_equal);
   virtual void CheckNotCharacterAfterMinusAnd(uc16 c,
                                               uc16 minus,

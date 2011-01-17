@@ -50,6 +50,7 @@ class DoubleConstant: public AllStatic {
  public:
   static const double min_int;
   static const double one_half;
+  static const double minus_zero;
   static const double negative_infinity;
 };
 
@@ -512,6 +513,9 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable Factory::the_hole_value.location()
   static ExternalReference the_hole_value_location();
 
+  // Static variable Factory::arguments_marker.location()
+  static ExternalReference arguments_marker_location();
+
   // Static variable Heap::roots_address()
   static ExternalReference roots_address();
 
@@ -552,6 +556,7 @@ class ExternalReference BASE_EMBEDDED {
   // Static variables containing common double constants.
   static ExternalReference address_of_min_int();
   static ExternalReference address_of_one_half();
+  static ExternalReference address_of_minus_zero();
   static ExternalReference address_of_negative_infinity();
 
   Address address() const {return reinterpret_cast<Address>(address_);}

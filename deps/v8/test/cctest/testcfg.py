@@ -92,6 +92,7 @@ class CcTestConfiguration(test.TestConfiguration):
         dependency = relative_path[0] + '/' + dependency
       if self.Contains(path, full_path):
         result.append(CcTestCase(full_path, executable, mode, raw_test, dependency, self.context))
+    result.sort()
     return result
 
   def GetTestStatus(self, sections, defs):

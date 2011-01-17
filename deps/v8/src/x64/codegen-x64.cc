@@ -627,10 +627,10 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
 
   Comment cmnt(masm_, "[ store arguments object");
   if (mode == LAZY_ARGUMENTS_ALLOCATION && initial) {
-    // When using lazy arguments allocation, we store the hole value
+    // When using lazy arguments allocation, we store the arguments marker value
     // as a sentinel indicating that the arguments object hasn't been
     // allocated yet.
-    frame_->Push(Factory::the_hole_value());
+    frame_->Push(Factory::arguments_marker());
   } else {
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     frame_->PushFunction();
@@ -655,9 +655,9 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     if (probe.is_constant()) {
       // We have to skip updating the arguments object if it has
       // been assigned a proper value.
-      skip_arguments = !probe.handle()->IsTheHole();
+      skip_arguments = !probe.handle()->IsArgumentsMarker();
     } else {
-      __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
+      __ CompareRoot(probe.reg(), Heap::kArgumentsMarkerRootIndex);
       probe.Unuse();
       done.Branch(not_equal);
     }
@@ -2516,9 +2516,9 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
     Label slow, done;
     bool try_lazy = true;
     if (probe.is_constant()) {
-      try_lazy = probe.handle()->IsTheHole();
+      try_lazy = probe.handle()->IsArgumentsMarker();
     } else {
-      __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
+      __ CompareRoot(probe.reg(), Heap::kArgumentsMarkerRootIndex);
       probe.Unuse();
       __ j(not_equal, &slow);
     }
@@ -4417,7 +4417,7 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
   // If the loaded value is a constant, we know if the arguments
   // object has been lazily loaded yet.
   if (value.is_constant()) {
-    if (value.handle()->IsTheHole()) {
+    if (value.handle()->IsArgumentsMarker()) {
       Result arguments = StoreArgumentsObject(false);
       frame_->Push(&arguments);
     } else {
@@ -4430,7 +4430,7 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
   // indicates that we haven't loaded the arguments object yet, we
   // need to do it now.
   JumpTarget exit;
-  __ CompareRoot(value.reg(), Heap::kTheHoleValueRootIndex);
+  __ CompareRoot(value.reg(), Heap::kArgumentsMarkerRootIndex);
   frame_->Push(&value);
   exit.Branch(not_equal);
   Result arguments = StoreArgumentsObject(false);
@@ -6813,12 +6813,8 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   // (or them and test against Smi mask.)
 
   __ movq(tmp2.reg(), tmp1.reg());
-  RecordWriteStub recordWrite1(tmp2.reg(), index1.reg(), object.reg());
-  __ CallStub(&recordWrite1);
-
-  RecordWriteStub recordWrite2(tmp1.reg(), index2.reg(), object.reg());
-  __ CallStub(&recordWrite2);
-
+  __ RecordWriteHelper(tmp1.reg(), index1.reg(), object.reg());
+  __ RecordWriteHelper(tmp2.reg(), index2.reg(), object.reg());
   __ bind(&done);
 
   deferred->BindExit();
@@ -8811,11 +8807,6 @@ ModuloFunction CreateModuloFunction() {
 
 
 #undef __
-
-void RecordWriteStub::Generate(MacroAssembler* masm) {
-  masm->RecordWriteHelper(object_, addr_, scratch_);
-  masm->ret(0);
-}
 
 } }  // namespace v8::internal
 

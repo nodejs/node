@@ -30,6 +30,7 @@
 
 #include "v8.h"
 
+#include "data-flow.h"
 #include "zone.h"
 
 namespace v8 {
@@ -49,7 +50,6 @@ class LArgument;
 class LChunk;
 class LConstantOperand;
 class LGap;
-class LInstruction;
 class LParallelMove;
 class LPointerMap;
 class LStackSlot;
@@ -204,7 +204,6 @@ class LUnallocated: public LOperand {
     MUST_HAVE_REGISTER,
     WRITABLE_REGISTER,
     SAME_AS_FIRST_INPUT,
-    SAME_AS_ANY_INPUT,
     IGNORE
   };
 
@@ -275,7 +274,7 @@ class LUnallocated: public LOperand {
     return policy() == WRITABLE_REGISTER || policy() == MUST_HAVE_REGISTER;
   }
   bool HasSameAsInputPolicy() const {
-    return policy() == SAME_AS_FIRST_INPUT || policy() == SAME_AS_ANY_INPUT;
+    return policy() == SAME_AS_FIRST_INPUT;
   }
   Policy policy() const { return PolicyField::decode(value_); }
   void set_policy(Policy policy) {
@@ -482,7 +481,11 @@ class LDoubleRegister: public LOperand {
 class InstructionSummary: public ZoneObject {
  public:
   InstructionSummary()
-      : output_operand_(NULL), input_count_(0), operands_(4), is_call_(false) {}
+      : output_operand_(NULL),
+        input_count_(0),
+        operands_(4),
+        is_call_(false),
+        is_save_doubles_(false) {}
 
   // Output operands.
   LOperand* Output() const { return output_operand_; }
@@ -510,11 +513,15 @@ class InstructionSummary: public ZoneObject {
   void MarkAsCall() { is_call_ = true; }
   bool IsCall() const { return is_call_; }
 
+  void MarkAsSaveDoubles() { is_save_doubles_ = true; }
+  bool IsSaveDoubles() const { return is_save_doubles_; }
+
  private:
   LOperand* output_operand_;
   int input_count_;
   ZoneList<LOperand*> operands_;
   bool is_call_;
+  bool is_save_doubles_;
 };
 
 // Representation of the non-empty interval [start,end[.
@@ -698,6 +705,7 @@ class LiveRange: public ZoneObject {
   bool HasAllocatedSpillOperand() const {
     return spill_operand_ != NULL && !spill_operand_->IsUnallocated();
   }
+
   LOperand* GetSpillOperand() const { return spill_operand_; }
   void SetSpillOperand(LOperand* operand) {
     ASSERT(!operand->IsUnallocated());
@@ -714,7 +722,6 @@ class LiveRange: public ZoneObject {
   bool CanCover(LifetimePosition position) const;
   bool Covers(LifetimePosition position);
   LifetimePosition FirstIntersection(LiveRange* other);
-
 
   // Add a new interval or a new use position to this live range.
   void EnsureInterval(LifetimePosition start, LifetimePosition end);
@@ -754,6 +761,40 @@ class LiveRange: public ZoneObject {
 };
 
 
+class GrowableBitVector BASE_EMBEDDED {
+ public:
+  GrowableBitVector() : bits_(NULL) { }
+
+  bool Contains(int value) const {
+    if (!InBitsRange(value)) return false;
+    return bits_->Contains(value);
+  }
+
+  void Add(int value) {
+    EnsureCapacity(value);
+    bits_->Add(value);
+  }
+
+ private:
+  static const int kInitialLength = 1024;
+
+  bool InBitsRange(int value) const {
+    return bits_ != NULL && bits_->length() > value;
+  }
+
+  void EnsureCapacity(int value) {
+    if (InBitsRange(value)) return;
+    int new_length = bits_ == NULL ? kInitialLength : bits_->length();
+    while (new_length <= value) new_length *= 2;
+    BitVector* new_bits = new BitVector(new_length);
+    if (bits_ != NULL) new_bits->CopyFrom(*bits_);
+    bits_ = new_bits;
+  }
+
+  BitVector* bits_;
+};
+
+
 class LAllocator BASE_EMBEDDED {
  public:
   explicit LAllocator(int first_virtual_register, HGraph* graph)
@@ -770,6 +811,7 @@ class LAllocator BASE_EMBEDDED {
         inactive_live_ranges_(8),
         reusable_slots_(8),
         next_virtual_register_(first_virtual_register),
+        first_artificial_register_(first_virtual_register),
         mode_(NONE),
         num_registers_(-1),
         graph_(graph),
@@ -788,6 +830,9 @@ class LAllocator BASE_EMBEDDED {
 
   // Marks the current instruction as a call.
   void MarkAsCall();
+
+  // Marks the current instruction as requiring saving double registers.
+  void MarkAsSaveDoubles();
 
   // Checks whether the value of a given virtual register is tagged.
   bool HasTaggedValue(int virtual_register) const;
@@ -972,6 +1017,8 @@ class LAllocator BASE_EMBEDDED {
 
   // Next virtual register number to be assigned to temporaries.
   int next_virtual_register_;
+  int first_artificial_register_;
+  GrowableBitVector double_artificial_registers_;
 
   RegisterKind mode_;
   int num_registers_;

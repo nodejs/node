@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -128,7 +128,7 @@ HSimulate* HBasicBlock::CreateSimulate(int id) {
   int push_count = environment->push_count();
   int pop_count = environment->pop_count();
 
-  int length = environment->values()->length();
+  int length = environment->length();
   HSimulate* instr = new HSimulate(id, pop_count, length);
   for (int i = push_count - 1; i >= 0; --i) {
     instr->AddPushedValue(environment->ExpressionStackAt(i));
@@ -222,7 +222,7 @@ void HBasicBlock::RegisterPredecessor(HBasicBlock* pred) {
     ASSERT(IsLoopHeader() || first_ == NULL);
     HEnvironment* incoming_env = pred->last_environment();
     if (IsLoopHeader()) {
-      ASSERT(phis()->length() == incoming_env->values()->length());
+      ASSERT(phis()->length() == incoming_env->length());
       for (int i = 0; i < phis_.length(); ++i) {
         phis_[i]->AddInput(incoming_env->values()->at(i));
       }
@@ -1982,7 +1982,7 @@ AstContext::AstContext(HGraphBuilder* owner, Expression::Context kind)
     : owner_(owner), kind_(kind), outer_(owner->ast_context()) {
   owner->set_ast_context(this);  // Push.
 #ifdef DEBUG
-  original_count_ = owner->environment()->total_count();
+  original_length_ = owner->environment()->length();
 #endif
 }
 
@@ -1995,14 +1995,14 @@ AstContext::~AstContext() {
 EffectContext::~EffectContext() {
   ASSERT(owner()->HasStackOverflow() ||
          !owner()->subgraph()->HasExit() ||
-         owner()->environment()->total_count() == original_count_);
+         owner()->environment()->length() == original_length_);
 }
 
 
 ValueContext::~ValueContext() {
   ASSERT(owner()->HasStackOverflow() ||
          !owner()->subgraph()->HasExit() ||
-         owner()->environment()->total_count() == original_count_ + 1);
+         owner()->environment()->length() == original_length_ + 1);
 }
 
 
@@ -2343,7 +2343,7 @@ void HGraphBuilder::SetupScope(Scope* scope) {
   }
 
   // Set the initial values of stack-allocated locals.
-  for (int i = count; i < environment()->values()->length(); ++i) {
+  for (int i = count; i < environment()->length(); ++i) {
     environment()->Bind(i, undefined_constant);
   }
 
@@ -2702,7 +2702,7 @@ void HSubgraph::PreProcessOsrEntry(IterationStatement* statement) {
   int osr_entry_id = statement->OsrEntryId();
   // We want the correct environment at the OsrEntry instruction.  Build
   // it explicitly.  The expression stack should be empty.
-  int count = osr_entry->last_environment()->total_count();
+  int count = osr_entry->last_environment()->length();
   ASSERT(count == (osr_entry->last_environment()->parameter_count() +
                    osr_entry->last_environment()->local_count()));
   for (int i = 0; i < count; ++i) {
@@ -2940,6 +2940,21 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       BAILOUT("unsupported context for arguments object");
     }
     ast_context()->ReturnValue(environment()->Lookup(variable));
+  } else if (variable->IsContextSlot()) {
+    if (variable->mode() == Variable::CONST) {
+      BAILOUT("reference to const context slot");
+    }
+    Slot* slot = variable->AsSlot();
+    CompilationInfo* info = graph()->info();
+    int context_chain_length = info->function()->scope()->
+        ContextChainLength(slot->var()->scope());
+    ASSERT(context_chain_length >= 0);
+    // TODO(antonm): if slot's value is not modified by closures, instead
+    // of reading it out of context, we could just embed the value as
+    // a constant.
+    HLoadContextSlot* instr =
+        new HLoadContextSlot(context_chain_length, slot->index());
+    ast_context()->ReturnInstruction(instr, expr->id());
   } else if (variable->is_global()) {
     LookupResult lookup;
     LookupGlobalPropertyCell(variable, &lookup, false);
@@ -2956,7 +2971,7 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     HLoadGlobal* instr = new HLoadGlobal(cell, check_hole);
     ast_context()->ReturnInstruction(instr, expr->id());
   } else {
-    BAILOUT("reference to non-stack-allocated/non-global variable");
+    BAILOUT("reference to a variable which requires dynamic lookup");
   }
 }
 
@@ -3103,8 +3118,15 @@ HBasicBlock* HGraphBuilder::BuildTypeSwitch(ZoneMapList* maps,
   // this basic block the current basic block.
   HBasicBlock* join_block = graph_->CreateBasicBlock();
   for (int i = 0; i < subgraphs->length(); ++i) {
-    if (subgraphs->at(i)->HasExit()) {
-      subgraphs->at(i)->exit_block()->Goto(join_block);
+    HSubgraph* subgraph = subgraphs->at(i);
+    if (subgraph->HasExit()) {
+      // In an effect context the value of the type switch is not needed.
+      // There is no need to merge it at the join block only to discard it.
+      HBasicBlock* subgraph_exit = subgraph->exit_block();
+      if (ast_context()->IsEffect()) {
+        subgraph_exit->last_environment()->Drop(1);
+      }
+      subgraph_exit->Goto(join_block);
     }
   }
 
@@ -3242,7 +3264,8 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
     Push(value);
     instr->set_position(expr->position());
     AddInstruction(instr);
-    if (instr->HasSideEffects()) AddSimulate(expr->id());
+    if (instr->HasSideEffects()) AddSimulate(expr->AssignmentId());
+    ast_context()->ReturnValue(Pop());
   } else {
     // Build subgraph for generic store through IC.
     {
@@ -3260,11 +3283,14 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
     }
 
     HBasicBlock* new_exit_block =
-        BuildTypeSwitch(&maps, &subgraphs, object, expr->AssignmentId());
+        BuildTypeSwitch(&maps, &subgraphs, object, expr->id());
     subgraph()->set_exit_block(new_exit_block);
+    // In an effect context, we did not materialized the value in the
+    // predecessor environments so there's no need to handle it here.
+    if (subgraph()->HasExit() && !ast_context()->IsEffect()) {
+      ast_context()->ReturnValue(Pop());
+    }
   }
-
-  if (subgraph()->HasExit()) ast_context()->ReturnValue(Pop());
 }
 
 
@@ -3471,7 +3497,7 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
                                      Top(),
                                      expr->position(),
                                      expr->AssignmentId());
-    } else {
+    } else if (var->IsStackAllocated()) {
       // We allow reference to the arguments object only in assignemtns
       // to local variables to make sure that the arguments object does
       // not escape and is not modified.
@@ -3484,6 +3510,8 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
         VISIT_FOR_VALUE(expr->value());
       }
       Bind(proxy->var(), Top());
+    } else {
+      BAILOUT("Assigning to no non-stack-allocated/non-global variable");
     }
     // Return the value.
     ast_context()->ReturnValue(Pop());
@@ -3548,8 +3576,7 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
   if (maps.length() == 0) {
     HInstruction* instr = BuildLoadNamedGeneric(object, expr);
     instr->set_position(expr->position());
-    PushAndAdd(instr);
-    if (instr->HasSideEffects()) AddSimulate(expr->id());
+    ast_context()->ReturnInstruction(instr, expr->id());
   } else {
     // Build subgraph for generic load through IC.
     {
@@ -3568,9 +3595,12 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
     HBasicBlock* new_exit_block =
         BuildTypeSwitch(&maps, &subgraphs, object, expr->id());
     subgraph()->set_exit_block(new_exit_block);
+    // In an effect context, we did not materialized the value in the
+    // predecessor environments so there's no need to handle it here.
+    if (subgraph()->HasExit() && !ast_context()->IsEffect()) {
+      ast_context()->ReturnValue(Pop());
+    }
   }
-
-  if (subgraph()->HasExit()) ast_context()->ReturnValue(Pop());
 }
 
 
@@ -3643,9 +3673,18 @@ HInstruction* HGraphBuilder::BuildLoadKeyedFastElement(HValue* object,
   Handle<Map> map = expr->GetMonomorphicReceiverType();
   ASSERT(map->has_fast_elements());
   AddInstruction(new HCheckMap(object, map));
-  HInstruction* elements = AddInstruction(new HLoadElements(object));
-  HInstruction* length = AddInstruction(new HArrayLength(elements));
-  AddInstruction(new HBoundsCheck(key, length));
+  bool is_array = (map->instance_type() == JS_ARRAY_TYPE);
+  HLoadElements* elements = new HLoadElements(object);
+  HInstruction* length = NULL;
+  if (is_array) {
+    length = AddInstruction(new HJSArrayLength(object));
+    AddInstruction(new HBoundsCheck(key, length));
+    AddInstruction(elements);
+  } else {
+    AddInstruction(elements);
+    length = AddInstruction(new HFixedArrayLength(elements));
+    AddInstruction(new HBoundsCheck(key, length));
+  }
   return new HLoadKeyedFastElement(elements, key);
 }
 
@@ -3671,9 +3710,9 @@ HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
   bool is_array = (map->instance_type() == JS_ARRAY_TYPE);
   HInstruction* length = NULL;
   if (is_array) {
-    length = AddInstruction(new HArrayLength(object));
+    length = AddInstruction(new HJSArrayLength(object));
   } else {
-    length = AddInstruction(new HArrayLength(elements));
+    length = AddInstruction(new HFixedArrayLength(elements));
   }
   AddInstruction(new HBoundsCheck(key, length));
   return new HStoreKeyedFastElement(elements, key, val);
@@ -3720,7 +3759,13 @@ void HGraphBuilder::VisitProperty(Property* expr) {
   if (expr->IsArrayLength()) {
     HValue* array = Pop();
     AddInstruction(new HCheckNonSmi(array));
-    instr = new HArrayLength(array);
+    AddInstruction(new HCheckInstanceType(array, JS_ARRAY_TYPE, JS_ARRAY_TYPE));
+    instr = new HJSArrayLength(array);
+
+  } else if (expr->IsFunctionPrototype()) {
+    HValue* function = Pop();
+    AddInstruction(new HCheckNonSmi(function));
+    instr = new HLoadFunctionPrototype(function);
 
   } else if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
@@ -3767,9 +3812,9 @@ void HGraphBuilder::AddCheckConstantFunction(Call* expr,
     AddInstruction(new HCheckMap(receiver, receiver_map));
   }
   if (!expr->holder().is_null()) {
-    AddInstruction(new HCheckPrototypeMaps(receiver,
-                                           expr->holder(),
-                                           receiver_map));
+    AddInstruction(new HCheckPrototypeMaps(
+        Handle<JSObject>(JSObject::cast(receiver_map->prototype())),
+        expr->holder()));
   }
 }
 
@@ -3841,7 +3886,11 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
     HBasicBlock* new_exit_block =
         BuildTypeSwitch(&maps, &subgraphs, receiver, expr->id());
     subgraph()->set_exit_block(new_exit_block);
-    if (new_exit_block != NULL) ast_context()->ReturnValue(Pop());
+    // In an effect context, we did not materialized the value in the
+    // predecessor environments so there's no need to handle it here.
+    if (new_exit_block != NULL && !ast_context()->IsEffect()) {
+      ast_context()->ReturnValue(Pop());
+    }
   }
 }
 
@@ -3977,7 +4026,9 @@ bool HGraphBuilder::TryInline(Call* expr) {
     function_return_->MarkAsInlineReturnTarget();
   }
   call_context_ = ast_context();
-  TypeFeedbackOracle new_oracle(Handle<Code>(shared->code()));
+  TypeFeedbackOracle new_oracle(
+      Handle<Code>(shared->code()),
+      Handle<Context>(target->context()->global_context()));
   oracle_ = &new_oracle;
   graph()->info()->SetOsrAstId(AstNode::kNoNumber);
 
@@ -4179,7 +4230,8 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   HValue* arg_two_value = environment()->Lookup(arg_two->var());
   if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
 
-  if (!expr->IsMonomorphic()) return false;
+  if (!expr->IsMonomorphic() ||
+      expr->check_type() != RECEIVER_MAP_CHECK) return false;
 
   // Found pattern f.apply(receiver, arguments).
   VisitForValue(prop->obj());
@@ -4248,7 +4300,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
     expr->RecordTypeFeedback(oracle());
     ZoneMapList* types = expr->GetReceiverTypes();
 
-    if (expr->IsMonomorphic()) {
+    if (expr->IsMonomorphic() && expr->check_type() == RECEIVER_MAP_CHECK) {
       AddCheckConstantFunction(expr, receiver, types->first(), true);
 
       if (TryMathFunctionInline(expr)) {
@@ -4273,6 +4325,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
       }
 
     } else if (types != NULL && types->length() > 1) {
+      ASSERT(expr->check_type() == RECEIVER_MAP_CHECK);
       HandlePolymorphicCallNamed(expr, receiver, types, name);
       return;
 
@@ -4847,14 +4900,49 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   TypeInfo info = oracle()->CompareType(expr, TypeFeedbackOracle::RESULT);
   HInstruction* instr = NULL;
   if (op == Token::INSTANCEOF) {
-    instr = new HInstanceOf(left, right);
+    // Check to see if the rhs of the instanceof is a global function not
+    // residing in new space. If it is we assume that the function will stay the
+    // same.
+    Handle<JSFunction> target = Handle<JSFunction>::null();
+    Variable* var = expr->right()->AsVariableProxy()->AsVariable();
+    bool global_function = (var != NULL) && var->is_global() && !var->is_this();
+    CompilationInfo* info = graph()->info();
+    if (global_function &&
+        info->has_global_object() &&
+        !info->global_object()->IsAccessCheckNeeded()) {
+      Handle<String> name = var->name();
+      Handle<GlobalObject> global(info->global_object());
+      LookupResult lookup;
+      global->Lookup(*name, &lookup);
+      if (lookup.IsProperty() &&
+          lookup.type() == NORMAL &&
+          lookup.GetValue()->IsJSFunction()) {
+        Handle<JSFunction> candidate(JSFunction::cast(lookup.GetValue()));
+        // If the function is in new space we assume it's more likely to
+        // change and thus prefer the general IC code.
+        if (!Heap::InNewSpace(*candidate)) {
+          target = candidate;
+        }
+      }
+    }
+
+    // If the target is not null we have found a known global function that is
+    // assumed to stay the same for this instanceof.
+    if (target.is_null()) {
+      instr = new HInstanceOf(left, right);
+    } else {
+      AddInstruction(new HCheckFunction(right, target));
+      instr = new HInstanceOfKnownGlobal(left, target);
+    }
   } else if (op == Token::IN) {
     BAILOUT("Unsupported comparison: in");
   } else if (info.IsNonPrimitive()) {
     switch (op) {
       case Token::EQ:
       case Token::EQ_STRICT: {
+        AddInstruction(new HCheckNonSmi(left));
         AddInstruction(HCheckInstanceType::NewIsJSObjectOrJSFunction(left));
+        AddInstruction(new HCheckNonSmi(right));
         AddInstruction(HCheckInstanceType::NewIsJSObjectOrJSFunction(right));
         instr = new HCompareJSObjectEq(left, right);
         break;
@@ -5262,6 +5350,19 @@ void HEnvironment::Initialize(int parameter_count,
 }
 
 
+void HEnvironment::Initialize(const HEnvironment* other) {
+  closure_ = other->closure();
+  values_.AddAll(other->values_);
+  assigned_variables_.AddAll(other->assigned_variables_);
+  parameter_count_ = other->parameter_count_;
+  local_count_ = other->local_count_;
+  if (other->outer_ != NULL) outer_ = other->outer_->Copy();  // Deep copy.
+  pop_count_ = other->pop_count_;
+  push_count_ = other->push_count_;
+  ast_id_ = other->ast_id_;
+}
+
+
 void HEnvironment::AddIncomingEdge(HBasicBlock* block, HEnvironment* other) {
   ASSERT(!block->IsLoopHeader());
   ASSERT(values_.length() == other->values_.length());
@@ -5292,26 +5393,45 @@ void HEnvironment::AddIncomingEdge(HBasicBlock* block, HEnvironment* other) {
 }
 
 
-void HEnvironment::Initialize(const HEnvironment* other) {
-  closure_ = other->closure();
-  values_.AddAll(other->values_);
-  assigned_variables_.AddAll(other->assigned_variables_);
-  parameter_count_ = other->parameter_count_;
-  local_count_ = other->local_count_;
-  if (other->outer_ != NULL) outer_ = other->outer_->Copy();  // Deep copy.
-  pop_count_ = other->pop_count_;
-  push_count_ = other->push_count_;
-  ast_id_ = other->ast_id_;
+void HEnvironment::Bind(int index, HValue* value) {
+  ASSERT(value != NULL);
+  if (!assigned_variables_.Contains(index)) {
+    assigned_variables_.Add(index);
+  }
+  values_[index] = value;
 }
 
 
-int HEnvironment::IndexFor(Variable* variable) const {
-  Slot* slot = variable->AsSlot();
-  ASSERT(slot != NULL && slot->IsStackAllocated());
-  if (slot->type() == Slot::PARAMETER) {
-    return slot->index() + 1;
-  } else {
-    return parameter_count_ + slot->index();
+bool HEnvironment::HasExpressionAt(int index) const {
+  return index >= parameter_count_ + local_count_;
+}
+
+
+bool HEnvironment::ExpressionStackIsEmpty() const {
+  int first_expression = parameter_count() + local_count();
+  ASSERT(length() >= first_expression);
+  return length() == first_expression;
+}
+
+
+void HEnvironment::SetExpressionStackAt(int index_from_top, HValue* value) {
+  int count = index_from_top + 1;
+  int index = values_.length() - count;
+  ASSERT(HasExpressionAt(index));
+  // The push count must include at least the element in question or else
+  // the new value will not be included in this environment's history.
+  if (push_count_ < count) {
+    // This is the same effect as popping then re-pushing 'count' elements.
+    pop_count_ += (count - push_count_);
+    push_count_ = count;
+  }
+  values_[index] = value;
+}
+
+
+void HEnvironment::Drop(int count) {
+  for (int i = 0; i < count; ++i) {
+    Pop();
   }
 }
 
@@ -5376,7 +5496,7 @@ HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
 
 
 void HEnvironment::PrintTo(StringStream* stream) {
-  for (int i = 0; i < total_count(); i++) {
+  for (int i = 0; i < length(); i++) {
     if (i == 0) stream->Add("parameters\n");
     if (i == parameter_count()) stream->Add("locals\n");
     if (i == parameter_count() + local_count()) stream->Add("expressions");
@@ -5614,31 +5734,40 @@ void HStatistics::Print() {
     PrintF("%30s", names_[i]);
     double ms = static_cast<double>(timing_[i]) / 1000;
     double percent = static_cast<double>(timing_[i]) * 100 / sum;
-    PrintF(" - %0.3f ms / %0.3f %% \n", ms, percent);
+    PrintF(" - %7.3f ms / %4.1f %% ", ms, percent);
+
+    unsigned size = sizes_[i];
+    double size_percent = static_cast<double>(size) * 100 / total_size_;
+    PrintF(" %8u bytes / %4.1f %%\n", size, size_percent);
   }
-  PrintF("%30s - %0.3f ms \n", "Sum", static_cast<double>(sum) / 1000);
+  PrintF("%30s - %7.3f ms           %8u bytes\n", "Sum",
+         static_cast<double>(sum) / 1000,
+         total_size_);
   PrintF("---------------------------------------------------------------\n");
-  PrintF("%30s - %0.3f ms (%0.1f times slower than full code gen)\n",
+  PrintF("%30s - %7.3f ms (%.1f times slower than full code gen)\n",
          "Total",
          static_cast<double>(total_) / 1000,
          static_cast<double>(total_) / full_code_gen_);
 }
 
 
-void HStatistics::SaveTiming(const char* name, int64_t ticks) {
+void HStatistics::SaveTiming(const char* name, int64_t ticks, unsigned size) {
   if (name == HPhase::kFullCodeGen) {
     full_code_gen_ += ticks;
   } else if (name == HPhase::kTotal) {
     total_ += ticks;
   } else {
+    total_size_ += size;
     for (int i = 0; i < names_.length(); ++i) {
       if (names_[i] == name) {
         timing_[i] += ticks;
+        sizes_[i] += size;
         return;
       }
     }
     names_.Add(name);
     timing_.Add(ticks);
+    sizes_.Add(size);
   }
 }
 
@@ -5659,13 +5788,15 @@ void HPhase::Begin(const char* name,
     chunk_ = allocator->chunk();
   }
   if (FLAG_time_hydrogen) start_ = OS::Ticks();
+  start_allocation_size_ = Zone::allocation_size_;
 }
 
 
 void HPhase::End() const {
   if (FLAG_time_hydrogen) {
     int64_t end = OS::Ticks();
-    HStatistics::Instance()->SaveTiming(name_, end - start_);
+    unsigned size = Zone::allocation_size_ - start_allocation_size_;
+    HStatistics::Instance()->SaveTiming(name_, end - start_, size);
   }
 
   if (FLAG_trace_hydrogen) {
@@ -5678,7 +5809,6 @@ void HPhase::End() const {
 
 #ifdef DEBUG
   if (graph_ != NULL) graph_->Verify();
-  if (chunk_ != NULL) chunk_->Verify();
   if (allocator_ != NULL) allocator_->Verify();
 #endif
 }

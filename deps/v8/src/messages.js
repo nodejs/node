@@ -97,6 +97,12 @@ function ToDetailString(obj) {
     var constructorName = constructor.name;
     if (!constructorName) return ToString(obj);
     return "#<" + GetInstanceName(constructorName) + ">";
+  } else if (obj instanceof $Error) {
+    // When formatting internally created error messages, do not
+    // invoke overwritten error toString methods but explicitly use
+    // the error to string method. This is to avoid leaking error
+    // objects between script tags in a browser setting.
+    return %_CallFunction(obj, errorToString);
   } else {
     return ToString(obj);
   }
@@ -943,15 +949,28 @@ function DefineError(f) {
   }
   %FunctionSetInstanceClassName(f, 'Error');
   %SetProperty(f.prototype, 'constructor', f, DONT_ENUM);
-  f.prototype.name = name;
+  // The name property on the prototype of error objects is not
+  // specified as being read-one and dont-delete. However, allowing
+  // overwriting allows leaks of error objects between script blocks
+  // in the same context in a browser setting. Therefore we fix the
+  // name.
+  %SetProperty(f.prototype, "name", name, READ_ONLY | DONT_DELETE);
   %SetCode(f, function(m) {
     if (%_IsConstructCall()) {
+      // Define all the expected properties directly on the error
+      // object. This avoids going through getters and setters defined
+      // on prototype objects.
+      %IgnoreAttributesAndSetProperty(this, 'stack', void 0);
+      %IgnoreAttributesAndSetProperty(this, 'arguments', void 0);
+      %IgnoreAttributesAndSetProperty(this, 'type', void 0);
       if (m === kAddMessageAccessorsMarker) {
+        // DefineOneShotAccessor always inserts a message property and
+        // ignores setters.
         DefineOneShotAccessor(this, 'message', function (obj) {
           return FormatMessage({type: obj.type, args: obj.arguments});
         });
       } else if (!IS_UNDEFINED(m)) {
-        this.message = ToString(m);
+        %IgnoreAttributesAndSetProperty(this, 'message', ToString(m));
       }
       captureStackTrace(this, f);
     } else {
@@ -987,14 +1006,17 @@ $Error.captureStackTrace = captureStackTrace;
 // Setup extra properties of the Error.prototype object.
 $Error.prototype.message = '';
 
-%SetProperty($Error.prototype, 'toString', function toString() {
+function errorToString() {
   var type = this.type;
   if (type && !this.hasOwnProperty("message")) {
     return this.name + ": " + FormatMessage({ type: type, args: this.arguments });
   }
-  var message = this.message;
-  return this.name + (message ? (": " + message) : "");
-}, DONT_ENUM);
+  var message = this.hasOwnProperty("message") ? (": " + this.message) : "";
+  return this.name + message;
+}
+
+%FunctionSetName(errorToString, 'toString');
+%SetProperty($Error.prototype, 'toString', errorToString, DONT_ENUM);
 
 
 // Boilerplate for exceptions for stack overflows. Used from

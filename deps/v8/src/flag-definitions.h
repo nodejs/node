@@ -122,7 +122,6 @@ DEFINE_bool(trace_inlining, false, "trace inlining decisions")
 DEFINE_bool(trace_alloc, false, "trace register allocator")
 DEFINE_bool(trace_range, false, "trace range analysis")
 DEFINE_bool(trace_gvn, false, "trace global value numbering")
-DEFINE_bool(trace_environment, false, "trace lithium environments")
 DEFINE_bool(trace_representation, false, "trace representation types")
 DEFINE_bool(stress_pointer_maps, false, "pointer map for every instruction")
 DEFINE_bool(stress_environments, false, "environment for every instruction")
@@ -142,6 +141,7 @@ DEFINE_bool(use_osr, false, "use on-stack replacement")
 #endif
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
+DEFINE_bool(optimize_closures, true, "optimize closures")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
@@ -355,6 +355,16 @@ DEFINE_int(debugger_port, 5858, "Port to use for remote debugging")
 DEFINE_string(map_counters, NULL, "Map counters to a file")
 DEFINE_args(js_arguments, JSArguments(),
             "Pass all remaining arguments to the script. Alias for \"--\".")
+
+#if defined(WEBOS__)
+DEFINE_bool(debug_compile_events, false, "Enable debugger compile events")
+DEFINE_bool(debug_script_collected_events, false,
+            "Enable debugger script collected events")
+#else
+DEFINE_bool(debug_compile_events, true, "Enable debugger compile events")
+DEFINE_bool(debug_script_collected_events, true,
+            "Enable debugger script collected events")
+#endif
 
 //
 // Debug only flags

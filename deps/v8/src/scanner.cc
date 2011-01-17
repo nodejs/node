@@ -48,14 +48,18 @@ BufferedUC16CharacterStream::BufferedUC16CharacterStream()
 
 BufferedUC16CharacterStream::~BufferedUC16CharacterStream() { }
 
-void BufferedUC16CharacterStream::PushBack(uc16 character) {
-  if (pushback_limit_ == NULL && buffer_cursor_ > buffer_) {
-    // buffer_ is writable, buffer_cursor_ is const pointer.
-    buffer_[--buffer_cursor_ - buffer_] = character;
+void BufferedUC16CharacterStream::PushBack(uc32 character) {
+  if (character == kEndOfInput) {
     pos_--;
     return;
   }
-  SlowPushBack(character);
+  if (pushback_limit_ == NULL && buffer_cursor_ > buffer_) {
+    // buffer_ is writable, buffer_cursor_ is const pointer.
+    buffer_[--buffer_cursor_ - buffer_] = static_cast<uc16>(character);
+    pos_--;
+    return;
+  }
+  SlowPushBack(static_cast<uc16>(character));
 }
 
 
@@ -324,10 +328,8 @@ void Scanner::LiteralScope::Complete() {
 V8JavaScriptScanner::V8JavaScriptScanner() : JavaScriptScanner() { }
 
 
-void V8JavaScriptScanner::Initialize(UC16CharacterStream* source,
-                                     int literal_flags) {
+void V8JavaScriptScanner::Initialize(UC16CharacterStream* source) {
   source_ = source;
-  literal_flags_ = literal_flags | kLiteralIdentifier;
   // Need to capture identifiers in order to recognize "get" and "set"
   // in object literals.
   Init();
@@ -377,7 +379,7 @@ bool JsonScanner::SkipJsonWhiteSpace() {
 
 
 void JsonScanner::ScanJson() {
-  next_.literal_chars = Vector<const char>();
+  next_.literal_chars = NULL;
   Token::Value token;
   do {
     // Remember the position of the next token
@@ -459,7 +461,7 @@ Token::Value JsonScanner::ScanJsonString() {
   ASSERT_EQ('"', c0_);
   Advance();
   LiteralScope literal(this);
-  while (c0_ != '"' && c0_ > 0) {
+  while (c0_ != '"') {
     // Check for control character (0x00-0x1f) or unterminated string (<0).
     if (c0_ < 0x20) return Token::ILLEGAL;
     if (c0_ != '\\') {
@@ -505,9 +507,6 @@ Token::Value JsonScanner::ScanJsonString() {
       }
       Advance();
     }
-  }
-  if (c0_ != '"') {
-    return Token::ILLEGAL;
   }
   literal.Complete();
   Advance();

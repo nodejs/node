@@ -2465,6 +2465,17 @@ void Assembler::pxor(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::por(XMMRegister dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xEB);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::ptest(XMMRegister dst, XMMRegister src) {
   ASSERT(CpuFeatures::IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
@@ -2486,6 +2497,40 @@ void Assembler::psllq(XMMRegister reg, int8_t shift) {
   EMIT(0x73);
   emit_sse_operand(esi, reg);  // esi == 6
   EMIT(shift);
+}
+
+
+void Assembler::psllq(XMMRegister dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xF3);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::psrlq(XMMRegister reg, int8_t shift) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x73);
+  emit_sse_operand(edx, reg);  // edx == 2
+  EMIT(shift);
+}
+
+
+void Assembler::psrlq(XMMRegister dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xD3);
+  emit_sse_operand(dst, src);
 }
 
 

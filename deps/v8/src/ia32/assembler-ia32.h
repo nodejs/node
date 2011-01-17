@@ -919,9 +919,13 @@ class Assembler : public Malloced {
 
   void pand(XMMRegister dst, XMMRegister src);
   void pxor(XMMRegister dst, XMMRegister src);
+  void por(XMMRegister dst, XMMRegister src);
   void ptest(XMMRegister dst, XMMRegister src);
 
   void psllq(XMMRegister reg, int8_t shift);
+  void psllq(XMMRegister dst, XMMRegister src);
+  void psrlq(XMMRegister reg, int8_t shift);
+  void psrlq(XMMRegister dst, XMMRegister src);
   void pshufd(XMMRegister dst, XMMRegister src, int8_t shuffle);
   void pextrd(const Operand& dst, XMMRegister src, int8_t offset);
 

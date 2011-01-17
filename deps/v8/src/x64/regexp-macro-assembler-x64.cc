@@ -223,9 +223,7 @@ void RegExpMacroAssemblerX64::CheckCharacters(Vector<const uc16> str,
   // If input is ASCII, don't even bother calling here if the string to
   // match contains a non-ascii character.
   if (mode_ == ASCII) {
-    for (int i = 0; i < str.length(); i++) {
-      ASSERT(str[i] <= String::kMaxAsciiCharCodeU);
-    }
+    ASSERT(String::IsAscii(str.start(), str.length()));
   }
 #endif
   int byte_length = str.length() * char_size();
@@ -690,7 +688,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
 
 void RegExpMacroAssemblerX64::Fail() {
   ASSERT(FAILURE == 0);  // Return value for failure is zero.
-  __ xor_(rax, rax);  // zero rax.
+  __ Set(rax, 0);
   __ jmp(&exit_label_);
 }
 

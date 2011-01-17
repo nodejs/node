@@ -28,10 +28,6 @@
 #ifndef V8_UTILS_H_
 #define V8_UTILS_H_
 
-#ifdef __MINGW32__
-#include <stdarg.h>
-#endif
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -534,6 +530,24 @@ class Collector {
   }
 
 
+  // Add a contiguous block of elements and return a vector backed
+  // by the added block.
+  // A basic Collector will keep this vector valid as long as the Collector
+  // is alive.
+  inline Vector<T> AddBlock(Vector<const T> source) {
+    if (source.length() > current_chunk_.length() - index_) {
+      Grow(source.length());
+    }
+    T* position = current_chunk_.start() + index_;
+    index_ += source.length();
+    size_ += source.length();
+    for (int i = 0; i < source.length(); i++) {
+      position[i] = source[i];
+    }
+    return Vector<T>(position, source.length());
+  }
+
+
   // Write the contents of the collector into the provided vector.
   void WriteTo(Vector<T> destination) {
     ASSERT(size_ <= destination.length());
@@ -758,7 +772,7 @@ inline Dest BitCast(const Source& source) {
 }
 
 template <class Dest, class Source>
-inline Dest BitCast(Source*& source) {
+inline Dest BitCast(Source* source) {
   return BitCast<Dest>(reinterpret_cast<uintptr_t>(source));
 }
 

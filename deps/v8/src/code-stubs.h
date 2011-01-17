@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -34,7 +34,7 @@ namespace v8 {
 namespace internal {
 
 // List of code stubs used on all platforms. The order in this list is important
-// as only the stubs up to and including RecordWrite allows nested stub calls.
+// as only the stubs up to and including Instanceof allows nested stub calls.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
   V(GenericBinaryOp)                     \
@@ -48,7 +48,7 @@ namespace internal {
   V(CompareIC)                           \
   V(MathPow)                             \
   V(TranscendentalCache)                 \
-  V(RecordWrite)                         \
+  V(Instanceof)                          \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
   V(IntegerMod)                          \
@@ -59,7 +59,6 @@ namespace internal {
   V(GenericUnaryOp)                      \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
-  V(Instanceof)                          \
   V(CounterOp)                           \
   V(ArgumentsAccess)                     \
   V(RegExpExec)                          \
@@ -180,7 +179,7 @@ class CodeStub BASE_EMBEDDED {
            MajorKeyBits::encode(MajorKey());
   }
 
-  bool AllowsStubCalls() { return MajorKey() <= RecordWrite; }
+  bool AllowsStubCalls() { return MajorKey() <= Instanceof; }
 
   class MajorKeyBits: public BitField<uint32_t, 0, kMajorBits> {};
   class MinorKeyBits: public BitField<uint32_t, kMajorBits, kMinorBits> {};
@@ -327,22 +326,38 @@ class InstanceofStub: public CodeStub {
  public:
   enum Flags {
     kNoFlags = 0,
-    kArgsInRegisters = 1 << 0
+    kArgsInRegisters = 1 << 0,
+    kCallSiteInlineCheck = 1 << 1,
+    kReturnTrueFalseObject = 1 << 2
   };
 
-  explicit InstanceofStub(Flags flags) : flags_(flags) { }
+  explicit InstanceofStub(Flags flags) : flags_(flags), name_(NULL) { }
+
+  static Register left();
+  static Register right();
 
   void Generate(MacroAssembler* masm);
 
  private:
   Major MajorKey() { return Instanceof; }
-  int MinorKey() { return args_in_registers() ? 1 : 0; }
+  int MinorKey() { return static_cast<int>(flags_); }
 
-  bool args_in_registers() {
+  bool HasArgsInRegisters() const {
     return (flags_ & kArgsInRegisters) != 0;
   }
 
+  bool HasCallSiteInlineCheck() const {
+    return (flags_ & kCallSiteInlineCheck) != 0;
+  }
+
+  bool ReturnTrueFalseObject() const {
+    return (flags_ & kReturnTrueFalseObject) != 0;
+  }
+
+  const char* GetName();
+
   Flags flags_;
+  char* name_;
 };
 
 
@@ -707,6 +722,10 @@ class CallFunctionStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
+  static int ExtractArgcFromMinorKey(int minor_key) {
+    return ArgcBits::decode(minor_key);
+  }
+
  private:
   int argc_;
   InLoopFlag in_loop_;
@@ -737,11 +756,6 @@ class CallFunctionStub: public CodeStub {
   InLoopFlag InLoop() { return in_loop_; }
   bool ReceiverMightBeValue() {
     return (flags_ & RECEIVER_MIGHT_BE_VALUE) != 0;
-  }
-
- public:
-  static int ExtractArgcFromMinorKey(int minor_key) {
-    return ArgcBits::decode(minor_key);
   }
 };
 
@@ -900,6 +914,24 @@ class StringCharAtGenerator {
   StringCharFromCodeGenerator char_from_code_generator_;
 
   DISALLOW_COPY_AND_ASSIGN(StringCharAtGenerator);
+};
+
+
+class AllowStubCallsScope {
+ public:
+  AllowStubCallsScope(MacroAssembler* masm, bool allow)
+       : masm_(masm), previous_allow_(masm->allow_stub_calls()) {
+    masm_->set_allow_stub_calls(allow);
+  }
+  ~AllowStubCallsScope() {
+    masm_->set_allow_stub_calls(previous_allow_);
+  }
+
+ private:
+  MacroAssembler* masm_;
+  bool previous_allow_;
+
+  DISALLOW_COPY_AND_ASSIGN(AllowStubCallsScope);
 };
 
 } }  // namespace v8::internal

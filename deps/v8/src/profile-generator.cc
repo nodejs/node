@@ -2385,7 +2385,7 @@ bool HeapSnapshotGenerator::IterateAndExtractReferences() {
   if (interrupted) return false;
   SetRootGcRootsReference();
   RootsReferencesExtractor extractor(this);
-  Heap::IterateRoots(&extractor, VISIT_ONLY_STRONG);
+  Heap::IterateRoots(&extractor, VISIT_ALL);
   return ReportProgress();
 }
 

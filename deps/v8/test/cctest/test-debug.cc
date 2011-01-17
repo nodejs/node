@@ -3712,7 +3712,7 @@ TEST(BreakOnException) {
   v8::V8::AddMessageListener(MessageCallbackCount);
   v8::Debug::SetDebugEventListener(DebugEventCounter);
 
-  // Initial state should be break on uncaught exception.
+  // Initial state should be no break on exceptions.
   DebugEventCounterClear();
   MessageCallbackCountClear();
   caught->Call(env->Global(), 0, NULL);
@@ -3720,8 +3720,8 @@ TEST(BreakOnException) {
   CHECK_EQ(0, uncaught_exception_hit_count);
   CHECK_EQ(0, message_callback_count);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
+  CHECK_EQ(0, exception_hit_count);
+  CHECK_EQ(0, uncaught_exception_hit_count);
   CHECK_EQ(1, message_callback_count);
 
   // No break on exception
@@ -3841,6 +3841,9 @@ TEST(BreakOnCompileException) {
   v8::HandleScope scope;
   DebugLocalContext env;
 
+  // For this test, we want to break on uncaught exceptions:
+  ChangeBreakOnException(false, true);
+
   v8::internal::Top::TraceException(false);
 
   // Create a function for checking the function when hitting a break point.
@@ -3891,6 +3894,9 @@ TEST(BreakOnCompileException) {
 TEST(StepWithException) {
   v8::HandleScope scope;
   DebugLocalContext env;
+
+  // For this test, we want to break on uncaught exceptions:
+  ChangeBreakOnException(false, true);
 
   // Create a function for checking the function when hitting a break point.
   frame_function_name = CompileFunction(&env,
@@ -6523,6 +6529,10 @@ static void ExceptionMessageHandler(const v8::Debug::Message& message) {
 TEST(ExceptionMessageWhenMessageHandlerIsReset) {
   v8::HandleScope scope;
   DebugLocalContext env;
+
+  // For this test, we want to break on uncaught exceptions:
+  ChangeBreakOnException(false, true);
+
   exception_event_count = 0;
   const char* script = "function f() {throw new Error()};";
 

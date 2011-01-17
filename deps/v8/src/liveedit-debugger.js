@@ -144,8 +144,8 @@ Debug.LiveEdit = new function() {
           replace_code_list[i].live_shared_function_infos;
 
       if (live_shared_function_infos) {
-        for (var i = 0; i < live_shared_function_infos.length; i++) {
-          replaced_function_infos.push(live_shared_function_infos[i]);
+        for (var j = 0; j < live_shared_function_infos.length; j++) {
+          replaced_function_infos.push(live_shared_function_infos[j]);
         }
       }
     }
@@ -980,15 +980,15 @@ Debug.LiveEdit = new function() {
   // LiveEdit main entry point: changes a script text to a new string.
   function SetScriptSource(script, new_source, preview_only, change_log) {
     var old_source = script.source;
-    var diff = CompareStringsLinewise(old_source, new_source);
+    var diff = CompareStrings(old_source, new_source);
     return ApplyPatchMultiChunk(script, diff, new_source, preview_only,
         change_log);
   }
   // Function is public.
   this.SetScriptSource = SetScriptSource;
 
-  function CompareStringsLinewise(s1, s2) {
-    return %LiveEditCompareStringsLinewise(s1, s2);
+  function CompareStrings(s1, s2) {
+    return %LiveEditCompareStrings(s1, s2);
   }
 
   // Applies the change to the script.
@@ -1076,7 +1076,7 @@ Debug.LiveEdit = new function() {
   // Functions are public for tests.
   this.TestApi = {
     PosTranslator: PosTranslator,
-    CompareStringsLinewise: CompareStringsLinewise,
+    CompareStrings: CompareStrings,
     ApplySingleChunkPatch: ApplySingleChunkPatch
   }
 }
