@@ -35,11 +35,6 @@
   that relays everything to an internal socket?
   Also verify writeError and isStdoutBlocking correctness.
 
-- Think about exposing the platform through the process object
-  It sucks but it may be necessary to know which platfom you're running on, e.g.
-  you can't do spawn('grep') on windows (unless there's msys).
-  Something like process.os or process.platform?
-
 - Skip/fix tests that can never pass on windows
 
 - Find a solution for fs.symlink / fs.lstat / fs.chown
@@ -70,10 +65,6 @@
   headers must have `dllimport`.
 
 - V8: push MINGW32 build fixes upstream
-  (mostly done, V8 3.0.0 introduces some new issues)
-
-- Work with the V8 team to get the stack corruption bug fixed
-  (fixed in 3.0.0)
 
 - Work around missing pread/pwrite more elegantly
   Currently it's exported from libeio, while it wasn't intended to be exported.
