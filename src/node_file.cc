@@ -24,29 +24,32 @@
 #define PATH_MAX 4096
 #endif
 
-/* HACK to use pread/pwrite from eio because MINGW32 doesn't have it /*
+/* HACK to use pread/pwrite from eio because MINGW32 doesn't have it */
 /* TODO fixme */
 #ifdef __MINGW32__
 # define pread  eio__pread
 # define pwrite eio__pwrite
 #endif
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
-
 namespace node {
 
 using namespace v8;
 
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define THROW_BAD_ARGS \
   ThrowException(Exception::TypeError(String::New("Bad argument")))
+
 static Persistent<String> encoding_symbol;
 static Persistent<String> errno_symbol;
 static Persistent<String> buf_symbol;
 
 // Buffer for readlink()  and other misc callers; keep this scoped at
 // file-level rather than method-level to avoid excess stack usage.
-static char getbuf[PATH_MAX + 1];
+// Not used on windows atm
+#ifdef __POSIX__
+  static char getbuf[PATH_MAX + 1];
+#endif
 
 static int After(eio_req *req) {
   HandleScope scope;

@@ -25,7 +25,7 @@
 #endif  // __OpenBSD__
 
 /*
- * HACK to use inet_pton/inet_ntop from c-ares because mingw32 doesn't have it /*
+ * HACK to use inet_pton/inet_ntop from c-ares because mingw32 doesn't have it
  * This trick is used in node_net.cc as well
  * TODO fixme
  */

@@ -75,7 +75,7 @@ class ChildProcess : ObjectWrap {
   // called still.
   int Kill(int sig);
 
-private:
+ private:
   void OnExit(int code);
 
 #ifdef __POSIX__ // Shouldn't this just move to node_child_process.cc?

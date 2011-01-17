@@ -73,7 +73,8 @@ static Handle<Value> GetOSRelease(const Arguments& args) {
     return Undefined();
   }
 
-  sprintf(release, "%d.%d.%d", info.dwMajorVersion, info.dwMinorVersion, info.dwBuildNumber);
+  sprintf(release, "%d.%d.%d", static_cast<int>(info.dwMajorVersion),
+      static_cast<int>(info.dwMinorVersion), static_cast<int>(info.dwBuildNumber));
 #endif
 
   return scope.Close(String::New(release));

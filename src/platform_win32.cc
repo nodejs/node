@@ -17,7 +17,6 @@ namespace node {
 
 using namespace v8;
 
-static char buf[MAXPATHLEN + 1];
 static char *process_title = NULL;
 
 
