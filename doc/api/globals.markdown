@@ -13,11 +13,11 @@ scope; `var something` inside a Node module will be local to that module.
 
 ### process
 
-The process object. See the `'process object'` section.
+The process object. See the 'process object' section.
 
 ### require()
 
-To require modules. See the `'Modules'` section.
+To require modules. See the 'Modules' section.
 
 ### require.resolve()
 
