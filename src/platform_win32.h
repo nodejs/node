@@ -42,6 +42,7 @@ namespace node {
 #define NO_IMPL_MSG(name...) \
     fprintf(stderr, "Not implemented: %s\n", #name);
 
+const char *winapi_strerror(const int errorno);
 void winapi_perror(const char* prefix);
 
 }

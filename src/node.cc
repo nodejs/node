@@ -1004,7 +1004,13 @@ Local<Value> ErrnoException(int errorno,
                             const char *path) {
   Local<Value> e;
   Local<String> estring = String::NewSymbol(errno_string(errorno));
-  if (!msg[0]) msg = strerror(errorno);
+  if (!msg[0]) {
+#ifdef __POSIX__
+    msg = strerror(errorno);
+#else // __MINGW32__
+    msg = winapi_strerror(errorno);
+#endif
+  }
   Local<String> message = String::NewSymbol(msg);
 
   Local<String> cons1 = String::Concat(estring, String::NewSymbol(", "));

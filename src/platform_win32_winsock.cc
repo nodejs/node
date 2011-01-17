@@ -110,11 +110,15 @@ static struct WINSOCK_EXTENSION_FUNCTIONS {
  */
 void wsa_perror(const char *prefix) {
   DWORD errorno = WSAGetLastError();
-  char *errmsg;
+  const char *errmsg = NULL;
 
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                NULL, errorno, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, NULL);
+  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+      FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorno,
+      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, NULL);
 
+  if (!errmsg) {
+    errmsg = "Unknown error\n";
+  }
   // FormatMessage messages include a newline character
 
   if (prefix) {
