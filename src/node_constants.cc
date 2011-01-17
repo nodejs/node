@@ -1,14 +1,14 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #include <node_constants.h>
 
+#include <ev.h>
+
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#include <ev.h>
 
 namespace node {
 

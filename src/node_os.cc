@@ -1,20 +1,22 @@
-#include <node_os.h>
 
 #include <node.h>
-#include <v8.h>
+#include <node_os.h>
+#include <platform.h>
 
-#include "platform.h"
+#include <v8.h>
 
 #include <errno.h>
 #include <string.h>
 
+#ifdef __MINGW32__
+# include <platform_win32.h>
+# include <platform_win32_winsock.h>
+#endif
+
 #ifdef __POSIX__
 # include <unistd.h>  // gethostname, sysconf
 # include <sys/utsname.h>
-#else // __MINGW32__
-# include <windows.h> // GetVersionEx
-# include <winsock2.h> // gethostname
-#endif // __MINGW32__
+#endif
 
 namespace node {
 

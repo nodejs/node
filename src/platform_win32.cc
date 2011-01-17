@@ -1,15 +1,17 @@
-#include "node.h"
-#include "platform.h"
-#include "platform_win32.h"
+
+#include <node.h>
+#include <platform.h>
 
 #include <v8.h>
 
 #include <errno.h>
+#include <stdlib.h>
 #include <sys/param.h> // for MAXPATHLEN
 #include <unistd.h> // getpagesize
-#include <windows.h>
 
-#include "platform_win32_winsock.cc"
+#include <platform_win32.h>
+
+#include <platform_win32_winsock.cc>
 
 namespace node {
 

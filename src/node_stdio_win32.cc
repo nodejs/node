@@ -1,8 +1,12 @@
-#include <io.h>
 #include <node.h>
 #include <node_stdio.h>
-#include <platform_win32.h>
+
 #include <v8.h>
+
+#include <errno.h>
+#include <io.h>
+
+#include <platform_win32.h>
 
 using namespace v8;
 namespace node {

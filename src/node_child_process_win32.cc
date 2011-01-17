@@ -1,16 +1,6 @@
 
-// RegisterWaitForSingleObject requires Windows 2000,
-// GetProcessId requires windows XP SP1
-#define _WIN32_WINNT 0x0501
-
-
 #include <node.h>
 #include <node_child_process.h>
-#include <platform_win32.h>
-#include <platform_win32_winsock.h>
-
-#include <windows.h>
-#include <winsock.h>
 
 #include <v8.h>
 #include <ev.h>
@@ -23,6 +13,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 
+#include <platform_win32.h>
+#include <platform_win32_winsock.h>
 
 namespace node {
 

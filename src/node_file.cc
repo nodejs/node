@@ -16,7 +16,7 @@
 #include <limits.h>
 
 #ifdef __MINGW32__
-#include <windows.h>
+# include <platform_win32.h>
 #endif
 
 /* used for readlink, AIX doesn't provide it */

@@ -7,13 +7,7 @@
  */
 
 
-#include <windows.h>
-#include <winsock2.h>
-#include <mswsock.h>
-#include <ws2tcpip.h>
-#include <ws2spi.h>
 #include <platform_win32_winsock.h>
-
 
 namespace node {
 

@@ -1,8 +1,10 @@
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+
 #include <node.h>
 
-#include <locale.h>
+#include <v8-debug.h>
 
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -14,17 +16,18 @@
 #include <sys/types.h>
 #include <unistd.h> /* setuid, getuid */
 
-#include "platform.h"
-
 #ifdef __MINGW32__
 # include <platform_win32.h> /* winapi_perror() */
 # include <platform_win32_winsock.h> /* wsa_init() */
-#else // __POSIX__
+#endif
+
+#ifdef __POSIX__
 # include <dlfcn.h> /* dlopen(), dlsym() */
 # include <pwd.h> /* getpwnam() */
 # include <grp.h> /* getgrnam() */
 #endif
 
+#include <platform.h>
 #include <node_buffer.h>
 #include <node_io_watcher.h>
 #include <node_net.h>
@@ -45,11 +48,9 @@
 #include <node_javascript.h>
 #include <node_version.h>
 #ifdef HAVE_OPENSSL
-#include <node_crypto.h>
+# include <node_crypto.h>
 #endif
 #include <node_script.h>
-
-#include <v8-debug.h>
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 

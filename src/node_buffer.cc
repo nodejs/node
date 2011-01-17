@@ -1,18 +1,22 @@
+
+#include <node.h>
 #include <node_buffer.h>
+
+#include <v8.h>
 
 #include <assert.h>
 #include <stdlib.h> // malloc, free
-#include <v8.h>
-
 #include <string.h> // memcpy
 
 #ifdef __MINGW32__
-# include <winsock2.h> // htons, htonl
-#else // __POSIX__
+# include <platform.h>
+# include <platform_win32_winsock.h> // htons, htonl
+#endif
+
+#ifdef __POSIX__
 # include <arpa/inet.h> // htons, htonl
 #endif
 
-#include <node.h>
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 

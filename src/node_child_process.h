@@ -4,11 +4,12 @@
 
 #include <node.h>
 #include <node_object_wrap.h>
+
 #include <v8.h>
 #include <ev.h>
 
 #ifdef __MINGW32__
-# include <windows.h> // HANDLE type
+# include <platform_win32.h> // HANDLE type
 #endif
 
 // ChildProcess is a thin wrapper around ev_child. It has the extra

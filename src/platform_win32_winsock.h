@@ -1,11 +1,14 @@
 #ifndef NODE_PLATFORM_WIN32_WINSOCK_H_
 #define NODE_PLATFORM_WIN32_WINSOCK_H_
 
-#include <windows.h>
-#include <winsock.h>
+#include <platform_win32.h>
+
+#include <winsock2.h>
+#include <mswsock.h>
+#include <ws2tcpip.h>
+#include <ws2spi.h>
 
 namespace node {
-
 
 void wsa_init();
 
