@@ -1,9 +1,3 @@
-#ifdef __MINGW32__
-# include <node_child_process_win32.cc>
-#endif
-
-#ifdef __POSIX__
-
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #include <node_child_process.h>
 #include <node.h>
@@ -503,5 +497,3 @@ int ChildProcess::Kill(int sig) {
 }  // namespace node
 
 NODE_MODULE(node_child_process, node::ChildProcess::Initialize);
-
-#endif // __POSIX__

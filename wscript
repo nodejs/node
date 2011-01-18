@@ -619,18 +619,24 @@ def build(bld):
     src/node_http_parser.cc
     src/node_net.cc
     src/node_io_watcher.cc
-    src/node_child_process.cc
     src/node_constants.cc
     src/node_cares.cc
     src/node_events.cc
     src/node_file.cc
     src/node_signal_watcher.cc
     src/node_stat_watcher.cc
-    src/node_stdio.cc
     src/node_timer.cc
     src/node_script.cc
     src/node_os.cc
   """
+
+  if sys.platform.startswith("win32"):
+    node.source += " src/node_stdio_win32.cc "
+    node.source += " src/node_child_process_win32.cc "
+  else:
+    node.source += " src/node_stdio.cc "
+    node.source += " src/node_child_process.cc "
+
   node.source += bld.env["PLATFORM_FILE"]
   if not product_type_is_lib:
     node.source = 'src/node_main.cc '+node.source

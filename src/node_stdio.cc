@@ -1,9 +1,3 @@
-#ifdef __MINGW32__
-# include "node_stdio_win32.cc"
-#endif
-
-#ifdef __POSIX__
-
 #include <node_stdio.h>
 #include <node_events.h>
 
@@ -315,5 +309,3 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
 }  // namespace node
 
 NODE_MODULE(node_stdio, node::Stdio::Initialize);
-
-#endif // __POSIX__
