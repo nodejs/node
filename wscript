@@ -480,6 +480,9 @@ def v8_cmd(bld, variant):
 		, profile
                 )
 
+
+  if sys.platform.startswith("linux"): cmd += ' gdbjit=on '
+
   if sys.platform.startswith("sunos"): cmd += ' toolchain=gcc'
 
 
