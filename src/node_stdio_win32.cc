@@ -546,10 +546,8 @@ static void tty_poll(EV_P_ ev_async *watcher, int revents) {
       case WINDOW_BUFFER_SIZE_EVENT:
         if (!tty_resize_callback)
           break;
-        argv[0] = Integer::New(input.Event.WindowBufferSizeEvent.dwSize.Y);
-        argv[1] = Integer::New(input.Event.WindowBufferSizeEvent.dwSize.X);
         callback = cb_unwrap(tty_resize_callback);
-        (*callback)->Call(global, 2, argv);
+        (*callback)->Call(global, 0, argv);
         break;
     }
   }
