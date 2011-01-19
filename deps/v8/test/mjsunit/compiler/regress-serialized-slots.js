@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,59 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// The test verifies that parameters of the outer function are correctly
+// accessible from the inner closure.
 
-#if defined(V8_TARGET_ARCH_X64)
-
-#include "codegen.h"
-#include "deoptimizer.h"
-#include "full-codegen.h"
-#include "safepoint-table.h"
-
-namespace v8 {
-namespace internal {
-
-
-int Deoptimizer::table_entry_size_ = 10;
-
-void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  // UNIMPLEMENTED, for now just return.
-  return;
+function runner(f, expected) {
+  for (var i = 0; i < 10000; i++) {  // Loop to trigger optimization.
+    assertEquals(expected, f.call(this, 10));
+  }
 }
 
-
-void Deoptimizer::PatchStackCheckCode(RelocInfo* rinfo,
-                                      Code* replacement_code) {
-  UNIMPLEMENTED();
+Function.prototype.bind = function(thisObject)
+{
+    var func = this;
+    var args = Array.prototype.slice.call(arguments, 1);
+    function bound()
+    {
+      // Note outer function parameter access (|thisObject|).
+      return func.apply(
+          thisObject,
+          args.concat(Array.prototype.slice.call(arguments, 0)));
+    }
+    return bound;
 }
 
-
-void Deoptimizer::RevertStackCheckCode(RelocInfo* rinfo, Code* check_code) {
-  UNIMPLEMENTED();
+function sum(x, y) {
+  return x + y;
 }
 
-
-void Deoptimizer::DoComputeOsrOutputFrame() {
-  UNIMPLEMENTED();
+function test(n) {
+  runner(sum.bind(this, n), n + 10);
 }
 
-
-void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
-                                 int frame_index) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::EntryGenerator::Generate() {
-  // UNIMPLEMENTED, for now just return.
-  return;
-}
-
-
-void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
-  UNIMPLEMENTED();
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_TARGET_ARCH_X64
+test(1);
+test(42);
+test(239);

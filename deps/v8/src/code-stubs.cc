@@ -30,6 +30,7 @@
 #include "bootstrapper.h"
 #include "code-stubs.h"
 #include "factory.h"
+#include "gdb-jit.h"
 #include "macro-assembler.h"
 #include "oprofile-agent.h"
 
@@ -66,6 +67,7 @@ void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
                                   code->instruction_start(),
                                   code->instruction_size()));
   PROFILE(CodeCreateEvent(Logger::STUB_TAG, code, GetName()));
+  GDBJIT(AddCode(GDBJITInterface::STUB, GetName(), code));
   Counters::total_stubs_code_size.Increment(code->instruction_size());
 
 #ifdef ENABLE_DISASSEMBLER

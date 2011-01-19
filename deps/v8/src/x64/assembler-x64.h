@@ -1261,7 +1261,7 @@ class Assembler : public Malloced {
 
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
-  void db(uint8_t data) { UNIMPLEMENTED(); }
+  void db(uint8_t data);
   void dd(uint32_t data);
 
   int pc_offset() const { return static_cast<int>(pc_ - buffer_); }

@@ -624,6 +624,71 @@ class MaybeObject BASE_EMBEDDED {
 #endif
 };
 
+
+#define OBJECT_TYPE_LIST(V)                    \
+  V(Smi)                                       \
+  V(HeapObject)                                \
+  V(Number)                                    \
+
+#define HEAP_OBJECT_TYPE_LIST(V)               \
+  V(HeapNumber)                                \
+  V(String)                                    \
+  V(Symbol)                                    \
+  V(SeqString)                                 \
+  V(ExternalString)                            \
+  V(ConsString)                                \
+  V(ExternalTwoByteString)                     \
+  V(ExternalAsciiString)                       \
+  V(SeqTwoByteString)                          \
+  V(SeqAsciiString)                            \
+                                               \
+  V(PixelArray)                                \
+  V(ExternalArray)                             \
+  V(ExternalByteArray)                         \
+  V(ExternalUnsignedByteArray)                 \
+  V(ExternalShortArray)                        \
+  V(ExternalUnsignedShortArray)                \
+  V(ExternalIntArray)                          \
+  V(ExternalUnsignedIntArray)                  \
+  V(ExternalFloatArray)                        \
+  V(ByteArray)                                 \
+  V(JSObject)                                  \
+  V(JSContextExtensionObject)                  \
+  V(Map)                                       \
+  V(DescriptorArray)                           \
+  V(DeoptimizationInputData)                   \
+  V(DeoptimizationOutputData)                  \
+  V(FixedArray)                                \
+  V(Context)                                   \
+  V(CatchContext)                              \
+  V(GlobalContext)                             \
+  V(JSFunction)                                \
+  V(Code)                                      \
+  V(Oddball)                                   \
+  V(SharedFunctionInfo)                        \
+  V(JSValue)                                   \
+  V(StringWrapper)                             \
+  V(Proxy)                                     \
+  V(Boolean)                                   \
+  V(JSArray)                                   \
+  V(JSRegExp)                                  \
+  V(HashTable)                                 \
+  V(Dictionary)                                \
+  V(SymbolTable)                               \
+  V(JSFunctionResultCache)                     \
+  V(NormalizedMapCache)                        \
+  V(CompilationCacheTable)                     \
+  V(CodeCacheHashTable)                        \
+  V(MapCache)                                  \
+  V(Primitive)                                 \
+  V(GlobalObject)                              \
+  V(JSGlobalObject)                            \
+  V(JSBuiltinsObject)                          \
+  V(JSGlobalProxy)                             \
+  V(UndetectableObject)                        \
+  V(AccessCheckNeeded)                         \
+  V(JSGlobalPropertyCell)                      \
+
 // Object is the abstract superclass for all classes in the
 // object hierarchy.
 // Object does not use any virtual functions to avoid the
@@ -633,67 +698,10 @@ class MaybeObject BASE_EMBEDDED {
 class Object : public MaybeObject {
  public:
   // Type testing.
-  inline bool IsSmi();
-  inline bool IsHeapObject();
-  inline bool IsHeapNumber();
-  inline bool IsString();
-  inline bool IsSymbol();
-  // See objects-inl.h for more details
-  inline bool IsSeqString();
-  inline bool IsExternalString();
-  inline bool IsExternalTwoByteString();
-  inline bool IsExternalAsciiString();
-  inline bool IsSeqTwoByteString();
-  inline bool IsSeqAsciiString();
-  inline bool IsConsString();
-
-  inline bool IsNumber();
-  inline bool IsByteArray();
-  inline bool IsPixelArray();
-  inline bool IsExternalArray();
-  inline bool IsExternalByteArray();
-  inline bool IsExternalUnsignedByteArray();
-  inline bool IsExternalShortArray();
-  inline bool IsExternalUnsignedShortArray();
-  inline bool IsExternalIntArray();
-  inline bool IsExternalUnsignedIntArray();
-  inline bool IsExternalFloatArray();
-  inline bool IsJSObject();
-  inline bool IsJSContextExtensionObject();
-  inline bool IsMap();
-  inline bool IsFixedArray();
-  inline bool IsDescriptorArray();
-  inline bool IsDeoptimizationInputData();
-  inline bool IsDeoptimizationOutputData();
-  inline bool IsContext();
-  inline bool IsCatchContext();
-  inline bool IsGlobalContext();
-  inline bool IsJSFunction();
-  inline bool IsCode();
-  inline bool IsOddball();
-  inline bool IsSharedFunctionInfo();
-  inline bool IsJSValue();
-  inline bool IsStringWrapper();
-  inline bool IsProxy();
-  inline bool IsBoolean();
-  inline bool IsJSArray();
-  inline bool IsJSRegExp();
-  inline bool IsHashTable();
-  inline bool IsDictionary();
-  inline bool IsSymbolTable();
-  inline bool IsJSFunctionResultCache();
-  inline bool IsNormalizedMapCache();
-  inline bool IsCompilationCacheTable();
-  inline bool IsCodeCacheHashTable();
-  inline bool IsMapCache();
-  inline bool IsPrimitive();
-  inline bool IsGlobalObject();
-  inline bool IsJSGlobalObject();
-  inline bool IsJSBuiltinsObject();
-  inline bool IsJSGlobalProxy();
-  inline bool IsUndetectableObject();
-  inline bool IsAccessCheckNeeded();
-  inline bool IsJSGlobalPropertyCell();
+#define IS_TYPE_FUNCTION_DECL(type_)  inline bool Is##type_();
+  OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+  HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+#undef IS_TYPE_FUNCTION_DECL
 
   // Returns true if this object is an instance of the specified
   // function template.
@@ -2613,6 +2621,11 @@ class JSFunctionResultCache: public FixedArray {
   inline void MakeZeroSize();
   inline void Clear();
 
+  inline int size();
+  inline void set_size(int size);
+  inline int finger_index();
+  inline void set_finger_index(int finger_index);
+
   // Casting
   static inline JSFunctionResultCache* cast(Object* obj);
 
@@ -3163,6 +3176,10 @@ class Code: public HeapObject {
     NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };
 
+  typedef int ExtraICState;
+
+  static const ExtraICState kNoExtraICState = 0;
+
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* Kind2String(Kind kind);
@@ -3198,6 +3215,7 @@ class Code: public HeapObject {
   // [flags]: Access to specific code flags.
   inline Kind kind();
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
+  inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
   inline InLoopFlag ic_in_loop();  // Only valid for IC stubs.
   inline PropertyType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
@@ -3282,22 +3300,26 @@ class Code: public HeapObject {
   Map* FindFirstMap();
 
   // Flags operations.
-  static inline Flags ComputeFlags(Kind kind,
-                                   InLoopFlag in_loop = NOT_IN_LOOP,
-                                   InlineCacheState ic_state = UNINITIALIZED,
-                                   PropertyType type = NORMAL,
-                                   int argc = -1,
-                                   InlineCacheHolderFlag holder = OWN_MAP);
+  static inline Flags ComputeFlags(
+      Kind kind,
+      InLoopFlag in_loop = NOT_IN_LOOP,
+      InlineCacheState ic_state = UNINITIALIZED,
+      ExtraICState extra_ic_state = kNoExtraICState,
+      PropertyType type = NORMAL,
+      int argc = -1,
+      InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
       PropertyType type,
+      ExtraICState extra_ic_state = kNoExtraICState,
       InlineCacheHolderFlag holder = OWN_MAP,
       InLoopFlag in_loop = NOT_IN_LOOP,
       int argc = -1);
 
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
+  static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
   static inline InLoopFlag ExtractICInLoopFromFlags(Flags flags);
   static inline PropertyType ExtractTypeFromFlags(Flags flags);
   static inline int ExtractArgumentsCountFromFlags(Flags flags);
@@ -3418,14 +3440,16 @@ class Code: public HeapObject {
   static const int kFlagsTypeShift           = 4;
   static const int kFlagsKindShift           = 7;
   static const int kFlagsICHolderShift       = 11;
-  static const int kFlagsArgumentsCountShift = 12;
+  static const int kFlagsExtraICStateShift   = 12;
+  static const int kFlagsArgumentsCountShift = 14;
 
   static const int kFlagsICStateMask        = 0x00000007;  // 00000000111
   static const int kFlagsICInLoopMask       = 0x00000008;  // 00000001000
   static const int kFlagsTypeMask           = 0x00000070;  // 00001110000
   static const int kFlagsKindMask           = 0x00000780;  // 11110000000
   static const int kFlagsCacheInPrototypeMapMask = 0x00000800;
-  static const int kFlagsArgumentsCountMask = 0xFFFFF000;
+  static const int kFlagsExtraICStateMask   = 0x00003000;
+  static const int kFlagsArgumentsCountMask = 0xFFFFC000;
 
   static const int kFlagsNotUsedInLookup =
       (kFlagsICInLoopMask | kFlagsTypeMask | kFlagsCacheInPrototypeMapMask);

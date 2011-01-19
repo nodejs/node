@@ -670,16 +670,17 @@ void JSFunctionResultCache::JSFunctionResultCacheVerify() {
 
   int finger = Smi::cast(get(kFingerIndex))->value();
   ASSERT(kEntriesIndex <= finger);
-  ASSERT(finger < size || finger == kEntriesIndex);
+  ASSERT((finger < size) || (finger == kEntriesIndex && finger == size));
   ASSERT_EQ(0, finger % kEntrySize);
 
   if (FLAG_enable_slow_asserts) {
-    STATIC_ASSERT(2 == kEntrySize);
-    for (int i = kEntriesIndex; i < length(); i += kEntrySize) {
+    for (int i = kEntriesIndex; i < size; i++) {
+      ASSERT(!get(i)->IsTheHole());
       get(i)->Verify();
-      get(i + 1)->Verify();
-      // Key and value must be either both the holes, or not.
-      ASSERT(get(i)->IsTheHole() == get(i + 1)->IsTheHole());
+    }
+    for (int i = size; i < length(); i++) {
+      ASSERT(get(i)->IsTheHole());
+      get(i)->Verify();
     }
   }
 }

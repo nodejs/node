@@ -1,7 +1,15 @@
+2011-01-19: Version 3.0.9
+
+        Added basic GDB JIT Interface integration.
+
+        Make invalid break/continue statements a syntax error instead of a
+        runtime error.
+
+
 2011-01-17: Version 3.0.8
 
         Exposed heap size limit to the heap statistics gathered by
-        the GetHeapStatistics API. 
+        the GetHeapStatistics API.
 
         Wrapped external pointers more carefully (issue 1037).
 

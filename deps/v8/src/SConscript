@@ -71,6 +71,7 @@ SOURCES = {
     frames.cc
     full-codegen.cc
     func-name-inferrer.cc
+    gdb-jit.cc
     global-handles.cc
     fast-dtoa.cc
     fixed-dtoa.cc
@@ -81,6 +82,7 @@ SOURCES = {
     hydrogen.cc
     hydrogen-instructions.cc
     ic.cc
+    inspector.cc
     interpreter-irregexp.cc
     jsregexp.cc
     jump-target.cc
@@ -190,6 +192,7 @@ SOURCES = {
     ia32/ic-ia32.cc
     ia32/jump-target-ia32.cc
     ia32/lithium-codegen-ia32.cc
+    ia32/lithium-gap-resolver-ia32.cc
     ia32/lithium-ia32.cc
     ia32/macro-assembler-ia32.cc
     ia32/regexp-macro-assembler-ia32.cc

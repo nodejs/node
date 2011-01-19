@@ -31,6 +31,7 @@
 #include "arguments.h"
 #include "bootstrapper.h"
 #include "builtins.h"
+#include "gdb-jit.h"
 #include "ic-inl.h"
 #include "vm-state-inl.h"
 
@@ -1550,7 +1551,7 @@ void Builtins::Setup(bool create_heap_objects) {
       CodeDesc desc;
       masm.GetCode(&desc);
       Code::Flags flags =  functions[i].flags;
-      Object* code = 0;
+      Object* code = NULL;
       {
         // During startup it's OK to always allocate and defer GC to later.
         // This simplifies things because we don't need to retry.
@@ -1564,7 +1565,11 @@ void Builtins::Setup(bool create_heap_objects) {
       }
       // Log the event and add the code to the builtins array.
       PROFILE(CodeCreateEvent(Logger::BUILTIN_TAG,
-                              Code::cast(code), functions[i].s_name));
+                              Code::cast(code),
+                              functions[i].s_name));
+      GDBJIT(AddCode(GDBJITInterface::BUILTIN,
+                     functions[i].s_name,
+                     Code::cast(code)));
       builtins_[i] = code;
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_builtin_code) {

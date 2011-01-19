@@ -77,6 +77,12 @@ test-deoptimization/DeoptimizeCompare: FAIL
 # Tests that time out with crankshaft.
 test-api/Threading: SKIP
 
+# BUG(1049): Currently no deoptimization support.
+test-serialize/ContextSerialization: SKIP
+test-serialize/ContextDeserialization: SKIP
+test-debug/BreakPointReturn: SKIP
+test-debug/DebugStepLinearMixedICs: SKIP
+
 
 ##############################################################################
 [ $arch == arm ]
@@ -101,10 +107,6 @@ test-sockets/Socket: SKIP
 
 ##############################################################################
 [ $arch == arm && $crankshaft ]
-
-# Tests that can fail with crankshaft.
-test-deoptimization/DeoptimizeBinaryOperationMOD: PASS || FAIL
-test-deoptimization/DeoptimizeBinaryOperationDIV: PASS || FAIL
 
 # Tests that time out with crankshaft.
 test-debug/ThreadedDebugging: SKIP

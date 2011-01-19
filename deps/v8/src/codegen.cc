@@ -248,6 +248,9 @@ bool CodeGenerator::MakeCode(CompilationInfo* info) {
   // Generate code.
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  masm.positions_recorder()->StartGDBJITLineInfoRecording();
+#endif
   CodeGenerator cgen(&masm);
   CodeGeneratorScope scope(&cgen);
   cgen.Generate(info);
@@ -263,6 +266,14 @@ bool CodeGenerator::MakeCode(CompilationInfo* info) {
   code->SetNoStackCheckTable();
   CodeGenerator::PrintCode(code, info);
   info->SetCode(code);  // May be an empty handle.
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (!code.is_null()) {
+    GDBJITLineInfo* lineinfo =
+        masm.positions_recorder()->DetachGDBJITLineInfo();
+
+    GDBJIT(RegisterDetailedLineInfo(*code, lineinfo));
+  }
+#endif
   return !code.is_null();
 }
 

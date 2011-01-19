@@ -687,6 +687,11 @@ HGraph::HGraph(CompilationInfo* info)
 }
 
 
+bool HGraph::AllowAggressiveOptimizations() const {
+  return info()->shared_info()->opt_count() + 1 < Compiler::kDefaultMaxOptCount;
+}
+
+
 Handle<Code> HGraph::Compile() {
   int values = GetMaximumValueID();
   if (values > LAllocator::max_initial_value_ids()) {
@@ -1453,8 +1458,12 @@ void HGlobalValueNumberer::ProcessLoopBlock(HBasicBlock* block,
 // about code that was never executed.
 bool HGlobalValueNumberer::ShouldMove(HInstruction* instr,
                                       HBasicBlock* loop_header) {
-  if (!instr->IsChange() &&
-      FLAG_aggressive_loop_invariant_motion) return true;
+  if (FLAG_aggressive_loop_invariant_motion &&
+      !instr->IsChange() &&
+      (!instr->IsCheckInstruction() ||
+       graph_->AllowAggressiveOptimizations())) {
+    return true;
+  }
   HBasicBlock* block = instr->block();
   bool result = true;
   if (block != loop_header) {

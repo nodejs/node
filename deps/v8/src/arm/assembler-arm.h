@@ -1240,8 +1240,10 @@ class Assembler : public Malloced {
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
 
-  // Writes a single byte or word of data in the code stream.  Used for
-  // inline tables, e.g., jump-tables.
+  // Writes a single byte or word of data in the code stream.  Used
+  // for inline tables, e.g., jump-tables. The constant pool should be
+  // emitted before any use of db and dd to ensure that constant pools
+  // are not emitted as part of the tables generated.
   void db(uint8_t data);
   void dd(uint32_t data);
 

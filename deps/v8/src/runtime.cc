@@ -10654,51 +10654,12 @@ static MaybeObject* Runtime_Abort(Arguments args) {
 }
 
 
-MUST_USE_RESULT static MaybeObject* CacheMiss(FixedArray* cache_obj,
-                                              int index,
-                                              Object* key_obj) {
-  ASSERT(index % 2 == 0);  // index of the key
-  ASSERT(index >= JSFunctionResultCache::kEntriesIndex);
-  ASSERT(index < cache_obj->length());
-
-  HandleScope scope;
-
-  Handle<FixedArray> cache(cache_obj);
-  Handle<Object> key(key_obj);
-  Handle<JSFunction> factory(JSFunction::cast(
-        cache->get(JSFunctionResultCache::kFactoryIndex)));
-  // TODO(antonm): consider passing a receiver when constructing a cache.
-  Handle<Object> receiver(Top::global_context()->global());
-
-  Handle<Object> value;
-  {
-    // This handle is nor shared, nor used later, so it's safe.
-    Object** argv[] = { key.location() };
-    bool pending_exception = false;
-    value = Execution::Call(factory,
-                            receiver,
-                            1,
-                            argv,
-                            &pending_exception);
-    if (pending_exception) return Failure::Exception();
-  }
-
-  cache->set(index, *key);
-  cache->set(index + 1, *value);
-  cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(index));
-
-  return *value;
-}
-
-
 static MaybeObject* Runtime_GetFromCache(Arguments args) {
   // This is only called from codegen, so checks might be more lax.
-  CONVERT_CHECKED(FixedArray, cache, args[0]);
+  CONVERT_CHECKED(JSFunctionResultCache, cache, args[0]);
   Object* key = args[1];
 
-  const int finger_index =
-      Smi::cast(cache->get(JSFunctionResultCache::kFingerIndex))->value();
-
+  int finger_index = cache->finger_index();
   Object* o = cache->get(finger_index);
   if (o == key) {
     // The fastest case: hit the same place again.
@@ -10710,35 +10671,78 @@ static MaybeObject* Runtime_GetFromCache(Arguments args) {
        i -= 2) {
     o = cache->get(i);
     if (o == key) {
-      cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(i));
+      cache->set_finger_index(i);
       return cache->get(i + 1);
     }
   }
 
-  const int size =
-      Smi::cast(cache->get(JSFunctionResultCache::kCacheSizeIndex))->value();
+  int size = cache->size();
   ASSERT(size <= cache->length());
 
   for (int i = size - 2; i > finger_index; i -= 2) {
     o = cache->get(i);
     if (o == key) {
-      cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(i));
+      cache->set_finger_index(i);
       return cache->get(i + 1);
     }
   }
 
-  // Cache miss.  If we have spare room, put new data into it, otherwise
-  // evict post finger entry which must be least recently used.
-  if (size < cache->length()) {
-    cache->set(JSFunctionResultCache::kCacheSizeIndex, Smi::FromInt(size + 2));
-    return CacheMiss(cache, size, key);
-  } else {
-    int target_index = finger_index + JSFunctionResultCache::kEntrySize;
-    if (target_index == cache->length()) {
-      target_index = JSFunctionResultCache::kEntriesIndex;
-    }
-    return CacheMiss(cache, target_index, key);
+  // There is no value in the cache.  Invoke the function and cache result.
+  HandleScope scope;
+
+  Handle<JSFunctionResultCache> cache_handle(cache);
+  Handle<Object> key_handle(key);
+  Handle<Object> value;
+  {
+    Handle<JSFunction> factory(JSFunction::cast(
+          cache_handle->get(JSFunctionResultCache::kFactoryIndex)));
+    // TODO(antonm): consider passing a receiver when constructing a cache.
+    Handle<Object> receiver(Top::global_context()->global());
+    // This handle is nor shared, nor used later, so it's safe.
+    Object** argv[] = { key_handle.location() };
+    bool pending_exception = false;
+    value = Execution::Call(factory,
+                            receiver,
+                            1,
+                            argv,
+                            &pending_exception);
+    if (pending_exception) return Failure::Exception();
   }
+
+#ifdef DEBUG
+  cache_handle->JSFunctionResultCacheVerify();
+#endif
+
+  // Function invocation may have cleared the cache.  Reread all the data.
+  finger_index = cache_handle->finger_index();
+  size = cache_handle->size();
+
+  // If we have spare room, put new data into it, otherwise evict post finger
+  // entry which is likely to be the least recently used.
+  int index = -1;
+  if (size < cache_handle->length()) {
+    cache_handle->set_size(size + JSFunctionResultCache::kEntrySize);
+    index = size;
+  } else {
+    index = finger_index + JSFunctionResultCache::kEntrySize;
+    if (index == cache_handle->length()) {
+      index = JSFunctionResultCache::kEntriesIndex;
+    }
+  }
+
+  ASSERT(index % 2 == 0);
+  ASSERT(index >= JSFunctionResultCache::kEntriesIndex);
+  ASSERT(index < cache_handle->length());
+
+  cache_handle->set(index, *key_handle);
+  cache_handle->set(index + 1, *value);
+  cache_handle->set_finger_index(index);
+
+#ifdef DEBUG
+  cache_handle->JSFunctionResultCacheVerify();
+#endif
+
+  return *value;
 }
 
 #ifdef DEBUG

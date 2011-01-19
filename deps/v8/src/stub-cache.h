@@ -177,13 +177,15 @@ class StubCache : public AllStatic {
                                                        JSObject* holder,
                                                        int index);
 
-  MUST_USE_RESULT static MaybeObject* ComputeCallConstant(int argc,
-                                                          InLoopFlag in_loop,
-                                                          Code::Kind,
-                                                          String* name,
-                                                          Object* object,
-                                                          JSObject* holder,
-                                                          JSFunction* function);
+  MUST_USE_RESULT static MaybeObject* ComputeCallConstant(
+      int argc,
+      InLoopFlag in_loop,
+      Code::Kind,
+      Code::ExtraICState extra_ic_state,
+      String* name,
+      Object* object,
+      JSObject* holder,
+      JSFunction* function);
 
   MUST_USE_RESULT static MaybeObject* ComputeCallNormal(int argc,
                                                         InLoopFlag in_loop,
@@ -660,6 +662,7 @@ class CallStubCompiler: public StubCompiler {
   CallStubCompiler(int argc,
                    InLoopFlag in_loop,
                    Code::Kind kind,
+                   Code::ExtraICState extra_ic_state,
                    InlineCacheHolderFlag cache_holder);
 
   MUST_USE_RESULT MaybeObject* CompileCallField(JSObject* object,
@@ -705,6 +708,7 @@ class CallStubCompiler: public StubCompiler {
   const ParameterCount arguments_;
   const InLoopFlag in_loop_;
   const Code::Kind kind_;
+  const Code::ExtraICState extra_ic_state_;
   const InlineCacheHolderFlag cache_holder_;
 
   const ParameterCount& arguments() { return arguments_; }

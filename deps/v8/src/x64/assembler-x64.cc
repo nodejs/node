@@ -2950,6 +2950,12 @@ void Assembler::emit_sse_operand(Register dst, XMMRegister src) {
 }
 
 
+void Assembler::db(uint8_t data) {
+  EnsureSpace ensure_space(this);
+  emit(data);
+}
+
+
 void Assembler::dd(uint32_t data) {
   EnsureSpace ensure_space(this);
   emitl(data);

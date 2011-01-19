@@ -154,6 +154,24 @@ Scope::Scope(Scope* inner_scope, SerializedScopeInfo* scope_info)
   if (scope_info->HasHeapAllocatedLocals()) {
     num_heap_slots_ = scope_info_->NumberOfContextSlots();
   }
+
+  // This scope's arguments shadow (if present) is context-allocated if an inner
+  // scope accesses this one's parameters.  Allocate the arguments_shadow_
+  // variable if necessary.
+  Variable::Mode mode;
+  int arguments_shadow_index =
+      scope_info_->ContextSlotIndex(Heap::arguments_shadow_symbol(), &mode);
+  if (arguments_shadow_index >= 0) {
+    ASSERT(mode == Variable::INTERNAL);
+    arguments_shadow_ = new Variable(this,
+                                     Factory::arguments_shadow_symbol(),
+                                     Variable::INTERNAL,
+                                     true,
+                                     Variable::ARGUMENTS);
+    arguments_shadow_->set_rewrite(
+        new Slot(arguments_shadow_, Slot::CONTEXT, arguments_shadow_index));
+    arguments_shadow_->set_is_used(true);
+  }
 }
 
 
@@ -239,21 +257,49 @@ Variable* Scope::LocalLookup(Handle<String> name) {
   // If the scope is resolved, we can find a variable in serialized scope info.
 
   // We should never lookup 'arguments' in this scope
-  // as it is impllicitly present in any scope.
+  // as it is implicitly present in any scope.
   ASSERT(*name != *Factory::arguments_symbol());
+
+  // Assert that there is no local slot with the given name.
+  ASSERT(scope_info_->StackSlotIndex(*name) < 0);
 
   // Check context slot lookup.
   Variable::Mode mode;
   int index = scope_info_->ContextSlotIndex(*name, &mode);
-  if (index < 0) {
-    return NULL;
+  if (index >= 0) {
+    Variable* var =
+        variables_.Declare(this, name, mode, true, Variable::NORMAL);
+    var->set_rewrite(new Slot(var, Slot::CONTEXT, index));
+    return var;
   }
 
-  // Check that there is no local slot with the given name.
-  ASSERT(scope_info_->StackSlotIndex(*name) < 0);
-  Variable* var = variables_.Declare(this, name, mode, true, Variable::NORMAL);
-  var->set_rewrite(new Slot(var, Slot::CONTEXT, index));
-  return var;
+  index = scope_info_->ParameterIndex(*name);
+  if (index >= 0) {
+    // ".arguments" must be present in context slots.
+    ASSERT(arguments_shadow_ != NULL);
+    Variable* var =
+        variables_.Declare(this, name, Variable::VAR, true, Variable::NORMAL);
+    Property* rewrite =
+        new Property(new VariableProxy(arguments_shadow_),
+                     new Literal(Handle<Object>(Smi::FromInt(index))),
+                     RelocInfo::kNoPosition,
+                     Property::SYNTHETIC);
+    rewrite->set_is_arguments_access(true);
+    var->set_rewrite(rewrite);
+    return var;
+  }
+
+  index = scope_info_->FunctionContextSlotIndex(*name);
+  if (index >= 0) {
+    // Check that there is no local slot with the given name.
+    ASSERT(scope_info_->StackSlotIndex(*name) < 0);
+    Variable* var =
+        variables_.Declare(this, name, Variable::VAR, true, Variable::NORMAL);
+    var->set_rewrite(new Slot(var, Slot::CONTEXT, index));
+    return var;
+  }
+
+  return NULL;
 }
 
 

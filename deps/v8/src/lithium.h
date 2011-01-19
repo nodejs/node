@@ -35,9 +35,6 @@
 namespace v8 {
 namespace internal {
 
-class LCodeGen;
-class Translation;
-
 class LParallelMove : public ZoneObject {
  public:
   LParallelMove() : move_operands_(4) { }

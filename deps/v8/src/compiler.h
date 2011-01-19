@@ -209,9 +209,13 @@ class CompilationInfo BASE_EMBEDDED {
 
 class Compiler : public AllStatic {
  public:
-  // All routines return a JSFunction.
-  // If an error occurs an exception is raised and
-  // the return handle contains NULL.
+  // Default maximum number of function optimization attempts before we
+  // give up.
+  static const int kDefaultMaxOptCount = 10;
+
+  // All routines return a SharedFunctionInfo.
+  // If an error occurs an exception is raised and the return handle
+  // contains NULL.
 
   // Compile a String source within a context.
   static Handle<SharedFunctionInfo> Compile(Handle<String> source,

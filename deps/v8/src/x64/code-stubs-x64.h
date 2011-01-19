@@ -198,6 +198,7 @@ class GenericBinaryOpStub: public CodeStub {
   }
 
   friend class CodeGenerator;
+  friend class LCodeGen;
 };
 
 

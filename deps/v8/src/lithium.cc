@@ -39,18 +39,21 @@ bool LParallelMove::IsRedundant() const {
 
 
 void LParallelMove::PrintDataTo(StringStream* stream) const {
-  for (int i = move_operands_.length() - 1; i >= 0; --i) {
+  bool first = true;
+  for (int i = 0; i < move_operands_.length(); ++i) {
     if (!move_operands_[i].IsEliminated()) {
-      LOperand* from = move_operands_[i].from();
-      LOperand* to = move_operands_[i].to();
-      if (from->Equals(to)) {
-        to->PrintTo(stream);
+      LOperand* source = move_operands_[i].source();
+      LOperand* destination = move_operands_[i].destination();
+      if (!first) stream->Add(" ");
+      first = false;
+      if (source->Equals(destination)) {
+        destination->PrintTo(stream);
       } else {
-        to->PrintTo(stream);
+        destination->PrintTo(stream);
         stream->Add(" = ");
-        from->PrintTo(stream);
+        source->PrintTo(stream);
       }
-      stream->Add("; ");
+      stream->Add(";");
     }
   }
 }

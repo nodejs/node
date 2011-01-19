@@ -2495,6 +2495,10 @@ void Assembler::GrowBuffer() {
 
 
 void Assembler::db(uint8_t data) {
+  // No relocation info should be pending while using db. db is used
+  // to write pure data with no pointers and the constant pool should
+  // be emitted before using db.
+  ASSERT(num_prinfo_ == 0);
   CheckBuffer();
   *reinterpret_cast<uint8_t*>(pc_) = data;
   pc_ += sizeof(uint8_t);
@@ -2502,6 +2506,10 @@ void Assembler::db(uint8_t data) {
 
 
 void Assembler::dd(uint32_t data) {
+  // No relocation info should be pending while using dd. dd is used
+  // to write pure data with no pointers and the constant pool should
+  // be emitted before using dd.
+  ASSERT(num_prinfo_ == 0);
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);

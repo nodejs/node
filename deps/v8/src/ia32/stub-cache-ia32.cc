@@ -1362,11 +1362,10 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
 
 
 MaybeObject* CallStubCompiler::GenerateMissBranch() {
+  MaybeObject* maybe_obj = StubCache::ComputeCallMiss(arguments().immediate(),
+                                                      kind_);
   Object* obj;
-  { MaybeObject* maybe_obj =
-        StubCache::ComputeCallMiss(arguments().immediate(), kind_);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   __ jmp(Handle<Code>(Code::cast(obj)), RelocInfo::CODE_TARGET);
   return obj;
 }
@@ -1685,9 +1684,15 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
   const int argc = arguments().immediate();
 
   Label miss;
+  Label name_miss;
   Label index_out_of_range;
+  Label* index_out_of_range_label = &index_out_of_range;
 
-  GenerateNameCheck(name, &miss);
+  if (kind_ == Code::CALL_IC && extra_ic_state_ == DEFAULT_STRING_STUB) {
+    index_out_of_range_label = &miss;
+  }
+
+  GenerateNameCheck(name, &name_miss);
 
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
@@ -1715,7 +1720,7 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
                                                    result,
                                                    &miss,  // When not a string.
                                                    &miss,  // When not a number.
-                                                   &index_out_of_range,
+                                                   index_out_of_range_label,
                                                    STRING_INDEX_IS_NUMBER);
   char_code_at_generator.GenerateFast(masm());
   __ ret((argc + 1) * kPointerSize);
@@ -1723,11 +1728,16 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
   StubRuntimeCallHelper call_helper;
   char_code_at_generator.GenerateSlow(masm(), call_helper);
 
-  __ bind(&index_out_of_range);
-  __ Set(eax, Immediate(Factory::nan_value()));
-  __ ret((argc + 1) * kPointerSize);
+  if (index_out_of_range.is_linked()) {
+    __ bind(&index_out_of_range);
+    __ Set(eax, Immediate(Factory::nan_value()));
+    __ ret((argc + 1) * kPointerSize);
+  }
 
   __ bind(&miss);
+  // Restore function name in ecx.
+  __ Set(ecx, Immediate(Handle<String>(name)));
+  __ bind(&name_miss);
   Object* obj;
   { MaybeObject* maybe_obj = GenerateMissBranch();
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
@@ -1758,9 +1768,15 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
   const int argc = arguments().immediate();
 
   Label miss;
+  Label name_miss;
   Label index_out_of_range;
+  Label* index_out_of_range_label = &index_out_of_range;
 
-  GenerateNameCheck(name, &miss);
+  if (kind_ == Code::CALL_IC && extra_ic_state_ == DEFAULT_STRING_STUB) {
+    index_out_of_range_label = &miss;
+  }
+
+  GenerateNameCheck(name, &name_miss);
 
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
@@ -1790,7 +1806,7 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
                                           result,
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.
-                                          &index_out_of_range,
+                                          index_out_of_range_label,
                                           STRING_INDEX_IS_NUMBER);
   char_at_generator.GenerateFast(masm());
   __ ret((argc + 1) * kPointerSize);
@@ -1798,11 +1814,16 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
   StubRuntimeCallHelper call_helper;
   char_at_generator.GenerateSlow(masm(), call_helper);
 
-  __ bind(&index_out_of_range);
-  __ Set(eax, Immediate(Factory::empty_string()));
-  __ ret((argc + 1) * kPointerSize);
+  if (index_out_of_range.is_linked()) {
+    __ bind(&index_out_of_range);
+    __ Set(eax, Immediate(Factory::empty_string()));
+    __ ret((argc + 1) * kPointerSize);
+  }
 
   __ bind(&miss);
+  // Restore function name in ecx.
+  __ Set(ecx, Immediate(Handle<String>(name)));
+  __ bind(&name_miss);
   Object* obj;
   { MaybeObject* maybe_obj = GenerateMissBranch();
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;

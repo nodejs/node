@@ -576,6 +576,13 @@ LOperand* LChunkBuilder::UseRegisterOrConstantAtStart(HValue* value) {
 }
 
 
+LOperand* LChunkBuilder::UseAny(HValue* value) {
+  return value->IsConstant()
+      ? chunk_->DefineConstantOperand(HConstant::cast(value))
+      :  Use(value, new LUnallocated(LUnallocated::ANY));
+}
+
+
 LOperand* LChunkBuilder::Use(HValue* value, LUnallocated* operand) {
   if (value->EmitAtUses()) {
     HInstruction* instr = HInstruction::cast(value);
@@ -907,11 +914,7 @@ LEnvironment* LChunkBuilder::CreateEnvironment(HEnvironment* hydrogen_env) {
     } else if (value->IsPushArgument()) {
       op = new LArgument(argument_index++);
     } else {
-      op = UseOrConstant(value);
-      if (op->IsUnallocated()) {
-        LUnallocated* unalloc = LUnallocated::cast(op);
-        unalloc->set_policy(LUnallocated::ANY);
-      }
+      op = UseAny(value);
     }
     result->AddValue(op, value->representation());
   }

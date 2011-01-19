@@ -30,6 +30,7 @@
 #include "compilation-cache.h"
 #include "execution.h"
 #include "heap-profiler.h"
+#include "gdb-jit.h"
 #include "global-handles.h"
 #include "ic-inl.h"
 #include "mark-compact.h"
@@ -125,6 +126,12 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   if (!Heap::map_space()->MapPointersEncodable())
       compacting_collection_ = false;
   if (FLAG_collect_maps) CreateBackPointers();
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (FLAG_gdbjit) {
+    // If GDBJIT interface is active disable compaction.
+    compacting_collection_ = false;
+  }
+#endif
 
   PagedSpaces spaces;
   for (PagedSpace* space = spaces.next();
@@ -2906,6 +2913,11 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
 
 
 void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (obj->IsCode()) {
+    GDBJITInterface::RemoveCode(reinterpret_cast<Code*>(obj));
+  }
+#endif
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (obj->IsCode()) {
     PROFILE(CodeDeleteEvent(obj->address()));

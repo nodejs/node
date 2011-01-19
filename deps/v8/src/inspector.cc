@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,59 +25,39 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
 #include "v8.h"
+#include "inspector.h"
 
-#if defined(V8_TARGET_ARCH_X64)
-
-#include "codegen.h"
-#include "deoptimizer.h"
-#include "full-codegen.h"
-#include "safepoint-table.h"
 
 namespace v8 {
 namespace internal {
 
+#ifdef INSPECTOR
 
-int Deoptimizer::table_entry_size_ = 10;
+//============================================================================
+// The Inspector.
 
-void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  // UNIMPLEMENTED, for now just return.
-  return;
+void Inspector::DumpObjectType(FILE* out, Object *obj, bool print_more) {
+  // Dump the object pointer.
+  OS::FPrint(out, "%p:", reinterpret_cast<void*>(obj));
+  if (obj->IsHeapObject()) {
+    HeapObject *hobj = HeapObject::cast(obj);
+    OS::FPrint(out, " size %d :", hobj->Size());
+  }
+
+  // Dump each object classification that matches this object.
+#define FOR_EACH_TYPE(type)   \
+  if (obj->Is##type()) {      \
+    OS::FPrint(out, " %s", #type);    \
+  }
+  OBJECT_TYPE_LIST(FOR_EACH_TYPE)
+  HEAP_OBJECT_TYPE_LIST(FOR_EACH_TYPE)
+#undef FOR_EACH_TYPE
 }
 
 
-void Deoptimizer::PatchStackCheckCode(RelocInfo* rinfo,
-                                      Code* replacement_code) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::RevertStackCheckCode(RelocInfo* rinfo, Code* check_code) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::DoComputeOsrOutputFrame() {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
-                                 int frame_index) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::EntryGenerator::Generate() {
-  // UNIMPLEMENTED, for now just return.
-  return;
-}
-
-
-void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
-  UNIMPLEMENTED();
-}
+#endif  // INSPECTOR
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_X64

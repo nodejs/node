@@ -45,7 +45,7 @@ typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
 // Number of registers for which space is reserved in safepoints.
 // TODO(x64): This should not be 0.
-static const int kNumSafepointRegisters = 0;
+static const int kNumSafepointRegisters = 8;
 
 // ----------------------------------------------------
 

@@ -296,6 +296,9 @@ class HGraph: public HSubgraph {
   explicit HGraph(CompilationInfo* info);
 
   CompilationInfo* info() const { return info_; }
+
+  bool AllowAggressiveOptimizations() const;
+
   const ZoneList<HBasicBlock*>* blocks() const { return &blocks_; }
   const ZoneList<HPhi*>* phi_list() const { return phi_list_; }
   Handle<String> debug_name() const { return info_->function()->debug_name(); }

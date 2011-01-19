@@ -155,13 +155,13 @@ bool LGapResolver::CanReach(LGapNode* a, LGapNode* b) {
 
 
 void LGapResolver::RegisterMove(LMoveOperands move) {
-  if (move.from()->IsConstantOperand()) {
+  if (move.source()->IsConstantOperand()) {
     // Constant moves should be last in the machine code. Therefore add them
     // first to the result set.
-    AddResultMove(move.from(), move.to());
+    AddResultMove(move.source(), move.destination());
   } else {
-    LGapNode* from = LookupNode(move.from());
-    LGapNode* to = LookupNode(move.to());
+    LGapNode* from = LookupNode(move.source());
+    LGapNode* to = LookupNode(move.destination());
     if (to->IsAssigned() && to->assigned_from() == from) {
       move.Eliminate();
       return;
@@ -338,8 +338,9 @@ bool LCodeGen::GenerateDeferredCode() {
 
 
 bool LCodeGen::GenerateSafepointTable() {
-  Abort("Unimplemented: %s", "GeneratePrologue");
-  return false;
+  ASSERT(is_done());
+  safepoints_.Emit(masm(), StackSlotCount());
+  return !is_aborted();
 }
 
 
@@ -492,7 +493,24 @@ void LCodeGen::AddToTranslation(Translation* translation,
 void LCodeGen::CallCode(Handle<Code> code,
                         RelocInfo::Mode mode,
                         LInstruction* instr) {
-  Abort("Unimplemented: %s", "CallCode");
+  if (instr != NULL) {
+    LPointerMap* pointers = instr->pointer_map();
+    RecordPosition(pointers->position());
+    __ call(code, mode);
+    RegisterLazyDeoptimization(instr);
+  } else {
+    LPointerMap no_pointers(0);
+    RecordPosition(no_pointers.position());
+    __ call(code, mode);
+    RecordSafepoint(&no_pointers, Safepoint::kNoDeoptimizationIndex);
+  }
+
+  // Signal that we don't inline smi code before these stubs in the
+  // optimizing code generator.
+  if (code->kind() == Code::TYPE_RECORDING_BINARY_OP_IC ||
+      code->kind() == Code::COMPARE_IC) {
+    __ nop();
+  }
 }
 
 
@@ -521,7 +539,30 @@ void LCodeGen::RegisterLazyDeoptimization(LInstruction* instr) {
 
 
 void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment) {
-  Abort("Unimplemented: %s", "RegisterEnvironmentForDeoptimization");
+  if (!environment->HasBeenRegistered()) {
+    // Physical stack frame layout:
+    // -x ............. -4  0 ..................................... y
+    // [incoming arguments] [spill slots] [pushed outgoing arguments]
+
+    // Layout of the environment:
+    // 0 ..................................................... size-1
+    // [parameters] [locals] [expression stack including arguments]
+
+    // Layout of the translation:
+    // 0 ........................................................ size - 1 + 4
+    // [expression stack including arguments] [locals] [4 words] [parameters]
+    // |>------------  translation_size ------------<|
+
+    int frame_count = 0;
+    for (LEnvironment* e = environment; e != NULL; e = e->outer()) {
+      ++frame_count;
+    }
+    Translation translation(&translations_, frame_count);
+    WriteTranslation(environment, &translation);
+    int deoptimization_index = deoptimizations_.length();
+    environment->Register(deoptimization_index, translation.index());
+    deoptimizations_.Add(environment);
+  }
 }
 
 
@@ -651,8 +692,8 @@ void LCodeGen::DoParallelMove(LParallelMove* move) {
       resolver_.Resolve(move->move_operands(), &marker_operand);
   for (int i = moves->length() - 1; i >= 0; --i) {
     LMoveOperands move = moves->at(i);
-    LOperand* from = move.from();
-    LOperand* to = move.to();
+    LOperand* from = move.source();
+    LOperand* to = move.destination();
     ASSERT(!from->IsDoubleRegister() ||
            !ToDoubleRegister(from).is(xmm_scratch));
     ASSERT(!to->IsDoubleRegister() || !ToDoubleRegister(to).is(xmm_scratch));
@@ -784,12 +825,31 @@ void LCodeGen::DoSubI(LSubI* instr) {
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  Abort("Unimplemented: %s", "DoConstantI");
+  ASSERT(instr->result()->IsRegister());
+  __ movl(ToRegister(instr->result()), Immediate(instr->value()));
 }
 
 
 void LCodeGen::DoConstantD(LConstantD* instr) {
-  Abort("Unimplemented: %s", "DoConstantI");
+  ASSERT(instr->result()->IsDoubleRegister());
+  XMMRegister res = ToDoubleRegister(instr->result());
+  double v = instr->value();
+  // Use xor to produce +0.0 in a fast and compact way, but avoid to
+  // do so if the constant is -0.0.
+  if (BitCast<uint64_t, double>(v) == 0) {
+    __ xorpd(res, res);
+  } else {
+    Register tmp = ToRegister(instr->TempAt(0));
+    int32_t v_int32 = static_cast<int32_t>(v);
+    if (static_cast<double>(v_int32) == v) {
+      __ movl(tmp, Immediate(v_int32));
+      __ cvtlsi2sd(res, tmp);
+    } else {
+      uint64_t int_val = BitCast<uint64_t, double>(v);
+      __ Set(tmp, int_val);
+      __ movd(res, tmp);
+    }
+  }
 }
 
 
@@ -825,7 +885,22 @@ void LCodeGen::DoThrow(LThrow* instr) {
 
 
 void LCodeGen::DoAddI(LAddI* instr) {
-  Abort("Unimplemented: %s", "DoAddI");
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  ASSERT(left->Equals(instr->result()));
+
+  if (right->IsConstantOperand()) {
+    __ addl(ToRegister(left),
+            Immediate(ToInteger32(LConstantOperand::cast(right))));
+  } else if (right->IsRegister()) {
+    __ addl(ToRegister(left), ToRegister(right));
+  } else {
+    __ addl(ToRegister(left), ToOperand(right));
+  }
+
+  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+    DeoptimizeIf(overflow, instr->environment());
+  }
 }
 
 
@@ -835,7 +910,13 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
 
 
 void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
-  Abort("Unimplemented: %s", "DoArithmeticT");
+  ASSERT(ToRegister(instr->InputAt(0)).is(rdx));
+  ASSERT(ToRegister(instr->InputAt(1)).is(rax));
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  GenericBinaryOpStub stub(instr->op(), NO_OVERWRITE, NO_GENERIC_BINARY_FLAGS);
+  stub.SetArgsInRegisters();
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -859,7 +940,19 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
 
 void LCodeGen::EmitGoto(int block, LDeferredCode* deferred_stack_check) {
-  Abort("Unimplemented: %s", "EmitGoto");
+  block = chunk_->LookupDestination(block);
+  int next_block = GetNextEmittedBlock(current_block_);
+  if (block != next_block) {
+    // Perform stack overflow check if this goto needs it before jumping.
+    if (deferred_stack_check != NULL) {
+      __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+      __ j(above_equal, chunk_->GetAssemblyLabel(block));
+      __ jmp(deferred_stack_check->entry());
+      deferred_stack_check->SetExit(chunk_->GetAssemblyLabel(block));
+    } else {
+      __ jmp(chunk_->GetAssemblyLabel(block));
+    }
+  }
 }
 
 
@@ -976,27 +1069,6 @@ void LCodeGen::DoIsSmi(LIsSmi* instr) {
 
 void LCodeGen::DoIsSmiAndBranch(LIsSmiAndBranch* instr) {
   Abort("Unimplemented: %s", "DoIsSmiAndBranch");
-}
-
-
-InstanceType LHasInstanceType::TestType() {
-  InstanceType from = hydrogen()->from();
-  InstanceType to = hydrogen()->to();
-  if (from == FIRST_TYPE) return to;
-  ASSERT(from == to || to == LAST_TYPE);
-  return from;
-}
-
-
-
-Condition LHasInstanceType::BranchCondition() {
-  InstanceType from = hydrogen()->from();
-  InstanceType to = hydrogen()->to();
-  if (from == to) return equal;
-  if (to == LAST_TYPE) return above_equal;
-  if (from == FIRST_TYPE) return below_equal;
-  UNREACHABLE();
-  return equal;
 }
 
 

@@ -219,6 +219,12 @@ class TypeInfo {
 };
 
 
+enum StringStubFeedback {
+  DEFAULT_STRING_STUB = 0,
+  STRING_INDEX_OUT_OF_BOUNDS = 1
+};
+
+
 // Forward declarations.
 class Assignment;
 class BinaryOperation;

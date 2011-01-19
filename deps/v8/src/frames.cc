@@ -554,6 +554,7 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
     parameters_base += safepoint_entry.argument_count();
   }
 
+  // Skip saved double registers.
   if (safepoint_entry.has_doubles()) {
     parameters_base += DoubleRegister::kNumAllocatableRegisters *
         kDoubleSize / kPointerSize;

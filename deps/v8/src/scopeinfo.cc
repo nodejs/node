@@ -152,19 +152,18 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
 //
 // - function name
 //
+// - calls eval boolean flag
+//
 // - number of variables in the context object (smi) (= function context
 //   slot index + 1)
 // - list of pairs (name, Var mode) of context-allocated variables (starting
 //   with context slot 0)
-// - NULL (sentinel)
 //
 // - number of parameters (smi)
 // - list of parameter names (starting with parameter 0 first)
-// - NULL (sentinel)
 //
 // - number of variables on the stack (smi)
 // - list of names of stack-allocated variables (starting with stack slot 0)
-// - NULL (sentinel)
 
 // The ScopeInfo representation could be simplified and the ScopeInfo
 // re-implemented (with almost the same interface). Here is a

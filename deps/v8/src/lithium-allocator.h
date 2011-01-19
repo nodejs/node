@@ -321,27 +321,49 @@ class LUnallocated: public LOperand {
 
 class LMoveOperands BASE_EMBEDDED {
  public:
-  LMoveOperands(LOperand* from, LOperand* to) : from_(from), to_(to) { }
+  LMoveOperands(LOperand* source, LOperand* destination)
+      : source_(source), destination_(destination) {
+  }
 
-  LOperand* from() const { return from_; }
-  LOperand* to() const { return to_; }
+  LOperand* source() const { return source_; }
+  void set_source(LOperand* operand) { source_ = operand; }
+
+  LOperand* destination() const { return destination_; }
+  void set_destination(LOperand* operand) { destination_ = operand; }
+
+  // The gap resolver marks moves as "in-progress" by clearing the
+  // destination (but not the source).
+  bool IsPending() const {
+    return destination_ == NULL && source_ != NULL;
+  }
+
+  // True if this move a move into the given destination operand.
+  bool Blocks(LOperand* operand) const {
+    return !IsEliminated() && source()->Equals(operand);
+  }
+
+  // A move is redundant if it's been eliminated, if its source and
+  // destination are the same, or if its destination is unneeded.
   bool IsRedundant() const {
-    return IsEliminated() || from_->Equals(to_) || IsIgnored();
-  }
-  bool IsEliminated() const { return from_ == NULL; }
-  bool IsIgnored() const {
-    if (to_ != NULL && to_->IsUnallocated() &&
-      LUnallocated::cast(to_)->HasIgnorePolicy()) {
-      return true;
-    }
-    return false;
+    return IsEliminated() || source_->Equals(destination_) || IsIgnored();
   }
 
-  void Eliminate() { from_ = to_ = NULL; }
+  bool IsIgnored() const {
+    return destination_ != NULL &&
+        destination_->IsUnallocated() &&
+        LUnallocated::cast(destination_)->HasIgnorePolicy();
+  }
+
+  // We clear both operands to indicate move that's been eliminated.
+  void Eliminate() { source_ = destination_ = NULL; }
+  bool IsEliminated() const {
+    ASSERT(source_ != NULL || destination_ == NULL);
+    return source_ == NULL;
+  }
 
  private:
-  LOperand* from_;
-  LOperand* to_;
+  LOperand* source_;
+  LOperand* destination_;
 };
 
 

@@ -996,7 +996,8 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
   SetFlag(kUseGVN);
   if (handle_->IsNumber()) {
     double n = handle_->Number();
-    has_int32_value_ = static_cast<double>(static_cast<int32_t>(n)) == n;
+    double roundtrip_value = static_cast<double>(static_cast<int32_t>(n));
+    has_int32_value_ = BitCast<int64_t>(roundtrip_value) == BitCast<int64_t>(n);
     if (has_int32_value_) int32_value_ = static_cast<int32_t>(n);
     double_value_ = n;
     has_double_value_ = true;

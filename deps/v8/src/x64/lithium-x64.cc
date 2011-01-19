@@ -90,18 +90,22 @@ void LInstruction::PrintTo(StringStream* stream) {
 
 template<int R, int I, int T>
 void LTemplateInstruction<R, I, T>::PrintDataTo(StringStream* stream) {
-  for (int i = 0; i < I; i++) {
-    stream->Add(i == 0 ? "= " : " ");
-    inputs_.at(i)->PrintTo(stream);
-  }
+  stream->Add("= ");
+  inputs_.PrintOperandsTo(stream);
 }
 
 
 template<int R, int I, int T>
 void LTemplateInstruction<R, I, T>::PrintOutputOperandTo(StringStream* stream) {
-  if (this->HasResult()) {
-    this->result()->PrintTo(stream);
-    stream->Add(" ");
+  results_.PrintOperandsTo(stream);
+}
+
+
+template<typename T, int N>
+void OperandContainer<T, N>::PrintOperandsTo(StringStream* stream) {
+  for (int i = 0; i < N; i++) {
+    if (i > 0) stream->Add(" ");
+    elems_[i]->PrintTo(stream);
   }
 }
 
@@ -172,22 +176,22 @@ void LGoto::PrintDataTo(StringStream* stream) {
 
 void LBranch::PrintDataTo(StringStream* stream) {
   stream->Add("B%d | B%d on ", true_block_id(), false_block_id());
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
 }
 
 
 void LCmpIDAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if ");
-  left()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(" %s ", Token::String(op()));
-  right()->PrintTo(stream);
+  InputAt(1)->PrintTo(stream);
   stream->Add(" then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LIsNullAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if ");
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(is_strict() ? " === null" : " == null");
   stream->Add(" then B%d else B%d", true_block_id(), false_block_id());
 }
@@ -195,35 +199,35 @@ void LIsNullAndBranch::PrintDataTo(StringStream* stream) {
 
 void LIsObjectAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if is_object(");
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LIsSmiAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if is_smi(");
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if has_instance_type(");
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LHasCachedArrayIndexAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if has_cached_array_index(");
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LClassOfTestAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if class_of_test(");
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(", \"%o\") then B%d else B%d",
               *hydrogen()->class_name(),
               true_block_id(),
@@ -232,14 +236,14 @@ void LClassOfTestAndBranch::PrintDataTo(StringStream* stream) {
 
 
 void LTypeofIs::PrintDataTo(StringStream* stream) {
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(" == \"%s\"", *hydrogen()->type_literal()->ToCString());
 }
 
 
 void LTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if typeof ");
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(" == \"%s\" then B%d else B%d",
               *hydrogen()->type_literal()->ToCString(),
               true_block_id(), false_block_id());
@@ -253,7 +257,7 @@ void LCallConstantFunction::PrintDataTo(StringStream* stream) {
 
 void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
   stream->Add("/%s ", hydrogen()->OpName());
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
 }
 
 
@@ -263,7 +267,7 @@ void LLoadContextSlot::PrintDataTo(StringStream* stream) {
 
 
 void LCallKeyed::PrintDataTo(StringStream* stream) {
-  stream->Add("[rcx] #%d / ", arity());
+  stream->Add("[ecx] #%d / ", arity());
 }
 
 
@@ -286,14 +290,14 @@ void LCallKnownGlobal::PrintDataTo(StringStream* stream) {
 
 void LCallNew::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(" #%d / ", arity());
 }
 
 
 void LClassOfTest::PrintDataTo(StringStream* stream) {
   stream->Add("= class_of_test(");
-  input()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(", \"%o\")", *hydrogen()->class_name());
 }
 
@@ -571,6 +575,13 @@ LOperand* LChunkBuilder::UseRegisterOrConstantAtStart(HValue* value) {
 }
 
 
+LOperand* LChunkBuilder::UseAny(HValue* value) {
+  return value->IsConstant()
+      ? chunk_->DefineConstantOperand(HConstant::cast(value))
+      :  Use(value, new LUnallocated(LUnallocated::ANY));
+}
+
+
 LOperand* LChunkBuilder::Use(HValue* value, LUnallocated* operand) {
   if (value->EmitAtUses()) {
     HInstruction* instr = HInstruction::cast(value);
@@ -743,8 +754,19 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
 
 LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
                                            HArithmeticBinaryOperation* instr) {
-  Abort("Unimplemented: %s", "DoArithmeticT");
-  return NULL;
+  ASSERT(op == Token::ADD ||
+         op == Token::DIV ||
+         op == Token::MOD ||
+         op == Token::MUL ||
+         op == Token::SUB);
+  HValue* left = instr->left();
+  HValue* right = instr->right();
+  ASSERT(left->representation().IsTagged());
+  ASSERT(right->representation().IsTagged());
+  LOperand* left_operand = UseFixed(left, rdx);
+  LOperand* right_operand = UseFixed(right, rax);
+  LArithmeticT* result = new LArithmeticT(op, left_operand, right_operand);
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
@@ -825,8 +847,17 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     if (FLAG_stress_environments && !instr->HasEnvironment()) {
       instr = AssignEnvironment(instr);
     }
-    if (current->IsBranch()) {
-      instr->set_hydrogen_value(HBranch::cast(current)->value());
+    if (current->IsBranch() && !instr->IsGoto()) {
+      // TODO(fschneider): Handle branch instructions uniformly like
+      // other instructions. This requires us to generate the right
+      // branch instruction already at the HIR level.
+      ASSERT(instr->IsControl());
+      HBranch* branch = HBranch::cast(current);
+      instr->set_hydrogen_value(branch->value());
+      HBasicBlock* first = branch->FirstSuccessor();
+      HBasicBlock* second = branch->SecondSuccessor();
+      ASSERT(first != NULL && second != NULL);
+      instr->SetBranchTargets(first->block_id(), second->block_id());
     } else {
       instr->set_hydrogen_value(current);
     }
@@ -863,11 +894,7 @@ LEnvironment* LChunkBuilder::CreateEnvironment(HEnvironment* hydrogen_env) {
     } else if (value->IsPushArgument()) {
       op = new LArgument(argument_index++);
     } else {
-      op = UseOrConstant(value);
-      if (op->IsUnallocated()) {
-        LUnallocated* unalloc = LUnallocated::cast(op);
-        unalloc->set_policy(LUnallocated::ANY);
-      }
+      op = UseAny(value);
     }
     result->AddValue(op, value->representation());
   }
@@ -1069,7 +1096,23 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
 
 
 LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
-  Abort("Unimplemented: %s", "DoAdd");
+  if (instr->representation().IsInteger32()) {
+    ASSERT(instr->left()->representation().IsInteger32());
+    ASSERT(instr->right()->representation().IsInteger32());
+    LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
+    LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
+    LAddI* add = new LAddI(left, right);
+    LInstruction* result = DefineSameAsFirst(add);
+    if (instr->CheckFlag(HValue::kCanOverflow)) {
+      result = AssignEnvironment(result);
+    }
+    return result;
+  } else if (instr->representation().IsDouble()) {
+    Abort("Unimplemented: %s", "DoAdd on Doubles");
+  } else {
+    ASSERT(instr->representation().IsTagged());
+    return DoArithmeticT(Token::ADD, instr);
+  }
   return NULL;
 }
 
@@ -1214,7 +1257,8 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
     return DefineAsRegister(new LConstantI(value));
   } else if (r.IsDouble()) {
     double value = instr->DoubleValue();
-    return DefineAsRegister(new LConstantD(value));
+    LOperand* temp = TempRegister();
+    return DefineAsRegister(new LConstantD(value, temp));
   } else if (r.IsTagged()) {
     return DefineAsRegister(new LConstantT(instr->handle()));
   } else {

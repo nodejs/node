@@ -773,6 +773,10 @@ class HInstruction: public HValue {
   virtual void Verify() const;
 #endif
 
+  // Returns whether this is some kind of deoptimizing check
+  // instruction.
+  virtual bool IsCheckInstruction() const { return false; }
+
   DECLARE_INSTRUCTION(Instruction)
 
  protected:
@@ -1504,6 +1508,8 @@ class HCheckMap: public HUnaryOperation {
     SetFlag(kDependsOnMaps);
   }
 
+  virtual bool IsCheckInstruction() const { return true; }
+
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -1536,6 +1542,8 @@ class HCheckFunction: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
+
+  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -1572,6 +1580,8 @@ class HCheckInstanceType: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
+
+  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -1610,6 +1620,8 @@ class HCheckNonSmi: public HUnaryOperation {
     SetFlag(kUseGVN);
   }
 
+  virtual bool IsCheckInstruction() const { return true; }
+
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -1631,6 +1643,8 @@ class HCheckPrototypeMaps: public HInstruction {
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
   }
+
+  virtual bool IsCheckInstruction() const { return true; }
 
 #ifdef DEBUG
   virtual void Verify() const;
@@ -1667,6 +1681,8 @@ class HCheckSmi: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
+
+  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -1995,6 +2011,8 @@ class HBoundsCheck: public HBinaryOperation {
       : HBinaryOperation(index, length) {
     SetFlag(kUseGVN);
   }
+
+  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Integer32();

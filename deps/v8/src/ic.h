@@ -193,16 +193,29 @@ class CallICBase: public IC {
 
  public:
   MUST_USE_RESULT MaybeObject* LoadFunction(State state,
+                                            Code::ExtraICState extra_ic_state,
                                             Handle<Object> object,
                                             Handle<String> name);
 
  protected:
   Code::Kind kind_;
 
+  bool TryUpdateExtraICState(LookupResult* lookup,
+                             Handle<Object> object,
+                             Code::ExtraICState* extra_ic_state);
+
+  MUST_USE_RESULT MaybeObject* ComputeMonomorphicStub(
+      LookupResult* lookup,
+      State state,
+      Code::ExtraICState extra_ic_state,
+      Handle<Object> object,
+      Handle<String> name);
+
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
                     State state,
+                    Code::ExtraICState extra_ic_state,
                     Handle<Object> object,
                     Handle<String> name);
 
