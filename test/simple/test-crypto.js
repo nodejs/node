@@ -144,3 +144,31 @@ assert.equal(txt, plaintext, 'encryption and decryption with key and iv');
 assert.throws(function() {
   crypto.createHash('sha1').update({foo: 'bar'});
 }, /string or buffer/);
+
+// Test Diffie-Hellman with two parties sharing a secret,
+// using various encodings as we go along
+var dh1 = crypto.createDiffieHellman(256);
+var p1 = dh1.getPrime('base64');
+var dh2 = crypto.createDiffieHellman(p1, 'base64');
+var key1 = dh1.generateKeys();
+var key2 = dh2.generateKeys('hex');
+var secret1 = dh1.computeSecret(key2, 'hex', 'base64');
+var secret2 = dh2.computeSecret(key1, 'binary', 'base64');
+
+assert.equal(secret1, secret2);
+
+// Create "another dh1" using generated keys from dh1,
+// and compute secret again
+var dh3 = crypto.createDiffieHellman(p1, 'base64');
+var privkey1 = dh1.getPrivateKey();
+dh3.setPublicKey(key1);
+dh3.setPrivateKey(privkey1);
+
+assert.equal(dh1.getPrime(), dh3.getPrime());
+assert.equal(dh1.getGenerator(), dh3.getGenerator());
+assert.equal(dh1.getPublicKey(), dh3.getPublicKey());
+assert.equal(dh1.getPrivateKey(), dh3.getPrivateKey());
+
+var secret3 = dh3.computeSecret(key2, 'hex', 'base64');
+
+assert.equal(secret1, secret3);
