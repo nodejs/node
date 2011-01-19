@@ -29,11 +29,12 @@
     is 'cmd' and it works a little differently. Maybe add an option to
     specify the shell to exec()?
 
-- Stdio (make TTY's / repl / readline work)
-  This will be hard: there is no ANSI escape code support in windows.
-  Select() doesn't work on TTYs -- use a dedicated `getchar()` thread 
-  that relays everything to an internal socket?
-  Also verify writeError and isStdoutBlocking correctness.
+- Make colorful util.inspect work on windows.
+
+- Stdio: support passing sockets between master/child process
+  Normal windows applications wouldn't like this, but it can be useful for
+  communication between node processes. This requires 
+  stdio.isStdinBlocking/isStdoutBlocking to be smarter.
 
 - Skip/fix tests that can never pass on windows
 
