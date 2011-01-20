@@ -375,10 +375,6 @@ void ChildProcess::notify_spawn_failure(ChildProcess *child) {
   DWORD result = WaitForSingleObject(watcher_status.lock, INFINITE);
   assert(result == WAIT_OBJECT_0);
 
-  if (!watcher_status.num_active++) {
-    ev_async_start(EV_DEFAULT_UC_ &watcher_status.async_watcher);
-  }
-
   watcher_status.child = child;
 
   ev_async_send(EV_DEFAULT_UC_ &watcher_status.async_watcher);
@@ -409,10 +405,6 @@ void CALLBACK ChildProcess::watch_wait_callback(void *data,
 inline void ChildProcess::watch(ChildProcess *child) {
   DWORD result = WaitForSingleObject(watcher_status.lock, INFINITE);
   assert(result == WAIT_OBJECT_0);
-
-  if (!watcher_status.num_active++) {
-    ev_async_start(EV_DEFAULT_UC_ &watcher_status.async_watcher);
-  }
 
   // We must retain the lock here because we don't want the RegisterWait
   // to complete before the wait handle is set to the child process.
@@ -792,6 +784,11 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
 
   // Grab a reference so it doesn't get GC'ed
   child->Ref();
+
+  // Start the async watcher
+  if (!watcher_status.num_active++) {
+    ev_async_start(EV_DEFAULT_UC_ &watcher_status.async_watcher);
+  }
 
   eio_custom(do_spawn, EIO_PRI_DEFAULT, after_spawn, (void*)child);
 
