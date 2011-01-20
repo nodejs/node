@@ -18,7 +18,7 @@ namespace node {
 
 #define KEY(scancode, name) \
     scancodes[scancode] = name;
-#define MAX_KEY VK_RMENU
+#define MAX_KEY VK_OEM_PERIOD
 
 static const char* scancodes[MAX_KEY + 1] = {0};
 
