@@ -21,11 +21,13 @@ server.listen(common.PORT, function() {
   var client = http.createClient(common.PORT);
 
   function upgradeRequest(fn) {
+    console.log("req");
     var header = { 'Connection': 'Upgrade', 'Upgrade': 'Test' };
     var request = client.request('GET', '/', header);
     var wasUpgrade = false;
 
     function onUpgrade(res, socket, head) {
+      console.log("client upgraded");
       wasUpgrade = true;
 
       client.removeListener('upgrade', onUpgrade);
@@ -34,6 +36,7 @@ server.listen(common.PORT, function() {
     client.on('upgrade', onUpgrade);
 
     function onEnd() {
+      console.log("client end");
       client.removeListener('end', onEnd);
       if (!wasUpgrade) {
         throw new Error('hasn\'t received upgrade event');
