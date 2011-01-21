@@ -22,7 +22,6 @@ HTTP API is very low-level. It deals with stream handling and message
 parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.
 
-HTTPS is supported if OpenSSL is available on the underlying platform.
 
 ## http.Server
 
@@ -311,34 +310,57 @@ If `data` is specified, it is equivalent to calling `response.write(data, encodi
 followed by `response.end()`.
 
 
-## http.Client
+## http.request(options, callback)
 
-An HTTP client is constructed with a server address as its
-argument, the returned handle is then used to issue one or more
-requests.  Depending on the server connected to, the client might
-pipeline the requests or reestablish the stream after each
-stream. _Currently the implementation does not pipeline requests._
+Node maintains several connections per server to make HTTP requests.
+This function allows one to transparently issue requests.
 
-Example of connecting to `google.com`:
+Options:
 
-    var http = require('http');
-    var google = http.createClient(80, 'www.google.com');
-    var request = google.request('GET', '/',
-      {'host': 'www.google.com'});
-    request.end();
-    request.on('response', function (response) {
-      console.log('STATUS: ' + response.statusCode);
-      console.log('HEADERS: ' + JSON.stringify(response.headers));
-      response.setEncoding('utf8');
-      response.on('data', function (chunk) {
+- `host`: A domain name or IP address of the server to issue the request to.
+- `port`: Port of remote server.
+- `method`: A string specifing the HTTP request method. Possible values:
+  `'GET'` (default), `'POST'`, `'PUT'`, and `'DELETE'`.
+- `path`: Request path. Should include query string and fragments if any.
+   E.G. `'/index.html?page=12'`
+- `headers`: An object containing request headers.
+
+`http.request()` returns an instance of the `http.ClientRequest`
+class. The `ClientRequest` instance is a writable stream. If one needs to
+upload a file with a POST request, then write to the `ClientRequest` object.
+
+Example:
+
+    var options = {
+      host: 'www.google.com',
+      port: 80,
+      path: '/upload',
+      method: 'POST'
+    };
+
+    var req = http.request(options, function(res) {
+      console.log('STATUS: ' + res.statusCode);
+      console.log('HEADERS: ' + JSON.stringify(res.headers));
+      res.setEncoding('utf8');
+      res.on('data', function (chunk) {
         console.log('BODY: ' + chunk);
       });
     });
 
-There are a few special headers that should be noted.
+    // write data to request body
+    req.write('data\n');
+    req.write('data\n');
+    req.end();
 
-* The 'Host' header is not added by Node, and is usually required by
-  website.
+Note that in the example `req.end()` was called. With `http.request()` one
+must always call `req.end()` to signify that you're done with the request -
+even if there is no data being written to the request body.
+
+If any error is encountered during the request (be that with DNS resolution,
+TCP level errors, or actual HTTP parse errors) an `'error'` event is emitted
+on the returned request object.
+
+There are a few special headers that should be noted.
 
 * Sending a 'Connection: keep-alive' will notify Node that the connection to
   the server should be persisted until the next request.
@@ -350,6 +372,33 @@ There are a few special headers that should be noted.
   and listen for the `continue` event. See RFC2616 Section 8.2.3 for more
   information.
 
+## http.get(options, callback)
+
+Since most requests are GET requests without bodies, Node provides this
+convience method. The only difference between this method and `http.request()` is
+that it sets the method to GET and calls `req.end()` automatically.
+
+Example:
+
+    var options = {
+      host: 'www.google.com',
+      port: 80,
+      path: '/index.html'
+    };
+
+    http.get(options, function(res) {
+      console.log("Got response: " + res.statusCode);
+    }).on('error', function(e) {
+      console.log("Got error: " + e.message);
+    });
+
+
+## http.Agent
+
+`http.request()` uses a special `Agent` for managing multiple connections to
+an HTTP server. Normally `Agent` instances should not be exposed to user
+code, however in certain situations it's useful to check the status of the
+agent.
 
 ### Event: 'upgrade'
 
@@ -369,56 +418,24 @@ Emitted when the server sends a '100 Continue' HTTP response, usually because
 the request contained 'Expect: 100-continue'. This is an instruction that
 the client should send the request body.
 
+### agent.maxSockets
 
-### http.createClient(port, host='localhost', secure=false, [credentials])
+By default set to 5. Determines how many concurrent sockets the agent can have open.
 
-Constructs a new HTTP client. `port` and
-`host` refer to the server to be connected to. A
-stream is not established until a request is issued.
+### agent.sockets
 
-`secure` is an optional boolean flag to enable https support and `credentials` is an optional
-credentials object from the crypto module, which may hold the client's private key,
-certificate, and a list of trusted CA certificates.
+An array of sockets currently inuse by the Agent. Do not modify.
 
-If the connection is secure, but no explicit CA certificates are passed
-in the credentials, then node.js will default to the publicly trusted list
-of CA certificates, as given in <http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
+### agent.queue
 
-### client.request(method='GET', path, [request_headers])
+A queue of requests waiting to be sent to sockets.
 
-Issues a request; if necessary establishes stream. Returns a `http.ClientRequest` instance.
-
-`method` is optional and defaults to 'GET' if omitted.
-
-`request_headers` is optional.
-Additional request headers might be added internally
-by Node. Returns a `ClientRequest` object.
-
-Do remember to include the `Content-Length` header if you
-plan on sending a body. If you plan on streaming the body, perhaps
-set `Transfer-Encoding: chunked`.
-
-*NOTE*: the request is not complete. This method only sends the header of
-the request. One needs to call `request.end()` to finalize the request and
-retrieve the response.  (This sounds convoluted but it provides a chance for
-the user to stream a body to the server with `request.write()`.)
-
-### client.verifyPeer()
-
-Returns true or false depending on the validity of the server's certificate
-in the context of the defined or default list of trusted CA certificates.
-
-### client.getPeerCertificate()
-
-Returns a JSON structure detailing the server's certificate, containing a dictionary
-with keys for the certificate `'subject'`, `'issuer'`, `'valid_from'` and `'valid_to'`.
 
 
 ## http.ClientRequest
 
-This object is created internally and returned from the `request()` method
-of a `http.Client`. It represents an _in-progress_ request whose header has
-already been sent.
+This object is created internally and returned from `http.request()`.  It
+represents an _in-progress_ request whose header has already been sent.
 
 To get the response, add a listener for `'response'` to the request object.
 `'response'` will be emitted from the request object when the response
@@ -488,7 +505,7 @@ followed by `request.end()`.
 
 ## http.ClientResponse
 
-This object is created when making a request with `http.Client`. It is
+This object is created when making a request with `http.request()`. It is
 passed to the `'response'` event of the request object.
 
 The response implements the `Readable Stream` interface.
@@ -499,10 +516,6 @@ The response implements the `Readable Stream` interface.
 
 Emitted when a piece of the message body is received.
 
-    Example: A chunk of the body is given as the single
-    argument. The transfer-encoding has been decoded.  The
-    body chunk a String.  The body encoding is set with
-    `response.setBodyEncoding()`.
 
 ### Event: 'end'
 
@@ -542,7 +555,3 @@ Pauses response from emitting events.  Useful to throttle back a download.
 ### response.resume()
 
 Resumes a paused response.
-
-### response.client
-
-A reference to the `http.Client` that this response belongs to.
