@@ -3,9 +3,11 @@
 - Implement other stuff missing in node.cc/process
   Like getuid, getgid, setgid, kill etc.
 
-- Implement missing `net` methods
-  Are unix sockets similar to windows named pipes? If so, should they be 
-  supported? -> currently: no. Complication: they block.
+- Better `net` support
+  * getaddrinfo
+  * pipe, socketpair
+  * A named pipe should be provided when a unix socket is requested.
+  * SendMsg and RecvMsg should be supported with named pipes.
 
 - New libev backend
   The current libev backend supports sockets only. This complicates stuff like
