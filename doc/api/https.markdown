@@ -23,9 +23,10 @@ Example:
     }).listen(8000);
 
 
-## https.request
+## https.request(options, callback)
 
 Makes a request to a secure web server.
+Similar options to `http.request()`.
 
 Example:
 
@@ -52,7 +53,25 @@ Example:
       console.error(e);
     });
 
+## https.get(options, callback)
 
+Like `http.get()` but for HTTPS.
+
+Example:
+
+    var https = require('https');
+
+    https.get({ host: 'encrypted.google.com', path: '/' }, function(res) {
+      console.log("statusCode: ", res.statusCode);
+      console.log("headers: ", res.headers);
+
+      res.on('data', function(d) {
+        process.stdout.write(d);
+      });
+
+    }).on('error', function(e) {
+      console.error(e);
+    });
 
 
 
