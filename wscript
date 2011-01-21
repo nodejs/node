@@ -100,20 +100,19 @@ def set_options(opt):
                 , dest='shared_v8_libname'
                 )
 
-  if sys.platform.startswith("linux"):
-    opt.add_option( '--oprofile'
-                  , action='store_true'
-                  , default=False
-                  , help="add oprofile support"
-                  , dest='use_oprofile'
-                  )
+  opt.add_option( '--oprofile'
+                , action='store_true'
+                , default=False
+                , help="add oprofile support"
+                , dest='use_oprofile'
+                )
 
-    opt.add_option( '--gdb'
-                  , action='store_true'
-                  , default=False
-                  , help="add gdb support"
-                  , dest='use_gdbjit'
-                  )
+  opt.add_option( '--gdb'
+                , action='store_true'
+                , default=False
+                , help="add gdb support"
+                , dest='use_gdbjit'
+                )
 
 
   opt.add_option('--shared-cares'
