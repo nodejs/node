@@ -7,6 +7,7 @@ var server = http.createServer(function(req, res) {
   req.connection.setTimeout(500);
 
   req.connection.addListener('timeout', function() {
+    req.connection.destroy();
     common.debug('TIMEOUT');
     server.close();
   });
@@ -19,9 +20,10 @@ server.listen(common.PORT, function() {
     throw new Error('Timeout was not sucessful');
   }, 2000);
 
-  http.cat('http://localhost:' + common.PORT + '/', 'utf8',
-           function(err, content) {
-             clearTimeout(errorTimer);
-             console.log('HTTP REQUEST COMPLETE (this is good)');
-           });
+  var url = 'http://localhost:' + common.PORT + '/';
+
+  http.cat(url, 'utf8', function(err, content) {
+    clearTimeout(errorTimer);
+    console.log('HTTP REQUEST COMPLETE (this is good)');
+  });
 });

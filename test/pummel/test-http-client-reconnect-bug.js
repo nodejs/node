@@ -11,11 +11,12 @@ var eofCount = 0;
 var server = net.createServer(function(socket) {
   socket.end();
 });
+
 server.on('listening', function() {
   var client = http.createClient(common.PORT);
 
   client.addListener('error', function(err) {
-    console.log('ERROR! ' + (err.stack || err));
+    console.log('ERROR! ' + err.message);
     errorCount++;
   });
 
@@ -30,6 +31,7 @@ server.on('listening', function() {
     console.log('STATUS: ' + response.statusCode);
   });
 });
+
 server.listen(common.PORT);
 
 setTimeout(function() {
@@ -38,6 +40,6 @@ setTimeout(function() {
 
 
 process.addListener('exit', function() {
-  assert.equal(0, errorCount);
+  assert.equal(1, errorCount);
   assert.equal(1, eofCount);
 });

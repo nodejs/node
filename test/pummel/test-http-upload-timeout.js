@@ -14,18 +14,20 @@ server.on('request', function(req, res) {
   });
   req.on('end', function() {
     connections--;
-    req.socket.end();
+    res.writeHead(200);
+    res.end("done\n");
     if (connections == 0) {
       server.close();
     }
   });
 });
+
 server.listen(common.PORT, '127.0.0.1', function() {
   for (var i = 0; i < 10; i++) {
     connections++;
 
     setTimeout(function() {
-      var client = http.createClient(common.PORT, '127.0.0.1'),
+      var client = http.createClient(common.PORT),
           request = client.request('POST', '/');
 
       function ping() {

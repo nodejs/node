@@ -229,7 +229,6 @@ class Parser : public ObjectWrap {
     }
 
     parser->Wrap(args.This());
-    assert(!current_buffer);
 
     return args.This();
   }
