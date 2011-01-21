@@ -100,12 +100,20 @@ def set_options(opt):
                 , dest='shared_v8_libname'
                 )
 
-  opt.add_option( '--oprofile'
-                , action='store_true'
-                , default=False
-                , help="add oprofile support"
-                , dest='use_oprofile'
-                )
+  if sys.platform.startswith("linux"):
+    opt.add_option( '--oprofile'
+                  , action='store_true'
+                  , default=False
+                  , help="add oprofile support"
+                  , dest='use_oprofile'
+                  )
+
+    opt.add_option( '--gdb'
+                  , action='store_true'
+                  , default=False
+                  , help="add gdb support"
+                  , dest='use_gdbjit'
+                  )
 
 
   opt.add_option('--shared-cares'
@@ -191,6 +199,7 @@ def configure(conf):
   conf.env["USE_SHARED_LIBEV"] = o.shared_libev or o.shared_libev_includes or o.shared_libev_libpath
 
   conf.env["USE_OPROFILE"] = o.use_oprofile
+  conf.env["USE_GDBJIT"] = o.use_gdbjit
 
   if o.use_oprofile:
     conf.check(lib=['bfd', 'opagent'], uselib_store="OPROFILE")
@@ -480,8 +489,8 @@ def v8_cmd(bld, variant):
                 , profile
                 )
 
-
-  if sys.platform.startswith("linux"): cmd += ' gdbjit=on '
+  if bld.env["USE_GDBJIT"]:
+    cmd += ' gdbjit=on '
 
   if sys.platform.startswith("sunos"): cmd += ' toolchain=gcc'
 
