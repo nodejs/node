@@ -1,4 +1,15 @@
-2011.01.16, Version 0.3.5 (unstable)
+2011.01.21, Version 0.3.6 (unstable)
+
+* REPL and other improvements on MinGW (Bert Belder)
+
+* listen/bind errors should close net.Server
+
+* New HTTP and HTTPS client APIs
+
+* Upgrade V8 to 3.0.9
+
+
+2011.01.16, Version 0.3.5 (unstable), b622bc6305e3c675e0edfcdbaa387d849ad0bba0
 
 * Built-in debugger improvements.
 
