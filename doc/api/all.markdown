@@ -20,6 +20,7 @@
 @include dns
 @include dgram
 @include http
+@include https
 @include url
 @include querystring
 @include readline

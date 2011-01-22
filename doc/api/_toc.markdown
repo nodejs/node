@@ -19,6 +19,7 @@
 * [DNS](dns.html)
 * [Datagram](dgram.html)
 * [HTTP](http.html)
+* [HTTPS](https.html)
 * [URL](url.html)
 * [Query Strings](querystring.html)
 * [Readline](readline.html)
