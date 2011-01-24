@@ -731,6 +731,10 @@ int  ev_clear_pending  (EV_P_ void *w);
 void ev_io_start       (EV_P_ ev_io *w);
 void ev_io_stop        (EV_P_ ev_io *w);
 
+/* notify libev that an fd was closed. required on windows when a closed */
+/* fd may be reused during before backend_modify is called again */
+void ev_fd_closed(EV_P_ int fd);
+
 void ev_timer_start    (EV_P_ ev_timer *w);
 void ev_timer_stop     (EV_P_ ev_timer *w);
 /* stops if active and no repeat, restarts if active and repeating, starts if inactive and repeating */

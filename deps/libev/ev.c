@@ -1033,6 +1033,23 @@ fd_kill (EV_P_ int fd)
     }
 }
 
+/* notify libev that an fd was closed. required on windows when a closed */
+/* fd may be reused during before backend_modify is called again */
+void noinline
+ev_fd_closed(EV_P_ int fd)
+{
+#ifdef _WIN32
+  if (fd < anfdmax) {
+    ANFD *anfd = anfds + fd;
+
+    backend_modify (EV_A_ fd, anfd->events, 0);
+    anfd->events = 0;
+
+    fd_change (EV_A_ fd, EV__IOFDSET | EV_ANFD_REIFY);
+  }
+#endif
+}
+
 /* check whether the given fd is actually valid, for error recovery */
 inline_size int
 fd_valid (int fd)
