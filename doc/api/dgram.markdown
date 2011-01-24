@@ -168,3 +168,34 @@ probes or when multicasting.
 The argument to `setTTL()` is a number of hops between 1 and 255.  The default on most
 systems is 64.
 
+### dgram.setMulticastTTL(ttl)
+
+Sets the `IP_MULTICAST_TTL` socket option.  TTL stands for "Time to Live," but in this
+context it specifies the number of IP hops that a packet is allowed to go through,
+specifically for multicast traffic.  Each router or gateway that forwards a packet
+decrements the TTL. If the TTL is decremented to 0 by a router, it will not be forwarded.
+
+The argument to `setMulticastTTL()` is a number of hops between 0 and 255.  The default on most
+systems is 64.
+
+### dgram.setMulticastLoopback(flag)
+
+Sets or clears the `IP_MULTICAST_LOOP` socket option.  When this option is set, multicast
+packets will also be received on the local interface.
+
+### dgram.addMembership(multicastAddress, [multicastInterface])
+
+Tells the kernel to join a multicast group with `IP_ADD_MEMBERSHIP` socket option.
+
+If `multicastAddress` is not specified, the OS will try to add membership to all valid
+interfaces.
+
+### dgram.dropMembership(multicastAddress, [multicastInterface])
+
+Opposite of `dropMembership` - tells the kernel to leave a multicast group with
+`IP_DROP_MEMBERSHIP` socket option. This is automatically called by the kernel
+when the socket is closed or process terminates, so most apps will never need to call
+this.
+
+If `multicastAddress` is not specified, the OS will try to add membership to all valid
+interfaces.

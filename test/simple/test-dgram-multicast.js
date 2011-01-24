@@ -22,6 +22,8 @@ sendSocket.on('close', function() {
 });
 
 sendSocket.setBroadcast(true);
+sendSocket.setMulticastTTL(1);
+sendSocket.setMulticastLoopback(true);
 
 var i = 0;
 
@@ -47,12 +49,14 @@ var listener_count = 0;
 function mkListener() {
   var receivedMessages = [];
   var listenSocket = dgram.createSocket('udp4');
+  listenSocket.addMembership(LOCAL_BROADCAST_HOST);
 
   listenSocket.on('message', function(buf, rinfo) {
     console.error('received %s from %j', util.inspect(buf.toString()), rinfo);
     receivedMessages.push(buf);
 
     if (receivedMessages.length == sendMessages.length) {
+      listenSocket.dropMembership(LOCAL_BROADCAST_HOST);
       listenSocket.close();
     }
   });
