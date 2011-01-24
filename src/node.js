@@ -314,7 +314,7 @@
   // one to drop a file lib/_third_party_main.js into the build directory
   // which will be executed instead of Node's normal loading.
   if (NativeModule.exists('_third_party_main')) {
-    process.nextTick(function () {
+    process.nextTick(function() {
       NativeModule.require('_third_party_main');
     });
     return;
