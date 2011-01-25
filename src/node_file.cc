@@ -53,7 +53,12 @@ static Persistent<String> buf_symbol;
 
 
 static inline bool SetCloseOnExec(int fd) {
+#ifdef __POSIX__
   return (fcntl(fd, F_SETFD, FD_CLOEXEC) != -1);
+#else // __MINGW32__
+  /* no-op on windows */
+  return false;
+#endif
 }
 
 
