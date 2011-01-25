@@ -7,7 +7,7 @@ var success_count = 0;
 
 var file = path.join(common.fixturesDir, 'a.js');
 
-fs.chmod(file, 0777, function(err) {
+fs.chmod(file, '0777', function(err) {
   if (err) {
     got_error = true;
   } else {

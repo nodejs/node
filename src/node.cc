@@ -1329,17 +1329,37 @@ static Handle<Value> Cwd(const Arguments& args) {
 static Handle<Value> Umask(const Arguments& args){
   HandleScope scope;
   unsigned int old;
-  if(args.Length() < 1) {
+
+  if(args.Length() < 1 || args[0]->IsUndefined()) {
     old = umask(0);
     umask((mode_t)old);
-  }
-  else if(!args[0]->IsInt32()) {
+
+  } else if(!args[0]->IsInt32() && !args[0]->IsString()) {
     return ThrowException(Exception::TypeError(
-          String::New("argument must be an integer.")));
+          String::New("argument must be an integer or octal string.")));
+
+  } else {
+    int oct;
+    if(args[0]->IsInt32()) {
+      oct = args[0]->Uint32Value();
+    } else {
+      oct = 0;
+      String::Utf8Value str(args[0]);
+
+      // Parse the octal string.
+      for (int i = 0; i < str.length(); i++) {
+        char c = (*str)[i];
+        if (c > '7' || c < '0') {
+          return ThrowException(Exception::TypeError(
+                String::New("invalid octal string")));
+        }
+        oct *= 8;
+        oct += c - '0';
+      }
+    }
+    old = umask(static_cast<mode_t>(oct));
   }
-  else {
-    old = umask((mode_t)args[0]->Uint32Value());
-  }
+
   return scope.Close(Uint32::New(old));
 }
 
