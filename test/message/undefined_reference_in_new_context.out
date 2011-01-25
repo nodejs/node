@@ -9,6 +9,6 @@ ReferenceError: foo is not defined
     at Module._compile (module.js:*)
     at Object..js (module.js:*)
     at Module.load (module.js:*)
-    at Function._load (module.js:178:10)
+    at Function._load (module.js:*)
     at Array.<anonymous> (module.js:*)
     at EventEmitter._tickCallback (node.js:*)
