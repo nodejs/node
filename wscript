@@ -601,7 +601,6 @@ def build(bld):
   make_macros(macros_loc_debug, "")  # leave debug(x) as is in debug build
   # replace debug(x) with nothing in release build
   make_macros(macros_loc_default, "macro debug(x) = ;\n")
-  make_macros(macros_loc_default, "macro assert(x) = ;\n")
 
   if not bld.env["USE_DTRACE"]:
     make_macros(macros_loc_default, "macro DTRACE_HTTP_SERVER_RESPONSE(x) = ;\n");
