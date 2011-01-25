@@ -3,6 +3,7 @@
 #include <node.h>
 
 #include <v8-debug.h>
+#include <node_dtrace.h>
 
 #include <locale.h>
 #include <stdio.h>
@@ -2027,6 +2028,8 @@ static void Load(int argc, char *argv[]) {
   // Add a reference to the global object
   Local<Object> global = v8::Context::GetCurrent()->Global();
   Local<Value> args[1] = { Local<Value>::New(process) };
+
+  InitDTrace(global);
 
   f->Call(global, 1, args);
 

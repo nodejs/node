@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import re
 import Options
-import sys, os, shutil
+import sys, os, shutil, glob
+import Utils
 from Utils import cmd_output
 from os.path import join, dirname, abspath
 from logging import fatal
@@ -158,6 +159,13 @@ def set_options(opt):
                 , dest='shared_libev_libpath'
                 )
 
+  opt.add_option( '--with-dtrace'
+                , action='store_true'
+                , default=False
+                , help='Build with DTrace (experimental)'
+                , dest='dtrace'
+                )
+ 
 
   opt.add_option( '--product-type'
                 , action='store'
@@ -213,6 +221,14 @@ def configure(conf):
 
   #if Options.options.debug:
   #  conf.check(lib='profiler', uselib_store='PROFILER')
+
+  if Options.options.dtrace:
+    if not sys.platform.startswith("sunos"):
+      conf.fatal('DTrace support only currently available on Solaris')
+
+    conf.find_program('dtrace', var='DTRACE', mandatory=True)
+    conf.env["USE_DTRACE"] = True
+    conf.env.append_value("CXXFLAGS", "-DHAVE_DTRACE=1")
 
   if Options.options.efence:
     conf.check(lib='efence', libpath=['/usr/lib', '/usr/local/lib'], uselib_store='EFENCE')
@@ -562,7 +578,7 @@ def build(bld):
 
   ### src/native.cc
   def make_macros(loc, content):
-    f = open(loc, 'w')
+    f = open(loc, 'a')
     f.write(content)
     f.close
 
@@ -576,9 +592,26 @@ def build(bld):
     "macros.py"
   )
 
+  ### We need to truncate the macros.py file
+  f = open(macros_loc_debug, 'w')
+  f.close
+  f = open(macros_loc_default, 'w')
+  f.close
+
   make_macros(macros_loc_debug, "")  # leave debug(x) as is in debug build
   # replace debug(x) with nothing in release build
   make_macros(macros_loc_default, "macro debug(x) = ;\n")
+
+  if not bld.env["USE_DTRACE"]:
+    make_macros(macros_loc_default, "macro DTRACE_HTTP_SERVER_RESPONSE(x) = ;\n");
+    make_macros(macros_loc_default, "macro DTRACE_HTTP_SERVER_REQUEST(x) = ;\n");
+    make_macros(macros_loc_default, "macro DTRACE_NET_SERVER_CONNECTION(x) = ;\n");
+    make_macros(macros_loc_default, "macro DTRACE_NET_STREAM_END(x) = ;\n");
+    make_macros(macros_loc_debug, "macro DTRACE_HTTP_SERVER_RESPONSE(x) = ;\n");
+    make_macros(macros_loc_debug, "macro DTRACE_HTTP_SERVER_REQUEST(x) = ;\n");
+    make_macros(macros_loc_debug, "macro DTRACE_NET_SERVER_CONNECTION(x) = ;\n");
+    make_macros(macros_loc_debug, "macro DTRACE_NET_STREAM_END(x) = ;\n");
+
 
   def javascript_in_c(task):
     env = task.env
@@ -610,6 +643,65 @@ def build(bld):
     native_cc_debug.rule = javascript_in_c_debug
 
   native_cc.rule = javascript_in_c
+  
+  if bld.env["USE_DTRACE"]:
+    dtrace = bld.new_task_gen(
+      name   = "dtrace",
+      source = "src/node_provider.d",
+      target = "src/node_provider.h",
+      rule   = "%s -x nolibs -h -o ${TGT} -s ${SRC}" % (bld.env.DTRACE),
+      before = "cxx",
+    )
+
+    if bld.env["USE_DEBUG"]:
+      dtrace_g = dtrace.clone("debug")
+
+    bld.install_files('/usr/lib/dtrace', 'src/node.d')
+
+    if sys.platform.startswith("sunos"):
+      #
+      # The USDT DTrace provider works slightly differently on Solaris than on
+      # the Mac; on Solaris, any objects that have USDT DTrace probes must be
+      # post-processed with the DTrace command.  (This is not true on the
+      # Mac, which has first-class linker support for USDT probes.)  On
+      # Solaris, we must therefore post-process our object files.  Waf doesn't
+      # seem to really have a notion for this, so we inject a task after
+      # compiling and before linking, and then find all of the node object
+      # files and shuck them off to dtrace (which will modify them in place
+      # as appropriate).
+      #
+      def dtrace_postprocess(task):
+        abspath = bld.srcnode.abspath(bld.env_of_name(task.env.variant()))
+        objs = glob.glob(abspath + 'src/*.o')
+
+        Utils.exec_command('%s -G -x nolibs -s %s %s' % (task.env.DTRACE,
+          task.inputs[0].srcpath(task.env), ' '.join(objs)))
+
+      dtracepost = bld.new_task_gen(
+        name   = "dtrace-postprocess",
+        source = "src/node_provider.d",
+        always = True,
+        before = "cxx_link",
+        after  = "cxx",
+      )
+
+      bld.env.append_value('LINKFLAGS', 'node_provider.o')
+
+      #
+      # Note that for the same (mysterious) issue outlined above with respect
+      # to assigning the rule to native_cc/native_cc_debug, we must apply the
+      # rule to dtracepost/dtracepost_g only after they have been cloned.  We
+      # also must put node_provider.o on the link line, but because we
+      # (apparently?) lack LINKFLAGS in debug, we (shamelessly) stowaway on
+      # LINKFLAGS_V8_G.
+      #
+      if bld.env["USE_DEBUG"]:
+        dtracepost_g = dtracepost.clone("debug")
+        dtracepost_g.rule = dtrace_postprocess
+        bld.env_of_name("debug").append_value('LINKFLAGS_V8_G',
+          'node_provider.o') 
+
+      dtracepost.rule = dtrace_postprocess
 
   ### node lib
   node = bld.new_task_gen("cxx", product_type)
@@ -639,6 +731,7 @@ def build(bld):
     src/node_timer.cc
     src/node_script.cc
     src/node_os.cc
+    src/node_dtrace.cc
   """
 
   if sys.platform.startswith("win32"):
