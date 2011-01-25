@@ -3267,14 +3267,14 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
 
 
 static bool CanBeEncodedAsSmi(void* ptr) {
-  const intptr_t address = reinterpret_cast<intptr_t>(ptr);
+  const uintptr_t address = reinterpret_cast<uintptr_t>(ptr);
   return ((address & i::kEncodablePointerMask) == 0);
 }
 
 
 static i::Smi* EncodeAsSmi(void* ptr) {
   ASSERT(CanBeEncodedAsSmi(ptr));
-  const intptr_t address = reinterpret_cast<intptr_t>(ptr);
+  const uintptr_t address = reinterpret_cast<uintptr_t>(ptr);
   i::Smi* result = reinterpret_cast<i::Smi*>(address << i::kPointerToSmiShift);
   ASSERT(i::Internals::HasSmiTag(result));
   ASSERT_EQ(result, i::Smi::FromInt(result->value()));

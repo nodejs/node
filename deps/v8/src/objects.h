@@ -455,6 +455,7 @@ const uint32_t kShortcutTypeTag = kConsStringTag;
 
 enum InstanceType {
   // String types.
+  // FIRST_STRING_TYPE
   SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kSeqStringTag,
   ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kSeqStringTag,
   CONS_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kConsStringTag,
@@ -471,6 +472,7 @@ enum InstanceType {
   EXTERNAL_STRING_TYPE = kTwoByteStringTag | kExternalStringTag,
   EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kExternalStringTag | kAsciiDataHintTag,
+  // LAST_STRING_TYPE
   EXTERNAL_ASCII_STRING_TYPE = kAsciiStringTag | kExternalStringTag,
   PRIVATE_EXTERNAL_ASCII_STRING_TYPE = EXTERNAL_ASCII_STRING_TYPE,
 
@@ -523,7 +525,8 @@ enum InstanceType {
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
-  JS_REGEXP_TYPE,  // LAST_JS_OBJECT_TYPE
+
+  JS_REGEXP_TYPE,  // LAST_JS_OBJECT_TYPE, FIRST_FUNCTION_CLASS_TYPE
 
   JS_FUNCTION_TYPE,
 
@@ -532,6 +535,8 @@ enum InstanceType {
   LAST_TYPE = JS_FUNCTION_TYPE,
   INVALID_TYPE = FIRST_TYPE - 1,
   FIRST_NONSTRING_TYPE = MAP_TYPE,
+  FIRST_STRING_TYPE = FIRST_TYPE,
+  LAST_STRING_TYPE = FIRST_NONSTRING_TYPE - 1,
   // Boundaries for testing for an external array.
   FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
   LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_FLOAT_ARRAY_TYPE,
@@ -541,7 +546,10 @@ enum InstanceType {
   // function objects are not counted as objects, even though they are
   // implemented as such; only values whose typeof is "object" are included.
   FIRST_JS_OBJECT_TYPE = JS_VALUE_TYPE,
-  LAST_JS_OBJECT_TYPE = JS_REGEXP_TYPE
+  LAST_JS_OBJECT_TYPE = JS_REGEXP_TYPE,
+  // RegExp objects have [[Class]] "function" because they are callable.
+  // All types from this type and above are objects with [[Class]] "function".
+  FIRST_FUNCTION_CLASS_TYPE = JS_REGEXP_TYPE
 };
 
 
@@ -4066,7 +4074,6 @@ class SharedFunctionInfo: public HeapObject {
   inline bool IsApiFunction();
   inline FunctionTemplateInfo* get_api_func_data();
   inline bool HasBuiltinFunctionId();
-  inline bool IsBuiltinMathFunction();
   inline BuiltinFunctionId builtin_function_id();
 
   // [script info]: Script from which the function originates.

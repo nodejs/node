@@ -34,18 +34,18 @@ exception = false;
 
 
 function checkFrame0(name, value) {
-  assertTrue(name == 'a' || name == 'b');
+  assertTrue(name == 'a' || name == 'b', 'frame0 name');
   if (name == 'a') {
     assertEquals(1, value);
-  }
-  if (name == 'b') {
+  } else if (name == 'b') {
     assertEquals(2, value);
   }
 }
 
 
 function checkFrame1(name, value) {
-  assertTrue(name == '.arguments' || name == 'a');
+  assertTrue(name == '.arguments' || name == 'arguments' || name == 'a',
+             'frame1 name');
   if (name == 'a') {
     assertEquals(3, value);
   }
@@ -53,12 +53,10 @@ function checkFrame1(name, value) {
 
 
 function checkFrame2(name, value) {
-  assertTrue(name == '.arguments' || name == 'a' ||
-             name == 'arguments' || name == 'b');
+  assertTrue(name == 'a' || name == 'b', 'frame2 name');
   if (name == 'a') {
     assertEquals(5, value);
-  }
-  if (name == 'b') {
+  } else if (name == 'b') {
     assertEquals(0, value);
   }
 }
@@ -73,18 +71,17 @@ function listener(event, exec_state, event_data, data) {
       checkFrame0(frame0.localName(0), frame0.localValue(0).value());
       checkFrame0(frame0.localName(1), frame0.localValue(1).value());
 
-      // Frame 1 has normal variable a (and the .arguments variable).
+      // Frame 1 has normal variables a and arguments (and the .arguments
+      // variable).
       var frame1 = exec_state.frame(1);
       checkFrame1(frame1.localName(0), frame1.localValue(0).value());
       checkFrame1(frame1.localName(1), frame1.localValue(1).value());
+      checkFrame1(frame1.localName(2), frame1.localValue(2).value());
 
-      // Frame 2 has normal variables a and b (and both the .arguments and
-      // arguments variable).
+      // Frame 2 has normal variables a and b.
       var frame2 = exec_state.frame(2);
       checkFrame2(frame2.localName(0), frame2.localValue(0).value());
       checkFrame2(frame2.localName(1), frame2.localValue(1).value());
-      checkFrame2(frame2.localName(2), frame2.localValue(2).value());
-      checkFrame2(frame2.localName(3), frame2.localValue(3).value());
 
       // Evaluating a and b on frames 0, 1 and 2 produces 1, 2, 3, 4, 5 and 6.
       assertEquals(1, exec_state.frame(0).evaluate('a').value());

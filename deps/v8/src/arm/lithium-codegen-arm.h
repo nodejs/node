@@ -93,12 +93,17 @@ class LCodeGen BASE_EMBEDDED {
   void FinishCode(Handle<Code> code);
 
   // Deferred code support.
-  void DoDeferredGenericBinaryStub(LBinaryOperation* instr, Token::Value op);
+  template<int T>
+  void DoDeferredGenericBinaryStub(LTemplateInstruction<1, 2, T>* instr,
+                                   Token::Value op);
   void DoDeferredNumberTagD(LNumberTagD* instr);
   void DoDeferredNumberTagI(LNumberTagI* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LGoto* instr);
+  void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
+  void DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
+                                        Label* map_check);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
@@ -212,6 +217,7 @@ class LCodeGen BASE_EMBEDDED {
   MemOperand ToMemOperand(LOperand* op) const;
 
   // Specific math operations - used from DoUnaryMathOperation.
+  void EmitIntegerMathAbs(LUnaryMathOperation* instr);
   void DoMathAbs(LUnaryMathOperation* instr);
   void DoMathFloor(LUnaryMathOperation* instr);
   void DoMathSqrt(LUnaryMathOperation* instr);

@@ -162,6 +162,12 @@ const char* LArithmeticT::Mnemonic() const {
     case Token::MUL: return "mul-t";
     case Token::MOD: return "mod-t";
     case Token::DIV: return "div-t";
+    case Token::BIT_AND: return "bit-and-t";
+    case Token::BIT_OR: return "bit-or-t";
+    case Token::BIT_XOR: return "bit-xor-t";
+    case Token::SHL: return "sal-t";
+    case Token::SAR: return "sar-t";
+    case Token::SHR: return "shr-t";
     default:
       UNREACHABLE();
       return NULL;
@@ -739,18 +745,38 @@ LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
 
 LInstruction* LChunkBuilder::DoBit(Token::Value op,
                                    HBitwiseBinaryOperation* instr) {
-  ASSERT(instr->representation().IsInteger32());
-  ASSERT(instr->left()->representation().IsInteger32());
-  ASSERT(instr->right()->representation().IsInteger32());
+  if (instr->representation().IsInteger32()) {
+    ASSERT(instr->left()->representation().IsInteger32());
+    ASSERT(instr->right()->representation().IsInteger32());
 
-  LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
-  LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
-  return DefineSameAsFirst(new LBitI(op, left, right));
+    LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
+    LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
+    return DefineSameAsFirst(new LBitI(op, left, right));
+  } else {
+    ASSERT(instr->representation().IsTagged());
+    ASSERT(instr->left()->representation().IsTagged());
+    ASSERT(instr->right()->representation().IsTagged());
+
+    LOperand* left = UseFixed(instr->left(), edx);
+    LOperand* right = UseFixed(instr->right(), eax);
+    LArithmeticT* result = new LArithmeticT(op, left, right);
+    return MarkAsCall(DefineFixed(result, eax), instr);
+  }
 }
 
 
 LInstruction* LChunkBuilder::DoShift(Token::Value op,
                                      HBitwiseBinaryOperation* instr) {
+  if (instr->representation().IsTagged()) {
+    ASSERT(instr->left()->representation().IsTagged());
+    ASSERT(instr->right()->representation().IsTagged());
+
+    LOperand* left = UseFixed(instr->left(), edx);
+    LOperand* right = UseFixed(instr->right(), eax);
+    LArithmeticT* result = new LArithmeticT(op, left, right);
+    return MarkAsCall(DefineFixed(result, eax), instr);
+  }
+
   ASSERT(instr->representation().IsInteger32());
   ASSERT(instr->OperandAt(0)->representation().IsInteger32());
   ASSERT(instr->OperandAt(1)->representation().IsInteger32());
@@ -894,15 +920,12 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     if (FLAG_stress_environments && !instr->HasEnvironment()) {
       instr = AssignEnvironment(instr);
     }
-    if (current->IsBranch() && !instr->IsGoto()) {
-      // TODO(fschneider): Handle branch instructions uniformly like
-      // other instructions. This requires us to generate the right
-      // branch instruction already at the HIR level.
+    if (current->IsTest() && !instr->IsGoto()) {
       ASSERT(instr->IsControl());
-      HBranch* branch = HBranch::cast(current);
-      instr->set_hydrogen_value(branch->value());
-      HBasicBlock* first = branch->FirstSuccessor();
-      HBasicBlock* second = branch->SecondSuccessor();
+      HTest* test = HTest::cast(current);
+      instr->set_hydrogen_value(test->value());
+      HBasicBlock* first = test->FirstSuccessor();
+      HBasicBlock* second = test->SecondSuccessor();
       ASSERT(first != NULL && second != NULL);
       instr->SetBranchTargets(first->block_id(), second->block_id());
     } else {
@@ -959,7 +982,7 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
+LInstruction* LChunkBuilder::DoTest(HTest* instr) {
   HValue* v = instr->value();
   if (v->EmitAtUses()) {
     if (v->IsClassOfTest()) {
@@ -1061,8 +1084,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCompareMapAndBranch(
-    HCompareMapAndBranch* instr) {
+LInstruction* LChunkBuilder::DoCompareMap(HCompareMap* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
   return new LCmpMapAndBranch(value);
@@ -1738,6 +1760,20 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 
   LStoreNamedGeneric* result = new LStoreNamedGeneric(obj, val);
   return MarkAsCall(result, instr);
+}
+
+
+LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
+  LOperand* string = UseRegister(instr->string());
+  LOperand* index = UseRegisterOrConstant(instr->index());
+  LStringCharCodeAt* result = new LStringCharCodeAt(string, index);
+  return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+}
+
+
+LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
+  LOperand* string = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LStringLength(string));
 }
 
 

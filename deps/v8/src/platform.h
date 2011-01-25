@@ -174,6 +174,7 @@ class OS {
   static int GetLastError();
 
   static FILE* FOpen(const char* path, const char* mode);
+  static bool Remove(const char* path);
 
   // Log file open mode is platform-dependent due to line ends issues.
   static const char* LogFileOpenMode;
@@ -251,9 +252,11 @@ class OS {
 
   class MemoryMappedFile {
    public:
+    static MemoryMappedFile* open(const char* name);
     static MemoryMappedFile* create(const char* name, int size, void* initial);
     virtual ~MemoryMappedFile() { }
     virtual void* memory() = 0;
+    virtual int size() = 0;
   };
 
   // Safe formatting print. Ensures that str is always null-terminated.

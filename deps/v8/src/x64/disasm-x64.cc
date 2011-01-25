@@ -1113,9 +1113,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     } else if (opcode == 0x2C) {
       // CVTTSS2SI:
       // Convert with truncation scalar single-precision FP to dword integer.
-      // Assert that mod is not 3, so source is memory, not an XMM register.
-      ASSERT_NE(0xC0, *current & 0xC0);
-      current += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, current);
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("cvttss2si%c %s,",
+          operand_size_code(), NameOfCPURegister(regop));
+      current += PrintRightXMMOperand(current);
     } else if (opcode == 0x5A) {
       // CVTSS2SD:
       // Convert scalar single-precision FP to scalar double-precision FP.

@@ -3306,6 +3306,364 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
 }
 
 
+MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
+    ExternalArrayType array_type, Code::Flags flags) {
+  // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label slow, failed_allocation;
+
+  // Check that the object isn't a smi.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &slow, not_taken);
+
+  // Check that the key is a smi.
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(not_zero, &slow, not_taken);
+
+  // Get the map of the receiver.
+  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+  // Check that the receiver does not require access checks.  We need
+  // to check this explicitly since this generic stub does not perform
+  // map checks.
+  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+            1 << Map::kIsAccessCheckNeeded);
+  __ j(not_zero, &slow, not_taken);
+
+  __ CmpInstanceType(ecx, JS_OBJECT_TYPE);
+  __ j(not_equal, &slow, not_taken);
+
+  // Check that the elements array is the appropriate type of
+  // ExternalArray.
+  __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
+  Handle<Map> map(Heap::MapForExternalArrayType(array_type));
+  __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
+         Immediate(map));
+  __ j(not_equal, &slow, not_taken);
+
+  // eax: key, known to be a smi.
+  // edx: receiver, known to be a JSObject.
+  // ebx: elements object, known to be an external array.
+  // Check that the index is in range.
+  __ mov(ecx, eax);
+  __ SmiUntag(ecx);  // Untag the index.
+  __ cmp(ecx, FieldOperand(ebx, ExternalArray::kLengthOffset));
+  // Unsigned comparison catches both negative and too-large values.
+  __ j(above_equal, &slow);
+
+  __ mov(ebx, FieldOperand(ebx, ExternalArray::kExternalPointerOffset));
+  // ebx: base pointer of external storage
+  switch (array_type) {
+    case kExternalByteArray:
+      __ movsx_b(ecx, Operand(ebx, ecx, times_1, 0));
+      break;
+    case kExternalUnsignedByteArray:
+      __ movzx_b(ecx, Operand(ebx, ecx, times_1, 0));
+      break;
+    case kExternalShortArray:
+      __ movsx_w(ecx, Operand(ebx, ecx, times_2, 0));
+      break;
+    case kExternalUnsignedShortArray:
+      __ movzx_w(ecx, Operand(ebx, ecx, times_2, 0));
+      break;
+    case kExternalIntArray:
+    case kExternalUnsignedIntArray:
+      __ mov(ecx, Operand(ebx, ecx, times_4, 0));
+      break;
+    case kExternalFloatArray:
+      __ fld_s(Operand(ebx, ecx, times_4, 0));
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+
+  // For integer array types:
+  // ecx: value
+  // For floating-point array type:
+  // FP(0): value
+
+  if (array_type == kExternalIntArray ||
+      array_type == kExternalUnsignedIntArray) {
+    // For the Int and UnsignedInt array types, we need to see whether
+    // the value can be represented in a Smi. If not, we need to convert
+    // it to a HeapNumber.
+    Label box_int;
+    if (array_type == kExternalIntArray) {
+      __ cmp(ecx, 0xC0000000);
+      __ j(sign, &box_int);
+    } else {
+      ASSERT_EQ(array_type, kExternalUnsignedIntArray);
+      // The test is different for unsigned int values. Since we need
+      // the value to be in the range of a positive smi, we can't
+      // handle either of the top two bits being set in the value.
+      __ test(ecx, Immediate(0xC0000000));
+      __ j(not_zero, &box_int);
+    }
+
+    __ mov(eax, ecx);
+    __ SmiTag(eax);
+    __ ret(0);
+
+    __ bind(&box_int);
+
+    // Allocate a HeapNumber for the int and perform int-to-double
+    // conversion.
+    if (array_type == kExternalIntArray) {
+      __ push(ecx);
+      __ fild_s(Operand(esp, 0));
+      __ pop(ecx);
+    } else {
+      ASSERT(array_type == kExternalUnsignedIntArray);
+      // Need to zero-extend the value.
+      // There's no fild variant for unsigned values, so zero-extend
+      // to a 64-bit int manually.
+      __ push(Immediate(0));
+      __ push(ecx);
+      __ fild_d(Operand(esp, 0));
+      __ pop(ecx);
+      __ pop(ecx);
+    }
+    // FP(0): value
+    __ AllocateHeapNumber(ecx, ebx, edi, &failed_allocation);
+    // Set the value.
+    __ mov(eax, ecx);
+    __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+    __ ret(0);
+  } else if (array_type == kExternalFloatArray) {
+    // For the floating-point array type, we need to always allocate a
+    // HeapNumber.
+    __ AllocateHeapNumber(ecx, ebx, edi, &failed_allocation);
+    // Set the value.
+    __ mov(eax, ecx);
+    __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+    __ ret(0);
+  } else {
+    __ mov(eax, ecx);
+    __ SmiTag(eax);
+    __ ret(0);
+  }
+
+  // If we fail allocation of the HeapNumber, we still have a value on
+  // top of the FPU stack. Remove it.
+  __ bind(&failed_allocation);
+  __ ffree();
+  __ fincstp();
+  // Fall through to slow case.
+
+  // Slow case: Jump to runtime.
+  __ bind(&slow);
+  __ IncrementCounter(&Counters::keyed_load_external_array_slow, 1);
+  // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+
+  __ pop(ebx);
+  __ push(edx);  // receiver
+  __ push(eax);  // name
+  __ push(ebx);  // return address
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);
+
+  // Return the generated code.
+  return GetCode(flags);
+}
+
+
+MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
+    ExternalArrayType array_type, Code::Flags flags) {
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label slow, check_heap_number;
+
+  // Check that the object isn't a smi.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
+  // Get the map from the receiver.
+  __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
+  // Check that the receiver does not require access checks.  We need
+  // to do this because this generic stub does not perform map checks.
+  __ test_b(FieldOperand(edi, Map::kBitFieldOffset),
+            1 << Map::kIsAccessCheckNeeded);
+  __ j(not_zero, &slow);
+  // Check that the key is a smi.
+  __ test(ecx, Immediate(kSmiTagMask));
+  __ j(not_zero, &slow);
+  // Get the instance type from the map of the receiver.
+  __ CmpInstanceType(edi, JS_OBJECT_TYPE);
+  __ j(not_equal, &slow);
+
+  // Check that the elements array is the appropriate type of
+  // ExternalArray.
+  // eax: value
+  // edx: receiver, a JSObject
+  // ecx: key, a smi
+  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+  __ CheckMap(edi, Handle<Map>(Heap::MapForExternalArrayType(array_type)),
+              &slow, true);
+
+  // Check that the index is in range.
+  __ mov(ebx, ecx);
+  __ SmiUntag(ebx);
+  __ cmp(ebx, FieldOperand(edi, ExternalArray::kLengthOffset));
+  // Unsigned comparison catches both negative and too-large values.
+  __ j(above_equal, &slow);
+
+  // Handle both smis and HeapNumbers in the fast path. Go to the
+  // runtime for all other kinds of values.
+  // eax: value
+  // edx: receiver
+  // ecx: key
+  // edi: elements array
+  // ebx: untagged index
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(not_equal, &check_heap_number);
+  // smi case
+  __ mov(ecx, eax);  // Preserve the value in eax.  Key is no longer needed.
+  __ SmiUntag(ecx);
+  __ mov(edi, FieldOperand(edi, ExternalArray::kExternalPointerOffset));
+  // ecx: base pointer of external storage
+  switch (array_type) {
+    case kExternalByteArray:
+    case kExternalUnsignedByteArray:
+      __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
+      break;
+    case kExternalShortArray:
+    case kExternalUnsignedShortArray:
+      __ mov_w(Operand(edi, ebx, times_2, 0), ecx);
+      break;
+    case kExternalIntArray:
+    case kExternalUnsignedIntArray:
+      __ mov(Operand(edi, ebx, times_4, 0), ecx);
+      break;
+    case kExternalFloatArray:
+      // Need to perform int-to-float conversion.
+      __ push(ecx);
+      __ fild_s(Operand(esp, 0));
+      __ pop(ecx);
+      __ fstp_s(Operand(edi, ebx, times_4, 0));
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  __ ret(0);  // Return the original value.
+
+  __ bind(&check_heap_number);
+  // eax: value
+  // edx: receiver
+  // ecx: key
+  // edi: elements array
+  // ebx: untagged index
+  __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
+         Immediate(Factory::heap_number_map()));
+  __ j(not_equal, &slow);
+
+  // The WebGL specification leaves the behavior of storing NaN and
+  // +/-Infinity into integer arrays basically undefined. For more
+  // reproducible behavior, convert these to zero.
+  __ mov(edi, FieldOperand(edi, ExternalArray::kExternalPointerOffset));
+  // ebx: untagged index
+  // edi: base pointer of external storage
+  if (array_type == kExternalFloatArray) {
+    __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
+    __ fstp_s(Operand(edi, ebx, times_4, 0));
+    __ ret(0);
+  } else {
+    // Perform float-to-int conversion with truncation (round-to-zero)
+    // behavior.
+
+    // For the moment we make the slow call to the runtime on
+    // processors that don't support SSE2. The code in IntegerConvert
+    // (code-stubs-ia32.cc) is roughly what is needed here though the
+    // conversion failure case does not need to be handled.
+    if (CpuFeatures::IsSupported(SSE2)) {
+      if (array_type != kExternalIntArray &&
+          array_type != kExternalUnsignedIntArray) {
+        ASSERT(CpuFeatures::IsSupported(SSE2));
+        CpuFeatures::Scope scope(SSE2);
+        __ cvttsd2si(ecx, FieldOperand(eax, HeapNumber::kValueOffset));
+        // ecx: untagged integer value
+        switch (array_type) {
+          case kExternalByteArray:
+          case kExternalUnsignedByteArray:
+            __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
+            break;
+          case kExternalShortArray:
+          case kExternalUnsignedShortArray:
+            __ mov_w(Operand(edi, ebx, times_2, 0), ecx);
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
+      } else {
+        if (CpuFeatures::IsSupported(SSE3)) {
+          CpuFeatures::Scope scope(SSE3);
+          // fisttp stores values as signed integers. To represent the
+          // entire range of int and unsigned int arrays, store as a
+          // 64-bit int and discard the high 32 bits.
+          // If the value is NaN or +/-infinity, the result is 0x80000000,
+          // which is automatically zero when taken mod 2^n, n < 32.
+          __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
+          __ sub(Operand(esp), Immediate(2 * kPointerSize));
+          __ fisttp_d(Operand(esp, 0));
+          __ pop(ecx);
+          __ add(Operand(esp), Immediate(kPointerSize));
+        } else {
+          ASSERT(CpuFeatures::IsSupported(SSE2));
+          CpuFeatures::Scope scope(SSE2);
+          // We can easily implement the correct rounding behavior for the
+          // range [0, 2^31-1]. For the time being, to keep this code simple,
+          // make the slow runtime call for values outside this range.
+          // Note: we could do better for signed int arrays.
+          __ movd(xmm0, FieldOperand(eax, HeapNumber::kValueOffset));
+          // We will need the key if we have to make the slow runtime call.
+          __ push(ecx);
+          __ LoadPowerOf2(xmm1, ecx, 31);
+          __ pop(ecx);
+          __ ucomisd(xmm1, xmm0);
+          __ j(above_equal, &slow);
+          __ cvttsd2si(ecx, Operand(xmm0));
+        }
+        // ecx: untagged integer value
+        __ mov(Operand(edi, ebx, times_4, 0), ecx);
+      }
+      __ ret(0);  // Return original value.
+    }
+  }
+
+  // Slow case: call runtime.
+  __ bind(&slow);
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+
+  __ pop(ebx);
+  __ push(edx);
+  __ push(ecx);
+  __ push(eax);
+  __ push(ebx);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+
+  return GetCode(flags);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

@@ -71,73 +71,24 @@ static inline LifetimePosition Max(LifetimePosition a, LifetimePosition b) {
 }
 
 
-void LOperand::PrintTo(StringStream* stream) {
-  LUnallocated* unalloc = NULL;
-  switch (kind()) {
-    case INVALID:
-      break;
-    case UNALLOCATED:
-      unalloc = LUnallocated::cast(this);
-      stream->Add("v%d", unalloc->virtual_register());
-      switch (unalloc->policy()) {
-        case LUnallocated::NONE:
-          break;
-        case LUnallocated::FIXED_REGISTER: {
-          const char* register_name =
-              Register::AllocationIndexToString(unalloc->fixed_index());
-          stream->Add("(=%s)", register_name);
-          break;
-        }
-        case LUnallocated::FIXED_DOUBLE_REGISTER: {
-          const char* double_register_name =
-              DoubleRegister::AllocationIndexToString(unalloc->fixed_index());
-          stream->Add("(=%s)", double_register_name);
-          break;
-        }
-        case LUnallocated::FIXED_SLOT:
-          stream->Add("(=%dS)", unalloc->fixed_index());
-          break;
-        case LUnallocated::MUST_HAVE_REGISTER:
-          stream->Add("(R)");
-          break;
-        case LUnallocated::WRITABLE_REGISTER:
-          stream->Add("(WR)");
-          break;
-        case LUnallocated::SAME_AS_FIRST_INPUT:
-          stream->Add("(1)");
-          break;
-        case LUnallocated::ANY:
-          stream->Add("(-)");
-          break;
-        case LUnallocated::IGNORE:
-          stream->Add("(0)");
-          break;
-      }
-      break;
-    case CONSTANT_OPERAND:
-      stream->Add("[constant:%d]", index());
-      break;
-    case STACK_SLOT:
-      stream->Add("[stack:%d]", index());
-      break;
-    case DOUBLE_STACK_SLOT:
-      stream->Add("[double_stack:%d]", index());
-      break;
-    case REGISTER:
-      stream->Add("[%s|R]", Register::AllocationIndexToString(index()));
-      break;
-    case DOUBLE_REGISTER:
-      stream->Add("[%s|R]", DoubleRegister::AllocationIndexToString(index()));
-      break;
-    case ARGUMENT:
-      stream->Add("[arg:%d]", index());
-      break;
+UsePosition::UsePosition(LifetimePosition pos, LOperand* operand)
+    : operand_(operand),
+      hint_(NULL),
+      pos_(pos),
+      next_(NULL),
+      requires_reg_(false),
+      register_beneficial_(true) {
+  if (operand_ != NULL && operand_->IsUnallocated()) {
+    LUnallocated* unalloc = LUnallocated::cast(operand_);
+    requires_reg_ = unalloc->HasRegisterPolicy();
+    register_beneficial_ = !unalloc->HasAnyPolicy();
   }
+  ASSERT(pos_.IsValid());
 }
 
-int LOperand::VirtualRegister() {
-  LUnallocated* unalloc = LUnallocated::cast(this);
-  return unalloc->virtual_register();
+
+bool UsePosition::HasHint() const {
+  return hint_ != NULL && !hint_->IsUnallocated();
 }
 
 
@@ -188,6 +139,53 @@ bool LiveRange::HasOverlap(UseInterval* target) const {
 
 
 #endif
+
+
+LiveRange::LiveRange(int id)
+    : id_(id),
+      spilled_(false),
+      assigned_register_(kInvalidAssignment),
+      assigned_register_kind_(NONE),
+      last_interval_(NULL),
+      first_interval_(NULL),
+      first_pos_(NULL),
+      parent_(NULL),
+      next_(NULL),
+      current_interval_(NULL),
+      last_processed_use_(NULL),
+      spill_start_index_(kMaxInt) {
+  spill_operand_ = new LUnallocated(LUnallocated::IGNORE);
+}
+
+
+void LiveRange::set_assigned_register(int reg, RegisterKind register_kind) {
+  ASSERT(!HasRegisterAssigned() && !IsSpilled());
+  assigned_register_ = reg;
+  assigned_register_kind_ = register_kind;
+  ConvertOperands();
+}
+
+
+void LiveRange::MakeSpilled() {
+  ASSERT(!IsSpilled());
+  ASSERT(TopLevel()->HasAllocatedSpillOperand());
+  spilled_ = true;
+  assigned_register_ = kInvalidAssignment;
+  ConvertOperands();
+}
+
+
+bool LiveRange::HasAllocatedSpillOperand() const {
+  return spill_operand_ != NULL && !spill_operand_->IsUnallocated();
+}
+
+
+void LiveRange::SetSpillOperand(LOperand* operand) {
+  ASSERT(!operand->IsUnallocated());
+  ASSERT(spill_operand_ != NULL);
+  ASSERT(spill_operand_->IsUnallocated());
+  spill_operand_->ConvertTo(operand->kind(), operand->index());
+}
 
 
 UsePosition* LiveRange::NextUsePosition(LifetimePosition start) {
@@ -2012,20 +2010,6 @@ void LAllocator::SplitAndSpillIntersecting(LiveRange* current) {
 bool LAllocator::IsBlockBoundary(LifetimePosition pos) {
   return pos.IsInstructionStart() &&
       chunk_->instructions()->at(pos.InstructionIndex())->IsLabel();
-}
-
-
-void LAllocator::AddGapMove(int pos, LiveRange* prev, LiveRange* next) {
-  UsePosition* prev_pos = prev->AddUsePosition(
-      LifetimePosition::FromInstructionIndex(pos));
-  UsePosition* next_pos = next->AddUsePosition(
-      LifetimePosition::FromInstructionIndex(pos));
-  LOperand* prev_operand = prev_pos->operand();
-  LOperand* next_operand = next_pos->operand();
-  LGap* gap = chunk_->GetGapAt(pos);
-  gap->GetOrCreateParallelMove(LGap::START)->
-      AddMove(prev_operand, next_operand);
-  next_pos->set_hint(prev_operand);
 }
 
 

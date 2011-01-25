@@ -209,7 +209,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
     frame_->AllocateStackSlots();
 
     frame_->AssertIsSpilled();
-    int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    int heap_slots = scope()->num_heap_slots();
     if (heap_slots > 0) {
       // Allocate local context.
       // Get outer context and create a new context based on it.

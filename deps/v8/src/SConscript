@@ -89,6 +89,7 @@ SOURCES = {
     lithium-allocator.cc
     lithium.cc
     liveedit.cc
+    liveobjectlist.cc
     log-utils.cc
     log.cc
     mark-compact.cc

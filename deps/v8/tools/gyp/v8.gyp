@@ -32,6 +32,7 @@
     'gcc_version%': 'unknown',
     'v8_target_arch%': '<(target_arch)',
     'v8_use_snapshot%': 'true',
+    'v8_use_liveobjectlist%': 'false',
   },
   'conditions': [
     ['use_system_v8==0', {
@@ -64,6 +65,14 @@
                   'V8_TARGET_ARCH_X64',
                 ],
               }],
+            ],
+          }],
+          ['v8_use_liveobjectlist=="true"', {
+            'defines': [
+              'ENABLE_DEBUGGER_SUPPORT',
+              'INSPECTOR',
+              'OBJECT_PRINT',
+              'LIVEOBJECTLIST',
             ],
           }],
         ],
@@ -417,6 +426,8 @@
             '../../src/ic-inl.h',
             '../../src/ic.cc',
             '../../src/ic.h',
+            '../../src/inspector.cc',
+            '../../src/inspector.h',
             '../../src/interpreter-irregexp.cc',
             '../../src/interpreter-irregexp.h',
             '../../src/jump-target-inl.h',
@@ -432,6 +443,9 @@
             '../../src/lithium-allocator.h',
             '../../src/liveedit.cc',
             '../../src/liveedit.h',
+            '../../src/liveobjectlist-inl.h',
+            '../../src/liveobjectlist.cc',
+            '../../src/liveobjectlist.h',
             '../../src/log-inl.h',
             '../../src/log-utils.cc',
             '../../src/log-utils.h',

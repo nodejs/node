@@ -352,6 +352,11 @@ class Instr {
                                            && (Bit(20) == 0)
                                            && ((Bit(7) == 0)); }
 
+  // Test for a stop instruction.
+  inline bool IsStop() const {
+    return (TypeField() == 7) && (Bit(24) == 1) && (SvcField() >= stop);
+  }
+
   // Special accessors that test for existence of a value.
   inline bool HasS()    const { return SField() == 1; }
   inline bool HasB()    const { return BField() == 1; }

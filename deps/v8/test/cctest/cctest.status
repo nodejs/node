@@ -82,7 +82,7 @@ test-serialize/ContextSerialization: SKIP
 test-serialize/ContextDeserialization: SKIP
 test-debug/BreakPointReturn: SKIP
 test-debug/DebugStepLinearMixedICs: SKIP
-
+test-debug/DebugConditional: SKIP
 
 ##############################################################################
 [ $arch == arm ]

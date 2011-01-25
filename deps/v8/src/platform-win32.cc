@@ -670,6 +670,11 @@ FILE* OS::FOpen(const char* path, const char* mode) {
 }
 
 
+bool OS::Remove(const char* path) {
+  return (DeleteFileA(path) != 0);
+}
+
+
 // Open log file in binary mode to avoid /n -> /r/n conversion.
 const char* OS::LogFileOpenMode = "wb";
 
@@ -911,15 +916,42 @@ void OS::DebugBreak() {
 
 class Win32MemoryMappedFile : public OS::MemoryMappedFile {
  public:
-  Win32MemoryMappedFile(HANDLE file, HANDLE file_mapping, void* memory)
-    : file_(file), file_mapping_(file_mapping), memory_(memory) { }
+  Win32MemoryMappedFile(HANDLE file,
+                        HANDLE file_mapping,
+                        void* memory,
+                        int size)
+      : file_(file),
+        file_mapping_(file_mapping),
+        memory_(memory),
+        size_(size) { }
   virtual ~Win32MemoryMappedFile();
   virtual void* memory() { return memory_; }
+  virtual int size() { return size_; }
  private:
   HANDLE file_;
   HANDLE file_mapping_;
   void* memory_;
+  int size_;
 };
+
+
+OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
+  // Open a physical file
+  HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
+      FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+  if (file == NULL) return NULL;
+
+  int size = static_cast<int>(GetFileSize(file, NULL));
+
+  // Create a file mapping for the physical file
+  HANDLE file_mapping = CreateFileMapping(file, NULL,
+      PAGE_READWRITE, 0, static_cast<DWORD>(size), NULL);
+  if (file_mapping == NULL) return NULL;
+
+  // Map a view of the file into memory
+  void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
+  return new Win32MemoryMappedFile(file, file_mapping, memory, size);
+}
 
 
 OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
@@ -935,7 +967,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
   // Map a view of the file into memory
   void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
   if (memory) memmove(memory, initial, size);
-  return new Win32MemoryMappedFile(file, file_mapping, memory);
+  return new Win32MemoryMappedFile(file, file_mapping, memory, size);
 }
 
 

@@ -308,7 +308,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   CodeGenerator::PrintCode(code, info);
   info->SetCode(code);  // may be an empty handle.
 #ifdef ENABLE_GDB_JIT_INTERFACE
-  if (!code.is_null()) {
+  if (FLAG_gdbjit && !code.is_null()) {
     GDBJITLineInfo* lineinfo =
         masm.positions_recorder()->DetachGDBJITLineInfo();
 

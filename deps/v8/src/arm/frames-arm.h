@@ -66,8 +66,7 @@ static const RegList kCalleeSaved =
   1 <<  6 |  //  r6 v3
   1 <<  7 |  //  r7 v4
   1 <<  8 |  //  r8 v5 (cp in JavaScript code)
-  kR9Available
-    <<  9 |  //  r9 v6
+  kR9Available <<  9 |  //  r9 v6
   1 << 10 |  // r10 v7
   1 << 11;   // r11 v8 (fp in JavaScript code)
 

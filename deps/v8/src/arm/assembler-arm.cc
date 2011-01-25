@@ -1656,8 +1656,14 @@ void Assembler::stop(const char* msg, Condition cond, int32_t code) {
   emit(reinterpret_cast<Instr>(msg));
 #else  // def __arm__
 #ifdef CAN_USE_ARMV5_INSTRUCTIONS
-  ASSERT(cond == al);
-  bkpt(0);
+  if (cond != al) {
+    Label skip;
+    b(&skip, NegateCondition(cond));
+    bkpt(0);
+    bind(&skip);
+  } else {
+    bkpt(0);
+  }
 #else  // ndef CAN_USE_ARMV5_INSTRUCTIONS
   svc(0x9f0001, cond);
 #endif  // ndef CAN_USE_ARMV5_INSTRUCTIONS

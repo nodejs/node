@@ -570,34 +570,29 @@ void HCallConstantFunction::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HBranch::PrintDataTo(StringStream* stream) const {
-  int first_id = FirstSuccessor()->block_id();
-  int second_id = SecondSuccessor()->block_id();
-  stream->Add("on ");
-  value()->PrintNameTo(stream);
-  stream->Add(" (B%d, B%d)", first_id, second_id);
+void HControlInstruction::PrintDataTo(StringStream* stream) const {
+  if (FirstSuccessor() != NULL) {
+    int first_id = FirstSuccessor()->block_id();
+    if (SecondSuccessor() == NULL) {
+      stream->Add(" B%d", first_id);
+    } else {
+      int second_id = SecondSuccessor()->block_id();
+      stream->Add(" goto (B%d, B%d)", first_id, second_id);
+    }
+  }
 }
 
 
-void HCompareMapAndBranch::PrintDataTo(StringStream* stream) const {
-  stream->Add("on ");
+void HUnaryControlInstruction::PrintDataTo(StringStream* stream) const {
+  value()->PrintNameTo(stream);
+  HControlInstruction::PrintDataTo(stream);
+}
+
+
+void HCompareMap::PrintDataTo(StringStream* stream) const {
   value()->PrintNameTo(stream);
   stream->Add(" (%p)", *map());
-}
-
-
-void HGoto::PrintDataTo(StringStream* stream) const {
-  stream->Add("B%d", FirstSuccessor()->block_id());
-}
-
-
-void HReturn::PrintDataTo(StringStream* stream) const {
-  value()->PrintNameTo(stream);
-}
-
-
-void HThrow::PrintDataTo(StringStream* stream) const {
-  value()->PrintNameTo(stream);
+  HControlInstruction::PrintDataTo(stream);
 }
 
 
@@ -1252,6 +1247,11 @@ HType HCompareJSObjectEq::CalculateInferredType() const {
 
 HType HUnaryPredicate::CalculateInferredType() const {
   return HType::Boolean();
+}
+
+
+HType HBitwiseBinaryOperation::CalculateInferredType() const {
+  return HType::TaggedNumber();
 }
 
 

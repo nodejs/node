@@ -874,6 +874,10 @@ THREADED_TEST(ExternalWrap) {
   TestExternalPointerWrapping();
 
 #if defined(V8_HOST_ARCH_X64)
+  // Check a value with a leading 1 bit in x64 Smi encoding.
+  expected_ptr = reinterpret_cast<void*>(0x400000000);
+  TestExternalPointerWrapping();
+
   expected_ptr = reinterpret_cast<void*>(0xdeadbeefdeadbeef);
   TestExternalPointerWrapping();
 
@@ -2374,6 +2378,10 @@ TEST(APIThrowMessageOverwrittenToString) {
   LocalContext context;
   CompileRun("ReferenceError.prototype.toString ="
              "  function() { return 'Whoops' }");
+  CompileRun("asdf;");
+  CompileRun("ReferenceError.prototype.constructor.name = void 0;");
+  CompileRun("asdf;");
+  CompileRun("ReferenceError.prototype.constructor = void 0;");
   CompileRun("asdf;");
   v8::Handle<Value> string = CompileRun("try { asdf; } catch(e) { e + ''; }");
   CHECK(string->Equals(v8_str("Whoops")));
@@ -10583,6 +10591,33 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
     CHECK_EQ(0, result->Int32Value());
     CHECK_EQ(0,
              i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
+
+    // Check truncation behavior of integral arrays.
+    const char* unsigned_data =
+        "var source_data = [0.6, 10.6];"
+        "var expected_results = [0, 10];";
+    const char* signed_data =
+        "var source_data = [0.6, 10.6, -0.6, -10.6];"
+        "var expected_results = [0, 10, 0, -10];";
+    bool is_unsigned =
+        (array_type == v8::kExternalUnsignedByteArray ||
+         array_type == v8::kExternalUnsignedShortArray ||
+         array_type == v8::kExternalUnsignedIntArray);
+
+    i::OS::SNPrintF(test_buf,
+                    "%s"
+                    "var all_passed = true;"
+                    "for (var i = 0; i < source_data.length; i++) {"
+                    "  for (var j = 0; j < 8; j++) {"
+                    "    ext_array[j] = source_data[i];"
+                    "  }"
+                    "  all_passed = all_passed &&"
+                    "               (ext_array[5] == expected_results[i]);"
+                    "}"
+                    "all_passed;",
+                    (is_unsigned ? unsigned_data : signed_data));
+    result = CompileRun(test_buf.start());
+    CHECK_EQ(true, result->BooleanValue());
   }
 
   result = CompileRun("ext_array[3] = 33;"

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -81,6 +81,7 @@ class LChunkBuilder;
 //       HStoreNamed
 //         HStoreNamedField
 //         HStoreNamedGeneric
+//       HStringCharCodeAt
 //     HBlockEntry
 //     HCall
 //       HCallConstantFunction
@@ -98,9 +99,9 @@ class LChunkBuilder;
 //       HDeoptimize
 //       HGoto
 //       HUnaryControlInstruction
-//         HBranch
-//         HCompareMapAndBranch
+//         HCompareMap
 //         HReturn
+//         HTest
 //         HThrow
 //     HEnterInlined
 //     HFunctionLiteral
@@ -137,6 +138,7 @@ class LChunkBuilder;
 //       HLoadNamedGeneric
 //       HLoadFunctionPrototype
 //       HPushArgument
+//       HStringLength
 //       HTypeof
 //       HUnaryMathOperation
 //       HUnaryPredicate
@@ -181,7 +183,6 @@ class LChunkBuilder;
   V(BitXor)                                    \
   V(BlockEntry)                                \
   V(BoundsCheck)                               \
-  V(Branch)                                    \
   V(CallConstantFunction)                      \
   V(CallFunction)                              \
   V(CallGlobal)                                \
@@ -200,7 +201,7 @@ class LChunkBuilder;
   V(CheckSmi)                                  \
   V(Compare)                                   \
   V(CompareJSObjectEq)                         \
-  V(CompareMapAndBranch)                       \
+  V(CompareMap)                                \
   V(Constant)                                  \
   V(DeleteProperty)                            \
   V(Deoptimize)                                \
@@ -248,7 +249,10 @@ class LChunkBuilder;
   V(StoreKeyedGeneric)                         \
   V(StoreNamedField)                           \
   V(StoreNamedGeneric)                         \
+  V(StringCharCodeAt)                          \
+  V(StringLength)                              \
   V(Sub)                                       \
+  V(Test)                                      \
   V(Throw)                                     \
   V(Typeof)                                    \
   V(TypeofIs)                                  \
@@ -811,50 +815,63 @@ class HBlockEntry: public HInstruction {
 
 class HControlInstruction: public HInstruction {
  public:
-  virtual HBasicBlock* FirstSuccessor() const { return NULL; }
-  virtual HBasicBlock* SecondSuccessor() const { return NULL; }
+  HControlInstruction(HBasicBlock* first, HBasicBlock* second)
+      : first_successor_(first), second_successor_(second) {
+  }
+
+  HBasicBlock* FirstSuccessor() const { return first_successor_; }
+  HBasicBlock* SecondSuccessor() const { return second_successor_; }
+
+  virtual void PrintDataTo(StringStream* stream) const;
 
   DECLARE_INSTRUCTION(ControlInstruction)
+
+ private:
+  HBasicBlock* first_successor_;
+  HBasicBlock* second_successor_;
 };
 
 
 class HDeoptimize: public HControlInstruction {
  public:
+  HDeoptimize() : HControlInstruction(NULL, NULL) { }
+
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize, "deoptimize")
 };
 
 
 class HGoto: public HControlInstruction {
  public:
-  explicit HGoto(HBasicBlock* destination)
-      : destination_(destination),
-        include_stack_check_(false) {}
+  explicit HGoto(HBasicBlock* target)
+      : HControlInstruction(target, NULL), include_stack_check_(false) {
+  }
 
-  virtual HBasicBlock* FirstSuccessor() const { return destination_; }
   void set_include_stack_check(bool include_stack_check) {
     include_stack_check_ = include_stack_check;
   }
   bool include_stack_check() const { return include_stack_check_; }
 
-  virtual void PrintDataTo(StringStream* stream) const;
-
   DECLARE_CONCRETE_INSTRUCTION(Goto, "goto")
 
  private:
-  HBasicBlock* destination_;
   bool include_stack_check_;
 };
 
 
 class HUnaryControlInstruction: public HControlInstruction {
  public:
-  explicit HUnaryControlInstruction(HValue* value) {
+  explicit HUnaryControlInstruction(HValue* value,
+                                    HBasicBlock* true_target,
+                                    HBasicBlock* false_target)
+      : HControlInstruction(true_target, false_target) {
     SetOperandAt(0, value);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
+
+  virtual void PrintDataTo(StringStream* stream) const;
 
   HValue* value() const { return OperandAt(0); }
   virtual int OperandCount() const { return 1; }
@@ -872,73 +889,50 @@ class HUnaryControlInstruction: public HControlInstruction {
 };
 
 
-class HBranch: public HUnaryControlInstruction {
+class HTest: public HUnaryControlInstruction {
  public:
-  HBranch(HBasicBlock* true_destination,
-          HBasicBlock* false_destination,
-          HValue* boolean_value)
-      : HUnaryControlInstruction(boolean_value),
-        true_destination_(true_destination),
-        false_destination_(false_destination) {
-    ASSERT(true_destination != NULL && false_destination != NULL);
+  HTest(HValue* value, HBasicBlock* true_target, HBasicBlock* false_target)
+      : HUnaryControlInstruction(value, true_target, false_target) {
+    ASSERT(true_target != NULL && false_target != NULL);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
   }
 
-  virtual HBasicBlock* FirstSuccessor() const { return true_destination_; }
-  virtual HBasicBlock* SecondSuccessor() const { return false_destination_; }
-
-  virtual void PrintDataTo(StringStream* stream) const;
-
-  DECLARE_CONCRETE_INSTRUCTION(Branch, "branch")
-
- private:
-  HBasicBlock* true_destination_;
-  HBasicBlock* false_destination_;
+  DECLARE_CONCRETE_INSTRUCTION(Test, "test")
 };
 
 
-class HCompareMapAndBranch: public HUnaryControlInstruction {
+class HCompareMap: public HUnaryControlInstruction {
  public:
-  HCompareMapAndBranch(HValue* result,
-                       Handle<Map> map,
-                       HBasicBlock* true_destination,
-                       HBasicBlock* false_destination)
-      : HUnaryControlInstruction(result),
-        map_(map),
-        true_destination_(true_destination),
-        false_destination_(false_destination) {
-    ASSERT(true_destination != NULL);
-    ASSERT(false_destination != NULL);
+  HCompareMap(HValue* value,
+              Handle<Map> map,
+              HBasicBlock* true_target,
+              HBasicBlock* false_target)
+      : HUnaryControlInstruction(value, true_target, false_target),
+        map_(map) {
+    ASSERT(true_target != NULL);
+    ASSERT(false_target != NULL);
     ASSERT(!map.is_null());
   }
-
-  virtual HBasicBlock* FirstSuccessor() const { return true_destination_; }
-  virtual HBasicBlock* SecondSuccessor() const { return false_destination_; }
-
-  HBasicBlock* true_destination() const { return true_destination_; }
-  HBasicBlock* false_destination() const { return false_destination_; }
 
   virtual void PrintDataTo(StringStream* stream) const;
 
   Handle<Map> map() const { return map_; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CompareMapAndBranch, "compare_map_and_branch")
+  DECLARE_CONCRETE_INSTRUCTION(CompareMap, "compare_map")
 
  private:
   Handle<Map> map_;
-  HBasicBlock* true_destination_;
-  HBasicBlock* false_destination_;
 };
 
 
 class HReturn: public HUnaryControlInstruction {
  public:
-  explicit HReturn(HValue* result) : HUnaryControlInstruction(result) { }
-
-  virtual void PrintDataTo(StringStream* stream) const;
+  explicit HReturn(HValue* value)
+      : HUnaryControlInstruction(value, NULL, NULL) {
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(Return, "return")
 };
@@ -946,9 +940,8 @@ class HReturn: public HUnaryControlInstruction {
 
 class HThrow: public HUnaryControlInstruction {
  public:
-  explicit HThrow(HValue* value) : HUnaryControlInstruction(value) { }
-
-  virtual void PrintDataTo(StringStream* stream) const;
+  explicit HThrow(HValue* value)
+      : HUnaryControlInstruction(value, NULL, NULL) { }
 
   DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
 };
@@ -1579,6 +1572,12 @@ class HCheckInstanceType: public HUnaryOperation {
     ASSERT(first <= last);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
+    if ((FIRST_STRING_TYPE < first && last <= LAST_STRING_TYPE) ||
+        (FIRST_STRING_TYPE <= first && last < LAST_STRING_TYPE)) {
+      // A particular string instance type can change because of GC or
+      // externalization, but the value still remains a string.
+      SetFlag(kDependsOnMaps);
+    }
   }
 
   virtual bool IsCheckInstruction() const { return true; }
@@ -2033,15 +2032,25 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
  public:
   HBitwiseBinaryOperation(HValue* left, HValue* right)
       : HBinaryOperation(left, right) {
-    // Default to truncating, Integer32, UseGVN.
-    set_representation(Representation::Integer32());
-    SetFlag(kTruncatingToInt32);
-    SetFlag(kUseGVN);
+    set_representation(Representation::Tagged());
+    SetFlag(kFlexibleRepresentation);
+    SetFlagMask(AllSideEffects());
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::Integer32();
+    return representation();
   }
+
+  virtual void RepresentationChanged(Representation to) {
+    if (!to.IsTagged()) {
+      ASSERT(to.IsInteger32());
+      ClearFlagMask(AllSideEffects());
+      SetFlag(kTruncatingToInt32);
+      SetFlag(kUseGVN);
+    }
+  }
+
+  HType CalculateInferredType() const;
 
   DECLARE_INSTRUCTION(BitwiseBinaryOperation)
 };
@@ -2934,6 +2943,61 @@ class HStoreKeyedGeneric: public HStoreKeyed {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store_keyed_generic")
+};
+
+
+class HStringCharCodeAt: public HBinaryOperation {
+ public:
+  HStringCharCodeAt(HValue* string, HValue* index)
+      : HBinaryOperation(string, index) {
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    // The index is supposed to be Integer32.
+    return (index == 1) ? Representation::Integer32()
+        : Representation::Tagged();
+  }
+
+  virtual bool DataEquals(HValue* other) const { return true; }
+
+  HValue* string() const { return OperandAt(0); }
+  HValue* index() const { return OperandAt(1); }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringCharCodeAt, "string_char_code_at")
+
+ protected:
+  virtual Range* InferRange() {
+    return new Range(0, String::kMaxUC16CharCode);
+  }
+};
+
+
+class HStringLength: public HUnaryOperation {
+ public:
+  explicit HStringLength(HValue* string) : HUnaryOperation(string) {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  virtual HType CalculateInferredType() const {
+    STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
+    return HType::Smi();
+  }
+
+  virtual bool DataEquals(HValue* other) const { return true; }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringLength, "string_length")
+
+ protected:
+  virtual Range* InferRange() {
+    return new Range(0, String::kMaxLength);
+  }
 };
 
 

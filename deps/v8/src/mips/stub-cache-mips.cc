@@ -397,6 +397,20 @@ Object* ConstructStubCompiler::CompileConstructStub(
 }
 
 
+Object* ExternalArrayStubCompiler::CompileKeyedLoadStub(
+    ExternalArrayType array_type, Code::Flags flags) {
+  UNIMPLEMENTED_MIPS();
+  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+}
+
+
+Object* ExternalArrayStubCompiler::CompileKeyedStoreStub(
+    ExternalArrayType array_type, Code::Flags flags) {
+  UNIMPLEMENTED_MIPS();
+  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

@@ -1,3 +1,22 @@
+2011-01-24: Version 3.0.10
+
+        Fixed External::Wrap for 64-bit addresses (issue 1037).
+
+        Fixed incorrect .arguments variable proxy handling in the full 
+        code generator (issue 1060).
+
+        Introduced partial strict mode support.
+
+        Changed formatting of recursive error messages to match Firefox and Safari
+        (issue http://crbug.com/70334).
+
+        Fixed incorrect rounding for float-to-integer conversions for external
+        array types, which implement the Typed Array spec 
+        (issue http://crbug.com/50972).
+
+        Performance improvements on the IA32 platform.
+
+
 2011-01-19: Version 3.0.9
 
         Added basic GDB JIT Interface integration.

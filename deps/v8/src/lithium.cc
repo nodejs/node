@@ -30,6 +30,78 @@
 namespace v8 {
 namespace internal {
 
+
+void LOperand::PrintTo(StringStream* stream) {
+  LUnallocated* unalloc = NULL;
+  switch (kind()) {
+    case INVALID:
+      break;
+    case UNALLOCATED:
+      unalloc = LUnallocated::cast(this);
+      stream->Add("v%d", unalloc->virtual_register());
+      switch (unalloc->policy()) {
+        case LUnallocated::NONE:
+          break;
+        case LUnallocated::FIXED_REGISTER: {
+          const char* register_name =
+              Register::AllocationIndexToString(unalloc->fixed_index());
+          stream->Add("(=%s)", register_name);
+          break;
+        }
+        case LUnallocated::FIXED_DOUBLE_REGISTER: {
+          const char* double_register_name =
+              DoubleRegister::AllocationIndexToString(unalloc->fixed_index());
+          stream->Add("(=%s)", double_register_name);
+          break;
+        }
+        case LUnallocated::FIXED_SLOT:
+          stream->Add("(=%dS)", unalloc->fixed_index());
+          break;
+        case LUnallocated::MUST_HAVE_REGISTER:
+          stream->Add("(R)");
+          break;
+        case LUnallocated::WRITABLE_REGISTER:
+          stream->Add("(WR)");
+          break;
+        case LUnallocated::SAME_AS_FIRST_INPUT:
+          stream->Add("(1)");
+          break;
+        case LUnallocated::ANY:
+          stream->Add("(-)");
+          break;
+        case LUnallocated::IGNORE:
+          stream->Add("(0)");
+          break;
+      }
+      break;
+    case CONSTANT_OPERAND:
+      stream->Add("[constant:%d]", index());
+      break;
+    case STACK_SLOT:
+      stream->Add("[stack:%d]", index());
+      break;
+    case DOUBLE_STACK_SLOT:
+      stream->Add("[double_stack:%d]", index());
+      break;
+    case REGISTER:
+      stream->Add("[%s|R]", Register::AllocationIndexToString(index()));
+      break;
+    case DOUBLE_REGISTER:
+      stream->Add("[%s|R]", DoubleRegister::AllocationIndexToString(index()));
+      break;
+    case ARGUMENT:
+      stream->Add("[arg:%d]", index());
+      break;
+  }
+}
+
+
+int LOperand::VirtualRegister() {
+  LUnallocated* unalloc = LUnallocated::cast(this);
+  return unalloc->virtual_register();
+}
+
+
 bool LParallelMove::IsRedundant() const {
   for (int i = 0; i < move_operands_.length(); ++i) {
     if (!move_operands_[i].IsRedundant()) return false;

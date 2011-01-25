@@ -32,7 +32,6 @@
 #include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
-#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -560,20 +559,13 @@ void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-static bool CallWithoutIC(Handle<JSFunction> target, int arity) {
+static bool CanCallWithoutIC(Handle<JSFunction> target, int arity) {
   SharedFunctionInfo* info = target->shared();
-  if (target->NeedsArgumentsAdaption()) {
-    // If the number of formal parameters of the target function
-    // does not match the number of arguments we're passing, we
-    // don't want to deal with it.
-    return info->formal_parameter_count() == arity;
-  } else {
-    // If the target doesn't need arguments adaption, we can call
-    // it directly, but we avoid to do so if it has a custom call
-    // generator, because that is likely to generate better code.
-    return !info->HasBuiltinFunctionId() ||
-        !CallStubCompiler::HasCustomCallGenerator(info->builtin_function_id());
-  }
+  // If the number of formal parameters of the target function does
+  // not match the number of arguments we're passing, we don't want to
+  // deal with it. Otherwise, we can call it directly.
+  return !target->NeedsArgumentsAdaption() ||
+      info->formal_parameter_count() == arity;
 }
 
 
@@ -589,7 +581,7 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
       type = Handle<Map>(holder()->map());
     } else if (lookup.IsProperty() && lookup.type() == CONSTANT_FUNCTION) {
       target_ = Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
-      return CallWithoutIC(target_, arguments()->length());
+      return CanCallWithoutIC(target_, arguments()->length());
     } else {
       return false;
     }
@@ -609,8 +601,8 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
       Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
       // If the function is in new space we assume it's more likely to
       // change and thus prefer the general IC code.
-      if (!Heap::InNewSpace(*candidate)
-          && CallWithoutIC(candidate, arguments()->length())) {
+      if (!Heap::InNewSpace(*candidate) &&
+          CanCallWithoutIC(candidate, arguments()->length())) {
         target_ = candidate;
         return true;
       }

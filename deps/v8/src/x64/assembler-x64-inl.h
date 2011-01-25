@@ -199,8 +199,10 @@ void RelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     Memory::Address_at(pc_) += static_cast<int32_t>(delta);
+    CPU::FlushICache(pc_, sizeof(Address));
   } else if (IsCodeTarget(rmode_)) {
     Memory::int32_at(pc_) -= static_cast<int32_t>(delta);
+    CPU::FlushICache(pc_, sizeof(int32_t));
   }
 }
 
@@ -236,6 +238,7 @@ void RelocInfo::set_target_address(Address target) {
     Assembler::set_target_address_at(pc_, target);
   } else {
     Memory::Address_at(pc_) = target;
+    CPU::FlushICache(pc_, sizeof(Address));
   }
 }
 
@@ -271,6 +274,7 @@ Address* RelocInfo::target_reference_address() {
 void RelocInfo::set_target_object(Object* target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   *reinterpret_cast<Object**>(pc_) = target;
+  CPU::FlushICache(pc_, sizeof(Address));
 }
 
 
@@ -295,6 +299,7 @@ void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell) {
   ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
   Address address = cell->address() + JSGlobalPropertyCell::kValueOffset;
   Memory::Address_at(pc_) = address;
+  CPU::FlushICache(pc_, sizeof(Address));
 }
 
 
@@ -331,6 +336,8 @@ void RelocInfo::set_call_address(Address target) {
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   Memory::Address_at(pc_ + Assembler::kRealPatchReturnSequenceAddressOffset) =
       target;
+  CPU::FlushICache(pc_ + Assembler::kRealPatchReturnSequenceAddressOffset,
+                   sizeof(Address));
 }
 
 
@@ -356,10 +363,12 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitPointer(target_object_address());
+    CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(target_reference_address());
+    CPU::FlushICache(pc_, sizeof(Address));
 #ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (Debug::has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
@@ -379,10 +388,12 @@ void RelocInfo::Visit() {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     StaticVisitor::VisitPointer(target_object_address());
+    CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     StaticVisitor::VisitCodeTarget(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
+    CPU::FlushICache(pc_, sizeof(Address));
 #ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (Debug::has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&

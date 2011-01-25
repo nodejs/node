@@ -27,7 +27,10 @@
 
 {
   'variables': {
-    'icu_src_dir%': '',
+    # TODO(cira): Find out how to pass this value for arbitrary embedder.
+    # Chromium sets it in common.gypi and does force include of that file for
+    # all sub projects.
+    'icu_src_dir%': '../../../../third_party/icu',
   },
   'targets': [
     {

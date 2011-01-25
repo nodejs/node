@@ -707,6 +707,10 @@ class Assembler : public Malloced {
     arithmetic_op_32(0x1b, dst, src);
   }
 
+  void sbbq(Register dst, Register src) {
+    arithmetic_op(0x1b, dst, src);
+  }
+
   void cmpb(Register dst, Immediate src) {
     immediate_arithmetic_op_8(0x7, dst, src);
   }
@@ -1205,7 +1209,9 @@ class Assembler : public Malloced {
   void movss(const Operand& dst, XMMRegister src);
 
   void cvttss2si(Register dst, const Operand& src);
+  void cvttss2si(Register dst, XMMRegister src);
   void cvttsd2si(Register dst, const Operand& src);
+  void cvttsd2si(Register dst, XMMRegister src);
   void cvttsd2siq(Register dst, XMMRegister src);
 
   void cvtlsi2sd(XMMRegister dst, const Operand& src);

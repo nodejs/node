@@ -3367,7 +3367,7 @@ template <> struct SmiTagging<4> {
 
   // For 32-bit systems any 2 bytes aligned pointer can be encoded as smi
   // with a plain reinterpret_cast.
-  static const intptr_t kEncodablePointerMask = 0x1;
+  static const uintptr_t kEncodablePointerMask = 0x1;
   static const int kPointerToSmiShift = 0;
 };
 
@@ -3387,8 +3387,8 @@ template <> struct SmiTagging<8> {
   // It might be not enough to cover stack allocated objects on some platforms.
   static const int kPointerAlignment = 3;
 
-  static const intptr_t kEncodablePointerMask =
-      ~(intptr_t(0xffffffff) << kPointerAlignment);
+  static const uintptr_t kEncodablePointerMask =
+      ~(uintptr_t(0xffffffff) << kPointerAlignment);
 
   static const int kPointerToSmiShift =
       kSmiTagSize + kSmiShiftSize - kPointerAlignment;
@@ -3397,7 +3397,7 @@ template <> struct SmiTagging<8> {
 typedef SmiTagging<kApiPointerSize> PlatformSmiTagging;
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
 const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
-const intptr_t kEncodablePointerMask =
+const uintptr_t kEncodablePointerMask =
     PlatformSmiTagging::kEncodablePointerMask;
 const int kPointerToSmiShift = PlatformSmiTagging::kPointerToSmiShift;
 
@@ -3457,7 +3457,7 @@ class Internals {
   }
 
   static inline void* GetExternalPointerFromSmi(internal::Object* value) {
-    const intptr_t address = reinterpret_cast<intptr_t>(value);
+    const uintptr_t address = reinterpret_cast<uintptr_t>(value);
     return reinterpret_cast<void*>(address >> kPointerToSmiShift);
   }
 

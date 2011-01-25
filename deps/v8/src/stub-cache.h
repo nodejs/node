@@ -167,6 +167,10 @@ class StubCache : public AllStatic {
   MUST_USE_RESULT static MaybeObject* ComputeKeyedStoreSpecialized(
       JSObject* receiver);
 
+  MUST_USE_RESULT static MaybeObject* ComputeKeyedLoadOrStoreExternalArray(
+      JSObject* receiver,
+      bool is_store);
+
   // ---
 
   MUST_USE_RESULT static MaybeObject* ComputeCallField(int argc,
@@ -795,6 +799,20 @@ class CallOptimization BASE_EMBEDDED {
   bool is_simple_api_call_;
   FunctionTemplateInfo* expected_receiver_type_;
   CallHandlerInfo* api_call_info_;
+};
+
+class ExternalArrayStubCompiler: public StubCompiler {
+ public:
+  explicit ExternalArrayStubCompiler() {}
+
+  MUST_USE_RESULT MaybeObject* CompileKeyedLoadStub(
+      ExternalArrayType array_type, Code::Flags flags);
+
+  MUST_USE_RESULT MaybeObject* CompileKeyedStoreStub(
+      ExternalArrayType array_type, Code::Flags flags);
+
+ private:
+  MaybeObject* GetCode(Code::Flags flags);
 };
 
 } }  // namespace v8::internal

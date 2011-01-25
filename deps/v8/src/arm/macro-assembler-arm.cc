@@ -485,11 +485,21 @@ void MacroAssembler::PopSafepointRegistersAndDoubles() {
   PopSafepointRegisters();
 }
 
+void MacroAssembler::StoreToSafepointRegisterSlot(Register reg) {
+  str(reg, SafepointRegisterSlot(reg));
+}
+
+
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // The registers are pushed starting with the highest encoding,
   // which means that lowest encodings are closest to the stack pointer.
   ASSERT(reg_code >= 0 && reg_code < kNumSafepointRegisters);
   return reg_code;
+}
+
+
+MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
+  return MemOperand(sp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
 }
 
 
@@ -1960,6 +1970,13 @@ void MacroAssembler::AbortIfSmi(Register object) {
 }
 
 
+void MacroAssembler::AbortIfNotSmi(Register object) {
+  ASSERT_EQ(0, kSmiTag);
+  tst(object, Operand(kSmiTagMask));
+  Assert(eq, "Operand is not smi");
+}
+
+
 void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
     Register first,
     Register second,
@@ -2182,6 +2199,26 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
   } else {
     add(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));
   }
+}
+
+
+void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
+                               Register result) {
+  const uint32_t kLdrOffsetMask = (1 << 12) - 1;
+  const int32_t kPCRegOffset = 2 * kPointerSize;
+  ldr(result, MemOperand(ldr_location));
+  if (FLAG_debug_code) {
+    // Check that the instruction is a ldr reg, [pc + offset] .
+    and_(result, result, Operand(kLdrPCPattern));
+    cmp(result, Operand(kLdrPCPattern));
+    Check(eq, "The instruction to patch should be a load from pc.");
+    // Result was clobbered. Restore it.
+    ldr(result, MemOperand(ldr_location));
+  }
+  // Get the address of the constant.
+  and_(result, result, Operand(kLdrOffsetMask));
+  add(result, ldr_location, Operand(result));
+  add(result, result, Operand(kPCRegOffset));
 }
 
 

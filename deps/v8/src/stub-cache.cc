@@ -507,6 +507,74 @@ MaybeObject* StubCache::ComputeKeyedStoreSpecialized(JSObject* receiver) {
 }
 
 
+namespace {
+
+ExternalArrayType ElementsKindToExternalArrayType(JSObject::ElementsKind kind) {
+  switch (kind) {
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+      return kExternalByteArray;
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      return kExternalUnsignedByteArray;
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+      return kExternalShortArray;
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      return kExternalUnsignedShortArray;
+    case JSObject::EXTERNAL_INT_ELEMENTS:
+      return kExternalIntArray;
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      return kExternalUnsignedIntArray;
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+      return kExternalFloatArray;
+    default:
+      UNREACHABLE();
+      return static_cast<ExternalArrayType>(0);
+  }
+}
+
+}  // anonymous namespace
+
+
+MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
+    JSObject* receiver,
+    bool is_store) {
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(
+          is_store ? Code::KEYED_STORE_IC : Code::KEYED_LOAD_IC,
+          NORMAL);
+  ExternalArrayType array_type =
+      ElementsKindToExternalArrayType(receiver->GetElementsKind());
+  String* name =
+      is_store ? Heap::KeyedStoreExternalArray_symbol()
+          : Heap::KeyedLoadExternalArray_symbol();
+  // Use the global maps for the particular external array types,
+  // rather than the receiver's map, when looking up the cached code,
+  // so that we actually canonicalize these stubs.
+  Map* map = Heap::MapForExternalArrayType(array_type);
+  Object* code = map->FindInCodeCache(name, flags);
+  if (code->IsUndefined()) {
+    ExternalArrayStubCompiler compiler;
+    { MaybeObject* maybe_code =
+          is_store ? compiler.CompileKeyedStoreStub(array_type, flags) :
+          compiler.CompileKeyedLoadStub(array_type, flags);
+      if (!maybe_code->ToObject(&code)) return maybe_code;
+    }
+    if (is_store) {
+      PROFILE(
+          CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(code), 0));
+    } else {
+      PROFILE(
+          CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), 0));
+    }
+    Object* result;
+    { MaybeObject* maybe_result =
+          map->UpdateCodeCache(name, Code::cast(code));
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+    }
+  }
+  return code;
+}
+
+
 MaybeObject* StubCache::ComputeStoreNormal() {
   return Builtins::builtin(Builtins::StoreIC_Normal);
 }
@@ -1706,6 +1774,18 @@ void CallOptimization::AnalyzePossibleApiFunction(JSFunction* function) {
   }
 
   is_simple_api_call_ = true;
+}
+
+
+MaybeObject* ExternalArrayStubCompiler::GetCode(Code::Flags flags) {
+  Object* result;
+  { MaybeObject* maybe_result = GetCodeWithFlags(flags, "ExternalArrayStub");
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Code* code = Code::cast(result);
+  USE(code);
+  PROFILE(CodeCreateEvent(Logger::STUB_TAG, code, "ExternalArrayStub"));
+  return result;
 }
 
 

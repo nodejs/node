@@ -90,21 +90,28 @@ function FormatString(format, args) {
 }
 
 
-function ToDetailString(obj) {
-  if (obj != null && IS_OBJECT(obj) && obj.toString === $Object.prototype.toString) {
-    var constructor = obj.constructor;
-    if (!constructor) return ToString(obj);
-    var constructorName = constructor.name;
-    if (!constructorName) return ToString(obj);
-    return "#<" + GetInstanceName(constructorName) + ">";
-  } else if (obj instanceof $Error) {
-    // When formatting internally created error messages, do not
-    // invoke overwritten error toString methods but explicitly use
-    // the error to string method. This is to avoid leaking error
-    // objects between script tags in a browser setting.
+// When formatting internally created error messages, do not
+// invoke overwritten error toString methods but explicitly use
+// the error to string method. This is to avoid leaking error
+// objects between script tags in a browser setting.
+function ToStringCheckErrorObject(obj) {
+  if (obj instanceof $Error) {
     return %_CallFunction(obj, errorToString);
   } else {
     return ToString(obj);
+  }
+}
+
+
+function ToDetailString(obj) {
+  if (obj != null && IS_OBJECT(obj) && obj.toString === $Object.prototype.toString) {
+    var constructor = obj.constructor;
+    if (!constructor) return ToStringCheckErrorObject(obj);
+    var constructorName = constructor.name;
+    if (!constructorName) return ToStringCheckErrorObject(obj);
+    return "#<" + GetInstanceName(constructorName) + ">";
+  } else {
+    return ToStringCheckErrorObject(obj);
   }
 }
 
@@ -202,7 +209,13 @@ function FormatMessage(message) {
       array_indexof_not_defined:    "Array.getIndexOf: Argument undefined",
       object_not_extensible:        "Can't add property %0, object is not extensible",
       illegal_access:               "Illegal access",
-      invalid_preparser_data:       "Invalid preparser data for function %0"
+      invalid_preparser_data:       "Invalid preparser data for function %0",
+      strict_mode_with:             "Strict mode code may not include a with statement",
+      strict_catch_variable:        "Catch variable may not be eval or arguments in strict mode",
+      strict_param_name:            "Parameter name eval or arguments is not allowed in strict mode",
+      strict_param_dupe:            "Strict mode function may not have duplicate parameter names",
+      strict_var_name:              "Variable name may not be eval or arguments in strict mode",
+      strict_function_name:         "Function name may not be eval or arguments in strict mode",
     };
   }
   var format = kMessages[message.type];
@@ -1006,18 +1019,43 @@ $Error.captureStackTrace = captureStackTrace;
 // Setup extra properties of the Error.prototype object.
 $Error.prototype.message = '';
 
-function errorToString() {
-  var type = this.type;
-  if (type && !this.hasOwnProperty("message")) {
-    return this.name + ": " + FormatMessage({ type: type, args: this.arguments });
+// Global list of error objects visited during errorToString. This is
+// used to detect cycles in error toString formatting.
+var visited_errors = new $Array();
+var cyclic_error_marker = new $Object();
+
+function errorToStringDetectCycle() {
+  if (!%PushIfAbsent(visited_errors, this)) throw cyclic_error_marker;
+  try {
+    var type = this.type;
+    if (type && !this.hasOwnProperty("message")) {
+      var formatted = FormatMessage({ type: type, args: this.arguments });
+      return this.name + ": " + formatted;
+    }
+    var message = this.hasOwnProperty("message") ? (": " + this.message) : "";
+    return this.name + message;
+  } finally {
+    visited_errors.pop();
   }
-  var message = this.hasOwnProperty("message") ? (": " + this.message) : "";
-  return this.name + message;
+}
+
+function errorToString() {
+  // This helper function is needed because access to properties on
+  // the builtins object do not work inside of a catch clause.
+  function isCyclicErrorMarker(o) { return o === cyclic_error_marker; }
+
+  try {
+    return %_CallFunction(this, errorToStringDetectCycle);
+  } catch(e) {
+    // If this error message was encountered already return the empty
+    // string for it instead of recursively formatting it.
+    if (isCyclicErrorMarker(e)) return '';
+    else throw e;
+  }
 }
 
 %FunctionSetName(errorToString, 'toString');
 %SetProperty($Error.prototype, 'toString', errorToString, DONT_ENUM);
-
 
 // Boilerplate for exceptions for stack overflows. Used from
 // Top::StackOverflow().

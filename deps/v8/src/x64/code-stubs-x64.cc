@@ -91,8 +91,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Try to allocate the context in new space.
   Label gc;
-  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-  __ AllocateInNewSpace((length * kPointerSize) + FixedArray::kHeaderSize,
+  __ AllocateInNewSpace((slots_ * kPointerSize) + FixedArray::kHeaderSize,
                         rax, rbx, rcx, &gc, TAG_OBJECT);
 
   // Get the function from the stack.
@@ -101,7 +100,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Setup the object header.
   __ LoadRoot(kScratchRegister, Heap::kContextMapRootIndex);
   __ movq(FieldOperand(rax, HeapObject::kMapOffset), kScratchRegister);
-  __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(length));
+  __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(slots_));
 
   // Setup the fixed slots.
   __ Set(rbx, 0);  // Set to NULL.
@@ -116,7 +115,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 
   // Initialize the rest of the slots to undefined.
   __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
+  for (int i = Context::MIN_CONTEXT_SLOTS; i < slots_; i++) {
     __ movq(Operand(rax, Context::SlotOffset(i)), rbx);
   }
 
@@ -3248,6 +3247,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 }
 
 
+Register InstanceofStub::left() { return rax; }
+
+
+Register InstanceofStub::right() { return rdx; }
+
+
 int CompareStub::MinorKey() {
   // Encode the three parameters in a unique 16 bit value. To avoid duplicate
   // stubs the never NaN NaN condition is only taken into account if the
@@ -4272,22 +4277,119 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 }
 
 void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  ASSERT(state_ == CompareIC::SMIS);
+  NearLabel miss;
+  __ JumpIfNotBothSmi(rdx, rax, &miss);
+
+  if (GetCondition() == equal) {
+    // For equality we do not care about the sign of the result.
+    __ SmiSub(rax, rax, rdx);
+  } else {
+    NearLabel done;
+    __ SmiSub(rdx, rdx, rax);
+    __ j(no_overflow, &done);
+    // Correct sign of result in case of overflow.
+    __ SmiNot(rdx, rdx);
+    __ bind(&done);
+    __ movq(rax, rdx);
+  }
+  __ ret(0);
+
+  __ bind(&miss);
+  GenerateMiss(masm);
 }
 
 
 void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  ASSERT(state_ == CompareIC::HEAP_NUMBERS);
+
+  NearLabel generic_stub;
+  NearLabel unordered;
+  NearLabel miss;
+  Condition either_smi = masm->CheckEitherSmi(rax, rdx);
+  __ j(either_smi, &generic_stub);
+
+  __ CmpObjectType(rax, HEAP_NUMBER_TYPE, rcx);
+  __ j(not_equal, &miss);
+  __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rcx);
+  __ j(not_equal, &miss);
+
+  // Load left and right operand
+  __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
+  __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
+
+  // Compare operands
+  __ ucomisd(xmm0, xmm1);
+
+  // Don't base result on EFLAGS when a NaN is involved.
+  __ j(parity_even, &unordered);
+
+  // Return a result of -1, 0, or 1, based on EFLAGS.
+  // Performing mov, because xor would destroy the flag register.
+  __ movl(rax, Immediate(0));
+  __ movl(rcx, Immediate(0));
+  __ setcc(above, rax);  // Add one to zero if carry clear and not equal.
+  __ sbbq(rax, rcx);  // Subtract one if below (aka. carry set).
+  __ ret(0);
+
+  __ bind(&unordered);
+
+  CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS);
+  __ bind(&generic_stub);
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+
+  __ bind(&miss);
+  GenerateMiss(masm);
 }
 
 
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  ASSERT(state_ == CompareIC::OBJECTS);
+  NearLabel miss;
+  Condition either_smi = masm->CheckEitherSmi(rdx, rax);
+  __ j(either_smi, &miss);
+
+  __ CmpObjectType(rax, JS_OBJECT_TYPE, rcx);
+  __ j(not_equal, &miss, not_taken);
+  __ CmpObjectType(rdx, JS_OBJECT_TYPE, rcx);
+  __ j(not_equal, &miss, not_taken);
+
+  ASSERT(GetCondition() == equal);
+  __ subq(rax, rdx);
+  __ ret(0);
+
+  __ bind(&miss);
+  GenerateMiss(masm);
 }
 
 
 void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // Save the registers.
+  __ pop(rcx);
+  __ push(rdx);
+  __ push(rax);
+  __ push(rcx);
+
+  // Call the runtime system in a fresh internal frame.
+  ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss));
+  __ EnterInternalFrame();
+  __ push(rdx);
+  __ push(rax);
+  __ Push(Smi::FromInt(op_));
+  __ CallExternalReference(miss, 3);
+  __ LeaveInternalFrame();
+
+  // Compute the entry point of the rewritten stub.
+  __ lea(rdi, FieldOperand(rax, Code::kHeaderSize));
+
+  // Restore registers.
+  __ pop(rcx);
+  __ pop(rax);
+  __ pop(rdx);
+  __ push(rcx);
+
+  // Do a tail call to the rewritten stub.
+  __ jmp(rdi);
 }
 
 #undef __

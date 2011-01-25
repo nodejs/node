@@ -234,8 +234,9 @@ class MacroAssembler: public Assembler {
   void PopSafepointRegisters();
   void PushSafepointRegistersAndDoubles();
   void PopSafepointRegistersAndDoubles();
-
+  void StoreToSafepointRegisterSlot(Register reg);
   static int SafepointRegisterStackIndex(int reg_code);
+  static MemOperand SafepointRegisterSlot(Register reg);
 
   // Load two consecutive registers with two consecutive memory locations.
   void Ldrd(Register dst1,
@@ -740,6 +741,7 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is a smi. Used in debug code.
   void AbortIfSmi(Register object);
+  void AbortIfNotSmi(Register object);
 
   // ---------------------------------------------------------------------------
   // String utilities
@@ -774,6 +776,15 @@ class MacroAssembler: public Assembler {
   void JumpIfInstanceTypeIsNotSequentialAscii(Register type,
                                               Register scratch,
                                               Label* failure);
+
+
+  // ---------------------------------------------------------------------------
+  // Patching helpers.
+
+  // Get the location of a relocated constant (its address in the constant pool)
+  // from its load site.
+  void GetRelocatedValueLocation(Register ldr_location,
+                                 Register result);
 
 
  private:

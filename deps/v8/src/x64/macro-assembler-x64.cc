@@ -885,6 +885,13 @@ Condition MacroAssembler::CheckSmi(Register src) {
 }
 
 
+Condition MacroAssembler::CheckSmi(const Operand& src) {
+  ASSERT_EQ(0, kSmiTag);
+  testb(src, Immediate(kSmiTagMask));
+  return zero;
+}
+
+
 Condition MacroAssembler::CheckNonNegativeSmi(Register src) {
   ASSERT_EQ(0, kSmiTag);
   // Make mask 0x8000000000000001 and test that both bits are zero.
@@ -1383,6 +1390,40 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   call(code_object, rmode);
+}
+
+
+void MacroAssembler::Pushad() {
+  push(rax);
+  push(rcx);
+  push(rdx);
+  push(rbx);
+  // Not pushing rsp or rbp.
+  push(rsi);
+  push(rdi);
+  push(r8);
+  push(r9);
+  // r10 is kScratchRegister.
+  push(r11);
+  push(r12);
+  // r13 is kRootRegister.
+  push(r14);
+  // r15 is kSmiConstantRegister
+}
+
+
+void MacroAssembler::Popad() {
+  pop(r14);
+  pop(r12);
+  pop(r11);
+  pop(r9);
+  pop(r8);
+  pop(rdi);
+  pop(rsi);
+  pop(rbx);
+  pop(rdx);
+  pop(rcx);
+  pop(rax);
 }
 
 

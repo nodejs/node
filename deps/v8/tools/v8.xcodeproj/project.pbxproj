@@ -319,6 +319,13 @@
 		89B91BFB12D4F1BB002FF4BC /* libv8-x64.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 895692AA12D4ED240072C313 /* libv8-x64.a */; };
 		89B933AF0FAA0F9600201304 /* version.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF32F0FAA0ED200136CF6 /* version.cc */; };
 		89B933B00FAA0F9D00201304 /* version.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF32F0FAA0ED200136CF6 /* version.cc */; };
+		89D7DDD512E8DDCF001E2B82 /* lithium-gap-resolver-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89D7DDD312E8DDCF001E2B82 /* lithium-gap-resolver-ia32.cc */; };
+		89D7DDDA12E8DE09001E2B82 /* gdb-jit.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89D7DDD612E8DE09001E2B82 /* gdb-jit.cc */; };
+		89D7DDDB12E8DE09001E2B82 /* inspector.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89D7DDD812E8DE09001E2B82 /* inspector.cc */; };
+		89D7DDDC12E8DE09001E2B82 /* gdb-jit.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89D7DDD612E8DE09001E2B82 /* gdb-jit.cc */; };
+		89D7DDDD12E8DE09001E2B82 /* inspector.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89D7DDD812E8DE09001E2B82 /* inspector.cc */; };
+		89D7DDDE12E8DE09001E2B82 /* gdb-jit.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89D7DDD612E8DE09001E2B82 /* gdb-jit.cc */; };
+		89D7DDDF12E8DE09001E2B82 /* inspector.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89D7DDD812E8DE09001E2B82 /* inspector.cc */; };
 		89F23C3F0E78D5B2006B2466 /* accessors.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0F60E719B8F00D62E90 /* accessors.cc */; };
 		89F23C400E78D5B2006B2466 /* allocation.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0F80E719B8F00D62E90 /* allocation.cc */; };
 		89F23C410E78D5B2006B2466 /* api.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0FA0E719B8F00D62E90 /* api.cc */; };
@@ -886,6 +893,12 @@
 		89B91B9A12D4EF95002FF4BC /* virtual-frame-x64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "virtual-frame-x64.h"; path = "x64/virtual-frame-x64.h"; sourceTree = "<group>"; };
 		89B91BBE12D4F02A002FF4BC /* v8_shell-x64 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "v8_shell-x64"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89B91BCE12D4F02A002FF4BC /* d8-x64 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "d8-x64"; sourceTree = BUILT_PRODUCTS_DIR; };
+		89D7DDD312E8DDCF001E2B82 /* lithium-gap-resolver-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "lithium-gap-resolver-ia32.cc"; path = "ia32/lithium-gap-resolver-ia32.cc"; sourceTree = "<group>"; };
+		89D7DDD412E8DDCF001E2B82 /* lithium-gap-resolver-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "lithium-gap-resolver-ia32.h"; path = "ia32/lithium-gap-resolver-ia32.h"; sourceTree = "<group>"; };
+		89D7DDD612E8DE09001E2B82 /* gdb-jit.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "gdb-jit.cc"; sourceTree = "<group>"; };
+		89D7DDD712E8DE09001E2B82 /* gdb-jit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "gdb-jit.h"; sourceTree = "<group>"; };
+		89D7DDD812E8DE09001E2B82 /* inspector.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = inspector.cc; sourceTree = "<group>"; };
+		89D7DDD912E8DE09001E2B82 /* inspector.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = inspector.h; sourceTree = "<group>"; };
 		89F23C870E78D5B2006B2466 /* libv8-arm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libv8-arm.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89F23C950E78D5B6006B2466 /* v8_shell-arm */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "v8_shell-arm"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89F3605A12DCDF6400ACF8A6 /* lithium-codegen-x64.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "lithium-codegen-x64.cc"; path = "x64/lithium-codegen-x64.cc"; sourceTree = "<group>"; };
@@ -1101,7 +1114,6 @@
 				897FF1270E719B8F00D62E90 /* dateparser.h */,
 				8956B6CD0F5D86570033B5A2 /* debug-agent.cc */,
 				8956B6CE0F5D86570033B5A2 /* debug-agent.h */,
-				898BD20C0EF6CC850068B00A /* debug-arm.cc */,
 				897FF1280E719B8F00D62E90 /* debug.cc */,
 				897FF1290E719B8F00D62E90 /* debug.h */,
 				893E248B12B14B3D0083370F /* deoptimizer.cc */,
@@ -1141,6 +1153,8 @@
 				9F92FAA80F8F28AD0089F02C /* func-name-inferrer.h */,
 				893E24DA12B14B9F0083370F /* gc-extension.cc */,
 				893E24DB12B14B9F0083370F /* gc-extension.h */,
+				89D7DDD612E8DE09001E2B82 /* gdb-jit.cc */,
+				89D7DDD712E8DE09001E2B82 /* gdb-jit.h */,
 				897FF13E0E719B8F00D62E90 /* global-handles.cc */,
 				897FF13F0E719B8F00D62E90 /* global-handles.h */,
 				897FF1400E719B8F00D62E90 /* globals.h */,
@@ -1162,6 +1176,8 @@
 				897FF14B0E719B8F00D62E90 /* ic-inl.h */,
 				897FF14C0E719B8F00D62E90 /* ic.cc */,
 				897FF14D0E719B8F00D62E90 /* ic.h */,
+				89D7DDD812E8DE09001E2B82 /* inspector.cc */,
+				89D7DDD912E8DE09001E2B82 /* inspector.h */,
 				89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */,
 				89A15C670EE4665300B48DEB /* interpreter-irregexp.h */,
 				897FF14E0E719B8F00D62E90 /* jsregexp.cc */,
@@ -1463,6 +1479,8 @@
 		89B91C0312D4F275002FF4BC /* ia32 */ = {
 			isa = PBXGroup;
 			children = (
+				89D7DDD312E8DDCF001E2B82 /* lithium-gap-resolver-ia32.cc */,
+				89D7DDD412E8DDCF001E2B82 /* lithium-gap-resolver-ia32.h */,
 				897FF1000E719B8F00D62E90 /* assembler-ia32-inl.h */,
 				897FF1010E719B8F00D62E90 /* assembler-ia32.cc */,
 				897FF1020E719B8F00D62E90 /* assembler-ia32.h */,
@@ -1515,6 +1533,7 @@
 				896448BC0E9D530500E7C516 /* codegen-arm.h */,
 				895FA748107FFE73006F39D4 /* constants-arm.cc */,
 				897FF11B0E719B8F00D62E90 /* constants-arm.h */,
+				898BD20C0EF6CC850068B00A /* debug-arm.cc */,
 				893E24C612B14B510083370F /* deoptimizer-arm.cc */,
 				9FA38BCB1175B30400C4CD55 /* full-codegen-arm.cc */,
 				9FA38BCC1175B30400C4CD55 /* jump-target-arm.cc */,
@@ -1958,6 +1977,8 @@
 				8938A2A312D63B630080CDDE /* lithium-x64.cc in Sources */,
 				894A59E912D777E80000766D /* lithium.cc in Sources */,
 				89F3605B12DCDF6400ACF8A6 /* lithium-codegen-x64.cc in Sources */,
+				89D7DDDE12E8DE09001E2B82 /* gdb-jit.cc in Sources */,
+				89D7DDDF12E8DE09001E2B82 /* inspector.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2093,6 +2114,9 @@
 				893E24DD12B14B9F0083370F /* gc-extension.cc in Sources */,
 				8946827512C26EB700C914BC /* objects-printer.cc in Sources */,
 				894A59EB12D777E80000766D /* lithium.cc in Sources */,
+				89D7DDD512E8DDCF001E2B82 /* lithium-gap-resolver-ia32.cc in Sources */,
+				89D7DDDA12E8DE09001E2B82 /* gdb-jit.cc in Sources */,
+				89D7DDDB12E8DE09001E2B82 /* inspector.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2268,6 +2292,8 @@
 				893E24DF12B14B9F0083370F /* gc-extension.cc in Sources */,
 				8946827612C26EB700C914BC /* objects-printer.cc in Sources */,
 				894A59EA12D777E80000766D /* lithium.cc in Sources */,
+				89D7DDDC12E8DE09001E2B82 /* gdb-jit.cc in Sources */,
+				89D7DDDD12E8DE09001E2B82 /* inspector.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2395,6 +2421,7 @@
 					V8_ENABLE_CHECKS,
 					OBJECT_PRINT,
 					ENABLE_VMSTATE_TRACKING,
+					ENABLE_DEBUGGER_SUPPORT,
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
@@ -2434,6 +2461,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					NDEBUG,
+					ENABLE_DEBUGGER_SUPPORT,
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_TREAT_WARNINGS_AS_ERRORS = NO;

@@ -367,55 +367,6 @@ void KeyedStoreIC::Clear(Address address, Code* target) {
 }
 
 
-Code* KeyedLoadIC::external_array_stub(JSObject::ElementsKind elements_kind) {
-  switch (elements_kind) {
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalByteArray);
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalUnsignedByteArray);
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalShortArray);
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return Builtins::builtin(
-          Builtins::KeyedLoadIC_ExternalUnsignedShortArray);
-    case JSObject::EXTERNAL_INT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalIntArray);
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalUnsignedIntArray);
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedLoadIC_ExternalFloatArray);
-    default:
-      UNREACHABLE();
-      return NULL;
-  }
-}
-
-
-Code* KeyedStoreIC::external_array_stub(JSObject::ElementsKind elements_kind) {
-  switch (elements_kind) {
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedStoreIC_ExternalByteArray);
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      return Builtins::builtin(
-          Builtins::KeyedStoreIC_ExternalUnsignedByteArray);
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedStoreIC_ExternalShortArray);
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return Builtins::builtin(
-          Builtins::KeyedStoreIC_ExternalUnsignedShortArray);
-    case JSObject::EXTERNAL_INT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedStoreIC_ExternalIntArray);
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedStoreIC_ExternalUnsignedIntArray);
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      return Builtins::builtin(Builtins::KeyedStoreIC_ExternalFloatArray);
-    default:
-      UNREACHABLE();
-      return NULL;
-  }
-}
-
-
 static bool HasInterceptorGetter(JSObject* object) {
   return !object->GetNamedInterceptor()->getter()->IsUndefined();
 }
@@ -1243,7 +1194,10 @@ MaybeObject* KeyedLoadIC::Load(State state,
     } else if (object->IsJSObject()) {
       Handle<JSObject> receiver = Handle<JSObject>::cast(object);
       if (receiver->HasExternalArrayElements()) {
-        stub = external_array_stub(receiver->GetElementsKind());
+        MaybeObject* probe =
+            StubCache::ComputeKeyedLoadOrStoreExternalArray(*receiver, false);
+        stub =
+            probe->IsFailure() ? NULL : Code::cast(probe->ToObjectUnchecked());
       } else if (receiver->HasIndexedInterceptor()) {
         stub = indexed_interceptor_stub();
       } else if (state == UNINITIALIZED &&
@@ -1636,7 +1590,10 @@ MaybeObject* KeyedStoreIC::Store(State state,
     if (object->IsJSObject()) {
       Handle<JSObject> receiver = Handle<JSObject>::cast(object);
       if (receiver->HasExternalArrayElements()) {
-        stub = external_array_stub(receiver->GetElementsKind());
+        MaybeObject* probe =
+            StubCache::ComputeKeyedLoadOrStoreExternalArray(*receiver, true);
+        stub =
+            probe->IsFailure() ? NULL : Code::cast(probe->ToObjectUnchecked());
       } else if (state == UNINITIALIZED &&
                  key->IsSmi() &&
                  receiver->map()->has_fast_elements()) {

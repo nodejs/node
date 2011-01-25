@@ -37,7 +37,7 @@
 #include "full-codegen.h"
 #include "gdb-jit.h"
 #include "hydrogen.h"
-#include "lithium-allocator.h"
+#include "lithium.h"
 #include "liveedit.h"
 #include "oprofile-agent.h"
 #include "parser.h"

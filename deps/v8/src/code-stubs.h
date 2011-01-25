@@ -273,20 +273,21 @@ class FastNewClosureStub : public CodeStub {
 
 class FastNewContextStub : public CodeStub {
  public:
-  static const int kMaximumSlots = 64;
+  // We want no more than 64 different stubs.
+  static const int kMaximumSlots = Context::MIN_CONTEXT_SLOTS + 63;
 
   explicit FastNewContextStub(int slots) : slots_(slots) {
-    ASSERT(slots_ > 0 && slots <= kMaximumSlots);
+    ASSERT(slots_ >= Context::MIN_CONTEXT_SLOTS && slots_ <= kMaximumSlots);
   }
 
   void Generate(MacroAssembler* masm);
 
  private:
-  int slots_;
+  virtual const char* GetName() { return "FastNewContextStub"; }
+  virtual Major MajorKey() { return FastNewContext; }
+  virtual int MinorKey() { return slots_; }
 
-  const char* GetName() { return "FastNewContextStub"; }
-  Major MajorKey() { return FastNewContext; }
-  int MinorKey() { return slots_; }
+  int slots_;
 };
 
 

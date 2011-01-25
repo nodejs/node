@@ -30,7 +30,7 @@
 
 #include "v8.h"
 
-#include "lithium-allocator.h"
+#include "lithium.h"
 
 namespace v8 {
 namespace internal {

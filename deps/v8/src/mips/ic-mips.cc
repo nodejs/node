@@ -172,19 +172,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
-                                        ExternalArrayType array_type) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
-                                         ExternalArrayType array_type) {
   UNIMPLEMENTED_MIPS();
 }
 

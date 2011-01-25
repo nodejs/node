@@ -242,6 +242,12 @@ void OS::DebugBreak() {
 }
 
 
+OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
 OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
     void* initial) {
   UNIMPLEMENTED();

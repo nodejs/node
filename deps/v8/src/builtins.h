@@ -93,13 +93,6 @@ enum BuiltinExtraArguments {
   V(KeyedLoadIC_PreMonomorphic, KEYED_LOAD_IC, PREMONOMORPHIC)            \
   V(KeyedLoadIC_Generic,        KEYED_LOAD_IC, MEGAMORPHIC)               \
   V(KeyedLoadIC_String,         KEYED_LOAD_IC, MEGAMORPHIC)               \
-  V(KeyedLoadIC_ExternalByteArray,          KEYED_LOAD_IC, MEGAMORPHIC)   \
-  V(KeyedLoadIC_ExternalUnsignedByteArray,  KEYED_LOAD_IC, MEGAMORPHIC)   \
-  V(KeyedLoadIC_ExternalShortArray,         KEYED_LOAD_IC, MEGAMORPHIC)   \
-  V(KeyedLoadIC_ExternalUnsignedShortArray, KEYED_LOAD_IC, MEGAMORPHIC)   \
-  V(KeyedLoadIC_ExternalIntArray,           KEYED_LOAD_IC, MEGAMORPHIC)   \
-  V(KeyedLoadIC_ExternalUnsignedIntArray,   KEYED_LOAD_IC, MEGAMORPHIC)   \
-  V(KeyedLoadIC_ExternalFloatArray,         KEYED_LOAD_IC, MEGAMORPHIC)   \
   V(KeyedLoadIC_IndexedInterceptor,         KEYED_LOAD_IC, MEGAMORPHIC)   \
                                                                           \
   V(StoreIC_Initialize,         STORE_IC, UNINITIALIZED)                  \
@@ -110,13 +103,6 @@ enum BuiltinExtraArguments {
                                                                           \
   V(KeyedStoreIC_Initialize,    KEYED_STORE_IC, UNINITIALIZED)            \
   V(KeyedStoreIC_Generic,       KEYED_STORE_IC, MEGAMORPHIC)              \
-  V(KeyedStoreIC_ExternalByteArray,          KEYED_STORE_IC, MEGAMORPHIC) \
-  V(KeyedStoreIC_ExternalUnsignedByteArray,  KEYED_STORE_IC, MEGAMORPHIC) \
-  V(KeyedStoreIC_ExternalShortArray,         KEYED_STORE_IC, MEGAMORPHIC) \
-  V(KeyedStoreIC_ExternalUnsignedShortArray, KEYED_STORE_IC, MEGAMORPHIC) \
-  V(KeyedStoreIC_ExternalIntArray,           KEYED_STORE_IC, MEGAMORPHIC) \
-  V(KeyedStoreIC_ExternalUnsignedIntArray,   KEYED_STORE_IC, MEGAMORPHIC) \
-  V(KeyedStoreIC_ExternalFloatArray,         KEYED_STORE_IC, MEGAMORPHIC) \
                                                                           \
   /* Uses KeyedLoadIC_Initialize; must be after in list. */               \
   V(FunctionCall,               BUILTIN, UNINITIALIZED)                   \

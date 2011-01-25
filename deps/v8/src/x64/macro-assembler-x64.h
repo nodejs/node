@@ -272,6 +272,7 @@ class MacroAssembler: public Assembler {
 
   // Is the value a tagged smi.
   Condition CheckSmi(Register src);
+  Condition CheckSmi(const Operand& src);
 
   // Is the value a non-negative tagged smi.
   Condition CheckNonNegativeSmi(Register src);
@@ -589,6 +590,13 @@ class MacroAssembler: public Assembler {
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
+
+  // Non-x64 instructions.
+  // Push/pop all general purpose registers.
+  // Does not push rsp/rbp nor any of the assembler's special purpose registers
+  // (kScratchRegister, kSmiConstantRegister, kRootRegister).
+  void Pushad();
+  void Popad();
 
   // Compare object type for heap object.
   // Always use unsigned comparisons: above and below, not less and greater.
