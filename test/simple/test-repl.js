@@ -254,4 +254,4 @@ unix_test();
 
 timer = setTimeout(function() {
   assert.fail('Timeout');
-}, 1000);
+}, 5000);
