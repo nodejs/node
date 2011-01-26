@@ -226,7 +226,7 @@ Useful to throttle back an upload.
 
 Resumes reading after a call to `pause()`.
 
-#### socket.setTimeout(timeout)
+#### socket.setTimeout(timeout, [callback])
 
 Sets the socket to timeout after `timeout` milliseconds of inactivity on
 the socket. By default `net.Socket` do not have a timeout.
@@ -236,6 +236,8 @@ event but the connection will not be severed. The user must manually `end()`
 or `destroy()` the socket.
 
 If `timeout` is 0, then the existing idle timeout is disabled.
+
+The optional `callback` parameter will be added as a one time listener for the `'timeout'` event.
 
 #### socket.setNoDelay(noDelay=true)
 
