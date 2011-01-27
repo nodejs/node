@@ -129,7 +129,7 @@ Synchronous fstat(2). Returns an instance of `fs.Stats`.
 Asynchronous link(2). No arguments other than a possible exception are given to
 the completion callback.
 
-### fs.linkSync(dstpath, srcpath)
+### fs.linkSync(srcpath, dstpath)
 
 Synchronous link(2).
 
