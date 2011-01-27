@@ -1,4 +1,4 @@
-all: agent1-cert.pem agent2-cert.pem agent3-cert.pem
+all: agent1-cert.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem
 
 
 #
@@ -82,13 +82,39 @@ agent3-cert.pem: agent3-csr.pem ca2-cert.pem ca2-key.pem
 agent3-verify: agent3-cert.pem ca2-cert.pem
 	openssl verify -CAfile ca2-cert.pem agent3-cert.pem
 
+
+#
+# agent4 is signed by ca2 (client cert)
+#
+
+agent4-key.pem:
+	openssl genrsa -out agent4-key.pem
+
+agent4-csr.pem: agent4.cnf agent4-key.pem
+	openssl req -new -config agent4.cnf -key agent4-key.pem -out agent4-csr.pem
+
+agent4-cert.pem: agent4-csr.pem ca2-cert.pem ca2-key.pem
+	openssl x509 -req \
+		-passin "pass:password" \
+		-in agent4-csr.pem \
+		-CA ca2-cert.pem \
+		-CAkey ca2-key.pem \
+		-CAcreateserial \
+		-extfile agent4.cnf \
+		-extensions ext_key_usage \
+		-out agent4-cert.pem
+
+agent4-verify: agent4-cert.pem ca2-cert.pem
+	openssl verify -CAfile ca2-cert.pem agent4-cert.pem
+
+
 # TODO: agent on CRL
 
 
 clean:
 	rm -f *.pem *.srl
 
-test: agent1-verify agent2-verify agent3-verify
+test: agent1-verify agent2-verify agent3-verify agent4-verify
 
 
-.PHONY: all clean test agent1-verify agent2-verify agent3-verify
+.PHONY: all clean test agent1-verify agent2-verify agent3-verify agent4-verify
