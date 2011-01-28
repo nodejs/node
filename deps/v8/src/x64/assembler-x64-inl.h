@@ -425,7 +425,7 @@ void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
   // Use SIB with no index register only for base rsp or r12. Otherwise we
   // would skip the SIB byte entirely.
   ASSERT(!index.is(rsp) || base.is(rsp) || base.is(r12));
-  buf_[1] = scale << 6 | index.low_bits() << 3 | base.low_bits();
+  buf_[1] = (scale << 6) | (index.low_bits() << 3) | base.low_bits();
   rex_ |= index.high_bit() << 1 | base.high_bit();
   len_ = 2;
 }

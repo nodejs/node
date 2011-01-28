@@ -239,12 +239,19 @@ void ObjectLiteral::CalculateEmitStore() {
     HashMap* table;
     void* key;
     uint32_t index;
+    Smi* smi_key_location;
     if (handle->IsSymbol()) {
       Handle<String> name(String::cast(*handle));
-      ASSERT(!name->AsArrayIndex(&index));
-      key = name.location();
-      hash = name->Hash();
-      table = &properties;
+      if (name->AsArrayIndex(&index)) {
+        smi_key_location = Smi::FromInt(index);
+        key = &smi_key_location;
+        hash = index;
+        table = &elements;
+      } else {
+        key = name.location();
+        hash = name->Hash();
+        table = &properties;
+      }
     } else if (handle->ToArrayIndex(&index)) {
       key = handle.location();
       hash = index;
@@ -514,6 +521,8 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   if (key()->IsPropertyName()) {
     if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_ArrayLength)) {
       is_array_length_ = true;
+    } else if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_StringLength)) {
+      is_string_length_ = true;
     } else if (oracle->LoadIsBuiltin(this,
                                      Builtins::LoadIC_FunctionPrototype)) {
       is_function_prototype_ = true;
@@ -570,7 +579,14 @@ static bool CanCallWithoutIC(Handle<JSFunction> target, int arity) {
 
 
 bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
-  holder_ = Handle<JSObject>::null();
+  if (check_type_ == RECEIVER_MAP_CHECK) {
+    // For primitive checks the holder is set up to point to the
+    // corresponding prototype object, i.e. one step of the algorithm
+    // below has been already performed.
+    // For non-primitive checks we clear it to allow computing targets
+    // for polymorphic calls.
+    holder_ = Handle<JSObject>::null();
+  }
   while (true) {
     LookupResult lookup;
     type->LookupInDescriptors(NULL, *name, &lookup);
@@ -640,27 +656,20 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
       map = receiver_types_->at(0);
     } else {
       ASSERT(check_type_ != RECEIVER_MAP_CHECK);
-      map = Handle<Map>(
-          oracle->GetPrototypeForPrimitiveCheck(check_type_)->map());
+      holder_ = Handle<JSObject>(
+          oracle->GetPrototypeForPrimitiveCheck(check_type_));
+      map = Handle<Map>(holder_->map());
     }
     is_monomorphic_ = ComputeTarget(map, name);
   }
 }
 
 
-void BinaryOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  TypeInfo left = oracle->BinaryType(this, TypeFeedbackOracle::LEFT);
-  TypeInfo right = oracle->BinaryType(this, TypeFeedbackOracle::RIGHT);
-  is_smi_only_ = left.IsSmi() && right.IsSmi();
-}
-
-
 void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  TypeInfo left = oracle->CompareType(this, TypeFeedbackOracle::LEFT);
-  TypeInfo right = oracle->CompareType(this, TypeFeedbackOracle::RIGHT);
-  if (left.IsSmi() && right.IsSmi()) {
+  TypeInfo info = oracle->CompareType(this);
+  if (info.IsSmi()) {
     compare_type_ = SMI_ONLY;
-  } else if (left.IsNonPrimitive() && right.IsNonPrimitive()) {
+  } else if (info.IsNonPrimitive()) {
     compare_type_ = OBJECT_ONLY;
   } else {
     ASSERT(compare_type_ == NONE);

@@ -86,8 +86,8 @@
 #define USE_BLX 1
 #endif
 
-namespace assembler {
-namespace arm {
+namespace v8 {
+namespace internal {
 
 // Number of registers in normal ARM mode.
 static const int kNumRegisters = 16;
@@ -102,6 +102,9 @@ static const int kNumVFPRegisters =
 static const int kPCRegister = 15;
 static const int kNoRegister = -1;
 
+// -----------------------------------------------------------------------------
+// Conditions.
+
 // Defines constants and accessor classes to assemble, disassemble and
 // simulate ARM instructions.
 //
@@ -111,78 +114,246 @@ static const int kNoRegister = -1;
 // Constants for specific fields are defined in their respective named enums.
 // General constants are in an anonymous enum in class Instr.
 
-typedef unsigned char byte;
-
 // Values for the condition field as defined in section A3.2
 enum Condition {
-  no_condition = -1,
-  EQ =  0,  // equal
-  NE =  1,  // not equal
-  CS =  2,  // carry set/unsigned higher or same
-  CC =  3,  // carry clear/unsigned lower
-  MI =  4,  // minus/negative
-  PL =  5,  // plus/positive or zero
-  VS =  6,  // overflow
-  VC =  7,  // no overflow
-  HI =  8,  // unsigned higher
-  LS =  9,  // unsigned lower or same
-  GE = 10,  // signed greater than or equal
-  LT = 11,  // signed less than
-  GT = 12,  // signed greater than
-  LE = 13,  // signed less than or equal
-  AL = 14,  // always (unconditional)
-  special_condition = 15,  // special condition (refer to section A3.2.1)
-  max_condition = 16
+  kNoCondition = -1,
+
+  eq =  0 << 28,                 // Z set            Equal.
+  ne =  1 << 28,                 // Z clear          Not equal.
+  cs =  2 << 28,                 // C set            Unsigned higher or same.
+  cc =  3 << 28,                 // C clear          Unsigned lower.
+  mi =  4 << 28,                 // N set            Negative.
+  pl =  5 << 28,                 // N clear          Positive or zero.
+  vs =  6 << 28,                 // V set            Overflow.
+  vc =  7 << 28,                 // V clear          No overflow.
+  hi =  8 << 28,                 // C set, Z clear   Unsigned higher.
+  ls =  9 << 28,                 // C clear or Z set Unsigned lower or same.
+  ge = 10 << 28,                 // N == V           Greater or equal.
+  lt = 11 << 28,                 // N != V           Less than.
+  gt = 12 << 28,                 // Z clear, N == V  Greater than.
+  le = 13 << 28,                 // Z set or N != V  Less then or equal
+  al = 14 << 28,                 //                  Always.
+
+  kSpecialCondition = 15 << 28,  // Special condition (refer to section A3.2.1).
+  kNumberOfConditions = 16,
+
+  // Aliases.
+  hs = cs,                       // C set            Unsigned higher or same.
+  lo = cc                        // C clear          Unsigned lower.
 };
+
+
+inline Condition NegateCondition(Condition cond) {
+  ASSERT(cond != al);
+  return static_cast<Condition>(cond ^ ne);
+}
+
+
+// Corresponds to transposing the operands of a comparison.
+inline Condition ReverseCondition(Condition cond) {
+  switch (cond) {
+    case lo:
+      return hi;
+    case hi:
+      return lo;
+    case hs:
+      return ls;
+    case ls:
+      return hs;
+    case lt:
+      return gt;
+    case gt:
+      return lt;
+    case ge:
+      return le;
+    case le:
+      return ge;
+    default:
+      return cond;
+  };
+}
+
+
+// -----------------------------------------------------------------------------
+// Instructions encoding.
+
+// Instr is merely used by the Assembler to distinguish 32bit integers
+// representing instructions from usual 32 bit values.
+// Instruction objects are pointers to 32bit values, and provide methods to
+// access the various ISA fields.
+typedef int32_t Instr;
 
 
 // Opcodes for Data-processing instructions (instructions with a type 0 and 1)
 // as defined in section A3.4
 enum Opcode {
-  no_operand = -1,
-  AND =  0,  // Logical AND
-  EOR =  1,  // Logical Exclusive OR
-  SUB =  2,  // Subtract
-  RSB =  3,  // Reverse Subtract
-  ADD =  4,  // Add
-  ADC =  5,  // Add with Carry
-  SBC =  6,  // Subtract with Carry
-  RSC =  7,  // Reverse Subtract with Carry
-  TST =  8,  // Test
-  TEQ =  9,  // Test Equivalence
-  CMP = 10,  // Compare
-  CMN = 11,  // Compare Negated
-  ORR = 12,  // Logical (inclusive) OR
-  MOV = 13,  // Move
-  BIC = 14,  // Bit Clear
-  MVN = 15,  // Move Not
-  max_operand = 16
+  AND =  0 << 21,  // Logical AND.
+  EOR =  1 << 21,  // Logical Exclusive OR.
+  SUB =  2 << 21,  // Subtract.
+  RSB =  3 << 21,  // Reverse Subtract.
+  ADD =  4 << 21,  // Add.
+  ADC =  5 << 21,  // Add with Carry.
+  SBC =  6 << 21,  // Subtract with Carry.
+  RSC =  7 << 21,  // Reverse Subtract with Carry.
+  TST =  8 << 21,  // Test.
+  TEQ =  9 << 21,  // Test Equivalence.
+  CMP = 10 << 21,  // Compare.
+  CMN = 11 << 21,  // Compare Negated.
+  ORR = 12 << 21,  // Logical (inclusive) OR.
+  MOV = 13 << 21,  // Move.
+  BIC = 14 << 21,  // Bit Clear.
+  MVN = 15 << 21   // Move Not.
 };
 
 
 // The bits for bit 7-4 for some type 0 miscellaneous instructions.
 enum MiscInstructionsBits74 {
   // With bits 22-21 01.
-  BX   =  1,
-  BXJ  =  2,
-  BLX  =  3,
-  BKPT =  7,
+  BX   =  1 << 4,
+  BXJ  =  2 << 4,
+  BLX  =  3 << 4,
+  BKPT =  7 << 4,
 
   // With bits 22-21 11.
-  CLZ  =  1
+  CLZ  =  1 << 4
+};
+
+
+// Instruction encoding bits and masks.
+enum {
+  H   = 1 << 5,   // Halfword (or byte).
+  S6  = 1 << 6,   // Signed (or unsigned).
+  L   = 1 << 20,  // Load (or store).
+  S   = 1 << 20,  // Set condition code (or leave unchanged).
+  W   = 1 << 21,  // Writeback base register (or leave unchanged).
+  A   = 1 << 21,  // Accumulate in multiply instruction (or not).
+  B   = 1 << 22,  // Unsigned byte (or word).
+  N   = 1 << 22,  // Long (or short).
+  U   = 1 << 23,  // Positive (or negative) offset/index.
+  P   = 1 << 24,  // Offset/pre-indexed addressing (or post-indexed addressing).
+  I   = 1 << 25,  // Immediate shifter operand (or not).
+
+  B4  = 1 << 4,
+  B5  = 1 << 5,
+  B6  = 1 << 6,
+  B7  = 1 << 7,
+  B8  = 1 << 8,
+  B9  = 1 << 9,
+  B12 = 1 << 12,
+  B16 = 1 << 16,
+  B18 = 1 << 18,
+  B19 = 1 << 19,
+  B20 = 1 << 20,
+  B21 = 1 << 21,
+  B22 = 1 << 22,
+  B23 = 1 << 23,
+  B24 = 1 << 24,
+  B25 = 1 << 25,
+  B26 = 1 << 26,
+  B27 = 1 << 27,
+  B28 = 1 << 28,
+
+  // Instruction bit masks.
+  kCondMask   = 15 << 28,
+  kALUMask    = 0x6f << 21,
+  kRdMask     = 15 << 12,  // In str instruction.
+  kCoprocessorMask = 15 << 8,
+  kOpCodeMask = 15 << 21,  // In data-processing instructions.
+  kImm24Mask  = (1 << 24) - 1,
+  kOff12Mask  = (1 << 12) - 1
+};
+
+
+// -----------------------------------------------------------------------------
+// Addressing modes and instruction variants.
+
+// Condition code updating mode.
+enum SBit {
+  SetCC   = 1 << 20,  // Set condition code.
+  LeaveCC = 0 << 20   // Leave condition code unchanged.
+};
+
+
+// Status register selection.
+enum SRegister {
+  CPSR = 0 << 22,
+  SPSR = 1 << 22
 };
 
 
 // Shifter types for Data-processing operands as defined in section A5.1.2.
-enum Shift {
-  no_shift = -1,
-  LSL = 0,  // Logical shift left
-  LSR = 1,  // Logical shift right
-  ASR = 2,  // Arithmetic shift right
-  ROR = 3,  // Rotate right
-  max_shift = 4
+enum ShiftOp {
+  LSL = 0 << 5,   // Logical shift left.
+  LSR = 1 << 5,   // Logical shift right.
+  ASR = 2 << 5,   // Arithmetic shift right.
+  ROR = 3 << 5,   // Rotate right.
+
+  // RRX is encoded as ROR with shift_imm == 0.
+  // Use a special code to make the distinction. The RRX ShiftOp is only used
+  // as an argument, and will never actually be encoded. The Assembler will
+  // detect it and emit the correct ROR shift operand with shift_imm == 0.
+  RRX = -1,
+  kNumberOfShifts = 4
 };
 
+
+// Status register fields.
+enum SRegisterField {
+  CPSR_c = CPSR | 1 << 16,
+  CPSR_x = CPSR | 1 << 17,
+  CPSR_s = CPSR | 1 << 18,
+  CPSR_f = CPSR | 1 << 19,
+  SPSR_c = SPSR | 1 << 16,
+  SPSR_x = SPSR | 1 << 17,
+  SPSR_s = SPSR | 1 << 18,
+  SPSR_f = SPSR | 1 << 19
+};
+
+// Status register field mask (or'ed SRegisterField enum values).
+typedef uint32_t SRegisterFieldMask;
+
+
+// Memory operand addressing mode.
+enum AddrMode {
+  // Bit encoding P U W.
+  Offset       = (8|4|0) << 21,  // Offset (without writeback to base).
+  PreIndex     = (8|4|1) << 21,  // Pre-indexed addressing with writeback.
+  PostIndex    = (0|4|0) << 21,  // Post-indexed addressing with writeback.
+  NegOffset    = (8|0|0) << 21,  // Negative offset (without writeback to base).
+  NegPreIndex  = (8|0|1) << 21,  // Negative pre-indexed with writeback.
+  NegPostIndex = (0|0|0) << 21   // Negative post-indexed with writeback.
+};
+
+
+// Load/store multiple addressing mode.
+enum BlockAddrMode {
+  // Bit encoding P U W .
+  da           = (0|0|0) << 21,  // Decrement after.
+  ia           = (0|4|0) << 21,  // Increment after.
+  db           = (8|0|0) << 21,  // Decrement before.
+  ib           = (8|4|0) << 21,  // Increment before.
+  da_w         = (0|0|1) << 21,  // Decrement after with writeback to base.
+  ia_w         = (0|4|1) << 21,  // Increment after with writeback to base.
+  db_w         = (8|0|1) << 21,  // Decrement before with writeback to base.
+  ib_w         = (8|4|1) << 21,  // Increment before with writeback to base.
+
+  // Alias modes for comparison when writeback does not matter.
+  da_x         = (0|0|0) << 21,  // Decrement after.
+  ia_x         = (0|4|0) << 21,  // Increment after.
+  db_x         = (8|0|0) << 21,  // Decrement before.
+  ib_x         = (8|4|0) << 21   // Increment before.
+};
+
+
+// Coprocessor load/store operand size.
+enum LFlag {
+  Long  = 1 << 22,  // Long load/store coprocessor.
+  Short = 0 << 22   // Short load/store coprocessor.
+};
+
+
+// -----------------------------------------------------------------------------
+// Supervisor Call (svc) specific support.
 
 // Special Software Interrupt codes when used in the presence of the ARM
 // simulator.
@@ -190,14 +361,15 @@ enum Shift {
 // standard SoftwareInterrupCode. Bit 23 is reserved for the stop feature.
 enum SoftwareInterruptCodes {
   // transition to C code
-  call_rt_redirected = 0x10,
+  kCallRtRedirected= 0x10,
   // break point
-  break_point = 0x20,
+  kBreakpoint= 0x20,
   // stop
-  stop = 1 << 23
+  kStopCode = 1 << 23
 };
-static const int32_t kStopCodeMask = stop - 1;
-static const uint32_t kMaxStopCode = stop - 1;
+static const uint32_t kStopCodeMask = kStopCode - 1;
+static const uint32_t kMaxStopCode = kStopCode - 1;
+static const int32_t  kDefaultStopCode = -1;
 
 
 // Type of VFP register. Determines register encoding.
@@ -205,6 +377,20 @@ enum VFPRegPrecision {
   kSinglePrecision = 0,
   kDoublePrecision = 1
 };
+
+
+// VFP FPSCR constants.
+static const uint32_t kVFPExceptionMask = 0xf;
+static const uint32_t kVFPRoundingModeMask = 3 << 22;
+static const uint32_t kVFPFlushToZeroMask = 1 << 24;
+static const uint32_t kVFPRoundToMinusInfinityBits = 2 << 22;
+static const uint32_t kVFPInvalidExceptionBit = 1;
+
+static const uint32_t kVFPNConditionFlagBit = 1 << 31;
+static const uint32_t kVFPZConditionFlagBit = 1 << 30;
+static const uint32_t kVFPCConditionFlagBit = 1 << 29;
+static const uint32_t kVFPVConditionFlagBit = 1 << 28;
+
 
 // VFP rounding modes. See ARM DDI 0406B Page A2-29.
 enum FPSCRRoundingModes {
@@ -214,22 +400,91 @@ enum FPSCRRoundingModes {
   RZ    // Round towards zero.
 };
 
-typedef int32_t instr_t;
+
+// -----------------------------------------------------------------------------
+// Hints.
+
+// Branch hints are not used on the ARM.  They are defined so that they can
+// appear in shared function signatures, but will be ignored in ARM
+// implementations.
+enum Hint { no_hint };
+
+// Hints are not used on the arm.  Negating is trivial.
+inline Hint NegateHint(Hint ignored) { return no_hint; }
 
 
-// The class Instr enables access to individual fields defined in the ARM
+// -----------------------------------------------------------------------------
+// Specific instructions, constants, and masks.
+// These constants are declared in assembler-arm.cc, as they use named registers
+// and other constants.
+
+
+// add(sp, sp, 4) instruction (aka Pop())
+extern const Instr kPopInstruction;
+
+// str(r, MemOperand(sp, 4, NegPreIndex), al) instruction (aka push(r))
+// register r is not encoded.
+extern const Instr kPushRegPattern;
+
+// ldr(r, MemOperand(sp, 4, PostIndex), al) instruction (aka pop(r))
+// register r is not encoded.
+extern const Instr kPopRegPattern;
+
+// mov lr, pc
+extern const Instr kMovLrPc;
+// ldr rd, [pc, #offset]
+extern const Instr kLdrPCMask;
+extern const Instr kLdrPCPattern;
+// blxcc rm
+extern const Instr kBlxRegMask;
+
+extern const Instr kBlxRegPattern;
+
+extern const Instr kMovMvnMask;
+extern const Instr kMovMvnPattern;
+extern const Instr kMovMvnFlip;
+extern const Instr kMovLeaveCCMask;
+extern const Instr kMovLeaveCCPattern;
+extern const Instr kMovwMask;
+extern const Instr kMovwPattern;
+extern const Instr kMovwLeaveCCFlip;
+extern const Instr kCmpCmnMask;
+extern const Instr kCmpCmnPattern;
+extern const Instr kCmpCmnFlip;
+extern const Instr kAddSubFlip;
+extern const Instr kAndBicFlip;
+
+// A mask for the Rd register for push, pop, ldr, str instructions.
+extern const Instr kLdrRegFpOffsetPattern;
+
+extern const Instr kStrRegFpOffsetPattern;
+
+extern const Instr kLdrRegFpNegOffsetPattern;
+
+extern const Instr kStrRegFpNegOffsetPattern;
+
+extern const Instr kLdrStrInstrTypeMask;
+extern const Instr kLdrStrInstrArgumentMask;
+extern const Instr kLdrStrOffsetMask;
+
+
+// -----------------------------------------------------------------------------
+// Instruction abstraction.
+
+// The class Instruction enables access to individual fields defined in the ARM
 // architecture instruction set encoding as described in figure A3-1.
+// Note that the Assembler uses typedef int32_t Instr.
 //
 // Example: Test whether the instruction at ptr does set the condition code
 // bits.
 //
 // bool InstructionSetsConditionCodes(byte* ptr) {
-//   Instr* instr = Instr::At(ptr);
-//   int type = instr->TypeField();
+//   Instruction* instr = Instruction::At(ptr);
+//   int type = instr->TypeValue();
 //   return ((type == 0) || (type == 1)) && instr->HasS();
 // }
 //
-class Instr {
+class Instruction {
  public:
   enum {
     kInstrSize = 4,
@@ -237,14 +492,24 @@ class Instr {
     kPCReadOffset = 8
   };
 
+  // Helper macro to define static accessors.
+  // We use the cast to char* trick to bypass the strict anti-aliasing rules.
+  #define DECLARE_STATIC_TYPED_ACCESSOR(return_type, Name)                     \
+    static inline return_type Name(Instr instr) {                              \
+      char* temp = reinterpret_cast<char*>(&instr);                            \
+      return reinterpret_cast<Instruction*>(temp)->Name();                     \
+    }
+
+  #define DECLARE_STATIC_ACCESSOR(Name) DECLARE_STATIC_TYPED_ACCESSOR(int, Name)
+
   // Get the raw instruction bits.
-  inline instr_t InstructionBits() const {
-    return *reinterpret_cast<const instr_t*>(this);
+  inline Instr InstructionBits() const {
+    return *reinterpret_cast<const Instr*>(this);
   }
 
   // Set the raw instruction bits to value.
-  inline void SetInstructionBits(instr_t value) {
-    *reinterpret_cast<instr_t*>(this) = value;
+  inline void SetInstructionBits(Instr value) {
+    *reinterpret_cast<Instr*>(this) = value;
   }
 
   // Read one particular bit out of the instruction bits.
@@ -252,93 +517,141 @@ class Instr {
     return (InstructionBits() >> nr) & 1;
   }
 
-  // Read a bit field out of the instruction bits.
+  // Read a bit field's value out of the instruction bits.
   inline int Bits(int hi, int lo) const {
     return (InstructionBits() >> lo) & ((2 << (hi - lo)) - 1);
+  }
+
+  // Read a bit field out of the instruction bits.
+  inline int BitField(int hi, int lo) const {
+    return InstructionBits() & (((2 << (hi - lo)) - 1) << lo);
+  }
+
+  // Static support.
+
+  // Read one particular bit out of the instruction bits.
+  static inline int Bit(Instr instr, int nr) {
+    return (instr >> nr) & 1;
+  }
+
+  // Read the value of a bit field out of the instruction bits.
+  static inline int Bits(Instr instr, int hi, int lo) {
+    return (instr >> lo) & ((2 << (hi - lo)) - 1);
+  }
+
+
+  // Read a bit field out of the instruction bits.
+  static inline int BitField(Instr instr, int hi, int lo) {
+    return instr & (((2 << (hi - lo)) - 1) << lo);
   }
 
 
   // Accessors for the different named fields used in the ARM encoding.
   // The naming of these accessor corresponds to figure A3-1.
+  //
+  // Two kind of accessors are declared:
+  // - <Name>Field() will return the raw field, ie the field's bits at their
+  //   original place in the instruction encoding.
+  //   eg. if instr is the 'addgt r0, r1, r2' instruction, encoded as 0xC0810002
+  //   ConditionField(instr) will return 0xC0000000.
+  // - <Name>Value() will return the field value, shifted back to bit 0.
+  //   eg. if instr is the 'addgt r0, r1, r2' instruction, encoded as 0xC0810002
+  //   ConditionField(instr) will return 0xC.
+
+
   // Generally applicable fields
-  inline Condition ConditionField() const {
+  inline Condition ConditionValue() const {
     return static_cast<Condition>(Bits(31, 28));
   }
-  inline int TypeField() const { return Bits(27, 25); }
+  inline Condition ConditionField() const {
+    return static_cast<Condition>(BitField(31, 28));
+  }
+  DECLARE_STATIC_TYPED_ACCESSOR(Condition, ConditionValue);
+  DECLARE_STATIC_TYPED_ACCESSOR(Condition, ConditionField);
 
-  inline int RnField() const { return Bits(19, 16); }
-  inline int RdField() const { return Bits(15, 12); }
+  inline int TypeValue() const { return Bits(27, 25); }
 
-  inline int CoprocessorField() const { return Bits(11, 8); }
+  inline int RnValue() const { return Bits(19, 16); }
+  inline int RdValue() const { return Bits(15, 12); }
+  DECLARE_STATIC_ACCESSOR(RdValue);
+
+  inline int CoprocessorValue() const { return Bits(11, 8); }
   // Support for VFP.
   // Vn(19-16) | Vd(15-12) |  Vm(3-0)
-  inline int VnField() const { return Bits(19, 16); }
-  inline int VmField() const { return Bits(3, 0); }
-  inline int VdField() const { return Bits(15, 12); }
-  inline int NField() const { return Bit(7); }
-  inline int MField() const { return Bit(5); }
-  inline int DField() const { return Bit(22); }
-  inline int RtField() const { return Bits(15, 12); }
-  inline int PField() const { return Bit(24); }
-  inline int UField() const { return Bit(23); }
-  inline int Opc1Field() const { return (Bit(23) << 2) | Bits(21, 20); }
-  inline int Opc2Field() const { return Bits(19, 16); }
-  inline int Opc3Field() const { return Bits(7, 6); }
-  inline int SzField() const { return Bit(8); }
-  inline int VLField() const { return Bit(20); }
-  inline int VCField() const { return Bit(8); }
-  inline int VAField() const { return Bits(23, 21); }
-  inline int VBField() const { return Bits(6, 5); }
-  inline int VFPNRegCode(VFPRegPrecision pre) {
-    return VFPGlueRegCode(pre, 16, 7);
+  inline int VnValue() const { return Bits(19, 16); }
+  inline int VmValue() const { return Bits(3, 0); }
+  inline int VdValue() const { return Bits(15, 12); }
+  inline int NValue() const { return Bit(7); }
+  inline int MValue() const { return Bit(5); }
+  inline int DValue() const { return Bit(22); }
+  inline int RtValue() const { return Bits(15, 12); }
+  inline int PValue() const { return Bit(24); }
+  inline int UValue() const { return Bit(23); }
+  inline int Opc1Value() const { return (Bit(23) << 2) | Bits(21, 20); }
+  inline int Opc2Value() const { return Bits(19, 16); }
+  inline int Opc3Value() const { return Bits(7, 6); }
+  inline int SzValue() const { return Bit(8); }
+  inline int VLValue() const { return Bit(20); }
+  inline int VCValue() const { return Bit(8); }
+  inline int VAValue() const { return Bits(23, 21); }
+  inline int VBValue() const { return Bits(6, 5); }
+  inline int VFPNRegValue(VFPRegPrecision pre) {
+    return VFPGlueRegValue(pre, 16, 7);
   }
-  inline int VFPMRegCode(VFPRegPrecision pre) {
-    return VFPGlueRegCode(pre, 0, 5);
+  inline int VFPMRegValue(VFPRegPrecision pre) {
+    return VFPGlueRegValue(pre, 0, 5);
   }
-  inline int VFPDRegCode(VFPRegPrecision pre) {
-    return VFPGlueRegCode(pre, 12, 22);
+  inline int VFPDRegValue(VFPRegPrecision pre) {
+    return VFPGlueRegValue(pre, 12, 22);
   }
 
   // Fields used in Data processing instructions
-  inline Opcode OpcodeField() const {
+  inline int OpcodeValue() const {
     return static_cast<Opcode>(Bits(24, 21));
   }
-  inline int SField() const { return Bit(20); }
+  inline Opcode OpcodeField() const {
+    return static_cast<Opcode>(BitField(24, 21));
+  }
+  inline int SValue() const { return Bit(20); }
     // with register
-  inline int RmField() const { return Bits(3, 0); }
-  inline Shift ShiftField() const { return static_cast<Shift>(Bits(6, 5)); }
-  inline int RegShiftField() const { return Bit(4); }
-  inline int RsField() const { return Bits(11, 8); }
-  inline int ShiftAmountField() const { return Bits(11, 7); }
+  inline int RmValue() const { return Bits(3, 0); }
+  inline int ShiftValue() const { return static_cast<ShiftOp>(Bits(6, 5)); }
+  inline ShiftOp ShiftField() const {
+    return static_cast<ShiftOp>(BitField(6, 5));
+  }
+  inline int RegShiftValue() const { return Bit(4); }
+  inline int RsValue() const { return Bits(11, 8); }
+  inline int ShiftAmountValue() const { return Bits(11, 7); }
     // with immediate
-  inline int RotateField() const { return Bits(11, 8); }
-  inline int Immed8Field() const { return Bits(7, 0); }
-  inline int Immed4Field() const { return Bits(19, 16); }
-  inline int ImmedMovwMovtField() const {
-      return Immed4Field() << 12 | Offset12Field(); }
+  inline int RotateValue() const { return Bits(11, 8); }
+  inline int Immed8Value() const { return Bits(7, 0); }
+  inline int Immed4Value() const { return Bits(19, 16); }
+  inline int ImmedMovwMovtValue() const {
+      return Immed4Value() << 12 | Offset12Value(); }
 
   // Fields used in Load/Store instructions
-  inline int PUField() const { return Bits(24, 23); }
-  inline int  BField() const { return Bit(22); }
-  inline int  WField() const { return Bit(21); }
-  inline int  LField() const { return Bit(20); }
+  inline int PUValue() const { return Bits(24, 23); }
+  inline int PUField() const { return BitField(24, 23); }
+  inline int  BValue() const { return Bit(22); }
+  inline int  WValue() const { return Bit(21); }
+  inline int  LValue() const { return Bit(20); }
     // with register uses same fields as Data processing instructions above
     // with immediate
-  inline int Offset12Field() const { return Bits(11, 0); }
+  inline int Offset12Value() const { return Bits(11, 0); }
     // multiple
-  inline int RlistField() const { return Bits(15, 0); }
+  inline int RlistValue() const { return Bits(15, 0); }
     // extra loads and stores
-  inline int SignField() const { return Bit(6); }
-  inline int HField() const { return Bit(5); }
-  inline int ImmedHField() const { return Bits(11, 8); }
-  inline int ImmedLField() const { return Bits(3, 0); }
+  inline int SignValue() const { return Bit(6); }
+  inline int HValue() const { return Bit(5); }
+  inline int ImmedHValue() const { return Bits(11, 8); }
+  inline int ImmedLValue() const { return Bits(3, 0); }
 
   // Fields used in Branch instructions
-  inline int LinkField() const { return Bit(24); }
-  inline int SImmed24Field() const { return ((InstructionBits() << 8) >> 8); }
+  inline int LinkValue() const { return Bit(24); }
+  inline int SImmed24Value() const { return ((InstructionBits() << 8) >> 8); }
 
   // Fields used in Software interrupt instructions
-  inline SoftwareInterruptCodes SvcField() const {
+  inline SoftwareInterruptCodes SvcValue() const {
     return static_cast<SoftwareInterruptCodes>(Bits(23, 0));
   }
 
@@ -354,42 +667,45 @@ class Instr {
 
   // Test for a stop instruction.
   inline bool IsStop() const {
-    return (TypeField() == 7) && (Bit(24) == 1) && (SvcField() >= stop);
+    return (TypeValue() == 7) && (Bit(24) == 1) && (SvcValue() >= kStopCode);
   }
 
   // Special accessors that test for existence of a value.
-  inline bool HasS()    const { return SField() == 1; }
-  inline bool HasB()    const { return BField() == 1; }
-  inline bool HasW()    const { return WField() == 1; }
-  inline bool HasL()    const { return LField() == 1; }
-  inline bool HasU()    const { return UField() == 1; }
-  inline bool HasSign() const { return SignField() == 1; }
-  inline bool HasH()    const { return HField() == 1; }
-  inline bool HasLink() const { return LinkField() == 1; }
+  inline bool HasS()    const { return SValue() == 1; }
+  inline bool HasB()    const { return BValue() == 1; }
+  inline bool HasW()    const { return WValue() == 1; }
+  inline bool HasL()    const { return LValue() == 1; }
+  inline bool HasU()    const { return UValue() == 1; }
+  inline bool HasSign() const { return SignValue() == 1; }
+  inline bool HasH()    const { return HValue() == 1; }
+  inline bool HasLink() const { return LinkValue() == 1; }
 
   // Decoding the double immediate in the vmov instruction.
   double DoubleImmedVmov() const;
 
   // Instructions are read of out a code stream. The only way to get a
   // reference to an instruction is to convert a pointer. There is no way
-  // to allocate or create instances of class Instr.
-  // Use the At(pc) function to create references to Instr.
-  static Instr* At(byte* pc) { return reinterpret_cast<Instr*>(pc); }
+  // to allocate or create instances of class Instruction.
+  // Use the At(pc) function to create references to Instruction.
+  static Instruction* At(byte* pc) {
+    return reinterpret_cast<Instruction*>(pc);
+  }
+
 
  private:
   // Join split register codes, depending on single or double precision.
   // four_bit is the position of the least-significant bit of the four
   // bit specifier. one_bit is the position of the additional single bit
   // specifier.
-  inline int VFPGlueRegCode(VFPRegPrecision pre, int four_bit, int one_bit) {
+  inline int VFPGlueRegValue(VFPRegPrecision pre, int four_bit, int one_bit) {
     if (pre == kSinglePrecision) {
       return (Bits(four_bit + 3, four_bit) << 1) | Bit(one_bit);
     }
     return (Bit(one_bit) << 4) | Bits(four_bit + 3, four_bit);
   }
 
-  // We need to prevent the creation of instances of class Instr.
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Instr);
+  // We need to prevent the creation of instances of class Instruction.
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Instruction);
 };
 
 
@@ -428,6 +744,6 @@ class VFPRegisters {
 };
 
 
-} }  // namespace assembler::arm
+} }  // namespace v8::internal
 
 #endif  // V8_ARM_CONSTANTS_ARM_H_

@@ -34,36 +34,14 @@
 #include "deoptimizer.h"
 #include "safepoint-table.h"
 #include "scopes.h"
+#include "x64/lithium-gap-resolver-x64.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
 class LDeferredCode;
-class LGapNode;
 class SafepointGenerator;
-
-class LGapResolver BASE_EMBEDDED {
- public:
-  LGapResolver();
-  const ZoneList<LMoveOperands>* Resolve(const ZoneList<LMoveOperands>* moves,
-                                         LOperand* marker_operand);
-
- private:
-  LGapNode* LookupNode(LOperand* operand);
-  bool CanReach(LGapNode* a, LGapNode* b, int visited_id);
-  bool CanReach(LGapNode* a, LGapNode* b);
-  void RegisterMove(LMoveOperands move);
-  void AddResultMove(LOperand* from, LOperand* to);
-  void AddResultMove(LGapNode* from, LGapNode* to);
-  void ResolveCycle(LGapNode* start, LOperand* marker_operand);
-
-  ZoneList<LGapNode*> nodes_;
-  ZoneList<LGapNode*> identified_cycles_;
-  ZoneList<LMoveOperands> result_;
-  int next_visited_id_;
-};
-
 
 class LCodeGen BASE_EMBEDDED {
  public:
@@ -80,9 +58,23 @@ class LCodeGen BASE_EMBEDDED {
         scope_(chunk->graph()->info()->scope()),
         status_(UNUSED),
         deferred_(8),
-        osr_pc_offset_(-1) {
+        osr_pc_offset_(-1),
+        resolver_(this) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
+
+  // Simple accessors.
+  MacroAssembler* masm() const { return masm_; }
+
+  // Support for converting LOperands to assembler types.
+  Register ToRegister(LOperand* op) const;
+  XMMRegister ToDoubleRegister(LOperand* op) const;
+  bool IsInteger32Constant(LConstantOperand* op) const;
+  int ToInteger32(LConstantOperand* op) const;
+  bool IsTaggedConstant(LConstantOperand* op) const;
+  Handle<Object> ToHandle(LConstantOperand* op) const;
+  Operand ToOperand(LOperand* op) const;
+
 
   // Try to generate code for the entire chunk, but it may fail if the
   // chunk contains constructs we cannot handle. Returns true if the
@@ -95,7 +87,6 @@ class LCodeGen BASE_EMBEDDED {
 
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
-  void DoDeferredNumberTagI(LNumberTagI* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LGoto* instr);
@@ -129,7 +120,6 @@ class LCodeGen BASE_EMBEDDED {
   LChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
-  MacroAssembler* masm() const { return masm_; }
 
   int GetNextEmittedBlock(int block);
   LInstruction* GetNextInstruction();
@@ -190,13 +180,6 @@ class LCodeGen BASE_EMBEDDED {
 
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
-  Register ToRegister(LOperand* op) const;
-  XMMRegister ToDoubleRegister(LOperand* op) const;
-  bool IsInteger32Constant(LConstantOperand* op) const;
-  int ToInteger32(LConstantOperand* op) const;
-  bool IsTaggedConstant(LConstantOperand* op) const;
-  Handle<Object> ToHandle(LConstantOperand* op) const;
-  Operand ToOperand(LOperand* op) const;
 
   // Specific math operations - used from DoUnaryMathOperation.
   void DoMathAbs(LUnaryMathOperation* instr);
@@ -209,6 +192,10 @@ class LCodeGen BASE_EMBEDDED {
   void DoMathSin(LUnaryMathOperation* instr);
 
   // Support for recording safepoint and position information.
+  void RecordSafepoint(LPointerMap* pointers,
+                       Safepoint::Kind kind,
+                       int arguments,
+                       int deoptimization_index);
   void RecordSafepoint(LPointerMap* pointers, int deoptimization_index);
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
@@ -231,8 +218,6 @@ class LCodeGen BASE_EMBEDDED {
   // Returns the condition on which a final split to
   // true and false label should be made, to optimize fallthrough.
   Condition EmitIsObject(Register input,
-                         Register temp1,
-                         Register temp2,
                          Label* is_not_object,
                          Label* is_object);
 

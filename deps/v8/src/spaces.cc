@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "liveobjectlist-inl.h"
 #include "macro-assembler.h"
 #include "mark-compact.h"
 #include "platform.h"
@@ -3125,6 +3126,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
 
       // Free the chunk.
       MarkCompactCollector::ReportDeleteIfNeeded(object);
+      LiveObjectList::ProcessNonLive(object);
+
       size_ -= static_cast<int>(chunk_size);
       objects_size_ -= object->Size();
       page_count_--;

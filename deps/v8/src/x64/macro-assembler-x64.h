@@ -152,7 +152,7 @@ class MacroAssembler: public Assembler {
   //
   // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
   // accessible via StackSpaceOperand.
-  void EnterExitFrame(int arg_stack_space = 0);
+  void EnterExitFrame(int arg_stack_space = 0, bool save_doubles = false);
 
   // Enter specific kind of exit frame. Allocates arg_stack_space * kPointerSize
   // memory (not GCed) on the stack accessible via StackSpaceOperand.
@@ -161,19 +161,19 @@ class MacroAssembler: public Assembler {
   // Leave the current exit frame. Expects/provides the return value in
   // register rax:rdx (untouched) and the pointer to the first
   // argument in register rsi.
-  void LeaveExitFrame();
+  void LeaveExitFrame(bool save_doubles = false);
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax (untouched).
   void LeaveApiExitFrame();
 
   // Push and pop the registers that can hold pointers.
-  void PushSafepointRegisters() { UNIMPLEMENTED(); }
-  void PopSafepointRegisters() { UNIMPLEMENTED(); }
+  void PushSafepointRegisters() { Pushad(); }
+  void PopSafepointRegisters() { Popad(); }
   static int SafepointRegisterStackIndex(int reg_code) {
-    UNIMPLEMENTED();
-    return 0;
+    return kSafepointPushRegisterIndices[reg_code];
   }
+
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -300,6 +300,11 @@ class MacroAssembler: public Assembler {
   // Checks whether an 32-bit unsigned integer value is a valid for
   // conversion to a smi.
   Condition CheckUInteger32ValidSmiValue(Register src);
+
+  // Check whether src is a Smi, and set dst to zero if it is a smi,
+  // and to one if it isn't.
+  void CheckSmiToIndicator(Register dst, Register src);
+  void CheckSmiToIndicator(Register dst, const Operand& src);
 
   // Test-and-jump functions. Typically combines a check function
   // above with a conditional jump.
@@ -597,6 +602,9 @@ class MacroAssembler: public Assembler {
   // (kScratchRegister, kSmiConstantRegister, kRootRegister).
   void Pushad();
   void Popad();
+  // Sets the stack as after performing Popad, without actually loading the
+  // registers.
+  void Dropad();
 
   // Compare object type for heap object.
   // Always use unsigned comparisons: above and below, not less and greater.
@@ -812,6 +820,9 @@ class MacroAssembler: public Assembler {
   // Call a runtime routine.
   void CallRuntime(Runtime::Function* f, int num_arguments);
 
+  // Call a runtime function and save the value of XMM registers.
+  void CallRuntimeSaveDoubles(Runtime::FunctionId id);
+
   // Call a runtime function, returning the CodeStub object called.
   // Try to generate the stub code if necessary.  Do not perform a GC
   // but instead return a retry after GC failure.
@@ -931,6 +942,9 @@ class MacroAssembler: public Assembler {
   bool allow_stub_calls() { return allow_stub_calls_; }
 
  private:
+  // Order general registers are pushed by Pushad.
+  // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14.
+  static int kSafepointPushRegisterIndices[Register::kNumRegisters];
   bool generating_stub_;
   bool allow_stub_calls_;
 
@@ -961,7 +975,7 @@ class MacroAssembler: public Assembler {
 
   // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
   // accessible via StackSpaceOperand.
-  void EnterExitFrameEpilogue(int arg_stack_space);
+  void EnterExitFrameEpilogue(int arg_stack_space, bool save_doubles);
 
   void LeaveExitFrameEpilogue();
 

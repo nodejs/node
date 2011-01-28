@@ -691,6 +691,8 @@
                 '../../src/x64/jump-target-x64.cc',
                 '../../src/x64/lithium-codegen-x64.cc',
                 '../../src/x64/lithium-codegen-x64.h',
+                '../../src/x64/lithium-gap-resolver-x64.cc',
+                '../../src/x64/lithium-gap-resolver-x64.h',
                 '../../src/x64/lithium-x64.cc',
                 '../../src/x64/lithium-x64.h',
                 '../../src/x64/macro-assembler-x64.cc',
@@ -747,8 +749,7 @@
               'sources': [
                 '../../src/platform-win32.cc',
               ],
-              # 4355, 4800 came from common.vsprops
-              'msvs_disabled_warnings': [4355, 4800],
+              'msvs_disabled_warnings': [4351, 4355, 4800],
               'link_settings':  {
                 'libraries': [ '-lwinmm.lib' ],
               },

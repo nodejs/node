@@ -273,21 +273,20 @@ class FastNewClosureStub : public CodeStub {
 
 class FastNewContextStub : public CodeStub {
  public:
-  // We want no more than 64 different stubs.
-  static const int kMaximumSlots = Context::MIN_CONTEXT_SLOTS + 63;
+  static const int kMaximumSlots = 64;
 
   explicit FastNewContextStub(int slots) : slots_(slots) {
-    ASSERT(slots_ >= Context::MIN_CONTEXT_SLOTS && slots_ <= kMaximumSlots);
+    ASSERT(slots_ > 0 && slots <= kMaximumSlots);
   }
 
   void Generate(MacroAssembler* masm);
 
  private:
-  virtual const char* GetName() { return "FastNewContextStub"; }
-  virtual Major MajorKey() { return FastNewContext; }
-  virtual int MinorKey() { return slots_; }
-
   int slots_;
+
+  const char* GetName() { return "FastNewContextStub"; }
+  Major MajorKey() { return FastNewContext; }
+  int MinorKey() { return slots_; }
 };
 
 
@@ -600,8 +599,7 @@ class CEntryStub : public CodeStub {
                     Label* throw_termination_exception,
                     Label* throw_out_of_memory_exception,
                     bool do_gc,
-                    bool always_allocate_scope,
-                    int alignment_skew = 0);
+                    bool always_allocate_scope);
   void GenerateThrowTOS(MacroAssembler* masm);
   void GenerateThrowUncatchable(MacroAssembler* masm,
                                 UncatchableExceptionType type);

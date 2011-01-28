@@ -76,7 +76,7 @@ void JumpTarget::DoJump() {
 }
 
 
-void JumpTarget::DoBranch(Condition cc, Hint ignored) {
+void JumpTarget::DoBranch(Condition cond, Hint ignored) {
   ASSERT(cgen()->has_valid_frame());
 
   if (entry_frame_set_) {
@@ -86,7 +86,7 @@ void JumpTarget::DoBranch(Condition cc, Hint ignored) {
       ASSERT(entry_frame_.IsCompatibleWith(cgen()->frame()));
     }
     // We have an expected frame to merge to on the backward edge.
-    cgen()->frame()->MergeTo(&entry_frame_, cc);
+    cgen()->frame()->MergeTo(&entry_frame_, cond);
   } else {
     // Clone the current frame to use as the expected one at the target.
     set_entry_frame(cgen()->frame());
@@ -98,8 +98,8 @@ void JumpTarget::DoBranch(Condition cc, Hint ignored) {
     // frame with less precise type info branches to them.
     ASSERT(direction_ != FORWARD_ONLY);
   }
-  __ b(cc, &entry_label_);
-  if (cc == al) {
+  __ b(cond, &entry_label_);
+  if (cond == al) {
     cgen()->DeleteFrame();
   }
 }

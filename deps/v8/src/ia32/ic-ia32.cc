@@ -388,7 +388,8 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateStringLength(MacroAssembler* masm) {
+void LoadIC::GenerateStringLength(MacroAssembler* masm,
+                                  bool support_wrappers) {
   // ----------- S t a t e -------------
   //  -- eax    : receiver
   //  -- ecx    : name
@@ -396,7 +397,8 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // -----------------------------------
   Label miss;
 
-  StubCompiler::GenerateLoadStringLength(masm, eax, edx, ebx, &miss);
+  StubCompiler::GenerateLoadStringLength(masm, eax, edx, ebx, &miss,
+                                         support_wrappers);
   __ bind(&miss);
   StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }

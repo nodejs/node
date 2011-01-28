@@ -822,6 +822,9 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   if (FLAG_use_ic) {
+    Code* non_monomorphic_stub =
+        (state == UNINITIALIZED) ? pre_monomorphic_stub() : megamorphic_stub();
+
     // Use specialized code for getting the length of strings and
     // string wrapper objects.  The length property of string wrapper
     // objects is read-only and therefore always returns the length of
@@ -829,22 +832,27 @@ MaybeObject* LoadIC::Load(State state,
     if ((object->IsString() || object->IsStringWrapper()) &&
         name->Equals(Heap::length_symbol())) {
       HandleScope scope;
+#ifdef DEBUG
+      if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
+#endif
+      if (state == PREMONOMORPHIC) {
+        if (object->IsString()) {
+          Map* map = HeapObject::cast(*object)->map();
+          const int offset = String::kLengthOffset;
+          PatchInlinedLoad(address(), map, offset);
+          set_target(Builtins::builtin(Builtins::LoadIC_StringLength));
+        } else {
+          set_target(Builtins::builtin(Builtins::LoadIC_StringWrapperLength));
+        }
+      } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
+        set_target(Builtins::builtin(Builtins::LoadIC_StringWrapperLength));
+      } else {
+        set_target(non_monomorphic_stub);
+      }
       // Get the string if we have a string wrapper object.
       if (object->IsJSValue()) {
         object = Handle<Object>(Handle<JSValue>::cast(object)->value());
       }
-#ifdef DEBUG
-      if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
-#endif
-      Map* map = HeapObject::cast(*object)->map();
-      if (object->IsString()) {
-        const int offset = String::kLengthOffset;
-        PatchInlinedLoad(address(), map, offset);
-      }
-
-      Code* target = NULL;
-      target = Builtins::builtin(Builtins::LoadIC_StringLength);
-      set_target(target);
       return Smi::FromInt(String::cast(*object)->length());
     }
 
@@ -853,12 +861,14 @@ MaybeObject* LoadIC::Load(State state,
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
 #endif
-      Map* map = HeapObject::cast(*object)->map();
-      const int offset = JSArray::kLengthOffset;
-      PatchInlinedLoad(address(), map, offset);
-
-      Code* target = Builtins::builtin(Builtins::LoadIC_ArrayLength);
-      set_target(target);
+      if (state == PREMONOMORPHIC) {
+        Map* map = HeapObject::cast(*object)->map();
+        const int offset = JSArray::kLengthOffset;
+        PatchInlinedLoad(address(), map, offset);
+        set_target(Builtins::builtin(Builtins::LoadIC_ArrayLength));
+      } else {
+        set_target(non_monomorphic_stub);
+      }
       return JSArray::cast(*object)->length();
     }
 
@@ -868,8 +878,11 @@ MaybeObject* LoadIC::Load(State state,
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
 #endif
-      Code* target = Builtins::builtin(Builtins::LoadIC_FunctionPrototype);
-      set_target(target);
+      if (state == PREMONOMORPHIC) {
+        set_target(Builtins::builtin(Builtins::LoadIC_FunctionPrototype));
+      } else {
+        set_target(non_monomorphic_stub);
+      }
       return Accessors::FunctionGetPrototype(*object, 0);
     }
   }
@@ -1092,6 +1105,8 @@ MaybeObject* KeyedLoadIC::Load(State state,
     }
 
     if (FLAG_use_ic) {
+      // TODO(1073): don't ignore the current stub state.
+
       // Use specialized code for getting the length of strings.
       if (object->IsString() && name->Equals(Heap::length_symbol())) {
         Handle<String> string = Handle<String>::cast(object);
@@ -2098,8 +2113,6 @@ MaybeObject* TypeRecordingBinaryOp_Patch(Arguments args) {
 
   Handle<Code> code = GetTypeRecordingBinaryOpStub(key, type, result_type);
   if (!code.is_null()) {
-    TRBinaryOpIC ic;
-    ic.patch(*code);
     if (FLAG_trace_ic) {
       PrintF("[TypeRecordingBinaryOpIC (%s->(%s->%s))#%s]\n",
              TRBinaryOpIC::GetName(previous_type),
@@ -2107,6 +2120,8 @@ MaybeObject* TypeRecordingBinaryOp_Patch(Arguments args) {
              TRBinaryOpIC::GetName(result_type),
              Token::Name(op));
     }
+    TRBinaryOpIC ic;
+    ic.patch(*code);
 
     // Activate inlined smi code.
     if (previous_type == TRBinaryOpIC::UNINITIALIZED) {

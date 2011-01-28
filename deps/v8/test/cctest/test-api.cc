@@ -2383,8 +2383,17 @@ TEST(APIThrowMessageOverwrittenToString) {
   CompileRun("asdf;");
   CompileRun("ReferenceError.prototype.constructor = void 0;");
   CompileRun("asdf;");
+  CompileRun("ReferenceError.prototype.__proto__ = new Object();");
+  CompileRun("asdf;");
+  CompileRun("ReferenceError.prototype = new Object();");
+  CompileRun("asdf;");
   v8::Handle<Value> string = CompileRun("try { asdf; } catch(e) { e + ''; }");
   CHECK(string->Equals(v8_str("Whoops")));
+  CompileRun("ReferenceError.prototype.constructor = new Object();"
+             "ReferenceError.prototype.constructor.name = 1;"
+             "Number.prototype.toString = function() { return 'Whoops'; };"
+             "ReferenceError.prototype.toString = Object.prototype.toString;");
+  CompileRun("asdf;");
   v8::V8::RemoveMessageListeners(check_message);
 }
 

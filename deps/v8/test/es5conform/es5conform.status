@@ -41,11 +41,6 @@ chapter10/10.4/10.4.2/10.4.2-2-c-1: FAIL_OK
 # We are compatible with Safari and Firefox.
 chapter11/11.1/11.1.5: UNIMPLEMENTED
 
-# Delete returns true in eval even when it should return false.
-# Please see http://code.google.com/p/v8/issues/detail?id=759
-chapter11/11.4/11.4.1//11.4.1-4.a-5: FAIL
-chapter11/11.4/11.4.1//11.4.1-4.a-7: FAIL
-
 # We do not have a global object called 'global' as required by tests.
 chapter15/15.1: FAIL_OK
 

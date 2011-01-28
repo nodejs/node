@@ -695,7 +695,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
   ASSERT(frames->length() == 0);
   ASSERT(is_optimized());
 
-  int deopt_index = AstNode::kNoNumber;
+  int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data = GetDeoptimizationData(&deopt_index);
 
   // BUG(3243555): Since we don't have a lazy-deopt registered at
@@ -793,7 +793,7 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
 
   SafepointEntry safepoint_entry = code->GetSafepointEntry(pc());
   *deopt_index = safepoint_entry.deoptimization_index();
-  ASSERT(*deopt_index != AstNode::kNoNumber);
+  ASSERT(*deopt_index != Safepoint::kNoDeoptimizationIndex);
 
   return DeoptimizationInputData::cast(code->deoptimization_data());
 }
@@ -803,7 +803,7 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
   ASSERT(functions->length() == 0);
   ASSERT(is_optimized());
 
-  int deopt_index = AstNode::kNoNumber;
+  int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data = GetDeoptimizationData(&deopt_index);
 
   TranslationIterator it(data->TranslationByteArray(),

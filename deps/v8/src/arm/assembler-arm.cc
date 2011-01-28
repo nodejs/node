@@ -213,74 +213,29 @@ MemOperand::MemOperand(Register rn, Register rm,
 
 
 // -----------------------------------------------------------------------------
-// Implementation of Assembler.
-
-// Instruction encoding bits.
-enum {
-  H   = 1 << 5,   // halfword (or byte)
-  S6  = 1 << 6,   // signed (or unsigned)
-  L   = 1 << 20,  // load (or store)
-  S   = 1 << 20,  // set condition code (or leave unchanged)
-  W   = 1 << 21,  // writeback base register (or leave unchanged)
-  A   = 1 << 21,  // accumulate in multiply instruction (or not)
-  B   = 1 << 22,  // unsigned byte (or word)
-  N   = 1 << 22,  // long (or short)
-  U   = 1 << 23,  // positive (or negative) offset/index
-  P   = 1 << 24,  // offset/pre-indexed addressing (or post-indexed addressing)
-  I   = 1 << 25,  // immediate shifter operand (or not)
-
-  B4  = 1 << 4,
-  B5  = 1 << 5,
-  B6  = 1 << 6,
-  B7  = 1 << 7,
-  B8  = 1 << 8,
-  B9  = 1 << 9,
-  B12 = 1 << 12,
-  B16 = 1 << 16,
-  B18 = 1 << 18,
-  B19 = 1 << 19,
-  B20 = 1 << 20,
-  B21 = 1 << 21,
-  B22 = 1 << 22,
-  B23 = 1 << 23,
-  B24 = 1 << 24,
-  B25 = 1 << 25,
-  B26 = 1 << 26,
-  B27 = 1 << 27,
-
-  // Instruction bit masks.
-  RdMask     = 15 << 12,  // in str instruction
-  CondMask   = 15 << 28,
-  CoprocessorMask = 15 << 8,
-  OpCodeMask = 15 << 21,  // in data-processing instructions
-  Imm24Mask  = (1 << 24) - 1,
-  Off12Mask  = (1 << 12) - 1,
-  // Reserved condition.
-  nv = 15 << 28
-};
-
+// Specific instructions, constants, and masks.
 
 // add(sp, sp, 4) instruction (aka Pop())
-static const Instr kPopInstruction =
-    al | 4 * B21 | 4 | LeaveCC | I | sp.code() * B16 | sp.code() * B12;
+const Instr kPopInstruction =
+    al | PostIndex | 4 | LeaveCC | I | sp.code() * B16 | sp.code() * B12;
 // str(r, MemOperand(sp, 4, NegPreIndex), al) instruction (aka push(r))
 // register r is not encoded.
-static const Instr kPushRegPattern =
+const Instr kPushRegPattern =
     al | B26 | 4 | NegPreIndex | sp.code() * B16;
 // ldr(r, MemOperand(sp, 4, PostIndex), al) instruction (aka pop(r))
 // register r is not encoded.
-static const Instr kPopRegPattern =
+const Instr kPopRegPattern =
     al | B26 | L | 4 | PostIndex | sp.code() * B16;
 // mov lr, pc
-const Instr kMovLrPc = al | 13*B21 | pc.code() | lr.code() * B12;
+const Instr kMovLrPc = al | MOV | pc.code() | lr.code() * B12;
 // ldr rd, [pc, #offset]
-const Instr kLdrPCMask = CondMask | 15 * B24 | 7 * B20 | 15 * B16;
+const Instr kLdrPCMask = kCondMask | 15 * B24 | 7 * B20 | 15 * B16;
 const Instr kLdrPCPattern = al | 5 * B24 | L | pc.code() * B16;
 // blxcc rm
 const Instr kBlxRegMask =
     15 * B24 | 15 * B20 | 15 * B16 | 15 * B12 | 15 * B8 | 15 * B4;
 const Instr kBlxRegPattern =
-    B24 | B21 | 15 * B16 | 15 * B12 | 15 * B8 | 3 * B4;
+    B24 | B21 | 15 * B16 | 15 * B12 | 15 * B8 | BLX;
 const Instr kMovMvnMask = 0x6d * B21 | 0xf * B16;
 const Instr kMovMvnPattern = 0xd * B21;
 const Instr kMovMvnFlip = B22;
@@ -292,32 +247,27 @@ const Instr kMovwLeaveCCFlip = 0x5 * B21;
 const Instr kCmpCmnMask = 0xdd * B20 | 0xf * B12;
 const Instr kCmpCmnPattern = 0x15 * B20;
 const Instr kCmpCmnFlip = B21;
-const Instr kALUMask = 0x6f * B21;
-const Instr kAddPattern = 0x4 * B21;
-const Instr kSubPattern = 0x2 * B21;
-const Instr kBicPattern = 0xe * B21;
-const Instr kAndPattern = 0x0 * B21;
 const Instr kAddSubFlip = 0x6 * B21;
 const Instr kAndBicFlip = 0xe * B21;
 
 // A mask for the Rd register for push, pop, ldr, str instructions.
-const Instr kRdMask = 0x0000f000;
-static const int kRdShift = 12;
-static const Instr kLdrRegFpOffsetPattern =
+const Instr kLdrRegFpOffsetPattern =
     al | B26 | L | Offset | fp.code() * B16;
-static const Instr kStrRegFpOffsetPattern =
+const Instr kStrRegFpOffsetPattern =
     al | B26 | Offset | fp.code() * B16;
-static const Instr kLdrRegFpNegOffsetPattern =
+const Instr kLdrRegFpNegOffsetPattern =
     al | B26 | L | NegOffset | fp.code() * B16;
-static const Instr kStrRegFpNegOffsetPattern =
+const Instr kStrRegFpNegOffsetPattern =
     al | B26 | NegOffset | fp.code() * B16;
-static const Instr kLdrStrInstrTypeMask = 0xffff0000;
-static const Instr kLdrStrInstrArgumentMask = 0x0000ffff;
-static const Instr kLdrStrOffsetMask = 0x00000fff;
+const Instr kLdrStrInstrTypeMask = 0xffff0000;
+const Instr kLdrStrInstrArgumentMask = 0x0000ffff;
+const Instr kLdrStrOffsetMask = 0x00000fff;
+
 
 // Spare buffer.
 static const int kMinimalBufferSize = 4*KB;
 static byte* spare_buffer_ = NULL;
+
 
 Assembler::Assembler(void* buffer, int buffer_size)
     : positions_recorder_(this),
@@ -411,7 +361,7 @@ int Assembler::GetBranchOffset(Instr instr) {
   ASSERT(IsBranch(instr));
   // Take the jump offset in the lower 24 bits, sign extend it and multiply it
   // with 4 to get the offset in bytes.
-  return ((instr & Imm24Mask) << 8) >> 6;
+  return ((instr & kImm24Mask) << 8) >> 6;
 }
 
 
@@ -423,7 +373,7 @@ bool Assembler::IsLdrRegisterImmediate(Instr instr) {
 int Assembler::GetLdrRegisterImmediateOffset(Instr instr) {
   ASSERT(IsLdrRegisterImmediate(instr));
   bool positive = (instr & B23) == B23;
-  int offset = instr & Off12Mask;  // Zero extended offset.
+  int offset = instr & kOff12Mask;  // Zero extended offset.
   return positive ? offset : -offset;
 }
 
@@ -436,7 +386,7 @@ Instr Assembler::SetLdrRegisterImmediateOffset(Instr instr, int offset) {
   // Set bit indicating whether the offset should be added.
   instr = (instr & ~B23) | (positive ? B23 : 0);
   // Set the actual offset.
-  return (instr & ~Off12Mask) | offset;
+  return (instr & ~kOff12Mask) | offset;
 }
 
 
@@ -453,7 +403,7 @@ Instr Assembler::SetStrRegisterImmediateOffset(Instr instr, int offset) {
   // Set bit indicating whether the offset should be added.
   instr = (instr & ~B23) | (positive ? B23 : 0);
   // Set the actual offset.
-  return (instr & ~Off12Mask) | offset;
+  return (instr & ~kOff12Mask) | offset;
 }
 
 
@@ -467,13 +417,13 @@ Instr Assembler::SetAddRegisterImmediateOffset(Instr instr, int offset) {
   ASSERT(offset >= 0);
   ASSERT(is_uint12(offset));
   // Set the offset.
-  return (instr & ~Off12Mask) | offset;
+  return (instr & ~kOff12Mask) | offset;
 }
 
 
 Register Assembler::GetRd(Instr instr) {
   Register reg;
-  reg.code_ = ((instr & kRdMask) >> kRdShift);
+  reg.code_ = Instruction::RdValue(instr);
   return reg;
 }
 
@@ -511,7 +461,7 @@ bool Assembler::IsLdrRegFpNegOffset(Instr instr) {
 bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
   // Check the instruction is indeed a
   // ldr<cond> <Rd>, [pc +/- offset_12].
-  return (instr & 0x0f7f0000) == 0x051f0000;
+  return (instr & (kLdrPCMask & ~kCondMask)) == 0x051f0000;
 }
 
 
@@ -532,13 +482,14 @@ const int kEndOfChain = -4;
 
 int Assembler::target_at(int pos)  {
   Instr instr = instr_at(pos);
-  if ((instr & ~Imm24Mask) == 0) {
+  if ((instr & ~kImm24Mask) == 0) {
     // Emitted label constant, not part of a branch.
     return instr - (Code::kHeaderSize - kHeapObjectTag);
   }
   ASSERT((instr & 7*B25) == 5*B25);  // b, bl, or blx imm24
-  int imm26 = ((instr & Imm24Mask) << 8) >> 6;
-  if ((instr & CondMask) == nv && (instr & B24) != 0) {
+  int imm26 = ((instr & kImm24Mask) << 8) >> 6;
+  if ((Instruction::ConditionField(instr) == kSpecialCondition) &&
+      ((instr & B24) != 0)) {
     // blx uses bit 24 to encode bit 2 of imm26
     imm26 += 2;
   }
@@ -548,7 +499,7 @@ int Assembler::target_at(int pos)  {
 
 void Assembler::target_at_put(int pos, int target_pos) {
   Instr instr = instr_at(pos);
-  if ((instr & ~Imm24Mask) == 0) {
+  if ((instr & ~kImm24Mask) == 0) {
     ASSERT(target_pos == kEndOfChain || target_pos >= 0);
     // Emitted label constant, not part of a branch.
     // Make label relative to Code* of generated Code object.
@@ -557,17 +508,17 @@ void Assembler::target_at_put(int pos, int target_pos) {
   }
   int imm26 = target_pos - (pos + kPcLoadDelta);
   ASSERT((instr & 7*B25) == 5*B25);  // b, bl, or blx imm24
-  if ((instr & CondMask) == nv) {
+  if (Instruction::ConditionField(instr) == kSpecialCondition) {
     // blx uses bit 24 to encode bit 2 of imm26
     ASSERT((imm26 & 1) == 0);
-    instr = (instr & ~(B24 | Imm24Mask)) | ((imm26 & 2) >> 1)*B24;
+    instr = (instr & ~(B24 | kImm24Mask)) | ((imm26 & 2) >> 1)*B24;
   } else {
     ASSERT((imm26 & 3) == 0);
-    instr &= ~Imm24Mask;
+    instr &= ~kImm24Mask;
   }
   int imm24 = imm26 >> 2;
   ASSERT(is_int24(imm24));
-  instr_at_put(pos, instr | (imm24 & Imm24Mask));
+  instr_at_put(pos, instr | (imm24 & kImm24Mask));
 }
 
 
@@ -582,14 +533,14 @@ void Assembler::print(Label* L) {
     while (l.is_linked()) {
       PrintF("@ %d ", l.pos());
       Instr instr = instr_at(l.pos());
-      if ((instr & ~Imm24Mask) == 0) {
+      if ((instr & ~kImm24Mask) == 0) {
         PrintF("value\n");
       } else {
         ASSERT((instr & 7*B25) == 5*B25);  // b, bl, or blx
-        int cond = instr & CondMask;
+        Condition cond = Instruction::ConditionField(instr);
         const char* b;
         const char* c;
-        if (cond == nv) {
+        if (cond == kSpecialCondition) {
           b = "blx";
           c = "";
         } else {
@@ -731,14 +682,14 @@ static bool fits_shifter(uint32_t imm32,
       }
     } else {
       Instr alu_insn = (*instr & kALUMask);
-      if (alu_insn == kAddPattern ||
-          alu_insn == kSubPattern) {
+      if (alu_insn == ADD ||
+          alu_insn == SUB) {
         if (fits_shifter(-imm32, rotate_imm, immed_8, NULL)) {
           *instr ^= kAddSubFlip;
           return true;
         }
-      } else if (alu_insn == kAndPattern ||
-                 alu_insn == kBicPattern) {
+      } else if (alu_insn == AND ||
+                 alu_insn == BIC) {
         if (fits_shifter(~imm32, rotate_imm, immed_8, NULL)) {
           *instr ^= kAndBicFlip;
           return true;
@@ -782,7 +733,7 @@ void Assembler::addrmod1(Instr instr,
                          Register rd,
                          const Operand& x) {
   CheckBuffer();
-  ASSERT((instr & ~(CondMask | OpCodeMask | S)) == 0);
+  ASSERT((instr & ~(kCondMask | kOpCodeMask | S)) == 0);
   if (!x.rm_.is_valid()) {
     // Immediate.
     uint32_t rotate_imm;
@@ -794,8 +745,8 @@ void Assembler::addrmod1(Instr instr,
       // However, if the original instruction is a 'mov rd, x' (not setting the
       // condition code), then replace it with a 'ldr rd, [pc]'.
       CHECK(!rn.is(ip));  // rn should never be ip, or will be trashed
-      Condition cond = static_cast<Condition>(instr & CondMask);
-      if ((instr & ~CondMask) == 13*B21) {  // mov, S not set
+      Condition cond = Instruction::ConditionField(instr);
+      if ((instr & ~kCondMask) == 13*B21) {  // mov, S not set
         if (x.must_use_constant_pool() || !CpuFeatures::IsSupported(ARMv7)) {
           RecordRelocInfo(x.rmode_, x.imm32_);
           ldr(rd, MemOperand(pc, 0), cond);
@@ -836,7 +787,7 @@ void Assembler::addrmod1(Instr instr,
 
 
 void Assembler::addrmod2(Instr instr, Register rd, const MemOperand& x) {
-  ASSERT((instr & ~(CondMask | B | L)) == B26);
+  ASSERT((instr & ~(kCondMask | B | L)) == B26);
   int am = x.am_;
   if (!x.rm_.is_valid()) {
     // Immediate offset.
@@ -849,8 +800,7 @@ void Assembler::addrmod2(Instr instr, Register rd, const MemOperand& x) {
       // Immediate offset cannot be encoded, load it first to register ip
       // rn (and rd in a load) should never be ip, or will be trashed.
       ASSERT(!x.rn_.is(ip) && ((instr & L) == L || !rd.is(ip)));
-      mov(ip, Operand(x.offset_), LeaveCC,
-          static_cast<Condition>(instr & CondMask));
+      mov(ip, Operand(x.offset_), LeaveCC, Instruction::ConditionField(instr));
       addrmod2(instr, rd, MemOperand(x.rn_, ip, x.am_));
       return;
     }
@@ -869,7 +819,7 @@ void Assembler::addrmod2(Instr instr, Register rd, const MemOperand& x) {
 
 
 void Assembler::addrmod3(Instr instr, Register rd, const MemOperand& x) {
-  ASSERT((instr & ~(CondMask | L | S6 | H)) == (B4 | B7));
+  ASSERT((instr & ~(kCondMask | L | S6 | H)) == (B4 | B7));
   ASSERT(x.rn_.is_valid());
   int am = x.am_;
   if (!x.rm_.is_valid()) {
@@ -883,8 +833,7 @@ void Assembler::addrmod3(Instr instr, Register rd, const MemOperand& x) {
       // Immediate offset cannot be encoded, load it first to register ip
       // rn (and rd in a load) should never be ip, or will be trashed.
       ASSERT(!x.rn_.is(ip) && ((instr & L) == L || !rd.is(ip)));
-      mov(ip, Operand(x.offset_), LeaveCC,
-          static_cast<Condition>(instr & CondMask));
+      mov(ip, Operand(x.offset_), LeaveCC, Instruction::ConditionField(instr));
       addrmod3(instr, rd, MemOperand(x.rn_, ip, x.am_));
       return;
     }
@@ -895,7 +844,7 @@ void Assembler::addrmod3(Instr instr, Register rd, const MemOperand& x) {
     // rn (and rd in a load) should never be ip, or will be trashed.
     ASSERT(!x.rn_.is(ip) && ((instr & L) == L || !rd.is(ip)));
     mov(ip, Operand(x.rm_, x.shift_op_, x.shift_imm_), LeaveCC,
-        static_cast<Condition>(instr & CondMask));
+        Instruction::ConditionField(instr));
     addrmod3(instr, rd, MemOperand(x.rn_, ip, x.am_));
     return;
   } else {
@@ -909,7 +858,7 @@ void Assembler::addrmod3(Instr instr, Register rd, const MemOperand& x) {
 
 
 void Assembler::addrmod4(Instr instr, Register rn, RegList rl) {
-  ASSERT((instr & ~(CondMask | P | U | W | L)) == B27);
+  ASSERT((instr & ~(kCondMask | P | U | W | L)) == B27);
   ASSERT(rl != 0);
   ASSERT(!rn.is(pc));
   emit(instr | rn.code()*B16 | rl);
@@ -919,7 +868,7 @@ void Assembler::addrmod4(Instr instr, Register rn, RegList rl) {
 void Assembler::addrmod5(Instr instr, CRegister crd, const MemOperand& x) {
   // Unindexed addressing is not encoded by this function.
   ASSERT_EQ((B27 | B26),
-            (instr & ~(CondMask | CoprocessorMask | P | U | N | W | L)));
+            (instr & ~(kCondMask | kCoprocessorMask | P | U | N | W | L)));
   ASSERT(x.rn_.is_valid() && !x.rm_.is_valid());
   int am = x.am_;
   int offset_8 = x.offset_;
@@ -982,7 +931,7 @@ void Assembler::b(int branch_offset, Condition cond) {
   ASSERT((branch_offset & 3) == 0);
   int imm24 = branch_offset >> 2;
   ASSERT(is_int24(imm24));
-  emit(cond | B27 | B25 | (imm24 & Imm24Mask));
+  emit(cond | B27 | B25 | (imm24 & kImm24Mask));
 
   if (cond == al) {
     // Dead code is a good location to emit the constant pool.
@@ -996,7 +945,7 @@ void Assembler::bl(int branch_offset, Condition cond) {
   ASSERT((branch_offset & 3) == 0);
   int imm24 = branch_offset >> 2;
   ASSERT(is_int24(imm24));
-  emit(cond | B27 | B25 | B24 | (imm24 & Imm24Mask));
+  emit(cond | B27 | B25 | B24 | (imm24 & kImm24Mask));
 }
 
 
@@ -1006,21 +955,21 @@ void Assembler::blx(int branch_offset) {  // v5 and above
   int h = ((branch_offset & 2) >> 1)*B24;
   int imm24 = branch_offset >> 2;
   ASSERT(is_int24(imm24));
-  emit(nv | B27 | B25 | h | (imm24 & Imm24Mask));
+  emit(kSpecialCondition | B27 | B25 | h | (imm24 & kImm24Mask));
 }
 
 
 void Assembler::blx(Register target, Condition cond) {  // v5 and above
   positions_recorder()->WriteRecordedPositions();
   ASSERT(!target.is(pc));
-  emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | 3*B4 | target.code());
+  emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | BLX | target.code());
 }
 
 
 void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
   positions_recorder()->WriteRecordedPositions();
   ASSERT(!target.is(pc));  // use of pc is actually allowed, but discouraged
-  emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | B4 | target.code());
+  emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | BX | target.code());
 }
 
 
@@ -1028,31 +977,31 @@ void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
 
 void Assembler::and_(Register dst, Register src1, const Operand& src2,
                      SBit s, Condition cond) {
-  addrmod1(cond | 0*B21 | s, src1, dst, src2);
+  addrmod1(cond | AND | s, src1, dst, src2);
 }
 
 
 void Assembler::eor(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | 1*B21 | s, src1, dst, src2);
+  addrmod1(cond | EOR | s, src1, dst, src2);
 }
 
 
 void Assembler::sub(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | 2*B21 | s, src1, dst, src2);
+  addrmod1(cond | SUB | s, src1, dst, src2);
 }
 
 
 void Assembler::rsb(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | 3*B21 | s, src1, dst, src2);
+  addrmod1(cond | RSB | s, src1, dst, src2);
 }
 
 
 void Assembler::add(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | 4*B21 | s, src1, dst, src2);
+  addrmod1(cond | ADD | s, src1, dst, src2);
 
   // Eliminate pattern: push(r), pop()
   //   str(src, MemOperand(sp, 4, NegPreIndex), al);
@@ -1061,7 +1010,7 @@ void Assembler::add(Register dst, Register src1, const Operand& src2,
   if (can_peephole_optimize(2) &&
       // Pattern.
       instr_at(pc_ - 1 * kInstrSize) == kPopInstruction &&
-      (instr_at(pc_ - 2 * kInstrSize) & ~RdMask) == kPushRegPattern) {
+      (instr_at(pc_ - 2 * kInstrSize) & ~kRdMask) == kPushRegPattern) {
     pc_ -= 2 * kInstrSize;
     if (FLAG_print_peephole_optimization) {
       PrintF("%x push(reg)/pop() eliminated\n", pc_offset());
@@ -1072,45 +1021,45 @@ void Assembler::add(Register dst, Register src1, const Operand& src2,
 
 void Assembler::adc(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | 5*B21 | s, src1, dst, src2);
+  addrmod1(cond | ADC | s, src1, dst, src2);
 }
 
 
 void Assembler::sbc(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | 6*B21 | s, src1, dst, src2);
+  addrmod1(cond | SBC | s, src1, dst, src2);
 }
 
 
 void Assembler::rsc(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | 7*B21 | s, src1, dst, src2);
+  addrmod1(cond | RSC | s, src1, dst, src2);
 }
 
 
 void Assembler::tst(Register src1, const Operand& src2, Condition cond) {
-  addrmod1(cond | 8*B21 | S, src1, r0, src2);
+  addrmod1(cond | TST | S, src1, r0, src2);
 }
 
 
 void Assembler::teq(Register src1, const Operand& src2, Condition cond) {
-  addrmod1(cond | 9*B21 | S, src1, r0, src2);
+  addrmod1(cond | TEQ | S, src1, r0, src2);
 }
 
 
 void Assembler::cmp(Register src1, const Operand& src2, Condition cond) {
-  addrmod1(cond | 10*B21 | S, src1, r0, src2);
+  addrmod1(cond | CMP | S, src1, r0, src2);
 }
 
 
 void Assembler::cmn(Register src1, const Operand& src2, Condition cond) {
-  addrmod1(cond | 11*B21 | S, src1, r0, src2);
+  addrmod1(cond | CMN | S, src1, r0, src2);
 }
 
 
 void Assembler::orr(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | 12*B21 | s, src1, dst, src2);
+  addrmod1(cond | ORR | s, src1, dst, src2);
 }
 
 
@@ -1122,7 +1071,7 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   // the mov instruction. They must be generated using nop(int/NopMarkerTypes)
   // or MarkCode(int/NopMarkerTypes) pseudo instructions.
   ASSERT(!(src.is_reg() && src.rm().is(dst) && s == LeaveCC && cond == al));
-  addrmod1(cond | 13*B21 | s, r0, dst, src);
+  addrmod1(cond | MOV | s, r0, dst, src);
 }
 
 
@@ -1139,12 +1088,12 @@ void Assembler::movt(Register reg, uint32_t immediate, Condition cond) {
 
 void Assembler::bic(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
-  addrmod1(cond | 14*B21 | s, src1, dst, src2);
+  addrmod1(cond | BIC | s, src1, dst, src2);
 }
 
 
 void Assembler::mvn(Register dst, const Operand& src, SBit s, Condition cond) {
-  addrmod1(cond | 15*B21 | s, r0, dst, src);
+  addrmod1(cond | MVN | s, r0, dst, src);
 }
 
 
@@ -1222,7 +1171,7 @@ void Assembler::clz(Register dst, Register src, Condition cond) {
   // v5 and above.
   ASSERT(!dst.is(pc) && !src.is(pc));
   emit(cond | B24 | B22 | B21 | 15*B16 | dst.code()*B12 |
-       15*B8 | B4 | src.code());
+       15*B8 | CLZ | src.code());
 }
 
 
@@ -1376,7 +1325,7 @@ void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
     Instr pop_instr = instr_at(pc_ - 1 * kInstrSize);
 
     if (IsPush(push_instr) && IsPop(pop_instr)) {
-      if ((pop_instr & kRdMask) != (push_instr & kRdMask)) {
+      if (Instruction::RdValue(pop_instr) != Instruction::RdValue(push_instr)) {
         // For consecutive push and pop on different registers,
         // we delete both the push & pop and insert a register move.
         // push ry, pop rx --> mov rx, ry
@@ -1457,8 +1406,8 @@ void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
         IsPop(mem_read_instr)) {
       if ((IsLdrRegFpOffset(ldr_instr) ||
         IsLdrRegFpNegOffset(ldr_instr))) {
-        if ((mem_write_instr & kRdMask) ==
-              (mem_read_instr & kRdMask)) {
+        if (Instruction::RdValue(mem_write_instr) ==
+                                  Instruction::RdValue(mem_read_instr)) {
           // Pattern: push & pop from/to same register,
           // with a fp+offset ldr in between
           //
@@ -1473,7 +1422,8 @@ void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
           // else
           //   ldr rz, [fp, #-24]
 
-          if ((mem_write_instr & kRdMask) == (ldr_instr & kRdMask)) {
+          if (Instruction::RdValue(mem_write_instr) ==
+              Instruction::RdValue(ldr_instr)) {
             pc_ -= 3 * kInstrSize;
           } else {
             pc_ -= 3 * kInstrSize;
@@ -1503,22 +1453,23 @@ void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
           //   ldr rz, [fp, #-24]
 
           Register reg_pushed, reg_popped;
-          if ((mem_read_instr & kRdMask) == (ldr_instr & kRdMask)) {
+          if (Instruction::RdValue(mem_read_instr) ==
+              Instruction::RdValue(ldr_instr)) {
             reg_pushed = GetRd(mem_write_instr);
             reg_popped = GetRd(mem_read_instr);
             pc_ -= 3 * kInstrSize;
             mov(reg_popped, reg_pushed);
-          } else if ((mem_write_instr & kRdMask)
-                                != (ldr_instr & kRdMask)) {
+          } else if (Instruction::RdValue(mem_write_instr) !=
+                     Instruction::RdValue(ldr_instr)) {
             reg_pushed = GetRd(mem_write_instr);
             reg_popped = GetRd(mem_read_instr);
             pc_ -= 3 * kInstrSize;
             emit(ldr_instr);
             mov(reg_popped, reg_pushed);
-          } else if (((mem_read_instr & kRdMask)
-                                     != (ldr_instr & kRdMask)) ||
-                    ((mem_write_instr & kRdMask)
-                                     == (ldr_instr & kRdMask)) ) {
+          } else if ((Instruction::RdValue(mem_read_instr) !=
+                      Instruction::RdValue(ldr_instr)) ||
+                     (Instruction::RdValue(mem_write_instr) ==
+                      Instruction::RdValue(ldr_instr))) {
             reg_pushed = GetRd(mem_write_instr);
             reg_popped = GetRd(mem_read_instr);
             pc_ -= 3 * kInstrSize;
@@ -1640,18 +1591,14 @@ void Assembler::stm(BlockAddrMode am,
 // enabling/disabling and a counter feature. See simulator-arm.h .
 void Assembler::stop(const char* msg, Condition cond, int32_t code) {
 #ifndef __arm__
-  // See constants-arm.h SoftwareInterruptCodes. Unluckily the Assembler and
-  // Simulator do not share constants declaration.
   ASSERT(code >= kDefaultStopCode);
-  static const uint32_t kStopInterruptCode = 1 << 23;
-  static const uint32_t kMaxStopCode = kStopInterruptCode - 1;
   // The Simulator will handle the stop instruction and get the message address.
   // It expects to find the address just after the svc instruction.
   BlockConstPoolFor(2);
   if (code >= 0) {
-    svc(kStopInterruptCode + code, cond);
+    svc(kStopCode + code, cond);
   } else {
-    svc(kStopInterruptCode + kMaxStopCode, cond);
+    svc(kStopCode + kMaxStopCode, cond);
   }
   emit(reinterpret_cast<Instr>(msg));
 #else  // def __arm__
@@ -1673,7 +1620,7 @@ void Assembler::stop(const char* msg, Condition cond, int32_t code) {
 
 void Assembler::bkpt(uint32_t imm16) {  // v5 and above
   ASSERT(is_uint16(imm16));
-  emit(al | B24 | B21 | (imm16 >> 4)*B8 | 7*B4 | (imm16 & 0xf));
+  emit(al | B24 | B21 | (imm16 >> 4)*B8 | BKPT | (imm16 & 0xf));
 }
 
 
@@ -1703,7 +1650,7 @@ void Assembler::cdp2(Coprocessor coproc,
                      CRegister crn,
                      CRegister crm,
                      int opcode_2) {  // v5 and above
-  cdp(coproc, opcode_1, crd, crn, crm, opcode_2, static_cast<Condition>(nv));
+  cdp(coproc, opcode_1, crd, crn, crm, opcode_2, kSpecialCondition);
 }
 
 
@@ -1726,7 +1673,7 @@ void Assembler::mcr2(Coprocessor coproc,
                      CRegister crn,
                      CRegister crm,
                      int opcode_2) {  // v5 and above
-  mcr(coproc, opcode_1, rd, crn, crm, opcode_2, static_cast<Condition>(nv));
+  mcr(coproc, opcode_1, rd, crn, crm, opcode_2, kSpecialCondition);
 }
 
 
@@ -1749,7 +1696,7 @@ void Assembler::mrc2(Coprocessor coproc,
                      CRegister crn,
                      CRegister crm,
                      int opcode_2) {  // v5 and above
-  mrc(coproc, opcode_1, rd, crn, crm, opcode_2, static_cast<Condition>(nv));
+  mrc(coproc, opcode_1, rd, crn, crm, opcode_2, kSpecialCondition);
 }
 
 
@@ -1779,7 +1726,7 @@ void Assembler::ldc2(Coprocessor coproc,
                      CRegister crd,
                      const MemOperand& src,
                      LFlag l) {  // v5 and above
-  ldc(coproc, crd, src, l, static_cast<Condition>(nv));
+  ldc(coproc, crd, src, l, kSpecialCondition);
 }
 
 
@@ -1788,7 +1735,7 @@ void Assembler::ldc2(Coprocessor coproc,
                      Register rn,
                      int option,
                      LFlag l) {  // v5 and above
-  ldc(coproc, crd, rn, option, l, static_cast<Condition>(nv));
+  ldc(coproc, crd, rn, option, l, kSpecialCondition);
 }
 
 
@@ -1818,7 +1765,7 @@ void Assembler::stc2(Coprocessor
                      coproc, CRegister crd,
                      const MemOperand& dst,
                      LFlag l) {  // v5 and above
-  stc(coproc, crd, dst, l, static_cast<Condition>(nv));
+  stc(coproc, crd, dst, l, kSpecialCondition);
 }
 
 
@@ -1827,7 +1774,7 @@ void Assembler::stc2(Coprocessor coproc,
                      Register rn,
                      int option,
                      LFlag l) {  // v5 and above
-  stc(coproc, crd, rn, option, l, static_cast<Condition>(nv));
+  stc(coproc, crd, rn, option, l, kSpecialCondition);
 }
 
 
@@ -2637,7 +2584,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
     // Instruction to patch must be a ldr/str [pc, #offset].
     // P and U set, B and W clear, Rn == pc, offset12 still 0.
-    ASSERT((instr & (7*B25 | P | U | B | W | 15*B16 | Off12Mask)) ==
+    ASSERT((instr & (7*B25 | P | U | B | W | 15*B16 | kOff12Mask)) ==
            (2*B25 | P | U | pc.code()*B16));
     int delta = pc_ - rinfo.pc() - 8;
     ASSERT(delta >= -4);  // instr could be ldr pc, [pc, #-4] followed by targ32

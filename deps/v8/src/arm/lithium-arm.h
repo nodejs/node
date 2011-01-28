@@ -734,9 +734,8 @@ class LIsNullAndBranch: public LControlInstruction<1, 0> {
 
 class LIsObject: public LTemplateInstruction<1, 1, 1> {
  public:
-  LIsObject(LOperand* value, LOperand* temp) {
+  explicit LIsObject(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsObject, "is-object")
@@ -745,10 +744,9 @@ class LIsObject: public LTemplateInstruction<1, 1, 1> {
 
 class LIsObjectAndBranch: public LControlInstruction<1, 2> {
  public:
-  LIsObjectAndBranch(LOperand* value, LOperand* temp, LOperand* temp2) {
+  LIsObjectAndBranch(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
-    temps_[1] = temp2;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch, "is-object-and-branch")
@@ -1256,10 +1254,11 @@ class LLoadGlobal: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LStoreGlobal: public LTemplateInstruction<0, 1, 0> {
+class LStoreGlobal: public LTemplateInstruction<0, 1, 1> {
  public:
-  explicit LStoreGlobal(LOperand* value) {
+  LStoreGlobal(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobal, "store-global")

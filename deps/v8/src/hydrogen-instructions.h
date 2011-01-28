@@ -46,112 +46,6 @@ class LInstruction;
 class LChunkBuilder;
 
 
-// Type hierarchy:
-//
-// HValue
-//   HInstruction
-//     HAccessArgumentsAt
-//     HApplyArguments
-//     HArgumentsElements
-//     HArgumentsLength
-//     HArgumentsObject
-//     HBinaryOperation
-//       HArithmeticBinaryOperation
-//         HAdd
-//         HDiv
-//         HMod
-//         HMul
-//         HSub
-//       HBitwiseBinaryOperation
-//         HBitAnd
-//         HBitOr
-//         HBitXor
-//         HSar
-//         HShl
-//         HShr
-//       HBoundsCheck
-//       HCompare
-//       HCompareJSObjectEq
-//       HInstanceOf
-//       HInstanceOfKnownGlobal
-//       HLoadKeyed
-//         HLoadKeyedFastElement
-//         HLoadKeyedGeneric
-//       HPower
-//       HStoreNamed
-//         HStoreNamedField
-//         HStoreNamedGeneric
-//       HStringCharCodeAt
-//     HBlockEntry
-//     HCall
-//       HCallConstantFunction
-//       HCallFunction
-//       HCallGlobal
-//       HCallKeyed
-//       HCallKnownGlobal
-//       HCallNamed
-//       HCallNew
-//       HCallRuntime
-//     HCallStub
-//     HCheckPrototypeMaps
-//     HConstant
-//     HControlInstruction
-//       HDeoptimize
-//       HGoto
-//       HUnaryControlInstruction
-//         HCompareMap
-//         HReturn
-//         HTest
-//         HThrow
-//     HEnterInlined
-//     HFunctionLiteral
-//     HGlobalObject
-//     HGlobalReceiver
-//     HLeaveInlined
-//     HLoadContextSlot
-//     HLoadGlobal
-//     HMaterializedLiteral
-//       HArrayLiteral
-//       HObjectLiteral
-//       HRegExpLiteral
-//     HOsrEntry
-//     HParameter
-//     HSimulate
-//     HStackCheck
-//     HStoreKeyed
-//       HStoreKeyedFastElement
-//       HStoreKeyedGeneric
-//     HUnaryOperation
-//       HBitNot
-//       HChange
-//       HCheckFunction
-//       HCheckInstanceType
-//       HCheckMap
-//       HCheckNonSmi
-//       HCheckSmi
-//       HDeleteProperty
-//       HFixedArrayLength
-//       HJSArrayLength
-//       HLoadElements
-//         HTypeofIs
-//       HLoadNamedField
-//       HLoadNamedGeneric
-//       HLoadFunctionPrototype
-//       HPushArgument
-//       HStringLength
-//       HTypeof
-//       HUnaryMathOperation
-//       HUnaryPredicate
-//         HClassOfTest
-//         HHasCachedArrayIndex
-//         HHasInstanceType
-//         HIsNull
-//         HIsObject
-//         HIsSmi
-//       HValueOf
-//     HUnknownOSRValue
-//   HPhi
-
 #define HYDROGEN_ALL_INSTRUCTION_LIST(V)       \
   V(ArithmeticBinaryOperation)                 \
   V(BinaryOperation)                           \
@@ -224,12 +118,12 @@ class LChunkBuilder;
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
   V(LoadElements)                              \
+  V(LoadFunctionPrototype)                     \
   V(LoadGlobal)                                \
   V(LoadKeyedFastElement)                      \
   V(LoadKeyedGeneric)                          \
   V(LoadNamedField)                            \
   V(LoadNamedGeneric)                          \
-  V(LoadFunctionPrototype)                     \
   V(Mod)                                       \
   V(Mul)                                       \
   V(ObjectLiteral)                             \
@@ -268,7 +162,6 @@ class LChunkBuilder;
   V(GlobalVars)                                \
   V(Maps)                                      \
   V(ArrayLengths)                              \
-  V(FunctionPrototypes)                        \
   V(OsrEntries)
 
 #define DECLARE_INSTRUCTION(type)                   \
@@ -573,11 +466,6 @@ class HValue: public ZoneObject {
     return flags << kChangesToDependsFlagsLeftShift;
   }
 
-  // A flag mask to mark an instruction as having arbitrary side effects.
-  static int AllSideEffects() {
-    return ChangesFlagsMask() & ~(1 << kChangesOsrEntries);
-  }
-
   static HValue* cast(HValue* value) { return value; }
 
   enum Opcode {
@@ -636,9 +524,6 @@ class HValue: public ZoneObject {
     return NULL;
   }
 
-  bool HasSideEffects() const {
-    return (flags_ & AllSideEffects()) != 0;
-  }
   bool IsDefinedAfter(HBasicBlock* other) const;
 
   // Operands.
@@ -661,12 +546,13 @@ class HValue: public ZoneObject {
   void Delete();
 
   int flags() const { return flags_; }
-  void SetFlagMask(int mask) { flags_ |= mask; }
-  void SetFlag(Flag f) { SetFlagMask(1 << f); }
-  void ClearFlagMask(int mask) { flags_ &= ~mask; }
-  void ClearFlag(Flag f) { ClearFlagMask(1 << f); }
-  bool CheckFlag(Flag f) const { return CheckFlagMask(1 << f); }
-  bool CheckFlagMask(int mask) const { return (flags_ & mask) != 0; }
+  void SetFlag(Flag f) { flags_ |= (1 << f); }
+  void ClearFlag(Flag f) { flags_ &= ~(1 << f); }
+  bool CheckFlag(Flag f) const { return (flags_ & (1 << f)) != 0; }
+
+  void SetAllSideEffects() { flags_ |= AllSideEffects(); }
+  void ClearAllSideEffects() { flags_ &= ~AllSideEffects(); }
+  bool HasSideEffects() const { return (flags_ & AllSideEffects()) != 0; }
 
   Range* range() const { return range_; }
   bool HasRange() const { return range_ != NULL; }
@@ -714,11 +600,16 @@ class HValue: public ZoneObject {
   void InsertInputConversion(HInstruction* previous, int index, HType type);
 
 #ifdef DEBUG
-  virtual void Verify() const = 0;
+  virtual void Verify() = 0;
 #endif
 
  protected:
-  virtual bool DataEquals(HValue* other) const { return true; }
+  // This function must be overridden for instructions with flag kUseGVN, to
+  // compare the non-Operand parts of the instruction.
+  virtual bool DataEquals(HValue* other) const {
+    UNREACHABLE();
+    return false;
+  }
   virtual void RepresentationChanged(Representation to) { }
   virtual Range* InferRange();
   virtual void DeleteFromGraph() = 0;
@@ -735,6 +626,11 @@ class HValue: public ZoneObject {
   }
 
  private:
+  // A flag mask to mark an instruction as having arbitrary side effects.
+  static int AllSideEffects() {
+    return ChangesFlagsMask() & ~(1 << kChangesOsrEntries);
+  }
+
   void InternalReplaceAtUse(HValue* use, HValue* other);
   void RegisterUse(int index, HValue* new_value);
 
@@ -774,7 +670,7 @@ class HInstruction: public HValue {
   virtual LInstruction* CompileToLithium(LChunkBuilder* builder) = 0;
 
 #ifdef DEBUG
-  virtual void Verify() const;
+  virtual void Verify();
 #endif
 
   // Returns whether this is some kind of deoptimizing check
@@ -1063,7 +959,7 @@ class HSimulate: public HInstruction {
   DECLARE_CONCRETE_INSTRUCTION(Simulate, "simulate")
 
 #ifdef DEBUG
-  virtual void Verify() const;
+  virtual void Verify();
 #endif
 
  protected:
@@ -1159,6 +1055,9 @@ class HGlobalObject: public HInstruction {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(GlobalObject, "global_object")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -1171,6 +1070,9 @@ class HGlobalReceiver: public HInstruction {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(GlobalReceiver, "global_receiver")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -1361,6 +1263,9 @@ class HJSArrayLength: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(JSArrayLength, "js_array_length")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -1377,6 +1282,9 @@ class HFixedArrayLength: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(FixedArrayLength, "fixed_array_length")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -1394,6 +1302,9 @@ class HBitNot: public HUnaryOperation {
   virtual HType CalculateInferredType() const;
 
   DECLARE_CONCRETE_INSTRUCTION(BitNot, "bit_not")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -1489,6 +1400,9 @@ class HLoadElements: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadElements, "load-elements")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -1510,7 +1424,7 @@ class HCheckMap: public HUnaryOperation {
   virtual HType CalculateInferredType() const;
 
 #ifdef DEBUG
-  virtual void Verify() const;
+  virtual void Verify();
 #endif
 
   Handle<Map> map() const { return map_; }
@@ -1545,7 +1459,7 @@ class HCheckFunction: public HUnaryOperation {
   virtual HType CalculateInferredType() const;
 
 #ifdef DEBUG
-  virtual void Verify() const;
+  virtual void Verify();
 #endif
 
   Handle<JSFunction> target() const { return target_; }
@@ -1587,7 +1501,7 @@ class HCheckInstanceType: public HUnaryOperation {
   }
 
 #ifdef DEBUG
-  virtual void Verify() const;
+  virtual void Verify();
 #endif
 
   static HCheckInstanceType* NewIsJSObjectOrJSFunction(HValue* value);
@@ -1628,10 +1542,13 @@ class HCheckNonSmi: public HUnaryOperation {
   virtual HType CalculateInferredType() const;
 
 #ifdef DEBUG
-  virtual void Verify() const;
+  virtual void Verify();
 #endif
 
   DECLARE_CONCRETE_INSTRUCTION(CheckNonSmi, "check_non_smi")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -1646,7 +1563,7 @@ class HCheckPrototypeMaps: public HInstruction {
   virtual bool IsCheckInstruction() const { return true; }
 
 #ifdef DEBUG
-  virtual void Verify() const;
+  virtual void Verify();
 #endif
 
   Handle<JSObject> prototype() const { return prototype_; }
@@ -1689,10 +1606,13 @@ class HCheckSmi: public HUnaryOperation {
   virtual HType CalculateInferredType() const;
 
 #ifdef DEBUG
-  virtual void Verify() const;
+  virtual void Verify();
 #endif
 
   DECLARE_CONCRETE_INSTRUCTION(CheckSmi, "check_smi")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -1745,7 +1665,7 @@ class HPhi: public HValue {
   virtual void PrintTo(StringStream* stream) const;
 
 #ifdef DEBUG
-  virtual void Verify() const;
+  virtual void Verify();
 #endif
 
   DECLARE_INSTRUCTION(Phi)
@@ -1833,7 +1753,7 @@ class HConstant: public HInstruction {
   }
 
 #ifdef DEBUG
-  virtual void Verify() const { }
+  virtual void Verify() { }
 #endif
 
   DECLARE_CONCRETE_INSTRUCTION(Constant, "constant")
@@ -1952,6 +1872,9 @@ class HArgumentsElements: public HInstruction {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ArgumentsElements, "arguments_elements")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -1963,6 +1886,9 @@ class HArgumentsLength: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ArgumentsLength, "arguments_length")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -1999,6 +1925,8 @@ class HAccessArgumentsAt: public HInstruction {
     operands_[index] = value;
   }
 
+  virtual bool DataEquals(HValue* other) const { return true; }
+
  private:
   HOperandVector<3> operands_;
 };
@@ -2018,13 +1946,16 @@ class HBoundsCheck: public HBinaryOperation {
   }
 
 #ifdef DEBUG
-  virtual void Verify() const;
+  virtual void Verify();
 #endif
 
   HValue* index() const { return left(); }
   HValue* length() const { return right(); }
 
   DECLARE_CONCRETE_INSTRUCTION(BoundsCheck, "bounds_check")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -2034,7 +1965,7 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
       : HBinaryOperation(left, right) {
     set_representation(Representation::Tagged());
     SetFlag(kFlexibleRepresentation);
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -2044,7 +1975,7 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
   virtual void RepresentationChanged(Representation to) {
     if (!to.IsTagged()) {
       ASSERT(to.IsInteger32());
-      ClearFlagMask(AllSideEffects());
+      ClearAllSideEffects();
       SetFlag(kTruncatingToInt32);
       SetFlag(kUseGVN);
     }
@@ -2062,12 +1993,12 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
       : HBinaryOperation(left, right) {
     set_representation(Representation::Tagged());
     SetFlag(kFlexibleRepresentation);
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   virtual void RepresentationChanged(Representation to) {
     if (!to.IsTagged()) {
-      ClearFlagMask(AllSideEffects());
+      ClearAllSideEffects();
       SetFlag(kUseGVN);
     }
   }
@@ -2093,7 +2024,7 @@ class HCompare: public HBinaryOperation {
       : HBinaryOperation(left, right), token_(token) {
     ASSERT(Token::IsCompareOp(token));
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   void SetInputRepresentation(Representation r);
@@ -2142,6 +2073,9 @@ class HCompareJSObjectEq: public HBinaryOperation {
   virtual HType CalculateInferredType() const;
 
   DECLARE_CONCRETE_INSTRUCTION(CompareJSObjectEq, "compare-js-object-eq")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -2184,6 +2118,9 @@ class HIsObject: public HUnaryPredicate {
   explicit HIsObject(HValue* value) : HUnaryPredicate(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(IsObject, "is_object")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -2192,6 +2129,9 @@ class HIsSmi: public HUnaryPredicate {
   explicit HIsSmi(HValue* value) : HUnaryPredicate(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(IsSmi, "is_smi")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -2228,6 +2168,9 @@ class HHasCachedArrayIndex: public HUnaryPredicate {
   explicit HHasCachedArrayIndex(HValue* value) : HUnaryPredicate(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndex, "has_cached_array_index")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -2278,7 +2221,7 @@ class HInstanceOf: public HBinaryOperation {
  public:
   HInstanceOf(HValue* left, HValue* right) : HBinaryOperation(left, right) {
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   virtual bool EmitAtUses() const { return uses()->length() <= 1; }
@@ -2296,7 +2239,7 @@ class HInstanceOfKnownGlobal: public HUnaryOperation {
   HInstanceOfKnownGlobal(HValue* left, Handle<JSFunction> right)
       : HUnaryOperation(left), function_(right) {
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   Handle<JSFunction> function() { return function_; }
@@ -2326,6 +2269,9 @@ class HPower: public HBinaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Power, "power")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -2348,6 +2294,8 @@ class HAdd: public HArithmeticBinaryOperation {
   DECLARE_CONCRETE_INSTRUCTION(Add, "add")
 
  protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+
   virtual Range* InferRange();
 };
 
@@ -2363,6 +2311,8 @@ class HSub: public HArithmeticBinaryOperation {
   DECLARE_CONCRETE_INSTRUCTION(Sub, "sub")
 
  protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+
   virtual Range* InferRange();
 };
 
@@ -2383,6 +2333,8 @@ class HMul: public HArithmeticBinaryOperation {
   DECLARE_CONCRETE_INSTRUCTION(Mul, "mul")
 
  protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+
   virtual Range* InferRange();
 };
 
@@ -2398,6 +2350,8 @@ class HMod: public HArithmeticBinaryOperation {
   DECLARE_CONCRETE_INSTRUCTION(Mod, "mod")
 
  protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+
   virtual Range* InferRange();
 };
 
@@ -2414,6 +2368,8 @@ class HDiv: public HArithmeticBinaryOperation {
   DECLARE_CONCRETE_INSTRUCTION(Div, "div")
 
  protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+
   virtual Range* InferRange();
 };
 
@@ -2429,6 +2385,8 @@ class HBitAnd: public HBitwiseBinaryOperation {
   DECLARE_CONCRETE_INSTRUCTION(BitAnd, "bit_and")
 
  protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+
   virtual Range* InferRange();
 };
 
@@ -2442,6 +2400,9 @@ class HBitXor: public HBitwiseBinaryOperation {
   virtual HType CalculateInferredType() const;
 
   DECLARE_CONCRETE_INSTRUCTION(BitXor, "bit_xor")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -2456,6 +2417,8 @@ class HBitOr: public HBitwiseBinaryOperation {
   DECLARE_CONCRETE_INSTRUCTION(BitOr, "bit_or")
 
  protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+
   virtual Range* InferRange();
 };
 
@@ -2469,6 +2432,9 @@ class HShl: public HBitwiseBinaryOperation {
   virtual HType CalculateInferredType() const;
 
   DECLARE_CONCRETE_INSTRUCTION(Shl, "shl")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -2480,6 +2446,9 @@ class HShr: public HBitwiseBinaryOperation {
   virtual HType CalculateInferredType() const;
 
   DECLARE_CONCRETE_INSTRUCTION(Shr, "shr")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -2492,6 +2461,9 @@ class HSar: public HBitwiseBinaryOperation {
   virtual HType CalculateInferredType() const;
 
   DECLARE_CONCRETE_INSTRUCTION(Sar, "sar")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
@@ -2534,7 +2506,7 @@ class HCallStub: public HInstruction {
         argument_count_(argument_count),
         transcendental_type_(TranscendentalCache::kNumberOfCaches) {
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   CodeStub::Major major_key() { return major_key_; }
@@ -2603,12 +2575,17 @@ class HLoadGlobal: public HInstruction {
 
 class HStoreGlobal: public HUnaryOperation {
  public:
-  HStoreGlobal(HValue* value, Handle<JSGlobalPropertyCell> cell)
-      : HUnaryOperation(value), cell_(cell) {
+  HStoreGlobal(HValue* value,
+               Handle<JSGlobalPropertyCell> cell,
+               bool check_hole_value)
+      : HUnaryOperation(value),
+        cell_(cell),
+        check_hole_value_(check_hole_value) {
     SetFlag(kChangesGlobalVars);
   }
 
   Handle<JSGlobalPropertyCell> cell() const { return cell_; }
+  bool check_hole_value() const { return check_hole_value_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -2617,14 +2594,9 @@ class HStoreGlobal: public HUnaryOperation {
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobal, "store_global")
 
- protected:
-  virtual bool DataEquals(HValue* other) const {
-    HStoreGlobal* b = HStoreGlobal::cast(other);
-    return cell_.is_identical_to(b->cell());
-  }
-
  private:
   Handle<JSGlobalPropertyCell> cell_;
+  bool check_hole_value_;
 };
 
 
@@ -2704,7 +2676,7 @@ class HLoadNamedGeneric: public HUnaryOperation {
   HLoadNamedGeneric(HValue* object, Handle<Object> name)
       : HUnaryOperation(object), name_(name) {
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   HValue* object() const { return OperandAt(0); }
@@ -2716,12 +2688,6 @@ class HLoadNamedGeneric: public HUnaryOperation {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric, "load_named_generic")
 
- protected:
-  virtual bool DataEquals(HValue* other) const {
-    HLoadNamedGeneric* b = HLoadNamedGeneric::cast(other);
-    return name_.is_identical_to(b->name_);
-  }
-
  private:
   Handle<Object> name_;
 };
@@ -2732,7 +2698,8 @@ class HLoadFunctionPrototype: public HUnaryOperation {
   explicit HLoadFunctionPrototype(HValue* function)
       : HUnaryOperation(function) {
     set_representation(Representation::Tagged());
-    SetFlagMask(kDependsOnFunctionPrototypes);
+    SetFlag(kUseGVN);
+    SetFlag(kDependsOnCalls);
   }
 
   HValue* function() const { return OperandAt(0); }
@@ -2781,13 +2748,16 @@ class HLoadKeyedFastElement: public HLoadKeyed {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastElement,
                                "load_keyed_fast_element")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
 };
 
 
 class HLoadKeyedGeneric: public HLoadKeyed {
  public:
   HLoadKeyedGeneric(HValue* obj, HValue* key) : HLoadKeyed(obj, key) {
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric, "load_keyed_generic")
@@ -2822,12 +2792,6 @@ class HStoreNamed: public HBinaryOperation {
   }
 
   DECLARE_INSTRUCTION(StoreNamed)
-
- protected:
-  virtual bool DataEquals(HValue* other) const {
-    HStoreNamed* b = HStoreNamed::cast(other);
-    return name_.is_identical_to(b->name_);
-  }
 
  private:
   Handle<Object> name_;
@@ -2874,7 +2838,7 @@ class HStoreNamedGeneric: public HStoreNamed {
  public:
   HStoreNamedGeneric(HValue* obj, Handle<Object> name, HValue* val)
       : HStoreNamed(obj, name, val) {
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store_named_generic")
@@ -2939,7 +2903,7 @@ class HStoreKeyedGeneric: public HStoreKeyed {
  public:
   HStoreKeyedGeneric(HValue* obj, HValue* key, HValue* val)
       : HStoreKeyed(obj, key, val) {
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store_keyed_generic")
@@ -2960,14 +2924,14 @@ class HStringCharCodeAt: public HBinaryOperation {
         : Representation::Tagged();
   }
 
-  virtual bool DataEquals(HValue* other) const { return true; }
-
   HValue* string() const { return OperandAt(0); }
   HValue* index() const { return OperandAt(1); }
 
   DECLARE_CONCRETE_INSTRUCTION(StringCharCodeAt, "string_char_code_at")
 
  protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+
   virtual Range* InferRange() {
     return new Range(0, String::kMaxUC16CharCode);
   }
@@ -2990,11 +2954,11 @@ class HStringLength: public HUnaryOperation {
     return HType::Smi();
   }
 
-  virtual bool DataEquals(HValue* other) const { return true; }
-
   DECLARE_CONCRETE_INSTRUCTION(StringLength, "string_length")
 
  protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+
   virtual Range* InferRange() {
     return new Range(0, String::kMaxLength);
   }
@@ -3128,7 +3092,7 @@ class HDeleteProperty: public HBinaryOperation {
   HDeleteProperty(HValue* obj, HValue* key)
       : HBinaryOperation(obj, key) {
     set_representation(Representation::Tagged());
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {

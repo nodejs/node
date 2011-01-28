@@ -95,13 +95,13 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   __ ldrb(t1, FieldMemOperand(t0, Map::kBitFieldOffset));
   __ tst(t1, Operand((1 << Map::kIsAccessCheckNeeded) |
                      (1 << Map::kHasNamedInterceptor)));
-  __ b(nz, miss);
+  __ b(ne, miss);
 
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   __ ldr(t1, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
   __ cmp(t1, ip);
-  __ b(nz, miss);
+  __ b(ne, miss);
 }
 
 
@@ -379,7 +379,7 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateStringLength(MacroAssembler* masm) {
+void LoadIC::GenerateStringLength(MacroAssembler* masm, bool support_wrappers) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -388,7 +388,8 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // -----------------------------------
   Label miss;
 
-  StubCompiler::GenerateLoadStringLength(masm, r0, r1, r3, &miss);
+  StubCompiler::GenerateLoadStringLength(masm, r0, r1, r3, &miss,
+                                         support_wrappers);
   // Cache miss: Jump to runtime.
   __ bind(&miss);
   StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
@@ -419,14 +420,14 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
                                            int interceptor_bit,
                                            Label* slow) {
   // Check that the object isn't a smi.
-  __ BranchOnSmi(receiver, slow);
+  __ JumpIfSmi(receiver, slow);
   // Get the map of the receiver.
   __ ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check bit field.
   __ ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
   __ tst(scratch,
          Operand((1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit)));
-  __ b(nz, slow);
+  __ b(ne, slow);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
   // we enter the runtime system to make sure that indexing into string
@@ -749,7 +750,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   Label index_smi, index_string;
 
   // Check that the key is a smi.
-  __ BranchOnNotSmi(r2, &check_string);
+  __ JumpIfNotSmi(r2, &check_string);
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from below
   // where a numeric string is converted to a smi.
@@ -1165,7 +1166,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Register receiver = r1;
 
   // Check that the key is a smi.
-  __ BranchOnNotSmi(key, &check_string);
+  __ JumpIfNotSmi(key, &check_string);
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from below
   // where a numeric string is converted to a smi.
@@ -1346,7 +1347,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   Label slow;
 
   // Check that the receiver isn't a smi.
-  __ BranchOnSmi(r1, &slow);
+  __ JumpIfSmi(r1, &slow);
 
   // Check that the key is an array index, that is Uint32.
   __ tst(r0, Operand(kSmiTagMask | kSmiSignMask));
@@ -1470,7 +1471,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ b(ne, &slow);
   // Check that the value is a smi. If a conversion is needed call into the
   // runtime to convert and clamp.
-  __ BranchOnNotSmi(value, &slow);
+  __ JumpIfNotSmi(value, &slow);
   __ mov(r4, Operand(key, ASR, kSmiTagSize));  // Untag the key.
   __ ldr(ip, FieldMemOperand(elements, PixelArray::kLengthOffset));
   __ cmp(r4, Operand(ip));
@@ -1589,7 +1590,7 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   Register scratch = r3;
 
   // Check that the receiver isn't a smi.
-  __ BranchOnSmi(receiver, &miss);
+  __ JumpIfSmi(receiver, &miss);
 
   // Check that the object is a JS array.
   __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE);
@@ -1603,7 +1604,7 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   __ b(ne, &miss);
 
   // Check that value is a smi.
-  __ BranchOnNotSmi(value, &miss);
+  __ JumpIfNotSmi(value, &miss);
 
   // Prepare tail call to StoreIC_ArrayLength.
   __ Push(receiver, value);
@@ -1673,7 +1674,7 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
       return ge;
     default:
       UNREACHABLE();
-      return no_condition;
+      return kNoCondition;
   }
 }
 
@@ -1704,7 +1705,7 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
 
 void PatchInlinedSmiCode(Address address) {
-  UNIMPLEMENTED();
+  // Currently there is no smi inlining in the ARM full code generator.
 }
 
 

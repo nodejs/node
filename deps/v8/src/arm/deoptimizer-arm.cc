@@ -112,13 +112,16 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-void Deoptimizer::PatchStackCheckCode(RelocInfo* rinfo,
+void Deoptimizer::PatchStackCheckCode(Code* unoptimized_code,
+                                      Code* check_code,
                                       Code* replacement_code) {
   UNIMPLEMENTED();
 }
 
 
-void Deoptimizer::RevertStackCheckCode(RelocInfo* rinfo, Code* check_code) {
+void Deoptimizer::RevertStackCheckCode(Code* unoptimized_code,
+                                       Code* check_code,
+                                       Code* replacement_code) {
   UNIMPLEMENTED();
 }
 
@@ -367,7 +370,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
   ASSERT(Register::kNumRegisters == kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
-    int offset = (i * kIntSize) + FrameDescription::registers_offset();
+    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ ldr(r2, MemOperand(sp, i * kPointerSize));
     __ str(r2, MemOperand(r1, offset));
   }
@@ -456,7 +459,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Push the registers from the last output frame.
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
-    int offset = (i * kIntSize) + FrameDescription::registers_offset();
+    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ ldr(r6, MemOperand(r2, offset));
     __ push(r6);
   }

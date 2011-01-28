@@ -107,21 +107,17 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kCodeOffset = -1 * kPointerSize;
+  static const int kCodeOffset = -2 * kPointerSize;
   static const int kSPOffset = -1 * kPointerSize;
 
-  // TODO(regis): Use a patched sp value on the stack instead.
-  // A marker of 0 indicates that double registers are saved.
-  static const int kMarkerOffset = -2 * kPointerSize;
-
   // The caller fields are below the frame pointer on the stack.
-  static const int kCallerFPOffset = +0 * kPointerSize;
-  // The calling JS function is between FP and PC.
-  static const int kCallerPCOffset = +2 * kPointerSize;
+  static const int kCallerFPOffset = 0 * kPointerSize;
+  // The calling JS function is below FP.
+  static const int kCallerPCOffset = 1 * kPointerSize;
 
   // FP-relative displacement of the caller's SP.  It points just
   // below the saved PC.
-  static const int kCallerSPDisplacement = +3 * kPointerSize;
+  static const int kCallerSPDisplacement = 2 * kPointerSize;
 };
 
 
@@ -131,8 +127,8 @@ class StandardFrameConstants : public AllStatic {
   static const int kMarkerOffset      = -2 * kPointerSize;
   static const int kContextOffset     = -1 * kPointerSize;
   static const int kCallerFPOffset    =  0 * kPointerSize;
-  static const int kCallerPCOffset    = +1 * kPointerSize;
-  static const int kCallerSPOffset    = +2 * kPointerSize;
+  static const int kCallerPCOffset    =  1 * kPointerSize;
+  static const int kCallerSPOffset    =  2 * kPointerSize;
 };
 
 

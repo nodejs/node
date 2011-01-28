@@ -25,24 +25,50 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Global properties declared with 'var' or 'function' should not be
-// deleteable.
-var tmp;
-assertFalse(delete tmp);  // should be DONT_DELETE
-assertTrue("tmp" in this);
-function f() { return 1; }
-assertFalse(delete f);  // should be DONT_DELETE
-assertEquals(1, f());
+#ifndef V8_X64_LITHIUM_GAP_RESOLVER_X64_H_
+#define V8_X64_LITHIUM_GAP_RESOLVER_X64_H_
 
-// Check that deleting and reintroducing global variables works.
-// Get into the IC case for storing to a deletable global property.
-function introduce_x() { x = 42; }
-for (var i = 0; i < 10; i++) introduce_x();
-// Check that the property has been introduced.
-assertTrue(this.hasOwnProperty('x'));
-// Check that deletion works.
-delete x;
-assertFalse(this.hasOwnProperty('x'));
-// Check that reintroduction works.
-introduce_x();
-assertTrue(this.hasOwnProperty('x'));
+#include "v8.h"
+
+#include "lithium.h"
+
+namespace v8 {
+namespace internal {
+
+class LCodeGen;
+class LGapResolver;
+
+class LGapResolver BASE_EMBEDDED {
+ public:
+  explicit LGapResolver(LCodeGen* owner);
+
+  // Resolve a set of parallel moves, emitting assembler instructions.
+  void Resolve(LParallelMove* parallel_move);
+
+ private:
+  // Build the initial list of moves.
+  void BuildInitialMoveList(LParallelMove* parallel_move);
+
+  // Perform the move at the moves_ index in question (possibly requiring
+  // other moves to satisfy dependencies).
+  void PerformMove(int index);
+
+  // Emit a move and remove it from the move graph.
+  void EmitMove(int index);
+
+  // Execute a move by emitting a swap of two operands.  The move from
+  // source to destination is removed from the move graph.
+  void EmitSwap(int index);
+
+  // Verify the move list before performing moves.
+  void Verify();
+
+  LCodeGen* cgen_;
+
+  // List of moves not yet resolved.
+  ZoneList<LMoveOperands> moves_;
+};
+
+} }  // namespace v8::internal
+
+#endif  // V8_X64_LITHIUM_GAP_RESOLVER_X64_H_

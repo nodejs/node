@@ -153,6 +153,7 @@ struct Register {
   // Unfortunately we can't make this private in a struct when initializing
   // by assignment.
   int code_;
+
  private:
   static const int registerCodeByAllocationIndex[kNumAllocatableRegisters];
   static const int allocationIndexByRegisterCode[kNumRegisters];
@@ -390,11 +391,15 @@ class Operand BASE_EMBEDDED {
   // this must not overflow.
   Operand(const Operand& base, int32_t offset);
 
+  // Checks whether either base or index register is the given register.
+  // Does not check the "reg" part of the Operand.
+  bool AddressUsesRegister(Register reg) const;
+
  private:
   byte rex_;
   byte buf_[6];
-  // The number of bytes in buf_.
-  unsigned int len_;
+  // The number of bytes of buf_ in use.
+  byte len_;
 
   // Set the ModR/M byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.
@@ -590,6 +595,9 @@ class Assembler : public Malloced {
   void popfq();
 
   void push(Immediate value);
+  // Push a 32 bit integer, and guarantee that it is actually pushed as a
+  // 32 bit value, the normal push will optimize the 8 bit case.
+  void push_imm32(int32_t imm32);
   void push(Register src);
   void push(const Operand& src);
 
@@ -818,6 +826,10 @@ class Assembler : public Malloced {
   }
 
   void andl(Register dst, Register src) {
+    arithmetic_op_32(0x23, dst, src);
+  }
+
+  void andl(Register dst, const Operand& src) {
     arithmetic_op_32(0x23, dst, src);
   }
 
@@ -1205,6 +1217,9 @@ class Assembler : public Malloced {
   void movsd(XMMRegister dst, XMMRegister src);
   void movsd(XMMRegister dst, const Operand& src);
 
+  void movdqa(const Operand& dst, XMMRegister src);
+  void movdqa(XMMRegister dst, const Operand& src);
+
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
 
@@ -1244,10 +1259,6 @@ class Assembler : public Malloced {
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
   void emit_sse_operand(XMMRegister dst, Register src);
   void emit_sse_operand(Register dst, XMMRegister src);
-
-  // Use either movsd or movlpd.
-  // void movdbl(XMMRegister dst, const Operand& src);
-  // void movdbl(const Operand& dst, XMMRegister src);
 
   // Debugging
   void Print();

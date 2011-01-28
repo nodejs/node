@@ -974,12 +974,7 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     } else if (v->IsIsObject()) {
       HIsObject* compare = HIsObject::cast(v);
       ASSERT(compare->value()->representation().IsTagged());
-
-      LOperand* temp1 = TempRegister();
-      LOperand* temp2 = TempRegister();
-      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
-                                    temp1,
-                                    temp2);
+      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()));
     } else if (v->IsCompareJSObjectEq()) {
       HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
       return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
@@ -1048,20 +1043,19 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
 
 
 LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
-  Abort("Unimplemented: %s", "DoPushArgument");
-  return NULL;
+  ++argument_count_;
+  LOperand* argument = UseOrConstant(instr->argument());
+  return new LPushArgument(argument);
 }
 
 
 LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
-  Abort("Unimplemented: %s", "DoGlobalObject");
-  return NULL;
+  return DefineAsRegister(new LGlobalObject);
 }
 
 
 LInstruction* LChunkBuilder::DoGlobalReceiver(HGlobalReceiver* instr) {
-  Abort("Unimplemented: %s", "DoGlobalReceiver");
-  return NULL;
+  return DefineAsRegister(new LGlobalReceiver);
 }
 
 
@@ -1103,8 +1097,10 @@ LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
-  Abort("Unimplemented: %s", "DoCallNew");
-  return NULL;
+  LOperand* constructor = UseFixed(instr->constructor(), rdi);
+  argument_count_ -= instr->argument_count();
+  LCallNew* result = new LCallNew(constructor);
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
@@ -1181,8 +1177,23 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
 
 
 LInstruction* LChunkBuilder::DoSub(HSub* instr) {
-  Abort("Unimplemented: %s", "DoSub");
-  return NULL;
+  if (instr->representation().IsInteger32()) {
+    ASSERT(instr->left()->representation().IsInteger32());
+    ASSERT(instr->right()->representation().IsInteger32());
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseOrConstantAtStart(instr->right());
+    LSubI* sub = new LSubI(left, right);
+    LInstruction* result = DefineSameAsFirst(sub);
+    if (instr->CheckFlag(HValue::kCanOverflow)) {
+      result = AssignEnvironment(result);
+    }
+    return result;
+  } else if (instr->representation().IsDouble()) {
+    return DoArithmeticD(Token::SUB, instr);
+  } else {
+    ASSERT(instr->representation().IsTagged());
+    return DoArithmeticT(Token::SUB, instr);
+  }
 }
 
 
@@ -1243,26 +1254,34 @@ LInstruction* LChunkBuilder::DoCompare(HCompare* instr) {
 
 LInstruction* LChunkBuilder::DoCompareJSObjectEq(
     HCompareJSObjectEq* instr) {
-  Abort("Unimplemented: %s", "DoCompareJSObjectEq");
-  return NULL;
+  LOperand* left = UseRegisterAtStart(instr->left());
+  LOperand* right = UseRegisterAtStart(instr->right());
+  LCmpJSObjectEq* result = new LCmpJSObjectEq(left, right);
+  return DefineAsRegister(result);
 }
 
 
 LInstruction* LChunkBuilder::DoIsNull(HIsNull* instr) {
-  Abort("Unimplemented: %s", "DoIsNull");
-  return NULL;
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+
+  return DefineAsRegister(new LIsNull(value));
 }
 
 
 LInstruction* LChunkBuilder::DoIsObject(HIsObject* instr) {
-  Abort("Unimplemented: %s", "DoIsObject");
-  return NULL;
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegister(instr->value());
+
+  return DefineAsRegister(new LIsObject(value));
 }
 
 
 LInstruction* LChunkBuilder::DoIsSmi(HIsSmi* instr) {
-  Abort("Unimplemented: %s", "DoIsSmi");
-  return NULL;
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseAtStart(instr->value());
+
+  return DefineAsRegister(new LIsSmi(value));
 }
 
 
@@ -1316,14 +1335,69 @@ LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
 
 
 LInstruction* LChunkBuilder::DoChange(HChange* instr) {
-  Abort("Unimplemented: %s", "DoChange");
+  Representation from = instr->from();
+  Representation to = instr->to();
+  if (from.IsTagged()) {
+    if (to.IsDouble()) {
+      LOperand* value = UseRegister(instr->value());
+      LNumberUntagD* res = new LNumberUntagD(value);
+      return AssignEnvironment(DefineAsRegister(res));
+    } else {
+      ASSERT(to.IsInteger32());
+      LOperand* value = UseRegister(instr->value());
+      bool needs_check = !instr->value()->type().IsSmi();
+      if (needs_check) {
+        LOperand* xmm_temp =
+            (instr->CanTruncateToInt32() && CpuFeatures::IsSupported(SSE3))
+            ? NULL
+            : FixedTemp(xmm1);
+        LTaggedToI* res = new LTaggedToI(value, xmm_temp);
+        return AssignEnvironment(DefineSameAsFirst(res));
+      } else {
+        return DefineSameAsFirst(new LSmiUntag(value, needs_check));
+      }
+    }
+  } else if (from.IsDouble()) {
+    if (to.IsTagged()) {
+      LOperand* value = UseRegister(instr->value());
+      LOperand* temp = TempRegister();
+
+      // Make sure that temp and result_temp are different registers.
+      LUnallocated* result_temp = TempRegister();
+      LNumberTagD* result = new LNumberTagD(value, temp);
+      return AssignPointerMap(Define(result, result_temp));
+    } else {
+      ASSERT(to.IsInteger32());
+      bool needs_temp = instr->CanTruncateToInt32() &&
+          !CpuFeatures::IsSupported(SSE3);
+      LOperand* value = needs_temp ?
+          UseTempRegister(instr->value()) : UseRegister(instr->value());
+      LOperand* temp = needs_temp ? TempRegister() : NULL;
+      return AssignEnvironment(DefineAsRegister(new LDoubleToI(value, temp)));
+    }
+  } else if (from.IsInteger32()) {
+    if (to.IsTagged()) {
+      HValue* val = instr->value();
+      LOperand* value = UseRegister(val);
+      if (val->HasRange() && val->range()->IsInSmiRange()) {
+        return DefineSameAsFirst(new LSmiTag(value));
+      } else {
+        LNumberTagI* result = new LNumberTagI(value);
+        return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
+      }
+    } else {
+      ASSERT(to.IsDouble());
+      return DefineAsRegister(new LInteger32ToDouble(Use(instr->value())));
+    }
+  }
+  UNREACHABLE();
   return NULL;
 }
 
 
 LInstruction* LChunkBuilder::DoCheckNonSmi(HCheckNonSmi* instr) {
-  Abort("Unimplemented: %s", "DoCheckNonSmi");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new LCheckSmi(value, zero));
 }
 
 
@@ -1334,26 +1408,28 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
-  Abort("Unimplemented: %s", "DoCheckPrototypeMaps");
-  return NULL;
+  LOperand* temp = TempRegister();
+  LCheckPrototypeMaps* result = new LCheckPrototypeMaps(temp);
+  return AssignEnvironment(result);
 }
 
 
 LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
-  Abort("Unimplemented: %s", "DoCheckSmi");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new LCheckSmi(value, not_zero));
 }
 
 
 LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
-  Abort("Unimplemented: %s", "DoCheckFunction");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  return AssignEnvironment(new LCheckFunction(value));
 }
 
 
 LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
-  Abort("Unimplemented: %s", "DoCheckMap");
-  return NULL;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  LCheckMap* result = new LCheckMap(value);
+  return AssignEnvironment(result);
 }
 
 
@@ -1381,15 +1457,15 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
-  Abort("Unimplemented: %s", "DoLoadGlobal");
-  return NULL;
+  LLoadGlobal* result = new LLoadGlobal;
+  return instr->check_hole_value()
+      ? AssignEnvironment(DefineAsRegister(result))
+      : DefineAsRegister(result);
 }
 
 
 LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  Abort("Unimplemented: %s", "DoStoreGlobal");
-  return NULL;
-}
+  return new LStoreGlobal(UseRegisterAtStart(instr->value()));}
 
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
@@ -1399,8 +1475,9 @@ LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
-  Abort("Unimplemented: %s", "DoLoadNamedField");
-  return NULL;
+  ASSERT(instr->representation().IsTagged());
+  LOperand* obj = UseRegisterAtStart(instr->object());
+  return DefineAsRegister(new LLoadNamedField(obj));
 }
 
 
@@ -1450,8 +1527,22 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
-  Abort("Unimplemented: %s", "DoStoreNamedField");
-  return NULL;
+  bool needs_write_barrier = instr->NeedsWriteBarrier();
+
+  LOperand* obj = needs_write_barrier
+      ? UseTempRegister(instr->object())
+      : UseRegisterAtStart(instr->object());
+
+  LOperand* val = needs_write_barrier
+      ? UseTempRegister(instr->value())
+      : UseRegister(instr->value());
+
+  // We only need a scratch register if we have a write barrier or we
+  // have a store into the properties array (not in-object-property).
+  LOperand* temp = (!instr->is_in_object() || needs_write_barrier)
+      ? TempRegister() : NULL;
+
+  return new LStoreNamedField(obj, val, temp);
 }
 
 
@@ -1588,7 +1679,14 @@ LInstruction* LChunkBuilder::DoStackCheck(HStackCheck* instr) {
 
 
 LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
-  Abort("Unimplemented: %s", "DoEnterInlined");
+  HEnvironment* outer = current_block_->last_environment();
+  HConstant* undefined = graph()->GetConstantUndefined();
+  HEnvironment* inner = outer->CopyForInlining(instr->closure(),
+                                               instr->function(),
+                                               false,
+                                               undefined);
+  current_block_->UpdateEnvironment(inner);
+  chunk_->AddInlinedClosure(instr->closure());
   return NULL;
 }
 

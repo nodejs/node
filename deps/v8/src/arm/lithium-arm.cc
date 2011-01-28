@@ -820,6 +820,7 @@ LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
   return MarkAsCall(DefineFixed(result, r0), instr);
 }
 
+
 void LChunkBuilder::DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block) {
   ASSERT(is_building());
   current_block_ = block;
@@ -1018,11 +1019,8 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       HIsObject* compare = HIsObject::cast(v);
       ASSERT(compare->value()->representation().IsTagged());
 
-      LOperand* temp1 = TempRegister();
-      LOperand* temp2 = TempRegister();
-      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
-                                    temp1,
-                                    temp2);
+      LOperand* temp = TempRegister();
+      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()), temp);
     } else if (v->IsCompareJSObjectEq()) {
       HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
       return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
@@ -1030,8 +1028,8 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     } else if (v->IsInstanceOf()) {
       HInstanceOf* instance_of = HInstanceOf::cast(v);
       LInstruction* result =
-          new LInstanceOfAndBranch(Use(instance_of->left()),
-                                   Use(instance_of->right()));
+          new LInstanceOfAndBranch(UseFixed(instance_of->left(), r0),
+                                   UseFixed(instance_of->right(), r1));
       return MarkAsCall(result, instr);
     } else if (v->IsTypeofIs()) {
       HTypeofIs* typeof_is = HTypeofIs::cast(v);
@@ -1133,7 +1131,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathAbs:
       return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
     case kMathFloor:
-      return AssignEnvironment(DefineAsRegister(result));
+      return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
     case kMathSqrt:
       return DefineSameAsFirst(result);
     case kMathRound:
@@ -1313,8 +1311,8 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
-    LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseOrConstantAtStart(instr->right());
     LSubI* sub = new LSubI(left, right);
     LInstruction* result = DefineSameAsFirst(sub);
     if (instr->CheckFlag(HValue::kCanOverflow)) {
@@ -1404,7 +1402,7 @@ LInstruction* LChunkBuilder::DoIsObject(HIsObject* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
 
-  return DefineAsRegister(new LIsObject(value, TempRegister()));
+  return DefineAsRegister(new LIsObject(value));
 }
 
 
@@ -1604,7 +1602,14 @@ LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  return new LStoreGlobal(UseRegisterAtStart(instr->value()));
+  if (instr->check_hole_value()) {
+    LOperand* temp = TempRegister();
+    LOperand* value = UseRegister(instr->value());
+    return AssignEnvironment(new LStoreGlobal(value, temp));
+  } else {
+    LOperand* value = UseRegisterAtStart(instr->value());
+    return new LStoreGlobal(value, NULL);
+  }
 }
 
 

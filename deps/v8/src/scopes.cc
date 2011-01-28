@@ -726,7 +726,6 @@ void Scope::ResolveVariable(Scope* global_scope,
     // Note that we must do a lookup anyway, because if we find one,
     // we must mark that variable as potentially accessed from this
     // inner scope (the property may not be in the 'with' object).
-    if (var != NULL) var->set_is_used(true);
     var = NonLocal(proxy->name(), Variable::DYNAMIC);
 
   } else {
@@ -834,8 +833,8 @@ bool Scope::MustAllocate(Variable* var) {
   // visible name.
   if ((var->is_this() || var->name()->length() > 0) &&
       (var->is_accessed_from_inner_scope() ||
-       scope_calls_eval_ ||
-       inner_scope_calls_eval_)) {
+       scope_calls_eval_ || inner_scope_calls_eval_ ||
+       scope_contains_with_)) {
     var->set_is_used(true);
   }
   // Global variables do not need to be allocated.

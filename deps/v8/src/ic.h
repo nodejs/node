@@ -284,7 +284,8 @@ class LoadIC: public IC {
 
   // Specialized code generator routines.
   static void GenerateArrayLength(MacroAssembler* masm);
-  static void GenerateStringLength(MacroAssembler* masm);
+  static void GenerateStringLength(MacroAssembler* masm,
+                                   bool support_wrappers);
   static void GenerateFunctionPrototype(MacroAssembler* masm);
 
   // Clear the use of the inlined version.

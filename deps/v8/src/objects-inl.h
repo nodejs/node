@@ -57,8 +57,7 @@ Smi* PropertyDetails::AsSmi() {
 
 
 PropertyDetails PropertyDetails::AsDeleted() {
-  PropertyDetails d(DONT_ENUM, NORMAL);
-  Smi* smi = Smi::FromInt(AsSmi()->value() | DeletedField::encode(1));
+  Smi* smi = Smi::FromInt(value_ | DeletedField::encode(1));
   return PropertyDetails(smi);
 }
 

@@ -109,7 +109,7 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #ifdef USE_SIMULATOR
 #ifdef V8_TARGET_ARCH_ARM
-  assembler::arm::Simulator* simulator_;
+  Simulator* simulator_;
 #elif V8_TARGET_ARCH_MIPS
   assembler::mips::Simulator* simulator_;
 #endif
@@ -386,7 +386,9 @@ class Top {
   static void DoThrow(MaybeObject* exception,
                       MessageLocation* location,
                       const char* message);
-  static bool ShouldReturnException(bool* is_caught_externally,
+  // Checks if exception should be reported and finds out if it's
+  // caught externally.
+  static bool ShouldReportException(bool* is_caught_externally,
                                     bool catchable_by_javascript);
 
   // Attempts to compute the current source location, storing the

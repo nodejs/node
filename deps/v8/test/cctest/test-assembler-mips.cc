@@ -47,13 +47,9 @@ typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
 static v8::Persistent<v8::Context> env;
 
 
-// The test framework does not accept flags on the command line, so we set them.
 static void InitializeVM() {
   // Disable compilation of natives.
   FLAG_disable_native_files = true;
-
-  // Enable generation of comments.
-  FLAG_debug_code = true;
 
   if (env.IsEmpty()) {
     env = v8::Context::New();

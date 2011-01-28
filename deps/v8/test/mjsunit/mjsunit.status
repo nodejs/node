@@ -119,9 +119,6 @@ compiler/simple-osr: FAIL
 # BUG (1026) This test is currently flaky.
 compiler/simple-osr: SKIP
 
-# BUG(1049): Currently no deoptimization support.
-debug-liveedit-newsource: SKIP
-debug-liveedit-1: SKIP
 
 ##############################################################################
 [ $arch == mips ]

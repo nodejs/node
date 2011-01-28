@@ -139,7 +139,7 @@ class MacroAssembler: public Assembler {
   // scratch can be object itself, but it will be clobbered.
   void InNewSpace(Register object,
                   Register scratch,
-                  Condition cc,  // eq for new space, ne otherwise
+                  Condition cond,  // eq for new space, ne otherwise
                   Label* branch);
 
 
@@ -545,16 +545,6 @@ class MacroAssembler: public Assembler {
   }
 
 
-  inline void BranchOnSmi(Register value, Label* smi_label) {
-    tst(value, Operand(kSmiTagMask));
-    b(eq, smi_label);
-  }
-
-  inline void BranchOnNotSmi(Register value, Label* not_smi_label) {
-    tst(value, Operand(kSmiTagMask));
-    b(ne, not_smi_label);
-  }
-
   // Generates code for reporting that an illegal operation has
   // occurred.
   void IllegalOperation(int num_arguments);
@@ -695,14 +685,14 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Debugging
 
-  // Calls Abort(msg) if the condition cc is not satisfied.
+  // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cc, const char* msg);
+  void Assert(Condition cond, const char* msg);
   void AssertRegisterIsRoot(Register reg, Heap::RootListIndex index);
   void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cc, const char* msg);
+  void Check(Condition cond, const char* msg);
 
   // Print a message to stdout and abort execution.
   void Abort(const char* msg);
@@ -719,6 +709,9 @@ class MacroAssembler: public Assembler {
   void SmiTag(Register reg, SBit s = LeaveCC) {
     add(reg, reg, Operand(reg), s);
   }
+  void SmiTag(Register dst, Register src, SBit s = LeaveCC) {
+    add(dst, src, Operand(src), s);
+  }
 
   // Try to convert int32 to smi. If the value is to large, preserve
   // the original value and jump to not_a_smi. Destroys scratch and
@@ -733,7 +726,20 @@ class MacroAssembler: public Assembler {
   void SmiUntag(Register reg) {
     mov(reg, Operand(reg, ASR, kSmiTagSize));
   }
+  void SmiUntag(Register dst, Register src) {
+    mov(dst, Operand(src, ASR, kSmiTagSize));
+  }
 
+  // Jump the register contains a smi.
+  inline void JumpIfSmi(Register value, Label* smi_label) {
+    tst(value, Operand(kSmiTagMask));
+    b(eq, smi_label);
+  }
+  // Jump if either of the registers contain a non-smi.
+  inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
+    tst(value, Operand(kSmiTagMask));
+    b(ne, not_smi_label);
+  }
   // Jump if either of the registers contain a non-smi.
   void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
   // Jump if either of the registers contain a smi.
@@ -742,6 +748,14 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is a smi. Used in debug code.
   void AbortIfSmi(Register object);
   void AbortIfNotSmi(Register object);
+
+  // ---------------------------------------------------------------------------
+  // HeapNumber utilities
+
+  void JumpIfNotHeapNumber(Register object,
+                           Register heap_number_map,
+                           Register scratch,
+                           Label* on_not_heap_number);
 
   // ---------------------------------------------------------------------------
   // String utilities

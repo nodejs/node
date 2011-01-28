@@ -80,8 +80,8 @@ class SimulatorStack : public v8::internal::AllStatic {
 #include "constants-arm.h"
 #include "hashmap.h"
 
-namespace assembler {
-namespace arm {
+namespace v8 {
+namespace internal {
 
 class CachePage {
  public:
@@ -203,11 +203,11 @@ class Simulator {
   };
 
   // Unsupported instructions use Format to print an error and stop execution.
-  void Format(Instr* instr, const char* format);
+  void Format(Instruction* instr, const char* format);
 
   // Checks if the current instruction should be executed based on its
   // condition bits.
-  bool ConditionallyExecute(Instr* instr);
+  bool ConditionallyExecute(Instruction* instr);
 
   // Helper functions to set the conditional flags in the architecture state.
   void SetNZFlags(int32_t val);
@@ -225,13 +225,13 @@ class Simulator {
   void Copy_FPSCR_to_APSR();
 
   // Helper functions to decode common "addressing" modes
-  int32_t GetShiftRm(Instr* instr, bool* carry_out);
-  int32_t GetImm(Instr* instr, bool* carry_out);
-  void HandleRList(Instr* instr, bool load);
-  void SoftwareInterrupt(Instr* instr);
+  int32_t GetShiftRm(Instruction* instr, bool* carry_out);
+  int32_t GetImm(Instruction* instr, bool* carry_out);
+  void HandleRList(Instruction* instr, bool load);
+  void SoftwareInterrupt(Instruction* instr);
 
   // Stop helper functions.
-  inline bool isStopInstruction(Instr* instr);
+  inline bool isStopInstruction(Instruction* instr);
   inline bool isWatchedStop(uint32_t bkpt_code);
   inline bool isEnabledStop(uint32_t bkpt_code);
   inline void EnableStop(uint32_t bkpt_code);
@@ -245,41 +245,42 @@ class Simulator {
   inline void WriteB(int32_t addr, uint8_t value);
   inline void WriteB(int32_t addr, int8_t value);
 
-  inline uint16_t ReadHU(int32_t addr, Instr* instr);
-  inline int16_t ReadH(int32_t addr, Instr* instr);
+  inline uint16_t ReadHU(int32_t addr, Instruction* instr);
+  inline int16_t ReadH(int32_t addr, Instruction* instr);
   // Note: Overloaded on the sign of the value.
-  inline void WriteH(int32_t addr, uint16_t value, Instr* instr);
-  inline void WriteH(int32_t addr, int16_t value, Instr* instr);
+  inline void WriteH(int32_t addr, uint16_t value, Instruction* instr);
+  inline void WriteH(int32_t addr, int16_t value, Instruction* instr);
 
-  inline int ReadW(int32_t addr, Instr* instr);
-  inline void WriteW(int32_t addr, int value, Instr* instr);
+  inline int ReadW(int32_t addr, Instruction* instr);
+  inline void WriteW(int32_t addr, int value, Instruction* instr);
 
   int32_t* ReadDW(int32_t addr);
   void WriteDW(int32_t addr, int32_t value1, int32_t value2);
 
   // Executing is handled based on the instruction type.
-  void DecodeType01(Instr* instr);  // both type 0 and type 1 rolled into one
-  void DecodeType2(Instr* instr);
-  void DecodeType3(Instr* instr);
-  void DecodeType4(Instr* instr);
-  void DecodeType5(Instr* instr);
-  void DecodeType6(Instr* instr);
-  void DecodeType7(Instr* instr);
+  // Both type 0 and type 1 rolled into one.
+  void DecodeType01(Instruction* instr);
+  void DecodeType2(Instruction* instr);
+  void DecodeType3(Instruction* instr);
+  void DecodeType4(Instruction* instr);
+  void DecodeType5(Instruction* instr);
+  void DecodeType6(Instruction* instr);
+  void DecodeType7(Instruction* instr);
 
   // Support for VFP.
-  void DecodeTypeVFP(Instr* instr);
-  void DecodeType6CoprocessorIns(Instr* instr);
+  void DecodeTypeVFP(Instruction* instr);
+  void DecodeType6CoprocessorIns(Instruction* instr);
 
-  void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instr* instr);
-  void DecodeVCMP(Instr* instr);
-  void DecodeVCVTBetweenDoubleAndSingle(Instr* instr);
-  void DecodeVCVTBetweenFloatingPointAndInteger(Instr* instr);
+  void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instruction* instr);
+  void DecodeVCMP(Instruction* instr);
+  void DecodeVCVTBetweenDoubleAndSingle(Instruction* instr);
+  void DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr);
 
   // Executes one instruction.
-  void InstructionDecode(Instr* instr);
+  void InstructionDecode(Instruction* instr);
 
   // ICache.
-  static void CheckICache(Instr* instr);
+  static void CheckICache(Instruction* instr);
   static void FlushOnePage(intptr_t start, int size);
   static CachePage* GetCachePage(void* page);
 
@@ -330,8 +331,8 @@ class Simulator {
   static v8::internal::HashMap* i_cache_;
 
   // Registered breakpoints.
-  Instr* break_pc_;
-  instr_t break_instr_;
+  Instruction* break_pc_;
+  Instr break_instr_;
 
   // A stop is watched if its code is less than kNumOfWatchedStops.
   // Only watched stops support enabling/disabling and the counter feature.
@@ -344,27 +345,22 @@ class Simulator {
   // instruction, if bit 31 of watched_stops[code].count is unset.
   // The value watched_stops[code].count & ~(1 << 31) indicates how many times
   // the breakpoint was hit or gone through.
-  struct StopCoundAndDesc {
+  struct StopCountAndDesc {
     uint32_t count;
     char* desc;
   };
-  StopCoundAndDesc watched_stops[kNumOfWatchedStops];
+  StopCountAndDesc watched_stops[kNumOfWatchedStops];
 };
 
-} }  // namespace assembler::arm
-
-
-namespace v8 {
-namespace internal {
 
 // When running with the simulator transition into simulated execution at this
 // point.
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  reinterpret_cast<Object*>(assembler::arm::Simulator::current()->Call( \
+  reinterpret_cast<Object*>(Simulator::current()->Call( \
       FUNCTION_ADDR(entry), 5, p0, p1, p2, p3, p4))
 
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
-  assembler::arm::Simulator::current()->Call( \
+  Simulator::current()->Call( \
       FUNCTION_ADDR(entry), 7, p0, p1, p2, p3, p4, p5, p6)
 
 #define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
@@ -380,16 +376,16 @@ namespace internal {
 class SimulatorStack : public v8::internal::AllStatic {
  public:
   static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
-    return assembler::arm::Simulator::current()->StackLimit();
+    return Simulator::current()->StackLimit();
   }
 
   static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
-    assembler::arm::Simulator* sim = assembler::arm::Simulator::current();
+    Simulator* sim = Simulator::current();
     return sim->PushAddress(try_catch_address);
   }
 
   static inline void UnregisterCTryCatch() {
-    assembler::arm::Simulator::current()->PopAddress();
+    Simulator::current()->PopAddress();
   }
 };
 

@@ -1025,9 +1025,17 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
                        rex_w() ? 'q' : 'd',
                        NameOfXMMRegister(regop));
         current += PrintRightOperand(current);
+      } else if (opcode == 0x6F) {
+        AppendToBuffer("movdqa %s,",
+                       NameOfXMMRegister(regop));
+        current += PrintRightOperand(current);
       } else if (opcode == 0x7E) {
         AppendToBuffer("mov%c ",
                        rex_w() ? 'q' : 'd');
+        current += PrintRightOperand(current);
+        AppendToBuffer(", %s", NameOfXMMRegister(regop));
+      } else if (opcode == 0x7F) {
+        AppendToBuffer("movdqa ");
         current += PrintRightOperand(current);
         AppendToBuffer(", %s", NameOfXMMRegister(regop));
       } else {

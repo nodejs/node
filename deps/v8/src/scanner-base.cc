@@ -64,7 +64,8 @@ bool ScannerConstants::IsIdentifier(unibrow::CharacterStream* buffer) {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner() { }
+Scanner::Scanner()
+  : octal_pos_(kNoOctalLocation) { }
 
 
 uc32 Scanner::ScanHexEscape(uc32 c, int length) {
@@ -98,6 +99,7 @@ uc32 Scanner::ScanHexEscape(uc32 c, int length) {
 // Octal escapes of the forms '\0xx' and '\xxx' are not a part of
 // ECMA-262. Other JS VMs support them.
 uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
+  octal_pos_ = source_pos() - 1;     // Already advanced
   uc32 x = c - '0';
   for (int i = 0; i < length; i++) {
     int d = c0_ - '0';
@@ -601,7 +603,11 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
             kind = DECIMAL;
             break;
           }
-          if (c0_  < '0' || '7'  < c0_) break;
+          if (c0_  < '0' || '7'  < c0_) {
+            // Octal literal finished.
+            octal_pos_ = next_.location.beg_pos;
+            break;
+          }
           AddLiteralCharAdvance();
         }
       }

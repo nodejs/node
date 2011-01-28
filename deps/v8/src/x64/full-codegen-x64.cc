@@ -88,7 +88,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   bool function_in_register = true;
 
   // Possibly allocate a local context.
-  int heap_slots = scope()->num_heap_slots();
+  int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment cmnt(masm_, "[ Allocate local context");
     // Argument to NewContext is the function, which is still in rdi.
@@ -710,6 +710,8 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   // Compile all the tests with branches to their bodies.
   for (int i = 0; i < clauses->length(); i++) {
     CaseClause* clause = clauses->at(i);
+    clause->body_target()->entry_label()->Unuse();
+
     // The default is not a test, but remember it as final fall through.
     if (clause->is_default()) {
       default_clause = clause;
@@ -3006,19 +3008,18 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         if (prop != NULL) {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
+          __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
         } else if (var->is_global()) {
           __ push(GlobalObjectOperand());
           __ Push(var->name());
+          __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
         } else {
-          // Non-global variable.  Call the runtime to look up the context
-          // where the variable was introduced.
+          // Non-global variable.  Call the runtime to delete from the
+          // context where the variable was introduced.
           __ push(context_register());
           __ Push(var->name());
-          __ CallRuntime(Runtime::kLookupContext, 2);
-          __ push(rax);
-          __ Push(var->name());
+          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
         }
-        __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
         context()->Plug(rax);
       }
       break;

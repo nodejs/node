@@ -86,6 +86,7 @@ enum BuiltinExtraArguments {
   V(LoadIC_Normal,              LOAD_IC, MONOMORPHIC)                     \
   V(LoadIC_ArrayLength,         LOAD_IC, MONOMORPHIC)                     \
   V(LoadIC_StringLength,        LOAD_IC, MONOMORPHIC)                     \
+  V(LoadIC_StringWrapperLength, LOAD_IC, MONOMORPHIC)                     \
   V(LoadIC_FunctionPrototype,   LOAD_IC, MONOMORPHIC)                     \
   V(LoadIC_Megamorphic,         LOAD_IC, MEGAMORPHIC)                     \
                                                                           \

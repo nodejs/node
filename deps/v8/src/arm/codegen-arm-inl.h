@@ -39,7 +39,7 @@ namespace internal {
 // Platform-specific inline functions.
 
 void DeferredCode::Jump() { __ jmp(&entry_label_); }
-void DeferredCode::Branch(Condition cc) { __ b(cc, &entry_label_); }
+void DeferredCode::Branch(Condition cond) { __ b(cond, &entry_label_); }
 
 #undef __
 

@@ -684,7 +684,7 @@ HGraph::HGraph(CompilationInfo* info)
 }
 
 
-bool HGraph::AllowAggressiveOptimizations() const {
+bool HGraph::AllowCodeMotion() const {
   return info()->shared_info()->opt_count() + 1 < Compiler::kDefaultMaxOptCount;
 }
 
@@ -1446,19 +1446,23 @@ void HGlobalValueNumberer::ProcessLoopBlock(HBasicBlock* block,
   }
 }
 
-// Only move instructions that postdominate the loop header (i.e. are
-// always executed inside the loop). This is to avoid unnecessary
-// deoptimizations assuming the loop is executed at least once.
-// TODO(fschneider): Better type feedback should give us information
-// about code that was never executed.
+
 bool HGlobalValueNumberer::ShouldMove(HInstruction* instr,
                                       HBasicBlock* loop_header) {
-  if (FLAG_aggressive_loop_invariant_motion &&
-      !instr->IsChange() &&
-      (!instr->IsCheckInstruction() ||
-       graph_->AllowAggressiveOptimizations())) {
+  // If we've disabled code motion, don't move any instructions.
+  if (!graph_->AllowCodeMotion()) return false;
+
+  // If --aggressive-loop-invariant-motion, move everything except change
+  // instructions.
+  if (FLAG_aggressive_loop_invariant_motion && !instr->IsChange()) {
     return true;
   }
+
+  // Otherwise only move instructions that postdominate the loop header
+  // (i.e. are always executed inside the loop). This is to avoid
+  // unnecessary deoptimizations assuming the loop is executed at least
+  // once.  TODO(fschneider): Better type feedback should give us
+  // information about code that was never executed.
   HBasicBlock* block = instr->block();
   bool result = true;
   if (block != loop_header) {
@@ -3366,9 +3370,10 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
   LookupGlobalPropertyCell(var, &lookup, true);
   CHECK_BAILOUT;
 
+  bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
   Handle<GlobalObject> global(graph()->info()->global_object());
   Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
-  HInstruction* instr = new HStoreGlobal(value, cell);
+  HInstruction* instr = new HStoreGlobal(value, cell, check_hole);
   instr->set_position(position);
   AddInstruction(instr);
   if (instr->HasSideEffects()) AddSimulate(ast_id);
@@ -3385,7 +3390,6 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
   // We have a second position recorded in the FullCodeGenerator to have
   // type feedback for the binary operation.
   BinaryOperation* operation = expr->binary_operation();
-  operation->RecordTypeFeedback(oracle());
 
   if (var != NULL) {
     if (!var->is_global() && !var->IsStackAllocated()) {
@@ -3766,6 +3770,14 @@ void HGraphBuilder::VisitProperty(Property* expr) {
     AddInstruction(new HCheckInstanceType(array, JS_ARRAY_TYPE, JS_ARRAY_TYPE));
     instr = new HJSArrayLength(array);
 
+  } else if (expr->IsStringLength()) {
+    HValue* string = Pop();
+    AddInstruction(new HCheckNonSmi(string));
+    AddInstruction(new HCheckInstanceType(string,
+                                          FIRST_STRING_TYPE,
+                                          LAST_STRING_TYPE));
+    instr = new HStringLength(string);
+
   } else if (expr->IsFunctionPrototype()) {
     HValue* function = Pop();
     AddInstruction(new HCheckNonSmi(function));
@@ -3952,8 +3964,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   int count_before = AstNode::Count();
 
   // Parse and allocate variables.
-  Handle<SharedFunctionInfo> shared(target->shared());
-  CompilationInfo inner_info(shared);
+  CompilationInfo inner_info(target);
   if (!ParserApi::Parse(&inner_info) ||
       !Scope::Analyze(&inner_info)) {
     return false;
@@ -3976,9 +3987,10 @@ bool HGraphBuilder::TryInline(Call* expr) {
 
   // Don't inline functions that uses the arguments object or that
   // have a mismatching number of parameters.
+  Handle<SharedFunctionInfo> shared(target->shared());
   int arity = expr->arguments()->length();
   if (function->scope()->arguments() != NULL ||
-      arity != target->shared()->formal_parameter_count()) {
+      arity != shared->formal_parameter_count()) {
     return false;
   }
 
@@ -4801,7 +4813,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
     default:
       UNREACHABLE();
   }
-  TypeInfo info = oracle()->BinaryType(expr, TypeFeedbackOracle::RESULT);
+  TypeInfo info = oracle()->BinaryType(expr);
   // If we hit an uninitialized binary op stub we will get type info
   // for a smi operation. If one of the operands is a constant string
   // do not generate code assuming it is a smi operation.
@@ -4952,7 +4964,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   HValue* left = Pop();
   Token::Value op = expr->op();
 
-  TypeInfo info = oracle()->CompareType(expr, TypeFeedbackOracle::RESULT);
+  TypeInfo info = oracle()->CompareType(expr);
   HInstruction* instr = NULL;
   if (op == Token::INSTANCEOF) {
     // Check to see if the rhs of the instanceof is a global function not

@@ -289,6 +289,17 @@ class Scope: public ZoneObject {
   int ContextChainLength(Scope* scope);
 
   // ---------------------------------------------------------------------------
+  // Strict mode support.
+  bool IsDeclared(Handle<String> name) {
+    // During formal parameter list parsing the scope only contains
+    // two variables inserted at initialization: "this" and "arguments".
+    // "this" is an invalid parameter name and "arguments" is invalid parameter
+    // name in strict mode. Therefore looking up with the map which includes
+    // "this" and "arguments" in addition to all formal parameters is safe.
+    return variables_.Lookup(name) != NULL;
+  }
+
+  // ---------------------------------------------------------------------------
   // Debugging.
 
 #ifdef DEBUG

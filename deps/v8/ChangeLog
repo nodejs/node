@@ -1,8 +1,26 @@
+2011-01-28: Version 3.0.12
+
+        Added support for strict mode parameter and object property
+        validation.
+
+        Fixed a couple of crash bugs.
+
+
+2011-01-25: Version 3.0.11
+
+        Fixed a bug in deletion of lookup slots that could cause global
+        variables to be accidentally deleted (http://crbug.com/70066).
+
+        Added support for strict mode octal literal verification.
+
+        Fixed a couple of crash bugs (issues 1070 and 1071).
+
+
 2011-01-24: Version 3.0.10
 
         Fixed External::Wrap for 64-bit addresses (issue 1037).
 
-        Fixed incorrect .arguments variable proxy handling in the full 
+        Fixed incorrect .arguments variable proxy handling in the full
         code generator (issue 1060).
 
         Introduced partial strict mode support.
@@ -11,7 +29,7 @@
         (issue http://crbug.com/70334).
 
         Fixed incorrect rounding for float-to-integer conversions for external
-        array types, which implement the Typed Array spec 
+        array types, which implement the Typed Array spec
         (issue http://crbug.com/50972).
 
         Performance improvements on the IA32 platform.

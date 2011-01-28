@@ -1805,9 +1805,8 @@ Genesis::Genesis(Handle<Object> global_object,
     AddToWeakGlobalContextList(*global_context_);
     Top::set_context(*global_context_);
     i::Counters::contexts_created_by_snapshot.Increment();
-    result_ = global_context_;
     JSFunction* empty_function =
-        JSFunction::cast(result_->function_map()->prototype());
+        JSFunction::cast(global_context_->function_map()->prototype());
     empty_function_ = Handle<JSFunction>(empty_function);
     Handle<GlobalObject> inner_global;
     Handle<JSGlobalProxy> global_proxy =

@@ -430,7 +430,7 @@ Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
 
 
 Thread::Thread(const char* name) : ThreadHandle(ThreadHandle::INVALID) {
-  set_names(name);
+  set_name(name);
 }
 
 

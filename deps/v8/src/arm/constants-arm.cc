@@ -32,12 +32,10 @@
 #include "constants-arm.h"
 
 
-namespace assembler {
-namespace arm {
+namespace v8 {
+namespace internal {
 
-namespace v8i = v8::internal;
-
-double Instr::DoubleImmedVmov() const {
+double Instruction::DoubleImmedVmov() const {
   // Reconstruct a double from the immediate encoded in the vmov instruction.
   //
   //   instruction: [xxxxxxxx,xxxxabcd,xxxxxxxx,xxxxefgh]
@@ -149,6 +147,6 @@ int Registers::Number(const char* name) {
 }
 
 
-} }  // namespace assembler::arm
+} }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_ARM

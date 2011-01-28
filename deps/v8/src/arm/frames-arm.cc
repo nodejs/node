@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,20 +30,13 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "frames-inl.h"
-#include "arm/assembler-arm-inl.h"
-
 
 namespace v8 {
 namespace internal {
 
 
 Address ExitFrame::ComputeStackPointer(Address fp) {
-  Address marker = Memory::Address_at(fp + ExitFrameConstants::kMarkerOffset);
-  Address sp = fp + ExitFrameConstants::kSPOffset;
-  if (marker == NULL) {
-    sp -= DwVfpRegister::kNumRegisters * kDoubleSize + 2 * kPointerSize;
-  }
-  return sp;
+  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
 }
 
 

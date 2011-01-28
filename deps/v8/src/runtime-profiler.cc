@@ -193,22 +193,9 @@ static void AttemptOnStackReplacement(JSFunction* function) {
   if (maybe_check_code->ToObject(&check_code)) {
     Code* replacement_code = Builtins::builtin(Builtins::OnStackReplacement);
     Code* unoptimized_code = shared->code();
-    // Iterate the unoptimized code and patch every stack check except at
-    // the function entry.  This code assumes the function entry stack
-    // check appears first i.e., is not deferred or otherwise reordered.
-    bool first = true;
-    for (RelocIterator it(unoptimized_code, RelocInfo::kCodeTargetMask);
-         !it.done();
-         it.next()) {
-      RelocInfo* rinfo = it.rinfo();
-      if (rinfo->target_address() == Code::cast(check_code)->entry()) {
-        if (first) {
-          first = false;
-        } else {
-          Deoptimizer::PatchStackCheckCode(rinfo, replacement_code);
-        }
-      }
-    }
+    Deoptimizer::PatchStackCheckCode(unoptimized_code,
+                                     Code::cast(check_code),
+                                     replacement_code);
   }
 }
 

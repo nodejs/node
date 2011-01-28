@@ -95,6 +95,7 @@ SOURCES = {
     mark-compact.cc
     messages.cc
     objects.cc
+    objects-printer.cc
     objects-visiting.cc
     oprofile-agent.cc
     parser.cc
@@ -216,8 +217,9 @@ SOURCES = {
     x64/full-codegen-x64.cc
     x64/ic-x64.cc
     x64/jump-target-x64.cc
-    x64/lithium-x64.cc
     x64/lithium-codegen-x64.cc
+    x64/lithium-gap-resolver-x64.cc
+    x64/lithium-x64.cc
     x64/macro-assembler-x64.cc
     x64/regexp-macro-assembler-x64.cc
     x64/register-allocator-x64.cc
@@ -236,10 +238,8 @@ SOURCES = {
   'os:win32':   ['platform-win32.cc'],
   'mode:release': [],
   'mode:debug': [
-    'objects-debug.cc', 'objects-printer.cc', 'prettyprinter.cc',
-    'regexp-macro-assembler-tracer.cc'
-  ],
-  'objectprint:on': ['objects-printer.cc']
+    'objects-debug.cc', 'prettyprinter.cc', 'regexp-macro-assembler-tracer.cc'
+  ]
 }
 
 

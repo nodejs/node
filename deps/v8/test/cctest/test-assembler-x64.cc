@@ -48,6 +48,12 @@ using v8::internal::rcx;
 using v8::internal::rdx;
 using v8::internal::rbp;
 using v8::internal::rsp;
+using v8::internal::r8;
+using v8::internal::r9;
+using v8::internal::r12;
+using v8::internal::r13;
+using v8::internal::times_1;
+
 using v8::internal::FUNCTION_CAST;
 using v8::internal::CodeDesc;
 using v8::internal::less_equal;
@@ -287,6 +293,49 @@ TEST(AssemblerX64LoopImmediates) {
   // Call the function from C++.
   int result =  FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(1, result);
+}
+
+
+TEST(OperandRegisterDependency) {
+  int offsets[4] = {0, 1, 0xfed, 0xbeefcad};
+  for (int i = 0; i < 4; i++) {
+    int offset = offsets[i];
+    CHECK(Operand(rax, offset).AddressUsesRegister(rax));
+    CHECK(!Operand(rax, offset).AddressUsesRegister(r8));
+    CHECK(!Operand(rax, offset).AddressUsesRegister(rcx));
+
+    CHECK(Operand(rax, rax, times_1, offset).AddressUsesRegister(rax));
+    CHECK(!Operand(rax, rax, times_1, offset).AddressUsesRegister(r8));
+    CHECK(!Operand(rax, rax, times_1, offset).AddressUsesRegister(rcx));
+
+    CHECK(Operand(rax, rcx, times_1, offset).AddressUsesRegister(rax));
+    CHECK(Operand(rax, rcx, times_1, offset).AddressUsesRegister(rcx));
+    CHECK(!Operand(rax, rcx, times_1, offset).AddressUsesRegister(r8));
+    CHECK(!Operand(rax, rcx, times_1, offset).AddressUsesRegister(r9));
+    CHECK(!Operand(rax, rcx, times_1, offset).AddressUsesRegister(rdx));
+    CHECK(!Operand(rax, rcx, times_1, offset).AddressUsesRegister(rsp));
+
+    CHECK(Operand(rsp, offset).AddressUsesRegister(rsp));
+    CHECK(!Operand(rsp, offset).AddressUsesRegister(rax));
+    CHECK(!Operand(rsp, offset).AddressUsesRegister(r12));
+
+    CHECK(Operand(rbp, offset).AddressUsesRegister(rbp));
+    CHECK(!Operand(rbp, offset).AddressUsesRegister(rax));
+    CHECK(!Operand(rbp, offset).AddressUsesRegister(r13));
+
+    CHECK(Operand(rbp, rax, times_1, offset).AddressUsesRegister(rbp));
+    CHECK(Operand(rbp, rax, times_1, offset).AddressUsesRegister(rax));
+    CHECK(!Operand(rbp, rax, times_1, offset).AddressUsesRegister(rcx));
+    CHECK(!Operand(rbp, rax, times_1, offset).AddressUsesRegister(r13));
+    CHECK(!Operand(rbp, rax, times_1, offset).AddressUsesRegister(r8));
+    CHECK(!Operand(rbp, rax, times_1, offset).AddressUsesRegister(rsp));
+
+    CHECK(Operand(rsp, rbp, times_1, offset).AddressUsesRegister(rsp));
+    CHECK(Operand(rsp, rbp, times_1, offset).AddressUsesRegister(rbp));
+    CHECK(!Operand(rsp, rbp, times_1, offset).AddressUsesRegister(rax));
+    CHECK(!Operand(rsp, rbp, times_1, offset).AddressUsesRegister(r12));
+    CHECK(!Operand(rsp, rbp, times_1, offset).AddressUsesRegister(r13));
+  }
 }
 
 #undef __

@@ -335,7 +335,7 @@ void ExternalReferenceTable::PopulateTable() {
 
   Add(ExternalReference::delete_handle_scope_extensions().address(),
       RUNTIME_ENTRY,
-      3,
+      4,
       "HandleScope::DeleteExtensions");
 
   // Miscellaneous
@@ -504,7 +504,7 @@ void ExternalReferenceTable::PopulateTable() {
       "power_double_int_function");
   Add(ExternalReference::arguments_marker_location().address(),
       UNCLASSIFIED,
-      40,
+      41,
       "Factory::arguments_marker().location()");
 }
 

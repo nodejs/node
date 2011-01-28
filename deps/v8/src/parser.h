@@ -613,6 +613,14 @@ class Parser {
                                            bool* is_set,
                                            bool* ok);
 
+  // Strict mode validation of LValue expressions
+  void CheckStrictModeLValue(Expression* expression,
+                             const char* error,
+                             bool* ok);
+
+  // Strict mode octal literal validation.
+  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok);
+
   // Parser support
   VariableProxy* Declare(Handle<String> name, Variable::Mode mode,
                          FunctionLiteral* fun,

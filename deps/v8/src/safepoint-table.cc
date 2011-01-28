@@ -117,24 +117,9 @@ void Safepoint::DefinePointerRegister(Register reg) {
 }
 
 
-Safepoint SafepointTableBuilder::DefineSafepoint(Assembler* assembler,
-                                                 int deoptimization_index) {
-  ASSERT(deoptimization_index != -1);
-  DeoptimizationInfo pc_and_deoptimization_index;
-  pc_and_deoptimization_index.pc = assembler->pc_offset();
-  pc_and_deoptimization_index.deoptimization_index = deoptimization_index;
-  pc_and_deoptimization_index.pc_after_gap = assembler->pc_offset();
-  pc_and_deoptimization_index.arguments = 0;
-  pc_and_deoptimization_index.has_doubles = false;
-  deoptimization_info_.Add(pc_and_deoptimization_index);
-  indexes_.Add(new ZoneList<int>(8));
-  registers_.Add(NULL);
-  return Safepoint(indexes_.last(), registers_.last());
-}
-
-
-Safepoint SafepointTableBuilder::DefineSafepointWithRegisters(
-    Assembler* assembler, int arguments, int deoptimization_index) {
+Safepoint SafepointTableBuilder::DefineSafepoint(
+    Assembler* assembler, Safepoint::Kind kind, int arguments,
+    int deoptimization_index) {
   ASSERT(deoptimization_index != -1);
   ASSERT(arguments >= 0);
   DeoptimizationInfo pc_and_deoptimization_index;
@@ -142,29 +127,15 @@ Safepoint SafepointTableBuilder::DefineSafepointWithRegisters(
   pc_and_deoptimization_index.deoptimization_index = deoptimization_index;
   pc_and_deoptimization_index.pc_after_gap = assembler->pc_offset();
   pc_and_deoptimization_index.arguments = arguments;
-  pc_and_deoptimization_index.has_doubles = false;
+  pc_and_deoptimization_index.has_doubles = (kind & Safepoint::kWithDoubles);
   deoptimization_info_.Add(pc_and_deoptimization_index);
   indexes_.Add(new ZoneList<int>(8));
-  registers_.Add(new ZoneList<int>(4));
+  registers_.Add((kind & Safepoint::kWithRegisters)
+      ? new ZoneList<int>(4)
+      : NULL);
   return Safepoint(indexes_.last(), registers_.last());
 }
 
-
-Safepoint SafepointTableBuilder::DefineSafepointWithRegistersAndDoubles(
-    Assembler* assembler, int arguments, int deoptimization_index) {
-  ASSERT(deoptimization_index != -1);
-  ASSERT(arguments >= 0);
-  DeoptimizationInfo pc_and_deoptimization_index;
-  pc_and_deoptimization_index.pc = assembler->pc_offset();
-  pc_and_deoptimization_index.deoptimization_index = deoptimization_index;
-  pc_and_deoptimization_index.pc_after_gap = assembler->pc_offset();
-  pc_and_deoptimization_index.arguments = arguments;
-  pc_and_deoptimization_index.has_doubles = true;
-  deoptimization_info_.Add(pc_and_deoptimization_index);
-  indexes_.Add(new ZoneList<int>(8));
-  registers_.Add(new ZoneList<int>(4));
-  return Safepoint(indexes_.last(), registers_.last());
-}
 
 unsigned SafepointTableBuilder::GetCodeOffset() const {
   ASSERT(emitted_);

@@ -32,7 +32,7 @@ import os
 from os.path import join, dirname, abspath
 from types import DictType, StringTypes
 root_dir = dirname(File('SConstruct').rfile().abspath)
-sys.path.append(join(root_dir, 'tools'))
+sys.path.insert(0, join(root_dir, 'tools'))
 import js2c, utils
 
 # ANDROID_TOP is the top of the Android checkout, fetched from the environment
@@ -127,12 +127,16 @@ LIBRARY_FLAGS = {
     },
     'inspector:on': {
       'CPPDEFINES':   ['INSPECTOR'],
+    },
+    'liveobjectlist:on': {
+      'CPPDEFINES':   ['ENABLE_DEBUGGER_SUPPORT', 'INSPECTOR',
+                       'LIVE_OBJECT_LIST', 'OBJECT_PRINT'],
     }
   },
   'gcc': {
     'all': {
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
-      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions', '-fno-builtin-memcpy'],
+      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
     },
     'visibility:hidden': {
       # Use visibility=default to disable this.
@@ -325,7 +329,7 @@ V8_EXTRA_FLAGS = {
   },
   'msvc': {
     'all': {
-      'WARNINGFLAGS': ['/W3', '/WX', '/wd4355', '/wd4800']
+      'WARNINGFLAGS': ['/W3', '/WX', '/wd4351', '/wd4355', '/wd4800']
     },
     'library:shared': {
       'CPPDEFINES': ['BUILDING_V8_SHARED'],
@@ -751,6 +755,11 @@ SIMPLE_OPTIONS = {
     'default': 'off',
     'help': 'enable inspector features'
   },
+  'liveobjectlist': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable live object list features in the debugger'
+  },
   'soname': {
     'values': ['on', 'off'],
     'default': 'off',
@@ -1008,6 +1017,13 @@ def PostprocessOptions(options, os):
       # Print a warning if native regexp is specified for mips
       print "Warning: forcing regexp to interpreted for mips"
     options['regexp'] = 'interpreted'
+  if options['liveobjectlist'] == 'on':
+    if (options['debuggersupport'] != 'on') or (options['mode'] == 'release'):
+      # Print a warning that liveobjectlist will implicitly enable the debugger
+      print "Warning: forcing debuggersupport on for liveobjectlist"
+    options['debuggersupport'] = 'on'
+    options['inspector'] = 'on'
+    options['objectprint'] = 'on'
 
 
 def ParseEnvOverrides(arg, imports):

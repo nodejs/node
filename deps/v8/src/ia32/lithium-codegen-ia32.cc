@@ -566,37 +566,40 @@ void LCodeGen::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
 }
 
 
-void LCodeGen::RecordSafepoint(LPointerMap* pointers,
-                               int deoptimization_index) {
+void LCodeGen::RecordSafepoint(
+    LPointerMap* pointers,
+    Safepoint::Kind kind,
+    int arguments,
+    int deoptimization_index) {
   const ZoneList<LOperand*>* operands = pointers->operands();
   Safepoint safepoint = safepoints_.DefineSafepoint(masm(),
-                                                    deoptimization_index);
+      kind, arguments, deoptimization_index);
   for (int i = 0; i < operands->length(); i++) {
     LOperand* pointer = operands->at(i);
     if (pointer->IsStackSlot()) {
       safepoint.DefinePointerSlot(pointer->index());
+    } else if (pointer->IsRegister() && (kind & Safepoint::kWithRegisters)) {
+      safepoint.DefinePointerRegister(ToRegister(pointer));
     }
   }
+  if (kind & Safepoint::kWithRegisters) {
+    // Register esi always contains a pointer to the context.
+    safepoint.DefinePointerRegister(esi);
+  }
+}
+
+
+void LCodeGen::RecordSafepoint(LPointerMap* pointers,
+                               int deoptimization_index) {
+  RecordSafepoint(pointers, Safepoint::kSimple, 0, deoptimization_index);
 }
 
 
 void LCodeGen::RecordSafepointWithRegisters(LPointerMap* pointers,
                                             int arguments,
                                             int deoptimization_index) {
-  const ZoneList<LOperand*>* operands = pointers->operands();
-  Safepoint safepoint =
-      safepoints_.DefineSafepointWithRegisters(
-          masm(), arguments, deoptimization_index);
-  for (int i = 0; i < operands->length(); i++) {
-    LOperand* pointer = operands->at(i);
-    if (pointer->IsStackSlot()) {
-      safepoint.DefinePointerSlot(pointer->index());
-    } else if (pointer->IsRegister()) {
-      safepoint.DefinePointerRegister(ToRegister(pointer));
-    }
-  }
-  // Register esi always contains a pointer to the context.
-  safepoint.DefinePointerRegister(esi);
+  RecordSafepoint(pointers, Safepoint::kWithRegisters, arguments,
+      deoptimization_index);
 }
 
 
@@ -1908,7 +1911,19 @@ void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
 
 void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
   Register value = ToRegister(instr->InputAt(0));
-  __ mov(Operand::Cell(instr->hydrogen()->cell()), value);
+  Operand cell_operand = Operand::Cell(instr->hydrogen()->cell());
+
+  // If the cell we are storing to contains the hole it could have
+  // been deleted from the property dictionary. In that case, we need
+  // to update the property details in the property dictionary to mark
+  // it as no longer deleted. We deoptimize in that case.
+  if (instr->hydrogen()->check_hole_value()) {
+    __ cmp(cell_operand, Factory::the_hole_value());
+    DeoptimizeIf(equal, instr->environment());
+  }
+
+  // Store the value.
+  __ mov(cell_operand, value);
 }
 
 

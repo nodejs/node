@@ -370,27 +370,31 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register receiver,
                                             Register scratch1,
                                             Register scratch2,
-                                            Label* miss) {
+                                            Label* miss,
+                                            bool support_wrappers) {
   Label check_wrapper;
 
   // Check if the object is a string leaving the instance type in the
   // scratch1 register.
-  GenerateStringCheck(masm, receiver, scratch1, scratch2, miss, &check_wrapper);
+  GenerateStringCheck(masm, receiver, scratch1, scratch2, miss,
+                      support_wrappers ? &check_wrapper : miss);
 
   // Load length directly from the string.
   __ ldr(r0, FieldMemOperand(receiver, String::kLengthOffset));
   __ Ret();
 
-  // Check if the object is a JSValue wrapper.
-  __ bind(&check_wrapper);
-  __ cmp(scratch1, Operand(JS_VALUE_TYPE));
-  __ b(ne, miss);
+  if (support_wrappers) {
+    // Check if the object is a JSValue wrapper.
+    __ bind(&check_wrapper);
+    __ cmp(scratch1, Operand(JS_VALUE_TYPE));
+    __ b(ne, miss);
 
-  // Unwrap the value and check if the wrapped value is a string.
-  __ ldr(scratch1, FieldMemOperand(receiver, JSValue::kValueOffset));
-  GenerateStringCheck(masm, scratch1, scratch2, scratch2, miss, miss);
-  __ ldr(r0, FieldMemOperand(scratch1, String::kLengthOffset));
-  __ Ret();
+    // Unwrap the value and check if the wrapped value is a string.
+    __ ldr(scratch1, FieldMemOperand(receiver, JSValue::kValueOffset));
+    GenerateStringCheck(masm, scratch1, scratch2, scratch2, miss, miss);
+    __ ldr(r0, FieldMemOperand(scratch1, String::kLengthOffset));
+    __ Ret();
+  }
 }
 
 
@@ -521,7 +525,7 @@ static void GenerateCallFunction(MacroAssembler* masm,
   // -----------------------------------
 
   // Check that the function really is a function.
-  __ BranchOnSmi(r1, miss);
+  __ JumpIfSmi(r1, miss);
   __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
   __ b(ne, miss);
 
@@ -660,7 +664,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
 
     // Check that the receiver isn't a smi.
-    __ BranchOnSmi(receiver, miss);
+    __ JumpIfSmi(receiver, miss);
 
     CallOptimization optimization(lookup);
 
@@ -1194,17 +1198,16 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
 }
 
 
-bool StubCompiler::GenerateLoadCallback(JSObject* object,
-                                        JSObject* holder,
-                                        Register receiver,
-                                        Register name_reg,
-                                        Register scratch1,
-                                        Register scratch2,
-                                        Register scratch3,
-                                        AccessorInfo* callback,
-                                        String* name,
-                                        Label* miss,
-                                        Failure** failure) {
+MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
+                                                JSObject* holder,
+                                                Register receiver,
+                                                Register name_reg,
+                                                Register scratch1,
+                                                Register scratch2,
+                                                Register scratch3,
+                                                AccessorInfo* callback,
+                                                String* name,
+                                                Label* miss) {
   // Check that the receiver isn't a smi.
   __ tst(receiver, Operand(kSmiTagMask));
   __ b(eq, miss);
@@ -1225,7 +1228,7 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
       ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
   __ TailCallExternalReference(load_callback_property, 5, 1);
 
-  return true;
+  return Heap::undefined_value();  // Success.
 }
 
 
@@ -1243,7 +1246,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
   ASSERT(!interceptor_holder->GetNamedInterceptor()->getter()->IsUndefined());
 
   // Check that the receiver isn't a smi.
-  __ BranchOnSmi(receiver, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // So far the most popular follow ups for interceptor loads are FIELD
   // and CALLBACKS, so inline only them, other cases may be added
@@ -1511,7 +1514,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
   __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
 
   // Check that the receiver isn't a smi.
-  __ BranchOnSmi(receiver, &miss);
+  __ JumpIfSmi(receiver, &miss);
 
   // Check that the maps haven't changed.
   CheckPrototypes(JSObject::cast(object), receiver,
@@ -1565,7 +1568,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
 
       // Check for a smi.
-      __ BranchOnNotSmi(r4, &with_write_barrier);
+      __ JumpIfNotSmi(r4, &with_write_barrier);
       __ bind(&exit);
       __ Drop(argc + 1);
       __ Ret();
@@ -1672,7 +1675,7 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
 
   // Check that the receiver isn't a smi.
-  __ BranchOnSmi(receiver, &miss);
+  __ JumpIfSmi(receiver, &miss);
 
   // Check that the maps haven't changed.
   CheckPrototypes(JSObject::cast(object),
@@ -2009,7 +2012,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
     __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
 
     STATIC_ASSERT(kSmiTag == 0);
-    __ BranchOnSmi(r1, &miss);
+    __ JumpIfSmi(r1, &miss);
 
     CheckPrototypes(JSObject::cast(object), r1, holder, r0, r3, r4, name,
                     &miss);
@@ -2168,7 +2171,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   // Check if the argument is a smi.
   Label not_smi;
   STATIC_ASSERT(kSmiTag == 0);
-  __ BranchOnNotSmi(r0, &not_smi);
+  __ JumpIfNotSmi(r0, &not_smi);
 
   // Do bitwise not or do nothing depending on the sign of the
   // argument.
@@ -2646,9 +2649,18 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ cmp(r3, Operand(Handle<Map>(object->map())));
   __ b(ne, &miss);
 
+  // Check that the value in the cell is not the hole. If it is, this
+  // cell could have been deleted and reintroducing the global needs
+  // to update the property details in the property dictionary of the
+  // global object. We bail out to the runtime system to do that.
+  __ mov(r4, Operand(Handle<JSGlobalPropertyCell>(cell)));
+  __ LoadRoot(r5, Heap::kTheHoleValueRootIndex);
+  __ ldr(r6, FieldMemOperand(r4, JSGlobalPropertyCell::kValueOffset));
+  __ cmp(r5, r6);
+  __ b(eq, &miss);
+
   // Store the value in the cell.
-  __ mov(r2, Operand(Handle<JSGlobalPropertyCell>(cell)));
-  __ str(r0, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+  __ str(r0, FieldMemOperand(r4, JSGlobalPropertyCell::kValueOffset));
 
   __ IncrementCounter(&Counters::named_store_global_inline, 1, r4, r3);
   __ Ret();
@@ -2738,12 +2750,11 @@ MaybeObject* LoadStubCompiler::CompileLoadCallback(String* name,
   // -----------------------------------
   Label miss;
 
-  Failure* failure = Failure::InternalError();
-  bool success = GenerateLoadCallback(object, holder, r0, r2, r3, r1, r4,
-                                      callback, name, &miss, &failure);
-  if (!success) {
+  MaybeObject* result = GenerateLoadCallback(object, holder, r0, r2, r3, r1, r4,
+                                             callback, name, &miss);
+  if (result->IsFailure()) {
     miss.Unuse();
-    return failure;
+    return result;
   }
 
   __ bind(&miss);
@@ -2890,12 +2901,11 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadCallback(
   __ cmp(r0, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  Failure* failure = Failure::InternalError();
-  bool success = GenerateLoadCallback(receiver, holder, r1, r0, r2, r3, r4,
-                                      callback, name, &miss, &failure);
-  if (!success) {
+  MaybeObject* result = GenerateLoadCallback(receiver, holder, r1, r0, r2, r3,
+                                             r4, callback, name, &miss);
+  if (result->IsFailure()) {
     miss.Unuse();
-    return failure;
+    return result;
   }
 
   __ bind(&miss);
@@ -2995,7 +3005,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   __ cmp(r0, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  GenerateLoadStringLength(masm(), r1, r2, r3, &miss);
+  GenerateLoadStringLength(masm(), r1, r2, r3, &miss, true);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_string_length, 1, r2, r3);
 
@@ -3361,10 +3371,10 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
   Register receiver = r1;
 
   // Check that the object isn't a smi
-  __ BranchOnSmi(receiver, &slow);
+  __ JumpIfSmi(receiver, &slow);
 
   // Check that the key is a smi.
-  __ BranchOnNotSmi(key, &slow);
+  __ JumpIfNotSmi(key, &slow);
 
   // Check that the object is a JS object. Load map into r2.
   __ CompareObjectType(receiver, r2, r3, FIRST_JS_OBJECT_TYPE);
@@ -3645,7 +3655,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // r3 mostly holds the elements array or the destination external array.
 
   // Check that the object isn't a smi.
-  __ BranchOnSmi(receiver, &slow);
+  __ JumpIfSmi(receiver, &slow);
 
   // Check that the object is a JS object. Load map into r3.
   __ CompareObjectType(receiver, r3, r4, FIRST_JS_OBJECT_TYPE);
@@ -3658,7 +3668,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   __ b(ne, &slow);
 
   // Check that the key is a smi.
-  __ BranchOnNotSmi(key, &slow);
+  __ JumpIfNotSmi(key, &slow);
 
   // Check that the elements array is the appropriate type of ExternalArray.
   __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
@@ -3678,7 +3688,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // runtime for all other kinds of values.
   // r3: external array.
   // r4: key (integer).
-  __ BranchOnNotSmi(value, &check_heap_number);
+  __ JumpIfNotSmi(value, &check_heap_number);
   __ mov(r5, Operand(value, ASR, kSmiTagSize));  // Untag the value.
   __ ldr(r3, FieldMemOperand(r3, ExternalArray::kExternalPointerOffset));
 

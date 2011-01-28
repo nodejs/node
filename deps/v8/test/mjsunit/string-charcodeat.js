@@ -205,3 +205,23 @@ assertTrue(isNaN(long.charCodeAt(-1)), 35);
 assertEquals(49, long.charCodeAt(0), 36);
 assertEquals(56, long.charCodeAt(65535), 37);
 assertTrue(isNaN(long.charCodeAt(65536)), 38);
+
+
+// Test crankshaft code when the function is set directly on the
+// string prototype object instead of the hidden prototype object.
+// See http://code.google.com/p/v8/issues/detail?id=1070
+
+String.prototype.x = String.prototype.charCodeAt;
+
+function directlyOnPrototype() {
+  assertEquals(97, "a".x(0));
+  assertEquals(98, "b".x(0));
+  assertEquals(99, "c".x(0));
+  assertEquals(97, "a".x(0));
+  assertEquals(98, "b".x(0));
+  assertEquals(99, "c".x(0));
+}
+
+for (var i = 0; i < 10000; i++) {
+  directlyOnPrototype();
+}

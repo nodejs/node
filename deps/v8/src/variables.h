@@ -187,14 +187,9 @@ class Variable: public ZoneObject {
   Scope* scope_;
   Handle<String> name_;
   Mode mode_;
-  bool is_valid_LHS_;
   Kind kind_;
 
   Variable* local_if_not_shadowed_;
-
-  // Usage info.
-  bool is_accessed_from_inner_scope_;  // set by variable resolver
-  bool is_used_;
 
   // Static type information
   StaticType type_;
@@ -202,6 +197,13 @@ class Variable: public ZoneObject {
   // Code generation.
   // rewrite_ is usually a Slot or a Property, but may be any expression.
   Expression* rewrite_;
+
+  // Valid as a LHS? (const and this are not valid LHS, for example)
+  bool is_valid_LHS_;
+
+  // Usage info.
+  bool is_accessed_from_inner_scope_;  // set by variable resolver
+  bool is_used_;
 };
 
 

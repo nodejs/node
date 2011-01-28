@@ -561,7 +561,33 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 
 static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
                                              Deoptimizer::BailoutType type) {
-  __ int3();
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Pass the deoptimization type to the runtime system.
+  __ Push(Smi::FromInt(static_cast<int>(type)));
+
+  __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
+  // Tear down temporary frame.
+  __ LeaveInternalFrame();
+
+  // Get the full codegen state from the stack and untag it.
+  __ SmiToInteger32(rcx, Operand(rsp, 1 * kPointerSize));
+
+  // Switch on the state.
+  NearLabel not_no_registers, not_tos_rax;
+  __ cmpq(rcx, Immediate(FullCodeGenerator::NO_REGISTERS));
+  __ j(not_equal, &not_no_registers);
+  __ ret(1 * kPointerSize);  // Remove state.
+
+  __ bind(&not_no_registers);
+  __ movq(rax, Operand(rsp, 2 * kPointerSize));
+  __ cmpq(rcx, Immediate(FullCodeGenerator::TOS_REG));
+  __ j(not_equal, &not_tos_rax);
+  __ ret(2 * kPointerSize);  // Remove state, rax.
+
+  __ bind(&not_tos_rax);
+  __ Abort("no cases left");
 }
 
 void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {

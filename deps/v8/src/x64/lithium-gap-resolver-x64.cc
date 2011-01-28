@@ -25,22 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "ia32/lithium-gap-resolver-ia32.h"
-#include "ia32/lithium-codegen-ia32.h"
+#include "v8.h"
+
+#if defined(V8_TARGET_ARCH_X64)
+
+#include "x64/lithium-gap-resolver-x64.h"
+#include "x64/lithium-codegen-x64.h"
 
 namespace v8 {
 namespace internal {
 
 LGapResolver::LGapResolver(LCodeGen* owner)
-    : cgen_(owner),
-      moves_(32),
-      source_uses_(),
-      destination_uses_(),
-      spilled_register_(-1) {}
+    : cgen_(owner), moves_(32) {}
 
 
 void LGapResolver::Resolve(LParallelMove* parallel_move) {
-  ASSERT(HasBeenReset());
+  ASSERT(moves_.is_empty());
   // Build up a worklist of moves.
   BuildInitialMoveList(parallel_move);
 
@@ -62,8 +62,7 @@ void LGapResolver::Resolve(LParallelMove* parallel_move) {
     }
   }
 
-  Finish();
-  ASSERT(HasBeenReset());
+  moves_.Rewind(0);
 }
 
 
@@ -75,7 +74,7 @@ void LGapResolver::BuildInitialMoveList(LParallelMove* parallel_move) {
   const ZoneList<LMoveOperands>* moves = parallel_move->move_operands();
   for (int i = 0; i < moves->length(); ++i) {
     LMoveOperands move = moves->at(i);
-    if (!move.IsRedundant()) AddMove(move);
+    if (!move.IsRedundant()) moves_.Add(move);
   }
   Verify();
 }
@@ -93,7 +92,8 @@ void LGapResolver::PerformMove(int index) {
   ASSERT(!moves_[index].IsRedundant());
 
   // Clear this move's destination to indicate a pending move.  The actual
-  // destination is saved on the side.
+  // destination is saved in a stack-allocated local.  Recursion may allow
+  // multiple moves to be pending.
   ASSERT(moves_[index].source() != NULL);  // Or else it will look eliminated.
   LOperand* destination = moves_[index].destination();
   moves_[index].set_destination(NULL);
@@ -125,7 +125,7 @@ void LGapResolver::PerformMove(int index) {
   // This move's source may have changed due to swaps to resolve cycles and
   // so it may now be the last move in the cycle.  If so remove it.
   if (moves_[index].source()->Equals(destination)) {
-    RemoveMove(index);
+    moves_[index].Eliminate();
     return;
   }
 
@@ -146,68 +146,6 @@ void LGapResolver::PerformMove(int index) {
 }
 
 
-void LGapResolver::AddMove(LMoveOperands move) {
-  LOperand* source = move.source();
-  if (source->IsRegister()) ++source_uses_[source->index()];
-
-  LOperand* destination = move.destination();
-  if (destination->IsRegister()) ++destination_uses_[destination->index()];
-
-  moves_.Add(move);
-}
-
-
-void LGapResolver::RemoveMove(int index) {
-  LOperand* source = moves_[index].source();
-  if (source->IsRegister()) {
-    --source_uses_[source->index()];
-    ASSERT(source_uses_[source->index()] >= 0);
-  }
-
-  LOperand* destination = moves_[index].destination();
-  if (destination->IsRegister()) {
-    --destination_uses_[destination->index()];
-    ASSERT(destination_uses_[destination->index()] >= 0);
-  }
-
-  moves_[index].Eliminate();
-}
-
-
-int LGapResolver::CountSourceUses(LOperand* operand) {
-  int count = 0;
-  for (int i = 0; i < moves_.length(); ++i) {
-    if (!moves_[i].IsEliminated() && moves_[i].source()->Equals(operand)) {
-      ++count;
-    }
-  }
-  return count;
-}
-
-
-Register LGapResolver::GetFreeRegisterNot(Register reg) {
-  int skip_index = reg.is(no_reg) ? -1 : Register::ToAllocationIndex(reg);
-  for (int i = 0; i < Register::kNumAllocatableRegisters; ++i) {
-    if (source_uses_[i] == 0 && destination_uses_[i] > 0 && i != skip_index) {
-      return Register::FromAllocationIndex(i);
-    }
-  }
-  return no_reg;
-}
-
-
-bool LGapResolver::HasBeenReset() {
-  if (!moves_.is_empty()) return false;
-  if (spilled_register_ >= 0) return false;
-
-  for (int i = 0; i < Register::kNumAllocatableRegisters; ++i) {
-    if (source_uses_[i] != 0) return false;
-    if (destination_uses_[i] != 0) return false;
-  }
-  return true;
-}
-
-
 void LGapResolver::Verify() {
 #ifdef ENABLE_SLOW_ASSERTS
   // No operand should be the destination for more than one move.
@@ -223,201 +161,135 @@ void LGapResolver::Verify() {
 
 #define __ ACCESS_MASM(cgen_->masm())
 
-void LGapResolver::Finish() {
-  if (spilled_register_ >= 0) {
-    __ pop(Register::FromAllocationIndex(spilled_register_));
-    spilled_register_ = -1;
-  }
-  moves_.Rewind(0);
-}
-
-
-void LGapResolver::EnsureRestored(LOperand* operand) {
-  if (operand->IsRegister() && operand->index() == spilled_register_) {
-    __ pop(Register::FromAllocationIndex(spilled_register_));
-    spilled_register_ = -1;
-  }
-}
-
-
-Register LGapResolver::EnsureTempRegister() {
-  // 1. We may have already spilled to create a temp register.
-  if (spilled_register_ >= 0) {
-    return Register::FromAllocationIndex(spilled_register_);
-  }
-
-  // 2. We may have a free register that we can use without spilling.
-  Register free = GetFreeRegisterNot(no_reg);
-  if (!free.is(no_reg)) return free;
-
-  // 3. Prefer to spill a register that is not used in any remaining move
-  // because it will not need to be restored until the end.
-  for (int i = 0; i < Register::kNumAllocatableRegisters; ++i) {
-    if (source_uses_[i] == 0 && destination_uses_[i] == 0) {
-      Register scratch = Register::FromAllocationIndex(i);
-      __ push(scratch);
-      spilled_register_ = i;
-      return scratch;
-    }
-  }
-
-  // 4. Use an arbitrary register.  Register 0 is as arbitrary as any other.
-  Register scratch = Register::FromAllocationIndex(0);
-  __ push(scratch);
-  spilled_register_ = 0;
-  return scratch;
-}
-
 
 void LGapResolver::EmitMove(int index) {
   LOperand* source = moves_[index].source();
   LOperand* destination = moves_[index].destination();
-  EnsureRestored(source);
-  EnsureRestored(destination);
 
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
   if (source->IsRegister()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
     Register src = cgen_->ToRegister(source);
-    Operand dst = cgen_->ToOperand(destination);
-    __ mov(dst, src);
+    if (destination->IsRegister()) {
+      Register dst = cgen_->ToRegister(destination);
+      __ movq(dst, src);
+    } else {
+      ASSERT(destination->IsStackSlot());
+      Operand dst = cgen_->ToOperand(destination);
+      __ movq(dst, src);
+    }
 
   } else if (source->IsStackSlot()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
     Operand src = cgen_->ToOperand(source);
     if (destination->IsRegister()) {
       Register dst = cgen_->ToRegister(destination);
-      __ mov(dst, src);
+      __ movq(dst, src);
     } else {
-      // Spill on demand to use a temporary register for memory-to-memory
-      // moves.
-      Register tmp = EnsureTempRegister();
+      ASSERT(destination->IsStackSlot());
       Operand dst = cgen_->ToOperand(destination);
-      __ mov(tmp, src);
-      __ mov(dst, tmp);
+      __ movq(kScratchRegister, src);
+      __ movq(dst, kScratchRegister);
     }
 
   } else if (source->IsConstantOperand()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
-    Immediate src = cgen_->ToImmediate(source);
-    Operand dst = cgen_->ToOperand(destination);
-    __ mov(dst, src);
-
-  } else if (source->IsDoubleRegister()) {
-    ASSERT(destination->IsDoubleRegister() ||
-           destination->IsDoubleStackSlot());
-    XMMRegister src = cgen_->ToDoubleRegister(source);
-    Operand dst = cgen_->ToOperand(destination);
-    __ movdbl(dst, src);
-
-  } else if (source->IsDoubleStackSlot()) {
-    ASSERT(destination->IsDoubleRegister() ||
-           destination->IsDoubleStackSlot());
-    Operand src = cgen_->ToOperand(source);
-    if (destination->IsDoubleRegister()) {
-      XMMRegister dst = cgen_->ToDoubleRegister(destination);
-      __ movdbl(dst, src);
+    LConstantOperand* constant_source = LConstantOperand::cast(source);
+    if (destination->IsRegister()) {
+      Register dst = cgen_->ToRegister(destination);
+      if (cgen_->IsInteger32Constant(constant_source)) {
+        __ movl(dst, Immediate(cgen_->ToInteger32(constant_source)));
+      } else {
+        __ Move(dst, cgen_->ToHandle(constant_source));
+      }
     } else {
-      // We rely on having xmm0 available as a fixed scratch register.
+      ASSERT(destination->IsStackSlot());
       Operand dst = cgen_->ToOperand(destination);
-      __ movdbl(xmm0, src);
-      __ movdbl(dst, xmm0);
+      if (cgen_->IsInteger32Constant(constant_source)) {
+        // Allow top 32 bits of an untagged Integer32 to be arbitrary.
+        __ movl(dst, Immediate(cgen_->ToInteger32(constant_source)));
+      } else {
+        __ Move(dst, cgen_->ToHandle(constant_source));
+      }
     }
 
+  } else if (source->IsDoubleRegister()) {
+    XMMRegister src = cgen_->ToDoubleRegister(source);
+    if (destination->IsDoubleRegister()) {
+      __ movsd(cgen_->ToDoubleRegister(destination), src);
+    } else {
+      ASSERT(destination->IsDoubleStackSlot());
+      __ movsd(cgen_->ToOperand(destination), src);
+    }
+  } else if (source->IsDoubleStackSlot()) {
+    Operand src = cgen_->ToOperand(source);
+    if (destination->IsDoubleRegister()) {
+      __ movsd(cgen_->ToDoubleRegister(destination), src);
+    } else {
+      ASSERT(destination->IsDoubleStackSlot());
+      __ movsd(xmm0, src);
+      __ movsd(cgen_->ToOperand(destination), xmm0);
+    }
   } else {
     UNREACHABLE();
   }
 
-  RemoveMove(index);
+  moves_[index].Eliminate();
 }
 
 
 void LGapResolver::EmitSwap(int index) {
   LOperand* source = moves_[index].source();
   LOperand* destination = moves_[index].destination();
-  EnsureRestored(source);
-  EnsureRestored(destination);
 
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
   if (source->IsRegister() && destination->IsRegister()) {
-    // Register-register.
+    // Swap two general-purpose registers.
     Register src = cgen_->ToRegister(source);
     Register dst = cgen_->ToRegister(destination);
     __ xchg(dst, src);
 
   } else if ((source->IsRegister() && destination->IsStackSlot()) ||
              (source->IsStackSlot() && destination->IsRegister())) {
-    // Register-memory.  Use a free register as a temp if possible.  Do not
-    // spill on demand because the simple spill implementation cannot avoid
-    // spilling src at this point.
-    Register tmp = GetFreeRegisterNot(no_reg);
+    // Swap a general-purpose register and a stack slot.
     Register reg =
         cgen_->ToRegister(source->IsRegister() ? source : destination);
     Operand mem =
         cgen_->ToOperand(source->IsRegister() ? destination : source);
-    if (tmp.is(no_reg)) {
-      __ xor_(reg, mem);
-      __ xor_(mem, reg);
-      __ xor_(reg, mem);
-    } else {
-      __ mov(tmp, mem);
-      __ mov(mem, reg);
-      __ mov(reg, tmp);
-    }
+    __ movq(kScratchRegister, mem);
+    __ movq(mem, reg);
+    __ movq(reg, kScratchRegister);
 
-  } else if (source->IsStackSlot() && destination->IsStackSlot()) {
-    // Memory-memory.  Spill on demand to use a temporary.  If there is a
-    // free register after that, use it as a second temporary.
-    Register tmp0 = EnsureTempRegister();
-    Register tmp1 = GetFreeRegisterNot(tmp0);
+  } else if ((source->IsStackSlot() && destination->IsStackSlot()) ||
+      (source->IsDoubleStackSlot() && destination->IsDoubleStackSlot())) {
+    // Swap two stack slots or two double stack slots.
     Operand src = cgen_->ToOperand(source);
     Operand dst = cgen_->ToOperand(destination);
-    if (tmp1.is(no_reg)) {
-      // Only one temp register available to us.
-      __ mov(tmp0, dst);
-      __ xor_(tmp0, src);
-      __ xor_(src, tmp0);
-      __ xor_(tmp0, src);
-      __ mov(dst, tmp0);
-    } else {
-      __ mov(tmp0, dst);
-      __ mov(tmp1, src);
-      __ mov(dst, tmp1);
-      __ mov(src, tmp0);
-    }
+    __ movsd(xmm0, src);
+    __ movq(kScratchRegister, dst);
+    __ movsd(dst, xmm0);
+    __ movq(src, kScratchRegister);
+
+  } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
+    // Swap two double registers.
+    XMMRegister source_reg = cgen_->ToDoubleRegister(source);
+    XMMRegister destination_reg = cgen_->ToDoubleRegister(destination);
+    __ movsd(xmm0, source_reg);
+    __ movsd(source_reg, destination_reg);
+    __ movsd(destination_reg, xmm0);
 
   } else if (source->IsDoubleRegister() || destination->IsDoubleRegister()) {
-    // XMM register-register or register-memory.  We rely on having xmm0
-    // available as a fixed scratch register.
-    ASSERT(source->IsDoubleRegister() || source->IsDoubleStackSlot());
-    ASSERT(destination->IsDoubleRegister() ||
-           destination->IsDoubleStackSlot());
+    // Swap a double register and a double stack slot.
+    ASSERT((source->IsDoubleRegister() && destination->IsDoubleStackSlot()) ||
+           (source->IsDoubleStackSlot() && destination->IsDoubleRegister()));
     XMMRegister reg = cgen_->ToDoubleRegister(source->IsDoubleRegister()
                                                   ? source
                                                   : destination);
-    Operand other =
-        cgen_->ToOperand(source->IsDoubleRegister() ? destination : source);
-    __ movdbl(xmm0, other);
-    __ movdbl(other, reg);
-    __ movdbl(reg, Operand(xmm0));
-
-  } else if (source->IsDoubleStackSlot() && destination->IsDoubleStackSlot()) {
-    // Double-width memory-to-memory.  Spill on demand to use a general
-    // purpose temporary register and also rely on having xmm0 available as
-    // a fixed scratch register.
-    Register tmp = EnsureTempRegister();
-    Operand src0 = cgen_->ToOperand(source);
-    Operand src1 = cgen_->HighOperand(source);
-    Operand dst0 = cgen_->ToOperand(destination);
-    Operand dst1 = cgen_->HighOperand(destination);
-    __ movdbl(xmm0, dst0);  // Save destination in xmm0.
-    __ mov(tmp, src0);  // Then use tmp to copy source to destination.
-    __ mov(dst0, tmp);
-    __ mov(tmp, src1);
-    __ mov(dst1, tmp);
-    __ movdbl(src0, xmm0);
+    LOperand* other = source->IsDoubleRegister() ? destination : source;
+    ASSERT(other->IsDoubleStackSlot());
+    Operand other_operand = cgen_->ToOperand(other);
+    __ movsd(xmm0, other_operand);
+    __ movsd(other_operand, reg);
+    __ movsd(reg, xmm0);
 
   } else {
     // No other combinations are possible.
@@ -426,7 +298,7 @@ void LGapResolver::EmitSwap(int index) {
 
   // The swap of source and destination has executed a move from source to
   // destination.
-  RemoveMove(index);
+  moves_[index].Eliminate();
 
   // Any unperformed (including pending) move with a source of either
   // this move's source or destination needs to have their source
@@ -439,22 +311,10 @@ void LGapResolver::EmitSwap(int index) {
       moves_[i].set_source(source);
     }
   }
-
-  // In addition to swapping the actual uses as sources, we need to update
-  // the use counts.
-  if (source->IsRegister() && destination->IsRegister()) {
-    int temp = source_uses_[source->index()];
-    source_uses_[source->index()] = source_uses_[destination->index()];
-    source_uses_[destination->index()] = temp;
-  } else if (source->IsRegister()) {
-    // We don't have use counts for non-register operands like destination.
-    // Compute those counts now.
-    source_uses_[source->index()] = CountSourceUses(source);
-  } else if (destination->IsRegister()) {
-    source_uses_[destination->index()] = CountSourceUses(destination);
-  }
 }
 
 #undef __
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_X64

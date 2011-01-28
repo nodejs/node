@@ -180,6 +180,13 @@ class SafepointTable BASE_EMBEDDED {
 
 class Safepoint BASE_EMBEDDED {
  public:
+  typedef enum {
+    kSimple = 0,
+    kWithRegisters = 1 << 0,
+    kWithDoubles = 1 << 1,
+    kWithRegistersAndDoubles = kWithRegisters | kWithDoubles
+  } Kind;
+
   static const int kNoDeoptimizationIndex =
       (1 << (SafepointEntry::kDeoptIndexBits)) - 1;
 
@@ -210,23 +217,7 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // Define a new safepoint for the current position in the body.
   Safepoint DefineSafepoint(
       Assembler* assembler,
-      int deoptimization_index = Safepoint::kNoDeoptimizationIndex);
-
-  // Define a new safepoint with registers on the stack for the
-  // current position in the body and take the number of arguments on
-  // top of the registers into account.
-  Safepoint DefineSafepointWithRegisters(
-      Assembler* assembler,
-      int arguments,
-      int deoptimization_index = Safepoint::kNoDeoptimizationIndex);
-
-  // Define a new safepoint with all double registers and the normal
-  // registers on the stack for the current position in the body and
-  // take the number of arguments on top of the registers into account.
-  // TODO(1043) Rewrite the three SafepointTableBuilder::DefineSafepoint
-  // methods to one method that uses template arguments.
-  Safepoint DefineSafepointWithRegistersAndDoubles(
-      Assembler* assembler,
+      Safepoint::Kind kind,
       int arguments,
       int deoptimization_index = Safepoint::kNoDeoptimizationIndex);
 

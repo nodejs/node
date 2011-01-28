@@ -218,6 +218,117 @@ class GenericBinaryOpStub : public CodeStub {
 };
 
 
+class TypeRecordingBinaryOpStub: public CodeStub {
+ public:
+  TypeRecordingBinaryOpStub(Token::Value op, OverwriteMode mode)
+      : op_(op),
+        mode_(mode),
+        operands_type_(TRBinaryOpIC::UNINITIALIZED),
+        result_type_(TRBinaryOpIC::UNINITIALIZED),
+        name_(NULL) {
+    use_vfp3_ = CpuFeatures::IsSupported(VFP3);
+    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
+  }
+
+  TypeRecordingBinaryOpStub(
+      int key,
+      TRBinaryOpIC::TypeInfo operands_type,
+      TRBinaryOpIC::TypeInfo result_type = TRBinaryOpIC::UNINITIALIZED)
+      : op_(OpBits::decode(key)),
+        mode_(ModeBits::decode(key)),
+        use_vfp3_(VFP3Bits::decode(key)),
+        operands_type_(operands_type),
+        result_type_(result_type),
+        name_(NULL) { }
+
+ private:
+  enum SmiCodeGenerateHeapNumberResults {
+    ALLOW_HEAPNUMBER_RESULTS,
+    NO_HEAPNUMBER_RESULTS
+  };
+
+  Token::Value op_;
+  OverwriteMode mode_;
+  bool use_vfp3_;
+
+  // Operand type information determined at runtime.
+  TRBinaryOpIC::TypeInfo operands_type_;
+  TRBinaryOpIC::TypeInfo result_type_;
+
+  char* name_;
+
+  const char* GetName();
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("TypeRecordingBinaryOpStub %d (op %s), "
+           "(mode %d, runtime_type_info %s)\n",
+           MinorKey(),
+           Token::String(op_),
+           static_cast<int>(mode_),
+           TRBinaryOpIC::GetName(operands_type_));
+  }
+#endif
+
+  // Minor key encoding in 16 bits RRRTTTVOOOOOOOMM.
+  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
+  class OpBits: public BitField<Token::Value, 2, 7> {};
+  class VFP3Bits: public BitField<bool, 9, 1> {};
+  class OperandTypeInfoBits: public BitField<TRBinaryOpIC::TypeInfo, 10, 3> {};
+  class ResultTypeInfoBits: public BitField<TRBinaryOpIC::TypeInfo, 13, 3> {};
+
+  Major MajorKey() { return TypeRecordingBinaryOp; }
+  int MinorKey() {
+    return OpBits::encode(op_)
+           | ModeBits::encode(mode_)
+           | VFP3Bits::encode(use_vfp3_)
+           | OperandTypeInfoBits::encode(operands_type_)
+           | ResultTypeInfoBits::encode(result_type_);
+  }
+
+  void Generate(MacroAssembler* masm);
+  void GenerateGeneric(MacroAssembler* masm);
+  void GenerateSmiSmiOperation(MacroAssembler* masm);
+  void GenerateVFPOperation(MacroAssembler* masm);
+  void GenerateSmiCode(MacroAssembler* masm,
+                       Label* gc_required,
+                       SmiCodeGenerateHeapNumberResults heapnumber_results);
+  void GenerateLoadArguments(MacroAssembler* masm);
+  void GenerateReturn(MacroAssembler* masm);
+  void GenerateUninitializedStub(MacroAssembler* masm);
+  void GenerateSmiStub(MacroAssembler* masm);
+  void GenerateInt32Stub(MacroAssembler* masm);
+  void GenerateHeapNumberStub(MacroAssembler* masm);
+  void GenerateStringStub(MacroAssembler* masm);
+  void GenerateGenericStub(MacroAssembler* masm);
+  void GenerateAddStrings(MacroAssembler* masm);
+  void GenerateCallRuntime(MacroAssembler* masm);
+
+  void GenerateHeapResultAllocation(MacroAssembler* masm,
+                                    Register result,
+                                    Register heap_number_map,
+                                    Register scratch1,
+                                    Register scratch2,
+                                    Label* gc_required);
+  void GenerateRegisterArgsPush(MacroAssembler* masm);
+  void GenerateTypeTransition(MacroAssembler* masm);
+  void GenerateTypeTransitionWithSavedArgs(MacroAssembler* masm);
+
+  virtual int GetCodeKind() { return Code::TYPE_RECORDING_BINARY_OP_IC; }
+
+  virtual InlineCacheState GetICState() {
+    return TRBinaryOpIC::ToState(operands_type_);
+  }
+
+  virtual void FinishCode(Code* code) {
+    code->set_type_recording_binary_op_type(operands_type_);
+    code->set_type_recording_binary_op_result_type(result_type_);
+  }
+
+  friend class CodeGenerator;
+};
+
+
 // Flag that indicates how to generate code for the stub StringAddStub.
 enum StringAddFlags {
   NO_STRING_ADD_FLAGS = 0,
