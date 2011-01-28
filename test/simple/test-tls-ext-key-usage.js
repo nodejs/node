@@ -110,11 +110,11 @@ function startClient() {
     console.log('client: connected+secure!');
     console.log('client pair.cleartext.getPeerCertificate(): %j',
                 pair.cleartext.getPeerCertificate());
-    
+
     // "TLS Web Client Authentication"
-    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage.length, 1)
-    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage[0], '1.3.6.1.5.5.7.3.2')
-                
+    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage.length, 1);
+    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage[0], '1.3.6.1.5.5.7.3.2');
+
     console.log('client pair.cleartext.getCipher(): %j',
                 pair.cleartext.getCipher());
     setTimeout(function() {
