@@ -86,11 +86,13 @@
     return startup._lazyConstants;
   };
 
+  var assert;
   startup.processAssert = function() {
-    process.assert = function(x, msg) {
-      if (!x) {
-        throw new Error(msg || 'assertion error');
-      }
+    // Note that calls to assert() are pre-processed out by JS2C for the
+    // normal build of node. They persist only in the node_g build.
+    // Similarly for debug().
+    assert = process.assert = function(x, msg) {
+      if (!x) throw new Error(msg || 'assertion error');
     };
   };
 
@@ -229,7 +231,7 @@
     process.removeListener = function(type, listener) {
       var ret = removeListener.apply(this, arguments);
       if (isSignal(type)) {
-        process.assert(signalWatchers.hasOwnProperty(type));
+        assert(signalWatchers.hasOwnProperty(type));
 
         if (this.listeners(type).length === 0) {
           signalWatchers[type].stop();
