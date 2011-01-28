@@ -67,6 +67,10 @@ var three = require('../fixtures/nested-index/three'),
 assert.equal(threeFolder, threeIndex);
 assert.notEqual(threeFolder, three);
 
+common.debug('test package.json require() loading');
+assert.equal(require('../fixtures/packages/main').ok, 'ok',
+             'Failed loading package');
+
 common.debug('test cycles containing a .. path');
 var root = require('../fixtures/cycles/root'),
     foo = require('../fixtures/cycles/folder/foo');

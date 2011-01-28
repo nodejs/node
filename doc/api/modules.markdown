@@ -69,6 +69,19 @@ interrupting once a file is found. Files ending in `'.node'` are binary Addon
 Modules; see 'Addons' below. `'index.js'` allows one to package a module as
 a directory.
 
+Additionally, a `package.json` file may be used to treat a folder as a
+module, if it specifies a `'main'` field.  For example, if the file at
+`./foo/bar/package.json` contained this data:
+
+    { "name" : "bar",
+      "version" : "1.2.3",
+      "main" : "./lib/bar.js" }
+
+then `require('./foo/bar')` would load the file at
+`'./foo/bar/lib/bar.js'`.  This allows package authors to specify an
+entry point to their module, while structuring their package how it
+suits them.
+
 `require.paths` can be modified at runtime by simply unshifting new
 paths onto it, or at startup with the `NODE_PATH` environmental
 variable (which should be a list of paths, colon separated).
