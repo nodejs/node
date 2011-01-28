@@ -1395,8 +1395,6 @@ static Handle<Value> SetTTL(const Arguments& args) {
 }
 
 
-#ifdef __POSIX__
-
 //
 // G E T A D D R I N F O
 //
@@ -1554,8 +1552,6 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   return Undefined();
 }
 
-#endif // __POSIX__
-
 
 static Handle<Value> IsIP(const Arguments& args) {
   HandleScope scope;
@@ -1631,9 +1627,7 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "setKeepAlive", SetKeepAlive);
   NODE_SET_METHOD(target, "getsockname", GetSockName);
   NODE_SET_METHOD(target, "getpeername", GetPeerName);
-#ifdef __POSIX__
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
-#endif // __POSIX__
   NODE_SET_METHOD(target, "isIP", IsIP);
   NODE_SET_METHOD(target, "errnoException", CreateErrnoException);
 
