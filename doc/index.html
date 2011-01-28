@@ -18,13 +18,12 @@
     <div id="toc">
       <ol>
         <li><a href="#download">Download</a></li>
-        <li><a href="changelog.html">ChangeLog</a></li>
-        <li><a href="#build">Build</a></li>
+        <li><a href="https://github.com/ry/node/raw/master/ChangeLog">ChangeLog</a></li>
         <li><a href="#about">About</a></li>
-        <li><a href="#links">Links</a></li>
-        <li><a href="#contributing">Contributing</a></li>
         <li><a href="http://nodejs.org/docs/v0.3.6/api">v0.3.6 docs</a></li>
         <li><a href="http://nodejs.org/docs/v0.2.6/api.html">v0.2.6 docs</a></li>
+        <br/>
+        <li><B><a href="https://github.com/ry/node/wiki">Wiki</a></B></li>
       </ol>
     </div>
     <div id="content">
@@ -80,6 +79,11 @@ net.createServer(function (socket) {
         examples.
       </p>
 
+
+      <p>
+        Go to <a href="https://github.com/ry/node/wiki">the Wiki</a> for lots more information.
+      </p>
+
       <h2 id="download">Download</h2>
 
       <p>
@@ -99,30 +103,11 @@ net.createServer(function (socket) {
 
       <p>Historical: <a href="http://nodejs.org/dist">versions</a>, <a href="http://nodejs.org/docs">docs</a></p>
 
-      <h2 id="build">Build</h2>
-
       <p>
-        Node is tested on <b>Linux</b>, <b>Macintosh</b>, and
-        <b>Solaris</b>. It also runs on
-        <b><a href="https://github.com/ry/node/wiki/Building-node.js-on-Cygwin-(Windows)">Windows/Cygwin</a></b>,
-        <b>FreeBSD</b>, and <b>OpenBSD</b>. The build system requires Python
-        2.4 or better.  V8, on which Node is built, supports only IA-32,
-        x64, and ARM processors. V8 is included in the Node distribution.
-        To use TLS, OpenSSL is required.  There are no other dependencies.
+        For build instructions see
+        <a href="https://github.com/ry/node/wiki/Installation">https://github.com/ry/node/wiki/Installation</a>
       </p>
 
-      <pre class="sh_none">
-./configure
-make
-make install</pre>
-
-      <p>
-        Then have a look at the <a href="/docs">API documentation</a>.
-      </p>
-
-      <p>To run the tests</p>
-
-      <pre class="sh_none">make test</pre>
 
       <h2 id="about">About</h2>
 
@@ -204,79 +189,6 @@ make install</pre>
         </ul>
       </p>
 
-
-      <h2 id="links">Links</h2>
-
-      <ul>
-
-      <li>
-        A chat room <b>demo</b> is running at <a
-          href="http://chat.nodejs.org">chat.nodejs.org</a>. The
-        source code for the chat room is at <a
-          href="http://github.com/ry/node_chat/tree/master">http://github.com/ry/node_chat</a>.
-        The chat room is not stable and might occasionally be down.
-      </li>
-
-      <li>
-        For help and discussion, subscribe to the mailing list at
-        <a href="http://groups.google.com/group/nodejs">http://groups.google.com/group/nodejs</a>
-        or send an email to <a href="mailto:nodejs+subscribe@googlegroups.com">nodejs+subscribe@googlegroups.com</a>.
-        For real-time discussion, check irc.freenode.net <code>#node.js</code>.
-      </li>
-
-      <li>
-        <a href="http://nodejs.debuggable.com/">IRC logs</a>
-      </li>
-
-      <li>
-        <a href="http://wiki.github.com/ry/node">Projects/libraries which are using/for Node.js</a>
-      </li>
-
-      <li>
-        <a href="http://buildbot.nodejs.org:8010/">Node.js buildbot</a>
-      </li>
-
-      </ul>
-
-      <h2 id="contributing">Contributing</h2>
-      <p>
-        Patches are welcome. The process is simple:
-      </p>
-
-      <pre class="sh_none">
-git clone git://github.com/ry/node.git
-cd node
-(make your changes)
-./configure --debug
-make test-all # Check your patch with both debug and release builds
-git commit -m "Good description of what your patch does"
-git format-patch HEAD^
-</pre>
-
-      <p>
-        Be sure the your patch includes your full name and your valid email
-        address. Git can be configured to do this like so:
-<pre class="sh_none">
-git config --global user.email "ry@tinyclouds.org"
-git config --global user.name "Ryan Dahl"
-</pre>
-      </p>
-
-      <p>
-        Before your code can be accepted you have to sign the
-        <a href="cla.html">contributor license agreement</a>.
-      </p>
-
-      <p>
-        The best way for your patch to get noticed is to submit it to the
-       <a href="http://groups.google.com/group/nodejs-dev">developers mailing list</a>
-       in form of a <a href="http://gist.github.com/">gists</a> or file attachement.
-      </p>
-
-      <p>
-        You should ask the mailing list if a new feature is wanted before
-        working on a patch.
-      </p>
 
     </div>
 
