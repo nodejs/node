@@ -243,6 +243,7 @@
   };
 
   startup._removedProcessMethods = {
+    'assert': 'process.assert() use require("assert").ok() instead',
     'debug': 'process.debug() use console.error() instead',
     'error': 'process.error() use console.error() instead',
     'watchFile': 'process.watchFile() has moved to fs.watchFile()',
