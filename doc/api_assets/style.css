@@ -1,0 +1,235 @@
+/*--------------------- Layout and Typography ----------------------------*/
+body {
+//  font-family: "Helvetica Neue", Helvetica, FreeSans, Arial, sans-serif;
+  font-family: Georgia, FreeSerif, Times, serif;
+  font-size: 0.9375em;
+  line-height: 1.4667em;
+  color: #222;
+  margin: 0; padding: 0;
+}
+a {
+  color: #0050c0;
+  text-decoration: underline;
+}
+  a:visited {
+    color: #b950b7;
+    text-decoration: underline;
+  }
+  a:hover, a:focus {
+    text-decoration: none;
+  }
+  
+    code a:hover {
+      background: none;
+      color: #b950b7;
+    }
+
+#changelog #gtoc {
+  display: none;
+}
+
+.notice {
+  display: block;
+  padding: 1em;
+  margin: 1.4667em 0 2.9334em;
+  background:#FFF6BF;
+  color:#514721;
+  border:1px solid #FFD324;
+}
+  .notice p {
+    margin: 0;
+  }
+
+ul.plain {
+  list-style: none;
+}
+
+abbr {
+  border-bottom: 1px dotted #454545;
+}
+
+p {
+  margin: 0 0 1.4667em 0;
+  position: relative;
+  text-rendering: optimizeLegibility;
+}
+
+ol, ul, dl {
+  margin: 0 0 1em 0;
+  padding: 0;
+}
+
+ol ul, ol ol, ol dl,
+ul ul, ul ol, ul dl,
+dl ul, dl ol, dl dl {
+  margin-bottom: 0;
+}
+
+ol p:first-child, ul p:first-child, dl p:first-child {
+  margin-bottom: 0;
+}
+
+ul, ol {
+  margin-left: 2em;
+}
+
+
+dl dt {
+  position: relative;
+  margin: 1.5em 0 0;
+}
+
+dl dd {
+  position: relative;
+  margin: 0 1em 0;
+}
+
+dd + dt.pre {
+  margin-top: 1.6em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: Georgia, FreeSerif, Times, serif;
+  color: #000;
+  text-rendering: optimizeLegibility;
+  position: relative;
+}
+
+h1 {
+  font-size: 2.55em;
+  line-height: 1.375em;
+}
+
+h2 {
+  font-size: 1.9em;
+  line-height: 1.227em;
+  margin: 0 0 0.5em;
+}
+
+h3 {
+  font-size: 1.5em;
+  line-height: 1.0909em;
+  margin: 1.5em 0 0.5em;
+}
+
+h3 + h3 {
+  margin: 0 0 0.5em;
+}
+
+h4 {
+  font-size: 1.3em;
+  line-height: 1.1282em;
+  margin: 2.2em 0 0.5em;
+}
+
+h4 + h4 {
+  margin: 0 0 0.5em;
+}
+
+h5 {
+  font-size: 1.125em;
+  line-height: 1.4em;
+}
+
+h6 {
+  font-size: 1em;
+  line-height: 1.4667em;
+}
+
+  pre, tt, code {
+    font-size: 0.95em;
+    line-height: 1.5438em;
+    font-family: Monaco, Consolas, "Lucida Console", monospace;
+    margin: 0; padding: 0;
+  }
+  
+  .pre {
+    font-family: Monaco, Consolas, "Lucida Console", monospace;
+    line-height: 1.5438em;
+    font-size: 0.95em;
+  }
+
+  pre {
+    padding: 2em 1.6em 2em 1.2em;
+    vertical-align: top;
+    background: #f8f8f8;
+    border: 1px solid #e8e8e8;
+    border-width: 1px 1px 1px 6px;
+    margin: -0.5em 0 1.1em;
+  }
+  
+  pre + h3 {
+    margin-top: 2.225em;
+  }
+
+code.pre {
+  white-space: pre;
+}
+
+#container {
+  position: relative;
+  padding: 6em;
+  max-width: 50em;
+  text-align: left;
+}
+
+#container header {
+  margin: 1.25em -0.5em 1.3em;
+  padding: 0 0.5em 0.225em;
+}
+
+hr {
+  background: none;
+  border: medium none;
+  border-bottom: 1px solid #ccc;
+  margin: 5em 0 2em;
+}
+
+#container header hr {
+  margin: 0;
+  padding: 0;
+}
+
+#toc {
+  
+}
+
+  #toc h2 {
+    font-size: 1em;
+    line-height: 1.4em;
+  }
+  
+  #toc h2 a {
+    float: right;
+  }
+  
+  #toc hr {
+    margin: 1em 0 2em;
+  }
+
+p tt, p code {
+  background: #f8f8ff;
+  border: 1px solid #dedede;
+  padding: 0 0.2em;
+}
+
+a.octothorpe {
+  text-decoration: none;
+  color: #777;
+  position: absolute;
+  top: 0; left: -1.4em;
+  padding: 1px 2px;
+  opacity: 0;
+  -webkit-transition: opacity 0.2s linear;
+}
+    p:hover  > a.octothorpe, 
+    dt:hover > a.octothorpe,
+    dd:hover > a.octothorpe,
+    h1:hover > a.octothorpe,
+    h2:hover > a.octothorpe,
+    h3:hover > a.octothorpe,
+    h4:hover > a.octothorpe,
+    h5:hover > a.octothorpe,
+    h6:hover > a.octothorpe {
+      opacity: 1;
+    }
