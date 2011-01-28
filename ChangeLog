@@ -1,4 +1,38 @@
-2011.01.21, Version 0.3.6 (unstable)
+2011.01.27, Version 0.3.7 (unstable)
+
+* Expose agent in http and https client. (Mikeal Rogers)
+
+* Fix bug in http request's end method. (Ali Farhadi)
+
+* MinGW: better net support (Bert Belder)
+
+* fs.open should set FD_CLOEXEC
+
+* DTrace probes (Bryan Cantrill)
+
+* REPL fixes and improvements (isaacs, Bert Belder)
+
+* Fix many bugs with legacy http.Client interface
+
+* Deprecate process.assert. Use require('assert').ok
+
+* Add callback parameter to socket.setTimeout(). (Ali Farhadi)
+
+* Fixing bug in http request default encoding (Ali Farhadi)
+
+* require: A module ID with a trailing slash must be a dir.
+  (isaacs)
+
+* Add ext_key_usage to getPeerCertificate (Greg Hughes)
+
+* Error when child_process.exec hits maxBuffer.
+
+* Fix option parsing in tls.connect()
+
+* Upgrade to V8 3.0.10
+
+
+2011.01.21, Version 0.3.6 (unstable), bb3e71466e5240626d9d21cf791fe43e87d90011
 
 * REPL and other improvements on MinGW (Bert Belder)
 
