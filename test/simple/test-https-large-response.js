@@ -23,7 +23,7 @@ var server = https.createServer(options, function (req, res) {
   console.log('got request');
   res.writeHead(200, { 'content-type': 'text/plain' });
   res.end(body);
-})
+});
 
 var count = 0;
 var gotResEnd = false;
@@ -35,6 +35,10 @@ server.listen(common.PORT, function () {
     res.on('data', function(d) {
       process.stdout.write('.');
       count += d.length;
+      res.pause();
+      process.nextTick(function () {
+        res.resume();
+      });
     });
 
     res.on('end', function(d) {
