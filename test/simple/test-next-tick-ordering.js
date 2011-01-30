@@ -2,7 +2,7 @@ var common = require('../common');
 var assert = require('assert');
 var i;
 
-var N = 30;
+var N = 333;
 var done = [];
 
 function get_printer(timeout) {
