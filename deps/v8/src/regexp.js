@@ -52,7 +52,7 @@ function DoConstructRegExp(object, pattern, flags) {
   var multiline = false;
 
   for (var i = 0; i < flags.length; i++) {
-    var c = StringCharAt.call(flags, i);
+    var c = %_CallFunction(flags, i, StringCharAt);
     switch (c) {
       case 'g':
         // Allow duplicate flags to be consistent with JSC and others.

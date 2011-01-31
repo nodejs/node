@@ -1,3 +1,7 @@
+2011-01=31: Version 3.1.0
+        Performance improvements on all platforms.
+
+
 2011-01-28: Version 3.0.12
 
         Added support for strict mode parameter and object property

@@ -55,6 +55,26 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
                                            Register rhs);
 
 
+void ToNumberStub::Generate(MacroAssembler* masm) {
+  // The ToNumber stub takes one argument in eax.
+  Label check_heap_number, call_builtin;
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(ne, &check_heap_number);
+  __ Ret();
+
+  __ bind(&check_heap_number);
+  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
+  __ cmp(r1, ip);
+  __ b(ne, &call_builtin);
+  __ Ret();
+
+  __ bind(&call_builtin);
+  __ push(r0);
+  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_JS);
+}
+
+
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Create a new closure from the given function info in new
   // space. Set the context to the current context in cp.

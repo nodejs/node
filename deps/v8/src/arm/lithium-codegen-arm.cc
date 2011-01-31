@@ -1174,8 +1174,7 @@ void LCodeGen::DoDeferredGenericBinaryStub(LTemplateInstruction<1, 2, T>* instr,
                                          0,
                                          Safepoint::kNoDeoptimizationIndex);
   // Overwrite the stored value of r0 with the result of the stub.
-  __ str(r0, MemOperand(sp, DwVfpRegister::kNumAllocatableRegisters *
-                        kDoubleSize));
+  __ StoreToSafepointRegistersAndDoublesSlot(r0);
   __ PopSafepointRegistersAndDoubles();
 }
 
@@ -2525,6 +2524,7 @@ void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
 
 
 void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
+  ASSERT(instr->InputAt(0)->Equals(instr->result()));
   Register input = ToRegister(instr->InputAt(0));
   Register scratch = scratch0();
 
@@ -2535,28 +2535,32 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
   DeoptimizeIf(ne, instr->environment());
 
   Label done;
-
-  Label negative;
-  __ ldr(scratch, FieldMemOperand(input, HeapNumber::kExponentOffset));
+  Register exponent = scratch0();
+  scratch = no_reg;
+  __ ldr(exponent, FieldMemOperand(input, HeapNumber::kExponentOffset));
   // Check the sign of the argument. If the argument is positive, just
   // return it. We do not need to patch the stack since |input| and
-  // |result| are the same register and |input| will be restored
+  // |result| are the same register and |input| would be restored
   // unchanged by popping safepoint registers.
-  __ tst(scratch, Operand(HeapNumber::kSignMask));
-  __ b(ne, &negative);
-  __ jmp(&done);
+  __ tst(exponent, Operand(HeapNumber::kSignMask));
+  __ b(eq, &done);
 
-  __ bind(&negative);
+  // Input is negative. Reverse its sign.
   // Preserve the value of all registers.
   __ PushSafepointRegisters();
 
-  Register tmp = input.is(r0) ? r1 : r0;
-  Register tmp2 = input.is(r2) ? r3 : r2;
-  Register tmp3 = input.is(r4) ? r5 : r4;
+  // Registers were saved at the safepoint, so we can use
+  // many scratch registers.
+  Register tmp1 = input.is(r1) ? r0 : r1;
+  Register tmp2 = input.is(r2) ? r0 : r2;
+  Register tmp3 = input.is(r3) ? r0 : r3;
+  Register tmp4 = input.is(r4) ? r0 : r4;
+
+  // exponent: floating point exponent value.
 
   Label allocated, slow;
-  __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
-  __ AllocateHeapNumber(tmp, tmp2, tmp3, scratch, &slow);
+  __ LoadRoot(tmp4, Heap::kHeapNumberMapRootIndex);
+  __ AllocateHeapNumber(tmp1, tmp2, tmp3, tmp4, &slow);
   __ b(&allocated);
 
   // Slow case: Call the runtime system to do the number allocation.
@@ -2566,20 +2570,20 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
   RecordSafepointWithRegisters(
       instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
   // Set the pointer to the new heap number in tmp.
-  if (!tmp.is(r0)) __ mov(tmp, Operand(r0));
-
+  if (!tmp1.is(r0)) __ mov(tmp1, Operand(r0));
   // Restore input_reg after call to runtime.
-  MemOperand input_register_slot = masm()->SafepointRegisterSlot(input);
-  __ ldr(input, input_register_slot);
+  __ LoadFromSafepointRegisterSlot(input);
+  __ ldr(exponent, FieldMemOperand(input, HeapNumber::kExponentOffset));
 
   __ bind(&allocated);
-  __ ldr(tmp2, FieldMemOperand(input, HeapNumber::kExponentOffset));
-  __ bic(tmp2, tmp2, Operand(HeapNumber::kSignMask));
-  __ str(tmp2, FieldMemOperand(tmp, HeapNumber::kExponentOffset));
+  // exponent: floating point exponent value.
+  // tmp1: allocated heap number.
+  __ bic(exponent, exponent, Operand(HeapNumber::kSignMask));
+  __ str(exponent, FieldMemOperand(tmp1, HeapNumber::kExponentOffset));
   __ ldr(tmp2, FieldMemOperand(input, HeapNumber::kMantissaOffset));
-  __ str(tmp2, FieldMemOperand(tmp, HeapNumber::kMantissaOffset));
+  __ str(tmp2, FieldMemOperand(tmp1, HeapNumber::kMantissaOffset));
 
-  __ str(tmp, input_register_slot);
+  __ str(tmp1, masm()->SafepointRegisterSlot(input));
   __ PopSafepointRegisters();
 
   __ bind(&done);
@@ -2587,15 +2591,14 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::EmitIntegerMathAbs(LUnaryMathOperation* instr) {
-  Label is_positive;
-  uint32_t kSignMask = 0x80000000u;
   Register input = ToRegister(instr->InputAt(0));
-  __ tst(input, Operand(kSignMask));
-  __ b(eq, &is_positive);
-  __ rsb(input, input, Operand(0), SetCC);
+  __ cmp(input, Operand(0));
+  // We can make rsb conditional because the previous cmp instruction
+  // will clear the V (overflow) flag and rsb won't set this flag
+  // if input is positive.
+  __ rsb(input, input, Operand(0), SetCC, mi);
   // Deoptimize on overflow.
   DeoptimizeIf(vs, instr->environment());
-  __ bind(&is_positive);
 }
 
 
@@ -2617,8 +2620,7 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsDouble()) {
     DwVfpRegister input = ToDoubleRegister(instr->InputAt(0));
-    // __ vabs(input, input);
-    Abort("Double DoMathAbs unimplemented");
+    __ vabs(input, input);
   } else if (r.IsInteger32()) {
     EmitIntegerMathAbs(instr);
   } else {

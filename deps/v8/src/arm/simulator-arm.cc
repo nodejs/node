@@ -2445,6 +2445,11 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
           int d = instr->VFPDRegValue(kSinglePrecision);
           set_s_register_from_float(d, get_float_from_s_register(m));
         }
+      } else if ((instr->Opc2Value() == 0x0) && (instr->Opc3Value() == 0x3)) {
+        // vabs
+        double dm_value = get_double_from_d_register(vm);
+        double dd_value = fabs(dm_value);
+        set_d_register_from_double(vd, dd_value);
       } else if ((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
       } else if ((instr->Opc2Value() == 0x8) && (instr->Opc3Value() & 0x1)) {

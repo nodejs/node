@@ -80,9 +80,9 @@ function listener(event, exec_state, event_data, data) {
       // 1: Call distance on Point where distance is a direct property
       // 2: Call on function an array element 2
       // 3: [anonymous]
-      assertEquals("#<a Point>.distanceTo(p=#<a Point>)", exec_state.frame(0).invocationText());
-      assertEquals("#<a Point>.distanceTo(p=#<a Point>)", exec_state.frame(1).invocationText());
-      assertEquals("#<an Array>[2](aka distance)(p=#<a Point>, q=#<a Point>)", exec_state.frame(2).invocationText());
+      assertEquals("#<Point>.distanceTo(p=#<Point>)", exec_state.frame(0).invocationText());
+      assertEquals("#<Point>.distanceTo(p=#<Point>)", exec_state.frame(1).invocationText());
+      assertEquals("#<Array>[2](aka distance)(p=#<Point>, q=#<Point>)", exec_state.frame(2).invocationText());
       assertEquals("[anonymous]()", exec_state.frame(3).invocationText());
       listenerCalled = true;
     } else {

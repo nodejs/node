@@ -1064,6 +1064,9 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
         } else {
           Format(instr, "vmov.f32'cond 'Sd, 'Sm");
         }
+      } else if ((instr->Opc2Value() == 0x0) && (instr->Opc3Value() == 0x3)) {
+        // vabs
+        Format(instr, "vabs'cond 'Dd, 'Dm");
       } else if ((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
       } else if ((instr->Opc2Value() == 0x8) && (instr->Opc3Value() & 0x1)) {

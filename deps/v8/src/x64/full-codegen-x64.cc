@@ -3063,8 +3063,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Label no_conversion;
       Condition is_smi = masm_->CheckSmi(result_register());
       __ j(is_smi, &no_conversion);
-      __ push(result_register());
-      __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+      ToNumberStub convert_stub;
+      __ CallStub(&convert_stub);
       __ bind(&no_conversion);
       context()->Plug(result_register());
       break;
@@ -3180,8 +3180,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   Condition is_smi;
   is_smi = masm_->CheckSmi(rax);
   __ j(is_smi, &no_conversion);
-  __ push(rax);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+  ToNumberStub convert_stub;
+  __ CallStub(&convert_stub);
   __ bind(&no_conversion);
 
   // Save result for postfix expressions.

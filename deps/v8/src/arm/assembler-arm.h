@@ -975,6 +975,9 @@ class Assembler : public Malloced {
                     ConversionMode mode = RoundToZero,
                     const Condition cond = al);
 
+  void vabs(const DwVfpRegister dst,
+            const DwVfpRegister src,
+            const Condition cond = al);
   void vadd(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,

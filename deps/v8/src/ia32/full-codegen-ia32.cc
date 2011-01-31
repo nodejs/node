@@ -3747,8 +3747,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Label no_conversion;
       __ test(result_register(), Immediate(kSmiTagMask));
       __ j(zero, &no_conversion);
-      __ push(result_register());
-      __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+      ToNumberStub convert_stub;
+      __ CallStub(&convert_stub);
       __ bind(&no_conversion);
       context()->Plug(result_register());
       break;
@@ -3868,8 +3868,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     __ test(eax, Immediate(kSmiTagMask));
     __ j(zero, &no_conversion);
   }
-  __ push(eax);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+  ToNumberStub convert_stub;
+  __ CallStub(&convert_stub);
   __ bind(&no_conversion);
 
   // Save result for postfix expressions.

@@ -37,6 +37,28 @@ namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm)
+
+void ToNumberStub::Generate(MacroAssembler* masm) {
+  // The ToNumber stub takes one argument in eax.
+  NearLabel check_heap_number, call_builtin;
+  __ SmiTest(rax);
+  __ j(not_zero, &check_heap_number);
+  __ Ret();
+
+  __ bind(&check_heap_number);
+  __ Move(rbx, Factory::heap_number_map());
+  __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ j(not_equal, &call_builtin);
+  __ Ret();
+
+  __ bind(&call_builtin);
+  __ pop(rcx);  // Pop return address.
+  __ push(rax);
+  __ push(rcx);  // Push return address.
+  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
+}
+
+
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Create a new closure from the given function info in new
   // space. Set the context to the current context in rsi.

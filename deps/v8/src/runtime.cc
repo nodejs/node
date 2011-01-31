@@ -745,35 +745,31 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
   if (!result.IsProperty()) {
     return Heap::undefined_value();
   }
-  if (result.type() == CALLBACKS) {
-    Object* structure = result.GetCallbackObject();
-    if (structure->IsProxy() || structure->IsAccessorInfo()) {
-      // Property that is internally implemented as a callback or
-      // an API defined callback.
-      Object* value;
-      { MaybeObject* maybe_value = obj->GetPropertyWithCallback(
-            *obj, structure, *name, result.holder());
-        if (!maybe_value->ToObject(&value)) return maybe_value;
-      }
-      elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-      elms->set(VALUE_INDEX, value);
-      elms->set(WRITABLE_INDEX, Heap::ToBoolean(!result.IsReadOnly()));
-    } else if (structure->IsFixedArray()) {
-      // __defineGetter__/__defineSetter__ callback.
-      elms->set(IS_ACCESSOR_INDEX, Heap::true_value());
-      elms->set(GETTER_INDEX, FixedArray::cast(structure)->get(0));
-      elms->set(SETTER_INDEX, FixedArray::cast(structure)->get(1));
-    } else {
-      return Heap::undefined_value();
-    }
-  } else {
-    elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-    elms->set(VALUE_INDEX, result.GetLazyValue());
-    elms->set(WRITABLE_INDEX, Heap::ToBoolean(!result.IsReadOnly()));
-  }
 
   elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!result.IsDontEnum()));
   elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!result.IsDontDelete()));
+
+  bool is_js_accessor = (result.type() == CALLBACKS) &&
+                        (result.GetCallbackObject()->IsFixedArray());
+
+  if (is_js_accessor) {
+    // __defineGetter__/__defineSetter__ callback.
+    FixedArray* structure = FixedArray::cast(result.GetCallbackObject());
+    elms->set(IS_ACCESSOR_INDEX, Heap::true_value());
+    elms->set(GETTER_INDEX, structure->get(0));
+    elms->set(SETTER_INDEX, structure->get(1));
+  } else {
+    elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
+    elms->set(WRITABLE_INDEX, Heap::ToBoolean(!result.IsReadOnly()));
+
+    PropertyAttributes attrs;
+    Object* value;
+    { MaybeObject* maybe_value = obj->GetProperty(*obj, &result, *name, &attrs);
+      if (!maybe_value->ToObject(&value)) return maybe_value;
+    }
+    elms->set(VALUE_INDEX, value);
+  }
+
   return *desc;
 }
 

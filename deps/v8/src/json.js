@@ -38,7 +38,7 @@ function Revive(holder, name, reviver) {
       }
     } else {
       for (var p in val) {
-        if (ObjectHasOwnProperty.call(val, p)) {
+        if (%_CallFunction(val, p, ObjectHasOwnProperty)) {
           var newElement = Revive(val, p, reviver);
           if (IS_UNDEFINED(newElement)) {
             delete val[p];
@@ -101,7 +101,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
   if (IS_ARRAY(replacer)) {
     var length = replacer.length;
     for (var i = 0; i < length; i++) {
-      if (ObjectHasOwnProperty.call(replacer, i)) {
+      if (%_CallFunction(replacer, i, ObjectHasOwnProperty)) {
         var p = replacer[i];
         var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
         if (!IS_UNDEFINED(strP)) {
@@ -114,7 +114,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
     }
   } else {
     for (var p in value) {
-      if (ObjectHasOwnProperty.call(value, p)) {
+      if (%_CallFunction(value, p, ObjectHasOwnProperty)) {
         var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
         if (!IS_UNDEFINED(strP)) {
           var member = %QuoteJSONString(p) + ":";

@@ -3057,8 +3057,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Label no_conversion;
       __ tst(result_register(), Operand(kSmiTagMask));
       __ b(eq, &no_conversion);
-      __ push(r0);
-      __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS);
+      ToNumberStub convert_stub;
+      __ CallStub(&convert_stub);
       __ bind(&no_conversion);
       context()->Plug(result_register());
       break;
@@ -3177,8 +3177,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Call ToNumber only if operand is not a smi.
   Label no_conversion;
   __ JumpIfSmi(r0, &no_conversion);
-  __ push(r0);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS);
+  ToNumberStub convert_stub;
+  __ CallStub(&convert_stub);
   __ bind(&no_conversion);
 
   // Save result for postfix expressions.

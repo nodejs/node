@@ -38,6 +38,28 @@ namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm)
+
+void ToNumberStub::Generate(MacroAssembler* masm) {
+  // The ToNumber stub takes one argument in eax.
+  NearLabel check_heap_number, call_builtin;
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(not_zero, &check_heap_number);
+  __ ret(0);
+
+  __ bind(&check_heap_number);
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ cmp(Operand(ebx), Immediate(Factory::heap_number_map()));
+  __ j(not_equal, &call_builtin);
+  __ ret(0);
+
+  __ bind(&call_builtin);
+  __ pop(ecx);  // Pop return address.
+  __ push(eax);
+  __ push(ecx);  // Push return address.
+  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
+}
+
+
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Create a new closure from the given function info in new
   // space. Set the context to the current context in esi.

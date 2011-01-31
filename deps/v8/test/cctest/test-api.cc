@@ -2376,6 +2376,8 @@ TEST(APIThrowMessageOverwrittenToString) {
   v8::HandleScope scope;
   v8::V8::AddMessageListener(check_reference_error_message);
   LocalContext context;
+  CompileRun("Number.prototype.toString = function f() { return 'Yikes'; }");
+  CompileRun("String.prototype.toString = function f() { return 'Yikes'; }");
   CompileRun("ReferenceError.prototype.toString ="
              "  function() { return 'Whoops' }");
   CompileRun("asdf;");
@@ -5371,37 +5373,45 @@ THREADED_TEST(AccessControl) {
   v8::Handle<Value> value;
 
   // Access blocked property
-  value = v8_compile("other.blocked_prop = 1")->Run();
-  value = v8_compile("other.blocked_prop")->Run();
+  value = CompileRun("other.blocked_prop = 1");
+  value = CompileRun("other.blocked_prop");
   CHECK(value->IsUndefined());
 
-  value = v8_compile("propertyIsEnumerable.call(other, 'blocked_prop')")->Run();
+  value = CompileRun(
+      "Object.getOwnPropertyDescriptor(other, 'blocked_prop').value");
+  CHECK(value->IsUndefined());
+
+  value = CompileRun("propertyIsEnumerable.call(other, 'blocked_prop')");
   CHECK(value->IsFalse());
 
   // Access accessible property
-  value = v8_compile("other.accessible_prop = 3")->Run();
+  value = CompileRun("other.accessible_prop = 3");
   CHECK(value->IsNumber());
   CHECK_EQ(3, value->Int32Value());
   CHECK_EQ(3, g_echo_value);
 
-  value = v8_compile("other.accessible_prop")->Run();
+  value = CompileRun("other.accessible_prop");
   CHECK(value->IsNumber());
   CHECK_EQ(3, value->Int32Value());
 
-  value =
-    v8_compile("propertyIsEnumerable.call(other, 'accessible_prop')")->Run();
+  value = CompileRun(
+      "Object.getOwnPropertyDescriptor(other, 'accessible_prop').value");
+  CHECK(value->IsNumber());
+  CHECK_EQ(3, value->Int32Value());
+
+  value = CompileRun("propertyIsEnumerable.call(other, 'accessible_prop')");
   CHECK(value->IsTrue());
 
   // Enumeration doesn't enumerate accessors from inaccessible objects in
   // the prototype chain even if the accessors are in themselves accessible.
-  Local<Value> result =
+  value =
       CompileRun("(function(){var obj = {'__proto__':other};"
                  "for (var p in obj)"
                  "   if (p == 'accessible_prop' || p == 'blocked_prop') {"
                  "     return false;"
                  "   }"
                  "return true;})()");
-  CHECK(result->IsTrue());
+  CHECK(value->IsTrue());
 
   context1->Exit();
   context0->Exit();
@@ -6246,7 +6256,7 @@ THREADED_TEST(FunctionDescriptorException) {
     "    var str = String(e);"
     "    if (str.indexOf('TypeError') == -1) return 1;"
     "    if (str.indexOf('[object Fun]') != -1) return 2;"
-    "    if (str.indexOf('#<a Fun>') == -1) return 3;"
+    "    if (str.indexOf('#<Fun>') == -1) return 3;"
     "    return 0;"
     "  }"
     "  return 4;"

@@ -50,33 +50,10 @@ var kNoLineNumberInfo = 0;
 // message on access.
 var kAddMessageAccessorsMarker = { };
 
-
-function GetInstanceName(cons) {
-  if (cons.length == 0) {
-    return "";
-  }
-  var first = %StringToLowerCase(StringCharAt.call(cons, 0));
-  if (kVowelSounds === 0) {
-    kVowelSounds = {a: true, e: true, i: true, o: true, u: true, y: true};
-    kCapitalVowelSounds = {a: true, e: true, i: true, o: true, u: true, h: true,
-        f: true, l: true, m: true, n: true, r: true, s: true, x: true, y: true};
-  }
-  var vowel_mapping = kVowelSounds;
-  if (cons.length > 1 && (StringCharAt.call(cons, 0) != first)) {
-    // First char is upper case
-    var second = %StringToLowerCase(StringCharAt.call(cons, 1));
-    // Second char is upper case
-    if (StringCharAt.call(cons, 1) != second) {
-      vowel_mapping = kCapitalVowelSounds;
-    }
-  }
-  var s = vowel_mapping[first] ? "an " : "a ";
-  return s + cons;
-}
-
-
 var kMessages = 0;
 
+var kReplacementMarkers =
+    [ "%0", "%1", "%2", "%3", "%4", "%5", "%6", "%7", "%8", "%9", "%10" ];
 
 function FormatString(format, args) {
   var result = format;
@@ -87,7 +64,9 @@ function FormatString(format, args) {
     } catch (e) {
       str = "#<error>";
     }
-    result = ArrayJoin.call(StringSplit.call(result, "%" + i), str);
+    var replacement_marker = kReplacementMarkers[i];
+    var split = %_CallFunction(result, replacement_marker, StringSplit);
+    result = %_CallFunction(split, str, ArrayJoin);
   }
   return result;
 }
@@ -130,7 +109,7 @@ function ToDetailString(obj) {
     if (!constructorName || !IS_STRING(constructorName)) {
       return ToStringCheckErrorObject(obj);
     }
-    return "#<" + GetInstanceName(constructorName) + ">";
+    return "#<" + constructorName + ">";
   } else {
     return ToStringCheckErrorObject(obj);
   }
@@ -352,7 +331,7 @@ Script.prototype.locationFromPosition = function (position,
   var line_ends = this.line_ends;
   var start = line == 0 ? 0 : line_ends[line - 1] + 1;
   var end = line_ends[line];
-  if (end > 0 && StringCharAt.call(this.source, end - 1) == '\r') end--;
+  if (end > 0 && %_CallFunction(this.source, end - 1, StringCharAt) == '\r') end--;
   var column = position - start;
 
   // Adjust according to the offset within the resource.
@@ -467,7 +446,7 @@ Script.prototype.sourceLine = function (opt_line) {
   var line_ends = this.line_ends;
   var start = line == 0 ? 0 : line_ends[line - 1] + 1;
   var end = line_ends[line];
-  return StringSubstring.call(this.source, start, end);
+  return %_CallFunction(this.source, start, end, StringSubstring);
 }
 
 
@@ -595,7 +574,7 @@ SourceLocation.prototype.restrict = function (opt_limit, opt_before) {
  *     Source text for this location.
  */
 SourceLocation.prototype.sourceText = function () {
-  return StringSubstring.call(this.script.source, this.start, this.end);
+  return %_CallFunction(this.script.source, this.start, this.end, StringSubstring);
 };
 
 
@@ -632,7 +611,10 @@ function SourceSlice(script, from_line, to_line, from_position, to_position) {
  *     the line terminating characters (if any)
  */
 SourceSlice.prototype.sourceText = function () {
-  return StringSubstring.call(this.script.source, this.from_position, this.to_position);
+  return %_CallFunction(this.script.source,
+                        this.from_position,
+                        this.to_position,
+                        StringSubstring);
 };
 
 
@@ -707,10 +689,10 @@ CallSite.prototype.getThis = function () {
 CallSite.prototype.getTypeName = function () {
   var constructor = this.receiver.constructor;
   if (!constructor)
-    return $Object.prototype.toString.call(this.receiver);
+    return %_CallFunction(this.receiver, ObjectToString);
   var constructorName = constructor.name;
   if (!constructorName)
-    return $Object.prototype.toString.call(this.receiver);
+    return %_CallFunction(this.receiver, ObjectToString);
   return constructorName;
 };
 
@@ -759,8 +741,8 @@ CallSite.prototype.getMethodName = function () {
   // this function.
   var ownName = this.fun.name;
   if (ownName && this.receiver &&
-      (ObjectLookupGetter.call(this.receiver, ownName) === this.fun ||
-       ObjectLookupSetter.call(this.receiver, ownName) === this.fun ||
+      (%_CallFunction(this.receiver, ownName, ObjectLookupGetter) === this.fun ||
+       %_CallFunction(this.receiver, ownName, ObjectLookupSetter) === this.fun ||
        this.receiver[ownName] === this.fun)) {
     // To handle DontEnum properties we guess that the method has
     // the same name as the function.

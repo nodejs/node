@@ -485,8 +485,18 @@ void MacroAssembler::PopSafepointRegistersAndDoubles() {
   PopSafepointRegisters();
 }
 
+void MacroAssembler::StoreToSafepointRegistersAndDoublesSlot(Register reg) {
+  str(reg, SafepointRegistersAndDoublesSlot(reg));
+}
+
+
 void MacroAssembler::StoreToSafepointRegisterSlot(Register reg) {
   str(reg, SafepointRegisterSlot(reg));
+}
+
+
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register reg) {
+  ldr(reg, SafepointRegisterSlot(reg));
 }
 
 
@@ -500,6 +510,14 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 
 MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
   return MemOperand(sp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
+}
+
+
+MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
+  // General purpose registers are pushed last on the stack.
+  int doubles_size = DwVfpRegister::kNumAllocatableRegisters * kDoubleSize;
+  int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
+  return MemOperand(sp, doubles_size + register_offset);
 }
 
 

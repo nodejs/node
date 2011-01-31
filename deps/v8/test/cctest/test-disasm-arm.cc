@@ -435,6 +435,11 @@ TEST(Vfp) {
     COMPARE(vmov(s31, r10),
             "ee0faa90       vmov s31, r10");
 
+    COMPARE(vabs(d0, d1),
+            "eeb00bc1       vabs d0, d1");
+    COMPARE(vabs(d3, d4, mi),
+            "4eb03bc4       vabsmi d3, d4");
+
     COMPARE(vadd(d0, d1, d2),
             "ee310b02       vadd.f64 d0, d1, d2");
     COMPARE(vadd(d3, d4, d5, mi),
