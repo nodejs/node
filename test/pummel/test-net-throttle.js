@@ -2,7 +2,7 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var N = 160 * 1024; // 30kb
+var N = 160 * 1024;
 var chars_recved = 0;
 var npauses = 0;
 
@@ -17,6 +17,9 @@ console.log('start server on port ' + common.PORT);
 var server = net.createServer(function(connection) {
   connection.addListener('connect', function() {
     assert.equal(false, connection.write(body));
+    console.log('bufferSize: ' + connection.bufferSize);
+    assert.ok(0 <= connection.bufferSize &&
+              connection.bufferSize <= N);
     connection.end();
   });
 });

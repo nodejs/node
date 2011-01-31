@@ -21,6 +21,11 @@ function pingPongTest(port, host) {
 
     socket.setEncoding('utf8');
     socket.addListener('data', function(data) {
+      // Since we never queue data (we're always waiting for the PING
+      // before sending a pong) the writeQueueSize should always be less
+      // than one message.
+      assert.ok(0 <= socket.bufferSize && socket.bufferSize <= 4);
+
       console.log('server got: ' + data);
       assert.equal(true, socket.writable);
       assert.equal(true, socket.readable);
