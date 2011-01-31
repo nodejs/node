@@ -1,7 +1,7 @@
-## dgram
+## UDP / Datagram Sockets
 
 Datagram sockets are available through `require('dgram')`.  Datagrams are most commonly
-handled as IP/UDP messages, but they can also be used over Unix domain sockets.
+handled as IP/UDP messages but they can also be used over Unix domain sockets.
 
 ### Event: 'message'
 
