@@ -287,27 +287,54 @@ Handle<Value> SecureContext::Close(const Arguments& args) {
   return False();
 }
 
-char ssl_error_buf[512];
+#ifdef SSL_PRINT_DEBUG
+# define DEBUG_PRINT(...) fprintf (stderr, __VA_ARGS__)
+#else
+# define DEBUG_PRINT(...)
+#endif
 
-static int serr(SSL *ssl, const char* func, int rv) {
-  if (rv >= 0) {
-    return rv;
-  }
 
-  int err = SSL_get_error(ssl, rv);
-  if (err != SSL_ERROR_WANT_WRITE &&
-      err != SSL_ERROR_WANT_READ) {
-    ERR_error_string_n(ERR_get_error(), &ssl_error_buf[0], sizeof(ssl_error_buf));
-    /* fprintf(stderr, "[%p] SSL: %s failed: (%d:%d) %s\n", ssl, func, err, rv, buf); */
-    return rv;
-  } else if (err == SSL_ERROR_WANT_WRITE) {
-    /* fprintf(stderr, "[%p] SSL: %s want write\n", ssl, func); */
+int Connection::HandleError(const char* func, int rv, bool ignore_error) {
+  if (rv >= 0) return rv;
+
+  int err = SSL_get_error(ssl_, rv);
+
+  if (err == SSL_ERROR_WANT_WRITE) {
+    DEBUG_PRINT("[%p] SSL: %s want write\n", ssl_, func);
+    return 0;
+
   } else if (err == SSL_ERROR_WANT_READ) {
-    /* fprintf(stderr, "[%p] SSL: %s want read\n", ssl, func); */
+    DEBUG_PRINT("[%p] SSL: %s want read\n", ssl_, func);
+    return 0;
+
+  } else {
+    static char ssl_error_buf[512];
+    ERR_error_string_n(err, ssl_error_buf, sizeof(ssl_error_buf));
+
+    if (!ignore_error) {
+      HandleScope scope;
+      Local<Value> e = Exception::Error(String::New(ssl_error_buf));
+      handle_->Set(String::New("error"), e);
+    }
+
+    DEBUG_PRINT("[%p] SSL: %s failed: (%d:%d) %s\n", ssl_, func, err, rv, ssl_error_buf);
+
+    return rv;
   }
 
   return 0;
 }
+
+
+void Connection::ClearError() {
+#ifndef NDEBUG
+  HandleScope scope;
+
+  // We should clear the error in JS-land
+  assert(handle_->Get(String::New("error"))->BooleanValue() == false);
+#endif // NDEBUG
+}
+
 
 void Connection::Initialize(Handle<Object> target) {
   HandleScope scope;
@@ -440,7 +467,7 @@ Handle<Value> Connection::New(const Arguments& args) {
 Handle<Value> Connection::EncIn(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
 
   if (args.Length() < 3) {
     return ThrowException(Exception::TypeError(
@@ -468,12 +495,9 @@ Handle<Value> Connection::EncIn(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  int bytes_written = serr(ss->ssl_, "BIO_write", BIO_write(ss->bio_read_, (char*)buffer_data + off, len));
+  int bytes_written = BIO_write(ss->bio_read_, (char*)buffer_data + off, len);
 
-  if (bytes_written < 0) {
-    if (errno == EAGAIN || errno == EINTR) return Null();
-    return ThrowException(ErrnoException(errno, "read"));
-  }
+  ss->HandleError("BIO_write", bytes_written);
 
   return scope.Close(Integer::New(bytes_written));
 }
@@ -482,7 +506,7 @@ Handle<Value> Connection::EncIn(const Arguments& args) {
 Handle<Value> Connection::ClearOut(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
 
   if (args.Length() < 3) {
     return ThrowException(Exception::TypeError(
@@ -510,24 +534,23 @@ Handle<Value> Connection::ClearOut(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  int bytes_read;
 
   if (!SSL_is_init_finished(ss->ssl_)) {
+    int rv;
+
     if (ss->is_server_) {
-      bytes_read =  serr(ss->ssl_, "SSL_accept:ClearOut", SSL_accept(ss->ssl_));
+      rv = SSL_accept(ss->ssl_);
+      ss->HandleError("SSL_accept:ClearOut", rv);
     } else {
-      bytes_read = serr(ss->ssl_, "SSL_connect:ClearOut", SSL_connect(ss->ssl_));
+      rv = SSL_connect(ss->ssl_);
+      ss->HandleError("SSL_connect:ClearOut", rv);
     }
-    if (bytes_read < 0) {
-      return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
-    }
-    return scope.Close(Integer::New(0));
+
+    if (rv < 0) return scope.Close(Integer::New(rv));
   }
 
-  bytes_read = serr(ss->ssl_, "SSL_read:ClearOut", SSL_read(ss->ssl_, (char*)buffer_data + off, len));
-  if (bytes_read < 0) {
-    return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
-  }
+  int bytes_read = SSL_read(ss->ssl_, (char*)buffer_data + off, len);
+  ss->HandleError("SSL_read:ClearOut", bytes_read);
 
   return scope.Close(Integer::New(bytes_read));
 }
@@ -536,7 +559,8 @@ Handle<Value> Connection::ClearOut(const Arguments& args) {
 Handle<Value> Connection::ClearPending(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
+
   int bytes_pending = BIO_pending(ss->bio_read_);
   return scope.Close(Integer::New(bytes_pending));
 }
@@ -545,7 +569,8 @@ Handle<Value> Connection::ClearPending(const Arguments& args) {
 Handle<Value> Connection::EncPending(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
+
   int bytes_pending = BIO_pending(ss->bio_write_);
   return scope.Close(Integer::New(bytes_pending));
 }
@@ -554,7 +579,7 @@ Handle<Value> Connection::EncPending(const Arguments& args) {
 Handle<Value> Connection::EncOut(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
 
   if (args.Length() < 3) {
     return ThrowException(Exception::TypeError(
@@ -582,7 +607,9 @@ Handle<Value> Connection::EncOut(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  int bytes_read = serr(ss->ssl_, "BIO_read:EncOut", BIO_read(ss->bio_write_, (char*)buffer_data + off, len));
+  int bytes_read = BIO_read(ss->bio_write_, (char*)buffer_data + off, len);
+
+  ss->HandleError("BIO_read:EncOut", bytes_read, true);
 
   return scope.Close(Integer::New(bytes_read));
 }
@@ -591,7 +618,7 @@ Handle<Value> Connection::EncOut(const Arguments& args) {
 Handle<Value> Connection::ClearIn(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
 
   if (args.Length() < 3) {
     return ThrowException(Exception::TypeError(
@@ -620,25 +647,21 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
   }
 
   if (!SSL_is_init_finished(ss->ssl_)) {
-    int s;
+    int rv;
     if (ss->is_server_) {
-      s = serr(ss->ssl_, "SSL_accept:ClearIn", SSL_accept(ss->ssl_));
+      rv = SSL_accept(ss->ssl_);
+      ss->HandleError("SSL_accept:ClearIn", rv);
     } else {
-      s = serr(ss->ssl_, "SSL_connect:ClearIn", SSL_connect(ss->ssl_));
+      rv = SSL_connect(ss->ssl_);
+      ss->HandleError("SSL_connect:ClearIn", rv);
     }
 
-    if (s < 0) {
-      return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
-    }
-
-    return scope.Close(Integer::New(0));
+    if (rv < 0) return scope.Close(Integer::New(rv));
   }
 
-  int bytes_written = serr(ss->ssl_, "SSL_write:ClearIn", SSL_write(ss->ssl_, (char*)buffer_data + off, len));
+  int bytes_written = SSL_write(ss->ssl_, (char*)buffer_data + off, len);
 
-  if (bytes_written < 0) {
-    return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
-  }
+  ss->HandleError("SSL_write:ClearIn", bytes_written);
 
   return scope.Close(Integer::New(bytes_written));
 }
@@ -647,7 +670,7 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
 Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
 
   if (ss->ssl_ == NULL) return Undefined();
   Local<Object> info = Object::New();
@@ -719,36 +742,30 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
 
 Handle<Value> Connection::Start(const Arguments& args) {
   HandleScope scope;
-  int rv;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
 
   if (!SSL_is_init_finished(ss->ssl_)) {
+    int rv;
     if (ss->is_server_) {
-      rv = serr(ss->ssl_, "SSL_accept:Start", SSL_accept(ss->ssl_));
+      rv = SSL_accept(ss->ssl_);
+      ss->HandleError("SSL_accept:Start", rv);
     } else {
-      rv = serr(ss->ssl_, "SSL_connect:Start", SSL_connect(ss->ssl_));
+      rv = SSL_connect(ss->ssl_);
+      ss->HandleError("SSL_connect:Start", rv);
     }
 
-    if (rv < 0) {
-      return ThrowException(Exception::Error(v8::String::New(ssl_error_buf)));
-    }
-
-    if (rv == 1) {
-      return True();
-    } else {
-      return False();
-    }
+    return scope.Close(Integer::New(rv));
   }
 
-  return True();
+  return scope.Close(Integer::New(0));
 }
 
 
 Handle<Value> Connection::Shutdown(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
 
   if (ss->ssl_ == NULL) return False();
   int r = SSL_shutdown(ss->ssl_);
@@ -760,7 +777,7 @@ Handle<Value> Connection::Shutdown(const Arguments& args) {
 Handle<Value> Connection::ReceivedShutdown(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
 
   if (ss->ssl_ == NULL) return False();
   int r = SSL_get_shutdown(ss->ssl_);
@@ -773,7 +790,9 @@ Handle<Value> Connection::ReceivedShutdown(const Arguments& args) {
 
 Handle<Value> Connection::IsInitFinished(const Arguments& args) {
   HandleScope scope;
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+
+  Connection *ss = Connection::Unwrap(args);
+
   if (ss->ssl_ == NULL) return False();
   return SSL_is_init_finished(ss->ssl_) ? True() : False();
 }
@@ -782,7 +801,7 @@ Handle<Value> Connection::IsInitFinished(const Arguments& args) {
 Handle<Value> Connection::VerifyError(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
 
   if (ss->ssl_ == NULL) return Null();
 
@@ -926,7 +945,8 @@ Handle<Value> Connection::VerifyError(const Arguments& args) {
 Handle<Value> Connection::GetCurrentCipher(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
+
   OPENSSL_CONST SSL_CIPHER *c;
 
   if ( ss->ssl_ == NULL ) return Undefined();
@@ -943,7 +963,7 @@ Handle<Value> Connection::GetCurrentCipher(const Arguments& args) {
 Handle<Value> Connection::Close(const Arguments& args) {
   HandleScope scope;
 
-  Connection *ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+  Connection *ss = Connection::Unwrap(args);
 
   if (ss->ssl_ != NULL) {
     SSL_free(ss->ssl_);

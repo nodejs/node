@@ -74,6 +74,15 @@ class Connection : ObjectWrap {
   static v8::Handle<v8::Value> Start(const v8::Arguments& args);
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
 
+  int HandleError(const char* func, int rv, bool ignore_error=false);
+  void ClearError();
+
+  static Connection* Unwrap(const v8::Arguments& args) {
+    Connection* ss = ObjectWrap::Unwrap<Connection>(args.Holder());
+    ss->ClearError();
+    return ss;
+  }
+
   Connection() : ObjectWrap() {
     bio_read_ = bio_write_ = NULL;
     ssl_ = NULL;
