@@ -336,6 +336,21 @@ void Connection::ClearError() {
 }
 
 
+void Connection::SetShutdownFlags() {
+  HandleScope scope;
+
+  int flags = SSL_get_shutdown(ssl_);
+
+  if (flags & SSL_SENT_SHUTDOWN) {
+    handle_->Set(String::New("sentShutdown"), True());
+  }
+
+  if (flags & SSL_RECEIVED_SHUTDOWN) {
+    handle_->Set(String::New("receivedShutdown"), True());
+  }
+}
+
+
 void Connection::Initialize(Handle<Object> target) {
   HandleScope scope;
 
@@ -496,8 +511,8 @@ Handle<Value> Connection::EncIn(const Arguments& args) {
   }
 
   int bytes_written = BIO_write(ss->bio_read_, (char*)buffer_data + off, len);
-
   ss->HandleError("BIO_write", bytes_written);
+  ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_written));
 }
@@ -534,7 +549,6 @@ Handle<Value> Connection::ClearOut(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-
   if (!SSL_is_init_finished(ss->ssl_)) {
     int rv;
 
@@ -551,6 +565,7 @@ Handle<Value> Connection::ClearOut(const Arguments& args) {
 
   int bytes_read = SSL_read(ss->ssl_, (char*)buffer_data + off, len);
   ss->HandleError("SSL_read:ClearOut", bytes_read);
+  ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_read));
 }
@@ -610,6 +625,7 @@ Handle<Value> Connection::EncOut(const Arguments& args) {
   int bytes_read = BIO_read(ss->bio_write_, (char*)buffer_data + off, len);
 
   ss->HandleError("BIO_read:EncOut", bytes_read, true);
+  ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_read));
 }
@@ -662,6 +678,7 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
   int bytes_written = SSL_write(ss->ssl_, (char*)buffer_data + off, len);
 
   ss->HandleError("SSL_write:ClearIn", bytes_written);
+  ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_written));
 }
@@ -768,9 +785,12 @@ Handle<Value> Connection::Shutdown(const Arguments& args) {
   Connection *ss = Connection::Unwrap(args);
 
   if (ss->ssl_ == NULL) return False();
-  int r = SSL_shutdown(ss->ssl_);
+  int rv = SSL_shutdown(ss->ssl_);
 
-  return scope.Close(Integer::New(r));
+  ss->HandleError("SSL_shutdown", rv);
+  ss->SetShutdownFlags();
+
+  return scope.Close(Integer::New(rv));
 }
 
 

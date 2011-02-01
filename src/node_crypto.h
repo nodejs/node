@@ -76,6 +76,7 @@ class Connection : ObjectWrap {
 
   int HandleError(const char* func, int rv, bool ignore_error=false);
   void ClearError();
+  void SetShutdownFlags();
 
   static Connection* Unwrap(const v8::Arguments& args) {
     Connection* ss = ObjectWrap::Unwrap<Connection>(args.Holder());
