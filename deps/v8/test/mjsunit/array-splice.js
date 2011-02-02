@@ -339,6 +339,20 @@
 })();
 
 
+// Check the case of JS builtin .splice()
+(function() {
+  for (var i = 0; i < 7; i++) {
+    var array = [1, 2, 3, 4];
+    Array.prototype[3] = 'foo';  // To force JS builtin.
+
+    var spliced = array.splice();
+
+    assertEquals([], spliced);
+    assertEquals([1, 2, 3, 4], array);
+  }
+})();
+
+
 // Check the behaviour when approaching maximal values for length.
 (function() {
   for (var i = 0; i < 7; i++) {

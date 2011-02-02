@@ -1,4 +1,19 @@
-2011-01=31: Version 3.1.0
+2011-02-02: Version 3.1.1
+
+        Perform security checks before fetching the value in
+        Object.getOwnPropertyDescriptor.
+
+        Fixed a bug in Array.prototype.splice triggered by passing no
+        arguments.
+
+        Fixed bugs in -0 in arithmetic and in Math.pow.
+
+        Fixed bugs in the register allocator and in switching from optimized
+        to unoptimized code.
+
+
+2011-01-31: Version 3.1.0
+
         Performance improvements on all platforms.
 
 

@@ -1813,15 +1813,6 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
                                               HValue* use,
                                               Representation to,
                                               bool is_truncating) {
-  // Propagate flags for negative zero checks upwards from conversions
-  // int32-to-tagged and int32-to-double.
-  Representation from = value->representation();
-  if (from.IsInteger32()) {
-    ASSERT(to.IsTagged() || to.IsDouble());
-    BitVector visited(GetMaximumValueID());
-    PropagateMinusZeroChecks(value, &visited);
-  }
-
   // Insert the representation change right before its use. For phi-uses we
   // insert at the end of the corresponding predecessor.
   HBasicBlock* insert_block = use->block();
@@ -1979,6 +1970,30 @@ void HGraph::InsertRepresentationChanges() {
     while (current != NULL) {
       InsertRepresentationChanges(current);
       current = current->next();
+    }
+  }
+}
+
+
+void HGraph::ComputeMinusZeroChecks() {
+  BitVector visited(GetMaximumValueID());
+  for (int i = 0; i < blocks_.length(); ++i) {
+    for (HInstruction* current = blocks_[i]->first();
+         current != NULL;
+         current = current->next()) {
+      if (current->IsChange()) {
+        HChange* change = HChange::cast(current);
+        // Propagate flags for negative zero checks upwards from conversions
+        // int32-to-tagged and int32-to-double.
+        Representation from = change->value()->representation();
+        ASSERT(from.Equals(change->from()));
+        if (from.IsInteger32()) {
+          ASSERT(change->to().IsTagged() || change->to().IsDouble());
+          ASSERT(visited.IsEmpty());
+          PropagateMinusZeroChecks(change->value(), &visited);
+          visited.Clear();
+        }
+      }
     }
   }
 }
@@ -2243,6 +2258,7 @@ HGraph* HGraphBuilder::CreateGraph(CompilationInfo* info) {
   graph_->InitializeInferredTypes();
   graph_->Canonicalize();
   graph_->InsertRepresentationChanges();
+  graph_->ComputeMinusZeroChecks();
 
   // Eliminate redundant stack checks on backwards branches.
   HStackCheckEliminator sce(graph_);
@@ -3540,9 +3556,11 @@ void HGraphBuilder::VisitThrow(Throw* expr) {
   VISIT_FOR_VALUE(expr->exception());
 
   HValue* value = environment()->Pop();
-  HControlInstruction* instr = new HThrow(value);
+  HThrow* instr = new HThrow(value);
   instr->set_position(expr->position());
-  current_subgraph_->FinishExit(instr);
+  AddInstruction(instr);
+  AddSimulate(expr->id());
+  current_subgraph_->FinishExit(new HAbnormalExit);
 }
 
 

@@ -7951,10 +7951,12 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ j(not_equal, &not_minus_half);
 
     // Calculates reciprocal of square root.
-    // Note that 1/sqrt(x) = sqrt(1/x))
-    __ divsd(xmm3, xmm0);
-    __ movsd(xmm1, xmm3);
+    // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+    __ xorpd(xmm1, xmm1);
+    __ addsd(xmm1, xmm0);
     __ sqrtsd(xmm1, xmm1);
+    __ divsd(xmm3, xmm1);
+    __ movsd(xmm1, xmm3);
     __ jmp(&allocate_return);
 
     // Test for 0.5.
@@ -7966,7 +7968,9 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ ucomisd(xmm2, xmm1);
     call_runtime.Branch(not_equal);
     // Calculates square root.
-    __ movsd(xmm1, xmm0);
+    // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+    __ xorpd(xmm1, xmm1);
+    __ addsd(xmm1, xmm0);
     __ sqrtsd(xmm1, xmm1);
 
     JumpTarget done;

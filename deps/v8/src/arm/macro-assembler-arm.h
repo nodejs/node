@@ -707,6 +707,17 @@ class MacroAssembler: public Assembler {
   bool allow_stub_calls() { return allow_stub_calls_; }
 
   // ---------------------------------------------------------------------------
+  // Number utilities
+
+  // Check whether the value of reg is a power of two and not zero. If not
+  // control continues at the label not_power_of_two. If reg is a power of two
+  // the register scratch contains the value of (reg - 1) when control falls
+  // through.
+  void JumpIfNotPowerOfTwoOrZero(Register reg,
+                                 Register scratch,
+                                 Label* not_power_of_two_or_zero);
+
+  // ---------------------------------------------------------------------------
   // Smi utilities
 
   void SmiTag(Register reg, SBit s = LeaveCC) {

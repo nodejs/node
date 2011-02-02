@@ -675,46 +675,36 @@ static void ComputeSlotMappingForArguments(JavaScriptFrame* frame,
                                            int inlined_frame_index,
                                            Vector<SlotRef>* args_slots) {
   AssertNoAllocation no_gc;
-
   int deopt_index = AstNode::kNoNumber;
-
   DeoptimizationInputData* data =
       static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
-
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());
-
   Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
   ASSERT(opcode == Translation::BEGIN);
   int frame_count = it.Next();
-
   USE(frame_count);
   ASSERT(frame_count > inlined_frame_index);
-
   int frames_to_skip = inlined_frame_index;
   while (true) {
     opcode = static_cast<Translation::Opcode>(it.Next());
-
     // Skip over operands to advance to the next opcode.
     it.Skip(Translation::NumberOfOperandsFor(opcode));
-
     if (opcode == Translation::FRAME) {
       if (frames_to_skip == 0) {
-        // We reached frame corresponding to inlined function in question.
-        // Process translation commands for arguments.
-
-        // Skip translation command for receiver.
+        // We reached the frame corresponding to the inlined function
+        // in question.  Process the translation commands for the
+        // arguments.
+        //
+        // Skip the translation command for the receiver.
         it.Skip(Translation::NumberOfOperandsFor(
             static_cast<Translation::Opcode>(it.Next())));
-
         // Compute slots for arguments.
         for (int i = 0; i < args_slots->length(); ++i) {
           (*args_slots)[i] = ComputeSlotForNextArgument(&it, data, frame);
         }
-
         return;
       }
-
       frames_to_skip--;
     }
   }
@@ -727,16 +717,11 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
     JavaScriptFrame* frame,
     Handle<JSFunction> inlined_function,
     int inlined_frame_index) {
-
   int args_count = inlined_function->shared()->formal_parameter_count();
-
   ScopedVector<SlotRef> args_slots(args_count);
-
   ComputeSlotMappingForArguments(frame, inlined_frame_index, &args_slots);
-
   Handle<JSObject> arguments =
       Factory::NewArgumentsObject(inlined_function, args_count);
-
   Handle<FixedArray> array = Factory::NewFixedArray(args_count);
   for (int i = 0; i < args_count; ++i) {
     Handle<Object> value = args_slots[i].GetValue();
@@ -766,39 +751,43 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
       if (functions[i] != *function) continue;
 
       if (i > 0) {
-        // Function in question was inlined.
+        // The function in question was inlined.  Inlined functions have the
+        // correct number of arguments and no allocated arguments object, so
+        // we can construct a fresh one by interpreting the function's
+        // deoptimization input data.
         return ConstructArgumentsObjectForInlinedFunction(frame, function, i);
-      } else {
+      }
+
+      if (!frame->is_optimized()) {
         // If there is an arguments variable in the stack, we return that.
-        int index = function->shared()->scope_info()->
-            StackSlotIndex(Heap::arguments_symbol());
+        Handle<SerializedScopeInfo> info(function->shared()->scope_info());
+        int index = info->StackSlotIndex(Heap::arguments_symbol());
         if (index >= 0) {
-          Handle<Object> arguments =
-              Handle<Object>(frame->GetExpression(index));
+          Handle<Object> arguments(frame->GetExpression(index));
           if (!arguments->IsArgumentsMarker()) return *arguments;
         }
-
-        // If there isn't an arguments variable in the stack, we need to
-        // find the frame that holds the actual arguments passed to the
-        // function on the stack.
-        it.AdvanceToArgumentsFrame();
-        frame = it.frame();
-
-        // Get the number of arguments and construct an arguments object
-        // mirror for the right frame.
-        const int length = frame->GetProvidedParametersCount();
-        Handle<JSObject> arguments = Factory::NewArgumentsObject(function,
-                                                                 length);
-        Handle<FixedArray> array = Factory::NewFixedArray(length);
-
-        // Copy the parameters to the arguments object.
-        ASSERT(array->length() == length);
-        for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
-        arguments->set_elements(*array);
-
-        // Return the freshly allocated arguments object.
-        return *arguments;
       }
+
+      // If there is no arguments variable in the stack or we have an
+      // optimized frame, we find the frame that holds the actual arguments
+      // passed to the function.
+      it.AdvanceToArgumentsFrame();
+      frame = it.frame();
+
+      // Get the number of arguments and construct an arguments object
+      // mirror for the right frame.
+      const int length = frame->GetProvidedParametersCount();
+      Handle<JSObject> arguments = Factory::NewArgumentsObject(function,
+                                                               length);
+      Handle<FixedArray> array = Factory::NewFixedArray(length);
+
+      // Copy the parameters to the arguments object.
+      ASSERT(array->length() == length);
+      for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
+      arguments->set_elements(*array);
+
+      // Return the freshly allocated arguments object.
+      return *arguments;
     }
     functions.Rewind(0);
   }

@@ -62,67 +62,45 @@ void MessageHandler::ReportMessage(const char* msg) {
 }
 
 
-Handle<Object> MessageHandler::MakeMessageObject(
+Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     const char* type,
     MessageLocation* loc,
     Vector< Handle<Object> > args,
     Handle<String> stack_trace,
     Handle<JSArray> stack_frames) {
-  // Build error message object
-  v8::HandleScope scope;  // Instantiate a closeable HandleScope for EscapeFrom.
-  Handle<Object> type_str = Factory::LookupAsciiSymbol(type);
-  Handle<Object> array = Factory::NewJSArray(args.length());
-  for (int i = 0; i < args.length(); i++)
-    SetElement(Handle<JSArray>::cast(array), i, args[i]);
+  Handle<String> type_handle = Factory::LookupAsciiSymbol(type);
+  Handle<JSArray> arguments_handle = Factory::NewJSArray(args.length());
+  for (int i = 0; i < args.length(); i++) {
+    SetElement(arguments_handle, i, args[i]);
+  }
 
-  Handle<JSFunction> fun(Top::global_context()->make_message_fun());
-  int start, end;
-  Handle<Object> script;
+  int start = 0;
+  int end = 0;
+  Handle<Object> script_handle = Factory::undefined_value();
   if (loc) {
     start = loc->start_pos();
     end = loc->end_pos();
-    script = GetScriptWrapper(loc->script());
-  } else {
-    start = end = 0;
-    script = Factory::undefined_value();
+    script_handle = GetScriptWrapper(loc->script());
   }
-  Handle<Object> start_handle(Smi::FromInt(start));
-  Handle<Object> end_handle(Smi::FromInt(end));
-  Handle<Object> stack_trace_val = stack_trace.is_null()
-    ? Factory::undefined_value()
-    : Handle<Object>::cast(stack_trace);
-  Handle<Object> stack_frames_val =  stack_frames.is_null()
-    ? Factory::undefined_value()
-    : Handle<Object>::cast(stack_frames);
-  const int argc = 7;
-  Object** argv[argc] = { type_str.location(),
-                          array.location(),
-                          start_handle.location(),
-                          end_handle.location(),
-                          script.location(),
-                          stack_trace_val.location(),
-                          stack_frames_val.location() };
 
-  // Setup a catch handler to catch exceptions in creating the message. This
-  // handler is non-verbose to avoid calling MakeMessage recursively in case of
-  // an exception.
-  v8::TryCatch catcher;
-  catcher.SetVerbose(false);
-  catcher.SetCaptureMessage(false);
+  Handle<Object> stack_trace_handle = stack_trace.is_null()
+      ? Factory::undefined_value()
+      : Handle<Object>::cast(stack_trace);
 
-  // Format the message.
-  bool caught_exception = false;
-  Handle<Object> message =
-      Execution::Call(fun, Factory::undefined_value(), argc, argv,
-                      &caught_exception);
+  Handle<Object> stack_frames_handle =  stack_frames.is_null()
+      ? Factory::undefined_value()
+      : Handle<Object>::cast(stack_frames);
 
-  // If creating the message (in JS code) resulted in an exception, we
-  // skip doing the callback. This usually only happens in case of
-  // stack overflow exceptions being thrown by the parser when the
-  // stack is almost full.
-  if (caught_exception) return Handle<Object>();
+  Handle<JSMessageObject> message =
+      Factory::NewJSMessageObject(type_handle,
+                                  arguments_handle,
+                                  start,
+                                  end,
+                                  script_handle,
+                                  stack_trace_handle,
+                                  stack_frames_handle);
 
-  return message.EscapeFrom(&scope);
+  return message;
 }
 
 

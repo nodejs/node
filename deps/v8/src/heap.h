@@ -94,6 +94,7 @@ namespace internal {
   V(Map, oddball_map, OddballMap)                                              \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
+  V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, proxy_map, ProxyMap)                                                  \
   V(Object, nan_value, NanValue)                                               \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
@@ -627,6 +628,19 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT static MaybeObject* AllocateSharedFunctionInfo(Object* name);
+
+  // Allocates a new JSMessageObject object.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note that this does not perform a garbage collection.
+  MUST_USE_RESULT static MaybeObject* AllocateJSMessageObject(
+      String* type,
+      JSArray* arguments,
+      int start_position,
+      int end_position,
+      Object* script,
+      Object* stack_trace,
+      Object* stack_frames);
 
   // Allocates a new cons string object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

@@ -143,6 +143,16 @@ void JumpTarget::DoBind() {
       entry_frame_set_ = true;
     } else {
       cgen()->frame()->MergeTo(&entry_frame_);
+      // On fall through we may have to merge both ways.
+      if (direction_ != FORWARD_ONLY) {
+        // This will not need to adjust the virtual frame entries that are
+        // register allocated since that was done above and they now match.
+        // But it does need to adjust the entry_frame_ of this jump target
+        // to make it potentially less optimistic.  Later code can branch back
+        // to this jump target and we need to assert that that code does not
+        // have weaker assumptions about types.
+        entry_frame_.MergeTo(cgen()->frame());
+      }
     }
   } else {
     // If there is no current frame we must have an entry frame which we can

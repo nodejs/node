@@ -346,17 +346,11 @@ void LCodeGen::AddToTranslation(Translation* translation,
 void LCodeGen::CallCode(Handle<Code> code,
                         RelocInfo::Mode mode,
                         LInstruction* instr) {
-  if (instr != NULL) {
-    LPointerMap* pointers = instr->pointer_map();
-    RecordPosition(pointers->position());
-    __ call(code, mode);
-    RegisterLazyDeoptimization(instr);
-  } else {
-    LPointerMap no_pointers(0);
-    RecordPosition(no_pointers.position());
-    __ call(code, mode);
-    RecordSafepoint(&no_pointers, Safepoint::kNoDeoptimizationIndex);
-  }
+  ASSERT(instr != NULL);
+  LPointerMap* pointers = instr->pointer_map();
+  RecordPosition(pointers->position());
+  __ call(code, mode);
+  RegisterLazyDeoptimization(instr);
 
   // Signal that we don't inline smi code before these stubs in the
   // optimizing code generator.

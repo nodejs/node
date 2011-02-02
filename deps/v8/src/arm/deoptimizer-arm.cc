@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -37,6 +37,14 @@ namespace internal {
 
 int Deoptimizer::table_entry_size_ = 16;
 
+
+int Deoptimizer::patch_size() {
+  const int kCallInstructionSizeInWords = 3;
+  return kCallInstructionSizeInWords * Assembler::kInstrSize;
+}
+
+
+
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   AssertNoAllocation no_allocation;
 
@@ -51,6 +59,8 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
   // For each return after a safepoint insert an absolute call to the
   // corresponding deoptimization entry.
+  ASSERT(patch_size() % Assembler::kInstrSize == 0);
+  int call_size_in_words = patch_size() / Assembler::kInstrSize;
   unsigned last_pc_offset = 0;
   SafepointTable table(function->code());
   for (unsigned i = 0; i < table.length(); i++) {
@@ -73,14 +83,13 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 #endif
     last_pc_offset = pc_offset;
     if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
-      const int kCallInstructionSizeInWords = 3;
-      CodePatcher patcher(code->instruction_start() + pc_offset + gap_code_size,
-                          kCallInstructionSizeInWords);
+      last_pc_offset += gap_code_size;
+      CodePatcher patcher(code->instruction_start() + last_pc_offset,
+                          call_size_in_words);
       Address deoptimization_entry = Deoptimizer::GetDeoptimizationEntry(
           deoptimization_index, Deoptimizer::LAZY);
       patcher.masm()->Call(deoptimization_entry, RelocInfo::NONE);
-      last_pc_offset +=
-          gap_code_size + kCallInstructionSizeInWords * Assembler::kInstrSize;
+      last_pc_offset += patch_size();
     }
   }
 
@@ -112,16 +121,16 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-void Deoptimizer::PatchStackCheckCode(Code* unoptimized_code,
-                                      Code* check_code,
-                                      Code* replacement_code) {
+void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
+                                        Code* check_code,
+                                        Code* replacement_code) {
   UNIMPLEMENTED();
 }
 
 
-void Deoptimizer::RevertStackCheckCode(Code* unoptimized_code,
-                                       Code* check_code,
-                                       Code* replacement_code) {
+void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
+                                         Code* check_code,
+                                         Code* replacement_code) {
   UNIMPLEMENTED();
 }
 

@@ -1084,9 +1084,9 @@ ErrorMirror.prototype.toText = function() {
   // Use the same text representation as in messages.js.
   var text;
   try {
-    str = builtins.ToDetailString(this.value_);
+    str = %_CallFunction(this.value_, builtins.errorToString);
   } catch (e) {
-    str = '#<an Error>';
+    str = '#<Error>';
   }
   return str;
 }

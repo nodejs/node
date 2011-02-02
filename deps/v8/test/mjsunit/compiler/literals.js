@@ -88,3 +88,6 @@ assertEquals(17, eval('[1,2,3,4]; 17'));
 assertEquals(19, eval('var a=1, b=2; [a,b,3,4]; 19'));
 assertEquals(23, eval('var a=1, b=2; c=23; [a,b,3,4]; c'));
 
+// Test that literals work for non-smi indices.
+// Ensure hash-map collision if using value as hash.
+var o = {"2345678901" : 42, "2345678901" : 30};

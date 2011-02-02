@@ -47,6 +47,7 @@
 		890A14020EE9C4B400E49346 /* regexp-macro-assembler-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C750EE466D000B48DEB /* regexp-macro-assembler-irregexp.cc */; };
 		890A14030EE9C4B500E49346 /* regexp-macro-assembler-tracer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C770EE466D000B48DEB /* regexp-macro-assembler-tracer.cc */; };
 		890A14040EE9C4B700E49346 /* regexp-macro-assembler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C790EE466D000B48DEB /* regexp-macro-assembler.cc */; };
+		8924315C12F8539900906AB2 /* lithium-gap-resolver-x64.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8924315A12F8539900906AB2 /* lithium-gap-resolver-x64.cc */; };
 		8938A2A312D63B630080CDDE /* lithium-x64.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8938A2A212D63B630080CDDE /* lithium-x64.cc */; };
 		893988070F2A35FA007D5254 /* libv8.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8970F2F00E719FB2006AE7B5 /* libv8.a */; };
 		8939880D0F2A362A007D5254 /* d8.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C920EE46A1700B48DEB /* d8.cc */; };
@@ -563,6 +564,8 @@
 		58950D5A0F55514900F3E8BA /* virtual-frame.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame.cc"; sourceTree = "<group>"; };
 		58950D5B0F55514900F3E8BA /* virtual-frame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame.h"; sourceTree = "<group>"; };
 		8900116B0E71CA2300F91F35 /* libraries.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libraries.cc; sourceTree = "<group>"; };
+		8924315A12F8539900906AB2 /* lithium-gap-resolver-x64.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "lithium-gap-resolver-x64.cc"; path = "x64/lithium-gap-resolver-x64.cc"; sourceTree = "<group>"; };
+		8924315B12F8539900906AB2 /* lithium-gap-resolver-x64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "lithium-gap-resolver-x64.h"; path = "x64/lithium-gap-resolver-x64.h"; sourceTree = "<group>"; };
 		8938A2A212D63B630080CDDE /* lithium-x64.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "lithium-x64.cc"; path = "x64/lithium-x64.cc"; sourceTree = "<group>"; };
 		893986D40F29020C007D5254 /* apiutils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = apiutils.h; sourceTree = "<group>"; };
 		8939880B0F2A35FA007D5254 /* d8 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = d8; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1458,6 +1461,8 @@
 				89B91B8C12D4EF95002FF4BC /* jump-target-x64.cc */,
 				89F3605A12DCDF6400ACF8A6 /* lithium-codegen-x64.cc */,
 				89B91B8D12D4EF95002FF4BC /* lithium-codegen-x64.h */,
+				8924315A12F8539900906AB2 /* lithium-gap-resolver-x64.cc */,
+				8924315B12F8539900906AB2 /* lithium-gap-resolver-x64.h */,
 				8938A2A212D63B630080CDDE /* lithium-x64.cc */,
 				89B91B8E12D4EF95002FF4BC /* lithium-x64.h */,
 				89B91B8F12D4EF95002FF4BC /* macro-assembler-x64.cc */,
@@ -1979,6 +1984,7 @@
 				89F3605B12DCDF6400ACF8A6 /* lithium-codegen-x64.cc in Sources */,
 				89D7DDDE12E8DE09001E2B82 /* gdb-jit.cc in Sources */,
 				89D7DDDF12E8DE09001E2B82 /* inspector.cc in Sources */,
+				8924315C12F8539900906AB2 /* lithium-gap-resolver-x64.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

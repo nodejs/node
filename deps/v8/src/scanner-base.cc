@@ -99,15 +99,21 @@ uc32 Scanner::ScanHexEscape(uc32 c, int length) {
 // Octal escapes of the forms '\0xx' and '\xxx' are not a part of
 // ECMA-262. Other JS VMs support them.
 uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
-  octal_pos_ = source_pos() - 1;     // Already advanced
   uc32 x = c - '0';
-  for (int i = 0; i < length; i++) {
+  int i = 0;
+  for (; i < length; i++) {
     int d = c0_ - '0';
     if (d < 0 || d > 7) break;
     int nx = x * 8 + d;
     if (nx >= 256) break;
     x = nx;
     Advance();
+  }
+  // Anything excelt '\0' is an octal escape sequence, illegal in strict mode.
+  // Remember the position of octal escape sequences so that better error
+  // can be reported later (in strict mode).
+  if (c != '0' || i > 0) {
+    octal_pos_ = source_pos() - i - 1;     // Already advanced
   }
   return x;
 }

@@ -20,6 +20,8 @@ d8_g
 shell
 shell_g
 /obj/
+/tools/oom_dump/oom_dump
+/tools/oom_dump/oom_dump.o
 /tools/visual_studio/Debug
 /tools/visual_studio/Release
 /xcodebuild/

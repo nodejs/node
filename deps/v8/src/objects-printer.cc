@@ -151,6 +151,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(this)->SharedFunctionInfoPrint(out);
       break;
+    case JS_MESSAGE_OBJECT_TYPE:
+      JSMessageObject::cast(this)->JSMessageObjectPrint(out);
+      break;
     case JS_GLOBAL_PROPERTY_CELL_TYPE:
       JSGlobalPropertyCell::cast(this)->JSGlobalPropertyCellPrint(out);
       break;
@@ -396,6 +399,7 @@ static const char* TypeToString(InstanceType type) {
     case JS_GLOBAL_PROXY_TYPE: return "JS_GLOBAL_PROXY";
     case PROXY_TYPE: return "PROXY";
     case LAST_STRING_TYPE: return "LAST_STRING_TYPE";
+    case JS_MESSAGE_OBJECT_TYPE: return "JS_MESSAGE_OBJECT_TYPE";
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;
   STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
@@ -463,6 +467,24 @@ void FixedArray::FixedArrayPrint(FILE* out) {
 void JSValue::JSValuePrint(FILE* out) {
   HeapObject::PrintHeader(out, "ValueObject");
   value()->Print(out);
+}
+
+
+void JSMessageObject::JSMessageObjectPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSMessageObject");
+  PrintF(out, " - type: ");
+  type()->ShortPrint(out);
+  PrintF(out, "\n - arguments: ");
+  arguments()->ShortPrint(out);
+  PrintF(out, "\n - start_position: %d", start_position());
+  PrintF(out, "\n - end_position: %d", end_position());
+  PrintF(out, "\n - script: ");
+  script()->ShortPrint(out);
+  PrintF(out, "\n - stack_trace: ");
+  stack_trace()->ShortPrint(out);
+  PrintF(out, "\n - stack_frames: ");
+  stack_frames()->ShortPrint(out);
+  PrintF(out, "\n");
 }
 
 

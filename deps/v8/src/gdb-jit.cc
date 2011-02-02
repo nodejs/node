@@ -201,6 +201,7 @@ class ELFSection : public ZoneObject {
     TYPE_SHLIB = 10,
     TYPE_DYNSYM = 11,
     TYPE_LOPROC = 0x70000000,
+    TYPE_X86_64_UNWIND = 0x70000001,
     TYPE_HIPROC = 0x7fffffff,
     TYPE_LOUSER = 0x80000000,
     TYPE_HIUSER = 0xffffffff
@@ -639,26 +640,53 @@ class ELFSymbolTable : public ELFSection {
 
 class CodeDescription BASE_EMBEDDED {
  public:
+
+#ifdef V8_TARGET_ARCH_X64
+  enum StackState {
+    POST_RBP_PUSH,
+    POST_RBP_SET,
+    POST_RBP_POP,
+    STACK_STATE_MAX
+  };
+#endif
+
   CodeDescription(const char* name,
                   Code* code,
                   Handle<Script> script,
-                  GDBJITLineInfo* lineinfo)
-      : name_(name), code_(code), script_(script), lineinfo_(lineinfo)
-  { }
+                  GDBJITLineInfo* lineinfo,
+                  GDBJITInterface::CodeTag tag)
+      : name_(name),
+        code_(code),
+        script_(script),
+        lineinfo_(lineinfo),
+        tag_(tag) {
+  }
 
-  const char* code_name() const {
+  const char* name() const {
     return name_;
   }
 
-  uintptr_t code_size() const {
-    return code_->instruction_end() - code_->instruction_start();
+  GDBJITLineInfo* lineinfo() const {
+    return lineinfo_;
   }
 
-  uintptr_t code_start() const {
-    return (uintptr_t)code_->instruction_start();
+  GDBJITInterface::CodeTag tag() const {
+    return tag_;
   }
 
-  bool is_line_info_available() {
+  uintptr_t CodeStart() const {
+    return reinterpret_cast<uintptr_t>(code_->instruction_start());
+  }
+
+  uintptr_t CodeEnd() const {
+    return reinterpret_cast<uintptr_t>(code_->instruction_end());
+  }
+
+  uintptr_t CodeSize() const {
+    return CodeEnd() - CodeStart();
+  }
+
+  bool IsLineInfoAvailable() {
     return !script_.is_null() &&
         script_->source()->IsString() &&
         script_->HasValidSource() &&
@@ -666,9 +694,19 @@ class CodeDescription BASE_EMBEDDED {
         lineinfo_ != NULL;
   }
 
-  GDBJITLineInfo* lineinfo() const { return lineinfo_; }
+#ifdef V8_TARGET_ARCH_X64
+  uintptr_t GetStackStateStartAddress(StackState state) const {
+    ASSERT(state < STACK_STATE_MAX);
+    return stack_state_start_addresses_[state];
+  }
 
-  SmartPointer<char> filename() {
+  void SetStackStateStartAddress(StackState state, uintptr_t addr) {
+    ASSERT(state < STACK_STATE_MAX);
+    stack_state_start_addresses_[state] = addr;
+  }
+#endif
+
+  SmartPointer<char> GetFilename() {
     return String::cast(script_->name())->ToCString();
   }
 
@@ -676,11 +714,16 @@ class CodeDescription BASE_EMBEDDED {
     return GetScriptLineNumberSafe(script_, pos) + 1;
   }
 
+
  private:
   const char* name_;
   Code* code_;
   Handle<Script> script_;
   GDBJITLineInfo* lineinfo_;
+  GDBJITInterface::CodeTag tag_;
+#ifdef V8_TARGET_ARCH_X64
+  uintptr_t stack_state_start_addresses_[STACK_STATE_MAX];
+#endif
 };
 
 
@@ -701,9 +744,9 @@ static void CreateSymbolsTable(CodeDescription* desc,
                         ELFSymbol::TYPE_FILE,
                         ELFSection::INDEX_ABSOLUTE));
 
-  symtab->Add(ELFSymbol(desc->code_name(),
+  symtab->Add(ELFSymbol(desc->name(),
                         0,
-                        desc->code_size(),
+                        desc->CodeSize(),
                         ELFSymbol::BIND_GLOBAL,
                         ELFSymbol::TYPE_FUNC,
                         text_section_index));
@@ -723,9 +766,9 @@ class DebugInfoSection : public ELFSection {
     w->Write<uint8_t>(sizeof(intptr_t));
 
     w->WriteULEB128(1);  // Abbreviation code.
-    w->WriteString(*desc_->filename());
-    w->Write<intptr_t>(desc_->code_start());
-    w->Write<intptr_t>(desc_->code_start() + desc_->code_size());
+    w->WriteString(*desc_->GetFilename());
+    w->Write<intptr_t>(desc_->CodeStart());
+    w->Write<intptr_t>(desc_->CodeStart() + desc_->CodeSize());
     w->Write<uint32_t>(0);
     size.set(static_cast<uint32_t>(w->position() - start));
     return true;
@@ -829,7 +872,7 @@ class DebugLineSection : public ELFSection {
     w->Write<uint8_t>(1);  // DW_LNS_SET_COLUMN operands count.
     w->Write<uint8_t>(0);  // DW_LNS_NEGATE_STMT operands count.
     w->Write<uint8_t>(0);  // Empty include_directories sequence.
-    w->WriteString(*desc_->filename());  // File name.
+    w->WriteString(*desc_->GetFilename());  // File name.
     w->WriteULEB128(0);  // Current directory.
     w->WriteULEB128(0);  // Unknown modification time.
     w->WriteULEB128(0);  // Unknown file size.
@@ -837,7 +880,7 @@ class DebugLineSection : public ELFSection {
     prologue_length.set(static_cast<uint32_t>(w->position() - prologue_start));
 
     WriteExtendedOpcode(w, DW_LNE_SET_ADDRESS, sizeof(intptr_t));
-    w->Write<intptr_t>(desc_->code_start());
+    w->Write<intptr_t>(desc_->CodeStart());
 
     intptr_t pc = 0;
     intptr_t line = 1;
@@ -900,12 +943,238 @@ class DebugLineSection : public ELFSection {
 };
 
 
+#ifdef V8_TARGET_ARCH_X64
+
+
+class UnwindInfoSection : public ELFSection {
+ public:
+  explicit UnwindInfoSection(CodeDescription *desc);
+  virtual bool WriteBody(Writer *w);
+
+  int WriteCIE(Writer *w);
+  void WriteFDE(Writer *w, int);
+
+  void WriteFDEStateOnEntry(Writer *w);
+  void WriteFDEStateAfterRBPPush(Writer *w);
+  void WriteFDEStateAfterRBPSet(Writer *w);
+  void WriteFDEStateAfterRBPPop(Writer *w);
+
+  void WriteLength(Writer *w,
+                   Writer::Slot<uint32_t>* length_slot,
+                   int initial_position);
+
+ private:
+  CodeDescription *desc_;
+
+  // DWARF3 Specification, Table 7.23
+  enum CFIInstructions {
+    DW_CFA_ADVANCE_LOC = 0x40,
+    DW_CFA_OFFSET = 0x80,
+    DW_CFA_RESTORE = 0xC0,
+    DW_CFA_NOP = 0x00,
+    DW_CFA_SET_LOC = 0x01,
+    DW_CFA_ADVANCE_LOC1 = 0x02,
+    DW_CFA_ADVANCE_LOC2 = 0x03,
+    DW_CFA_ADVANCE_LOC4 = 0x04,
+    DW_CFA_OFFSET_EXTENDED = 0x05,
+    DW_CFA_RESTORE_EXTENDED = 0x06,
+    DW_CFA_UNDEFINED = 0x07,
+    DW_CFA_SAME_VALUE = 0x08,
+    DW_CFA_REGISTER = 0x09,
+    DW_CFA_REMEMBER_STATE = 0x0A,
+    DW_CFA_RESTORE_STATE = 0x0B,
+    DW_CFA_DEF_CFA = 0x0C,
+    DW_CFA_DEF_CFA_REGISTER = 0x0D,
+    DW_CFA_DEF_CFA_OFFSET = 0x0E,
+
+    DW_CFA_DEF_CFA_EXPRESSION = 0x0F,
+    DW_CFA_EXPRESSION = 0x10,
+    DW_CFA_OFFSET_EXTENDED_SF = 0x11,
+    DW_CFA_DEF_CFA_SF = 0x12,
+    DW_CFA_DEF_CFA_OFFSET_SF = 0x13,
+    DW_CFA_VAL_OFFSET = 0x14,
+    DW_CFA_VAL_OFFSET_SF = 0x15,
+    DW_CFA_VAL_EXPRESSION = 0x16
+  };
+
+  // System V ABI, AMD64 Supplement, Version 0.99.5, Figure 3.36
+  enum RegisterMapping {
+    // Only the relevant ones have been added to reduce clutter.
+    AMD64_RBP = 6,
+    AMD64_RSP = 7,
+    AMD64_RA = 16
+  };
+
+  enum CFIConstants {
+    CIE_ID = 0,
+    CIE_VERSION = 1,
+    CODE_ALIGN_FACTOR = 1,
+    DATA_ALIGN_FACTOR = 1,
+    RETURN_ADDRESS_REGISTER = AMD64_RA
+  };
+};
+
+
+void UnwindInfoSection::WriteLength(Writer *w,
+                                    Writer::Slot<uint32_t>* length_slot,
+                                    int initial_position) {
+  uint32_t align = (w->position() - initial_position) % kPointerSize;
+
+  if (align != 0) {
+    for (uint32_t i = 0; i < (kPointerSize - align); i++) {
+      w->Write<uint8_t>(DW_CFA_NOP);
+    }
+  }
+
+  ASSERT((w->position() - initial_position) % kPointerSize == 0);
+  length_slot->set(w->position() - initial_position);
+}
+
+
+UnwindInfoSection::UnwindInfoSection(CodeDescription *desc)
+    : ELFSection(".eh_frame", TYPE_X86_64_UNWIND, 1), desc_(desc)
+{ }
+
+int UnwindInfoSection::WriteCIE(Writer *w) {
+  Writer::Slot<uint32_t> cie_length_slot = w->CreateSlotHere<uint32_t>();
+  uint32_t cie_position = w->position();
+
+  // Write out the CIE header. Currently no 'common instructions' are
+  // emitted onto the CIE; every FDE has its own set of instructions.
+
+  w->Write<uint32_t>(CIE_ID);
+  w->Write<uint8_t>(CIE_VERSION);
+  w->Write<uint8_t>(0);  // Null augmentation string.
+  w->WriteSLEB128(CODE_ALIGN_FACTOR);
+  w->WriteSLEB128(DATA_ALIGN_FACTOR);
+  w->Write<uint8_t>(RETURN_ADDRESS_REGISTER);
+
+  WriteLength(w, &cie_length_slot, cie_position);
+
+  return cie_position;
+}
+
+
+void UnwindInfoSection::WriteFDE(Writer *w, int cie_position) {
+  // The only FDE for this function. The CFA is the current RBP.
+  Writer::Slot<uint32_t> fde_length_slot = w->CreateSlotHere<uint32_t>();
+  int fde_position = w->position();
+  w->Write<int32_t>(fde_position - cie_position + 4);
+
+  w->Write<uintptr_t>(desc_->CodeStart());
+  w->Write<uintptr_t>(desc_->CodeSize());
+
+  WriteFDEStateOnEntry(w);
+  WriteFDEStateAfterRBPPush(w);
+  WriteFDEStateAfterRBPSet(w);
+  WriteFDEStateAfterRBPPop(w);
+
+  WriteLength(w, &fde_length_slot, fde_position);
+}
+
+
+void UnwindInfoSection::WriteFDEStateOnEntry(Writer *w) {
+  // The first state, just after the control has been transferred to the the
+  // function.
+
+  // RBP for this function will be the value of RSP after pushing the RBP
+  // for the previous function. The previous RBP has not been pushed yet.
+  w->Write<uint8_t>(DW_CFA_DEF_CFA_SF);
+  w->WriteULEB128(AMD64_RSP);
+  w->WriteSLEB128(-kPointerSize);
+
+  // The RA is stored at location CFA + kCallerPCOffset. This is an invariant,
+  // and hence omitted from the next states.
+  w->Write<uint8_t>(DW_CFA_OFFSET_EXTENDED);
+  w->WriteULEB128(AMD64_RA);
+  w->WriteSLEB128(StandardFrameConstants::kCallerPCOffset);
+
+  // The RBP of the previous function is still in RBP.
+  w->Write<uint8_t>(DW_CFA_SAME_VALUE);
+  w->WriteULEB128(AMD64_RBP);
+
+  // Last location described by this entry.
+  w->Write<uint8_t>(DW_CFA_SET_LOC);
+  w->Write<uint64_t>(
+      desc_->GetStackStateStartAddress(CodeDescription::POST_RBP_PUSH));
+}
+
+
+void UnwindInfoSection::WriteFDEStateAfterRBPPush(Writer *w) {
+  // The second state, just after RBP has been pushed.
+
+  // RBP / CFA for this function is now the current RSP, so just set the
+  // offset from the previous rule (from -8) to 0.
+  w->Write<uint8_t>(DW_CFA_DEF_CFA_OFFSET);
+  w->WriteULEB128(0);
+
+  // The previous RBP is stored at CFA + kCallerFPOffset. This is an invariant
+  // in this and the next state, and hence omitted in the next state.
+  w->Write<uint8_t>(DW_CFA_OFFSET_EXTENDED);
+  w->WriteULEB128(AMD64_RBP);
+  w->WriteSLEB128(StandardFrameConstants::kCallerFPOffset);
+
+  // Last location described by this entry.
+  w->Write<uint8_t>(DW_CFA_SET_LOC);
+  w->Write<uint64_t>(
+      desc_->GetStackStateStartAddress(CodeDescription::POST_RBP_SET));
+}
+
+
+void UnwindInfoSection::WriteFDEStateAfterRBPSet(Writer *w) {
+  // The third state, after the RBP has been set.
+
+  // The CFA can now directly be set to RBP.
+  w->Write<uint8_t>(DW_CFA_DEF_CFA);
+  w->WriteULEB128(AMD64_RBP);
+  w->WriteULEB128(0);
+
+  // Last location described by this entry.
+  w->Write<uint8_t>(DW_CFA_SET_LOC);
+  w->Write<uint64_t>(
+      desc_->GetStackStateStartAddress(CodeDescription::POST_RBP_POP));
+}
+
+
+void UnwindInfoSection::WriteFDEStateAfterRBPPop(Writer *w) {
+  // The fourth (final) state. The RBP has been popped (just before issuing a
+  // return).
+
+  // The CFA can is now calculated in the same way as in the first state.
+  w->Write<uint8_t>(DW_CFA_DEF_CFA_SF);
+  w->WriteULEB128(AMD64_RSP);
+  w->WriteSLEB128(-kPointerSize);
+
+  // The RBP
+  w->Write<uint8_t>(DW_CFA_OFFSET_EXTENDED);
+  w->WriteULEB128(AMD64_RBP);
+  w->WriteSLEB128(StandardFrameConstants::kCallerFPOffset);
+
+  // Last location described by this entry.
+  w->Write<uint8_t>(DW_CFA_SET_LOC);
+  w->Write<uint64_t>(desc_->CodeEnd());
+}
+
+
+bool UnwindInfoSection::WriteBody(Writer *w) {
+  uint32_t cie_position = WriteCIE(w);
+  WriteFDE(w, cie_position);
+  return true;
+}
+
+
+#endif  // V8_TARGET_ARCH_X64
+
+
 static void CreateDWARFSections(CodeDescription* desc, ELF* elf) {
-  if (desc->is_line_info_available()) {
+  if (desc->IsLineInfoAvailable()) {
     elf->AddSection(new DebugInfoSection(desc));
     elf->AddSection(new DebugAbbrevSection);
     elf->AddSection(new DebugLineSection(desc));
   }
+#ifdef V8_TARGET_ARCH_X64
+  elf->AddSection(new UnwindInfoSection(desc));
+#endif
 }
 
 
@@ -1005,9 +1274,9 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc) {
       new FullHeaderELFSection(".text",
                                ELFSection::TYPE_NOBITS,
                                kCodeAlignment,
-                               desc->code_start(),
+                               desc->CodeStart(),
                                0,
-                               desc->code_size(),
+                               desc->CodeSize(),
                                ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC));
 
   CreateSymbolsTable(desc, &elf, text_section_index);
@@ -1065,15 +1334,66 @@ void GDBJITInterface::AddCode(Handle<String> name,
 
   if (!name.is_null()) {
     SmartPointer<char> name_cstring = name->ToCString(DISALLOW_NULLS);
-    AddCode(*name_cstring, *code, *script);
+    AddCode(*name_cstring, *code, GDBJITInterface::FUNCTION, *script);
   } else {
-    AddCode("", *code, *script);
+    AddCode("", *code, GDBJITInterface::FUNCTION, *script);
   }
+}
+
+static void AddUnwindInfo(CodeDescription *desc) {
+#ifdef V8_TARGET_ARCH_X64
+  if (desc->tag() == GDBJITInterface::FUNCTION) {
+    // To avoid propagating unwinding information through
+    // compilation pipeline we rely on function prologue
+    // and epilogue being the same for all code objects generated
+    // by the full code generator.
+    static const int kFramePointerPushOffset = 1;
+    static const int kFramePointerSetOffset = 4;
+    static const int kFramePointerPopOffset = -3;
+
+    uintptr_t frame_pointer_push_address =
+        desc->CodeStart() + kFramePointerPushOffset;
+
+    uintptr_t frame_pointer_set_address =
+        desc->CodeStart() + kFramePointerSetOffset;
+
+    uintptr_t frame_pointer_pop_address =
+        desc->CodeEnd() + kFramePointerPopOffset;
+
+#ifdef DEBUG
+    static const uint8_t kFramePointerPushInstruction = 0x48;  // push ebp
+    static const uint16_t kFramePointerSetInstruction = 0x5756;  // mov ebp, esp
+    static const uint8_t kFramePointerPopInstruction = 0xBE;  // pop ebp
+
+    ASSERT(*reinterpret_cast<uint8_t*>(frame_pointer_push_address) ==
+           kFramePointerPushInstruction);
+    ASSERT(*reinterpret_cast<uint16_t*>(frame_pointer_set_address) ==
+           kFramePointerSetInstruction);
+    ASSERT(*reinterpret_cast<uint8_t*>(frame_pointer_pop_address) ==
+           kFramePointerPopInstruction);
+#endif
+
+    desc->SetStackStateStartAddress(CodeDescription::POST_RBP_PUSH,
+                                    frame_pointer_push_address);
+    desc->SetStackStateStartAddress(CodeDescription::POST_RBP_SET,
+                                    frame_pointer_set_address);
+    desc->SetStackStateStartAddress(CodeDescription::POST_RBP_POP,
+                                    frame_pointer_pop_address);
+  } else {
+    desc->SetStackStateStartAddress(CodeDescription::POST_RBP_PUSH,
+                                    desc->CodeStart());
+    desc->SetStackStateStartAddress(CodeDescription::POST_RBP_SET,
+                                    desc->CodeStart());
+    desc->SetStackStateStartAddress(CodeDescription::POST_RBP_POP,
+                                    desc->CodeEnd());
+  }
+#endif  // V8_TARGET_ARCH_X64
 }
 
 
 void GDBJITInterface::AddCode(const char* name,
                               Code* code,
+                              GDBJITInterface::CodeTag tag,
                               Script* script) {
   if (!FLAG_gdbjit) return;
   AssertNoAllocation no_gc;
@@ -1086,14 +1406,16 @@ void GDBJITInterface::AddCode(const char* name,
                             code,
                             script != NULL ? Handle<Script>(script)
                                            : Handle<Script>(),
-                            lineinfo);
+                            lineinfo,
+                            tag);
 
-  if (!FLAG_gdbjit_full && !code_desc.is_line_info_available()) {
+  if (!FLAG_gdbjit_full && !code_desc.IsLineInfoAvailable()) {
     delete lineinfo;
     entries.Remove(code, HashForCodeObject(code));
     return;
   }
 
+  AddUnwindInfo(&code_desc);
   JITCodeEntry* entry = CreateELFObject(&code_desc);
   ASSERT(!IsLineInfoTagged(entry));
 
@@ -1120,7 +1442,7 @@ void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag,
     builder.AddFormatted(": code object %p", static_cast<void*>(code));
   }
 
-  AddCode(builder.Finalize(), code);
+  AddCode(builder.Finalize(), code, tag);
 }
 
 

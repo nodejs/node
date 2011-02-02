@@ -1954,6 +1954,17 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
 }
 
 
+void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
+    Register reg,
+    Register scratch,
+    Label* not_power_of_two_or_zero) {
+  sub(scratch, reg, Operand(1), SetCC);
+  b(mi, not_power_of_two_or_zero);
+  tst(scratch, reg);
+  b(ne, not_power_of_two_or_zero);
+}
+
+
 void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Register reg2,
                                       Label* on_not_both_smi) {
@@ -2102,7 +2113,7 @@ void MacroAssembler::CopyFields(Register dst,
 void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
                                        Register source,  // Input.
                                        Register scratch) {
-  ASSERT(!zeros.is(source) || !source.is(zeros));
+  ASSERT(!zeros.is(source) || !source.is(scratch));
   ASSERT(!zeros.is(scratch));
   ASSERT(!scratch.is(ip));
   ASSERT(!source.is(ip));

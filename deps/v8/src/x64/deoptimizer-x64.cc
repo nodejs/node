@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -40,6 +40,12 @@ namespace internal {
 
 int Deoptimizer::table_entry_size_ = 10;
 
+
+int Deoptimizer::patch_size() {
+  return Assembler::kCallInstructionLength;
+}
+
+
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   AssertNoAllocation no_allocation;
 
@@ -72,12 +78,12 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 #endif
     last_pc_offset = pc_offset;
     if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
-      CodePatcher patcher(
-          code->instruction_start() + pc_offset + gap_code_size,
-          Assembler::kCallInstructionLength);
+      last_pc_offset += gap_code_size;
+      CodePatcher patcher(code->instruction_start() + last_pc_offset,
+                          patch_size());
       patcher.masm()->Call(GetDeoptimizationEntry(deoptimization_index, LAZY),
                            RelocInfo::NONE);
-      last_pc_offset += gap_code_size + Assembler::kCallInstructionLength;
+      last_pc_offset += patch_size();
     }
   }
 #ifdef DEBUG
@@ -107,16 +113,16 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-void Deoptimizer::PatchStackCheckCode(Code* unoptimized_code,
-                                      Code* check_code,
-                                      Code* replacement_code) {
+void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
+                                        Code* check_code,
+                                        Code* replacement_code) {
   UNIMPLEMENTED();
 }
 
 
-void Deoptimizer::RevertStackCheckCode(Code* unoptimized_code,
-                                       Code* check_code,
-                                       Code* replacement_code) {
+void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
+                                         Code* check_code,
+                                         Code* replacement_code) {
   UNIMPLEMENTED();
 }
 

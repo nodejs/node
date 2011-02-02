@@ -365,6 +365,15 @@ class Factory : public AllStatic {
       Handle<SerializedScopeInfo> scope_info);
   static Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
+  static Handle<JSMessageObject> NewJSMessageObject(
+      Handle<String> type,
+      Handle<JSArray> arguments,
+      int start_position,
+      int end_position,
+      Handle<Object> script,
+      Handle<Object> stack_trace,
+      Handle<Object> stack_frames);
+
   static Handle<NumberDictionary> DictionaryAtNumberPut(
       Handle<NumberDictionary>,
       uint32_t key,

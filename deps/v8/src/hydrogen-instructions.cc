@@ -253,6 +253,7 @@ bool HValue::Equals(HValue* other) const {
   if (other->opcode() != opcode()) return false;
   if (!other->representation().Equals(representation())) return false;
   if (!other->type_.Equals(type_)) return false;
+  if (other->flags() != flags()) return false;
   if (OperandCount() != other->OperandCount()) return false;
   for (int i = 0; i < OperandCount(); ++i) {
     if (OperandAt(i)->id() != other->OperandAt(i)->id()) return false;

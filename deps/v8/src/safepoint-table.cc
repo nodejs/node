@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,6 +27,7 @@
 
 #include "safepoint-table.h"
 
+#include "deoptimizer.h"
 #include "disasm.h"
 #include "macro-assembler.h"
 
@@ -144,6 +145,14 @@ unsigned SafepointTableBuilder::GetCodeOffset() const {
 
 
 void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
+  // For lazy deoptimization we need space to patch a call after every call.
+  // Ensure there is always space for such patching, even if the code ends
+  // in a call.
+  int target_offset = assembler->pc_offset() + Deoptimizer::patch_size();
+  while (assembler->pc_offset() < target_offset) {
+    assembler->nop();
+  }
+
   // Make sure the safepoint table is properly aligned. Pad with nops.
   assembler->Align(kIntSize);
   assembler->RecordComment(";;; Safepoint table.");

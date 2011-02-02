@@ -55,7 +55,8 @@ namespace internal {
   V(STUB)                                       \
   V(BUILTIN)                                    \
   V(SCRIPT)                                     \
-  V(EVAL)
+  V(EVAL)                                       \
+  V(FUNCTION)
 
 class GDBJITLineInfo : public Malloced {
  public:
@@ -109,6 +110,7 @@ class GDBJITInterface: public AllStatic {
 
   static void AddCode(const char* name,
                       Code* code,
+                      CodeTag tag,
                       Script* script = NULL);
 
   static void AddCode(Handle<String> name,

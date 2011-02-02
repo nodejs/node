@@ -4698,12 +4698,15 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
                                  runtime.entry_label(),
                                  AVOID_NANS_AND_INFINITIES);
 
+    // Convert -0 into +0 by adding +0.
+    __ vmov(d2, 0.0);
+    __ vadd(d0, d2, d0);
     // Load 1.0 into d2.
     __ vmov(d2, 1.0);
 
-    // Calculate the reciprocal of the square root. 1/sqrt(x) = sqrt(1/x).
-    __ vdiv(d0, d2, d0);
+    // Calculate the reciprocal of the square root.
     __ vsqrt(d0, d0);
+    __ vdiv(d0, d2, d0);
 
     __ b(&allocate_return);
 
@@ -4717,6 +4720,9 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
                                  scratch1, scratch2, heap_number_map, s0,
                                  runtime.entry_label(),
                                  AVOID_NANS_AND_INFINITIES);
+    // Convert -0 into +0 by adding +0.
+    __ vmov(d2, 0.0);
+    __ vadd(d0, d2, d0);
     __ vsqrt(d0, d0);
 
     __ bind(&allocate_return);

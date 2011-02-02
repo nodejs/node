@@ -10748,6 +10748,45 @@ static MaybeObject* Runtime_GetFromCache(Arguments args) {
   return *value;
 }
 
+
+static MaybeObject* Runtime_NewMessageObject(Arguments args) {
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(String, type, 0);
+  CONVERT_ARG_CHECKED(JSArray, arguments, 1);
+  return *Factory::NewJSMessageObject(type,
+                                      arguments,
+                                      0,
+                                      0,
+                                      Factory::undefined_value(),
+                                      Factory::undefined_value(),
+                                      Factory::undefined_value());
+}
+
+
+static MaybeObject* Runtime_MessageGetType(Arguments args) {
+  CONVERT_CHECKED(JSMessageObject, message, args[0]);
+  return message->type();
+}
+
+
+static MaybeObject* Runtime_MessageGetArguments(Arguments args) {
+  CONVERT_CHECKED(JSMessageObject, message, args[0]);
+  return message->arguments();
+}
+
+
+static MaybeObject* Runtime_MessageGetStartPosition(Arguments args) {
+  CONVERT_CHECKED(JSMessageObject, message, args[0]);
+  return Smi::FromInt(message->start_position());
+}
+
+
+static MaybeObject* Runtime_MessageGetScript(Arguments args) {
+  CONVERT_CHECKED(JSMessageObject, message, args[0]);
+  return message->script();
+}
+
+
 #ifdef DEBUG
 // ListNatives is ONLY used by the fuzz-natives.js in debug mode
 // Exclude the code in release mode.

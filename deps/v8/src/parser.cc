@@ -3035,7 +3035,7 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
 
 // Defined in ast.cc
 bool IsEqualString(void* first, void* second);
-bool IsEqualSmi(void* first, void* second);
+bool IsEqualNumber(void* first, void* second);
 
 
 // Validation per 11.1.5 Object Initialiser
@@ -3043,7 +3043,7 @@ class ObjectLiteralPropertyChecker {
  public:
   ObjectLiteralPropertyChecker(Parser* parser, bool strict) :
     props(&IsEqualString),
-    elems(&IsEqualSmi),
+    elems(&IsEqualNumber),
     parser_(parser),
     strict_(strict) {
   }
@@ -3092,13 +3092,12 @@ void ObjectLiteralPropertyChecker::CheckProperty(
   uint32_t hash;
   HashMap* map;
   void* key;
-  Smi* smi_key_location;
 
   if (handle->IsSymbol()) {
     Handle<String> name(String::cast(*handle));
     if (name->AsArrayIndex(&hash)) {
-      smi_key_location = Smi::FromInt(hash);
-      key = &smi_key_location;
+      Handle<Object> key_handle = Factory::NewNumberFromUint(hash);
+      key = key_handle.location();
       map = &elems;
     } else {
       key = handle.location();

@@ -58,10 +58,11 @@ assertEquals(Infinity, Math.pow(-1.1, Infinity));
 assertEquals(Infinity, Math.pow(2, Infinity));
 assertEquals(Infinity, Math.pow(-2, Infinity));
 
-assertEquals(+0, Math.pow(1.1, -Infinity));
-assertEquals(+0, Math.pow(-1.1, -Infinity));
-assertEquals(+0, Math.pow(2, -Infinity));
-assertEquals(+0, Math.pow(-2, -Infinity));
+// Because +0 == -0, we need to compare 1/{+,-}0 to {+,-}Infinity
+assertEquals(+Infinity, 1/Math.pow(1.1, -Infinity));
+assertEquals(+Infinity, 1/Math.pow(-1.1, -Infinity));
+assertEquals(+Infinity, 1/Math.pow(2, -Infinity));
+assertEquals(+Infinity, 1/Math.pow(-2, -Infinity));
 
 assertEquals(NaN, Math.pow(1, Infinity));
 assertEquals(NaN, Math.pow(1, -Infinity));
@@ -81,8 +82,8 @@ assertEquals(Infinity, Math.pow(-0.999, -Infinity));
 assertEquals(Infinity, Math.pow(Infinity, 0.1));
 assertEquals(Infinity, Math.pow(Infinity, 2));
 
-assertEquals(+0, Math.pow(Infinity, -0.1));
-assertEquals(+0, Math.pow(Infinity, -2));
+assertEquals(+Infinity, 1/Math.pow(Infinity, -0.1));
+assertEquals(+Infinity, 1/Math.pow(Infinity, -2));
 
 assertEquals(-Infinity, Math.pow(-Infinity, 3));
 assertEquals(-Infinity, Math.pow(-Infinity, 13));
@@ -90,23 +91,23 @@ assertEquals(-Infinity, Math.pow(-Infinity, 13));
 assertEquals(Infinity, Math.pow(-Infinity, 3.1));
 assertEquals(Infinity, Math.pow(-Infinity, 2));
 
-assertEquals(-0, Math.pow(-Infinity, -3));
-assertEquals(-0, Math.pow(-Infinity, -13));
+assertEquals(-Infinity, 1/Math.pow(-Infinity, -3));
+assertEquals(-Infinity, 1/Math.pow(-Infinity, -13));
 
-assertEquals(+0, Math.pow(-Infinity, -3.1));
-assertEquals(+0, Math.pow(-Infinity, -2));
+assertEquals(+Infinity, 1/Math.pow(-Infinity, -3.1));
+assertEquals(+Infinity, 1/Math.pow(-Infinity, -2));
 
-assertEquals(+0, Math.pow(+0, 1.1));
-assertEquals(+0, Math.pow(+0, 2));
+assertEquals(+Infinity, 1/Math.pow(+0, 1.1));
+assertEquals(+Infinity, 1/Math.pow(+0, 2));
 
 assertEquals(Infinity, Math.pow(+0, -1.1));
 assertEquals(Infinity, Math.pow(+0, -2));
 
-assertEquals(-0, Math.pow(-0, 3));
-assertEquals(-0, Math.pow(-0, 13));
+assertEquals(-Infinity, 1/Math.pow(-0, 3));
+assertEquals(-Infinity, 1/Math.pow(-0, 13));
 
-assertEquals(+0, Math.pow(-0, 3.1));
-assertEquals(+0, Math.pow(-0, 2));
+assertEquals(+Infinity, 1/Math.pow(-0, 3.1));
+assertEquals(+Infinity, 1/Math.pow(-0, 2));
 
 assertEquals(-Infinity, Math.pow(-0, -3));
 assertEquals(-Infinity, Math.pow(-0, -13));
@@ -122,6 +123,18 @@ assertEquals(NaN, Math.pow(-2, 1.1));
 assertEquals(NaN, Math.pow(-2, -1.1));
 assertEquals(NaN, Math.pow(-1000, 1.1));
 assertEquals(NaN, Math.pow(-1000, -1.1));
+
+assertEquals(+Infinity, 1/Math.pow(-0, 0.5));
+assertEquals(+Infinity, 1/Math.pow(-0, 0.6));
+assertEquals(-Infinity, 1/Math.pow(-0, 1));
+assertEquals(-Infinity, 1/Math.pow(-0, 10000000001));
+
+assertEquals(+Infinity, Math.pow(-0, -0.5));
+assertEquals(+Infinity, Math.pow(-0, -0.6));
+assertEquals(-Infinity, Math.pow(-0, -1));
+assertEquals(-Infinity, Math.pow(-0, -10000000001));
+
+
 
 // Tests from Sputnik S8.5_A13_T1.
 assertTrue((1*((Math.pow(2,53))-1)*(Math.pow(2,-1074))) === 4.4501477170144023e-308);

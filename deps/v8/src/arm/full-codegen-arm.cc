@@ -1550,7 +1550,11 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      OverwriteMode mode) {
   __ pop(r1);
-  if (op == Token::ADD || op == Token::SUB || op == Token::MUL) {
+  if (op == Token::ADD ||
+      op == Token::SUB ||
+      op == Token::MUL ||
+      op == Token::DIV ||
+      op == Token::MOD) {
     TypeRecordingBinaryOpStub stub(op, mode);
     __ CallStub(&stub);
   } else {

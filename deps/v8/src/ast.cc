@@ -215,17 +215,28 @@ bool IsEqualString(void* first, void* second) {
   return (*h1)->Equals(*h2);
 }
 
-bool IsEqualSmi(void* first, void* second) {
-  ASSERT((*reinterpret_cast<Smi**>(first))->IsSmi());
-  ASSERT((*reinterpret_cast<Smi**>(second))->IsSmi());
-  Handle<Smi> h1(reinterpret_cast<Smi**>(first));
-  Handle<Smi> h2(reinterpret_cast<Smi**>(second));
-  return (*h1)->value() == (*h2)->value();
+
+bool IsEqualNumber(void* first, void* second) {
+  ASSERT((*reinterpret_cast<Object**>(first))->IsNumber());
+  ASSERT((*reinterpret_cast<Object**>(second))->IsNumber());
+
+  Handle<Object> h1(reinterpret_cast<Object**>(first));
+  Handle<Object> h2(reinterpret_cast<Object**>(second));
+  if (h1->IsSmi()) {
+    return h2->IsSmi() && *h1 == *h2;
+  }
+  if (h2->IsSmi()) return false;
+  Handle<HeapNumber> n1 = Handle<HeapNumber>::cast(h1);
+  Handle<HeapNumber> n2 = Handle<HeapNumber>::cast(h2);
+  ASSERT(isfinite(n1->value()));
+  ASSERT(isfinite(n2->value()));
+  return n1->value() == n2->value();
 }
+
 
 void ObjectLiteral::CalculateEmitStore() {
   HashMap properties(&IsEqualString);
-  HashMap elements(&IsEqualSmi);
+  HashMap elements(&IsEqualNumber);
   for (int i = this->properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = this->properties()->at(i);
     Literal* literal = property->key();
@@ -238,23 +249,19 @@ void ObjectLiteral::CalculateEmitStore() {
     uint32_t hash;
     HashMap* table;
     void* key;
-    uint32_t index;
-    Smi* smi_key_location;
     if (handle->IsSymbol()) {
       Handle<String> name(String::cast(*handle));
-      if (name->AsArrayIndex(&index)) {
-        smi_key_location = Smi::FromInt(index);
-        key = &smi_key_location;
-        hash = index;
+      if (name->AsArrayIndex(&hash)) {
+        Handle<Object> key_handle = Factory::NewNumberFromUint(hash);
+        key = key_handle.location();
         table = &elements;
       } else {
         key = name.location();
         hash = name->Hash();
         table = &properties;
       }
-    } else if (handle->ToArrayIndex(&index)) {
+    } else if (handle->ToArrayIndex(&hash)) {
       key = handle.location();
-      hash = index;
       table = &elements;
     } else {
       ASSERT(handle->IsNumber());

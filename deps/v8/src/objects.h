@@ -54,7 +54,8 @@
 //           - JSGlobalObject
 //           - JSBuiltinsObject
 //         - JSGlobalProxy
-//        - JSValue
+//         - JSValue
+//         - JSMessageObject
 //       - ByteArray
 //       - PixelArray
 //       - ExternalArray
@@ -288,6 +289,8 @@ static const int kVariableSizeSentinel = 0;
   V(FIXED_ARRAY_TYPE)                                                          \
   V(SHARED_FUNCTION_INFO_TYPE)                                                 \
                                                                                \
+  V(JS_MESSAGE_OBJECT_TYPE)                                                    \
+                                                                               \
   V(JS_VALUE_TYPE)                                                             \
   V(JS_OBJECT_TYPE)                                                            \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                                          \
@@ -518,6 +521,8 @@ enum InstanceType {
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 
+  JS_MESSAGE_OBJECT_TYPE,
+
   JS_VALUE_TYPE,  // FIRST_JS_OBJECT_TYPE
   JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
@@ -675,6 +680,7 @@ class MaybeObject BASE_EMBEDDED {
   V(Oddball)                                   \
   V(SharedFunctionInfo)                        \
   V(JSValue)                                   \
+  V(JSMessageObject)                           \
   V(StringWrapper)                             \
   V(Proxy)                                     \
   V(Boolean)                                   \
@@ -4695,6 +4701,68 @@ class JSValue: public JSObject {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSValue);
 };
+
+
+// Representation of message objects used for error reporting through
+// the API. The messages are formatted in JavaScript so this object is
+// a real JavaScript object. The information used for formatting the
+// error messages are not directly accessible from JavaScript to
+// prevent leaking information to user code called during error
+// formatting.
+class JSMessageObject: public JSObject {
+ public:
+  // [type]: the type of error message.
+  DECL_ACCESSORS(type, String)
+
+  // [arguments]: the arguments for formatting the error message.
+  DECL_ACCESSORS(arguments, JSArray)
+
+  // [script]: the script from which the error message originated.
+  DECL_ACCESSORS(script, Object)
+
+  // [stack_trace]: the stack trace for this error message.
+  DECL_ACCESSORS(stack_trace, Object)
+
+  // [stack_frames]: an array of stack frames for this error object.
+  DECL_ACCESSORS(stack_frames, Object)
+
+  // [start_position]: the start position in the script for the error message.
+  inline int start_position();
+  inline void set_start_position(int value);
+
+  // [end_position]: the end position in the script for the error message.
+  inline int end_position();
+  inline void set_end_position(int value);
+
+  // Casting.
+  static inline JSMessageObject* cast(Object* obj);
+
+  // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSMessageObjectPrint() {
+    JSMessageObjectPrint(stdout);
+  }
+  void JSMessageObjectPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSMessageObjectVerify();
+#endif
+
+  // Layout description.
+  static const int kTypeOffset = JSObject::kHeaderSize;
+  static const int kArgumentsOffset = kTypeOffset + kPointerSize;
+  static const int kScriptOffset = kArgumentsOffset + kPointerSize;
+  static const int kStackTraceOffset = kScriptOffset + kPointerSize;
+  static const int kStackFramesOffset = kStackTraceOffset + kPointerSize;
+  static const int kStartPositionOffset = kStackFramesOffset + kPointerSize;
+  static const int kEndPositionOffset = kStartPositionOffset + kPointerSize;
+  static const int kSize = kEndPositionOffset + kPointerSize;
+
+  typedef FixedBodyDescriptor<HeapObject::kMapOffset,
+                              kStackFramesOffset + kPointerSize,
+                              kSize> BodyDescriptor;
+};
+
 
 // Regular expressions
 // The regular expression holds a single reference to a FixedArray in

@@ -655,16 +655,16 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 
 LInstruction* LChunkBuilder::SetInstructionPendingDeoptimizationEnvironment(
     LInstruction* instr, int ast_id) {
-  ASSERT(instructions_pending_deoptimization_environment_ == NULL);
+  ASSERT(instruction_pending_deoptimization_environment_ == NULL);
   ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
-  instructions_pending_deoptimization_environment_ = instr;
+  instruction_pending_deoptimization_environment_ = instr;
   pending_deoptimization_ast_id_ = ast_id;
   return instr;
 }
 
 
 void LChunkBuilder::ClearInstructionPendingDeoptimizationEnvironment() {
-  instructions_pending_deoptimization_environment_ = NULL;
+  instruction_pending_deoptimization_environment_ = NULL;
   pending_deoptimization_ast_id_ = AstNode::kNoNumber;
 }
 
@@ -1463,6 +1463,13 @@ LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
+  // The control instruction marking the end of a block that completed
+  // abruptly (e.g., threw an exception).  There is nothing specific to do.
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
   LOperand* value = UseFixed(instr->value(), r0);
   return MarkAsCall(new LThrow(value), instr);
@@ -1837,7 +1844,7 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   if (pending_deoptimization_ast_id_ == instr->ast_id()) {
     LInstruction* result = new LLazyBailout;
     result = AssignEnvironment(result);
-    instructions_pending_deoptimization_environment_->
+    instruction_pending_deoptimization_environment_->
         set_deoptimization_environment(result->environment());
     ClearInstructionPendingDeoptimizationEnvironment();
     return result;

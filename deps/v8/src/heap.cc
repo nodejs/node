@@ -1826,6 +1826,12 @@ bool Heap::CreateInitialMaps() {
   }
   set_shared_function_info_map(Map::cast(obj));
 
+  { MaybeObject* maybe_obj = AllocateMap(JS_MESSAGE_OBJECT_TYPE,
+                                         JSMessageObject::kSize);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_message_object_map(Map::cast(obj));
+
   ASSERT(!Heap::InNewSpace(Heap::empty_fixed_array()));
   return true;
 }
@@ -2327,6 +2333,32 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_function_token_position(0);
   return result;
 }
+
+
+MaybeObject* Heap::AllocateJSMessageObject(String* type,
+                                           JSArray* arguments,
+                                           int start_position,
+                                           int end_position,
+                                           Object* script,
+                                           Object* stack_trace,
+                                           Object* stack_frames) {
+  Object* result;
+  { MaybeObject* maybe_result = Allocate(message_object_map(), NEW_SPACE);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  JSMessageObject* message = JSMessageObject::cast(result);
+  message->set_properties(Heap::empty_fixed_array());
+  message->set_elements(Heap::empty_fixed_array());
+  message->set_type(type);
+  message->set_arguments(arguments);
+  message->set_start_position(start_position);
+  message->set_end_position(end_position);
+  message->set_script(script);
+  message->set_stack_trace(stack_trace);
+  message->set_stack_frames(stack_frames);
+  return result;
+}
+
 
 
 // Returns true for a character in a range.  Both limits are inclusive.

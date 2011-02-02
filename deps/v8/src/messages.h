@@ -93,11 +93,12 @@ class MessageHandler {
   static void ReportMessage(const char* msg);
 
   // Returns a message object for the API to use.
-  static Handle<Object> MakeMessageObject(const char* type,
-                                          MessageLocation* loc,
-                                          Vector< Handle<Object> > args,
-                                          Handle<String> stack_trace,
-                                          Handle<JSArray> stack_frames);
+  static Handle<JSMessageObject> MakeMessageObject(
+      const char* type,
+      MessageLocation* loc,
+      Vector< Handle<Object> > args,
+      Handle<String> stack_trace,
+      Handle<JSArray> stack_frames);
 
   // Report a formatted message (needs JS allocation).
   static void ReportMessage(MessageLocation* loc, Handle<Object> message);

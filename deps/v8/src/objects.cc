@@ -979,6 +979,9 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case SHARED_FUNCTION_INFO_TYPE:
       accumulator->Add("<SharedFunctionInfo>");
       break;
+    case JS_MESSAGE_OBJECT_TYPE:
+      accumulator->Add("<JSMessageObject>");
+      break;
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
     accumulator->Put('<');                 \
@@ -1069,6 +1072,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_BUILTINS_OBJECT_TYPE:
+    case JS_MESSAGE_OBJECT_TYPE:
       JSObject::BodyDescriptor::IterateBody(this, object_size, v);
       break;
     case JS_FUNCTION_TYPE:

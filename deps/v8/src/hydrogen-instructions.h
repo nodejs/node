@@ -64,6 +64,7 @@ class LChunkBuilder;
 
 
 #define HYDROGEN_CONCRETE_INSTRUCTION_LIST(V)  \
+  V(AbnormalExit)                              \
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
   V(ApplyArguments)                            \
@@ -834,12 +835,11 @@ class HReturn: public HUnaryControlInstruction {
 };
 
 
-class HThrow: public HUnaryControlInstruction {
+class HAbnormalExit: public HControlInstruction {
  public:
-  explicit HThrow(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) { }
+  HAbnormalExit() : HControlInstruction(NULL, NULL) { }
 
-  DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
+  DECLARE_CONCRETE_INSTRUCTION(AbnormalExit, "abnormal_exit")
 };
 
 
@@ -863,6 +863,20 @@ class HUnaryOperation: public HInstruction {
 
  private:
   HOperandVector<1> operands_;
+};
+
+
+class HThrow: public HUnaryOperation {
+ public:
+  explicit HThrow(HValue* value) : HUnaryOperation(value) {
+    SetAllSideEffects();
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
 };
 
 
@@ -989,7 +1003,7 @@ class HStackCheck: public HInstruction {
  public:
   HStackCheck() { }
 
-  DECLARE_CONCRETE_INSTRUCTION(Throw, "stack_check")
+  DECLARE_CONCRETE_INSTRUCTION(StackCheck, "stack_check")
 };
 
 
@@ -1831,6 +1845,7 @@ class HApplyArguments: public HInstruction {
     SetOperandAt(1, receiver);
     SetOperandAt(2, length);
     SetOperandAt(3, elements);
+    SetAllSideEffects();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -1849,8 +1864,6 @@ class HApplyArguments: public HInstruction {
   virtual HValue* OperandAt(int index) const { return operands_[index]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ApplyArguments, "apply_arguments")
-
-
 
  protected:
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -3071,6 +3084,10 @@ class HTypeof: public HUnaryOperation {
  public:
   explicit HTypeof(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Tagged());
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Typeof, "typeof")

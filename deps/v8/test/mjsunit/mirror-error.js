@@ -76,7 +76,7 @@ function testErrorMirror(e) {
     }
     assertTrue(found_message, 'Property message not found');
   }
-  
+
   // Check the formatted text (regress 1231579).
   assertEquals(fromJSON.text, e.toString(), 'toString');
 }

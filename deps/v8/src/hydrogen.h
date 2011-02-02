@@ -307,6 +307,7 @@ class HGraph: public HSubgraph {
   void InitializeInferredTypes();
   void InsertTypeConversions();
   void InsertRepresentationChanges();
+  void ComputeMinusZeroChecks();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
   void Canonicalize();

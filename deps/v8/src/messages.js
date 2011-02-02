@@ -53,20 +53,23 @@ var kAddMessageAccessorsMarker = { };
 var kMessages = 0;
 
 var kReplacementMarkers =
-    [ "%0", "%1", "%2", "%3", "%4", "%5", "%6", "%7", "%8", "%9", "%10" ];
+    [ "%0", "%1", "%2", "%3" ]
 
-function FormatString(format, args) {
-  var result = format;
-  for (var i = 0; i < args.length; i++) {
-    var str;
-    try {
-      str = ToDetailString(args[i]);
-    } catch (e) {
-      str = "#<error>";
+function FormatString(format, message) {
+  var args = %MessageGetArguments(message);
+  var result = "";
+  var arg_num = 0;
+  for (var i = 0; i < format.length; i++) {
+    var str = format[i];
+    for (arg_num = 0; arg_num < kReplacementMarkers.length; arg_num++) {
+      if (format[i] !== kReplacementMarkers[arg_num]) continue;
+      try {
+        str = ToDetailString(args[arg_num]);
+      } catch (e) {
+        str = "#<error>";
+      }
     }
-    var replacement_marker = kReplacementMarkers[i];
-    var split = %_CallFunction(result, replacement_marker, StringSplit);
-    result = %_CallFunction(split, str, ArrayJoin);
+    result += str;
   }
   return result;
 }
@@ -143,97 +146,100 @@ function FormatMessage(message) {
   if (kMessages === 0) {
     kMessages = {
       // Error
-      cyclic_proto:                 "Cyclic __proto__ value",
+      cyclic_proto:                 ["Cyclic __proto__ value"],
       // TypeError
-      unexpected_token:             "Unexpected token %0",
-      unexpected_token_number:      "Unexpected number",
-      unexpected_token_string:      "Unexpected string",
-      unexpected_token_identifier:  "Unexpected identifier",
-      unexpected_eos:               "Unexpected end of input",
-      malformed_regexp:             "Invalid regular expression: /%0/: %1",
-      unterminated_regexp:          "Invalid regular expression: missing /",
-      regexp_flags:                 "Cannot supply flags when constructing one RegExp from another",
-      incompatible_method_receiver: "Method %0 called on incompatible receiver %1",
-      invalid_lhs_in_assignment:    "Invalid left-hand side in assignment",
-      invalid_lhs_in_for_in:        "Invalid left-hand side in for-in",
-      invalid_lhs_in_postfix_op:    "Invalid left-hand side expression in postfix operation",
-      invalid_lhs_in_prefix_op:     "Invalid left-hand side expression in prefix operation",
-      multiple_defaults_in_switch:  "More than one default clause in switch statement",
-      newline_after_throw:          "Illegal newline after throw",
-      redeclaration:                "%0 '%1' has already been declared",
-      no_catch_or_finally:          "Missing catch or finally after try",
-      unknown_label:                "Undefined label '%0'",
-      uncaught_exception:           "Uncaught %0",
-      stack_trace:                  "Stack Trace:\n%0",
-      called_non_callable:          "%0 is not a function",
-      undefined_method:             "Object %1 has no method '%0'",
-      property_not_function:        "Property '%0' of object %1 is not a function",
-      cannot_convert_to_primitive:  "Cannot convert object to primitive value",
-      not_constructor:              "%0 is not a constructor",
-      not_defined:                  "%0 is not defined",
-      non_object_property_load:     "Cannot read property '%0' of %1",
-      non_object_property_store:    "Cannot set property '%0' of %1",
-      non_object_property_call:     "Cannot call method '%0' of %1",
-      with_expression:              "%0 has no properties",
-      illegal_invocation:           "Illegal invocation",
-      no_setter_in_callback:        "Cannot set property %0 of %1 which has only a getter",
-      apply_non_function:           "Function.prototype.apply was called on %0, which is a %1 and not a function",
-      apply_wrong_args:             "Function.prototype.apply: Arguments list has wrong type",
-      invalid_in_operator_use:      "Cannot use 'in' operator to search for '%0' in %1",
-      instanceof_function_expected: "Expecting a function in instanceof check, but got %0",
-      instanceof_nonobject_proto:   "Function has non-object prototype '%0' in instanceof check",
-      null_to_object:               "Cannot convert null to object",
-      reduce_no_initial:            "Reduce of empty array with no initial value",
-      getter_must_be_callable:      "Getter must be a function: %0",
-      setter_must_be_callable:      "Setter must be a function: %0",
-      value_and_accessor:           "Invalid property.  A property cannot both have accessors and be writable or have a value: %0",
-      proto_object_or_null:         "Object prototype may only be an Object or null",
-      property_desc_object:         "Property description must be an object: %0",
-      redefine_disallowed:          "Cannot redefine property: %0",
-      define_disallowed:            "Cannot define property, object is not extensible: %0",
+      unexpected_token:             ["Unexpected token ", "%0"],
+      unexpected_token_number:      ["Unexpected number"],
+      unexpected_token_string:      ["Unexpected string"],
+      unexpected_token_identifier:  ["Unexpected identifier"],
+      unexpected_eos:               ["Unexpected end of input"],
+      malformed_regexp:             ["Invalid regular expression: /", "%0", "/: ", "%1"],
+      unterminated_regexp:          ["Invalid regular expression: missing /"],
+      regexp_flags:                 ["Cannot supply flags when constructing one RegExp from another"],
+      incompatible_method_receiver: ["Method ", "%0", " called on incompatible receiver ", "%1"],
+      invalid_lhs_in_assignment:    ["Invalid left-hand side in assignment"],
+      invalid_lhs_in_for_in:        ["Invalid left-hand side in for-in"],
+      invalid_lhs_in_postfix_op:    ["Invalid left-hand side expression in postfix operation"],
+      invalid_lhs_in_prefix_op:     ["Invalid left-hand side expression in prefix operation"],
+      multiple_defaults_in_switch:  ["More than one default clause in switch statement"],
+      newline_after_throw:          ["Illegal newline after throw"],
+      redeclaration:                ["%0", " '", "%1", "' has already been declared"],
+      no_catch_or_finally:          ["Missing catch or finally after try"],
+      unknown_label:                ["Undefined label '", "%0", "'"],
+      uncaught_exception:           ["Uncaught ", "%0"],
+      stack_trace:                  ["Stack Trace:\n", "%0"],
+      called_non_callable:          ["%0", " is not a function"],
+      undefined_method:             ["Object ", "%1", " has no method '", "%0", "'"],
+      property_not_function:        ["Property '", "%0", "' of object ", "%1", " is not a function"],
+      cannot_convert_to_primitive:  ["Cannot convert object to primitive value"],
+      not_constructor:              ["%0", " is not a constructor"],
+      not_defined:                  ["%0", " is not defined"],
+      non_object_property_load:     ["Cannot read property '", "%0", "' of ", "%1"],
+      non_object_property_store:    ["Cannot set property '", "%0", "' of ", "%1"],
+      non_object_property_call:     ["Cannot call method '", "%0", "' of ", "%1"],
+      with_expression:              ["%0", " has no properties"],
+      illegal_invocation:           ["Illegal invocation"],
+      no_setter_in_callback:        ["Cannot set property ", "%0", " of ", "%1", " which has only a getter"],
+      apply_non_function:           ["Function.prototype.apply was called on ", "%0", ", which is a ", "%1", " and not a function"],
+      apply_wrong_args:             ["Function.prototype.apply: Arguments list has wrong type"],
+      invalid_in_operator_use:      ["Cannot use 'in' operator to search for '", "%0", "' in ", "%1"],
+      instanceof_function_expected: ["Expecting a function in instanceof check, but got ", "%0"],
+      instanceof_nonobject_proto:   ["Function has non-object prototype '", "%0", "' in instanceof check"],
+      null_to_object:               ["Cannot convert null to object"],
+      reduce_no_initial:            ["Reduce of empty array with no initial value"],
+      getter_must_be_callable:      ["Getter must be a function: ", "%0"],
+      setter_must_be_callable:      ["Setter must be a function: ", "%0"],
+      value_and_accessor:           ["Invalid property.  A property cannot both have accessors and be writable or have a value: ", "%0"],
+      proto_object_or_null:         ["Object prototype may only be an Object or null"],
+      property_desc_object:         ["Property description must be an object: ", "%0"],
+      redefine_disallowed:          ["Cannot redefine property: ", "%0"],
+      define_disallowed:            ["Cannot define property, object is not extensible: ", "%0"],
       // RangeError
-      invalid_array_length:         "Invalid array length",
-      stack_overflow:               "Maximum call stack size exceeded",
+      invalid_array_length:         ["Invalid array length"],
+      stack_overflow:               ["Maximum call stack size exceeded"],
       // SyntaxError
-      unable_to_parse:              "Parse error",
-      duplicate_regexp_flag:        "Duplicate RegExp flag %0",
-      invalid_regexp:               "Invalid RegExp pattern /%0/",
-      illegal_break:                "Illegal break statement",
-      illegal_continue:             "Illegal continue statement",
-      illegal_return:               "Illegal return statement",
-      error_loading_debugger:       "Error loading debugger",
-      no_input_to_regexp:           "No input to %0",
-      invalid_json:                 "String '%0' is not valid JSON",
-      circular_structure:           "Converting circular structure to JSON",
-      obj_ctor_property_non_object: "Object.%0 called on non-object",
-      array_indexof_not_defined:    "Array.getIndexOf: Argument undefined",
-      object_not_extensible:        "Can't add property %0, object is not extensible",
-      illegal_access:               "Illegal access",
-      invalid_preparser_data:       "Invalid preparser data for function %0",
-      strict_mode_with:             "Strict mode code may not include a with statement",
-      strict_catch_variable:        "Catch variable may not be eval or arguments in strict mode",
-      strict_param_name:            "Parameter name eval or arguments is not allowed in strict mode",
-      strict_param_dupe:            "Strict mode function may not have duplicate parameter names",
-      strict_var_name:              "Variable name may not be eval or arguments in strict mode",
-      strict_function_name:         "Function name may not be eval or arguments in strict mode",
-      strict_octal_literal:         "Octal literals are not allowed in strict mode.",
-      strict_duplicate_property:    "Duplicate data property in object literal not allowed in strict mode",
-      accessor_data_property:       "Object literal may not have data and accessor property with the same name",
-      accessor_get_set:             "Object literal may not have multiple get/set accessors with the same name",
-      strict_lhs_eval_assignment:   "Assignment to eval or arguments is not allowed in strict mode",
-      strict_lhs_postfix:           "Postfix increment/decrement may not have eval or arguments operand in strict mode",
-      strict_lhs_prefix:            "Prefix increment/decrement may not have eval or arguments operand in strict mode",
+      unable_to_parse:              ["Parse error"],
+      duplicate_regexp_flag:        ["Duplicate RegExp flag ", "%0"],
+      invalid_regexp:               ["Invalid RegExp pattern /", "%0", "/"],
+      illegal_break:                ["Illegal break statement"],
+      illegal_continue:             ["Illegal continue statement"],
+      illegal_return:               ["Illegal return statement"],
+      error_loading_debugger:       ["Error loading debugger"],
+      no_input_to_regexp:           ["No input to ", "%0"],
+      invalid_json:                 ["String '", "%0", "' is not valid JSON"],
+      circular_structure:           ["Converting circular structure to JSON"],
+      obj_ctor_property_non_object: ["Object.", "%0", " called on non-object"],
+      array_indexof_not_defined:    ["Array.getIndexOf: Argument undefined"],
+      object_not_extensible:        ["Can't add property ", "%0", ", object is not extensible"],
+      illegal_access:               ["Illegal access"],
+      invalid_preparser_data:       ["Invalid preparser data for function ", "%0"],
+      strict_mode_with:             ["Strict mode code may not include a with statement"],
+      strict_catch_variable:        ["Catch variable may not be eval or arguments in strict mode"],
+      strict_param_name:            ["Parameter name eval or arguments is not allowed in strict mode"],
+      strict_param_dupe:            ["Strict mode function may not have duplicate parameter names"],
+      strict_var_name:              ["Variable name may not be eval or arguments in strict mode"],
+      strict_function_name:         ["Function name may not be eval or arguments in strict mode"],
+      strict_octal_literal:         ["Octal literals are not allowed in strict mode."],
+      strict_duplicate_property:    ["Duplicate data property in object literal not allowed in strict mode"],
+      accessor_data_property:       ["Object literal may not have data and accessor property with the same name"],
+      accessor_get_set:             ["Object literal may not have multiple get/set accessors with the same name"],
+      strict_lhs_assignment:        ["Assignment to eval or arguments is not allowed in strict mode"],
+      strict_lhs_postfix:           ["Postfix increment/decrement may not have eval or arguments operand in strict mode"],
+      strict_lhs_prefix:            ["Prefix increment/decrement may not have eval or arguments operand in strict mode"],
     };
   }
-  var format = kMessages[message.type];
-  if (!format) return "<unknown message " + message.type + ">";
-  return FormatString(format, message.args);
+  var message_type = %MessageGetType(message);
+  var format = kMessages[message_type];
+  if (!format) return "<unknown message " + message_type + ">";
+  return FormatString(format, message);
 }
 
 
 function GetLineNumber(message) {
-  if (message.startPos == -1) return kNoLineNumberInfo;
-  var location = message.script.locationFromPosition(message.startPos, true);
+  var start_position = %MessageGetStartPosition(message);
+  if (start_position == -1) return kNoLineNumberInfo;
+  var script = %MessageGetScript(message);
+  var location = script.locationFromPosition(start_position, true);
   if (location == null) return kNoLineNumberInfo;
   return location.line + 1;
 }
@@ -242,7 +248,9 @@ function GetLineNumber(message) {
 // Returns the source code line containing the given source
 // position, or the empty string if the position is invalid.
 function GetSourceLine(message) {
-  var location = message.script.locationFromPosition(message.startPos, true);
+  var script = %MessageGetScript(message);
+  var start_position = %MessageGetStartPosition(message);
+  var location = script.locationFromPosition(start_position, true);
   if (location == null) return "";
   location.restrict();
   return location.sourceText();
@@ -621,29 +629,12 @@ SourceSlice.prototype.sourceText = function () {
 // Returns the offset of the given position within the containing
 // line.
 function GetPositionInLine(message) {
-  var location = message.script.locationFromPosition(message.startPos, false);
+  var script = %MessageGetScript(message);
+  var start_position = %MessageGetStartPosition(message);
+  var location = script.locationFromPosition(start_position, false);
   if (location == null) return -1;
   location.restrict();
-  return message.startPos - location.start;
-}
-
-
-function ErrorMessage(type, args, startPos, endPos, script, stackTrace,
-                      stackFrames) {
-  this.startPos = startPos;
-  this.endPos = endPos;
-  this.type = type;
-  this.args = args;
-  this.script = script;
-  this.stackTrace = stackTrace;
-  this.stackFrames = stackFrames;
-}
-
-
-function MakeMessage(type, args, startPos, endPos, script, stackTrace,
-                     stackFrames) {
-  return new ErrorMessage(type, args, startPos, endPos, script, stackTrace,
-                          stackFrames);
+  return start_position - location.start;
 }
 
 
@@ -990,7 +981,7 @@ function DefineError(f) {
         // DefineOneShotAccessor always inserts a message property and
         // ignores setters.
         DefineOneShotAccessor(this, 'message', function (obj) {
-          return FormatMessage({type: obj.type, args: obj.arguments});
+            return FormatMessage(%NewMessageObject(obj.type, obj.arguments));
         });
       } else if (!IS_UNDEFINED(m)) {
         %IgnoreAttributesAndSetProperty(this, 'message', ToString(m));
@@ -1004,11 +995,12 @@ function DefineError(f) {
 
 function captureStackTrace(obj, cons_opt) {
   var stackTraceLimit = $Error.stackTraceLimit;
-  if (!stackTraceLimit) return;
+  if (!stackTraceLimit || !IS_NUMBER(stackTraceLimit)) return;
   if (stackTraceLimit < 0 || stackTraceLimit > 10000)
     stackTraceLimit = 10000;
-  var raw_stack = %CollectStackTrace(cons_opt ? cons_opt : captureStackTrace,
-      stackTraceLimit);
+  var raw_stack = %CollectStackTrace(cons_opt
+                                     ? cons_opt
+                                     : captureStackTrace, stackTraceLimit);
   DefineOneShotAccessor(obj, 'stack', function (obj) {
     return FormatRawStackTrace(obj, raw_stack);
   });
@@ -1038,14 +1030,16 @@ function errorToStringDetectCycle() {
   if (!%PushIfAbsent(visited_errors, this)) throw cyclic_error_marker;
   try {
     var type = this.type;
-    if (type && !this.hasOwnProperty("message")) {
-      var formatted = FormatMessage({ type: type, args: this.arguments });
+    if (type && !%_CallFunction(this, "message", ObjectHasOwnProperty)) {
+      var formatted = FormatMessage(%NewMessageObject(type, this.arguments));
       return this.name + ": " + formatted;
     }
-    var message = this.hasOwnProperty("message") ? (": " + this.message) : "";
+    var message = %_CallFunction(this, "message", ObjectHasOwnProperty)
+        ? (": " + this.message)
+        : "";
     return this.name + message;
   } finally {
-    visited_errors.pop();
+    visited_errors.length = visited_errors.length - 1;
   }
 }
 

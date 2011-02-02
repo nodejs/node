@@ -1478,11 +1478,11 @@ v8::Handle<Value> Message::GetScriptResourceName() const {
   }
   ENTER_V8;
   HandleScope scope;
-  i::Handle<i::JSObject> obj =
-      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   // Return this.script.name.
   i::Handle<i::JSValue> script =
-      i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
+      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script()));
   i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name());
   return scope.Close(Utils::ToLocal(resource_name));
 }
@@ -1494,11 +1494,11 @@ v8::Handle<Value> Message::GetScriptData() const {
   }
   ENTER_V8;
   HandleScope scope;
-  i::Handle<i::JSObject> obj =
-      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   // Return this.script.data.
   i::Handle<i::JSValue> script =
-      i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
+      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script()));
   i::Handle<i::Object> data(i::Script::cast(script->value())->data());
   return scope.Close(Utils::ToLocal(data));
 }
@@ -1510,9 +1510,9 @@ v8::Handle<v8::StackTrace> Message::GetStackTrace() const {
   }
   ENTER_V8;
   HandleScope scope;
-  i::Handle<i::JSObject> obj =
-      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::Object> stackFramesObj = GetProperty(obj, "stackFrames");
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::Object> stackFramesObj(message->stack_frames());
   if (!stackFramesObj->IsJSArray()) return v8::Handle<v8::StackTrace>();
   i::Handle<i::JSArray> stackTrace =
       i::Handle<i::JSArray>::cast(stackFramesObj);
@@ -1552,6 +1552,7 @@ int Message::GetLineNumber() const {
   ON_BAILOUT("v8::Message::GetLineNumber()", return kNoLineNumberInfo);
   ENTER_V8;
   HandleScope scope;
+
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> result = CallV8HeapFunction("GetLineNumber",
                                                    Utils::OpenHandle(this),
@@ -1565,9 +1566,9 @@ int Message::GetStartPosition() const {
   if (IsDeadCheck("v8::Message::GetStartPosition()")) return 0;
   ENTER_V8;
   HandleScope scope;
-
-  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
-  return static_cast<int>(GetProperty(data_obj, "startPos")->Number());
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
+  return message->start_position();
 }
 
 
@@ -1575,8 +1576,9 @@ int Message::GetEndPosition() const {
   if (IsDeadCheck("v8::Message::GetEndPosition()")) return 0;
   ENTER_V8;
   HandleScope scope;
-  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
-  return static_cast<int>(GetProperty(data_obj, "endPos")->Number());
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
+  return message->end_position();
 }
 
 
@@ -1606,8 +1608,10 @@ int Message::GetEndColumn() const {
       data_obj,
       &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK(0);
-  int start = static_cast<int>(GetProperty(data_obj, "startPos")->Number());
-  int end = static_cast<int>(GetProperty(data_obj, "endPos")->Number());
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(data_obj);
+  int start = message->start_position();
+  int end = message->end_position();
   return static_cast<int>(start_col_obj->Number()) + (end - start);
 }
 

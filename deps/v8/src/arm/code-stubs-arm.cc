@@ -389,7 +389,7 @@ class FloatingPointHelper : public AllStatic {
   // floating point registers VFP3 must be supported. If core registers are
   // requested when VFP3 is supported d6 and d7 will still be scratched. If
   // either r0 or r1 is not a number (not smi and not heap number object) the
-  // not_number label is jumped to.
+  // not_number label is jumped to with r0 and r1 intact.
   static void LoadOperands(MacroAssembler* masm,
                            FloatingPointHelper::Destination destination,
                            Register heap_number_map,
@@ -417,11 +417,11 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     __ mov(scratch1, Operand(r0, ASR, kSmiTagSize));
-    __ vmov(s15, scratch1);
-    __ vcvt_f64_s32(d7, s15);
+    __ vmov(d7.high(), scratch1);
+    __ vcvt_f64_s32(d7, d7.high());
     __ mov(scratch1, Operand(r1, ASR, kSmiTagSize));
-    __ vmov(s13, scratch1);
-    __ vcvt_f64_s32(d6, s13);
+    __ vmov(d6.high(), scratch1);
+    __ vcvt_f64_s32(d6, d6.high());
     if (destination == kCoreRegisters) {
       __ vmov(r2, r3, d7);
       __ vmov(r0, r1, d6);
@@ -476,7 +476,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
 
   // Handle loading a double from a heap number.
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3) && destination == kVFPRegisters) {
     CpuFeatures::Scope scope(VFP3);
     // Load the double from tagged HeapNumber to double register.
     __ sub(scratch1, object, Operand(kHeapObjectTag));
@@ -492,16 +492,17 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   __ bind(&is_smi);
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
-    // Convert smi to double.
+    // Convert smi to double using VFP instructions.
     __ SmiUntag(scratch1, object);
     __ vmov(dst.high(), scratch1);
     __ vcvt_f64_s32(dst, dst.high());
     if (destination == kCoreRegisters) {
+      // Load the converted smi to dst1 and dst2 in double format.
       __ vmov(dst1, dst2, dst);
     }
   } else {
     ASSERT(destination == kCoreRegisters);
-    // Write Smi to dst1 and dst2 double format.
+    // Write smi to dst1 and dst2 double format.
     __ mov(scratch1, Operand(object));
     ConvertToDoubleStub stub(dst2, dst1, scratch1, scratch2);
     __ push(lr);
@@ -2501,6 +2502,33 @@ void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
       // We fall through here if we multiplied a negative number with 0, because
       // that would mean we should produce -0.
       break;
+    case Token::DIV:
+      // Check for power of two on the right hand side.
+      __ JumpIfNotPowerOfTwoOrZero(right, scratch1, &not_smi_result);
+      // Check for positive and no remainder (scratch1 contains right - 1).
+      __ orr(scratch2, scratch1, Operand(0x80000000u));
+      __ tst(left, scratch2);
+      __ b(ne, &not_smi_result);
+
+      // Perform division by shifting.
+      __ CountLeadingZeros(scratch1, scratch1, scratch2);
+      __ rsb(scratch1, scratch1, Operand(31));
+      __ mov(right, Operand(left, LSR, scratch1));
+      __ Ret();
+      break;
+    case Token::MOD:
+      // Check for two positive smis.
+      __ orr(scratch1, left, Operand(right));
+      __ tst(scratch1, Operand(0x80000000u | kSmiTagMask));
+      __ b(ne, &not_smi_result);
+
+      // Check for power of two on the right hand side.
+      __ JumpIfNotPowerOfTwoOrZero(right, scratch1, &not_smi_result);
+
+      // Perform modulus by masking.
+      __ and_(right, left, Operand(scratch1));
+      __ Ret();
+      break;
     default:
       UNREACHABLE();
   }
@@ -2508,20 +2536,99 @@ void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateVFPOperation(
-    MacroAssembler* masm) {
-  switch (op_) {
-    case Token::ADD:
-      __ vadd(d5, d6, d7);
-      break;
-    case Token::SUB:
-      __ vsub(d5, d6, d7);
-      break;
-    case Token::MUL:
-      __ vmul(d5, d6, d7);
-      break;
-    default:
-      UNREACHABLE();
+void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
+                                                    bool smi_operands,
+                                                    Label* not_numbers,
+                                                    Label* gc_required) {
+  Register left = r1;
+  Register right = r0;
+  Register scratch1 = r7;
+  Register scratch2 = r9;
+
+  // Load left and right operands into d6 and d7 or r0/r1 and r2/r3 depending
+  // on whether VFP3 is available.
+  FloatingPointHelper::Destination destination =
+      CpuFeatures::IsSupported(VFP3) && op_ != Token::MOD ?
+      FloatingPointHelper::kVFPRegisters :
+      FloatingPointHelper::kCoreRegisters;
+
+  Register heap_number_map = r6;
+  __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+
+  // Allocate new heap number for result.
+  Register result = r5;
+  __ AllocateHeapNumber(
+      result, scratch1, scratch2, heap_number_map, gc_required);
+
+  // Load the operands.
+  if (smi_operands) {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(left);
+      __ AbortIfNotSmi(right);
+    }
+    FloatingPointHelper::LoadSmis(masm, destination, scratch1, scratch2);
+  } else {
+    FloatingPointHelper::LoadOperands(masm,
+                                      destination,
+                                      heap_number_map,
+                                      scratch1,
+                                      scratch2,
+                                      not_numbers);
+  }
+
+  // Calculate the result.
+  if (destination == FloatingPointHelper::kVFPRegisters) {
+    // Using VFP registers:
+    // d6: Left value
+    // d7: Right value
+    CpuFeatures::Scope scope(VFP3);
+    switch (op_) {
+      case Token::ADD:
+        __ vadd(d5, d6, d7);
+        break;
+      case Token::SUB:
+        __ vsub(d5, d6, d7);
+        break;
+      case Token::MUL:
+        __ vmul(d5, d6, d7);
+        break;
+      case Token::DIV:
+        __ vdiv(d5, d6, d7);
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    __ sub(r0, result, Operand(kHeapObjectTag));
+    __ vstr(d5, r0, HeapNumber::kValueOffset);
+    __ add(r0, r0, Operand(kHeapObjectTag));
+    __ Ret();
+  } else {
+    // Using core registers:
+    // r0: Left value (least significant part of mantissa).
+    // r1: Left value (sign, exponent, top of mantissa).
+    // r2: Right value (least significant part of mantissa).
+    // r3: Right value (sign, exponent, top of mantissa).
+
+    __ push(lr);  // For later.
+    __ PrepareCallCFunction(4, scratch1);  // Two doubles are 4 arguments.
+    // Call C routine that may not cause GC or other trouble. r5 is callee
+    // save.
+    __ CallCFunction(ExternalReference::double_fp_operation(op_), 4);
+    // Store answer in the overwritable heap number.
+#if !defined(USE_ARM_EABI)
+    // Double returned in fp coprocessor register 0 and 1, encoded as
+    // register cr8.  Offsets must be divisible by 4 for coprocessor so we
+    // need to substract the tag from r5.
+    __ sub(scratch1, result, Operand(kHeapObjectTag));
+    __ stc(p1, cr8, MemOperand(scratch1, HeapNumber::kValueOffset));
+#else
+    // Double returned in registers 0 and 1.
+    __ Strd(r0, r1, FieldMemOperand(result, HeapNumber::kValueOffset));
+#endif
+    __ mov(r0, Operand(result));
+    // And we are done.
+    __ pop(pc);
   }
 }
 
@@ -2535,7 +2642,11 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
     SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
   Label not_smis;
 
-  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::MUL);
+  ASSERT(op_ == Token::ADD ||
+         op_ == Token::SUB ||
+         op_ == Token::MUL ||
+         op_ == Token::DIV ||
+         op_ == Token::MOD);
 
   Register left = r1;
   Register right = r0;
@@ -2548,66 +2659,13 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
   __ tst(scratch1, Operand(kSmiTagMask));
   __ b(ne, &not_smis);
 
+  // If the smi-smi operation results in a smi return is generated.
   GenerateSmiSmiOperation(masm);
 
   // If heap number results are possible generate the result in an allocated
   // heap number.
   if (allow_heapnumber_results == ALLOW_HEAPNUMBER_RESULTS) {
-    FloatingPointHelper::Destination destination =
-        CpuFeatures::IsSupported(VFP3) && Token::MOD != op_ ?
-        FloatingPointHelper::kVFPRegisters :
-        FloatingPointHelper::kCoreRegisters;
-
-    Register heap_number_map = r6;
-    __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-
-    // Allocate new heap number for result.
-    Register heap_number = r5;
-    __ AllocateHeapNumber(
-        heap_number, scratch1, scratch2, heap_number_map, gc_required);
-
-    // Load the smis.
-    FloatingPointHelper::LoadSmis(masm, destination, scratch1, scratch2);
-
-    // Calculate the result.
-    if (destination == FloatingPointHelper::kVFPRegisters) {
-      // Using VFP registers:
-      // d6: Left value
-      // d7: Right value
-      CpuFeatures::Scope scope(VFP3);
-      GenerateVFPOperation(masm);
-
-      __ sub(r0, heap_number, Operand(kHeapObjectTag));
-      __ vstr(d5, r0, HeapNumber::kValueOffset);
-      __ add(r0, r0, Operand(kHeapObjectTag));
-      __ Ret();
-    } else {
-      // Using core registers:
-      // r0: Left value (least significant part of mantissa).
-      // r1: Left value (sign, exponent, top of mantissa).
-      // r2: Right value (least significant part of mantissa).
-      // r3: Right value (sign, exponent, top of mantissa).
-
-      __ push(lr);  // For later.
-      __ PrepareCallCFunction(4, scratch1);  // Two doubles are 4 arguments.
-      // Call C routine that may not cause GC or other trouble. r5 is callee
-      // save.
-      __ CallCFunction(ExternalReference::double_fp_operation(op_), 4);
-      // Store answer in the overwritable heap number.
-#if !defined(USE_ARM_EABI)
-      // Double returned in fp coprocessor register 0 and 1, encoded as
-      // register cr8.  Offsets must be divisible by 4 for coprocessor so we
-      // need to substract the tag from r5.
-      __ sub(scratch1, heap_number, Operand(kHeapObjectTag));
-      __ stc(p1, cr8, MemOperand(scratch1, HeapNumber::kValueOffset));
-#else
-      // Double returned in registers 0 and 1.
-      __ Strd(r0, r1, FieldMemOperand(heap_number, HeapNumber::kValueOffset));
-#endif
-      __ mov(r0, Operand(heap_number));
-      // And we are done.
-      __ pop(pc);
-    }
+    GenerateFPOperation(masm, true, NULL, gc_required);
   }
   __ bind(&not_smis);
 }
@@ -2616,7 +2674,11 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
 void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   Label not_smis, call_runtime;
 
-  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::MUL);
+  ASSERT(op_ == Token::ADD ||
+         op_ == Token::SUB ||
+         op_ == Token::MUL ||
+         op_ == Token::DIV ||
+         op_ == Token::MOD);
 
   if (result_type_ == TRBinaryOpIC::UNINITIALIZED ||
       result_type_ == TRBinaryOpIC::SMI) {
@@ -2648,7 +2710,11 @@ void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::MUL);
+  ASSERT(op_ == Token::ADD ||
+         op_ == Token::SUB ||
+         op_ == Token::MUL ||
+         op_ == Token::DIV ||
+         op_ == Token::MOD);
 
   ASSERT(operands_type_ == TRBinaryOpIC::INT32);
 
@@ -2657,78 +2723,18 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::MUL);
+  ASSERT(op_ == Token::ADD ||
+         op_ == Token::SUB ||
+         op_ == Token::MUL ||
+         op_ == Token::DIV ||
+         op_ == Token::MOD);
 
-  Register scratch1 = r7;
-  Register scratch2 = r9;
-
-  Label not_number, call_runtime;
+  Label not_numbers, call_runtime;
   ASSERT(operands_type_ == TRBinaryOpIC::HEAP_NUMBER);
 
-  Register heap_number_map = r6;
-  __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  GenerateFPOperation(masm, false, &not_numbers, &call_runtime);
 
-  // Load left and right operands into d6 and d7 or r0/r1 and r2/r3 depending on
-  // whether VFP3 is available.
-  FloatingPointHelper::Destination destination =
-      CpuFeatures::IsSupported(VFP3) ?
-      FloatingPointHelper::kVFPRegisters :
-      FloatingPointHelper::kCoreRegisters;
-  FloatingPointHelper::LoadOperands(masm,
-                                    destination,
-                                    heap_number_map,
-                                    scratch1,
-                                    scratch2,
-                                    &not_number);
-  if (destination == FloatingPointHelper::kVFPRegisters) {
-    // Use floating point instructions for the binary operation.
-    CpuFeatures::Scope scope(VFP3);
-    GenerateVFPOperation(masm);
-
-    // Get a heap number object for the result - might be left or right if one
-    // of these are overwritable.
-    GenerateHeapResultAllocation(
-        masm, r4, heap_number_map, scratch1, scratch2, &call_runtime);
-
-    // Fill the result into the allocated heap number and return.
-    __ sub(r0, r4, Operand(kHeapObjectTag));
-    __ vstr(d5, r0, HeapNumber::kValueOffset);
-    __ add(r0, r0, Operand(kHeapObjectTag));
-    __ Ret();
-
-  } else {
-    // Call a C function for the binary operation.
-    // r0/r1: Left operand
-    // r2/r3: Right operand
-
-    // Get a heap number object for the result - might be left or right if one
-    // of these are overwritable. Uses a callee-save register to keep the value
-    // across the c call.
-    GenerateHeapResultAllocation(
-        masm, r4, heap_number_map, scratch1, scratch2, &call_runtime);
-
-    __ push(lr);  // For returning later (no GC after this point).
-    __ PrepareCallCFunction(4, scratch1);  // Two doubles count as 4 arguments.
-    // Call C routine that may not cause GC or other trouble. r4 is callee
-    // saved.
-    __ CallCFunction(ExternalReference::double_fp_operation(op_), 4);
-
-    // Fill the result into the allocated heap number.
-  #if !defined(USE_ARM_EABI)
-    // Double returned in fp coprocessor register 0 and 1, encoded as
-    // register cr8.  Offsets must be divisible by 4 for coprocessor so we
-    // need to substract the tag from r5.
-    __ sub(scratch1, r4, Operand(kHeapObjectTag));
-    __ stc(p1, cr8, MemOperand(scratch1, HeapNumber::kValueOffset));
-  #else
-    // Double returned in registers 0 and 1.
-    __ Strd(r0, r1, FieldMemOperand(r4, HeapNumber::kValueOffset));
-  #endif
-    __ mov(r0, Operand(r4));
-    __ pop(pc);  // Return to the pushed lr.
-  }
-
-  __ bind(&not_number);
+  __ bind(&not_numbers);
   GenerateTypeTransition(masm);
 
   __ bind(&call_runtime);
@@ -2737,7 +2743,11 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD || op_ == Token::SUB || op_ == Token::MUL);
+  ASSERT(op_ == Token::ADD ||
+         op_ == Token::SUB ||
+         op_ == Token::MUL ||
+         op_ == Token::DIV ||
+         op_ == Token::MOD);
 
   Label call_runtime;
 
@@ -2795,6 +2805,12 @@ void TypeRecordingBinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
       break;
     case Token::MUL:
       __ InvokeBuiltin(Builtins::MUL, JUMP_JS);
+      break;
+    case Token::DIV:
+      __ InvokeBuiltin(Builtins::DIV, JUMP_JS);
+      break;
+    case Token::MOD:
+      __ InvokeBuiltin(Builtins::MOD, JUMP_JS);
       break;
     default:
       UNREACHABLE();

@@ -408,7 +408,7 @@ bool MaybeObject::IsRetryAfterGC() {
 
 bool MaybeObject::IsOutOfMemory() {
   return HAS_FAILURE_TAG(this)
-    && Failure::cast(this)->IsOutOfMemoryException();
+      && Failure::cast(this)->IsOutOfMemoryException();
 }
 
 
@@ -430,26 +430,26 @@ Failure* Failure::cast(MaybeObject* obj) {
 
 bool Object::IsJSObject() {
   return IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() >= FIRST_JS_OBJECT_TYPE;
+      && HeapObject::cast(this)->map()->instance_type() >= FIRST_JS_OBJECT_TYPE;
 }
 
 
 bool Object::IsJSContextExtensionObject() {
   return IsHeapObject()
-    && (HeapObject::cast(this)->map()->instance_type() ==
-        JS_CONTEXT_EXTENSION_OBJECT_TYPE);
+      && (HeapObject::cast(this)->map()->instance_type() ==
+          JS_CONTEXT_EXTENSION_OBJECT_TYPE);
 }
 
 
 bool Object::IsMap() {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == MAP_TYPE;
+      && HeapObject::cast(this)->map()->instance_type() == MAP_TYPE;
 }
 
 
 bool Object::IsFixedArray() {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == FIXED_ARRAY_TYPE;
+      && HeapObject::cast(this)->map()->instance_type() == FIXED_ARRAY_TYPE;
 }
 
 
@@ -495,19 +495,19 @@ bool Object::IsContext() {
 
 bool Object::IsCatchContext() {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map() == Heap::catch_context_map();
+      && HeapObject::cast(this)->map() == Heap::catch_context_map();
 }
 
 
 bool Object::IsGlobalContext() {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map() == Heap::global_context_map();
+      && HeapObject::cast(this)->map() == Heap::global_context_map();
 }
 
 
 bool Object::IsJSFunction() {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == JS_FUNCTION_TYPE;
+      && HeapObject::cast(this)->map()->instance_type() == JS_FUNCTION_TYPE;
 }
 
 
@@ -518,7 +518,7 @@ template <> inline bool Is<JSFunction>(Object* obj) {
 
 bool Object::IsCode() {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == CODE_TYPE;
+      && HeapObject::cast(this)->map()->instance_type() == CODE_TYPE;
 }
 
 
@@ -544,7 +544,14 @@ bool Object::IsSharedFunctionInfo() {
 
 bool Object::IsJSValue() {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == JS_VALUE_TYPE;
+      && HeapObject::cast(this)->map()->instance_type() == JS_VALUE_TYPE;
+}
+
+
+bool Object::IsJSMessageObject() {
+  return Object::IsHeapObject()
+      && (HeapObject::cast(this)->map()->instance_type() ==
+          JS_MESSAGE_OBJECT_TYPE);
 }
 
 
@@ -555,7 +562,7 @@ bool Object::IsStringWrapper() {
 
 bool Object::IsProxy() {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == PROXY_TYPE;
+      && HeapObject::cast(this)->map()->instance_type() == PROXY_TYPE;
 }
 
 
@@ -566,13 +573,13 @@ bool Object::IsBoolean() {
 
 bool Object::IsJSArray() {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == JS_ARRAY_TYPE;
+      && HeapObject::cast(this)->map()->instance_type() == JS_ARRAY_TYPE;
 }
 
 
 bool Object::IsJSRegExp() {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == JS_REGEXP_TYPE;
+      && HeapObject::cast(this)->map()->instance_type() == JS_REGEXP_TYPE;
 }
 
 
@@ -583,7 +590,7 @@ template <> inline bool Is<JSArray>(Object* obj) {
 
 bool Object::IsHashTable() {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map() == Heap::hash_table_map();
+      && HeapObject::cast(this)->map() == Heap::hash_table_map();
 }
 
 
@@ -1285,6 +1292,8 @@ int JSObject::GetHeaderSize() {
       return JSValue::kSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       return JSObject::kHeaderSize;
+    case JS_MESSAGE_OBJECT_TYPE:
+      return JSMessageObject::kSize;
     default:
       UNREACHABLE();
       return 0;
@@ -3286,6 +3295,22 @@ JSValue* JSValue::cast(Object* obj) {
   ASSERT(obj->IsJSValue());
   ASSERT(HeapObject::cast(obj)->Size() == JSValue::kSize);
   return reinterpret_cast<JSValue*>(obj);
+}
+
+
+ACCESSORS(JSMessageObject, type, String, kTypeOffset)
+ACCESSORS(JSMessageObject, arguments, JSArray, kArgumentsOffset)
+ACCESSORS(JSMessageObject, script, Object, kScriptOffset)
+ACCESSORS(JSMessageObject, stack_trace, Object, kStackTraceOffset)
+ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
+SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
+SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
+
+
+JSMessageObject* JSMessageObject::cast(Object* obj) {
+  ASSERT(obj->IsJSMessageObject());
+  ASSERT(HeapObject::cast(obj)->Size() == JSMessageObject::kSize);
+  return reinterpret_cast<JSMessageObject*>(obj);
 }
 
 

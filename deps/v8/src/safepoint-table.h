@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -215,11 +215,10 @@ class SafepointTableBuilder BASE_EMBEDDED {
   unsigned GetCodeOffset() const;
 
   // Define a new safepoint for the current position in the body.
-  Safepoint DefineSafepoint(
-      Assembler* assembler,
-      Safepoint::Kind kind,
-      int arguments,
-      int deoptimization_index = Safepoint::kNoDeoptimizationIndex);
+  Safepoint DefineSafepoint(Assembler* assembler,
+                            Safepoint::Kind kind,
+                            int arguments,
+                            int deoptimization_index);
 
   // Update the last safepoint with the size of the code generated for the gap
   // following it.

@@ -1050,7 +1050,6 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "Instantiate", instantiate_fun);
   INSTALL_NATIVE(JSFunction, "ConfigureTemplateInstance",
                  configure_instance_fun);
-  INSTALL_NATIVE(JSFunction, "MakeMessage", make_message_fun);
   INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
   INSTALL_NATIVE(JSObject, "functionCache", function_cache);
 }

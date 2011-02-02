@@ -409,6 +409,8 @@ class Scanner {
   }
 
   uc32 ScanHexEscape(uc32 c, int length);
+
+  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
   uc32 ScanOctalEscape(uc32 c, int length);
 
   // Return the current source position.

@@ -49,7 +49,8 @@ class HashMap {
   typedef bool (*MatchFun) (void* key1, void* key2);
 
   // Dummy constructor.  This constructor doesn't set up the hash
-  // map properly so don't use it unless you have good reason.
+  // map properly so don't use it unless you have good reason (e.g.,
+  // you know that the HashMap will never be used).
   HashMap();
 
   // initial_capacity is the size of the initial hash map;

@@ -1068,9 +1068,7 @@ void LAllocator::ResolveControlFlow(LiveRange* range,
                                     HBasicBlock* block,
                                     HBasicBlock* pred) {
   LifetimePosition pred_end =
-      LifetimePosition::FromInstructionIndex(pred->last_instruction_index()).
-      PrevInstruction();
-
+      LifetimePosition::FromInstructionIndex(pred->last_instruction_index());
   LifetimePosition cur_start =
       LifetimePosition::FromInstructionIndex(block->first_instruction_index());
   LiveRange* pred_cover = NULL;
@@ -1245,7 +1243,7 @@ void LAllocator::BuildLiveRanges() {
       LifetimePosition start = LifetimePosition::FromInstructionIndex(
           block->first_instruction_index());
       LifetimePosition end = LifetimePosition::FromInstructionIndex(
-          back_edge->last_instruction_index());
+          back_edge->last_instruction_index()).NextInstruction();
       while (!iterator.Done()) {
         int operand_index = iterator.Current();
         LiveRange* range = LiveRangeFor(operand_index);
@@ -2018,6 +2016,11 @@ LiveRange* LAllocator::SplitAt(LiveRange* range, LifetimePosition pos) {
   TraceAlloc("Splitting live range %d at %d\n", range->id(), pos.Value());
 
   if (pos.Value() <= range->Start().Value()) return range;
+
+  // We can't properly connect liveranges if split occured at the end
+  // of control instruction.
+  ASSERT(pos.IsInstructionStart() ||
+         !chunk_->instructions()->at(pos.InstructionIndex())->IsControl());
 
   LiveRange* result = LiveRangeFor(next_virtual_register_++);
   range->SplitAt(pos, result);
