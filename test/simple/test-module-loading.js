@@ -5,6 +5,14 @@ var fs = require('fs');
 
 common.debug('load test-module-loading.js');
 
+// assert that this is the main module.
+assert.equal(require.main.id, '.', 'main module should have id of \'.\'');
+assert.equal(require.main, module, 'require.main should === module');
+assert.equal(process.mainModule, module,
+             'process.mainModule should === module');
+// assert that it's *not* the main module in the required module.
+require('../fixtures/not-main-module.js');
+
 // require a file with a request that includes the extension
 var a_js = require('../fixtures/a.js');
 assert.equal(42, a_js.number);
