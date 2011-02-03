@@ -374,10 +374,6 @@ static Handle<Value> Close(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "close"));
   }
 
-#ifdef __MINGW32__
-  ev_fd_closed(EV_DEFAULT_UC_ fd);
-#endif
-
   return Undefined();
 }
 
