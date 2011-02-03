@@ -967,6 +967,31 @@ fd_reify (EV_P)
 {
   int i;
 
+#if EV_SELECT_IS_WINSOCKET || EV_USE_IOCP
+  for (i = 0; i < fdchangecnt; ++i)
+    {
+      int fd = fdchanges [i];
+      ANFD *anfd = anfds + fd;
+
+      if (anfd->reify & EV__IOFDSET)
+        {
+          SOCKET handle = EV_FD_TO_WIN32_HANDLE (fd);
+
+          if (handle != anfd->handle)
+            {
+              unsigned long arg;
+
+              assert (("libev: only socket fds supported in this configuration", ioctlsocket (handle, FIONREAD, &arg) == 0));
+
+              /* handle changed, but fd didn't - we need to do it in two steps */
+              backend_modify (EV_A_ fd, anfd->events, 0);
+              anfd->events = 0;
+              anfd->handle = handle;
+            }
+        }
+    }
+#endif
+
   for (i = 0; i < fdchangecnt; ++i)
     {
       int fd = fdchanges [i];
@@ -977,15 +1002,6 @@ fd_reify (EV_P)
       unsigned char o_reify  = anfd->reify;
 
       anfd->reify  = 0;
-
-#if EV_SELECT_IS_WINSOCKET || EV_USE_IOCP
-      if (o_reify & EV__IOFDSET)
-        {
-          unsigned long arg;
-          anfd->handle = EV_FD_TO_WIN32_HANDLE (fd);
-          assert (("libev: only socket fds supported in this configuration", ioctlsocket (anfd->handle, FIONREAD, &arg) == 0));
-        }
-#endif
 
       /*if (expect_true (o_reify & EV_ANFD_REIFY)) probably a deoptimisation */
         {
