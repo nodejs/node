@@ -153,6 +153,14 @@
       return stdout;
     });
 
+    var stderr = process.stderr = {
+      writable: true,
+      readable: false,
+      write: process.binding('stdio').writeError
+    };
+
+    stderr.end = stderr.destroy = stderr.destroySoon = function() { };
+
     process.__defineGetter__('stdin', function() {
       if (stdin) return stdin;
 

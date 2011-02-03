@@ -81,6 +81,11 @@ Example: the definition of `console.log`
     };
 
 
+### process.stderr
+
+A writable stream to stderr. Writes on this stream are blocking.
+
+
 ### process.stdin
 
 A `Readable Stream` for stdin. The stdin stream is paused by default, so one
