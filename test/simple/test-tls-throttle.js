@@ -34,6 +34,7 @@ server.listen(common.PORT, function() {
   var client = tls.connect(common.PORT);
 
   client.on('data', function(d) {
+    process.stdout.write('.');
     recvCount += d.length;
 
     client.pause();
@@ -44,18 +45,24 @@ server.listen(common.PORT, function() {
 
 
   client.on('close', function() {
+    console.error('close');
     server.close();
     clearTimeout(timeout);
   });
 });
 
 
-var timeout = setTimeout(function() {
-  process.exit(1);
-}, 10*1000);
+function displayCounts() {
+  console.log('body.length: %d', body.length);
+  console.log('  recvCount: %d', recvCount);
+}
+
+
+var timeout = setTimeout(displayCounts, 10*1000);
 
 
 process.on('exit', function() {
+  displayCounts();
   assert.equal(1, connections);
   assert.equal(body.length, recvCount);
 });
