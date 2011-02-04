@@ -1395,6 +1395,9 @@ static Handle<Value> SetTTL(const Arguments& args) {
   return scope.Close(Integer::New(newttl));
 }
 
+
+#ifdef  __POSIX__
+
 static Handle<Value> SetMulticastTTL(const Arguments& args) {
   HandleScope scope;
 
@@ -1491,6 +1494,9 @@ static Handle<Value> AddMembership(const Arguments& args) {
 static Handle<Value> DropMembership(const Arguments& args) {
   return SetMembership(args, IP_DROP_MEMBERSHIP);
 }
+
+#endif // __POSIX__
+
 
 //
 // G E T A D D R I N F O
@@ -1722,10 +1728,12 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "setBroadcast", SetBroadcast);
   NODE_SET_METHOD(target, "setTTL", SetTTL);
   NODE_SET_METHOD(target, "setKeepAlive", SetKeepAlive);
+#ifdef __POSIX__
   NODE_SET_METHOD(target, "setMulticastTTL", SetMulticastTTL);
   NODE_SET_METHOD(target, "setMulticastLoopback", SetMulticastLoopback);
   NODE_SET_METHOD(target, "addMembership", AddMembership);
   NODE_SET_METHOD(target, "dropMembership", DropMembership);
+#endif // __POSIX__
   NODE_SET_METHOD(target, "getsockname", GetSockName);
   NODE_SET_METHOD(target, "getpeername", GetPeerName);
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);

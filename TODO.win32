@@ -5,6 +5,7 @@
 
 - Better `net` support
   * getaddrinfo
+  * setMulticastTTL, setMembership, setLoopback
   * pipe, socketpair
   * A named pipe should be provided when a unix socket is requested.
   * SendMsg and RecvMsg should be supported with named pipes.
