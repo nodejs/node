@@ -870,6 +870,11 @@ void InitFs(Handle<Object> target) {
                stats_constructor_template->GetFunction());
   StatWatcher::Initialize(target);
   File::Initialize(target);
+
+#ifdef __MINGW32__
+  // Open files in binary mode by default
+  _fmode = _O_BINARY;
+#endif
 }
 
 }  // end namespace node
