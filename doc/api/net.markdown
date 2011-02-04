@@ -70,7 +70,7 @@ another server is already running on the requested port. One way of handling thi
 would be to wait a second and the try again. This can be done with
 
     server.on('error', function (e) {
-      if (e.errno == require('constants').EADDRINUSE) {
+      if (e.code == 'EADDRINUSE') {
         console.log('Address in use, retrying...');
         setTimeout(function () {
           server.close();

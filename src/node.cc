@@ -71,6 +71,7 @@ static Persistent<Object> process;
 static Persistent<String> errno_symbol;
 static Persistent<String> syscall_symbol;
 static Persistent<String> errpath_symbol;
+static Persistent<String> code_symbol;
 
 static Persistent<String> rss_symbol;
 static Persistent<String> vsize_symbol;
@@ -1021,6 +1022,7 @@ Local<Value> ErrnoException(int errorno,
     syscall_symbol = NODE_PSYMBOL("syscall");
     errno_symbol = NODE_PSYMBOL("errno");
     errpath_symbol = NODE_PSYMBOL("path");
+    code_symbol = NODE_PSYMBOL("code");
   }
 
   if (path) {
@@ -1035,6 +1037,7 @@ Local<Value> ErrnoException(int errorno,
   Local<Object> obj = e->ToObject();
 
   obj->Set(errno_symbol, Integer::New(errorno));
+  obj->Set(code_symbol, estring);
   if (path) obj->Set(errpath_symbol, String::New(path));
   if (syscall) obj->Set(syscall_symbol, String::NewSymbol(syscall));
   return e;
