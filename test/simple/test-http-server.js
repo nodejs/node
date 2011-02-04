@@ -48,6 +48,8 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(common.PORT);
 
+server.httpAllowHalfOpen = true;
+
 server.addListener('listening', function() {
   var c = net.createConnection(common.PORT);
 
@@ -69,6 +71,12 @@ server.addListener('listening', function() {
     if (requests_sent == 2) {
       c.write('GET / HTTP/1.1\r\nX-X: foo\r\n\r\n' +
               'GET / HTTP/1.1\r\nX-X: bar\r\n\r\n');
+      // Note: we are making the connection half-closed here
+      // before we've gotten the response from the server. This
+      // is a pretty bad thing to do and not really supported
+      // by many http servers. Node supports it optionally if
+      // you set server.httpAllowHalfOpen=true, which we've done
+      // above.
       c.end();
       assert.equal(c.readyState, 'readOnly');
       requests_sent += 2;
