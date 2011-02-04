@@ -2,18 +2,19 @@
 #include <node_timer.h>
 #include <assert.h>
 
+namespace node {
+
 using namespace v8;
-using namespace node;
 
 Persistent<FunctionTemplate> Timer::constructor_template;
+
 
 static Persistent<String> timeout_symbol;
 static Persistent<String> repeat_symbol;
 static Persistent<String> callback_symbol;
 
-void
-Timer::Initialize (Handle<Object> target)
-{
+
+void Timer::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(Timer::New);
@@ -35,23 +36,23 @@ Timer::Initialize (Handle<Object> target)
   target->Set(String::NewSymbol("Timer"), constructor_template->GetFunction());
 }
 
-Handle<Value>
-Timer::RepeatGetter (Local<String> property, const AccessorInfo& info)
-{
+
+Handle<Value> Timer::RepeatGetter(Local<String> property,
+                                  const AccessorInfo& info) {
   HandleScope scope;
   Timer *timer = ObjectWrap::Unwrap<Timer>(info.This());
 
   assert(timer);
-  assert (property == repeat_symbol);
+  assert(property == repeat_symbol);
 
   Local<Integer> v = Integer::New(timer->watcher_.repeat);
 
   return scope.Close(v);
 }
 
-void
-Timer::RepeatSetter (Local<String> property, Local<Value> value, const AccessorInfo& info)
-{
+void Timer::RepeatSetter(Local<String> property,
+                         Local<Value> value,
+                         const AccessorInfo& info) {
   HandleScope scope;
   Timer *timer = ObjectWrap::Unwrap<Timer>(info.This());
 
@@ -61,9 +62,7 @@ Timer::RepeatSetter (Local<String> property, Local<Value> value, const AccessorI
   timer->watcher_.repeat = NODE_V8_UNIXTIME(value);
 }
 
-void
-Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
-{
+void Timer::OnTimeout(EV_P_ ev_timer *watcher, int revents) {
   Timer *timer = static_cast<Timer*>(watcher->data);
 
   assert(revents == EV_TIMEOUT);
@@ -89,14 +88,13 @@ Timer::OnTimeout (EV_P_ ev_timer *watcher, int revents)
   if (timer->watcher_.repeat == 0) timer->Unref();
 }
 
-Timer::~Timer ()
-{
+
+Timer::~Timer() {
   ev_timer_stop(EV_DEFAULT_UC_ &watcher_);
 }
 
-Handle<Value>
-Timer::New (const Arguments& args)
-{
+
+Handle<Value> Timer::New(const Arguments& args) {
   if (!args.IsConstructCall()) {
     return FromConstructorTemplate(constructor_template, args);
   }
@@ -109,9 +107,7 @@ Timer::New (const Arguments& args)
   return args.This();
 }
 
-Handle<Value>
-Timer::Start (const Arguments& args)
-{
+Handle<Value> Timer::Start(const Arguments& args) {
   HandleScope scope;
   Timer *timer = ObjectWrap::Unwrap<Timer>(args.Holder());
 
@@ -145,7 +141,7 @@ Handle<Value> Timer::Stop(const Arguments& args) {
 }
 
 
-void Timer::Stop () {
+void Timer::Stop() {
   if (watcher_.active) {
     ev_timer_stop(EV_DEFAULT_UC_ &watcher_);
     Unref();
@@ -178,3 +174,6 @@ Handle<Value> Timer::Again(const Arguments& args) {
 
   return Undefined();
 }
+
+
+}  // namespace node
