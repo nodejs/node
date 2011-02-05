@@ -1735,13 +1735,21 @@ main (void)
 
   /// REQUESTS
 
-
   test_simple("hello world", 0);
   test_simple("GET / HTP/1.1\r\n\r\n", 0);
+
 
   test_simple("ASDF / HTTP/1.1\r\n\r\n", 0);
   test_simple("PROPPATCHA / HTTP/1.1\r\n\r\n", 0);
   test_simple("GETA / HTTP/1.1\r\n\r\n", 0);
+
+  // Well-formed but incomplete
+  test_simple("GET / HTTP/1.1\r\n"
+              "Content-Type: text/plain\r\n"
+              "Content-Length: 6\r\n"
+              "\r\n"
+              "fooba",
+              0);
 
   static const char *all_methods[] = {
     "DELETE",

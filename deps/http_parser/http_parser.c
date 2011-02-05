@@ -331,10 +331,20 @@ size_t http_parser_execute (http_parser *parser,
   uint64_t nread = parser->nread;
 
   if (len == 0) {
-    if (state == s_body_identity_eof) {
-      CALLBACK2(message_complete);
+    switch (state) {
+      case s_body_identity_eof:
+        CALLBACK2(message_complete);
+        return 0;
+
+      case s_dead:
+      case s_start_req_or_res:
+      case s_start_res:
+      case s_start_req:
+        return 0;
+
+      default:
+        return 1; // error
     }
-    return 0;
   }
 
   /* technically we could combine all of these (except for url_mark) into one
@@ -1384,6 +1394,7 @@ size_t http_parser_execute (http_parser *parser,
               break;
 
             default:
+              parser->state = state;
               return p - data; /* Error */
           }
         }
