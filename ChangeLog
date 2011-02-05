@@ -1,3 +1,25 @@
+2011.02.04, Version 0.3.8 (unstable)
+
+* Add req.abort() for client side requests.
+
+* Add exception.code for easy testing:
+  Example: if (err.code == 'EADDRINUSE');
+
+* Add process.stderr.
+
+* require.main is the main module. (Isaac Schlueter)
+
+* dgram: setMulticastTTL, setMulticastLoopback and addMembership.
+  (Joe Walnes)
+
+* Fix throttling in TLS connections
+
+* Add socket.bufferSize
+
+* MinGW improvements (Bert Belder)
+
+* Upgrade V8 to 3.1.1
+
 2011.01.27, Version 0.3.7 (unstable)
 
 * Expose agent in http and https client. (Mikeal Rogers)
