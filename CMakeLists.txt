@@ -64,6 +64,7 @@ message("  Version:            ${node_version_string}")
 message("  Prefix:             ${PREFIX}")
 message("  Build Type:         ${CMAKE_BUILD_TYPE}")
 message("  Architecture:       ${CMAKE_SYSTEM_PROCESSOR}")
+message("  Platform:           ${node_platform}")
 
 if(SHARED_V8)
 message("  V8:                 ${V8_LIBRARY_PATH}")

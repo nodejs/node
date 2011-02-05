@@ -37,6 +37,10 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -g -Wextra -DDEBUG $ENV{CXXFLAGS}")
 set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG $ENV{CFLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG $ENV{CXXFLAGS}")
 
+if(NOT ${node_platform} MATCHES "Windows")
+  add_definitions(-D__POSIX__=1)
+endif()
+
 if(${node_platform} MATCHES sunos)
   add_definitions(-threads)
 elseif(NOT ${node_platform} MATCHES cygwin*)
@@ -58,7 +62,7 @@ else()
 endif()
 
 add_definitions(
-  -DPLATFORM=${node_platform}
+  -DPLATFORM="${node_platform}"
   -DX_STACKSIZE=65536
   -D_LARGEFILE_SOURCE
   -D_FILE_OFFSET_BITS=64

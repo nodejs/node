@@ -35,6 +35,7 @@ set(node_sources
   src/node_timer.cc
   src/node_script.cc
   src/node_os.cc
+  src/node_dtrace.cc
   src/node_natives.h
   ${node_extra_src})
 
@@ -47,6 +48,9 @@ else()
 endif()
 get_directory_property(compile_defs COMPILE_DEFINITIONS)
 foreach(def ${compile_defs})
+  # escape " in CPPFLAGS (-DPLATFORM="${node_platform}" would fuck stuff up
+  # otherwise)
+  string(REPLACE "\"" "\\\"" def ${def})
   set(CPPFLAGS "${CPPFLAGS} -D${def}")
 endforeach()
 
