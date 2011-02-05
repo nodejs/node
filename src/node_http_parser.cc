@@ -308,9 +308,16 @@ class Parser : public ObjectWrap {
     assert(!current_buffer);
     parser->got_exception_ = false;
 
-    http_parser_execute(&(parser->parser_), &settings, NULL, 0);
+    int rv = http_parser_execute(&(parser->parser_), &settings, NULL, 0);
 
     if (parser->got_exception_) return Local<Value>();
+
+    if (rv != 0) {
+      Local<Value> e = Exception::Error(String::NewSymbol("Parse Error"));
+      Local<Object> obj = e->ToObject();
+      obj->Set(String::NewSymbol("bytesParsed"), Integer::New(0));
+      return scope.Close(e);
+    }
 
     return Undefined();
   }
