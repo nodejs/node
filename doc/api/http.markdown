@@ -505,7 +505,7 @@ followed by `request.end()`.
 
 ### request.abort()
 
-Aborts a request.  (New since v0.3.80.)
+Aborts a request.  (New since v0.3.8.)
 
 
 ## http.ClientResponse
