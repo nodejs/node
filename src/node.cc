@@ -1078,6 +1078,10 @@ enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
     return ASCII;
   } else if (strcasecmp(*encoding, "base64") == 0) {
     return BASE64;
+  } else if (strcasecmp(*encoding, "ucs2") == 0) {
+    return UCS2;
+  } else if (strcasecmp(*encoding, "ucs-2") == 0) {
+    return UCS2;
   } else if (strcasecmp(*encoding, "binary") == 0) {
     return BINARY;
   } else if (strcasecmp(*encoding, "raw") == 0) {
@@ -1129,6 +1133,7 @@ ssize_t DecodeBytes(v8::Handle<v8::Value> val, enum encoding encoding) {
   Local<String> str = val->ToString();
 
   if (encoding == UTF8) return str->Utf8Length();
+  else if (encoding == UCS2) return str->Length() * 2;
 
   return str->Length();
 }
