@@ -153,12 +153,11 @@
       return stdout;
     });
 
-    var stderr = process.stderr = {
-      writable: true,
-      readable: false,
-      write: process.binding('stdio').writeError
-    };
-
+    var events = NativeModule.require('events');
+    var stderr = process.stderr = new events.EventEmitter();
+    stderr.writable = true;
+    stderr.readable = false;
+    stderr.write = process.binding('stdio').writeError;
     stderr.end = stderr.destroy = stderr.destroySoon = function() { };
 
     process.__defineGetter__('stdin', function() {
