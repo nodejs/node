@@ -25,16 +25,13 @@ terminal.
 process's stdin fd to act either as a raw device or default.
 
 
-### tty.getColumns()
+### tty.setWindowSize(fd, row, col)
 
-Returns the number of columns associated with the current process's TTY.
+`ioctl`s the window size settings to the file descriptor.
 
-Note that each time this number is changed the process receives a `SIGWINCH`
-signal. So you can keep a cache of it like this:
 
-    var columns = tty.getColumns();
-    process.on('SIGWINCH', function() {
-      columns = tty.getColumns();
-    });
+### tty.getWindowSize(fd)
+
+Returns `[row, col]` for the TTY associated with the file descriptor.
 
 
