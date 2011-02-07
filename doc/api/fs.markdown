@@ -306,11 +306,11 @@ The synchronous version of `fs.writeFile`.
 ### fs.watchFile(filename, [options], listener)
 
 Watch for changes on `filename`. The callback `listener` will be called each
-time the file changes.
+time the file is accessed.
 
 The second argument is optional. The `options` if provided should be an object
 containing two members a boolean, `persistent`, and `interval`, a polling
-value in milliseconds. The default is `{persistent: true, interval: 0}`.
+value in milliseconds. The default is `{ persistent: true, interval: 0 }`.
 
 The `listener` gets two arguments the current stat object and the previous
 stat object:
@@ -321,6 +321,10 @@ stat object:
     });
 
 These stat objects are instances of `fs.Stat`.
+
+If you want to be notified when the file was modified, not just accessed
+you need to compare `curr.mtime` and `prev.mtime.
+
 
 ### fs.unwatchFile(filename)
 
