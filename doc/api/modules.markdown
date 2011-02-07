@@ -85,14 +85,6 @@ suits them.
 `require.paths` can be modified at runtime by simply unshifting new
 paths onto it, or at startup with the `NODE_PATH` environmental
 variable (which should be a list of paths, colon separated).
-Additionally node will search for directories called `node_modules` starting
-at the current directory (of the module calling `require`) and upwards
-towards the root of the package tree.
-This feature makes it easy to have different module versions for different
-environments. Imagine the situation where you have a development environment
-and a production environment each with a different version of the `foo`
-module: `projects/x/development/node_modules/foo` and
-`projects/x/production/node_modules/foo`.
 
 
 The second time `require('foo')` is called, it is not loaded again from
