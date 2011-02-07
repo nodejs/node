@@ -9,6 +9,8 @@
 #include <string.h>
 
 #ifdef __MINGW32__
+# include <io.h>
+
 # include <platform_win32.h>
 # include <platform_win32_winsock.h>
 #endif
@@ -138,6 +140,20 @@ static Handle<Value> GetLoadAvg(const Arguments& args) {
   return scope.Close(loads);
 }
 
+#ifdef __MINGW32__
+static Handle<Value> OpenOSHandle(const Arguments& args) {
+  HandleScope scope;
+
+  intptr_t handle = args[0]->IntegerValue();
+
+  int fd = _open_osfhandle(handle, 0);
+  if (fd < 0)
+    return ThrowException(ErrnoException(errno, "_open_osfhandle"));
+
+  return scope.Close(Integer::New(fd));
+}
+#endif // __MINGW32__
+
 void OS::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
 
@@ -149,6 +165,10 @@ void OS::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "getCPUs", GetCPUInfo);
   NODE_SET_METHOD(target, "getOSType", GetOSType);
   NODE_SET_METHOD(target, "getOSRelease", GetOSRelease);
+
+#ifdef __MINGW32__
+  NODE_SET_METHOD(target, "openOSHandle", OpenOSHandle);
+#endif
 }
 
 
