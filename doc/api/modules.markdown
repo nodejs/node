@@ -82,10 +82,31 @@ then `require('./foo/bar')` would load the file at
 entry point to their module, while structuring their package how it
 suits them.
 
+Any folders named `"node_modules"` that exist in the current module path
+will also be appended to the effective require path.  This allows for
+bundling libraries and other dependencies in a 'node_modules' folder at
+the root of a program.
+
+To avoid overly long lookup paths in the case of nested packages,
+the following 2 optimizations are made:
+
+1. If the module calling `require()` is already within a `node_modules`
+   folder, then the lookup will not go above the top-most `node_modules`
+   directory.
+2. Node will not append `node_modules` to a path already ending in
+   `node_modules`.
+
+So, for example, if the file at
+`/usr/lib/node_modules/foo/node_modules/bar.js` were to do
+`require('baz')`, then the following places would be searched for a
+`baz` module, in this order:
+
+* 1: `/usr/lib/node_modules/foo/node_modules`
+* 2: `/usr/lib/node_modules`
+
 `require.paths` can be modified at runtime by simply unshifting new
 paths onto it, or at startup with the `NODE_PATH` environmental
 variable (which should be a list of paths, colon separated).
-
 
 The second time `require('foo')` is called, it is not loaded again from
 disk. It looks in the `require.cache` object to see if it has been loaded
