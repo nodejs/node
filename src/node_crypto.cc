@@ -294,7 +294,42 @@ Handle<Value> SecureContext::Close(const Arguments& args) {
 #endif
 
 
-int Connection::HandleError(const char* func, int rv, bool ignore_error) {
+int Connection::HandleBIOError(BIO *bio,
+                               const char* func,
+                               int rv,
+                               bool ignore_error) {
+  if (rv >= 0) return rv;
+
+  int retry = BIO_should_retry(bio);
+
+  if (BIO_should_write(bio)) {
+    DEBUG_PRINT("[%p] BIO: %s want write. should retry %d\n", ssl_, func, retry);
+    return 0;
+
+  } else if (BIO_should_read(bio)) {
+    DEBUG_PRINT("[%p] BIO: %s want read. should retry %d\n", ssl_, func, retry);
+    return 0;
+
+  } else {
+   static char ssl_error_buf[512];
+    ERR_error_string_n(rv, ssl_error_buf, sizeof(ssl_error_buf));
+
+    if (!ignore_error) {
+      HandleScope scope;
+      Local<Value> e = Exception::Error(String::New(ssl_error_buf));
+      handle_->Set(String::New("error"), e);
+    }
+
+    DEBUG_PRINT("[%p] BIO: %s failed: (%d) %s\n", ssl_, func, rv, ssl_error_buf);
+
+    return rv;
+  }
+
+  return 0;
+}
+
+
+int Connection::HandleSSLError(const char* func, int rv, bool ignore_error) {
   if (rv >= 0) return rv;
 
   int err = SSL_get_error(ssl_, rv);
@@ -510,8 +545,8 @@ Handle<Value> Connection::EncIn(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  int bytes_written = BIO_write(ss->bio_read_, (char*)buffer_data + off, len);
-  ss->HandleError("BIO_write", bytes_written);
+  int bytes_written = BIO_write(ss->bio_read_, buffer_data + off, len);
+  ss->HandleBIOError(ss->bio_read_, "BIO_write", bytes_written);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_written));
@@ -554,17 +589,17 @@ Handle<Value> Connection::ClearOut(const Arguments& args) {
 
     if (ss->is_server_) {
       rv = SSL_accept(ss->ssl_);
-      ss->HandleError("SSL_accept:ClearOut", rv);
+      ss->HandleSSLError("SSL_accept:ClearOut", rv);
     } else {
       rv = SSL_connect(ss->ssl_);
-      ss->HandleError("SSL_connect:ClearOut", rv);
+      ss->HandleSSLError("SSL_connect:ClearOut", rv);
     }
 
     if (rv < 0) return scope.Close(Integer::New(rv));
   }
 
-  int bytes_read = SSL_read(ss->ssl_, (char*)buffer_data + off, len);
-  ss->HandleError("SSL_read:ClearOut", bytes_read);
+  int bytes_read = SSL_read(ss->ssl_, buffer_data + off, len);
+  ss->HandleSSLError("SSL_read:ClearOut", bytes_read);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_read));
@@ -622,9 +657,9 @@ Handle<Value> Connection::EncOut(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
-  int bytes_read = BIO_read(ss->bio_write_, (char*)buffer_data + off, len);
+  int bytes_read = BIO_read(ss->bio_write_, buffer_data + off, len);
 
-  ss->HandleError("BIO_read:EncOut", bytes_read, true);
+  ss->HandleBIOError(ss->bio_write_, "BIO_read:EncOut", bytes_read, true);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_read));
@@ -666,18 +701,18 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
     int rv;
     if (ss->is_server_) {
       rv = SSL_accept(ss->ssl_);
-      ss->HandleError("SSL_accept:ClearIn", rv);
+      ss->HandleSSLError("SSL_accept:ClearIn", rv);
     } else {
       rv = SSL_connect(ss->ssl_);
-      ss->HandleError("SSL_connect:ClearIn", rv);
+      ss->HandleSSLError("SSL_connect:ClearIn", rv);
     }
 
     if (rv < 0) return scope.Close(Integer::New(rv));
   }
 
-  int bytes_written = SSL_write(ss->ssl_, (char*)buffer_data + off, len);
+  int bytes_written = SSL_write(ss->ssl_, buffer_data + off, len);
 
-  ss->HandleError("SSL_write:ClearIn", bytes_written);
+  ss->HandleSSLError("SSL_write:ClearIn", bytes_written);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_written));
@@ -766,10 +801,10 @@ Handle<Value> Connection::Start(const Arguments& args) {
     int rv;
     if (ss->is_server_) {
       rv = SSL_accept(ss->ssl_);
-      ss->HandleError("SSL_accept:Start", rv);
+      ss->HandleSSLError("SSL_accept:Start", rv);
     } else {
       rv = SSL_connect(ss->ssl_);
-      ss->HandleError("SSL_connect:Start", rv);
+      ss->HandleSSLError("SSL_connect:Start", rv);
     }
 
     return scope.Close(Integer::New(rv));
@@ -787,7 +822,7 @@ Handle<Value> Connection::Shutdown(const Arguments& args) {
   if (ss->ssl_ == NULL) return False();
   int rv = SSL_shutdown(ss->ssl_);
 
-  ss->HandleError("SSL_shutdown", rv);
+  ss->HandleSSLError("SSL_shutdown", rv);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(rv));

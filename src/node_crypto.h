@@ -74,7 +74,8 @@ class Connection : ObjectWrap {
   static v8::Handle<v8::Value> Start(const v8::Arguments& args);
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
 
-  int HandleError(const char* func, int rv, bool ignore_error=false);
+  int HandleBIOError(BIO *bio, const char* func, int rv, bool ignore_error=false);
+  int HandleSSLError(const char* func, int rv, bool ignore_error=false);
   void ClearError();
   void SetShutdownFlags();
 
