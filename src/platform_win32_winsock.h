@@ -15,7 +15,6 @@ void wsa_init();
 void wsa_perror(const char* prefix = "");
 
 SOCKET wsa_sync_socket(int af, int type, int proto);
-BOOL wsa_disconnect_ex(SOCKET socket, OVERLAPPED *overlapped, DWORD flags, DWORD reserved);
 
 int wsa_socketpair(int af, int type, int proto, SOCKET sock[2]);
 int wsa_sync_async_socketpair(int af, int type, int proto, SOCKET *syncSocket, SOCKET *asyncSocket);

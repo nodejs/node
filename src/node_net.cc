@@ -92,13 +92,14 @@ static Persistent<FunctionTemplate> recv_msg_template;
   }
 
 
-#ifdef __POSIX__
-
 static inline bool SetCloseOnExec(int fd) {
+#ifdef __POSIX__
   return (fcntl(fd, F_SETFD, FD_CLOEXEC) != -1);
+#else // __MINGW32__
+  return SetHandleInformation(reinterpret_cast<HANDLE>(_get_osfhandle(fd)),
+                              HANDLE_FLAG_INHERIT, 0) != 0;
+#endif
 }
-
-#endif // __POSIX__
 
 
 static inline bool SetNonBlock(int fd) {
@@ -115,12 +116,11 @@ static inline bool SetSockFlags(int fd) {
 #ifdef __MINGW32__
   BOOL flags = TRUE;
   setsockopt(_get_osfhandle(fd), SOL_SOCKET, SO_REUSEADDR, (const char *)&flags, sizeof(flags));
-  return SetNonBlock(fd);
 #else // __POSIX__
   int flags = 1;
   setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags));
-  return SetNonBlock(fd) && SetCloseOnExec(fd);
 #endif
+  return SetNonBlock(fd) && SetCloseOnExec(fd);
 }
 
 

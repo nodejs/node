@@ -56,8 +56,8 @@ static inline bool SetCloseOnExec(int fd) {
 #ifdef __POSIX__
   return (fcntl(fd, F_SETFD, FD_CLOEXEC) != -1);
 #else // __MINGW32__
-  /* no-op on windows */
-  return false;
+  return SetHandleInformation(reinterpret_cast<HANDLE>(_get_osfhandle(fd)),
+                              HANDLE_FLAG_INHERIT, 0) != 0;
 #endif
 }
 

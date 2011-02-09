@@ -321,8 +321,8 @@ void ChildProcess::close_stdio_handles(ChildProcess *child) {
   // take some time and would deadlock if done in the main thread.
   for (int i = 0; i < 3; i++) {
     if (!child->got_custom_fds_[i]) {
-      wsa_disconnect_ex((SOCKET)child->stdio_handles_[i], NULL, 0, 0);
-      closesocket((SOCKET)child->stdio_handles_[i]);
+      shutdown(reinterpret_cast<SOCKET>(child->stdio_handles_[i]), SD_BOTH);
+      closesocket(reinterpret_cast<SOCKET>(child->stdio_handles_[i]));
     }
   }
 }
@@ -741,6 +741,10 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
       if (ioctlsocket((SOCKET)parent_handle, FIONBIO, &ioctl_value) ==
           SOCKET_ERROR)
         wsa_perror("ioctlsocket");
+
+      // Make parent handle non-inheritable
+      if (!SetHandleInformation(parent_handle, HANDLE_FLAG_INHERIT, 0))
+        winapi_perror("SetHandleInformation");
 
       // Make child handle inheritable
       if (!SetHandleInformation(child_handle, HANDLE_FLAG_INHERIT,

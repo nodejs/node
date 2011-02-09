@@ -130,14 +130,6 @@ void wsa_perror(const char *prefix) {
 
 
 /*
- * Wrapper for DisconnectEx extension function
- */
-BOOL wsa_disconnect_ex(SOCKET socket, OVERLAPPED *overlapped, DWORD flags, DWORD reserved) {
-  return wsexf.DisconnectEx(socket, overlapped, flags, reserved);
-}
-
-
-/*
  * Retrieves a pointer to a WSAPROTOCOL_INFOW structure
  * related to a certain winsock protocol from the cache
  */
@@ -422,6 +414,7 @@ inline static void wsa_get_extension_function(SOCKET socket, GUID guid, void **t
  * Retrieves the needed winsock extension function pointers for the tcp/ip subsystem,
  * storing them in the `wsexf` cache
  */
+/*
 inline static void wsa_init_extension_functions() {
   SOCKET dummy = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 
@@ -431,14 +424,15 @@ inline static void wsa_init_extension_functions() {
     return;
   }
 
-  //wsa_get_extension_function(dummy, WSAID_CONNECTEX,            (void**)&wsexf.ConnectEx           );
-  //wsa_get_extension_function(dummy, WSAID_ACCEPTEX,             (void**)&wsexf.AcceptEx            );
-  //wsa_get_extension_function(dummy, WSAID_GETACCEPTEXSOCKADDRS, (void**)&wsexf.GetAcceptExSockAddrs);
+  wsa_get_extension_function(dummy, WSAID_CONNECTEX,            (void**)&wsexf.ConnectEx           );
+  wsa_get_extension_function(dummy, WSAID_ACCEPTEX,             (void**)&wsexf.AcceptEx            );
+  wsa_get_extension_function(dummy, WSAID_GETACCEPTEXSOCKADDRS, (void**)&wsexf.GetAcceptExSockAddrs);
   wsa_get_extension_function(dummy, WSAID_DISCONNECTEX,         (void**)&wsexf.DisconnectEx        );
-  //wsa_get_extension_function(dummy, WSAID_TRANSMITFILE,         (void**)&wsexf.TransmitFile        );
+  wsa_get_extension_function(dummy, WSAID_TRANSMITFILE,         (void**)&wsexf.TransmitFile        );
 
   closesocket(dummy);
 }
+*/
 
 
 /*
@@ -451,7 +445,7 @@ void wsa_init() {
   }
 
   wsa_init_proto_info_cache();
-  wsa_init_extension_functions();
+  //wsa_init_extension_functions();
 }
 
 
