@@ -441,6 +441,7 @@
             '../../src/lithium.h',
             '../../src/lithium-allocator.cc',
             '../../src/lithium-allocator.h',
+            '../../src/lithium-allocator-inl.h',
             '../../src/liveedit.cc',
             '../../src/liveedit.h',
             '../../src/liveobjectlist-inl.h',

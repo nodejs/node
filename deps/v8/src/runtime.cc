@@ -644,6 +644,90 @@ static void GetOwnPropertyImplementation(JSObject* obj,
 }
 
 
+static bool CheckAccessException(LookupResult* result,
+                                 v8::AccessType access_type) {
+  if (result->type() == CALLBACKS) {
+    Object* callback = result->GetCallbackObject();
+    if (callback->IsAccessorInfo()) {
+      AccessorInfo* info = AccessorInfo::cast(callback);
+      bool can_access =
+          (access_type == v8::ACCESS_HAS &&
+              (info->all_can_read() || info->all_can_write())) ||
+          (access_type == v8::ACCESS_GET && info->all_can_read()) ||
+          (access_type == v8::ACCESS_SET && info->all_can_write());
+      return can_access;
+    }
+  }
+
+  return false;
+}
+
+
+static bool CheckAccess(JSObject* obj,
+                        String* name,
+                        LookupResult* result,
+                        v8::AccessType access_type) {
+  ASSERT(result->IsProperty());
+
+  JSObject* holder = result->holder();
+  JSObject* current = obj;
+  while (true) {
+    if (current->IsAccessCheckNeeded() &&
+        !Top::MayNamedAccess(current, name, access_type)) {
+      // Access check callback denied the access, but some properties
+      // can have a special permissions which override callbacks descision
+      // (currently see v8::AccessControl).
+      break;
+    }
+
+    if (current == holder) {
+      return true;
+    }
+
+    current = JSObject::cast(current->GetPrototype());
+  }
+
+  // API callbacks can have per callback access exceptions.
+  switch (result->type()) {
+    case CALLBACKS: {
+      if (CheckAccessException(result, access_type)) {
+        return true;
+      }
+      break;
+    }
+    case INTERCEPTOR: {
+      // If the object has an interceptor, try real named properties.
+      // Overwrite the result to fetch the correct property later.
+      holder->LookupRealNamedProperty(name, result);
+      if (result->IsProperty()) {
+        if (CheckAccessException(result, access_type)) {
+          return true;
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  Top::ReportFailedAccessCheck(current, access_type);
+  return false;
+}
+
+
+// TODO(1095): we should traverse hidden prototype hierachy as well.
+static bool CheckElementAccess(JSObject* obj,
+                               uint32_t index,
+                               v8::AccessType access_type) {
+  if (obj->IsAccessCheckNeeded() &&
+      !Top::MayIndexedAccess(obj, index, access_type)) {
+    return false;
+  }
+
+  return true;
+}
+
+
 // Enumerator used as indices into the array returned from GetOwnProperty
 enum PropertyDescriptorIndices {
   IS_ACCESSOR_INDEX,
@@ -686,7 +770,7 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
         // subsequent cases.
         Handle<JSValue> js_value = Handle<JSValue>::cast(obj);
         Handle<String> str(String::cast(js_value->value()));
-        Handle<String> substr = SubString(str, index, index+1, NOT_TENURED);
+        Handle<String> substr = SubString(str, index, index + 1, NOT_TENURED);
 
         elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
         elms->set(VALUE_INDEX, *substr);
@@ -699,8 +783,7 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
       case JSObject::INTERCEPTED_ELEMENT:
       case JSObject::FAST_ELEMENT: {
         elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-        Handle<Object> element = GetElement(Handle<Object>(obj), index);
-        elms->set(VALUE_INDEX, *element);
+        elms->set(VALUE_INDEX, *GetElement(obj, index));
         elms->set(WRITABLE_INDEX, Heap::true_value());
         elms->set(ENUMERABLE_INDEX,  Heap::true_value());
         elms->set(CONFIGURABLE_INDEX, Heap::true_value());
@@ -708,7 +791,14 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
       }
 
       case JSObject::DICTIONARY_ELEMENT: {
-        NumberDictionary* dictionary = obj->element_dictionary();
+        Handle<JSObject> holder = obj;
+        if (obj->IsJSGlobalProxy()) {
+          Object* proto = obj->GetPrototype();
+          if (proto->IsNull()) return Heap::undefined_value();
+          ASSERT(proto->IsJSGlobalObject());
+          holder = Handle<JSObject>(JSObject::cast(proto));
+        }
+        NumberDictionary* dictionary = holder->element_dictionary();
         int entry = dictionary->FindEntry(index);
         ASSERT(entry != NumberDictionary::kNotFound);
         PropertyDetails details = dictionary->DetailsAt(entry);
@@ -718,14 +808,18 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
             FixedArray* callbacks =
                 FixedArray::cast(dictionary->ValueAt(entry));
             elms->set(IS_ACCESSOR_INDEX, Heap::true_value());
-            elms->set(GETTER_INDEX, callbacks->get(0));
-            elms->set(SETTER_INDEX, callbacks->get(1));
+            if (CheckElementAccess(*obj, index, v8::ACCESS_GET)) {
+              elms->set(GETTER_INDEX, callbacks->get(0));
+            }
+            if (CheckElementAccess(*obj, index, v8::ACCESS_SET)) {
+              elms->set(SETTER_INDEX, callbacks->get(1));
+            }
             break;
           }
           case NORMAL:
             // This is a data property.
             elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-            elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
+            elms->set(VALUE_INDEX, *GetElement(obj, index));
             elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
             break;
           default:
@@ -746,6 +840,10 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
     return Heap::undefined_value();
   }
 
+  if (!CheckAccess(*obj, *name, &result, v8::ACCESS_HAS)) {
+    return Heap::false_value();
+  }
+
   elms->set(ENUMERABLE_INDEX, Heap::ToBoolean(!result.IsDontEnum()));
   elms->set(CONFIGURABLE_INDEX, Heap::ToBoolean(!result.IsDontDelete()));
 
@@ -754,16 +852,22 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
 
   if (is_js_accessor) {
     // __defineGetter__/__defineSetter__ callback.
-    FixedArray* structure = FixedArray::cast(result.GetCallbackObject());
     elms->set(IS_ACCESSOR_INDEX, Heap::true_value());
-    elms->set(GETTER_INDEX, structure->get(0));
-    elms->set(SETTER_INDEX, structure->get(1));
+
+    FixedArray* structure = FixedArray::cast(result.GetCallbackObject());
+    if (CheckAccess(*obj, *name, &result, v8::ACCESS_GET)) {
+      elms->set(GETTER_INDEX, structure->get(0));
+    }
+    if (CheckAccess(*obj, *name, &result, v8::ACCESS_SET)) {
+      elms->set(SETTER_INDEX, structure->get(1));
+    }
   } else {
     elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
     elms->set(WRITABLE_INDEX, Heap::ToBoolean(!result.IsReadOnly()));
 
     PropertyAttributes attrs;
     Object* value;
+    // GetProperty will check access and report any violations.
     { MaybeObject* maybe_value = obj->GetProperty(*obj, &result, *name, &attrs);
       if (!maybe_value->ToObject(&value)) return maybe_value;
     }
@@ -3487,8 +3591,10 @@ static MaybeObject* Runtime_KeyedGetProperty(Arguments args) {
     HandleScope scope;
     Handle<String> str = args.at<String>(0);
     int index = Smi::cast(args[1])->value();
-    Handle<Object> result = GetCharAt(str, index);
-    return *result;
+    if (index >= 0 && index < str->length()) {
+      Handle<Object> result = GetCharAt(str, index);
+      return *result;
+    }
   }
 
   // Fall back to GetObjectProperty.
@@ -3496,7 +3602,12 @@ static MaybeObject* Runtime_KeyedGetProperty(Arguments args) {
                                     args.at<Object>(1));
 }
 
-
+// Implements part of 8.12.9 DefineOwnProperty.
+// There are 3 cases that lead here:
+// Step 4b - define a new accessor property.
+// Steps 9c & 12 - replace an existing data property with an accessor property.
+// Step 12 - update an existing accessor property with an accessor or generic
+//           descriptor.
 static MaybeObject* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
   ASSERT(args.length() == 5);
   HandleScope scope;
@@ -3528,6 +3639,12 @@ static MaybeObject* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
   return obj->DefineAccessor(name, flag_setter->value() == 0, fun, attr);
 }
 
+// Implements part of 8.12.9 DefineOwnProperty.
+// There are 3 cases that lead here:
+// Step 4a - define a new data property.
+// Steps 9b & 12 - replace an existing accessor property with a data property.
+// Step 12 - update an existing data property with a data or generic
+//           descriptor.
 static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   ASSERT(args.length() == 4);
   HandleScope scope;
@@ -3551,7 +3668,9 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   if (((unchecked & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0) &&
       is_element) {
     // Normalize the elements to enable attributes on the property.
-    NormalizeElements(js_object);
+    if (!js_object->IsJSGlobalProxy()) {
+      NormalizeElements(js_object);
+    }
     Handle<NumberDictionary> dictionary(js_object->element_dictionary());
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
@@ -3571,7 +3690,9 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   if (result.IsProperty() &&
       (attr != result.GetAttributes() || result.type() == CALLBACKS)) {
     // New attributes - normalize to avoid writing to instance descriptor
-    NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
+    if (!js_object->IsJSGlobalProxy()) {
+      NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
+    }
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
     return js_object->SetLocalPropertyIgnoreAttributes(*name,
@@ -4167,7 +4288,7 @@ static MaybeObject* Runtime_ToSlowProperties(Arguments args) {
 
   ASSERT(args.length() == 1);
   Handle<Object> object = args.at<Object>(0);
-  if (object->IsJSObject()) {
+  if (object->IsJSObject() && !object->IsJSGlobalProxy()) {
     Handle<JSObject> js_object = Handle<JSObject>::cast(object);
     NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
   }
@@ -6889,7 +7010,7 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(Arguments args) {
     // the AST id matching the PC.
     Address start = unoptimized->instruction_start();
     unsigned target_pc_offset = static_cast<unsigned>(frame->pc() - start);
-    Address table_cursor = start + unoptimized->stack_check_table_start();
+    Address table_cursor = start + unoptimized->stack_check_table_offset();
     uint32_t table_length = Memory::uint32_at(table_cursor);
     table_cursor += kIntSize;
     for (unsigned i = 0; i < table_length; ++i) {
@@ -7553,7 +7674,8 @@ static MaybeObject* Runtime_CompileString(Arguments args) {
   Handle<Context> context(Top::context()->global_context());
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(source,
                                                             context,
-                                                            true);
+                                                            true,
+                                                            kNonStrictMode);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       Factory::NewFunctionFromSharedFunctionInfo(shared, context, NOT_TENURED);
@@ -7562,13 +7684,15 @@ static MaybeObject* Runtime_CompileString(Arguments args) {
 
 
 static ObjectPair CompileGlobalEval(Handle<String> source,
-                                    Handle<Object> receiver) {
+                                    Handle<Object> receiver,
+                                    StrictModeFlag mode) {
   // Deal with a normal eval call with a string argument. Compile it
   // and return the compiled function bound in the local context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source,
       Handle<Context>(Top::context()),
-      Top::context()->IsGlobalContext());
+      Top::context()->IsGlobalContext(),
+      mode);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
   Handle<JSFunction> compiled = Factory::NewFunctionFromSharedFunctionInfo(
       shared,
@@ -7579,7 +7703,7 @@ static ObjectPair CompileGlobalEval(Handle<String> source,
 
 
 static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   if (!args[0]->IsJSFunction()) {
     return MakePair(Top::ThrowIllegalOperation(), NULL);
   }
@@ -7643,12 +7767,16 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
     return MakePair(*callee, Top::context()->global()->global_receiver());
   }
 
-  return CompileGlobalEval(args.at<String>(1), args.at<Object>(2));
+  ASSERT(args[3]->IsSmi());
+  return CompileGlobalEval(args.at<String>(1),
+                           args.at<Object>(2),
+                           static_cast<StrictModeFlag>(
+                                Smi::cast(args[3])->value()));
 }
 
 
 static ObjectPair Runtime_ResolvePossiblyDirectEvalNoLookup(Arguments args) {
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   if (!args[0]->IsJSFunction()) {
     return MakePair(Top::ThrowIllegalOperation(), NULL);
   }
@@ -7663,7 +7791,11 @@ static ObjectPair Runtime_ResolvePossiblyDirectEvalNoLookup(Arguments args) {
     return MakePair(*callee, Top::context()->global()->global_receiver());
   }
 
-  return CompileGlobalEval(args.at<String>(1), args.at<Object>(2));
+  ASSERT(args[3]->IsSmi());
+  return CompileGlobalEval(args.at<String>(1),
+                           args.at<Object>(2),
+                           static_cast<StrictModeFlag>(
+                                Smi::cast(args[3])->value()));
 }
 
 
@@ -9800,10 +9932,14 @@ static MaybeObject* Runtime_DebugEvaluate(Arguments args) {
   Handle<String> function_source =
       Factory::NewStringFromAscii(Vector<const char>(source_str,
                                                      source_str_length));
+
+  // Currently, the eval code will be executed in non-strict mode,
+  // even in the strict code context.
   Handle<SharedFunctionInfo> shared =
       Compiler::CompileEval(function_source,
                             context,
-                            context->IsGlobalContext());
+                            context->IsGlobalContext(),
+                            kNonStrictMode);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Factory::NewFunctionFromSharedFunctionInfo(shared, context);
@@ -9885,10 +10021,10 @@ static MaybeObject* Runtime_DebugEvaluateGlobal(Arguments args) {
   }
 
   // Compile the source to be evaluated.
+  // Currently, the eval code will be executed in non-strict mode,
+  // even in the strict code context.
   Handle<SharedFunctionInfo> shared =
-      Compiler::CompileEval(source,
-                            context,
-                            is_global);
+      Compiler::CompileEval(source, context, is_global, kNonStrictMode);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Handle<JSFunction>(Factory::NewFunctionFromSharedFunctionInfo(shared,

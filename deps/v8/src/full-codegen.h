@@ -531,6 +531,9 @@ class FullCodeGenerator: public AstVisitor {
 
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
+  StrictModeFlag strict_mode_flag() {
+    return function()->strict_mode() ? kStrictMode : kNonStrictMode;
+  }
   FunctionLiteral* function() { return info_->function(); }
   Scope* scope() { return info_->scope(); }
 

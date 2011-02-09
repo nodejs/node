@@ -223,7 +223,7 @@ bool LCodeGen::GenerateCode() {
 void LCodeGen::FinishCode(Handle<Code> code) {
   ASSERT(is_done());
   code->set_stack_slots(StackSlotCount());
-  code->set_safepoint_table_start(safepoints_.GetCodeOffset());
+  code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
   PopulateDeoptimizationData(code);
 }
 
@@ -1174,7 +1174,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
 
   if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
     // scratch:left = left * right.
-    __ smull(scratch, left, left, right);
+    __ smull(left, scratch, left, right);
     __ mov(ip, Operand(left, ASR, 31));
     __ cmp(ip, Operand(scratch));
     DeoptimizeIf(ne, instr->environment());
@@ -1398,7 +1398,18 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ vdiv(left, left, right);
       break;
     case Token::MOD: {
-      Abort("DoArithmeticD unimplemented for MOD.");
+      // Save r0-r3 on the stack.
+      __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit() | r3.bit());
+
+      __ PrepareCallCFunction(4, scratch0());
+      __ vmov(r0, r1, left);
+      __ vmov(r2, r3, right);
+      __ CallCFunction(ExternalReference::double_fp_operation(Token::MOD), 4);
+      // Move the result in the double result register.
+      __ vmov(ToDoubleRegister(instr->result()), r0, r1);
+
+      // Restore r0-r3.
+      __ ldm(ia_w, sp, r0.bit() | r1.bit() | r2.bit() | r3.bit());
       break;
     }
     default:
@@ -1595,17 +1606,58 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 
 void LCodeGen::EmitCmpI(LOperand* left, LOperand* right) {
   __ cmp(ToRegister(left), ToOperand(right));
-  Abort("EmitCmpI untested.");
 }
 
 
 void LCodeGen::DoCmpID(LCmpID* instr) {
-  Abort("DoCmpID unimplemented.");
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  LOperand* result = instr->result();
+  Register scratch = scratch0();
+
+  Label unordered, done;
+  if (instr->is_double()) {
+    // Compare left and right as doubles and load the
+    // resulting flags into the normal status register.
+    __ vcmp(ToDoubleRegister(left), ToDoubleRegister(right));
+    __ vmrs(pc);
+    // If a NaN is involved, i.e. the result is unordered (V set),
+    // jump to unordered to return false.
+    __ b(vs, &unordered);
+  } else {
+    EmitCmpI(left, right);
+  }
+
+  Condition cc = TokenToCondition(instr->op(), instr->is_double());
+  __ LoadRoot(ToRegister(result), Heap::kTrueValueRootIndex);
+  __ b(cc, &done);
+
+  __ bind(&unordered);
+  __ LoadRoot(ToRegister(result), Heap::kFalseValueRootIndex);
+  __ bind(&done);
 }
 
 
 void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
-  Abort("DoCmpIDAndBranch unimplemented.");
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+
+  if (instr->is_double()) {
+    // Compare left and right as doubles and load the
+    // resulting flags into the normal status register.
+    __ vcmp(ToDoubleRegister(left), ToDoubleRegister(right));
+    __ vmrs(pc);
+    // If a NaN is involved, i.e. the result is unordered (V set),
+    // jump to false block label.
+    __ b(vs, chunk_->GetAssemblyLabel(false_block));
+  } else {
+    EmitCmpI(left, right);
+  }
+
+  Condition cc = TokenToCondition(instr->op(), instr->is_double());
+  EmitBranch(true_block, false_block, cc);
 }
 
 
@@ -2201,10 +2253,24 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 
 
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
-  // TODO(antonm): load a context with a separate instruction.
+  Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
-  __ LoadContext(result, instr->context_chain_length());
+  __ ldr(result,
+         MemOperand(context, Context::SlotOffset(Context::FCONTEXT_INDEX)));
   __ ldr(result, ContextOperand(result, instr->slot_index()));
+}
+
+
+void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
+  Register context = ToRegister(instr->context());
+  Register value = ToRegister(instr->value());
+  __ ldr(context,
+         MemOperand(context, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  __ str(value, ContextOperand(context, instr->slot_index()));
+  if (instr->needs_write_barrier()) {
+    int offset = Context::SlotOffset(instr->slot_index());
+    __ RecordWrite(context, Operand(offset), value, scratch0());
+  }
 }
 
 
@@ -2458,16 +2524,32 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
 }
 
 
+void LCodeGen::DoContext(LContext* instr) {
+  Register result = ToRegister(instr->result());
+  __ mov(result, cp);
+}
+
+
+void LCodeGen::DoOuterContext(LOuterContext* instr) {
+  Register context = ToRegister(instr->context());
+  Register result = ToRegister(instr->result());
+  __ ldr(result,
+         MemOperand(context, Context::SlotOffset(Context::CLOSURE_INDEX)));
+  __ ldr(result, FieldMemOperand(result, JSFunction::kContextOffset));
+}
+
+
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
+  Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
   __ ldr(result, ContextOperand(cp, Context::GLOBAL_INDEX));
 }
 
 
 void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
+  Register global = ToRegister(instr->global());
   Register result = ToRegister(instr->result());
-  __ ldr(result, ContextOperand(cp, Context::GLOBAL_INDEX));
-  __ ldr(result, FieldMemOperand(result, GlobalObject::kGlobalReceiverOffset));
+  __ ldr(result, FieldMemOperand(global, GlobalObject::kGlobalReceiverOffset));
 }
 
 
@@ -2625,34 +2707,53 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
 }
 
 
-void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
-  DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-  Register prev_fpscr = ToRegister(instr->TempAt(0));
-  SwVfpRegister single_scratch = double_scratch0().low();
-  Register scratch = scratch0();
+// Truncates a double using a specific rounding mode.
+// Clears the z flag (ne condition) if an overflow occurs.
+void LCodeGen::EmitVFPTruncate(VFPRoundingMode rounding_mode,
+                               SwVfpRegister result,
+                               DwVfpRegister double_input,
+                               Register scratch1,
+                               Register scratch2) {
+  Register prev_fpscr = scratch1;
+  Register scratch = scratch2;
 
   // Set custom FPCSR:
-  //  - Set rounding mode to "Round towards Minus Infinity".
+  //  - Set rounding mode.
   //  - Clear vfp cumulative exception flags.
   //  - Make sure Flush-to-zero mode control bit is unset.
   __ vmrs(prev_fpscr);
-  __ bic(scratch, prev_fpscr,
-      Operand(kVFPExceptionMask | kVFPRoundingModeMask | kVFPFlushToZeroMask));
-  __ orr(scratch, scratch, Operand(kVFPRoundToMinusInfinityBits));
+  __ bic(scratch, prev_fpscr, Operand(kVFPExceptionMask |
+                                      kVFPRoundingModeMask |
+                                      kVFPFlushToZeroMask));
+  __ orr(scratch, scratch, Operand(rounding_mode));
   __ vmsr(scratch);
 
   // Convert the argument to an integer.
-  __ vcvt_s32_f64(single_scratch,
-                  input,
-                  Assembler::FPSCRRounding,
-                  al);
+  __ vcvt_s32_f64(result,
+                  double_input,
+                  kFPSCRRounding);
 
-  // Retrieve FPSCR and check for vfp exceptions.
+  // Retrieve FPSCR.
   __ vmrs(scratch);
-  // Restore FPSCR
+  // Restore FPSCR.
   __ vmsr(prev_fpscr);
+  // Check for vfp exceptions.
   __ tst(scratch, Operand(kVFPExceptionMask));
+}
+
+
+void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  SwVfpRegister single_scratch = double_scratch0().low();
+  Register scratch1 = scratch0();
+  Register scratch2 = ToRegister(instr->TempAt(0));
+
+  EmitVFPTruncate(kRoundToMinusInf,
+                  single_scratch,
+                  input,
+                  scratch1,
+                  scratch2);
   DeoptimizeIf(ne, instr->environment());
 
   // Move the result back to general purpose register r0.
@@ -2662,8 +2763,8 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   Label done;
   __ cmp(result, Operand(0));
   __ b(ne, &done);
-  __ vmov(scratch, input.high());
-  __ tst(scratch, Operand(HeapNumber::kSignMask));
+  __ vmov(scratch1, input.high());
+  __ tst(scratch1, Operand(HeapNumber::kSignMask));
   DeoptimizeIf(ne, instr->environment());
   __ bind(&done);
 }
@@ -3297,7 +3398,42 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
 
 
 void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
-  Abort("DoDoubleToI unimplemented.");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsDoubleRegister());
+  LOperand* result = instr->result();
+  ASSERT(result->IsRegister());
+
+  DoubleRegister double_input = ToDoubleRegister(input);
+  Register result_reg = ToRegister(result);
+  SwVfpRegister single_scratch = double_scratch0().low();
+  Register scratch1 = scratch0();
+  Register scratch2 = ToRegister(instr->TempAt(0));
+
+  VFPRoundingMode rounding_mode = instr->truncating() ? kRoundToMinusInf
+                                                      : kRoundToNearest;
+
+  EmitVFPTruncate(rounding_mode,
+                  single_scratch,
+                  double_input,
+                  scratch1,
+                  scratch2);
+  // Deoptimize if we had a vfp invalid exception.
+  DeoptimizeIf(ne, instr->environment());
+  // Retrieve the result.
+  __ vmov(result_reg, single_scratch);
+
+  if (instr->truncating() &&
+      instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    Label done;
+    __ cmp(result_reg, Operand(0));
+    __ b(ne, &done);
+    // Check for -0.
+    __ vmov(scratch1, double_input.high());
+    __ tst(scratch1, Operand(HeapNumber::kSignMask));
+    DeoptimizeIf(ne, instr->environment());
+
+    __ bind(&done);
+  }
 }
 
 
@@ -3497,7 +3633,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
   Handle<SharedFunctionInfo> shared_info = instr->shared_info();
-  bool pretenure = !instr->hydrogen()->pretenure();
+  bool pretenure = instr->hydrogen()->pretenure();
   if (shared_info->num_literals() == 0 && !pretenure) {
     FastNewClosureStub stub;
     __ mov(r1, Operand(shared_info));

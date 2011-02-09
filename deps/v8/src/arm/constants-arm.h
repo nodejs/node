@@ -380,10 +380,13 @@ enum VFPRegPrecision {
 
 
 // VFP FPSCR constants.
+enum VFPConversionMode {
+  kFPSCRRounding = 0,
+  kDefaultRoundToZero = 1
+};
+
 static const uint32_t kVFPExceptionMask = 0xf;
-static const uint32_t kVFPRoundingModeMask = 3 << 22;
 static const uint32_t kVFPFlushToZeroMask = 1 << 24;
-static const uint32_t kVFPRoundToMinusInfinityBits = 2 << 22;
 static const uint32_t kVFPInvalidExceptionBit = 1;
 
 static const uint32_t kVFPNConditionFlagBit = 1 << 31;
@@ -393,13 +396,20 @@ static const uint32_t kVFPVConditionFlagBit = 1 << 28;
 
 
 // VFP rounding modes. See ARM DDI 0406B Page A2-29.
-enum FPSCRRoundingModes {
-  RN,   // Round to Nearest.
-  RP,   // Round towards Plus Infinity.
-  RM,   // Round towards Minus Infinity.
-  RZ    // Round towards zero.
+enum VFPRoundingMode {
+  RN = 0 << 22,   // Round to Nearest.
+  RP = 1 << 22,   // Round towards Plus Infinity.
+  RM = 2 << 22,   // Round towards Minus Infinity.
+  RZ = 3 << 22,   // Round towards zero.
+
+  // Aliases.
+  kRoundToNearest = RN,
+  kRoundToPlusInf = RP,
+  kRoundToMinusInf = RM,
+  kRoundToZero = RZ
 };
 
+static const uint32_t kVFPRoundingModeMask = 3 << 22;
 
 // -----------------------------------------------------------------------------
 // Hints.

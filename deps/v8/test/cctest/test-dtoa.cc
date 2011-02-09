@@ -44,7 +44,7 @@ using namespace v8::internal;
 
 // Removes trailing '0' digits.
 static void TrimRepresentation(Vector<char> representation) {
-  int len = strlen(representation.start());
+  int len = StrLength(representation.start());
   int i;
   for (i = len - 1; i >= 0; --i) {
     if (representation[i] != '0') break;

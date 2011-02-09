@@ -823,6 +823,8 @@ class HGraphBuilder: public AstVisitor {
                                HValue* switch_value,
                                CaseClause* clause);
 
+  HValue* BuildContextChainWalk(Variable* var);
+
   void AddCheckConstantFunction(Call* expr,
                                 HValue* receiver,
                                 Handle<Map> receiver_map,

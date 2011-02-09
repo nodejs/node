@@ -220,8 +220,8 @@ class SafepointTableBuilder BASE_EMBEDDED {
                             int arguments,
                             int deoptimization_index);
 
-  // Update the last safepoint with the size of the code generated for the gap
-  // following it.
+  // Update the last safepoint with the size of the code generated until the
+  // end of the gap following it.
   void SetPcAfterGap(int pc) {
     ASSERT(!deoptimization_info_.is_empty());
     int index = deoptimization_info_.length() - 1;
@@ -231,6 +231,11 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.
   void Emit(Assembler* assembler, int bits_per_entry);
+
+  // Count the number of deoptimization points where the next
+  // following deoptimization point comes less than limit bytes
+  // after the end of this point's gap.
+  int CountShortDeoptimizationIntervals(unsigned limit);
 
  private:
   struct DeoptimizationInfo {
@@ -247,8 +252,8 @@ class SafepointTableBuilder BASE_EMBEDDED {
   ZoneList<ZoneList<int>*> indexes_;
   ZoneList<ZoneList<int>*> registers_;
 
-  bool emitted_;
   unsigned offset_;
+  bool emitted_;
 
   DISALLOW_COPY_AND_ASSIGN(SafepointTableBuilder);
 };

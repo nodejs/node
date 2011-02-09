@@ -409,71 +409,189 @@ TEST(6) {
 }
 
 
-static void TestRoundingMode(int32_t mode, double value, int expected) {
+enum VCVTTypes {
+  s32_f64,
+  u32_f64
+};
+
+static void TestRoundingMode(VCVTTypes types,
+                             VFPRoundingMode mode,
+                             double value,
+                             int expected,
+                             bool expected_exception = false) {
   InitializeVM();
   v8::HandleScope scope;
 
   Assembler assm(NULL, 0);
 
-  __ vmrs(r1);
-  // Set custom FPSCR.
-  __ bic(r2, r1, Operand(((mode ^ 3) << 22) | 0xf));
-  __ orr(r2, r2, Operand(mode << 22));
-  __ vmsr(r2);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
 
-  // Load value, convert, and move back result to r0.
-  __ vmov(d1, value);
-  __ vcvt_s32_f64(s0, d1, Assembler::FPSCRRounding, al);
-  __ vmov(r0, s0);
+    Label wrong_exception;
 
-  __ mov(pc, Operand(lr));
+    __ vmrs(r1);
+    // Set custom FPSCR.
+    __ bic(r2, r1, Operand(kVFPRoundingModeMask | kVFPExceptionMask));
+    __ orr(r2, r2, Operand(mode));
+    __ vmsr(r2);
 
-  CodeDesc desc;
-  assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Object>(Heap::undefined_value()))->ToObjectChecked();
-  CHECK(code->IsCode());
+    // Load value, convert, and move back result to r0 if everything went well.
+    __ vmov(d1, value);
+    switch (types) {
+      case s32_f64:
+        __ vcvt_s32_f64(s0, d1, kFPSCRRounding);
+        break;
+
+      case u32_f64:
+        __ vcvt_u32_f64(s0, d1, kFPSCRRounding);
+        break;
+
+      default:
+        UNREACHABLE();
+        break;
+    }
+    // Check for vfp exceptions
+    __ vmrs(r2);
+    __ tst(r2, Operand(kVFPExceptionMask));
+    // Check that we behaved as expected.
+    __ b(&wrong_exception,
+         expected_exception ? eq : ne);
+    // There was no exception. Retrieve the result and return.
+    __ vmov(r0, s0);
+    __ mov(pc, Operand(lr));
+
+    // The exception behaviour is not what we expected.
+    // Load a special value and return.
+    __ bind(&wrong_exception);
+    __ mov(r0, Operand(11223344));
+    __ mov(pc, Operand(lr));
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Object* code = Heap::CreateCode(
+        desc,
+        Code::ComputeFlags(Code::STUB),
+        Handle<Object>(Heap::undefined_value()))->ToObjectChecked();
+    CHECK(code->IsCode());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+    Code::cast(code)->Print();
 #endif
-  F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
-  int res = reinterpret_cast<int>(
-              CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
-  ::printf("res = %d\n", res);
-  CHECK_EQ(expected, res);
+    F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+    int res = reinterpret_cast<int>(
+                CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+    ::printf("res = %d\n", res);
+    CHECK_EQ(expected, res);
+  }
 }
 
 
 TEST(7) {
   // Test vfp rounding modes.
 
-  // See ARM DDI 0406B Page A2-29.
-  enum FPSCRRoungingMode {
-    RN,   // Round to Nearest.
-    RP,   // Round towards Plus Infinity.
-    RM,   // Round towards Minus Infinity.
-    RZ    // Round towards zero.
-  };
+  // s32_f64 (double to integer).
 
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+  TestRoundingMode(s32_f64, RN,  0, 0);
+  TestRoundingMode(s32_f64, RN,  0.5, 0);
+  TestRoundingMode(s32_f64, RN, -0.5, 0);
+  TestRoundingMode(s32_f64, RN,  1.5, 2);
+  TestRoundingMode(s32_f64, RN, -1.5, -2);
+  TestRoundingMode(s32_f64, RN,  123.7, 124);
+  TestRoundingMode(s32_f64, RN, -123.7, -124);
+  TestRoundingMode(s32_f64, RN,  123456.2,  123456);
+  TestRoundingMode(s32_f64, RN, -123456.2, -123456);
+  TestRoundingMode(s32_f64, RN, static_cast<double>(kMaxInt), kMaxInt);
+  TestRoundingMode(s32_f64, RN, (kMaxInt + 0.49), kMaxInt);
+  TestRoundingMode(s32_f64, RN, (kMaxInt + 1.0), kMaxInt, true);
+  TestRoundingMode(s32_f64, RN, (kMaxInt + 0.5), kMaxInt, true);
+  TestRoundingMode(s32_f64, RN, static_cast<double>(kMinInt), kMinInt);
+  TestRoundingMode(s32_f64, RN, (kMinInt - 0.5), kMinInt);
+  TestRoundingMode(s32_f64, RN, (kMinInt - 1.0), kMinInt, true);
+  TestRoundingMode(s32_f64, RN, (kMinInt - 0.51), kMinInt, true);
 
-    TestRoundingMode(RZ,  0.5, 0);
-    TestRoundingMode(RZ, -0.5, 0);
-    TestRoundingMode(RZ,  123.7,  123);
-    TestRoundingMode(RZ, -123.7, -123);
-    TestRoundingMode(RZ,  123456.2,  123456);
-    TestRoundingMode(RZ, -123456.2, -123456);
+  TestRoundingMode(s32_f64, RM,  0, 0);
+  TestRoundingMode(s32_f64, RM,  0.5, 0);
+  TestRoundingMode(s32_f64, RM, -0.5, -1);
+  TestRoundingMode(s32_f64, RM,  123.7, 123);
+  TestRoundingMode(s32_f64, RM, -123.7, -124);
+  TestRoundingMode(s32_f64, RM,  123456.2,  123456);
+  TestRoundingMode(s32_f64, RM, -123456.2, -123457);
+  TestRoundingMode(s32_f64, RM, static_cast<double>(kMaxInt), kMaxInt);
+  TestRoundingMode(s32_f64, RM, (kMaxInt + 0.5), kMaxInt);
+  TestRoundingMode(s32_f64, RM, (kMaxInt + 1.0), kMaxInt, true);
+  TestRoundingMode(s32_f64, RM, static_cast<double>(kMinInt), kMinInt);
+  TestRoundingMode(s32_f64, RM, (kMinInt - 0.5), kMinInt, true);
+  TestRoundingMode(s32_f64, RM, (kMinInt + 0.5), kMinInt);
 
-    TestRoundingMode(RM,  0.5, 0);
-    TestRoundingMode(RM, -0.5, -1);
-    TestRoundingMode(RM,  123.7, 123);
-    TestRoundingMode(RM, -123.7, -124);
-    TestRoundingMode(RM,  123456.2,  123456);
-    TestRoundingMode(RM, -123456.2, -123457);
-  }
+  TestRoundingMode(s32_f64, RZ,  0, 0);
+  TestRoundingMode(s32_f64, RZ,  0.5, 0);
+  TestRoundingMode(s32_f64, RZ, -0.5, 0);
+  TestRoundingMode(s32_f64, RZ,  123.7,  123);
+  TestRoundingMode(s32_f64, RZ, -123.7, -123);
+  TestRoundingMode(s32_f64, RZ,  123456.2,  123456);
+  TestRoundingMode(s32_f64, RZ, -123456.2, -123456);
+  TestRoundingMode(s32_f64, RZ, static_cast<double>(kMaxInt), kMaxInt);
+  TestRoundingMode(s32_f64, RZ, (kMaxInt + 0.5), kMaxInt);
+  TestRoundingMode(s32_f64, RZ, (kMaxInt + 1.0), kMaxInt, true);
+  TestRoundingMode(s32_f64, RZ, static_cast<double>(kMinInt), kMinInt);
+  TestRoundingMode(s32_f64, RZ, (kMinInt - 0.5), kMinInt);
+  TestRoundingMode(s32_f64, RZ, (kMinInt - 1.0), kMinInt, true);
+
+
+  // u32_f64 (double to integer).
+
+  // Negative values.
+  TestRoundingMode(u32_f64, RN, -0.5, 0);
+  TestRoundingMode(u32_f64, RN, -123456.7, 0, true);
+  TestRoundingMode(u32_f64, RN, static_cast<double>(kMinInt), 0, true);
+  TestRoundingMode(u32_f64, RN, kMinInt - 1.0, 0, true);
+
+  TestRoundingMode(u32_f64, RM, -0.5, 0, true);
+  TestRoundingMode(u32_f64, RM, -123456.7, 0, true);
+  TestRoundingMode(u32_f64, RM, static_cast<double>(kMinInt), 0, true);
+  TestRoundingMode(u32_f64, RM, kMinInt - 1.0, 0, true);
+
+  TestRoundingMode(u32_f64, RZ, -0.5, 0);
+  TestRoundingMode(u32_f64, RZ, -123456.7, 0, true);
+  TestRoundingMode(u32_f64, RZ, static_cast<double>(kMinInt), 0, true);
+  TestRoundingMode(u32_f64, RZ, kMinInt - 1.0, 0, true);
+
+  // Positive values.
+  // kMaxInt is the maximum *signed* integer: 0x7fffffff.
+  static const uint32_t kMaxUInt = 0xffffffffu;
+  TestRoundingMode(u32_f64, RZ,  0, 0);
+  TestRoundingMode(u32_f64, RZ,  0.5, 0);
+  TestRoundingMode(u32_f64, RZ,  123.7,  123);
+  TestRoundingMode(u32_f64, RZ,  123456.2,  123456);
+  TestRoundingMode(u32_f64, RZ, static_cast<double>(kMaxInt), kMaxInt);
+  TestRoundingMode(u32_f64, RZ, (kMaxInt + 0.5), kMaxInt);
+  TestRoundingMode(u32_f64, RZ, (kMaxInt + 1.0),
+                                static_cast<uint32_t>(kMaxInt) + 1);
+  TestRoundingMode(u32_f64, RZ, (kMaxUInt + 0.5), kMaxUInt);
+  TestRoundingMode(u32_f64, RZ, (kMaxUInt + 1.0), kMaxUInt, true);
+
+  TestRoundingMode(u32_f64, RM,  0, 0);
+  TestRoundingMode(u32_f64, RM,  0.5, 0);
+  TestRoundingMode(u32_f64, RM,  123.7, 123);
+  TestRoundingMode(u32_f64, RM,  123456.2,  123456);
+  TestRoundingMode(u32_f64, RM, static_cast<double>(kMaxInt), kMaxInt);
+  TestRoundingMode(u32_f64, RM, (kMaxInt + 0.5), kMaxInt);
+  TestRoundingMode(u32_f64, RM, (kMaxInt + 1.0),
+                                static_cast<uint32_t>(kMaxInt) + 1);
+  TestRoundingMode(u32_f64, RM, (kMaxUInt + 0.5), kMaxUInt);
+  TestRoundingMode(u32_f64, RM, (kMaxUInt + 1.0), kMaxUInt, true);
+
+  TestRoundingMode(u32_f64, RN,  0, 0);
+  TestRoundingMode(u32_f64, RN,  0.5, 0);
+  TestRoundingMode(u32_f64, RN,  1.5, 2);
+  TestRoundingMode(u32_f64, RN,  123.7, 124);
+  TestRoundingMode(u32_f64, RN,  123456.2,  123456);
+  TestRoundingMode(u32_f64, RN, static_cast<double>(kMaxInt), kMaxInt);
+  TestRoundingMode(u32_f64, RN, (kMaxInt + 0.49), kMaxInt);
+  TestRoundingMode(u32_f64, RN, (kMaxInt + 0.5),
+                                static_cast<uint32_t>(kMaxInt) + 1);
+  TestRoundingMode(u32_f64, RN, (kMaxUInt + 0.49), kMaxUInt);
+  TestRoundingMode(u32_f64, RN, (kMaxUInt + 0.5), kMaxUInt, true);
+  TestRoundingMode(u32_f64, RN, (kMaxUInt + 1.0), kMaxUInt, true);
 }
 
 #undef __

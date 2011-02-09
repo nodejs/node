@@ -697,6 +697,10 @@
         >
       </File>
       <File
+        RelativePath="..\..\src\lithium-allocator-inl.h"
+        >
+      </File>
+      <File
         RelativePath="..\..\src\arm\lithium-arm.cc"
         >
       </File>

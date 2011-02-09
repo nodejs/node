@@ -564,10 +564,17 @@ class KeywordMatcher {
     CON,
     D,
     DE,
+    E,
+    EX,
     F,
     I,
+    IM,
+    IMP,
     IN,
     N,
+    P,
+    PR,
+    S,
     T,
     TH,
     TR,
@@ -583,7 +590,7 @@ class KeywordMatcher {
 
   // Range of possible first characters of a keyword.
   static const unsigned int kFirstCharRangeMin = 'b';
-  static const unsigned int kFirstCharRangeMax = 'w';
+  static const unsigned int kFirstCharRangeMax = 'y';
   static const unsigned int kFirstCharRangeLength =
       kFirstCharRangeMax - kFirstCharRangeMin + 1;
   // State map for first keyword character range.

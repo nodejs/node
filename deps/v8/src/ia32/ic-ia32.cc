@@ -556,19 +556,15 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ret(0);
 
   __ bind(&check_pixel_array);
-  // Check whether the elements is a pixel array.
-  // edx: receiver
-  // eax: key
-  __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
-  __ mov(ebx, eax);
-  __ SmiUntag(ebx);
-  __ CheckMap(ecx, Factory::pixel_array_map(), &check_number_dictionary, true);
-  __ cmp(ebx, FieldOperand(ecx, PixelArray::kLengthOffset));
-  __ j(above_equal, &slow);
-  __ mov(eax, FieldOperand(ecx, PixelArray::kExternalPointerOffset));
-  __ movzx_b(eax, Operand(eax, ebx, times_1, 0));
-  __ SmiTag(eax);
-  __ ret(0);
+  GenerateFastPixelArrayLoad(masm,
+                             edx,
+                             eax,
+                             ecx,
+                             ebx,
+                             eax,
+                             &check_number_dictionary,
+                             NULL,
+                             &slow);
 
   __ bind(&check_number_dictionary);
   // Check whether the elements is a number dictionary.

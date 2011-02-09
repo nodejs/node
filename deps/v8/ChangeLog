@@ -1,3 +1,15 @@
+2011-02-07: Version 3.1.2
+
+        Added better security checks when accessing properties via
+        Object.getOwnPropertyDescriptor.
+
+        Fixed bug in Object.defineProperty and related access bugs (issues
+        992, 1083 and 1092).
+
+        Added LICENSE.v8, LICENSE.strongtalk and LICENSE.valgrind to ease
+        copyright notice generation for embedders.
+
+
 2011-02-02: Version 3.1.1
 
         Perform security checks before fetching the value in

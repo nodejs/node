@@ -6102,9 +6102,12 @@ void CodeGenerator::VisitCall(Call* node) {
       }
       frame_->PushParameterAt(-1);
 
+      // Push the strict mode flag.
+      frame_->Push(Smi::FromInt(strict_mode_flag()));
+
       // Resolve the call.
       result =
-          frame_->CallRuntime(Runtime::kResolvePossiblyDirectEvalNoLookup, 3);
+          frame_->CallRuntime(Runtime::kResolvePossiblyDirectEvalNoLookup, 4);
 
       done.Jump(&result);
       slow.Bind();
@@ -6121,8 +6124,11 @@ void CodeGenerator::VisitCall(Call* node) {
     }
     frame_->PushParameterAt(-1);
 
+    // Push the strict mode flag.
+    frame_->Push(Smi::FromInt(strict_mode_flag()));
+
     // Resolve the call.
-    result = frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+    result = frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
 
     // If we generated fast-case code bind the jump-target where fast
     // and slow case merge.

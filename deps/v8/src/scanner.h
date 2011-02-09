@@ -148,6 +148,12 @@ class JsonScanner : public Scanner {
   // Returns the next token.
   Token::Value Next();
 
+  // Returns the value of a number token.
+  double number() {
+    return number_;
+  }
+
+
  protected:
   // Skip past JSON whitespace (only space, tab, newline and carrige-return).
   bool SkipJsonWhiteSpace();
@@ -178,6 +184,9 @@ class JsonScanner : public Scanner {
   // are the only valid JSON identifiers (productions JSONBooleanLiteral,
   // JSONNullLiteral).
   Token::Value ScanJsonIdentifier(const char* text, Token::Value token);
+
+  // Holds the value of a scanned number token.
+  double number_;
 };
 
 } }  // namespace v8::internal

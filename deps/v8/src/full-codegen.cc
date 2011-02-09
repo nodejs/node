@@ -304,7 +304,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   cgen.PopulateDeoptimizationData(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_allow_osr_at_loop_nesting_level(0);
-  code->set_stack_check_table_start(table_offset);
+  code->set_stack_check_table_offset(table_offset);
   CodeGenerator::PrintCode(code, info);
   info->SetCode(code);  // may be an empty handle.
 #ifdef ENABLE_GDB_JIT_INTERFACE

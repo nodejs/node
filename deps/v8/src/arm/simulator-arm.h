@@ -79,6 +79,7 @@ class SimulatorStack : public v8::internal::AllStatic {
 
 #include "constants-arm.h"
 #include "hashmap.h"
+#include "assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -285,8 +286,9 @@ class Simulator {
   static CachePage* GetCachePage(void* page);
 
   // Runtime call support.
-  static void* RedirectExternalReference(void* external_function,
-                                         bool fp_return);
+  static void* RedirectExternalReference(
+      void* external_function,
+      v8::internal::ExternalReference::Type type);
 
   // For use in calls that take two double values, constructed from r0, r1, r2
   // and r3.
@@ -312,7 +314,7 @@ class Simulator {
   bool v_flag_FPSCR_;
 
   // VFP rounding mode. See ARM DDI 0406B Page A2-29.
-  FPSCRRoundingModes FPSCR_rounding_mode_;
+  VFPRoundingMode FPSCR_rounding_mode_;
 
   // VFP FP exception flags architecture state.
   bool inv_op_vfp_flag_;

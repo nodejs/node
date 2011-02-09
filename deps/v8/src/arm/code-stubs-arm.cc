@@ -396,6 +396,19 @@ class FloatingPointHelper : public AllStatic {
                            Register scratch1,
                            Register scratch2,
                            Label* not_number);
+
+  // Loads the number from object into dst as a 32-bit integer if possible. If
+  // the object is not a 32-bit integer control continues at the label
+  // not_int32. If VFP is supported double_scratch is used but not scratch2.
+  static void LoadNumberAsInteger(MacroAssembler* masm,
+                                  Register object,
+                                  Register dst,
+                                  Register heap_number_map,
+                                  Register scratch1,
+                                  Register scratch2,
+                                  DwVfpRegister double_scratch,
+                                  Label* not_int32);
+
  private:
   static void LoadNumber(MacroAssembler* masm,
                          FloatingPointHelper::Destination destination,
@@ -461,15 +474,21 @@ void FloatingPointHelper::LoadOperands(
 
 
 void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
-                                       Destination destination,
-                                       Register object,
-                                       DwVfpRegister dst,
-                                       Register dst1,
-                                       Register dst2,
-                                       Register heap_number_map,
-                                       Register scratch1,
-                                       Register scratch2,
-                                       Label* not_number) {
+                                     Destination destination,
+                                     Register object,
+                                     DwVfpRegister dst,
+                                     Register dst1,
+                                     Register dst2,
+                                     Register heap_number_map,
+                                     Register scratch1,
+                                     Register scratch2,
+                                     Label* not_number) {
+  if (FLAG_debug_code) {
+    __ AbortIfNotRootValue(heap_number_map,
+                           Heap::kHeapNumberMapRootIndex,
+                           "HeapNumberMap register clobbered.");
+  }
+
   Label is_smi, done;
 
   __ JumpIfSmi(object, &is_smi);
@@ -512,6 +531,34 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
 
   __ bind(&done);
 }
+
+
+void FloatingPointHelper::LoadNumberAsInteger(MacroAssembler* masm,
+                                              Register object,
+                                              Register dst,
+                                              Register heap_number_map,
+                                              Register scratch1,
+                                              Register scratch2,
+                                              DwVfpRegister double_scratch,
+                                              Label* not_int32) {
+  if (FLAG_debug_code) {
+    __ AbortIfNotRootValue(heap_number_map,
+                           Heap::kHeapNumberMapRootIndex,
+                           "HeapNumberMap register clobbered.");
+  }
+  Label is_smi, done;
+  __ JumpIfSmi(object, &is_smi);
+  __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kMapOffset));
+  __ cmp(scratch1, heap_number_map);
+  __ b(ne, not_int32);
+  __ ConvertToInt32(
+      object, dst, scratch1, scratch2, double_scratch, not_int32);
+  __ jmp(&done);
+  __ bind(&is_smi);
+  __ SmiUntag(dst, object);
+  __ bind(&done);
+}
+
 
 
 // See comment for class.
@@ -1676,7 +1723,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
   __ ldr(r4, FieldMemOperand(lhs, HeapNumber::kMapOffset));
   __ cmp(r4, heap_number_map);
   __ b(ne, &slow);
-  __ ConvertToInt32(lhs, r3, r5, r4, &slow);
+  __ ConvertToInt32(lhs, r3, r5, r4, d0, &slow);
   __ jmp(&done_checking_lhs);
   __ bind(&lhs_is_smi);
   __ mov(r3, Operand(lhs, ASR, 1));
@@ -1687,7 +1734,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
   __ ldr(r4, FieldMemOperand(rhs, HeapNumber::kMapOffset));
   __ cmp(r4, heap_number_map);
   __ b(ne, &slow);
-  __ ConvertToInt32(rhs, r2, r5, r4, &slow);
+  __ ConvertToInt32(rhs, r2, r5, r4, d0, &slow);
   __ jmp(&done_checking_rhs);
   __ bind(&rhs_is_smi);
   __ mov(r2, Operand(rhs, ASR, 1));
@@ -2529,6 +2576,18 @@ void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
       __ and_(right, left, Operand(scratch1));
       __ Ret();
       break;
+    case Token::BIT_OR:
+      __ orr(right, left, Operand(right));
+      __ Ret();
+      break;
+    case Token::BIT_AND:
+      __ and_(right, left, Operand(right));
+      __ Ret();
+      break;
+    case Token::BIT_XOR:
+      __ eor(right, left, Operand(right));
+      __ Ret();
+      break;
     default:
       UNREACHABLE();
   }
@@ -2545,90 +2604,179 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
   Register scratch1 = r7;
   Register scratch2 = r9;
 
-  // Load left and right operands into d6 and d7 or r0/r1 and r2/r3 depending
-  // on whether VFP3 is available.
-  FloatingPointHelper::Destination destination =
-      CpuFeatures::IsSupported(VFP3) && op_ != Token::MOD ?
-      FloatingPointHelper::kVFPRegisters :
-      FloatingPointHelper::kCoreRegisters;
+  ASSERT(smi_operands || (not_numbers != NULL));
+  if (smi_operands && FLAG_debug_code) {
+    __ AbortIfNotSmi(left);
+    __ AbortIfNotSmi(right);
+  }
 
   Register heap_number_map = r6;
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
 
-  // Allocate new heap number for result.
-  Register result = r5;
-  __ AllocateHeapNumber(
-      result, scratch1, scratch2, heap_number_map, gc_required);
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD: {
+      // Load left and right operands into d6 and d7 or r0/r1 and r2/r3
+      // depending on whether VFP3 is available or not.
+      FloatingPointHelper::Destination destination =
+          CpuFeatures::IsSupported(VFP3) && op_ != Token::MOD ?
+          FloatingPointHelper::kVFPRegisters :
+          FloatingPointHelper::kCoreRegisters;
 
-  // Load the operands.
-  if (smi_operands) {
-    if (FLAG_debug_code) {
-      __ AbortIfNotSmi(left);
-      __ AbortIfNotSmi(right);
-    }
-    FloatingPointHelper::LoadSmis(masm, destination, scratch1, scratch2);
-  } else {
-    FloatingPointHelper::LoadOperands(masm,
-                                      destination,
-                                      heap_number_map,
-                                      scratch1,
-                                      scratch2,
-                                      not_numbers);
-  }
+      // Allocate new heap number for result.
+      Register result = r5;
+      __ AllocateHeapNumber(
+          result, scratch1, scratch2, heap_number_map, gc_required);
 
-  // Calculate the result.
-  if (destination == FloatingPointHelper::kVFPRegisters) {
-    // Using VFP registers:
-    // d6: Left value
-    // d7: Right value
-    CpuFeatures::Scope scope(VFP3);
-    switch (op_) {
-      case Token::ADD:
-        __ vadd(d5, d6, d7);
-        break;
-      case Token::SUB:
-        __ vsub(d5, d6, d7);
-        break;
-      case Token::MUL:
-        __ vmul(d5, d6, d7);
-        break;
-      case Token::DIV:
-        __ vdiv(d5, d6, d7);
-        break;
-      default:
-        UNREACHABLE();
-    }
+      // Load the operands.
+      if (smi_operands) {
+        FloatingPointHelper::LoadSmis(masm, destination, scratch1, scratch2);
+      } else {
+        FloatingPointHelper::LoadOperands(masm,
+                                          destination,
+                                          heap_number_map,
+                                          scratch1,
+                                          scratch2,
+                                          not_numbers);
+      }
 
-    __ sub(r0, result, Operand(kHeapObjectTag));
-    __ vstr(d5, r0, HeapNumber::kValueOffset);
-    __ add(r0, r0, Operand(kHeapObjectTag));
-    __ Ret();
-  } else {
-    // Using core registers:
-    // r0: Left value (least significant part of mantissa).
-    // r1: Left value (sign, exponent, top of mantissa).
-    // r2: Right value (least significant part of mantissa).
-    // r3: Right value (sign, exponent, top of mantissa).
+      // Calculate the result.
+      if (destination == FloatingPointHelper::kVFPRegisters) {
+        // Using VFP registers:
+        // d6: Left value
+        // d7: Right value
+        CpuFeatures::Scope scope(VFP3);
+        switch (op_) {
+          case Token::ADD:
+            __ vadd(d5, d6, d7);
+            break;
+          case Token::SUB:
+            __ vsub(d5, d6, d7);
+            break;
+          case Token::MUL:
+            __ vmul(d5, d6, d7);
+            break;
+          case Token::DIV:
+            __ vdiv(d5, d6, d7);
+            break;
+          default:
+            UNREACHABLE();
+        }
 
-    __ push(lr);  // For later.
-    __ PrepareCallCFunction(4, scratch1);  // Two doubles are 4 arguments.
-    // Call C routine that may not cause GC or other trouble. r5 is callee
-    // save.
-    __ CallCFunction(ExternalReference::double_fp_operation(op_), 4);
-    // Store answer in the overwritable heap number.
+        __ sub(r0, result, Operand(kHeapObjectTag));
+        __ vstr(d5, r0, HeapNumber::kValueOffset);
+        __ add(r0, r0, Operand(kHeapObjectTag));
+        __ Ret();
+      } else {
+        // Using core registers:
+        // r0: Left value (least significant part of mantissa).
+        // r1: Left value (sign, exponent, top of mantissa).
+        // r2: Right value (least significant part of mantissa).
+        // r3: Right value (sign, exponent, top of mantissa).
+
+        // Push the current return address before the C call. Return will be
+        // through pop(pc) below.
+        __ push(lr);
+        __ PrepareCallCFunction(4, scratch1);  // Two doubles are 4 arguments.
+        // Call C routine that may not cause GC or other trouble. r5 is callee
+        // save.
+        __ CallCFunction(ExternalReference::double_fp_operation(op_), 4);
+        // Store answer in the overwritable heap number.
 #if !defined(USE_ARM_EABI)
-    // Double returned in fp coprocessor register 0 and 1, encoded as
-    // register cr8.  Offsets must be divisible by 4 for coprocessor so we
-    // need to substract the tag from r5.
-    __ sub(scratch1, result, Operand(kHeapObjectTag));
-    __ stc(p1, cr8, MemOperand(scratch1, HeapNumber::kValueOffset));
+        // Double returned in fp coprocessor register 0 and 1, encoded as
+        // register cr8.  Offsets must be divisible by 4 for coprocessor so we
+        // need to substract the tag from r5.
+        __ sub(scratch1, result, Operand(kHeapObjectTag));
+        __ stc(p1, cr8, MemOperand(scratch1, HeapNumber::kValueOffset));
 #else
-    // Double returned in registers 0 and 1.
-    __ Strd(r0, r1, FieldMemOperand(result, HeapNumber::kValueOffset));
+        // Double returned in registers 0 and 1.
+        __ Strd(r0, r1, FieldMemOperand(result, HeapNumber::kValueOffset));
 #endif
-    __ mov(r0, Operand(result));
-    // And we are done.
-    __ pop(pc);
+        // Plase result in r0 and return to the pushed return address.
+        __ mov(r0, Operand(result));
+        __ pop(pc);
+      }
+      break;
+    }
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND: {
+      if (smi_operands) {
+        __ SmiUntag(r3, left);
+        __ SmiUntag(r2, right);
+      } else {
+        // Convert operands to 32-bit integers. Right in r2 and left in r3.
+        FloatingPointHelper::LoadNumberAsInteger(masm,
+                                                 left,
+                                                 r3,
+                                                 heap_number_map,
+                                                 scratch1,
+                                                 scratch2,
+                                                 d0,
+                                                 not_numbers);
+        FloatingPointHelper::LoadNumberAsInteger(masm,
+                                                 right,
+                                                 r2,
+                                                 heap_number_map,
+                                                 scratch1,
+                                                 scratch2,
+                                                 d0,
+                                                 not_numbers);
+      }
+      switch (op_) {
+        case Token::BIT_OR:
+          __ orr(r2, r3, Operand(r2));
+          break;
+        case Token::BIT_XOR:
+          __ eor(r2, r3, Operand(r2));
+          break;
+        case Token::BIT_AND:
+          __ and_(r2, r3, Operand(r2));
+          break;
+        default:
+          UNREACHABLE();
+      }
+
+      Label result_not_a_smi;
+      // Check that the *signed* result fits in a smi.
+      __ add(r3, r2, Operand(0x40000000), SetCC);
+      __ b(mi, &result_not_a_smi);
+      __ SmiTag(r0, r2);
+      __ Ret();
+
+      // Allocate new heap number for result.
+      __ bind(&result_not_a_smi);
+      __ AllocateHeapNumber(
+          r5, scratch1, scratch2, heap_number_map, gc_required);
+
+      // r2: Answer as signed int32.
+      // r5: Heap number to write answer into.
+
+      // Nothing can go wrong now, so move the heap number to r0, which is the
+      // result.
+      __ mov(r0, Operand(r5));
+
+      if (CpuFeatures::IsSupported(VFP3)) {
+        // Convert the int32 in r2 to the heap number in r0. r3 is corrupted.
+        CpuFeatures::Scope scope(VFP3);
+        __ vmov(s0, r2);
+        __ vcvt_f64_s32(d0, s0);
+        __ sub(r3, r0, Operand(kHeapObjectTag));
+        __ vstr(d0, r3, HeapNumber::kValueOffset);
+        __ Ret();
+      } else {
+        // Tail call that writes the int32 in r2 to the heap number in r0, using
+        // r3 as scratch. r0 is preserved and returned.
+        WriteInt32ToHeapNumberStub stub(r2, r0, r3);
+        __ TailCallStub(&stub);
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -2646,7 +2794,10 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
          op_ == Token::SUB ||
          op_ == Token::MUL ||
          op_ == Token::DIV ||
-         op_ == Token::MOD);
+         op_ == Token::MOD ||
+         op_ == Token::BIT_OR ||
+         op_ == Token::BIT_AND ||
+         op_ == Token::BIT_XOR);
 
   Register left = r1;
   Register right = r0;
@@ -2678,7 +2829,10 @@ void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
          op_ == Token::SUB ||
          op_ == Token::MUL ||
          op_ == Token::DIV ||
-         op_ == Token::MOD);
+         op_ == Token::MOD ||
+         op_ == Token::BIT_OR ||
+         op_ == Token::BIT_AND ||
+         op_ == Token::BIT_XOR);
 
   if (result_type_ == TRBinaryOpIC::UNINITIALIZED ||
       result_type_ == TRBinaryOpIC::SMI) {
@@ -2714,7 +2868,10 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
          op_ == Token::SUB ||
          op_ == Token::MUL ||
          op_ == Token::DIV ||
-         op_ == Token::MOD);
+         op_ == Token::MOD ||
+         op_ == Token::BIT_OR ||
+         op_ == Token::BIT_AND ||
+         op_ == Token::BIT_XOR);
 
   ASSERT(operands_type_ == TRBinaryOpIC::INT32);
 
@@ -2727,7 +2884,10 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
          op_ == Token::SUB ||
          op_ == Token::MUL ||
          op_ == Token::DIV ||
-         op_ == Token::MOD);
+         op_ == Token::MOD ||
+         op_ == Token::BIT_OR ||
+         op_ == Token::BIT_AND ||
+         op_ == Token::BIT_XOR);
 
   Label not_numbers, call_runtime;
   ASSERT(operands_type_ == TRBinaryOpIC::HEAP_NUMBER);
@@ -2747,7 +2907,10 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
          op_ == Token::SUB ||
          op_ == Token::MUL ||
          op_ == Token::DIV ||
-         op_ == Token::MOD);
+         op_ == Token::MOD ||
+         op_ == Token::BIT_OR ||
+         op_ == Token::BIT_AND ||
+         op_ == Token::BIT_XOR);
 
   Label call_runtime;
 
@@ -2811,6 +2974,15 @@ void TypeRecordingBinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
       break;
     case Token::MOD:
       __ InvokeBuiltin(Builtins::MOD, JUMP_JS);
+      break;
+    case Token::BIT_OR:
+      __ InvokeBuiltin(Builtins::BIT_OR, JUMP_JS);
+      break;
+    case Token::BIT_AND:
+      __ InvokeBuiltin(Builtins::BIT_AND, JUMP_JS);
+      break;
+    case Token::BIT_XOR:
+      __ InvokeBuiltin(Builtins::BIT_XOR, JUMP_JS);
       break;
     default:
       UNREACHABLE();
@@ -3037,7 +3209,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ b(ne, &slow);
 
     // Convert the heap number is r0 to an untagged integer in r1.
-    __ ConvertToInt32(r0, r1, r2, r3, &slow);
+    __ ConvertToInt32(r0, r1, r2, r3, d0, &slow);
 
     // Do the bitwise operation (move negated) and check if the result
     // fits in a smi.
@@ -3329,8 +3501,16 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // this by performing a garbage collection and retrying the
   // builtin once.
 
+  // Compute the argv pointer in a callee-saved register.
+  __ add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
+  __ sub(r6, r6, Operand(kPointerSize));
+
   // Enter the exit frame that transitions from JavaScript to C++.
   __ EnterExitFrame(save_doubles_);
+
+  // Setup argc and the builtin function in callee-saved registers.
+  __ mov(r4, Operand(r0));
+  __ mov(r5, Operand(r1));
 
   // r4: number of arguments (C callee-saved)
   // r5: pointer to builtin function (C callee-saved)
@@ -5731,6 +5911,90 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ pop(r0);
   __ pop(r1);
   __ Jump(r2);
+}
+
+
+void DirectCEntryStub::Generate(MacroAssembler* masm) {
+  __ ldr(pc, MemOperand(sp, 0));
+}
+
+
+void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
+                                    ApiFunction *function) {
+  __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
+                     RelocInfo::CODE_TARGET));
+  // Push return address (accessible to GC through exit frame pc).
+  __ mov(r2,
+         Operand(ExternalReference(function, ExternalReference::DIRECT_CALL)));
+  __ str(pc, MemOperand(sp, 0));
+  __ Jump(r2);  // Call the api function.
+}
+
+
+void GenerateFastPixelArrayLoad(MacroAssembler* masm,
+                                Register receiver,
+                                Register key,
+                                Register elements_map,
+                                Register elements,
+                                Register scratch1,
+                                Register scratch2,
+                                Register result,
+                                Label* not_pixel_array,
+                                Label* key_not_smi,
+                                Label* out_of_range) {
+  // Register use:
+  //
+  // receiver - holds the receiver on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // key      - holds the smi key on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // elements - set to be the receiver's elements on exit.
+  //
+  // elements_map - set to be the map of the receiver's elements
+  //            on exit.
+  //
+  // result   - holds the result of the pixel array load on exit,
+  //            tagged as a smi if successful.
+  //
+  // Scratch registers:
+  //
+  // scratch1 - used a scratch register in map check, if map
+  //            check is successful, contains the length of the
+  //            pixel array, the pointer to external elements and
+  //            the untagged result.
+  //
+  // scratch2 - holds the untaged key.
+
+  // Some callers already have verified that the key is a smi.  key_not_smi is
+  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
+  // to ensure the key is a smi must be added.
+  if (key_not_smi != NULL) {
+    __ JumpIfNotSmi(key, key_not_smi);
+  } else {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(key);
+    }
+  }
+  __ SmiUntag(scratch2, key);
+
+  // Verify that the receiver has pixel array elements.
+  __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ CheckMap(elements, scratch1, Heap::kPixelArrayMapRootIndex,
+              not_pixel_array, true);
+
+  // Key must be in range of the pixel array.
+  __ ldr(scratch1, FieldMemOperand(elements, PixelArray::kLengthOffset));
+  __ cmp(scratch2, scratch1);
+  __ b(hs, out_of_range);  // unsigned check handles negative keys.
+
+  // Perform the indexed load and tag the result as a smi.
+  __ ldr(scratch1,
+         FieldMemOperand(elements, PixelArray::kExternalPointerOffset));
+  __ ldrb(scratch1, MemOperand(scratch1, scratch2));
+  __ SmiTag(r0, scratch1);
+  __ Ret();
 }
 
 

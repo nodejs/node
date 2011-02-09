@@ -571,6 +571,45 @@ class RegExpCEntryStub: public CodeStub {
 };
 
 
+// Trampoline stub to call into native code. To call safely into native code
+// in the presence of compacting GC (which can move code objects) we need to
+// keep the code which called into native pinned in the memory. Currently the
+// simplest approach is to generate such stub early enough so it can never be
+// moved by GC
+class DirectCEntryStub: public CodeStub {
+ public:
+  DirectCEntryStub() {}
+  void Generate(MacroAssembler* masm);
+  void GenerateCall(MacroAssembler* masm, ApiFunction *function);
+
+ private:
+  Major MajorKey() { return DirectCEntry; }
+  int MinorKey() { return 0; }
+  const char* GetName() { return "DirectCEntryStub"; }
+};
+
+
+// Generate code the to load an element from a pixel array. The receiver is
+// assumed to not be a smi and to have elements, the caller must guarantee this
+// precondition. If the receiver does not have elements that are pixel arrays,
+// the generated code jumps to not_pixel_array. If key is not a smi, then the
+// generated code branches to key_not_smi. Callers can specify NULL for
+// key_not_smi to signal that a smi check has already been performed on key so
+// that the smi check is not generated . If key is not a valid index within the
+// bounds of the pixel array, the generated code jumps to out_of_range.
+void GenerateFastPixelArrayLoad(MacroAssembler* masm,
+                                Register receiver,
+                                Register key,
+                                Register elements_map,
+                                Register elements,
+                                Register scratch1,
+                                Register scratch2,
+                                Register result,
+                                Label* not_pixel_array,
+                                Label* key_not_smi,
+                                Label* out_of_range);
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_ARM_CODE_STUBS_ARM_H_

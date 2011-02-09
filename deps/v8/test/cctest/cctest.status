@@ -66,7 +66,7 @@ test-deoptimization/DeoptimizeBinaryOperationMOD: FAIL
 test-deoptimization/DeoptimizeBinaryOperationDIV: FAIL
 test-deoptimization/DeoptimizeLoadICStoreIC: FAIL
 test-deoptimization/DeoptimizeLoadICStoreICNested: FAIL
-test-deoptimization/DeoptimizeCompare: FAIL
+test-deoptimization/DeoptimizeCompare: PASS || FAIL
 
 # Tests that time out with crankshaft.
 test-api/Threading: SKIP

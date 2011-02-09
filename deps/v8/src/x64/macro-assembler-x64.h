@@ -74,7 +74,7 @@ class MacroAssembler: public Assembler {
 
   void LoadRoot(Register destination, Heap::RootListIndex index);
   void CompareRoot(Register with, Heap::RootListIndex index);
-  void CompareRoot(Operand with, Heap::RootListIndex index);
+  void CompareRoot(const Operand& with, Heap::RootListIndex index);
   void PushRoot(Heap::RootListIndex index);
   void StoreRoot(Register source, Heap::RootListIndex index);
 
@@ -540,6 +540,14 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // String macros.
+
+  // If object is a string, its map is loaded into object_map.
+  template <typename LabelType>
+  void JumpIfNotString(Register object,
+                       Register object_map,
+                       LabelType* not_string);
+
+
   template <typename LabelType>
   void JumpIfNotBothSequentialAsciiStrings(Register first_object,
                                            Register second_object,
@@ -595,6 +603,12 @@ class MacroAssembler: public Assembler {
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
+
+  // Emit call to the code we are currently generating.
+  void CallSelf() {
+    Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
+    Call(self, RelocInfo::CODE_TARGET);
+  }
 
   // Non-x64 instructions.
   // Push/pop all general purpose registers.
@@ -1458,6 +1472,8 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
   ASSERT(!src1.is(kScratchRegister));
   ASSERT(!src2.is(kScratchRegister));
   ASSERT(!dst.is(rcx));
+  // dst and src1 can be the same, because the one case that bails out
+  // is a shift by 0, which leaves dst, and therefore src1, unchanged.
   NearLabel result_ok;
   if (src1.is(rcx) || src2.is(rcx)) {
     movq(kScratchRegister, rcx);
@@ -1588,6 +1604,17 @@ void MacroAssembler::JumpUnlessBothNonNegativeSmi(Register src1,
                                                   LabelType* on_not_both_smi) {
   Condition both_smi = CheckBothNonNegativeSmi(src1, src2);
   j(NegateCondition(both_smi), on_not_both_smi);
+}
+
+
+template <typename LabelType>
+void MacroAssembler::JumpIfNotString(Register object,
+                                     Register object_map,
+                                     LabelType* not_string) {
+  Condition is_smi = CheckSmi(object);
+  j(is_smi, not_string);
+  CmpObjectType(object, FIRST_NONSTRING_TYPE, object_map);
+  j(above_equal, not_string);
 }
 
 

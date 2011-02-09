@@ -120,9 +120,9 @@ class TypeInfo {
   }
 
 
-  // Integer32 is an integer that can be represented as either a signed
-  // 32-bit integer or as an unsigned 32-bit integer. It has to be
-  // in the range [-2^31, 2^32 - 1]. We also have to check for negative 0
+  // Integer32 is an integer that can be represented as a signed
+  // 32-bit integer. It has to be
+  // in the range [-2^31, 2^31 - 1]. We also have to check for negative 0
   // as it is not an Integer32.
   static inline bool IsInt32Double(double value) {
     const DoubleRepresentation minus_zero(-0.0);

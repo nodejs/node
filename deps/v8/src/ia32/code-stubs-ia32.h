@@ -490,6 +490,25 @@ class NumberToStringStub: public CodeStub {
 };
 
 
+// Generate code the to load an element from a pixel array. The receiver is
+// assumed to not be a smi and to have elements, the caller must guarantee this
+// precondition. If the receiver does not have elements that are pixel arrays,
+// the generated code jumps to not_pixel_array. If key is not a smi, then the
+// generated code branches to key_not_smi. Callers can specify NULL for
+// key_not_smi to signal that a smi check has already been performed on key so
+// that the smi check is not generated . If key is not a valid index within the
+// bounds of the pixel array, the generated code jumps to out_of_range.
+void GenerateFastPixelArrayLoad(MacroAssembler* masm,
+                                Register receiver,
+                                Register key,
+                                Register elements,
+                                Register untagged_key,
+                                Register result,
+                                Label* not_pixel_array,
+                                Label* key_not_smi,
+                                Label* out_of_range);
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_IA32_CODE_STUBS_IA32_H_

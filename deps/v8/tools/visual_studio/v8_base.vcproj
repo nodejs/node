@@ -689,11 +689,23 @@
         >
       </File>
       <File
+        RelativePath="..\..\src\lithium.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\lithium.h"
+        >
+      </File>
+       <File
         RelativePath="..\..\src\lithium-allocator.cc"
         >
       </File>
       <File
         RelativePath="..\..\src\lithium-allocator.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\lithium-allocator-inl.h"
         >
       </File>
       <File
@@ -710,6 +722,14 @@
       </File>
       <File
         RelativePath="..\..\src\ia32\lithium-codegen-ia32.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\ia32\lithium-gap-resolver-ia32.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\ia32\lithium-gap-resolver-ia32.h"
         >
       </File>
       <File

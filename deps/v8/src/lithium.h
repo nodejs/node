@@ -509,6 +509,82 @@ class LEnvironment: public ZoneObject {
   friend class LCodegen;
 };
 
+
+// Iterates over the non-null, non-constant operands in an environment.
+class ShallowIterator BASE_EMBEDDED {
+ public:
+  explicit ShallowIterator(LEnvironment* env)
+      : env_(env),
+        limit_(env != NULL ? env->values()->length() : 0),
+        current_(0) {
+    current_ = AdvanceToNext(0);
+  }
+
+  inline bool HasNext() {
+    return env_ != NULL && current_ < limit_;
+  }
+
+  inline LOperand* Next() {
+    ASSERT(HasNext());
+    return env_->values()->at(current_);
+  }
+
+  inline void Advance() {
+    current_ = AdvanceToNext(current_ + 1);
+  }
+
+  inline LEnvironment* env() { return env_; }
+
+ private:
+  inline int AdvanceToNext(int start) {
+    while (start < limit_ &&
+           (env_->values()->at(start) == NULL ||
+            env_->values()->at(start)->IsConstantOperand())) {
+      start++;
+    }
+    return start;
+  }
+
+  LEnvironment* env_;
+  int limit_;
+  int current_;
+};
+
+
+// Iterator for non-null, non-constant operands incl. outer environments.
+class DeepIterator BASE_EMBEDDED {
+ public:
+  explicit DeepIterator(LEnvironment* env)
+      : current_iterator_(env) { }
+
+  inline bool HasNext() {
+    if (current_iterator_.HasNext()) return true;
+    if (current_iterator_.env() == NULL) return false;
+    AdvanceToOuter();
+    return current_iterator_.HasNext();
+  }
+
+  inline LOperand* Next() {
+    ASSERT(current_iterator_.HasNext());
+    return current_iterator_.Next();
+  }
+
+  inline void Advance() {
+    if (current_iterator_.HasNext()) {
+      current_iterator_.Advance();
+    } else {
+      AdvanceToOuter();
+    }
+  }
+
+ private:
+  inline void AdvanceToOuter() {
+    current_iterator_ = ShallowIterator(current_iterator_.env()->outer());
+  }
+
+  ShallowIterator current_iterator_;
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_LITHIUM_H_

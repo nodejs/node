@@ -357,6 +357,7 @@ class CodeGenerator: public AstVisitor {
   // Accessors
   inline bool is_eval();
   inline Scope* scope();
+  inline StrictModeFlag strict_mode_flag();
 
   // Generating deferred code.
   void ProcessDeferred();

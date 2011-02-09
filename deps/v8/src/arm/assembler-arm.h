@@ -942,37 +942,33 @@ class Assembler : public Malloced {
   void vmov(const Register dst,
             const SwVfpRegister src,
             const Condition cond = al);
-  enum ConversionMode {
-    FPSCRRounding = 0,
-    RoundToZero = 1
-  };
   void vcvt_f64_s32(const DwVfpRegister dst,
                     const SwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_f32_s32(const SwVfpRegister dst,
                     const SwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_f64_u32(const DwVfpRegister dst,
                     const SwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_s32_f64(const SwVfpRegister dst,
                     const DwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_u32_f64(const SwVfpRegister dst,
                     const DwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_f64_f32(const DwVfpRegister dst,
                     const SwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
   void vcvt_f32_f64(const SwVfpRegister dst,
                     const DwVfpRegister src,
-                    ConversionMode mode = RoundToZero,
+                    VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
 
   void vabs(const DwVfpRegister dst,

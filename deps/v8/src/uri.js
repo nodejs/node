@@ -205,7 +205,7 @@ function Decode(uri, reserved) {
         octets[0] = cc;
         if (k + 3 * (n - 1) >= uriLength) throw new $URIError("URI malformed");
         for (var i = 1; i < n; i++) {
-          k++;
+          if (uri.charAt(++k) != '%') throw new $URIError("URI malformed");
           octets[i] = URIHexCharsToCharCode(uri.charAt(++k), uri.charAt(++k));
         }
         index = URIDecodeOctets(octets, result, index);
@@ -412,4 +412,3 @@ function SetupURI() {
 }
 
 SetupURI();
-

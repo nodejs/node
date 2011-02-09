@@ -243,6 +243,8 @@ class PreParser {
     return scanner_->Next();
   }
 
+  bool peek_any_identifier();
+
   void Consume(i::Token::Value token) { Next(); }
 
   void Expect(i::Token::Value token, bool* ok) {

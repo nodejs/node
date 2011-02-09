@@ -1554,7 +1554,10 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
       op == Token::SUB ||
       op == Token::MUL ||
       op == Token::DIV ||
-      op == Token::MOD) {
+      op == Token::MOD ||
+      op == Token::BIT_OR ||
+      op == Token::BIT_AND ||
+      op == Token::BIT_XOR) {
     TypeRecordingBinaryOpStub stub(op, mode);
     __ CallStub(&stub);
   } else {
@@ -1923,7 +1926,10 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ ldr(r1,
              MemOperand(fp, (2 + scope()->num_parameters()) * kPointerSize));
       __ push(r1);
-      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+      // Push the strict mode flag.
+      __ mov(r1, Operand(Smi::FromInt(strict_mode_flag())));
+      __ push(r1);
+      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
 
       // The runtime call returns a pair of values in r0 (function) and
       // r1 (receiver). Touch up the stack with the right values.

@@ -58,7 +58,7 @@ bool SafepointEntry::HasRegisterAt(int reg_index) const {
 SafepointTable::SafepointTable(Code* code) {
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
   code_ = code;
-  Address header = code->instruction_start() + code->safepoint_table_start();
+  Address header = code->instruction_start() + code->safepoint_table_offset();
   length_ = Memory::uint32_at(header + kLengthOffset);
   entry_size_ = Memory::uint32_at(header + kEntrySizeOffset);
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
@@ -228,6 +228,26 @@ uint32_t SafepointTableBuilder::EncodeExceptPC(const DeoptimizationInfo& info) {
   encoding |= SafepointEntry::SaveDoublesField::encode(info.has_doubles);
   return encoding;
 }
+
+
+int SafepointTableBuilder::CountShortDeoptimizationIntervals(unsigned limit) {
+  int result = 0;
+  if (!deoptimization_info_.is_empty()) {
+    unsigned previous_gap_end = deoptimization_info_[0].pc_after_gap;
+    for (int i = 1, n = deoptimization_info_.length(); i < n; i++) {
+      DeoptimizationInfo info = deoptimization_info_[i];
+      if (static_cast<int>(info.deoptimization_index) !=
+          Safepoint::kNoDeoptimizationIndex) {
+        if (previous_gap_end + limit > info.pc) {
+          result++;
+        }
+        previous_gap_end = info.pc_after_gap;
+      }
+    }
+  }
+  return result;
+}
+
 
 
 } }  // namespace v8::internal

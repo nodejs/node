@@ -796,25 +796,27 @@ KeywordMatcher::FirstState KeywordMatcher::first_states_[] = {
   { "break",  KEYWORD_PREFIX, Token::BREAK },
   { NULL,     C,              Token::ILLEGAL },
   { NULL,     D,              Token::ILLEGAL },
-  { "else",   KEYWORD_PREFIX, Token::ELSE },
+  { NULL,     E,              Token::ILLEGAL },
   { NULL,     F,              Token::ILLEGAL },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
   { NULL,     I,              Token::ILLEGAL },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
+  { "let",    KEYWORD_PREFIX, Token::FUTURE_RESERVED_WORD },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
   { NULL,     N,              Token::ILLEGAL },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
+  { NULL,     P,              Token::ILLEGAL },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
   { "return", KEYWORD_PREFIX, Token::RETURN },
-  { "switch", KEYWORD_PREFIX, Token::SWITCH },
+  { NULL,     S,              Token::ILLEGAL },
   { NULL,     T,              Token::ILLEGAL },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
   { NULL,     V,              Token::ILLEGAL },
-  { NULL,     W,              Token::ILLEGAL }
+  { NULL,     W,              Token::ILLEGAL },
+  { NULL,     UNMATCHABLE,    Token::ILLEGAL },
+  { "yield",  KEYWORD_PREFIX, Token::FUTURE_RESERVED_WORD }
 };
 
 
@@ -822,7 +824,7 @@ void KeywordMatcher::Step(unibrow::uchar input) {
   switch (state_) {
     case INITIAL: {
       // matching the first character is the only state with significant fanout.
-      // Match only lower-case letters in range 'b'..'w'.
+      // Match only lower-case letters in range 'b'..'y'.
       unsigned int offset = input - kFirstCharRangeMin;
       if (offset < kFirstCharRangeLength) {
         state_ = first_states_[offset].state;
@@ -850,6 +852,8 @@ void KeywordMatcher::Step(unibrow::uchar input) {
       break;
     case C:
       if (MatchState(input, 'a', CA)) return;
+      if (MatchKeywordStart(input, "class", 1,
+          Token::FUTURE_RESERVED_WORD)) return;
       if (MatchState(input, 'o', CO)) return;
       break;
     case CA:
@@ -872,6 +876,18 @@ void KeywordMatcher::Step(unibrow::uchar input) {
       if (MatchKeywordStart(input, "default", 2, Token::DEFAULT)) return;
       if (MatchKeywordStart(input, "delete", 2, Token::DELETE)) return;
       break;
+    case E:
+      if (MatchKeywordStart(input, "else", 1, Token::ELSE)) return;
+      if (MatchKeywordStart(input, "enum", 1,
+          Token::FUTURE_RESERVED_WORD)) return;
+      if (MatchState(input, 'x', EX)) return;
+      break;
+    case EX:
+      if (MatchKeywordStart(input, "export", 2,
+          Token::FUTURE_RESERVED_WORD)) return;
+      if (MatchKeywordStart(input, "extends", 2,
+          Token::FUTURE_RESERVED_WORD)) return;
+      break;
     case F:
       if (MatchKeywordStart(input, "false", 1, Token::FALSE_LITERAL)) return;
       if (MatchKeywordStart(input, "finally", 1, Token::FINALLY)) return;
@@ -880,16 +896,49 @@ void KeywordMatcher::Step(unibrow::uchar input) {
       break;
     case I:
       if (MatchKeyword(input, 'f', KEYWORD_MATCHED, Token::IF)) return;
+      if (MatchState(input, 'm', IM)) return;
       if (MatchKeyword(input, 'n', IN, Token::IN)) return;
+      break;
+    case IM:
+      if (MatchState(input, 'p', IMP)) return;
+      break;
+    case IMP:
+      if (MatchKeywordStart(input, "implements", 3,
+         Token::FUTURE_RESERVED_WORD )) return;
+      if (MatchKeywordStart(input, "import", 3,
+         Token::FUTURE_RESERVED_WORD)) return;
       break;
     case IN:
       token_ = Token::IDENTIFIER;
+      if (MatchKeywordStart(input, "interface", 2,
+         Token::FUTURE_RESERVED_WORD)) return;
       if (MatchKeywordStart(input, "instanceof", 2, Token::INSTANCEOF)) return;
       break;
     case N:
       if (MatchKeywordStart(input, "native", 1, Token::NATIVE)) return;
       if (MatchKeywordStart(input, "new", 1, Token::NEW)) return;
       if (MatchKeywordStart(input, "null", 1, Token::NULL_LITERAL)) return;
+      break;
+    case P:
+      if (MatchKeywordStart(input, "package", 1,
+          Token::FUTURE_RESERVED_WORD)) return;
+      if (MatchState(input, 'r', PR)) return;
+      if (MatchKeywordStart(input, "public", 1,
+          Token::FUTURE_RESERVED_WORD)) return;
+      break;
+    case PR:
+      if (MatchKeywordStart(input, "private", 2,
+          Token::FUTURE_RESERVED_WORD)) return;
+      if (MatchKeywordStart(input, "protected", 2,
+          Token::FUTURE_RESERVED_WORD)) return;
+      break;
+    case S:
+      if (MatchKeywordStart(input, "static", 1,
+          Token::FUTURE_RESERVED_WORD)) return;
+      if (MatchKeywordStart(input, "super", 1,
+          Token::FUTURE_RESERVED_WORD)) return;
+      if (MatchKeywordStart(input, "switch", 1,
+          Token::SWITCH)) return;
       break;
     case T:
       if (MatchState(input, 'h', TH)) return;

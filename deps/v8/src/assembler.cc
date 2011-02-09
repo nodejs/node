@@ -553,8 +553,9 @@ ExternalReference::ExternalReference(Builtins::CFunctionId id)
   : address_(Redirect(Builtins::c_function_address(id))) {}
 
 
-ExternalReference::ExternalReference(ApiFunction* fun)
-  : address_(Redirect(fun->address())) {}
+ExternalReference::ExternalReference(
+    ApiFunction* fun, Type type = ExternalReference::BUILTIN_CALL)
+  : address_(Redirect(fun->address(), type)) {}
 
 
 ExternalReference::ExternalReference(Builtins::Name name)
@@ -888,17 +889,18 @@ ExternalReference ExternalReference::double_fp_operation(
       UNREACHABLE();
   }
   // Passing true as 2nd parameter indicates that they return an fp value.
-  return ExternalReference(Redirect(FUNCTION_ADDR(function), true));
+  return ExternalReference(Redirect(FUNCTION_ADDR(function), FP_RETURN_CALL));
 }
 
 
 ExternalReference ExternalReference::compare_doubles() {
   return ExternalReference(Redirect(FUNCTION_ADDR(native_compare_doubles),
-                                    false));
+                                    BUILTIN_CALL));
 }
 
 
-ExternalReferenceRedirector* ExternalReference::redirector_ = NULL;
+ExternalReference::ExternalReferenceRedirector*
+    ExternalReference::redirector_ = NULL;
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

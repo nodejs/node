@@ -873,7 +873,7 @@ OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
                                            int expected_additional_properties,
                                            bool condition) {
   object_ = object;
-  if (condition && object_->HasFastProperties()) {
+  if (condition && object_->HasFastProperties() && !object->IsJSGlobalProxy()) {
     // Normalize the properties of object to avoid n^2 behavior
     // when extending the object multiple properties. Indicate the number of
     // properties to be added.

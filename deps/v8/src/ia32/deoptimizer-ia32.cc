@@ -45,6 +45,16 @@ int Deoptimizer::patch_size() {
 }
 
 
+static void ZapCodeRange(Address start, Address end) {
+#ifdef DEBUG
+  ASSERT(start <= end);
+  int size = end - start;
+  CodePatcher destroyer(start, size);
+  while (size-- > 0) destroyer.masm()->int3();
+#endif
+}
+
+
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   AssertNoAllocation no_allocation;
 
@@ -52,90 +62,61 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
   // Get the optimized code.
   Code* code = function->code();
-
-  // For each return after a safepoint insert a absolute call to the
-  // corresponding deoptimization entry.
-  unsigned last_pc_offset = 0;
-  SafepointTable table(function->code());
+  Address code_start_address = code->instruction_start();
 
   // We will overwrite the code's relocation info in-place. Relocation info
-  // is written backward. The relocation info is the payload of a byte array.
-  // Later on we will align this at the start of the byte array and create
-  // a trash byte array of the remaining space.
+  // is written backward. The relocation info is the payload of a byte
+  // array.  Later on we will slide this to the start of the byte array and
+  // create a filler object in the remaining space.
   ByteArray* reloc_info = code->relocation_info();
-  Address end_address = reloc_info->address() + reloc_info->Size();
-  RelocInfoWriter reloc_info_writer(end_address, code->instruction_start());
+  Address reloc_end_address = reloc_info->address() + reloc_info->Size();
+  RelocInfoWriter reloc_info_writer(reloc_end_address, code_start_address);
 
-  for (unsigned i = 0; i < table.length(); i++) {
-    unsigned pc_offset = table.GetPcOffset(i);
+  // For each return after a safepoint insert a call to the corresponding
+  // deoptimization entry.  Since the call is a relative encoding, write new
+  // reloc info.  We do not need any of the existing reloc info because the
+  // existing code will not be used again (we zap it in debug builds).
+  SafepointTable table(code);
+  Address prev_address = code_start_address;
+  for (unsigned i = 0; i < table.length(); ++i) {
+    Address curr_address = code_start_address + table.GetPcOffset(i);
+    ZapCodeRange(prev_address, curr_address);
+
     SafepointEntry safepoint_entry = table.GetEntry(i);
     int deoptimization_index = safepoint_entry.deoptimization_index();
-    int gap_code_size = safepoint_entry.gap_code_size();
-#ifdef DEBUG
-    // Destroy the code which is not supposed to run again.
-    unsigned instructions = pc_offset - last_pc_offset;
-    CodePatcher destroyer(code->instruction_start() + last_pc_offset,
-                          instructions);
-    for (unsigned i = 0; i < instructions; i++) {
-      destroyer.masm()->int3();
-    }
-#endif
-    last_pc_offset = pc_offset;
     if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
-      last_pc_offset += gap_code_size;
-      Address call_pc = code->instruction_start() + last_pc_offset;
-      CodePatcher patcher(call_pc, patch_size());
-      Address entry = GetDeoptimizationEntry(deoptimization_index, LAZY);
-      patcher.masm()->call(entry, RelocInfo::NONE);
-      last_pc_offset += patch_size();
-      RelocInfo rinfo(call_pc + 1, RelocInfo::RUNTIME_ENTRY,
-                      reinterpret_cast<intptr_t>(entry));
+      // The gap code is needed to get to the state expected at the bailout.
+      curr_address += safepoint_entry.gap_code_size();
+
+      CodePatcher patcher(curr_address, patch_size());
+      Address deopt_entry = GetDeoptimizationEntry(deoptimization_index, LAZY);
+      patcher.masm()->call(deopt_entry, RelocInfo::NONE);
+
+      // We use RUNTIME_ENTRY for deoptimization bailouts.
+      RelocInfo rinfo(curr_address + 1,  // 1 after the call opcode.
+                      RelocInfo::RUNTIME_ENTRY,
+                      reinterpret_cast<intptr_t>(deopt_entry));
       reloc_info_writer.Write(&rinfo);
+
+      curr_address += patch_size();
     }
+    prev_address = curr_address;
   }
-#ifdef DEBUG
-  // Destroy the code which is not supposed to run again.
-  unsigned instructions = code->safepoint_table_start() - last_pc_offset;
-  CodePatcher destroyer(code->instruction_start() + last_pc_offset,
-                        instructions);
-  for (unsigned i = 0; i < instructions; i++) {
-    destroyer.masm()->int3();
-  }
-#endif
+  ZapCodeRange(prev_address,
+               code_start_address + code->safepoint_table_offset());
 
   // Move the relocation info to the beginning of the byte array.
-  int reloc_size = end_address - reloc_info_writer.pos();
-  memmove(code->relocation_start(), reloc_info_writer.pos(), reloc_size);
+  int new_reloc_size = reloc_end_address - reloc_info_writer.pos();
+  memmove(code->relocation_start(), reloc_info_writer.pos(), new_reloc_size);
 
   // The relocation info is in place, update the size.
-  reloc_info->set_length(reloc_size);
+  reloc_info->set_length(new_reloc_size);
 
   // Handle the junk part after the new relocation info. We will create
   // a non-live object in the extra space at the end of the former reloc info.
-  Address junk = reloc_info->address() + reloc_info->Size();
-  ASSERT(junk <= end_address);
-
-  if (end_address - junk <= ByteArray::kHeaderSize) {
-    // We get in here if there is not enough space for a ByteArray.
-
-    // Both addresses are kPointerSize alligned.
-    CHECK_EQ((end_address - junk) % 4, 0);
-    Map* filler_map = Heap::one_pointer_filler_map();
-    while (junk < end_address) {
-      HeapObject::FromAddress(junk)->set_map(filler_map);
-      junk += kPointerSize;
-    }
-  } else {
-    int size = end_address - junk;
-    // Since the reloc_end address and junk are both alligned, we shouild,
-    // never have junk which is not a multipla of kPointerSize.
-    CHECK_EQ(size % kPointerSize, 0);
-    CHECK_GT(size, 0);
-    HeapObject* junk_object = HeapObject::FromAddress(junk);
-    junk_object->set_map(Heap::byte_array_map());
-    int length = ByteArray::LengthFor(end_address - junk);
-    ByteArray::cast(junk_object)->set_length(length);
-  }
+  Address junk_address = reloc_info->address() + reloc_info->Size();
+  ASSERT(junk_address <= reloc_end_address);
+  Heap::CreateFillerObjectAt(junk_address, reloc_end_address - junk_address);
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);

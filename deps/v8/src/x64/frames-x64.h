@@ -31,7 +31,7 @@
 namespace v8 {
 namespace internal {
 
-static const int kNumRegs = 8;
+static const int kNumRegs = 16;
 static const RegList kJSCallerSaved =
     1 << 0 |  // rax
     1 << 1 |  // rcx
@@ -44,8 +44,7 @@ static const int kNumJSCallerSaved = 5;
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
 // Number of registers for which space is reserved in safepoints.
-// TODO(x64): This should not be 0.
-static const int kNumSafepointRegisters = 8;
+static const int kNumSafepointRegisters = 16;
 
 // ----------------------------------------------------
 

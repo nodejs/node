@@ -39,118 +39,6 @@ namespace internal {
 // Forward declarations.
 class LCodeGen;
 
-
-// Type hierarchy:
-//
-// LInstruction
-//   LTemplateInstruction
-//     LControlInstruction
-//       LBranch
-//       LClassOfTestAndBranch
-//       LCmpJSObjectEqAndBranch
-//       LCmpIDAndBranch
-//       LHasCachedArrayIndexAndBranch
-//       LHasInstanceTypeAndBranch
-//       LInstanceOfAndBranch
-//       LIsNullAndBranch
-//       LIsObjectAndBranch
-//       LIsSmiAndBranch
-//       LTypeofIsAndBranch
-//     LAccessArgumentsAt
-//     LArgumentsElements
-//     LArgumentsLength
-//     LAddI
-//     LApplyArguments
-//     LArithmeticD
-//     LArithmeticT
-//     LBitI
-//     LBoundsCheck
-//     LCmpID
-//     LCmpJSObjectEq
-//     LCmpT
-//     LDivI
-//     LInstanceOf
-//     LInstanceOfKnownGlobal
-//     LLoadKeyedFastElement
-//     LLoadKeyedGeneric
-//     LModI
-//     LMulI
-//     LPower
-//     LShiftI
-//     LSubI
-//     LCallConstantFunction
-//     LCallFunction
-//     LCallGlobal
-//     LCallKeyed
-//     LCallKnownGlobal
-//     LCallNamed
-//     LCallRuntime
-//     LCallStub
-//     LConstant
-//       LConstantD
-//       LConstantI
-//       LConstantT
-//     LDeoptimize
-//     LFunctionLiteral
-//     LGap
-//       LLabel
-//     LGlobalObject
-//     LGlobalReceiver
-//     LGoto
-//     LLazyBailout
-//     LLoadGlobal
-//     LCheckPrototypeMaps
-//     LLoadContextSlot
-//     LArrayLiteral
-//     LObjectLiteral
-//     LRegExpLiteral
-//     LOsrEntry
-//     LParameter
-//     LRegExpConstructResult
-//     LStackCheck
-//     LStoreKeyed
-//       LStoreKeyedFastElement
-//       LStoreKeyedGeneric
-//     LStoreNamed
-//       LStoreNamedField
-//       LStoreNamedGeneric
-//     LStringCharCodeAt
-//     LBitNotI
-//     LCallNew
-//     LCheckFunction
-//     LCheckPrototypeMaps
-//     LCheckInstanceType
-//     LCheckMap
-//     LCheckSmi
-//     LClassOfTest
-//     LDeleteProperty
-//     LDoubleToI
-//     LFixedArrayLength
-//     LHasCachedArrayIndex
-//     LHasInstanceType
-//     LInteger32ToDouble
-//     LIsNull
-//     LIsObject
-//     LIsSmi
-//     LJSArrayLength
-//     LLoadNamedField
-//     LLoadNamedGeneric
-//     LLoadFunctionPrototype
-//     LNumberTagD
-//     LNumberTagI
-//     LPushArgument
-//     LReturn
-//     LSmiTag
-//     LStoreGlobal
-//     LStringLength
-//     LTaggedToI
-//     LThrow
-//     LTypeof
-//     LTypeofIs
-//     LUnaryMathOperation
-//     LValueOf
-//     LUnknownOSRValue
-
 #define LITHIUM_ALL_INSTRUCTION_LIST(V)         \
   V(ControlInstruction)                         \
   V(Constant)                                   \
@@ -187,6 +75,8 @@ class LCodeGen;
   V(CheckMap)                                   \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
+  V(ClassOfTest)                                \
+  V(ClassOfTestAndBranch)                       \
   V(CmpID)                                      \
   V(CmpIDAndBranch)                             \
   V(CmpJSObjectEq)                              \
@@ -197,6 +87,7 @@ class LCodeGen;
   V(ConstantD)                                  \
   V(ConstantI)                                  \
   V(ConstantT)                                  \
+  V(Context)                                    \
   V(DeleteProperty)                             \
   V(Deoptimize)                                 \
   V(DivI)                                       \
@@ -207,6 +98,10 @@ class LCodeGen;
   V(GlobalObject)                               \
   V(GlobalReceiver)                             \
   V(Goto)                                       \
+  V(HasCachedArrayIndex)                        \
+  V(HasCachedArrayIndexAndBranch)               \
+  V(HasInstanceType)                            \
+  V(HasInstanceTypeAndBranch)                   \
   V(InstanceOf)                                 \
   V(InstanceOfAndBranch)                        \
   V(InstanceOfKnownGlobal)                      \
@@ -218,22 +113,16 @@ class LCodeGen;
   V(IsSmi)                                      \
   V(IsSmiAndBranch)                             \
   V(JSArrayLength)                              \
-  V(HasInstanceType)                            \
-  V(HasInstanceTypeAndBranch)                   \
-  V(HasCachedArrayIndex)                        \
-  V(HasCachedArrayIndexAndBranch)               \
-  V(ClassOfTest)                                \
-  V(ClassOfTestAndBranch)                       \
   V(Label)                                      \
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
   V(LoadElements)                               \
+  V(LoadFunctionPrototype)                      \
   V(LoadGlobal)                                 \
   V(LoadKeyedFastElement)                       \
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
   V(LoadNamedGeneric)                           \
-  V(LoadFunctionPrototype)                      \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -241,6 +130,7 @@ class LCodeGen;
   V(NumberUntagD)                               \
   V(ObjectLiteral)                              \
   V(OsrEntry)                                   \
+  V(OuterContext)                               \
   V(Parameter)                                  \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
@@ -249,14 +139,15 @@ class LCodeGen;
   V(SmiTag)                                     \
   V(SmiUntag)                                   \
   V(StackCheck)                                 \
+  V(StoreContextSlot)                           \
   V(StoreGlobal)                                \
   V(StoreKeyedFastElement)                      \
   V(StoreKeyedGeneric)                          \
   V(StoreNamedField)                            \
   V(StoreNamedGeneric)                          \
-  V(SubI)                                       \
   V(StringCharCodeAt)                           \
   V(StringLength)                               \
+  V(SubI)                                       \
   V(TaggedToI)                                  \
   V(Throw)                                      \
   V(Typeof)                                     \
@@ -290,7 +181,10 @@ class LCodeGen;
 class LInstruction: public ZoneObject {
  public:
   LInstruction()
-      : hydrogen_value_(NULL) { }
+      :  environment_(NULL),
+         hydrogen_value_(NULL),
+         is_call_(false),
+         is_save_doubles_(false) { }
   virtual ~LInstruction() { }
 
   virtual void CompileToNative(LCodeGen* generator) = 0;
@@ -307,15 +201,13 @@ class LInstruction: public ZoneObject {
   virtual bool IsControl() const { return false; }
   virtual void SetBranchTargets(int true_block_id, int false_block_id) { }
 
-  void set_environment(LEnvironment* env) { environment_.set(env); }
-  LEnvironment* environment() const { return environment_.get(); }
-  bool HasEnvironment() const { return environment_.is_set(); }
+  void set_environment(LEnvironment* env) { environment_ = env; }
+  LEnvironment* environment() const { return environment_; }
+  bool HasEnvironment() const { return environment_ != NULL; }
 
   void set_pointer_map(LPointerMap* p) { pointer_map_.set(p); }
   LPointerMap* pointer_map() const { return pointer_map_.get(); }
   bool HasPointerMap() const { return pointer_map_.is_set(); }
-
-  virtual bool HasResult() const = 0;
 
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
@@ -330,11 +222,35 @@ class LInstruction: public ZoneObject {
     return deoptimization_environment_.is_set();
   }
 
+  void MarkAsCall() { is_call_ = true; }
+  void MarkAsSaveDoubles() { is_save_doubles_ = true; }
+
+  // Interface to the register allocator and iterators.
+  bool IsMarkedAsCall() const { return is_call_; }
+  bool IsMarkedAsSaveDoubles() const { return is_save_doubles_; }
+
+  virtual bool HasResult() const = 0;
+  virtual LOperand* result() = 0;
+
+  virtual int InputCount() = 0;
+  virtual LOperand* InputAt(int i) = 0;
+  virtual int TempCount() = 0;
+  virtual LOperand* TempAt(int i) = 0;
+
+  LOperand* FirstInput() { return InputAt(0); }
+  LOperand* Output() { return HasResult() ? result() : NULL; }
+
+#ifdef DEBUG
+  void VerifyCall();
+#endif
+
  private:
-  SetOncePointer<LEnvironment> environment_;
+  LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
   SetOncePointer<LEnvironment> deoptimization_environment_;
+  bool is_call_;
+  bool is_save_doubles_;
 };
 
 
@@ -361,6 +277,11 @@ class OperandContainer<ElementType, 0> {
  public:
   int length() { return 0; }
   void PrintOperandsTo(StringStream* stream) { }
+  ElementType& operator[](int i) {
+    UNREACHABLE();
+    static ElementType t = 0;
+    return t;
+  }
 };
 
 
@@ -1266,13 +1187,36 @@ class LStoreGlobal: public LTemplateInstruction<0, 1, 1> {
 };
 
 
-class LLoadContextSlot: public LTemplateInstruction<1, 0, 0> {
+class LLoadContextSlot: public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LLoadContextSlot(LOperand* context) {
+    inputs_[0] = context;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(LoadContextSlot, "load-context-slot")
   DECLARE_HYDROGEN_ACCESSOR(LoadContextSlot)
 
-  int context_chain_length() { return hydrogen()->context_chain_length(); }
+  LOperand* context() { return InputAt(0); }
   int slot_index() { return hydrogen()->slot_index(); }
+
+  virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LStoreContextSlot: public LTemplateInstruction<0, 2, 0> {
+ public:
+  LStoreContextSlot(LOperand* context, LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreContextSlot, "store-context-slot")
+  DECLARE_HYDROGEN_ACCESSOR(StoreContextSlot)
+
+  LOperand* context() { return InputAt(0); }
+  LOperand* value() { return InputAt(1); }
+  int slot_index() { return hydrogen()->slot_index(); }
+  int needs_write_barrier() { return hydrogen()->NeedsWriteBarrier(); }
 
   virtual void PrintDataTo(StringStream* stream);
 };
@@ -1288,15 +1232,45 @@ class LPushArgument: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LGlobalObject: public LTemplateInstruction<1, 0, 0> {
+class LContext: public LTemplateInstruction<1, 0, 0> {
  public:
-  DECLARE_CONCRETE_INSTRUCTION(GlobalObject, "global-object")
+  DECLARE_CONCRETE_INSTRUCTION(Context, "context")
 };
 
 
-class LGlobalReceiver: public LTemplateInstruction<1, 0, 0> {
+class LOuterContext: public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LOuterContext(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(OuterContext, "outer-context")
+
+  LOperand* context() { return InputAt(0); }
+};
+
+
+class LGlobalObject: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LGlobalObject(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(GlobalObject, "global-object")
+
+  LOperand* context() { return InputAt(0); }
+};
+
+
+class LGlobalReceiver: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LGlobalReceiver(LOperand* global_object) {
+    inputs_[0] = global_object;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(GlobalReceiver, "global-receiver")
+
+  LOperand* global() { return InputAt(0); }
 };
 
 
@@ -1431,10 +1405,11 @@ class LNumberTagD: public LTemplateInstruction<1, 1, 2> {
 
 
 // Sometimes truncating conversion from a tagged value to an int32.
-class LDoubleToI: public LTemplateInstruction<1, 1, 0> {
+class LDoubleToI: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LDoubleToI(LOperand* value) {
+  explicit LDoubleToI(LOperand* value, LOperand* temp1) {
     inputs_[0] = value;
+    temps_[0] = temp1;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(DoubleToI, "double-to-i")
@@ -1789,7 +1764,7 @@ class LChunk: public ZoneObject {
  public:
   explicit LChunk(HGraph* graph);
 
-  int AddInstruction(LInstruction* instruction, HBasicBlock* block);
+  void AddInstruction(LInstruction* instruction, HBasicBlock* block);
   LConstantOperand* DefineConstantOperand(HConstant* constant);
   Handle<Object> LookupLiteral(LConstantOperand* operand) const;
   Representation LookupLiteralRepresentation(LConstantOperand* operand) const;

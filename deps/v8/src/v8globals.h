@@ -469,6 +469,12 @@ enum CpuFeature { SSE4_1 = 32 + 19,  // x86
                   ARMv7 = 2,   // ARM
                   SAHF = 0};   // x86
 
+// The Strict Mode (ECMA-262 5th edition, 4.2.2).
+enum StrictModeFlag {
+  kNonStrictMode,
+  kStrictMode
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_V8GLOBALS_H_

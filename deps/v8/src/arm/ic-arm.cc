@@ -1189,19 +1189,18 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // r0: key
   // r1: receiver
   __ bind(&check_pixel_array);
-  __ ldr(r4, FieldMemOperand(r1, JSObject::kElementsOffset));
-  __ ldr(r3, FieldMemOperand(r4, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
-  __ cmp(r3, ip);
-  __ b(ne, &check_number_dictionary);
-  __ ldr(ip, FieldMemOperand(r4, PixelArray::kLengthOffset));
-  __ mov(r2, Operand(key, ASR, kSmiTagSize));
-  __ cmp(r2, ip);
-  __ b(hs, &slow);
-  __ ldr(ip, FieldMemOperand(r4, PixelArray::kExternalPointerOffset));
-  __ ldrb(r2, MemOperand(ip, r2));
-  __ mov(r0, Operand(r2, LSL, kSmiTagSize));  // Tag result as smi.
-  __ Ret();
+
+  GenerateFastPixelArrayLoad(masm,
+                             r1,
+                             r0,
+                             r3,
+                             r4,
+                             r2,
+                             r5,
+                             r0,
+                             &check_number_dictionary,
+                             NULL,
+                             &slow);
 
   __ bind(&check_number_dictionary);
   // Check whether the elements is a number dictionary.

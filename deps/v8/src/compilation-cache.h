@@ -51,7 +51,8 @@ class CompilationCache {
   // contain a script for the given source string.
   static Handle<SharedFunctionInfo> LookupEval(Handle<String> source,
                                                Handle<Context> context,
-                                               bool is_global);
+                                               bool is_global,
+                                               StrictModeFlag strict_mode);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.

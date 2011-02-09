@@ -136,7 +136,8 @@ class CompilationCacheEval: public CompilationSubCache {
       : CompilationSubCache(generations) { }
 
   Handle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                    Handle<Context> context);
+                                    Handle<Context> context,
+                                    StrictModeFlag strict_mode);
 
   void Put(Handle<String> source,
            Handle<Context> context,
@@ -371,7 +372,9 @@ void CompilationCacheScript::Put(Handle<String> source,
 
 
 Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
-    Handle<String> source, Handle<Context> context) {
+    Handle<String> source,
+    Handle<Context> context,
+    StrictModeFlag strict_mode) {
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
   // having cleared the cache.
@@ -380,7 +383,7 @@ Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
   { HandleScope scope;
     for (generation = 0; generation < generations(); generation++) {
       Handle<CompilationCacheTable> table = GetTable(generation);
-      result = table->LookupEval(*source, *context);
+      result = table->LookupEval(*source, *context, strict_mode);
       if (result->IsSharedFunctionInfo()) {
         break;
       }
@@ -503,18 +506,20 @@ Handle<SharedFunctionInfo> CompilationCache::LookupScript(Handle<String> source,
 }
 
 
-Handle<SharedFunctionInfo> CompilationCache::LookupEval(Handle<String> source,
-                                                        Handle<Context> context,
-                                                        bool is_global) {
+Handle<SharedFunctionInfo> CompilationCache::LookupEval(
+    Handle<String> source,
+    Handle<Context> context,
+    bool is_global,
+    StrictModeFlag strict_mode) {
   if (!IsEnabled()) {
     return Handle<SharedFunctionInfo>::null();
   }
 
   Handle<SharedFunctionInfo> result;
   if (is_global) {
-    result = eval_global.Lookup(source, context);
+    result = eval_global.Lookup(source, context, strict_mode);
   } else {
-    result = eval_contextual.Lookup(source, context);
+    result = eval_contextual.Lookup(source, context, strict_mode);
   }
   return result;
 }

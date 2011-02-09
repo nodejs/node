@@ -97,7 +97,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 #ifdef DEBUG
   // Destroy the code which is not supposed to be run again.
   int instructions =
-      (code->safepoint_table_start() - last_pc_offset) / Assembler::kInstrSize;
+      (code->safepoint_table_offset() - last_pc_offset) / Assembler::kInstrSize;
   CodePatcher destroyer(code->instruction_start() + last_pc_offset,
                         instructions);
   for (int x = 0; x < instructions; x++) {

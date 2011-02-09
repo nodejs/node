@@ -31,6 +31,7 @@
 #include "v8.h"
 
 #include "data-flow.h"
+#include "lithium.h"
 #include "zone.h"
 
 namespace v8 {
@@ -153,51 +154,54 @@ enum RegisterKind {
 
 // A register-allocator view of a Lithium instruction. It contains the id of
 // the output operand and a list of input operand uses.
-class InstructionSummary: public ZoneObject {
+
+class LInstruction;
+class LEnvironment;
+
+// Iterator for non-null temp operands.
+class TempIterator BASE_EMBEDDED {
  public:
-  InstructionSummary()
-      : output_operand_(NULL),
-        input_count_(0),
-        operands_(4),
-        is_call_(false),
-        is_save_doubles_(false) {}
-
-  // Output operands.
-  LOperand* Output() const { return output_operand_; }
-  void SetOutput(LOperand* output) {
-    ASSERT(output_operand_ == NULL);
-    output_operand_ = output;
-  }
-
-  // Input operands.
-  int InputCount() const { return input_count_; }
-  LOperand* InputAt(int i) const {
-    ASSERT(i < input_count_);
-    return operands_[i];
-  }
-  void AddInput(LOperand* input) {
-    operands_.InsertAt(input_count_, input);
-    input_count_++;
-  }
-
-  // Temporary operands.
-  int TempCount() const { return operands_.length() - input_count_; }
-  LOperand* TempAt(int i) const { return operands_[i + input_count_]; }
-  void AddTemp(LOperand* temp) { operands_.Add(temp); }
-
-  void MarkAsCall() { is_call_ = true; }
-  bool IsCall() const { return is_call_; }
-
-  void MarkAsSaveDoubles() { is_save_doubles_ = true; }
-  bool IsSaveDoubles() const { return is_save_doubles_; }
+  inline explicit TempIterator(LInstruction* instr);
+  inline bool HasNext();
+  inline LOperand* Next();
+  inline void Advance();
 
  private:
-  LOperand* output_operand_;
-  int input_count_;
-  ZoneList<LOperand*> operands_;
-  bool is_call_;
-  bool is_save_doubles_;
+  inline int AdvanceToNext(int start);
+  LInstruction* instr_;
+  int limit_;
+  int current_;
 };
+
+
+// Iterator for non-constant input operands.
+class InputIterator BASE_EMBEDDED {
+ public:
+  inline explicit InputIterator(LInstruction* instr);
+  inline bool HasNext();
+  inline LOperand* Next();
+  inline void Advance();
+
+ private:
+  inline int AdvanceToNext(int start);
+  LInstruction* instr_;
+  int limit_;
+  int current_;
+};
+
+
+class UseIterator BASE_EMBEDDED {
+ public:
+  inline explicit UseIterator(LInstruction* instr);
+  inline bool HasNext();
+  inline LOperand* Next();
+  inline void Advance();
+
+ private:
+  InputIterator input_iterator_;
+  DeepIterator env_iterator_;
+};
+
 
 // Representation of the non-empty interval [start,end[.
 class UseInterval: public ZoneObject {
@@ -428,9 +432,6 @@ class LAllocator BASE_EMBEDDED {
  public:
   explicit LAllocator(int first_virtual_register, HGraph* graph)
       : chunk_(NULL),
-        summaries_(0),
-        next_summary_(NULL),
-        summary_stack_(2),
         live_in_sets_(0),
         live_ranges_(16),
         fixed_live_ranges_(8),
@@ -457,26 +458,11 @@ class LAllocator BASE_EMBEDDED {
   // Record a temporary operand.
   void RecordTemporary(LUnallocated* operand);
 
-  // Marks the current instruction as a call.
-  void MarkAsCall();
-
-  // Marks the current instruction as requiring saving double registers.
-  void MarkAsSaveDoubles();
-
   // Checks whether the value of a given virtual register is tagged.
   bool HasTaggedValue(int virtual_register) const;
 
   // Returns the register kind required by the given virtual register.
   RegisterKind RequiredRegisterKind(int virtual_register) const;
-
-  // Begin a new instruction.
-  void BeginInstruction();
-
-  // Summarize the current instruction.
-  void SummarizeInstruction(int index);
-
-  // Summarize the current instruction.
-  void OmitInstruction();
 
   // Control max function size.
   static int max_initial_value_ids();
@@ -525,8 +511,8 @@ class LAllocator BASE_EMBEDDED {
   void AddInitialIntervals(HBasicBlock* block, BitVector* live_out);
   void ProcessInstructions(HBasicBlock* block, BitVector* live);
   void MeetRegisterConstraints(HBasicBlock* block);
-  void MeetConstraintsBetween(InstructionSummary* first,
-                              InstructionSummary* second,
+  void MeetConstraintsBetween(LInstruction* first,
+                              LInstruction* second,
                               int gap_index);
   void ResolvePhis(HBasicBlock* block);
 
@@ -604,12 +590,6 @@ class LAllocator BASE_EMBEDDED {
   // Return the block which contains give lifetime position.
   HBasicBlock* GetBlock(LifetimePosition pos);
 
-  // Current active summary.
-  InstructionSummary* current_summary() const { return summary_stack_.last(); }
-
-  // Get summary for given instruction index.
-  InstructionSummary* GetSummary(int index) const { return summaries_[index]; }
-
   // Helper methods for the fixed registers.
   int RegisterCount() const;
   static int FixedLiveRangeID(int index) { return -index - 1; }
@@ -618,15 +598,17 @@ class LAllocator BASE_EMBEDDED {
   LiveRange* FixedDoubleLiveRangeFor(int index);
   LiveRange* LiveRangeFor(int index);
   HPhi* LookupPhi(LOperand* operand) const;
-  LGap* GetLastGap(HBasicBlock* block) const;
+  LGap* GetLastGap(HBasicBlock* block);
 
   const char* RegisterName(int allocation_index);
 
-  LChunk* chunk_;
-  ZoneList<InstructionSummary*> summaries_;
-  InstructionSummary* next_summary_;
+  inline bool IsGapAt(int index);
 
-  ZoneList<InstructionSummary*> summary_stack_;
+  inline LInstruction* InstructionAt(int index);
+
+  inline LGap* GapAt(int index);
+
+  LChunk* chunk_;
 
   // During liveness analysis keep a mapping from block id to live_in sets
   // for blocks already analyzed.

@@ -37,6 +37,8 @@ function f() {
 }
 f();
 f();
+f();
+f();
 
 assertTrue(2[11] === undefined);
 Number.prototype[11] = 'y';

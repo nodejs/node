@@ -40,8 +40,12 @@ v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
 
 
 v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
+  bool compact = false;
   // All allocation spaces other than NEW_SPACE have the same effect.
-  Heap::CollectAllGarbage(false);
+  if (args.Length() >= 1 && args[0]->IsBoolean()) {
+    compact = args[0]->BooleanValue();
+  }
+  Heap::CollectAllGarbage(compact);
   return v8::Undefined();
 }
 

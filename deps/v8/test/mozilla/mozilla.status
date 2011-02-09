@@ -110,7 +110,7 @@ ecma_3/RegExp/regress-209067: PASS || FAIL if $mode == debug
 js1_5/GC/regress-278725: PASS || FAIL if $mode == debug
 # http://b/issue?id=1206983
 js1_5/Regress/regress-367561-03: PASS || FAIL if $mode == debug
-ecma/Date/15.9.5.10-2: PASS || FAIL if $mode == debug
+ecma/Date/15.9.5.10-2: PASS || (FAIL || TIMEOUT if $mode == debug)
 
 # These tests create two Date objects just after each other and
 # expects them to match.  Sometimes this happens on the border
@@ -169,7 +169,6 @@ js1_5/Regress/regress-416628: PASS || FAIL || TIMEOUT if $mode == debug
 # In Denmark the adjustment starts one week earlier!.
 # Tests based on shell that use dates in this gap are flaky.
 ecma/Date/15.9.5.10-1: PASS || FAIL
-ecma/Date/15.9.5.10-2: PASS || TIMEOUT if ($arch == arm && $mode == debug)
 ecma/Date/15.9.5.12-1: PASS || FAIL
 ecma/Date/15.9.5.14: PASS || FAIL
 ecma/Date/15.9.5.34-1: PASS || FAIL
@@ -821,20 +820,17 @@ js1_5/Regress/regress-271716-n: PASS || SKIP if $FAST == yes
 js1_5/extensions/regress-342960: SKIP
 
 # BUG(3251229): Times out when running new crankshaft test script.
-ecma/Date/15.9.5.12-2: SKIP
-ecma/Date/15.9.5.11-2: SKIP
-ecma/Date/15.9.5.10-2: SKIP
-ecma/Date/15.9.5.8: SKIP
 ecma_3/RegExp/regress-311414: SKIP
-js1_5/Array/regress-99120-02: SKIP
-js1_5/Regress/regress-203278-1: SKIP
 ecma/Date/15.9.5.8: SKIP
 ecma/Date/15.9.5.10-2: SKIP
 ecma/Date/15.9.5.11-2: SKIP
 ecma/Date/15.9.5.12-2: SKIP
+js1_5/Array/regress-99120-02: SKIP
+js1_5/extensions/regress-371636: SKIP
+js1_5/Regress/regress-203278-1: SKIP
 js1_5/Regress/regress-404755:  SKIP
 js1_5/Regress/regress-451322: SKIP
-js1_5/extensions/regress-371636: SKIP
+
 
 # BUG(1040): Allow this test to timeout.
 js1_5/GC/regress-203278-2: PASS || TIMEOUT
@@ -865,7 +861,6 @@ ecma/Date/15.9.5.20: SKIP
 ecma/Date/15.9.5.12-2: SKIP
 ecma/Date/15.9.5.8: SKIP
 ecma/Date/15.9.5.9: SKIP
-ecma/Date/15.9.5.10-2: SKIP
 ecma/Date/15.9.5.11-2: SKIP
 ecma/Expressions/11.7.2: SKIP
 ecma/Expressions/11.10-2: SKIP

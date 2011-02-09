@@ -383,8 +383,7 @@ void Scope::AddDeclaration(Declaration* declaration) {
 
 
 void Scope::SetIllegalRedeclaration(Expression* expression) {
-  // Only set the illegal redeclaration expression the
-  // first time the function is called.
+  // Record only the first illegal redeclaration.
   if (!HasIllegalRedeclaration()) {
     illegal_redecl_ = expression;
   }

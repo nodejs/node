@@ -493,14 +493,6 @@
         >
       </File>
       <File
-        RelativePath="..\..\src\flow-graph.cc"
-        >
-      </File>
-      <File
-        RelativePath="..\..\src\flow-graph.h"
-        >
-      </File>
-      <File
         RelativePath="..\..\src\frame-element.cc"
         >
       </File>
@@ -610,6 +602,22 @@
         >
       </File>
       <File
+        RelativePath="..\..\src\hydrogen.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\hydrogen.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\hydrogen-instructions.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\hydrogen-instructions.h"
+        >
+      </File>
+      <File
         RelativePath="..\..\src\x64\ic-x64.cc"
         >
       </File>
@@ -682,11 +690,47 @@
         >
       </File>
       <File
+        RelativePath="..\..\src\lithium.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\lithium.h"
+        >
+      </File>
+       <File
         RelativePath="..\..\src\lithium-allocator.cc"
         >
       </File>
       <File
         RelativePath="..\..\src\lithium-allocator.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\lithium-allocator-inl.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\x64\lithium-x64.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\x64\lithium-x64.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\x64\lithium-codegen-x64.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\x64\lithium-codegen-x64.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\x64\lithium-gap-resolver-x64.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\x64\lithium-gap-resolver-x64.h"
         >
       </File>
       <File
@@ -803,6 +847,22 @@
       </File>
       <File
         RelativePath="..\..\src\parser.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\preparser.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\preparser.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\preparse-data.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\preparse-data.h"
         >
       </File>
       <File
@@ -927,6 +987,14 @@
       </File>
       <File
         RelativePath="..\..\src\safepoint-table.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\scanner-base.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\scanner-base.h"
         >
       </File>
       <File
@@ -1086,11 +1154,23 @@
         >
       </File>
       <File
+        RelativePath="..\..\src\v8checks.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\v8globals.h"
+        >
+      </File>
+      <File
         RelativePath="..\..\src\v8threads.cc"
         >
       </File>
       <File
         RelativePath="..\..\src\v8threads.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\v8utils.h"
         >
       </File>
       <File
@@ -1157,6 +1237,22 @@
         RelativePath="..\..\src\zone.h"
         >
       </File>
+      <File
+        RelativePath="..\..\src\extensions\externalize-string-extension.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\extensions\externalize-string-extension.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\extensions\gc-extension.cc"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\extensions\gc-extension.h"
+        >
+      </File>
       <Filter
         Name="third party"
         >
@@ -1195,6 +1291,10 @@
       </File>
       <File
         RelativePath="..\..\include\v8.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\include\v8stdint.h"
         >
       </File>
     </Filter>

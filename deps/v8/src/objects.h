@@ -3275,13 +3275,13 @@ class Code: public HeapObject {
 
   // [safepoint_table_start]: For kind OPTIMIZED_CODE, the offset in
   // the instruction stream where the safepoint table starts.
-  inline unsigned safepoint_table_start();
-  inline void set_safepoint_table_start(unsigned offset);
+  inline unsigned safepoint_table_offset();
+  inline void set_safepoint_table_offset(unsigned offset);
 
   // [stack_check_table_start]: For kind FUNCTION, the offset in the
   // instruction stream where the stack check table starts.
-  inline unsigned stack_check_table_start();
-  inline void set_stack_check_table_start(unsigned offset);
+  inline unsigned stack_check_table_offset();
+  inline void set_stack_check_table_offset(unsigned offset);
 
   // [check type]: For kind CALL_IC, tells how to check if the
   // receiver is valid for the given call.
@@ -3445,8 +3445,8 @@ class Code: public HeapObject {
   static const int kAllowOSRAtLoopNestingLevelOffset =
       kHasDeoptimizationSupportOffset + 1;
 
-  static const int kSafepointTableStartOffset = kStackSlotsOffset + kIntSize;
-  static const int kStackCheckTableStartOffset = kStackSlotsOffset + kIntSize;
+  static const int kSafepointTableOffsetOffset = kStackSlotsOffset + kIntSize;
+  static const int kStackCheckTableOffsetOffset = kStackSlotsOffset + kIntSize;
 
   // Flags layout.
   static const int kFlagsICStateShift        = 0;
@@ -4176,6 +4176,10 @@ class SharedFunctionInfo: public HeapObject {
   inline bool optimization_disabled();
   inline void set_optimization_disabled(bool value);
 
+  // Indicates whether the function is a strict mode function.
+  inline bool strict_mode();
+  inline void set_strict_mode(bool value);
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
@@ -4357,6 +4361,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCodeAgeShift = 4;
   static const int kCodeAgeMask = 0x7;
   static const int kOptimizationDisabled = 7;
+  static const int kStrictModeFunction = 8;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
@@ -4902,10 +4907,12 @@ class CompilationCacheTable: public HashTable<CompilationCacheShape,
  public:
   // Find cached value for a string key, otherwise return null.
   Object* Lookup(String* src);
-  Object* LookupEval(String* src, Context* context);
+  Object* LookupEval(String* src, Context* context, StrictModeFlag strict_mode);
   Object* LookupRegExp(String* source, JSRegExp::Flags flags);
   MaybeObject* Put(String* src, Object* value);
-  MaybeObject* PutEval(String* src, Context* context, Object* value);
+  MaybeObject* PutEval(String* src,
+                       Context* context,
+                       SharedFunctionInfo* value);
   MaybeObject* PutRegExp(String* src, JSRegExp::Flags flags, FixedArray* value);
 
   // Remove given value from cache.

@@ -38,10 +38,6 @@ var COMPILATION_TYPE_HOST = 0;
 var COMPILATION_TYPE_EVAL = 1;
 var COMPILATION_TYPE_JSON = 2;
 
-// Lazily initialized.
-var kVowelSounds = 0;
-var kCapitalVowelSounds = 0;
-
 // Matches Messages::kNoLineNumberInfo from v8.h
 var kNoLineNumberInfo = 0;
 
@@ -52,8 +48,7 @@ var kAddMessageAccessorsMarker = { };
 
 var kMessages = 0;
 
-var kReplacementMarkers =
-    [ "%0", "%1", "%2", "%3" ]
+var kReplacementMarkers = [ "%0", "%1", "%2", "%3" ];
 
 function FormatString(format, message) {
   var args = %MessageGetArguments(message);
@@ -152,6 +147,7 @@ function FormatMessage(message) {
       unexpected_token_number:      ["Unexpected number"],
       unexpected_token_string:      ["Unexpected string"],
       unexpected_token_identifier:  ["Unexpected identifier"],
+      unexpected_strict_reserved:   ["Unexpected strict mode reserved word"],
       unexpected_eos:               ["Unexpected end of input"],
       malformed_regexp:             ["Invalid regular expression: /", "%0", "/: ", "%1"],
       unterminated_regexp:          ["Invalid regular expression: missing /"],
@@ -226,6 +222,7 @@ function FormatMessage(message) {
       strict_lhs_assignment:        ["Assignment to eval or arguments is not allowed in strict mode"],
       strict_lhs_postfix:           ["Postfix increment/decrement may not have eval or arguments operand in strict mode"],
       strict_lhs_prefix:            ["Prefix increment/decrement may not have eval or arguments operand in strict mode"],
+      strict_reserved_word:         ["Use of future reserved word in strict mode"],
     };
   }
   var message_type = %MessageGetType(message);

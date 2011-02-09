@@ -49,6 +49,7 @@ class CompilationInfo BASE_EMBEDDED {
   bool is_lazy() const { return (flags_ & IsLazy::mask()) != 0; }
   bool is_eval() const { return (flags_ & IsEval::mask()) != 0; }
   bool is_global() const { return (flags_ & IsGlobal::mask()) != 0; }
+  bool is_strict() const { return (flags_ & IsStrict::mask()) != 0; }
   bool is_in_loop() const { return (flags_ & IsInLoop::mask()) != 0; }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
@@ -68,6 +69,13 @@ class CompilationInfo BASE_EMBEDDED {
   void MarkAsGlobal() {
     ASSERT(!is_lazy());
     flags_ |= IsGlobal::encode(true);
+  }
+  void MarkAsStrict() {
+    ASSERT(!is_lazy());
+    flags_ |= IsStrict::encode(true);
+  }
+  StrictModeFlag StrictMode() {
+    return is_strict() ? kStrictMode : kNonStrictMode;
   }
   void MarkAsInLoop() {
     ASSERT(is_lazy());
@@ -162,6 +170,8 @@ class CompilationInfo BASE_EMBEDDED {
   class IsGlobal: public BitField<bool, 2, 1> {};
   // Flags that can be set for lazy compilation.
   class IsInLoop: public BitField<bool, 3, 1> {};
+  // Strict mode - used in eager compilation.
+  class IsStrict: public BitField<bool, 4, 1> {};
 
   unsigned flags_;
 
@@ -230,7 +240,8 @@ class Compiler : public AllStatic {
   // Compile a String source within a context for Eval.
   static Handle<SharedFunctionInfo> CompileEval(Handle<String> source,
                                                 Handle<Context> context,
-                                                bool is_global);
+                                                bool is_global,
+                                                StrictModeFlag strict_mode);
 
   // Compile from function info (used for lazy compilation). Returns true on
   // success and false if the compilation resulted in a stack overflow.

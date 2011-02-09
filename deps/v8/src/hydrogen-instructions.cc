@@ -1193,7 +1193,15 @@ void HStoreGlobal::PrintDataTo(StringStream* stream) const {
 
 
 void HLoadContextSlot::PrintDataTo(StringStream* stream) const {
-  stream->Add("(%d, %d)", context_chain_length(), slot_index());
+  value()->PrintNameTo(stream);
+  stream->Add("[%d]", slot_index());
+}
+
+
+void HStoreContextSlot::PrintDataTo(StringStream* stream) const {
+  context()->PrintNameTo(stream);
+  stream->Add("[%d] = ", slot_index());
+  value()->PrintNameTo(stream);
 }
 
 

@@ -32,11 +32,11 @@
 #include "compilation-cache.h"
 #include "frames-inl.h"
 #include "runtime-profiler.h"
-#include "simulator.h"
 
 namespace v8 {
 namespace internal {
 
+class Simulator;
 
 #define RETURN_IF_SCHEDULED_EXCEPTION() \
   if (Top::has_scheduled_exception()) return Top::PromoteScheduledException()

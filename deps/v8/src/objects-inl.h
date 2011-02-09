@@ -2510,29 +2510,29 @@ void Code::set_stack_slots(unsigned slots) {
 }
 
 
-unsigned Code::safepoint_table_start() {
+unsigned Code::safepoint_table_offset() {
   ASSERT(kind() == OPTIMIZED_FUNCTION);
-  return READ_UINT32_FIELD(this, kSafepointTableStartOffset);
+  return READ_UINT32_FIELD(this, kSafepointTableOffsetOffset);
 }
 
 
-void Code::set_safepoint_table_start(unsigned offset) {
+void Code::set_safepoint_table_offset(unsigned offset) {
   ASSERT(kind() == OPTIMIZED_FUNCTION);
   ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
-  WRITE_UINT32_FIELD(this, kSafepointTableStartOffset, offset);
+  WRITE_UINT32_FIELD(this, kSafepointTableOffsetOffset, offset);
 }
 
 
-unsigned Code::stack_check_table_start() {
+unsigned Code::stack_check_table_offset() {
   ASSERT(kind() == FUNCTION);
-  return READ_UINT32_FIELD(this, kStackCheckTableStartOffset);
+  return READ_UINT32_FIELD(this, kStackCheckTableOffsetOffset);
 }
 
 
-void Code::set_stack_check_table_start(unsigned offset) {
+void Code::set_stack_check_table_offset(unsigned offset) {
   ASSERT(kind() == FUNCTION);
   ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
-  WRITE_UINT32_FIELD(this, kStackCheckTableStartOffset, offset);
+  WRITE_UINT32_FIELD(this, kStackCheckTableOffsetOffset, offset);
 }
 
 
@@ -2990,6 +2990,18 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
   if ((code()->kind() == Code::FUNCTION) && disable) {
     code()->set_optimizable(false);
   }
+}
+
+
+bool SharedFunctionInfo::strict_mode() {
+  return BooleanBit::get(compiler_hints(), kStrictModeFunction);
+}
+
+
+void SharedFunctionInfo::set_strict_mode(bool value) {
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kStrictModeFunction,
+                                     value));
 }
 
 

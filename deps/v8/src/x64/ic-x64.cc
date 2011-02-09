@@ -580,20 +580,15 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ret(0);
 
   __ bind(&check_pixel_array);
-  // Check whether the elements object is a pixel array.
-  // rdx: receiver
-  // rax: key
-  __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ SmiToInteger32(rbx, rax);  // Used on both directions of next branch.
-  __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
-                 Heap::kPixelArrayMapRootIndex);
-  __ j(not_equal, &check_number_dictionary);
-  __ cmpl(rbx, FieldOperand(rcx, PixelArray::kLengthOffset));
-  __ j(above_equal, &slow);
-  __ movq(rax, FieldOperand(rcx, PixelArray::kExternalPointerOffset));
-  __ movzxbq(rax, Operand(rax, rbx, times_1, 0));
-  __ Integer32ToSmi(rax, rax);
-  __ ret(0);
+  GenerateFastPixelArrayLoad(masm,
+                             rdx,
+                             rax,
+                             rcx,
+                             rbx,
+                             rax,
+                             &check_number_dictionary,
+                             NULL,
+                             &slow);
 
   __ bind(&check_number_dictionary);
   // Check whether the elements is a number dictionary.
@@ -1703,7 +1698,8 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 }
 
 void PatchInlinedSmiCode(Address address) {
-  UNIMPLEMENTED();
+  // Disabled, then patched inline smi code is not implemented on X64.
+  // So we do nothing in this case.
 }
 
 

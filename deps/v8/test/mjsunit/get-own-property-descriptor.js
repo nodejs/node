@@ -103,3 +103,19 @@ objWithProto.prototype = proto;
 objWithProto[0] = 'bar';
 var descWithProto = Object.getOwnPropertyDescriptor(objWithProto, '10');
 assertEquals(undefined, descWithProto);
+
+// Test elements on global proxy object.
+var global = (function() { return this; })();
+
+global[42] = 42;
+
+function el_getter() { return 239; };
+function el_setter() {};
+Object.defineProperty(global, '239', {get: el_getter, set: el_setter});
+
+var descRegularElement = Object.getOwnPropertyDescriptor(global, '42');
+assertEquals(42, descRegularElement.value);
+
+var descAccessorElement = Object.getOwnPropertyDescriptor(global, '239');
+assertEquals(el_getter, descAccessorElement.get);
+assertEquals(el_setter, descAccessorElement.set);

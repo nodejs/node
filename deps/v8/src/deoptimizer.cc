@@ -817,7 +817,7 @@ void Deoptimizer::PatchStackCheckCode(Code* unoptimized_code,
   // call to an unconditional call to the replacement code.
   ASSERT(unoptimized_code->kind() == Code::FUNCTION);
   Address stack_check_cursor = unoptimized_code->instruction_start() +
-      unoptimized_code->stack_check_table_start();
+      unoptimized_code->stack_check_table_offset();
   uint32_t table_length = Memory::uint32_at(stack_check_cursor);
   stack_check_cursor += kIntSize;
   for (uint32_t i = 0; i < table_length; ++i) {
@@ -836,7 +836,7 @@ void Deoptimizer::RevertStackCheckCode(Code* unoptimized_code,
   // stack check calls.
   ASSERT(unoptimized_code->kind() == Code::FUNCTION);
   Address stack_check_cursor = unoptimized_code->instruction_start() +
-      unoptimized_code->stack_check_table_start();
+      unoptimized_code->stack_check_table_offset();
   uint32_t table_length = Memory::uint32_at(stack_check_cursor);
   stack_check_cursor += kIntSize;
   for (uint32_t i = 0; i < table_length; ++i) {

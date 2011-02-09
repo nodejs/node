@@ -632,11 +632,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::EnterExitFrame(bool save_doubles) {
-  // Compute the argv pointer in a callee-saved register.
-  add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
-  sub(r6, r6, Operand(kPointerSize));
-
+void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   // Setup the frame structure on the stack.
   ASSERT_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   ASSERT_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
@@ -658,10 +654,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles) {
   mov(ip, Operand(ExternalReference(Top::k_context_address)));
   str(cp, MemOperand(ip));
 
-  // Setup argc and the builtin function in callee-saved registers.
-  mov(r4, Operand(r0));
-  mov(r5, Operand(r1));
-
   // Optionally save all double registers.
   if (save_doubles) {
     sub(sp, sp, Operand(DwVfpRegister::kNumRegisters * kDoubleSize));
@@ -675,10 +667,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles) {
     // since the sp slot and code slot were pushed after the fp.
   }
 
-  // Reserve place for the return address and align the frame preparing for
-  // calling the runtime function.
+  // Reserve place for the return address and stack space and align the frame
+  // preparing for calling the runtime function.
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
-  sub(sp, sp, Operand(kPointerSize));
+  sub(sp, sp, Operand((stack_space + 1) * kPointerSize));
   if (frame_alignment > 0) {
     ASSERT(IsPowerOf2(frame_alignment));
     and_(sp, sp, Operand(-frame_alignment));
@@ -1475,14 +1467,112 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
 
 void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
-  ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
-  ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
+}
+
+
+MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub, Condition cond) {
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  Object* result;
+  { MaybeObject* maybe_result = stub->TryGetCode();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
+  return result;
+}
+
+
+static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
+  return ref0.address() - ref1.address();
+}
+
+
+MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
+    ApiFunction* function, int stack_space) {
+  ExternalReference next_address =
+      ExternalReference::handle_scope_next_address();
+  const int kNextOffset = 0;
+  const int kLimitOffset = AddressOffset(
+      ExternalReference::handle_scope_limit_address(),
+      next_address);
+  const int kLevelOffset = AddressOffset(
+      ExternalReference::handle_scope_level_address(),
+      next_address);
+
+  // Allocate HandleScope in callee-save registers.
+  mov(r7, Operand(next_address));
+  ldr(r4, MemOperand(r7, kNextOffset));
+  ldr(r5, MemOperand(r7, kLimitOffset));
+  ldr(r6, MemOperand(r7, kLevelOffset));
+  add(r6, r6, Operand(1));
+  str(r6, MemOperand(r7, kLevelOffset));
+
+  // Native call returns to the DirectCEntry stub which redirects to the
+  // return address pushed on stack (could have moved after GC).
+  // DirectCEntry stub itself is generated early and never moves.
+  DirectCEntryStub stub;
+  stub.GenerateCall(this, function);
+
+  Label promote_scheduled_exception;
+  Label delete_allocated_handles;
+  Label leave_exit_frame;
+
+  // If result is non-zero, dereference to get the result value
+  // otherwise set it to undefined.
+  cmp(r0, Operand(0));
+  LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
+  ldr(r0, MemOperand(r0), ne);
+
+  // No more valid handles (the result handle was the last one). Restore
+  // previous handle scope.
+  str(r4, MemOperand(r7, kNextOffset));
+  if (FLAG_debug_code) {
+    ldr(r1, MemOperand(r7, kLevelOffset));
+    cmp(r1, r6);
+    Check(eq, "Unexpected level after return from api call");
+  }
+  sub(r6, r6, Operand(1));
+  str(r6, MemOperand(r7, kLevelOffset));
+  ldr(ip, MemOperand(r7, kLimitOffset));
+  cmp(r5, ip);
+  b(ne, &delete_allocated_handles);
+
+  // Check if the function scheduled an exception.
+  bind(&leave_exit_frame);
+  LoadRoot(r4, Heap::kTheHoleValueRootIndex);
+  mov(ip, Operand(ExternalReference::scheduled_exception_address()));
+  ldr(r5, MemOperand(ip));
+  cmp(r4, r5);
+  b(ne, &promote_scheduled_exception);
+
+  // LeaveExitFrame expects unwind space to be in r4.
+  mov(r4, Operand(stack_space));
+  LeaveExitFrame(false);
+
+  bind(&promote_scheduled_exception);
+  MaybeObject* result = TryTailCallExternalReference(
+      ExternalReference(Runtime::kPromoteScheduledException), 0, 1);
+  if (result->IsFailure()) {
+    return result;
+  }
+
+  // HandleScope limit has changed. Delete allocated extensions.
+  bind(&delete_allocated_handles);
+  str(r5, MemOperand(r7, kLimitOffset));
+  mov(r4, r0);
+  PrepareCallCFunction(0, r5);
+  CallCFunction(ExternalReference::delete_handle_scope_extensions(), 0);
+  mov(r0, r4);
+  jmp(&leave_exit_frame);
+
+  return result;
 }
 
 
@@ -1577,13 +1667,14 @@ void MacroAssembler::ConvertToInt32(Register source,
                                     Register dest,
                                     Register scratch,
                                     Register scratch2,
+                                    DwVfpRegister double_scratch,
                                     Label *not_int32) {
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     sub(scratch, source, Operand(kHeapObjectTag));
-    vldr(d0, scratch, HeapNumber::kValueOffset);
-    vcvt_s32_f64(s0, d0);
-    vmov(dest, s0);
+    vldr(double_scratch, scratch, HeapNumber::kValueOffset);
+    vcvt_s32_f64(double_scratch.low(), double_scratch);
+    vmov(dest, double_scratch.low());
     // Signed vcvt instruction will saturate to the minimum (0x80000000) or
     // maximun (0x7fffffff) signed 32bits integer when the double is out of
     // range. When substracting one, the minimum signed integer becomes the
@@ -1739,6 +1830,17 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
 }
 
 
+MaybeObject* MacroAssembler::TryTailCallExternalReference(
+    const ExternalReference& ext, int num_arguments, int result_size) {
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  mov(r0, Operand(num_arguments));
+  return TryJumpToExternalReference(ext);
+}
+
+
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                                      int num_arguments,
                                      int result_size) {
@@ -1754,6 +1856,18 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   mov(r1, Operand(builtin));
   CEntryStub stub(1);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+MaybeObject* MacroAssembler::TryJumpToExternalReference(
+    const ExternalReference& builtin) {
+#if defined(__thumb__)
+  // Thumb mode builtin.
+  ASSERT((reinterpret_cast<intptr_t>(builtin.address()) & 1) == 1);
+#endif
+  mov(r1, Operand(builtin));
+  CEntryStub stub(1);
+  return TryTailCallStub(&stub);
 }
 
 
@@ -1996,6 +2110,16 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
   Assert(eq, "Operand is not smi");
+}
+
+
+void MacroAssembler::AbortIfNotRootValue(Register src,
+                                         Heap::RootListIndex root_value_index,
+                                         const char* message) {
+  ASSERT(!src.is(ip));
+  LoadRoot(ip, root_value_index);
+  cmp(src, ip);
+  Assert(eq, message);
 }
 
 

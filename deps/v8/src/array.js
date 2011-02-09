@@ -1018,9 +1018,11 @@ function ArrayIndexOf(element, index) {
   } else {
     index = TO_INTEGER(index);
     // If index is negative, index from the end of the array.
-    if (index < 0) index = length + index;
-    // If index is still negative, search the entire array.
-    if (index < 0) index = 0;
+    if (index < 0) {
+      index = length + index;
+      // If index is still negative, search the entire array.
+      if (index < 0) index = 0;
+    }
   }
   var min = index;
   var max = length;

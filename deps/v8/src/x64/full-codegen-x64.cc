@@ -1529,14 +1529,9 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
   __ j(smi, &smi_case);
 
   __ bind(&stub_call);
-  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
-  if (stub.ArgsInRegistersSupported()) {
-    stub.GenerateCall(masm_, rdx, rcx);
-  } else {
-    __ push(rdx);
-    __ push(rcx);
-    __ CallStub(&stub);
-  }
+  TypeRecordingBinaryOpStub stub(op, mode);
+  __ movq(rax, rcx);
+  __ CallStub(&stub);
   __ jmp(&done);
 
   __ bind(&smi_case);
@@ -1580,14 +1575,9 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
 
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      OverwriteMode mode) {
-  GenericBinaryOpStub stub(op, mode, NO_GENERIC_BINARY_FLAGS);
-  if (stub.ArgsInRegistersSupported()) {
-    __ pop(rdx);
-    stub.GenerateCall(masm_, rdx, rax);
-  } else {
-    __ push(result_register());
-    __ CallStub(&stub);
-  }
+  TypeRecordingBinaryOpStub stub(op, mode);
+  __ pop(rdx);
+  __ CallStub(&stub);
   context()->Plug(rax);
 }
 
@@ -1934,7 +1924,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
       // Push the receiver of the enclosing function and do runtime call.
       __ push(Operand(rbp, (2 + scope()->num_parameters()) * kPointerSize));
-      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+      // Push the strict mode flag.
+      __ Push(Smi::FromInt(strict_mode_flag()));
+      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
 
       // The runtime call returns a pair of values in rax (function) and
       // rdx (receiver). Touch up the stack with the right values.
@@ -3217,6 +3209,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     // the first smi check before calling ToNumber.
     is_smi = masm_->CheckSmi(rax);
     __ j(is_smi, &done);
+
     __ bind(&stub_call);
     // Call stub. Undo operation first.
     if (expr->op() == Token::INC) {
@@ -3230,12 +3223,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   SetSourcePosition(expr->position());
 
   // Call stub for +1/-1.
-  GenericBinaryOpStub stub(expr->binary_op(),
-                           NO_OVERWRITE,
-                           NO_GENERIC_BINARY_FLAGS);
-  stub.GenerateCall(masm_, rax, Smi::FromInt(1));
-  __ bind(&done);
+  TypeRecordingBinaryOpStub stub(expr->binary_op(), NO_OVERWRITE);
+  if (expr->op() == Token::INC) {
+    __ Move(rdx, Smi::FromInt(1));
+  } else {
+    __ movq(rdx, rax);
+    __ Move(rax, Smi::FromInt(1));
+  }
+  __ CallStub(&stub);
 
+  __ bind(&done);
   // Store the value returned in rax.
   switch (assign_type) {
     case VARIABLE:
