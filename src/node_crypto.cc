@@ -294,10 +294,7 @@ Handle<Value> SecureContext::Close(const Arguments& args) {
 #endif
 
 
-int Connection::HandleBIOError(BIO *bio,
-                               const char* func,
-                               int rv,
-                               bool ignore_error) {
+int Connection::HandleBIOError(BIO *bio, const char* func, int rv) {
   if (rv >= 0) return rv;
 
   int retry = BIO_should_retry(bio);
@@ -314,11 +311,9 @@ int Connection::HandleBIOError(BIO *bio,
    static char ssl_error_buf[512];
     ERR_error_string_n(rv, ssl_error_buf, sizeof(ssl_error_buf));
 
-    if (!ignore_error) {
-      HandleScope scope;
-      Local<Value> e = Exception::Error(String::New(ssl_error_buf));
-      handle_->Set(String::New("error"), e);
-    }
+    HandleScope scope;
+    Local<Value> e = Exception::Error(String::New(ssl_error_buf));
+    handle_->Set(String::New("error"), e);
 
     DEBUG_PRINT("[%p] BIO: %s failed: (%d) %s\n", ssl_, func, rv, ssl_error_buf);
 
@@ -329,7 +324,7 @@ int Connection::HandleBIOError(BIO *bio,
 }
 
 
-int Connection::HandleSSLError(const char* func, int rv, bool ignore_error) {
+int Connection::HandleSSLError(const char* func, int rv) {
   if (rv >= 0) return rv;
 
   int err = SSL_get_error(ssl_, rv);
@@ -346,11 +341,9 @@ int Connection::HandleSSLError(const char* func, int rv, bool ignore_error) {
     static char ssl_error_buf[512];
     ERR_error_string_n(err, ssl_error_buf, sizeof(ssl_error_buf));
 
-    if (!ignore_error) {
-      HandleScope scope;
-      Local<Value> e = Exception::Error(String::New(ssl_error_buf));
-      handle_->Set(String::New("error"), e);
-    }
+    HandleScope scope;
+    Local<Value> e = Exception::Error(String::New(ssl_error_buf));
+    handle_->Set(String::New("error"), e);
 
     DEBUG_PRINT("[%p] SSL: %s failed: (%d:%d) %s\n", ssl_, func, err, rv, ssl_error_buf);
 
@@ -659,7 +652,7 @@ Handle<Value> Connection::EncOut(const Arguments& args) {
 
   int bytes_read = BIO_read(ss->bio_write_, buffer_data + off, len);
 
-  ss->HandleBIOError(ss->bio_write_, "BIO_read:EncOut", bytes_read, true);
+  ss->HandleBIOError(ss->bio_write_, "BIO_read:EncOut", bytes_read);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_read));
