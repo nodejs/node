@@ -10,6 +10,7 @@ typedef struct {
 	int32_t fd;
 	int32_t port;
 	char *remote;
+	int32_t buffered;
 } node_dtrace_connection_t;
 
 typedef struct {

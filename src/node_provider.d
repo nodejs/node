@@ -30,11 +30,22 @@ provider node {
 	    (node_connection_t *c);
 	probe net__stream__end(node_dtrace_connection_t *c) :
 	    (node_connection_t *c);
+	probe net__socket__read(node_dtrace_connection_t *c, int b) :
+	    (node_connection_t *c, int b);
+	probe net__socket__write(node_dtrace_connection_t *c, int b) :
+	    (node_connection_t *c, int b);
 	probe http__server__request(node_dtrace_http_request_t *h,
 	    node_dtrace_connection_t *c) :
 	    (node_http_request_t *h, node_connection_t *c);
 	probe http__server__response(node_dtrace_connection_t *c) :
 	    (node_connection_t *c);
+	probe http__client__request(node_dtrace_http_request_t *h,
+	    node_dtrace_connection_t *c) :
+	    (node_http_request_t *h, node_connection_t *c);
+	probe http__client__response(node_dtrace_connection_t *c) :
+	    (node_connection_t *c);
+	probe gc__start(int t, int f);
+	probe gc__done(int t, int f);
 };
 
 #pragma D attributes Evolving/Evolving/ISA provider node provider

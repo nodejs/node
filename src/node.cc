@@ -2057,7 +2057,9 @@ static void Load(int argc, char *argv[]) {
   Local<Object> global = v8::Context::GetCurrent()->Global();
   Local<Value> args[1] = { Local<Value>::New(process) };
 
+#ifdef HAVE_DTRACE
   InitDTrace(global);
+#endif
 
   f->Call(global, 1, args);
 

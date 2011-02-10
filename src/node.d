@@ -10,18 +10,21 @@ typedef struct {
 	int32_t fd;
 	int32_t port;
 	uint32_t remote;
+	uint32_t buffered;
 } node_dtrace_connection_t;
 
 typedef struct {
 	int32_t fd;
 	int32_t port;
 	uint64_t remote;
+	uint32_t buffered;
 } node_dtrace_connection64_t;
 
 typedef struct {
 	int fd;
 	string remoteAddress;
 	int remotePort;
+	int bufferSize;
 } node_connection_t;
 
 translator node_connection_t <node_dtrace_connection_t *nc> {
@@ -33,6 +36,10 @@ translator node_connection_t <node_dtrace_connection_t *nc> {
 	    sizeof (int32_t))) :
 	    copyinstr((uintptr_t)*(uint64_t *)copyin((uintptr_t)
 	    &((node_dtrace_connection64_t *)nc)->remote, sizeof (int64_t)));
+	bufferSize = curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
+	    *(uint32_t *)copyin((uintptr_t)&nc->buffered, sizeof (int32_t)) :
+	    *(uint32_t *)copyin((uintptr_t)
+	    &((node_dtrace_connection64_t *)nc)->buffered, sizeof (int32_t));
 };
 
 typedef struct {

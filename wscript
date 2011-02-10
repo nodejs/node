@@ -604,15 +604,20 @@ def build(bld):
   make_macros(macros_loc_default, "macro assert(x) = ;\n")
 
   if not bld.env["USE_DTRACE"]:
-    make_macros(macros_loc_default, "macro DTRACE_HTTP_SERVER_RESPONSE(x) = ;\n");
-    make_macros(macros_loc_default, "macro DTRACE_HTTP_SERVER_REQUEST(x) = ;\n");
-    make_macros(macros_loc_default, "macro DTRACE_NET_SERVER_CONNECTION(x) = ;\n");
-    make_macros(macros_loc_default, "macro DTRACE_NET_STREAM_END(x) = ;\n");
-    make_macros(macros_loc_debug, "macro DTRACE_HTTP_SERVER_RESPONSE(x) = ;\n");
-    make_macros(macros_loc_debug, "macro DTRACE_HTTP_SERVER_REQUEST(x) = ;\n");
-    make_macros(macros_loc_debug, "macro DTRACE_NET_SERVER_CONNECTION(x) = ;\n");
-    make_macros(macros_loc_debug, "macro DTRACE_NET_STREAM_END(x) = ;\n");
+    probes = [
+      'DTRACE_HTTP_CLIENT_REQUEST',
+      'DTRACE_HTTP_CLIENT_RESPONSE',
+      'DTRACE_HTTP_SERVER_REQUEST',
+      'DTRACE_HTTP_SERVER_RESPONSE',
+      'DTRACE_NET_SERVER_CONNECTION',
+      'DTRACE_NET_STREAM_END',
+      'DTRACE_NET_SOCKET_READ',
+      'DTRACE_NET_SOCKET_WRITE'
+    ]
 
+    for probe in probes:
+      make_macros(macros_loc_default, "macro %s(x) = ;\n" % probe)
+      make_macros(macros_loc_debug, "macro %s(x) = ;\n" % probe)
 
   def javascript_in_c(task):
     env = task.env
@@ -657,7 +662,7 @@ def build(bld):
     if bld.env["USE_DEBUG"]:
       dtrace_g = dtrace.clone("debug")
 
-    bld.install_files('/usr/lib/dtrace', 'src/node.d')
+    bld.install_files('${PREFIX}/usr/lib/dtrace', 'src/node.d')
 
     if sys.platform.startswith("sunos"):
       #
