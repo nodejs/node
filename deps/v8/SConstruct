@@ -188,6 +188,9 @@ LIBRARY_FLAGS = {
       'LIBPATH' : ['/usr/local/lib'],
       'CCFLAGS':      ['-ansi'],
     },
+    'os:cygwin': {
+      'WARNINGFLAGS': ['-Werror'],
+    },
     'os:win32': {
       'CCFLAGS':      ['-DWIN32'],
       'CXXFLAGS':     ['-DWIN32'],
@@ -691,7 +694,7 @@ SIMPLE_OPTIONS = {
     'help': 'the toolchain to use (%s)' % TOOLCHAIN_GUESS
   },
   'os': {
-    'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd', 'solaris'],
+    'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd', 'solaris', 'cygwin'],
     'default': OS_GUESS,
     'help': 'the os to build for (%s)' % OS_GUESS
   },

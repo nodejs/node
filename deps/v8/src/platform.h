@@ -383,10 +383,14 @@ class Thread: public ThreadHandle {
   // LOCAL_STORAGE_KEY_MIN_VALUE and LOCAL_STORAGE_KEY_MAX_VALUE are specified
   // to ensure that enumeration type has correct value range (see Issue 830 for
   // more details).
+#ifdef __CYGWIN__
+  typedef void* LocalStorageKey;
+#else
   enum LocalStorageKey {
     LOCAL_STORAGE_KEY_MIN_VALUE = kMinInt,
     LOCAL_STORAGE_KEY_MAX_VALUE = kMaxInt
   };
+#endif
 
   // Create new thread.
   Thread();

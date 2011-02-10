@@ -234,6 +234,7 @@ SOURCES = {
   'os:android': ['platform-linux.cc', 'platform-posix.cc'],
   'os:macos':   ['platform-macos.cc', 'platform-posix.cc'],
   'os:solaris': ['platform-solaris.cc', 'platform-posix.cc'],
+  'os:cygwin':  ['platform-cygwin.cc', 'platform-posix.cc'],
   'os:nullos':  ['platform-nullos.cc'],
   'os:win32':   ['platform-win32.cc'],
   'mode:release': [],
