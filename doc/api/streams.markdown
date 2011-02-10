@@ -125,6 +125,12 @@ Emitted on error with the exception `exception`.
 
 Emitted when the underlying file descriptor has been closed.
 
+### Event: 'pipe'
+
+`function (src) { }`
+
+Emitted when the stream is passed to a readable stream's pipe method.
+
 ### stream.writable
 
 A boolean that is `true` by default, but turns `false` after an `'error'`
