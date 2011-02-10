@@ -28,6 +28,7 @@ agent1-csr.pem: agent1.cnf agent1-key.pem
 
 agent1-cert.pem: agent1-csr.pem ca1-cert.pem ca1-key.pem
 	openssl x509 -req \
+		-days 999 \
 		-passin "pass:password" \
 		-in agent1-csr.pem \
 		-CA ca1-cert.pem \
@@ -53,6 +54,7 @@ agent2-csr.pem: agent2-key.pem agent2.cnf
 # Create a Certificate for the agent.
 agent2-cert.pem: agent2-csr.pem agent2-key.pem
 	openssl x509 -req \
+		-days 999 \
 		-in agent2-csr.pem \
 		-signkey agent2-key.pem \
 		-out agent2-cert.pem
@@ -72,6 +74,7 @@ agent3-csr.pem: agent3.cnf agent3-key.pem
 
 agent3-cert.pem: agent3-csr.pem ca2-cert.pem ca2-key.pem
 	openssl x509 -req \
+		-days 999 \
 		-passin "pass:password" \
 		-in agent3-csr.pem \
 		-CA ca2-cert.pem \
@@ -95,6 +98,7 @@ agent4-csr.pem: agent4.cnf agent4-key.pem
 
 agent4-cert.pem: agent4-csr.pem ca2-cert.pem ca2-key.pem
 	openssl x509 -req \
+		-days 999 \
 		-passin "pass:password" \
 		-in agent4-csr.pem \
 		-CA ca2-cert.pem \
