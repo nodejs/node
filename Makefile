@@ -63,6 +63,7 @@ apiassets = $(subst api_assets,api/assets,$(addprefix build/,$(wildcard doc/api_
 
 website_files = \
 	build/doc/index.html    \
+	build/doc/v0.4_announcement.html   \
 	build/doc/cla.html      \
 	build/doc/sh_main.js    \
 	build/doc/sh_javascript.min.js \
