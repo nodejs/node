@@ -1,16 +1,3 @@
-## Standard Modules
-
-Node comes with a number of modules that are compiled in to the process,
-most of which are documented below.  The most common way to use these modules
-is with `require('name')` and then assigning the return value to a local
-variable with the same name as the module.
-
-Example:
-
-    var util = require('util');
-
-It is possible to extend node with other modules.  See `'Modules'`
-
 ## Modules
 
 Node uses the CommonJS module system.
@@ -273,51 +260,52 @@ that are difficult to predict.
 
 ## Addenda: Package Manager Tips
 
-If you were to build a package manager, the tools above provide you with
-all you need to very elegantly set up modules in a folder structure such
-that they get the required dependencies and do not conflict with one
-another.
+The semantics of Node's `require()` function were designed to be general
+enough to support a number of sane directory structures. Package manager
+programs such as `dpkg`, `rpm`, and `npm` will hopefully find it possible to
+build native packages from Node modules without modification.
+
+Below we give a suggested directory structure that could work:
 
 Let's say that we wanted to have the folder at
-`/usr/lib/<some-program>/<some-version>` hold the contents of a specific
-version of a package.
+`/usr/lib/node/<some-package>/<some-version>` hold the contents of a
+specific version of a package.
 
-Packages can depend on one another.  So, in order to install
-package `foo`, you may have to install a specific version of package `bar`.
-The `bar` package may itself have dependencies, and in some cases, these
-dependencies may even collide or form cycles.
+Packages can depend on one another. In order to install package `foo`, you
+may have to install a specific version of package `bar`.  The `bar` package
+may itself have dependencies, and in some cases, these dependencies may even
+collide or form cycles.
 
-Since Node looks up the `realpath` of any modules it loads, and then
-looks for their dependencies in the `node_modules` folders as described
-above, this situation is very simple to resolve with the following
-architecture:
+Since Node looks up the `realpath` of any modules it loads (that is,
+resolves symlinks), and then looks for their dependencies in the
+`node_modules` folders as described above, this situation is very simple to
+resolve with the following architecture:
 
-* `/usr/lib/foo/1.2.3/` - Contents of the `foo` package, version 1.2.3.
-* `/usr/lib/bar/4.3.2/` - Contents of the `bar` package that `foo`
+* `/usr/lib/node/foo/1.2.3/` - Contents of the `foo` package, version 1.2.3.
+* `/usr/lib/node/bar/4.3.2/` - Contents of the `bar` package that `foo`
   depends on.
-* `/usr/lib/foo/1.2.3/node_modules/bar` - Symbolic link to
-  `/usr/lib/bar/4.3.2/`.
-* `/usr/lib/bar/4.3.2/node_modules/*` - Symbolic links to the packages
+* `/usr/lib/node/foo/1.2.3/node_modules/bar` - Symbolic link to
+  `/usr/lib/node/bar/4.3.2/`.
+* `/usr/lib/node/bar/4.3.2/node_modules/*` - Symbolic links to the packages
   that `bar` depends on.
 
 Thus, even if a cycle is encountered, or if there are dependency
 conflicts, every module will be able to get a version of its dependency
 that it can use.
 
-When the code in the `foo` package does `require('bar')`, it will get
+When the code in the `foo` package does `require('bar')`, it will get the
+version that is symlinked into `/usr/lib/node/foo/1.2.3/node_modules/bar`.
+Then, when the code in the `bar` package calls `require('quux')`, it'll get
 the version that is symlinked into
-`/usr/lib/foo/1.2.3/node_modules/bar`.  Then, when the code in the `bar`
-package calls `require('quux')`, it'll get the version that is symlinked
-into `/usr/lib/bar/4.3.2/node_modules/quux`.
+`/usr/lib/node/bar/4.3.2/node_modules/quux`.
 
 Furthermore, to make the module lookup process even more optimal, rather
-than putting packages directly in `/usr/lib`, we could put them in
+than putting packages directly in `/usr/lib/node`, we could put them in
 `/usr/lib/node_modules/<name>/<version>`.  Then node will not bother
-looking for missing dependencies in `/usr/node_modules` or
-`/node_modules`.
+looking for missing dependencies in `/usr/node_modules` or `/node_modules`.
 
-In order to make modules available to the node repl, it might be useful
-to also add the `/usr/lib/node_modules` folder to the `NODE_PATH`
-environment variable.  Since the module lookups using `node_modules`
-folders are all relative, and based on the real path of the files
-making the calls to `require()`, the packages themselves can be anywhere.
+In order to make modules available to the node REPL, it might be useful to
+also add the `/usr/lib/node_modules` folder to the `$NODE_PATH` environment
+variable.  Since the module lookups using `node_modules` folders are all
+relative, and based on the real path of the files making the calls to
+`require()`, the packages themselves can be anywhere.
