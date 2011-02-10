@@ -760,7 +760,6 @@ Sampler::Sampler(int interval)
 
 
 Sampler::~Sampler() {
-  ASSERT(!data_->signal_sender_launched_);
   delete data_;
 }
 
