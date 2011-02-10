@@ -185,6 +185,72 @@ Handle<Value> SecureContext::SetKey(const Arguments& args) {
 }
 
 
+// Read a file that contains our certificate in "PEM" format,
+// possibly followed by a sequence of CA certificates that should be
+// sent to the peer in the Certificate message.
+//
+// Taken from OpenSSL - editted for style.
+int SSL_CTX_use_certificate_chain(SSL_CTX *ctx, BIO *in) {
+  int ret = 0;
+  X509 *x = NULL;
+
+  x = PEM_read_bio_X509_AUX(in, NULL, NULL, NULL);
+
+  if (x == NULL) {
+    SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE, ERR_R_PEM_LIB);
+    goto end;
+  }
+
+  ret = SSL_CTX_use_certificate(ctx, x);
+
+  if (ERR_peek_error() != 0) {
+    // Key/certificate mismatch doesn't imply ret==0 ...
+    ret = 0;
+  }
+
+  if (ret) {
+    // If we could set up our certificate, now proceed to
+    // the CA certificates.
+    X509 *ca;
+    int r;
+    unsigned long err;
+
+    if (ctx->extra_certs != NULL) {
+      sk_X509_pop_free(ctx->extra_certs, X509_free);
+      ctx->extra_certs = NULL;
+    }
+
+    while ((ca = PEM_read_bio_X509(in, NULL, NULL, NULL))) {
+      r = SSL_CTX_add_extra_chain_cert(ctx, ca);
+
+      if (!r) {
+        X509_free(ca);
+        ret = 0;
+        goto end;
+      }
+      // Note that we must not free r if it was successfully
+      // added to the chain (while we must free the main
+      // certificate, since its reference count is increased
+      // by SSL_CTX_use_certificate).
+    }
+
+    // When the while loop ends, it's usually just EOF.
+    err = ERR_peek_last_error();
+    if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+        ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+      ERR_clear_error();
+    } else  {
+      // some real error
+      ret = 0;
+    }
+  }
+
+end:
+  if (x != NULL) X509_free(x);
+  return ret;
+}
+
+
 Handle<Value> SecureContext::SetCert(const Arguments& args) {
   HandleScope scope;
 
@@ -195,11 +261,23 @@ Handle<Value> SecureContext::SetCert(const Arguments& args) {
           String::New("Bad parameter")));
   }
 
-  X509* x509 = LoadX509(args[0]);
-  if (!x509) return False();
+  BIO* bio = LoadBIO(args[0]);
+  if (!bio) return False();
 
-  SSL_CTX_use_certificate(sc->ctx_, x509);
-  X509_free(x509);
+  int rv = SSL_CTX_use_certificate_chain(sc->ctx_, bio);
+
+  BIO_free(bio);
+
+  if (!rv) {
+    unsigned long err = ERR_get_error();
+    if (!err) {
+      return ThrowException(Exception::Error(
+          String::New("SSL_CTX_use_certificate_chain")));
+    }
+    char string[120];
+    ERR_error_string(err, string);
+    return ThrowException(Exception::Error(String::New(string)));
+  }
 
   return True();
 }
@@ -1233,9 +1311,9 @@ class Cipher : public ObjectWrap {
     EVP_CIPHER_CTX_init(&ctx);
     EVP_CipherInit(&ctx,cipher,(unsigned char *)key,(unsigned char *)iv, true);
     if (!EVP_CIPHER_CTX_set_key_length(&ctx,key_len)) {
-    	fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
-    	EVP_CIPHER_CTX_cleanup(&ctx);
-    	return false;
+      fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
+      EVP_CIPHER_CTX_cleanup(&ctx);
+      return false;
     }
     initialised_ = true;
     return true;
@@ -1253,15 +1331,15 @@ class Cipher : public ObjectWrap {
       return false;
     }
     if (EVP_CIPHER_iv_length(cipher)!=iv_len) {
-    	fprintf(stderr, "node-crypto : Invalid IV length %d\n", iv_len);
+      fprintf(stderr, "node-crypto : Invalid IV length %d\n", iv_len);
       return false;
     }
     EVP_CIPHER_CTX_init(&ctx);
     EVP_CipherInit(&ctx,cipher,(unsigned char *)key,(unsigned char *)iv, true);
     if (!EVP_CIPHER_CTX_set_key_length(&ctx,key_len)) {
-    	fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
-    	EVP_CIPHER_CTX_cleanup(&ctx);
-    	return false;
+      fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
+      EVP_CIPHER_CTX_cleanup(&ctx);
+      return false;
     }
     initialised_ = true;
     return true;
@@ -1336,7 +1414,7 @@ class Cipher : public ObjectWrap {
 
   static Handle<Value> CipherInitIv(const Arguments& args) {
     Cipher *cipher = ObjectWrap::Unwrap<Cipher>(args.This());
-		
+    
     HandleScope scope;
 
     cipher->incomplete_base64=NULL;
@@ -1368,7 +1446,7 @@ class Cipher : public ObjectWrap {
     assert(iv_written == iv_len);
 
     String::Utf8Value cipherType(args[0]->ToString());
-    	
+      
     bool r = cipher->CipherInitIv(*cipherType, key_buf,key_len,iv_buf,iv_len);
 
     delete [] key_buf;
@@ -1421,19 +1499,19 @@ class Cipher : public ObjectWrap {
     if (out_len==0) {
       outString=String::New("");
     } else {
-    	if (args.Length() <= 2 || !args[2]->IsString()) {
-	      // Binary
-	      outString = Encode(out, out_len, BINARY);
-	    } else {
-	      char* out_hexdigest;
-	      int out_hex_len;
-	      String::Utf8Value encoding(args[2]->ToString());
-	      if (strcasecmp(*encoding, "hex") == 0) {
-	        // Hex encoding
-	        HexEncode(out, out_len, &out_hexdigest, &out_hex_len);
-	        outString = Encode(out_hexdigest, out_hex_len, BINARY);
-	        delete [] out_hexdigest;
-	      } else if (strcasecmp(*encoding, "base64") == 0) {
+      if (args.Length() <= 2 || !args[2]->IsString()) {
+        // Binary
+        outString = Encode(out, out_len, BINARY);
+      } else {
+        char* out_hexdigest;
+        int out_hex_len;
+        String::Utf8Value encoding(args[2]->ToString());
+        if (strcasecmp(*encoding, "hex") == 0) {
+          // Hex encoding
+          HexEncode(out, out_len, &out_hexdigest, &out_hex_len);
+          outString = Encode(out_hexdigest, out_hex_len, BINARY);
+          delete [] out_hexdigest;
+        } else if (strcasecmp(*encoding, "base64") == 0) {
           // Base64 encoding
           // Check to see if we need to add in previous base64 overhang
           if (cipher->incomplete_base64!=NULL){
@@ -1460,16 +1538,16 @@ class Cipher : public ObjectWrap {
             out[out_len]=0;
           }
 
-	        base64(out, out_len, &out_hexdigest, &out_hex_len);
-	        outString = Encode(out_hexdigest, out_hex_len, BINARY);
-	        delete [] out_hexdigest;
-	      } else if (strcasecmp(*encoding, "binary") == 0) {
-	        outString = Encode(out, out_len, BINARY);
-	      } else {
+          base64(out, out_len, &out_hexdigest, &out_hex_len);
+          outString = Encode(out_hexdigest, out_hex_len, BINARY);
+          delete [] out_hexdigest;
+        } else if (strcasecmp(*encoding, "binary") == 0) {
+          outString = Encode(out, out_len, BINARY);
+        } else {
           fprintf(stderr, "node-crypto : Cipher .update encoding "
                           "can be binary, hex or base64\n");
-	      }
-	    }
+        }
+      }
     }
 
     if (out) delete [] out;
@@ -1585,9 +1663,9 @@ class Decipher : public ObjectWrap {
                    (unsigned char *)(iv),
                    false);
     if (!EVP_CIPHER_CTX_set_key_length(&ctx,key_len)) {
-    	fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
-    	EVP_CIPHER_CTX_cleanup(&ctx);
-    	return false;
+      fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
+      EVP_CIPHER_CTX_cleanup(&ctx);
+      return false;
     }
     initialised_ = true;
     return true;
@@ -1605,7 +1683,7 @@ class Decipher : public ObjectWrap {
       return false;
     }
     if (EVP_CIPHER_iv_length(cipher_) != iv_len) {
-    	fprintf(stderr, "node-crypto : Invalid IV length %d\n", iv_len);
+      fprintf(stderr, "node-crypto : Invalid IV length %d\n", iv_len);
       return false;
     }
     EVP_CIPHER_CTX_init(&ctx);
@@ -1615,9 +1693,9 @@ class Decipher : public ObjectWrap {
                    (unsigned char *)(iv),
                    false);
     if (!EVP_CIPHER_CTX_set_key_length(&ctx,key_len)) {
-    	fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
-    	EVP_CIPHER_CTX_cleanup(&ctx);
-    	return false;
+      fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
+      EVP_CIPHER_CTX_cleanup(&ctx);
+      return false;
     }
     initialised_ = true;
     return true;
@@ -1659,7 +1737,7 @@ class Decipher : public ObjectWrap {
 
   static Handle<Value> DecipherInit(const Arguments& args) {
     Decipher *cipher = ObjectWrap::Unwrap<Decipher>(args.This());
-		
+    
     HandleScope scope;
 
     cipher->incomplete_utf8=NULL;
@@ -1682,7 +1760,7 @@ class Decipher : public ObjectWrap {
     assert(key_written == key_len);
 
     String::Utf8Value cipherType(args[0]->ToString());
-    	
+      
     bool r = cipher->DecipherInit(*cipherType, key_buf,key_len);
 
     delete [] key_buf;
@@ -1696,7 +1774,7 @@ class Decipher : public ObjectWrap {
 
   static Handle<Value> DecipherInitIv(const Arguments& args) {
     Decipher *cipher = ObjectWrap::Unwrap<Decipher>(args.This());
-		
+    
     HandleScope scope;
 
     cipher->incomplete_utf8=NULL;
@@ -1730,7 +1808,7 @@ class Decipher : public ObjectWrap {
     assert(iv_written == iv_len);
 
     String::Utf8Value cipherType(args[0]->ToString());
-    	
+      
     bool r = cipher->DecipherInitIv(*cipherType, key_buf,key_len,iv_buf,iv_len);
 
     delete [] key_buf;
@@ -2087,7 +2165,7 @@ class Hmac : public ObjectWrap {
     }
 
     int r;
-	
+  
     if( Buffer::HasInstance(args[0])) {
       Local<Object> buffer_obj = args[0]->ToObject();
       char *buffer_data = Buffer::Data(buffer_obj);
