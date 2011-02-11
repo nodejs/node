@@ -2,6 +2,32 @@
 # node build stuff
 #
 
+set(macros_file ${PROJECT_BINARY_DIR}/macros.py)
+
+# replace debug(x) and assert(x) with nothing in release build
+if(${CMAKE_BUILD_TYPE} MATCHES Release)
+  file(APPEND ${macros_file} "macro debug(x) = ;\n")
+  file(APPEND ${macros_file} "macro assert(x) = ;\n")
+endif()
+
+if(NOT DTRACE)
+  set(dtrace_probes
+    DTRACE_HTTP_CLIENT_REQUEST
+    DTRACE_HTTP_CLIENT_RESPONSE
+    DTRACE_HTTP_SERVER_REQUEST
+    DTRACE_HTTP_SERVER_RESPONSE
+    DTRACE_NET_SERVER_CONNECTION
+    DTRACE_NET_STREAM_END
+    DTRACE_NET_SOCKET_READ
+    DTRACE_NET_SOCKET_WRITE)
+  foreach(probe ${dtrace_probes})
+    file(APPEND ${macros_file} "macro ${probe}(x) = ;\n")
+  endforeach()
+endif()
+
+# include macros file in generation
+set(js2c_files ${js2c_files} ${macros_file})
+
 add_custom_command(
   OUTPUT ${PROJECT_BINARY_DIR}/src/node_natives.h
   COMMAND ${PYTHON_EXECUTABLE} tools/js2c.py ${PROJECT_BINARY_DIR}/src/node_natives.h ${js2c_files}
@@ -66,6 +92,15 @@ include_directories(
   ${PROJECT_BINARY_DIR}/src
 )
 
+if(DTRACE)
+  add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/src/node_provider.h
+    COMMAND ${dtrace_bin} -x nolibs -h -o ${PROJECT_BINARY_DIR}/src/node_provider.h -s ${PROJECT_SOURCE_DIR}/src/node_provider.d
+    DEPENDS ${PROJECT_SOURCE_DIR}/src/node_provider.d)
+
+  set(node_sources ${node_sources} src/node_provider.o)
+  set(node_sources src/node_provider.h ${node_sources})
+endif()
+
 add_executable(node ${node_sources})
 set_target_properties(node PROPERTIES DEBUG_POSTFIX "_g")
 target_link_libraries(node
@@ -77,6 +112,20 @@ target_link_libraries(node
   ${CMAKE_THREAD_LIBS_INIT}
   ${extra_libs})
 
+if(DTRACE)
+  # manually gather up the object files for dtrace
+  get_property(sourcefiles TARGET node PROPERTY SOURCES)
+  foreach(src_file ${sourcefiles})
+    if(src_file MATCHES ".*\\.cc$")
+      set(node_objs ${node_objs} ${PROJECT_BINARY_DIR}/CMakeFiles/node.dir/${src_file}.o)
+    endif()
+  endforeach()
+
+  add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/src/node_provider.o
+    #COMMAND cmake -E echo ${node_objs}
+    COMMAND ${dtrace_bin} -G -x nolibs -s ${PROJECT_SOURCE_DIR}/src/node_provider.d -o ${PROJECT_BINARY_DIR}/src/node_provider.o ${node_objs}
+    DEPENDS ${node_objs})
+endif()
 
 install(TARGETS node RUNTIME DESTINATION bin)
 install(FILES     

@@ -72,6 +72,17 @@ else()
   add_definitions(-DHAVE_FDATASYNC=0)
 endif()
 
+if(DTRACE)
+  if(NOT ${node_platform} MATCHES sunos)
+    message(FATAL_ERROR "DTrace support only currently available on Solaris")
+  endif()
+  find_program(dtrace_bin dtrace)
+  if(NOT dtrace_bin)
+    message(FATAL_ERROR "DTrace binary not found")
+  endif()
+  add_definitions(-DHAVE_DTRACE=1)
+endif()
+
 add_definitions(
   -DPLATFORM="${node_platform}"
   -DX_STACKSIZE=65536
