@@ -10,6 +10,16 @@ endif()
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} node_platform)
 
+if(${node_platform} MATCHES darwin)
+  execute_process(COMMAND sw_vers -productVersion OUTPUT_VARIABLE OSX_VERSION)
+  string(REGEX REPLACE "^([0-9]+\\.[0-9]+).*$" "\\1" OSX_VERSION "${OSX_VERSION}")
+
+  if(OSX_VERSION GREATER 10.5)
+    # 10.6 builds are 64-bit
+    set(CMAKE_SYSTEM_PROCESSOR x86_64)
+  endif()
+endif()
+
 # Get system architecture
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES i686*)
   set(node_arch x86)
@@ -22,7 +32,6 @@ endif()
 if(${node_arch} MATCHES unknown)
   set(node_arch x86)
 endif()
-
 
 # Copy tools directory for out-of-source build
 string(COMPARE EQUAL $(PROJECT_BINARY_DIR) ${PROJECT_SOURCE_DIR} in_source_build)
@@ -52,9 +61,11 @@ endif()
 
 if(${node_platform} MATCHES darwin)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework Carbon")
+else()
+  # OSX fdatasync() check wrong: http://public.kitware.com/Bug/view.php?id=10044
+  check_function_exists(fdatasync HAVE_FDATASYNC)
 endif()
 
-check_function_exists(fdatasync HAVE_FDATASYNC)
 if(HAVE_FDATASYNC)
   add_definitions(-DHAVE_FDATASYNC=1)
 else()
