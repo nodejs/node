@@ -46,7 +46,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -g -Wextra -DDEBUG $ENV{CXXFLAGS}")
 set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG $ENV{CFLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG $ENV{CXXFLAGS}")
 
-if(NOT ${node_platform} MATCHES "Windows")
+if(NOT ${node_platform} MATCHES windows)
   add_definitions(-D__POSIX__=1)
 endif()
 
@@ -78,6 +78,7 @@ add_definitions(
   -D_LARGEFILE_SOURCE
   -D_FILE_OFFSET_BITS=64
   -DEV_MULTIPLICITY=0
+  -D_FORTIFY_SOURCE=2
   )
 
 # set the exec output path to be compatible with the current waf build system

@@ -48,13 +48,10 @@ else()
 endif()
 get_directory_property(compile_defs COMPILE_DEFINITIONS)
 foreach(def ${compile_defs})
-  # escape " in CPPFLAGS (-DPLATFORM="${node_platform}" would fuck stuff up
-  # otherwise)
-  string(REPLACE "\"" "\\\"" def ${def})
   set(CPPFLAGS "${CPPFLAGS} -D${def}")
 endforeach()
 
-configure_file(src/node_config.h.in ${PROJECT_BINARY_DIR}/src/node_config.h)
+configure_file(src/node_config.h.in ${PROJECT_BINARY_DIR}/src/node_config.h ESCAPE_QUOTES)
 configure_file(config.h.cmake ${PROJECT_BINARY_DIR}/config.h)
 
 include_directories(
