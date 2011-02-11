@@ -48,6 +48,12 @@ var s = http.createServer(function(req, res) {
       res.setHeader('transfer-encoding', 'chunked');
       assert.equal(res.getHeader('Transfer-Encoding'), 'chunked');
       break;
+
+    case 'writeHead':
+      res.statusCode = 404;
+      res.setHeader('x-foo', 'keyboard cat');
+      res.writeHead(200, { 'x-foo': 'bar', 'x-bar': 'baz' });
+      break;
   }
 
   res.statusCode = 201;
@@ -92,6 +98,13 @@ function nextTest () {
 
       case 'transferEncoding':
         assert.equal(response.headers['transfer-encoding'], 'chunked');
+        test = 'writeHead';
+        break;
+
+      case 'writeHead':
+        assert.equal(response.headers['x-foo'], 'bar');
+        assert.equal(response.headers['x-bar'], 'baz');
+        assert.equal(200, response.statusCode);
         test = 'end';
         break;
 
@@ -114,6 +127,6 @@ function nextTest () {
 
 
 process.on('exit', function() {
-  assert.equal(3, testsComplete);
+  assert.equal(4, testsComplete);
 });
 
