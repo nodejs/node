@@ -776,3 +776,4 @@ void Sampler::Stop() {
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal
+
