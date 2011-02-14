@@ -410,3 +410,15 @@ assert.equal(12, Buffer.byteLength('Il était tué', 'binary'));
 
 // slice(0,0).length === 0
 assert.equal(0, Buffer('hello').slice(0, 0).length);
+
+
+// toString('utf8') should not include null values
+var b = new Buffer(20);
+for (var i = 0; i < b.length; i++) {
+  b[i] = 0;
+}
+b.write('hello');
+assert.equal('hello', b.toString('utf8'));
+assert.equal('hello', b.toString('ascii'));
+
+
