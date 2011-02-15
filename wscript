@@ -196,7 +196,7 @@ def configure(conf):
 
   conf.env["USE_DEBUG"] = o.debug
   # Snapshot building does noet seem to work on cygwin and mingw32
-  conf.env["SNAPSHOT_V8"] = not o.without_snapshot and not sys.platform.startswith("cygwin") and not sys.platform.startswith("win32")
+  conf.env["SNAPSHOT_V8"] = not o.without_snapshot and not sys.platform.startswith("win32")
   if sys.platform.startswith("sunos"):
     conf.env["SNAPSHOT_V8"] = False
   conf.env["USE_PROFILING"] = o.profile

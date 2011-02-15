@@ -31,22 +31,17 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <cygwin/signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <stdlib.h>
 
-// Ubuntu Dapper requires memory pages to be marked as
-// executable. Otherwise, OS raises an exception when executing code
-// in that page.
 #include <sys/types.h>  // mmap & munmap
 #include <sys/mman.h>   // mmap & munmap
 #include <sys/stat.h>   // open
 #include <fcntl.h>      // open
 #include <unistd.h>     // sysconf
-#ifdef __GLIBC__
-#include <execinfo.h>   // backtrace, backtrace_symbols
-#endif  // def __GLIBC__
 #include <strings.h>    // index
 #include <errno.h>
 #include <stdarg.h>
@@ -60,12 +55,10 @@
 #include "v8threads.h"
 #include "vm-state-inl.h"
 
-
 namespace v8 {
 namespace internal {
 
-// 0 is never a valid thread id on Linux since tids and pids share a
-// name space and pid 0 is reserved (see man 2 kill).
+// 0 is never a valid thread id
 static const pthread_t kNoThread = (pthread_t) 0;
 
 
@@ -86,98 +79,11 @@ void OS::Setup() {
 
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-#if (defined(__VFP_FP__) && !defined(__SOFTFP__))
-  // Here gcc is telling us that we are on an ARM and gcc is assuming that we
-  // have VFP3 instructions.  If gcc can assume it then so can we.
-  return 1u << VFP3;
-#elif CAN_USE_ARMV7_INSTRUCTIONS
-  return 1u << ARMv7;
-#else
-  return 0;  // Linux runs on anything.
-#endif
+  return 0;  // Nothing special about cygwin
 }
-
-
-#ifdef __arm__
-static bool CPUInfoContainsString(const char * search_string) {
-  const char* file_name = "/proc/cpuinfo";
-  // This is written as a straight shot one pass parser
-  // and not using STL string and ifstream because,
-  // on Linux, it's reading from a (non-mmap-able)
-  // character special device.
-  FILE* f = NULL;
-  const char* what = search_string;
-
-  if (NULL == (f = fopen(file_name, "r")))
-    return false;
-
-  int k;
-  while (EOF != (k = fgetc(f))) {
-    if (k == *what) {
-      ++what;
-      while ((*what != '\0') && (*what == fgetc(f))) {
-        ++what;
-      }
-      if (*what == '\0') {
-        fclose(f);
-        return true;
-      } else {
-        what = search_string;
-      }
-    }
-  }
-  fclose(f);
-
-  // Did not find string in the proc file.
-  return false;
-}
-
-bool OS::ArmCpuHasFeature(CpuFeature feature) {
-  const char* search_string = NULL;
-  // Simple detection of VFP at runtime for Linux.
-  // It is based on /proc/cpuinfo, which reveals hardware configuration
-  // to user-space applications.  According to ARM (mid 2009), no similar
-  // facility is universally available on the ARM architectures,
-  // so it's up to individual OSes to provide such.
-  switch (feature) {
-    case VFP3:
-      search_string = "vfpv3";
-      break;
-    case ARMv7:
-      search_string = "ARMv7";
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  if (CPUInfoContainsString(search_string)) {
-    return true;
-  }
-
-  if (feature == VFP3) {
-    // Some old kernels will report vfp not vfpv3. Here we make a last attempt
-    // to detect vfpv3 by checking for vfp *and* neon, since neon is only
-    // available on architectures with vfpv3.
-    // Checking neon on its own is not enough as it is possible to have neon
-    // without vfp.
-    if (CPUInfoContainsString("vfp") && CPUInfoContainsString("neon")) {
-      return true;
-    }
-  }
-
-  return false;
-}
-#endif  // def __arm__
 
 
 int OS::ActivationFrameAlignment() {
-#ifdef V8_TARGET_ARCH_ARM
-  // On EABI ARM targets this is required for fp correctness in the
-  // runtime system.
-  return 8;
-#elif V8_TARGET_ARCH_MIPS
-  return 8;
-#endif
   // With gcc 4.4 the tree vectorization optimizer can generate code
   // that requires 16 byte alignment such as movdqa on x86.
   return 16;
@@ -195,7 +101,7 @@ const char* OS::LocalTimezone(double time) {
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return "";
-  return tzname[0];  // The location of the timezone string on Cywin.
+  return tzname[0];  // The location of the timezone string on Cygwin.
 }
 
 
@@ -205,7 +111,9 @@ double OS::LocalTimeOffset() {
   ASSERT(utc != -1);
   struct tm* loc = localtime(&utc);
   ASSERT(loc != NULL);
-  return static_cast<double>((mktime(loc) - utc) * msPerSecond);
+  // time - localtime includes any daylight savings offset, so subtract it.
+  return static_cast<double>((mktime(loc) - utc) * msPerSecond -
+                             (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
 
@@ -290,16 +198,7 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
-// TODO(lrn): Introduce processor define for runtime system (!= V8_ARCH_x,
-//  which is the architecture of generated code).
-#if (defined(__arm__) || defined(__thumb__)) && \
-    defined(CAN_USE_ARMV5_INSTRUCTIONS)
-  asm("bkpt 0");
-#elif defined(__mips__)
-  asm("break");
-#else
   asm("int $3");
-#endif
 }
 
 
@@ -413,39 +312,13 @@ void OS::LogSharedLibraryAddresses() {
 
 
 void OS::SignalCodeMovingGC() {
+  // Nothing to do on Cygwin
 }
 
 
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
-  // backtrace is a glibc extension.
-#ifdef __GLIBC__
-  int frames_size = frames.length();
-  ScopedVector<void*> addresses(frames_size);
-
-  int frames_count = backtrace(addresses.start(), frames_size);
-
-  char** symbols = backtrace_symbols(addresses.start(), frames_count);
-  if (symbols == NULL) {
-    return kStackWalkError;
-  }
-
-  for (int i = 0; i < frames_count; i++) {
-    frames[i].address = addresses[i];
-    // Format a text representation of the frame based on the information
-    // available.
-    SNPrintF(MutableCStrVector(frames[i].text, kStackWalkMaxTextLen),
-             "%s",
-             symbols[i]);
-    // Make sure line termination is in place.
-    frames[i].text[kStackWalkMaxTextLen - 1] = '\0';
-  }
-
-  free(symbols);
-
-  return frames_count;
-#else  // ndef __GLIBC__
+  // Not supported on Cygwin
   return 0;
-#endif  // ndef __GLIBC__
 }
 
 
@@ -488,7 +361,7 @@ bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   return mmap(address, size, PROT_NONE,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, // | MAP_FIXED, - Cygwin doesn't have MAP_FIXED
+              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
               kMmapFd, kMmapFdOffset) != MAP_FAILED;
 }
 
@@ -713,11 +586,6 @@ bool CygwinSemaphore::Wait(int timeout) {
   while (true) {
     int result = sem_timedwait(&sem_, &ts);
     if (result == 0) return true;  // Successfully got semaphore.
-    if (result > 0) {
-      // For glibc prior to 2.3.4 sem_timedwait returns the error instead of -1.
-      errno = result;
-      result = -1;
-    }
     if (result == -1 && errno == ETIMEDOUT) return false;  // Timeout.
     CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
   }
@@ -731,23 +599,110 @@ Semaphore* OS::CreateSemaphore(int count) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+typedef struct ucontext ucontext_t;
+
+static Sampler* active_sampler_ = NULL;
+static pthread_t vm_tid_ = 0;
+
+
+static pthread_t GetThreadID() {
+  return pthread_self();
+}
+
+
+static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
+  USE(info);
+  if (signal != SIGPROF) return;
+  if (active_sampler_ == NULL || !active_sampler_->IsActive()) return;
+  if (vm_tid_ != GetThreadID()) return;
+
+  TickSample sample_obj;
+  TickSample* sample = CpuProfiler::TickSampleEvent();
+  if (sample == NULL) sample = &sample_obj;
+
+  // Extracting the sample from the context is extremely machine dependent.
+  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
+  sample->state = Top::current_vm_state();
+#if V8_HOST_ARCH_IA32
+  sample->pc = reinterpret_cast<Address>(ucontext->eip);
+  sample->sp = reinterpret_cast<Address>(ucontext->esp);
+  sample->fp = reinterpret_cast<Address>(ucontext->ebp);
+#else
+  UNIMPLEMENTED();
+#endif
+  active_sampler_->SampleStack(sample);
+  active_sampler_->Tick(sample);
+}
+
+
 class Sampler::PlatformData : public Malloced {
  public:
+  enum SleepInterval {
+    FULL_INTERVAL,
+    HALF_INTERVAL
+  };
+
   explicit PlatformData(Sampler* sampler)
       : sampler_(sampler),
-        signal_handler_installed_(false) {
+        signal_handler_installed_(false),
+        vm_tgid_(getpid()),
+        signal_sender_launched_(false) {
   }
 
   void SignalSender() {
+    while (sampler_->IsActive()) {
+      if (rate_limiter_.SuspendIfNecessary()) continue;
+      if (sampler_->IsProfiling() && RuntimeProfiler::IsEnabled()) {
+        SendProfilingSignal();
+        Sleep(HALF_INTERVAL);
+        RuntimeProfiler::NotifyTick();
+        Sleep(HALF_INTERVAL);
+      } else {
+        if (sampler_->IsProfiling()) SendProfilingSignal();
+        if (RuntimeProfiler::IsEnabled()) RuntimeProfiler::NotifyTick();
+        Sleep(FULL_INTERVAL);
+      }
+    }
   }
 
   void SendProfilingSignal() {
+    pthread_kill(vm_tid_, SIGPROF);
+  }
+
+  void Sleep(SleepInterval full_or_half) {
+    // Convert ms to us and subtract 100 us to compensate delays
+    // occuring during signal delivery.
+    useconds_t interval = sampler_->interval_ * 1000 - 100;
+    if (full_or_half == HALF_INTERVAL) interval /= 2;
+    int result = usleep(interval);
+#ifdef DEBUG
+    if (result != 0 && errno != EINTR) {
+      fprintf(stderr,
+              "SignalSender usleep error; interval = %u, errno = %d\n",
+              static_cast<int>(interval),
+              errno);
+      ASSERT(result == 0 || errno == EINTR);
+    }
+#endif
+    USE(result);
   }
 
   Sampler* sampler_;
   bool signal_handler_installed_;
   struct sigaction old_signal_handler_;
+  int vm_tgid_;
+  bool signal_sender_launched_;
+  pthread_t signal_sender_thread_;
+  RuntimeProfilerRateLimiter rate_limiter_;
 };
+
+
+static void* SenderEntry(void* arg) {
+  Sampler::PlatformData* data =
+      reinterpret_cast<Sampler::PlatformData*>(arg);
+  data->SignalSender();
+  return 0;
+}
 
 
 Sampler::Sampler(int interval)
@@ -760,18 +715,60 @@ Sampler::Sampler(int interval)
 
 
 Sampler::~Sampler() {
+  ASSERT(!data_->signal_sender_launched_);
   delete data_;
 }
 
 
 void Sampler::Start() {
-  active_ = true;
+  // There can only be one active sampler at the time on POSIX
+  // platforms.
+  ASSERT(!IsActive());
+  vm_tid_ = pthread_self();
+
+  // Request profiling signals.
+  struct sigaction sa;
+  sa.sa_sigaction = ProfilerSignalHandler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESTART | SA_SIGINFO;
+  if (sigaction(SIGPROF, &sa, &data_->old_signal_handler_) != 0) return;
+  data_->signal_handler_installed_ = true;
+
+  // Start a thread that sends SIGPROF signal to VM thread.
+  // Sending the signal ourselves instead of relying on itimer provides
+  // much better accuracy.
+  SetActive(true);
+  if (pthread_create(
+          &data_->signal_sender_thread_, NULL, SenderEntry, data_) == 0) {
+    data_->signal_sender_launched_ = true;
+  }
+
+  // Set this sampler as the active sampler.
+  active_sampler_ = this;
 }
 
 
 void Sampler::Stop() {
-  active_ = false;
+  SetActive(false);
+
+  // Wait for signal sender termination (it will exit after setting
+  // active_ to false).
+  if (data_->signal_sender_launched_) {
+    Top::WakeUpRuntimeProfilerThreadBeforeShutdown();
+    pthread_join(data_->signal_sender_thread_, NULL);
+    data_->signal_sender_launched_ = false;
+  }
+
+  // Restore old signal handler
+  if (data_->signal_handler_installed_) {
+    sigaction(SIGPROF, &data_->old_signal_handler_, 0);
+    data_->signal_handler_installed_ = false;
+  }
+
+  // This sampler is no longer the active sampler.
+  active_sampler_ = NULL;
 }
+
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 

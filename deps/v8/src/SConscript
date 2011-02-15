@@ -266,6 +266,9 @@ D8_FILES = {
   'os:solaris': [
     'd8-posix.cc'
   ],
+  'os:cygwin': [
+    'd8-posix.cc'
+  ],
   'os:win32': [
     'd8-windows.cc'
   ],

@@ -188,9 +188,6 @@ LIBRARY_FLAGS = {
       'LIBPATH' : ['/usr/local/lib'],
       'CCFLAGS':      ['-ansi'],
     },
-    'os:cygwin': {
-      'WARNINGFLAGS': ['-Werror'],
-    },
     'os:win32': {
       'CCFLAGS':      ['-DWIN32'],
       'CXXFLAGS':     ['-DWIN32'],
@@ -672,8 +669,8 @@ def GuessToolchain(os):
 
 
 def GuessVisibility(os, toolchain):
-  if os == 'win32' and toolchain == 'gcc':
-    # MinGW can't do it.
+  if (os == 'win32' or os == 'cygwin') and toolchain == 'gcc':
+    # MinGW / Cygwin can't do it.
     return 'default'
   elif os == 'solaris':
     return 'default'
