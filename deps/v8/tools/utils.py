@@ -49,6 +49,8 @@ def GuessOS():
     return 'linux'
   elif id == 'Darwin':
     return 'macos'
+  elif id.find('CYGWIN') >= 0:
+    return 'cygwin'
   elif id == 'Windows' or id == 'Microsoft':
     # On Windows Vista platform.system() can return 'Microsoft' with some
     # versions of Python, see http://bugs.python.org/issue1082

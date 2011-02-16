@@ -233,6 +233,7 @@ SOURCES = {
   'os:android': ['platform-linux.cc', 'platform-posix.cc'],
   'os:macos':   ['platform-macos.cc', 'platform-posix.cc'],
   'os:solaris': ['platform-solaris.cc', 'platform-posix.cc'],
+  'os:cygwin':  ['platform-cygwin.cc', 'platform-posix.cc'],
   'os:nullos':  ['platform-nullos.cc'],
   'os:win32':   ['platform-win32.cc'],
   'mode:release': [],
@@ -262,6 +263,9 @@ D8_FILES = {
     'd8-posix.cc'
   ],
   'os:solaris': [
+    'd8-posix.cc'
+  ],
+  'os:cygwin': [
     'd8-posix.cc'
   ],
   'os:win32': [
