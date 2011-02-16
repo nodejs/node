@@ -1298,7 +1298,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result;
   Label not_heap_number;
-  Register scratch = r7;
+  Register scratch = r9.is(tos_) ? r7 : r9;
 
   __ LoadRoot(ip, Heap::kNullValueRootIndex);
   __ cmp(tos_, ip);
@@ -2588,6 +2588,39 @@ void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
       __ eor(right, left, Operand(right));
       __ Ret();
       break;
+    case Token::SAR:
+      // Remove tags from right operand.
+      __ GetLeastBitsFromSmi(scratch1, right, 5);
+      __ mov(right, Operand(left, ASR, scratch1));
+      // Smi tag result.
+      __ bic(right, right, Operand(kSmiTagMask));
+      __ Ret();
+      break;
+    case Token::SHR:
+      // Remove tags from operands. We can't do this on a 31 bit number
+      // because then the 0s get shifted into bit 30 instead of bit 31.
+      __ SmiUntag(scratch1, left);
+      __ GetLeastBitsFromSmi(scratch2, right, 5);
+      __ mov(scratch1, Operand(scratch1, LSR, scratch2));
+      // Unsigned shift is not allowed to produce a negative number, so
+      // check the sign bit and the sign bit after Smi tagging.
+      __ tst(scratch1, Operand(0xc0000000));
+      __ b(ne, &not_smi_result);
+      // Smi tag result.
+      __ SmiTag(right, scratch1);
+      __ Ret();
+      break;
+    case Token::SHL:
+      // Remove tags from operands.
+      __ SmiUntag(scratch1, left);
+      __ GetLeastBitsFromSmi(scratch2, right, 5);
+      __ mov(scratch1, Operand(scratch1, LSL, scratch2));
+      // Check that the signed result fits in a Smi.
+      __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
+      __ b(mi, &not_smi_result);
+      __ SmiTag(right, scratch1);
+      __ Ret();
+      break;
     default:
       UNREACHABLE();
   }
@@ -2703,7 +2736,10 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
     }
     case Token::BIT_OR:
     case Token::BIT_XOR:
-    case Token::BIT_AND: {
+    case Token::BIT_AND:
+    case Token::SAR:
+    case Token::SHR:
+    case Token::SHL: {
       if (smi_operands) {
         __ SmiUntag(r3, left);
         __ SmiUntag(r2, right);
@@ -2726,6 +2762,8 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
                                                  d0,
                                                  not_numbers);
       }
+
+      Label result_not_a_smi;
       switch (op_) {
         case Token::BIT_OR:
           __ orr(r2, r3, Operand(r2));
@@ -2736,11 +2774,35 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
         case Token::BIT_AND:
           __ and_(r2, r3, Operand(r2));
           break;
+        case Token::SAR:
+          // Use only the 5 least significant bits of the shift count.
+          __ and_(r2, r2, Operand(0x1f));
+          __ GetLeastBitsFromInt32(r2, r2, 5);
+          __ mov(r2, Operand(r3, ASR, r2));
+          break;
+        case Token::SHR:
+          // Use only the 5 least significant bits of the shift count.
+          __ GetLeastBitsFromInt32(r2, r2, 5);
+          __ mov(r2, Operand(r3, LSR, r2), SetCC);
+          // SHR is special because it is required to produce a positive answer.
+          // The code below for writing into heap numbers isn't capable of
+          // writing the register as an unsigned int so we go to slow case if we
+          // hit this case.
+          if (CpuFeatures::IsSupported(VFP3)) {
+            __ b(mi, &result_not_a_smi);
+          } else {
+            __ b(mi, not_numbers);
+          }
+          break;
+        case Token::SHL:
+          // Use only the 5 least significant bits of the shift count.
+          __ GetLeastBitsFromInt32(r2, r2, 5);
+          __ mov(r2, Operand(r3, LSL, r2));
+          break;
         default:
           UNREACHABLE();
       }
 
-      Label result_not_a_smi;
       // Check that the *signed* result fits in a smi.
       __ add(r3, r2, Operand(0x40000000), SetCC);
       __ b(mi, &result_not_a_smi);
@@ -2760,10 +2822,15 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       __ mov(r0, Operand(r5));
 
       if (CpuFeatures::IsSupported(VFP3)) {
-        // Convert the int32 in r2 to the heap number in r0. r3 is corrupted.
+        // Convert the int32 in r2 to the heap number in r0. r3 is corrupted. As
+        // mentioned above SHR needs to always produce a positive result.
         CpuFeatures::Scope scope(VFP3);
         __ vmov(s0, r2);
-        __ vcvt_f64_s32(d0, s0);
+        if (op_ == Token::SHR) {
+          __ vcvt_f64_u32(d0, s0);
+        } else {
+          __ vcvt_f64_s32(d0, s0);
+        }
         __ sub(r3, r0, Operand(kHeapObjectTag));
         __ vstr(d0, r3, HeapNumber::kValueOffset);
         __ Ret();
@@ -2790,15 +2857,6 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
     SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
   Label not_smis;
 
-  ASSERT(op_ == Token::ADD ||
-         op_ == Token::SUB ||
-         op_ == Token::MUL ||
-         op_ == Token::DIV ||
-         op_ == Token::MOD ||
-         op_ == Token::BIT_OR ||
-         op_ == Token::BIT_AND ||
-         op_ == Token::BIT_XOR);
-
   Register left = r1;
   Register right = r0;
   Register scratch1 = r7;
@@ -2824,15 +2882,6 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
 
 void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   Label not_smis, call_runtime;
-
-  ASSERT(op_ == Token::ADD ||
-         op_ == Token::SUB ||
-         op_ == Token::MUL ||
-         op_ == Token::DIV ||
-         op_ == Token::MOD ||
-         op_ == Token::BIT_OR ||
-         op_ == Token::BIT_AND ||
-         op_ == Token::BIT_XOR);
 
   if (result_type_ == TRBinaryOpIC::UNINITIALIZED ||
       result_type_ == TRBinaryOpIC::SMI) {
@@ -2864,15 +2913,6 @@ void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD ||
-         op_ == Token::SUB ||
-         op_ == Token::MUL ||
-         op_ == Token::DIV ||
-         op_ == Token::MOD ||
-         op_ == Token::BIT_OR ||
-         op_ == Token::BIT_AND ||
-         op_ == Token::BIT_XOR);
-
   ASSERT(operands_type_ == TRBinaryOpIC::INT32);
 
   GenerateTypeTransition(masm);
@@ -2880,15 +2920,6 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD ||
-         op_ == Token::SUB ||
-         op_ == Token::MUL ||
-         op_ == Token::DIV ||
-         op_ == Token::MOD ||
-         op_ == Token::BIT_OR ||
-         op_ == Token::BIT_AND ||
-         op_ == Token::BIT_XOR);
-
   Label not_numbers, call_runtime;
   ASSERT(operands_type_ == TRBinaryOpIC::HEAP_NUMBER);
 
@@ -2903,15 +2934,6 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
-  ASSERT(op_ == Token::ADD ||
-         op_ == Token::SUB ||
-         op_ == Token::MUL ||
-         op_ == Token::DIV ||
-         op_ == Token::MOD ||
-         op_ == Token::BIT_OR ||
-         op_ == Token::BIT_AND ||
-         op_ == Token::BIT_XOR);
-
   Label call_runtime;
 
   GenerateSmiCode(masm, &call_runtime, ALLOW_HEAPNUMBER_RESULTS);
@@ -2983,6 +3005,15 @@ void TypeRecordingBinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
       break;
     case Token::BIT_XOR:
       __ InvokeBuiltin(Builtins::BIT_XOR, JUMP_JS);
+      break;
+    case Token::SAR:
+      __ InvokeBuiltin(Builtins::SAR, JUMP_JS);
+      break;
+    case Token::SHR:
+      __ InvokeBuiltin(Builtins::SHR, JUMP_JS);
+      break;
+    case Token::SHL:
+      __ InvokeBuiltin(Builtins::SHL, JUMP_JS);
       break;
     default:
       UNREACHABLE();
@@ -3268,105 +3299,13 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  // r0 holds the exception.
-
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
-
-  // Drop the sp to the top of the handler.
-  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
-  __ ldr(sp, MemOperand(r3));
-
-  // Restore the next handler and frame pointer, discard handler state.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  __ pop(r2);
-  __ str(r2, MemOperand(r3));
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  __ ldm(ia_w, sp, r3.bit() | fp.bit());  // r3: discarded state.
-
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of a
-  // JS entry frame.
-  __ cmp(fp, Operand(0, RelocInfo::NONE));
-  // Set cp to NULL if fp is NULL.
-  __ mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
-  // Restore cp otherwise.
-  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
-#ifdef DEBUG
-  if (FLAG_debug_code) {
-    __ mov(lr, Operand(pc));
-  }
-#endif
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
-  __ pop(pc);
+  __ Throw(r0);
 }
 
 
 void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
                                           UncatchableExceptionType type) {
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
-
-  // Drop sp to the top stack handler.
-  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
-  __ ldr(sp, MemOperand(r3));
-
-  // Unwind the handlers until the ENTRY handler is found.
-  Label loop, done;
-  __ bind(&loop);
-  // Load the type of the current stack handler.
-  const int kStateOffset = StackHandlerConstants::kStateOffset;
-  __ ldr(r2, MemOperand(sp, kStateOffset));
-  __ cmp(r2, Operand(StackHandler::ENTRY));
-  __ b(eq, &done);
-  // Fetch the next handler in the list.
-  const int kNextOffset = StackHandlerConstants::kNextOffset;
-  __ ldr(sp, MemOperand(sp, kNextOffset));
-  __ jmp(&loop);
-  __ bind(&done);
-
-  // Set the top handler address to next handler past the current ENTRY handler.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  __ pop(r2);
-  __ str(r2, MemOperand(r3));
-
-  if (type == OUT_OF_MEMORY) {
-    // Set external caught exception to false.
-    ExternalReference external_caught(Top::k_external_caught_exception_address);
-    __ mov(r0, Operand(false, RelocInfo::NONE));
-    __ mov(r2, Operand(external_caught));
-    __ str(r0, MemOperand(r2));
-
-    // Set pending exception and r0 to out of memory exception.
-    Failure* out_of_memory = Failure::OutOfMemoryException();
-    __ mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
-    __ mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
-    __ str(r0, MemOperand(r2));
-  }
-
-  // Stack layout at this point. See also StackHandlerConstants.
-  // sp ->   state (ENTRY)
-  //         fp
-  //         lr
-
-  // Discard handler state (r2 is not used) and restore frame pointer.
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  __ ldm(ia_w, sp, r2.bit() | fp.bit());  // r2: discarded state.
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of a
-  // JS entry frame.
-  __ cmp(fp, Operand(0, RelocInfo::NONE));
-  // Set cp to NULL if fp is NULL.
-  __ mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
-  // Restore cp otherwise.
-  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
-#ifdef DEBUG
-  if (FLAG_debug_code) {
-    __ mov(lr, Operand(pc));
-  }
-#endif
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
-  __ pop(pc);
+  __ ThrowUncatchable(type, r0);
 }
 
 
@@ -3453,7 +3392,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
-  __ LeaveExitFrame(save_doubles_);
+  //  Callee-saved register r4 still holds argc.
+  __ LeaveExitFrame(save_doubles_, r4);
+  __ mov(pc, lr);
 
   // check if we should retry or throw exception
   Label retry;
@@ -4232,24 +4173,27 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::regexp_entry_native, 1, r0, r2);
 
   static const int kRegExpExecuteArguments = 7;
-  __ push(lr);
-  __ PrepareCallCFunction(kRegExpExecuteArguments, r0);
+  static const int kParameterRegisters = 4;
+  __ EnterExitFrame(false, kRegExpExecuteArguments - kParameterRegisters);
 
-  // Argument 7 (sp[8]): Indicate that this is a direct call from JavaScript.
+  // Stack pointer now points to cell where return address is to be written.
+  // Arguments are before that on the stack or in registers.
+
+  // Argument 7 (sp[12]): Indicate that this is a direct call from JavaScript.
   __ mov(r0, Operand(1));
-  __ str(r0, MemOperand(sp, 2 * kPointerSize));
+  __ str(r0, MemOperand(sp, 3 * kPointerSize));
 
-  // Argument 6 (sp[4]): Start (high end) of backtracking stack memory area.
+  // Argument 6 (sp[8]): Start (high end) of backtracking stack memory area.
   __ mov(r0, Operand(address_of_regexp_stack_memory_address));
   __ ldr(r0, MemOperand(r0, 0));
   __ mov(r2, Operand(address_of_regexp_stack_memory_size));
   __ ldr(r2, MemOperand(r2, 0));
   __ add(r0, r0, Operand(r2));
-  __ str(r0, MemOperand(sp, 1 * kPointerSize));
+  __ str(r0, MemOperand(sp, 2 * kPointerSize));
 
-  // Argument 5 (sp[0]): static offsets vector buffer.
+  // Argument 5 (sp[4]): static offsets vector buffer.
   __ mov(r0, Operand(ExternalReference::address_of_static_offsets_vector()));
-  __ str(r0, MemOperand(sp, 0 * kPointerSize));
+  __ str(r0, MemOperand(sp, 1 * kPointerSize));
 
   // For arguments 4 and 3 get string length, calculate start of string data and
   // calculate the shift of the index (0 for ASCII and 1 for two byte).
@@ -4271,8 +4215,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Locate the code entry and call it.
   __ add(r7, r7, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ CallCFunction(r7, kRegExpExecuteArguments);
-  __ pop(lr);
+  DirectCEntryStub stub;
+  stub.GenerateCall(masm, r7);
+
+  __ LeaveExitFrame(false, no_reg);
 
   // r0: result
   // subject: subject string (callee saved)
@@ -4281,6 +4227,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Check the result.
   Label success;
+
   __ cmp(r0, Operand(NativeRegExpMacroAssembler::SUCCESS));
   __ b(eq, &success);
   Label failure;
@@ -4293,12 +4240,26 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  __ mov(r0, Operand(ExternalReference::the_hole_value_location()));
-  __ ldr(r0, MemOperand(r0, 0));
-  __ mov(r1, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ mov(r1, Operand(ExternalReference::the_hole_value_location()));
   __ ldr(r1, MemOperand(r1, 0));
+  __ mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ ldr(r0, MemOperand(r2, 0));
   __ cmp(r0, r1);
   __ b(eq, &runtime);
+
+  __ str(r1, MemOperand(r2, 0));  // Clear pending exception.
+
+  // Check if the exception is a termination. If so, throw as uncatchable.
+  __ LoadRoot(ip, Heap::kTerminationExceptionRootIndex);
+  __ cmp(r0, ip);
+  Label termination_exception;
+  __ b(eq, &termination_exception);
+
+  __ Throw(r0);  // Expects thrown value in r0.
+
+  __ bind(&termination_exception);
+  __ ThrowUncatchable(TERMINATION, r0);  // Expects thrown value in r0.
+
   __ bind(&failure);
   // For failure and exception return null.
   __ mov(r0, Operand(Factory::null_value()));
@@ -5809,10 +5770,9 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
     // For equality we do not care about the sign of the result.
     __ sub(r0, r0, r1, SetCC);
   } else {
-    __ sub(r1, r1, r0, SetCC);
-    // Correct sign of result in case of overflow.
-    __ rsb(r1, r1, Operand(0), SetCC, vs);
-    __ mov(r0, r1);
+    // Untag before subtracting to avoid handling overflow.
+    __ SmiUntag(r1);
+    __ sub(r0, r1, SmiUntagOperand(r0));
   }
   __ Ret();
 
@@ -5923,11 +5883,21 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     ApiFunction *function) {
   __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
                      RelocInfo::CODE_TARGET));
-  // Push return address (accessible to GC through exit frame pc).
   __ mov(r2,
          Operand(ExternalReference(function, ExternalReference::DIRECT_CALL)));
+  // Push return address (accessible to GC through exit frame pc).
   __ str(pc, MemOperand(sp, 0));
   __ Jump(r2);  // Call the api function.
+}
+
+
+void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
+                                    Register target) {
+  __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
+                     RelocInfo::CODE_TARGET));
+  // Push return address (accessible to GC through exit frame pc).
+  __ str(pc, MemOperand(sp, 0));
+  __ Jump(target);  // Call the C++ function.
 }
 
 
@@ -5994,6 +5964,91 @@ void GenerateFastPixelArrayLoad(MacroAssembler* masm,
          FieldMemOperand(elements, PixelArray::kExternalPointerOffset));
   __ ldrb(scratch1, MemOperand(scratch1, scratch2));
   __ SmiTag(r0, scratch1);
+  __ Ret();
+}
+
+
+void GenerateFastPixelArrayStore(MacroAssembler* masm,
+                                 Register receiver,
+                                 Register key,
+                                 Register value,
+                                 Register elements,
+                                 Register elements_map,
+                                 Register scratch1,
+                                 Register scratch2,
+                                 bool load_elements_from_receiver,
+                                 bool load_elements_map_from_elements,
+                                 Label* key_not_smi,
+                                 Label* value_not_smi,
+                                 Label* not_pixel_array,
+                                 Label* out_of_range) {
+  // Register use:
+  //   receiver - holds the receiver and is unchanged unless the
+  //              store succeeds.
+  //   key - holds the key (must be a smi) and is unchanged.
+  //   value - holds the value (must be a smi) and is unchanged.
+  //   elements - holds the element object of the receiver on entry if
+  //              load_elements_from_receiver is false, otherwise used
+  //              internally to store the pixel arrays elements and
+  //              external array pointer.
+  //   elements_map - holds the map of the element object if
+  //              load_elements_map_from_elements is false, otherwise
+  //              loaded with the element map.
+  //
+  Register external_pointer = elements;
+  Register untagged_key = scratch1;
+  Register untagged_value = scratch2;
+
+  if (load_elements_from_receiver) {
+    __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  }
+
+  // By passing NULL as not_pixel_array, callers signal that they have already
+  // verified that the receiver has pixel array elements.
+  if (not_pixel_array != NULL) {
+    if (load_elements_map_from_elements) {
+      __ ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
+    }
+    __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
+    __ cmp(elements_map, ip);
+    __ b(ne, not_pixel_array);
+  } else {
+    if (FLAG_debug_code) {
+      // Map check should have already made sure that elements is a pixel array.
+      __ ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
+      __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
+      __ cmp(elements_map, ip);
+      __ Assert(eq, "Elements isn't a pixel array");
+    }
+  }
+
+  // Some callers already have verified that the key is a smi.  key_not_smi is
+  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
+  // to ensure the key is a smi must be added.
+  if (key_not_smi != NULL) {
+    __ JumpIfNotSmi(key, key_not_smi);
+  } else {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(key);
+    }
+  }
+
+  __ SmiUntag(untagged_key, key);
+
+  // Perform bounds check.
+  __ ldr(scratch2, FieldMemOperand(elements, PixelArray::kLengthOffset));
+  __ cmp(untagged_key, scratch2);
+  __ b(hs, out_of_range);  // unsigned check handles negative keys.
+
+  __ JumpIfNotSmi(value, value_not_smi);
+  __ SmiUntag(untagged_value, value);
+
+  // Clamp the value to [0..255].
+  __ Usat(untagged_value, 8, Operand(untagged_value));
+  // Get the pointer to the external array. This clobbers elements.
+  __ ldr(external_pointer,
+         FieldMemOperand(elements, PixelArray::kExternalPointerOffset));
+  __ strb(untagged_value, MemOperand(external_pointer, untagged_key));
   __ Ret();
 }
 

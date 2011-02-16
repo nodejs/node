@@ -58,22 +58,10 @@ test-heap/TestInternalWeakListsTraverseWithGC: PASS || FAIL
 [ $arch == x64 && $crankshaft ]
 
 # Tests that fail with crankshaft.
-test-deoptimization/DeoptimizeBinaryOperationADDString: FAIL
-test-deoptimization/DeoptimizeBinaryOperationADD: FAIL
-test-deoptimization/DeoptimizeBinaryOperationSUB: FAIL
-test-deoptimization/DeoptimizeBinaryOperationMUL: FAIL
 test-deoptimization/DeoptimizeBinaryOperationMOD: FAIL
-test-deoptimization/DeoptimizeBinaryOperationDIV: FAIL
 test-deoptimization/DeoptimizeLoadICStoreIC: FAIL
 test-deoptimization/DeoptimizeLoadICStoreICNested: FAIL
 test-deoptimization/DeoptimizeCompare: PASS || FAIL
-
-# Tests that time out with crankshaft.
-test-api/Threading: SKIP
-
-# BUG(1069): Context serialization fails on optimized functions.
-test-serialize/ContextSerialization: SKIP
-test-serialize/ContextDeserialization: SKIP
 
 ##############################################################################
 [ $arch == arm ]

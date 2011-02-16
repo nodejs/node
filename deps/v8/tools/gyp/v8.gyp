@@ -466,8 +466,6 @@
             '../../src/objects-visiting.h',
             '../../src/objects.cc',
             '../../src/objects.h',
-            '../../src/oprofile-agent.h',
-            '../../src/oprofile-agent.cc',
             '../../src/parser.cc',
             '../../src/parser.h',
             '../../src/platform.h',

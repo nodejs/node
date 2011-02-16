@@ -618,7 +618,9 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
   cell_ = Handle<JSGlobalPropertyCell>::null();
   LookupResult lookup;
   global->Lookup(*name, &lookup);
-  if (lookup.IsProperty() && lookup.type() == NORMAL) {
+  if (lookup.IsProperty() &&
+      lookup.type() == NORMAL &&
+      lookup.holder() == *global) {
     cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(&lookup));
     if (cell_->value()->IsJSFunction()) {
       Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));

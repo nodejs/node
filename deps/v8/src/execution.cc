@@ -403,6 +403,7 @@ void StackGuard::ThreadLocal::Initialize() {
   if (real_climit_ == kIllegalLimit) {
     // Takes the address of the limit variable in order to find out where
     // the top of stack is right now.
+    const uintptr_t kLimitSize = FLAG_stack_size * KB;
     uintptr_t limit = reinterpret_cast<uintptr_t>(&limit) - kLimitSize;
     ASSERT(reinterpret_cast<uintptr_t>(&limit) > kLimitSize);
     real_jslimit_ = SimulatorStack::JsLimitFromCLimit(limit);

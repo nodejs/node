@@ -436,6 +436,11 @@ class Parser {
                        Vector<Handle<String> > args);
 
  protected:
+  // Limit on number of function parameters is chosen arbitrarily.
+  // Code::Flags uses only the low 17 bits of num-parameters to
+  // construct a hashable id, so if more than 2^17 are allowed, this
+  // should be checked.
+  static const int kMaxNumFunctionParameters = 32766;
   FunctionLiteral* ParseLazy(Handle<SharedFunctionInfo> info,
                              UC16CharacterStream* source,
                              ZoneScope* zone_scope);

@@ -43,6 +43,9 @@ namespace internal {
 
 void CPU::Setup() {
   CpuFeatures::Probe(true);
+  if (Serializer::enabled()) {
+    V8::DisableCrankshaft();
+  }
 }
 
 

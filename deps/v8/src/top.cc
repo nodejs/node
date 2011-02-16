@@ -333,7 +333,7 @@ void Top::RegisterTryCatchHandler(v8::TryCatch* that) {
 
 
 void Top::UnregisterTryCatchHandler(v8::TryCatch* that) {
-  ASSERT(thread_local_.TryCatchHandler() == that);
+  ASSERT(try_catch_handler() == that);
   thread_local_.set_try_catch_handler_address(
       reinterpret_cast<Address>(that->next_));
   thread_local_.catcher_ = NULL;
@@ -380,16 +380,16 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
   int limit = Max(frame_limit, 0);
   Handle<JSArray> stack_trace = Factory::NewJSArray(frame_limit);
 
-  Handle<String> column_key =  Factory::LookupAsciiSymbol("column");
-  Handle<String> line_key =  Factory::LookupAsciiSymbol("lineNumber");
-  Handle<String> script_key =  Factory::LookupAsciiSymbol("scriptName");
+  Handle<String> column_key = Factory::LookupAsciiSymbol("column");
+  Handle<String> line_key = Factory::LookupAsciiSymbol("lineNumber");
+  Handle<String> script_key = Factory::LookupAsciiSymbol("scriptName");
   Handle<String> name_or_source_url_key =
       Factory::LookupAsciiSymbol("nameOrSourceURL");
   Handle<String> script_name_or_source_url_key =
       Factory::LookupAsciiSymbol("scriptNameOrSourceURL");
-  Handle<String> function_key =  Factory::LookupAsciiSymbol("functionName");
-  Handle<String> eval_key =  Factory::LookupAsciiSymbol("isEval");
-  Handle<String> constructor_key =  Factory::LookupAsciiSymbol("isConstructor");
+  Handle<String> function_key = Factory::LookupAsciiSymbol("functionName");
+  Handle<String> eval_key = Factory::LookupAsciiSymbol("isEval");
+  Handle<String> constructor_key = Factory::LookupAsciiSymbol("isConstructor");
 
   StackTraceFrameIterator it;
   int frames_seen = 0;
@@ -421,16 +421,16 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
             // tag.
             column_offset += script->column_offset()->value();
           }
-          SetProperty(stackFrame, column_key,
-                      Handle<Smi>(Smi::FromInt(column_offset + 1)), NONE);
+          SetLocalPropertyNoThrow(stackFrame, column_key,
+                                  Handle<Smi>(Smi::FromInt(column_offset + 1)));
         }
-        SetProperty(stackFrame, line_key,
-                    Handle<Smi>(Smi::FromInt(line_number + 1)), NONE);
+        SetLocalPropertyNoThrow(stackFrame, line_key,
+                                Handle<Smi>(Smi::FromInt(line_number + 1)));
       }
 
       if (options & StackTrace::kScriptName) {
         Handle<Object> script_name(script->name());
-        SetProperty(stackFrame, script_key, script_name, NONE);
+        SetLocalPropertyNoThrow(stackFrame, script_key, script_name);
       }
 
       if (options & StackTrace::kScriptNameOrSourceURL) {
@@ -446,7 +446,8 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
         if (caught_exception) {
           result = Factory::undefined_value();
         }
-        SetProperty(stackFrame, script_name_or_source_url_key, result, NONE);
+        SetLocalPropertyNoThrow(stackFrame, script_name_or_source_url_key,
+                                result);
       }
 
       if (options & StackTrace::kFunctionName) {
@@ -454,20 +455,20 @@ Handle<JSArray> Top::CaptureCurrentStackTrace(
         if (fun_name->ToBoolean()->IsFalse()) {
           fun_name = Handle<Object>(fun->shared()->inferred_name());
         }
-        SetProperty(stackFrame, function_key, fun_name, NONE);
+        SetLocalPropertyNoThrow(stackFrame, function_key, fun_name);
       }
 
       if (options & StackTrace::kIsEval) {
         int type = Smi::cast(script->compilation_type())->value();
         Handle<Object> is_eval = (type == Script::COMPILATION_TYPE_EVAL) ?
             Factory::true_value() : Factory::false_value();
-        SetProperty(stackFrame, eval_key, is_eval, NONE);
+        SetLocalPropertyNoThrow(stackFrame, eval_key, is_eval);
       }
 
       if (options & StackTrace::kIsConstructor) {
         Handle<Object> is_constructor = (frames[i].is_constructor()) ?
             Factory::true_value() : Factory::false_value();
-        SetProperty(stackFrame, constructor_key, is_constructor, NONE);
+        SetLocalPropertyNoThrow(stackFrame, constructor_key, is_constructor);
       }
 
       FixedArray::cast(stack_trace->elements())->set(frames_seen, *stackFrame);
@@ -731,6 +732,13 @@ Failure* Top::Throw(Object* exception, MessageLocation* location) {
 
 
 Failure* Top::ReThrow(MaybeObject* exception, MessageLocation* location) {
+  bool can_be_caught_externally = false;
+  ShouldReportException(&can_be_caught_externally,
+                        is_catchable_by_javascript(exception));
+  if (can_be_caught_externally) {
+    thread_local_.catcher_ = try_catch_handler();
+  }
+
   // Set the exception being re-thrown.
   set_pending_exception(exception);
   return Failure::Exception();
@@ -806,7 +814,7 @@ void Top::ComputeLocation(MessageLocation* target) {
 }
 
 
-bool Top::ShouldReportException(bool* is_caught_externally,
+bool Top::ShouldReportException(bool* can_be_caught_externally,
                                 bool catchable_by_javascript) {
   // Find the top-most try-catch handler.
   StackHandler* handler =
@@ -822,13 +830,13 @@ bool Top::ShouldReportException(bool* is_caught_externally,
   // The exception has been externally caught if and only if there is
   // an external handler which is on top of the top-most try-catch
   // handler.
-  *is_caught_externally = external_handler_address != NULL &&
+  *can_be_caught_externally = external_handler_address != NULL &&
       (handler == NULL || handler->address() > external_handler_address ||
        !catchable_by_javascript);
 
-  if (*is_caught_externally) {
+  if (*can_be_caught_externally) {
     // Only report the exception if the external handler is verbose.
-    return thread_local_.TryCatchHandler()->is_verbose_;
+    return try_catch_handler()->is_verbose_;
   } else {
     // Report the exception if it isn't caught by JavaScript code.
     return handler == NULL;
@@ -847,14 +855,12 @@ void Top::DoThrow(MaybeObject* exception,
   Handle<Object> exception_handle(exception_object);
 
   // Determine reporting and whether the exception is caught externally.
-  bool is_out_of_memory = exception == Failure::OutOfMemoryException();
-  bool is_termination_exception = exception == Heap::termination_exception();
-  bool catchable_by_javascript = !is_termination_exception && !is_out_of_memory;
+  bool catchable_by_javascript = is_catchable_by_javascript(exception);
   // Only real objects can be caught by JS.
   ASSERT(!catchable_by_javascript || is_object);
-  bool is_caught_externally = false;
+  bool can_be_caught_externally = false;
   bool should_report_exception =
-      ShouldReportException(&is_caught_externally, catchable_by_javascript);
+      ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
   bool report_exception = catchable_by_javascript && should_report_exception;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -868,8 +874,8 @@ void Top::DoThrow(MaybeObject* exception,
   Handle<Object> message_obj;
   MessageLocation potential_computed_location;
   bool try_catch_needs_message =
-      is_caught_externally &&
-      thread_local_.TryCatchHandler()->capture_message_;
+      can_be_caught_externally &&
+      try_catch_handler()->capture_message_;
   if (report_exception || try_catch_needs_message) {
     if (location == NULL) {
       // If no location was specified we use a computed one instead
@@ -907,8 +913,8 @@ void Top::DoThrow(MaybeObject* exception,
     }
   }
 
-  if (is_caught_externally) {
-    thread_local_.catcher_ = thread_local_.TryCatchHandler();
+  if (can_be_caught_externally) {
+    thread_local_.catcher_ = try_catch_handler();
   }
 
   // NOTE: Notifying the debugger or generating the message
@@ -924,22 +930,63 @@ void Top::DoThrow(MaybeObject* exception,
 }
 
 
+bool Top::IsExternallyCaught() {
+  ASSERT(has_pending_exception());
+
+  if ((thread_local_.catcher_ == NULL) ||
+      (try_catch_handler() != thread_local_.catcher_)) {
+    // When throwing the exception, we found no v8::TryCatch
+    // which should care about this exception.
+    return false;
+  }
+
+  if (!is_catchable_by_javascript(pending_exception())) {
+    return true;
+  }
+
+  // Get the address of the external handler so we can compare the address to
+  // determine which one is closer to the top of the stack.
+  Address external_handler_address = thread_local_.try_catch_handler_address();
+  ASSERT(external_handler_address != NULL);
+
+  // The exception has been externally caught if and only if there is
+  // an external handler which is on top of the top-most try-finally
+  // handler.
+  // There should be no try-catch blocks as they would prohibit us from
+  // finding external catcher in the first place (see catcher_ check above).
+  //
+  // Note, that finally clause would rethrow an exception unless it's
+  // aborted by jumps in control flow like return, break, etc. and we'll
+  // have another chances to set proper v8::TryCatch.
+  StackHandler* handler =
+      StackHandler::FromAddress(Top::handler(Top::GetCurrentThread()));
+  while (handler != NULL && handler->address() < external_handler_address) {
+    ASSERT(!handler->is_try_catch());
+    if (handler->is_try_finally()) return false;
+
+    handler = handler->next();
+  }
+
+  return true;
+}
+
+
 void Top::ReportPendingMessages() {
   ASSERT(has_pending_exception());
-  setup_external_caught();
   // If the pending exception is OutOfMemoryException set out_of_memory in
   // the global context.  Note: We have to mark the global context here
   // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
   // set it.
-  bool external_caught = thread_local_.external_caught_exception_;
+  bool external_caught = IsExternallyCaught();
+  thread_local_.external_caught_exception_ = external_caught;
   HandleScope scope;
   if (thread_local_.pending_exception_ == Failure::OutOfMemoryException()) {
     context()->mark_out_of_memory();
   } else if (thread_local_.pending_exception_ ==
              Heap::termination_exception()) {
     if (external_caught) {
-      thread_local_.TryCatchHandler()->can_continue_ = false;
-      thread_local_.TryCatchHandler()->exception_ = Heap::null_value();
+      try_catch_handler()->can_continue_ = false;
+      try_catch_handler()->exception_ = Heap::null_value();
     }
   } else {
     // At this point all non-object (failure) exceptions have
@@ -948,9 +995,8 @@ void Top::ReportPendingMessages() {
     Handle<Object> exception(pending_exception_object);
     thread_local_.external_caught_exception_ = false;
     if (external_caught) {
-      thread_local_.TryCatchHandler()->can_continue_ = true;
-      thread_local_.TryCatchHandler()->exception_ =
-        thread_local_.pending_exception_;
+      try_catch_handler()->can_continue_ = true;
+      try_catch_handler()->exception_ = thread_local_.pending_exception_;
       if (!thread_local_.pending_message_obj_->IsTheHole()) {
         try_catch_handler()->message_ = thread_local_.pending_message_obj_;
       }

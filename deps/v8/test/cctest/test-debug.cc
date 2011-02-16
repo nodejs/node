@@ -997,7 +997,7 @@ TEST(DebugStub) {
   CheckDebugBreakFunction(&env,
                           "function f2(){x=1;}", "f2",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET,
+                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
                           Builtins::builtin(Builtins::StoreIC_DebugBreak));
   CheckDebugBreakFunction(&env,
                           "function f3(){var a=x;}", "f3",

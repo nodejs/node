@@ -178,10 +178,16 @@ class RelocInfo BASE_EMBEDDED {
   // invalid/uninitialized position value.
   static const int kNoPosition = -1;
 
+  // This string is used to add padding comments to the reloc info in cases
+  // where we are not sure to have enough space for patching in during
+  // lazy deoptimization. This is the case if we have indirect calls for which
+  // we do not normally record relocation info.
+  static const char* kFillerCommentString;
+
   enum Mode {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CONSTRUCT_CALL,  // code target that is a call to a JavaScript constructor.
-    CODE_TARGET_CONTEXT,  // Code target used for contextual loads.
+    CODE_TARGET_CONTEXT,  // Code target used for contextual loads and stores.
     DEBUG_BREAK,  // Code target for the debugger statement.
     CODE_TARGET,  // Code target which is not any of the above.
     EMBEDDED_OBJECT,

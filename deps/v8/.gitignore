@@ -20,6 +20,8 @@ d8_g
 shell
 shell_g
 /obj/
+/test/es5conform/data/
+/test/mozilla/data/
 /test/sputnik/sputniktests/
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o

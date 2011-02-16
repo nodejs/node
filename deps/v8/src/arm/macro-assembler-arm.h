@@ -45,6 +45,12 @@ static inline MemOperand FieldMemOperand(Register object, int offset) {
 }
 
 
+static inline Operand SmiUntagOperand(Register object) {
+  return Operand(object, ASR, kSmiTagSize);
+}
+
+
+
 // Give alias names to registers
 const Register cp = { 8 };  // JavaScript context pointer
 const Register roots = { 10 };  // Roots array pointer.
@@ -291,7 +297,9 @@ class MacroAssembler: public Assembler {
   void EnterExitFrame(bool save_doubles, int stack_space = 0);
 
   // Leave the current exit frame. Expects the return value in r0.
-  void LeaveExitFrame(bool save_doubles);
+  // Expect the number of values, pushed prior to the exit frame, to
+  // remove in a register (or no_reg, if there is nothing to remove).
+  void LeaveExitFrame(bool save_doubles, Register argument_count);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -364,6 +372,13 @@ class MacroAssembler: public Assembler {
   // Unlink the stack handler on top of the stack from the try handler chain.
   // Must preserve the result register.
   void PopTryHandler();
+
+  // Passes thrown value (in r0) to the handler of top of the try handler chain.
+  void Throw(Register value);
+
+  // Propagates an uncatchable exception to the top of the current JS stack's
+  // handler chain.
+  void ThrowUncatchable(UncatchableExceptionType type, Register value);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -558,6 +573,7 @@ class MacroAssembler: public Assembler {
 
   // Get the number of least significant bits from a register
   void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
+  void GetLeastBitsFromInt32(Register dst, Register src, int mun_least_bits);
 
   // Uses VFP instructions to Convert a Smi to a double.
   void IntegerToDoubleConversionWithVFP3(Register inReg,
@@ -784,6 +800,9 @@ class MacroAssembler: public Assembler {
   void AbortIfSmi(Register object);
   void AbortIfNotSmi(Register object);
 
+  // Abort execution if argument is a string. Used in debug code.
+  void AbortIfNotString(Register object);
+
   // Abort execution if argument is not the root value with the given index.
   void AbortIfNotRootValue(Register src,
                            Heap::RootListIndex root_value_index,
@@ -886,10 +905,14 @@ class CodePatcher {
   MacroAssembler* masm() { return &masm_; }
 
   // Emit an instruction directly.
-  void Emit(Instr x);
+  void Emit(Instr instr);
 
   // Emit an address directly.
   void Emit(Address addr);
+
+  // Emit the condition part of an instruction leaving the rest of the current
+  // instruction unchanged.
+  void EmitCondition(Condition cond);
 
  private:
   byte* address_;  // The address of the code being patched.

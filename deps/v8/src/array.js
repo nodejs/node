@@ -161,15 +161,7 @@ function Join(array, length, separator, convert) {
     var result = %_FastAsciiArrayJoin(elements, separator);
     if (!IS_UNDEFINED(result)) return result;   
 
-    var length2 = (length << 1) - 1;
-    var j = length2;
-    var i = length;
-    elements[--j] = elements[--i];
-    while (i > 0) {
-      elements[--j] = separator;
-      elements[--j] = elements[--i];
-    }
-    return %StringBuilderConcat(elements, length2, '');    
+    return %StringBuilderJoin(elements, length, separator);
   } finally {
     // Make sure to remove the last element of the visited array no
     // matter what happens.

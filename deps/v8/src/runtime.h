@@ -45,7 +45,7 @@ namespace internal {
   /* Property access */ \
   F(GetProperty, 2, 1) \
   F(KeyedGetProperty, 2, 1) \
-  F(DeleteProperty, 2, 1) \
+  F(DeleteProperty, 3, 1) \
   F(HasLocalProperty, 2, 1) \
   F(HasProperty, 2, 1) \
   F(HasElement, 2, 1) \
@@ -128,6 +128,7 @@ namespace internal {
   \
   F(StringAdd, 2, 1) \
   F(StringBuilderConcat, 3, 1) \
+  F(StringBuilderJoin, 3, 1) \
   \
   /* Bit operations */ \
   F(NumberOr, 2, 1) \

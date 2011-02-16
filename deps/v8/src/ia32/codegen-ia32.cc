@@ -3771,14 +3771,15 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // Leave the frame and return popping the arguments and the
   // receiver.
   frame_->Exit();
-  masm_->ret((scope()->num_parameters() + 1) * kPointerSize);
+  int arguments_bytes = (scope()->num_parameters() + 1) * kPointerSize;
+  __ Ret(arguments_bytes, ecx);
   DeleteFrame();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  // Check that the size of the code used for returning matches what is
-  // expected by the debugger.
-  ASSERT_EQ(Assembler::kJSReturnSequenceLength,
-            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+  // Check that the size of the code used for returning is large enough
+  // for the debugger's requirements.
+  ASSERT(Assembler::kJSReturnSequenceLength <=
+         masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
 }
 
@@ -5587,7 +5588,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           Load(property->value());
           if (property->emit_store()) {
             Result ignored =
-                frame_->CallStoreIC(Handle<String>::cast(key), false);
+                frame_->CallStoreIC(Handle<String>::cast(key), false,
+                                    strict_mode_flag());
             // A test eax instruction following the store IC call would
             // indicate the presence of an inlined version of the
             // store. Add a nop to indicate that there is no such
@@ -8223,19 +8225,24 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     if (property != NULL) {
       Load(property->obj());
       Load(property->key());
-      Result answer = frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
+      frame_->Push(Smi::FromInt(strict_mode_flag()));
+      Result answer = frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 3);
       frame_->Push(&answer);
       return;
     }
 
     Variable* variable = node->expression()->AsVariableProxy()->AsVariable();
     if (variable != NULL) {
+      // Delete of an unqualified identifier is disallowed in strict mode
+      // so this code can only be reached in non-strict mode.
+      ASSERT(strict_mode_flag() == kNonStrictMode);
       Slot* slot = variable->AsSlot();
       if (variable->is_global()) {
         LoadGlobal();
         frame_->Push(variable->name());
+        frame_->Push(Smi::FromInt(kNonStrictMode));
         Result answer = frame_->InvokeBuiltin(Builtins::DELETE,
-                                              CALL_FUNCTION, 2);
+                                              CALL_FUNCTION, 3);
         frame_->Push(&answer);
         return;
 
@@ -9670,7 +9677,7 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 
   Result result;
   if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
-    result = frame()->CallStoreIC(name, is_contextual);
+    result = frame()->CallStoreIC(name, is_contextual, strict_mode_flag());
     // A test eax instruction following the call signals that the inobject
     // property case was inlined.  Ensure that there is not a test eax
     // instruction here.
@@ -9754,7 +9761,7 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     slow.Bind(&value, &receiver);
     frame()->Push(&receiver);
     frame()->Push(&value);
-    result = frame()->CallStoreIC(name, is_contextual);
+    result = frame()->CallStoreIC(name, is_contextual, strict_mode_flag());
     // Encode the offset to the map check instruction and the offset
     // to the write barrier store address computation in a test eax
     // instruction.

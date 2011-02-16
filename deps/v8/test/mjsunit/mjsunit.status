@@ -105,21 +105,19 @@ regress/regress-create-exception: SKIP
 regress/regress-3218915: SKIP
 regress/regress-3247124: SKIP
 
+# Requires bigger stack size in the Genesis and if stack size is increased,
+# the test requires too much time to run.  However, the problem test covers
+# should be platform-independent.
+regress/regress-1132: SKIP
 
 ##############################################################################
 [ $arch == arm && $crankshaft ]
-
-# Test that currently fails with crankshaft on ARM.
-compiler/simple-osr: FAIL
 
 # BUG (1094)
 regress/regress-deopt-gc: SKIP
 
 ##############################################################################
 [ $arch == x64 && $crankshaft ]
-
-# BUG (1026) This test is currently flaky.
-compiler/simple-osr: SKIP
 
 # BUG (1094)
 regress/regress-deopt-gc: SKIP

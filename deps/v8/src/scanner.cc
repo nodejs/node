@@ -76,7 +76,8 @@ void BufferedUC16CharacterStream::SlowPushBack(uc16 character) {
     buffer_end_ = buffer_ + kBufferSize;
     buffer_cursor_ = buffer_end_;
   }
-  ASSERT(pushback_limit_ > buffer_);
+  // Ensure that there is room for at least one pushback.
+  ASSERT(buffer_cursor_ > buffer_);
   ASSERT(pos_ > 0);
   buffer_[--buffer_cursor_ - buffer_] = character;
   if (buffer_cursor_ == buffer_) {
@@ -89,15 +90,17 @@ void BufferedUC16CharacterStream::SlowPushBack(uc16 character) {
 
 
 bool BufferedUC16CharacterStream::ReadBlock() {
+  buffer_cursor_ = buffer_;
   if (pushback_limit_ != NULL) {
-    buffer_cursor_ = buffer_;
+    // Leave pushback mode.
     buffer_end_ = pushback_limit_;
     pushback_limit_ = NULL;
-    ASSERT(buffer_cursor_ != buffer_end_);
-    return true;
+    // If there were any valid characters left at the
+    // start of the buffer, use those.
+    if (buffer_cursor_ < buffer_end_) return true;
+    // Otherwise read a new block.
   }
   unsigned length = FillBuffer(pos_, kBufferSize);
-  buffer_cursor_ = buffer_;
   buffer_end_ = buffer_ + length;
   return length > 0;
 }

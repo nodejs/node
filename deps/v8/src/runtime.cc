@@ -884,10 +884,17 @@ static MaybeObject* Runtime_PreventExtensions(Arguments args) {
   return obj->PreventExtensions();
 }
 
+
 static MaybeObject* Runtime_IsExtensible(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSObject, obj, args[0]);
-  return obj->map()->is_extensible() ?  Heap::true_value()
+  if (obj->IsJSGlobalProxy()) {
+    Object* proto = obj->GetPrototype();
+    if (proto->IsNull()) return Heap::false_value();
+    ASSERT(proto->IsJSGlobalObject());
+    obj = JSObject::cast(proto);
+  }
+  return obj->map()->is_extensible() ? Heap::true_value()
                                      : Heap::false_value();
 }
 
@@ -1082,7 +1089,7 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
         const char* type = (lookup.IsReadOnly()) ? "const" : "var";
         return ThrowRedeclarationError(type, name);
       }
-      SetProperty(global, name, value, attributes);
+      RETURN_IF_EMPTY_HANDLE(SetProperty(global, name, value, attributes));
     } else {
       // If a property with this name does not already exist on the
       // global object add the property locally.  We take special
@@ -1090,10 +1097,12 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
       // of callbacks in the prototype chain (this rules out using
       // SetProperty).  Also, we must use the handle-based version to
       // avoid GC issues.
-      SetLocalPropertyIgnoreAttributes(global, name, value, attributes);
+      RETURN_IF_EMPTY_HANDLE(
+          SetLocalPropertyIgnoreAttributes(global, name, value, attributes));
     }
   }
 
+  ASSERT(!Top::has_pending_exception());
   return Heap::undefined_value();
 }
 
@@ -1143,12 +1152,14 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
         } else {
           // The holder is an arguments object.
           Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
-          SetElement(arguments, index, initial_value);
+          Handle<Object> result = SetElement(arguments, index, initial_value);
+          if (result.is_null()) return Failure::Exception();
         }
       } else {
         // Slow case: The property is not in the FixedArray part of the context.
         Handle<JSObject> context_ext = Handle<JSObject>::cast(holder);
-        SetProperty(context_ext, name, initial_value, mode);
+        RETURN_IF_EMPTY_HANDLE(
+            SetProperty(context_ext, name, initial_value, mode));
       }
     }
 
@@ -1175,8 +1186,7 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
     ASSERT(!context_ext->HasLocalProperty(*name));
     Handle<Object> value(Heap::undefined_value());
     if (*initial_value != NULL) value = initial_value;
-    SetProperty(context_ext, name, value, mode);
-    ASSERT(context_ext->GetLocalPropertyAttribute(*name) == mode);
+    RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, mode));
   }
 
   return Heap::undefined_value();
@@ -1325,12 +1335,12 @@ static MaybeObject* Runtime_InitializeConstGlobal(Arguments args) {
     // with setting the value because the property is either absent or
     // read-only. We also have to do redo the lookup.
     HandleScope handle_scope;
-    Handle<GlobalObject>global(Top::context()->global());
+    Handle<GlobalObject> global(Top::context()->global());
 
-    // BUG 1213579: Handle the case where we have to set a read-only
+    // BUG 1213575: Handle the case where we have to set a read-only
     // property through an interceptor and only do it if it's
     // uninitialized, e.g. the hole. Nirk...
-    SetProperty(global, name, value, attributes);
+    RETURN_IF_EMPTY_HANDLE(SetProperty(global, name, value, attributes));
     return *value;
   }
 
@@ -1412,7 +1422,7 @@ static MaybeObject* Runtime_InitializeConstContextSlot(Arguments args) {
   // context.
   if (attributes == ABSENT) {
     Handle<JSObject> global = Handle<JSObject>(Top::context()->global());
-    SetProperty(global, name, value, NONE);
+    RETURN_IF_EMPTY_HANDLE(SetProperty(global, name, value, NONE));
     return *value;
   }
 
@@ -1449,14 +1459,8 @@ static MaybeObject* Runtime_InitializeConstContextSlot(Arguments args) {
     // The property was found in a different context extension object.
     // Set it if it is not a read-only property.
     if ((attributes & READ_ONLY) == 0) {
-      Handle<Object> set = SetProperty(context_ext, name, value, attributes);
-      // Setting a property might throw an exception.  Exceptions
-      // are converted to empty handles in handle operations.  We
-      // need to convert back to exceptions here.
-      if (set.is_null()) {
-        ASSERT(Top::has_pending_exception());
-        return Failure::Exception();
-      }
+      RETURN_IF_EMPTY_HANDLE(
+          SetProperty(context_ext, name, value, attributes));
     }
   }
 
@@ -3668,14 +3672,20 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   if (((unchecked & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0) &&
       is_element) {
     // Normalize the elements to enable attributes on the property.
-    if (!js_object->IsJSGlobalProxy()) {
-      NormalizeElements(js_object);
+    if (js_object->IsJSGlobalProxy()) {
+      Handle<Object> proto(js_object->GetPrototype());
+      // If proxy is detached, ignore the assignment. Alternatively,
+      // we could throw an exception.
+      if (proto->IsNull()) return *obj_value;
+      js_object = Handle<JSObject>::cast(proto);
     }
+    NormalizeElements(js_object);
     Handle<NumberDictionary> dictionary(js_object->element_dictionary());
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
     PropertyDetails details = PropertyDetails(attr, NORMAL);
     NumberDictionarySet(dictionary, index, obj_value, details);
+    return *obj_value;
   }
 
   LookupResult result;
@@ -3690,9 +3700,12 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   if (result.IsProperty() &&
       (attr != result.GetAttributes() || result.type() == CALLBACKS)) {
     // New attributes - normalize to avoid writing to instance descriptor
-    if (!js_object->IsJSGlobalProxy()) {
-      NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
+    if (js_object->IsJSGlobalProxy()) {
+      // Since the result is a property, the prototype will exist so
+      // we don't have to check for null.
+      js_object = Handle<JSObject>(JSObject::cast(js_object->GetPrototype()));
     }
+    NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
     return js_object->SetLocalPropertyIgnoreAttributes(*name,
@@ -3700,7 +3713,7 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
                                                        attr);
   }
 
-  return Runtime::SetObjectProperty(js_object, name, obj_value, attr);
+  return Runtime::ForceSetObjectProperty(js_object, name, obj_value, attr);
 }
 
 
@@ -3901,11 +3914,14 @@ static MaybeObject* Runtime_IgnoreAttributesAndSetProperty(Arguments args) {
 
 static MaybeObject* Runtime_DeleteProperty(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
 
   CONVERT_CHECKED(JSObject, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
-  return object->DeleteProperty(key, JSObject::NORMAL_DELETION);
+  CONVERT_SMI_CHECKED(strict, args[2]);
+  return object->DeleteProperty(key, strict == kStrictMode
+                                      ? JSObject::STRICT_DELETION
+                                      : JSObject::NORMAL_DELETION);
 }
 
 
@@ -4199,6 +4215,22 @@ static MaybeObject* Runtime_LocalKeys(Arguments args) {
   CONVERT_CHECKED(JSObject, raw_object, args[0]);
   HandleScope scope;
   Handle<JSObject> object(raw_object);
+
+  if (object->IsJSGlobalProxy()) {
+    // Do access checks before going to the global object.
+    if (object->IsAccessCheckNeeded() &&
+        !Top::MayNamedAccess(*object, Heap::undefined_value(),
+                             v8::ACCESS_KEYS)) {
+      Top::ReportFailedAccessCheck(*object, v8::ACCESS_KEYS);
+      return *Factory::NewJSArray(0);
+    }
+
+    Handle<Object> proto(object->GetPrototype());
+    // If proxy is detached we simply return an empty array.
+    if (proto->IsNull()) return *Factory::NewJSArray(0);
+    object = Handle<JSObject>::cast(proto);
+  }
+
   Handle<FixedArray> contents = GetKeysInFixedArrayFor(object,
                                                        LOCAL_ONLY);
   // Some fast paths through GetKeysInFixedArrayFor reuse a cached
@@ -5782,6 +5814,89 @@ static MaybeObject* Runtime_StringBuilderConcat(Arguments args) {
 }
 
 
+static MaybeObject* Runtime_StringBuilderJoin(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+  CONVERT_CHECKED(JSArray, array, args[0]);
+  if (!args[1]->IsSmi()) {
+    Top::context()->mark_out_of_memory();
+    return Failure::OutOfMemoryException();
+  }
+  int array_length = Smi::cast(args[1])->value();
+  CONVERT_CHECKED(String, separator, args[2]);
+
+  if (!array->HasFastElements()) {
+    return Top::Throw(Heap::illegal_argument_symbol());
+  }
+  FixedArray* fixed_array = FixedArray::cast(array->elements());
+  if (fixed_array->length() < array_length) {
+    array_length = fixed_array->length();
+  }
+
+  if (array_length == 0) {
+    return Heap::empty_string();
+  } else if (array_length == 1) {
+    Object* first = fixed_array->get(0);
+    if (first->IsString()) return first;
+  }
+
+  int separator_length = separator->length();
+  int max_nof_separators =
+      (String::kMaxLength + separator_length - 1) / separator_length;
+  if (max_nof_separators < (array_length - 1)) {
+      Top::context()->mark_out_of_memory();
+      return Failure::OutOfMemoryException();
+  }
+  int length = (array_length - 1) * separator_length;
+  for (int i = 0; i < array_length; i++) {
+    Object* element_obj = fixed_array->get(i);
+    if (!element_obj->IsString()) {
+      // TODO(1161): handle this case.
+      return Top::Throw(Heap::illegal_argument_symbol());
+    }
+    String* element = String::cast(element_obj);
+    int increment = element->length();
+    if (increment > String::kMaxLength - length) {
+      Top::context()->mark_out_of_memory();
+      return Failure::OutOfMemoryException();
+    }
+    length += increment;
+  }
+
+  Object* object;
+  { MaybeObject* maybe_object = Heap::AllocateRawTwoByteString(length);
+    if (!maybe_object->ToObject(&object)) return maybe_object;
+  }
+  SeqTwoByteString* answer = SeqTwoByteString::cast(object);
+
+  uc16* sink = answer->GetChars();
+#ifdef DEBUG
+  uc16* end = sink + length;
+#endif
+
+  String* first = String::cast(fixed_array->get(0));
+  int first_length = first->length();
+  String::WriteToFlat(first, sink, 0, first_length);
+  sink += first_length;
+
+  for (int i = 1; i < array_length; i++) {
+    ASSERT(sink + separator_length <= end);
+    String::WriteToFlat(separator, sink, 0, separator_length);
+    sink += separator_length;
+
+    String* element = String::cast(fixed_array->get(i));
+    int element_length = element->length();
+    ASSERT(sink + element_length <= end);
+    String::WriteToFlat(element, sink, 0, element_length);
+    sink += element_length;
+  }
+  ASSERT(sink == end);
+
+  ASSERT(!answer->HasOnlyAsciiChars());  // Use %_FastAsciiArrayJoin instead.
+  return answer;
+}
+
+
 static MaybeObject* Runtime_NumberOr(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -6681,28 +6796,50 @@ static MaybeObject* Runtime_NewClosure(Arguments args) {
   return *result;
 }
 
+
 static MaybeObject* Runtime_NewObjectFromBound(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
+  // First argument is a function to use as a constructor.
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  CONVERT_ARG_CHECKED(JSArray, params, 1);
 
-  RUNTIME_ASSERT(params->HasFastElements());
-  FixedArray* fixed = FixedArray::cast(params->elements());
+  // Second argument is either null or an array of bound arguments.
+  FixedArray* bound_args = NULL;
+  int bound_argc = 0;
+  if (!args[1]->IsNull()) {
+    CONVERT_ARG_CHECKED(JSArray, params, 1);
+    RUNTIME_ASSERT(params->HasFastElements());
+    bound_args = FixedArray::cast(params->elements());
+    bound_argc = Smi::cast(params->length())->value();
+  }
 
-  int fixed_length = Smi::cast(params->length())->value();
-  SmartPointer<Object**> param_data(NewArray<Object**>(fixed_length));
-  for (int i = 0; i < fixed_length; i++) {
-    Handle<Object> val = Handle<Object>(fixed->get(i));
+  // Find frame containing arguments passed to the caller.
+  JavaScriptFrameIterator it;
+  JavaScriptFrame* frame = it.frame();
+  ASSERT(!frame->is_optimized());
+  it.AdvanceToArgumentsFrame();
+  frame = it.frame();
+  int argc = frame->GetProvidedParametersCount();
+
+  // Prepend bound arguments to caller's arguments.
+  int total_argc = bound_argc + argc;
+  SmartPointer<Object**> param_data(NewArray<Object**>(total_argc));
+  for (int i = 0; i < bound_argc; i++) {
+    Handle<Object> val = Handle<Object>(bound_args->get(i));
     param_data[i] = val.location();
+  }
+  for (int i = 0; i < argc; i++) {
+    Handle<Object> val = Handle<Object>(frame->GetParameter(i));
+    param_data[bound_argc + i] = val.location();
   }
 
   bool exception = false;
-  Handle<Object> result = Execution::New(
-      function, fixed_length, *param_data, &exception);
+  Handle<Object> result =
+      Execution::New(function, total_argc, *param_data, &exception);
   if (exception) {
       return Failure::Exception();
   }
+
   ASSERT(!result.is_null());
   return *result;
 }
@@ -7340,12 +7477,17 @@ static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
     if (holder->IsContext()) {
       // Ignore if read_only variable.
       if ((attributes & READ_ONLY) == 0) {
-        Handle<Context>::cast(holder)->set(index, *value);
+        // Context is a fixed array and set cannot fail.
+        Context::cast(*holder)->set(index, *value);
       }
     } else {
       ASSERT((attributes & READ_ONLY) == 0);
-      Handle<JSObject>::cast(holder)->SetElement(index, *value)->
-          ToObjectUnchecked();
+      Handle<Object> result =
+          SetElement(Handle<JSObject>::cast(holder), index, value);
+      if (result.is_null()) {
+        ASSERT(Top::has_pending_exception());
+        return Failure::Exception();
+      }
     }
     return *value;
   }
@@ -7368,14 +7510,7 @@ static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
   // extension object itself.
   if ((attributes & READ_ONLY) == 0 ||
       (context_ext->GetLocalPropertyAttribute(*name) == ABSENT)) {
-    Handle<Object> set = SetProperty(context_ext, name, value, NONE);
-    if (set.is_null()) {
-      // Failure::Exception is converted to a null handle in the
-      // handle-based methods such as SetProperty.  We therefore need
-      // to convert null handles back to exceptions.
-      ASSERT(Top::has_pending_exception());
-      return Failure::Exception();
-    }
+    RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, NONE));
   }
   return *value;
 }
@@ -8226,7 +8361,7 @@ static MaybeObject* Runtime_ArrayConcat(Arguments args) {
     }
   }
 
-  // Allocate an empty array, will set length and content later.
+  // Allocate an empty array, will set map, length, and content later.
   Handle<JSArray> result = Factory::NewJSArray(0);
 
   uint32_t estimate_nof_elements = IterateArguments(arguments, NULL);
@@ -8235,23 +8370,20 @@ static MaybeObject* Runtime_ArrayConcat(Arguments args) {
   // dictionary.
   bool fast_case = (estimate_nof_elements * 2) >= result_length;
 
+  Handle<Map> map;
   Handle<FixedArray> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to
     // preserve holes across concat operations.
+    map = Factory::GetFastElementsMap(Handle<Map>(result->map()));
     storage = Factory::NewFixedArrayWithHoles(result_length);
-    Handle<Map> fast_map =
-        Factory::GetFastElementsMap(Handle<Map>(result->map()));
-    result->set_map(*fast_map);
   } else {
+    map = Factory::GetSlowElementsMap(Handle<Map>(result->map()));
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
-                  Factory::NewNumberDictionary(at_least_space_for));
-    Handle<Map> slow_map =
-        Factory::GetSlowElementsMap(Handle<Map>(result->map()));
-    result->set_map(*slow_map);
+        Factory::NewNumberDictionary(at_least_space_for));
   }
 
   Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
@@ -8260,8 +8392,12 @@ static MaybeObject* Runtime_ArrayConcat(Arguments args) {
 
   IterateArguments(arguments, &visitor);
 
+  // Please note:
+  // - the storage might have been changed in the visitor;
+  // - the map and the storage must be set together to avoid breaking
+  //   the invariant that the map describes the array's elements.
+  result->set_map(*map);
   result->set_length(*len);
-  // Please note the storage might have changed in the visitor.
   result->set_elements(*visitor.storage());
 
   return *result;
@@ -8855,7 +8991,7 @@ static MaybeObject* Runtime_GetFrameDetails(Arguments args) {
       // If we are inspecting an optimized frame use undefined as the
       // value for all locals.
       //
-      // TODO(3141533): We should be able to get the correct values
+      // TODO(1140): We should be able to get the correct values
       // for locals in optimized frames.
       locals->set(i * 2 + 1, Heap::undefined_value());
     } else if (i < info.number_of_stack_slots()) {
@@ -9019,7 +9155,7 @@ static MaybeObject* Runtime_GetFrameDetails(Arguments args) {
 
 
 // Copy all the context locals into an object used to materialize a scope.
-static void CopyContextLocalsToScopeObject(
+static bool CopyContextLocalsToScopeObject(
     Handle<SerializedScopeInfo> serialized_scope_info,
     ScopeInfo<>& scope_info,
     Handle<Context> context,
@@ -9033,11 +9169,15 @@ static void CopyContextLocalsToScopeObject(
 
     // Don't include the arguments shadow (.arguments) context variable.
     if (*scope_info.context_slot_name(i) != Heap::arguments_shadow_symbol()) {
-      SetProperty(scope_object,
-                  scope_info.context_slot_name(i),
-                  Handle<Object>(context->get(context_index)), NONE);
+      RETURN_IF_EMPTY_HANDLE_VALUE(
+          SetProperty(scope_object,
+                      scope_info.context_slot_name(i),
+                      Handle<Object>(context->get(context_index)), NONE),
+          false);
     }
   }
+
+  return true;
 }
 
 
@@ -9055,23 +9195,29 @@ static Handle<JSObject> MaterializeLocalScope(JavaScriptFrame* frame) {
 
   // First fill all parameters.
   for (int i = 0; i < scope_info.number_of_parameters(); ++i) {
-    SetProperty(local_scope,
-                scope_info.parameter_name(i),
-                Handle<Object>(frame->GetParameter(i)), NONE);
+    RETURN_IF_EMPTY_HANDLE_VALUE(
+        SetProperty(local_scope,
+                    scope_info.parameter_name(i),
+                    Handle<Object>(frame->GetParameter(i)), NONE),
+        Handle<JSObject>());
   }
 
   // Second fill all stack locals.
   for (int i = 0; i < scope_info.number_of_stack_slots(); i++) {
-    SetProperty(local_scope,
-                scope_info.stack_slot_name(i),
-                Handle<Object>(frame->GetExpression(i)), NONE);
+    RETURN_IF_EMPTY_HANDLE_VALUE(
+        SetProperty(local_scope,
+                    scope_info.stack_slot_name(i),
+                    Handle<Object>(frame->GetExpression(i)), NONE),
+        Handle<JSObject>());
   }
 
   // Third fill all context locals.
   Handle<Context> frame_context(Context::cast(frame->context()));
   Handle<Context> function_context(frame_context->fcontext());
-  CopyContextLocalsToScopeObject(serialized_scope_info, scope_info,
-                                 function_context, local_scope);
+  if (!CopyContextLocalsToScopeObject(serialized_scope_info, scope_info,
+                                      function_context, local_scope)) {
+    return Handle<JSObject>();
+  }
 
   // Finally copy any properties from the function context extension. This will
   // be variables introduced by eval.
@@ -9084,7 +9230,9 @@ static Handle<JSObject> MaterializeLocalScope(JavaScriptFrame* frame) {
         // Names of variables introduced by eval are strings.
         ASSERT(keys->get(i)->IsString());
         Handle<String> key(String::cast(keys->get(i)));
-        SetProperty(local_scope, key, GetProperty(ext, key), NONE);
+        RETURN_IF_EMPTY_HANDLE_VALUE(
+            SetProperty(local_scope, key, GetProperty(ext, key), NONE),
+            Handle<JSObject>());
       }
     }
   }
@@ -9117,16 +9265,20 @@ static Handle<JSObject> MaterializeClosure(Handle<Context> context) {
     for (int i = 0; i < scope_info.number_of_parameters(); ++i) {
       // We don't expect exception-throwing getters on the arguments shadow.
       Object* element = arguments_shadow->GetElement(i)->ToObjectUnchecked();
-      SetProperty(closure_scope,
-                  scope_info.parameter_name(i),
-                  Handle<Object>(element),
-                  NONE);
+      RETURN_IF_EMPTY_HANDLE_VALUE(
+          SetProperty(closure_scope,
+                      scope_info.parameter_name(i),
+                      Handle<Object>(element),
+                      NONE),
+          Handle<JSObject>());
     }
   }
 
   // Fill all context locals to the context extension.
-  CopyContextLocalsToScopeObject(serialized_scope_info, scope_info,
-                                 context, closure_scope);
+  if (!CopyContextLocalsToScopeObject(serialized_scope_info, scope_info,
+                                      context, closure_scope)) {
+    return Handle<JSObject>();
+  }
 
   // Finally copy any properties from the function context extension. This will
   // be variables introduced by eval.
@@ -9137,7 +9289,9 @@ static Handle<JSObject> MaterializeClosure(Handle<Context> context) {
       // Names of variables introduced by eval are strings.
       ASSERT(keys->get(i)->IsString());
       Handle<String> key(String::cast(keys->get(i)));
-      SetProperty(closure_scope, key, GetProperty(ext, key), NONE);
+      RETURN_IF_EMPTY_HANDLE_VALUE(
+          SetProperty(closure_scope, key, GetProperty(ext, key), NONE),
+          Handle<JSObject>());
     }
   }
 
@@ -9424,6 +9578,7 @@ static MaybeObject* Runtime_GetScopeDetails(Arguments args) {
   // Fill in scope details.
   details->set(kScopeDetailsTypeIndex, Smi::FromInt(it.Type()));
   Handle<JSObject> scope_object = it.ScopeObject();
+  RETURN_IF_EMPTY_HANDLE(scope_object);
   details->set(kScopeDetailsObjectIndex, *scope_object);
 
   return *Factory::NewJSArrayWithElements(details);
@@ -9905,6 +10060,7 @@ static MaybeObject* Runtime_DebugEvaluate(Arguments args) {
 
   // Materialize the content of the local scope into a JSObject.
   Handle<JSObject> local_scope = MaterializeLocalScope(frame);
+  RETURN_IF_EMPTY_HANDLE(local_scope);
 
   // Allocate a new context for the debug evaluation and set the extension
   // object build.

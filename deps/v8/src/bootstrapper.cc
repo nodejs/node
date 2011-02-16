@@ -349,7 +349,7 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
                                       prototype,
                                       call_code,
                                       is_ecma_native);
-  SetProperty(target, symbol, function, DONT_ENUM);
+  SetLocalPropertyNoThrow(target, symbol, function, DONT_ENUM);
   if (is_ecma_native) {
     function->shared()->set_instance_class_name(*symbol);
   }
@@ -580,8 +580,8 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
     Handle<JSObject> prototype =
         Handle<JSObject>(
             JSObject::cast(js_global_function->instance_prototype()));
-    SetProperty(prototype, Factory::constructor_symbol(),
-                Top::object_function(), NONE);
+    SetLocalPropertyNoThrow(
+        prototype, Factory::constructor_symbol(), Top::object_function(), NONE);
   } else {
     Handle<FunctionTemplateInfo> js_global_constructor(
         FunctionTemplateInfo::cast(js_global_template->constructor()));
@@ -683,7 +683,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   global_context()->set_security_token(*inner_global);
 
   Handle<String> object_name = Handle<String>(Heap::Object_symbol());
-  SetProperty(inner_global, object_name, Top::object_function(), DONT_ENUM);
+  SetLocalPropertyNoThrow(inner_global, object_name,
+                          Top::object_function(), DONT_ENUM);
 
   Handle<JSObject> global = Handle<JSObject>(global_context()->global());
 
@@ -851,7 +852,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     cons->SetInstanceClassName(*name);
     Handle<JSObject> json_object = Factory::NewJSObject(cons, TENURED);
     ASSERT(json_object->IsJSObject());
-    SetProperty(global, name, json_object, DONT_ENUM);
+    SetLocalPropertyNoThrow(global, name, json_object, DONT_ENUM);
     global_context()->set_json_object(*json_object);
   }
 
@@ -880,12 +881,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     global_context()->set_arguments_boilerplate(*result);
     // Note: callee must be added as the first property and
     //       length must be added as the second property.
-    SetProperty(result, Factory::callee_symbol(),
-                Factory::undefined_value(),
-                DONT_ENUM);
-    SetProperty(result, Factory::length_symbol(),
-                Factory::undefined_value(),
-                DONT_ENUM);
+    SetLocalPropertyNoThrow(result, Factory::callee_symbol(),
+                            Factory::undefined_value(),
+                            DONT_ENUM);
+    SetLocalPropertyNoThrow(result, Factory::length_symbol(),
+                            Factory::undefined_value(),
+                            DONT_ENUM);
 
 #ifdef DEBUG
     LookupResult lookup;
@@ -1085,10 +1086,8 @@ bool Genesis::InstallNatives() {
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   Handle<String> global_symbol = Factory::LookupAsciiSymbol("global");
-  SetProperty(builtins,
-              global_symbol,
-              Handle<Object>(global_context()->global()),
-              attributes);
+  Handle<Object> global_obj(global_context()->global());
+  SetLocalPropertyNoThrow(builtins, global_symbol, global_obj, attributes);
 
   // Setup the reference from the global object to the builtins object.
   JSGlobalObject::cast(global_context()->global())->set_builtins(*builtins);
@@ -1480,17 +1479,17 @@ void Genesis::InstallSpecialObjects(Handle<Context> global_context) {
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
     Handle<String> natives_string =
         Factory::LookupAsciiSymbol(FLAG_expose_natives_as);
-    SetProperty(js_global, natives_string,
-                Handle<JSObject>(js_global->builtins()), DONT_ENUM);
+    SetLocalPropertyNoThrow(js_global, natives_string,
+                            Handle<JSObject>(js_global->builtins()), DONT_ENUM);
   }
 
   Handle<Object> Error = GetProperty(js_global, "Error");
   if (Error->IsJSObject()) {
     Handle<String> name = Factory::LookupAsciiSymbol("stackTraceLimit");
-    SetProperty(Handle<JSObject>::cast(Error),
-                name,
-                Handle<Smi>(Smi::FromInt(FLAG_stack_trace_limit)),
-                NONE);
+    SetLocalPropertyNoThrow(Handle<JSObject>::cast(Error),
+                            name,
+                            Handle<Smi>(Smi::FromInt(FLAG_stack_trace_limit)),
+                            NONE);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1507,8 +1506,8 @@ void Genesis::InstallSpecialObjects(Handle<Context> global_context) {
 
     Handle<String> debug_string =
         Factory::LookupAsciiSymbol(FLAG_expose_debug_as);
-    SetProperty(js_global, debug_string,
-        Handle<Object>(Debug::debug_context()->global_proxy()), DONT_ENUM);
+    Handle<Object> global_proxy(Debug::debug_context()->global_proxy());
+    SetLocalPropertyNoThrow(js_global, debug_string, global_proxy, DONT_ENUM);
   }
 #endif
 }
@@ -1679,7 +1678,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           Handle<String> key = Handle<String>(descs->GetKey(i));
           int index = descs->GetFieldIndex(i);
           Handle<Object> value = Handle<Object>(from->FastPropertyAt(index));
-          SetProperty(to, key, value, details.attributes());
+          SetLocalPropertyNoThrow(to, key, value, details.attributes());
           break;
         }
         case CONSTANT_FUNCTION: {
@@ -1687,7 +1686,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           Handle<String> key = Handle<String>(descs->GetKey(i));
           Handle<JSFunction> fun =
               Handle<JSFunction>(descs->GetConstantFunction(i));
-          SetProperty(to, key, fun, details.attributes());
+          SetLocalPropertyNoThrow(to, key, fun, details.attributes());
           break;
         }
         case CALLBACKS: {
@@ -1737,7 +1736,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           value = Handle<Object>(JSGlobalPropertyCell::cast(*value)->value());
         }
         PropertyDetails details = properties->DetailsAt(i);
-        SetProperty(to, key, value, details.attributes());
+        SetLocalPropertyNoThrow(to, key, value, details.attributes());
       }
     }
   }

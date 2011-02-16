@@ -86,9 +86,6 @@ namespace internal {
   CODE_STUB_LIST_ALL_PLATFORMS(V)    \
   CODE_STUB_LIST_ARM(V)
 
-// Types of uncatchable exceptions.
-enum UncatchableExceptionType { OUT_OF_MEMORY, TERMINATION };
-
 // Mode to overwrite BinaryExpression values.
 enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 enum UnaryOverwriteMode { UNARY_OVERWRITE, UNARY_NO_OVERWRITE };

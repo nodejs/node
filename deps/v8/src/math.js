@@ -220,7 +220,7 @@ function SetupMath() {
                DONT_ENUM |  DONT_DELETE | READ_ONLY);
   %SetProperty($Math,
                "LOG10E",
-               0.43429448190325176,
+               0.4342944819032518,
                DONT_ENUM |  DONT_DELETE | READ_ONLY);
   %SetProperty($Math,
                "PI",

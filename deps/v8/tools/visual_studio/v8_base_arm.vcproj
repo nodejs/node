@@ -816,14 +816,6 @@
         >
       </File>
       <File
-        RelativePath="..\..\src\oprofile-agent.cc"
-        >
-      </File>
-      <File
-        RelativePath="..\..\src\oprofile-agent.h"
-        >
-      </File>
-      <File
         RelativePath="..\..\src\parser.cc"
         >
       </File>

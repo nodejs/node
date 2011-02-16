@@ -531,10 +531,25 @@ MaybeObject* Object::GetProperty(Object* receiver,
 
 
 MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
-  // Non-JS objects do not have integer indexed properties.
-  if (!IsJSObject()) return Heap::undefined_value();
-  return JSObject::cast(this)->GetElementWithReceiver(JSObject::cast(receiver),
-                                                      index);
+  if (IsJSObject()) {
+    return JSObject::cast(this)->GetElementWithReceiver(receiver, index);
+  }
+
+  Object* holder = NULL;
+  Context* global_context = Top::context()->global_context();
+  if (IsString()) {
+    holder = global_context->string_function()->instance_prototype();
+  } else if (IsNumber()) {
+    holder = global_context->number_function()->instance_prototype();
+  } else if (IsBoolean()) {
+    holder = global_context->boolean_function()->instance_prototype();
+  } else {
+    // Undefined and null have no indexed properties.
+    ASSERT(IsUndefined() || IsNull());
+    return Heap::undefined_value();
+  }
+
+  return JSObject::cast(holder)->GetElementWithReceiver(receiver, index);
 }
 
 
@@ -1399,7 +1414,7 @@ MaybeObject* JSObject::AddProperty(String* name,
   if (!map()->is_extensible()) {
     Handle<Object> args[1] = {Handle<String>(name)};
     return Top::Throw(*Factory::NewTypeError("object_not_extensible",
-                                               HandleVector(args, 1)));
+                                             HandleVector(args, 1)));
   }
   if (HasFastProperties()) {
     // Ensure the descriptor array does not get too big.
@@ -1707,8 +1722,9 @@ void JSObject::LookupCallbackSetterInPrototypes(String* name,
 }
 
 
-bool JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
-                                                        Object* value) {
+MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
+                                                                Object* value,
+                                                                bool* found) {
   for (Object* pt = GetPrototype();
        pt != Heap::null_value();
        pt = pt->GetPrototype()) {
@@ -1718,15 +1734,16 @@ bool JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
     NumberDictionary* dictionary = JSObject::cast(pt)->element_dictionary();
     int entry = dictionary->FindEntry(index);
     if (entry != NumberDictionary::kNotFound) {
-      Object* element = dictionary->ValueAt(entry);
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
-        SetElementWithCallback(element, index, value, JSObject::cast(pt));
-        return true;
+        *found = true;
+        return SetElementWithCallback(
+            dictionary->ValueAt(entry), index, value, JSObject::cast(pt));
       }
     }
   }
-  return false;
+  *found = false;
+  return Heap::the_hole_value();
 }
 
 
@@ -2618,7 +2635,17 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       NumberDictionary* dictionary = element_dictionary();
       int entry = dictionary->FindEntry(index);
       if (entry != NumberDictionary::kNotFound) {
-        return dictionary->DeleteProperty(entry, mode);
+        Object* result = dictionary->DeleteProperty(entry, mode);
+        if (mode == STRICT_DELETION && result == Heap::false_value()) {
+          // In strict mode, deleting a non-configurable property throws
+          // exception. dictionary->DeleteProperty will return false_value()
+          // if a non-configurable property is being deleted.
+          HandleScope scope;
+          Handle<Object> i = Factory::NewNumberFromUint(index);
+          Handle<Object> args[2] = { i, Handle<Object>(this) };
+          return Top::Throw(*Factory::NewTypeError("strict_delete_property",
+                                                   HandleVector(args, 2)));
+        }
       }
       break;
     }
@@ -2657,6 +2684,13 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
     if (!result.IsProperty()) return Heap::true_value();
     // Ignore attributes if forcing a deletion.
     if (result.IsDontDelete() && mode != FORCE_DELETION) {
+      if (mode == STRICT_DELETION) {
+        // Deleting a non-configurable property in strict mode.
+        HandleScope scope;
+        Handle<Object> args[2] = { Handle<Object>(name), Handle<Object>(this) };
+        return Top::Throw(*Factory::NewTypeError("strict_delete_property",
+                                                 HandleVector(args, 2)));
+      }
       return Heap::false_value();
     }
     // Check for interceptor.
@@ -2779,6 +2813,13 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 
 MaybeObject* JSObject::PreventExtensions() {
+  if (IsJSGlobalProxy()) {
+    Object* proto = GetPrototype();
+    if (proto->IsNull()) return this;
+    ASSERT(proto->IsJSGlobalObject());
+    return JSObject::cast(proto)->PreventExtensions();
+  }
+
   // If there are fast elements we normalize.
   if (HasFastElements()) {
     Object* ok;
@@ -6229,10 +6270,35 @@ const char* Code::PropertyType2String(PropertyType type) {
 }
 
 
+void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
+  const char* name = NULL;
+  switch (kind) {
+    case CALL_IC:
+      if (extra == STRING_INDEX_OUT_OF_BOUNDS) {
+        name = "STRING_INDEX_OUT_OF_BOUNDS";
+      }
+      break;
+    case STORE_IC:
+      if (extra == StoreIC::kStoreICStrict) {
+        name = "STRICT";
+      }
+      break;
+    default:
+      break;
+  }
+  if (name != NULL) {
+    PrintF(out, "extra_ic_state = %s\n", name);
+  } else {
+    PrintF(out, "etra_ic_state = %d\n", extra);
+  }
+}
+
+
 void Code::Disassemble(const char* name, FILE* out) {
   PrintF(out, "kind = %s\n", Kind2String(kind()));
   if (is_inline_cache_stub()) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
+    PrintExtraICState(out, kind(), extra_ic_state());
     PrintF(out, "ic_in_loop = %d\n", ic_in_loop() == IN_LOOP);
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", PropertyType2String(type()));
@@ -6962,9 +7028,11 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
   uint32_t elms_length = static_cast<uint32_t>(elms->length());
 
   if (check_prototype &&
-      (index >= elms_length || elms->get(index)->IsTheHole()) &&
-      SetElementWithCallbackSetterInPrototypes(index, value)) {
-    return value;
+      (index >= elms_length || elms->get(index)->IsTheHole())) {
+    bool found;
+    MaybeObject* result =
+        SetElementWithCallbackSetterInPrototypes(index, value, &found);
+    if (found) return result;
   }
 
 
@@ -7096,9 +7164,11 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
         }
       } else {
         // Index not already used. Look for an accessor in the prototype chain.
-        if (check_prototype &&
-            SetElementWithCallbackSetterInPrototypes(index, value)) {
-          return value;
+        if (check_prototype) {
+          bool found;
+          MaybeObject* result =
+              SetElementWithCallbackSetterInPrototypes(index, value, &found);
+          if (found) return result;
         }
         // When we set the is_extensible flag to false we always force
         // the element into dictionary mode (and force them to stay there).
@@ -7182,7 +7252,7 @@ MaybeObject* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index,
 }
 
 
-MaybeObject* JSObject::GetElementPostInterceptor(JSObject* receiver,
+MaybeObject* JSObject::GetElementPostInterceptor(Object* receiver,
                                                  uint32_t index) {
   // Get element works for both JSObject and JSArray since
   // JSArray::length cannot change.
@@ -7239,14 +7309,14 @@ MaybeObject* JSObject::GetElementPostInterceptor(JSObject* receiver,
 }
 
 
-MaybeObject* JSObject::GetElementWithInterceptor(JSObject* receiver,
+MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
                                                  uint32_t index) {
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
   HandleScope scope;
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
-  Handle<JSObject> this_handle(receiver);
+  Handle<Object> this_handle(receiver);
   Handle<JSObject> holder_handle(this);
 
   if (!interceptor->getter()->IsUndefined()) {
@@ -7272,7 +7342,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(JSObject* receiver,
 }
 
 
-MaybeObject* JSObject::GetElementWithReceiver(JSObject* receiver,
+MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
                                               uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
@@ -8552,10 +8622,20 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
         if (value->IsUndefined()) {
           undefs++;
         } else {
+          if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
+            // Adding an entry with the key beyond smi-range requires
+            // allocation. Bailout.
+            return Smi::FromInt(-1);
+          }
           new_dict->AddNumberEntry(pos, value, details)->ToObjectUnchecked();
           pos++;
         }
       } else {
+        if (key > static_cast<uint32_t>(Smi::kMaxValue)) {
+          // Adding an entry with the key beyond smi-range requires
+          // allocation. Bailout.
+          return Smi::FromInt(-1);
+        }
         new_dict->AddNumberEntry(key, value, details)->ToObjectUnchecked();
       }
     }
@@ -8564,6 +8644,11 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
   uint32_t result = pos;
   PropertyDetails no_details = PropertyDetails(NONE, NORMAL);
   while (undefs > 0) {
+    if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
+      // Adding an entry with the key beyond smi-range requires
+      // allocation. Bailout.
+      return Smi::FromInt(-1);
+    }
     new_dict->AddNumberEntry(pos, Heap::undefined_value(), no_details)->
         ToObjectUnchecked();
     pos++;
@@ -9292,7 +9377,7 @@ Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
                                                JSObject::DeleteMode mode) {
   PropertyDetails details = DetailsAt(entry);
   // Ignore attributes if forcing a deletion.
-  if (details.IsDontDelete() && mode == JSObject::NORMAL_DELETION) {
+  if (details.IsDontDelete() && mode != JSObject::FORCE_DELETION) {
     return Heap::false_value();
   }
   SetEntry(entry, Heap::null_value(), Heap::null_value(), Smi::FromInt(0));

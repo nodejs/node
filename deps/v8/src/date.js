@@ -81,12 +81,7 @@ function TimeFromYear(year) {
 
 
 function InLeapYear(time) {
-  return DaysInYear(YearFromTime(time)) == 366 ? 1 : 0;
-}
-
-
-function DayWithinYear(time) {
-  return DAY(time) - DayFromYear(YearFromTime(time));
+  return DaysInYear(YearFromTime(time)) - 365;  // Returns 1 or 0.
 }
 
 

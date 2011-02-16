@@ -16,7 +16,7 @@
 		WarnAsError="true"
 		Detect64BitPortabilityProblems="false"
 		DebugInformationFormat="3"
-		DisableSpecificWarnings="4355;4800"
+		DisableSpecificWarnings="4351;4355;4800"
 		EnableFunctionLevelLinking="true"
 	/>
 	<Tool

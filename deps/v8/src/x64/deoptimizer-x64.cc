@@ -203,14 +203,51 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
                                         Code* check_code,
                                         Code* replacement_code) {
-  UNIMPLEMENTED();
+  Address call_target_address = pc_after - kIntSize;
+  ASSERT(check_code->entry() ==
+         Assembler::target_address_at(call_target_address));
+  // The stack check code matches the pattern:
+  //
+  //     cmp rsp, <limit>
+  //     jae ok
+  //     call <stack guard>
+  //     test rax, <loop nesting depth>
+  // ok: ...
+  //
+  // We will patch away the branch so the code is:
+  //
+  //     cmp rsp, <limit>  ;; Not changed
+  //     nop
+  //     nop
+  //     call <on-stack replacment>
+  //     test rax, <loop nesting depth>
+  // ok:
+  //
+  ASSERT(*(call_target_address - 3) == 0x73 &&  // jae
+         *(call_target_address - 2) == 0x05 &&  // offset
+         *(call_target_address - 1) == 0xe8);   // call
+  *(call_target_address - 3) = 0x90;  // nop
+  *(call_target_address - 2) = 0x90;  // nop
+  Assembler::set_target_address_at(call_target_address,
+                                   replacement_code->entry());
 }
 
 
 void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
                                          Code* check_code,
                                          Code* replacement_code) {
-  UNIMPLEMENTED();
+  Address call_target_address = pc_after - kIntSize;
+  ASSERT(replacement_code->entry() ==
+         Assembler::target_address_at(call_target_address));
+  // Replace the nops from patching (Deoptimizer::PatchStackCheckCode) to
+  // restore the conditional branch.
+  ASSERT(*(call_target_address - 3) == 0x90 &&  // nop
+         *(call_target_address - 2) == 0x90 &&  // nop
+         *(call_target_address - 1) == 0xe8);   // call
+  *(call_target_address - 3) = 0x73;  // jae
+  *(call_target_address - 2) = 0x05;  // offset
+  Assembler::set_target_address_at(call_target_address,
+                                   check_code->entry());
 }
 
 

@@ -729,6 +729,7 @@ class Assembler : public Malloced {
   void cmp(Register src1, Register src2, Condition cond = al) {
     cmp(src1, Operand(src2), cond);
   }
+  void cmp_raw_immediate(Register src1, int raw_immediate, Condition cond = al);
 
   void cmn(Register src1, const Operand& src2, Condition cond = al);
 
@@ -1099,6 +1100,7 @@ class Assembler : public Malloced {
   static void instr_at_put(byte* pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
+  static Condition GetCondition(Instr instr);
   static bool IsBranch(Instr instr);
   static int GetBranchOffset(Instr instr);
   static bool IsLdrRegisterImmediate(Instr instr);
@@ -1109,6 +1111,8 @@ class Assembler : public Malloced {
   static bool IsAddRegisterImmediate(Instr instr);
   static Instr SetAddRegisterImmediateOffset(Instr instr, int offset);
   static Register GetRd(Instr instr);
+  static Register GetRn(Instr instr);
+  static Register GetRm(Instr instr);
   static bool IsPush(Instr instr);
   static bool IsPop(Instr instr);
   static bool IsStrRegFpOffset(Instr instr);
@@ -1116,6 +1120,11 @@ class Assembler : public Malloced {
   static bool IsStrRegFpNegOffset(Instr instr);
   static bool IsLdrRegFpNegOffset(Instr instr);
   static bool IsLdrPcImmediateOffset(Instr instr);
+  static bool IsTstImmediate(Instr instr);
+  static bool IsCmpRegister(Instr instr);
+  static bool IsCmpImmediate(Instr instr);
+  static Register GetCmpImmediateRegister(Instr instr);
+  static int GetCmpImmediateRawImmediate(Instr instr);
   static bool IsNop(Instr instr, int type = NON_MARKING_NOP);
 
   // Check if is time to emit a constant pool for pending reloc info entries

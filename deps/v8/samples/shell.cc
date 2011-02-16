@@ -27,6 +27,7 @@
 
 #include <v8.h>
 #include <v8-testing.h>
+#include <assert.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
@@ -290,11 +291,13 @@ bool ExecuteString(v8::Handle<v8::String> source,
   } else {
     v8::Handle<v8::Value> result = script->Run();
     if (result.IsEmpty()) {
+      assert(try_catch.HasCaught());
       // Print errors that happened during execution.
       if (report_exceptions)
         ReportException(&try_catch);
       return false;
     } else {
+      assert(!try_catch.HasCaught());
       if (print_result && !result->IsUndefined()) {
         // If all went well and the result wasn't undefined then print
         // the returned value.

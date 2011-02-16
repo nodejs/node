@@ -272,7 +272,6 @@ static byte* spare_buffer_ = NULL;
 Assembler::Assembler(void* buffer, int buffer_size)
     : positions_recorder_(this),
       allow_peephole_optimization_(false) {
-  // BUG(3245989): disable peephole optimization if crankshaft is enabled.
   allow_peephole_optimization_ = FLAG_peephole_optimization;
   if (buffer == NULL) {
     // Do our own buffer management.
@@ -352,6 +351,11 @@ void Assembler::CodeTargetAlign() {
 }
 
 
+Condition Assembler::GetCondition(Instr instr) {
+  return Instruction::ConditionField(instr);
+}
+
+
 bool Assembler::IsBranch(Instr instr) {
   return (instr & (B27 | B25)) == (B27 | B25);
 }
@@ -428,6 +432,20 @@ Register Assembler::GetRd(Instr instr) {
 }
 
 
+Register Assembler::GetRn(Instr instr) {
+  Register reg;
+  reg.code_ = Instruction::RnValue(instr);
+  return reg;
+}
+
+
+Register Assembler::GetRm(Instr instr) {
+  Register reg;
+  reg.code_ = Instruction::RmValue(instr);
+  return reg;
+}
+
+
 bool Assembler::IsPush(Instr instr) {
   return ((instr & ~kRdMask) == kPushRegPattern);
 }
@@ -464,6 +482,35 @@ bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
   return (instr & (kLdrPCMask & ~kCondMask)) == 0x051f0000;
 }
 
+
+bool Assembler::IsTstImmediate(Instr instr) {
+  return (instr & (B27 | B26 | I | kOpCodeMask | S | kRdMask)) ==
+      (I | TST | S);
+}
+
+
+bool Assembler::IsCmpRegister(Instr instr) {
+  return (instr & (B27 | B26 | I | kOpCodeMask | S | kRdMask | B4)) ==
+      (CMP | S);
+}
+
+
+bool Assembler::IsCmpImmediate(Instr instr) {
+  return (instr & (B27 | B26 | I | kOpCodeMask | S | kRdMask)) ==
+      (I | CMP | S);
+}
+
+
+Register Assembler::GetCmpImmediateRegister(Instr instr) {
+  ASSERT(IsCmpImmediate(instr));
+  return GetRn(instr);
+}
+
+
+int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
+  ASSERT(IsCmpImmediate(instr));
+  return instr & kOff12Mask;
+}
 
 // Labels refer to positions in the (to be) generated code.
 // There are bound, linked, and unused labels.
@@ -1049,6 +1096,13 @@ void Assembler::teq(Register src1, const Operand& src2, Condition cond) {
 
 void Assembler::cmp(Register src1, const Operand& src2, Condition cond) {
   addrmod1(cond | CMP | S, src1, r0, src2);
+}
+
+
+void Assembler::cmp_raw_immediate(
+    Register src, int raw_immediate, Condition cond) {
+  ASSERT(is_uint12(raw_immediate));
+  emit(cond | I | CMP | S | src.code() << 16 | raw_immediate);
 }
 
 
@@ -2363,7 +2417,7 @@ void Assembler::nop(int type) {
 
 
 bool Assembler::IsNop(Instr instr, int type) {
-  // Check for mov rx, rx.
+  // Check for mov rx, rx where x = type.
   ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
   return instr == (al | 13*B21 | type*B12 | type);
 }

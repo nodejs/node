@@ -2285,7 +2285,7 @@ static int Intersect(int i1, int i2, const Vector<HeapEntry*>& dominators) {
 
 // The algorithm is based on the article:
 // K. Cooper, T. Harvey and K. Kennedy "A Simple, Fast Dominance Algorithm"
-// Softw. Pract. Exper. 4 (2001), pp. 1–10.
+// Softw. Pract. Exper. 4 (2001), pp. 1-10.
 bool HeapSnapshotGenerator::BuildDominatorTree(
     const Vector<HeapEntry*>& entries,
     Vector<HeapEntry*>* dominators) {

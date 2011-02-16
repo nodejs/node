@@ -157,7 +157,6 @@
 		8956926612D4ED240072C313 /* messages.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF15C0E719B8F00D62E90 /* messages.cc */; };
 		8956926712D4ED240072C313 /* objects-debug.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1600E719B8F00D62E90 /* objects-debug.cc */; };
 		8956926812D4ED240072C313 /* objects.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1620E719B8F00D62E90 /* objects.cc */; };
-		8956926912D4ED240072C313 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 		8956926A12D4ED240072C313 /* parser.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1640E719B8F00D62E90 /* parser.cc */; };
 		8956926B12D4ED240072C313 /* platform-macos.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1670E719B8F00D62E90 /* platform-macos.cc */; };
 		8956926C12D4ED240072C313 /* platform-posix.cc in Sources */ = {isa = PBXBuildFile; fileRef = 893A72230F7B0FF200303DD2 /* platform-posix.cc */; };
@@ -427,8 +426,6 @@
 		9FA38BCF1175B30400C4CD55 /* full-codegen-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCB1175B30400C4CD55 /* full-codegen-arm.cc */; };
 		9FA38BD01175B30400C4CD55 /* jump-target-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCC1175B30400C4CD55 /* jump-target-arm.cc */; };
 		9FA38BD11175B30400C4CD55 /* virtual-frame-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FA38BCD1175B30400C4CD55 /* virtual-frame-arm.cc */; };
-		9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
-		9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 		C2BD4BD7120165460046BF9F /* dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD5120165460046BF9F /* dtoa.cc */; };
 		C2BD4BDB120165A70046BF9F /* fixed-dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */; };
 		C2BD4BE4120166180046BF9F /* fixed-dtoa.cc in Sources */ = {isa = PBXBuildFile; fileRef = C2BD4BD9120165A70046BF9F /* fixed-dtoa.cc */; };
@@ -952,8 +949,6 @@
 		9FA38BCB1175B30400C4CD55 /* full-codegen-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "full-codegen-arm.cc"; path = "arm/full-codegen-arm.cc"; sourceTree = "<group>"; };
 		9FA38BCC1175B30400C4CD55 /* jump-target-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "jump-target-arm.cc"; path = "arm/jump-target-arm.cc"; sourceTree = "<group>"; };
 		9FA38BCD1175B30400C4CD55 /* virtual-frame-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "virtual-frame-arm.cc"; path = "arm/virtual-frame-arm.cc"; sourceTree = "<group>"; };
-		9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "oprofile-agent.cc"; sourceTree = "<group>"; };
-		9FC86ABC0F5FEDAC00F22668 /* oprofile-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "oprofile-agent.h"; sourceTree = "<group>"; };
 		9FF7A28211A642EA0051B8F2 /* unbound-queue-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "unbound-queue-inl.h"; sourceTree = "<group>"; };
 		9FF7A28311A642EA0051B8F2 /* unbound-queue.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "unbound-queue.h"; sourceTree = "<group>"; };
 		C2BD4BD5120165460046BF9F /* dtoa.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = dtoa.cc; sourceTree = "<group>"; };
@@ -1175,7 +1170,6 @@
 				893E248E12B14B3D0083370F /* hydrogen-instructions.h */,
 				893E248F12B14B3D0083370F /* hydrogen.cc */,
 				893E249012B14B3D0083370F /* hydrogen.h */,
-				897FF1490E719B8F00D62E90 /* ic-arm.cc */,
 				897FF14B0E719B8F00D62E90 /* ic-inl.h */,
 				897FF14C0E719B8F00D62E90 /* ic.cc */,
 				897FF14D0E719B8F00D62E90 /* ic.h */,
@@ -1222,8 +1216,6 @@
 				C2D1E9721212F27B00187A52 /* objects-visiting.h */,
 				897FF1620E719B8F00D62E90 /* objects.cc */,
 				897FF1630E719B8F00D62E90 /* objects.h */,
-				9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */,
-				9FC86ABC0F5FEDAC00F22668 /* oprofile-agent.h */,
 				897FF1640E719B8F00D62E90 /* parser.cc */,
 				897FF1650E719B8F00D62E90 /* parser.h */,
 				89A15C6D0EE466A900B48DEB /* platform-freebsd.cc */,
@@ -1292,7 +1284,6 @@
 				897FF1890E719B8F00D62E90 /* string-stream.h */,
 				893E24A312B14B3D0083370F /* strtod.cc */,
 				893E24A412B14B3D0083370F /* strtod.h */,
-				897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */,
 				897FF18C0E719B8F00D62E90 /* stub-cache.cc */,
 				897FF18D0E719B8F00D62E90 /* stub-cache.h */,
 				897FF18E0E719B8F00D62E90 /* token.cc */,
@@ -1541,6 +1532,7 @@
 				898BD20C0EF6CC850068B00A /* debug-arm.cc */,
 				893E24C612B14B510083370F /* deoptimizer-arm.cc */,
 				9FA38BCB1175B30400C4CD55 /* full-codegen-arm.cc */,
+				897FF1490E719B8F00D62E90 /* ic-arm.cc */,
 				9FA38BCC1175B30400C4CD55 /* jump-target-arm.cc */,
 				893E24C712B14B510083370F /* lithium-arm.cc */,
 				893E24C812B14B510083370F /* lithium-arm.h */,
@@ -1555,6 +1547,7 @@
 				895FA751107FFEAE006F39D4 /* register-allocator-arm.h */,
 				897FF17D0E719B8F00D62E90 /* simulator-arm.cc */,
 				897FF17E0E719B8F00D62E90 /* simulator-arm.h */,
+				897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */,
 				893E24CB12B14B520083370F /* virtual-frame-arm-inl.h */,
 				9FA38BCD1175B30400C4CD55 /* virtual-frame-arm.cc */,
 				58950D570F55514900F3E8BA /* virtual-frame-arm.h */,
@@ -1906,7 +1899,6 @@
 				8956926612D4ED240072C313 /* messages.cc in Sources */,
 				8956926712D4ED240072C313 /* objects-debug.cc in Sources */,
 				8956926812D4ED240072C313 /* objects.cc in Sources */,
-				8956926912D4ED240072C313 /* oprofile-agent.cc in Sources */,
 				8956926A12D4ED240072C313 /* parser.cc in Sources */,
 				8956926B12D4ED240072C313 /* platform-macos.cc in Sources */,
 				8956926C12D4ED240072C313 /* platform-posix.cc in Sources */,
@@ -2056,7 +2048,6 @@
 				89A88E120E71A67A0043BA31 /* messages.cc in Sources */,
 				89A88E130E71A6860043BA31 /* objects-debug.cc in Sources */,
 				89A88E140E71A6870043BA31 /* objects.cc in Sources */,
-				9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */,
 				89A88E150E71A68C0043BA31 /* parser.cc in Sources */,
 				89A88E160E71A68E0043BA31 /* platform-macos.cc in Sources */,
 				893A72240F7B101400303DD2 /* platform-posix.cc in Sources */,
@@ -2233,7 +2224,6 @@
 				89F23C660E78D5B2006B2466 /* messages.cc in Sources */,
 				89F23C670E78D5B2006B2466 /* objects-debug.cc in Sources */,
 				89F23C680E78D5B2006B2466 /* objects.cc in Sources */,
-				9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */,
 				89F23C690E78D5B2006B2466 /* parser.cc in Sources */,
 				89F23C6A0E78D5B2006B2466 /* platform-macos.cc in Sources */,
 				893A72250F7B101B00303DD2 /* platform-posix.cc in Sources */,

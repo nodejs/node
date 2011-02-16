@@ -593,7 +593,56 @@ void LCodeGen::DoParameter(LParameter* instr) {
 
 
 void LCodeGen::DoCallStub(LCallStub* instr) {
-  Abort("Unimplemented: %s", "DoCallStub");
+  ASSERT(ToRegister(instr->result()).is(rax));
+  switch (instr->hydrogen()->major_key()) {
+    case CodeStub::RegExpConstructResult: {
+      RegExpConstructResultStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::RegExpExec: {
+      RegExpExecStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::SubString: {
+      SubStringStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::StringCharAt: {
+      // TODO(1116): Add StringCharAt stub to x64.
+      Abort("Unimplemented: %s", "StringCharAt Stub");
+      break;
+    }
+    case CodeStub::MathPow: {
+      // TODO(1115): Add MathPow stub to x64.
+      Abort("Unimplemented: %s", "MathPow Stub");
+      break;
+    }
+    case CodeStub::NumberToString: {
+      NumberToStringStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::StringAdd: {
+      StringAddStub stub(NO_STRING_ADD_FLAGS);
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::StringCompare: {
+      StringCompareStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    case CodeStub::TranscendentalCache: {
+      TranscendentalCacheStub stub(instr->transcendental_type());
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 
@@ -608,11 +657,92 @@ void LCodeGen::DoModI(LModI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  Abort("Unimplemented: %s", "DoDivI");}
+  LOperand* right = instr->InputAt(1);
+  ASSERT(ToRegister(instr->result()).is(rax));
+  ASSERT(ToRegister(instr->InputAt(0)).is(rax));
+  ASSERT(!ToRegister(instr->InputAt(1)).is(rax));
+  ASSERT(!ToRegister(instr->InputAt(1)).is(rdx));
+
+  Register left_reg = rax;
+
+  // Check for x / 0.
+  Register right_reg = ToRegister(right);
+  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ testl(right_reg, right_reg);
+    DeoptimizeIf(zero, instr->environment());
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    NearLabel left_not_zero;
+    __ testl(left_reg, left_reg);
+    __ j(not_zero, &left_not_zero);
+    __ testl(right_reg, right_reg);
+    DeoptimizeIf(sign, instr->environment());
+    __ bind(&left_not_zero);
+  }
+
+  // Check for (-kMinInt / -1).
+  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+    NearLabel left_not_min_int;
+    __ cmpl(left_reg, Immediate(kMinInt));
+    __ j(not_zero, &left_not_min_int);
+    __ cmpl(right_reg, Immediate(-1));
+    DeoptimizeIf(zero, instr->environment());
+    __ bind(&left_not_min_int);
+  }
+
+  // Sign extend to rdx.
+  __ cdq();
+  __ idivl(right_reg);
+
+  // Deoptimize if remainder is not 0.
+  __ testl(rdx, rdx);
+  DeoptimizeIf(not_zero, instr->environment());
+}
 
 
 void LCodeGen::DoMulI(LMulI* instr) {
-  Abort("Unimplemented: %s", "DoMultI");}
+  Register left = ToRegister(instr->InputAt(0));
+  LOperand* right = instr->InputAt(1);
+
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ movl(kScratchRegister, left);
+  }
+
+  if (right->IsConstantOperand()) {
+    int right_value = ToInteger32(LConstantOperand::cast(right));
+    __ imull(left, left, Immediate(right_value));
+  } else if (right->IsStackSlot()) {
+    __ imull(left, ToOperand(right));
+  } else {
+    __ imull(left, ToRegister(right));
+  }
+
+  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+    DeoptimizeIf(overflow, instr->environment());
+  }
+
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    // Bail out if the result is supposed to be negative zero.
+    NearLabel done;
+    __ testl(left, left);
+    __ j(not_zero, &done);
+    if (right->IsConstantOperand()) {
+      if (ToInteger32(LConstantOperand::cast(right)) <= 0) {
+        DeoptimizeIf(no_condition, instr->environment());
+      }
+    } else if (right->IsStackSlot()) {
+      __ or_(kScratchRegister, ToOperand(right));
+      DeoptimizeIf(sign, instr->environment());
+    } else {
+      // Test the non-zero operand for negative sign.
+      __ or_(kScratchRegister, ToRegister(right));
+      DeoptimizeIf(sign, instr->environment());
+    }
+    __ bind(&done);
+  }
+}
 
 
 void LCodeGen::DoBitI(LBitI* instr) {
@@ -758,21 +888,15 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   ASSERT(instr->result()->IsDoubleRegister());
   XMMRegister res = ToDoubleRegister(instr->result());
   double v = instr->value();
+  uint64_t int_val = BitCast<uint64_t, double>(v);
   // Use xor to produce +0.0 in a fast and compact way, but avoid to
   // do so if the constant is -0.0.
-  if (BitCast<uint64_t, double>(v) == 0) {
+  if (int_val == 0) {
     __ xorpd(res, res);
   } else {
     Register tmp = ToRegister(instr->TempAt(0));
-    int32_t v_int32 = static_cast<int32_t>(v);
-    if (static_cast<double>(v_int32) == v) {
-      __ movl(tmp, Immediate(v_int32));
-      __ cvtlsi2sd(res, tmp);
-    } else {
-      uint64_t int_val = BitCast<uint64_t, double>(v);
-      __ Set(tmp, int_val);
-      __ movd(res, tmp);
-    }
+    __ Set(tmp, int_val);
+    __ movq(res, tmp);
   }
 }
 
@@ -797,6 +921,13 @@ void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
 }
 
 
+void LCodeGen::DoPixelArrayLength(LPixelArrayLength* instr) {
+  Register result = ToRegister(instr->result());
+  Register array = ToRegister(instr->InputAt(0));
+  __ movq(result, FieldOperand(array, PixelArray::kLengthOffset));
+}
+
+
 void LCodeGen::DoValueOf(LValueOf* instr) {
   Abort("Unimplemented: %s", "DoValueOf");
 }
@@ -810,7 +941,13 @@ void LCodeGen::DoBitNotI(LBitNotI* instr) {
 
 
 void LCodeGen::DoThrow(LThrow* instr) {
-  Abort("Unimplemented: %s", "DoThrow");
+  __ push(ToRegister(instr->InputAt(0)));
+  CallRuntime(Runtime::kThrow, 1, instr);
+
+  if (FLAG_debug_code) {
+    Comment("Unreachable code.");
+    __ int3();
+  }
 }
 
 
@@ -835,7 +972,30 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  Abort("Unimplemented: %s", "DoArithmeticD");
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  // All operations except MOD are computed in-place.
+  ASSERT(instr->op() == Token::MOD || left->Equals(instr->result()));
+  switch (instr->op()) {
+    case Token::ADD:
+      __ addsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      break;
+    case Token::SUB:
+       __ subsd(ToDoubleRegister(left), ToDoubleRegister(right));
+       break;
+    case Token::MUL:
+      __ mulsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      break;
+    case Token::DIV:
+      __ divsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      break;
+    case Token::MOD:
+      Abort("Unimplemented: %s", "DoArithmeticD MOD");
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
 }
 
 
@@ -844,8 +1004,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   ASSERT(ToRegister(instr->InputAt(1)).is(rax));
   ASSERT(ToRegister(instr->result()).is(rax));
 
-  GenericBinaryOpStub stub(instr->op(), NO_OVERWRITE, NO_GENERIC_BINARY_FLAGS);
-  stub.SetArgsInRegisters();
+  TypeRecordingBinaryOpStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
@@ -963,7 +1122,11 @@ void LCodeGen::EmitGoto(int block, LDeferredCode* deferred_stack_check) {
 
 
 void LCodeGen::DoDeferredStackCheck(LGoto* instr) {
-  Abort("Unimplemented: %s", "DoDeferredStackCheck");
+  __ Pushad();
+  __ CallRuntimeSaveDoubles(Runtime::kStackGuard);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
+  __ Popad();
 }
 
 
@@ -1022,9 +1185,9 @@ void LCodeGen::EmitCmpI(LOperand* left, LOperand* right) {
       __ cmpl(ToOperand(left), Immediate(value));
     }
   } else if (right->IsRegister()) {
-    __ cmpq(ToRegister(left), ToRegister(right));
+    __ cmpl(ToRegister(left), ToRegister(right));
   } else {
-    __ cmpq(ToRegister(left), ToOperand(right));
+    __ cmpl(ToRegister(left), ToOperand(right));
   }
 }
 
@@ -1511,12 +1674,23 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
   __ movq(rsp, rbp);
   __ pop(rbp);
-  __ ret((ParameterCount() + 1) * kPointerSize);
+  __ Ret((ParameterCount() + 1) * kPointerSize, rcx);
 }
 
 
 void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
-  Abort("Unimplemented: %s", "DoLoadGlobal");
+  Register result = ToRegister(instr->result());
+  if (result.is(rax)) {
+    __ load_rax(instr->hydrogen()->cell().location(),
+                RelocInfo::GLOBAL_PROPERTY_CELL);
+  } else {
+    __ movq(result, instr->hydrogen()->cell(), RelocInfo::GLOBAL_PROPERTY_CELL);
+    __ movq(result, Operand(result, 0));
+  }
+  if (instr->hydrogen()->check_hole_value()) {
+    __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+    DeoptimizeIf(equal, instr->environment());
+  }
 }
 
 
@@ -1534,9 +1708,7 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
   // been deleted from the property dictionary. In that case, we need
   // to update the property details in the property dictionary to mark
   // it as no longer deleted. We deoptimize in that case.
-  __ movq(temp,
-          Handle<Object>::cast(instr->hydrogen()->cell()),
-          RelocInfo::GLOBAL_PROPERTY_CELL);
+  __ movq(temp, instr->hydrogen()->cell(), RelocInfo::GLOBAL_PROPERTY_CELL);
   if (check_hole) {
     __ CompareRoot(Operand(temp, 0), Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
@@ -1563,25 +1735,69 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
 
 void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
-  Abort("Unimplemented: %s", "DoLoadNamedGeneric");
+  ASSERT(ToRegister(instr->object()).is(rax));
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  __ Move(rcx, instr->name());
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
 void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
-  Abort("Unimplemented: %s", "DoLoadFunctionPrototype");
+  Register function = ToRegister(instr->function());
+  Register result = ToRegister(instr->result());
+
+  // Check that the function really is a function.
+  __ CmpObjectType(function, JS_FUNCTION_TYPE, result);
+  DeoptimizeIf(not_equal, instr->environment());
+
+  // Check whether the function has an instance prototype.
+  NearLabel non_instance;
+  __ testb(FieldOperand(result, Map::kBitFieldOffset),
+           Immediate(1 << Map::kHasNonInstancePrototype));
+  __ j(not_zero, &non_instance);
+
+  // Get the prototype or initial map from the function.
+  __ movq(result,
+         FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // Check that the function has a prototype or an initial map.
+  __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+  DeoptimizeIf(equal, instr->environment());
+
+  // If the function does not have an initial map, we're done.
+  NearLabel done;
+  __ CmpObjectType(result, MAP_TYPE, kScratchRegister);
+  __ j(not_equal, &done);
+
+  // Get the prototype from the initial map.
+  __ movq(result, FieldOperand(result, Map::kPrototypeOffset));
+  __ jmp(&done);
+
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in the function's map.
+  __ bind(&non_instance);
+  __ movq(result, FieldOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  __ bind(&done);
 }
 
 
 void LCodeGen::DoLoadElements(LLoadElements* instr) {
-  ASSERT(instr->result()->Equals(instr->InputAt(0)));
-  Register reg = ToRegister(instr->InputAt(0));
-  __ movq(reg, FieldOperand(reg, JSObject::kElementsOffset));
+  Register result = ToRegister(instr->result());
+  Register input = ToRegister(instr->InputAt(0));
+  __ movq(result, FieldOperand(input, JSObject::kElementsOffset));
   if (FLAG_debug_code) {
     NearLabel done;
-    __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
            Factory::fixed_array_map());
     __ j(equal, &done);
-    __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
+    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
+           Factory::pixel_array_map());
+    __ j(equal, &done);
+    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
            Factory::fixed_cow_array_map());
     __ Check(equal, "Check for fast elements failed.");
     __ bind(&done);
@@ -1589,8 +1805,29 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
 }
 
 
+void LCodeGen::DoLoadPixelArrayExternalPointer(
+    LLoadPixelArrayExternalPointer* instr) {
+  Register result = ToRegister(instr->result());
+  Register input = ToRegister(instr->InputAt(0));
+  __ movq(result, FieldOperand(input, PixelArray::kExternalPointerOffset));
+}
+
+
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
-  Abort("Unimplemented: %s", "DoAccessArgumentsAt");
+  Register arguments = ToRegister(instr->arguments());
+  Register length = ToRegister(instr->length());
+  Register result = ToRegister(instr->result());
+
+  if (instr->index()->IsRegister()) {
+    __ subl(length, ToRegister(instr->index()));
+  } else {
+    __ subl(length, ToOperand(instr->index()));
+  }
+  DeoptimizeIf(below_equal, instr->environment());
+
+  // There are two words between the frame pointer and the last argument.
+  // Subtracting from length accounts for one of them add one more.
+  __ movq(result, Operand(arguments, length, times_pointer_size, kPointerSize));
 }
 
 
@@ -1612,18 +1849,68 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 }
 
 
+void LCodeGen::DoLoadPixelArrayElement(LLoadPixelArrayElement* instr) {
+  Register external_elements = ToRegister(instr->external_pointer());
+  Register key = ToRegister(instr->key());
+  Register result = ToRegister(instr->result());
+  ASSERT(result.is(external_elements));
+
+  // Load the result.
+  __ movzxbq(result, Operand(external_elements, key, times_1, 0));
+}
+
+
 void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   Abort("Unimplemented: %s", "DoLoadKeyedGeneric");
 }
 
 
 void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
-  Abort("Unimplemented: %s", "DoArgumentsElements");
+  Register result = ToRegister(instr->result());
+
+  // Check for arguments adapter frame.
+  NearLabel done, adapted;
+  __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ SmiCompare(Operand(result, StandardFrameConstants::kContextOffset),
+                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(equal, &adapted);
+
+  // No arguments adaptor frame.
+  __ movq(result, rbp);
+  __ jmp(&done);
+
+  // Arguments adaptor frame present.
+  __ bind(&adapted);
+  __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+
+  // Result is the frame pointer for the frame if not adapted and for the real
+  // frame below the adaptor frame if adapted.
+  __ bind(&done);
 }
 
 
 void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
-  Abort("Unimplemented: %s", "DoArgumentsLength");
+  Register result = ToRegister(instr->result());
+
+  NearLabel done;
+
+  // If no arguments adaptor frame the number of arguments is fixed.
+  if (instr->InputAt(0)->IsRegister()) {
+    __ cmpq(rbp, ToRegister(instr->InputAt(0)));
+  } else {
+    __ cmpq(rbp, ToOperand(instr->InputAt(0)));
+  }
+  __ movq(result, Immediate(scope()->num_parameters()));
+  __ j(equal, &done);
+
+  // Arguments adaptor frame present. Get argument length from there.
+  __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ movq(result, Operand(result,
+                          ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiToInteger32(result, result);
+
+  // Argument length is in result register.
+  __ bind(&done);
 }
 
 
@@ -1653,6 +1940,12 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
     ASSERT(!argument->IsDoubleRegister());
     __ push(ToOperand(argument));
   }
+}
+
+
+void LCodeGen::DoContext(LContext* instr) {
+  Register result = ToRegister(instr->result());
+  __ movq(result, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -1773,7 +2066,13 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
 
 
 void LCodeGen::DoCallNamed(LCallNamed* instr) {
-  Abort("Unimplemented: %s", "DoCallNamed");
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  int arity = instr->arity();
+  Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
+  __ Move(rcx, instr->name());
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -1783,7 +2082,12 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 
 
 void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
-  Abort("Unimplemented: %s", "DoCallGlobal");
+  ASSERT(ToRegister(instr->result()).is(rax));
+  int arity = instr->arity();
+  Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
+  __ Move(rcx, instr->name());
+  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -1805,7 +2109,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
 
 
 void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
-  Abort("Unimplemented: %s", "DoCallRuntime");
+  CallRuntime(instr->function(), instr->arity(), instr);
 }
 
 
@@ -1855,7 +2159,33 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 
 
 void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
-  Abort("Unimplemented: %s", "DoStoreKeyedFastElement");
+  Register value = ToRegister(instr->value());
+  Register elements = ToRegister(instr->object());
+  Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
+
+  // Do the store.
+  if (instr->key()->IsConstantOperand()) {
+    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
+    int offset =
+        ToInteger32(const_operand) * kPointerSize + FixedArray::kHeaderSize;
+    __ movq(FieldOperand(elements, offset), value);
+  } else {
+    __ movq(FieldOperand(elements,
+                         key,
+                         times_pointer_size,
+                         FixedArray::kHeaderSize),
+            value);
+  }
+
+  if (instr->hydrogen()->NeedsWriteBarrier()) {
+    // Compute address of modified element and store it into key register.
+    __ lea(key, FieldOperand(elements,
+                             key,
+                             times_pointer_size,
+                             FixedArray::kHeaderSize));
+    __ RecordWrite(elements, key, value);
+  }
 }
 
 
@@ -1864,12 +2194,23 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 }
 
 
+void LCodeGen::DoStringLength(LStringLength* instr) {
+  Register string = ToRegister(instr->string());
+  Register result = ToRegister(instr->result());
+  __ movq(result, FieldOperand(string, String::kLengthOffset));
+}
+
+
 void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister() || input->IsStackSlot());
   LOperand* output = instr->result();
   ASSERT(output->IsDoubleRegister());
-  __ cvtlsi2sd(ToDoubleRegister(output), ToOperand(input));
+  if (input->IsRegister()) {
+    __ cvtlsi2sd(ToDoubleRegister(output), ToRegister(input));
+  } else {
+    __ cvtlsi2sd(ToDoubleRegister(output), ToOperand(input));
+  }
 }
 
 
@@ -1926,12 +2267,21 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  Abort("Unimplemented: %s", "DoSmiTag");
+  ASSERT(instr->InputAt(0)->Equals(instr->result()));
+  Register input = ToRegister(instr->InputAt(0));
+  ASSERT(!instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow));
+  __ Integer32ToSmi(input, input);
 }
 
 
 void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
-  Abort("Unimplemented: %s", "DoSmiUntag");
+  ASSERT(instr->InputAt(0)->Equals(instr->result()));
+  Register input = ToRegister(instr->InputAt(0));
+  if (instr->needs_check()) {
+    Condition is_smi = __ CheckSmi(input);
+    DeoptimizeIf(NegateCondition(is_smi), instr->environment());
+  }
+  __ SmiToInteger32(input, input);
 }
 
 
@@ -1963,7 +2313,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
   // Smi to XMM conversion
   __ bind(&load_smi);
-  __ SmiToInteger32(kScratchRegister, input_reg);  // Untag smi first.
+  __ SmiToInteger32(kScratchRegister, input_reg);
   __ cvtlsi2sd(result_reg, kScratchRegister);
   __ bind(&done);
 }
@@ -2040,7 +2390,15 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
 
 
 void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
-  Abort("Unimplemented: %s", "DoNumberUntagD");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsRegister());
+  LOperand* result = instr->result();
+  ASSERT(result->IsDoubleRegister());
+
+  Register input_reg = ToRegister(input);
+  XMMRegister result_reg = ToDoubleRegister(result);
+
+  EmitNumberUntagD(input_reg, result_reg, instr->environment());
 }
 
 
@@ -2110,7 +2468,14 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
 
 
 void LCodeGen::LoadHeapObject(Register result, Handle<HeapObject> object) {
-  Abort("Unimplemented: %s", "LoadHeapObject");
+  if (Heap::InNewSpace(*object)) {
+    Handle<JSGlobalPropertyCell> cell =
+        Factory::NewJSGlobalPropertyCell(object);
+    __ movq(result, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
+    __ movq(result, Operand(result, 0));
+  } else {
+    __ Move(result, object);
+  }
 }
 
 
@@ -2216,6 +2581,54 @@ void LCodeGen::DoTypeof(LTypeof* instr) {
 
 void LCodeGen::DoTypeofIs(LTypeofIs* instr) {
   Abort("Unimplemented: %s", "DoTypeofIs");
+}
+
+
+void LCodeGen::DoIsConstructCall(LIsConstructCall* instr) {
+  Register result = ToRegister(instr->result());
+  NearLabel true_label;
+  NearLabel false_label;
+  NearLabel done;
+
+  EmitIsConstructCall(result);
+  __ j(equal, &true_label);
+
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ jmp(&done);
+
+  __ bind(&true_label);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+
+
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
+  Register temp = ToRegister(instr->TempAt(0));
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  EmitIsConstructCall(temp);
+  EmitBranch(true_block, false_block, equal);
+}
+
+
+void LCodeGen::EmitIsConstructCall(Register temp) {
+  // Get the frame pointer for the calling frame.
+  __ movq(temp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  NearLabel check_frame_marker;
+  __ SmiCompare(Operand(temp, StandardFrameConstants::kContextOffset),
+                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(not_equal, &check_frame_marker);
+  __ movq(temp, Operand(rax, StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ SmiCompare(Operand(temp, StandardFrameConstants::kMarkerOffset),
+                Smi::FromInt(StackFrame::CONSTRUCT));
 }
 
 
@@ -2328,7 +2741,19 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
 
 
 void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
-  Abort("Unimplemented: %s", "DoOsrEntry");
+  // This is a pseudo-instruction that ensures that the environment here is
+  // properly registered for deoptimization and records the assembler's PC
+  // offset.
+  LEnvironment* environment = instr->environment();
+  environment->SetSpilledRegisters(instr->SpilledRegisterArray(),
+                                   instr->SpilledDoubleRegisterArray());
+
+  // If the environment were already registered, we would have no way of
+  // backpatching it with the spill slot operands.
+  ASSERT(!environment->HasBeenRegistered());
+  RegisterEnvironmentForDeoptimization(environment);
+  ASSERT(osr_pc_offset_ == -1);
+  osr_pc_offset_ = masm()->pc_offset();
 }
 
 #undef __

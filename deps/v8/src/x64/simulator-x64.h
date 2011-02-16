@@ -39,10 +39,13 @@ namespace internal {
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
   (entry(p0, p1, p2, p3, p4))
 
-// Call the generated regexp code directly. The entry function pointer should
+typedef int (*regexp_matcher)(String*, int, const byte*,
+                              const byte*, int*, Address, int);
+
+// Call the generated regexp code directly. The code at the entry address should
 // expect seven int/pointer sized arguments and return an int.
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
-  (entry(p0, p1, p2, p3, p4, p5, p6))
+  (FUNCTION_CAST<regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6))
 
 #define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
   (reinterpret_cast<TryCatch*>(try_catch_address))

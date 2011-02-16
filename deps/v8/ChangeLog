@@ -1,3 +1,64 @@
+2011-02-16: Version 3.1.5
+
+        Change RegExp parsing to disallow /(*)/.
+
+        Added GDB JIT support for ARM.
+
+        Fixed several crash bugs.
+
+        Performance improvements on the IA32 platform.
+
+
+2011-02-14: Version 3.1.4
+
+        Fixed incorrect compare of prototypes of the global object (issue
+        1082).
+
+        Fixed a bug in optimizing calls to global functions (issue 1106).
+
+        Made optimized Function.prototype.apply safe for non-JSObject first
+        arguments (issue 1128).
+
+        Fixed an error related to element accessors on Object.prototype and
+        parser errors (issue 1130).
+
+        Fixed a bug in sorting an array with large array indices (issue 1131).
+
+        Properly treat exceptions thrown while compiling (issue 1132).
+
+        Fixed bug in register requirements for function.apply (issue 1133).
+
+        Fixed a representation change bug in the Hydrogen graph construction
+        (issue 1134).
+
+        Fixed the semantics of delete on parameters (issue 1136).
+
+        Fixed a optimizer bug related to moving instructions with side effects
+        (issue 1138).
+
+        Added support for the global object in Object.keys (issue 1150).
+
+        Fixed incorrect value for Math.LOG10E
+        (issue http://code.google.com/p/chromium/issues/detail?id=72555)
+
+        Performance improvements on the IA32 platform.
+
+        Implement assignment to undefined reference in ES5 Strict Mode.
+
+
+2011-02-09: Version 3.1.3
+
+        Fixed a bug triggered by functions with huge numbers of declared
+        arguments.
+
+        Fixed zap value aliasing a real object - debug mode only (issue 866).
+
+        Fixed issue where Array.prototype.__proto__ had been set to null
+        (issue 1121).
+
+        Fixed stability bugs in Crankshaft for x86.
+
+
 2011-02-07: Version 3.1.2
 
         Added better security checks when accessing properties via
@@ -56,8 +117,8 @@
 
         Introduced partial strict mode support.
 
-        Changed formatting of recursive error messages to match Firefox and Safari
-        (issue http://crbug.com/70334).
+        Changed formatting of recursive error messages to match Firefox and
+        Safari (issue http://crbug.com/70334).
 
         Fixed incorrect rounding for float-to-integer conversions for external
         array types, which implement the Typed Array spec

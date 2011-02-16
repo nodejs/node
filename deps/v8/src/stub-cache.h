@@ -138,26 +138,32 @@ class StubCache : public AllStatic {
 
   // ---
 
-  MUST_USE_RESULT static MaybeObject* ComputeStoreField(String* name,
-                                                        JSObject* receiver,
-                                                        int field_index,
-                                                        Map* transition = NULL);
+  MUST_USE_RESULT static MaybeObject* ComputeStoreField(
+      String* name,
+      JSObject* receiver,
+      int field_index,
+      Map* transition,
+      Code::ExtraICState extra_ic_state);
 
-  MUST_USE_RESULT static MaybeObject* ComputeStoreNormal();
+  MUST_USE_RESULT static MaybeObject* ComputeStoreNormal(
+      Code::ExtraICState extra_ic_state);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreGlobal(
       String* name,
       GlobalObject* receiver,
-      JSGlobalPropertyCell* cell);
+      JSGlobalPropertyCell* cell,
+      Code::ExtraICState extra_ic_state);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreCallback(
       String* name,
       JSObject* receiver,
-      AccessorInfo* callback);
+      AccessorInfo* callback,
+      Code::ExtraICState extra_ic_state);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreInterceptor(
       String* name,
-      JSObject* receiver);
+      JSObject* receiver,
+      Code::ExtraICState extra_ic_state);
 
   // ---
 
@@ -168,6 +174,9 @@ class StubCache : public AllStatic {
       Map* transition = NULL);
 
   MUST_USE_RESULT static MaybeObject* ComputeKeyedStoreSpecialized(
+      JSObject* receiver);
+
+  MUST_USE_RESULT static MaybeObject* ComputeKeyedStorePixelArray(
       JSObject* receiver);
 
   MUST_USE_RESULT static MaybeObject* ComputeKeyedLoadOrStoreExternalArray(
@@ -619,6 +628,9 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
 class StoreStubCompiler: public StubCompiler {
  public:
+  explicit StoreStubCompiler(Code::ExtraICState extra_ic_state)
+    : extra_ic_state_(extra_ic_state) { }
+
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,
                                                  Map* transition,
@@ -636,6 +648,8 @@ class StoreStubCompiler: public StubCompiler {
 
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
+
+  Code::ExtraICState extra_ic_state_;
 };
 
 
@@ -647,6 +661,8 @@ class KeyedStoreStubCompiler: public StubCompiler {
                                                  String* name);
 
   MUST_USE_RESULT MaybeObject* CompileStoreSpecialized(JSObject* receiver);
+
+  MUST_USE_RESULT MaybeObject* CompileStorePixelArray(JSObject* receiver);
 
  private:
   MaybeObject* GetCode(PropertyType type, String* name);

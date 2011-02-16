@@ -34,7 +34,6 @@
 #include "hydrogen.h"
 #include "lithium-allocator.h"
 #include "log.h"
-#include "oprofile-agent.h"
 #include "runtime-profiler.h"
 #include "serialize.h"
 #include "simulator.h"
@@ -129,7 +128,6 @@ bool V8::Initialize(Deserializer* des) {
   // objects in place for creating the code object used for probing.
   CPU::Setup();
 
-  OProfileAgent::Initialize();
   Deoptimizer::Setup();
   LAllocator::Setup();
   RuntimeProfiler::Setup();
@@ -161,7 +159,6 @@ void V8::TearDown() {
   Logger::EnsureTickerStopped();
 
   Deoptimizer::TearDown();
-  OProfileAgent::TearDown();
 
   if (FLAG_preemption) {
     v8::Locker locker;

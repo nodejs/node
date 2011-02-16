@@ -78,7 +78,7 @@ class Arguments BASE_EMBEDDED {
 class CustomArguments : public Relocatable {
  public:
   inline CustomArguments(Object* data,
-                         JSObject* self,
+                         Object* self,
                          JSObject* holder) {
     values_[2] = self;
     values_[1] = holder;

@@ -676,3 +676,17 @@ assertEquals(["bc"], re.exec("zimzomzumbc"));
 assertFalse(re.test("c"));
 assertFalse(re.test(""));
 
+// Valid syntax in ES5.
+re = RegExp("(?:x)*");
+re = RegExp("(x)*");
+
+// Syntax extension relative to ES5, for matching JSC (and ES3).
+// Shouldn't throw.
+re = RegExp("(?=x)*");
+re = RegExp("(?!x)*");
+
+// Should throw. Shouldn't hit asserts in debug mode.
+assertThrows("RegExp('(*)')");
+assertThrows("RegExp('(?:*)')");
+assertThrows("RegExp('(?=*)')");
+assertThrows("RegExp('(?!*)')");

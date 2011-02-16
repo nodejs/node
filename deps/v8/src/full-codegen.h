@@ -531,8 +531,9 @@ class FullCodeGenerator: public AstVisitor {
 
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
+  bool is_strict() { return function()->strict_mode(); }
   StrictModeFlag strict_mode_flag() {
-    return function()->strict_mode() ? kStrictMode : kNonStrictMode;
+    return is_strict() ? kStrictMode : kNonStrictMode;
   }
   FunctionLiteral* function() { return info_->function(); }
   Scope* scope() { return info_->scope(); }
@@ -544,7 +545,8 @@ class FullCodeGenerator: public AstVisitor {
   void EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode);
 
   // Calling an IC stub with a patch site. Passing NULL for patch_site
-  // indicates no inlined smi code and emits a nop after the IC call.
+  // or non NULL patch_site which is not activated indicates no inlined smi code
+  // and emits a nop after the IC call.
   void EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site);
 
   // Set fields in the stack frame. Offsets are the frame pointer relative

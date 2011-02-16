@@ -115,7 +115,9 @@ static FatalErrorCallback exception_behavior = NULL;
 
 static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
-  ENTER_V8;
+#ifdef ENABLE_VMSTATE_TRACKING
+  i::VMState __state__(i::OTHER);
+#endif
   API_Fatal(location, message);
 }
 
@@ -668,7 +670,7 @@ static void InitializeTemplate(i::Handle<i::TemplateInfo> that, int type) {
 
 void Template::Set(v8::Handle<String> name, v8::Handle<Data> value,
                    v8::PropertyAttribute attribute) {
-  if (IsDeadCheck("v8::Template::SetProperty()")) return;
+  if (IsDeadCheck("v8::Template::Set()")) return;
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::Object> list(Utils::OpenHandle(this)->property_list());
@@ -2204,6 +2206,12 @@ bool Value::Equals(Handle<Value> that) const {
   ENTER_V8;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> other = Utils::OpenHandle(*that);
+  // If both obj and other are JSObjects, we'd better compare by identity
+  // immediately when going into JS builtin.  The reason is Invoke
+  // would overwrite global object receiver with global proxy.
+  if (obj->IsJSObject() && other->IsJSObject()) {
+    return *obj == *other;
+  }
   i::Object** args[1] = { other.location() };
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> result =
@@ -2653,26 +2661,38 @@ int v8::Object::GetIdentityHash() {
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
-  i::Handle<i::Object> hash_symbol = i::Factory::identity_hash_symbol();
-  i::Handle<i::Object> hash = i::GetProperty(hidden_props, hash_symbol);
-  int hash_value;
-  if (hash->IsSmi()) {
-    hash_value = i::Smi::cast(*hash)->value();
-  } else {
-    int attempts = 0;
-    do {
-      // Generate a random 32-bit hash value but limit range to fit
-      // within a smi.
-      hash_value = i::V8::Random() & i::Smi::kMaxValue;
-      attempts++;
-    } while (hash_value == 0 && attempts < 30);
-    hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
-    i::SetProperty(hidden_props,
-                   hash_symbol,
-                   i::Handle<i::Object>(i::Smi::FromInt(hash_value)),
-                   static_cast<PropertyAttributes>(None));
+  i::Handle<i::Object> hidden_props_obj(i::GetHiddenProperties(self, true));
+  if (!hidden_props_obj->IsJSObject()) {
+    // We failed to create hidden properties.  That's a detached
+    // global proxy.
+    ASSERT(hidden_props_obj->IsUndefined());
+    return 0;
   }
+  i::Handle<i::JSObject> hidden_props =
+      i::Handle<i::JSObject>::cast(hidden_props_obj);
+  i::Handle<i::String> hash_symbol = i::Factory::identity_hash_symbol();
+  if (hidden_props->HasLocalProperty(*hash_symbol)) {
+    i::Handle<i::Object> hash = i::GetProperty(hidden_props, hash_symbol);
+    CHECK(!hash.is_null());
+    CHECK(hash->IsSmi());
+    return i::Smi::cast(*hash)->value();
+  }
+
+  int hash_value;
+  int attempts = 0;
+  do {
+    // Generate a random 32-bit hash value but limit range to fit
+    // within a smi.
+    hash_value = i::V8::Random() & i::Smi::kMaxValue;
+    attempts++;
+  } while (hash_value == 0 && attempts < 30);
+  hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
+  CHECK(!i::SetLocalPropertyIgnoreAttributes(
+          hidden_props,
+          hash_symbol,
+          i::Handle<i::Object>(i::Smi::FromInt(hash_value)),
+          static_cast<PropertyAttributes>(None)).is_null());
+
   return hash_value;
 }
 
@@ -2749,9 +2769,9 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
     return;
   }
   i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(length, data);
-  i::Handle<i::Map> slow_map =
-      i::Factory::GetSlowElementsMap(i::Handle<i::Map>(self->map()));
-  self->set_map(*slow_map);
+  i::Handle<i::Map> pixel_array_map =
+      i::Factory::GetPixelArrayElementsMap(i::Handle<i::Map>(self->map()));
+  self->set_map(*pixel_array_map);
   self->set_elements(*pixels);
 }
 

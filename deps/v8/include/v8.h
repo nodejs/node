@@ -462,7 +462,6 @@ class V8EXPORT HandleScope {
 
   void Leave();
 
-
   internal::Object** prev_next_;
   internal::Object** prev_limit_;
 

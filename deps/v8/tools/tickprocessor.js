@@ -26,16 +26,21 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-function Profile(separateIc) {
-  devtools.profiler.Profile.call(this);
+function inherits(childCtor, parentCtor) {
+  childCtor.prototype.__proto__ = parentCtor.prototype;
+};
+
+
+function V8Profile(separateIc) {
+  Profile.call(this);
   if (!separateIc) {
-    this.skipThisFunction = function(name) { return Profile.IC_RE.test(name); };
+    this.skipThisFunction = function(name) { return V8Profile.IC_RE.test(name); };
   }
 };
-Profile.prototype = devtools.profiler.Profile.prototype;
+inherits(V8Profile, Profile);
 
 
-Profile.IC_RE =
+V8Profile.IC_RE =
     /^(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Call|Load|Store)IC_)/;
 
 
@@ -52,13 +57,8 @@ function readFile(fileName) {
 }
 
 
-function inherits(childCtor, parentCtor) {
-  childCtor.prototype.__proto__ = parentCtor.prototype;
-};
-
-
 function SnapshotLogProcessor() {
-  devtools.profiler.LogReader.call(this, {
+  LogReader.call(this, {
       'code-creation': {
           parsers: [null, parseInt, parseInt, null],
           processor: this.processCodeCreation },
@@ -72,8 +72,8 @@ function SnapshotLogProcessor() {
       'snapshot-pos': { parsers: [parseInt, parseInt],
           processor: this.processSnapshotPosition }});
 
-  Profile.prototype.handleUnknownCode = function(operation, addr) {
-    var op = devtools.profiler.Profile.Operation;
+  V8Profile.prototype.handleUnknownCode = function(operation, addr) {
+    var op = Profile.Operation;
     switch (operation) {
       case op.MOVE:
         print('Snapshot: Code move event for unknown code: 0x' +
@@ -86,10 +86,10 @@ function SnapshotLogProcessor() {
     }
   };
 
-  this.profile_ = new Profile();
+  this.profile_ = new V8Profile();
   this.serializedEntries_ = [];
 }
-inherits(SnapshotLogProcessor, devtools.profiler.LogReader);
+inherits(SnapshotLogProcessor, LogReader);
 
 
 SnapshotLogProcessor.prototype.processCodeCreation = function(
@@ -127,7 +127,7 @@ SnapshotLogProcessor.prototype.getSerializedEntryName = function(pos) {
 
 function TickProcessor(
     cppEntriesProvider, separateIc, ignoreUnknown, stateFilter, snapshotLogProcessor) {
-  devtools.profiler.LogReader.call(this, {
+  LogReader.call(this, {
       'shared-library': { parsers: [null, parseInt, parseInt],
           processor: this.processSharedLibrary },
       'code-creation': {
@@ -172,9 +172,9 @@ function TickProcessor(
   var ticks = this.ticks_ =
     { total: 0, unaccounted: 0, excluded: 0, gc: 0 };
 
-  Profile.prototype.handleUnknownCode = function(
+  V8Profile.prototype.handleUnknownCode = function(
       operation, addr, opt_stackPos) {
-    var op = devtools.profiler.Profile.Operation;
+    var op = Profile.Operation;
     switch (operation) {
       case op.MOVE:
         print('Code move event for unknown code: 0x' + addr.toString(16));
@@ -193,16 +193,16 @@ function TickProcessor(
     }
   };
 
-  this.profile_ = new Profile(separateIc);
+  this.profile_ = new V8Profile(separateIc);
   this.codeTypes_ = {};
   // Count each tick as a time unit.
-  this.viewBuilder_ = new devtools.profiler.ViewBuilder(1);
+  this.viewBuilder_ = new ViewBuilder(1);
   this.lastLogFileName_ = null;
 
   this.generation_ = 1;
   this.currentProducerProfile_ = null;
 };
-inherits(TickProcessor, devtools.profiler.LogReader);
+inherits(TickProcessor, LogReader);
 
 
 TickProcessor.VmStates = {
@@ -356,7 +356,7 @@ TickProcessor.prototype.processTick = function(pc, sp, func, vmState, stack) {
 
 TickProcessor.prototype.processHeapSampleBegin = function(space, state, ticks) {
   if (space != 'Heap') return;
-  this.currentProducerProfile_ = new devtools.profiler.CallTree();
+  this.currentProducerProfile_ = new CallTree();
 };
 
 

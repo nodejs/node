@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -281,6 +281,33 @@ void HValue::SetOperandAt(int index, HValue* value) {
 }
 
 
+void HLoadKeyedGeneric::InternalSetOperandAt(int index, HValue* value) {
+  if (index < 2) {
+    operands_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
+void HStoreKeyedGeneric::InternalSetOperandAt(int index, HValue* value) {
+  if (index < 3) {
+    operands_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
+void HStoreNamedGeneric::InternalSetOperandAt(int index, HValue* value) {
+  if (index < 2) {
+    operands_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
 void HValue::ReplaceAndDelete(HValue* other) {
   ReplaceValue(other);
   Delete();
@@ -438,9 +465,16 @@ void HInstruction::PrintTo(StringStream* stream) const {
 void HInstruction::Unlink() {
   ASSERT(IsLinked());
   ASSERT(!IsControlInstruction());  // Must never move control instructions.
+  ASSERT(!IsBlockEntry());  // Doesn't make sense to delete these.
+  ASSERT(previous_ != NULL);
+  previous_->next_ = next_;
+  if (next_ == NULL) {
+    ASSERT(block()->last() == this);
+    block()->set_last(previous_);
+  } else {
+    next_->previous_ = previous_;
+  }
   clear_block();
-  if (previous_ != NULL) previous_->next_ = next_;
-  if (next_ != NULL) next_->previous_ = previous_;
 }
 
 
@@ -527,26 +561,64 @@ void HInstruction::Verify() {
 #endif
 
 
-HCall::HCall(int count) : arguments_(Zone::NewArray<HValue*>(count), count) {
-  for (int i = 0; i < count; ++i) arguments_[i] = NULL;
-  set_representation(Representation::Tagged());
-  SetAllSideEffects();
+void HCall::PrintDataTo(StringStream* stream) const {
+  stream->Add("#%d", argument_count());
 }
 
 
-void HCall::PrintDataTo(StringStream* stream) const {
-  stream->Add("(");
-  for (int i = 0; i < arguments_.length(); ++i) {
-    if (i != 0) stream->Add(", ");
-    arguments_.at(i)->PrintNameTo(stream);
+void HUnaryCall::PrintDataTo(StringStream* stream) const {
+  value()->PrintNameTo(stream);
+  stream->Add(" ");
+  HCall::PrintDataTo(stream);
+}
+
+
+void HBinaryCall::PrintDataTo(StringStream* stream) const {
+  first()->PrintNameTo(stream);
+  stream->Add(" ");
+  second()->PrintNameTo(stream);
+  stream->Add(" ");
+  HCall::PrintDataTo(stream);
+}
+
+
+void HCallConstantFunction::PrintDataTo(StringStream* stream) const {
+  if (IsApplyFunction()) {
+    stream->Add("optimized apply ");
+  } else {
+    stream->Add("%o ", function()->shared()->DebugName());
   }
-  stream->Add(")");
+  HCall::PrintDataTo(stream);
+}
+
+
+void HCallNamed::PrintDataTo(StringStream* stream) const {
+  stream->Add("%o ", *name());
+  HUnaryCall::PrintDataTo(stream);
+}
+
+
+void HCallGlobal::PrintDataTo(StringStream* stream) const {
+  stream->Add("%o ", *name());
+  HUnaryCall::PrintDataTo(stream);
+}
+
+
+void HCallKnownGlobal::PrintDataTo(StringStream* stream) const {
+  stream->Add("o ", target()->shared()->DebugName());
+  HCall::PrintDataTo(stream);
+}
+
+
+void HCallRuntime::PrintDataTo(StringStream* stream) const {
+  stream->Add("%o ", *name());
+  HCall::PrintDataTo(stream);
 }
 
 
 void HClassOfTest::PrintDataTo(StringStream* stream) const {
   stream->Add("class_of_test(");
-  value()->PrintTo(stream);
+  value()->PrintNameTo(stream);
   stream->Add(", \"%o\")", *class_name());
 }
 
@@ -557,22 +629,6 @@ void HAccessArgumentsAt::PrintDataTo(StringStream* stream) const {
   index()->PrintNameTo(stream);
   stream->Add("], length ");
   length()->PrintNameTo(stream);
-}
-
-
-void HCall::SetArgumentAt(int index, HPushArgument* push_argument) {
-  push_argument->set_argument_index(index);
-  SetOperandAt(index, push_argument);
-}
-
-
-void HCallConstantFunction::PrintDataTo(StringStream* stream) const {
-  if (IsApplyFunction()) {
-    stream->Add("SPECIAL function: apply");
-  } else {
-    stream->Add("%s", *(function()->shared()->DebugName()->ToCString()));
-  }
-  HCall::PrintDataTo(stream);
 }
 
 
@@ -663,14 +719,6 @@ void HTypeofIs::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HPushArgument::PrintDataTo(StringStream* stream) const {
-  HUnaryOperation::PrintDataTo(stream);
-  if (argument_index() != -1) {
-    stream->Add(" [%d]", argument_index_);
-  }
-}
-
-
 void HChange::PrintDataTo(StringStream* stream) const {
   HUnaryOperation::PrintDataTo(stream);
   stream->Add(" %s to %s", from_.Mnemonic(), to_.Mnemonic());
@@ -699,42 +747,19 @@ void HCheckFunction::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HCallKeyed::PrintDataTo(StringStream* stream) const {
-  stream->Add("[");
-  key()->PrintNameTo(stream);
-  stream->Add("](");
-  for (int i = 1; i < arguments_.length(); ++i) {
-    if (i != 1) stream->Add(", ");
-    arguments_.at(i)->PrintNameTo(stream);
-  }
-  stream->Add(")");
-}
-
-
-void HCallNamed::PrintDataTo(StringStream* stream) const {
-  SmartPointer<char> name_string = name()->ToCString();
-  stream->Add("%s ", *name_string);
-  HCall::PrintDataTo(stream);
-}
-
-
-void HCallGlobal::PrintDataTo(StringStream* stream) const {
-  SmartPointer<char> name_string = name()->ToCString();
-  stream->Add("%s ", *name_string);
-  HCall::PrintDataTo(stream);
-}
-
-
-void HCallRuntime::PrintDataTo(StringStream* stream) const {
-  SmartPointer<char> name_string = name()->ToCString();
-  stream->Add("%s ", *name_string);
-  HCall::PrintDataTo(stream);
-}
-
 void HCallStub::PrintDataTo(StringStream* stream) const {
-  stream->Add("%s(%d)",
-              CodeStub::MajorName(major_key_, false),
-              argument_count_);
+  stream->Add("%s ",
+              CodeStub::MajorName(major_key_, false));
+  HUnaryCall::PrintDataTo(stream);
+}
+
+
+void HInstanceOf::PrintDataTo(StringStream* stream) const {
+  left()->PrintNameTo(stream);
+  stream->Add(" ");
+  right()->PrintNameTo(stream);
+  stream->Add(" ");
+  context()->PrintNameTo(stream);
 }
 
 
@@ -897,17 +922,6 @@ void HPhi::AddInput(HValue* value) {
   if (!CheckFlag(kIsArguments) && value->CheckFlag(kIsArguments)) {
     SetFlag(kIsArguments);
   }
-}
-
-
-bool HPhi::HasReceiverOperand() {
-  for (int i = 0; i < OperandCount(); i++) {
-    if (OperandAt(i)->IsParameter() &&
-        HParameter::cast(OperandAt(i))->index() == 0) {
-      return true;
-    }
-  }
-  return false;
 }
 
 
@@ -1147,6 +1161,14 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) const {
 
 void HLoadKeyed::PrintDataTo(StringStream* stream) const {
   object()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("]");
+}
+
+
+void HLoadPixelArrayElement::PrintDataTo(StringStream* stream) const {
+  external_pointer()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("]");

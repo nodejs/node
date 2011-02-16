@@ -586,17 +586,20 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
       // Step 7
       if (desc.isConfigurable() ||
           (desc.hasEnumerable() &&
-           desc.isEnumerable() != current.isEnumerable()))
+           desc.isEnumerable() != current.isEnumerable())) {
         throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+      }
       // Step 8
       if (!IsGenericDescriptor(desc)) {
         // Step 9a
-        if (IsDataDescriptor(current) != IsDataDescriptor(desc))
+        if (IsDataDescriptor(current) != IsDataDescriptor(desc)) {
           throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+        }
         // Step 10a
         if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
-          if (!current.isWritable() && desc.isWritable())
+          if (!current.isWritable() && desc.isWritable()) {
             throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+          }
           if (!current.isWritable() && desc.hasValue() &&
               !SameValue(desc.getValue(), current.getValue())) {
             throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
@@ -604,11 +607,12 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
         }
         // Step 11
         if (IsAccessorDescriptor(desc) && IsAccessorDescriptor(current)) {
-          if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())){
+          if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())) {
             throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
           }
-          if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet()))
+          if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet())) {
             throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+          }
         }
       }
     }
@@ -1153,33 +1157,49 @@ function FunctionBind(this_arg) { // Length is 1.
   }
   // this_arg is not an argument that should be bound.
   var argc_bound = (%_ArgumentsLength() || 1) - 1;
-  if (argc_bound > 0) {
+  var fn = this;
+  if (argc_bound == 0) {
+    var result = function() {
+      if (%_IsConstructCall()) {
+        // %NewObjectFromBound implicitly uses arguments passed to this
+        // function. We do not pass the arguments object explicitly to avoid
+        // materializing it and guarantee that this function will be optimized.
+        return %NewObjectFromBound(fn, null);
+      }
+
+      return fn.apply(this_arg, arguments);
+    };
+  } else {
     var bound_args = new $Array(argc_bound);
     for(var i = 0; i < argc_bound; i++) {
       bound_args[i] = %_Arguments(i+1);
     }
+
+    var result = function() {
+      // If this is a construct call we use a special runtime method
+      // to generate the actual object using the bound function.
+      if (%_IsConstructCall()) {
+        // %NewObjectFromBound implicitly uses arguments passed to this
+        // function. We do not pass the arguments object explicitly to avoid
+        // materializing it and guarantee that this function will be optimized.
+        return %NewObjectFromBound(fn, bound_args);
+      }
+
+      // Combine the args we got from the bind call with the args
+      // given as argument to the invocation.
+      var argc = %_ArgumentsLength();
+      var args = new $Array(argc + argc_bound);
+      // Add bound arguments.
+      for (var i = 0; i < argc_bound; i++) {
+        args[i] = bound_args[i];
+      }
+      // Add arguments from call.
+      for (var i = 0; i < argc; i++) {
+        args[argc_bound + i] = %_Arguments(i);
+      }
+      return fn.apply(this_arg, args);
+    };
   }
-  var fn = this;
-  var result = function() {
-    // Combine the args we got from the bind call with the args
-    // given as argument to the invocation.
-    var argc = %_ArgumentsLength();
-    var args = new $Array(argc + argc_bound);
-    // Add bound arguments.
-    for (var i = 0; i < argc_bound; i++) {
-      args[i] = bound_args[i];
-    }
-    // Add arguments from call.
-    for (var i = 0; i < argc; i++) {
-      args[argc_bound + i] = %_Arguments(i);
-    }
-    // If this is a construct call we use a special runtime method
-    // to generate the actual object using the bound function.
-    if (%_IsConstructCall()) {
-      return %NewObjectFromBound(fn, args);
-    }
-    return fn.apply(this_arg, args);
-  };
 
   // We already have caller and arguments properties on functions,
   // which are non-configurable. It therefore makes no sence to

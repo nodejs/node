@@ -446,6 +446,14 @@ TEST(DisasmIa320) {
     }
   }
 
+  {
+    if (CpuFeatures::IsSupported(SSE4_1)) {
+      CpuFeatures::Scope scope(SSE4_1);
+      __ pextrd(Operand(eax), xmm0, 1);
+      __ pinsrd(xmm1, Operand(eax), 0);
+    }
+  }
+
   __ ret(0);
 
   CodeDesc desc;
