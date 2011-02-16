@@ -60,7 +60,7 @@ libev - a high performance full-featured event loop written in C
      // now wait for events to arrive
      ev_run (loop, 0);
 
-     // unloop was called, so exit
+     // break was called, so exit
      return 0;
    }
 
@@ -443,6 +443,9 @@ when you want to receive them.
 This behaviour is useful when you want to do your own signal handling, or
 want to handle signals only in specific threads and want to avoid libev
 unblocking the signals.
+
+It's also required by POSIX in a threaded program, as libev calls
+C<sigprocmask>, whose behaviour is officially unspecified.
 
 This flag's behaviour will become the default in future versions of libev.
 
@@ -867,7 +870,7 @@ anymore.
    ... queue jobs here, make sure they register event watchers as long
    ... as they still have work to do (even an idle watcher will do..)
    ev_run (my_loop, 0);
-   ... jobs done or somebody called unloop. yeah!
+   ... jobs done or somebody called break. yeah!
 
 =item ev_break (loop, how)
 
@@ -1377,8 +1380,10 @@ Before a watcher can be registered with the event looop it has to be
 initialised. This can be done with a call to C<ev_TYPE_init>, or calls to
 C<ev_init> followed by the watcher-specific C<ev_TYPE_set> function.
 
-In this state it is simply some block of memory that is suitable for use
-in an event loop. It can be moved around, freed, reused etc. at will.
+In this state it is simply some block of memory that is suitable for
+use in an event loop. It can be moved around, freed, reused etc. at
+will - as long as you either keep the memory contents intact, or call
+C<ev_TYPE_init> again.
 
 =item started/running/active
 
@@ -1416,8 +1421,9 @@ of whether it was active or not, so stopping a watcher explicitly before
 freeing it is often a good idea.
 
 While stopped (and not pending) the watcher is essentially in the
-initialised state, that is it can be reused, moved, modified in any way
-you wish.
+initialised state, that is, it can be reused, moved, modified in any way
+you wish (but when you trash the memory block, you need to C<ev_TYPE_init>
+it again).
 
 =back
 
@@ -2302,7 +2308,8 @@ and unblock them in an C<ev_prepare> watcher.
 Both the signal mask (C<sigprocmask>) and the signal disposition
 (C<sigaction>) are unspecified after starting a signal watcher (and after
 stopping it again), that is, libev might or might not block the signal,
-and might or might not set or restore the installed signal handler.
+and might or might not set or restore the installed signal handler (but
+see C<EVFLAG_NOSIGMASK>).
 
 While this does not matter for the signal disposition (libev never
 sets signals to C<SIG_IGN>, so handlers will be reset to C<SIG_DFL> on
@@ -3183,7 +3190,7 @@ cleanup functions are called.
 
 =head2 C<ev_async> - how to wake up an event loop
 
-In general, you cannot use an C<ev_run> from multiple threads or other
+In general, you cannot use an C<ev_loop> from multiple threads or other
 asynchronous sources such as signal handlers (as opposed to multiple event
 loops - those are of course safe to use in different threads).
 
@@ -3303,10 +3310,12 @@ trust me.
 =item ev_async_send (loop, ev_async *)
 
 Sends/signals/activates the given C<ev_async> watcher, that is, feeds
-an C<EV_ASYNC> event on the watcher into the event loop. Unlike
-C<ev_feed_event>, this call is safe to do from other threads, signal or
-similar contexts (see the discussion of C<EV_ATOMIC_T> in the embedding
-section below on what exactly this means).
+an C<EV_ASYNC> event on the watcher into the event loop, and instantly
+returns.
+
+Unlike C<ev_feed_event>, this call is safe to do from other threads,
+signal or similar contexts (see the discussion of C<EV_ATOMIC_T> in the
+embedding section below on what exactly this means).
 
 Note that, as with other watchers in libev, multiple events might get
 compressed into a single callback invocation (another way to look at this
@@ -3542,7 +3551,7 @@ First, you need to associate some data with the event loop:
       ev_set_invoke_pending_cb (EV_A_ l_invoke);
       ev_set_loop_release_cb (EV_A_ l_release, l_acquire);
 
-      // then create the thread running ev_loop
+      // then create the thread running ev_run
       pthread_create (&u->tid, 0, l_run, EV_A);
    }
 
@@ -5217,7 +5226,7 @@ The physical time that is observed. It is apparently strictly monotonic :)
 =item wall-clock time
 
 The time and date as shown on clocks. Unlike real time, it can actually
-be wrong and jump forwards and backwards, e.g. when the you adjust your
+be wrong and jump forwards and backwards, e.g. when you adjust your
 clock.
 
 =item watcher
@@ -5230,5 +5239,5 @@ to be started (attached to an event loop) before they can receive events.
 =head1 AUTHOR
 
 Marc Lehmann <libev@schmorp.de>, with repeated corrections by Mikael
-Magnusson and Emanuele Giaquinta.
+Magnusson and Emanuele Giaquinta, and minor corrections by many others.
 

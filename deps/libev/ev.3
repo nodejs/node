@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "LIBEV 3"
-.TH LIBEV 3 "2011-01-11" "libev-4.03" "libev - high performance full featured event loop"
+.TH LIBEV 3 "2011-02-16" "libev-4.04" "libev - high performance full featured event loop"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -191,7 +191,7 @@ libev \- a high performance full\-featured event loop written in C
 \&     // now wait for events to arrive
 \&     ev_run (loop, 0);
 \&
-\&     // unloop was called, so exit
+\&     // break was called, so exit
 \&     return 0;
 \&   }
 .Ve
@@ -561,6 +561,9 @@ when you want to receive them.
 This behaviour is useful when you want to do your own signal handling, or
 want to handle signals only in specific threads and want to avoid libev
 unblocking the signals.
+.Sp
+It's also required by \s-1POSIX\s0 in a threaded program, as libev calls
+\&\f(CW\*(C`sigprocmask\*(C'\fR, whose behaviour is officially unspecified.
 .Sp
 This flag's behaviour will become the default in future versions of libev.
 .ie n .IP """EVBACKEND_SELECT""  (value 1, portable select backend)" 4
@@ -987,7 +990,7 @@ anymore.
 \&   ... queue jobs here, make sure they register event watchers as long
 \&   ... as they still have work to do (even an idle watcher will do..)
 \&   ev_run (my_loop, 0);
-\&   ... jobs done or somebody called unloop. yeah!
+\&   ... jobs done or somebody called break. yeah!
 .Ve
 .IP "ev_break (loop, how)" 4
 .IX Item "ev_break (loop, how)"
@@ -1492,8 +1495,10 @@ Before a watcher can be registered with the event looop it has to be
 initialised. This can be done with a call to \f(CW\*(C`ev_TYPE_init\*(C'\fR, or calls to
 \&\f(CW\*(C`ev_init\*(C'\fR followed by the watcher-specific \f(CW\*(C`ev_TYPE_set\*(C'\fR function.
 .Sp
-In this state it is simply some block of memory that is suitable for use
-in an event loop. It can be moved around, freed, reused etc. at will.
+In this state it is simply some block of memory that is suitable for
+use in an event loop. It can be moved around, freed, reused etc. at
+will \- as long as you either keep the memory contents intact, or call
+\&\f(CW\*(C`ev_TYPE_init\*(C'\fR again.
 .IP "started/running/active" 4
 .IX Item "started/running/active"
 Once a watcher has been started with a call to \f(CW\*(C`ev_TYPE_start\*(C'\fR it becomes
@@ -1528,8 +1533,9 @@ of whether it was active or not, so stopping a watcher explicitly before
 freeing it is often a good idea.
 .Sp
 While stopped (and not pending) the watcher is essentially in the
-initialised state, that is it can be reused, moved, modified in any way
-you wish.
+initialised state, that is, it can be reused, moved, modified in any way
+you wish (but when you trash the memory block, you need to \f(CW\*(C`ev_TYPE_init\*(C'\fR
+it again).
 .SS "\s-1WATCHER\s0 \s-1PRIORITY\s0 \s-1MODELS\s0"
 .IX Subsection "WATCHER PRIORITY MODELS"
 Many event loops support \fIwatcher priorities\fR, which are usually small
@@ -2431,7 +2437,8 @@ and unblock them in an \f(CW\*(C`ev_prepare\*(C'\fR watcher.
 Both the signal mask (\f(CW\*(C`sigprocmask\*(C'\fR) and the signal disposition
 (\f(CW\*(C`sigaction\*(C'\fR) are unspecified after starting a signal watcher (and after
 stopping it again), that is, libev might or might not block the signal,
-and might or might not set or restore the installed signal handler.
+and might or might not set or restore the installed signal handler (but
+see \f(CW\*(C`EVFLAG_NOSIGMASK\*(C'\fR).
 .PP
 While this does not matter for the signal disposition (libev never
 sets signals to \f(CW\*(C`SIG_IGN\*(C'\fR, so handlers will be reset to \f(CW\*(C`SIG_DFL\*(C'\fR on
@@ -3309,7 +3316,7 @@ cleanup functions are called.
 .ie n .SS """ev_async"" \- how to wake up an event loop"
 .el .SS "\f(CWev_async\fP \- how to wake up an event loop"
 .IX Subsection "ev_async - how to wake up an event loop"
-In general, you cannot use an \f(CW\*(C`ev_run\*(C'\fR from multiple threads or other
+In general, you cannot use an \f(CW\*(C`ev_loop\*(C'\fR from multiple threads or other
 asynchronous sources such as signal handlers (as opposed to multiple event
 loops \- those are of course safe to use in different threads).
 .PP
@@ -3424,10 +3431,12 @@ trust me.
 .IP "ev_async_send (loop, ev_async *)" 4
 .IX Item "ev_async_send (loop, ev_async *)"
 Sends/signals/activates the given \f(CW\*(C`ev_async\*(C'\fR watcher, that is, feeds
-an \f(CW\*(C`EV_ASYNC\*(C'\fR event on the watcher into the event loop. Unlike
-\&\f(CW\*(C`ev_feed_event\*(C'\fR, this call is safe to do from other threads, signal or
-similar contexts (see the discussion of \f(CW\*(C`EV_ATOMIC_T\*(C'\fR in the embedding
-section below on what exactly this means).
+an \f(CW\*(C`EV_ASYNC\*(C'\fR event on the watcher into the event loop, and instantly
+returns.
+.Sp
+Unlike \f(CW\*(C`ev_feed_event\*(C'\fR, this call is safe to do from other threads,
+signal or similar contexts (see the discussion of \f(CW\*(C`EV_ATOMIC_T\*(C'\fR in the
+embedding section below on what exactly this means).
 .Sp
 Note that, as with other watchers in libev, multiple events might get
 compressed into a single callback invocation (another way to look at this
@@ -3660,7 +3669,7 @@ First, you need to associate some data with the event loop:
 \&      ev_set_invoke_pending_cb (EV_A_ l_invoke);
 \&      ev_set_loop_release_cb (EV_A_ l_release, l_acquire);
 \&
-\&      // then create the thread running ev_loop
+\&      // then create the thread running ev_run
 \&      pthread_create (&u\->tid, 0, l_run, EV_A);
 \&   }
 .Ve
@@ -5290,7 +5299,7 @@ The physical time that is observed. It is apparently strictly monotonic :)
 .IP "wall-clock time" 4
 .IX Item "wall-clock time"
 The time and date as shown on clocks. Unlike real time, it can actually
-be wrong and jump forwards and backwards, e.g. when the you adjust your
+be wrong and jump forwards and backwards, e.g. when you adjust your
 clock.
 .IP "watcher" 4
 .IX Item "watcher"
@@ -5299,4 +5308,4 @@ to be started (attached to an event loop) before they can receive events.
 .SH "AUTHOR"
 .IX Header "AUTHOR"
 Marc Lehmann <libev@schmorp.de>, with repeated corrections by Mikael
-Magnusson and Emanuele Giaquinta.
+Magnusson and Emanuele Giaquinta, and minor corrections by many others.

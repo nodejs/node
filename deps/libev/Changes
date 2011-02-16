@@ -1,5 +1,14 @@
 Revision history for libev, a high-performance and full-featured event loop.
 
+4.04 Wed Feb 16 09:01:51 CET 2011
+	- fix two problems in the native win32 backend, where reuse of fd's
+          with different underlying handles caused handles not to be removed
+          or added to the select set (analyzed and tested by Bert Belder).
+	- do no rely on ceil() in ev_e?poll.c.
+        - backport libev to HP-UX versions before 11 v3.
+        - configure did not detect nanosleep and clock_gettime properly when
+          they are available in the libc (as opposed to -lrt).
+
 4.03 Tue Jan 11 14:37:25 CET 2011
 	- officially support polling files with all backends.
 	- support files, /dev/zero etc. the same way as select in the epoll
