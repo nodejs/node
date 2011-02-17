@@ -518,6 +518,8 @@ def v8_cmd(bld, variant):
   if bld.env['DEST_CPU']:
     arch = "arch="+bld.env['DEST_CPU']
 
+  toolchain = "gcc"
+
   if variant == "default":
     mode = "release"
   else:
@@ -533,7 +535,7 @@ def v8_cmd(bld, variant):
   else:
     profile = ""
 
-  cmd_R = sys.executable + ' "%s" -j %d -C "%s" -Y "%s" visibility=default mode=%s %s library=static %s %s'
+  cmd_R = sys.executable + ' "%s" -j %d -C "%s" -Y "%s" visibility=default mode=%s %s toolchain=%s library=static %s %s'
 
   cmd = cmd_R % ( scons
                 , Options.options.jobs
@@ -541,6 +543,7 @@ def v8_cmd(bld, variant):
                 , safe_path(v8dir_src)
                 , mode
                 , arch
+                , toolchain
                 , snapshot
                 , profile
                 )
