@@ -706,7 +706,7 @@ def build(bld):
     if bld.env["USE_DEBUG"]:
       dtrace_g = dtrace.clone("debug")
 
-    bld.install_files('${PREFIX}/usr/lib/dtrace', 'src/node.d')
+    bld.install_files('${PREFIX}/lib/dtrace', 'src/node.d')
 
     if sys.platform.startswith("sunos"):
       #
