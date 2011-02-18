@@ -66,3 +66,10 @@ process.on('exit', function() {
     }
   }
 });
+
+
+// This function allows one two run an HTTP test agaist both HTTPS and
+// normal HTTP modules. This ensures they fit the same API.
+exports.httpTest = function httpTest(cb) {
+};
+
