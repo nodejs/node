@@ -212,6 +212,10 @@ the `NODE_PATH` environment variable might have been set to:
 
     /home/micheil/.node_modules:/usr/local/lib/node_modules
 
+Loading from the `require.paths` locations is only performed if the
+module could not be found using the `node_modules` algorithm above.
+Global modules are lower priority than bundled dependencies.
+
 #### **Note:** Please Avoid Modifying `require.paths`
 
 For compatibility reasons, `require.paths` is still given first priority
