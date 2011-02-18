@@ -17,7 +17,7 @@ setTimeout(function() {
 
   var diff = endtime - starttime;
   assert.ok(diff > 0);
-  console.log('diff: ' + diff);
+  console.error('diff: ' + diff);
 
   assert.equal(true, 1000 - WINDOW < diff && diff < 1000 + WINDOW);
   setTimeout_called = true;
@@ -33,7 +33,7 @@ setInterval(function() {
 
   var diff = endtime - starttime;
   assert.ok(diff > 0);
-  console.log('diff: ' + diff);
+  console.error('diff: ' + diff);
 
   var t = interval_count * 1000;
 

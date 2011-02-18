@@ -440,7 +440,7 @@ void JSRegExp::JSRegExpVerify() {
       ASSERT(ascii_data->IsTheHole() || ascii_data->IsJSObject() ||
           (is_native ? ascii_data->IsCode() : ascii_data->IsByteArray()));
       Object* uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
-      ASSERT(uc16_data->IsTheHole() || ascii_data->IsJSObject() ||
+      ASSERT(uc16_data->IsTheHole() || uc16_data->IsJSObject() ||
           (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
       ASSERT(arr->get(JSRegExp::kIrregexpCaptureCountIndex)->IsSmi());
       ASSERT(arr->get(JSRegExp::kIrregexpMaxRegisterCountIndex)->IsSmi());

@@ -29,10 +29,6 @@
  * @fileoverview Log Reader is used to process log file produced by V8.
  */
 
-// Initlialize namespaces
-var devtools = devtools || {};
-devtools.profiler = devtools.profiler || {};
-
 
 /**
  * Base class for processing log files.
@@ -41,7 +37,7 @@ devtools.profiler = devtools.profiler || {};
  *     log records.
  * @constructor
  */
-devtools.profiler.LogReader = function(dispatchTable) {
+function LogReader(dispatchTable) {
   /**
    * @type {Array.<Object>}
    */
@@ -55,9 +51,9 @@ devtools.profiler.LogReader = function(dispatchTable) {
 
   /**
    * CSV lines parser.
-   * @type {devtools.profiler.CsvParser}
+   * @type {CsvParser}
    */
-  this.csvParser_ = new devtools.profiler.CsvParser();
+  this.csvParser_ = new CsvParser();
 };
 
 
@@ -66,7 +62,7 @@ devtools.profiler.LogReader = function(dispatchTable) {
  *
  * @param {string} str Error message.
  */
-devtools.profiler.LogReader.prototype.printError = function(str) {
+LogReader.prototype.printError = function(str) {
   // Do nothing.
 };
 
@@ -76,7 +72,7 @@ devtools.profiler.LogReader.prototype.printError = function(str) {
  *
  * @param {string} chunk A portion of log.
  */
-devtools.profiler.LogReader.prototype.processLogChunk = function(chunk) {
+LogReader.prototype.processLogChunk = function(chunk) {
   this.processLog_(chunk.split('\n'));
 };
 
@@ -86,7 +82,7 @@ devtools.profiler.LogReader.prototype.processLogChunk = function(chunk) {
  *
  * @param {string} line A line of log.
  */
-devtools.profiler.LogReader.prototype.processLogLine = function(line) {
+LogReader.prototype.processLogLine = function(line) {
   this.processLog_([line]);
 };
 
@@ -99,7 +95,7 @@ devtools.profiler.LogReader.prototype.processLogLine = function(line) {
  * @param {Array.<string>} stack String representation of a stack.
  * @return {Array.<number>} Processed stack.
  */
-devtools.profiler.LogReader.prototype.processStack = function(pc, func, stack) {
+LogReader.prototype.processStack = function(pc, func, stack) {
   var fullStack = func ? [pc, func] : [pc];
   var prevFrame = pc;
   for (var i = 0, n = stack.length; i < n; ++i) {
@@ -124,7 +120,7 @@ devtools.profiler.LogReader.prototype.processStack = function(pc, func, stack) {
  * @param {!Object} dispatch Dispatch record.
  * @return {boolean} True if dispatch must be skipped.
  */
-devtools.profiler.LogReader.prototype.skipDispatch = function(dispatch) {
+LogReader.prototype.skipDispatch = function(dispatch) {
   return false;
 };
 
@@ -135,7 +131,7 @@ devtools.profiler.LogReader.prototype.skipDispatch = function(dispatch) {
  * @param {Array.<string>} fields Log record.
  * @private
  */
-devtools.profiler.LogReader.prototype.dispatchLogRow_ = function(fields) {
+LogReader.prototype.dispatchLogRow_ = function(fields) {
   // Obtain the dispatch.
   var command = fields[0];
   if (!(command in this.dispatchTable_)) {
@@ -173,7 +169,7 @@ devtools.profiler.LogReader.prototype.dispatchLogRow_ = function(fields) {
  * @param {Array.<string>} lines Log lines.
  * @private
  */
-devtools.profiler.LogReader.prototype.processLog_ = function(lines) {
+LogReader.prototype.processLog_ = function(lines) {
   for (var i = 0, n = lines.length; i < n; ++i, ++this.lineNum_) {
     var line = lines[i];
     if (!line) {

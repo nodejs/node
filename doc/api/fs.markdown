@@ -207,12 +207,12 @@ to the completion callback.
 
 Synchronous close(2).
 
-### fs.open(path, flags, mode=0666, [callback])
+### fs.open(path, flags, [mode], [callback])
 
 Asynchronous file open. See open(2). Flags can be 'r', 'r+', 'w', 'w+', 'a',
-or 'a+'. The callback gets two arguments `(err, fd)`.
+or 'a+'. `mode` defaults to 0666. The callback gets two arguments `(err, fd)`.
 
-### fs.openSync(path, flags, mode=0666)
+### fs.openSync(path, flags, [mode])
 
 Synchronous open(2).
 

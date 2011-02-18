@@ -1033,23 +1033,31 @@ Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
 }
 
 
-Result VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
+Result VirtualFrame::CallStoreIC(Handle<String> name,
+                                 bool is_contextual,
+                                 StrictModeFlag strict_mode) {
   // Value and (if not contextual) receiver are on top of the frame.
   // The IC expects name in ecx, value in eax, and receiver in edx.
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(strict_mode == kStrictMode
+      ? Builtins::StoreIC_Initialize_Strict
+      : Builtins::StoreIC_Initialize));
+
   Result value = Pop();
+  RelocInfo::Mode mode;
   if (is_contextual) {
     PrepareForCall(0, 0);
     value.ToRegister(eax);
     __ mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
     value.Unuse();
+    mode = RelocInfo::CODE_TARGET_CONTEXT;
   } else {
     Result receiver = Pop();
     PrepareForCall(0, 0);
     MoveResultsToRegisters(&value, &receiver, eax, edx);
+    mode = RelocInfo::CODE_TARGET;
   }
   __ mov(ecx, name);
-  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
+  return RawCallCodeObject(ic, mode);
 }
 
 

@@ -171,7 +171,8 @@ class MacroAssembler: public Assembler {
   void PushSafepointRegisters() { Pushad(); }
   void PopSafepointRegisters() { Popad(); }
   static int SafepointRegisterStackIndex(int reg_code) {
-    return kSafepointPushRegisterIndices[reg_code];
+    return kNumSafepointRegisters - 1 -
+        kSafepointPushRegisterIndices[reg_code];
   }
 
 
@@ -661,6 +662,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a smi. Used in debug code.
   void AbortIfNotSmi(Register object);
 
+  // Abort execution if argument is a string. Used in debug code.
+  void AbortIfNotString(Register object);
+
   // Abort execution if argument is not the root value with the given index.
   void AbortIfNotRootValue(Register src,
                            Heap::RootListIndex root_value_index,
@@ -675,6 +679,13 @@ class MacroAssembler: public Assembler {
 
   // Unlink the stack handler on top of the stack from the try handler chain.
   void PopTryHandler();
+
+  // Activate the top handler in the try hander chain and pass the
+  // thrown value.
+  void Throw(Register value);
+
+  // Propagate an uncatchable exception out of the current JS stack.
+  void ThrowUncatchable(UncatchableExceptionType type, Register value);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -920,6 +931,10 @@ class MacroAssembler: public Assembler {
 
   void Ret();
 
+  // Return and drop arguments from stack, where the number of arguments
+  // may be bigger than 2^16 - 1.  Requires a scratch register.
+  void Ret(int bytes_dropped, Register scratch);
+
   Handle<Object> CodeObject() { return code_object_; }
 
 
@@ -959,6 +974,8 @@ class MacroAssembler: public Assembler {
   // Order general registers are pushed by Pushad.
   // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14.
   static int kSafepointPushRegisterIndices[Register::kNumRegisters];
+  static const int kNumSafepointSavedRegisters = 11;
+
   bool generating_stub_;
   bool allow_stub_calls_;
 

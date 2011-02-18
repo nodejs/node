@@ -223,6 +223,13 @@ Handle<Object> SetLocalPropertyIgnoreAttributes(
     Handle<Object> value,
     PropertyAttributes attributes);
 
+// Used to set local properties on the object we totally control
+// and which therefore has no accessors and alikes.
+void SetLocalPropertyNoThrow(Handle<JSObject> object,
+                             Handle<String> key,
+                             Handle<Object> value,
+                             PropertyAttributes attributes = NONE);
+
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
                                           Handle<Object> value,

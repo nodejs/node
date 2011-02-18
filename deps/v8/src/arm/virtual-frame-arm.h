@@ -294,7 +294,8 @@ class VirtualFrame : public ZoneObject {
   // Call store IC. If the load is contextual, value is found on top of the
   // frame. If not, value and receiver are on the frame. Both are consumed.
   // Result is returned in r0.
-  void CallStoreIC(Handle<String> name, bool is_contextual);
+  void CallStoreIC(Handle<String> name, bool is_contextual,
+                   StrictModeFlag strict_mode);
 
   // Call keyed load IC. Key and receiver are on the stack. Both are consumed.
   // Result is returned in r0.

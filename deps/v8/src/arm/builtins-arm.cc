@@ -1156,12 +1156,48 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 
 
 void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  __ stop("builtins-arm.cc: NotifyOSR");
+  // For now, we are relying on the fact that Runtime::NotifyOSR
+  // doesn't do any garbage collection which allows us to save/restore
+  // the registers without worrying about which of them contain
+  // pointers. This seems a bit fragile.
+  __ stm(db_w, sp, kJSCallerSaved | kCalleeSaved | lr.bit() | fp.bit());
+  __ EnterInternalFrame();
+  __ CallRuntime(Runtime::kNotifyOSR, 0);
+  __ LeaveInternalFrame();
+  __ ldm(ia_w, sp, kJSCallerSaved | kCalleeSaved | lr.bit() | fp.bit());
+  __ Ret();
 }
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  __ stop("builtins-arm.cc: OnStackReplacement");
+  // Probe the CPU to set the supported features, because this builtin
+  // may be called before the initialization performs CPU setup.
+  CpuFeatures::Probe(false);
+
+  // Lookup the function in the JavaScript frame and push it as an
+  // argument to the on-stack replacement function.
+  __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ EnterInternalFrame();
+  __ push(r0);
+  __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
+  __ LeaveInternalFrame();
+
+  // If the result was -1 it means that we couldn't optimize the
+  // function. Just return and continue in the unoptimized version.
+  Label skip;
+  __ cmp(r0, Operand(Smi::FromInt(-1)));
+  __ b(ne, &skip);
+  __ Ret();
+
+  __ bind(&skip);
+  // Untag the AST id and push it on the stack.
+  __ SmiUntag(r0);
+  __ push(r0);
+
+  // Generate the code for doing the frame-to-frame translation using
+  // the deoptimizer infrastructure.
+  Deoptimizer::EntryGenerator generator(masm, Deoptimizer::OSR);
+  generator.Generate();
 }
 
 
@@ -1195,6 +1231,14 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // Change context eagerly in case we need the global receiver.
     __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
+    // Do not transform the receiver for strict mode functions.
+    __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+    __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kCompilerHintsOffset));
+    __ tst(r2, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
+                             kSmiTagSize)));
+    __ b(ne, &shift_arguments);
+
+    // Compute the receiver in non-strict mode.
     __ add(r2, sp, Operand(r0, LSL, kPointerSizeLog2));
     __ ldr(r2, MemOperand(r2, -kPointerSize));
     // r0: actual number of arguments
@@ -1358,10 +1402,20 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Change context eagerly to get the right global object if necessary.
   __ ldr(r0, MemOperand(fp, kFunctionOffset));
   __ ldr(cp, FieldMemOperand(r0, JSFunction::kContextOffset));
+  // Load the shared function info while the function is still in r0.
+  __ ldr(r1, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
 
   // Compute the receiver.
   Label call_to_object, use_global_receiver, push_receiver;
   __ ldr(r0, MemOperand(fp, kRecvOffset));
+
+  // Do not transform the receiver for strict mode functions.
+  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCompilerHintsOffset));
+  __ tst(r1, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
+                           kSmiTagSize)));
+  __ b(ne, &push_receiver);
+
+  // Compute the receiver in non-strict mode.
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &call_to_object);
   __ LoadRoot(r1, Heap::kNullValueRootIndex);

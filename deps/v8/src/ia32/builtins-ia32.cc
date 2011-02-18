@@ -589,6 +589,13 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // Change context eagerly in case we need the global receiver.
     __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
+    // Do not transform the receiver for strict mode functions.
+    __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ test_b(FieldOperand(ebx, SharedFunctionInfo::kStrictModeByteOffset),
+              1 << SharedFunctionInfo::kStrictModeBitWithinByte);
+    __ j(not_equal, &shift_arguments);
+
+    // Compute the receiver in non-strict mode.
     __ mov(ebx, Operand(esp, eax, times_4, 0));  // First argument.
     __ test(ebx, Immediate(kSmiTagMask));
     __ j(zero, &convert_to_object);
@@ -736,6 +743,14 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Compute the receiver.
   Label call_to_object, use_global_receiver, push_receiver;
   __ mov(ebx, Operand(ebp, 3 * kPointerSize));
+
+  // Do not transform the receiver for strict mode functions.
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ test_b(FieldOperand(ecx, SharedFunctionInfo::kStrictModeByteOffset),
+            1 << SharedFunctionInfo::kStrictModeBitWithinByte);
+  __ j(not_equal, &push_receiver);
+
+  // Compute the receiver in non-strict mode.
   __ test(ebx, Immediate(kSmiTagMask));
   __ j(zero, &call_to_object);
   __ cmp(ebx, Factory::null_value());

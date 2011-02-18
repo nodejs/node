@@ -68,7 +68,7 @@ const double DoubleConstant::min_int = kMinInt;
 const double DoubleConstant::one_half = 0.5;
 const double DoubleConstant::minus_zero = -0.0;
 const double DoubleConstant::negative_infinity = -V8_INFINITY;
-
+const char* RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 // -----------------------------------------------------------------------------
 // Implementation of Label

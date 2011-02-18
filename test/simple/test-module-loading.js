@@ -70,6 +70,8 @@ assert.notEqual(threeFolder, three);
 common.debug('test package.json require() loading');
 assert.equal(require('../fixtures/packages/main').ok, 'ok',
              'Failed loading package');
+assert.equal(require('../fixtures/packages/main-index').ok, 'ok',
+             'Failed loading package with index.js in main subdir');
 
 common.debug('test cycles containing a .. path');
 var root = require('../fixtures/cycles/root'),

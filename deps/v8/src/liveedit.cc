@@ -36,7 +36,6 @@
 #include "deoptimizer.h"
 #include "global-handles.h"
 #include "memory.h"
-#include "oprofile-agent.h"
 #include "parser.h"
 #include "scopeinfo.h"
 #include "scopes.h"

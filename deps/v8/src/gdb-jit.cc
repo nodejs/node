@@ -395,7 +395,7 @@ class ELF BASE_EMBEDDED {
   void WriteHeader(Writer* w) {
     ASSERT(w->position() == 0);
     Writer::Slot<ELFHeader> header = w->CreateSlotHere<ELFHeader>();
-#if defined(V8_TARGET_ARCH_IA32)
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_ARM)
     const uint8_t ident[16] =
         { 0x7f, 'E', 'L', 'F', 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 #elif defined(V8_TARGET_ARCH_X64)
@@ -413,6 +413,10 @@ class ELF BASE_EMBEDDED {
     //    System V ABI, AMD64 Supplement
     //    http://www.x86-64.org/documentation/abi.pdf
     header->machine = 62;
+#elif defined(V8_TARGET_ARCH_ARM)
+    // Set to EM_ARM, defined as 40, in "ARM ELF File Format" at
+    // infocenter.arm.com/help/topic/com.arm.doc.dui0101a/DUI0101A_Elf.pdf
+    header->machine = 40;
 #else
 #error Unsupported target architecture.
 #endif
@@ -503,8 +507,7 @@ class ELFSymbol BASE_EMBEDDED {
   Binding binding() const {
     return static_cast<Binding>(info >> 4);
   }
-
-#if defined(V8_TARGET_ARCH_IA32)
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_ARM)
   struct SerializedLayout {
     SerializedLayout(uint32_t name,
                      uintptr_t value,
@@ -857,14 +860,20 @@ class DebugLineSection : public ELFSection {
     Writer::Slot<uint32_t> total_length = w->CreateSlotHere<uint32_t>();
     uintptr_t start = w->position();
 
+    // Used for special opcodes
+    const int8_t line_base = 1;
+    const uint8_t line_range = 7;
+    const int8_t max_line_incr = (line_base + line_range - 1);
+    const uint8_t opcode_base = DW_LNS_NEGATE_STMT + 1;
+
     w->Write<uint16_t>(2);  // Field version.
     Writer::Slot<uint32_t> prologue_length = w->CreateSlotHere<uint32_t>();
     uintptr_t prologue_start = w->position();
     w->Write<uint8_t>(1);  // Field minimum_instruction_length.
     w->Write<uint8_t>(1);  // Field default_is_stmt.
-    w->Write<int8_t>(0);  // Field line_base.
-    w->Write<uint8_t>(2);  // Field line_range.
-    w->Write<uint8_t>(DW_LNS_NEGATE_STMT + 1);  // Field opcode_base.
+    w->Write<int8_t>(line_base);  // Field line_base.
+    w->Write<uint8_t>(line_range);  // Field line_range.
+    w->Write<uint8_t>(opcode_base);  // Field opcode_base.
     w->Write<uint8_t>(0);  // DW_LNS_COPY operands count.
     w->Write<uint8_t>(1);  // DW_LNS_ADVANCE_PC operands count.
     w->Write<uint8_t>(1);  // DW_LNS_ADVANCE_LINE operands count.
@@ -881,6 +890,7 @@ class DebugLineSection : public ELFSection {
 
     WriteExtendedOpcode(w, DW_LNE_SET_ADDRESS, sizeof(intptr_t));
     w->Write<intptr_t>(desc_->CodeStart());
+    w->Write<uint8_t>(DW_LNS_COPY);
 
     intptr_t pc = 0;
     intptr_t line = 1;
@@ -888,29 +898,66 @@ class DebugLineSection : public ELFSection {
 
     List<GDBJITLineInfo::PCInfo>* pc_info = desc_->lineinfo()->pc_info();
     pc_info->Sort(&ComparePCInfo);
-    for (int i = 0; i < pc_info->length(); i++) {
+
+    int pc_info_length = pc_info->length();
+    for (int i = 0; i < pc_info_length; i++) {
       GDBJITLineInfo::PCInfo* info = &pc_info->at(i);
-      uintptr_t pc_diff = info->pc_ - pc;
       ASSERT(info->pc_ >= pc);
-      if (pc_diff != 0) {
-        w->Write<uint8_t>(DW_LNS_ADVANCE_PC);
-        w->WriteSLEB128(pc_diff);
-        pc += pc_diff;
+
+      // Reduce bloating in the debug line table by removing duplicate line
+      // entries (per DWARF2 standard).
+      intptr_t  new_line = desc_->GetScriptLineNumber(info->pos_);
+      if (new_line == line) {
+        continue;
       }
-      intptr_t line_diff = desc_->GetScriptLineNumber(info->pos_) - line;
-      if (line_diff != 0) {
-        w->Write<uint8_t>(DW_LNS_ADVANCE_LINE);
-        w->WriteSLEB128(line_diff);
-        line += line_diff;
-      }
-      if (is_statement != info->is_statement_) {
+
+      // Mark statement boundaries.  For a better debugging experience, mark
+      // the last pc address in the function as a statement (e.g. "}"), so that
+      // a user can see the result of the last line executed in the function,
+      // should control reach the end.
+      if ((i+1) == pc_info_length) {
+        if (!is_statement) {
+          w->Write<uint8_t>(DW_LNS_NEGATE_STMT);
+        }
+      } else if (is_statement != info->is_statement_) {
         w->Write<uint8_t>(DW_LNS_NEGATE_STMT);
         is_statement = !is_statement;
       }
-      if (pc_diff != 0 || i == 0) {
+
+      // Generate special opcodes, if possible.  This results in more compact
+      // debug line tables.  See the DWARF 2.0 standard to learn more about
+      // special opcodes.
+      uintptr_t pc_diff = info->pc_ - pc;
+      intptr_t line_diff = new_line - line;
+
+      // Compute special opcode (see DWARF 2.0 standard)
+      intptr_t special_opcode = (line_diff - line_base) +
+                                (line_range * pc_diff) + opcode_base;
+
+      // If special_opcode is less than or equal to 255, it can be used as a
+      // special opcode.  If line_diff is larger than the max line increment
+      // allowed for a special opcode, or if line_diff is less than the minimum
+      // line that can be added to the line register (i.e. line_base), then
+      // special_opcode can't be used.
+      if ((special_opcode >= opcode_base) && (special_opcode <= 255) &&
+          (line_diff <= max_line_incr) && (line_diff >= line_base)) {
+        w->Write<uint8_t>(special_opcode);
+      } else {
+        w->Write<uint8_t>(DW_LNS_ADVANCE_PC);
+        w->WriteSLEB128(pc_diff);
+        w->Write<uint8_t>(DW_LNS_ADVANCE_LINE);
+        w->WriteSLEB128(line_diff);
         w->Write<uint8_t>(DW_LNS_COPY);
       }
+
+      // Increment the pc and line operands.
+      pc += pc_diff;
+      line += line_diff;
     }
+    // Advance the pc to the end of the routine, since the end sequence opcode
+    // requires this.
+    w->Write<uint8_t>(DW_LNS_ADVANCE_PC);
+    w->WriteSLEB128(desc_->CodeSize() - pc);
     WriteExtendedOpcode(w, DW_LNE_END_SEQUENCE, 0);
     total_length.set(static_cast<uint32_t>(w->position() - start));
     return true;
@@ -1237,6 +1284,20 @@ static void DestroyCodeEntry(JITCodeEntry* entry) {
 
 
 static void RegisterCodeEntry(JITCodeEntry* entry) {
+#if defined(DEBUG) && !defined(WIN32)
+  static int file_num = 0;
+  if (FLAG_gdbjit_dump) {
+    static const int kMaxFileNameSize = 64;
+    static const char* kElfFilePrefix = "/tmp/elfdump";
+    static const char* kObjFileExt = ".o";
+    char file_name[64];
+
+    OS::SNPrintF(Vector<char>(file_name, kMaxFileNameSize), "%s%d%s",
+                 kElfFilePrefix, file_num++, kObjFileExt);
+    WriteBytes(file_name, entry->symfile_addr_, entry->symfile_size_);
+  }
+#endif
+
   entry->next_ = __jit_debug_descriptor.first_entry_;
   if (entry->next_ != NULL) entry->next_->prev_ = entry;
   __jit_debug_descriptor.first_entry_ =
@@ -1294,7 +1355,13 @@ static bool SameCodeObjects(void* key1, void* key2) {
 }
 
 
-static HashMap entries(&SameCodeObjects);
+static HashMap* GetEntries() {
+  static HashMap* entries = NULL;
+  if (entries == NULL) {
+    entries = new HashMap(&SameCodeObjects);
+  }
+  return entries;
+}
 
 
 static uint32_t HashForCodeObject(Code* code) {
@@ -1398,7 +1465,7 @@ void GDBJITInterface::AddCode(const char* name,
   if (!FLAG_gdbjit) return;
   AssertNoAllocation no_gc;
 
-  HashMap::Entry* e = entries.Lookup(code, HashForCodeObject(code), true);
+  HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
   if (e->value != NULL && !IsLineInfoTagged(e->value)) return;
 
   GDBJITLineInfo* lineinfo = UntagLineInfo(e->value);
@@ -1411,7 +1478,7 @@ void GDBJITInterface::AddCode(const char* name,
 
   if (!FLAG_gdbjit_full && !code_desc.IsLineInfoAvailable()) {
     delete lineinfo;
-    entries.Remove(code, HashForCodeObject(code));
+    GetEntries()->Remove(code, HashForCodeObject(code));
     return;
   }
 
@@ -1464,7 +1531,9 @@ void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag, Code* code) {
 void GDBJITInterface::RemoveCode(Code* code) {
   if (!FLAG_gdbjit) return;
 
-  HashMap::Entry* e = entries.Lookup(code, HashForCodeObject(code), false);
+  HashMap::Entry* e = GetEntries()->Lookup(code,
+                                           HashForCodeObject(code),
+                                           false);
   if (e == NULL) return;
 
   if (IsLineInfoTagged(e->value)) {
@@ -1475,14 +1544,14 @@ void GDBJITInterface::RemoveCode(Code* code) {
     DestroyCodeEntry(entry);
   }
   e->value = NULL;
-  entries.Remove(code, HashForCodeObject(code));
+  GetEntries()->Remove(code, HashForCodeObject(code));
 }
 
 
 void GDBJITInterface::RegisterDetailedLineInfo(Code* code,
                                                GDBJITLineInfo* line_info) {
   ASSERT(!IsLineInfoTagged(line_info));
-  HashMap::Entry* e = entries.Lookup(code, HashForCodeObject(code), true);
+  HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
   ASSERT(e->value == NULL);
   e->value = TagLineInfo(line_info);
 }

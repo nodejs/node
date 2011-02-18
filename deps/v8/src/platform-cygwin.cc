@@ -28,28 +28,14 @@
 // Platform specific code for Cygwin goes here. For the POSIX comaptible parts
 // the implementation is in platform-posix.cc.
 
+#include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <signal.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/types.h>
-#include <stdlib.h>
-
-// Ubuntu Dapper requires memory pages to be marked as
-// executable. Otherwise, OS raises an exception when executing code
-// in that page.
-#include <sys/types.h>  // mmap & munmap
-#include <sys/mman.h>   // mmap & munmap
-#include <sys/stat.h>   // open
-#include <fcntl.h>      // open
-#include <unistd.h>     // sysconf
-#ifdef __GLIBC__
-#include <execinfo.h>   // backtrace, backtrace_symbols
-#endif  // def __GLIBC__
-#include <strings.h>    // index
-#include <errno.h>
 #include <stdarg.h>
+#include <strings.h>    // index
+#include <sys/time.h>
+#include <sys/mman.h>   // mmap & munmap
+#include <unistd.h>     // sysconf
 
 #undef MAP_TYPE
 
@@ -59,13 +45,12 @@
 #include "top.h"
 #include "v8threads.h"
 #include "vm-state-inl.h"
-
+#include "win32-headers.h"
 
 namespace v8 {
 namespace internal {
 
-// 0 is never a valid thread id on Linux since tids and pids share a
-// name space and pid 0 is reserved (see man 2 kill).
+// 0 is never a valid thread id
 static const pthread_t kNoThread = (pthread_t) 0;
 
 
@@ -86,98 +71,11 @@ void OS::Setup() {
 
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-#if (defined(__VFP_FP__) && !defined(__SOFTFP__))
-  // Here gcc is telling us that we are on an ARM and gcc is assuming that we
-  // have VFP3 instructions.  If gcc can assume it then so can we.
-  return 1u << VFP3;
-#elif CAN_USE_ARMV7_INSTRUCTIONS
-  return 1u << ARMv7;
-#else
-  return 0;  // Linux runs on anything.
-#endif
+  return 0;  // Nothing special about cygwin
 }
-
-
-#ifdef __arm__
-static bool CPUInfoContainsString(const char * search_string) {
-  const char* file_name = "/proc/cpuinfo";
-  // This is written as a straight shot one pass parser
-  // and not using STL string and ifstream because,
-  // on Linux, it's reading from a (non-mmap-able)
-  // character special device.
-  FILE* f = NULL;
-  const char* what = search_string;
-
-  if (NULL == (f = fopen(file_name, "r")))
-    return false;
-
-  int k;
-  while (EOF != (k = fgetc(f))) {
-    if (k == *what) {
-      ++what;
-      while ((*what != '\0') && (*what == fgetc(f))) {
-        ++what;
-      }
-      if (*what == '\0') {
-        fclose(f);
-        return true;
-      } else {
-        what = search_string;
-      }
-    }
-  }
-  fclose(f);
-
-  // Did not find string in the proc file.
-  return false;
-}
-
-bool OS::ArmCpuHasFeature(CpuFeature feature) {
-  const char* search_string = NULL;
-  // Simple detection of VFP at runtime for Linux.
-  // It is based on /proc/cpuinfo, which reveals hardware configuration
-  // to user-space applications.  According to ARM (mid 2009), no similar
-  // facility is universally available on the ARM architectures,
-  // so it's up to individual OSes to provide such.
-  switch (feature) {
-    case VFP3:
-      search_string = "vfpv3";
-      break;
-    case ARMv7:
-      search_string = "ARMv7";
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  if (CPUInfoContainsString(search_string)) {
-    return true;
-  }
-
-  if (feature == VFP3) {
-    // Some old kernels will report vfp not vfpv3. Here we make a last attempt
-    // to detect vfpv3 by checking for vfp *and* neon, since neon is only
-    // available on architectures with vfpv3.
-    // Checking neon on its own is not enough as it is possible to have neon
-    // without vfp.
-    if (CPUInfoContainsString("vfp") && CPUInfoContainsString("neon")) {
-      return true;
-    }
-  }
-
-  return false;
-}
-#endif  // def __arm__
 
 
 int OS::ActivationFrameAlignment() {
-#ifdef V8_TARGET_ARCH_ARM
-  // On EABI ARM targets this is required for fp correctness in the
-  // runtime system.
-  return 8;
-#elif V8_TARGET_ARCH_MIPS
-  return 8;
-#endif
   // With gcc 4.4 the tree vectorization optimizer can generate code
   // that requires 16 byte alignment such as movdqa on x86.
   return 16;
@@ -195,7 +93,7 @@ const char* OS::LocalTimezone(double time) {
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return "";
-  return tzname[0];  // The location of the timezone string on Cywin.
+  return tzname[0];  // The location of the timezone string on Cygwin.
 }
 
 
@@ -205,7 +103,9 @@ double OS::LocalTimeOffset() {
   ASSERT(utc != -1);
   struct tm* loc = localtime(&utc);
   ASSERT(loc != NULL);
-  return static_cast<double>((mktime(loc) - utc) * msPerSecond);
+  // time - localtime includes any daylight savings offset, so subtract it.
+  return static_cast<double>((mktime(loc) - utc) * msPerSecond -
+                             (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
 
@@ -290,16 +190,7 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
-// TODO(lrn): Introduce processor define for runtime system (!= V8_ARCH_x,
-//  which is the architecture of generated code).
-#if (defined(__arm__) || defined(__thumb__)) && \
-    defined(CAN_USE_ARMV5_INSTRUCTIONS)
-  asm("bkpt 0");
-#elif defined(__mips__)
-  asm("break");
-#else
   asm("int $3");
-#endif
 }
 
 
@@ -413,39 +304,13 @@ void OS::LogSharedLibraryAddresses() {
 
 
 void OS::SignalCodeMovingGC() {
+  // Nothing to do on Cygwin
 }
 
 
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
-  // backtrace is a glibc extension.
-#ifdef __GLIBC__
-  int frames_size = frames.length();
-  ScopedVector<void*> addresses(frames_size);
-
-  int frames_count = backtrace(addresses.start(), frames_size);
-
-  char** symbols = backtrace_symbols(addresses.start(), frames_count);
-  if (symbols == NULL) {
-    return kStackWalkError;
-  }
-
-  for (int i = 0; i < frames_count; i++) {
-    frames[i].address = addresses[i];
-    // Format a text representation of the frame based on the information
-    // available.
-    SNPrintF(MutableCStrVector(frames[i].text, kStackWalkMaxTextLen),
-             "%s",
-             symbols[i]);
-    // Make sure line termination is in place.
-    frames[i].text[kStackWalkMaxTextLen - 1] = '\0';
-  }
-
-  free(symbols);
-
-  return frames_count;
-#else  // ndef __GLIBC__
+  // Not supported on Cygwin
   return 0;
-#endif  // ndef __GLIBC__
 }
 
 
@@ -488,7 +353,7 @@ bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   return mmap(address, size, PROT_NONE,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, // | MAP_FIXED, - Cygwin doesn't have MAP_FIXED
+              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
               kMmapFd, kMmapFdOffset) != MAP_FAILED;
 }
 
@@ -713,11 +578,6 @@ bool CygwinSemaphore::Wait(int timeout) {
   while (true) {
     int result = sem_timedwait(&sem_, &ts);
     if (result == 0) return true;  // Successfully got semaphore.
-    if (result > 0) {
-      // For glibc prior to 2.3.4 sem_timedwait returns the error instead of -1.
-      errno = result;
-      result = -1;
-    }
     if (result == -1 && errno == ETIMEDOUT) return false;  // Timeout.
     CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
   }
@@ -731,25 +591,78 @@ Semaphore* OS::CreateSemaphore(int count) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+// ----------------------------------------------------------------------------
+// Cygwin profiler support.
+//
+// On cygwin we use the same sampler implementation as on win32
+
 class Sampler::PlatformData : public Malloced {
  public:
-  explicit PlatformData(Sampler* sampler)
-      : sampler_(sampler),
-        signal_handler_installed_(false) {
-  }
-
-  void SignalSender() {
-  }
-
-  void SendProfilingSignal() {
+  explicit PlatformData(Sampler* sampler) {
+    sampler_ = sampler;
+    sampler_thread_ = INVALID_HANDLE_VALUE;
+    profiled_thread_ = INVALID_HANDLE_VALUE;
   }
 
   Sampler* sampler_;
-  bool signal_handler_installed_;
-  struct sigaction old_signal_handler_;
+  HANDLE sampler_thread_;
+  HANDLE profiled_thread_;
+  RuntimeProfilerRateLimiter rate_limiter_;
+
+  // Sampler thread handler.
+  void Runner() {
+    while (sampler_->IsActive()) {
+      if (rate_limiter_.SuspendIfNecessary()) continue;
+      Sample();
+      Sleep(sampler_->interval_);
+    }
+  }
+
+  void Sample() {
+    if (sampler_->IsProfiling()) {
+      // Context used for sampling the register state of the profiled thread.
+      CONTEXT context;
+      memset(&context, 0, sizeof(context));
+
+      TickSample sample_obj;
+      TickSample* sample = CpuProfiler::TickSampleEvent();
+      if (sample == NULL) sample = &sample_obj;
+
+      static const DWORD kSuspendFailed = static_cast<DWORD>(-1);
+      if (SuspendThread(profiled_thread_) == kSuspendFailed) return;
+      sample->state = Top::current_vm_state();
+
+      context.ContextFlags = CONTEXT_FULL;
+      if (GetThreadContext(profiled_thread_, &context) != 0) {
+#if V8_HOST_ARCH_X64
+        sample->pc = reinterpret_cast<Address>(context.Rip);
+        sample->sp = reinterpret_cast<Address>(context.Rsp);
+        sample->fp = reinterpret_cast<Address>(context.Rbp);
+#else
+        sample->pc = reinterpret_cast<Address>(context.Eip);
+        sample->sp = reinterpret_cast<Address>(context.Esp);
+        sample->fp = reinterpret_cast<Address>(context.Ebp);
+#endif
+        sampler_->SampleStack(sample);
+        sampler_->Tick(sample);
+      }
+      ResumeThread(profiled_thread_);
+    }
+    if (RuntimeProfiler::IsEnabled()) RuntimeProfiler::NotifyTick();
+  }
 };
 
 
+// Entry point for sampler thread.
+static DWORD __stdcall SamplerEntry(void* arg) {
+  Sampler::PlatformData* data =
+      reinterpret_cast<Sampler::PlatformData*>(arg);
+  data->Runner();
+  return 0;
+}
+
+
+// Initialize a profile sampler.
 Sampler::Sampler(int interval)
     : interval_(interval),
       profiling_(false),
@@ -764,14 +677,49 @@ Sampler::~Sampler() {
 }
 
 
+// Start profiling.
 void Sampler::Start() {
-  active_ = true;
+  // Do not start multiple threads for the same sampler.
+  ASSERT(!IsActive());
+
+  // Get a handle to the calling thread. This is the thread that we are
+  // going to profile. We need to make a copy of the handle because we are
+  // going to use it in the sampler thread. Using GetThreadHandle() will
+  // not work in this case. We're using OpenThread because DuplicateHandle
+  // for some reason doesn't work in Chrome's sandbox.
+  data_->profiled_thread_ = OpenThread(THREAD_GET_CONTEXT |
+                                       THREAD_SUSPEND_RESUME |
+                                       THREAD_QUERY_INFORMATION,
+                                       false,
+                                       GetCurrentThreadId());
+  BOOL ok = data_->profiled_thread_ != NULL;
+  if (!ok) return;
+
+  // Start sampler thread.
+  DWORD tid;
+  SetActive(true);
+  data_->sampler_thread_ = CreateThread(NULL, 0, SamplerEntry, data_, 0,
+                                        &tid);
+  // Set thread to high priority to increase sampling accuracy.
+  SetThreadPriority(data_->sampler_thread_, THREAD_PRIORITY_TIME_CRITICAL);
 }
 
 
+// Stop profiling.
 void Sampler::Stop() {
-  active_ = false;
+  // Seting active to false triggers termination of the sampler
+  // thread.
+  SetActive(false);
+
+  // Wait for sampler thread to terminate.
+  Top::WakeUpRuntimeProfilerThreadBeforeShutdown();
+  WaitForSingleObject(data_->sampler_thread_, INFINITE);
+
+  // Release the thread handles
+  CloseHandle(data_->sampler_thread_);
+  CloseHandle(data_->profiled_thread_);
 }
+
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 

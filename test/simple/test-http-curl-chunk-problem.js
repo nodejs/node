@@ -1,3 +1,8 @@
+if (!process.versions.openssl) {
+  console.error("Skipping because node compiled without OpenSSL.");
+  process.exit(0);
+}
+
 // http://groups.google.com/group/nodejs/browse_thread/thread/f66cd3c960406919
 var common = require('../common');
 var assert = require('assert');
@@ -11,14 +16,14 @@ var count = 0;
 function maybeMakeRequest() {
   if (++count < 2) return;
   console.log('making curl request');
-  cp.exec('curl http://127.0.0.1:' + common.PORT + '/ | shasum',
-          function(err, stdout, stderr) {
-            if (err) throw err;
-            assert.equal('8c206a1a87599f532ce68675536f0b1546900d7a',
-                         stdout.slice(0, 40));
-            console.log('got the correct response');
-            server.close();
-          });
+  var cmd = 'curl http://127.0.0.1:' + common.PORT + '/ | openssl sha1';
+  cp.exec(cmd, function(err, stdout, stderr) {
+    if (err) throw err;
+    var hex = stdout.match(/([A-Fa-f0-9]{40})/)[0];
+    assert.equal('8c206a1a87599f532ce68675536f0b1546900d7a', hex);
+    console.log('got the correct response');
+    server.close();
+  });
 }
 
 

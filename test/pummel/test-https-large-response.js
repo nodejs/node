@@ -28,10 +28,6 @@ var server = https.createServer(options, function (req, res) {
 var count = 0;
 var gotResEnd = false;
 
-var timeout = setTimeout(function() {
-  process.exit(1);
-}, 10*1000);
-
 server.listen(common.PORT, function () {
   https.get({ port: common.PORT }, function(res) {
     console.log("response!");
@@ -51,8 +47,6 @@ server.listen(common.PORT, function () {
       console.log("     got: ", count);
       server.close();
       gotResEnd = true;
-
-      clearTimeout(timeout);
     });
   });
 });

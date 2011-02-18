@@ -2709,6 +2709,42 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
 }
 
 
+MaybeObject* KeyedStoreStubCompiler::CompileStorePixelArray(
+    JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the map matches.
+  __ CheckMap(edx, Handle<Map>(receiver->map()), &miss, false);
+
+  // Do the load.
+  GenerateFastPixelArrayStore(masm(),
+                              edx,
+                              ecx,
+                              eax,
+                              edi,
+                              ebx,
+                              true,
+                              &miss,
+                              &miss,
+                              NULL,
+                              &miss);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
+  __ jmp(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
+}
+
+
 MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
                                                       JSObject* object,
                                                       JSObject* last) {

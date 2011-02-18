@@ -368,7 +368,9 @@ static bool ArrayPrototypeHasNoElements(Context* global_context,
   array_proto = JSObject::cast(array_proto->GetPrototype());
   ASSERT(array_proto->elements() == Heap::empty_fixed_array());
   // Object.prototype
-  array_proto = JSObject::cast(array_proto->GetPrototype());
+  Object* proto = array_proto->GetPrototype();
+  if (proto == Heap::null_value()) return false;
+  array_proto = JSObject::cast(proto);
   if (array_proto != global_context->initial_object_prototype()) return false;
   if (array_proto->elements() != Heap::empty_fixed_array()) return false;
   ASSERT(array_proto->GetPrototype()->IsNull());
@@ -1305,6 +1307,11 @@ static void Generate_StoreIC_Initialize(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_Initialize_Strict(MacroAssembler* masm) {
+  StoreIC::GenerateInitialize(masm);
+}
+
+
 static void Generate_StoreIC_Miss(MacroAssembler* masm) {
   StoreIC::GenerateMiss(masm);
 }
@@ -1315,8 +1322,18 @@ static void Generate_StoreIC_Normal(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_Normal_Strict(MacroAssembler* masm) {
+  StoreIC::GenerateNormal(masm);
+}
+
+
 static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm);
+  StoreIC::GenerateMegamorphic(masm, StoreIC::kStoreICNonStrict);
+}
+
+
+static void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
+  StoreIC::GenerateMegamorphic(masm, StoreIC::kStoreICStrict);
 }
 
 
@@ -1325,7 +1342,17 @@ static void Generate_StoreIC_ArrayLength(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_ArrayLength_Strict(MacroAssembler* masm) {
+  StoreIC::GenerateArrayLength(masm);
+}
+
+
 static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
+  StoreIC::GenerateGlobalProxy(masm);
+}
+
+
+static void Generate_StoreIC_GlobalProxy_Strict(MacroAssembler* masm) {
   StoreIC::GenerateGlobalProxy(masm);
 }
 
@@ -1442,13 +1469,13 @@ void Builtins::Setup(bool create_heap_objects) {
       extra_args                                  \
     },
 
-#define DEF_FUNCTION_PTR_A(name, kind, state)              \
-    { FUNCTION_ADDR(Generate_##name),                      \
-      NULL,                                                \
-      #name,                                               \
-      name,                                                \
-      Code::ComputeFlags(Code::kind, NOT_IN_LOOP, state),  \
-      NO_EXTRA_ARGUMENTS                                   \
+#define DEF_FUNCTION_PTR_A(name, kind, state, extra)              \
+    { FUNCTION_ADDR(Generate_##name),                             \
+      NULL,                                                       \
+      #name,                                                      \
+      name,                                                       \
+      Code::ComputeFlags(Code::kind, NOT_IN_LOOP, state, extra),  \
+      NO_EXTRA_ARGUMENTS                                          \
     },
 
   // Define array of pointers to generators and C builtin functions.

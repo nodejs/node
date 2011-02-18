@@ -60,6 +60,8 @@ class HBasicBlock: public ZoneObject {
   HGraph* graph() const { return graph_; }
   const ZoneList<HPhi*>* phis() const { return &phis_; }
   HInstruction* first() const { return first_; }
+  HInstruction* last() const { return last_; }
+  void set_last(HInstruction* instr) { last_ = instr; }
   HInstruction* GetLastInstruction();
   HControlInstruction* end() const { return end_; }
   HLoopInformation* loop_information() const { return loop_information_; }
@@ -103,16 +105,14 @@ class HBasicBlock: public ZoneObject {
   void ClearEnvironment() { last_environment_ = NULL; }
   bool HasEnvironment() const { return last_environment_ != NULL; }
   void UpdateEnvironment(HEnvironment* env) { last_environment_ = env; }
-  HBasicBlock* parent_loop_header() const {
-    if (!HasParentLoopHeader()) return NULL;
-    return parent_loop_header_.get();
-  }
+  HBasicBlock* parent_loop_header() const { return parent_loop_header_; }
 
   void set_parent_loop_header(HBasicBlock* block) {
-    parent_loop_header_.set(block);
+    ASSERT(parent_loop_header_ == NULL);
+    parent_loop_header_ = block;
   }
 
-  bool HasParentLoopHeader() const { return parent_loop_header_.is_set(); }
+  bool HasParentLoopHeader() const { return parent_loop_header_ != NULL; }
 
   void SetJoinId(int id);
 
@@ -136,9 +136,6 @@ class HBasicBlock: public ZoneObject {
   bool IsInlineReturnTarget() const { return is_inline_return_target_; }
   void MarkAsInlineReturnTarget() { is_inline_return_target_ = true; }
 
-  Handle<Object> cond() { return cond_; }
-  void set_cond(Handle<Object> value) { cond_ = value; }
-
 #ifdef DEBUG
   void Verify();
 #endif
@@ -153,7 +150,7 @@ class HBasicBlock: public ZoneObject {
   HGraph* graph_;
   ZoneList<HPhi*> phis_;
   HInstruction* first_;
-  HInstruction* last_;  // Last non-control instruction of the block.
+  HInstruction* last_;
   HControlInstruction* end_;
   HLoopInformation* loop_information_;
   ZoneList<HBasicBlock*> predecessors_;
@@ -166,9 +163,8 @@ class HBasicBlock: public ZoneObject {
   int first_instruction_index_;
   int last_instruction_index_;
   ZoneList<int> deleted_phis_;
-  SetOncePointer<HBasicBlock> parent_loop_header_;
+  HBasicBlock* parent_loop_header_;
   bool is_inline_return_target_;
-  Handle<Object> cond_;
 };
 
 
@@ -706,19 +702,17 @@ class HGraphBuilder: public AstVisitor {
                        HBasicBlock* true_block,
                        HBasicBlock* false_block);
 
-  // Visit an argument and wrap it in a PushArgument instruction.
-  HValue* VisitArgument(Expression* expr);
+  // Visit an argument subexpression.
+  void VisitArgument(Expression* expr);
   void VisitArgumentList(ZoneList<Expression*>* arguments);
 
   void AddPhi(HPhi* phi);
 
   void PushAndAdd(HInstruction* instr);
 
-  void PushArgumentsForStubCall(int argument_count);
-
   // Remove the arguments from the bailout environment and emit instructions
   // to push them as outgoing parameters.
-  void ProcessCall(HCall* call);
+  void PreProcessCall(HCall* call);
 
   void AssumeRepresentation(HValue* value, Representation r);
   static Representation ToRepresentation(TypeInfo info);
@@ -791,6 +785,9 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildLoadKeyedFastElement(HValue* object,
                                           HValue* key,
                                           Property* expr);
+  HInstruction* BuildLoadKeyedPixelArrayElement(HValue* object,
+                                                HValue* key,
+                                                Property* expr);
   HInstruction* BuildLoadKeyedGeneric(HValue* object,
                                       HValue* key);
 
@@ -831,9 +828,10 @@ class HGraphBuilder: public AstVisitor {
                                 bool smi_and_map_check);
 
 
-  HBasicBlock* BuildTypeSwitch(ZoneMapList* maps,
-                               ZoneList<HSubgraph*>* subgraphs,
-                               HValue* receiver,
+  HBasicBlock* BuildTypeSwitch(HValue* receiver,
+                               ZoneMapList* maps,
+                               ZoneList<HSubgraph*>* body_graphs,
+                               HSubgraph* default_graph,
                                int join_id);
 
   TypeFeedbackOracle* oracle_;

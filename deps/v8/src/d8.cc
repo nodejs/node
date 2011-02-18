@@ -127,11 +127,13 @@ bool Shell::ExecuteString(Handle<String> source,
   } else {
     Handle<Value> result = script->Run();
     if (result.IsEmpty()) {
+      ASSERT(try_catch.HasCaught());
       // Print errors that happened during execution.
       if (report_exceptions && !i::FLAG_debugger)
         ReportException(&try_catch);
       return false;
     } else {
+      ASSERT(!try_catch.HasCaught());
       if (print_result && !result->IsUndefined()) {
         // If all went well and the result wasn't undefined then print
         // the returned value.

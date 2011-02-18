@@ -835,7 +835,9 @@ bool Debug::Load() {
   // Expose the builtins object in the debugger context.
   Handle<String> key = Factory::LookupAsciiSymbol("builtins");
   Handle<GlobalObject> global = Handle<GlobalObject>(context->global());
-  SetProperty(global, key, Handle<Object>(global->builtins()), NONE);
+  RETURN_IF_EMPTY_HANDLE_VALUE(
+      SetProperty(global, key, Handle<Object>(global->builtins()), NONE),
+      false);
 
   // Compile the JavaScript for the debugger in the debugger context.
   Debugger::set_compiling_natives(true);

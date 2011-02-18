@@ -1,7 +1,7 @@
 AC_INIT
 AC_CONFIG_SRCDIR([ev_epoll.c])
 
-AM_INIT_AUTOMAKE(libev,4.03) dnl also update ev.h!
+AM_INIT_AUTOMAKE(libev,4.04) dnl also update ev.h!
 AC_CONFIG_HEADERS([config.h])
 AM_MAINTAINER_MODE
 

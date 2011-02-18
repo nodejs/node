@@ -69,10 +69,13 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     Handle<String> stack_trace,
     Handle<JSArray> stack_frames) {
   Handle<String> type_handle = Factory::LookupAsciiSymbol(type);
-  Handle<JSArray> arguments_handle = Factory::NewJSArray(args.length());
+  Handle<FixedArray> arguments_elements =
+      Factory::NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
-    SetElement(arguments_handle, i, args[i]);
+    arguments_elements->set(i, *args[i]);
   }
+  Handle<JSArray> arguments_handle =
+      Factory::NewJSArrayWithElements(arguments_elements);
 
   int start = 0;
   int end = 0;
@@ -87,7 +90,7 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
       ? Factory::undefined_value()
       : Handle<Object>::cast(stack_trace);
 
-  Handle<Object> stack_frames_handle =  stack_frames.is_null()
+  Handle<Object> stack_frames_handle = stack_frames.is_null()
       ? Factory::undefined_value()
       : Handle<Object>::cast(stack_frames);
 

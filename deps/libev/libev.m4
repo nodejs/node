@@ -6,7 +6,7 @@ AC_CHECK_HEADERS(sys/inotify.h sys/epoll.h sys/event.h port.h poll.h sys/select.
  
 AC_CHECK_FUNCS(inotify_init epoll_ctl kqueue port_create poll select eventfd signalfd)
  
-AC_CHECK_FUNC(clock_gettime, [], [ 
+AC_CHECK_FUNCS(clock_gettime, [], [ 
    dnl on linux, try syscall wrapper first
    if test $(uname) = Linux; then
       AC_MSG_CHECKING(for clock_gettime syscall)
@@ -27,7 +27,7 @@ AC_CHECK_FUNC(clock_gettime, [], [
    fi
 ])
 
-AC_CHECK_FUNC(nanosleep, [], [ 
+AC_CHECK_FUNCS(nanosleep, [], [ 
    if test -z "$LIBEV_M4_AVOID_LIBRT"; then
       AC_CHECK_LIB(rt, nanosleep) 
       unset ac_cv_func_nanosleep

@@ -41,7 +41,6 @@ class LCodeGen;
 
 #define LITHIUM_ALL_INSTRUCTION_LIST(V)         \
   V(ControlInstruction)                         \
-  V(Constant)                                   \
   V(Call)                                       \
   V(StoreKeyed)                                 \
   V(StoreNamed)                                 \
@@ -95,6 +94,7 @@ class LCodeGen;
   V(FixedArrayLength)                           \
   V(FunctionLiteral)                            \
   V(Gap)                                        \
+  V(GetCachedArrayIndex)                        \
   V(GlobalObject)                               \
   V(GlobalReceiver)                             \
   V(Goto)                                       \
@@ -123,6 +123,8 @@ class LCodeGen;
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
   V(LoadNamedGeneric)                           \
+  V(LoadPixelArrayElement)                      \
+  V(LoadPixelArrayExternalPointer)              \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -132,6 +134,7 @@ class LCodeGen;
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
+  V(PixelArrayLength)                           \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
   V(Return)                                     \
@@ -153,6 +156,8 @@ class LCodeGen;
   V(Typeof)                                     \
   V(TypeofIs)                                   \
   V(TypeofIsAndBranch)                          \
+  V(IsConstructCall)                            \
+  V(IsConstructCallAndBranch)                   \
   V(UnaryMathOperation)                         \
   V(UnknownOSRValue)                            \
   V(ValueOf)
@@ -735,6 +740,17 @@ class LHasCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LGetCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LGetCachedArrayIndex(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(GetCachedArrayIndex, "get-cached-array-index")
+  DECLARE_HYDROGEN_ACCESSOR(GetCachedArrayIndex)
+};
+
+
 class LHasCachedArrayIndexAndBranch: public LControlInstruction<1, 0> {
  public:
   explicit LHasCachedArrayIndexAndBranch(LOperand* value) {
@@ -903,44 +919,30 @@ class LSubI: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LConstant: public LTemplateInstruction<1, 0, 0> {
-  DECLARE_INSTRUCTION(Constant)
-};
-
-
-class LConstantI: public LConstant {
+class LConstantI: public LTemplateInstruction<1, 0, 0> {
  public:
-  explicit LConstantI(int32_t value) : value_(value) { }
-  int32_t value() const { return value_; }
-
   DECLARE_CONCRETE_INSTRUCTION(ConstantI, "constant-i")
+  DECLARE_HYDROGEN_ACCESSOR(Constant)
 
- private:
-  int32_t value_;
+  int32_t value() const { return hydrogen()->Integer32Value(); }
 };
 
 
-class LConstantD: public LConstant {
+class LConstantD: public LTemplateInstruction<1, 0, 0> {
  public:
-  explicit LConstantD(double value) : value_(value) { }
-  double value() const { return value_; }
-
   DECLARE_CONCRETE_INSTRUCTION(ConstantD, "constant-d")
+  DECLARE_HYDROGEN_ACCESSOR(Constant)
 
- private:
-  double value_;
+  double value() const { return hydrogen()->DoubleValue(); }
 };
 
 
-class LConstantT: public LConstant {
+class LConstantT: public LTemplateInstruction<1, 0, 0> {
  public:
-  explicit LConstantT(Handle<Object> value) : value_(value) { }
-  Handle<Object> value() const { return value_; }
-
   DECLARE_CONCRETE_INSTRUCTION(ConstantT, "constant-t")
+  DECLARE_HYDROGEN_ACCESSOR(Constant)
 
- private:
-  Handle<Object> value_;
+  Handle<Object> value() const { return hydrogen()->handle(); }
 };
 
 
@@ -987,6 +989,17 @@ class LJSArrayLength: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(JSArrayLength, "js-array-length")
   DECLARE_HYDROGEN_ACCESSOR(JSArrayLength)
+};
+
+
+class LPixelArrayLength: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LPixelArrayLength(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(PixelArrayLength, "pixel-array-length")
+  DECLARE_HYDROGEN_ACCESSOR(PixelArrayLength)
 };
 
 
@@ -1139,6 +1152,17 @@ class LLoadElements: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LLoadPixelArrayExternalPointer: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LLoadPixelArrayExternalPointer(LOperand* object) {
+    inputs_[0] = object;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayExternalPointer,
+                               "load-pixel-array-external-pointer")
+};
+
+
 class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
  public:
   LLoadKeyedFastElement(LOperand* elements, LOperand* key) {
@@ -1150,6 +1174,22 @@ class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastElement)
 
   LOperand* elements() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+};
+
+
+class LLoadPixelArrayElement: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LLoadPixelArrayElement(LOperand* external_pointer, LOperand* key) {
+    inputs_[0] = external_pointer;
+    inputs_[1] = key;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayElement,
+                               "load-pixel-array-element")
+  DECLARE_HYDROGEN_ACCESSOR(LoadPixelArrayElement)
+
+  LOperand* external_pointer() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
 };
 
@@ -1713,6 +1753,24 @@ class LTypeofIsAndBranch: public LControlInstruction<1, 0> {
   Handle<String> type_literal() { return hydrogen()->type_literal(); }
 
   virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LIsConstructCall: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(IsConstructCall, "is-construct-call")
+  DECLARE_HYDROGEN_ACCESSOR(IsConstructCall)
+};
+
+
+class LIsConstructCallAndBranch: public LControlInstruction<0, 1> {
+ public:
+  explicit LIsConstructCallAndBranch(LOperand* temp) {
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsConstructCallAndBranch,
+                               "is-construct-call-and-branch")
 };
 
 

@@ -25,7 +25,9 @@ option(SHARED_V8 "use system shared V8 library")
 option(SHARED_LIBEV "use system shared libev library")
 option(SHARED_CARES "use system shared c-ares library")
 option(V8_SNAPSHOT "turn on snapshot when building stock v8")
-
+option(V8_OPROFILE "Add oprofile support")
+option(V8_GDBJIT "add gdbjit support")
+option(DTRACE "build with DTrace (experimental)")
 
 # cmake policies to get rid of some warnings
 cmake_policy(SET CMP0009 NEW) # GLOB_RECURSE should no follow symlinks

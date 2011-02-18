@@ -154,16 +154,12 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
     const byte* input_start,
     const byte* input_end,
     int* output) {
-  typedef int (*matcher)(String*, int, const byte*,
-                         const byte*, int*, Address, int);
-  matcher matcher_func = FUNCTION_CAST<matcher>(code->entry());
-
   // Ensure that the minimum stack has been allocated.
   RegExpStack stack;
   Address stack_base = RegExpStack::stack_base();
 
   int direct_call = 0;
-  int result = CALL_GENERATED_REGEXP_CODE(matcher_func,
+  int result = CALL_GENERATED_REGEXP_CODE(code->entry(),
                                           input,
                                           start_offset,
                                           input_start,

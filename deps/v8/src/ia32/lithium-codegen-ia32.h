@@ -120,6 +120,10 @@ class LCodeGen BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
+  int strict_mode_flag() const {
+    return info_->is_strict() ? kStrictMode : kNonStrictMode;
+  }
+
   LChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
@@ -149,17 +153,14 @@ class LCodeGen BASE_EMBEDDED {
   bool GenerateDeferredCode();
   bool GenerateSafepointTable();
 
-  void CallCode(Handle<Code> code,
-                RelocInfo::Mode mode,
-                LInstruction* instr);
-  void CallRuntime(Runtime::Function* function,
-                   int num_arguments,
-                   LInstruction* instr);
-  void CallRuntime(Runtime::FunctionId id,
-                   int num_arguments,
-                   LInstruction* instr) {
+  void CallCode(Handle<Code> code, RelocInfo::Mode mode, LInstruction* instr,
+                bool adjusted = true);
+  void CallRuntime(Runtime::Function* fun, int argc, LInstruction* instr,
+                   bool adjusted = true);
+  void CallRuntime(Runtime::FunctionId id, int argc, LInstruction* instr,
+                   bool adjusted = true) {
     Runtime::Function* function = Runtime::FunctionForId(id);
-    CallRuntime(function, num_arguments, instr);
+    CallRuntime(function, argc, instr, adjusted);
   }
 
   // Generate a direct call to a known function.  Expects the function
@@ -228,6 +229,11 @@ class LCodeGen BASE_EMBEDDED {
                          Register temp2,
                          Label* is_not_object,
                          Label* is_object);
+
+  // Emits optimized code for %_IsConstructCall().
+  // Caller should branch on equal condition.
+  void EmitIsConstructCall(Register temp);
+
 
   LChunk* const chunk_;
   MacroAssembler* const masm_;

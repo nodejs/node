@@ -4,7 +4,7 @@ import Options
 import sys, os, shutil, glob
 import Utils
 from Utils import cmd_output
-from os.path import join, dirname, abspath
+from os.path import join, dirname, abspath, normpath
 from logging import fatal
 
 cwd = os.getcwd()
@@ -99,6 +99,20 @@ def set_options(opt):
                 , default=False
                 , help="Alternative lib name to link to (default: 'v8')"
                 , dest='shared_v8_libname'
+                )
+
+  opt.add_option( '--openssl-includes'
+                , action='store'
+                , default=False
+                , help='A directory to search for the OpenSSL includes'
+                , dest='openssl_includes'
+                )
+
+  opt.add_option( '--openssl-libpath'
+                , action='store'
+                , default=False
+                , help="A directory to search for the OpenSSL libraries"
+                , dest='openssl_libpath'
                 )
 
   opt.add_option( '--oprofile'
@@ -196,7 +210,7 @@ def configure(conf):
 
   conf.env["USE_DEBUG"] = o.debug
   # Snapshot building does noet seem to work on cygwin and mingw32
-  conf.env["SNAPSHOT_V8"] = not o.without_snapshot and not sys.platform.startswith("cygwin") and not sys.platform.startswith("win32")
+  conf.env["SNAPSHOT_V8"] = not o.without_snapshot and not sys.platform.startswith("win32")
   if sys.platform.startswith("sunos"):
     conf.env["SNAPSHOT_V8"] = False
   conf.env["USE_PROFILING"] = o.profile
@@ -247,17 +261,44 @@ def configure(conf):
       Options.options.use_openssl = conf.env["USE_OPENSSL"] = True
       conf.env.append_value("CPPFLAGS", "-DHAVE_OPENSSL=1")
     else:
-      libssl = conf.check_cc(lib=['ssl', 'crypto'],
+      if o.openssl_libpath: 
+        openssl_libpath = [o.openssl_libpath]
+      elif not sys.platform.startswith('win32'):
+        openssl_libpath = ['/usr/lib', '/usr/local/lib', '/opt/local/lib', '/usr/sfw/lib']
+      else:
+        openssl_libpath = [normpath(join(cwd, '../openssl'))]
+
+      if o.openssl_includes: 
+        openssl_includes = [o.openssl_includes]
+      elif not sys.platform.startswith('win32'):
+        openssl_includes = [];
+      else:
+        openssl_includes = [normpath(join(cwd, '../openssl/include'))];
+
+      openssl_lib_names = ['ssl', 'crypto']
+      if sys.platform.startswith('win32'):
+        openssl_lib_names += ['ws2_32', 'gdi32']
+
+      libssl = conf.check_cc(lib=openssl_lib_names,
                              header_name='openssl/ssl.h',
                              function_name='SSL_library_init',
-                             libpath=['/usr/lib', '/usr/local/lib', '/opt/local/lib', '/usr/sfw/lib'],
+                             includes=openssl_includes,
+                             libpath=openssl_libpath,
                              uselib_store='OPENSSL')
+
       libcrypto = conf.check_cc(lib='crypto',
                                 header_name='openssl/crypto.h',
+                                includes=openssl_includes,
+                                libpath=openssl_libpath,
                                 uselib_store='OPENSSL')
+
       if libcrypto and libssl:
         conf.env["USE_OPENSSL"] = Options.options.use_openssl = True
         conf.env.append_value("CPPFLAGS", "-DHAVE_OPENSSL=1")
+      elif sys.platform.startswith('win32'):
+        conf.fatal("Could not autodetect OpenSSL support. " +
+                   "Use the --openssl-libpath and --openssl-includes options to set the search path. " +
+                   "Use configure --without-ssl to disable this message.")
       else:
         conf.fatal("Could not autodetect OpenSSL support. " +
                    "Make sure OpenSSL development packages are installed. " +
@@ -477,6 +518,8 @@ def v8_cmd(bld, variant):
   if bld.env['DEST_CPU']:
     arch = "arch="+bld.env['DEST_CPU']
 
+  toolchain = "gcc"
+
   if variant == "default":
     mode = "release"
   else:
@@ -492,7 +535,7 @@ def v8_cmd(bld, variant):
   else:
     profile = ""
 
-  cmd_R = sys.executable + ' "%s" -j %d -C "%s" -Y "%s" visibility=default mode=%s %s library=static %s %s'
+  cmd_R = sys.executable + ' "%s" -j %d -C "%s" -Y "%s" visibility=default mode=%s %s toolchain=%s library=static %s %s'
 
   cmd = cmd_R % ( scons
                 , Options.options.jobs
@@ -500,6 +543,7 @@ def v8_cmd(bld, variant):
                 , safe_path(v8dir_src)
                 , mode
                 , arch
+                , toolchain
                 , snapshot
                 , profile
                 )
@@ -662,7 +706,7 @@ def build(bld):
     if bld.env["USE_DEBUG"]:
       dtrace_g = dtrace.clone("debug")
 
-    bld.install_files('${PREFIX}/usr/lib/dtrace', 'src/node.d')
+    bld.install_files('${PREFIX}/lib/dtrace', 'src/node.d')
 
     if sys.platform.startswith("sunos"):
       #

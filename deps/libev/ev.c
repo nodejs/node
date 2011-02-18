@@ -6,14 +6,14 @@
  *
  * Redistribution and use in source and binary forms, with or without modifica-
  * tion, are permitted provided that the following conditions are met:
- * 
+ *
  *   1.  Redistributions of source code must retain the above copyright notice,
  *       this list of conditions and the following disclaimer.
- * 
+ *
  *   2.  Redistributions in binary form must reproduce the above copyright
  *       notice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MER-
  * CHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
@@ -378,7 +378,8 @@ EV_CPP(extern "C" {)
 #endif
 
 #if !EV_USE_NANOSLEEP
-# ifndef _WIN32
+/* hp-ux has it in sys/time.h, which we unconditionally include above */
+# if !defined(_WIN32) && !defined(__hpux)
 #  include <sys/select.h>
 # endif
 #endif
@@ -815,6 +816,14 @@ ev_sleep (ev_tstamp delay)
       select (0, 0, 0, 0, &tv);
 #endif
     }
+}
+
+inline_speed int
+ev_timeout_to_ms (ev_tstamp timeout)
+{
+  int ms = timeout * 1000. + .999999;
+
+  return expect_true (ms) ? ms : timeout < 1e-6 ? 0 : 1;
 }
 
 /*****************************************************************************/
@@ -1363,14 +1372,16 @@ pipecb (EV_P_ ev_io *iow, int revents)
 #endif
     }
 
+#if EV_SIGNAL_ENABLE
   if (sig_pending)
-    {    
+    {
       sig_pending = 0;
 
       for (i = EV_NSIG - 1; i--; )
         if (expect_false (signals [i].pending))
           ev_feed_signal_event (EV_A_ i + 1);
     }
+#endif
 
 #if EV_ASYNC_ENABLE
   if (async_pending)
@@ -2201,6 +2212,15 @@ timers_reify (EV_P)
 }
 
 #if EV_PERIODIC_ENABLE
+
+inline_speed void
+periodic_recalc (EV_P_ ev_periodic *w)
+{
+  /* TODO: use slow but potentially more correct incremental algo, */
+  /* also do not rely on ceil */
+  ev_at (w) = w->offset + ceil ((ev_rt_now - w->offset) / w->interval) * w->interval;
+}
+
 /* make periodics pending */
 inline_size void
 periodics_reify (EV_P)
@@ -2229,7 +2249,8 @@ periodics_reify (EV_P)
             }
           else if (w->interval)
             {
-              ev_at (w) = w->offset + ceil ((ev_rt_now - w->offset) / w->interval) * w->interval;
+              periodic_recalc (EV_A_ w);
+
               /* if next trigger time is not sufficiently in the future, put it there */
               /* this might happen because of floating point inexactness */
               if (ev_at (w) - ev_rt_now < TIME_EPSILON)
@@ -2273,7 +2294,7 @@ periodics_reschedule (EV_P)
       if (w->reschedule_cb)
         ev_at (w) = w->reschedule_cb (w, ev_rt_now);
       else if (w->interval)
-        ev_at (w) = w->offset + ceil ((ev_rt_now - w->offset) / w->interval) * w->interval;
+        periodic_recalc (EV_A_ w);
 
       ANHE_at_cache (periodics [i]);
     }
@@ -2775,8 +2796,7 @@ ev_periodic_start (EV_P_ ev_periodic *w)
   else if (w->interval)
     {
       assert (("libev: ev_periodic_start called with negative interval value", w->interval >= 0.));
-      /* this formula differs from the one in periodic_reify because we do not always round up */
-      ev_at (w) = w->offset + ceil ((ev_rt_now - w->offset) / w->interval) * w->interval;
+      periodic_recalc (EV_A_ w);
     }
   else
     ev_at (w) = w->offset;
@@ -3063,7 +3083,7 @@ infy_add (EV_P_ ev_stat *w)
 
               *pend = 0;
               w->wd = inotify_add_watch (fs_fd, path, mask);
-            } 
+            }
           while (w->wd < 0 && (errno == ENOENT || errno == EACCES));
         }
     }

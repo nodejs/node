@@ -415,3 +415,17 @@ var falseNum = Object("37");
 falseNum.__proto__ = Number.prototype;
 falseNum.toString = function() { return 42; };
 assertEquals('"42"', JSON.stringify(falseNum));
+
+// We don't currently allow plain properties called __proto__ in JSON
+// objects in JSON.parse. Instead we read them as we would JS object
+// literals. If we change that, this test should change with it.
+// 
+// Parse a non-object value as __proto__. This must not create a 
+// __proto__ property different from the original, and should not 
+// change the original.
+var o = JSON.parse('{"__proto__":5}');
+assertEquals(Object.prototype, o.__proto__);  // __proto__ isn't changed.
+assertEquals(0, Object.keys(o).length);  // __proto__ isn't added as enumerable.
+
+
+

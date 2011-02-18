@@ -30,7 +30,7 @@
 
 
 function createNode(name, time, opt_parent) {
-  var node = new devtools.profiler.ProfileView.Node(name, time, time, null);
+  var node = new ProfileView.Node(name, time, time, null);
   if (opt_parent) {
     opt_parent.addChild(node);
   }
@@ -61,7 +61,7 @@ function createNode(name, time, opt_parent) {
    createNode('d', 4, b3);
    createNode('d', 2, b3);
 
-   var view = new devtools.profiler.ProfileView(root);
+   var view = new ProfileView(root);
    var flatTree = [];
 
    function fillFlatTree(node) {

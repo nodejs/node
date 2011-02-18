@@ -304,6 +304,11 @@ class MacroAssembler: public Assembler {
   // Unlink the stack handler on top of the stack from the try handler chain.
   void PopTryHandler();
 
+  // Activate the top handler in the try hander chain.
+  void Throw(Register value);
+
+  void ThrowUncatchable(UncatchableExceptionType type, Register value);
+
   // ---------------------------------------------------------------------------
   // Inline caching support
 
@@ -549,6 +554,10 @@ class MacroAssembler: public Assembler {
   // Utilities
 
   void Ret();
+
+  // Return and drop arguments from stack, where the number of arguments
+  // may be bigger than 2^16 - 1.  Requires a scratch register.
+  void Ret(int bytes_dropped, Register scratch);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the esp register.

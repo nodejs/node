@@ -913,7 +913,7 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
 
-  PrepareForBailoutForId(stmt->EntryId(), TOS_REG);
+  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
   VisitStatements(stmt->statements());
   __ bind(nested_statement.break_target());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);

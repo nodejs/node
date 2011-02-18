@@ -234,18 +234,10 @@ chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-2: FAIL_OK
 # Setting expectations to fail only so that the tests trigger as soon as
 # the strict mode feature gets implemented
 
-# A directive preceeding an 'use strict' directive may not contain an OctalEscapeSequence
+# A directive preceeding an 'use strict' directive may not contain
+# an OctalEscapeSequence
 # Incorrect test - need double escape in eval.
 chapter07/7.8/7.8.4/7.8.4-1-s: FAIL
-
-# this is not coerced to an object in strict mode (Number)
-chapter10/10.4/10.4.3/10.4.3-1-1-s: FAIL
-# this is not coerced to an object in strict mode (string)
-chapter10/10.4/10.4.3/10.4.3-1-2-s: FAIL
-# this is not coerced to an object in strict mode (undefined)
-chapter10/10.4/10.4.3/10.4.3-1-3-s: FAIL
-# this is not coerced to an object in strict mode (boolean)
-chapter10/10.4/10.4.3/10.4.3-1-4-s: FAIL
 
 # arguments[i] remains same after changing actual parameters in strict mode
 chapter10/10.6/10.6-10-c-ii-1-s: FAIL
@@ -263,182 +255,185 @@ chapter10/10.6/10.6-13-c-1-s: FAIL
 # arguments.callee is non-configurable in strict mode
 chapter10/10.6/10.6-13-c-3-s: FAIL
 
-# simple assignment throws ReferenceError if LeftHandSide is an unresolvable reference in strict mode
-chapter11/11.13/11.13.1/11.13.1-1-5-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a property reference with a primitive base value (this is undefined)
+# simple assignment throws TypeError if LeftHandSide is a property reference
+# with a primitive base value (this is undefined)
 chapter11/11.13/11.13.1/11.13.1-1-7-s: FAIL
 
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Global.NaN)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Global.NaN)
 chapter11/11.13/11.13.1/11.13.1-4-2-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Global.Infinity)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Global.Infinity)
 chapter11/11.13/11.13.1/11.13.1-4-3-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Global.length)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Global.length)
 chapter11/11.13/11.13.1/11.13.1-4-4-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Object.length)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Object.length)
 chapter11/11.13/11.13.1/11.13.1-4-5-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Function.length)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Function.length)
 chapter11/11.13/11.13.1/11.13.1-4-6-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Array.length)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Array.length)
 chapter11/11.13/11.13.1/11.13.1-4-7-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (String.length)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (String.length)
 chapter11/11.13/11.13.1/11.13.1-4-8-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Boolean.length)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Boolean.length)
 chapter11/11.13/11.13.1/11.13.1-4-9-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Number.length)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Number.length)
 chapter11/11.13/11.13.1/11.13.1-4-10-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Date.length)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Date.length)
 chapter11/11.13/11.13.1/11.13.1-4-11-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (RegExp.length)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (RegExp.length)
 chapter11/11.13/11.13.1/11.13.1-4-12-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Error.length)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Error.length)
 chapter11/11.13/11.13.1/11.13.1-4-13-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Number.MAX_VALUE)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Number.MAX_VALUE)
 chapter11/11.13/11.13.1/11.13.1-4-14-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Number.MIN_VALUE)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Number.MIN_VALUE)
 chapter11/11.13/11.13.1/11.13.1-4-15-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Number.NaN)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Number.NaN)
 chapter11/11.13/11.13.1/11.13.1-4-16-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Number.NEGATIVE_INFINITY)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Number.NEGATIVE_INFINITY)
 chapter11/11.13/11.13.1/11.13.1-4-17-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Number.POSITIVE_INFINITY)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Number.POSITIVE_INFINITY)
 chapter11/11.13/11.13.1/11.13.1-4-18-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Math.E)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Math.E)
 chapter11/11.13/11.13.1/11.13.1-4-19-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Math.LN10)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Math.LN10)
 chapter11/11.13/11.13.1/11.13.1-4-20-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Math.LN2)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Math.LN2)
 chapter11/11.13/11.13.1/11.13.1-4-21-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Math.LOG2E)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Math.LOG2E)
 chapter11/11.13/11.13.1/11.13.1-4-22-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Math.LOG10E)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Math.LOG10E)
 chapter11/11.13/11.13.1/11.13.1-4-23-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Math.PI)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Math.PI)
 chapter11/11.13/11.13.1/11.13.1-4-24-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Math.SQRT1_2)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Math.SQRT1_2)
 chapter11/11.13/11.13.1/11.13.1-4-25-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Math.SQRT2)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Math.SQRT2)
 chapter11/11.13/11.13.1/11.13.1-4-26-s: FAIL
-# simple assignment throws TypeError if LeftHandSide is a readonly property in strict mode (Global.undefined)
+# simple assignment throws TypeError if LeftHandSide is a readonly property
+# in strict mode (Global.undefined)
 chapter11/11.13/11.13.1/11.13.1-4-27-s: FAIL
 
-# delete operator throws TypeError when deleting a non-configurable data property in strict mode
-chapter11/11.4/11.4.1/11.4.1-4.a-3-s: FAIL
-# delete operator throws TypeError when when deleting a non-configurable data property in strict mode (Global.NaN)
-chapter11/11.4/11.4.1/11.4.1-4.a-4-s: FAIL
-# delete operator throws TypeError when deleting a non-configurable data property in strict mode (Math.LN2)
-chapter11/11.4/11.4.1/11.4.1-4.a-9-s: FAIL
+# delete operator throws TypeError when when deleting a non-configurable
+# data property in strict mode (Global.NaN)
+# Invalid test case - "this" is not a global object within the test case.
+# (http://es5conform.codeplex.com/workitem/29151)
+chapter11/11.4/11.4.1/11.4.1-4.a-4-s: FAIL_OK
 
-# delete operator throws ReferenceError when deleting a direct reference to a var in strict mode
+# delete operator throws ReferenceError when deleting a direct reference
+# to a var in strict mode
+# Invalid test case. Test expects ReferenceError instead of SyntaxError.
+# http://es5conform.codeplex.com/workitem/29084
 chapter11/11.4/11.4.1/11.4.1-5-1-s: FAIL
-# delete operator throws ReferenceError when deleting a direct reference to a function argument in strict mode
+# delete operator throws ReferenceError when deleting a direct reference
+# to a function argument in strict mode
+# Invalid test case. Test expects ReferenceError instead of SyntaxError.
+# http://es5conform.codeplex.com/workitem/29084
 chapter11/11.4/11.4.1/11.4.1-5-2-s: FAIL
-# delete operator throws ReferenceError when deleting a direct reference to a function name in strict mode
+# delete operator throws ReferenceError when deleting a direct reference
+# to a function name in strict mode
+# Invalid test case. Test expects ReferenceError instead of SyntaxError.
+# http://es5conform.codeplex.com/workitem/29084
 chapter11/11.4/11.4.1/11.4.1-5-3-s: FAIL
-# delete operator throws SyntaxError when deleting a direct reference to a function argument(object) in strict mode
-chapter11/11.4/11.4.1/11.4.1-5-4-s: FAIL
 
 # eval - a function declaring a var named 'eval' throws EvalError in strict mode
-# EvalError - incorrect test (SyntaxError should be expected instead of EvalError)
+# Invalid test case. SyntaxError should be expected instead of EvalError.
 chapter12/12.2/12.2.1/12.2.1-1-s: FAIL
 # eval - a function assigning into 'eval' throws EvalError in strict mode
-# EvalError - incorrect test (SyntaxError should be expected instead of EvalError)
+# Invalid test case. SyntaxError should be expected instead of EvalError.
 chapter12/12.2/12.2.1/12.2.1-2-s: FAIL
-# eval - a function expr declaring a var named 'eval' throws EvalError in strict mode
-# EvalError - incorrect test (SyntaxError should be expected instead of EvalError)
+# eval - a function expr declaring a var named 'eval' throws EvalError
+# in strict mode
+# Invalid test case. SyntaxError should be expected instead of EvalError.
 chapter12/12.2/12.2.1/12.2.1-3-s: FAIL
 # eval - a function expr assigning into 'eval' throws a EvalError in strict mode
-# EvalError - incorrect test (SyntaxError should be expected instead of EvalError)
+# Invalid test case. SyntaxError should be expected instead of EvalError.
 chapter12/12.2/12.2.1/12.2.1-4-s: FAIL
 # eval - a Function declaring var named 'eval' throws EvalError in strict mode
-# EvalError - incorrect test (SyntaxError should be expected instead of EvalError)
+# Invalid test case. SyntaxError should be expected instead of EvalError.
 chapter12/12.2/12.2.1/12.2.1-5-s: FAIL
 # eval - a Function assigning into 'eval' throws EvalError in strict mode
-# EvalError - incorrect test (SyntaxError should be expected instead of EvalError)
+# Invalid test case. SyntaxError should be expected instead of EvalError.
 chapter12/12.2/12.2.1/12.2.1-6-s: FAIL
-# eval - a direct eval declaring a var named 'eval' throws EvalError in strict mode
-# EvalError - incorrect test (SyntaxError should be expected instead of EvalError)
+# eval - a direct eval declaring a var named 'eval' throws EvalError
+# in strict mode
+# Invalid test case. SyntaxError should be expected instead of EvalError.
 chapter12/12.2/12.2.1/12.2.1-7-s: FAIL
 # eval - a direct eval assigning into 'eval' throws EvalError in strict mode
-# EvalError - incorrect test (SyntaxError should be expected instead of EvalError)
+# Invalid test case. SyntaxError should be expected instead of EvalError.
 chapter12/12.2/12.2.1/12.2.1-8-s: FAIL
-# eval - an indirect eval declaring a var named 'eval' throws EvalError in strict mode
-# EvalError - incorrect test (SyntaxError should be expected instead of EvalError)
+# eval - an indirect eval declaring a var named 'eval' throws EvalError
+# in strict mode
+# Invalid test case. SyntaxError should be expected instead of EvalError.
 chapter12/12.2/12.2.1/12.2.1-9-s: FAIL
 # eval - an indirect eval assigning into 'eval' throws EvalError in strict mode
-# EvalError - incorrect test (SyntaxError should be expected instead of EvalError)
+# Invalid test case. SyntaxError should be expected instead of EvalError.
 chapter12/12.2/12.2.1/12.2.1-10-s: FAIL
 
-# SyntaxError if eval used as function identifier in function declaration with strict body
-# test uses implicit return (which doesn't seem to work in v8 or safari jsc)
+# SyntaxError if eval used as function identifier in function declaration
+# with strict body
+# Test fails to return true on success (invalid test case).
 chapter13/13.1/13.1-3-3-s: FAIL
-# SyntaxError if eval used as function identifier in function expression with strict body
-# test uses implicit return (which doesn't seem to work in v8 or safari jsc)
+# SyntaxError if eval used as function identifier in function expression
+# with strict body
+# Test fails to return true on success (invalid test case).
 chapter13/13.1/13.1-3-4-s: FAIL
-# SyntaxError if eval used as function identifier in function declaration in strict code
-# test uses implicit return (which doesn't seem to work in v8 or safari jsc)
+# SyntaxError if eval used as function identifier in function declaration
+# in strict code
+# Test fails to return true on success (invalid test case).
 chapter13/13.1/13.1-3-5-s: FAIL
-# SyntaxError if eval used as function identifier in function expression in strict code
-# test uses implicit return (which doesn't seem to work in v8 or safari jsc)
+# SyntaxError if eval used as function identifier in function expression
+# in strict code
+# Test fails to return true on success (invalid test case).
 chapter13/13.1/13.1-3-6-s: FAIL
-# SyntaxError if arguments used as function identifier in function declaration with strict body
-# test uses implicit return (which doesn't seem to work in v8 or safari jsc)
+# SyntaxError if arguments used as function identifier in function declaration
+# with strict body
+# Test fails to return true on success (invalid test case).
 chapter13/13.1/13.1-3-9-s: FAIL
-# SyntaxError if arguments used as function identifier in function expression with strict body
-# test uses implicit return (which doesn't seem to work in v8 or safari jsc)
+# SyntaxError if arguments used as function identifier in function expression
+# with strict body
+# Test fails to return true on success (invalid test case).
 chapter13/13.1/13.1-3-10-s: FAIL
-# SyntaxError if arguments used as function identifier in function declaration in strict code
-# test uses implicit return (which doesn't seem to work in v8 or safari jsc)
+# SyntaxError if arguments used as function identifier in function declaration
+# in strict code
+# Test fails to return true on success (invalid test case).
 chapter13/13.1/13.1-3-11-s: FAIL
-# SyntaxError if arguments used as function identifier in function expression in strict code
-# test uses implicit return (which doesn't seem to work in v8 or safari jsc)
+# SyntaxError if arguments used as function identifier in function expression
+# in strict code
+# Test fails to return true on success (invalid test case).
 chapter13/13.1/13.1-3-12-s: FAIL
 
-# 'use strict' directive - correct usage
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-1-s: FAIL
-# "use strict" directive - correct usage double quotes
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-2-s: FAIL
-# 'use strict' directive - may follow other directives
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-8-s: FAIL
-# 'use strict' directive - may occur multiple times
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-9-s: FAIL
-# other directives - may follow 'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-10-s: FAIL
-# comments may preceed 'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-11-s: FAIL
-# comments may follow 'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-12-s: FAIL
-# semicolon insertion works for'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-13-s: FAIL
-# semicolon insertion may come before 'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-14-s: FAIL
-# blank lines may come before 'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-15-s: FAIL
-
-# Duplicate combined parameter name allowed in Function constructor called in strict mode if body not strict
-# Invalid test case per ECMA-262 5th Edition, 10.1.1, bullet 4
+# Duplicate combined parameter name allowed in Function constructor called
+# in strict mode if body not strict
+# Test fails to return true on success (invalid test case).
 chapter15/15.3/15.3.2/15.3.2.1/15.3.2.1-11-6-s: FAIL
 
-# Array.prototype.every - thisArg not passed to strict callbackfn
-chapter15/15.4/15.4.4/15.4.4.16/15.4.4.16-5-1-s: FAIL
-# Array.prototype.some - thisArg not passed to strict callbackfn
-chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-5-1-s: FAIL
-# Array.prototype.forEach - thisArg not passed to strict callbackfn
-chapter15/15.4/15.4.4/15.4.4.18/15.4.4.18-5-1-s: FAIL
-# Array.prototype.map - thisArg not passed to strict callbackfn
-chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-5-1-s: FAIL
-# Array.prototype.filter - thisArg not passed to strict callbackfn
-chapter15/15.4/15.4.4/15.4.4.20/15.4.4.20-5-1-s: FAIL
 # Array.prototype.reduce - null passed as thisValue to strict callbackfn
+# Invalid test case: http://es5conform.codeplex.com/workitem/29085
 chapter15/15.4/15.4.4/15.4.4.21/15.4.4.21-9-c-ii-4-s: FAIL
 
 [ $arch == mips ]

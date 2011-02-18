@@ -31,6 +31,7 @@ root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.append(join(root_dir, 'tools'))
 import js2c
 Import('context')
+Import('tools')
 
 
 SOURCES = {
@@ -97,7 +98,6 @@ SOURCES = {
     objects.cc
     objects-printer.cc
     objects-visiting.cc
-    oprofile-agent.cc
     parser.cc
     preparser.cc
     preparse-data.cc
@@ -266,6 +266,9 @@ D8_FILES = {
   'os:solaris': [
     'd8-posix.cc'
   ],
+  'os:cygwin': [
+    'd8-posix.cc'
+  ],
   'os:win32': [
     'd8-windows.cc'
   ],
@@ -302,7 +305,7 @@ def Abort(message):
 
 
 def ConfigureObjectFiles():
-  env = Environment()
+  env = Environment(tools=tools)
   env.Replace(**context.flags['v8'])
   context.ApplyEnvOverrides(env)
   env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)

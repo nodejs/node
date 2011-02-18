@@ -1115,8 +1115,18 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               get_modrm(*data, &mod, &regop, &rm);
               int8_t imm8 = static_cast<int8_t>(data[1]);
               AppendToBuffer("pextrd %s,%s,%d",
-                             NameOfXMMRegister(regop),
+                             NameOfCPURegister(regop),
                              NameOfXMMRegister(rm),
+                             static_cast<int>(imm8));
+              data += 2;
+            } else if (*data == 0x22) {
+              data++;
+              int mod, regop, rm;
+              get_modrm(*data, &mod, &regop, &rm);
+              int8_t imm8 = static_cast<int8_t>(data[1]);
+              AppendToBuffer("pinsrd %s,%s,%d",
+                             NameOfXMMRegister(regop),
+                             NameOfCPURegister(rm),
                              static_cast<int>(imm8));
               data += 2;
             } else {

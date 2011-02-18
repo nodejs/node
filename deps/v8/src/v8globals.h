@@ -69,21 +69,21 @@ const intptr_t kFailureTagMask = (1 << kFailureTagSize) - 1;
 
 
 // Zap-value: The value used for zapping dead objects.
-// Should be a recognizable hex value tagged as a heap object pointer.
+// Should be a recognizable hex value tagged as a failure.
 #ifdef V8_HOST_ARCH_64_BIT
 const Address kZapValue =
-    reinterpret_cast<Address>(V8_UINT64_C(0xdeadbeedbeadbeed));
+    reinterpret_cast<Address>(V8_UINT64_C(0xdeadbeedbeadbeef));
 const Address kHandleZapValue =
-    reinterpret_cast<Address>(V8_UINT64_C(0x1baddead0baddead));
+    reinterpret_cast<Address>(V8_UINT64_C(0x1baddead0baddeaf));
 const Address kFromSpaceZapValue =
-    reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdad));
+    reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdaf));
 const uint64_t kDebugZapValue = V8_UINT64_C(0xbadbaddbbadbaddb);
-const uint64_t kSlotsZapValue = V8_UINT64_C(0xbeefdeadbeefdeed);
+const uint64_t kSlotsZapValue = V8_UINT64_C(0xbeefdeadbeefdeef);
 #else
-const Address kZapValue = reinterpret_cast<Address>(0xdeadbeed);
-const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddead);
-const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
-const uint32_t kSlotsZapValue = 0xbeefdeed;
+const Address kZapValue = reinterpret_cast<Address>(0xdeadbeef);
+const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddeaf);
+const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdaf);
+const uint32_t kSlotsZapValue = 0xbeefdeef;
 const uint32_t kDebugZapValue = 0xbadbaddb;
 #endif
 

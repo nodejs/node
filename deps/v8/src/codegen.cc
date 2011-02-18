@@ -31,7 +31,6 @@
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"
-#include "oprofile-agent.h"
 #include "prettyprinter.h"
 #include "register-allocator-inl.h"
 #include "rewriter.h"

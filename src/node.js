@@ -194,13 +194,17 @@
     };
 
     process.kill = function(pid, sig) {
-      sig = sig || 'SIGTERM';
-
-      if (!startup.lazyConstants()[sig]) {
-        throw new Error('Unknown signal: ' + sig);
+      // preserve null signal
+      if (0 === sig) {
+        process._kill(pid, 0);
+      } else {
+        sig = sig || 'SIGTERM';
+        if (startup.lazyConstants()[sig]) {
+          process._kill(pid, startup.lazyConstants()[sig]);
+        } else {
+          throw new Error('Unknown signal: ' + sig);
+        }
       }
-
-      process._kill(pid, startup.lazyConstants()[sig]);
     };
   };
 

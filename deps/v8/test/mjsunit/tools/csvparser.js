@@ -28,7 +28,7 @@
 // Load CSV parser implementation from <project root>/tools.
 // Files: tools/csvparser.js
 
-var parser = new devtools.profiler.CsvParser();
+var parser = new CsvParser();
 
 assertEquals(
     [],

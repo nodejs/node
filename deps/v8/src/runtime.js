@@ -338,8 +338,8 @@ function SHR(y) {
 */
 
 // ECMA-262, section 11.4.1, page 46.
-function DELETE(key) {
-  return %DeleteProperty(%ToObject(this), %ToString(key));
+function DELETE(key, strict) {
+  return %DeleteProperty(%ToObject(this), %ToString(key), strict);
 }
 
 

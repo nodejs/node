@@ -108,6 +108,9 @@ static void GenerateStringDictionaryProbes(MacroAssembler* masm,
                                            Register name,
                                            Register r0,
                                            Register r1) {
+  // Assert that name contains a string.
+  if (FLAG_debug_code) __ AbortIfNotString(name);
+
   // Compute the capacity mask.
   const int kCapacityOffset =
       StringDictionary::kHeaderSize +
@@ -806,28 +809,17 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ecx: key (a smi)
   // edx: receiver
   // edi: elements array
-  __ CheckMap(edi, Factory::pixel_array_map(), &slow, true);
-  // Check that the value is a smi. If a conversion is needed call into the
-  // runtime to convert and clamp.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, &slow);
-  __ mov(ebx, ecx);
-  __ SmiUntag(ebx);
-  __ cmp(ebx, FieldOperand(edi, PixelArray::kLengthOffset));
-  __ j(above_equal, &slow);
-  __ mov(ecx, eax);  // Save the value. Key is not longer needed.
-  __ SmiUntag(ecx);
-  {  // Clamp the value to [0..255].
-    Label done;
-    __ test(ecx, Immediate(0xFFFFFF00));
-    __ j(zero, &done);
-    __ setcc(negative, ecx);  // 1 if negative, 0 if positive.
-    __ dec_b(ecx);  // 0 if negative, 255 if positive.
-    __ bind(&done);
-  }
-  __ mov(edi, FieldOperand(edi, PixelArray::kExternalPointerOffset));
-  __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
-  __ ret(0);  // Return value in eax.
+  GenerateFastPixelArrayStore(masm,
+                              edx,
+                              ecx,
+                              eax,
+                              edi,
+                              ebx,
+                              false,
+                              NULL,
+                              &slow,
+                              &slow,
+                              &slow);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -1208,7 +1200,14 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
+  // Check if the name is a string.
+  Label miss;
+  __ test(ecx, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+  Condition cond = masm->IsObjectStringType(ecx, eax, eax);
+  __ j(NegateCondition(cond), &miss);
   GenerateCallNormal(masm, argc);
+  __ bind(&miss);
   GenerateMiss(masm, argc);
 }
 
@@ -1488,7 +1487,8 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
+                                  Code::ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
@@ -1498,7 +1498,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
-                                         MONOMORPHIC);
+                                         MONOMORPHIC,
+                                         extra_ic_state);
   StubCache::GenerateProbe(masm, flags, edx, ecx, ebx, no_reg);
 
   // Cache miss: Jump to runtime.

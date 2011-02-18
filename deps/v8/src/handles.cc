@@ -290,6 +290,17 @@ Handle<Object> SetLocalPropertyIgnoreAttributes(
 }
 
 
+void SetLocalPropertyNoThrow(Handle<JSObject> object,
+                             Handle<String> key,
+                             Handle<Object> value,
+                             PropertyAttributes attributes) {
+  ASSERT(!Top::has_pending_exception());
+  CHECK(!SetLocalPropertyIgnoreAttributes(
+        object, key, value, attributes).is_null());
+  CHECK(!Top::has_pending_exception());
+}
+
+
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
                                           Handle<Object> value,
@@ -808,6 +819,7 @@ static bool CompileLazyHelper(CompilationInfo* info,
                               ClearExceptionFlag flag) {
   // Compile the source information to a code object.
   ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
+  ASSERT(!Top::has_pending_exception());
   bool result = Compiler::CompileLazy(info);
   ASSERT(result != Top::has_pending_exception());
   if (!result && flag == CLEAR_EXCEPTION) Top::clear_pending_exception();

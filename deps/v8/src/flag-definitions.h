@@ -134,11 +134,7 @@ DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_bool(aggressive_loop_invariant_motion, true,
             "aggressive motion of instructions out of loops")
-#ifdef V8_TARGET_ARCH_IA32
 DEFINE_bool(use_osr, true, "use on-stack replacement")
-#else
-DEFINE_bool(use_osr, false, "use on-stack replacement")
-#endif
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
@@ -230,6 +226,10 @@ DEFINE_bool(debugger_auto_break, true,
             "automatically set the debug break flag when debugger commands are "
             "in the queue")
 DEFINE_bool(enable_liveedit, true, "enable liveedit experimental feature")
+
+// execution.cc
+DEFINE_int(stack_size, kPointerSize * 128,
+           "default size of stack region v8 is allowed to use (in KkBytes)")
 
 // frames.cc
 DEFINE_int(max_stack_trace_source_length, 300,
@@ -374,6 +374,7 @@ DEFINE_bool(debug_script_collected_events, true,
 
 DEFINE_bool(gdbjit, false, "enable GDBJIT interface (disables compacting GC)")
 DEFINE_bool(gdbjit_full, false, "enable GDBJIT interface for all code objects")
+DEFINE_bool(gdbjit_dump, false, "dump elf objects with debug info to disk")
 
 //
 // Debug only flags
@@ -493,7 +494,6 @@ DEFINE_bool(log_regexp, false, "Log regular expression execution.")
 DEFINE_bool(sliding_state_window, false,
             "Update sliding state window counters.")
 DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
-DEFINE_bool(oprofile, false, "Enable JIT agent for OProfile.")
 DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
 
 //

@@ -366,6 +366,8 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(this);
+  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
+    visitor->VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(target_reference_address());
     CPU::FlushICache(pc_, sizeof(Address));
@@ -391,6 +393,8 @@ void RelocInfo::Visit() {
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     StaticVisitor::VisitCodeTarget(this);
+  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
+    StaticVisitor::VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
     CPU::FlushICache(pc_, sizeof(Address));

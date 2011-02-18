@@ -46,4 +46,7 @@ function u() {
  return f.apply(v, arguments);
 }
 
-for (var i=0; i<1000000; i++) assertEquals(void 0, u());
+Number.prototype.foo = 42;
+delete Number.prototype.foo;
+
+for (var i=0; i<100000; i++) assertEquals(void 0, u());

@@ -6,14 +6,14 @@
  *
  * Redistribution and use in source and binary forms, with or without modifica-
  * tion, are permitted provided that the following conditions are met:
- * 
+ *
  *   1.  Redistributions of source code must retain the above copyright notice,
  *       this list of conditions and the following disclaimer.
- * 
+ *
  *   2.  Redistributions in binary form must reproduce the above copyright
  *       notice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MER-
  * CHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
@@ -46,7 +46,7 @@
 /* MSDN says this is required to handle SIGFPE */
 /* my wild guess would be that using something floating-pointy is required */
 /* for the crt to do something about it */
-volatile double SIGFPE_REQ = 0.0f; 
+volatile double SIGFPE_REQ = 0.0f;
 
 /* oh, the humanity! */
 static int
@@ -59,7 +59,7 @@ ev_pipe (int filedes [2])
   SOCKET listener;
   SOCKET sock [2] = { -1, -1 };
 
-  if ((listener = socket (AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) 
+  if ((listener = socket (AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
     return -1;
 
   addr.sin_family = AF_INET;
@@ -75,7 +75,7 @@ ev_pipe (int filedes [2])
   if (listen (listener, 1))
     goto fail;
 
-  if ((sock [0] = socket (AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) 
+  if ((sock [0] = socket (AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
     goto fail;
 
   if (connect (sock [0], (struct sockaddr *)&addr, addr_size))

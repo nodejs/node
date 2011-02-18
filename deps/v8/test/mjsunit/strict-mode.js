@@ -169,13 +169,20 @@ CheckStrictMode("var x = { '1234' : 1, '2345' : 2, '1234' : 3 };", SyntaxError);
 CheckStrictMode("var x = { '1234' : 1, '2345' : 2, 1234 : 3 };", SyntaxError);
 CheckStrictMode("var x = { 3.14 : 1, 2.71 : 2, 3.14 : 3 };", SyntaxError);
 CheckStrictMode("var x = { 3.14 : 1, '3.14' : 2 };", SyntaxError);
-CheckStrictMode("var x = { 123: 1, 123.00000000000000000000000000000000000000000000000000000000000000000001 : 2 }", SyntaxError);
+CheckStrictMode("var x = { \
+  123: 1, \
+  123.00000000000000000000000000000000000000000000000000000000000000000001: 2 \
+}", SyntaxError);
 
 // Non-conflicting data properties.
 (function StrictModeNonDuplicate() {
   "use strict";
   var x = { 123 : 1, "0123" : 2 };
-  var x = { 123: 1, '123.00000000000000000000000000000000000000000000000000000000000000000001' : 2 }
+  var x = {
+    123: 1,
+    '123.00000000000000000000000000000000000000000000000000000000000000000001':
+      2
+  };
 })();
 
 // Two getters (non-strict)
@@ -214,23 +221,32 @@ assertThrows("var x = { '12': 1, get 12(){}};", SyntaxError);
 CheckStrictMode("function strict() { eval = undefined; }", SyntaxError);
 CheckStrictMode("function strict() { arguments = undefined; }", SyntaxError);
 CheckStrictMode("function strict() { print(eval = undefined); }", SyntaxError);
-CheckStrictMode("function strict() { print(arguments = undefined); }", SyntaxError);
+CheckStrictMode("function strict() { print(arguments = undefined); }",
+                SyntaxError);
 CheckStrictMode("function strict() { var x = eval = undefined; }", SyntaxError);
-CheckStrictMode("function strict() { var x = arguments = undefined; }", SyntaxError);
+CheckStrictMode("function strict() { var x = arguments = undefined; }",
+                SyntaxError);
 
 // Compound assignment to eval or arguments
 CheckStrictMode("function strict() { eval *= undefined; }", SyntaxError);
 CheckStrictMode("function strict() { arguments /= undefined; }", SyntaxError);
 CheckStrictMode("function strict() { print(eval %= undefined); }", SyntaxError);
-CheckStrictMode("function strict() { print(arguments %= undefined); }", SyntaxError);
-CheckStrictMode("function strict() { var x = eval += undefined; }", SyntaxError);
-CheckStrictMode("function strict() { var x = arguments -= undefined; }", SyntaxError);
+CheckStrictMode("function strict() { print(arguments %= undefined); }",
+                SyntaxError);
+CheckStrictMode("function strict() { var x = eval += undefined; }",
+                SyntaxError);
+CheckStrictMode("function strict() { var x = arguments -= undefined; }",
+                SyntaxError);
 CheckStrictMode("function strict() { eval <<= undefined; }", SyntaxError);
 CheckStrictMode("function strict() { arguments >>= undefined; }", SyntaxError);
-CheckStrictMode("function strict() { print(eval >>>= undefined); }", SyntaxError);
-CheckStrictMode("function strict() { print(arguments &= undefined); }", SyntaxError);
-CheckStrictMode("function strict() { var x = eval ^= undefined; }", SyntaxError);
-CheckStrictMode("function strict() { var x = arguments |= undefined; }", SyntaxError);
+CheckStrictMode("function strict() { print(eval >>>= undefined); }",
+                SyntaxError);
+CheckStrictMode("function strict() { print(arguments &= undefined); }",
+                SyntaxError);
+CheckStrictMode("function strict() { var x = eval ^= undefined; }",
+                SyntaxError);
+CheckStrictMode("function strict() { var x = arguments |= undefined; }",
+                SyntaxError);
 
 // Postfix increment with eval or arguments
 CheckStrictMode("function strict() { eval++; }", SyntaxError);
@@ -263,6 +279,17 @@ CheckStrictMode("function strict() { print(--eval); }", SyntaxError);
 CheckStrictMode("function strict() { print(--arguments); }", SyntaxError);
 CheckStrictMode("function strict() { var x = --eval; }", SyntaxError);
 CheckStrictMode("function strict() { var x = --arguments; }", SyntaxError);
+
+// Delete of an unqualified identifier
+CheckStrictMode("delete unqualified;", SyntaxError);
+CheckStrictMode("function strict() { delete unqualified; }", SyntaxError);
+CheckStrictMode("function function_name() { delete function_name; }",
+                SyntaxError);
+CheckStrictMode("function strict(parameter) { delete parameter; }",
+                SyntaxError);
+CheckStrictMode("function strict() { var variable; delete variable; }",
+                SyntaxError);
+CheckStrictMode("var variable; delete variable;", SyntaxError);
 
 // Prefix unary operators other than delete, ++, -- are valid in strict mode
 (function StrictModeUnaryOperators() {
@@ -318,21 +345,136 @@ function testFutureReservedWord(word) {
   // Function names and arguments when the body is strict
   assertThrows("function " + word + " () { 'use strict'; }", SyntaxError);
   assertThrows("function foo (" + word + ")  'use strict'; {}", SyntaxError);
-  assertThrows("function foo (" + word + ", " + word + ") { 'use strict'; }", SyntaxError);
+  assertThrows("function foo (" + word + ", " + word + ") { 'use strict'; }",
+               SyntaxError);
   assertThrows("function foo (a, " + word + ") { 'use strict'; }", SyntaxError);
   assertThrows("function foo (" + word + ", a) { 'use strict'; }", SyntaxError);
-  assertThrows("function foo (a, " + word + ", b) { 'use strict'; }", SyntaxError);
-  assertThrows("var foo = function (" + word + ") { 'use strict'; }", SyntaxError);
+  assertThrows("function foo (a, " + word + ", b) { 'use strict'; }",
+               SyntaxError);
+  assertThrows("var foo = function (" + word + ") { 'use strict'; }",
+               SyntaxError);
 
   // get/set when the body is strict
   eval("var x = { get " + word + " () { 'use strict'; } };");
   eval("var x = { set " + word + " (value) { 'use strict'; } };");
-  assertThrows("var x = { get foo(" + word + ") { 'use strict'; } };", SyntaxError);
-  assertThrows("var x = { set foo(" + word + ") { 'use strict'; } };", SyntaxError);
+  assertThrows("var x = { get foo(" + word + ") { 'use strict'; } };",
+               SyntaxError);
+  assertThrows("var x = { set foo(" + word + ") { 'use strict'; } };",
+               SyntaxError);
 }
 
 for (var i = 0; i < future_reserved_words.length; i++) {
   testFutureReservedWord(future_reserved_words[i]);
 }
 
+function testAssignToUndefined(should_throw) {
+  "use strict";
+  try {
+    possibly_undefined_variable_for_strict_mode_test = "should throw?";
+  } catch (e) {
+    assertTrue(should_throw, "strict mode");
+    assertInstanceof(e, ReferenceError, "strict mode");
+    return;
+  }
+  assertFalse(should_throw, "strict mode");
+}
 
+testAssignToUndefined(true);
+testAssignToUndefined(true);
+testAssignToUndefined(true);
+
+possibly_undefined_variable_for_strict_mode_test = "value";
+
+testAssignToUndefined(false);
+testAssignToUndefined(false);
+testAssignToUndefined(false);
+
+delete possibly_undefined_variable_for_strict_mode_test;
+
+testAssignToUndefined(true);
+testAssignToUndefined(true);
+testAssignToUndefined(true);
+
+function repeat(n, f) {
+ for (var i = 0; i < n; i ++) { f(); }
+}
+
+repeat(10, function() { testAssignToUndefined(true); });
+possibly_undefined_variable_for_strict_mode_test = "value";
+repeat(10, function() { testAssignToUndefined(false); });
+delete possibly_undefined_variable_for_strict_mode_test;
+repeat(10, function() { testAssignToUndefined(true); });
+possibly_undefined_variable_for_strict_mode_test = undefined;
+repeat(10, function() { testAssignToUndefined(false); });
+
+(function testDeleteNonConfigurable() {
+  function delete_property(o) {
+    "use strict";
+    delete o.property;
+  }
+  function delete_element(o, i) {
+    "use strict";
+    delete o[i];
+  }
+
+  var object = {};
+
+  Object.defineProperty(object, "property", { value: "property_value" });
+  Object.defineProperty(object, "1", { value: "one" });
+  Object.defineProperty(object, 7, { value: "seven" });
+  Object.defineProperty(object, 3.14, { value: "pi" });
+
+  assertThrows(function() { delete_property(object); }, TypeError);
+  assertEquals(object.property, "property_value");
+  assertThrows(function() { delete_element(object, "1"); }, TypeError);
+  assertThrows(function() { delete_element(object, 1); }, TypeError);
+  assertEquals(object[1], "one");
+  assertThrows(function() { delete_element(object, "7"); }, TypeError);
+  assertThrows(function() { delete_element(object, 7); }, TypeError);
+  assertEquals(object[7], "seven");
+  assertThrows(function() { delete_element(object, "3.14"); }, TypeError);
+  assertThrows(function() { delete_element(object, 3.14); }, TypeError);
+  assertEquals(object[3.14], "pi");
+})();
+
+// Not transforming this in Function.call and Function.apply.
+(function testThisTransform() {
+  function non_strict() {
+    return this;
+  }
+  function strict() {
+    "use strict";
+    return this;
+  }
+
+  var global_object = (function() { return this; })();
+  var object = {};
+
+  // Non-strict call.
+  assertTrue(non_strict.call(null) === global_object);
+  assertTrue(non_strict.call(undefined) === global_object);
+  assertEquals(typeof non_strict.call(7), "object");
+  assertEquals(typeof non_strict.call("Hello"), "object");
+  assertTrue(non_strict.call(object) === object);
+
+  // Non-strict apply.
+  assertTrue(non_strict.apply(null) === global_object);
+  assertTrue(non_strict.apply(undefined) === global_object);
+  assertEquals(typeof non_strict.apply(7), "object");
+  assertEquals(typeof non_strict.apply("Hello"), "object");
+  assertTrue(non_strict.apply(object) === object);
+
+  // Strict call.
+  assertTrue(strict.call(null) === null);
+  assertTrue(strict.call(undefined) === undefined);
+  assertEquals(typeof strict.call(7), "number");
+  assertEquals(typeof strict.call("Hello"), "string");
+  assertTrue(strict.call(object) === object);
+
+  // Strict apply.
+  assertTrue(strict.apply(null) === null);
+  assertTrue(strict.apply(undefined) === undefined);
+  assertEquals(typeof strict.apply(7), "number");
+  assertEquals(typeof strict.apply("Hello"), "string");
+  assertTrue(strict.apply(object) === object);
+})();

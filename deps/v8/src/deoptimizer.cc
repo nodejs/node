@@ -663,7 +663,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
      case Translation::REGISTER: {
        int output_reg = iterator->Next();
        if (FLAG_trace_osr) {
-         PrintF("    %s <- 0x%08" V8PRIxPTR " ; [esp + %d]\n",
+         PrintF("    %s <- 0x%08" V8PRIxPTR " ; [sp + %d]\n",
                 converter.NameOfCPURegister(output_reg),
                 input_value,
                 *input_offset);
@@ -690,7 +690,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
         return false;
       }
       if (FLAG_trace_osr) {
-        PrintF("    %s <- %d (int32) ; [esp + %d]\n",
+        PrintF("    %s <- %d (int32) ; [sp + %d]\n",
                converter.NameOfCPURegister(output_reg),
                int32_value,
                *input_offset);
@@ -706,7 +706,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
       int output_reg = iterator->Next();
       double double_value = input_object->Number();
       if (FLAG_trace_osr) {
-        PrintF("    %s <- %g (double) ; [esp + %d]\n",
+        PrintF("    %s <- %g (double) ; [sp + %d]\n",
                DoubleRegister::AllocationIndexToString(output_reg),
                double_value,
                *input_offset);
@@ -720,7 +720,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
       unsigned output_offset =
           output->GetOffsetFromSlotIndex(this, output_index);
       if (FLAG_trace_osr) {
-        PrintF("    [esp + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d]\n",
+        PrintF("    [sp + %d] <- 0x%08" V8PRIxPTR " ; [sp + %d]\n",
                output_offset,
                input_value,
                *input_offset);
@@ -749,7 +749,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
         return false;
       }
       if (FLAG_trace_osr) {
-        PrintF("    [esp + %d] <- %d (int32) ; [esp + %d]\n",
+        PrintF("    [sp + %d] <- %d (int32) ; [sp + %d]\n",
                output_offset,
                int32_value,
                *input_offset);
@@ -773,12 +773,12 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
       int32_t lower = static_cast<int32_t>(int_value);
       int32_t upper = static_cast<int32_t>(int_value >> kBitsPerInt);
       if (FLAG_trace_osr) {
-        PrintF("    [esp + %d] <- 0x%08x (upper bits of %g) ; [esp + %d]\n",
+        PrintF("    [sp + %d] <- 0x%08x (upper bits of %g) ; [sp + %d]\n",
                output_offset + kUpperOffset,
                upper,
                double_value,
                *input_offset);
-        PrintF("    [esp + %d] <- 0x%08x (lower bits of %g) ; [esp + %d]\n",
+        PrintF("    [sp + %d] <- 0x%08x (lower bits of %g) ; [sp + %d]\n",
                output_offset + kLowerOffset,
                lower,
                double_value,

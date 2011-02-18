@@ -582,6 +582,7 @@ class Instruction {
   inline int TypeValue() const { return Bits(27, 25); }
 
   inline int RnValue() const { return Bits(19, 16); }
+  DECLARE_STATIC_ACCESSOR(RnValue);
   inline int RdValue() const { return Bits(15, 12); }
   DECLARE_STATIC_ACCESSOR(RdValue);
 
@@ -625,6 +626,7 @@ class Instruction {
   inline int SValue() const { return Bit(20); }
     // with register
   inline int RmValue() const { return Bits(3, 0); }
+  DECLARE_STATIC_ACCESSOR(RmValue);
   inline int ShiftValue() const { return static_cast<ShiftOp>(Bits(6, 5)); }
   inline ShiftOp ShiftField() const {
     return static_cast<ShiftOp>(BitField(6, 5));

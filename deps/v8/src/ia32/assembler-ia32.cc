@@ -2559,6 +2559,19 @@ void Assembler::pextrd(const Operand& dst, XMMRegister src, int8_t offset) {
 }
 
 
+void Assembler::pinsrd(XMMRegister dst, const Operand& src, int8_t offset) {
+  ASSERT(CpuFeatures::IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x3A);
+  EMIT(0x22);
+  emit_sse_operand(dst, src);
+  EMIT(offset);
+}
+
+
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
   Register ireg = { reg.code() };
   emit_operand(ireg, adr);
@@ -2594,8 +2607,8 @@ void Assembler::RecordDebugBreakSlot() {
 }
 
 
-void Assembler::RecordComment(const char* msg) {
-  if (FLAG_code_comments) {
+void Assembler::RecordComment(const char* msg, bool force) {
+  if (FLAG_code_comments || force) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
