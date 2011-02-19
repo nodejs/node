@@ -99,8 +99,7 @@ static inline char* _getProcessTitle() {
     if (GetLastError()) {
       _winapi_perror("GetConsoleTitleW");
       return NULL;
-    }
-    else {
+    } else {
       // The title is empty, so return empty string
       process_title = strdup("\0");
       return process_title;
@@ -252,6 +251,7 @@ int Platform::GetExecutablePath(char* buffer, size_t* size) {
 }
 
 int Platform::GetCPUInfo(Local<Array> *cpus) {
+  HandleScope scope;
   Local<Object> cpuinfo;
   Local<Object> cputimes;
   unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK),
@@ -285,14 +285,17 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
 
   if (fpStat) {
     while (fgets(line, 511, fpStat) != NULL) {
-      if (strncmp(line, "cpu ", 4) == 0)
+      if (strncmp(line, "cpu ", 4) == 0) {
         continue;
-      else if (strncmp(line, "intr ", 5) == 0)
+      } else if (strncmp(line, "cpu", 3) != 0) {
         break;
+      }
+
       sscanf(line, "%*s %llu %llu %llu %llu",
              &ticks_user, &ticks_nice, &ticks_sys, &ticks_idle);
       snprintf(speedPath, sizeof(speedPath),
                "/sys/devices/system/cpu/cpu%u/cpufreq/cpuinfo_max_freq", i);
+
       fpSpeed = fopen(speedPath, "r");
       if (fpSpeed) {
         if (fgets(line, 511, fpSpeed) != NULL) {
@@ -354,5 +357,6 @@ int Platform::GetLoadAvg(Local<Array> *loads) {
   // Unsupported as of cygwin 1.7.7
   return -1;
 }
+
 
 }  // namespace node
