@@ -26,6 +26,8 @@ the first 8 bits of each character. This encoding method is depreciated and
 should be avoided in favor of `Buffer` objects where possible. This encoding
 will be removed in future versions of Node.
 
+* `'hex'` - Encode each byte as two hexidecimal characters.
+
 
 ### new Buffer(size)
 

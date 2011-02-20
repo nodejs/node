@@ -1084,6 +1084,8 @@ enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
     return UCS2;
   } else if (strcasecmp(*encoding, "binary") == 0) {
     return BINARY;
+  } else if (strcasecmp(*encoding, "hex") == 0) {
+    return HEX;
   } else if (strcasecmp(*encoding, "raw") == 0) {
     fprintf(stderr, "'raw' (array of integers) has been removed. "
                     "Use 'binary'.\n");
@@ -1134,6 +1136,7 @@ ssize_t DecodeBytes(v8::Handle<v8::Value> val, enum encoding encoding) {
 
   if (encoding == UTF8) return str->Utf8Length();
   else if (encoding == UCS2) return str->Length() * 2;
+  else if (encoding == HEX) return str->Length() / 2;
 
   return str->Length();
 }

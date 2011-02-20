@@ -86,6 +86,8 @@ static size_t ByteLength (Handle<String> string, enum encoding enc) {
     return base64_decoded_size(*v, v.length());
   } else if (enc == UCS2) {
     return string->Length() * 2;
+  } else if (enc == HEX) {
+    return string->Length() / 2;
   } else {
     return string->Length();
   }
