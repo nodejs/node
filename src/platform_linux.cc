@@ -183,15 +183,19 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
 
   if (fpStat) {
     while (fgets(line, 511, fpStat) != NULL) {
-      if (strncmp(line, "cpu ", 4) == 0)
+      if (strncmp(line, "cpu ", 4) == 0) {
         continue;
-      else if (strncmp(line, "intr ", 5) == 0)
+      } else if (strncmp(line, "cpu", 3) != 0) {
         break;
+      }
+
       sscanf(line, "%*s %llu %llu %llu %llu %*llu %llu",
              &ticks_user, &ticks_nice, &ticks_sys, &ticks_idle, &ticks_intr);
       snprintf(speedPath, sizeof(speedPath),
                "/sys/devices/system/cpu/cpu%u/cpufreq/cpuinfo_max_freq", i);
+
       fpSpeed = fopen(speedPath, "r");
+
       if (fpSpeed) {
         if (fgets(line, 511, fpSpeed) != NULL) {
           sscanf(line, "%u", &cpuspeed);
@@ -199,6 +203,7 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
         }
         fclose(fpSpeed);
       }
+
       cpuinfo = Object::New();
       cputimes = Object::New();
       cputimes->Set(String::New("user"), Number::New(ticks_user * multiplier));

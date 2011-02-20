@@ -52,8 +52,6 @@ var server = net.createServer(function(socket) {
 
   socket.on('end', function() {
     log('socket end');
-    pair.cleartext.write('goodbye\r\n');
-    pair.cleartext.end();
   });
 
   pair.cleartext.on('error', function(err) {
@@ -117,7 +115,7 @@ server.listen(common.PORT, function() {
     }
   });
 
-  client.stdout.pipe(process.stdout);
+  client.stdout.pipe(process.stdout, { end: false });
 
   client.on('exit', function(code) {
     opensslExitCode = code;

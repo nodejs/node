@@ -119,3 +119,8 @@ stream.on('data', function(chunk) {
 stream.on('end', function() {
   assert.equal('x', stream.data);
 });
+
+// pause and then resume immediately.
+var pauseRes = fs.createReadStream(rangeFile);
+pauseRes.pause();
+pauseRes.resume();
