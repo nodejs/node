@@ -1,6 +1,36 @@
+2011.02.19, Version 0.4.1 (stable)
+
+* Fixed field merging with progressive fields on writeHead()
+  (TJ Holowaychuk)
+
+* Make the repl respect node_modules folders (isaacs)
+
+* Fix for DNS fail in HTTP request (Richard Rodger)
+
+* Default to port 80 for http.request and http.get.
+
+* Improve V8 support for Cygwin (Bert Belder)
+
+* Fix fs.open param parsing. (Felix Geisendörfer)
+
+* Fixed null signal.
+
+* Fix various HTTP and HTTPS bugs
+
+* cmake improvements (Tom Hughes)
+
+* Fix: TLS sockets should not be writable after 'end'
+
+* Fix os.cpus() on cygwin (Brian White)
+
+* MinGW: OpenSSL support (Bert Belder)
+
+* Upgrade V8 to 3.1.5, libev to 4.4.
+
+
 2011.02.10, Version 0.4.0 (stable)
 
-* require() improvements (isaacs) 
+* require() improvements (isaacs)
   - understand package.json (isaacs)
   - look for 'node_modules' dir
 
