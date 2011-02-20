@@ -117,7 +117,7 @@ server.listen(common.PORT, function() {
     }
   });
 
-  client.stdout.pipe(process.stdout);
+  client.stdout.pipe(process.stdout, { end: false });
 
   client.on('exit', function(code) {
     opensslExitCode = code;
