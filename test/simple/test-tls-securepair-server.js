@@ -52,8 +52,6 @@ var server = net.createServer(function(socket) {
 
   socket.on('end', function() {
     log('socket end');
-    pair.cleartext.write('goodbye\r\n');
-    pair.cleartext.end();
   });
 
   pair.cleartext.on('error', function(err) {
