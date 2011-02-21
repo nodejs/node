@@ -619,6 +619,8 @@ def build(bld):
   http_parser.install_path = None
   if bld.env["USE_DEBUG"]:
     http_parser.clone("debug")
+  if product_type_is_lib:
+    http_parser.ccflags = '-fPIC'
 
   ### src/native.cc
   def make_macros(loc, content):
