@@ -39,6 +39,12 @@ def set_options(opt):
   opt.tool_options('compiler_cxx')
   opt.tool_options('compiler_cc')
   opt.tool_options('misc')
+  opt.add_option( '--libdir'
+		, action='store'
+		, type='string'
+		, default=False
+		, help='Install into this libdir [Default: ${PREFIX}/lib]'
+		)
   opt.add_option( '--debug'
                 , action='store_true'
                 , default=False
@@ -207,6 +213,11 @@ def configure(conf):
   if not conf.env.CC: conf.fatal('c compiler not found')
 
   o = Options.options
+
+  if o.libdir:
+    conf.env['LIBDIR'] = o.libdir
+  else:
+    conf.env['LIBDIR'] = conf.env['PREFIX'] + '/lib'
 
   conf.env["USE_DEBUG"] = o.debug
   # Snapshot building does noet seem to work on cygwin and mingw32
@@ -708,7 +719,7 @@ def build(bld):
     if bld.env["USE_DEBUG"]:
       dtrace_g = dtrace.clone("debug")
 
-    bld.install_files('${PREFIX}/lib/dtrace', 'src/node.d')
+    bld.install_files('${LIBDIR}/dtrace', 'src/node.d')
 
     if sys.platform.startswith("sunos"):
       #
@@ -762,7 +773,7 @@ def build(bld):
   node.uselib = 'RT EV OPENSSL CARES EXECINFO DL KVM SOCKET NSL UTIL OPROFILE'
   node.add_objects = 'eio http_parser'
   if product_type_is_lib:
-    node.install_path = '${PREFIX}/lib'
+    node.install_path = '${LIBDIR}'
   else:
     node.install_path = '${PREFIX}/bin'
   node.chmod = 0755
@@ -819,7 +830,7 @@ def build(bld):
     bld.env.append_value('LINKFLAGS', '-Wl,--export-all-symbols')
     bld.env.append_value('LINKFLAGS', '-Wl,--out-implib,default/libnode.dll.a')
     bld.env.append_value('LINKFLAGS', '-Wl,--output-def,default/libnode.def')
-    bld.install_files('${PREFIX}/lib', "build/default/libnode.*")
+    bld.install_files('${LIBDIR}', "build/default/libnode.*")
 
   def subflags(program):
     x = { 'CCFLAGS'   : " ".join(program.env["CCFLAGS"]).replace('"', '\\"')
@@ -865,8 +876,8 @@ def build(bld):
     bld.install_files('${PREFIX}/share/man/man1/', 'doc/node.1')
 
   bld.install_files('${PREFIX}/bin/', 'tools/node-waf', chmod=0755)
-  bld.install_files('${PREFIX}/lib/node/wafadmin', 'tools/wafadmin/*.py')
-  bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
+  bld.install_files('${LIBDIR}/node/wafadmin', 'tools/wafadmin/*.py')
+  bld.install_files('${LIBDIR}/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
 
   # create a pkg-config(1) file
   node_conf = bld.new_task_gen('subst', before="cxx")
@@ -874,7 +885,7 @@ def build(bld):
   node_conf.target = 'tools/nodejs.pc'
   node_conf.dict = subflags(node)
 
-  bld.install_files('${PREFIX}/lib/pkgconfig', 'tools/nodejs.pc')
+  bld.install_files('${LIBDIR}/pkgconfig', 'tools/nodejs.pc')
 
 def shutdown():
   Options.options.debug
