@@ -2274,11 +2274,7 @@ int Start(int argc, char *argv[]) {
 #endif // __MINGW32__
 
   // Initialize the default ev loop.
-#if defined(__sun)
-  // TODO(Ryan) I'm experiencing abnormally high load using Solaris's
-  // EVBACKEND_PORT. Temporarally forcing poll().
-  ev_default_loop(EVBACKEND_POLL);
-#elif defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+#if defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
   ev_default_loop(EVBACKEND_KQUEUE);
 #else
   ev_default_loop(EVFLAG_AUTO);
