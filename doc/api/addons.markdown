@@ -77,4 +77,4 @@ All Node addons must export a function called `init` with this signature:
     extern 'C' void init (Handle<Object> target)
 
 For the moment, that is all the documentation on addons. Please see
-<http://github.com/ry/node_postgres> for a real example.
+<http://github.com/joyent/node_postgres> for a real example.
