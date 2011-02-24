@@ -54,7 +54,12 @@ bool V8::Initialize(Deserializer* des) {
   if (has_been_disposed_ || has_fatal_error_) return false;
   if (IsRunning()) return true;
 
+#if defined(V8_TARGET_ARCH_ARM) && !defined(USE_ARM_EABI)
+  use_crankshaft_ = false;
+#else
   use_crankshaft_ = FLAG_crankshaft;
+#endif
+
   // Peephole optimization might interfere with deoptimization.
   FLAG_peephole_optimization = !use_crankshaft_;
   is_running_ = true;

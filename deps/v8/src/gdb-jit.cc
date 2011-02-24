@@ -1411,9 +1411,8 @@ static void AddUnwindInfo(CodeDescription *desc) {
 #ifdef V8_TARGET_ARCH_X64
   if (desc->tag() == GDBJITInterface::FUNCTION) {
     // To avoid propagating unwinding information through
-    // compilation pipeline we rely on function prologue
-    // and epilogue being the same for all code objects generated
-    // by the full code generator.
+    // compilation pipeline we use an approximation.
+    // For most use cases this should not affect usability.
     static const int kFramePointerPushOffset = 1;
     static const int kFramePointerSetOffset = 4;
     static const int kFramePointerPopOffset = -3;
@@ -1426,19 +1425,6 @@ static void AddUnwindInfo(CodeDescription *desc) {
 
     uintptr_t frame_pointer_pop_address =
         desc->CodeEnd() + kFramePointerPopOffset;
-
-#ifdef DEBUG
-    static const uint8_t kFramePointerPushInstruction = 0x48;  // push ebp
-    static const uint16_t kFramePointerSetInstruction = 0x5756;  // mov ebp, esp
-    static const uint8_t kFramePointerPopInstruction = 0xBE;  // pop ebp
-
-    ASSERT(*reinterpret_cast<uint8_t*>(frame_pointer_push_address) ==
-           kFramePointerPushInstruction);
-    ASSERT(*reinterpret_cast<uint16_t*>(frame_pointer_set_address) ==
-           kFramePointerSetInstruction);
-    ASSERT(*reinterpret_cast<uint8_t*>(frame_pointer_pop_address) ==
-           kFramePointerPopInstruction);
-#endif
 
     desc->SetStackStateStartAddress(CodeDescription::POST_RBP_PUSH,
                                     frame_pointer_push_address);

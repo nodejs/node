@@ -38,11 +38,6 @@ function Profile() {
   this.bottomUpTree_ = new CallTree();
 };
 
-/**
- * Version of profiler log.
- */
-Profile.VERSION = 2;
-
 
 /**
  * Returns whether a function with the specified name must be skipped.
@@ -65,6 +60,18 @@ Profile.Operation = {
   MOVE: 0,
   DELETE: 1,
   TICK: 2
+};
+
+
+/**
+ * Enum for code state regarding its dynamic optimization.
+ *
+ * @enum {number}
+ */
+Profile.CodeState = {
+  COMPILED: 0,
+  OPTIMIZABLE: 1,
+  OPTIMIZED: 2
 };
 
 
@@ -134,17 +141,30 @@ Profile.prototype.addCode = function(
 
 
 /**
- * Creates an alias entry for a code entry.
+ * Registers dynamic (JIT-compiled) code entry.
  *
- * @param {number} aliasAddr Alias address.
- * @param {number} addr Code entry address.
+ * @param {string} type Code entry type.
+ * @param {string} name Code entry name.
+ * @param {number} start Starting address.
+ * @param {number} size Code entry size.
+ * @param {number} funcAddr Shared function object address.
+ * @param {Profile.CodeState} state Optimization state.
  */
-Profile.prototype.addCodeAlias = function(
-    aliasAddr, addr) {
-  var entry = this.codeMap_.findDynamicEntryByStartAddress(addr);
-  if (entry) {
-    this.codeMap_.addCode(aliasAddr, entry);
+Profile.prototype.addFuncCode = function(
+    type, name, start, size, funcAddr, state) {
+  // As code and functions are in the same address space,
+  // it is safe to put them in a single code map.
+  var func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
+  if (!func) {
+    func = new Profile.FunctionEntry(name);
+    this.codeMap_.addCode(funcAddr, func);
+  } else if (func.name !== name) {
+    // Function object has been overwritten with a new one.
+    func.name = name;
   }
+  var entry = new Profile.DynamicFuncCodeEntry(size, type, func, state);
+  this.codeMap_.addCode(start, entry);
+  return entry;
 };
 
 
@@ -183,21 +203,9 @@ Profile.prototype.deleteCode = function(start) {
  * @param {number} from Current code entry address.
  * @param {number} to New code entry address.
  */
-Profile.prototype.safeMoveDynamicCode = function(from, to) {
+Profile.prototype.moveFunc = function(from, to) {
   if (this.codeMap_.findDynamicEntryByStartAddress(from)) {
     this.codeMap_.moveCode(from, to);
-  }
-};
-
-
-/**
- * Reports about deletion of a dynamic code entry.
- *
- * @param {number} start Starting address.
- */
-Profile.prototype.safeDeleteDynamicCode = function(start) {
-  if (this.codeMap_.findDynamicEntryByStartAddress(start)) {
-    this.codeMap_.deleteCode(start);
   }
 };
 
@@ -383,14 +391,7 @@ Profile.DynamicCodeEntry = function(size, type, name) {
  * Returns node name.
  */
 Profile.DynamicCodeEntry.prototype.getName = function() {
-  var name = this.name;
-  if (name.length == 0) {
-    name = '<anonymous>';
-  } else if (name.charAt(0) == ' ') {
-    // An anonymous function with location: " aaa.js:10".
-    name = '<anonymous>' + name;
-  }
-  return this.type + ': ' + name;
+  return this.type + ': ' + this.name;
 };
 
 
@@ -403,9 +404,73 @@ Profile.DynamicCodeEntry.prototype.getRawName = function() {
 
 
 Profile.DynamicCodeEntry.prototype.isJSFunction = function() {
-  return this.type == "Function" ||
-    this.type == "LazyCompile" ||
-    this.type == "Script";
+  return false;
+};
+
+
+/**
+ * Creates a dynamic code entry.
+ *
+ * @param {number} size Code size.
+ * @param {string} type Code type.
+ * @param {Profile.FunctionEntry} func Shared function entry.
+ * @param {Profile.CodeState} state Code optimization state.
+ * @constructor
+ */
+Profile.DynamicFuncCodeEntry = function(size, type, func, state) {
+  CodeMap.CodeEntry.call(this, size);
+  this.type = type;
+  this.func = func;
+  this.state = state;
+};
+
+Profile.DynamicFuncCodeEntry.STATE_PREFIX = ["", "~", "*"];
+
+/**
+ * Returns node name.
+ */
+Profile.DynamicFuncCodeEntry.prototype.getName = function() {
+  var name = this.func.getName();
+  return this.type + ': ' + Profile.DynamicFuncCodeEntry.STATE_PREFIX[this.state] + name;
+};
+
+
+/**
+ * Returns raw node name (without type decoration).
+ */
+Profile.DynamicFuncCodeEntry.prototype.getRawName = function() {
+  return this.func.getName();
+};
+
+
+Profile.DynamicFuncCodeEntry.prototype.isJSFunction = function() {
+  return true;
+};
+
+
+/**
+ * Creates a shared function object entry.
+ *
+ * @param {string} name Function name.
+ * @constructor
+ */
+Profile.FunctionEntry = function(name) {
+  CodeMap.CodeEntry.call(this, 0, name);
+};
+
+
+/**
+ * Returns node name.
+ */
+Profile.FunctionEntry.prototype.getName = function() {
+  var name = this.name;
+  if (name.length == 0) {
+    name = '<anonymous>';
+  } else if (name.charAt(0) == ' ') {
+    // An anonymous function with location: " aaa.js:10".
+    name = '<anonymous>' + name;
+  }
+  return name;
 };
 
 

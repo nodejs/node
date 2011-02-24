@@ -27,7 +27,6 @@
 
 import platform
 import re
-import subprocess
 import sys
 import os
 from os.path import join, dirname, abspath
@@ -142,9 +141,6 @@ LIBRARY_FLAGS = {
     'visibility:hidden': {
       # Use visibility=default to disable this.
       'CXXFLAGS':     ['-fvisibility=hidden']
-    },
-    'strictaliasing:off': {
-      'CCFLAGS':      ['-fno-strict-aliasing']
     },
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0'],
@@ -306,6 +302,7 @@ V8_EXTRA_FLAGS = {
   'gcc': {
     'all': {
       'WARNINGFLAGS': ['-Wall',
+                       '-Werror',
                        '-W',
                        '-Wno-unused-parameter',
                        '-Wnon-virtual-dtor']
@@ -655,16 +652,8 @@ def Abort(message):
   sys.exit(1)
 
 
-def GuessOS(env):
-  return utils.GuessOS()
-
-
-def GuessArch(env):
-  return utils.GuessArchitecture()
-
-
-def GuessToolchain(env):
-  tools = env['TOOLS']
+def GuessToolchain(os):
+  tools = Environment()['TOOLS']
   if 'gcc' in tools:
     return 'gcc'
   elif 'msvc' in tools:
@@ -673,9 +662,7 @@ def GuessToolchain(env):
     return None
 
 
-def GuessVisibility(env):
-  os = env['os']
-  toolchain = env['toolchain'];
+def GuessVisibility(os, toolchain):
   if (os == 'win32' or os == 'cygwin') and toolchain == 'gcc':
     # MinGW / Cygwin can't do it.
     return 'default'
@@ -685,35 +672,27 @@ def GuessVisibility(env):
     return 'hidden'
 
 
-def GuessStrictAliasing(env):
-  # There seems to be a problem with gcc 4.5.x
-  # see http://code.google.com/p/v8/issues/detail?id=884
-  # it can be worked around by disabling strict aliasing
-  toolchain = env['toolchain'];
-  if toolchain == 'gcc':
-    env = Environment(tools=['gcc'])
-    version = subprocess.Popen([env['CC'], '-dumpversion'],
-        stdout=subprocess.PIPE).communicate()[0]
-    if version.find('4.5.') == 0:
-      return 'off'
-  return 'default'
+OS_GUESS = utils.GuessOS()
+TOOLCHAIN_GUESS = GuessToolchain(OS_GUESS)
+ARCH_GUESS = utils.GuessArchitecture()
+VISIBILITY_GUESS = GuessVisibility(OS_GUESS, TOOLCHAIN_GUESS)
 
 
 SIMPLE_OPTIONS = {
   'toolchain': {
     'values': ['gcc', 'msvc'],
-    'guess': GuessToolchain,
-    'help': 'the toolchain to use'
+    'default': TOOLCHAIN_GUESS,
+    'help': 'the toolchain to use (%s)' % TOOLCHAIN_GUESS
   },
   'os': {
     'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd', 'solaris', 'cygwin'],
-    'guess': GuessOS,
-    'help': 'the os to build for'
+    'default': OS_GUESS,
+    'help': 'the os to build for (%s)' % OS_GUESS
   },
   'arch': {
     'values':['arm', 'ia32', 'x64', 'mips'],
-    'guess': GuessArch,
-    'help': 'the architecture to build for'
+    'default': ARCH_GUESS,
+    'help': 'the architecture to build for (%s)' % ARCH_GUESS
   },
   'regexp': {
     'values': ['native', 'interpreted'],
@@ -822,15 +801,8 @@ SIMPLE_OPTIONS = {
   },
   'visibility': {
     'values': ['default', 'hidden'],
-    'guess': GuessVisibility,
-    'depends': ['os', 'toolchain'],
-    'help': 'shared library symbol visibility'
-  },
-  'strictaliasing': {
-    'values': ['default', 'off'],
-    'guess': GuessStrictAliasing,
-    'depends': ['toolchain'],
-    'help': 'assume strict aliasing while optimizing'
+    'default': VISIBILITY_GUESS,
+    'help': 'shared library symbol visibility (%s)' % VISIBILITY_GUESS
   },
   'pgo': {
     'values': ['off', 'instrument', 'optimize'],
@@ -840,26 +812,6 @@ SIMPLE_OPTIONS = {
 }
 
 
-def AddOption(result, name, option):
-  if 'guess' in option:
-    # Option has a guess function
-    guess = option.get('guess')
-    guess_env = Environment(options=result)
-    # Check if all options that the guess function depends on are set
-    if 'depends' in option:
-      for dependency in option.get('depends'):
-        if not dependency in guess_env:
-          return False
-    default = guess(guess_env)
-  else:
-    # Option has a fixed default
-    default = option.get('default')
-
-  help = '%s (%s)' % (option.get('help'), ", ".join(option['values']))
-  result.Add(name, help, default)
-  return True
-
-
 def GetOptions():
   result = Options()
   result.Add('mode', 'compilation mode (debug, release)', 'release')
@@ -867,26 +819,10 @@ def GetOptions():
   result.Add('cache', 'directory to use for scons build cache', '')
   result.Add('env', 'override environment settings (NAME0:value0,NAME1:value1,...)', '')
   result.Add('importenv', 'import environment settings (NAME0,NAME1,...)', '')
-  options = SIMPLE_OPTIONS
-  while len(options):
-    postpone = {}
-    for (name, option) in options.iteritems():
-      if not AddOption(result, name, option):
-        postpone[name] = option
-    options = postpone
+  for (name, option) in SIMPLE_OPTIONS.iteritems():
+    help = '%s (%s)' % (name, ", ".join(option['values']))
+    result.Add(name, help, option.get('default'))
   return result
-
-
-def GetTools(opts):
-  env = Environment(options=opts)
-  os = env['os']
-  toolchain = env['toolchain']
-  if os == 'win32' and toolchain == 'gcc':
-    return ['mingw']
-  elif os == 'win32' and toolchain == 'msvc':
-    return ['msvc', 'mslink', 'mslib', 'msvs']
-  else:
-    return ['default']
 
 
 def GetVersionComponents():
@@ -969,7 +905,7 @@ def VerifyOptions(env):
     print env['simulator']
     Abort("Option unalignedaccesses only supported for the ARM architecture.")
   for (name, option) in SIMPLE_OPTIONS.iteritems():
-    if (not name in env):
+    if (not option.get('default')) and (name not in ARGUMENTS):
       message = ("A value for option %s must be specified (%s)." %
           (name, ", ".join(option['values'])))
       Abort(message)
@@ -1097,7 +1033,7 @@ def ParseEnvOverrides(arg, imports):
   return overrides
 
 
-def BuildSpecific(env, mode, env_overrides, tools):
+def BuildSpecific(env, mode, env_overrides):
   options = {'mode': mode}
   for option in SIMPLE_OPTIONS:
     options[option] = env[option]
@@ -1150,7 +1086,7 @@ def BuildSpecific(env, mode, env_overrides, tools):
   (object_files, shell_files, mksnapshot) = env.SConscript(
     join('src', 'SConscript'),
     build_dir=join('obj', target_id),
-    exports='context tools',
+    exports='context',
     duplicate=False
   )
 
@@ -1170,21 +1106,21 @@ def BuildSpecific(env, mode, env_overrides, tools):
     library = env.SharedLibrary(library_name, object_files, PDB=pdb_name)
   context.library_targets.append(library)
 
-  d8_env = Environment(tools=tools)
+  d8_env = Environment()
   d8_env.Replace(**context.flags['d8'])
   context.ApplyEnvOverrides(d8_env)
   shell = d8_env.Program('d8' + suffix, object_files + shell_files)
   context.d8_targets.append(shell)
 
   for sample in context.samples:
-    sample_env = Environment(tools=tools)
+    sample_env = Environment()
     sample_env.Replace(**context.flags['sample'])
     sample_env.Prepend(LIBS=[library_name])
     context.ApplyEnvOverrides(sample_env)
     sample_object = sample_env.SConscript(
       join('samples', 'SConscript'),
       build_dir=join('obj', 'sample', sample, target_id),
-      exports='sample context tools',
+      exports='sample context',
       duplicate=False
     )
     sample_name = sample + suffix
@@ -1197,7 +1133,7 @@ def BuildSpecific(env, mode, env_overrides, tools):
   cctest_program = cctest_env.SConscript(
     join('test', 'cctest', 'SConscript'),
     build_dir=join('obj', 'test', target_id),
-    exports='context object_files tools',
+    exports='context object_files',
     duplicate=False
   )
   context.cctest_targets.append(cctest_program)
@@ -1207,9 +1143,7 @@ def BuildSpecific(env, mode, env_overrides, tools):
 
 def Build():
   opts = GetOptions()
-  tools = GetTools(opts)
-  env = Environment(options=opts, tools=tools)
-
+  env = Environment(options=opts)
   Help(opts.GenerateHelpText(env))
   VerifyOptions(env)
   env_overrides = ParseEnvOverrides(env['env'], env['importenv'])
@@ -1223,7 +1157,7 @@ def Build():
   d8s = []
   modes = SplitList(env['mode'])
   for mode in modes:
-    context = BuildSpecific(env.Copy(), mode, env_overrides, tools)
+    context = BuildSpecific(env.Copy(), mode, env_overrides)
     libraries += context.library_targets
     mksnapshots += context.mksnapshot_targets
     cctests += context.cctest_targets

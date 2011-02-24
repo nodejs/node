@@ -1549,6 +1549,11 @@ class JSObject: public HeapObject {
   MaybeObject* GetElementWithReceiver(Object* receiver, uint32_t index);
   MaybeObject* GetElementWithInterceptor(Object* receiver, uint32_t index);
 
+  // Get external element value at index if there is one and undefined
+  // otherwise. Can return a failure if allocation of a heap number
+  // failed.
+  MaybeObject* GetExternalElement(uint32_t index);
+
   MUST_USE_RESULT MaybeObject* SetFastElementsCapacityAndLength(int capacity,
                                                                 int length);
   MUST_USE_RESULT MaybeObject* SetSlowElements(Object* length);

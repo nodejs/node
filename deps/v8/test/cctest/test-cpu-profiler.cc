@@ -50,7 +50,7 @@ static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
                                    i::Address frame3 = NULL) {
   i::TickSample* sample = proc->TickSampleEvent();
   sample->pc = frame1;
-  sample->function = frame1;
+  sample->tos = frame1;
   sample->frames_count = 0;
   if (frame2 != NULL) {
     sample->stack[0] = frame2;
@@ -103,7 +103,8 @@ TEST(CodeEvents) {
                             i::Heap::empty_string(),
                             0,
                             ToAddress(0x1000),
-                            0x100);
+                            0x100,
+                            ToAddress(0x10000));
   processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,
                             "bbb",
                             ToAddress(0x1200),
@@ -116,8 +117,6 @@ TEST(CodeEvents) {
   processor.CodeMoveEvent(ToAddress(0x1400), ToAddress(0x1500));
   processor.CodeCreateEvent(i::Logger::STUB_TAG, 3, ToAddress(0x1600), 0x10);
   processor.CodeDeleteEvent(ToAddress(0x1600));
-  processor.FunctionCreateEvent(ToAddress(0x1700), ToAddress(0x1000),
-                                TokenEnumerator::kNoSecurityToken);
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(&processor, ToAddress(0x1000));
 
@@ -139,9 +138,6 @@ TEST(CodeEvents) {
   CHECK_NE(NULL, entry4);
   CHECK_EQ("ddd", entry4->name());
   CHECK_EQ(NULL, generator.code_map()->FindEntry(ToAddress(0x1600)));
-  CodeEntry* entry5 = generator.code_map()->FindEntry(ToAddress(0x1700));
-  CHECK_NE(NULL, entry5);
-  CHECK_EQ(aaa_str, entry5->name());
 }
 
 

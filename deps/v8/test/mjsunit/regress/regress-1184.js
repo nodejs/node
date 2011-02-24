@@ -25,14 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This should properly catch the exception from the setter triggered
-// by the loaded file, and it should not fail an assertion in debug mode.
+// Test the case when finally clause throws another exception (stack overflow)
+// which goes through some try/catch block---we need to clear v8::TryCatch
+// catcher as it doesn't catch original exception any more.
 
-__defineSetter__("x", function(){ throw 42; });
-
-try {
-   this.eval('function x(){}');
-   assertUnreachable();
-} catch (e) {
-   assertEquals(42, e);
-}
+o = {};
+o.__defineGetter__('foo', function() { throw 42; });
+function f() {
+ try {
+   // throw below sets up Top::thread_local_.catcher_...
+   throw 42;
+ } finally {
+   // ...JS accessor traverses v8 runtime/JS boundary and
+   // when coming back from JS to v8 runtime, retraverses
+   // stack with catcher set while processing exception
+   // which is not caught by external try catch.
+   try { o.foo; } catch(e) { };
+   return;
+ }
+};
+f();

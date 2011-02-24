@@ -536,10 +536,12 @@ class ShallowIterator BASE_EMBEDDED {
   inline LEnvironment* env() { return env_; }
 
  private:
+  inline bool ShouldSkip(LOperand* op) {
+    return op == NULL || op->IsConstantOperand() || op->IsArgument();
+  }
+
   inline int AdvanceToNext(int start) {
-    while (start < limit_ &&
-           (env_->values()->at(start) == NULL ||
-            env_->values()->at(start)->IsConstantOperand())) {
+    while (start < limit_ && ShouldSkip(env_->values()->at(start))) {
       start++;
     }
     return start;

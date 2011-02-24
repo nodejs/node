@@ -120,6 +120,7 @@ DEFINE_bool(time_hydrogen, false, "timing for hydrogen")
 DEFINE_bool(trace_hydrogen, false, "trace generated hydrogen to file")
 DEFINE_bool(trace_inlining, false, "trace inlining decisions")
 DEFINE_bool(trace_alloc, false, "trace register allocator")
+DEFINE_bool(trace_all_uses, false, "trace all use positions")
 DEFINE_bool(trace_range, false, "trace range analysis")
 DEFINE_bool(trace_gvn, false, "trace global value numbering")
 DEFINE_bool(trace_representation, false, "trace representation types")
@@ -134,7 +135,11 @@ DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_bool(aggressive_loop_invariant_motion, true,
             "aggressive motion of instructions out of loops")
+#ifdef V8_TARGET_ARCH_X64
+DEFINE_bool(use_osr, false, "use on-stack replacement")
+#else
 DEFINE_bool(use_osr, true, "use on-stack replacement")
+#endif
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")

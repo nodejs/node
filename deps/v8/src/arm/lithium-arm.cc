@@ -346,7 +346,7 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 }
 
 
-void LStoreNamed::PrintDataTo(StringStream* stream) {
+void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add(".");
   stream->Add(*String::cast(*name())->ToCString());
@@ -355,7 +355,25 @@ void LStoreNamed::PrintDataTo(StringStream* stream) {
 }
 
 
-void LStoreKeyed::PrintDataTo(StringStream* stream) {
+void LStoreNamedGeneric::PrintDataTo(StringStream* stream) {
+  object()->PrintTo(stream);
+  stream->Add(".");
+  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(" <- ");
+  value()->PrintTo(stream);
+}
+
+
+void LStoreKeyedFastElement::PrintDataTo(StringStream* stream) {
+  object()->PrintTo(stream);
+  stream->Add("[");
+  key()->PrintTo(stream);
+  stream->Add("] <- ");
+  value()->PrintTo(stream);
+}
+
+
+void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add("[");
   key()->PrintTo(stream);
@@ -1204,8 +1222,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathSqrt:
       return DefineSameAsFirst(result);
     case kMathRound:
-      Abort("MathRound LUnaryMathOperation not implemented");
-      return NULL;
+      return AssignEnvironment(DefineAsRegister(result));
     case kMathPowHalf:
       Abort("MathPowHalf LUnaryMathOperation not implemented");
       return NULL;
@@ -1418,8 +1435,19 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
 
 
 LInstruction* LChunkBuilder::DoPower(HPower* instr) {
-  Abort("LPower instruction not implemented on ARM");
-  return NULL;
+  ASSERT(instr->representation().IsDouble());
+  // We call a C function for double power. It can't trigger a GC.
+  // We need to use fixed result register for the call.
+  Representation exponent_type = instr->right()->representation();
+  ASSERT(instr->left()->representation().IsDouble());
+  LOperand* left = UseFixedDouble(instr->left(), d1);
+  LOperand* right = exponent_type.IsDouble() ?
+      UseFixedDouble(instr->right(), d2) :
+      UseFixed(instr->right(), r0);
+  LPower* result = new LPower(left, right);
+  return MarkAsCall(DefineFixedDouble(result, d3),
+                    instr,
+                    CAN_DEOPTIMIZE_EAGERLY);
 }
 
 
@@ -1709,11 +1737,13 @@ LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
-  LOperand* context = UseTempRegister(instr->context());
+  LOperand* context;
   LOperand* value;
   if (instr->NeedsWriteBarrier()) {
+    context = UseTempRegister(instr->context());
     value = UseTempRegister(instr->value());
   } else {
+    context = UseRegister(instr->context());
     value = UseRegister(instr->value());
   }
   return new LStoreContextSlot(context, value);
@@ -1803,6 +1833,13 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
       : UseRegisterOrConstantAtStart(instr->key());
 
   return AssignEnvironment(new LStoreKeyedFastElement(obj, key, val));
+}
+
+
+LInstruction* LChunkBuilder::DoStorePixelArrayElement(
+    HStorePixelArrayElement* instr) {
+  Abort("DoStorePixelArrayElement not implemented");
+  return NULL;
 }
 
 
@@ -1911,8 +1948,10 @@ LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
 
 
 LInstruction* LChunkBuilder::DoArgumentsObject(HArgumentsObject* instr) {
-  // There are no real uses of the arguments object (we bail out in all other
-  // cases).
+  // There are no real uses of the arguments object.
+  // arguments.length and element access are supported directly on
+  // stack arguments, and any real arguments object use causes a bailout.
+  // So this value is never used.
   return NULL;
 }
 

@@ -42,8 +42,6 @@ class LCodeGen;
 #define LITHIUM_ALL_INSTRUCTION_LIST(V)         \
   V(ControlInstruction)                         \
   V(Call)                                       \
-  V(StoreKeyed)                                 \
-  V(StoreNamed)                                 \
   LITHIUM_CONCRETE_INSTRUCTION_LIST(V)
 
 
@@ -135,6 +133,7 @@ class LCodeGen;
   V(OuterContext)                               \
   V(Parameter)                                  \
   V(PixelArrayLength)                           \
+  V(Power)                                      \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
   V(Return)                                     \
@@ -1058,6 +1057,18 @@ class LAddI: public LTemplateInstruction<1, 2, 0> {
 };
 
 
+class LPower: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LPower(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Power, "power")
+  DECLARE_HYDROGEN_ACCESSOR(Power)
+};
+
+
 class LArithmeticD: public LTemplateInstruction<1, 2, 0> {
  public:
   LArithmeticD(Token::Value op, LOperand* left, LOperand* right)
@@ -1510,15 +1521,38 @@ class LSmiUntag: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LStoreNamed: public LTemplateInstruction<0, 2, 0> {
+class LStoreNamedField: public LTemplateInstruction<0, 2, 0> {
  public:
-  LStoreNamed(LOperand* obj, LOperand* val) {
+  LStoreNamedField(LOperand* obj, LOperand* val) {
     inputs_[0] = obj;
     inputs_[1] = val;
   }
 
-  DECLARE_INSTRUCTION(StoreNamed)
-  DECLARE_HYDROGEN_ACCESSOR(StoreNamed)
+  DECLARE_CONCRETE_INSTRUCTION(StoreNamedField, "store-named-field")
+  DECLARE_HYDROGEN_ACCESSOR(StoreNamedField)
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  LOperand* object() { return inputs_[0]; }
+  LOperand* value() { return inputs_[1]; }
+
+  Handle<Object> name() const { return hydrogen()->name(); }
+  bool is_in_object() { return hydrogen()->is_in_object(); }
+  int offset() { return hydrogen()->offset(); }
+  bool needs_write_barrier() { return hydrogen()->NeedsWriteBarrier(); }
+  Handle<Map> transition() const { return hydrogen()->transition(); }
+};
+
+
+class LStoreNamedGeneric: public LTemplateInstruction<0, 2, 0> {
+ public:
+  LStoreNamedGeneric(LOperand* obj, LOperand* val) {
+    inputs_[0] = obj;
+    inputs_[1] = val;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store-named-generic")
+  DECLARE_HYDROGEN_ACCESSOR(StoreNamedGeneric)
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -1528,40 +1562,17 @@ class LStoreNamed: public LTemplateInstruction<0, 2, 0> {
 };
 
 
-class LStoreNamedField: public LStoreNamed {
+class LStoreKeyedFastElement: public LTemplateInstruction<0, 3, 0> {
  public:
-  LStoreNamedField(LOperand* obj, LOperand* val)
-      : LStoreNamed(obj, val) { }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreNamedField, "store-named-field")
-  DECLARE_HYDROGEN_ACCESSOR(StoreNamedField)
-
-  bool is_in_object() { return hydrogen()->is_in_object(); }
-  int offset() { return hydrogen()->offset(); }
-  bool needs_write_barrier() { return hydrogen()->NeedsWriteBarrier(); }
-  Handle<Map> transition() const { return hydrogen()->transition(); }
-};
-
-
-class LStoreNamedGeneric: public LStoreNamed {
- public:
-  LStoreNamedGeneric(LOperand* obj, LOperand* val)
-      : LStoreNamed(obj, val) { }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store-named-generic")
-  DECLARE_HYDROGEN_ACCESSOR(StoreNamedGeneric)
-};
-
-
-class LStoreKeyed: public LTemplateInstruction<0, 3, 0> {
- public:
-  LStoreKeyed(LOperand* obj, LOperand* key, LOperand* val) {
+  LStoreKeyedFastElement(LOperand* obj, LOperand* key, LOperand* val) {
     inputs_[0] = obj;
     inputs_[1] = key;
     inputs_[2] = val;
   }
 
-  DECLARE_INSTRUCTION(StoreKeyed)
+  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastElement,
+                               "store-keyed-fast-element")
+  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedFastElement)
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -1571,23 +1582,21 @@ class LStoreKeyed: public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LStoreKeyedFastElement: public LStoreKeyed {
+class LStoreKeyedGeneric: public LTemplateInstruction<0, 3, 0> {
  public:
-  LStoreKeyedFastElement(LOperand* obj, LOperand* key, LOperand* val)
-      : LStoreKeyed(obj, key, val) {}
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastElement,
-                               "store-keyed-fast-element")
-  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedFastElement)
-};
-
-
-class LStoreKeyedGeneric: public LStoreKeyed {
- public:
-  LStoreKeyedGeneric(LOperand* obj, LOperand* key, LOperand* val)
-      : LStoreKeyed(obj, key, val) { }
+  LStoreKeyedGeneric(LOperand* obj, LOperand* key, LOperand* val) {
+    inputs_[0] = obj;
+    inputs_[1] = key;
+    inputs_[2] = val;
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  LOperand* object() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
 };
 
 

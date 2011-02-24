@@ -104,6 +104,13 @@ function deepEquals(a, b) {
 }
 
 
+function assertSame(expected, found, name_opt) {
+  if (found !== expected) {
+    fail(expected, found, name_opt);
+  }
+}
+
+
 function assertEquals(expected, found, name_opt) {
   if (!deepEquals(found, expected)) {
     fail(expected, found, name_opt);

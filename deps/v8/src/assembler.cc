@@ -228,6 +228,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteTaggedPC(pc_delta, kEmbeddedObjectTag);
   } else if (rmode == RelocInfo::CODE_TARGET) {
     WriteTaggedPC(pc_delta, kCodeTargetTag);
+    ASSERT(begin_pos - pos_ <= RelocInfo::kMaxCallSize);
   } else if (RelocInfo::IsPosition(rmode)) {
     // Use signed delta-encoding for data.
     intptr_t data_delta = rinfo->data() - last_data_;
@@ -251,6 +252,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteExtraTaggedPC(pc_delta, kPCJumpTag);
     WriteExtraTaggedData(rinfo->data() - last_data_, kCommentTag);
     last_data_ = rinfo->data();
+    ASSERT(begin_pos - pos_ == RelocInfo::kRelocCommentSize);
   } else {
     // For all other modes we simply use the mode as the extra tag.
     // None of these modes need a data component.
@@ -850,12 +852,14 @@ double power_double_double(double x, double y) {
 
 
 ExternalReference ExternalReference::power_double_double_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_double)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_double),
+                                    FP_RETURN_CALL));
 }
 
 
 ExternalReference ExternalReference::power_double_int_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_int)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_int),
+                                    FP_RETURN_CALL));
 }
 
 

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -71,7 +71,7 @@ void OS::Setup() {
 
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // Nothing special about cygwin
+  return 0;  // Nothing special about Cygwin.
 }
 
 
@@ -209,7 +209,7 @@ class PosixMemoryMappedFile : public OS::MemoryMappedFile {
 
 
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
-  FILE* file = fopen(name, "w+");
+  FILE* file = fopen(name, "r+");
   if (file == NULL) return NULL;
 
   fseek(file, 0, SEEK_END);
@@ -304,12 +304,12 @@ void OS::LogSharedLibraryAddresses() {
 
 
 void OS::SignalCodeMovingGC() {
-  // Nothing to do on Cygwin
+  // Nothing to do on Cygwin.
 }
 
 
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
-  // Not supported on Cygwin
+  // Not supported on Cygwin.
   return 0;
 }
 
@@ -443,17 +443,36 @@ void Thread::Join() {
 }
 
 
+static inline Thread::LocalStorageKey PthreadKeyToLocalKey(
+    pthread_key_t pthread_key) {
+  // We need to cast pthread_key_t to Thread::LocalStorageKey in two steps
+  // because pthread_key_t is a pointer type on Cygwin. This will probably not
+  // work on 64-bit platforms, but Cygwin doesn't support 64-bit anyway.
+  STATIC_ASSERT(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
+  intptr_t ptr_key = reinterpret_cast<intptr_t>(pthread_key);
+  return static_cast<Thread::LocalStorageKey>(ptr_key);
+}
+
+
+static inline pthread_key_t LocalKeyToPthreadKey(
+    Thread::LocalStorageKey local_key) {
+  STATIC_ASSERT(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
+  intptr_t ptr_key = static_cast<intptr_t>(local_key);
+  return reinterpret_cast<pthread_key_t>(ptr_key);
+}
+
+
 Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
   pthread_key_t key;
   int result = pthread_key_create(&key, NULL);
   USE(result);
   ASSERT(result == 0);
-  return static_cast<LocalStorageKey>(key);
+  return PthreadKeyToLocalKey(key);
 }
 
 
 void Thread::DeleteThreadLocalKey(LocalStorageKey key) {
-  pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
+  pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
   int result = pthread_key_delete(pthread_key);
   USE(result);
   ASSERT(result == 0);
@@ -461,13 +480,13 @@ void Thread::DeleteThreadLocalKey(LocalStorageKey key) {
 
 
 void* Thread::GetThreadLocal(LocalStorageKey key) {
-  pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
+  pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
   return pthread_getspecific(pthread_key);
 }
 
 
 void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
-  pthread_key_t pthread_key = static_cast<pthread_key_t>(key);
+  pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
   pthread_setspecific(pthread_key, value);
 }
 
@@ -594,7 +613,7 @@ Semaphore* OS::CreateSemaphore(int count) {
 // ----------------------------------------------------------------------------
 // Cygwin profiler support.
 //
-// On cygwin we use the same sampler implementation as on win32
+// On Cygwin we use the same sampler implementation as on win32.
 
 class Sampler::PlatformData : public Malloced {
  public:
@@ -698,8 +717,7 @@ void Sampler::Start() {
   // Start sampler thread.
   DWORD tid;
   SetActive(true);
-  data_->sampler_thread_ = CreateThread(NULL, 0, SamplerEntry, data_, 0,
-                                        &tid);
+  data_->sampler_thread_ = CreateThread(NULL, 0, SamplerEntry, data_, 0, &tid);
   // Set thread to high priority to increase sampling accuracy.
   SetThreadPriority(data_->sampler_thread_, THREAD_PRIORITY_TIME_CRITICAL);
 }

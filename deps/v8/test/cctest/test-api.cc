@@ -5652,8 +5652,7 @@ TEST(AccessControl) {
 }
 
 
-// This is a regression test for issue 1154.
-TEST(AccessControlObjectKeys) {
+TEST(AccessControlES5) {
   v8::HandleScope handle_scope;
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
 
@@ -5677,7 +5676,29 @@ TEST(AccessControlObjectKeys) {
   v8::Handle<v8::Object> global1 = context1->Global();
   global1->Set(v8_str("other"), global0);
 
+  // Regression test for issue 1154.
   ExpectTrue("Object.keys(other).indexOf('blocked_prop') == -1");
+
+  ExpectUndefined("other.blocked_prop");
+
+  // Regression test for issue 1027.
+  CompileRun("Object.defineProperty(\n"
+             "  other, 'blocked_prop', {configurable: false})");
+  ExpectUndefined("other.blocked_prop");
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'blocked_prop')");
+
+  // Regression test for issue 1171.
+  ExpectTrue("Object.isExtensible(other)");
+  CompileRun("Object.preventExtensions(other)");
+  ExpectTrue("Object.isExtensible(other)");
+
+  // Object.seal and Object.freeze.
+  CompileRun("Object.freeze(other)");
+  ExpectTrue("Object.isExtensible(other)");
+
+  CompileRun("Object.seal(other)");
+  ExpectTrue("Object.isExtensible(other)");
 }
 
 
@@ -10825,6 +10846,24 @@ THREADED_TEST(PixelArray) {
                       "result");
   CHECK_EQ(32640, result->Int32Value());
 
+  // Make sure that pixel array stores are optimized by crankshaft.
+  result = CompileRun("function pa_init(p) {"
+                      "for (var i = 0; i < 256; ++i) { p[i] = i; }"
+                      "}"
+                      "function pa_load(p) {"
+                      "  var sum = 0;"
+                      "  for (var i=0; i<256; ++i) {"
+                      "    sum += p[i];"
+                      "  }"
+                      "  return sum; "
+                      "}"
+                      "for (var i = 0; i < 100000; ++i) {"
+                      "  pa_init(pixels);"
+                      "}"
+                      "result = pa_load(pixels);"
+                      "result");
+  CHECK_EQ(32640, result->Int32Value());
+
   free(pixel_data);
 }
 
@@ -10841,6 +10880,53 @@ THREADED_TEST(PixelArrayInfo) {
     CHECK_EQ(size, obj->GetIndexedPropertiesPixelDataLength());
     free(pixel_data);
   }
+}
+
+
+static v8::Handle<Value> NotHandledIndexedPropertyGetter(
+    uint32_t index,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  return v8::Handle<Value>();
+}
+
+
+static v8::Handle<Value> NotHandledIndexedPropertySetter(
+    uint32_t index,
+    Local<Value> value,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  return v8::Handle<Value>();
+}
+
+
+THREADED_TEST(PixelArrayWithInterceptor) {
+  v8::HandleScope scope;
+  LocalContext context;
+  const int kElementCount = 260;
+  uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
+  i::Handle<i::PixelArray> pixels =
+      i::Factory::NewPixelArray(kElementCount, pixel_data);
+  for (int i = 0; i < kElementCount; i++) {
+    pixels->set(i, i % 256);
+  }
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(NotHandledIndexedPropertyGetter,
+                                   NotHandledIndexedPropertySetter);
+  v8::Handle<v8::Object> obj = templ->NewInstance();
+  obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
+  context->Global()->Set(v8_str("pixels"), obj);
+  v8::Handle<v8::Value> result = CompileRun("pixels[1]");
+  CHECK_EQ(1, result->Int32Value());
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = -i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+  result = CompileRun("pixels.hasOwnProperty('1')");
+  CHECK(result->BooleanValue());
+  free(pixel_data);
 }
 
 

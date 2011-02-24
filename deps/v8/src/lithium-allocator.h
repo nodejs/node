@@ -286,7 +286,6 @@ class LiveRange: public ZoneObject {
   LiveRange* TopLevel() { return (parent_ == NULL) ? this : parent_; }
   LiveRange* next() const { return next_; }
   bool IsChild() const { return parent() != NULL; }
-  bool IsParent() const { return parent() == NULL; }
   int id() const { return id_; }
   bool IsFixed() const { return id_ < 0; }
   bool IsEmpty() const { return first_interval() == NULL; }
@@ -360,7 +359,6 @@ class LiveRange: public ZoneObject {
   void EnsureInterval(LifetimePosition start, LifetimePosition end);
   void AddUseInterval(LifetimePosition start, LifetimePosition end);
   UsePosition* AddUsePosition(LifetimePosition pos, LOperand* operand);
-  UsePosition* AddUsePosition(LifetimePosition pos);
 
   // Shorten the most recently added interval by setting a new start.
   void ShortenTo(LifetimePosition start);

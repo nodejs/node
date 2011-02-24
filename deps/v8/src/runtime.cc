@@ -1051,6 +1051,12 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
           // Fall-through and introduce the absent property by using
           // SetProperty.
         } else {
+          // For const properties, we treat a callback with this name
+          // even in the prototype as a conflicting declaration.
+          if (is_const_property && (lookup.type() == CALLBACKS)) {
+            return ThrowRedeclarationError("const", name);
+          }
+          // Otherwise, we check for locally conflicting declarations.
           if (is_local && (is_read_only || is_const_property)) {
             const char* type = (is_read_only) ? "const" : "var";
             return ThrowRedeclarationError(type, name);
@@ -1076,29 +1082,34 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
         ? static_cast<PropertyAttributes>(base | READ_ONLY)
         : base;
 
-    if (lookup.IsProperty()) {
-      // There's a local property that we need to overwrite because
-      // we're either declaring a function or there's an interceptor
-      // that claims the property is absent.
+    // There's a local property that we need to overwrite because
+    // we're either declaring a function or there's an interceptor
+    // that claims the property is absent.
+    //
+    // Check for conflicting re-declarations. We cannot have
+    // conflicting types in case of intercepted properties because
+    // they are absent.
+    if (lookup.IsProperty() &&
+        (lookup.type() != INTERCEPTOR) &&
+        (lookup.IsReadOnly() || is_const_property)) {
+      const char* type = (lookup.IsReadOnly()) ? "const" : "var";
+      return ThrowRedeclarationError(type, name);
+    }
 
-      // Check for conflicting re-declarations. We cannot have
-      // conflicting types in case of intercepted properties because
-      // they are absent.
-      if (lookup.type() != INTERCEPTOR &&
-          (lookup.IsReadOnly() || is_const_property)) {
-        const char* type = (lookup.IsReadOnly()) ? "const" : "var";
-        return ThrowRedeclarationError(type, name);
-      }
-      RETURN_IF_EMPTY_HANDLE(SetProperty(global, name, value, attributes));
+    // Safari does not allow the invocation of callback setters for
+    // function declarations. To mimic this behavior, we do not allow
+    // the invocation of setters for function values. This makes a
+    // difference for global functions with the same names as event
+    // handlers such as "function onload() {}". Firefox does call the
+    // onload setter in those case and Safari does not. We follow
+    // Safari for compatibility.
+    if (value->IsJSFunction()) {
+      RETURN_IF_EMPTY_HANDLE(SetLocalPropertyIgnoreAttributes(global,
+                                                              name,
+                                                              value,
+                                                              attributes));
     } else {
-      // If a property with this name does not already exist on the
-      // global object add the property locally.  We take special
-      // precautions to always add it as a local property even in case
-      // of callbacks in the prototype chain (this rules out using
-      // SetProperty).  Also, we must use the handle-based version to
-      // avoid GC issues.
-      RETURN_IF_EMPTY_HANDLE(
-          SetLocalPropertyIgnoreAttributes(global, name, value, attributes));
+      RETURN_IF_EMPTY_HANDLE(SetProperty(global, name, value, attributes));
     }
   }
 
@@ -1186,6 +1197,20 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
     ASSERT(!context_ext->HasLocalProperty(*name));
     Handle<Object> value(Heap::undefined_value());
     if (*initial_value != NULL) value = initial_value;
+    // Declaring a const context slot is a conflicting declaration if
+    // there is a callback with that name in a prototype. It is
+    // allowed to introduce const variables in
+    // JSContextExtensionObjects. They are treated specially in
+    // SetProperty and no setters are invoked for those since they are
+    // not real JSObjects.
+    if (initial_value->IsTheHole() &&
+        !context_ext->IsJSContextExtensionObject()) {
+      LookupResult lookup;
+      context_ext->Lookup(*name, &lookup);
+      if (lookup.IsProperty() && (lookup.type() == CALLBACKS)) {
+        return ThrowRedeclarationError("const", name);
+      }
+    }
     RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, mode));
   }
 
@@ -1212,11 +1237,7 @@ static MaybeObject* Runtime_InitializeVarGlobal(Arguments args) {
   // there, there is a property with this name in the prototype chain.
   // We follow Safari and Firefox behavior and only set the property
   // locally if there is an explicit initialization value that we have
-  // to assign to the property. When adding the property we take
-  // special precautions to always add it as a local property even in
-  // case of callbacks in the prototype chain (this rules out using
-  // SetProperty).  We have SetLocalPropertyIgnoreAttributes for
-  // this.
+  // to assign to the property.
   // Note that objects can have hidden prototypes, so we need to traverse
   // the whole chain of hidden prototypes to do a 'local' lookup.
   JSObject* real_holder = global;
@@ -1277,11 +1298,7 @@ static MaybeObject* Runtime_InitializeVarGlobal(Arguments args) {
   }
 
   global = Top::context()->global();
-  if (assign) {
-    return global->SetLocalPropertyIgnoreAttributes(*name,
-                                                    args[1],
-                                                    attributes);
-  }
+  if (assign) return global->SetProperty(*name, args[1], attributes);
   return Heap::undefined_value();
 }
 
@@ -3673,6 +3690,8 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
       is_element) {
     // Normalize the elements to enable attributes on the property.
     if (js_object->IsJSGlobalProxy()) {
+      // We do not need to do access checks here since these has already
+      // been performed by the call to GetOwnProperty.
       Handle<Object> proto(js_object->GetPrototype());
       // If proxy is detached, ignore the assignment. Alternatively,
       // we could throw an exception.
@@ -6927,6 +6946,7 @@ static MaybeObject* Runtime_NewObject(Arguments args) {
 
   bool first_allocation = !shared->live_objects_may_exist();
   Handle<JSObject> result = Factory::NewJSObject(function);
+  RETURN_IF_EMPTY_HANDLE(result);
   // Delay setting the stub if inobject slack tracking is in progress.
   if (first_allocation && !shared->IsInobjectSlackTrackingInProgress()) {
     TrySettingInlineConstructStub(function);

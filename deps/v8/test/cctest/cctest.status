@@ -47,28 +47,7 @@ test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
 ##############################################################################
-[ $arch == x64 ]
-
-# Optimization is currently not working on crankshaft x64 and ARM.
-test-heap/TestInternalWeakLists: PASS || FAIL
-test-heap/TestInternalWeakListsTraverseWithGC: PASS || FAIL
-
-
-##############################################################################
-[ $arch == x64 && $crankshaft ]
-
-# Tests that fail with crankshaft.
-test-deoptimization/DeoptimizeBinaryOperationMOD: FAIL
-test-deoptimization/DeoptimizeLoadICStoreIC: FAIL
-test-deoptimization/DeoptimizeLoadICStoreICNested: FAIL
-test-deoptimization/DeoptimizeCompare: PASS || FAIL
-
-##############################################################################
 [ $arch == arm ]
-
-# Optimization is currently not working on crankshaft x64 and ARM.
-test-heap/TestInternalWeakLists: PASS || FAIL
-test-heap/TestInternalWeakListsTraverseWithGC: PASS || FAIL
 
 # We cannot assume that we can throw OutOfMemory exceptions in all situations.
 # Apparently our ARM box is in such a state. Skip the test as it also runs for

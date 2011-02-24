@@ -240,12 +240,13 @@ class MacroAssembler: public Assembler {
   void PopSafepointRegisters();
   void PushSafepointRegistersAndDoubles();
   void PopSafepointRegistersAndDoubles();
-  void StoreToSafepointRegisterSlot(Register reg);
-  void StoreToSafepointRegistersAndDoublesSlot(Register reg);
-  void LoadFromSafepointRegisterSlot(Register reg);
-  static int SafepointRegisterStackIndex(int reg_code);
-  static MemOperand SafepointRegisterSlot(Register reg);
-  static MemOperand SafepointRegistersAndDoublesSlot(Register reg);
+  // Store value in register src in the safepoint stack slot for
+  // register dst.
+  void StoreToSafepointRegisterSlot(Register src, Register dst);
+  void StoreToSafepointRegistersAndDoublesSlot(Register src, Register dst);
+  // Load the value of the src register from its safepoint stack slot
+  // into register dst.
+  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // Load two consecutive registers with two consecutive memory locations.
   void Ldrd(Register dst1,
@@ -683,6 +684,8 @@ class MacroAssembler: public Assembler {
   void CallCFunction(ExternalReference function, int num_arguments);
   void CallCFunction(Register function, int num_arguments);
 
+  void GetCFunctionDoubleResult(const DoubleRegister dst);
+
   // Calls an API function. Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions. Restores context.
   // stack_space - space to be unwound on exit (includes the call js
@@ -883,10 +886,19 @@ class MacroAssembler: public Assembler {
                            Register scratch1,
                            Register scratch2);
 
+  // Compute memory operands for safepoint stack slots.
+  static int SafepointRegisterStackIndex(int reg_code);
+  MemOperand SafepointRegisterSlot(Register reg);
+  MemOperand SafepointRegistersAndDoublesSlot(Register reg);
+
   bool generating_stub_;
   bool allow_stub_calls_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
+
+  // Needs access to SafepointRegisterStackIndex for optimized frame
+  // traversal.
+  friend class OptimizedFrame;
 };
 
 

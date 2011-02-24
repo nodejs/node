@@ -735,9 +735,8 @@ Failure* Top::ReThrow(MaybeObject* exception, MessageLocation* location) {
   bool can_be_caught_externally = false;
   ShouldReportException(&can_be_caught_externally,
                         is_catchable_by_javascript(exception));
-  if (can_be_caught_externally) {
-    thread_local_.catcher_ = try_catch_handler();
-  }
+  thread_local_.catcher_ = can_be_caught_externally ?
+      try_catch_handler() : NULL;
 
   // Set the exception being re-thrown.
   set_pending_exception(exception);
@@ -913,9 +912,10 @@ void Top::DoThrow(MaybeObject* exception,
     }
   }
 
-  if (can_be_caught_externally) {
-    thread_local_.catcher_ = try_catch_handler();
-  }
+  // Do not forget to clean catcher_ if currently thrown exception cannot
+  // be caught.  If necessary, ReThrow will update the catcher.
+  thread_local_.catcher_ = can_be_caught_externally ?
+      try_catch_handler() : NULL;
 
   // NOTE: Notifying the debugger or generating the message
   // may have caused new exceptions. For now, we just ignore

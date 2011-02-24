@@ -939,7 +939,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
   // Open a physical file
   HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
       FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
-  if (file == NULL) return NULL;
+  if (file == INVALID_HANDLE_VALUE) return NULL;
 
   int size = static_cast<int>(GetFileSize(file, NULL));
 

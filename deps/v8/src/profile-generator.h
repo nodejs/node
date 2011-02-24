@@ -88,7 +88,6 @@ class StringsStorage {
 
 class CodeEntry {
  public:
-  explicit INLINE(CodeEntry(int security_token_id));
   // CodeEntry doesn't own name strings, just references them.
   INLINE(CodeEntry(Logger::LogEventsAndTags tag,
                    const char* name_prefix,
@@ -103,6 +102,8 @@ class CodeEntry {
   INLINE(const char* name() const) { return name_; }
   INLINE(const char* resource_name() const) { return resource_name_; }
   INLINE(int line_number() const) { return line_number_; }
+  INLINE(int shared_id() const) { return shared_id_; }
+  INLINE(void set_shared_id(int shared_id)) { shared_id_ = shared_id; }
   INLINE(int security_token_id() const) { return security_token_id_; }
 
   INLINE(static bool is_js_function_tag(Logger::LogEventsAndTags tag));
@@ -119,6 +120,7 @@ class CodeEntry {
   const char* name_;
   const char* resource_name_;
   int line_number_;
+  int shared_id_;
   int security_token_id_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
@@ -234,12 +236,12 @@ class CpuProfile {
 
 class CodeMap {
  public:
-  CodeMap() { }
+  CodeMap() : next_sfi_tag_(1) { }
   INLINE(void AddCode(Address addr, CodeEntry* entry, unsigned size));
   INLINE(void MoveCode(Address from, Address to));
   INLINE(void DeleteCode(Address addr));
-  void AddAlias(Address start, CodeEntry* entry, Address code_start);
   CodeEntry* FindEntry(Address addr);
+  int GetSFITag(Address addr);
 
   void Print();
 
@@ -267,7 +269,11 @@ class CodeMap {
     void Call(const Address& key, const CodeEntryInfo& value);
   };
 
+  // Fake CodeEntry pointer to distinguish SFI entries.
+  static CodeEntry* const kSfiCodeEntry;
+
   CodeTree tree_;
+  int next_sfi_tag_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeMap);
 };

@@ -88,7 +88,8 @@ class SputnikTestConfiguration(test.TestConfiguration):
     sys.path.append(modroot)
     import sputnik
     globals()['sputnik'] = sputnik
-    test_suite = sputnik.TestSuite(testroot)
+    # Do not run strict mode tests yet. TODO(mmaly)
+    test_suite = sputnik.TestSuite(testroot, False)
     test_suite.Validate()
     tests = test_suite.EnumerateTests([])
     result = []

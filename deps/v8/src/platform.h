@@ -383,14 +383,10 @@ class Thread: public ThreadHandle {
   // LOCAL_STORAGE_KEY_MIN_VALUE and LOCAL_STORAGE_KEY_MAX_VALUE are specified
   // to ensure that enumeration type has correct value range (see Issue 830 for
   // more details).
-#ifdef __CYGWIN__
-  typedef void* LocalStorageKey;
-#else
   enum LocalStorageKey {
     LOCAL_STORAGE_KEY_MIN_VALUE = kMinInt,
     LOCAL_STORAGE_KEY_MAX_VALUE = kMaxInt
   };
-#endif
 
   // Create new thread.
   Thread();
@@ -571,13 +567,13 @@ class TickSample {
         pc(NULL),
         sp(NULL),
         fp(NULL),
-        function(NULL),
+        tos(NULL),
         frames_count(0) {}
   StateTag state;  // The state of the VM.
-  Address pc;  // Instruction pointer.
-  Address sp;  // Stack pointer.
-  Address fp;  // Frame pointer.
-  Address function;  // The last called JS function.
+  Address pc;   // Instruction pointer.
+  Address sp;   // Stack pointer.
+  Address fp;   // Frame pointer.
+  Address tos;  // Top stack value (*sp).
   static const int kMaxFramesCount = 64;
   Address stack[kMaxFramesCount];  // Call stack.
   int frames_count;  // Number of captured frames.

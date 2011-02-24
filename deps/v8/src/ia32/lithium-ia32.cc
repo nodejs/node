@@ -404,7 +404,7 @@ void LChunk::MarkEmptyBlocks() {
 }
 
 
-void LStoreNamed::PrintDataTo(StringStream* stream) {
+void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add(".");
   stream->Add(*String::cast(*name())->ToCString());
@@ -413,7 +413,25 @@ void LStoreNamed::PrintDataTo(StringStream* stream) {
 }
 
 
-void LStoreKeyed::PrintDataTo(StringStream* stream) {
+void LStoreNamedGeneric::PrintDataTo(StringStream* stream) {
+  object()->PrintTo(stream);
+  stream->Add(".");
+  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(" <- ");
+  value()->PrintTo(stream);
+}
+
+
+void LStoreKeyedFastElement::PrintDataTo(StringStream* stream) {
+  object()->PrintTo(stream);
+  stream->Add("[");
+  key()->PrintTo(stream);
+  stream->Add("] <- ");
+  value()->PrintTo(stream);
+}
+
+
+void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add("[");
   key()->PrintTo(stream);
@@ -1223,7 +1241,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       case kMathSqrt:
         return DefineSameAsFirst(result);
       case kMathPowHalf:
-        return AssignEnvironment(DefineSameAsFirst(result));
+        return DefineSameAsFirst(result);
       default:
         UNREACHABLE();
         return NULL;
@@ -1840,6 +1858,23 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
 }
 
 
+LInstruction* LChunkBuilder::DoStorePixelArrayElement(
+    HStorePixelArrayElement* instr) {
+  ASSERT(instr->value()->representation().IsInteger32());
+  ASSERT(instr->external_pointer()->representation().IsExternal());
+  ASSERT(instr->key()->representation().IsInteger32());
+
+  LOperand* external_pointer = UseRegister(instr->external_pointer());
+  LOperand* val = UseRegister(instr->value());
+  LOperand* key = UseRegister(instr->key());
+  // The generated code requires that the clamped value is in a byte
+  // register. eax is an arbitrary choice to satisfy this requirement.
+  LOperand* clamped = FixedTemp(eax);
+
+  return new LStorePixelArrayElement(external_pointer, key, val, clamped);
+}
+
+
 LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseFixed(instr->object(), edx);
@@ -1923,8 +1958,8 @@ LInstruction* LChunkBuilder::DoFunctionLiteral(HFunctionLiteral* instr) {
 
 
 LInstruction* LChunkBuilder::DoDeleteProperty(HDeleteProperty* instr) {
-  LDeleteProperty* result = new LDeleteProperty(Use(instr->object()),
-                                                UseOrConstant(instr->key()));
+  LDeleteProperty* result =
+      new LDeleteProperty(Use(instr->object()), UseOrConstant(instr->key()));
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1957,8 +1992,10 @@ LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
 
 
 LInstruction* LChunkBuilder::DoArgumentsObject(HArgumentsObject* instr) {
-  // There are no real uses of the arguments object (we bail out in all other
-  // cases).
+  // There are no real uses of the arguments object.
+  // arguments.length and element access are supported directly on
+  // stack arguments, and any real arguments object use causes a bailout.
+  // So this value is never used.
   return NULL;
 }
 

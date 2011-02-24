@@ -435,16 +435,25 @@ Object* CallICBase::TryCallAsFunction(Object* object) {
 }
 
 
-void CallICBase::ReceiverToObject(Handle<Object> object) {
-  HandleScope scope;
-  Handle<Object> receiver(object);
+void CallICBase::ReceiverToObjectIfRequired(Handle<Object> callee,
+                                            Handle<Object> object) {
+  if (callee->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(callee);
+    if (function->shared()->strict_mode() || function->IsBuiltin()) {
+      // Do not wrap receiver for strict mode functions or for builtins.
+      return;
+    }
+  }
 
-  // Change the receiver to the result of calling ToObject on it.
-  const int argc = this->target()->arguments_count();
-  StackFrameLocator locator;
-  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-  int index = frame->ComputeExpressionsCount() - (argc + 1);
-  frame->SetExpression(index, *Factory::ToObject(object));
+  // And only wrap string, number or boolean.
+  if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
+    // Change the receiver to the result of calling ToObject on it.
+    const int argc = this->target()->arguments_count();
+    StackFrameLocator locator;
+    JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
+    int index = frame->ComputeExpressionsCount() - (argc + 1);
+    frame->SetExpression(index, *Factory::ToObject(object));
+  }
 }
 
 
@@ -456,10 +465,6 @@ MaybeObject* CallICBase::LoadFunction(State state,
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
     return TypeError("non_object_property_call", object, name);
-  }
-
-  if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    ReceiverToObject(object);
   }
 
   // Check if the name is trivially convertible to an index and get
@@ -505,6 +510,7 @@ MaybeObject* CallICBase::LoadFunction(State state,
         object->GetProperty(*object, &lookup, *name, &attr);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
+
   if (lookup.type() == INTERCEPTOR) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
@@ -516,31 +522,37 @@ MaybeObject* CallICBase::LoadFunction(State state,
     }
   }
 
-  ASSERT(result != Heap::the_hole_value());
+  ASSERT(!result->IsTheHole());
 
-  if (result->IsJSFunction()) {
+  HandleScope scope;
+  // Wrap result in a handle because ReceiverToObjectIfRequired may allocate
+  // new object and cause GC.
+  Handle<Object> result_handle(result);
+  // Make receiver an object if the callee requires it. Strict mode or builtin
+  // functions do not wrap the receiver, non-strict functions and objects
+  // called as functions do.
+  ReceiverToObjectIfRequired(result_handle, object);
+
+  if (result_handle->IsJSFunction()) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
     // Handle stepping into a function if step into is active.
     if (Debug::StepInActive()) {
       // Protect the result in a handle as the debugger can allocate and might
       // cause GC.
-      HandleScope scope;
-      Handle<JSFunction> function(JSFunction::cast(result));
+      Handle<JSFunction> function(JSFunction::cast(*result_handle));
       Debug::HandleStepIn(function, object, fp(), false);
       return *function;
     }
 #endif
 
-    return result;
+    return *result_handle;
   }
 
   // Try to find a suitable function delegate for the object at hand.
-  result = TryCallAsFunction(result);
-  MaybeObject* answer = result;
-  if (!result->IsJSFunction()) {
-    answer = TypeError("property_not_function", object, name);
-  }
-  return answer;
+  result_handle = Handle<Object>(TryCallAsFunction(*result_handle));
+  if (result_handle->IsJSFunction()) return *result_handle;
+
+  return TypeError("property_not_function", object, name);
 }
 
 
@@ -565,8 +577,8 @@ bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
     case kStringCharAt:
       if (object->IsString()) {
         String* string = String::cast(*object);
-        // Check that there's the right wrapper in the receiver slot.
-        ASSERT(string == JSValue::cast(args[0])->value());
+        // Check there's the right string value or wrapper in the receiver slot.
+        ASSERT(string == args[0] || string == JSValue::cast(args[0])->value());
         // If we're in the default (fastest) state and the index is
         // out of bounds, update the state to record this fact.
         if (*extra_ic_state == DEFAULT_STRING_STUB &&
@@ -775,10 +787,6 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
     return TypeError("non_object_property_call", object, key);
   }
 
-  if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    ReceiverToObject(object);
-  }
-
   if (FLAG_use_ic && state != MEGAMORPHIC && !object->IsAccessCheckNeeded()) {
     int argc = target()->arguments_count();
     InLoopFlag in_loop = target()->ic_in_loop();
@@ -793,17 +801,20 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
 #endif
     }
   }
-  Object* result;
-  { MaybeObject* maybe_result = Runtime::GetObjectProperty(object, key);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  if (result->IsJSFunction()) return result;
-  result = TryCallAsFunction(result);
-  MaybeObject* answer = result;
-  if (!result->IsJSFunction()) {
-    answer = TypeError("property_not_function", object, key);
-  }
-  return answer;
+
+  HandleScope scope;
+  Handle<Object> result = GetProperty(object, key);
+
+  // Make receiver an object if the callee requires it. Strict mode or builtin
+  // functions do not wrap the receiver, non-strict functions and objects
+  // called as functions do.
+  ReceiverToObjectIfRequired(result, object);
+
+  if (result->IsJSFunction()) return *result;
+  result = Handle<Object>(TryCallAsFunction(*result));
+  if (result->IsJSFunction()) return *result;
+
+  return TypeError("property_not_function", object, key);
 }
 
 

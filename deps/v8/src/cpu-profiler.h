@@ -50,7 +50,7 @@ class TokenEnumerator;
   V(CODE_CREATION, CodeCreateEventRecord)       \
   V(CODE_MOVE,     CodeMoveEventRecord)         \
   V(CODE_DELETE,   CodeDeleteEventRecord)       \
-  V(CODE_ALIAS,    CodeAliasEventRecord)
+  V(SFI_MOVE,      SFIMoveEventRecord)
 
 
 class CodeEventRecord {
@@ -73,6 +73,7 @@ class CodeCreateEventRecord : public CodeEventRecord {
   Address start;
   CodeEntry* entry;
   unsigned size;
+  Address sfi_address;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -95,11 +96,10 @@ class CodeDeleteEventRecord : public CodeEventRecord {
 };
 
 
-class CodeAliasEventRecord : public CodeEventRecord {
+class SFIMoveEventRecord : public CodeEventRecord {
  public:
-  Address start;
-  CodeEntry* entry;
-  Address code_start;
+  Address from;
+  Address to;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -134,7 +134,7 @@ class TickSampleEventRecord BASE_EMBEDDED {
 class ProfilerEventsProcessor : public Thread {
  public:
   explicit ProfilerEventsProcessor(ProfileGenerator* generator);
-  virtual ~ProfilerEventsProcessor();
+  virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.
   virtual void Run();
@@ -148,7 +148,8 @@ class ProfilerEventsProcessor : public Thread {
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
                        String* name,
                        String* resource_name, int line_number,
-                       Address start, unsigned size);
+                       Address start, unsigned size,
+                       Address sfi_address);
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
                        const char* name,
                        Address start, unsigned size);
@@ -157,17 +158,12 @@ class ProfilerEventsProcessor : public Thread {
                        Address start, unsigned size);
   void CodeMoveEvent(Address from, Address to);
   void CodeDeleteEvent(Address from);
-  void FunctionCreateEvent(Address alias, Address start, int security_token_id);
-  void FunctionMoveEvent(Address from, Address to);
-  void FunctionDeleteEvent(Address from);
+  void SFIMoveEvent(Address from, Address to);
   void RegExpCodeCreateEvent(Logger::LogEventsAndTags tag,
                              const char* prefix, String* name,
                              Address start, unsigned size);
   // Puts current stack into tick sample events buffer.
   void AddCurrentStack();
-  bool IsKnownFunction(Address start);
-  void ProcessMovedFunctions();
-  void RememberMovedFunction(JSFunction* function);
 
   // Tick sample events are filled directly in the buffer of the circular
   // queue (because the structure is of fixed width, but usually not all
@@ -188,13 +184,6 @@ class ProfilerEventsProcessor : public Thread {
   bool ProcessTicks(unsigned dequeue_order);
 
   INLINE(static bool FilterOutCodeCreateEvent(Logger::LogEventsAndTags tag));
-  INLINE(static bool AddressesMatch(void* key1, void* key2)) {
-    return key1 == key2;
-  }
-  INLINE(static uint32_t AddressHash(Address addr)) {
-    return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr)));
-  }
 
   ProfileGenerator* generator_;
   bool running_;
@@ -202,10 +191,6 @@ class ProfilerEventsProcessor : public Thread {
   SamplingCircularQueue ticks_buffer_;
   UnboundQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
   unsigned enqueue_order_;
-
-  // Used from the VM thread.
-  HashMap* known_functions_;
-  List<JSFunction*> moved_functions_;
 };
 
 } }  // namespace v8::internal
@@ -251,23 +236,22 @@ class CpuProfiler {
   static void CodeCreateEvent(Logger::LogEventsAndTags tag,
                               Code* code, String* name);
   static void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                              Code* code, String* name,
+                              Code* code,
+                              SharedFunctionInfo *shared,
+                              String* name);
+  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                              Code* code,
+                              SharedFunctionInfo *shared,
                               String* source, int line);
   static void CodeCreateEvent(Logger::LogEventsAndTags tag,
                               Code* code, int args_count);
   static void CodeMovingGCEvent() {}
   static void CodeMoveEvent(Address from, Address to);
   static void CodeDeleteEvent(Address from);
-  static void FunctionCreateEvent(JSFunction* function);
-  // Reports function creation in case we had missed it (e.g.
-  // if it was created from compiled code).
-  static void FunctionCreateEventFromMove(JSFunction* function);
-  static void FunctionMoveEvent(Address from, Address to);
-  static void FunctionDeleteEvent(Address from);
   static void GetterCallbackEvent(String* name, Address entry_point);
   static void RegExpCodeCreateEvent(Code* code, String* source);
-  static void ProcessMovedFunctions();
   static void SetterCallbackEvent(String* name, Address entry_point);
+  static void SFIMoveEvent(Address from, Address to);
 
   static INLINE(bool is_profiling()) {
     return NoBarrier_Load(&is_profiling_);

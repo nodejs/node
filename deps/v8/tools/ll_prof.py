@@ -30,13 +30,13 @@
 import bisect
 import collections
 import ctypes
+import disasm
 import mmap
 import optparse
 import os
 import re
 import subprocess
 import sys
-import tempfile
 import time
 
 
@@ -74,26 +74,11 @@ V8_GC_FAKE_MMAP = "/tmp/__v8_gc__"
 JS_ORIGIN = "js"
 JS_SNAPSHOT_ORIGIN = "js-snapshot"
 
-# Avoid using the slow (google-specific) wrapper around objdump.
-OBJDUMP_BIN = "/usr/bin/objdump"
-if not os.path.exists(OBJDUMP_BIN):
-  OBJDUMP_BIN = "objdump"
+OBJDUMP_BIN = disasm.OBJDUMP_BIN
 
 
 class Code(object):
   """Code object."""
-
-  _COMMON_DISASM_OPTIONS = ["-M", "intel-mnemonic", "-C"]
-
-  _DISASM_HEADER_RE = re.compile(r"[a-f0-9]+\s+<.*:$")
-  _DISASM_LINE_RE = re.compile(r"\s*([a-f0-9]+):.*")
-
-  # Keys must match constants in Logger::LogCodeInfo.
-  _ARCH_MAP = {
-    "ia32": "-m i386",
-    "x64": "-m i386 -M x86-64",
-    "arm": "-m arm"  # Not supported by our objdump build.
-  }
 
   _id = 0
 
@@ -150,12 +135,7 @@ class Code(object):
     ticks_offsets = [t[0] for t in ticks_map]
     ticks_counts = [t[1] for t in ticks_map]
     # Get a list of disassembled lines and their addresses.
-    lines = []
-    for line in self._GetDisasmLines(code_info, options):
-      match = Code._DISASM_LINE_RE.match(line)
-      if match:
-        line_address = int(match.group(1), 16)
-        lines.append((line_address, line))
+    lines = self._GetDisasmLines(code_info, options)
     if len(lines) == 0:
       return
     # Print annotated lines.
@@ -179,9 +159,9 @@ class Code(object):
       total_count += count
       count = 100.0 * count / self.self_ticks
       if count >= 0.01:
-        print "%15.2f %s" % (count, lines[i][1])
+        print "%15.2f %x: %s" % (count, lines[i][0], lines[i][1])
       else:
-        print "%s %s" % (" " * 15, lines[i][1])
+        print "%s %x: %s" % (" " * 15, lines[i][0], lines[i][1])
     print
     assert total_count == self.self_ticks, \
         "Lost ticks (%d != %d) in %s" % (total_count, self.self_ticks, self)
@@ -195,39 +175,17 @@ class Code(object):
       self.origin)
 
   def _GetDisasmLines(self, code_info, options):
-    tmp_name = None
     if self.origin == JS_ORIGIN or self.origin == JS_SNAPSHOT_ORIGIN:
-      assert code_info.arch in Code._ARCH_MAP, \
-          "Unsupported architecture '%s'" % arch
-      arch_flags = Code._ARCH_MAP[code_info.arch]
-      # Create a temporary file just with this code object.
-      tmp_name = tempfile.mktemp(".v8code")
-      size = self.end_address - self.start_address
-      command = "dd if=%s.code of=%s bs=1 count=%d skip=%d && " \
-                "%s %s -D -b binary %s %s" % (
-        options.log, tmp_name, size, self.origin_offset,
-        OBJDUMP_BIN, ' '.join(Code._COMMON_DISASM_OPTIONS), arch_flags,
-        tmp_name)
+      inplace = False
+      filename = options.log + ".code"
     else:
-      command = "%s %s --start-address=%d --stop-address=%d -d %s " % (
-        OBJDUMP_BIN, ' '.join(Code._COMMON_DISASM_OPTIONS),
-        self.origin_offset,
-        self.origin_offset + self.end_address - self.start_address,
-        self.origin)
-    process = subprocess.Popen(command,
-                               shell=True,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT)
-    out, err = process.communicate()
-    lines = out.split("\n")
-    header_line = 0
-    for i, line in enumerate(lines):
-      if Code._DISASM_HEADER_RE.match(line):
-        header_line = i
-        break
-    if tmp_name:
-      os.unlink(tmp_name)
-    return lines[header_line + 1:]
+      inplace = True
+      filename = self.origin
+    return disasm.GetDisasmLines(filename,
+                                 self.origin_offset,
+                                 self.end_address - self.start_address,
+                                 code_info.arch,
+                                 inplace)
 
 
 class CodePage(object):
@@ -353,7 +311,7 @@ class CodeLogReader(object):
     r"code-info,([^,]+),(\d+)")
 
   _CODE_CREATE_RE = re.compile(
-    r"code-creation,([^,]+),(0x[a-f0-9]+),(\d+),\"(.*)\"(?:,(\d+))?")
+    r"code-creation,([^,]+),(0x[a-f0-9]+),(\d+),\"(.*)\"(?:,(0x[a-f0-9]+),([~*])?)?(?:,(\d+))?")
 
   _CODE_MOVE_RE = re.compile(
     r"code-move,(0x[a-f0-9]+),(0x[a-f0-9]+)")
@@ -400,12 +358,18 @@ class CodeLogReader(object):
           name = self.address_to_snapshot_name[start_address]
           origin = JS_SNAPSHOT_ORIGIN
         else:
-          name = "%s:%s" % (match.group(1), match.group(4))
+          tag = match.group(1)
+          optimization_status = match.group(6)
+          func_name = match.group(4)
+          if optimization_status:
+            name = "%s:%s%s" % (tag, optimization_status, func_name)
+          else:
+            name = "%s:%s" % (tag, func_name)
           origin = JS_ORIGIN
         if self.is_snapshot:
           origin_offset = 0
         else:
-          origin_offset = int(match.group(5))
+          origin_offset = int(match.group(7))
         code = Code(name, start_address, end_address, origin, origin_offset)
         conficting_code = self.code_map.Find(start_address)
         if conficting_code:
