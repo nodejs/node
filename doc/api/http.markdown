@@ -267,7 +267,7 @@ implicit/mutable headers will be calculated and call this function for you.
 ### response.statusCode
 
 When using implicit headers (not calling `response.writeHead()` explicitly), this property
-controlls the status code that will be send to the client when the headers get
+controls the status code that will be send to the client when the headers get
 flushed.
 
 Example:
@@ -368,7 +368,7 @@ Options:
 
 - `host`: A domain name or IP address of the server to issue the request to.
 - `port`: Port of remote server.
-- `method`: A string specifing the HTTP request method. Possible values:
+- `method`: A string specifying the HTTP request method. Possible values:
   `'GET'` (default), `'POST'`, `'PUT'`, and `'DELETE'`.
 - `path`: Request path. Should include query string and fragments if any.
    E.G. `'/index.html?page=12'`
@@ -424,7 +424,7 @@ There are a few special headers that should be noted.
 ## http.get(options, callback)
 
 Since most requests are GET requests without bodies, Node provides this
-convience method. The only difference between this method and `http.request()` is
+convenience method. The only difference between this method and `http.request()` is
 that it sets the method to GET and calls `req.end()` automatically.
 
 Example:
@@ -474,7 +474,7 @@ By default set to 5. Determines how many concurrent sockets the agent can have o
 
 ### agent.sockets
 
-An array of sockets currently inuse by the Agent. Do not modify.
+An array of sockets currently in use by the Agent. Do not modify.
 
 ### agent.queue
 

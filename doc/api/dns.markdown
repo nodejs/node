@@ -33,7 +33,7 @@ AAAA (IPv6) record.
 The callback has arguments `(err, address, family)`.  The `address` argument
 is a string representation of a IP v4 or v6 address. The `family` argument
 is either the integer 4 or 6 and denotes the family of `address` (not
-neccessarily the value initially passed to `lookup`).
+necessarily the value initially passed to `lookup`).
 
 
 ### dns.resolve(domain, rrtype='A', callback)
