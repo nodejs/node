@@ -216,6 +216,7 @@ static void ResolveError(Persistent<Function> &cb, int status) {
 
   Local<Object> obj = e->ToObject();
   obj->Set(String::NewSymbol("errno"), Integer::New(status));
+  obj->Set(String::NewSymbol("code"), code);
 
   TryCatch try_catch;
 

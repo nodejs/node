@@ -24,6 +24,7 @@ function httpreq(count) {
 
   req.on('error', function(e){
     console.log(e.message);
+    assert.strictEqual(e.code, 'ENOTFOUND');
     hadError++
     httpreq(count + 1)
   })
