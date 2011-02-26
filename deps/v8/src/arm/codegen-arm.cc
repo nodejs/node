@@ -5850,8 +5850,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
     } else if (variable != NULL) {
       // Delete of an unqualified identifier is disallowed in strict mode
-      // so this code can only be reached in non-strict mode.
-      ASSERT(strict_mode_flag() == kNonStrictMode);
+      // but "delete this" is.
+      ASSERT(strict_mode_flag() == kNonStrictMode || variable->is_this());
       Slot* slot = variable->AsSlot();
       if (variable->is_global()) {
         LoadGlobal();

@@ -485,18 +485,19 @@ void MacroAssembler::PopSafepointRegistersAndDoubles() {
   PopSafepointRegisters();
 }
 
-void MacroAssembler::StoreToSafepointRegistersAndDoublesSlot(Register reg) {
-  str(reg, SafepointRegistersAndDoublesSlot(reg));
+void MacroAssembler::StoreToSafepointRegistersAndDoublesSlot(Register src,
+                                                             Register dst) {
+  str(src, SafepointRegistersAndDoublesSlot(dst));
 }
 
 
-void MacroAssembler::StoreToSafepointRegisterSlot(Register reg) {
-  str(reg, SafepointRegisterSlot(reg));
+void MacroAssembler::StoreToSafepointRegisterSlot(Register src, Register dst) {
+  str(src, SafepointRegisterSlot(dst));
 }
 
 
-void MacroAssembler::LoadFromSafepointRegisterSlot(Register reg) {
-  ldr(reg, SafepointRegisterSlot(reg));
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
+  ldr(dst, SafepointRegisterSlot(src));
 }
 
 
@@ -743,6 +744,14 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   if (argument_count.is_valid()) {
     add(sp, sp, Operand(argument_count, LSL, kPointerSizeLog2));
   }
+}
+
+void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
+#if !defined(USE_ARM_EABI)
+  UNREACHABLE();
+#else
+  vmov(dst, r0, r1);
+#endif
 }
 
 
@@ -2154,11 +2163,22 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
       ldr(dst, MemOperand(dst, Context::SlotOffset(Context::CLOSURE_INDEX)));
       ldr(dst, FieldMemOperand(dst, JSFunction::kContextOffset));
     }
-    // The context may be an intermediate context, not a function context.
-    ldr(dst, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-  } else {  // Slot is in the current function context.
-    // The context may be an intermediate context, not a function context.
-    ldr(dst, MemOperand(cp, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  } else {
+    // Slot is in the current function context.  Move it into the
+    // destination register in case we store into it (the write barrier
+    // cannot be allowed to destroy the context in esi).
+    mov(dst, cp);
+  }
+
+  // We should not have found a 'with' context by walking the context chain
+  // (i.e., the static scope chain and runtime context chain do not agree).
+  // A variable occurring in such a scope should have slot type LOOKUP and
+  // not CONTEXT.
+  if (FLAG_debug_code) {
+    ldr(ip, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+    cmp(dst, ip);
+    Check(eq, "Yo dawg, I heard you liked function contexts "
+              "so I put function contexts in all your contexts");
   }
 }
 

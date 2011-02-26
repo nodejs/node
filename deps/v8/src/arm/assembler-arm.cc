@@ -1848,11 +1848,31 @@ void Assembler::vldr(const DwVfpRegister dst,
     offset = -offset;
     u = 0;
   }
-  ASSERT(offset % 4 == 0);
-  ASSERT((offset / 4) < 256);
+
   ASSERT(offset >= 0);
-  emit(cond | u*B23 | 0xD1*B20 | base.code()*B16 | dst.code()*B12 |
-       0xB*B8 | ((offset / 4) & 255));
+  if ((offset % 4) == 0 && (offset / 4) < 256) {
+    emit(cond | u*B23 | 0xD1*B20 | base.code()*B16 | dst.code()*B12 |
+         0xB*B8 | ((offset / 4) & 255));
+  } else {
+    // Larger offsets must be handled by computing the correct address
+    // in the ip register.
+    ASSERT(!base.is(ip));
+    if (u == 1) {
+      add(ip, base, Operand(offset));
+    } else {
+      sub(ip, base, Operand(offset));
+    }
+    emit(cond | 0xD1*B20 | ip.code()*B16 | dst.code()*B12 | 0xB*B8);
+  }
+}
+
+
+void Assembler::vldr(const DwVfpRegister dst,
+                     const MemOperand& operand,
+                     const Condition cond) {
+  ASSERT(!operand.rm().is_valid());
+  ASSERT(operand.am_ == Offset);
+  vldr(dst, operand.rn(), operand.offset(), cond);
 }
 
 
@@ -1870,13 +1890,33 @@ void Assembler::vldr(const SwVfpRegister dst,
     offset = -offset;
     u = 0;
   }
-  ASSERT(offset % 4 == 0);
-  ASSERT((offset / 4) < 256);
-  ASSERT(offset >= 0);
   int sd, d;
   dst.split_code(&sd, &d);
+  ASSERT(offset >= 0);
+
+  if ((offset % 4) == 0 && (offset / 4) < 256) {
   emit(cond | u*B23 | d*B22 | 0xD1*B20 | base.code()*B16 | sd*B12 |
        0xA*B8 | ((offset / 4) & 255));
+  } else {
+    // Larger offsets must be handled by computing the correct address
+    // in the ip register.
+    ASSERT(!base.is(ip));
+    if (u == 1) {
+      add(ip, base, Operand(offset));
+    } else {
+      sub(ip, base, Operand(offset));
+    }
+    emit(cond | d*B22 | 0xD1*B20 | ip.code()*B16 | sd*B12 | 0xA*B8);
+  }
+}
+
+
+void Assembler::vldr(const SwVfpRegister dst,
+                     const MemOperand& operand,
+                     const Condition cond) {
+  ASSERT(!operand.rm().is_valid());
+  ASSERT(operand.am_ == Offset);
+  vldr(dst, operand.rn(), operand.offset(), cond);
 }
 
 
@@ -1894,11 +1934,30 @@ void Assembler::vstr(const DwVfpRegister src,
     offset = -offset;
     u = 0;
   }
-  ASSERT(offset % 4 == 0);
-  ASSERT((offset / 4) < 256);
   ASSERT(offset >= 0);
-  emit(cond | u*B23 | 0xD0*B20 | base.code()*B16 | src.code()*B12 |
-       0xB*B8 | ((offset / 4) & 255));
+  if ((offset % 4) == 0 && (offset / 4) < 256) {
+    emit(cond | u*B23 | 0xD0*B20 | base.code()*B16 | src.code()*B12 |
+         0xB*B8 | ((offset / 4) & 255));
+  } else {
+    // Larger offsets must be handled by computing the correct address
+    // in the ip register.
+    ASSERT(!base.is(ip));
+    if (u == 1) {
+      add(ip, base, Operand(offset));
+    } else {
+      sub(ip, base, Operand(offset));
+    }
+    emit(cond | 0xD0*B20 | ip.code()*B16 | src.code()*B12 | 0xB*B8);
+  }
+}
+
+
+void Assembler::vstr(const DwVfpRegister src,
+                     const MemOperand& operand,
+                     const Condition cond) {
+  ASSERT(!operand.rm().is_valid());
+  ASSERT(operand.am_ == Offset);
+  vstr(src, operand.rn(), operand.offset(), cond);
 }
 
 
@@ -1916,13 +1975,32 @@ void Assembler::vstr(const SwVfpRegister src,
     offset = -offset;
     u = 0;
   }
-  ASSERT(offset % 4 == 0);
-  ASSERT((offset / 4) < 256);
-  ASSERT(offset >= 0);
   int sd, d;
   src.split_code(&sd, &d);
-  emit(cond | u*B23 | d*B22 | 0xD0*B20 | base.code()*B16 | sd*B12 |
-       0xA*B8 | ((offset / 4) & 255));
+  ASSERT(offset >= 0);
+  if ((offset % 4) == 0 && (offset / 4) < 256) {
+    emit(cond | u*B23 | d*B22 | 0xD0*B20 | base.code()*B16 | sd*B12 |
+         0xA*B8 | ((offset / 4) & 255));
+  } else {
+    // Larger offsets must be handled by computing the correct address
+    // in the ip register.
+    ASSERT(!base.is(ip));
+    if (u == 1) {
+      add(ip, base, Operand(offset));
+    } else {
+      sub(ip, base, Operand(offset));
+    }
+    emit(cond | d*B22 | 0xD0*B20 | ip.code()*B16 | sd*B12 | 0xA*B8);
+  }
+}
+
+
+void Assembler::vstr(const SwVfpRegister src,
+                     const MemOperand& operand,
+                     const Condition cond) {
+  ASSERT(!operand.rm().is_valid());
+  ASSERT(operand.am_ == Offset);
+  vldr(src, operand.rn(), operand.offset(), cond);
 }
 
 

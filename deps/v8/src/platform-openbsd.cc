@@ -222,7 +222,7 @@ class PosixMemoryMappedFile : public OS::MemoryMappedFile {
 
 
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
-  FILE* file = fopen(name, "w+");
+  FILE* file = fopen(name, "r+");
   if (file == NULL) return NULL;
 
   fseek(file, 0, SEEK_END);

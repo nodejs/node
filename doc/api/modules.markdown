@@ -95,7 +95,7 @@ First, `/node_modules` is never appended to a folder already ending in
 `/node_modules`.
 
 Second, if the file calling `require()` is already inside a `node_modules`
-heirarchy, then the top-most `node_modules` folder is treated as the
+hierarchy, then the top-most `node_modules` folder is treated as the
 root of the search tree.
 
 For example, if the file at

@@ -125,5 +125,7 @@ def build(bld):
   libeio.install_path = None
   if bld.env["USE_DEBUG"]:
     libeio.clone("debug");
+  if Options.options.product_type != 'program':
+    libeio.ccflags = "-fPIC"
   bld.install_files('${PREFIX}/include/node/', 'eio.h');
 

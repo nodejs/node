@@ -156,13 +156,18 @@ void CodeEntry::CopyData(const CodeEntry& source) {
 
 uint32_t CodeEntry::GetCallUid() const {
   uint32_t hash = ComputeIntegerHash(tag_);
-  hash ^= ComputeIntegerHash(
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)));
-  hash ^= ComputeIntegerHash(
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)));
-  hash ^= ComputeIntegerHash(
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)));
-  hash ^= ComputeIntegerHash(line_number_);
+  if (shared_id_ != 0) {
+    hash ^= ComputeIntegerHash(
+        static_cast<uint32_t>(shared_id_));
+  } else {
+    hash ^= ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)));
+    hash ^= ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)));
+    hash ^= ComputeIntegerHash(
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)));
+    hash ^= ComputeIntegerHash(line_number_);
+  }
   return hash;
 }
 
@@ -170,10 +175,12 @@ uint32_t CodeEntry::GetCallUid() const {
 bool CodeEntry::IsSameAs(CodeEntry* entry) const {
   return this == entry
       || (tag_ == entry->tag_
-          && name_prefix_ == entry->name_prefix_
-          && name_ == entry->name_
-          && resource_name_ == entry->resource_name_
-          && line_number_ == entry->line_number_);
+          && shared_id_ == entry->shared_id_
+          && (shared_id_ != 0
+              || (name_prefix_ == entry->name_prefix_
+                  && name_ == entry->name_
+                  && resource_name_ == entry->resource_name_
+                  && line_number_ == entry->line_number_)));
 }
 
 
@@ -458,21 +465,10 @@ void CpuProfile::Print() {
 }
 
 
+CodeEntry* const CodeMap::kSfiCodeEntry = NULL;
 const CodeMap::CodeTreeConfig::Key CodeMap::CodeTreeConfig::kNoKey = NULL;
 const CodeMap::CodeTreeConfig::Value CodeMap::CodeTreeConfig::kNoValue =
     CodeMap::CodeEntryInfo(NULL, 0);
-
-
-void CodeMap::AddAlias(Address start, CodeEntry* entry, Address code_start) {
-  CodeTree::Locator locator;
-  if (tree_.Find(code_start, &locator)) {
-    const CodeEntryInfo& code_info = locator.value();
-    if (tree_.Insert(start, &locator)) {
-      entry->CopyData(*code_info.entry);
-      locator.set_value(CodeEntryInfo(entry, code_info.size));
-    }
-  }
-}
 
 
 CodeEntry* CodeMap::FindEntry(Address addr) {
@@ -484,6 +480,22 @@ CodeEntry* CodeMap::FindEntry(Address addr) {
       return entry.entry;
   }
   return NULL;
+}
+
+
+int CodeMap::GetSFITag(Address addr) {
+  CodeTree::Locator locator;
+  // For SFI entries, 'size' field is used to store their IDs.
+  if (tree_.Find(addr, &locator)) {
+    const CodeEntryInfo& entry = locator.value();
+    ASSERT(entry.entry == kSfiCodeEntry);
+    return entry.size;
+  } else {
+    tree_.Insert(addr, &locator);
+    int tag = next_sfi_tag_++;
+    locator.set_value(CodeEntryInfo(kSfiCodeEntry, tag));
+    return tag;
+  }
 }
 
 
@@ -715,13 +727,6 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
 }
 
 
-CodeEntry* CpuProfilesCollection::NewCodeEntry(int security_token_id) {
-  CodeEntry* entry = new CodeEntry(security_token_id);
-  code_entries_.Add(entry);
-  return entry;
-}
-
-
 void CpuProfilesCollection::AddPathToCurrentProfiles(
     const Vector<CodeEntry*>& path) {
   // As starting / stopping profiles is rare relatively to this
@@ -784,19 +789,10 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   if (sample.pc != NULL) {
     *entry++ = code_map_.FindEntry(sample.pc);
 
-    if (sample.function != NULL) {
-      *entry = code_map_.FindEntry(sample.function);
+    if (sample.tos != NULL) {
+      *entry = code_map_.FindEntry(sample.tos);
       if (*entry != NULL && !(*entry)->is_js_function()) {
         *entry = NULL;
-      } else {
-        CodeEntry* pc_entry = *entries.start();
-        if (pc_entry == NULL) {
-          *entry = NULL;
-        } else if (pc_entry->is_js_function()) {
-          // Use function entry in favor of pc entry, as function
-          // entry has security token.
-          *entries.start() = NULL;
-        }
       }
       entry++;
     }

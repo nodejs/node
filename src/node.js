@@ -232,7 +232,7 @@
           w.start();
 
         } else if (this.listeners(type).length === 1) {
-          signalWatchers[event].start();
+          signalWatchers[type].start();
         }
       }
 

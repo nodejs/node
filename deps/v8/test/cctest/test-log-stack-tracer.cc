@@ -33,6 +33,7 @@
 
 #include "v8.h"
 
+#include "api.h"
 #include "codegen.h"
 #include "log.h"
 #include "top.h"
@@ -200,16 +201,16 @@ static void InitializeVM() {
 }
 
 
-static void CheckJSFunctionAtAddress(const char* func_name, Address addr) {
-  CHECK(i::Heap::Contains(addr));
-  i::Object* obj = i::HeapObject::FromAddress(addr);
-  CHECK(obj->IsJSFunction());
-  CHECK(JSFunction::cast(obj)->shared()->name()->IsString());
-  i::SmartPointer<char> found_name =
-      i::String::cast(
-          JSFunction::cast(
-              obj)->shared()->name())->ToCString();
-  CHECK_EQ(func_name, *found_name);
+static bool IsAddressWithinFuncCode(JSFunction* function, Address addr) {
+  i::Code* code = function->code();
+  return code->contains(addr);
+}
+
+static bool IsAddressWithinFuncCode(const char* func_name, Address addr) {
+  v8::Local<v8::Value> func = env->Global()->Get(v8_str(func_name));
+  CHECK(func->IsFunction());
+  JSFunction* js_func = JSFunction::cast(*v8::Utils::OpenHandle(*func));
+  return IsAddressWithinFuncCode(js_func, addr);
 }
 
 
@@ -309,8 +310,8 @@ TEST(CFromJSStackTrace) {
 
   // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
   CHECK_GT(sample.frames_count, base + 1);
-  CheckJSFunctionAtAddress("JSFuncDoTrace", sample.stack[base + 0]);
-  CheckJSFunctionAtAddress("JSTrace", sample.stack[base + 1]);
+  CHECK(IsAddressWithinFuncCode("JSFuncDoTrace", sample.stack[base + 0]));
+  CHECK(IsAddressWithinFuncCode("JSTrace", sample.stack[base + 1]));
 }
 
 
@@ -351,9 +352,6 @@ TEST(PureJSStackTrace) {
   //           DoTraceHideCEntryFPAddress(EBP) [native]
   //             StackTracer::Trace
   //
-  // The last JS function called. It is only visible through
-  // sample.function, as its return address is above captured EBP value.
-  CheckJSFunctionAtAddress("JSFuncDoTrace", sample.function);
 
   // The VM state tracking keeps track of external callbacks and puts
   // them at the top of the sample stack.
@@ -363,8 +361,8 @@ TEST(PureJSStackTrace) {
 
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
   CHECK_GT(sample.frames_count, base + 1);
-  CheckJSFunctionAtAddress("JSTrace", sample.stack[base + 0]);
-  CheckJSFunctionAtAddress("OuterJSTrace", sample.stack[base + 1]);
+  CHECK(IsAddressWithinFuncCode("JSTrace", sample.stack[base + 0]));
+  CHECK(IsAddressWithinFuncCode("OuterJSTrace", sample.stack[base + 1]));
 }
 
 

@@ -45,16 +45,6 @@ const char* StringsStorage::GetFunctionName(const char* name) {
 }
 
 
-CodeEntry::CodeEntry(int security_token_id)
-    : tag_(Logger::FUNCTION_TAG),
-      name_prefix_(kEmptyNamePrefix),
-      name_(""),
-      resource_name_(""),
-      line_number_(0),
-      security_token_id_(security_token_id) {
-}
-
-
 CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
                      const char* name_prefix,
                      const char* name,
@@ -66,6 +56,7 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
       name_(name),
       resource_name_(resource_name),
       line_number_(line_number),
+      shared_id_(0),
       security_token_id_(security_token_id) {
 }
 

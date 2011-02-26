@@ -2385,14 +2385,14 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
-  NearLabel call_runtime;
+  ASSERT(op_ == Token::ADD);
+  NearLabel left_not_string, call_runtime;
 
   // Registers containing left and right operands respectively.
   Register left = edx;
   Register right = eax;
 
   // Test if left operand is a string.
-  NearLabel left_not_string;
   __ test(left, Immediate(kSmiTagMask));
   __ j(zero, &left_not_string);
   __ CmpObjectType(left, FIRST_NONSTRING_TYPE, ecx);

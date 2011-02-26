@@ -112,7 +112,7 @@ handshaked. The argument is a duplex instance of `stream.Stream`. It has all
 the common stream methods and events.
 
 `cleartextStream.authorized` is a boolean value which indicates if the
-client has verified by one of the supplied cerificate authorities for the
+client has verified by one of the supplied certificate authorities for the
 server. If `cleartextStream.authorized` is false, then
 `cleartextStream.authorizationError` is set to describe how authorization
 failed. Implied but worth mentioning: depending on the settings of the TLS

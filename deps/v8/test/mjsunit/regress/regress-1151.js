@@ -30,3 +30,20 @@
 
 __defineSetter__.__proto__ = function() {};
 __defineSetter__['prototype']
+
+eval.__proto__ = function () { };
+eval['prototype'] = {};
+
+// Test that we are compatible with Safari on prototypes set locally and
+// on the actual prototype set using __proto__ on objects that has the
+// should_have_prototype set to false.
+function f() { return 42; }
+f.prototype = 43;
+__defineGetter__.__proto__ = f;
+
+// Regression test for not returning undefined.
+assertEquals(__defineGetter__.prototype, 43);
+
+// Regression test for not crashing.
+__defineGetter__.prototype = "foo";
+assertEquals(__defineGetter__.prototype, "foo");

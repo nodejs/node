@@ -106,6 +106,11 @@ static Handle<Object> Invoke(bool construct,
   ASSERT(*has_pending_exception == Top::has_pending_exception());
   if (*has_pending_exception) {
     Top::ReportPendingMessages();
+    if (Top::pending_exception() == Failure::OutOfMemoryException()) {
+      if (!HandleScopeImplementer::instance()->ignore_out_of_memory()) {
+        V8::FatalProcessOutOfMemory("JS", true);
+      }
+    }
     return Handle<Object>();
   } else {
     Top::clear_pending_message();

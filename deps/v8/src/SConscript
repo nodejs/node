@@ -154,6 +154,7 @@ SOURCES = {
     arm/jump-target-arm.cc
     arm/lithium-arm.cc
     arm/lithium-codegen-arm.cc
+    arm/lithium-gap-resolver-arm.cc
     arm/macro-assembler-arm.cc
     arm/regexp-macro-assembler-arm.cc
     arm/register-allocator-arm.cc

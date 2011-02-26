@@ -321,14 +321,17 @@ TEST(Regress928) {
 
   data->Initialize();
 
-  int first_function = strstr(program, "function") - program;
-  int first_lbrace = first_function + strlen("function () ");
+  int first_function =
+      static_cast<int>(strstr(program, "function") - program);
+  int first_lbrace = first_function + static_cast<int>(strlen("function () "));
   CHECK_EQ('{', program[first_lbrace]);
   i::FunctionEntry entry1 = data->GetFunctionEntry(first_lbrace);
   CHECK(!entry1.is_valid());
 
-  int second_function = strstr(program + first_lbrace, "function") - program;
-  int second_lbrace = second_function + strlen("function () ");
+  int second_function =
+      static_cast<int>(strstr(program + first_lbrace, "function") - program);
+  int second_lbrace =
+      second_function + static_cast<int>(strlen("function () "));
   CHECK_EQ('{', program[second_lbrace]);
   i::FunctionEntry entry2 = data->GetFunctionEntry(second_lbrace);
   CHECK(entry2.is_valid());

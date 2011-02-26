@@ -834,49 +834,39 @@ bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
 }
 
 
-bool CompileLazy(Handle<JSFunction> function,
-                 ClearExceptionFlag flag) {
+static bool CompileLazyFunction(Handle<JSFunction> function,
+                                ClearExceptionFlag flag,
+                                InLoopFlag in_loop_flag) {
   bool result = true;
   if (function->shared()->is_compiled()) {
     function->ReplaceCode(function->shared()->code());
     function->shared()->set_code_age(0);
   } else {
     CompilationInfo info(function);
+    if (in_loop_flag == IN_LOOP) info.MarkAsInLoop();
     result = CompileLazyHelper(&info, flag);
     ASSERT(!result || function->is_compiled());
-  }
-  if (result && function->is_compiled()) {
-    PROFILE(FunctionCreateEvent(*function));
   }
   return result;
 }
 
 
+bool CompileLazy(Handle<JSFunction> function,
+                 ClearExceptionFlag flag) {
+  return CompileLazyFunction(function, flag, NOT_IN_LOOP);
+}
+
+
 bool CompileLazyInLoop(Handle<JSFunction> function,
                        ClearExceptionFlag flag) {
-  bool result = true;
-  if (function->shared()->is_compiled()) {
-    function->ReplaceCode(function->shared()->code());
-    function->shared()->set_code_age(0);
-  } else {
-    CompilationInfo info(function);
-    info.MarkAsInLoop();
-    result = CompileLazyHelper(&info, flag);
-    ASSERT(!result || function->is_compiled());
-  }
-  if (result && function->is_compiled()) {
-    PROFILE(FunctionCreateEvent(*function));
-  }
-  return result;
+  return CompileLazyFunction(function, flag, IN_LOOP);
 }
 
 
 bool CompileOptimized(Handle<JSFunction> function, int osr_ast_id) {
   CompilationInfo info(function);
   info.SetOptimizing(osr_ast_id);
-  bool result = CompileLazyHelper(&info, KEEP_EXCEPTION);
-  if (result) PROFILE(FunctionCreateEvent(*function));
-  return result;
+  return CompileLazyHelper(&info, KEEP_EXCEPTION);
 }
 
 

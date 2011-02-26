@@ -598,6 +598,8 @@
                 '../../src/arm/lithium-arm.h',
                 '../../src/arm/lithium-codegen-arm.cc',
                 '../../src/arm/lithium-codegen-arm.h',
+                '../../src/arm/lithium-gap-resolver-arm.cc',
+                '../../src/arm/lithium-gap-resolver-arm.h',
                 '../../src/arm/macro-assembler-arm.cc',
                 '../../src/arm/macro-assembler-arm.h',
                 '../../src/arm/regexp-macro-assembler-arm.cc',

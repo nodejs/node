@@ -478,11 +478,6 @@ void LiveRange::ConvertOperands() {
 }
 
 
-UsePosition* LiveRange::AddUsePosition(LifetimePosition pos) {
-  return AddUsePosition(pos, CreateAssignedOperand());
-}
-
-
 bool LiveRange::CanCover(LifetimePosition position) const {
   if (IsEmpty()) return false;
   return Start().Value() <= position.Value() &&
@@ -1098,6 +1093,21 @@ void LAllocator::ResolveControlFlow(LiveRange* range,
       } else {
         ASSERT(pred->end()->SecondSuccessor() == NULL);
         gap = GetLastGap(pred);
+
+        // We are going to insert a move before the branch instruction.
+        // Some branch instructions (e.g. loops' back edges)
+        // can potentially cause a GC so they have a pointer map.
+        // By insterting a move we essentially create a copy of a
+        // value which is invisible to PopulatePointerMaps(), because we store
+        // it into a location different from the operand of a live range
+        // covering a branch instruction.
+        // Thus we need to manually record a pointer.
+        if (HasTaggedValue(range->id())) {
+          LInstruction* branch = InstructionAt(pred->last_instruction_index());
+          if (branch->HasPointerMap()) {
+            branch->pointer_map()->RecordPointer(cur_op);
+          }
+        }
       }
       gap->GetOrCreateParallelMove(LGap::START)->AddMove(pred_op, cur_op);
     }

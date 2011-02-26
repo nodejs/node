@@ -355,7 +355,14 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
 
   if (output_flag == returnResult) {
     result = script->Run();
-    if (result.IsEmpty()) return try_catch.ReThrow();
+    if (result.IsEmpty()) {
+      if (context_flag == newContext) {
+        context->DetachGlobal();
+        context->Exit();
+        context.Dispose();
+      }
+      return try_catch.ReThrow();
+    }
   } else {
     WrappedScript *n_script = ObjectWrap::Unwrap<WrappedScript>(args.Holder());
     if (!n_script) {

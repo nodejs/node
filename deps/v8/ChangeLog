@@ -1,3 +1,16 @@
+2011-02-24: Version 3.1.6
+
+        Fixed a number of crash bugs.
+
+        Added support for Cygwin (issue 64).
+
+        Improved Crankshaft for x64 and ARM.
+
+        Added Crankshaft support for stores to pixel arrays.
+
+        Fixed issue in CPU profiler with Crankshaft.
+
+
 2011-02-16: Version 3.1.5
 
         Change RegExp parsing to disallow /(*)/.

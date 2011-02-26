@@ -1654,6 +1654,28 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
 }
 
 
+// Store the value in register src in the safepoint register stack
+// slot for register dst.
+void MacroAssembler::StoreToSafepointRegisterSlot(Register dst, Register src) {
+  mov(SafepointRegisterSlot(dst), src);
+}
+
+
+void MacroAssembler::StoreToSafepointRegisterSlot(Register dst, Immediate src) {
+  mov(SafepointRegisterSlot(dst), src);
+}
+
+
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
+  mov(dst, SafepointRegisterSlot(src));
+}
+
+
+Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
+  return Operand(esp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
+}
+
+
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // The registers are pushed starting with the lowest encoding,
   // which means that lowest encodings are furthest away from

@@ -170,7 +170,7 @@ socket is established. If there is a problem connecting, the `'connect'`
 event will not be emitted, the `'error'` event will be emitted with
 the exception.
 
-The `callback` paramenter will be added as an listener for the 'connect'
+The `callback` parameter will be added as an listener for the 'connect'
 event.
 
 

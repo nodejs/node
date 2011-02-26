@@ -29,7 +29,7 @@
 #define V8_ARM_LITHIUM_CODEGEN_ARM_H_
 
 #include "arm/lithium-arm.h"
-
+#include "arm/lithium-gap-resolver-arm.h"
 #include "deoptimizer.h"
 #include "safepoint-table.h"
 #include "scopes.h"
@@ -39,30 +39,7 @@ namespace internal {
 
 // Forward declarations.
 class LDeferredCode;
-class LGapNode;
 class SafepointGenerator;
-
-class LGapResolver BASE_EMBEDDED {
- public:
-  LGapResolver();
-  const ZoneList<LMoveOperands>* Resolve(const ZoneList<LMoveOperands>* moves,
-                                         LOperand* marker_operand);
-
- private:
-  LGapNode* LookupNode(LOperand* operand);
-  bool CanReach(LGapNode* a, LGapNode* b, int visited_id);
-  bool CanReach(LGapNode* a, LGapNode* b);
-  void RegisterMove(LMoveOperands move);
-  void AddResultMove(LOperand* from, LOperand* to);
-  void AddResultMove(LGapNode* from, LGapNode* to);
-  void ResolveCycle(LGapNode* start, LOperand* marker_operand);
-
-  ZoneList<LGapNode*> nodes_;
-  ZoneList<LGapNode*> identified_cycles_;
-  ZoneList<LMoveOperands> result_;
-  int next_visited_id_;
-};
-
 
 class LCodeGen BASE_EMBEDDED {
  public:
@@ -79,9 +56,34 @@ class LCodeGen BASE_EMBEDDED {
         scope_(chunk->graph()->info()->scope()),
         status_(UNUSED),
         deferred_(8),
-        osr_pc_offset_(-1) {
+        osr_pc_offset_(-1),
+        resolver_(this) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
+
+
+  // Simple accessors.
+  MacroAssembler* masm() const { return masm_; }
+
+  // Support for converting LOperands to assembler types.
+  // LOperand must be a register.
+  Register ToRegister(LOperand* op) const;
+
+  // LOperand is loaded into scratch, unless already a register.
+  Register EmitLoadRegister(LOperand* op, Register scratch);
+
+  // LOperand must be a double register.
+  DoubleRegister ToDoubleRegister(LOperand* op) const;
+
+  // LOperand is loaded into dbl_scratch, unless already a double register.
+  DoubleRegister EmitLoadDoubleRegister(LOperand* op,
+                                        SwVfpRegister flt_scratch,
+                                        DoubleRegister dbl_scratch);
+  int ToInteger32(LConstantOperand* op) const;
+  Operand ToOperand(LOperand* op);
+  MemOperand ToMemOperand(LOperand* op) const;
+  // Returns a MemOperand pointing to the high word of a DoubleStackSlot.
+  MemOperand ToHighMemOperand(LOperand* op) const;
 
   // Try to generate code for the entire chunk, but it may fail if the
   // chunk contains constructs we cannot handle. Returns true if the
@@ -94,8 +96,8 @@ class LCodeGen BASE_EMBEDDED {
 
   // Deferred code support.
   template<int T>
-  void DoDeferredGenericBinaryStub(LTemplateInstruction<1, 2, T>* instr,
-                                   Token::Value op);
+  void DoDeferredBinaryOpStub(LTemplateInstruction<1, 2, T>* instr,
+                              Token::Value op);
   void DoDeferredNumberTagD(LNumberTagD* instr);
   void DoDeferredNumberTagI(LNumberTagI* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr);
@@ -136,7 +138,6 @@ class LCodeGen BASE_EMBEDDED {
   LChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
-  MacroAssembler* masm() const { return masm_; }
 
   Register scratch0() { return r9; }
   DwVfpRegister double_scratch0() { return d0; }
@@ -202,24 +203,6 @@ class LCodeGen BASE_EMBEDDED {
   Register ToRegister(int index) const;
   DoubleRegister ToDoubleRegister(int index) const;
 
-  // LOperand must be a register.
-  Register ToRegister(LOperand* op) const;
-
-  // LOperand is loaded into scratch, unless already a register.
-  Register EmitLoadRegister(LOperand* op, Register scratch);
-
-  // LOperand must be a double register.
-  DoubleRegister ToDoubleRegister(LOperand* op) const;
-
-  // LOperand is loaded into dbl_scratch, unless already a double register.
-  DoubleRegister EmitLoadDoubleRegister(LOperand* op,
-                                        SwVfpRegister flt_scratch,
-                                        DoubleRegister dbl_scratch);
-
-  int ToInteger32(LConstantOperand* op) const;
-  Operand ToOperand(LOperand* op);
-  MemOperand ToMemOperand(LOperand* op) const;
-
   // Specific math operations - used from DoUnaryMathOperation.
   void EmitIntegerMathAbs(LUnaryMathOperation* instr);
   void DoMathAbs(LUnaryMathOperation* instr);
@@ -229,6 +212,7 @@ class LCodeGen BASE_EMBEDDED {
                        Register scratch1,
                        Register scratch2);
   void DoMathFloor(LUnaryMathOperation* instr);
+  void DoMathRound(LUnaryMathOperation* instr);
   void DoMathSqrt(LUnaryMathOperation* instr);
 
   // Support for recording safepoint and position information.
@@ -237,6 +221,7 @@ class LCodeGen BASE_EMBEDDED {
                        int arguments,
                        int deoptimization_index);
   void RecordSafepoint(LPointerMap* pointers, int deoptimization_index);
+  void RecordSafepoint(int deoptimization_index);
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     int deoptimization_index);

@@ -99,12 +99,12 @@ struct Register {
   static const int kNumAllocatableRegisters = 10;
 
   static int ToAllocationIndex(Register reg) {
-    return allocationIndexByRegisterCode[reg.code()];
+    return kAllocationIndexByRegisterCode[reg.code()];
   }
 
   static Register FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    Register result = { registerCodeByAllocationIndex[index] };
+    Register result = { kRegisterCodeByAllocationIndex[index] };
     return result;
   }
 
@@ -155,8 +155,8 @@ struct Register {
   int code_;
 
  private:
-  static const int registerCodeByAllocationIndex[kNumAllocatableRegisters];
-  static const int allocationIndexByRegisterCode[kNumRegisters];
+  static const int kRegisterCodeByAllocationIndex[kNumAllocatableRegisters];
+  static const int kAllocationIndexByRegisterCode[kNumRegisters];
 };
 
 const Register rax = { 0 };
@@ -1312,7 +1312,7 @@ class Assembler : public Malloced {
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
-  void RecordComment(const char* msg);
+  void RecordComment(const char* msg, bool force = false);
 
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.

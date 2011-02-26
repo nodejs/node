@@ -18,11 +18,11 @@
     <div id="toc">
       <ol>
         <li><a href="#download">Download</a></li>
-        <li><a href="https://github.com/ry/node/raw/master/ChangeLog">ChangeLog</a></li>
+        <li><a href="https://github.com/joyent/node/raw/master/ChangeLog">ChangeLog</a></li>
         <li><a href="#about">About</a></li>
         <li><a href="http://nodejs.org/docs/v0.4.1/api">v0.4.1 docs</a></li>
         <br/>
-        <li><B><a href="https://github.com/ry/node/wiki">Wiki</a></B></li>
+        <li><B><a href="https://github.com/joyent/node/wiki">Wiki</a></B></li>
       </ol>
     </div>
     <div id="content">
@@ -65,12 +65,13 @@ Server running at http://127.0.0.1:8124/</pre>
 
       <pre>
 var net = require('net');
-net.createServer(function (socket) {
+
+var server = net.createServer(function (socket) {
   socket.write("Echo server\r\n");
-  socket.on("data", function (data) {
-    socket.write(data);
-  });
-}).listen(8124, "127.0.0.1");
+  socket.pipe(socket);
+})
+
+server.listen(8124, "127.0.0.1");
 </pre>
 
       <p>
@@ -80,13 +81,13 @@ net.createServer(function (socket) {
 
 
       <p>
-        Go to <a href="https://github.com/ry/node/wiki">the Wiki</a> for lots more information.
+        Go to <a href="https://github.com/joyent/node/wiki">the Wiki</a> for lots more information.
       </p>
 
       <h2 id="download">Download</h2>
 
       <p>
-        <a href="http://github.com/ry/node/tree/master">git repo</a>
+        <a href="http://github.com/joyent/node/tree/master">git repo</a>
       </p>
 
       <p>
@@ -99,7 +100,7 @@ net.createServer(function (socket) {
 
       <p>
         For build instructions see
-        <a href="https://github.com/ry/node/wiki/Installation">https://github.com/ry/node/wiki/Installation</a>
+        <a href="https://github.com/joyent/node/wiki/Installation">https://github.com/joyent/node/wiki/Installation</a>
       </p>
 
 

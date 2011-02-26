@@ -147,7 +147,7 @@ bool Profiler::paused_ = false;
 // StackTracer implementation
 //
 void StackTracer::Trace(TickSample* sample) {
-  sample->function = NULL;
+  sample->tos = NULL;
   sample->frames_count = 0;
 
   // Avoid collecting traces while doing GC.
@@ -159,15 +159,9 @@ void StackTracer::Trace(TickSample* sample) {
     return;
   }
 
-  const Address function_address =
-      sample->fp + JavaScriptFrameConstants::kFunctionOffset;
-  if (SafeStackFrameIterator::IsWithinBounds(sample->sp, js_entry_sp,
-                                             function_address)) {
-    Object* object = Memory::Object_at(function_address);
-    if (object->IsHeapObject()) {
-      sample->function = HeapObject::cast(object)->address();
-    }
-  }
+  // Sample potential return address value for frameless invocation of
+  // stubs (we'll figure out later, if this value makes sense).
+  sample->tos = Memory::Address_at(sample->sp);
 
   int i = 0;
   const Address callback = Top::external_callback();
@@ -181,10 +175,7 @@ void StackTracer::Trace(TickSample* sample) {
   SafeStackTraceFrameIterator it(sample->fp, sample->sp,
                                  sample->sp, js_entry_sp);
   while (!it.done() && i < TickSample::kMaxFramesCount) {
-    Object* object = it.frame()->function_slot_object();
-    if (object->IsHeapObject()) {
-      sample->stack[i++] = HeapObject::cast(object)->address();
-    }
+    sample->stack[i++] = it.frame()->pc();
     it.Advance();
   }
   sample->frames_count = i;
@@ -710,17 +701,6 @@ void Logger::SetterCallbackEvent(String* name, Address entry_point) {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-static const char* ComputeMarker(Code* code) {
-  switch (code->kind()) {
-    case Code::FUNCTION: return code->optimizable() ? "~" : "";
-    case Code::OPTIMIZED_FUNCTION: return "*";
-    default: return "";
-  }
-}
-#endif
-
-
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              const char* comment) {
@@ -731,7 +711,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[tag]);
   msg.AppendAddress(code->address());
-  msg.Append(",%d,\"%s", code->ExecutableSize(), ComputeMarker(code));
+  msg.Append(",%d,\"", code->ExecutableSize());
   for (const char* p = comment; *p != '\0'; p++) {
     if (*p == '"') {
       msg.Append('\\');
@@ -746,9 +726,40 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 }
 
 
-void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name) {
+void Logger::CodeCreateEvent(LogEventsAndTags tag,
+                             Code* code,
+                             String* name) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (name != NULL) {
+    SmartPointer<char> str =
+        name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+    CodeCreateEvent(tag, code, *str);
+  } else {
+    CodeCreateEvent(tag, code, "");
+  }
+#endif
+}
+
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+// ComputeMarker must only be used when SharedFunctionInfo is known.
+static const char* ComputeMarker(Code* code) {
+  switch (code->kind()) {
+    case Code::FUNCTION: return code->optimizable() ? "~" : "";
+    case Code::OPTIMIZED_FUNCTION: return "*";
+    default: return "";
+  }
+}
+#endif
+
+
+void Logger::CodeCreateEvent(LogEventsAndTags tag,
+                             Code* code,
+                             SharedFunctionInfo* shared,
+                             String* name) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
+  if (code == Builtins::builtin(Builtins::LazyCompile)) return;
   LogMessageBuilder msg;
   SmartPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
@@ -756,7 +767,9 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name) {
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[tag]);
   msg.AppendAddress(code->address());
-  msg.Append(",%d,\"%s%s\"", code->ExecutableSize(), ComputeMarker(code), *str);
+  msg.Append(",%d,\"%s\",", code->ExecutableSize(), *str);
+  msg.AppendAddress(shared->address());
+  msg.Append(",%s", ComputeMarker(code));
   LowLevelCodeCreateEvent(code, &msg);
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -764,26 +777,31 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name) {
 }
 
 
+// Although, it is possible to extract source and line from
+// the SharedFunctionInfo object, we left it to caller
+// to leave logging functions free from heap allocations.
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
-                             Code* code, String* name,
+                             Code* code,
+                             SharedFunctionInfo* shared,
                              String* source, int line) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  SmartPointer<char> str =
-      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  SmartPointer<char> name =
+      shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   SmartPointer<char> sourcestr =
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("%s,%s,",
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[tag]);
   msg.AppendAddress(code->address());
-  msg.Append(",%d,\"%s%s %s:%d\"",
+  msg.Append(",%d,\"%s %s:%d\",",
              code->ExecutableSize(),
-             ComputeMarker(code),
-             *str,
+             *name,
              *sourcestr,
              line);
+  msg.AppendAddress(shared->address());
+  msg.Append(",%s", ComputeMarker(code));
   LowLevelCodeCreateEvent(code, &msg);
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -863,42 +881,9 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
 }
 
 
-void Logger::FunctionCreateEvent(JSFunction* function) {
+void Logger::SFIMoveEvent(Address from, Address to) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  // This function can be called from GC iterators (during Scavenge,
-  // MC, and MS), so marking bits can be set on objects. That's
-  // why unchecked accessors are used here.
-  if (!Log::IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  msg.Append("%s,", kLogEventsNames[FUNCTION_CREATION_EVENT]);
-  msg.AppendAddress(function->address());
-  msg.Append(',');
-  msg.AppendAddress(function->unchecked_code()->address());
-  msg.Append('\n');
-  msg.WriteToLogFile();
-#endif
-}
-
-
-void Logger::FunctionCreateEventFromMove(JSFunction* function) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (function->unchecked_code() != Builtins::builtin(Builtins::LazyCompile)) {
-    FunctionCreateEvent(function);
-  }
-#endif
-}
-
-
-void Logger::FunctionMoveEvent(Address from, Address to) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  MoveEventInternal(FUNCTION_MOVE_EVENT, from, to);
-#endif
-}
-
-
-void Logger::FunctionDeleteEvent(Address from) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  DeleteEventInternal(FUNCTION_DELETE_EVENT, from);
+  MoveEventInternal(SFI_MOVE_EVENT, from, to);
 #endif
 }
 
@@ -1118,7 +1103,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.Append(',');
   msg.AppendAddress(sample->sp);
   msg.Append(',');
-  msg.AppendAddress(sample->function);
+  msg.AppendAddress(sample->tos);
   msg.Append(",%d", static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");
@@ -1187,7 +1172,6 @@ void Logger::ResumeProfiler(int flags, int tag) {
         LOG(UncheckedStringEvent("profiler", "resume"));
         FLAG_log_code = true;
         LogCompiledFunctions();
-        LogFunctionObjects();
         LogAccessorCallbacks();
         if (!FLAG_sliding_state_window && !ticker_->IsActive()) {
           ticker_->Start();
@@ -1388,10 +1372,9 @@ void Logger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
+    if (*code_objects[i] == Builtins::builtin(Builtins::LazyCompile)) continue;
     Handle<SharedFunctionInfo> shared = sfis[i];
-    Handle<String> name(String::cast(shared->name()));
-    Handle<String> func_name(name->length() > 0 ?
-                             *name : shared->inferred_name());
+    Handle<String> func_name(shared->DebugName());
     if (shared->script()->IsScript()) {
       Handle<Script> script(Script::cast(shared->script()));
       if (script->name()->IsString()) {
@@ -1400,18 +1383,18 @@ void Logger::LogCompiledFunctions() {
         if (line_num > 0) {
           PROFILE(CodeCreateEvent(
               Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
-              *code_objects[i], *func_name,
+              *code_objects[i], *shared,
               *script_name, line_num + 1));
         } else {
           // Can't distinguish eval and script here, so always use Script.
           PROFILE(CodeCreateEvent(
               Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
-              *code_objects[i], *script_name));
+              *code_objects[i], *shared, *script_name));
         }
       } else {
         PROFILE(CodeCreateEvent(
             Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
-            *code_objects[i], *func_name));
+            *code_objects[i], *shared, *func_name));
       }
     } else if (shared->IsApiFunction()) {
       // API function.
@@ -1425,20 +1408,8 @@ void Logger::LogCompiledFunctions() {
       }
     } else {
       PROFILE(CodeCreateEvent(
-          Logger::LAZY_COMPILE_TAG, *code_objects[i], *func_name));
+          Logger::LAZY_COMPILE_TAG, *code_objects[i], *shared, *func_name));
     }
-  }
-}
-
-
-void Logger::LogFunctionObjects() {
-  AssertNoAllocation no_alloc;
-  HeapIterator iterator;
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    if (!obj->IsJSFunction()) continue;
-    JSFunction* jsf = JSFunction::cast(obj);
-    if (!jsf->is_compiled()) continue;
-    PROFILE(FunctionCreateEvent(jsf));
   }
 }
 

@@ -2,7 +2,15 @@ var common = require('../common');
 var assert = require('assert');
 
 var spawn = require('child_process').spawn;
-var child = spawn('/usr/bin/env', [], {env: {'HELLO': 'WORLD'}});
+
+var env = {
+  'HELLO': 'WORLD'
+};
+env.__proto__ = {
+  'FOO': 'BAR'
+}
+
+var child = spawn('/usr/bin/env', [], {env: env});
 
 var response = '';
 
@@ -15,4 +23,5 @@ child.stdout.addListener('data', function(chunk) {
 
 process.addListener('exit', function() {
   assert.ok(response.indexOf('HELLO=WORLD') >= 0);
+  assert.ok(response.indexOf('FOO=BAR') >= 0);
 });

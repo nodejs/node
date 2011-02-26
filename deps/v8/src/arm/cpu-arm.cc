@@ -50,6 +50,11 @@ void CPU::Setup() {
 
 
 void CPU::FlushICache(void* start, size_t size) {
+  // Nothing to do flushing no instructions.
+  if (size == 0) {
+    return;
+  }
+
 #if defined (USE_SIMULATOR)
   // Not generating ARM instructions for C-code. This means that we are
   // building an ARM emulator based target.  We should notify the simulator

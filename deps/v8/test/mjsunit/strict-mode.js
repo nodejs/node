@@ -291,6 +291,13 @@ CheckStrictMode("function strict() { var variable; delete variable; }",
                 SyntaxError);
 CheckStrictMode("var variable; delete variable;", SyntaxError);
 
+(function TestStrictDelete() {
+  "use strict";
+  // "delete this" is allowed in strict mode and should work.
+  function strict_delete() { delete this; }
+  strict_delete();
+})();
+
 // Prefix unary operators other than delete, ++, -- are valid in strict mode
 (function StrictModeUnaryOperators() {
   "use strict";
@@ -438,7 +445,7 @@ repeat(10, function() { testAssignToUndefined(false); });
 })();
 
 // Not transforming this in Function.call and Function.apply.
-(function testThisTransform() {
+(function testThisTransformCallApply() {
   function non_strict() {
     return this;
   }
@@ -477,4 +484,219 @@ repeat(10, function() { testAssignToUndefined(false); });
   assertEquals(typeof strict.apply(7), "number");
   assertEquals(typeof strict.apply("Hello"), "string");
   assertTrue(strict.apply(object) === object);
+})();
+
+(function testThisTransform() {
+  try {
+    function strict() {
+      "use strict";
+      return typeof(this);
+    }
+    function nonstrict() {
+      return typeof(this);
+    }
+
+    // Concat to avoid symbol.
+    var strict_name = "str" + "ict";
+    var nonstrict_name = "non" + "str" + "ict";
+    var strict_number = 17;
+    var nonstrict_number = 19;
+    var strict_name_get = "str" + "ict" + "get";
+    var nonstrict_name_get = "non" + "str" + "ict" + "get"
+    var strict_number_get = 23;
+    var nonstrict_number_get = 29;
+
+    function install(t) {
+      t.prototype.strict = strict;
+      t.prototype.nonstrict = nonstrict;
+      t.prototype[strict_number] = strict;
+      t.prototype[nonstrict_number] = nonstrict;
+      Object.defineProperty(t.prototype, strict_name_get,
+                            { get: function() { return strict; },
+                              configurable: true });
+      Object.defineProperty(t.prototype, nonstrict_name_get,
+                            { get: function() { return nonstrict; },
+                              configurable: true });
+      Object.defineProperty(t.prototype, strict_number_get,
+                            { get: function() { return strict; },
+                              configurable: true });
+      Object.defineProperty(t.prototype, nonstrict_number_get,
+                            { get: function() { return nonstrict; },
+                              configurable: true });
+    }
+
+    function cleanup(t) {
+      delete t.prototype.strict;
+      delete t.prototype.nonstrict;
+      delete t.prototype[strict_number];
+      delete t.prototype[nonstrict_number];
+      delete t.prototype[strict_name_get];
+      delete t.prototype[nonstrict_name_get];
+      delete t.prototype[strict_number_get];
+      delete t.prototype[nonstrict_number_get];
+    }
+
+    // Set up fakes
+    install(String);
+    install(Number);
+    install(Boolean)
+
+    function callStrict(o) {
+      return o.strict();
+    }
+    function callNonStrict(o) {
+      return o.nonstrict();
+    }
+    function callKeyedStrict(o) {
+      return o[strict_name]();
+    }
+    function callKeyedNonStrict(o) {
+      return o[nonstrict_name]();
+    }
+    function callIndexedStrict(o) {
+      return o[strict_number]();
+    }
+    function callIndexedNonStrict(o) {
+      return o[nonstrict_number]();
+    }
+    function callStrictGet(o) {
+      return o.strictget();
+    }
+    function callNonStrictGet(o) {
+      return o.nonstrictget();
+    }
+    function callKeyedStrictGet(o) {
+      return o[strict_name_get]();
+    }
+    function callKeyedNonStrictGet(o) {
+      return o[nonstrict_name_get]();
+    }
+    function callIndexedStrictGet(o) {
+      return o[strict_number_get]();
+    }
+    function callIndexedNonStrictGet(o) {
+      return o[nonstrict_number_get]();
+    }
+
+    for (var i = 0; i < 10; i ++) {
+      assertEquals(("hello").strict(), "string");
+      assertEquals(("hello").nonstrict(), "object");
+      assertEquals(("hello")[strict_name](), "string");
+      assertEquals(("hello")[nonstrict_name](), "object");
+      assertEquals(("hello")[strict_number](), "string");
+      assertEquals(("hello")[nonstrict_number](), "object");
+
+      assertEquals((10 + i).strict(), "number");
+      assertEquals((10 + i).nonstrict(), "object");
+      assertEquals((10 + i)[strict_name](), "number");
+      assertEquals((10 + i)[nonstrict_name](), "object");
+      assertEquals((10 + i)[strict_number](), "number");
+      assertEquals((10 + i)[nonstrict_number](), "object");
+
+      assertEquals((true).strict(), "boolean");
+      assertEquals((true).nonstrict(), "object");
+      assertEquals((true)[strict_name](), "boolean");
+      assertEquals((true)[nonstrict_name](), "object");
+      assertEquals((true)[strict_number](), "boolean");
+      assertEquals((true)[nonstrict_number](), "object");
+
+      assertEquals((false).strict(), "boolean");
+      assertEquals((false).nonstrict(), "object");
+      assertEquals((false)[strict_name](), "boolean");
+      assertEquals((false)[nonstrict_name](), "object");
+      assertEquals((false)[strict_number](), "boolean");
+      assertEquals((false)[nonstrict_number](), "object");
+
+      assertEquals(callStrict("howdy"), "string");
+      assertEquals(callNonStrict("howdy"), "object");
+      assertEquals(callKeyedStrict("howdy"), "string");
+      assertEquals(callKeyedNonStrict("howdy"), "object");
+      assertEquals(callIndexedStrict("howdy"), "string");
+      assertEquals(callIndexedNonStrict("howdy"), "object");
+
+      assertEquals(callStrict(17 + i), "number");
+      assertEquals(callNonStrict(17 + i), "object");
+      assertEquals(callKeyedStrict(17 + i), "number");
+      assertEquals(callKeyedNonStrict(17 + i), "object");
+      assertEquals(callIndexedStrict(17 + i), "number");
+      assertEquals(callIndexedNonStrict(17 + i), "object");
+
+      assertEquals(callStrict(true), "boolean");
+      assertEquals(callNonStrict(true), "object");
+      assertEquals(callKeyedStrict(true), "boolean");
+      assertEquals(callKeyedNonStrict(true), "object");
+      assertEquals(callIndexedStrict(true), "boolean");
+      assertEquals(callIndexedNonStrict(true), "object");
+
+      assertEquals(callStrict(false), "boolean");
+      assertEquals(callNonStrict(false), "object");
+      assertEquals(callKeyedStrict(false), "boolean");
+      assertEquals(callKeyedNonStrict(false), "object");
+      assertEquals(callIndexedStrict(false), "boolean");
+      assertEquals(callIndexedNonStrict(false), "object");
+
+      // All of the above, with getters
+      assertEquals(("hello").strictget(), "string");
+      assertEquals(("hello").nonstrictget(), "object");
+      assertEquals(("hello")[strict_name_get](), "string");
+      assertEquals(("hello")[nonstrict_name_get](), "object");
+      assertEquals(("hello")[strict_number_get](), "string");
+      assertEquals(("hello")[nonstrict_number_get](), "object");
+
+      assertEquals((10 + i).strictget(), "number");
+      assertEquals((10 + i).nonstrictget(), "object");
+      assertEquals((10 + i)[strict_name_get](), "number");
+      assertEquals((10 + i)[nonstrict_name_get](), "object");
+      assertEquals((10 + i)[strict_number_get](), "number");
+      assertEquals((10 + i)[nonstrict_number_get](), "object");
+
+      assertEquals((true).strictget(), "boolean");
+      assertEquals((true).nonstrictget(), "object");
+      assertEquals((true)[strict_name_get](), "boolean");
+      assertEquals((true)[nonstrict_name_get](), "object");
+      assertEquals((true)[strict_number_get](), "boolean");
+      assertEquals((true)[nonstrict_number_get](), "object");
+
+      assertEquals((false).strictget(), "boolean");
+      assertEquals((false).nonstrictget(), "object");
+      assertEquals((false)[strict_name_get](), "boolean");
+      assertEquals((false)[nonstrict_name_get](), "object");
+      assertEquals((false)[strict_number_get](), "boolean");
+      assertEquals((false)[nonstrict_number_get](), "object");
+
+      assertEquals(callStrictGet("howdy"), "string");
+      assertEquals(callNonStrictGet("howdy"), "object");
+      assertEquals(callKeyedStrictGet("howdy"), "string");
+      assertEquals(callKeyedNonStrictGet("howdy"), "object");
+      assertEquals(callIndexedStrictGet("howdy"), "string");
+      assertEquals(callIndexedNonStrictGet("howdy"), "object");
+
+      assertEquals(callStrictGet(17 + i), "number");
+      assertEquals(callNonStrictGet(17 + i), "object");
+      assertEquals(callKeyedStrictGet(17 + i), "number");
+      assertEquals(callKeyedNonStrictGet(17 + i), "object");
+      assertEquals(callIndexedStrictGet(17 + i), "number");
+      assertEquals(callIndexedNonStrictGet(17 + i), "object");
+
+      assertEquals(callStrictGet(true), "boolean");
+      assertEquals(callNonStrictGet(true), "object");
+      assertEquals(callKeyedStrictGet(true), "boolean");
+      assertEquals(callKeyedNonStrictGet(true), "object");
+      assertEquals(callIndexedStrictGet(true), "boolean");
+      assertEquals(callIndexedNonStrictGet(true), "object");
+
+      assertEquals(callStrictGet(false), "boolean");
+      assertEquals(callNonStrictGet(false), "object");
+      assertEquals(callKeyedStrictGet(false), "boolean");
+      assertEquals(callKeyedNonStrictGet(false), "object");
+      assertEquals(callIndexedStrictGet(false), "boolean");
+      assertEquals(callIndexedNonStrictGet(false), "object");
+
+    }
+  } finally {
+    // Cleanup
+    cleanup(String);
+    cleanup(Number);
+    cleanup(Boolean);
+  }
 })();

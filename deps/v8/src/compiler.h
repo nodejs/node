@@ -265,9 +265,8 @@ class Compiler : public AllStatic {
 #endif
 
   static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
-                                        Handle<String> name,
-                                        int start_position,
-                                        CompilationInfo* info);
+                                        CompilationInfo* info,
+                                        Handle<SharedFunctionInfo> shared);
 };
 
 

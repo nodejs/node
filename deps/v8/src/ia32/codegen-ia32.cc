@@ -8234,8 +8234,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     Variable* variable = node->expression()->AsVariableProxy()->AsVariable();
     if (variable != NULL) {
       // Delete of an unqualified identifier is disallowed in strict mode
-      // so this code can only be reached in non-strict mode.
-      ASSERT(strict_mode_flag() == kNonStrictMode);
+      // but "delete this" is.
+      ASSERT(strict_mode_flag() == kNonStrictMode || variable->is_this());
       Slot* slot = variable->AsSlot();
       if (variable->is_global()) {
         LoadGlobal();
@@ -8244,7 +8244,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         Result answer = frame_->InvokeBuiltin(Builtins::DELETE,
                                               CALL_FUNCTION, 3);
         frame_->Push(&answer);
-        return;
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
         // Call the runtime to delete from the context holding the named
@@ -8255,13 +8254,11 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         frame_->EmitPush(Immediate(variable->name()));
         Result answer = frame_->CallRuntime(Runtime::kDeleteContextSlot, 2);
         frame_->Push(&answer);
-        return;
+      } else {
+        // Default: Result of deleting non-global, not dynamically
+        // introduced variables is false.
+        frame_->Push(Factory::false_value());
       }
-
-      // Default: Result of deleting non-global, not dynamically
-      // introduced variables is false.
-      frame_->Push(Factory::false_value());
-
     } else {
       // Default: Result of deleting expressions is true.
       Load(node->expression());  // may have side-effects

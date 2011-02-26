@@ -102,33 +102,20 @@ S7.8.4_A4.3_T5: FAIL_OK
 S7.8.4_A7.2_T5: FAIL_OK
 
 # We allow some keywords to be used as identifiers
-S7.5.3_A1.17: FAIL_OK
 S7.5.3_A1.26: FAIL_OK
 S7.5.3_A1.18: FAIL_OK
 S7.5.3_A1.27: FAIL_OK
-S7.5.3_A1.28: FAIL_OK
-S7.5.3_A1.19: FAIL_OK
-S7.5.3_A1.29: FAIL_OK
-S7.5.3_A1.1: FAIL_OK
-S7.5.3_A1.2: FAIL_OK
-S7.5.3_A1.3: FAIL_OK
-S7.5.3_A1.4: FAIL_OK
 S7.5.3_A1.5: FAIL_OK
-S7.5.3_A1.8: FAIL_OK
 S7.5.3_A1.9: FAIL_OK
 S7.5.3_A1.10: FAIL_OK
 S7.5.3_A1.11: FAIL_OK
+# native
+S7.5.3_A1.20: FAIL_OK
 S7.5.3_A1.21: FAIL_OK
-S7.5.3_A1.12: FAIL_OK
-S7.5.3_A1.30: FAIL_OK
-S7.5.3_A1.31: FAIL_OK
-S7.5.3_A1.13: FAIL_OK
 S7.5.3_A1.22: FAIL_OK
 S7.5.3_A1.23: FAIL_OK
-S7.5.3_A1.14: FAIL_OK
 S7.5.3_A1.15: FAIL_OK
 S7.5.3_A1.24: FAIL_OK
-S7.5.3_A1.25: FAIL_OK
 S7.5.3_A1.16: FAIL_OK
 
 # This checks for non-262 behavior
@@ -199,10 +186,40 @@ S9.9_A2: FAIL_OK
 S15.1.3.2_A2.5_T1: PASS, SKIP if $mode == debug
 S15.1.3.1_A2.5_T1: PASS, SKIP if $mode == debug
 
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1196
+S8.7_A5_T2: FAIL
+
+# V8 bugs: http://code.google.com/p/v8/issues/detail?id=1198
+# V8 should not wrap this when calling builtin functions
+S15.2.4.3_A12: FAIL
+S15.2.4.7_A13: FAIL
+# Object.prototype.toString
+S15.2.4.2_A12: FAIL
+S15.2.4.2_A13: FAIL
+# Object.prototype.toLocaleString
+S15.2.4.3_A13: FAIL
+S15.2.4.4_A13: FAIL
+S15.2.4.4_A12: FAIL
+# Object.prototype.propertyIsEnumerable
+S15.2.4.7_A12: FAIL
+# Object.prototype.hasOwnProperty
+S15.2.4.5_A12: FAIL
+S15.2.4.5_A13: FAIL
+# Object.prototype.isPrototypeOf
+S15.2.4.6_A13: FAIL
+S15.2.4.6_A12: FAIL
+
+# Invalid test case (recent change adding var changes semantics)
+S8.3_A1_T1: FAIL
+# Test bug: http://code.google.com/p/sputniktests/issues/detail?id=35
+S15.5.4.8_A1_T1: FAIL
+# Invalid test case (recent change adding var changes semantics)
+S15.3_A3_T1: FAIL
+# Invalid test case (recent change adding var changes semantics)
+S15.3_A3_T3: FAIL
 
 # These tests fail because we had to add bugs to be compatible with JSC.  See
 # http://code.google.com/p/chromium/issues/detail?id=1717
-S15.4.4_A1.1_T2: FAIL_OK
 S15.5.4.1_A1_T2: FAIL_OK
 S15.5.4_A1: FAIL_OK
 S15.5.4_A3: FAIL_OK

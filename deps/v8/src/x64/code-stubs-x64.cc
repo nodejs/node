@@ -1336,54 +1336,33 @@ void TypeRecordingBinaryOpStub::GenerateFloatingPointCode(
 
 
 void TypeRecordingBinaryOpStub::GenerateStringAddCode(MacroAssembler* masm) {
-  GenerateRegisterArgsPush(masm);
+  ASSERT(op_ == Token::ADD);
+  NearLabel left_not_string, call_runtime;
+
   // Registers containing left and right operands respectively.
-  Register lhs = rdx;
-  Register rhs = rax;
+  Register left = rdx;
+  Register right = rax;
 
-  // Test for string arguments before calling runtime.
-  Label not_strings, both_strings, not_string1, string1, string1_smi2;
+  // Test if left operand is a string.
+  __ JumpIfSmi(left, &left_not_string);
+  __ CmpObjectType(left, FIRST_NONSTRING_TYPE, rcx);
+  __ j(above_equal, &left_not_string);
+  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
+  GenerateRegisterArgsPush(masm);
+  __ TailCallStub(&string_add_left_stub);
 
-  __ JumpIfNotString(lhs, r8, &not_string1);
+  // Left operand is not a string, test right.
+  __ bind(&left_not_string);
+  __ JumpIfSmi(right, &call_runtime);
+  __ CmpObjectType(right, FIRST_NONSTRING_TYPE, rcx);
+  __ j(above_equal, &call_runtime);
 
-  // First argument is a a string, test second.
-  __ JumpIfSmi(rhs, &string1_smi2);
-  __ CmpObjectType(rhs, FIRST_NONSTRING_TYPE, r9);
-  __ j(above_equal, &string1);
+  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+  GenerateRegisterArgsPush(masm);
+  __ TailCallStub(&string_add_right_stub);
 
-  // First and second argument are strings.
-  StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
-  __ TailCallStub(&string_add_stub);
-
-  __ bind(&string1_smi2);
-  // First argument is a string, second is a smi. Try to lookup the number
-  // string for the smi in the number string cache.
-  NumberToStringStub::GenerateLookupNumberStringCache(
-      masm, rhs, rbx, rcx, r8, true, &string1);
-
-  // Replace second argument on stack and tailcall string add stub to make
-  // the result.
-  __ movq(Operand(rsp, 1 * kPointerSize), rbx);
-  __ TailCallStub(&string_add_stub);
-
-  // Only first argument is a string.
-  __ bind(&string1);
-  __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_FUNCTION);
-
-  // First argument was not a string, test second.
-  __ bind(&not_string1);
-  __ JumpIfNotString(rhs, rhs, &not_strings);
-
-  // Only second argument is a string.
-  __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_FUNCTION);
-
-  __ bind(&not_strings);
   // Neither argument is a string.
-  // Pop arguments, because CallRuntimeCode wants to push them again.
-  __ pop(rcx);
-  __ pop(rax);
-  __ pop(rdx);
-  __ push(rcx);
+  __ bind(&call_runtime);
 }
 
 
@@ -1440,9 +1419,11 @@ void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
+  ASSERT(operands_type_ == TRBinaryOpIC::STRING);
   ASSERT(op_ == Token::ADD);
   GenerateStringAddCode(masm);
-
+  // Try to add arguments as strings, otherwise, transition to the generic
+  // TRBinaryOpIC type.
   GenerateTypeTransition(masm);
 }
 
@@ -3461,6 +3442,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // is and instance of the function and anything else to
   // indicate that the value is not an instance.
 
+  // None of the flags are supported on X64.
+  ASSERT(flags_ == kNoFlags);
+
   // Get the object - go slow case if it's a smi.
   Label slow;
   __ movq(rax, Operand(rsp, 2 * kPointerSize));
@@ -3536,10 +3520,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 }
 
 
-Register InstanceofStub::left() { return rax; }
+// Passing arguments in registers is not supported.
+Register InstanceofStub::left() { return no_reg; }
 
 
-Register InstanceofStub::right() { return rdx; }
+Register InstanceofStub::right() { return no_reg; }
 
 
 int CompareStub::MinorKey() {
@@ -3798,14 +3783,15 @@ void StringCharAtGenerator::GenerateSlow(
 
 
 void StringAddStub::Generate(MacroAssembler* masm) {
-  Label string_add_runtime;
+  Label string_add_runtime, call_builtin;
+  Builtins::JavaScript builtin_id = Builtins::ADD;
 
   // Load the two arguments.
-  __ movq(rax, Operand(rsp, 2 * kPointerSize));  // First argument.
-  __ movq(rdx, Operand(rsp, 1 * kPointerSize));  // Second argument.
+  __ movq(rax, Operand(rsp, 2 * kPointerSize));  // First argument (left).
+  __ movq(rdx, Operand(rsp, 1 * kPointerSize));  // Second argument (right).
 
   // Make sure that both arguments are strings if not known in advance.
-  if (string_check_) {
+  if (flags_ == NO_STRING_ADD_FLAGS) {
     Condition is_smi;
     is_smi = masm->CheckSmi(rax);
     __ j(is_smi, &string_add_runtime);
@@ -3817,6 +3803,20 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ j(is_smi, &string_add_runtime);
     __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, r9);
     __ j(above_equal, &string_add_runtime);
+  } else {
+    // Here at least one of the arguments is definitely a string.
+    // We convert the one that is not known to be a string.
+    if ((flags_ & NO_STRING_CHECK_LEFT_IN_STUB) == 0) {
+      ASSERT((flags_ & NO_STRING_CHECK_RIGHT_IN_STUB) != 0);
+      GenerateConvertArgument(masm, 2 * kPointerSize, rax, rbx, rcx, rdi,
+                              &call_builtin);
+      builtin_id = Builtins::STRING_ADD_RIGHT;
+    } else if ((flags_ & NO_STRING_CHECK_RIGHT_IN_STUB) == 0) {
+      ASSERT((flags_ & NO_STRING_CHECK_LEFT_IN_STUB) != 0);
+      GenerateConvertArgument(masm, 1 * kPointerSize, rdx, rbx, rcx, rdi,
+                              &call_builtin);
+      builtin_id = Builtins::STRING_ADD_LEFT;
+    }
   }
 
   // Both arguments are strings.
@@ -3844,14 +3844,14 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rbx: length of first string
   // rcx: length of second string
   // rdx: second string
-  // r8: map of first string if string check was performed above
-  // r9: map of second string if string check was performed above
+  // r8: map of first string (if flags_ == NO_STRING_ADD_FLAGS)
+  // r9: map of second string (if flags_ == NO_STRING_ADD_FLAGS)
   Label string_add_flat_result, longer_than_two;
   __ bind(&both_not_zero_length);
 
   // If arguments where known to be strings, maps are not loaded to r8 and r9
   // by the code above.
-  if (!string_check_) {
+  if (flags_ != NO_STRING_ADD_FLAGS) {
     __ movq(r8, FieldOperand(rax, HeapObject::kMapOffset));
     __ movq(r9, FieldOperand(rdx, HeapObject::kMapOffset));
   }
@@ -4037,6 +4037,54 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Just jump to runtime to add the two strings.
   __ bind(&string_add_runtime);
   __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
+
+  if (call_builtin.is_linked()) {
+    __ bind(&call_builtin);
+    __ InvokeBuiltin(builtin_id, JUMP_FUNCTION);
+  }
+}
+
+
+void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
+                                            int stack_offset,
+                                            Register arg,
+                                            Register scratch1,
+                                            Register scratch2,
+                                            Register scratch3,
+                                            Label* slow) {
+  // First check if the argument is already a string.
+  Label not_string, done;
+  __ JumpIfSmi(arg, &not_string);
+  __ CmpObjectType(arg, FIRST_NONSTRING_TYPE, scratch1);
+  __ j(below, &done);
+
+  // Check the number to string cache.
+  Label not_cached;
+  __ bind(&not_string);
+  // Puts the cached result into scratch1.
+  NumberToStringStub::GenerateLookupNumberStringCache(masm,
+                                                      arg,
+                                                      scratch1,
+                                                      scratch2,
+                                                      scratch3,
+                                                      false,
+                                                      &not_cached);
+  __ movq(arg, scratch1);
+  __ movq(Operand(rsp, stack_offset), arg);
+  __ jmp(&done);
+
+  // Check if the argument is a safe string wrapper.
+  __ bind(&not_cached);
+  __ JumpIfSmi(arg, slow);
+  __ CmpObjectType(arg, JS_VALUE_TYPE, scratch1);  // map -> scratch1.
+  __ j(not_equal, slow);
+  __ testb(FieldOperand(scratch1, Map::kBitField2Offset),
+           Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
+  __ j(zero, slow);
+  __ movq(arg, FieldOperand(arg, JSValue::kValueOffset));
+  __ movq(Operand(rsp, stack_offset), arg);
+
+  __ bind(&done);
 }
 
 

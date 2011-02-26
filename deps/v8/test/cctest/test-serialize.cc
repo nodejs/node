@@ -104,7 +104,7 @@ TEST(ExternalReferenceEncoder) {
   ExternalReferenceEncoder encoder;
   CHECK_EQ(make_code(BUILTIN, Builtins::ArrayCode),
            Encode(encoder, Builtins::ArrayCode));
-  CHECK_EQ(make_code(RUNTIME_FUNCTION, Runtime::kAbort),
+  CHECK_EQ(make_code(v8::internal::RUNTIME_FUNCTION, Runtime::kAbort),
            Encode(encoder, Runtime::kAbort));
   CHECK_EQ(make_code(IC_UTILITY, IC::kLoadCallbackProperty),
            Encode(encoder, IC_Utility(IC::kLoadCallbackProperty)));
@@ -142,7 +142,8 @@ TEST(ExternalReferenceDecoder) {
   CHECK_EQ(AddressOf(Builtins::ArrayCode),
            decoder.Decode(make_code(BUILTIN, Builtins::ArrayCode)));
   CHECK_EQ(AddressOf(Runtime::kAbort),
-           decoder.Decode(make_code(RUNTIME_FUNCTION, Runtime::kAbort)));
+           decoder.Decode(make_code(v8::internal::RUNTIME_FUNCTION,
+                                    Runtime::kAbort)));
   CHECK_EQ(AddressOf(IC_Utility(IC::kLoadCallbackProperty)),
            decoder.Decode(make_code(IC_UTILITY, IC::kLoadCallbackProperty)));
   ExternalReference keyed_load_function =
