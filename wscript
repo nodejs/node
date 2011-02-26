@@ -736,19 +736,26 @@ def build(bld):
       def dtrace_postprocess(task):
         abspath = bld.srcnode.abspath(bld.env_of_name(task.env.variant()))
         objs = glob.glob(abspath + 'src/*.o')
-
-        Utils.exec_command('%s -G -x nolibs -s %s %s' % (task.env.DTRACE,
-          task.inputs[0].srcpath(task.env), ' '.join(objs)))
+        source = task.inputs[0].srcpath(task.env)
+        target = task.outputs[0].srcpath(task.env)
+        cmd = '%s -G -x nolibs -s %s -o %s %s' % (task.env.DTRACE,
+                                                  source,
+                                                  target,
+                                                  ' '.join(objs))
+        Utils.exec_command(cmd)
 
       dtracepost = bld.new_task_gen(
         name   = "dtrace-postprocess",
         source = "src/node_provider.d",
+        target = "node_provider.o",
         always = True,
         before = "cxx_link",
         after  = "cxx",
+        rule = dtrace_postprocess
       )
 
-      bld.env.append_value('LINKFLAGS', 'node_provider.o')
+      t = join(bld.srcnode.abspath(bld.env_of_name("default")), dtracepost.target)
+      bld.env_of_name('default').append_value('LINKFLAGS', t)
 
       #
       # Note that for the same (mysterious) issue outlined above with respect
@@ -761,10 +768,9 @@ def build(bld):
       if bld.env["USE_DEBUG"]:
         dtracepost_g = dtracepost.clone("debug")
         dtracepost_g.rule = dtrace_postprocess
-        bld.env_of_name("debug").append_value('LINKFLAGS_V8_G',
-          'node_provider.o') 
+        t = join(bld.srcnode.abspath(bld.env_of_name("debug")), dtracepost.target)
+        bld.env_of_name("debug").append_value('LINKFLAGS_V8_G', t)
 
-      dtracepost.rule = dtrace_postprocess
 
   ### node lib
   node = bld.new_task_gen("cxx", product_type)
