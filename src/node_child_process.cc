@@ -327,6 +327,36 @@ int ChildProcess::Spawn(const char *file,
         _exit(127);
       }
 
+      if (custom_fds[0] == -1) {
+        close(stdin_pipe[1]);  // close write end
+        dup2(stdin_pipe[0],  STDIN_FILENO);
+      } else {
+        ResetFlags(custom_fds[0]);
+        dup2(custom_fds[0], STDIN_FILENO);
+      }
+
+      if (custom_fds[1] == -1) {
+        close(stdout_pipe[0]);  // close read end
+        dup2(stdout_pipe[1], STDOUT_FILENO);
+      } else {
+        ResetFlags(custom_fds[1]);
+        dup2(custom_fds[1], STDOUT_FILENO);
+      }
+
+      if (custom_fds[2] == -1) {
+        close(stderr_pipe[0]);  // close read end
+        dup2(stderr_pipe[1], STDERR_FILENO);
+      } else {
+        ResetFlags(custom_fds[2]);
+        dup2(custom_fds[2], STDERR_FILENO);
+      }
+
+      if (strlen(cwd) && chdir(cwd)) {
+        perror("chdir()");
+        _exit(127);
+      }
+
+
       static char buf[PATH_MAX + 1];
 
       int gid = -1;
@@ -380,34 +410,6 @@ int ChildProcess::Spawn(const char *file,
       }
 
 
-      if (custom_fds[0] == -1) {
-        close(stdin_pipe[1]);  // close write end
-        dup2(stdin_pipe[0],  STDIN_FILENO);
-      } else {
-        ResetFlags(custom_fds[0]);
-        dup2(custom_fds[0], STDIN_FILENO);
-      }
-
-      if (custom_fds[1] == -1) {
-        close(stdout_pipe[0]);  // close read end
-        dup2(stdout_pipe[1], STDOUT_FILENO);
-      } else {
-        ResetFlags(custom_fds[1]);
-        dup2(custom_fds[1], STDOUT_FILENO);
-      }
-
-      if (custom_fds[2] == -1) {
-        close(stderr_pipe[0]);  // close read end
-        dup2(stderr_pipe[1], STDERR_FILENO);
-      } else {
-        ResetFlags(custom_fds[2]);
-        dup2(custom_fds[2], STDERR_FILENO);
-      }
-
-      if (strlen(cwd) && chdir(cwd)) {
-        perror("chdir()");
-        _exit(127);
-      }
 
       environ = env;
 
